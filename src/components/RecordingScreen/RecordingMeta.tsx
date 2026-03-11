@@ -1,7 +1,7 @@
 import React from "react";
-import { View, Text, ScrollView } from "react-native";
+import { View, Text } from "react-native";
 import { styles } from "../../styles";
-import { fmt } from "../../utils";
+import { fmtTenths } from "../../utils";
 import { AudioAnalysis } from "@siteed/expo-audio-studio";
 import { LiveTapeVisualizer } from "../visualizers/LiveTapeVisualizer";
 
@@ -15,16 +15,23 @@ type Props = {
 };
 
 export function RecordingMeta({ ideaTitle, isRecording, isPaused, elapsedMs, analysisData, compact = false }: Props) {
-    const statusLabel = !isRecording ? "Ready" : isPaused ? "Paused" : "Recording...";
-
-    // We don't need `boostedData` math—the AudioVisualizer handles it internally if we provide `amplitudeScaling`.
+    const statusLabel = !isRecording ? "Ready" : isPaused ? "Paused" : "Recording";
+    const showActiveDot = isRecording && !isPaused;
 
     return (
-        <>
-            <View style={[styles.card, compact ? styles.recordingMetaCardCompact : null]}>
-                <Text style={styles.cardMeta}>{ideaTitle}</Text>
-                <Text style={[styles.recordingTimer, compact ? styles.recordingTimerCompact : null]}>{fmt(elapsedMs)}</Text>
-                <Text style={styles.cardMeta}>{statusLabel}</Text>
+        <View style={styles.recordingMetaSection}>
+            {ideaTitle ? <Text style={styles.recordingIdeaLabel}>{ideaTitle}</Text> : null}
+
+            <Text style={[styles.recordingTimer, compact ? styles.recordingTimerCompact : null]}>{fmtTenths(elapsedMs)}</Text>
+
+            <View style={styles.recordingStatusRow}>
+                <View
+                    style={[
+                        styles.recordingStatusDot,
+                        showActiveDot ? styles.recordingStatusDotActive : styles.recordingStatusDotIdle,
+                    ]}
+                />
+                <Text style={styles.recordingStatusText}>{statusLabel}</Text>
             </View>
 
             <View style={[styles.liveWaveWrap, compact ? styles.liveWaveWrapCompact : null]}>
@@ -34,13 +41,13 @@ export function RecordingMeta({ ideaTitle, isRecording, isPaused, elapsedMs, ana
                         currentTimeMs={elapsedMs}
                         intervalMs={analysisData.segmentDurationMs || 50}
                         theme={{
-                            waveColor: "#64748b",
-                            rulerColor: "#9ca3af",
-                            playheadColor: "#ef4444",
+                            waveColor: "#6b7280",
+                            rulerColor: "#a8afb8",
+                            playheadColor: "#e45757",
                         }}
                     />
                 ) : null}
             </View>
-        </>
+        </View>
     );
 }

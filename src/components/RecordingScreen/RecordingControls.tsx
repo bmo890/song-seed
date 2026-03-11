@@ -8,6 +8,7 @@ type Props = {
     isPaused: boolean;
     compact?: boolean;
     canSave?: boolean;
+    onOpenInput: () => void;
     onPause: () => Promise<void>;
     onResume: () => Promise<void>;
     onStart: () => Promise<void>;
@@ -19,6 +20,7 @@ export function RecordingControls({
     isPaused,
     compact = false,
     canSave = true,
+    onOpenInput,
     onPause,
     onResume,
     onStart,
@@ -30,14 +32,11 @@ export function RecordingControls({
                 style={({ pressed }) => [
                     styles.circleControlBtn,
                     compact ? styles.circleControlBtnCompact : null,
-                    isPaused ? styles.circleControlBtnActive : null,
-                    !isRecording || isPaused ? styles.circleControlBtnDisabled : null,
                     pressed ? styles.pressDown : null,
                 ]}
-                onPress={onPause}
-                disabled={!isRecording || isPaused}
+                onPress={onOpenInput}
             >
-                <Ionicons name="pause" size={compact ? 20 : 24} color={!isRecording || isPaused ? "#9ca3af" : "#374151"} />
+                <Ionicons name="headset-outline" size={compact ? 20 : 24} color="#374151" />
             </Pressable>
 
             <Pressable

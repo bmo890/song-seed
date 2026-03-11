@@ -1,5 +1,5 @@
 import { useAudioRecorder, ExpoAudioStreamModule, audioDeviceManager } from "@siteed/expo-audio-studio";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Alert } from "react-native";
 import { metersToWaveformPeaks } from "../utils";
 import { activateRecordingAudioSession } from "../services/audioSession";
@@ -9,6 +9,7 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
   const recorder = useAudioRecorder();
   const isRecordingRef = useRef(false);
   const isPausedRef = useRef(false);
+  const [displayElapsedMs, setDisplayElapsedMs] = useState(0);
 
   useEffect(() => {
     // Dedicated Cleanup hook if unmounted mid-recording to prevent Native Bridge panics
@@ -23,6 +24,29 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
     isRecordingRef.current = recorder.isRecording;
     isPausedRef.current = recorder.isPaused;
   }, [recorder.isPaused, recorder.isRecording]);
+
+  useEffect(() => {
+    let intervalId: ReturnType<typeof setInterval> | null = null;
+
+    if (recorder.isRecording && !recorder.isPaused) {
+      const baseElapsedMs = recorder.durationMs;
+      const startedAt = Date.now();
+
+      setDisplayElapsedMs(baseElapsedMs);
+      intervalId = setInterval(() => {
+        const nextElapsedMs = baseElapsedMs + (Date.now() - startedAt);
+        setDisplayElapsedMs(nextElapsedMs);
+      }, 33);
+    } else {
+      setDisplayElapsedMs(recorder.durationMs);
+    }
+
+    return () => {
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
+    };
+  }, [recorder.durationMs, recorder.isPaused, recorder.isRecording]);
 
 
   async function startRecording() {
@@ -142,7 +166,7 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
   return {
     isRecording: recorder.isRecording,
     isPaused: recorder.isPaused,
-    elapsedMs: recorder.durationMs,
+    elapsedMs: displayElapsedMs,
     analysisData: recorder.analysisData,
     startRecording,
     pauseRecording,

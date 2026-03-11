@@ -9,6 +9,10 @@ type Props = {
   versionLabel: string;
   updatedAtLabel: string;
   autoscrollState?: LyricsAutoscrollState;
+  variant?: "default" | "recording";
+  expanded?: boolean;
+  defaultExpanded?: boolean;
+  onToggleExpanded?: (expanded: boolean) => void;
 };
 
 function getAutoscrollLabel(state?: LyricsAutoscrollState) {
@@ -18,25 +22,48 @@ function getAutoscrollLabel(state?: LyricsAutoscrollState) {
   return "Autoscroll off";
 }
 
-export function PlayerLyricsPanel({ text, versionLabel, updatedAtLabel, autoscrollState }: Props) {
-  const [isExpanded, setIsExpanded] = useState(true);
+export function PlayerLyricsPanel({
+  text,
+  versionLabel,
+  updatedAtLabel,
+  autoscrollState,
+  variant = "default",
+  expanded,
+  defaultExpanded = true,
+  onToggleExpanded,
+}: Props) {
+  const [uncontrolledExpanded, setUncontrolledExpanded] = useState(defaultExpanded);
   const autoscrollLabel = getAutoscrollLabel(autoscrollState);
+  const isRecordingVariant = variant === "recording";
+  const isExpanded = expanded ?? uncontrolledExpanded;
 
   if (!text.trim()) return null;
 
+  function handleToggle() {
+    const nextExpanded = !isExpanded;
+    if (expanded === undefined) {
+      setUncontrolledExpanded(nextExpanded);
+    }
+    onToggleExpanded?.(nextExpanded);
+  }
+
   return (
-    <View style={styles.card}>
-      <View style={styles.playerLyricsHeader}>
+    <View style={isRecordingVariant ? styles.recordingLyricsPanel : styles.card}>
+      <View style={[styles.playerLyricsHeader, isRecordingVariant ? styles.recordingLyricsHeader : null]}>
         <View style={styles.playerLyricsHeaderText}>
-          <Text style={styles.playerLyricsTitle}>Lyrics</Text>
-          <Text style={styles.playerLyricsMeta}>
+          <Text style={[styles.playerLyricsTitle, isRecordingVariant ? styles.recordingLyricsTitle : null]}>Lyrics</Text>
+          <Text style={[styles.playerLyricsMeta, isRecordingVariant ? styles.recordingLyricsMeta : null]}>
             {versionLabel} • {updatedAtLabel}
           </Text>
-          {autoscrollLabel ? <Text style={styles.playerLyricsSyncMeta}>{autoscrollLabel}</Text> : null}
+          {autoscrollLabel ? (
+            <Text style={[styles.playerLyricsSyncMeta, isRecordingVariant ? styles.recordingLyricsSyncMeta : null]}>
+              {autoscrollLabel}
+            </Text>
+          ) : null}
         </View>
         <Pressable
-          style={styles.playerLyricsToggleBtn}
-          onPress={() => setIsExpanded((prev) => !prev)}
+          style={[styles.playerLyricsToggleBtn, isRecordingVariant ? styles.recordingLyricsToggleBtn : null]}
+          onPress={handleToggle}
           hitSlop={6}
         >
           <Ionicons name={isExpanded ? "chevron-up" : "chevron-down"} size={18} color="#4b5563" />
@@ -44,15 +71,15 @@ export function PlayerLyricsPanel({ text, versionLabel, updatedAtLabel, autoscro
       </View>
 
       {isExpanded ? (
-        <View style={styles.playerLyricsBody}>
+        <View style={[styles.playerLyricsBody, isRecordingVariant ? styles.recordingLyricsBody : null]}>
           <ScrollView
-            style={styles.playerLyricsScroll}
+            style={[styles.playerLyricsScroll, isRecordingVariant ? styles.recordingLyricsScroll : null]}
             nestedScrollEnabled
             showsVerticalScrollIndicator
             persistentScrollbar
             scrollEventThrottle={16}
           >
-            <Text style={styles.playerLyricsText}>{text}</Text>
+            <Text style={[styles.playerLyricsText, isRecordingVariant ? styles.recordingLyricsText : null]}>{text}</Text>
           </ScrollView>
         </View>
       ) : null}

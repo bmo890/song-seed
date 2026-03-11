@@ -76,6 +76,23 @@ export const fmt = (ms = 0) => {
   return `${sign}${String(mins).padStart(2, "0")}:${secStr}.${tenthsStr}`;
 };
 
+export const fmtTenths = (ms = 0) => {
+  const isNegative = ms < 0;
+  ms = Math.abs(ms);
+  const hrs = Math.floor(ms / 3600000);
+  const mins = Math.floor((ms % 3600000) / 60000);
+  const secs = Math.floor((ms % 60000) / 1000);
+  const tenths = Math.floor((ms % 1000) / 100);
+
+  const sign = isNegative ? "-" : "";
+  const secStr = String(secs).padStart(2, "0");
+
+  if (hrs > 0) {
+    return `${sign}${hrs}:${String(mins).padStart(2, "0")}:${secStr}`;
+  }
+  return `${sign}${String(mins).padStart(2, "0")}:${secStr}.${tenths}`;
+};
+
 export const fmtDuration = (ms = 0) => {
   const isNegative = ms < 0;
   ms = Math.abs(ms);

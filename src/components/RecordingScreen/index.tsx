@@ -3,7 +3,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar as ExpoStatusBar } from "expo-status-bar";
 import { useNavigation } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
-import { Modal, Pressable, Text, View } from "react-native";
+import { Alert, Modal, Pressable, ScrollView, Text, View } from "react-native";
 import { styles } from "../../styles";
 import { useStore } from "../../state/useStore";
 import { ScreenHeader } from "../common/ScreenHeader";
@@ -17,7 +17,6 @@ import { RecordingInputPicker } from "./RecordingInputPicker";
 import { getLatestLyricsVersion, lyricsDocumentToText } from "../../lyrics";
 import { PlayerLyricsPanel } from "../PlayerScreen/PlayerLyricsPanel";
 import { formatDate } from "../../utils";
-import { TransportLayout } from "../common/TransportLayout";
 
 export function RecordingScreen() {
   const navigation = useNavigation();
@@ -34,6 +33,7 @@ export function RecordingScreen() {
 
   const [isPrimaryDraft, setIsPrimaryDraft] = useState(false);
   const [settingsVisible, setSettingsVisible] = useState(false);
+  const [lyricsExpanded, setLyricsExpanded] = useState(false);
 
   const quickNameModalVisible = useStore((s) => s.quickNameModalVisible);
   const quickNameDraft = useStore((s) => s.quickNameDraft);
@@ -102,6 +102,29 @@ export function RecordingScreen() {
     }
     useStore.getState().setRecordingParentClipId(null);
     useStore.getState().setRecordingIdeaId(null);
+  }
+
+  function confirmDiscardAndExit() {
+    const hasRecordingToDiscard = recording.isRecording || recording.isPaused || recording.elapsedMs > 0;
+    if (!hasRecordingToDiscard) {
+      navigation.goBack();
+      return;
+    }
+
+    Alert.alert(
+      "Discard recording?",
+      "This recording has not been saved yet. If you leave now, it will be deleted.",
+      [
+        { text: "Keep recording", style: "cancel" },
+        {
+          text: "Discard",
+          style: "destructive",
+          onPress: () => {
+            cancelRecording().then(() => navigation.goBack());
+          },
+        },
+      ]
+    );
   }
 
   async function requestSaveRecording() {
@@ -176,15 +199,12 @@ export function RecordingScreen() {
 
   return (
     <SafeAreaView style={styles.screen}>
-      <TransportLayout
-        header={
+      <View style={styles.recordingScreenLayout}>
+        <View style={styles.transportHeaderZone}>
           <ScreenHeader
-            title="Recording"
+            title={recordingIdea?.title || "Recording"}
             leftIcon="back"
-            onLeftPress={() => {
-              cancelRecording();
-              navigation.goBack();
-            }}
+            onLeftPress={confirmDiscardAndExit}
             rightElement={
               <Pressable
                 style={({ pressed }) => [
@@ -193,85 +213,69 @@ export function RecordingScreen() {
                 ]}
                 onPress={() => setSettingsVisible(true)}
               >
-                <Ionicons name="ellipsis-horizontal" size={20} color="#111827" />
+                <Ionicons name="ellipsis-horizontal" size={16} color="#111827" />
               </Pressable>
             }
           />
-        }
-        floating={
-          hasProjectLyrics && latestLyricsVersion ? (
-            <PlayerLyricsPanel
-              text={latestLyricsText}
-              versionLabel={`Version ${recordingIdea?.lyrics?.versions.length ?? 1}`}
-              updatedAtLabel={formatDate(latestLyricsVersion.updatedAt)}
-              autoscrollState={{
-                mode: "off",
-                currentTimeMs: recording.elapsedMs,
-                durationMs: recording.elapsedMs,
-                activeLineId: null,
-              }}
-            />
-          ) : null
-        }
-        footer={
-          <View style={styles.transportFooterCard}>
-            <View style={styles.transportFooterMeta}>
-              <Text style={styles.transportFooterEyebrow}>Sticky Controls</Text>
-              <Text style={styles.transportFooterTitle}>
-                {recording.isRecording ? (recording.isPaused ? "Paused take" : "Recording take") : "Ready to record"}
-              </Text>
-            </View>
+        </View>
 
-            <RecordingControls
+        <ScrollView
+          style={styles.recordingScroll}
+          contentContainerStyle={[
+            styles.recordingScrollContent,
+            hasProjectLyrics && !lyricsExpanded ? styles.recordingScrollContentWithCollapsedLyrics : null,
+          ]}
+          showsVerticalScrollIndicator={false}
+        >
+          <View
+            style={[
+              styles.recordingContentBody,
+              hasProjectLyrics && !lyricsExpanded ? styles.recordingContentBodyCollapsedLyrics : null,
+            ]}
+          >
+            <RecordingMeta
+              ideaTitle=""
               isRecording={recording.isRecording}
               isPaused={recording.isPaused}
-              compact={hasProjectLyrics}
-              canSave={recording.isRecording || recording.isPaused}
-              onPause={recording.pauseRecording}
-              onResume={recording.resumeRecording}
-              onStart={recording.startRecording}
-              onRequestSave={requestSaveRecording}
+              elapsedMs={recording.elapsedMs}
+              analysisData={recording.analysisData}
+              compact={lyricsExpanded}
             />
 
-            <View style={styles.transportFooterRow}>
-              <Pressable
-                style={({ pressed }) => [
-                  styles.transportFooterButton,
-                  styles.transportFooterButtonSecondary,
-                  pressed ? styles.pressDown : null,
-                ]}
-                onPress={() => setSettingsVisible(true)}
-              >
-                <Text style={[styles.transportFooterButtonText, styles.transportFooterButtonTextSecondary]}>
-                  Input
-                </Text>
-              </Pressable>
-              <Pressable
-                style={({ pressed }) => [
-                  styles.transportFooterButton,
-                  styles.transportFooterButtonDanger,
-                  pressed ? styles.pressDown : null,
-                ]}
-                onPress={async () => {
-                  await cancelRecording();
-                  navigation.goBack();
+            {hasProjectLyrics && latestLyricsVersion ? (
+              <PlayerLyricsPanel
+                text={latestLyricsText}
+                versionLabel={`Version ${recordingIdea?.lyrics?.versions.length ?? 1}`}
+                updatedAtLabel={formatDate(latestLyricsVersion.updatedAt)}
+                autoscrollState={{
+                  mode: "off",
+                  currentTimeMs: recording.elapsedMs,
+                  durationMs: recording.elapsedMs,
+                  activeLineId: null,
                 }}
-              >
-                <Text style={styles.transportFooterButtonText}>Discard</Text>
-              </Pressable>
-            </View>
+                variant="recording"
+                expanded={lyricsExpanded}
+                defaultExpanded={false}
+                onToggleExpanded={setLyricsExpanded}
+              />
+            ) : null}
           </View>
-        }
-      >
-        <RecordingMeta
-          ideaTitle={recordingIdea?.title ?? ""}
-          isRecording={recording.isRecording}
-          isPaused={recording.isPaused}
-          elapsedMs={recording.elapsedMs}
-          analysisData={recording.analysisData}
-          compact={hasProjectLyrics}
-        />
-      </TransportLayout>
+        </ScrollView>
+
+        <View style={styles.recordingBottomDock}>
+          <RecordingControls
+            isRecording={recording.isRecording}
+            isPaused={recording.isPaused}
+            compact={false}
+            canSave={recording.isRecording || recording.isPaused}
+            onOpenInput={() => setSettingsVisible(true)}
+            onPause={recording.pauseRecording}
+            onResume={recording.resumeRecording}
+            onStart={recording.startRecording}
+            onRequestSave={requestSaveRecording}
+          />
+        </View>
+      </View>
 
       <QuickNameModal
         visible={quickNameModalVisible}
