@@ -27,6 +27,14 @@ export type ShareableAudioClip = {
     audioUri: string;
 };
 
+export type ZipArchiveEntry = {
+    archiveName: string;
+    fileUri?: string;
+    data?: string | Uint8Array;
+    directory?: boolean;
+    missingMessage?: string;
+};
+
 function analysisToWaveformPeaks(analysis: { dataPoints: Array<{ dB: number; amplitude: number }> }) {
     const levelsAsDb = analysis.dataPoints.map((point) =>
         Number.isFinite(point.dB) ? point.dB : point.amplitude > 0 ? 20 * Math.log10(point.amplitude) : -60
@@ -66,12 +74,12 @@ function getAudioShareMimeType(audioUri: string) {
     return "audio/*";
 }
 
-function getArchiveFileExtension(audioUri: string) {
+export function getArchiveFileExtension(audioUri: string) {
     const match = audioUri.match(/\.([a-zA-Z0-9]+)(?:\?|$)/);
     return match?.[1]?.toLowerCase() ?? "m4a";
 }
 
-function sanitizeArchiveSegment(value: string) {
+export function sanitizeArchiveSegment(value: string) {
     const normalized = value
         .replace(/[<>:"/\\|?*\u0000-\u001f]/g, " ")
         .replace(/\s+/g, " ")
@@ -80,7 +88,7 @@ function sanitizeArchiveSegment(value: string) {
     return normalized || "Clip";
 }
 
-function buildTimestampSlug() {
+export function buildTimestampSlug() {
     const now = new Date();
     const yyyy = now.getFullYear();
     const mm = String(now.getMonth() + 1).padStart(2, "0");
@@ -217,7 +225,7 @@ function buildZipEndRecord(entryCount: number, centralDirectorySize: number, cen
     return record;
 }
 
-async function ensureShareDirectory() {
+export async function ensureShareDirectory() {
     if (!FileSystem.documentDirectory) {
         throw new Error("Document directory unavailable.");
     }
@@ -228,7 +236,7 @@ async function ensureShareDirectory() {
     }
 }
 
-async function shareFileUri(fileUri: string, title: string, mimeType: string) {
+export async function shareFileUri(fileUri: string, title: string, mimeType: string) {
     const expoSharing = getExpoSharingModule();
 
     if (expoSharing) {
@@ -259,19 +267,38 @@ async function shareFileUri(fileUri: string, title: string, mimeType: string) {
     );
 }
 
-async function createAudioZipArchive(destinationUri: string, clips: Array<{ archiveName: string; audioUri: string }>) {
-    const entries = await Promise.all(
-        clips.map(async (clip) => {
-            const info = await FileSystem.getInfoAsync(clip.audioUri);
-            if (!info.exists) {
-                throw new Error(`Missing file: ${clip.archiveName}`);
+export async function createZipArchive(destinationUri: string, entries: ZipArchiveEntry[]) {
+    const resolvedEntries = await Promise.all(
+        entries.map(async (entry) => {
+            if (entry.directory) {
+                const directoryName = entry.archiveName.endsWith("/") ? entry.archiveName : `${entry.archiveName}/`;
+                return {
+                    filenameBytes: encodeUtf8(directoryName),
+                    data: new Uint8Array(0),
+                    checksum: 0,
+                };
             }
 
-            const base64 = await FileSystem.readAsStringAsync(clip.audioUri, {
-                encoding: FileSystem.EncodingType.Base64,
-            });
-            const data = base64ToBytes(base64);
-            const filenameBytes = encodeUtf8(clip.archiveName);
+            let data: Uint8Array;
+            if (typeof entry.fileUri === "string") {
+                const info = await FileSystem.getInfoAsync(entry.fileUri);
+                if (!info.exists) {
+                    throw new Error(`Missing file: ${entry.archiveName}`);
+                }
+
+                const base64 = await FileSystem.readAsStringAsync(entry.fileUri, {
+                    encoding: FileSystem.EncodingType.Base64,
+                });
+                data = base64ToBytes(base64);
+            } else if (typeof entry.data === "string") {
+                data = encodeUtf8(entry.data);
+            } else if (entry.data instanceof Uint8Array) {
+                data = entry.data;
+            } else {
+                throw new Error(`No archive data for ${entry.archiveName}`);
+            }
+
+            const filenameBytes = encodeUtf8(entry.archiveName);
             const checksum = crc32(data);
 
             return {
@@ -286,7 +313,7 @@ async function createAudioZipArchive(destinationUri: string, clips: Array<{ arch
     const localParts: Uint8Array[] = [];
     const centralParts: Uint8Array[] = [];
 
-    entries.forEach((entry) => {
+    resolvedEntries.forEach((entry) => {
         const localHeader = buildZipLocalHeader(entry.filenameBytes, entry.data.length, entry.checksum);
         const centralHeader = buildZipCentralHeader(entry.filenameBytes, entry.data.length, entry.checksum, localOffset);
 
@@ -296,7 +323,7 @@ async function createAudioZipArchive(destinationUri: string, clips: Array<{ arch
     });
 
     const centralDirectorySize = centralParts.reduce((sum, part) => sum + part.length, 0);
-    const endRecord = buildZipEndRecord(entries.length, centralDirectorySize, localOffset);
+    const endRecord = buildZipEndRecord(resolvedEntries.length, centralDirectorySize, localOffset);
     const totalSize =
         localParts.reduce((sum, part) => sum + part.length, 0) +
         centralDirectorySize +
@@ -515,7 +542,7 @@ export async function shareAudioClips(clips: ShareableAudioClip[], bundleLabel =
     await ensureShareDirectory();
 
     const usedNames = new Set<string>();
-    const archiveEntries = clips.map((clip, index) => {
+    const archiveEntries: ZipArchiveEntry[] = clips.map((clip, index) => {
         const baseName = sanitizeArchiveSegment(clip.title);
         const extension = getArchiveFileExtension(clip.audioUri);
         let archiveName = `${baseName}.${extension}`;
@@ -530,13 +557,13 @@ export async function shareAudioClips(clips: ShareableAudioClip[], bundleLabel =
 
         return {
             archiveName,
-            audioUri: clip.audioUri,
+            fileUri: clip.audioUri,
         };
     });
 
     const archiveTitle = `${sanitizeArchiveSegment(bundleLabel)} ${buildTimestampSlug()}`;
     const archiveUri = `${SONG_SEED_SHARE_DIR}/${archiveTitle}.zip`;
 
-    await createAudioZipArchive(archiveUri, archiveEntries);
+    await createZipArchive(archiveUri, archiveEntries);
     await shareFileUri(archiveUri, archiveTitle, "application/zip");
 }
