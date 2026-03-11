@@ -68,6 +68,15 @@ export type SongIdea = {
 export type PlaybackQueueItem = { ideaId: string; clipId: string };
 export type PlayerTarget = PlaybackQueueItem | null;
 export type InlineTarget = { ideaId: string; clipId: string } | null;
+export type TransportScreenKind = "recording" | "player" | "editor";
+export type TransportInteractionZone = "header" | "surface" | "footer" | "floating";
+export type LyricsAutoscrollMode = "off" | "follow" | "manual";
+export type LyricsAutoscrollState = {
+  mode: LyricsAutoscrollMode;
+  currentTimeMs: number;
+  durationMs: number;
+  activeLineId?: string | null;
+};
 
 export type IdeasTimelineMetric = "created" | "updated";
 

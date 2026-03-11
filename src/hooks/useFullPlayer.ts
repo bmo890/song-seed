@@ -144,6 +144,30 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
     }
   }
 
+  async function pausePlayer() {
+    try {
+      await player.pause();
+    } catch (err) {
+      console.log("FULL pause error", err);
+    }
+  }
+
+  async function playPlayer() {
+    const durationMs = playerDuration || Math.round((status.duration ?? 0) * 1000);
+    const positionMs = playerPosition || Math.round((status.currentTime ?? 0) * 1000);
+    const atEnd = durationMs > 0 && positionMs >= durationMs - 250;
+
+    try {
+      await activatePlaybackAudioSession();
+      if (atEnd) {
+        await player.seekTo(0);
+      }
+      await player.play();
+    } catch (err) {
+      console.log("FULL resume error", err);
+    }
+  }
+
   async function seekTo(ms: number) {
     const durationMs = playerDuration || Math.round((status.duration ?? 0) * 1000);
     const targetMs = Math.max(0, Math.min(ms, durationMs || ms));
@@ -166,6 +190,8 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
     openPlayer,
     closePlayer,
     togglePlayer,
+    pausePlayer,
+    playPlayer,
     seekTo,
     seekBy,
     updateLockScreenMetadata,

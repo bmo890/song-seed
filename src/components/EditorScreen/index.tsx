@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useState, useRef } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar as ExpoStatusBar } from "expo-status-bar";
 import { View, Text, ActivityIndicator, TouchableOpacity, ScrollView, Alert, Modal, StyleSheet, Pressable } from "react-native";
-import Animated from "react-native-reanimated";
 import { StackActions, useNavigation, useRoute } from "@react-navigation/native";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
@@ -24,6 +23,8 @@ import { MAX_DETAILED_AUDIO_ANALYSIS_DURATION_MS, loadAudioDurationMs, loadManag
 import { activatePlaybackAudioSession } from "../../services/audioSession";
 import { getCollectionAncestors, getCollectionById } from "../../utils";
 import { getCollectionHierarchyLevel, getIdeaHierarchyLevel } from "../../hierarchy";
+import { TransportLayout } from "../common/TransportLayout";
+import { useTransportScrubbing } from "../../hooks/useTransportScrubbing";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Editor">;
 
@@ -101,11 +102,8 @@ export function EditorScreen() {
     const [regionIdCounter, setRegionIdCounter] = useState(1);
     const [editMode, setEditMode] = useState<"keep" | "remove">("keep");
 
-    const wasPlayingRef = useRef(false);
-    const isScrubbingRef = useRef(false);
     const previewWasPlayingRef = useRef(false);
     const previewPausePromiseRef = useRef<Promise<void> | null>(null);
-    const [isScrubbing, setIsScrubbing] = useState(false);
     const [isExporting, setIsExporting] = useState(false);
     const [exportModalVisible, setExportModalVisible] = useState(false);
     const [extractNameDrafts, setExtractNameDrafts] = useState<Record<string, string>>({});
@@ -134,7 +132,21 @@ export function EditorScreen() {
     const player = useAudioPlayer(playerSource, playerOptions);
     const status = useAudioPlayerStatus(player);
     const statusTimeMs = typeof status.currentTime === "number" ? Math.round(status.currentTime * 1000) : null;
-    const playheadTimeMs = isScrubbing ? currentTime : statusTimeMs ?? currentTime;
+    const transportScrub = useTransportScrubbing({
+        isPlaying: !!status.playing,
+        durationMs: analysisData?.durationMs ?? durationHintMs ?? 0,
+        pause: async () => {
+            safePause();
+        },
+        play: async () => {
+            safePlay();
+        },
+        seekTo: async (timeMs) => {
+            setCurrentTime((prev) => (prev === timeMs ? prev : timeMs));
+            await player.seekTo(timeMs / 1000);
+        },
+    });
+    const playheadTimeMs = transportScrub.isScrubbing ? currentTime : statusTimeMs ?? currentTime;
 
     useEffect(() => {
         activatePlaybackAudioSession().catch((error) => {
@@ -168,55 +180,6 @@ export function EditorScreen() {
             safePause();
         } else {
             safePlay();
-        }
-    };
-
-    const handleScrubStateChange = (scrubbing: boolean) => {
-        isScrubbingRef.current = scrubbing;
-        if (scrubbing) {
-            setIsScrubbing((prev) => (prev ? prev : true));
-            wasPlayingRef.current = status.playing || wasPlayingRef.current;
-            safePause();
-            return;
-        }
-
-        setIsScrubbing((prev) => (prev ? false : prev));
-        if (wasPlayingRef.current) {
-            safePlay();
-            wasPlayingRef.current = false;
-        }
-    };
-
-    const handleSeekToTime = async (timeMs: number) => {
-        let wasPlaying = status.playing || wasPlayingRef.current;
-
-        if (analysisData && timeMs >= analysisData.durationMs - 5) {
-            wasPlaying = false;
-            wasPlayingRef.current = false;
-        }
-
-        isScrubbingRef.current = true;
-        setIsScrubbing((prev) => (prev ? prev : true));
-        setCurrentTime((prev) => (prev === timeMs ? prev : timeMs));
-        safePause();
-
-        try {
-            await player.seekTo(timeMs / 1000);
-            await new Promise((resolve) => setTimeout(resolve, 90));
-        } catch (e) {
-            console.warn("Seek error:", e);
-        }
-        if (!wasPlaying) {
-            wasPlayingRef.current = false;
-        }
-    };
-
-    const seekAndSettle = async (timeMs: number) => {
-        handleScrubStateChange(true);
-        try {
-            await handleSeekToTime(timeMs);
-        } finally {
-            handleScrubStateChange(false);
         }
     };
 
@@ -563,9 +526,7 @@ export function EditorScreen() {
             return;
         }
 
-        wasPlayingRef.current = false;
-        isScrubbingRef.current = true;
-        setIsScrubbing((prev) => (prev ? prev : true));
+        await transportScrub.cancelScrub();
         safePause();
         setPreviewRegionId(region.id);
         setCurrentTime(region.start);
@@ -576,9 +537,6 @@ export function EditorScreen() {
         } catch (e) {
             console.warn("Preview error:", e);
             setPreviewRegionId(null);
-        } finally {
-            isScrubbingRef.current = false;
-            setIsScrubbing(false);
         }
     };
 
@@ -741,17 +699,20 @@ export function EditorScreen() {
 
     return (
         <SafeAreaView style={styles.screen}>
-            <ScreenHeader
-                title="Audio Editor"
-                leftIcon="back"
-                onLeftPress={() => {
-                    safePause();
-                    navigation.goBack();
-                }}
-            />
-            {activeWorkspace && targetCollection && sourceClip && targetIdea ? (
-                <AppBreadcrumbs
-                    items={[
+            <TransportLayout
+                header={
+                    <>
+                        <ScreenHeader
+                            title="Audio Editor"
+                            leftIcon="back"
+                            onLeftPress={() => {
+                                safePause();
+                                navigation.goBack();
+                            }}
+                        />
+                        {activeWorkspace && targetCollection && sourceClip && targetIdea ? (
+                            <AppBreadcrumbs
+                                items={[
                         {
                             key: "home",
                             label: "Home",
@@ -793,29 +754,74 @@ export function EditorScreen() {
                             level: "clip" as const,
                             active: true,
                         },
-                    ]}
-                />
-            ) : null}
-
-            <View style={{ flex: 1, paddingVertical: 20 }}>
+                                ]}
+                            />
+                        ) : null}
+                    </>
+                }
+                footer={
+                    analysisData ? (
+                        <View style={styles.transportFooterCard}>
+                            <View style={styles.transportFooterMeta}>
+                                <Text style={styles.transportFooterEyebrow}>Sticky Controls</Text>
+                                <Text style={styles.transportFooterTitle}>
+                                    {activeExportCount > 0 ? `${activeExportCount} export${activeExportCount === 1 ? "" : "s"} ready` : "Build edit regions"}
+                                </Text>
+                            </View>
+                            <View style={styles.transportFooterRow}>
+                                <Pressable
+                                    onPress={addRange}
+                                    style={({ pressed }) => [
+                                        styles.transportFooterButton,
+                                        pressed ? styles.pressDown : null,
+                                    ]}
+                                >
+                                    <Text style={styles.transportFooterButtonText}>Add Selection</Text>
+                                </Pressable>
+                                <Pressable
+                                    onPress={openExportModal}
+                                    style={({ pressed }) => [
+                                        styles.transportFooterButton,
+                                        styles.transportFooterButtonSecondary,
+                                        activeExportCount === 0 ? styles.transportFooterButtonDisabled : null,
+                                        pressed ? styles.pressDown : null,
+                                    ]}
+                                    disabled={activeExportCount === 0}
+                                >
+                                    <Text style={[styles.transportFooterButtonText, styles.transportFooterButtonTextSecondary]}>
+                                        Export
+                                    </Text>
+                                </Pressable>
+                            </View>
+                        </View>
+                    ) : null
+                }
+                scrollable
+            >
                 {isLoading ? (
                     <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
                         <ActivityIndicator size="large" color="#10b981" />
                         <Text style={{ marginTop: 10, color: "#64748b" }}>Analyzing audio...</Text>
                     </View>
                 ) : analysisData ? (
-                    <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
+                    <>
                         <AudioReel
                             waveformPeaks={waveformPeaks}
                             durationMs={analysisData.durationMs}
                             currentTimeMs={playheadTimeMs}
                             isPlaying={!!status.playing}
-                            isScrubbing={isScrubbing}
-                            onSeek={handleSeekToTime}
+                            isScrubbing={transportScrub.isScrubbing}
+                            onSeek={transportScrub.scrubTo}
                             onTogglePlay={togglePlay}
-                            onSeekToStart={() => handleSeekToTime(0)}
-                            onSeekToEnd={() => handleSeekToTime(analysisData.durationMs)}
-                            onScrubStateChange={handleScrubStateChange}
+                            onSeekToStart={() => transportScrub.scrubTo(0)}
+                            onSeekToEnd={() => transportScrub.scrubTo(analysisData.durationMs)}
+                            onScrubStateChange={(scrubbing) => {
+                                if (scrubbing) {
+                                    void transportScrub.beginScrub();
+                                    return;
+                                }
+                                void transportScrub.endScrub();
+                            }}
                             selectedRanges={selectedRanges}
                             renderOverlay={({ pixelsPerMs, timelineTranslateX, timelineScale, sharedAudioProgress }) => (
                                 <MultiTimeRangeSelector
@@ -825,17 +831,19 @@ export function EditorScreen() {
                                     sharedTranslateX={timelineTranslateX}
                                     sharedScale={timelineScale}
                                     sharedAudioProgress={sharedAudioProgress}
-                                    onScrubStateChange={handleScrubStateChange}
+                                    onScrubStateChange={(scrubbing) => {
+                                        if (scrubbing) {
+                                            void transportScrub.beginScrub();
+                                            return;
+                                        }
+                                        void transportScrub.endScrub();
+                                    }}
                                     onSeek={(time) => {
                                         setCurrentTime((prev) => (prev === time ? prev : time));
                                         try {
                                             player.seekTo(time / 1000);
                                         } catch (e) {
                                             console.warn("Seek error:", e);
-                                        }
-                                        if (wasPlayingRef.current) {
-                                            safePlay();
-                                            wasPlayingRef.current = false;
                                         }
                                     }}
                                     onRegionChange={(id, start, end) => {
@@ -861,25 +869,6 @@ export function EditorScreen() {
                                 </TouchableOpacity>
                             </View>
 
-                            <TouchableOpacity
-                                onPress={addRange}
-                                style={{ backgroundColor: "#3b82f6", padding: 12, borderRadius: 8, alignItems: "center", marginTop: 12 }}
-                            >
-                                <Text style={{ color: "#fff", fontWeight: "600" }}>Add Selection</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                                onPress={openExportModal}
-                                style={{
-                                    backgroundColor: activeExportCount > 0 ? "#10b981" : "#94a3b8",
-                                    padding: 12,
-                                    borderRadius: 8,
-                                    alignItems: "center",
-                                    marginTop: 12,
-                                }}
-                                disabled={selectedRanges.length === 0}
-                            >
-                                <Text style={{ color: "#fff", fontWeight: "600" }}>Export Clips</Text>
-                            </TouchableOpacity>
                         </View>
 
                         {selectedRanges.length > 0 && (
@@ -887,7 +876,7 @@ export function EditorScreen() {
                                 <Text style={{ fontSize: 16, fontWeight: "600", color: "#f8fafc", marginBottom: 12 }}>
                                     Selected Regions ({selectedRanges.length})
                                 </Text>
-                                {selectedRanges.map((r, i) => (
+                                {selectedRanges.map((r) => (
                                     <View key={r.id} style={{ flexDirection: "row", alignItems: "center", marginBottom: 8, gap: 10 }}>
                                         <View style={{ flex: 1, flexDirection: "row", justifyContent: "space-between", alignItems: "center", backgroundColor: "#1e293b", padding: 12, borderRadius: 8, borderLeftWidth: 4, borderLeftColor: r.type === "keep" ? "#10b981" : "#ef4444" }}>
                                             <View style={{ flex: 1 }}>
@@ -899,10 +888,10 @@ export function EditorScreen() {
                                                 </Text>
                                             </View>
                                             <View style={{ flexDirection: "row", alignItems: "center", gap: 16, paddingRight: 4 }}>
-                                                <TouchableOpacity onPress={() => { void seekAndSettle(r.start); }} style={{ padding: 4 }}>
+                                                <TouchableOpacity onPress={() => { void transportScrub.seekAndSettle(r.start); }} style={{ padding: 4 }}>
                                                     <Feather name="skip-back" size={18} color="#3b82f6" />
                                                 </TouchableOpacity>
-                                                <TouchableOpacity onPress={() => { void seekAndSettle(r.end); }} style={{ padding: 4 }}>
+                                                <TouchableOpacity onPress={() => { void transportScrub.seekAndSettle(r.end); }} style={{ padding: 4 }}>
                                                     <Feather name="skip-forward" size={18} color="#3b82f6" />
                                                 </TouchableOpacity>
                                             </View>
@@ -916,13 +905,13 @@ export function EditorScreen() {
                         )}
 
                         <View style={{ height: 40 }} />
-                    </ScrollView>
+                    </>
                 ) : (
                     <Text style={{ textAlign: "center", marginTop: 40, color: "#64748b" }}>
                         No file available to edit.
                     </Text>
                 )}
-            </View>
+            </TransportLayout>
 
             <ExpoStatusBar style="dark" />
 

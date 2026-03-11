@@ -7,13 +7,23 @@ type Props = {
     isRecording: boolean;
     isPaused: boolean;
     compact?: boolean;
+    canSave?: boolean;
     onPause: () => Promise<void>;
     onResume: () => Promise<void>;
     onStart: () => Promise<void>;
     onRequestSave: () => void;
 };
 
-export function RecordingControls({ isRecording, isPaused, compact = false, onPause, onResume, onStart, onRequestSave }: Props) {
+export function RecordingControls({
+    isRecording,
+    isPaused,
+    compact = false,
+    canSave = true,
+    onPause,
+    onResume,
+    onStart,
+    onRequestSave,
+}: Props) {
     return (
         <View style={[styles.recordingControlsBar, compact ? styles.recordingControlsBarCompact : null]}>
             <Pressable
@@ -52,8 +62,16 @@ export function RecordingControls({ isRecording, isPaused, compact = false, onPa
                 <Ionicons name={!isRecording || isPaused ? "mic" : "pause"} size={compact ? 28 : 34} color="#fff" />
             </Pressable>
 
-            <Pressable style={[styles.circleControlBtn, compact ? styles.circleControlBtnCompact : null]} onPress={onRequestSave}>
-                <Ionicons name="save-outline" size={compact ? 20 : 24} color="#374151" />
+            <Pressable
+                style={[
+                    styles.circleControlBtn,
+                    compact ? styles.circleControlBtnCompact : null,
+                    !canSave ? styles.circleControlBtnDisabled : null,
+                ]}
+                onPress={onRequestSave}
+                disabled={!canSave}
+            >
+                <Ionicons name="save-outline" size={compact ? 20 : 24} color={!canSave ? "#9ca3af" : "#374151"} />
             </Pressable>
         </View>
     );
