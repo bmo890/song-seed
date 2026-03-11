@@ -1540,6 +1540,10 @@ export const styles = StyleSheet.create({
     color: "#40658c",
     fontWeight: "700",
   },
+  recordingLyricsAutoscrollBtn: {
+    alignSelf: "flex-start",
+    paddingVertical: 2,
+  },
   recordingLyricsToggleBtn: {
     backgroundColor: "transparent",
     borderWidth: 0,
@@ -1552,6 +1556,35 @@ export const styles = StyleSheet.create({
     borderRadius: 0,
     paddingHorizontal: 0,
     paddingVertical: 4,
+  },
+  recordingLyricsSpeedRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 10,
+    flexWrap: "wrap",
+  },
+  recordingLyricsSpeedChip: {
+    minHeight: 28,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#d7dde7",
+    paddingHorizontal: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#f7f8fb",
+  },
+  recordingLyricsSpeedChipActive: {
+    borderColor: "#40658c",
+    backgroundColor: "#40658c",
+  },
+  recordingLyricsSpeedChipText: {
+    fontSize: 12,
+    color: "#536273",
+    fontWeight: "700",
+  },
+  recordingLyricsSpeedChipTextActive: {
+    color: "#ffffff",
   },
   recordingLyricsScroll: {
     maxHeight: 420,

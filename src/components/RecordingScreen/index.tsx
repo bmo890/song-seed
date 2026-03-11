@@ -34,6 +34,8 @@ export function RecordingScreen() {
   const [isPrimaryDraft, setIsPrimaryDraft] = useState(false);
   const [settingsVisible, setSettingsVisible] = useState(false);
   const [lyricsExpanded, setLyricsExpanded] = useState(false);
+  const [lyricsAutoscrollMode, setLyricsAutoscrollMode] = useState<"off" | "follow" | "manual">("follow");
+  const [lyricsAutoscrollSpeedMultiplier, setLyricsAutoscrollSpeedMultiplier] = useState(1);
 
   const quickNameModalVisible = useStore((s) => s.quickNameModalVisible);
   const quickNameDraft = useStore((s) => s.quickNameDraft);
@@ -248,7 +250,7 @@ export function RecordingScreen() {
                 versionLabel={`Version ${recordingIdea?.lyrics?.versions.length ?? 1}`}
                 updatedAtLabel={formatDate(latestLyricsVersion.updatedAt)}
                 autoscrollState={{
-                  mode: "off",
+                  mode: lyricsAutoscrollMode,
                   currentTimeMs: recording.elapsedMs,
                   durationMs: recording.elapsedMs,
                   activeLineId: null,
@@ -257,6 +259,12 @@ export function RecordingScreen() {
                 expanded={lyricsExpanded}
                 defaultExpanded={false}
                 onToggleExpanded={setLyricsExpanded}
+                autoscrollEnabled={lyricsAutoscrollMode === "follow"}
+                autoscrollActive={recording.isRecording && !recording.isPaused}
+                autoscrollSpeedMultiplier={lyricsAutoscrollSpeedMultiplier}
+                onToggleAutoscroll={(enabled) => setLyricsAutoscrollMode(enabled ? "follow" : "off")}
+                onAutoscrollInterrupted={() => setLyricsAutoscrollMode("manual")}
+                onSelectAutoscrollSpeedMultiplier={setLyricsAutoscrollSpeedMultiplier}
               />
             ) : null}
           </View>
