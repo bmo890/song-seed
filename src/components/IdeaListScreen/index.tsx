@@ -9,6 +9,7 @@ import { styles } from "../../styles";
 import { ClipboardBanner } from "../ClipboardBanner";
 import { SongIdea, ClipVersion, PlaybackQueueItem, IdeasTimelineMetric, WorkspaceHiddenDay } from "../../types";
 import { ScreenHeader } from "../common/ScreenHeader";
+import { AppBreadcrumbs } from "../common/AppBreadcrumbs";
 import { ActionButtons } from "./ActionButtons";
 import { FilterSortBar } from "./FilterSortBar";
 import { IdeaSelectionBar } from "./IdeaSelectionBar";
@@ -412,6 +413,16 @@ export function IdeaListScreen() {
   );
   const hasActivityRangeFilter =
     typeof activityRangeStartTs === "number" && typeof activityRangeEndTs === "number";
+  const visibleIdeasCount = listIdeas.filter((idea) => !isIdeaEffectivelyHidden(idea)).length;
+  const ideasHeaderMeta = [
+    `${visibleIdeasCount} idea${visibleIdeasCount === 1 ? "" : "s"}`,
+    childCollections.length > 0
+      ? `${childCollections.length} subcollection${childCollections.length === 1 ? "" : "s"}`
+      : null,
+    hasActivityRangeFilter ? "activity slice" : null,
+  ]
+    .filter((value): value is string => !!value)
+    .join("  •  ");
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -1047,98 +1058,97 @@ export function IdeaListScreen() {
 
   return (
     <SafeAreaView style={[styles.screen, styles.screenIdeas]}>
-      <View style={styles.ideasPageHeader}>
-        <View style={styles.ideasPageHeaderRow}>
-          <Pressable
-            style={({ pressed }) => [styles.hamburgerBtn, pressed ? styles.pressDown : null]}
-            onPress={() => ((rootNavigation ?? (navigation as any)) as any).openDrawer?.()}
-          >
-            <Text style={styles.sideNavLabel}>☰</Text>
-          </Pressable>
-
-          <View style={styles.ideasPageHeaderTitleBlock}>
-            <View style={styles.ideasPageHeaderBreadcrumbRow}>
-              <Pressable
-                style={({ pressed }) => [
-                  styles.ideasPageHeaderBreadcrumbItem,
-                  pressed ? styles.pressDown : null,
-                ]}
-                onPress={() => navigateRoot("Home", { screen: "Workspaces" })}
-              >
-                <Ionicons
-                  name={getHierarchyIconName("home")}
-                  size={12}
-                  color={getHierarchyIconColor("home")}
-                />
-              </Pressable>
-
-              <Ionicons name="chevron-forward" size={12} color="#94a3b8" />
-
-              <Pressable
-                style={({ pressed }) => [
-                  styles.ideasPageHeaderBreadcrumbItem,
-                  pressed ? styles.pressDown : null,
-                ]}
-                onPress={goToBrowse}
-              >
-                <View style={styles.ideasPageHeaderBreadcrumbContent}>
-                  <Ionicons
-                    name={getHierarchyIconName("workspace")}
-                    size={12}
-                    color={getHierarchyIconColor("workspace")}
-                  />
-                  <Text style={styles.ideasPageHeaderBreadcrumbText} numberOfLines={1}>
-                    {activeWorkspace.title}
-                  </Text>
-                </View>
-              </Pressable>
-
-              {collectionAncestors.map((collection) => (
-                <View key={`crumb-${collection.id}`} style={styles.ideasPageHeaderBreadcrumbChunk}>
-                  <Ionicons name="chevron-forward" size={12} color="#94a3b8" />
-                  <Pressable
-                    style={({ pressed }) => [
-                      styles.ideasPageHeaderBreadcrumbItem,
-                      pressed ? styles.pressDown : null,
-                    ]}
-                    onPress={() => navigateRoot("CollectionDetail", { collectionId: collection.id })}
-                  >
-                    <View style={styles.ideasPageHeaderBreadcrumbContent}>
-                      <Ionicons
-                        name={getHierarchyIconName(getCollectionHierarchyLevel(collection))}
-                        size={12}
-                        color={getHierarchyIconColor(getCollectionHierarchyLevel(collection))}
-                      />
-                      <Text style={styles.ideasPageHeaderBreadcrumbText} numberOfLines={1}>
-                        {collection.title}
-                      </Text>
-                    </View>
-                  </Pressable>
-                </View>
-              ))}
-            </View>
-
-            <Text style={styles.title} numberOfLines={1}>
-              {currentCollection.title}
-            </Text>
-          </View>
-
-          {!listSelectionMode ? (
-            <View style={styles.ideasHeaderActions}>
-              <Pressable
-                style={({ pressed }) => [styles.ideasHeaderMenuBtn, pressed ? styles.pressDown : null]}
-                onPress={() => setHeaderMenuOpen((prev) => !prev)}
-              >
-                <Ionicons name="ellipsis-horizontal" size={16} color="#334155" />
-              </Pressable>
-            </View>
+      <ScreenHeader
+        title="Ideas"
+        leftIcon="hamburger"
+        rightElement={
+          !listSelectionMode ? (
+            <Pressable
+              style={({ pressed }) => [styles.ideasHeaderMenuBtn, pressed ? styles.pressDown : null]}
+              onPress={() => setHeaderMenuOpen((prev) => !prev)}
+            >
+              <Ionicons name="ellipsis-horizontal" size={16} color="#334155" />
+            </Pressable>
           ) : (
             <View style={styles.ideasHeaderMenuBtnPlaceholder} />
-          )}
-        </View>
+          )
+        }
+      />
+
+      <AppBreadcrumbs
+        items={[
+          {
+            key: "home",
+            label: "Home",
+            level: "home",
+            iconOnly: true,
+            onPress: () => navigateRoot("Home", { screen: "Workspaces" }),
+          },
+          {
+            key: `workspace-${activeWorkspace.id}`,
+            label: activeWorkspace.title,
+            level: "workspace",
+            onPress: goToBrowse,
+          },
+          ...collectionAncestors.map((collection) => ({
+            key: collection.id,
+            label: collection.title,
+            level: getCollectionHierarchyLevel(collection),
+            onPress: () => navigateRoot("CollectionDetail", { collectionId: collection.id }),
+          })),
+          {
+            key: currentCollection.id,
+            label: currentCollection.title,
+            level: getCollectionHierarchyLevel(currentCollection),
+            active: true,
+          },
+        ]}
+      />
+
+      <View style={styles.ideasHeaderBlock}>
+        <Text style={styles.ideasHeaderTitle} numberOfLines={1}>
+          {currentCollection.title}
+        </Text>
+        <Text style={styles.ideasHeaderSubtitle} numberOfLines={1}>
+          {ideasHeaderMeta}
+        </Text>
       </View>
 
       <View style={styles.ideasSearchUtilityRow}>
+        <View style={styles.ideasSearchWrapInline}>
+          <View style={styles.ideasSearchWrap}>
+            <Ionicons name="search" size={16} color="#64748b" />
+            <TextInput
+              style={styles.ideasSearchInput}
+              placeholder="Search titles, notes, lyrics..."
+              placeholderTextColor="#94a3b8"
+              value={searchQuery}
+              onFocus={() => {
+                if (subcollectionsExpanded) {
+                  setSubcollectionsExpanded(false);
+                }
+              }}
+              onChangeText={(value) => {
+                if (subcollectionsExpanded) {
+                  setSubcollectionsExpanded(false);
+                }
+                setSearchQuery(value);
+              }}
+              autoCapitalize="none"
+              autoCorrect={false}
+              returnKeyType="search"
+            />
+            {searchQuery ? (
+              <Pressable
+                style={({ pressed }) => [styles.ideasSearchClear, pressed ? styles.pressDown : null]}
+                onPress={() => setSearchQuery("")}
+              >
+                <Ionicons name="close" size={14} color="#64748b" />
+              </Pressable>
+            ) : null}
+          </View>
+        </View>
+
         {childCollections.length > 0 ? (
           <View style={styles.subcollectionDisclosureInlineWrap}>
             <Pressable
@@ -1214,43 +1224,6 @@ export function IdeaListScreen() {
             ) : null}
           </View>
         ) : null}
-
-        <View
-          style={[
-            styles.ideasSearchWrap,
-            childCollections.length > 0 ? styles.ideasSearchWrapInline : null,
-          ]}
-        >
-          <Ionicons name="search" size={16} color="#64748b" />
-          <TextInput
-            style={styles.ideasSearchInput}
-            placeholder="Search titles, notes, lyrics..."
-            placeholderTextColor="#94a3b8"
-            value={searchQuery}
-            onFocus={() => {
-              if (subcollectionsExpanded) {
-                setSubcollectionsExpanded(false);
-              }
-            }}
-            onChangeText={(value) => {
-              if (subcollectionsExpanded) {
-                setSubcollectionsExpanded(false);
-              }
-              setSearchQuery(value);
-            }}
-            autoCapitalize="none"
-            autoCorrect={false}
-            returnKeyType="search"
-          />
-          {searchQuery ? (
-            <Pressable
-              style={({ pressed }) => [styles.ideasSearchClear, pressed ? styles.pressDown : null]}
-              onPress={() => setSearchQuery("")}
-            >
-              <Ionicons name="close" size={14} color="#64748b" />
-            </Pressable>
-          ) : null}
-        </View>
       </View>
 
       {hasActivityRangeFilter ? (

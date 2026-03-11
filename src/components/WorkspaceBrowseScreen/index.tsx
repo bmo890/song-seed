@@ -180,7 +180,7 @@ export function WorkspaceBrowseScreen() {
 
   return (
     <SafeAreaView style={styles.screen}>
-      <ScreenHeader title={activeWorkspace.title} leftIcon="hamburger" />
+      <ScreenHeader title="Workspace" leftIcon="hamburger" />
       <AppBreadcrumbs
         items={[
           {
@@ -192,6 +192,15 @@ export function WorkspaceBrowseScreen() {
           { key: "workspace", label: activeWorkspace.title, level: "workspace", active: true },
         ]}
       />
+
+      <View style={styles.ideasHeaderBlock}>
+        <Text style={styles.ideasHeaderTitle} numberOfLines={1}>
+          {activeWorkspace.title}
+        </Text>
+        <Text style={styles.ideasHeaderSubtitle}>
+          Browse collections and move deeper into the workspace.
+        </Text>
+      </View>
 
       <View style={styles.ideasSearchWrap}>
         <Ionicons name="search" size={16} color="#64748b" />
