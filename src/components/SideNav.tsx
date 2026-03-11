@@ -86,7 +86,7 @@ export function SideNav({
 
         <View style={styles.drawerDivider} />
 
-        <Text style={styles.sideNavSectionLabel}>Workspace</Text>
+        <Text style={styles.sideNavSectionLabel}>Current Workspace</Text>
         <Pressable
           style={({ pressed }) => [
             styles.sideNavWorkspaceBtn,
@@ -98,12 +98,13 @@ export function SideNav({
         >
           <Ionicons name={getHierarchyIconName("workspace")} size={18} color={getHierarchyIconColor("workspace")} />
           <View style={styles.sideNavWorkspaceCopy}>
-            <Text style={styles.sideNavLabel}>{workspaceTitle ?? "No workspace"}</Text>
+            <Text style={styles.sideNavWorkspaceEyebrow}>Browse</Text>
+            <Text style={styles.sideNavWorkspaceTitle}>{workspaceTitle ?? "No workspace"}</Text>
           </View>
           <Ionicons name="chevron-forward" size={16} color="#94a3b8" />
         </Pressable>
 
-        <Text style={styles.sideNavSectionLabel}>Collections</Text>
+        <Text style={styles.sideNavSectionLabel}>Collections In Workspace</Text>
         {collections.length > 0 ? (
           <>
             <View style={styles.sideNavCollectionList}>

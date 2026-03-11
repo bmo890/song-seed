@@ -28,50 +28,6 @@ export const styles = StyleSheet.create({
     fontSize: 13,
     color: "#64748b",
   },
-  ideasPageHeader: {
-    marginBottom: 8,
-  },
-  ideasPageHeaderRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
-  ideasPageHeaderTitleBlock: {
-    flex: 1,
-    minWidth: 0,
-    gap: 2,
-  },
-  ideasPageHeaderBreadcrumbRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    flexWrap: "nowrap",
-    gap: 4,
-    minWidth: 0,
-  },
-  ideasPageHeaderBreadcrumbChunk: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    minWidth: 0,
-    flexShrink: 1,
-  },
-  ideasPageHeaderBreadcrumbItem: {
-    minHeight: 18,
-    justifyContent: "center",
-  },
-  ideasPageHeaderBreadcrumbContent: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    minWidth: 0,
-  },
-  ideasPageHeaderBreadcrumbText: {
-    flexShrink: 1,
-    fontSize: 11,
-    lineHeight: 14,
-    color: "#64748b",
-    fontWeight: "600",
-  },
   songDetailHeader: {
     marginTop: 2,
     marginBottom: 6,
@@ -255,7 +211,7 @@ export const styles = StyleSheet.create({
   },
   ideasSearchUtilityRow: {
     flexDirection: "row",
-    alignItems: "flex-start",
+    alignItems: "center",
     gap: 8,
     marginBottom: 10,
     position: "relative",
@@ -766,7 +722,21 @@ export const styles = StyleSheet.create({
   },
   sideNavWorkspaceCopy: {
     flex: 1,
-    gap: 0,
+    gap: 2,
+  },
+  sideNavWorkspaceEyebrow: {
+    fontSize: 11,
+    lineHeight: 14,
+    color: "#64748b",
+    fontWeight: "700",
+    textTransform: "uppercase",
+    letterSpacing: 0.4,
+  },
+  sideNavWorkspaceTitle: {
+    fontSize: 18,
+    lineHeight: 22,
+    color: "#111827",
+    fontWeight: "700",
   },
   sideNavCollectionList: {
     gap: 4,
@@ -2255,8 +2225,8 @@ export const styles = StyleSheet.create({
   subcollectionDisclosureInlineWrap: {
     position: "relative",
     zIndex: 36,
-    minWidth: 170,
-    maxWidth: 220,
+    minWidth: 144,
+    maxWidth: 188,
   },
   subcollectionDisclosureBtn: {
     minHeight: 38,
@@ -2271,8 +2241,8 @@ export const styles = StyleSheet.create({
     gap: 10,
   },
   subcollectionDisclosureBtnInline: {
-    minHeight: 40,
-    borderRadius: 20,
+    minHeight: 38,
+    borderRadius: 18,
   },
   subcollectionDisclosureBtnOpen: {
     borderColor: "#cfd9e4",
@@ -2281,11 +2251,11 @@ export const styles = StyleSheet.create({
   subcollectionDisclosureLead: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    gap: 6,
   },
   subcollectionDisclosureTitle: {
-    fontSize: 13,
-    lineHeight: 18,
+    fontSize: 12,
+    lineHeight: 16,
     color: "#475569",
     fontWeight: "600",
   },

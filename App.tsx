@@ -60,7 +60,7 @@ function DrawerContent({ navigation, state }: DrawerContentComponentProps) {
   const currentRoute =
     deepestRouteName === "Workspaces"
       ? "home"
-      : deepestRouteName === "Browse"
+      : deepestRouteName === "Browse" || deepestRouteName === "CollectionDetail"
         ? "browse"
       : deepestRouteName === "RevisitHome"
         ? "revisit"
