@@ -13,9 +13,8 @@ import { ClipActionsSheet } from "../modals/ClipActionsSheet";
 import { useStore } from "../../state/useStore";
 import { ClipVersion } from "../../types";
 import {
-  buildClipGraph,
+  buildClipLineages,
   buildTimelineEntries,
-  type EvolutionClipEntry,
   type SongTimelineSortDirection,
   type SongTimelineSortMetric,
   type TimelineClipEntry,
@@ -33,6 +32,8 @@ type ClipListProps = {
   setTimelineSortMetric: (metric: SongTimelineSortMetric) => void;
   timelineSortDirection: SongTimelineSortDirection;
   setTimelineSortDirection: (direction: SongTimelineSortDirection) => void;
+  timelineMainTakesOnly: boolean;
+  setTimelineMainTakesOnly: (value: boolean) => void;
   clipTagFilter: SongClipTagFilter;
   setClipTagFilter: (filter: SongClipTagFilter) => void;
   summaryContent?: ReactNode;
@@ -45,15 +46,17 @@ type ClipListProps = {
   onPickParentTarget: (clipId: string) => void;
 };
 
-type RenderClipEntry = (
-  | TimelineClipEntry
-  | EvolutionClipEntry
-) & {
-  showBranchToggle?: boolean;
-  branchDescendantCount?: number;
-  branchRootId?: string;
-  compactPreview?: boolean;
+type EvolutionClipEntry = {
+  kind: "evolution";
+  clip: ClipVersion;
+  lineageRootId: string;
+  position: "latest" | "older";
+  compactPreview: boolean;
+  indented: boolean;
+  continuesThreadBelow: boolean;
 };
+
+type RenderClipEntry = TimelineClipEntry | EvolutionClipEntry;
 
 type ClipListRow =
   | { kind: "summary-section" }
@@ -61,6 +64,7 @@ type ClipListRow =
   | { kind: "ideas-header" }
   | { kind: "day-divider"; label: string; dayStartTs: number }
   | { kind: "empty" }
+  | { kind: "evolution-more"; lineageRootId: string; hiddenCount: number }
   | { kind: "clip"; entry: RenderClipEntry };
 
 function dayStartTs(ts: number) {
@@ -85,91 +89,61 @@ function getDateDividerLabel(ts: number) {
   });
 }
 
-function byCreatedAtAsc(a: ClipVersion, b: ClipVersion) {
-  if (a.createdAt !== b.createdAt) return a.createdAt - b.createdAt;
-  return a.id.localeCompare(b.id);
-}
-
-function buildEvolutionEntriesForRoot(
-  graph: ReturnType<typeof buildClipGraph>,
-  root: ClipVersion
-): EvolutionClipEntry[] {
-  const entries: EvolutionClipEntry[] = [];
-
-  const walk = (nodes: ClipVersion[], depth: number, branchMask: boolean[]) => {
-    nodes.forEach((clip, index) => {
-      const children = graph.childrenByParentId.get(clip.id) ?? [];
-      const isLastSibling = index === nodes.length - 1;
-
-      entries.push({
-        kind: "evolution",
-        clip,
-        depth,
-        childCount: children.length,
-        hasChildren: children.length > 0,
-        branchMask,
-        isLastSibling,
-      });
-
-      if (children.length > 0) {
-        walk(children, depth + 1, [...branchMask, !isLastSibling]);
-      }
-    });
-  };
-
-  walk([root], 0, []);
-  return entries;
-}
-
-function buildEvolutionRenderableEntries(
+function buildEvolutionRows(
   clips: ClipVersion[],
   expandedBranchIds: Record<string, boolean>
-): RenderClipEntry[] {
-  const graph = buildClipGraph(clips);
-  const rows: RenderClipEntry[] = [];
+): ClipListRow[] {
+  const rows: ClipListRow[] = [];
 
-  graph.roots
+  buildClipLineages(clips)
     .slice()
-    .sort(byCreatedAtAsc)
-    .forEach((root) => {
-      const fullEntries = buildEvolutionEntriesForRoot(graph, root);
-      const descendants = fullEntries.slice(1);
-      const descendantCount = descendants.length;
-      const isExpanded = !!expandedBranchIds[root.id];
-
-      rows.push({
-        ...fullEntries[0],
-        showBranchToggle: descendantCount > 0,
-        branchDescendantCount: descendantCount,
-        branchRootId: root.id,
-      });
-
-      if (!descendantCount) return;
-
-      if (isExpanded) {
-        rows.push(
-          ...descendants.map((entry) => ({
-            ...entry,
-            branchRootId: root.id,
-          }))
-        );
-        return;
+    .sort((a, b) => {
+      if (a.latestClip.createdAt !== b.latestClip.createdAt) {
+        return b.latestClip.createdAt - a.latestClip.createdAt;
       }
-
-      const latestDescendant = descendants.reduce((latest, entry) =>
-        entry.clip.createdAt > latest.clip.createdAt ? entry : latest
-      );
+      return b.latestClip.id.localeCompare(a.latestClip.id);
+    })
+    .forEach((lineage) => {
+      const newestClip = lineage.latestClip;
+      const olderClips = lineage.clipsNewestToOldest.filter((clip) => clip.id !== newestClip.id);
 
       rows.push({
-        ...latestDescendant,
-        depth: 1,
-        childCount: 0,
-        hasChildren: false,
-        branchMask: [],
-        isLastSibling: true,
-        compactPreview: true,
-        branchRootId: root.id,
+        kind: "clip",
+        entry: {
+          kind: "evolution",
+          clip: newestClip,
+          lineageRootId: lineage.root.id,
+          position: "latest",
+          compactPreview: false,
+          indented: false,
+          continuesThreadBelow: false,
+        },
       });
+
+      if (olderClips.length > 0) {
+        rows.push({
+          kind: "evolution-more",
+          lineageRootId: lineage.root.id,
+          hiddenCount: olderClips.length,
+        });
+
+        if (expandedBranchIds[lineage.root.id]) {
+          olderClips.forEach((clip, index) => {
+            rows.push({
+              kind: "clip",
+              entry: {
+                kind: "evolution",
+                clip,
+                lineageRootId: lineage.root.id,
+                position: "older",
+                compactPreview: true,
+                indented: true,
+                continuesThreadBelow: index < olderClips.length - 1,
+              },
+            });
+          });
+        }
+      }
     });
 
   return rows;
@@ -184,6 +158,8 @@ export function ClipList({
   setTimelineSortMetric,
   timelineSortDirection,
   setTimelineSortDirection,
+  timelineMainTakesOnly,
+  setTimelineMainTakesOnly,
   clipTagFilter,
   setClipTagFilter,
   summaryContent,
@@ -267,28 +243,35 @@ export function ClipList({
     });
   }, [clipTagFilter, ideaClips]);
 
-  const clipEntries = useMemo<RenderClipEntry[]>(() => {
+  const clipRows = useMemo<ClipListRow[]>(() => {
     if (!selectedIdea) return [];
     if (viewMode === "evolution") {
-      return buildEvolutionRenderableEntries(filteredIdeaClips, expandedBranchIds);
+      return buildEvolutionRows(filteredIdeaClips, expandedBranchIds);
     }
     return buildTimelineEntries(filteredIdeaClips, {
       metric: timelineSortMetric,
       direction: timelineSortDirection,
-    });
+      mainTakesOnly: timelineMainTakesOnly,
+    }).map((entry) => ({ kind: "clip" as const, entry }));
   }, [
     expandedBranchIds,
     filteredIdeaClips,
     selectedIdea,
+    timelineMainTakesOnly,
     timelineSortDirection,
     timelineSortMetric,
     viewMode,
   ]);
 
-  const visibleClipIdsKey = clipEntries.map((entry) => entry.clip.id).join("|");
+  const visibleClipEntries = useMemo(
+    () => clipRows.filter((row): row is { kind: "clip"; entry: RenderClipEntry } => row.kind === "clip"),
+    [clipRows]
+  );
+
+  const visibleClipIdsKey = visibleClipEntries.map((row) => row.entry.clip.id).join("|");
 
   useEffect(() => {
-    const visibleIds = new Set(clipEntries.map((entry) => entry.clip.id));
+    const visibleIds = new Set(visibleClipEntries.map((row) => row.entry.clip.id));
     const idsToAnimate = recentlyAddedItemIds.filter(
       (id) => visibleIds.has(id) && !animatingHighlightIdsRef.current.has(id)
     );
@@ -315,7 +298,7 @@ export function ClipList({
         clearRecentlyAdded([id]);
       });
     });
-  }, [clearRecentlyAdded, clipEntries, recentlyAddedItemIds, visibleClipIdsKey]);
+  }, [clearRecentlyAdded, recentlyAddedItemIds, visibleClipEntries, visibleClipIdsKey]);
 
   useEffect(() => {
     if (isFocused) {
@@ -409,13 +392,15 @@ export function ClipList({
       rows.push({ kind: "primary-section" });
     }
     rows.push({ kind: "ideas-header" });
-    if (clipEntries.length === 0) {
+    if (clipRows.length === 0) {
       rows.push({ kind: "empty" });
       return rows;
     }
     if (viewMode === "timeline" && timelineSortMetric === "created") {
       let lastDayStartTs: number | null = null;
-      clipEntries.forEach((entry) => {
+      clipRows.forEach((row) => {
+        if (row.kind !== "clip") return;
+        const entry = row.entry;
         const nextDayStartTs = dayStartTs(entry.clip.createdAt);
         if (lastDayStartTs !== nextDayStartTs) {
           rows.push({
@@ -425,13 +410,13 @@ export function ClipList({
           });
           lastDayStartTs = nextDayStartTs;
         }
-        rows.push({ kind: "clip", entry });
+        rows.push(row);
       });
       return rows;
     }
-    clipEntries.forEach((entry) => rows.push({ kind: "clip", entry }));
+    clipRows.forEach((row) => rows.push(row));
     return rows;
-  }, [clipEntries, primaryEntry, songIdea.kind, summaryContent, timelineSortMetric, viewMode]);
+  }, [clipRows, primaryEntry, songIdea.kind, summaryContent, timelineSortMetric, viewMode]);
 
   const stickyIdeasIndex = useMemo(() => {
     let index = 0;
@@ -469,41 +454,26 @@ export function ClipList({
     setActionsClipId(clip.id);
   }
 
-  function renderTimelineGuide(entry: TimelineClipEntry) {
-    if (entry.depth <= 0) return null;
-    return (
-      <View style={[styles.threadGuideWrap, { width: entry.depth * 12 }]}>
-        {Array.from({ length: entry.depth }).map((_, index) => (
-          <View key={`timeline-guide-${entry.clip.id}-${index}`} style={styles.threadGuideLine} />
-        ))}
-      </View>
-    );
+  function renderTimelineGuide() {
+    return null;
   }
 
   function renderEvolutionGuide(entry: EvolutionClipEntry) {
-    if (entry.depth <= 0) return null;
+    if (!entry.indented) return null;
 
     return (
-      <View style={[styles.songDetailEvolutionGuideWrap, { width: entry.depth * 14 + 12 }]}>
-        {entry.branchMask.map((continues, index) =>
-          continues ? (
-            <View
-              key={`evolution-stem-${entry.clip.id}-${index}`}
-              style={[
-                styles.songDetailEvolutionStem,
-                { left: index * 14 + 6 },
-              ]}
-            />
-          ) : null
-        )}
+      <View style={styles.songDetailEvolutionGuideWrap}>
         <View
           style={[
-            styles.songDetailEvolutionElbow,
-            { left: Math.max(0, entry.depth * 14 - 6) },
+            styles.songDetailEvolutionStem,
+            !entry.continuesThreadBelow ? styles.songDetailEvolutionStemEnd : null,
           ]}
-        >
-          <View style={styles.songDetailEvolutionDot} />
-        </View>
+        />
+        {entry.indented ? (
+          <View style={styles.songDetailEvolutionElbow}>
+            <View style={styles.songDetailEvolutionDot} />
+          </View>
+        ) : null}
       </View>
     );
   }
@@ -515,9 +485,7 @@ export function ClipList({
     const isSelected = selectedClipIds.includes(clip.id);
     const isMoving = movingClipId === clip.id;
     const isPrimaryCandidate = displayPrimaryId === clip.id;
-    const compactDensity = viewMode === "evolution" || entry.compactPreview;
-    const isBranchRoot = entry.kind === "evolution" && entry.showBranchToggle && !!entry.branchRootId;
-    const isBranchExpanded = isBranchRoot ? !!expandedBranchIds[entry.branchRootId!] : false;
+    const compactDensity = entry.kind === "evolution" ? entry.compactPreview : false;
     const isParentPickSource = parentPickSourceIdSet.has(clip.id);
     const isInvalidParentTarget =
       isParentPicking && parentPickInvalidTargetIdSet.has(clip.id);
@@ -542,7 +510,7 @@ export function ClipList({
             </View>
           ) : null}
         </View>
-        {entry.kind === "evolution" ? renderEvolutionGuide(entry) : renderTimelineGuide(entry)}
+        {entry.kind === "evolution" ? renderEvolutionGuide(entry) : renderTimelineGuide()}
 
         <View
           style={[
@@ -672,23 +640,6 @@ export function ClipList({
                 <>
                   <View style={styles.songDetailVersionTopRow}>
                     <View style={styles.songDetailVersionTitleRow}>
-                      {isBranchRoot && entry.branchDescendantCount ? (
-                        <Pressable
-                          style={styles.songDetailVersionRepliesToggle}
-                          onPress={() =>
-                            setExpandedBranchIds((prev) => ({
-                              ...prev,
-                              [entry.branchRootId!]: !prev[entry.branchRootId!],
-                            }))
-                          }
-                        >
-                          <Text style={styles.songDetailVersionRepliesToggleText}>
-                            {isBranchExpanded
-                              ? `▾ ${entry.branchDescendantCount}`
-                              : `▸ ${entry.branchDescendantCount}`}
-                          </Text>
-                        </Pressable>
-                      ) : null}
                       <Text style={styles.songDetailVersionTitle} numberOfLines={2}>
                         {clip.title}
                       </Text>
@@ -771,6 +722,40 @@ export function ClipList({
     );
   }
 
+  function renderEvolutionMoreRow(lineageRootId: string, hiddenCount: number) {
+    const isExpanded = !!expandedBranchIds[lineageRootId];
+
+    return (
+      <View style={styles.threadRowWrap}>
+        <View style={styles.selectionIndicatorCol} />
+        <View style={styles.songDetailEvolutionMoreGuide}>
+          <View style={styles.songDetailEvolutionMoreStem} />
+          <View style={styles.songDetailEvolutionElbow}>
+            <View style={styles.songDetailEvolutionDot} />
+          </View>
+        </View>
+        <Pressable
+          style={({ pressed }) => [
+            styles.songDetailEvolutionMoreButtonWrap,
+            pressed ? styles.pressDown : null,
+          ]}
+          onPress={() =>
+            setExpandedBranchIds((prev) => ({
+              ...prev,
+              [lineageRootId]: !prev[lineageRootId],
+            }))
+          }
+        >
+          <View style={styles.songDetailEvolutionMoreButton}>
+            <Text style={styles.songDetailEvolutionMoreButtonText}>
+              {isExpanded ? "Hide middle takes" : `${hiddenCount} more`}
+            </Text>
+          </View>
+        </Pressable>
+      </View>
+    );
+  }
+
   return (
     <>
       <FlatList
@@ -821,16 +806,18 @@ export function ClipList({
                     isEditMode={isEditMode}
                     clipViewMode={viewMode}
                     setClipViewMode={setViewMode}
-                    timelineSortMetric={timelineSortMetric}
-                    setTimelineSortMetric={setTimelineSortMetric}
-                    timelineSortDirection={timelineSortDirection}
-                    setTimelineSortDirection={setTimelineSortDirection}
-                    clipTagFilter={clipTagFilter}
-                    setClipTagFilter={setClipTagFilter}
-                    visibleIdeaCount={filteredIdeaClips.length}
-                  />
-                )}
-              </View>
+                  timelineSortMetric={timelineSortMetric}
+                  setTimelineSortMetric={setTimelineSortMetric}
+                  timelineSortDirection={timelineSortDirection}
+                  setTimelineSortDirection={setTimelineSortDirection}
+                  timelineMainTakesOnly={timelineMainTakesOnly}
+                  setTimelineMainTakesOnly={setTimelineMainTakesOnly}
+                  clipTagFilter={clipTagFilter}
+                  setClipTagFilter={setClipTagFilter}
+                  visibleIdeaCount={visibleClipEntries.length}
+                />
+              )}
+            </View>
             );
           }
 
@@ -844,6 +831,10 @@ export function ClipList({
                 </View>
               </View>
             );
+          }
+
+          if (item.kind === "evolution-more") {
+            return renderEvolutionMoreRow(item.lineageRootId, item.hiddenCount);
           }
 
           if (item.kind === "empty") {

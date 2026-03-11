@@ -7,6 +7,7 @@ import type { SongTimelineSortDirection, SongTimelineSortMetric } from "../../cl
 import { FilterSortControls } from "../common/FilterSortControls";
 import {
     getSongClipTagFilterSummary,
+    getSongMainTakeFilterSummary,
     getSongTimelineSortMetricIcon,
     SONG_CLIP_TAG_OPTIONS,
     type SongClipTagFilter,
@@ -22,6 +23,8 @@ export function ActionButtons({
     setTimelineSortDirection,
     clipTagFilter,
     setClipTagFilter,
+    timelineMainTakesOnly,
+    setTimelineMainTakesOnly,
     visibleIdeaCount,
 }: {
     isEditMode: boolean;
@@ -33,6 +36,8 @@ export function ActionButtons({
     setTimelineSortDirection: (direction: SongTimelineSortDirection) => void;
     clipTagFilter: SongClipTagFilter;
     setClipTagFilter: (filter: SongClipTagFilter) => void;
+    timelineMainTakesOnly: boolean;
+    setTimelineMainTakesOnly: (value: boolean) => void;
     visibleIdeaCount: number;
 }) {
     const clipSelectionMode = useStore((s) => s.clipSelectionMode);
@@ -94,9 +99,14 @@ export function ActionButtons({
             {selectedIdea.kind === "project" ? (
                 <FilterSortControls
                     filter={{
-                        active: clipTagFilter !== "all",
+                        active:
+                            clipTagFilter !== "all" ||
+                            (clipViewMode === "timeline" && timelineMainTakesOnly),
                         valueIcon: "pricetag-outline",
-                        onClear: () => setClipTagFilter("all"),
+                        onClear: () => {
+                            setClipTagFilter("all");
+                            setTimelineMainTakesOnly(false);
+                        },
                         renderMenu: ({ close }) => (
                             <View style={styles.ideasDropdownSectionStack}>
                                 <View style={styles.ideasDropdownSectionToggle}>
@@ -139,6 +149,50 @@ export function ActionButtons({
                                         );
                                     })}
                                 </View>
+                                {clipViewMode === "timeline" ? (
+                                    <>
+                                        <View style={styles.ideasDropdownDivider} />
+                                        <View style={styles.ideasDropdownSectionToggle}>
+                                            <Text style={styles.ideasDropdownSectionToggleText}>Display</Text>
+                                            <View style={styles.ideasDropdownSectionMeta}>
+                                                <Text style={styles.ideasDropdownSectionMetaText}>
+                                                    {getSongMainTakeFilterSummary(timelineMainTakesOnly)}
+                                                </Text>
+                                            </View>
+                                        </View>
+                                        <View style={styles.ideasStageChipsWrap}>
+                                            {([
+                                                { key: "all", label: "All takes", value: false },
+                                                { key: "main", label: "Main takes only", value: true },
+                                            ] as const).map((option) => {
+                                                const active = timelineMainTakesOnly === option.value;
+                                                return (
+                                                    <Pressable
+                                                        key={option.key}
+                                                        style={({ pressed }) => [
+                                                            styles.ideasStageChip,
+                                                            active ? styles.ideasStageChipActive : null,
+                                                            pressed ? styles.pressDown : null,
+                                                        ]}
+                                                        onPress={() => {
+                                                            setTimelineMainTakesOnly(option.value);
+                                                            close();
+                                                        }}
+                                                    >
+                                                        <Text
+                                                            style={[
+                                                                styles.ideasStageChipText,
+                                                                active ? styles.ideasStageChipTextActive : null,
+                                                            ]}
+                                                        >
+                                                            {option.label}
+                                                        </Text>
+                                                    </Pressable>
+                                                );
+                                            })}
+                                        </View>
+                                    </>
+                                ) : null}
                             </View>
                         ),
                     }}
@@ -147,7 +201,7 @@ export function ActionButtons({
                             ? {
                                 active:
                                     timelineSortMetric !== "created" ||
-                                    timelineSortDirection !== "asc",
+                                    timelineSortDirection !== "desc",
                                 valueIcon: getSongTimelineSortMetricIcon(timelineSortMetric),
                                 direction: timelineSortDirection,
                                 renderMenu: ({ close }) => (

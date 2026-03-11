@@ -9,6 +9,13 @@ export type ClipGraph = {
   roots: ClipVersion[];
 };
 
+export type ClipLineage = {
+  root: ClipVersion;
+  clipsOldestToNewest: ClipVersion[];
+  clipsNewestToOldest: ClipVersion[];
+  latestClip: ClipVersion;
+};
+
 export type TimelineClipEntry = {
   kind: "timeline";
   clip: ClipVersion;
@@ -81,15 +88,38 @@ export function buildClipGraph(clips: ClipVersion[]): ClipGraph {
   };
 }
 
-function buildDepthMap(graph: ClipGraph) {
-  const depthMap = new Map<string, number>();
-  const visit = (clip: ClipVersion, depth: number) => {
-    depthMap.set(clip.id, depth);
-    const children = graph.childrenByParentId.get(clip.id) ?? [];
-    children.forEach((child) => visit(child, depth + 1));
-  };
-  graph.roots.forEach((root) => visit(root, 0));
-  return depthMap;
+function collectLineageClips(graph: ClipGraph, root: ClipVersion) {
+  const clips: ClipVersion[] = [];
+  const stack = [root];
+
+  while (stack.length > 0) {
+    const next = stack.pop();
+    if (!next) continue;
+    clips.push(next);
+
+    const children = graph.childrenByParentId.get(next.id) ?? [];
+    for (let index = children.length - 1; index >= 0; index -= 1) {
+      stack.push(children[index]);
+    }
+  }
+
+  return clips.sort(byCreatedAtAsc);
+}
+
+export function buildClipLineages(clips: ClipVersion[]): ClipLineage[] {
+  const graph = buildClipGraph(clips);
+
+  return graph.roots
+    .map((root) => {
+      const clipsOldestToNewest = collectLineageClips(graph, root);
+      return {
+        root,
+        clipsOldestToNewest,
+        clipsNewestToOldest: [...clipsOldestToNewest].reverse(),
+        latestClip: clipsOldestToNewest[clipsOldestToNewest.length - 1],
+      };
+    })
+    .sort((a, b) => byCreatedAtAsc(a.root, b.root));
 }
 
 export function buildTimelineEntries(
@@ -97,14 +127,17 @@ export function buildTimelineEntries(
   options: {
     metric?: SongTimelineSortMetric;
     direction?: SongTimelineSortDirection;
+    mainTakesOnly?: boolean;
   } = {}
 ): TimelineClipEntry[] {
   const graph = buildClipGraph(clips);
-  const depthMap = buildDepthMap(graph);
   const metric = options.metric ?? "created";
-  const direction = options.direction ?? "asc";
+  const direction = options.direction ?? "desc";
+  const sourceClips = options.mainTakesOnly
+    ? buildClipLineages(clips).map((lineage) => lineage.latestClip)
+    : [...clips];
 
-  return [...clips]
+  return sourceClips
     .sort((a, b) => {
       const base = compareClipsForTimeline(a, b, metric);
       return direction === "desc" ? -base : base;
@@ -114,7 +147,7 @@ export function buildTimelineEntries(
       return {
         kind: "timeline" as const,
         clip,
-        depth: depthMap.get(clip.id) ?? 0,
+        depth: 0,
         childCount,
         hasChildren: childCount > 0,
       };

@@ -32,3 +32,7 @@ export function getSongClipTagFilterSummary(tagFilter: SongClipTagFilter) {
   if (tagFilter === "untagged") return "Untagged";
   return SONG_CLIP_TAG_OPTIONS.find((option) => option.key === tagFilter)?.label ?? "All";
 }
+
+export function getSongMainTakeFilterSummary(mainTakesOnly: boolean) {
+  return mainTakesOnly ? "Main takes only" : "All takes";
+}
