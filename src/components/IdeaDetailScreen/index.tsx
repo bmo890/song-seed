@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { StatusBar as ExpoStatusBar } from "expo-status-bar";
 import { RouteProp, useNavigation, useRoute } from "@react-navigation/native";
@@ -7,7 +7,7 @@ import { Alert, Platform, Pressable, ScrollView, Text, View } from "react-native
 import { styles } from "../../styles";
 import { useStore } from "../../state/useStore";
 import { appActions } from "../../state/actions";
-import { IdeaStatus } from "../../types";
+import { IdeaStatus, type ClipVersion } from "../../types";
 import type { SongTimelineSortDirection, SongTimelineSortMetric } from "../../clipGraph";
 
 import { IdeaHeader } from "./IdeaHeader";
@@ -16,6 +16,7 @@ import { ClipList } from "./ClipList";
 import { ClipboardBanner } from "../ClipboardBanner";
 import { QuickNameModal } from "../modals/QuickNameModal";
 import { FloatingActionDock } from "../common/FloatingActionDock";
+import { Button } from "../common/Button";
 import { IdeaStatusProgress } from "./IdeaStatusProgress";
 import { IdeaNotes } from "./IdeaNotes";
 import { LyricsVersionsPanel } from "../LyricsScreen/LyricsVersionsPanel";
@@ -24,6 +25,62 @@ import { buildDefaultIdeaTitle, ensureUniqueIdeaTitle } from "../../utils";
 import type { SongClipTagFilter } from "./songClipControls";
 
 type IdeaDetailRoute = RouteProp<RootStackParamList, "IdeaDetail">;
+
+type ParentPickState = {
+  sourceClipIds: string[];
+  appliedClipIds: string[];
+};
+
+function buildClipMap(clips: ClipVersion[]) {
+  return new Map(clips.map((clip) => [clip.id, clip]));
+}
+
+function getTopLevelClipIds(clips: ClipVersion[], clipIds: string[]) {
+  const clipMap = buildClipMap(clips);
+  const selectedIdSet = new Set(clipIds);
+
+  return clipIds.filter((clipId) => {
+    const visitedIds = new Set<string>();
+    let parentId = clipMap.get(clipId)?.parentClipId;
+
+    while (parentId && !visitedIds.has(parentId)) {
+      if (selectedIdSet.has(parentId)) {
+        return false;
+      }
+      visitedIds.add(parentId);
+      parentId = clipMap.get(parentId)?.parentClipId;
+    }
+
+    return true;
+  });
+}
+
+function collectDescendantClipIds(clips: ClipVersion[], rootClipIds: string[]) {
+  const childrenByParentId = new Map<string, string[]>();
+
+  clips.forEach((clip) => {
+    if (!clip.parentClipId) return;
+    const currentChildren = childrenByParentId.get(clip.parentClipId) ?? [];
+    currentChildren.push(clip.id);
+    childrenByParentId.set(clip.parentClipId, currentChildren);
+  });
+
+  const descendants = new Set<string>();
+  const stack = [...rootClipIds];
+
+  while (stack.length > 0) {
+    const nextParentId = stack.pop();
+    if (!nextParentId) continue;
+
+    (childrenByParentId.get(nextParentId) ?? []).forEach((childId) => {
+      if (descendants.has(childId)) return;
+      descendants.add(childId);
+      stack.push(childId);
+    });
+  }
+
+  return descendants;
+}
 
 export function IdeaDetailScreen() {
   const insets = useSafeAreaInsets();
@@ -66,6 +123,44 @@ export function IdeaDetailScreen() {
   const [importAsPrimary, setImportAsPrimary] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [isIdeasSticky, setIsIdeasSticky] = useState(false);
+  const [parentPickState, setParentPickState] = useState<ParentPickState | null>(null);
+  const [undoState, setUndoState] = useState<{
+    id: string;
+    message: string;
+    undo: () => void;
+  } | null>(null);
+  const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const songClips = selectedIdea?.kind === "project" ? selectedIdea.clips : [];
+  const clipMap = useMemo(() => buildClipMap(songClips), [songClips]);
+  const primaryClipId = useMemo(
+    () => songClips.find((clip) => clip.isPrimary)?.id ?? null,
+    [songClips]
+  );
+  const parentPickInvalidTargetIds = useMemo(() => {
+    if (!parentPickState) return [];
+
+    const invalidTargetIds = new Set(parentPickState.sourceClipIds);
+    const descendantIds = collectDescendantClipIds(songClips, parentPickState.appliedClipIds);
+    descendantIds.forEach((clipId) => invalidTargetIds.add(clipId));
+
+    if (primaryClipId) {
+      invalidTargetIds.add(primaryClipId);
+    }
+
+    return Array.from(invalidTargetIds);
+  }, [parentPickState, primaryClipId, songClips]);
+  const parentPickPrompt =
+    parentPickState?.appliedClipIds.length === 1
+      ? "Tap the clip this branches from."
+      : parentPickState
+        ? `Tap the clip these ${parentPickState.appliedClipIds.length} clips branch from.`
+        : "";
+  const parentPickMeta =
+    parentPickState &&
+    parentPickState.sourceClipIds.length !== parentPickState.appliedClipIds.length
+      ? `${parentPickState.sourceClipIds.length} selected, ${parentPickState.appliedClipIds.length} top-level clips will move together.`
+      : null;
 
   useEffect(() => {
     if (routeIdeaId && routeIdeaId !== selectedIdeaId) {
@@ -95,6 +190,7 @@ export function IdeaDetailScreen() {
     setClipTagFilter("all");
     setTimelineSortMetric("created");
     setTimelineSortDirection("asc");
+    setParentPickState(null);
   }, [selectedIdea?.id]);
 
   useEffect(() => {
@@ -108,6 +204,20 @@ export function IdeaDetailScreen() {
       setIsIdeasSticky(false);
     }
   }, [songTab]);
+
+  useEffect(() => {
+    if (isEditMode || songTab !== "takes") {
+      setParentPickState(null);
+    }
+  }, [isEditMode, songTab]);
+
+  useEffect(() => {
+    return () => {
+      if (undoTimerRef.current) {
+        clearTimeout(undoTimerRef.current);
+      }
+    };
+  }, []);
 
   const hasChanges = () => {
     if (!selectedIdea) return false;
@@ -326,6 +436,187 @@ export function IdeaDetailScreen() {
     return `You are copying ${itemNames.length} clip${itemNames.length !== 1 ? "s" : ""} (${displayNames}${remainder}) into the same song they already belong to. This will create duplicates. Continue?`;
   })();
 
+  function showUndo(message: string, undo: () => void) {
+    if (undoTimerRef.current) {
+      clearTimeout(undoTimerRef.current);
+    }
+    const id = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    setUndoState({ id, message, undo });
+    undoTimerRef.current = setTimeout(() => {
+      setUndoState((prev) => (prev?.id === id ? null : prev));
+      undoTimerRef.current = null;
+    }, 5000);
+  }
+
+  function updateClipParents(targetIdeaId: string, parentByClipId: Map<string, string | null>) {
+    useStore.getState().updateIdeas((ideas) =>
+      ideas.map((idea) => {
+        if (idea.id !== targetIdeaId) return idea;
+
+        return {
+          ...idea,
+          clips: idea.clips.map((clip) =>
+            parentByClipId.has(clip.id)
+              ? {
+                  ...clip,
+                  parentClipId: parentByClipId.get(clip.id) ?? undefined,
+                }
+              : clip
+          ),
+        };
+      })
+    );
+  }
+
+  function resolveParentEditingSource(rawClipIds: string[]) {
+    if (!selectedIdea || selectedIdea.kind !== "project") return null;
+
+    const uniqueClipIds = Array.from(new Set(rawClipIds)).filter((clipId) => clipMap.has(clipId));
+    if (uniqueClipIds.length === 0) return null;
+
+    if (primaryClipId && uniqueClipIds.includes(primaryClipId)) {
+      Alert.alert(
+        "Primary clip unavailable",
+        "The primary clip stays outside the evolution tree for now. Deselect it and try again."
+      );
+      return null;
+    }
+
+    const topLevelClipIds = getTopLevelClipIds(songClips, uniqueClipIds);
+    if (topLevelClipIds.length === 0) return null;
+
+    return {
+      sourceClipIds: uniqueClipIds,
+      appliedClipIds: topLevelClipIds,
+    };
+  }
+
+  function applyParentChange(
+    sourceClipIds: string[],
+    nextParentClipId: string | null,
+    undoMessage: string
+  ) {
+    if (!selectedIdea || selectedIdea.kind !== "project") return false;
+
+    const previousParentByClipId = new Map<string, string | null>();
+    sourceClipIds.forEach((clipId) => {
+      previousParentByClipId.set(clipId, clipMap.get(clipId)?.parentClipId ?? null);
+    });
+
+    const changedClipIds = sourceClipIds.filter(
+      (clipId) => (clipMap.get(clipId)?.parentClipId ?? null) !== nextParentClipId
+    );
+    if (changedClipIds.length === 0) {
+      return false;
+    }
+
+    const nextParentByClipId = new Map<string, string | null>();
+    changedClipIds.forEach((clipId) => {
+      nextParentByClipId.set(clipId, nextParentClipId);
+    });
+
+    updateClipParents(selectedIdea.id, nextParentByClipId);
+    showUndo(undoMessage, () => {
+      const restoredParentByClipId = new Map<string, string | null>();
+      changedClipIds.forEach((clipId) => {
+        restoredParentByClipId.set(clipId, previousParentByClipId.get(clipId) ?? null);
+      });
+      updateClipParents(selectedIdea.id, restoredParentByClipId);
+    });
+
+    return true;
+  }
+
+  function handleStartSetParent(rawClipIds: string[]) {
+    const source = resolveParentEditingSource(rawClipIds);
+    if (!source) return;
+
+    const invalidTargetIds = new Set(source.sourceClipIds);
+    const descendantIds = collectDescendantClipIds(songClips, source.appliedClipIds);
+    descendantIds.forEach((clipId) => invalidTargetIds.add(clipId));
+    if (primaryClipId) {
+      invalidTargetIds.add(primaryClipId);
+    }
+
+    const hasValidTarget = songClips.some((clip) => !invalidTargetIds.has(clip.id));
+    if (!hasValidTarget) {
+      Alert.alert(
+        "No valid parent clips",
+        "There is no other clip in this song that can be used as a parent yet."
+      );
+      return;
+    }
+
+    setSongTab("takes");
+    setClipTagFilter("all");
+    setClipViewMode("evolution");
+    setParentPickState(source);
+  }
+
+  function handleMakeRoot(rawClipIds: string[]) {
+    const source = resolveParentEditingSource(rawClipIds);
+    if (!source) return;
+
+    const changed = applyParentChange(
+      source.appliedClipIds,
+      null,
+      source.appliedClipIds.length === 1 ? "Clip moved to root" : "Clips moved to root"
+    );
+
+    if (!changed) {
+      Alert.alert("Already root", "Those clips are already at the top level.");
+      return;
+    }
+
+    setParentPickState(null);
+  }
+
+  function handlePickParentTarget(targetClipId: string) {
+    if (!selectedIdea || selectedIdea.kind !== "project" || !parentPickState) return;
+
+    const targetClip = clipMap.get(targetClipId);
+    if (!targetClip) return;
+
+    const hasActualChange = parentPickState.appliedClipIds.some(
+      (clipId) => (clipMap.get(clipId)?.parentClipId ?? null) !== targetClipId
+    );
+
+    if (!hasActualChange) {
+      setParentPickState(null);
+      Alert.alert("Already attached", "Those clips already branch from that parent.");
+      return;
+    }
+
+    const confirmationMessage =
+      parentPickState.appliedClipIds.length === 1
+        ? `Make "${clipMap.get(parentPickState.appliedClipIds[0])?.title ?? "this clip"}" a variation of "${targetClip.title}"?`
+        : `Make ${parentPickState.appliedClipIds.length} clips variations of "${targetClip.title}"?`;
+
+    Alert.alert("Set parent clip?", confirmationMessage, [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Confirm",
+        onPress: () => {
+          applyParentChange(
+            parentPickState.appliedClipIds,
+            targetClipId,
+            parentPickState.appliedClipIds.length === 1 ? "Parent updated" : "Parents updated"
+          );
+          setParentPickState(null);
+        },
+      },
+    ]);
+  }
+
+  const songUndoBottom =
+    selectedIdea?.kind === "project" &&
+    !isEditMode &&
+    !clipSelectionMode &&
+    !parentPickState &&
+    songTab === "takes"
+      ? floatingBaseBottom + 72
+      : floatingBaseBottom;
+
   function resetImportModal() {
     if (isImporting) return;
     setImportModalOpen(false);
@@ -464,7 +755,29 @@ export function IdeaDetailScreen() {
         />
       ) : null}
 
-      <SelectionBars />
+      {parentPickState ? (
+        <View style={styles.selectionBar}>
+          <View style={styles.songDetailParentPickCopy}>
+            <Text style={styles.selectionText}>Choose parent clip</Text>
+            <Text style={styles.songDetailParentPickHelper}>{parentPickPrompt}</Text>
+            {parentPickMeta ? (
+              <Text style={styles.songDetailParentPickMeta}>{parentPickMeta}</Text>
+            ) : null}
+          </View>
+          <View style={styles.rowButtons}>
+            <Button
+              variant="secondary"
+              label="Cancel"
+              onPress={() => setParentPickState(null)}
+            />
+          </View>
+        </View>
+      ) : (
+        <SelectionBars
+          onStartSetParent={handleStartSetParent}
+          onMakeRoot={handleMakeRoot}
+        />
+      )}
       {nonTakesTabContent ? (
         nonTakesTabContent
       ) : (
@@ -480,14 +793,24 @@ export function IdeaDetailScreen() {
           setClipTagFilter={setClipTagFilter}
           summaryContent={takesSummaryContent}
           onIdeasStickyChange={setIsIdeasSticky}
+          isParentPicking={!!parentPickState}
+          parentPickSourceClipIds={parentPickState?.sourceClipIds ?? []}
+          parentPickInvalidTargetIds={parentPickInvalidTargetIds}
+          onStartSetParent={handleStartSetParent}
+          onMakeRoot={handleMakeRoot}
+          onPickParentTarget={handlePickParentTarget}
           footerSpacerHeight={
-            selectedIdea.kind === "project" && !isEditMode && !clipSelectionMode
+            selectedIdea.kind === "project" && !isEditMode && !clipSelectionMode && !parentPickState
               ? clipListFooterSpacerHeight
               : 28
           }
         />
       )}
-      {selectedIdea.kind === "project" && !isEditMode && !clipSelectionMode && songTab === "takes" ? (
+      {selectedIdea.kind === "project" &&
+      !isEditMode &&
+      !clipSelectionMode &&
+      !parentPickState &&
+      songTab === "takes" ? (
         <FloatingActionDock
           onRecord={() => {
             setRecordingParentClipId(null);
@@ -505,6 +828,28 @@ export function IdeaDetailScreen() {
             },
           ]}
         />
+      ) : null}
+      {undoState ? (
+        <View style={[styles.ideasUndoWrap, { bottom: songUndoBottom }]}>
+          <View style={styles.ideasUndoCard}>
+            <Text style={styles.ideasUndoText} numberOfLines={1}>
+              {undoState.message}
+            </Text>
+            <Pressable
+              style={({ pressed }) => [styles.ideasUndoBtn, pressed ? styles.pressDown : null]}
+              onPress={() => {
+                if (undoTimerRef.current) {
+                  clearTimeout(undoTimerRef.current);
+                  undoTimerRef.current = null;
+                }
+                undoState.undo();
+                setUndoState(null);
+              }}
+            >
+              <Text style={styles.ideasUndoBtnText}>Undo</Text>
+            </Pressable>
+          </View>
+        </View>
       ) : null}
       <QuickNameModal
         visible={importModalOpen}

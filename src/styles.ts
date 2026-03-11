@@ -1799,6 +1799,13 @@ export const styles = StyleSheet.create({
   songDetailVersionCardCompact: {
     paddingVertical: 6,
   },
+  songDetailVersionCardParentTarget: {
+    borderColor: "#0f766e",
+    backgroundColor: "#f0fdfa",
+  },
+  songDetailVersionCardParentTargetDisabled: {
+    opacity: 0.48,
+  },
   songDetailVersionRow: {
     flexDirection: "row",
     alignItems: "stretch",
@@ -3588,6 +3595,44 @@ export const styles = StyleSheet.create({
     gap: 6,
   },
   selectionText: { fontSize: 13, color: "#374151", fontWeight: "600" },
+  songDetailParentPickCopy: {
+    flex: 1,
+    minWidth: 0,
+    gap: 2,
+    paddingRight: 12,
+  },
+  songDetailParentPickHelper: {
+    fontSize: 12,
+    lineHeight: 16,
+    color: "#475569",
+    fontWeight: "600",
+  },
+  songDetailParentPickMeta: {
+    fontSize: 11,
+    lineHeight: 15,
+    color: "#64748b",
+    fontWeight: "500",
+  },
+  songDetailParentPickInlineHint: {
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#cbd5e1",
+    backgroundColor: "#ffffff",
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    gap: 2,
+  },
+  songDetailParentPickInlineTitle: {
+    fontSize: 12,
+    color: "#0f172a",
+    fontWeight: "700",
+  },
+  songDetailParentPickInlineText: {
+    fontSize: 11,
+    lineHeight: 15,
+    color: "#475569",
+    fontWeight: "600",
+  },
   ideasSelectionDock: {
     position: "absolute",
     left: 16,
