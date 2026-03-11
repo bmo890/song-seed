@@ -1,0 +1,311 @@
+import React, { useMemo, useState } from "react";
+import { View, Text, Pressable, Alert } from "react-native";
+import { useNavigation } from "@react-navigation/native";
+import { Ionicons } from "@expo/vector-icons";
+import * as Haptics from "expo-haptics";
+import { styles } from "../../styles";
+import { useStore } from "../../state/useStore";
+import { appActions } from "../../state/actions";
+import { TitleInput } from "../common/TitleInput";
+import { getCollectionAncestors, getCollectionById } from "../../utils";
+import { AppBreadcrumbs, type AppBreadcrumbItem } from "../common/AppBreadcrumbs";
+import { getCollectionHierarchyLevel, getHierarchyIconColor, getHierarchyIconName } from "../../hierarchy";
+
+type IdeaHeaderProps = {
+    isEditMode: boolean;
+    setIsEditMode: (v: boolean) => void;
+    draftTitle: string;
+    setDraftTitle: (v: string) => void;
+    compactTitleMode?: boolean;
+    onSave: () => void;
+    onCancel: (onDiscard?: () => void) => void;
+    onPlayAll: () => void;
+    playAllDisabled?: boolean;
+    onImportAudio: () => void;
+};
+
+export function IdeaHeader({
+    isEditMode,
+    setIsEditMode,
+    draftTitle,
+    setDraftTitle,
+    compactTitleMode = false,
+    onSave,
+    onCancel,
+    onPlayAll,
+    playAllDisabled,
+    onImportAudio,
+}: IdeaHeaderProps) {
+    const navigation = useNavigation();
+    const [headerMenuOpen, setHeaderMenuOpen] = useState(false);
+    const rootNavigation = (navigation as any).getParent?.();
+    const navigateRoot = (route: string, params?: object) =>
+        (rootNavigation ?? navigation).navigate(route as never, params as never);
+
+    const selectedIdea = useStore((s) => {
+        const ws = s.workspaces.find((w) => w.id === s.activeWorkspaceId);
+        return ws?.ideas.find((i) => i.id === s.selectedIdeaId);
+    });
+    const activeWorkspace = useStore((s) => s.workspaces.find((w) => w.id === s.activeWorkspaceId) ?? null);
+
+    const isNewProjectDraft = selectedIdea?.isDraft;
+
+    if (!selectedIdea) return null;
+
+    const ideaLevel = selectedIdea.kind === "project" ? "song" : "clip";
+    const titleIcon = getHierarchyIconName(ideaLevel);
+    const titleIconColor = getHierarchyIconColor(ideaLevel);
+
+    const currentCollection =
+        activeWorkspace && selectedIdea
+            ? getCollectionById(activeWorkspace, selectedIdea.collectionId)
+            : null;
+    const collectionAncestors =
+        currentCollection && activeWorkspace
+            ? getCollectionAncestors(activeWorkspace, currentCollection.id)
+            : [];
+    const breadcrumbItems = useMemo<Array<AppBreadcrumbItem>>(() => {
+        if (!selectedIdea) return [];
+
+        return [
+            {
+                key: "home",
+                label: "Home",
+                level: "home",
+                iconOnly: true,
+                onPress: () => navigateRoot("Home", { screen: "Workspaces" }),
+            },
+            ...(activeWorkspace
+                ? [
+                    {
+                        key: `workspace-${activeWorkspace.id}`,
+                        label: activeWorkspace.title,
+                        level: "workspace" as const,
+                        onPress: () => navigateRoot("Home", { screen: "Browse" }),
+                        active: !currentCollection,
+                    },
+                ]
+                : []),
+            ...collectionAncestors.map((collection) => ({
+                key: collection.id,
+                label: collection.title,
+                level: getCollectionHierarchyLevel(collection),
+                onPress: () => navigateRoot("CollectionDetail", { collectionId: collection.id }),
+            })),
+            ...(currentCollection
+                ? [
+                    {
+                        key: currentCollection.id,
+                        label: currentCollection.title,
+                        level: getCollectionHierarchyLevel(currentCollection),
+                        onPress: () => navigateRoot("CollectionDetail", { collectionId: currentCollection.id }),
+                        active: true,
+                    },
+                ]
+                : []),
+        ];
+    }, [activeWorkspace, collectionAncestors, currentCollection, selectedIdea]);
+    const titleLabel = selectedIdea.kind === "project" ? "SONG" : "CLIP";
+    const isProject = selectedIdea.kind === "project";
+    const showCompactTitle = compactTitleMode && !isEditMode;
+
+    return (
+        <View style={styles.songDetailHeader}>
+            <View style={styles.songDetailNavRow}>
+                <View style={styles.songDetailNavLead}>
+                    <Pressable
+                        style={({ pressed }) => [styles.hamburgerBtn, pressed ? styles.pressDown : null]}
+                        onPress={() => ((rootNavigation ?? (navigation as any)) as any).openDrawer?.()}
+                    >
+                        <Text style={styles.sideNavLabel}>☰</Text>
+                    </Pressable>
+                {showCompactTitle ? (
+                        <View style={styles.songDetailCompactTitleWrap}>
+                            <Ionicons name={titleIcon} size={15} color={titleIconColor} />
+                            <Text style={styles.songDetailNavCompactTitle} numberOfLines={1}>
+                                {selectedIdea.title}
+                            </Text>
+                        </View>
+                    ) : (
+                        <AppBreadcrumbs
+                            items={breadcrumbItems}
+                            containerStyle={styles.songDetailInlineBreadcrumbs}
+                        />
+                    )}
+                </View>
+
+                {isEditMode ? (
+                    <View style={styles.songDetailNavEditActions}>
+                        <Pressable
+                            style={({ pressed }) => [
+                                styles.songDetailNavTextAction,
+                                pressed ? styles.pressDown : null,
+                            ]}
+                            onPress={() => {
+                                void Haptics.selectionAsync();
+                                onCancel();
+                            }}
+                        >
+                            <Text style={styles.songDetailNavTextActionText}>
+                                {selectedIdea.isDraft ? "Discard" : "Cancel"}
+                            </Text>
+                        </Pressable>
+                        <Pressable
+                            style={({ pressed }) => [
+                                styles.songDetailNavTextAction,
+                                styles.songDetailNavTextActionPrimary,
+                                pressed ? styles.pressDown : null,
+                            ]}
+                            onPress={() => {
+                                void Haptics.selectionAsync();
+                                onSave();
+                            }}
+                        >
+                            <Text style={styles.songDetailNavTextActionPrimaryText}>Save</Text>
+                        </Pressable>
+                    </View>
+                ) : (
+                    <Pressable
+                        style={({ pressed }) => [styles.ideasHeaderMenuBtn, pressed ? styles.pressDown : null]}
+                        onPress={() => setHeaderMenuOpen((prev) => !prev)}
+                    >
+                        <Ionicons name="ellipsis-horizontal" size={16} color="#334155" />
+                    </Pressable>
+                )}
+            </View>
+
+            <View
+                style={[
+                    styles.songDetailTitleBlock,
+                    showCompactTitle ? styles.songDetailTitleBlockHidden : null,
+                ]}
+            >
+                {isEditMode ? (
+                    <>
+                        <Text style={styles.songDetailTypeLabel}>Editing {titleLabel}</Text>
+                        <TitleInput
+                            value={draftTitle}
+                            onChangeText={setDraftTitle}
+                            placeholder={`${isProject ? "Song" : "Clip"} title`}
+                            containerStyle={styles.songDetailTitleInputWrap}
+                            minHeight={40}
+                            maxHeight={92}
+                            showGenerator={false}
+                        />
+                    </>
+                ) : (
+                    <View style={styles.songDetailPageTitleWithIcon}>
+                        <Ionicons name={titleIcon} size={19} color={titleIconColor} />
+                        <Text style={styles.songDetailPageTitleLarge} numberOfLines={2}>
+                            {selectedIdea.title}
+                        </Text>
+                    </View>
+                )}
+            </View>
+
+            {headerMenuOpen ? (
+                <View style={styles.ideasHeaderMenuLayer} pointerEvents="box-none">
+                    <Pressable
+                        style={styles.ideasHeaderMenuBackdrop}
+                        onPress={() => setHeaderMenuOpen(false)}
+                    />
+                    <View style={[styles.ideasSortMenu, styles.ideasHeaderOverflowMenu]}>
+                        <Pressable
+                            style={({ pressed }) => [styles.ideasToggleRow, pressed ? styles.pressDown : null]}
+                            onPress={() => {
+                                setHeaderMenuOpen(false);
+                                void Haptics.selectionAsync();
+                                setIsEditMode(true);
+                            }}
+                        >
+                            <Text style={styles.ideasSortMenuItemText}>
+                                {isProject ? "Edit song" : "Edit clip"}
+                            </Text>
+                            <Ionicons name="create-outline" size={15} color="#334155" />
+                        </Pressable>
+                        {isProject ? (
+                            <>
+                                <View style={styles.ideasDropdownDivider} />
+                                <Pressable
+                                    style={({ pressed }) => [
+                                        styles.ideasToggleRow,
+                                        playAllDisabled ? styles.btnDisabled : null,
+                                        pressed ? styles.pressDown : null,
+                                    ]}
+                                    disabled={!!playAllDisabled}
+                                    onPress={() => {
+                                        setHeaderMenuOpen(false);
+                                        void Haptics.selectionAsync();
+                                        onPlayAll();
+                                    }}
+                                >
+                                    <Text style={styles.ideasSortMenuItemText}>Play all</Text>
+                                    <Ionicons name="play-outline" size={15} color="#334155" />
+                                </Pressable>
+                                <Pressable
+                                    style={({ pressed }) => [styles.ideasToggleRow, pressed ? styles.pressDown : null]}
+                                    onPress={() => {
+                                        setHeaderMenuOpen(false);
+                                        void Haptics.selectionAsync();
+                                        onImportAudio();
+                                    }}
+                                >
+                                    <Text style={styles.ideasSortMenuItemText}>Import audio</Text>
+                                    <Ionicons name="download-outline" size={15} color="#334155" />
+                                </Pressable>
+                            </>
+                        ) : (
+                            <>
+                                <View style={styles.ideasDropdownDivider} />
+                                <Pressable
+                                    style={({ pressed }) => [styles.ideasToggleRow, pressed ? styles.pressDown : null]}
+                                    onPress={() => {
+                                        setHeaderMenuOpen(false);
+                                        void Haptics.selectionAsync();
+                                        appActions.convertSelectedClipIdeaToProject();
+                                    }}
+                                >
+                                    <Text style={styles.ideasSortMenuItemText}>Make song</Text>
+                                    <Ionicons name="albums-outline" size={15} color="#334155" />
+                                </Pressable>
+                            </>
+                        )}
+                        {!isNewProjectDraft ? (
+                            <>
+                                <View style={styles.ideasDropdownDivider} />
+                                <Pressable
+                                    style={({ pressed }) => [styles.ideasToggleRow, pressed ? styles.pressDown : null]}
+                                    onPress={() => {
+                                        setHeaderMenuOpen(false);
+                                        Alert.alert(
+                                            isProject ? "Delete song?" : "Delete clip?",
+                                            isProject
+                                                ? `Delete "${selectedIdea.title}" and all its clips?`
+                                                : `Delete "${selectedIdea.title}"?`,
+                                            [
+                                                { text: "Cancel", style: "cancel" },
+                                                {
+                                                    text: "Delete",
+                                                    style: "destructive",
+                                                    onPress: () => {
+                                                        appActions.deleteSelectedIdea();
+                                                        navigation.goBack();
+                                                    },
+                                                },
+                                            ]
+                                        );
+                                    }}
+                                >
+                                    <Text style={styles.songDetailDangerMenuText}>
+                                        {isProject ? "Delete song" : "Delete clip"}
+                                    </Text>
+                                    <Ionicons name="trash-outline" size={15} color="#b91c1c" />
+                                </Pressable>
+                            </>
+                        ) : null}
+                    </View>
+                </View>
+            ) : null}
+        </View>
+    );
+}

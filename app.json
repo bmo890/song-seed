@@ -1,0 +1,67 @@
+{
+  "expo": {
+    "name": "song-seed",
+    "slug": "song-seed",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "Song Seed needs microphone access so you can record song ideas and voice memos."
+      },
+      "bundleIdentifier": "com.anonymous.songseed"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "edgeToEdgeEnabled": true,
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "RECORD_AUDIO",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS"
+      ],
+      "package": "com.anonymous.songseed"
+    },
+    "plugins": [
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "Song Seed needs microphone access so you can record song ideas and voice memos.",
+          "enableBackgroundRecording": true
+        }
+      ],
+      [
+        "@siteed/expo-audio-studio",
+        {
+          "microphonePermission": "Song Seed needs microphone access so you can record song ideas and voice memos.",
+          "enableBackgroundAudio": true,
+          "enableNotifications": true,
+          "enableDeviceDetection": true,
+          "iosBackgroundModes": {
+            "useAudio": true,
+            "useProcessing": true
+          },
+          "iosConfig": {
+            "microphoneUsageDescription": "Song Seed needs microphone access so you can record song ideas and voice memos.",
+            "notificationUsageDescription": "Song Seed uses recording notifications so background recording can continue.",
+            "allowBackgroundAudioControls": true
+          }
+        }
+      ]
+    ],
+    "web": {
+      "favicon": "./assets/favicon.png"
+    }
+  }
+}

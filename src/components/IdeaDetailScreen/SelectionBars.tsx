@@ -1,0 +1,141 @@
+import React, { useState } from "react";
+import { View, Text, Pressable, Alert } from "react-native";
+import { useNavigation } from "@react-navigation/native";
+import { Ionicons } from "@expo/vector-icons";
+import { styles } from "../../styles";
+import { Button } from "../common/Button";
+import { useStore } from "../../state/useStore";
+import { appActions } from "../../state/actions";
+import { shareAudioClips } from "../../services/audioStorage";
+
+export function SelectionBars() {
+    const navigation = useNavigation();
+    const clipSelectionMode = useStore((s) => s.clipSelectionMode);
+    const selectedClipIds = useStore((s) => s.selectedClipIds);
+    const replaceClipSelection = useStore((s) => s.replaceClipSelection);
+    const movingClipId = useStore((s) => s.movingClipId);
+    const ideas = useStore((s) => s.workspaces.find(w => w.id === s.activeWorkspaceId)?.ideas || []);
+
+    const selectedIdea = useStore((s) => {
+        const ws = s.workspaces.find((w) => w.id === s.activeWorkspaceId);
+        return ws?.ideas.find((i) => i.id === s.selectedIdeaId);
+    });
+    const [isSharing, setIsSharing] = useState(false);
+
+    const singleSelectedClip = selectedClipIds.length === 1 && selectedIdea
+        ? selectedIdea.clips.find((c) => c.id === selectedClipIds[0]) ?? null
+        : null;
+    const shareableClips = (selectedIdea?.clips ?? [])
+        .filter((clip) => selectedClipIds.includes(clip.id) && !!clip.audioUri)
+        .map((clip) => ({
+            title: clip.title,
+            audioUri: clip.audioUri!,
+        }));
+    const selectableClipIds = (selectedIdea?.clips ?? []).map((clip) => clip.id);
+    const allSelectableSelected =
+        selectableClipIds.length > 0 && selectableClipIds.every((id) => selectedClipIds.includes(id));
+    const canDeselectAll = allSelectableSelected || (selectableClipIds.length === 0 && selectedClipIds.length > 0);
+
+    const targetProjects = ideas.filter((i) => i.kind === "project" && i.id !== selectedIdea?.id);
+    const playableSelectedCount = (selectedIdea?.clips ?? []).filter((clip) => selectedClipIds.includes(clip.id) && !!clip.audioUri).length;
+
+    function handlePlaySelected() {
+        if (!selectedIdea) return;
+        const queue = selectedIdea.clips
+            .filter((clip) => selectedClipIds.includes(clip.id) && !!clip.audioUri)
+            .map((clip) => ({
+                ideaId: selectedIdea.id,
+                clipId: clip.id,
+            }));
+        if (queue.length === 0) {
+            Alert.alert("Nothing to play", "None of the selected clips have playable audio yet.");
+            return;
+        }
+        useStore.getState().setPlayerQueue(queue, 0, true);
+        navigation.navigate("Player" as never);
+    }
+
+    async function handleShareSelected() {
+        if (shareableClips.length === 0 || isSharing) return;
+
+        try {
+            setIsSharing(true);
+            await shareAudioClips(
+                shareableClips,
+                selectedIdea ? `${selectedIdea.title} Clips` : "SongSeed Clips"
+            );
+        } catch (error) {
+            const message = error instanceof Error ? error.message : "Could not share the selected clips.";
+            Alert.alert("Share failed", message);
+        } finally {
+            setIsSharing(false);
+        }
+    }
+
+    return (
+        <>
+            {clipSelectionMode ? (
+                <View style={styles.selectionBar}>
+                    <Text style={styles.selectionText}>{selectedClipIds.length} selected</Text>
+                    <View style={styles.rowButtons}>
+                        <Button
+                            variant="secondary"
+                            label={`Play selected (${playableSelectedCount})`}
+                            disabled={playableSelectedCount === 0}
+                            onPress={handlePlaySelected}
+                        />
+                        <Button
+                            variant="secondary"
+                            label={canDeselectAll ? "Deselect all" : "Select all"}
+                            disabled={!canDeselectAll && selectableClipIds.length === 0}
+                            onPress={() => replaceClipSelection(canDeselectAll ? [] : selectableClipIds)}
+                        />
+                        <Button
+                            variant="secondary"
+                            label={isSharing ? "Sharing..." : `Share (${shareableClips.length})`}
+                            disabled={isSharing || shareableClips.length === 0}
+                            onPress={() => {
+                                void handleShareSelected();
+                            }}
+                        />
+                        <Button variant="secondary" label="Copy" onPress={() => useStore.getState().startClipboardFromProject("copy")} />
+                        <Button variant="secondary" label="Move" onPress={() => useStore.getState().startClipboardFromProject("move")} />
+                        <Pressable
+                            style={styles.dangerBtn}
+                            onPress={() => {
+                                Alert.alert(
+                                    "Delete clips?",
+                                    "Are you sure you want to remove these clips from the song?",
+                                    [
+                                        { text: "Cancel", style: "cancel" },
+                                        { text: "Delete", style: "destructive", onPress: appActions.deleteSelectedClips }
+                                    ]
+                                );
+                            }}
+                        >
+                            <Ionicons name="trash-outline" size={16} color="#b91c1c" />
+                        </Pressable>
+                        <Button variant="secondary" label="Done" onPress={() => useStore.getState().cancelClipSelection()} />
+                    </View>
+                </View>
+            ) : null}
+
+            {movingClipId ? (
+                <View style={styles.selectionBar}>
+                    <Text style={styles.selectionText}>Move clip to:</Text>
+                    <View style={styles.rowButtons}>
+                        {targetProjects.map((project) => (
+                            <Button
+                                key={project.id}
+                                variant="secondary"
+                                label={project.title}
+                                onPress={() => appActions.moveClipToProject(project.id)}
+                            />
+                        ))}
+                        <Button variant="secondary" label="Cancel" onPress={() => useStore.getState().setMovingClipId(null)} />
+                    </View>
+                </View>
+            ) : null}
+        </>
+    );
+}
