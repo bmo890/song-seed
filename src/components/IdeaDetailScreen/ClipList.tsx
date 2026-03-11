@@ -37,6 +37,12 @@ type ClipListProps = {
   setClipTagFilter: (filter: SongClipTagFilter) => void;
   summaryContent?: ReactNode;
   onIdeasStickyChange?: (isSticky: boolean) => void;
+  isParentPicking: boolean;
+  parentPickSourceClipIds: string[];
+  parentPickInvalidTargetIds: string[];
+  onStartSetParent: (clipIds: string[]) => void;
+  onMakeRoot: (clipIds: string[]) => void;
+  onPickParentTarget: (clipId: string) => void;
 };
 
 type RenderClipEntry = (
@@ -182,6 +188,12 @@ export function ClipList({
   setClipTagFilter,
   summaryContent,
   onIdeasStickyChange,
+  isParentPicking,
+  parentPickSourceClipIds,
+  parentPickInvalidTargetIds,
+  onStartSetParent,
+  onMakeRoot,
+  onPickParentTarget,
 }: ClipListProps) {
   const navigation = useNavigation();
   const isFocused = useIsFocused();
@@ -203,6 +215,14 @@ export function ClipList({
   const pendingPrimaryClipId = useStore((s) => s.pendingPrimaryClipId);
   const recentlyAddedItemIds = useStore((s) => s.recentlyAddedItemIds);
   const clearRecentlyAdded = useStore((s) => s.clearRecentlyAdded);
+  const parentPickSourceIdSet = useMemo(
+    () => new Set(parentPickSourceClipIds),
+    [parentPickSourceClipIds]
+  );
+  const parentPickInvalidTargetIdSet = useMemo(
+    () => new Set(parentPickInvalidTargetIds),
+    [parentPickInvalidTargetIds]
+  );
 
   const selectedIdea = useStore((s) => {
     const ws = s.workspaces.find((w) => w.id === s.activeWorkspaceId);
@@ -306,6 +326,18 @@ export function ClipList({
     didBlurCleanupRef.current = true;
     void inlinePlayer.resetInlinePlayer();
   }, [inlinePlayer, isFocused]);
+
+  useEffect(() => {
+    if (isParentPicking && viewMode !== "evolution") {
+      setViewMode("evolution");
+    }
+  }, [isParentPicking, setViewMode, viewMode]);
+
+  useEffect(() => {
+    if (!isParentPicking) return;
+    setActionsClipId(null);
+    setEditingClipId(null);
+  }, [isParentPicking]);
 
   if (!selectedIdea) return null;
   const songIdea = selectedIdea;
@@ -433,7 +465,7 @@ export function ClipList({
   }, [onIdeasStickyChange]);
 
   function openClipActions(clip: ClipVersion) {
-    if (clipSelectionMode || isEditMode || isDraftProject) return;
+    if (clipSelectionMode || isEditMode || isDraftProject || isParentPicking) return;
     setActionsClipId(clip.id);
   }
 
@@ -486,6 +518,10 @@ export function ClipList({
     const compactDensity = viewMode === "evolution" || entry.compactPreview;
     const isBranchRoot = entry.kind === "evolution" && entry.showBranchToggle && !!entry.branchRootId;
     const isBranchExpanded = isBranchRoot ? !!expandedBranchIds[entry.branchRootId!] : false;
+    const isParentPickSource = parentPickSourceIdSet.has(clip.id);
+    const isInvalidParentTarget =
+      isParentPicking && parentPickInvalidTargetIdSet.has(clip.id);
+    const isValidParentTarget = isParentPicking && !isInvalidParentTarget;
 
     return (
       <View style={styles.threadRowWrap}>
@@ -515,7 +551,11 @@ export function ClipList({
             styles.threadCard,
             styles.songDetailVersionCard,
             compactDensity ? styles.songDetailVersionCardCompact : null,
-            isSelected || isMoving ? styles.cardSelected : null,
+            isSelected || isMoving || isParentPickSource ? styles.cardSelected : null,
+            isValidParentTarget ? styles.songDetailVersionCardParentTarget : null,
+            isParentPicking && !isParentPickSource && isInvalidParentTarget
+              ? styles.songDetailVersionCardParentTargetDisabled
+              : null,
           ]}
         >
           <View style={styles.songDetailVersionRow}>
@@ -525,7 +565,7 @@ export function ClipList({
                 inlineActive ? styles.songDetailVersionLeadInlineActive : null,
               ]}
             >
-              {!clipSelectionMode && !isDraftProject ? (
+              {!clipSelectionMode && !isDraftProject && !isParentPicking ? (
                 <Pressable
                   onPress={(evt) => {
                     evt.stopPropagation();
@@ -547,9 +587,9 @@ export function ClipList({
                 </Pressable>
               ) : (
                 <View style={styles.ideasInlinePlayBtn}>
-                  <Text style={styles.inlinePlayBtnText}>▶</Text>
-                </View>
-              )}
+                <Text style={styles.inlinePlayBtnText}>▶</Text>
+              </View>
+            )}
               <View style={styles.songDetailVersionLeadDurationSlot}>
                 <Text style={styles.songDetailVersionLeadDurationText}>
                   {clip.durationMs ? fmtDuration(clip.durationMs) : "0:00"}
@@ -560,6 +600,9 @@ export function ClipList({
             <Pressable
               style={styles.songDetailVersionMain}
               onLongPress={() => {
+                if (isParentPicking) {
+                  return;
+                }
                 if (clipSelectionMode) {
                   useStore.getState().toggleClipSelection(clip.id);
                   return;
@@ -568,6 +611,11 @@ export function ClipList({
               }}
               onPress={async () => {
                 if (isDraftProject) return;
+                if (isParentPicking) {
+                  if (isInvalidParentTarget) return;
+                  onPickParentTarget(clip.id);
+                  return;
+                }
                 if (clipSelectionMode) {
                   useStore.getState().toggleClipSelection(clip.id);
                   return;
@@ -647,7 +695,9 @@ export function ClipList({
                     </View>
 
                     <View style={styles.songDetailVersionTrailing}>
-                      {isEditMode ? (
+                      {isParentPickSource ? (
+                        <Text style={styles.badge}>SOURCE</Text>
+                      ) : isEditMode ? (
                         isPrimaryCandidate ? (
                           <Text style={styles.badge}>PRIMARY</Text>
                         ) : (
@@ -662,7 +712,7 @@ export function ClipList({
                         <Text style={styles.badge}>PRIMARY</Text>
                       ) : null}
 
-                      {!clipSelectionMode && !isEditMode && !isDraftProject ? (
+                      {!clipSelectionMode && !isEditMode && !isDraftProject && !isParentPicking ? (
                         <Pressable
                           style={({ pressed }) => [
                             styles.songDetailVersionReplyBtn,
@@ -759,18 +809,27 @@ export function ClipList({
           if (item.kind === "ideas-header") {
             return (
               <View style={styles.songDetailStickyIdeasHeader}>
-                <ActionButtons
-                  isEditMode={isEditMode}
-                  clipViewMode={viewMode}
-                  setClipViewMode={setViewMode}
-                  timelineSortMetric={timelineSortMetric}
-                  setTimelineSortMetric={setTimelineSortMetric}
-                  timelineSortDirection={timelineSortDirection}
-                  setTimelineSortDirection={setTimelineSortDirection}
-                  clipTagFilter={clipTagFilter}
-                  setClipTagFilter={setClipTagFilter}
-                  visibleIdeaCount={filteredIdeaClips.length}
-                />
+                {isParentPicking ? (
+                  <View style={styles.songDetailParentPickInlineHint}>
+                    <Text style={styles.songDetailParentPickInlineTitle}>Choose parent clip</Text>
+                    <Text style={styles.songDetailParentPickInlineText}>
+                      Tap any available clip below.
+                    </Text>
+                  </View>
+                ) : (
+                  <ActionButtons
+                    isEditMode={isEditMode}
+                    clipViewMode={viewMode}
+                    setClipViewMode={setViewMode}
+                    timelineSortMetric={timelineSortMetric}
+                    setTimelineSortMetric={setTimelineSortMetric}
+                    timelineSortDirection={timelineSortDirection}
+                    setTimelineSortDirection={setTimelineSortDirection}
+                    clipTagFilter={clipTagFilter}
+                    setClipTagFilter={setClipTagFilter}
+                    visibleIdeaCount={filteredIdeaClips.length}
+                  />
+                )}
               </View>
             );
           }
@@ -811,6 +870,34 @@ export function ClipList({
         actions={
           actionsClip
             ? [
+                ...(!actionsClip.isPrimary
+                  ? [
+                      {
+                        key: "set-parent",
+                        label: actionsClip.parentClipId
+                          ? "Change parent..."
+                          : "Set parent...",
+                        icon: "return-up-forward-outline" as const,
+                        onPress: () => {
+                          setActionsClipId(null);
+                          onStartSetParent([actionsClip.id]);
+                        },
+                      },
+                    ]
+                  : []),
+                ...(actionsClip.parentClipId
+                  ? [
+                      {
+                        key: "make-root",
+                        label: "Make root",
+                        icon: "arrow-up-outline" as const,
+                        onPress: () => {
+                          setActionsClipId(null);
+                          onMakeRoot([actionsClip.id]);
+                        },
+                      },
+                    ]
+                  : []),
                 {
                   key: "record-variation",
                   label: "Record variation",

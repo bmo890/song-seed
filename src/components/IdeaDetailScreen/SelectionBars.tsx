@@ -8,7 +8,12 @@ import { useStore } from "../../state/useStore";
 import { appActions } from "../../state/actions";
 import { shareAudioClips } from "../../services/audioStorage";
 
-export function SelectionBars() {
+type SelectionBarsProps = {
+    onStartSetParent: (clipIds: string[]) => void;
+    onMakeRoot: (clipIds: string[]) => void;
+};
+
+export function SelectionBars({ onStartSetParent, onMakeRoot }: SelectionBarsProps) {
     const navigation = useNavigation();
     const clipSelectionMode = useStore((s) => s.clipSelectionMode);
     const selectedClipIds = useStore((s) => s.selectedClipIds);
@@ -22,9 +27,6 @@ export function SelectionBars() {
     });
     const [isSharing, setIsSharing] = useState(false);
 
-    const singleSelectedClip = selectedClipIds.length === 1 && selectedIdea
-        ? selectedIdea.clips.find((c) => c.id === selectedClipIds[0]) ?? null
-        : null;
     const shareableClips = (selectedIdea?.clips ?? [])
         .filter((clip) => selectedClipIds.includes(clip.id) && !!clip.audioUri)
         .map((clip) => ({
@@ -97,6 +99,16 @@ export function SelectionBars() {
                             onPress={() => {
                                 void handleShareSelected();
                             }}
+                        />
+                        <Button
+                            variant="secondary"
+                            label="Set parent..."
+                            onPress={() => onStartSetParent(selectedClipIds)}
+                        />
+                        <Button
+                            variant="secondary"
+                            label="Make root"
+                            onPress={() => onMakeRoot(selectedClipIds)}
                         />
                         <Button variant="secondary" label="Copy" onPress={() => useStore.getState().startClipboardFromProject("copy")} />
                         <Button variant="secondary" label="Move" onPress={() => useStore.getState().startClipboardFromProject("move")} />
