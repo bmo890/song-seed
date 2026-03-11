@@ -75,3 +75,79 @@ Rule of thumb:
 - If it is about audio behavior or transport/record/edit mechanics: `codex/media-workflow`
 - If it is about where things live, how you browse them, or how you find them: `codex/library-navigation`
 
+## UI Consistency Rules
+
+These rules are short, strict enforcement rules. Use [docs/design-system.md](/Users/benmogerman/Projects/song-seed/docs/design-system.md) for the fuller rationale and patterns.
+
+### Core philosophy
+- Song Seed is a creative tool for musicians, not a dashboard.
+- The UI should feel calm, minimal, predictable, and content-first.
+- Avoid flashy, dense, enterprise-style layouts.
+
+### Visual hierarchy
+- Every screen should follow this order:
+  - context
+  - title
+  - metadata
+  - primary content
+  - secondary tools
+  - actions
+- Primary content must be visually dominant.
+
+### Cards
+- Cards are for content, not for layout scaffolding.
+- Correct card usage:
+  - clips
+  - songs
+  - primary take
+  - idea items
+- Avoid using cards for:
+  - headers
+  - navigation
+  - timers
+  - recording controls
+  - generic buttons
+
+### Headers
+- Use one consistent header structure:
+  - left: navigation control
+  - center: breadcrumb context
+  - right: overflow menu
+- Keep breadcrumbs subtle, single-line, and truncated if deep.
+
+### Controls
+- Controls should sit directly on the surface, not inside decorative cards.
+- Use three action tiers:
+  - primary: one obvious action
+  - secondary: inline buttons/icons
+  - advanced/destructive: overflow menu
+
+### Interaction rules
+- Tap opens or activates.
+- Long press reveals contextual actions or enters selection.
+- Swipe is only for quick list-item actions.
+- Overflow menu is for advanced or destructive actions.
+- Do not invent screen-specific gestures if an existing pattern already exists.
+
+### Lists
+- List items should remain visually consistent across screens.
+- Default item anatomy:
+  - title
+  - compact metadata
+  - waveform preview if relevant
+- Reuse the Ideas list card pattern before inventing a new one.
+
+### Expandable content
+- Use collapsed/expanded sections to reduce clutter.
+- Collapsed state should show title plus a short summary.
+- Expanded state can reveal full content and compress surrounding content if needed.
+
+### Recording and playback
+- Recording controls belong in a sticky bottom control zone.
+- Playback controls should stay inline with waveform/media surfaces.
+- Discard/delete should not be primary visible actions.
+
+### Design consistency
+- Reuse existing interaction zones and components whenever possible.
+- Prefer shared components over page-specific clones.
+- If a screen feels crowded, reduce visible controls before adding new layout layers.
