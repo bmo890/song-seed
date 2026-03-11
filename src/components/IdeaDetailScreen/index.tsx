@@ -111,7 +111,8 @@ export function IdeaDetailScreen() {
   const [isEditMode, setIsEditMode] = useState(false);
   const [clipViewMode, setClipViewMode] = useState<"timeline" | "evolution">("evolution");
   const [timelineSortMetric, setTimelineSortMetric] = useState<SongTimelineSortMetric>("created");
-  const [timelineSortDirection, setTimelineSortDirection] = useState<SongTimelineSortDirection>("asc");
+  const [timelineSortDirection, setTimelineSortDirection] = useState<SongTimelineSortDirection>("desc");
+  const [timelineMainTakesOnly, setTimelineMainTakesOnly] = useState(false);
   const [clipTagFilter, setClipTagFilter] = useState<SongClipTagFilter>("all");
   const [songTab, setSongTab] = useState<"takes" | "lyrics" | "notes">("takes");
   const [draftTitle, setDraftTitle] = useState("");
@@ -189,7 +190,8 @@ export function IdeaDetailScreen() {
     setSongTab("takes");
     setClipTagFilter("all");
     setTimelineSortMetric("created");
-    setTimelineSortDirection("asc");
+    setTimelineSortDirection("desc");
+    setTimelineMainTakesOnly(false);
     setParentPickState(null);
   }, [selectedIdea?.id]);
 
@@ -789,6 +791,8 @@ export function IdeaDetailScreen() {
           setTimelineSortMetric={setTimelineSortMetric}
           timelineSortDirection={timelineSortDirection}
           setTimelineSortDirection={setTimelineSortDirection}
+          timelineMainTakesOnly={timelineMainTakesOnly}
+          setTimelineMainTakesOnly={setTimelineMainTakesOnly}
           clipTagFilter={clipTagFilter}
           setClipTagFilter={setClipTagFilter}
           summaryContent={takesSummaryContent}
