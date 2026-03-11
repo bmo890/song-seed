@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar as ExpoStatusBar } from "expo-status-bar";
 import { Alert, Pressable, Text, View } from "react-native";
@@ -15,6 +15,8 @@ import { formatDate } from "../../utils";
 import { AppBreadcrumbs } from "../common/AppBreadcrumbs";
 import { getCollectionAncestors, getCollectionById } from "../../utils";
 import { getCollectionHierarchyLevel, getIdeaHierarchyLevel } from "../../hierarchy";
+import { TransportLayout } from "../common/TransportLayout";
+import { useTransportScrubbing } from "../../hooks/useTransportScrubbing";
 
 export function PlayerScreen() {
   const navigation = useNavigation();
@@ -56,24 +58,55 @@ export function PlayerScreen() {
     playerCollection && activeWorkspace ? getCollectionAncestors(activeWorkspace, playerCollection.id) : [];
 
   const fullPlayer = useFullPlayer();
-  const displayDuration = fullPlayer.playerDuration || playerClip?.durationMs || 0;
-  const wasPlayingRef = useRef(false);
+  const {
+    playerTarget: activePlayerTarget,
+    playerPosition,
+    playerDuration,
+    isPlayerPlaying,
+    waveformPeaks,
+    finishedPlaybackToken,
+    finishedPlaybackClipId,
+    openPlayer,
+    closePlayer,
+    togglePlayer,
+    pausePlayer,
+    playPlayer,
+    seekTo,
+    updateLockScreenMetadata,
+  } = fullPlayer;
+  const displayDuration = playerDuration || playerClip?.durationMs || 0;
   const didBlurCleanupRef = useRef(false);
-  const [isScrubbing, setIsScrubbing] = useState(false);
   const hasPreviousTrack = playerQueueIndex > 0;
   const hasNextTrack = playerQueueIndex >= 0 && playerQueueIndex < playerQueue.length - 1;
+  const transportScrub = useTransportScrubbing({
+    isPlaying: isPlayerPlaying,
+    durationMs: displayDuration,
+    pause: pausePlayer,
+    play: playPlayer,
+    seekTo,
+  });
+  const { beginScrub, endScrub, cancelScrub, scrubTo } = transportScrub;
+  const lyricsAutoscrollState = useMemo(
+    () => ({
+      mode: "off" as const,
+      currentTimeMs: playerPosition,
+      durationMs: displayDuration,
+      activeLineId: null,
+    }),
+    [displayDuration, playerPosition]
+  );
 
   // Load the track if it changes
   useEffect(() => {
     if (!isFocused) return;
     didBlurCleanupRef.current = false;
     if (playerIdea && playerClip && playerClip.audioUri) {
-      if (fullPlayer.playerTarget?.clipId !== playerClip.id) {
+      if (activePlayerTarget?.clipId !== playerClip.id) {
         const shouldAutoplay = useStore.getState().playerShouldAutoplay;
         if (shouldAutoplay) {
           useStore.getState().consumePlayerAutoplay();
         }
-        void fullPlayer.openPlayer(
+        void openPlayer(
           playerIdea.id,
           playerClip,
           {
@@ -84,18 +117,18 @@ export function PlayerScreen() {
         );
       }
     }
-  }, [fullPlayer.playerTarget?.clipId, isFocused, playerClip?.audioUri, playerClip?.id, playerIdea?.id]);
+  }, [activePlayerTarget?.clipId, isFocused, openPlayer, playerClip?.audioUri, playerClip?.id, playerIdea?.id, playerClip, playerIdea]);
 
   useEffect(() => {
     if (!playerIdea || !playerClip) return;
-    fullPlayer.updateLockScreenMetadata({
+    updateLockScreenMetadata({
       title: playerClip.title,
       albumTitle: playerIdea.title,
     });
-  }, [playerClip?.title, playerIdea?.title]);
+  }, [playerClip?.title, playerIdea?.title, updateLockScreenMetadata]);
 
   useEffect(() => {
-    if (!playerIdea || !playerClip || !fullPlayer.playerDuration) return;
+    if (!playerIdea || !playerClip || !playerDuration) return;
     if (playerClip.durationMs && playerClip.durationMs > 0) return;
 
     useStore.setState((state) => ({
@@ -109,32 +142,31 @@ export function PlayerScreen() {
               : {
                   ...idea,
                   clips: idea.clips.map((clip) =>
-                    clip.id === playerClip.id ? { ...clip, durationMs: fullPlayer.playerDuration } : clip
+                    clip.id === playerClip.id ? { ...clip, durationMs: playerDuration } : clip
                   ),
                 }
           ),
         };
       }),
     }));
-  }, [activeWorkspaceId, fullPlayer.playerDuration, playerClip?.durationMs, playerClip?.id, playerIdea?.id]);
+  }, [activeWorkspaceId, playerDuration, playerClip?.durationMs, playerClip?.id, playerIdea?.id]);
 
   useEffect(() => {
     if (isFocused) return;
     if (didBlurCleanupRef.current) return;
     didBlurCleanupRef.current = true;
-    wasPlayingRef.current = false;
-    setIsScrubbing((prev) => (prev ? false : prev));
-    void fullPlayer.closePlayer();
-  }, [isFocused]);
+    void cancelScrub();
+    void closePlayer();
+  }, [cancelScrub, closePlayer, isFocused]);
 
   useEffect(() => {
-    if (!fullPlayer.finishedPlaybackToken) return;
+    if (!finishedPlaybackToken) return;
     if (!playerClip?.id) return;
-    if (fullPlayer.finishedPlaybackClipId !== playerClip.id) return;
+    if (finishedPlaybackClipId !== playerClip.id) return;
     if (hasNextTrack) {
       useStore.getState().advancePlayerQueue("next", true);
     }
-  }, [fullPlayer.finishedPlaybackClipId, fullPlayer.finishedPlaybackToken, hasNextTrack, playerClip?.id]);
+  }, [finishedPlaybackClipId, finishedPlaybackToken, hasNextTrack, playerClip?.id]);
 
   if (!playerIdea || !playerClip) {
     return (
@@ -144,201 +176,192 @@ export function PlayerScreen() {
     );
   }
 
-  const handleScrubStateChange = (scrubbing: boolean) => {
-    if (scrubbing) {
-      setIsScrubbing((prev) => (prev ? prev : true));
-      wasPlayingRef.current = fullPlayer.isPlayerPlaying || wasPlayingRef.current;
-      if (fullPlayer.isPlayerPlaying) {
-        void fullPlayer.togglePlayer();
-      }
-      return;
-    }
-
-    setIsScrubbing((prev) => (prev ? false : prev));
-    if (wasPlayingRef.current) {
-      void fullPlayer.togglePlayer();
-      wasPlayingRef.current = false;
-    }
-  };
-
-  const handleSeekTo = async (ms: number) => {
-    const wasPlaying = fullPlayer.isPlayerPlaying || wasPlayingRef.current;
-    const atEnd = displayDuration > 0 && ms >= displayDuration - 5;
-
-    setIsScrubbing((prev) => (prev ? prev : true));
-    await fullPlayer.seekTo(ms);
-    await new Promise((resolve) => setTimeout(resolve, 90));
-
-    if (!wasPlaying || atEnd) {
-      wasPlayingRef.current = false;
-    }
-  };
-
   return (
     <SafeAreaView style={styles.screen}>
-      <View style={styles.headerRow}>
-        <Pressable
-          style={styles.backBtn}
-          onPress={() => {
-            fullPlayer.closePlayer();
-            useStore.getState().clearPlayerQueue();
-            navigation.goBack();
-          }}
-        >
-          <Text style={styles.backBtnText}>← Back</Text>
-        </Pressable>
-        <Text style={styles.title}>Player</Text>
-      </View>
-
-      {activeWorkspace && playerCollection ? (
-        <AppBreadcrumbs
-          items={[
-            {
-              key: "home",
-              label: "Home",
-              level: "home",
-              iconOnly: true,
-              onPress: () => (navigation as any).navigate("Home", { screen: "Workspaces" }),
-            },
-            {
-              key: `workspace-${activeWorkspace.id}`,
-              label: activeWorkspace.title,
-              level: "workspace",
-              onPress: () => (navigation as any).navigate("Home", { screen: "Browse" }),
-            },
-            ...playerCollectionAncestors.map((collection) => ({
-              key: collection.id,
-              label: collection.title,
-              level: getCollectionHierarchyLevel(collection),
-              onPress: () => (navigation as any).navigate("CollectionDetail", { collectionId: collection.id }),
-            })),
-            {
-              key: playerCollection.id,
-              label: playerCollection.title,
-              level: getCollectionHierarchyLevel(playerCollection),
-              onPress: () => (navigation as any).navigate("CollectionDetail", { collectionId: playerCollection.id }),
-            },
-            ...(playerIdea.kind === "project"
-              ? [
-                  {
-                    key: playerIdea.id,
-                    label: playerIdea.title,
-                    level: getIdeaHierarchyLevel(playerIdea),
-                    onPress: () => (navigation as any).navigate("IdeaDetail", { ideaId: playerIdea.id }),
-                  },
-                ]
-              : []),
-            {
-              key: playerClip.id,
-              label: playerClip.title,
-              level: "clip" as const,
-              active: true,
-            },
-          ]}
-        />
-      ) : null}
-
-      <Text style={styles.subtitle}>{playerIdea.title}</Text>
-
-      <PlayerQueue
-        entries={queueEntries}
-        currentClipId={playerClip.id}
-        compact={hasProjectLyrics}
-        onSelect={(index) => {
-          useStore.getState().setPlayerQueue(playerQueue, index, true);
-        }}
-      />
-
-      {playerQueue.length > 1 ? (
-        <View style={styles.rowButtons}>
-          <Pressable
-            style={({ pressed }) => [
-              styles.secondaryBtn,
-              !hasPreviousTrack ? styles.btnDisabled : null,
-              pressed ? styles.pressDown : null,
-            ]}
-            onPress={() => useStore.getState().advancePlayerQueue("previous", true)}
-            disabled={!hasPreviousTrack}
-          >
-            <Text style={styles.secondaryBtnText}>Previous track</Text>
-          </Pressable>
-
-          <Pressable
-            style={({ pressed }) => [
-              styles.secondaryBtn,
-              !hasNextTrack ? styles.btnDisabled : null,
-              pressed ? styles.pressDown : null,
-            ]}
-            onPress={() => useStore.getState().advancePlayerQueue("next", true)}
-            disabled={!hasNextTrack}
-          >
-            <Text style={styles.secondaryBtnText}>Next track</Text>
-          </Pressable>
-        </View>
-      ) : null}
-
-      <PlayerControls
-        playerPosition={fullPlayer.playerPosition}
-        playerDuration={displayDuration}
-        waveformPeaks={fullPlayer.waveformPeaks}
-        isPlayerPlaying={fullPlayer.isPlayerPlaying}
-        isScrubbing={isScrubbing}
-        compact={hasProjectLyrics}
-        topLeftContent={
+      <TransportLayout
+        header={
           <>
-            <Pressable
-              style={({ pressed }) => [
-                styles.playerUtilityBtn,
-                pressed ? styles.pressDown : null,
-              ]}
-              onPress={async () => {
-                if (fullPlayer.isPlayerPlaying) {
-                  await fullPlayer.togglePlayer();
-                }
-                (navigation as any).navigate("Editor", {
-                  ideaId: playerIdea.id,
-                  clipId: playerClip.id,
-                  audioUri: playerClip.audioUri,
-                  durationMs: displayDuration || undefined,
-                });
-              }}
-            >
-              <Text style={styles.playerUtilityBtnText}>Edit</Text>
-            </Pressable>
+            <View style={styles.headerRow}>
+              <Pressable
+                style={styles.backBtn}
+                onPress={() => {
+                  closePlayer();
+                  useStore.getState().clearPlayerQueue();
+                  navigation.goBack();
+                }}
+              >
+                <Text style={styles.backBtnText}>← Back</Text>
+              </Pressable>
+              <Text style={styles.title}>Player</Text>
+            </View>
 
-            <Pressable
-              style={({ pressed }) => [
-                styles.playerUtilityBtn,
-                styles.playerUtilityBtnSecondary,
-                pressed ? styles.pressDown : null,
-              ]}
-              onPress={async () => {
-                if (!playerClip.audioUri) return;
-                try {
-                  await shareAudioFile(playerClip.audioUri, playerClip.title);
-                } catch (error) {
-                  console.warn("Share audio error", error);
-                  const message = error instanceof Error ? error.message : "Could not share this audio file.";
-                  Alert.alert("Share failed", message);
-                }
-              }}
-            >
-              <Text style={[styles.playerUtilityBtnText, styles.playerUtilityBtnTextSecondary]}>Share</Text>
-            </Pressable>
+            {activeWorkspace && playerCollection ? (
+              <AppBreadcrumbs
+                items={[
+                  {
+                    key: "home",
+                    label: "Home",
+                    level: "home",
+                    iconOnly: true,
+                    onPress: () => (navigation as any).navigate("Home", { screen: "Workspaces" }),
+                  },
+                  {
+                    key: `workspace-${activeWorkspace.id}`,
+                    label: activeWorkspace.title,
+                    level: "workspace",
+                    onPress: () => (navigation as any).navigate("Home", { screen: "Browse" }),
+                  },
+                  ...playerCollectionAncestors.map((collection) => ({
+                    key: collection.id,
+                    label: collection.title,
+                    level: getCollectionHierarchyLevel(collection),
+                    onPress: () => (navigation as any).navigate("CollectionDetail", { collectionId: collection.id }),
+                  })),
+                  {
+                    key: playerCollection.id,
+                    label: playerCollection.title,
+                    level: getCollectionHierarchyLevel(playerCollection),
+                    onPress: () => (navigation as any).navigate("CollectionDetail", { collectionId: playerCollection.id }),
+                  },
+                  ...(playerIdea.kind === "project"
+                    ? [
+                        {
+                          key: playerIdea.id,
+                          label: playerIdea.title,
+                          level: getIdeaHierarchyLevel(playerIdea),
+                          onPress: () => (navigation as any).navigate("IdeaDetail", { ideaId: playerIdea.id }),
+                        },
+                      ]
+                    : []),
+                  {
+                    key: playerClip.id,
+                    label: playerClip.title,
+                    level: "clip" as const,
+                    active: true,
+                  },
+                ]}
+              />
+            ) : null}
           </>
         }
-        onSeekTo={handleSeekTo}
-        onTogglePlay={fullPlayer.togglePlayer}
-        onScrubStateChange={handleScrubStateChange}
-      />
+        floating={
+          hasProjectLyrics && latestLyricsVersion ? (
+            <PlayerLyricsPanel
+              text={latestLyricsText}
+              versionLabel={`Version ${playerIdea.lyrics?.versions.length ?? 1}`}
+              updatedAtLabel={formatDate(latestLyricsVersion.updatedAt)}
+              autoscrollState={lyricsAutoscrollState}
+            />
+          ) : null
+        }
+        footer={
+          <View style={styles.transportFooterCard}>
+            <View style={styles.transportFooterMeta}>
+              <Text style={styles.transportFooterEyebrow}>Sticky Controls</Text>
+              <Text style={styles.transportFooterTitle}>{playerClip.title}</Text>
+            </View>
+            <View style={styles.transportFooterRow}>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.transportFooterButton,
+                  styles.transportFooterButtonSecondary,
+                  !hasPreviousTrack ? styles.transportFooterButtonDisabled : null,
+                  pressed ? styles.pressDown : null,
+                ]}
+                onPress={() => useStore.getState().advancePlayerQueue("previous", true)}
+                disabled={!hasPreviousTrack}
+              >
+                <Text style={[styles.transportFooterButtonText, styles.transportFooterButtonTextSecondary]}>
+                  Prev
+                </Text>
+              </Pressable>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.transportFooterButton,
+                  pressed ? styles.pressDown : null,
+                ]}
+                onPress={async () => {
+                  if (isPlayerPlaying) {
+                    await pausePlayer();
+                  }
+                  (navigation as any).navigate("Editor", {
+                    ideaId: playerIdea.id,
+                    clipId: playerClip.id,
+                    audioUri: playerClip.audioUri,
+                    durationMs: displayDuration || undefined,
+                  });
+                }}
+              >
+                <Text style={styles.transportFooterButtonText}>Edit</Text>
+              </Pressable>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.transportFooterButton,
+                  styles.transportFooterButtonSecondary,
+                  pressed ? styles.pressDown : null,
+                ]}
+                onPress={async () => {
+                  if (!playerClip.audioUri) return;
+                  try {
+                    await shareAudioFile(playerClip.audioUri, playerClip.title);
+                  } catch (error) {
+                    console.warn("Share audio error", error);
+                    const message = error instanceof Error ? error.message : "Could not share this audio file.";
+                    Alert.alert("Share failed", message);
+                  }
+                }}
+              >
+                <Text style={[styles.transportFooterButtonText, styles.transportFooterButtonTextSecondary]}>
+                  Share
+                </Text>
+              </Pressable>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.transportFooterButton,
+                  styles.transportFooterButtonSecondary,
+                  !hasNextTrack ? styles.transportFooterButtonDisabled : null,
+                  pressed ? styles.pressDown : null,
+                ]}
+                onPress={() => useStore.getState().advancePlayerQueue("next", true)}
+                disabled={!hasNextTrack}
+              >
+                <Text style={[styles.transportFooterButtonText, styles.transportFooterButtonTextSecondary]}>
+                  Next
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+        }
+      >
+        <Text style={styles.subtitle}>{playerIdea.title}</Text>
 
-      {hasProjectLyrics && latestLyricsVersion ? (
-        <PlayerLyricsPanel
-          text={latestLyricsText}
-          versionLabel={`Version ${playerIdea.lyrics?.versions.length ?? 1}`}
-          updatedAtLabel={formatDate(latestLyricsVersion.updatedAt)}
+        <PlayerQueue
+          entries={queueEntries}
+          currentClipId={playerClip.id}
+          compact={hasProjectLyrics}
+          onSelect={(index) => {
+            useStore.getState().setPlayerQueue(playerQueue, index, true);
+          }}
         />
-      ) : null}
+
+        <PlayerControls
+          playerPosition={playerPosition}
+          playerDuration={displayDuration}
+          waveformPeaks={waveformPeaks}
+          isPlayerPlaying={isPlayerPlaying}
+          isScrubbing={transportScrub.isScrubbing}
+          compact={hasProjectLyrics}
+          onSeekTo={scrubTo}
+          onTogglePlay={togglePlayer}
+          onScrubStateChange={(scrubbing) => {
+            if (scrubbing) {
+              void beginScrub();
+              return;
+            }
+            void endScrub();
+          }}
+        />
+      </TransportLayout>
 
       <ExpoStatusBar style="dark" />
     </SafeAreaView>

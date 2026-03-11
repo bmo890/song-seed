@@ -1515,6 +1515,11 @@ export const styles = StyleSheet.create({
     fontSize: 12,
     color: "#64748b",
   },
+  playerLyricsSyncMeta: {
+    fontSize: 11,
+    color: "#2563eb",
+    fontWeight: "600",
+  },
   playerLyricsToggleBtn: {
     width: 34,
     height: 34,
@@ -2005,17 +2010,13 @@ export const styles = StyleSheet.create({
     backgroundColor: "#ef4444",
   },
   recordingControlsBar: {
-    marginTop: "auto",
-    marginBottom: 44,
     flexDirection: "row",
-    justifyContent: "space-around",
+    justifyContent: "space-between",
     alignItems: "center",
-    paddingVertical: 8,
+    gap: 16,
   },
   recordingControlsBarCompact: {
-    marginTop: 4,
-    marginBottom: 16,
-    paddingVertical: 0,
+    gap: 12,
   },
   circleControlBtn: {
     width: 64,
@@ -2982,6 +2983,96 @@ export const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 2,
     position: "relative",
+  },
+  transportLayout: {
+    flex: 1,
+  },
+  transportHeaderZone: {
+    gap: 12,
+  },
+  transportBodyZone: {
+    flex: 1,
+    position: "relative",
+  },
+  transportSurface: {
+    flex: 1,
+  },
+  transportSurfaceWithFloating: {
+    paddingBottom: 220,
+  },
+  transportScrollContent: {
+    paddingBottom: 12,
+  },
+  transportScrollContentWithFloating: {
+    paddingBottom: 220,
+  },
+  transportFloatingZone: {
+    position: "absolute",
+    right: 16,
+    left: 16,
+    bottom: 12,
+  },
+  transportFooterZone: {
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 16,
+    backgroundColor: "#f8fafc",
+    borderTopWidth: 1,
+    borderTopColor: "#e2e8f0",
+  },
+  transportFooterCard: {
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#dbe4f0",
+    padding: 14,
+    gap: 12,
+  },
+  transportFooterMeta: {
+    gap: 2,
+  },
+  transportFooterEyebrow: {
+    fontSize: 11,
+    fontWeight: "700",
+    letterSpacing: 0.4,
+    textTransform: "uppercase",
+    color: "#64748b",
+  },
+  transportFooterTitle: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#0f172a",
+  },
+  transportFooterRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  transportFooterButton: {
+    flex: 1,
+    minHeight: 44,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    backgroundColor: "#0f172a",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  transportFooterButtonSecondary: {
+    backgroundColor: "#e2e8f0",
+  },
+  transportFooterButtonDanger: {
+    backgroundColor: "#b91c1c",
+  },
+  transportFooterButtonDisabled: {
+    backgroundColor: "#cbd5e1",
+  },
+  transportFooterButtonText: {
+    color: "#fff",
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  transportFooterButtonTextSecondary: {
+    color: "#0f172a",
   },
   cardDisabled: {
     opacity: 0.5,

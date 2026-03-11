@@ -17,6 +17,7 @@ import { RecordingInputPicker } from "./RecordingInputPicker";
 import { getLatestLyricsVersion, lyricsDocumentToText } from "../../lyrics";
 import { PlayerLyricsPanel } from "../PlayerScreen/PlayerLyricsPanel";
 import { formatDate } from "../../utils";
+import { TransportLayout } from "../common/TransportLayout";
 
 export function RecordingScreen() {
   const navigation = useNavigation();
@@ -105,14 +106,10 @@ export function RecordingScreen() {
 
   async function requestSaveRecording() {
     if (!recordingIdea) return;
+    if (!recording.isRecording && !recording.isPaused) return;
     if (recording.isRecording && !recording.isPaused) {
       await recording.pauseRecording();
     }
-
-    const suggestedTitle =
-      recordingIdea.kind === "project"
-        ? genClipTitle(recordingIdea.title, recordingIdea.clips.length + 1)
-        : recordingIdea.title || fallbackClipTitle();
 
     setQuickNamingIdeaId(recordingIdea.id);
     setQuickNameDraft("");
@@ -179,52 +176,102 @@ export function RecordingScreen() {
 
   return (
     <SafeAreaView style={styles.screen}>
-      <ScreenHeader
-        title="Recording"
-        leftIcon="back"
-        onLeftPress={() => {
-          cancelRecording();
-          navigation.goBack();
-        }}
-        rightElement={
-          <Pressable
-            style={({ pressed }) => [
-              styles.recordingSettingsBtn,
-              pressed ? styles.pressDown : null,
-            ]}
-            onPress={() => setSettingsVisible(true)}
-          >
-            <Ionicons name="ellipsis-horizontal" size={20} color="#111827" />
-          </Pressable>
+      <TransportLayout
+        header={
+          <ScreenHeader
+            title="Recording"
+            leftIcon="back"
+            onLeftPress={() => {
+              cancelRecording();
+              navigation.goBack();
+            }}
+            rightElement={
+              <Pressable
+                style={({ pressed }) => [
+                  styles.recordingSettingsBtn,
+                  pressed ? styles.pressDown : null,
+                ]}
+                onPress={() => setSettingsVisible(true)}
+              >
+                <Ionicons name="ellipsis-horizontal" size={20} color="#111827" />
+              </Pressable>
+            }
+          />
         }
-      />
+        floating={
+          hasProjectLyrics && latestLyricsVersion ? (
+            <PlayerLyricsPanel
+              text={latestLyricsText}
+              versionLabel={`Version ${recordingIdea?.lyrics?.versions.length ?? 1}`}
+              updatedAtLabel={formatDate(latestLyricsVersion.updatedAt)}
+              autoscrollState={{
+                mode: "off",
+                currentTimeMs: recording.elapsedMs,
+                durationMs: recording.elapsedMs,
+                activeLineId: null,
+              }}
+            />
+          ) : null
+        }
+        footer={
+          <View style={styles.transportFooterCard}>
+            <View style={styles.transportFooterMeta}>
+              <Text style={styles.transportFooterEyebrow}>Sticky Controls</Text>
+              <Text style={styles.transportFooterTitle}>
+                {recording.isRecording ? (recording.isPaused ? "Paused take" : "Recording take") : "Ready to record"}
+              </Text>
+            </View>
 
-      <RecordingMeta
-        ideaTitle={recordingIdea?.title ?? ""}
-        isRecording={recording.isRecording}
-        isPaused={recording.isPaused}
-        elapsedMs={recording.elapsedMs}
-        analysisData={recording.analysisData}
-        compact={hasProjectLyrics}
-      />
+            <RecordingControls
+              isRecording={recording.isRecording}
+              isPaused={recording.isPaused}
+              compact={hasProjectLyrics}
+              canSave={recording.isRecording || recording.isPaused}
+              onPause={recording.pauseRecording}
+              onResume={recording.resumeRecording}
+              onStart={recording.startRecording}
+              onRequestSave={requestSaveRecording}
+            />
 
-      <RecordingControls
-        isRecording={recording.isRecording}
-        isPaused={recording.isPaused}
-        compact={hasProjectLyrics}
-        onPause={recording.pauseRecording}
-        onResume={recording.resumeRecording}
-        onStart={recording.startRecording}
-        onRequestSave={requestSaveRecording}
-      />
-
-      {hasProjectLyrics && latestLyricsVersion ? (
-        <PlayerLyricsPanel
-          text={latestLyricsText}
-          versionLabel={`Version ${recordingIdea?.lyrics?.versions.length ?? 1}`}
-          updatedAtLabel={formatDate(latestLyricsVersion.updatedAt)}
+            <View style={styles.transportFooterRow}>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.transportFooterButton,
+                  styles.transportFooterButtonSecondary,
+                  pressed ? styles.pressDown : null,
+                ]}
+                onPress={() => setSettingsVisible(true)}
+              >
+                <Text style={[styles.transportFooterButtonText, styles.transportFooterButtonTextSecondary]}>
+                  Input
+                </Text>
+              </Pressable>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.transportFooterButton,
+                  styles.transportFooterButtonDanger,
+                  pressed ? styles.pressDown : null,
+                ]}
+                onPress={async () => {
+                  await cancelRecording();
+                  navigation.goBack();
+                }}
+              >
+                <Text style={styles.transportFooterButtonText}>Discard</Text>
+              </Pressable>
+            </View>
+          </View>
+        }
+      >
+        <RecordingMeta
+          ideaTitle={recordingIdea?.title ?? ""}
+          isRecording={recording.isRecording}
+          isPaused={recording.isPaused}
+          elapsedMs={recording.elapsedMs}
+          analysisData={recording.analysisData}
+          compact={hasProjectLyrics}
         />
-      ) : null}
+      </TransportLayout>
 
       <QuickNameModal
         visible={quickNameModalVisible}
