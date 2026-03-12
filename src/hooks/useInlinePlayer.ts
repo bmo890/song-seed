@@ -13,9 +13,11 @@ export function useInlinePlayer({ onBeforePlayNew }: Args = {}) {
   const wasPlayingBeforeScrubRef = useRef(false);
   const scrubPausePromiseRef = useRef<Promise<void> | null>(null);
   const stopRequestToken = useStore((s) => s.inlineStopRequestToken);
+  const toggleRequestToken = useStore((s) => s.inlineToggleRequestToken);
   const setStoreInlineTarget = useStore((s) => s.setInlineTarget);
   const setInlinePlaybackState = useStore((s) => s.setInlinePlaybackState);
   const handledStopTokenRef = useRef(stopRequestToken);
+  const handledToggleTokenRef = useRef(toggleRequestToken);
 
   const playerOptions = useMemo(() => ({ updateInterval: 100 }), []);
   const player = useAudioPlayer(null, playerOptions);
@@ -48,6 +50,13 @@ export function useInlinePlayer({ onBeforePlayNew }: Args = {}) {
     void resetInlinePlayer();
   }, [stopRequestToken]);
 
+  useEffect(() => {
+    if (toggleRequestToken === handledToggleTokenRef.current) return;
+    handledToggleTokenRef.current = toggleRequestToken;
+    if (!inlineTarget) return;
+    void toggleActiveInlinePlayback();
+  }, [inlineTarget, toggleRequestToken]);
+
   async function resetInlinePlayer() {
     await player.pause();
     scrubPausePromiseRef.current = null;
@@ -60,22 +69,25 @@ export function useInlinePlayer({ onBeforePlayNew }: Args = {}) {
     });
   }
 
+  async function toggleActiveInlinePlayback() {
+    try {
+      if (status.playing) {
+        await player.pause();
+        return;
+      }
+
+      await activateAndPlay(player, status, inlineDuration, inlinePosition);
+    } catch (err) {
+      console.log("INLINE toggle error", err);
+    }
+  }
+
   async function toggleInlinePlayback(ideaId: string, clip: ClipVersion) {
     if (!clip.audioUri) return;
 
     if (inlineTarget && inlineTarget.ideaId === ideaId && inlineTarget.clipId === clip.id) {
-      try {
-        if (status.playing) {
-          await player.pause();
-          return;
-        }
-
-        await activateAndPlay(player, status, inlineDuration, inlinePosition);
-        return;
-      } catch (err) {
-        console.log("INLINE resume error", err);
-        return;
-      }
+      await toggleActiveInlinePlayback();
+      return;
     }
 
     try {

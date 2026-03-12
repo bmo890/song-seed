@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { ClipVersion, PlayerTarget } from "../types";
 import { buildStaticWaveform } from "../utils";
 import { activateAndPlay, replacePlaybackSource } from "../services/transportPlayback";
+import { useStore } from "../state/useStore";
 
 type Args = {
   onBeforePlayNew?: () => Promise<void> | void;
@@ -21,6 +22,7 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
   const operationIdRef = useRef(0);
   const isMountedRef = useRef(true);
   const previousDidJustFinishRef = useRef(false);
+  const setPlayerPlaybackState = useStore((s) => s.setPlayerPlaybackState);
 
   const playerOptions = useMemo(() => ({ updateInterval: 33 }), []);
   const player = useAudioPlayer(null, playerOptions);
@@ -40,16 +42,29 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
   }, [didPlayerJustFinish, playerTarget?.clipId]);
 
   useEffect(() => {
+    setPlayerPlaybackState({
+      positionMs: playerPosition,
+      durationMs: playerDuration,
+      isPlaying: isPlayerPlaying,
+    });
+  }, [isPlayerPlaying, playerDuration, playerPosition, setPlayerPlaybackState]);
+
+  useEffect(() => {
     return () => {
       isMountedRef.current = false;
       operationIdRef.current += 1;
+      setPlayerPlaybackState({
+        positionMs: 0,
+        durationMs: 0,
+        isPlaying: false,
+      });
       try {
         player.clearLockScreenControls();
       } catch {
         // ignore released player cleanup races on unmount
       }
     };
-  }, []);
+  }, [player, setPlayerPlaybackState]);
 
   const isOperationActive = (operationId: number) => isMountedRef.current && operationIdRef.current === operationId;
 
@@ -80,6 +95,11 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
     } catch {
       // ignore released player cleanup races
     }
+    setPlayerPlaybackState({
+      positionMs: 0,
+      durationMs: 0,
+      isPlaying: false,
+    });
     setPlayerTarget(null);
     setWaveformPeaks([]);
   }

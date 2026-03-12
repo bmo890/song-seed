@@ -2,7 +2,8 @@ import React, { useEffect, useMemo, useRef } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar as ExpoStatusBar } from "expo-status-bar";
 import { Alert, Pressable, Text, View } from "react-native";
-import { useIsFocused, useNavigation } from "@react-navigation/native";
+import { StackActions, useIsFocused, useNavigation } from "@react-navigation/native";
+import { Ionicons } from "@expo/vector-icons";
 import { styles } from "../../styles";
 import { useStore } from "../../state/useStore";
 import { useFullPlayer } from "../../hooks/useFullPlayer";
@@ -25,6 +26,8 @@ export function PlayerScreen() {
   const playerTarget = useStore((s) => s.playerTarget);
   const playerQueue = useStore((s) => s.playerQueue);
   const playerQueueIndex = useStore((s) => s.playerQueueIndex);
+  const playerToggleRequestToken = useStore((s) => s.playerToggleRequestToken);
+  const playerCloseRequestToken = useStore((s) => s.playerCloseRequestToken);
   const activeWorkspaceId = useStore((s) => s.activeWorkspaceId);
   const ideas = useStore((s) => s.workspaces.find((w) => w.id === s.activeWorkspaceId)?.ideas || []);
   const activeWorkspace = useStore((s) => s.workspaces.find((w) => w.id === s.activeWorkspaceId) ?? null);
@@ -76,9 +79,10 @@ export function PlayerScreen() {
     updateLockScreenMetadata,
   } = fullPlayer;
   const displayDuration = playerDuration || playerClip?.durationMs || 0;
-  const didBlurCleanupRef = useRef(false);
   const hasPreviousTrack = playerQueueIndex > 0;
   const hasNextTrack = playerQueueIndex >= 0 && playerQueueIndex < playerQueue.length - 1;
+  const handledToggleTokenRef = useRef(playerToggleRequestToken);
+  const handledCloseTokenRef = useRef(playerCloseRequestToken);
   const transportScrub = useTransportScrubbing({
     isPlaying: isPlayerPlaying,
     durationMs: displayDuration,
@@ -100,7 +104,6 @@ export function PlayerScreen() {
   // Load the track if it changes
   useEffect(() => {
     if (!isFocused) return;
-    didBlurCleanupRef.current = false;
     if (playerIdea && playerClip && playerClip.audioUri) {
       if (activePlayerTarget?.clipId !== playerClip.id) {
         const shouldAutoplay = useStore.getState().playerShouldAutoplay;
@@ -137,14 +140,6 @@ export function PlayerScreen() {
   }, [activeWorkspaceId, playerDuration, playerClip?.durationMs, playerClip?.id, playerIdea?.id]);
 
   useEffect(() => {
-    if (isFocused) return;
-    if (didBlurCleanupRef.current) return;
-    didBlurCleanupRef.current = true;
-    void cancelScrub();
-    void closePlayer();
-  }, [cancelScrub, closePlayer, isFocused]);
-
-  useEffect(() => {
     if (!finishedPlaybackToken) return;
     if (!playerClip?.id) return;
     if (finishedPlaybackClipId !== playerClip.id) return;
@@ -152,6 +147,36 @@ export function PlayerScreen() {
       useStore.getState().advancePlayerQueue("next", true);
     }
   }, [finishedPlaybackClipId, finishedPlaybackToken, hasNextTrack, playerClip?.id]);
+
+  useEffect(() => {
+    if (playerToggleRequestToken === handledToggleTokenRef.current) return;
+    handledToggleTokenRef.current = playerToggleRequestToken;
+    void togglePlayer();
+  }, [playerToggleRequestToken, togglePlayer]);
+
+  useEffect(() => {
+    if (playerCloseRequestToken === handledCloseTokenRef.current) return;
+    handledCloseTokenRef.current = playerCloseRequestToken;
+    void cancelScrub();
+    void closePlayer();
+    useStore.getState().clearPlayerQueue();
+  }, [cancelScrub, closePlayer, playerCloseRequestToken]);
+
+  function minimizePlayer() {
+    const routes = navigation.getState()?.routes ?? [];
+    const targetRoute =
+      [...routes]
+        .slice(0, -1)
+        .reverse()
+        .find((route) => route.name !== "Player" && route.name !== "Recording") ?? null;
+
+    if (targetRoute) {
+      navigation.dispatch(StackActions.push(targetRoute.name, targetRoute.params));
+      return;
+    }
+
+    navigation.dispatch(StackActions.push("Home"));
+  }
 
   if (!playerIdea || !playerClip) {
     return (
@@ -167,17 +192,27 @@ export function PlayerScreen() {
         header={
           <>
             <View style={styles.headerRow}>
-              <Pressable
-                style={styles.backBtn}
-                onPress={() => {
-                  closePlayer();
-                  useStore.getState().clearPlayerQueue();
-                  navigation.goBack();
-                }}
-              >
-                <Text style={styles.backBtnText}>← Back</Text>
-              </Pressable>
+              <View style={styles.headerLeftCluster}>
+                <Pressable
+                  style={styles.backBtn}
+                  onPress={() => {
+                    closePlayer();
+                    useStore.getState().clearPlayerQueue();
+                    navigation.goBack();
+                  }}
+                >
+                  <Text style={styles.backBtnText}>← Back</Text>
+                </Pressable>
+              </View>
               <Text style={styles.title}>Player</Text>
+              <Pressable
+                style={({ pressed }) => [styles.transportHeaderActionBtn, pressed ? styles.pressDown : null]}
+                onPress={minimizePlayer}
+                accessibilityRole="button"
+                accessibilityLabel="Minimize player"
+              >
+                <Ionicons name="remove" size={18} color="#334155" />
+              </Pressable>
             </View>
 
             {activeWorkspace && playerCollection ? (

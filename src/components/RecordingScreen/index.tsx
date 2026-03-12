@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar as ExpoStatusBar } from "expo-status-bar";
 import { useNavigation } from "@react-navigation/native";
@@ -23,6 +23,7 @@ export function RecordingScreen() {
 
   const recordingIdeaId = useStore((s) => s.recordingIdeaId);
   const recordingParentClipId = useStore((s) => s.recordingParentClipId);
+  const recordingSaveRequestToken = useStore((s) => s.recordingSaveRequestToken);
 
   const workspaces = useStore((s) => s.workspaces);
   const activeWorkspaceId = useStore((s) => s.activeWorkspaceId);
@@ -47,6 +48,7 @@ export function RecordingScreen() {
   const preferredRecordingInputId = useStore((s) => s.preferredRecordingInputId);
   const setPreferredRecordingInputId = useStore((s) => s.setPreferredRecordingInputId);
   const updateIdeas = useStore((s) => s.updateIdeas);
+  const handledSaveRequestRef = useRef<number | null>(null);
 
   // Initialize recording natively!
   const recording = useRecording(
@@ -199,6 +201,21 @@ export function RecordingScreen() {
     useStore.getState().setRecordingIdeaId(null);
   }
 
+  useEffect(() => {
+    if (recordingSaveRequestToken === handledSaveRequestRef.current) return;
+    handledSaveRequestRef.current = recordingSaveRequestToken;
+    if (!recordingSaveRequestToken) return;
+    void requestSaveRecording();
+  }, [recordingSaveRequestToken]);
+
+  function minimizeRecording() {
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+      return;
+    }
+    navigation.navigate("Home" as never);
+  }
+
   return (
     <SafeAreaView style={styles.screen}>
       <View style={styles.recordingScreenLayout}>
@@ -208,15 +225,29 @@ export function RecordingScreen() {
             leftIcon="back"
             onLeftPress={confirmDiscardAndExit}
             rightElement={
-              <Pressable
-                style={({ pressed }) => [
-                  styles.recordingSettingsBtn,
-                  pressed ? styles.pressDown : null,
-                ]}
-                onPress={() => setSettingsVisible(true)}
-              >
-                <Ionicons name="ellipsis-horizontal" size={16} color="#111827" />
-              </Pressable>
+              <View style={styles.transportHeaderActionRow}>
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.transportHeaderActionBtn,
+                    pressed ? styles.pressDown : null,
+                  ]}
+                  onPress={minimizeRecording}
+                  accessibilityRole="button"
+                  accessibilityLabel="Minimize recorder"
+                >
+                  <Ionicons name="remove" size={18} color="#334155" />
+                </Pressable>
+
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.recordingSettingsBtn,
+                    pressed ? styles.pressDown : null,
+                  ]}
+                  onPress={() => setSettingsVisible(true)}
+                >
+                  <Ionicons name="ellipsis-horizontal" size={16} color="#111827" />
+                </Pressable>
+              </View>
             }
           />
         </View>

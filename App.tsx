@@ -3,6 +3,7 @@ import { NavigationContainer, useNavigationContainerRef } from "@react-navigatio
 import { useState } from "react";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createDrawerNavigator, DrawerContentComponentProps } from "@react-navigation/drawer";
+import { AudioRecorderProvider } from "@siteed/expo-audio-studio";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { IdeaDetailScreen } from "./src/components/IdeaDetailScreen";
 import { IdeaListScreen } from "./src/components/IdeaListScreen";
@@ -15,7 +16,7 @@ import { EditorScreen } from "./src/components/EditorScreen";
 import { LyricsScreen } from "./src/components/LyricsScreen";
 import { LyricsVersionScreen } from "./src/components/LyricsVersionScreen";
 import { ActivityScreen } from "./src/components/ActivityScreen";
-import { GlobalInlineNowPlayingDock } from "./src/components/GlobalInlineNowPlayingDock";
+import { GlobalMediaDock } from "./src/components/GlobalMediaDock";
 import { LibraryScreen } from "./src/components/LibraryScreen";
 import { SettingsScreen } from "./src/components/SettingsScreen";
 import { RevisitScreen } from "./src/components/RevisitScreen";
@@ -231,11 +232,15 @@ function AppContent() {
         <Stack.Screen name="Lyrics" component={LyricsScreen} />
         <Stack.Screen name="LyricsVersion" component={LyricsVersionScreen} />
       </Stack.Navigator>
-      <GlobalInlineNowPlayingDock
+      <GlobalMediaDock
         activeRouteName={activeRouteName}
         onOpenPlayer={() => {
           if (!navigationRef.isReady()) return;
           navigationRef.navigate("Player");
+        }}
+        onOpenRecording={() => {
+          if (!navigationRef.isReady()) return;
+          navigationRef.navigate("Recording");
         }}
       />
     </NavigationContainer>
@@ -246,7 +251,9 @@ export default function App() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <AppContent />
+        <AudioRecorderProvider>
+          <AppContent />
+        </AudioRecorderProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

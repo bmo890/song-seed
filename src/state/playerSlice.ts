@@ -7,6 +7,14 @@ export type PlayerSlice = {
     playerQueue: PlaybackQueueItem[];
     playerQueueIndex: number;
     playerShouldAutoplay: boolean;
+    playerPositionMs: number;
+    playerDurationMs: number;
+    playerIsPlaying: boolean;
+    setPlayerPlaybackState: (state: { positionMs: number; durationMs: number; isPlaying: boolean }) => void;
+    playerToggleRequestToken: number;
+    requestPlayerToggle: () => void;
+    playerCloseRequestToken: number;
+    requestPlayerClose: () => void;
     setPlayerQueue: (queue: PlaybackQueueItem[], startIndex: number, shouldAutoplay?: boolean) => void;
     clearPlayerQueue: () => void;
     advancePlayerQueue: (direction: "next" | "previous", shouldAutoplay?: boolean) => void;
@@ -18,6 +26,8 @@ export type PlayerSlice = {
     inlineDurationMs: number;
     inlineIsPlaying: boolean;
     setInlinePlaybackState: (state: { positionMs: number; durationMs: number; isPlaying: boolean }) => void;
+    inlineToggleRequestToken: number;
+    requestInlineToggle: () => void;
     inlineStopRequestToken: number;
     requestInlineStop: () => void;
 };
@@ -28,6 +38,34 @@ export const createPlayerSlice: StateCreator<PlayerSlice> = (set) => ({
     playerQueue: [],
     playerQueueIndex: 0,
     playerShouldAutoplay: false,
+    playerPositionMs: 0,
+    playerDurationMs: 0,
+    playerIsPlaying: false,
+    setPlayerPlaybackState: ({ positionMs, durationMs, isPlaying }) =>
+        set((state) => {
+            if (
+                state.playerPositionMs === positionMs &&
+                state.playerDurationMs === durationMs &&
+                state.playerIsPlaying === isPlaying
+            ) {
+                return state;
+            }
+            return {
+                playerPositionMs: positionMs,
+                playerDurationMs: durationMs,
+                playerIsPlaying: isPlaying,
+            };
+        }),
+    playerToggleRequestToken: 0,
+    requestPlayerToggle: () =>
+        set((state) => ({
+            playerToggleRequestToken: state.playerToggleRequestToken + 1,
+        })),
+    playerCloseRequestToken: 0,
+    requestPlayerClose: () =>
+        set((state) => ({
+            playerCloseRequestToken: state.playerCloseRequestToken + 1,
+        })),
     setPlayerQueue: (queue, startIndex, shouldAutoplay = false) => {
         const clampedIndex = Math.max(0, Math.min(startIndex, Math.max(queue.length - 1, 0)));
         set({
@@ -37,7 +75,16 @@ export const createPlayerSlice: StateCreator<PlayerSlice> = (set) => ({
             playerShouldAutoplay: shouldAutoplay && queue.length > 0,
         });
     },
-    clearPlayerQueue: () => set({ playerQueue: [], playerQueueIndex: 0, playerTarget: null, playerShouldAutoplay: false }),
+    clearPlayerQueue: () =>
+        set({
+            playerQueue: [],
+            playerQueueIndex: 0,
+            playerTarget: null,
+            playerShouldAutoplay: false,
+            playerPositionMs: 0,
+            playerDurationMs: 0,
+            playerIsPlaying: false,
+        }),
     advancePlayerQueue: (direction, shouldAutoplay = true) =>
         set((state) => {
             if (state.playerQueue.length === 0) return state;
@@ -72,6 +119,11 @@ export const createPlayerSlice: StateCreator<PlayerSlice> = (set) => ({
                 inlineIsPlaying: isPlaying,
             };
         }),
+    inlineToggleRequestToken: 0,
+    requestInlineToggle: () =>
+        set((state) => ({
+            inlineToggleRequestToken: state.inlineToggleRequestToken + 1,
+        })),
     inlineStopRequestToken: 0,
     requestInlineStop: () =>
         set((state) => ({
