@@ -59,17 +59,16 @@ const SIGN_SWITCH_HYSTERESIS_CENTS = 4;
 const DRAMATIC_CHANGE_CENTS = 14;
 const ENGINE_EVENT_TIMEOUT_MS = 2200;
 const ENGINE_HEALTHCHECK_MS = 1600;
-const ARC_STAGE_WIDTH = 332;
-const ARC_STAGE_HEIGHT = 388;
-const ARC_TRACK_SIZE = 260;
-const ARC_TRACK_STROKE = 3;
+const ARC_STAGE_WIDTH = 300;
+const ARC_STAGE_HEIGHT = 300;
+const ARC_TRACK_SIZE = 240;
+const ARC_TRACK_STROKE = 4;
 const ARC_TRACK_TOP = 96;
 const ARC_TRACK_LEFT = (ARC_STAGE_WIDTH - ARC_TRACK_SIZE) / 2;
 const ARC_CUTOUT_WIDTH = 118;
 const ARC_CUTOUT_HEIGHT = 82;
 const ARC_CUTOUT_BOTTOM = 22;
-const ARC_INDICATOR_SIZE = 22;
-const ARC_NOTE_TOP = 152;
+const ARC_INDICATOR_SIZE = 16;
 const ARC_SIDE_LABEL_TOP = ARC_TRACK_TOP + ARC_TRACK_SIZE / 2 - 16;
 
 function loadPitchy(): PitchyModule | null {
@@ -221,7 +220,7 @@ export function TunerScreen() {
       subscriptionRef.current = null;
       const pitchy = pitchyRef.current;
       if (pitchy) {
-        pitchy.stop().catch(() => {});
+        pitchy.stop().catch(() => { });
       }
     };
   }, []);
@@ -573,7 +572,7 @@ export function TunerScreen() {
       if (pitchy) {
         const isRecording = await pitchy.isRecording().catch(() => false);
         if (isRecording) {
-          await pitchy.stop().catch(() => {});
+          await pitchy.stop().catch(() => { });
         }
       }
 
@@ -602,7 +601,7 @@ export function TunerScreen() {
       if (pitchy) {
         const isRecording = await pitchy.isRecording().catch(() => false);
         if (isRecording) {
-          await pitchy.stop().catch(() => {});
+          await pitchy.stop().catch(() => { });
         }
       }
     } finally {
@@ -650,8 +649,9 @@ export function TunerScreen() {
 
   return (
     <SafeAreaView style={styles.screen}>
-      <ScreenHeader title="Tuner" leftIcon="hamburger" />
+      <ScreenHeader title="" leftIcon="hamburger" />
       <AppBreadcrumbs
+        hideIcons
         items={[
           { key: "home", label: "Home", level: "home" },
           { key: "tuner", label: "Tuner", level: "tuner", active: true },
@@ -659,61 +659,33 @@ export function TunerScreen() {
       />
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={localStyles.pageContent}>
-        <View style={localStyles.contextBlock}>
-          <Text style={localStyles.kicker}>Auto Detect</Text>
-        </View>
-
         <View style={localStyles.dialSection}>
-          <View style={localStyles.detuneRow}>
-            <View style={localStyles.detuneSlot}>
-              {showFlatDetune ? (
-                <View
-                  style={[
-                    localStyles.detuneChip,
-                    detuneTone === "far" ? localStyles.detuneChipFar : localStyles.detuneChipNear,
-                  ]}
-                >
-                  <Text style={localStyles.detuneChipValue}>{flatDetuneValue}</Text>
-                </View>
-              ) : null}
-            </View>
-            <View style={localStyles.detuneSlot}>
-              {showSharpDetune ? (
-                <View
-                  style={[
-                    localStyles.detuneChip,
-                    detuneTone === "far" ? localStyles.detuneChipFar : localStyles.detuneChipNear,
-                  ]}
-                >
-                  <Text style={localStyles.detuneChipValue}>{sharpDetuneValue}</Text>
-                </View>
-              ) : null}
-            </View>
-          </View>
-
           <View style={localStyles.arcStage}>
+
+            <View style={localStyles.flatMarker}>
+              <Text style={localStyles.markerText}>-</Text>
+            </View>
+            <View style={localStyles.sharpMarker}>
+              <Text style={localStyles.markerText}>+</Text>
+            </View>
+
             <View style={localStyles.arcTrack} />
             <View style={localStyles.arcCutout} />
-            <View
-              style={[
-                localStyles.inTuneRange,
-                { left: inTuneRangeLeft, top: inTuneRangeTop, width: Math.max(0, inTuneRangeRight - inTuneRangeLeft) },
-              ]}
-            />
-            <View
-              style={[
-                localStyles.inTuneTick,
-                { left: inTuneRangeLeft - 1, top: inTuneRangeTop - 6 },
-              ]}
-            />
-            <View
-              style={[
-                localStyles.inTuneTick,
-                { left: inTuneRangeRight - 1, top: inTuneRangeTop - 6 },
-              ]}
-            />
-            <Text style={localStyles.flatLabel}>-</Text>
-            <Text style={localStyles.sharpLabel}>+</Text>
+
+            {(showFlatDetune || showSharpDetune) && (
+              <View style={[
+                localStyles.detuneAbsolute,
+                detuneTone === "far" ? localStyles.detuneAbsoluteFar : localStyles.detuneAbsoluteNear
+              ]}>
+                <Text style={[
+                  localStyles.detuneChipValue,
+                  detuneTone === "far" ? localStyles.detuneChipValueFar : localStyles.detuneChipValueNear
+                ]}>
+                  {showFlatDetune ? flatDetuneValue : sharpDetuneValue}
+                </Text>
+              </View>
+            )}
+
             <View style={[localStyles.arcIndicator, meterToneStyle, indicatorPosition]} />
 
             <View style={localStyles.noteBlock}>
@@ -723,9 +695,6 @@ export function TunerScreen() {
               </View>
               <Text style={localStyles.hzInlineValue}>
                 {reading ? formatFrequency(reading.detectedFrequency) : "--"}
-              </Text>
-              <Text style={localStyles.nearestText}>
-                {reading ? `Nearest note • ${formatFrequency(reading.nearestNoteFrequency)}` : "Waiting for pitch"}
               </Text>
             </View>
           </View>
@@ -756,41 +725,23 @@ export function TunerScreen() {
 
 const localStyles = StyleSheet.create({
   pageContent: {
-    paddingTop: spacing.xs,
+    paddingTop: spacing.xl,
     paddingBottom: spacing.xxl + spacing.lg,
     alignItems: "center",
+    justifyContent: "center",
+    flexGrow: 1,
     gap: spacing.lg,
   },
-  contextBlock: {
-    alignItems: "center",
-    minHeight: 28,
-    justifyContent: "center",
-    paddingTop: spacing.xs,
-  },
-  kicker: {
-    ...textTokens.caption,
-    textTransform: "uppercase",
-    letterSpacing: 1.2,
-    color: colors.textMuted,
-  },
+  contextBlock: { display: "none" },
   dialSection: {
     width: "100%",
     alignItems: "center",
-    gap: spacing.sm,
-  },
-  detuneRow: {
-    width: ARC_TRACK_SIZE + 28,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: -spacing.sm,
-  },
-  detuneSlot: {
-    width: 60,
-    height: 34,
-    alignItems: "center",
     justifyContent: "center",
+    flex: 1,
+    marginTop: -100,
   },
+  detuneRow: { display: "none" },
+  detuneSlot: { display: "none" },
   arcStage: {
     width: ARC_STAGE_WIDTH,
     height: ARC_STAGE_HEIGHT,
@@ -806,7 +757,7 @@ const localStyles = StyleSheet.create({
     height: ARC_TRACK_SIZE,
     borderRadius: ARC_TRACK_SIZE / 2,
     borderWidth: ARC_TRACK_STROKE,
-    borderColor: colors.borderMuted,
+    borderColor: "#e2e8f0",
     backgroundColor: "transparent",
   },
   arcCutout: {
@@ -819,131 +770,105 @@ const localStyles = StyleSheet.create({
     borderTopRightRadius: ARC_CUTOUT_WIDTH / 2,
     backgroundColor: colors.page,
   },
-  inTuneRange: {
-    position: "absolute",
-    height: 4,
-    borderRadius: 999,
-    backgroundColor: "#16a34a",
-  },
-  inTuneTick: {
-    position: "absolute",
-    width: 3,
-    height: 16,
-    borderRadius: 999,
-    backgroundColor: "#16a34a",
-  },
+  inTuneRange: { display: "none" },
+  inTuneTick: { display: "none" },
   arcIndicator: {
     position: "absolute",
     width: ARC_INDICATOR_SIZE,
     height: ARC_INDICATOR_SIZE,
     borderRadius: ARC_INDICATOR_SIZE / 2,
-    borderWidth: 4,
-    borderColor: colors.page,
-    ...shadows.control,
+    borderWidth: 0,
   },
-  indicatorIdle: {
-    backgroundColor: colors.textMuted,
-  },
-  indicatorActive: {
-    backgroundColor: "#60a5fa",
-  },
-  indicatorNear: {
-    backgroundColor: "#d97706",
-  },
-  indicatorFar: {
-    backgroundColor: "#dc2626",
-  },
-  indicatorInTune: {
-    backgroundColor: "#16a34a",
-  },
-  flatLabel: {
+  indicatorIdle: { backgroundColor: "#cbd5e1" },
+  indicatorActive: { backgroundColor: "#60a5fa" },
+  indicatorNear: { backgroundColor: "#f97316" },
+  indicatorFar: { backgroundColor: "#ef4444" },
+  indicatorInTune: { backgroundColor: "#22c55e" },
+  flatMarker: {
     position: "absolute",
-    left: 2,
+    left: -20,
     top: ARC_SIDE_LABEL_TOP,
-    width: 28,
-    height: 28,
-    textAlign: "center",
-    fontSize: 28,
-    lineHeight: 28,
-    fontWeight: "700",
-    color: colors.textSecondary,
+    width: 32,
+    height: 32,
+    alignItems: "center",
+    justifyContent: "center",
   },
-  sharpLabel: {
+  sharpMarker: {
     position: "absolute",
-    right: 2,
+    right: -20,
     top: ARC_SIDE_LABEL_TOP,
-    width: 28,
-    height: 28,
-    textAlign: "center",
-    fontSize: 28,
-    lineHeight: 28,
-    fontWeight: "700",
-    color: colors.textSecondary,
+    width: 32,
+    height: 32,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  markerText: {
+    fontSize: 24,
+    fontWeight: "400",
+    color: "#64748b",
   },
   noteBlock: {
     position: "absolute",
-    left: 0,
-    right: 0,
-    top: ARC_NOTE_TOP,
+    left: ARC_TRACK_LEFT,
+    top: ARC_TRACK_TOP,
+    width: ARC_TRACK_SIZE,
+    height: ARC_TRACK_SIZE,
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: spacing.xl,
   },
   noteRow: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
     justifyContent: "center",
   },
   noteText: {
-    fontSize: 104,
+    fontSize: 90,
     lineHeight: 104,
-    fontWeight: "800",
-    color: colors.textPrimary,
+    fontWeight: "600",
+    color: "#1e293b",
     letterSpacing: -3,
   },
   octaveText: {
-    marginTop: -16,
-    marginLeft: 6,
-    fontSize: 26,
-    lineHeight: 24,
-    fontWeight: "700",
-    color: colors.textSecondary,
+    marginTop: 8,
+    marginLeft: 4,
+    fontSize: 48,
+    lineHeight: 48,
+    fontWeight: "500",
+    color: "#1e293b",
   },
   hzInlineValue: {
-    marginTop: spacing.sm,
-    fontSize: 15,
-    lineHeight: 20,
-    fontWeight: "700",
-    color: colors.textSecondary,
+    marginTop: spacing.md,
+    fontSize: 24,
+    lineHeight: 28,
+    fontWeight: "500",
+    color: "#1e293b",
   },
-  nearestText: {
-    marginTop: spacing.xs,
-    ...textTokens.supporting,
-    color: colors.textSecondary,
-    textAlign: "center",
-  },
-  detuneChip: {
-    minWidth: 60,
-    height: 34,
-    borderRadius: 13,
+  nearestText: { display: "none" },
+  detuneAbsolute: {
+    position: "absolute",
+    top: ARC_TRACK_TOP + 10,
+    right: 0,
+    paddingHorizontal: 16,
+    height: 38,
+    borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
-    borderWidth: 1,
+    backgroundColor: "#ffffff",
+    ...shadows.control,
+    elevation: 3,
   },
-  detuneChipNear: {
-    backgroundColor: "#fff3e6",
-    borderColor: "#d97706",
-  },
-  detuneChipFar: {
-    backgroundColor: "#fef0f0",
-    borderColor: "#dc2626",
-  },
+  detuneAbsoluteNear: { borderWidth: 0 },
+  detuneAbsoluteFar: { borderWidth: 0 },
+  detuneChipValueNear: { color: "#f97316" },
+  detuneChipValueFar: { color: "#ef4444" },
   detuneChipValue: {
-    fontSize: 13,
-    lineHeight: 16,
-    fontWeight: "700",
-    color: colors.textStrong,
+    fontSize: 20,
+    lineHeight: 24,
+    fontWeight: "600",
   },
+  detuneChip: { display: "none" },
+  detuneChipNear: { display: "none" },
+  detuneChipFar: { display: "none" },
   helperText: {
     ...textTokens.supporting,
     textAlign: "center",

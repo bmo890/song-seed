@@ -17,9 +17,10 @@ export type AppBreadcrumbItem = {
 type Props = {
   items: AppBreadcrumbItem[];
   containerStyle?: StyleProp<ViewStyle>;
+  hideIcons?: boolean;
 };
 
-export function AppBreadcrumbs({ items, containerStyle }: Props) {
+export function AppBreadcrumbs({ items, containerStyle, hideIcons }: Props) {
   if (items.length === 0) return null;
 
   return (
@@ -27,11 +28,13 @@ export function AppBreadcrumbs({ items, containerStyle }: Props) {
       {items.map((item, index) => {
         const content = (
           <View style={breadcrumbStyles.itemInner}>
-            <Ionicons
-              name={getHierarchyIconName(item.level)}
-              size={12}
-              color={getHierarchyIconColor(item.level)}
-            />
+            {!hideIcons && (
+              <Ionicons
+                name={getHierarchyIconName(item.level)}
+                size={12}
+                color={getHierarchyIconColor(item.level)}
+              />
+            )}
             {!item.iconOnly ? (
               <Text
                 style={[
