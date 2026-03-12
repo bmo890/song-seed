@@ -1,9 +1,11 @@
-import { Alert, Pressable, Text, TextInput, View } from "react-native";
+import { Alert, Pressable, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { styles } from "../../styles";
 import { ClipboardBanner } from "../ClipboardBanner";
 import { ClipClipboard, Collection } from "../../types";
 import { getHierarchyIconColor, getHierarchyIconName } from "../../hierarchy";
+import { PageIntro } from "../common/PageIntro";
+import { SearchField } from "../common/SearchField";
 
 type IdeaListHeaderSectionProps = {
   currentCollection: Collection;
@@ -48,43 +50,23 @@ export function IdeaListHeaderSection({
 }: IdeaListHeaderSectionProps) {
   return (
     <>
-      <View style={styles.ideasHeaderBlock}>
-        <Text style={styles.ideasHeaderTitle} numberOfLines={1}>
-          {currentCollection.title}
-        </Text>
-        <Text style={styles.ideasHeaderSubtitle} numberOfLines={1}>
-          {ideasHeaderMeta}
-        </Text>
-      </View>
+      <PageIntro
+        title={currentCollection.title}
+        subtitle={ideasHeaderMeta}
+        subtitleNumberOfLines={1}
+      />
 
       <View style={styles.ideasSearchUtilityRow}>
-        <View style={styles.ideasSearchWrapInline}>
-          <View style={styles.ideasSearchWrap}>
-            <Ionicons name="search" size={16} color="#64748b" />
-            <TextInput
-              style={styles.ideasSearchInput}
-              placeholder="Search titles, notes, lyrics..."
-              placeholderTextColor="#94a3b8"
-              value={searchQuery}
-              onFocus={onSearchFocus}
-              onChangeText={(value) => {
-                onSearchFocus();
-                onSearchQueryChange(value);
-              }}
-              autoCapitalize="none"
-              autoCorrect={false}
-              returnKeyType="search"
-            />
-            {searchQuery ? (
-              <Pressable
-                style={({ pressed }) => [styles.ideasSearchClear, pressed ? styles.pressDown : null]}
-                onPress={() => onSearchQueryChange("")}
-              >
-                <Ionicons name="close" size={14} color="#64748b" />
-              </Pressable>
-            ) : null}
-          </View>
-        </View>
+        <SearchField
+          value={searchQuery}
+          placeholder="Search titles, notes, lyrics..."
+          containerStyle={{ flex: 1, minWidth: 0 }}
+          onFocus={onSearchFocus}
+          onChangeText={(value) => {
+            onSearchFocus();
+            onSearchQueryChange(value);
+          }}
+        />
 
         {childCollections.length > 0 ? (
           <View style={styles.subcollectionDisclosureInlineWrap}>

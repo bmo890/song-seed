@@ -3,6 +3,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { styles } from "../../styles";
 import { Collection, Workspace } from "../../types";
 import { ActivityMetricFilter } from "../../activity";
+import { SegmentedControl } from "../common/SegmentedControl";
 
 type ActivityScopeControlsProps = {
   collectionScopeActive: boolean;
@@ -140,46 +141,29 @@ export function ActivityScopeControls({
       ) : null}
 
       <View style={styles.activityControlsRow}>
-        <View style={styles.activitySegmentWrap}>
-          {(["created", "updated", "both"] as const).map((metric) => (
-            <Pressable
-              key={metric}
-              style={({ pressed }) => [
-                styles.activitySegmentBtn,
-                metricFilter === metric ? styles.activitySegmentBtnActive : null,
-                pressed ? styles.pressDown : null,
-              ]}
-              onPress={() => onSelectMetric(metric)}
-            >
-              <Text
-                style={[
-                  styles.activitySegmentText,
-                  metricFilter === metric ? styles.activitySegmentTextActive : null,
-                ]}
-              >
-                {metric === "both" ? "Both" : metric === "created" ? "Created" : "Updated"}
-              </Text>
-            </Pressable>
-          ))}
-          <Pressable
-            style={({ pressed }) => [
-              styles.activitySegmentBtn,
-              rangeMode ? styles.activitySegmentBtnActive : null,
-              pressed ? styles.pressDown : null,
+        <View style={styles.flexFill}>
+          <SegmentedControl
+            options={[
+              { key: "created", label: "Created" },
+              { key: "updated", label: "Updated" },
+              { key: "both", label: "Both" },
+              { key: "range", label: "Range" },
             ]}
-            onPress={onToggleRangeMode}
-          >
-            <Text
-              style={[
-                styles.activitySegmentText,
-                rangeMode ? styles.activitySegmentTextActive : null,
-              ]}
-            >
-              Range
-            </Text>
-          </Pressable>
+            selectedKey={rangeMode ? "range" : metricFilter}
+            onSelect={(value) => {
+              if (value === "range") {
+                if (!rangeMode) {
+                  onToggleRangeMode();
+                }
+                return;
+              }
+              if (rangeMode) {
+                onToggleRangeMode();
+              }
+              onSelectMetric(value);
+            }}
+          />
         </View>
-
         <View style={styles.activityYearControls}>
           <Pressable
             style={({ pressed }) => [styles.activityYearBtn, pressed ? styles.pressDown : null]}

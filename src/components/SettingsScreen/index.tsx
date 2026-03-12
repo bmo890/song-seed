@@ -4,6 +4,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { AppBreadcrumbs } from "../common/AppBreadcrumbs";
 import { Button } from "../common/Button";
+import { PageIntro } from "../common/PageIntro";
 import { ScreenHeader } from "../common/ScreenHeader";
 import { exportLibrary, type LibraryExportFormat } from "../../services/libraryExport";
 import { useStore } from "../../state/useStore";
@@ -181,12 +182,10 @@ export function SettingsScreen() {
       contentContainerStyle={styles.settingsScrollContent}
       showsVerticalScrollIndicator={false}
     >
-      <View style={styles.ideasHeaderBlock}>
-        <Text style={styles.ideasHeaderTitle}>Export Library</Text>
-        <Text style={styles.ideasHeaderSubtitle}>
-          Package selected workspaces or collections, then hand the archive to the native save or share flow.
-        </Text>
-      </View>
+      <PageIntro
+        title="Export Library"
+        subtitle="Package selected workspaces or collections, then hand the archive to the native save or share flow."
+      />
 
       <AccordionSection
         step="1"
@@ -392,12 +391,10 @@ export function SettingsScreen() {
         renderExportFlow()
       ) : (
         <View style={styles.flexFill}>
-          <View style={styles.ideasHeaderBlock}>
-            <Text style={styles.ideasHeaderTitle}>Settings</Text>
-            <Text style={styles.ideasHeaderSubtitle}>
-              Export stays lightweight here: choose a package, choose a scope, and hand it to the native save flow.
-            </Text>
-          </View>
+          <PageIntro
+            title="Settings"
+            subtitle="Export stays lightweight here: choose a package, choose a scope, and hand it to the native save flow."
+          />
 
           <Pressable
             style={({ pressed }) => [
