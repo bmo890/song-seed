@@ -2,6 +2,7 @@ import { Pressable, ScrollView, Text, View } from "react-native";
 import { styles } from "../../styles";
 import { startOfActivityDay } from "../../activity";
 import { CELL_SIZE, CELL_STRIDE, getActivityCellBackground } from "./helpers";
+import { SurfaceCard } from "../common/SurfaceCard";
 
 type ActivityHeatmapGridProps = {
   year: number;
@@ -27,7 +28,7 @@ export function ActivityHeatmapGrid({
   onPressDay,
 }: ActivityHeatmapGridProps) {
   return (
-    <View style={styles.activityCard}>
+    <SurfaceCard style={styles.activityCard}>
       <ScrollView horizontal showsHorizontalScrollIndicator={false}>
         <View style={styles.activityHeatmapContent}>
           <View style={styles.activityMonthRow}>
@@ -90,6 +91,6 @@ export function ActivityHeatmapGrid({
           </View>
         </View>
       </ScrollView>
-    </View>
+    </SurfaceCard>
   );
 }

@@ -1,53 +1,18 @@
-import { useAudioRecorder, ExpoAudioStreamModule, audioDeviceManager } from "@siteed/expo-audio-studio";
-import { useEffect, useRef, useState } from "react";
+import { useSharedAudioRecorder, ExpoAudioStreamModule, audioDeviceManager } from "@siteed/expo-audio-studio";
 import { Alert, Linking } from "react-native";
 import { metersToWaveformPeaks } from "../utils";
 import { activateRecordingAudioSession } from "../services/audioSession";
 import { importRecordedAudioAsset } from "../services/audioStorage";
+import { useRecordingDisplayElapsed } from "./useRecordingDisplayElapsed";
 type OnRecorded = (payload: { audioUri: string; durationMs?: number; waveformPeaks?: number[] }) => void;
 
 export function useRecording(onRecorded: OnRecorded, preferredInputId: string | null) {
-  const recorder = useAudioRecorder();
-  const isRecordingRef = useRef(false);
-  const isPausedRef = useRef(false);
-  const [displayElapsedMs, setDisplayElapsedMs] = useState(0);
-
-  useEffect(() => {
-    // Dedicated Cleanup hook if unmounted mid-recording to prevent Native Bridge panics
-    return () => {
-      if (isRecordingRef.current || isPausedRef.current) {
-        recorder.stopRecording().catch(() => { });
-      }
-    };
-  }, []);
-
-  useEffect(() => {
-    isRecordingRef.current = recorder.isRecording;
-    isPausedRef.current = recorder.isPaused;
-  }, [recorder.isPaused, recorder.isRecording]);
-
-  useEffect(() => {
-    let intervalId: ReturnType<typeof setInterval> | null = null;
-
-    if (recorder.isRecording && !recorder.isPaused) {
-      const baseElapsedMs = recorder.durationMs;
-      const startedAt = Date.now();
-
-      setDisplayElapsedMs(baseElapsedMs);
-      intervalId = setInterval(() => {
-        const nextElapsedMs = baseElapsedMs + (Date.now() - startedAt);
-        setDisplayElapsedMs(nextElapsedMs);
-      }, 33);
-    } else {
-      setDisplayElapsedMs(recorder.durationMs);
-    }
-
-    return () => {
-      if (intervalId) {
-        clearInterval(intervalId);
-      }
-    };
-  }, [recorder.durationMs, recorder.isPaused, recorder.isRecording]);
+  const recorder = useSharedAudioRecorder();
+  const displayElapsedMs = useRecordingDisplayElapsed({
+    durationMs: recorder.durationMs,
+    isRecording: recorder.isRecording,
+    isPaused: recorder.isPaused,
+  });
 
   async function requestMicrophonePermission() {
     const permission = await ExpoAudioStreamModule.requestPermissionsAsync();

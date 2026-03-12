@@ -1,8 +1,10 @@
-import { Pressable, ScrollView, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { getHierarchyIconColor, getHierarchyIconName, type HierarchyLevel } from "../hierarchy";
 import { styles } from "../styles";
+import { colors, radii, shadows, spacing, text as textTokens } from "../design/tokens";
+import { NavRow } from "./common/NavRow";
 
 type CollectionLite = {
   id: string;
@@ -13,13 +15,14 @@ type CollectionLite = {
 };
 
 type Props = {
-  currentRoute: "home" | "browse" | "revisit" | "activity" | "library" | "settings" | null;
+  currentRoute: "home" | "browse" | "revisit" | "activity" | "tuner" | "library" | "settings" | null;
   workspaceTitle: string | null;
   collections: CollectionLite[];
   onGoHome: () => void;
   onGoWorkspace: () => void;
   onGoRevisit: () => void;
   onGoActivity: () => void;
+  onGoTuner: () => void;
   onGoLibrary: () => void;
   onGoSettings: () => void;
   onOpenCollection: (collectionId: string) => void;
@@ -27,13 +30,10 @@ type Props = {
 };
 
 function renderNavItemIcon(level: HierarchyLevel) {
-  return (
-    <Ionicons
-      name={getHierarchyIconName(level)}
-      size={16}
-      color={getHierarchyIconColor(level)}
-    />
-  );
+  return {
+    icon: getHierarchyIconName(level),
+    color: getHierarchyIconColor(level),
+  };
 }
 
 export function SideNav({
@@ -44,137 +44,174 @@ export function SideNav({
   onGoWorkspace,
   onGoRevisit,
   onGoActivity,
+  onGoTuner,
   onGoLibrary,
   onGoSettings,
   onOpenCollection,
   onClose,
 }: Props) {
   return (
-    <SafeAreaView
-      style={{
-        flex: 1,
-        backgroundColor: "#fff",
-        borderTopRightRadius: 26,
-        borderBottomRightRadius: 26,
-        paddingHorizontal: 14,
-        paddingTop: 18,
-        paddingBottom: 18,
-        gap: 8,
-      }}
-    >
-      <View style={styles.sideNavHeader}>
+    <SafeAreaView style={sideNavStyles.shell}>
+      <View style={sideNavStyles.header}>
         <View style={styles.flexFill} />
 
-        <Pressable style={({ pressed }) => [styles.sideNavCloseBtn, pressed ? styles.pressDown : null]} onPress={onClose}>
+        <Pressable style={({ pressed }) => [sideNavStyles.closeBtn, pressed ? styles.pressDown : null]} onPress={onClose}>
           <Ionicons name="close" size={18} color="#6b7280" />
         </Pressable>
       </View>
 
       <ScrollView
-        contentContainerStyle={styles.sideNavScrollContent}
+        contentContainerStyle={sideNavStyles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <Pressable
-          style={[styles.sideNavItem, currentRoute === "home" ? styles.sideNavItemActive : null]}
+        <NavRow
+          icon={renderNavItemIcon("home").icon}
+          iconColor={renderNavItemIcon("home").color}
+          label="Home"
+          active={currentRoute === "home"}
           onPress={onGoHome}
-        >
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-            {renderNavItemIcon("home")}
-            <Text style={styles.sideNavItemLabel}>Home</Text>
-          </View>
-        </Pressable>
+        />
 
-        <View style={styles.drawerDivider} />
+        <View style={sideNavStyles.divider} />
 
-        <Text style={styles.sideNavSectionLabel}>Current Workspace</Text>
-        <Pressable
-          style={({ pressed }) => [
-            styles.sideNavWorkspaceBtn,
-            currentRoute === "browse" ? styles.sideNavItemActive : null,
-            pressed ? styles.pressDown : null,
-          ]}
-          onPress={onGoWorkspace}
+        <Text style={sideNavStyles.sectionLabel}>Current Workspace</Text>
+        <NavRow
+          icon={renderNavItemIcon("workspace").icon}
+          iconColor={renderNavItemIcon("workspace").color}
+          label={workspaceTitle ?? "No workspace"}
+          eyebrow="Browse"
+          active={currentRoute === "browse"}
           disabled={!workspaceTitle}
-        >
-          <Ionicons name={getHierarchyIconName("workspace")} size={18} color={getHierarchyIconColor("workspace")} />
-          <View style={styles.sideNavWorkspaceCopy}>
-            <Text style={styles.sideNavWorkspaceEyebrow}>Browse</Text>
-            <Text style={styles.sideNavWorkspaceTitle}>{workspaceTitle ?? "No workspace"}</Text>
-          </View>
-          <Ionicons name="chevron-forward" size={16} color="#94a3b8" />
-        </Pressable>
+          accessory={<Ionicons name="chevron-forward" size={16} color={colors.textMuted} />}
+          onPress={onGoWorkspace}
+        />
 
-        <Text style={styles.sideNavSectionLabel}>Collections In Workspace</Text>
+        <Text style={sideNavStyles.sectionLabel}>Collections In Workspace</Text>
         {collections.length > 0 ? (
-          <>
-            <View style={styles.sideNavCollectionList}>
-              {collections.map((collection) => (
-                <Pressable
-                  key={collection.id}
-                  style={[
-                    styles.sideNavItem,
-                    collection.active ? styles.sideNavItemActive : null,
-                    collection.nested ? styles.sideNavNestedCollectionRow : null,
-                  ]}
-                  onPress={() => onOpenCollection(collection.id)}
-                >
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                    {renderNavItemIcon(collection.level)}
-                    <Text style={styles.sideNavItemLabel}>{collection.title}</Text>
-                  </View>
-                  {collection.active ? (
-                    <Text style={styles.sideNavCollectionMeta}>Open</Text>
+          <View style={sideNavStyles.collectionList}>
+            {collections.map((collection) => (
+              <NavRow
+                key={collection.id}
+                icon={renderNavItemIcon(collection.level).icon}
+                iconColor={renderNavItemIcon(collection.level).color}
+                label={collection.title}
+                active={!!collection.active}
+                nested={!!collection.nested}
+                accessory={
+                  collection.active ? (
+                    <Text style={sideNavStyles.collectionMeta}>Open</Text>
                   ) : (
-                    <Ionicons name="chevron-forward" size={16} color="#94a3b8" />
-                  )}
-                </Pressable>
-              ))}
-            </View>
-          </>
+                    <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+                  )
+                }
+                onPress={() => onOpenCollection(collection.id)}
+              />
+            ))}
+          </View>
         ) : (
-          <Text style={styles.sideNavPlaceholderText}>No collections in this workspace yet.</Text>
+          <Text style={sideNavStyles.placeholderText}>No collections in this workspace yet.</Text>
         )}
 
-        <View style={styles.drawerDivider} />
+        <View style={sideNavStyles.divider} />
 
-        <Text style={styles.sideNavSectionLabel}>Global</Text>
-        <Pressable
-          style={[styles.sideNavItem, currentRoute === "revisit" ? styles.sideNavItemActive : null]}
+        <Text style={sideNavStyles.sectionLabel}>Global</Text>
+        <NavRow
+          icon={renderNavItemIcon("revisit").icon}
+          iconColor={renderNavItemIcon("revisit").color}
+          label="Revisit"
+          active={currentRoute === "revisit"}
           onPress={onGoRevisit}
-        >
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-            {renderNavItemIcon("revisit")}
-            <Text style={styles.sideNavItemLabel}>Revisit</Text>
-          </View>
-        </Pressable>
-        <Pressable
-          style={[styles.sideNavItem, currentRoute === "activity" ? styles.sideNavItemActive : null]}
+        />
+        <NavRow
+          icon={renderNavItemIcon("activity").icon}
+          iconColor={renderNavItemIcon("activity").color}
+          label="Activity"
+          active={currentRoute === "activity"}
           onPress={onGoActivity}
-        >
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-            {renderNavItemIcon("activity")}
-            <Text style={styles.sideNavItemLabel}>Activity</Text>
-          </View>
-        </Pressable>
-        <Pressable
-          style={[styles.sideNavItem, currentRoute === "library" ? styles.sideNavItemActive : null]}
+        />
+        <NavRow
+          icon={renderNavItemIcon("tuner").icon}
+          iconColor={renderNavItemIcon("tuner").color}
+          label="Tuner"
+          active={currentRoute === "tuner"}
+          onPress={onGoTuner}
+        />
+        <NavRow
+          icon={renderNavItemIcon("library").icon}
+          iconColor={renderNavItemIcon("library").color}
+          label="Library"
+          active={currentRoute === "library"}
           onPress={onGoLibrary}
-        >
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-            {renderNavItemIcon("library")}
-            <Text style={styles.sideNavItemLabel}>Library</Text>
-          </View>
-        </Pressable>
-        <Pressable
-          style={[styles.sideNavItem, currentRoute === "settings" ? styles.sideNavItemActive : null]}
+        />
+        <NavRow
+          icon={renderNavItemIcon("settings").icon}
+          iconColor={renderNavItemIcon("settings").color}
+          label="Settings"
+          active={currentRoute === "settings"}
           onPress={onGoSettings}
-        >
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-            {renderNavItemIcon("settings")}
-            <Text style={styles.sideNavItemLabel}>Settings</Text>
-          </View>
-        </Pressable>
+        />
       </ScrollView>
     </SafeAreaView>
   );
 }
+
+const sideNavStyles = StyleSheet.create({
+  shell: {
+    flex: 1,
+    backgroundColor: colors.surface,
+    borderTopRightRadius: radii.drawer,
+    borderBottomRightRadius: radii.drawer,
+    paddingHorizontal: 14,
+    paddingTop: 18,
+    paddingBottom: 18,
+    gap: spacing.sm,
+    ...shadows.drawer,
+  },
+  header: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: 10,
+    paddingHorizontal: 14,
+    paddingTop: 18,
+    paddingBottom: 10,
+  },
+  closeBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+    backgroundColor: colors.surface,
+  },
+  scrollContent: {
+    gap: spacing.sm,
+    paddingHorizontal: 14,
+    paddingBottom: 14,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: colors.borderSubtle,
+    marginVertical: spacing.xs,
+  },
+  sectionLabel: {
+    ...textTokens.sectionTitle,
+    paddingHorizontal: 12,
+    marginTop: 2,
+    marginBottom: 4,
+  },
+  collectionList: {
+    gap: 4,
+  },
+  collectionMeta: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    fontWeight: "600",
+  },
+  placeholderText: {
+    ...textTokens.supporting,
+    paddingHorizontal: 12,
+  },
+});

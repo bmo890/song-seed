@@ -13,6 +13,7 @@ export type HierarchyLevel =
   | "activity"
   | "library"
   | "settings"
+  | "tuner"
   | "lyrics";
 
 type IoniconName = ComponentProps<typeof Ionicons>["name"];
@@ -28,6 +29,7 @@ const HIERARCHY_ICON_NAMES: Record<HierarchyLevel, IoniconName> = {
   activity: "calendar-outline",
   library: "library-outline",
   settings: "settings-outline",
+  tuner: "radio-outline",
   lyrics: "book-outline",
 };
 
@@ -42,6 +44,7 @@ const HIERARCHY_ICON_COLORS: Record<HierarchyLevel, string> = {
   activity: "#0f172a",
   library: "#0f172a",
   settings: "#0f172a",
+  tuner: "#0f172a",
   lyrics: "#0f172a",
 };
 

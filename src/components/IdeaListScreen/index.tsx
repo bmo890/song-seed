@@ -25,7 +25,6 @@ import { buildImportedTitle, importAudioAsset, pickSingleAudioFile, shareAudioFi
 import {
   buildDefaultIdeaTitle,
   ensureUniqueIdeaTitle,
-  fmtDuration,
   getCollectionAncestors,
   getCollectionById,
   getIdeaSizeBytes,
@@ -129,8 +128,6 @@ export function IdeaListScreen() {
   const [ideaSizeMap, setIdeaSizeMap] = useState<Record<string, number>>({});
   const [stickyDayLabel, setStickyDayLabel] = useState<string | null>(null);
   const [stickyDayTop, setStickyDayTop] = useState<number>(0);
-  const [visibleIdeaIds, setVisibleIdeaIds] = useState<string[]>([]);
-  const [hasViewabilitySnapshot, setHasViewabilitySnapshot] = useState(false);
   const [undoState, setUndoState] = useState<{
     id: string;
     message: string;
@@ -786,45 +783,7 @@ export function IdeaListScreen() {
     });
   };
 
-  const nowPlayingState = useMemo(() => {
-    const target = inlinePlayer.inlineTarget;
-    if (!target) return null;
-    const idea = ideas.find((candidate) => candidate.id === target.ideaId);
-    if (!idea) return null;
-    const clip = idea.clips.find((candidate) => candidate.id === target.clipId);
-    if (!clip) return null;
-    return { idea, clip };
-  }, [ideas, inlinePlayer.inlineTarget]);
-  const nowPlayingDurationMs = nowPlayingState
-    ? inlinePlayer.inlineDuration || nowPlayingState.clip.durationMs || 0
-    : 0;
-  const nowPlayingProgressPct = nowPlayingState
-    ? Math.max(
-        0,
-        Math.min(
-          100,
-          ((nowPlayingDurationMs > 0 ? inlinePlayer.inlinePosition / nowPlayingDurationMs : 0) * 100)
-        )
-      )
-    : 0;
-  const nowPlayingIdeaVisible = nowPlayingState
-    ? visibleIdeaIds.includes(nowPlayingState.idea.id)
-    : false;
-  const showStickyNowPlaying =
-    hasViewabilitySnapshot && !listSelectionMode && !!nowPlayingState && !nowPlayingIdeaVisible;
-
   const onViewableItemsChanged = useRef(({ viewableItems }: { viewableItems: Array<{ item: IdeaListEntry }> }) => {
-    setHasViewabilitySnapshot(true);
-    const nextVisibleIds = (viewableItems ?? [])
-      .map((entry) => (entry.item?.type === "idea" ? entry.item.idea.id : null))
-      .filter((id): id is string => !!id);
-    setVisibleIdeaIds((prev) => {
-      if (prev.length === nextVisibleIds.length && prev.every((id, idx) => id === nextVisibleIds[idx])) {
-        return prev;
-      }
-      return nextVisibleIds;
-    });
-
     const first = viewableItems?.[0]?.item;
     if (!first) return;
     if (first.type === "hidden-day") {
@@ -1137,58 +1096,6 @@ export function IdeaListScreen() {
         onClearProjectStages={() => setSelectedProjectStages([])}
         onLyricsFilterModeChange={setLyricsFilterMode}
       />
-      {showStickyNowPlaying && nowPlayingState ? (
-        <View style={styles.ideasNowPlayingDock}>
-          <Pressable
-            style={({ pressed }) => [styles.ideasNowPlayingCard, pressed ? styles.pressDown : null]}
-            onPress={() => {
-              useStore
-                .getState()
-                .setPlayerQueue(
-                  [{ ideaId: nowPlayingState.idea.id, clipId: nowPlayingState.clip.id }],
-                  0,
-                  inlinePlayer.isInlinePlaying
-                );
-              navigateRoot("Player");
-            }}
-          >
-            <View style={styles.ideasNowPlayingTopRow}>
-              <View style={styles.ideasNowPlayingCopy}>
-                <Text style={styles.ideasNowPlayingTitle} numberOfLines={1}>
-                  {nowPlayingState.idea.title}
-                </Text>
-                <Text style={styles.ideasNowPlayingSubtitle} numberOfLines={1}>
-                  {nowPlayingState.clip.title}
-                </Text>
-              </View>
-              <Pressable
-                style={({ pressed }) => [styles.ideasNowPlayingBtn, pressed ? styles.pressDownStrong : null]}
-                onPress={(evt) => {
-                  evt.stopPropagation();
-                  void inlinePlayer.toggleInlinePlayback(
-                    nowPlayingState.idea.id,
-                    nowPlayingState.clip
-                  );
-                }}
-              >
-                <Ionicons
-                  name={inlinePlayer.isInlinePlaying ? "pause" : "play"}
-                  size={16}
-                  color="#0f172a"
-                />
-              </Pressable>
-            </View>
-            <View style={styles.ideasNowPlayingProgressRow}>
-              <Text style={styles.ideasNowPlayingTimeText}>{fmtDuration(inlinePlayer.inlinePosition)}</Text>
-              <View style={styles.ideasNowPlayingProgressTrack}>
-                <View style={[styles.ideasNowPlayingProgressFill, { width: `${nowPlayingProgressPct}%` }]} />
-              </View>
-              <Text style={styles.ideasNowPlayingTimeText}>{fmtDuration(nowPlayingDurationMs)}</Text>
-            </View>
-          </Pressable>
-        </View>
-      ) : null}
-
       <IdeaListSelectionZone
         listSelectionMode={listSelectionMode}
         selectedHiddenIdeaIds={selectedHiddenIdeaIds}

@@ -1,10 +1,11 @@
-import { Pressable, Text, View } from "react-native";
+import { Text, View } from "react-native";
 import { useEffect, useState } from "react";
 import { Ionicons } from "@expo/vector-icons";
 import { styles } from "../../styles";
 import { Workspace } from "../../types";
 import { getWorkspaceSizeBytes } from "../../utils";
 import { getHierarchyIconColor, getHierarchyIconName } from "../../hierarchy";
+import { SurfaceCard } from "../common/SurfaceCard";
 
 type Props = {
     workspace: Workspace;
@@ -40,11 +41,10 @@ export function WorkspaceCard({ workspace, isActive, isEditing, onPress, onLongP
     };
 
     return (
-        <Pressable
-            style={[styles.card, isEditing ? styles.cardEditing : null]}
+        <SurfaceCard
+            style={isEditing ? styles.cardEditing : null}
             onPress={onPress}
             onLongPress={onLongPress}
-            delayLongPress={250}
         >
             <View style={styles.cardTop}>
                 <View style={styles.cardTitleRow}>
@@ -65,6 +65,6 @@ export function WorkspaceCard({ workspace, isActive, isEditing, onPress, onLongP
                 <Text style={styles.cardMeta}>{formatSize(sizeBytes)}</Text>
             </View>
             {workspace.description ? <Text style={styles.cardMeta}>{workspace.description}</Text> : null}
-        </Pressable>
+        </SurfaceCard>
     );
 }

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Alert, Pressable, Text, TextInput, View } from "react-native";
+import { Alert, Pressable, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { StatusBar as ExpoStatusBar } from "expo-status-bar";
@@ -8,6 +8,9 @@ import { styles } from "../../styles";
 import { useStore } from "../../state/useStore";
 import { ScreenHeader } from "../common/ScreenHeader";
 import { AppBreadcrumbs } from "../common/AppBreadcrumbs";
+import { PageIntro } from "../common/PageIntro";
+import { SearchField } from "../common/SearchField";
+import { SurfaceCard } from "../common/SurfaceCard";
 import { QuickNameModal } from "../modals/QuickNameModal";
 import { CollectionMoveModal } from "../modals/CollectionMoveModal";
 import { CollectionActionsModal } from "../modals/CollectionActionsModal";
@@ -193,36 +196,16 @@ export function WorkspaceBrowseScreen() {
         ]}
       />
 
-      <View style={styles.ideasHeaderBlock}>
-        <Text style={styles.ideasHeaderTitle} numberOfLines={1}>
-          {activeWorkspace.title}
-        </Text>
-        <Text style={styles.ideasHeaderSubtitle}>
-          Browse collections and move deeper into the workspace.
-        </Text>
-      </View>
+      <PageIntro
+        title={activeWorkspace.title}
+        subtitle="Browse collections and move deeper into the workspace."
+      />
 
-      <View style={styles.ideasSearchWrap}>
-        <Ionicons name="search" size={16} color="#64748b" />
-        <TextInput
-          style={styles.ideasSearchInput}
-          placeholder="Search collections..."
-          placeholderTextColor="#94a3b8"
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          autoCapitalize="none"
-          autoCorrect={false}
-          returnKeyType="search"
-        />
-        {searchQuery ? (
-          <Pressable
-            style={({ pressed }) => [styles.ideasSearchClear, pressed ? styles.pressDown : null]}
-            onPress={() => setSearchQuery("")}
-          >
-            <Ionicons name="close" size={14} color="#64748b" />
-          </Pressable>
-        ) : null}
-      </View>
+      <SearchField
+        value={searchQuery}
+        placeholder="Search collections..."
+        onChangeText={setSearchQuery}
+      />
 
       <View style={styles.inputRow}>
         <Pressable
@@ -244,9 +227,8 @@ export function WorkspaceBrowseScreen() {
           ).length;
 
           return (
-            <Pressable
+            <SurfaceCard
               key={collection.id}
-              style={({ pressed }) => [styles.card, pressed ? styles.pressDown : null]}
               onPress={() => navigateRoot("CollectionDetail", { collectionId: collection.id })}
             >
               <View style={styles.cardTop}>
@@ -285,12 +267,12 @@ export function WorkspaceBrowseScreen() {
                 <Text style={styles.cardMeta}>•</Text>
                 <Text style={styles.cardMeta}>{formatBytes(sizeMap[collection.id] ?? 0)}</Text>
               </View>
-            </Pressable>
+            </SurfaceCard>
           );
         })}
 
         {filteredCollections.length === 0 ? (
-          <View style={styles.card}>
+          <SurfaceCard>
             <Text style={styles.cardTitle}>
               {searchQuery.trim().length > 0 ? "No matching collections" : "No collections yet"}
             </Text>
@@ -299,7 +281,7 @@ export function WorkspaceBrowseScreen() {
                 ? "Try a different search."
                 : "Create a collection to start organizing songs and clips in this workspace."}
             </Text>
-          </View>
+          </SurfaceCard>
         ) : null}
       </View>
 

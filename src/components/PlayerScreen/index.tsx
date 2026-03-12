@@ -3,7 +3,7 @@ import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar as ExpoStatusBar } from "expo-status-bar";
 import { Ionicons } from "@expo/vector-icons";
-import { useIsFocused, useNavigation } from "@react-navigation/native";
+import { StackActions, useIsFocused, useNavigation } from "@react-navigation/native";
 import { styles } from "../../styles";
 import { useStore } from "../../state/useStore";
 import { useFullPlayer } from "../../hooks/useFullPlayer";
@@ -99,6 +99,8 @@ export function PlayerScreen() {
   const playerTarget = useStore((s) => s.playerTarget);
   const playerQueue = useStore((s) => s.playerQueue);
   const playerQueueIndex = useStore((s) => s.playerQueueIndex);
+  const playerToggleRequestToken = useStore((s) => s.playerToggleRequestToken);
+  const playerCloseRequestToken = useStore((s) => s.playerCloseRequestToken);
   const activeWorkspaceId = useStore((s) => s.activeWorkspaceId);
   const ideas = useStore((s) => s.workspaces.find((w) => w.id === s.activeWorkspaceId)?.ideas || []);
   const activeWorkspace = useStore((s) => s.workspaces.find((w) => w.id === s.activeWorkspaceId) ?? null);
@@ -141,7 +143,6 @@ export function PlayerScreen() {
   const [practiceLoopRange, setPracticeLoopRange] = useState({ start: 0, end: 0 });
   const [playbackSpeed, setPlaybackSpeed] = useState<number>(1);
   const [countInOption, setCountInOption] = useState<CountInOption>("off");
-  const didBlurCleanupRef = useRef(false);
   const loopSeekLockRef = useRef(false);
 
   const fullPlayer = useFullPlayer();
@@ -165,6 +166,8 @@ export function PlayerScreen() {
   const displayDuration = playerDuration || playerClip?.durationMs || 0;
   const hasPreviousTrack = playerQueueIndex > 0;
   const hasNextTrack = playerQueueIndex >= 0 && playerQueueIndex < playerQueue.length - 1;
+  const handledToggleTokenRef = useRef(playerToggleRequestToken);
+  const handledCloseTokenRef = useRef(playerCloseRequestToken);
   const transportScrub = useTransportScrubbing({
     isPlaying: isPlayerPlaying,
     durationMs: displayDuration,
@@ -211,7 +214,6 @@ export function PlayerScreen() {
 
   useEffect(() => {
     if (!isFocused) return;
-    didBlurCleanupRef.current = false;
     if (playerIdea && playerClip && playerClip.audioUri) {
       if (activePlayerTarget?.clipId !== playerClip.id) {
         const shouldAutoplay = useStore.getState().playerShouldAutoplay;
@@ -246,14 +248,6 @@ export function PlayerScreen() {
       durationMs: playerDuration,
     });
   }, [activeWorkspaceId, playerDuration, playerClip?.durationMs, playerClip?.id, playerIdea?.id]);
-
-  useEffect(() => {
-    if (isFocused) return;
-    if (didBlurCleanupRef.current) return;
-    didBlurCleanupRef.current = true;
-    void cancelScrub();
-    void closePlayer();
-  }, [cancelScrub, closePlayer, isFocused]);
 
   useEffect(() => {
     if (!finishedPlaybackToken) return;
@@ -322,6 +316,20 @@ export function PlayerScreen() {
     transportScrub.isScrubbing,
   ]);
 
+  useEffect(() => {
+    if (playerToggleRequestToken === handledToggleTokenRef.current) return;
+    handledToggleTokenRef.current = playerToggleRequestToken;
+    void handleTransportToggle();
+  }, [playerToggleRequestToken, isPlayerPlaying, mode, practiceLoopEnabled, hasValidPracticeLoop, playerPosition, practiceLoopRange.start]);
+
+  useEffect(() => {
+    if (playerCloseRequestToken === handledCloseTokenRef.current) return;
+    handledCloseTokenRef.current = playerCloseRequestToken;
+    void cancelScrub();
+    void closePlayer();
+    useStore.getState().clearPlayerQueue();
+  }, [cancelScrub, closePlayer, playerCloseRequestToken]);
+
   function handleBack() {
     void closePlayer();
     useStore.getState().clearPlayerQueue();
@@ -376,8 +384,28 @@ export function PlayerScreen() {
     await playPlayer();
   }
 
+  function minimizePlayer() {
+    const routes = navigation.getState()?.routes ?? [];
+    const targetRoute =
+      [...routes]
+        .slice(0, -1)
+        .reverse()
+        .find((route) => route.name !== "Player" && route.name !== "Recording") ?? null;
+
+    if (targetRoute) {
+      navigation.dispatch(StackActions.push(targetRoute.name, targetRoute.params));
+      return;
+    }
+
+    navigation.dispatch(StackActions.push("Home"));
+  }
+
   function handleOverflowMenu() {
     Alert.alert("Player options", playerClip?.title, [
+      {
+        text: "Minimize player",
+        onPress: minimizePlayer,
+      },
       {
         text: "Edit clip",
         onPress: async () => {

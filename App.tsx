@@ -3,6 +3,7 @@ import { NavigationContainer, useNavigationContainerRef } from "@react-navigatio
 import { useState } from "react";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createDrawerNavigator, DrawerContentComponentProps } from "@react-navigation/drawer";
+import { AudioRecorderProvider } from "@siteed/expo-audio-studio";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { IdeaDetailScreen } from "./src/components/IdeaDetailScreen";
 import { IdeaListScreen } from "./src/components/IdeaListScreen";
@@ -15,10 +16,11 @@ import { EditorScreen } from "./src/components/EditorScreen";
 import { LyricsScreen } from "./src/components/LyricsScreen";
 import { LyricsVersionScreen } from "./src/components/LyricsVersionScreen";
 import { ActivityScreen } from "./src/components/ActivityScreen";
-import { GlobalInlineNowPlayingDock } from "./src/components/GlobalInlineNowPlayingDock";
+import { GlobalMediaDock } from "./src/components/GlobalMediaDock";
 import { LibraryScreen } from "./src/components/LibraryScreen";
 import { SettingsScreen } from "./src/components/SettingsScreen";
 import { RevisitScreen } from "./src/components/RevisitScreen";
+import { TunerScreen } from "./src/components/TunerScreen";
 import { getCollectionById } from "./src/utils";
 
 export type RootStackParamList = {
@@ -36,6 +38,7 @@ export type RootStackParamList = {
   Activity: { workspaceId?: string; collectionId?: string } | undefined;
   Recording: undefined;
   Player: undefined;
+  Tuner: undefined;
   Editor: { ideaId: string; clipId: string; audioUri?: string; durationMs?: number };
   Lyrics: { ideaId: string };
   LyricsVersion: { ideaId: string; versionId?: string; startInEdit?: boolean; forceNewVersion?: boolean; createDraft?: boolean };
@@ -66,6 +69,8 @@ function DrawerContent({ navigation, state }: DrawerContentComponentProps) {
         ? "revisit"
       : deepestRouteName === "Activity" || deepestRouteName === "ActivityHome"
         ? "activity"
+      : deepestRouteName === "Tuner"
+        ? "tuner"
       : deepestRouteName === "LibraryHome"
           ? "library"
           : deepestRouteName === "SettingsHome"
@@ -146,6 +151,10 @@ function DrawerContent({ navigation, state }: DrawerContentComponentProps) {
         closeDrawer();
         navigation.navigate("ActivityHome");
       }}
+      onGoTuner={() => {
+        closeDrawer();
+        navigateRoot("Tuner");
+      }}
       onGoLibrary={() => {
         closeDrawer();
         navigation.navigate("LibraryHome");
@@ -218,15 +227,20 @@ function AppContent() {
         <Stack.Screen name="IdeaDetail" component={IdeaDetailScreen} />
         <Stack.Screen name="Recording" component={RecordingScreen} />
         <Stack.Screen name="Player" component={PlayerScreen} />
+        <Stack.Screen name="Tuner" component={TunerScreen} />
         <Stack.Screen name="Editor" component={EditorScreen} />
         <Stack.Screen name="Lyrics" component={LyricsScreen} />
         <Stack.Screen name="LyricsVersion" component={LyricsVersionScreen} />
       </Stack.Navigator>
-      <GlobalInlineNowPlayingDock
+      <GlobalMediaDock
         activeRouteName={activeRouteName}
         onOpenPlayer={() => {
           if (!navigationRef.isReady()) return;
           navigationRef.navigate("Player");
+        }}
+        onOpenRecording={() => {
+          if (!navigationRef.isReady()) return;
+          navigationRef.navigate("Recording");
         }}
       />
     </NavigationContainer>
@@ -237,7 +251,9 @@ export default function App() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <AppContent />
+        <AudioRecorderProvider>
+          <AppContent />
+        </AudioRecorderProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

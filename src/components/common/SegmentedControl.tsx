@@ -1,33 +1,56 @@
 import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import { styles } from "../../styles";
 
-type Option<T extends string> = {
+type SegmentedOption<T extends string> = {
   key: T;
   label: string;
 };
 
 type Props<T extends string> = {
-  options: Option<T>[];
-  value: T;
-  onChange: (value: T) => void;
+  options: SegmentedOption<T>[];
+  value?: T;
+  onChange?: (value: T) => void;
+  selectedKey?: T;
+  onSelect?: (key: T) => void;
 };
 
-export function SegmentedControl<T extends string>({ options, value, onChange }: Props<T>) {
+export function SegmentedControl<T extends string>({
+  options,
+  value,
+  onChange,
+  selectedKey,
+  onSelect,
+}: Props<T>) {
+  const activeKey = selectedKey ?? value;
+
+  function handleSelect(key: T) {
+    onSelect?.(key);
+    onChange?.(key);
+  }
+
   return (
-    <View style={styles.root}>
+    <View style={segmentedControlStyles.root}>
       {options.map((option) => {
-        const active = option.key === value;
+        const active = option.key === activeKey;
         return (
           <Pressable
             key={option.key}
             style={({ pressed }) => [
-              styles.segment,
-              active ? styles.segmentActive : null,
-              pressed ? styles.segmentPressed : null,
+              segmentedControlStyles.segment,
+              active ? segmentedControlStyles.segmentActive : null,
+              pressed ? styles.pressDown : null,
             ]}
-            onPress={() => onChange(option.key)}
+            onPress={() => handleSelect(option.key)}
           >
-            <Text style={[styles.segmentLabel, active ? styles.segmentLabelActive : null]}>{option.label}</Text>
+            <Text
+              style={[
+                segmentedControlStyles.segmentLabel,
+                active ? segmentedControlStyles.segmentLabelActive : null,
+              ]}
+            >
+              {option.label}
+            </Text>
           </Pressable>
         );
       })}
@@ -35,7 +58,7 @@ export function SegmentedControl<T extends string>({ options, value, onChange }:
   );
 }
 
-const styles = StyleSheet.create({
+const segmentedControlStyles = StyleSheet.create({
   root: {
     flexDirection: "row",
     alignItems: "center",
@@ -58,9 +81,6 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 4 },
     elevation: 2,
-  },
-  segmentPressed: {
-    opacity: 0.88,
   },
   segmentLabel: {
     fontSize: 15,

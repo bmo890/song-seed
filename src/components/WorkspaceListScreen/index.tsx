@@ -10,6 +10,8 @@ import { ClipboardBanner } from "../ClipboardBanner";
 import { ScreenHeader } from "../common/ScreenHeader";
 import { AppBreadcrumbs } from "../common/AppBreadcrumbs";
 import { Button } from "../common/Button";
+import { SectionHeader } from "../common/SectionHeader";
+import { SegmentedControl } from "../common/SegmentedControl";
 import { WorkspaceList } from "./WorkspaceList";
 
 function defaultWorkspaceTitle() {
@@ -58,20 +60,14 @@ export function WorkspaceListScreen() {
 
       <Text style={styles.subtitle}>Choose a workspace to continue.</Text>
 
-      <View style={{ flexDirection: "row", marginBottom: 16, padding: 4, backgroundColor: "#e2e8f0", borderRadius: 8 }}>
-        <Pressable
-          style={{ flex: 1, paddingVertical: 6, alignItems: "center", borderRadius: 6, backgroundColor: !viewingArchived ? "#fff" : "transparent", shadowColor: !viewingArchived ? "#0f172a" : "transparent", shadowOpacity: 0.05, shadowRadius: 2, elevation: !viewingArchived ? 1 : 0 }}
-          onPress={() => setViewingArchived(false)}
-        >
-          <Text style={{ fontSize: 13, fontWeight: "600", color: !viewingArchived ? "#0f172a" : "#64748b" }}>Active</Text>
-        </Pressable>
-        <Pressable
-          style={{ flex: 1, paddingVertical: 6, alignItems: "center", borderRadius: 6, backgroundColor: viewingArchived ? "#fff" : "transparent", shadowColor: viewingArchived ? "#0f172a" : "transparent", shadowOpacity: 0.05, shadowRadius: 2, elevation: viewingArchived ? 1 : 0 }}
-          onPress={() => setViewingArchived(true)}
-        >
-          <Text style={{ fontSize: 13, fontWeight: "600", color: viewingArchived ? "#0f172a" : "#64748b" }}>Archived</Text>
-        </Pressable>
-      </View>
+      <SegmentedControl
+        options={[
+          { key: "active", label: "Active" },
+          { key: "archived", label: "Archived" },
+        ]}
+        selectedKey={viewingArchived ? "archived" : "active"}
+        onSelect={(value) => setViewingArchived(value === "archived")}
+      />
 
       <View style={styles.inputRow}>
         <Button
@@ -83,9 +79,7 @@ export function WorkspaceListScreen() {
         />
       </View>
 
-      <View style={styles.workspaceBrowseSection}>
-        <Text style={styles.workspaceBrowseSectionTitle}>Workspaces</Text>
-      </View>
+      <SectionHeader title="Workspaces" />
 
       <WorkspaceList
         workspaces={filteredWorkspaces}
