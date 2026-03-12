@@ -24,15 +24,22 @@ export type TimelineClipEntry = {
   hasChildren: boolean;
 };
 
-export type EvolutionClipEntry = {
+export type EvolutionListClipEntry = {
   kind: "evolution";
   clip: ClipVersion;
-  depth: number;
-  childCount: number;
-  hasChildren: boolean;
-  branchMask: boolean[];
-  isLastSibling: boolean;
+  lineageRootId: string;
+  compactPreview: boolean;
+  indented: boolean;
+  continuesThreadBelow: boolean;
 };
+
+export type TimelineListRow =
+  | { kind: "day-divider"; label: string; dayStartTs: number }
+  | { kind: "clip"; entry: TimelineClipEntry };
+
+export type EvolutionListRow =
+  | { kind: "clip"; entry: EvolutionListClipEntry }
+  | { kind: "more"; lineageRootId: string; hiddenCount: number; expanded: boolean };
 
 function byCreatedAtAsc(a: ClipVersion, b: ClipVersion) {
   if (a.createdAt !== b.createdAt) return a.createdAt - b.createdAt;
@@ -59,6 +66,28 @@ function compareClipsForTimeline(
 
   if (a.createdAt !== b.createdAt) return a.createdAt - b.createdAt;
   return a.id.localeCompare(b.id);
+}
+
+function dayStartTs(ts: number) {
+  const date = new Date(ts);
+  date.setHours(0, 0, 0, 0);
+  return date.getTime();
+}
+
+function getDateDividerLabel(ts: number) {
+  const todayStart = dayStartTs(Date.now());
+  const yesterdayStart = todayStart - 24 * 60 * 60 * 1000;
+  const targetStart = dayStartTs(ts);
+
+  if (targetStart === todayStart) return "Today";
+  if (targetStart === yesterdayStart) return "Yesterday";
+
+  return new Date(ts).toLocaleDateString("en-US", {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
 }
 
 export function buildClipGraph(clips: ClipVersion[]): ClipGraph {
@@ -154,36 +183,90 @@ export function buildTimelineEntries(
     });
 }
 
-export function buildEvolutionEntries(
+export function buildTimelineListRows(
   clips: ClipVersion[],
-  collapsedClipIds: Set<string> = new Set()
-): EvolutionClipEntry[] {
-  const graph = buildClipGraph(clips);
-  const entries: EvolutionClipEntry[] = [];
+  options: {
+    metric?: SongTimelineSortMetric;
+    direction?: SongTimelineSortDirection;
+    mainTakesOnly?: boolean;
+  } = {}
+): TimelineListRow[] {
+  const rows: TimelineListRow[] = [];
+  let lastDayStartTs: number | null = null;
 
-  const walk = (nodes: ClipVersion[], depth: number, branchMask: boolean[]) => {
-    nodes.forEach((clip, index) => {
-      const children = graph.childrenByParentId.get(clip.id) ?? [];
-      const isLastSibling = index === nodes.length - 1;
-      const hasChildren = children.length > 0;
+  buildTimelineEntries(clips, options).forEach((entry) => {
+    const nextDayStartTs = dayStartTs(entry.clip.createdAt);
+    if ((options.metric ?? "created") === "created" && lastDayStartTs !== nextDayStartTs) {
+      rows.push({
+        kind: "day-divider",
+        label: getDateDividerLabel(nextDayStartTs),
+        dayStartTs: nextDayStartTs,
+      });
+      lastDayStartTs = nextDayStartTs;
+    }
 
-      entries.push({
-        kind: "evolution",
-        clip,
-        depth,
-        childCount: children.length,
-        hasChildren,
-        branchMask,
-        isLastSibling,
+    rows.push({ kind: "clip", entry });
+  });
+
+  return rows;
+}
+
+export function buildEvolutionListRows(
+  clips: ClipVersion[],
+  expandedLineageIds: Record<string, boolean>
+): EvolutionListRow[] {
+  const rows: EvolutionListRow[] = [];
+
+  buildClipLineages(clips)
+    .slice()
+    .sort((a, b) => {
+      if (a.latestClip.createdAt !== b.latestClip.createdAt) {
+        return b.latestClip.createdAt - a.latestClip.createdAt;
+      }
+      return b.latestClip.id.localeCompare(a.latestClip.id);
+    })
+    .forEach((lineage) => {
+      const newestClip = lineage.latestClip;
+      const olderClips = lineage.clipsNewestToOldest.filter((clip) => clip.id !== newestClip.id);
+      const isExpanded = !!expandedLineageIds[lineage.root.id];
+
+      rows.push({
+        kind: "clip",
+        entry: {
+          kind: "evolution",
+          clip: newestClip,
+          lineageRootId: lineage.root.id,
+          compactPreview: false,
+          indented: false,
+          continuesThreadBelow: false,
+        },
       });
 
-      if (hasChildren && !collapsedClipIds.has(clip.id)) {
-        walk(children, depth + 1, [...branchMask, !isLastSibling]);
-      }
+      if (olderClips.length === 0) return;
+
+      rows.push({
+        kind: "more",
+        lineageRootId: lineage.root.id,
+        hiddenCount: olderClips.length,
+        expanded: isExpanded,
+      });
+
+      if (!isExpanded) return;
+
+      olderClips.forEach((clip, index) => {
+        rows.push({
+          kind: "clip",
+          entry: {
+            kind: "evolution",
+            clip,
+            lineageRootId: lineage.root.id,
+            compactPreview: true,
+            indented: true,
+            continuesThreadBelow: index < olderClips.length - 1,
+          },
+        });
+      });
     });
-  };
 
-  walk(graph.roots, 0, []);
-
-  return entries;
+  return rows;
 }
