@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { Modal, Pressable, ScrollView, Text, View } from "react-native";
+import { ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Ionicons } from "@expo/vector-icons";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { ScreenHeader } from "../common/ScreenHeader";
 import { AppBreadcrumbs } from "../common/AppBreadcrumbs";
@@ -21,71 +20,20 @@ import {
 } from "../../activity";
 import { getCollectionAncestors, getCollectionById } from "../../utils";
 import { styles } from "../../styles";
-import { getCollectionHierarchyLevel, getHierarchyIconColor, getHierarchyIconName } from "../../hierarchy";
-
-const CELL_SIZE = 14;
-const CELL_GAP = 4;
-const CELL_STRIDE = CELL_SIZE + CELL_GAP;
-
-function getActivityCellBackground(count: number, maxCount: number, inYear: boolean) {
-  if (!inYear) return "#edf2f7";
-  if (count <= 0) return "#ffffff";
-  if (maxCount <= 1) return "#93c5fd";
-
-  const ratio = count / maxCount;
-  if (ratio >= 0.8) return "#1e3a8a";
-  if (ratio >= 0.55) return "#2563eb";
-  if (ratio >= 0.3) return "#60a5fa";
-  return "#93c5fd";
-}
-
-function formatEntryMetrics(entry: ActivityDayEntry) {
-  const parts: string[] = [];
-  if (entry.createdCount > 0) {
-    parts.push(`${entry.createdCount} created`);
-  }
-  if (entry.updatedCount > 0) {
-    parts.push(`${entry.updatedCount} updated`);
-  }
-  return parts.join(" • ");
-}
-
-function formatMonthRangeLabel(year: number, month: number, metric: ActivityMetricFilter) {
-  const monthLabel = new Date(year, month, 1).toLocaleDateString("en-US", {
-    month: "long",
-    year: "numeric",
-  });
-  if (metric === "both") return monthLabel;
-  return `${monthLabel} • ${metric === "created" ? "Created" : "Updated"}`;
-}
-
-function formatDayRangeLabel(ts: number, metric: ActivityMetricFilter) {
-  const label = formatActivityDayLabel(ts);
-  if (metric === "both") return label;
-  return `${label} • ${metric === "created" ? "Created" : "Updated"}`;
-}
-
-function formatActivityDateLabel(ts: number) {
-  return new Date(ts).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
-}
-
-function formatSelectedRangeLabel(startTs: number, endTs: number, metric: ActivityMetricFilter) {
-  const startLabel = formatActivityDateLabel(startTs);
-  const endLabel = formatActivityDateLabel(endTs);
-  const base = startTs === endTs ? startLabel : `${startLabel} – ${endLabel}`;
-  if (metric === "both") return base;
-  return `${base} • ${metric === "created" ? "Created" : "Updated"}`;
-}
-
-function getMonthEventCount(events: ReturnType<typeof filterActivityEvents>, year: number, month: number) {
-  const start = new Date(year, month, 1).getTime();
-  const end = new Date(year, month + 1, 1).getTime();
-  return events.filter((event) => event.at >= start && event.at < end).length;
-}
+import { getCollectionHierarchyLevel } from "../../hierarchy";
+import { ActivityScopeControls } from "./ActivityScopeControls";
+import { ActivityHeatmapGrid } from "./ActivityHeatmapGrid";
+import { ActivityRangeResults } from "./ActivityRangeResults";
+import { ActivityDayDetailModal } from "./ActivityDayDetailModal";
+import {
+  ActivityCollectionGroup,
+  ActivityDayWorkspaceGroup,
+  ActivityRangeWorkspaceGroup,
+  formatMonthRangeLabel,
+  formatSelectedRangeLabel,
+  getActivityCellBackground,
+  getMonthEventCount,
+} from "./helpers";
 
 export function ActivityScreen() {
   const navigation = useNavigation();
@@ -96,7 +44,6 @@ export function ActivityScreen() {
   const routeParams = route.params ?? {};
   const scopedCollectionId = routeParams.collectionId as string | undefined;
   const scopedWorkspaceId = routeParams.workspaceId as string | undefined;
-  const isDrawerActivity = route.name === "ActivityHome";
 
   const workspaces = useStore((state) => state.workspaces);
   const activityEvents = useStore((state) => state.activityEvents);
@@ -217,7 +164,7 @@ export function ActivityScreen() {
         : buildActivityRangeEntries(filteredEvents, normalizedRange.startTs, normalizedRange.endTs),
     [filteredEvents, normalizedRange]
   );
-  const selectedDayWorkspaceGroups = useMemo(() => {
+  const selectedDayWorkspaceGroups = useMemo<ActivityDayWorkspaceGroup[]>(() => {
     if (effectiveWorkspaceId || selectedDayEntries.length === 0) return [];
 
     const grouped = new Map<
@@ -244,7 +191,7 @@ export function ActivityScreen() {
       a.workspaceTitle.localeCompare(b.workspaceTitle)
     );
   }, [effectiveWorkspaceId, selectedDayEntries, workspaces]);
-  const selectedRangeWorkspaceGroups = useMemo(() => {
+  const selectedRangeWorkspaceGroups = useMemo<ActivityRangeWorkspaceGroup[]>(() => {
     if (effectiveWorkspaceId || selectedRangeEntries.length === 0) return [];
 
     const workspaceMap = new Map<
@@ -303,7 +250,7 @@ export function ActivityScreen() {
       }))
       .sort((a, b) => a.workspaceTitle.localeCompare(b.workspaceTitle));
   }, [effectiveWorkspaceId, selectedRangeEntries, workspaces]);
-  const selectedRangeCollectionGroups = useMemo(() => {
+  const selectedRangeCollectionGroups = useMemo<ActivityCollectionGroup[]>(() => {
     if (!effectiveWorkspaceId || collectionScope || selectedRangeEntries.length === 0) return [];
     const workspace = workspaces.find((candidate) => candidate.id === effectiveWorkspaceId);
     if (!workspace) return [];
@@ -363,6 +310,35 @@ export function ActivityScreen() {
     normalizedRange == null
       ? null
       : formatSelectedRangeLabel(normalizedRange.startTs, normalizedRange.endTs, metricFilter);
+  const selectedRangeEventCount = useMemo(
+    () =>
+      normalizedRange == null
+        ? 0
+        : filteredEvents.filter(
+            (event) =>
+              startOfActivityDay(event.at) >= normalizedRange.startTs &&
+              startOfActivityDay(event.at) <= normalizedRange.endTs
+          ).length,
+    [filteredEvents, normalizedRange]
+  );
+  const legendSwatches = useMemo(
+    () =>
+      [0.25, 0.5, 0.75, 1].map((ratio) =>
+        getActivityCellBackground(
+          Math.max(1, Math.round(maxDailyCount * ratio)),
+          Math.max(1, maxDailyCount),
+          true
+        )
+      ),
+    [maxDailyCount]
+  );
+  const activityHintText = rangeMode
+    ? collectionScope
+      ? "Tap a start and end day, or a month label, then show that range in ideas."
+      : "Tap a start and end day, or a month label, to group matching work by workspace and collection."
+    : collectionScope
+      ? "Tap a month label or a day to open that range in ideas."
+      : "Tap a day for details. Tap a month label to preview that month.";
 
   const handleRangeDayPress = (dayTs: number) => {
     const normalizedDay = startOfActivityDay(dayTs);
@@ -455,514 +431,126 @@ export function ActivityScreen() {
           ]}
         />
       )}
-
-      {!collectionScope ? (
-        <>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.activityChipScroll}
-            style={styles.activityChipRow}
-          >
-            <Pressable
-              style={({ pressed }) => [
-                styles.activityFilterChip,
-                workspaceFilterId == null ? styles.activityFilterChipActive : null,
-                pressed ? styles.pressDown : null,
-              ]}
-              onPress={() => setWorkspaceFilterId(null)}
-            >
-              <Text
-                style={[
-                  styles.activityFilterChipText,
-                  workspaceFilterId == null ? styles.activityFilterChipTextActive : null,
-                ]}
-              >
-                All workspaces
-              </Text>
-            </Pressable>
-            {workspaces.map((workspace) => (
-              <Pressable
-                key={workspace.id}
-                style={({ pressed }) => [
-                  styles.activityFilterChip,
-                  workspaceFilterId === workspace.id ? styles.activityFilterChipActive : null,
-                  pressed ? styles.pressDown : null,
-                ]}
-                onPress={() => setWorkspaceFilterId(workspace.id)}
-              >
-                <Text
-                  style={[
-                    styles.activityFilterChipText,
-                    workspaceFilterId === workspace.id ? styles.activityFilterChipTextActive : null,
-                  ]}
-                >
-                  {workspace.title}
-                </Text>
-              </Pressable>
-            ))}
-          </ScrollView>
-
-          {workspaceFilterId && topLevelCollections.length > 0 ? (
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.activityChipScroll}
-              style={styles.activityChipRow}
-            >
-              <Pressable
-                style={({ pressed }) => [
-                  styles.activityFilterChip,
-                  collectionFilterId == null ? styles.activityFilterChipActive : null,
-                  pressed ? styles.pressDown : null,
-                ]}
-                onPress={() => setCollectionFilterId(null)}
-              >
-                <Text
-                  style={[
-                    styles.activityFilterChipText,
-                    collectionFilterId == null ? styles.activityFilterChipTextActive : null,
-                  ]}
-                >
-                  All collections
-                </Text>
-              </Pressable>
-              {topLevelCollections.map((collection) => (
-                <Pressable
-                  key={collection.id}
-                  style={({ pressed }) => [
-                    styles.activityFilterChip,
-                    collectionFilterId === collection.id ? styles.activityFilterChipActive : null,
-                    pressed ? styles.pressDown : null,
-                  ]}
-                  onPress={() => setCollectionFilterId(collection.id)}
-                >
-                  <Text
-                    style={[
-                      styles.activityFilterChipText,
-                      collectionFilterId === collection.id ? styles.activityFilterChipTextActive : null,
-                    ]}
-                  >
-                    {collection.title}
-                  </Text>
-                </Pressable>
-              ))}
-            </ScrollView>
-          ) : null}
-        </>
-      ) : null}
-
-      <View style={styles.activityControlsRow}>
-        <View style={styles.activitySegmentWrap}>
-          {(["created", "updated", "both"] as const).map((metric) => (
-            <Pressable
-              key={metric}
-              style={({ pressed }) => [
-                styles.activitySegmentBtn,
-                metricFilter === metric ? styles.activitySegmentBtnActive : null,
-                pressed ? styles.pressDown : null,
-              ]}
-              onPress={() => setMetricFilter(metric)}
-            >
-              <Text
-                style={[
-                  styles.activitySegmentText,
-                  metricFilter === metric ? styles.activitySegmentTextActive : null,
-                ]}
-              >
-                {metric === "both" ? "Both" : metric === "created" ? "Created" : "Updated"}
-              </Text>
-            </Pressable>
-          ))}
-          <Pressable
-            style={({ pressed }) => [
-              styles.activitySegmentBtn,
-              rangeMode ? styles.activitySegmentBtnActive : null,
-              pressed ? styles.pressDown : null,
-            ]}
-            onPress={() => setRangeMode((prev) => !prev)}
-          >
-            <Text
-              style={[
-                styles.activitySegmentText,
-                rangeMode ? styles.activitySegmentTextActive : null,
-              ]}
-            >
-              Range
-            </Text>
-          </Pressable>
-        </View>
-
-        <View style={styles.activityYearControls}>
-          <Pressable
-            style={({ pressed }) => [styles.activityYearBtn, pressed ? styles.pressDown : null]}
-            onPress={() => setYear((prev) => prev - 1)}
-          >
-            <Ionicons name="chevron-back" size={14} color="#334155" />
-          </Pressable>
-          <Text style={styles.activityYearText}>{year}</Text>
-          <Pressable
-            style={({ pressed }) => [styles.activityYearBtn, pressed ? styles.pressDown : null]}
-            onPress={() => setYear((prev) => prev + 1)}
-          >
-            <Ionicons name="chevron-forward" size={14} color="#334155" />
-          </Pressable>
-        </View>
-      </View>
-
-      <View style={styles.activitySummaryRow}>
-        <Text style={styles.activitySummaryText}>
-          {filteredEvents.length} {filteredEvents.length === 1 ? "event" : "events"} in {year}
-        </Text>
-        <View style={styles.activityLegendRow}>
-          <Text style={styles.activityLegendLabel}>Less</Text>
-          {[0.25, 0.5, 0.75, 1].map((ratio, index) => (
-            <View
-              // eslint-disable-next-line react/no-array-index-key
-              key={index}
-              style={[
-                styles.activityLegendSwatch,
-                { backgroundColor: getActivityCellBackground(Math.max(1, Math.round(maxDailyCount * ratio)), Math.max(1, maxDailyCount), true) },
-              ]}
-            />
-          ))}
-          <Text style={styles.activityLegendLabel}>More</Text>
-        </View>
-      </View>
-
-      <Text style={styles.activityHintText}>
-        {rangeMode
-          ? collectionScope
-            ? "Tap a start and end day, or a month label, then show that range in ideas."
-            : "Tap a start and end day, or a month label, to group matching work by workspace and collection."
-          : collectionScope
-            ? "Tap a month label or a day to open that range in ideas."
-            : "Tap a day for details. Tap a month label to preview that month."}
-      </Text>
+      <ActivityScopeControls
+        collectionScopeActive={!!collectionScope}
+        workspaces={workspaces}
+        workspaceFilterId={workspaceFilterId}
+        topLevelCollections={topLevelCollections}
+        collectionFilterId={collectionFilterId}
+        metricFilter={metricFilter}
+        rangeMode={rangeMode}
+        year={year}
+        filteredEventCount={filteredEvents.length}
+        legendSwatches={legendSwatches}
+        hintText={activityHintText}
+        onSelectWorkspace={setWorkspaceFilterId}
+        onSelectCollection={setCollectionFilterId}
+        onSelectMetric={setMetricFilter}
+        onToggleRangeMode={() => setRangeMode((prev) => !prev)}
+        onChangeYear={setYear}
+      />
 
       <ScrollView
         style={styles.flexFill}
         contentContainerStyle={styles.activityScreenContent}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.activityCard}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            <View style={styles.activityHeatmapContent}>
-              <View style={styles.activityMonthRow}>
-                {monthMarkers.map((marker) => (
-                  <Pressable
-                    key={`${marker.month}-${marker.weekIndex}`}
-                    style={({ pressed }) => [
-                      styles.activityMonthPressable,
-                      { marginLeft: marker.weekIndex === 0 ? 0 : marker.weekIndex * CELL_STRIDE - 24 },
-                      pressed ? styles.pressDown : null,
-                    ]}
-                    onPress={() => {
-                      handleMonthPress(marker.month);
-                    }}
-                  >
-                    <Text style={styles.activityMonthLabel}>{marker.label}</Text>
-                  </Pressable>
-                ))}
-              </View>
+        <ActivityHeatmapGrid
+          year={year}
+          monthMarkers={monthMarkers}
+          weeks={weeks}
+          countsByDay={countsByDay}
+          maxDailyCount={maxDailyCount}
+          rangeMode={rangeMode}
+          normalizedRange={normalizedRange}
+          onPressMonth={handleMonthPress}
+          onPressDay={(dayTs) => {
+            if (rangeMode) {
+              handleRangeDayPress(dayTs);
+              return;
+            }
+            setSelectedDayTs(startOfActivityDay(dayTs));
+          }}
+        />
 
-              <View style={styles.activityGridRow}>
-                <View style={styles.activityWeekdayLabels}>
-                  {["S", "M", "T", "W", "T", "F", "S"].map((label, index) => (
-                    <Text key={`${label}-${index}`} style={styles.activityWeekdayLabel}>
-                      {label}
-                    </Text>
-                  ))}
-                </View>
-
-                <View style={styles.activityWeeksWrap}>
-                  {weeks.map((week, weekIndex) => (
-                    <View key={`${year}-week-${weekIndex}`} style={styles.activityWeekColumn}>
-                      {week.map((dayTs) => {
-                        const inYear = new Date(dayTs).getFullYear() === year;
-                        const count = countsByDay.get(startOfActivityDay(dayTs)) ?? 0;
-                        const backgroundColor = getActivityCellBackground(count, maxDailyCount, inYear);
-                        return (
-                          <Pressable
-                            key={dayTs}
-                            style={({ pressed }) => [
-                              styles.activityDayCell,
-                              { backgroundColor, width: CELL_SIZE, height: CELL_SIZE },
-                              normalizedRange &&
-                              startOfActivityDay(dayTs) >= normalizedRange.startTs &&
-                              startOfActivityDay(dayTs) <= normalizedRange.endTs
-                                ? styles.activityDayCellRangeSelected
-                                : null,
-                              pressed && inYear ? styles.activityDayCellPressed : null,
-                            ]}
-                            onPress={() => {
-                              if (!inYear) return;
-                              if (rangeMode) {
-                                handleRangeDayPress(dayTs);
-                                return;
-                              }
-                              setSelectedDayTs(startOfActivityDay(dayTs));
-                            }}
-                          />
-                        );
-                      })}
-                    </View>
-                  ))}
-                </View>
-              </View>
-            </View>
-          </ScrollView>
-        </View>
-
-        {selectedMonthLabel ? (
-          <View style={styles.activityMonthSummaryCard}>
-            <View style={styles.activityMonthSummaryCopy}>
-              <Ionicons name="calendar-outline" size={15} color="#475569" />
-              <Text style={styles.activityMonthSummaryTitle}>{selectedMonthLabel}</Text>
-            </View>
-            <Text style={styles.activityMonthSummaryMeta}>
-              {selectedMonthEventCount} {selectedMonthEventCount === 1 ? "event" : "events"}
-            </Text>
-          </View>
-        ) : null}
-
-        {normalizedRange && selectedRangeLabel ? (
-          <View style={styles.activityRangeSummaryCard}>
-            <View style={styles.activityRangeSummaryHeader}>
-              <View style={styles.activityRangeSummaryCopy}>
-                <Ionicons name="calendar-outline" size={15} color="#475569" />
-                <Text style={styles.activityRangeSummaryTitle}>{selectedRangeLabel}</Text>
-              </View>
-              <Pressable
-                style={({ pressed }) => [styles.activityRangeSummaryClear, pressed ? styles.pressDown : null]}
-                onPress={() => {
-                  setRangeStartTs(null);
-                  setRangeEndTs(null);
-                }}
-              >
-                <Ionicons name="close" size={14} color="#64748b" />
-              </Pressable>
-            </View>
-            <Text style={styles.activityRangeSummaryMeta}>
-              {selectedRangeEntries.length} {selectedRangeEntries.length === 1 ? "item" : "items"} •{" "}
-              {filteredEvents.filter(
-                (event) =>
-                  startOfActivityDay(event.at) >= normalizedRange.startTs &&
-                  startOfActivityDay(event.at) <= normalizedRange.endTs
-              ).length}{" "}
-              events
-            </Text>
-
-            {collectionScope ? (
-              <View style={styles.activityRangeScopedActions}>
-                <Pressable
-                  style={({ pressed }) => [styles.ideasHeaderSelectBtn, styles.activityDayOpenBtn, pressed ? styles.pressDown : null]}
-                  onPress={() =>
-                    openCollectionRange(
-                      collectionScopeWorkspace?.id ?? activeWorkspaceId ?? "",
-                      collectionScope.id,
-                      normalizedRange.startTs,
-                      normalizedRange.endTs + 24 * 60 * 60 * 1000 - 1,
-                      selectedRangeLabel
-                    )
-                  }
-                >
-                  <Text style={styles.ideasHeaderSelectBtnText}>Show in ideas</Text>
-                </Pressable>
-              </View>
-            ) : !effectiveWorkspaceId ? (
-              <View style={styles.activityRangeWorkspaceGroupList}>
-                {selectedRangeWorkspaceGroups.map((workspaceGroup) => (
-                  <View key={workspaceGroup.workspaceId} style={styles.activityDayWorkspaceGroup}>
-                    <Text style={styles.activityDayWorkspaceTitle}>{workspaceGroup.workspaceTitle}</Text>
-                    <View style={styles.activityRangeCollectionList}>
-                      {workspaceGroup.collections.map((collectionGroup) => (
-                        <View key={`${workspaceGroup.workspaceId}:${collectionGroup.collectionId}`} style={styles.activityRangeCollectionCard}>
-                          <View style={styles.activityRangeCollectionCopy}>
-                            <Text style={styles.activityRangeCollectionTitle}>{collectionGroup.collectionTitle}</Text>
-                            <Text style={styles.activityRangeCollectionMeta} numberOfLines={2}>
-                              {collectionGroup.pathLabel}
-                            </Text>
-                          </View>
-                          <View style={styles.activityRangeCollectionActions}>
-                            <Text style={styles.activityRangeCollectionCount}>
-                              {collectionGroup.itemCount} {collectionGroup.itemCount === 1 ? "item" : "items"}
-                            </Text>
-                            <Pressable
-                              style={({ pressed }) => [styles.activityRangeOpenBtn, pressed ? styles.pressDown : null]}
-                              onPress={() =>
-                                openCollectionRange(
-                                  workspaceGroup.workspaceId,
-                                  collectionGroup.collectionId,
-                                  normalizedRange.startTs,
-                                  normalizedRange.endTs + 24 * 60 * 60 * 1000 - 1,
-                                  selectedRangeLabel
-                                )
-                              }
-                            >
-                              <Text style={styles.activityRangeOpenBtnText}>Open ideas</Text>
-                            </Pressable>
-                          </View>
-                        </View>
-                      ))}
-                    </View>
-                  </View>
-                ))}
-              </View>
-            ) : (
-              <View style={styles.activityRangeCollectionList}>
-                {selectedRangeCollectionGroups.map((collectionGroup) => (
-                  <View key={collectionGroup.collectionId} style={styles.activityRangeCollectionCard}>
-                    <View style={styles.activityRangeCollectionCopy}>
-                      <Text style={styles.activityRangeCollectionTitle}>{collectionGroup.collectionTitle}</Text>
-                      <Text style={styles.activityRangeCollectionMeta} numberOfLines={2}>
-                        {collectionGroup.pathLabel}
-                      </Text>
-                    </View>
-                    <View style={styles.activityRangeCollectionActions}>
-                      <Text style={styles.activityRangeCollectionCount}>
-                        {collectionGroup.itemCount} {collectionGroup.itemCount === 1 ? "item" : "items"}
-                      </Text>
-                      <Pressable
-                        style={({ pressed }) => [styles.activityRangeOpenBtn, pressed ? styles.pressDown : null]}
-                        onPress={() =>
-                          openCollectionRange(
-                            effectiveWorkspaceId,
-                            collectionGroup.collectionId,
-                            normalizedRange.startTs,
-                            normalizedRange.endTs + 24 * 60 * 60 * 1000 - 1,
-                            selectedRangeLabel
-                          )
-                        }
-                      >
-                        <Text style={styles.activityRangeOpenBtnText}>Open ideas</Text>
-                      </Pressable>
-                    </View>
-                  </View>
-                ))}
-              </View>
-            )}
-          </View>
-        ) : null}
+        <ActivityRangeResults
+          selectedMonthLabel={selectedMonthLabel}
+          selectedMonthEventCount={selectedMonthEventCount}
+          normalizedRange={normalizedRange}
+          selectedRangeLabel={selectedRangeLabel}
+          selectedRangeEntryCount={selectedRangeEntries.length}
+          selectedRangeEventCount={selectedRangeEventCount}
+          collectionScopeActive={!!collectionScope}
+          selectedRangeWorkspaceGroups={!effectiveWorkspaceId ? selectedRangeWorkspaceGroups : []}
+          selectedRangeCollectionGroups={effectiveWorkspaceId ? selectedRangeCollectionGroups : []}
+          onClearRange={() => {
+            setRangeStartTs(null);
+            setRangeEndTs(null);
+          }}
+          onOpenScopedRange={() => {
+            if (!collectionScope || !normalizedRange || !selectedRangeLabel) return;
+            openCollectionRange(
+              collectionScopeWorkspace?.id ?? activeWorkspaceId ?? "",
+              collectionScope.id,
+              normalizedRange.startTs,
+              normalizedRange.endTs + 24 * 60 * 60 * 1000 - 1,
+              selectedRangeLabel
+            );
+          }}
+          onOpenWorkspaceCollectionRange={(workspaceId, collectionId, label) => {
+            if (!normalizedRange) return;
+            openCollectionRange(
+              workspaceId,
+              collectionId,
+              normalizedRange.startTs,
+              normalizedRange.endTs + 24 * 60 * 60 * 1000 - 1,
+              label
+            );
+          }}
+          onOpenCollectionRange={(collectionId, label) => {
+            if (!effectiveWorkspaceId || !normalizedRange) return;
+            openCollectionRange(
+              effectiveWorkspaceId,
+              collectionId,
+              normalizedRange.startTs,
+              normalizedRange.endTs + 24 * 60 * 60 * 1000 - 1,
+              label
+            );
+          }}
+        />
       </ScrollView>
 
-      <Modal visible={!rangeMode && selectedDayTs != null} transparent animationType="fade" onRequestClose={() => setSelectedDayTs(null)}>
-        <Pressable style={styles.modalBackdrop} onPress={() => setSelectedDayTs(null)}>
-          <Pressable style={[styles.modalCard, styles.activityDayModalCard]} onPress={(event) => event.stopPropagation()}>
-            <Text style={styles.modalTitle}>{dayLabel}</Text>
-            <Text style={styles.subtitle}>
-              {selectedDayEntries.length} {selectedDayEntries.length === 1 ? "item" : "items"}
-            </Text>
-
-            <ScrollView style={styles.activityDayEntryScroll} showsVerticalScrollIndicator={false}>
-              {!effectiveWorkspaceId ? (
-                <View style={styles.activityDayWorkspaceGroupList}>
-                  {selectedDayWorkspaceGroups.map((group) => (
-                    <View key={group.workspaceId} style={styles.activityDayWorkspaceGroup}>
-                      <Text style={styles.activityDayWorkspaceTitle}>{group.workspaceTitle}</Text>
-                      <View style={styles.activityDayEntryList}>
-                        {group.entries.map((entry) => (
-                          <Pressable
-                            key={`${entry.workspaceId}:${entry.ideaId}`}
-                            style={({ pressed }) => [styles.activityDayEntryCard, pressed ? styles.pressDown : null]}
-                            onPress={() => {
-                              setSelectedDayTs(null);
-                              if (activeWorkspaceId !== entry.workspaceId) {
-                                setActiveWorkspaceId(entry.workspaceId);
-                              }
-                              setSelectedIdeaId(entry.ideaId);
-                              navigateRoot("IdeaDetail", { ideaId: entry.ideaId });
-                            }}
-                          >
-                            <View style={styles.activityDayEntryTop}>
-                              <View style={styles.activityDayEntryTitleWrap}>
-                                <Ionicons
-                                  name={getHierarchyIconName(entry.ideaKind === "song" ? "song" : "clip")}
-                                  size={15}
-                                  color={getHierarchyIconColor(entry.ideaKind === "song" ? "song" : "clip")}
-                                />
-                                <Text style={styles.activityDayEntryTitle} numberOfLines={2}>
-                                  {entry.ideaTitle}
-                                </Text>
-                              </View>
-                              <Text style={styles.activityDayEntryMetric}>{formatEntryMetrics(entry)}</Text>
-                            </View>
-                            <Text style={styles.activityDayEntryMeta} numberOfLines={2}>
-                              {getActivityCollectionPath(workspaces, entry.workspaceId, entry.collectionId)}
-                            </Text>
-                          </Pressable>
-                        ))}
-                      </View>
-                    </View>
-                  ))}
-                </View>
-              ) : (
-                <View style={styles.activityDayEntryList}>
-                  {selectedDayEntries.map((entry) => (
-                    <Pressable
-                      key={`${entry.workspaceId}:${entry.ideaId}`}
-                      style={({ pressed }) => [styles.activityDayEntryCard, pressed ? styles.pressDown : null]}
-                      onPress={() => {
-                        setSelectedDayTs(null);
-                        if (activeWorkspaceId !== entry.workspaceId) {
-                          setActiveWorkspaceId(entry.workspaceId);
-                        }
-                        setSelectedIdeaId(entry.ideaId);
-                        navigateRoot("IdeaDetail", { ideaId: entry.ideaId });
-                      }}
-                    >
-                      <View style={styles.activityDayEntryTop}>
-                        <View style={styles.activityDayEntryTitleWrap}>
-                          <Ionicons
-                            name={getHierarchyIconName(entry.ideaKind === "song" ? "song" : "clip")}
-                            size={15}
-                            color={getHierarchyIconColor(entry.ideaKind === "song" ? "song" : "clip")}
-                          />
-                          <Text style={styles.activityDayEntryTitle} numberOfLines={2}>
-                            {entry.ideaTitle}
-                          </Text>
-                        </View>
-                        <Text style={styles.activityDayEntryMetric}>{formatEntryMetrics(entry)}</Text>
-                      </View>
-                      <Text style={styles.activityDayEntryMeta} numberOfLines={2}>
-                        {getActivityCollectionPath(workspaces, entry.workspaceId, entry.collectionId)}
-                      </Text>
-                    </Pressable>
-                  ))}
-                </View>
-              )}
-            </ScrollView>
-
-            <View style={styles.activityDayModalActions}>
-              {collectionScope && selectedDayTs != null ? (
-                <Pressable
-                  style={({ pressed }) => [styles.ideasHeaderSelectBtn, styles.activityDayOpenBtn, pressed ? styles.pressDown : null]}
-                  onPress={() => {
-                    const dayStart = startOfActivityDay(selectedDayTs);
-                    const dayEnd = dayStart + 24 * 60 * 60 * 1000 - 1;
-                    setSelectedDayTs(null);
-                    openCollectionRange(
-                      collectionScopeWorkspace?.id ?? activeWorkspaceId ?? "",
-                      collectionScope.id,
-                      dayStart,
-                      dayEnd,
-                      formatDayRangeLabel(dayStart, metricFilter)
-                    );
-                  }}
-                >
-                  <Text style={styles.ideasHeaderSelectBtnText}>Show in ideas</Text>
-                </Pressable>
-              ) : null}
-              <Pressable
-                style={({ pressed }) => [styles.primaryBtn, styles.activityDayCloseBtn, pressed ? styles.pressDown : null]}
-                onPress={() => setSelectedDayTs(null)}
-              >
-                <Text style={styles.primaryBtnText}>Close</Text>
-              </Pressable>
-            </View>
-          </Pressable>
-        </Pressable>
-      </Modal>
+      <ActivityDayDetailModal
+        visible={!rangeMode && selectedDayTs != null}
+        dayLabel={dayLabel}
+        selectedDayTs={selectedDayTs}
+        metricFilter={metricFilter}
+        selectedDayEntries={selectedDayEntries}
+        effectiveWorkspaceId={effectiveWorkspaceId}
+        selectedDayWorkspaceGroups={selectedDayWorkspaceGroups}
+        workspaces={workspaces}
+        showScopedIdeasAction={!!collectionScope}
+        onClose={() => setSelectedDayTs(null)}
+        onOpenIdea={(entry) => {
+          setSelectedDayTs(null);
+          if (activeWorkspaceId !== entry.workspaceId) {
+            setActiveWorkspaceId(entry.workspaceId);
+          }
+          setSelectedIdeaId(entry.ideaId);
+          navigateRoot("IdeaDetail", { ideaId: entry.ideaId });
+        }}
+        onShowScopedIdeas={(startTs, endTs, label) => {
+          if (!collectionScope) return;
+          setSelectedDayTs(null);
+          openCollectionRange(
+            collectionScopeWorkspace?.id ?? activeWorkspaceId ?? "",
+            collectionScope.id,
+            startTs,
+            endTs,
+            label
+          );
+        }}
+      />
     </SafeAreaView>
   );
 }

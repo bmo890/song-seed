@@ -1,22 +1,21 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import DraggableFlatList from "react-native-draggable-flatlist";
 import { StatusBar as ExpoStatusBar } from "expo-status-bar";
-import { Text, View, Alert, Animated, Pressable, TextInput, Platform } from "react-native";
+import { Text, View, Alert, Animated, Pressable, Platform } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { styles } from "../../styles";
-import { ClipboardBanner } from "../ClipboardBanner";
 import { SongIdea, ClipVersion, PlaybackQueueItem, IdeasTimelineMetric, WorkspaceHiddenDay } from "../../types";
 import { ScreenHeader } from "../common/ScreenHeader";
 import { AppBreadcrumbs } from "../common/AppBreadcrumbs";
-import { ActionButtons } from "./ActionButtons";
-import { FilterSortBar } from "./FilterSortBar";
-import { IdeaSelectionBar } from "./IdeaSelectionBar";
 import { QuickNameModal } from "../modals/QuickNameModal";
 import { CollectionMoveModal } from "../modals/CollectionMoveModal";
 import { CollectionActionsModal } from "../modals/CollectionActionsModal";
-import { IdeaListItem } from "./IdeaListItem";
+import { IdeaListHeaderSection } from "./IdeaListHeaderSection";
+import { IdeaListFilterSection } from "./IdeaListFilterSection";
+import { IdeaListSelectionZone } from "./IdeaListSelectionZone";
+import { IdeaListContent } from "./IdeaListContent";
+import { IdeaListEntry } from "./types";
 
 import { useStore } from "../../state/useStore";
 import { appActions } from "../../state/actions";
@@ -26,14 +25,13 @@ import { buildImportedTitle, importAudioAsset, pickSingleAudioFile, shareAudioFi
 import {
   buildDefaultIdeaTitle,
   ensureUniqueIdeaTitle,
-  formatBytes,
   fmtDuration,
   getCollectionAncestors,
   getCollectionById,
   getIdeaSizeBytes,
 } from "../../utils";
 import { buildCollectionMoveDestinations, getCollectionDeleteScope } from "../../collectionManagement";
-import { getCollectionHierarchyLevel, getHierarchyIconColor, getHierarchyIconName } from "../../hierarchy";
+import { getCollectionHierarchyLevel } from "../../hierarchy";
 import {
   compareIdeas,
   getIdeaCreatedAt,
@@ -46,25 +44,6 @@ import {
 function buildDefaultSubcollectionTitle(count: number) {
   return `Subcollection ${count + 1}`;
 }
-
-type IdeaListEntry =
-  | {
-      key: string;
-      type: "idea";
-      idea: SongIdea;
-      hidden: boolean;
-      dayDividerLabel?: string | null;
-      dayStartTs?: number | null;
-    }
-  | {
-      key: string;
-      type: "hidden-day";
-      dayLabel: string;
-      dayDividerLabel: string;
-      dayStartTs: number;
-      metric: IdeasTimelineMetric;
-      hiddenCount: number;
-    };
 
 export function IdeaListScreen() {
   const navigation = useNavigation();
@@ -1105,213 +1084,59 @@ export function IdeaListScreen() {
         ]}
       />
 
-      <View style={styles.ideasHeaderBlock}>
-        <Text style={styles.ideasHeaderTitle} numberOfLines={1}>
-          {currentCollection.title}
-        </Text>
-        <Text style={styles.ideasHeaderSubtitle} numberOfLines={1}>
-          {ideasHeaderMeta}
-        </Text>
-      </View>
-
-      <View style={styles.ideasSearchUtilityRow}>
-        <View style={styles.ideasSearchWrapInline}>
-          <View style={styles.ideasSearchWrap}>
-            <Ionicons name="search" size={16} color="#64748b" />
-            <TextInput
-              style={styles.ideasSearchInput}
-              placeholder="Search titles, notes, lyrics..."
-              placeholderTextColor="#94a3b8"
-              value={searchQuery}
-              onFocus={() => {
-                if (subcollectionsExpanded) {
-                  setSubcollectionsExpanded(false);
-                }
-              }}
-              onChangeText={(value) => {
-                if (subcollectionsExpanded) {
-                  setSubcollectionsExpanded(false);
-                }
-                setSearchQuery(value);
-              }}
-              autoCapitalize="none"
-              autoCorrect={false}
-              returnKeyType="search"
-            />
-            {searchQuery ? (
-              <Pressable
-                style={({ pressed }) => [styles.ideasSearchClear, pressed ? styles.pressDown : null]}
-                onPress={() => setSearchQuery("")}
-              >
-                <Ionicons name="close" size={14} color="#64748b" />
-              </Pressable>
-            ) : null}
-          </View>
-        </View>
-
-        {childCollections.length > 0 ? (
-          <View style={styles.subcollectionDisclosureInlineWrap}>
-            <Pressable
-              style={({ pressed }) => [
-                styles.subcollectionDisclosureBtn,
-                styles.subcollectionDisclosureBtnInline,
-                subcollectionsExpanded ? styles.subcollectionDisclosureBtnOpen : null,
-                pressed ? styles.pressDown : null,
-              ]}
-              onPress={() => setSubcollectionsExpanded((prev) => !prev)}
-            >
-              <View style={styles.subcollectionDisclosureLead}>
-                <Ionicons
-                  name={getHierarchyIconName("subcollection")}
-                  size={14}
-                  color={getHierarchyIconColor("subcollection")}
-                />
-                <Text style={styles.subcollectionDisclosureTitle}>
-                  {childCollections.length} subcollection{childCollections.length === 1 ? "" : "s"}
-                </Text>
-              </View>
-              <Ionicons
-                name={subcollectionsExpanded ? "chevron-up" : "chevron-down"}
-                size={14}
-                color="#64748b"
-              />
-            </Pressable>
-
-            {subcollectionsExpanded ? (
-              <View style={styles.subcollectionDisclosureDropdown}>
-                {childCollections.map((collection) => (
-                  <View key={collection.id} style={styles.subcollectionDisclosureItem}>
-                    <Pressable
-                      style={({ pressed }) => [
-                        styles.subcollectionDisclosureItemLead,
-                        styles.subcollectionDisclosureItemMain,
-                        pressed ? styles.pressDown : null,
-                      ]}
-                      onPress={() => navigateRoot("CollectionDetail", { collectionId: collection.id })}
-                    >
-                      <Ionicons
-                        name={getHierarchyIconName("subcollection")}
-                        size={14}
-                        color={getHierarchyIconColor("subcollection")}
-                      />
-                      <Text style={styles.subcollectionDisclosureItemText} numberOfLines={1}>
-                        {collection.title}
-                      </Text>
-                    </Pressable>
-                    <View style={styles.subcollectionDisclosureItemActions}>
-                      <Pressable
-                        style={({ pressed }) => [
-                          styles.collectionInlineActionBtn,
-                          pressed ? styles.pressDown : null,
-                        ]}
-                        onPress={() => openCollectionActions(collection.id)}
-                      >
-                        <Ionicons name="ellipsis-horizontal" size={14} color="#64748b" />
-                      </Pressable>
-                      <Pressable
-                        style={({ pressed }) => [
-                          styles.subcollectionDisclosureChevronBtn,
-                          pressed ? styles.pressDown : null,
-                        ]}
-                        onPress={() => navigateRoot("CollectionDetail", { collectionId: collection.id })}
-                      >
-                        <Ionicons name="chevron-forward" size={13} color="#94a3b8" />
-                      </Pressable>
-                    </View>
-                  </View>
-                ))}
-              </View>
-            ) : null}
-          </View>
-        ) : null}
-      </View>
-
-      {hasActivityRangeFilter ? (
-        <View style={styles.activityRangeBanner}>
-          <View style={styles.activityRangeBannerCopy}>
-            <Ionicons name="calendar-outline" size={15} color="#475569" />
-            <Text style={styles.activityRangeBannerText} numberOfLines={1}>
-              {activityLabel ?? "Activity range"}
-            </Text>
-          </View>
-          <Pressable
-            style={({ pressed }) => [styles.activityRangeBannerClear, pressed ? styles.pressDown : null]}
-            onPress={() => {
-              (navigation as any).setParams({
-                activityRangeStartTs: undefined,
-                activityRangeEndTs: undefined,
-                activityMetricFilter: undefined,
-                activityLabel: undefined,
-              });
-            }}
-          >
-            <Ionicons name="close" size={14} color="#64748b" />
-          </Pressable>
-        </View>
-      ) : null}
-
-      {clipClipboard ? (
-        <ClipboardBanner
-          count={clipClipboard.clipIds.length}
-          mode={clipClipboard.mode}
-          actionLabel="Paste to collection"
-          onAction={() => {
-            if (clipClipboard.sourceCollectionId === collectionId) {
-              if (clipClipboard.mode === "move") {
-                Alert.alert("Cannot move here", "You cannot move items into the same collection they are already in. To duplicate them, cancel and use Copy instead.");
-                return;
-              } else {
-                Alert.alert(
-                  "Duplicate items?",
-                  duplicateWarningText,
-                  [
-                    { text: "Cancel", style: "cancel" },
-                    { text: "Duplicate", onPress: () => appActions.pasteClipboardToCollection(collectionId) }
-                  ]
-                );
-                return;
-              }
-            }
-            Alert.alert(
-              `${clipClipboard.mode === "move" ? "Move" : "Copy"} items here?`,
-              `Are you sure you want to ${clipClipboard.mode} these items into this collection?`,
-              [
-                { text: "Cancel", style: "cancel" },
-                { text: "Yes", style: "default", onPress: () => appActions.pasteClipboardToCollection(collectionId) }
-              ]
-            );
-          }}
-          onCancel={cancelClipboard}
-        />
-      ) : null}
-
-      <View
-        onLayout={(evt) => {
-          const { y, height } = evt.nativeEvent.layout;
-          const nextTop = y + height + 2;
-          setStickyDayTop((prev) => (Math.abs(prev - nextTop) < 1 ? prev : nextTop));
+      <IdeaListHeaderSection
+        currentCollection={currentCollection}
+        ideasHeaderMeta={ideasHeaderMeta}
+        searchQuery={searchQuery}
+        childCollections={childCollections}
+        subcollectionsExpanded={subcollectionsExpanded}
+        hasActivityRangeFilter={hasActivityRangeFilter}
+        activityLabel={activityLabel}
+        collectionId={collectionId}
+        clipClipboard={clipClipboard}
+        duplicateWarningText={duplicateWarningText}
+        onSearchQueryChange={setSearchQuery}
+        onSearchFocus={() => {
+          if (subcollectionsExpanded) {
+            setSubcollectionsExpanded(false);
+          }
         }}
-      >
-        <FilterSortBar
-          selectedProjectStages={selectedProjectStages}
-          onToggleProjectStage={(stage) => {
-            setSelectedProjectStages((prev) =>
-              prev.includes(stage) ? prev.filter((item) => item !== stage) : [...prev, stage]
-            );
-          }}
-          onClearProjectStages={() => setSelectedProjectStages([])}
-          lyricsFilterMode={lyricsFilterMode}
-          onLyricsFilterModeChange={setLyricsFilterMode}
-        />
-      </View>
+        onToggleSubcollectionsExpanded={() => setSubcollectionsExpanded((prev) => !prev)}
+        onOpenCollection={(nextCollectionId) =>
+          navigateRoot("CollectionDetail", { collectionId: nextCollectionId })
+        }
+        onOpenCollectionActions={openCollectionActions}
+        onClearActivityRange={() => {
+          (navigation as any).setParams({
+            activityRangeStartTs: undefined,
+            activityRangeEndTs: undefined,
+            activityMetricFilter: undefined,
+            activityLabel: undefined,
+          });
+        }}
+        onPasteClipboard={() => {
+          void appActions.pasteClipboardToCollection(collectionId);
+        }}
+        onCancelClipboard={cancelClipboard}
+      />
 
-      {showDateDividers && stickyDayLabel ? (
-        <View style={[styles.ideasStickyDayWrap, { top: stickyDayTop }]} pointerEvents="none">
-          <View style={styles.ideasStickyDayChip}>
-            <Text style={styles.ideasStickyDayChipText}>{stickyDayLabel}</Text>
-          </View>
-        </View>
-      ) : null}
+      <IdeaListFilterSection
+        selectedProjectStages={selectedProjectStages}
+        lyricsFilterMode={lyricsFilterMode}
+        showDateDividers={showDateDividers}
+        stickyDayLabel={stickyDayLabel}
+        stickyDayTop={stickyDayTop}
+        onLayout={(nextTop) =>
+          setStickyDayTop((prev) => (Math.abs(prev - nextTop) < 1 ? prev : nextTop))
+        }
+        onToggleProjectStage={(stage) => {
+          setSelectedProjectStages((prev) =>
+            prev.includes(stage) ? prev.filter((item) => item !== stage) : [...prev, stage]
+          );
+        }}
+        onClearProjectStages={() => setSelectedProjectStages([])}
+        onLyricsFilterModeChange={setLyricsFilterMode}
+      />
       {showStickyNowPlaying && nowPlayingState ? (
         <View style={styles.ideasNowPlayingDock}>
           <Pressable
@@ -1364,37 +1189,39 @@ export function IdeaListScreen() {
         </View>
       ) : null}
 
-      {listSelectionMode && selectedHiddenIdeaIds.length === 0 && selectedClipIdeasInList.length > 0 ? (
-        <View style={styles.listRowWrap}>
-          <Pressable
-            style={({ pressed }) => [
-              styles.cardFlex,
-              styles.ideasGhostProjectRow,
-              pressed ? styles.pressDown : null,
-            ]}
-            onPress={createProjectFromSelection}
-          >
-            <View style={styles.ideasListCardRow}>
-              <View style={[styles.ideasInlinePlayBtn, styles.ideasGhostProjectIcon]}>
-                <Ionicons name={getHierarchyIconName("song")} size={14} color="#166534" />
-              </View>
-              <View style={styles.ideasListCardMain}>
-                <View style={styles.ideasListCardTop}>
-                  <View style={styles.ideasListCardTitleRow}>
-                    <Ionicons name={getHierarchyIconName("song")} size={14} color="#166534" />
-                    <Text style={styles.ideasListCardTitle}>New Song</Text>
-                  </View>
-                  <Text style={[styles.badge, styles.badgeGhostProject]}>NEW</Text>
-                </View>
-                <Text style={styles.ideasListCardMeta}>
-                  Create a song from {selectedClipIdeasInList.length} selected clip{selectedClipIdeasInList.length === 1 ? "" : "s"}.
-                  {selectedProjectsInList.length > 0 ? " Selected songs will be unselected first." : ""}
-                </Text>
-              </View>
-            </View>
-          </Pressable>
-        </View>
-      ) : null}
+      <IdeaListSelectionZone
+        listSelectionMode={listSelectionMode}
+        selectedHiddenIdeaIds={selectedHiddenIdeaIds}
+        selectedClipIdeasCount={selectedClipIdeasInList.length}
+        selectedProjectsCount={selectedProjectsInList.length}
+        selectableIdeaIds={selectableIdeaIds}
+        selectedHiddenOnly={selectedHiddenOnly}
+        selectedInteractiveIdeasCount={selectedInteractiveIdeas.length}
+        canCreateSubcollection={canCreateSubcollection}
+        onCreateProjectFromSelection={createProjectFromSelection}
+        onPlaySelected={() => {
+          void playSelectedIdeas();
+        }}
+        onToggleHideSelected={() => {
+          void toggleHiddenSelection();
+        }}
+        onDeleteSelected={deleteSelectedIdeasWithUndo}
+        onAddProject={() => {
+          appActions.addIdea(collectionId);
+          navigateRoot("IdeaDetail");
+        }}
+        onAddSubcollection={() => {
+          setSubcollectionDraft("");
+          setSubcollectionModalOpen(true);
+        }}
+        onQuickRecord={() => {
+          appActions.quickRecordIdea(collectionId);
+          navigateRoot("Recording");
+        }}
+        onImportAudio={() => {
+          void openImportAudioFlow();
+        }}
+      />
 
       <CollectionActionsModal
         visible={collectionActionsOpen}
@@ -1510,186 +1337,42 @@ export function IdeaListScreen() {
 
 
 
-      <DraggableFlatList<IdeaListEntry>
-        data={listEntries}
-        keyExtractor={(item) => item.key}
-        contentContainerStyle={[
-          styles.listContent,
-          listDensity === "compact" ? styles.listContentCompact : null,
-          showDateDividers ? styles.listContentTimeline : null,
-          { paddingBottom: 12 },
-        ]}
-        ListFooterComponent={<View style={{ height: listFooterSpacerHeight }} />}
-        ListEmptyComponent={
-          listEntries.length === 0 ? (
-            <Text style={styles.emptyText}>
-              {searchNeedle
-                ? "No matching songs or clips."
-                : "No songs or clips yet. Add your first one."}
-            </Text>
-          ) : null
-        }
-        onViewableItemsChanged={onViewableItemsChanged}
+      <IdeaListContent
+        listSelectionMode={listSelectionMode}
+        allowReorder={!listSelectionMode && ideasFilter === "all" && !searchNeedle}
+        listEntries={listEntries}
+        listDensity={listDensity}
+        showDateDividers={showDateDividers}
+        listFooterSpacerHeight={listFooterSpacerHeight}
+        searchNeedle={searchNeedle}
+        ideasSort={ideasSort}
+        activeTimelineMetric={activeTimelineMetric}
+        activeSortMetric={activeSortMetric}
+        hoveredIdeaId={hoveredIdeaId}
+        dropIntent={dropIntent}
+        ideaSizeMap={ideaSizeMap}
+        lyricsFilterMode={lyricsFilterMode}
+        inlinePlayer={inlinePlayer}
+        rowLayoutsRef={rowLayoutsRef}
+        highlightMapRef={highlightMapRef}
         viewabilityConfig={viewabilityConfigRef.current}
-        initialNumToRender={12}
-        maxToRenderPerBatch={10}
-        windowSize={7}
-        removeClippedSubviews
-        renderItem={(props) => {
-          const entry = props.item;
-
-          if (entry.type === "hidden-day") {
-            return (
-              <View style={styles.ideasListItemWrap}>
-                <View style={styles.ideasDayDividerRow}>
-                  <View style={styles.ideasDayDividerLine} />
-                  <Text style={styles.ideasDayDividerText}>{entry.dayDividerLabel}</Text>
-                  <View style={styles.ideasDayDividerLine} />
-                </View>
-
-                <View style={styles.listRowWrap}>
-                  <View style={styles.ideasHiddenDayCard}>
-                    <View style={styles.ideasHiddenDayCopy}>
-                      <Text style={styles.ideasHiddenDayTitle}>
-                        {`${entry.hiddenCount} item${entry.hiddenCount === 1 ? "" : "s"} hidden`}
-                      </Text>
-                    </View>
-                    <Pressable
-                      style={({ pressed }) => [styles.ideasHiddenUnhideBtn, pressed ? styles.pressDown : null]}
-                      onPress={() => unhideTimelineDay(entry.metric, entry.dayStartTs)}
-                    >
-                      <Ionicons name="eye-outline" size={13} color="#334155" />
-                      <Text style={styles.ideasHiddenUnhideBtnText}>Unhide</Text>
-                    </Pressable>
-                  </View>
-                </View>
-              </View>
-            );
-          }
-
-          const searchMeta = searchMetaByIdeaId.get(entry.idea.id) ?? {
-            matches: true,
-            title: false,
-            notes: false,
-            lyrics: false,
-          };
-
-          return (
-            <IdeaListItem
-              {...props}
-              item={entry.idea}
-              hoveredIdeaId={hoveredIdeaId}
-              dropIntent={dropIntent}
-              rowLayoutsRef={rowLayoutsRef}
-              highlightMapRef={highlightMapRef}
-              inlinePlayer={inlinePlayer}
-              playIdeaFromList={playIdeaFromList}
-              openIdeaFromList={openIdeaFromList}
-              onSwipeEdit={quickEditIdea}
-              onSwipeHide={(idea) => {
-                void hideIdeasFromList([idea.id]);
-              }}
-              onSwipeShare={quickShareIdea}
-              onSwipeCopy={(idea) => quickClipboardIdea(idea, "copy")}
-              onSwipeMove={(idea) => quickClipboardIdea(idea, "move")}
-              onSwipeDelete={quickDeleteIdea}
-              onSwipeWillOpen={handleSwipeWillOpen}
-              onSwipeClose={handleSwipeClose}
-              onUnhide={(idea) => unhideIdeasFromList([idea.id])}
-              onHideDay={
-                !listSelectionMode && showDateDividers && activeTimelineMetric && entry.dayDividerLabel
-                  ? () => {
-                      void hideTimelineDay(
-                        activeTimelineMetric,
-                        entry.dayStartTs ?? dayStartTs(getIdeaSortTimestamp(entry.idea, ideasSort))
-                      );
-                    }
-                  : undefined
-              }
-              hidden={entry.hidden}
-              ideaSizeLabel={formatBytes(ideaSizeMap[entry.idea.id] ?? 0)}
-              dayDividerLabel={entry.dayDividerLabel}
-              searchNeedle={searchNeedle}
-              notesMatched={!!searchMeta.notes}
-              lyricsMatched={!!searchMeta.lyrics}
-              listDensity={listDensity}
-              sortMetric={activeSortMetric}
-              lyricsFilterMode={lyricsFilterMode}
-            />
-          );
-        }}
-        onDragBegin={(index) => {
-          if (listSelectionMode) return;
-          const hoveredEntry = listEntries[index];
-          if (hoveredEntry?.type === "idea") {
-            setHoveredIdeaId(hoveredEntry.idea.id);
-          }
-        }}
-        onPlaceholderIndexChange={(index) => {
-          if (listSelectionMode) return;
-          const hoveredEntry = listEntries[index];
-          if (hoveredEntry?.type === "idea") {
-            setHoveredIdeaId(hoveredEntry.idea.id);
-          }
-        }}
-        onDragEnd={({ data, from, to }) => {
-          if (!listSelectionMode && ideasFilter === "all" && !searchNeedle) {
-            onReorderIdeas({
-              items: data
-                .filter((entry): entry is Extract<IdeaListEntry, { type: "idea" }> => entry.type === "idea")
-                .map((entry) => entry.idea),
-              from,
-              to,
-              sourceId: listEntries[from]?.type === "idea" ? listEntries[from].idea.id : undefined,
-              targetId:
-                hoveredIdeaId ??
-                (listEntries[to]?.type === "idea" ? listEntries[to].idea.id : undefined),
-              intent: "between",
-            });
-          }
-          setHoveredIdeaId(null);
-        }}
+        searchMetaByIdeaId={searchMetaByIdeaId}
+        onViewableItemsChanged={onViewableItemsChanged}
+        playIdeaFromList={playIdeaFromList}
+        openIdeaFromList={openIdeaFromList}
+        quickEditIdea={quickEditIdea}
+        hideIdeasFromList={hideIdeasFromList}
+        quickShareIdea={quickShareIdea}
+        quickClipboardIdea={quickClipboardIdea}
+        quickDeleteIdea={quickDeleteIdea}
+        handleSwipeWillOpen={handleSwipeWillOpen}
+        handleSwipeClose={handleSwipeClose}
+        unhideIdeasFromList={unhideIdeasFromList}
+        hideTimelineDay={hideTimelineDay}
+        unhideTimelineDay={unhideTimelineDay}
+        setHoveredIdeaId={setHoveredIdeaId}
+        onReorderIdeas={onReorderIdeas}
       />
-
-      {listSelectionMode ? (
-        <IdeaSelectionBar
-          selectableIdeaIds={selectableIdeaIds}
-          disabledIdeaIds={selectedHiddenIdeaIds}
-          onPlaySelected={() => {
-            void playSelectedIdeas();
-          }}
-          onToggleHideSelected={() => {
-            void toggleHiddenSelection();
-          }}
-          hideActionLabel={selectedHiddenOnly ? "Unhide" : "Hide"}
-          hideActionDisabled={selectedHiddenOnly ? selectedHiddenIdeaIds.length === 0 : selectedInteractiveIdeas.length === 0}
-          onDeleteSelected={deleteSelectedIdeasWithUndo}
-        />
-      ) : (
-        <>
-          <ActionButtons
-            onAddProject={() => {
-              appActions.addIdea(collectionId);
-              navigateRoot("IdeaDetail");
-            }}
-            onAddSubcollection={
-              canCreateSubcollection
-                ? () => {
-                    setSubcollectionDraft("");
-                    setSubcollectionModalOpen(true);
-                  }
-                : undefined
-            }
-            onQuickRecord={() => {
-              appActions.quickRecordIdea(collectionId);
-              navigateRoot("Recording");
-            }}
-            onImportAudio={() => {
-              void openImportAudioFlow();
-            }}
-          />
-        </>
-      )}
 
       {undoState ? (
         <View style={[styles.ideasUndoWrap, { bottom: floatingStripBottom }]}>
