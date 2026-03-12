@@ -15,13 +15,14 @@ type CollectionLite = {
 };
 
 type Props = {
-  currentRoute: "home" | "browse" | "revisit" | "activity" | "library" | "settings" | null;
+  currentRoute: "home" | "browse" | "revisit" | "activity" | "tuner" | "library" | "settings" | null;
   workspaceTitle: string | null;
   collections: CollectionLite[];
   onGoHome: () => void;
   onGoWorkspace: () => void;
   onGoRevisit: () => void;
   onGoActivity: () => void;
+  onGoTuner: () => void;
   onGoLibrary: () => void;
   onGoSettings: () => void;
   onOpenCollection: (collectionId: string) => void;
@@ -43,6 +44,7 @@ export function SideNav({
   onGoWorkspace,
   onGoRevisit,
   onGoActivity,
+  onGoTuner,
   onGoLibrary,
   onGoSettings,
   onOpenCollection,
@@ -126,6 +128,13 @@ export function SideNav({
           label="Activity"
           active={currentRoute === "activity"}
           onPress={onGoActivity}
+        />
+        <NavRow
+          icon={renderNavItemIcon("tuner").icon}
+          iconColor={renderNavItemIcon("tuner").color}
+          label="Tuner"
+          active={currentRoute === "tuner"}
+          onPress={onGoTuner}
         />
         <NavRow
           icon={renderNavItemIcon("library").icon}

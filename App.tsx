@@ -19,6 +19,7 @@ import { GlobalInlineNowPlayingDock } from "./src/components/GlobalInlineNowPlay
 import { LibraryScreen } from "./src/components/LibraryScreen";
 import { SettingsScreen } from "./src/components/SettingsScreen";
 import { RevisitScreen } from "./src/components/RevisitScreen";
+import { TunerScreen } from "./src/components/TunerScreen";
 import { getCollectionById } from "./src/utils";
 
 export type RootStackParamList = {
@@ -36,6 +37,7 @@ export type RootStackParamList = {
   Activity: { workspaceId?: string; collectionId?: string } | undefined;
   Recording: undefined;
   Player: undefined;
+  Tuner: undefined;
   Editor: { ideaId: string; clipId: string; audioUri?: string; durationMs?: number };
   Lyrics: { ideaId: string };
   LyricsVersion: { ideaId: string; versionId?: string; startInEdit?: boolean; forceNewVersion?: boolean; createDraft?: boolean };
@@ -66,6 +68,8 @@ function DrawerContent({ navigation, state }: DrawerContentComponentProps) {
         ? "revisit"
       : deepestRouteName === "Activity" || deepestRouteName === "ActivityHome"
         ? "activity"
+      : deepestRouteName === "Tuner"
+        ? "tuner"
       : deepestRouteName === "LibraryHome"
           ? "library"
           : deepestRouteName === "SettingsHome"
@@ -146,6 +150,10 @@ function DrawerContent({ navigation, state }: DrawerContentComponentProps) {
         closeDrawer();
         navigation.navigate("ActivityHome");
       }}
+      onGoTuner={() => {
+        closeDrawer();
+        navigateRoot("Tuner");
+      }}
       onGoLibrary={() => {
         closeDrawer();
         navigation.navigate("LibraryHome");
@@ -218,6 +226,7 @@ function AppContent() {
         <Stack.Screen name="IdeaDetail" component={IdeaDetailScreen} />
         <Stack.Screen name="Recording" component={RecordingScreen} />
         <Stack.Screen name="Player" component={PlayerScreen} />
+        <Stack.Screen name="Tuner" component={TunerScreen} />
         <Stack.Screen name="Editor" component={EditorScreen} />
         <Stack.Screen name="Lyrics" component={LyricsScreen} />
         <Stack.Screen name="LyricsVersion" component={LyricsVersionScreen} />
