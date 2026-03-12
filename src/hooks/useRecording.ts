@@ -1,8 +1,9 @@
 import { useAudioRecorder, ExpoAudioStreamModule, audioDeviceManager } from "@siteed/expo-audio-studio";
 import { useEffect, useRef, useState } from "react";
-import { Alert } from "react-native";
+import { Alert, Linking } from "react-native";
 import { metersToWaveformPeaks } from "../utils";
 import { activateRecordingAudioSession } from "../services/audioSession";
+import { importRecordedAudioAsset } from "../services/audioStorage";
 type OnRecorded = (payload: { audioUri: string; durationMs?: number; waveformPeaks?: number[] }) => void;
 
 export function useRecording(onRecorded: OnRecorded, preferredInputId: string | null) {
@@ -48,13 +49,43 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
     };
   }, [recorder.durationMs, recorder.isPaused, recorder.isRecording]);
 
+  async function requestMicrophonePermission() {
+    const permission = await ExpoAudioStreamModule.requestPermissionsAsync();
+    const granted = permission?.granted ?? permission?.status === "granted";
+
+    if (granted) {
+      return true;
+    }
+
+    Alert.alert(
+      "Microphone access needed",
+      permission?.canAskAgain === false
+        ? "Song Seed does not currently have microphone access. Enable it in system settings to record."
+        : "Song Seed needs microphone access to start recording.",
+      permission?.canAskAgain === false
+        ? [
+            { text: "Cancel", style: "cancel" },
+            {
+              text: "Open Settings",
+              onPress: () => {
+                void Linking.openSettings();
+              },
+            },
+          ]
+        : [{ text: "OK", style: "default" }]
+    );
+
+    return false;
+  }
+
 
   async function startRecording() {
     if (recorder.isRecording) return;
     try {
-      // Force microphone permission check before spinning up the audio stream.
-      // A missing permission prompt is a well-known cause of the iOS Simulator "Abandoning I/O cycle" CoreAudio crash.
-      await ExpoAudioStreamModule.requestPermissionsAsync();
+      const hasPermission = await requestMicrophonePermission();
+      if (!hasPermission) {
+        return;
+      }
 
       try {
         if (recorder.isRecording || recorder.isPaused) {
@@ -136,16 +167,21 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
         return false;
       }
 
+      const clipId = `clip-${Date.now()}`;
+      const managedAudio = await importRecordedAudioAsset(recordingData.fileUri, clipId);
+
       // Convert peaks for existing basic renderers (while we migrate the rest)
       const dataPoints = recordingData.analysisData?.dataPoints ?? [];
       const levelsAsDb = dataPoints.map((p) =>
         Number.isFinite(p.dB) ? p.dB : p.amplitude > 0 ? 20 * Math.log10(p.amplitude) : -60
       );
-      const waveformPeaks = metersToWaveformPeaks(levelsAsDb, 96);
+      const waveformPeaks =
+        managedAudio.waveformPeaks ??
+        metersToWaveformPeaks(levelsAsDb, 96);
 
       onRecorded({
-        audioUri: recordingData.fileUri,
-        durationMs: recordingData.durationMs,
+        audioUri: managedAudio.audioUri,
+        durationMs: managedAudio.durationMs ?? recordingData.durationMs,
         waveformPeaks,
       });
       return true;

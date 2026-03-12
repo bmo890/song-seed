@@ -512,6 +512,18 @@ export async function importAudioAsset(asset: ImportedAudioAsset, targetId: stri
     };
 }
 
+export async function importRecordedAudioAsset(recordingUri: string, targetId: string): Promise<ManagedAudioResult> {
+    const filename = recordingUri.split("/").pop() || `${targetId}.m4a`;
+    return importAudioAsset(
+        {
+            uri: recordingUri,
+            name: filename,
+            mimeType: "audio/mp4",
+        },
+        targetId
+    );
+}
+
 export async function shareAudioFile(audioUri: string, title: string) {
     const info = await FileSystem.getInfoAsync(audioUri);
     if (!info.exists) {
