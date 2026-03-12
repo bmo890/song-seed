@@ -17,6 +17,7 @@ import { getCollectionAncestors, getCollectionById } from "../../utils";
 import { getCollectionHierarchyLevel, getIdeaHierarchyLevel } from "../../hierarchy";
 import { TransportLayout } from "../common/TransportLayout";
 import { useTransportScrubbing } from "../../hooks/useTransportScrubbing";
+import { appActions } from "../../state/actions";
 
 export function PlayerScreen() {
   const navigation = useNavigation();
@@ -128,27 +129,11 @@ export function PlayerScreen() {
   }, [playerClip?.title, playerIdea?.title, updateLockScreenMetadata]);
 
   useEffect(() => {
-    if (!playerIdea || !playerClip || !playerDuration) return;
+    if (!activeWorkspaceId || !playerIdea || !playerClip || !playerDuration) return;
     if (playerClip.durationMs && playerClip.durationMs > 0) return;
-
-    useStore.setState((state) => ({
-      workspaces: state.workspaces.map((workspace) => {
-        if (workspace.id !== activeWorkspaceId) return workspace;
-        return {
-          ...workspace,
-          ideas: workspace.ideas.map((idea) =>
-            idea.id !== playerIdea.id
-              ? idea
-              : {
-                  ...idea,
-                  clips: idea.clips.map((clip) =>
-                    clip.id === playerClip.id ? { ...clip, durationMs: playerDuration } : clip
-                  ),
-                }
-          ),
-        };
-      }),
-    }));
+    appActions.hydrateClipAudioMetadata(activeWorkspaceId, playerIdea.id, playerClip.id, {
+      durationMs: playerDuration,
+    });
   }, [activeWorkspaceId, playerDuration, playerClip?.durationMs, playerClip?.id, playerIdea?.id]);
 
   useEffect(() => {

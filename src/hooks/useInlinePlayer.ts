@@ -1,7 +1,7 @@
 import { useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ClipVersion, InlineTarget } from "../types";
-import { activatePlaybackAudioSession } from "../services/audioSession";
+import { activateAndPlay, replacePlaybackSource } from "../services/transportPlayback";
 import { useStore } from "../state/useStore";
 
 type Args = {
@@ -64,20 +64,13 @@ export function useInlinePlayer({ onBeforePlayNew }: Args = {}) {
     if (!clip.audioUri) return;
 
     if (inlineTarget && inlineTarget.ideaId === ideaId && inlineTarget.clipId === clip.id) {
-      const durationMs = inlineDuration || Math.round((status.duration ?? 0) * 1000);
-      const positionMs = inlinePosition || Math.round((status.currentTime ?? 0) * 1000);
-      const atEnd = durationMs > 0 && positionMs >= durationMs - 250;
-
       try {
         if (status.playing) {
           await player.pause();
           return;
         }
 
-        await activatePlaybackAudioSession();
-
-        if (atEnd) await player.seekTo(0);
-        await player.play();
+        await activateAndPlay(player, status, inlineDuration, inlinePosition);
         return;
       } catch (err) {
         console.log("INLINE resume error", err);
@@ -89,10 +82,7 @@ export function useInlinePlayer({ onBeforePlayNew }: Args = {}) {
       if (onBeforePlayNew) await onBeforePlayNew();
       await resetInlinePlayer();
 
-      await activatePlaybackAudioSession();
-
-      await player.replace({ uri: clip.audioUri });
-      await player.play();
+      await replacePlaybackSource(player, clip.audioUri, true);
       setInlineTarget({ ideaId, clipId: clip.id });
     } catch (err) {
       console.log("INLINE play error", err);

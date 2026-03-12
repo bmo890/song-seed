@@ -281,6 +281,41 @@ export const appActions = {
         return clipId;
     },
 
+    hydrateClipAudioMetadata: (
+        workspaceId: string,
+        ideaId: string,
+        clipId: string,
+        payload: { durationMs?: number; waveformPeaks?: number[] }
+    ) => {
+        if (!payload.durationMs && !payload.waveformPeaks?.length) return;
+
+        useStore.setState((store) => ({
+            workspaces: store.workspaces.map((workspace) => {
+                if (workspace.id !== workspaceId) return workspace;
+
+                return {
+                    ...workspace,
+                    ideas: workspace.ideas.map((idea) => {
+                        if (idea.id !== ideaId) return idea;
+
+                        return {
+                            ...idea,
+                            clips: idea.clips.map((clip) =>
+                                clip.id !== clipId
+                                    ? clip
+                                    : {
+                                          ...clip,
+                                          durationMs: payload.durationMs ?? clip.durationMs,
+                                          waveformPeaks: payload.waveformPeaks?.length ? payload.waveformPeaks : clip.waveformPeaks,
+                                      }
+                            ),
+                        };
+                    }),
+                };
+            }),
+        }));
+    },
+
     saveEditIdea: (id: string, nextTitle: string) => {
         const state = useStore.getState();
         state.renameIdeaPreservingActivity(id, nextTitle);

@@ -2,7 +2,7 @@ import { useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ClipVersion, PlayerTarget } from "../types";
 import { buildStaticWaveform } from "../utils";
-import { activatePlaybackAudioSession } from "../services/audioSession";
+import { activateAndPlay, replacePlaybackSource } from "../services/transportPlayback";
 
 type Args = {
   onBeforePlayNew?: () => Promise<void> | void;
@@ -99,17 +99,9 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
       setWaveformPeaks(clip.waveformPeaks?.length ? clip.waveformPeaks : buildStaticWaveform(`${clip.id}-${clip.durationMs ?? 0}`));
       if (!isOperationActive(operationId)) return;
 
-      await activatePlaybackAudioSession();
-      if (!isOperationActive(operationId)) return;
-
-      await player.replace({ uri: clip.audioUri });
+      await replacePlaybackSource(player, clip.audioUri, autoPlay);
       if (!isOperationActive(operationId)) return;
       activateLockScreenControls(metadata);
-      if (autoPlay) {
-        await player.play();
-      } else {
-        await player.pause();
-      }
     } catch (err) {
       console.log("FULL open error", err);
     }
@@ -123,22 +115,13 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
   }
 
   async function togglePlayer() {
-    const durationMs = playerDuration || Math.round((status.duration ?? 0) * 1000);
-    const positionMs = playerPosition || Math.round((status.currentTime ?? 0) * 1000);
-    const atEnd = durationMs > 0 && positionMs >= durationMs - 250;
-
     try {
       if (status.playing) {
         await player.pause();
         return;
       }
 
-      await activatePlaybackAudioSession();
-
-      if (atEnd) {
-        await player.seekTo(0);
-      }
-      await player.play();
+      await activateAndPlay(player, status, playerDuration, playerPosition);
     } catch (err) {
       console.log("FULL play error", err);
     }
@@ -153,16 +136,8 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
   }
 
   async function playPlayer() {
-    const durationMs = playerDuration || Math.round((status.duration ?? 0) * 1000);
-    const positionMs = playerPosition || Math.round((status.currentTime ?? 0) * 1000);
-    const atEnd = durationMs > 0 && positionMs >= durationMs - 250;
-
     try {
-      await activatePlaybackAudioSession();
-      if (atEnd) {
-        await player.seekTo(0);
-      }
-      await player.play();
+      await activateAndPlay(player, status, playerDuration, playerPosition);
     } catch (err) {
       console.log("FULL resume error", err);
     }
