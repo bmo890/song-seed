@@ -1,7 +1,16 @@
-import React, { useEffect, useRef, useState } from "react";
-import { LayoutChangeEvent, NativeScrollEvent, NativeSyntheticEvent, Pressable, ScrollView, Text, View } from "react-native";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import {
+  LayoutChangeEvent,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { styles } from "../../styles";
+import { styles as appStyles } from "../../styles";
 import { LyricsAutoscrollState } from "../../types";
 
 type Props = {
@@ -62,6 +71,13 @@ export function PlayerLyricsPanel({
   const baseDurationMs = Math.max(MIN_AUTOSCROLL_DURATION_MS, lineCount * BASE_MS_PER_LINE);
   const effectiveDurationMs = baseDurationMs / autoscrollSpeedMultiplier;
   const autoscrollSpeedPxPerSecond = maxOffset > 0 ? maxOffset / (effectiveDurationMs / 1000) : 0;
+  const previewText = useMemo(() => {
+    const firstMeaningfulLine = text
+      .split("\n")
+      .map((line) => line.trim())
+      .find((line) => line.length > 0);
+    return firstMeaningfulLine ?? "";
+  }, [text]);
 
   if (!text.trim()) return null;
 
@@ -136,79 +152,191 @@ export function PlayerLyricsPanel({
     viewportHeight,
   ]);
 
+  if (isRecordingVariant) {
+    return (
+      <View style={appStyles.recordingLyricsPanel}>
+        <View style={[appStyles.playerLyricsHeader, appStyles.recordingLyricsHeader]}>
+          <View style={appStyles.playerLyricsHeaderText}>
+            <Text style={[appStyles.playerLyricsTitle, appStyles.recordingLyricsTitle]}>Lyrics</Text>
+            <Text style={[appStyles.playerLyricsMeta, appStyles.recordingLyricsMeta]}>
+              {versionLabel} • {updatedAtLabel}
+            </Text>
+            {autoscrollLabel && canAutoscroll ? (
+              <Pressable
+                style={appStyles.recordingLyricsAutoscrollBtn}
+                onPress={handleAutoscrollToggle}
+              >
+                <Text style={[appStyles.playerLyricsSyncMeta, appStyles.recordingLyricsSyncMeta]}>
+                  {autoscrollLabel}
+                </Text>
+              </Pressable>
+            ) : null}
+          </View>
+          <Pressable
+            style={[appStyles.playerLyricsToggleBtn, appStyles.recordingLyricsToggleBtn]}
+            onPress={handleToggle}
+            hitSlop={6}
+          >
+            <Ionicons name={isExpanded ? "chevron-up" : "chevron-down"} size={18} color="#4b5563" />
+          </Pressable>
+        </View>
+
+        {isExpanded ? (
+          <View style={[appStyles.playerLyricsBody, appStyles.recordingLyricsBody]}>
+            {canAutoscroll ? (
+              <View style={appStyles.recordingLyricsSpeedRow}>
+                {AUTOSCROLL_SPEED_OPTIONS.map((speed) => {
+                  const isActive = Math.abs(speed - autoscrollSpeedMultiplier) < 0.001;
+                  return (
+                    <Pressable
+                      key={speed}
+                      style={[
+                        appStyles.recordingLyricsSpeedChip,
+                        isActive ? appStyles.recordingLyricsSpeedChipActive : null,
+                      ]}
+                      onPress={() => onSelectAutoscrollSpeedMultiplier?.(speed)}
+                    >
+                      <Text
+                        style={[
+                          appStyles.recordingLyricsSpeedChipText,
+                          isActive ? appStyles.recordingLyricsSpeedChipTextActive : null,
+                        ]}
+                      >
+                        {speed.toFixed(speed % 1 === 0 ? 1 : 2)}x
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            ) : null}
+
+            <ScrollView
+              ref={scrollRef}
+              style={[appStyles.playerLyricsScroll, appStyles.recordingLyricsScroll]}
+              onLayout={handleLyricsLayout}
+              onContentSizeChange={(_, height) => setContentHeight(height)}
+              onScroll={handleLyricsScroll}
+              onScrollBeginDrag={autoscrollEnabled ? onAutoscrollInterrupted : undefined}
+              nestedScrollEnabled
+              showsVerticalScrollIndicator
+              persistentScrollbar
+              scrollEventThrottle={16}
+            >
+              <Text style={[appStyles.playerLyricsText, appStyles.recordingLyricsText]}>{text}</Text>
+            </ScrollView>
+          </View>
+        ) : null}
+      </View>
+    );
+  }
+
   return (
-    <View style={isRecordingVariant ? styles.recordingLyricsPanel : styles.card}>
-      <View style={[styles.playerLyricsHeader, isRecordingVariant ? styles.recordingLyricsHeader : null]}>
-        <View style={styles.playerLyricsHeaderText}>
-          <Text style={[styles.playerLyricsTitle, isRecordingVariant ? styles.recordingLyricsTitle : null]}>Lyrics</Text>
-          <Text style={[styles.playerLyricsMeta, isRecordingVariant ? styles.recordingLyricsMeta : null]}>
+    <View style={styles.panel}>
+      <View style={styles.header}>
+        <View style={styles.headerText}>
+          <Text style={styles.title}>Lyrics</Text>
+          <Text style={styles.meta}>
             {versionLabel} • {updatedAtLabel}
           </Text>
-          {autoscrollLabel && (!isRecordingVariant || canAutoscroll) ? (
-            <Pressable
-              style={isRecordingVariant && canAutoscroll ? styles.recordingLyricsAutoscrollBtn : null}
-              onPress={isRecordingVariant && canAutoscroll ? handleAutoscrollToggle : undefined}
-            >
-              <Text style={[styles.playerLyricsSyncMeta, isRecordingVariant ? styles.recordingLyricsSyncMeta : null]}>
-                {autoscrollLabel}
-              </Text>
-            </Pressable>
+          {!isExpanded && previewText ? (
+            <Text style={styles.summary} numberOfLines={2}>
+              {previewText}
+            </Text>
+          ) : null}
+          {isExpanded && autoscrollLabel && autoscrollState?.mode !== "off" ? (
+            <Text style={styles.autoscrollMeta}>{autoscrollLabel}</Text>
           ) : null}
         </View>
-        <Pressable
-          style={[styles.playerLyricsToggleBtn, isRecordingVariant ? styles.recordingLyricsToggleBtn : null]}
-          onPress={handleToggle}
-          hitSlop={6}
-        >
+        <Pressable style={styles.toggle} onPress={handleToggle} hitSlop={6}>
           <Ionicons name={isExpanded ? "chevron-up" : "chevron-down"} size={18} color="#4b5563" />
         </Pressable>
       </View>
 
       {isExpanded ? (
-        <View style={[styles.playerLyricsBody, isRecordingVariant ? styles.recordingLyricsBody : null]}>
-          {isRecordingVariant && canAutoscroll ? (
-            <View style={styles.recordingLyricsSpeedRow}>
-              {AUTOSCROLL_SPEED_OPTIONS.map((speed) => {
-                const isActive = Math.abs(speed - autoscrollSpeedMultiplier) < 0.001;
-                return (
-                  <Pressable
-                    key={speed}
-                    style={[
-                      styles.recordingLyricsSpeedChip,
-                      isActive ? styles.recordingLyricsSpeedChipActive : null,
-                    ]}
-                    onPress={() => onSelectAutoscrollSpeedMultiplier?.(speed)}
-                  >
-                    <Text
-                      style={[
-                        styles.recordingLyricsSpeedChipText,
-                        isActive ? styles.recordingLyricsSpeedChipTextActive : null,
-                      ]}
-                    >
-                      {speed.toFixed(speed % 1 === 0 ? 1 : 2)}x
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-          ) : null}
-
+        <View style={styles.body}>
           <ScrollView
             ref={scrollRef}
-            style={[styles.playerLyricsScroll, isRecordingVariant ? styles.recordingLyricsScroll : null]}
+            style={styles.scroll}
             onLayout={handleLyricsLayout}
             onContentSizeChange={(_, height) => setContentHeight(height)}
             onScroll={handleLyricsScroll}
-            onScrollBeginDrag={isRecordingVariant && autoscrollEnabled ? onAutoscrollInterrupted : undefined}
-            nestedScrollEnabled
-            showsVerticalScrollIndicator
-            persistentScrollbar
+            showsVerticalScrollIndicator={false}
             scrollEventThrottle={16}
           >
-            <Text style={[styles.playerLyricsText, isRecordingVariant ? styles.recordingLyricsText : null]}>{text}</Text>
+            <Text style={styles.text}>{text}</Text>
           </ScrollView>
         </View>
       ) : null}
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  panel: {
+    backgroundColor: "#f6f7f9",
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "#e3e6eb",
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    gap: 8,
+  },
+  header: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    gap: 10,
+  },
+  headerText: {
+    flex: 1,
+    gap: 3,
+  },
+  title: {
+    fontSize: 16,
+    lineHeight: 20,
+    fontWeight: "700",
+    color: "#111827",
+  },
+  meta: {
+    fontSize: 12,
+    lineHeight: 16,
+    color: "#6b7280",
+  },
+  summary: {
+    fontSize: 14,
+    lineHeight: 20,
+    color: "#374151",
+  },
+  autoscrollMeta: {
+    fontSize: 11,
+    lineHeight: 14,
+    fontWeight: "600",
+    color: "#40658c",
+  },
+  toggle: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#ffffff",
+    borderWidth: 1,
+    borderColor: "#dde3ea",
+  },
+  body: {
+    borderRadius: 16,
+    backgroundColor: "#ffffff",
+    borderWidth: 1,
+    borderColor: "#e3e6eb",
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+  },
+  scroll: {
+    maxHeight: 176,
+  },
+  text: {
+    fontSize: 16,
+    lineHeight: 26,
+    color: "#111827",
+  },
+});

@@ -1,5 +1,5 @@
-import { Pressable, ScrollView, Text, View } from "react-native";
-import { styles } from "../../styles";
+import React from "react";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 type QueueEntry = {
   ideaId: string;
@@ -19,39 +19,83 @@ export function PlayerQueue({ entries, currentClipId, onSelect, compact = false 
   if (entries.length <= 1) return null;
 
   return (
-    <View style={styles.card}>
-      <View style={styles.statusRowSpaced}>
-        <Text style={styles.cardTitle}>Queue</Text>
-        <Text style={styles.cardMeta}>{entries.length} tracks</Text>
-      </View>
-      <ScrollView style={{ maxHeight: compact ? 132 : 220 }}>
+    <ScrollView style={{ maxHeight: compact ? 138 : 180 }} showsVerticalScrollIndicator={false}>
+      <View style={styles.list}>
         {entries.map((entry, index) => {
           const isActive = entry.clipId === currentClipId;
           return (
             <Pressable
               key={`${entry.ideaId}-${entry.clipId}`}
               style={({ pressed }) => [
-                {
-                  borderRadius: 10,
-                  borderWidth: 1,
-                  borderColor: isActive ? "#111827" : "#e5e7eb",
-                  backgroundColor: isActive ? "#e2e8f0" : "#ffffff",
-                  paddingHorizontal: 12,
-                  paddingVertical: compact ? 8 : 10,
-                  marginBottom: 8,
-                  opacity: pressed ? 0.9 : 1,
-                },
+                styles.item,
+                isActive ? styles.itemActive : null,
+                pressed ? styles.itemPressed : null,
               ]}
               onPress={() => onSelect(index)}
             >
-              <Text style={[styles.cardTitle, { fontSize: compact ? 15 : 16 }]}>
-                {index + 1}. {entry.title}
-              </Text>
-              <Text style={styles.cardMeta}>{entry.subtitle}</Text>
+              <Text style={styles.index}>{index + 1}</Text>
+              <View style={styles.itemText}>
+                <Text style={[styles.title, compact ? styles.titleCompact : null]} numberOfLines={1}>
+                  {entry.title}
+                </Text>
+                <Text style={styles.subtitle} numberOfLines={1}>
+                  {entry.subtitle}
+                </Text>
+              </View>
             </Pressable>
           );
         })}
-      </ScrollView>
-    </View>
+      </View>
+    </ScrollView>
   );
 }
+
+const styles = StyleSheet.create({
+  list: {
+    gap: 8,
+  },
+  item: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 14,
+    backgroundColor: "#ffffff",
+    borderWidth: 1,
+    borderColor: "#e2e6ec",
+  },
+  itemActive: {
+    backgroundColor: "#e8f1fb",
+    borderColor: "#b5cde7",
+  },
+  itemPressed: {
+    opacity: 0.86,
+  },
+  index: {
+    width: 20,
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: "700",
+    color: "#6b7280",
+    textAlign: "center",
+  },
+  itemText: {
+    flex: 1,
+    gap: 2,
+  },
+  title: {
+    fontSize: 15,
+    lineHeight: 18,
+    fontWeight: "600",
+    color: "#111827",
+  },
+  titleCompact: {
+    fontSize: 14,
+  },
+  subtitle: {
+    fontSize: 12,
+    lineHeight: 16,
+    color: "#64748b",
+  },
+});

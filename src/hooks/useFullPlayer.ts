@@ -1,5 +1,5 @@
 import { useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ClipVersion, PlayerTarget } from "../types";
 import { buildStaticWaveform } from "../utils";
 import { activateAndPlay, replacePlaybackSource } from "../services/transportPlayback";
@@ -29,6 +29,7 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
   const playerDuration = Math.round((status.duration ?? 0) * 1000);
   const isPlayerPlaying = !!status.playing && !status.didJustFinish;
   const didPlayerJustFinish = !!status.didJustFinish;
+  const playbackRate = status.playbackRate ?? 1;
 
   useEffect(() => {
     const justFinishedNow = didPlayerJustFinish && !previousDidJustFinishRef.current;
@@ -153,12 +154,22 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
     await seekTo(playerPosition + delta);
   }
 
+  const setPlaybackRate = useCallback((rate: number) => {
+    const nextRate = Math.max(0.5, Math.min(rate, 2));
+    try {
+      player.setPlaybackRate(nextRate);
+    } catch (err) {
+      console.log("FULL setPlaybackRate error", err);
+    }
+  }, [player]);
+
   return {
     playerTarget,
     playerPosition,
     playerDuration,
     isPlayerPlaying,
     didPlayerJustFinish,
+    playbackRate,
     finishedPlaybackToken,
     finishedPlaybackClipId,
     waveformPeaks,
@@ -169,6 +180,7 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
     playPlayer,
     seekTo,
     seekBy,
+    setPlaybackRate,
     updateLockScreenMetadata,
   };
 }

@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { View, StyleSheet, LayoutChangeEvent } from "react-native";
-import { Canvas, Path, Rect as SkiaRect, Group, Skia } from "@shopify/react-native-skia";
+import { Canvas, Path, Rect as SkiaRect, Skia } from "@shopify/react-native-skia";
 import Animated, { useAnimatedStyle, SharedValue, useDerivedValue, runOnJS, useSharedValue } from "react-native-reanimated";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 
@@ -14,6 +14,8 @@ type Props = {
     selectedRanges?: { id: string; start: number; end: number; type: "keep" | "remove" }[];
     onSeek: (timeMs: number) => void;
     onScrubStateChange?: (scrubbing: boolean) => void;
+    chrome?: "dark" | "light";
+    interactive?: boolean;
 };
 
 export function MinimapVisualizer({
@@ -25,7 +27,9 @@ export function MinimapVisualizer({
     mainCanvasWidth,
     selectedRanges,
     onSeek,
-    onScrubStateChange
+    onScrubStateChange,
+    chrome = "dark",
+    interactive = true,
 }: Props) {
     const [containerWidth, setContainerWidth] = useState(0);
     const containerHeight = 40; // Fixed height minimap
@@ -55,6 +59,26 @@ export function MinimapVisualizer({
         return { wavePath: wave };
     }, [waveformPeaks, containerWidth]);
 
+    const palette = chrome === "light"
+        ? {
+            backgroundColor: "#eef0f4",
+            waveColor: "#64748b",
+            playheadColor: "#d95b56",
+            windowFill: "rgba(59, 130, 246, 0.14)",
+            windowBorder: "rgba(59, 130, 246, 0.48)",
+            keepFill: "rgba(96, 165, 250, 0.28)",
+            removeFill: "rgba(239, 68, 68, 0.28)",
+        }
+        : {
+            backgroundColor: "#1e293b",
+            waveColor: "#475569",
+            playheadColor: "#ef4444",
+            windowFill: "rgba(59, 130, 246, 0.2)",
+            windowBorder: "rgba(59, 130, 246, 0.5)",
+            keepFill: "rgba(96, 165, 250, 0.32)",
+            removeFill: "rgba(239, 68, 68, 0.4)",
+        };
+
     const rangeRects = useMemo(() => {
         if (!selectedRanges || durationMs === 0 || containerWidth === 0) return [];
         return selectedRanges.map(r => {
@@ -65,10 +89,10 @@ export function MinimapVisualizer({
                 id: r.id,
                 x: left,
                 w,
-                fill: r.type === "keep" ? "rgba(16, 185, 129, 0.4)" : "rgba(239, 68, 68, 0.4)"
+                fill: r.type === "keep" ? palette.keepFill : palette.removeFill,
             };
         });
-    }, [selectedRanges, durationMs, containerWidth]);
+    }, [selectedRanges, durationMs, containerWidth, palette.keepFill, palette.removeFill]);
 
     const isDragging = useSharedValue(false);
     const audioProgress = useSharedValue(0);
@@ -104,12 +128,12 @@ export function MinimapVisualizer({
         return {
             transform: [{ translateX: props.x }],
             width: props.w,
-            backgroundColor: "rgba(59, 130, 246, 0.2)",
-            borderColor: "rgba(59, 130, 246, 0.5)",
+            backgroundColor: palette.windowFill,
+            borderColor: palette.windowBorder,
             borderWidth: 1,
             borderRadius: 4,
         };
-    });
+    }, [palette.windowBorder, palette.windowFill]);
 
     const pan = Gesture.Pan()
         .activeOffsetX([-5, 5])
@@ -135,19 +159,19 @@ export function MinimapVisualizer({
     const composed = Gesture.Exclusive(pan, tap);
 
     return (
-        <View style={styles.container} onLayout={onLayout}>
+        <View style={[styles.container, { backgroundColor: palette.backgroundColor }]} onLayout={onLayout}>
             {containerWidth > 0 && wavePath && (
-                <GestureDetector gesture={composed}>
+                <GestureDetector gesture={interactive ? composed : Gesture.Tap()}>
                     <View style={StyleSheet.absoluteFill}>
                         <Canvas style={{ flex: 1 }}>
                             {rangeRects.map(r => (
                                 <SkiaRect key={r.id} x={r.x} y={0} width={r.w} height={containerHeight} color={r.fill} />
                             ))}
-                            <Path path={wavePath} color="#475569" style="stroke" strokeWidth={Math.max(1, containerWidth / waveformPeaks.length)} />
+                            <Path path={wavePath} color={palette.waveColor} style="stroke" strokeWidth={Math.max(1, containerWidth / waveformPeaks.length)} />
                         </Canvas>
 
                         {/* Playhead indicator */}
-                        <Animated.View style={[styles.playhead, playheadStyle]} />
+                        <Animated.View style={[styles.playhead, playheadStyle, { backgroundColor: palette.playheadColor }]} />
 
                         {/* Visible window indicator */}
                         <Animated.View style={[styles.windowOverlay, overlayStyle]} pointerEvents="none" />

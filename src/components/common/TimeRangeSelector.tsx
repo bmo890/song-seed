@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { View, StyleSheet, LayoutChangeEvent, Text } from "react-native";
+import { View, StyleSheet, LayoutChangeEvent } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, { useSharedValue, useAnimatedStyle, runOnJS, SharedValue, useAnimatedReaction, withSpring } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
@@ -214,17 +214,13 @@ function TimeRegionNode({
     });
 
     const isKeep = region.type === "keep";
-    const bgTrackColor = isKeep ? "rgba(16, 185, 129, 0.15)" : "rgba(239, 68, 68, 0.15)";
-    const highlightColor = isKeep ? "rgba(16, 185, 129, 0.8)" : "rgba(239, 68, 68, 0.8)";
+    const bgTrackColor = isKeep ? "rgba(96, 165, 250, 0.18)" : "rgba(239, 68, 68, 0.15)";
+    const highlightColor = isKeep ? "rgba(59, 130, 246, 0.9)" : "rgba(239, 68, 68, 0.8)";
 
     return (
         <React.Fragment>
             <GestureDetector gesture={combinedGesture}>
-                <Animated.View style={[{ position: "absolute", top: 0, bottom: 0, left: 0, backgroundColor: bgTrackColor, justifyContent: "center", alignItems: "center" }, trackStyle]}>
-                    <Text style={{ fontSize: 40, fontWeight: "900", color: isKeep ? "rgba(16, 185, 129, 0.8)" : "rgba(239, 68, 68, 0.8)" }}>
-                        {index + 1}
-                    </Text>
-                </Animated.View>
+                <Animated.View style={[{ position: "absolute", top: 0, bottom: 0, left: 0, backgroundColor: bgTrackColor, justifyContent: "center", alignItems: "center", borderRadius: 18 }, trackStyle]} />
             </GestureDetector>
 
             <GestureDetector gesture={leftPan}>
