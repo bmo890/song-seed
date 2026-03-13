@@ -116,6 +116,19 @@ export type IdeasListState = {
 export type WorkspaceHiddenDay = IdeasHiddenDay;
 export type WorkspaceIdeasListState = IdeasListState;
 
+export type WorkspaceArchiveState = {
+  schemaVersion: number;
+  archivedAt: number;
+  archiveUri: string;
+  packageSizeBytes: number;
+  originalAudioBytes: number;
+  originalMetadataBytes: number;
+  archivedMetadataBytes: number;
+  savingsBytes: number;
+  audioFileCount: number;
+  missingFileCount: number;
+};
+
 export type Collection = {
   id: string;
   title: string;
@@ -131,6 +144,7 @@ export type Workspace = {
   title: string;
   description?: string;
   isArchived?: boolean;
+  archiveState?: WorkspaceArchiveState;
   collections: Collection[];
   ideas: SongIdea[];
   ideasListState?: WorkspaceIdeasListState;

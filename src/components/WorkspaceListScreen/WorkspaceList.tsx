@@ -10,9 +10,11 @@ type Props = {
     onEditWorkspace: (id: string) => void;
     editingWorkspaceId: string | null;
     workspaces: Workspace[];
+    busyWorkspaceId?: string | null;
+    busyLabel?: string | null;
 };
 
-export function WorkspaceList({ onEditWorkspace, editingWorkspaceId, workspaces }: Props) {
+export function WorkspaceList({ onEditWorkspace, editingWorkspaceId, workspaces, busyWorkspaceId, busyLabel }: Props) {
     const navigation = useNavigation();
     const activeWorkspaceId = useStore((s) => s.activeWorkspaceId);
     const setActiveWorkspaceId = useStore((s) => s.setActiveWorkspaceId);
@@ -25,11 +27,25 @@ export function WorkspaceList({ onEditWorkspace, editingWorkspaceId, workspaces 
                     workspace={ws}
                     isActive={ws.id === activeWorkspaceId}
                     isEditing={ws.id === editingWorkspaceId}
+                    isBusy={ws.id === busyWorkspaceId}
+                    busyLabel={ws.id === busyWorkspaceId ? busyLabel ?? undefined : undefined}
                     onPress={() => {
+                        if (ws.id === busyWorkspaceId) {
+                            return;
+                        }
+                        if (ws.isArchived) {
+                            onEditWorkspace(ws.id);
+                            return;
+                        }
                         setActiveWorkspaceId(ws.id);
                         navigation.navigate("Browse" as never);
                     }}
-                    onLongPress={() => onEditWorkspace(ws.id)}
+                    onLongPress={() => {
+                        if (ws.id === busyWorkspaceId) {
+                            return;
+                        }
+                        onEditWorkspace(ws.id);
+                    }}
                 />
             ))}
         </View>

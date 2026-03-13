@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { Alert, Text, View, Pressable } from "react-native";
+import { Alert, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar as ExpoStatusBar } from "expo-status-bar";
 import { styles } from "../../styles";
@@ -13,6 +13,7 @@ import { Button } from "../common/Button";
 import { SectionHeader } from "../common/SectionHeader";
 import { SegmentedControl } from "../common/SegmentedControl";
 import { WorkspaceList } from "./WorkspaceList";
+import { formatBytes } from "../../utils";
 
 function defaultWorkspaceTitle() {
   const now = new Date();
@@ -27,7 +28,6 @@ export function WorkspaceListScreen() {
   const addWorkspace = useStore((s) => s.addWorkspace);
   const updateWorkspace = useStore((s) => s.updateWorkspace);
   const deleteWorkspace = useStore((s) => s.deleteWorkspace);
-  const archiveWorkspace = useStore((s) => s.archiveWorkspace);
 
   const clipClipboard = useStore((s) => s.clipClipboard);
   const cancelClipboard = () => useStore.getState().setClipClipboard(null);
@@ -35,10 +35,61 @@ export function WorkspaceListScreen() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [viewingArchived, setViewingArchived] = useState(false);
+  const [busyWorkspaceId, setBusyWorkspaceId] = useState<string | null>(null);
+  const [busyAction, setBusyAction] = useState<"archive" | "restore" | null>(null);
 
   const editingWorkspace = useMemo(() => workspaces.find((ws) => ws.id === editId) ?? null, [workspaces, editId]);
   const isEditing = !!editId && !!editingWorkspace;
   const filteredWorkspaces = workspaces.filter(w => viewingArchived ? w.isArchived : !w.isArchived);
+  const busyLabel = busyAction === "archive" ? "ARCHIVING" : busyAction === "restore" ? "RESTORING" : null;
+
+  function closeModal() {
+    setModalOpen(false);
+    setEditId(null);
+  }
+
+  async function runArchiveWorkspace(workspaceId: string) {
+    setBusyWorkspaceId(workspaceId);
+    setBusyAction("archive");
+    closeModal();
+
+    try {
+      const result = await appActions.archiveWorkspace(workspaceId);
+      const summary = [
+        `Packed ${result.archiveState.audioFileCount} audio file${result.archiveState.audioFileCount === 1 ? "" : "s"} into ${formatBytes(result.archiveState.packageSizeBytes)}.`,
+        `Saved ${formatBytes(result.archiveState.savingsBytes)} on device while keeping the workspace structure and metadata live.`,
+      ];
+      if (result.warnings.length > 0) {
+        summary.push(result.warnings.join(" "));
+      }
+      Alert.alert("Workspace archived", summary.join(" "));
+    } catch (error) {
+      Alert.alert("Archive failed", error instanceof Error ? error.message : "Could not archive this workspace.");
+    } finally {
+      setBusyWorkspaceId(null);
+      setBusyAction(null);
+    }
+  }
+
+  async function runUnarchiveWorkspace(workspaceId: string) {
+    setBusyWorkspaceId(workspaceId);
+    setBusyAction("restore");
+    closeModal();
+
+    try {
+      const result = await appActions.unarchiveWorkspace(workspaceId);
+      const summary = ["Workspace audio was restored and the workspace is active again."];
+      if (result.warnings.length > 0) {
+        summary.push(result.warnings.join(" "));
+      }
+      Alert.alert("Workspace restored", summary.join(" "));
+    } catch (error) {
+      Alert.alert("Restore failed", error instanceof Error ? error.message : "Could not restore this workspace.");
+    } finally {
+      setBusyWorkspaceId(null);
+      setBusyAction(null);
+    }
+  }
 
   return (
     <SafeAreaView style={styles.screen}>
@@ -58,7 +109,11 @@ export function WorkspaceListScreen() {
         />
       ) : null}
 
-      <Text style={styles.subtitle}>Choose a workspace to continue.</Text>
+      <Text style={styles.subtitle}>
+        {viewingArchived
+          ? "Archived workspaces stay out of the active list while their audio is stored in a compressed package."
+          : "Choose a workspace to continue. Archived workspaces are kept separately."}
+      </Text>
 
       <SegmentedControl
         options={[
@@ -72,6 +127,7 @@ export function WorkspaceListScreen() {
       <View style={styles.inputRow}>
         <Button
           label="New Workspace"
+          disabled={!!busyWorkspaceId}
           onPress={() => {
             setEditId(null);
             setModalOpen(true);
@@ -79,16 +135,24 @@ export function WorkspaceListScreen() {
         />
       </View>
 
-      <SectionHeader title="Workspaces" />
+      <SectionHeader title={viewingArchived ? "Archived Workspaces" : "Active Workspaces"} />
 
       <WorkspaceList
         workspaces={filteredWorkspaces}
         editingWorkspaceId={editId}
+        busyWorkspaceId={busyWorkspaceId}
+        busyLabel={busyLabel}
         onEditWorkspace={(id) => {
+          if (busyWorkspaceId) return;
           setEditId(id);
           setModalOpen(true);
         }}
       />
+      {filteredWorkspaces.length === 0 ? (
+        <Text style={styles.emptyText}>
+          {viewingArchived ? "No archived workspaces yet." : "No active workspaces available."}
+        </Text>
+      ) : null}
 
       <WorkspaceModal
         visible={modalOpen}
@@ -98,21 +162,21 @@ export function WorkspaceListScreen() {
         showDelete={isEditing}
         deleteLabel="Remove workspace"
         onCancel={() => {
-          setModalOpen(false);
-          setEditId(null);
+          if (busyWorkspaceId) return;
+          closeModal();
         }}
         onSave={(name, description) => {
+          if (busyWorkspaceId) return;
           const finalName = name || defaultWorkspaceTitle();
           if (isEditing && editingWorkspace) {
             updateWorkspace(editingWorkspace.id, { title: finalName, description });
           } else {
             addWorkspace(finalName, description);
           }
-          setModalOpen(false);
-          setEditId(null);
+          closeModal();
         }}
         onDelete={() => {
-          if (!editingWorkspace) return;
+          if (!editingWorkspace || busyWorkspaceId) return;
 
           if (!editingWorkspace.isArchived && workspaces.filter(w => !w.isArchived).length <= 1) {
             Alert.alert("Cannot remove", "You must have at least one active workspace.");
@@ -127,18 +191,14 @@ export function WorkspaceListScreen() {
             options.push({
               text: "Unarchive",
               onPress: () => {
-                archiveWorkspace(editingWorkspace.id, false);
-                setModalOpen(false);
-                setEditId(null);
+                void runUnarchiveWorkspace(editingWorkspace.id);
               }
             });
           } else {
             options.push({
               text: "Archive",
               onPress: () => {
-                archiveWorkspace(editingWorkspace.id, true);
-                setModalOpen(false);
-                setEditId(null);
+                void runArchiveWorkspace(editingWorkspace.id);
               }
             });
           }
@@ -157,8 +217,7 @@ export function WorkspaceListScreen() {
                     style: "destructive",
                     onPress: () => {
                       deleteWorkspace(editingWorkspace.id);
-                      setModalOpen(false);
-                      setEditId(null);
+                      closeModal();
                     }
                   }
                 ]
@@ -168,7 +227,9 @@ export function WorkspaceListScreen() {
 
           Alert.alert(
             `Remove ${editingWorkspace.title}?`,
-            `Do you want to archive this workspace to hide it, or delete it permanently?`,
+            editingWorkspace.isArchived
+              ? "Restore this workspace or delete it permanently."
+              : "Archive will compress the workspace audio and hide it from the active list. Delete will remove it permanently.",
             options
           );
         }}

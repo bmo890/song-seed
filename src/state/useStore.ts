@@ -23,7 +23,7 @@ type PersistedAppStore = Pick<
 >;
 
 const STORE_NAME = "song-seed-store";
-const STORE_VERSION = 7;
+const STORE_VERSION = 8;
 
 function sanitizePersistedState(state?: Partial<PersistedAppStore>): PersistedAppStore {
     const fallbackWorkspace = createInitialWorkspace();
@@ -32,9 +32,10 @@ function sanitizePersistedState(state?: Partial<PersistedAppStore>): PersistedAp
         : [fallbackWorkspace];
 
     const activeWorkspaceId =
-        state?.activeWorkspaceId && workspaces.some((workspace) => workspace.id === state.activeWorkspaceId)
+        state?.activeWorkspaceId &&
+        workspaces.some((workspace) => workspace.id === state.activeWorkspaceId && !workspace.isArchived)
             ? state.activeWorkspaceId
-            : null;
+            : workspaces.find((workspace) => !workspace.isArchived)?.id ?? null;
 
     return {
         workspaces,

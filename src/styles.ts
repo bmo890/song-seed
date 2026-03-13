@@ -3161,6 +3161,7 @@ export const styles = StyleSheet.create({
   cardTitleRow: { flex: 1, flexDirection: "row", alignItems: "center", gap: 6 },
   cardTitle: { flex: 1, fontSize: 16, fontWeight: "600", color: "#0f172a" },
   cardMeta: { fontSize: 12, color: "#64748b" },
+  cardMetaWarning: { color: "#b45309" },
   settingsScrollContent: {
     paddingBottom: 24,
     gap: 18,
@@ -3604,6 +3605,11 @@ export const styles = StyleSheet.create({
   badgeCurrent: {
     backgroundColor: "#dcfce7",
     color: "#166534",
+    overflow: "hidden",
+  },
+  badgeArchived: {
+    backgroundColor: "#e2e8f0",
+    color: "#334155",
     overflow: "hidden",
   },
   statusSeed: { backgroundColor: "#e5e7eb" },

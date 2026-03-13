@@ -16,6 +16,7 @@ import {
     ChordPlacement,
     IdeasListState,
     IdeasHiddenDay,
+    WorkspaceArchiveState,
 } from "../types";
 import { genClipTitle } from "../utils";
 import type { SelectionSlice } from "./selectionSlice";
@@ -271,6 +272,40 @@ function normalizeIdeas(ideas: SongIdea[]) {
     return ideas.map(normalizeIdea);
 }
 
+function normalizeWorkspaceArchiveState(archiveState: WorkspaceArchiveState | undefined): WorkspaceArchiveState | undefined {
+    if (!archiveState || typeof archiveState !== "object") {
+        return undefined;
+    }
+
+    if (
+        !Number.isFinite(archiveState.schemaVersion) ||
+        !Number.isFinite(archiveState.archivedAt) ||
+        typeof archiveState.archiveUri !== "string" ||
+        !Number.isFinite(archiveState.packageSizeBytes) ||
+        !Number.isFinite(archiveState.originalAudioBytes) ||
+        !Number.isFinite(archiveState.originalMetadataBytes) ||
+        !Number.isFinite(archiveState.archivedMetadataBytes) ||
+        !Number.isFinite(archiveState.savingsBytes) ||
+        !Number.isFinite(archiveState.audioFileCount) ||
+        !Number.isFinite(archiveState.missingFileCount)
+    ) {
+        return undefined;
+    }
+
+    return {
+        schemaVersion: archiveState.schemaVersion,
+        archivedAt: archiveState.archivedAt,
+        archiveUri: archiveState.archiveUri,
+        packageSizeBytes: archiveState.packageSizeBytes,
+        originalAudioBytes: archiveState.originalAudioBytes,
+        originalMetadataBytes: archiveState.originalMetadataBytes,
+        archivedMetadataBytes: archiveState.archivedMetadataBytes,
+        savingsBytes: archiveState.savingsBytes,
+        audioFileCount: archiveState.audioFileCount,
+        missingFileCount: archiveState.missingFileCount,
+    };
+}
+
 function findWorkspaceWithCollection(workspaces: Workspace[], collectionId: string) {
     return workspaces.find((workspace) =>
         workspace.collections.some((collection) => collection.id === collectionId)
@@ -325,6 +360,7 @@ function normalizeActivityEvents(events: ActivityEvent[] | undefined) {
 
 export function normalizeWorkspaces(workspaces: Workspace[]) {
     return workspaces.map((workspace) => {
+        const normalizedArchiveState = normalizeWorkspaceArchiveState(workspace.archiveState);
         const existingCollections = Array.isArray(workspace.collections) ? workspace.collections : [];
         const migratedDefaultCollection =
             existingCollections.length === 0 && workspace.ideas.length > 0
@@ -349,13 +385,25 @@ export function normalizeWorkspaces(workspaces: Workspace[]) {
                         : fallbackCollectionId,
             }))
         );
+        const archivedIdeas =
+            normalizedArchiveState
+                ? normalizedIdeas.map((idea) => ({
+                    ...idea,
+                    clips: idea.clips.map((clip) => ({
+                        ...clip,
+                        audioUri: undefined,
+                        sourceAudioUri: undefined,
+                        waveformPeaks: undefined,
+                    })),
+                }))
+                : normalizedIdeas;
         const ideaIdsByCollection = new Map<string, SongIdea[]>();
-        for (const idea of normalizedIdeas) {
+        for (const idea of archivedIdeas) {
             const bucket = ideaIdsByCollection.get(idea.collectionId) ?? [];
             bucket.push(idea);
             ideaIdsByCollection.set(idea.collectionId, bucket);
         }
-        const legacyWorkspaceListState = normalizeWorkspaceIdeasListState(workspace.ideasListState, normalizedIdeas);
+        const legacyWorkspaceListState = normalizeWorkspaceIdeasListState(workspace.ideasListState, archivedIdeas);
         const normalizedCollections = collections.map((collection, index) => {
             const collectionIdeas = ideaIdsByCollection.get(collection.id) ?? [];
             const sourceListState =
@@ -367,8 +415,10 @@ export function normalizeWorkspaces(workspaces: Workspace[]) {
         });
         return {
             ...workspace,
+            isArchived: Boolean(workspace.isArchived || normalizedArchiveState),
+            archiveState: normalizedArchiveState,
             collections: normalizedCollections,
-            ideas: normalizedIdeas,
+            ideas: archivedIdeas,
         };
     });
 }
