@@ -18,7 +18,7 @@ const sharedRecordingAudioMode = {
 };
 
 const sharedMetronomeAudioMode = {
-    allowsRecording: false,
+    allowsRecording: true,
     interruptionMode: "mixWithOthers" as const,
     playsInSilentMode: true,
     shouldPlayInBackground: true,
