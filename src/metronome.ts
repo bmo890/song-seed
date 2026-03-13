@@ -1,4 +1,6 @@
 export type MetronomeOutputKey = "beep" | "visual" | "haptic";
+export type MetronomeBeepLevel = number;
+export type MetronomeHapticLevel = number;
 
 export type MetronomeOutputs = Record<MetronomeOutputKey, boolean>;
 
@@ -7,6 +9,7 @@ export const MAX_METRONOME_BPM = 240;
 export const DEFAULT_METRONOME_BPM = 92;
 export const TAP_TEMPO_RESET_MS = 2200;
 export const MAX_TAP_HISTORY = 8;
+export const METRONOME_LOOP_BEAT_COUNT = 4;
 
 export const DEFAULT_METRONOME_OUTPUTS: MetronomeOutputs = {
   beep: true,
@@ -14,8 +17,39 @@ export const DEFAULT_METRONOME_OUTPUTS: MetronomeOutputs = {
   haptic: false,
 };
 
+export const MIN_METRONOME_LEVEL = 0;
+export const MAX_METRONOME_LEVEL = 100;
+
+export const DEFAULT_METRONOME_BEEP_LEVEL: MetronomeBeepLevel = 72;
+export const DEFAULT_METRONOME_HAPTIC_LEVEL: MetronomeHapticLevel = 96;
+
 export function clampMetronomeBpm(value: number) {
   return Math.min(MAX_METRONOME_BPM, Math.max(MIN_METRONOME_BPM, Math.round(value)));
+}
+
+export function clampMetronomeLevel(value: number) {
+  return Math.min(MAX_METRONOME_LEVEL, Math.max(MIN_METRONOME_LEVEL, Math.round(value)));
+}
+
+export function getMetronomeBeepVolume(level: MetronomeBeepLevel) {
+  const normalized = clampMetronomeLevel(level) / MAX_METRONOME_LEVEL;
+  return 0.16 + normalized * 0.4;
+}
+
+export function getMetronomeHapticFallbackDuration(level: MetronomeHapticLevel) {
+  const normalized = clampMetronomeLevel(level) / MAX_METRONOME_LEVEL;
+  return Math.round(14 + normalized * 22);
+}
+
+export function getMetronomeAndroidVibrationDuration(level: MetronomeHapticLevel, beatIntervalMs: number) {
+  const normalized = clampMetronomeLevel(level) / MAX_METRONOME_LEVEL;
+  const targetDuration = 42 + normalized * 64;
+  const safeMaxDuration = Math.max(26, Math.min(140, beatIntervalMs * 0.55));
+  return Math.round(Math.min(targetDuration, safeMaxDuration));
+}
+
+export function formatMetronomeLevel(level: number) {
+  return `${clampMetronomeLevel(level)}%`;
 }
 
 export function getMetronomeBeatIntervalMs(bpm: number) {

@@ -16,8 +16,11 @@ import { ScreenHeader } from "../common/ScreenHeader";
 import { colors, radii, shadows, spacing, text as textTokens } from "../../design/tokens";
 import { useMetronome } from "../../hooks/useMetronome";
 import {
+  formatMetronomeLevel,
   formatMetronomeIntervalLabel,
+  MAX_METRONOME_LEVEL,
   MAX_METRONOME_BPM,
+  MIN_METRONOME_LEVEL,
   MIN_METRONOME_BPM,
   type MetronomeOutputKey,
 } from "../../metronome";
@@ -44,6 +47,9 @@ export function MetronomeScreen() {
     bpm,
     beatIntervalMs,
     isRunning,
+    isPreparing,
+    beepLevel,
+    hapticLevel,
     outputs,
     pulseToken,
     tapCount,
@@ -52,6 +58,8 @@ export function MetronomeScreen() {
     nudgeBpm,
     tapTempo,
     clearTapTempo,
+    setBeepLevelValue,
+    setHapticLevelValue,
     toggleOutput,
   } = useMetronome();
 
@@ -146,9 +154,11 @@ export function MetronomeScreen() {
             style={({ pressed }) => [
               localStyles.primaryAction,
               isRunning ? localStyles.primaryActionStop : null,
+              isPreparing ? localStyles.primaryActionDisabled : null,
               pressed ? styles.pressDown : null,
             ]}
             onPress={toggleRunning}
+            disabled={isPreparing}
           >
             <Text
               style={[
@@ -156,12 +166,14 @@ export function MetronomeScreen() {
                 isRunning ? localStyles.primaryActionTextStop : null,
               ]}
             >
-              {isRunning ? "Stop" : "Start"}
+              {isPreparing ? "Preparing..." : isRunning ? "Stop" : "Start"}
             </Text>
           </Pressable>
 
           <Text style={localStyles.statusLabel}>
-            {isRunning
+            {isPreparing
+              ? "Rendering the click loop for this tempo."
+              : isRunning
               ? activeOutputCount === 0
                 ? "Running with no active cue outputs."
                 : `${activeOutputCount} cue mode${activeOutputCount === 1 ? "" : "s"} active.`
@@ -287,6 +299,48 @@ export function MetronomeScreen() {
               ? "Enable at least one cue mode to hear, see, or feel the pulse."
               : "All cue modes can run together, and each toggle takes effect on the next beat."}
           </Text>
+
+          <View style={localStyles.levelGroup}>
+            <View style={localStyles.levelHeader}>
+              <Text style={localStyles.levelTitle}>Beep level</Text>
+              <Text style={localStyles.levelMeta}>{outputs.beep ? formatMetronomeLevel(beepLevel) : "Off"}</Text>
+            </View>
+            <Slider
+              minimumValue={MIN_METRONOME_LEVEL}
+              maximumValue={MAX_METRONOME_LEVEL}
+              step={1}
+              minimumTrackTintColor="#7aa9da"
+              maximumTrackTintColor="#d7dee8"
+              thumbTintColor="#548ec9"
+              value={beepLevel}
+              onValueChange={setBeepLevelValue}
+            />
+            <View style={localStyles.levelTrackLabels}>
+              <Text style={localStyles.sliderLabel}>Softer</Text>
+              <Text style={localStyles.sliderLabel}>Stronger</Text>
+            </View>
+          </View>
+
+          <View style={localStyles.levelGroup}>
+            <View style={localStyles.levelHeader}>
+              <Text style={localStyles.levelTitle}>Haptic level</Text>
+              <Text style={localStyles.levelMeta}>{outputs.haptic ? formatMetronomeLevel(hapticLevel) : "Off"}</Text>
+            </View>
+            <Slider
+              minimumValue={MIN_METRONOME_LEVEL}
+              maximumValue={MAX_METRONOME_LEVEL}
+              step={1}
+              minimumTrackTintColor="#7aa9da"
+              maximumTrackTintColor="#d7dee8"
+              thumbTintColor="#548ec9"
+              value={hapticLevel}
+              onValueChange={setHapticLevelValue}
+            />
+            <View style={localStyles.levelTrackLabels}>
+              <Text style={localStyles.sliderLabel}>Softer</Text>
+              <Text style={localStyles.sliderLabel}>Stronger</Text>
+            </View>
+          </View>
         </View>
       </ScrollView>
 
@@ -379,6 +433,9 @@ const localStyles = StyleSheet.create({
   },
   primaryActionStop: {
     backgroundColor: "#dbe6f1",
+  },
+  primaryActionDisabled: {
+    opacity: 0.6,
   },
   primaryActionText: {
     fontSize: 15,
@@ -503,5 +560,29 @@ const localStyles = StyleSheet.create({
   helperText: {
     ...textTokens.supporting,
     maxWidth: 480,
+  },
+  levelGroup: {
+    gap: spacing.sm,
+    marginTop: spacing.sm,
+  },
+  levelHeader: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    justifyContent: "space-between",
+    gap: spacing.sm,
+  },
+  levelTitle: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: colors.textPrimary,
+  },
+  levelMeta: {
+    ...textTokens.caption,
+  },
+  levelTrackLabels: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginTop: -4,
   },
 });

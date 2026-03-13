@@ -1,27 +1,34 @@
-import { useAudioPlayer } from "expo-audio";
+import { useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
 import * as Haptics from "expo-haptics";
+import { Platform, Vibration } from "react-native";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { activateMetronomeAudioSession } from "../services/audioSession";
 import {
   clampMetronomeBpm,
+  clampMetronomeLevel,
+  DEFAULT_METRONOME_BEEP_LEVEL,
   DEFAULT_METRONOME_BPM,
+  DEFAULT_METRONOME_HAPTIC_LEVEL,
   DEFAULT_METRONOME_OUTPUTS,
   deriveTapTempoBpm,
+  getMetronomeAndroidVibrationDuration,
+  getMetronomeBeepVolume,
   getMetronomeBeatIntervalMs,
+  getMetronomeHapticFallbackDuration,
   MAX_TAP_HISTORY,
+  METRONOME_LOOP_BEAT_COUNT,
+  type MetronomeBeepLevel,
+  type MetronomeHapticLevel,
   type MetronomeOutputKey,
   type MetronomeOutputs,
   shouldResetTapTempo,
 } from "../metronome";
+import { ensureMetronomeLoopFile } from "../services/metronomeLoop";
 
 type UseMetronomeArgs = {
   initialBpm?: number;
   initialOutputs?: Partial<MetronomeOutputs>;
 };
-
-function nowMs() {
-  return globalThis.performance?.now?.() ?? Date.now();
-}
 
 export function useMetronome({ initialBpm = DEFAULT_METRONOME_BPM, initialOutputs }: UseMetronomeArgs = {}) {
   const [bpm, setBpm] = useState(() => clampMetronomeBpm(initialBpm));
@@ -30,30 +37,42 @@ export function useMetronome({ initialBpm = DEFAULT_METRONOME_BPM, initialOutput
     ...DEFAULT_METRONOME_OUTPUTS,
     ...initialOutputs,
   });
+  const [beepLevel, setBeepLevel] = useState<MetronomeBeepLevel>(DEFAULT_METRONOME_BEEP_LEVEL);
+  const [hapticLevel, setHapticLevel] = useState<MetronomeHapticLevel>(DEFAULT_METRONOME_HAPTIC_LEVEL);
   const [pulseToken, setPulseToken] = useState(0);
   const [beatCount, setBeatCount] = useState(0);
   const [tapCount, setTapCount] = useState(0);
+  const [isPreparing, setIsPreparing] = useState(false);
 
-  const beatTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const runTokenRef = useRef(0);
   const isRunningRef = useRef(isRunning);
   const bpmRef = useRef(bpm);
   const outputsRef = useRef(outputs);
+  const beepLevelRef = useRef(beepLevel);
+  const hapticLevelRef = useRef(hapticLevel);
   const tapTimesRef = useRef<number[]>([]);
   const lastTapAtRef = useRef<number | null>(null);
+  const activeLoopUriRef = useRef<string | null>(null);
+  const sourceRequestIdRef = useRef(0);
+  const cycleCountRef = useRef(0);
+  const lastBeatOrdinalRef = useRef(-1);
+  const lastPlayerTimeMsRef = useRef(0);
+  const [loopSource, setLoopSource] = useState<{ uri: string; bpm: number } | null>(null);
 
-  const beepPlayer = useAudioPlayer(require("../../assets/metronome-click.wav"), {
+  const player = useAudioPlayer(null, {
+    updateInterval: 16,
     keepAudioSessionActive: true,
   });
+  const status = useAudioPlayerStatus(player);
+  const playerTimeMs = Math.max(0, Math.round((status.currentTime ?? 0) * 1000));
 
   useEffect(() => {
     try {
-      beepPlayer.volume = 0.18;
-      beepPlayer.loop = false;
+      player.loop = true;
     } catch {
       // ignore player setup races
     }
-  }, [beepPlayer]);
+  }, [player]);
 
   useEffect(() => {
     bpmRef.current = bpm;
@@ -64,10 +83,19 @@ export function useMetronome({ initialBpm = DEFAULT_METRONOME_BPM, initialOutput
   }, [outputs]);
 
   useEffect(() => {
+    beepLevelRef.current = beepLevel;
+  }, [beepLevel]);
+
+  useEffect(() => {
+    hapticLevelRef.current = hapticLevel;
+  }, [hapticLevel]);
+
+  useEffect(() => {
     isRunningRef.current = isRunning;
   }, [isRunning]);
 
   const beatIntervalMs = useMemo(() => getMetronomeBeatIntervalMs(bpm), [bpm]);
+  const loopDurationMs = beatIntervalMs * METRONOME_LOOP_BEAT_COUNT;
 
   const clearTapTempo = useCallback(() => {
     tapTimesRef.current = [];
@@ -75,98 +103,159 @@ export function useMetronome({ initialBpm = DEFAULT_METRONOME_BPM, initialOutput
     setTapCount(0);
   }, []);
 
-  const clearScheduledBeat = useCallback(() => {
-    if (beatTimerRef.current) {
-      clearTimeout(beatTimerRef.current);
-      beatTimerRef.current = null;
-    }
+  const resetBeatTracking = useCallback(() => {
+    cycleCountRef.current = 0;
+    lastBeatOrdinalRef.current = -1;
+    lastPlayerTimeMsRef.current = 0;
+    setBeatCount(0);
   }, []);
 
-  const playBeep = useCallback(async () => {
-    try {
-      beepPlayer.pause();
-    } catch {
-      // ignore stale pause errors
-    }
-
-    try {
-      await beepPlayer.seekTo(0);
-    } catch {
-      // ignore unloaded seek errors
-    }
-
-    try {
-      beepPlayer.play();
-    } catch {
-      // ignore unloaded play errors
-    }
-  }, [beepPlayer]);
-
-  const dispatchBeat = useCallback(() => {
+  const triggerBeatCue = useCallback(() => {
     const activeOutputs = outputsRef.current;
-
-    setBeatCount((current) => current + 1);
 
     if (activeOutputs.visual) {
       setPulseToken((current) => current + 1);
     }
 
-    if (activeOutputs.haptic) {
-      void Haptics.selectionAsync().catch(() => {
-        // ignore unsupported haptic environments
+    if (!activeOutputs.haptic) {
+      return;
+    }
+
+    const nextHapticLevel = hapticLevelRef.current;
+    const beatInterval = getMetronomeBeatIntervalMs(bpmRef.current);
+    const fallbackDuration = getMetronomeHapticFallbackDuration(nextHapticLevel);
+
+    if (Platform.OS === "android") {
+      const vibrationDuration = getMetronomeAndroidVibrationDuration(
+        nextHapticLevel,
+        beatInterval
+      );
+      Vibration.vibrate(vibrationDuration);
+      return;
+    }
+
+    if (nextHapticLevel >= 88 && beatInterval >= 500) {
+      Vibration.vibrate();
+      return;
+    }
+
+    if (nextHapticLevel >= 70) {
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {
+        Vibration.vibrate(fallbackDuration);
       });
+      return;
     }
 
-    if (activeOutputs.beep) {
-      void playBeep();
+    if (nextHapticLevel >= 38) {
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {
+        Vibration.vibrate(fallbackDuration);
+      });
+      return;
     }
-  }, [playBeep]);
 
-  const scheduleBeatAt = useCallback((targetAt: number) => {
-    clearScheduledBeat();
-    const delay = Math.max(0, targetAt - nowMs());
+    if (nextHapticLevel >= 24) {
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy).catch(() => {
+        Vibration.vibrate(fallbackDuration);
+      });
+      return;
+    }
 
-    beatTimerRef.current = setTimeout(() => {
-      if (!isRunningRef.current) {
-        return;
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {
+      Vibration.vibrate(fallbackDuration);
+    });
+  }, []);
+
+  const syncPlayerSource = useCallback(async (uri: string, shouldPlay: boolean) => {
+    if (activeLoopUriRef.current !== uri) {
+      player.replace({ uri });
+      activeLoopUriRef.current = uri;
+    }
+
+    try {
+      player.loop = true;
+      player.volume = outputsRef.current.beep ? getMetronomeBeepVolume(beepLevelRef.current) : 0;
+    } catch {
+      // ignore shared object setup races
+    }
+
+    try {
+      await player.seekTo(0);
+    } catch {
+      // ignore early seek errors while source is warming
+    }
+
+    if (shouldPlay) {
+      try {
+        player.play();
+      } catch {
+        // ignore early play errors while source is warming
       }
+      return;
+    }
 
-      dispatchBeat();
-      const nextBeatAt = targetAt + getMetronomeBeatIntervalMs(bpmRef.current);
-      scheduleBeatAt(nextBeatAt);
-    }, delay);
-  }, [clearScheduledBeat, dispatchBeat]);
+    try {
+      player.pause();
+    } catch {
+      // ignore pause races
+    }
+  }, [player]);
+
+  const loadLoopSource = useCallback(async (targetBpm: number) => {
+    const requestId = sourceRequestIdRef.current + 1;
+    sourceRequestIdRef.current = requestId;
+    setIsPreparing(true);
+
+    try {
+      const loopSource = await ensureMetronomeLoopFile(targetBpm);
+      if (sourceRequestIdRef.current !== requestId) {
+        return null;
+      }
+      setLoopSource({ uri: loopSource.uri, bpm: loopSource.bpm });
+      return loopSource.uri;
+    } finally {
+      if (sourceRequestIdRef.current === requestId) {
+        setIsPreparing(false);
+      }
+    }
+  }, []);
 
   const stop = useCallback(() => {
     runTokenRef.current += 1;
     isRunningRef.current = false;
-    clearScheduledBeat();
+    resetBeatTracking();
     setIsRunning(false);
-  }, [clearScheduledBeat]);
+    try {
+      player.pause();
+    } catch {
+      // ignore pause races
+    }
+  }, [player, resetBeatTracking]);
 
   const start = useCallback(async () => {
     const runToken = runTokenRef.current + 1;
     runTokenRef.current = runToken;
-    clearScheduledBeat();
     isRunningRef.current = true;
-    setBeatCount(0);
+    resetBeatTracking();
     setIsRunning(true);
 
-    if (outputsRef.current.beep) {
-      try {
-        await activateMetronomeAudioSession();
-      } catch (error) {
-        console.warn("Metronome audio session failed", error);
-      }
+    try {
+      await activateMetronomeAudioSession();
+    } catch (error) {
+      console.warn("Metronome audio session failed", error);
     }
 
     if (runTokenRef.current !== runToken) {
       return;
     }
 
-    dispatchBeat();
-    scheduleBeatAt(nowMs() + getMetronomeBeatIntervalMs(bpmRef.current));
-  }, [clearScheduledBeat, dispatchBeat, scheduleBeatAt]);
+    const nextLoopUri =
+      loopSource?.bpm === bpmRef.current ? loopSource.uri : await loadLoopSource(bpmRef.current);
+    if (runTokenRef.current !== runToken || !nextLoopUri) {
+      return;
+    }
+
+    await syncPlayerSource(nextLoopUri, true);
+  }, [loadLoopSource, loopSource, resetBeatTracking, syncPlayerSource]);
 
   const toggleRunning = useCallback(() => {
     if (isRunningRef.current) {
@@ -210,6 +299,16 @@ export function useMetronome({ initialBpm = DEFAULT_METRONOME_BPM, initialOutput
     }));
   }, []);
 
+  const setBeepLevelValue = useCallback((nextLevel: MetronomeBeepLevel) => {
+    const normalizedLevel = clampMetronomeLevel(nextLevel);
+    setBeepLevel((current) => (current === normalizedLevel ? current : normalizedLevel));
+  }, []);
+
+  const setHapticLevelValue = useCallback((nextLevel: MetronomeHapticLevel) => {
+    const normalizedLevel = clampMetronomeLevel(nextLevel);
+    setHapticLevel((current) => (current === normalizedLevel ? current : normalizedLevel));
+  }, []);
+
   const tapTempo = useCallback(() => {
     const tapAt = Date.now();
     const nextTapTimes = shouldResetTapTempo(lastTapAtRef.current, tapAt)
@@ -230,29 +329,87 @@ export function useMetronome({ initialBpm = DEFAULT_METRONOME_BPM, initialOutput
   }, []);
 
   useEffect(() => {
-    if (!isRunningRef.current) {
+    void loadLoopSource(bpm);
+  }, [bpm, loadLoopSource]);
+
+  useEffect(() => {
+    try {
+      player.volume = outputs.beep ? getMetronomeBeepVolume(beepLevel) : 0;
+    } catch {
+      // ignore shared object volume races
+    }
+  }, [beepLevel, outputs.beep, player]);
+
+  useEffect(() => {
+    if (!isRunning || !loopSource) {
       return;
     }
 
-    scheduleBeatAt(nowMs() + getMetronomeBeatIntervalMs(bpm));
-  }, [bpm, scheduleBeatAt]);
+    if (activeLoopUriRef.current === loopSource.uri) {
+      return;
+    }
+
+    resetBeatTracking();
+    void syncPlayerSource(loopSource.uri, true);
+  }, [isRunning, loopSource, resetBeatTracking, syncPlayerSource]);
+
+  useEffect(() => {
+    if (isRunning || !loopSource) {
+      return;
+    }
+
+    if (activeLoopUriRef.current === loopSource.uri) {
+      return;
+    }
+
+    void syncPlayerSource(loopSource.uri, false);
+  }, [isRunning, loopSource, syncPlayerSource]);
+
+  useEffect(() => {
+    if (!isRunning || !status.playing || playerTimeMs <= 0) {
+      return;
+    }
+
+    const previousTimeMs = lastPlayerTimeMsRef.current;
+    if (playerTimeMs + Math.max(40, beatIntervalMs * 0.2) < previousTimeMs) {
+      cycleCountRef.current += 1;
+    }
+    lastPlayerTimeMsRef.current = playerTimeMs;
+
+    const beatWithinLoop = Math.min(
+      METRONOME_LOOP_BEAT_COUNT - 1,
+      Math.floor(playerTimeMs / beatIntervalMs)
+    );
+    const beatOrdinal = cycleCountRef.current * METRONOME_LOOP_BEAT_COUNT + beatWithinLoop;
+
+    if (beatOrdinal <= lastBeatOrdinalRef.current) {
+      return;
+    }
+
+    lastBeatOrdinalRef.current = beatOrdinal;
+    setBeatCount(beatOrdinal + 1);
+    triggerBeatCue();
+  }, [beatIntervalMs, isRunning, playerTimeMs, status.playing, triggerBeatCue]);
 
   useEffect(() => {
     return () => {
-      clearScheduledBeat();
       try {
-        beepPlayer.pause();
+        player.pause();
       } catch {
         // ignore cleanup races
       }
     };
-  }, [beepPlayer, clearScheduledBeat]);
+  }, [player]);
 
   return {
     bpm,
     beatCount,
     beatIntervalMs,
+    loopDurationMs,
     isRunning,
+    isPreparing,
+    beepLevel,
+    hapticLevel,
     outputs,
     pulseToken,
     tapCount,
@@ -264,6 +421,8 @@ export function useMetronome({ initialBpm = DEFAULT_METRONOME_BPM, initialOutput
     tapTempo,
     clearTapTempo,
     setOutputEnabled,
+    setBeepLevelValue,
+    setHapticLevelValue,
     toggleOutput,
   };
 }
