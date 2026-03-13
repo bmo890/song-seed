@@ -1,5 +1,6 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { View, Text, Pressable, Alert } from "react-native";
+import Animated, { useSharedValue, useAnimatedStyle, withTiming, interpolate } from "react-native-reanimated";
 import { useNavigation } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
@@ -99,7 +100,6 @@ export function IdeaHeader({
                         label: currentCollection.title,
                         level: getCollectionHierarchyLevel(currentCollection),
                         onPress: () => navigateRoot("CollectionDetail", { collectionId: currentCollection.id }),
-                        active: true,
                     },
                 ]
                 : []),
@@ -108,6 +108,32 @@ export function IdeaHeader({
     const titleLabel = selectedIdea.kind === "project" ? "SONG" : "CLIP";
     const isProject = selectedIdea.kind === "project";
     const showCompactTitle = compactTitleMode && !isEditMode;
+
+    const titleBlockHeight = useSharedValue(0);
+    const progress = useSharedValue(showCompactTitle ? 1 : 0);
+
+    useEffect(() => {
+        progress.value = withTiming(showCompactTitle ? 1 : 0, { duration: 200 });
+    }, [showCompactTitle]);
+
+    const breadcrumbsAnimStyle = useAnimatedStyle(() => ({
+        opacity: interpolate(progress.value, [0, 0.5], [1, 0]),
+        position: "absolute" as const,
+        left: 0,
+        right: 0,
+    }));
+
+    const compactTitleAnimStyle = useAnimatedStyle(() => ({
+        opacity: interpolate(progress.value, [0.5, 1], [0, 1]),
+    }));
+
+    const titleBlockAnimStyle = useAnimatedStyle(() => ({
+        opacity: interpolate(progress.value, [0, 0.5], [1, 0]),
+        height: titleBlockHeight.value > 0
+            ? interpolate(progress.value, [0.3, 1], [titleBlockHeight.value, 0])
+            : undefined,
+        overflow: "hidden" as const,
+    }));
 
     return (
         <View style={styles.songDetailHeader}>
@@ -119,19 +145,20 @@ export function IdeaHeader({
                     >
                         <Text style={styles.sideNavLabel}>☰</Text>
                     </Pressable>
-                {showCompactTitle ? (
-                        <View style={styles.songDetailCompactTitleWrap}>
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                        <Animated.View style={breadcrumbsAnimStyle} pointerEvents={showCompactTitle ? "none" : "auto"}>
+                            <AppBreadcrumbs
+                                items={breadcrumbItems}
+                                containerStyle={styles.songDetailInlineBreadcrumbs}
+                            />
+                        </Animated.View>
+                        <Animated.View style={[styles.songDetailCompactTitleWrap, compactTitleAnimStyle]} pointerEvents={showCompactTitle ? "auto" : "none"}>
                             <Ionicons name={titleIcon} size={15} color={titleIconColor} />
                             <Text style={styles.songDetailNavCompactTitle} numberOfLines={1}>
                                 {selectedIdea.title}
                             </Text>
-                        </View>
-                    ) : (
-                        <AppBreadcrumbs
-                            items={breadcrumbItems}
-                            containerStyle={styles.songDetailInlineBreadcrumbs}
-                        />
-                    )}
+                        </Animated.View>
+                    </View>
                 </View>
 
                 {isEditMode ? (
@@ -174,11 +201,14 @@ export function IdeaHeader({
                 )}
             </View>
 
-            <View
-                style={[
-                    styles.songDetailTitleBlock,
-                    showCompactTitle ? styles.songDetailTitleBlockHidden : null,
-                ]}
+            <Animated.View
+                style={[styles.songDetailTitleBlock, titleBlockAnimStyle]}
+                onLayout={(e) => {
+                    const h = e.nativeEvent.layout.height;
+                    if (h > 0 && titleBlockHeight.value === 0) {
+                        titleBlockHeight.value = h;
+                    }
+                }}
             >
                 {isEditMode ? (
                     <>
@@ -195,13 +225,13 @@ export function IdeaHeader({
                     </>
                 ) : (
                     <View style={styles.songDetailPageTitleWithIcon}>
-                        <Ionicons name={titleIcon} size={19} color={titleIconColor} />
+                        <Ionicons name={titleIcon} size={14} color={titleIconColor} />
                         <Text style={styles.songDetailPageTitleLarge} numberOfLines={2}>
                             {selectedIdea.title}
                         </Text>
                     </View>
                 )}
-            </View>
+            </Animated.View>
 
             {headerMenuOpen ? (
                 <View style={styles.ideasHeaderMenuLayer} pointerEvents="box-none">

@@ -364,8 +364,8 @@ export function IdeaDetailScreen() {
 
   const takesSummaryContent =
     selectedIdea.kind === "project" ? (
-      <View style={styles.songDetailTopStack}>
-        {isEditMode ? (
+      isEditMode ? (
+        <View style={styles.songDetailTopStack}>
           <IdeaStatusProgress
             isEditMode={isEditMode}
             draftStatus={draftStatus}
@@ -376,13 +376,10 @@ export function IdeaDetailScreen() {
             status={selectedIdea.status}
             completionPct={selectedIdea.completionPct}
           />
-        ) : (
-          <>
-            {songProgressStrip}
-            {songTabs}
-          </>
-        )}
-      </View>
+        </View>
+      ) : (
+        songProgressStrip
+      )
     ) : (
       <View style={styles.songDetailTopStack}>
         <IdeaNotes isEditMode={isEditMode} notes={selectedIdea.notes} />
@@ -399,10 +396,6 @@ export function IdeaDetailScreen() {
         ]}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.songDetailTopStack}>
-          {songProgressStrip}
-          {songTabs}
-        </View>
         {songTab === "lyrics" ? (
           <LyricsVersionsPanel projectIdea={selectedIdea} />
         ) : (
@@ -780,6 +773,7 @@ export function IdeaDetailScreen() {
           onMakeRoot={handleMakeRoot}
         />
       )}
+      {songTabs}
       {nonTakesTabContent ? (
         nonTakesTabContent
       ) : (

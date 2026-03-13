@@ -762,7 +762,7 @@ export const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    paddingVertical: 2,
+    paddingVertical: 6,
   },
   songDetailProgressStripLabel: {
     fontSize: 12,
@@ -1692,11 +1692,18 @@ export const styles = StyleSheet.create({
     borderRadius: 10,
   },
   songDetailVersionCard: {
-    paddingVertical: 8,
+    borderRadius: 22,
+    borderColor: "#e6eaf0",
+    shadowOpacity: 0,
+    elevation: 0,
+    paddingVertical: 7,
+    paddingHorizontal: 11,
     gap: 0,
   },
   songDetailVersionCardCompact: {
-    paddingVertical: 6,
+    borderRadius: 18,
+    paddingVertical: 5,
+    paddingHorizontal: 9,
   },
   songDetailVersionCardParentTarget: {
     borderColor: "#0f766e",
@@ -1727,8 +1734,8 @@ export const styles = StyleSheet.create({
     justifyContent: "center",
   },
   songDetailVersionLeadDurationText: {
-    fontSize: 11,
-    lineHeight: 13,
+    fontSize: 12,
+    lineHeight: 14,
     color: "#64748b",
     fontWeight: "600",
     textAlign: "center",
@@ -1770,7 +1777,7 @@ export const styles = StyleSheet.create({
   songDetailVersionTitle: {
     flex: 1,
     minWidth: 0,
-    fontSize: 13,
+    fontSize: 13.5,
     lineHeight: 17,
     color: "#0f172a",
     fontWeight: "700",

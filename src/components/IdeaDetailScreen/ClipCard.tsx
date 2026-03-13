@@ -156,13 +156,16 @@ export function ClipCard({
                   pressed ? styles.pressDown : null,
                 ]}
               >
-                <Text style={styles.inlinePlayBtnText}>
-                  {inlineActive && inlinePlayer.isInlinePlaying ? "❚❚" : "▶"}
-                </Text>
+                <Ionicons
+                  name={inlineActive && inlinePlayer.isInlinePlaying ? "pause" : "play"}
+                  size={15}
+                  color={!clip.audioUri ? "#9ca3af" : "#111827"}
+                  style={inlineActive && inlinePlayer.isInlinePlaying ? undefined : { marginLeft: 2 }}
+                />
               </Pressable>
             ) : (
               <View style={styles.ideasInlinePlayBtn}>
-                <Text style={styles.inlinePlayBtnText}>▶</Text>
+                <Ionicons name="play" size={15} color="#9ca3af" style={{ marginLeft: 2 }} />
               </View>
             )}
             <View style={styles.songDetailVersionLeadDurationSlot}>

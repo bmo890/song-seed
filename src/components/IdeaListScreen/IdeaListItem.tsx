@@ -164,9 +164,9 @@ export function IdeaListItem({
     const hasExpandedProjectIndicators = item.kind === "project" && (hasProjectLyrics || hasProjectClipCount);
     const hasDistinctUpdatedAt = getIdeaUpdatedAt(item) !== getIdeaCreatedAt(item);
     const showUpdatedMetaRow = item.kind === "project" && hasDistinctUpdatedAt;
-    const expandedUpdatedLabel = showUpdatedMetaRow ? `Updated ${updatedAtLabel}` : null;
-    const expandedCreatedLabel = `Created ${createdAtLabel}`;
-    const showExpandedProjectContextRow = item.kind === "project" && (showUpdatedMetaRow || hasExpandedProjectIndicators);
+    const expandedUpdatedLabel = showUpdatedMetaRow && sortMetric !== "updated" ? `Updated ${updatedAtLabel}` : null;
+    const expandedCreatedLabel = sortMetric !== "created" ? `Created ${createdAtLabel}` : null;
+    const showExpandedProjectContextRow = item.kind === "project" && (!!expandedUpdatedLabel || hasExpandedProjectIndicators);
     const projectProgressLabel = item.kind === "project" && !compact ? `${Math.max(0, Math.min(100, Math.round(item.completionPct)))}%` : null;
     const compactProjectProgressLabel = item.kind === "project" && compact && sortMetric === "progress"
         ? `${Math.max(0, Math.min(100, Math.round(item.completionPct)))}%`
@@ -572,6 +572,7 @@ export function IdeaListItem({
                                                         name="play"
                                                         size={15}
                                                         color={!playClip ? "#9ca3af" : "#111827"}
+                                                        style={{ marginLeft: 2 }}
                                                     />
                                                 </View>
                                             </View>
@@ -649,6 +650,7 @@ export function IdeaListItem({
                                                     name={inlineActive && inlinePlayer.isInlinePlaying ? "pause" : "play"}
                                                     size={15}
                                                     color={!playClip ? "#9ca3af" : "#111827"}
+                                                    style={inlineActive && inlinePlayer.isInlinePlaying ? undefined : { marginLeft: 2 }}
                                                 />
                                             </View>
                                             {showExpandedStaticDuration ? (

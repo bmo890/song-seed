@@ -1,10 +1,9 @@
-import React from "react";
+import React, { useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { styles } from "../../styles";
 import { useStore } from "../../state/useStore";
 import type { SongTimelineSortDirection, SongTimelineSortMetric } from "../../clipGraph";
-import { FilterSortControls } from "../common/FilterSortControls";
 import {
     getSongClipTagFilterSummary,
     getSongMainTakeFilterSummary,
@@ -40,8 +39,10 @@ export function ActionButtons({
     setTimelineMainTakesOnly: (value: boolean) => void;
     visibleIdeaCount: number;
 }) {
-    const clipSelectionMode = useStore((s) => s.clipSelectionMode);
+    const [filterMenuOpen, setFilterMenuOpen] = useState(false);
+    const [sortMenuOpen, setSortMenuOpen] = useState(false);
 
+    const clipSelectionMode = useStore((s) => s.clipSelectionMode);
     const selectedIdea = useStore((s) => {
         const ws = s.workspaces.find((w) => w.id === s.activeWorkspaceId);
         return ws?.ideas.find((i) => i.id === s.selectedIdeaId);
@@ -50,16 +51,115 @@ export function ActionButtons({
     if (!selectedIdea || clipSelectionMode) return null;
 
     const sectionTitle = selectedIdea.kind === "project" ? "Ideas" : "Replies";
-    const sectionCount = visibleIdeaCount;
+    const isFilterActive = clipTagFilter !== "all" || (clipViewMode === "timeline" && timelineMainTakesOnly);
+    const isSortActive = clipViewMode === "timeline" && (timelineSortMetric !== "created" || timelineSortDirection !== "desc");
+
+    const closeMenus = () => {
+        setFilterMenuOpen(false);
+        setSortMenuOpen(false);
+    };
 
     return (
         <View style={styles.songDetailSectionHeaderStack}>
-            <View style={styles.songDetailSectionHeader}>
-                <View style={styles.songDetailSectionHeaderCopy}>
-                    <Text style={styles.songDetailSectionTitle}>{sectionTitle}</Text>
-                    <Text style={styles.songDetailSectionMeta}>{sectionCount}</Text>
-                </View>
-                {selectedIdea.kind === "project" ? (
+            {/* Line 1: section label + count */}
+            <View style={styles.songDetailSectionHeaderCopy}>
+                <Text style={styles.songDetailSectionTitle}>{sectionTitle}</Text>
+                <Text style={styles.songDetailSectionMeta}>{visibleIdeaCount}</Text>
+            </View>
+
+            {/* Line 2: filter chips (left) + view toggle (right) */}
+            {selectedIdea.kind === "project" ? (
+                <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", position: "relative", zIndex: 30 }}>
+                    {filterMenuOpen || sortMenuOpen ? (
+                        <Pressable style={styles.ideasToolbarBackdrop} onPress={closeMenus} />
+                    ) : null}
+
+                    {/* Filter + Sort chips */}
+                    <View style={styles.ideasUtilityRowLeft}>
+                        <Pressable
+                            style={({ pressed }) => [
+                                styles.ideasUtilityChip,
+                                styles.ideasUtilityChipFilterOnly,
+                                filterMenuOpen ? styles.ideasUtilityChipOpen : null,
+                                pressed ? styles.pressDown : null,
+                            ]}
+                            onPress={() => {
+                                setFilterMenuOpen((prev) => !prev);
+                                setSortMenuOpen(false);
+                            }}
+                        >
+                            <Ionicons
+                                name={(isFilterActive ? "funnel" : "funnel-outline") as any}
+                                size={15}
+                                color={isFilterActive ? "#0f172a" : "#475569"}
+                            />
+                            <View
+                                style={[
+                                    styles.ideasUtilityChipDivider,
+                                    isFilterActive ? styles.ideasUtilityChipDividerActive : null,
+                                ]}
+                            />
+                            <Ionicons name="pricetag-outline" size={16} color="#475569" />
+                        </Pressable>
+
+                        {isFilterActive ? (
+                            <Pressable
+                                style={({ pressed }) => [
+                                    styles.ideasUtilityClearIconBtn,
+                                    pressed ? styles.pressDown : null,
+                                ]}
+                                onPress={() => {
+                                    setClipTagFilter("all");
+                                    setTimelineMainTakesOnly(false);
+                                }}
+                                accessibilityRole="button"
+                                accessibilityLabel="Clear filters"
+                            >
+                                <Ionicons name="close" size={12} color="#64748b" />
+                            </Pressable>
+                        ) : null}
+
+                        {clipViewMode === "timeline" ? (
+                            <Pressable
+                                style={({ pressed }) => [
+                                    styles.ideasUtilityChip,
+                                    styles.ideasUtilityChipSortOnly,
+                                    sortMenuOpen ? styles.ideasUtilityChipOpen : null,
+                                    pressed ? styles.pressDown : null,
+                                ]}
+                                onPress={() => {
+                                    setSortMenuOpen((prev) => !prev);
+                                    setFilterMenuOpen(false);
+                                }}
+                            >
+                                <View style={styles.ideasSortChipIconStack}>
+                                    <Ionicons
+                                        name="arrow-up"
+                                        size={11}
+                                        color={timelineSortDirection === "asc" ? "#0f172a" : "#94a3b8"}
+                                    />
+                                    <Ionicons
+                                        name="arrow-down"
+                                        size={11}
+                                        color={timelineSortDirection === "desc" ? "#0f172a" : "#94a3b8"}
+                                    />
+                                </View>
+                                <View
+                                    style={[
+                                        styles.ideasUtilityChipDivider,
+                                        isSortActive || sortMenuOpen ? styles.ideasUtilityChipDividerActive : null,
+                                    ]}
+                                />
+                                <Ionicons
+                                    name={getSongTimelineSortMetricIcon(timelineSortMetric) as any}
+                                    size={14}
+                                    color={isSortActive ? "#0f172a" : "#475569"}
+                                />
+                            </Pressable>
+                        ) : null}
+                    </View>
+
+                    {/* Evolution / Timeline toggle */}
                     <View style={styles.songDetailViewToggle}>
                         <Pressable
                             style={[
@@ -94,230 +194,193 @@ export function ActionButtons({
                             </Text>
                         </Pressable>
                     </View>
-                ) : null}
-            </View>
-            {selectedIdea.kind === "project" ? (
-                <FilterSortControls
-                    filter={{
-                        active:
-                            clipTagFilter !== "all" ||
-                            (clipViewMode === "timeline" && timelineMainTakesOnly),
-                        valueIcon: "pricetag-outline",
-                        onClear: () => {
-                            setClipTagFilter("all");
-                            setTimelineMainTakesOnly(false);
-                        },
-                        renderMenu: ({ close }) => (
-                            <View style={styles.ideasDropdownSectionStack}>
-                                <View style={styles.ideasDropdownSectionToggle}>
-                                    <Text style={styles.ideasDropdownSectionToggleText}>Tags</Text>
-                                    <View style={styles.ideasDropdownSectionMeta}>
-                                        <Text style={styles.ideasDropdownSectionMetaText}>
-                                            {getSongClipTagFilterSummary(clipTagFilter)}
-                                        </Text>
-                                    </View>
+
+                    {/* Filter dropdown */}
+                    {filterMenuOpen ? (
+                        <View style={[styles.ideasSortMenu, styles.ideasPopoverMenu, { left: 0, top: 38 }]}>
+                            <View style={styles.ideasDropdownSectionToggle}>
+                                <Text style={styles.ideasDropdownSectionToggleText}>Tags</Text>
+                                <View style={styles.ideasDropdownSectionMeta}>
+                                    <Text style={styles.ideasDropdownSectionMetaText}>
+                                        {getSongClipTagFilterSummary(clipTagFilter)}
+                                    </Text>
                                 </View>
-                                <View style={styles.ideasStageChipsWrap}>
-                                    {([
-                                        { key: "all", label: "All" },
-                                        { key: "untagged", label: "Untagged" },
-                                        ...SONG_CLIP_TAG_OPTIONS,
-                                    ] as const).map((option) => {
-                                        const active = clipTagFilter === option.key;
-                                        return (
-                                            <Pressable
-                                                key={option.key}
-                                                style={({ pressed }) => [
-                                                    styles.ideasStageChip,
-                                                    active ? styles.ideasStageChipActive : null,
-                                                    pressed ? styles.pressDown : null,
-                                                ]}
-                                                onPress={() => {
-                                                    setClipTagFilter(option.key);
-                                                    close();
-                                                }}
-                                            >
-                                                <Text
-                                                    style={[
-                                                        styles.ideasStageChipText,
-                                                        active ? styles.ideasStageChipTextActive : null,
-                                                    ]}
-                                                >
-                                                    {option.label}
-                                                </Text>
-                                            </Pressable>
-                                        );
-                                    })}
-                                </View>
-                                {clipViewMode === "timeline" ? (
-                                    <>
-                                        <View style={styles.ideasDropdownDivider} />
-                                        <View style={styles.ideasDropdownSectionToggle}>
-                                            <Text style={styles.ideasDropdownSectionToggleText}>Display</Text>
-                                            <View style={styles.ideasDropdownSectionMeta}>
-                                                <Text style={styles.ideasDropdownSectionMetaText}>
-                                                    {getSongMainTakeFilterSummary(timelineMainTakesOnly)}
-                                                </Text>
-                                            </View>
-                                        </View>
-                                        <View style={styles.ideasStageChipsWrap}>
-                                            {([
-                                                { key: "all", label: "All takes", value: false },
-                                                { key: "main", label: "Main takes only", value: true },
-                                            ] as const).map((option) => {
-                                                const active = timelineMainTakesOnly === option.value;
-                                                return (
-                                                    <Pressable
-                                                        key={option.key}
-                                                        style={({ pressed }) => [
-                                                            styles.ideasStageChip,
-                                                            active ? styles.ideasStageChipActive : null,
-                                                            pressed ? styles.pressDown : null,
-                                                        ]}
-                                                        onPress={() => {
-                                                            setTimelineMainTakesOnly(option.value);
-                                                            close();
-                                                        }}
-                                                    >
-                                                        <Text
-                                                            style={[
-                                                                styles.ideasStageChipText,
-                                                                active ? styles.ideasStageChipTextActive : null,
-                                                            ]}
-                                                        >
-                                                            {option.label}
-                                                        </Text>
-                                                    </Pressable>
-                                                );
-                                            })}
-                                        </View>
-                                    </>
-                                ) : null}
                             </View>
-                        ),
-                    }}
-                    sort={
-                        clipViewMode === "timeline"
-                            ? {
-                                active:
-                                    timelineSortMetric !== "created" ||
-                                    timelineSortDirection !== "desc",
-                                valueIcon: getSongTimelineSortMetricIcon(timelineSortMetric),
-                                direction: timelineSortDirection,
-                                renderMenu: ({ close }) => (
-                                    <>
-                                        <View style={styles.ideasSortDirectionRow}>
-                                            <Text style={styles.ideasDropdownSectionToggleText}>Direction</Text>
-                                            <View style={styles.ideasSortDirectionControls}>
-                                                <Pressable
-                                                    style={({ pressed }) => [
-                                                        styles.ideasSortDirectionChip,
-                                                        timelineSortDirection === "asc"
-                                                            ? styles.ideasSortDirectionChipActive
-                                                            : null,
-                                                        pressed ? styles.pressDown : null,
-                                                    ]}
-                                                    onPress={() => setTimelineSortDirection("asc")}
-                                                >
-                                                    <Ionicons
-                                                        name="arrow-up"
-                                                        size={14}
-                                                        color={
-                                                            timelineSortDirection === "asc"
-                                                                ? "#ffffff"
-                                                                : "#475569"
-                                                        }
-                                                    />
-                                                    <Text
-                                                        style={[
-                                                            styles.ideasSortDirectionChipText,
-                                                            timelineSortDirection === "asc"
-                                                                ? styles.ideasSortDirectionChipTextActive
-                                                                : null,
-                                                        ]}
-                                                    >
-                                                        Asc
-                                                    </Text>
-                                                </Pressable>
-                                                <Pressable
-                                                    style={({ pressed }) => [
-                                                        styles.ideasSortDirectionChip,
-                                                        timelineSortDirection === "desc"
-                                                            ? styles.ideasSortDirectionChipActive
-                                                            : null,
-                                                        pressed ? styles.pressDown : null,
-                                                    ]}
-                                                    onPress={() => setTimelineSortDirection("desc")}
-                                                >
-                                                    <Ionicons
-                                                        name="arrow-down"
-                                                        size={14}
-                                                        color={
-                                                            timelineSortDirection === "desc"
-                                                                ? "#ffffff"
-                                                                : "#475569"
-                                                        }
-                                                    />
-                                                    <Text
-                                                        style={[
-                                                            styles.ideasSortDirectionChipText,
-                                                            timelineSortDirection === "desc"
-                                                                ? styles.ideasSortDirectionChipTextActive
-                                                                : null,
-                                                        ]}
-                                                    >
-                                                        Desc
-                                                    </Text>
-                                                </Pressable>
-                                            </View>
+                            <View style={styles.ideasStageChipsWrap}>
+                                {([
+                                    { key: "all", label: "All" },
+                                    { key: "untagged", label: "Untagged" },
+                                    ...SONG_CLIP_TAG_OPTIONS,
+                                ] as const).map((option) => {
+                                    const active = clipTagFilter === option.key;
+                                    return (
+                                        <Pressable
+                                            key={option.key}
+                                            style={({ pressed }) => [
+                                                styles.ideasStageChip,
+                                                active ? styles.ideasStageChipActive : null,
+                                                pressed ? styles.pressDown : null,
+                                            ]}
+                                            onPress={() => {
+                                                setClipTagFilter(option.key);
+                                                setFilterMenuOpen(false);
+                                            }}
+                                        >
+                                            <Text
+                                                style={[
+                                                    styles.ideasStageChipText,
+                                                    active ? styles.ideasStageChipTextActive : null,
+                                                ]}
+                                            >
+                                                {option.label}
+                                            </Text>
+                                        </Pressable>
+                                    );
+                                })}
+                            </View>
+                            {clipViewMode === "timeline" ? (
+                                <>
+                                    <View style={styles.ideasDropdownDivider} />
+                                    <View style={styles.ideasDropdownSectionToggle}>
+                                        <Text style={styles.ideasDropdownSectionToggleText}>Display</Text>
+                                        <View style={styles.ideasDropdownSectionMeta}>
+                                            <Text style={styles.ideasDropdownSectionMetaText}>
+                                                {getSongMainTakeFilterSummary(timelineMainTakesOnly)}
+                                            </Text>
                                         </View>
-                                        <View style={styles.ideasDropdownDivider} />
+                                    </View>
+                                    <View style={styles.ideasStageChipsWrap}>
                                         {([
-                                            { key: "created", label: "Created", icon: "calendar-outline" },
-                                            { key: "title", label: "Title", icon: "text-outline" },
-                                            { key: "length", label: "Length", icon: "time-outline" },
+                                            { key: "all", label: "All takes", value: false },
+                                            { key: "main", label: "Main takes only", value: true },
                                         ] as const).map((option) => {
-                                            const active = timelineSortMetric === option.key;
+                                            const active = timelineMainTakesOnly === option.value;
                                             return (
                                                 <Pressable
                                                     key={option.key}
                                                     style={({ pressed }) => [
-                                                        styles.ideasSortMenuItem,
-                                                        active ? styles.ideasSortMenuItemActive : null,
+                                                        styles.ideasStageChip,
+                                                        active ? styles.ideasStageChipActive : null,
                                                         pressed ? styles.pressDown : null,
                                                     ]}
                                                     onPress={() => {
-                                                        setTimelineSortMetric(option.key);
-                                                        close();
+                                                        setTimelineMainTakesOnly(option.value);
+                                                        setFilterMenuOpen(false);
                                                     }}
                                                 >
-                                                    <View style={styles.ideasMenuItemLead}>
-                                                        <Ionicons
-                                                            name={option.icon as any}
-                                                            size={15}
-                                                            color={active ? "#0f172a" : "#64748b"}
-                                                        />
-                                                        <Text
-                                                            style={[
-                                                                styles.ideasSortMenuItemText,
-                                                                active ? styles.ideasSortMenuItemTextActive : null,
-                                                            ]}
-                                                        >
-                                                            {option.label}
-                                                        </Text>
-                                                    </View>
-                                                    {active ? (
-                                                        <Ionicons name="checkmark" size={15} color="#0f172a" />
-                                                    ) : null}
+                                                    <Text
+                                                        style={[
+                                                            styles.ideasStageChipText,
+                                                            active ? styles.ideasStageChipTextActive : null,
+                                                        ]}
+                                                    >
+                                                        {option.label}
+                                                    </Text>
                                                 </Pressable>
                                             );
                                         })}
-                                    </>
-                                ),
-                            }
-                            : undefined
-                    }
-                />
+                                    </View>
+                                </>
+                            ) : null}
+                        </View>
+                    ) : null}
+
+                    {/* Sort dropdown */}
+                    {sortMenuOpen ? (
+                        <View style={[styles.ideasSortMenu, styles.ideasPopoverMenu, { left: 0, top: 38 }]}>
+                            <View style={styles.ideasSortDirectionRow}>
+                                <Text style={styles.ideasDropdownSectionToggleText}>Direction</Text>
+                                <View style={styles.ideasSortDirectionControls}>
+                                    <Pressable
+                                        style={({ pressed }) => [
+                                            styles.ideasSortDirectionChip,
+                                            timelineSortDirection === "asc" ? styles.ideasSortDirectionChipActive : null,
+                                            pressed ? styles.pressDown : null,
+                                        ]}
+                                        onPress={() => setTimelineSortDirection("asc")}
+                                    >
+                                        <Ionicons
+                                            name="arrow-up"
+                                            size={14}
+                                            color={timelineSortDirection === "asc" ? "#ffffff" : "#475569"}
+                                        />
+                                        <Text
+                                            style={[
+                                                styles.ideasSortDirectionChipText,
+                                                timelineSortDirection === "asc" ? styles.ideasSortDirectionChipTextActive : null,
+                                            ]}
+                                        >
+                                            Asc
+                                        </Text>
+                                    </Pressable>
+                                    <Pressable
+                                        style={({ pressed }) => [
+                                            styles.ideasSortDirectionChip,
+                                            timelineSortDirection === "desc" ? styles.ideasSortDirectionChipActive : null,
+                                            pressed ? styles.pressDown : null,
+                                        ]}
+                                        onPress={() => setTimelineSortDirection("desc")}
+                                    >
+                                        <Ionicons
+                                            name="arrow-down"
+                                            size={14}
+                                            color={timelineSortDirection === "desc" ? "#ffffff" : "#475569"}
+                                        />
+                                        <Text
+                                            style={[
+                                                styles.ideasSortDirectionChipText,
+                                                timelineSortDirection === "desc" ? styles.ideasSortDirectionChipTextActive : null,
+                                            ]}
+                                        >
+                                            Desc
+                                        </Text>
+                                    </Pressable>
+                                </View>
+                            </View>
+                            <View style={styles.ideasDropdownDivider} />
+                            {([
+                                { key: "created", label: "Created", icon: "calendar-outline" },
+                                { key: "title", label: "Title", icon: "text-outline" },
+                                { key: "length", label: "Length", icon: "time-outline" },
+                            ] as const).map((option) => {
+                                const active = timelineSortMetric === option.key;
+                                return (
+                                    <Pressable
+                                        key={option.key}
+                                        style={({ pressed }) => [
+                                            styles.ideasSortMenuItem,
+                                            active ? styles.ideasSortMenuItemActive : null,
+                                            pressed ? styles.pressDown : null,
+                                        ]}
+                                        onPress={() => {
+                                            setTimelineSortMetric(option.key);
+                                            setSortMenuOpen(false);
+                                        }}
+                                    >
+                                        <View style={styles.ideasMenuItemLead}>
+                                            <Ionicons
+                                                name={option.icon as any}
+                                                size={15}
+                                                color={active ? "#0f172a" : "#64748b"}
+                                            />
+                                            <Text
+                                                style={[
+                                                    styles.ideasSortMenuItemText,
+                                                    active ? styles.ideasSortMenuItemTextActive : null,
+                                                ]}
+                                            >
+                                                {option.label}
+                                            </Text>
+                                        </View>
+                                        {active ? (
+                                            <Ionicons name="checkmark" size={15} color="#0f172a" />
+                                        ) : null}
+                                    </Pressable>
+                                );
+                            })}
+                        </View>
+                    ) : null}
+                </View>
             ) : null}
         </View>
     );
