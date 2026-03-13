@@ -16,11 +16,8 @@ import { SegmentedControl } from "../common/SegmentedControl";
 import { FilterSortControls } from "../common/FilterSortControls";
 import { WorkspaceList } from "./WorkspaceList";
 import { formatBytes } from "../../utils";
-import {
-  getWorkspaceListOrderState,
-  sortWorkspacesWithPrimary,
-} from "../../libraryNavigation";
-import type { WorkspaceListOrder } from "../../types";
+import { getWorkspaceListOrderState, sortWorkspacesWithPrimary } from "../../libraryNavigation";
+import type { Workspace, WorkspaceListOrder } from "../../types";
 
 function defaultWorkspaceTitle() {
   const now = new Date();
@@ -51,7 +48,7 @@ export function WorkspaceListScreen() {
   const [busyAction, setBusyAction] = useState<"archive" | "restore" | null>(null);
 
   const editingWorkspace = useMemo(
-    () => workspaces.find((ws) => ws.id === editId) ?? null,
+    () => workspaces.find((workspace) => workspace.id === editId) ?? null,
     [workspaces, editId]
   );
   const isEditing = !!editId && !!editingWorkspace;
@@ -73,6 +70,7 @@ export function WorkspaceListScreen() {
     { key: "title-za", label: "Title Z-A", icon: "text-outline" },
   ];
   const busyLabel = busyAction === "archive" ? "ARCHIVING" : busyAction === "restore" ? "RESTORING" : null;
+  const activeWorkspaceCount = workspaces.filter((workspace) => !workspace.isArchived).length;
 
   function closeModal() {
     setModalOpen(false);
@@ -120,6 +118,71 @@ export function WorkspaceListScreen() {
       setBusyWorkspaceId(null);
       setBusyAction(null);
     }
+  }
+
+  function confirmArchiveWorkspace(workspace: Workspace) {
+    if (busyWorkspaceId) return;
+
+    if (!workspace.isArchived && activeWorkspaceCount <= 1) {
+      Alert.alert("Cannot archive", "You must keep at least one active workspace.");
+      return;
+    }
+
+    if (workspace.isArchived) {
+      Alert.alert(
+        `Unarchive ${workspace.title}?`,
+        "This restores the compressed audio and returns the workspace to the active list.",
+        [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Unarchive",
+            onPress: () => {
+              void runUnarchiveWorkspace(workspace.id);
+            },
+          },
+        ]
+      );
+      return;
+    }
+
+    Alert.alert(
+      `Archive ${workspace.title}?`,
+      "This compresses the workspace audio, removes the workspace from the active list, and keeps it available to restore later.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Archive",
+          onPress: () => {
+            void runArchiveWorkspace(workspace.id);
+          },
+        },
+      ]
+    );
+  }
+
+  function confirmDeleteWorkspace(workspace: Workspace) {
+    if (busyWorkspaceId) return;
+
+    if (!workspace.isArchived && activeWorkspaceCount <= 1) {
+      Alert.alert("Cannot delete", "You must keep at least one active workspace.");
+      return;
+    }
+
+    Alert.alert(
+      `Delete ${workspace.title}?`,
+      `This will permanently delete ${workspace.ideas.length} ideas. This cannot be undone.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete permanently",
+          style: "destructive",
+          onPress: () => {
+            deleteWorkspace(workspace.id);
+            closeModal();
+          },
+        },
+      ]
+    );
   }
 
   const subtitle = viewingArchived
@@ -243,8 +306,11 @@ export function WorkspaceListScreen() {
         title={isEditing ? "Edit Workspace" : "New Workspace"}
         initialName={editingWorkspace?.title}
         initialDescription={editingWorkspace?.description}
+        showArchiveAction={isEditing}
+        archiveActionLabel={editingWorkspace?.isArchived ? "Unarchive" : "Archive"}
+        archiveActionDisabled={!!busyWorkspaceId}
         showDelete={isEditing}
-        deleteLabel="Remove workspace"
+        deleteLabel="Delete permanently"
         onCancel={() => {
           if (busyWorkspaceId) return;
           closeModal();
@@ -259,61 +325,13 @@ export function WorkspaceListScreen() {
           }
           closeModal();
         }}
+        onArchiveAction={() => {
+          if (!editingWorkspace) return;
+          confirmArchiveWorkspace(editingWorkspace);
+        }}
         onDelete={() => {
-          if (!editingWorkspace || busyWorkspaceId) return;
-
-          if (!editingWorkspace.isArchived && workspaces.filter((w) => !w.isArchived).length <= 1) {
-            Alert.alert("Cannot remove", "You must have at least one active workspace.");
-            return;
-          }
-
-          const options: any[] = [{ text: "Cancel", style: "cancel" }];
-
-          if (editingWorkspace.isArchived) {
-            options.push({
-              text: "Unarchive",
-              onPress: () => {
-                void runUnarchiveWorkspace(editingWorkspace.id);
-              },
-            });
-          } else {
-            options.push({
-              text: "Archive",
-              onPress: () => {
-                void runArchiveWorkspace(editingWorkspace.id);
-              },
-            });
-          }
-
-          options.push({
-            text: "Delete permanently",
-            style: "destructive",
-            onPress: () => {
-              Alert.alert(
-                `Delete ${editingWorkspace.title}?`,
-                `This will permanently delete ${editingWorkspace.ideas.length} ideas. This cannot be undone.`,
-                [
-                  { text: "Cancel", style: "cancel" },
-                  {
-                    text: "Delete",
-                    style: "destructive",
-                    onPress: () => {
-                      deleteWorkspace(editingWorkspace.id);
-                      closeModal();
-                    },
-                  },
-                ]
-              );
-            },
-          });
-
-          Alert.alert(
-            `Remove ${editingWorkspace.title}?`,
-            editingWorkspace.isArchived
-              ? "Restore this workspace, or delete it permanently."
-              : "Archive this workspace to compress and hide it, or delete it permanently.",
-            options
-          );
+          if (!editingWorkspace) return;
+          confirmDeleteWorkspace(editingWorkspace);
         }}
       />
 

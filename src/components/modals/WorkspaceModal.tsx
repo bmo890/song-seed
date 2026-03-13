@@ -8,10 +8,14 @@ type Props = {
   title: string;
   initialName?: string;
   initialDescription?: string;
+  showArchiveAction?: boolean;
+  archiveActionLabel?: string;
+  archiveActionDisabled?: boolean;
   showDelete?: boolean;
   deleteLabel?: string;
   onCancel: () => void;
   onSave: (name: string, description: string) => void;
+  onArchiveAction?: () => void;
   onDelete?: () => void;
 };
 
@@ -20,10 +24,14 @@ export function WorkspaceModal({
   title,
   initialName,
   initialDescription,
+  showArchiveAction,
+  archiveActionLabel,
+  archiveActionDisabled,
   showDelete,
   deleteLabel,
   onCancel,
   onSave,
+  onArchiveAction,
   onDelete,
 }: Props) {
   const [name, setName] = useState(initialName ?? "");
@@ -52,27 +60,37 @@ export function WorkspaceModal({
             onChangeText={setDescription}
           />
 
-          <View style={[styles.rowButtons, { justifyContent: "space-between", marginTop: 8 }]}>
-            {showDelete && onDelete ? (
-              <Pressable style={styles.dangerBtn} onPress={onDelete}>
-                <Text style={styles.dangerBtnText}>{deleteLabel ?? "Delete"}</Text>
-              </Pressable>
-            ) : (
-              <View />
-            )}
-            <View style={styles.rowButtons}>
-              <Pressable style={styles.secondaryBtn} onPress={onCancel}>
-                <Text style={styles.secondaryBtnText}>Cancel</Text>
-              </Pressable>
-              <Pressable
-                style={styles.primaryBtn}
-                onPress={() => {
-                  onSave(name.trim(), description.trim());
-                }}
-              >
-                <Text style={styles.primaryBtnText}>Save</Text>
-              </Pressable>
+          {showArchiveAction || (showDelete && onDelete) ? (
+            <View style={[styles.rowButtons, { marginTop: 10 }]}>
+              {showArchiveAction && onArchiveAction ? (
+                <Pressable
+                  style={[styles.secondaryBtn, archiveActionDisabled ? styles.btnDisabled : null]}
+                  disabled={archiveActionDisabled}
+                  onPress={onArchiveAction}
+                >
+                  <Text style={styles.secondaryBtnText}>{archiveActionLabel ?? "Archive"}</Text>
+                </Pressable>
+              ) : null}
+              {showDelete && onDelete ? (
+                <Pressable style={styles.dangerBtn} onPress={onDelete}>
+                  <Text style={styles.dangerBtnText}>{deleteLabel ?? "Delete permanently"}</Text>
+                </Pressable>
+              ) : null}
             </View>
+          ) : null}
+
+          <View style={[styles.rowButtons, { justifyContent: "flex-end", marginTop: 12 }]}>
+            <Pressable style={styles.secondaryBtn} onPress={onCancel}>
+              <Text style={styles.secondaryBtnText}>Cancel</Text>
+            </Pressable>
+            <Pressable
+              style={styles.primaryBtn}
+              onPress={() => {
+                onSave(name.trim(), description.trim());
+              }}
+            >
+              <Text style={styles.primaryBtnText}>Save</Text>
+            </Pressable>
           </View>
         </View>
       </View>
