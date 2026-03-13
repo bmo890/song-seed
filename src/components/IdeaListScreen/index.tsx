@@ -82,6 +82,7 @@ export function IdeaListScreen() {
   const updateCollection = useStore((s) => s.updateCollection);
   const moveCollection = useStore((s) => s.moveCollection);
   const deleteCollection = useStore((s) => s.deleteCollection);
+  const markCollectionOpened = useStore((s) => s.markCollectionOpened);
 
   const listSelectionMode = useStore((s) => s.listSelectionMode);
   const selectedListIdeaIds = useStore((s) => s.selectedListIdeaIds);
@@ -96,6 +97,11 @@ export function IdeaListScreen() {
   const setSelectedIdeaId = useStore((s) => s.setSelectedIdeaId);
 
   const inlinePlayer = useInlinePlayer();
+
+  useEffect(() => {
+    if (!collectionId) return;
+    markCollectionOpened(collectionId);
+  }, [collectionId, markCollectionOpened]);
   const hiddenIdeaIds = currentCollection?.ideasListState.hiddenIdeaIds ?? [];
   const hiddenDays = currentCollection?.ideasListState.hiddenDays ?? [];
 

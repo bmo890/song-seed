@@ -1,6 +1,6 @@
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { NavigationContainer, useNavigationContainerRef } from "@react-navigation/native";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createDrawerNavigator, DrawerContentComponentProps } from "@react-navigation/drawer";
 import { AudioRecorderProvider } from "@siteed/expo-audio-studio";
@@ -23,6 +23,10 @@ import { RevisitScreen } from "./src/components/RevisitScreen";
 import { TunerScreen } from "./src/components/TunerScreen";
 import { MetronomeScreen } from "./src/components/MetronomeScreen";
 import { getCollectionById } from "./src/utils";
+import {
+  getRecentCollectionsForWorkspace,
+  resolveStartupWorkspaceId,
+} from "./src/libraryNavigation";
 
 export type RootStackParamList = {
   Home: undefined;
@@ -53,6 +57,7 @@ const Drawer = createDrawerNavigator();
 function DrawerContent({ navigation, state }: DrawerContentComponentProps) {
   const workspaces = useStore((s) => s.workspaces);
   const activeWorkspaceId = useStore((s) => s.activeWorkspaceId);
+  const collectionLastOpenedAt = useStore((s) => s.collectionLastOpenedAt);
   const selectedIdeaId = useStore((s) => s.selectedIdeaId);
   const playerTarget = useStore((s) => s.playerTarget);
   const activeWorkspace = workspaces.find((w) => w.id === activeWorkspaceId);
@@ -101,34 +106,15 @@ function DrawerContent({ navigation, state }: DrawerContentComponentProps) {
     null;
   const currentCollection =
     currentCollectionId && activeWorkspace ? getCollectionById(activeWorkspace, currentCollectionId) : null;
-  const expandedParentCollectionId = currentCollection?.parentCollectionId ?? currentCollection?.id ?? null;
-  const sidebarCollections =
-    activeWorkspace?.collections
-      .filter((collection) => !collection.parentCollectionId)
-      .flatMap((collection) => {
-        const base = [{
-          id: collection.id,
-          title: collection.title,
-          level: "collection" as const,
-          active: collection.id === currentCollection?.id,
-        }];
-
-        if (collection.id !== expandedParentCollectionId) {
-          return base;
-        }
-
-        const children = activeWorkspace.collections
-          .filter((candidate) => candidate.parentCollectionId === collection.id)
-          .map((candidate) => ({
-            id: candidate.id,
-            title: candidate.title,
-            level: "subcollection" as const,
-            nested: true,
-            active: candidate.id === currentCollection?.id,
-          }));
-
-        return [...base, ...children];
-      }) ?? [];
+  const recentCollections = activeWorkspace
+    ? getRecentCollectionsForWorkspace(activeWorkspace, collectionLastOpenedAt, 2).map((entry) => ({
+        id: entry.collection.id,
+        title: entry.collection.title,
+        level: entry.level,
+        meta: entry.pathLabel,
+        active: entry.collection.id === currentCollection?.id,
+      }))
+    : [];
 
   const closeDrawer = () => {
     navigation.closeDrawer();
@@ -138,7 +124,7 @@ function DrawerContent({ navigation, state }: DrawerContentComponentProps) {
     <SideNav
       currentRoute={currentRoute}
       workspaceTitle={activeWorkspace?.title ?? null}
-      collections={sidebarCollections}
+      recentCollections={recentCollections}
       onGoHome={() => {
         closeDrawer();
         navigation.navigate("Workspaces");
@@ -184,11 +170,46 @@ function DrawerContent({ navigation, state }: DrawerContentComponentProps) {
 }
 
 function DrawerRoutes() {
+  const workspaces = useStore((s) => s.workspaces);
+  const activeWorkspaceId = useStore((s) => s.activeWorkspaceId);
+  const primaryWorkspaceId = useStore((s) => s.primaryWorkspaceId);
+  const lastUsedWorkspaceId = useStore((s) => s.lastUsedWorkspaceId);
+  const workspaceStartupPreference = useStore((s) => s.workspaceStartupPreference);
+  const setActiveWorkspaceId = useStore((s) => s.setActiveWorkspaceId);
+  const startupWorkspaceId = useMemo(
+    () =>
+      resolveStartupWorkspaceId({
+        workspaces,
+        primaryWorkspaceId,
+        lastUsedWorkspaceId,
+        preference: workspaceStartupPreference,
+      }),
+    [lastUsedWorkspaceId, primaryWorkspaceId, workspaceStartupPreference, workspaces]
+  );
+  const [startupApplied, setStartupApplied] = useState(false);
+
+  useEffect(() => {
+    if (startupApplied) return;
+    if (!startupWorkspaceId) {
+      setStartupApplied(true);
+      return;
+    }
+    if (activeWorkspaceId !== startupWorkspaceId) {
+      setActiveWorkspaceId(startupWorkspaceId);
+      return;
+    }
+    setStartupApplied(true);
+  }, [activeWorkspaceId, setActiveWorkspaceId, startupApplied, startupWorkspaceId]);
+
+  if (!startupApplied && startupWorkspaceId && activeWorkspaceId !== startupWorkspaceId) {
+    return null;
+  }
+
   return (
     <Drawer.Navigator
       screenOptions={{ headerShown: false }}
       drawerContent={(props) => <DrawerContent {...props} />}
-      initialRouteName="Workspaces"
+      initialRouteName={startupWorkspaceId ? "Browse" : "Workspaces"}
     >
       <Drawer.Screen name="Workspaces" component={WorkspaceListScreen} />
       <Drawer.Screen name="Browse" component={WorkspaceBrowseScreen} />

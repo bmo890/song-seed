@@ -7,47 +7,55 @@ import { useStore } from "../../state/useStore";
 import { Workspace } from "../../types";
 
 type Props = {
-    onEditWorkspace: (id: string) => void;
-    editingWorkspaceId: string | null;
-    workspaces: Workspace[];
-    busyWorkspaceId?: string | null;
-    busyLabel?: string | null;
+  onEditWorkspace: (id: string) => void;
+  onTogglePrimaryWorkspace: (id: string) => void;
+  editingWorkspaceId: string | null;
+  primaryWorkspaceId: string | null;
+  workspaces: Workspace[];
+  busyWorkspaceId?: string | null;
+  busyLabel?: string | null;
 };
 
-export function WorkspaceList({ onEditWorkspace, editingWorkspaceId, workspaces, busyWorkspaceId, busyLabel }: Props) {
-    const navigation = useNavigation();
-    const activeWorkspaceId = useStore((s) => s.activeWorkspaceId);
-    const setActiveWorkspaceId = useStore((s) => s.setActiveWorkspaceId);
+export function WorkspaceList({
+  onEditWorkspace,
+  onTogglePrimaryWorkspace,
+  editingWorkspaceId,
+  primaryWorkspaceId,
+  workspaces,
+  busyWorkspaceId,
+  busyLabel,
+}: Props) {
+  const navigation = useNavigation();
+  const activeWorkspaceId = useStore((s) => s.activeWorkspaceId);
+  const setActiveWorkspaceId = useStore((s) => s.setActiveWorkspaceId);
 
-    return (
-        <View style={styles.listContent}>
-            {workspaces.map((ws) => (
-                <WorkspaceCard
-                    key={ws.id}
-                    workspace={ws}
-                    isActive={ws.id === activeWorkspaceId}
-                    isEditing={ws.id === editingWorkspaceId}
-                    isBusy={ws.id === busyWorkspaceId}
-                    busyLabel={ws.id === busyWorkspaceId ? busyLabel ?? undefined : undefined}
-                    onPress={() => {
-                        if (ws.id === busyWorkspaceId) {
-                            return;
-                        }
-                        if (ws.isArchived) {
-                            onEditWorkspace(ws.id);
-                            return;
-                        }
-                        setActiveWorkspaceId(ws.id);
-                        navigation.navigate("Browse" as never);
-                    }}
-                    onLongPress={() => {
-                        if (ws.id === busyWorkspaceId) {
-                            return;
-                        }
-                        onEditWorkspace(ws.id);
-                    }}
-                />
-            ))}
-        </View>
-    );
+  return (
+    <View style={styles.listContent}>
+      {workspaces.map((workspace) => (
+        <WorkspaceCard
+          key={workspace.id}
+          workspace={workspace}
+          isActive={workspace.id === activeWorkspaceId}
+          isPrimary={workspace.id === primaryWorkspaceId}
+          isEditing={workspace.id === editingWorkspaceId}
+          isBusy={workspace.id === busyWorkspaceId}
+          busyLabel={workspace.id === busyWorkspaceId ? busyLabel ?? undefined : undefined}
+          onPress={() => {
+            if (workspace.id === busyWorkspaceId) return;
+            if (workspace.isArchived) {
+              onEditWorkspace(workspace.id);
+              return;
+            }
+            setActiveWorkspaceId(workspace.id);
+            navigation.navigate("Browse" as never);
+          }}
+          onLongPress={() => {
+            if (workspace.id === busyWorkspaceId) return;
+            onEditWorkspace(workspace.id);
+          }}
+          onTogglePrimary={() => onTogglePrimaryWorkspace(workspace.id)}
+        />
+      ))}
+    </View>
+  );
 }

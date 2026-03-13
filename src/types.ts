@@ -150,6 +150,29 @@ export type Workspace = {
   ideasListState?: WorkspaceIdeasListState;
 };
 
+export type WorkspaceStartupPreference = "primary" | "last-used";
+export type WorkspaceListOrder = "last-worked" | "least-recent" | "title-az" | "title-za";
+
+export type PlaylistItemKind = "song" | "clip";
+
+export type PlaylistItem = {
+  id: string;
+  kind: PlaylistItemKind;
+  workspaceId: string;
+  collectionId: string;
+  ideaId: string;
+  clipId?: string | null;
+  addedAt: number;
+};
+
+export type Playlist = {
+  id: string;
+  title: string;
+  createdAt: number;
+  updatedAt: number;
+  items: PlaylistItem[];
+};
+
 export type PlayerState = {
   target: PlayerTarget;
   isPlaying: boolean;

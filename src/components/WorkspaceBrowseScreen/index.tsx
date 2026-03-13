@@ -15,8 +15,12 @@ import { QuickNameModal } from "../modals/QuickNameModal";
 import { CollectionMoveModal } from "../modals/CollectionMoveModal";
 import { CollectionActionsModal } from "../modals/CollectionActionsModal";
 import { buildCollectionMoveDestinations, getCollectionDeleteScope } from "../../collectionManagement";
-import { getCollectionIdeaCount, getCollectionSizeBytes, formatBytes } from "../../utils";
+import { getCollectionSizeBytes, formatBytes } from "../../utils";
 import { getHierarchyIconColor, getHierarchyIconName } from "../../hierarchy";
+import {
+  buildWorkspaceBrowseEntries,
+  type CollectionSearchMatchKind,
+} from "../../libraryNavigation";
 
 function buildDefaultCollectionTitle(count: number) {
   return `Collection ${count + 1}`;
@@ -34,6 +38,7 @@ export function WorkspaceBrowseScreen() {
   const updateCollection = useStore((state) => state.updateCollection);
   const moveCollection = useStore((state) => state.moveCollection);
   const deleteCollection = useStore((state) => state.deleteCollection);
+  const markCollectionOpened = useStore((state) => state.markCollectionOpened);
   const activeWorkspace = workspaces.find((workspace) => workspace.id === activeWorkspaceId) ?? null;
   const topLevelCollections = useMemo(
     () =>
@@ -70,13 +75,10 @@ export function WorkspaceBrowseScreen() {
     setSelectedMoveParentCollectionId(firstDestination?.parentCollectionId ?? null);
   }, [collectionMoveModalOpen, moveDestinations]);
 
-  const filteredCollections = useMemo(() => {
-    const needle = searchQuery.trim().toLowerCase();
-    if (!needle) return topLevelCollections;
-    return topLevelCollections.filter((collection) =>
-      collection.title.toLowerCase().includes(needle)
-    );
-  }, [searchQuery, topLevelCollections]);
+  const collectionEntries = useMemo(
+    () => (activeWorkspace ? buildWorkspaceBrowseEntries(activeWorkspace, searchQuery) : []),
+    [activeWorkspace, searchQuery]
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -198,12 +200,12 @@ export function WorkspaceBrowseScreen() {
 
       <PageIntro
         title={activeWorkspace.title}
-        subtitle="Browse collections and move deeper into the workspace."
+        subtitle="Browse collections by recent work, then move deeper into the workspace."
       />
 
       <SearchField
         value={searchQuery}
-        placeholder="Search collections..."
+        placeholder="Search collections, songs, or clips..."
         onChangeText={setSearchQuery}
       />
 
@@ -220,16 +222,15 @@ export function WorkspaceBrowseScreen() {
       </View>
 
       <View style={styles.listContent}>
-        {filteredCollections.map((collection) => {
-          const scopedItemCount = getCollectionIdeaCount(activeWorkspace, collection.id);
-          const childCollectionCount = activeWorkspace.collections.filter(
-            (candidate) => candidate.parentCollectionId === collection.id
-          ).length;
-
+        {collectionEntries.map((entry) => {
+          const collection = entry.collection;
           return (
             <SurfaceCard
               key={collection.id}
-              onPress={() => navigateRoot("CollectionDetail", { collectionId: collection.id })}
+              onPress={() => {
+                markCollectionOpened(collection.id);
+                navigateRoot("CollectionDetail", { collectionId: collection.id });
+              }}
             >
               <View style={styles.cardTop}>
                 <View style={styles.cardTitleRow}>
@@ -238,13 +239,15 @@ export function WorkspaceBrowseScreen() {
                     size={18}
                     color={getHierarchyIconColor("collection")}
                   />
-                  <Text style={styles.cardTitle}>{collection.title}</Text>
+                  <Text style={styles.cardTitle}>
+                    <HighlightedText value={collection.title} query={searchQuery} />
+                  </Text>
                 </View>
                 <View style={styles.workspaceBrowseCollectionActions}>
-                  {childCollectionCount > 0 ? (
+                  {entry.childCollectionCount > 0 ? (
                     <View style={styles.contextPill}>
                       <Text style={styles.contextPillText}>
-                        {childCollectionCount} {childCollectionCount === 1 ? "SUB" : "SUBS"}
+                        {entry.childCollectionCount} {entry.childCollectionCount === 1 ? "SUB" : "SUBS"}
                       </Text>
                     </View>
                   ) : null}
@@ -262,16 +265,39 @@ export function WorkspaceBrowseScreen() {
 
               <View style={styles.workspaceBrowseCollectionMetaRow}>
                 <Text style={styles.cardMeta}>
-                  {scopedItemCount} {scopedItemCount === 1 ? "item" : "items"}
+                  {entry.itemCount} {entry.itemCount === 1 ? "item" : "items"}
                 </Text>
                 <Text style={styles.cardMeta}>•</Text>
                 <Text style={styles.cardMeta}>{formatBytes(sizeMap[collection.id] ?? 0)}</Text>
               </View>
+
+              {searchQuery.trim().length > 0 && entry.matches.length > 0 ? (
+                <View style={styles.workspaceBrowseMatchRow}>
+                  {entry.matches.map((match, index) => (
+                    <View
+                      key={`${match.kind}-${match.label}-${index}`}
+                      style={styles.workspaceBrowseMatchBadge}
+                    >
+                      <Ionicons
+                        name={getMatchIcon(match.kind)}
+                        size={12}
+                        color="#64748b"
+                      />
+                      <Text style={styles.workspaceBrowseMatchText} numberOfLines={1}>
+                        {getMatchLabel(match.kind)} <HighlightedText value={match.label} query={searchQuery} />
+                        {match.context ? (
+                          <Text style={styles.workspaceBrowseMatchContext}> in {match.context}</Text>
+                        ) : null}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              ) : null}
             </SurfaceCard>
           );
         })}
 
-        {filteredCollections.length === 0 ? (
+        {collectionEntries.length === 0 ? (
           <SurfaceCard>
             <Text style={styles.cardTitle}>
               {searchQuery.trim().length > 0 ? "No matching collections" : "No collections yet"}
@@ -354,13 +380,62 @@ export function WorkspaceBrowseScreen() {
         }}
         onCancel={() => {
           setCollectionMoveModalOpen(false);
-          setSelectedMoveWorkspaceId(null);
-          setSelectedMoveParentCollectionId(null);
         }}
         onConfirm={submitCollectionMove}
       />
 
       <ExpoStatusBar style="dark" />
     </SafeAreaView>
+  );
+}
+
+function getMatchIcon(kind: CollectionSearchMatchKind): keyof typeof Ionicons.glyphMap {
+  switch (kind) {
+    case "collection":
+      return getHierarchyIconName("collection");
+    case "subcollection":
+      return getHierarchyIconName("subcollection");
+    case "song":
+      return getHierarchyIconName("song");
+    case "clip":
+    default:
+      return getHierarchyIconName("clip");
+  }
+}
+
+function getMatchLabel(kind: CollectionSearchMatchKind) {
+  switch (kind) {
+    case "collection":
+      return "Collection:";
+    case "subcollection":
+      return "Subcollection:";
+    case "song":
+      return "Song:";
+    case "clip":
+    default:
+      return "Clip:";
+  }
+}
+
+function HighlightedText({ value, query }: { value: string; query: string }) {
+  const needle = query.trim();
+  if (!needle) return <>{value}</>;
+
+  const lowerValue = value.toLowerCase();
+  const lowerNeedle = needle.toLowerCase();
+  const matchIndex = lowerValue.indexOf(lowerNeedle);
+
+  if (matchIndex < 0) return <>{value}</>;
+
+  const before = value.slice(0, matchIndex);
+  const match = value.slice(matchIndex, matchIndex + needle.length);
+  const after = value.slice(matchIndex + needle.length);
+
+  return (
+    <>
+      {before}
+      <Text style={styles.workspaceBrowseMatchHighlight}>{match}</Text>
+      {after}
+    </>
   );
 }
