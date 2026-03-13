@@ -15,7 +15,7 @@ type CollectionLite = {
 };
 
 type Props = {
-  currentRoute: "home" | "browse" | "revisit" | "activity" | "tuner" | "library" | "settings" | null;
+  currentRoute: "home" | "browse" | "revisit" | "activity" | "tuner" | "metronome" | "library" | "settings" | null;
   workspaceTitle: string | null;
   collections: CollectionLite[];
   onGoHome: () => void;
@@ -23,6 +23,7 @@ type Props = {
   onGoRevisit: () => void;
   onGoActivity: () => void;
   onGoTuner: () => void;
+  onGoMetronome: () => void;
   onGoLibrary: () => void;
   onGoSettings: () => void;
   onOpenCollection: (collectionId: string) => void;
@@ -45,6 +46,7 @@ export function SideNav({
   onGoRevisit,
   onGoActivity,
   onGoTuner,
+  onGoMetronome,
   onGoLibrary,
   onGoSettings,
   onOpenCollection,
@@ -135,6 +137,13 @@ export function SideNav({
           label="Tuner"
           active={currentRoute === "tuner"}
           onPress={onGoTuner}
+        />
+        <NavRow
+          icon={renderNavItemIcon("metronome").icon}
+          iconColor={renderNavItemIcon("metronome").color}
+          label="Metronome"
+          active={currentRoute === "metronome"}
+          onPress={onGoMetronome}
         />
         <NavRow
           icon={renderNavItemIcon("library").icon}
