@@ -552,17 +552,38 @@ export function IdeaListItem({
                                 {highlightMapRef.current[item.id] ? (
                                     <Animated.View style={[styles.ideasListCardHighlightOverlay, { opacity: highlightMapRef.current[item.id] }]} pointerEvents="none" />
                                 ) : null}
-                                <Pressable
-                                    style={[
-                                        styles.ideasListLeadHotzone,
-                                        compact ? styles.ideasListLeadHotzoneCompact : null,
-                                        !compact && !inlineActive ? styles.ideasListLeadHotzoneExpanded : null,
-                                    ]}
-                                    onPress={handleLeadPress}
-                                    onLongPress={handleLeadLongPress}
-                                    delayLongPress={250}
-                                    disabled={!playClip && !listSelectionMode}
-                                />
+                                {inlineActive ? (
+                                    <View style={[styles.ideasListLeadHotzone, styles.ideasListLeadHotzoneInline]}>
+                                        <Pressable
+                                            style={styles.ideasListLeadHotzoneTop}
+                                            onPress={(evt) => {
+                                                evt.stopPropagation();
+                                                void Haptics.selectionAsync();
+                                                if (playClip) void playIdeaFromList(item.id, playClip);
+                                            }}
+                                        />
+                                        <Pressable
+                                            style={styles.ideasListLeadHotzoneBottom}
+                                            onPress={(evt) => {
+                                                evt.stopPropagation();
+                                                void Haptics.selectionAsync();
+                                                void inlinePlayer.resetInlinePlayer();
+                                            }}
+                                        />
+                                    </View>
+                                ) : (
+                                    <Pressable
+                                        style={[
+                                            styles.ideasListLeadHotzone,
+                                            compact ? styles.ideasListLeadHotzoneCompact : null,
+                                            !compact ? styles.ideasListLeadHotzoneExpanded : null,
+                                        ]}
+                                        onPress={handleLeadPress}
+                                        onLongPress={handleLeadLongPress}
+                                        delayLongPress={250}
+                                        disabled={!playClip && !listSelectionMode}
+                                    />
+                                )}
                                 {!compact && !inlineActive ? (
                                     <View style={styles.ideasListExpandedStaticWrap}>
                                         <View style={styles.ideasListExpandedHeaderRow}>
@@ -653,6 +674,11 @@ export function IdeaListItem({
                                                     style={inlineActive && inlinePlayer.isInlinePlaying ? undefined : { marginLeft: 2 }}
                                                 />
                                             </View>
+                                            {inlineActive ? (
+                                                <View style={styles.ideasInlineCloseBtn}>
+                                                    <Ionicons name="close" size={13} color="#64748b" />
+                                                </View>
+                                            ) : null}
                                             {showExpandedStaticDuration ? (
                                                 <View style={styles.ideasListLeadDurationSlot}>
                                                     <Text style={styles.ideasListLeadDurationText}>

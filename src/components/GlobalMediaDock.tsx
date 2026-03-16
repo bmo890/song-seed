@@ -72,23 +72,6 @@ export function GlobalMediaDock({
       }
     }
 
-    if (inlineTarget && activeRouteName !== "Player") {
-      const idea = allIdeas.find((item) => item.id === inlineTarget.ideaId);
-      const clip = idea?.clips.find((item) => item.id === inlineTarget.clipId);
-      if (idea && clip) {
-        return {
-          kind: "inline",
-          ideaId: idea.id,
-          clipId: clip.id,
-          title: clip.title,
-          subtitle: idea.title,
-          isPlaying: inlineIsPlaying,
-          positionMs: inlinePositionMs,
-          durationMs: inlineDurationMs || clip.durationMs || 0,
-        } satisfies PlaybackDockState;
-      }
-    }
-
     return null;
   })();
 

@@ -7,7 +7,6 @@ import { styles } from "../../styles";
 import { Button } from "../common/Button";
 import { MiniProgress } from "../MiniProgress";
 import { TitleInput } from "../common/TitleInput";
-import { WaveformMiniPreview } from "../common/WaveformMiniPreview";
 import { useStore } from "../../state/useStore";
 import { fmtDuration, formatDate } from "../../utils";
 import { type EvolutionListClipEntry, type TimelineClipEntry } from "../../clipGraph";
@@ -285,31 +284,36 @@ export function ClipCard({
                   </View>
                 </View>
 
-                <WaveformMiniPreview
-                  peaks={clip.waveformPeaks}
-                  compact={compactDensity}
-                  bars={compactDensity ? 24 : 28}
-                />
-
                 <Text style={styles.songDetailVersionMeta}>{formatDate(clip.createdAt)}</Text>
               </>
             )}
 
             {inlineActive ? (
               <View style={styles.songDetailVersionInlinePlayerWrap}>
-                <MiniProgress
-                  currentMs={inlinePlayer.inlinePosition}
-                  durationMs={inlinePlayer.inlineDuration || clip.durationMs || 0}
-                  onSeek={(ms) => {
-                    void inlinePlayer.endInlineScrub(ms);
+                <View style={styles.songDetailVersionInlinePlayerProgress}>
+                  <MiniProgress
+                    currentMs={inlinePlayer.inlinePosition}
+                    durationMs={inlinePlayer.inlineDuration || clip.durationMs || 0}
+                    onSeek={(ms) => {
+                      void inlinePlayer.endInlineScrub(ms);
+                    }}
+                    onSeekStart={() => {
+                      void inlinePlayer.beginInlineScrub();
+                    }}
+                    onSeekCancel={() => {
+                      void inlinePlayer.cancelInlineScrub();
+                    }}
+                  />
+                </View>
+                <Pressable
+                  style={styles.ideasInlineCloseBtn}
+                  onPress={(evt) => {
+                    evt.stopPropagation();
+                    void inlinePlayer.resetInlinePlayer();
                   }}
-                  onSeekStart={() => {
-                    void inlinePlayer.beginInlineScrub();
-                  }}
-                  onSeekCancel={() => {
-                    void inlinePlayer.cancelInlineScrub();
-                  }}
-                />
+                >
+                  <Ionicons name="close" size={13} color="#64748b" />
+                </Pressable>
               </View>
             ) : null}
           </Pressable>

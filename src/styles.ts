@@ -38,6 +38,8 @@ export const styles = StyleSheet.create({
     flexWrap: "nowrap",
   },
   songDetailNavCompactTitle: {
+    flex: 1,
+    minWidth: 0,
     fontSize: 16,
     lineHeight: 20,
     color: "#0f172a",
@@ -809,7 +811,7 @@ export const styles = StyleSheet.create({
   },
   songDetailTabScrollContent: {
     gap: 10,
-    paddingBottom: 24,
+    paddingBottom: 120,
   },
   songDetailTabPanelWrap: {
     gap: 10,
@@ -1832,6 +1834,13 @@ export const styles = StyleSheet.create({
   },
   songDetailVersionInlinePlayerWrap: {
     marginTop: 3,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  songDetailVersionInlinePlayerProgress: {
+    flex: 1,
+    minWidth: 0,
   },
   songDetailEvolutionGuideWrap: {
     position: "relative",
@@ -4001,6 +4010,7 @@ export const styles = StyleSheet.create({
     bottom: 20,
     alignItems: "flex-end",
     gap: 10,
+    zIndex: 50,
   },
   ideasNowPlayingDock: {
     marginBottom: 8,
@@ -4431,7 +4441,7 @@ export const styles = StyleSheet.create({
   },
   songDetailClipListContent: {
     paddingTop: 0,
-    paddingBottom: 28,
+    paddingBottom: 120,
     gap: 6,
   },
   selectionText: { fontSize: 13, color: "#374151", fontWeight: "600" },
@@ -4609,6 +4619,17 @@ export const styles = StyleSheet.create({
   ideasListLeadHotzoneExpanded: {
     width: 76,
   },
+  ideasListLeadHotzoneInline: {
+    flexDirection: "column",
+  },
+  ideasListLeadHotzoneTop: {
+    flex: 1,
+    width: "100%",
+  },
+  ideasListLeadHotzoneBottom: {
+    flex: 1,
+    width: "100%",
+  },
   ideasListCard: {
     backgroundColor: "#ffffff",
     borderRadius: 22,
@@ -4781,7 +4802,17 @@ export const styles = StyleSheet.create({
     alignSelf: "stretch",
   },
   ideasListLeadColInlineActive: {
+    justifyContent: "space-evenly",
+  },
+  ideasInlineCloseBtn: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    alignItems: "center",
     justifyContent: "center",
+    backgroundColor: "#f1f5f9",
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
   },
   ideasListLeadDurationSlot: {
     width: "100%",

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { StatusBar as ExpoStatusBar } from "expo-status-bar";
-import { Text, View, Alert, Animated, Pressable, Platform } from "react-native";
+import { Text, View, Alert, Animated, BackHandler, Pressable, Platform } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
@@ -111,6 +111,15 @@ export function IdeaListScreen() {
   const listRef = useRef<any>(null);
   const handledFocusTokenRef = useRef<number | null>(null);
   const focusScrollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (!inlinePlayer.inlineTarget) return;
+    const handler = BackHandler.addEventListener("hardwareBackPress", () => {
+      void inlinePlayer.resetInlinePlayer();
+      return true;
+    });
+    return () => handler.remove();
+  }, [inlinePlayer, inlinePlayer.inlineTarget]);
 
   useEffect(() => {
     if (!collectionId) return;
