@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { StatusBar as ExpoStatusBar } from "expo-status-bar";
 import { Text, View, Alert, Animated, BackHandler, Pressable, Platform } from "react-native";
+import ReAnimated from "react-native-reanimated";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
@@ -19,6 +20,7 @@ import { IdeaListContent } from "./IdeaListContent";
 import { IdeaListEntry } from "./types";
 
 import { useStore } from "../../state/useStore";
+import { useScrollCollapseHeader } from "../../hooks/useScrollCollapseHeader";
 import { appActions } from "../../state/actions";
 import { createEmptyProjectLyrics } from "../../state/dataSlice";
 import { useInlinePlayer } from "../../hooks/useInlinePlayer";
@@ -162,6 +164,11 @@ export function IdeaListScreen() {
   const [lyricsFilterMode, setLyricsFilterMode] = useState<"all" | "with" | "without">("all");
   const [listDensity, setListDensity] = useState<"comfortable" | "compact">("comfortable");
   const [headerMenuOpen, setHeaderMenuOpen] = useState(false);
+  const {
+    handleScroll: handleListScroll,
+    scrollEventThrottle: listScrollThrottle,
+    animStyle: headerCollapseAnimStyle,
+  } = useScrollCollapseHeader();
   const [ideaSizeMap, setIdeaSizeMap] = useState<Record<string, number>>({});
   const [stickyDayLabel, setStickyDayLabel] = useState<string | null>(null);
   const [stickyDayTop, setStickyDayTop] = useState<number>(0);
@@ -1228,59 +1235,61 @@ export function IdeaListScreen() {
         }
       />
 
-      <AppBreadcrumbs
-        items={[
-          {
-            key: "home",
-            label: "Home",
-            level: "home",
-            iconOnly: true,
-            onPress: () => navigateRoot("Home", { screen: "Workspaces" }),
-          },
-          {
-            key: `workspace-${activeWorkspace.id}`,
-            label: activeWorkspace.title,
-            level: "workspace",
-            onPress: goToBrowse,
-          },
-          ...collectionAncestors.map((collection) => ({
-            key: collection.id,
-            label: collection.title,
-            level: getCollectionHierarchyLevel(collection),
-            onPress: () => navigateRoot("CollectionDetail", { collectionId: collection.id }),
-          })),
-          {
-            key: currentCollection.id,
-            label: currentCollection.title,
-            level: getCollectionHierarchyLevel(currentCollection),
-            active: true,
-          },
-        ]}
-      />
+      <ReAnimated.View style={headerCollapseAnimStyle}>
+        <AppBreadcrumbs
+          items={[
+            {
+              key: "home",
+              label: "Home",
+              level: "home",
+              iconOnly: true,
+              onPress: () => navigateRoot("Home", { screen: "Workspaces" }),
+            },
+            {
+              key: `workspace-${activeWorkspace.id}`,
+              label: activeWorkspace.title,
+              level: "workspace",
+              onPress: goToBrowse,
+            },
+            ...collectionAncestors.map((collection) => ({
+              key: collection.id,
+              label: collection.title,
+              level: getCollectionHierarchyLevel(collection),
+              onPress: () => navigateRoot("CollectionDetail", { collectionId: collection.id }),
+            })),
+            {
+              key: currentCollection.id,
+              label: currentCollection.title,
+              level: getCollectionHierarchyLevel(currentCollection),
+              active: true,
+            },
+          ]}
+        />
 
-      <IdeaListHeaderSection
-        currentCollection={currentCollection}
-        ideasHeaderMeta={ideasHeaderMeta}
-        searchQuery={searchQuery}
-        hasActivityRangeFilter={hasActivityRangeFilter}
-        activityLabel={activityLabel}
-        collectionId={collectionId}
-        clipClipboard={clipClipboard}
-        duplicateWarningText={duplicateWarningText}
-        onSearchQueryChange={setSearchQuery}
-        onClearActivityRange={() => {
-          (navigation as any).setParams({
-            activityRangeStartTs: undefined,
-            activityRangeEndTs: undefined,
-            activityMetricFilter: undefined,
-            activityLabel: undefined,
-          });
-        }}
-        onPasteClipboard={() => {
-          void appActions.pasteClipboardToCollection(collectionId);
-        }}
-        onCancelClipboard={cancelClipboard}
-      />
+        <IdeaListHeaderSection
+          currentCollection={currentCollection}
+          ideasHeaderMeta={ideasHeaderMeta}
+          searchQuery={searchQuery}
+          hasActivityRangeFilter={hasActivityRangeFilter}
+          activityLabel={activityLabel}
+          collectionId={collectionId}
+          clipClipboard={clipClipboard}
+          duplicateWarningText={duplicateWarningText}
+          onSearchQueryChange={setSearchQuery}
+          onClearActivityRange={() => {
+            (navigation as any).setParams({
+              activityRangeStartTs: undefined,
+              activityRangeEndTs: undefined,
+              activityMetricFilter: undefined,
+              activityLabel: undefined,
+            });
+          }}
+          onPasteClipboard={() => {
+            void appActions.pasteClipboardToCollection(collectionId);
+          }}
+          onCancelClipboard={cancelClipboard}
+        />
+      </ReAnimated.View>
 
       <IdeaListFilterSection
         selectedProjectStages={selectedProjectStages}
@@ -1441,6 +1450,8 @@ export function IdeaListScreen() {
 
       <IdeaListContent
         listRef={listRef}
+        onScroll={handleListScroll}
+        scrollEventThrottle={listScrollThrottle}
         listSelectionMode={listSelectionMode}
         allowReorder={!listSelectionMode && ideasFilter === "all" && !searchNeedle}
         listEntries={listEntries}

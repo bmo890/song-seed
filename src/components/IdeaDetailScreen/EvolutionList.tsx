@@ -1,5 +1,5 @@
-import React, { ReactNode, useCallback, useEffect, useMemo, useRef } from "react";
-import { FlatList, NativeScrollEvent, NativeSyntheticEvent, Pressable, Text, View } from "react-native";
+import React, { ReactNode, useCallback, useMemo, useRef } from "react";
+import { FlatList, Pressable, Text, View } from "react-native";
 import { styles } from "../../styles";
 import { buildEvolutionListRows, type EvolutionListRow, type TimelineClipEntry } from "../../clipGraph";
 import { ClipCard, type ClipCardSharedProps } from "./ClipCard";
@@ -7,6 +7,7 @@ import { IdeasHeader } from "./IdeasHeader";
 import { PrimaryTakeSection } from "./PrimaryTakeSection";
 import { type SongTimelineSortDirection, type SongTimelineSortMetric } from "../../clipGraph";
 import { type SongClipTagFilter } from "./songClipControls";
+import { useStickyHeaderScroll } from "../../hooks/useStickyHeaderScroll";
 
 type EvolutionListProps = {
   clips: TimelineClipEntry["clip"][];
@@ -124,88 +125,25 @@ export function EvolutionList({
     return index;
   }, [primaryEntry, summaryContent]);
 
-  const flatListRef = useRef<FlatList<EvolutionRenderRow>>(null);
-  const isStickyRef = useRef(false);
-  const scrollYRef = useRef(0);
   const summaryHeightRef = useRef(0);
   const primaryHeightRef = useRef(0);
-  const isSnappingRef = useRef(false);
 
   const getSnapY = useCallback(
     () => summaryHeightRef.current + primaryHeightRef.current,
     []
   );
 
-  const handleScroll = useCallback(
-    (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-      const y = e.nativeEvent.contentOffset.y;
-      scrollYRef.current = y;
-      if (!onIdeasStickyChange) return;
-      if (!isStickyRef.current && y > 40) {
-        isStickyRef.current = true;
-        onIdeasStickyChange(true);
-      } else if (isStickyRef.current && y < 0) {
-        // iOS overscroll past top → expand immediately
-        isStickyRef.current = false;
-        isSnappingRef.current = false;
-        onIdeasStickyChange(false);
-      }
-    },
-    [onIdeasStickyChange]
-  );
-
-  const handleMomentumScrollEnd = useCallback(
-    (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-      const y = e.nativeEvent.contentOffset.y;
-      scrollYRef.current = y;
-      const snapY = getSnapY();
-      // If momentum carried past the ideas-header snap point, bounce back to it
-      if (isStickyRef.current && snapY > 0 && y < snapY - 4) {
-        isSnappingRef.current = true;
-        flatListRef.current?.scrollToOffset({ offset: snapY, animated: true });
-      } else {
-        isSnappingRef.current = false;
-      }
-    },
-    [getSnapY]
-  );
-
-  const handleScrollBeginDrag = useCallback(() => {
-    // If a programmatic snap is still in flight, cancel the expand — user hasn't done the second swipe yet
-    if (isSnappingRef.current) {
-      isSnappingRef.current = false;
-      return;
-    }
-    // New gesture from at/above the snap point → expand header
-    const snapY = getSnapY();
-    const threshold = snapY > 0 ? snapY + 6 : 1;
-    if (onIdeasStickyChange && isStickyRef.current && scrollYRef.current <= threshold) {
-      isStickyRef.current = false;
-      onIdeasStickyChange(false);
-    }
-  }, [onIdeasStickyChange, getSnapY]);
-
-  useEffect(() => {
-    if (!onIdeasStickyChange) return;
-    isStickyRef.current = false;
-    scrollYRef.current = 0;
-    onIdeasStickyChange(false);
-    return () => {
-      isStickyRef.current = false;
-      scrollYRef.current = 0;
-      onIdeasStickyChange(false);
-    };
-  }, [onIdeasStickyChange]);
+  const { handleScroll, scrollEventThrottle } = useStickyHeaderScroll({
+    onStickyChange: onIdeasStickyChange,
+    getSnapY,
+  });
 
   return (
     <FlatList
-      ref={flatListRef}
       data={listRows}
       stickyHeaderIndices={[stickyIdeasIndex]}
       onScroll={handleScroll}
-      onScrollBeginDrag={handleScrollBeginDrag}
-      onMomentumScrollEnd={handleMomentumScrollEnd}
-      scrollEventThrottle={16}
+      scrollEventThrottle={scrollEventThrottle}
       keyExtractor={(row, index) => {
         if (row.kind === "clip") return `evolution-clip:${row.entry.clip.id}:${index}`;
         if (row.kind === "more") return `evolution-more:${row.lineageRootId}`;

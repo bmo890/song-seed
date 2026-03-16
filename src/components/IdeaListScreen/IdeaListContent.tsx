@@ -1,6 +1,6 @@
 import { MutableRefObject } from "react";
 import DraggableFlatList from "react-native-draggable-flatlist";
-import { Animated, Pressable, Text, View } from "react-native";
+import { Animated, NativeScrollEvent, NativeSyntheticEvent, Pressable, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { styles } from "../../styles";
 import { IdeaSort, InlinePlayer, SongIdea } from "../../types";
@@ -52,6 +52,8 @@ type IdeaListContentProps = {
     targetId?: string;
     intent: "between";
   }) => void;
+  onScroll?: (e: NativeSyntheticEvent<NativeScrollEvent>) => void;
+  scrollEventThrottle?: number;
 };
 
 function dayStartTs(ts: number) {
@@ -96,11 +98,15 @@ export function IdeaListContent({
   unhideTimelineDay,
   setHoveredIdeaId,
   onReorderIdeas,
+  onScroll,
+  scrollEventThrottle,
 }: IdeaListContentProps) {
   return (
     <DraggableFlatList<IdeaListEntry>
       ref={listRef}
       data={listEntries}
+      onScroll={onScroll}
+      scrollEventThrottle={scrollEventThrottle ?? 0}
       keyExtractor={(item) => item.key}
       contentContainerStyle={[
         styles.listContent,

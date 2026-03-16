@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Alert, ScrollView, Text, View } from "react-native";
+import ReAnimated from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { ScreenHeader } from "../common/ScreenHeader";
@@ -18,6 +19,7 @@ import {
 import { getCollectionAncestors, getCollectionById } from "../../utils";
 import { styles } from "../../styles";
 import { getCollectionHierarchyLevel } from "../../hierarchy";
+import { useScrollCollapseHeader } from "../../hooks/useScrollCollapseHeader";
 import { ActivityScopeControls } from "./ActivityScopeControls";
 import { ActivityHeatmapGrid } from "./ActivityHeatmapGrid";
 import { ActivityRangeResults } from "./ActivityRangeResults";
@@ -46,6 +48,10 @@ export function ActivityScreen() {
   const setActiveWorkspaceId = useStore((state) => state.setActiveWorkspaceId);
   const setSelectedIdeaId = useStore((state) => state.setSelectedIdeaId);
   const inlinePlayer = useInlinePlayer();
+  const {
+    handleScroll: handleCollapseScroll,
+    animStyle: headerCollapseAnimStyle,
+  } = useScrollCollapseHeader();
 
   const collectionScopeWorkspace = useMemo(() => {
     if (!scopedCollectionId) return null;
@@ -289,55 +295,57 @@ export function ActivityScreen() {
     <SafeAreaView style={styles.screen}>
       <ScreenHeader title="Activity" leftIcon="hamburger" />
 
-      {collectionScope && collectionScopeWorkspace ? (
-        <AppBreadcrumbs
-          items={[
-            {
-              key: "home",
-              label: "Home",
-              level: "home",
-              iconOnly: true,
-              onPress: () => (navigation as any).navigate("Home", { screen: "Workspaces" }),
-            },
-            {
-              key: `workspace-${collectionScopeWorkspace.id}`,
-              label: collectionScopeWorkspace.title,
-              level: "workspace",
-              onPress: () => (navigation as any).navigate("Home", { screen: "Browse" }),
-            },
-            ...collectionScopeAncestors.map((collection) => ({
-              key: collection.id,
-              label: collection.title,
-              level: getCollectionHierarchyLevel(collection),
-              onPress: () => (navigation as any).navigate("CollectionDetail", { collectionId: collection.id }),
-            })),
-            {
-              key: collectionScope.id,
-              label: collectionScope.title,
-              level: getCollectionHierarchyLevel(collectionScope),
-              onPress: () => (navigation as any).navigate("CollectionDetail", { collectionId: collectionScope.id }),
-            },
-            {
-              key: "activity",
-              label: "Activity",
-              level: "activity",
-              active: true,
-            },
-          ]}
-        />
-      ) : (
-        <AppBreadcrumbs
-          items={[
-            {
-              key: "home",
-              label: "Home",
-              level: "home",
-              onPress: () => (navigation as any).navigate("Home", { screen: "Workspaces" }),
-            },
-            { key: "activity", label: "Activity", level: "activity", active: true },
-          ]}
-        />
-      )}
+      <ReAnimated.View style={headerCollapseAnimStyle}>
+        {collectionScope && collectionScopeWorkspace ? (
+          <AppBreadcrumbs
+            items={[
+              {
+                key: "home",
+                label: "Home",
+                level: "home",
+                iconOnly: true,
+                onPress: () => (navigation as any).navigate("Home", { screen: "Workspaces" }),
+              },
+              {
+                key: `workspace-${collectionScopeWorkspace.id}`,
+                label: collectionScopeWorkspace.title,
+                level: "workspace",
+                onPress: () => (navigation as any).navigate("Home", { screen: "Browse" }),
+              },
+              ...collectionScopeAncestors.map((collection) => ({
+                key: collection.id,
+                label: collection.title,
+                level: getCollectionHierarchyLevel(collection),
+                onPress: () => (navigation as any).navigate("CollectionDetail", { collectionId: collection.id }),
+              })),
+              {
+                key: collectionScope.id,
+                label: collectionScope.title,
+                level: getCollectionHierarchyLevel(collectionScope),
+                onPress: () => (navigation as any).navigate("CollectionDetail", { collectionId: collectionScope.id }),
+              },
+              {
+                key: "activity",
+                label: "Activity",
+                level: "activity",
+                active: true,
+              },
+            ]}
+          />
+        ) : (
+          <AppBreadcrumbs
+            items={[
+              {
+                key: "home",
+                label: "Home",
+                level: "home",
+                onPress: () => (navigation as any).navigate("Home", { screen: "Workspaces" }),
+              },
+              { key: "activity", label: "Activity", level: "activity", active: true },
+            ]}
+          />
+        )}
+      </ReAnimated.View>
 
       <View
         onLayout={(event) => {
@@ -380,6 +388,7 @@ export function ActivityScreen() {
           const nextScrollY = event.nativeEvent.contentOffset.y;
           setActivityScrollY(nextScrollY);
           updateStickyDayLabel(nextScrollY);
+          handleCollapseScroll(event);
         }}
       >
         <View>
