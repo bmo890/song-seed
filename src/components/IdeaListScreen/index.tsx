@@ -13,6 +13,7 @@ import { CollectionMoveModal } from "../modals/CollectionMoveModal";
 import { CollectionActionsModal } from "../modals/CollectionActionsModal";
 import { IdeaListHeaderSection } from "./IdeaListHeaderSection";
 import { IdeaListFilterSection } from "./IdeaListFilterSection";
+import { IdeaListNestedCollectionsSection } from "./IdeaListNestedCollectionsSection";
 import { IdeaListSelectionZone } from "./IdeaListSelectionZone";
 import { IdeaListContent } from "./IdeaListContent";
 import { IdeaListEntry } from "./types";
@@ -21,7 +22,14 @@ import { useStore } from "../../state/useStore";
 import { appActions } from "../../state/actions";
 import { createEmptyProjectLyrics } from "../../state/dataSlice";
 import { useInlinePlayer } from "../../hooks/useInlinePlayer";
-import { buildImportedTitle, importAudioAsset, pickSingleAudioFile, shareAudioFile, type ImportedAudioAsset } from "../../services/audioStorage";
+import {
+  buildImportedTitle,
+  importAudioAssets,
+  importAudioAsset,
+  pickAudioFiles,
+  shareAudioFile,
+  type ImportedAudioAsset,
+} from "../../services/audioStorage";
 import {
   buildDefaultIdeaTitle,
   ensureUniqueIdeaTitle,
@@ -40,8 +48,8 @@ import {
   usesIdeaTimelineDividers,
 } from "../../ideaSort";
 
-function buildDefaultSubcollectionTitle(count: number) {
-  return `Subcollection ${count + 1}`;
+function buildImportedProjectTitle(assets: ImportedAudioAsset[]) {
+  return buildImportedTitle(assets[0]?.name);
 }
 
 export function IdeaListScreen() {
@@ -78,7 +86,6 @@ export function IdeaListScreen() {
   const ideasSort = useStore((s) => s.ideasSort);
   const setIdeasHidden = useStore((s) => s.setIdeasHidden);
   const setTimelineDaysHidden = useStore((s) => s.setTimelineDaysHidden);
-  const addCollection = useStore((s) => s.addCollection);
   const updateCollection = useStore((s) => s.updateCollection);
   const moveCollection = useStore((s) => s.moveCollection);
   const deleteCollection = useStore((s) => s.deleteCollection);
@@ -112,7 +119,8 @@ export function IdeaListScreen() {
   const [editClipId, setEditClipId] = useState<string | null>(null);
   const [editClipDraft, setEditClipDraft] = useState("");
   const [importModalOpen, setImportModalOpen] = useState(false);
-  const [importAsset, setImportAsset] = useState<ImportedAudioAsset | null>(null);
+  const [importAssets, setImportAssets] = useState<ImportedAudioAsset[]>([]);
+  const [importMode, setImportMode] = useState<"single-clip" | "song-project" | null>(null);
   const [importDraft, setImportDraft] = useState("");
   const [isImporting, setIsImporting] = useState(false);
   const [managedCollectionId, setManagedCollectionId] = useState<string | null>(null);
@@ -122,9 +130,7 @@ export function IdeaListScreen() {
   const [collectionMoveModalOpen, setCollectionMoveModalOpen] = useState(false);
   const [selectedMoveWorkspaceId, setSelectedMoveWorkspaceId] = useState<string | null>(null);
   const [selectedMoveParentCollectionId, setSelectedMoveParentCollectionId] = useState<string | null>(null);
-  const [subcollectionModalOpen, setSubcollectionModalOpen] = useState(false);
-  const [subcollectionDraft, setSubcollectionDraft] = useState("");
-  const [subcollectionsExpanded, setSubcollectionsExpanded] = useState(false);
+  const [nestedCollectionsExpanded, setNestedCollectionsExpanded] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [selectedProjectStages, setSelectedProjectStages] = useState<Array<"seed" | "sprout" | "semi" | "song">>([]);
@@ -398,9 +404,6 @@ export function IdeaListScreen() {
   const visibleIdeasCount = listIdeas.filter((idea) => !isIdeaEffectivelyHidden(idea)).length;
   const ideasHeaderMeta = [
     `${visibleIdeasCount} idea${visibleIdeasCount === 1 ? "" : "s"}`,
-    childCollections.length > 0
-      ? `${childCollections.length} subcollection${childCollections.length === 1 ? "" : "s"}`
-      : null,
     hasActivityRangeFilter ? "activity slice" : null,
   ]
     .filter((value): value is string => !!value)
@@ -818,7 +821,8 @@ export function IdeaListScreen() {
   function resetImportModal() {
     if (isImporting) return;
     setImportModalOpen(false);
-    setImportAsset(null);
+    setImportAssets([]);
+    setImportMode(null);
     setImportDraft("");
   }
 
@@ -828,39 +832,130 @@ export function IdeaListScreen() {
       return;
     }
 
-    const asset = await pickSingleAudioFile();
-    if (!asset) return;
+    const assets = await pickAudioFiles({ multiple: true });
+    if (assets.length === 0) return;
 
-    setImportAsset(asset);
-    setImportDraft("");
-    setImportModalOpen(true);
+    if (assets.length === 1) {
+      setImportAssets(assets);
+      setImportMode("single-clip");
+      setImportDraft("");
+      setImportModalOpen(true);
+      return;
+    }
+
+    Alert.alert(
+      "Import audio",
+      `Choose how to add ${assets.length} files into ${currentCollection.title}.`,
+      [
+        {
+          text: "Import as individual clips",
+          onPress: () => {
+            void importAssetsAsIndividualClips(assets);
+          },
+        },
+        {
+          text: "Import as song project",
+          onPress: () => {
+            setImportAssets(assets);
+            setImportMode("song-project");
+            setImportDraft("");
+            setImportModalOpen(true);
+          },
+        },
+        { text: "Cancel", style: "cancel" },
+      ]
+    );
   }
 
-  async function saveImportedAudio() {
-    if (!collectionId || !importAsset || isImporting) return;
+  async function importAssetsAsIndividualClips(assets: ImportedAudioAsset[]) {
+    if (!collectionId || assets.length === 0 || isImporting) return;
 
     try {
       setIsImporting(true);
-      const importedAudio = await importAudioAsset(
-        importAsset,
-        `audio-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
+      const { imported, failed } = await importAudioAssets(
+        assets,
+        (_asset, index) => `audio-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 9)}`
       );
-      const fallbackTitle = buildImportedTitle(importAsset.name);
-      const finalTitle = importDraft.trim() || fallbackTitle;
 
-      appActions.importClipToCollection(collectionId, {
-        title: finalTitle,
-        audioUri: importedAudio.audioUri,
-        durationMs: importedAudio.durationMs,
-        waveformPeaks: importedAudio.waveformPeaks,
+      imported.forEach((asset) => {
+        appActions.importClipToCollection(collectionId, {
+          title: buildImportedTitle(asset.name),
+          audioUri: asset.audioUri,
+          durationMs: asset.durationMs,
+          waveformPeaks: asset.waveformPeaks,
+        });
       });
 
-      setImportModalOpen(false);
-      setImportAsset(null);
-      setImportDraft("");
+      if (failed.length > 0) {
+        Alert.alert(
+          imported.length > 0 ? "Import finished with issues" : "Import failed",
+          imported.length > 0
+            ? `${imported.length} file${imported.length === 1 ? "" : "s"} imported as individual clips. ${failed.length} file${failed.length === 1 ? "" : "s"} could not be imported.`
+            : "None of the selected files could be imported."
+        );
+      }
     } catch (error) {
       console.warn("Import audio error", error);
-      Alert.alert("Import failed", "Could not import that audio file.");
+      Alert.alert("Import failed", "Could not import those audio files.");
+    } finally {
+      setIsImporting(false);
+    }
+  }
+
+  async function saveImportedAudio() {
+    if (!collectionId || importAssets.length === 0 || !importMode || isImporting) return;
+
+    try {
+      setIsImporting(true);
+      if (importMode === "single-clip") {
+        const importAsset = importAssets[0]!;
+        const importedAudio = await importAudioAsset(
+          importAsset,
+          `audio-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
+        );
+        const fallbackTitle = buildImportedTitle(importAsset.name);
+        const finalTitle = importDraft.trim() || fallbackTitle;
+
+        appActions.importClipToCollection(collectionId, {
+          title: finalTitle,
+          audioUri: importedAudio.audioUri,
+          durationMs: importedAudio.durationMs,
+          waveformPeaks: importedAudio.waveformPeaks,
+        });
+      } else {
+        const { imported, failed } = await importAudioAssets(
+          importAssets,
+          (_asset, index) => `audio-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 9)}`
+        );
+        const projectTitle = importDraft.trim() || buildImportedProjectTitle(importAssets);
+
+        if (imported.length === 0) {
+          Alert.alert("Import failed", "None of the selected files could be imported.");
+          return;
+        }
+
+        appActions.importProjectToCollection(collectionId, {
+          title: projectTitle,
+          clips: imported.map((asset) => ({
+            title: buildImportedTitle(asset.name),
+            audioUri: asset.audioUri,
+            durationMs: asset.durationMs,
+            waveformPeaks: asset.waveformPeaks,
+          })),
+        });
+
+        if (failed.length > 0) {
+          Alert.alert(
+            "Import finished with issues",
+            `${imported.length} file${imported.length === 1 ? "" : "s"} imported into the song project. ${failed.length} file${failed.length === 1 ? "" : "s"} could not be imported.`
+          );
+        }
+      }
+
+      resetImportModal();
+    } catch (error) {
+      console.warn("Import audio error", error);
+      Alert.alert("Import failed", "Could not import that audio.");
     } finally {
       setIsImporting(false);
     }
@@ -885,7 +980,6 @@ export function IdeaListScreen() {
     return `You are copying ${itemNames.length} item${itemNames.length > 1 ? "s" : ""} (${displayNames}${remainder}) into the same collection they already belong to. This will create duplicates. Continue?`;
   })();
 
-  const canCreateSubcollection = !currentCollection?.parentCollectionId;
   const collectionAncestors = useMemo(
     () =>
       activeWorkspace && currentCollection
@@ -1053,24 +1147,12 @@ export function IdeaListScreen() {
         currentCollection={currentCollection}
         ideasHeaderMeta={ideasHeaderMeta}
         searchQuery={searchQuery}
-        childCollections={childCollections}
-        subcollectionsExpanded={subcollectionsExpanded}
         hasActivityRangeFilter={hasActivityRangeFilter}
         activityLabel={activityLabel}
         collectionId={collectionId}
         clipClipboard={clipClipboard}
         duplicateWarningText={duplicateWarningText}
         onSearchQueryChange={setSearchQuery}
-        onSearchFocus={() => {
-          if (subcollectionsExpanded) {
-            setSubcollectionsExpanded(false);
-          }
-        }}
-        onToggleSubcollectionsExpanded={() => setSubcollectionsExpanded((prev) => !prev)}
-        onOpenCollection={(nextCollectionId) =>
-          navigateRoot("CollectionDetail", { collectionId: nextCollectionId })
-        }
-        onOpenCollectionActions={openCollectionActions}
         onClearActivityRange={() => {
           (navigation as any).setParams({
             activityRangeStartTs: undefined,
@@ -1102,6 +1184,15 @@ export function IdeaListScreen() {
         onClearProjectStages={() => setSelectedProjectStages([])}
         onLyricsFilterModeChange={setLyricsFilterMode}
       />
+      <IdeaListNestedCollectionsSection
+        childCollections={childCollections}
+        expanded={nestedCollectionsExpanded}
+        onToggleExpanded={() => setNestedCollectionsExpanded((prev) => !prev)}
+        onOpenCollection={(nextCollectionId) =>
+          navigateRoot("CollectionDetail", { collectionId: nextCollectionId })
+        }
+        onOpenCollectionActions={openCollectionActions}
+      />
       <IdeaListSelectionZone
         listSelectionMode={listSelectionMode}
         selectedHiddenIdeaIds={selectedHiddenIdeaIds}
@@ -1110,7 +1201,6 @@ export function IdeaListScreen() {
         selectableIdeaIds={selectableIdeaIds}
         selectedHiddenOnly={selectedHiddenOnly}
         selectedInteractiveIdeasCount={selectedInteractiveIdeas.length}
-        canCreateSubcollection={canCreateSubcollection}
         onCreateProjectFromSelection={createProjectFromSelection}
         onPlaySelected={() => {
           void playSelectedIdeas();
@@ -1122,10 +1212,6 @@ export function IdeaListScreen() {
         onAddProject={() => {
           appActions.addIdea(collectionId);
           navigateRoot("IdeaDetail");
-        }}
-        onAddSubcollection={() => {
-          setSubcollectionDraft("");
-          setSubcollectionModalOpen(true);
         }}
         onQuickRecord={() => {
           appActions.quickRecordIdea(collectionId);
@@ -1188,40 +1274,28 @@ export function IdeaListScreen() {
 
       <QuickNameModal
         visible={importModalOpen}
-        title="Import audio"
+        title={importMode === "song-project" ? "Import as Song Project" : "Import Audio"}
         draftValue={importDraft}
-        placeholderValue={importAsset ? buildImportedTitle(importAsset.name) : ""}
+        placeholderValue={
+          importMode === "song-project"
+            ? buildImportedProjectTitle(importAssets)
+            : importAssets[0]
+              ? buildImportedTitle(importAssets[0].name)
+              : ""
+        }
         onChangeDraft={setImportDraft}
         onCancel={resetImportModal}
         onSave={() => {
           void saveImportedAudio();
         }}
-        helperText={`Destination: ${currentCollection.title} as a new clip card.\nFile: ${importAsset?.name ?? "Selected audio"}`}
+        helperText={
+          importMode === "song-project"
+            ? `Destination: ${currentCollection.title} as one new song.\nFiles: ${importAssets.length} selected audio file${importAssets.length === 1 ? "" : "s"}`
+            : `Destination: ${currentCollection.title} as a new clip card.\nFile: ${importAssets[0]?.name ?? "Selected audio"}`
+        }
         saveLabel={isImporting ? "Importing..." : "Import"}
         saveDisabled={isImporting}
         cancelDisabled={isImporting}
-      />
-
-      <QuickNameModal
-        visible={subcollectionModalOpen}
-        title="New Subcollection"
-        draftValue={subcollectionDraft}
-        placeholderValue={buildDefaultSubcollectionTitle(childCollections.length)}
-        onChangeDraft={setSubcollectionDraft}
-        onCancel={() => {
-          setSubcollectionModalOpen(false);
-          setSubcollectionDraft("");
-        }}
-        onSave={() => {
-          if (!activeWorkspaceId || !collectionId) return;
-          const title = subcollectionDraft.trim() || buildDefaultSubcollectionTitle(childCollections.length);
-          const nextCollectionId = addCollection(activeWorkspaceId, title, collectionId);
-          setSubcollectionModalOpen(false);
-          setSubcollectionDraft("");
-          navigateRoot("CollectionDetail", { collectionId: nextCollectionId });
-        }}
-        helperText={`Subcollections help separate ideas inside ${currentCollection.title} without mixing them into the main list.`}
-        saveLabel="Create"
       />
 
       <CollectionMoveModal

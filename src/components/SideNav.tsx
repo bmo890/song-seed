@@ -10,7 +10,7 @@ import { NavRow } from "./common/NavRow";
 type RecentCollectionLite = {
   id: string;
   title: string;
-  level: "collection" | "subcollection";
+  level: "collection";
   meta?: string;
   active?: boolean;
 };

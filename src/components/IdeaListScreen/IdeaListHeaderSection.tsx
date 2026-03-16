@@ -3,7 +3,6 @@ import { Ionicons } from "@expo/vector-icons";
 import { styles } from "../../styles";
 import { ClipboardBanner } from "../ClipboardBanner";
 import { ClipClipboard, Collection } from "../../types";
-import { getHierarchyIconColor, getHierarchyIconName } from "../../hierarchy";
 import { PageIntro } from "../common/PageIntro";
 import { SearchField } from "../common/SearchField";
 
@@ -11,18 +10,12 @@ type IdeaListHeaderSectionProps = {
   currentCollection: Collection;
   ideasHeaderMeta: string;
   searchQuery: string;
-  childCollections: Collection[];
-  subcollectionsExpanded: boolean;
   hasActivityRangeFilter: boolean;
   activityLabel?: string;
   collectionId: string;
   clipClipboard: ClipClipboard | null;
   duplicateWarningText: string;
   onSearchQueryChange: (value: string) => void;
-  onSearchFocus: () => void;
-  onToggleSubcollectionsExpanded: () => void;
-  onOpenCollection: (collectionId: string) => void;
-  onOpenCollectionActions: (collectionId: string) => void;
   onClearActivityRange: () => void;
   onPasteClipboard: () => void;
   onCancelClipboard: () => void;
@@ -32,18 +25,12 @@ export function IdeaListHeaderSection({
   currentCollection,
   ideasHeaderMeta,
   searchQuery,
-  childCollections,
-  subcollectionsExpanded,
   hasActivityRangeFilter,
   activityLabel,
   collectionId,
   clipClipboard,
   duplicateWarningText,
   onSearchQueryChange,
-  onSearchFocus,
-  onToggleSubcollectionsExpanded,
-  onOpenCollection,
-  onOpenCollectionActions,
   onClearActivityRange,
   onPasteClipboard,
   onCancelClipboard,
@@ -61,88 +48,8 @@ export function IdeaListHeaderSection({
           value={searchQuery}
           placeholder="Search titles, notes, lyrics..."
           containerStyle={{ flex: 1, minWidth: 0 }}
-          onFocus={onSearchFocus}
-          onChangeText={(value) => {
-            onSearchFocus();
-            onSearchQueryChange(value);
-          }}
+          onChangeText={onSearchQueryChange}
         />
-
-        {childCollections.length > 0 ? (
-          <View style={styles.subcollectionDisclosureInlineWrap}>
-            <Pressable
-              style={({ pressed }) => [
-                styles.subcollectionDisclosureBtn,
-                styles.subcollectionDisclosureBtnInline,
-                subcollectionsExpanded ? styles.subcollectionDisclosureBtnOpen : null,
-                pressed ? styles.pressDown : null,
-              ]}
-              onPress={onToggleSubcollectionsExpanded}
-            >
-              <View style={styles.subcollectionDisclosureLead}>
-                <Ionicons
-                  name={getHierarchyIconName("subcollection")}
-                  size={14}
-                  color={getHierarchyIconColor("subcollection")}
-                />
-                <Text style={styles.subcollectionDisclosureTitle}>
-                  {childCollections.length} subcollection{childCollections.length === 1 ? "" : "s"}
-                </Text>
-              </View>
-              <Ionicons
-                name={subcollectionsExpanded ? "chevron-up" : "chevron-down"}
-                size={14}
-                color="#64748b"
-              />
-            </Pressable>
-
-            {subcollectionsExpanded ? (
-              <View style={styles.subcollectionDisclosureDropdown}>
-                {childCollections.map((collection) => (
-                  <View key={collection.id} style={styles.subcollectionDisclosureItem}>
-                    <Pressable
-                      style={({ pressed }) => [
-                        styles.subcollectionDisclosureItemLead,
-                        styles.subcollectionDisclosureItemMain,
-                        pressed ? styles.pressDown : null,
-                      ]}
-                      onPress={() => onOpenCollection(collection.id)}
-                    >
-                      <Ionicons
-                        name={getHierarchyIconName("subcollection")}
-                        size={14}
-                        color={getHierarchyIconColor("subcollection")}
-                      />
-                      <Text style={styles.subcollectionDisclosureItemText} numberOfLines={1}>
-                        {collection.title}
-                      </Text>
-                    </Pressable>
-                    <View style={styles.subcollectionDisclosureItemActions}>
-                      <Pressable
-                        style={({ pressed }) => [
-                          styles.collectionInlineActionBtn,
-                          pressed ? styles.pressDown : null,
-                        ]}
-                        onPress={() => onOpenCollectionActions(collection.id)}
-                      >
-                        <Ionicons name="ellipsis-horizontal" size={14} color="#64748b" />
-                      </Pressable>
-                      <Pressable
-                        style={({ pressed }) => [
-                          styles.subcollectionDisclosureChevronBtn,
-                          pressed ? styles.pressDown : null,
-                        ]}
-                        onPress={() => onOpenCollection(collection.id)}
-                      >
-                        <Ionicons name="chevron-forward" size={13} color="#94a3b8" />
-                      </Pressable>
-                    </View>
-                  </View>
-                ))}
-              </View>
-            ) : null}
-          </View>
-        ) : null}
       </View>
 
       {hasActivityRangeFilter ? (
