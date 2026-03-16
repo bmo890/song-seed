@@ -30,6 +30,9 @@ type ExportSectionKey = "format" | "scope" | "options" | "generate";
 
 export function SettingsScreen() {
   const workspaces = useStore((state) => state.workspaces);
+  const primaryWorkspaceId = useStore((state) => state.primaryWorkspaceId);
+  const workspaceStartupPreference = useStore((state) => state.workspaceStartupPreference);
+  const setWorkspaceStartupPreference = useStore((state) => state.setWorkspaceStartupPreference);
   const [showExportFlow, setShowExportFlow] = useState(false);
   const [format, setFormat] = useState<LibraryExportFormat | null>(null);
   const [selectedWorkspaceIds, setSelectedWorkspaceIds] = useState<string[]>([]);
@@ -55,6 +58,10 @@ export function SettingsScreen() {
         includeHiddenItems,
       }),
     [excludedCollectionIds, includeHiddenItems, selectedCollectionIds, selectedWorkspaceIds, workspaces]
+  );
+  const primaryWorkspaceTitle = useMemo(
+    () => workspaces.find((workspace) => workspace.id === primaryWorkspaceId)?.title ?? null,
+    [primaryWorkspaceId, workspaces]
   );
 
   const beginExportFlow = () => {
@@ -393,8 +400,36 @@ export function SettingsScreen() {
         <View style={styles.flexFill}>
           <PageIntro
             title="Settings"
-            subtitle="Export stays lightweight here: choose a package, choose a scope, and hand it to the native save flow."
+            subtitle="Set where the app returns on launch, then use export when you need a portable package."
           />
+
+          <View style={styles.settingsSection}>
+            <View style={styles.settingsSectionHeaderRow}>
+              <Text style={styles.settingsSectionLabel}>Startup</Text>
+              <Text style={styles.settingsSectionMeta}>
+                {workspaceStartupPreference === "primary" ? "Primary workspace" : "Last used workspace"}
+              </Text>
+            </View>
+
+            <View style={styles.settingsOptionStack}>
+              <FormatOptionRow
+                title="Return to primary workspace"
+                subtitle={
+                  primaryWorkspaceTitle
+                    ? `Returns to ${primaryWorkspaceTitle} when the app opens.`
+                    : "Falls back to your last used workspace until a primary workspace is set."
+                }
+                selected={workspaceStartupPreference === "primary"}
+                onPress={() => setWorkspaceStartupPreference("primary")}
+              />
+              <FormatOptionRow
+                title="Return to last used workspace"
+                subtitle="Returns to the workspace you most recently opened or worked in."
+                selected={workspaceStartupPreference === "last-used"}
+                onPress={() => setWorkspaceStartupPreference("last-used")}
+              />
+            </View>
+          </View>
 
           <Pressable
             style={({ pressed }) => [

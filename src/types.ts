@@ -116,6 +116,19 @@ export type IdeasListState = {
 export type WorkspaceHiddenDay = IdeasHiddenDay;
 export type WorkspaceIdeasListState = IdeasListState;
 
+export type WorkspaceArchiveState = {
+  schemaVersion: number;
+  archivedAt: number;
+  archiveUri: string;
+  packageSizeBytes: number;
+  originalAudioBytes: number;
+  originalMetadataBytes: number;
+  archivedMetadataBytes: number;
+  savingsBytes: number;
+  audioFileCount: number;
+  missingFileCount: number;
+};
+
 export type Collection = {
   id: string;
   title: string;
@@ -131,9 +144,33 @@ export type Workspace = {
   title: string;
   description?: string;
   isArchived?: boolean;
+  archiveState?: WorkspaceArchiveState;
   collections: Collection[];
   ideas: SongIdea[];
   ideasListState?: WorkspaceIdeasListState;
+};
+
+export type WorkspaceStartupPreference = "primary" | "last-used";
+export type WorkspaceListOrder = "last-worked" | "least-recent" | "title-az" | "title-za";
+
+export type PlaylistItemKind = "song" | "clip";
+
+export type PlaylistItem = {
+  id: string;
+  kind: PlaylistItemKind;
+  workspaceId: string;
+  collectionId: string;
+  ideaId: string;
+  clipId?: string | null;
+  addedAt: number;
+};
+
+export type Playlist = {
+  id: string;
+  title: string;
+  createdAt: number;
+  updatedAt: number;
+  items: PlaylistItem[];
 };
 
 export type PlayerState = {

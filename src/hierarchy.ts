@@ -14,6 +14,7 @@ export type HierarchyLevel =
   | "library"
   | "settings"
   | "tuner"
+  | "metronome"
   | "lyrics";
 
 type IoniconName = ComponentProps<typeof Ionicons>["name"];
@@ -30,6 +31,7 @@ const HIERARCHY_ICON_NAMES: Record<HierarchyLevel, IoniconName> = {
   library: "library-outline",
   settings: "settings-outline",
   tuner: "radio-outline",
+  metronome: "pulse-outline",
   lyrics: "book-outline",
 };
 
@@ -45,6 +47,7 @@ const HIERARCHY_ICON_COLORS: Record<HierarchyLevel, string> = {
   library: "#0f172a",
   settings: "#0f172a",
   tuner: "#0f172a",
+  metronome: "#0f172a",
   lyrics: "#0f172a",
 };
 

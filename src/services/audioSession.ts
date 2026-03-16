@@ -17,10 +17,22 @@ const sharedRecordingAudioMode = {
     shouldRouteThroughEarpiece: false,
 };
 
+const sharedMetronomeAudioMode = {
+    allowsRecording: true,
+    interruptionMode: "mixWithOthers" as const,
+    playsInSilentMode: true,
+    shouldPlayInBackground: true,
+    shouldRouteThroughEarpiece: false,
+};
+
 export async function activatePlaybackAudioSession() {
     await setAudioModeAsync(sharedPlaybackAudioMode);
 }
 
 export async function activateRecordingAudioSession() {
     await setAudioModeAsync(sharedRecordingAudioMode);
+}
+
+export async function activateMetronomeAudioSession() {
+    await setAudioModeAsync(sharedMetronomeAudioMode);
 }
