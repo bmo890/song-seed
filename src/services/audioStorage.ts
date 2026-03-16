@@ -22,6 +22,16 @@ type ManagedAudioResult = {
     waveformPeaks?: number[];
 };
 
+export type ImportedManagedAudioAsset = ImportedAudioAsset &
+    ManagedAudioResult & {
+        targetId: string;
+    };
+
+export type AudioImportFailure = {
+    asset: ImportedAudioAsset;
+    error: unknown;
+};
+
 export type ShareableAudioClip = {
     title: string;
     audioUri: string;
@@ -475,22 +485,26 @@ async function ensureAudioDirectory() {
 }
 
 export async function pickSingleAudioFile(): Promise<ImportedAudioAsset | null> {
+    const assets = await pickAudioFiles({ multiple: false });
+    return assets[0] ?? null;
+}
+
+export async function pickAudioFiles(options?: { multiple?: boolean }): Promise<ImportedAudioAsset[]> {
     const result = await DocumentPicker.getDocumentAsync({
         type: ["audio/*"],
-        multiple: false,
+        multiple: options?.multiple ?? false,
         copyToCacheDirectory: true,
     });
 
     if (result.canceled || !result.assets.length) {
-        return null;
+        return [];
     }
 
-    const asset = result.assets[0];
-    return {
+    return result.assets.map((asset) => ({
         uri: asset.uri,
         name: asset.name,
         mimeType: asset.mimeType,
-    };
+    }));
 }
 
 export async function importAudioAsset(asset: ImportedAudioAsset, targetId: string): Promise<ManagedAudioResult> {
@@ -510,6 +524,32 @@ export async function importAudioAsset(asset: ImportedAudioAsset, targetId: stri
         durationMs: metadata.durationMs,
         waveformPeaks: metadata.waveformPeaks,
     };
+}
+
+export async function importAudioAssets(
+    assets: ImportedAudioAsset[],
+    buildTargetId: (asset: ImportedAudioAsset, index: number) => string
+): Promise<{ imported: ImportedManagedAudioAsset[]; failed: AudioImportFailure[] }> {
+    const imported: ImportedManagedAudioAsset[] = [];
+    const failed: AudioImportFailure[] = [];
+
+    for (let index = 0; index < assets.length; index += 1) {
+        const asset = assets[index]!;
+        const targetId = buildTargetId(asset, index);
+
+        try {
+            const managed = await importAudioAsset(asset, targetId);
+            imported.push({
+                ...asset,
+                ...managed,
+                targetId,
+            });
+        } catch (error) {
+            failed.push({ asset, error });
+        }
+    }
+
+    return { imported, failed };
 }
 
 export async function importRecordedAudioAsset(recordingUri: string, targetId: string): Promise<ManagedAudioResult> {
