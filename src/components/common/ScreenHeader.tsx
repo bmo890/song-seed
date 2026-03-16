@@ -13,13 +13,24 @@ type Props = {
 export function ScreenHeader({ title, leftIcon = "hamburger", onLeftPress, rightElement }: Props) {
     const navigation = useNavigation();
 
+    function openDrawerFromAnyParent() {
+        let currentNavigation: any = navigation;
+        while (currentNavigation) {
+            if (typeof currentNavigation.openDrawer === "function") {
+                currentNavigation.openDrawer();
+                return;
+            }
+            currentNavigation = currentNavigation.getParent?.();
+        }
+    }
+
     function handleLeftPress() {
         if (onLeftPress) {
             onLeftPress();
             return;
         }
         if (leftIcon === "hamburger") {
-            (navigation as any).openDrawer?.();
+            openDrawerFromAnyParent();
         } else if (leftIcon === "back") {
             navigation.goBack();
         }

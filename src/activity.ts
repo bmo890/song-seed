@@ -3,6 +3,14 @@ import { getCollectionById, getCollectionScopeIds } from "./utils";
 import type { ActivityEvent, ActivityMetric, ActivitySource, SongIdea, Workspace } from "./types";
 
 export type ActivityMetricFilter = ActivityMetric | "both";
+export type ActivityRegionKind = "day" | "week" | "month";
+
+export type ActivityDateRegion = {
+  kind: ActivityRegionKind;
+  anchorTs: number;
+  startTs: number;
+  endTs: number;
+};
 
 export type ActivityDayEntry = {
   ideaId: string;
@@ -13,6 +21,7 @@ export type ActivityDayEntry = {
   createdCount: number;
   updatedCount: number;
   latestAt: number;
+  latestMetric: ActivityMetric;
 };
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -29,6 +38,10 @@ export function startOfActivityDay(ts: number) {
   return date.getTime();
 }
 
+export function endOfActivityDay(ts: number) {
+  return startOfActivityDay(ts) + DAY_MS - 1;
+}
+
 export function startOfActivityWeek(ts: number) {
   const date = new Date(startOfActivityDay(ts));
   date.setDate(date.getDate() - date.getDay());
@@ -37,6 +50,47 @@ export function startOfActivityWeek(ts: number) {
 
 export function endOfActivityWeek(ts: number) {
   return startOfActivityWeek(ts) + 6 * DAY_MS;
+}
+
+export function startOfActivityMonth(ts: number) {
+  const date = new Date(startOfActivityDay(ts));
+  date.setDate(1);
+  return date.getTime();
+}
+
+export function endOfActivityMonth(ts: number) {
+  const date = new Date(startOfActivityMonth(ts));
+  date.setMonth(date.getMonth() + 1, 0);
+  return startOfActivityDay(date.getTime());
+}
+
+export function buildActivityDateRegion(kind: ActivityRegionKind, anchorTs: number): ActivityDateRegion {
+  const normalizedAnchor = startOfActivityDay(anchorTs);
+
+  if (kind === "day") {
+    return {
+      kind,
+      anchorTs: normalizedAnchor,
+      startTs: normalizedAnchor,
+      endTs: normalizedAnchor,
+    };
+  }
+
+  if (kind === "week") {
+    return {
+      kind,
+      anchorTs: normalizedAnchor,
+      startTs: startOfActivityWeek(normalizedAnchor),
+      endTs: endOfActivityWeek(normalizedAnchor),
+    };
+  }
+
+  return {
+    kind,
+    anchorTs: normalizedAnchor,
+    startTs: startOfActivityMonth(normalizedAnchor),
+    endTs: endOfActivityMonth(normalizedAnchor),
+  };
 }
 
 function buildSyntheticEvent(
@@ -57,6 +111,42 @@ function buildSyntheticEvent(
     metric,
     source: HISTORY_SEED_SOURCE,
   };
+}
+
+function buildActivityValidityMaps(workspaces: Workspace[]) {
+  const workspaceIds = new Set<string>();
+  const collectionIdsByWorkspace = new Map<string, Set<string>>();
+  const ideaIdsByWorkspace = new Map<string, Set<string>>();
+
+  for (const workspace of workspaces) {
+    workspaceIds.add(workspace.id);
+    collectionIdsByWorkspace.set(
+      workspace.id,
+      new Set(workspace.collections.map((collection) => collection.id))
+    );
+    ideaIdsByWorkspace.set(
+      workspace.id,
+      new Set(workspace.ideas.map((idea) => idea.id))
+    );
+  }
+
+  return { workspaceIds, collectionIdsByWorkspace, ideaIdsByWorkspace };
+}
+
+export function filterOrphanedActivityEvents(
+  workspaces: Workspace[],
+  events: ActivityEvent[]
+) {
+  const { workspaceIds, collectionIdsByWorkspace, ideaIdsByWorkspace } = buildActivityValidityMaps(workspaces);
+
+  return events.filter((event) => {
+    if (!workspaceIds.has(event.workspaceId)) return false;
+    const collectionIds = collectionIdsByWorkspace.get(event.workspaceId);
+    if (!collectionIds?.has(event.collectionId)) return false;
+    const ideaIds = ideaIdsByWorkspace.get(event.workspaceId);
+    if (!ideaIds?.has(event.ideaId)) return false;
+    return true;
+  });
 }
 
 export function buildSyntheticActivityEvents(
@@ -92,7 +182,9 @@ export function getActivityEventsWithHistory(
   workspaces: Workspace[],
   persistedEvents: ActivityEvent[]
 ) {
-  return [...persistedEvents, ...buildSyntheticActivityEvents(workspaces, persistedEvents)].sort(
+  const persistedLiveEvents = filterOrphanedActivityEvents(workspaces, persistedEvents);
+
+  return [...persistedLiveEvents, ...buildSyntheticActivityEvents(workspaces, persistedLiveEvents)].sort(
     (a, b) => b.at - a.at
   );
 }
@@ -157,7 +249,10 @@ export function buildActivityRangeEntries(
     const key = `${event.workspaceId}:${event.ideaId}`;
     const existing = grouped.get(key);
     if (existing) {
-      existing.latestAt = Math.max(existing.latestAt, event.at);
+      if (event.at > existing.latestAt) {
+        existing.latestAt = event.at;
+        existing.latestMetric = event.metric;
+      }
       if (event.metric === "created") existing.createdCount += 1;
       if (event.metric === "updated") existing.updatedCount += 1;
       if (event.ideaTitle.length > 0) existing.ideaTitle = event.ideaTitle;
@@ -172,6 +267,7 @@ export function buildActivityRangeEntries(
       createdCount: event.metric === "created" ? 1 : 0,
       updatedCount: event.metric === "updated" ? 1 : 0,
       latestAt: event.at,
+      latestMetric: event.metric,
     });
   }
 

@@ -2313,6 +2313,59 @@ export const styles = StyleSheet.create({
     flexGrow: 0,
     marginBottom: 10,
   },
+  activityWorkspaceFilterWrap: {
+    position: "relative",
+    zIndex: 20,
+    marginBottom: 10,
+  },
+  activityWorkspaceFilterTrigger: {
+    minHeight: 36,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "#dbe2ea",
+    backgroundColor: "#ffffff",
+    paddingHorizontal: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
+  },
+  activityWorkspaceFilterLabel: {
+    flex: 1,
+    fontSize: 12,
+    color: "#334155",
+    fontWeight: "700",
+  },
+  activityWorkspaceFilterMenu: {
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: "#dbe2ea",
+    borderRadius: 14,
+    backgroundColor: "#ffffff",
+    overflow: "hidden",
+    shadowColor: "#0f172a",
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    elevation: 2,
+  },
+  activityWorkspaceFilterOption: {
+    minHeight: 40,
+    paddingHorizontal: 12,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  activityWorkspaceFilterOptionActive: {
+    backgroundColor: "#f8fbff",
+  },
+  activityWorkspaceFilterOptionText: {
+    fontSize: 13,
+    color: "#334155",
+    fontWeight: "600",
+  },
+  activityWorkspaceFilterOptionTextActive: {
+    color: "#0f172a",
+    fontWeight: "700",
+  },
   activityChipScroll: {
     gap: 8,
     paddingRight: 8,
@@ -2344,6 +2397,10 @@ export const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     gap: 10,
+    marginBottom: 10,
+  },
+  activitySegmentStack: {
+    gap: 8,
     marginBottom: 10,
   },
   activitySegmentWrap: {
@@ -2409,8 +2466,11 @@ export const styles = StyleSheet.create({
     color: "#64748b",
     fontWeight: "600",
   },
+  activitySummaryBlock: {
+    flex: 1,
+    gap: 4,
+  },
   activityHintText: {
-    marginBottom: 10,
     fontSize: 11,
     color: "#64748b",
     fontWeight: "600",
@@ -2451,21 +2511,62 @@ export const styles = StyleSheet.create({
   activityHeatmapContent: {
     gap: 8,
   },
-  activityMonthRow: {
+  activityHeatmapHeader: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: 10,
+  },
+  activityHeatmapHeaderCopy: {
+    flex: 1,
+    gap: 4,
+  },
+  activityHeatmapEyebrow: {
+    fontSize: 11,
+    color: "#64748b",
+    fontWeight: "700",
+    textTransform: "uppercase",
+    letterSpacing: 0.3,
+  },
+  activityHeatmapSelectedLabel: {
+    fontSize: 15,
+    lineHeight: 20,
+    color: "#0f172a",
+    fontWeight: "700",
+  },
+  activityHeatmapScopeLabel: {
+    fontSize: 12,
+    lineHeight: 18,
+    color: "#64748b",
+    fontWeight: "600",
+  },
+  activityHeatmapHeaderHint: {
+    fontSize: 11,
+    color: "#64748b",
+    fontWeight: "600",
+  },
+  activityMonthRow: {
+    position: "relative",
     minHeight: 16,
     paddingLeft: 24,
   },
   activityMonthPressable: {
+    position: "absolute",
     minHeight: 16,
     justifyContent: "center",
+  },
+  activityMonthPressableActive: {
+    borderBottomWidth: 1,
+    borderBottomColor: "#1e3a8a",
   },
   activityMonthLabel: {
     position: "relative",
     fontSize: 10,
     color: "#64748b",
     fontWeight: "700",
+  },
+  activityMonthLabelActive: {
+    color: "#1e3a8a",
   },
   activityMonthSummaryCard: {
     borderWidth: 1,
@@ -2523,57 +2624,173 @@ export const styles = StyleSheet.create({
     borderRadius: 4,
     borderWidth: 1,
     borderColor: "#dbe2ea",
+    backgroundColor: "#ffffff",
+    padding: 0,
+  },
+  activityDayCellFill: {
+    flex: 1,
+    borderRadius: 3,
+  },
+  activityDayCellFillSelected: {
+    borderRadius: 3,
   },
   activityDayCellRangeSelected: {
-    borderColor: "#1e3a8a",
-    borderWidth: 2,
+    borderColor: "#2563eb",
+    borderWidth: 1.25,
+    padding: 1.5,
   },
   activityDayCellPressed: {
     transform: [{ scale: 0.94 }],
   },
-  activityRangeSummaryCard: {
-    borderWidth: 1,
-    borderColor: "#dbe2ea",
-    borderRadius: 16,
-    backgroundColor: "#ffffff",
-    paddingHorizontal: 12,
-    paddingVertical: 12,
+  activityResultsSection: {
     gap: 10,
   },
-  activityRangeSummaryHeader: {
+  activityResultsSummaryText: {
+    fontSize: 12,
+    color: "#64748b",
+    fontWeight: "700",
+  },
+  activityResultsList: {
+    gap: 8,
+  },
+  activityResultsRowWrap: {
+    flexDirection: "row",
+    alignItems: "stretch",
+  },
+  activityResultsCardFill: {
+    flex: 1,
+  },
+  activityResultCard: {
+    paddingVertical: 10,
+    gap: 6,
+  },
+  activityResultCardRow: {
+    flexDirection: "row",
+    alignItems: "stretch",
+    gap: 10,
+  },
+  activityResultLeadCol: {
+    width: 46,
+    alignItems: "center",
+    justifyContent: "space-between",
+    flexShrink: 0,
+    alignSelf: "stretch",
+  },
+  activityResultLeadColActive: {
+    justifyContent: "center",
+  },
+  activityResultLeadDurationSlot: {
+    width: "100%",
+    minHeight: 14,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  activityResultTop: {
+    gap: 3,
+  },
+  activityResultMain: {
+    flex: 1,
+    minWidth: 0,
+    gap: 4,
+  },
+  activityResultTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    minWidth: 0,
+  },
+  activityResultBottomRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    gap: 10,
-  },
-  activityRangeSummaryCopy: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
     gap: 8,
   },
-  activityRangeSummaryTitle: {
+  activityResultTypeBadge: {
+    alignSelf: "flex-start",
+    minHeight: 18,
+    borderRadius: 999,
+    paddingHorizontal: 6,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#dbe2ea",
+    backgroundColor: "#f8fafc",
+  },
+  activityResultTypeBadgeText: {
+    fontSize: 9,
+    color: "#475569",
+    fontWeight: "800",
+    textTransform: "uppercase",
+    letterSpacing: 0.3,
+  },
+  activityResultTitle: {
     flex: 1,
-    fontSize: 13,
+    minWidth: 0,
+    fontSize: 14,
+    lineHeight: 18,
+    color: "#0f172a",
+    fontWeight: "700",
+  },
+  activityResultMeta: {
+    fontSize: 11,
     color: "#334155",
     fontWeight: "700",
   },
-  activityRangeSummaryMeta: {
+  activityResultContext: {
+    flex: 1,
+    minWidth: 0,
     fontSize: 12,
+    lineHeight: 16,
     color: "#64748b",
     fontWeight: "600",
   },
-  activityRangeSummaryClear: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+  activityResultActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    flexShrink: 0,
+  },
+  activityResultIconBtnDisabled: {
+    backgroundColor: "#f8fafc",
+    borderColor: "#e2e8f0",
+  },
+  activityResultActionBtn: {
+    minHeight: 26,
+    borderRadius: 13,
+    paddingHorizontal: 9,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#f1f5f9",
+    backgroundColor: "#ffffff",
+    borderWidth: 1,
+    borderColor: "#cbd5e1",
   },
-  activityRangeScopedActions: {
-    flexDirection: "row",
-    justifyContent: "flex-end",
+  activityResultActionBtnText: {
+    fontSize: 11,
+    color: "#0f172a",
+    fontWeight: "700",
+  },
+  activityResultSecondaryBtn: {
+    backgroundColor: "#f8fafc",
+    borderColor: "#dbe2ea",
+  },
+  activityResultSecondaryBtnText: {
+    fontSize: 11,
+    color: "#334155",
+    fontWeight: "700",
+  },
+  activityResultEmptyCard: {
+    gap: 6,
+  },
+  activityResultEmptyTitle: {
+    fontSize: 14,
+    color: "#0f172a",
+    fontWeight: "700",
+  },
+  activityResultEmptyText: {
+    fontSize: 12,
+    lineHeight: 18,
+    color: "#64748b",
+    fontWeight: "600",
   },
   activityRangeWorkspaceGroupList: {
     gap: 12,
@@ -2612,21 +2829,6 @@ export const styles = StyleSheet.create({
   activityRangeCollectionCount: {
     fontSize: 11,
     color: "#475569",
-    fontWeight: "700",
-  },
-  activityRangeOpenBtn: {
-    minHeight: 30,
-    borderRadius: 15,
-    borderWidth: 1,
-    borderColor: "#cbd5e1",
-    backgroundColor: "#ffffff",
-    paddingHorizontal: 10,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  activityRangeOpenBtnText: {
-    fontSize: 12,
-    color: "#0f172a",
     fontWeight: "700",
   },
   activityDayModalCard: {

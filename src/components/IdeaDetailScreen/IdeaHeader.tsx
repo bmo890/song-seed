@@ -140,10 +140,10 @@ export function IdeaHeader({
             <View style={styles.songDetailNavRow}>
                 <View style={styles.songDetailNavLead}>
                     <Pressable
-                        style={({ pressed }) => [styles.hamburgerBtn, pressed ? styles.pressDown : null]}
-                        onPress={() => ((rootNavigation ?? (navigation as any)) as any).openDrawer?.()}
+                        style={({ pressed }) => [styles.backBtn, pressed ? styles.pressDown : null]}
+                        onPress={() => navigation.goBack()}
                     >
-                        <Text style={styles.sideNavLabel}>☰</Text>
+                        <Text style={styles.backBtnText}>Back</Text>
                     </Pressable>
                     <View style={{ flex: 1, minWidth: 0 }}>
                         <Animated.View style={breadcrumbsAnimStyle} pointerEvents={showCompactTitle ? "none" : "auto"}>
@@ -226,7 +226,7 @@ export function IdeaHeader({
                 ) : (
                     <View style={styles.songDetailPageTitleWithIcon}>
                         <Ionicons name={titleIcon} size={14} color={titleIconColor} />
-                        <Text style={styles.songDetailPageTitleLarge} numberOfLines={2}>
+                        <Text style={styles.songDetailPageTitleLarge} numberOfLines={3}>
                             {selectedIdea.title}
                         </Text>
                     </View>

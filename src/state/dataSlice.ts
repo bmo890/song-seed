@@ -711,6 +711,11 @@ export const createDataSlice: StateCreator<DataSlice & SelectionSlice, [], [], D
 
             const descendantIds = getCollectionDescendantIds(sourceWorkspace.collections, collectionId);
             const deleteScopeIds = new Set<string>([collectionId, ...descendantIds]);
+            const deletedIdeaIds = new Set(
+                sourceWorkspace.ideas
+                    .filter((idea) => deleteScopeIds.has(idea.collectionId))
+                    .map((idea) => idea.id)
+            );
             const nextCollectionLastOpenedAt = { ...state.collectionLastOpenedAt };
             deleteScopeIds.forEach((id) => {
                 delete nextCollectionLastOpenedAt[id];
@@ -729,6 +734,11 @@ export const createDataSlice: StateCreator<DataSlice & SelectionSlice, [], [], D
                         }
                 ),
                 collectionLastOpenedAt: nextCollectionLastOpenedAt,
+                activityEvents: state.activityEvents.filter(
+                    (event) =>
+                        event.workspaceId !== sourceWorkspace.id ||
+                        (!deleteScopeIds.has(event.collectionId) && !deletedIdeaIds.has(event.ideaId))
+                ),
                 playlists: state.playlists.map((playlist) => ({
                     ...playlist,
                     items: playlist.items.filter((item) => !deleteScopeIds.has(item.collectionId)),
@@ -832,6 +842,7 @@ export const createDataSlice: StateCreator<DataSlice & SelectionSlice, [], [], D
                     state.lastUsedWorkspaceId === id ? (nextWorkspaces[0]?.id ?? null) : state.lastUsedWorkspaceId,
                 workspaceLastOpenedAt: nextWorkspaceLastOpenedAt,
                 collectionLastOpenedAt: nextCollectionLastOpenedAt,
+                activityEvents: state.activityEvents.filter((event) => event.workspaceId !== id),
                 playlists: state.playlists.map((playlist) => ({
                     ...playlist,
                     items: playlist.items.filter((item) => item.workspaceId !== id),
@@ -1157,6 +1168,7 @@ export const createDataSlice: StateCreator<DataSlice & SelectionSlice, [], [], D
     deleteIdea: (ideaId) => {
         get().updateIdeas((prev) => prev.filter((i) => i.id !== ideaId));
         set((state) => ({
+            activityEvents: state.activityEvents.filter((event) => event.ideaId !== ideaId),
             playlists: state.playlists.map((playlist) => ({
                 ...playlist,
                 items: playlist.items.filter((item) => item.ideaId !== ideaId),
