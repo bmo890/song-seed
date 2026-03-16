@@ -64,6 +64,8 @@ export function IdeaListScreen() {
   const activityRangeEndTs = route.params?.activityRangeEndTs as number | undefined;
   const activityMetricFilter = (route.params?.activityMetricFilter as "created" | "updated" | "both" | undefined) ?? "both";
   const activityLabel = route.params?.activityLabel as string | undefined;
+  const focusIdeaId = route.params?.focusIdeaId as string | undefined;
+  const focusToken = route.params?.focusToken as number | undefined;
 
   const workspaces = useStore((s) => s.workspaces);
   const activeWorkspaceId = useStore((s) => s.activeWorkspaceId);
@@ -84,6 +86,7 @@ export function IdeaListScreen() {
 
   const ideasFilter = useStore((s) => s.ideasFilter);
   const ideasSort = useStore((s) => s.ideasSort);
+  const setIdeasFilter = useStore((s) => s.setIdeasFilter);
   const setIdeasHidden = useStore((s) => s.setIdeasHidden);
   const setTimelineDaysHidden = useStore((s) => s.setTimelineDaysHidden);
   const updateCollection = useStore((s) => s.updateCollection);
@@ -100,15 +103,28 @@ export function IdeaListScreen() {
   const clipClipboard = useStore((s) => s.clipClipboard);
   const recentlyAddedItemIds = useStore((s) => s.recentlyAddedItemIds);
   const clearRecentlyAdded = useStore((s) => s.clearRecentlyAdded);
+  const markRecentlyAdded = useStore((s) => s.markRecentlyAdded);
 
   const setSelectedIdeaId = useStore((s) => s.setSelectedIdeaId);
 
   const inlinePlayer = useInlinePlayer();
+  const listRef = useRef<any>(null);
+  const handledFocusTokenRef = useRef<number | null>(null);
+  const focusScrollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (!collectionId) return;
     markCollectionOpened(collectionId);
   }, [collectionId, markCollectionOpened]);
+
+  useEffect(() => {
+    return () => {
+      if (focusScrollTimerRef.current) {
+        clearTimeout(focusScrollTimerRef.current);
+      }
+    };
+  }, []);
+
   const hiddenIdeaIds = currentCollection?.ideasListState.hiddenIdeaIds ?? [];
   const hiddenDays = currentCollection?.ideasListState.hiddenDays ?? [];
 
@@ -378,6 +394,96 @@ export function IdeaListScreen() {
   const selectedClipIdeasInList = selectedInteractiveIdeas.filter((idea) => idea.kind === "clip");
   const selectedProjectsInList = selectedIdeasInList.filter((idea) => idea.kind === "project");
   const selectedHiddenOnly = selectedIdeasInList.length > 0 && selectedIdeasInList.every((idea) => hiddenIdeaIdsSet.has(idea.id));
+
+  useEffect(() => {
+    if (!focusIdeaId || !focusToken || handledFocusTokenRef.current === focusToken) return;
+    if (!ideas.some((idea) => idea.id === focusIdeaId)) {
+      handledFocusTokenRef.current = focusToken;
+      (navigation as any).setParams({ focusIdeaId: undefined, focusToken: undefined });
+      return;
+    }
+
+    const targetIndex = listEntries.findIndex(
+      (entry) => entry.type === "idea" && entry.idea.id === focusIdeaId
+    );
+
+    if (targetIndex === -1) {
+      let changed = false;
+      if (searchQuery.length > 0 || debouncedSearchQuery.length > 0) {
+        setSearchQuery("");
+        setDebouncedSearchQuery("");
+        changed = true;
+      }
+      if (selectedProjectStages.length > 0) {
+        setSelectedProjectStages([]);
+        changed = true;
+      }
+      if (lyricsFilterMode !== "all") {
+        setLyricsFilterMode("all");
+        changed = true;
+      }
+      if (ideasFilter !== "all") {
+        setIdeasFilter("all");
+        changed = true;
+      }
+      if (!changed) {
+        handledFocusTokenRef.current = focusToken;
+        (navigation as any).setParams({ focusIdeaId: undefined, focusToken: undefined });
+      }
+      return;
+    }
+
+    handledFocusTokenRef.current = focusToken;
+    markRecentlyAdded([focusIdeaId]);
+    if (focusScrollTimerRef.current) {
+      clearTimeout(focusScrollTimerRef.current);
+      focusScrollTimerRef.current = null;
+    }
+
+    const scrollToFocusedIdea = (attempt: number) => {
+      const layout = rowLayoutsRef.current[focusIdeaId];
+      if (layout) {
+        const topInset = 112;
+        listRef.current?.scrollToOffset?.({
+          offset: Math.max(0, layout.y - topInset),
+          animated: attempt > 0,
+        });
+        return;
+      }
+
+      if (attempt === 0) {
+        listRef.current?.scrollToIndex?.({
+          index: targetIndex,
+          animated: false,
+          viewPosition: 0.35,
+        });
+      }
+
+      if (attempt >= 3) {
+        return;
+      }
+
+      focusScrollTimerRef.current = setTimeout(() => {
+        scrollToFocusedIdea(attempt + 1);
+      }, 90);
+    };
+
+    scrollToFocusedIdea(0);
+    (navigation as any).setParams({ focusIdeaId: undefined, focusToken: undefined });
+  }, [
+    debouncedSearchQuery,
+    focusIdeaId,
+    focusToken,
+    ideas,
+    ideasFilter,
+    listEntries,
+    lyricsFilterMode,
+    markRecentlyAdded,
+    navigation,
+    searchQuery,
+    selectedProjectStages,
+    setIdeasFilter,
+  ]);
   const hiddenDayGroupsInView = useMemo(() => {
     if (!activeTimelineMetric) return [] as WorkspaceHiddenDay[];
     const groupMap = new Map<string, WorkspaceHiddenDay>();
@@ -1325,6 +1431,7 @@ export function IdeaListScreen() {
 
 
       <IdeaListContent
+        listRef={listRef}
         listSelectionMode={listSelectionMode}
         allowReorder={!listSelectionMode && ideasFilter === "all" && !searchNeedle}
         listEntries={listEntries}

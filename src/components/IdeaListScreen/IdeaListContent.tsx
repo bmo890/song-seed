@@ -10,6 +10,7 @@ import { formatBytes } from "../../utils";
 import { getIdeaSortTimestamp, type IdeaSortMetric } from "../../ideaSort";
 
 type IdeaListContentProps = {
+  listRef?: MutableRefObject<any>;
   listSelectionMode: boolean;
   allowReorder: boolean;
   listEntries: IdeaListEntry[];
@@ -60,6 +61,7 @@ function dayStartTs(ts: number) {
 }
 
 export function IdeaListContent({
+  listRef,
   listSelectionMode,
   allowReorder,
   listEntries,
@@ -97,6 +99,7 @@ export function IdeaListContent({
 }: IdeaListContentProps) {
   return (
     <DraggableFlatList<IdeaListEntry>
+      ref={listRef}
       data={listEntries}
       keyExtractor={(item) => item.key}
       contentContainerStyle={[
@@ -118,6 +121,19 @@ export function IdeaListContent({
       initialNumToRender={12}
       maxToRenderPerBatch={10}
       windowSize={7}
+      onScrollToIndexFailed={(info) => {
+        listRef?.current?.scrollToOffset?.({
+          offset: Math.max(0, info.averageItemLength * info.index),
+          animated: true,
+        });
+        setTimeout(() => {
+          listRef?.current?.scrollToIndex?.({
+            index: info.index,
+            animated: true,
+            viewPosition: 0.35,
+          });
+        }, 120);
+      }}
       removeClippedSubviews
       renderItem={(props) => {
         const entry = props.item;
