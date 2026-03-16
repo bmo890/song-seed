@@ -13,13 +13,11 @@ type IdeaListSelectionZoneProps = {
   selectableIdeaIds: string[];
   selectedHiddenOnly: boolean;
   selectedInteractiveIdeasCount: number;
-  canCreateSubcollection: boolean;
   onCreateProjectFromSelection: () => void;
   onPlaySelected: () => void;
   onToggleHideSelected: () => void;
   onDeleteSelected: () => void;
   onAddProject: () => void;
-  onAddSubcollection: () => void;
   onQuickRecord: () => void;
   onImportAudio: () => void;
 };
@@ -32,13 +30,11 @@ export function IdeaListSelectionZone({
   selectableIdeaIds,
   selectedHiddenOnly,
   selectedInteractiveIdeasCount,
-  canCreateSubcollection,
   onCreateProjectFromSelection,
   onPlaySelected,
   onToggleHideSelected,
   onDeleteSelected,
   onAddProject,
-  onAddSubcollection,
   onQuickRecord,
   onImportAudio,
 }: IdeaListSelectionZoneProps) {
@@ -94,7 +90,6 @@ export function IdeaListSelectionZone({
       ) : (
         <ActionButtons
           onAddProject={onAddProject}
-          onAddSubcollection={canCreateSubcollection ? onAddSubcollection : undefined}
           onQuickRecord={onQuickRecord}
           onImportAudio={onImportAudio}
         />

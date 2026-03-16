@@ -244,13 +244,6 @@ export function WorkspaceBrowseScreen() {
                   </Text>
                 </View>
                 <View style={styles.workspaceBrowseCollectionActions}>
-                  {entry.childCollectionCount > 0 ? (
-                    <View style={styles.contextPill}>
-                      <Text style={styles.contextPillText}>
-                        {entry.childCollectionCount} {entry.childCollectionCount === 1 ? "SUB" : "SUBS"}
-                      </Text>
-                    </View>
-                  ) : null}
                   <Pressable
                     style={({ pressed }) => [
                       styles.collectionInlineActionBtn,
@@ -329,7 +322,7 @@ export function WorkspaceBrowseScreen() {
           setDraftTitle("");
           navigateRoot("CollectionDetail", { collectionId });
         }}
-        helperText="Collections hold songs, clips, and optional subcollections."
+        helperText="Collections hold songs and clips."
         saveLabel="Create"
       />
 
@@ -394,7 +387,7 @@ function getMatchIcon(kind: CollectionSearchMatchKind): keyof typeof Ionicons.gl
     case "collection":
       return getHierarchyIconName("collection");
     case "subcollection":
-      return getHierarchyIconName("subcollection");
+      return getHierarchyIconName("collection");
     case "song":
       return getHierarchyIconName("song");
     case "clip":
@@ -408,7 +401,7 @@ function getMatchLabel(kind: CollectionSearchMatchKind) {
     case "collection":
       return "Collection:";
     case "subcollection":
-      return "Subcollection:";
+      return "Inside:";
     case "song":
       return "Song:";
     case "clip":

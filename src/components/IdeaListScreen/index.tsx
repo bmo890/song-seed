@@ -13,6 +13,7 @@ import { CollectionMoveModal } from "../modals/CollectionMoveModal";
 import { CollectionActionsModal } from "../modals/CollectionActionsModal";
 import { IdeaListHeaderSection } from "./IdeaListHeaderSection";
 import { IdeaListFilterSection } from "./IdeaListFilterSection";
+import { IdeaListNestedCollectionsSection } from "./IdeaListNestedCollectionsSection";
 import { IdeaListSelectionZone } from "./IdeaListSelectionZone";
 import { IdeaListContent } from "./IdeaListContent";
 import { IdeaListEntry } from "./types";
@@ -39,10 +40,6 @@ import {
   getIdeaUpdatedAt,
   usesIdeaTimelineDividers,
 } from "../../ideaSort";
-
-function buildDefaultSubcollectionTitle(count: number) {
-  return `Subcollection ${count + 1}`;
-}
 
 export function IdeaListScreen() {
   const navigation = useNavigation();
@@ -78,7 +75,6 @@ export function IdeaListScreen() {
   const ideasSort = useStore((s) => s.ideasSort);
   const setIdeasHidden = useStore((s) => s.setIdeasHidden);
   const setTimelineDaysHidden = useStore((s) => s.setTimelineDaysHidden);
-  const addCollection = useStore((s) => s.addCollection);
   const updateCollection = useStore((s) => s.updateCollection);
   const moveCollection = useStore((s) => s.moveCollection);
   const deleteCollection = useStore((s) => s.deleteCollection);
@@ -122,9 +118,7 @@ export function IdeaListScreen() {
   const [collectionMoveModalOpen, setCollectionMoveModalOpen] = useState(false);
   const [selectedMoveWorkspaceId, setSelectedMoveWorkspaceId] = useState<string | null>(null);
   const [selectedMoveParentCollectionId, setSelectedMoveParentCollectionId] = useState<string | null>(null);
-  const [subcollectionModalOpen, setSubcollectionModalOpen] = useState(false);
-  const [subcollectionDraft, setSubcollectionDraft] = useState("");
-  const [subcollectionsExpanded, setSubcollectionsExpanded] = useState(false);
+  const [nestedCollectionsExpanded, setNestedCollectionsExpanded] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [selectedProjectStages, setSelectedProjectStages] = useState<Array<"seed" | "sprout" | "semi" | "song">>([]);
@@ -398,9 +392,6 @@ export function IdeaListScreen() {
   const visibleIdeasCount = listIdeas.filter((idea) => !isIdeaEffectivelyHidden(idea)).length;
   const ideasHeaderMeta = [
     `${visibleIdeasCount} idea${visibleIdeasCount === 1 ? "" : "s"}`,
-    childCollections.length > 0
-      ? `${childCollections.length} subcollection${childCollections.length === 1 ? "" : "s"}`
-      : null,
     hasActivityRangeFilter ? "activity slice" : null,
   ]
     .filter((value): value is string => !!value)
@@ -885,7 +876,6 @@ export function IdeaListScreen() {
     return `You are copying ${itemNames.length} item${itemNames.length > 1 ? "s" : ""} (${displayNames}${remainder}) into the same collection they already belong to. This will create duplicates. Continue?`;
   })();
 
-  const canCreateSubcollection = !currentCollection?.parentCollectionId;
   const collectionAncestors = useMemo(
     () =>
       activeWorkspace && currentCollection
@@ -1053,24 +1043,12 @@ export function IdeaListScreen() {
         currentCollection={currentCollection}
         ideasHeaderMeta={ideasHeaderMeta}
         searchQuery={searchQuery}
-        childCollections={childCollections}
-        subcollectionsExpanded={subcollectionsExpanded}
         hasActivityRangeFilter={hasActivityRangeFilter}
         activityLabel={activityLabel}
         collectionId={collectionId}
         clipClipboard={clipClipboard}
         duplicateWarningText={duplicateWarningText}
         onSearchQueryChange={setSearchQuery}
-        onSearchFocus={() => {
-          if (subcollectionsExpanded) {
-            setSubcollectionsExpanded(false);
-          }
-        }}
-        onToggleSubcollectionsExpanded={() => setSubcollectionsExpanded((prev) => !prev)}
-        onOpenCollection={(nextCollectionId) =>
-          navigateRoot("CollectionDetail", { collectionId: nextCollectionId })
-        }
-        onOpenCollectionActions={openCollectionActions}
         onClearActivityRange={() => {
           (navigation as any).setParams({
             activityRangeStartTs: undefined,
@@ -1102,6 +1080,15 @@ export function IdeaListScreen() {
         onClearProjectStages={() => setSelectedProjectStages([])}
         onLyricsFilterModeChange={setLyricsFilterMode}
       />
+      <IdeaListNestedCollectionsSection
+        childCollections={childCollections}
+        expanded={nestedCollectionsExpanded}
+        onToggleExpanded={() => setNestedCollectionsExpanded((prev) => !prev)}
+        onOpenCollection={(nextCollectionId) =>
+          navigateRoot("CollectionDetail", { collectionId: nextCollectionId })
+        }
+        onOpenCollectionActions={openCollectionActions}
+      />
       <IdeaListSelectionZone
         listSelectionMode={listSelectionMode}
         selectedHiddenIdeaIds={selectedHiddenIdeaIds}
@@ -1110,7 +1097,6 @@ export function IdeaListScreen() {
         selectableIdeaIds={selectableIdeaIds}
         selectedHiddenOnly={selectedHiddenOnly}
         selectedInteractiveIdeasCount={selectedInteractiveIdeas.length}
-        canCreateSubcollection={canCreateSubcollection}
         onCreateProjectFromSelection={createProjectFromSelection}
         onPlaySelected={() => {
           void playSelectedIdeas();
@@ -1122,10 +1108,6 @@ export function IdeaListScreen() {
         onAddProject={() => {
           appActions.addIdea(collectionId);
           navigateRoot("IdeaDetail");
-        }}
-        onAddSubcollection={() => {
-          setSubcollectionDraft("");
-          setSubcollectionModalOpen(true);
         }}
         onQuickRecord={() => {
           appActions.quickRecordIdea(collectionId);
@@ -1200,28 +1182,6 @@ export function IdeaListScreen() {
         saveLabel={isImporting ? "Importing..." : "Import"}
         saveDisabled={isImporting}
         cancelDisabled={isImporting}
-      />
-
-      <QuickNameModal
-        visible={subcollectionModalOpen}
-        title="New Subcollection"
-        draftValue={subcollectionDraft}
-        placeholderValue={buildDefaultSubcollectionTitle(childCollections.length)}
-        onChangeDraft={setSubcollectionDraft}
-        onCancel={() => {
-          setSubcollectionModalOpen(false);
-          setSubcollectionDraft("");
-        }}
-        onSave={() => {
-          if (!activeWorkspaceId || !collectionId) return;
-          const title = subcollectionDraft.trim() || buildDefaultSubcollectionTitle(childCollections.length);
-          const nextCollectionId = addCollection(activeWorkspaceId, title, collectionId);
-          setSubcollectionModalOpen(false);
-          setSubcollectionDraft("");
-          navigateRoot("CollectionDetail", { collectionId: nextCollectionId });
-        }}
-        helperText={`Subcollections help separate ideas inside ${currentCollection.title} without mixing them into the main list.`}
-        saveLabel="Create"
       />
 
       <CollectionMoveModal

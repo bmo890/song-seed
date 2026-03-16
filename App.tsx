@@ -22,7 +22,7 @@ import { SettingsScreen } from "./src/components/SettingsScreen";
 import { RevisitScreen } from "./src/components/RevisitScreen";
 import { TunerScreen } from "./src/components/TunerScreen";
 import { MetronomeScreen } from "./src/components/MetronomeScreen";
-import { getCollectionById } from "./src/utils";
+import { getCollectionAncestors, getCollectionById } from "./src/utils";
 import {
   getRecentCollectionsForWorkspace,
   resolveStartupWorkspaceId,
@@ -106,13 +106,17 @@ function DrawerContent({ navigation, state }: DrawerContentComponentProps) {
     null;
   const currentCollection =
     currentCollectionId && activeWorkspace ? getCollectionById(activeWorkspace, currentCollectionId) : null;
+  const currentCollectionRootId =
+    activeWorkspace && currentCollection
+      ? getCollectionAncestors(activeWorkspace, currentCollection.id)[0]?.id ?? currentCollection.id
+      : null;
   const recentCollections = activeWorkspace
     ? getRecentCollectionsForWorkspace(activeWorkspace, collectionLastOpenedAt, 2).map((entry) => ({
         id: entry.collection.id,
         title: entry.collection.title,
         level: entry.level,
-        meta: entry.pathLabel,
-        active: entry.collection.id === currentCollection?.id,
+        meta: entry.pathLabel ?? undefined,
+        active: entry.collection.id === currentCollectionRootId,
       }))
     : [];
 

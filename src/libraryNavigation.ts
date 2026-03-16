@@ -28,8 +28,8 @@ export type WorkspaceCollectionBrowseEntry = {
 
 export type RecentWorkspaceCollection = {
   collection: Collection;
-  level: "collection" | "subcollection";
-  pathLabel: string;
+  level: "collection";
+  pathLabel: string | null;
   recentAt: number;
 };
 
@@ -313,17 +313,41 @@ export function getRecentCollectionsForWorkspace(
   limit = 2
 ) {
   return workspace.collections
-    .map((collection) => ({
-      collection,
-      level: collection.parentCollectionId ? ("subcollection" as const) : ("collection" as const),
-      pathLabel: buildCollectionPathLabel(workspace, collection.id),
-      recentAt: Math.max(
-        collectionLastOpenedAt[collection.id] ?? 0,
-        getCollectionLastWorkedAt(workspace, collection.id)
-      ),
-    }))
+    .filter((collection) => !collection.parentCollectionId)
+    .map((collection) => {
+      const scopeIds = getCollectionScopeIds(workspace, collection.id);
+      const scopedCollections = workspace.collections.filter((candidate) => scopeIds.has(candidate.id));
+      const scopedRecent = scopedCollections
+        .map((candidate) => ({
+          collection: candidate,
+          recentAt: Math.max(
+            collectionLastOpenedAt[candidate.id] ?? 0,
+            getCollectionLastWorkedAt(workspace, candidate.id)
+          ),
+        }))
+        .sort(
+          (a, b) =>
+            b.recentAt - a.recentAt ||
+            compareStringsAsc(a.collection.title, b.collection.title)
+        );
+      const topRecent = scopedRecent[0];
+
+      return {
+        collection,
+        level: "collection" as const,
+        pathLabel:
+          topRecent && topRecent.collection.id !== collection.id
+            ? buildCollectionPathLabel(workspace, topRecent.collection.id)
+            : null,
+        recentAt: Math.max(
+          collectionLastOpenedAt[collection.id] ?? 0,
+          getCollectionLastWorkedAt(workspace, collection.id),
+          topRecent?.recentAt ?? 0
+        ),
+      };
+    })
     .filter((item) => item.recentAt > 0)
-    .sort((a, b) => b.recentAt - a.recentAt || compareStringsAsc(a.pathLabel, b.pathLabel))
+    .sort((a, b) => b.recentAt - a.recentAt || compareStringsAsc(a.collection.title, b.collection.title))
     .slice(0, limit);
 }
 
