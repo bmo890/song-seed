@@ -114,12 +114,12 @@ export function IdeaHeader({
             <View style={styles.songDetailNavRow}>
                 <View style={styles.songDetailNavLead}>
                     <Pressable
-                        style={({ pressed }) => [styles.hamburgerBtn, pressed ? styles.pressDown : null]}
-                        onPress={() => ((rootNavigation ?? (navigation as any)) as any).openDrawer?.()}
+                        style={({ pressed }) => [styles.backBtn, pressed ? styles.pressDown : null]}
+                        onPress={() => navigation.goBack()}
                     >
-                        <Text style={styles.sideNavLabel}>☰</Text>
+                        <Text style={styles.backBtnText}>Back</Text>
                     </Pressable>
-                {showCompactTitle ? (
+                    {showCompactTitle ? (
                         <View style={styles.songDetailCompactTitleWrap}>
                             <Ionicons name={titleIcon} size={15} color={titleIconColor} />
                             <Text style={styles.songDetailNavCompactTitle} numberOfLines={1}>
