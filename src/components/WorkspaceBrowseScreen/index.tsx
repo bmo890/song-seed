@@ -6,6 +6,7 @@ import { StatusBar as ExpoStatusBar } from "expo-status-bar";
 import { useNavigation } from "@react-navigation/native";
 import { styles } from "../../styles";
 import { useStore } from "../../state/useStore";
+import { appActions } from "../../state/actions";
 import { ScreenHeader } from "../common/ScreenHeader";
 import { AppBreadcrumbs } from "../common/AppBreadcrumbs";
 import { PageIntro } from "../common/PageIntro";
@@ -18,12 +19,26 @@ import { buildCollectionMoveDestinations, getCollectionDeleteScope } from "../..
 import { getCollectionSizeBytes, formatBytes } from "../../utils";
 import { getHierarchyIconColor, getHierarchyIconName } from "../../hierarchy";
 import {
+  buildImportedTitle,
+  importAudioAssets,
+  pickAudioFiles,
+  type ImportedAudioAsset,
+} from "../../services/audioStorage";
+import {
   buildWorkspaceBrowseEntries,
   type CollectionSearchMatchKind,
 } from "../../libraryNavigation";
 
 function buildDefaultCollectionTitle(count: number) {
   return `Collection ${count + 1}`;
+}
+
+function buildImportedCollectionTitle(assets: ImportedAudioAsset[], collectionCount: number) {
+  if (assets.length === 1) {
+    return buildImportedTitle(assets[0]?.name);
+  }
+
+  return buildDefaultCollectionTitle(collectionCount);
 }
 
 export function WorkspaceBrowseScreen() {
@@ -51,6 +66,10 @@ export function WorkspaceBrowseScreen() {
   const [searchQuery, setSearchQuery] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
   const [draftTitle, setDraftTitle] = useState("");
+  const [importCollectionModalOpen, setImportCollectionModalOpen] = useState(false);
+  const [importCollectionAssets, setImportCollectionAssets] = useState<ImportedAudioAsset[]>([]);
+  const [importCollectionDraft, setImportCollectionDraft] = useState("");
+  const [isImportingCollection, setIsImportingCollection] = useState(false);
   const [sizeMap, setSizeMap] = useState<Record<string, number>>({});
   const [managedCollectionId, setManagedCollectionId] = useState<string | null>(null);
   const [collectionActionsOpen, setCollectionActionsOpen] = useState(false);
@@ -183,6 +202,86 @@ export function WorkspaceBrowseScreen() {
     setManagedCollectionId(null);
   };
 
+  const openAddCollectionFlow = () => {
+    Alert.alert("Add collection", "Choose how to start this collection.", [
+      {
+        text: "New Collection",
+        onPress: () => {
+          setDraftTitle("");
+          setModalOpen(true);
+        },
+      },
+      {
+        text: "New Collection from Import",
+        onPress: () => {
+          void openCollectionImportFlow();
+        },
+      },
+      { text: "Cancel", style: "cancel" },
+    ]);
+  };
+
+  const openCollectionImportFlow = async () => {
+    const assets = await pickAudioFiles({ multiple: true });
+    if (assets.length === 0) return;
+
+    setImportCollectionAssets(assets);
+    setImportCollectionDraft("");
+    setImportCollectionModalOpen(true);
+  };
+
+  const resetImportCollectionModal = () => {
+    if (isImportingCollection) return;
+    setImportCollectionModalOpen(false);
+    setImportCollectionAssets([]);
+    setImportCollectionDraft("");
+  };
+
+  const saveImportedCollection = async () => {
+    if (!activeWorkspaceId || importCollectionAssets.length === 0 || isImportingCollection) return;
+
+    const title =
+      importCollectionDraft.trim() ||
+      buildImportedCollectionTitle(importCollectionAssets, topLevelCollections.length);
+    const collectionId = addCollection(activeWorkspaceId, title, null);
+
+    try {
+      setIsImportingCollection(true);
+      const { imported, failed } = await importAudioAssets(
+        importCollectionAssets,
+        (_asset, index) => `audio-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 9)}`
+      );
+
+      imported.forEach((asset) => {
+        appActions.importClipToCollection(collectionId, {
+          title: buildImportedTitle(asset.name),
+          audioUri: asset.audioUri,
+          durationMs: asset.durationMs,
+          waveformPeaks: asset.waveformPeaks,
+        });
+      });
+
+      setImportCollectionModalOpen(false);
+      setImportCollectionAssets([]);
+      setImportCollectionDraft("");
+      navigateRoot("CollectionDetail", { collectionId });
+
+      if (failed.length > 0) {
+        Alert.alert(
+          imported.length > 0 ? "Import finished with issues" : "Import failed",
+          imported.length > 0
+            ? `${imported.length} file${imported.length === 1 ? "" : "s"} imported into ${title}. ${failed.length} file${failed.length === 1 ? "" : "s"} could not be imported.`
+            : `None of the selected files could be imported into ${title}.`
+        );
+      }
+    } catch (error) {
+      console.warn("Collection import error", error);
+      Alert.alert("Import failed", "Could not create that collection from the selected audio.");
+    } finally {
+      setIsImportingCollection(false);
+    }
+  };
+
   return (
     <SafeAreaView style={styles.screen}>
       <ScreenHeader title="Workspace" leftIcon="hamburger" />
@@ -212,12 +311,9 @@ export function WorkspaceBrowseScreen() {
       <View style={styles.inputRow}>
         <Pressable
           style={({ pressed }) => [styles.ideasHeaderSelectBtn, pressed ? styles.pressDown : null]}
-          onPress={() => {
-            setDraftTitle("");
-            setModalOpen(true);
-          }}
+          onPress={openAddCollectionFlow}
         >
-          <Text style={styles.ideasHeaderSelectBtnText}>New Collection</Text>
+          <Text style={styles.ideasHeaderSelectBtnText}>Add</Text>
         </Pressable>
       </View>
 
@@ -324,6 +420,22 @@ export function WorkspaceBrowseScreen() {
         }}
         helperText="Collections hold songs and clips."
         saveLabel="Create"
+      />
+
+      <QuickNameModal
+        visible={importCollectionModalOpen}
+        title="New Collection from Import"
+        draftValue={importCollectionDraft}
+        placeholderValue={buildImportedCollectionTitle(importCollectionAssets, topLevelCollections.length)}
+        onChangeDraft={setImportCollectionDraft}
+        onCancel={resetImportCollectionModal}
+        onSave={() => {
+          void saveImportedCollection();
+        }}
+        helperText={`${importCollectionAssets.length} file${importCollectionAssets.length === 1 ? "" : "s"} will be added as individual clips in the new collection.`}
+        saveLabel={isImportingCollection ? "Importing..." : "Create"}
+        saveDisabled={isImportingCollection}
+        cancelDisabled={isImportingCollection}
       />
 
       <CollectionActionsModal

@@ -2,10 +2,9 @@ import * as FileSystem from "expo-file-system/legacy";
 import { strFromU8, strToU8, unzipSync, zipSync } from "fflate";
 import type { Workspace, WorkspaceArchiveState } from "../types";
 import { getArchiveFileExtension, sanitizeArchiveSegment } from "./audioStorage";
+import { SONG_SEED_WORKSPACE_ARCHIVE_DIR } from "./storagePaths";
 
 const WORKSPACE_ARCHIVE_SCHEMA_VERSION = 1;
-const SONG_SEED_ROOT = `${FileSystem.documentDirectory ?? ""}songseed`;
-const SONG_SEED_WORKSPACE_ARCHIVE_DIR = `${SONG_SEED_ROOT}/workspace-archives`;
 
 type ArchiveableMediaFile = {
     archivePath: string;

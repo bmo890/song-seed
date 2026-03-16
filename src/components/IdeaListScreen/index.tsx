@@ -22,7 +22,14 @@ import { useStore } from "../../state/useStore";
 import { appActions } from "../../state/actions";
 import { createEmptyProjectLyrics } from "../../state/dataSlice";
 import { useInlinePlayer } from "../../hooks/useInlinePlayer";
-import { buildImportedTitle, importAudioAsset, pickSingleAudioFile, shareAudioFile, type ImportedAudioAsset } from "../../services/audioStorage";
+import {
+  buildImportedTitle,
+  importAudioAssets,
+  importAudioAsset,
+  pickAudioFiles,
+  shareAudioFile,
+  type ImportedAudioAsset,
+} from "../../services/audioStorage";
 import {
   buildDefaultIdeaTitle,
   ensureUniqueIdeaTitle,
@@ -40,6 +47,10 @@ import {
   getIdeaUpdatedAt,
   usesIdeaTimelineDividers,
 } from "../../ideaSort";
+
+function buildImportedProjectTitle(assets: ImportedAudioAsset[]) {
+  return buildImportedTitle(assets[0]?.name);
+}
 
 export function IdeaListScreen() {
   const navigation = useNavigation();
@@ -108,7 +119,8 @@ export function IdeaListScreen() {
   const [editClipId, setEditClipId] = useState<string | null>(null);
   const [editClipDraft, setEditClipDraft] = useState("");
   const [importModalOpen, setImportModalOpen] = useState(false);
-  const [importAsset, setImportAsset] = useState<ImportedAudioAsset | null>(null);
+  const [importAssets, setImportAssets] = useState<ImportedAudioAsset[]>([]);
+  const [importMode, setImportMode] = useState<"single-clip" | "song-project" | null>(null);
   const [importDraft, setImportDraft] = useState("");
   const [isImporting, setIsImporting] = useState(false);
   const [managedCollectionId, setManagedCollectionId] = useState<string | null>(null);
@@ -809,7 +821,8 @@ export function IdeaListScreen() {
   function resetImportModal() {
     if (isImporting) return;
     setImportModalOpen(false);
-    setImportAsset(null);
+    setImportAssets([]);
+    setImportMode(null);
     setImportDraft("");
   }
 
@@ -819,39 +832,130 @@ export function IdeaListScreen() {
       return;
     }
 
-    const asset = await pickSingleAudioFile();
-    if (!asset) return;
+    const assets = await pickAudioFiles({ multiple: true });
+    if (assets.length === 0) return;
 
-    setImportAsset(asset);
-    setImportDraft("");
-    setImportModalOpen(true);
+    if (assets.length === 1) {
+      setImportAssets(assets);
+      setImportMode("single-clip");
+      setImportDraft("");
+      setImportModalOpen(true);
+      return;
+    }
+
+    Alert.alert(
+      "Import audio",
+      `Choose how to add ${assets.length} files into ${currentCollection.title}.`,
+      [
+        {
+          text: "Import as individual clips",
+          onPress: () => {
+            void importAssetsAsIndividualClips(assets);
+          },
+        },
+        {
+          text: "Import as song project",
+          onPress: () => {
+            setImportAssets(assets);
+            setImportMode("song-project");
+            setImportDraft("");
+            setImportModalOpen(true);
+          },
+        },
+        { text: "Cancel", style: "cancel" },
+      ]
+    );
   }
 
-  async function saveImportedAudio() {
-    if (!collectionId || !importAsset || isImporting) return;
+  async function importAssetsAsIndividualClips(assets: ImportedAudioAsset[]) {
+    if (!collectionId || assets.length === 0 || isImporting) return;
 
     try {
       setIsImporting(true);
-      const importedAudio = await importAudioAsset(
-        importAsset,
-        `audio-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
+      const { imported, failed } = await importAudioAssets(
+        assets,
+        (_asset, index) => `audio-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 9)}`
       );
-      const fallbackTitle = buildImportedTitle(importAsset.name);
-      const finalTitle = importDraft.trim() || fallbackTitle;
 
-      appActions.importClipToCollection(collectionId, {
-        title: finalTitle,
-        audioUri: importedAudio.audioUri,
-        durationMs: importedAudio.durationMs,
-        waveformPeaks: importedAudio.waveformPeaks,
+      imported.forEach((asset) => {
+        appActions.importClipToCollection(collectionId, {
+          title: buildImportedTitle(asset.name),
+          audioUri: asset.audioUri,
+          durationMs: asset.durationMs,
+          waveformPeaks: asset.waveformPeaks,
+        });
       });
 
-      setImportModalOpen(false);
-      setImportAsset(null);
-      setImportDraft("");
+      if (failed.length > 0) {
+        Alert.alert(
+          imported.length > 0 ? "Import finished with issues" : "Import failed",
+          imported.length > 0
+            ? `${imported.length} file${imported.length === 1 ? "" : "s"} imported as individual clips. ${failed.length} file${failed.length === 1 ? "" : "s"} could not be imported.`
+            : "None of the selected files could be imported."
+        );
+      }
     } catch (error) {
       console.warn("Import audio error", error);
-      Alert.alert("Import failed", "Could not import that audio file.");
+      Alert.alert("Import failed", "Could not import those audio files.");
+    } finally {
+      setIsImporting(false);
+    }
+  }
+
+  async function saveImportedAudio() {
+    if (!collectionId || importAssets.length === 0 || !importMode || isImporting) return;
+
+    try {
+      setIsImporting(true);
+      if (importMode === "single-clip") {
+        const importAsset = importAssets[0]!;
+        const importedAudio = await importAudioAsset(
+          importAsset,
+          `audio-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
+        );
+        const fallbackTitle = buildImportedTitle(importAsset.name);
+        const finalTitle = importDraft.trim() || fallbackTitle;
+
+        appActions.importClipToCollection(collectionId, {
+          title: finalTitle,
+          audioUri: importedAudio.audioUri,
+          durationMs: importedAudio.durationMs,
+          waveformPeaks: importedAudio.waveformPeaks,
+        });
+      } else {
+        const { imported, failed } = await importAudioAssets(
+          importAssets,
+          (_asset, index) => `audio-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 9)}`
+        );
+        const projectTitle = importDraft.trim() || buildImportedProjectTitle(importAssets);
+
+        if (imported.length === 0) {
+          Alert.alert("Import failed", "None of the selected files could be imported.");
+          return;
+        }
+
+        appActions.importProjectToCollection(collectionId, {
+          title: projectTitle,
+          clips: imported.map((asset) => ({
+            title: buildImportedTitle(asset.name),
+            audioUri: asset.audioUri,
+            durationMs: asset.durationMs,
+            waveformPeaks: asset.waveformPeaks,
+          })),
+        });
+
+        if (failed.length > 0) {
+          Alert.alert(
+            "Import finished with issues",
+            `${imported.length} file${imported.length === 1 ? "" : "s"} imported into the song project. ${failed.length} file${failed.length === 1 ? "" : "s"} could not be imported.`
+          );
+        }
+      }
+
+      resetImportModal();
+    } catch (error) {
+      console.warn("Import audio error", error);
+      Alert.alert("Import failed", "Could not import that audio.");
     } finally {
       setIsImporting(false);
     }
@@ -1170,15 +1274,25 @@ export function IdeaListScreen() {
 
       <QuickNameModal
         visible={importModalOpen}
-        title="Import audio"
+        title={importMode === "song-project" ? "Import as Song Project" : "Import Audio"}
         draftValue={importDraft}
-        placeholderValue={importAsset ? buildImportedTitle(importAsset.name) : ""}
+        placeholderValue={
+          importMode === "song-project"
+            ? buildImportedProjectTitle(importAssets)
+            : importAssets[0]
+              ? buildImportedTitle(importAssets[0].name)
+              : ""
+        }
         onChangeDraft={setImportDraft}
         onCancel={resetImportModal}
         onSave={() => {
           void saveImportedAudio();
         }}
-        helperText={`Destination: ${currentCollection.title} as a new clip card.\nFile: ${importAsset?.name ?? "Selected audio"}`}
+        helperText={
+          importMode === "song-project"
+            ? `Destination: ${currentCollection.title} as one new song.\nFiles: ${importAssets.length} selected audio file${importAssets.length === 1 ? "" : "s"}`
+            : `Destination: ${currentCollection.title} as a new clip card.\nFile: ${importAssets[0]?.name ?? "Selected audio"}`
+        }
         saveLabel={isImporting ? "Importing..." : "Import"}
         saveDisabled={isImporting}
         cancelDisabled={isImporting}

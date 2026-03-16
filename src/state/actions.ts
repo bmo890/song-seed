@@ -309,6 +309,79 @@ export const appActions = {
         return { ideaId, clipId };
     },
 
+    importProjectToCollection: (
+        collectionId: string,
+        payload: {
+            title: string;
+            clips: Array<{ title: string; audioUri: string; durationMs?: number; waveformPeaks?: number[] }>;
+        }
+    ) => {
+        const state = useStore.getState();
+        const targetWorkspace = state.workspaces.find((workspace) =>
+            workspace.collections.some((collection) => collection.id === collectionId)
+        );
+        if (!targetWorkspace) {
+            throw new Error("Target collection not found.");
+        }
+        if (payload.clips.length === 0) {
+            throw new Error("No imported audio available for this song.");
+        }
+
+        const now = Date.now();
+        const ideaId = buildIdeaId();
+        const projectTitle = ensureUniqueIdeaTitle(
+            payload.title,
+            targetWorkspace.ideas.map((idea) => idea.title)
+        );
+        const clips = payload.clips.map((clip, index) => ({
+            id: buildClipId(),
+            title: clip.title,
+            notes: "",
+            createdAt: now + index,
+            isPrimary: index === 0,
+            audioUri: clip.audioUri,
+            durationMs: clip.durationMs,
+            waveformPeaks: clip.waveformPeaks,
+        }));
+
+        const importedIdea: SongIdea = {
+            id: ideaId,
+            title: projectTitle,
+            notes: "",
+            status: "seed",
+            completionPct: 0,
+            kind: "project",
+            collectionId,
+            createdAt: now,
+            lastActivityAt: now + clips.length - 1,
+            clips,
+            lyrics: createEmptyProjectLyrics(),
+        };
+
+        useStore.setState((store) => ({
+            workspaces: store.workspaces.map((workspace) =>
+                workspace.id === targetWorkspace.id
+                    ? { ...workspace, ideas: [importedIdea, ...workspace.ideas] }
+                    : workspace
+            ),
+        }));
+        state.logActivityEvents([
+            {
+                at: now,
+                workspaceId: targetWorkspace.id,
+                collectionId,
+                ideaId,
+                ideaKind: "song",
+                ideaTitle: importedIdea.title,
+                clipId: clips[0]?.id ?? null,
+                metric: "created",
+                source: "import",
+            },
+        ]);
+        state.markRecentlyAdded([ideaId]);
+        return { ideaId, clipIds: clips.map((clip) => clip.id) };
+    },
+
     importClipToProject: (
         projectId: string,
         payload: { title: string; audioUri: string; durationMs?: number; waveformPeaks?: number[]; isPrimary?: boolean }
