@@ -21,7 +21,7 @@ import {
 } from "../libraryNavigation";
 
 export type AppStore = DataSlice & SelectionSlice & RecordingSlice & PlayerSlice;
-type PersistedAppStore = Pick<
+export type PersistedAppStore = Pick<
     AppStore,
     | "workspaces"
     | "activityEvents"
@@ -40,8 +40,8 @@ type PersistedAppStore = Pick<
     | "primarySort"
 >;
 
-const STORE_NAME = "song-seed-store";
-const STORE_VERSION = 8;
+export const STORE_NAME = "song-seed-store";
+export const STORE_VERSION = 8;
 
 function sanitizeTimestampMap(value: unknown, validIds: Set<string>) {
     if (!value || typeof value !== "object") return {};
@@ -103,6 +103,26 @@ function sanitizePersistedState(state?: Partial<PersistedAppStore>): PersistedAp
     };
 }
 
+export function buildPersistedAppStoreSnapshot(state: AppStore): PersistedAppStore {
+    return {
+        workspaces: state.workspaces,
+        activityEvents: state.activityEvents,
+        activeWorkspaceId: state.activeWorkspaceId,
+        primaryWorkspaceId: state.primaryWorkspaceId,
+        lastUsedWorkspaceId: state.lastUsedWorkspaceId,
+        workspaceStartupPreference: state.workspaceStartupPreference,
+        workspaceListOrder: state.workspaceListOrder,
+        workspaceLastOpenedAt: state.workspaceLastOpenedAt,
+        collectionLastOpenedAt: state.collectionLastOpenedAt,
+        playlists: state.playlists,
+        preferredRecordingInputId: state.preferredRecordingInputId,
+        ideasFilter: state.ideasFilter,
+        ideasSort: state.ideasSort,
+        primaryFilter: state.primaryFilter,
+        primarySort: state.primarySort,
+    };
+}
+
 export const useStore = create<AppStore>()(
     persist(
         (...a) => ({
@@ -117,23 +137,7 @@ export const useStore = create<AppStore>()(
             storage: createJSONStorage(() => AsyncStorage),
             migrate: (persistedState) =>
                 sanitizePersistedState(persistedState as Partial<PersistedAppStore> | undefined),
-            partialize: (state) => ({
-                workspaces: state.workspaces,
-                activityEvents: state.activityEvents,
-                activeWorkspaceId: state.activeWorkspaceId,
-                primaryWorkspaceId: state.primaryWorkspaceId,
-                lastUsedWorkspaceId: state.lastUsedWorkspaceId,
-                workspaceStartupPreference: state.workspaceStartupPreference,
-                workspaceListOrder: state.workspaceListOrder,
-                workspaceLastOpenedAt: state.workspaceLastOpenedAt,
-                collectionLastOpenedAt: state.collectionLastOpenedAt,
-                playlists: state.playlists,
-                preferredRecordingInputId: state.preferredRecordingInputId,
-                ideasFilter: state.ideasFilter,
-                ideasSort: state.ideasSort,
-                primaryFilter: state.primaryFilter,
-                primarySort: state.primarySort,
-            }),
+            partialize: (state) => buildPersistedAppStoreSnapshot(state),
             merge: (persistedState, currentState) => ({
                 ...currentState,
                 ...sanitizePersistedState(persistedState as Partial<PersistedAppStore> | undefined),

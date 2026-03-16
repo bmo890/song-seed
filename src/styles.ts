@@ -3468,6 +3468,42 @@ export const styles = StyleSheet.create({
     lineHeight: 18,
     color: "#64748b",
   },
+  settingsStoragePrimaryValue: {
+    fontSize: 28,
+    lineHeight: 32,
+    color: "#0f172a",
+    fontWeight: "700",
+  },
+  settingsStorageMetricRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  settingsStorageMetricCopy: {
+    flex: 1,
+    gap: 2,
+  },
+  settingsStorageMetricValue: {
+    fontSize: 14,
+    lineHeight: 18,
+    color: "#0f172a",
+    fontWeight: "700",
+    textAlign: "right",
+  },
+  settingsStoragePathRow: {
+    gap: 4,
+  },
+  settingsStoragePathValue: {
+    fontSize: 12,
+    lineHeight: 17,
+    color: "#475569",
+  },
+  settingsStorageNote: {
+    fontSize: 12,
+    lineHeight: 17,
+    color: "#64748b",
+  },
   settingsActionRow: {
     flexDirection: "row",
     alignItems: "center",

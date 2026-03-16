@@ -4,10 +4,8 @@ import { createAudioPlayer } from "expo-audio";
 import { Platform, Share } from "react-native";
 import { extractAudioAnalysis } from "@siteed/expo-audio-studio";
 import { buildStaticWaveform, metersToWaveformPeaks } from "../utils";
+import { SONG_SEED_AUDIO_DIR, SONG_SEED_SHARE_DIR } from "./storagePaths";
 
-const SONG_SEED_ROOT = `${FileSystem.documentDirectory ?? ""}songseed`;
-const SONG_SEED_AUDIO_DIR = `${SONG_SEED_ROOT}/audio`;
-const SONG_SEED_SHARE_DIR = `${SONG_SEED_ROOT}/share`;
 export const MAX_DETAILED_AUDIO_ANALYSIS_DURATION_MS = 30 * 60 * 1000;
 
 export type ImportedAudioAsset = {
