@@ -317,19 +317,6 @@ export function IdeaDetailScreen() {
           ? [styles.badge, styles.statusSprout, styles.statusSproutText]
           : [styles.badge, styles.statusSeed, styles.statusSeedText];
 
-  const songProgressStrip =
-    selectedIdea.kind === "project" ? (
-      <View style={styles.songDetailProgressStrip}>
-        <Text style={styles.songDetailProgressStripLabel}>Progress:</Text>
-        <Text style={styles.songDetailProgressStripPercent}>
-          {selectedIdea.completionPct}%
-        </Text>
-        <Text style={projectStatusStyle}>
-          {selectedIdea.status === "song" ? "SONG" : selectedIdea.status.toUpperCase()}
-        </Text>
-      </View>
-    ) : null;
-
   const songTabs =
     selectedIdea.kind === "project" && !isEditMode ? (
       <View style={styles.songDetailSongTabs}>
@@ -377,9 +364,7 @@ export function IdeaDetailScreen() {
             completionPct={selectedIdea.completionPct}
           />
         </View>
-      ) : (
-        songProgressStrip
-      )
+      ) : null
     ) : (
       <View style={styles.songDetailTopStack}>
         <IdeaNotes isEditMode={isEditMode} notes={selectedIdea.notes} />

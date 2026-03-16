@@ -54,26 +54,9 @@ export function GlobalMediaDock({
   const hasRecordingSession =
     !!recordingIdea && (recorder.isRecording || recorder.isPaused);
 
-  const activePlayback = (() => {
-    if (playerTarget && activeRouteName !== "Player") {
-      const idea = allIdeas.find((item) => item.id === playerTarget.ideaId);
-      const clip = idea?.clips.find((item) => item.id === playerTarget.clipId);
-      if (idea && clip) {
-        return {
-          kind: "player",
-          ideaId: idea.id,
-          clipId: clip.id,
-          title: clip.title,
-          subtitle: idea.title,
-          isPlaying: playerIsPlaying,
-          positionMs: playerPositionMs,
-          durationMs: playerDurationMs || clip.durationMs || 0,
-        } satisfies PlaybackDockState;
-      }
-    }
-
-    return null;
-  })();
+  // Popup playback dock disabled until queue/playlist functionality is built.
+  // When leaving the Player screen, clear the player state instead of showing a dock.
+  const activePlayback: PlaybackDockState | null = null;
 
   if (activeRouteName !== "Recording" && hasRecordingSession && recordingIdea) {
     const statusLabel = recorder.isPaused ? "Paused" : "Recording";
@@ -245,7 +228,7 @@ export function GlobalMediaDock({
               onPress={(evt) => {
                 evt.stopPropagation();
                 if (activePlayback.kind === "player") {
-                  useStore.getState().requestPlayerClose();
+                  useStore.getState().clearPlayerQueue();
                   return;
                 }
                 useStore.getState().requestInlineStop();

@@ -1,5 +1,5 @@
 import React, { ReactNode, useEffect, useMemo, useRef, useState } from "react";
-import { Alert, Animated } from "react-native";
+import { Alert, Animated, BackHandler } from "react-native";
 import { useIsFocused, useNavigation } from "@react-navigation/native";
 import { ClipActionsSheet } from "../modals/ClipActionsSheet";
 import { useStore } from "../../state/useStore";
@@ -191,6 +191,15 @@ export function ClipList({
     didBlurCleanupRef.current = true;
     void inlinePlayer.resetInlinePlayer();
   }, [inlinePlayer, isFocused]);
+
+  useEffect(() => {
+    if (!inlinePlayer.inlineTarget) return;
+    const handler = BackHandler.addEventListener("hardwareBackPress", () => {
+      void inlinePlayer.resetInlinePlayer();
+      return true;
+    });
+    return () => handler.remove();
+  }, [inlinePlayer, inlinePlayer.inlineTarget]);
 
   useEffect(() => {
     if (isParentPicking && viewMode !== "evolution") {

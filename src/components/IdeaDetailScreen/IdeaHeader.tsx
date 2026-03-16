@@ -224,12 +224,33 @@ export function IdeaHeader({
                         />
                     </>
                 ) : (
-                    <View style={styles.songDetailPageTitleWithIcon}>
-                        <Ionicons name={titleIcon} size={14} color={titleIconColor} />
-                        <Text style={styles.songDetailPageTitleLarge} numberOfLines={3}>
-                            {selectedIdea.title}
-                        </Text>
-                    </View>
+                    <>
+                        <View style={styles.songDetailPageTitleWithIcon}>
+                            <Ionicons name={titleIcon} size={14} color={titleIconColor} />
+                            <Text style={styles.songDetailPageTitleLarge} numberOfLines={3}>
+                                {selectedIdea.title}
+                            </Text>
+                        </View>
+                        {isProject ? (
+                            <View style={styles.songDetailProgressStrip}>
+                                <Text style={styles.songDetailProgressStripLabel}>Progress:</Text>
+                                <Text style={styles.songDetailProgressStripPercent}>
+                                    {selectedIdea.completionPct}%
+                                </Text>
+                                <Text style={
+                                    selectedIdea.status === "song"
+                                        ? [styles.badge, styles.statusSong, styles.statusSongText]
+                                        : selectedIdea.status === "semi"
+                                            ? [styles.badge, styles.statusSemi, styles.statusSemiText]
+                                            : selectedIdea.status === "sprout"
+                                                ? [styles.badge, styles.statusSprout, styles.statusSproutText]
+                                                : [styles.badge, styles.statusSeed, styles.statusSeedText]
+                                }>
+                                    {selectedIdea.status === "song" ? "SONG" : selectedIdea.status.toUpperCase()}
+                                </Text>
+                            </View>
+                        ) : null}
+                    </>
                 )}
             </Animated.View>
 

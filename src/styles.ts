@@ -15,7 +15,7 @@ export const styles = StyleSheet.create({
   },
   songDetailHeader: {
     marginTop: 2,
-    marginBottom: 6,
+    marginBottom: 0,
   },
   songDetailNavRow: {
     flexDirection: "row",
@@ -122,7 +122,7 @@ export const styles = StyleSheet.create({
   },
   songDetailTitleBlock: {
     marginTop: 0,
-    gap: 4,
+    gap: 1,
   },
   songDetailTitleBlockHidden: {
     display: "none",
@@ -169,7 +169,7 @@ export const styles = StyleSheet.create({
   },
   songDetailPageTitleWithIcon: {
     flexDirection: "row",
-    alignItems: "flex-start",
+    alignItems: "center",
     gap: 8,
   },
   songDetailTypeLabel: {
@@ -764,7 +764,8 @@ export const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    paddingVertical: 6,
+    paddingTop: 0,
+    marginLeft: 22,
   },
   songDetailProgressStripLabel: {
     fontSize: 12,
@@ -780,8 +781,10 @@ export const styles = StyleSheet.create({
   },
   songDetailSongTabs: {
     flexDirection: "row",
+    marginTop: -2,
     marginBottom: 4,
-    padding: 4,
+    paddingHorizontal: 4,
+    paddingVertical: 3,
     backgroundColor: "#e2e8f0",
     borderRadius: 8,
   },
@@ -1717,10 +1720,10 @@ export const styles = StyleSheet.create({
   songDetailVersionRow: {
     flexDirection: "row",
     alignItems: "stretch",
-    gap: 8,
+    gap: 10,
   },
   songDetailVersionLead: {
-    width: 42,
+    width: 46,
     alignItems: "center",
     justifyContent: "space-between",
     alignSelf: "stretch",
@@ -1731,7 +1734,7 @@ export const styles = StyleSheet.create({
   },
   songDetailVersionLeadDurationSlot: {
     width: "100%",
-    minHeight: 12,
+    minHeight: 14,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -1747,6 +1750,7 @@ export const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
     gap: 3,
+    justifyContent: "space-between",
   },
   songDetailVersionTopRow: {
     flexDirection: "row",
@@ -4738,6 +4742,7 @@ export const styles = StyleSheet.create({
   },
   ideasListExpandedStaticWrap: {
     gap: 3,
+    justifyContent: "space-between",
   },
   ideasListExpandedHeaderRow: {
     flexDirection: "row",
@@ -4832,6 +4837,7 @@ export const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
     gap: 3,
+    justifyContent: "space-between",
   },
   ideasListCardMainCompact: {
     gap: 4,
