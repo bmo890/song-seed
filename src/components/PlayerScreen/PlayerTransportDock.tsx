@@ -1,5 +1,5 @@
 import React from "react";
-import { Pressable, StyleSheet, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
 type Props = {
@@ -13,6 +13,7 @@ type Props = {
   trailingActive?: boolean;
   trailingDisabled?: boolean;
   onTrailingPress?: () => void;
+  speedBadge?: string;
 };
 
 export function PlayerTransportDock({
@@ -26,10 +27,18 @@ export function PlayerTransportDock({
   trailingActive = false,
   trailingDisabled = false,
   onTrailingPress,
+  speedBadge,
 }: Props) {
   return (
     <View style={styles.dock}>
       <View style={styles.row}>
+        <View style={styles.leadingSlot}>
+          {speedBadge ? (
+            <View style={styles.speedBadge}>
+              <Text style={styles.speedBadgeText}>{speedBadge}</Text>
+            </View>
+          ) : null}
+        </View>
         <Pressable
           style={({ pressed }) => [
             styles.sideButton,
@@ -119,6 +128,22 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 3 },
     elevation: 2,
+  },
+  leadingSlot: {
+    width: 44,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  speedBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 6,
+    backgroundColor: "#dbeafe",
+  },
+  speedBadgeText: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#2563eb",
   },
   trailingSlot: {
     width: 44,

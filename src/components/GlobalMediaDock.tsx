@@ -1,11 +1,14 @@
+import { useRef } from "react";
 import { Ionicons } from "@expo/vector-icons";
 import { useSharedAudioRecorder } from "@siteed/expo-audio-studio";
-import { Pressable, Text, View } from "react-native";
+import { GestureResponderEvent, LayoutChangeEvent, Pressable, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRecordingDisplayElapsed } from "../hooks/useRecordingDisplayElapsed";
 import { useStore } from "../state/useStore";
 import { styles } from "../styles";
 import { fmtDuration, fmtTenths } from "../utils";
+
+const DOCK_SPEED_OPTIONS = [0.5, 0.75, 1] as const;
 
 type GlobalMediaDockProps = {
   activeRouteName: string;
@@ -55,6 +58,8 @@ export function GlobalMediaDock({
     !!recordingIdea && (recorder.isRecording || recorder.isPaused);
 
   const inlinePlayerMounted = useStore((s) => s.inlinePlayerMounted);
+  const inlinePlaybackSpeed = useStore((s) => s.inlinePlaybackSpeed);
+  const scrubTrackWidthRef = useRef(0);
 
   // Show the inline playback dock when audio is playing but ClipList is
   // unmounted (e.g. user switched from Takes to Lyrics/Notes tab).
@@ -262,11 +267,50 @@ export function GlobalMediaDock({
           </View>
         </View>
 
-        <View style={styles.miniMediaDockProgressTrack}>
-          <View style={[styles.miniMediaDockProgressFill, { width: `${progressPct}%` }]} />
-        </View>
+        <Pressable
+          style={styles.miniMediaDockScrubWrap}
+          onLayout={(e: LayoutChangeEvent) => {
+            scrubTrackWidthRef.current = e.nativeEvent.layout.width;
+          }}
+          onPress={(e: GestureResponderEvent) => {
+            e.stopPropagation();
+            if (scrubTrackWidthRef.current <= 0 || activePlayback.durationMs <= 0) return;
+            const x = e.nativeEvent.locationX;
+            const pct = Math.max(0, Math.min(1, x / scrubTrackWidthRef.current));
+            const targetMs = Math.round(pct * activePlayback.durationMs);
+            useStore.getState().requestInlineSeek(targetMs);
+          }}
+          hitSlop={{ top: 8, bottom: 8 }}
+        >
+          <View style={styles.miniMediaDockProgressTrack}>
+            <View style={[styles.miniMediaDockProgressFill, { width: `${progressPct}%` }]} />
+          </View>
+        </Pressable>
         <View style={styles.miniMediaDockTimesRow}>
           <Text style={styles.miniMediaDockTime}>{fmtDuration(activePlayback.positionMs)}</Text>
+          {activePlayback.kind === "inline" ? (
+            <Pressable
+              style={({ pressed }) => [
+                styles.miniMediaDockSpeedChip,
+                inlinePlaybackSpeed !== 1 ? styles.miniMediaDockSpeedChipActive : null,
+                pressed ? styles.pressDown : null,
+              ]}
+              onPress={(e) => {
+                e.stopPropagation();
+                const currentIdx = DOCK_SPEED_OPTIONS.indexOf(inlinePlaybackSpeed as any);
+                const nextIdx = (currentIdx + 1) % DOCK_SPEED_OPTIONS.length;
+                useStore.getState().setInlinePlaybackSpeed(DOCK_SPEED_OPTIONS[nextIdx]);
+              }}
+              hitSlop={4}
+            >
+              <Text style={[
+                styles.miniMediaDockSpeedChipText,
+                inlinePlaybackSpeed !== 1 ? styles.miniMediaDockSpeedChipTextActive : null,
+              ]}>
+                {inlinePlaybackSpeed}x
+              </Text>
+            </Pressable>
+          ) : null}
           <Text style={styles.miniMediaDockTime}>{fmtDuration(activePlayback.durationMs)}</Text>
         </View>
       </Pressable>

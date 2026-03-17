@@ -56,6 +56,7 @@ export type DataSlice = {
     ) => { ok: boolean; error?: string };
     deleteCollection: (collectionId: string) => void;
     renameIdeaPreservingActivity: (ideaId: string, nextTitle: string) => void;
+    toggleIdeaFavorite: (ideaId: string) => void;
     logIdeaActivity: (
         ideaId: string,
         metric: ActivityMetric,
@@ -745,6 +746,17 @@ export const createDataSlice: StateCreator<DataSlice & SelectionSlice, [], [], D
                 })),
             };
         });
+    },
+
+    toggleIdeaFavorite: (ideaId) => {
+        set((state) => ({
+            workspaces: state.workspaces.map((workspace) => ({
+                ...workspace,
+                ideas: workspace.ideas.map((idea) =>
+                    idea.id === ideaId ? { ...idea, isFavorite: !idea.isFavorite } : idea
+                ),
+            })),
+        }));
     },
 
     renameIdeaPreservingActivity: (ideaId, nextTitle) => {

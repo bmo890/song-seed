@@ -480,7 +480,7 @@ export function PlayerScreen() {
 
   const practiceRangeLabel =
     practiceLoopRange.end > practiceLoopRange.start
-      ? `${fmtDuration(practiceLoopRange.start)} - ${fmtDuration(practiceLoopRange.end)}`
+      ? `${fmtDuration(practiceLoopRange.start)} → ${fmtDuration(practiceLoopRange.end)}`
       : "No loop";
 
   return (
@@ -551,6 +551,7 @@ export function PlayerScreen() {
                   ? () => setQueueExpanded((value) => !value)
                   : undefined
             }
+            speedBadge={mode === "practice" && Math.abs(playbackSpeed - 1) > 0.001 ? `${playbackSpeed}x` : undefined}
           />
         }
       >
@@ -611,7 +612,25 @@ export function PlayerScreen() {
                         isActive ? screenStyles.markerChipActive : null,
                         pressed ? screenStyles.markerChipPressed : null,
                       ]}
-                      onPress={() => void handleLoopAwareSeek(marker.atMs)}
+                      onPress={() => {
+                        if (practiceLoopEnabled) {
+                          setPracticeLoopRange((prev) => ({
+                            start: marker.atMs,
+                            end: Math.max(prev.end, marker.atMs + 1000),
+                          }));
+                          setLoopPlaybackEngaged(isPlayerPlaying);
+                        }
+                        void handleLoopAwareSeek(marker.atMs);
+                      }}
+                      onLongPress={() => {
+                        if (practiceLoopEnabled) {
+                          setPracticeLoopRange((prev) => ({
+                            start: Math.min(prev.start, marker.atMs),
+                            end: marker.atMs,
+                          }));
+                          setLoopPlaybackEngaged(isPlayerPlaying);
+                        }
+                      }}
                     >
                       <Text style={[screenStyles.markerChipText, isActive ? screenStyles.markerChipTextActive : null]}>
                         {marker.label}
@@ -626,9 +645,24 @@ export function PlayerScreen() {
                   <Text style={screenStyles.practiceLabel}>Loop</Text>
                   <View style={screenStyles.practiceValueRow}>
                     {practiceLoopEnabled ? (
-                      <View style={screenStyles.valuePill}>
-                        <Text style={screenStyles.valuePillText}>{practiceRangeLabel}</Text>
-                      </View>
+                      <>
+                        <View style={screenStyles.valuePill}>
+                          <Text style={screenStyles.valuePillText}>{practiceRangeLabel}</Text>
+                        </View>
+                        <Pressable
+                          style={({ pressed }) => [
+                            screenStyles.resetButton,
+                            pressed ? { opacity: 0.7 } : null,
+                          ]}
+                          onPress={() => {
+                            setPracticeLoopRange(buildDefaultLoopRegion(displayDuration, playerPosition));
+                            setLoopPlaybackEngaged(isPlayerPlaying);
+                          }}
+                          hitSlop={6}
+                        >
+                          <Ionicons name="refresh" size={14} color="#6b7280" />
+                        </Pressable>
+                      </>
                     ) : null}
                     <Pressable
                       style={[
@@ -914,6 +948,14 @@ const screenStyles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
+  },
+  resetButton: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#eceef2",
   },
   toggleShell: {
     width: 52,

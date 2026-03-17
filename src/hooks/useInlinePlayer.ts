@@ -16,8 +16,13 @@ export function useInlinePlayer({ onBeforePlayNew }: Args = {}) {
   const toggleRequestToken = useStore((s) => s.inlineToggleRequestToken);
   const setStoreInlineTarget = useStore((s) => s.setInlineTarget);
   const setInlinePlaybackState = useStore((s) => s.setInlinePlaybackState);
+  const seekRequestToken = useStore((s) => s.inlineSeekRequestToken);
+  const seekTargetMs = useStore((s) => s.inlineSeekTargetMs);
+  const inlinePlaybackSpeed = useStore((s) => s.inlinePlaybackSpeed);
   const handledStopTokenRef = useRef(stopRequestToken);
   const handledToggleTokenRef = useRef(toggleRequestToken);
+  const handledSeekTokenRef = useRef(seekRequestToken);
+  const lastAppliedSpeedRef = useRef(inlinePlaybackSpeed);
 
   const playerOptions = useMemo(() => ({ updateInterval: 100 }), []);
   const player = useAudioPlayer(null, playerOptions);
@@ -56,6 +61,22 @@ export function useInlinePlayer({ onBeforePlayNew }: Args = {}) {
     if (!inlineTarget) return;
     void toggleActiveInlinePlayback();
   }, [inlineTarget, toggleRequestToken]);
+
+  useEffect(() => {
+    if (seekRequestToken === handledSeekTokenRef.current) return;
+    handledSeekTokenRef.current = seekRequestToken;
+    if (!inlineTarget) return;
+    void seekInline(seekTargetMs);
+  }, [seekRequestToken]);
+
+  useEffect(() => {
+    if (inlinePlaybackSpeed !== lastAppliedSpeedRef.current) {
+      lastAppliedSpeedRef.current = inlinePlaybackSpeed;
+      try {
+        (player as any).setPlaybackRate?.(inlinePlaybackSpeed);
+      } catch {}
+    }
+  }, [inlinePlaybackSpeed, player]);
 
   async function resetInlinePlayer() {
     await player.pause();

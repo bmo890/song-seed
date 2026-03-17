@@ -150,6 +150,17 @@ function DrawerContent({ navigation, state }: DrawerContentComponentProps) {
       }))
     : [];
 
+  const favoriteItems = useMemo(
+    () =>
+      workspaces
+        .flatMap((ws) => ws.ideas)
+        .filter((idea) => idea.isFavorite)
+        .sort((a, b) => b.lastActivityAt - a.lastActivityAt)
+        .slice(0, 5)
+        .map((idea) => ({ id: idea.id, title: idea.title, kind: idea.kind })),
+    [workspaces]
+  );
+
   const closeDrawer = () => {
     navigation.closeDrawer();
   };
@@ -159,6 +170,7 @@ function DrawerContent({ navigation, state }: DrawerContentComponentProps) {
       currentRoute={currentRoute}
       workspaceTitle={activeWorkspace?.title ?? null}
       recentCollections={recentCollections}
+      favoriteItems={favoriteItems}
       onGoHome={() => {
         closeDrawer();
         navigation.navigate("Workspaces");
@@ -195,10 +207,14 @@ function DrawerContent({ navigation, state }: DrawerContentComponentProps) {
         closeDrawer();
         navigateRoot("CollectionDetail", { collectionId });
       }}
+      onOpenFavorite={(ideaId) => {
+        closeDrawer();
+        useStore.getState().setSelectedIdeaId(ideaId);
+        navigateRoot("IdeaDetail", { ideaId });
+      }}
       onClose={() => {
         closeDrawer();
       }}
-
     />
   );
 }

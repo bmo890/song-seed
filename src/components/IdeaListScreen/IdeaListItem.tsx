@@ -288,6 +288,21 @@ export function IdeaListItem({
                         {projectProgressLabel}
                     </Text>
                 ) : null}
+                <Pressable
+                    onPress={(e) => {
+                        e.stopPropagation();
+                        void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        useStore.getState().toggleIdeaFavorite(item.id);
+                    }}
+                    hitSlop={8}
+                    style={styles.ideasListFavoriteBtn}
+                >
+                    <Ionicons
+                        name={item.isFavorite ? "star" : "star-outline"}
+                        size={15}
+                        color={item.isFavorite ? "#f59e0b" : "#cbd5e1"}
+                    />
+                </Pressable>
             </View>
         </View>
     );

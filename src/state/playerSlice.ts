@@ -32,6 +32,11 @@ export type PlayerSlice = {
     requestInlineStop: () => void;
     inlinePlayerMounted: boolean;
     setInlinePlayerMounted: (mounted: boolean) => void;
+    inlineSeekRequestToken: number;
+    inlineSeekTargetMs: number;
+    requestInlineSeek: (targetMs: number) => void;
+    inlinePlaybackSpeed: number;
+    setInlinePlaybackSpeed: (speed: number) => void;
 };
 
 export const createPlayerSlice: StateCreator<PlayerSlice> = (set) => ({
@@ -137,4 +142,13 @@ export const createPlayerSlice: StateCreator<PlayerSlice> = (set) => ({
         })),
     inlinePlayerMounted: false,
     setInlinePlayerMounted: (mounted) => set({ inlinePlayerMounted: mounted }),
+    inlineSeekRequestToken: 0,
+    inlineSeekTargetMs: 0,
+    requestInlineSeek: (targetMs) =>
+        set((state) => ({
+            inlineSeekRequestToken: state.inlineSeekRequestToken + 1,
+            inlineSeekTargetMs: targetMs,
+        })),
+    inlinePlaybackSpeed: 1,
+    setInlinePlaybackSpeed: (speed) => set({ inlinePlaybackSpeed: speed }),
 });

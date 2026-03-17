@@ -63,6 +63,7 @@ export type SongIdea = {
   createdAt: number;
   lastActivityAt: number;
   isDraft?: boolean;
+  isFavorite?: boolean;
 };
 
 export type PlaybackQueueItem = { ideaId: string; clipId: string };

@@ -4351,6 +4351,26 @@ export const styles = StyleSheet.create({
     fontWeight: "700",
     fontVariant: ["tabular-nums"],
   },
+  miniMediaDockScrubWrap: {
+    paddingVertical: 4,
+  },
+  miniMediaDockSpeedChip: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    backgroundColor: "#f1f5f9",
+  },
+  miniMediaDockSpeedChipActive: {
+    backgroundColor: "#dbeafe",
+  },
+  miniMediaDockSpeedChipText: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: "#94a3b8",
+  },
+  miniMediaDockSpeedChipTextActive: {
+    color: "#2563eb",
+  },
   miniMediaDockRecordingMetaRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -4874,6 +4894,9 @@ export const styles = StyleSheet.create({
     gap: 2,
     width: 72,
     flexShrink: 0,
+  },
+  ideasListFavoriteBtn: {
+    padding: 2,
   },
   ideasListCardTitleRow: {
     flexDirection: "row",

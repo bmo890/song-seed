@@ -15,6 +15,12 @@ type RecentCollectionLite = {
   active?: boolean;
 };
 
+type FavoriteItemLite = {
+  id: string;
+  title: string;
+  kind: "project" | "clip";
+};
+
 type Props = {
   currentRoute:
     | "home"
@@ -28,6 +34,7 @@ type Props = {
     | null;
   workspaceTitle: string | null;
   recentCollections: RecentCollectionLite[];
+  favoriteItems: FavoriteItemLite[];
   onGoHome: () => void;
   onGoWorkspace: () => void;
   onGoRevisit: () => void;
@@ -37,6 +44,7 @@ type Props = {
   onGoLibrary: () => void;
   onGoSettings: () => void;
   onOpenCollection: (collectionId: string) => void;
+  onOpenFavorite: (ideaId: string) => void;
   onClose: () => void;
 };
 
@@ -51,6 +59,7 @@ export function SideNav({
   currentRoute,
   workspaceTitle,
   recentCollections,
+  favoriteItems,
   onGoHome,
   onGoWorkspace,
   onGoRevisit,
@@ -60,9 +69,11 @@ export function SideNav({
   onGoLibrary,
   onGoSettings,
   onOpenCollection,
+  onOpenFavorite,
   onClose,
 }: Props) {
   const [recentExpanded, setRecentExpanded] = useState(true);
+  const [favoritesExpanded, setFavoritesExpanded] = useState(true);
 
   return (
     <SafeAreaView style={sideNavStyles.shell}>
@@ -99,6 +110,55 @@ export function SideNav({
           accessory={<Ionicons name="chevron-forward" size={16} color={colors.textMuted} />}
           onPress={onGoWorkspace}
         />
+
+        <Pressable
+          style={({ pressed }) => [
+            sideNavStyles.sectionToggle,
+            pressed ? styles.pressDown : null,
+          ]}
+          onPress={() => setFavoritesExpanded((prev) => !prev)}
+        >
+          <Text style={sideNavStyles.sectionLabel}>Favorites</Text>
+          <Ionicons
+            name={favoritesExpanded ? "chevron-up" : "chevron-down"}
+            size={14}
+            color={colors.textMuted}
+          />
+        </Pressable>
+        {favoritesExpanded ? (
+          favoriteItems.length > 0 ? (
+            <View style={sideNavStyles.collectionList}>
+              {favoriteItems.slice(0, 5).map((fav) => (
+                <Pressable
+                  key={fav.id}
+                  style={({ pressed }) => [
+                    sideNavStyles.recentItem,
+                    pressed ? styles.pressDown : null,
+                  ]}
+                  onPress={() => onOpenFavorite(fav.id)}
+                >
+                  <View style={sideNavStyles.recentItemCopy}>
+                    <View style={sideNavStyles.recentItemTitleRow}>
+                      <Ionicons
+                        name={fav.kind === "project" ? "musical-notes" : "mic-outline"}
+                        size={16}
+                        color={fav.kind === "project" ? "#6366f1" : "#64748b"}
+                      />
+                      <Text style={sideNavStyles.recentItemTitle} numberOfLines={1}>
+                        {fav.title}
+                      </Text>
+                    </View>
+                  </View>
+                  <Ionicons name="star" size={13} color="#f59e0b" />
+                </Pressable>
+              ))}
+            </View>
+          ) : (
+            <Text style={sideNavStyles.placeholderText}>
+              No favorites yet. Star an idea to see it here.
+            </Text>
+          )
+        ) : null}
 
         <Pressable
           style={({ pressed }) => [
