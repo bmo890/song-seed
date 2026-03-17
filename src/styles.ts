@@ -1831,6 +1831,18 @@ export const styles = StyleSheet.create({
     color: "#64748b",
     fontWeight: "600",
   },
+  clipCardNotesPreview: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    marginTop: 2,
+  },
+  clipCardNotesPreviewText: {
+    fontSize: 11,
+    lineHeight: 15,
+    color: "#94a3b8",
+    flex: 1,
+  },
   songDetailVersionNotes: {
     fontSize: 12,
     lineHeight: 17,
@@ -5318,5 +5330,75 @@ export const styles = StyleSheet.create({
     lineHeight: 22,
     color: "#0f172a",
     fontWeight: "600",
+  },
+
+  // -- ClipNotesSheet --
+  clipNotesSheetContent: {
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    gap: 12,
+  },
+  clipNotesSheetSubtitle: {
+    fontSize: 12,
+    color: "#64748b",
+    marginTop: -4,
+  },
+  clipNotesSheetTextInput: {
+    width: "100%",
+    borderWidth: 1,
+    borderColor: "#d1d5db",
+    backgroundColor: "#fff",
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    minHeight: 200,
+    maxHeight: 360,
+    fontSize: 14,
+    lineHeight: 20,
+    textAlignVertical: "top",
+    color: "#0f172a",
+  },
+  clipNotesSheetButtons: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    gap: 8,
+    paddingTop: 4,
+  },
+
+  // -- Song Notes Tab --
+  songNotesTabEmpty: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 48,
+    gap: 8,
+  },
+  songNotesTabEmptyTitle: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#64748b",
+  },
+  songNotesTabEmptySubtitle: {
+    fontSize: 13,
+    color: "#94a3b8",
+  },
+  songNotesTabBody: {
+    fontSize: 14,
+    lineHeight: 20,
+    color: "#334155",
+  },
+  songNotesTabEditorInput: {
+    width: "100%",
+    borderWidth: 1,
+    borderColor: "#d1d5db",
+    backgroundColor: "#fff",
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    minHeight: 280,
+    textAlignVertical: "top",
+    fontSize: 14,
+    lineHeight: 20,
+    color: "#0f172a",
+    marginBottom: 6,
   },
 });

@@ -54,9 +54,30 @@ export function GlobalMediaDock({
   const hasRecordingSession =
     !!recordingIdea && (recorder.isRecording || recorder.isPaused);
 
-  // Popup playback dock disabled until queue/playlist functionality is built.
-  // When leaving the Player screen, clear the player state instead of showing a dock.
-  const activePlayback: PlaybackDockState | null = null;
+  const inlinePlayerMounted = useStore((s) => s.inlinePlayerMounted);
+
+  // Show the inline playback dock when audio is playing but ClipList is
+  // unmounted (e.g. user switched from Takes to Lyrics/Notes tab).
+  // Full player dock remains disabled until queue/playlist is built.
+  const activePlayback: PlaybackDockState | null = (() => {
+    if (inlineTarget && !inlinePlayerMounted) {
+      const idea = allIdeas.find((item) => item.id === inlineTarget.ideaId);
+      const clip = idea?.clips.find((item) => item.id === inlineTarget.clipId);
+      if (idea && clip) {
+        return {
+          kind: "inline",
+          ideaId: idea.id,
+          clipId: clip.id,
+          title: clip.title,
+          subtitle: idea.title,
+          isPlaying: inlineIsPlaying,
+          positionMs: inlinePositionMs,
+          durationMs: inlineDurationMs || clip.durationMs || 0,
+        } satisfies PlaybackDockState;
+      }
+    }
+    return null;
+  })();
 
   if (activeRouteName !== "Recording" && hasRecordingSession && recordingIdea) {
     const statusLabel = recorder.isPaused ? "Paused" : "Recording";

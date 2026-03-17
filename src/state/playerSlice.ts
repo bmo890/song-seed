@@ -30,6 +30,8 @@ export type PlayerSlice = {
     requestInlineToggle: () => void;
     inlineStopRequestToken: number;
     requestInlineStop: () => void;
+    inlinePlayerMounted: boolean;
+    setInlinePlayerMounted: (mounted: boolean) => void;
 };
 
 export const createPlayerSlice: StateCreator<PlayerSlice> = (set) => ({
@@ -133,4 +135,6 @@ export const createPlayerSlice: StateCreator<PlayerSlice> = (set) => ({
             inlineDurationMs: 0,
             inlineIsPlaying: false,
         })),
+    inlinePlayerMounted: false,
+    setInlinePlayerMounted: (mounted) => set({ inlinePlayerMounted: mounted }),
 });

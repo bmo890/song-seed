@@ -32,6 +32,7 @@ export type ClipCardSharedProps = {
   onSaveEditing: (clipId: string) => void;
   onCancelEditing: () => void;
   onOpenActions: (clip: ClipVersion) => void;
+  onOpenNotesSheet?: (clip: ClipVersion) => void;
   onPickParentTarget: (clipId: string) => void;
   inlinePlayer: ReturnType<typeof useInlinePlayer>;
   getHighlightValue: (clipId: string) => Animated.Value | undefined;
@@ -77,6 +78,7 @@ export function ClipCard({
   onSaveEditing,
   onCancelEditing,
   onOpenActions,
+  onOpenNotesSheet,
   onPickParentTarget,
   inlinePlayer,
   getHighlightValue,
@@ -283,6 +285,19 @@ export function ClipCard({
                     ) : null}
                   </View>
                 </View>
+
+                {clip.notes?.trim() ? (
+                  <Pressable
+                    style={styles.clipCardNotesPreview}
+                    onPress={() => onOpenNotesSheet?.(clip)}
+                    hitSlop={{ top: 4, bottom: 4 }}
+                  >
+                    <Ionicons name="document-text-outline" size={11} color="#94a3b8" />
+                    <Text style={styles.clipCardNotesPreviewText} numberOfLines={1}>
+                      {clip.notes.trim()}
+                    </Text>
+                  </Pressable>
+                ) : null}
 
                 <Text style={styles.songDetailVersionMeta}>{formatDate(clip.createdAt)}</Text>
               </>

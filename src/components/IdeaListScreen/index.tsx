@@ -114,6 +114,13 @@ export function IdeaListScreen() {
   const handledFocusTokenRef = useRef<number | null>(null);
   const focusScrollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Mark inline player UI as visible so the popup dock doesn't appear
+  // on top of the already-visible inline player controls.
+  useEffect(() => {
+    useStore.getState().setInlinePlayerMounted(true);
+    return () => useStore.getState().setInlinePlayerMounted(false);
+  }, []);
+
   useEffect(() => {
     if (!inlinePlayer.inlineTarget) return;
     const handler = BackHandler.addEventListener("hardwareBackPress", () => {
