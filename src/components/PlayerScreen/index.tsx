@@ -593,7 +593,8 @@ export function PlayerScreen() {
                           />
                         ) : null}
                         {practiceMarkers.map((marker) => {
-                          const markerPosX = marker.atMs * pixelsPerMs;
+                          const baseMarkerPosX = marker.atMs * pixelsPerMs;
+                          const markerPosX = baseMarkerPosX * timelineScale.value + timelineTranslateX.value;
                           return (
                             <Pressable
                               key={`waveform-pin-${marker.id}`}
