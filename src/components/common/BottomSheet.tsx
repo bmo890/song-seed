@@ -9,7 +9,7 @@ import React, {
 } from "react";
 import {
   Animated,
-  KeyboardAvoidingView,
+  Keyboard,
   Modal,
   PanResponder,
   Platform,
@@ -36,12 +36,14 @@ export const BottomSheet = forwardRef<BottomSheetRef, BottomSheetProps>(
   ) {
     const insets = useSafeAreaInsets();
     const translateY = useRef(new Animated.Value(0)).current;
+    const keyboardOffset = useRef(new Animated.Value(0)).current;
     const isClosingRef = useRef(false);
 
     useEffect(() => {
       if (!visible) return;
       isClosingRef.current = false;
       translateY.setValue(32);
+      keyboardOffset.setValue(0);
       Animated.spring(translateY, {
         toValue: 0,
         damping: 20,
@@ -49,11 +51,44 @@ export const BottomSheet = forwardRef<BottomSheetRef, BottomSheetProps>(
         mass: 0.9,
         useNativeDriver: true,
       }).start();
-    }, [translateY, visible]);
+    }, [translateY, keyboardOffset, visible]);
+
+    // Keyboard-driven offset: listen to show/hide events and animate
+    useEffect(() => {
+      if (!keyboardAvoiding || !visible) return;
+
+      const showEvent = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+      const hideEvent = Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+
+      const showSub = Keyboard.addListener(showEvent, (e) => {
+        // Shift up by keyboard height; add insets.bottom to compensate for the
+        // bottom padding the sheet normally has for the home indicator area
+        const offset = -(e.endCoordinates.height);
+        Animated.timing(keyboardOffset, {
+          toValue: offset,
+          duration: Platform.OS === "ios" ? (e.duration ?? 250) : 250,
+          useNativeDriver: true,
+        }).start();
+      });
+
+      const hideSub = Keyboard.addListener(hideEvent, (e) => {
+        Animated.timing(keyboardOffset, {
+          toValue: 0,
+          duration: Platform.OS === "ios" ? (e.duration ?? 250) : 250,
+          useNativeDriver: true,
+        }).start();
+      });
+
+      return () => {
+        showSub.remove();
+        hideSub.remove();
+      };
+    }, [keyboardAvoiding, visible, keyboardOffset, insets.bottom]);
 
     const closeWithSlide = useCallback(() => {
       if (isClosingRef.current) return;
       isClosingRef.current = true;
+      Keyboard.dismiss();
       Animated.timing(translateY, {
         toValue: dismissDistance,
         duration: 180,
@@ -122,39 +157,31 @@ export const BottomSheet = forwardRef<BottomSheetRef, BottomSheetProps>(
       [closeWithSlide, snapBack, translateY]
     );
 
-    const content = (
-      <View style={styles.bottomSheetBackdrop}>
-        <Pressable style={styles.bottomSheetOverlay} onPress={closeWithSlide} />
-        <Animated.View
-          {...contentPanResponder.panHandlers}
-          style={[
-            styles.modalCard,
-            styles.bottomSheetCard,
-            { paddingBottom: 14 + insets.bottom, transform: [{ translateY }] },
-          ]}
-        >
-          <View {...handlePanResponder.panHandlers}>
-            <View style={styles.bottomSheetDragZone}>
-              <View style={styles.bottomSheetHandle} />
-            </View>
-          </View>
-          {children}
-        </Animated.View>
-      </View>
-    );
+    // Combine pan gesture translateY with keyboard offset
+    const combinedTranslateY = keyboardAvoiding
+      ? Animated.add(translateY, keyboardOffset)
+      : translateY;
 
     return (
       <Modal visible={visible} transparent animationType="fade" onRequestClose={closeWithSlide}>
-        {keyboardAvoiding ? (
-          <KeyboardAvoidingView
-            style={{ flex: 1 }}
-            behavior={Platform.OS === "ios" ? "padding" : undefined}
+        <View style={styles.bottomSheetBackdrop}>
+          <Pressable style={styles.bottomSheetOverlay} onPress={closeWithSlide} />
+          <Animated.View
+            {...contentPanResponder.panHandlers}
+            style={[
+              styles.modalCard,
+              styles.bottomSheetCard,
+              { paddingBottom: 14 + insets.bottom, transform: [{ translateY: combinedTranslateY }] },
+            ]}
           >
-            {content}
-          </KeyboardAvoidingView>
-        ) : (
-          content
-        )}
+            <View {...handlePanResponder.panHandlers}>
+              <View style={styles.bottomSheetDragZone}>
+                <View style={styles.bottomSheetHandle} />
+              </View>
+            </View>
+            {children}
+          </Animated.View>
+        </View>
       </Modal>
     );
   }

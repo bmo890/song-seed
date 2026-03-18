@@ -1,9 +1,12 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Alert, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Alert, Pressable, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar as ExpoStatusBar } from "expo-status-bar";
 import { Ionicons } from "@expo/vector-icons";
+import Slider from "@react-native-community/slider";
 import { StackActions, useIsFocused, useNavigation } from "@react-navigation/native";
+import { useSharedValue } from "react-native-reanimated";
+import Animated, { useAnimatedStyle } from "react-native-reanimated";
 import { styles } from "../../styles";
 import { useStore } from "../../state/useStore";
 import { useFullPlayer } from "../../hooks/useFullPlayer";
@@ -12,6 +15,7 @@ import { PlayerQueue } from "./PlayerQueue";
 import { PlayerLyricsPanel } from "./PlayerLyricsPanel";
 import { PlayerSupportPanel } from "./PlayerSupportPanel";
 import { PlayerTransportDock } from "./PlayerTransportDock";
+import { PracticePinBadges } from "./PracticePinBadges";
 import { SegmentedControl } from "../common/SegmentedControl";
 import { shareAudioFile } from "../../services/audioStorage";
 import { getLatestLyricsVersion, lyricsDocumentToText } from "../../lyrics";
@@ -20,6 +24,7 @@ import { AppBreadcrumbs } from "../common/AppBreadcrumbs";
 import { getCollectionAncestors, getCollectionById } from "../../utils";
 import { getCollectionHierarchyLevel } from "../../hierarchy";
 import { TransportLayout } from "../common/TransportLayout";
+import { BottomSheet } from "../common/BottomSheet";
 import { useTransportScrubbing } from "../../hooks/useTransportScrubbing";
 import { appActions } from "../../state/actions";
 import { MultiTimeRangeSelector } from "../common/TimeRangeSelector";
@@ -32,8 +37,6 @@ type PracticeMarker = {
   label: string;
   atMs: number;
 };
-
-const PRACTICE_SPEED_OPTIONS = [0.5, 0.75, 0.9, 1] as const;
 
 function buildDefaultLoopRegion(durationMs: number, anchorMs = 0) {
   if (durationMs <= 0) {
@@ -84,6 +87,26 @@ function getNoteSummary(notes: string) {
   const trimmed = notes.trim();
   if (!trimmed) return "No clip notes yet.";
   return trimmed;
+}
+
+/* Animated drag indicator line – rendered inside the waveform overlay */
+function DragIndicatorLine({
+  draggingMarkerId,
+  draggingMarkerX,
+}: {
+  draggingMarkerId: { value: string };
+  draggingMarkerX: { value: number };
+}) {
+  const lineStyle = useAnimatedStyle(() => ({
+    position: "absolute" as const,
+    left: draggingMarkerX.value - 1,
+    top: 0,
+    bottom: 0,
+    width: 2,
+    backgroundColor: "#ca8a04",
+    opacity: draggingMarkerId.value !== "" ? 1 : 0,
+  }));
+  return <Animated.View style={lineStyle} pointerEvents="none" />;
 }
 
 export function PlayerScreen() {
@@ -137,6 +160,12 @@ export function PlayerScreen() {
   const [playbackSpeed, setPlaybackSpeed] = useState<number>(1);
   const [countInOption, setCountInOption] = useState<CountInOption>("off");
   const [newPinLabel, setNewPinLabel] = useState("");
+  const [pinModalVisible, setPinModalVisible] = useState(false);
+  const [pinActionsTarget, setPinActionsTarget] = useState<PracticeMarker | null>(null);
+  const [pinActionsVisible, setPinActionsVisible] = useState(false);
+  const [pinRenameValue, setPinRenameValue] = useState("");
+  const draggingMarkerId = useSharedValue("");
+  const draggingMarkerX = useSharedValue(0);
   const loopSeekLockRef = useRef(false);
 
   const fullPlayer = useFullPlayer();
@@ -264,14 +293,40 @@ export function PlayerScreen() {
     setLoopPlaybackEngaged(false);
   }, [mode, playerClip?.id, practiceLoopEnabled, practiceLoopRange.end, practiceLoopRange.start]);
 
-  useEffect(() => {
-    setPlaybackRate(playbackSpeed);
-  }, [playbackSpeed, setPlaybackRate]);
+  const wasPlayingBeforeSpeedChange = useRef(false);
+  const isSlidingSpeed = useRef(false);
 
-  useEffect(() => {
-    if (Math.abs(playbackRate - playbackSpeed) < 0.001) return;
-    setPlaybackSpeed(playbackRate);
-  }, [playbackRate]);
+  const cleanSpeed = (v: number) => Math.round(v * 20) / 20; // snap to nearest 0.05
+
+  const handleSpeedSlideStart = useCallback(() => {
+    isSlidingSpeed.current = true;
+    wasPlayingBeforeSpeedChange.current = isPlayerPlaying;
+    if (isPlayerPlaying) pausePlayer();
+  }, [isPlayerPlaying, pausePlayer]);
+
+  const handleSpeedSliding = useCallback((v: number) => {
+    setPlaybackSpeed(cleanSpeed(v));
+  }, []);
+
+  const handleSpeedSlideEnd = useCallback((v: number) => {
+    const clean = cleanSpeed(v);
+    isSlidingSpeed.current = false;
+    setPlaybackSpeed(clean);
+    setPlaybackRate(clean);
+    if (wasPlayingBeforeSpeedChange.current) {
+      setTimeout(() => playPlayer(), 80);
+    }
+  }, [playPlayer, setPlaybackRate]);
+
+  const handleSpeedTap = useCallback((speed: number) => {
+    wasPlayingBeforeSpeedChange.current = isPlayerPlaying;
+    if (isPlayerPlaying) pausePlayer();
+    setPlaybackSpeed(speed);
+    setPlaybackRate(speed);
+    if (wasPlayingBeforeSpeedChange.current) {
+      setTimeout(() => playPlayer(), 80);
+    }
+  }, [isPlayerPlaying, pausePlayer, playPlayer, setPlaybackRate]);
 
   useEffect(() => {
     if (mode !== "practice" || !practiceLoopEnabled || !isPlayerPlaying || transportScrub.isScrubbing) {
@@ -410,11 +465,40 @@ export function PlayerScreen() {
 
     useStore.getState().addClipPracticeMarker(playerIdea.id, playerClip.id, newMarker);
     setNewPinLabel("");
+    setPinModalVisible(false);
   }
 
-  function handleDeletePin(markerId: string) {
-    if (!playerIdea || !playerClip || !activeWorkspaceId) return;
-    useStore.getState().removeClipPracticeMarker(playerIdea.id, playerClip.id, markerId);
+  function handleRepositionMarker(markerId: string, newAtMs: number) {
+    if (!playerIdea || !playerClip) return;
+    const updated = practiceMarkers.map((m) =>
+      m.id === markerId ? { ...m, atMs: Math.round(Math.max(0, Math.min(displayDuration, newAtMs))) } : m
+    );
+    useStore.getState().setClipPracticeMarkers(playerIdea.id, playerClip.id, updated);
+  }
+
+  function handlePinActions(marker: PracticeMarker) {
+    setPinActionsTarget(marker);
+    setPinRenameValue(marker.label);
+    setPinActionsVisible(true);
+  }
+
+  function handleRenamePin() {
+    if (!playerIdea || !playerClip || !pinActionsTarget) return;
+    const label = pinRenameValue.trim();
+    if (!label) return;
+    const updated = practiceMarkers.map((m) =>
+      m.id === pinActionsTarget.id ? { ...m, label } : m
+    );
+    useStore.getState().setClipPracticeMarkers(playerIdea.id, playerClip.id, updated);
+    setPinActionsVisible(false);
+    setPinActionsTarget(null);
+  }
+
+  function handleDeletePin() {
+    if (!playerIdea || !playerClip || !pinActionsTarget) return;
+    useStore.getState().removeClipPracticeMarker(playerIdea.id, playerClip.id, pinActionsTarget.id);
+    setPinActionsVisible(false);
+    setPinActionsTarget(null);
   }
 
   function handleOverflowMenu() {
@@ -617,35 +701,27 @@ export function PlayerScreen() {
                             onSeek={(timeMs) => void handleLoopAwareSeek(timeMs)}
                           />
                         ) : null}
-                        {practiceMarkers.map((marker) => {
-                          const baseMarkerPosX = marker.atMs * pixelsPerMs;
-                          const markerPosX = baseMarkerPosX * timelineScale.value + timelineTranslateX.value;
-                          return (
-                            <Pressable
-                              key={`waveform-pin-${marker.id}`}
-                              style={{
-                                position: "absolute",
-                                left: markerPosX - 6,
-                                top: 0,
-                                bottom: 0,
-                                width: 12,
-                                justifyContent: "center",
-                                alignItems: "center",
-                              }}
-                              onPress={() => void handleLoopAwareSeek(marker.atMs)}
-                              hitSlop={8}
-                            >
-                              <View
-                                style={{
-                                  width: 2,
-                                  height: "100%",
-                                  backgroundColor: "#ca8a04",
-                                }}
-                              />
-                            </Pressable>
-                          );
-                        })}
+                        <DragIndicatorLine draggingMarkerId={draggingMarkerId} draggingMarkerX={draggingMarkerX} />
                       </View>
+                    )
+                  : undefined
+              }
+              renderBelowOverlay={
+                mode === "practice"
+                  ? ({ pixelsPerMs, timelineTranslateX, timelineScale }) => (
+                      <PracticePinBadges
+                        markers={practiceMarkers}
+                        pixelsPerMs={pixelsPerMs}
+                        timelineTranslateX={timelineTranslateX}
+                        timelineScale={timelineScale}
+                        durationMs={displayDuration}
+                        onSeek={(t) => void handleLoopAwareSeek(t)}
+                        onRepositionMarker={handleRepositionMarker}
+                        onRequestActions={handlePinActions}
+                        onRequestAdd={() => setPinModalVisible(true)}
+                        draggingMarkerId={draggingMarkerId}
+                        draggingMarkerX={draggingMarkerX}
+                      />
                     )
                   : undefined
               }
@@ -660,14 +736,13 @@ export function PlayerScreen() {
           {mode === "practice" ? (
             <View style={screenStyles.practiceContent}>
               <View style={screenStyles.practiceCard}>
+                {/* Loop */}
                 <View style={screenStyles.practiceRow}>
                   <Text style={screenStyles.practiceLabel}>Loop</Text>
                   <View style={screenStyles.practiceValueRow}>
                     {practiceLoopEnabled ? (
                       <>
-                        <View style={screenStyles.valuePill}>
-                          <Text style={screenStyles.valuePillText}>{practiceRangeLabel}</Text>
-                        </View>
+                        <Text style={screenStyles.loopRangeText}>{practiceRangeLabel}</Text>
                         <Pressable
                           style={({ pressed }) => [
                             screenStyles.resetButton,
@@ -697,21 +772,42 @@ export function PlayerScreen() {
 
                 <View style={screenStyles.divider} />
 
-                <View style={screenStyles.practiceRow}>
-                  <Text style={screenStyles.practiceLabel}>Speed</Text>
-                  <View style={screenStyles.optionGroup}>
-                    {PRACTICE_SPEED_OPTIONS.map((speed) => {
-                      const active = Math.abs(playbackSpeed - speed) < 0.001;
+                {/* Speed slider + ticks */}
+                <View style={screenStyles.practiceRowVertical}>
+                  <View style={screenStyles.speedBlock}>
+                    <Text style={screenStyles.practiceLabel}>Speed</Text>
+                    <Slider
+                      style={screenStyles.speedSlider}
+                      minimumValue={0.5}
+                      maximumValue={2}
+                      step={0.05}
+                      value={playbackSpeed}
+                      onValueChange={handleSpeedSliding}
+                      onSlidingStart={handleSpeedSlideStart}
+                      onSlidingComplete={handleSpeedSlideEnd}
+                      minimumTrackTintColor="#3b82f6"
+                      maximumTrackTintColor="#d1d5db"
+                      thumbTintColor="#ffffff"
+                    />
+                  </View>
+                  <View style={screenStyles.speedTicks}>
+                    {[0.5, 0.75, 1, 1.25, 1.5, 2].map((tick) => {
+                      const isActive = Math.abs(playbackSpeed - tick) < 0.01;
                       return (
-                        <Pressable
-                          key={speed}
-                          style={[screenStyles.optionChip, active ? screenStyles.optionChipActive : null]}
-                          onPress={() => setPlaybackSpeed(speed)}
+                        <TouchableOpacity
+                          key={tick}
+                          onPress={() => handleSpeedTap(tick)}
+                          hitSlop={4}
                         >
-                          <Text style={[screenStyles.optionChipText, active ? screenStyles.optionChipTextActive : null]}>
-                            {speed}x
+                          <Text
+                            style={[
+                              screenStyles.speedTickText,
+                              isActive && screenStyles.speedTickTextActive,
+                            ]}
+                          >
+                            {tick}x
                           </Text>
-                        </Pressable>
+                        </TouchableOpacity>
                       );
                     })}
                   </View>
@@ -719,14 +815,15 @@ export function PlayerScreen() {
 
                 <View style={screenStyles.divider} />
 
+                {/* Count-in */}
                 <View style={screenStyles.practiceRow}>
                   <Text style={screenStyles.practiceLabel}>Count-in</Text>
                   <View style={screenStyles.optionGroup}>
-                    {[
+                    {([
                       { key: "off" as const, label: "Off" },
                       { key: "1b" as const, label: "1b" },
                       { key: "2b" as const, label: "2b" },
-                    ].map((option) => {
+                    ] as const).map((option) => {
                       const active = countInOption === option.key;
                       return (
                         <Pressable
@@ -743,70 +840,15 @@ export function PlayerScreen() {
                   </View>
                 </View>
 
-              </View>
+                <View style={screenStyles.divider} />
 
-              <View style={screenStyles.pinsSection}>
-                <View style={screenStyles.pinsSectionHeader}>
-                  <Ionicons name="pin" size={16} color="#ca8a04" />
-                  <Text style={screenStyles.pinsSectionTitle}>Pins</Text>
-                </View>
-                <View style={screenStyles.pinsBadgesRow}>
-                  {practiceMarkers.map((marker) => (
-                    <Pressable
-                      key={`pin-badge-${marker.id}`}
-                      style={screenStyles.pinBadge}
-                      onPress={() => void handleLoopAwareSeek(marker.atMs)}
-                      onLongPress={() => handleDeletePin(marker.id)}
-                    >
-                      <Text style={screenStyles.pinBadgeText}>{marker.label}</Text>
-                    </Pressable>
-                  ))}
-                </View>
-
-                <View style={screenStyles.addPinRow}>
-                  <Pressable
-                    style={({ pressed }) => [
-                      screenStyles.addPinInput,
-                      pressed ? { opacity: 0.7 } : null,
-                    ]}
-                  >
-                    <Ionicons name="add-circle-outline" size={18} color="#ca8a04" />
-                  </Pressable>
-                  <TextInput
-                    style={screenStyles.pinInputField}
-                    placeholder="New pin name"
-                    placeholderTextColor="#94a3b8"
-                    value={newPinLabel}
-                    onChangeText={setNewPinLabel}
-                    onSubmitEditing={handleAddPin}
-                    returnKeyType="done"
-                  />
-                  <Pressable
-                    style={({ pressed }) => [
-                      screenStyles.pinSaveButton,
-                      !newPinLabel.trim() ? screenStyles.pinSaveButtonDisabled : null,
-                      pressed ? { opacity: 0.7 } : null,
-                    ]}
-                    onPress={handleAddPin}
-                    disabled={!newPinLabel.trim()}
-                  >
-                    <Text
-                      style={[
-                        screenStyles.pinSaveButtonText,
-                        !newPinLabel.trim() ? screenStyles.pinSaveButtonTextDisabled : null,
-                      ]}
-                    >
-                      Save
-                    </Text>
-                  </Pressable>
-                </View>
-              </View>
-
-              <View style={screenStyles.notesBox}>
-                <Text style={screenStyles.notesBoxTitle}>Practice notes</Text>
-                <Text style={[screenStyles.notesBoxText, !clipNotes.trim() ? screenStyles.notesBoxPlaceholder : null]}>
-                  {clipNotes.trim() || "Practice annotations will reuse clip notes here until dedicated practice notes are added."}
-                </Text>
+                {/* Notes (inline row) */}
+                <Pressable style={screenStyles.practiceRow} onPress={() => {/* TODO: open notes sheet */}}>
+                  <Text style={screenStyles.practiceLabel}>Notes</Text>
+                  <Text style={screenStyles.notesInlineText} numberOfLines={1}>
+                    {clipNotes.trim() || "Add notes..."}
+                  </Text>
+                </Pressable>
               </View>
             </View>
           ) : (
@@ -857,6 +899,102 @@ export function PlayerScreen() {
           )}
         </View>
       </TransportLayout>
+
+      <BottomSheet
+        visible={pinModalVisible}
+        onClose={() => { setPinModalVisible(false); setNewPinLabel(""); }}
+        dismissDistance={360}
+        keyboardAvoiding
+      >
+        <View style={screenStyles.pinSheetContent}>
+          <Text style={screenStyles.pinSheetTitle}>Add Practice Pin</Text>
+          <Text style={screenStyles.pinSheetTime}>
+            at {fmtDuration(playerPosition)}
+          </Text>
+
+          <TextInput
+            style={screenStyles.pinSheetInput}
+            placeholder="e.g., Chorus, Bridge, Solo"
+            placeholderTextColor="#94a3b8"
+            value={newPinLabel}
+            onChangeText={setNewPinLabel}
+            onSubmitEditing={handleAddPin}
+            returnKeyType="done"
+            autoFocus
+          />
+
+          <View style={screenStyles.pinSheetFooter}>
+            <Pressable
+              style={({ pressed }) => [screenStyles.pinSheetButton, screenStyles.pinSheetButtonSecondary, pressed ? { opacity: 0.7 } : null]}
+              onPress={() => { setPinModalVisible(false); setNewPinLabel(""); }}
+            >
+              <Text style={[screenStyles.pinSheetButtonText, screenStyles.pinSheetButtonSecondaryText]}>Cancel</Text>
+            </Pressable>
+            <Pressable
+              style={({ pressed }) => [
+                screenStyles.pinSheetButton,
+                !newPinLabel.trim() ? screenStyles.pinSheetButtonDisabled : null,
+                pressed ? { opacity: 0.7 } : null,
+              ]}
+              onPress={handleAddPin}
+              disabled={!newPinLabel.trim()}
+            >
+              <Text style={[screenStyles.pinSheetButtonText, !newPinLabel.trim() ? screenStyles.pinSheetButtonTextDisabled : null]}>
+                Save Pin
+              </Text>
+            </Pressable>
+          </View>
+        </View>
+      </BottomSheet>
+
+      <BottomSheet
+        visible={pinActionsVisible}
+        onClose={() => { setPinActionsVisible(false); setPinActionsTarget(null); }}
+        keyboardAvoiding
+      >
+        <View style={screenStyles.pinSheetContent}>
+          <Text style={screenStyles.pinSheetTitle}>
+            {pinActionsTarget?.label ?? "Pin"}
+          </Text>
+          <Text style={screenStyles.pinSheetTime}>
+            at {pinActionsTarget ? fmtDuration(pinActionsTarget.atMs) : ""}
+          </Text>
+
+          <TextInput
+            style={screenStyles.pinSheetInput}
+            placeholder="Rename pin"
+            placeholderTextColor="#94a3b8"
+            value={pinRenameValue}
+            onChangeText={setPinRenameValue}
+            onSubmitEditing={handleRenamePin}
+            returnKeyType="done"
+            autoFocus
+          />
+
+          <View style={screenStyles.pinSheetFooter}>
+            <Pressable
+              style={({ pressed }) => [screenStyles.pinSheetButton, screenStyles.pinSheetButtonDanger, pressed ? { opacity: 0.7 } : null]}
+              onPress={handleDeletePin}
+            >
+              <Ionicons name="trash-outline" size={15} color="#ffffff" style={{ marginRight: 4 }} />
+              <Text style={screenStyles.pinSheetButtonText}>Delete</Text>
+            </Pressable>
+            <Pressable
+              style={({ pressed }) => [
+                screenStyles.pinSheetButton,
+                !pinRenameValue.trim() ? screenStyles.pinSheetButtonDisabled : null,
+                pressed ? { opacity: 0.7 } : null,
+              ]}
+              onPress={handleRenamePin}
+              disabled={!pinRenameValue.trim()}
+            >
+              <Text style={[screenStyles.pinSheetButtonText, !pinRenameValue.trim() ? screenStyles.pinSheetButtonTextDisabled : null]}>
+                Save
+              </Text>
+            </Pressable>
+          </View>
+        </View>
+      </BottomSheet>
 
       <ExpoStatusBar style="dark" />
     </SafeAreaView>
@@ -988,6 +1126,47 @@ const screenStyles = StyleSheet.create({
     justifyContent: "center",
     backgroundColor: "#eceef2",
   },
+  practiceRowVertical: {
+    paddingVertical: 8,
+    gap: 2,
+  },
+  speedBlock: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  speedSlider: {
+    flex: 1,
+    height: 28,
+  },
+  speedTicks: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingHorizontal: 2,
+  },
+  speedTickText: {
+    fontSize: 12,
+    color: "#9ca3af",
+    fontWeight: "500",
+    fontVariant: ["tabular-nums"] as any,
+    paddingVertical: 2,
+    paddingHorizontal: 4,
+  },
+  speedTickTextActive: {
+    color: "#3b82f6",
+    fontWeight: "700",
+  },
+  loopRangeText: {
+    fontSize: 13,
+    color: "#6b7280",
+    fontVariant: ["tabular-nums"] as any,
+  },
+  notesInlineText: {
+    fontSize: 14,
+    color: "#9ca3af",
+    flex: 1,
+    textAlign: "right",
+  },
   toggleShell: {
     width: 52,
     height: 30,
@@ -1062,94 +1241,66 @@ const screenStyles = StyleSheet.create({
   optionChipTextActive: {
     color: "#111827",
   },
-  pinsSection: {
-    gap: 8,
+  pinSheetContent: {
+    paddingHorizontal: 20,
+    paddingTop: 4,
+    paddingBottom: 8,
+    gap: 16,
   },
-  pinsSectionHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  pinsSectionTitle: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#64748b",
-  },
-  pinsBadgesRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 6,
-  },
-  pinBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    backgroundColor: "#fef3c7",
-    borderRadius: 8,
-  },
-  pinBadgeText: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: "#b45309",
-  },
-  addPinRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  addPinInput: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  pinInputField: {
-    flex: 1,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
-    backgroundColor: "#f1f5f9",
-    fontSize: 14,
-    color: "#111827",
-  },
-  pinSaveButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
-    backgroundColor: "#ca8a04",
-  },
-  pinSaveButtonDisabled: {
-    backgroundColor: "#e2e8f0",
-  },
-  pinSaveButtonText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#ffffff",
-  },
-  pinSaveButtonTextDisabled: {
-    color: "#94a3b8",
-  },
-  notesBox: {
-    backgroundColor: "#f6f7f9",
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: "#e3e6eb",
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    gap: 6,
-  },
-  notesBoxTitle: {
-    fontSize: 16,
-    lineHeight: 20,
+  pinSheetTitle: {
+    fontSize: 17,
     fontWeight: "700",
     color: "#111827",
   },
-  notesBoxText: {
-    fontSize: 14,
-    lineHeight: 20,
+  pinSheetTime: {
+    fontSize: 13,
+    color: "#ca8a04",
+    fontWeight: "600",
+    fontVariant: ["tabular-nums"],
+    marginTop: -8,
+  },
+  pinSheetInput: {
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderRadius: 10,
+    backgroundColor: "#f3f4f6",
+    fontSize: 15,
+    color: "#111827",
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+  },
+  pinSheetFooter: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  pinSheetButton: {
+    flex: 1,
+    paddingHorizontal: 16,
+    paddingVertical: 13,
+    borderRadius: 10,
+    alignItems: "center",
+    backgroundColor: "#ca8a04",
+  },
+  pinSheetButtonSecondary: {
+    backgroundColor: "#f3f4f6",
+  },
+  pinSheetButtonDanger: {
+    backgroundColor: "#dc2626",
+    flexDirection: "row",
+    justifyContent: "center",
+  },
+  pinSheetButtonDisabled: {
+    backgroundColor: "#e5e7eb",
+  },
+  pinSheetButtonText: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#ffffff",
+  },
+  pinSheetButtonSecondaryText: {
     color: "#374151",
   },
-  notesBoxPlaceholder: {
-    color: "#9aa3af",
+  pinSheetButtonTextDisabled: {
+    color: "#9ca3af",
   },
 });
