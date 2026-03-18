@@ -12,6 +12,7 @@ import { AppBreadcrumbs } from "../common/AppBreadcrumbs";
 import { QuickNameModal } from "../modals/QuickNameModal";
 import { CollectionMoveModal } from "../modals/CollectionMoveModal";
 import { CollectionActionsModal } from "../modals/CollectionActionsModal";
+import { IdeaActionsSheet } from "../modals/IdeaActionsSheet";
 import { IdeaListHeaderSection } from "./IdeaListHeaderSection";
 import { IdeaListFilterSection } from "./IdeaListFilterSection";
 import { IdeaListNestedCollectionsSection } from "./IdeaListNestedCollectionsSection";
@@ -818,22 +819,13 @@ export function IdeaListScreen() {
     setHeaderMenuOpen(false);
   };
 
-  const openSwipeIdRef = useRef<string | null>(null);
-  const openSwipeCloseRef = useRef<(() => void) | null>(null);
+  const [actionSheetIdea, setActionSheetIdea] = useState<SongIdea | null>(null);
 
-  const handleSwipeWillOpen = (ideaId: string, close: () => void) => {
-    if (openSwipeIdRef.current && openSwipeIdRef.current !== ideaId) {
-      openSwipeCloseRef.current?.();
-    }
-    openSwipeIdRef.current = ideaId;
-    openSwipeCloseRef.current = close;
+  const openIdeaActions = (idea: SongIdea) => {
+    setActionSheetIdea(idea);
   };
-
-  const handleSwipeClose = (ideaId: string) => {
-    if (openSwipeIdRef.current === ideaId) {
-      openSwipeIdRef.current = null;
-      openSwipeCloseRef.current = null;
-    }
+  const closeIdeaActions = () => {
+    setActionSheetIdea(null);
   };
 
   function updateIdeaTitle(id: string, newName: string) {
@@ -1481,13 +1473,7 @@ export function IdeaListScreen() {
         onViewableItemsChanged={onViewableItemsChanged}
         playIdeaFromList={playIdeaFromList}
         openIdeaFromList={openIdeaFromList}
-        quickEditIdea={quickEditIdea}
-        hideIdeasFromList={hideIdeasFromList}
-        quickShareIdea={quickShareIdea}
-        quickClipboardIdea={quickClipboardIdea}
-        quickDeleteIdea={quickDeleteIdea}
-        handleSwipeWillOpen={handleSwipeWillOpen}
-        handleSwipeClose={handleSwipeClose}
+        onLongPressActions={openIdeaActions}
         unhideIdeasFromList={unhideIdeasFromList}
         hideTimelineDay={hideTimelineDay}
         unhideTimelineDay={unhideTimelineDay}
@@ -1592,6 +1578,21 @@ export function IdeaListScreen() {
           </View>
         </View>
       ) : null}
+
+      <IdeaActionsSheet
+        visible={!!actionSheetIdea}
+        idea={actionSheetIdea}
+        hidden={actionSheetIdea ? hiddenIdeaIdsSet.has(actionSheetIdea.id) : false}
+        onEdit={(idea) => quickEditIdea(idea)}
+        onHide={(idea) => hideIdeasFromList([idea.id])}
+        onUnhide={(idea) => unhideIdeasFromList([idea.id])}
+        onShare={(idea) => quickShareIdea(idea)}
+        onCopy={(idea) => quickClipboardIdea(idea, "copy")}
+        onMove={(idea) => quickClipboardIdea(idea, "move")}
+        onSelect={(idea) => useStore.getState().startListSelection(idea.id)}
+        onDelete={(idea) => quickDeleteIdea(idea)}
+        onCancel={closeIdeaActions}
+      />
 
       <ExpoStatusBar style="dark" />
     </SafeAreaView>

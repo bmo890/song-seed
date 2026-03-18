@@ -33,13 +33,7 @@ type IdeaListContentProps = {
   onViewableItemsChanged: (info: { viewableItems: Array<{ item: IdeaListEntry }> }) => void;
   playIdeaFromList: (ideaId: string, clip: any) => Promise<void> | void;
   openIdeaFromList: (ideaId: string, clip: any) => Promise<void> | void;
-  quickEditIdea: (idea: SongIdea) => void;
-  hideIdeasFromList: (ideaIds: string[]) => Promise<void>;
-  quickShareIdea: (idea: SongIdea) => Promise<void> | void;
-  quickClipboardIdea: (idea: SongIdea, mode: "copy" | "move") => void;
-  quickDeleteIdea: (idea: SongIdea) => void;
-  handleSwipeWillOpen: (ideaId: string, close: () => void) => void;
-  handleSwipeClose: (ideaId: string) => void;
+  onLongPressActions: (idea: SongIdea) => void;
   unhideIdeasFromList: (ideaIds: string[]) => void;
   hideTimelineDay: (metric: "created" | "updated", dayStartTs: number) => Promise<void>;
   unhideTimelineDay: (metric: "created" | "updated", dayStartTs: number) => void;
@@ -86,13 +80,7 @@ export function IdeaListContent({
   onViewableItemsChanged,
   playIdeaFromList,
   openIdeaFromList,
-  quickEditIdea,
-  hideIdeasFromList,
-  quickShareIdea,
-  quickClipboardIdea,
-  quickDeleteIdea,
-  handleSwipeWillOpen,
-  handleSwipeClose,
+  onLongPressActions,
   unhideIdeasFromList,
   hideTimelineDay,
   unhideTimelineDay,
@@ -191,14 +179,7 @@ export function IdeaListContent({
             inlinePlayer={inlinePlayer}
             playIdeaFromList={playIdeaFromList}
             openIdeaFromList={openIdeaFromList}
-            onSwipeEdit={quickEditIdea}
-            onSwipeHide={(idea) => hideIdeasFromList([idea.id])}
-            onSwipeShare={quickShareIdea}
-            onSwipeCopy={(idea) => quickClipboardIdea(idea, "copy")}
-            onSwipeMove={(idea) => quickClipboardIdea(idea, "move")}
-            onSwipeDelete={quickDeleteIdea}
-            onSwipeWillOpen={handleSwipeWillOpen}
-            onSwipeClose={handleSwipeClose}
+            onLongPressActions={onLongPressActions}
             onUnhide={(idea) => unhideIdeasFromList([idea.id])}
             onHideDay={
               activeTimelineMetric && showDateDividers && entry.dayDividerLabel

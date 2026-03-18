@@ -1,9 +1,7 @@
-import { useRef } from "react";
 import { Pressable, Text, View, Animated } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { RenderItemParams } from "react-native-draggable-flatlist";
-import { Swipeable } from "react-native-gesture-handler";
 import { styles } from "../../styles";
 import { MiniProgress } from "../MiniProgress";
 import { InlineTarget, SongIdea, ClipVersion, InlinePlayer } from "../../types";
@@ -23,14 +21,7 @@ type IdeaListItemProps = RenderItemParams<SongIdea> & {
     inlinePlayer: InlinePlayer,
     playIdeaFromList: (ideaId: string, clip: ClipVersion) => Promise<void> | void,
     openIdeaFromList: (ideaId: string, clip: ClipVersion) => Promise<void> | void,
-    onSwipeEdit: (idea: SongIdea) => void,
-    onSwipeHide: (idea: SongIdea) => Promise<void> | void,
-    onSwipeShare: (idea: SongIdea) => Promise<void> | void,
-    onSwipeCopy: (idea: SongIdea) => void,
-    onSwipeMove: (idea: SongIdea) => void,
-    onSwipeDelete: (idea: SongIdea) => void,
-    onSwipeWillOpen: (ideaId: string, close: () => void) => void,
-    onSwipeClose: (ideaId: string) => void,
+    onLongPressActions: (idea: SongIdea) => void,
     onUnhide: (idea: SongIdea) => void,
     onHideDay?: () => void,
     hidden?: boolean,
@@ -87,14 +78,7 @@ export function IdeaListItem({
     inlinePlayer,
     playIdeaFromList,
     openIdeaFromList,
-    onSwipeEdit,
-    onSwipeHide,
-    onSwipeShare,
-    onSwipeCopy,
-    onSwipeMove,
-    onSwipeDelete,
-    onSwipeWillOpen,
-    onSwipeClose,
+    onLongPressActions,
     onUnhide,
     onHideDay,
     hidden = false,
@@ -128,7 +112,6 @@ export function IdeaListItem({
     const showSelectionIndicator = listSelectionMode;
     const clipDurationLabel = playClip?.durationMs ? fmtDuration(playClip.durationMs) : "0:00";
     const projectPrimaryDurationLabel = primaryClip?.durationMs ? fmtDuration(primaryClip.durationMs) : "0:00";
-    const swipeableRef = useRef<Swipeable | null>(null);
     const hasProjectLyrics = item.kind === "project" && (item.lyrics?.versions ?? []).some((version) =>
         version.document.lines.some((line) => line.text.trim().length > 0 || line.chords.length > 0)
     );
@@ -184,14 +167,9 @@ export function IdeaListItem({
     };
 
     const handleLeadLongPress = () => {
-        if (!listSelectionMode) {
-            useStore.getState().startListSelection(item.id);
-        }
-    };
-
-    const runSwipeAction = (action: () => void | Promise<void>) => {
-        swipeableRef.current?.close();
-        void action();
+        if (listSelectionMode) return;
+        void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        onLongPressActions(item);
     };
 
     const renderProjectRightMeta = () => (
@@ -414,102 +392,7 @@ export function IdeaListItem({
 
             {hidden ? hiddenRow : (
             <View style={styles.listRowWrap}>
-                <Swipeable
-                    ref={swipeableRef}
-                    containerStyle={styles.cardFlex}
-                    childrenContainerStyle={styles.cardFlex}
-                    overshootLeft={false}
-                    overshootRight={false}
-                    friction={1.25}
-                    leftThreshold={28}
-                    rightThreshold={28}
-                    dragOffsetFromLeftEdge={10}
-                    dragOffsetFromRightEdge={10}
-                    onSwipeableWillOpen={() =>
-                        onSwipeWillOpen(item.id, () => {
-                            swipeableRef.current?.close();
-                        })
-                    }
-                    onSwipeableClose={() => onSwipeClose(item.id)}
-                    renderLeftActions={() =>
-                        listSelectionMode ? null : (
-                            <View style={styles.ideasSwipeActionsLeft}>
-                                <Pressable
-                                    style={({ pressed }) => [
-                                        styles.ideasSwipePrimaryBtn,
-                                        pressed ? styles.pressDown : null,
-                                    ]}
-                                    accessibilityRole="button"
-                                    accessibilityLabel="Edit item"
-                                    onPress={() => runSwipeAction(() => onSwipeEdit(item))}
-                                >
-                                    <Ionicons name="create-outline" size={17} color="#0f172a" />
-                                </Pressable>
-                                <Pressable
-                                    style={({ pressed }) => [
-                                        styles.ideasSwipePrimaryBtn,
-                                        styles.ideasSwipeActionHide,
-                                        pressed ? styles.pressDown : null,
-                                    ]}
-                                    accessibilityRole="button"
-                                    accessibilityLabel="Hide item"
-                                    onPress={() => runSwipeAction(() => onSwipeHide(item))}
-                                >
-                                    <Ionicons name="eye-off-outline" size={17} color="#0f172a" />
-                                </Pressable>
-                            </View>
-                        )
-                    }
-                    renderRightActions={() =>
-                        listSelectionMode ? null : (
-                            <View style={styles.ideasSwipeActionsRight}>
-                                <Pressable
-                                    style={({ pressed }) => [
-                                        styles.ideasSwipeActionBtn,
-                                        styles.ideasSwipeActionShare,
-                                        pressed ? styles.pressDown : null,
-                                    ]}
-                                    onPress={() => runSwipeAction(() => onSwipeShare(item))}
-                                >
-                                    <Ionicons name="share-social-outline" size={16} color="#0f172a" />
-                                </Pressable>
-
-                                <Pressable
-                                    style={({ pressed }) => [
-                                        styles.ideasSwipeActionBtn,
-                                        styles.ideasSwipeActionCopy,
-                                        pressed ? styles.pressDown : null,
-                                    ]}
-                                    onPress={() => runSwipeAction(() => onSwipeCopy(item))}
-                                >
-                                    <Ionicons name="copy-outline" size={16} color="#0f172a" />
-                                </Pressable>
-
-                                <Pressable
-                                    style={({ pressed }) => [
-                                        styles.ideasSwipeActionBtn,
-                                        styles.ideasSwipeActionMove,
-                                        pressed ? styles.pressDown : null,
-                                    ]}
-                                    onPress={() => runSwipeAction(() => onSwipeMove(item))}
-                                >
-                                    <Ionicons name="arrow-forward-outline" size={16} color="#0f172a" />
-                                </Pressable>
-
-                                <Pressable
-                                    style={({ pressed }) => [
-                                        styles.ideasSwipeActionBtn,
-                                        styles.ideasSwipeActionDelete,
-                                        pressed ? styles.pressDown : null,
-                                    ]}
-                                    onPress={() => runSwipeAction(() => onSwipeDelete(item))}
-                                >
-                                    <Ionicons name="trash-outline" size={16} color="#b91c1c" />
-                                </Pressable>
-                            </View>
-                        )
-                    }
-                >
+                <View style={styles.cardFlex}>
                     <View
                         onLayout={(evt) => {
                             rowLayoutsRef.current[item.id] = {
@@ -557,10 +440,12 @@ export function IdeaListItem({
                                 navigateRoot("IdeaDetail");
                                 }}
                                 onLongPress={() => {
-                                if (!listSelectionMode) {
-                                    useStore.getState().startListSelection(item.id);
+                                if (listSelectionMode) {
+                                    useStore.getState().toggleListSelection(item.id);
                                     return;
                                 }
+                                void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                                onLongPressActions(item);
                                 }}
                                 delayLongPress={250}
                             >
@@ -788,7 +673,7 @@ export function IdeaListItem({
                             </Pressable>
                         </View>
                     </View>
-                </Swipeable>
+                </View>
             </View>
             )}
         </View>
