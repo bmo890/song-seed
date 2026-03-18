@@ -15,6 +15,7 @@ type IdeaSelectionBarProps = {
   hideActionLabel: "Hide" | "Unhide";
   hideActionDisabled?: boolean;
   onDeleteSelected: () => void;
+  onDockLayout?: (height: number) => void;
 };
 
 export function IdeaSelectionBar({
@@ -25,6 +26,7 @@ export function IdeaSelectionBar({
   hideActionLabel,
   hideActionDisabled,
   onDeleteSelected,
+  onDockLayout,
 }: IdeaSelectionBarProps) {
   const [isSharing, setIsSharing] = useState(false);
   const insets = useSafeAreaInsets();
@@ -102,7 +104,12 @@ export function IdeaSelectionBar({
   }
 
   return (
-    <View style={[styles.ideasSelectionDock, { bottom: bottomOffset }]}>
+    <View
+      style={[styles.ideasSelectionDock, { bottom: bottomOffset }]}
+      onLayout={(event) => {
+        onDockLayout?.(event.nativeEvent.layout.height);
+      }}
+    >
       <View style={styles.ideasSelectionDockHeader}>
         <Text style={styles.ideasSelectionCount}>{selectedListIdeaIds.length} selected</Text>
         <View style={styles.ideasSelectionHeaderActions}>

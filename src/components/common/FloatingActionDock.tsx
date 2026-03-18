@@ -22,6 +22,7 @@ type FloatingActionDockProps = {
   menuItems: FloatingActionMenuItem[];
   onRecord: () => void;
   wrapStyle?: StyleProp<ViewStyle>;
+  onDockLayout?: (height: number) => void;
 };
 
 export function getFloatingActionDockBottomOffset(bottomInset: number) {
@@ -35,11 +36,11 @@ export function getFloatingActionDockContentClearance(bottomInset: number) {
     FLOATING_ACTION_DOCK_CONTENT_GAP
   );
 }
-
 export function FloatingActionDock({
   menuItems,
   onRecord,
   wrapStyle,
+  onDockLayout,
 }: FloatingActionDockProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const insets = useSafeAreaInsets();
@@ -66,7 +67,12 @@ export function FloatingActionDock({
         </View>
       ) : null}
 
-      <View style={styles.ideasFabRow}>
+      <View
+        style={styles.ideasFabRow}
+        onLayout={(event) => {
+          onDockLayout?.(event.nativeEvent.layout.height);
+        }}
+      >
         <Pressable
           style={({ pressed }) => [styles.ideasCreateFab, pressed ? styles.pressDownStrong : null]}
           onPress={() => {

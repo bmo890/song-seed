@@ -182,6 +182,8 @@ export function IdeaListScreen() {
   const [ideaSizeMap, setIdeaSizeMap] = useState<Record<string, number>>({});
   const [stickyDayLabel, setStickyDayLabel] = useState<string | null>(null);
   const [stickyDayTop, setStickyDayTop] = useState<number>(0);
+  const [floatingDockHeight, setFloatingDockHeight] = useState(62);
+  const [selectionDockHeight, setSelectionDockHeight] = useState(120);
   const [undoState, setUndoState] = useState<{
     id: string;
     message: string;
@@ -192,10 +194,13 @@ export function IdeaListScreen() {
   const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const floatingBaseBottom = 12 + Math.max(insets.bottom, 16);
   const floatingStripBottom = floatingBaseBottom + 70;
+  const selectionDockBottom = 12 + Math.max(insets.bottom, 12);
+  const listFooterPeekGap = 24;
   const bottomToolbarAllowance = Platform.OS === "android" ? 18 : 0;
-  const listFooterSpacerHeight = listSelectionMode
-    ? Math.max(140, floatingBaseBottom + 104 + bottomToolbarAllowance)
-    : Math.max(220, floatingBaseBottom + 174 + bottomToolbarAllowance);
+  const activeDockClearance = listSelectionMode
+    ? selectionDockBottom + selectionDockHeight
+    : floatingBaseBottom + floatingDockHeight;
+  const listFooterSpacerHeight = activeDockClearance + listFooterPeekGap + bottomToolbarAllowance;
   const viewabilityConfigRef = useRef({ itemVisiblePercentThreshold: 35 });
   const ideasSortRef = useRef(ideasSort);
   const hiddenIdeaIdsSet = useMemo(() => new Set(hiddenIdeaIds), [hiddenIdeaIds]);
@@ -1349,6 +1354,12 @@ export function IdeaListScreen() {
         }}
         onImportAudio={() => {
           void openImportAudioFlow();
+        }}
+        onFloatingDockLayout={(height) => {
+          setFloatingDockHeight((prev) => (Math.abs(prev - height) < 1 ? prev : height));
+        }}
+        onSelectionDockLayout={(height) => {
+          setSelectionDockHeight((prev) => (Math.abs(prev - height) < 1 ? prev : height));
         }}
       />
 
