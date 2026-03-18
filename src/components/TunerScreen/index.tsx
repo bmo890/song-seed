@@ -14,6 +14,7 @@ import {
   normalizePitchAgainstHistory,
   summarizePitchSamples,
 } from "../../tuner";
+import { useBrowseRootBackHandler } from "../../hooks/useBrowseRootBackHandler";
 
 type PitchyConfig = {
   bufferSize?: number;
@@ -180,6 +181,7 @@ function getDetuneTone(absCents: number) {
 }
 
 export function TunerScreen() {
+  useBrowseRootBackHandler();
   const isFocused = useIsFocused();
 
   const pitchyRef = useRef<PitchyModule | null>(null);

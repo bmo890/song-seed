@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -8,6 +8,7 @@ import { styles } from "../../styles";
 import { colors, radii, spacing, text as textTokens } from "../../design/tokens";
 import { useStore } from "../../state/useStore";
 import { appActions } from "../../state/actions";
+import { openCollectionAsBrowseRoot } from "../../navigation";
 import { ScreenHeader } from "../common/ScreenHeader";
 import { PageIntro } from "../common/PageIntro";
 import { SurfaceCard } from "../common/SurfaceCard";
@@ -21,8 +22,15 @@ import {
 } from "../../services/audioStorage";
 import { extractSharedAudioAssets } from "../../services/shareImport";
 import { buildCollectionPathLabel } from "../../libraryNavigation";
-import { getCollectionById } from "../../utils";
+import { ensureUniqueCountedTitle, getCollectionById } from "../../utils";
 import { getHierarchyIconColor, getHierarchyIconName } from "../../hierarchy";
+import {
+  buildImportHelperText,
+  buildImportedAssetDateMetadata,
+  buildImportedIdeaDateMetadata,
+  promptForImportDatePreference,
+  type ImportDatePreference,
+} from "../../importDates";
 
 type ShareImportScreenProps = {
   fallbackCollectionId: string | null;
@@ -70,7 +78,12 @@ export function ShareImportScreen({ fallbackCollectionId }: ShareImportScreenPro
     fallbackCollectionId && currentCollectionWorkspace
       ? getCollectionById(currentCollectionWorkspace, fallbackCollectionId)
       : null;
-  const shareAssets = useMemo(() => extractSharedAudioAssets(shareIntent.files), [shareIntent.files]);
+  const [shareAssets, setShareAssets] = useState<{ assets: ImportedAudioAsset[]; rejectedCount: number }>({
+    assets: [],
+    rejectedCount: 0,
+  });
+  const [isResolvingShareAssets, setIsResolvingShareAssets] = useState(false);
+  const [importDatePreference, setImportDatePreference] = useState<ImportDatePreference>("import");
   const importedAssets = shareAssets.assets;
   const targetWorkspace =
     (currentCollection && workspaces.find((workspace) => workspace.id === currentCollection.workspaceId)) ??
@@ -89,6 +102,38 @@ export function ShareImportScreen({ fallbackCollectionId }: ShareImportScreenPro
     null
   );
   const [isImporting, setIsImporting] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const run = async () => {
+      setImportDatePreference("import");
+
+      if (!shareIntent.files?.length) {
+        setShareAssets({ assets: [], rejectedCount: 0 });
+        setIsResolvingShareAssets(false);
+        return;
+      }
+
+      setIsResolvingShareAssets(true);
+      try {
+        const nextShareAssets = await extractSharedAudioAssets(shareIntent.files);
+        if (!cancelled) {
+          setShareAssets(nextShareAssets);
+        }
+      } finally {
+        if (!cancelled) {
+          setIsResolvingShareAssets(false);
+        }
+      }
+    };
+
+    void run();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [shareIntent.files]);
 
   const otherCollectionDestinations = useMemo(() => {
     const currentWorkspace = activeWorkspaceId;
@@ -130,30 +175,53 @@ export function ShareImportScreen({ fallbackCollectionId }: ShareImportScreenPro
     }
     markCollectionOpened(collectionId);
     resetShareIntent();
-    (navigation as any).navigate("CollectionDetail", { collectionId });
+    openCollectionAsBrowseRoot(navigation, { collectionId });
+  };
+
+  const resolveImportDatePreference = async (title: string) => {
+    const nextPreference = await promptForImportDatePreference(importedAssets, title);
+    if (!nextPreference) {
+      return null;
+    }
+
+    setImportDatePreference(nextPreference);
+    return nextPreference;
+  };
+
+  const getCollectionIdeaTitles = (workspaceId: string, collectionId: string) => {
+    const workspace = workspaces.find((entry) => entry.id === workspaceId);
+    return workspace?.ideas.filter((idea) => idea.collectionId === collectionId).map((idea) => idea.title) ?? [];
   };
 
   const importIntoExistingCollection = async (
     destination: CollectionDestination,
     mode: "single-clip" | "individual-clips" | "song-project",
-    projectTitle?: string
+    projectTitle?: string,
+    datePreference: ImportDatePreference = importDatePreference
   ) => {
     if (importedAssets.length === 0 || isImporting) return;
 
     try {
       setIsImporting(true);
+      const importedAt = Date.now();
 
       if (mode === "single-clip") {
         const asset = importedAssets[0]!;
+        const nextTitles = getCollectionIdeaTitles(destination.workspaceId, destination.collectionId);
         const imported = await importAudioAsset(
           asset,
           `audio-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
         );
+        const [importedDate] = buildImportedAssetDateMetadata([asset], datePreference, importedAt);
+        const title = ensureUniqueCountedTitle(buildImportedTitle(asset.name), nextTitles);
         appActions.importClipToCollection(destination.collectionId, {
-          title: buildImportedTitle(asset.name),
+          title,
           audioUri: imported.audioUri,
           durationMs: imported.durationMs,
           waveformPeaks: imported.waveformPeaks,
+          createdAt: importedDate!.createdAt,
+          importedAt: importedDate!.importedAt,
+          sourceCreatedAt: importedDate!.sourceCreatedAt,
         });
         finishToCollection(destination.workspaceId, destination.collectionId);
         return;
@@ -169,23 +237,44 @@ export function ShareImportScreen({ fallbackCollectionId }: ShareImportScreenPro
         return;
       }
 
+      const importedDates = buildImportedAssetDateMetadata(imported, datePreference, importedAt);
+
       if (mode === "song-project") {
+        const ideaDateMetadata = buildImportedIdeaDateMetadata(importedDates);
+        const projectClipTitles: string[] = [];
         appActions.importProjectToCollection(destination.collectionId, {
           title: projectTitle?.trim() || buildImportedProjectTitle(importedAssets),
-          clips: imported.map((asset) => ({
-            title: buildImportedTitle(asset.name),
+          createdAt: ideaDateMetadata.createdAt,
+          importedAt: ideaDateMetadata.importedAt,
+          sourceCreatedAt: ideaDateMetadata.sourceCreatedAt,
+          clips: imported.map((asset, index) => ({
+            title: (() => {
+              const nextTitle = ensureUniqueCountedTitle(buildImportedTitle(asset.name), projectClipTitles);
+              projectClipTitles.push(nextTitle);
+              return nextTitle;
+            })(),
             audioUri: asset.audioUri,
             durationMs: asset.durationMs,
             waveformPeaks: asset.waveformPeaks,
+            createdAt: importedDates[index]!.createdAt,
+            importedAt: importedDates[index]!.importedAt,
+            sourceCreatedAt: importedDates[index]!.sourceCreatedAt,
           })),
         });
       } else {
-        imported.forEach((asset) => {
+        const nextTitles = getCollectionIdeaTitles(destination.workspaceId, destination.collectionId);
+        imported.forEach((asset, index) => {
+          const importedDate = importedDates[index]!;
+          const title = ensureUniqueCountedTitle(buildImportedTitle(asset.name), nextTitles);
+          nextTitles.push(title);
           appActions.importClipToCollection(destination.collectionId, {
-            title: buildImportedTitle(asset.name),
+            title,
             audioUri: asset.audioUri,
             durationMs: asset.durationMs,
             waveformPeaks: asset.waveformPeaks,
+            createdAt: importedDate.createdAt,
+            importedAt: importedDate.importedAt,
+            sourceCreatedAt: importedDate.sourceCreatedAt,
           });
         });
       }
@@ -206,9 +295,13 @@ export function ShareImportScreen({ fallbackCollectionId }: ShareImportScreenPro
     }
   };
 
-  const promptForCollectionImport = (destination: CollectionDestination) => {
+  const promptForCollectionImport = async (destination: CollectionDestination) => {
+    if (isResolvingShareAssets || isImporting) return;
+
     if (importedAssets.length <= 1) {
-      void importIntoExistingCollection(destination, "single-clip");
+      const datePreference = await resolveImportDatePreference("Import from Share");
+      if (!datePreference) return;
+      void importIntoExistingCollection(destination, "single-clip", undefined, datePreference);
       return;
     }
 
@@ -219,15 +312,23 @@ export function ShareImportScreen({ fallbackCollectionId }: ShareImportScreenPro
         {
           text: "Import as individual clips",
           onPress: () => {
-            void importIntoExistingCollection(destination, "individual-clips");
+            void (async () => {
+              const datePreference = await resolveImportDatePreference("Import from Share");
+              if (!datePreference) return;
+              await importIntoExistingCollection(destination, "individual-clips", undefined, datePreference);
+            })();
           },
         },
         {
           text: "Import as song project",
           onPress: () => {
-            setPendingCollectionDestination(destination);
-            setProjectTitleDraft("");
-            setProjectTitleModalOpen(true);
+            void (async () => {
+              const datePreference = await resolveImportDatePreference("Import as Song Project");
+              if (!datePreference) return;
+              setPendingCollectionDestination(destination);
+              setProjectTitleDraft("");
+              setProjectTitleModalOpen(true);
+            })();
           },
         },
         { text: "Cancel", style: "cancel" },
@@ -245,10 +346,13 @@ export function ShareImportScreen({ fallbackCollectionId }: ShareImportScreenPro
 
     try {
       setIsImporting(true);
+      const importedAt = Date.now();
       const { imported, failed } = await importAudioAssets(
         importedAssets,
         (_asset, index) => `audio-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 9)}`
       );
+      const importedDates = buildImportedAssetDateMetadata(imported, importDatePreference, importedAt);
+      const nextTitles: string[] = [];
 
       if (imported.length === 0) {
         deleteCollection(collectionId);
@@ -256,12 +360,18 @@ export function ShareImportScreen({ fallbackCollectionId }: ShareImportScreenPro
         return;
       }
 
-      imported.forEach((asset) => {
+      imported.forEach((asset, index) => {
+        const importedDate = importedDates[index]!;
+        const title = ensureUniqueCountedTitle(buildImportedTitle(asset.name), nextTitles);
+        nextTitles.push(title);
         appActions.importClipToCollection(collectionId, {
-          title: buildImportedTitle(asset.name),
+          title,
           audioUri: asset.audioUri,
           durationMs: asset.durationMs,
           waveformPeaks: asset.waveformPeaks,
+          createdAt: importedDate.createdAt,
+          importedAt: importedDate.importedAt,
+          sourceCreatedAt: importedDate.sourceCreatedAt,
         });
       });
 
@@ -285,7 +395,8 @@ export function ShareImportScreen({ fallbackCollectionId }: ShareImportScreenPro
   };
 
   const previewNames = importedAssets.slice(0, 4).map((asset) => buildImportedTitle(asset.name));
-  const unsupportedOnly = importedAssets.length === 0 && (shareIntent.files?.length ?? 0) > 0;
+  const unsupportedOnly =
+    !isResolvingShareAssets && importedAssets.length === 0 && (shareIntent.files?.length ?? 0) > 0;
 
   return (
     <SafeAreaView style={styles.screen}>
@@ -294,7 +405,9 @@ export function ShareImportScreen({ fallbackCollectionId }: ShareImportScreenPro
       <PageIntro
         title="Import from Share"
         subtitle={
-          importedAssets.length > 0
+          isResolvingShareAssets
+            ? "Preparing the shared audio before import."
+            : importedAssets.length > 0
             ? `${importedAssets.length} audio file${importedAssets.length === 1 ? "" : "s"} ready to import`
             : hasShareIntent
               ? "Review the shared content and choose where it should go."
@@ -327,7 +440,9 @@ export function ShareImportScreen({ fallbackCollectionId }: ShareImportScreenPro
             </>
           ) : (
             <Text style={shareImportStyles.helperText}>
-              {unsupportedOnly
+              {isResolvingShareAssets
+                ? "Preparing the shared audio so Song Seed can import it."
+                : unsupportedOnly
                 ? "Song Seed can import shared audio files, but the current share payload does not contain supported audio."
                 : "Nothing is waiting to be imported right now."}
             </Text>
@@ -350,8 +465,8 @@ export function ShareImportScreen({ fallbackCollectionId }: ShareImportScreenPro
                   label={currentCollection.title}
                   eyebrow="Current collection"
                   accessory={<Ionicons name="chevron-forward" size={16} color={colors.textMuted} />}
-                  onPress={() =>
-                    promptForCollectionImport({
+                  onPress={() => {
+                    void promptForCollectionImport({
                       workspaceId: currentCollection.workspaceId,
                       collectionId: currentCollection.id,
                       workspaceTitle: currentCollectionWorkspace?.title ?? "Current workspace",
@@ -360,8 +475,8 @@ export function ShareImportScreen({ fallbackCollectionId }: ShareImportScreenPro
                         currentCollectionWorkspace
                           ? buildCollectionPathLabel(currentCollectionWorkspace, currentCollection.id)
                           : currentCollection.title,
-                    })
-                  }
+                    });
+                  }}
                 />
               ) : (
                 <Text style={shareImportStyles.helperText}>
@@ -395,7 +510,9 @@ export function ShareImportScreen({ fallbackCollectionId }: ShareImportScreenPro
                       eyebrow={destination.workspaceTitle}
                       nested
                       accessory={<Ionicons name="chevron-forward" size={16} color={colors.textMuted} />}
-                      onPress={() => promptForCollectionImport(destination)}
+                      onPress={() => {
+                        void promptForCollectionImport(destination);
+                      }}
                     />
                   ))}
                 </View>
@@ -405,13 +522,17 @@ export function ShareImportScreen({ fallbackCollectionId }: ShareImportScreenPro
                 style={({ pressed }) => [
                   shareImportStyles.newCollectionRow,
                   pressed ? styles.pressDown : null,
-                  !targetWorkspace || isImporting ? styles.btnDisabled : null,
+                  !targetWorkspace || isImporting || isResolvingShareAssets ? styles.btnDisabled : null,
                 ]}
                 onPress={() => {
-                  setNewCollectionDraft("");
-                  setNewCollectionModalOpen(true);
+                  void (async () => {
+                    const datePreference = await resolveImportDatePreference("New Collection from Import");
+                    if (!datePreference) return;
+                    setNewCollectionDraft("");
+                    setNewCollectionModalOpen(true);
+                  })();
                 }}
-                disabled={!targetWorkspace || isImporting}
+                disabled={!targetWorkspace || isImporting || isResolvingShareAssets}
               >
                 <View style={shareImportStyles.newCollectionCopy}>
                   <Text style={shareImportStyles.newCollectionTitle}>New collection from import</Text>
@@ -449,7 +570,11 @@ export function ShareImportScreen({ fallbackCollectionId }: ShareImportScreenPro
         onSave={() => {
           void importIntoNewCollection();
         }}
-        helperText={`${importedAssets.length} shared audio file${importedAssets.length === 1 ? "" : "s"} will be placed in the new collection as individual clips.`}
+        helperText={buildImportHelperText(
+          `${importedAssets.length} shared audio file${importedAssets.length === 1 ? "" : "s"} will be placed in the new collection as individual clips.`,
+          importedAssets,
+          importDatePreference
+        )}
         saveLabel={isImporting ? "Importing..." : "Create"}
         saveDisabled={isImporting || !targetWorkspace}
         cancelDisabled={isImporting}
@@ -473,12 +598,17 @@ export function ShareImportScreen({ fallbackCollectionId }: ShareImportScreenPro
           void importIntoExistingCollection(
             pendingCollectionDestination,
             "song-project",
-            projectTitleDraft.trim() || buildImportedProjectTitle(importedAssets)
+            projectTitleDraft.trim() || buildImportedProjectTitle(importedAssets),
+            importDatePreference
           );
           setPendingCollectionDestination(null);
           setProjectTitleDraft("");
         }}
-        helperText={`Create one new song in ${pendingCollectionDestination?.collectionTitle ?? "this collection"} and add the shared files as takes.`}
+        helperText={buildImportHelperText(
+          `Create one new song in ${pendingCollectionDestination?.collectionTitle ?? "this collection"} and add the shared files as takes.`,
+          importedAssets,
+          importDatePreference
+        )}
         saveLabel={isImporting ? "Importing..." : "Import"}
         saveDisabled={isImporting}
         cancelDisabled={isImporting}

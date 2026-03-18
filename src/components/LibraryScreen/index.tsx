@@ -29,6 +29,7 @@ import {
 import { compareIdeas } from "../../ideaSort";
 import { getCollectionById } from "../../utils";
 import { getHierarchyIconColor, getHierarchyIconName } from "../../hierarchy";
+import { useBrowseRootBackHandler } from "../../hooks/useBrowseRootBackHandler";
 
 type PlaylistPickerSelection = {
   kind: PlaylistItemKind;
@@ -90,6 +91,7 @@ function getPlaylistItemTypeIcon(kind: PlaylistItemKind) {
 }
 
 export function LibraryScreen() {
+  useBrowseRootBackHandler();
   const navigation = useNavigation();
   const rootNavigation = (navigation as any).getParent?.();
   const navigateRoot = (route: string, params?: object) =>

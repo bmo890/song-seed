@@ -249,16 +249,40 @@ function normalizeProjectLyrics(lyrics?: ProjectLyrics): ProjectLyrics {
     };
 }
 
+function normalizeOptionalTimestamp(value: unknown) {
+    return Number.isFinite(value) ? Number(value) : undefined;
+}
+
+function normalizeClip(clip: ClipVersion): ClipVersion {
+    return {
+        ...clip,
+        importedAt: normalizeOptionalTimestamp(clip.importedAt),
+        sourceCreatedAt: normalizeOptionalTimestamp(clip.sourceCreatedAt),
+    };
+}
+
 function normalizeIdea(idea: SongIdea): SongIdea {
     if (idea.kind !== "project") {
+        const normalizedClips = idea.clips.map(normalizeClip);
         const derivedLastActivityAt = deriveIdeaLastActivityTimestamp(idea);
-        return idea.lastActivityAt === derivedLastActivityAt
-            ? idea
-            : { ...idea, lastActivityAt: derivedLastActivityAt };
+        const normalizedIdea: SongIdea = {
+            ...idea,
+            clips: normalizedClips,
+            importedAt: normalizeOptionalTimestamp(idea.importedAt),
+            sourceCreatedAt: normalizeOptionalTimestamp(idea.sourceCreatedAt),
+        };
+        return normalizedIdea.lastActivityAt === derivedLastActivityAt
+            ? normalizedIdea
+            : { ...normalizedIdea, lastActivityAt: derivedLastActivityAt };
     }
 
     const normalizedLyrics = normalizeProjectLyrics(idea.lyrics);
-    let normalizedIdea: SongIdea = idea;
+    let normalizedIdea: SongIdea = {
+        ...idea,
+        clips: idea.clips.map(normalizeClip),
+        importedAt: normalizeOptionalTimestamp(idea.importedAt),
+        sourceCreatedAt: normalizeOptionalTimestamp(idea.sourceCreatedAt),
+    };
 
     if (idea.lyrics !== normalizedLyrics) {
         normalizedIdea = { ...normalizedIdea, lyrics: normalizedLyrics };

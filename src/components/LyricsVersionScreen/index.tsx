@@ -15,6 +15,7 @@ import { getLatestLyricsVersion, lyricsDocumentToText } from "../../lyrics";
 import { formatDate } from "../../utils";
 import { getCollectionAncestors, getCollectionById } from "../../utils";
 import { getCollectionHierarchyLevel } from "../../hierarchy";
+import { openCollectionFromContext } from "../../navigation";
 
 type LyricsVersionRoute = RouteProp<RootStackParamList, "LyricsVersion">;
 
@@ -208,13 +209,21 @@ export function LyricsVersionScreen() {
               key: collection.id,
               label: collection.title,
               level: getCollectionHierarchyLevel(collection),
-              onPress: () => (navigation as any).navigate("CollectionDetail", { collectionId: collection.id }),
+              onPress: () =>
+                openCollectionFromContext(navigation, {
+                  collectionId: collection.id,
+                  source: "detail",
+                }),
             })),
             {
               key: projectCollection.id,
               label: projectCollection.title,
               level: getCollectionHierarchyLevel(projectCollection),
-              onPress: () => (navigation as any).navigate("CollectionDetail", { collectionId: projectCollection.id }),
+              onPress: () =>
+                openCollectionFromContext(navigation, {
+                  collectionId: projectCollection.id,
+                  source: "detail",
+                }),
             },
             {
               key: projectIdea.id,

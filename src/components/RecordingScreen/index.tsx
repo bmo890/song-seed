@@ -12,7 +12,7 @@ import { RecordingMeta } from "./RecordingMeta";
 import { RecordingControls } from "./RecordingControls";
 import { useRecording } from "../../hooks/useRecording";
 import { ClipVersion } from "../../types";
-import { genClipTitle } from "../../utils";
+import { ensureUniqueCountedTitle, genClipTitle } from "../../utils";
 import { RecordingInputPicker } from "./RecordingInputPicker";
 import { getLatestLyricsVersion, lyricsDocumentToText } from "../../lyrics";
 import { PlayerLyricsPanel } from "../PlayerScreen/PlayerLyricsPanel";
@@ -98,8 +98,16 @@ export function RecordingScreen() {
   const recordingPlaceholderTitle =
     recordingIdea
       ? recordingIdea.kind === "project"
-        ? genClipTitle(recordingIdea.title, recordingIdea.clips.length + 1)
-        : recordingIdea.title || fallbackClipTitle()
+        ? ensureUniqueCountedTitle(
+            genClipTitle(recordingIdea.title, recordingIdea.clips.length + 1),
+            recordingIdea.clips.map((clip) => clip.title)
+          )
+        : ensureUniqueCountedTitle(
+            recordingIdea.title || fallbackClipTitle(),
+            (workspaces.find((w) => w.id === activeWorkspaceId)?.ideas ?? [])
+              .filter((idea) => idea.kind === "clip" && idea.id !== recordingIdea.id)
+              .map((idea) => idea.title)
+          )
       : fallbackClipTitle();
 
   async function cancelRecording() {
@@ -158,8 +166,16 @@ export function RecordingScreen() {
 
     const suggestedTitle =
       recordingIdea?.kind === "project"
-        ? genClipTitle(recordingIdea.title, recordingIdea.clips.length + 1)
-        : recordingIdea?.title || fallbackClipTitle();
+        ? ensureUniqueCountedTitle(
+            genClipTitle(recordingIdea.title, recordingIdea.clips.length + 1),
+            recordingIdea.clips.map((clip) => clip.title)
+          )
+        : ensureUniqueCountedTitle(
+            recordingIdea?.title || fallbackClipTitle(),
+            (workspaces.find((w) => w.id === activeWorkspaceId)?.ideas ?? [])
+              .filter((idea) => idea.kind === "clip" && idea.id !== recordingIdea?.id)
+              .map((idea) => idea.title)
+          );
     const nextTitle = quickNameDraft.trim() || suggestedTitle;
 
     updateIdeas((prev) =>

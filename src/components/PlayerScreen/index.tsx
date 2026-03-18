@@ -23,6 +23,7 @@ import { TransportLayout } from "../common/TransportLayout";
 import { useTransportScrubbing } from "../../hooks/useTransportScrubbing";
 import { appActions } from "../../state/actions";
 import { MultiTimeRangeSelector } from "../common/TimeRangeSelector";
+import { openCollectionFromContext } from "../../navigation";
 
 type PlayerMode = "player" | "practice";
 type CountInOption = "off" | "1b" | "2b";
@@ -482,13 +483,21 @@ export function PlayerScreen() {
             key: collection.id,
             label: collection.title,
             level: getCollectionHierarchyLevel(collection),
-            onPress: () => (navigation as any).navigate("CollectionDetail", { collectionId: collection.id }),
+            onPress: () =>
+              openCollectionFromContext(navigation, {
+                collectionId: collection.id,
+                source: "detail",
+              }),
           })),
           {
             key: playerCollection.id,
             label: playerCollection.title,
             level: getCollectionHierarchyLevel(playerCollection),
-            onPress: () => (navigation as any).navigate("CollectionDetail", { collectionId: playerCollection.id }),
+            onPress: () =>
+              openCollectionFromContext(navigation, {
+                collectionId: playerCollection.id,
+                source: "detail",
+              }),
             active: true,
           },
         ]

@@ -25,8 +25,14 @@ import { IdeaStatusProgress } from "./IdeaStatusProgress";
 import { IdeaNotes } from "./IdeaNotes";
 import { LyricsVersionsPanel } from "../LyricsScreen/LyricsVersionsPanel";
 import { buildImportedTitle, importAudioAsset, pickSingleAudioFile, type ImportedAudioAsset } from "../../services/audioStorage";
-import { buildDefaultIdeaTitle, ensureUniqueIdeaTitle } from "../../utils";
+import { buildDefaultIdeaTitle, ensureUniqueCountedTitle, ensureUniqueIdeaTitle } from "../../utils";
 import type { SongClipTagFilter } from "./songClipControls";
+import {
+  buildImportHelperText,
+  buildImportedAssetDateMetadata,
+  promptForImportDatePreference,
+  type ImportDatePreference,
+} from "../../importDates";
 
 type IdeaDetailRoute = RouteProp<RootStackParamList, "IdeaDetail">;
 
@@ -125,6 +131,7 @@ export function IdeaDetailScreen() {
   const [draftCompletion, setDraftCompletion] = useState(0);
   const [importModalOpen, setImportModalOpen] = useState(false);
   const [importAsset, setImportAsset] = useState<ImportedAudioAsset | null>(null);
+  const [importDatePreference, setImportDatePreference] = useState<ImportDatePreference>("import");
   const [importDraft, setImportDraft] = useState("");
   const [importAsPrimary, setImportAsPrimary] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
@@ -138,6 +145,7 @@ export function IdeaDetailScreen() {
   const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const songClips = selectedIdea?.kind === "project" ? selectedIdea.clips : [];
+  const songClipTitles = useMemo(() => songClips.map((clip) => clip.title), [songClips]);
   const clipMap = useMemo(() => buildClipMap(songClips), [songClips]);
   const primaryClipId = useMemo(
     () => songClips.find((clip) => clip.isPrimary)?.id ?? null,
@@ -629,6 +637,7 @@ export function IdeaDetailScreen() {
     if (isImporting) return;
     setImportModalOpen(false);
     setImportAsset(null);
+    setImportDatePreference("import");
     setImportDraft("");
     setImportAsPrimary(false);
   }
@@ -637,8 +646,11 @@ export function IdeaDetailScreen() {
     if (!selectedIdea || selectedIdea.kind !== "project") return;
     const asset = await pickSingleAudioFile();
     if (!asset) return;
+    const datePreference = await promptForImportDatePreference([asset], "Import audio into song");
+    if (!datePreference) return;
 
     setImportAsset(asset);
+    setImportDatePreference(datePreference);
     setImportDraft("");
     setImportAsPrimary(false);
     setImportModalOpen(true);
@@ -649,11 +661,18 @@ export function IdeaDetailScreen() {
 
     try {
       setIsImporting(true);
+      const importedAt = Date.now();
       const importedAudio = await importAudioAsset(
         importAsset,
         `audio-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
       );
-      const finalTitle = importDraft.trim() || buildImportedTitle(importAsset.name);
+      const fallbackTitle = ensureUniqueCountedTitle(buildImportedTitle(importAsset.name), songClipTitles);
+      const finalTitle = importDraft.trim() || fallbackTitle;
+      const [importedDate] = buildImportedAssetDateMetadata(
+        [importAsset],
+        importDatePreference,
+        importedAt
+      );
 
       appActions.importClipToProject(selectedIdea.id, {
         title: finalTitle,
@@ -661,10 +680,14 @@ export function IdeaDetailScreen() {
         durationMs: importedAudio.durationMs,
         waveformPeaks: importedAudio.waveformPeaks,
         isPrimary: importAsPrimary,
+        createdAt: importedDate!.createdAt,
+        importedAt: importedDate!.importedAt,
+        sourceCreatedAt: importedDate!.sourceCreatedAt,
       });
 
       setImportModalOpen(false);
       setImportAsset(null);
+      setImportDatePreference("import");
       setImportDraft("");
       setImportAsPrimary(false);
     } catch (error) {
@@ -890,7 +913,9 @@ export function IdeaDetailScreen() {
         visible={importModalOpen}
         title="Import audio into song"
         draftValue={importDraft}
-        placeholderValue={importAsset ? buildImportedTitle(importAsset.name) : ""}
+        placeholderValue={
+          importAsset ? ensureUniqueCountedTitle(buildImportedTitle(importAsset.name), songClipTitles) : ""
+        }
         onChangeDraft={setImportDraft}
         isPrimary={importAsPrimary}
         onChangeIsPrimary={setImportAsPrimary}
@@ -898,7 +923,11 @@ export function IdeaDetailScreen() {
         onSave={() => {
           void saveImportedAudio();
         }}
-        helperText={`Destination: ${selectedIdea.title} as a new clip version.\nFile: ${importAsset?.name ?? "Selected audio"}`}
+        helperText={buildImportHelperText(
+          `Destination: ${selectedIdea.title} as a new clip version.\nFile: ${importAsset?.name ?? "Selected audio"}`,
+          importAsset ? [importAsset] : [],
+          importDatePreference
+        )}
         saveLabel={isImporting ? "Importing..." : "Import"}
         saveDisabled={isImporting}
         cancelDisabled={isImporting}

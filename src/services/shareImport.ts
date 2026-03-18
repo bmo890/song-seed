@@ -1,5 +1,5 @@
 import type { ShareIntentFile } from "expo-share-intent";
-import type { ImportedAudioAsset } from "./audioStorage";
+import { enrichImportedAudioAsset, type ImportedAudioAsset } from "./audioStorage";
 
 const AUDIO_FILE_EXTENSIONS = new Set([
   "aac",
@@ -43,7 +43,7 @@ function isSharedAudioFile(file: ShareIntentFile) {
   return extension ? AUDIO_FILE_EXTENSIONS.has(extension) : false;
 }
 
-export function extractSharedAudioAssets(files: ShareIntentFile[] | null | undefined) {
+export async function extractSharedAudioAssets(files: ShareIntentFile[] | null | undefined) {
   const importedAssets: ImportedAudioAsset[] = [];
   let rejectedCount = 0;
 
@@ -53,11 +53,13 @@ export function extractSharedAudioAssets(files: ShareIntentFile[] | null | undef
       continue;
     }
 
-    importedAssets.push({
-      uri: normalizeSharedFileUri(file.path),
-      name: file.fileName ?? undefined,
-      mimeType: file.mimeType ?? undefined,
-    });
+    importedAssets.push(
+      await enrichImportedAudioAsset({
+        uri: normalizeSharedFileUri(file.path),
+        name: file.fileName ?? undefined,
+        mimeType: file.mimeType ?? undefined,
+      })
+    );
   }
 
   return {

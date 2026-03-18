@@ -29,9 +29,12 @@ import {
   formatSelectedRangeLabel,
   getActivityCellBackground,
 } from "./helpers";
+import { openCollectionFromContext } from "../../navigation";
+import { useBrowseRootBackHandler } from "../../hooks/useBrowseRootBackHandler";
 
 export function ActivityScreen() {
   const navigation = useNavigation();
+  useBrowseRootBackHandler();
   const rootNavigation = (navigation as any).getParent?.();
   const navigateRoot = (routeName: string, params?: object) =>
     (rootNavigation ?? navigation).navigate(routeName as never, params as never);
@@ -243,16 +246,26 @@ export function ActivityScreen() {
     openIdea(item.ideaId, item.workspaceId);
   }
 
+  function openCollectionFromActivityContext(collectionId: string, focusIdeaId?: string) {
+    openCollectionFromContext(navigation, {
+      collectionId,
+      activityRangeStartTs: normalizedRange?.startTs,
+      activityRangeEndTs:
+        normalizedRange != null ? normalizedRange.endTs + 24 * 60 * 60 * 1000 - 1 : undefined,
+      activityMetricFilter: metricFilter,
+      activityLabel: selectedRangeLabel ?? undefined,
+      focusIdeaId,
+      focusToken: focusIdeaId ? Date.now() : undefined,
+      source: "activity",
+    });
+  }
+
   async function viewItemInCollection(item: { workspaceId: string; collectionId: string; ideaId: string }) {
     if (activeWorkspaceId !== item.workspaceId) {
       setActiveWorkspaceId(item.workspaceId);
     }
     await inlinePlayer.resetInlinePlayer();
-    navigateRoot("CollectionDetail", {
-      collectionId: item.collectionId,
-      focusIdeaId: item.ideaId,
-      focusToken: Date.now(),
-    });
+    openCollectionFromActivityContext(item.collectionId, item.ideaId);
   }
 
   function updateStickyDayLabel(scrollY: number) {
@@ -316,13 +329,13 @@ export function ActivityScreen() {
                 key: collection.id,
                 label: collection.title,
                 level: getCollectionHierarchyLevel(collection),
-                onPress: () => (navigation as any).navigate("CollectionDetail", { collectionId: collection.id }),
+                onPress: () => openCollectionFromActivityContext(collection.id),
               })),
               {
                 key: collectionScope.id,
                 label: collectionScope.title,
                 level: getCollectionHierarchyLevel(collectionScope),
-                onPress: () => (navigation as any).navigate("CollectionDetail", { collectionId: collectionScope.id }),
+                onPress: () => openCollectionFromActivityContext(collectionScope.id),
               },
               {
                 key: "activity",

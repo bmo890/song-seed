@@ -10,6 +10,7 @@ import { AppBreadcrumbs } from "../common/AppBreadcrumbs";
 import { useStore } from "../../state/useStore";
 import { getCollectionAncestors, getCollectionById } from "../../utils";
 import { getCollectionHierarchyLevel } from "../../hierarchy";
+import { openCollectionFromContext } from "../../navigation";
 import { LyricsVersionsPanel } from "./LyricsVersionsPanel";
 
 export function LyricsScreen() {
@@ -72,13 +73,21 @@ export function LyricsScreen() {
               key: collection.id,
               label: collection.title,
               level: getCollectionHierarchyLevel(collection),
-              onPress: () => navigation.navigate("CollectionDetail", { collectionId: collection.id }),
+              onPress: () =>
+                openCollectionFromContext(navigation, {
+                  collectionId: collection.id,
+                  source: "detail",
+                }),
             })),
             {
               key: projectCollection.id,
               label: projectCollection.title,
               level: getCollectionHierarchyLevel(projectCollection),
-              onPress: () => navigation.navigate("CollectionDetail", { collectionId: projectCollection.id }),
+              onPress: () =>
+                openCollectionFromContext(navigation, {
+                  collectionId: projectCollection.id,
+                  source: "detail",
+                }),
             },
             {
               key: selectedIdea.id,

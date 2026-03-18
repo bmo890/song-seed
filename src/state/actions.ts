@@ -254,7 +254,18 @@ export const appActions = {
         state.setRecordingIdeaId(createdId);
     },
 
-    importClipToCollection: (collectionId: string, payload: { title: string; audioUri: string; durationMs?: number; waveformPeaks?: number[] }) => {
+    importClipToCollection: (
+        collectionId: string,
+        payload: {
+            title: string;
+            audioUri: string;
+            durationMs?: number;
+            waveformPeaks?: number[];
+            createdAt?: number;
+            importedAt?: number;
+            sourceCreatedAt?: number;
+        }
+    ) => {
         const state = useStore.getState();
         const targetWorkspace = state.workspaces.find((workspace) =>
             workspace.collections.some((collection) => collection.id === collectionId)
@@ -264,7 +275,8 @@ export const appActions = {
         }
         const ideaId = buildIdeaId();
         const clipId = buildClipId();
-        const createdAt = Date.now();
+        const importedAt = payload.importedAt ?? Date.now();
+        const createdAt = payload.createdAt ?? importedAt;
 
         const importedIdea: SongIdea = {
             id: ideaId,
@@ -275,13 +287,17 @@ export const appActions = {
             kind: "clip",
             collectionId,
             createdAt,
-            lastActivityAt: createdAt,
+            importedAt,
+            sourceCreatedAt: payload.sourceCreatedAt,
+            lastActivityAt: importedAt,
             clips: [
                 {
                     id: clipId,
                     title: payload.title,
                     notes: "",
                     createdAt,
+                    importedAt,
+                    sourceCreatedAt: payload.sourceCreatedAt,
                     isPrimary: true,
                     audioUri: payload.audioUri,
                     durationMs: payload.durationMs,
@@ -318,7 +334,18 @@ export const appActions = {
         collectionId: string,
         payload: {
             title: string;
-            clips: Array<{ title: string; audioUri: string; durationMs?: number; waveformPeaks?: number[] }>;
+            createdAt?: number;
+            importedAt?: number;
+            sourceCreatedAt?: number;
+            clips: Array<{
+                title: string;
+                audioUri: string;
+                durationMs?: number;
+                waveformPeaks?: number[];
+                createdAt?: number;
+                importedAt?: number;
+                sourceCreatedAt?: number;
+            }>;
         }
     ) => {
         const state = useStore.getState();
@@ -332,7 +359,8 @@ export const appActions = {
             throw new Error("No imported audio available for this song.");
         }
 
-        const now = Date.now();
+        const importedAt = payload.importedAt ?? Date.now();
+        const createdAt = payload.createdAt ?? importedAt;
         const ideaId = buildIdeaId();
         const projectTitle = ensureUniqueIdeaTitle(
             payload.title,
@@ -342,7 +370,9 @@ export const appActions = {
             id: buildClipId(),
             title: clip.title,
             notes: "",
-            createdAt: now + index,
+            createdAt: clip.createdAt ?? createdAt + index,
+            importedAt: clip.importedAt ?? importedAt,
+            sourceCreatedAt: clip.sourceCreatedAt,
             isPrimary: index === 0,
             audioUri: clip.audioUri,
             durationMs: clip.durationMs,
@@ -357,8 +387,10 @@ export const appActions = {
             completionPct: 0,
             kind: "project",
             collectionId,
-            createdAt: now,
-            lastActivityAt: now + clips.length - 1,
+            createdAt,
+            importedAt,
+            sourceCreatedAt: payload.sourceCreatedAt,
+            lastActivityAt: importedAt,
             clips,
             lyrics: createEmptyProjectLyrics(),
         };
@@ -372,7 +404,7 @@ export const appActions = {
         }));
         state.logActivityEvents([
             {
-                at: now,
+                at: createdAt,
                 workspaceId: targetWorkspace.id,
                 collectionId,
                 ideaId,
@@ -389,11 +421,21 @@ export const appActions = {
 
     importClipToProject: (
         projectId: string,
-        payload: { title: string; audioUri: string; durationMs?: number; waveformPeaks?: number[]; isPrimary?: boolean }
+        payload: {
+            title: string;
+            audioUri: string;
+            durationMs?: number;
+            waveformPeaks?: number[];
+            isPrimary?: boolean;
+            createdAt?: number;
+            importedAt?: number;
+            sourceCreatedAt?: number;
+        }
     ) => {
         const state = useStore.getState();
         const clipId = buildClipId();
-        const createdAt = Date.now();
+        const importedAt = payload.importedAt ?? Date.now();
+        const createdAt = payload.createdAt ?? importedAt;
 
         state.updateIdeas((prev) =>
             prev.map((idea) => {
@@ -408,6 +450,8 @@ export const appActions = {
                     title: payload.title,
                     notes: "",
                     createdAt,
+                    importedAt,
+                    sourceCreatedAt: payload.sourceCreatedAt,
                     isPrimary: payload.isPrimary ? true : nextClips.length === 0,
                     audioUri: payload.audioUri,
                     durationMs: payload.durationMs,

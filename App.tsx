@@ -1,6 +1,12 @@
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import Constants from "expo-constants";
-import { NavigationContainer, useNavigationContainerRef, type LinkingOptions, getStateFromPath as getNavigationStateFromPath } from "@react-navigation/native";
+import {
+  NavigationContainer,
+  useNavigationContainerRef,
+  type LinkingOptions,
+  type NavigatorScreenParams,
+  getStateFromPath as getNavigationStateFromPath,
+} from "@react-navigation/native";
 import * as Linking from "expo-linking";
 import { useEffect, useMemo, useState } from "react";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
@@ -31,19 +37,21 @@ import {
   getRecentCollectionsForWorkspace,
   resolveStartupWorkspaceId,
 } from "./src/libraryNavigation";
+import type { CollectionDetailRouteParams } from "./src/navigation";
+
+export type HomeDrawerParamList = {
+  Workspaces: undefined;
+  Browse: undefined;
+  CollectionDetail: CollectionDetailRouteParams | undefined;
+  RevisitHome: undefined;
+  ActivityHome: undefined;
+  LibraryHome: undefined;
+  SettingsHome: undefined;
+};
 
 export type RootStackParamList = {
-  Home: undefined;
+  Home: NavigatorScreenParams<HomeDrawerParamList> | undefined;
   IdeaDetail: { ideaId?: string; startInEdit?: boolean } | undefined;
-  CollectionDetail:
-    | {
-        collectionId: string;
-        activityRangeStartTs?: number;
-        activityRangeEndTs?: number;
-        activityMetricFilter?: "created" | "updated" | "both";
-        activityLabel?: string;
-      }
-    | undefined;
   Activity: { workspaceId?: string; collectionId?: string } | undefined;
   Recording: undefined;
   Player: undefined;
@@ -57,7 +65,7 @@ export type RootStackParamList = {
 import { useStore } from "./src/state/useStore";
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
-const Drawer = createDrawerNavigator();
+const Drawer = createDrawerNavigator<HomeDrawerParamList>();
 
 function getActiveWorkspaceRouteContext(args: {
   deepestRouteName: string;
@@ -205,7 +213,7 @@ function DrawerContent({ navigation, state }: DrawerContentComponentProps) {
       }}
       onOpenCollection={(collectionId) => {
         closeDrawer();
-        navigateRoot("CollectionDetail", { collectionId });
+        navigation.navigate("CollectionDetail", { collectionId });
       }}
       onOpenFavorite={(ideaId) => {
         closeDrawer();
@@ -263,6 +271,7 @@ function DrawerRoutes() {
     >
       <Drawer.Screen name="Workspaces" component={WorkspaceListScreen} />
       <Drawer.Screen name="Browse" component={WorkspaceBrowseScreen} />
+      <Drawer.Screen name="CollectionDetail" component={IdeaListScreen} />
       <Drawer.Screen name="RevisitHome" component={RevisitScreen} />
       <Drawer.Screen name="ActivityHome" component={ActivityScreen} />
       <Drawer.Screen name="LibraryHome" component={LibraryScreen} />
@@ -408,7 +417,6 @@ function AppContent() {
       >
         <Stack.Navigator screenOptions={{ headerShown: false }} initialRouteName="Home">
           <Stack.Screen name="Home" component={DrawerRoutes} />
-          <Stack.Screen name="CollectionDetail" component={IdeaListScreen} />
           <Stack.Screen name="Activity" component={ActivityScreen} />
           <Stack.Screen name="IdeaDetail" component={IdeaDetailScreen} />
           <Stack.Screen name="Recording" component={RecordingScreen} />

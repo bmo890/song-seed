@@ -25,6 +25,7 @@ import {
   type MetronomeOutputKey,
 } from "../../metronome";
 import { styles } from "../../styles";
+import { useBrowseRootBackHandler } from "../../hooks/useBrowseRootBackHandler";
 
 type IconName = ComponentProps<typeof Ionicons>["name"];
 
@@ -42,6 +43,7 @@ const BPM_STEPS = [
 ];
 
 export function MetronomeScreen() {
+  useBrowseRootBackHandler();
   const pulseAnim = useRef(new Animated.Value(0)).current;
   const {
     bpm,

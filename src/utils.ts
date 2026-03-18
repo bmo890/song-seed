@@ -143,6 +143,30 @@ export function ensureUniqueIdeaTitle(baseTitle: string, existingTitles: string[
   return candidate;
 }
 
+export function ensureUniqueCountedTitle(baseTitle: string, existingTitles: string[]) {
+  const trimmedBaseTitle = baseTitle.trim();
+  if (!trimmedBaseTitle) {
+    return baseTitle;
+  }
+
+  const normalizedExisting = new Set(existingTitles.map((title) => title.trim().toLowerCase()));
+  if (!normalizedExisting.has(trimmedBaseTitle.toLowerCase())) {
+    return trimmedBaseTitle;
+  }
+
+  const suffixMatch = trimmedBaseTitle.match(/^(.*)\s\((\d+)\)$/);
+  const rootTitle = suffixMatch?.[1]?.trim() || trimmedBaseTitle;
+
+  let suffix = 1;
+  let candidate = `${rootTitle} (${suffix})`;
+  while (normalizedExisting.has(candidate.trim().toLowerCase())) {
+    suffix += 1;
+    candidate = `${rootTitle} (${suffix})`;
+  }
+
+  return candidate;
+}
+
 export const genIdea = () => {
   const dictionaries =
     Math.random() > 0.55 ? [adjectives, aestheticWords, animals] : [adjectives, aestheticWords];
