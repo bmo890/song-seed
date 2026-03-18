@@ -116,12 +116,13 @@ export function IdeaListScreen() {
   const handledFocusTokenRef = useRef<number | null>(null);
   const focusScrollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Mark inline player UI as visible so the popup dock doesn't appear
-  // on top of the already-visible inline player controls.
+  // Keep the inline player visibility flag tied to screen focus so returning
+  // from song detail restores inline ownership and does not leave the global
+  // dock thinking the inline UI is hidden.
   useEffect(() => {
-    useStore.getState().setInlinePlayerMounted(true);
+    useStore.getState().setInlinePlayerMounted(isFocused);
     return () => useStore.getState().setInlinePlayerMounted(false);
-  }, []);
+  }, [isFocused]);
 
   useEffect(() => {
     if (!inlinePlayer.inlineTarget) return;

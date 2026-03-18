@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { StatusBar as ExpoStatusBar } from "expo-status-bar";
-import { RouteProp, useNavigation, useRoute } from "@react-navigation/native";
+import { RouteProp, useIsFocused, useNavigation, useRoute } from "@react-navigation/native";
 import type { RootStackParamList } from "../../../App";
 import { Alert, Platform, Pressable, ScrollView, Text, View } from "react-native";
 import { styles } from "../../styles";
@@ -84,6 +84,7 @@ function collectDescendantClipIds(clips: ClipVersion[], rootClipIds: string[]) {
 
 export function IdeaDetailScreen() {
   const insets = useSafeAreaInsets();
+  const isFocused = useIsFocused();
   const route = useRoute<IdeaDetailRoute>();
   const routeIdeaId = route.params?.ideaId;
   const startInEdit = !!route.params?.startInEdit;
@@ -213,10 +214,10 @@ export function IdeaDetailScreen() {
   const isProject = selectedIdea?.kind === "project";
   const setInlinePlayerMounted = useStore((s) => s.setInlinePlayerMounted);
   useEffect(() => {
-    const visible = !isProject || songTab === "takes";
+    const visible = isFocused && (!isProject || songTab === "takes");
     setInlinePlayerMounted(visible);
     return () => setInlinePlayerMounted(false);
-  }, [isProject, setInlinePlayerMounted, songTab]);
+  }, [isFocused, isProject, setInlinePlayerMounted, songTab]);
 
   useEffect(() => {
     if (isEditMode || songTab !== "takes") {

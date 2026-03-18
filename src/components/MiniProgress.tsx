@@ -14,6 +14,8 @@ type Props = {
   captureWholeLane?: boolean;
 };
 
+const EDGE_GRAB_INSET = 10;
+
 export function MiniProgress({
   currentMs,
   durationMs,
@@ -55,8 +57,9 @@ export function MiniProgress({
 
   const getSeekTime = (pageX: number) => {
     if (trackFrame.width <= 0) return 0;
-    const trackRelativeX = pageX - trackFrame.pageX;
-    const ratio = Math.max(0, Math.min(1, trackRelativeX / trackFrame.width));
+    const effectiveWidth = Math.max(1, trackFrame.width - EDGE_GRAB_INSET * 2);
+    const trackRelativeX = pageX - (trackFrame.pageX + EDGE_GRAB_INSET);
+    const ratio = Math.max(0, Math.min(1, trackRelativeX / effectiveWidth));
     return ratio * safeDuration;
   };
 
@@ -110,6 +113,7 @@ export function MiniProgress({
   return (
     <View
       style={[styles.miniProgressWrap, extraBottomMargin ? { paddingBottom: extraBottomMargin } : null]}
+      {...(captureWholeLane ? responderHandlers : {})}
     >
       {showTopDivider ? <View style={styles.miniProgressTopDivider} /> : null}
       <View style={styles.miniProgressTimes}>
@@ -121,9 +125,10 @@ export function MiniProgress({
         onLayout={handleTrackLayout}
         style={[
           styles.miniProgressTrackHitbox,
+          { paddingHorizontal: EDGE_GRAB_INSET },
           captureWholeLane ? { minHeight: 24, justifyContent: "center" } : null,
         ]}
-        {...responderHandlers}
+        {...(!captureWholeLane ? responderHandlers : {})}
       >
         <View style={styles.miniProgressTrack}>
           <View style={[styles.miniProgressFill, { width: `${clamped * 100}%` }]} />

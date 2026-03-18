@@ -4689,6 +4689,7 @@ export const styles = StyleSheet.create({
   },
   ideasListLeadHotzoneInline: {
     flexDirection: "column",
+    width: 46,
   },
   ideasListLeadHotzoneTop: {
     flex: 1,
