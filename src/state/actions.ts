@@ -29,6 +29,10 @@ function buildChordPlacementId() {
     return buildEntityId("chord");
 }
 
+function cloneClipTags(tags?: string[]) {
+    return tags?.length ? [...tags] : undefined;
+}
+
 function cloneClipForCopy(clip: ClipVersion, createdAt: number, isPrimary: boolean) {
     return {
         ...clip,
@@ -36,6 +40,7 @@ function cloneClipForCopy(clip: ClipVersion, createdAt: number, isPrimary: boole
         createdAt,
         isPrimary,
         parentClipId: undefined,
+        tags: cloneClipTags(clip.tags),
     };
 }
 
@@ -104,7 +109,7 @@ function createStandaloneClipIdeaFromMove(clip: ClipVersion, collectionId: strin
         collectionId,
         createdAt: clip.createdAt,
         lastActivityAt: clip.createdAt,
-        clips: [{ ...clip, isPrimary: true }],
+        clips: [{ ...clip, isPrimary: true, tags: cloneClipTags(clip.tags) }],
     };
 }
 

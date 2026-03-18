@@ -5,6 +5,11 @@ import * as Haptics from "expo-haptics";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { styles } from "../../styles";
 
+const FLOATING_ACTION_DOCK_BASE_BOTTOM = 12;
+const FLOATING_ACTION_DOCK_MIN_SAFE_AREA = 16;
+const FLOATING_ACTION_DOCK_RECORD_BUTTON_SIZE = 62;
+const FLOATING_ACTION_DOCK_CONTENT_GAP = 24;
+
 type FloatingActionMenuItem = {
   key: string;
   label: string;
@@ -19,6 +24,18 @@ type FloatingActionDockProps = {
   wrapStyle?: StyleProp<ViewStyle>;
 };
 
+export function getFloatingActionDockBottomOffset(bottomInset: number) {
+  return FLOATING_ACTION_DOCK_BASE_BOTTOM + Math.max(bottomInset, FLOATING_ACTION_DOCK_MIN_SAFE_AREA);
+}
+
+export function getFloatingActionDockContentClearance(bottomInset: number) {
+  return (
+    getFloatingActionDockBottomOffset(bottomInset) +
+    FLOATING_ACTION_DOCK_RECORD_BUTTON_SIZE +
+    FLOATING_ACTION_DOCK_CONTENT_GAP
+  );
+}
+
 export function FloatingActionDock({
   menuItems,
   onRecord,
@@ -26,7 +43,7 @@ export function FloatingActionDock({
 }: FloatingActionDockProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const insets = useSafeAreaInsets();
-  const bottomOffset = 12 + Math.max(insets.bottom, 16);
+  const bottomOffset = getFloatingActionDockBottomOffset(insets.bottom);
 
   return (
     <View pointerEvents="box-none" style={[styles.ideasFabWrap, { bottom: bottomOffset }, wrapStyle]}>

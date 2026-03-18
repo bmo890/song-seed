@@ -1207,6 +1207,9 @@ export const createDataSlice: StateCreator<DataSlice & SelectionSlice, [], [], D
 
         const targetIdea = activeWs.ideas.find((x) => x.id === targetIdeaId);
         if (!targetIdea) return;
+        const parentClip = override?.parentClipId
+            ? targetIdea.clips.find((clip) => clip.id === override.parentClipId) ?? null
+            : null;
 
         const title = genClipTitle(targetIdea.title, targetIdea.clips.length + 1);
 
@@ -1220,6 +1223,7 @@ export const createDataSlice: StateCreator<DataSlice & SelectionSlice, [], [], D
             audioUri: override?.audioUri,
             durationMs: override?.durationMs,
             waveformPeaks: override?.waveformPeaks,
+            tags: parentClip?.tags?.length ? [...parentClip.tags] : undefined,
         };
 
         get().updateIdeas((p) =>

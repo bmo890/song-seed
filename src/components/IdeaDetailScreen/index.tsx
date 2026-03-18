@@ -15,7 +15,11 @@ import { SelectionBars } from "./SelectionBars";
 import { ClipList } from "./ClipList";
 import { ClipboardBanner } from "../ClipboardBanner";
 import { QuickNameModal } from "../modals/QuickNameModal";
-import { FloatingActionDock } from "../common/FloatingActionDock";
+import {
+  FloatingActionDock,
+  getFloatingActionDockBottomOffset,
+  getFloatingActionDockContentClearance,
+} from "../common/FloatingActionDock";
 import { Button } from "../common/Button";
 import { IdeaStatusProgress } from "./IdeaStatusProgress";
 import { IdeaNotes } from "./IdeaNotes";
@@ -105,9 +109,9 @@ export function IdeaDetailScreen() {
   const setRecordingParentClipId = useStore((s) => s.setRecordingParentClipId);
 
   const navigation = useNavigation();
-  const floatingBaseBottom = 12 + Math.max(insets.bottom, 16);
-  const bottomToolbarAllowance = Platform.OS === "android" ? 18 : 0;
-  const clipListFooterSpacerHeight = Math.max(220, floatingBaseBottom + 174 + bottomToolbarAllowance);
+  const floatingBaseBottom = getFloatingActionDockBottomOffset(insets.bottom);
+  const songPageBaseBottomPadding = 24 + Math.max(insets.bottom, 16);
+  const clipListFooterSpacerHeight = getFloatingActionDockContentClearance(insets.bottom);
 
   const [isEditMode, setIsEditMode] = useState(false);
   const [clipViewMode, setClipViewMode] = useState<"timeline" | "evolution">("evolution");
@@ -401,7 +405,7 @@ export function IdeaDetailScreen() {
         style={styles.songDetailTabScroll}
         contentContainerStyle={[
           styles.songDetailTabScrollContent,
-          { paddingBottom: clipListFooterSpacerHeight },
+          { paddingBottom: songPageBaseBottomPadding },
         ]}
         showsVerticalScrollIndicator={false}
       >
@@ -809,7 +813,7 @@ export function IdeaDetailScreen() {
             footerSpacerHeight={
               selectedIdea.kind === "project" && !isEditMode && !clipSelectionMode && !parentPickState
                 ? clipListFooterSpacerHeight
-                : 28
+                : songPageBaseBottomPadding
             }
           />
         </View>
@@ -834,7 +838,7 @@ export function IdeaDetailScreen() {
           onStartSetParent={handleStartSetParent}
           onMakeRoot={handleMakeRoot}
           onPickParentTarget={handlePickParentTarget}
-          footerSpacerHeight={28}
+          footerSpacerHeight={songPageBaseBottomPadding}
         />
       ) : null}
       {selectedIdea.kind === "project" &&

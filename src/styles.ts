@@ -814,7 +814,7 @@ export const styles = StyleSheet.create({
   },
   songDetailTabScrollContent: {
     gap: 10,
-    paddingBottom: 120,
+    paddingBottom: 0,
   },
   songDetailTabPanelWrap: {
     gap: 10,
@@ -4509,7 +4509,7 @@ export const styles = StyleSheet.create({
   },
   songDetailClipListContent: {
     paddingTop: 0,
-    paddingBottom: 120,
+    paddingBottom: 0,
     gap: 6,
   },
   selectionText: { fontSize: 13, color: "#374151", fontWeight: "600" },

@@ -54,6 +54,9 @@ export function RecordingScreen() {
   const recording = useRecording(
     (payload) => {
       if (!recordingIdeaId || !recordingIdea) return;
+      const parentClip = recordingParentClipId
+        ? recordingIdea.clips.find((clip) => clip.id === recordingParentClipId) ?? null
+        : null;
       const title = genClipTitle(recordingIdea.title, recordingIdea.clips.length + 1);
 
       const clip: ClipVersion = {
@@ -66,6 +69,7 @@ export function RecordingScreen() {
         audioUri: payload.audioUri,
         durationMs: payload.durationMs,
         waveformPeaks: payload.waveformPeaks,
+        tags: parentClip?.tags?.length ? [...parentClip.tags] : undefined,
       };
 
       updateIdeas((p) =>
