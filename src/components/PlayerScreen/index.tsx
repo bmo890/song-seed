@@ -486,6 +486,7 @@ export function PlayerScreen() {
   return (
     <SafeAreaView style={[styles.screen, screenStyles.screen]}>
       <TransportLayout
+        scrollable
         header={
           <View style={screenStyles.headerBlock}>
             <View style={screenStyles.navRow}>
@@ -870,8 +871,6 @@ const screenStyles = StyleSheet.create({
     fontVariant: ["tabular-nums"],
   },
   content: {
-    flex: 1,
-    minHeight: 0,
     paddingHorizontal: 14,
     paddingTop: 4,
     paddingBottom: 8,
