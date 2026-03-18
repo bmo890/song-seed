@@ -197,10 +197,12 @@ export function IdeaListScreen() {
   const selectionDockBottom = 12 + Math.max(insets.bottom, 12);
   const listFooterPeekGap = 24;
   const bottomToolbarAllowance = Platform.OS === "android" ? 18 : 0;
+  const activeDockHeight = listSelectionMode ? selectionDockHeight : floatingDockHeight;
   const activeDockClearance = listSelectionMode
     ? selectionDockBottom + selectionDockHeight
     : floatingBaseBottom + floatingDockHeight;
-  const listFooterSpacerHeight = activeDockClearance + listFooterPeekGap + bottomToolbarAllowance;
+  const listFooterSpacerHeight =
+    activeDockClearance + activeDockHeight + listFooterPeekGap + bottomToolbarAllowance;
   const viewabilityConfigRef = useRef({ itemVisiblePercentThreshold: 35 });
   const ideasSortRef = useRef(ideasSort);
   const hiddenIdeaIdsSet = useMemo(() => new Set(hiddenIdeaIds), [hiddenIdeaIds]);
