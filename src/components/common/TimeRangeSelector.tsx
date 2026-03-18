@@ -1,9 +1,8 @@
 import React, { useState } from "react";
 import { View, StyleSheet, LayoutChangeEvent } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
-import Animated, { useSharedValue, useAnimatedStyle, runOnJS, SharedValue, useAnimatedReaction, withSpring } from "react-native-reanimated";
+import Animated, { useSharedValue, useAnimatedStyle, runOnJS, SharedValue, useAnimatedReaction, withSpring, interpolateColor } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
-import Svg, { Polygon } from "react-native-svg";
 
 type Region = {
     id: string;
@@ -24,7 +23,9 @@ type Props = {
     onSeek?: (time: number) => void;
 };
 
-const HANDLE_WIDTH = 20;
+const HANDLE_WIDTH = 24;
+const GRAB_PILL_WIDTH = 14;
+const GRAB_PILL_HEIGHT = 28;
 
 function TimeRegionNode({
     region,
@@ -59,6 +60,8 @@ function TimeRegionNode({
 }) {
     const isDragging = useSharedValue(false);
     const isBoxDragging = useSharedValue(false);
+    const isLeftActive = useSharedValue(false);
+    const isRightActive = useSharedValue(false);
 
     // We use isolated shared values for physics, synced back to React state when gestures end
     const leftTime = useSharedValue(region.start);
@@ -92,9 +95,12 @@ function TimeRegionNode({
     };
 
     const leftPan = Gesture.Pan()
+        .activateAfterLongPress(300)
         .onStart(() => {
             isDragging.value = true;
+            isLeftActive.value = true;
             if (onScrubStateChange) runOnJS(onScrubStateChange)(true);
+            runOnJS(Haptics.selectionAsync)();
         })
         .onChange((e) => {
             if (pixelsPerMs > 0 && scale.value > 0) {
@@ -104,14 +110,18 @@ function TimeRegionNode({
         })
         .onEnd(() => {
             isDragging.value = false;
+            isLeftActive.value = false;
             commitChanges();
             if (onScrubStateChange) runOnJS(onScrubStateChange)(false);
         });
 
     const rightPan = Gesture.Pan()
+        .activateAfterLongPress(300)
         .onStart(() => {
             isDragging.value = true;
+            isRightActive.value = true;
             if (onScrubStateChange) runOnJS(onScrubStateChange)(true);
+            runOnJS(Haptics.selectionAsync)();
         })
         .onChange((e) => {
             if (pixelsPerMs > 0 && scale.value > 0) {
@@ -121,6 +131,7 @@ function TimeRegionNode({
         })
         .onEnd(() => {
             isDragging.value = false;
+            isRightActive.value = false;
             commitChanges();
             if (onScrubStateChange) runOnJS(onScrubStateChange)(false);
         });
@@ -134,6 +145,8 @@ function TimeRegionNode({
         .onStart(() => {
             isBoxDragging.value = true;
             isDragging.value = true;
+            isLeftActive.value = true;
+            isRightActive.value = true;
             boxStartLeft.value = leftTime.value;
             boxStartRight.value = rightTime.value;
             if (onScrubStateChange) runOnJS(onScrubStateChange)(true);
@@ -168,6 +181,8 @@ function TimeRegionNode({
                 if (onScrubStateChange) runOnJS(onScrubStateChange)(false);
             }
             isDragging.value = false;
+            isLeftActive.value = false;
+            isRightActive.value = false;
         });
 
     const scrubPan = Gesture.Pan()
@@ -190,54 +205,91 @@ function TimeRegionNode({
 
     const combinedGesture = Gesture.Race(moveSelectionPan, scrubPan);
 
+    const isKeep = region.type === "keep";
+
+    // Animated styles for left handle line + grab pill
     const leftStyle = useAnimatedStyle(() => {
         const originalX = leftTime.value * pixelsPerMs * scale.value;
         return { transform: [{ translateX: originalX + sharedTranslateX.value }] };
     });
 
+    const leftLineStyle = useAnimatedStyle(() => {
+        const active = isLeftActive.value;
+        return {
+            width: withSpring(active ? 3 : 2, { damping: 20, stiffness: 300 }),
+            backgroundColor: isKeep
+                ? (active ? "rgba(96, 165, 250, 1)" : "rgba(59, 130, 246, 0.9)")
+                : (active ? "rgba(252, 129, 129, 1)" : "rgba(239, 68, 68, 0.8)"),
+        };
+    });
+
+    const leftGrabStyle = useAnimatedStyle(() => {
+        return {
+            opacity: withSpring(isLeftActive.value ? 1 : 0.7, { damping: 20, stiffness: 300 }),
+            transform: [{ scale: withSpring(isLeftActive.value ? 1.15 : 1, { damping: 20, stiffness: 300 }) }],
+        };
+    });
+
+    // Animated styles for right handle line + grab pill
     const rightStyle = useAnimatedStyle(() => {
         const originalX = rightTime.value * pixelsPerMs * scale.value;
         return { transform: [{ translateX: originalX + sharedTranslateX.value - HANDLE_WIDTH }] };
     });
 
-    const trackStyle = useAnimatedStyle(() => {
-        const originalX = leftTime.value * pixelsPerMs * scale.value;
-        const width = (rightTime.value - leftTime.value) * pixelsPerMs * scale.value;
+    const rightLineStyle = useAnimatedStyle(() => {
+        const active = isRightActive.value;
         return {
-            transform: [
-                { translateX: originalX + sharedTranslateX.value + 1 },
-                { scaleY: withSpring(isBoxDragging.value ? 1.05 : 1) }
-            ],
-            width: Math.max(0, width - 2),
-            opacity: withSpring(isBoxDragging.value ? 1 : 0.7),
+            width: withSpring(active ? 3 : 2, { damping: 20, stiffness: 300 }),
+            backgroundColor: isKeep
+                ? (active ? "rgba(96, 165, 250, 1)" : "rgba(59, 130, 246, 0.9)")
+                : (active ? "rgba(252, 129, 129, 1)" : "rgba(239, 68, 68, 0.8)"),
         };
     });
 
-    const isKeep = region.type === "keep";
-    const bgTrackColor = isKeep ? "rgba(96, 165, 250, 0.18)" : "rgba(239, 68, 68, 0.15)";
-    const highlightColor = isKeep ? "rgba(59, 130, 246, 0.9)" : "rgba(239, 68, 68, 0.8)";
+    const rightGrabStyle = useAnimatedStyle(() => {
+        return {
+            opacity: withSpring(isRightActive.value ? 1 : 0.7, { damping: 20, stiffness: 300 }),
+            transform: [{ scale: withSpring(isRightActive.value ? 1.15 : 1, { damping: 20, stiffness: 300 }) }],
+        };
+    });
+
+    // Track fill style
+    const trackStyle = useAnimatedStyle(() => {
+        const originalX = leftTime.value * pixelsPerMs * scale.value;
+        const width = (rightTime.value - leftTime.value) * pixelsPerMs * scale.value;
+        const bothActive = isLeftActive.value && isRightActive.value;
+        return {
+            transform: [
+                { translateX: originalX + sharedTranslateX.value + 1 },
+                { scaleY: withSpring(bothActive ? 1.05 : 1) }
+            ],
+            width: Math.max(0, width - 2),
+            opacity: withSpring(bothActive ? 1 : 0.7),
+            backgroundColor: isKeep
+                ? (bothActive ? "rgba(96, 165, 250, 0.28)" : "rgba(96, 165, 250, 0.18)")
+                : (bothActive ? "rgba(239, 68, 68, 0.25)" : "rgba(239, 68, 68, 0.15)"),
+        };
+    });
+
+    const grabPillColor = isKeep ? "rgba(59, 130, 246, 0.9)" : "rgba(239, 68, 68, 0.8)";
 
     return (
         <React.Fragment>
             <GestureDetector gesture={combinedGesture}>
-                <Animated.View style={[{ position: "absolute", top: 0, bottom: 0, left: 0, backgroundColor: bgTrackColor, justifyContent: "center", alignItems: "center", borderRadius: 18 }, trackStyle]} />
+                <Animated.View style={[{ position: "absolute", top: 0, bottom: 0, left: 0, justifyContent: "center", alignItems: "center", borderRadius: 18 }, trackStyle]} />
             </GestureDetector>
 
             <GestureDetector gesture={leftPan}>
-                <Animated.View style={[styles.handleContainer, styles.handleContainerBottom, leftStyle]}>
-                    <View style={[styles.handleInner, styles.handleInnerLeft, { backgroundColor: highlightColor }]} />
-                    <Svg height="14" width="16" viewBox="0 0 16 14" style={styles.handleTriangleLeft}>
-                        <Polygon points="0,0 0,14 16,14" fill={highlightColor} />
-                    </Svg>
+                <Animated.View style={[styles.handleContainer, leftStyle]}>
+                    <Animated.View style={[styles.handleLine, styles.handleLineLeft, leftLineStyle]} />
+                    <Animated.View style={[styles.grabPill, styles.grabPillLeft, { backgroundColor: grabPillColor }, leftGrabStyle]} />
                 </Animated.View>
             </GestureDetector>
 
             <GestureDetector gesture={rightPan}>
-                <Animated.View style={[styles.handleContainer, styles.handleContainerBottom, rightStyle]}>
-                    <View style={[styles.handleInner, styles.handleInnerRight, { backgroundColor: highlightColor }]} />
-                    <Svg height="14" width="16" viewBox="0 0 16 14" style={styles.handleTriangleRight}>
-                        <Polygon points="16,0 16,14 0,14" fill={highlightColor} />
-                    </Svg>
+                <Animated.View style={[styles.handleContainer, rightStyle]}>
+                    <Animated.View style={[styles.handleLine, styles.handleLineRight, rightLineStyle]} />
+                    <Animated.View style={[styles.grabPill, styles.grabPillRight, { backgroundColor: grabPillColor }, rightGrabStyle]} />
                 </Animated.View>
             </GestureDetector>
         </React.Fragment>
@@ -306,11 +358,7 @@ const styles = StyleSheet.create({
         alignItems: "center",
         zIndex: 10,
     },
-    handleContainerBottom: {
-        justifyContent: "flex-end",
-    },
-    handleInner: {
-        width: 2,
+    handleLine: {
         height: "100%",
         borderRadius: 2,
         shadowColor: "#000",
@@ -322,18 +370,27 @@ const styles = StyleSheet.create({
         top: 0,
         bottom: 0,
     },
-    handleInnerLeft: {
+    handleLineLeft: {
         left: 0,
     },
-    handleInnerRight: {
+    handleLineRight: {
         right: 0,
     },
-    handleTriangleLeft: {
-        marginLeft: 0,
-        marginBottom: -1,
+    grabPill: {
+        width: GRAB_PILL_WIDTH,
+        height: GRAB_PILL_HEIGHT,
+        borderRadius: GRAB_PILL_WIDTH / 2,
+        position: "absolute",
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.25,
+        shadowRadius: 3,
+        elevation: 4,
     },
-    handleTriangleRight: {
-        marginLeft: 4,
-        marginBottom: -1,
-    }
+    grabPillLeft: {
+        left: -(GRAB_PILL_WIDTH / 2) + 1,
+    },
+    grabPillRight: {
+        right: -(GRAB_PILL_WIDTH / 2) + 1,
+    },
 });

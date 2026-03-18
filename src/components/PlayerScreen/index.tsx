@@ -1,8 +1,9 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Alert, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Alert, Pressable, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar as ExpoStatusBar } from "expo-status-bar";
 import { Ionicons } from "@expo/vector-icons";
+import Slider from "@react-native-community/slider";
 import { StackActions, useIsFocused, useNavigation } from "@react-navigation/native";
 import { useSharedValue } from "react-native-reanimated";
 import Animated, { useAnimatedStyle } from "react-native-reanimated";
@@ -35,8 +36,6 @@ type PracticeMarker = {
   label: string;
   atMs: number;
 };
-
-const PRACTICE_SPEED_OPTIONS = [0.5, 0.75, 0.9, 1] as const;
 
 function buildDefaultLoopRegion(durationMs: number, anchorMs = 0) {
   if (durationMs <= 0) {
@@ -293,14 +292,40 @@ export function PlayerScreen() {
     setLoopPlaybackEngaged(false);
   }, [mode, playerClip?.id, practiceLoopEnabled, practiceLoopRange.end, practiceLoopRange.start]);
 
-  useEffect(() => {
-    setPlaybackRate(playbackSpeed);
-  }, [playbackSpeed, setPlaybackRate]);
+  const wasPlayingBeforeSpeedChange = useRef(false);
+  const isSlidingSpeed = useRef(false);
 
-  useEffect(() => {
-    if (Math.abs(playbackRate - playbackSpeed) < 0.001) return;
-    setPlaybackSpeed(playbackRate);
-  }, [playbackRate]);
+  const cleanSpeed = (v: number) => Math.round(v * 20) / 20; // snap to nearest 0.05
+
+  const handleSpeedSlideStart = useCallback(() => {
+    isSlidingSpeed.current = true;
+    wasPlayingBeforeSpeedChange.current = isPlayerPlaying;
+    if (isPlayerPlaying) pausePlayer();
+  }, [isPlayerPlaying, pausePlayer]);
+
+  const handleSpeedSliding = useCallback((v: number) => {
+    setPlaybackSpeed(cleanSpeed(v));
+  }, []);
+
+  const handleSpeedSlideEnd = useCallback((v: number) => {
+    const clean = cleanSpeed(v);
+    isSlidingSpeed.current = false;
+    setPlaybackSpeed(clean);
+    setPlaybackRate(clean);
+    if (wasPlayingBeforeSpeedChange.current) {
+      setTimeout(() => playPlayer(), 80);
+    }
+  }, [playPlayer, setPlaybackRate]);
+
+  const handleSpeedTap = useCallback((speed: number) => {
+    wasPlayingBeforeSpeedChange.current = isPlayerPlaying;
+    if (isPlayerPlaying) pausePlayer();
+    setPlaybackSpeed(speed);
+    setPlaybackRate(speed);
+    if (wasPlayingBeforeSpeedChange.current) {
+      setTimeout(() => playPlayer(), 80);
+    }
+  }, [isPlayerPlaying, pausePlayer, playPlayer, setPlaybackRate]);
 
   useEffect(() => {
     if (mode !== "practice" || !practiceLoopEnabled || !isPlayerPlaying || transportScrub.isScrubbing) {
@@ -702,14 +727,13 @@ export function PlayerScreen() {
           {mode === "practice" ? (
             <View style={screenStyles.practiceContent}>
               <View style={screenStyles.practiceCard}>
+                {/* Loop */}
                 <View style={screenStyles.practiceRow}>
                   <Text style={screenStyles.practiceLabel}>Loop</Text>
                   <View style={screenStyles.practiceValueRow}>
                     {practiceLoopEnabled ? (
                       <>
-                        <View style={screenStyles.valuePill}>
-                          <Text style={screenStyles.valuePillText}>{practiceRangeLabel}</Text>
-                        </View>
+                        <Text style={screenStyles.loopRangeText}>{practiceRangeLabel}</Text>
                         <Pressable
                           style={({ pressed }) => [
                             screenStyles.resetButton,
@@ -739,21 +763,42 @@ export function PlayerScreen() {
 
                 <View style={screenStyles.divider} />
 
-                <View style={screenStyles.practiceRow}>
-                  <Text style={screenStyles.practiceLabel}>Speed</Text>
-                  <View style={screenStyles.optionGroup}>
-                    {PRACTICE_SPEED_OPTIONS.map((speed) => {
-                      const active = Math.abs(playbackSpeed - speed) < 0.001;
+                {/* Speed slider + ticks */}
+                <View style={screenStyles.practiceRowVertical}>
+                  <View style={screenStyles.speedBlock}>
+                    <Text style={screenStyles.practiceLabel}>Speed</Text>
+                    <Slider
+                      style={screenStyles.speedSlider}
+                      minimumValue={0.5}
+                      maximumValue={2}
+                      step={0.05}
+                      value={playbackSpeed}
+                      onValueChange={handleSpeedSliding}
+                      onSlidingStart={handleSpeedSlideStart}
+                      onSlidingComplete={handleSpeedSlideEnd}
+                      minimumTrackTintColor="#3b82f6"
+                      maximumTrackTintColor="#d1d5db"
+                      thumbTintColor="#ffffff"
+                    />
+                  </View>
+                  <View style={screenStyles.speedTicks}>
+                    {[0.5, 0.75, 1, 1.25, 1.5, 2].map((tick) => {
+                      const isActive = Math.abs(playbackSpeed - tick) < 0.01;
                       return (
-                        <Pressable
-                          key={speed}
-                          style={[screenStyles.optionChip, active ? screenStyles.optionChipActive : null]}
-                          onPress={() => setPlaybackSpeed(speed)}
+                        <TouchableOpacity
+                          key={tick}
+                          onPress={() => handleSpeedTap(tick)}
+                          hitSlop={4}
                         >
-                          <Text style={[screenStyles.optionChipText, active ? screenStyles.optionChipTextActive : null]}>
-                            {speed}x
+                          <Text
+                            style={[
+                              screenStyles.speedTickText,
+                              isActive && screenStyles.speedTickTextActive,
+                            ]}
+                          >
+                            {tick}x
                           </Text>
-                        </Pressable>
+                        </TouchableOpacity>
                       );
                     })}
                   </View>
@@ -761,14 +806,15 @@ export function PlayerScreen() {
 
                 <View style={screenStyles.divider} />
 
+                {/* Count-in */}
                 <View style={screenStyles.practiceRow}>
                   <Text style={screenStyles.practiceLabel}>Count-in</Text>
                   <View style={screenStyles.optionGroup}>
-                    {[
+                    {([
                       { key: "off" as const, label: "Off" },
                       { key: "1b" as const, label: "1b" },
                       { key: "2b" as const, label: "2b" },
-                    ].map((option) => {
+                    ] as const).map((option) => {
                       const active = countInOption === option.key;
                       return (
                         <Pressable
@@ -785,13 +831,15 @@ export function PlayerScreen() {
                   </View>
                 </View>
 
-              </View>
+                <View style={screenStyles.divider} />
 
-              <View style={screenStyles.notesBox}>
-                <Text style={screenStyles.notesBoxTitle}>Practice notes</Text>
-                <Text style={[screenStyles.notesBoxText, !clipNotes.trim() ? screenStyles.notesBoxPlaceholder : null]}>
-                  {clipNotes.trim() || "Practice annotations will reuse clip notes here until dedicated practice notes are added."}
-                </Text>
+                {/* Notes (inline row) */}
+                <Pressable style={screenStyles.practiceRow} onPress={() => {/* TODO: open notes sheet */}}>
+                  <Text style={screenStyles.practiceLabel}>Notes</Text>
+                  <Text style={screenStyles.notesInlineText} numberOfLines={1}>
+                    {clipNotes.trim() || "Add notes..."}
+                  </Text>
+                </Pressable>
               </View>
             </View>
           ) : (
@@ -1069,6 +1117,47 @@ const screenStyles = StyleSheet.create({
     justifyContent: "center",
     backgroundColor: "#eceef2",
   },
+  practiceRowVertical: {
+    paddingVertical: 8,
+    gap: 2,
+  },
+  speedBlock: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  speedSlider: {
+    flex: 1,
+    height: 28,
+  },
+  speedTicks: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingHorizontal: 2,
+  },
+  speedTickText: {
+    fontSize: 12,
+    color: "#9ca3af",
+    fontWeight: "500",
+    fontVariant: ["tabular-nums"] as any,
+    paddingVertical: 2,
+    paddingHorizontal: 4,
+  },
+  speedTickTextActive: {
+    color: "#3b82f6",
+    fontWeight: "700",
+  },
+  loopRangeText: {
+    fontSize: 13,
+    color: "#6b7280",
+    fontVariant: ["tabular-nums"] as any,
+  },
+  notesInlineText: {
+    fontSize: 14,
+    color: "#9ca3af",
+    flex: 1,
+    textAlign: "right",
+  },
   toggleShell: {
     width: 52,
     height: 30,
@@ -1204,28 +1293,5 @@ const screenStyles = StyleSheet.create({
   },
   pinSheetButtonTextDisabled: {
     color: "#9ca3af",
-  },
-  notesBox: {
-    backgroundColor: "#f6f7f9",
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: "#e3e6eb",
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    gap: 6,
-  },
-  notesBoxTitle: {
-    fontSize: 16,
-    lineHeight: 20,
-    fontWeight: "700",
-    color: "#111827",
-  },
-  notesBoxText: {
-    fontSize: 14,
-    lineHeight: 20,
-    color: "#374151",
-  },
-  notesBoxPlaceholder: {
-    color: "#9aa3af",
   },
 });

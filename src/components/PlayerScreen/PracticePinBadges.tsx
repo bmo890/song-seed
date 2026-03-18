@@ -1,4 +1,4 @@
-import React, { useCallback } from "react";
+import React, { useCallback, useMemo } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
@@ -13,7 +13,10 @@ import { Ionicons } from "@expo/vector-icons";
 import type { PracticeMarker } from "../../types";
 
 const BADGE_HEIGHT = 26;
-const BADGE_EST_WIDTH = 60; // estimated half-width for centering
+const BADGE_CHAR_WIDTH = 7;
+const BADGE_H_PAD = 16; // total horizontal padding (8 × 2)
+const ROW_GAP = 4; // gap between staggered rows
+const HEADER_HEIGHT = 28;
 
 type Props = {
   markers: PracticeMarker[];
@@ -29,10 +32,54 @@ type Props = {
   draggingMarkerX: SharedValue<number>;
 };
 
+/* ── Estimate badge pixel width from label ─────────────────────── */
+function estimateBadgeWidth(label: string): number {
+  return Math.max(36, label.length * BADGE_CHAR_WIDTH + BADGE_H_PAD);
+}
+
+/* ── Assign rows to avoid overlap ──────────────────────────────── */
+function assignRows(
+  markers: PracticeMarker[],
+  pixelsPerMs: number,
+  scale: number
+): { marker: PracticeMarker; row: number }[] {
+  if (markers.length === 0) return [];
+
+  const sorted = [...markers].sort((a, b) => a.atMs - b.atMs);
+  const result: { marker: PracticeMarker; row: number; rightEdge: number }[] = [];
+
+  // Track the right edge of the last badge in each row
+  const rowRightEdges: number[] = [-Infinity, -Infinity];
+
+  for (const m of sorted) {
+    const centerX = m.atMs * pixelsPerMs * scale;
+    const halfW = estimateBadgeWidth(m.label) / 2;
+    const leftEdge = centerX - halfW;
+
+    // Try row 0 first, then row 1
+    let assignedRow = 0;
+    if (leftEdge < rowRightEdges[0] + 4) {
+      // Would overlap row 0, try row 1
+      if (leftEdge < rowRightEdges[1] + 4) {
+        // Overlaps both — still put on row 1 (least bad)
+        assignedRow = 1;
+      } else {
+        assignedRow = 1;
+      }
+    }
+
+    rowRightEdges[assignedRow] = centerX + halfW;
+    result.push({ marker: m, row: assignedRow, rightEdge: centerX + halfW });
+  }
+
+  return result.map(({ marker, row }) => ({ marker, row }));
+}
+
 /* ── Individual badge with tap / longpress-drag gestures ────────── */
 
 function PinBadge({
   marker,
+  row,
   pixelsPerMs,
   timelineTranslateX,
   timelineScale,
@@ -42,7 +89,20 @@ function PinBadge({
   onRequestActions,
   draggingMarkerId,
   draggingMarkerX,
-}: Omit<Props, "markers" | "onRequestAdd"> & { marker: PracticeMarker }) {
+}: {
+  marker: PracticeMarker;
+  row: number;
+  pixelsPerMs: number;
+  timelineTranslateX: SharedValue<number>;
+  timelineScale: SharedValue<number>;
+  durationMs: number;
+  onSeek: (timeMs: number) => void;
+  onRepositionMarker: (markerId: string, newAtMs: number) => void;
+  onRequestActions: (marker: PracticeMarker) => void;
+  draggingMarkerId: SharedValue<string>;
+  draggingMarkerX: SharedValue<number>;
+}) {
+  const badgeW = estimateBadgeWidth(marker.label);
   const dragTimeMs = useSharedValue(marker.atMs);
   const dragStartMs = useSharedValue(0);
   const isDragging = useSharedValue(false);
@@ -89,13 +149,15 @@ function PinBadge({
 
   const composed = Gesture.Exclusive(panGesture, tapGesture);
 
+  const topOffset = row * (BADGE_HEIGHT + ROW_GAP);
+
   const animatedStyle = useAnimatedStyle(() => {
     const timeMs = isDragging.value ? dragTimeMs.value : marker.atMs;
     const x = timeMs * pixelsPerMs * timelineScale.value + timelineTranslateX.value;
     return {
       transform: [
         { translateX: x },
-        { translateX: -BADGE_EST_WIDTH / 2 },
+        { translateX: -(badgeW / 2) },
         { scale: withSpring(isDragging.value ? 1.1 : 1, { damping: 20, stiffness: 300 }) },
       ],
       zIndex: isDragging.value ? 10 : 0,
@@ -104,7 +166,7 @@ function PinBadge({
 
   return (
     <GestureDetector gesture={composed}>
-      <Animated.View style={[badgeStyles.badgeWrap, animatedStyle]}>
+      <Animated.View style={[badgeStyles.badgeWrap, { top: topOffset }, animatedStyle]}>
         <View style={badgeStyles.badge}>
           <Text style={badgeStyles.badgeText} numberOfLines={1}>
             {marker.label}
@@ -115,7 +177,7 @@ function PinBadge({
   );
 }
 
-/* ── Container: renders all badges + add button ─────────────────── */
+/* ── Container: header + positioned badges ──────────────────────── */
 
 export function PracticePinBadges({
   markers,
@@ -130,44 +192,88 @@ export function PracticePinBadges({
   draggingMarkerId,
   draggingMarkerX,
 }: Props) {
+  // We need current scale for collision detection — derive from shared value
+  // For initial render, use 1; the animated positions handle the rest
+  const rowAssignments = useMemo(
+    () => assignRows(markers, pixelsPerMs, 1),
+    [markers, pixelsPerMs]
+  );
+
+  const hasSecondRow = rowAssignments.some((r) => r.row === 1);
+  const badgeAreaHeight = hasSecondRow
+    ? BADGE_HEIGHT * 2 + ROW_GAP
+    : BADGE_HEIGHT;
+
   return (
     <View style={badgeStyles.container}>
-      {markers.map((marker) => (
-        <PinBadge
-          key={marker.id}
-          marker={marker}
-          pixelsPerMs={pixelsPerMs}
-          timelineTranslateX={timelineTranslateX}
-          timelineScale={timelineScale}
-          durationMs={durationMs}
-          onSeek={onSeek}
-          onRepositionMarker={onRepositionMarker}
-          onRequestActions={onRequestActions}
-          draggingMarkerId={draggingMarkerId}
-          draggingMarkerX={draggingMarkerX}
-        />
-      ))}
-      <Pressable
-        style={({ pressed }) => [badgeStyles.addButton, pressed && { opacity: 0.6 }]}
-        onPress={onRequestAdd}
-        hitSlop={8}
-      >
-        <Ionicons name="add" size={14} color="#ca8a04" />
-      </Pressable>
+      {/* Header row: pin icon + title + add button */}
+      <View style={badgeStyles.headerRow}>
+        <Ionicons name="pin-outline" size={14} color="#b45309" />
+        <Text style={badgeStyles.headerTitle}>Pins</Text>
+        <Pressable
+          style={({ pressed }) => [badgeStyles.addButton, pressed && { opacity: 0.6 }]}
+          onPress={onRequestAdd}
+          hitSlop={8}
+        >
+          <Ionicons name="add" size={14} color="#ca8a04" />
+        </Pressable>
+      </View>
+
+      {/* Badge area */}
+      <View style={[badgeStyles.badgeArea, { height: badgeAreaHeight }]}>
+        {rowAssignments.map(({ marker, row }) => (
+          <PinBadge
+            key={marker.id}
+            marker={marker}
+            row={row}
+            pixelsPerMs={pixelsPerMs}
+            timelineTranslateX={timelineTranslateX}
+            timelineScale={timelineScale}
+            durationMs={durationMs}
+            onSeek={onSeek}
+            onRepositionMarker={onRepositionMarker}
+            onRequestActions={onRequestActions}
+            draggingMarkerId={draggingMarkerId}
+            draggingMarkerX={draggingMarkerX}
+          />
+        ))}
+      </View>
     </View>
   );
 }
 
 const badgeStyles = StyleSheet.create({
   container: {
-    position: "relative",
-    height: BADGE_HEIGHT + 8,
     overflow: "visible",
     marginTop: 2,
   },
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    height: HEADER_HEIGHT,
+    paddingLeft: 2,
+  },
+  headerTitle: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#b45309",
+  },
+  addButton: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: "#fef3c7",
+    alignItems: "center",
+    justifyContent: "center",
+    marginLeft: 2,
+  },
+  badgeArea: {
+    position: "relative",
+    overflow: "visible",
+  },
   badgeWrap: {
     position: "absolute",
-    top: 4,
     height: BADGE_HEIGHT,
   },
   badge: {
@@ -181,16 +287,5 @@ const badgeStyles = StyleSheet.create({
     fontSize: 11,
     fontWeight: "600",
     color: "#b45309",
-  },
-  addButton: {
-    position: "absolute",
-    right: 0,
-    top: 2,
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: "#fef3c7",
-    alignItems: "center",
-    justifyContent: "center",
   },
 });
