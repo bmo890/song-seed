@@ -11,6 +11,7 @@ import {
     shareFileUri,
     type ZipArchiveEntry,
 } from "./audioStorage";
+import { SONG_SEED_SHARE_DIR } from "./storagePaths";
 
 export type LibraryExportFormat = "song-seed-archive" | "standard-zip";
 
@@ -142,7 +143,6 @@ type ExportBuildContext = {
 };
 
 const LIBRARY_EXPORT_SCHEMA_VERSION = 1;
-const SONG_SEED_SHARE_DIR = `${FileSystem.documentDirectory ?? ""}songseed/share`;
 
 export async function exportLibrary(args: ExportLibraryArgs): Promise<LibraryExportResult> {
     if (!FileSystem.documentDirectory) {

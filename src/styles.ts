@@ -15,7 +15,7 @@ export const styles = StyleSheet.create({
   },
   songDetailHeader: {
     marginTop: 2,
-    marginBottom: 6,
+    marginBottom: 0,
   },
   songDetailNavRow: {
     flexDirection: "row",
@@ -38,6 +38,8 @@ export const styles = StyleSheet.create({
     flexWrap: "nowrap",
   },
   songDetailNavCompactTitle: {
+    flex: 1,
+    minWidth: 0,
     fontSize: 16,
     lineHeight: 20,
     color: "#0f172a",
@@ -120,7 +122,7 @@ export const styles = StyleSheet.create({
   },
   songDetailTitleBlock: {
     marginTop: 0,
-    gap: 4,
+    gap: 1,
   },
   songDetailTitleBlockHidden: {
     display: "none",
@@ -167,7 +169,7 @@ export const styles = StyleSheet.create({
   },
   songDetailPageTitleWithIcon: {
     flexDirection: "row",
-    alignItems: "flex-start",
+    alignItems: "center",
     gap: 8,
   },
   songDetailTypeLabel: {
@@ -762,7 +764,8 @@ export const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    paddingVertical: 2,
+    paddingTop: 0,
+    marginLeft: 22,
   },
   songDetailProgressStripLabel: {
     fontSize: 12,
@@ -778,8 +781,10 @@ export const styles = StyleSheet.create({
   },
   songDetailSongTabs: {
     flexDirection: "row",
+    marginTop: -2,
     marginBottom: 4,
-    padding: 4,
+    paddingHorizontal: 4,
+    paddingVertical: 3,
     backgroundColor: "#e2e8f0",
     borderRadius: 8,
   },
@@ -809,7 +814,7 @@ export const styles = StyleSheet.create({
   },
   songDetailTabScrollContent: {
     gap: 10,
-    paddingBottom: 24,
+    paddingBottom: 120,
   },
   songDetailTabPanelWrap: {
     gap: 10,
@@ -1692,11 +1697,18 @@ export const styles = StyleSheet.create({
     borderRadius: 10,
   },
   songDetailVersionCard: {
-    paddingVertical: 8,
+    borderRadius: 22,
+    borderColor: "#e6eaf0",
+    shadowOpacity: 0,
+    elevation: 0,
+    paddingVertical: 7,
+    paddingHorizontal: 11,
     gap: 0,
   },
   songDetailVersionCardCompact: {
-    paddingVertical: 6,
+    borderRadius: 18,
+    paddingVertical: 5,
+    paddingHorizontal: 9,
   },
   songDetailVersionCardParentTarget: {
     borderColor: "#0f766e",
@@ -1708,10 +1720,10 @@ export const styles = StyleSheet.create({
   songDetailVersionRow: {
     flexDirection: "row",
     alignItems: "stretch",
-    gap: 8,
+    gap: 10,
   },
   songDetailVersionLead: {
-    width: 42,
+    width: 46,
     alignItems: "center",
     justifyContent: "space-between",
     alignSelf: "stretch",
@@ -1722,13 +1734,13 @@ export const styles = StyleSheet.create({
   },
   songDetailVersionLeadDurationSlot: {
     width: "100%",
-    minHeight: 12,
+    minHeight: 14,
     alignItems: "center",
     justifyContent: "center",
   },
   songDetailVersionLeadDurationText: {
-    fontSize: 11,
-    lineHeight: 13,
+    fontSize: 12,
+    lineHeight: 14,
     color: "#64748b",
     fontWeight: "600",
     textAlign: "center",
@@ -1738,6 +1750,7 @@ export const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
     gap: 3,
+    justifyContent: "space-between",
   },
   songDetailVersionTopRow: {
     flexDirection: "row",
@@ -1770,7 +1783,7 @@ export const styles = StyleSheet.create({
   songDetailVersionTitle: {
     flex: 1,
     minWidth: 0,
-    fontSize: 13,
+    fontSize: 13.5,
     lineHeight: 17,
     color: "#0f172a",
     fontWeight: "700",
@@ -1818,6 +1831,123 @@ export const styles = StyleSheet.create({
     color: "#64748b",
     fontWeight: "600",
   },
+  clipCardNotesPreview: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    marginTop: 2,
+  },
+  clipCardNotesPreviewText: {
+    fontSize: 11,
+    lineHeight: 15,
+    color: "#94a3b8",
+    flex: 1,
+  },
+  clipCardTagsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    flexWrap: "wrap",
+    marginTop: 2,
+  },
+  clipCardTagBadge: {
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  clipCardTagBadgeText: {
+    fontSize: 10,
+    fontWeight: "700",
+  },
+  clipCardAddTagBtn: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    borderWidth: 1,
+    borderColor: "#e2e5ea",
+    borderStyle: "dashed",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  tagPickerContent: {
+    paddingHorizontal: 18,
+    paddingTop: 4,
+    paddingBottom: 4,
+  },
+  tagPickerSectionLabel: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#64748b",
+    marginBottom: 8,
+    marginTop: 10,
+  },
+  tagPickerChipsWrap: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 6,
+    marginBottom: 4,
+  },
+  tagPickerChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  tagPickerChipText: {
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  tagPickerCustomDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  tagPickerAddRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  tagPickerAddInput: {
+    flex: 1,
+    height: 36,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    fontSize: 13,
+    color: "#0f172a",
+    backgroundColor: "#f8fafc",
+  },
+  tagPickerAddBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#f8fafc",
+  },
+  tagPickerAddBtnDisabled: {
+    opacity: 0.5,
+  },
+  tagPickerColorRow: {
+    flexDirection: "row",
+    gap: 8,
+    marginTop: 10,
+    marginBottom: 4,
+  },
+  tagPickerColorSwatch: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+  },
+  tagPickerColorSwatchActive: {
+    borderWidth: 2,
+    borderColor: "#0f172a",
+  },
   songDetailVersionNotes: {
     fontSize: 12,
     lineHeight: 17,
@@ -1825,6 +1955,13 @@ export const styles = StyleSheet.create({
   },
   songDetailVersionInlinePlayerWrap: {
     marginTop: 3,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  songDetailVersionInlinePlayerProgress: {
+    flex: 1,
+    minWidth: 0,
   },
   songDetailEvolutionGuideWrap: {
     position: "relative",
@@ -2174,6 +2311,38 @@ export const styles = StyleSheet.create({
     gap: 8,
     marginLeft: 8,
   },
+  workspaceBrowseMatchRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 6,
+    marginTop: 10,
+  },
+  workspaceBrowseMatchBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "#dbe2ea",
+    backgroundColor: "#f8fafc",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    maxWidth: "100%",
+  },
+  workspaceBrowseMatchText: {
+    fontSize: 12,
+    color: "#475569",
+    fontWeight: "600",
+    flexShrink: 1,
+  },
+  workspaceBrowseMatchContext: {
+    color: "#64748b",
+    fontWeight: "500",
+  },
+  workspaceBrowseMatchHighlight: {
+    color: "#0f172a",
+    fontWeight: "800",
+  },
   workspaceBrowseChildList: {
     gap: 8,
   },
@@ -2227,108 +2396,6 @@ export const styles = StyleSheet.create({
     color: "#334155",
     fontWeight: "700",
   },
-  subcollectionDisclosureWrap: {
-    gap: 8,
-    marginBottom: 10,
-  },
-  subcollectionDisclosureInlineWrap: {
-    position: "relative",
-    zIndex: 36,
-    minWidth: 144,
-    maxWidth: 188,
-  },
-  subcollectionDisclosureBtn: {
-    minHeight: 38,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "#dbe2ea",
-    backgroundColor: "#ffffff",
-    paddingHorizontal: 12,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 10,
-  },
-  subcollectionDisclosureBtnInline: {
-    minHeight: 38,
-    borderRadius: 18,
-  },
-  subcollectionDisclosureBtnOpen: {
-    borderColor: "#cfd9e4",
-    backgroundColor: "#f8fafc",
-  },
-  subcollectionDisclosureLead: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  subcollectionDisclosureTitle: {
-    fontSize: 12,
-    lineHeight: 16,
-    color: "#475569",
-    fontWeight: "600",
-  },
-  subcollectionDisclosureList: {
-    gap: 6,
-    paddingLeft: 8,
-  },
-  subcollectionDisclosureDropdown: {
-    position: "absolute",
-    top: 46,
-    left: 0,
-    minWidth: 220,
-    maxWidth: 260,
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: "#dbe2ea",
-    backgroundColor: "#ffffff",
-    padding: 8,
-    gap: 6,
-    shadowColor: "#0f172a",
-    shadowOpacity: 0.08,
-    shadowRadius: 10,
-    elevation: 6,
-  },
-  subcollectionDisclosureItem: {
-    minHeight: 34,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: "#e2e8f0",
-    backgroundColor: "#fbfdff",
-    paddingHorizontal: 12,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 10,
-  },
-  subcollectionDisclosureItemMain: {
-    minHeight: 34,
-  },
-  subcollectionDisclosureItemLead: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  subcollectionDisclosureItemActions: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-  },
-  subcollectionDisclosureChevronBtn: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  subcollectionDisclosureItemText: {
-    flex: 1,
-    fontSize: 13,
-    lineHeight: 18,
-    color: "#334155",
-    fontWeight: "600",
-  },
   collectionInlineActionBtn: {
     width: 28,
     height: 28,
@@ -2376,6 +2443,59 @@ export const styles = StyleSheet.create({
     flexGrow: 0,
     marginBottom: 10,
   },
+  activityWorkspaceFilterWrap: {
+    position: "relative",
+    zIndex: 20,
+    marginBottom: 10,
+  },
+  activityWorkspaceFilterTrigger: {
+    minHeight: 36,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "#dbe2ea",
+    backgroundColor: "#ffffff",
+    paddingHorizontal: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
+  },
+  activityWorkspaceFilterLabel: {
+    flex: 1,
+    fontSize: 12,
+    color: "#334155",
+    fontWeight: "700",
+  },
+  activityWorkspaceFilterMenu: {
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: "#dbe2ea",
+    borderRadius: 14,
+    backgroundColor: "#ffffff",
+    overflow: "hidden",
+    shadowColor: "#0f172a",
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    elevation: 2,
+  },
+  activityWorkspaceFilterOption: {
+    minHeight: 40,
+    paddingHorizontal: 12,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  activityWorkspaceFilterOptionActive: {
+    backgroundColor: "#f8fbff",
+  },
+  activityWorkspaceFilterOptionText: {
+    fontSize: 13,
+    color: "#334155",
+    fontWeight: "600",
+  },
+  activityWorkspaceFilterOptionTextActive: {
+    color: "#0f172a",
+    fontWeight: "700",
+  },
   activityChipScroll: {
     gap: 8,
     paddingRight: 8,
@@ -2407,6 +2527,10 @@ export const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     gap: 10,
+    marginBottom: 10,
+  },
+  activitySegmentStack: {
+    gap: 8,
     marginBottom: 10,
   },
   activitySegmentWrap: {
@@ -2472,8 +2596,11 @@ export const styles = StyleSheet.create({
     color: "#64748b",
     fontWeight: "600",
   },
+  activitySummaryBlock: {
+    flex: 1,
+    gap: 4,
+  },
   activityHintText: {
-    marginBottom: 10,
     fontSize: 11,
     color: "#64748b",
     fontWeight: "600",
@@ -2514,21 +2641,62 @@ export const styles = StyleSheet.create({
   activityHeatmapContent: {
     gap: 8,
   },
-  activityMonthRow: {
+  activityHeatmapHeader: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: 10,
+  },
+  activityHeatmapHeaderCopy: {
+    flex: 1,
+    gap: 4,
+  },
+  activityHeatmapEyebrow: {
+    fontSize: 11,
+    color: "#64748b",
+    fontWeight: "700",
+    textTransform: "uppercase",
+    letterSpacing: 0.3,
+  },
+  activityHeatmapSelectedLabel: {
+    fontSize: 15,
+    lineHeight: 20,
+    color: "#0f172a",
+    fontWeight: "700",
+  },
+  activityHeatmapScopeLabel: {
+    fontSize: 12,
+    lineHeight: 18,
+    color: "#64748b",
+    fontWeight: "600",
+  },
+  activityHeatmapHeaderHint: {
+    fontSize: 11,
+    color: "#64748b",
+    fontWeight: "600",
+  },
+  activityMonthRow: {
+    position: "relative",
     minHeight: 16,
     paddingLeft: 24,
   },
   activityMonthPressable: {
+    position: "absolute",
     minHeight: 16,
     justifyContent: "center",
+  },
+  activityMonthPressableActive: {
+    borderBottomWidth: 1,
+    borderBottomColor: "#1e3a8a",
   },
   activityMonthLabel: {
     position: "relative",
     fontSize: 10,
     color: "#64748b",
     fontWeight: "700",
+  },
+  activityMonthLabelActive: {
+    color: "#1e3a8a",
   },
   activityMonthSummaryCard: {
     borderWidth: 1,
@@ -2586,57 +2754,173 @@ export const styles = StyleSheet.create({
     borderRadius: 4,
     borderWidth: 1,
     borderColor: "#dbe2ea",
+    backgroundColor: "#ffffff",
+    padding: 0,
+  },
+  activityDayCellFill: {
+    flex: 1,
+    borderRadius: 3,
+  },
+  activityDayCellFillSelected: {
+    borderRadius: 3,
   },
   activityDayCellRangeSelected: {
-    borderColor: "#1e3a8a",
-    borderWidth: 2,
+    borderColor: "#2563eb",
+    borderWidth: 1.25,
+    padding: 1.5,
   },
   activityDayCellPressed: {
     transform: [{ scale: 0.94 }],
   },
-  activityRangeSummaryCard: {
-    borderWidth: 1,
-    borderColor: "#dbe2ea",
-    borderRadius: 16,
-    backgroundColor: "#ffffff",
-    paddingHorizontal: 12,
-    paddingVertical: 12,
+  activityResultsSection: {
     gap: 10,
   },
-  activityRangeSummaryHeader: {
+  activityResultsSummaryText: {
+    fontSize: 12,
+    color: "#64748b",
+    fontWeight: "700",
+  },
+  activityResultsList: {
+    gap: 8,
+  },
+  activityResultsRowWrap: {
+    flexDirection: "row",
+    alignItems: "stretch",
+  },
+  activityResultsCardFill: {
+    flex: 1,
+  },
+  activityResultCard: {
+    paddingVertical: 10,
+    gap: 6,
+  },
+  activityResultCardRow: {
+    flexDirection: "row",
+    alignItems: "stretch",
+    gap: 10,
+  },
+  activityResultLeadCol: {
+    width: 46,
+    alignItems: "center",
+    justifyContent: "space-between",
+    flexShrink: 0,
+    alignSelf: "stretch",
+  },
+  activityResultLeadColActive: {
+    justifyContent: "center",
+  },
+  activityResultLeadDurationSlot: {
+    width: "100%",
+    minHeight: 14,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  activityResultTop: {
+    gap: 3,
+  },
+  activityResultMain: {
+    flex: 1,
+    minWidth: 0,
+    gap: 4,
+  },
+  activityResultTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    minWidth: 0,
+  },
+  activityResultBottomRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    gap: 10,
-  },
-  activityRangeSummaryCopy: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
     gap: 8,
   },
-  activityRangeSummaryTitle: {
+  activityResultTypeBadge: {
+    alignSelf: "flex-start",
+    minHeight: 18,
+    borderRadius: 999,
+    paddingHorizontal: 6,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#dbe2ea",
+    backgroundColor: "#f8fafc",
+  },
+  activityResultTypeBadgeText: {
+    fontSize: 9,
+    color: "#475569",
+    fontWeight: "800",
+    textTransform: "uppercase",
+    letterSpacing: 0.3,
+  },
+  activityResultTitle: {
     flex: 1,
-    fontSize: 13,
+    minWidth: 0,
+    fontSize: 14,
+    lineHeight: 18,
+    color: "#0f172a",
+    fontWeight: "700",
+  },
+  activityResultMeta: {
+    fontSize: 11,
     color: "#334155",
     fontWeight: "700",
   },
-  activityRangeSummaryMeta: {
+  activityResultContext: {
+    flex: 1,
+    minWidth: 0,
     fontSize: 12,
+    lineHeight: 16,
     color: "#64748b",
     fontWeight: "600",
   },
-  activityRangeSummaryClear: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+  activityResultActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    flexShrink: 0,
+  },
+  activityResultIconBtnDisabled: {
+    backgroundColor: "#f8fafc",
+    borderColor: "#e2e8f0",
+  },
+  activityResultActionBtn: {
+    minHeight: 26,
+    borderRadius: 13,
+    paddingHorizontal: 9,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#f1f5f9",
+    backgroundColor: "#ffffff",
+    borderWidth: 1,
+    borderColor: "#cbd5e1",
   },
-  activityRangeScopedActions: {
-    flexDirection: "row",
-    justifyContent: "flex-end",
+  activityResultActionBtnText: {
+    fontSize: 11,
+    color: "#0f172a",
+    fontWeight: "700",
+  },
+  activityResultSecondaryBtn: {
+    backgroundColor: "#f8fafc",
+    borderColor: "#dbe2ea",
+  },
+  activityResultSecondaryBtnText: {
+    fontSize: 11,
+    color: "#334155",
+    fontWeight: "700",
+  },
+  activityResultEmptyCard: {
+    gap: 6,
+  },
+  activityResultEmptyTitle: {
+    fontSize: 14,
+    color: "#0f172a",
+    fontWeight: "700",
+  },
+  activityResultEmptyText: {
+    fontSize: 12,
+    lineHeight: 18,
+    color: "#64748b",
+    fontWeight: "600",
   },
   activityRangeWorkspaceGroupList: {
     gap: 12,
@@ -2675,21 +2959,6 @@ export const styles = StyleSheet.create({
   activityRangeCollectionCount: {
     fontSize: 11,
     color: "#475569",
-    fontWeight: "700",
-  },
-  activityRangeOpenBtn: {
-    minHeight: 30,
-    borderRadius: 15,
-    borderWidth: 1,
-    borderColor: "#cbd5e1",
-    backgroundColor: "#ffffff",
-    paddingHorizontal: 10,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  activityRangeOpenBtnText: {
-    fontSize: 12,
-    color: "#0f172a",
     fontWeight: "700",
   },
   activityDayModalCard: {
@@ -2825,79 +3094,6 @@ export const styles = StyleSheet.create({
     gap: 6,
   },
   listRowWrap: { flexDirection: "row", alignItems: "stretch", gap: 6 },
-  ideasSwipeActionsLeft: {
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-    paddingVertical: 6,
-    paddingRight: 8,
-    gap: 6,
-  },
-  ideasSwipePrimaryBtn: {
-    minWidth: 44,
-    width: 44,
-    minHeight: 44,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "#dbe2ea",
-    backgroundColor: "#ffffff",
-    paddingHorizontal: 0,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  ideasSwipeActionHide: {
-    backgroundColor: "#f8fafc",
-    borderColor: "#dbe2ea",
-  },
-  ideasSwipeSelectBtn: {
-    minWidth: 94,
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: "#dbe2ea",
-    backgroundColor: "#ffffff",
-    paddingHorizontal: 12,
-    alignItems: "center",
-    justifyContent: "center",
-    flexDirection: "row",
-    gap: 6,
-  },
-  ideasSwipeActionsRight: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "flex-end",
-    paddingVertical: 6,
-    paddingLeft: 8,
-    gap: 6,
-  },
-  ideasSwipeActionBtn: {
-    width: 44,
-    minHeight: 44,
-    borderRadius: 16,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-  },
-  ideasSwipeActionShare: {
-    backgroundColor: "#f8fafc",
-    borderColor: "#dbe2ea",
-  },
-  ideasSwipeActionCopy: {
-    backgroundColor: "#eff6ff",
-    borderColor: "#bfdbfe",
-  },
-  ideasSwipeActionMove: {
-    backgroundColor: "#ecfeff",
-    borderColor: "#a5f3fc",
-  },
-  ideasSwipeActionDelete: {
-    backgroundColor: "#fef2f2",
-    borderColor: "#fecaca",
-  },
-  ideasSwipeActionText: {
-    fontSize: 12,
-    color: "#334155",
-    fontWeight: "700",
-  },
   ideasDayDividerRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -3161,6 +3357,7 @@ export const styles = StyleSheet.create({
   cardTitleRow: { flex: 1, flexDirection: "row", alignItems: "center", gap: 6 },
   cardTitle: { flex: 1, fontSize: 16, fontWeight: "600", color: "#0f172a" },
   cardMeta: { fontSize: 12, color: "#64748b" },
+  cardMetaWarning: { color: "#b45309" },
   settingsScrollContent: {
     paddingBottom: 24,
     gap: 18,
@@ -3435,6 +3632,42 @@ export const styles = StyleSheet.create({
     lineHeight: 18,
     color: "#64748b",
   },
+  settingsStoragePrimaryValue: {
+    fontSize: 28,
+    lineHeight: 32,
+    color: "#0f172a",
+    fontWeight: "700",
+  },
+  settingsStorageMetricRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  settingsStorageMetricCopy: {
+    flex: 1,
+    gap: 2,
+  },
+  settingsStorageMetricValue: {
+    fontSize: 14,
+    lineHeight: 18,
+    color: "#0f172a",
+    fontWeight: "700",
+    textAlign: "right",
+  },
+  settingsStoragePathRow: {
+    gap: 4,
+  },
+  settingsStoragePathValue: {
+    fontSize: 12,
+    lineHeight: 17,
+    color: "#475569",
+  },
+  settingsStorageNote: {
+    fontSize: 12,
+    lineHeight: 17,
+    color: "#64748b",
+  },
   settingsActionRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -3454,6 +3687,138 @@ export const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 17,
     color: "#64748b",
+  },
+  libraryScrollContent: {
+    paddingBottom: 24,
+    gap: 12,
+  },
+  libraryDetailHeader: {
+    marginBottom: 2,
+  },
+  libraryPlaylistItemRow: {
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "#dbe2ea",
+    backgroundColor: "#ffffff",
+    padding: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  libraryPlaylistItemRowActive: {
+    backgroundColor: "#f8fafc",
+    borderColor: "#cbd5e1",
+  },
+  libraryPlaylistItemMain: {
+    flex: 1,
+    gap: 6,
+  },
+  libraryPlaylistItemTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    flexWrap: "wrap",
+  },
+  libraryPlaylistItemTypePill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "#dbe2ea",
+    backgroundColor: "#f8fafc",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  libraryPlaylistItemTypeText: {
+    fontSize: 10,
+    color: "#475569",
+    fontWeight: "700",
+    letterSpacing: 0.3,
+  },
+  libraryPlaylistItemUnavailablePill: {
+    borderRadius: 999,
+    backgroundColor: "#fef2f2",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  libraryPlaylistItemUnavailableText: {
+    fontSize: 10,
+    color: "#b91c1c",
+    fontWeight: "700",
+    letterSpacing: 0.3,
+  },
+  libraryPlaylistItemActions: {
+    gap: 8,
+  },
+  libraryPickerBackRow: {
+    minHeight: 34,
+    alignSelf: "flex-start",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 4,
+  },
+  libraryPickerBackText: {
+    fontSize: 13,
+    color: "#64748b",
+    fontWeight: "700",
+  },
+  libraryPickerSection: {
+    gap: 8,
+  },
+  libraryPickerItemRow: {
+    minHeight: 58,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#dbe2ea",
+    backgroundColor: "#ffffff",
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  libraryPickerItemMain: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  libraryPickerItemCopy: {
+    flex: 1,
+    gap: 2,
+  },
+  libraryPickerFooter: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingTop: 10,
+    paddingBottom: 8,
+    backgroundColor: "#f4f5f7",
+  },
+  workspaceCardPrimary: {
+    borderColor: "#e4d2a8",
+    backgroundColor: "#fffdf7",
+  },
+  workspaceCardBadges: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  workspacePrimaryButton: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    backgroundColor: "#ffffff",
+  },
+  workspacePrimaryButtonActive: {
+    borderColor: "#e4d2a8",
+    backgroundColor: "#fff7db",
   },
   recordingInputCard: {
     backgroundColor: "#f8f8fa",
@@ -3606,6 +3971,11 @@ export const styles = StyleSheet.create({
     color: "#166534",
     overflow: "hidden",
   },
+  badgeArchived: {
+    backgroundColor: "#e2e8f0",
+    color: "#334155",
+    overflow: "hidden",
+  },
   statusSeed: { backgroundColor: "#e5e7eb" },
   statusSeedText: { color: "#374151" },
   badgeGhostProject: {
@@ -3688,6 +4058,7 @@ export const styles = StyleSheet.create({
     bottom: 20,
     alignItems: "flex-end",
     gap: 10,
+    zIndex: 50,
   },
   ideasNowPlayingDock: {
     marginBottom: 8,
@@ -4012,6 +4383,26 @@ export const styles = StyleSheet.create({
     fontWeight: "700",
     fontVariant: ["tabular-nums"],
   },
+  miniMediaDockScrubWrap: {
+    paddingVertical: 4,
+  },
+  miniMediaDockSpeedChip: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    backgroundColor: "#f1f5f9",
+  },
+  miniMediaDockSpeedChipActive: {
+    backgroundColor: "#dbeafe",
+  },
+  miniMediaDockSpeedChipText: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: "#94a3b8",
+  },
+  miniMediaDockSpeedChipTextActive: {
+    color: "#2563eb",
+  },
   miniMediaDockRecordingMetaRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -4118,7 +4509,7 @@ export const styles = StyleSheet.create({
   },
   songDetailClipListContent: {
     paddingTop: 0,
-    paddingBottom: 28,
+    paddingBottom: 120,
     gap: 6,
   },
   selectionText: { fontSize: 13, color: "#374151", fontWeight: "600" },
@@ -4296,6 +4687,17 @@ export const styles = StyleSheet.create({
   ideasListLeadHotzoneExpanded: {
     width: 76,
   },
+  ideasListLeadHotzoneInline: {
+    flexDirection: "column",
+  },
+  ideasListLeadHotzoneTop: {
+    flex: 1,
+    width: "100%",
+  },
+  ideasListLeadHotzoneBottom: {
+    flex: 1,
+    width: "100%",
+  },
   ideasListCard: {
     backgroundColor: "#ffffff",
     borderRadius: 22,
@@ -4404,6 +4806,7 @@ export const styles = StyleSheet.create({
   },
   ideasListExpandedStaticWrap: {
     gap: 3,
+    justifyContent: "space-between",
   },
   ideasListExpandedHeaderRow: {
     flexDirection: "row",
@@ -4468,7 +4871,17 @@ export const styles = StyleSheet.create({
     alignSelf: "stretch",
   },
   ideasListLeadColInlineActive: {
+    justifyContent: "space-evenly",
+  },
+  ideasInlineCloseBtn: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    alignItems: "center",
     justifyContent: "center",
+    backgroundColor: "#f1f5f9",
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
   },
   ideasListLeadDurationSlot: {
     width: "100%",
@@ -4488,6 +4901,7 @@ export const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
     gap: 3,
+    justifyContent: "space-between",
   },
   ideasListCardMainCompact: {
     gap: 4,
@@ -4512,6 +4926,9 @@ export const styles = StyleSheet.create({
     gap: 2,
     width: 72,
     flexShrink: 0,
+  },
+  ideasListFavoriteBtn: {
+    padding: 2,
   },
   ideasListCardTitleRow: {
     flexDirection: "row",
@@ -4968,5 +5385,75 @@ export const styles = StyleSheet.create({
     lineHeight: 22,
     color: "#0f172a",
     fontWeight: "600",
+  },
+
+  // -- ClipNotesSheet --
+  clipNotesSheetContent: {
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    gap: 12,
+  },
+  clipNotesSheetSubtitle: {
+    fontSize: 12,
+    color: "#64748b",
+    marginTop: -4,
+  },
+  clipNotesSheetTextInput: {
+    width: "100%",
+    borderWidth: 1,
+    borderColor: "#d1d5db",
+    backgroundColor: "#fff",
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    minHeight: 200,
+    maxHeight: 360,
+    fontSize: 14,
+    lineHeight: 20,
+    textAlignVertical: "top",
+    color: "#0f172a",
+  },
+  clipNotesSheetButtons: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    gap: 8,
+    paddingTop: 4,
+  },
+
+  // -- Song Notes Tab --
+  songNotesTabEmpty: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 48,
+    gap: 8,
+  },
+  songNotesTabEmptyTitle: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#64748b",
+  },
+  songNotesTabEmptySubtitle: {
+    fontSize: 13,
+    color: "#94a3b8",
+  },
+  songNotesTabBody: {
+    fontSize: 14,
+    lineHeight: 20,
+    color: "#334155",
+  },
+  songNotesTabEditorInput: {
+    width: "100%",
+    borderWidth: 1,
+    borderColor: "#d1d5db",
+    backgroundColor: "#fff",
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    minHeight: 280,
+    textAlignVertical: "top",
+    fontSize: 14,
+    lineHeight: 20,
+    color: "#0f172a",
+    marginBottom: 6,
   },
 });

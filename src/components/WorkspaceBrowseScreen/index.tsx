@@ -6,6 +6,7 @@ import { StatusBar as ExpoStatusBar } from "expo-status-bar";
 import { useNavigation } from "@react-navigation/native";
 import { styles } from "../../styles";
 import { useStore } from "../../state/useStore";
+import { appActions } from "../../state/actions";
 import { ScreenHeader } from "../common/ScreenHeader";
 import { AppBreadcrumbs } from "../common/AppBreadcrumbs";
 import { PageIntro } from "../common/PageIntro";
@@ -15,11 +16,29 @@ import { QuickNameModal } from "../modals/QuickNameModal";
 import { CollectionMoveModal } from "../modals/CollectionMoveModal";
 import { CollectionActionsModal } from "../modals/CollectionActionsModal";
 import { buildCollectionMoveDestinations, getCollectionDeleteScope } from "../../collectionManagement";
-import { getCollectionIdeaCount, getCollectionSizeBytes, formatBytes } from "../../utils";
+import { getCollectionSizeBytes, formatBytes } from "../../utils";
 import { getHierarchyIconColor, getHierarchyIconName } from "../../hierarchy";
+import {
+  buildImportedTitle,
+  importAudioAssets,
+  pickAudioFiles,
+  type ImportedAudioAsset,
+} from "../../services/audioStorage";
+import {
+  buildWorkspaceBrowseEntries,
+  type CollectionSearchMatchKind,
+} from "../../libraryNavigation";
 
 function buildDefaultCollectionTitle(count: number) {
   return `Collection ${count + 1}`;
+}
+
+function buildImportedCollectionTitle(assets: ImportedAudioAsset[], collectionCount: number) {
+  if (assets.length === 1) {
+    return buildImportedTitle(assets[0]?.name);
+  }
+
+  return buildDefaultCollectionTitle(collectionCount);
 }
 
 export function WorkspaceBrowseScreen() {
@@ -34,6 +53,7 @@ export function WorkspaceBrowseScreen() {
   const updateCollection = useStore((state) => state.updateCollection);
   const moveCollection = useStore((state) => state.moveCollection);
   const deleteCollection = useStore((state) => state.deleteCollection);
+  const markCollectionOpened = useStore((state) => state.markCollectionOpened);
   const activeWorkspace = workspaces.find((workspace) => workspace.id === activeWorkspaceId) ?? null;
   const topLevelCollections = useMemo(
     () =>
@@ -46,6 +66,10 @@ export function WorkspaceBrowseScreen() {
   const [searchQuery, setSearchQuery] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
   const [draftTitle, setDraftTitle] = useState("");
+  const [importCollectionModalOpen, setImportCollectionModalOpen] = useState(false);
+  const [importCollectionAssets, setImportCollectionAssets] = useState<ImportedAudioAsset[]>([]);
+  const [importCollectionDraft, setImportCollectionDraft] = useState("");
+  const [isImportingCollection, setIsImportingCollection] = useState(false);
   const [sizeMap, setSizeMap] = useState<Record<string, number>>({});
   const [managedCollectionId, setManagedCollectionId] = useState<string | null>(null);
   const [collectionActionsOpen, setCollectionActionsOpen] = useState(false);
@@ -70,13 +94,10 @@ export function WorkspaceBrowseScreen() {
     setSelectedMoveParentCollectionId(firstDestination?.parentCollectionId ?? null);
   }, [collectionMoveModalOpen, moveDestinations]);
 
-  const filteredCollections = useMemo(() => {
-    const needle = searchQuery.trim().toLowerCase();
-    if (!needle) return topLevelCollections;
-    return topLevelCollections.filter((collection) =>
-      collection.title.toLowerCase().includes(needle)
-    );
-  }, [searchQuery, topLevelCollections]);
+  const collectionEntries = useMemo(
+    () => (activeWorkspace ? buildWorkspaceBrowseEntries(activeWorkspace, searchQuery) : []),
+    [activeWorkspace, searchQuery]
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -181,6 +202,86 @@ export function WorkspaceBrowseScreen() {
     setManagedCollectionId(null);
   };
 
+  const openAddCollectionFlow = () => {
+    Alert.alert("Add collection", "Choose how to start this collection.", [
+      {
+        text: "New Collection",
+        onPress: () => {
+          setDraftTitle("");
+          setModalOpen(true);
+        },
+      },
+      {
+        text: "New Collection from Import",
+        onPress: () => {
+          void openCollectionImportFlow();
+        },
+      },
+      { text: "Cancel", style: "cancel" },
+    ]);
+  };
+
+  const openCollectionImportFlow = async () => {
+    const assets = await pickAudioFiles({ multiple: true });
+    if (assets.length === 0) return;
+
+    setImportCollectionAssets(assets);
+    setImportCollectionDraft("");
+    setImportCollectionModalOpen(true);
+  };
+
+  const resetImportCollectionModal = () => {
+    if (isImportingCollection) return;
+    setImportCollectionModalOpen(false);
+    setImportCollectionAssets([]);
+    setImportCollectionDraft("");
+  };
+
+  const saveImportedCollection = async () => {
+    if (!activeWorkspaceId || importCollectionAssets.length === 0 || isImportingCollection) return;
+
+    const title =
+      importCollectionDraft.trim() ||
+      buildImportedCollectionTitle(importCollectionAssets, topLevelCollections.length);
+    const collectionId = addCollection(activeWorkspaceId, title, null);
+
+    try {
+      setIsImportingCollection(true);
+      const { imported, failed } = await importAudioAssets(
+        importCollectionAssets,
+        (_asset, index) => `audio-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 9)}`
+      );
+
+      imported.forEach((asset) => {
+        appActions.importClipToCollection(collectionId, {
+          title: buildImportedTitle(asset.name),
+          audioUri: asset.audioUri,
+          durationMs: asset.durationMs,
+          waveformPeaks: asset.waveformPeaks,
+        });
+      });
+
+      setImportCollectionModalOpen(false);
+      setImportCollectionAssets([]);
+      setImportCollectionDraft("");
+      navigateRoot("CollectionDetail", { collectionId });
+
+      if (failed.length > 0) {
+        Alert.alert(
+          imported.length > 0 ? "Import finished with issues" : "Import failed",
+          imported.length > 0
+            ? `${imported.length} file${imported.length === 1 ? "" : "s"} imported into ${title}. ${failed.length} file${failed.length === 1 ? "" : "s"} could not be imported.`
+            : `None of the selected files could be imported into ${title}.`
+        );
+      }
+    } catch (error) {
+      console.warn("Collection import error", error);
+      Alert.alert("Import failed", "Could not create that collection from the selected audio.");
+    } finally {
+      setIsImportingCollection(false);
+    }
+  };
+
   return (
     <SafeAreaView style={styles.screen}>
       <ScreenHeader title="Workspace" leftIcon="hamburger" />
@@ -198,38 +299,34 @@ export function WorkspaceBrowseScreen() {
 
       <PageIntro
         title={activeWorkspace.title}
-        subtitle="Browse collections and move deeper into the workspace."
+        subtitle="Browse collections by recent work, then move deeper into the workspace."
       />
 
       <SearchField
         value={searchQuery}
-        placeholder="Search collections..."
+        placeholder="Search collections, songs, or clips..."
         onChangeText={setSearchQuery}
       />
 
       <View style={styles.inputRow}>
         <Pressable
           style={({ pressed }) => [styles.ideasHeaderSelectBtn, pressed ? styles.pressDown : null]}
-          onPress={() => {
-            setDraftTitle("");
-            setModalOpen(true);
-          }}
+          onPress={openAddCollectionFlow}
         >
-          <Text style={styles.ideasHeaderSelectBtnText}>New Collection</Text>
+          <Text style={styles.ideasHeaderSelectBtnText}>Add</Text>
         </Pressable>
       </View>
 
       <View style={styles.listContent}>
-        {filteredCollections.map((collection) => {
-          const scopedItemCount = getCollectionIdeaCount(activeWorkspace, collection.id);
-          const childCollectionCount = activeWorkspace.collections.filter(
-            (candidate) => candidate.parentCollectionId === collection.id
-          ).length;
-
+        {collectionEntries.map((entry) => {
+          const collection = entry.collection;
           return (
             <SurfaceCard
               key={collection.id}
-              onPress={() => navigateRoot("CollectionDetail", { collectionId: collection.id })}
+              onPress={() => {
+                markCollectionOpened(collection.id);
+                navigateRoot("CollectionDetail", { collectionId: collection.id });
+              }}
             >
               <View style={styles.cardTop}>
                 <View style={styles.cardTitleRow}>
@@ -238,16 +335,11 @@ export function WorkspaceBrowseScreen() {
                     size={18}
                     color={getHierarchyIconColor("collection")}
                   />
-                  <Text style={styles.cardTitle}>{collection.title}</Text>
+                  <Text style={styles.cardTitle}>
+                    <HighlightedText value={collection.title} query={searchQuery} />
+                  </Text>
                 </View>
                 <View style={styles.workspaceBrowseCollectionActions}>
-                  {childCollectionCount > 0 ? (
-                    <View style={styles.contextPill}>
-                      <Text style={styles.contextPillText}>
-                        {childCollectionCount} {childCollectionCount === 1 ? "SUB" : "SUBS"}
-                      </Text>
-                    </View>
-                  ) : null}
                   <Pressable
                     style={({ pressed }) => [
                       styles.collectionInlineActionBtn,
@@ -262,16 +354,39 @@ export function WorkspaceBrowseScreen() {
 
               <View style={styles.workspaceBrowseCollectionMetaRow}>
                 <Text style={styles.cardMeta}>
-                  {scopedItemCount} {scopedItemCount === 1 ? "item" : "items"}
+                  {entry.itemCount} {entry.itemCount === 1 ? "item" : "items"}
                 </Text>
                 <Text style={styles.cardMeta}>•</Text>
                 <Text style={styles.cardMeta}>{formatBytes(sizeMap[collection.id] ?? 0)}</Text>
               </View>
+
+              {searchQuery.trim().length > 0 && entry.matches.length > 0 ? (
+                <View style={styles.workspaceBrowseMatchRow}>
+                  {entry.matches.map((match, index) => (
+                    <View
+                      key={`${match.kind}-${match.label}-${index}`}
+                      style={styles.workspaceBrowseMatchBadge}
+                    >
+                      <Ionicons
+                        name={getMatchIcon(match.kind)}
+                        size={12}
+                        color="#64748b"
+                      />
+                      <Text style={styles.workspaceBrowseMatchText} numberOfLines={1}>
+                        {getMatchLabel(match.kind)} <HighlightedText value={match.label} query={searchQuery} />
+                        {match.context ? (
+                          <Text style={styles.workspaceBrowseMatchContext}> in {match.context}</Text>
+                        ) : null}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              ) : null}
             </SurfaceCard>
           );
         })}
 
-        {filteredCollections.length === 0 ? (
+        {collectionEntries.length === 0 ? (
           <SurfaceCard>
             <Text style={styles.cardTitle}>
               {searchQuery.trim().length > 0 ? "No matching collections" : "No collections yet"}
@@ -303,8 +418,24 @@ export function WorkspaceBrowseScreen() {
           setDraftTitle("");
           navigateRoot("CollectionDetail", { collectionId });
         }}
-        helperText="Collections hold songs, clips, and optional subcollections."
+        helperText="Collections hold songs and clips."
         saveLabel="Create"
+      />
+
+      <QuickNameModal
+        visible={importCollectionModalOpen}
+        title="New Collection from Import"
+        draftValue={importCollectionDraft}
+        placeholderValue={buildImportedCollectionTitle(importCollectionAssets, topLevelCollections.length)}
+        onChangeDraft={setImportCollectionDraft}
+        onCancel={resetImportCollectionModal}
+        onSave={() => {
+          void saveImportedCollection();
+        }}
+        helperText={`${importCollectionAssets.length} file${importCollectionAssets.length === 1 ? "" : "s"} will be added as individual clips in the new collection.`}
+        saveLabel={isImportingCollection ? "Importing..." : "Create"}
+        saveDisabled={isImportingCollection}
+        cancelDisabled={isImportingCollection}
       />
 
       <CollectionActionsModal
@@ -354,13 +485,62 @@ export function WorkspaceBrowseScreen() {
         }}
         onCancel={() => {
           setCollectionMoveModalOpen(false);
-          setSelectedMoveWorkspaceId(null);
-          setSelectedMoveParentCollectionId(null);
         }}
         onConfirm={submitCollectionMove}
       />
 
       <ExpoStatusBar style="dark" />
     </SafeAreaView>
+  );
+}
+
+function getMatchIcon(kind: CollectionSearchMatchKind): keyof typeof Ionicons.glyphMap {
+  switch (kind) {
+    case "collection":
+      return getHierarchyIconName("collection");
+    case "subcollection":
+      return getHierarchyIconName("collection");
+    case "song":
+      return getHierarchyIconName("song");
+    case "clip":
+    default:
+      return getHierarchyIconName("clip");
+  }
+}
+
+function getMatchLabel(kind: CollectionSearchMatchKind) {
+  switch (kind) {
+    case "collection":
+      return "Collection:";
+    case "subcollection":
+      return "Inside:";
+    case "song":
+      return "Song:";
+    case "clip":
+    default:
+      return "Clip:";
+  }
+}
+
+function HighlightedText({ value, query }: { value: string; query: string }) {
+  const needle = query.trim();
+  if (!needle) return <>{value}</>;
+
+  const lowerValue = value.toLowerCase();
+  const lowerNeedle = needle.toLowerCase();
+  const matchIndex = lowerValue.indexOf(lowerNeedle);
+
+  if (matchIndex < 0) return <>{value}</>;
+
+  const before = value.slice(0, matchIndex);
+  const match = value.slice(matchIndex, matchIndex + needle.length);
+  const after = value.slice(matchIndex + needle.length);
+
+  return (
+    <>
+      {before}
+      <Text style={styles.workspaceBrowseMatchHighlight}>{match}</Text>
+      {after}
+    </>
   );
 }

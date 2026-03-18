@@ -1,5 +1,5 @@
-import { useMemo, useState, type ComponentProps, type ReactNode } from "react";
-import { ActivityIndicator, Alert, Pressable, ScrollView, Text, View } from "react-native";
+import { useEffect, useMemo, useState, type ComponentProps, type ReactNode } from "react";
+import { ActivityIndicator, Alert, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { AppBreadcrumbs } from "../common/AppBreadcrumbs";
@@ -7,10 +7,12 @@ import { Button } from "../common/Button";
 import { PageIntro } from "../common/PageIntro";
 import { ScreenHeader } from "../common/ScreenHeader";
 import { exportLibrary, type LibraryExportFormat } from "../../services/libraryExport";
-import { useStore } from "../../state/useStore";
-import type { Collection, Workspace } from "../../types";
+import { getStorageDetailsReport, type StorageDetailsReport } from "../../services/storageDetails";
+import { buildPersistedAppStoreSnapshot, useStore } from "../../state/useStore";
+import type { Collection, CustomTagDefinition, Workspace } from "../../types";
 import { styles } from "../../styles";
-import { getCollectionScopeIds } from "../../utils";
+import { formatBytes, getCollectionScopeIds } from "../../utils";
+import { CUSTOM_TAG_COLOR_OPTIONS, getTagColor } from "../IdeaDetailScreen/songClipControls";
 
 const DEFAULT_ARCHIVE_OPTIONS = {
   includeFullSongHistory: true,
@@ -27,10 +29,14 @@ const DEFAULT_STANDARD_OPTIONS = {
 
 type CollectionSelectionState = "unselected" | "selected" | "inherited" | "excluded";
 type ExportSectionKey = "format" | "scope" | "options" | "generate";
+type SettingsView = "overview" | "export" | "storage";
 
 export function SettingsScreen() {
   const workspaces = useStore((state) => state.workspaces);
-  const [showExportFlow, setShowExportFlow] = useState(false);
+  const primaryWorkspaceId = useStore((state) => state.primaryWorkspaceId);
+  const workspaceStartupPreference = useStore((state) => state.workspaceStartupPreference);
+  const setWorkspaceStartupPreference = useStore((state) => state.setWorkspaceStartupPreference);
+  const [view, setView] = useState<SettingsView>("overview");
   const [format, setFormat] = useState<LibraryExportFormat | null>(null);
   const [selectedWorkspaceIds, setSelectedWorkspaceIds] = useState<string[]>([]);
   const [selectedCollectionIds, setSelectedCollectionIds] = useState<string[]>([]);
@@ -40,6 +46,13 @@ export function SettingsScreen() {
   const [archiveOptions, setArchiveOptions] = useState(DEFAULT_ARCHIVE_OPTIONS);
   const [standardOptions, setStandardOptions] = useState(DEFAULT_STANDARD_OPTIONS);
   const [isExporting, setIsExporting] = useState(false);
+  const [storageReport, setStorageReport] = useState<StorageDetailsReport | null>(null);
+  const [storageError, setStorageError] = useState<string | null>(null);
+  const [isStorageLoading, setIsStorageLoading] = useState(false);
+  const [showAdvancedStorageDetails, setShowAdvancedStorageDetails] = useState(false);
+  const globalCustomClipTags = useStore((s) => s.globalCustomClipTags);
+  const [newGlobalTagLabel, setNewGlobalTagLabel] = useState("");
+  const [newGlobalTagColor, setNewGlobalTagColor] = useState(CUSTOM_TAG_COLOR_OPTIONS[0].bg);
 
   const includeHiddenItems = format === "song-seed-archive"
     ? archiveOptions.includeHiddenItems
@@ -56,15 +69,56 @@ export function SettingsScreen() {
       }),
     [excludedCollectionIds, includeHiddenItems, selectedCollectionIds, selectedWorkspaceIds, workspaces]
   );
+  const primaryWorkspaceTitle = useMemo(
+    () => workspaces.find((workspace) => workspace.id === primaryWorkspaceId)?.title ?? null,
+    [primaryWorkspaceId, workspaces]
+  );
 
   const beginExportFlow = () => {
-    setShowExportFlow(true);
+    setView("export");
   };
 
   const closeExportFlow = () => {
     if (isExporting) return;
-    setShowExportFlow(false);
+    setView("overview");
   };
+
+  const openStorageDetails = () => {
+    setShowAdvancedStorageDetails(false);
+    setView("storage");
+  };
+
+  const closeStorageDetails = () => {
+    if (isStorageLoading) return;
+    setView("overview");
+  };
+
+  const loadStorageDetails = async () => {
+    setIsStorageLoading(true);
+    setStorageError(null);
+
+    try {
+      const snapshot = buildPersistedAppStoreSnapshot(useStore.getState());
+      const report = await getStorageDetailsReport(snapshot);
+      setStorageReport(report);
+    } catch (error) {
+      setStorageError(
+        error instanceof Error
+          ? error.message
+          : "Storage details could not be loaded right now."
+      );
+    } finally {
+      setIsStorageLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (view !== "storage") {
+      return;
+    }
+
+    void loadStorageDetails();
+  }, [view]);
 
   const toggleWorkspace = (workspaceId: string) => {
     const workspace = workspaces.find((item) => item.id === workspaceId) ?? null;
@@ -373,28 +427,376 @@ export function SettingsScreen() {
     </ScrollView>
   );
 
+  const renderStorageDetails = () => (
+    <ScrollView
+      style={styles.flexFill}
+      contentContainerStyle={styles.settingsScrollContent}
+      showsVerticalScrollIndicator={false}
+    >
+      <PageIntro
+        title="Storage details"
+        subtitle="Song Seed keeps your live library in app-managed storage on this device. Recorded and imported audio is copied into Song Seed storage, while archived workspaces keep compressed packages until you restore them."
+      />
+
+      {isStorageLoading && !storageReport ? (
+        <View style={styles.settingsSummaryPanel}>
+          <View style={styles.settingsBusyRow}>
+            <ActivityIndicator size="small" color="#0f172a" />
+            <Text style={styles.settingsBusyText}>Measuring app-managed storage.</Text>
+          </View>
+        </View>
+      ) : null}
+
+      {storageError ? (
+        <View style={styles.settingsSummaryPanel}>
+          <Text style={styles.settingsSummaryTitle}>Storage details unavailable</Text>
+          <Text style={styles.settingsSummaryMeta}>{storageError}</Text>
+        </View>
+      ) : null}
+
+      {storageReport ? (
+        <>
+          <View style={styles.settingsSummaryPanel}>
+            <Text style={styles.settingsSummaryTitle}>Library storage</Text>
+            <Text style={styles.settingsStoragePrimaryValue}>
+              {formatBytes(storageReport.totalLibraryBytes)}
+            </Text>
+            <Text style={styles.settingsSummaryMeta}>{storageReport.storageLabel}</Text>
+            <Text style={styles.settingsSummaryMeta}>
+              {storageReport.activeWorkspaceCount} active workspace
+              {storageReport.activeWorkspaceCount === 1 ? "" : "s"} and{" "}
+              {storageReport.archivedWorkspaceCount} archived workspace
+              {storageReport.archivedWorkspaceCount === 1 ? "" : "s"}.
+            </Text>
+            <View style={styles.settingsActionRow}>
+              <Button
+                label={isStorageLoading ? "Refreshing..." : "Refresh"}
+                variant="secondary"
+                onPress={() => void loadStorageDetails()}
+                disabled={isStorageLoading}
+              />
+            </View>
+          </View>
+
+          <View style={styles.settingsSection}>
+            <View style={styles.settingsSectionHeaderRow}>
+              <Text style={styles.settingsSectionLabel}>Library storage</Text>
+              <Text style={styles.settingsSectionMeta}>{formatBytes(storageReport.totalLibraryBytes)}</Text>
+            </View>
+
+            <View style={styles.settingsSummaryPanel}>
+              <StorageMetricRow
+                label="Total library storage used"
+                value={formatBytes(storageReport.totalLibraryBytes)}
+                detail="Live library data plus archived workspace packages."
+              />
+              <StorageMetricRow
+                label="Active workspaces"
+                value={String(storageReport.activeWorkspaceCount)}
+                detail={`${formatBytes(storageReport.activeLibraryBytes)} across managed audio and live workspace data.`}
+              />
+              <StorageMetricRow
+                label="Audio files"
+                value={formatBytes(storageReport.managedAudio.bytes)}
+                detail={`${storageReport.managedAudio.fileCount} managed audio file${storageReport.managedAudio.fileCount === 1 ? "" : "s"} stored for the live library.`}
+              />
+              <StorageMetricRow
+                label="Library data"
+                value={formatBytes(storageReport.metadataBytes)}
+                detail="Titles, notes, lyrics, playlists, history, and workspace metadata saved in app storage."
+              />
+            </View>
+          </View>
+
+          <View style={styles.settingsSection}>
+            <View style={styles.settingsSectionHeaderRow}>
+              <Text style={styles.settingsSectionLabel}>Archived workspaces</Text>
+              <Text style={styles.settingsSectionMeta}>{storageReport.archivedWorkspaceCount}</Text>
+            </View>
+
+            <View style={styles.settingsSummaryPanel}>
+              <StorageMetricRow
+                label="Archived workspaces"
+                value={String(storageReport.archivedWorkspaceCount)}
+                detail={`${formatBytes(storageReport.archivedLibraryBytes)} including package files and archived workspace data.`}
+              />
+              <StorageMetricRow
+                label="Archive storage used"
+                value={formatBytes(storageReport.archivePackages.bytes)}
+                detail={`${storageReport.archivePackages.fileCount} archive package${storageReport.archivePackages.fileCount === 1 ? "" : "s"} stored in Song Seed app storage.`}
+              />
+              <StorageMetricRow
+                label="Archived workspace data"
+                value={formatBytes(storageReport.archivedWorkspaceMetadataBytes)}
+                detail="Workspace names, collections, notes, and archive status that stay available while the audio is packed away."
+              />
+            </View>
+          </View>
+
+          <View style={styles.settingsSection}>
+            <View style={styles.settingsSectionHeaderRow}>
+              <Text style={styles.settingsSectionLabel}>Temporary files</Text>
+              <Text style={styles.settingsSectionMeta}>{formatBytes(storageReport.temporaryExports.bytes)}</Text>
+            </View>
+
+            <View style={styles.settingsSummaryPanel}>
+              <StorageMetricRow
+                label="Export and share temp files"
+                value={formatBytes(storageReport.temporaryExports.bytes)}
+                detail={`${storageReport.temporaryExports.fileCount} file${storageReport.temporaryExports.fileCount === 1 ? "" : "s"} staged for exports or native sharing. This is shown separately from the library total.`}
+              />
+              <StorageMetricRow
+                label="All Song Seed managed storage"
+                value={formatBytes(storageReport.totalManagedBytes)}
+                detail="Library storage plus temporary export/share files currently left on device."
+              />
+            </View>
+          </View>
+
+          <AccordionSection
+            step="Advanced"
+            title="Support details"
+            hint="Secondary details for troubleshooting and storage audits."
+            open={showAdvancedStorageDetails}
+            onPress={() => setShowAdvancedStorageDetails((current) => !current)}
+          >
+            <View style={styles.settingsOptionStack}>
+              {storageReport.unmanagedAudioReferences.totalReferences > 0 ? (
+                <View style={styles.settingsSummaryPanel}>
+                  <StorageMetricRow
+                    label="Outside managed live-library storage"
+                    value={`${storageReport.unmanagedAudioReferences.totalReferences}`}
+                    detail={`${formatBytes(storageReport.unmanagedAudioReferences.totalMeasuredBytes)} measured outside the managed audio folder.`}
+                  />
+                </View>
+              ) : null}
+
+              {storageReport.supportingDataBytes > 0 ? (
+                <View style={styles.settingsSummaryPanel}>
+                  <StorageMetricRow
+                    label="Shared library support data"
+                    value={formatBytes(storageReport.supportingDataBytes)}
+                    detail="Shared state such as activity history and preferences that is counted in the library total."
+                  />
+                </View>
+              ) : null}
+
+              <View style={styles.settingsSummaryPanel}>
+                <Text style={styles.settingsSummaryTitle}>Internal locations</Text>
+                <Text style={styles.settingsSummaryMeta}>
+                  Paths are shown here for support use only. Song Seed manages the live storage location automatically.
+                </Text>
+                <StoragePathRow
+                  label="App storage root"
+                  value={storageReport.advanced.appStorageRootUri}
+                />
+                <StoragePathRow
+                  label="Managed audio"
+                  value={storageReport.advanced.audioDirectoryUri}
+                />
+                <StoragePathRow
+                  label="Workspace archives"
+                  value={storageReport.advanced.archiveDirectoryUri}
+                />
+                <StoragePathRow
+                  label="Share/export temp"
+                  value={storageReport.advanced.shareDirectoryUri}
+                />
+              </View>
+
+              {storageReport.limitations.length > 0 ? (
+                <View style={styles.settingsSummaryPanel}>
+                  <Text style={styles.settingsSummaryTitle}>Reporting notes</Text>
+                  {storageReport.limitations.map((item) => (
+                    <Text key={item} style={styles.settingsStorageNote}>
+                      • {item}
+                    </Text>
+                  ))}
+                </View>
+              ) : null}
+            </View>
+          </AccordionSection>
+        </>
+      ) : null}
+    </ScrollView>
+  );
+
+  const title =
+    view === "export" ? "Export Library" : view === "storage" ? "Storage details" : "Settings";
+  const showSubscreen = view !== "overview";
+  const handleBackPress = view === "export" ? closeExportFlow : view === "storage" ? closeStorageDetails : undefined;
+  const breadcrumbItems =
+    view === "storage"
+      ? [
+          { key: "home", label: "Home", level: "home" as const },
+          { key: "settings", label: "Settings", level: "settings" as const },
+          { key: "storage-details", label: "Storage details", level: "settings" as const, active: true },
+        ]
+      : [
+          { key: "home", label: "Home", level: "home" as const },
+          { key: "settings", label: "Settings", level: "settings" as const, active: true },
+        ];
+
   return (
     <SafeAreaView style={styles.screen}>
       <ScreenHeader
-        title={showExportFlow ? "Export Library" : "Settings"}
-        leftIcon={showExportFlow ? "back" : "hamburger"}
-        onLeftPress={showExportFlow ? closeExportFlow : undefined}
+        title={title}
+        leftIcon={showSubscreen ? "back" : "hamburger"}
+        onLeftPress={handleBackPress}
       />
-      <AppBreadcrumbs
-        items={[
-          { key: "home", label: "Home", level: "home" },
-          { key: "settings", label: "Settings", level: "settings", active: true },
-        ]}
-      />
+      <AppBreadcrumbs items={breadcrumbItems} />
 
-      {showExportFlow ? (
+      {view === "export" ? (
         renderExportFlow()
+      ) : view === "storage" ? (
+        renderStorageDetails()
       ) : (
         <View style={styles.flexFill}>
           <PageIntro
             title="Settings"
-            subtitle="Export stays lightweight here: choose a package, choose a scope, and hand it to the native save flow."
+            subtitle="Set where the app returns on launch, check how Song Seed stores your library on this device, or export a portable package when you need one."
           />
+
+          <View style={styles.settingsSection}>
+            <View style={styles.settingsSectionHeaderRow}>
+              <Text style={styles.settingsSectionLabel}>Startup</Text>
+              <Text style={styles.settingsSectionMeta}>
+                {workspaceStartupPreference === "primary" ? "Primary workspace" : "Last used workspace"}
+              </Text>
+            </View>
+
+            <View style={styles.settingsOptionStack}>
+              <FormatOptionRow
+                title="Return to primary workspace"
+                subtitle={
+                  primaryWorkspaceTitle
+                    ? `Returns to ${primaryWorkspaceTitle} when the app opens.`
+                    : "Falls back to your last used workspace until a primary workspace is set."
+                }
+                selected={workspaceStartupPreference === "primary"}
+                onPress={() => setWorkspaceStartupPreference("primary")}
+              />
+              <FormatOptionRow
+                title="Return to last used workspace"
+                subtitle="Returns to the workspace you most recently opened or worked in."
+                selected={workspaceStartupPreference === "last-used"}
+                onPress={() => setWorkspaceStartupPreference("last-used")}
+              />
+            </View>
+          </View>
+
+          <View style={styles.settingsSection}>
+            <View style={styles.settingsSectionHeaderRow}>
+              <Text style={styles.settingsSectionLabel}>Custom clip tags</Text>
+              <Text style={styles.settingsSectionMeta}>{globalCustomClipTags.length}</Text>
+            </View>
+            <Text style={styles.settingsSectionHint}>
+              Global tags appear in the tag picker across all projects.
+            </Text>
+
+            {globalCustomClipTags.length > 0 ? (
+              <View style={styles.tagPickerChipsWrap}>
+                {globalCustomClipTags.map((tag) => {
+                  const color = getTagColor(tag.key, [], globalCustomClipTags);
+                  return (
+                    <View key={tag.key} style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                      <View
+                        style={[
+                          styles.clipCardTagBadge,
+                          { backgroundColor: color.bg, flexDirection: "row", alignItems: "center", gap: 4 },
+                        ]}
+                      >
+                        <Text style={[styles.clipCardTagBadgeText, { color: color.text, fontSize: 12 }]}>
+                          {tag.label}
+                        </Text>
+                      </View>
+                      <Pressable
+                        onPress={() => {
+                          Alert.alert("Remove tag?", `Remove "${tag.label}" from global tags?`, [
+                            { text: "Cancel", style: "cancel" },
+                            {
+                              text: "Remove",
+                              style: "destructive",
+                              onPress: () => useStore.getState().removeGlobalCustomClipTag(tag.key),
+                            },
+                          ]);
+                        }}
+                        hitSlop={6}
+                      >
+                        <Ionicons name="close-circle" size={16} color="#94a3b8" />
+                      </Pressable>
+                    </View>
+                  );
+                })}
+              </View>
+            ) : null}
+
+            <View style={styles.tagPickerAddRow}>
+              <TextInput
+                style={styles.tagPickerAddInput}
+                placeholder="New tag name"
+                placeholderTextColor="#94a3b8"
+                value={newGlobalTagLabel}
+                onChangeText={setNewGlobalTagLabel}
+                onSubmitEditing={() => {
+                  const label = newGlobalTagLabel.trim();
+                  if (!label) return;
+                  const key = label.toLowerCase().replace(/\s+/g, "-");
+                  if (globalCustomClipTags.some((t) => t.key === key)) return;
+                  useStore.getState().addGlobalCustomClipTag({ key, label, color: newGlobalTagColor });
+                  setNewGlobalTagLabel("");
+                }}
+                returnKeyType="done"
+              />
+              <Pressable
+                style={({ pressed }) => [
+                  styles.tagPickerAddBtn,
+                  !newGlobalTagLabel.trim() ? styles.tagPickerAddBtnDisabled : null,
+                  pressed ? styles.pressDown : null,
+                ]}
+                onPress={() => {
+                  const label = newGlobalTagLabel.trim();
+                  if (!label) return;
+                  const key = label.toLowerCase().replace(/\s+/g, "-");
+                  if (globalCustomClipTags.some((t) => t.key === key)) return;
+                  useStore.getState().addGlobalCustomClipTag({ key, label, color: newGlobalTagColor });
+                  setNewGlobalTagLabel("");
+                }}
+                disabled={!newGlobalTagLabel.trim()}
+              >
+                <Ionicons name="add" size={16} color={newGlobalTagLabel.trim() ? "#0f172a" : "#94a3b8"} />
+              </Pressable>
+            </View>
+            <View style={styles.tagPickerColorRow}>
+              {CUSTOM_TAG_COLOR_OPTIONS.map((option) => (
+                <Pressable
+                  key={option.bg}
+                  style={[
+                    styles.tagPickerColorSwatch,
+                    { backgroundColor: option.bg },
+                    newGlobalTagColor === option.bg ? styles.tagPickerColorSwatchActive : null,
+                  ]}
+                  onPress={() => setNewGlobalTagColor(option.bg)}
+                />
+              ))}
+            </View>
+          </View>
+
+          <Pressable
+            style={({ pressed }) => [
+              styles.settingsActionCard,
+              pressed ? styles.pressDown : null,
+            ]}
+            onPress={openStorageDetails}
+          >
+            <View style={styles.settingsActionCardCopy}>
+              <Text style={styles.settingsActionCardTitle}>Storage details</Text>
+              <Text style={styles.settingsActionCardMeta}>
+                See how much Song Seed storage your library, archives, and temporary exports use on this device.
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color="#64748b" />
+          </Pressable>
 
           <Pressable
             style={({ pressed }) => [
@@ -480,6 +882,41 @@ function AccordionSection({
       </Pressable>
 
       {open ? <View style={styles.settingsAccordionBody}>{children}</View> : null}
+    </View>
+  );
+}
+
+function StorageMetricRow({
+  label,
+  value,
+  detail,
+}: {
+  label: string;
+  value: string;
+  detail: string;
+}) {
+  return (
+    <View style={styles.settingsStorageMetricRow}>
+      <View style={styles.settingsStorageMetricCopy}>
+        <Text style={styles.settingsChoiceTitle}>{label}</Text>
+        <Text style={styles.settingsChoiceMeta}>{detail}</Text>
+      </View>
+      <Text style={styles.settingsStorageMetricValue}>{value}</Text>
+    </View>
+  );
+}
+
+function StoragePathRow({
+  label,
+  value,
+}: {
+  label: string;
+  value: string;
+}) {
+  return (
+    <View style={styles.settingsStoragePathRow}>
+      <Text style={styles.settingsSectionLabel}>{label}</Text>
+      <Text style={styles.settingsStoragePathValue}>{value}</Text>
     </View>
   );
 }

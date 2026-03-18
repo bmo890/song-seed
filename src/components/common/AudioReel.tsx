@@ -104,6 +104,13 @@ export function AudioReel({
         visualizerHeight.value = withTiming(isExpanded ? expandedHeight : collapsedHeight, { duration: 300 });
     }, [collapsedHeight, expandedHeight, isExpanded, visualizerHeight]);
 
+    React.useEffect(() => {
+        if (durationMs > 0) {
+            const progress = currentTimeMs / durationMs;
+            sharedAudioProgress.value = progress;
+        }
+    }, [currentTimeMs, durationMs, sharedAudioProgress]);
+
     const animatedHeightStyle = useAnimatedStyle(() => ({
         height: visualizerHeight.value,
     }));

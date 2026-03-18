@@ -1,11 +1,14 @@
+import { useRef } from "react";
 import { Ionicons } from "@expo/vector-icons";
 import { useSharedAudioRecorder } from "@siteed/expo-audio-studio";
-import { Pressable, Text, View } from "react-native";
+import { GestureResponderEvent, LayoutChangeEvent, Pressable, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRecordingDisplayElapsed } from "../hooks/useRecordingDisplayElapsed";
 import { useStore } from "../state/useStore";
 import { styles } from "../styles";
 import { fmtDuration, fmtTenths } from "../utils";
+
+const DOCK_SPEED_OPTIONS = [0.5, 0.75, 1] as const;
 
 type GlobalMediaDockProps = {
   activeRouteName: string;
@@ -14,7 +17,7 @@ type GlobalMediaDockProps = {
 };
 
 type PlaybackDockState = {
-  kind: "player";
+  kind: "player" | "inline";
   ideaId: string;
   clipId: string;
   title: string;
@@ -37,6 +40,10 @@ export function GlobalMediaDock({
   const playerPositionMs = useStore((s) => s.playerPositionMs);
   const playerDurationMs = useStore((s) => s.playerDurationMs);
   const playerIsPlaying = useStore((s) => s.playerIsPlaying);
+  const inlineTarget = useStore((s) => s.inlineTarget);
+  const inlinePositionMs = useStore((s) => s.inlinePositionMs);
+  const inlineDurationMs = useStore((s) => s.inlineDurationMs);
+  const inlineIsPlaying = useStore((s) => s.inlineIsPlaying);
   const recordingElapsedMs = useRecordingDisplayElapsed({
     durationMs: recorder.durationMs,
     isRecording: recorder.isRecording,
@@ -50,24 +57,30 @@ export function GlobalMediaDock({
   const hasRecordingSession =
     !!recordingIdea && (recorder.isRecording || recorder.isPaused);
 
-  const activePlayback = (() => {
-    if (playerTarget && activeRouteName !== "Player") {
-      const idea = allIdeas.find((item) => item.id === playerTarget.ideaId);
-      const clip = idea?.clips.find((item) => item.id === playerTarget.clipId);
+  const inlinePlayerMounted = useStore((s) => s.inlinePlayerMounted);
+  const inlinePlaybackSpeed = useStore((s) => s.inlinePlaybackSpeed);
+  const scrubTrackWidthRef = useRef(0);
+
+  // Show the inline playback dock when audio is playing but ClipList is
+  // unmounted (e.g. user switched from Takes to Lyrics/Notes tab).
+  // Full player dock remains disabled until queue/playlist is built.
+  const activePlayback: PlaybackDockState | null = (() => {
+    if (inlineTarget && !inlinePlayerMounted) {
+      const idea = allIdeas.find((item) => item.id === inlineTarget.ideaId);
+      const clip = idea?.clips.find((item) => item.id === inlineTarget.clipId);
       if (idea && clip) {
         return {
-          kind: "player",
+          kind: "inline",
           ideaId: idea.id,
           clipId: clip.id,
           title: clip.title,
           subtitle: idea.title,
-          isPlaying: playerIsPlaying,
-          positionMs: playerPositionMs,
-          durationMs: playerDurationMs || clip.durationMs || 0,
+          isPlaying: inlineIsPlaying,
+          positionMs: inlinePositionMs,
+          durationMs: inlineDurationMs || clip.durationMs || 0,
         } satisfies PlaybackDockState;
       }
     }
-
     return null;
   })();
 
@@ -224,7 +237,11 @@ export function GlobalMediaDock({
               ]}
               onPress={(evt) => {
                 evt.stopPropagation();
-                useStore.getState().requestPlayerClose();
+                if (activePlayback.kind === "player") {
+                  useStore.getState().clearPlayerQueue();
+                  return;
+                }
+                useStore.getState().requestInlineStop();
               }}
               accessibilityRole="button"
               accessibilityLabel="Dismiss mini player"
@@ -234,11 +251,50 @@ export function GlobalMediaDock({
           </View>
         </View>
 
-        <View style={styles.miniMediaDockProgressTrack}>
-          <View style={[styles.miniMediaDockProgressFill, { width: `${progressPct}%` }]} />
-        </View>
+        <Pressable
+          style={styles.miniMediaDockScrubWrap}
+          onLayout={(e: LayoutChangeEvent) => {
+            scrubTrackWidthRef.current = e.nativeEvent.layout.width;
+          }}
+          onPress={(e: GestureResponderEvent) => {
+            e.stopPropagation();
+            if (scrubTrackWidthRef.current <= 0 || activePlayback.durationMs <= 0) return;
+            const x = e.nativeEvent.locationX;
+            const pct = Math.max(0, Math.min(1, x / scrubTrackWidthRef.current));
+            const targetMs = Math.round(pct * activePlayback.durationMs);
+            useStore.getState().requestInlineSeek(targetMs);
+          }}
+          hitSlop={{ top: 8, bottom: 8 }}
+        >
+          <View style={styles.miniMediaDockProgressTrack}>
+            <View style={[styles.miniMediaDockProgressFill, { width: `${progressPct}%` }]} />
+          </View>
+        </Pressable>
         <View style={styles.miniMediaDockTimesRow}>
           <Text style={styles.miniMediaDockTime}>{fmtDuration(activePlayback.positionMs)}</Text>
+          {activePlayback.kind === "inline" ? (
+            <Pressable
+              style={({ pressed }) => [
+                styles.miniMediaDockSpeedChip,
+                inlinePlaybackSpeed !== 1 ? styles.miniMediaDockSpeedChipActive : null,
+                pressed ? styles.pressDown : null,
+              ]}
+              onPress={(e) => {
+                e.stopPropagation();
+                const currentIdx = DOCK_SPEED_OPTIONS.indexOf(inlinePlaybackSpeed as any);
+                const nextIdx = (currentIdx + 1) % DOCK_SPEED_OPTIONS.length;
+                useStore.getState().setInlinePlaybackSpeed(DOCK_SPEED_OPTIONS[nextIdx]);
+              }}
+              hitSlop={4}
+            >
+              <Text style={[
+                styles.miniMediaDockSpeedChipText,
+                inlinePlaybackSpeed !== 1 ? styles.miniMediaDockSpeedChipTextActive : null,
+              ]}>
+                {inlinePlaybackSpeed}x
+              </Text>
+            </Pressable>
+          ) : null}
           <Text style={styles.miniMediaDockTime}>{fmtDuration(activePlayback.durationMs)}</Text>
         </View>
       </Pressable>

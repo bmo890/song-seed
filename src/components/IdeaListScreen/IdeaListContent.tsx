@@ -1,6 +1,6 @@
 import { MutableRefObject } from "react";
 import DraggableFlatList from "react-native-draggable-flatlist";
-import { Animated, Pressable, Text, View } from "react-native";
+import { Animated, NativeScrollEvent, NativeSyntheticEvent, Pressable, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { styles } from "../../styles";
 import { IdeaSort, InlinePlayer, SongIdea } from "../../types";
@@ -10,6 +10,7 @@ import { formatBytes } from "../../utils";
 import { getIdeaSortTimestamp, type IdeaSortMetric } from "../../ideaSort";
 
 type IdeaListContentProps = {
+  listRef?: MutableRefObject<any>;
   listSelectionMode: boolean;
   allowReorder: boolean;
   listEntries: IdeaListEntry[];
@@ -32,13 +33,7 @@ type IdeaListContentProps = {
   onViewableItemsChanged: (info: { viewableItems: Array<{ item: IdeaListEntry }> }) => void;
   playIdeaFromList: (ideaId: string, clip: any) => Promise<void> | void;
   openIdeaFromList: (ideaId: string, clip: any) => Promise<void> | void;
-  quickEditIdea: (idea: SongIdea) => void;
-  hideIdeasFromList: (ideaIds: string[]) => Promise<void>;
-  quickShareIdea: (idea: SongIdea) => Promise<void> | void;
-  quickClipboardIdea: (idea: SongIdea, mode: "copy" | "move") => void;
-  quickDeleteIdea: (idea: SongIdea) => void;
-  handleSwipeWillOpen: (ideaId: string, close: () => void) => void;
-  handleSwipeClose: (ideaId: string) => void;
+  onLongPressActions: (idea: SongIdea) => void;
   unhideIdeasFromList: (ideaIds: string[]) => void;
   hideTimelineDay: (metric: "created" | "updated", dayStartTs: number) => Promise<void>;
   unhideTimelineDay: (metric: "created" | "updated", dayStartTs: number) => void;
@@ -51,6 +46,8 @@ type IdeaListContentProps = {
     targetId?: string;
     intent: "between";
   }) => void;
+  onScroll?: (e: NativeSyntheticEvent<NativeScrollEvent>) => void;
+  scrollEventThrottle?: number;
 };
 
 function dayStartTs(ts: number) {
@@ -60,6 +57,7 @@ function dayStartTs(ts: number) {
 }
 
 export function IdeaListContent({
+  listRef,
   listSelectionMode,
   allowReorder,
   listEntries,
@@ -82,22 +80,21 @@ export function IdeaListContent({
   onViewableItemsChanged,
   playIdeaFromList,
   openIdeaFromList,
-  quickEditIdea,
-  hideIdeasFromList,
-  quickShareIdea,
-  quickClipboardIdea,
-  quickDeleteIdea,
-  handleSwipeWillOpen,
-  handleSwipeClose,
+  onLongPressActions,
   unhideIdeasFromList,
   hideTimelineDay,
   unhideTimelineDay,
   setHoveredIdeaId,
   onReorderIdeas,
+  onScroll,
+  scrollEventThrottle,
 }: IdeaListContentProps) {
   return (
     <DraggableFlatList<IdeaListEntry>
+      ref={listRef}
       data={listEntries}
+      onScroll={onScroll}
+      scrollEventThrottle={scrollEventThrottle ?? 0}
       keyExtractor={(item) => item.key}
       contentContainerStyle={[
         styles.listContent,
@@ -118,6 +115,19 @@ export function IdeaListContent({
       initialNumToRender={12}
       maxToRenderPerBatch={10}
       windowSize={7}
+      onScrollToIndexFailed={(info) => {
+        listRef?.current?.scrollToOffset?.({
+          offset: Math.max(0, info.averageItemLength * info.index),
+          animated: true,
+        });
+        setTimeout(() => {
+          listRef?.current?.scrollToIndex?.({
+            index: info.index,
+            animated: true,
+            viewPosition: 0.35,
+          });
+        }, 120);
+      }}
       removeClippedSubviews
       renderItem={(props) => {
         const entry = props.item;
@@ -169,14 +179,7 @@ export function IdeaListContent({
             inlinePlayer={inlinePlayer}
             playIdeaFromList={playIdeaFromList}
             openIdeaFromList={openIdeaFromList}
-            onSwipeEdit={quickEditIdea}
-            onSwipeHide={(idea) => hideIdeasFromList([idea.id])}
-            onSwipeShare={quickShareIdea}
-            onSwipeCopy={(idea) => quickClipboardIdea(idea, "copy")}
-            onSwipeMove={(idea) => quickClipboardIdea(idea, "move")}
-            onSwipeDelete={quickDeleteIdea}
-            onSwipeWillOpen={handleSwipeWillOpen}
-            onSwipeClose={handleSwipeClose}
+            onLongPressActions={onLongPressActions}
             onUnhide={(idea) => unhideIdeasFromList([idea.id])}
             onHideDay={
               activeTimelineMetric && showDateDividers && entry.dayDividerLabel

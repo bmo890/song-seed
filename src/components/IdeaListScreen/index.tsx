@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { StatusBar as ExpoStatusBar } from "expo-status-bar";
-import { Text, View, Alert, Animated, Pressable, Platform } from "react-native";
+import { Text, View, Alert, Animated, BackHandler, Pressable, Platform } from "react-native";
+import ReAnimated from "react-native-reanimated";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useIsFocused, useNavigation, useRoute } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
@@ -11,17 +12,27 @@ import { AppBreadcrumbs } from "../common/AppBreadcrumbs";
 import { QuickNameModal } from "../modals/QuickNameModal";
 import { CollectionMoveModal } from "../modals/CollectionMoveModal";
 import { CollectionActionsModal } from "../modals/CollectionActionsModal";
+import { IdeaActionsSheet } from "../modals/IdeaActionsSheet";
 import { IdeaListHeaderSection } from "./IdeaListHeaderSection";
 import { IdeaListFilterSection } from "./IdeaListFilterSection";
+import { IdeaListNestedCollectionsSection } from "./IdeaListNestedCollectionsSection";
 import { IdeaListSelectionZone } from "./IdeaListSelectionZone";
 import { IdeaListContent } from "./IdeaListContent";
 import { IdeaListEntry } from "./types";
 
 import { useStore } from "../../state/useStore";
+import { useScrollCollapseHeader } from "../../hooks/useScrollCollapseHeader";
 import { appActions } from "../../state/actions";
 import { createEmptyProjectLyrics } from "../../state/dataSlice";
 import { useInlinePlayer } from "../../hooks/useInlinePlayer";
-import { buildImportedTitle, importAudioAsset, pickSingleAudioFile, shareAudioFile, type ImportedAudioAsset } from "../../services/audioStorage";
+import {
+  buildImportedTitle,
+  importAudioAssets,
+  importAudioAsset,
+  pickAudioFiles,
+  shareAudioFile,
+  type ImportedAudioAsset,
+} from "../../services/audioStorage";
 import {
   buildDefaultIdeaTitle,
   ensureUniqueIdeaTitle,
@@ -40,8 +51,8 @@ import {
   usesIdeaTimelineDividers,
 } from "../../ideaSort";
 
-function buildDefaultSubcollectionTitle(count: number) {
-  return `Subcollection ${count + 1}`;
+function buildImportedProjectTitle(assets: ImportedAudioAsset[]) {
+  return buildImportedTitle(assets[0]?.name);
 }
 
 export function IdeaListScreen() {
@@ -57,6 +68,8 @@ export function IdeaListScreen() {
   const activityRangeEndTs = route.params?.activityRangeEndTs as number | undefined;
   const activityMetricFilter = (route.params?.activityMetricFilter as "created" | "updated" | "both" | undefined) ?? "both";
   const activityLabel = route.params?.activityLabel as string | undefined;
+  const focusIdeaId = route.params?.focusIdeaId as string | undefined;
+  const focusToken = route.params?.focusToken as number | undefined;
 
   const workspaces = useStore((s) => s.workspaces);
   const activeWorkspaceId = useStore((s) => s.activeWorkspaceId);
@@ -77,12 +90,13 @@ export function IdeaListScreen() {
 
   const ideasFilter = useStore((s) => s.ideasFilter);
   const ideasSort = useStore((s) => s.ideasSort);
+  const setIdeasFilter = useStore((s) => s.setIdeasFilter);
   const setIdeasHidden = useStore((s) => s.setIdeasHidden);
   const setTimelineDaysHidden = useStore((s) => s.setTimelineDaysHidden);
-  const addCollection = useStore((s) => s.addCollection);
   const updateCollection = useStore((s) => s.updateCollection);
   const moveCollection = useStore((s) => s.moveCollection);
   const deleteCollection = useStore((s) => s.deleteCollection);
+  const markCollectionOpened = useStore((s) => s.markCollectionOpened);
 
   const listSelectionMode = useStore((s) => s.listSelectionMode);
   const selectedListIdeaIds = useStore((s) => s.selectedListIdeaIds);
@@ -93,10 +107,44 @@ export function IdeaListScreen() {
   const clipClipboard = useStore((s) => s.clipClipboard);
   const recentlyAddedItemIds = useStore((s) => s.recentlyAddedItemIds);
   const clearRecentlyAdded = useStore((s) => s.clearRecentlyAdded);
+  const markRecentlyAdded = useStore((s) => s.markRecentlyAdded);
 
   const setSelectedIdeaId = useStore((s) => s.setSelectedIdeaId);
 
   const inlinePlayer = useInlinePlayer();
+  const listRef = useRef<any>(null);
+  const handledFocusTokenRef = useRef<number | null>(null);
+  const focusScrollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Mark inline player UI as visible so the popup dock doesn't appear
+  // on top of the already-visible inline player controls.
+  useEffect(() => {
+    useStore.getState().setInlinePlayerMounted(true);
+    return () => useStore.getState().setInlinePlayerMounted(false);
+  }, []);
+
+  useEffect(() => {
+    if (!inlinePlayer.inlineTarget) return;
+    const handler = BackHandler.addEventListener("hardwareBackPress", () => {
+      void inlinePlayer.resetInlinePlayer();
+      return true;
+    });
+    return () => handler.remove();
+  }, [inlinePlayer, inlinePlayer.inlineTarget]);
+
+  useEffect(() => {
+    if (!collectionId) return;
+    markCollectionOpened(collectionId);
+  }, [collectionId, markCollectionOpened]);
+
+  useEffect(() => {
+    return () => {
+      if (focusScrollTimerRef.current) {
+        clearTimeout(focusScrollTimerRef.current);
+      }
+    };
+  }, []);
+
   const hiddenIdeaIds = currentCollection?.ideasListState.hiddenIdeaIds ?? [];
   const hiddenDays = currentCollection?.ideasListState.hiddenDays ?? [];
 
@@ -107,7 +155,8 @@ export function IdeaListScreen() {
   const [editClipId, setEditClipId] = useState<string | null>(null);
   const [editClipDraft, setEditClipDraft] = useState("");
   const [importModalOpen, setImportModalOpen] = useState(false);
-  const [importAsset, setImportAsset] = useState<ImportedAudioAsset | null>(null);
+  const [importAssets, setImportAssets] = useState<ImportedAudioAsset[]>([]);
+  const [importMode, setImportMode] = useState<"single-clip" | "song-project" | null>(null);
   const [importDraft, setImportDraft] = useState("");
   const [isImporting, setIsImporting] = useState(false);
   const [managedCollectionId, setManagedCollectionId] = useState<string | null>(null);
@@ -117,15 +166,18 @@ export function IdeaListScreen() {
   const [collectionMoveModalOpen, setCollectionMoveModalOpen] = useState(false);
   const [selectedMoveWorkspaceId, setSelectedMoveWorkspaceId] = useState<string | null>(null);
   const [selectedMoveParentCollectionId, setSelectedMoveParentCollectionId] = useState<string | null>(null);
-  const [subcollectionModalOpen, setSubcollectionModalOpen] = useState(false);
-  const [subcollectionDraft, setSubcollectionDraft] = useState("");
-  const [subcollectionsExpanded, setSubcollectionsExpanded] = useState(false);
+  const [nestedCollectionsExpanded, setNestedCollectionsExpanded] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [selectedProjectStages, setSelectedProjectStages] = useState<Array<"seed" | "sprout" | "semi" | "song">>([]);
   const [lyricsFilterMode, setLyricsFilterMode] = useState<"all" | "with" | "without">("all");
   const [listDensity, setListDensity] = useState<"comfortable" | "compact">("comfortable");
   const [headerMenuOpen, setHeaderMenuOpen] = useState(false);
+  const {
+    handleScroll: handleListScroll,
+    scrollEventThrottle: listScrollThrottle,
+    animStyle: headerCollapseAnimStyle,
+  } = useScrollCollapseHeader();
   const [ideaSizeMap, setIdeaSizeMap] = useState<Record<string, number>>({});
   const [stickyDayLabel, setStickyDayLabel] = useState<string | null>(null);
   const [stickyDayTop, setStickyDayTop] = useState<number>(0);
@@ -367,6 +419,96 @@ export function IdeaListScreen() {
   const selectedClipIdeasInList = selectedInteractiveIdeas.filter((idea) => idea.kind === "clip");
   const selectedProjectsInList = selectedIdeasInList.filter((idea) => idea.kind === "project");
   const selectedHiddenOnly = selectedIdeasInList.length > 0 && selectedIdeasInList.every((idea) => hiddenIdeaIdsSet.has(idea.id));
+
+  useEffect(() => {
+    if (!focusIdeaId || !focusToken || handledFocusTokenRef.current === focusToken) return;
+    if (!ideas.some((idea) => idea.id === focusIdeaId)) {
+      handledFocusTokenRef.current = focusToken;
+      (navigation as any).setParams({ focusIdeaId: undefined, focusToken: undefined });
+      return;
+    }
+
+    const targetIndex = listEntries.findIndex(
+      (entry) => entry.type === "idea" && entry.idea.id === focusIdeaId
+    );
+
+    if (targetIndex === -1) {
+      let changed = false;
+      if (searchQuery.length > 0 || debouncedSearchQuery.length > 0) {
+        setSearchQuery("");
+        setDebouncedSearchQuery("");
+        changed = true;
+      }
+      if (selectedProjectStages.length > 0) {
+        setSelectedProjectStages([]);
+        changed = true;
+      }
+      if (lyricsFilterMode !== "all") {
+        setLyricsFilterMode("all");
+        changed = true;
+      }
+      if (ideasFilter !== "all") {
+        setIdeasFilter("all");
+        changed = true;
+      }
+      if (!changed) {
+        handledFocusTokenRef.current = focusToken;
+        (navigation as any).setParams({ focusIdeaId: undefined, focusToken: undefined });
+      }
+      return;
+    }
+
+    handledFocusTokenRef.current = focusToken;
+    markRecentlyAdded([focusIdeaId]);
+    if (focusScrollTimerRef.current) {
+      clearTimeout(focusScrollTimerRef.current);
+      focusScrollTimerRef.current = null;
+    }
+
+    const scrollToFocusedIdea = (attempt: number) => {
+      const layout = rowLayoutsRef.current[focusIdeaId];
+      if (layout) {
+        const topInset = 112;
+        listRef.current?.scrollToOffset?.({
+          offset: Math.max(0, layout.y - topInset),
+          animated: attempt > 0,
+        });
+        return;
+      }
+
+      if (attempt === 0) {
+        listRef.current?.scrollToIndex?.({
+          index: targetIndex,
+          animated: false,
+          viewPosition: 0.35,
+        });
+      }
+
+      if (attempt >= 3) {
+        return;
+      }
+
+      focusScrollTimerRef.current = setTimeout(() => {
+        scrollToFocusedIdea(attempt + 1);
+      }, 90);
+    };
+
+    scrollToFocusedIdea(0);
+    (navigation as any).setParams({ focusIdeaId: undefined, focusToken: undefined });
+  }, [
+    debouncedSearchQuery,
+    focusIdeaId,
+    focusToken,
+    ideas,
+    ideasFilter,
+    listEntries,
+    lyricsFilterMode,
+    markRecentlyAdded,
+    navigation,
+    searchQuery,
+    selectedProjectStages,
+    setIdeasFilter,
+  ]);
   const hiddenDayGroupsInView = useMemo(() => {
     if (!activeTimelineMetric) return [] as WorkspaceHiddenDay[];
     const groupMap = new Map<string, WorkspaceHiddenDay>();
@@ -393,9 +535,6 @@ export function IdeaListScreen() {
   const visibleIdeasCount = listIdeas.filter((idea) => !isIdeaEffectivelyHidden(idea)).length;
   const ideasHeaderMeta = [
     `${visibleIdeasCount} idea${visibleIdeasCount === 1 ? "" : "s"}`,
-    childCollections.length > 0
-      ? `${childCollections.length} subcollection${childCollections.length === 1 ? "" : "s"}`
-      : null,
     hasActivityRangeFilter ? "activity slice" : null,
   ]
     .filter((value): value is string => !!value)
@@ -686,22 +825,13 @@ export function IdeaListScreen() {
     setHeaderMenuOpen(false);
   };
 
-  const openSwipeIdRef = useRef<string | null>(null);
-  const openSwipeCloseRef = useRef<(() => void) | null>(null);
+  const [actionSheetIdea, setActionSheetIdea] = useState<SongIdea | null>(null);
 
-  const handleSwipeWillOpen = (ideaId: string, close: () => void) => {
-    if (openSwipeIdRef.current && openSwipeIdRef.current !== ideaId) {
-      openSwipeCloseRef.current?.();
-    }
-    openSwipeIdRef.current = ideaId;
-    openSwipeCloseRef.current = close;
+  const openIdeaActions = (idea: SongIdea) => {
+    setActionSheetIdea(idea);
   };
-
-  const handleSwipeClose = (ideaId: string) => {
-    if (openSwipeIdRef.current === ideaId) {
-      openSwipeIdRef.current = null;
-      openSwipeCloseRef.current = null;
-    }
+  const closeIdeaActions = () => {
+    setActionSheetIdea(null);
   };
 
   function updateIdeaTitle(id: string, newName: string) {
@@ -818,7 +948,8 @@ export function IdeaListScreen() {
   function resetImportModal() {
     if (isImporting) return;
     setImportModalOpen(false);
-    setImportAsset(null);
+    setImportAssets([]);
+    setImportMode(null);
     setImportDraft("");
   }
 
@@ -828,39 +959,130 @@ export function IdeaListScreen() {
       return;
     }
 
-    const asset = await pickSingleAudioFile();
-    if (!asset) return;
+    const assets = await pickAudioFiles({ multiple: true });
+    if (assets.length === 0) return;
 
-    setImportAsset(asset);
-    setImportDraft("");
-    setImportModalOpen(true);
+    if (assets.length === 1) {
+      setImportAssets(assets);
+      setImportMode("single-clip");
+      setImportDraft("");
+      setImportModalOpen(true);
+      return;
+    }
+
+    Alert.alert(
+      "Import audio",
+      `Choose how to add ${assets.length} files into ${currentCollection.title}.`,
+      [
+        {
+          text: "Import as individual clips",
+          onPress: () => {
+            void importAssetsAsIndividualClips(assets);
+          },
+        },
+        {
+          text: "Import as song project",
+          onPress: () => {
+            setImportAssets(assets);
+            setImportMode("song-project");
+            setImportDraft("");
+            setImportModalOpen(true);
+          },
+        },
+        { text: "Cancel", style: "cancel" },
+      ]
+    );
   }
 
-  async function saveImportedAudio() {
-    if (!collectionId || !importAsset || isImporting) return;
+  async function importAssetsAsIndividualClips(assets: ImportedAudioAsset[]) {
+    if (!collectionId || assets.length === 0 || isImporting) return;
 
     try {
       setIsImporting(true);
-      const importedAudio = await importAudioAsset(
-        importAsset,
-        `audio-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
+      const { imported, failed } = await importAudioAssets(
+        assets,
+        (_asset, index) => `audio-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 9)}`
       );
-      const fallbackTitle = buildImportedTitle(importAsset.name);
-      const finalTitle = importDraft.trim() || fallbackTitle;
 
-      appActions.importClipToCollection(collectionId, {
-        title: finalTitle,
-        audioUri: importedAudio.audioUri,
-        durationMs: importedAudio.durationMs,
-        waveformPeaks: importedAudio.waveformPeaks,
+      imported.forEach((asset) => {
+        appActions.importClipToCollection(collectionId, {
+          title: buildImportedTitle(asset.name),
+          audioUri: asset.audioUri,
+          durationMs: asset.durationMs,
+          waveformPeaks: asset.waveformPeaks,
+        });
       });
 
-      setImportModalOpen(false);
-      setImportAsset(null);
-      setImportDraft("");
+      if (failed.length > 0) {
+        Alert.alert(
+          imported.length > 0 ? "Import finished with issues" : "Import failed",
+          imported.length > 0
+            ? `${imported.length} file${imported.length === 1 ? "" : "s"} imported as individual clips. ${failed.length} file${failed.length === 1 ? "" : "s"} could not be imported.`
+            : "None of the selected files could be imported."
+        );
+      }
     } catch (error) {
       console.warn("Import audio error", error);
-      Alert.alert("Import failed", "Could not import that audio file.");
+      Alert.alert("Import failed", "Could not import those audio files.");
+    } finally {
+      setIsImporting(false);
+    }
+  }
+
+  async function saveImportedAudio() {
+    if (!collectionId || importAssets.length === 0 || !importMode || isImporting) return;
+
+    try {
+      setIsImporting(true);
+      if (importMode === "single-clip") {
+        const importAsset = importAssets[0]!;
+        const importedAudio = await importAudioAsset(
+          importAsset,
+          `audio-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
+        );
+        const fallbackTitle = buildImportedTitle(importAsset.name);
+        const finalTitle = importDraft.trim() || fallbackTitle;
+
+        appActions.importClipToCollection(collectionId, {
+          title: finalTitle,
+          audioUri: importedAudio.audioUri,
+          durationMs: importedAudio.durationMs,
+          waveformPeaks: importedAudio.waveformPeaks,
+        });
+      } else {
+        const { imported, failed } = await importAudioAssets(
+          importAssets,
+          (_asset, index) => `audio-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 9)}`
+        );
+        const projectTitle = importDraft.trim() || buildImportedProjectTitle(importAssets);
+
+        if (imported.length === 0) {
+          Alert.alert("Import failed", "None of the selected files could be imported.");
+          return;
+        }
+
+        appActions.importProjectToCollection(collectionId, {
+          title: projectTitle,
+          clips: imported.map((asset) => ({
+            title: buildImportedTitle(asset.name),
+            audioUri: asset.audioUri,
+            durationMs: asset.durationMs,
+            waveformPeaks: asset.waveformPeaks,
+          })),
+        });
+
+        if (failed.length > 0) {
+          Alert.alert(
+            "Import finished with issues",
+            `${imported.length} file${imported.length === 1 ? "" : "s"} imported into the song project. ${failed.length} file${failed.length === 1 ? "" : "s"} could not be imported.`
+          );
+        }
+      }
+
+      resetImportModal();
+    } catch (error) {
+      console.warn("Import audio error", error);
+      Alert.alert("Import failed", "Could not import that audio.");
     } finally {
       setIsImporting(false);
     }
@@ -885,7 +1107,6 @@ export function IdeaListScreen() {
     return `You are copying ${itemNames.length} item${itemNames.length > 1 ? "s" : ""} (${displayNames}${remainder}) into the same collection they already belong to. This will create duplicates. Continue?`;
   })();
 
-  const canCreateSubcollection = !currentCollection?.parentCollectionId;
   const collectionAncestors = useMemo(
     () =>
       activeWorkspace && currentCollection
@@ -1019,71 +1240,61 @@ export function IdeaListScreen() {
         }
       />
 
-      <AppBreadcrumbs
-        items={[
-          {
-            key: "home",
-            label: "Home",
-            level: "home",
-            iconOnly: true,
-            onPress: () => navigateRoot("Home", { screen: "Workspaces" }),
-          },
-          {
-            key: `workspace-${activeWorkspace.id}`,
-            label: activeWorkspace.title,
-            level: "workspace",
-            onPress: goToBrowse,
-          },
-          ...collectionAncestors.map((collection) => ({
-            key: collection.id,
-            label: collection.title,
-            level: getCollectionHierarchyLevel(collection),
-            onPress: () => navigateRoot("CollectionDetail", { collectionId: collection.id }),
-          })),
-          {
-            key: currentCollection.id,
-            label: currentCollection.title,
-            level: getCollectionHierarchyLevel(currentCollection),
-            active: true,
-          },
-        ]}
-      />
+      <ReAnimated.View style={headerCollapseAnimStyle}>
+        <AppBreadcrumbs
+          items={[
+            {
+              key: "home",
+              label: "Home",
+              level: "home",
+              iconOnly: true,
+              onPress: () => navigateRoot("Home", { screen: "Workspaces" }),
+            },
+            {
+              key: `workspace-${activeWorkspace.id}`,
+              label: activeWorkspace.title,
+              level: "workspace",
+              onPress: goToBrowse,
+            },
+            ...collectionAncestors.map((collection) => ({
+              key: collection.id,
+              label: collection.title,
+              level: getCollectionHierarchyLevel(collection),
+              onPress: () => navigateRoot("CollectionDetail", { collectionId: collection.id }),
+            })),
+            {
+              key: currentCollection.id,
+              label: currentCollection.title,
+              level: getCollectionHierarchyLevel(currentCollection),
+              active: true,
+            },
+          ]}
+        />
 
-      <IdeaListHeaderSection
-        currentCollection={currentCollection}
-        ideasHeaderMeta={ideasHeaderMeta}
-        searchQuery={searchQuery}
-        childCollections={childCollections}
-        subcollectionsExpanded={subcollectionsExpanded}
-        hasActivityRangeFilter={hasActivityRangeFilter}
-        activityLabel={activityLabel}
-        collectionId={collectionId}
-        clipClipboard={clipClipboard}
-        duplicateWarningText={duplicateWarningText}
-        onSearchQueryChange={setSearchQuery}
-        onSearchFocus={() => {
-          if (subcollectionsExpanded) {
-            setSubcollectionsExpanded(false);
-          }
-        }}
-        onToggleSubcollectionsExpanded={() => setSubcollectionsExpanded((prev) => !prev)}
-        onOpenCollection={(nextCollectionId) =>
-          navigateRoot("CollectionDetail", { collectionId: nextCollectionId })
-        }
-        onOpenCollectionActions={openCollectionActions}
-        onClearActivityRange={() => {
-          (navigation as any).setParams({
-            activityRangeStartTs: undefined,
-            activityRangeEndTs: undefined,
-            activityMetricFilter: undefined,
-            activityLabel: undefined,
-          });
-        }}
-        onPasteClipboard={() => {
-          void appActions.pasteClipboardToCollection(collectionId);
-        }}
-        onCancelClipboard={cancelClipboard}
-      />
+        <IdeaListHeaderSection
+          currentCollection={currentCollection}
+          ideasHeaderMeta={ideasHeaderMeta}
+          searchQuery={searchQuery}
+          hasActivityRangeFilter={hasActivityRangeFilter}
+          activityLabel={activityLabel}
+          collectionId={collectionId}
+          clipClipboard={clipClipboard}
+          duplicateWarningText={duplicateWarningText}
+          onSearchQueryChange={setSearchQuery}
+          onClearActivityRange={() => {
+            (navigation as any).setParams({
+              activityRangeStartTs: undefined,
+              activityRangeEndTs: undefined,
+              activityMetricFilter: undefined,
+              activityLabel: undefined,
+            });
+          }}
+          onPasteClipboard={() => {
+            void appActions.pasteClipboardToCollection(collectionId);
+          }}
+          onCancelClipboard={cancelClipboard}
+        />
+      </ReAnimated.View>
 
       <IdeaListFilterSection
         selectedProjectStages={selectedProjectStages}
@@ -1102,6 +1313,15 @@ export function IdeaListScreen() {
         onClearProjectStages={() => setSelectedProjectStages([])}
         onLyricsFilterModeChange={setLyricsFilterMode}
       />
+      <IdeaListNestedCollectionsSection
+        childCollections={childCollections}
+        expanded={nestedCollectionsExpanded}
+        onToggleExpanded={() => setNestedCollectionsExpanded((prev) => !prev)}
+        onOpenCollection={(nextCollectionId) =>
+          navigateRoot("CollectionDetail", { collectionId: nextCollectionId })
+        }
+        onOpenCollectionActions={openCollectionActions}
+      />
       <IdeaListSelectionZone
         listSelectionMode={listSelectionMode}
         selectedHiddenIdeaIds={selectedHiddenIdeaIds}
@@ -1110,7 +1330,6 @@ export function IdeaListScreen() {
         selectableIdeaIds={selectableIdeaIds}
         selectedHiddenOnly={selectedHiddenOnly}
         selectedInteractiveIdeasCount={selectedInteractiveIdeas.length}
-        canCreateSubcollection={canCreateSubcollection}
         onCreateProjectFromSelection={createProjectFromSelection}
         onPlaySelected={() => {
           void playSelectedIdeas();
@@ -1122,10 +1341,6 @@ export function IdeaListScreen() {
         onAddProject={() => {
           appActions.addIdea(collectionId);
           navigateRoot("IdeaDetail");
-        }}
-        onAddSubcollection={() => {
-          setSubcollectionDraft("");
-          setSubcollectionModalOpen(true);
         }}
         onQuickRecord={() => {
           appActions.quickRecordIdea(collectionId);
@@ -1188,40 +1403,28 @@ export function IdeaListScreen() {
 
       <QuickNameModal
         visible={importModalOpen}
-        title="Import audio"
+        title={importMode === "song-project" ? "Import as Song Project" : "Import Audio"}
         draftValue={importDraft}
-        placeholderValue={importAsset ? buildImportedTitle(importAsset.name) : ""}
+        placeholderValue={
+          importMode === "song-project"
+            ? buildImportedProjectTitle(importAssets)
+            : importAssets[0]
+              ? buildImportedTitle(importAssets[0].name)
+              : ""
+        }
         onChangeDraft={setImportDraft}
         onCancel={resetImportModal}
         onSave={() => {
           void saveImportedAudio();
         }}
-        helperText={`Destination: ${currentCollection.title} as a new clip card.\nFile: ${importAsset?.name ?? "Selected audio"}`}
+        helperText={
+          importMode === "song-project"
+            ? `Destination: ${currentCollection.title} as one new song.\nFiles: ${importAssets.length} selected audio file${importAssets.length === 1 ? "" : "s"}`
+            : `Destination: ${currentCollection.title} as a new clip card.\nFile: ${importAssets[0]?.name ?? "Selected audio"}`
+        }
         saveLabel={isImporting ? "Importing..." : "Import"}
         saveDisabled={isImporting}
         cancelDisabled={isImporting}
-      />
-
-      <QuickNameModal
-        visible={subcollectionModalOpen}
-        title="New Subcollection"
-        draftValue={subcollectionDraft}
-        placeholderValue={buildDefaultSubcollectionTitle(childCollections.length)}
-        onChangeDraft={setSubcollectionDraft}
-        onCancel={() => {
-          setSubcollectionModalOpen(false);
-          setSubcollectionDraft("");
-        }}
-        onSave={() => {
-          if (!activeWorkspaceId || !collectionId) return;
-          const title = subcollectionDraft.trim() || buildDefaultSubcollectionTitle(childCollections.length);
-          const nextCollectionId = addCollection(activeWorkspaceId, title, collectionId);
-          setSubcollectionModalOpen(false);
-          setSubcollectionDraft("");
-          navigateRoot("CollectionDetail", { collectionId: nextCollectionId });
-        }}
-        helperText={`Subcollections help separate ideas inside ${currentCollection.title} without mixing them into the main list.`}
-        saveLabel="Create"
       />
 
       <CollectionMoveModal
@@ -1251,6 +1454,9 @@ export function IdeaListScreen() {
 
 
       <IdeaListContent
+        listRef={listRef}
+        onScroll={handleListScroll}
+        scrollEventThrottle={listScrollThrottle}
         listSelectionMode={listSelectionMode}
         allowReorder={!listSelectionMode && ideasFilter === "all" && !searchNeedle}
         listEntries={listEntries}
@@ -1273,13 +1479,7 @@ export function IdeaListScreen() {
         onViewableItemsChanged={onViewableItemsChanged}
         playIdeaFromList={playIdeaFromList}
         openIdeaFromList={openIdeaFromList}
-        quickEditIdea={quickEditIdea}
-        hideIdeasFromList={hideIdeasFromList}
-        quickShareIdea={quickShareIdea}
-        quickClipboardIdea={quickClipboardIdea}
-        quickDeleteIdea={quickDeleteIdea}
-        handleSwipeWillOpen={handleSwipeWillOpen}
-        handleSwipeClose={handleSwipeClose}
+        onLongPressActions={openIdeaActions}
         unhideIdeasFromList={unhideIdeasFromList}
         hideTimelineDay={hideTimelineDay}
         unhideTimelineDay={unhideTimelineDay}
@@ -1384,6 +1584,21 @@ export function IdeaListScreen() {
           </View>
         </View>
       ) : null}
+
+      <IdeaActionsSheet
+        visible={!!actionSheetIdea}
+        idea={actionSheetIdea}
+        hidden={actionSheetIdea ? hiddenIdeaIdsSet.has(actionSheetIdea.id) : false}
+        onEdit={(idea) => quickEditIdea(idea)}
+        onHide={(idea) => hideIdeasFromList([idea.id])}
+        onUnhide={(idea) => unhideIdeasFromList([idea.id])}
+        onShare={(idea) => quickShareIdea(idea)}
+        onCopy={(idea) => quickClipboardIdea(idea, "copy")}
+        onMove={(idea) => quickClipboardIdea(idea, "move")}
+        onSelect={(idea) => useStore.getState().startListSelection(idea.id)}
+        onDelete={(idea) => quickDeleteIdea(idea)}
+        onCancel={closeIdeaActions}
+      />
 
       <ExpoStatusBar style="dark" />
     </SafeAreaView>

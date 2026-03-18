@@ -207,6 +207,17 @@ export function IdeaDetailScreen() {
     }
   }, [songTab]);
 
+  // Tell GlobalMediaDock whether the inline player UI is visible.
+  // When on the Takes tab, the inline controls show in the card — no dock needed.
+  // On Lyrics/Notes, ClipList is hidden and the dock should appear if audio is playing.
+  const isProject = selectedIdea?.kind === "project";
+  const setInlinePlayerMounted = useStore((s) => s.setInlinePlayerMounted);
+  useEffect(() => {
+    const visible = !isProject || songTab === "takes";
+    setInlinePlayerMounted(visible);
+    return () => setInlinePlayerMounted(false);
+  }, [isProject, setInlinePlayerMounted, songTab]);
+
   useEffect(() => {
     if (isEditMode || songTab !== "takes") {
       setParentPickState(null);
@@ -217,6 +228,18 @@ export function IdeaDetailScreen() {
     return () => {
       if (undoTimerRef.current) {
         clearTimeout(undoTimerRef.current);
+      }
+    };
+  }, []);
+
+  // Stop inline playback when navigating away from the song detail screen entirely.
+  // Tab switches within the screen are fine — ClipList unmounts but audio continues
+  // via the popup dock. Only a full screen leave should kill playback.
+  useEffect(() => {
+    return () => {
+      const { inlineTarget } = useStore.getState();
+      if (inlineTarget) {
+        useStore.getState().requestInlineStop();
       }
     };
   }, []);
@@ -317,19 +340,6 @@ export function IdeaDetailScreen() {
           ? [styles.badge, styles.statusSprout, styles.statusSproutText]
           : [styles.badge, styles.statusSeed, styles.statusSeedText];
 
-  const songProgressStrip =
-    selectedIdea.kind === "project" ? (
-      <View style={styles.songDetailProgressStrip}>
-        <Text style={styles.songDetailProgressStripLabel}>Progress:</Text>
-        <Text style={styles.songDetailProgressStripPercent}>
-          {selectedIdea.completionPct}%
-        </Text>
-        <Text style={projectStatusStyle}>
-          {selectedIdea.status === "song" ? "SONG" : selectedIdea.status.toUpperCase()}
-        </Text>
-      </View>
-    ) : null;
-
   const songTabs =
     selectedIdea.kind === "project" && !isEditMode ? (
       <View style={styles.songDetailSongTabs}>
@@ -364,8 +374,8 @@ export function IdeaDetailScreen() {
 
   const takesSummaryContent =
     selectedIdea.kind === "project" ? (
-      <View style={styles.songDetailTopStack}>
-        {isEditMode ? (
+      isEditMode ? (
+        <View style={styles.songDetailTopStack}>
           <IdeaStatusProgress
             isEditMode={isEditMode}
             draftStatus={draftStatus}
@@ -376,13 +386,8 @@ export function IdeaDetailScreen() {
             status={selectedIdea.status}
             completionPct={selectedIdea.completionPct}
           />
-        ) : (
-          <>
-            {songProgressStrip}
-            {songTabs}
-          </>
-        )}
-      </View>
+        </View>
+      ) : null
     ) : (
       <View style={styles.songDetailTopStack}>
         <IdeaNotes isEditMode={isEditMode} notes={selectedIdea.notes} />
@@ -399,10 +404,6 @@ export function IdeaDetailScreen() {
         ]}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.songDetailTopStack}>
-          {songProgressStrip}
-          {songTabs}
-        </View>
         {songTab === "lyrics" ? (
           <LyricsVersionsPanel projectIdea={selectedIdea} />
         ) : (
@@ -410,7 +411,7 @@ export function IdeaDetailScreen() {
             <IdeaNotes
               isEditMode={false}
               notes={selectedIdea.notes}
-              previewLines={12}
+              tabMode
               cardStyle={styles.songDetailTabPanelCard}
             />
           </View>
@@ -780,9 +781,38 @@ export function IdeaDetailScreen() {
           onMakeRoot={handleMakeRoot}
         />
       )}
-      {nonTakesTabContent ? (
-        nonTakesTabContent
-      ) : (
+      {songTabs}
+      {nonTakesTabContent}
+      {selectedIdea.kind === "project" && !isEditMode ? (
+        <View style={songTab !== "takes" ? { height: 0, overflow: "hidden" } : { flex: 1 }}>
+          <ClipList
+            isEditMode={isEditMode}
+            viewMode={clipViewMode}
+            setViewMode={setClipViewMode}
+            timelineSortMetric={timelineSortMetric}
+            setTimelineSortMetric={setTimelineSortMetric}
+            timelineSortDirection={timelineSortDirection}
+            setTimelineSortDirection={setTimelineSortDirection}
+            timelineMainTakesOnly={timelineMainTakesOnly}
+            setTimelineMainTakesOnly={setTimelineMainTakesOnly}
+            clipTagFilter={clipTagFilter}
+            setClipTagFilter={setClipTagFilter}
+            summaryContent={takesSummaryContent}
+            onIdeasStickyChange={setIsIdeasSticky}
+            isParentPicking={!!parentPickState}
+            parentPickSourceClipIds={parentPickState?.sourceClipIds ?? []}
+            parentPickInvalidTargetIds={parentPickInvalidTargetIds}
+            onStartSetParent={handleStartSetParent}
+            onMakeRoot={handleMakeRoot}
+            onPickParentTarget={handlePickParentTarget}
+            footerSpacerHeight={
+              selectedIdea.kind === "project" && !isEditMode && !clipSelectionMode && !parentPickState
+                ? clipListFooterSpacerHeight
+                : 28
+            }
+          />
+        </View>
+      ) : !nonTakesTabContent ? (
         <ClipList
           isEditMode={isEditMode}
           viewMode={clipViewMode}
@@ -803,13 +833,9 @@ export function IdeaDetailScreen() {
           onStartSetParent={handleStartSetParent}
           onMakeRoot={handleMakeRoot}
           onPickParentTarget={handlePickParentTarget}
-          footerSpacerHeight={
-            selectedIdea.kind === "project" && !isEditMode && !clipSelectionMode && !parentPickState
-              ? clipListFooterSpacerHeight
-              : 28
-          }
+          footerSpacerHeight={28}
         />
-      )}
+      ) : null}
       {selectedIdea.kind === "project" &&
       !isEditMode &&
       !clipSelectionMode &&

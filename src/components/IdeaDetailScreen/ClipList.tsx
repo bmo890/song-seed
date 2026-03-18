@@ -1,9 +1,10 @@
 import React, { ReactNode, useEffect, useMemo, useRef, useState } from "react";
-import { Alert, Animated } from "react-native";
-import { useIsFocused, useNavigation } from "@react-navigation/native";
+import { Alert, Animated, BackHandler } from "react-native";
+import { useNavigation } from "@react-navigation/native";
 import { ClipActionsSheet } from "../modals/ClipActionsSheet";
+import { ClipNotesSheet } from "../modals/ClipNotesSheet";
 import { useStore } from "../../state/useStore";
-import { type ClipVersion } from "../../types";
+import { type ClipVersion, type CustomTagDefinition } from "../../types";
 import {
   buildEvolutionListRows,
   buildTimelineEntries,
@@ -18,6 +19,7 @@ import type { SongClipTagFilter } from "./songClipControls";
 import { type ClipCardSharedProps } from "./ClipCard";
 import { EvolutionList } from "./EvolutionList";
 import { TimelineList } from "./TimelineList";
+import { ClipTagPicker } from "./ClipTagPicker";
 
 type ClipListProps = {
   isEditMode: boolean;
@@ -65,16 +67,17 @@ export function ClipList({
   onPickParentTarget,
 }: ClipListProps) {
   const navigation = useNavigation();
-  const isFocused = useIsFocused();
   const inlinePlayer = useInlinePlayer();
   const [expandedLineageIds, setExpandedLineageIds] = useState<Record<string, boolean>>({});
   const [editingClipId, setEditingClipId] = useState<string | null>(null);
   const [editingClipDraft, setEditingClipDraft] = useState("");
   const [editingClipNotesDraft, setEditingClipNotesDraft] = useState("");
   const [actionsClipId, setActionsClipId] = useState<string | null>(null);
+  const [notesSheetClipId, setNotesSheetClipId] = useState<string | null>(null);
+  const [tagPickerClipId, setTagPickerClipId] = useState<string | null>(null);
+  const globalCustomTags = useStore((s) => s.globalCustomClipTags);
   const highlightMapRef = useRef<Record<string, Animated.Value>>({});
   const animatingHighlightIdsRef = useRef<Set<string>>(new Set());
-  const didBlurCleanupRef = useRef(false);
 
   const pendingPrimaryClipId = useStore((s) => s.pendingPrimaryClipId);
   const recentlyAddedItemIds = useStore((s) => s.recentlyAddedItemIds);
@@ -116,11 +119,9 @@ export function ClipList({
     if (clipTagFilter === "all") return ideaClips;
 
     return ideaClips.filter((clip) => {
-      const tags = Array.isArray((clip as ClipVersion & { tags?: string[] }).tags)
-        ? ((clip as ClipVersion & { tags?: string[] }).tags ?? [])
-            .map((tag) => tag.trim().toLowerCase())
-            .filter(Boolean)
-        : [];
+      const tags = (clip.tags ?? [])
+        .map((tag) => tag.trim().toLowerCase())
+        .filter(Boolean);
 
       if (clipTagFilter === "untagged") return tags.length === 0;
       return tags.includes(clipTagFilter);
@@ -182,15 +183,15 @@ export function ClipList({
     });
   }, [clearRecentlyAdded, recentlyAddedItemIds, visibleClipEntries, visibleClipIdsKey]);
 
+
   useEffect(() => {
-    if (isFocused) {
-      didBlurCleanupRef.current = false;
-      return;
-    }
-    if (didBlurCleanupRef.current) return;
-    didBlurCleanupRef.current = true;
-    void inlinePlayer.resetInlinePlayer();
-  }, [inlinePlayer, isFocused]);
+    if (!inlinePlayer.inlineTarget) return;
+    const handler = BackHandler.addEventListener("hardwareBackPress", () => {
+      void inlinePlayer.resetInlinePlayer();
+      return true;
+    });
+    return () => handler.remove();
+  }, [inlinePlayer, inlinePlayer.inlineTarget]);
 
   useEffect(() => {
     if (isParentPicking && viewMode !== "evolution") {
@@ -210,6 +211,38 @@ export function ClipList({
   const actionsClip = actionsClipId
     ? selectedIdea.clips.find((clip) => clip.id === actionsClipId) ?? null
     : null;
+  const notesSheetClip = notesSheetClipId
+    ? selectedIdea.clips.find((clip) => clip.id === notesSheetClipId) ?? null
+    : null;
+
+  function openNotesSheet(clip: ClipVersion) {
+    setEditingClipDraft(clip.title);
+    setEditingClipNotesDraft(clip.notes || "");
+    setNotesSheetClipId(clip.id);
+  }
+
+  function saveNotesSheet() {
+    if (!notesSheetClipId) return;
+    useStore.getState().updateIdeas((ideas) =>
+      ideas.map((idea) =>
+        idea.id !== selectedIdeaId
+          ? idea
+          : {
+              ...idea,
+              clips: idea.clips.map((clip) =>
+                clip.id === notesSheetClipId
+                  ? {
+                      ...clip,
+                      title: editingClipDraft.trim() || "Untitled Clip",
+                      notes: editingClipNotesDraft.trim(),
+                    }
+                  : clip
+              ),
+            }
+      )
+    );
+    setNotesSheetClipId(null);
+  }
 
   function beginEditingClip(clip: ClipVersion) {
     setEditingClipId(clip.id);
@@ -287,7 +320,10 @@ export function ClipList({
       }
       setActionsClipId(clip.id);
     },
+    onOpenNotesSheet: (clip) => openNotesSheet(clip),
     onPickParentTarget,
+    onOpenTagPicker: (clip) => setTagPickerClipId(clip.id),
+    globalCustomTags,
     inlinePlayer,
     getHighlightValue: (clipId) => highlightMapRef.current[clipId],
   };
@@ -405,11 +441,11 @@ export function ClipList({
                 },
                 {
                   key: "add-notes",
-                  label: "Add notes",
+                  label: actionsClip.notes?.trim() ? "Edit notes" : "Add notes",
                   icon: "document-text-outline" as const,
                   onPress: () => {
                     setActionsClipId(null);
-                    beginEditingClip(actionsClip);
+                    openNotesSheet(actionsClip);
                   },
                 },
                 {
@@ -443,6 +479,29 @@ export function ClipList({
               ]
             : []
         }
+      />
+
+      <ClipTagPicker
+        visible={!!tagPickerClipId}
+        clip={tagPickerClipId ? selectedIdea.clips.find((c) => c.id === tagPickerClipId) ?? null : null}
+        idea={selectedIdea}
+        globalCustomTags={globalCustomTags}
+        onClose={() => setTagPickerClipId(null)}
+      />
+
+      <ClipNotesSheet
+        visible={!!notesSheetClip}
+        clipSubtitle={
+          notesSheetClip
+            ? `${notesSheetClip.durationMs ? fmtDuration(notesSheetClip.durationMs) : "0:00"} • ${formatDate(notesSheetClip.createdAt)}`
+            : ""
+        }
+        titleDraft={editingClipDraft}
+        notesDraft={editingClipNotesDraft}
+        onChangeTitle={setEditingClipDraft}
+        onChangeNotes={setEditingClipNotesDraft}
+        onSave={saveNotesSheet}
+        onCancel={() => setNotesSheetClipId(null)}
       />
     </>
   );

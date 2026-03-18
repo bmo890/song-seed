@@ -4,6 +4,7 @@ import {
     Collection,
     SongIdea,
     ClipVersion,
+    CustomTagDefinition,
     ActivityEvent,
     ActivityMetric,
     ActivitySource,
@@ -16,6 +17,12 @@ import {
     ChordPlacement,
     IdeasListState,
     IdeasHiddenDay,
+    WorkspaceArchiveState,
+    Playlist,
+    PlaylistItem,
+    WorkspaceListOrder,
+    WorkspaceStartupPreference,
+    PracticeMarker,
 } from "../types";
 import { genClipTitle } from "../utils";
 import type { SelectionSlice } from "./selectionSlice";
@@ -24,8 +31,20 @@ export type DataSlice = {
     workspaces: Workspace[];
     activityEvents: ActivityEvent[];
     activeWorkspaceId: string | null;
+    primaryWorkspaceId: string | null;
+    lastUsedWorkspaceId: string | null;
+    workspaceStartupPreference: WorkspaceStartupPreference;
+    workspaceListOrder: WorkspaceListOrder;
+    workspaceLastOpenedAt: Record<string, number>;
+    collectionLastOpenedAt: Record<string, number>;
+    playlists: Playlist[];
     preferredRecordingInputId: string | null;
+    globalCustomClipTags: CustomTagDefinition[];
     setActiveWorkspaceId: (id: string) => void;
+    setPrimaryWorkspaceId: (id: string | null) => void;
+    setWorkspaceStartupPreference: (value: WorkspaceStartupPreference) => void;
+    setWorkspaceListOrder: (value: WorkspaceListOrder) => void;
+    markCollectionOpened: (collectionId: string) => void;
     setPreferredRecordingInputId: (id: string | null) => void;
     addWorkspace: (title: string, description?: string) => void;
     updateWorkspace: (id: string, updates: { title?: string; description?: string }) => void;
@@ -40,6 +59,15 @@ export type DataSlice = {
     ) => { ok: boolean; error?: string };
     deleteCollection: (collectionId: string) => void;
     renameIdeaPreservingActivity: (ideaId: string, nextTitle: string) => void;
+    toggleIdeaFavorite: (ideaId: string) => void;
+    setClipTags: (ideaId: string, clipId: string, tags: string[]) => void;
+    addProjectCustomTag: (ideaId: string, tag: CustomTagDefinition) => void;
+    removeProjectCustomTag: (ideaId: string, tagKey: string) => void;
+    addGlobalCustomClipTag: (tag: CustomTagDefinition) => void;
+    removeGlobalCustomClipTag: (tagKey: string) => void;
+    addClipPracticeMarker: (ideaId: string, clipId: string, marker: PracticeMarker) => void;
+    removeClipPracticeMarker: (ideaId: string, clipId: string, markerId: string) => void;
+    setClipPracticeMarkers: (ideaId: string, clipId: string, markers: PracticeMarker[]) => void;
     logIdeaActivity: (
         ideaId: string,
         metric: ActivityMetric,
@@ -67,6 +95,13 @@ export type DataSlice = {
         targetIdeaId: string,
         override?: { audioUri?: string; durationMs?: number; waveformPeaks?: number[]; parentClipId?: string }
     ) => void;
+    addPlaylist: (title: string) => string;
+    addItemsToPlaylist: (
+        playlistId: string,
+        items: Array<Omit<PlaylistItem, "id" | "addedAt">>
+    ) => void;
+    reorderPlaylistItems: (playlistId: string, orderedItemIds: string[]) => void;
+    removePlaylistItem: (playlistId: string, playlistItemId: string) => void;
     deleteIdea: (ideaId: string) => void;
 };
 
@@ -78,6 +113,14 @@ function buildCollectionId(prefix = "col") {
 
 function buildActivityEventId() {
     return `activity-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+}
+
+function buildPlaylistId() {
+    return `playlist-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+}
+
+function buildPlaylistItemId() {
+    return `playlist-item-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 }
 
 export const createInitialWorkspace = (): Workspace => ({
@@ -271,6 +314,40 @@ function normalizeIdeas(ideas: SongIdea[]) {
     return ideas.map(normalizeIdea);
 }
 
+function normalizeWorkspaceArchiveState(archiveState: WorkspaceArchiveState | undefined): WorkspaceArchiveState | undefined {
+    if (!archiveState || typeof archiveState !== "object") {
+        return undefined;
+    }
+
+    if (
+        !Number.isFinite(archiveState.schemaVersion) ||
+        !Number.isFinite(archiveState.archivedAt) ||
+        typeof archiveState.archiveUri !== "string" ||
+        !Number.isFinite(archiveState.packageSizeBytes) ||
+        !Number.isFinite(archiveState.originalAudioBytes) ||
+        !Number.isFinite(archiveState.originalMetadataBytes) ||
+        !Number.isFinite(archiveState.archivedMetadataBytes) ||
+        !Number.isFinite(archiveState.savingsBytes) ||
+        !Number.isFinite(archiveState.audioFileCount) ||
+        !Number.isFinite(archiveState.missingFileCount)
+    ) {
+        return undefined;
+    }
+
+    return {
+        schemaVersion: archiveState.schemaVersion,
+        archivedAt: archiveState.archivedAt,
+        archiveUri: archiveState.archiveUri,
+        packageSizeBytes: archiveState.packageSizeBytes,
+        originalAudioBytes: archiveState.originalAudioBytes,
+        originalMetadataBytes: archiveState.originalMetadataBytes,
+        archivedMetadataBytes: archiveState.archivedMetadataBytes,
+        savingsBytes: archiveState.savingsBytes,
+        audioFileCount: archiveState.audioFileCount,
+        missingFileCount: archiveState.missingFileCount,
+    };
+}
+
 function findWorkspaceWithCollection(workspaces: Workspace[], collectionId: string) {
     return workspaces.find((workspace) =>
         workspace.collections.some((collection) => collection.id === collectionId)
@@ -323,8 +400,46 @@ function normalizeActivityEvents(events: ActivityEvent[] | undefined) {
         .sort((a, b) => b.at - a.at);
 }
 
+function normalizePlaylistItems(items: PlaylistItem[] | undefined) {
+    if (!Array.isArray(items)) return [];
+
+    return items.filter((item): item is PlaylistItem => {
+        if (!item || typeof item !== "object") return false;
+        return (
+            typeof item.id === "string" &&
+            (item.kind === "song" || item.kind === "clip") &&
+            typeof item.workspaceId === "string" &&
+            typeof item.collectionId === "string" &&
+            typeof item.ideaId === "string" &&
+            (item.clipId == null || typeof item.clipId === "string") &&
+            Number.isFinite(item.addedAt)
+        );
+    });
+}
+
+export function normalizePlaylists(playlists: Playlist[] | undefined) {
+    if (!Array.isArray(playlists)) return [];
+
+    return playlists
+        .filter((playlist): playlist is Playlist => {
+            if (!playlist || typeof playlist !== "object") return false;
+            return (
+                typeof playlist.id === "string" &&
+                typeof playlist.title === "string" &&
+                Number.isFinite(playlist.createdAt) &&
+                Number.isFinite(playlist.updatedAt)
+            );
+        })
+        .map((playlist) => ({
+            ...playlist,
+            title: playlist.title.trim() || "Untitled Playlist",
+            items: normalizePlaylistItems(playlist.items),
+        }));
+}
+
 export function normalizeWorkspaces(workspaces: Workspace[]) {
     return workspaces.map((workspace) => {
+        const normalizedArchiveState = normalizeWorkspaceArchiveState(workspace.archiveState);
         const existingCollections = Array.isArray(workspace.collections) ? workspace.collections : [];
         const migratedDefaultCollection =
             existingCollections.length === 0 && workspace.ideas.length > 0
@@ -349,13 +464,25 @@ export function normalizeWorkspaces(workspaces: Workspace[]) {
                         : fallbackCollectionId,
             }))
         );
+        const archivedIdeas =
+            normalizedArchiveState
+                ? normalizedIdeas.map((idea) => ({
+                    ...idea,
+                    clips: idea.clips.map((clip) => ({
+                        ...clip,
+                        audioUri: undefined,
+                        sourceAudioUri: undefined,
+                        waveformPeaks: undefined,
+                    })),
+                }))
+                : normalizedIdeas;
         const ideaIdsByCollection = new Map<string, SongIdea[]>();
-        for (const idea of normalizedIdeas) {
+        for (const idea of archivedIdeas) {
             const bucket = ideaIdsByCollection.get(idea.collectionId) ?? [];
             bucket.push(idea);
             ideaIdsByCollection.set(idea.collectionId, bucket);
         }
-        const legacyWorkspaceListState = normalizeWorkspaceIdeasListState(workspace.ideasListState, normalizedIdeas);
+        const legacyWorkspaceListState = normalizeWorkspaceIdeasListState(workspace.ideasListState, archivedIdeas);
         const normalizedCollections = collections.map((collection, index) => {
             const collectionIdeas = ideaIdsByCollection.get(collection.id) ?? [];
             const sourceListState =
@@ -367,8 +494,10 @@ export function normalizeWorkspaces(workspaces: Workspace[]) {
         });
         return {
             ...workspace,
+            isArchived: Boolean(workspace.isArchived || normalizedArchiveState),
+            archiveState: normalizedArchiveState,
             collections: normalizedCollections,
-            ideas: normalizedIdeas,
+            ideas: archivedIdeas,
         };
     });
 }
@@ -377,9 +506,60 @@ export const createDataSlice: StateCreator<DataSlice & SelectionSlice, [], [], D
     workspaces: [createInitialWorkspace()],
     activityEvents: [],
     activeWorkspaceId: null,
+    primaryWorkspaceId: null,
+    lastUsedWorkspaceId: null,
+    workspaceStartupPreference: "last-used",
+    workspaceListOrder: "last-worked",
+    workspaceLastOpenedAt: {},
+    collectionLastOpenedAt: {},
+    playlists: [],
     preferredRecordingInputId: null,
+    globalCustomClipTags: [],
 
-    setActiveWorkspaceId: (id) => set({ activeWorkspaceId: id }),
+    setActiveWorkspaceId: (id) =>
+        set((state) => {
+            if (!state.workspaces.some((workspace) => workspace.id === id)) return state;
+            const now = Date.now();
+            return {
+                activeWorkspaceId: id,
+                lastUsedWorkspaceId: id,
+                workspaceLastOpenedAt: {
+                    ...state.workspaceLastOpenedAt,
+                    [id]: now,
+                },
+            };
+        }),
+    setPrimaryWorkspaceId: (id) =>
+        set((state) => {
+            if (id === null) {
+                return { primaryWorkspaceId: null };
+            }
+
+            const targetWorkspace = state.workspaces.find(
+                (workspace) => workspace.id === id && !workspace.isArchived
+            );
+            if (!targetWorkspace) return state;
+            return { primaryWorkspaceId: id };
+        }),
+    setWorkspaceStartupPreference: (value) => set({ workspaceStartupPreference: value }),
+    setWorkspaceListOrder: (value) => set({ workspaceListOrder: value }),
+    markCollectionOpened: (collectionId) =>
+        set((state) => {
+            const workspace = findWorkspaceWithCollection(state.workspaces, collectionId);
+            if (!workspace) return state;
+            const now = Date.now();
+            return {
+                lastUsedWorkspaceId: workspace.id,
+                workspaceLastOpenedAt: {
+                    ...state.workspaceLastOpenedAt,
+                    [workspace.id]: now,
+                },
+                collectionLastOpenedAt: {
+                    ...state.collectionLastOpenedAt,
+                    [collectionId]: now,
+                },
+            };
+        }),
     setPreferredRecordingInputId: (id) => set({ preferredRecordingInputId: id }),
 
     addWorkspace: (title, description) => {
@@ -524,6 +704,14 @@ export const createDataSlice: StateCreator<DataSlice & SelectionSlice, [], [], D
 
                 return workspace;
             }),
+            playlists: currentState.playlists.map((playlist) => ({
+                ...playlist,
+                items: playlist.items.map((item) =>
+                    moveScopeIds.has(item.collectionId)
+                        ? { ...item, workspaceId: targetWorkspace.id }
+                        : item
+                ),
+            })),
         }));
 
         return { ok: true };
@@ -536,6 +724,15 @@ export const createDataSlice: StateCreator<DataSlice & SelectionSlice, [], [], D
 
             const descendantIds = getCollectionDescendantIds(sourceWorkspace.collections, collectionId);
             const deleteScopeIds = new Set<string>([collectionId, ...descendantIds]);
+            const deletedIdeaIds = new Set(
+                sourceWorkspace.ideas
+                    .filter((idea) => deleteScopeIds.has(idea.collectionId))
+                    .map((idea) => idea.id)
+            );
+            const nextCollectionLastOpenedAt = { ...state.collectionLastOpenedAt };
+            deleteScopeIds.forEach((id) => {
+                delete nextCollectionLastOpenedAt[id];
+            });
 
             return {
                 workspaces: state.workspaces.map((workspace) =>
@@ -549,8 +746,155 @@ export const createDataSlice: StateCreator<DataSlice & SelectionSlice, [], [], D
                             ideas: workspace.ideas.filter((idea) => !deleteScopeIds.has(idea.collectionId)),
                         }
                 ),
+                collectionLastOpenedAt: nextCollectionLastOpenedAt,
+                activityEvents: state.activityEvents.filter(
+                    (event) =>
+                        event.workspaceId !== sourceWorkspace.id ||
+                        (!deleteScopeIds.has(event.collectionId) && !deletedIdeaIds.has(event.ideaId))
+                ),
+                playlists: state.playlists.map((playlist) => ({
+                    ...playlist,
+                    items: playlist.items.filter((item) => !deleteScopeIds.has(item.collectionId)),
+                })),
             };
         });
+    },
+
+    toggleIdeaFavorite: (ideaId) => {
+        set((state) => ({
+            workspaces: state.workspaces.map((workspace) => ({
+                ...workspace,
+                ideas: workspace.ideas.map((idea) =>
+                    idea.id === ideaId ? { ...idea, isFavorite: !idea.isFavorite } : idea
+                ),
+            })),
+        }));
+    },
+
+    setClipTags: (ideaId, clipId, tags) => {
+        set((state) => ({
+            workspaces: state.workspaces.map((workspace) => ({
+                ...workspace,
+                ideas: workspace.ideas.map((idea) =>
+                    idea.id === ideaId
+                        ? {
+                              ...idea,
+                              clips: idea.clips.map((clip) =>
+                                  clip.id === clipId ? { ...clip, tags } : clip
+                              ),
+                          }
+                        : idea
+                ),
+            })),
+        }));
+    },
+
+    addProjectCustomTag: (ideaId, tag) => {
+        set((state) => ({
+            workspaces: state.workspaces.map((workspace) => ({
+                ...workspace,
+                ideas: workspace.ideas.map((idea) =>
+                    idea.id === ideaId
+                        ? {
+                              ...idea,
+                              customTags: [...(idea.customTags ?? []), tag],
+                          }
+                        : idea
+                ),
+            })),
+        }));
+    },
+
+    removeProjectCustomTag: (ideaId, tagKey) => {
+        set((state) => ({
+            workspaces: state.workspaces.map((workspace) => ({
+                ...workspace,
+                ideas: workspace.ideas.map((idea) =>
+                    idea.id === ideaId
+                        ? {
+                              ...idea,
+                              customTags: (idea.customTags ?? []).filter((t) => t.key !== tagKey),
+                          }
+                        : idea
+                ),
+            })),
+        }));
+    },
+
+    addGlobalCustomClipTag: (tag) => {
+        set((state) => ({
+            globalCustomClipTags: [...state.globalCustomClipTags, tag],
+        }));
+    },
+
+    removeGlobalCustomClipTag: (tagKey) => {
+        set((state) => ({
+            globalCustomClipTags: state.globalCustomClipTags.filter((t) => t.key !== tagKey),
+        }));
+    },
+
+    addClipPracticeMarker: (ideaId, clipId, marker) => {
+        set((state) => ({
+            workspaces: state.workspaces.map((workspace) => ({
+                ...workspace,
+                ideas: workspace.ideas.map((idea) =>
+                    idea.id === ideaId
+                        ? {
+                              ...idea,
+                              clips: idea.clips.map((clip) =>
+                                  clip.id === clipId
+                                      ? {
+                                            ...clip,
+                                            practiceMarkers: [...(clip.practiceMarkers ?? []), marker],
+                                        }
+                                      : clip
+                              ),
+                          }
+                        : idea
+                ),
+            })),
+        }));
+    },
+
+    removeClipPracticeMarker: (ideaId, clipId, markerId) => {
+        set((state) => ({
+            workspaces: state.workspaces.map((workspace) => ({
+                ...workspace,
+                ideas: workspace.ideas.map((idea) =>
+                    idea.id === ideaId
+                        ? {
+                              ...idea,
+                              clips: idea.clips.map((clip) =>
+                                  clip.id === clipId
+                                      ? {
+                                            ...clip,
+                                            practiceMarkers: (clip.practiceMarkers ?? []).filter((m) => m.id !== markerId),
+                                        }
+                                      : clip
+                              ),
+                          }
+                        : idea
+                ),
+            })),
+        }));
+    },
+
+    setClipPracticeMarkers: (ideaId, clipId, markers) => {
+        set((state) => ({
+            workspaces: state.workspaces.map((workspace) => ({
+                ...workspace,
+                ideas: workspace.ideas.map((idea) =>
+                    idea.id === ideaId
+                        ? {
+                              ...idea,
+                              clips: idea.clips.map((clip) =>
+                                  clip.id === clipId ? { ...clip, practiceMarkers: markers } : clip
+                              ),
+                          }
+                        : idea
+                ),
+            })),
+        }));
     },
 
     renameIdeaPreservingActivity: (ideaId, nextTitle) => {
@@ -631,9 +975,28 @@ export const createDataSlice: StateCreator<DataSlice & SelectionSlice, [], [], D
         set((state) => {
             if (state.workspaces.length <= 1) return state; // Guard
             const nextWorkspaces = state.workspaces.filter((ws) => ws.id !== id);
+            const nextWorkspaceLastOpenedAt = { ...state.workspaceLastOpenedAt };
+            delete nextWorkspaceLastOpenedAt[id];
+            const nextCollectionLastOpenedAt = { ...state.collectionLastOpenedAt };
+            state.workspaces
+                .find((workspace) => workspace.id === id)
+                ?.collections.forEach((collection) => {
+                    delete nextCollectionLastOpenedAt[collection.id];
+                });
+
             return {
                 workspaces: nextWorkspaces,
                 activeWorkspaceId: state.activeWorkspaceId === id ? (nextWorkspaces[0]?.id ?? null) : state.activeWorkspaceId,
+                primaryWorkspaceId: state.primaryWorkspaceId === id ? null : state.primaryWorkspaceId,
+                lastUsedWorkspaceId:
+                    state.lastUsedWorkspaceId === id ? (nextWorkspaces[0]?.id ?? null) : state.lastUsedWorkspaceId,
+                workspaceLastOpenedAt: nextWorkspaceLastOpenedAt,
+                collectionLastOpenedAt: nextCollectionLastOpenedAt,
+                activityEvents: state.activityEvents.filter((event) => event.workspaceId !== id),
+                playlists: state.playlists.map((playlist) => ({
+                    ...playlist,
+                    items: playlist.items.filter((item) => item.workspaceId !== id),
+                })),
             };
         });
     },
@@ -646,7 +1009,17 @@ export const createDataSlice: StateCreator<DataSlice & SelectionSlice, [], [], D
             if (id === activeId && isArchived) {
                 activeId = spaces.find((w) => !w.isArchived)?.id ?? null;
             }
-            return { workspaces: spaces, activeWorkspaceId: activeId };
+            const fallbackWorkspaceId = spaces.find((workspace) => !workspace.isArchived)?.id ?? null;
+            return {
+                workspaces: spaces,
+                activeWorkspaceId: activeId,
+                primaryWorkspaceId:
+                    isArchived && state.primaryWorkspaceId === id ? null : state.primaryWorkspaceId,
+                lastUsedWorkspaceId:
+                    isArchived && state.lastUsedWorkspaceId === id
+                        ? fallbackWorkspaceId
+                        : state.lastUsedWorkspaceId,
+            };
         });
     },
 
@@ -827,10 +1200,6 @@ export const createDataSlice: StateCreator<DataSlice & SelectionSlice, [], [], D
         return id;
     },
 
-    deleteIdea: (ideaId) => {
-        get().updateIdeas((prev) => prev.filter((i) => i.id !== ideaId));
-    },
-
     addClipVersion: (targetIdeaId, override) => {
         const state = get();
         const activeWs = state.workspaces.find((w) => w.id === state.activeWorkspaceId);
@@ -860,6 +1229,101 @@ export const createDataSlice: StateCreator<DataSlice & SelectionSlice, [], [], D
             })
         );
         get().markRecentlyAdded([clip.id]);
+    },
+
+    addPlaylist: (title) => {
+        const now = Date.now();
+        const playlistId = buildPlaylistId();
+        const nextPlaylist: Playlist = {
+            id: playlistId,
+            title: title.trim() || "Untitled Playlist",
+            createdAt: now,
+            updatedAt: now,
+            items: [],
+        };
+
+        set((state) => ({
+            playlists: [nextPlaylist, ...state.playlists],
+        }));
+
+        return playlistId;
+    },
+
+    addItemsToPlaylist: (playlistId, items) => {
+        if (items.length === 0) return;
+        set((state) => {
+            const now = Date.now();
+            return {
+                playlists: state.playlists.map((playlist) =>
+                    playlist.id !== playlistId
+                        ? playlist
+                        : {
+                            ...playlist,
+                            updatedAt: now,
+                            items: [
+                                ...playlist.items,
+                                ...items.map((item, index) => ({
+                                    ...item,
+                                    id: `${buildPlaylistItemId()}-${index}`,
+                                    addedAt: now + index,
+                                })),
+                            ],
+                        }
+                ),
+            };
+        });
+    },
+
+    reorderPlaylistItems: (playlistId, orderedItemIds) => {
+        set((state) => ({
+            playlists: state.playlists.map((playlist) => {
+                if (playlist.id !== playlistId) return playlist;
+                const itemMap = new Map(playlist.items.map((item) => [item.id, item]));
+                const nextItems = orderedItemIds
+                    .map((itemId) => itemMap.get(itemId) ?? null)
+                    .filter((item): item is PlaylistItem => !!item);
+
+                if (nextItems.length !== playlist.items.length) {
+                    const seenIds = new Set(nextItems.map((item) => item.id));
+                    playlist.items.forEach((item) => {
+                        if (!seenIds.has(item.id)) {
+                            nextItems.push(item);
+                        }
+                    });
+                }
+
+                return {
+                    ...playlist,
+                    updatedAt: Date.now(),
+                    items: nextItems,
+                };
+            }),
+        }));
+    },
+
+    removePlaylistItem: (playlistId, playlistItemId) => {
+        set((state) => ({
+            playlists: state.playlists.map((playlist) =>
+                playlist.id !== playlistId
+                    ? playlist
+                    : {
+                        ...playlist,
+                        updatedAt: Date.now(),
+                        items: playlist.items.filter((item) => item.id !== playlistItemId),
+                    }
+            ),
+        }));
+    },
+
+    deleteIdea: (ideaId) => {
+        get().updateIdeas((prev) => prev.filter((i) => i.id !== ideaId));
+        set((state) => ({
+            activityEvents: state.activityEvents.filter((event) => event.ideaId !== ideaId),
+            playlists: state.playlists.map((playlist) => ({
+                ...playlist,
+                items: playlist.items.filter((item) => item.ideaId !== ideaId),
+            })),
+        }));
     },
 });
 

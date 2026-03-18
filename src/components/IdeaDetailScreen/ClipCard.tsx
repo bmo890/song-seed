@@ -7,12 +7,12 @@ import { styles } from "../../styles";
 import { Button } from "../common/Button";
 import { MiniProgress } from "../MiniProgress";
 import { TitleInput } from "../common/TitleInput";
-import { WaveformMiniPreview } from "../common/WaveformMiniPreview";
 import { useStore } from "../../state/useStore";
 import { fmtDuration, formatDate } from "../../utils";
 import { type EvolutionListClipEntry, type TimelineClipEntry } from "../../clipGraph";
-import { type SongIdea, type ClipVersion } from "../../types";
+import { type SongIdea, type ClipVersion, type CustomTagDefinition } from "../../types";
 import { type useInlinePlayer } from "../../hooks/useInlinePlayer";
+import { getTagColor, getTagLabel } from "./songClipControls";
 
 export type ClipCardEntry = TimelineClipEntry | EvolutionListClipEntry;
 
@@ -33,7 +33,10 @@ export type ClipCardSharedProps = {
   onSaveEditing: (clipId: string) => void;
   onCancelEditing: () => void;
   onOpenActions: (clip: ClipVersion) => void;
+  onOpenNotesSheet?: (clip: ClipVersion) => void;
   onPickParentTarget: (clipId: string) => void;
+  onOpenTagPicker?: (clip: ClipVersion) => void;
+  globalCustomTags: CustomTagDefinition[];
   inlinePlayer: ReturnType<typeof useInlinePlayer>;
   getHighlightValue: (clipId: string) => Animated.Value | undefined;
 };
@@ -78,7 +81,10 @@ export function ClipCard({
   onSaveEditing,
   onCancelEditing,
   onOpenActions,
+  onOpenNotesSheet,
   onPickParentTarget,
+  onOpenTagPicker,
+  globalCustomTags,
   inlinePlayer,
   getHighlightValue,
 }: ClipCardProps) {
@@ -156,13 +162,16 @@ export function ClipCard({
                   pressed ? styles.pressDown : null,
                 ]}
               >
-                <Text style={styles.inlinePlayBtnText}>
-                  {inlineActive && inlinePlayer.isInlinePlaying ? "❚❚" : "▶"}
-                </Text>
+                <Ionicons
+                  name={inlineActive && inlinePlayer.isInlinePlaying ? "pause" : "play"}
+                  size={15}
+                  color={!clip.audioUri ? "#9ca3af" : "#111827"}
+                  style={inlineActive && inlinePlayer.isInlinePlaying ? undefined : { marginLeft: 2 }}
+                />
               </Pressable>
             ) : (
               <View style={styles.ideasInlinePlayBtn}>
-                <Text style={styles.inlinePlayBtnText}>▶</Text>
+                <Ionicons name="play" size={15} color="#9ca3af" style={{ marginLeft: 2 }} />
               </View>
             )}
             <View style={styles.songDetailVersionLeadDurationSlot}>
@@ -282,11 +291,44 @@ export function ClipCard({
                   </View>
                 </View>
 
-                <WaveformMiniPreview
-                  peaks={clip.waveformPeaks}
-                  compact={compactDensity}
-                  bars={compactDensity ? 24 : 28}
-                />
+                {clip.notes?.trim() ? (
+                  <Pressable
+                    style={styles.clipCardNotesPreview}
+                    onPress={() => onOpenNotesSheet?.(clip)}
+                    hitSlop={{ top: 4, bottom: 4 }}
+                  >
+                    <Ionicons name="document-text-outline" size={11} color="#94a3b8" />
+                    <Text style={styles.clipCardNotesPreviewText} numberOfLines={1}>
+                      {clip.notes.trim()}
+                    </Text>
+                  </Pressable>
+                ) : null}
+
+                {clip.tags?.length || (!isEditMode && !isDraftProject && !isParentPicking && !clipSelectionMode) ? (
+                  <Pressable
+                    style={styles.clipCardTagsRow}
+                    onPress={(evt) => {
+                      evt.stopPropagation();
+                      onOpenTagPicker?.(clip);
+                    }}
+                    hitSlop={{ top: 2, bottom: 2 }}
+                  >
+                    {clip.tags?.map((tagKey) => {
+                      const color = getTagColor(tagKey, idea.customTags, globalCustomTags);
+                      const label = getTagLabel(tagKey, idea.customTags, globalCustomTags);
+                      return (
+                        <View key={tagKey} style={[styles.clipCardTagBadge, { backgroundColor: color.bg }]}>
+                          <Text style={[styles.clipCardTagBadgeText, { color: color.text }]}>{label}</Text>
+                        </View>
+                      );
+                    })}
+                    {!isEditMode && !isDraftProject && !isParentPicking && !clipSelectionMode ? (
+                      <View style={styles.clipCardAddTagBtn}>
+                        <Ionicons name="add" size={11} color="#94a3b8" />
+                      </View>
+                    ) : null}
+                  </Pressable>
+                ) : null}
 
                 <Text style={styles.songDetailVersionMeta}>{formatDate(clip.createdAt)}</Text>
               </>
@@ -294,19 +336,30 @@ export function ClipCard({
 
             {inlineActive ? (
               <View style={styles.songDetailVersionInlinePlayerWrap}>
-                <MiniProgress
-                  currentMs={inlinePlayer.inlinePosition}
-                  durationMs={inlinePlayer.inlineDuration || clip.durationMs || 0}
-                  onSeek={(ms) => {
-                    void inlinePlayer.endInlineScrub(ms);
+                <View style={styles.songDetailVersionInlinePlayerProgress}>
+                  <MiniProgress
+                    currentMs={inlinePlayer.inlinePosition}
+                    durationMs={inlinePlayer.inlineDuration || clip.durationMs || 0}
+                    onSeek={(ms) => {
+                      void inlinePlayer.endInlineScrub(ms);
+                    }}
+                    onSeekStart={() => {
+                      void inlinePlayer.beginInlineScrub();
+                    }}
+                    onSeekCancel={() => {
+                      void inlinePlayer.cancelInlineScrub();
+                    }}
+                  />
+                </View>
+                <Pressable
+                  style={styles.ideasInlineCloseBtn}
+                  onPress={(evt) => {
+                    evt.stopPropagation();
+                    void inlinePlayer.resetInlinePlayer();
                   }}
-                  onSeekStart={() => {
-                    void inlinePlayer.beginInlineScrub();
-                  }}
-                  onSeekCancel={() => {
-                    void inlinePlayer.cancelInlineScrub();
-                  }}
-                />
+                >
+                  <Ionicons name="close" size={13} color="#64748b" />
+                </Pressable>
               </View>
             ) : null}
           </Pressable>

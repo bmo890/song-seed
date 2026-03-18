@@ -1,203 +1,276 @@
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useState } from "react";
 import { styles } from "../../styles";
 import { Collection, Workspace } from "../../types";
 import { ActivityMetricFilter } from "../../activity";
 import { SegmentedControl } from "../common/SegmentedControl";
+import { getHierarchyIconName } from "../../hierarchy";
+import { sortWorkspacesWithPrimary } from "../../libraryNavigation";
 
 type ActivityScopeControlsProps = {
   collectionScopeActive: boolean;
   workspaces: Workspace[];
+  primaryWorkspaceId: string | null;
+  workspaceLastOpenedAt: Record<string, number>;
   workspaceFilterId: string | null;
   topLevelCollections: Collection[];
   collectionFilterId: string | null;
   metricFilter: ActivityMetricFilter;
-  rangeMode: boolean;
-  year: number;
-  filteredEventCount: number;
-  legendSwatches: string[];
-  hintText: string;
   onSelectWorkspace: (workspaceId: string | null) => void;
   onSelectCollection: (collectionId: string | null) => void;
   onSelectMetric: (metric: ActivityMetricFilter) => void;
-  onToggleRangeMode: () => void;
-  onChangeYear: (nextYear: number) => void;
 };
 
 export function ActivityScopeControls({
   collectionScopeActive,
   workspaces,
+  primaryWorkspaceId,
+  workspaceLastOpenedAt,
   workspaceFilterId,
   topLevelCollections,
   collectionFilterId,
   metricFilter,
-  rangeMode,
-  year,
-  filteredEventCount,
-  legendSwatches,
-  hintText,
   onSelectWorkspace,
   onSelectCollection,
   onSelectMetric,
-  onToggleRangeMode,
-  onChangeYear,
 }: ActivityScopeControlsProps) {
+  const [workspaceMenuOpen, setWorkspaceMenuOpen] = useState(false);
+  const [collectionMenuOpen, setCollectionMenuOpen] = useState(false);
+  const [workspaceAnchorX, setWorkspaceAnchorX] = useState(0);
+  const [collectionAnchorX, setCollectionAnchorX] = useState(112);
+  const selectedWorkspace =
+    workspaceFilterId == null
+      ? null
+      : workspaces.find((workspace) => workspace.id === workspaceFilterId) ?? null;
+  const selectedWorkspaceLabel =
+    workspaceFilterId == null
+      ? "All workspaces"
+      : selectedWorkspace?.title ?? "Workspace";
+  const selectedCollection =
+    collectionFilterId == null
+      ? null
+      : topLevelCollections.find((collection) => collection.id === collectionFilterId) ?? null;
+  const orderedWorkspaces = sortWorkspacesWithPrimary(
+    workspaces,
+    primaryWorkspaceId,
+    "last-worked",
+    workspaceLastOpenedAt
+  );
+
+  const closeMenus = () => {
+    setWorkspaceMenuOpen(false);
+    setCollectionMenuOpen(false);
+  };
+
   return (
     <>
       {!collectionScopeActive ? (
-        <>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.activityChipScroll}
-            style={styles.activityChipRow}
-          >
-            <Pressable
-              style={({ pressed }) => [
-                styles.activityFilterChip,
-                workspaceFilterId == null ? styles.activityFilterChipActive : null,
-                pressed ? styles.pressDown : null,
-              ]}
-              onPress={() => onSelectWorkspace(null)}
-            >
-              <Text
-                style={[
-                  styles.activityFilterChipText,
-                  workspaceFilterId == null ? styles.activityFilterChipTextActive : null,
-                ]}
-              >
-                All workspaces
-              </Text>
-            </Pressable>
-            {workspaces.map((workspace) => (
-              <Pressable
-                key={workspace.id}
-                style={({ pressed }) => [
-                  styles.activityFilterChip,
-                  workspaceFilterId === workspace.id ? styles.activityFilterChipActive : null,
-                  pressed ? styles.pressDown : null,
-                ]}
-                onPress={() => onSelectWorkspace(workspace.id)}
-              >
-                <Text
-                  style={[
-                    styles.activityFilterChipText,
-                    workspaceFilterId === workspace.id ? styles.activityFilterChipTextActive : null,
-                  ]}
-                >
-                  {workspace.title}
-                </Text>
-              </Pressable>
-            ))}
-          </ScrollView>
+        <View style={styles.ideasToolbar}>
+          {workspaceMenuOpen || collectionMenuOpen ? (
+            <Pressable style={styles.ideasToolbarBackdrop} onPress={closeMenus} />
+          ) : null}
 
-          {workspaceFilterId && topLevelCollections.length > 0 ? (
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.activityChipScroll}
-              style={styles.activityChipRow}
-            >
+          <View style={styles.ideasUtilityRow}>
+            <View style={styles.ideasUtilityRowLeft}>
+              <View
+                onLayout={(event) => {
+                  setWorkspaceAnchorX(event.nativeEvent.layout.x);
+                }}
+              >
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.ideasUtilityChip,
+                    workspaceMenuOpen ? styles.ideasUtilityChipOpen : null,
+                    pressed ? styles.pressDown : null,
+                  ]}
+                  onPress={() => {
+                    setWorkspaceMenuOpen((prev) => !prev);
+                    setCollectionMenuOpen(false);
+                  }}
+                >
+                  <Ionicons
+                    name={getHierarchyIconName("workspace")}
+                    size={15}
+                    color={workspaceFilterId == null ? "#475569" : "#0f172a"}
+                  />
+                  <Text style={styles.ideasUtilityChipText} numberOfLines={1}>
+                    {selectedWorkspaceLabel}
+                  </Text>
+                  <Ionicons
+                    name={workspaceMenuOpen ? "chevron-up" : "chevron-down"}
+                    size={14}
+                    color="#475569"
+                  />
+                </Pressable>
+              </View>
+
+              {selectedWorkspace ? (
+                <View
+                  onLayout={(event) => {
+                    setCollectionAnchorX(event.nativeEvent.layout.x);
+                  }}
+                >
+                  <Pressable
+                    style={({ pressed }) => [
+                      styles.ideasUtilityChip,
+                      collectionMenuOpen ? styles.ideasUtilityChipOpen : null,
+                      pressed ? styles.pressDown : null,
+                    ]}
+                    onPress={() => {
+                      setCollectionMenuOpen((prev) => !prev);
+                      setWorkspaceMenuOpen(false);
+                    }}
+                  >
+                    <Ionicons
+                      name={getHierarchyIconName("collection")}
+                      size={15}
+                      color={collectionFilterId == null ? "#475569" : "#0f172a"}
+                    />
+                    <Text style={styles.ideasUtilityChipText} numberOfLines={1}>
+                      {selectedCollection?.title ?? "All collections"}
+                    </Text>
+                    <Ionicons
+                      name={collectionMenuOpen ? "chevron-up" : "chevron-down"}
+                      size={14}
+                      color="#475569"
+                    />
+                  </Pressable>
+                </View>
+              ) : null}
+            </View>
+          </View>
+
+          {workspaceMenuOpen ? (
+            <View style={[styles.ideasSortMenu, styles.ideasPopoverMenu, { left: workspaceAnchorX }]}>
               <Pressable
                 style={({ pressed }) => [
-                  styles.activityFilterChip,
-                  collectionFilterId == null ? styles.activityFilterChipActive : null,
+                  styles.ideasSortMenuItem,
+                  workspaceFilterId == null ? styles.ideasSortMenuItemActive : null,
                   pressed ? styles.pressDown : null,
                 ]}
-                onPress={() => onSelectCollection(null)}
+                onPress={() => {
+                  onSelectWorkspace(null);
+                  onSelectCollection(null);
+                  closeMenus();
+                }}
               >
-                <Text
-                  style={[
-                    styles.activityFilterChipText,
-                    collectionFilterId == null ? styles.activityFilterChipTextActive : null,
+                <View style={styles.ideasMenuItemLead}>
+                  <Ionicons name={getHierarchyIconName("workspace")} size={15} color="#475569" />
+                  <Text
+                    style={[
+                      styles.ideasSortMenuItemText,
+                      workspaceFilterId == null ? styles.ideasSortMenuItemTextActive : null,
+                    ]}
+                  >
+                    All workspaces
+                  </Text>
+                </View>
+              </Pressable>
+              {orderedWorkspaces.map((workspace) => (
+                <Pressable
+                  key={workspace.id}
+                  style={({ pressed }) => [
+                    styles.ideasSortMenuItem,
+                    workspaceFilterId === workspace.id ? styles.ideasSortMenuItemActive : null,
+                    pressed ? styles.pressDown : null,
                   ]}
+                  onPress={() => {
+                    onSelectWorkspace(workspace.id);
+                    onSelectCollection(null);
+                    closeMenus();
+                  }}
                 >
-                  All collections
-                </Text>
+                  <View style={styles.ideasMenuItemLead}>
+                    <Ionicons name={getHierarchyIconName("workspace")} size={15} color="#475569" />
+                    <Text
+                      style={[
+                        styles.ideasSortMenuItemText,
+                        workspaceFilterId === workspace.id
+                          ? styles.ideasSortMenuItemTextActive
+                          : null,
+                      ]}
+                    >
+                      {workspace.title}
+                    </Text>
+                    {workspace.id === primaryWorkspaceId ? (
+                      <Ionicons name="star" size={12} color="#c58b18" />
+                    ) : null}
+                  </View>
+                </Pressable>
+              ))}
+            </View>
+          ) : null}
+
+          {selectedWorkspace && collectionMenuOpen ? (
+            <View style={[styles.ideasSortMenu, styles.ideasPopoverMenu, { left: collectionAnchorX }]}>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.ideasSortMenuItem,
+                  collectionFilterId == null ? styles.ideasSortMenuItemActive : null,
+                  pressed ? styles.pressDown : null,
+                ]}
+                onPress={() => {
+                  onSelectCollection(null);
+                  closeMenus();
+                }}
+              >
+                <View style={styles.ideasMenuItemLead}>
+                  <Ionicons name={getHierarchyIconName("collection")} size={15} color="#64748b" />
+                  <Text
+                    style={[
+                      styles.ideasSortMenuItemText,
+                      collectionFilterId == null ? styles.ideasSortMenuItemTextActive : null,
+                    ]}
+                  >
+                    All collections
+                  </Text>
+                </View>
               </Pressable>
               {topLevelCollections.map((collection) => (
                 <Pressable
                   key={collection.id}
                   style={({ pressed }) => [
-                    styles.activityFilterChip,
-                    collectionFilterId === collection.id ? styles.activityFilterChipActive : null,
+                    styles.ideasSortMenuItem,
+                    collectionFilterId === collection.id ? styles.ideasSortMenuItemActive : null,
                     pressed ? styles.pressDown : null,
                   ]}
-                  onPress={() => onSelectCollection(collection.id)}
+                  onPress={() => {
+                    onSelectCollection(collection.id);
+                    closeMenus();
+                  }}
                 >
-                  <Text
-                    style={[
-                      styles.activityFilterChipText,
-                      collectionFilterId === collection.id ? styles.activityFilterChipTextActive : null,
-                    ]}
-                  >
-                    {collection.title}
-                  </Text>
+                  <View style={styles.ideasMenuItemLead}>
+                    <Ionicons name={getHierarchyIconName("collection")} size={15} color="#64748b" />
+                    <Text
+                      style={[
+                        styles.ideasSortMenuItemText,
+                        collectionFilterId === collection.id
+                          ? styles.ideasSortMenuItemTextActive
+                          : null,
+                      ]}
+                    >
+                      {collection.title}
+                    </Text>
+                  </View>
                 </Pressable>
               ))}
-            </ScrollView>
+            </View>
           ) : null}
-        </>
+        </View>
       ) : null}
 
-      <View style={styles.activityControlsRow}>
-        <View style={styles.flexFill}>
-          <SegmentedControl
-            options={[
-              { key: "created", label: "Created" },
-              { key: "updated", label: "Updated" },
-              { key: "both", label: "Both" },
-              { key: "range", label: "Range" },
-            ]}
-            selectedKey={rangeMode ? "range" : metricFilter}
-            onSelect={(value) => {
-              if (value === "range") {
-                if (!rangeMode) {
-                  onToggleRangeMode();
-                }
-                return;
-              }
-              if (rangeMode) {
-                onToggleRangeMode();
-              }
-              onSelectMetric(value);
-            }}
-          />
-        </View>
-        <View style={styles.activityYearControls}>
-          <Pressable
-            style={({ pressed }) => [styles.activityYearBtn, pressed ? styles.pressDown : null]}
-            onPress={() => onChangeYear(year - 1)}
-          >
-            <Ionicons name="chevron-back" size={14} color="#334155" />
-          </Pressable>
-          <Text style={styles.activityYearText}>{year}</Text>
-          <Pressable
-            style={({ pressed }) => [styles.activityYearBtn, pressed ? styles.pressDown : null]}
-            onPress={() => onChangeYear(year + 1)}
-          >
-            <Ionicons name="chevron-forward" size={14} color="#334155" />
-          </Pressable>
-        </View>
+      <View style={styles.activitySegmentStack}>
+        <SegmentedControl
+          options={[
+            { key: "created", label: "Created" },
+            { key: "updated", label: "Updated" },
+            { key: "both", label: "Both" },
+          ]}
+          selectedKey={metricFilter}
+          onSelect={onSelectMetric}
+        />
       </View>
-
-      <View style={styles.activitySummaryRow}>
-        <Text style={styles.activitySummaryText}>
-          {filteredEventCount} {filteredEventCount === 1 ? "event" : "events"} in {year}
-        </Text>
-        <View style={styles.activityLegendRow}>
-          <Text style={styles.activityLegendLabel}>Less</Text>
-          {legendSwatches.map((backgroundColor, index) => (
-            <View
-              key={index}
-              style={[styles.activityLegendSwatch, { backgroundColor }]}
-            />
-          ))}
-          <Text style={styles.activityLegendLabel}>More</Text>
-        </View>
-      </View>
-
-      <Text style={styles.activityHintText}>{hintText}</Text>
     </>
   );
 }

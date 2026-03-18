@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -6,18 +7,34 @@ import { styles } from "../styles";
 import { colors, radii, shadows, spacing, text as textTokens } from "../design/tokens";
 import { NavRow } from "./common/NavRow";
 
-type CollectionLite = {
+type RecentCollectionLite = {
   id: string;
   title: string;
-  level: "collection" | "subcollection";
+  level: "collection";
+  meta?: string;
   active?: boolean;
-  nested?: boolean;
+};
+
+type FavoriteItemLite = {
+  id: string;
+  title: string;
+  kind: "project" | "clip";
 };
 
 type Props = {
-  currentRoute: "home" | "browse" | "revisit" | "activity" | "tuner" | "metronome" | "library" | "settings" | null;
+  currentRoute:
+    | "home"
+    | "browse"
+    | "revisit"
+    | "activity"
+    | "tuner"
+    | "metronome"
+    | "library"
+    | "settings"
+    | null;
   workspaceTitle: string | null;
-  collections: CollectionLite[];
+  recentCollections: RecentCollectionLite[];
+  favoriteItems: FavoriteItemLite[];
   onGoHome: () => void;
   onGoWorkspace: () => void;
   onGoRevisit: () => void;
@@ -27,6 +44,7 @@ type Props = {
   onGoLibrary: () => void;
   onGoSettings: () => void;
   onOpenCollection: (collectionId: string) => void;
+  onOpenFavorite: (ideaId: string) => void;
   onClose: () => void;
 };
 
@@ -40,7 +58,8 @@ function renderNavItemIcon(level: HierarchyLevel) {
 export function SideNav({
   currentRoute,
   workspaceTitle,
-  collections,
+  recentCollections,
+  favoriteItems,
   onGoHome,
   onGoWorkspace,
   onGoRevisit,
@@ -50,22 +69,26 @@ export function SideNav({
   onGoLibrary,
   onGoSettings,
   onOpenCollection,
+  onOpenFavorite,
   onClose,
 }: Props) {
+  const [recentExpanded, setRecentExpanded] = useState(true);
+  const [favoritesExpanded, setFavoritesExpanded] = useState(true);
+
   return (
     <SafeAreaView style={sideNavStyles.shell}>
       <View style={sideNavStyles.header}>
         <View style={styles.flexFill} />
 
-        <Pressable style={({ pressed }) => [sideNavStyles.closeBtn, pressed ? styles.pressDown : null]} onPress={onClose}>
-          <Ionicons name="close" size={18} color="#6b7280" />
+        <Pressable
+          style={({ pressed }) => [sideNavStyles.closeBtn, pressed ? styles.pressDown : null]}
+          onPress={onClose}
+        >
+          <Ionicons name="close" size={18} color={colors.textSecondary} />
         </Pressable>
       </View>
 
-      <ScrollView
-        contentContainerStyle={sideNavStyles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
+      <ScrollView contentContainerStyle={sideNavStyles.scrollContent} showsVerticalScrollIndicator={false}>
         <NavRow
           icon={renderNavItemIcon("home").icon}
           iconColor={renderNavItemIcon("home").color}
@@ -88,31 +111,112 @@ export function SideNav({
           onPress={onGoWorkspace}
         />
 
-        <Text style={sideNavStyles.sectionLabel}>Collections In Workspace</Text>
-        {collections.length > 0 ? (
-          <View style={sideNavStyles.collectionList}>
-            {collections.map((collection) => (
-              <NavRow
-                key={collection.id}
-                icon={renderNavItemIcon(collection.level).icon}
-                iconColor={renderNavItemIcon(collection.level).color}
-                label={collection.title}
-                active={!!collection.active}
-                nested={!!collection.nested}
-                accessory={
-                  collection.active ? (
+        <Pressable
+          style={({ pressed }) => [
+            sideNavStyles.sectionToggle,
+            pressed ? styles.pressDown : null,
+          ]}
+          onPress={() => setFavoritesExpanded((prev) => !prev)}
+        >
+          <Text style={sideNavStyles.sectionLabel}>Favorites</Text>
+          <Ionicons
+            name={favoritesExpanded ? "chevron-up" : "chevron-down"}
+            size={14}
+            color={colors.textMuted}
+          />
+        </Pressable>
+        {favoritesExpanded ? (
+          favoriteItems.length > 0 ? (
+            <View style={sideNavStyles.collectionList}>
+              {favoriteItems.slice(0, 5).map((fav) => (
+                <Pressable
+                  key={fav.id}
+                  style={({ pressed }) => [
+                    sideNavStyles.recentItem,
+                    pressed ? styles.pressDown : null,
+                  ]}
+                  onPress={() => onOpenFavorite(fav.id)}
+                >
+                  <View style={sideNavStyles.recentItemCopy}>
+                    <View style={sideNavStyles.recentItemTitleRow}>
+                      <Ionicons
+                        name={fav.kind === "project" ? "musical-notes" : "mic-outline"}
+                        size={16}
+                        color={fav.kind === "project" ? "#6366f1" : "#64748b"}
+                      />
+                      <Text style={sideNavStyles.recentItemTitle} numberOfLines={1}>
+                        {fav.title}
+                      </Text>
+                    </View>
+                  </View>
+                  <Ionicons name="star" size={13} color="#f59e0b" />
+                </Pressable>
+              ))}
+            </View>
+          ) : (
+            <Text style={sideNavStyles.placeholderText}>
+              No favorites yet. Star an idea to see it here.
+            </Text>
+          )
+        ) : null}
+
+        <Pressable
+          style={({ pressed }) => [
+            sideNavStyles.sectionToggle,
+            pressed ? styles.pressDown : null,
+          ]}
+          onPress={() => setRecentExpanded((prev) => !prev)}
+          disabled={!workspaceTitle}
+        >
+          <Text style={sideNavStyles.sectionLabel}>Recent Work</Text>
+          <Ionicons
+            name={recentExpanded ? "chevron-up" : "chevron-down"}
+            size={14}
+            color={colors.textMuted}
+          />
+        </Pressable>
+        {recentExpanded ? (
+          recentCollections.length > 0 ? (
+            <View style={sideNavStyles.collectionList}>
+              {recentCollections.map((collection) => (
+                <Pressable
+                  key={collection.id}
+                  style={({ pressed }) => [
+                    sideNavStyles.recentItem,
+                    collection.active ? sideNavStyles.recentItemActive : null,
+                    pressed ? styles.pressDown : null,
+                  ]}
+                  onPress={() => onOpenCollection(collection.id)}
+                >
+                  <View style={sideNavStyles.recentItemCopy}>
+                    <View style={sideNavStyles.recentItemTitleRow}>
+                      <Ionicons
+                        name={renderNavItemIcon(collection.level).icon}
+                        size={16}
+                        color={renderNavItemIcon(collection.level).color}
+                      />
+                      <Text style={sideNavStyles.recentItemTitle}>{collection.title}</Text>
+                    </View>
+                    {collection.meta ? (
+                      <Text style={sideNavStyles.recentItemMeta} numberOfLines={1}>
+                        {collection.meta}
+                      </Text>
+                    ) : null}
+                  </View>
+                  {collection.active ? (
                     <Text style={sideNavStyles.collectionMeta}>Open</Text>
                   ) : (
                     <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
-                  )
-                }
-                onPress={() => onOpenCollection(collection.id)}
-              />
-            ))}
-          </View>
-        ) : (
-          <Text style={sideNavStyles.placeholderText}>No collections in this workspace yet.</Text>
-        )}
+                  )}
+                </Pressable>
+              ))}
+            </View>
+          ) : (
+            <Text style={sideNavStyles.placeholderText}>
+              Recent collections from this workspace will appear here.
+            </Text>
+          )
+        ) : null}
 
         <View style={sideNavStyles.divider} />
 
@@ -202,25 +306,75 @@ const sideNavStyles = StyleSheet.create({
   },
   divider: {
     height: 1,
-    backgroundColor: colors.borderSubtle,
-    marginVertical: spacing.xs,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderSubtle,
+    marginVertical: 4,
   },
   sectionLabel: {
-    ...textTokens.sectionTitle,
+    ...textTokens.caption,
+    color: colors.textSecondary,
     paddingHorizontal: 12,
     marginTop: 2,
     marginBottom: 4,
   },
+  sectionToggle: {
+    minHeight: 32,
+    paddingHorizontal: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: spacing.sm,
+  },
   collectionList: {
     gap: 4,
+    paddingLeft: 10,
+  },
+  recentItem: {
+    borderRadius: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 12,
+    backgroundColor: colors.surface,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: spacing.sm,
+  },
+  recentItemActive: {
+    backgroundColor: colors.surfaceSelected,
+  },
+  recentItemCopy: {
+    flex: 1,
+    gap: 4,
+    minWidth: 0,
+  },
+  recentItemTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    minWidth: 0,
+  },
+  recentItemTitle: {
+    flex: 1,
+    minWidth: 0,
+    fontSize: 16,
+    color: colors.textPrimary,
+    fontWeight: "600",
+  },
+  recentItemMeta: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    fontWeight: "500",
   },
   collectionMeta: {
     fontSize: 12,
-    color: colors.textSecondary,
-    fontWeight: "600",
+    color: colors.textMuted,
+    fontWeight: "700",
   },
   placeholderText: {
-    ...textTokens.supporting,
+    fontSize: 13,
+    color: colors.textMuted,
+    fontWeight: "500",
     paddingHorizontal: 12,
+    paddingVertical: 8,
   },
 });

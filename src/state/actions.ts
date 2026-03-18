@@ -1,8 +1,9 @@
-import { IdeaStatus, SongIdea, ClipVersion } from "../types";
+import { IdeaStatus, SongIdea, ClipVersion, Workspace } from "../types";
 import { useStore } from "./useStore";
 import { createEmptyProjectLyrics } from "./dataSlice";
 import { createLyricsVersion, lyricsTextToDocument } from "../lyrics";
 import { buildDefaultIdeaTitle, ensureUniqueIdeaTitle } from "../utils";
+import { archiveWorkspaceToDevice, restoreWorkspaceFromDevice } from "../services/workspaceArchive";
 
 function buildEntityId(prefix: string) {
     return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
@@ -155,6 +156,71 @@ function normalizeWorkspaceCollectionVisibility<T extends { collections: Array<{
     };
 }
 
+function getFirstActiveWorkspaceId(workspaces: Workspace[], excludedWorkspaceId?: string) {
+    return (
+        workspaces.find((workspace) => !workspace.isArchived && workspace.id !== excludedWorkspaceId)?.id ?? null
+    );
+}
+
+function buildWorkspaceArchivalState(
+    store: ReturnType<typeof useStore.getState>,
+    archivedWorkspace: Workspace
+) {
+    const archivedIdeaIdSet = new Set(archivedWorkspace.ideas.map((idea) => idea.id));
+    const workspaceId = archivedWorkspace.id;
+    const selectedIdeaInWorkspace =
+        !!store.selectedIdeaId && archivedIdeaIdSet.has(store.selectedIdeaId);
+    const editingIdeaInWorkspace =
+        !!store.editingIdeaId && archivedIdeaIdSet.has(store.editingIdeaId);
+    const recordingIdeaInWorkspace =
+        !!store.recordingIdeaId && archivedIdeaIdSet.has(store.recordingIdeaId);
+    const quickNamingIdeaInWorkspace =
+        !!store.quickNamingIdeaId && archivedIdeaIdSet.has(store.quickNamingIdeaId);
+    const playerQueueTouchesWorkspace =
+        store.playerQueue.some((item) => archivedIdeaIdSet.has(item.ideaId)) ||
+        (!!store.playerTarget && archivedIdeaIdSet.has(store.playerTarget.ideaId));
+    const inlineInWorkspace =
+        !!store.inlineTarget && archivedIdeaIdSet.has(store.inlineTarget.ideaId);
+    const selectedListIdeaIds = store.selectedListIdeaIds.filter((ideaId) => !archivedIdeaIdSet.has(ideaId));
+    const clipClipboard = store.clipClipboard?.sourceWorkspaceId === workspaceId ? null : store.clipClipboard;
+    const workspaces = store.workspaces.map((workspace) =>
+        workspace.id === workspaceId ? archivedWorkspace : workspace
+    );
+
+    return {
+        workspaces,
+        activeWorkspaceId:
+            store.activeWorkspaceId === workspaceId
+                ? getFirstActiveWorkspaceId(workspaces, workspaceId)
+                : store.activeWorkspaceId,
+        selectedIdeaId: selectedIdeaInWorkspace ? null : store.selectedIdeaId,
+        editingIdeaId: editingIdeaInWorkspace ? null : store.editingIdeaId,
+        pendingPrimaryClipId:
+            selectedIdeaInWorkspace || editingIdeaInWorkspace ? null : store.pendingPrimaryClipId,
+        clipSelectionMode: selectedIdeaInWorkspace ? false : store.clipSelectionMode,
+        selectedClipIds: selectedIdeaInWorkspace ? [] : store.selectedClipIds,
+        listSelectionMode: selectedListIdeaIds.length > 0 ? store.listSelectionMode : false,
+        selectedListIdeaIds,
+        clipClipboard,
+        movingClipId: selectedIdeaInWorkspace ? null : store.movingClipId,
+        playerTarget: playerQueueTouchesWorkspace ? null : store.playerTarget,
+        playerQueue: playerQueueTouchesWorkspace ? [] : store.playerQueue,
+        playerQueueIndex: playerQueueTouchesWorkspace ? 0 : store.playerQueueIndex,
+        playerShouldAutoplay: playerQueueTouchesWorkspace ? false : store.playerShouldAutoplay,
+        playerPositionMs: playerQueueTouchesWorkspace ? 0 : store.playerPositionMs,
+        playerDurationMs: playerQueueTouchesWorkspace ? 0 : store.playerDurationMs,
+        playerIsPlaying: playerQueueTouchesWorkspace ? false : store.playerIsPlaying,
+        inlineTarget: inlineInWorkspace ? null : store.inlineTarget,
+        inlinePositionMs: inlineInWorkspace ? 0 : store.inlinePositionMs,
+        inlineDurationMs: inlineInWorkspace ? 0 : store.inlineDurationMs,
+        inlineIsPlaying: inlineInWorkspace ? false : store.inlineIsPlaying,
+        recordingIdeaId: recordingIdeaInWorkspace ? null : store.recordingIdeaId,
+        recordingParentClipId: recordingIdeaInWorkspace ? null : store.recordingParentClipId,
+        quickNamingIdeaId: quickNamingIdeaInWorkspace ? null : store.quickNamingIdeaId,
+        quickNameModalVisible: quickNamingIdeaInWorkspace ? false : store.quickNameModalVisible,
+    };
+}
+
 export const appActions = {
     addIdea: (collectionId: string) => {
         const state = useStore.getState();
@@ -241,6 +307,79 @@ export const appActions = {
         ]);
         state.markRecentlyAdded([ideaId]);
         return { ideaId, clipId };
+    },
+
+    importProjectToCollection: (
+        collectionId: string,
+        payload: {
+            title: string;
+            clips: Array<{ title: string; audioUri: string; durationMs?: number; waveformPeaks?: number[] }>;
+        }
+    ) => {
+        const state = useStore.getState();
+        const targetWorkspace = state.workspaces.find((workspace) =>
+            workspace.collections.some((collection) => collection.id === collectionId)
+        );
+        if (!targetWorkspace) {
+            throw new Error("Target collection not found.");
+        }
+        if (payload.clips.length === 0) {
+            throw new Error("No imported audio available for this song.");
+        }
+
+        const now = Date.now();
+        const ideaId = buildIdeaId();
+        const projectTitle = ensureUniqueIdeaTitle(
+            payload.title,
+            targetWorkspace.ideas.map((idea) => idea.title)
+        );
+        const clips = payload.clips.map((clip, index) => ({
+            id: buildClipId(),
+            title: clip.title,
+            notes: "",
+            createdAt: now + index,
+            isPrimary: index === 0,
+            audioUri: clip.audioUri,
+            durationMs: clip.durationMs,
+            waveformPeaks: clip.waveformPeaks,
+        }));
+
+        const importedIdea: SongIdea = {
+            id: ideaId,
+            title: projectTitle,
+            notes: "",
+            status: "seed",
+            completionPct: 0,
+            kind: "project",
+            collectionId,
+            createdAt: now,
+            lastActivityAt: now + clips.length - 1,
+            clips,
+            lyrics: createEmptyProjectLyrics(),
+        };
+
+        useStore.setState((store) => ({
+            workspaces: store.workspaces.map((workspace) =>
+                workspace.id === targetWorkspace.id
+                    ? { ...workspace, ideas: [importedIdea, ...workspace.ideas] }
+                    : workspace
+            ),
+        }));
+        state.logActivityEvents([
+            {
+                at: now,
+                workspaceId: targetWorkspace.id,
+                collectionId,
+                ideaId,
+                ideaKind: "song",
+                ideaTitle: importedIdea.title,
+                clipId: clips[0]?.id ?? null,
+                metric: "created",
+                source: "import",
+            },
+        ]);
+        state.markRecentlyAdded([ideaId]);
+        return { ideaId, clipIds: clips.map((clip) => clip.id) };
     },
 
     importClipToProject: (
@@ -918,5 +1057,60 @@ export const appActions = {
             from: "project",
         });
         state.cancelClipSelection();
-    }
+    },
+
+    archiveWorkspace: async (workspaceId: string) => {
+        const state = useStore.getState();
+        const workspace = state.workspaces.find((item) => item.id === workspaceId) ?? null;
+        if (!workspace) {
+            throw new Error("Workspace not found.");
+        }
+        if (workspace.isArchived) {
+            throw new Error("This workspace is already archived.");
+        }
+        if (state.workspaces.filter((item) => !item.isArchived).length <= 1) {
+            throw new Error("You must keep at least one active workspace.");
+        }
+
+        const result = await archiveWorkspaceToDevice(workspace);
+        useStore.setState((store) => buildWorkspaceArchivalState(store, result.archivedWorkspace));
+        return result;
+    },
+
+    unarchiveWorkspace: async (workspaceId: string) => {
+        const state = useStore.getState();
+        const workspace = state.workspaces.find((item) => item.id === workspaceId) ?? null;
+        if (!workspace) {
+            throw new Error("Workspace not found.");
+        }
+        if (!workspace.isArchived) {
+            throw new Error("This workspace is already active.");
+        }
+
+        if (!workspace.archiveState) {
+            useStore.setState((store) => ({
+                workspaces: store.workspaces.map((item) =>
+                    item.id === workspaceId
+                        ? { ...item, isArchived: false, archiveState: undefined }
+                        : item
+                ),
+                activeWorkspaceId: store.activeWorkspaceId ?? workspaceId,
+            }));
+            return {
+                restoredWorkspace: { ...workspace, isArchived: false, archiveState: undefined },
+                warnings: [
+                    "This workspace used the older hidden-only archive flag, so there was no compressed package to restore.",
+                ],
+            };
+        }
+
+        const result = await restoreWorkspaceFromDevice(workspace);
+        useStore.setState((store) => ({
+            workspaces: store.workspaces.map((item) =>
+                item.id === workspaceId ? result.restoredWorkspace : item
+            ),
+            activeWorkspaceId: store.activeWorkspaceId ?? workspaceId,
+        }));
+        return result;
+    },
 };

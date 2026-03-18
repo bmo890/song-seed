@@ -1,4 +1,4 @@
-import React, { ReactNode, useEffect, useMemo, useRef } from "react";
+import React, { ReactNode, useCallback, useMemo, useRef } from "react";
 import { FlatList, Text, View } from "react-native";
 import { styles } from "../../styles";
 import { buildTimelineListRows, type TimelineClipEntry, type TimelineListRow } from "../../clipGraph";
@@ -7,6 +7,7 @@ import { IdeasHeader } from "./IdeasHeader";
 import { PrimaryTakeSection } from "./PrimaryTakeSection";
 import { type SongTimelineSortDirection, type SongTimelineSortMetric } from "../../clipGraph";
 import { type SongClipTagFilter } from "./songClipControls";
+import { useStickyHeaderScroll } from "../../hooks/useStickyHeaderScroll";
 
 type TimelineListProps = {
   clips: TimelineClipEntry["clip"][];
@@ -88,36 +89,25 @@ export function TimelineList({
     return index;
   }, [primaryEntry, summaryContent]);
 
-  const viewableItemsChangedRef = useRef(
-    ({ viewableItems }: { viewableItems: Array<{ item: TimelineRenderRow | null }> }) => {
-      if (!onIdeasStickyChange) return;
-      const visibleKinds = new Set(
-        viewableItems
-          .map((token) => token.item?.kind)
-          .filter((kind): kind is TimelineRenderRow["kind"] => !!kind)
-      );
-      const isSticky =
-        visibleKinds.has("ideas-header") &&
-        !visibleKinds.has("summary-section") &&
-        !visibleKinds.has("primary-section");
-      onIdeasStickyChange(isSticky);
-    }
+  const summaryHeightRef = useRef(0);
+  const primaryHeightRef = useRef(0);
+
+  const getSnapY = useCallback(
+    () => summaryHeightRef.current + primaryHeightRef.current,
+    []
   );
 
-  useEffect(() => {
-    if (!onIdeasStickyChange) return;
-    onIdeasStickyChange(false);
-    return () => {
-      onIdeasStickyChange(false);
-    };
-  }, [onIdeasStickyChange]);
+  const { handleScroll, scrollEventThrottle } = useStickyHeaderScroll({
+    onStickyChange: onIdeasStickyChange,
+    getSnapY,
+  });
 
   return (
     <FlatList
       data={listRows}
       stickyHeaderIndices={[stickyIdeasIndex]}
-      onViewableItemsChanged={viewableItemsChangedRef.current}
-      viewabilityConfig={{ itemVisiblePercentThreshold: 50 }}
+      onScroll={handleScroll}
+      scrollEventThrottle={scrollEventThrottle}
       keyExtractor={(row, index) => {
         if (row.kind === "clip") return `timeline-clip:${row.entry.clip.id}:${index}`;
         if (row.kind === "day-divider") return `day-divider:${row.dayStartTs}`;
@@ -129,12 +119,21 @@ export function TimelineList({
       renderItem={({ item }) => {
         if (item.kind === "summary-section") {
           return summaryContent ? (
-            <View style={styles.songDetailClipSummarySection}>{summaryContent}</View>
+            <View
+              style={styles.songDetailClipSummarySection}
+              onLayout={(e) => { summaryHeightRef.current = e.nativeEvent.layout.height; }}
+            >
+              {summaryContent}
+            </View>
           ) : null;
         }
 
         if (item.kind === "primary-section") {
-          return <PrimaryTakeSection entry={primaryEntry} clipCardProps={clipCardProps} />;
+          return (
+            <View onLayout={(e) => { primaryHeightRef.current = e.nativeEvent.layout.height; }}>
+              <PrimaryTakeSection entry={primaryEntry} clipCardProps={clipCardProps} />
+            </View>
+          );
         }
 
         if (item.kind === "ideas-header") {

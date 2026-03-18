@@ -3,6 +3,7 @@
     "name": "song-seed",
     "slug": "song-seed",
     "version": "1.0.0",
+    "scheme": "songseed",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -34,6 +35,21 @@
       "package": "com.anonymous.songseed"
     },
     "plugins": [
+      [
+        "expo-share-intent",
+        {
+          "iosActivationRules": {
+            "NSExtensionActivationSupportsFileWithMaxCount": 20
+          },
+          "androidIntentFilters": [
+            "audio/*"
+          ],
+          "androidMultiIntentFilters": [
+            "audio/*"
+          ],
+          "iosShareExtensionName": "Song Seed Import"
+        }
+      ],
       [
         "expo-audio",
         {
