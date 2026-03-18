@@ -9,6 +9,7 @@ import { ScreenHeader } from "../common/ScreenHeader";
 import { exportLibrary, type LibraryExportFormat } from "../../services/libraryExport";
 import { getStorageDetailsReport, type StorageDetailsReport } from "../../services/storageDetails";
 import { buildPersistedAppStoreSnapshot, useStore } from "../../state/useStore";
+import { appActions } from "../../state/actions";
 import type { Collection, CustomTagDefinition, Workspace } from "../../types";
 import { styles } from "../../styles";
 import { formatBytes, getCollectionScopeIds } from "../../utils";
@@ -55,6 +56,33 @@ export function SettingsScreen() {
   const globalCustomClipTags = useStore((s) => s.globalCustomClipTags);
   const [newGlobalTagLabel, setNewGlobalTagLabel] = useState("");
   const [newGlobalTagColor, setNewGlobalTagColor] = useState(CUSTOM_TAG_COLOR_OPTIONS[0].bg);
+  const [isRecovering, setIsRecovering] = useState(false);
+  const [recoveryProgress, setRecoveryProgress] = useState("");
+
+  const runRecovery = async () => {
+    if (isRecovering) return;
+    setIsRecovering(true);
+    setRecoveryProgress("Scanning for orphaned audio files...");
+    try {
+      const result = await appActions.recoverOrphanedAudio((done, total) => {
+        setRecoveryProgress(`Analyzing file ${done + 1} of ${total}...`);
+      });
+      if (result.recoveredCount === 0) {
+        Alert.alert("No orphaned files", "All audio files on disk are already linked to clips in your library.");
+      } else {
+        Alert.alert(
+          "Recovery complete",
+          `Recovered ${result.recoveredCount} clip${result.recoveredCount === 1 ? "" : "s"} into the "Recovered" collection.`
+        );
+      }
+    } catch (error) {
+      Alert.alert("Recovery failed", "An error occurred while scanning for orphaned audio files.");
+      console.warn("Recovery error:", error);
+    } finally {
+      setIsRecovering(false);
+      setRecoveryProgress("");
+    }
+  };
 
   const includeHiddenItems = format === "song-seed-archive"
     ? archiveOptions.includeHiddenItems
@@ -814,6 +842,30 @@ export function SettingsScreen() {
               </Text>
             </View>
             <Ionicons name="chevron-forward" size={18} color="#64748b" />
+          </Pressable>
+
+          <Pressable
+            style={({ pressed }) => [
+              styles.settingsActionCard,
+              pressed ? styles.pressDown : null,
+              isRecovering ? { opacity: 0.6 } : null,
+            ]}
+            onPress={runRecovery}
+            disabled={isRecovering}
+          >
+            <View style={styles.settingsActionCardCopy}>
+              <Text style={styles.settingsActionCardTitle}>Recover audio files</Text>
+              <Text style={styles.settingsActionCardMeta}>
+                {isRecovering
+                  ? recoveryProgress
+                  : "Scan for orphaned audio files on disk that are no longer linked to any clip, and restore them into a Recovered collection."}
+              </Text>
+            </View>
+            {isRecovering ? (
+              <ActivityIndicator size="small" color="#64748b" />
+            ) : (
+              <Ionicons name="refresh" size={18} color="#64748b" />
+            )}
           </Pressable>
         </View>
       )}
