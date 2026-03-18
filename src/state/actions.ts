@@ -4,7 +4,7 @@ import { createEmptyProjectLyrics } from "./dataSlice";
 import { createLyricsVersion, lyricsTextToDocument } from "../lyrics";
 import { buildDefaultIdeaTitle, ensureUniqueIdeaTitle } from "../utils";
 import { archiveWorkspaceToDevice, restoreWorkspaceFromDevice } from "../services/workspaceArchive";
-import { findOrphanedAudioFiles, enrichOrphanedClips, buildRecoveredIdeas } from "../services/audioRecovery";
+import { findOrphanedAudioFiles, enrichOrphanedClips, buildRecoveredIdeas, findWorkspaceArchives, restoreWorkspaceFromArchive } from "../services/audioRecovery";
 
 function buildEntityId(prefix: string) {
     return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
@@ -1165,55 +1165,138 @@ export const appActions = {
     },
 
     recoverOrphanedAudio: async (
-        onProgress?: (done: number, total: number) => void
-    ): Promise<{ recoveredCount: number }> => {
+        onProgress?: (phase: string, done: number, total: number) => void
+    ): Promise<{ recoveredCount: number; archivedWorkspacesRestored: number; orphanedClipsRecovered: number; warnings: string[] }> => {
         const state = useStore.getState();
+        const warnings: string[] = [];
+        let archivedWorkspacesRestored = 0;
+        let orphanedClipsRecovered = 0;
 
-        // Find orphaned audio files on disk
-        const orphans = await findOrphanedAudioFiles(state.workspaces);
-        if (orphans.length === 0) return { recoveredCount: 0 };
+        // Phase 1: Restore any workspace archives found on disk
+        onProgress?.("Scanning for workspace archives...", 0, 1);
+        try {
+            const archives = await findWorkspaceArchives();
 
-        // Enrich with duration and waveform
-        const enriched = await enrichOrphanedClips(orphans, onProgress);
+            // Only restore archives for workspaces not already present with data
+            const existingWorkspaceIds = new Set(
+                state.workspaces
+                    .filter((ws) => !ws.isArchived && ws.ideas.length > 0)
+                    .map((ws) => ws.id)
+            );
 
-        // Ensure we have a workspace and a "Recovered" collection
-        const activeWs = state.workspaces.find((w) => w.id === state.activeWorkspaceId)
-            ?? state.workspaces[0];
-        if (!activeWs) return { recoveredCount: 0 };
+            const archivesToRestore = archives.filter(
+                (a) => !existingWorkspaceIds.has(a.workspaceId)
+            );
 
-        let recoveredCollection = activeWs.collections.find((c) => c.title === "Recovered");
-        if (!recoveredCollection) {
-            const collectionId = buildEntityId("collection");
-            const now = Date.now();
-            recoveredCollection = {
-                id: collectionId,
-                title: "Recovered",
-                workspaceId: activeWs.id,
-                parentCollectionId: null,
-                createdAt: now,
-                updatedAt: now,
-                ideasListState: { hiddenIdeaIds: [], hiddenDays: [] },
-            };
-            useStore.setState((store) => ({
-                workspaces: store.workspaces.map((ws) =>
-                    ws.id === activeWs.id
-                        ? { ...ws, collections: [...ws.collections, recoveredCollection!] }
-                        : ws
-                ),
-            }));
+            for (let i = 0; i < archivesToRestore.length; i++) {
+                const archive = archivesToRestore[i];
+                onProgress?.(
+                    `Restoring workspace "${archive.workspaceTitle}"...`,
+                    i,
+                    archivesToRestore.length
+                );
+
+                try {
+                    const result = await restoreWorkspaceFromArchive(
+                        archive.archiveUri,
+                        (done, total) => {
+                            onProgress?.(
+                                `Restoring "${archive.workspaceTitle}" (${done}/${total} files)...`,
+                                i,
+                                archivesToRestore.length
+                            );
+                        }
+                    );
+
+                    // Add or replace the workspace in the store
+                    useStore.setState((store) => {
+                        const existingIdx = store.workspaces.findIndex(
+                            (ws) => ws.id === result.workspace.id
+                        );
+
+                        let updatedWorkspaces: Workspace[];
+                        if (existingIdx >= 0) {
+                            // Replace the empty/archived version with the full restored one
+                            updatedWorkspaces = [...store.workspaces];
+                            updatedWorkspaces[existingIdx] = result.workspace;
+                        } else {
+                            // Add as new workspace
+                            updatedWorkspaces = [...store.workspaces, result.workspace];
+                        }
+
+                        return {
+                            workspaces: updatedWorkspaces,
+                            activeWorkspaceId: store.activeWorkspaceId ?? result.workspace.id,
+                        };
+                    });
+
+                    archivedWorkspacesRestored++;
+                    warnings.push(...result.warnings);
+                } catch (err) {
+                    const msg = err instanceof Error ? err.message : String(err);
+                    warnings.push(`Failed to restore archive "${archive.workspaceTitle}": ${msg}`);
+                }
+            }
+        } catch (err) {
+            const msg = err instanceof Error ? err.message : String(err);
+            warnings.push(`Archive scan failed: ${msg}`);
         }
 
-        // Build ideas from recovered clips and insert into the workspace
-        const recoveredIdeas = buildRecoveredIdeas(enriched, recoveredCollection.id);
+        // Phase 2: Recover orphaned audio files not covered by any workspace
+        const freshState = useStore.getState();
+        onProgress?.("Scanning for orphaned audio files...", 0, 1);
+        const orphans = await findOrphanedAudioFiles(freshState.workspaces);
 
-        useStore.setState((store) => ({
-            workspaces: store.workspaces.map((ws) =>
-                ws.id === activeWs.id
-                    ? { ...ws, ideas: [...recoveredIdeas, ...ws.ideas] }
-                    : ws
-            ),
-        }));
+        if (orphans.length > 0) {
+            const enriched = await enrichOrphanedClips(orphans, (done, total) => {
+                onProgress?.("Recovering orphaned audio...", done, total);
+            });
 
-        return { recoveredCount: recoveredIdeas.length };
+            // Ensure we have a workspace and a "Recovered" collection
+            const activeWs = freshState.workspaces.find((w) => w.id === freshState.activeWorkspaceId)
+                ?? freshState.workspaces[0];
+
+            if (activeWs) {
+                let recoveredCollection = activeWs.collections.find((c) => c.title === "Recovered");
+                if (!recoveredCollection) {
+                    const collectionId = buildEntityId("collection");
+                    const now = Date.now();
+                    recoveredCollection = {
+                        id: collectionId,
+                        title: "Recovered",
+                        workspaceId: activeWs.id,
+                        parentCollectionId: null,
+                        createdAt: now,
+                        updatedAt: now,
+                        ideasListState: { hiddenIdeaIds: [], hiddenDays: [] },
+                    };
+                    useStore.setState((store) => ({
+                        workspaces: store.workspaces.map((ws) =>
+                            ws.id === activeWs.id
+                                ? { ...ws, collections: [...ws.collections, recoveredCollection!] }
+                                : ws
+                        ),
+                    }));
+                }
+
+                const recoveredIdeas = buildRecoveredIdeas(enriched, recoveredCollection.id);
+
+                useStore.setState((store) => ({
+                    workspaces: store.workspaces.map((ws) =>
+                        ws.id === activeWs.id
+                            ? { ...ws, ideas: [...recoveredIdeas, ...ws.ideas] }
+                            : ws
+                    ),
+                }));
+
+                orphanedClipsRecovered = recoveredIdeas.length;
+            }
+        }
+
+        const recoveredCount = archivedWorkspacesRestored > 0
+            ? useStore.getState().workspaces.reduce((sum, ws) => sum + ws.ideas.length, 0)
+            : orphanedClipsRecovered;
+
+        return { recoveredCount, archivedWorkspacesRestored, orphanedClipsRecovered, warnings };
     },
 };

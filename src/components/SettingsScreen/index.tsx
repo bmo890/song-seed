@@ -64,16 +64,23 @@ export function SettingsScreen() {
     setIsRecovering(true);
     setRecoveryProgress("Scanning for orphaned audio files...");
     try {
-      const result = await appActions.recoverOrphanedAudio((done, total) => {
-        setRecoveryProgress(`Analyzing file ${done + 1} of ${total}...`);
+      const result = await appActions.recoverOrphanedAudio((phase, _done, _total) => {
+        setRecoveryProgress(phase);
       });
-      if (result.recoveredCount === 0) {
-        Alert.alert("No orphaned files", "All audio files on disk are already linked to clips in your library.");
+      if (result.archivedWorkspacesRestored === 0 && result.orphanedClipsRecovered === 0) {
+        Alert.alert("No recoverable data", "All audio files on disk are already linked to clips in your library and no workspace archives were found.");
       } else {
-        Alert.alert(
-          "Recovery complete",
-          `Recovered ${result.recoveredCount} clip${result.recoveredCount === 1 ? "" : "s"} into the "Recovered" collection.`
-        );
+        const parts: string[] = [];
+        if (result.archivedWorkspacesRestored > 0) {
+          parts.push(`${result.archivedWorkspacesRestored} workspace${result.archivedWorkspacesRestored === 1 ? "" : "s"} restored from archives`);
+        }
+        if (result.orphanedClipsRecovered > 0) {
+          parts.push(`${result.orphanedClipsRecovered} orphaned clip${result.orphanedClipsRecovered === 1 ? "" : "s"} recovered`);
+        }
+        if (result.warnings.length > 0) {
+          parts.push(`${result.warnings.length} warning${result.warnings.length === 1 ? "" : "s"}`);
+        }
+        Alert.alert("Recovery complete", parts.join(". ") + ".");
       }
     } catch (error) {
       Alert.alert("Recovery failed", "An error occurred while scanning for orphaned audio files.");
