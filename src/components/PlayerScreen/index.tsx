@@ -576,19 +576,50 @@ export function PlayerScreen() {
               showMinimapMode={mode === "practice" ? "auto" : "never"}
               selectedRanges={mode === "practice" && practiceLoopEnabled ? practiceLoopSelection : undefined}
               renderOverlay={
-                mode === "practice" && practiceLoopEnabled
+                mode === "practice"
                   ? ({ pixelsPerMs, timelineTranslateX, timelineScale, sharedAudioProgress }) => (
-                      <MultiTimeRangeSelector
-                        durationMs={displayDuration}
-                        pixelsPerMs={pixelsPerMs}
-                        regions={practiceLoopSelection}
-                        onRegionChange={(_, start, end) => setPracticeLoopRange({ start, end })}
-                        sharedTranslateX={timelineTranslateX}
-                        sharedScale={timelineScale}
-                        sharedAudioProgress={sharedAudioProgress}
-                        onScrubStateChange={handleScrubStateChange}
-                        onSeek={(timeMs) => void handleLoopAwareSeek(timeMs)}
-                      />
+                      <View style={{ flex: 1, position: "relative" }}>
+                        {practiceLoopEnabled ? (
+                          <MultiTimeRangeSelector
+                            durationMs={displayDuration}
+                            pixelsPerMs={pixelsPerMs}
+                            regions={practiceLoopSelection}
+                            onRegionChange={(_, start, end) => setPracticeLoopRange({ start, end })}
+                            sharedTranslateX={timelineTranslateX}
+                            sharedScale={timelineScale}
+                            sharedAudioProgress={sharedAudioProgress}
+                            onScrubStateChange={handleScrubStateChange}
+                            onSeek={(timeMs) => void handleLoopAwareSeek(timeMs)}
+                          />
+                        ) : null}
+                        {practiceMarkers.map((marker) => {
+                          const markerPosX = marker.atMs * pixelsPerMs;
+                          return (
+                            <Pressable
+                              key={`waveform-pin-${marker.id}`}
+                              style={{
+                                position: "absolute",
+                                left: markerPosX - 6,
+                                top: 0,
+                                bottom: 0,
+                                width: 12,
+                                justifyContent: "center",
+                                alignItems: "center",
+                              }}
+                              onPress={() => void handleLoopAwareSeek(marker.atMs)}
+                              hitSlop={8}
+                            >
+                              <View
+                                style={{
+                                  width: 2,
+                                  height: "100%",
+                                  backgroundColor: "#6b7280",
+                                }}
+                              />
+                            </Pressable>
+                          );
+                        })}
+                      </View>
                     )
                   : undefined
               }
@@ -725,22 +756,6 @@ export function PlayerScreen() {
                   </View>
                 </View>
 
-                <View style={screenStyles.divider} />
-
-                <View style={screenStyles.practicePinsBlock}>
-                  <Text style={screenStyles.practiceLabel}>Pins</Text>
-                  <View style={screenStyles.pinsRow}>
-                    {practiceMarkers.map((marker) => (
-                      <Pressable
-                        key={`pin-${marker.id}`}
-                        style={screenStyles.pinChip}
-                        onPress={() => void handleLoopAwareSeek(marker.atMs)}
-                      >
-                        <Text style={screenStyles.pinChipText}>{marker.label}</Text>
-                      </Pressable>
-                    ))}
-                  </View>
-                </View>
               </View>
 
               <View style={screenStyles.notesBox}>
@@ -1029,28 +1044,6 @@ const screenStyles = StyleSheet.create({
   },
   optionChipTextActive: {
     color: "#111827",
-  },
-  practicePinsBlock: {
-    paddingVertical: 8,
-    gap: 8,
-  },
-  pinsRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    flexWrap: "wrap",
-    gap: 6,
-  },
-  pinChip: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 999,
-    backgroundColor: "#e9eef4",
-  },
-  pinChipText: {
-    fontSize: 12,
-    lineHeight: 14,
-    color: "#4b5563",
-    fontWeight: "600",
   },
   notesBox: {
     backgroundColor: "#f6f7f9",
