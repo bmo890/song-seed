@@ -681,7 +681,7 @@ export function SettingsScreen() {
       ) : view === "storage" ? (
         renderStorageDetails()
       ) : (
-        <View style={styles.flexFill}>
+        <ScrollView style={styles.flexFill} contentContainerStyle={{ paddingBottom: 40 }}>
           <PageIntro
             title="Settings"
             subtitle="Set where the app returns on launch, check how Song Seed stores your library on this device, or export a portable package when you need one."
@@ -867,7 +867,7 @@ export function SettingsScreen() {
               <Ionicons name="refresh" size={18} color="#64748b" />
             )}
           </Pressable>
-        </View>
+        </ScrollView>
       )}
     </SafeAreaView>
   );
