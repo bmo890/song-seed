@@ -613,7 +613,7 @@ export function PlayerScreen() {
                                 style={{
                                   width: 2,
                                   height: "100%",
-                                  backgroundColor: "#6b7280",
+                                  backgroundColor: "#ca8a04",
                                 }}
                               />
                             </Pressable>
@@ -633,45 +633,6 @@ export function PlayerScreen() {
 
           {mode === "practice" ? (
             <View style={screenStyles.practiceContent}>
-              <View style={screenStyles.markerRow}>
-                {practiceMarkers.map((marker) => {
-                  const isActive = activePracticeMarker?.id === marker.id;
-                  return (
-                    <Pressable
-                      key={marker.id}
-                      style={({ pressed }) => [
-                        screenStyles.markerChip,
-                        isActive ? screenStyles.markerChipActive : null,
-                        pressed ? screenStyles.markerChipPressed : null,
-                      ]}
-                      onPress={() => {
-                        if (practiceLoopEnabled) {
-                          setPracticeLoopRange((prev) => ({
-                            start: marker.atMs,
-                            end: Math.max(prev.end, marker.atMs + 1000),
-                          }));
-                          setLoopPlaybackEngaged(isPlayerPlaying);
-                        }
-                        void handleLoopAwareSeek(marker.atMs);
-                      }}
-                      onLongPress={() => {
-                        if (practiceLoopEnabled) {
-                          setPracticeLoopRange((prev) => ({
-                            start: Math.min(prev.start, marker.atMs),
-                            end: marker.atMs,
-                          }));
-                          setLoopPlaybackEngaged(isPlayerPlaying);
-                        }
-                      }}
-                    >
-                      <Text style={[screenStyles.markerChipText, isActive ? screenStyles.markerChipTextActive : null]}>
-                        {marker.label}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
-
               <View style={screenStyles.practiceCard}>
                 <View style={screenStyles.practiceRow}>
                   <Text style={screenStyles.practiceLabel}>Loop</Text>
@@ -756,6 +717,24 @@ export function PlayerScreen() {
                   </View>
                 </View>
 
+              </View>
+
+              <View style={screenStyles.pinsSection}>
+                <View style={screenStyles.pinsSectionHeader}>
+                  <Ionicons name="pin" size={16} color="#ca8a04" />
+                  <Text style={screenStyles.pinsSectionTitle}>Pins</Text>
+                </View>
+                <View style={screenStyles.pinsBadgesRow}>
+                  {practiceMarkers.map((marker) => (
+                    <Pressable
+                      key={`pin-badge-${marker.id}`}
+                      style={screenStyles.pinBadge}
+                      onPress={() => void handleLoopAwareSeek(marker.atMs)}
+                    >
+                      <Text style={screenStyles.pinBadgeText}>{marker.label}</Text>
+                    </Pressable>
+                  ))}
+                </View>
               </View>
 
               <View style={screenStyles.notesBox}>
@@ -910,33 +889,6 @@ const screenStyles = StyleSheet.create({
   notesPlaceholder: {
     color: "#8a93a1",
   },
-  markerRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    flexWrap: "wrap",
-  },
-  markerChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 999,
-    backgroundColor: "#d9e7f8",
-  },
-  markerChipActive: {
-    backgroundColor: "#5d9ae2",
-  },
-  markerChipPressed: {
-    opacity: 0.84,
-  },
-  markerChipText: {
-    fontSize: 13,
-    lineHeight: 16,
-    color: "#40658c",
-    fontWeight: "600",
-  },
-  markerChipTextActive: {
-    color: "#ffffff",
-  },
   practiceCard: {
     backgroundColor: "#f6f7f9",
     borderRadius: 20,
@@ -1044,6 +996,35 @@ const screenStyles = StyleSheet.create({
   },
   optionChipTextActive: {
     color: "#111827",
+  },
+  pinsSection: {
+    gap: 8,
+  },
+  pinsSectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  pinsSectionTitle: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#64748b",
+  },
+  pinsBadgesRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 6,
+  },
+  pinBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    backgroundColor: "#fef3c7",
+    borderRadius: 8,
+  },
+  pinBadgeText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#b45309",
   },
   notesBox: {
     backgroundColor: "#f6f7f9",
