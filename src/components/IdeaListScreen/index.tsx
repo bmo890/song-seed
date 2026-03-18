@@ -19,6 +19,10 @@ import { IdeaListNestedCollectionsSection } from "./IdeaListNestedCollectionsSec
 import { IdeaListSelectionZone } from "./IdeaListSelectionZone";
 import { IdeaListContent } from "./IdeaListContent";
 import { IdeaListEntry } from "./types";
+import {
+  getFloatingActionDockBottomOffset,
+  getFloatingActionDockScrollPastClearance,
+} from "../common/FloatingActionDock";
 
 import { useStore } from "../../state/useStore";
 import { useScrollCollapseHeader } from "../../hooks/useScrollCollapseHeader";
@@ -192,17 +196,16 @@ export function IdeaListScreen() {
   const highlightMapRef = useRef<Record<string, Animated.Value>>({});
   const animatingHighlightIdsRef = useRef<Set<string>>(new Set());
   const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const floatingBaseBottom = 12 + Math.max(insets.bottom, 16);
+  const floatingBaseBottom = getFloatingActionDockBottomOffset(insets.bottom);
   const floatingStripBottom = floatingBaseBottom + 70;
   const selectionDockBottom = 12 + Math.max(insets.bottom, 12);
-  const listFooterPeekGap = 24;
   const bottomToolbarAllowance = Platform.OS === "android" ? 18 : 0;
   const activeDockHeight = listSelectionMode ? selectionDockHeight : floatingDockHeight;
   const activeDockClearance = listSelectionMode
     ? selectionDockBottom + selectionDockHeight
-    : floatingBaseBottom + floatingDockHeight;
+    : getFloatingActionDockScrollPastClearance(insets.bottom);
   const listFooterSpacerHeight =
-    activeDockClearance + activeDockHeight + listFooterPeekGap + bottomToolbarAllowance;
+    activeDockClearance + (listSelectionMode ? activeDockHeight : 0) + bottomToolbarAllowance;
   const viewabilityConfigRef = useRef({ itemVisiblePercentThreshold: 35 });
   const ideasSortRef = useRef(ideasSort);
   const hiddenIdeaIdsSet = useMemo(() => new Set(hiddenIdeaIds), [hiddenIdeaIds]);

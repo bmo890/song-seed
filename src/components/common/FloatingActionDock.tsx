@@ -9,6 +9,7 @@ const FLOATING_ACTION_DOCK_BASE_BOTTOM = 12;
 const FLOATING_ACTION_DOCK_MIN_SAFE_AREA = 16;
 const FLOATING_ACTION_DOCK_RECORD_BUTTON_SIZE = 62;
 const FLOATING_ACTION_DOCK_CONTENT_GAP = 24;
+const FLOATING_ACTION_DOCK_SCROLL_PAST_EXTRA = 152;
 
 type FloatingActionMenuItem = {
   key: string;
@@ -36,6 +37,11 @@ export function getFloatingActionDockContentClearance(bottomInset: number) {
     FLOATING_ACTION_DOCK_CONTENT_GAP
   );
 }
+
+export function getFloatingActionDockScrollPastClearance(bottomInset: number) {
+  return getFloatingActionDockContentClearance(bottomInset) + FLOATING_ACTION_DOCK_SCROLL_PAST_EXTRA;
+}
+
 export function FloatingActionDock({
   menuItems,
   onRecord,
