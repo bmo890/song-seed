@@ -167,6 +167,9 @@ export function PlayerScreen() {
   const draggingMarkerId = useSharedValue("");
   const draggingMarkerX = useSharedValue(0);
   const loopSeekLockRef = useRef(false);
+  const practiceSeekInFlightRef = useRef(false);
+  const pendingPracticeSeekMsRef = useRef<number | null>(null);
+  const practiceSeekTokenRef = useRef(0);
 
   const fullPlayer = useFullPlayer();
   const {
@@ -198,7 +201,7 @@ export function PlayerScreen() {
     play: playPlayer,
     seekTo,
   });
-  const { beginScrub, endScrub, cancelScrub, scrubTo } = transportScrub;
+  const { beginScrub, endScrub, cancelScrub } = transportScrub;
   const lyricsAutoscrollState = useMemo(
     () => ({
       mode: "off" as const,
@@ -378,12 +381,18 @@ export function PlayerScreen() {
   useEffect(() => {
     if (playerCloseRequestToken === handledCloseTokenRef.current) return;
     handledCloseTokenRef.current = playerCloseRequestToken;
+    pendingPracticeSeekMsRef.current = null;
+    practiceSeekTokenRef.current += 1;
+    loopSeekLockRef.current = false;
     void cancelScrub();
     void closePlayer();
     useStore.getState().clearPlayerQueue();
   }, [cancelScrub, closePlayer, playerCloseRequestToken]);
 
   function handleBack() {
+    pendingPracticeSeekMsRef.current = null;
+    practiceSeekTokenRef.current += 1;
+    loopSeekLockRef.current = false;
     void closePlayer();
     useStore.getState().clearPlayerQueue();
     navigation.goBack();
@@ -397,15 +406,47 @@ export function PlayerScreen() {
     void endScrub();
   }
 
+  function cancelPendingPracticeSeek() {
+    pendingPracticeSeekMsRef.current = null;
+    practiceSeekTokenRef.current += 1;
+    loopSeekLockRef.current = false;
+  }
+
   async function handleLoopAwareSeek(targetMs: number) {
-    if (mode === "practice" && practiceLoopEnabled) {
-      if (isPlayerPlaying) {
-        setLoopPlaybackEngaged(isWithinPracticeLoop(targetMs));
-      } else {
-        setLoopPlaybackEngaged(false);
-      }
+    const clampedMs = Math.max(0, Math.min(targetMs, displayDuration || targetMs));
+    const requestToken = ++practiceSeekTokenRef.current;
+
+    if (mode === "practice" && practiceLoopEnabled && hasValidPracticeLoop) {
+      setLoopPlaybackEngaged(isPlayerPlaying && isWithinPracticeLoop(clampedMs));
+    } else {
+      setLoopPlaybackEngaged(false);
     }
-    await scrubTo(targetMs);
+
+    pendingPracticeSeekMsRef.current = clampedMs;
+    loopSeekLockRef.current = true;
+
+    if (practiceSeekInFlightRef.current) {
+      return;
+    }
+
+    practiceSeekInFlightRef.current = true;
+    try {
+      while (pendingPracticeSeekMsRef.current !== null) {
+        const nextTargetMs = pendingPracticeSeekMsRef.current;
+        pendingPracticeSeekMsRef.current = null;
+        await seekTo(nextTargetMs);
+      }
+    } finally {
+      practiceSeekInFlightRef.current = false;
+      setTimeout(() => {
+        if (
+          practiceSeekTokenRef.current === requestToken &&
+          pendingPracticeSeekMsRef.current === null
+        ) {
+          loopSeekLockRef.current = false;
+        }
+      }, 80);
+    }
   }
 
   function handlePracticeLoopToggle() {
@@ -423,6 +464,7 @@ export function PlayerScreen() {
 
   async function handleTransportToggle() {
     if (isPlayerPlaying) {
+      cancelPendingPracticeSeek();
       await pausePlayer();
       return;
     }
