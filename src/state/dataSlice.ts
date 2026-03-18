@@ -22,6 +22,7 @@ import {
     PlaylistItem,
     WorkspaceListOrder,
     WorkspaceStartupPreference,
+    PracticeMarker,
 } from "../types";
 import { genClipTitle } from "../utils";
 import type { SelectionSlice } from "./selectionSlice";
@@ -64,6 +65,9 @@ export type DataSlice = {
     removeProjectCustomTag: (ideaId: string, tagKey: string) => void;
     addGlobalCustomClipTag: (tag: CustomTagDefinition) => void;
     removeGlobalCustomClipTag: (tagKey: string) => void;
+    addClipPracticeMarker: (ideaId: string, clipId: string, marker: PracticeMarker) => void;
+    removeClipPracticeMarker: (ideaId: string, clipId: string, markerId: string) => void;
+    setClipPracticeMarkers: (ideaId: string, clipId: string, markers: PracticeMarker[]) => void;
     logIdeaActivity: (
         ideaId: string,
         metric: ActivityMetric,
@@ -826,6 +830,70 @@ export const createDataSlice: StateCreator<DataSlice & SelectionSlice, [], [], D
     removeGlobalCustomClipTag: (tagKey) => {
         set((state) => ({
             globalCustomClipTags: state.globalCustomClipTags.filter((t) => t.key !== tagKey),
+        }));
+    },
+
+    addClipPracticeMarker: (ideaId, clipId, marker) => {
+        set((state) => ({
+            workspaces: state.workspaces.map((workspace) => ({
+                ...workspace,
+                ideas: workspace.ideas.map((idea) =>
+                    idea.id === ideaId
+                        ? {
+                              ...idea,
+                              clips: idea.clips.map((clip) =>
+                                  clip.id === clipId
+                                      ? {
+                                            ...clip,
+                                            practiceMarkers: [...(clip.practiceMarkers ?? []), marker],
+                                        }
+                                      : clip
+                              ),
+                          }
+                        : idea
+                ),
+            })),
+        }));
+    },
+
+    removeClipPracticeMarker: (ideaId, clipId, markerId) => {
+        set((state) => ({
+            workspaces: state.workspaces.map((workspace) => ({
+                ...workspace,
+                ideas: workspace.ideas.map((idea) =>
+                    idea.id === ideaId
+                        ? {
+                              ...idea,
+                              clips: idea.clips.map((clip) =>
+                                  clip.id === clipId
+                                      ? {
+                                            ...clip,
+                                            practiceMarkers: (clip.practiceMarkers ?? []).filter((m) => m.id !== markerId),
+                                        }
+                                      : clip
+                              ),
+                          }
+                        : idea
+                ),
+            })),
+        }));
+    },
+
+    setClipPracticeMarkers: (ideaId, clipId, markers) => {
+        set((state) => ({
+            workspaces: state.workspaces.map((workspace) => ({
+                ...workspace,
+                ideas: workspace.ideas.map((idea) =>
+                    idea.id === ideaId
+                        ? {
+                              ...idea,
+                              clips: idea.clips.map((clip) =>
+                                  clip.id === clipId ? { ...clip, practiceMarkers: markers } : clip
+                              ),
+                          }
+                        : idea
+                ),
+            })),
         }));
     },
 

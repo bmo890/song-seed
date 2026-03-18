@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
+import { Alert, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar as ExpoStatusBar } from "expo-status-bar";
 import { Ionicons } from "@expo/vector-icons";
@@ -47,7 +47,7 @@ function buildDefaultLoopRegion(durationMs: number, anchorMs = 0) {
   };
 }
 
-function buildPracticeMarkers(lyricsText: string, durationMs: number): PracticeMarker[] {
+function extractLyricsMarkers(lyricsText: string, durationMs: number): PracticeMarker[] {
   if (durationMs <= 0) return [];
 
   const headingLines = lyricsText
@@ -65,15 +65,7 @@ function buildPracticeMarkers(lyricsText: string, durationMs: number): PracticeM
       };
     });
 
-  if (headingLines.length > 0) {
-    return headingLines;
-  }
-
-  return [
-    { id: "start", label: "Start", atMs: 0 },
-    { id: "middle", label: "Middle", atMs: Math.round(durationMs * 0.45) },
-    { id: "ending", label: "Ending", atMs: Math.round(durationMs * 0.82) },
-  ];
+  return headingLines;
 }
 
 function findActiveMarker(markers: PracticeMarker[], currentTimeMs: number) {
@@ -143,6 +135,7 @@ export function PlayerScreen() {
   const [practiceLoopRange, setPracticeLoopRange] = useState({ start: 0, end: 0 });
   const [playbackSpeed, setPlaybackSpeed] = useState<number>(1);
   const [countInOption, setCountInOption] = useState<CountInOption>("off");
+  const [newPinLabel, setNewPinLabel] = useState("");
   const loopSeekLockRef = useRef(false);
 
   const fullPlayer = useFullPlayer();
@@ -185,10 +178,14 @@ export function PlayerScreen() {
     }),
     [displayDuration, playerPosition]
   );
-  const practiceMarkers = useMemo(
-    () => buildPracticeMarkers(latestLyricsText, displayDuration),
-    [displayDuration, latestLyricsText]
-  );
+  const practiceMarkers = useMemo(() => {
+    // Use custom markers if they exist
+    if (playerClip?.practiceMarkers && playerClip.practiceMarkers.length > 0) {
+      return playerClip.practiceMarkers;
+    }
+    // Fall back to extracting markers from lyrics if available
+    return extractLyricsMarkers(latestLyricsText, displayDuration);
+  }, [displayDuration, latestLyricsText, playerClip?.practiceMarkers]);
   const activePracticeMarker = useMemo(
     () => findActiveMarker(practiceMarkers, playerPosition),
     [playerPosition, practiceMarkers]
@@ -398,6 +395,25 @@ export function PlayerScreen() {
     }
 
     navigation.dispatch(StackActions.push("Home"));
+  }
+
+  function handleAddPin() {
+    const label = newPinLabel.trim();
+    if (!label || !playerIdea || !playerClip || !activeWorkspaceId) return;
+
+    const newMarker: PracticeMarker = {
+      id: `pin-${Date.now()}`,
+      label,
+      atMs: playerPosition,
+    };
+
+    useStore.getState().addClipPracticeMarker(playerIdea.id, playerClip.id, newMarker);
+    setNewPinLabel("");
+  }
+
+  function handleDeletePin(markerId: string) {
+    if (!playerIdea || !playerClip || !activeWorkspaceId) return;
+    useStore.getState().removeClipPracticeMarker(playerIdea.id, playerClip.id, markerId);
   }
 
   function handleOverflowMenu() {
@@ -731,10 +747,49 @@ export function PlayerScreen() {
                       key={`pin-badge-${marker.id}`}
                       style={screenStyles.pinBadge}
                       onPress={() => void handleLoopAwareSeek(marker.atMs)}
+                      onLongPress={() => handleDeletePin(marker.id)}
                     >
                       <Text style={screenStyles.pinBadgeText}>{marker.label}</Text>
                     </Pressable>
                   ))}
+                </View>
+
+                <View style={screenStyles.addPinRow}>
+                  <Pressable
+                    style={({ pressed }) => [
+                      screenStyles.addPinInput,
+                      pressed ? { opacity: 0.7 } : null,
+                    ]}
+                  >
+                    <Ionicons name="add-circle-outline" size={18} color="#ca8a04" />
+                  </Pressable>
+                  <TextInput
+                    style={screenStyles.pinInputField}
+                    placeholder="New pin name"
+                    placeholderTextColor="#94a3b8"
+                    value={newPinLabel}
+                    onChangeText={setNewPinLabel}
+                    onSubmitEditing={handleAddPin}
+                    returnKeyType="done"
+                  />
+                  <Pressable
+                    style={({ pressed }) => [
+                      screenStyles.pinSaveButton,
+                      !newPinLabel.trim() ? screenStyles.pinSaveButtonDisabled : null,
+                      pressed ? { opacity: 0.7 } : null,
+                    ]}
+                    onPress={handleAddPin}
+                    disabled={!newPinLabel.trim()}
+                  >
+                    <Text
+                      style={[
+                        screenStyles.pinSaveButtonText,
+                        !newPinLabel.trim() ? screenStyles.pinSaveButtonTextDisabled : null,
+                      ]}
+                    >
+                      Save
+                    </Text>
+                  </Pressable>
                 </View>
               </View>
 
@@ -1026,6 +1081,44 @@ const screenStyles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "600",
     color: "#b45309",
+  },
+  addPinRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  addPinInput: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  pinInputField: {
+    flex: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: "#f1f5f9",
+    fontSize: 14,
+    color: "#111827",
+  },
+  pinSaveButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: "#ca8a04",
+  },
+  pinSaveButtonDisabled: {
+    backgroundColor: "#e2e8f0",
+  },
+  pinSaveButtonText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#ffffff",
+  },
+  pinSaveButtonTextDisabled: {
+    color: "#94a3b8",
   },
   notesBox: {
     backgroundColor: "#f6f7f9",

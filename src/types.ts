@@ -36,6 +36,12 @@ export type ProjectLyrics = {
   versions: LyricsVersion[];
 };
 
+export type PracticeMarker = {
+  id: string;
+  label: string;
+  atMs: number;
+};
+
 export type ClipVersion = {
   id: string;
   title: string;
@@ -49,6 +55,7 @@ export type ClipVersion = {
   waveformPeaks?: number[];
   editRegions?: EditRegion[];
   tags?: string[];
+  practiceMarkers?: PracticeMarker[];
 };
 
 export type CustomTagDefinition = {
