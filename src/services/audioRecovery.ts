@@ -1,6 +1,7 @@
 import * as FileSystem from "expo-file-system/legacy";
 import { SONG_SEED_AUDIO_DIR } from "./storagePaths";
-import { loadManagedAudioMetadata } from "./audioStorage";
+import { loadAudioDurationMs } from "./audioStorage";
+import { buildStaticWaveform } from "../utils";
 import type { SongIdea, ClipVersion, Workspace } from "../types";
 
 export type RecoveredClip = {
@@ -84,8 +85,11 @@ export async function findOrphanedAudioFiles(
 }
 
 /**
- * Enrich orphaned clips with duration and waveform data.
- * This can be slow for many files, so it's separated from the scan.
+ * Lightweight enrichment: only loads duration (via a short-lived audio player)
+ * and generates a static waveform. Avoids extractAudioAnalysis which is too
+ * heavy to run on many files in sequence and causes crashes.
+ *
+ * Waveforms will be properly regenerated when the user plays each clip.
  */
 export async function enrichOrphanedClips(
     orphans: RecoveredClip[],
@@ -97,19 +101,28 @@ export async function enrichOrphanedClips(
         const orphan = orphans[i];
         onProgress?.(i, orphans.length);
 
+        let durationMs: number | undefined;
         try {
-            const metadata = await loadManagedAudioMetadata(
-                orphan.audioUri,
-                `${orphan.clipId}-recovery`
-            );
-            enriched.push({
-                ...orphan,
-                durationMs: metadata.durationMs,
-                waveformPeaks: metadata.waveformPeaks,
-            });
+            durationMs = await loadAudioDurationMs(orphan.audioUri, 3000);
         } catch {
-            // Still include it even without metadata
-            enriched.push(orphan);
+            // Duration unknown — still recoverable
+        }
+
+        // Use a lightweight static waveform instead of full audio analysis
+        const waveformPeaks = buildStaticWaveform(
+            `${orphan.clipId}-${durationMs ?? 0}`,
+            96
+        );
+
+        enriched.push({
+            ...orphan,
+            durationMs,
+            waveformPeaks,
+        });
+
+        // Small delay between files to avoid overwhelming the audio subsystem
+        if (i < orphans.length - 1) {
+            await new Promise((r) => setTimeout(r, 100));
         }
     }
 
