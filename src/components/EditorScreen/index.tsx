@@ -25,6 +25,7 @@ import { getCollectionAncestors, getCollectionById } from "../../utils";
 import { getCollectionHierarchyLevel, getIdeaHierarchyLevel } from "../../hierarchy";
 import { TransportLayout } from "../common/TransportLayout";
 import { useTransportScrubbing } from "../../hooks/useTransportScrubbing";
+import { openCollectionFromContext } from "../../navigation";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Editor">;
 
@@ -730,13 +731,21 @@ export function EditorScreen() {
                             key: collection.id,
                             label: collection.title,
                             level: getCollectionHierarchyLevel(collection),
-                            onPress: () => (navigation as any).navigate("CollectionDetail", { collectionId: collection.id }),
+                            onPress: () =>
+                                openCollectionFromContext(navigation, {
+                                    collectionId: collection.id,
+                                    source: "detail",
+                                }),
                         })),
                         {
                             key: targetCollection.id,
                             label: targetCollection.title,
                             level: getCollectionHierarchyLevel(targetCollection),
-                            onPress: () => (navigation as any).navigate("CollectionDetail", { collectionId: targetCollection.id }),
+                            onPress: () =>
+                                openCollectionFromContext(navigation, {
+                                    collectionId: targetCollection.id,
+                                    source: "detail",
+                                }),
                         },
                         ...(targetIdea.kind === "project"
                             ? [

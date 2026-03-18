@@ -47,6 +47,8 @@ export type ClipVersion = {
   title: string;
   notes: string;
   createdAt: number;
+  importedAt?: number;
+  sourceCreatedAt?: number;
   isPrimary: boolean;
   parentClipId?: string;
   audioUri?: string;
@@ -76,6 +78,8 @@ export type SongIdea = {
   lyrics?: ProjectLyrics;
   customTags?: CustomTagDefinition[];
   createdAt: number;
+  importedAt?: number;
+  sourceCreatedAt?: number;
   lastActivityAt: number;
   isDraft?: boolean;
   isFavorite?: boolean;

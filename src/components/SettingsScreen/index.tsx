@@ -13,6 +13,7 @@ import type { Collection, CustomTagDefinition, Workspace } from "../../types";
 import { styles } from "../../styles";
 import { formatBytes, getCollectionScopeIds } from "../../utils";
 import { CUSTOM_TAG_COLOR_OPTIONS, getTagColor } from "../IdeaDetailScreen/songClipControls";
+import { useBrowseRootBackHandler } from "../../hooks/useBrowseRootBackHandler";
 
 const DEFAULT_ARCHIVE_OPTIONS = {
   includeFullSongHistory: true,
@@ -32,6 +33,7 @@ type ExportSectionKey = "format" | "scope" | "options" | "generate";
 type SettingsView = "overview" | "export" | "storage";
 
 export function SettingsScreen() {
+  useBrowseRootBackHandler();
   const workspaces = useStore((state) => state.workspaces);
   const primaryWorkspaceId = useStore((state) => state.primaryWorkspaceId);
   const workspaceStartupPreference = useStore((state) => state.workspaceStartupPreference);

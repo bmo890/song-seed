@@ -28,6 +28,7 @@ import { BottomSheet } from "../common/BottomSheet";
 import { useTransportScrubbing } from "../../hooks/useTransportScrubbing";
 import { appActions } from "../../state/actions";
 import { MultiTimeRangeSelector } from "../common/TimeRangeSelector";
+import { openCollectionFromContext } from "../../navigation";
 
 type PlayerMode = "player" | "practice";
 type CountInOption = "off" | "1b" | "2b";
@@ -163,9 +164,14 @@ export function PlayerScreen() {
   const [pinActionsTarget, setPinActionsTarget] = useState<PracticeMarker | null>(null);
   const [pinActionsVisible, setPinActionsVisible] = useState(false);
   const [pinRenameValue, setPinRenameValue] = useState("");
+  const [isPinDragging, setIsPinDragging] = useState(false);
   const draggingMarkerId = useSharedValue("");
   const draggingMarkerX = useSharedValue(0);
   const loopSeekLockRef = useRef(false);
+  const practiceSeekInFlightRef = useRef(false);
+  const pendingPracticeSeekMsRef = useRef<number | null>(null);
+  const practiceSeekTokenRef = useRef(0);
+  const manualPracticeJumpRef = useRef(false);
 
   const fullPlayer = useFullPlayer();
   const {
@@ -197,7 +203,7 @@ export function PlayerScreen() {
     play: playPlayer,
     seekTo,
   });
-  const { beginScrub, endScrub, cancelScrub, scrubTo } = transportScrub;
+  const { beginScrub, endScrub, cancelScrub } = transportScrub;
   const lyricsAutoscrollState = useMemo(
     () => ({
       mode: "off" as const,
@@ -289,6 +295,7 @@ export function PlayerScreen() {
   }, [displayDuration, playerClip?.id]);
 
   useEffect(() => {
+    manualPracticeJumpRef.current = false;
     setLoopPlaybackEngaged(false);
   }, [mode, playerClip?.id, practiceLoopEnabled, practiceLoopRange.end, practiceLoopRange.start]);
 
@@ -328,7 +335,13 @@ export function PlayerScreen() {
   }, [isPlayerPlaying, pausePlayer, playPlayer, setPlaybackRate]);
 
   useEffect(() => {
-    if (mode !== "practice" || !practiceLoopEnabled || !isPlayerPlaying || transportScrub.isScrubbing) {
+    if (
+      mode !== "practice" ||
+      !practiceLoopEnabled ||
+      !isPlayerPlaying ||
+      transportScrub.isScrubbing ||
+      isPinDragging
+    ) {
       return;
     }
     if (!hasValidPracticeLoop) {
@@ -336,6 +349,7 @@ export function PlayerScreen() {
     }
     if (!loopPlaybackEngaged) {
       if (isWithinPracticeLoop(playerPosition)) {
+        manualPracticeJumpRef.current = false;
         setLoopPlaybackEngaged(true);
       }
       return;
@@ -365,6 +379,7 @@ export function PlayerScreen() {
     practiceLoopRange.end,
     practiceLoopRange.start,
     seekTo,
+    isPinDragging,
     transportScrub.isScrubbing,
   ]);
 
@@ -377,12 +392,18 @@ export function PlayerScreen() {
   useEffect(() => {
     if (playerCloseRequestToken === handledCloseTokenRef.current) return;
     handledCloseTokenRef.current = playerCloseRequestToken;
+    pendingPracticeSeekMsRef.current = null;
+    practiceSeekTokenRef.current += 1;
+    loopSeekLockRef.current = false;
     void cancelScrub();
     void closePlayer();
     useStore.getState().clearPlayerQueue();
   }, [cancelScrub, closePlayer, playerCloseRequestToken]);
 
   function handleBack() {
+    pendingPracticeSeekMsRef.current = null;
+    practiceSeekTokenRef.current += 1;
+    loopSeekLockRef.current = false;
     void closePlayer();
     useStore.getState().clearPlayerQueue();
     navigation.goBack();
@@ -396,20 +417,60 @@ export function PlayerScreen() {
     void endScrub();
   }
 
+  function cancelPendingPracticeSeek() {
+    pendingPracticeSeekMsRef.current = null;
+    practiceSeekTokenRef.current += 1;
+    loopSeekLockRef.current = false;
+  }
+
   async function handleLoopAwareSeek(targetMs: number) {
-    if (mode === "practice" && practiceLoopEnabled) {
-      if (isPlayerPlaying) {
-        setLoopPlaybackEngaged(isWithinPracticeLoop(targetMs));
-      } else {
-        setLoopPlaybackEngaged(false);
-      }
+    const clampedMs = Math.max(0, Math.min(targetMs, displayDuration || targetMs));
+    const requestToken = ++practiceSeekTokenRef.current;
+    const insideLoop =
+      mode === "practice" && practiceLoopEnabled && hasValidPracticeLoop
+        ? isWithinPracticeLoop(clampedMs)
+        : false;
+
+    manualPracticeJumpRef.current = true;
+
+    if (mode === "practice" && practiceLoopEnabled && hasValidPracticeLoop) {
+      setLoopPlaybackEngaged(isPlayerPlaying && insideLoop);
+    } else {
+      manualPracticeJumpRef.current = false;
+      setLoopPlaybackEngaged(false);
     }
-    await scrubTo(targetMs);
+
+    pendingPracticeSeekMsRef.current = clampedMs;
+    loopSeekLockRef.current = true;
+
+    if (practiceSeekInFlightRef.current) {
+      return;
+    }
+
+    practiceSeekInFlightRef.current = true;
+    try {
+      while (pendingPracticeSeekMsRef.current !== null) {
+        const nextTargetMs = pendingPracticeSeekMsRef.current;
+        pendingPracticeSeekMsRef.current = null;
+        await seekTo(nextTargetMs);
+      }
+    } finally {
+      practiceSeekInFlightRef.current = false;
+      setTimeout(() => {
+        if (
+          practiceSeekTokenRef.current === requestToken &&
+          pendingPracticeSeekMsRef.current === null
+        ) {
+          loopSeekLockRef.current = false;
+        }
+      }, 80);
+    }
   }
 
   function handlePracticeLoopToggle() {
     setPracticeLoopEnabled((currentValue) => {
       const nextValue = !currentValue;
+      manualPracticeJumpRef.current = false;
       if (nextValue) {
         setPracticeLoopRange(buildDefaultLoopRegion(displayDuration, playerPosition));
         setLoopPlaybackEngaged(isPlayerPlaying);
@@ -422,13 +483,16 @@ export function PlayerScreen() {
 
   async function handleTransportToggle() {
     if (isPlayerPlaying) {
+      cancelPendingPracticeSeek();
       await pausePlayer();
       return;
     }
     if (mode === "practice" && practiceLoopEnabled && hasValidPracticeLoop) {
-      setLoopPlaybackEngaged(true);
-      if (Math.abs(playerPosition - practiceLoopRange.start) > 20) {
+      const shouldResumeFromManualPosition = manualPracticeJumpRef.current;
+      setLoopPlaybackEngaged(isWithinPracticeLoop(playerPosition));
+      if (!shouldResumeFromManualPosition && Math.abs(playerPosition - practiceLoopRange.start) > 20) {
         await seekTo(practiceLoopRange.start);
+        setLoopPlaybackEngaged(true);
       }
       await playPlayer();
       return;
@@ -473,6 +537,23 @@ export function PlayerScreen() {
       m.id === markerId ? { ...m, atMs: Math.round(Math.max(0, Math.min(displayDuration, newAtMs))) } : m
     );
     useStore.getState().setClipPracticeMarkers(playerIdea.id, playerClip.id, updated);
+  }
+
+  function handlePinDragStateChange(dragging: boolean) {
+    setIsPinDragging(dragging);
+    if (dragging) {
+      cancelPendingPracticeSeek();
+      setLoopPlaybackEngaged(false);
+      return;
+    }
+
+    if (practiceLoopEnabled && hasValidPracticeLoop && isPlayerPlaying && isWithinPracticeLoop(playerPosition)) {
+      manualPracticeJumpRef.current = false;
+      setLoopPlaybackEngaged(true);
+      return;
+    }
+
+    setLoopPlaybackEngaged(false);
   }
 
   function handlePinActions(marker: PracticeMarker) {
@@ -566,13 +647,21 @@ export function PlayerScreen() {
             key: collection.id,
             label: collection.title,
             level: getCollectionHierarchyLevel(collection),
-            onPress: () => (navigation as any).navigate("CollectionDetail", { collectionId: collection.id }),
+            onPress: () =>
+              openCollectionFromContext(navigation, {
+                collectionId: collection.id,
+                source: "detail",
+              }),
           })),
           {
             key: playerCollection.id,
             label: playerCollection.title,
             level: getCollectionHierarchyLevel(playerCollection),
-            onPress: () => (navigation as any).navigate("CollectionDetail", { collectionId: playerCollection.id }),
+            onPress: () =>
+              openCollectionFromContext(navigation, {
+                collectionId: playerCollection.id,
+                source: "detail",
+              }),
             active: true,
           },
         ]
@@ -710,6 +799,7 @@ export function PlayerScreen() {
                         onRepositionMarker={handleRepositionMarker}
                         onRequestActions={handlePinActions}
                         onRequestAdd={() => setPinModalVisible(true)}
+                        onDragStateChange={handlePinDragStateChange}
                         draggingMarkerId={draggingMarkerId}
                         draggingMarkerX={draggingMarkerX}
                       />

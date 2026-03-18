@@ -184,19 +184,7 @@ export function GlobalMediaDock({
           styles.miniMediaDockCard,
           pressed ? styles.pressDown : null,
         ]}
-        onPress={() => {
-          if (activePlayback.kind === "inline") {
-            useStore.getState().requestInlineStop();
-            useStore
-              .getState()
-              .setPlayerQueue(
-                [{ ideaId: activePlayback.ideaId, clipId: activePlayback.clipId }],
-                0,
-                activePlayback.isPlaying
-              );
-          }
-          onOpenPlayer();
-        }}
+        onPress={onOpenPlayer}
       >
         <View style={styles.miniMediaDockTopRow}>
           <View style={styles.miniMediaDockCopy}>
@@ -230,11 +218,7 @@ export function GlobalMediaDock({
               ]}
               onPress={(evt) => {
                 evt.stopPropagation();
-                if (activePlayback.kind === "player") {
-                  useStore.getState().requestPlayerToggle();
-                  return;
-                }
-                useStore.getState().requestInlineToggle();
+                useStore.getState().requestPlayerToggle();
               }}
               accessibilityRole="button"
               accessibilityLabel={activePlayback.isPlaying ? "Pause playback" : "Play playback"}

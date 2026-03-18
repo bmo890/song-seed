@@ -249,16 +249,40 @@ function normalizeProjectLyrics(lyrics?: ProjectLyrics): ProjectLyrics {
     };
 }
 
+function normalizeOptionalTimestamp(value: unknown) {
+    return Number.isFinite(value) ? Number(value) : undefined;
+}
+
+function normalizeClip(clip: ClipVersion): ClipVersion {
+    return {
+        ...clip,
+        importedAt: normalizeOptionalTimestamp(clip.importedAt),
+        sourceCreatedAt: normalizeOptionalTimestamp(clip.sourceCreatedAt),
+    };
+}
+
 function normalizeIdea(idea: SongIdea): SongIdea {
     if (idea.kind !== "project") {
+        const normalizedClips = idea.clips.map(normalizeClip);
         const derivedLastActivityAt = deriveIdeaLastActivityTimestamp(idea);
-        return idea.lastActivityAt === derivedLastActivityAt
-            ? idea
-            : { ...idea, lastActivityAt: derivedLastActivityAt };
+        const normalizedIdea: SongIdea = {
+            ...idea,
+            clips: normalizedClips,
+            importedAt: normalizeOptionalTimestamp(idea.importedAt),
+            sourceCreatedAt: normalizeOptionalTimestamp(idea.sourceCreatedAt),
+        };
+        return normalizedIdea.lastActivityAt === derivedLastActivityAt
+            ? normalizedIdea
+            : { ...normalizedIdea, lastActivityAt: derivedLastActivityAt };
     }
 
     const normalizedLyrics = normalizeProjectLyrics(idea.lyrics);
-    let normalizedIdea: SongIdea = idea;
+    let normalizedIdea: SongIdea = {
+        ...idea,
+        clips: idea.clips.map(normalizeClip),
+        importedAt: normalizeOptionalTimestamp(idea.importedAt),
+        sourceCreatedAt: normalizeOptionalTimestamp(idea.sourceCreatedAt),
+    };
 
     if (idea.lyrics !== normalizedLyrics) {
         normalizedIdea = { ...normalizedIdea, lyrics: normalizedLyrics };
@@ -1207,6 +1231,9 @@ export const createDataSlice: StateCreator<DataSlice & SelectionSlice, [], [], D
 
         const targetIdea = activeWs.ideas.find((x) => x.id === targetIdeaId);
         if (!targetIdea) return;
+        const parentClip = override?.parentClipId
+            ? targetIdea.clips.find((clip) => clip.id === override.parentClipId) ?? null
+            : null;
 
         const title = genClipTitle(targetIdea.title, targetIdea.clips.length + 1);
 
@@ -1220,6 +1247,7 @@ export const createDataSlice: StateCreator<DataSlice & SelectionSlice, [], [], D
             audioUri: override?.audioUri,
             durationMs: override?.durationMs,
             waveformPeaks: override?.waveformPeaks,
+            tags: parentClip?.tags?.length ? [...parentClip.tags] : undefined,
         };
 
         get().updateIdeas((p) =>

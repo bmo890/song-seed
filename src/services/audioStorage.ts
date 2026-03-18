@@ -12,6 +12,8 @@ export type ImportedAudioAsset = {
     uri: string;
     name?: string;
     mimeType?: string | null;
+    sourceCreatedAt?: number;
+    sourceCreatedAtSource?: "document-picker-last-modified" | "file-modification-time";
 };
 
 type ManagedAudioResult = {
@@ -42,6 +44,65 @@ export type ZipArchiveEntry = {
     directory?: boolean;
     missingMessage?: string;
 };
+
+const MIN_PLAUSIBLE_EXTERNAL_TIMESTAMP = Date.UTC(1990, 0, 1);
+const MAX_EXTERNAL_TIMESTAMP_DRIFT_MS = 24 * 60 * 60 * 1000;
+
+function normalizeExternalTimestamp(timestamp: number | null | undefined) {
+    if (!Number.isFinite(timestamp)) return undefined;
+
+    let normalized = Number(timestamp);
+
+    if (normalized > 0 && normalized < 1e12) {
+        normalized *= 1000;
+    }
+
+    normalized = Math.round(normalized);
+
+    if (
+        normalized < MIN_PLAUSIBLE_EXTERNAL_TIMESTAMP ||
+        normalized > Date.now() + MAX_EXTERNAL_TIMESTAMP_DRIFT_MS
+    ) {
+        return undefined;
+    }
+
+    return normalized;
+}
+
+export async function enrichImportedAudioAsset(
+    asset: Pick<ImportedAudioAsset, "uri" | "name" | "mimeType">,
+    options?: {
+        lastModified?: number | null;
+        sourceHint?: ImportedAudioAsset["sourceCreatedAtSource"];
+    }
+): Promise<ImportedAudioAsset> {
+    const explicitSourceCreatedAt = normalizeExternalTimestamp(options?.lastModified);
+    if (explicitSourceCreatedAt) {
+        return {
+            ...asset,
+            sourceCreatedAt: explicitSourceCreatedAt,
+            sourceCreatedAtSource: options?.sourceHint ?? "document-picker-last-modified",
+        };
+    }
+
+    try {
+        const info = await FileSystem.getInfoAsync(asset.uri);
+        if ("exists" in info && info.exists && "modificationTime" in info) {
+            const sourceCreatedAt = normalizeExternalTimestamp(info.modificationTime);
+            if (sourceCreatedAt) {
+                return {
+                    ...asset,
+                    sourceCreatedAt,
+                    sourceCreatedAtSource: "file-modification-time",
+                };
+            }
+        }
+    } catch {
+        // Some external providers do not expose file metadata through Expo FS.
+    }
+
+    return { ...asset };
+}
 
 function analysisToWaveformPeaks(analysis: { dataPoints: Array<{ dB: number; amplitude: number }> }) {
     const levelsAsDb = analysis.dataPoints.map((point) =>
@@ -498,11 +559,21 @@ export async function pickAudioFiles(options?: { multiple?: boolean }): Promise<
         return [];
     }
 
-    return result.assets.map((asset) => ({
-        uri: asset.uri,
-        name: asset.name,
-        mimeType: asset.mimeType,
-    }));
+    return Promise.all(
+        result.assets.map((asset) =>
+            enrichImportedAudioAsset(
+                {
+                    uri: asset.uri,
+                    name: asset.name,
+                    mimeType: asset.mimeType,
+                },
+                {
+                    lastModified: asset.lastModified,
+                    sourceHint: "document-picker-last-modified",
+                }
+            )
+        )
+    );
 }
 
 export async function importAudioAsset(asset: ImportedAudioAsset, targetId: string): Promise<ManagedAudioResult> {

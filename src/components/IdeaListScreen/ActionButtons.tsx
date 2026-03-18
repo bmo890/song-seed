@@ -5,15 +5,18 @@ type ActionButtonsProps = {
   onAddProject: () => void;
   onQuickRecord: () => void;
   onImportAudio: () => void;
+  onDockLayout?: (height: number) => void;
 };
 
 export function ActionButtons({
   onAddProject,
   onQuickRecord,
   onImportAudio,
+  onDockLayout,
 }: ActionButtonsProps) {
   return (
     <FloatingActionDock
+      onDockLayout={onDockLayout}
       onRecord={onQuickRecord}
       menuItems={[
         {

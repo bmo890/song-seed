@@ -5,6 +5,12 @@ import * as Haptics from "expo-haptics";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { styles } from "../../styles";
 
+const FLOATING_ACTION_DOCK_BASE_BOTTOM = 12;
+const FLOATING_ACTION_DOCK_MIN_SAFE_AREA = 16;
+const FLOATING_ACTION_DOCK_RECORD_BUTTON_SIZE = 62;
+const FLOATING_ACTION_DOCK_CONTENT_GAP = 24;
+const FLOATING_ACTION_DOCK_SCROLL_PAST_EXTRA = 152;
+
 type FloatingActionMenuItem = {
   key: string;
   label: string;
@@ -17,16 +23,34 @@ type FloatingActionDockProps = {
   menuItems: FloatingActionMenuItem[];
   onRecord: () => void;
   wrapStyle?: StyleProp<ViewStyle>;
+  onDockLayout?: (height: number) => void;
 };
+
+export function getFloatingActionDockBottomOffset(bottomInset: number) {
+  return FLOATING_ACTION_DOCK_BASE_BOTTOM + Math.max(bottomInset, FLOATING_ACTION_DOCK_MIN_SAFE_AREA);
+}
+
+export function getFloatingActionDockContentClearance(bottomInset: number) {
+  return (
+    getFloatingActionDockBottomOffset(bottomInset) +
+    FLOATING_ACTION_DOCK_RECORD_BUTTON_SIZE +
+    FLOATING_ACTION_DOCK_CONTENT_GAP
+  );
+}
+
+export function getFloatingActionDockScrollPastClearance(bottomInset: number) {
+  return getFloatingActionDockContentClearance(bottomInset) + FLOATING_ACTION_DOCK_SCROLL_PAST_EXTRA;
+}
 
 export function FloatingActionDock({
   menuItems,
   onRecord,
   wrapStyle,
+  onDockLayout,
 }: FloatingActionDockProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const insets = useSafeAreaInsets();
-  const bottomOffset = 12 + Math.max(insets.bottom, 16);
+  const bottomOffset = getFloatingActionDockBottomOffset(insets.bottom);
 
   return (
     <View pointerEvents="box-none" style={[styles.ideasFabWrap, { bottom: bottomOffset }, wrapStyle]}>
@@ -49,7 +73,12 @@ export function FloatingActionDock({
         </View>
       ) : null}
 
-      <View style={styles.ideasFabRow}>
+      <View
+        style={styles.ideasFabRow}
+        onLayout={(event) => {
+          onDockLayout?.(event.nativeEvent.layout.height);
+        }}
+      >
         <Pressable
           style={({ pressed }) => [styles.ideasCreateFab, pressed ? styles.pressDownStrong : null]}
           onPress={() => {

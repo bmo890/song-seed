@@ -11,6 +11,7 @@ import { TitleInput } from "../common/TitleInput";
 import { getCollectionAncestors, getCollectionById } from "../../utils";
 import { AppBreadcrumbs, type AppBreadcrumbItem } from "../common/AppBreadcrumbs";
 import { getCollectionHierarchyLevel, getHierarchyIconColor, getHierarchyIconName } from "../../hierarchy";
+import { openCollectionFromContext } from "../../navigation";
 
 type IdeaHeaderProps = {
     isEditMode: boolean;
@@ -91,7 +92,11 @@ export function IdeaHeader({
                 key: collection.id,
                 label: collection.title,
                 level: getCollectionHierarchyLevel(collection),
-                onPress: () => navigateRoot("CollectionDetail", { collectionId: collection.id }),
+                onPress: () =>
+                    openCollectionFromContext(navigation, {
+                        collectionId: collection.id,
+                        source: "detail",
+                    }),
             })),
             ...(currentCollection
                 ? [
@@ -99,7 +104,11 @@ export function IdeaHeader({
                         key: currentCollection.id,
                         label: currentCollection.title,
                         level: getCollectionHierarchyLevel(currentCollection),
-                        onPress: () => navigateRoot("CollectionDetail", { collectionId: currentCollection.id }),
+                        onPress: () =>
+                            openCollectionFromContext(navigation, {
+                                collectionId: currentCollection.id,
+                                source: "detail",
+                            }),
                     },
                 ]
                 : []),

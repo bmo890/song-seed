@@ -18,6 +18,7 @@ import { WorkspaceList } from "./WorkspaceList";
 import { formatBytes } from "../../utils";
 import { getWorkspaceListOrderState, sortWorkspacesWithPrimary } from "../../libraryNavigation";
 import type { Workspace, WorkspaceListOrder } from "../../types";
+import { useBrowseRootBackHandler } from "../../hooks/useBrowseRootBackHandler";
 
 function defaultWorkspaceTitle() {
   const now = new Date();
@@ -28,6 +29,7 @@ function defaultWorkspaceTitle() {
 }
 
 export function WorkspaceListScreen() {
+  useBrowseRootBackHandler();
   const workspaces = useStore((s) => s.workspaces);
   const primaryWorkspaceId = useStore((s) => s.primaryWorkspaceId);
   const setPrimaryWorkspaceId = useStore((s) => s.setPrimaryWorkspaceId);

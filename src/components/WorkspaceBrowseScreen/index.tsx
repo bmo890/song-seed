@@ -17,6 +17,7 @@ import { CollectionMoveModal } from "../modals/CollectionMoveModal";
 import { CollectionActionsModal } from "../modals/CollectionActionsModal";
 import { buildCollectionMoveDestinations, getCollectionDeleteScope } from "../../collectionManagement";
 import { getCollectionSizeBytes, formatBytes } from "../../utils";
+import { ensureUniqueCountedTitle } from "../../utils";
 import { getHierarchyIconColor, getHierarchyIconName } from "../../hierarchy";
 import {
   buildImportedTitle,
@@ -28,6 +29,14 @@ import {
   buildWorkspaceBrowseEntries,
   type CollectionSearchMatchKind,
 } from "../../libraryNavigation";
+import { openCollectionInBrowse } from "../../navigation";
+import {
+  buildImportHelperText,
+  buildImportedAssetDateMetadata,
+  promptForImportDatePreference,
+  type ImportDatePreference,
+} from "../../importDates";
+import { useBrowseRootBackHandler } from "../../hooks/useBrowseRootBackHandler";
 
 function buildDefaultCollectionTitle(count: number) {
   return `Collection ${count + 1}`;
@@ -43,9 +52,7 @@ function buildImportedCollectionTitle(assets: ImportedAudioAsset[], collectionCo
 
 export function WorkspaceBrowseScreen() {
   const navigation = useNavigation();
-  const rootNavigation = (navigation as any).getParent?.();
-  const navigateRoot = (route: string, params?: object) =>
-    (rootNavigation ?? navigation).navigate(route as never, params as never);
+  useBrowseRootBackHandler();
 
   const workspaces = useStore((state) => state.workspaces);
   const activeWorkspaceId = useStore((state) => state.activeWorkspaceId);
@@ -68,6 +75,7 @@ export function WorkspaceBrowseScreen() {
   const [draftTitle, setDraftTitle] = useState("");
   const [importCollectionModalOpen, setImportCollectionModalOpen] = useState(false);
   const [importCollectionAssets, setImportCollectionAssets] = useState<ImportedAudioAsset[]>([]);
+  const [importCollectionDatePreference, setImportCollectionDatePreference] = useState<ImportDatePreference>("import");
   const [importCollectionDraft, setImportCollectionDraft] = useState("");
   const [isImportingCollection, setIsImportingCollection] = useState(false);
   const [sizeMap, setSizeMap] = useState<Record<string, number>>({});
@@ -224,8 +232,11 @@ export function WorkspaceBrowseScreen() {
   const openCollectionImportFlow = async () => {
     const assets = await pickAudioFiles({ multiple: true });
     if (assets.length === 0) return;
+    const datePreference = await promptForImportDatePreference(assets, "New collection from import");
+    if (!datePreference) return;
 
     setImportCollectionAssets(assets);
+    setImportCollectionDatePreference(datePreference);
     setImportCollectionDraft("");
     setImportCollectionModalOpen(true);
   };
@@ -234,6 +245,7 @@ export function WorkspaceBrowseScreen() {
     if (isImportingCollection) return;
     setImportCollectionModalOpen(false);
     setImportCollectionAssets([]);
+    setImportCollectionDatePreference("import");
     setImportCollectionDraft("");
   };
 
@@ -247,24 +259,37 @@ export function WorkspaceBrowseScreen() {
 
     try {
       setIsImportingCollection(true);
+      const importedAt = Date.now();
       const { imported, failed } = await importAudioAssets(
         importCollectionAssets,
         (_asset, index) => `audio-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 9)}`
       );
+      const importedDates = buildImportedAssetDateMetadata(
+        imported,
+        importCollectionDatePreference,
+        importedAt
+      );
+      const nextTitles: string[] = [];
 
-      imported.forEach((asset) => {
+      imported.forEach((asset, index) => {
+        const importedDate = importedDates[index]!;
+        const title = ensureUniqueCountedTitle(buildImportedTitle(asset.name), nextTitles);
+        nextTitles.push(title);
         appActions.importClipToCollection(collectionId, {
-          title: buildImportedTitle(asset.name),
+          title,
           audioUri: asset.audioUri,
           durationMs: asset.durationMs,
           waveformPeaks: asset.waveformPeaks,
+          createdAt: importedDate.createdAt,
+          importedAt: importedDate.importedAt,
+          sourceCreatedAt: importedDate.sourceCreatedAt,
         });
       });
 
       setImportCollectionModalOpen(false);
       setImportCollectionAssets([]);
       setImportCollectionDraft("");
-      navigateRoot("CollectionDetail", { collectionId });
+      openCollectionInBrowse(navigation, { collectionId });
 
       if (failed.length > 0) {
         Alert.alert(
@@ -325,7 +350,7 @@ export function WorkspaceBrowseScreen() {
               key={collection.id}
               onPress={() => {
                 markCollectionOpened(collection.id);
-                navigateRoot("CollectionDetail", { collectionId: collection.id });
+                openCollectionInBrowse(navigation, { collectionId: collection.id });
               }}
             >
               <View style={styles.cardTop}>
@@ -416,7 +441,7 @@ export function WorkspaceBrowseScreen() {
           const collectionId = addCollection(activeWorkspaceId, title, null);
           setModalOpen(false);
           setDraftTitle("");
-          navigateRoot("CollectionDetail", { collectionId });
+          openCollectionInBrowse(navigation, { collectionId });
         }}
         helperText="Collections hold songs and clips."
         saveLabel="Create"
@@ -432,7 +457,11 @@ export function WorkspaceBrowseScreen() {
         onSave={() => {
           void saveImportedCollection();
         }}
-        helperText={`${importCollectionAssets.length} file${importCollectionAssets.length === 1 ? "" : "s"} will be added as individual clips in the new collection.`}
+        helperText={buildImportHelperText(
+          `${importCollectionAssets.length} file${importCollectionAssets.length === 1 ? "" : "s"} will be added as individual clips in the new collection.`,
+          importCollectionAssets,
+          importCollectionDatePreference
+        )}
         saveLabel={isImportingCollection ? "Importing..." : "Create"}
         saveDisabled={isImportingCollection}
         cancelDisabled={isImportingCollection}

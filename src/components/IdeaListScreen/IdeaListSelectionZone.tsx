@@ -20,6 +20,8 @@ type IdeaListSelectionZoneProps = {
   onAddProject: () => void;
   onQuickRecord: () => void;
   onImportAudio: () => void;
+  onFloatingDockLayout: (height: number) => void;
+  onSelectionDockLayout: (height: number) => void;
 };
 
 export function IdeaListSelectionZone({
@@ -37,6 +39,8 @@ export function IdeaListSelectionZone({
   onAddProject,
   onQuickRecord,
   onImportAudio,
+  onFloatingDockLayout,
+  onSelectionDockLayout,
 }: IdeaListSelectionZoneProps) {
   return (
     <>
@@ -86,12 +90,14 @@ export function IdeaListSelectionZone({
               : selectedInteractiveIdeasCount === 0
           }
           onDeleteSelected={onDeleteSelected}
+          onDockLayout={onSelectionDockLayout}
         />
       ) : (
         <ActionButtons
           onAddProject={onAddProject}
           onQuickRecord={onQuickRecord}
           onImportAudio={onImportAudio}
+          onDockLayout={onFloatingDockLayout}
         />
       )}
     </>

@@ -28,6 +28,7 @@ type Props = {
   onRepositionMarker: (markerId: string, newAtMs: number) => void;
   onRequestActions: (marker: PracticeMarker) => void;
   onRequestAdd: () => void;
+  onDragStateChange?: (dragging: boolean) => void;
   draggingMarkerId: SharedValue<string>;
   draggingMarkerX: SharedValue<number>;
 };
@@ -87,6 +88,7 @@ function PinBadge({
   onSeek,
   onRepositionMarker,
   onRequestActions,
+  onDragStateChange,
   draggingMarkerId,
   draggingMarkerX,
 }: {
@@ -99,6 +101,7 @@ function PinBadge({
   onSeek: (timeMs: number) => void;
   onRepositionMarker: (markerId: string, newAtMs: number) => void;
   onRequestActions: (marker: PracticeMarker) => void;
+  onDragStateChange?: (dragging: boolean) => void;
   draggingMarkerId: SharedValue<string>;
   draggingMarkerX: SharedValue<number>;
 }) {
@@ -123,6 +126,9 @@ function PinBadge({
       draggingMarkerId.value = marker.id;
       draggingMarkerX.value =
         marker.atMs * pixelsPerMs * timelineScale.value + timelineTranslateX.value;
+      if (onDragStateChange) {
+        runOnJS(onDragStateChange)(true);
+      }
       runOnJS(Haptics.selectionAsync)();
     })
     .onChange((e) => {
@@ -140,6 +146,13 @@ function PinBadge({
         runOnJS(handleReposition)(Math.round(dragTimeMs.value));
       } else {
         runOnJS(handleActions)();
+      }
+    })
+    .onFinalize(() => {
+      isDragging.value = false;
+      draggingMarkerId.value = "";
+      if (onDragStateChange) {
+        runOnJS(onDragStateChange)(false);
       }
     });
 
@@ -189,6 +202,7 @@ export function PracticePinBadges({
   onRepositionMarker,
   onRequestActions,
   onRequestAdd,
+  onDragStateChange,
   draggingMarkerId,
   draggingMarkerX,
 }: Props) {
@@ -233,6 +247,7 @@ export function PracticePinBadges({
             onSeek={onSeek}
             onRepositionMarker={onRepositionMarker}
             onRequestActions={onRequestActions}
+            onDragStateChange={onDragStateChange}
             draggingMarkerId={draggingMarkerId}
             draggingMarkerX={draggingMarkerX}
           />

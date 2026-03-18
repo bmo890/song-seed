@@ -24,6 +24,7 @@ import {
   type RevisitSection,
   type RevisitSourceOption,
 } from "../../revisit";
+import { useBrowseRootBackHandler } from "../../hooks/useBrowseRootBackHandler";
 
 const TWO_WEEKS_MS = 14 * 24 * 60 * 60 * 1000;
 const ONE_MONTH_MS = 30 * 24 * 60 * 60 * 1000;
@@ -306,6 +307,7 @@ function ActionChip({ icon, label, onPress }: ActionChipProps) {
 }
 
 export function RevisitScreen() {
+  useBrowseRootBackHandler();
   const navigation = useNavigation();
   const rootNavigation = (navigation as any).getParent?.();
   const navigateRoot = (routeName: string, params?: object) =>

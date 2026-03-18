@@ -3,7 +3,7 @@ import { StatusBar as ExpoStatusBar } from "expo-status-bar";
 import { Text, View, Alert, Animated, BackHandler, Pressable, Platform } from "react-native";
 import ReAnimated from "react-native-reanimated";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
-import { useNavigation, useRoute } from "@react-navigation/native";
+import { useIsFocused, useNavigation, useRoute } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { styles } from "../../styles";
 import { SongIdea, ClipVersion, PlaybackQueueItem, IdeasTimelineMetric, WorkspaceHiddenDay } from "../../types";
@@ -19,6 +19,10 @@ import { IdeaListNestedCollectionsSection } from "./IdeaListNestedCollectionsSec
 import { IdeaListSelectionZone } from "./IdeaListSelectionZone";
 import { IdeaListContent } from "./IdeaListContent";
 import { IdeaListEntry } from "./types";
+import {
+  getFloatingActionDockBottomOffset,
+  getFloatingActionDockScrollPastClearance,
+} from "../common/FloatingActionDock";
 
 import { useStore } from "../../state/useStore";
 import { useScrollCollapseHeader } from "../../hooks/useScrollCollapseHeader";
@@ -36,6 +40,7 @@ import {
 import {
   buildDefaultIdeaTitle,
   ensureUniqueIdeaTitle,
+  ensureUniqueCountedTitle,
   getCollectionAncestors,
   getCollectionById,
   getIdeaSizeBytes,
@@ -50,6 +55,15 @@ import {
   getIdeaUpdatedAt,
   usesIdeaTimelineDividers,
 } from "../../ideaSort";
+import { goBackFromParentStack, openCollectionInBrowse } from "../../navigation";
+import {
+  buildImportHelperText,
+  buildImportedAssetDateMetadata,
+  buildImportedIdeaDateMetadata,
+  promptForImportDatePreference,
+  type ImportDatePreference,
+} from "../../importDates";
+import { useBrowseRootBackHandler } from "../../hooks/useBrowseRootBackHandler";
 
 function buildImportedProjectTitle(assets: ImportedAudioAsset[]) {
   return buildImportedTitle(assets[0]?.name);
@@ -57,6 +71,7 @@ function buildImportedProjectTitle(assets: ImportedAudioAsset[]) {
 
 export function IdeaListScreen() {
   const navigation = useNavigation();
+  const isFocused = useIsFocused();
   const route = useRoute<any>();
   const rootNavigation = (navigation as any).getParent?.();
   const navigateRoot = (route: string, params?: object) =>
@@ -69,6 +84,9 @@ export function IdeaListScreen() {
   const activityLabel = route.params?.activityLabel as string | undefined;
   const focusIdeaId = route.params?.focusIdeaId as string | undefined;
   const focusToken = route.params?.focusToken as number | undefined;
+  const showBack = route.params?.showBack === true;
+  const collectionSource = route.params?.source as "activity" | "detail" | undefined;
+  useBrowseRootBackHandler(!showBack);
 
   const workspaces = useStore((s) => s.workspaces);
   const activeWorkspaceId = useStore((s) => s.activeWorkspaceId);
@@ -78,6 +96,7 @@ export function IdeaListScreen() {
     () => activeWorkspace?.ideas.filter((idea) => idea.collectionId === collectionId) ?? [],
     [activeWorkspace?.ideas, collectionId]
   );
+  const collectionIdeaTitles = useMemo(() => ideas.map((idea) => idea.title), [ideas]);
   const childCollections = useMemo(
     () =>
       activeWorkspace?.collections.filter(
@@ -115,12 +134,13 @@ export function IdeaListScreen() {
   const handledFocusTokenRef = useRef<number | null>(null);
   const focusScrollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Mark inline player UI as visible so the popup dock doesn't appear
-  // on top of the already-visible inline player controls.
+  // Keep the inline player visibility flag tied to screen focus so returning
+  // from song detail restores inline ownership and does not leave the global
+  // dock thinking the inline UI is hidden.
   useEffect(() => {
-    useStore.getState().setInlinePlayerMounted(true);
+    useStore.getState().setInlinePlayerMounted(isFocused);
     return () => useStore.getState().setInlinePlayerMounted(false);
-  }, []);
+  }, [isFocused]);
 
   useEffect(() => {
     if (!inlinePlayer.inlineTarget) return;
@@ -156,6 +176,7 @@ export function IdeaListScreen() {
   const [importModalOpen, setImportModalOpen] = useState(false);
   const [importAssets, setImportAssets] = useState<ImportedAudioAsset[]>([]);
   const [importMode, setImportMode] = useState<"single-clip" | "song-project" | null>(null);
+  const [importDatePreference, setImportDatePreference] = useState<ImportDatePreference>("import");
   const [importDraft, setImportDraft] = useState("");
   const [isImporting, setIsImporting] = useState(false);
   const [managedCollectionId, setManagedCollectionId] = useState<string | null>(null);
@@ -180,6 +201,8 @@ export function IdeaListScreen() {
   const [ideaSizeMap, setIdeaSizeMap] = useState<Record<string, number>>({});
   const [stickyDayLabel, setStickyDayLabel] = useState<string | null>(null);
   const [stickyDayTop, setStickyDayTop] = useState<number>(0);
+  const [floatingDockHeight, setFloatingDockHeight] = useState(62);
+  const [selectionDockHeight, setSelectionDockHeight] = useState(120);
   const [undoState, setUndoState] = useState<{
     id: string;
     message: string;
@@ -188,12 +211,16 @@ export function IdeaListScreen() {
   const highlightMapRef = useRef<Record<string, Animated.Value>>({});
   const animatingHighlightIdsRef = useRef<Set<string>>(new Set());
   const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const floatingBaseBottom = 12 + Math.max(insets.bottom, 16);
+  const floatingBaseBottom = getFloatingActionDockBottomOffset(insets.bottom);
   const floatingStripBottom = floatingBaseBottom + 70;
+  const selectionDockBottom = 12 + Math.max(insets.bottom, 12);
   const bottomToolbarAllowance = Platform.OS === "android" ? 18 : 0;
-  const listFooterSpacerHeight = listSelectionMode
-    ? Math.max(140, floatingBaseBottom + 104 + bottomToolbarAllowance)
-    : Math.max(220, floatingBaseBottom + 174 + bottomToolbarAllowance);
+  const activeDockHeight = listSelectionMode ? selectionDockHeight : floatingDockHeight;
+  const activeDockClearance = listSelectionMode
+    ? selectionDockBottom + selectionDockHeight
+    : getFloatingActionDockScrollPastClearance(insets.bottom);
+  const listFooterSpacerHeight =
+    activeDockClearance + (listSelectionMode ? activeDockHeight : 0) + bottomToolbarAllowance;
   const viewabilityConfigRef = useRef({ itemVisiblePercentThreshold: 35 });
   const ideasSortRef = useRef(ideasSort);
   const hiddenIdeaIdsSet = useMemo(() => new Set(hiddenIdeaIds), [hiddenIdeaIds]);
@@ -607,6 +634,11 @@ export function IdeaListScreen() {
     };
   }, []);
 
+  useEffect(() => {
+    if (isFocused) return;
+    void inlinePlayer.resetInlinePlayer();
+  }, [inlinePlayer, isFocused]);
+
   const showUndo = (message: string, undo: () => void) => {
     if (undoTimerRef.current) {
       clearTimeout(undoTimerRef.current);
@@ -944,6 +976,7 @@ export function IdeaListScreen() {
     setImportModalOpen(false);
     setImportAssets([]);
     setImportMode(null);
+    setImportDatePreference("import");
     setImportDraft("");
   }
 
@@ -957,8 +990,11 @@ export function IdeaListScreen() {
     if (assets.length === 0) return;
 
     if (assets.length === 1) {
+      const datePreference = await promptForImportDatePreference(assets);
+      if (!datePreference) return;
       setImportAssets(assets);
       setImportMode("single-clip");
+      setImportDatePreference(datePreference);
       setImportDraft("");
       setImportModalOpen(true);
       return;
@@ -971,16 +1007,25 @@ export function IdeaListScreen() {
         {
           text: "Import as individual clips",
           onPress: () => {
-            void importAssetsAsIndividualClips(assets);
+            void (async () => {
+              const datePreference = await promptForImportDatePreference(assets);
+              if (!datePreference) return;
+              await importAssetsAsIndividualClips(assets, datePreference);
+            })();
           },
         },
         {
           text: "Import as song project",
           onPress: () => {
-            setImportAssets(assets);
-            setImportMode("song-project");
-            setImportDraft("");
-            setImportModalOpen(true);
+            void (async () => {
+              const datePreference = await promptForImportDatePreference(assets);
+              if (!datePreference) return;
+              setImportAssets(assets);
+              setImportMode("song-project");
+              setImportDatePreference(datePreference);
+              setImportDraft("");
+              setImportModalOpen(true);
+            })();
           },
         },
         { text: "Cancel", style: "cancel" },
@@ -988,22 +1033,34 @@ export function IdeaListScreen() {
     );
   }
 
-  async function importAssetsAsIndividualClips(assets: ImportedAudioAsset[]) {
+  async function importAssetsAsIndividualClips(
+    assets: ImportedAudioAsset[],
+    datePreference: ImportDatePreference
+  ) {
     if (!collectionId || assets.length === 0 || isImporting) return;
 
     try {
       setIsImporting(true);
+      const importedAt = Date.now();
       const { imported, failed } = await importAudioAssets(
         assets,
         (_asset, index) => `audio-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 9)}`
       );
+      const importedDates = buildImportedAssetDateMetadata(imported, datePreference, importedAt);
+      const nextTitles = [...collectionIdeaTitles];
 
-      imported.forEach((asset) => {
+      imported.forEach((asset, index) => {
+        const importedDate = importedDates[index]!;
+        const title = ensureUniqueCountedTitle(buildImportedTitle(asset.name), nextTitles);
+        nextTitles.push(title);
         appActions.importClipToCollection(collectionId, {
-          title: buildImportedTitle(asset.name),
+          title,
           audioUri: asset.audioUri,
           durationMs: asset.durationMs,
           waveformPeaks: asset.waveformPeaks,
+          createdAt: importedDate.createdAt,
+          importedAt: importedDate.importedAt,
+          sourceCreatedAt: importedDate.sourceCreatedAt,
         });
       });
 
@@ -1028,20 +1085,32 @@ export function IdeaListScreen() {
 
     try {
       setIsImporting(true);
+      const importedAt = Date.now();
       if (importMode === "single-clip") {
         const importAsset = importAssets[0]!;
         const importedAudio = await importAudioAsset(
           importAsset,
           `audio-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
         );
-        const fallbackTitle = buildImportedTitle(importAsset.name);
+        const fallbackTitle = ensureUniqueCountedTitle(
+          buildImportedTitle(importAsset.name),
+          collectionIdeaTitles
+        );
         const finalTitle = importDraft.trim() || fallbackTitle;
+        const [importedDate] = buildImportedAssetDateMetadata(
+          [importAsset],
+          importDatePreference,
+          importedAt
+        );
 
         appActions.importClipToCollection(collectionId, {
           title: finalTitle,
           audioUri: importedAudio.audioUri,
           durationMs: importedAudio.durationMs,
           waveformPeaks: importedAudio.waveformPeaks,
+          createdAt: importedDate!.createdAt,
+          importedAt: importedDate!.importedAt,
+          sourceCreatedAt: importedDate!.sourceCreatedAt,
         });
       } else {
         const { imported, failed } = await importAudioAssets(
@@ -1055,13 +1124,27 @@ export function IdeaListScreen() {
           return;
         }
 
+        const importedDates = buildImportedAssetDateMetadata(imported, importDatePreference, importedAt);
+        const ideaDateMetadata = buildImportedIdeaDateMetadata(importedDates);
+        const projectClipTitles: string[] = [];
+
         appActions.importProjectToCollection(collectionId, {
           title: projectTitle,
-          clips: imported.map((asset) => ({
-            title: buildImportedTitle(asset.name),
+          createdAt: ideaDateMetadata.createdAt,
+          importedAt: ideaDateMetadata.importedAt,
+          sourceCreatedAt: ideaDateMetadata.sourceCreatedAt,
+          clips: imported.map((asset, index) => ({
+            title: (() => {
+              const nextTitle = ensureUniqueCountedTitle(buildImportedTitle(asset.name), projectClipTitles);
+              projectClipTitles.push(nextTitle);
+              return nextTitle;
+            })(),
             audioUri: asset.audioUri,
             durationMs: asset.durationMs,
             waveformPeaks: asset.waveformPeaks,
+            createdAt: importedDates[index]!.createdAt,
+            importedAt: importedDates[index]!.importedAt,
+            sourceCreatedAt: importedDates[index]!.sourceCreatedAt,
           })),
         });
 
@@ -1209,17 +1292,47 @@ export function IdeaListScreen() {
   if (!activeWorkspace || !collectionId || !currentCollection) {
     return (
       <SafeAreaView style={styles.screen}>
-        <ScreenHeader title="Collection" leftIcon="hamburger" />
+        <ScreenHeader
+          title="Collection"
+          leftIcon={showBack ? "back" : "hamburger"}
+          onLeftPress={
+            showBack
+              ? () => {
+                  if (!goBackFromParentStack(navigation)) {
+                    navigateRoot("Home", { screen: "Browse" });
+                  }
+                }
+              : undefined
+          }
+        />
         <Text style={styles.subtitle}>This collection could not be found.</Text>
       </SafeAreaView>
     );
   }
 
+  const collectionRouteParams = {
+    activityRangeStartTs,
+    activityRangeEndTs,
+    activityMetricFilter,
+    activityLabel,
+    showBack: showBack || undefined,
+    source: collectionSource,
+  };
+
   return (
     <SafeAreaView style={[styles.screen, styles.screenIdeas]}>
       <ScreenHeader
         title="Ideas"
-        leftIcon="hamburger"
+        leftIcon={showBack ? "back" : "hamburger"}
+        onLeftPress={
+          showBack
+            ? () => {
+                if (!goBackFromParentStack(navigation)) {
+                  navigateRoot("Home", { screen: "Browse" });
+                }
+              }
+            : undefined
+        }
         rightElement={
           !listSelectionMode ? (
             <Pressable
@@ -1254,7 +1367,11 @@ export function IdeaListScreen() {
               key: collection.id,
               label: collection.title,
               level: getCollectionHierarchyLevel(collection),
-              onPress: () => navigateRoot("CollectionDetail", { collectionId: collection.id }),
+              onPress: () =>
+                openCollectionInBrowse(navigation, {
+                  collectionId: collection.id,
+                  ...collectionRouteParams,
+                }),
             })),
             {
               key: currentCollection.id,
@@ -1312,7 +1429,10 @@ export function IdeaListScreen() {
         expanded={nestedCollectionsExpanded}
         onToggleExpanded={() => setNestedCollectionsExpanded((prev) => !prev)}
         onOpenCollection={(nextCollectionId) =>
-          navigateRoot("CollectionDetail", { collectionId: nextCollectionId })
+          openCollectionInBrowse(navigation, {
+            collectionId: nextCollectionId,
+            ...collectionRouteParams,
+          })
         }
         onOpenCollectionActions={openCollectionActions}
       />
@@ -1342,6 +1462,12 @@ export function IdeaListScreen() {
         }}
         onImportAudio={() => {
           void openImportAudioFlow();
+        }}
+        onFloatingDockLayout={(height) => {
+          setFloatingDockHeight((prev) => (Math.abs(prev - height) < 1 ? prev : height));
+        }}
+        onSelectionDockLayout={(height) => {
+          setSelectionDockHeight((prev) => (Math.abs(prev - height) < 1 ? prev : height));
         }}
       />
 
@@ -1403,7 +1529,7 @@ export function IdeaListScreen() {
           importMode === "song-project"
             ? buildImportedProjectTitle(importAssets)
             : importAssets[0]
-              ? buildImportedTitle(importAssets[0].name)
+              ? ensureUniqueCountedTitle(buildImportedTitle(importAssets[0].name), collectionIdeaTitles)
               : ""
         }
         onChangeDraft={setImportDraft}
@@ -1413,8 +1539,16 @@ export function IdeaListScreen() {
         }}
         helperText={
           importMode === "song-project"
-            ? `Destination: ${currentCollection.title} as one new song.\nFiles: ${importAssets.length} selected audio file${importAssets.length === 1 ? "" : "s"}`
-            : `Destination: ${currentCollection.title} as a new clip card.\nFile: ${importAssets[0]?.name ?? "Selected audio"}`
+            ? buildImportHelperText(
+                `Destination: ${currentCollection.title} as one new song.\nFiles: ${importAssets.length} selected audio file${importAssets.length === 1 ? "" : "s"}`,
+                importAssets,
+                importDatePreference
+              )
+            : buildImportHelperText(
+                `Destination: ${currentCollection.title} as a new clip card.\nFile: ${importAssets[0]?.name ?? "Selected audio"}`,
+                importAssets,
+                importDatePreference
+              )
         }
         saveLabel={isImporting ? "Importing..." : "Import"}
         saveDisabled={isImporting}
