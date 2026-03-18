@@ -48,6 +48,13 @@ export type ClipVersion = {
   durationMs?: number;
   waveformPeaks?: number[];
   editRegions?: EditRegion[];
+  tags?: string[];
+};
+
+export type CustomTagDefinition = {
+  key: string;
+  label: string;
+  color: string;
 };
 
 export type SongIdea = {
@@ -60,6 +67,7 @@ export type SongIdea = {
   collectionId: string;
   clips: ClipVersion[];
   lyrics?: ProjectLyrics;
+  customTags?: CustomTagDefinition[];
   createdAt: number;
   lastActivityAt: number;
   isDraft?: boolean;

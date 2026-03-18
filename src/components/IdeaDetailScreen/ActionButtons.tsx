@@ -4,7 +4,9 @@ import { Ionicons } from "@expo/vector-icons";
 import { styles } from "../../styles";
 import { useStore } from "../../state/useStore";
 import type { SongTimelineSortDirection, SongTimelineSortMetric } from "../../clipGraph";
+import type { CustomTagDefinition } from "../../types";
 import {
+    getTagColor,
     getSongClipTagFilterSummary,
     getSongMainTakeFilterSummary,
     getSongTimelineSortMetricIcon,
@@ -25,6 +27,8 @@ export function ActionButtons({
     timelineMainTakesOnly,
     setTimelineMainTakesOnly,
     visibleIdeaCount,
+    projectCustomTags,
+    globalCustomTags,
 }: {
     isEditMode: boolean;
     clipViewMode: "timeline" | "evolution";
@@ -38,15 +42,21 @@ export function ActionButtons({
     timelineMainTakesOnly: boolean;
     setTimelineMainTakesOnly: (value: boolean) => void;
     visibleIdeaCount: number;
+    projectCustomTags?: CustomTagDefinition[];
+    globalCustomTags?: CustomTagDefinition[];
 }) {
     const [filterMenuOpen, setFilterMenuOpen] = useState(false);
     const [sortMenuOpen, setSortMenuOpen] = useState(false);
 
     const clipSelectionMode = useStore((s) => s.clipSelectionMode);
+    const globalCustomTagsFromStore = useStore((s) => s.globalCustomClipTags);
     const selectedIdea = useStore((s) => {
         const ws = s.workspaces.find((w) => w.id === s.activeWorkspaceId);
         return ws?.ideas.find((i) => i.id === s.selectedIdeaId);
     });
+
+    const resolvedProjectCustomTags = projectCustomTags ?? selectedIdea?.customTags ?? [];
+    const resolvedGlobalCustomTags = globalCustomTags ?? globalCustomTagsFromStore;
 
     if (!selectedIdea || clipSelectionMode) return null;
 
@@ -202,7 +212,7 @@ export function ActionButtons({
                                 <Text style={styles.ideasDropdownSectionToggleText}>Tags</Text>
                                 <View style={styles.ideasDropdownSectionMeta}>
                                     <Text style={styles.ideasDropdownSectionMetaText}>
-                                        {getSongClipTagFilterSummary(clipTagFilter)}
+                                        {getSongClipTagFilterSummary(clipTagFilter, resolvedProjectCustomTags, resolvedGlobalCustomTags)}
                                     </Text>
                                 </View>
                             </View>
@@ -211,8 +221,18 @@ export function ActionButtons({
                                     { key: "all", label: "All" },
                                     { key: "untagged", label: "Untagged" },
                                     ...SONG_CLIP_TAG_OPTIONS,
-                                ] as const).map((option) => {
+                                    ...resolvedProjectCustomTags.map((t) => ({ key: t.key, label: t.label })),
+                                    ...resolvedGlobalCustomTags.map((t) => ({ key: t.key, label: t.label })),
+                                ] as { key: string; label: string }[]).map((option) => {
                                     const active = clipTagFilter === option.key;
+                                    const customColor =
+                                        option.key !== "all" && option.key !== "untagged"
+                                            ? getTagColor(option.key, resolvedProjectCustomTags, resolvedGlobalCustomTags)
+                                            : null;
+                                    const isCustom =
+                                        !SONG_CLIP_TAG_OPTIONS.some((t) => t.key === option.key) &&
+                                        option.key !== "all" &&
+                                        option.key !== "untagged";
                                     return (
                                         <Pressable
                                             key={option.key}
@@ -226,6 +246,17 @@ export function ActionButtons({
                                                 setFilterMenuOpen(false);
                                             }}
                                         >
+                                            {isCustom && customColor ? (
+                                                <View
+                                                    style={{
+                                                        width: 6,
+                                                        height: 6,
+                                                        borderRadius: 3,
+                                                        backgroundColor: customColor.text,
+                                                        marginRight: 2,
+                                                    }}
+                                                />
+                                            ) : null}
                                             <Text
                                                 style={[
                                                     styles.ideasStageChipText,

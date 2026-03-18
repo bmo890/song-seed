@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type ComponentProps, type ReactNode } from "react";
-import { ActivityIndicator, Alert, Pressable, ScrollView, Text, View } from "react-native";
+import { ActivityIndicator, Alert, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { AppBreadcrumbs } from "../common/AppBreadcrumbs";
@@ -9,9 +9,10 @@ import { ScreenHeader } from "../common/ScreenHeader";
 import { exportLibrary, type LibraryExportFormat } from "../../services/libraryExport";
 import { getStorageDetailsReport, type StorageDetailsReport } from "../../services/storageDetails";
 import { buildPersistedAppStoreSnapshot, useStore } from "../../state/useStore";
-import type { Collection, Workspace } from "../../types";
+import type { Collection, CustomTagDefinition, Workspace } from "../../types";
 import { styles } from "../../styles";
 import { formatBytes, getCollectionScopeIds } from "../../utils";
+import { CUSTOM_TAG_COLOR_OPTIONS, getTagColor } from "../IdeaDetailScreen/songClipControls";
 
 const DEFAULT_ARCHIVE_OPTIONS = {
   includeFullSongHistory: true,
@@ -49,6 +50,9 @@ export function SettingsScreen() {
   const [storageError, setStorageError] = useState<string | null>(null);
   const [isStorageLoading, setIsStorageLoading] = useState(false);
   const [showAdvancedStorageDetails, setShowAdvancedStorageDetails] = useState(false);
+  const globalCustomClipTags = useStore((s) => s.globalCustomClipTags);
+  const [newGlobalTagLabel, setNewGlobalTagLabel] = useState("");
+  const [newGlobalTagColor, setNewGlobalTagColor] = useState(CUSTOM_TAG_COLOR_OPTIONS[0].bg);
 
   const includeHiddenItems = format === "song-seed-archive"
     ? archiveOptions.includeHiddenItems
@@ -678,6 +682,103 @@ export function SettingsScreen() {
                 selected={workspaceStartupPreference === "last-used"}
                 onPress={() => setWorkspaceStartupPreference("last-used")}
               />
+            </View>
+          </View>
+
+          <View style={styles.settingsSection}>
+            <View style={styles.settingsSectionHeaderRow}>
+              <Text style={styles.settingsSectionLabel}>Custom clip tags</Text>
+              <Text style={styles.settingsSectionMeta}>{globalCustomClipTags.length}</Text>
+            </View>
+            <Text style={styles.settingsSectionHint}>
+              Global tags appear in the tag picker across all projects.
+            </Text>
+
+            {globalCustomClipTags.length > 0 ? (
+              <View style={styles.tagPickerChipsWrap}>
+                {globalCustomClipTags.map((tag) => {
+                  const color = getTagColor(tag.key, [], globalCustomClipTags);
+                  return (
+                    <View key={tag.key} style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                      <View
+                        style={[
+                          styles.clipCardTagBadge,
+                          { backgroundColor: color.bg, flexDirection: "row", alignItems: "center", gap: 4 },
+                        ]}
+                      >
+                        <Text style={[styles.clipCardTagBadgeText, { color: color.text, fontSize: 12 }]}>
+                          {tag.label}
+                        </Text>
+                      </View>
+                      <Pressable
+                        onPress={() => {
+                          Alert.alert("Remove tag?", `Remove "${tag.label}" from global tags?`, [
+                            { text: "Cancel", style: "cancel" },
+                            {
+                              text: "Remove",
+                              style: "destructive",
+                              onPress: () => useStore.getState().removeGlobalCustomClipTag(tag.key),
+                            },
+                          ]);
+                        }}
+                        hitSlop={6}
+                      >
+                        <Ionicons name="close-circle" size={16} color="#94a3b8" />
+                      </Pressable>
+                    </View>
+                  );
+                })}
+              </View>
+            ) : null}
+
+            <View style={styles.tagPickerAddRow}>
+              <TextInput
+                style={styles.tagPickerAddInput}
+                placeholder="New tag name"
+                placeholderTextColor="#94a3b8"
+                value={newGlobalTagLabel}
+                onChangeText={setNewGlobalTagLabel}
+                onSubmitEditing={() => {
+                  const label = newGlobalTagLabel.trim();
+                  if (!label) return;
+                  const key = label.toLowerCase().replace(/\s+/g, "-");
+                  if (globalCustomClipTags.some((t) => t.key === key)) return;
+                  useStore.getState().addGlobalCustomClipTag({ key, label, color: newGlobalTagColor });
+                  setNewGlobalTagLabel("");
+                }}
+                returnKeyType="done"
+              />
+              <Pressable
+                style={({ pressed }) => [
+                  styles.tagPickerAddBtn,
+                  !newGlobalTagLabel.trim() ? styles.tagPickerAddBtnDisabled : null,
+                  pressed ? styles.pressDown : null,
+                ]}
+                onPress={() => {
+                  const label = newGlobalTagLabel.trim();
+                  if (!label) return;
+                  const key = label.toLowerCase().replace(/\s+/g, "-");
+                  if (globalCustomClipTags.some((t) => t.key === key)) return;
+                  useStore.getState().addGlobalCustomClipTag({ key, label, color: newGlobalTagColor });
+                  setNewGlobalTagLabel("");
+                }}
+                disabled={!newGlobalTagLabel.trim()}
+              >
+                <Ionicons name="add" size={16} color={newGlobalTagLabel.trim() ? "#0f172a" : "#94a3b8"} />
+              </Pressable>
+            </View>
+            <View style={styles.tagPickerColorRow}>
+              {CUSTOM_TAG_COLOR_OPTIONS.map((option) => (
+                <Pressable
+                  key={option.bg}
+                  style={[
+                    styles.tagPickerColorSwatch,
+                    { backgroundColor: option.bg },
+                    newGlobalTagColor === option.bg ? styles.tagPickerColorSwatchActive : null,
+                  ]}
+                  onPress={() => setNewGlobalTagColor(option.bg)}
+                />
+              ))}
             </View>
           </View>
 

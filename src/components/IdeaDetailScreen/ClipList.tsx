@@ -4,7 +4,7 @@ import { useNavigation } from "@react-navigation/native";
 import { ClipActionsSheet } from "../modals/ClipActionsSheet";
 import { ClipNotesSheet } from "../modals/ClipNotesSheet";
 import { useStore } from "../../state/useStore";
-import { type ClipVersion } from "../../types";
+import { type ClipVersion, type CustomTagDefinition } from "../../types";
 import {
   buildEvolutionListRows,
   buildTimelineEntries,
@@ -19,6 +19,7 @@ import type { SongClipTagFilter } from "./songClipControls";
 import { type ClipCardSharedProps } from "./ClipCard";
 import { EvolutionList } from "./EvolutionList";
 import { TimelineList } from "./TimelineList";
+import { ClipTagPicker } from "./ClipTagPicker";
 
 type ClipListProps = {
   isEditMode: boolean;
@@ -73,6 +74,8 @@ export function ClipList({
   const [editingClipNotesDraft, setEditingClipNotesDraft] = useState("");
   const [actionsClipId, setActionsClipId] = useState<string | null>(null);
   const [notesSheetClipId, setNotesSheetClipId] = useState<string | null>(null);
+  const [tagPickerClipId, setTagPickerClipId] = useState<string | null>(null);
+  const globalCustomTags = useStore((s) => s.globalCustomClipTags);
   const highlightMapRef = useRef<Record<string, Animated.Value>>({});
   const animatingHighlightIdsRef = useRef<Set<string>>(new Set());
 
@@ -116,11 +119,9 @@ export function ClipList({
     if (clipTagFilter === "all") return ideaClips;
 
     return ideaClips.filter((clip) => {
-      const tags = Array.isArray((clip as ClipVersion & { tags?: string[] }).tags)
-        ? ((clip as ClipVersion & { tags?: string[] }).tags ?? [])
-            .map((tag) => tag.trim().toLowerCase())
-            .filter(Boolean)
-        : [];
+      const tags = (clip.tags ?? [])
+        .map((tag) => tag.trim().toLowerCase())
+        .filter(Boolean);
 
       if (clipTagFilter === "untagged") return tags.length === 0;
       return tags.includes(clipTagFilter);
@@ -321,6 +322,8 @@ export function ClipList({
     },
     onOpenNotesSheet: (clip) => openNotesSheet(clip),
     onPickParentTarget,
+    onOpenTagPicker: (clip) => setTagPickerClipId(clip.id),
+    globalCustomTags,
     inlinePlayer,
     getHighlightValue: (clipId) => highlightMapRef.current[clipId],
   };
@@ -476,6 +479,14 @@ export function ClipList({
               ]
             : []
         }
+      />
+
+      <ClipTagPicker
+        visible={!!tagPickerClipId}
+        clip={tagPickerClipId ? selectedIdea.clips.find((c) => c.id === tagPickerClipId) ?? null : null}
+        idea={selectedIdea}
+        globalCustomTags={globalCustomTags}
+        onClose={() => setTagPickerClipId(null)}
       />
 
       <ClipNotesSheet

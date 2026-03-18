@@ -4,6 +4,7 @@ import {
     Collection,
     SongIdea,
     ClipVersion,
+    CustomTagDefinition,
     ActivityEvent,
     ActivityMetric,
     ActivitySource,
@@ -37,6 +38,7 @@ export type DataSlice = {
     collectionLastOpenedAt: Record<string, number>;
     playlists: Playlist[];
     preferredRecordingInputId: string | null;
+    globalCustomClipTags: CustomTagDefinition[];
     setActiveWorkspaceId: (id: string) => void;
     setPrimaryWorkspaceId: (id: string | null) => void;
     setWorkspaceStartupPreference: (value: WorkspaceStartupPreference) => void;
@@ -57,6 +59,11 @@ export type DataSlice = {
     deleteCollection: (collectionId: string) => void;
     renameIdeaPreservingActivity: (ideaId: string, nextTitle: string) => void;
     toggleIdeaFavorite: (ideaId: string) => void;
+    setClipTags: (ideaId: string, clipId: string, tags: string[]) => void;
+    addProjectCustomTag: (ideaId: string, tag: CustomTagDefinition) => void;
+    removeProjectCustomTag: (ideaId: string, tagKey: string) => void;
+    addGlobalCustomClipTag: (tag: CustomTagDefinition) => void;
+    removeGlobalCustomClipTag: (tagKey: string) => void;
     logIdeaActivity: (
         ideaId: string,
         metric: ActivityMetric,
@@ -503,6 +510,7 @@ export const createDataSlice: StateCreator<DataSlice & SelectionSlice, [], [], D
     collectionLastOpenedAt: {},
     playlists: [],
     preferredRecordingInputId: null,
+    globalCustomClipTags: [],
 
     setActiveWorkspaceId: (id) =>
         set((state) => {
@@ -756,6 +764,68 @@ export const createDataSlice: StateCreator<DataSlice & SelectionSlice, [], [], D
                     idea.id === ideaId ? { ...idea, isFavorite: !idea.isFavorite } : idea
                 ),
             })),
+        }));
+    },
+
+    setClipTags: (ideaId, clipId, tags) => {
+        set((state) => ({
+            workspaces: state.workspaces.map((workspace) => ({
+                ...workspace,
+                ideas: workspace.ideas.map((idea) =>
+                    idea.id === ideaId
+                        ? {
+                              ...idea,
+                              clips: idea.clips.map((clip) =>
+                                  clip.id === clipId ? { ...clip, tags } : clip
+                              ),
+                          }
+                        : idea
+                ),
+            })),
+        }));
+    },
+
+    addProjectCustomTag: (ideaId, tag) => {
+        set((state) => ({
+            workspaces: state.workspaces.map((workspace) => ({
+                ...workspace,
+                ideas: workspace.ideas.map((idea) =>
+                    idea.id === ideaId
+                        ? {
+                              ...idea,
+                              customTags: [...(idea.customTags ?? []), tag],
+                          }
+                        : idea
+                ),
+            })),
+        }));
+    },
+
+    removeProjectCustomTag: (ideaId, tagKey) => {
+        set((state) => ({
+            workspaces: state.workspaces.map((workspace) => ({
+                ...workspace,
+                ideas: workspace.ideas.map((idea) =>
+                    idea.id === ideaId
+                        ? {
+                              ...idea,
+                              customTags: (idea.customTags ?? []).filter((t) => t.key !== tagKey),
+                          }
+                        : idea
+                ),
+            })),
+        }));
+    },
+
+    addGlobalCustomClipTag: (tag) => {
+        set((state) => ({
+            globalCustomClipTags: [...state.globalCustomClipTags, tag],
+        }));
+    },
+
+    removeGlobalCustomClipTag: (tagKey) => {
+        set((state) => ({
+            globalCustomClipTags: state.globalCustomClipTags.filter((t) => t.key !== tagKey),
         }));
     },
 

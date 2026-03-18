@@ -34,6 +34,7 @@ export type PersistedAppStore = Pick<
     | "collectionLastOpenedAt"
     | "playlists"
     | "preferredRecordingInputId"
+    | "globalCustomClipTags"
     | "ideasFilter"
     | "ideasSort"
     | "primaryFilter"
@@ -96,6 +97,7 @@ function sanitizePersistedState(state?: Partial<PersistedAppStore>): PersistedAp
         playlists: normalizePlaylists(state?.playlists),
         preferredRecordingInputId:
             typeof state?.preferredRecordingInputId === "string" ? state.preferredRecordingInputId : null,
+        globalCustomClipTags: Array.isArray(state?.globalCustomClipTags) ? state.globalCustomClipTags : [],
         ideasFilter: state?.ideasFilter ?? "all",
         ideasSort: isIdeaSort(state?.ideasSort) ? state.ideasSort : "newest",
         primaryFilter: state?.primaryFilter ?? "all",
@@ -116,6 +118,7 @@ export function buildPersistedAppStoreSnapshot(state: AppStore): PersistedAppSto
         collectionLastOpenedAt: state.collectionLastOpenedAt,
         playlists: state.playlists,
         preferredRecordingInputId: state.preferredRecordingInputId,
+        globalCustomClipTags: state.globalCustomClipTags,
         ideasFilter: state.ideasFilter,
         ideasSort: state.ideasSort,
         primaryFilter: state.primaryFilter,

@@ -10,8 +10,9 @@ import { TitleInput } from "../common/TitleInput";
 import { useStore } from "../../state/useStore";
 import { fmtDuration, formatDate } from "../../utils";
 import { type EvolutionListClipEntry, type TimelineClipEntry } from "../../clipGraph";
-import { type SongIdea, type ClipVersion } from "../../types";
+import { type SongIdea, type ClipVersion, type CustomTagDefinition } from "../../types";
 import { type useInlinePlayer } from "../../hooks/useInlinePlayer";
+import { getTagColor, getTagLabel } from "./songClipControls";
 
 export type ClipCardEntry = TimelineClipEntry | EvolutionListClipEntry;
 
@@ -34,6 +35,8 @@ export type ClipCardSharedProps = {
   onOpenActions: (clip: ClipVersion) => void;
   onOpenNotesSheet?: (clip: ClipVersion) => void;
   onPickParentTarget: (clipId: string) => void;
+  onOpenTagPicker?: (clip: ClipVersion) => void;
+  globalCustomTags: CustomTagDefinition[];
   inlinePlayer: ReturnType<typeof useInlinePlayer>;
   getHighlightValue: (clipId: string) => Animated.Value | undefined;
 };
@@ -80,6 +83,8 @@ export function ClipCard({
   onOpenActions,
   onOpenNotesSheet,
   onPickParentTarget,
+  onOpenTagPicker,
+  globalCustomTags,
   inlinePlayer,
   getHighlightValue,
 }: ClipCardProps) {
@@ -296,6 +301,32 @@ export function ClipCard({
                     <Text style={styles.clipCardNotesPreviewText} numberOfLines={1}>
                       {clip.notes.trim()}
                     </Text>
+                  </Pressable>
+                ) : null}
+
+                {clip.tags?.length || (!isEditMode && !isDraftProject && !isParentPicking && !clipSelectionMode) ? (
+                  <Pressable
+                    style={styles.clipCardTagsRow}
+                    onPress={(evt) => {
+                      evt.stopPropagation();
+                      onOpenTagPicker?.(clip);
+                    }}
+                    hitSlop={{ top: 2, bottom: 2 }}
+                  >
+                    {clip.tags?.map((tagKey) => {
+                      const color = getTagColor(tagKey, idea.customTags, globalCustomTags);
+                      const label = getTagLabel(tagKey, idea.customTags, globalCustomTags);
+                      return (
+                        <View key={tagKey} style={[styles.clipCardTagBadge, { backgroundColor: color.bg }]}>
+                          <Text style={[styles.clipCardTagBadgeText, { color: color.text }]}>{label}</Text>
+                        </View>
+                      );
+                    })}
+                    {!isEditMode && !isDraftProject && !isParentPicking && !clipSelectionMode ? (
+                      <View style={styles.clipCardAddTagBtn}>
+                        <Ionicons name="add" size={11} color="#94a3b8" />
+                      </View>
+                    ) : null}
                   </Pressable>
                 ) : null}
 
