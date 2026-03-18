@@ -38,6 +38,8 @@ type PracticeMarker = {
   atMs: number;
 };
 
+const EMPTY_IDEAS: import("../../types").SongIdea[] = [];
+
 function buildDefaultLoopRegion(durationMs: number, anchorMs = 0) {
   if (durationMs <= 0) {
     return { start: 0, end: 0 };
@@ -118,24 +120,38 @@ export function PlayerScreen() {
   const playerToggleRequestToken = useStore((s) => s.playerToggleRequestToken);
   const playerCloseRequestToken = useStore((s) => s.playerCloseRequestToken);
   const activeWorkspaceId = useStore((s) => s.activeWorkspaceId);
-  const ideas = useStore((s) => s.workspaces.find((w) => w.id === s.activeWorkspaceId)?.ideas || []);
-  const activeWorkspace = useStore((s) => s.workspaces.find((w) => w.id === s.activeWorkspaceId) ?? null);
+  const workspaces = useStore((s) => s.workspaces);
+  const activeWorkspace = useMemo(
+    () => workspaces.find((w) => w.id === activeWorkspaceId) ?? null,
+    [workspaces, activeWorkspaceId]
+  );
+  const ideas = activeWorkspace?.ideas ?? EMPTY_IDEAS;
 
-  const playerIdea = playerTarget ? ideas.find((x) => x.id === playerTarget.ideaId) ?? null : null;
-  const playerClip = playerIdea && playerTarget ? playerIdea.clips.find((c) => c.id === playerTarget.clipId) ?? null : null;
-  const queueEntries = playerQueue
-    .map((item) => {
-      const idea = ideas.find((candidate) => candidate.id === item.ideaId);
-      const clip = idea?.clips.find((candidate) => candidate.id === item.clipId);
-      if (!idea || !clip) return null;
-      return {
-        ideaId: item.ideaId,
-        clipId: item.clipId,
-        title: clip.title,
-        subtitle: idea.title,
-      };
-    })
-    .filter((entry): entry is { ideaId: string; clipId: string; title: string; subtitle: string } => !!entry);
+  const playerIdea = useMemo(
+    () => (playerTarget ? ideas.find((x) => x.id === playerTarget.ideaId) ?? null : null),
+    [ideas, playerTarget]
+  );
+  const playerClip = useMemo(
+    () => (playerIdea && playerTarget ? playerIdea.clips.find((c) => c.id === playerTarget.clipId) ?? null : null),
+    [playerIdea, playerTarget]
+  );
+  const queueEntries = useMemo(
+    () =>
+      playerQueue
+        .map((item) => {
+          const idea = ideas.find((candidate) => candidate.id === item.ideaId);
+          const clip = idea?.clips.find((candidate) => candidate.id === item.clipId);
+          if (!idea || !clip) return null;
+          return {
+            ideaId: item.ideaId,
+            clipId: item.clipId,
+            title: clip.title,
+            subtitle: idea.title,
+          };
+        })
+        .filter((entry): entry is { ideaId: string; clipId: string; title: string; subtitle: string } => !!entry),
+    [playerQueue, ideas]
+  );
   const latestLyricsVersion = useMemo(
     () => (playerIdea?.kind === "project" ? getLatestLyricsVersion(playerIdea) : null),
     [playerIdea]
