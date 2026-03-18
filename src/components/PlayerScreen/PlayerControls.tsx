@@ -29,6 +29,12 @@ type Props = {
         timelineScale: SharedValue<number>;
         sharedAudioProgress: SharedValue<number>;
     }) => ReactNode;
+    renderBelowOverlay?: (args: {
+        pixelsPerMs: number;
+        timelineTranslateX: SharedValue<number>;
+        timelineScale: SharedValue<number>;
+        sharedAudioProgress: SharedValue<number>;
+    }) => ReactNode;
     onSeekTo: (ms: number) => void | Promise<void>;
     onTogglePlay: () => void;
     onScrubStateChange?: (scrubbing: boolean) => void;
@@ -56,6 +62,7 @@ export function PlayerControls({
     minimapInteractive,
     selectedRanges,
     renderOverlay,
+    renderBelowOverlay,
     onSeekTo,
     onTogglePlay,
     onScrubStateChange,
@@ -84,6 +91,7 @@ export function PlayerControls({
             minimapInteractive={minimapInteractive}
             selectedRanges={selectedRanges}
             renderOverlay={renderOverlay}
+            renderBelowOverlay={renderBelowOverlay}
             onSeek={onSeekTo}
             onTogglePlay={onTogglePlay}
             onSeekToStart={() => onSeekTo(0)}

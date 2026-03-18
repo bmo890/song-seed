@@ -43,6 +43,7 @@ type Props = {
     onScrubStateChange?: (scrubbing: boolean) => void;
     selectedRanges?: Range[];
     renderOverlay?: (args: OverlayArgs) => ReactNode;
+    renderBelowOverlay?: (args: OverlayArgs) => ReactNode;
     chrome?: ReelChrome;
     showTransportControls?: boolean;
     showExpandToggle?: boolean;
@@ -73,6 +74,7 @@ export function AudioReel({
     onScrubStateChange,
     selectedRanges,
     renderOverlay,
+    renderBelowOverlay,
     chrome = "dark",
     showTransportControls = true,
     showExpandToggle = true,
@@ -355,6 +357,12 @@ export function AudioReel({
                     ) : null}
                 </View>
             </AnimatedView>
+
+            {renderBelowOverlay ? (
+                <View style={{ marginHorizontal: timelineHorizontalPadding, overflow: "visible" }}>
+                    {renderBelowOverlay({ pixelsPerMs, timelineTranslateX, timelineScale, sharedAudioProgress })}
+                </View>
+            ) : null}
 
             {showZoomControls && zoomPlacement === "bottom" ? zoomControls : null}
 
