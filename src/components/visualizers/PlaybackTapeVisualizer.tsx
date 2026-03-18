@@ -223,12 +223,28 @@ const baseChunkWidth = 3;
             wave.lineTo(x, centerY + h);
         });
 
-        // Add enough ticks to cover an arbitrarily wide un-zoomed area
-        const totalBaseSeconds = Math.ceil(durationMs / 1000);
+        // Add ruler ticks, thinning out when density is too high
+        const totalSeconds = durationMs / 1000 || 1;
+        const pixelsPerSecond = baseContentWidth / totalSeconds;
+        const MIN_TICK_PX = 4; // minimum pixels between ticks before we skip
 
-        for (let s = 0; s <= totalBaseSeconds; s++) {
-            const x = s * (baseContentWidth / (durationMs / 1000 || 1));
-            const isMajor = s % 5 === 0;
+        // Choose a tick interval that keeps ticks at least MIN_TICK_PX apart
+        // Candidate intervals: 1s, 2s, 5s, 10s, 15s, 30s, 60s, 120s, 300s...
+        const intervals = [1, 2, 5, 10, 15, 30, 60, 120, 300, 600];
+        let tickInterval = 1;
+        for (const iv of intervals) {
+            if (iv * pixelsPerSecond >= MIN_TICK_PX) {
+                tickInterval = iv;
+                break;
+            }
+            tickInterval = iv;
+        }
+        // Major tick every 5 tick-intervals (or every interval if already sparse)
+        const majorEvery = tickInterval >= 10 ? 1 : 5;
+
+        for (let s = 0; s <= Math.ceil(totalSeconds); s += tickInterval) {
+            const x = s * pixelsPerSecond;
+            const isMajor = s % (tickInterval * majorEvery) === 0;
 
             const tickHeight = isMajor ? 12 : 6;
             ruler.moveTo(x, 0);

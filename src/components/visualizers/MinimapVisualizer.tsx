@@ -41,22 +41,39 @@ export function MinimapVisualizer({
         setContainerWidth((prev) => (prev === nextWidth ? prev : nextWidth));
     };
 
-    const { wavePath } = useMemo(() => {
-        if (containerWidth === 0 || waveformPeaks.length === 0) return { wavePath: null };
+    // Downsample peaks so each bar is at least MIN_BAR_PX wide
+    const MIN_BAR_PX = 2.5;
+
+    const { wavePath, barCount } = useMemo(() => {
+        if (containerWidth === 0 || waveformPeaks.length === 0) return { wavePath: null, barCount: 0 };
+
+        const maxBars = Math.floor(containerWidth / MIN_BAR_PX);
+        const numBars = Math.min(waveformPeaks.length, maxBars);
+        const chunkWidth = containerWidth / numBars;
+        const peaksPerBar = waveformPeaks.length / numBars;
+
         const wave = Skia.Path.Make();
         const centerY = containerHeight / 2;
         const waveMaxHeight = containerHeight / 2 - 2;
-        const chunkWidth = containerWidth / waveformPeaks.length;
 
-        waveformPeaks.forEach((amp, i) => {
-            const x = i * chunkWidth;
-            const scaleFactor = Math.max(0.02, Math.pow(Math.min(1, Math.max(0, amp)), 0.8));
+        for (let i = 0; i < numBars; i++) {
+            const startIdx = Math.floor(i * peaksPerBar);
+            const endIdx = Math.min(Math.floor((i + 1) * peaksPerBar), waveformPeaks.length);
+
+            // Take the max amplitude in this bucket for a representative peak
+            let maxAmp = 0;
+            for (let j = startIdx; j < endIdx; j++) {
+                if (waveformPeaks[j] > maxAmp) maxAmp = waveformPeaks[j];
+            }
+
+            const x = i * chunkWidth + chunkWidth / 2;
+            const scaleFactor = Math.max(0.02, Math.pow(Math.min(1, Math.max(0, maxAmp)), 0.8));
             const h = scaleFactor * waveMaxHeight;
 
             wave.moveTo(x, centerY - h);
             wave.lineTo(x, centerY + h);
-        });
-        return { wavePath: wave };
+        }
+        return { wavePath: wave, barCount: numBars };
     }, [waveformPeaks, containerWidth]);
 
     const palette = chrome === "light"
@@ -167,7 +184,7 @@ export function MinimapVisualizer({
                             {rangeRects.map(r => (
                                 <SkiaRect key={r.id} x={r.x} y={0} width={r.w} height={containerHeight} color={r.fill} />
                             ))}
-                            <Path path={wavePath} color={palette.waveColor} style="stroke" strokeWidth={Math.max(1, containerWidth / waveformPeaks.length)} />
+                            <Path path={wavePath} color={palette.waveColor} style="stroke" strokeWidth={Math.max(1, containerWidth / barCount * 0.7)} strokeCap="round" />
                         </Canvas>
 
                         {/* Playhead indicator */}
