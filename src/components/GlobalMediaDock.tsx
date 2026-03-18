@@ -14,7 +14,7 @@ type GlobalMediaDockProps = {
 };
 
 type PlaybackDockState = {
-  kind: "player" | "inline";
+  kind: "player";
   ideaId: string;
   clipId: string;
   title: string;
@@ -37,10 +37,6 @@ export function GlobalMediaDock({
   const playerPositionMs = useStore((s) => s.playerPositionMs);
   const playerDurationMs = useStore((s) => s.playerDurationMs);
   const playerIsPlaying = useStore((s) => s.playerIsPlaying);
-  const inlineTarget = useStore((s) => s.inlineTarget);
-  const inlinePositionMs = useStore((s) => s.inlinePositionMs);
-  const inlineDurationMs = useStore((s) => s.inlineDurationMs);
-  const inlineIsPlaying = useStore((s) => s.inlineIsPlaying);
   const recordingElapsedMs = useRecordingDisplayElapsed({
     durationMs: recorder.durationMs,
     isRecording: recorder.isRecording,
@@ -68,23 +64,6 @@ export function GlobalMediaDock({
           isPlaying: playerIsPlaying,
           positionMs: playerPositionMs,
           durationMs: playerDurationMs || clip.durationMs || 0,
-        } satisfies PlaybackDockState;
-      }
-    }
-
-    if (inlineTarget && activeRouteName !== "Player") {
-      const idea = allIdeas.find((item) => item.id === inlineTarget.ideaId);
-      const clip = idea?.clips.find((item) => item.id === inlineTarget.clipId);
-      if (idea && clip) {
-        return {
-          kind: "inline",
-          ideaId: idea.id,
-          clipId: clip.id,
-          title: clip.title,
-          subtitle: idea.title,
-          isPlaying: inlineIsPlaying,
-          positionMs: inlinePositionMs,
-          durationMs: inlineDurationMs || clip.durationMs || 0,
         } satisfies PlaybackDockState;
       }
     }
@@ -192,19 +171,7 @@ export function GlobalMediaDock({
           styles.miniMediaDockCard,
           pressed ? styles.pressDown : null,
         ]}
-        onPress={() => {
-          if (activePlayback.kind === "inline") {
-            useStore.getState().requestInlineStop();
-            useStore
-              .getState()
-              .setPlayerQueue(
-                [{ ideaId: activePlayback.ideaId, clipId: activePlayback.clipId }],
-                0,
-                activePlayback.isPlaying
-              );
-          }
-          onOpenPlayer();
-        }}
+        onPress={onOpenPlayer}
       >
         <View style={styles.miniMediaDockTopRow}>
           <View style={styles.miniMediaDockCopy}>
@@ -238,11 +205,7 @@ export function GlobalMediaDock({
               ]}
               onPress={(evt) => {
                 evt.stopPropagation();
-                if (activePlayback.kind === "player") {
-                  useStore.getState().requestPlayerToggle();
-                  return;
-                }
-                useStore.getState().requestInlineToggle();
+                useStore.getState().requestPlayerToggle();
               }}
               accessibilityRole="button"
               accessibilityLabel={activePlayback.isPlaying ? "Pause playback" : "Play playback"}
@@ -261,11 +224,7 @@ export function GlobalMediaDock({
               ]}
               onPress={(evt) => {
                 evt.stopPropagation();
-                if (activePlayback.kind === "player") {
-                  useStore.getState().requestPlayerClose();
-                  return;
-                }
-                useStore.getState().requestInlineStop();
+                useStore.getState().requestPlayerClose();
               }}
               accessibilityRole="button"
               accessibilityLabel="Dismiss mini player"

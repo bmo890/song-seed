@@ -1,5 +1,5 @@
 import { LayoutChangeEvent, PanResponder, Text, View } from "react-native";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { styles } from "../styles";
 import { fmtDuration } from "../utils";
 
@@ -25,7 +25,8 @@ export function MiniProgress({
   captureWholeLane = false,
 }: Props) {
   const safeDuration = durationMs || 1;
-  const [trackFrame, setTrackFrame] = useState({ x: 0, width: 0 });
+  const trackRef = useRef<View | null>(null);
+  const [trackFrame, setTrackFrame] = useState({ pageX: 0, width: 0 });
   const [dragMs, setDragMs] = useState<number | null>(null);
   const [isCommitPending, setIsCommitPending] = useState(false);
 
@@ -40,33 +41,41 @@ export function MiniProgress({
     setIsCommitPending(false);
   }, [currentMs, dragMs, isCommitPending]);
 
-  const handleTrackLayout = (evt: LayoutChangeEvent) => {
-    const { x, width } = evt.nativeEvent.layout;
-    setTrackFrame((prev) => (prev.x === x && prev.width === width ? prev : { x, width }));
+  const measureTrackFrame = useCallback(() => {
+    trackRef.current?.measureInWindow((pageX, _pageY, width) => {
+      setTrackFrame((prev) =>
+        prev.pageX === pageX && prev.width === width ? prev : { pageX, width }
+      );
+    });
+  }, []);
+
+  const handleTrackLayout = (_evt: LayoutChangeEvent) => {
+    requestAnimationFrame(measureTrackFrame);
   };
 
-  const getSeekTime = (locationX: number) => {
+  const getSeekTime = (pageX: number) => {
     if (trackFrame.width <= 0) return 0;
-    const trackRelativeX = captureWholeLane ? locationX - trackFrame.x : locationX;
+    const trackRelativeX = pageX - trackFrame.pageX;
     const ratio = Math.max(0, Math.min(1, trackRelativeX / trackFrame.width));
     return ratio * safeDuration;
   };
 
-  const updateDragPosition = (locationX: number) => {
+  const updateDragPosition = (pageX: number) => {
     if (!onSeek) return;
-    setDragMs(getSeekTime(locationX));
+    setDragMs(getSeekTime(pageX));
   };
 
-  const beginDrag = (locationX: number) => {
+  const beginDrag = (pageX: number) => {
     if (!onSeek) return;
     setIsCommitPending(false);
+    measureTrackFrame();
     void onSeekStart?.();
-    updateDragPosition(locationX);
+    updateDragPosition(pageX);
   };
 
-  const commitSeek = (locationX: number) => {
+  const commitSeek = (pageX: number) => {
     if (!onSeek) return;
-    const nextMs = getSeekTime(locationX);
+    const nextMs = getSeekTime(pageX);
     setDragMs(nextMs);
     setIsCommitPending(true);
     void Promise.resolve(onSeek(nextMs)).catch(() => {
@@ -84,16 +93,16 @@ export function MiniProgress({
         onMoveShouldSetPanResponderCapture: () => !!onSeek,
         onPanResponderTerminationRequest: () => false,
         onShouldBlockNativeResponder: () => true,
-        onPanResponderGrant: (evt) => beginDrag(evt.nativeEvent.locationX),
-        onPanResponderMove: (evt) => updateDragPosition(evt.nativeEvent.locationX),
-        onPanResponderRelease: (evt) => commitSeek(evt.nativeEvent.locationX),
+        onPanResponderGrant: (evt) => beginDrag(evt.nativeEvent.pageX),
+        onPanResponderMove: (evt) => updateDragPosition(evt.nativeEvent.pageX),
+        onPanResponderRelease: (evt) => commitSeek(evt.nativeEvent.pageX),
         onPanResponderTerminate: () => {
           setDragMs(null);
           setIsCommitPending(false);
           void onSeekCancel?.();
         },
       }),
-    [captureWholeLane, onSeek, onSeekCancel, onSeekStart, safeDuration, trackFrame.width, trackFrame.x]
+    [beginDrag, commitSeek, onSeek, onSeekCancel, updateDragPosition]
   );
 
   const responderHandlers = onSeek ? panResponder.panHandlers : {};
@@ -101,7 +110,6 @@ export function MiniProgress({
   return (
     <View
       style={[styles.miniProgressWrap, extraBottomMargin ? { paddingBottom: extraBottomMargin } : null]}
-      {...(captureWholeLane ? responderHandlers : {})}
     >
       {showTopDivider ? <View style={styles.miniProgressTopDivider} /> : null}
       <View style={styles.miniProgressTimes}>
@@ -109,9 +117,13 @@ export function MiniProgress({
         <Text style={styles.miniProgressTime}>{fmtDuration(durationMs || 0)}</Text>
       </View>
       <View
+        ref={trackRef}
         onLayout={handleTrackLayout}
-        style={styles.miniProgressTrackHitbox}
-        {...(!captureWholeLane ? responderHandlers : {})}
+        style={[
+          styles.miniProgressTrackHitbox,
+          captureWholeLane ? { minHeight: 24, justifyContent: "center" } : null,
+        ]}
+        {...responderHandlers}
       >
         <View style={styles.miniProgressTrack}>
           <View style={[styles.miniProgressFill, { width: `${clamped * 100}%` }]} />

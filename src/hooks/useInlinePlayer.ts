@@ -16,6 +16,8 @@ export function useInlinePlayer({ onBeforePlayNew }: Args = {}) {
   const toggleRequestToken = useStore((s) => s.inlineToggleRequestToken);
   const setStoreInlineTarget = useStore((s) => s.setInlineTarget);
   const setInlinePlaybackState = useStore((s) => s.setInlinePlaybackState);
+  const clearPlayerQueue = useStore((s) => s.clearPlayerQueue);
+  const requestPlayerClose = useStore((s) => s.requestPlayerClose);
   const handledStopTokenRef = useRef(stopRequestToken);
   const handledToggleTokenRef = useRef(toggleRequestToken);
 
@@ -91,6 +93,8 @@ export function useInlinePlayer({ onBeforePlayNew }: Args = {}) {
     }
 
     try {
+      requestPlayerClose();
+      clearPlayerQueue();
       if (onBeforePlayNew) await onBeforePlayNew();
       await resetInlinePlayer();
 

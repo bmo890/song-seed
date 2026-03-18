@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { StatusBar as ExpoStatusBar } from "expo-status-bar";
 import { Text, View, Alert, Animated, Pressable, Platform } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
-import { useNavigation, useRoute } from "@react-navigation/native";
+import { useIsFocused, useNavigation, useRoute } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { styles } from "../../styles";
 import { SongIdea, ClipVersion, PlaybackQueueItem, IdeasTimelineMetric, WorkspaceHiddenDay } from "../../types";
@@ -46,6 +46,7 @@ function buildDefaultSubcollectionTitle(count: number) {
 
 export function IdeaListScreen() {
   const navigation = useNavigation();
+  const isFocused = useIsFocused();
   const route = useRoute<any>();
   const rootNavigation = (navigation as any).getParent?.();
   const navigateRoot = (route: string, params?: object) =>
@@ -467,6 +468,11 @@ export function IdeaListScreen() {
       }
     };
   }, []);
+
+  useEffect(() => {
+    if (isFocused) return;
+    void inlinePlayer.resetInlinePlayer();
+  }, [inlinePlayer, isFocused]);
 
   const showUndo = (message: string, undo: () => void) => {
     if (undoTimerRef.current) {
