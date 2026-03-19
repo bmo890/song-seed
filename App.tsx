@@ -51,7 +51,7 @@ const NAVIGATION_STATE_KEY = "song-seed-navigation-state-v1";
 const NON_RESTORABLE_ROUTE_NAMES = new Set(["ShareImport"]);
 
 export type HomeDrawerParamList = {
-  Workspaces: undefined;
+  Workspaces: { openDrawerOnFocus?: number } | undefined;
   Browse: undefined;
   CollectionDetail: CollectionDetailRouteParams | undefined;
   RevisitHome: undefined;

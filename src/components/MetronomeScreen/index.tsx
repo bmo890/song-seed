@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import Slider from "@react-native-community/slider";
 import { type ComponentProps, useEffect, useMemo, useRef } from "react";
-import { DrawerActions, useNavigation } from "@react-navigation/native";
+import { useNavigation } from "@react-navigation/native";
 import {
   Animated,
   Pressable,
@@ -107,10 +107,10 @@ export function MetronomeScreen() {
         leftIcon="hamburger"
         preserveRequestedLeftIcon
         onLeftPress={() => {
-          (navigation as any).navigate("Home", { screen: "Workspaces" });
-          setTimeout(() => {
-            navigation.dispatch(DrawerActions.openDrawer());
-          }, 0);
+          (navigation as any).navigate("Home", {
+            screen: "Workspaces",
+            params: { openDrawerOnFocus: Date.now() },
+          });
         }}
       />
 
