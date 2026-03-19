@@ -22,15 +22,11 @@ type Props = {
     maxLines?: number;
 } & Omit<TextInputProps, "value" | "onChangeText" | "placeholder" | "style" | "multiline">;
 
-function sanitizeTitleValue(value: string, maxLength: number, maxLines: number) {
+function sanitizeTitleValue(value: string, maxLength: number, maxLines: number, trimTrailing: boolean) {
     const normalized = value.replace(/\r\n/g, "\n");
-    const limitedLines = normalized.split("\n").slice(0, maxLines);
-    const collapsed = limitedLines
-        .map((line) => line.replace(/\s+$/g, ""))
-        .join("\n")
-        .replace(/\n{2,}/g, "\n")
-        .slice(0, maxLength);
-    return collapsed;
+    let lines = normalized.split("\n").slice(0, maxLines);
+    if (trimTrailing) lines = lines.map((line) => line.replace(/\s+$/g, ""));
+    return lines.join("\n").replace(/\n{2,}/g, "\n").slice(0, maxLength);
 }
 
 export function TitleInput({
@@ -64,7 +60,10 @@ export function TitleInput({
                 ]}
                 value={value}
                 onChangeText={(nextValue) => {
-                    onChangeText(sanitizeTitleValue(nextValue, maxLength, maxLines));
+                    onChangeText(sanitizeTitleValue(nextValue, maxLength, maxLines, false));
+                }}
+                onBlur={() => {
+                    onChangeText(sanitizeTitleValue(value, maxLength, maxLines, true));
                 }}
                 placeholder={placeholder}
                 placeholderTextColor="#6b7280"
@@ -84,7 +83,7 @@ export function TitleInput({
                     {showGenerator ? (
                         <Pressable
                             style={({ pressed }) => [styles.titleClearBtn, pressed ? styles.pressDown : null]}
-                            onPress={() => onChangeText(sanitizeTitleValue(genIdea(), maxLength, maxLines))}
+                            onPress={() => onChangeText(sanitizeTitleValue(genIdea(), maxLength, maxLines, true))}
                         >
                             <Ionicons name="sparkles" size={14} color="#6b7280" />
                         </Pressable>
