@@ -8,7 +8,6 @@ import { styles } from "../../styles";
 import { useStore } from "../../state/useStore";
 import { appActions } from "../../state/actions";
 import { ScreenHeader } from "../common/ScreenHeader";
-import { AppBreadcrumbs } from "../common/AppBreadcrumbs";
 import { PageIntro } from "../common/PageIntro";
 import { SearchField } from "../common/SearchField";
 import { SurfaceCard } from "../common/SurfaceCard";
@@ -352,17 +351,6 @@ export function WorkspaceBrowseScreen() {
   return (
     <SafeAreaView style={styles.screen}>
       <ScreenHeader title="Workspace" leftIcon="hamburger" />
-      <AppBreadcrumbs
-        items={[
-          {
-            key: "home",
-            label: "Home",
-            level: "home",
-            onPress: () => navigation.navigate("Workspaces" as never),
-          },
-          { key: "workspace", label: activeWorkspace.title, level: "workspace", active: true },
-        ]}
-      />
 
       <PageIntro
         title={activeWorkspace.title}

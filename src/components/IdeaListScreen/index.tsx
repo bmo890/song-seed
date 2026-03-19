@@ -1455,13 +1455,6 @@ export function IdeaListScreen() {
         <AppBreadcrumbs
           items={[
             {
-              key: "home",
-              label: "Home",
-              level: "home",
-              iconOnly: true,
-              onPress: () => navigateRoot("Home", { screen: "Workspaces" }),
-            },
-            {
               key: `workspace-${activeWorkspace.id}`,
               label: activeWorkspace.title,
               level: "workspace",
@@ -1477,12 +1470,6 @@ export function IdeaListScreen() {
                   ...collectionRouteParams,
                 }),
             })),
-            {
-              key: currentCollection.id,
-              label: currentCollection.title,
-              level: getCollectionHierarchyLevel(currentCollection),
-              active: true,
-            },
           ]}
         />
 

@@ -80,13 +80,6 @@ export function IdeaHeader({
         if (!selectedIdea) return [];
 
         return [
-            {
-                key: "home",
-                label: "Home",
-                level: "home",
-                iconOnly: true,
-                onPress: () => navigateRoot("Home", { screen: "Workspaces" }),
-            },
             ...(activeWorkspace
                 ? [
                     {

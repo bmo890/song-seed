@@ -9,7 +9,6 @@ import { appActions } from "../../state/actions";
 import { WorkspaceModal } from "../modals/WorkspaceModal";
 import { ClipboardBanner } from "../ClipboardBanner";
 import { ScreenHeader } from "../common/ScreenHeader";
-import { AppBreadcrumbs } from "../common/AppBreadcrumbs";
 import { Button } from "../common/Button";
 import { SectionHeader } from "../common/SectionHeader";
 import { SegmentedControl } from "../common/SegmentedControl";
@@ -194,7 +193,6 @@ export function WorkspaceListScreen() {
   return (
     <SafeAreaView style={styles.screen}>
       <ScreenHeader title="Home" leftIcon="hamburger" />
-      <AppBreadcrumbs items={[{ key: "home", label: "Home", level: "home", active: true }]} />
 
       {clipClipboard ? (
         <ClipboardBanner
