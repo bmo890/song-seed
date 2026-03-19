@@ -1,6 +1,6 @@
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import Constants from "expo-constants";
-import { ActivityIndicator, View } from "react-native";
+import { ActivityIndicator, Alert, View } from "react-native";
 import {
   NavigationContainer,
   useNavigationContainerRef,
@@ -40,6 +40,8 @@ import {
 } from "./src/libraryNavigation";
 import type { CollectionDetailRouteParams } from "./src/navigation";
 import { cleanupStaleShareTempFiles } from "./src/services/managedMedia";
+import { resumePendingWorkspaceArchiveOperations } from "./src/services/workspaceArchiveRecovery";
+import { recoverPendingRecordingSession } from "./src/services/recordingRecovery";
 
 export type HomeDrawerParamList = {
   Workspaces: undefined;
@@ -473,7 +475,22 @@ export default function App() {
     if (!hasHydrated) return;
     // Sweep stale share/export temp files after hydration so the app does not keep growing
     // storage usage from artifacts that were never part of persisted user state.
-    void cleanupStaleShareTempFiles();
+    void (async () => {
+      await cleanupStaleShareTempFiles();
+      await resumePendingWorkspaceArchiveOperations();
+      const recordingRecovery = await recoverPendingRecordingSession();
+      if (recordingRecovery.status === "recovered") {
+        Alert.alert(
+          "Recovered recording",
+          `${recordingRecovery.title} was restored after the previous session ended unexpectedly.`
+        );
+      } else if (recordingRecovery.status === "failed") {
+        Alert.alert(
+          "Recording recovery failed",
+          "Song Seed found an unfinished recording from the previous session but could not restore it automatically."
+        );
+      }
+    })();
   }, [hasHydrated]);
 
   return (

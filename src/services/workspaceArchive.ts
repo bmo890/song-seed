@@ -1,9 +1,13 @@
 import * as FileSystem from "expo-file-system/legacy";
-import { strFromU8, strToU8, unzipSync, zipSync } from "fflate";
+import { strFromU8, strToU8, unzipSync } from "fflate";
 import type { Workspace, WorkspaceArchiveState } from "../types";
-import { getArchiveFileExtension, sanitizeArchiveSegment } from "./audioStorage";
+import {
+    createZipArchive,
+    getArchiveFileExtension,
+    sanitizeArchiveSegment,
+    type ZipArchiveEntry,
+} from "./audioStorage";
 import { SONG_SEED_WORKSPACE_ARCHIVE_DIR, isSongSeedManagedUri } from "./storagePaths";
-import { ensureArchiveSizeWithinSafetyLimit } from "./managedMedia";
 
 const WORKSPACE_ARCHIVE_SCHEMA_VERSION = 1;
 
@@ -252,11 +256,6 @@ export async function archiveWorkspaceToDevice(workspace: Workspace): Promise<Wo
     const workspaceSnapshot = cloneWorkspace(workspace);
     const archiveUri = buildWorkspaceArchiveUri(workspace);
     const { mediaFiles, missingFileUris, originalAudioBytes } = await collectWorkspaceMediaFiles(workspaceSnapshot);
-    await ensureArchiveSizeWithinSafetyLimit(
-        mediaFiles.map((file) => file.liveUri),
-        `Archive for ${workspace.title || "workspace"}`
-    );
-
     const manifest: WorkspaceArchivePackageManifest = {
         schemaVersion: WORKSPACE_ARCHIVE_SCHEMA_VERSION,
         workspaceId: workspaceSnapshot.id,
@@ -266,24 +265,24 @@ export async function archiveWorkspaceToDevice(workspace: Workspace): Promise<Wo
         missingFileUris,
     };
 
-    const archiveEntries: Record<string, Uint8Array> = {
-        "manifest.json": strToU8(JSON.stringify(manifest)),
-        "workspace.json": strToU8(JSON.stringify(workspaceSnapshot)),
-    };
+    const archiveEntries: ZipArchiveEntry[] = [
+        { archiveName: "manifest.json", data: JSON.stringify(manifest) },
+        { archiveName: "workspace.json", data: JSON.stringify(workspaceSnapshot) },
+        ...mediaFiles.map((file) => ({
+            archiveName: file.archivePath,
+            fileUri: file.liveUri,
+        })),
+    ];
 
-    for (const file of mediaFiles) {
-        archiveEntries[file.archivePath] = await readFileBytes(file.liveUri);
-    }
-
-    const archiveBytes = zipSync(archiveEntries, { level: 9 });
-    await writeFileBytes(archiveUri, archiveBytes);
-
-    const verification = await verifyArchiveFile(archiveUri, workspace.id, mediaFiles);
+    await createZipArchive(archiveUri, archiveEntries);
+    const archiveInfo = await FileSystem.getInfoAsync(archiveUri);
+    const packageSizeBytes =
+        "size" in archiveInfo && typeof archiveInfo.size === "number" ? archiveInfo.size : 0;
     const provisionalArchiveState: WorkspaceArchiveState = {
         schemaVersion: WORKSPACE_ARCHIVE_SCHEMA_VERSION,
         archivedAt: Date.now(),
         archiveUri,
-        packageSizeBytes: verification.packageSizeBytes,
+        packageSizeBytes,
         originalAudioBytes,
         originalMetadataBytes: estimateJsonBytes(workspaceSnapshot),
         archivedMetadataBytes: 0,
@@ -296,7 +295,7 @@ export async function archiveWorkspaceToDevice(workspace: Workspace): Promise<Wo
     const savingsBytes =
         originalAudioBytes +
         provisionalArchiveState.originalMetadataBytes -
-        (verification.packageSizeBytes + archivedMetadataBytes);
+        (provisionalArchiveState.packageSizeBytes + archivedMetadataBytes);
 
     if (savingsBytes <= 0) {
         await FileSystem.deleteAsync(archiveUri, { idempotent: true });
@@ -313,7 +312,7 @@ export async function archiveWorkspaceToDevice(workspace: Workspace): Promise<Wo
     const exactSavingsBytes =
         originalAudioBytes +
         provisionalArchiveState.originalMetadataBytes -
-        (verification.packageSizeBytes + exactArchivedMetadataBytes);
+        (provisionalArchiveState.packageSizeBytes + exactArchivedMetadataBytes);
 
     if (exactSavingsBytes <= 0) {
         await FileSystem.deleteAsync(archiveUri, { idempotent: true });
@@ -330,7 +329,7 @@ export async function archiveWorkspaceToDevice(workspace: Workspace): Promise<Wo
     const finalSavingsBytes =
         originalAudioBytes +
         provisionalArchiveState.originalMetadataBytes -
-        (verification.packageSizeBytes + finalArchivedMetadataBytes);
+        (provisionalArchiveState.packageSizeBytes + finalArchivedMetadataBytes);
 
     if (finalSavingsBytes <= 0) {
         await FileSystem.deleteAsync(archiveUri, { idempotent: true });

@@ -14,6 +14,10 @@ import {
     deleteManagedAudioUris,
     filterUnreferencedManagedAudioUris,
 } from "../services/managedMedia";
+import {
+    clearPendingWorkspaceArchiveOperation,
+    upsertPendingWorkspaceArchiveOperation,
+} from "../services/workspaceArchiveRecovery";
 
 function buildEntityId(prefix: string) {
     return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
@@ -1241,7 +1245,15 @@ export const appActions = {
         const result = await archiveWorkspaceToDevice(workspace);
         useStore.setState((store) => buildWorkspaceArchivalState(store, result.archivedWorkspace));
         await persistCurrentStoreSnapshot();
+        await upsertPendingWorkspaceArchiveOperation({
+            kind: "archive-cleanup",
+            workspaceId,
+            archiveUri: result.archiveState.archiveUri,
+            originalAudioUris: result.originalAudioUris,
+            createdAt: Date.now(),
+        });
         await deleteManagedAudioUris(result.originalAudioUris);
+        await clearPendingWorkspaceArchiveOperation(workspaceId);
         return result;
     },
 
@@ -1272,6 +1284,12 @@ export const appActions = {
             };
         }
 
+        await upsertPendingWorkspaceArchiveOperation({
+            kind: "unarchive-restore",
+            workspaceId,
+            archiveUri: workspace.archiveState.archiveUri,
+            createdAt: Date.now(),
+        });
         const result = await restoreWorkspaceFromDevice(workspace);
         useStore.setState((store) => ({
             workspaces: store.workspaces.map((item) =>
@@ -1280,7 +1298,14 @@ export const appActions = {
             activeWorkspaceId: store.activeWorkspaceId ?? workspaceId,
         }));
         await persistCurrentStoreSnapshot();
+        await upsertPendingWorkspaceArchiveOperation({
+            kind: "unarchive-cleanup",
+            workspaceId,
+            archiveUri: workspace.archiveState.archiveUri,
+            createdAt: Date.now(),
+        });
         await deleteManagedArchiveUri(workspace.archiveState.archiveUri);
+        await clearPendingWorkspaceArchiveOperation(workspaceId);
         return result;
     },
 
