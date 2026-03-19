@@ -671,14 +671,12 @@ export function PlayerScreen() {
             <View style={screenStyles.titleBlock}>
               <Text style={screenStyles.title}>{playerClip.title}</Text>
               <View style={screenStyles.metaRow}>
-                <Text style={screenStyles.metaText}>{playerClip.isPrimary ? "Main take" : "Clip"}</Text>
                 {playerIdea.kind === "project" ? (
                   <>
-                    <Text style={screenStyles.metaDot}>•</Text>
                     <Text style={screenStyles.metaText}>{playerIdea.title}</Text>
+                    <Text style={screenStyles.metaDot}>•</Text>
                   </>
                 ) : null}
-                <Text style={screenStyles.metaDot}>•</Text>
                 <Text style={screenStyles.metaText}>{formatDate(playerClip.createdAt)}</Text>
                 <View style={screenStyles.metaSpacer} />
                 <Text style={screenStyles.timingText}>
