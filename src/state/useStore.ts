@@ -21,6 +21,14 @@ import {
 } from "../libraryNavigation";
 import { startManifestSync } from "../services/manifestSync";
 import { consumeIntentionalEmptyStateWrite } from "../services/stateIntegrity";
+import {
+    getLastPersistedIdeaCount,
+    isHydrationComplete,
+    isPersistBlocked,
+    setHydrationComplete,
+    setLastPersistedIdeaCount,
+    setPersistBlocked,
+} from "./persistRuntime";
 
 export type AppStore = DataSlice & SelectionSlice & RecordingSlice & PlayerSlice;
 export type PersistedAppStore = Pick<
@@ -129,35 +137,6 @@ export function buildPersistedAppStoreSnapshot(state: AppStore): PersistedAppSto
 }
 
 /**
- * Tracks whether zustand's persist middleware has finished hydrating
- * from AsyncStorage. The manifest writer must NOT start until this
- * is true — otherwise it could write the empty default state to disk.
- */
-let _hydrationComplete = false;
-export function isHydrationComplete() {
-    return _hydrationComplete;
-}
-
-/**
- * Tracks the last known idea count that was successfully persisted.
- * Used by the persist guard to detect state corruption (sudden drop to 0).
- */
-let _lastPersistedIdeaCount = -1; // -1 = not yet initialized
-export function getLastPersistedIdeaCount() {
-    return _lastPersistedIdeaCount;
-}
-
-/**
- * Whether the persist guard has blocked a write. Once blocked,
- * ALL subsequent writes are blocked until the app restarts.
- * This prevents a corrupted state from eventually sneaking through.
- */
-let _persistBlocked = false;
-export function isPersistBlocked() {
-    return _persistBlocked;
-}
-
-/**
  * Guarded AsyncStorage adapter that ACTUALLY blocks writes when data
  * loss is detected. This is the real safety net — `partialize` alone
  * can't skip writes because zustand always calls setItem with the result.
@@ -169,7 +148,7 @@ function createGuardedStorage() {
         getItem: baseStorage.getItem.bind(baseStorage),
         removeItem: baseStorage.removeItem.bind(baseStorage),
         setItem: (name: string, value: any) => {
-            if (_persistBlocked) {
+            if (isPersistBlocked()) {
                 console.warn(
                     `[PersistGuard] BLOCKED write to "${name}" — persist is locked due to suspected data corruption.`
                 );
@@ -177,7 +156,7 @@ function createGuardedStorage() {
             }
 
             // Parse the value to check idea count before writing
-            if (_hydrationComplete && _lastPersistedIdeaCount > 0) {
+            if (isHydrationComplete() && getLastPersistedIdeaCount() > 0) {
                 try {
                     const parsed = typeof value === "string" ? JSON.parse(value) : value;
                     const state = (parsed as { state?: PersistedAppStore })?.state;
@@ -189,16 +168,16 @@ function createGuardedStorage() {
                             // A deliberate last-item delete is the only valid reason to
                             // transition the persisted library from >0 ideas to 0 ideas.
                             if (!consumeIntentionalEmptyStateWrite()) {
-                                _persistBlocked = true;
+                                setPersistBlocked(true);
                                 console.warn(
-                                    `[PersistGuard] BLOCKED and LOCKED: attempted to write 0 ideas when last known count was ${_lastPersistedIdeaCount}. ` +
+                                    `[PersistGuard] BLOCKED and LOCKED: attempted to write 0 ideas when last known count was ${getLastPersistedIdeaCount()}. ` +
                                     `All future writes blocked until app restart.`
                                 );
                                 return; // Block the write
                             }
                         }
 
-                        _lastPersistedIdeaCount = newIdeaCount;
+                        setLastPersistedIdeaCount(newIdeaCount);
                     }
                 } catch {
                     // If we can't parse it, let it through — better than blocking valid writes
@@ -228,12 +207,12 @@ export const useStore = create<AppStore>()(
                 const snapshot = buildPersistedAppStoreSnapshot(state);
 
                 // Track the idea count for the guarded storage adapter
-                if (_hydrationComplete) {
+                if (isHydrationComplete()) {
                     const count = snapshot.workspaces.reduce(
                         (sum, ws) => sum + ws.ideas.length, 0
                     );
                     if (count > 0) {
-                        _lastPersistedIdeaCount = count;
+                        setLastPersistedIdeaCount(count);
                     }
                 }
 
@@ -245,13 +224,13 @@ export const useStore = create<AppStore>()(
             }),
             onRehydrateStorage: () => {
                 return (state) => {
-                    _hydrationComplete = true;
+                    setHydrationComplete(true);
 
                     if (state) {
                         // Initialize the last known idea count from the hydrated state
-                        _lastPersistedIdeaCount = state.workspaces.reduce(
+                        setLastPersistedIdeaCount(state.workspaces.reduce(
                             (sum, ws) => sum + ws.ideas.length, 0
-                        );
+                        ));
 
                         // Start the manifest sync now that hydration is complete
                         startManifestSync(

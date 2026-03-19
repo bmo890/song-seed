@@ -19,7 +19,7 @@ import {
     getLastPersistedIdeaCount,
     isHydrationComplete,
     isPersistBlocked,
-} from "../state/useStore";
+} from "../state/persistRuntime";
 import { consumeIntentionalEmptyStateWrite } from "./stateIntegrity";
 
 /* ── Schema ────────────────────────────────────────────────────── */
