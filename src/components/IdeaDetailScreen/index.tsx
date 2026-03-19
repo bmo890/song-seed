@@ -25,6 +25,7 @@ import { IdeaStatusProgress } from "./IdeaStatusProgress";
 import { IdeaNotes } from "./IdeaNotes";
 import { LyricsVersionsPanel } from "../LyricsScreen/LyricsVersionsPanel";
 import { buildImportedTitle, importAudioAsset, pickSingleAudioFile, type ImportedAudioAsset } from "../../services/audioStorage";
+import { getAllClips, checkImportDuplicates, buildDuplicateAlertMessage } from "../../services/importDuplicates";
 import { useImportStore } from "../../state/useImportStore";
 import { buildDefaultIdeaTitle, ensureUniqueCountedTitle, ensureUniqueIdeaTitle } from "../../utils";
 import type { SongClipTagFilter } from "./songClipControls";
@@ -655,53 +656,85 @@ export function IdeaDetailScreen() {
     setImportModalOpen(true);
   }
 
-  async function saveImportedAudio() {
+  function saveImportedAudio() {
     if (!selectedIdea || selectedIdea.kind !== "project" || !importAsset) return;
 
-    const importedAt = Date.now();
-    const fallbackTitle = ensureUniqueCountedTitle(buildImportedTitle(importAsset.name), songClipTitles);
-    const finalTitle = importDraft.trim() || fallbackTitle;
-    const [importedDate] = buildImportedAssetDateMetadata([importAsset], importDatePreference, importedAt);
-
-    // Snapshot what we need before closing the modal
     const ideaId = selectedIdea.id;
     const assetSnapshot = importAsset;
     const isPrimarySnapshot = importAsPrimary;
+    const draftSnapshot = importDraft;
+    const datePreferenceSnapshot = importDatePreference;
 
-    // Dismiss modal immediately — import runs in background
-    setImportModalOpen(false);
-    setImportAsset(null);
-    setImportDatePreference("import");
-    setImportDraft("");
-    setImportAsPrimary(false);
+    function proceedWithImport(asset: ImportedAudioAsset) {
+      const importedAt = Date.now();
+      const fallbackTitle = ensureUniqueCountedTitle(buildImportedTitle(asset.name), songClipTitles);
+      const finalTitle = draftSnapshot.trim() || fallbackTitle;
+      const [importedDate] = buildImportedAssetDateMetadata([asset], datePreferenceSnapshot, importedAt);
 
-    const jobId = `import-${Date.now()}`;
-    useImportStore.getState().startJob({ id: jobId, label: finalTitle, total: 1 });
+      setImportModalOpen(false);
+      setImportAsset(null);
+      setImportDatePreference("import");
+      setImportDraft("");
+      setImportAsPrimary(false);
 
-    void (async () => {
-      try {
-        const importedAudio = await importAudioAsset(
-          assetSnapshot,
-          `audio-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
-        );
-        appActions.importClipToProject(ideaId, {
-          title: finalTitle,
-          audioUri: importedAudio.audioUri,
-          durationMs: importedAudio.durationMs,
-          waveformPeaks: importedAudio.waveformPeaks,
-          isPrimary: isPrimarySnapshot,
-          createdAt: importedDate!.createdAt,
-          importedAt: importedDate!.importedAt,
-          sourceCreatedAt: importedDate!.sourceCreatedAt,
-        });
-        useImportStore.getState().updateJob(jobId, { current: 1, status: "done" });
-      } catch (error) {
-        console.warn("Song import audio error", error);
-        useImportStore.getState().updateJob(jobId, { status: "error" });
-      } finally {
-        setTimeout(() => useImportStore.getState().removeJob(jobId), 2500);
-      }
-    })();
+      const jobId = `import-${Date.now()}`;
+      useImportStore.getState().startJob({ id: jobId, label: finalTitle, total: 1 });
+
+      void (async () => {
+        try {
+          const importedAudio = await importAudioAsset(
+            asset,
+            `audio-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
+          );
+          appActions.importClipToProject(ideaId, {
+            title: finalTitle,
+            audioUri: importedAudio.audioUri,
+            durationMs: importedAudio.durationMs,
+            waveformPeaks: importedAudio.waveformPeaks,
+            isPrimary: isPrimarySnapshot,
+            createdAt: importedDate!.createdAt,
+            importedAt: importedDate!.importedAt,
+            sourceCreatedAt: importedDate!.sourceCreatedAt,
+          });
+          useImportStore.getState().updateJob(jobId, { current: 1, status: "done" });
+        } catch (error) {
+          console.warn("Song import audio error", error);
+          useImportStore.getState().updateJob(jobId, { status: "error" });
+        } finally {
+          setTimeout(() => useImportStore.getState().removeJob(jobId), 2500);
+        }
+      })();
+    }
+
+    const { hasDuplicates, duplicateCount, uniqueAssets } = checkImportDuplicates(
+      [assetSnapshot],
+      getAllClips()
+    );
+
+    if (hasDuplicates) {
+      const { title, message } = buildDuplicateAlertMessage(duplicateCount, 1);
+      Alert.alert(title, message, [
+        {
+          text: "Skip",
+          onPress: () => {
+            // All-duplicate single file: close modal, nothing imported
+            setImportModalOpen(false);
+            setImportAsset(null);
+            setImportDatePreference("import");
+            setImportDraft("");
+            setImportAsPrimary(false);
+          },
+        },
+        {
+          text: "Import as Copy",
+          onPress: () => proceedWithImport(assetSnapshot),
+        },
+        { text: "Cancel", style: "cancel" },
+      ]);
+      return;
+    }
+
+    proceedWithImport(assetSnapshot);
   }
 
   function buildProjectQueue(clipIds?: string[]) {
