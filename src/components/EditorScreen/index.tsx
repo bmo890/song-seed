@@ -59,6 +59,18 @@ function buildWaveformPeaks(analysis: AudioAnalysis) {
     return metersToWaveformPeaks(levelsAsDb, 96);
 }
 
+function cloneEditRegions(editRegions?: EditRegion[]) {
+    return editRegions?.map((region) => ({ ...region }));
+}
+
+function cloneTags(tags?: string[]) {
+    return tags?.length ? [...tags] : undefined;
+}
+
+function clonePracticeMarkers(practiceMarkers?: ClipVersion["practiceMarkers"]) {
+    return practiceMarkers?.map((marker) => ({ ...marker }));
+}
+
 function buildFallbackAnalysis(durationMs: number): AudioAnalysis {
     return {
         segmentDurationMs: Math.max(100, Math.floor(durationMs / 96)),
@@ -426,6 +438,37 @@ export function EditorScreen() {
 
     const buildSpliceTitle = () => spliceNameDraft.trim() || suggestedExportTitle;
 
+    const buildDerivedClipDraft = (
+        override: Pick<
+            ClipVersion,
+            "title" | "audioUri" | "durationMs" | "waveformPeaks" | "editRegions"
+        >
+    ): Omit<ClipVersion, "id" | "createdAt" | "isPrimary"> | null => {
+        if (!sourceClip) return null;
+
+        const parentClipId =
+            targetIdea?.kind === "project"
+                ? removeOriginalAfterExport
+                    ? sourceClip.parentClipId
+                    : clipId
+                : undefined;
+
+        return {
+            title: override.title,
+            notes: sourceClip.notes,
+            importedAt: sourceClip.importedAt ?? targetIdea?.importedAt,
+            sourceCreatedAt: sourceClip.sourceCreatedAt ?? targetIdea?.sourceCreatedAt,
+            parentClipId,
+            audioUri: override.audioUri,
+            sourceAudioUri: sourceClip.sourceAudioUri ?? sourceClip.audioUri,
+            durationMs: override.durationMs,
+            waveformPeaks: override.waveformPeaks,
+            editRegions: [...(cloneEditRegions(sourceClip.editRegions) ?? []), ...(override.editRegions ?? [])],
+            tags: cloneTags(sourceClip.tags),
+            practiceMarkers: clonePracticeMarkers(sourceClip.practiceMarkers),
+        };
+    };
+
     const finishExport = (highlightIds: string[]) => {
         if (highlightIds.length > 0) {
             markRecentlyAdded(highlightIds);
@@ -456,13 +499,15 @@ export function EditorScreen() {
             const createdIdeas: SongIdea[] = createdClips.map((clip, index) => ({
                 id: `idea-${now + index}-${Math.random().toString(36).slice(2, 8)}`,
                 title: clip.title,
-                notes: "",
+                notes: targetIdea.notes,
                 status: "clip",
                 completionPct: 0,
                 kind: "clip",
                 collectionId: targetIdea.collectionId,
-                clips: [{ ...clip, isPrimary: true }],
+                clips: [{ ...clip, isPrimary: true, parentClipId: undefined }],
                 createdAt: now + index,
+                importedAt: targetIdea.importedAt ?? clip.importedAt,
+                sourceCreatedAt: targetIdea.sourceCreatedAt ?? clip.sourceCreatedAt,
                 lastActivityAt: now + index,
             }));
 
@@ -503,6 +548,14 @@ export function EditorScreen() {
                     ...clip,
                     isPrimary: removeOriginalAfterExport && (sourceWasPrimary || noPrimaryRemaining) && index === 0,
                 }));
+                const repairedRemainingClips =
+                    removeOriginalAfterExport && nextNewClips[0]
+                        ? remainingClips.map((clip) =>
+                              clip.parentClipId === clipId
+                                  ? { ...clip, parentClipId: nextNewClips[0]!.id }
+                                  : clip
+                          )
+                        : remainingClips;
 
                 const nextIdea = {
                     ...idea,
@@ -510,7 +563,7 @@ export function EditorScreen() {
                         idea.kind === "clip" && removeOriginalAfterExport && nextNewClips.length === 1
                             ? nextNewClips[0]!.title
                             : idea.title,
-                    clips: [...nextNewClips, ...remainingClips],
+                    clips: [...nextNewClips, ...repairedRemainingClips],
                 };
 
                 if (!nextIdea.clips.some((clip) => clip.isPrimary) && nextIdea.clips[0]) {
@@ -617,12 +670,9 @@ export function EditorScreen() {
                     `${clipId}-${region.id}-${index}`,
                     region.end - region.start
                 );
-                exportedClips.push({
+                const derivedClip = buildDerivedClipDraft({
                     title: titles[index] ?? genClipTitle(targetIdea?.title ?? "Clip", index + 1),
-                    notes: "",
-                    parentClipId: clipId,
                     audioUri: res.uri,
-                    sourceAudioUri: sourceClip.audioUri,
                     durationMs: metadata.durationMs,
                     waveformPeaks: metadata.waveformPeaks,
                     editRegions: [
@@ -634,6 +684,9 @@ export function EditorScreen() {
                         },
                     ],
                 });
+                if (derivedClip) {
+                    exportedClips.push(derivedClip);
+                }
             }
 
             const newClipIds = commitExportedClips(exportedClips);
@@ -670,23 +723,19 @@ export function EditorScreen() {
                 keptDurationMs
             );
 
-            const newClipIds = commitExportedClips([
-                {
-                    title,
-                    notes: "",
-                    parentClipId: clipId,
-                    audioUri: res.uri,
-                    sourceAudioUri: sourceClip.audioUri,
-                    durationMs: metadata.durationMs,
-                    waveformPeaks: metadata.waveformPeaks,
-                    editRegions: removeRegions.map<EditRegion>((region) => ({
-                        id: region.id,
-                        startMs: region.start,
-                        endMs: region.end,
-                        type: "remove",
-                    })),
-                },
-            ]);
+            const derivedClip = buildDerivedClipDraft({
+                title,
+                audioUri: res.uri,
+                durationMs: metadata.durationMs,
+                waveformPeaks: metadata.waveformPeaks,
+                editRegions: removeRegions.map<EditRegion>((region) => ({
+                    id: region.id,
+                    startMs: region.start,
+                    endMs: region.end,
+                    type: "remove",
+                })),
+            });
+            const newClipIds = derivedClip ? commitExportedClips([derivedClip]) : [];
 
             finishExport(newClipIds);
         } catch (e) {

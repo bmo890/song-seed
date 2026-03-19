@@ -1,4 +1,12 @@
-import { IdeaStatus, SongIdea, ClipVersion, Workspace } from "../types";
+import {
+    IdeaStatus,
+    SongIdea,
+    ClipVersion,
+    Workspace,
+    EditRegion,
+    PracticeMarker,
+    CustomTagDefinition,
+} from "../types";
 import { useStore } from "./useStore";
 import { createEmptyProjectLyrics } from "./dataSlice";
 import { createLyricsVersion, lyricsTextToDocument } from "../lyrics";
@@ -18,6 +26,8 @@ import {
     clearPendingWorkspaceArchiveOperation,
     upsertPendingWorkspaceArchiveOperation,
 } from "../services/workspaceArchiveRecovery";
+import { authorizeIntentionalEmptyStateWrite } from "../services/stateIntegrity";
+import { relocateActivityEvents, relocatePlaylists } from "./relocationMetadata";
 
 function buildEntityId(prefix: string) {
     return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
@@ -47,15 +57,84 @@ function cloneClipTags(tags?: string[]) {
     return tags?.length ? [...tags] : undefined;
 }
 
-function cloneClipForCopy(clip: ClipVersion, createdAt: number, isPrimary: boolean) {
+function cloneWaveformPeaks(waveformPeaks?: number[]) {
+    return waveformPeaks?.length ? [...waveformPeaks] : undefined;
+}
+
+function cloneEditRegions(editRegions?: EditRegion[]) {
+    return editRegions?.map((region) => ({ ...region }));
+}
+
+function clonePracticeMarkers(practiceMarkers?: PracticeMarker[]) {
+    return practiceMarkers?.map((marker) => ({ ...marker }));
+}
+
+function cloneCustomTags(customTags?: CustomTagDefinition[]) {
+    return customTags?.map((tag) => ({ ...tag }));
+}
+
+type ClipTransferSource = {
+    clip: ClipVersion;
+    sourceIdea?: SongIdea | null;
+};
+
+function buildTransferredClip(source: ClipTransferSource) {
+    const standaloneIdea = source.sourceIdea?.kind === "clip" ? source.sourceIdea : null;
+
+    return {
+        ...source.clip,
+        title: standaloneIdea?.title || source.clip.title,
+        notes: source.clip.notes || standaloneIdea?.notes || "",
+        importedAt: source.clip.importedAt ?? standaloneIdea?.importedAt,
+        sourceCreatedAt: source.clip.sourceCreatedAt ?? standaloneIdea?.sourceCreatedAt,
+        waveformPeaks: cloneWaveformPeaks(source.clip.waveformPeaks),
+        editRegions: cloneEditRegions(source.clip.editRegions),
+        tags: cloneClipTags(source.clip.tags),
+        practiceMarkers: clonePracticeMarkers(source.clip.practiceMarkers),
+    };
+}
+
+function cloneClipForCopy(
+    source: ClipTransferSource,
+    createdAt: number,
+    isPrimary: boolean,
+    options?: {
+        nextId?: string;
+        parentIdMap?: Map<string, string>;
+        keepExternalParentIds?: boolean;
+    }
+) {
+    const clip = buildTransferredClip(source);
+    const originalParentId = clip.parentClipId;
+    let nextParentId: string | undefined;
+
+    if (originalParentId) {
+        nextParentId = options?.parentIdMap?.get(originalParentId);
+        if (!nextParentId && options?.keepExternalParentIds) {
+            nextParentId = originalParentId;
+        }
+    }
+
     return {
         ...clip,
-        id: buildClipId(),
+        id: options?.nextId ?? buildClipId(),
         createdAt,
         isPrimary,
-        parentClipId: undefined,
-        tags: cloneClipTags(clip.tags),
+        parentClipId: nextParentId,
     };
+}
+
+function cloneProjectClipsForCopy(clips: ClipVersion[], createdAt: number) {
+    const nextIdBySourceId = new Map(
+        clips.map((clip) => [clip.id, buildClipId()] as const)
+    );
+
+    return clips.map((clip, index) =>
+        cloneClipForCopy({ clip }, createdAt + index, clip.isPrimary, {
+            nextId: nextIdBySourceId.get(clip.id),
+            parentIdMap: nextIdBySourceId,
+        })
+    );
 }
 
 function cloneLyricsForCopy(lyrics: SongIdea["lyrics"], baseTime: number) {
@@ -94,10 +173,9 @@ function cloneIdeaForCopy(idea: SongIdea, collectionId: string): SongIdea {
             collectionId,
             createdAt: now,
             lastActivityAt: now,
-            clips: idea.clips.map((clip, index) =>
-                cloneClipForCopy(clip, now + index, clip.isPrimary)
-            ),
+            clips: cloneProjectClipsForCopy(idea.clips, now),
             lyrics: cloneLyricsForCopy(idea.lyrics, now),
+            customTags: cloneCustomTags(idea.customTags),
         };
     }
 
@@ -108,38 +186,48 @@ function cloneIdeaForCopy(idea: SongIdea, collectionId: string): SongIdea {
         collectionId,
         createdAt: now,
         lastActivityAt: now,
-        clips: sourceClip ? [cloneClipForCopy(sourceClip, now, true)] : [],
+        clips: sourceClip ? [cloneClipForCopy({ clip: sourceClip, sourceIdea: idea }, now, true)] : [],
     };
 }
 
-function createStandaloneClipIdeaFromMove(clip: ClipVersion, collectionId: string): SongIdea {
+function createStandaloneClipIdeaFromMove(source: ClipTransferSource, collectionId: string): SongIdea {
+    const clip = buildTransferredClip(source);
+    const standaloneIdea = source.sourceIdea?.kind === "clip" ? source.sourceIdea : null;
+
     return {
         id: clip.id,
-        title: clip.title,
-        notes: clip.notes || "",
+        title: standaloneIdea?.title || clip.title,
+        notes: standaloneIdea?.notes || clip.notes || "",
         status: "clip",
         completionPct: 0,
         kind: "clip",
         collectionId,
-        createdAt: clip.createdAt,
-        lastActivityAt: clip.createdAt,
-        clips: [{ ...clip, isPrimary: true, tags: cloneClipTags(clip.tags) }],
+        createdAt: standaloneIdea?.createdAt ?? clip.createdAt,
+        importedAt: standaloneIdea?.importedAt ?? clip.importedAt,
+        sourceCreatedAt: standaloneIdea?.sourceCreatedAt ?? clip.sourceCreatedAt,
+        lastActivityAt: standaloneIdea?.lastActivityAt ?? clip.createdAt,
+        clips: [{ ...clip, isPrimary: true, parentClipId: undefined }],
     };
 }
 
-function createStandaloneClipIdeaFromCopy(clip: ClipVersion, collectionId: string): SongIdea {
+function createStandaloneClipIdeaFromCopy(source: ClipTransferSource, collectionId: string): SongIdea {
     const now = Date.now();
+    const clip = buildTransferredClip(source);
+    const standaloneIdea = source.sourceIdea?.kind === "clip" ? source.sourceIdea : null;
+
     return {
         id: buildIdeaId(),
-        title: clip.title,
-        notes: clip.notes || "",
+        title: standaloneIdea?.title || clip.title,
+        notes: standaloneIdea?.notes || clip.notes || "",
         status: "clip",
         completionPct: 0,
         kind: "clip",
         collectionId,
         createdAt: now,
+        importedAt: standaloneIdea?.importedAt ?? clip.importedAt,
+        sourceCreatedAt: standaloneIdea?.sourceCreatedAt ?? clip.sourceCreatedAt,
         lastActivityAt: now,
-        clips: [cloneClipForCopy(clip, now, true)],
+        clips: [cloneClipForCopy({ clip, sourceIdea: source.sourceIdea }, now, true)],
     };
 }
 
@@ -148,6 +236,42 @@ function ensurePrimaryClip(clips: ClipVersion[]) {
         clips[0] = { ...clips[0], isPrimary: true };
     }
     return clips;
+}
+
+function repairDanglingClipParents(clips: ClipVersion[], removedClipIds: Iterable<string>) {
+    const removedSet = new Set(removedClipIds);
+
+    return clips.map((clip) =>
+        clip.parentClipId && removedSet.has(clip.parentClipId)
+            ? { ...clip, parentClipId: undefined }
+            : clip
+    );
+}
+
+function remapClipParentsForTarget(
+    clips: ClipVersion[],
+    allowedParentIds: Set<string>,
+    parentIdMap?: Map<string, string>
+) {
+    return clips.map((clip) => {
+        const originalParentId = clip.parentClipId;
+        if (!originalParentId) {
+            return clip;
+        }
+
+        const remappedParentId = parentIdMap?.get(originalParentId);
+        if (remappedParentId) {
+            return remappedParentId === originalParentId
+                ? clip
+                : { ...clip, parentClipId: remappedParentId };
+        }
+
+        if (allowedParentIds.has(originalParentId)) {
+            return clip;
+        }
+
+        return { ...clip, parentClipId: undefined };
+    });
 }
 
 function normalizeWorkspaceCollectionVisibility<T extends { collections: Array<{ id: string; ideasListState: { hiddenIdeaIds: string[]; hiddenDays: any[] } }>; ideas: SongIdea[] }>(
@@ -172,6 +296,28 @@ function normalizeWorkspaceCollectionVisibility<T extends { collections: Array<{
                 },
             };
         }),
+    };
+}
+
+function buildIdeaRelocation(idea: SongIdea, workspaceId: string, collectionId = idea.collectionId) {
+    return {
+        ideaId: idea.id,
+        workspaceId,
+        collectionId,
+        ideaKind: idea.kind === "project" ? "song" as const : "clip" as const,
+        ideaTitle: idea.title,
+    };
+}
+
+function buildClipRelocation(
+    clip: ClipVersion,
+    idea: SongIdea,
+    workspaceId: string,
+    collectionId = idea.collectionId
+) {
+    return {
+        clipId: clip.id,
+        ...buildIdeaRelocation(idea, workspaceId, collectionId),
     };
 }
 
@@ -674,18 +820,12 @@ export const appActions = {
         if (selectedIdea?.isDraft && selectedIdea.clips.length > 0) {
             // If discarding a draft project that was created by merging clips,
             // we must extract those clips back into the main list so they aren't lost!
-            const extractedClipsAsIdeas: SongIdea[] = selectedIdea.clips.map(clip => ({
-                id: clip.id,
-                title: clip.title,
-                notes: clip.notes || "",
-                status: "seed",
-                completionPct: 0,
-                kind: "clip",
-                collectionId: selectedIdea.collectionId,
-                clips: [{ ...clip, isPrimary: true }],
-                createdAt: clip.createdAt,
-                lastActivityAt: clip.createdAt,
-            }));
+            const extractedClipsAsIdeas: SongIdea[] = selectedIdea.clips.map((clip) =>
+                createStandaloneClipIdeaFromMove(
+                    { clip, sourceIdea: selectedIdea.kind === "clip" ? selectedIdea : null },
+                    selectedIdea.collectionId
+                )
+            );
 
             state.updateIdeas((prev) => [...extractedClipsAsIdeas, ...prev.filter(i => i.id !== state.selectedIdeaId)]);
         } else {
@@ -714,7 +854,10 @@ export const appActions = {
                     ideas: workspace.ideas.map((idea) => {
                         if (idea.id !== store.selectedIdeaId) return idea;
                         removedIdeaClips = idea.clips.filter((clip) => selectedClipIds.has(clip.id));
-                        const kept = idea.clips.filter((clip) => !selectedClipIds.has(clip.id));
+                        const kept = repairDanglingClipParents(
+                            idea.clips.filter((clip) => !selectedClipIds.has(clip.id)),
+                            selectedClipIds
+                        );
                         if (kept.length > 0 && !kept.some((clip) => clip.isPrimary)) {
                             kept[0] = { ...kept[0], isPrimary: true };
                         }
@@ -802,12 +945,24 @@ export const appActions = {
 
     moveClipToProject: (targetProjectId: string) => {
         const state = useStore.getState();
-        const selectedIdea = state.workspaces.find(w => w.id === state.activeWorkspaceId)?.ideas.find(i => i.id === state.selectedIdeaId);
+        const activeWorkspace = state.workspaces.find((workspace) => workspace.id === state.activeWorkspaceId) ?? null;
+        const selectedIdea = activeWorkspace?.ideas.find(i => i.id === state.selectedIdeaId);
         const movingClipId = state.movingClipId;
         if (!selectedIdea || !movingClipId) return;
 
         const clipToMove = selectedIdea.clips.find((c) => c.id === movingClipId);
         if (!clipToMove) return;
+        const targetIdea = activeWorkspace?.ideas.find((idea) => idea.id === targetProjectId) ?? null;
+        if (!targetIdea) return;
+        const movedClipRelocation = buildClipRelocation(
+            {
+                ...clipToMove,
+                parentClipId: undefined,
+            },
+            targetIdea,
+            activeWorkspace?.id ?? state.activeWorkspaceId ?? "",
+            targetIdea.collectionId
+        );
 
         useStore.setState((store) => ({
             workspaces: store.workspaces.map((workspace) => {
@@ -816,7 +971,10 @@ export const appActions = {
                 const nextIdeas = workspace.ideas.map((idea) => {
                     if (idea.id === selectedIdea.id) {
                         const kept = ensurePrimaryClip(
-                            idea.clips.filter((clip) => clip.id !== movingClipId)
+                            repairDanglingClipParents(
+                                idea.clips.filter((clip) => clip.id !== movingClipId),
+                                [movingClipId]
+                            )
                         );
                         return { ...idea, clips: kept };
                     }
@@ -825,6 +983,7 @@ export const appActions = {
                         const nextClip = {
                             ...clipToMove,
                             isPrimary: idea.clips.length === 0,
+                            parentClipId: undefined,
                         };
                         return { ...idea, clips: [nextClip, ...idea.clips] };
                     }
@@ -836,6 +995,12 @@ export const appActions = {
                     ...workspace,
                     ideas: nextIdeas,
                 });
+            }),
+            activityEvents: relocateActivityEvents(store.activityEvents, {
+                clips: [movedClipRelocation],
+            }),
+            playlists: relocatePlaylists(store.playlists, {
+                clips: [movedClipRelocation],
             }),
         }));
         state.setMovingClipId(null);
@@ -865,10 +1030,30 @@ export const appActions = {
             const sourceIdeas = sourceWs.ideas.filter((idea) => clipboard.clipIds.includes(idea.id));
             if (sourceIdeas.length === 0) return [];
 
-            const nextIdeaIds =
-                clipboard.mode === "copy"
-                    ? sourceIdeas.map((idea) => cloneIdeaForCopy(idea, collectionId).id)
-                    : sourceIdeas.map((idea) => idea.id);
+            if (clipboard.mode === "copy") {
+                const copiedIdeas = sourceIdeas.map((idea) => cloneIdeaForCopy(idea, collectionId));
+                useStore.setState((store) => ({
+                    workspaces: store.workspaces.map((workspace) => {
+                        if (workspace.id !== targetWorkspace.id) return workspace;
+                        return normalizeWorkspaceCollectionVisibility({
+                            ...workspace,
+                            ideas: [...copiedIdeas, ...workspace.ideas],
+                        });
+                    }),
+                }));
+
+                state.setClipClipboard(null);
+                return copiedIdeas.map((idea) => idea.id);
+            }
+
+            const movedIdeas = sourceIdeas.map((idea) => ({
+                ...idea,
+                collectionId,
+            }));
+            const movingIds = new Set(sourceIdeas.map((idea) => idea.id));
+            const ideaRelocations = movedIdeas.map((idea) =>
+                buildIdeaRelocation(idea, targetWorkspace.id, collectionId)
+            );
 
             useStore.setState((store) => ({
                 workspaces: store.workspaces.map((workspace) => {
@@ -879,26 +1064,10 @@ export const appActions = {
                         return workspace;
                     }
 
-                    if (clipboard.mode === "copy") {
-                        if (workspace.id !== targetWorkspace.id) return workspace;
-                        return normalizeWorkspaceCollectionVisibility({
-                            ...workspace,
-                            ideas: [
-                                ...sourceIdeas.map((idea) => cloneIdeaForCopy(idea, collectionId)),
-                                ...workspace.ideas,
-                            ],
-                        });
-                    }
-
                     if (
                         workspace.id === clipboard.sourceWorkspaceId &&
                         workspace.id === targetWorkspace.id
                     ) {
-                        const movingIds = new Set(sourceIdeas.map((idea) => idea.id));
-                        const movedIdeas = sourceIdeas.map((idea) => ({
-                            ...idea,
-                            collectionId,
-                        }));
                         const remainingIdeas = workspace.ideas.filter((idea) => !movingIds.has(idea.id));
                         return normalizeWorkspaceCollectionVisibility({
                             ...workspace,
@@ -907,7 +1076,6 @@ export const appActions = {
                     }
 
                     if (workspace.id === clipboard.sourceWorkspaceId) {
-                        const movingIds = new Set(sourceIdeas.map((idea) => idea.id));
                         return normalizeWorkspaceCollectionVisibility({
                             ...workspace,
                             ideas: workspace.ideas.filter((idea) => !movingIds.has(idea.id)),
@@ -916,33 +1084,55 @@ export const appActions = {
 
                     return normalizeWorkspaceCollectionVisibility({
                         ...workspace,
-                        ideas: [
-                            ...sourceIdeas.map((idea) => ({
-                                ...idea,
-                                collectionId,
-                            })),
-                            ...workspace.ideas,
-                        ],
+                        ideas: [...movedIdeas, ...workspace.ideas],
+                    });
+                }),
+                activityEvents: relocateActivityEvents(store.activityEvents, {
+                    ideas: ideaRelocations,
+                }),
+                playlists: relocatePlaylists(store.playlists, {
+                    ideas: ideaRelocations,
+                }),
+            }));
+
+            state.setClipClipboard(null);
+            return movedIdeas.map((idea) => idea.id);
+        }
+
+        if (clipboard.from !== "project" || !clipboard.sourceIdeaId) return [];
+        const sourceProject = sourceWs.ideas.find((i) => i.id === clipboard.sourceIdeaId);
+        if (!sourceProject) return [];
+        const clipsToPaste = sourceProject.clips
+            .filter((clip) => clipboard.clipIds.includes(clip.id))
+            .map((clip) => ({ clip, sourceIdea: sourceProject } as ClipTransferSource));
+
+        if (clipsToPaste.length === 0) return [];
+
+        if (clipboard.mode === "copy") {
+            const copiedIdeas = clipsToPaste.map((source) =>
+                createStandaloneClipIdeaFromCopy(source, collectionId)
+            );
+            useStore.setState((store) => ({
+                workspaces: store.workspaces.map((workspace) => {
+                    if (workspace.id !== targetWorkspace.id) return workspace;
+                    return normalizeWorkspaceCollectionVisibility({
+                        ...workspace,
+                        ideas: [...copiedIdeas, ...workspace.ideas],
                     });
                 }),
             }));
 
             state.setClipClipboard(null);
-            return nextIdeaIds;
+            return copiedIdeas.map((idea) => idea.id);
         }
 
-        let clipsToPaste: ClipVersion[] = [];
-        if (clipboard.from !== "project" || !clipboard.sourceIdeaId) return [];
-        const sourceProject = sourceWs.ideas.find((i) => i.id === clipboard.sourceIdeaId);
-        if (!sourceProject) return [];
-        clipsToPaste = sourceProject.clips.filter((c) => clipboard.clipIds.includes(c.id));
-
-        if (clipsToPaste.length === 0) return [];
-
-        const nextIdeaIds =
-            clipboard.mode === "copy"
-                ? clipsToPaste.map((clip) => createStandaloneClipIdeaFromCopy(clip, collectionId).id)
-                : clipsToPaste.map((clip) => clip.id);
+        const movedIdeas = clipsToPaste.map((source) =>
+            createStandaloneClipIdeaFromMove(source, collectionId)
+        );
+        const removedClipIds = clipsToPaste.map((source) => source.clip.id);
+        const clipRelocations = movedIdeas.map((idea, index) =>
+            buildClipRelocation(idea.clips[0]!, idea, targetWorkspace.id, collectionId)
+        );
 
         useStore.setState((store) => ({
             workspaces: store.workspaces.map((workspace) => {
@@ -953,17 +1143,6 @@ export const appActions = {
                     return workspace;
                 }
 
-                if (clipboard.mode === "copy") {
-                    if (workspace.id !== targetWorkspace.id) return workspace;
-                    return normalizeWorkspaceCollectionVisibility({
-                        ...workspace,
-                        ideas: [
-                            ...clipsToPaste.map((clip) => createStandaloneClipIdeaFromCopy(clip, collectionId)),
-                            ...workspace.ideas,
-                        ],
-                    });
-                }
-
                 if (
                     workspace.id === clipboard.sourceWorkspaceId &&
                     workspace.id === targetWorkspace.id
@@ -971,7 +1150,10 @@ export const appActions = {
                     const nextIdeas = workspace.ideas.flatMap((idea) => {
                         if (idea.id === clipboard.sourceIdeaId) {
                             const kept = ensurePrimaryClip(
-                                idea.clips.filter((clip) => !clipboard.clipIds.includes(clip.id))
+                                repairDanglingClipParents(
+                                    idea.clips.filter((clip) => !clipboard.clipIds.includes(clip.id)),
+                                    removedClipIds
+                                )
                             );
                             return [{ ...idea, clips: kept }];
                         }
@@ -980,10 +1162,7 @@ export const appActions = {
 
                     return normalizeWorkspaceCollectionVisibility({
                         ...workspace,
-                        ideas: [
-                            ...clipsToPaste.map((clip) => createStandaloneClipIdeaFromMove(clip, collectionId)),
-                            ...nextIdeas,
-                        ],
+                        ideas: [...movedIdeas, ...nextIdeas],
                     });
                 }
 
@@ -991,7 +1170,10 @@ export const appActions = {
                     const nextIdeas = workspace.ideas.map((idea) => {
                         if (idea.id !== clipboard.sourceIdeaId) return idea;
                         const kept = ensurePrimaryClip(
-                            idea.clips.filter((clip) => !clipboard.clipIds.includes(clip.id))
+                            repairDanglingClipParents(
+                                idea.clips.filter((clip) => !clipboard.clipIds.includes(clip.id)),
+                                removedClipIds
+                            )
                         );
                         return { ...idea, clips: kept };
                     });
@@ -1004,16 +1186,19 @@ export const appActions = {
 
                 return normalizeWorkspaceCollectionVisibility({
                     ...workspace,
-                    ideas: [
-                        ...clipsToPaste.map((clip) => createStandaloneClipIdeaFromMove(clip, collectionId)),
-                        ...workspace.ideas,
-                    ],
+                    ideas: [...movedIdeas, ...workspace.ideas],
                 });
+            }),
+            activityEvents: relocateActivityEvents(store.activityEvents, {
+                clips: clipRelocations,
+            }),
+            playlists: relocatePlaylists(store.playlists, {
+                clips: clipRelocations,
             }),
         }));
 
         state.setClipClipboard(null);
-        return nextIdeaIds;
+        return movedIdeas.map((idea) => idea.id);
     },
 
     pasteClipboardToProject: async (projectId: string): Promise<string[]> => {
@@ -1023,115 +1208,185 @@ export const appActions = {
 
         const sourceWs = state.workspaces.find((w) => w.id === clipboard.sourceWorkspaceId);
         if (!sourceWs) return [];
+        const targetWorkspace = state.workspaces.find((workspace) =>
+            workspace.ideas.some((idea) => idea.id === projectId)
+        );
+        const targetIdeaSnapshot = targetWorkspace?.ideas.find((idea) => idea.id === projectId) ?? null;
+        if (!targetWorkspace || !targetIdeaSnapshot || targetIdeaSnapshot.kind !== "project") {
+            return [];
+        }
 
-        let clipsToPaste: ClipVersion[] = [];
+        let clipSources: ClipTransferSource[] = [];
         const movedProjectPrimaryClipIds = new Map<string, string>();
         const movedClipIdeaIds: string[] = [];
         if (clipboard.from === "project" && clipboard.sourceIdeaId) {
             const sourceProject = sourceWs.ideas.find((i) => i.id === clipboard.sourceIdeaId);
             if (!sourceProject) return [];
-            clipsToPaste = sourceProject.clips.filter((c) => clipboard.clipIds.includes(c.id));
+            clipSources = sourceProject.clips
+                .filter((clip) => clipboard.clipIds.includes(clip.id))
+                .map((clip) => ({ clip, sourceIdea: sourceProject }));
         } else if (clipboard.from === "list") {
             const sourceIdeas = sourceWs.ideas.filter((idea) => clipboard.clipIds.includes(idea.id));
-            clipsToPaste = sourceIdeas.flatMap((idea) => {
+            clipSources = sourceIdeas.flatMap((idea) => {
                 if (idea.kind === "clip") {
                     const clip = idea.clips[0];
                     if (!clip) return [];
                     movedClipIdeaIds.push(idea.id);
-                    return [clip];
+                    return [{ clip, sourceIdea: idea }];
                 }
 
                 const primaryClip = idea.clips.find((clip) => clip.isPrimary) ?? idea.clips[0];
                 if (!primaryClip) return [];
                 movedProjectPrimaryClipIds.set(idea.id, primaryClip.id);
-                return [primaryClip];
+                return [{ clip: primaryClip, sourceIdea: idea }];
             });
         }
 
-        if (clipsToPaste.length === 0) return [];
+        if (clipSources.length === 0) return [];
 
-        const nextClipIds =
-            clipboard.mode === "copy"
-                ? clipsToPaste.map(() => buildClipId())
-                : clipsToPaste.map((clip) => clip.id);
+        const sourceClipIds = clipSources.map((source) => source.clip.id);
+        const targetExistingClipIds = new Set(targetIdeaSnapshot.clips.map((clip) => clip.id));
+
+        if (clipboard.mode === "copy") {
+            const copyBaseTime = Date.now();
+            const copiedClipIds = clipSources.map(() => buildClipId());
+            const copiedClipIdMap = new Map(
+                clipSources.map((source, index) => [source.clip.id, copiedClipIds[index]!] as const)
+            );
+            const copiedClips = remapClipParentsForTarget(
+                clipSources.map((source, index) =>
+                    cloneClipForCopy(source, copyBaseTime + index, false, {
+                        nextId: copiedClipIds[index],
+                        parentIdMap: copiedClipIdMap,
+                        keepExternalParentIds: clipboard.from === "project" && clipboard.sourceIdeaId === projectId,
+                    })
+                ),
+                new Set([...targetExistingClipIds, ...copiedClipIds]),
+                copiedClipIdMap
+            );
+
+            useStore.setState((store) => ({
+                workspaces: store.workspaces.map((workspace) => {
+                    if (workspace.id !== targetWorkspace.id) return workspace;
+
+                    return normalizeWorkspaceCollectionVisibility({
+                        ...workspace,
+                        ideas: workspace.ideas.map((idea) => {
+                            if (idea.id !== projectId) return idea;
+
+                            let nextProjectInsertedPrimary = idea.clips.length === 0;
+                            const nextCopiedClips = copiedClips.map((clip) => {
+                                if (nextProjectInsertedPrimary) {
+                                    nextProjectInsertedPrimary = false;
+                                    return { ...clip, isPrimary: true };
+                                }
+                                return clip;
+                            });
+
+                            return { ...idea, clips: [...nextCopiedClips, ...idea.clips] };
+                        }),
+                    });
+                }),
+            }));
+
+            state.setClipClipboard(null);
+            return copiedClipIds;
+        }
+
+        const movedClips = remapClipParentsForTarget(
+            clipSources.map((source) => ({
+                ...buildTransferredClip(source),
+                isPrimary: false,
+            })),
+            new Set([...targetExistingClipIds, ...sourceClipIds])
+        );
+        const clipRelocations = movedClips.map((clip) =>
+            buildClipRelocation(clip, targetIdeaSnapshot, targetWorkspace.id, targetIdeaSnapshot.collectionId)
+        );
+        const ideaRelocations = movedClipIdeaIds.map((ideaId) => ({
+            ideaId,
+            workspaceId: targetWorkspace.id,
+            collectionId: targetIdeaSnapshot.collectionId,
+            ideaKind: "song" as const,
+            ideaTitle: targetIdeaSnapshot.title,
+        }));
 
         useStore.setState((store) => ({
             workspaces: store.workspaces.map((workspace) => {
-                if (workspace.id !== clipboard.sourceWorkspaceId) return workspace;
+                if (
+                    workspace.id !== clipboard.sourceWorkspaceId &&
+                    workspace.id !== targetWorkspace.id
+                ) {
+                    return workspace;
+                }
 
-                const targetIdea = workspace.ideas.find((idea) => idea.id === projectId);
-                const targetHasNoClips = !!targetIdea && targetIdea.clips.length === 0;
-                let nextProjectInsertedPrimary = targetHasNoClips;
+                let nextIdeas = workspace.ideas;
 
-                const projectMoveClipMap =
-                    clipboard.mode === "copy"
-                        ? new Map(
-                              clipsToPaste.map((clip, index) => [
-                                  clip.id,
-                                  {
-                                      ...cloneClipForCopy(clip, Date.now() + index, false),
-                                      id: nextClipIds[index]!,
-                                  },
-                              ])
-                          )
-                        : new Map(
-                              clipsToPaste.map((clip) => [
-                                  clip.id,
-                                  {
-                                      ...clip,
-                                      isPrimary: false,
-                                  },
-                              ])
-                          );
-
-                const nextIdeas = workspace.ideas
-                    .filter((idea) =>
-                        clipboard.mode === "move" && clipboard.from === "list"
-                            ? !movedClipIdeaIds.includes(idea.id)
-                            : true
-                    )
-                    .map((idea) => {
-                        if (clipboard.mode === "move" && clipboard.from === "project" && idea.id === clipboard.sourceIdeaId) {
-                            const kept = ensurePrimaryClip(
-                                idea.clips.filter((clip) => !clipboard.clipIds.includes(clip.id))
-                            );
-                            return { ...idea, clips: kept };
-                        }
-
-                        if (clipboard.mode === "move" && clipboard.from === "list") {
-                            const movedPrimaryClipId = movedProjectPrimaryClipIds.get(idea.id);
-                            if (movedPrimaryClipId) {
+                if (workspace.id === clipboard.sourceWorkspaceId) {
+                    nextIdeas = nextIdeas
+                        .filter((idea) =>
+                            clipboard.from === "list" ? !movedClipIdeaIds.includes(idea.id) : true
+                        )
+                        .map((idea) => {
+                            if (clipboard.from === "project" && idea.id === clipboard.sourceIdeaId) {
                                 const kept = ensurePrimaryClip(
-                                    idea.clips.filter((clip) => clip.id !== movedPrimaryClipId)
+                                    repairDanglingClipParents(
+                                        idea.clips.filter((clip) => !sourceClipIds.includes(clip.id)),
+                                        sourceClipIds
+                                    )
                                 );
                                 return { ...idea, clips: kept };
                             }
-                        }
 
-                        if (idea.id === projectId) {
-                            const movedClips = clipsToPaste.map((clip) => {
-                                const nextClip = projectMoveClipMap.get(clip.id)!;
-                                if (nextProjectInsertedPrimary) {
-                                    nextProjectInsertedPrimary = false;
-                                    return { ...nextClip, isPrimary: true };
-                                }
-                                return nextClip;
-                            });
-                            return { ...idea, clips: [...movedClips, ...idea.clips] };
-                        }
+                            const movedPrimaryClipId = movedProjectPrimaryClipIds.get(idea.id);
+                            if (clipboard.from === "list" && movedPrimaryClipId) {
+                                const kept = ensurePrimaryClip(
+                                    repairDanglingClipParents(
+                                        idea.clips.filter((clip) => clip.id !== movedPrimaryClipId),
+                                        [movedPrimaryClipId]
+                                    )
+                                );
+                                return { ...idea, clips: kept };
+                            }
 
-                        return idea;
+                            return idea;
+                        });
+                }
+
+                if (workspace.id === targetWorkspace.id) {
+                    nextIdeas = nextIdeas.map((idea) => {
+                        if (idea.id !== projectId) return idea;
+
+                        let nextProjectInsertedPrimary = idea.clips.length === 0;
+                        const nextMovedClips = movedClips.map((clip) => {
+                            if (nextProjectInsertedPrimary) {
+                                nextProjectInsertedPrimary = false;
+                                return { ...clip, isPrimary: true };
+                            }
+                            return clip;
+                        });
+
+                        return { ...idea, clips: [...nextMovedClips, ...idea.clips] };
                     });
+                }
 
                 return normalizeWorkspaceCollectionVisibility({
                     ...workspace,
                     ideas: nextIdeas,
                 });
             }),
+            activityEvents: relocateActivityEvents(store.activityEvents, {
+                ideas: ideaRelocations,
+                clips: clipRelocations,
+            }),
+            playlists: relocatePlaylists(store.playlists, {
+                ideas: ideaRelocations,
+                clips: clipRelocations,
+            }),
         }));
 
         state.setClipClipboard(null);
-        return nextClipIds;
+        return movedClips.map((clip) => clip.id);
     },
 
     deleteSelectedIdeasFromList: () => {
@@ -1169,6 +1424,11 @@ export const appActions = {
                 removedIdeas.flatMap((idea) => Array.from(collectManagedIdeaAudioUris(idea))),
                 nextWorkspaces
             );
+
+            if (nextWorkspaces.reduce((sum, workspace) => sum + workspace.ideas.length, 0) === 0) {
+                // Multi-delete can intentionally clear the final remaining ideas from the library.
+                authorizeIntentionalEmptyStateWrite(6);
+            }
 
             return {
                 ...buildRuntimeCleanupPatch(store, {

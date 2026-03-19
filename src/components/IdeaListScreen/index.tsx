@@ -751,6 +751,12 @@ export function IdeaListScreen() {
   const quickClipboardIdea = (idea: SongIdea, mode: "copy" | "move") => {
     useStore.getState().replaceListSelection([idea.id]);
     appActions.startClipboardFromList(mode);
+    Alert.alert(
+      mode === "copy" ? "Copy ready" : "Move ready",
+      mode === "copy"
+        ? `Tap "Paste items here" to copy "${idea.title}" into this or another collection.`
+        : `Open the destination collection and tap "Paste items here" to move "${idea.title}".`
+    );
   };
 
   const quickDeleteIdea = (idea: SongIdea) => {

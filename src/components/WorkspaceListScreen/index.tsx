@@ -164,15 +164,13 @@ export function WorkspaceListScreen() {
 
   function confirmDeleteWorkspace(workspace: Workspace) {
     if (busyWorkspaceId) return;
-
-    if (!workspace.isArchived && activeWorkspaceCount <= 1) {
-      Alert.alert("Cannot delete", "You must keep at least one active workspace.");
-      return;
-    }
+    const deletingFinalActiveWorkspace = !workspace.isArchived && activeWorkspaceCount <= 1;
 
     Alert.alert(
       `Delete ${workspace.title}?`,
-      `This will permanently delete ${workspace.ideas.length} ideas. This cannot be undone.`,
+      deletingFinalActiveWorkspace
+        ? `This will permanently delete ${workspace.ideas.length} ideas. Song Seed will create a fresh empty workspace so the app still has an active home context. This cannot be undone.`
+        : `This will permanently delete ${workspace.ideas.length} ideas. This cannot be undone.`,
       [
         { text: "Cancel", style: "cancel" },
         {

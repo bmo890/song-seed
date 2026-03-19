@@ -15,6 +15,12 @@ import {
     SONG_SEED_MANIFEST_TMP_PATH,
 } from "./storagePaths";
 import type { PersistedAppStore } from "../state/useStore";
+import {
+    getLastPersistedIdeaCount,
+    isHydrationComplete,
+    isPersistBlocked,
+} from "../state/useStore";
+import { consumeIntentionalEmptyStateWrite } from "./stateIntegrity";
 
 /* ── Schema ────────────────────────────────────────────────────── */
 
@@ -98,12 +104,26 @@ async function writeManifestToDisk(state: PersistedAppStore): Promise<void> {
             if (existing) {
                 const existingIdeaCount = countTotalIdeas(existing.workspaces);
                 if (existingIdeaCount > 0) {
-                    console.warn(
-                        `[ManifestSync] BLOCKED: refusing to write manifest with ${newIdeaCount} ideas ` +
-                        `over existing manifest with ${existingIdeaCount} ideas. ` +
-                        `This looks like a state corruption event.`
-                    );
-                    return;
+                    // The manifest must accept an intentional last-item delete while
+                    // still rejecting unexpected empty-state rewrites during corruption.
+                    const hydratedEmptyStateIsAuthoritative =
+                        isHydrationComplete() &&
+                        !isPersistBlocked() &&
+                        getLastPersistedIdeaCount() === 0;
+
+                    if (!consumeIntentionalEmptyStateWrite() && !hydratedEmptyStateIsAuthoritative) {
+                        console.warn(
+                            `[ManifestSync] BLOCKED: refusing to write manifest with ${newIdeaCount} ideas ` +
+                            `over existing manifest with ${existingIdeaCount} ideas. ` +
+                            `This looks like a state corruption event.`
+                        );
+                        return;
+                    }
+
+                    if (hydratedEmptyStateIsAuthoritative) {
+                        // If AsyncStorage already hydrated into a stable empty library, the
+                        // shadow manifest is stale and must be allowed to catch up on restart.
+                    }
                 }
             }
         }

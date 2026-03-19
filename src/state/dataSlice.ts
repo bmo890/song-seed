@@ -36,6 +36,8 @@ import {
     deleteManagedAudioUris,
     filterUnreferencedManagedAudioUris,
 } from "../services/managedMedia";
+import { authorizeIntentionalEmptyStateWrite } from "../services/stateIntegrity";
+import { relocateActivityEvents, relocatePlaylists } from "./relocationMetadata";
 
 export type DataSlice = {
     workspaces: Workspace[];
@@ -131,6 +133,20 @@ function buildPlaylistId() {
 
 function buildPlaylistItemId() {
     return `playlist-item-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+}
+
+function countTotalIdeas(workspaces: Workspace[]) {
+    return workspaces.reduce((sum, workspace) => sum + workspace.ideas.length, 0);
+}
+
+function ensureAtLeastOneActiveWorkspace(workspaces: Workspace[]) {
+    if (workspaces.some((workspace) => !workspace.isArchived)) {
+        return workspaces;
+    }
+
+    // Deleting the final active workspace should not strand the app without a
+    // valid browse context. Seed a fresh empty workspace instead of blocking.
+    return [createInitialWorkspace(), ...workspaces];
 }
 
 export const createInitialWorkspace = (): Workspace => ({
@@ -730,6 +746,13 @@ export const createDataSlice: StateCreator<
         const movedIdeas = sourceWorkspace.ideas
             .filter((idea) => moveScopeIds.has(idea.collectionId))
             .map((idea) => idea);
+        const movedIdeaRelocations = movedIdeas.map((idea) => ({
+            ideaId: idea.id,
+            workspaceId: targetWorkspace.id,
+            collectionId: idea.collectionId,
+            ideaKind: idea.kind === "project" ? "song" as const : "clip" as const,
+            ideaTitle: idea.title,
+        }));
 
         set((currentState) => ({
             workspaces: currentState.workspaces.map((workspace) => {
@@ -761,14 +784,12 @@ export const createDataSlice: StateCreator<
 
                 return workspace;
             }),
-            playlists: currentState.playlists.map((playlist) => ({
-                ...playlist,
-                items: playlist.items.map((item) =>
-                    moveScopeIds.has(item.collectionId)
-                        ? { ...item, workspaceId: targetWorkspace.id }
-                        : item
-                ),
-            })),
+            activityEvents: relocateActivityEvents(currentState.activityEvents, {
+                ideas: movedIdeaRelocations,
+            }),
+            playlists: relocatePlaylists(currentState.playlists, {
+                ideas: movedIdeaRelocations,
+            }),
         }));
 
         return { ok: true };
@@ -809,6 +830,12 @@ export const createDataSlice: StateCreator<
                 deletedIdeas.flatMap((idea) => Array.from(collectManagedIdeaAudioUris(idea))),
                 nextWorkspaces
             );
+
+            if (countTotalIdeas(nextWorkspaces) === 0) {
+                // Deleting the final idea is a valid zero-state transition and must
+                // explicitly authorize the persist/manifest guards before they block it.
+                authorizeIntentionalEmptyStateWrite(6);
+            }
 
             return {
                 ...buildRuntimeCleanupPatch(state, {
@@ -1050,10 +1077,11 @@ export const createDataSlice: StateCreator<
         let audioUrisToDelete: string[] = [];
         let archiveUriToDelete: string | undefined;
         set((state) => {
-            if (state.workspaces.length <= 1) return state; // Guard
             const removedWorkspace = state.workspaces.find((ws) => ws.id === id);
             if (!removedWorkspace) return state;
-            const nextWorkspaces = state.workspaces.filter((ws) => ws.id !== id);
+            const nextWorkspaces = ensureAtLeastOneActiveWorkspace(
+                state.workspaces.filter((ws) => ws.id !== id)
+            );
             const nextWorkspaceLastOpenedAt = { ...state.workspaceLastOpenedAt };
             delete nextWorkspaceLastOpenedAt[id];
             const nextCollectionLastOpenedAt = { ...state.collectionLastOpenedAt };
@@ -1070,6 +1098,11 @@ export const createDataSlice: StateCreator<
                 nextWorkspaces
             );
             archiveUriToDelete = removedWorkspace.archiveState?.archiveUri;
+
+            if (countTotalIdeas(nextWorkspaces) === 0) {
+                // Workspace deletion can legitimately remove the last remaining idea.
+                authorizeIntentionalEmptyStateWrite(6);
+            }
 
             return {
                 ...buildRuntimeCleanupPatch(state, {
@@ -1447,6 +1480,11 @@ export const createDataSlice: StateCreator<
                 collectManagedIdeaAudioUris(removedIdeaSnapshot),
                 nextWorkspaces
             );
+
+            if (countTotalIdeas(nextWorkspaces) === 0) {
+                // This explicitly preserves the intentional "delete my final idea" case.
+                authorizeIntentionalEmptyStateWrite(6);
+            }
 
             return {
                 ...buildRuntimeCleanupPatch(state, {

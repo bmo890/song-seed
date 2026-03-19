@@ -89,6 +89,16 @@ export function IdeaSelectionBar({
     }
   }
 
+  function handleClipboardAction(mode: "copy" | "move") {
+    appActions.startClipboardFromList(mode);
+    Alert.alert(
+      mode === "copy" ? "Copy ready" : "Move ready",
+      mode === "copy"
+        ? "Tap \"Paste items here\" in this or another collection to finish copying these items."
+        : "Open the destination collection and tap \"Paste items here\" to finish moving these items."
+    );
+  }
+
   function confirmDeleteSelection() {
     const projectNames = selectedProjects.map((project) => project.title).slice(0, 4);
     const projectList = projectNames.length > 0 ? `\n\nSongs: ${projectNames.join(", ")}${selectedProjects.length > 4 ? "…" : ""}` : "";
@@ -182,7 +192,7 @@ export function IdeaSelectionBar({
 
         <Pressable
           style={({ pressed }) => [styles.ideasSelectionAction, pressed ? styles.pressDown : null]}
-          onPress={() => appActions.startClipboardFromList("copy")}
+          onPress={() => handleClipboardAction("copy")}
         >
           <Ionicons name="copy-outline" size={15} color="#0f172a" />
           <Text style={styles.ideasSelectionActionText}>Copy</Text>
@@ -190,7 +200,7 @@ export function IdeaSelectionBar({
 
         <Pressable
           style={({ pressed }) => [styles.ideasSelectionAction, pressed ? styles.pressDown : null]}
-          onPress={() => appActions.startClipboardFromList("move")}
+          onPress={() => handleClipboardAction("move")}
         >
           <Ionicons name="arrow-forward-outline" size={15} color="#0f172a" />
           <Text style={styles.ideasSelectionActionText}>Move</Text>

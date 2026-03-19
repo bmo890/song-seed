@@ -20,6 +20,7 @@ import {
     isWorkspaceStartupPreference,
 } from "../libraryNavigation";
 import { startManifestSync } from "../services/manifestSync";
+import { consumeIntentionalEmptyStateWrite } from "../services/stateIntegrity";
 
 export type AppStore = DataSlice & SelectionSlice & RecordingSlice & PlayerSlice;
 export type PersistedAppStore = Pick<
@@ -142,6 +143,9 @@ export function isHydrationComplete() {
  * Used by the persist guard to detect state corruption (sudden drop to 0).
  */
 let _lastPersistedIdeaCount = -1; // -1 = not yet initialized
+export function getLastPersistedIdeaCount() {
+    return _lastPersistedIdeaCount;
+}
 
 /**
  * Whether the persist guard has blocked a write. Once blocked,
@@ -149,6 +153,9 @@ let _lastPersistedIdeaCount = -1; // -1 = not yet initialized
  * This prevents a corrupted state from eventually sneaking through.
  */
 let _persistBlocked = false;
+export function isPersistBlocked() {
+    return _persistBlocked;
+}
 
 /**
  * Guarded AsyncStorage adapter that ACTUALLY blocks writes when data
@@ -179,13 +186,19 @@ function createGuardedStorage() {
                             (sum: number, ws) => sum + (ws.ideas?.length ?? 0), 0
                         );
                         if (newIdeaCount === 0) {
-                            _persistBlocked = true;
-                            console.warn(
-                                `[PersistGuard] BLOCKED and LOCKED: attempted to write 0 ideas when last known count was ${_lastPersistedIdeaCount}. ` +
-                                `All future writes blocked until app restart.`
-                            );
-                            return; // Block the write
+                            // A deliberate last-item delete is the only valid reason to
+                            // transition the persisted library from >0 ideas to 0 ideas.
+                            if (!consumeIntentionalEmptyStateWrite()) {
+                                _persistBlocked = true;
+                                console.warn(
+                                    `[PersistGuard] BLOCKED and LOCKED: attempted to write 0 ideas when last known count was ${_lastPersistedIdeaCount}. ` +
+                                    `All future writes blocked until app restart.`
+                                );
+                                return; // Block the write
+                            }
                         }
+
+                        _lastPersistedIdeaCount = newIdeaCount;
                     }
                 } catch {
                     // If we can't parse it, let it through — better than blocking valid writes

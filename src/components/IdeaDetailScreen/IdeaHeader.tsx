@@ -21,6 +21,7 @@ type IdeaHeaderProps = {
     compactTitleMode?: boolean;
     onSave: () => void;
     onCancel: (onDiscard?: () => void) => void;
+    onBack: () => void;
     onPlayAll: () => void;
     playAllDisabled?: boolean;
     onImportAudio: () => void;
@@ -34,6 +35,7 @@ export function IdeaHeader({
     compactTitleMode = false,
     onSave,
     onCancel,
+    onBack,
     onPlayAll,
     playAllDisabled,
     onImportAudio,
@@ -158,7 +160,7 @@ export function IdeaHeader({
                 <View style={styles.songDetailNavLead}>
                     <Pressable
                         style={({ pressed }) => [styles.backBtn, pressed ? styles.pressDown : null]}
-                        onPress={() => navigation.goBack()}
+                        onPress={onBack}
                     >
                         <Text style={styles.backBtnText}>Back</Text>
                     </Pressable>

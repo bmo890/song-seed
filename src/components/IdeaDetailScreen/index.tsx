@@ -221,6 +221,15 @@ export function IdeaDetailScreen() {
     }
   }, [songTab]);
 
+  useEffect(() => {
+    if (isFocused) return;
+
+    // Leaving the song detail screen should reset transient clip-selection UI so re-entering
+    // the song does not resurrect stale selected clips from a previous navigation context.
+    useStore.getState().cancelClipSelection();
+    setParentPickState(null);
+  }, [isFocused]);
+
   // Tell GlobalMediaDock whether the inline player UI is visible.
   // When on the Takes tab, the inline controls show in the card — no dock needed.
   // On Lyrics/Notes, ClipList is hidden and the dock should appear if audio is playing.
@@ -747,6 +756,15 @@ export function IdeaDetailScreen() {
     navigation.navigate("Player" as never);
   }
 
+  const handleBackToIdeas = () => {
+    // Returning to the Ideas list should clear transient song-level selection state so
+    // reopening the song starts from a clean browse context instead of stale selected clips.
+    useStore.getState().cancelClipSelection();
+    setParentPickState(null);
+    appActions.backToIdeas();
+    navigation.goBack();
+  };
+
   return (
     <SafeAreaView style={[styles.screen, selectedIdea.kind === "project" ? styles.screenProjectDetail : styles.screenClipDetail]}>
       <IdeaHeader
@@ -757,6 +775,7 @@ export function IdeaDetailScreen() {
         compactTitleMode={songTab === "takes" && isIdeasSticky}
         onSave={handleSave}
         onCancel={handleCancel}
+        onBack={handleBackToIdeas}
         onPlayAll={() => {
           playProjectQueue();
         }}

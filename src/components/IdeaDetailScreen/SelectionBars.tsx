@@ -82,12 +82,24 @@ export function SelectionBars({ onStartSetParent, onMakeRoot }: SelectionBarsPro
         }
     }
 
+    function handleClipboardAction(mode: "copy" | "move") {
+        appActions.startClipboardFromProject(mode);
+        Alert.alert(
+            mode === "copy" ? "Copy ready" : "Move ready",
+            mode === "copy"
+                ? "Tap \"Paste clips here\" in this song to duplicate them, or open another song and paste there."
+                : "Open the destination song and tap \"Paste clips here\" to finish moving these clips."
+        );
+    }
+
     return (
         <>
             {clipSelectionMode ? (
-                <View style={styles.selectionBar}>
-                    <Text style={styles.selectionText}>{selectedClipIds.length} selected</Text>
-                    <View style={styles.rowButtons}>
+                <View style={styles.songSelectionBar}>
+                    <View style={styles.songSelectionBarHeader}>
+                        <Text style={styles.selectionText}>{selectedClipIds.length} selected</Text>
+                    </View>
+                    <View style={styles.songSelectionBarActions}>
                         <Button
                             variant="secondary"
                             label={`Play selected (${playableSelectedCount})`}
@@ -118,8 +130,16 @@ export function SelectionBars({ onStartSetParent, onMakeRoot }: SelectionBarsPro
                             label="Make root"
                             onPress={() => onMakeRoot(selectedClipIds)}
                         />
-                        <Button variant="secondary" label="Copy" onPress={() => useStore.getState().startClipboardFromProject("copy")} />
-                        <Button variant="secondary" label="Move" onPress={() => useStore.getState().startClipboardFromProject("move")} />
+                        <Button
+                            variant="secondary"
+                            label="Copy"
+                            onPress={() => handleClipboardAction("copy")}
+                        />
+                        <Button
+                            variant="secondary"
+                            label="Move"
+                            onPress={() => handleClipboardAction("move")}
+                        />
                         <Pressable
                             style={styles.dangerBtn}
                             onPress={() => {
@@ -141,9 +161,11 @@ export function SelectionBars({ onStartSetParent, onMakeRoot }: SelectionBarsPro
             ) : null}
 
             {movingClipId ? (
-                <View style={styles.selectionBar}>
-                    <Text style={styles.selectionText}>Move clip to:</Text>
-                    <View style={styles.rowButtons}>
+                <View style={styles.songSelectionBar}>
+                    <View style={styles.songSelectionBarHeader}>
+                        <Text style={styles.selectionText}>Move clip to:</Text>
+                    </View>
+                    <View style={styles.songSelectionBarActions}>
                         {targetProjects.map((project) => (
                             <Button
                                 key={project.id}
