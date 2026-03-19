@@ -1,7 +1,9 @@
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import Constants from "expo-constants";
 import { ActivityIndicator, Alert, View } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
+  type InitialState,
   NavigationContainer,
   useNavigationContainerRef,
   type LinkingOptions,
@@ -44,6 +46,9 @@ import type { CollectionDetailRouteParams } from "./src/navigation";
 import { cleanupStaleShareTempFiles } from "./src/services/managedMedia";
 import { resumePendingWorkspaceArchiveOperations } from "./src/services/workspaceArchiveRecovery";
 import { recoverPendingRecordingSession } from "./src/services/recordingRecovery";
+
+const NAVIGATION_STATE_KEY = "song-seed-navigation-state-v1";
+const NON_RESTORABLE_ROUTE_NAMES = new Set(["ShareImport"]);
 
 export type HomeDrawerParamList = {
   Workspaces: undefined;
@@ -295,12 +300,20 @@ function getDeepestRoute(state: any): { name: string; params?: Record<string, un
   return { name: route?.name ?? "Home", params: route?.params };
 }
 
+function shouldPersistNavigationState(state: InitialState | undefined) {
+  if (!state) return false;
+  const deepestRoute = getDeepestRoute(state);
+  return !NON_RESTORABLE_ROUTE_NAMES.has(deepestRoute.name);
+}
+
 
 
 function AppContent() {
   const navigationRef = useNavigationContainerRef<RootStackParamList>();
   const [activeRouteName, setActiveRouteName] = useState<string>("Home");
   const [lastCollectionContextId, setLastCollectionContextId] = useState<string | null>(null);
+  const [initialNavigationState, setInitialNavigationState] = useState<InitialState | undefined>(undefined);
+  const [navigationStateReady, setNavigationStateReady] = useState(false);
   const workspaces = useStore((s) => s.workspaces);
   const activeWorkspaceId = useStore((s) => s.activeWorkspaceId);
   const selectedIdeaId = useStore((s) => s.selectedIdeaId);
@@ -381,9 +394,47 @@ function AppContent() {
     [appScheme, packageName, prefix, shareExtensionKey, shareImportUrl]
   );
 
+  useEffect(() => {
+    let cancelled = false;
+
+    void (async () => {
+      try {
+        const initialUrl = await linking.getInitialURL?.();
+        if (initialUrl) {
+          return;
+        }
+
+        const storedState = await AsyncStorage.getItem(NAVIGATION_STATE_KEY);
+        if (!storedState) {
+          return;
+        }
+
+        const parsedState = JSON.parse(storedState) as InitialState;
+        if (!cancelled) {
+          setInitialNavigationState(parsedState);
+        }
+      } catch (error) {
+        console.warn("Navigation restore error", error);
+      } finally {
+        if (!cancelled) {
+          setNavigationStateReady(true);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [linking]);
+
   const syncNavigationState = () => {
     const rootState = navigationRef.getRootState();
     if (!rootState) return;
+    if (shouldPersistNavigationState(rootState)) {
+      // Persist the last stable navigation tree so the app can reopen where the
+      // user left it instead of always dropping back to Home on relaunch.
+      void AsyncStorage.setItem(NAVIGATION_STATE_KEY, JSON.stringify(rootState));
+    }
     const deepestRoute = getDeepestRoute(rootState);
     const nextRoute = deepestRoute.name;
     setActiveRouteName((prev) => (prev === nextRoute ? prev : nextRoute));
@@ -415,9 +466,22 @@ function AppContent() {
         },
       }}
     >
+      {!navigationStateReady ? (
+        <View
+          style={{
+            flex: 1,
+            alignItems: "center",
+            justifyContent: "center",
+            backgroundColor: "#f8fafc",
+          }}
+        >
+          <ActivityIndicator color="#0f172a" />
+        </View>
+      ) : (
       <NavigationContainer
         ref={navigationRef}
         linking={linking}
+        initialState={initialNavigationState}
         onReady={syncNavigationState}
         onStateChange={syncNavigationState}
       >
@@ -450,6 +514,7 @@ function AppContent() {
         <ImportProgressBanner />
         <DuplicateReviewSheet />
       </NavigationContainer>
+      )}
     </ShareIntentProvider>
   );
 }
