@@ -780,7 +780,7 @@ export function PlayerScreen() {
               defaultExpanded={false}
               surfaceRadius={26}
               timelineHorizontalPadding={10}
-              collapsedHeightOverride={mode === "practice" ? 148 : 168}
+              collapsedHeightOverride={168}
               showMinimapMode={mode === "practice" ? "auto" : "never"}
               selectedRanges={mode === "practice" && practiceLoopEnabled ? practiceLoopSelection : undefined}
               renderOverlay={
