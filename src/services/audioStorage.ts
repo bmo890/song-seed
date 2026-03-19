@@ -1,10 +1,12 @@
 import * as DocumentPicker from "expo-document-picker";
 import * as FileSystem from "expo-file-system/legacy";
+import { File } from "expo-file-system";
 import { createAudioPlayer } from "expo-audio";
 import { Platform, Share } from "react-native";
 import { extractAudioAnalysis } from "@siteed/expo-audio-studio";
 import { buildStaticWaveform, metersToWaveformPeaks } from "../utils";
 import { SONG_SEED_AUDIO_DIR, SONG_SEED_SHARE_DIR } from "./storagePaths";
+import { cleanupShareTempFile } from "./managedMedia";
 
 export const MAX_DETAILED_AUDIO_ANALYSIS_DURATION_MS = 30 * 60 * 1000;
 
@@ -232,6 +234,16 @@ function crc32(bytes: Uint8Array) {
     return (crc ^ 0xffffffff) >>> 0;
 }
 
+function updateCrc32(crc: number, bytes: Uint8Array) {
+    let nextCrc = crc;
+    for (let index = 0; index < bytes.length; index += 1) {
+        nextCrc = CRC32_TABLE[(nextCrc ^ bytes[index]) & 0xff] ^ (nextCrc >>> 8);
+    }
+    return nextCrc;
+}
+
+const ZIP_STREAM_CHUNK_BYTES = 64 * 1024;
+
 function buildZipLocalHeader(filenameBytes: Uint8Array, size: number, checksum: number) {
     const header = new Uint8Array(30 + filenameBytes.length);
     const view = new DataView(header.buffer);
@@ -342,24 +354,46 @@ export async function createZipArchive(destinationUri: string, entries: ZipArchi
             if (entry.directory) {
                 const directoryName = entry.archiveName.endsWith("/") ? entry.archiveName : `${entry.archiveName}/`;
                 return {
+                    archiveName: directoryName,
                     filenameBytes: encodeUtf8(directoryName),
                     data: new Uint8Array(0),
                     checksum: 0,
+                    size: 0,
                 };
             }
 
-            let data: Uint8Array;
             if (typeof entry.fileUri === "string") {
+                const file = new File(entry.fileUri);
                 const info = await FileSystem.getInfoAsync(entry.fileUri);
                 if (!info.exists) {
                     throw new Error(`Missing file: ${entry.archiveName}`);
                 }
 
-                const base64 = await FileSystem.readAsStringAsync(entry.fileUri, {
-                    encoding: FileSystem.EncodingType.Base64,
-                });
-                data = base64ToBytes(base64);
-            } else if (typeof entry.data === "string") {
+                let crc = 0xffffffff;
+                let size = 0;
+                const handle = file.open();
+                try {
+                    while (true) {
+                        const chunk = handle.readBytes(ZIP_STREAM_CHUNK_BYTES);
+                        if (chunk.length === 0) break;
+                        crc = updateCrc32(crc, chunk);
+                        size += chunk.length;
+                    }
+                } finally {
+                    handle.close();
+                }
+
+                return {
+                    archiveName: entry.archiveName,
+                    filenameBytes: encodeUtf8(entry.archiveName),
+                    fileUri: entry.fileUri,
+                    checksum: (crc ^ 0xffffffff) >>> 0,
+                    size,
+                };
+            }
+
+            let data: Uint8Array;
+            if (typeof entry.data === "string") {
                 data = encodeUtf8(entry.data);
             } else if (entry.data instanceof Uint8Array) {
                 data = entry.data;
@@ -367,47 +401,60 @@ export async function createZipArchive(destinationUri: string, entries: ZipArchi
                 throw new Error(`No archive data for ${entry.archiveName}`);
             }
 
-            const filenameBytes = encodeUtf8(entry.archiveName);
-            const checksum = crc32(data);
-
             return {
-                filenameBytes,
+                archiveName: entry.archiveName,
+                filenameBytes: encodeUtf8(entry.archiveName),
                 data,
-                checksum,
+                checksum: crc32(data),
+                size: data.length,
             };
         })
     );
 
-    let localOffset = 0;
-    const localParts: Uint8Array[] = [];
-    const centralParts: Uint8Array[] = [];
+    const destinationFile = new File(destinationUri);
+    destinationFile.create({ intermediates: true, overwrite: true });
+    const destinationHandle = destinationFile.open();
 
-    resolvedEntries.forEach((entry) => {
-        const localHeader = buildZipLocalHeader(entry.filenameBytes, entry.data.length, entry.checksum);
-        const centralHeader = buildZipCentralHeader(entry.filenameBytes, entry.data.length, entry.checksum, localOffset);
+    try {
+        let localOffset = 0;
+        const centralParts: Uint8Array[] = [];
 
-        localParts.push(localHeader, entry.data);
-        centralParts.push(centralHeader);
-        localOffset += localHeader.length + entry.data.length;
-    });
+        for (const entry of resolvedEntries) {
+            const localHeader = buildZipLocalHeader(entry.filenameBytes, entry.size, entry.checksum);
+            destinationHandle.writeBytes(localHeader);
 
-    const centralDirectorySize = centralParts.reduce((sum, part) => sum + part.length, 0);
-    const endRecord = buildZipEndRecord(resolvedEntries.length, centralDirectorySize, localOffset);
-    const totalSize =
-        localParts.reduce((sum, part) => sum + part.length, 0) +
-        centralDirectorySize +
-        endRecord.length;
-    const zipBytes = new Uint8Array(totalSize);
+            if (entry.fileUri) {
+                const sourceFile = new File(entry.fileUri);
+                const sourceHandle = sourceFile.open();
+                try {
+                    while (true) {
+                        const chunk = sourceHandle.readBytes(ZIP_STREAM_CHUNK_BYTES);
+                        if (chunk.length === 0) break;
+                        destinationHandle.writeBytes(chunk);
+                    }
+                } finally {
+                    sourceHandle.close();
+                }
+            } else if (entry.data) {
+                destinationHandle.writeBytes(entry.data);
+            }
 
-    let cursor = 0;
-    [...localParts, ...centralParts, endRecord].forEach((part) => {
-        zipBytes.set(part, cursor);
-        cursor += part.length;
-    });
+            centralParts.push(
+                buildZipCentralHeader(entry.filenameBytes, entry.size, entry.checksum, localOffset)
+            );
+            localOffset += localHeader.length + entry.size;
+        }
 
-    await FileSystem.writeAsStringAsync(destinationUri, bytesToBase64(zipBytes), {
-        encoding: FileSystem.EncodingType.Base64,
-    });
+        const centralDirectorySize = centralParts.reduce((sum, part) => sum + part.length, 0);
+        for (const part of centralParts) {
+            destinationHandle.writeBytes(part);
+        }
+        destinationHandle.writeBytes(
+            buildZipEndRecord(resolvedEntries.length, centralDirectorySize, localOffset)
+        );
+    } finally {
+        destinationHandle.close();
+    }
 }
 
 export async function loadAudioDurationMs(audioUri: string, timeoutMs = 5000): Promise<number | undefined> {
@@ -581,18 +628,31 @@ export async function importAudioAsset(asset: ImportedAudioAsset, targetId: stri
 
     const extension = getFileExtension(asset.name, asset.mimeType);
     const destinationUri = `${SONG_SEED_AUDIO_DIR}/${targetId}.${extension}`;
+    const copiedToManagedStorage = asset.uri !== destinationUri;
 
-    if (asset.uri !== destinationUri) {
-        await FileSystem.copyAsync({ from: asset.uri, to: destinationUri });
+    try {
+        if (copiedToManagedStorage) {
+            await FileSystem.copyAsync({ from: asset.uri, to: destinationUri });
+        }
+
+        const metadata = await loadManagedAudioMetadata(
+            destinationUri,
+            `${targetId}-${asset.name ?? "imported"}`
+        );
+
+        return {
+            audioUri: destinationUri,
+            durationMs: metadata.durationMs,
+            waveformPeaks: metadata.waveformPeaks,
+        };
+    } catch (error) {
+        // Remove partially imported managed files so failed imports do not silently accumulate
+        // orphaned audio that the store never referenced.
+        if (copiedToManagedStorage) {
+            await FileSystem.deleteAsync(destinationUri, { idempotent: true }).catch(() => {});
+        }
+        throw error;
     }
-
-    const metadata = await loadManagedAudioMetadata(destinationUri, `${targetId}-${asset.name ?? "imported"}`);
-
-    return {
-        audioUri: destinationUri,
-        durationMs: metadata.durationMs,
-        waveformPeaks: metadata.waveformPeaks,
-    };
 }
 
 export async function importAudioAssets(
@@ -648,8 +708,12 @@ export async function shareAudioFile(audioUri: string, title: string) {
     const baseName = sanitizeArchiveSegment(title || "Clip");
     const shareUri = `${SONG_SEED_SHARE_DIR}/${baseName} ${buildTimestampSlug()}-${Math.random().toString(36).slice(2, 7)}.${extension}`;
 
-    await FileSystem.copyAsync({ from: audioUri, to: shareUri });
-    await shareFileUri(shareUri, title, getAudioShareMimeType(audioUri));
+    try {
+        await FileSystem.copyAsync({ from: audioUri, to: shareUri });
+        await shareFileUri(shareUri, title, getAudioShareMimeType(audioUri));
+    } finally {
+        await cleanupShareTempFile(shareUri);
+    }
 }
 
 export async function shareAudioClips(clips: ShareableAudioClip[], bundleLabel = "SongSeed Clips") {
@@ -688,6 +752,10 @@ export async function shareAudioClips(clips: ShareableAudioClip[], bundleLabel =
     const archiveTitle = `${sanitizeArchiveSegment(bundleLabel)} ${buildTimestampSlug()}`;
     const archiveUri = `${SONG_SEED_SHARE_DIR}/${archiveTitle}.zip`;
 
-    await createZipArchive(archiveUri, archiveEntries);
-    await shareFileUri(archiveUri, archiveTitle, "application/zip");
+    try {
+        await createZipArchive(archiveUri, archiveEntries);
+        await shareFileUri(archiveUri, archiveTitle, "application/zip");
+    } finally {
+        await cleanupShareTempFile(archiveUri);
+    }
 }

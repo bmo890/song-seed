@@ -1,6 +1,10 @@
 import * as FileSystem from "expo-file-system/legacy";
 import { strFromU8, unzipSync } from "fflate";
-import { SONG_SEED_AUDIO_DIR, SONG_SEED_WORKSPACE_ARCHIVE_DIR } from "./storagePaths";
+import {
+    SONG_SEED_AUDIO_DIR,
+    SONG_SEED_WORKSPACE_ARCHIVE_DIR,
+    isSongSeedManagedUri,
+} from "./storagePaths";
 import { readManifest, type ManifestData } from "./manifestSync";
 import { loadAudioDurationMs } from "./audioStorage";
 import { buildStaticWaveform } from "../utils";
@@ -100,6 +104,12 @@ async function writeFileBytes(fileUri: string, bytes: Uint8Array) {
     });
 }
 
+function assertManagedRestoreUri(fileUri: string) {
+    if (!isSongSeedManagedUri(fileUri)) {
+        throw new Error("Recovery restore target is outside Song Seed managed storage.");
+    }
+}
+
 /* ── Manifest-based recovery (highest priority) ────────────────── */
 
 /**
@@ -131,6 +141,10 @@ export async function restoreFromManifest(): Promise<ManifestRecoveryResult | nu
                 }
             }
         }
+    }
+
+    if (totalAudioRefs > 0 && validAudioCount === 0) {
+        return null;
     }
 
     // Extract just the PersistedAppStore fields (strip manifest-specific fields)
@@ -233,12 +247,19 @@ export async function restoreWorkspaceFromArchive(
         }
 
         try {
+            assertManagedRestoreUri(audioFile.liveUri);
             // Check if the file already exists at the live URI
             const existingInfo = await FileSystem.getInfoAsync(audioFile.liveUri);
             if (existingInfo.exists) {
-                // File already on disk — skip writing but count it
-                restoredAudioCount++;
-                continue;
+                const existingSize =
+                    typeof existingInfo.size === "number" ? existingInfo.size : undefined;
+                if (
+                    typeof existingSize === "number" &&
+                    existingSize === audioFile.originalSizeBytes
+                ) {
+                    restoredAudioCount++;
+                    continue;
+                }
             }
 
             await writeFileBytes(audioFile.liveUri, entryBytes);

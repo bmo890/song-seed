@@ -116,11 +116,18 @@ export function EditorScreen() {
     const updateIdeas = useStore((s) => s.updateIdeas);
     const setSelectedIdeaId = useStore((s) => s.setSelectedIdeaId);
     const markRecentlyAdded = useStore((s) => s.markRecentlyAdded);
-    const activeWorkspace = useStore((s) => s.workspaces.find((w) => w.id === s.activeWorkspaceId) ?? null);
-    const targetIdea = useStore((s) => {
-        const workspace = s.workspaces.find((w) => w.id === s.activeWorkspaceId);
-        return workspace?.ideas.find((idea) => idea.id === ideaId) ?? null;
-    });
+    const workspaces = useStore((s) => s.workspaces);
+    const activeWorkspaceId = useStore((s) => s.activeWorkspaceId);
+    // Derive workspace/idea objects outside the zustand selector so the editor cannot produce a
+    // brand-new object during hydration and accidentally trigger a destructive persist write.
+    const activeWorkspace = useMemo(
+        () => workspaces.find((workspace) => workspace.id === activeWorkspaceId) ?? null,
+        [activeWorkspaceId, workspaces]
+    );
+    const targetIdea = useMemo(
+        () => activeWorkspace?.ideas.find((idea) => idea.id === ideaId) ?? null,
+        [activeWorkspace, ideaId]
+    );
     const sourceClip = targetIdea?.clips.find((clip) => clip.id === clipId) ?? null;
     const targetCollection =
         targetIdea && activeWorkspace ? getCollectionById(activeWorkspace, targetIdea.collectionId) : null;

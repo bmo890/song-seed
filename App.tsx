@@ -1,5 +1,6 @@
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import Constants from "expo-constants";
+import { ActivityIndicator, Alert, View } from "react-native";
 import {
   NavigationContainer,
   useNavigationContainerRef,
@@ -40,6 +41,9 @@ import {
   resolveStartupWorkspaceId,
 } from "./src/libraryNavigation";
 import type { CollectionDetailRouteParams } from "./src/navigation";
+import { cleanupStaleShareTempFiles } from "./src/services/managedMedia";
+import { resumePendingWorkspaceArchiveOperations } from "./src/services/workspaceArchiveRecovery";
+import { recoverPendingRecordingSession } from "./src/services/recordingRecovery";
 
 export type HomeDrawerParamList = {
   Workspaces: undefined;
@@ -451,11 +455,68 @@ function AppContent() {
 }
 
 export default function App() {
+  const [hasHydrated, setHasHydrated] = useState(() => useStore.persist.hasHydrated());
+
+  useEffect(() => {
+    const unsubscribeStartHydration = useStore.persist.onHydrate(() => {
+      setHasHydrated(false);
+    });
+    const unsubscribeFinishHydration = useStore.persist.onFinishHydration(() => {
+      setHasHydrated(true);
+    });
+
+    if (!useStore.persist.hasHydrated()) {
+      void useStore.persist.rehydrate();
+    }
+
+    return () => {
+      unsubscribeStartHydration();
+      unsubscribeFinishHydration();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!hasHydrated) return;
+    // Sweep stale share/export temp files after hydration so the app does not keep growing
+    // storage usage from artifacts that were never part of persisted user state.
+    void (async () => {
+      await cleanupStaleShareTempFiles();
+      await resumePendingWorkspaceArchiveOperations();
+      const recordingRecovery = await recoverPendingRecordingSession();
+      if (recordingRecovery.status === "recovered") {
+        Alert.alert(
+          "Recovered recording",
+          `${recordingRecovery.title} was restored after the previous session ended unexpectedly.`
+        );
+      } else if (recordingRecovery.status === "failed") {
+        Alert.alert(
+          "Recording recovery failed",
+          "Song Seed found an unfinished recording from the previous session but could not restore it automatically."
+        );
+      }
+    })();
+  }, [hasHydrated]);
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <AudioRecorderProvider>
-          <AppContent />
+          {!hasHydrated ? (
+            // Hold the app shell until persist rehydrates so no screen can mount against the
+            // default store and accidentally serialize an empty snapshot back to AsyncStorage.
+            <View
+              style={{
+                flex: 1,
+                alignItems: "center",
+                justifyContent: "center",
+                backgroundColor: "#f8fafc",
+              }}
+            >
+              <ActivityIndicator color="#0f172a" />
+            </View>
+          ) : (
+            <AppContent />
+          )}
         </AudioRecorderProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>

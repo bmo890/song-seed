@@ -44,11 +44,19 @@ export function IdeaHeader({
     const navigateRoot = (route: string, params?: object) =>
         (rootNavigation ?? navigation).navigate(route as never, params as never);
 
-    const selectedIdea = useStore((s) => {
-        const ws = s.workspaces.find((w) => w.id === s.activeWorkspaceId);
-        return ws?.ideas.find((i) => i.id === s.selectedIdeaId);
-    });
-    const activeWorkspace = useStore((s) => s.workspaces.find((w) => w.id === s.activeWorkspaceId) ?? null);
+    const workspaces = useStore((s) => s.workspaces);
+    const activeWorkspaceId = useStore((s) => s.activeWorkspaceId);
+    const selectedIdeaId = useStore((s) => s.selectedIdeaId);
+    // Keep zustand subscriptions on stable primitives only. Deriving workspace/idea objects inside
+    // the selector can create unstable references during hydration and replay empty state into persist.
+    const activeWorkspace = useMemo(
+        () => workspaces.find((workspace) => workspace.id === activeWorkspaceId) ?? null,
+        [activeWorkspaceId, workspaces]
+    );
+    const selectedIdea = useMemo(
+        () => activeWorkspace?.ideas.find((idea) => idea.id === selectedIdeaId) ?? null,
+        [activeWorkspace, selectedIdeaId]
+    );
 
     const isNewProjectDraft = selectedIdea?.isDraft;
 
@@ -113,7 +121,7 @@ export function IdeaHeader({
                 ]
                 : []),
         ];
-    }, [activeWorkspace, collectionAncestors, currentCollection, selectedIdea]);
+    }, [activeWorkspace, collectionAncestors, currentCollection, navigation, navigateRoot, selectedIdea]);
     const titleLabel = selectedIdea.kind === "project" ? "SONG" : "CLIP";
     const isProject = selectedIdea.kind === "project";
     const showCompactTitle = compactTitleMode && !isEditMode;

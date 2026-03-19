@@ -13,25 +13,29 @@ type Props = {
 export function ScreenHeader({ title, leftIcon = "hamburger", onLeftPress, rightElement }: Props) {
     const navigation = useNavigation();
 
-    function openDrawerFromAnyParent() {
+    function getDrawerNavigation() {
         let currentNavigation: any = navigation;
         while (currentNavigation) {
             if (typeof currentNavigation.openDrawer === "function") {
-                currentNavigation.openDrawer();
-                return;
+                return currentNavigation;
             }
             currentNavigation = currentNavigation.getParent?.();
         }
+        return null;
     }
+
+    const drawerNavigation = getDrawerNavigation();
+    const effectiveLeftIcon =
+        leftIcon === "hamburger" && !drawerNavigation && navigation.canGoBack() ? "back" : leftIcon;
 
     function handleLeftPress() {
         if (onLeftPress) {
             onLeftPress();
             return;
         }
-        if (leftIcon === "hamburger") {
-            openDrawerFromAnyParent();
-        } else if (leftIcon === "back") {
+        if (effectiveLeftIcon === "hamburger") {
+            drawerNavigation?.openDrawer();
+        } else if (effectiveLeftIcon === "back") {
             navigation.goBack();
         }
     }
@@ -41,12 +45,12 @@ export function ScreenHeader({ title, leftIcon = "hamburger", onLeftPress, right
             {leftIcon !== "none" ? (
                 <Pressable
                     style={({ pressed }) => [
-                        leftIcon === "hamburger" ? headerStyles.hamburgerBtn : headerStyles.backBtn,
+                        effectiveLeftIcon === "hamburger" ? headerStyles.hamburgerBtn : headerStyles.backBtn,
                         pressed ? styles.pressDown : null,
                     ]}
                     onPress={handleLeftPress}
                 >
-                    {leftIcon === "hamburger" ? (
+                    {effectiveLeftIcon === "hamburger" ? (
                         <Text style={headerStyles.hamburgerLabel}>☰</Text>
                     ) : (
                         <Text style={headerStyles.backBtnText}>Back</Text>

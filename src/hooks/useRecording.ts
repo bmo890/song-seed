@@ -1,8 +1,13 @@
 import { useSharedAudioRecorder, ExpoAudioStreamModule, audioDeviceManager } from "@siteed/expo-audio-studio";
+import * as FileSystem from "expo-file-system/legacy";
 import { Alert, Linking } from "react-native";
 import { metersToWaveformPeaks } from "../utils";
 import { activateRecordingAudioSession } from "../services/audioSession";
 import { importRecordedAudioAsset } from "../services/audioStorage";
+import {
+  clearPendingRecordingSession,
+  persistPendingRecordingSession,
+} from "../services/recordingRecovery";
 import { useRecordingDisplayElapsed } from "./useRecordingDisplayElapsed";
 type OnRecorded = (payload: { audioUri: string; durationMs?: number; waveformPeaks?: number[] }) => void;
 
@@ -75,7 +80,8 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
 
       await activateRecordingAudioSession();
 
-      await recorder.startRecording({
+      const recordingStartedAt = Date.now();
+      const startResult = await recorder.startRecording({
         sampleRate: 44100,    // Standard CD-quality sample rate
         channels: 1,          // Mono is standard for voice memos and guarantees clear single-source audio
         // In dev (emulator), run the visualizer at 10fps to prevent audio crackle. 
@@ -97,9 +103,16 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
             categoryOptions: ["MixWithOthers", "AllowBluetooth", "AllowBluetoothA2DP", "DefaultToSpeaker"]
           }
         },
+        onAudioStream: async ({ fileUri }) => {
+          if (!fileUri) return;
+          await persistPendingRecordingSession(fileUri, recordingStartedAt);
+        },
         onRecordingInterrupted: () => {},
         onAudioAnalysis: async () => {}
       });
+      if (startResult?.fileUri) {
+        await persistPendingRecordingSession(startResult.fileUri, recordingStartedAt);
+      }
     } catch (err) {
       console.warn("Recording start failed", err);
       Alert.alert("Recording failed", "Could not start recording.");
@@ -149,6 +162,12 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
         durationMs: managedAudio.durationMs ?? recordingData.durationMs,
         waveformPeaks,
       });
+      if (recordingData.fileUri && recordingData.fileUri !== managedAudio.audioUri) {
+        // The managed import succeeded, so the recorder temp output is now redundant and should
+        // be removed instead of silently accumulating across saves.
+        await FileSystem.deleteAsync(recordingData.fileUri, { idempotent: true }).catch(() => {});
+      }
+      await clearPendingRecordingSession();
       return true;
     } catch {
       Alert.alert("Recording failed", "Could not save recording.");
@@ -158,7 +177,13 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
 
   async function discardRecording() {
     try {
-      await recorder.stopRecording();
+      const recordingData = await recorder.stopRecording();
+      if (recordingData?.fileUri) {
+        // Discard should clean up the recorder output because the app never imports it into
+        // managed storage or stores metadata for later recovery.
+        await FileSystem.deleteAsync(recordingData.fileUri, { idempotent: true }).catch(() => {});
+      }
+      await clearPendingRecordingSession();
     } catch {
       // ignore
     }

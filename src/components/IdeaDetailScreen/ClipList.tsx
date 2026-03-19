@@ -82,10 +82,19 @@ export function ClipList({
   const pendingPrimaryClipId = useStore((s) => s.pendingPrimaryClipId);
   const recentlyAddedItemIds = useStore((s) => s.recentlyAddedItemIds);
   const clearRecentlyAdded = useStore((s) => s.clearRecentlyAdded);
-  const selectedIdea = useStore((s) => {
-    const ws = s.workspaces.find((w) => w.id === s.activeWorkspaceId);
-    return ws?.ideas.find((i) => i.id === s.selectedIdeaId);
-  });
+  const workspaces = useStore((s) => s.workspaces);
+  const activeWorkspaceId = useStore((s) => s.activeWorkspaceId);
+  const selectedIdeaId = useStore((s) => s.selectedIdeaId);
+  // Derive project objects after the selector so this list cannot generate unstable object
+  // references during hydration and participate in overwriting persisted data with defaults.
+  const activeWorkspace = useMemo(
+    () => workspaces.find((workspace) => workspace.id === activeWorkspaceId) ?? null,
+    [activeWorkspaceId, workspaces]
+  );
+  const selectedIdea = useMemo(
+    () => activeWorkspace?.ideas.find((idea) => idea.id === selectedIdeaId) ?? null,
+    [activeWorkspace, selectedIdeaId]
+  );
 
   const parentPickSourceIdSet = useMemo(
     () => new Set(parentPickSourceClipIds),
@@ -206,7 +215,7 @@ export function ClipList({
   }, [isParentPicking]);
 
   if (!selectedIdea) return null;
-  const selectedIdeaId = selectedIdea.id;
+  const currentIdeaId = selectedIdea.id;
   const isDraftProject = !!selectedIdea.isDraft;
   const actionsClip = actionsClipId
     ? selectedIdea.clips.find((clip) => clip.id === actionsClipId) ?? null
@@ -225,7 +234,7 @@ export function ClipList({
     if (!notesSheetClipId) return;
     useStore.getState().updateIdeas((ideas) =>
       ideas.map((idea) =>
-        idea.id !== selectedIdeaId
+        idea.id !== currentIdeaId
           ? idea
           : {
               ...idea,
@@ -253,7 +262,7 @@ export function ClipList({
   function saveEditingClip(clipId: string) {
     useStore.getState().updateIdeas((ideas) =>
       ideas.map((idea) =>
-        idea.id !== selectedIdeaId
+        idea.id !== currentIdeaId
           ? idea
           : {
               ...idea,
@@ -275,7 +284,7 @@ export function ClipList({
   function deleteClip(clipId: string) {
     useStore.getState().updateIdeas((ideas) =>
       ideas.map((idea) => {
-        if (idea.id !== selectedIdeaId) return idea;
+        if (idea.id !== currentIdeaId) return idea;
         const remaining = idea.clips.filter((clip) => clip.id !== clipId);
         if (remaining.length > 0 && !remaining.some((clip) => clip.isPrimary)) {
           remaining[0] = { ...remaining[0], isPrimary: true };

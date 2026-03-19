@@ -114,6 +114,23 @@ These rules are short, strict enforcement rules. Use [docs/design-system.md](/Us
   - center: breadcrumb context
   - right: overflow menu
 - Keep breadcrumbs subtle, single-line, and truncated if deep.
+- Use `hamburger` only on browse/container screens:
+  - Home
+  - Workspace
+  - Collection / Ideas list
+  - Activity
+  - Revisit
+  - Library
+  - Settings
+  - Tuner
+  - Metronome
+- Use `back` on focused detail/task screens:
+  - Song
+  - Player
+  - Recording
+  - Editor
+  - Lyrics
+  - Lyrics version
 
 ### Controls
 - Controls should sit directly on the surface, not inside decorative cards.

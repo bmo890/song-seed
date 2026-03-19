@@ -7,6 +7,17 @@ import { archiveWorkspaceToDevice, restoreWorkspaceFromDevice } from "../service
 import { findOrphanedAudioFiles, enrichOrphanedClips, buildRecoveredIdeas, findWorkspaceArchives, restoreWorkspaceFromArchive, restoreFromManifest } from "../services/audioRecovery";
 import { forceManifestWrite } from "../services/manifestSync";
 import { buildPersistedAppStoreSnapshot } from "./useStore";
+import { buildRuntimeCleanupPatch } from "./runtimeCleanup";
+import {
+    collectManagedIdeaAudioUris,
+    deleteManagedArchiveUri,
+    deleteManagedAudioUris,
+    filterUnreferencedManagedAudioUris,
+} from "../services/managedMedia";
+import {
+    clearPendingWorkspaceArchiveOperation,
+    upsertPendingWorkspaceArchiveOperation,
+} from "../services/workspaceArchiveRecovery";
 
 function buildEntityId(prefix: string) {
     return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
@@ -168,6 +179,12 @@ function getFirstActiveWorkspaceId(workspaces: Workspace[], excludedWorkspaceId?
     return (
         workspaces.find((workspace) => !workspace.isArchived && workspace.id !== excludedWorkspaceId)?.id ?? null
     );
+}
+
+async function persistCurrentStoreSnapshot() {
+    // Force the manifest/shadow snapshot after critical storage transitions so a crash cannot
+    // leave disk files and persisted metadata describing different realities.
+    await forceManifestWrite(buildPersistedAppStoreSnapshot(useStore.getState()));
 }
 
 function buildWorkspaceArchivalState(
@@ -685,16 +702,69 @@ export const appActions = {
     deleteSelectedClips: () => {
         const state = useStore.getState();
         if (!state.selectedIdeaId || state.selectedClipIds.length === 0) return;
+        const selectedClipIds = new Set(state.selectedClipIds);
+        let audioUrisToDelete: string[] = [];
 
-        state.updateIdeas((prev) =>
-            prev.map((idea) => {
-                if (idea.id !== state.selectedIdeaId) return idea;
-                const kept = idea.clips.filter((clip) => !state.selectedClipIds.includes(clip.id));
-                if (kept.length > 0 && !kept.some((c) => c.isPrimary)) kept[0] = { ...kept[0], isPrimary: true };
-                return { ...idea, clips: kept };
-            })
-        );
-        state.cancelClipSelection();
+        useStore.setState((store) => {
+            let removedIdeaClips: ClipVersion[] = [];
+            const nextWorkspaces = store.workspaces.map((workspace) => {
+                if (workspace.id !== store.activeWorkspaceId) return workspace;
+                return {
+                    ...workspace,
+                    ideas: workspace.ideas.map((idea) => {
+                        if (idea.id !== store.selectedIdeaId) return idea;
+                        removedIdeaClips = idea.clips.filter((clip) => selectedClipIds.has(clip.id));
+                        const kept = idea.clips.filter((clip) => !selectedClipIds.has(clip.id));
+                        if (kept.length > 0 && !kept.some((clip) => clip.isPrimary)) {
+                            kept[0] = { ...kept[0], isPrimary: true };
+                        }
+                        return { ...idea, clips: kept };
+                    }),
+                };
+            });
+
+            if (removedIdeaClips.length === 0) {
+                return store;
+            }
+
+            audioUrisToDelete = filterUnreferencedManagedAudioUris(
+                removedIdeaClips.flatMap((clip) =>
+                    Array.from(
+                        collectManagedIdeaAudioUris({
+                            id: "deleted-clips",
+                            title: "",
+                            notes: "",
+                            status: "clip",
+                            completionPct: 0,
+                            kind: "clip",
+                            collectionId: "",
+                            createdAt: 0,
+                            lastActivityAt: 0,
+                            clips: [clip],
+                        })
+                    )
+                ),
+                nextWorkspaces
+            );
+
+            return {
+                ...buildRuntimeCleanupPatch(store, {
+                    nextWorkspaces,
+                    removedClipIds: removedIdeaClips.map((clip) => clip.id),
+                }),
+                workspaces: nextWorkspaces,
+                activityEvents: store.activityEvents.filter(
+                    (event) => !event.clipId || !selectedClipIds.has(event.clipId)
+                ),
+                playlists: store.playlists.map((playlist) => ({
+                    ...playlist,
+                    items: playlist.items.filter(
+                        (item) => !item.clipId || !selectedClipIds.has(item.clipId)
+                    ),
+                })),
+            };
+        });
+        void deleteManagedAudioUris(audioUrisToDelete);
     },
 
     convertSelectedClipIdeaToProject: () => {
@@ -1067,8 +1137,56 @@ export const appActions = {
     deleteSelectedIdeasFromList: () => {
         const state = useStore.getState();
         if (state.selectedListIdeaIds.length === 0) return;
-        state.updateIdeas((prev) => prev.filter((idea) => !state.selectedListIdeaIds.includes(idea.id)));
-        state.cancelListSelection();
+        const selectedIdeaIds = new Set(state.selectedListIdeaIds);
+        let audioUrisToDelete: string[] = [];
+
+        useStore.setState((store) => {
+            const activeWorkspace = store.workspaces.find(
+                (workspace) => workspace.id === store.activeWorkspaceId
+            );
+            if (!activeWorkspace) {
+                return store;
+            }
+
+            const removedIdeas = activeWorkspace.ideas.filter((idea) => selectedIdeaIds.has(idea.id));
+            if (removedIdeas.length === 0) {
+                return store;
+            }
+
+            const removedClipIds = removedIdeas.flatMap((idea) =>
+                idea.clips.map((clip) => clip.id)
+            );
+            const nextWorkspaces = store.workspaces.map((workspace) =>
+                workspace.id !== store.activeWorkspaceId
+                    ? workspace
+                    : normalizeWorkspaceCollectionVisibility({
+                          ...workspace,
+                          ideas: workspace.ideas.filter((idea) => !selectedIdeaIds.has(idea.id)),
+                      })
+            );
+
+            audioUrisToDelete = filterUnreferencedManagedAudioUris(
+                removedIdeas.flatMap((idea) => Array.from(collectManagedIdeaAudioUris(idea))),
+                nextWorkspaces
+            );
+
+            return {
+                ...buildRuntimeCleanupPatch(store, {
+                    nextWorkspaces,
+                    removedIdeaIds: selectedIdeaIds,
+                    removedClipIds,
+                }),
+                workspaces: nextWorkspaces,
+                activityEvents: store.activityEvents.filter(
+                    (event) => !selectedIdeaIds.has(event.ideaId)
+                ),
+                playlists: store.playlists.map((playlist) => ({
+                    ...playlist,
+                    items: playlist.items.filter((item) => !selectedIdeaIds.has(item.ideaId)),
+                })),
+            };
+        });
+        void deleteManagedAudioUris(audioUrisToDelete);
     },
 
     startClipboardFromList: (mode: "copy" | "move") => {
@@ -1126,6 +1244,16 @@ export const appActions = {
 
         const result = await archiveWorkspaceToDevice(workspace);
         useStore.setState((store) => buildWorkspaceArchivalState(store, result.archivedWorkspace));
+        await persistCurrentStoreSnapshot();
+        await upsertPendingWorkspaceArchiveOperation({
+            kind: "archive-cleanup",
+            workspaceId,
+            archiveUri: result.archiveState.archiveUri,
+            originalAudioUris: result.originalAudioUris,
+            createdAt: Date.now(),
+        });
+        await deleteManagedAudioUris(result.originalAudioUris);
+        await clearPendingWorkspaceArchiveOperation(workspaceId);
         return result;
     },
 
@@ -1156,6 +1284,12 @@ export const appActions = {
             };
         }
 
+        await upsertPendingWorkspaceArchiveOperation({
+            kind: "unarchive-restore",
+            workspaceId,
+            archiveUri: workspace.archiveState.archiveUri,
+            createdAt: Date.now(),
+        });
         const result = await restoreWorkspaceFromDevice(workspace);
         useStore.setState((store) => ({
             workspaces: store.workspaces.map((item) =>
@@ -1163,6 +1297,15 @@ export const appActions = {
             ),
             activeWorkspaceId: store.activeWorkspaceId ?? workspaceId,
         }));
+        await persistCurrentStoreSnapshot();
+        await upsertPendingWorkspaceArchiveOperation({
+            kind: "unarchive-cleanup",
+            workspaceId,
+            archiveUri: workspace.archiveState.archiveUri,
+            createdAt: Date.now(),
+        });
+        await deleteManagedArchiveUri(workspace.archiveState.archiveUri);
+        await clearPendingWorkspaceArchiveOperation(workspaceId);
         return result;
     },
 

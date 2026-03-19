@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { styles } from "../../styles";
@@ -50,10 +50,19 @@ export function ActionButtons({
 
     const clipSelectionMode = useStore((s) => s.clipSelectionMode);
     const globalCustomTagsFromStore = useStore((s) => s.globalCustomClipTags);
-    const selectedIdea = useStore((s) => {
-        const ws = s.workspaces.find((w) => w.id === s.activeWorkspaceId);
-        return ws?.ideas.find((i) => i.id === s.selectedIdeaId);
-    });
+    const workspaces = useStore((s) => s.workspaces);
+    const activeWorkspaceId = useStore((s) => s.activeWorkspaceId);
+    const selectedIdeaId = useStore((s) => s.selectedIdeaId);
+    // Stabilize derived idea lookups outside the selector so hydration cannot churn a new object
+    // here and cascade into another persist write while the store is still bootstrapping.
+    const activeWorkspace = useMemo(
+        () => workspaces.find((workspace) => workspace.id === activeWorkspaceId) ?? null,
+        [activeWorkspaceId, workspaces]
+    );
+    const selectedIdea = useMemo(
+        () => activeWorkspace?.ideas.find((idea) => idea.id === selectedIdeaId) ?? null,
+        [activeWorkspace, selectedIdeaId]
+    );
 
     const resolvedProjectCustomTags = projectCustomTags ?? selectedIdea?.customTags ?? [];
     const resolvedGlobalCustomTags = globalCustomTags ?? globalCustomTagsFromStore;

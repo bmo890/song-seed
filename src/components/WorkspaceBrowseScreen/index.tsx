@@ -282,6 +282,14 @@ export function WorkspaceBrowseScreen() {
               useImportStore.getState().updateJob(jobId, { current, failed: failedCount });
             }
           );
+
+          // Data-loss guard: if nothing imported, remove the empty pre-created collection
+          if (imported.length === 0) {
+            deleteCollection(collectionId);
+            useImportStore.getState().updateJob(jobId, { status: "error" });
+            return;
+          }
+
           const importedDates = buildImportedAssetDateMetadata(imported, datePreferenceSnapshot, importedAt);
           const nextTitles: string[] = [];
 
@@ -307,6 +315,8 @@ export function WorkspaceBrowseScreen() {
           });
         } catch (error) {
           console.warn("Collection import error", error);
+          // Data-loss guard: clean up the empty pre-created collection if the import errored
+          deleteCollection(collectionId);
           useImportStore.getState().updateJob(jobId, { status: "error" });
         } finally {
           setTimeout(() => useImportStore.getState().removeJob(jobId), 2500);
