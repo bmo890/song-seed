@@ -29,6 +29,10 @@ export type ImportedManagedAudioAsset = ImportedAudioAsset &
         targetId: string;
     };
 
+type AudioMetadataLoadOptions = {
+    lightweight?: boolean;
+};
+
 export type AudioImportFailure = {
     asset: ImportedAudioAsset;
     error: unknown;
@@ -511,10 +515,17 @@ export async function loadAudioDurationMs(audioUri: string, timeoutMs = 5000): P
     });
 }
 
-export async function loadManagedAudioMetadata(audioUri: string, seed: string, durationHint?: number) {
+export async function loadManagedAudioMetadata(
+    audioUri: string,
+    seed: string,
+    durationHint?: number,
+    options?: AudioMetadataLoadOptions
+) {
     const durationMs = durationHint && durationHint > 0 ? durationHint : await loadAudioDurationMs(audioUri);
 
-    if (durationMs && durationMs > MAX_DETAILED_AUDIO_ANALYSIS_DURATION_MS) {
+    // Batch imports intentionally skip detailed analysis so large imports do not
+    // queue enough native work to get the app killed before any state is committed.
+    if (options?.lightweight || (durationMs && durationMs > MAX_DETAILED_AUDIO_ANALYSIS_DURATION_MS)) {
         return {
             durationMs,
             waveformPeaks: buildStaticWaveform(`${seed}-${durationMs}`, 96),
@@ -623,7 +634,11 @@ export async function pickAudioFiles(options?: { multiple?: boolean }): Promise<
     );
 }
 
-export async function importAudioAsset(asset: ImportedAudioAsset, targetId: string): Promise<ManagedAudioResult> {
+export async function importAudioAsset(
+    asset: ImportedAudioAsset,
+    targetId: string,
+    options?: AudioMetadataLoadOptions
+): Promise<ManagedAudioResult> {
     await ensureAudioDirectory();
 
     const extension = getFileExtension(asset.name, asset.mimeType);
@@ -637,7 +652,9 @@ export async function importAudioAsset(asset: ImportedAudioAsset, targetId: stri
 
         const metadata = await loadManagedAudioMetadata(
             destinationUri,
-            `${targetId}-${asset.name ?? "imported"}`
+            `${targetId}-${asset.name ?? "imported"}`,
+            undefined,
+            options
         );
 
         return {
@@ -658,7 +675,10 @@ export async function importAudioAsset(asset: ImportedAudioAsset, targetId: stri
 export async function importAudioAssets(
     assets: ImportedAudioAsset[],
     buildTargetId: (asset: ImportedAudioAsset, index: number) => string,
-    onProgress?: (current: number, total: number, failed: number) => void
+    onProgress?: (current: number, total: number, failed: number) => void,
+    options?: AudioMetadataLoadOptions & {
+        onImported?: (asset: ImportedManagedAudioAsset, index: number) => void;
+    }
 ): Promise<{ imported: ImportedManagedAudioAsset[]; failed: AudioImportFailure[] }> {
     const imported: ImportedManagedAudioAsset[] = [];
     const failed: AudioImportFailure[] = [];
@@ -668,12 +688,14 @@ export async function importAudioAssets(
         const targetId = buildTargetId(asset, index);
 
         try {
-            const managed = await importAudioAsset(asset, targetId);
-            imported.push({
+            const managed = await importAudioAsset(asset, targetId, options);
+            const importedAsset = {
                 ...asset,
                 ...managed,
                 targetId,
-            });
+            };
+            imported.push(importedAsset);
+            options?.onImported?.(importedAsset, index);
         } catch (error) {
             failed.push({ asset, error });
         }

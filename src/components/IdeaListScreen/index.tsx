@@ -37,6 +37,7 @@ import {
   shareAudioFile,
   type ImportedAudioAsset,
 } from "../../services/audioStorage";
+import { enqueueBackgroundWaveformHydration } from "../../services/backgroundWaveformHydration";
 import { useImportStore } from "../../state/useImportStore";
 import { getAllClips, checkImportDuplicates, showDuplicateReview } from "../../services/importDuplicates";
 import {
@@ -1051,6 +1052,7 @@ export function IdeaListScreen() {
       if (assets.length === 0) return;
       const targetCollectionId = collectionId!;
       const baseTitles = [...collectionIdeaTitles];
+      const nextTitles = [...baseTitles];
       const label = assets.length === 1 ? buildImportedTitle(assets[0]!.name) : `${assets.length} clips`;
       const jobId = `import-${Date.now()}`;
       useImportStore.getState().startJob({ id: jobId, label, total: assets.length });
@@ -1063,25 +1065,34 @@ export function IdeaListScreen() {
           (_asset, index) => `audio-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 9)}`,
           (current, total, failedCount) => {
             useImportStore.getState().updateJob(jobId, { current, failed: failedCount });
+          },
+          {
+            lightweight: true,
+            onImported: (asset) => {
+              const [importedDate] = buildImportedAssetDateMetadata([asset], datePreference, importedAt);
+              const title = ensureUniqueCountedTitle(buildImportedTitle(asset.name), nextTitles);
+              nextTitles.push(title);
+              const importedResult = appActions.importClipToCollection(targetCollectionId, {
+                title,
+                audioUri: asset.audioUri,
+                durationMs: asset.durationMs,
+                waveformPeaks: asset.waveformPeaks,
+                createdAt: importedDate!.createdAt,
+                importedAt: importedDate!.importedAt,
+                sourceCreatedAt: importedDate!.sourceCreatedAt,
+              });
+              const workspaceId = useStore.getState().activeWorkspaceId;
+              if (workspaceId) {
+                enqueueBackgroundWaveformHydration({
+                  workspaceId,
+                  ideaId: importedResult.ideaId,
+                  clipId: importedResult.clipId,
+                  audioUri: asset.audioUri,
+                });
+              }
+            },
           }
         );
-        const importedDates = buildImportedAssetDateMetadata(imported, datePreference, importedAt);
-        const nextTitles = [...baseTitles];
-
-        imported.forEach((asset, index) => {
-          const importedDate = importedDates[index]!;
-          const title = ensureUniqueCountedTitle(buildImportedTitle(asset.name), nextTitles);
-          nextTitles.push(title);
-          appActions.importClipToCollection(targetCollectionId, {
-            title,
-            audioUri: asset.audioUri,
-            durationMs: asset.durationMs,
-            waveformPeaks: asset.waveformPeaks,
-            createdAt: importedDate.createdAt,
-            importedAt: importedDate.importedAt,
-            sourceCreatedAt: importedDate.sourceCreatedAt,
-          });
-        });
 
         useImportStore.getState().updateJob(jobId, {
           current: imported.length,
@@ -1150,7 +1161,7 @@ export function IdeaListScreen() {
               importedAt
             );
 
-            appActions.importClipToCollection(targetCollectionId, {
+            const importedResult = appActions.importClipToCollection(targetCollectionId, {
               title: finalTitle,
               audioUri: importedAudio.audioUri,
               durationMs: importedAudio.durationMs,
@@ -1159,6 +1170,15 @@ export function IdeaListScreen() {
               importedAt: importedDate!.importedAt,
               sourceCreatedAt: importedDate!.sourceCreatedAt,
             });
+            const workspaceId = useStore.getState().activeWorkspaceId;
+            if (workspaceId) {
+              enqueueBackgroundWaveformHydration({
+                workspaceId,
+                ideaId: importedResult.ideaId,
+                clipId: importedResult.clipId,
+                audioUri: importedAudio.audioUri,
+              });
+            }
             useImportStore.getState().updateJob(jobId, { current: 1, status: "done" });
           } else {
             const { imported, failed } = await importAudioAssets(
@@ -1166,6 +1186,9 @@ export function IdeaListScreen() {
               (_asset, index) => `audio-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 9)}`,
               (current, total, failedCount) => {
                 useImportStore.getState().updateJob(jobId, { current, failed: failedCount });
+              },
+              {
+                lightweight: true,
               }
             );
 
@@ -1179,7 +1202,7 @@ export function IdeaListScreen() {
             const ideaDateMetadata = buildImportedIdeaDateMetadata(importedDates);
             const projectClipTitles: string[] = [];
 
-            appActions.importProjectToCollection(targetCollectionId, {
+            const importedProject = appActions.importProjectToCollection(targetCollectionId, {
               title: projectTitle,
               createdAt: ideaDateMetadata.createdAt,
               importedAt: ideaDateMetadata.importedAt,
@@ -1198,6 +1221,19 @@ export function IdeaListScreen() {
                 sourceCreatedAt: importedDates[index]!.sourceCreatedAt,
               })),
             });
+            const workspaceId = useStore.getState().activeWorkspaceId;
+            if (workspaceId) {
+              imported.forEach((asset, index) => {
+                const clipId = importedProject.clipIds[index];
+                if (!clipId || !asset.audioUri) return;
+                enqueueBackgroundWaveformHydration({
+                  workspaceId,
+                  ideaId: importedProject.ideaId,
+                  clipId,
+                  audioUri: asset.audioUri,
+                });
+              });
+            }
 
             useImportStore.getState().updateJob(jobId, {
               current: imported.length,
