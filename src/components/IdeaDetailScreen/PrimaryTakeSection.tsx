@@ -19,7 +19,7 @@ export function PrimaryTakeSection({ entry, clipCardProps }: PrimaryTakeSectionP
           <Text style={styles.songDetailSectionTitle}>Primary take</Text>
         </View>
       </View>
-      <ClipCard entry={entry} {...clipCardProps} />
+      <ClipCard entry={entry} {...clipCardProps} displayOnly />
     </View>
   );
 }

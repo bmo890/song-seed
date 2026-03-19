@@ -43,6 +43,7 @@ export type ClipCardSharedProps = {
 
 type ClipCardProps = ClipCardSharedProps & {
   entry: ClipCardEntry;
+  displayOnly?: boolean;
 };
 
 function renderEvolutionGuide(entry: EvolutionListClipEntry) {
@@ -87,6 +88,7 @@ export function ClipCard({
   globalCustomTags,
   inlinePlayer,
   getHighlightValue,
+  displayOnly,
 }: ClipCardProps) {
   const navigation = useNavigation();
   const clipSelectionMode = useStore((s) => s.clipSelectionMode);
@@ -106,23 +108,25 @@ export function ClipCard({
 
   return (
     <View style={styles.threadRowWrap}>
-      <View
-        style={[
-          styles.selectionIndicatorCol,
-          clipSelectionMode ? null : styles.selectionIndicatorHidden,
-        ]}
-      >
-        {clipSelectionMode ? (
-          <View
-            style={[
-              styles.selectionIndicatorCircle,
-              isSelected ? styles.selectionIndicatorActive : null,
-            ]}
-          >
-            {isSelected ? <Text style={styles.selectionBadgeText}>✓</Text> : null}
-          </View>
-        ) : null}
-      </View>
+      {!displayOnly && (
+        <View
+          style={[
+            styles.selectionIndicatorCol,
+            clipSelectionMode ? null : styles.selectionIndicatorHidden,
+          ]}
+        >
+          {clipSelectionMode ? (
+            <View
+              style={[
+                styles.selectionIndicatorCircle,
+                isSelected ? styles.selectionIndicatorActive : null,
+              ]}
+            >
+              {isSelected ? <Text style={styles.selectionBadgeText}>✓</Text> : null}
+            </View>
+          ) : null}
+        </View>
+      )}
       {entry.kind === "evolution" ? renderEvolutionGuide(entry) : null}
 
       <View
@@ -154,7 +158,7 @@ export function ClipCard({
                   if (!clip.audioUri) return;
                   void inlinePlayer.toggleInlinePlayback(idea.id, clip);
                 }}
-                onLongPress={() => {
+                onLongPress={displayOnly ? undefined : () => {
                   onOpenActions(clip);
                 }}
                 style={({ pressed }) => [
@@ -183,7 +187,7 @@ export function ClipCard({
 
           <Pressable
             style={styles.songDetailVersionMain}
-            onLongPress={() => {
+            onLongPress={displayOnly ? undefined : () => {
               if (isParentPicking) return;
               if (clipSelectionMode) {
                 useStore.getState().toggleClipSelection(clip.id);
@@ -192,6 +196,14 @@ export function ClipCard({
               onOpenActions(clip);
             }}
             onPress={async () => {
+              if (displayOnly) {
+                if (clip.audioUri) {
+                  await inlinePlayer.resetInlinePlayer();
+                  useStore.getState().setPlayerQueue([{ ideaId: idea.id, clipId: clip.id }], 0, true);
+                  navigation.navigate("Player" as never);
+                }
+                return;
+              }
               if (isDraftProject) return;
               if (isParentPicking) {
                 if (isInvalidParentTarget) return;
@@ -221,7 +233,7 @@ export function ClipCard({
               />
             ) : null}
 
-            {editingClipId === clip.id ? (
+            {!displayOnly && editingClipId === clip.id ? (
               <View style={styles.inputRow}>
                 <TitleInput
                   value={editingClipDraft}
@@ -249,7 +261,7 @@ export function ClipCard({
                   </View>
 
                   <View style={styles.songDetailVersionTrailing}>
-                    {isParentPickSource ? (
+                    {displayOnly ? null : isParentPickSource ? (
                       <Text style={styles.badge}>SOURCE</Text>
                     ) : isEditMode ? (
                       isPrimaryCandidate ? (
@@ -266,7 +278,7 @@ export function ClipCard({
                       <Text style={styles.badge}>PRIMARY</Text>
                     ) : null}
 
-                    {!clipSelectionMode && !isEditMode && !isDraftProject && !isParentPicking ? (
+                    {!displayOnly && !clipSelectionMode && !isEditMode && !isDraftProject && !isParentPicking ? (
                       <Pressable
                         style={({ pressed }) => [
                           styles.songDetailVersionReplyBtn,
@@ -294,8 +306,9 @@ export function ClipCard({
                 {clip.notes?.trim() ? (
                   <Pressable
                     style={styles.clipCardNotesPreview}
-                    onPress={() => onOpenNotesSheet?.(clip)}
-                    hitSlop={{ top: 4, bottom: 4 }}
+                    onPress={displayOnly ? undefined : () => onOpenNotesSheet?.(clip)}
+                    hitSlop={displayOnly ? undefined : { top: 4, bottom: 4 }}
+                    disabled={displayOnly}
                   >
                     <Ionicons name="document-text-outline" size={11} color="#94a3b8" />
                     <Text style={styles.clipCardNotesPreviewText} numberOfLines={1}>
@@ -304,14 +317,15 @@ export function ClipCard({
                   </Pressable>
                 ) : null}
 
-                {clip.tags?.length || (!isEditMode && !isDraftProject && !isParentPicking && !clipSelectionMode) ? (
+                {clip.tags?.length || (!displayOnly && !isEditMode && !isDraftProject && !isParentPicking && !clipSelectionMode) ? (
                   <Pressable
                     style={styles.clipCardTagsRow}
-                    onPress={(evt) => {
+                    onPress={displayOnly ? undefined : (evt) => {
                       evt.stopPropagation();
                       onOpenTagPicker?.(clip);
                     }}
-                    hitSlop={{ top: 2, bottom: 2 }}
+                    hitSlop={displayOnly ? undefined : { top: 2, bottom: 2 }}
+                    disabled={displayOnly}
                   >
                     {clip.tags?.map((tagKey) => {
                       const color = getTagColor(tagKey, idea.customTags, globalCustomTags);
@@ -322,7 +336,7 @@ export function ClipCard({
                         </View>
                       );
                     })}
-                    {!isEditMode && !isDraftProject && !isParentPicking && !clipSelectionMode ? (
+                    {!displayOnly && !isEditMode && !isDraftProject && !isParentPicking && !clipSelectionMode ? (
                       <View style={styles.clipCardAddTagBtn}>
                         <Ionicons name="add" size={11} color="#94a3b8" />
                       </View>

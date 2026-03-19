@@ -120,8 +120,8 @@ export function ClipList({
   );
 
   const ideaClips = useMemo(
-    () => (selectedIdea ? selectedIdea.clips.filter((clip) => clip.id !== primaryClip?.id) : []),
-    [primaryClip?.id, selectedIdea]
+    () => selectedIdea?.clips ?? [],
+    [selectedIdea]
   );
 
   const filteredIdeaClips = useMemo(() => {
