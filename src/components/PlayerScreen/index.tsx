@@ -20,15 +20,12 @@ import { SegmentedControl } from "../common/SegmentedControl";
 import { shareAudioFile } from "../../services/audioStorage";
 import { getLatestLyricsVersion, lyricsDocumentToText } from "../../lyrics";
 import { formatDate, fmtDuration } from "../../utils";
-import { AppBreadcrumbs } from "../common/AppBreadcrumbs";
-import { getCollectionAncestors, getCollectionById } from "../../utils";
-import { getCollectionHierarchyLevel } from "../../hierarchy";
+import { getCollectionById } from "../../utils";
 import { TransportLayout } from "../common/TransportLayout";
 import { BottomSheet } from "../common/BottomSheet";
 import { useTransportScrubbing } from "../../hooks/useTransportScrubbing";
 import { appActions } from "../../state/actions";
 import { MultiTimeRangeSelector } from "../common/TimeRangeSelector";
-import { openCollectionFromContext } from "../../navigation";
 
 type PlayerMode = "player" | "practice";
 type CountInOption = "off" | "1b" | "2b";
@@ -163,8 +160,6 @@ export function PlayerScreen() {
   const hasProjectLyrics = playerIdea?.kind === "project" && latestLyricsText.trim().length > 0;
   const playerCollection =
     playerIdea && activeWorkspace ? getCollectionById(activeWorkspace, playerIdea.collectionId) : null;
-  const playerCollectionAncestors =
-    playerCollection && activeWorkspace ? getCollectionAncestors(activeWorkspace, playerCollection.id) : [];
 
   const [mode, setMode] = useState<PlayerMode>("player");
   const [lyricsExpanded, setLyricsExpanded] = useState(false);
@@ -646,50 +641,6 @@ export function PlayerScreen() {
     );
   }
 
-  const breadcrumbItems =
-    activeWorkspace && playerCollection
-      ? [
-          {
-            key: `workspace-${activeWorkspace.id}`,
-            label: activeWorkspace.title,
-            level: "workspace" as const,
-            onPress: () => (navigation as any).navigate("Home", { screen: "Browse" }),
-          },
-          ...playerCollectionAncestors.map((collection) => ({
-            key: collection.id,
-            label: collection.title,
-            level: getCollectionHierarchyLevel(collection),
-            onPress: () =>
-              openCollectionFromContext(navigation, {
-                collectionId: collection.id,
-                source: "detail",
-              }),
-          })),
-          {
-            key: playerCollection.id,
-            label: playerCollection.title,
-            level: getCollectionHierarchyLevel(playerCollection),
-            onPress:
-              playerIdea.kind === "project"
-                ? () =>
-                    openCollectionFromContext(navigation, {
-                      collectionId: playerCollection.id,
-                      source: "detail",
-                    })
-                : undefined,
-          },
-          ...(playerIdea.kind === "project"
-            ? [
-                {
-                  key: `idea-${playerIdea.id}`,
-                  label: playerIdea.title,
-                  level: "song" as const,
-                },
-              ]
-            : []),
-        ]
-      : [];
-
   const practiceRangeLabel =
     practiceLoopRange.end > practiceLoopRange.start
       ? `${fmtDuration(practiceLoopRange.start)} → ${fmtDuration(practiceLoopRange.end)}`
@@ -716,10 +667,6 @@ export function PlayerScreen() {
                 <Ionicons name="ellipsis-horizontal" size={18} color="#111827" />
               </Pressable>
             </View>
-
-            {breadcrumbItems.length > 0 ? (
-              <AppBreadcrumbs items={breadcrumbItems} containerStyle={screenStyles.breadcrumbs} />
-            ) : null}
 
             <View style={screenStyles.titleBlock}>
               <Text style={screenStyles.title}>{playerClip.title}</Text>
