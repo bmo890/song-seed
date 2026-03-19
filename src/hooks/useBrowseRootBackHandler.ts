@@ -26,12 +26,22 @@ function findOpenDrawerNavigation(navigation: any) {
   return null;
 }
 
-export function useBrowseRootBackHandler(enabled = true) {
+type BrowseRootBackOptions = {
+  enabled?: boolean;
+  onBack?: () => void;
+};
+
+export function useBrowseRootBackHandler(enabled: boolean | BrowseRootBackOptions = true) {
   const navigation = useNavigation();
+  const onBack =
+    typeof enabled === "object" && enabled !== null && "onBack" in enabled
+      ? enabled.onBack
+      : undefined;
+  const isEnabled = typeof enabled === "boolean" ? enabled : enabled.enabled ?? true;
 
   useFocusEffect(
     useCallback(() => {
-      if (!enabled || Platform.OS !== "android") {
+      if (!isEnabled || Platform.OS !== "android") {
         return undefined;
       }
 
@@ -47,6 +57,10 @@ export function useBrowseRootBackHandler(enabled = true) {
         }
 
         event.preventDefault();
+        if (onBack) {
+          onBack();
+          return;
+        }
         BackHandler.exitApp();
       });
 
@@ -57,9 +71,14 @@ export function useBrowseRootBackHandler(enabled = true) {
           return true;
         }
 
-        // Browse-root screens intentionally do not walk the stack on Android back.
-        // They are top-level drawer destinations, so leaving them should exit the app
-        // rather than silently navigating to another browse surface like Workspaces.
+        if (onBack) {
+          onBack();
+          return true;
+        }
+
+        // Top-level browse roots exit the app when they have no higher browse
+        // destination. Screens that sit under Home in the browse hierarchy pass
+        // an explicit `onBack` handler instead of walking the raw stack.
         BackHandler.exitApp();
         return true;
       });
@@ -68,6 +87,6 @@ export function useBrowseRootBackHandler(enabled = true) {
         unsubscribeBeforeRemove();
         handler.remove();
       };
-    }, [enabled, navigation])
+    }, [isEnabled, navigation, onBack])
   );
 }

@@ -55,7 +55,11 @@ function buildImportedCollectionTitle(assets: ImportedAudioAsset[], collectionCo
 
 export function WorkspaceBrowseScreen() {
   const navigation = useNavigation();
-  useBrowseRootBackHandler();
+  useBrowseRootBackHandler({
+    onBack: () => {
+      (navigation as any).navigate?.("Workspaces");
+    },
+  });
 
   const workspaces = useStore((state) => state.workspaces);
   const activeWorkspaceId = useStore((state) => state.activeWorkspaceId);

@@ -89,7 +89,12 @@ export function IdeaListScreen() {
   const focusToken = route.params?.focusToken as number | undefined;
   const showBack = route.params?.showBack === true;
   const collectionSource = route.params?.source as "activity" | "detail" | undefined;
-  useBrowseRootBackHandler(!showBack);
+  useBrowseRootBackHandler({
+    enabled: !showBack,
+    onBack: () => {
+      (navigation as any).navigate?.("Browse");
+    },
+  });
 
   const workspaces = useStore((s) => s.workspaces);
   const activeWorkspaceId = useStore((s) => s.activeWorkspaceId);
