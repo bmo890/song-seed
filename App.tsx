@@ -51,11 +51,13 @@ const NAVIGATION_STATE_KEY = "song-seed-navigation-state-v1";
 const NON_RESTORABLE_ROUTE_NAMES = new Set(["ShareImport"]);
 
 export type HomeDrawerParamList = {
-  Workspaces: { openDrawerOnFocus?: number } | undefined;
+  Workspaces: undefined;
   Browse: undefined;
   CollectionDetail: CollectionDetailRouteParams | undefined;
   RevisitHome: undefined;
   ActivityHome: undefined;
+  TunerHome: undefined;
+  MetronomeHome: undefined;
   LibraryHome: undefined;
   SettingsHome: undefined;
 };
@@ -66,8 +68,6 @@ export type RootStackParamList = {
   Activity: { workspaceId?: string; collectionId?: string } | undefined;
   Recording: undefined;
   Player: undefined;
-  Tuner: undefined;
-  Metronome: undefined;
   ShareImport: undefined;
   Editor: { ideaId: string; clipId: string; audioUri?: string; durationMs?: number };
   Lyrics: { ideaId: string };
@@ -149,9 +149,9 @@ function DrawerContent({ navigation, state }: DrawerContentComponentProps) {
         ? "revisit"
       : deepestRouteName === "Activity" || deepestRouteName === "ActivityHome"
         ? "activity"
-      : deepestRouteName === "Tuner"
+      : deepestRouteName === "TunerHome"
         ? "tuner"
-      : deepestRouteName === "Metronome"
+      : deepestRouteName === "MetronomeHome"
         ? "metronome"
       : deepestRouteName === "LibraryHome"
           ? "library"
@@ -208,11 +208,11 @@ function DrawerContent({ navigation, state }: DrawerContentComponentProps) {
       }}
       onGoTuner={() => {
         closeDrawer();
-        navigateRoot("Tuner");
+        navigation.navigate("TunerHome");
       }}
       onGoMetronome={() => {
         closeDrawer();
-        navigateRoot("Metronome");
+        navigation.navigate("MetronomeHome");
       }}
       onGoLibrary={() => {
         closeDrawer();
@@ -285,6 +285,8 @@ function DrawerRoutes() {
       <Drawer.Screen name="CollectionDetail" component={IdeaListScreen} />
       <Drawer.Screen name="RevisitHome" component={RevisitScreen} />
       <Drawer.Screen name="ActivityHome" component={ActivityScreen} />
+      <Drawer.Screen name="TunerHome" component={TunerScreen} />
+      <Drawer.Screen name="MetronomeHome" component={MetronomeScreen} />
       <Drawer.Screen name="LibraryHome" component={LibraryScreen} />
       <Drawer.Screen name="SettingsHome" component={SettingsScreen} />
     </Drawer.Navigator>
@@ -304,6 +306,65 @@ function shouldPersistNavigationState(state: InitialState | undefined) {
   if (!state) return false;
   const deepestRoute = getDeepestRoute(state);
   return !NON_RESTORABLE_ROUTE_NAMES.has(deepestRoute.name);
+}
+
+function normalizeRestoredNavigationState(state: InitialState | undefined): InitialState | undefined {
+  if (!state?.routes?.length) return state;
+
+  return {
+    ...state,
+    routes: state.routes.map((route) => {
+      if (route.name === "Tuner") {
+        return {
+          name: "Home" as const,
+          state: {
+            stale: false,
+            type: "drawer",
+            key: "restored-tuner-drawer",
+            index: 0,
+            routeNames: [
+              "Workspaces",
+              "Browse",
+              "CollectionDetail",
+              "RevisitHome",
+              "ActivityHome",
+              "TunerHome",
+              "MetronomeHome",
+              "LibraryHome",
+              "SettingsHome",
+            ],
+            routes: [{ name: "TunerHome" as const }],
+          },
+        };
+      }
+
+      if (route.name === "Metronome") {
+        return {
+          name: "Home" as const,
+          state: {
+            stale: false,
+            type: "drawer",
+            key: "restored-metronome-drawer",
+            index: 0,
+            routeNames: [
+              "Workspaces",
+              "Browse",
+              "CollectionDetail",
+              "RevisitHome",
+              "ActivityHome",
+              "TunerHome",
+              "MetronomeHome",
+              "LibraryHome",
+              "SettingsHome",
+            ],
+            routes: [{ name: "MetronomeHome" as const }],
+          },
+        };
+      }
+
+      return route;
+    }),
+  };
 }
 
 
@@ -409,7 +470,7 @@ function AppContent() {
           return;
         }
 
-        const parsedState = JSON.parse(storedState) as InitialState;
+        const parsedState = normalizeRestoredNavigationState(JSON.parse(storedState) as InitialState);
         if (!cancelled) {
           setInitialNavigationState(parsedState);
         }
@@ -491,8 +552,6 @@ function AppContent() {
           <Stack.Screen name="IdeaDetail" component={IdeaDetailScreen} />
           <Stack.Screen name="Recording" component={RecordingScreen} />
           <Stack.Screen name="Player" component={PlayerScreen} />
-          <Stack.Screen name="Tuner" component={TunerScreen} />
-          <Stack.Screen name="Metronome" component={MetronomeScreen} />
           <Stack.Screen name="ShareImport">
             {() => <ShareImportScreen fallbackCollectionId={lastCollectionContextId} />}
           </Stack.Screen>

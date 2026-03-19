@@ -3,7 +3,6 @@ import { Alert, Pressable, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar as ExpoStatusBar } from "expo-status-bar";
 import { Ionicons } from "@expo/vector-icons";
-import { useNavigation, useRoute } from "@react-navigation/native";
 import { styles } from "../../styles";
 import { useStore } from "../../state/useStore";
 import { appActions } from "../../state/actions";
@@ -29,8 +28,6 @@ function defaultWorkspaceTitle() {
 }
 
 export function WorkspaceListScreen() {
-  const navigation = useNavigation();
-  const route = useRoute<any>();
   useBrowseRootBackHandler();
   const workspaces = useStore((s) => s.workspaces);
   const primaryWorkspaceId = useStore((s) => s.primaryWorkspaceId);
@@ -75,14 +72,6 @@ export function WorkspaceListScreen() {
   ];
   const busyLabel = busyAction === "archive" ? "ARCHIVING" : busyAction === "restore" ? "RESTORING" : null;
   const activeWorkspaceCount = workspaces.filter((workspace) => !workspace.isArchived).length;
-
-  React.useEffect(() => {
-    const openDrawerOnFocus = route.params?.openDrawerOnFocus as number | undefined;
-    if (!openDrawerOnFocus) return;
-
-    (navigation as any).openDrawer?.();
-    (navigation as any).setParams?.({ openDrawerOnFocus: undefined });
-  }, [navigation, route.params?.openDrawerOnFocus]);
 
   function closeModal() {
     setModalOpen(false);

@@ -8,7 +8,6 @@ type Props = {
     leftIcon?: "hamburger" | "back" | "none";
     onLeftPress?: () => void;
     rightElement?: React.ReactNode;
-    preserveRequestedLeftIcon?: boolean;
 };
 
 export function ScreenHeader({
@@ -16,7 +15,6 @@ export function ScreenHeader({
     leftIcon = "hamburger",
     onLeftPress,
     rightElement,
-    preserveRequestedLeftIcon = false,
 }: Props) {
     const navigation = useNavigation();
 
@@ -33,7 +31,7 @@ export function ScreenHeader({
 
     const drawerNavigation = getDrawerNavigation();
     const effectiveLeftIcon =
-        !preserveRequestedLeftIcon && leftIcon === "hamburger" && !drawerNavigation && navigation.canGoBack()
+        leftIcon === "hamburger" && !drawerNavigation && navigation.canGoBack()
             ? "back"
             : leftIcon;
 

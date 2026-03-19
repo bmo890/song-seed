@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Linking, ScrollView, StyleSheet, Text, View, type EmitterSubscription } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar as ExpoStatusBar } from "expo-status-bar";
-import { useIsFocused, useNavigation } from "@react-navigation/native";
+import { useIsFocused } from "@react-navigation/native";
 import { ExpoAudioStreamModule } from "@siteed/expo-audio-studio";
 import { ScreenHeader } from "../common/ScreenHeader";
 import { colors, shadows, spacing, text as textTokens } from "../../design/tokens";
@@ -180,7 +180,6 @@ function getDetuneTone(absCents: number) {
 }
 
 export function TunerScreen() {
-  const navigation = useNavigation();
   useBrowseRootBackHandler();
   const isFocused = useIsFocused();
 
@@ -651,17 +650,7 @@ export function TunerScreen() {
 
   return (
     <SafeAreaView style={styles.screen}>
-      <ScreenHeader
-        title=""
-        leftIcon="hamburger"
-        preserveRequestedLeftIcon
-        onLeftPress={() => {
-          (navigation as any).navigate("Home", {
-            screen: "Workspaces",
-            params: { openDrawerOnFocus: Date.now() },
-          });
-        }}
-      />
+      <ScreenHeader title="" leftIcon="hamburger" />
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={localStyles.pageContent}>
         <View style={localStyles.dialSection}>

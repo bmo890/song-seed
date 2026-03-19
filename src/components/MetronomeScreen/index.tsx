@@ -1,7 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import Slider from "@react-native-community/slider";
 import { type ComponentProps, useEffect, useMemo, useRef } from "react";
-import { useNavigation } from "@react-navigation/native";
 import {
   Animated,
   Pressable,
@@ -43,7 +42,6 @@ const BPM_STEPS = [
 ];
 
 export function MetronomeScreen() {
-  const navigation = useNavigation();
   useBrowseRootBackHandler();
   const pulseAnim = useRef(new Animated.Value(0)).current;
   const {
@@ -102,17 +100,7 @@ export function MetronomeScreen() {
 
   return (
     <SafeAreaView style={styles.screen}>
-      <ScreenHeader
-        title=""
-        leftIcon="hamburger"
-        preserveRequestedLeftIcon
-        onLeftPress={() => {
-          (navigation as any).navigate("Home", {
-            screen: "Workspaces",
-            params: { openDrawerOnFocus: Date.now() },
-          });
-        }}
-      />
+      <ScreenHeader title="" leftIcon="hamburger" />
 
       <ScrollView
         showsVerticalScrollIndicator={false}
