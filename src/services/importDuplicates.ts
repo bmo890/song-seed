@@ -5,6 +5,7 @@ import { useStore } from "../state/useStore";
 export type DuplicateCheckResult = {
     hasDuplicates: boolean;
     duplicateCount: number;
+    duplicateAssets: ImportedAudioAsset[];
     uniqueAssets: ImportedAudioAsset[];
     allAssets: ImportedAudioAsset[];
 };
@@ -32,46 +33,41 @@ export function checkImportDuplicates(
     );
 
     const uniqueAssets: ImportedAudioAsset[] = [];
-    let duplicateCount = 0;
+    const duplicateAssets: ImportedAudioAsset[] = [];
 
     for (const asset of assets) {
         if (
             typeof asset.sourceCreatedAt === "number" &&
             existingSourceDates.has(asset.sourceCreatedAt)
         ) {
-            duplicateCount++;
+            duplicateAssets.push(asset);
         } else {
             uniqueAssets.push(asset);
         }
     }
 
     return {
-        hasDuplicates: duplicateCount > 0,
-        duplicateCount,
+        hasDuplicates: duplicateAssets.length > 0,
+        duplicateCount: duplicateAssets.length,
+        duplicateAssets,
         uniqueAssets,
         allAssets: assets,
     };
 }
 
-/** Builds the Alert title + message for a duplicate detection result. */
-export function buildDuplicateAlertMessage(
-    duplicateCount: number,
-    totalCount: number
-): { title: string; message: string } {
-    if (totalCount === 1) {
-        return {
-            title: "Already Imported",
-            message: "This file was already imported. Import it again as a copy, or skip it?",
-        };
-    }
-    if (duplicateCount === totalCount) {
-        return {
-            title: "Already Imported",
-            message: `All ${totalCount} files were already imported. Import them again as copies, or skip?`,
-        };
-    }
-    return {
-        title: "Some Files Already Imported",
-        message: `${duplicateCount} of ${totalCount} files were already imported. Import all (duplicates get a version number), or skip the already-imported ones?`,
-    };
+/** Opens the DuplicateReviewSheet for the user to choose skip vs. import-all. */
+export function showDuplicateReview(
+    result: DuplicateCheckResult,
+    onSkip: () => void,
+    onImportAll: () => void
+): void {
+    // Lazy import to avoid circular dependency between services and state
+    const { useDuplicateReviewStore } = require("../state/useDuplicateReviewStore") as typeof import("../state/useDuplicateReviewStore");
+    useDuplicateReviewStore.getState().show({
+        duplicateAssets: result.duplicateAssets,
+        uniqueAssets: result.uniqueAssets,
+        allAssets: result.allAssets,
+        onSkip,
+        onImportAll,
+    });
 }

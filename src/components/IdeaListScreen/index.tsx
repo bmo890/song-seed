@@ -38,7 +38,7 @@ import {
   type ImportedAudioAsset,
 } from "../../services/audioStorage";
 import { useImportStore } from "../../state/useImportStore";
-import { getAllClips, checkImportDuplicates, buildDuplicateAlertMessage } from "../../services/importDuplicates";
+import { getAllClips, checkImportDuplicates, showDuplicateReview } from "../../services/importDuplicates";
 import {
   buildDefaultIdeaTitle,
   ensureUniqueIdeaTitle,
@@ -1039,10 +1039,7 @@ export function IdeaListScreen() {
   ) {
     if (!collectionId || assetsIn.length === 0) return;
 
-    const { hasDuplicates, duplicateCount, uniqueAssets, allAssets } = checkImportDuplicates(
-      assetsIn,
-      getAllClips()
-    );
+    const duplicateResult = checkImportDuplicates(assetsIn, getAllClips());
 
     function doImport(assets: ImportedAudioAsset[]) {
       if (assets.length === 0) return;
@@ -1094,23 +1091,16 @@ export function IdeaListScreen() {
     })();
     } // end doImport
 
-    if (hasDuplicates) {
-      const { title, message } = buildDuplicateAlertMessage(duplicateCount, allAssets.length);
-      Alert.alert(title, message, [
-        {
-          text: uniqueAssets.length > 0 ? "Skip Duplicates" : "Skip",
-          onPress: () => doImport(uniqueAssets),
-        },
-        {
-          text: duplicateCount === allAssets.length ? "Import as Copies" : "Import All",
-          onPress: () => doImport(allAssets),
-        },
-        { text: "Cancel", style: "cancel" },
-      ]);
+    if (duplicateResult.hasDuplicates) {
+      showDuplicateReview(
+        duplicateResult,
+        () => doImport(duplicateResult.uniqueAssets),
+        () => doImport(duplicateResult.allAssets)
+      );
       return;
     }
 
-    doImport(allAssets);
+    doImport(duplicateResult.allAssets);
   }
 
   function saveImportedAudio() {
@@ -1218,28 +1208,18 @@ export function IdeaListScreen() {
       })();
     }
 
-    const { hasDuplicates, duplicateCount, uniqueAssets, allAssets } = checkImportDuplicates(
-      assetsSnapshot,
-      getAllClips()
-    );
+    const duplicateResult = checkImportDuplicates(assetsSnapshot, getAllClips());
 
-    if (hasDuplicates) {
-      const { title, message } = buildDuplicateAlertMessage(duplicateCount, allAssets.length);
-      Alert.alert(title, message, [
-        {
-          text: uniqueAssets.length > 0 ? "Skip Duplicates" : "Skip",
-          onPress: () => doImport(uniqueAssets),
-        },
-        {
-          text: duplicateCount === allAssets.length ? "Import as Copies" : "Import All",
-          onPress: () => doImport(allAssets),
-        },
-        { text: "Cancel", style: "cancel" },
-      ]);
+    if (duplicateResult.hasDuplicates) {
+      showDuplicateReview(
+        duplicateResult,
+        () => doImport(duplicateResult.uniqueAssets),
+        () => doImport(duplicateResult.allAssets)
+      );
       return;
     }
 
-    doImport(allAssets);
+    doImport(duplicateResult.allAssets);
   }
 
   const duplicateWarningText = (() => {

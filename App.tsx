@@ -27,6 +27,7 @@ import { LyricsVersionScreen } from "./src/components/LyricsVersionScreen";
 import { ActivityScreen } from "./src/components/ActivityScreen";
 import { GlobalMediaDock } from "./src/components/GlobalMediaDock";
 import { ImportProgressBanner } from "./src/components/ImportProgressBanner";
+import { DuplicateReviewSheet } from "./src/components/DuplicateReviewSheet";
 import { LibraryScreen } from "./src/components/LibraryScreen";
 import { SettingsScreen } from "./src/components/SettingsScreen";
 import { RevisitScreen } from "./src/components/RevisitScreen";
@@ -443,6 +444,7 @@ function AppContent() {
           }}
         />
         <ImportProgressBanner />
+        <DuplicateReviewSheet />
       </NavigationContainer>
     </ShareIntentProvider>
   );

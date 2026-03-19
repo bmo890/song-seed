@@ -25,7 +25,7 @@ import { IdeaStatusProgress } from "./IdeaStatusProgress";
 import { IdeaNotes } from "./IdeaNotes";
 import { LyricsVersionsPanel } from "../LyricsScreen/LyricsVersionsPanel";
 import { buildImportedTitle, importAudioAsset, pickSingleAudioFile, type ImportedAudioAsset } from "../../services/audioStorage";
-import { getAllClips, checkImportDuplicates, buildDuplicateAlertMessage } from "../../services/importDuplicates";
+import { getAllClips, checkImportDuplicates, showDuplicateReview } from "../../services/importDuplicates";
 import { useImportStore } from "../../state/useImportStore";
 import { buildDefaultIdeaTitle, ensureUniqueCountedTitle, ensureUniqueIdeaTitle } from "../../utils";
 import type { SongClipTagFilter } from "./songClipControls";
@@ -706,31 +706,21 @@ export function IdeaDetailScreen() {
       })();
     }
 
-    const { hasDuplicates, duplicateCount, uniqueAssets } = checkImportDuplicates(
-      [assetSnapshot],
-      getAllClips()
-    );
+    const duplicateResult = checkImportDuplicates([assetSnapshot], getAllClips());
 
-    if (hasDuplicates) {
-      const { title, message } = buildDuplicateAlertMessage(duplicateCount, 1);
-      Alert.alert(title, message, [
-        {
-          text: "Skip",
-          onPress: () => {
-            // All-duplicate single file: close modal, nothing imported
-            setImportModalOpen(false);
-            setImportAsset(null);
-            setImportDatePreference("import");
-            setImportDraft("");
-            setImportAsPrimary(false);
-          },
+    if (duplicateResult.hasDuplicates) {
+      showDuplicateReview(
+        duplicateResult,
+        () => {
+          // Skip: close modal, nothing imported
+          setImportModalOpen(false);
+          setImportAsset(null);
+          setImportDatePreference("import");
+          setImportDraft("");
+          setImportAsPrimary(false);
         },
-        {
-          text: "Import as Copy",
-          onPress: () => proceedWithImport(assetSnapshot),
-        },
-        { text: "Cancel", style: "cancel" },
-      ]);
+        () => proceedWithImport(assetSnapshot)
+      );
       return;
     }
 
