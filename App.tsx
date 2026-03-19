@@ -1,5 +1,6 @@
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import Constants from "expo-constants";
+import { ActivityIndicator, View } from "react-native";
 import {
   NavigationContainer,
   useNavigationContainerRef,
@@ -447,11 +448,46 @@ function AppContent() {
 }
 
 export default function App() {
+  const [hasHydrated, setHasHydrated] = useState(() => useStore.persist.hasHydrated());
+
+  useEffect(() => {
+    const unsubscribeStartHydration = useStore.persist.onHydrate(() => {
+      setHasHydrated(false);
+    });
+    const unsubscribeFinishHydration = useStore.persist.onFinishHydration(() => {
+      setHasHydrated(true);
+    });
+
+    if (!useStore.persist.hasHydrated()) {
+      void useStore.persist.rehydrate();
+    }
+
+    return () => {
+      unsubscribeStartHydration();
+      unsubscribeFinishHydration();
+    };
+  }, []);
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <AudioRecorderProvider>
-          <AppContent />
+          {!hasHydrated ? (
+            // Hold the app shell until persist rehydrates so no screen can mount against the
+            // default store and accidentally serialize an empty snapshot back to AsyncStorage.
+            <View
+              style={{
+                flex: 1,
+                alignItems: "center",
+                justifyContent: "center",
+                backgroundColor: "#f8fafc",
+              }}
+            >
+              <ActivityIndicator color="#0f172a" />
+            </View>
+          ) : (
+            <AppContent />
+          )}
         </AudioRecorderProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>

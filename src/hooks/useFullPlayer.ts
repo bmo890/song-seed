@@ -32,6 +32,17 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
   const isPlayerPlaying = !!status.playing && !status.didJustFinish;
   const didPlayerJustFinish = !!status.didJustFinish;
   const playbackRate = status.playbackRate ?? 1;
+  // Keep transport callbacks stable. PlayerScreen is always mounted, so function identity churn
+  // here can retrigger effect chains and store updates on every render.
+  const statusRef = useRef(status);
+  const playerPositionRef = useRef(playerPosition);
+  const playerDurationRef = useRef(playerDuration);
+
+  useEffect(() => {
+    statusRef.current = status;
+    playerPositionRef.current = playerPosition;
+    playerDurationRef.current = playerDuration;
+  }, [playerDuration, playerPosition, status]);
 
   useEffect(() => {
     const justFinishedNow = didPlayerJustFinish && !previousDidJustFinishRef.current;
@@ -67,9 +78,12 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
     };
   }, [player, setPlayerPlaybackState]);
 
-  const isOperationActive = (operationId: number) => isMountedRef.current && operationIdRef.current === operationId;
+  const isOperationActive = useCallback(
+    (operationId: number) => isMountedRef.current && operationIdRef.current === operationId,
+    []
+  );
 
-  function activateLockScreenControls(metadata?: LockScreenMetadata) {
+  const activateLockScreenControls = useCallback((metadata?: LockScreenMetadata) => {
     player.setActiveForLockScreen(
       true,
       {
@@ -81,9 +95,9 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
         showSeekForward: true,
       }
     );
-  }
+  }, [player]);
 
-  async function closePlayer() {
+  const closePlayer = useCallback(async () => {
     const operationId = ++operationIdRef.current;
     try {
       await player.pause();
@@ -103,9 +117,14 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
     });
     setPlayerTarget(null);
     setWaveformPeaks([]);
-  }
+  }, [isOperationActive, player, setPlayerPlaybackState]);
 
-  async function openPlayer(ideaId: string, clip: ClipVersion, metadata?: LockScreenMetadata, autoPlay = false) {
+  const openPlayer = useCallback(async (
+    ideaId: string,
+    clip: ClipVersion,
+    metadata?: LockScreenMetadata,
+    autoPlay = false
+  ) => {
     if (!clip.audioUri) return;
     const operationId = ++operationIdRef.current;
 
@@ -126,53 +145,66 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
     } catch (err) {
       console.log("FULL open error", err);
     }
-  }
+  }, [activateLockScreenControls, isOperationActive, onBeforePlayNew, player]);
 
-  function updateLockScreenMetadata(metadata?: LockScreenMetadata) {
+  const updateLockScreenMetadata = useCallback((metadata?: LockScreenMetadata) => {
     player.updateLockScreenMetadata({
       ...metadata,
       artist: "SongSeed",
     });
-  }
+  }, [player]);
 
-  async function togglePlayer() {
+  const togglePlayer = useCallback(async () => {
+    const latestStatus = statusRef.current;
     try {
-      if (status.playing) {
+      if (latestStatus.playing) {
         await player.pause();
         return;
       }
 
-      await activateAndPlay(player, status, playerDuration, playerPosition);
+      await activateAndPlay(
+        player,
+        latestStatus,
+        playerDurationRef.current,
+        playerPositionRef.current
+      );
     } catch (err) {
       console.log("FULL play error", err);
     }
-  }
+  }, [player]);
 
-  async function pausePlayer() {
+  const pausePlayer = useCallback(async () => {
     try {
       await player.pause();
     } catch (err) {
       console.log("FULL pause error", err);
     }
-  }
+  }, [player]);
 
-  async function playPlayer() {
+  const playPlayer = useCallback(async () => {
+    const latestStatus = statusRef.current;
     try {
-      await activateAndPlay(player, status, playerDuration, playerPosition);
+      await activateAndPlay(
+        player,
+        latestStatus,
+        playerDurationRef.current,
+        playerPositionRef.current
+      );
     } catch (err) {
       console.log("FULL resume error", err);
     }
-  }
+  }, [player]);
 
-  async function seekTo(ms: number) {
-    const durationMs = playerDuration || Math.round((status.duration ?? 0) * 1000);
+  const seekTo = useCallback(async (ms: number) => {
+    const latestStatus = statusRef.current;
+    const durationMs = playerDurationRef.current || Math.round((latestStatus.duration ?? 0) * 1000);
     const targetMs = Math.max(0, Math.min(ms, durationMs || ms));
     await player.seekTo(targetMs / 1000);
-  }
+  }, [player]);
 
-  async function seekBy(delta: number) {
-    await seekTo(playerPosition + delta);
-  }
+  const seekBy = useCallback(async (delta: number) => {
+    await seekTo(playerPositionRef.current + delta);
+  }, [seekTo]);
 
   const setPlaybackRate = useCallback((rate: number) => {
     const nextRate = Math.max(0.5, Math.min(rate, 2));
