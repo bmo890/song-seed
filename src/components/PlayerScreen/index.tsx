@@ -650,13 +650,6 @@ export function PlayerScreen() {
     activeWorkspace && playerCollection
       ? [
           {
-            key: "home",
-            label: "Home",
-            level: "home" as const,
-            iconOnly: true,
-            onPress: () => (navigation as any).navigate("Home", { screen: "Workspaces" }),
-          },
-          {
             key: `workspace-${activeWorkspace.id}`,
             label: activeWorkspace.title,
             level: "workspace" as const,
@@ -676,13 +669,24 @@ export function PlayerScreen() {
             key: playerCollection.id,
             label: playerCollection.title,
             level: getCollectionHierarchyLevel(playerCollection),
-            onPress: () =>
-              openCollectionFromContext(navigation, {
-                collectionId: playerCollection.id,
-                source: "detail",
-              }),
-            active: true,
+            onPress:
+              playerIdea.kind === "project"
+                ? () =>
+                    openCollectionFromContext(navigation, {
+                      collectionId: playerCollection.id,
+                      source: "detail",
+                    })
+                : undefined,
           },
+          ...(playerIdea.kind === "project"
+            ? [
+                {
+                  key: `idea-${playerIdea.id}`,
+                  label: playerIdea.title,
+                  level: "song" as const,
+                },
+              ]
+            : []),
         ]
       : [];
 
@@ -718,9 +722,15 @@ export function PlayerScreen() {
             ) : null}
 
             <View style={screenStyles.titleBlock}>
-              <Text style={screenStyles.title}>{playerIdea.title}</Text>
+              <Text style={screenStyles.title}>{playerClip.title}</Text>
               <View style={screenStyles.metaRow}>
                 <Text style={screenStyles.metaText}>{playerClip.isPrimary ? "Main take" : "Clip"}</Text>
+                {playerIdea.kind === "project" ? (
+                  <>
+                    <Text style={screenStyles.metaDot}>•</Text>
+                    <Text style={screenStyles.metaText}>{playerIdea.title}</Text>
+                  </>
+                ) : null}
                 <Text style={screenStyles.metaDot}>•</Text>
                 <Text style={screenStyles.metaText}>{formatDate(playerClip.createdAt)}</Text>
                 <View style={screenStyles.metaSpacer} />
