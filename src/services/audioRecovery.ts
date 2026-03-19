@@ -1,9 +1,11 @@
 import * as FileSystem from "expo-file-system/legacy";
 import { strFromU8, unzipSync } from "fflate";
 import { SONG_SEED_AUDIO_DIR, SONG_SEED_WORKSPACE_ARCHIVE_DIR } from "./storagePaths";
+import { readManifest, type ManifestData } from "./manifestSync";
 import { loadAudioDurationMs } from "./audioStorage";
 import { buildStaticWaveform } from "../utils";
 import type { SongIdea, ClipVersion, Workspace } from "../types";
+import type { PersistedAppStore } from "../state/useStore";
 
 /* ── Types ──────────────────────────────────────────────────────── */
 
@@ -25,7 +27,13 @@ export type ArchiveRecoveryResult = {
     warnings: string[];
 };
 
+export type ManifestRecoveryResult = {
+    restoredState: PersistedAppStore;
+    manifestTimestamp: string;
+};
+
 export type FullRecoveryResult = {
+    restoredFromManifest: ManifestRecoveryResult | null;
     restoredFromArchives: ArchiveRecoveryResult[];
     orphanedClipCount: number;
     totalRestoredIdeas: number;
@@ -90,6 +98,48 @@ async function writeFileBytes(fileUri: string, bytes: Uint8Array) {
     await FileSystem.writeAsStringAsync(fileUri, bytesToBase64(bytes), {
         encoding: FileSystem.EncodingType.Base64,
     });
+}
+
+/* ── Manifest-based recovery (highest priority) ────────────────── */
+
+/**
+ * Attempt to restore the full app state from the shadow manifest.
+ * Returns the full persisted state if the manifest exists and has data,
+ * or null if no usable manifest is found.
+ */
+export async function restoreFromManifest(): Promise<ManifestRecoveryResult | null> {
+    const manifest = await readManifest();
+    if (!manifest) return null;
+
+    const ideaCount = manifest.workspaces.reduce(
+        (sum, ws) => sum + ws.ideas.length, 0
+    );
+    if (ideaCount === 0) return null;
+
+    // Validate that at least some audio files still exist on disk
+    let validAudioCount = 0;
+    let totalAudioRefs = 0;
+    for (const ws of manifest.workspaces) {
+        for (const idea of ws.ideas) {
+            for (const clip of idea.clips) {
+                if (clip.audioUri) {
+                    totalAudioRefs++;
+                    try {
+                        const info = await FileSystem.getInfoAsync(clip.audioUri);
+                        if (info.exists) validAudioCount++;
+                    } catch { /* skip */ }
+                }
+            }
+        }
+    }
+
+    // Extract just the PersistedAppStore fields (strip manifest-specific fields)
+    const { schemaVersion, lastWrittenAt, ...persistedState } = manifest;
+
+    return {
+        restoredState: persistedState as PersistedAppStore,
+        manifestTimestamp: lastWrittenAt,
+    };
 }
 
 /* ── Archive-based recovery ─────────────────────────────────────── */
@@ -217,8 +267,8 @@ export async function restoreWorkspaceFromArchive(
 }
 
 /**
- * Full recovery: first restores from any workspace archives found on disk,
- * then recovers any remaining orphaned audio files not covered by archives.
+ * Full recovery: checks manifest first (full state restore), then archives,
+ * then orphaned audio files as a final fallback.
  *
  * This is the primary entry point for data recovery.
  */
@@ -228,6 +278,41 @@ export async function performFullRecovery(
 ): Promise<FullRecoveryResult> {
     const allWarnings: string[] = [];
     const archiveResults: ArchiveRecoveryResult[] = [];
+    let manifestResult: ManifestRecoveryResult | null = null;
+
+    // Phase 0: Check shadow manifest (highest priority — full state restore)
+    const currentIdeaCount = currentWorkspaces.reduce(
+        (sum, ws) => sum + ws.ideas.length, 0
+    );
+
+    if (currentIdeaCount === 0) {
+        onProgress?.("Checking manifest backup...", 0, 1);
+        try {
+            manifestResult = await restoreFromManifest();
+            if (manifestResult) {
+                const restoredIdeaCount = manifestResult.restoredState.workspaces.reduce(
+                    (sum, ws) => sum + ws.ideas.length, 0
+                );
+                onProgress?.(
+                    `Restored ${restoredIdeaCount} ideas from manifest backup`,
+                    1,
+                    1
+                );
+
+                // Return early — manifest has everything, no need for archive/orphan scan
+                return {
+                    restoredFromManifest: manifestResult,
+                    restoredFromArchives: [],
+                    orphanedClipCount: 0,
+                    totalRestoredIdeas: restoredIdeaCount,
+                    warnings: [],
+                };
+            }
+        } catch (err) {
+            const msg = err instanceof Error ? err.message : String(err);
+            allWarnings.push(`Manifest recovery failed: ${msg}`);
+        }
+    }
 
     // Phase 1: Restore from workspace archives
     onProgress?.("Scanning archives...", 0, 1);
@@ -297,6 +382,7 @@ export async function performFullRecovery(
     ) + orphanedClipCount;
 
     return {
+        restoredFromManifest: null,
         restoredFromArchives: archiveResults,
         orphanedClipCount,
         totalRestoredIdeas,

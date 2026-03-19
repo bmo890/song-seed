@@ -67,8 +67,10 @@ export function SettingsScreen() {
       const result = await appActions.recoverOrphanedAudio((phase, _done, _total) => {
         setRecoveryProgress(phase);
       });
-      if (result.archivedWorkspacesRestored === 0 && result.orphanedClipsRecovered === 0) {
-        Alert.alert("No recoverable data", "All audio files on disk are already linked to clips in your library and no workspace archives were found.");
+      if (result.restoredFromManifest) {
+        Alert.alert("Recovery complete", `Restored ${result.recoveredCount} ideas from manifest backup.`);
+      } else if (result.archivedWorkspacesRestored === 0 && result.orphanedClipsRecovered === 0) {
+        Alert.alert("No recoverable data", "All audio files on disk are already linked to clips in your library. No manifest backup or workspace archives were found.");
       } else {
         const parts: string[] = [];
         if (result.archivedWorkspacesRestored > 0) {

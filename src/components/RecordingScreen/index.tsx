@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar as ExpoStatusBar } from "expo-status-bar";
 import { useNavigation } from "@react-navigation/native";
@@ -27,7 +27,10 @@ export function RecordingScreen() {
 
   const workspaces = useStore((s) => s.workspaces);
   const activeWorkspaceId = useStore((s) => s.activeWorkspaceId);
-  const recordingIdea = workspaces.find((w) => w.id === activeWorkspaceId)?.ideas.find((i) => i.id === recordingIdeaId);
+  const recordingIdea = useMemo(
+    () => workspaces.find((w) => w.id === activeWorkspaceId)?.ideas.find((i) => i.id === recordingIdeaId),
+    [workspaces, activeWorkspaceId, recordingIdeaId]
+  );
   const latestLyricsVersion = recordingIdea?.kind === "project" ? getLatestLyricsVersion(recordingIdea) : null;
   const latestLyricsText = lyricsDocumentToText(latestLyricsVersion?.document);
   const hasProjectLyrics = recordingIdea?.kind === "project" && latestLyricsText.trim().length > 0;

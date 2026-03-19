@@ -7,6 +7,9 @@ import { Button } from "../common/Button";
 import { useStore } from "../../state/useStore";
 import { appActions } from "../../state/actions";
 import { shareAudioClips } from "../../services/audioStorage";
+import type { SongIdea } from "../../types";
+
+const EMPTY_IDEAS: SongIdea[] = [];
 
 type SelectionBarsProps = {
     onStartSetParent: (clipIds: string[]) => void;
@@ -19,12 +22,17 @@ export function SelectionBars({ onStartSetParent, onMakeRoot }: SelectionBarsPro
     const selectedClipIds = useStore((s) => s.selectedClipIds);
     const replaceClipSelection = useStore((s) => s.replaceClipSelection);
     const movingClipId = useStore((s) => s.movingClipId);
-    const ideas = useStore((s) => s.workspaces.find(w => w.id === s.activeWorkspaceId)?.ideas || []);
-
-    const selectedIdea = useStore((s) => {
-        const ws = s.workspaces.find((w) => w.id === s.activeWorkspaceId);
-        return ws?.ideas.find((i) => i.id === s.selectedIdeaId);
-    });
+    const activeWorkspaceId = useStore((s) => s.activeWorkspaceId);
+    const selectedIdeaId = useStore((s) => s.selectedIdeaId);
+    const workspaces = useStore((s) => s.workspaces);
+    const ideas = React.useMemo(
+        () => workspaces.find((w) => w.id === activeWorkspaceId)?.ideas ?? EMPTY_IDEAS,
+        [workspaces, activeWorkspaceId]
+    );
+    const selectedIdea = React.useMemo(
+        () => ideas.find((i) => i.id === selectedIdeaId),
+        [ideas, selectedIdeaId]
+    );
     const [isSharing, setIsSharing] = useState(false);
 
     const shareableClips = (selectedIdea?.clips ?? [])

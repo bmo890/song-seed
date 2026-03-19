@@ -102,14 +102,14 @@ export function IdeaDetailScreen() {
   const activeWorkspaceId = useStore((s) => s.activeWorkspaceId);
   const setSelectedIdeaId = useStore((s) => s.setSelectedIdeaId);
 
-  const selectedIdea = useStore((s) => {
-    const ws = s.workspaces.find((w) => w.id === activeWorkspaceId);
+  const workspaces = useStore((s) => s.workspaces);
+  const selectedIdea = useMemo(() => {
+    const ws = workspaces.find((w) => w.id === activeWorkspaceId);
     return ws?.ideas.find((i) => i.id === selectedIdeaId);
-  });
+  }, [workspaces, activeWorkspaceId, selectedIdeaId]);
 
   const clipClipboard = useStore((s) => s.clipClipboard);
   const cancelClipboard = useStore((s) => s.cancelClipboard);
-  const workspaces = useStore((s) => s.workspaces);
   const clipSelectionMode = useStore((s) => s.clipSelectionMode);
   const setRecordingIdeaId = useStore((s) => s.setRecordingIdeaId);
   const setRecordingParentClipId = useStore((s) => s.setRecordingParentClipId);

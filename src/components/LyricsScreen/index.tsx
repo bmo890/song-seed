@@ -17,12 +17,16 @@ export function LyricsScreen() {
   const navigation = useNavigation<any>();
   const selectedIdeaId = useStore((s) => s.selectedIdeaId);
   const activeWorkspaceId = useStore((s) => s.activeWorkspaceId);
+  const workspaces = useStore((s) => s.workspaces);
 
-  const selectedIdea = useStore((s) => {
-    const workspace = s.workspaces.find((item) => item.id === activeWorkspaceId);
-    return workspace?.ideas.find((idea) => idea.id === selectedIdeaId) ?? null;
-  });
-  const activeWorkspace = useStore((s) => s.workspaces.find((item) => item.id === activeWorkspaceId) ?? null);
+  const activeWorkspace = React.useMemo(
+    () => workspaces.find((item) => item.id === activeWorkspaceId) ?? null,
+    [workspaces, activeWorkspaceId]
+  );
+  const selectedIdea = React.useMemo(
+    () => activeWorkspace?.ideas.find((idea) => idea.id === selectedIdeaId) ?? null,
+    [activeWorkspace, selectedIdeaId]
+  );
 
   if (!selectedIdea || selectedIdea.kind !== "project") {
     return (

@@ -256,9 +256,12 @@ export function PlayerScreen() {
   const clipNotesSummary = getNoteSummary(clipNotes);
   const hasValidPracticeLoop = practiceLoopRange.end > practiceLoopRange.start;
 
-  function isWithinPracticeLoop(timeMs: number) {
-    return hasValidPracticeLoop && timeMs >= practiceLoopRange.start && timeMs < practiceLoopRange.end;
-  }
+  // Stable reference: memoized to prevent unnecessary useEffect re-triggers
+  const isWithinPracticeLoop = useCallback(
+    (timeMs: number) =>
+      hasValidPracticeLoop && timeMs >= practiceLoopRange.start && timeMs < practiceLoopRange.end,
+    [hasValidPracticeLoop, practiceLoopRange.start, practiceLoopRange.end]
+  );
 
   useEffect(() => {
     if (!isFocused) return;
@@ -403,7 +406,7 @@ export function PlayerScreen() {
     if (playerToggleRequestToken === handledToggleTokenRef.current) return;
     handledToggleTokenRef.current = playerToggleRequestToken;
     void handleTransportToggle();
-  }, [playerToggleRequestToken, isPlayerPlaying, mode, practiceLoopEnabled, hasValidPracticeLoop, playerPosition, practiceLoopRange.start]);
+  }, [playerToggleRequestToken]); // Token-based: only fires when a new toggle is requested
 
   useEffect(() => {
     if (playerCloseRequestToken === handledCloseTokenRef.current) return;

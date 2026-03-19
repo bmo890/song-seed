@@ -4,7 +4,9 @@ import { createEmptyProjectLyrics } from "./dataSlice";
 import { createLyricsVersion, lyricsTextToDocument } from "../lyrics";
 import { buildDefaultIdeaTitle, ensureUniqueIdeaTitle } from "../utils";
 import { archiveWorkspaceToDevice, restoreWorkspaceFromDevice } from "../services/workspaceArchive";
-import { findOrphanedAudioFiles, enrichOrphanedClips, buildRecoveredIdeas, findWorkspaceArchives, restoreWorkspaceFromArchive } from "../services/audioRecovery";
+import { findOrphanedAudioFiles, enrichOrphanedClips, buildRecoveredIdeas, findWorkspaceArchives, restoreWorkspaceFromArchive, restoreFromManifest } from "../services/audioRecovery";
+import { forceManifestWrite } from "../services/manifestSync";
+import { buildPersistedAppStoreSnapshot } from "./useStore";
 
 function buildEntityId(prefix: string) {
     return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
@@ -1166,11 +1168,51 @@ export const appActions = {
 
     recoverOrphanedAudio: async (
         onProgress?: (phase: string, done: number, total: number) => void
-    ): Promise<{ recoveredCount: number; archivedWorkspacesRestored: number; orphanedClipsRecovered: number; warnings: string[] }> => {
+    ): Promise<{ recoveredCount: number; restoredFromManifest: boolean; archivedWorkspacesRestored: number; orphanedClipsRecovered: number; warnings: string[] }> => {
         const state = useStore.getState();
         const warnings: string[] = [];
         let archivedWorkspacesRestored = 0;
         let orphanedClipsRecovered = 0;
+
+        // Phase 0: Check shadow manifest first (full state restore)
+        const currentIdeaCount = state.workspaces.reduce(
+            (sum, ws) => sum + ws.ideas.length, 0
+        );
+
+        if (currentIdeaCount === 0) {
+            onProgress?.("Checking manifest backup...", 0, 1);
+            try {
+                const manifestResult = await restoreFromManifest();
+                if (manifestResult) {
+                    const restoredState = manifestResult.restoredState;
+                    const restoredIdeaCount = restoredState.workspaces.reduce(
+                        (sum, ws) => sum + ws.ideas.length, 0
+                    );
+
+                    // Restore the full state from manifest
+                    useStore.setState({
+                        workspaces: restoredState.workspaces,
+                        activityEvents: restoredState.activityEvents,
+                        activeWorkspaceId: restoredState.activeWorkspaceId,
+                        primaryWorkspaceId: restoredState.primaryWorkspaceId,
+                        lastUsedWorkspaceId: restoredState.lastUsedWorkspaceId,
+                        playlists: restoredState.playlists,
+                        globalCustomClipTags: restoredState.globalCustomClipTags,
+                    });
+
+                    return {
+                        recoveredCount: restoredIdeaCount,
+                        restoredFromManifest: true,
+                        archivedWorkspacesRestored: 0,
+                        orphanedClipsRecovered: 0,
+                        warnings: [`Restored ${restoredIdeaCount} ideas from manifest backup (saved ${manifestResult.manifestTimestamp}).`],
+                    };
+                }
+            } catch (err) {
+                const msg = err instanceof Error ? err.message : String(err);
+                warnings.push(`Manifest recovery failed: ${msg}`);
+            }
+        }
 
         // Phase 1: Restore any workspace archives found on disk
         onProgress?.("Scanning for workspace archives...", 0, 1);
@@ -1297,6 +1339,12 @@ export const appActions = {
             ? useStore.getState().workspaces.reduce((sum, ws) => sum + ws.ideas.length, 0)
             : orphanedClipsRecovered;
 
-        return { recoveredCount, archivedWorkspacesRestored, orphanedClipsRecovered, warnings };
+        // Force manifest write after recovery to capture any newly restored data
+        try {
+            const freshState = useStore.getState();
+            await forceManifestWrite(buildPersistedAppStoreSnapshot(freshState));
+        } catch { /* non-critical */ }
+
+        return { recoveredCount, restoredFromManifest: false, archivedWorkspacesRestored, orphanedClipsRecovered, warnings };
     },
 };

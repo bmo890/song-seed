@@ -26,11 +26,15 @@ export function LyricsVersionScreen() {
   const activeWorkspaceId = useStore((s) => s.activeWorkspaceId);
   const insets = useSafeAreaInsets();
 
-  const selectedIdea = useStore((s) => {
-    const workspace = s.workspaces.find((item) => item.id === activeWorkspaceId);
-    return workspace?.ideas.find((idea) => idea.id === ideaId) ?? null;
-  });
-  const activeWorkspace = useStore((s) => s.workspaces.find((item) => item.id === activeWorkspaceId) ?? null);
+  const workspaces = useStore((s) => s.workspaces);
+  const activeWorkspace = useMemo(
+    () => workspaces.find((item) => item.id === activeWorkspaceId) ?? null,
+    [workspaces, activeWorkspaceId]
+  );
+  const selectedIdea = useMemo(
+    () => activeWorkspace?.ideas.find((idea) => idea.id === ideaId) ?? null,
+    [activeWorkspace, ideaId]
+  );
 
   const versions = selectedIdea?.kind === "project" ? selectedIdea.lyrics?.versions ?? [] : [];
   const latestVersion = useMemo(() => getLatestLyricsVersion(selectedIdea), [selectedIdea]);
