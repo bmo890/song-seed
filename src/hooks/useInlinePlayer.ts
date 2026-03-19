@@ -8,6 +8,9 @@ type Args = {
   onBeforePlayNew?: () => Promise<void> | void;
 };
 
+let inlinePlayerOwnerIdCounter = 1;
+let activeInlinePlayerOwnerId: number | null = null;
+
 export function useInlinePlayer({ onBeforePlayNew }: Args = {}) {
   const [inlineTarget, setInlineTarget] = useState<InlineTarget>(null);
   const wasPlayingBeforeScrubRef = useRef(false);
@@ -25,6 +28,7 @@ export function useInlinePlayer({ onBeforePlayNew }: Args = {}) {
   const handledToggleTokenRef = useRef(toggleRequestToken);
   const handledSeekTokenRef = useRef(seekRequestToken);
   const lastAppliedSpeedRef = useRef(inlinePlaybackSpeed);
+  const ownerIdRef = useRef(inlinePlayerOwnerIdCounter++);
 
   const playerOptions = useMemo(() => ({ updateInterval: 100 }), []);
   const player = useAudioPlayer(null, playerOptions);
@@ -33,17 +37,28 @@ export function useInlinePlayer({ onBeforePlayNew }: Args = {}) {
   const inlineDuration = Math.round((status.duration ?? 0) * 1000);
   const isInlinePlaying = !!status.playing && !status.didJustFinish;
 
+  function claimInlineOwnership() {
+    activeInlinePlayerOwnerId = ownerIdRef.current;
+  }
+
+  function isInlineOwner() {
+    return activeInlinePlayerOwnerId === ownerIdRef.current;
+  }
+
   useEffect(() => {
     if (status.didJustFinish && inlineTarget) {
+      if (!isInlineOwner()) return;
       setInlineTarget(null);
     }
   }, [inlineTarget, status.didJustFinish]);
 
   useEffect(() => {
+    if (!isInlineOwner()) return;
     setStoreInlineTarget(inlineTarget);
   }, [inlineTarget, setStoreInlineTarget]);
 
   useEffect(() => {
+    if (!isInlineOwner()) return;
     setInlinePlaybackState({
       positionMs: inlinePosition,
       durationMs: inlineDuration,
@@ -54,6 +69,7 @@ export function useInlinePlayer({ onBeforePlayNew }: Args = {}) {
   useEffect(() => {
     if (stopRequestToken === handledStopTokenRef.current) return;
     handledStopTokenRef.current = stopRequestToken;
+    if (!isInlineOwner()) return;
     void resetInlinePlayer();
   }, [stopRequestToken]);
 
@@ -61,6 +77,7 @@ export function useInlinePlayer({ onBeforePlayNew }: Args = {}) {
     if (toggleRequestToken === handledToggleTokenRef.current) return;
     handledToggleTokenRef.current = toggleRequestToken;
     if (!inlineTarget) return;
+    if (!isInlineOwner()) return;
     void toggleActiveInlinePlayback();
   }, [inlineTarget, toggleRequestToken]);
 
@@ -68,6 +85,7 @@ export function useInlinePlayer({ onBeforePlayNew }: Args = {}) {
     if (seekRequestToken === handledSeekTokenRef.current) return;
     handledSeekTokenRef.current = seekRequestToken;
     if (!inlineTarget) return;
+    if (!isInlineOwner()) return;
     void seekInline(seekTargetMs);
   }, [seekRequestToken]);
 
@@ -85,11 +103,14 @@ export function useInlinePlayer({ onBeforePlayNew }: Args = {}) {
     scrubPausePromiseRef.current = null;
     wasPlayingBeforeScrubRef.current = false;
     setInlineTarget(null);
-    setInlinePlaybackState({
-      positionMs: 0,
-      durationMs: 0,
-      isPlaying: false,
-    });
+    if (isInlineOwner()) {
+      setInlinePlaybackState({
+        positionMs: 0,
+        durationMs: 0,
+        isPlaying: false,
+      });
+      activeInlinePlayerOwnerId = null;
+    }
   }
 
   async function toggleActiveInlinePlayback() {
@@ -114,6 +135,7 @@ export function useInlinePlayer({ onBeforePlayNew }: Args = {}) {
     }
 
     try {
+      claimInlineOwnership();
       requestPlayerClose();
       clearPlayerQueue();
       if (onBeforePlayNew) await onBeforePlayNew();
@@ -168,6 +190,20 @@ export function useInlinePlayer({ onBeforePlayNew }: Args = {}) {
     wasPlayingBeforeScrubRef.current = false;
     scrubPausePromiseRef.current = null;
   }
+
+  useEffect(() => {
+    return () => {
+      if (!isInlineOwner()) return;
+      activeInlinePlayerOwnerId = null;
+      setStoreInlineTarget(null);
+      setInlinePlaybackState({
+        positionMs: 0,
+        durationMs: 0,
+        isPlaying: false,
+      });
+      void Promise.resolve(player.pause()).catch(() => {});
+    };
+  }, [player, setInlinePlaybackState, setStoreInlineTarget]);
 
   return {
     inlineTarget,

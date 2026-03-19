@@ -1,4 +1,5 @@
 import { useSharedAudioRecorder, ExpoAudioStreamModule, audioDeviceManager } from "@siteed/expo-audio-studio";
+import * as FileSystem from "expo-file-system/legacy";
 import { Alert, Linking } from "react-native";
 import { metersToWaveformPeaks } from "../utils";
 import { activateRecordingAudioSession } from "../services/audioSession";
@@ -149,6 +150,11 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
         durationMs: managedAudio.durationMs ?? recordingData.durationMs,
         waveformPeaks,
       });
+      if (recordingData.fileUri && recordingData.fileUri !== managedAudio.audioUri) {
+        // The managed import succeeded, so the recorder temp output is now redundant and should
+        // be removed instead of silently accumulating across saves.
+        await FileSystem.deleteAsync(recordingData.fileUri, { idempotent: true }).catch(() => {});
+      }
       return true;
     } catch {
       Alert.alert("Recording failed", "Could not save recording.");
@@ -158,7 +164,12 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
 
   async function discardRecording() {
     try {
-      await recorder.stopRecording();
+      const recordingData = await recorder.stopRecording();
+      if (recordingData?.fileUri) {
+        // Discard should clean up the recorder output because the app never imports it into
+        // managed storage or stores metadata for later recovery.
+        await FileSystem.deleteAsync(recordingData.fileUri, { idempotent: true }).catch(() => {});
+      }
     } catch {
       // ignore
     }

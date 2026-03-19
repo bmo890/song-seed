@@ -26,6 +26,16 @@ import {
 } from "../types";
 import { genClipTitle } from "../utils";
 import type { SelectionSlice } from "./selectionSlice";
+import type { RecordingSlice } from "./recordingSlice";
+import type { PlayerSlice } from "./playerSlice";
+import { buildRuntimeCleanupPatch } from "./runtimeCleanup";
+import {
+    collectManagedIdeaAudioUris,
+    collectManagedWorkspaceAudioUris,
+    deleteManagedArchiveUri,
+    deleteManagedAudioUris,
+    filterUnreferencedManagedAudioUris,
+} from "../services/managedMedia";
 
 export type DataSlice = {
     workspaces: Workspace[];
@@ -334,6 +344,24 @@ function normalizeWorkspaceIdeasListState(
     };
 }
 
+function normalizeWorkspaceCollectionVisibility<T extends Workspace>(workspace: T): T {
+    return {
+        ...workspace,
+        collections: workspace.collections.map((collection) => {
+            const collectionIdeas = workspace.ideas.filter(
+                (idea) => idea.collectionId === collection.id
+            );
+            return {
+                ...collection,
+                ideasListState: normalizeWorkspaceIdeasListState(
+                    collection.ideasListState,
+                    collectionIdeas
+                ),
+            };
+        }),
+    };
+}
+
 function normalizeIdeas(ideas: SongIdea[]) {
     return ideas.map(normalizeIdea);
 }
@@ -526,7 +554,12 @@ export function normalizeWorkspaces(workspaces: Workspace[]) {
     });
 }
 
-export const createDataSlice: StateCreator<DataSlice & SelectionSlice, [], [], DataSlice> = (set, get) => ({
+export const createDataSlice: StateCreator<
+    DataSlice & SelectionSlice & RecordingSlice & PlayerSlice,
+    [],
+    [],
+    DataSlice
+> = (set, get) => ({
     workspaces: [createInitialWorkspace()],
     activityEvents: [],
     activeWorkspaceId: null,
@@ -742,34 +775,49 @@ export const createDataSlice: StateCreator<DataSlice & SelectionSlice, [], [], D
     },
 
     deleteCollection: (collectionId) => {
+        let audioUrisToDelete: string[] = [];
         set((state) => {
             const sourceWorkspace = findWorkspaceWithCollection(state.workspaces, collectionId);
             if (!sourceWorkspace) return state;
 
             const descendantIds = getCollectionDescendantIds(sourceWorkspace.collections, collectionId);
             const deleteScopeIds = new Set<string>([collectionId, ...descendantIds]);
-            const deletedIdeaIds = new Set(
-                sourceWorkspace.ideas
-                    .filter((idea) => deleteScopeIds.has(idea.collectionId))
-                    .map((idea) => idea.id)
+            const deletedIdeas = sourceWorkspace.ideas.filter((idea) => deleteScopeIds.has(idea.collectionId));
+            const deletedIdeaIds = new Set(deletedIdeas.map((idea) => idea.id));
+            const deletedClipIds = new Set(
+                deletedIdeas.flatMap((idea) => idea.clips.map((clip) => clip.id))
             );
             const nextCollectionLastOpenedAt = { ...state.collectionLastOpenedAt };
             deleteScopeIds.forEach((id) => {
                 delete nextCollectionLastOpenedAt[id];
             });
+            const nextWorkspaces = state.workspaces.map((workspace) =>
+                workspace.id !== sourceWorkspace.id
+                    ? workspace
+                    : {
+                          ...workspace,
+                          collections: workspace.collections.filter(
+                              (collection) => !deleteScopeIds.has(collection.id)
+                          ),
+                          ideas: workspace.ideas.filter(
+                              (idea) => !deleteScopeIds.has(idea.collectionId)
+                          ),
+                      }
+            );
+
+            audioUrisToDelete = filterUnreferencedManagedAudioUris(
+                deletedIdeas.flatMap((idea) => Array.from(collectManagedIdeaAudioUris(idea))),
+                nextWorkspaces
+            );
 
             return {
-                workspaces: state.workspaces.map((workspace) =>
-                    workspace.id !== sourceWorkspace.id
-                        ? workspace
-                        : {
-                            ...workspace,
-                            collections: workspace.collections.filter(
-                                (collection) => !deleteScopeIds.has(collection.id)
-                            ),
-                            ideas: workspace.ideas.filter((idea) => !deleteScopeIds.has(idea.collectionId)),
-                        }
-                ),
+                ...buildRuntimeCleanupPatch(state, {
+                    nextWorkspaces,
+                    removedCollectionIds: deleteScopeIds,
+                    removedIdeaIds: deletedIdeaIds,
+                    removedClipIds: deletedClipIds,
+                }),
+                workspaces: nextWorkspaces,
                 collectionLastOpenedAt: nextCollectionLastOpenedAt,
                 activityEvents: state.activityEvents.filter(
                     (event) =>
@@ -782,6 +830,9 @@ export const createDataSlice: StateCreator<DataSlice & SelectionSlice, [], [], D
                 })),
             };
         });
+        // Delete managed media only after the store no longer references it so file cleanup
+        // cannot race ahead of persisted metadata updates and orphan the library state.
+        void deleteManagedAudioUris(audioUrisToDelete);
     },
 
     toggleIdeaFavorite: (ideaId) => {
@@ -996,24 +1047,39 @@ export const createDataSlice: StateCreator<DataSlice & SelectionSlice, [], [], D
     },
 
     deleteWorkspace: (id) => {
+        let audioUrisToDelete: string[] = [];
+        let archiveUriToDelete: string | undefined;
         set((state) => {
             if (state.workspaces.length <= 1) return state; // Guard
+            const removedWorkspace = state.workspaces.find((ws) => ws.id === id);
+            if (!removedWorkspace) return state;
             const nextWorkspaces = state.workspaces.filter((ws) => ws.id !== id);
             const nextWorkspaceLastOpenedAt = { ...state.workspaceLastOpenedAt };
             delete nextWorkspaceLastOpenedAt[id];
             const nextCollectionLastOpenedAt = { ...state.collectionLastOpenedAt };
-            state.workspaces
-                .find((workspace) => workspace.id === id)
-                ?.collections.forEach((collection) => {
-                    delete nextCollectionLastOpenedAt[collection.id];
-                });
+            removedWorkspace.collections.forEach((collection) => {
+                delete nextCollectionLastOpenedAt[collection.id];
+            });
+
+            const removedIdeaIds = new Set(removedWorkspace.ideas.map((idea) => idea.id));
+            const removedClipIds = new Set(
+                removedWorkspace.ideas.flatMap((idea) => idea.clips.map((clip) => clip.id))
+            );
+            audioUrisToDelete = filterUnreferencedManagedAudioUris(
+                collectManagedWorkspaceAudioUris(removedWorkspace),
+                nextWorkspaces
+            );
+            archiveUriToDelete = removedWorkspace.archiveState?.archiveUri;
 
             return {
+                ...buildRuntimeCleanupPatch(state, {
+                    nextWorkspaces,
+                    removedWorkspaceIds: [id],
+                    removedCollectionIds: removedWorkspace.collections.map((collection) => collection.id),
+                    removedIdeaIds,
+                    removedClipIds,
+                }),
                 workspaces: nextWorkspaces,
-                activeWorkspaceId: state.activeWorkspaceId === id ? (nextWorkspaces[0]?.id ?? null) : state.activeWorkspaceId,
-                primaryWorkspaceId: state.primaryWorkspaceId === id ? null : state.primaryWorkspaceId,
-                lastUsedWorkspaceId:
-                    state.lastUsedWorkspaceId === id ? (nextWorkspaces[0]?.id ?? null) : state.lastUsedWorkspaceId,
                 workspaceLastOpenedAt: nextWorkspaceLastOpenedAt,
                 collectionLastOpenedAt: nextCollectionLastOpenedAt,
                 activityEvents: state.activityEvents.filter((event) => event.workspaceId !== id),
@@ -1023,6 +1089,11 @@ export const createDataSlice: StateCreator<DataSlice & SelectionSlice, [], [], D
                 })),
             };
         });
+        // Best-effort storage cleanup happens after references are removed from persisted state.
+        void Promise.all([
+            deleteManagedAudioUris(audioUrisToDelete),
+            deleteManagedArchiveUri(archiveUriToDelete),
+        ]);
     },
 
     archiveWorkspace: (id, isArchived) => {
@@ -1344,14 +1415,56 @@ export const createDataSlice: StateCreator<DataSlice & SelectionSlice, [], [], D
     },
 
     deleteIdea: (ideaId) => {
-        get().updateIdeas((prev) => prev.filter((i) => i.id !== ideaId));
-        set((state) => ({
-            activityEvents: state.activityEvents.filter((event) => event.ideaId !== ideaId),
-            playlists: state.playlists.map((playlist) => ({
-                ...playlist,
-                items: playlist.items.filter((item) => item.ideaId !== ideaId),
-            })),
-        }));
+        let audioUrisToDelete: string[] = [];
+        set((state) => {
+            let removedIdea: SongIdea | undefined;
+            const nextWorkspaces = state.workspaces.map((workspace) => {
+                const nextIdeas = workspace.ideas.filter((idea) => {
+                    if (idea.id === ideaId) {
+                        removedIdea = idea;
+                        return false;
+                    }
+                    return true;
+                });
+                if (nextIdeas.length === workspace.ideas.length) {
+                    return workspace;
+                }
+                return normalizeWorkspaceCollectionVisibility({
+                    ...workspace,
+                    ideas: nextIdeas,
+                });
+            });
+
+            if (!removedIdea) {
+                return state;
+            }
+            const removedIdeaSnapshot = removedIdea;
+
+            const removedClipIds = new Set(
+                removedIdeaSnapshot.clips.map((clip: ClipVersion) => clip.id)
+            );
+            audioUrisToDelete = filterUnreferencedManagedAudioUris(
+                collectManagedIdeaAudioUris(removedIdeaSnapshot),
+                nextWorkspaces
+            );
+
+            return {
+                ...buildRuntimeCleanupPatch(state, {
+                    nextWorkspaces,
+                    removedIdeaIds: [ideaId],
+                    removedClipIds,
+                }),
+                workspaces: nextWorkspaces,
+                activityEvents: state.activityEvents.filter((event) => event.ideaId !== ideaId),
+                playlists: state.playlists.map((playlist) => ({
+                    ...playlist,
+                    items: playlist.items.filter((item) => item.ideaId !== ideaId),
+                })),
+            };
+        });
+        // Keep file deletion behind state mutation so a crash cannot erase media before the
+        // persisted model forgets the idea.
+        void deleteManagedAudioUris(audioUrisToDelete);
     },
 });
 

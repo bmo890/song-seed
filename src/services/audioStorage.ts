@@ -5,6 +5,10 @@ import { Platform, Share } from "react-native";
 import { extractAudioAnalysis } from "@siteed/expo-audio-studio";
 import { buildStaticWaveform, metersToWaveformPeaks } from "../utils";
 import { SONG_SEED_AUDIO_DIR, SONG_SEED_SHARE_DIR } from "./storagePaths";
+import {
+    cleanupShareTempFile,
+    ensureArchiveSizeWithinSafetyLimit,
+} from "./managedMedia";
 
 export const MAX_DETAILED_AUDIO_ANALYSIS_DURATION_MS = 30 * 60 * 1000;
 
@@ -337,6 +341,11 @@ export async function shareFileUri(fileUri: string, title: string, mimeType: str
 }
 
 export async function createZipArchive(destinationUri: string, entries: ZipArchiveEntry[]) {
+    await ensureArchiveSizeWithinSafetyLimit(
+        entries.flatMap((entry) => (entry.fileUri ? [entry.fileUri] : [])),
+        "Share archive"
+    );
+
     const resolvedEntries = await Promise.all(
         entries.map(async (entry) => {
             if (entry.directory) {
@@ -581,18 +590,31 @@ export async function importAudioAsset(asset: ImportedAudioAsset, targetId: stri
 
     const extension = getFileExtension(asset.name, asset.mimeType);
     const destinationUri = `${SONG_SEED_AUDIO_DIR}/${targetId}.${extension}`;
+    const copiedToManagedStorage = asset.uri !== destinationUri;
 
-    if (asset.uri !== destinationUri) {
-        await FileSystem.copyAsync({ from: asset.uri, to: destinationUri });
+    try {
+        if (copiedToManagedStorage) {
+            await FileSystem.copyAsync({ from: asset.uri, to: destinationUri });
+        }
+
+        const metadata = await loadManagedAudioMetadata(
+            destinationUri,
+            `${targetId}-${asset.name ?? "imported"}`
+        );
+
+        return {
+            audioUri: destinationUri,
+            durationMs: metadata.durationMs,
+            waveformPeaks: metadata.waveformPeaks,
+        };
+    } catch (error) {
+        // Remove partially imported managed files so failed imports do not silently accumulate
+        // orphaned audio that the store never referenced.
+        if (copiedToManagedStorage) {
+            await FileSystem.deleteAsync(destinationUri, { idempotent: true }).catch(() => {});
+        }
+        throw error;
     }
-
-    const metadata = await loadManagedAudioMetadata(destinationUri, `${targetId}-${asset.name ?? "imported"}`);
-
-    return {
-        audioUri: destinationUri,
-        durationMs: metadata.durationMs,
-        waveformPeaks: metadata.waveformPeaks,
-    };
 }
 
 export async function importAudioAssets(
@@ -645,8 +667,12 @@ export async function shareAudioFile(audioUri: string, title: string) {
     const baseName = sanitizeArchiveSegment(title || "Clip");
     const shareUri = `${SONG_SEED_SHARE_DIR}/${baseName} ${buildTimestampSlug()}-${Math.random().toString(36).slice(2, 7)}.${extension}`;
 
-    await FileSystem.copyAsync({ from: audioUri, to: shareUri });
-    await shareFileUri(shareUri, title, getAudioShareMimeType(audioUri));
+    try {
+        await FileSystem.copyAsync({ from: audioUri, to: shareUri });
+        await shareFileUri(shareUri, title, getAudioShareMimeType(audioUri));
+    } finally {
+        await cleanupShareTempFile(shareUri);
+    }
 }
 
 export async function shareAudioClips(clips: ShareableAudioClip[], bundleLabel = "SongSeed Clips") {
@@ -685,6 +711,10 @@ export async function shareAudioClips(clips: ShareableAudioClip[], bundleLabel =
     const archiveTitle = `${sanitizeArchiveSegment(bundleLabel)} ${buildTimestampSlug()}`;
     const archiveUri = `${SONG_SEED_SHARE_DIR}/${archiveTitle}.zip`;
 
-    await createZipArchive(archiveUri, archiveEntries);
-    await shareFileUri(archiveUri, archiveTitle, "application/zip");
+    try {
+        await createZipArchive(archiveUri, archiveEntries);
+        await shareFileUri(archiveUri, archiveTitle, "application/zip");
+    } finally {
+        await cleanupShareTempFile(archiveUri);
+    }
 }

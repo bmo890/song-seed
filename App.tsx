@@ -39,6 +39,7 @@ import {
   resolveStartupWorkspaceId,
 } from "./src/libraryNavigation";
 import type { CollectionDetailRouteParams } from "./src/navigation";
+import { cleanupStaleShareTempFiles } from "./src/services/managedMedia";
 
 export type HomeDrawerParamList = {
   Workspaces: undefined;
@@ -467,6 +468,13 @@ export default function App() {
       unsubscribeFinishHydration();
     };
   }, []);
+
+  useEffect(() => {
+    if (!hasHydrated) return;
+    // Sweep stale share/export temp files after hydration so the app does not keep growing
+    // storage usage from artifacts that were never part of persisted user state.
+    void cleanupStaleShareTempFiles();
+  }, [hasHydrated]);
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>

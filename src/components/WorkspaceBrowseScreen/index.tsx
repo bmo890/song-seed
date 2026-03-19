@@ -264,6 +264,11 @@ export function WorkspaceBrowseScreen() {
         importCollectionAssets,
         (_asset, index) => `audio-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 9)}`
       );
+      if (imported.length === 0) {
+        deleteCollection(collectionId);
+        Alert.alert("Import failed", "None of the selected files could be imported.");
+        return;
+      }
       const importedDates = buildImportedAssetDateMetadata(
         imported,
         importCollectionDatePreference,
@@ -301,6 +306,7 @@ export function WorkspaceBrowseScreen() {
       }
     } catch (error) {
       console.warn("Collection import error", error);
+      deleteCollection(collectionId);
       Alert.alert("Import failed", "Could not create that collection from the selected audio.");
     } finally {
       setIsImportingCollection(false);

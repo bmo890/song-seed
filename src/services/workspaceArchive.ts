@@ -2,7 +2,8 @@ import * as FileSystem from "expo-file-system/legacy";
 import { strFromU8, strToU8, unzipSync, zipSync } from "fflate";
 import type { Workspace, WorkspaceArchiveState } from "../types";
 import { getArchiveFileExtension, sanitizeArchiveSegment } from "./audioStorage";
-import { SONG_SEED_WORKSPACE_ARCHIVE_DIR } from "./storagePaths";
+import { SONG_SEED_WORKSPACE_ARCHIVE_DIR, isSongSeedManagedUri } from "./storagePaths";
+import { ensureArchiveSizeWithinSafetyLimit } from "./managedMedia";
 
 const WORKSPACE_ARCHIVE_SCHEMA_VERSION = 1;
 
@@ -31,11 +32,13 @@ type ArchiveVerificationResult = {
 export type WorkspaceArchiveResult = {
     archivedWorkspace: Workspace;
     archiveState: WorkspaceArchiveState;
+    originalAudioUris: string[];
     warnings: string[];
 };
 
 export type WorkspaceRestoreResult = {
     restoredWorkspace: Workspace;
+    restoredAudioUris: string[];
     warnings: string[];
 };
 
@@ -103,6 +106,12 @@ async function writeFileBytes(fileUri: string, bytes: Uint8Array) {
     await FileSystem.writeAsStringAsync(fileUri, bytesToBase64(bytes), {
         encoding: FileSystem.EncodingType.Base64,
     });
+}
+
+function assertManagedRestoreUri(fileUri: string) {
+    if (!isSongSeedManagedUri(fileUri)) {
+        throw new Error("Archive restore target is outside Song Seed managed storage.");
+    }
 }
 
 async function ensureWorkspaceArchiveDirectory() {
@@ -233,25 +242,6 @@ async function verifyArchiveFile(
     };
 }
 
-async function restoreFilesFromEntries(files: ArchiveableMediaFile[], zipEntries: Record<string, Uint8Array>) {
-    for (const file of files) {
-        const entryBytes = zipEntries[file.archivePath];
-        if (!entryBytes) {
-            throw new Error(`Archive package is missing ${file.archivePath}.`);
-        }
-        await writeFileBytes(file.liveUri, entryBytes);
-    }
-}
-
-async function deleteArchivePackage(archiveUri: string) {
-    try {
-        await FileSystem.deleteAsync(archiveUri, { idempotent: true });
-        return true;
-    } catch {
-        return false;
-    }
-}
-
 export async function archiveWorkspaceToDevice(workspace: Workspace): Promise<WorkspaceArchiveResult> {
     if (workspace.isArchived) {
         throw new Error("This workspace is already archived.");
@@ -262,6 +252,10 @@ export async function archiveWorkspaceToDevice(workspace: Workspace): Promise<Wo
     const workspaceSnapshot = cloneWorkspace(workspace);
     const archiveUri = buildWorkspaceArchiveUri(workspace);
     const { mediaFiles, missingFileUris, originalAudioBytes } = await collectWorkspaceMediaFiles(workspaceSnapshot);
+    await ensureArchiveSizeWithinSafetyLimit(
+        mediaFiles.map((file) => file.liveUri),
+        `Archive for ${workspace.title || "workspace"}`
+    );
 
     const manifest: WorkspaceArchivePackageManifest = {
         schemaVersion: WORKSPACE_ARCHIVE_SCHEMA_VERSION,
@@ -305,7 +299,7 @@ export async function archiveWorkspaceToDevice(workspace: Workspace): Promise<Wo
         (verification.packageSizeBytes + archivedMetadataBytes);
 
     if (savingsBytes <= 0) {
-        await deleteArchivePackage(archiveUri);
+        await FileSystem.deleteAsync(archiveUri, { idempotent: true });
         throw new Error("Archiving would not reduce storage for this workspace.");
     }
 
@@ -322,7 +316,7 @@ export async function archiveWorkspaceToDevice(workspace: Workspace): Promise<Wo
         (verification.packageSizeBytes + exactArchivedMetadataBytes);
 
     if (exactSavingsBytes <= 0) {
-        await deleteArchivePackage(archiveUri);
+        await FileSystem.deleteAsync(archiveUri, { idempotent: true });
         throw new Error("Archiving would not reduce storage for this workspace.");
     }
 
@@ -339,7 +333,7 @@ export async function archiveWorkspaceToDevice(workspace: Workspace): Promise<Wo
         (verification.packageSizeBytes + finalArchivedMetadataBytes);
 
     if (finalSavingsBytes <= 0) {
-        await deleteArchivePackage(archiveUri);
+        await FileSystem.deleteAsync(archiveUri, { idempotent: true });
         throw new Error("Archiving would not reduce storage for this workspace.");
     }
 
@@ -348,28 +342,6 @@ export async function archiveWorkspaceToDevice(workspace: Workspace): Promise<Wo
         archivedMetadataBytes: finalArchivedMetadataBytes,
         savingsBytes: finalSavingsBytes,
     };
-    const deletedFiles: ArchiveableMediaFile[] = [];
-    try {
-        for (const file of mediaFiles) {
-            await FileSystem.deleteAsync(file.liveUri, { idempotent: true });
-            deletedFiles.push(file);
-        }
-    } catch (error) {
-        let rollbackErrorMessage = "";
-        try {
-            await restoreFilesFromEntries(deletedFiles, verification.zipEntries);
-        } catch (rollbackError) {
-            rollbackErrorMessage = rollbackError instanceof Error ? rollbackError.message : "Rollback failed.";
-        }
-        await deleteArchivePackage(archiveUri);
-        throw new Error(
-            rollbackErrorMessage
-                ? `Could not remove the original audio after packaging the archive. ${rollbackErrorMessage}`
-                : error instanceof Error
-                    ? error.message
-                    : "Could not remove the original audio after packaging the archive."
-        );
-    }
 
     const warnings =
         missingFileUris.length > 0
@@ -381,6 +353,7 @@ export async function archiveWorkspaceToDevice(workspace: Workspace): Promise<Wo
     return {
         archivedWorkspace: stripWorkspaceMedia(workspaceSnapshot, finalizedArchiveState),
         archiveState: finalizedArchiveState,
+        originalAudioUris: mediaFiles.map((file) => file.liveUri),
         warnings,
     };
 }
@@ -399,6 +372,7 @@ export async function restoreWorkspaceFromDevice(workspace: Workspace): Promise<
             if (!entryBytes) {
                 throw new Error(`Archive package is missing ${file.archivePath}.`);
             }
+            assertManagedRestoreUri(file.liveUri);
 
             await writeFileBytes(file.liveUri, entryBytes);
             const restoredInfo = await FileSystem.getInfoAsync(file.liveUri);
@@ -432,13 +406,9 @@ export async function restoreWorkspaceFromDevice(workspace: Workspace): Promise<
               ]
             : [];
 
-    const deletedArchivePackage = await deleteArchivePackage(workspace.archiveState.archiveUri);
-    if (!deletedArchivePackage) {
-        warnings.push("Audio was restored, but the compressed archive package could not be removed.");
-    }
-
     return {
         restoredWorkspace: mergeRestoredWorkspace(workspace, verification.workspaceSnapshot),
+        restoredAudioUris: verification.manifest.audioFiles.map((file) => file.liveUri),
         warnings,
     };
 }

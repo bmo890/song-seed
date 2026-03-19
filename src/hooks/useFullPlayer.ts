@@ -135,14 +135,26 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
       await player.pause();
       if (!isOperationActive(operationId)) return;
 
-      setPlayerTarget({ ideaId, clipId: clip.id });
-      setWaveformPeaks(clip.waveformPeaks?.length ? clip.waveformPeaks : buildStaticWaveform(`${clip.id}-${clip.durationMs ?? 0}`));
-      if (!isOperationActive(operationId)) return;
-
       await replacePlaybackSource(player, clip.audioUri, autoPlay);
       if (!isOperationActive(operationId)) return;
+      // Publish the active target only after the source has loaded. That keeps the UI and
+      // persisted player state from pointing at a clip that never actually became playable.
+      setPlayerTarget({ ideaId, clipId: clip.id });
+      setWaveformPeaks(
+        clip.waveformPeaks?.length
+          ? clip.waveformPeaks
+          : buildStaticWaveform(`${clip.id}-${clip.durationMs ?? 0}`)
+      );
       activateLockScreenControls(metadata);
     } catch (err) {
+      setPlayerPlaybackState({
+        positionMs: 0,
+        durationMs: 0,
+        isPlaying: false,
+      });
+      useStore.getState().clearPlayerQueue();
+      setPlayerTarget(null);
+      setWaveformPeaks([]);
       console.log("FULL open error", err);
     }
   }, [activateLockScreenControls, isOperationActive, onBeforePlayNew, player]);

@@ -12,6 +12,7 @@ import {
     type ZipArchiveEntry,
 } from "./audioStorage";
 import { SONG_SEED_SHARE_DIR } from "./storagePaths";
+import { cleanupShareTempFile, ensureArchiveSizeWithinSafetyLimit } from "./managedMedia";
 
 export type LibraryExportFormat = "song-seed-archive" | "standard-zip";
 
@@ -210,8 +211,17 @@ export async function exportLibrary(args: ExportLibraryArgs): Promise<LibraryExp
         throw new Error("Nothing to export for the current selection.");
     }
 
-    await createZipArchive(archiveUri, zipEntries);
-    await shareFileUri(archiveUri, archiveTitle, "application/zip");
+    await ensureArchiveSizeWithinSafetyLimit(
+        zipEntries.flatMap((entry) => (entry.fileUri ? [entry.fileUri] : [])),
+        archiveTitle
+    );
+
+    try {
+        await createZipArchive(archiveUri, zipEntries);
+        await shareFileUri(archiveUri, archiveTitle, "application/zip");
+    } finally {
+        await cleanupShareTempFile(archiveUri);
+    }
 
     return {
         archiveUri,
