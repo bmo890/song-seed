@@ -100,6 +100,7 @@ export function useInlinePlayer({ onBeforePlayNew }: Args = {}) {
 
   async function resetInlinePlayer() {
     await player.pause();
+    try { player.clearLockScreenControls(); } catch {}
     scrubPausePromiseRef.current = null;
     wasPlayingBeforeScrubRef.current = false;
     setInlineTarget(null);
@@ -143,6 +144,11 @@ export function useInlinePlayer({ onBeforePlayNew }: Args = {}) {
 
       await replacePlaybackSource(player, clip.audioUri, true);
       setInlineTarget({ ideaId, clipId: clip.id });
+      player.setActiveForLockScreen(
+        true,
+        { title: clip.title || "Clip", artist: "SongSeed" },
+        { showSeekBackward: true, showSeekForward: true }
+      );
     } catch (err) {
       console.log("INLINE play error", err);
     }
@@ -201,6 +207,7 @@ export function useInlinePlayer({ onBeforePlayNew }: Args = {}) {
         durationMs: 0,
         isPlaying: false,
       });
+      try { player.clearLockScreenControls(); } catch {}
       void Promise.resolve(player.pause()).catch(() => {});
     };
   }, [player, setInlinePlaybackState, setStoreInlineTarget]);
