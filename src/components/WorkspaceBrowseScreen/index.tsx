@@ -25,6 +25,7 @@ import {
   pickAudioFiles,
   type ImportedAudioAsset,
 } from "../../services/audioStorage";
+import { useImportStore } from "../../state/useImportStore";
 import {
   buildWorkspaceBrowseEntries,
   type CollectionSearchMatchKind,
@@ -77,7 +78,6 @@ export function WorkspaceBrowseScreen() {
   const [importCollectionAssets, setImportCollectionAssets] = useState<ImportedAudioAsset[]>([]);
   const [importCollectionDatePreference, setImportCollectionDatePreference] = useState<ImportDatePreference>("import");
   const [importCollectionDraft, setImportCollectionDraft] = useState("");
-  const [isImportingCollection, setIsImportingCollection] = useState(false);
   const [sizeMap, setSizeMap] = useState<Record<string, number>>({});
   const [managedCollectionId, setManagedCollectionId] = useState<string | null>(null);
   const [collectionActionsOpen, setCollectionActionsOpen] = useState(false);
@@ -242,69 +242,72 @@ export function WorkspaceBrowseScreen() {
   };
 
   const resetImportCollectionModal = () => {
-    if (isImportingCollection) return;
     setImportCollectionModalOpen(false);
     setImportCollectionAssets([]);
     setImportCollectionDatePreference("import");
     setImportCollectionDraft("");
   };
 
-  const saveImportedCollection = async () => {
-    if (!activeWorkspaceId || importCollectionAssets.length === 0 || isImportingCollection) return;
+  const saveImportedCollection = () => {
+    if (!activeWorkspaceId || importCollectionAssets.length === 0) return;
 
-    const title =
-      importCollectionDraft.trim() ||
-      buildImportedCollectionTitle(importCollectionAssets, topLevelCollections.length);
-    const collectionId = addCollection(activeWorkspaceId, title, null);
+    const assetsSnapshot = importCollectionAssets;
+    const datePreferenceSnapshot = importCollectionDatePreference;
+    const draftSnapshot = importCollectionDraft;
+    const workspaceIdSnapshot = activeWorkspaceId;
 
-    try {
-      setIsImportingCollection(true);
-      const importedAt = Date.now();
-      const { imported, failed } = await importAudioAssets(
-        importCollectionAssets,
-        (_asset, index) => `audio-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 9)}`
-      );
-      const importedDates = buildImportedAssetDateMetadata(
-        imported,
-        importCollectionDatePreference,
-        importedAt
-      );
-      const nextTitles: string[] = [];
+    const label =
+      draftSnapshot.trim() ||
+      buildImportedCollectionTitle(assetsSnapshot, topLevelCollections.length);
 
-      imported.forEach((asset, index) => {
-        const importedDate = importedDates[index]!;
-        const title = ensureUniqueCountedTitle(buildImportedTitle(asset.name), nextTitles);
-        nextTitles.push(title);
-        appActions.importClipToCollection(collectionId, {
-          title,
-          audioUri: asset.audioUri,
-          durationMs: asset.durationMs,
-          waveformPeaks: asset.waveformPeaks,
-          createdAt: importedDate.createdAt,
-          importedAt: importedDate.importedAt,
-          sourceCreatedAt: importedDate.sourceCreatedAt,
-        });
-      });
+    // Create the collection and navigate immediately
+    const collectionId = addCollection(workspaceIdSnapshot, label, null);
+    resetImportCollectionModal();
+    openCollectionInBrowse(navigation, { collectionId });
 
-      setImportCollectionModalOpen(false);
-      setImportCollectionAssets([]);
-      setImportCollectionDraft("");
-      openCollectionInBrowse(navigation, { collectionId });
+    const jobId = `import-${Date.now()}`;
+    useImportStore.getState().startJob({ id: jobId, label, total: assetsSnapshot.length });
 
-      if (failed.length > 0) {
-        Alert.alert(
-          imported.length > 0 ? "Import finished with issues" : "Import failed",
-          imported.length > 0
-            ? `${imported.length} file${imported.length === 1 ? "" : "s"} imported into ${title}. ${failed.length} file${failed.length === 1 ? "" : "s"} could not be imported.`
-            : `None of the selected files could be imported into ${title}.`
+    void (async () => {
+      try {
+        const importedAt = Date.now();
+        const { imported, failed } = await importAudioAssets(
+          assetsSnapshot,
+          (_asset, index) => `audio-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 9)}`,
+          (current, total, failedCount) => {
+            useImportStore.getState().updateJob(jobId, { current, failed: failedCount });
+          }
         );
+        const importedDates = buildImportedAssetDateMetadata(imported, datePreferenceSnapshot, importedAt);
+        const nextTitles: string[] = [];
+
+        imported.forEach((asset, index) => {
+          const importedDate = importedDates[index]!;
+          const clipTitle = ensureUniqueCountedTitle(buildImportedTitle(asset.name), nextTitles);
+          nextTitles.push(clipTitle);
+          appActions.importClipToCollection(collectionId, {
+            title: clipTitle,
+            audioUri: asset.audioUri,
+            durationMs: asset.durationMs,
+            waveformPeaks: asset.waveformPeaks,
+            createdAt: importedDate.createdAt,
+            importedAt: importedDate.importedAt,
+            sourceCreatedAt: importedDate.sourceCreatedAt,
+          });
+        });
+
+        useImportStore.getState().updateJob(jobId, {
+          current: imported.length,
+          failed: failed.length,
+          status: failed.length === assetsSnapshot.length ? "error" : "done",
+        });
+      } catch (error) {
+        console.warn("Collection import error", error);
+        useImportStore.getState().updateJob(jobId, { status: "error" });
+      } finally {
+        setTimeout(() => useImportStore.getState().removeJob(jobId), 2500);
       }
-    } catch (error) {
-      console.warn("Collection import error", error);
-      Alert.alert("Import failed", "Could not create that collection from the selected audio.");
-    } finally {
-      setIsImportingCollection(false);
-    }
+    })();
   };
 
   return (
@@ -462,9 +465,9 @@ export function WorkspaceBrowseScreen() {
           importCollectionAssets,
           importCollectionDatePreference
         )}
-        saveLabel={isImportingCollection ? "Importing..." : "Create"}
-        saveDisabled={isImportingCollection}
-        cancelDisabled={isImportingCollection}
+        saveLabel="Create"
+        saveDisabled={false}
+        cancelDisabled={false}
       />
 
       <CollectionActionsModal

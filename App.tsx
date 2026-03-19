@@ -26,6 +26,7 @@ import { LyricsScreen } from "./src/components/LyricsScreen";
 import { LyricsVersionScreen } from "./src/components/LyricsVersionScreen";
 import { ActivityScreen } from "./src/components/ActivityScreen";
 import { GlobalMediaDock } from "./src/components/GlobalMediaDock";
+import { ImportProgressBanner } from "./src/components/ImportProgressBanner";
 import { LibraryScreen } from "./src/components/LibraryScreen";
 import { SettingsScreen } from "./src/components/SettingsScreen";
 import { RevisitScreen } from "./src/components/RevisitScreen";
@@ -441,6 +442,7 @@ function AppContent() {
             navigationRef.navigate("Recording");
           }}
         />
+        <ImportProgressBanner />
       </NavigationContainer>
     </ShareIntentProvider>
   );

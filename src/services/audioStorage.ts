@@ -597,7 +597,8 @@ export async function importAudioAsset(asset: ImportedAudioAsset, targetId: stri
 
 export async function importAudioAssets(
     assets: ImportedAudioAsset[],
-    buildTargetId: (asset: ImportedAudioAsset, index: number) => string
+    buildTargetId: (asset: ImportedAudioAsset, index: number) => string,
+    onProgress?: (current: number, total: number, failed: number) => void
 ): Promise<{ imported: ImportedManagedAudioAsset[]; failed: AudioImportFailure[] }> {
     const imported: ImportedManagedAudioAsset[] = [];
     const failed: AudioImportFailure[] = [];
@@ -616,6 +617,8 @@ export async function importAudioAssets(
         } catch (error) {
             failed.push({ asset, error });
         }
+
+        onProgress?.(index + 1, assets.length, failed.length);
     }
 
     return { imported, failed };

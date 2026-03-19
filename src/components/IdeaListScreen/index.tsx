@@ -37,6 +37,7 @@ import {
   shareAudioFile,
   type ImportedAudioAsset,
 } from "../../services/audioStorage";
+import { useImportStore } from "../../state/useImportStore";
 import {
   buildDefaultIdeaTitle,
   ensureUniqueIdeaTitle,
@@ -178,7 +179,6 @@ export function IdeaListScreen() {
   const [importMode, setImportMode] = useState<"single-clip" | "song-project" | null>(null);
   const [importDatePreference, setImportDatePreference] = useState<ImportDatePreference>("import");
   const [importDraft, setImportDraft] = useState("");
-  const [isImporting, setIsImporting] = useState(false);
   const [managedCollectionId, setManagedCollectionId] = useState<string | null>(null);
   const [collectionActionsOpen, setCollectionActionsOpen] = useState(false);
   const [collectionRenameModalOpen, setCollectionRenameModalOpen] = useState(false);
@@ -972,7 +972,6 @@ export function IdeaListScreen() {
   }
 
   function resetImportModal() {
-    if (isImporting) return;
     setImportModalOpen(false);
     setImportAssets([]);
     setImportMode(null);
@@ -1033,136 +1032,161 @@ export function IdeaListScreen() {
     );
   }
 
-  async function importAssetsAsIndividualClips(
+  function importAssetsAsIndividualClips(
     assets: ImportedAudioAsset[],
     datePreference: ImportDatePreference
   ) {
-    if (!collectionId || assets.length === 0 || isImporting) return;
+    if (!collectionId || assets.length === 0) return;
 
-    try {
-      setIsImporting(true);
-      const importedAt = Date.now();
-      const { imported, failed } = await importAudioAssets(
-        assets,
-        (_asset, index) => `audio-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 9)}`
-      );
-      const importedDates = buildImportedAssetDateMetadata(imported, datePreference, importedAt);
-      const nextTitles = [...collectionIdeaTitles];
+    const targetCollectionId = collectionId;
+    const baseTitles = [...collectionIdeaTitles];
+    const label = assets.length === 1 ? buildImportedTitle(assets[0]!.name) : `${assets.length} clips`;
+    const jobId = `import-${Date.now()}`;
+    useImportStore.getState().startJob({ id: jobId, label, total: assets.length });
 
-      imported.forEach((asset, index) => {
-        const importedDate = importedDates[index]!;
-        const title = ensureUniqueCountedTitle(buildImportedTitle(asset.name), nextTitles);
-        nextTitles.push(title);
-        appActions.importClipToCollection(collectionId, {
-          title,
-          audioUri: asset.audioUri,
-          durationMs: asset.durationMs,
-          waveformPeaks: asset.waveformPeaks,
-          createdAt: importedDate.createdAt,
-          importedAt: importedDate.importedAt,
-          sourceCreatedAt: importedDate.sourceCreatedAt,
-        });
-      });
-
-      if (failed.length > 0) {
-        Alert.alert(
-          imported.length > 0 ? "Import finished with issues" : "Import failed",
-          imported.length > 0
-            ? `${imported.length} file${imported.length === 1 ? "" : "s"} imported as individual clips. ${failed.length} file${failed.length === 1 ? "" : "s"} could not be imported.`
-            : "None of the selected files could be imported."
-        );
-      }
-    } catch (error) {
-      console.warn("Import audio error", error);
-      Alert.alert("Import failed", "Could not import those audio files.");
-    } finally {
-      setIsImporting(false);
-    }
-  }
-
-  async function saveImportedAudio() {
-    if (!collectionId || importAssets.length === 0 || !importMode || isImporting) return;
-
-    try {
-      setIsImporting(true);
-      const importedAt = Date.now();
-      if (importMode === "single-clip") {
-        const importAsset = importAssets[0]!;
-        const importedAudio = await importAudioAsset(
-          importAsset,
-          `audio-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
-        );
-        const fallbackTitle = ensureUniqueCountedTitle(
-          buildImportedTitle(importAsset.name),
-          collectionIdeaTitles
-        );
-        const finalTitle = importDraft.trim() || fallbackTitle;
-        const [importedDate] = buildImportedAssetDateMetadata(
-          [importAsset],
-          importDatePreference,
-          importedAt
-        );
-
-        appActions.importClipToCollection(collectionId, {
-          title: finalTitle,
-          audioUri: importedAudio.audioUri,
-          durationMs: importedAudio.durationMs,
-          waveformPeaks: importedAudio.waveformPeaks,
-          createdAt: importedDate!.createdAt,
-          importedAt: importedDate!.importedAt,
-          sourceCreatedAt: importedDate!.sourceCreatedAt,
-        });
-      } else {
+    void (async () => {
+      try {
+        const importedAt = Date.now();
         const { imported, failed } = await importAudioAssets(
-          importAssets,
-          (_asset, index) => `audio-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 9)}`
+          assets,
+          (_asset, index) => `audio-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 9)}`,
+          (current, total, failedCount) => {
+            useImportStore.getState().updateJob(jobId, { current, failed: failedCount });
+          }
         );
-        const projectTitle = importDraft.trim() || buildImportedProjectTitle(importAssets);
+        const importedDates = buildImportedAssetDateMetadata(imported, datePreference, importedAt);
+        const nextTitles = [...baseTitles];
 
-        if (imported.length === 0) {
-          Alert.alert("Import failed", "None of the selected files could be imported.");
-          return;
-        }
-
-        const importedDates = buildImportedAssetDateMetadata(imported, importDatePreference, importedAt);
-        const ideaDateMetadata = buildImportedIdeaDateMetadata(importedDates);
-        const projectClipTitles: string[] = [];
-
-        appActions.importProjectToCollection(collectionId, {
-          title: projectTitle,
-          createdAt: ideaDateMetadata.createdAt,
-          importedAt: ideaDateMetadata.importedAt,
-          sourceCreatedAt: ideaDateMetadata.sourceCreatedAt,
-          clips: imported.map((asset, index) => ({
-            title: (() => {
-              const nextTitle = ensureUniqueCountedTitle(buildImportedTitle(asset.name), projectClipTitles);
-              projectClipTitles.push(nextTitle);
-              return nextTitle;
-            })(),
+        imported.forEach((asset, index) => {
+          const importedDate = importedDates[index]!;
+          const title = ensureUniqueCountedTitle(buildImportedTitle(asset.name), nextTitles);
+          nextTitles.push(title);
+          appActions.importClipToCollection(targetCollectionId, {
+            title,
             audioUri: asset.audioUri,
             durationMs: asset.durationMs,
             waveformPeaks: asset.waveformPeaks,
-            createdAt: importedDates[index]!.createdAt,
-            importedAt: importedDates[index]!.importedAt,
-            sourceCreatedAt: importedDates[index]!.sourceCreatedAt,
-          })),
+            createdAt: importedDate.createdAt,
+            importedAt: importedDate.importedAt,
+            sourceCreatedAt: importedDate.sourceCreatedAt,
+          });
         });
 
-        if (failed.length > 0) {
-          Alert.alert(
-            "Import finished with issues",
-            `${imported.length} file${imported.length === 1 ? "" : "s"} imported into the song project. ${failed.length} file${failed.length === 1 ? "" : "s"} could not be imported.`
-          );
-        }
+        useImportStore.getState().updateJob(jobId, {
+          current: imported.length,
+          failed: failed.length,
+          status: failed.length === imported.length + failed.length ? "error" : "done",
+        });
+      } catch (error) {
+        console.warn("Import audio error", error);
+        useImportStore.getState().updateJob(jobId, { status: "error" });
+      } finally {
+        setTimeout(() => useImportStore.getState().removeJob(jobId), 2500);
       }
+    })();
+  }
 
-      resetImportModal();
-    } catch (error) {
-      console.warn("Import audio error", error);
-      Alert.alert("Import failed", "Could not import that audio.");
-    } finally {
-      setIsImporting(false);
-    }
+  function saveImportedAudio() {
+    if (!collectionId || importAssets.length === 0 || !importMode) return;
+
+    const targetCollectionId = collectionId;
+    const modeSnapshot = importMode;
+    const assetsSnapshot = importAssets;
+    const draftSnapshot = importDraft;
+    const datePreferenceSnapshot = importDatePreference;
+    const baseTitles = [...collectionIdeaTitles];
+
+    const label =
+      modeSnapshot === "single-clip"
+        ? draftSnapshot.trim() || buildImportedTitle(assetsSnapshot[0]!.name)
+        : draftSnapshot.trim() || buildImportedProjectTitle(assetsSnapshot);
+
+    // Dismiss modal immediately
+    resetImportModal();
+
+    const jobId = `import-${Date.now()}`;
+    useImportStore.getState().startJob({ id: jobId, label, total: assetsSnapshot.length });
+
+    void (async () => {
+      try {
+        const importedAt = Date.now();
+
+        if (modeSnapshot === "single-clip") {
+          const importAsset = assetsSnapshot[0]!;
+          const importedAudio = await importAudioAsset(
+            importAsset,
+            `audio-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
+          );
+          const fallbackTitle = ensureUniqueCountedTitle(buildImportedTitle(importAsset.name), baseTitles);
+          const finalTitle = draftSnapshot.trim() || fallbackTitle;
+          const [importedDate] = buildImportedAssetDateMetadata(
+            [importAsset],
+            datePreferenceSnapshot,
+            importedAt
+          );
+
+          appActions.importClipToCollection(targetCollectionId, {
+            title: finalTitle,
+            audioUri: importedAudio.audioUri,
+            durationMs: importedAudio.durationMs,
+            waveformPeaks: importedAudio.waveformPeaks,
+            createdAt: importedDate!.createdAt,
+            importedAt: importedDate!.importedAt,
+            sourceCreatedAt: importedDate!.sourceCreatedAt,
+          });
+          useImportStore.getState().updateJob(jobId, { current: 1, status: "done" });
+        } else {
+          const { imported, failed } = await importAudioAssets(
+            assetsSnapshot,
+            (_asset, index) => `audio-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 9)}`,
+            (current, total, failedCount) => {
+              useImportStore.getState().updateJob(jobId, { current, failed: failedCount });
+            }
+          );
+
+          if (imported.length === 0) {
+            useImportStore.getState().updateJob(jobId, { status: "error" });
+            return;
+          }
+
+          const projectTitle = draftSnapshot.trim() || buildImportedProjectTitle(assetsSnapshot);
+          const importedDates = buildImportedAssetDateMetadata(imported, datePreferenceSnapshot, importedAt);
+          const ideaDateMetadata = buildImportedIdeaDateMetadata(importedDates);
+          const projectClipTitles: string[] = [];
+
+          appActions.importProjectToCollection(targetCollectionId, {
+            title: projectTitle,
+            createdAt: ideaDateMetadata.createdAt,
+            importedAt: ideaDateMetadata.importedAt,
+            sourceCreatedAt: ideaDateMetadata.sourceCreatedAt,
+            clips: imported.map((asset, index) => ({
+              title: (() => {
+                const nextTitle = ensureUniqueCountedTitle(buildImportedTitle(asset.name), projectClipTitles);
+                projectClipTitles.push(nextTitle);
+                return nextTitle;
+              })(),
+              audioUri: asset.audioUri,
+              durationMs: asset.durationMs,
+              waveformPeaks: asset.waveformPeaks,
+              createdAt: importedDates[index]!.createdAt,
+              importedAt: importedDates[index]!.importedAt,
+              sourceCreatedAt: importedDates[index]!.sourceCreatedAt,
+            })),
+          });
+
+          useImportStore.getState().updateJob(jobId, {
+            current: imported.length,
+            failed: failed.length,
+            status: "done",
+          });
+        }
+      } catch (error) {
+        console.warn("Import audio error", error);
+        useImportStore.getState().updateJob(jobId, { status: "error" });
+      } finally {
+        setTimeout(() => useImportStore.getState().removeJob(jobId), 2500);
+      }
+    })();
   }
 
   const duplicateWarningText = (() => {
@@ -1550,9 +1574,9 @@ export function IdeaListScreen() {
                 importDatePreference
               )
         }
-        saveLabel={isImporting ? "Importing..." : "Import"}
-        saveDisabled={isImporting}
-        cancelDisabled={isImporting}
+        saveLabel="Import"
+        saveDisabled={false}
+        cancelDisabled={false}
       />
 
       <CollectionMoveModal
