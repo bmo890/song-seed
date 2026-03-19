@@ -11,7 +11,6 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar as ExpoStatusBar } from "expo-status-bar";
-import { AppBreadcrumbs } from "../common/AppBreadcrumbs";
 import { ScreenHeader } from "../common/ScreenHeader";
 import { colors, radii, shadows, spacing, text as textTokens } from "../../design/tokens";
 import { useMetronome } from "../../hooks/useMetronome";
@@ -102,13 +101,6 @@ export function MetronomeScreen() {
   return (
     <SafeAreaView style={styles.screen}>
       <ScreenHeader title="" leftIcon="hamburger" />
-      <AppBreadcrumbs
-        hideIcons
-        items={[
-          { key: "home", label: "Home", level: "home" },
-          { key: "metronome", label: "Metronome", level: "metronome", active: true },
-        ]}
-      />
 
       <ScrollView
         showsVerticalScrollIndicator={false}

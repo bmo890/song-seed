@@ -4,7 +4,6 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar as ExpoStatusBar } from "expo-status-bar";
 import { useIsFocused } from "@react-navigation/native";
 import { ExpoAudioStreamModule } from "@siteed/expo-audio-studio";
-import { AppBreadcrumbs } from "../common/AppBreadcrumbs";
 import { ScreenHeader } from "../common/ScreenHeader";
 import { colors, shadows, spacing, text as textTokens } from "../../design/tokens";
 import { styles } from "../../styles";
@@ -652,13 +651,6 @@ export function TunerScreen() {
   return (
     <SafeAreaView style={styles.screen}>
       <ScreenHeader title="" leftIcon="hamburger" />
-      <AppBreadcrumbs
-        hideIcons
-        items={[
-          { key: "home", label: "Home", level: "home" },
-          { key: "tuner", label: "Tuner", level: "tuner", active: true },
-        ]}
-      />
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={localStyles.pageContent}>
         <View style={localStyles.dialSection}>

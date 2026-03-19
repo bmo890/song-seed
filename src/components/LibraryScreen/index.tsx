@@ -234,7 +234,6 @@ export function LibraryScreen() {
       : "Playlists are saved groups of songs and clips. They do not replace the queue used inside ideas and songs.";
 
   const breadcrumbItems: AppBreadcrumbItem[] = [
-    { key: "home", label: "Home", level: "home" as const },
     {
       key: "library",
       label: "Library",
@@ -301,7 +300,7 @@ export function LibraryScreen() {
             : undefined
         }
       />
-      <AppBreadcrumbs items={breadcrumbItems} />
+      {activePlaylist || pickerState ? <AppBreadcrumbs items={breadcrumbItems} /> : null}
 
       <PageIntro title={pageTitle} subtitle={pageSubtitle} />
 

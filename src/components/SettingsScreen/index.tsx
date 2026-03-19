@@ -667,12 +667,10 @@ export function SettingsScreen() {
   const breadcrumbItems =
     view === "storage"
       ? [
-          { key: "home", label: "Home", level: "home" as const },
           { key: "settings", label: "Settings", level: "settings" as const },
           { key: "storage-details", label: "Storage details", level: "settings" as const, active: true },
         ]
       : [
-          { key: "home", label: "Home", level: "home" as const },
           { key: "settings", label: "Settings", level: "settings" as const, active: true },
         ];
 
@@ -683,7 +681,7 @@ export function SettingsScreen() {
         leftIcon={showSubscreen ? "back" : "hamburger"}
         onLeftPress={handleBackPress}
       />
-      <AppBreadcrumbs items={breadcrumbItems} />
+      {showSubscreen ? <AppBreadcrumbs items={breadcrumbItems} /> : null}
 
       {view === "export" ? (
         renderExportFlow()

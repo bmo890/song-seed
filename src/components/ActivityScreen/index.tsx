@@ -313,13 +313,6 @@ export function ActivityScreen() {
           <AppBreadcrumbs
             items={[
               {
-                key: "home",
-                label: "Home",
-                level: "home",
-                iconOnly: true,
-                onPress: () => (navigation as any).navigate("Home", { screen: "Workspaces" }),
-              },
-              {
                 key: `workspace-${collectionScopeWorkspace.id}`,
                 label: collectionScopeWorkspace.title,
                 level: "workspace",
@@ -337,27 +330,9 @@ export function ActivityScreen() {
                 level: getCollectionHierarchyLevel(collectionScope),
                 onPress: () => openCollectionFromActivityContext(collectionScope.id),
               },
-              {
-                key: "activity",
-                label: "Activity",
-                level: "activity",
-                active: true,
-              },
             ]}
           />
-        ) : (
-          <AppBreadcrumbs
-            items={[
-              {
-                key: "home",
-                label: "Home",
-                level: "home",
-                onPress: () => (navigation as any).navigate("Home", { screen: "Workspaces" }),
-              },
-              { key: "activity", label: "Activity", level: "activity", active: true },
-            ]}
-          />
-        )}
+        ) : null}
       </ReAnimated.View>
 
       <View

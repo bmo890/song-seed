@@ -12,7 +12,6 @@ import { StatusBar as ExpoStatusBar } from "expo-status-bar";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { ScreenHeader } from "../common/ScreenHeader";
-import { AppBreadcrumbs } from "../common/AppBreadcrumbs";
 import { WaveformMiniPreview } from "../common/WaveformMiniPreview";
 import { styles } from "../../styles";
 import { useStore } from "../../state/useStore";
@@ -449,17 +448,6 @@ export function RevisitScreen() {
   return (
     <SafeAreaView style={styles.screen}>
       <ScreenHeader title="Revisit" leftIcon="hamburger" />
-      <AppBreadcrumbs
-        items={[
-          {
-            key: "home",
-            label: "Home",
-            level: "home",
-            onPress: () => navigation.navigate("Workspaces" as never),
-          },
-          { key: "revisit", label: "Revisit", level: "revisit", active: true },
-        ]}
-      />
 
       <ScrollView
         showsVerticalScrollIndicator={false}
