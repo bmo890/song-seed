@@ -57,11 +57,9 @@ export function useBrowseRootBackHandler(enabled = true) {
           return true;
         }
 
-        if (typeof (navigation as any).goBack === "function" && (navigation as any).canGoBack?.()) {
-          (navigation as any).goBack();
-          return true;
-        }
-
+        // Browse-root screens intentionally do not walk the stack on Android back.
+        // They are top-level drawer destinations, so leaving them should exit the app
+        // rather than silently navigating to another browse surface like Workspaces.
         BackHandler.exitApp();
         return true;
       });
