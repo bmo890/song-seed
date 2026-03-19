@@ -4589,6 +4589,7 @@ export const styles = StyleSheet.create({
     shadowOpacity: 0.12,
     shadowRadius: 18,
     elevation: 8,
+    zIndex: 50,
   },
   ideasSelectionDockHeader: {
     flexDirection: "row",
