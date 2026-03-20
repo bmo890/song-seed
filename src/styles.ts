@@ -5380,7 +5380,7 @@ export const styles = StyleSheet.create({
   bottomSheetCard: {
     borderBottomLeftRadius: 0,
     borderBottomRightRadius: 0,
-    paddingTop: 10,
+    paddingTop: 0,
     borderTopLeftRadius: 22,
     borderTopRightRadius: 22,
     paddingHorizontal: 16,
@@ -5388,15 +5388,16 @@ export const styles = StyleSheet.create({
     marginBottom: 0,
   },
   bottomSheetDragZone: {
-    paddingBottom: 6,
+    paddingTop: 10,
+    paddingBottom: 10,
+    alignItems: "center",
   },
   bottomSheetHandle: {
-    alignSelf: "center",
     width: 42,
     height: 4,
     borderRadius: 999,
     backgroundColor: "#cbd5e1",
-    marginBottom: 10,
+    marginBottom: 4,
   },
   clipActionsTitleBlock: {
     gap: 2,
