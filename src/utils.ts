@@ -206,9 +206,11 @@ export function metersToWaveformPeaks(meters: number[], bins = 150) {
     const slice = meters.slice(start, end);
     const maxDb = slice.length ? Math.max(...slice) : -60;
     const clamped = Math.max(-60, Math.min(0, maxDb));
-    // Normalize dB (-60 to 0) to a 0-1 scale, then apply a curve to boost quiet sounds
+    // Normalize dB (-60 to 0) to a 0-1 linear scale, then apply a sqrt-like
+    // expansion curve (power < 1) so quiet moments are clearly visible rather
+    // than crushed near zero. Power of 0.55 ≈ a gentle gamma lift.
     const normalized = (clamped + 60) / 60;
-    peaks.push(Math.max(0.02, Math.min(1, Math.pow(normalized, 1.5))));
+    peaks.push(Math.max(0.04, Math.min(1, Math.pow(normalized, 0.55))));
   }
 
   return peaks;
