@@ -530,13 +530,13 @@ export function PlayerScreen() {
     navigation.dispatch(StackActions.push("Home"));
   }
 
-  function handleAddPin() {
-    const label = newPinLabel.trim();
-    if (!label || !playerIdea || !playerClip || !activeWorkspaceId) return;
+  function handleAddPin(label?: string) {
+    if (!playerIdea || !playerClip || !activeWorkspaceId) return;
+    const resolvedLabel = (label ?? newPinLabel).trim();
 
     const newMarker: PracticeMarker = {
       id: `pin-${Date.now()}`,
-      label,
+      label: resolvedLabel,
       atMs: playerPosition,
     };
 
@@ -772,7 +772,7 @@ export function PlayerScreen() {
                         onSeek={(t) => void handleLoopAwareSeek(t)}
                         onRepositionMarker={handleRepositionMarker}
                         onRequestActions={handlePinActions}
-                        onRequestAdd={() => setPinModalVisible(true)}
+                        onRequestAdd={() => handleAddPin("")}
                         onDragStateChange={handlePinDragStateChange}
                         draggingMarkerId={draggingMarkerId}
                         draggingMarkerX={draggingMarkerX}
@@ -973,7 +973,7 @@ export function PlayerScreen() {
             placeholderTextColor="#94a3b8"
             value={newPinLabel}
             onChangeText={setNewPinLabel}
-            onSubmitEditing={handleAddPin}
+            onSubmitEditing={() => handleAddPin(newPinLabel)}
             returnKeyType="done"
             autoFocus
           />
@@ -991,7 +991,7 @@ export function PlayerScreen() {
                 !newPinLabel.trim() ? screenStyles.pinSheetButtonDisabled : null,
                 pressed ? { opacity: 0.7 } : null,
               ]}
-              onPress={handleAddPin}
+              onPress={() => handleAddPin(newPinLabel)}
               disabled={!newPinLabel.trim()}
             >
               <Text style={[screenStyles.pinSheetButtonText, !newPinLabel.trim() ? screenStyles.pinSheetButtonTextDisabled : null]}>
