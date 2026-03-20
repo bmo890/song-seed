@@ -24,7 +24,7 @@ function samplePeaks(peaks: number[], bars: number) {
 
 export function WaveformMiniPreview({
   peaks,
-  bars = 28,
+  bars = 60,
   compact = false,
 }: WaveformMiniPreviewProps) {
   const sampledPeaks = useMemo(() => {

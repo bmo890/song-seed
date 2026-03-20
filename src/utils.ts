@@ -179,7 +179,7 @@ export const genIdea = () => {
   });
 };
 
-export function buildStaticWaveform(seedInput: string, count = 88) {
+export function buildStaticWaveform(seedInput: string, count = 150) {
   let seed = 0;
   for (let i = 0; i < seedInput.length; i++) {
     seed = (seed * 31 + seedInput.charCodeAt(i)) >>> 0;
@@ -195,7 +195,7 @@ export function buildStaticWaveform(seedInput: string, count = 88) {
   return bars;
 }
 
-export function metersToWaveformPeaks(meters: number[], bins = 96) {
+export function metersToWaveformPeaks(meters: number[], bins = 150) {
   if (!meters.length) return Array.from({ length: bins }, () => 0.02);
   const peaks: number[] = [];
   const chunk = Math.max(1, Math.floor(meters.length / bins));
