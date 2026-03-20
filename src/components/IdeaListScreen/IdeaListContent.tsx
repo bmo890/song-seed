@@ -136,9 +136,9 @@ export function IdeaListContent({
           return (
             <View style={styles.ideasListItemWrap}>
               <View style={styles.ideasDayDividerRow}>
-                <View style={styles.ideasDayDividerLine} />
-                <Text style={styles.ideasDayDividerText}>{entry.dayDividerLabel}</Text>
-                <View style={styles.ideasDayDividerLine} />
+                <View style={styles.ideasDayDividerLineHidden} />
+                <Text style={styles.ideasDayDividerTextHidden}>{entry.dayDividerLabel}</Text>
+                <View style={styles.ideasDayDividerLineHidden} />
               </View>
 
               <View style={styles.listRowWrap}>

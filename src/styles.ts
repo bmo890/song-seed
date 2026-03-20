@@ -3105,10 +3105,22 @@ export const styles = StyleSheet.create({
     height: 1,
     backgroundColor: "#dbe2ea",
   },
+  ideasDayDividerLineHidden: {
+    flex: 1,
+    borderTopWidth: 1,
+    borderStyle: "dashed",
+    borderColor: "#cbd5e1",
+  },
   ideasDayDividerText: {
     fontSize: 11,
     color: "#64748b",
     fontWeight: "700",
+    letterSpacing: 0.2,
+  },
+  ideasDayDividerTextHidden: {
+    fontSize: 11,
+    color: "#94a3b8",
+    fontWeight: "400",
     letterSpacing: 0.2,
   },
   ideasDayDividerActionBtn: {
