@@ -134,29 +134,6 @@ export const BottomSheet = forwardRef<BottomSheetRef, BottomSheetProps>(
       [closeWithSlide, snapBack, translateY]
     );
 
-    const contentPanResponder = useMemo(
-      () =>
-        PanResponder.create({
-          onStartShouldSetPanResponder: () => false,
-          onMoveShouldSetPanResponder: (_, gs) =>
-            gs.dy > 8 && Math.abs(gs.dy) > Math.abs(gs.dx) * 1.5,
-          onMoveShouldSetPanResponderCapture: (_, gs) =>
-            gs.dy > 14 && Math.abs(gs.dy) > Math.abs(gs.dx) * 2,
-          onPanResponderMove: (_, gs) => {
-            translateY.setValue(Math.max(0, gs.dy));
-          },
-          onPanResponderRelease: (_, gs) => {
-            if (gs.dy > 96 || gs.vy > 0.9) {
-              closeWithSlide();
-              return;
-            }
-            snapBack();
-          },
-          onPanResponderTerminate: () => snapBack(),
-        }),
-      [closeWithSlide, snapBack, translateY]
-    );
-
     // Combine pan gesture translateY with keyboard offset
     const combinedTranslateY = keyboardAvoiding
       ? Animated.add(translateY, keyboardOffset)
@@ -167,7 +144,6 @@ export const BottomSheet = forwardRef<BottomSheetRef, BottomSheetProps>(
         <View style={styles.bottomSheetBackdrop}>
           <Pressable style={styles.bottomSheetOverlay} onPress={closeWithSlide} />
           <Animated.View
-            {...contentPanResponder.panHandlers}
             style={[
               styles.modalCard,
               styles.bottomSheetCard,
