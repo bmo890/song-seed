@@ -89,9 +89,11 @@ export const BottomSheet = forwardRef<BottomSheetRef, BottomSheetProps>(
       if (isClosingRef.current) return;
       isClosingRef.current = true;
       Keyboard.dismiss();
+      // Animate well past the screen bottom so the sheet is fully off-screen
+      // before onClose fires — avoids the visible "pause" while the modal fades out.
       Animated.timing(translateY, {
-        toValue: dismissDistance,
-        duration: 180,
+        toValue: Math.max(dismissDistance, 700),
+        duration: 220,
         useNativeDriver: true,
       }).start(({ finished }) => {
         if (!finished) {
@@ -150,10 +152,8 @@ export const BottomSheet = forwardRef<BottomSheetRef, BottomSheetProps>(
               { paddingBottom: 14 + insets.bottom, transform: [{ translateY: combinedTranslateY }] },
             ]}
           >
-            <View {...handlePanResponder.panHandlers}>
-              <View style={styles.bottomSheetDragZone}>
-                <View style={styles.bottomSheetHandle} />
-              </View>
+            <View style={styles.bottomSheetDragZone} {...handlePanResponder.panHandlers}>
+              <View style={styles.bottomSheetHandle} />
             </View>
             {children}
           </Animated.View>
