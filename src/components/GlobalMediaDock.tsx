@@ -244,9 +244,9 @@ export function GlobalMediaDock({
                 useStore.getState().requestInlineStop();
               }}
               accessibilityRole="button"
-              accessibilityLabel="Dismiss mini player"
+              accessibilityLabel="Stop playback"
             >
-              <Ionicons name="close" size={16} color="#475569" />
+              <Ionicons name="stop-circle-outline" size={16} color="#475569" />
             </Pressable>
           </View>
         </View>

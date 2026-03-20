@@ -780,9 +780,6 @@ export function IdeaDetailScreen() {
           playProjectQueue();
         }}
         playAllDisabled={selectedIdea.kind !== "project" || buildProjectQueue().length === 0}
-        onImportAudio={() => {
-          void openImportAudioFlow();
-        }}
       />
 
       {clipClipboard && !isEditMode && selectedIdea.kind === "project" ? (

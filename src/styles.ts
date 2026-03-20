@@ -3105,6 +3105,13 @@ export const styles = StyleSheet.create({
     height: 1,
     backgroundColor: "#dbe2ea",
   },
+  ideasDayDividerLineDashed: {
+    flex: 1,
+    height: 1,
+    borderTopWidth: 1,
+    borderColor: "#cbd5e1",
+    borderStyle: "dashed",
+  },
   ideasDayDividerText: {
     fontSize: 11,
     color: "#64748b",

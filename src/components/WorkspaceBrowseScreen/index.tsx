@@ -7,6 +7,7 @@ import { useNavigation } from "@react-navigation/native";
 import { styles } from "../../styles";
 import { useStore } from "../../state/useStore";
 import { appActions } from "../../state/actions";
+import { AppAlert } from "../common/AppAlert";
 import { ScreenHeader } from "../common/ScreenHeader";
 import { PageIntro } from "../common/PageIntro";
 import { SearchField } from "../common/SearchField";
@@ -181,20 +182,13 @@ export function WorkspaceBrowseScreen() {
     if (!activeWorkspace || !managedCollection) return;
     const { childCollectionCount, itemCount } = getCollectionDeleteScope(activeWorkspace, managedCollection.id);
     setCollectionActionsOpen(false);
-    Alert.alert(
+    AppAlert.destructive(
       "Delete collection?",
       `${managedCollection.title} will be removed${childCollectionCount > 0 ? ` along with ${childCollectionCount} subcollection${childCollectionCount === 1 ? "" : "s"}` : ""} and ${itemCount} item${itemCount === 1 ? "" : "s"}.`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: () => {
-            deleteCollection(managedCollection.id);
-            setManagedCollectionId(null);
-          },
-        },
-      ]
+      () => {
+        deleteCollection(managedCollection.id);
+        setManagedCollectionId(null);
+      }
     );
   };
 
@@ -222,12 +216,6 @@ export function WorkspaceBrowseScreen() {
         onPress: () => {
           setDraftTitle("");
           setModalOpen(true);
-        },
-      },
-      {
-        text: "New Collection from Import",
-        onPress: () => {
-          void openCollectionImportFlow();
         },
       },
       { text: "Cancel", style: "cancel" },

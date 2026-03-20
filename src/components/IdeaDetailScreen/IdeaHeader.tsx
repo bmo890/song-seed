@@ -24,7 +24,6 @@ type IdeaHeaderProps = {
     onBack: () => void;
     onPlayAll: () => void;
     playAllDisabled?: boolean;
-    onImportAudio: () => void;
 };
 
 export function IdeaHeader({
@@ -38,7 +37,6 @@ export function IdeaHeader({
     onBack,
     onPlayAll,
     playAllDisabled,
-    onImportAudio,
 }: IdeaHeaderProps) {
     const navigation = useNavigation();
     const [headerMenuOpen, setHeaderMenuOpen] = useState(false);
@@ -304,17 +302,6 @@ export function IdeaHeader({
                                 >
                                     <Text style={styles.ideasSortMenuItemText}>Play all</Text>
                                     <Ionicons name="play-outline" size={15} color="#334155" />
-                                </Pressable>
-                                <Pressable
-                                    style={({ pressed }) => [styles.ideasToggleRow, pressed ? styles.pressDown : null]}
-                                    onPress={() => {
-                                        setHeaderMenuOpen(false);
-                                        void Haptics.selectionAsync();
-                                        onImportAudio();
-                                    }}
-                                >
-                                    <Text style={styles.ideasSortMenuItemText}>Import audio</Text>
-                                    <Ionicons name="download-outline" size={15} color="#334155" />
                                 </Pressable>
                             </>
                         ) : (

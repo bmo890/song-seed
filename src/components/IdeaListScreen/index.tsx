@@ -9,6 +9,7 @@ import { styles } from "../../styles";
 import { SongIdea, ClipVersion, PlaybackQueueItem, IdeasTimelineMetric, WorkspaceHiddenDay } from "../../types";
 import { ScreenHeader } from "../common/ScreenHeader";
 import { AppBreadcrumbs } from "../common/AppBreadcrumbs";
+import { AppAlert } from "../common/AppAlert";
 import { QuickNameModal } from "../modals/QuickNameModal";
 import { CollectionMoveModal } from "../modals/CollectionMoveModal";
 import { CollectionActionsModal } from "../modals/CollectionActionsModal";
@@ -772,21 +773,14 @@ export function IdeaListScreen() {
         ? `Delete "${title}" and all its clips?`
         : `Delete "${title}"?`;
 
-    Alert.alert("Delete item?", message, [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Delete",
-        style: "destructive",
-        onPress: () => {
-          const previousIdeas = ideas;
-          useStore.getState().replaceListSelection([idea.id]);
-          appActions.deleteSelectedIdeasFromList();
-          showUndo(`Deleted ${idea.kind === "project" ? "song" : "clip"} "${title}"`, () => {
-            useStore.getState().updateIdeas(() => previousIdeas);
-          });
-        },
-      },
-    ]);
+    AppAlert.destructive("Delete item?", message, () => {
+      const previousIdeas = ideas;
+      useStore.getState().replaceListSelection([idea.id]);
+      appActions.deleteSelectedIdeasFromList();
+      showUndo(`Deleted ${idea.kind === "project" ? "song" : "clip"} "${title}"`, () => {
+        useStore.getState().updateIdeas(() => previousIdeas);
+      });
+    });
   };
 
   const quickEditIdea = (idea: SongIdea) => {

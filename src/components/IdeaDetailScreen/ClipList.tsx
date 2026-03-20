@@ -1,5 +1,6 @@
 import React, { ReactNode, useEffect, useMemo, useRef, useState } from "react";
-import { Alert, Animated, BackHandler } from "react-native";
+import { Animated, BackHandler } from "react-native";
+import { AppAlert } from "../common/AppAlert";
 import { useNavigation } from "@react-navigation/native";
 import { ClipActionsSheet } from "../modals/ClipActionsSheet";
 import { ClipNotesSheet } from "../modals/ClipNotesSheet";
@@ -473,16 +474,9 @@ export function ClipList({
                   destructive: true,
                   onPress: () => {
                     setActionsClipId(null);
-                    Alert.alert("Delete clip?", "This cannot be undone.", [
-                      { text: "Cancel", style: "cancel" },
-                      {
-                        text: "Delete",
-                        style: "destructive",
-                        onPress: () => {
-                          deleteClip(actionsClip.id);
-                        },
-                      },
-                    ]);
+                    AppAlert.destructive("Delete clip?", "This cannot be undone.", () => {
+                      deleteClip(actionsClip.id);
+                    });
                   },
                 },
               ]
