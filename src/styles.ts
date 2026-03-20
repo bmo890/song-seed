@@ -3118,6 +3118,12 @@ export const styles = StyleSheet.create({
     fontWeight: "700",
     letterSpacing: 0.2,
   },
+  ideasDayDividerTextHidden: {
+    fontSize: 11,
+    color: "#94a3b8",
+    fontWeight: "400",
+    letterSpacing: 0.2,
+  },
   ideasDayDividerActionBtn: {
     width: 20,
     height: 20,

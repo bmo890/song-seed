@@ -137,7 +137,7 @@ export function IdeaListContent({
             <View style={styles.ideasListItemWrap}>
               <View style={styles.ideasDayDividerRow}>
                 <View style={styles.ideasDayDividerLineDashed} />
-                <Text style={styles.ideasDayDividerText}>{entry.dayDividerLabel}</Text>
+                <Text style={styles.ideasDayDividerTextHidden}>{entry.dayDividerLabel}</Text>
                 <View style={styles.ideasDayDividerLineDashed} />
               </View>
 
