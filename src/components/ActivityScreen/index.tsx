@@ -25,10 +25,10 @@ import { ActivityHeatmapGrid } from "./ActivityHeatmapGrid";
 import { ActivityRangeResults } from "./ActivityRangeResults";
 import {
   buildActivityItemResults,
-  formatActivityListDayLabel,
   formatSelectedRangeLabel,
   getActivityCellBackground,
 } from "./helpers";
+import { getDateBucketLabel } from "../../dateBuckets";
 import { openCollectionFromContext } from "../../navigation";
 import { useBrowseRootBackHandler } from "../../hooks/useBrowseRootBackHandler";
 
@@ -206,7 +206,7 @@ export function ActivityScreen() {
       setStickyDayLabel(null);
       return;
     }
-    setStickyDayLabel(formatActivityListDayLabel(itemResults[0]!.latestAt));
+    setStickyDayLabel(getDateBucketLabel(itemResults[0]!.latestAt));
   }, [itemResults]);
 
   function getPlayableClipForItem(item: { workspaceId: string; ideaId: string }) {
@@ -275,11 +275,11 @@ export function ActivityScreen() {
     }
 
     const threshold = scrollY + 2;
-    let nextLabel = formatActivityListDayLabel(itemResults[0]!.latestAt);
+    let nextLabel = getDateBucketLabel(itemResults[0]!.latestAt);
     const seenDayLabels = new Set<string>();
 
     for (const item of itemResults) {
-      const dayLabel = formatActivityListDayLabel(item.latestAt);
+      const dayLabel = getDateBucketLabel(item.latestAt);
       if (seenDayLabels.has(dayLabel)) continue;
       seenDayLabels.add(dayLabel);
       const layout = activityDayLayoutsRef.current[dayLabel];
@@ -295,7 +295,7 @@ export function ActivityScreen() {
   }
 
   const firstTimelineDayLabel =
-    itemResults.length > 0 ? formatActivityListDayLabel(itemResults[0]!.latestAt) : null;
+    itemResults.length > 0 ? getDateBucketLabel(itemResults[0]!.latestAt) : null;
   const firstTimelineDayLayout =
     firstTimelineDayLabel != null ? activityDayLayoutsRef.current[firstTimelineDayLabel] : null;
   const showStickyDayChip =
@@ -420,7 +420,7 @@ export function ActivityScreen() {
             activityRowLayoutsRef.current[item.ideaId] = {
               y,
               height,
-              label: formatActivityListDayLabel(item.latestAt),
+              label: getDateBucketLabel(item.latestAt),
             };
           }}
           onDayLayout={(dayLabel, y, height) => {

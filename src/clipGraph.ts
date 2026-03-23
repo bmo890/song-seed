@@ -1,4 +1,5 @@
 import { ClipVersion } from "./types";
+import { getDateBucket } from "./dateBuckets";
 
 export type SongTimelineSortMetric = "created" | "title" | "length";
 export type SongTimelineSortDirection = "asc" | "desc";
@@ -66,28 +67,6 @@ function compareClipsForTimeline(
 
   if (a.createdAt !== b.createdAt) return a.createdAt - b.createdAt;
   return a.id.localeCompare(b.id);
-}
-
-function dayStartTs(ts: number) {
-  const date = new Date(ts);
-  date.setHours(0, 0, 0, 0);
-  return date.getTime();
-}
-
-function getDateDividerLabel(ts: number) {
-  const todayStart = dayStartTs(Date.now());
-  const yesterdayStart = todayStart - 24 * 60 * 60 * 1000;
-  const targetStart = dayStartTs(ts);
-
-  if (targetStart === todayStart) return "Today";
-  if (targetStart === yesterdayStart) return "Yesterday";
-
-  return new Date(ts).toLocaleDateString("en-US", {
-    weekday: "long",
-    month: "long",
-    day: "numeric",
-    year: "numeric",
-  });
 }
 
 export function buildClipGraph(clips: ClipVersion[]): ClipGraph {
@@ -204,17 +183,19 @@ export function buildTimelineListRows(
   } = {}
 ): TimelineListRow[] {
   const rows: TimelineListRow[] = [];
-  let lastDayStartTs: number | null = null;
+  let lastBucketKey: string | null = null;
 
   buildTimelineEntries(clips, options).forEach((entry) => {
-    const nextDayStartTs = dayStartTs(entry.clip.createdAt);
-    if ((options.metric ?? "created") === "created" && lastDayStartTs !== nextDayStartTs) {
-      rows.push({
-        kind: "day-divider",
-        label: getDateDividerLabel(nextDayStartTs),
-        dayStartTs: nextDayStartTs,
-      });
-      lastDayStartTs = nextDayStartTs;
+    if ((options.metric ?? "created") === "created") {
+      const bucket = getDateBucket(entry.clip.createdAt);
+      if (bucket.key !== lastBucketKey) {
+        rows.push({
+          kind: "day-divider",
+          label: bucket.label,
+          dayStartTs: bucket.startTs,
+        });
+        lastBucketKey = bucket.key;
+      }
     }
 
     rows.push({ kind: "clip", entry });

@@ -68,6 +68,7 @@ import {
   type ImportDatePreference,
 } from "../../importDates";
 import { useBrowseRootBackHandler } from "../../hooks/useBrowseRootBackHandler";
+import { getDateBucket, getDateBucketLabel } from "../../dateBuckets";
 
 function buildImportedProjectTitle(assets: ImportedAudioAsset[]) {
   return buildImportedTitle(assets[0]?.name);
@@ -383,28 +384,29 @@ export function IdeaListScreen() {
 
     while (index < listIdeas.length) {
       const firstIdea = listIdeas[index]!;
-      const firstDayStartTs = dayStartTs(getIdeaSortTimestamp(firstIdea, ideasSort));
+      const firstBucket = getDateBucket(getIdeaSortTimestamp(firstIdea, ideasSort));
       const groupIdeas: SongIdea[] = [];
       let nextIndex = index;
 
       while (nextIndex < listIdeas.length) {
         const nextIdea = listIdeas[nextIndex]!;
-        const nextDayStartTs = dayStartTs(getIdeaSortTimestamp(nextIdea, ideasSort));
-        if (nextDayStartTs !== firstDayStartTs) break;
+        const nextBucket = getDateBucket(getIdeaSortTimestamp(nextIdea, ideasSort));
+        if (nextBucket.key !== firstBucket.key) break;
         groupIdeas.push(nextIdea);
         nextIndex += 1;
       }
 
-      const dayLabel = getDateDividerLabel(firstDayStartTs);
-      const dayHidden = hiddenDayKeySet.has(`${activeTimelineMetric}:${firstDayStartTs}`);
+      const dayLabel = firstBucket.label;
+      const bucketStartTs = firstBucket.startTs;
+      const dayHidden = hiddenDayKeySet.has(`${activeTimelineMetric}:${bucketStartTs}`);
 
       if (dayHidden) {
         entries.push({
-          key: `hidden-day:${activeTimelineMetric}:${firstDayStartTs}`,
+          key: `hidden-day:${activeTimelineMetric}:${bucketStartTs}`,
           type: "hidden-day",
           dayLabel,
           dayDividerLabel: dayLabel,
-          dayStartTs: firstDayStartTs,
+          dayStartTs: bucketStartTs,
           metric: activeTimelineMetric,
           hiddenCount: groupIdeas.length,
         });
@@ -415,7 +417,7 @@ export function IdeaListScreen() {
               idea,
               hiddenIdeaIdsSet.has(idea.id),
               entries.length > 0 && groupIndex === 0 ? dayLabel : null,
-              firstDayStartTs
+              bucketStartTs
             )
           );
         });
@@ -435,7 +437,7 @@ export function IdeaListScreen() {
   );
   const isIdeaHiddenByDay = (idea: SongIdea) =>
     activeTimelineMetric
-      ? hiddenDayKeySet.has(`${activeTimelineMetric}:${dayStartTs(getIdeaSortTimestamp(idea, ideasSort))}`)
+      ? hiddenDayKeySet.has(`${activeTimelineMetric}:${getDateBucket(getIdeaSortTimestamp(idea, ideasSort)).startTs}`)
       : false;
   const isIdeaEffectivelyHidden = (idea: SongIdea) =>
     hiddenIdeaIdsSet.has(idea.id) || isIdeaHiddenByDay(idea);
@@ -548,10 +550,10 @@ export function IdeaListScreen() {
     const groupMap = new Map<string, WorkspaceHiddenDay>();
 
     for (const idea of listIdeas) {
-      const nextDayStartTs = dayStartTs(getIdeaSortTimestamp(idea, ideasSort));
-      const nextKey = `${activeTimelineMetric}:${nextDayStartTs}`;
+      const bucket = getDateBucket(getIdeaSortTimestamp(idea, ideasSort));
+      const nextKey = `${activeTimelineMetric}:${bucket.startTs}`;
       if (!hiddenDayKeySet.has(nextKey)) continue;
-      groupMap.set(nextKey, { metric: activeTimelineMetric, dayStartTs: nextDayStartTs });
+      groupMap.set(nextKey, { metric: activeTimelineMetric, dayStartTs: bucket.startTs });
     }
 
     return Array.from(groupMap.values());
@@ -599,7 +601,7 @@ export function IdeaListScreen() {
     const firstEntry = listEntries[0]!;
     setStickyDayLabel(
       firstEntry.type === "idea"
-        ? getDateDividerLabel(getIdeaSortTimestamp(firstEntry.idea, ideasSort))
+        ? getDateBucketLabel(getIdeaSortTimestamp(firstEntry.idea, ideasSort))
         : firstEntry.dayLabel
     );
   }, [ideasSort, listEntries, showDateDividers]);
@@ -822,7 +824,7 @@ export function IdeaListScreen() {
   const hideTimelineDay = async (metric: IdeasTimelineMetric, dayStartTsValue: number) => {
     if (!collectionId) return;
     const ideaIdsInDay = listIdeas
-      .filter((idea) => dayStartTs(getIdeaSortTimestamp(idea, ideasSort)) === dayStartTsValue)
+      .filter((idea) => getDateBucket(getIdeaSortTimestamp(idea, ideasSort)).startTs === dayStartTsValue)
       .map((idea) => idea.id);
     await maybeResetInlineForIdeaIds(ideaIdsInDay);
     setTimelineDaysHidden(collectionId, [{ metric, dayStartTs: dayStartTsValue }], true);
@@ -960,7 +962,7 @@ export function IdeaListScreen() {
       return;
     }
     const ts = getIdeaSortTimestamp(first.idea, ideasSortRef.current);
-    setStickyDayLabel(getDateDividerLabel(ts));
+    setStickyDayLabel(getDateBucketLabel(ts));
   }).current;
 
   function onReorderIdeas(opts: { items: SongIdea[], from: number, to: number, sourceId?: string, targetId?: string, intent: "between" }) {
@@ -1817,29 +1819,3 @@ export function IdeaListScreen() {
     </SafeAreaView>
   );
 }
-  const dayStartTs = (ts: number) => {
-    const date = new Date(ts);
-    date.setHours(0, 0, 0, 0);
-    return date.getTime();
-  };
-
-  const getDateDividerLabel = (ts: number) => {
-    const todayStart = dayStartTs(Date.now());
-    const yesterdayStart = todayStart - 24 * 60 * 60 * 1000;
-    const targetStart = dayStartTs(ts);
-
-    if (targetStart === todayStart) {
-      return "Today";
-    }
-
-    if (targetStart === yesterdayStart) {
-      return "Yesterday";
-    }
-
-    return new Date(ts).toLocaleDateString("en-US", {
-      weekday: "long",
-      month: "long",
-      day: "numeric",
-      year: "numeric",
-    });
-  };
