@@ -8,6 +8,7 @@ import { IdeaListItem } from "./IdeaListItem";
 import { IdeaListEntry } from "./types";
 import { formatBytes } from "../../utils";
 import { getIdeaSortTimestamp, type IdeaSortMetric } from "../../ideaSort";
+import { getDateBucket } from "../../dateBuckets";
 
 type IdeaListContentProps = {
   listRef?: MutableRefObject<any>;
@@ -50,11 +51,6 @@ type IdeaListContentProps = {
   scrollEventThrottle?: number;
 };
 
-function dayStartTs(ts: number) {
-  const date = new Date(ts);
-  date.setHours(0, 0, 0, 0);
-  return date.getTime();
-}
 
 export function IdeaListContent({
   listRef,
@@ -186,7 +182,7 @@ export function IdeaListContent({
                 ? () =>
                     hideTimelineDay(
                       activeTimelineMetric,
-                      entry.dayStartTs ?? dayStartTs(getIdeaSortTimestamp(entry.idea, ideasSort))
+                      entry.dayStartTs ?? getDateBucket(getIdeaSortTimestamp(entry.idea, ideasSort)).startTs
                     )
                 : undefined
             }

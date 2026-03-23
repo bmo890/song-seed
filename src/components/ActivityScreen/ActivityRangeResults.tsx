@@ -4,10 +4,10 @@ import { SurfaceCard } from "../common/SurfaceCard";
 import { MiniProgress } from "../MiniProgress";
 import { StatusBadge } from "../common/StatusBadge";
 import { styles } from "../../styles";
-import { ActivityItemResult, formatActivityListDayLabel } from "./helpers";
+import { ActivityItemResult } from "./helpers";
 import { fmtDuration } from "../../utils";
 import { getHierarchyIconColor, getHierarchyIconName } from "../../hierarchy";
-import { startOfActivityDay } from "../../activity";
+import { getDateBucket } from "../../dateBuckets";
 
 type ActivityRangeResultsProps = {
   selectedRangeItemCount: number;
@@ -65,9 +65,9 @@ function renderItemResults(
         const durationMs = getItemDurationMs(result);
         const durationLabel = durationMs > 0 ? fmtDuration(durationMs) : null;
         const previousResult = index > 0 ? results[index - 1] : null;
-        const resultDayTs = startOfActivityDay(result.latestAt);
-        const previousDayTs = previousResult ? startOfActivityDay(previousResult.latestAt) : null;
-        const showDayDivider = previousDayTs !== resultDayTs;
+        const resultBucket = getDateBucket(result.latestAt);
+        const previousBucket = previousResult ? getDateBucket(previousResult.latestAt) : null;
+        const showDayDivider = previousBucket?.key !== resultBucket.key;
 
         return (
           <View
@@ -83,12 +83,12 @@ function renderItemResults(
                 style={styles.ideasDayDividerRow}
                 onLayout={(event) => {
                   const { y, height } = event.nativeEvent.layout;
-                  onDayLayout(formatActivityListDayLabel(result.latestAt), y, height);
+                  onDayLayout(resultBucket.label, y, height);
                 }}
               >
                 <View style={styles.ideasDayDividerLine} />
                 <Text style={styles.ideasDayDividerText}>
-                  {formatActivityListDayLabel(result.latestAt)}
+                  {resultBucket.label}
                 </Text>
                 <View style={styles.ideasDayDividerLine} />
               </View>
