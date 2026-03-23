@@ -878,6 +878,9 @@ export function IdeaDetailScreen() {
             onStartSetParent={handleStartSetParent}
             onMakeRoot={handleMakeRoot}
             onPickParentTarget={handlePickParentTarget}
+            onViewLineageHistory={(rootClipId) => {
+              (navigation as any).navigate("ClipLineage", { ideaId: selectedIdea.id, rootClipId });
+            }}
             footerSpacerHeight={
               selectedIdea.kind === "project" && !isEditMode && !clipSelectionMode && !parentPickState
                 ? clipListFooterSpacerHeight

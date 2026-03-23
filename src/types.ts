@@ -58,6 +58,7 @@ export type ClipVersion = {
   editRegions?: EditRegion[];
   tags?: string[];
   practiceMarkers?: PracticeMarker[];
+  manualSortOrder?: number;
 };
 
 export type CustomTagDefinition = {

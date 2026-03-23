@@ -103,6 +103,7 @@ export type DataSlice = {
     addIdea: (title: string, collectionId: string) => string;
     quickRecordIdea: (title: string, collectionId: string) => string;
     updateIdeas: (updater: (prev: SongIdea[]) => SongIdea[]) => void;
+    setClipManualSortOrder: (ideaId: string, orderedClipIds: string[]) => void;
     addClipVersion: (
         targetIdeaId: string,
         override?: { audioUri?: string; durationMs?: number; waveformPeaks?: number[]; parentClipId?: string }
@@ -1241,6 +1242,35 @@ export const createDataSlice: StateCreator<
                         }),
                     };
                 }),
+            };
+        });
+    },
+
+    setClipManualSortOrder: (ideaId, orderedClipIds) => {
+        set((state) => {
+            const { activeWorkspaceId, workspaces } = state;
+            if (!activeWorkspaceId) return state;
+            const orderMap = new Map(orderedClipIds.map((id, index) => [id, index]));
+            return {
+                workspaces: workspaces.map((ws) =>
+                    ws.id !== activeWorkspaceId
+                        ? ws
+                        : {
+                              ...ws,
+                              ideas: ws.ideas.map((idea) =>
+                                  idea.id !== ideaId
+                                      ? idea
+                                      : {
+                                            ...idea,
+                                            clips: idea.clips.map((clip) =>
+                                                orderMap.has(clip.id)
+                                                    ? { ...clip, manualSortOrder: orderMap.get(clip.id)! }
+                                                    : clip
+                                            ),
+                                        }
+                              ),
+                          }
+                ),
             };
         });
     },
