@@ -1,5 +1,6 @@
 import React, { ReactNode, useCallback, useMemo, useRef } from "react";
 import { FlatList, Pressable, Text, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { styles } from "../../styles";
 import { buildEvolutionListRows, type EvolutionListRow, type TimelineClipEntry } from "../../clipGraph";
 import { ClipCard, type ClipCardSharedProps } from "./ClipCard";
@@ -31,6 +32,7 @@ type EvolutionListProps = {
   isParentPicking: boolean;
   visibleIdeaCount: number;
   onIdeasStickyChange?: (isSticky: boolean) => void;
+  onViewLineageHistory?: (lineageRootId: string) => void;
 };
 
 type EvolutionRenderRow =
@@ -45,11 +47,13 @@ function EvolutionMoreRow({
   hiddenCount,
   expanded,
   onToggle,
+  onViewHistory,
 }: {
   lineageRootId: string;
   hiddenCount: number;
   expanded: boolean;
   onToggle: (lineageRootId: string) => void;
+  onViewHistory?: (lineageRootId: string) => void;
 }) {
   return (
     <View style={styles.threadRowWrap}>
@@ -73,6 +77,20 @@ function EvolutionMoreRow({
           </Text>
         </View>
       </Pressable>
+      {onViewHistory ? (
+        <Pressable
+          style={({ pressed }) => [
+            styles.songDetailEvolutionMoreButtonWrap,
+            pressed ? styles.pressDown : null,
+          ]}
+          onPress={() => onViewHistory(lineageRootId)}
+        >
+          <View style={styles.songDetailEvolutionMoreButton}>
+            <Ionicons name="git-branch-outline" size={12} color="#64748b" style={{ marginRight: 3 }} />
+            <Text style={styles.songDetailEvolutionMoreButtonText}>History</Text>
+          </View>
+        </Pressable>
+      ) : null}
     </View>
   );
 }
@@ -99,6 +117,7 @@ export function EvolutionList({
   isParentPicking,
   visibleIdeaCount,
   onIdeasStickyChange,
+  onViewLineageHistory,
 }: EvolutionListProps) {
   const contentRows = useMemo(
     () => buildEvolutionListRows(clips, expandedLineageIds),
@@ -208,6 +227,7 @@ export function EvolutionList({
                   [lineageRootId]: !prev[lineageRootId],
                 }))
               }
+              onViewHistory={onViewLineageHistory}
             />
           );
         }

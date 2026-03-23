@@ -27,6 +27,7 @@ import { SideNav } from "./src/components/SideNav";
 import { EditorScreen } from "./src/components/EditorScreen";
 import { LyricsScreen } from "./src/components/LyricsScreen";
 import { LyricsVersionScreen } from "./src/components/LyricsVersionScreen";
+import { ClipLineageScreen } from "./src/components/ClipLineageScreen";
 import { ActivityScreen } from "./src/components/ActivityScreen";
 import { GlobalMediaDock } from "./src/components/GlobalMediaDock";
 import { ImportProgressBanner } from "./src/components/ImportProgressBanner";
@@ -72,6 +73,7 @@ export type RootStackParamList = {
   Editor: { ideaId: string; clipId: string; audioUri?: string; durationMs?: number };
   Lyrics: { ideaId: string };
   LyricsVersion: { ideaId: string; versionId?: string; startInEdit?: boolean; forceNewVersion?: boolean; createDraft?: boolean };
+  ClipLineage: { ideaId: string; rootClipId: string };
 };
 import { useStore } from "./src/state/useStore";
 
@@ -92,7 +94,8 @@ function getActiveWorkspaceRouteContext(args: {
     args.deepestRouteName === "IdeaDetail" ||
     args.deepestRouteName === "Editor" ||
     args.deepestRouteName === "Lyrics" ||
-    args.deepestRouteName === "LyricsVersion"
+    args.deepestRouteName === "LyricsVersion" ||
+    args.deepestRouteName === "ClipLineage"
       ? (args.deepestParams.ideaId as string | undefined) ?? args.selectedIdeaId
       : args.deepestRouteName === "Player"
         ? args.playerTarget?.ideaId ?? args.selectedIdeaId
@@ -558,6 +561,7 @@ function AppContent() {
           <Stack.Screen name="Editor" component={EditorScreen} />
           <Stack.Screen name="Lyrics" component={LyricsScreen} />
           <Stack.Screen name="LyricsVersion" component={LyricsVersionScreen} />
+          <Stack.Screen name="ClipLineage" component={ClipLineageScreen} />
         </Stack.Navigator>
         <GlobalMediaDock
           activeRouteName={activeRouteName}

@@ -7,13 +7,17 @@ import { ClipNotesSheet } from "../modals/ClipNotesSheet";
 import { useStore } from "../../state/useStore";
 import { type ClipVersion, type CustomTagDefinition } from "../../types";
 import {
+  buildClipLineages,
   buildEvolutionListRows,
   buildTimelineEntries,
+  getLineageRootId,
+  type ClipLineage,
   type EvolutionListClipEntry,
   type SongTimelineSortDirection,
   type SongTimelineSortMetric,
   type TimelineClipEntry,
 } from "../../clipGraph";
+import { AssignLineageSheet } from "../modals/AssignLineageSheet";
 import { fmtDuration, formatDate } from "../../utils";
 import { useInlinePlayer } from "../../hooks/useInlinePlayer";
 import type { SongClipTagFilter } from "./songClipControls";
@@ -43,6 +47,7 @@ type ClipListProps = {
   onStartSetParent: (clipIds: string[]) => void;
   onMakeRoot: (clipIds: string[]) => void;
   onPickParentTarget: (clipId: string) => void;
+  onViewLineageHistory?: (lineageRootId: string) => void;
 };
 
 export function ClipList({
@@ -66,6 +71,7 @@ export function ClipList({
   onStartSetParent,
   onMakeRoot,
   onPickParentTarget,
+  onViewLineageHistory,
 }: ClipListProps) {
   const navigation = useNavigation();
   const inlinePlayer = useInlinePlayer();
@@ -76,6 +82,7 @@ export function ClipList({
   const [actionsClipId, setActionsClipId] = useState<string | null>(null);
   const [notesSheetClipId, setNotesSheetClipId] = useState<string | null>(null);
   const [tagPickerClipId, setTagPickerClipId] = useState<string | null>(null);
+  const [assignLineageClipId, setAssignLineageClipId] = useState<string | null>(null);
   const globalCustomTags = useStore((s) => s.globalCustomClipTags);
   const highlightMapRef = useRef<Record<string, Animated.Value>>({});
   const animatingHighlightIdsRef = useRef<Set<string>>(new Set());
@@ -385,6 +392,7 @@ export function ClipList({
           isParentPicking={isParentPicking}
           visibleIdeaCount={visibleClipEntries.length}
           onIdeasStickyChange={onIdeasStickyChange}
+          onViewLineageHistory={onViewLineageHistory}
         />
       )}
 
@@ -426,6 +434,24 @@ export function ClipList({
                       },
                     ]
                   : []),
+                ...(!actionsClip.parentClipId && !actionsClip.isPrimary
+                  ? (() => {
+                      const lineages = buildClipLineages(selectedIdea.clips);
+                      const otherLineages = lineages.filter((l) => l.root.id !== actionsClip.id);
+                      if (otherLineages.length === 0) return [];
+                      return [
+                        {
+                          key: "assign-lineage",
+                          label: "Assign to lineage",
+                          icon: "git-merge-outline" as const,
+                          onPress: () => {
+                            setActionsClipId(null);
+                            setAssignLineageClipId(actionsClip.id);
+                          },
+                        },
+                      ];
+                    })()
+                  : []),
                 {
                   key: "record-variation",
                   label: "Record variation",
@@ -458,6 +484,20 @@ export function ClipList({
                     openNotesSheet(actionsClip);
                   },
                 },
+                ...(onViewLineageHistory
+                  ? [
+                      {
+                        key: "view-lineage",
+                        label: "View history",
+                        icon: "git-branch-outline" as const,
+                        onPress: () => {
+                          setActionsClipId(null);
+                          const rootId = getLineageRootId(selectedIdea.clips, actionsClip.id);
+                          if (rootId) onViewLineageHistory(rootId);
+                        },
+                      },
+                    ]
+                  : []),
                 {
                   key: "select",
                   label: "Select",
@@ -505,6 +545,39 @@ export function ClipList({
         onChangeNotes={setEditingClipNotesDraft}
         onSave={saveNotesSheet}
         onCancel={() => setNotesSheetClipId(null)}
+      />
+
+      <AssignLineageSheet
+        visible={!!assignLineageClipId}
+        orphanTitle={
+          assignLineageClipId
+            ? selectedIdea.clips.find((c) => c.id === assignLineageClipId)?.title ?? "Clip"
+            : ""
+        }
+        lineages={
+          assignLineageClipId
+            ? buildClipLineages(selectedIdea.clips).filter((l) => l.root.id !== assignLineageClipId)
+            : []
+        }
+        onAssign={(targetLatestClipId) => {
+          if (!assignLineageClipId) return;
+          useStore.getState().updateIdeas((ideas) =>
+            ideas.map((idea) =>
+              idea.id !== currentIdeaId
+                ? idea
+                : {
+                    ...idea,
+                    clips: idea.clips.map((clip) =>
+                      clip.id === assignLineageClipId
+                        ? { ...clip, parentClipId: targetLatestClipId }
+                        : clip
+                    ),
+                  }
+            )
+          );
+          setAssignLineageClipId(null);
+        }}
+        onCancel={() => setAssignLineageClipId(null)}
       />
     </>
   );

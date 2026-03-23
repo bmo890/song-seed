@@ -151,6 +151,18 @@ export function buildClipLineages(clips: ClipVersion[]): ClipLineage[] {
     .sort((a, b) => byCreatedAtAsc(a.root, b.root));
 }
 
+export function findLineageForClip(clips: ClipVersion[], clipId: string): ClipLineage | null {
+  const lineages = buildClipLineages(clips);
+  return lineages.find((lineage) =>
+    lineage.clipsOldestToNewest.some((clip) => clip.id === clipId)
+  ) ?? null;
+}
+
+export function getLineageRootId(clips: ClipVersion[], clipId: string): string | null {
+  const lineage = findLineageForClip(clips, clipId);
+  return lineage?.root.id ?? null;
+}
+
 export function buildTimelineEntries(
   clips: ClipVersion[],
   options: {
