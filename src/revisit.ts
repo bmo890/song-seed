@@ -86,7 +86,10 @@ function looksLikeDefaultTitle(title: string) {
 
   return (
     /^\d{1,2}:\d{2} [AP]M \d{2}\/\d{2}\/\d{4}( v\d+)?$/i.test(trimmed) ||
-    /^new clip [—-] \d{2}\/\d{2}\/\d{4},? .+$/i.test(trimmed)
+    /^new clip [—-] \d{2}\/\d{2}\/\d{4},? .+$/i.test(trimmed) ||
+    /^\d{1,2}:\d{2}[AP]M [A-Z][a-z]{2} \d{1,2}(st|nd|rd|th)( \(\d+\))?$/i.test(trimmed) ||
+    /^import \d{1,2}:\d{2}[AP]M [A-Z][a-z]{2} \d{1,2}(st|nd|rd|th)( \(\d+\))?$/i.test(trimmed) ||
+    /^imported clip [—-] .+$/i.test(trimmed)
   );
 }
 
