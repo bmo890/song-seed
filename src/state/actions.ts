@@ -3,14 +3,15 @@ import {
     SongIdea,
     ClipVersion,
     Workspace,
+    Collection,
     EditRegion,
     PracticeMarker,
     CustomTagDefinition,
 } from "../types";
 import { useStore } from "./useStore";
-import { createEmptyProjectLyrics } from "./dataSlice";
+import { createEmptyProjectLyrics, createEmptyWorkspaceIdeasListState } from "./dataSlice";
 import { createLyricsVersion, lyricsTextToDocument } from "../lyrics";
-import { buildDefaultIdeaTitle, ensureUniqueIdeaTitle } from "../utils";
+import { buildDefaultIdeaTitle, ensureUniqueCountedTitle, ensureUniqueIdeaTitle } from "../utils";
 import { archiveWorkspaceToDevice, restoreWorkspaceFromDevice } from "../services/workspaceArchive";
 import { findOrphanedAudioFiles, enrichOrphanedClips, buildRecoveredIdeas, findWorkspaceArchives, restoreWorkspaceFromArchive, restoreFromManifest } from "../services/audioRecovery";
 import { forceManifestWrite } from "../services/manifestSync";
@@ -39,6 +40,10 @@ function buildIdeaId() {
 
 function buildClipId() {
     return buildEntityId("clip");
+}
+
+function buildCollectionId() {
+    return buildEntityId("col");
 }
 
 function buildLyricsVersionId() {
@@ -325,6 +330,20 @@ function getFirstActiveWorkspaceId(workspaces: Workspace[], excludedWorkspaceId?
     return (
         workspaces.find((workspace) => !workspace.isArchived && workspace.id !== excludedWorkspaceId)?.id ?? null
     );
+}
+
+function getCollectionDescendantIds(collections: Collection[], collectionId: string) {
+    const ids = new Set<string>();
+    const walk = (targetId: string) => {
+        for (const collection of collections) {
+            if (collection.parentCollectionId === targetId && !ids.has(collection.id)) {
+                ids.add(collection.id);
+                walk(collection.id);
+            }
+        }
+    };
+    walk(collectionId);
+    return ids;
 }
 
 async function persistCurrentStoreSnapshot() {
@@ -1012,6 +1031,108 @@ export const appActions = {
         const fallbackCollectionId = targetWorkspace?.collections[0]?.id;
         if (!fallbackCollectionId) return [];
         return appActions.pasteClipboardToCollection(fallbackCollectionId);
+    },
+
+    copyCollection: (
+        collectionId: string,
+        targetWorkspaceId: string,
+        targetParentCollectionId: string | null = null
+    ): { ok: boolean; error?: string; collectionId?: string } => {
+        const state = useStore.getState();
+        const sourceWorkspace = state.workspaces.find((workspace) =>
+            workspace.collections.some((collection) => collection.id === collectionId)
+        ) ?? null;
+        const targetWorkspace = state.workspaces.find((workspace) => workspace.id === targetWorkspaceId) ?? null;
+
+        if (!sourceWorkspace || !targetWorkspace) {
+            return { ok: false, error: "Collection not found." };
+        }
+
+        const sourceCollection =
+            sourceWorkspace.collections.find((collection) => collection.id === collectionId) ?? null;
+        if (!sourceCollection) {
+            return { ok: false, error: "Collection not found." };
+        }
+
+        const descendantIds = getCollectionDescendantIds(sourceWorkspace.collections, collectionId);
+        const hasChildCollections = descendantIds.size > 0;
+
+        if (targetParentCollectionId) {
+            const targetParent =
+                targetWorkspace.collections.find((collection) => collection.id === targetParentCollectionId) ?? null;
+
+            if (!targetParent) {
+                return { ok: false, error: "Destination collection not found." };
+            }
+
+            if (targetParent.parentCollectionId) {
+                return { ok: false, error: "Subcollections cannot contain another subcollection." };
+            }
+
+            if (hasChildCollections) {
+                return {
+                    ok: false,
+                    error: "A collection with subcollections can only be copied to the top level.",
+                };
+            }
+        }
+
+        const copyScopeIds = new Set<string>([collectionId, ...descendantIds]);
+        const sourceCollections = sourceWorkspace.collections.filter((collection) =>
+            copyScopeIds.has(collection.id)
+        );
+        const collectionIdMap = new Map(
+            sourceCollections.map((collection) => [collection.id, buildCollectionId()] as const)
+        );
+        const sameLevelTitles = targetWorkspace.collections
+            .filter(
+                (collection) =>
+                    (collection.parentCollectionId ?? null) === (targetParentCollectionId ?? null)
+            )
+            .map((collection) => collection.title);
+        const copiedRootTitle = ensureUniqueCountedTitle(
+            `${sourceCollection.title} Copy`,
+            sameLevelTitles
+        );
+        const createdAt = Date.now();
+        const copiedCollections = sourceCollections.map((collection) => ({
+            ...collection,
+            id: collectionIdMap.get(collection.id)!,
+            title: collection.id === collectionId ? copiedRootTitle : collection.title,
+            workspaceId: targetWorkspaceId,
+            parentCollectionId:
+                collection.id === collectionId
+                    ? targetParentCollectionId ?? null
+                    : collection.parentCollectionId
+                        ? collectionIdMap.get(collection.parentCollectionId) ?? null
+                        : null,
+            createdAt,
+            updatedAt: createdAt,
+            ideasListState: createEmptyWorkspaceIdeasListState(),
+        }));
+
+        const copiedIdeas = sourceWorkspace.ideas
+            .filter((idea) => copyScopeIds.has(idea.collectionId))
+            .map((idea) => cloneIdeaForCopy(idea, collectionIdMap.get(idea.collectionId)!));
+
+        useStore.setState((currentState) => ({
+            workspaces: currentState.workspaces.map((workspace) =>
+                workspace.id !== targetWorkspaceId
+                    ? workspace
+                    : {
+                        ...workspace,
+                        collections: [...copiedCollections, ...workspace.collections],
+                        ideas: [...copiedIdeas, ...workspace.ideas],
+                    }
+            ),
+        }));
+
+        useStore.getState().markRecentlyAdded([
+            collectionIdMap.get(collectionId)!,
+            ...copiedIdeas.map((idea) => idea.id),
+        ]);
+
+        return { ok: true, collectionId: collectionIdMap.get(collectionId)! };
     },
 
     pasteClipboardToCollection: async (collectionId: string): Promise<string[]> => {

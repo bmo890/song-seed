@@ -8,6 +8,7 @@ type Props = {
   visible: boolean;
   title?: string;
   helperText?: string;
+  confirmLabel?: string;
   destinations: CollectionMoveDestination[];
   selectedWorkspaceId: string | null;
   selectedParentCollectionId: string | null;
@@ -20,6 +21,7 @@ export function CollectionMoveModal({
   visible,
   title = "Move Collection",
   helperText,
+  confirmLabel = "Move",
   destinations,
   selectedWorkspaceId,
   selectedParentCollectionId,
@@ -96,7 +98,7 @@ export function CollectionMoveModal({
             <Button variant="secondary" label="Cancel" onPress={onCancel} />
             <Button
               variant="primary"
-              label="Move"
+              label={confirmLabel}
               onPress={onConfirm}
               disabled={!selectedWorkspaceId}
             />

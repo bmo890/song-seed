@@ -6,6 +6,7 @@ type Props = {
   visible: boolean;
   title: string;
   onRename: () => void;
+  onCopy: () => void;
   onMove: () => void;
   onDelete: () => void;
   onCancel: () => void;
@@ -56,6 +57,7 @@ export function CollectionActionsModal({
   visible,
   title,
   onRename,
+  onCopy,
   onMove,
   onDelete,
   onCancel,
@@ -68,6 +70,7 @@ export function CollectionActionsModal({
             <Text style={styles.modalTitle}>{title}</Text>
             <View style={styles.collectionActionsOptionList}>
               <ActionRow icon="create-outline" label="Rename" onPress={onRename} />
+              <ActionRow icon="copy-outline" label="Copy" onPress={onCopy} />
               <ActionRow icon="swap-horizontal-outline" label="Move" onPress={onMove} />
               <ActionRow icon="trash-outline" label="Delete" destructive onPress={onDelete} />
             </View>

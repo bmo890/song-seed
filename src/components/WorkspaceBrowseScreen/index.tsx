@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Alert, Pressable, Text, View } from "react-native";
+import { Alert, Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { StatusBar as ExpoStatusBar } from "expo-status-bar";
@@ -15,6 +15,8 @@ import { SurfaceCard } from "../common/SurfaceCard";
 import { QuickNameModal } from "../modals/QuickNameModal";
 import { CollectionMoveModal } from "../modals/CollectionMoveModal";
 import { CollectionActionsModal } from "../modals/CollectionActionsModal";
+import { SelectionActionSheet } from "../common/SelectionActionSheet";
+import { SelectionDock, type SelectionAction } from "../common/SelectionDock";
 import { buildCollectionMoveDestinations, getCollectionDeleteScope } from "../../collectionManagement";
 import { getCollectionSizeBytes, formatBytes } from "../../utils";
 import { ensureUniqueCountedTitle } from "../../utils";
@@ -53,13 +55,27 @@ function buildImportedCollectionTitle(assets: ImportedAudioAsset[], collectionCo
   return buildDefaultCollectionTitle(collectionCount);
 }
 
+function collapseSelectedCollectionIds(
+  collections: Array<{ id: string; parentCollectionId?: string | null }>,
+  selectedIds: string[]
+) {
+  const selectedIdSet = new Set(selectedIds);
+  const collectionMap = new Map(collections.map((collection) => [collection.id, collection]));
+
+  return selectedIds.filter((id) => {
+    let cursor = collectionMap.get(id)?.parentCollectionId ?? null;
+    while (cursor) {
+      if (selectedIdSet.has(cursor)) {
+        return false;
+      }
+      cursor = collectionMap.get(cursor)?.parentCollectionId ?? null;
+    }
+    return true;
+  });
+}
+
 export function WorkspaceBrowseScreen() {
   const navigation = useNavigation();
-  useBrowseRootBackHandler({
-    onBack: () => {
-      (navigation as any).navigate?.("Workspaces");
-    },
-  });
 
   const workspaces = useStore((state) => state.workspaces);
   const activeWorkspaceId = useStore((state) => state.activeWorkspaceId);
@@ -89,29 +105,74 @@ export function WorkspaceBrowseScreen() {
   const [collectionActionsOpen, setCollectionActionsOpen] = useState(false);
   const [collectionRenameModalOpen, setCollectionRenameModalOpen] = useState(false);
   const [collectionDraft, setCollectionDraft] = useState("");
-  const [collectionMoveModalOpen, setCollectionMoveModalOpen] = useState(false);
+  const [collectionDestinationMode, setCollectionDestinationMode] = useState<"move" | "copy" | null>(null);
+  const [destinationCollectionIds, setDestinationCollectionIds] = useState<string[]>([]);
   const [selectedMoveWorkspaceId, setSelectedMoveWorkspaceId] = useState<string | null>(null);
   const [selectedMoveParentCollectionId, setSelectedMoveParentCollectionId] = useState<string | null>(null);
-
-  const managedCollection =
-    activeWorkspace?.collections.find((collection) => collection.id === managedCollectionId) ?? null;
-
-  const moveDestinations = useMemo(
-    () => buildCollectionMoveDestinations(workspaces, managedCollection, activeWorkspaceId),
-    [activeWorkspaceId, managedCollection, workspaces]
-  );
+  const [selectedCollectionIds, setSelectedCollectionIds] = useState<string[]>([]);
+  const [selectionMoreVisible, setSelectionMoreVisible] = useState(false);
+  const [selectionDockHeight, setSelectionDockHeight] = useState(120);
 
   useEffect(() => {
-    if (!collectionMoveModalOpen) return;
-    const firstDestination = moveDestinations[0] ?? null;
-    setSelectedMoveWorkspaceId(firstDestination?.workspaceId ?? null);
-    setSelectedMoveParentCollectionId(firstDestination?.parentCollectionId ?? null);
-  }, [collectionMoveModalOpen, moveDestinations]);
+    const unsubscribe = (navigation as any).addListener?.("blur", () => {
+      setSelectedCollectionIds([]);
+      setSelectionMoreVisible(false);
+    });
+    return unsubscribe;
+  }, [navigation]);
 
   const collectionEntries = useMemo(
     () => (activeWorkspace ? buildWorkspaceBrowseEntries(activeWorkspace, searchQuery) : []),
     [activeWorkspace, searchQuery]
   );
+  const selectionMode = selectedCollectionIds.length > 0;
+  const selectableCollectionIds = useMemo(
+    () => collectionEntries.map((entry) => entry.collection.id),
+    [collectionEntries]
+  );
+  const collapsedSelectedCollectionIds = useMemo(
+    () => collapseSelectedCollectionIds(activeWorkspace?.collections ?? [], selectedCollectionIds),
+    [activeWorkspace?.collections, selectedCollectionIds]
+  );
+  const selectedCollections = useMemo(
+    () =>
+      (activeWorkspace?.collections ?? []).filter((collection) =>
+        collapsedSelectedCollectionIds.includes(collection.id)
+      ),
+    [activeWorkspace?.collections, collapsedSelectedCollectionIds]
+  );
+  const managedCollection =
+    activeWorkspace?.collections.find((collection) => collection.id === managedCollectionId) ?? null;
+  const destinationAnchorCollection = managedCollection ?? selectedCollections[0] ?? null;
+  const moveDestinations = useMemo(
+    () => buildCollectionMoveDestinations(workspaces, destinationAnchorCollection, activeWorkspaceId),
+    [activeWorkspaceId, destinationAnchorCollection, workspaces]
+  );
+  const allSelectableSelected =
+    selectableCollectionIds.length > 0 &&
+    selectableCollectionIds.every((id) => selectedCollectionIds.includes(id));
+  const canDeselectAll =
+    allSelectableSelected || (selectableCollectionIds.length === 0 && selectedCollectionIds.length > 0);
+  const singleSelectedCollection =
+    selectedCollections.length === 1 ? selectedCollections[0] ?? null : null;
+
+  useBrowseRootBackHandler({
+    onBack: () => {
+      if (selectedCollectionIds.length > 0) {
+        setSelectedCollectionIds([]);
+        setSelectionMoreVisible(false);
+        return;
+      }
+      (navigation as any).navigate?.("Workspaces");
+    },
+  });
+
+  useEffect(() => {
+    if (!collectionDestinationMode) return;
+    const firstDestination = moveDestinations[0] ?? null;
+    setSelectedMoveWorkspaceId(firstDestination?.workspaceId ?? null);
+    setSelectedMoveParentCollectionId(firstDestination?.parentCollectionId ?? null);
+  }, [collectionDestinationMode, moveDestinations]);
 
   useEffect(() => {
     let cancelled = false;
@@ -165,17 +226,28 @@ export function WorkspaceBrowseScreen() {
     setCollectionRenameModalOpen(true);
   };
 
-  const openMoveCollection = () => {
-    if (!managedCollection) return;
+  const openCollectionDestination = (mode: "move" | "copy", collectionIds: string[]) => {
+    if (collectionIds.length === 0) return;
     setCollectionActionsOpen(false);
     if (moveDestinations.length === 0) {
       Alert.alert(
-        "No move targets",
-        "There are no valid destinations available for this collection right now."
+        mode === "copy" ? "No copy targets" : "No move targets",
+        "There are no valid collection destinations available right now."
       );
       return;
     }
-    setCollectionMoveModalOpen(true);
+    setDestinationCollectionIds(collectionIds);
+    setCollectionDestinationMode(mode);
+  };
+
+  const openMoveCollection = () => {
+    if (!managedCollection) return;
+    openCollectionDestination("move", [managedCollection.id]);
+  };
+
+  const openCopyCollection = () => {
+    if (!managedCollection) return;
+    openCollectionDestination("copy", [managedCollection.id]);
   };
 
   const confirmDeleteCollection = () => {
@@ -192,22 +264,139 @@ export function WorkspaceBrowseScreen() {
     );
   };
 
-  const submitCollectionMove = () => {
-    if (!managedCollection || !selectedMoveWorkspaceId) return;
-    const result = moveCollection(
-      managedCollection.id,
-      selectedMoveWorkspaceId,
-      selectedMoveParentCollectionId
-    );
+  const submitCollectionDestination = () => {
+    if (!selectedMoveWorkspaceId || !collectionDestinationMode) return;
 
-    if (!result.ok) {
-      Alert.alert("Move failed", result.error ?? "Could not move this collection.");
-      return;
+    const collectionIds = destinationCollectionIds.length > 0
+      ? collapseSelectedCollectionIds(activeWorkspace.collections, destinationCollectionIds)
+      : managedCollection
+        ? [managedCollection.id]
+        : [];
+
+    for (const collectionId of collectionIds) {
+      const result =
+        collectionDestinationMode === "move"
+          ? moveCollection(collectionId, selectedMoveWorkspaceId, selectedMoveParentCollectionId)
+          : appActions.copyCollection(collectionId, selectedMoveWorkspaceId, selectedMoveParentCollectionId);
+
+      if (!result.ok) {
+        Alert.alert(
+          collectionDestinationMode === "move" ? "Move failed" : "Copy failed",
+          result.error ?? `Could not ${collectionDestinationMode} this collection.`
+        );
+        return;
+      }
     }
 
-    setCollectionMoveModalOpen(false);
+    setCollectionDestinationMode(null);
+    setDestinationCollectionIds([]);
     setManagedCollectionId(null);
+    setSelectedCollectionIds([]);
   };
+
+  const confirmDeleteSelectedCollections = () => {
+    if (!activeWorkspace || collapsedSelectedCollectionIds.length === 0) return;
+
+    const scope = collapsedSelectedCollectionIds.reduce(
+      (summary, collectionId) => {
+        const next = getCollectionDeleteScope(activeWorkspace, collectionId);
+        return {
+          childCollectionCount: summary.childCollectionCount + next.childCollectionCount,
+          itemCount: summary.itemCount + next.itemCount,
+        };
+      },
+      { childCollectionCount: 0, itemCount: 0 }
+    );
+
+    Alert.alert(
+      "Delete collections?",
+      `${collapsedSelectedCollectionIds.length} collection${collapsedSelectedCollectionIds.length === 1 ? "" : "s"} will be removed${scope.childCollectionCount > 0 ? ` along with ${scope.childCollectionCount} subcollection${scope.childCollectionCount === 1 ? "" : "s"}` : ""} and ${scope.itemCount} item${scope.itemCount === 1 ? "" : "s"}.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: () => {
+            for (const collectionId of collapsedSelectedCollectionIds) {
+              deleteCollection(collectionId);
+            }
+            setSelectedCollectionIds([]);
+            setSelectionMoreVisible(false);
+          },
+        },
+      ]
+    );
+  };
+
+  const selectionDockActions: SelectionAction[] =
+    singleSelectedCollection
+      ? [
+          {
+            key: "rename",
+            label: "Rename",
+            icon: "create-outline",
+            onPress: () => {
+              setManagedCollectionId(singleSelectedCollection.id);
+              setCollectionDraft(singleSelectedCollection.title);
+              setCollectionRenameModalOpen(true);
+            },
+          },
+          {
+            key: "copy",
+            label: "Copy",
+            icon: "copy-outline",
+            onPress: () => openCollectionDestination("copy", collapsedSelectedCollectionIds),
+          },
+          {
+            key: "move",
+            label: "Move",
+            icon: "swap-horizontal-outline",
+            onPress: () => openCollectionDestination("move", collapsedSelectedCollectionIds),
+          },
+          {
+            key: "more",
+            label: "More",
+            icon: "ellipsis-horizontal",
+            onPress: () => setSelectionMoreVisible(true),
+          },
+        ]
+      : [
+          {
+            key: "copy",
+            label: "Copy",
+            icon: "copy-outline",
+            onPress: () => openCollectionDestination("copy", collapsedSelectedCollectionIds),
+          },
+          {
+            key: "move",
+            label: "Move",
+            icon: "swap-horizontal-outline",
+            onPress: () => openCollectionDestination("move", collapsedSelectedCollectionIds),
+          },
+          {
+            key: "more",
+            label: "More",
+            icon: "ellipsis-horizontal",
+            onPress: () => setSelectionMoreVisible(true),
+          },
+        ];
+
+  const selectionSheetActions: SelectionAction[] = [
+    {
+      key: "select-all",
+      label: canDeselectAll ? "Deselect all" : "Select all",
+      icon: canDeselectAll ? "remove-circle-outline" : "checkmark-circle-outline",
+      onPress: () => setSelectedCollectionIds(canDeselectAll ? [] : selectableCollectionIds),
+      disabled: !canDeselectAll && selectableCollectionIds.length === 0,
+    },
+    {
+      key: "delete",
+      label: "Delete",
+      icon: "trash-outline",
+      tone: "danger",
+      onPress: confirmDeleteSelectedCollections,
+    },
+  ];
 
   const openAddCollectionFlow = () => {
     Alert.alert("Add collection", "Choose how to start this collection.", [
@@ -339,109 +528,169 @@ export function WorkspaceBrowseScreen() {
   return (
     <SafeAreaView style={styles.screen}>
       <ScreenHeader title="Workspace" leftIcon="hamburger" />
+      <ScrollView
+        style={styles.flexFill}
+        contentContainerStyle={[
+          styles.libraryScrollContent,
+          {
+            paddingBottom: selectionMode
+              ? selectionDockHeight + 24 + Math.max(24, 12)
+              : 24,
+          },
+        ]}
+        showsVerticalScrollIndicator={false}
+      >
+        <PageIntro
+          title={activeWorkspace.title}
+          subtitle="Browse collections by recent work, then move deeper into the workspace."
+        />
 
-      <PageIntro
-        title={activeWorkspace.title}
-        subtitle="Browse collections by recent work, then move deeper into the workspace."
-      />
+        <SearchField
+          value={searchQuery}
+          placeholder="Search collections, songs, or clips..."
+          onChangeText={setSearchQuery}
+        />
 
-      <SearchField
-        value={searchQuery}
-        placeholder="Search collections, songs, or clips..."
-        onChangeText={setSearchQuery}
-      />
-
-      <View style={styles.inputRow}>
-        <Pressable
-          style={({ pressed }) => [styles.ideasHeaderSelectBtn, pressed ? styles.pressDown : null]}
-          onPress={openAddCollectionFlow}
-        >
-          <Text style={styles.ideasHeaderSelectBtnText}>Add</Text>
-        </Pressable>
-      </View>
-
-      <View style={styles.listContent}>
-        {collectionEntries.map((entry) => {
-          const collection = entry.collection;
-          return (
-            <SurfaceCard
-              key={collection.id}
-              onPress={() => {
-                markCollectionOpened(collection.id);
-                openCollectionInBrowse(navigation, { collectionId: collection.id });
-              }}
+        {!selectionMode ? (
+          <View style={styles.inputRow}>
+            <Pressable
+              style={({ pressed }) => [styles.ideasHeaderSelectBtn, pressed ? styles.pressDown : null]}
+              onPress={openAddCollectionFlow}
             >
-              <View style={styles.cardTop}>
-                <View style={styles.cardTitleRow}>
-                  <Ionicons
-                    name={getHierarchyIconName("collection")}
-                    size={18}
-                    color={getHierarchyIconColor("collection")}
-                  />
-                  <Text style={styles.cardTitle}>
-                    <HighlightedText value={collection.title} query={searchQuery} />
-                  </Text>
-                </View>
-                <View style={styles.workspaceBrowseCollectionActions}>
-                  <Pressable
-                    style={({ pressed }) => [
-                      styles.collectionInlineActionBtn,
-                      pressed ? styles.pressDown : null,
-                    ]}
-                    onPress={() => openCollectionActions(collection.id)}
-                  >
-                    <Ionicons name="ellipsis-horizontal" size={15} color="#64748b" />
-                  </Pressable>
-                </View>
-              </View>
-
-              <View style={styles.workspaceBrowseCollectionMetaRow}>
-                <Text style={styles.cardMeta}>
-                  {entry.itemCount} {entry.itemCount === 1 ? "item" : "items"}
-                </Text>
-                <Text style={styles.cardMeta}>•</Text>
-                <Text style={styles.cardMeta}>{formatBytes(sizeMap[collection.id] ?? 0)}</Text>
-              </View>
-
-              {searchQuery.trim().length > 0 && entry.matches.length > 0 ? (
-                <View style={styles.workspaceBrowseMatchRow}>
-                  {entry.matches.map((match, index) => (
-                    <View
-                      key={`${match.kind}-${match.label}-${index}`}
-                      style={styles.workspaceBrowseMatchBadge}
-                    >
-                      <Ionicons
-                        name={getMatchIcon(match.kind)}
-                        size={12}
-                        color="#64748b"
-                      />
-                      <Text style={styles.workspaceBrowseMatchText} numberOfLines={1}>
-                        {getMatchLabel(match.kind)} <HighlightedText value={match.label} query={searchQuery} />
-                        {match.context ? (
-                          <Text style={styles.workspaceBrowseMatchContext}> in {match.context}</Text>
-                        ) : null}
-                      </Text>
-                    </View>
-                  ))}
-                </View>
-              ) : null}
-            </SurfaceCard>
-          );
-        })}
-
-        {collectionEntries.length === 0 ? (
-          <SurfaceCard>
-            <Text style={styles.cardTitle}>
-              {searchQuery.trim().length > 0 ? "No matching collections" : "No collections yet"}
-            </Text>
-            <Text style={styles.cardMeta}>
-              {searchQuery.trim().length > 0
-                ? "Try a different search."
-                : "Create a collection to start organizing songs and clips in this workspace."}
-            </Text>
-          </SurfaceCard>
+              <Text style={styles.ideasHeaderSelectBtnText}>Add</Text>
+            </Pressable>
+          </View>
         ) : null}
-      </View>
+
+        <View style={styles.listContent}>
+          {collectionEntries.map((entry) => {
+            const collection = entry.collection;
+            const isSelected = selectedCollectionIds.includes(collection.id);
+            return (
+              <SurfaceCard
+                key={collection.id}
+                onPress={() => {
+                  if (selectionMode) {
+                    setSelectedCollectionIds((prev) =>
+                      prev.includes(collection.id)
+                        ? prev.filter((id) => id !== collection.id)
+                        : [...prev, collection.id]
+                    );
+                    return;
+                  }
+                  markCollectionOpened(collection.id);
+                  openCollectionInBrowse(navigation, { collectionId: collection.id });
+                }}
+                onLongPress={() => {
+                  if (selectionMode) return;
+                  setSelectedCollectionIds([collection.id]);
+                }}
+              >
+                <View style={styles.cardTop}>
+                  <View style={selectionMode ? styles.cardTitleRowCompact : styles.cardTitleRow}>
+                    {selectionMode ? (
+                      <View style={styles.cardSelectionLead}>
+                        <View
+                          style={[
+                            styles.selectionIndicatorCircle,
+                            isSelected ? styles.selectionIndicatorActive : null,
+                          ]}
+                        >
+                          {isSelected ? <Text style={styles.selectionBadgeText}>✓</Text> : null}
+                        </View>
+                      </View>
+                    ) : null}
+                    <Ionicons
+                      name={getHierarchyIconName("collection")}
+                      size={18}
+                      color={getHierarchyIconColor("collection")}
+                    />
+                    <Text style={styles.cardTitle}>
+                      <HighlightedText value={collection.title} query={searchQuery} />
+                    </Text>
+                  </View>
+                  {!selectionMode ? (
+                    <View style={styles.workspaceBrowseCollectionActions}>
+                      <Pressable
+                        style={({ pressed }) => [
+                          styles.collectionInlineActionBtn,
+                          pressed ? styles.pressDown : null,
+                        ]}
+                        onPress={() => openCollectionActions(collection.id)}
+                      >
+                        <Ionicons name="ellipsis-horizontal" size={15} color="#64748b" />
+                      </Pressable>
+                    </View>
+                  ) : null}
+                </View>
+
+                <View style={styles.workspaceBrowseCollectionMetaRow}>
+                  <Text style={styles.cardMeta}>
+                    {entry.itemCount} {entry.itemCount === 1 ? "item" : "items"}
+                  </Text>
+                  <Text style={styles.cardMeta}>•</Text>
+                  <Text style={styles.cardMeta}>{formatBytes(sizeMap[collection.id] ?? 0)}</Text>
+                </View>
+
+                {searchQuery.trim().length > 0 && entry.matches.length > 0 ? (
+                  <View style={styles.workspaceBrowseMatchRow}>
+                    {entry.matches.map((match, index) => (
+                      <View
+                        key={`${match.kind}-${match.label}-${index}`}
+                        style={styles.workspaceBrowseMatchBadge}
+                      >
+                        <Ionicons
+                          name={getMatchIcon(match.kind)}
+                          size={12}
+                          color="#64748b"
+                        />
+                        <Text style={styles.workspaceBrowseMatchText} numberOfLines={1}>
+                          {getMatchLabel(match.kind)} <HighlightedText value={match.label} query={searchQuery} />
+                          {match.context ? (
+                            <Text style={styles.workspaceBrowseMatchContext}> in {match.context}</Text>
+                          ) : null}
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
+                ) : null}
+              </SurfaceCard>
+            );
+          })}
+
+          {collectionEntries.length === 0 ? (
+            <SurfaceCard>
+              <Text style={styles.cardTitle}>
+                {searchQuery.trim().length > 0 ? "No matching collections" : "No collections yet"}
+              </Text>
+              <Text style={styles.cardMeta}>
+                {searchQuery.trim().length > 0
+                  ? "Try a different search."
+                  : "Create a collection to start organizing songs and clips in this workspace."}
+              </Text>
+            </SurfaceCard>
+          ) : null}
+        </View>
+      </ScrollView>
+
+      {selectionMode ? (
+        <>
+          <SelectionDock
+            count={selectedCollectionIds.length}
+            actions={selectionDockActions}
+            onDone={() => setSelectedCollectionIds([])}
+            onLayout={(height) => {
+              setSelectionDockHeight((prev) => (Math.abs(prev - height) < 1 ? prev : height));
+            }}
+          />
+          <SelectionActionSheet
+            visible={selectionMoreVisible}
+            title="Workspace actions"
+            actions={selectionSheetActions}
+            onClose={() => setSelectionMoreVisible(false)}
+          />
+        </>
+      ) : null}
 
       <QuickNameModal
         visible={modalOpen}
@@ -489,6 +738,7 @@ export function WorkspaceBrowseScreen() {
         visible={collectionActionsOpen}
         title={managedCollection?.title ?? "Collection"}
         onRename={openRenameCollection}
+        onCopy={openCopyCollection}
         onMove={openMoveCollection}
         onDelete={confirmDeleteCollection}
         onCancel={() => {
@@ -520,9 +770,14 @@ export function WorkspaceBrowseScreen() {
       />
 
       <CollectionMoveModal
-        visible={collectionMoveModalOpen}
-        title="Move Collection"
-        helperText="Choose the destination for this collection."
+        visible={!!collectionDestinationMode}
+        title={collectionDestinationMode === "copy" ? "Copy Collection" : "Move Collection"}
+        helperText={
+          collectionDestinationMode === "copy"
+            ? "Choose where to copy this collection."
+            : "Choose the destination for this collection."
+        }
+        confirmLabel={collectionDestinationMode === "copy" ? "Copy" : "Move"}
         destinations={moveDestinations}
         selectedWorkspaceId={selectedMoveWorkspaceId}
         selectedParentCollectionId={selectedMoveParentCollectionId}
@@ -531,9 +786,10 @@ export function WorkspaceBrowseScreen() {
           setSelectedMoveParentCollectionId(parentCollectionId);
         }}
         onCancel={() => {
-          setCollectionMoveModalOpen(false);
+          setCollectionDestinationMode(null);
+          setDestinationCollectionIds([]);
         }}
-        onConfirm={submitCollectionMove}
+        onConfirm={submitCollectionDestination}
       />
 
       <ExpoStatusBar style="dark" />

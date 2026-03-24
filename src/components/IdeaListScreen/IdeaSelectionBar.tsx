@@ -1,11 +1,12 @@
-import { useState } from "react";
-import { Alert, Pressable, ScrollView, Text, View } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { styles } from "../../styles";
+import { useMemo, useState } from "react";
+import { Alert } from "react-native";
+import { useNavigation } from "@react-navigation/native";
 import { useStore } from "../../state/useStore";
-import { shareAudioClips } from "../../services/audioStorage";
 import { appActions } from "../../state/actions";
+import { shareAudioClips } from "../../services/audioStorage";
+import { SelectionActionSheet } from "../common/SelectionActionSheet";
+import { SelectionDock, type SelectionAction } from "../common/SelectionDock";
+import type { SongIdea } from "../../types";
 
 type IdeaSelectionBarProps = {
   selectableIdeaIds: string[];
@@ -15,6 +16,8 @@ type IdeaSelectionBarProps = {
   hideActionLabel: "Hide" | "Unhide";
   hideActionDisabled?: boolean;
   onDeleteSelected: () => void;
+  onCreateProjectFromSelection?: () => void;
+  selectedClipIdeasCount: number;
   onDockLayout?: (height: number) => void;
 };
 
@@ -26,51 +29,82 @@ export function IdeaSelectionBar({
   hideActionLabel,
   hideActionDisabled,
   onDeleteSelected,
+  onCreateProjectFromSelection,
+  selectedClipIdeasCount,
   onDockLayout,
 }: IdeaSelectionBarProps) {
+  const navigation = useNavigation();
   const [isSharing, setIsSharing] = useState(false);
-  const insets = useSafeAreaInsets();
-  const bottomOffset = 12 + Math.max(insets.bottom, 12);
+  const [moreVisible, setMoreVisible] = useState(false);
+
   const selectedListIdeaIds = useStore((s) => s.selectedListIdeaIds);
   const activeWorkspaceId = useStore((s) => s.activeWorkspaceId);
   const workspaces = useStore((s) => s.workspaces);
   const replaceListSelection = useStore((s) => s.replaceListSelection);
-  const disabledIdeaIdSet = new Set(disabledIdeaIds);
+  const disabledIdeaIdSet = useMemo(() => new Set(disabledIdeaIds), [disabledIdeaIds]);
 
   const activeWorkspace = workspaces.find((workspace) => workspace.id === activeWorkspaceId);
-  const selectedIdeas = (activeWorkspace?.ideas ?? []).filter((idea) => selectedListIdeaIds.includes(idea.id));
-  const interactiveSelectedIdeas = selectedIdeas.filter((idea) => !disabledIdeaIdSet.has(idea.id));
-  const selectedClipIdeas = selectedIdeas.filter((idea) => idea.kind === "clip");
-  const selectedProjects = selectedIdeas.filter((idea) => idea.kind === "project");
+  const selectedIdeas = useMemo(
+    () => (activeWorkspace?.ideas ?? []).filter((idea) => selectedListIdeaIds.includes(idea.id)),
+    [activeWorkspace?.ideas, selectedListIdeaIds]
+  );
+  const interactiveSelectedIdeas = useMemo(
+    () => selectedIdeas.filter((idea) => !disabledIdeaIdSet.has(idea.id)),
+    [disabledIdeaIdSet, selectedIdeas]
+  );
+  const selectedClipIdeas = useMemo(
+    () => selectedIdeas.filter((idea) => idea.kind === "clip"),
+    [selectedIdeas]
+  );
+  const selectedProjects = useMemo(
+    () => selectedIdeas.filter((idea) => idea.kind === "project"),
+    [selectedIdeas]
+  );
 
-  const playbackQueue = interactiveSelectedIdeas
-    .map((idea) => {
-      if (idea.kind === "clip") {
-        return idea.clips.find((clip) => !!clip.audioUri) ?? null;
-      }
-      return idea.clips.find((clip) => clip.isPrimary && !!clip.audioUri) ?? idea.clips.find((clip) => !!clip.audioUri) ?? null;
-    })
-    .filter(Boolean);
+  const playbackQueue = useMemo(
+    () =>
+      interactiveSelectedIdeas
+        .map((idea) => {
+          if (idea.kind === "clip") {
+            return idea.clips.find((clip) => !!clip.audioUri) ?? null;
+          }
+          return (
+            idea.clips.find((clip) => clip.isPrimary && !!clip.audioUri) ??
+            idea.clips.find((clip) => !!clip.audioUri) ??
+            null
+          );
+        })
+        .filter(Boolean),
+    [interactiveSelectedIdeas]
+  );
 
-  const shareableClips = interactiveSelectedIdeas
-    .map((idea) => {
-      const clip =
-        idea.kind === "clip"
-          ? idea.clips.find((candidate) => !!candidate.audioUri) ?? null
-          : idea.clips.find((candidate) => candidate.isPrimary && !!candidate.audioUri) ??
-            idea.clips.find((candidate) => !!candidate.audioUri) ??
-            null;
-      if (!clip?.audioUri) return null;
-      return {
-        title: clip.title || idea.title,
-        audioUri: clip.audioUri,
-      };
-    })
-    .filter((clip): clip is { title: string; audioUri: string } => !!clip);
+  const shareableClips = useMemo(
+    () =>
+      interactiveSelectedIdeas
+        .map((idea) => {
+          const clip =
+            idea.kind === "clip"
+              ? idea.clips.find((candidate) => !!candidate.audioUri) ?? null
+              : idea.clips.find((candidate) => candidate.isPrimary && !!candidate.audioUri) ??
+                idea.clips.find((candidate) => !!candidate.audioUri) ??
+                null;
+          if (!clip?.audioUri) return null;
+          return {
+            title: clip.title || idea.title,
+            audioUri: clip.audioUri,
+          };
+        })
+        .filter((clip): clip is { title: string; audioUri: string } => !!clip),
+    [interactiveSelectedIdeas]
+  );
 
   const allSelectableSelected =
     selectableIdeaIds.length > 0 && selectableIdeaIds.every((id) => selectedListIdeaIds.includes(id));
   const canDeselectAll = allSelectableSelected || (selectableIdeaIds.length === 0 && selectedListIdeaIds.length > 0);
+  const exactlyOneInteractive = interactiveSelectedIdeas.length === 1;
+  const singleInteractiveIdea = exactlyOneInteractive ? interactiveSelectedIdeas[0] ?? null : null;
+  const canEditSingleClip = !!singleInteractiveIdea && singleInteractiveIdea.kind === "clip";
+  const selectedHiddenOnly = selectedIdeas.length > 0 && interactiveSelectedIdeas.length === 0;
 
   async function handleShareSelected() {
     if (shareableClips.length === 0 || isSharing) return;
@@ -101,7 +135,10 @@ export function IdeaSelectionBar({
 
   function confirmDeleteSelection() {
     const projectNames = selectedProjects.map((project) => project.title).slice(0, 4);
-    const projectList = projectNames.length > 0 ? `\n\nSongs: ${projectNames.join(", ")}${selectedProjects.length > 4 ? "…" : ""}` : "";
+    const projectList =
+      projectNames.length > 0
+        ? `\n\nSongs: ${projectNames.join(", ")}${selectedProjects.length > 4 ? "…" : ""}`
+        : "";
     const message =
       selectedProjects.length > 0
         ? `This will delete ${selectedProjects.length} song${selectedProjects.length === 1 ? "" : "s"} and all contained clips, plus ${selectedClipIdeas.length} standalone clip${selectedClipIdeas.length === 1 ? "" : "s"}.${projectList}`
@@ -113,107 +150,209 @@ export function IdeaSelectionBar({
     ]);
   }
 
+  function handleEditSingleClip() {
+    if (!singleInteractiveIdea || singleInteractiveIdea.kind !== "clip") return;
+    const primaryClip = singleInteractiveIdea.clips[0];
+    if (!primaryClip?.audioUri) {
+      Alert.alert("Nothing to edit", "This clip does not have playable audio yet.");
+      return;
+    }
+
+    (navigation as any).navigate("Editor", {
+      ideaId: singleInteractiveIdea.id,
+      clipId: primaryClip.id,
+      audioUri: primaryClip.audioUri,
+      durationMs: primaryClip.durationMs,
+    });
+  }
+
+  const dockActions: SelectionAction[] = useMemo(() => {
+    if (selectedHiddenOnly) {
+      return [
+        {
+          key: "unhide",
+          label: hideActionLabel,
+          icon: hideActionLabel === "Unhide" ? "eye-outline" : "eye-off-outline",
+          onPress: onToggleHideSelected,
+          disabled: hideActionDisabled,
+        },
+        {
+          key: "delete",
+          label: "Delete",
+          icon: "trash-outline",
+          tone: "danger",
+          onPress: confirmDeleteSelection,
+        },
+        {
+          key: "more",
+          label: "More",
+          icon: "ellipsis-horizontal",
+          onPress: () => setMoreVisible(true),
+        },
+      ];
+    }
+
+    if (canEditSingleClip) {
+      return [
+        {
+          key: "edit",
+          label: "Edit",
+          icon: "build-outline",
+          onPress: handleEditSingleClip,
+        },
+        {
+          key: "copy",
+          label: "Copy",
+          icon: "copy-outline",
+          onPress: () => handleClipboardAction("copy"),
+        },
+        {
+          key: "delete",
+          label: "Delete",
+          icon: "trash-outline",
+          tone: "danger",
+          onPress: confirmDeleteSelection,
+        },
+        {
+          key: "more",
+          label: "More",
+          icon: "ellipsis-horizontal",
+          onPress: () => setMoreVisible(true),
+        },
+      ];
+    }
+
+    return [
+      {
+        key: "copy",
+        label: "Copy",
+        icon: "copy-outline",
+        onPress: () => handleClipboardAction("copy"),
+      },
+      {
+        key: "move",
+        label: "Move",
+        icon: "arrow-forward-outline",
+        onPress: () => handleClipboardAction("move"),
+      },
+      {
+        key: "delete",
+        label: "Delete",
+        icon: "trash-outline",
+        tone: "danger",
+        onPress: confirmDeleteSelection,
+      },
+      {
+        key: "more",
+        label: "More",
+        icon: "ellipsis-horizontal",
+        onPress: () => setMoreVisible(true),
+      },
+    ];
+  }, [
+    canEditSingleClip,
+    confirmDeleteSelection,
+    handleEditSingleClip,
+    hideActionDisabled,
+    hideActionLabel,
+    onToggleHideSelected,
+    selectedHiddenOnly,
+  ]);
+
+  const sheetActions: SelectionAction[] = useMemo(() => {
+    const actions: SelectionAction[] = [];
+
+    if (!selectedHiddenOnly && !canEditSingleClip) {
+      actions.push({
+        key: "play",
+        label: `Play selected (${playbackQueue.length})`,
+        icon: "play-outline",
+        onPress: onPlaySelected,
+        disabled: playbackQueue.length === 0,
+      });
+    }
+
+    if (!selectedHiddenOnly && shareableClips.length > 0) {
+      actions.push({
+        key: "share",
+        label: isSharing ? "Sharing..." : `Share (${shareableClips.length})`,
+        icon: "share-social-outline",
+        onPress: () => {
+          void handleShareSelected();
+        },
+        disabled: isSharing,
+      });
+    }
+
+    if (!selectedHiddenOnly && canEditSingleClip) {
+      actions.push({
+        key: "move",
+        label: "Move",
+        icon: "arrow-forward-outline",
+        onPress: () => handleClipboardAction("move"),
+      });
+    }
+
+    actions.push({
+      key: "hide",
+      label: hideActionLabel,
+      icon: hideActionLabel === "Unhide" ? "eye-outline" : "eye-off-outline",
+      onPress: onToggleHideSelected,
+      disabled: hideActionDisabled,
+    });
+
+    if (!selectedHiddenOnly && selectedClipIdeasCount > 0 && selectedProjects.length === 0 && onCreateProjectFromSelection) {
+      actions.push({
+        key: "create-song",
+        label: `Create song (${selectedClipIdeasCount})`,
+        icon: "albums-outline",
+        onPress: onCreateProjectFromSelection,
+      });
+    }
+
+    actions.push({
+      key: "select-all",
+      label: canDeselectAll ? "Deselect all" : "Select all",
+      icon: canDeselectAll ? "remove-circle-outline" : "checkmark-circle-outline",
+      onPress: () => replaceListSelection(canDeselectAll ? [] : selectableIdeaIds),
+      disabled: !canDeselectAll && selectableIdeaIds.length === 0,
+    });
+
+    return actions;
+  }, [
+    canDeselectAll,
+    canEditSingleClip,
+    handleShareSelected,
+    hideActionDisabled,
+    hideActionLabel,
+    isSharing,
+    onCreateProjectFromSelection,
+    onPlaySelected,
+    onToggleHideSelected,
+    playbackQueue.length,
+    replaceListSelection,
+    selectableIdeaIds,
+    selectedClipIdeasCount,
+    selectedHiddenOnly,
+    selectedProjects.length,
+    shareableClips.length,
+  ]);
+
   return (
-    <View
-      style={[styles.ideasSelectionDock, { bottom: bottomOffset }]}
-      onLayout={(event) => {
-        onDockLayout?.(event.nativeEvent.layout.height);
-      }}
-    >
-      <View style={styles.ideasSelectionDockHeader}>
-        <Text style={styles.ideasSelectionCount}>{selectedListIdeaIds.length} selected</Text>
-        <View style={styles.ideasSelectionHeaderActions}>
-          <Pressable
-            style={({ pressed }) => [styles.ideasSelectionHeaderBtn, pressed ? styles.pressDown : null]}
-            disabled={!canDeselectAll && selectableIdeaIds.length === 0}
-            onPress={() => replaceListSelection(canDeselectAll ? [] : selectableIdeaIds)}
-          >
-            <Text style={styles.ideasSelectionHeaderBtnText}>{canDeselectAll ? "Deselect all" : "Select all"}</Text>
-          </Pressable>
+    <>
+      <SelectionDock
+        count={selectedListIdeaIds.length}
+        actions={dockActions}
+        onDone={() => useStore.getState().cancelListSelection()}
+        onLayout={onDockLayout}
+      />
 
-          <Pressable
-            style={({ pressed }) => [styles.ideasSelectionHeaderBtn, pressed ? styles.pressDown : null]}
-            onPress={() => useStore.getState().cancelListSelection()}
-          >
-            <Text style={styles.ideasSelectionHeaderBtnText}>Done</Text>
-          </Pressable>
-        </View>
-      </View>
-
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.ideasSelectionActions}
-      >
-        <Pressable
-          style={({ pressed }) => [
-            styles.ideasSelectionAction,
-            playbackQueue.length === 0 ? styles.btnDisabled : null,
-            pressed ? styles.pressDown : null,
-          ]}
-          disabled={playbackQueue.length === 0}
-          onPress={onPlaySelected}
-        >
-          <Ionicons name="play" size={15} color="#0f172a" />
-          <Text style={styles.ideasSelectionActionText}>{`Play (${playbackQueue.length})`}</Text>
-        </Pressable>
-
-        <Pressable
-          style={({ pressed }) => [
-            styles.ideasSelectionAction,
-            hideActionDisabled ? styles.btnDisabled : null,
-            pressed ? styles.pressDown : null,
-          ]}
-          disabled={hideActionDisabled}
-          onPress={onToggleHideSelected}
-        >
-          <Ionicons
-            name={hideActionLabel === "Unhide" ? "eye-outline" : "eye-off-outline"}
-            size={15}
-            color="#0f172a"
-          />
-          <Text style={styles.ideasSelectionActionText}>{hideActionLabel}</Text>
-        </Pressable>
-
-        <Pressable
-          style={({ pressed }) => [
-            styles.ideasSelectionAction,
-            isSharing || shareableClips.length === 0 ? styles.btnDisabled : null,
-            pressed ? styles.pressDown : null,
-          ]}
-          disabled={isSharing || shareableClips.length === 0}
-          onPress={() => {
-            void handleShareSelected();
-          }}
-        >
-          <Ionicons name="share-social-outline" size={15} color="#0f172a" />
-          <Text style={styles.ideasSelectionActionText}>{isSharing ? "Sharing..." : `Share (${shareableClips.length})`}</Text>
-        </Pressable>
-
-        <Pressable
-          style={({ pressed }) => [styles.ideasSelectionAction, pressed ? styles.pressDown : null]}
-          onPress={() => handleClipboardAction("copy")}
-        >
-          <Ionicons name="copy-outline" size={15} color="#0f172a" />
-          <Text style={styles.ideasSelectionActionText}>Copy</Text>
-        </Pressable>
-
-        <Pressable
-          style={({ pressed }) => [styles.ideasSelectionAction, pressed ? styles.pressDown : null]}
-          onPress={() => handleClipboardAction("move")}
-        >
-          <Ionicons name="arrow-forward-outline" size={15} color="#0f172a" />
-          <Text style={styles.ideasSelectionActionText}>Move</Text>
-        </Pressable>
-
-        <Pressable
-          style={({ pressed }) => [styles.ideasSelectionActionDanger, pressed ? styles.pressDown : null]}
-          onPress={confirmDeleteSelection}
-        >
-          <Ionicons name="trash-outline" size={15} color="#b91c1c" />
-          <Text style={styles.ideasSelectionActionDangerText}>Delete</Text>
-        </Pressable>
-      </ScrollView>
-    </View>
+      <SelectionActionSheet
+        visible={moreVisible}
+        title="Collection actions"
+        actions={sheetActions}
+        onClose={() => setMoreVisible(false)}
+      />
+    </>
   );
 }

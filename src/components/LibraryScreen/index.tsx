@@ -8,6 +8,8 @@ import { ScreenHeader } from "../common/ScreenHeader";
 import { AppBreadcrumbs, type AppBreadcrumbItem } from "../common/AppBreadcrumbs";
 import { Button } from "../common/Button";
 import { PageIntro } from "../common/PageIntro";
+import { SelectionActionSheet } from "../common/SelectionActionSheet";
+import { SelectionDock, type SelectionAction } from "../common/SelectionDock";
 import { QuickNameModal } from "../modals/QuickNameModal";
 import { styles } from "../../styles";
 import { useStore } from "../../state/useStore";
@@ -587,6 +589,8 @@ function PlaylistPickerView({
     workspace && pickerState.songIdeaId
       ? workspace.ideas.find((idea) => idea.id === pickerState.songIdeaId) ?? null
       : null;
+  const [selectionMoreVisible, setSelectionMoreVisible] = useState(false);
+  const [selectionDockHeight, setSelectionDockHeight] = useState(120);
 
   const isSelected = (selection: PlaylistPickerSelection) =>
     pickerState.selectedItems.some(
@@ -607,22 +611,120 @@ function PlaylistPickerView({
     });
   };
 
+  const visibleSelections = useMemo<PlaylistPickerSelection[]>(() => {
+    if (workspace && collection && selectedSongIdea) {
+      return selectedSongIdea.clips.map((clip) => ({
+        kind: "clip",
+        workspaceId: workspace.id,
+        collectionId: selectedSongIdea.collectionId,
+        ideaId: selectedSongIdea.id,
+        clipId: clip.id,
+      }));
+    }
+
+    if (workspace && collection && !selectedSongIdea) {
+      return collectionIdeas.map((idea) => {
+        const primaryClip = getIdeaPrimaryClip(idea);
+        return idea.kind === "project"
+          ? {
+              kind: "song" as const,
+              workspaceId: workspace.id,
+              collectionId: idea.collectionId,
+              ideaId: idea.id,
+            }
+          : {
+              kind: "clip" as const,
+              workspaceId: workspace.id,
+              collectionId: idea.collectionId,
+              ideaId: idea.id,
+              clipId: primaryClip?.id ?? null,
+            };
+      });
+    }
+
+    return [];
+  }, [collection, collectionIdeas, selectedSongIdea, workspace]);
+  const selectedKeySet = useMemo(
+    () => new Set(pickerState.selectedItems.map((item) => buildPickerSelectionKey(item))),
+    [pickerState.selectedItems]
+  );
+  const allVisibleSelected =
+    visibleSelections.length > 0 &&
+    visibleSelections.every((selection) => selectedKeySet.has(buildPickerSelectionKey(selection)));
+  const selectionDockActions: SelectionAction[] = [
+    {
+      key: "add",
+      label:
+        pickerState.selectedItems.length === 1
+          ? "Add item"
+          : `Add ${pickerState.selectedItems.length}`,
+      icon: "add-outline",
+      onPress: onConfirm,
+      disabled: pickerState.selectedItems.length === 0,
+    },
+    {
+      key: "more",
+      label: "More",
+      icon: "ellipsis-horizontal",
+      onPress: () => setSelectionMoreVisible(true),
+    },
+  ];
+  const selectionSheetActions: SelectionAction[] = [
+    {
+      key: "toggle-visible",
+      label: allVisibleSelected ? "Deselect view" : "Select all in view",
+      icon: allVisibleSelected ? "remove-circle-outline" : "checkmark-circle-outline",
+      onPress: () => {
+        const visibleKeySet = new Set(visibleSelections.map((item) => buildPickerSelectionKey(item)));
+        if (allVisibleSelected) {
+          onChangePickerState({
+            ...pickerState,
+            selectedItems: pickerState.selectedItems.filter(
+              (item) => !visibleKeySet.has(buildPickerSelectionKey(item))
+            ),
+          });
+          return;
+        }
+
+        const nextItems = [...pickerState.selectedItems];
+        visibleSelections.forEach((selection) => {
+          const key = buildPickerSelectionKey(selection);
+          if (!selectedKeySet.has(key)) {
+            nextItems.push(selection);
+          }
+        });
+        onChangePickerState({
+          ...pickerState,
+          selectedItems: nextItems,
+        });
+      },
+      disabled: visibleSelections.length === 0,
+    },
+    {
+      key: "clear",
+      label: "Clear selection",
+      icon: "close-circle-outline",
+      onPress: () =>
+        onChangePickerState({
+          ...pickerState,
+          selectedItems: [],
+        }),
+      disabled: pickerState.selectedItems.length === 0,
+    },
+  ];
+
   return (
     <View style={styles.flexFill}>
       <ScrollView
         style={styles.flexFill}
-        contentContainerStyle={styles.libraryScrollContent}
+        contentContainerStyle={[
+          styles.libraryScrollContent,
+          {
+            paddingBottom: pickerState.selectedItems.length > 0 ? selectionDockHeight + 24 + 24 : 24,
+          },
+        ]}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.settingsSummaryPanel}>
-          <Text style={styles.settingsSummaryTitle}>
-            {pickerState.selectedItems.length} selected
-          </Text>
-          <Text style={styles.settingsSummaryMeta}>
-            Pick songs, standalone clips, or clip versions. When you finish, they will be added back to the playlist.
-          </Text>
-        </View>
-
         {!workspace ? (
           <View style={styles.listContent}>
             {workspaces.map((candidate) => (
@@ -885,18 +987,24 @@ function PlaylistPickerView({
         ) : null}
       </ScrollView>
 
-      <View style={styles.libraryPickerFooter}>
-        <Button
-          label={
-            pickerState.selectedItems.length > 0
-              ? `Add ${pickerState.selectedItems.length} Item${pickerState.selectedItems.length === 1 ? "" : "s"}`
-              : "Add Items"
-          }
-          onPress={onConfirm}
-          disabled={pickerState.selectedItems.length === 0}
-        />
-        <Button label="Cancel" variant="secondary" onPress={onCancel} />
-      </View>
+      {pickerState.selectedItems.length > 0 ? (
+        <>
+          <SelectionDock
+            count={pickerState.selectedItems.length}
+            actions={selectionDockActions}
+            onDone={onCancel}
+            onLayout={(height) => {
+              setSelectionDockHeight((prev) => (Math.abs(prev - height) < 1 ? prev : height));
+            }}
+          />
+          <SelectionActionSheet
+            visible={selectionMoreVisible}
+            title="Playlist picker actions"
+            actions={selectionSheetActions}
+            onClose={() => setSelectionMoreVisible(false)}
+          />
+        </>
+      ) : null}
     </View>
   );
 }

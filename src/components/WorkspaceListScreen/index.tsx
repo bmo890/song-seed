@@ -1,5 +1,5 @@
-import React, { useMemo, useState } from "react";
-import { Alert, Pressable, Text, View } from "react-native";
+import React, { useEffect, useMemo, useState } from "react";
+import { Alert, Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar as ExpoStatusBar } from "expo-status-bar";
 import { Ionicons } from "@expo/vector-icons";
@@ -10,6 +10,8 @@ import { WorkspaceModal } from "../modals/WorkspaceModal";
 import { ClipboardBanner } from "../ClipboardBanner";
 import { ScreenHeader } from "../common/ScreenHeader";
 import { Button } from "../common/Button";
+import { SelectionActionSheet } from "../common/SelectionActionSheet";
+import { SelectionDock, type SelectionAction } from "../common/SelectionDock";
 import { SectionHeader } from "../common/SectionHeader";
 import { SegmentedControl } from "../common/SegmentedControl";
 import { FilterSortControls } from "../common/FilterSortControls";
@@ -28,7 +30,6 @@ function defaultWorkspaceTitle() {
 }
 
 export function WorkspaceListScreen() {
-  useBrowseRootBackHandler();
   const workspaces = useStore((s) => s.workspaces);
   const primaryWorkspaceId = useStore((s) => s.primaryWorkspaceId);
   const setPrimaryWorkspaceId = useStore((s) => s.setPrimaryWorkspaceId);
@@ -47,6 +48,9 @@ export function WorkspaceListScreen() {
   const [viewingArchived, setViewingArchived] = useState(false);
   const [busyWorkspaceId, setBusyWorkspaceId] = useState<string | null>(null);
   const [busyAction, setBusyAction] = useState<"archive" | "restore" | null>(null);
+  const [selectedWorkspaceIds, setSelectedWorkspaceIds] = useState<string[]>([]);
+  const [selectionMoreVisible, setSelectionMoreVisible] = useState(false);
+  const [selectionDockHeight, setSelectionDockHeight] = useState(120);
 
   const editingWorkspace = useMemo(
     () => workspaces.find((workspace) => workspace.id === editId) ?? null,
@@ -72,10 +76,57 @@ export function WorkspaceListScreen() {
   ];
   const busyLabel = busyAction === "archive" ? "ARCHIVING" : busyAction === "restore" ? "RESTORING" : null;
   const activeWorkspaceCount = workspaces.filter((workspace) => !workspace.isArchived).length;
+  const selectionMode = selectedWorkspaceIds.length > 0;
+  const selectableWorkspaceIds = filteredWorkspaces.map((workspace) => workspace.id);
+  const selectedWorkspaces = useMemo(
+    () => workspaces.filter((workspace) => selectedWorkspaceIds.includes(workspace.id)),
+    [selectedWorkspaceIds, workspaces]
+  );
+  const singleSelectedWorkspace = selectedWorkspaces.length === 1 ? selectedWorkspaces[0] ?? null : null;
+  const allSelectableSelected =
+    selectableWorkspaceIds.length > 0 &&
+    selectableWorkspaceIds.every((workspaceId) => selectedWorkspaceIds.includes(workspaceId));
+  const canDeselectAll =
+    allSelectableSelected || (selectableWorkspaceIds.length === 0 && selectedWorkspaceIds.length > 0);
+
+  useBrowseRootBackHandler({
+    onBack: () => {
+      if (selectedWorkspaceIds.length > 0) {
+        setSelectedWorkspaceIds([]);
+        setSelectionMoreVisible(false);
+        return;
+      }
+    },
+  });
+
+  useEffect(() => {
+    const visibleWorkspaceIdSet = new Set(filteredWorkspaces.map((workspace) => workspace.id));
+    setSelectedWorkspaceIds((prev) => {
+      const next = prev.filter((workspaceId) => visibleWorkspaceIdSet.has(workspaceId));
+      if (next.length === prev.length && next.every((workspaceId, index) => workspaceId === prev[index])) {
+        return prev;
+      }
+      return next;
+    });
+  }, [filteredWorkspaces]);
 
   function closeModal() {
     setModalOpen(false);
     setEditId(null);
+  }
+
+  function openWorkspaceActions(workspaceId: string) {
+    if (busyWorkspaceId) return;
+    setEditId(workspaceId);
+    setModalOpen(true);
+  }
+
+  function toggleWorkspaceSelection(workspaceId: string) {
+    setSelectedWorkspaceIds((prev) =>
+      prev.includes(workspaceId)
+        ? prev.filter((candidateId) => candidateId !== workspaceId)
+        : [...prev, workspaceId]
+    );
   }
 
   async function runArchiveWorkspace(workspaceId: string) {
@@ -119,6 +170,107 @@ export function WorkspaceListScreen() {
       setBusyWorkspaceId(null);
       setBusyAction(null);
     }
+  }
+
+  async function runSelectionWorkspaceArchive(action: "archive" | "restore") {
+    if (selectedWorkspaces.length === 0) return;
+
+    if (action === "archive" && activeWorkspaceCount - selectedWorkspaces.length < 1) {
+      Alert.alert("Cannot archive", "You must keep at least one active workspace.");
+      return;
+    }
+
+    setBusyWorkspaceId("__selection__");
+    setBusyAction(action);
+    setSelectionMoreVisible(false);
+
+    const successes: string[] = [];
+    const failures: string[] = [];
+
+    try {
+      for (const workspace of selectedWorkspaces) {
+        try {
+          if (action === "archive") {
+            await appActions.archiveWorkspace(workspace.id);
+          } else {
+            await appActions.unarchiveWorkspace(workspace.id);
+          }
+          successes.push(workspace.title);
+        } catch (error) {
+          failures.push(
+            `${workspace.title}: ${error instanceof Error ? error.message : `Could not ${action} this workspace.`}`
+          );
+        }
+      }
+    } finally {
+      setBusyWorkspaceId(null);
+      setBusyAction(null);
+      setSelectedWorkspaceIds([]);
+    }
+
+    if (failures.length > 0) {
+      Alert.alert(
+        action === "archive" ? "Archive incomplete" : "Restore incomplete",
+        [
+          successes.length > 0
+            ? `${successes.length} workspace${successes.length === 1 ? "" : "s"} ${action === "archive" ? "archived" : "restored"}.`
+            : null,
+          failures.join("\n"),
+        ]
+          .filter(Boolean)
+          .join("\n\n")
+      );
+      return;
+    }
+
+    Alert.alert(
+      action === "archive" ? "Workspaces archived" : "Workspaces restored",
+      `${successes.length} workspace${successes.length === 1 ? "" : "s"} ${action === "archive" ? "archived" : "restored"}.`
+    );
+  }
+
+  function confirmArchiveSelection(action: "archive" | "restore") {
+    if (selectedWorkspaces.length === 0 || busyWorkspaceId) return;
+
+    Alert.alert(
+      action === "archive" ? "Archive workspaces?" : "Unarchive workspaces?",
+      action === "archive"
+        ? `Archive ${selectedWorkspaces.length} selected workspace${selectedWorkspaces.length === 1 ? "" : "s"}?`
+        : `Restore ${selectedWorkspaces.length} selected workspace${selectedWorkspaces.length === 1 ? "" : "s"}?`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: action === "archive" ? "Archive" : "Unarchive",
+          onPress: () => {
+            void runSelectionWorkspaceArchive(action);
+          },
+        },
+      ]
+    );
+  }
+
+  function confirmDeleteSelection() {
+    if (selectedWorkspaces.length === 0 || busyWorkspaceId) return;
+    const deletingAllActiveSelection = !viewingArchived && activeWorkspaceCount <= selectedWorkspaces.length;
+
+    Alert.alert(
+      "Delete workspaces?",
+      deletingAllActiveSelection
+        ? `This will permanently delete ${selectedWorkspaces.length} workspace${selectedWorkspaces.length === 1 ? "" : "s"}. Song Seed will create a fresh empty workspace so the app still has an active home context. This cannot be undone.`
+        : `This will permanently delete ${selectedWorkspaces.length} workspace${selectedWorkspaces.length === 1 ? "" : "s"}. This cannot be undone.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete permanently",
+          style: "destructive",
+          onPress: () => {
+            selectedWorkspaces.forEach((workspace) => deleteWorkspace(workspace.id));
+            setSelectedWorkspaceIds([]);
+            setSelectionMoreVisible(false);
+          },
+        },
+      ]
+    );
   }
 
   function confirmArchiveWorkspace(workspace: Workspace) {
@@ -189,6 +341,95 @@ export function WorkspaceListScreen() {
     : primaryWorkspaceId
       ? "Your primary workspace stays first. The rest follow your chosen order."
       : "Choose a workspace to continue. Archived workspaces are kept separately.";
+  const selectionDockActions: SelectionAction[] = singleSelectedWorkspace
+    ? viewingArchived
+      ? [
+          {
+            key: "rename",
+            label: "Rename",
+            icon: "create-outline",
+            onPress: () => {
+              openWorkspaceActions(singleSelectedWorkspace.id);
+              setSelectedWorkspaceIds([]);
+            },
+          },
+          {
+            key: "restore",
+            label: "Unarchive",
+            icon: "arrow-up-circle-outline",
+            onPress: () => confirmArchiveSelection("restore"),
+          },
+          {
+            key: "more",
+            label: "More",
+            icon: "ellipsis-horizontal",
+            onPress: () => setSelectionMoreVisible(true),
+          },
+        ]
+      : [
+          {
+            key: "rename",
+            label: "Rename",
+            icon: "create-outline",
+            onPress: () => {
+              openWorkspaceActions(singleSelectedWorkspace.id);
+              setSelectedWorkspaceIds([]);
+            },
+          },
+          {
+            key: "primary",
+            label: primaryWorkspaceId === singleSelectedWorkspace.id ? "Unset primary" : "Set primary",
+            icon: primaryWorkspaceId === singleSelectedWorkspace.id ? "star" : "star-outline",
+            onPress: () => {
+              setPrimaryWorkspaceId(
+                primaryWorkspaceId === singleSelectedWorkspace.id ? null : singleSelectedWorkspace.id
+              );
+              setSelectedWorkspaceIds([]);
+            },
+          },
+          {
+            key: "archive",
+            label: "Archive",
+            icon: "archive-outline",
+            onPress: () => confirmArchiveSelection("archive"),
+          },
+          {
+            key: "more",
+            label: "More",
+            icon: "ellipsis-horizontal",
+            onPress: () => setSelectionMoreVisible(true),
+          },
+        ]
+    : [
+        {
+          key: viewingArchived ? "restore" : "archive",
+          label: viewingArchived ? "Unarchive" : "Archive",
+          icon: viewingArchived ? "arrow-up-circle-outline" : "archive-outline",
+          onPress: () => confirmArchiveSelection(viewingArchived ? "restore" : "archive"),
+        },
+        {
+          key: "more",
+          label: "More",
+          icon: "ellipsis-horizontal",
+          onPress: () => setSelectionMoreVisible(true),
+        },
+      ];
+  const selectionSheetActions: SelectionAction[] = [
+    {
+      key: "select-all",
+      label: canDeselectAll ? "Deselect all" : "Select all",
+      icon: canDeselectAll ? "remove-circle-outline" : "checkmark-circle-outline",
+      onPress: () => setSelectedWorkspaceIds(canDeselectAll ? [] : selectableWorkspaceIds),
+      disabled: !canDeselectAll && selectableWorkspaceIds.length === 0,
+    },
+    {
+      key: "delete",
+      label: "Delete",
+      icon: "trash-outline",
+      tone: "danger",
+      onPress: confirmDeleteSelection,
+    },
+  ];
 
   return (
     <SafeAreaView style={styles.screen}>
@@ -207,96 +448,127 @@ export function WorkspaceListScreen() {
         />
       ) : null}
 
-      <Text style={styles.subtitle}>{subtitle}</Text>
-
-      <SegmentedControl
-        options={[
-          { key: "active", label: "Active" },
-          { key: "archived", label: "Archived" },
+      <ScrollView
+        style={styles.flexFill}
+        contentContainerStyle={[
+          styles.libraryScrollContent,
+          {
+            paddingBottom: selectionMode ? selectionDockHeight + 24 + 24 : 24,
+          },
         ]}
-        selectedKey={viewingArchived ? "archived" : "active"}
-        onSelect={(value) => setViewingArchived(value === "archived")}
-      />
+        showsVerticalScrollIndicator={false}
+      >
+        <Text style={styles.subtitle}>{subtitle}</Text>
 
-      <View style={styles.inputRow}>
-        <Button
-          label="New Workspace"
-          disabled={!!busyWorkspaceId}
-          onPress={() => {
-            setEditId(null);
-            setModalOpen(true);
+        <SegmentedControl
+          options={[
+            { key: "active", label: "Active" },
+            { key: "archived", label: "Archived" },
+          ]}
+          selectedKey={viewingArchived ? "archived" : "active"}
+          onSelect={(value) => setViewingArchived(value === "archived")}
+        />
+
+        {!selectionMode ? (
+          <View style={styles.inputRow}>
+            <Button
+              label="New Workspace"
+              disabled={!!busyWorkspaceId}
+              onPress={() => {
+                setEditId(null);
+                setModalOpen(true);
+              }}
+            />
+          </View>
+        ) : null}
+
+        <SectionHeader title={viewingArchived ? "Archived Workspaces" : "Active Workspaces"} />
+
+        <FilterSortControls
+          sort={{
+            active: workspaceListOrder !== "last-worked",
+            valueIcon: workspaceOrderState.icon,
+            direction: workspaceOrderState.direction,
+            renderMenu: ({ close }) => (
+              <View style={styles.ideasDropdownSectionStack}>
+                <Text style={styles.ideasDropdownSectionToggleText}>Order</Text>
+                {workspaceOrderOptions.map((option) => {
+                  const active = option.key === workspaceListOrder;
+                  return (
+                    <Pressable
+                      key={option.key}
+                      style={({ pressed }) => [
+                        styles.ideasSortMenuItem,
+                        active ? styles.ideasSortMenuItemActive : null,
+                        pressed ? styles.pressDown : null,
+                      ]}
+                      onPress={() => {
+                        setWorkspaceListOrder(option.key);
+                        close();
+                      }}
+                    >
+                      <View style={styles.ideasMenuItemLead}>
+                        <Ionicons
+                          name={option.icon as any}
+                          size={15}
+                          color={active ? "#0f172a" : "#64748b"}
+                        />
+                        <Text
+                          style={[
+                            styles.ideasSortMenuItemText,
+                            active ? styles.ideasSortMenuItemTextActive : null,
+                          ]}
+                        >
+                          {option.label}
+                        </Text>
+                      </View>
+                      {active ? <Ionicons name="checkmark" size={15} color="#0f172a" /> : null}
+                    </Pressable>
+                  );
+                })}
+              </View>
+            ),
           }}
         />
-      </View>
 
-      <SectionHeader title={viewingArchived ? "Archived Workspaces" : "Active Workspaces"} />
+        <WorkspaceList
+          workspaces={filteredWorkspaces}
+          primaryWorkspaceId={primaryWorkspaceId}
+          editingWorkspaceId={editId}
+          busyWorkspaceId={busyWorkspaceId}
+          busyLabel={busyLabel}
+          selectionMode={selectionMode}
+          selectedWorkspaceIds={selectedWorkspaceIds}
+          onToggleSelection={toggleWorkspaceSelection}
+          onTogglePrimaryWorkspace={(workspaceId) => {
+            setPrimaryWorkspaceId(primaryWorkspaceId === workspaceId ? null : workspaceId);
+          }}
+          onOpenWorkspaceActions={openWorkspaceActions}
+        />
+        {filteredWorkspaces.length === 0 ? (
+          <Text style={styles.emptyText}>
+            {viewingArchived ? "No archived workspaces yet." : "No active workspaces available."}
+          </Text>
+        ) : null}
+      </ScrollView>
 
-      <FilterSortControls
-        sort={{
-          active: workspaceListOrder !== "last-worked",
-          valueIcon: workspaceOrderState.icon,
-          direction: workspaceOrderState.direction,
-          renderMenu: ({ close }) => (
-            <View style={styles.ideasDropdownSectionStack}>
-              <Text style={styles.ideasDropdownSectionToggleText}>Order</Text>
-              {workspaceOrderOptions.map((option) => {
-                const active = option.key === workspaceListOrder;
-                return (
-                  <Pressable
-                    key={option.key}
-                    style={({ pressed }) => [
-                      styles.ideasSortMenuItem,
-                      active ? styles.ideasSortMenuItemActive : null,
-                      pressed ? styles.pressDown : null,
-                    ]}
-                    onPress={() => {
-                      setWorkspaceListOrder(option.key);
-                      close();
-                    }}
-                  >
-                    <View style={styles.ideasMenuItemLead}>
-                      <Ionicons
-                        name={option.icon as any}
-                        size={15}
-                        color={active ? "#0f172a" : "#64748b"}
-                      />
-                      <Text
-                        style={[
-                          styles.ideasSortMenuItemText,
-                          active ? styles.ideasSortMenuItemTextActive : null,
-                        ]}
-                      >
-                        {option.label}
-                      </Text>
-                    </View>
-                    {active ? <Ionicons name="checkmark" size={15} color="#0f172a" /> : null}
-                  </Pressable>
-                );
-              })}
-            </View>
-          ),
-        }}
-      />
-
-      <WorkspaceList
-        workspaces={filteredWorkspaces}
-        primaryWorkspaceId={primaryWorkspaceId}
-        editingWorkspaceId={editId}
-        busyWorkspaceId={busyWorkspaceId}
-        busyLabel={busyLabel}
-        onTogglePrimaryWorkspace={(workspaceId) => {
-          setPrimaryWorkspaceId(primaryWorkspaceId === workspaceId ? null : workspaceId);
-        }}
-        onEditWorkspace={(id) => {
-          if (busyWorkspaceId) return;
-          setEditId(id);
-          setModalOpen(true);
-        }}
-      />
-      {filteredWorkspaces.length === 0 ? (
-        <Text style={styles.emptyText}>
-          {viewingArchived ? "No archived workspaces yet." : "No active workspaces available."}
-        </Text>
+      {selectionMode ? (
+        <>
+          <SelectionDock
+            count={selectedWorkspaceIds.length}
+            actions={selectionDockActions}
+            onDone={() => setSelectedWorkspaceIds([])}
+            onLayout={(height) => {
+              setSelectionDockHeight((prev) => (Math.abs(prev - height) < 1 ? prev : height));
+            }}
+          />
+          <SelectionActionSheet
+            visible={selectionMoreVisible}
+            title="Workspace actions"
+            actions={selectionSheetActions}
+            onClose={() => setSelectionMoreVisible(false)}
+          />
+        </>
       ) : null}
 
       <WorkspaceModal

@@ -120,6 +120,8 @@ export function IdeaDetailScreen() {
   const floatingBaseBottom = getFloatingActionDockBottomOffset(insets.bottom);
   const songPageBaseBottomPadding = 24 + Math.max(insets.bottom, 16);
   const clipListFooterSpacerHeight = getFloatingActionDockContentClearance(insets.bottom);
+  const [selectionDockHeight, setSelectionDockHeight] = useState(120);
+  const clipSelectionFooterSpacerHeight = selectionDockHeight + 24 + Math.max(insets.bottom, 12);
 
   const [isEditMode, setIsEditMode] = useState(false);
   const [clipViewMode, setClipViewMode] = useState<"timeline" | "evolution">("evolution");
@@ -852,6 +854,9 @@ export function IdeaDetailScreen() {
         <SelectionBars
           onStartSetParent={handleStartSetParent}
           onMakeRoot={handleMakeRoot}
+          onDockLayout={(height) => {
+            setSelectionDockHeight((prev) => (Math.abs(prev - height) < 1 ? prev : height));
+          }}
         />
       )}
       {songTabs}
@@ -884,7 +889,9 @@ export function IdeaDetailScreen() {
             footerSpacerHeight={
               selectedIdea.kind === "project" && !isEditMode && !clipSelectionMode && !parentPickState
                 ? clipListFooterSpacerHeight
-                : songPageBaseBottomPadding
+                : clipSelectionMode
+                  ? clipSelectionFooterSpacerHeight
+                  : songPageBaseBottomPadding
             }
           />
         </View>
@@ -909,7 +916,7 @@ export function IdeaDetailScreen() {
           onStartSetParent={handleStartSetParent}
           onMakeRoot={handleMakeRoot}
           onPickParentTarget={handlePickParentTarget}
-          footerSpacerHeight={songPageBaseBottomPadding}
+          footerSpacerHeight={clipSelectionMode ? clipSelectionFooterSpacerHeight : songPageBaseBottomPadding}
         />
       ) : null}
       {selectedIdea.kind === "project" &&

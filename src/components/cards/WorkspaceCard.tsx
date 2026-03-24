@@ -12,11 +12,14 @@ type Props = {
   isActive: boolean;
   isPrimary: boolean;
   isEditing: boolean;
+  isSelected?: boolean;
+  selectionMode?: boolean;
   isBusy?: boolean;
   busyLabel?: string;
   onPress: () => void;
   onLongPress: () => void;
   onTogglePrimary: () => void;
+  onOpenActions?: () => void;
 };
 
 export function WorkspaceCard({
@@ -24,11 +27,14 @@ export function WorkspaceCard({
   isActive,
   isPrimary,
   isEditing,
+  isSelected = false,
+  selectionMode = false,
   isBusy = false,
   busyLabel,
   onPress,
   onLongPress,
   onTogglePrimary,
+  onOpenActions,
 }: Props) {
   const [sizeBytes, setSizeBytes] = useState<number>(0);
   const topLevelCollectionCount = workspace.collections.filter((collection) => !collection.parentCollectionId).length;
@@ -76,7 +82,19 @@ export function WorkspaceCard({
       onLongPress={onLongPress}
     >
       <View style={styles.cardTop}>
-        <View style={styles.cardTitleRow}>
+        <View style={selectionMode ? styles.cardTitleRowCompact : styles.cardTitleRow}>
+          {selectionMode ? (
+            <View style={styles.cardSelectionLead}>
+              <View
+                style={[
+                  styles.selectionIndicatorCircle,
+                  isSelected ? styles.selectionIndicatorActive : null,
+                ]}
+              >
+                {isSelected ? <Text style={styles.selectionBadgeText}>✓</Text> : null}
+              </View>
+            </View>
+          ) : null}
           <Ionicons
             name={getHierarchyIconName("workspace")}
             size={16}
@@ -95,7 +113,7 @@ export function WorkspaceCard({
             <Text style={[styles.badge, styles.badgeCurrent]}>CURRENT</Text>
           ) : null}
 
-          {!workspace.isArchived ? (
+          {!workspace.isArchived && !selectionMode ? (
             <Pressable
               style={({ pressed }) => [
                 styles.workspacePrimaryButton,
@@ -114,6 +132,23 @@ export function WorkspaceCard({
                 size={14}
                 color={isPrimary ? "#c58b18" : "#94a3b8"}
               />
+            </Pressable>
+          ) : null}
+
+          {!selectionMode && onOpenActions ? (
+            <Pressable
+              style={({ pressed }) => [
+                styles.collectionInlineActionBtn,
+                pressed ? styles.pressDown : null,
+              ]}
+              onPress={(event) => {
+                event.stopPropagation();
+                onOpenActions();
+              }}
+              accessibilityRole="button"
+              accessibilityLabel={`Open actions for ${workspace.title}`}
+            >
+              <Ionicons name="ellipsis-horizontal" size={15} color="#64748b" />
             </Pressable>
           ) : null}
         </View>

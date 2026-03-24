@@ -7,23 +7,29 @@ import { useStore } from "../../state/useStore";
 import { Workspace } from "../../types";
 
 type Props = {
-  onEditWorkspace: (id: string) => void;
+  onOpenWorkspaceActions: (id: string) => void;
   onTogglePrimaryWorkspace: (id: string) => void;
   editingWorkspaceId: string | null;
   primaryWorkspaceId: string | null;
   workspaces: Workspace[];
   busyWorkspaceId?: string | null;
   busyLabel?: string | null;
+  selectionMode?: boolean;
+  selectedWorkspaceIds?: string[];
+  onToggleSelection?: (id: string) => void;
 };
 
 export function WorkspaceList({
-  onEditWorkspace,
+  onOpenWorkspaceActions,
   onTogglePrimaryWorkspace,
   editingWorkspaceId,
   primaryWorkspaceId,
   workspaces,
   busyWorkspaceId,
   busyLabel,
+  selectionMode = false,
+  selectedWorkspaceIds = [],
+  onToggleSelection,
 }: Props) {
   const navigation = useNavigation();
   const activeWorkspaceId = useStore((s) => s.activeWorkspaceId);
@@ -38,12 +44,18 @@ export function WorkspaceList({
           isActive={workspace.id === activeWorkspaceId}
           isPrimary={workspace.id === primaryWorkspaceId}
           isEditing={workspace.id === editingWorkspaceId}
+          isSelected={selectedWorkspaceIds.includes(workspace.id)}
+          selectionMode={selectionMode}
           isBusy={workspace.id === busyWorkspaceId}
           busyLabel={workspace.id === busyWorkspaceId ? busyLabel ?? undefined : undefined}
           onPress={() => {
             if (workspace.id === busyWorkspaceId) return;
+            if (selectionMode) {
+              onToggleSelection?.(workspace.id);
+              return;
+            }
             if (workspace.isArchived) {
-              onEditWorkspace(workspace.id);
+              onOpenWorkspaceActions(workspace.id);
               return;
             }
             setActiveWorkspaceId(workspace.id);
@@ -51,9 +63,17 @@ export function WorkspaceList({
           }}
           onLongPress={() => {
             if (workspace.id === busyWorkspaceId) return;
-            onEditWorkspace(workspace.id);
+            if (selectionMode) {
+              onToggleSelection?.(workspace.id);
+              return;
+            }
+            onToggleSelection?.(workspace.id);
           }}
           onTogglePrimary={() => onTogglePrimaryWorkspace(workspace.id)}
+          onOpenActions={() => {
+            if (workspace.id === busyWorkspaceId) return;
+            onOpenWorkspaceActions(workspace.id);
+          }}
         />
       ))}
     </View>

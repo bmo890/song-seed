@@ -192,7 +192,7 @@ export function IdeaListScreen() {
   const [collectionActionsOpen, setCollectionActionsOpen] = useState(false);
   const [collectionRenameModalOpen, setCollectionRenameModalOpen] = useState(false);
   const [collectionDraft, setCollectionDraft] = useState("");
-  const [collectionMoveModalOpen, setCollectionMoveModalOpen] = useState(false);
+  const [collectionDestinationMode, setCollectionDestinationMode] = useState<"move" | "copy" | null>(null);
   const [selectedMoveWorkspaceId, setSelectedMoveWorkspaceId] = useState<string | null>(null);
   const [selectedMoveParentCollectionId, setSelectedMoveParentCollectionId] = useState<string | null>(null);
   const [nestedCollectionsExpanded, setNestedCollectionsExpanded] = useState(false);
@@ -647,6 +647,7 @@ export function IdeaListScreen() {
   useEffect(() => {
     if (isFocused) return;
     void inlinePlayer.resetInlinePlayer();
+    useStore.getState().cancelListSelection();
   }, [inlinePlayer, isFocused]);
 
   const showUndo = (message: string, undo: () => void) => {
@@ -1307,11 +1308,11 @@ export function IdeaListScreen() {
   }, [activeWorkspaceId, managedCollection, workspaces]);
 
   useEffect(() => {
-    if (!collectionMoveModalOpen) return;
+    if (!collectionDestinationMode) return;
     const firstDestination = moveDestinations[0] ?? null;
     setSelectedMoveWorkspaceId(firstDestination?.workspaceId ?? null);
     setSelectedMoveParentCollectionId(firstDestination?.parentCollectionId ?? null);
-  }, [collectionMoveModalOpen, moveDestinations]);
+  }, [collectionDestinationMode, moveDestinations]);
 
   const goToBrowse = () => {
     (rootNavigation ?? navigation).navigate("Home" as never, { screen: "Browse" } as never);
@@ -1343,7 +1344,23 @@ export function IdeaListScreen() {
       );
       return;
     }
-    setCollectionMoveModalOpen(true);
+    setCollectionDestinationMode("move");
+  };
+
+  const openCopyCollection = () => {
+    if (!managedCollection) return;
+    setHeaderMenuOpen(false);
+    setCollectionActionsOpen(false);
+    if (moveDestinations.length === 0) {
+      Alert.alert(
+        "No copy targets",
+        managedCollectionHasChildren
+          ? "This collection already has subcollections, so it can only be copied to the top level."
+          : "There are no valid collection destinations available right now."
+      );
+      return;
+    }
+    setCollectionDestinationMode("copy");
   };
 
   const confirmDeleteCollection = () => {
@@ -1371,21 +1388,32 @@ export function IdeaListScreen() {
     );
   };
 
-  const submitCollectionMove = () => {
+  const submitCollectionDestination = () => {
     if (!managedCollection || !selectedMoveWorkspaceId) return;
 
-    const result = moveCollection(
-      managedCollection.id,
-      selectedMoveWorkspaceId,
-      selectedMoveParentCollectionId
-    );
+    const result =
+      collectionDestinationMode === "copy"
+        ? appActions.copyCollection(
+            managedCollection.id,
+            selectedMoveWorkspaceId,
+            selectedMoveParentCollectionId
+          )
+        : moveCollection(
+            managedCollection.id,
+            selectedMoveWorkspaceId,
+            selectedMoveParentCollectionId
+          );
 
     if (!result.ok) {
-      Alert.alert("Move failed", result.error ?? "Could not move this collection.");
+      Alert.alert(
+        collectionDestinationMode === "copy" ? "Copy failed" : "Move failed",
+        result.error ??
+          `Could not ${collectionDestinationMode === "copy" ? "copy" : "move"} this collection.`
+      );
       return;
     }
 
-    setCollectionMoveModalOpen(false);
+    setCollectionDestinationMode(null);
     setManagedCollectionId(null);
   };
 
@@ -1529,7 +1557,6 @@ export function IdeaListScreen() {
         listSelectionMode={listSelectionMode}
         selectedHiddenIdeaIds={selectedHiddenIdeaIds}
         selectedClipIdeasCount={selectedClipIdeasInList.length}
-        selectedProjectsCount={selectedProjectsInList.length}
         selectableIdeaIds={selectableIdeaIds}
         selectedHiddenOnly={selectedHiddenOnly}
         selectedInteractiveIdeasCount={selectedInteractiveIdeas.length}
@@ -1564,6 +1591,7 @@ export function IdeaListScreen() {
         visible={collectionActionsOpen}
         title={managedCollection?.title ?? "Collection"}
         onRename={openRenameCollection}
+        onCopy={openCopyCollection}
         onMove={openMoveCollection}
         onDelete={confirmDeleteCollection}
         onCancel={() => {
@@ -1645,13 +1673,22 @@ export function IdeaListScreen() {
       />
 
       <CollectionMoveModal
-        visible={collectionMoveModalOpen}
-        title={managedCollection?.parentCollectionId ? "Move Subcollection" : "Move Collection"}
+        visible={!!collectionDestinationMode}
+        title={
+          collectionDestinationMode === "copy"
+            ? managedCollection?.parentCollectionId
+              ? "Copy Subcollection"
+              : "Copy Collection"
+            : managedCollection?.parentCollectionId
+              ? "Move Subcollection"
+              : "Move Collection"
+        }
         helperText={
           managedCollectionHasChildren
-            ? "Collections that already contain subcollections can only be moved to the top level."
-            : "Choose the destination for this collection."
+            ? `Collections that already contain subcollections can only be ${collectionDestinationMode === "copy" ? "copied" : "moved"} to the top level.`
+            : `Choose where to ${collectionDestinationMode === "copy" ? "copy" : "move"} this collection.`
         }
+        confirmLabel={collectionDestinationMode === "copy" ? "Copy" : "Move"}
         destinations={moveDestinations}
         selectedWorkspaceId={selectedMoveWorkspaceId}
         selectedParentCollectionId={selectedMoveParentCollectionId}
@@ -1660,12 +1697,12 @@ export function IdeaListScreen() {
           setSelectedMoveParentCollectionId(parentCollectionId);
         }}
         onCancel={() => {
-          setCollectionMoveModalOpen(false);
+          setCollectionDestinationMode(null);
           setSelectedMoveWorkspaceId(null);
           setSelectedMoveParentCollectionId(null);
           setManagedCollectionId(null);
         }}
-        onConfirm={submitCollectionMove}
+        onConfirm={submitCollectionDestination}
       />
 
 
