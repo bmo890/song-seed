@@ -426,6 +426,7 @@ export const appActions = {
         state.setSelectedIdeaId(createdId);
         state.setEditingIdeaId(createdId);
         state.setPendingPrimaryClipId(null);
+        return createdId;
     },
 
     quickRecordIdea: (collectionId: string) => {

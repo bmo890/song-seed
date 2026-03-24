@@ -79,6 +79,172 @@ import { useStore } from "./src/state/useStore";
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const Drawer = createDrawerNavigator<HomeDrawerParamList>();
+const HOME_DRAWER_ROUTE_NAMES: Array<keyof HomeDrawerParamList> = [
+  "Workspaces",
+  "Browse",
+  "CollectionDetail",
+  "RevisitHome",
+  "ActivityHome",
+  "TunerHome",
+  "MetronomeHome",
+  "LibraryHome",
+  "SettingsHome",
+];
+const ROOT_STACK_ROUTE_NAMES: Array<keyof RootStackParamList> = [
+  "Home",
+  "Activity",
+  "IdeaDetail",
+  "Recording",
+  "Player",
+  "ShareImport",
+  "Editor",
+  "Lyrics",
+  "LyricsVersion",
+  "ClipLineage",
+];
+
+function createHomeRoute(
+  screen: keyof HomeDrawerParamList = "Workspaces",
+  params?: HomeDrawerParamList[keyof HomeDrawerParamList]
+): any {
+  const routes = HOME_DRAWER_ROUTE_NAMES.map((routeName) =>
+    routeName === screen && params !== undefined ? { name: routeName, params } : { name: routeName }
+  );
+
+  return {
+    name: "Home" as const,
+    state: {
+      type: "drawer" as const,
+      index: Math.max(0, HOME_DRAWER_ROUTE_NAMES.indexOf(screen)),
+      routeNames: HOME_DRAWER_ROUTE_NAMES,
+      routes,
+    },
+  };
+}
+
+function isValidRestorableRootRoute(route: any) {
+  if (!route || typeof route.name !== "string") return false;
+
+  switch (route.name) {
+    case "Home":
+    case "Activity":
+    case "Recording":
+    case "Player":
+      return true;
+    case "IdeaDetail":
+      return typeof route.params?.ideaId === "string" && route.params.ideaId.length > 0;
+    case "Editor":
+      return (
+        typeof route.params?.ideaId === "string" &&
+        route.params.ideaId.length > 0 &&
+        typeof route.params?.clipId === "string" &&
+        route.params.clipId.length > 0
+      );
+    case "Lyrics":
+      return typeof route.params?.ideaId === "string" && route.params.ideaId.length > 0;
+    case "LyricsVersion":
+      return typeof route.params?.ideaId === "string" && route.params.ideaId.length > 0;
+    case "ClipLineage":
+      return (
+        typeof route.params?.ideaId === "string" &&
+        route.params.ideaId.length > 0 &&
+        typeof route.params?.rootClipId === "string" &&
+        route.params.rootClipId.length > 0
+      );
+    default:
+      return false;
+  }
+}
+
+function normalizeHomeDrawerRoute(route: any): any {
+  if (!route || route.name !== "Home") {
+    return route;
+  }
+
+  if (route.params?.screen && typeof route.params.screen === "string") {
+    const targetScreen = route.params.screen as keyof HomeDrawerParamList;
+    const targetParams = route.params.params;
+    if (HOME_DRAWER_ROUTE_NAMES.includes(targetScreen)) {
+      return createHomeRoute(targetScreen, targetParams);
+    }
+  }
+
+  const state = route.state;
+  if (!state?.routes?.length) {
+    return createHomeRoute("Workspaces");
+  }
+
+  const existingByName = new Map<string, any>();
+  state.routes.forEach((childRoute: any) => {
+    if (childRoute?.name) {
+      existingByName.set(childRoute.name, childRoute);
+    }
+  });
+  const currentRoute = state.routes[state.index ?? 0];
+  const currentRouteName = HOME_DRAWER_ROUTE_NAMES.includes(currentRoute?.name)
+    ? currentRoute.name
+    : "Workspaces";
+  const normalizedRoutes = HOME_DRAWER_ROUTE_NAMES.map((routeName) => {
+    const existingRoute = existingByName.get(routeName);
+    return existingRoute ? { ...existingRoute } : { name: routeName };
+  });
+
+  return {
+    ...route,
+    state: {
+      ...state,
+      stale: false,
+      type: "drawer",
+      routeNames: HOME_DRAWER_ROUTE_NAMES,
+      routes: normalizedRoutes,
+      index: Math.max(0, HOME_DRAWER_ROUTE_NAMES.indexOf(currentRouteName)),
+    },
+  };
+}
+
+function sanitizeNavigationState(state: InitialState | undefined): InitialState | undefined {
+  if (!state?.routes?.length) return state;
+
+  const normalizedRoutes = state.routes
+    .map((route) => {
+      if (route.name === "Tuner") {
+        return createHomeRoute("TunerHome");
+      }
+
+      if (route.name === "Metronome") {
+        return createHomeRoute("MetronomeHome");
+      }
+
+      if (route.name === "Home") {
+        return normalizeHomeDrawerRoute(route);
+      }
+
+      return route;
+    })
+    .filter(Boolean);
+
+  const homeRouteIndexes = normalizedRoutes
+    .map((route, index) => (route.name === "Home" ? index : -1))
+    .filter((index) => index >= 0);
+  const lastHomeIndex = homeRouteIndexes[homeRouteIndexes.length - 1] ?? -1;
+  const lastHomeRoute =
+    (lastHomeIndex >= 0 ? normalizedRoutes[lastHomeIndex] : null) ?? createHomeRoute("Workspaces");
+  const trailingRoutes =
+    lastHomeIndex >= 0
+      ? normalizedRoutes
+          .slice(lastHomeIndex + 1)
+          .filter((route) => route.name !== "Home" && isValidRestorableRootRoute(route))
+      : [];
+  const routes = [lastHomeRoute, ...trailingRoutes];
+
+  return {
+    ...state,
+    type: "stack",
+    routeNames: ROOT_STACK_ROUTE_NAMES,
+    routes,
+    index: routes.length - 1,
+  };
+}
 
 function getActiveWorkspaceRouteContext(args: {
   deepestRouteName: string;
@@ -312,62 +478,7 @@ function shouldPersistNavigationState(state: InitialState | undefined) {
 }
 
 function normalizeRestoredNavigationState(state: InitialState | undefined): InitialState | undefined {
-  if (!state?.routes?.length) return state;
-
-  return {
-    ...state,
-    routes: state.routes.map((route) => {
-      if (route.name === "Tuner") {
-        return {
-          name: "Home" as const,
-          state: {
-            stale: false,
-            type: "drawer",
-            key: "restored-tuner-drawer",
-            index: 0,
-            routeNames: [
-              "Workspaces",
-              "Browse",
-              "CollectionDetail",
-              "RevisitHome",
-              "ActivityHome",
-              "TunerHome",
-              "MetronomeHome",
-              "LibraryHome",
-              "SettingsHome",
-            ],
-            routes: [{ name: "TunerHome" as const }],
-          },
-        };
-      }
-
-      if (route.name === "Metronome") {
-        return {
-          name: "Home" as const,
-          state: {
-            stale: false,
-            type: "drawer",
-            key: "restored-metronome-drawer",
-            index: 0,
-            routeNames: [
-              "Workspaces",
-              "Browse",
-              "CollectionDetail",
-              "RevisitHome",
-              "ActivityHome",
-              "TunerHome",
-              "MetronomeHome",
-              "LibraryHome",
-              "SettingsHome",
-            ],
-            routes: [{ name: "MetronomeHome" as const }],
-          },
-        };
-      }
-
-      return route;
-    }),
-  };
+  return sanitizeNavigationState(state);
 }
 
 
@@ -494,10 +605,13 @@ function AppContent() {
   const syncNavigationState = () => {
     const rootState = navigationRef.getRootState();
     if (!rootState) return;
-    if (shouldPersistNavigationState(rootState)) {
+    const sanitizedRootState = sanitizeNavigationState(rootState);
+    if (shouldPersistNavigationState(rootState) && sanitizedRootState) {
       // Persist the last stable navigation tree so the app can reopen where the
-      // user left it instead of always dropping back to Home on relaunch.
-      void AsyncStorage.setItem(NAVIGATION_STATE_KEY, JSON.stringify(rootState));
+      // user left it instead of always dropping back to Home on relaunch. Sanitize
+      // it first so detail screens do not restore from invalid params and so the
+      // root stack does not accumulate duplicate Home routes forever.
+      void AsyncStorage.setItem(NAVIGATION_STATE_KEY, JSON.stringify(sanitizedRootState));
     }
     const deepestRoute = getDeepestRoute(rootState);
     const nextRoute = deepestRoute.name;

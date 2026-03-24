@@ -34,6 +34,7 @@ export function ClipLineageScreen() {
   const route = useRoute<ClipLineageRoute>();
   const navigation = useNavigation();
   const inlinePlayer = useInlinePlayer();
+  const inlineResetRef = useRef(inlinePlayer.resetInlinePlayer);
 
   const { ideaId, rootClipId } = route.params;
   const [sortMode, setSortMode] = useState<SortMode>("chronological");
@@ -84,15 +85,19 @@ export function ClipLineageScreen() {
     [sortedClips]
   );
 
+  useEffect(() => {
+    inlineResetRef.current = inlinePlayer.resetInlinePlayer;
+  }, [inlinePlayer.resetInlinePlayer]);
+
   // Back handler for inline player
   useEffect(() => {
     if (!inlinePlayer.inlineTarget) return;
     const handler = BackHandler.addEventListener("hardwareBackPress", () => {
-      void inlinePlayer.resetInlinePlayer();
+      void inlineResetRef.current();
       return true;
     });
     return () => handler.remove();
-  }, [inlinePlayer, inlinePlayer.inlineTarget]);
+  }, [inlinePlayer.inlineTarget]);
 
   // Tell GlobalMediaDock that inline player is visible
   const setInlinePlayerMounted = useStore((s) => s.setInlinePlayerMounted);

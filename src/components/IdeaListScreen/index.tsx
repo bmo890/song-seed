@@ -140,6 +140,7 @@ export function IdeaListScreen() {
   const setSelectedIdeaId = useStore((s) => s.setSelectedIdeaId);
 
   const inlinePlayer = useInlinePlayer();
+  const inlineResetRef = useRef(inlinePlayer.resetInlinePlayer);
   const listRef = useRef<any>(null);
   const handledFocusTokenRef = useRef<number | null>(null);
   const focusScrollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -153,13 +154,17 @@ export function IdeaListScreen() {
   }, [isFocused]);
 
   useEffect(() => {
+    inlineResetRef.current = inlinePlayer.resetInlinePlayer;
+  }, [inlinePlayer.resetInlinePlayer]);
+
+  useEffect(() => {
     if (!inlinePlayer.inlineTarget) return;
     const handler = BackHandler.addEventListener("hardwareBackPress", () => {
-      void inlinePlayer.resetInlinePlayer();
+      void inlineResetRef.current();
       return true;
     });
     return () => handler.remove();
-  }, [inlinePlayer, inlinePlayer.inlineTarget]);
+  }, [inlinePlayer.inlineTarget]);
 
   useEffect(() => {
     if (!collectionId) return;
@@ -646,9 +651,9 @@ export function IdeaListScreen() {
 
   useEffect(() => {
     if (isFocused) return;
-    void inlinePlayer.resetInlinePlayer();
+    void inlineResetRef.current();
     useStore.getState().cancelListSelection();
-  }, [inlinePlayer, isFocused]);
+  }, [isFocused]);
 
   const showUndo = (message: string, undo: () => void) => {
     if (undoTimerRef.current) {
@@ -942,7 +947,7 @@ export function IdeaListScreen() {
       useStore.getState().updateIdeas(() => previousIdeas);
     });
     setSelectedIdeaId(projectId);
-    navigateRoot("IdeaDetail");
+    navigateRoot("IdeaDetail", { ideaId: projectId });
   }
 
   const deleteSelectedIdeasWithUndo = () => {
@@ -1569,8 +1574,8 @@ export function IdeaListScreen() {
         }}
         onDeleteSelected={deleteSelectedIdeasWithUndo}
         onAddProject={() => {
-          appActions.addIdea(collectionId);
-          navigateRoot("IdeaDetail");
+          const createdIdeaId = appActions.addIdea(collectionId);
+          navigateRoot("IdeaDetail", { ideaId: createdIdeaId });
         }}
         onQuickRecord={() => {
           appActions.quickRecordIdea(collectionId);

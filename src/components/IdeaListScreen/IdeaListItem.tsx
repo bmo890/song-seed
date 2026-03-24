@@ -97,7 +97,8 @@ export function IdeaListItem({
 
     const navigation = useNavigation();
     const rootNavigation = (navigation as any).getParent?.();
-    const navigateRoot = (route: string) => (rootNavigation ?? navigation).navigate(route as never);
+    const navigateRoot = (route: string, params?: object) =>
+        (rootNavigation ?? navigation).navigate(route as never, params as never);
 
     const primaryClip = item.clips.find((c) => c.isPrimary);
     const playClip =
@@ -437,7 +438,7 @@ export function IdeaListItem({
                                 }
                                 await inlinePlayer.resetInlinePlayer();
                                 setSelectedIdeaId(item.id);
-                                navigateRoot("IdeaDetail");
+                                navigateRoot("IdeaDetail", { ideaId: item.id });
                                 }}
                                 onLongPress={() => {
                                 if (listSelectionMode) {

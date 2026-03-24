@@ -21,6 +21,7 @@ import {
   getFloatingActionDockContentClearance,
 } from "../common/FloatingActionDock";
 import { Button } from "../common/Button";
+import { ScreenHeader } from "../common/ScreenHeader";
 import { IdeaStatusProgress } from "./IdeaStatusProgress";
 import { IdeaNotes } from "./IdeaNotes";
 import { LyricsVersionsPanel } from "../LyricsScreen/LyricsVersionsPanel";
@@ -117,6 +118,9 @@ export function IdeaDetailScreen() {
   const setRecordingParentClipId = useStore((s) => s.setRecordingParentClipId);
 
   const navigation = useNavigation();
+  const rootNavigation = (navigation as any).getParent?.();
+  const navigateRoot = (route: string, params?: object) =>
+    (rootNavigation ?? navigation).navigate(route as never, params as never);
   const floatingBaseBottom = getFloatingActionDockBottomOffset(insets.bottom);
   const songPageBaseBottomPadding = 24 + Math.max(insets.bottom, 16);
   const clipListFooterSpacerHeight = getFloatingActionDockContentClearance(insets.bottom);
@@ -354,7 +358,24 @@ export function IdeaDetailScreen() {
     return unsubscribe;
   }, [navigation, isEditMode, selectedIdea?.isDraft, draftTitle, draftStatus, draftCompletion]);
 
-  if (!selectedIdea) return null;
+  if (!selectedIdea) {
+    return (
+      <SafeAreaView style={styles.screen}>
+        <ScreenHeader
+          title="Song"
+          leftIcon="back"
+          onLeftPress={() => {
+            if ((navigation as any).canGoBack?.()) {
+              (navigation as any).goBack();
+              return;
+            }
+            navigateRoot("Home", { screen: "Browse" });
+          }}
+        />
+        <Text style={styles.emptyText}>This song could not be found.</Text>
+      </SafeAreaView>
+    );
+  }
 
   const projectStatusStyle =
     selectedIdea.status === "song"

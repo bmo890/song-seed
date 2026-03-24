@@ -527,7 +527,7 @@ export function PlayerScreen() {
       return;
     }
 
-    navigation.dispatch(StackActions.push("Home"));
+    (navigation as any).navigate("Home", { screen: "Workspaces" });
   }
 
   function handleAddPin(label?: string) {

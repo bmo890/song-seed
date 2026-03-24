@@ -92,21 +92,65 @@ export const createSelectionSlice: StateCreator<
     movingClipId: null,
     setMovingClipId: (v) => set({ movingClipId: v }),
 
-    startListSelection: (ideaId) => set({ listSelectionMode: true, selectedListIdeaIds: [ideaId] }),
+    startListSelection: (ideaId) =>
+        set((state) => {
+            if (state.listSelectionMode && state.selectedListIdeaIds.length === 1 && state.selectedListIdeaIds[0] === ideaId) {
+                return state;
+            }
+            return { listSelectionMode: true, selectedListIdeaIds: [ideaId] };
+        }),
     toggleListSelection: (ideaId) => {
         const prev = get().selectedListIdeaIds;
         const next = prev.includes(ideaId) ? prev.filter((id) => id !== ideaId) : [...prev, ideaId];
         set({ listSelectionMode: next.length > 0, selectedListIdeaIds: next });
     },
-    replaceListSelection: (ideaIds) => set({ listSelectionMode: ideaIds.length > 0, selectedListIdeaIds: ideaIds }),
-    cancelListSelection: () => set({ listSelectionMode: false, selectedListIdeaIds: [] }),
+    replaceListSelection: (ideaIds) =>
+        set((state) => {
+            const sameLength = state.selectedListIdeaIds.length === ideaIds.length;
+            const sameIds = sameLength && state.selectedListIdeaIds.every((id, index) => id === ideaIds[index]);
+            const nextMode = ideaIds.length > 0;
+            if (state.listSelectionMode === nextMode && sameIds) {
+                return state;
+            }
+            return { listSelectionMode: nextMode, selectedListIdeaIds: ideaIds };
+        }),
+    // Blur handlers can call this repeatedly. Keep it idempotent so clearing an
+    // already-empty selection does not trigger another store update.
+    cancelListSelection: () =>
+        set((state) => {
+            if (!state.listSelectionMode && state.selectedListIdeaIds.length === 0) {
+                return state;
+            }
+            return { listSelectionMode: false, selectedListIdeaIds: [] };
+        }),
 
-    startClipSelection: (clipId) => set({ clipSelectionMode: true, selectedClipIds: [clipId] }),
+    startClipSelection: (clipId) =>
+        set((state) => {
+            if (state.clipSelectionMode && state.selectedClipIds.length === 1 && state.selectedClipIds[0] === clipId) {
+                return state;
+            }
+            return { clipSelectionMode: true, selectedClipIds: [clipId] };
+        }),
     toggleClipSelection: (clipId) => {
         const prev = get().selectedClipIds;
         const next = prev.includes(clipId) ? prev.filter((id) => id !== clipId) : [...prev, clipId];
         set({ clipSelectionMode: next.length > 0, selectedClipIds: next });
     },
-    replaceClipSelection: (clipIds) => set({ clipSelectionMode: clipIds.length > 0, selectedClipIds: clipIds }),
-    cancelClipSelection: () => set({ clipSelectionMode: false, selectedClipIds: [], movingClipId: null }),
+    replaceClipSelection: (clipIds) =>
+        set((state) => {
+            const sameLength = state.selectedClipIds.length === clipIds.length;
+            const sameIds = sameLength && state.selectedClipIds.every((id, index) => id === clipIds[index]);
+            const nextMode = clipIds.length > 0;
+            if (state.clipSelectionMode === nextMode && sameIds) {
+                return state;
+            }
+            return { clipSelectionMode: nextMode, selectedClipIds: clipIds };
+        }),
+    cancelClipSelection: () =>
+        set((state) => {
+            if (!state.clipSelectionMode && state.selectedClipIds.length === 0 && state.movingClipId === null) {
+                return state;
+            }
+            return { clipSelectionMode: false, selectedClipIds: [], movingClipId: null };
+        }),
 });

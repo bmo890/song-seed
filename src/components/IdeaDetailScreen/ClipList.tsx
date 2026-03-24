@@ -75,6 +75,7 @@ export function ClipList({
 }: ClipListProps) {
   const navigation = useNavigation();
   const inlinePlayer = useInlinePlayer();
+  const inlineResetRef = useRef(inlinePlayer.resetInlinePlayer);
   const [expandedLineageIds, setExpandedLineageIds] = useState<Record<string, boolean>>({});
   const [editingClipId, setEditingClipId] = useState<string | null>(null);
   const [editingClipDraft, setEditingClipDraft] = useState("");
@@ -202,13 +203,17 @@ export function ClipList({
 
 
   useEffect(() => {
+    inlineResetRef.current = inlinePlayer.resetInlinePlayer;
+  }, [inlinePlayer.resetInlinePlayer]);
+
+  useEffect(() => {
     if (!inlinePlayer.inlineTarget) return;
     const handler = BackHandler.addEventListener("hardwareBackPress", () => {
-      void inlinePlayer.resetInlinePlayer();
+      void inlineResetRef.current();
       return true;
     });
     return () => handler.remove();
-  }, [inlinePlayer, inlinePlayer.inlineTarget]);
+  }, [inlinePlayer.inlineTarget]);
 
   useEffect(() => {
     if (isParentPicking && viewMode !== "evolution") {
