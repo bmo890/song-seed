@@ -8,7 +8,7 @@ import { useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
 import { MultiTimeRangeSelector } from "../common/TimeRangeSelector";
 import { AudioAnalysis, extractAudioAnalysis, trimAudio } from "@siteed/expo-audio-studio";
 import { styles } from "../../styles";
-import { buildStaticWaveform, fmt, genClipTitle, metersToWaveformPeaks } from "../../utils";
+import { buildDefaultIdeaTitle, buildStaticWaveform, fmt, genClipTitle, metersToWaveformPeaks } from "../../utils";
 import { RootStackParamList } from "../../../App";
 import { ScreenHeader } from "../common/ScreenHeader";
 import { AppBreadcrumbs } from "../common/AppBreadcrumbs";
@@ -34,14 +34,7 @@ const NEW_REGION_FRACTION_OF_DURATION = 8;
 type EditableSelection = { id: string; start: number; end: number; type: "keep" | "remove" };
 
 function buildFallbackClipTitle() {
-    return `New Clip — ${new Date().toLocaleString("en-US", {
-        month: "2-digit",
-        day: "2-digit",
-        year: "numeric",
-        hour: "numeric",
-        minute: "2-digit",
-        hour12: true,
-    })}`;
+    return buildDefaultIdeaTitle();
 }
 
 function buildClipId() {

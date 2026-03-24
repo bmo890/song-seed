@@ -4,7 +4,7 @@ import { File } from "expo-file-system";
 import { createAudioPlayer } from "expo-audio";
 import { Platform, Share } from "react-native";
 import { extractAudioAnalysis } from "@siteed/expo-audio-studio";
-import { buildStaticWaveform, metersToWaveformPeaks } from "../utils";
+import { buildDefaultIdeaTitle, buildStaticWaveform, metersToWaveformPeaks } from "../utils";
 import { SONG_SEED_AUDIO_DIR, SONG_SEED_SHARE_DIR } from "./storagePaths";
 import { cleanupShareTempFile } from "./managedMedia";
 
@@ -576,14 +576,7 @@ function getFileExtension(name?: string, mimeType?: string | null) {
 export function buildImportedTitle(sourceName?: string) {
     const trimmed = sourceName?.trim();
     if (!trimmed) {
-        return `Imported Clip — ${new Date().toLocaleString("en-US", {
-            month: "2-digit",
-            day: "2-digit",
-            year: "numeric",
-            hour: "numeric",
-            minute: "2-digit",
-            hour12: true,
-        })}`;
+        return `Import ${buildDefaultIdeaTitle()}`;
     }
 
     const withoutExtension = trimmed.replace(/\.[^./\\]+$/, "").trim();

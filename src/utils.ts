@@ -115,14 +115,18 @@ export const genClipTitle = (idea: string, v: number) => `${idea} v${v}`;
 
 export const buildDefaultIdeaTitle = (timestamp = Date.now()) => {
   const date = new Date(timestamp);
-  const now = new Date();
-  const sameYear = date.getFullYear() === now.getFullYear();
-  const monthDay = date.toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-  });
-  if (sameYear) return monthDay;
-  return `${monthDay}, ${date.getFullYear()}`;
+  const day = date.getDate();
+  const suffix = day === 1 || day === 21 || day === 31 ? "st"
+    : day === 2 || day === 22 ? "nd"
+    : day === 3 || day === 23 ? "rd"
+    : "th";
+  const time = date.toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  }).replace(" ", "");
+  const month = date.toLocaleDateString("en-US", { month: "short" });
+  return `${time} ${month} ${day}${suffix}`;
 };
 
 export function ensureUniqueIdeaTitle(baseTitle: string, existingTitles: string[]) {
