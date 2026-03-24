@@ -3,6 +3,7 @@ import {
   useSharedValue,
   useAnimatedStyle,
   withTiming,
+  interpolate,
 } from "react-native-reanimated";
 import type { NativeSyntheticEvent, NativeScrollEvent } from "react-native";
 
@@ -85,7 +86,8 @@ export function useScrollCollapseHeader(opts?: UseScrollCollapseHeaderOptions) {
 
   const animStyle = useAnimatedStyle(() => ({
     opacity: 1 - progress.value,
-    maxHeight: progress.value < 0.99 ? 500 : 0,
+    // Interpolate maxHeight so the collapse is smooth with no hard breakpoint jump
+    maxHeight: interpolate(progress.value, [0, 1], [500, 0]),
     overflow: "hidden" as const,
   }));
 

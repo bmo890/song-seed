@@ -35,6 +35,7 @@ type Props = {
 
 /* ── Estimate badge pixel width from label ─────────────────────── */
 function estimateBadgeWidth(label: string): number {
+  if (!label) return BADGE_HEIGHT; // unlabelled pin is a circle
   return Math.max(36, label.length * BADGE_CHAR_WIDTH + BADGE_H_PAD);
 }
 
@@ -180,11 +181,15 @@ function PinBadge({
   return (
     <GestureDetector gesture={composed}>
       <Animated.View style={[badgeStyles.badgeWrap, { top: topOffset }, animatedStyle]}>
-        <View style={badgeStyles.badge}>
-          <Text style={badgeStyles.badgeText} numberOfLines={1}>
-            {marker.label}
-          </Text>
-        </View>
+        {marker.label ? (
+          <View style={badgeStyles.badge}>
+            <Text style={badgeStyles.badgeText} numberOfLines={1}>
+              {marker.label}
+            </Text>
+          </View>
+        ) : (
+          <View style={badgeStyles.badgeCircle} />
+        )}
       </Animated.View>
     </GestureDetector>
   );
@@ -302,5 +307,13 @@ const badgeStyles = StyleSheet.create({
     fontSize: 11,
     fontWeight: "600",
     color: "#b45309",
+  },
+  badgeCircle: {
+    width: BADGE_HEIGHT,
+    height: BADGE_HEIGHT,
+    borderRadius: BADGE_HEIGHT / 2,
+    backgroundColor: "#fef3c7",
+    borderWidth: 2,
+    borderColor: "#fcd34d",
   },
 });

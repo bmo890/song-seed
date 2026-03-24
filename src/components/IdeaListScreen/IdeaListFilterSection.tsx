@@ -1,4 +1,5 @@
-import { Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { styles } from "../../styles";
 import { FilterSortBar } from "./FilterSortBar";
 
@@ -11,10 +12,12 @@ type IdeaListFilterSectionProps = {
   showDateDividers: boolean;
   stickyDayLabel: string | null;
   stickyDayTop: number;
+  hiddenItemsCount: number;
   onLayout: (top: number) => void;
   onToggleProjectStage: (stage: ProjectStage) => void;
   onClearProjectStages: () => void;
   onLyricsFilterModeChange: (mode: LyricsFilterMode) => void;
+  onUnhideAll: () => void;
 };
 
 export function IdeaListFilterSection({
@@ -23,10 +26,12 @@ export function IdeaListFilterSection({
   showDateDividers,
   stickyDayLabel,
   stickyDayTop,
+  hiddenItemsCount,
   onLayout,
   onToggleProjectStage,
   onClearProjectStages,
   onLyricsFilterModeChange,
+  onUnhideAll,
 }: IdeaListFilterSectionProps) {
   return (
     <>
@@ -42,6 +47,17 @@ export function IdeaListFilterSection({
           onClearProjectStages={onClearProjectStages}
           lyricsFilterMode={lyricsFilterMode}
           onLyricsFilterModeChange={onLyricsFilterModeChange}
+          rightSlot={
+            hiddenItemsCount > 0 ? (
+              <Pressable
+                style={({ pressed }) => [styles.ideasUnhideAllPill, pressed ? styles.pressDown : null]}
+                onPress={onUnhideAll}
+              >
+                <Ionicons name="eye-outline" size={12} color="#64748b" />
+                <Text style={styles.ideasUnhideAllPillText}>{`Unhide all (${hiddenItemsCount})`}</Text>
+              </Pressable>
+            ) : null
+          }
         />
       </View>
 

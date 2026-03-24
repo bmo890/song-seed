@@ -24,9 +24,10 @@ type SortConfig = {
 type FilterSortControlsProps = {
   filter?: FilterConfig;
   sort?: SortConfig;
+  rightSlot?: ReactNode;
 };
 
-export function FilterSortControls({ filter, sort }: FilterSortControlsProps) {
+export function FilterSortControls({ filter, sort, rightSlot }: FilterSortControlsProps) {
   const [filterMenuOpen, setFilterMenuOpen] = useState(false);
   const [sortMenuOpen, setSortMenuOpen] = useState(false);
   const [filterAnchorX, setFilterAnchorX] = useState(0);
@@ -140,6 +141,7 @@ export function FilterSortControls({ filter, sort }: FilterSortControlsProps) {
             </View>
           ) : null}
         </View>
+        {rightSlot ? <View style={styles.ideasUtilityRowRight}>{rightSlot}</View> : null}
       </View>
 
       {filter && filterMenuOpen ? (

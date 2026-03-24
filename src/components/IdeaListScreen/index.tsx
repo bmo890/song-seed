@@ -1500,6 +1500,7 @@ export function IdeaListScreen() {
         showDateDividers={showDateDividers}
         stickyDayLabel={stickyDayLabel}
         stickyDayTop={stickyDayTop}
+        hiddenItemsCount={hiddenItemsCount}
         onLayout={(nextTop) =>
           setStickyDayTop((prev) => (Math.abs(prev - nextTop) < 1 ? prev : nextTop))
         }
@@ -1510,6 +1511,7 @@ export function IdeaListScreen() {
         }}
         onClearProjectStages={() => setSelectedProjectStages([])}
         onLyricsFilterModeChange={setLyricsFilterMode}
+        onUnhideAll={unhideAllInCurrentView}
       />
       <IdeaListNestedCollectionsSection
         childCollections={childCollections}
@@ -1770,18 +1772,6 @@ export function IdeaListScreen() {
                 />
               </View>
             </Pressable>
-            {hiddenItemsCount > 0 ? (
-              <>
-                <View style={styles.ideasDropdownDivider} />
-                <Pressable
-                  style={({ pressed }) => [styles.ideasToggleRow, pressed ? styles.pressDown : null]}
-                  onPress={unhideAllInCurrentView}
-                >
-                  <Text style={styles.ideasSortMenuItemText}>{`Unhide all (${hiddenItemsCount})`}</Text>
-                  <Ionicons name="eye-outline" size={15} color="#334155" />
-                </Pressable>
-              </>
-            ) : null}
             <View style={styles.ideasDropdownDivider} />
             <Pressable
               style={({ pressed }) => [styles.ideasToggleRow, pressed ? styles.pressDown : null]}

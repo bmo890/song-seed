@@ -134,24 +134,16 @@ export function IdeaListContent({
               <View style={styles.ideasDayDividerRow}>
                 <View style={styles.ideasDayDividerLineDashed} />
                 <Text style={styles.ideasDayDividerTextHidden}>{entry.dayDividerLabel}</Text>
+                <Pressable
+                  style={({ pressed }) => [styles.ideasHiddenUnhideInlineBtn, pressed ? styles.pressDown : null]}
+                  onPress={() => unhideTimelineDay(entry.metric, entry.dayStartTs)}
+                >
+                  <Ionicons name="eye-outline" size={11} color="#94a3b8" />
+                  <Text style={styles.ideasHiddenUnhideInlineBtnText}>
+                    {`unhide ${entry.hiddenCount}`}
+                  </Text>
+                </Pressable>
                 <View style={styles.ideasDayDividerLineDashed} />
-              </View>
-
-              <View style={styles.listRowWrap}>
-                <View style={styles.ideasHiddenDayCard}>
-                  <View style={styles.ideasHiddenDayCopy}>
-                    <Text style={styles.ideasHiddenDayTitle}>
-                      {`${entry.hiddenCount} item${entry.hiddenCount === 1 ? "" : "s"} hidden`}
-                    </Text>
-                  </View>
-                  <Pressable
-                    style={({ pressed }) => [styles.ideasHiddenUnhideBtn, pressed ? styles.pressDown : null]}
-                    onPress={() => unhideTimelineDay(entry.metric, entry.dayStartTs)}
-                  >
-                    <Ionicons name="eye-outline" size={13} color="#334155" />
-                    <Text style={styles.ideasHiddenUnhideBtnText}>Unhide</Text>
-                  </Pressable>
-                </View>
               </View>
             </View>
           );

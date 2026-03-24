@@ -1,3 +1,4 @@
+import { ReactNode } from "react";
 import { Pressable, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { styles } from "../../styles";
@@ -15,6 +16,7 @@ type FilterSortBarProps = {
   onClearProjectStages: () => void;
   lyricsFilterMode: LyricsFilterMode;
   onLyricsFilterModeChange: (value: LyricsFilterMode) => void;
+  rightSlot?: ReactNode;
 };
 
 function getStageTone(stage: ProjectStage) {
@@ -82,6 +84,7 @@ export function FilterSortBar({
   onClearProjectStages,
   lyricsFilterMode,
   onLyricsFilterModeChange,
+  rightSlot,
 }: FilterSortBarProps) {
   const ideasFilter = useStore((s) => s.ideasFilter);
   const ideasSort = useStore((s) => s.ideasSort);
@@ -351,6 +354,7 @@ export function FilterSortBar({
           </>
         ),
       }}
+      rightSlot={rightSlot}
     />
   );
 }

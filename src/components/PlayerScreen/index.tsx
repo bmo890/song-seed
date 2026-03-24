@@ -1009,7 +1009,7 @@ export function PlayerScreen() {
       >
         <View style={screenStyles.pinSheetContent}>
           <Text style={screenStyles.pinSheetTitle}>
-            {pinActionsTarget?.label ?? "Pin"}
+            {pinActionsTarget?.label || "Unnamed pin"}
           </Text>
           <Text style={screenStyles.pinSheetTime}>
             at {pinActionsTarget ? fmtDuration(pinActionsTarget.atMs) : ""}

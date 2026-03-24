@@ -348,7 +348,7 @@ export function ClipCard({
               </>
             )}
 
-            {inlineActive ? (
+            {inlineActive && !displayOnly ? (
               <View style={styles.songDetailVersionInlinePlayerWrap}>
                 <View style={styles.songDetailVersionInlinePlayerProgress}>
                   <MiniProgress

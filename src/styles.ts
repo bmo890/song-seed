@@ -264,7 +264,7 @@ export const styles = StyleSheet.create({
   ideasUtilityRow: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "flex-start",
+    justifyContent: "space-between",
     gap: 8,
   },
   ideasUtilityRowLeft: {
@@ -272,6 +272,12 @@ export const styles = StyleSheet.create({
     alignItems: "center",
     gap: 6,
     flexShrink: 1,
+  },
+  ideasUtilityRowRight: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    flexShrink: 0,
   },
   ideasUtilityControlGroup: {
     flexDirection: "row",
@@ -4811,6 +4817,39 @@ export const styles = StyleSheet.create({
     fontSize: 10,
     color: "#334155",
     fontWeight: "700",
+  },
+  // Compact inline version embedded in the dashed separator row
+  ideasHiddenUnhideInlineBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 8,
+    backgroundColor: "#f1f5f9",
+    marginHorizontal: 4,
+  },
+  ideasHiddenUnhideInlineBtnText: {
+    fontSize: 10,
+    color: "#94a3b8",
+    fontWeight: "500",
+  },
+  // Pill shown near filter bar when any items are hidden
+  ideasUnhideAllPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: 10,
+    backgroundColor: "#f1f5f9",
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+  },
+  ideasUnhideAllPillText: {
+    fontSize: 11,
+    color: "#64748b",
+    fontWeight: "600",
   },
   ideasHiddenDayCard: {
     flex: 1,

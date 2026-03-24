@@ -576,7 +576,7 @@ export function IdeaListItem({
                                             </View>
                                             {inlineActive ? (
                                                 <View style={styles.ideasInlineCloseBtn}>
-                                                    <Ionicons name="close" size={13} color="#64748b" />
+                                                    <Ionicons name="stop-circle-outline" size={14} color="#64748b" />
                                                 </View>
                                             ) : null}
                                             {showExpandedStaticDuration ? (
