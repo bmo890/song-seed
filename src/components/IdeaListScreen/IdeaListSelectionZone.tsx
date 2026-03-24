@@ -12,6 +12,7 @@ type IdeaListSelectionZoneProps = {
   onPlaySelected: () => void;
   onToggleHideSelected: () => void;
   onDeleteSelected: () => void;
+  onEditSelected: () => void;
   onAddProject: () => void;
   onQuickRecord: () => void;
   onImportAudio: () => void;
@@ -30,6 +31,7 @@ export function IdeaListSelectionZone({
   onPlaySelected,
   onToggleHideSelected,
   onDeleteSelected,
+  onEditSelected,
   onAddProject,
   onQuickRecord,
   onImportAudio,
@@ -51,6 +53,7 @@ export function IdeaListSelectionZone({
               : selectedInteractiveIdeasCount === 0
           }
           onDeleteSelected={onDeleteSelected}
+          onEditSelected={onEditSelected}
           onCreateProjectFromSelection={onCreateProjectFromSelection}
           selectedClipIdeasCount={selectedClipIdeasCount}
           onDockLayout={onSelectionDockLayout}

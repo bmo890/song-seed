@@ -875,6 +875,9 @@ export function IdeaDetailScreen() {
         <SelectionBars
           onStartSetParent={handleStartSetParent}
           onMakeRoot={handleMakeRoot}
+          onViewLineageHistory={(rootClipId) => {
+            (navigation as any).navigate("ClipLineage", { ideaId: selectedIdea.id, rootClipId });
+          }}
           onDockLayout={(height) => {
             setSelectionDockHeight((prev) => (Math.abs(prev - height) < 1 ? prev : height));
           }}

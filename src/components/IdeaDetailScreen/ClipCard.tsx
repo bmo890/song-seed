@@ -33,6 +33,8 @@ export type ClipCardSharedProps = {
   onSaveEditing: (clipId: string) => void;
   onCancelEditing: () => void;
   onOpenActions: (clip: ClipVersion) => void;
+  longPressBehavior?: "select" | "actions";
+  showOverflowAction?: boolean;
   onOpenNotesSheet?: (clip: ClipVersion) => void;
   onPickParentTarget: (clipId: string) => void;
   onOpenTagPicker?: (clip: ClipVersion) => void;
@@ -82,6 +84,8 @@ export function ClipCard({
   onSaveEditing,
   onCancelEditing,
   onOpenActions,
+  longPressBehavior = "select",
+  showOverflowAction = false,
   onOpenNotesSheet,
   onPickParentTarget,
   onOpenTagPicker,
@@ -105,6 +109,13 @@ export function ClipCard({
   const isParentPickSource = parentPickSourceIdSet.has(clip.id);
   const isInvalidParentTarget = isParentPicking && parentPickInvalidTargetIdSet.has(clip.id);
   const isValidParentTarget = isParentPicking && !isInvalidParentTarget;
+  const beginActions = () => {
+    onOpenActions(clip);
+  };
+  const beginSelection = () => {
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    useStore.getState().startClipSelection(clip.id);
+  };
 
   return (
     <View style={styles.threadRowWrap}>
@@ -158,9 +169,13 @@ export function ClipCard({
                   if (!clip.audioUri) return;
                   void inlinePlayer.toggleInlinePlayback(idea.id, clip);
                 }}
-                onLongPress={displayOnly ? undefined : () => {
-                  onOpenActions(clip);
-                }}
+                onLongPress={
+                  displayOnly
+                    ? undefined
+                    : longPressBehavior === "actions"
+                      ? beginActions
+                      : beginSelection
+                }
                 style={({ pressed }) => [
                   styles.ideasInlinePlayBtn,
                   pressed ? styles.pressDown : null,
@@ -193,7 +208,11 @@ export function ClipCard({
                 useStore.getState().toggleClipSelection(clip.id);
                 return;
               }
-              onOpenActions(clip);
+              if (longPressBehavior === "actions") {
+                beginActions();
+                return;
+              }
+              beginSelection();
             }}
             onPress={async () => {
               if (displayOnly) {
@@ -278,6 +297,27 @@ export function ClipCard({
                       <Text style={styles.badge}>PRIMARY</Text>
                     ) : null}
 
+                    {!displayOnly && showOverflowAction && !clipSelectionMode && !isEditMode && !isDraftProject && !isParentPicking ? (
+                      <Pressable
+                        style={({ pressed }) => [
+                          styles.songDetailVersionOverflowBtn,
+                          compactDensity ? styles.songDetailVersionReplyBtnCompact : null,
+                          pressed ? styles.pressDown : null,
+                        ]}
+                        onPress={(evt) => {
+                          evt.stopPropagation();
+                          void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                          onOpenActions(clip);
+                        }}
+                      >
+                        <Ionicons
+                          name="ellipsis-horizontal"
+                          size={14}
+                          color="#475569"
+                        />
+                      </Pressable>
+                    ) : null}
+
                     {!displayOnly && !clipSelectionMode && !isEditMode && !isDraftProject && !isParentPicking ? (
                       <Pressable
                         style={({ pressed }) => [
@@ -322,7 +362,11 @@ export function ClipCard({
                     style={styles.clipCardTagsRow}
                     onPress={displayOnly ? undefined : (evt) => {
                       evt.stopPropagation();
-                      onOpenTagPicker?.(clip);
+                      if (onOpenTagPicker) {
+                        onOpenTagPicker(clip);
+                        return;
+                      }
+                      onOpenNotesSheet?.(clip);
                     }}
                     hitSlop={displayOnly ? undefined : { top: 2, bottom: 2 }}
                     disabled={displayOnly}

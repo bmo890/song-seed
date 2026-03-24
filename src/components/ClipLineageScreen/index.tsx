@@ -22,7 +22,6 @@ import { fmtDuration, formatDate } from "../../utils";
 import { ClipCard, type ClipCardSharedProps } from "../IdeaDetailScreen/ClipCard";
 import { ClipActionsSheet } from "../modals/ClipActionsSheet";
 import { ClipNotesSheet } from "../modals/ClipNotesSheet";
-import { ClipTagPicker } from "../IdeaDetailScreen/ClipTagPicker";
 import { AppAlert } from "../common/AppAlert";
 import { useEffect } from "react";
 
@@ -40,7 +39,6 @@ export function ClipLineageScreen() {
   const [sortMode, setSortMode] = useState<SortMode>("chronological");
   const [actionsClipId, setActionsClipId] = useState<string | null>(null);
   const [notesSheetClipId, setNotesSheetClipId] = useState<string | null>(null);
-  const [tagPickerClipId, setTagPickerClipId] = useState<string | null>(null);
   const [editingClipId, setEditingClipId] = useState<string | null>(null);
   const [editingClipDraft, setEditingClipDraft] = useState("");
   const [editingClipNotesDraft, setEditingClipNotesDraft] = useState("");
@@ -228,9 +226,11 @@ export function ClipLineageScreen() {
     onSaveEditing: saveEditingClip,
     onCancelEditing: () => setEditingClipId(null),
     onOpenActions: (clip) => setActionsClipId(clip.id),
+    longPressBehavior: "actions",
+    showOverflowAction: true,
     onOpenNotesSheet: (clip) => openNotesSheet(clip),
     onPickParentTarget: () => {},
-    onOpenTagPicker: (clip) => setTagPickerClipId(clip.id),
+    onOpenTagPicker: (clip) => openNotesSheet(clip),
     globalCustomTags,
     inlinePlayer,
     getHighlightValue: (clipId) => highlightMapRef.current[clipId],
@@ -387,18 +387,6 @@ export function ClipLineageScreen() {
         }
       />
 
-      <ClipTagPicker
-        visible={!!tagPickerClipId}
-        clip={
-          tagPickerClipId
-            ? idea.clips.find((c) => c.id === tagPickerClipId) ?? null
-            : null
-        }
-        idea={idea}
-        globalCustomTags={globalCustomTags}
-        onClose={() => setTagPickerClipId(null)}
-      />
-
       <ClipNotesSheet
         visible={!!notesSheetClip}
         clipSubtitle={
@@ -406,6 +394,9 @@ export function ClipLineageScreen() {
             ? `${notesSheetClip.durationMs ? fmtDuration(notesSheetClip.durationMs) : "0:00"} · ${formatDate(notesSheetClip.createdAt)}`
             : ""
         }
+        clip={notesSheetClip}
+        idea={idea}
+        globalCustomTags={globalCustomTags}
         titleDraft={editingClipDraft}
         notesDraft={editingClipNotesDraft}
         onChangeTitle={setEditingClipDraft}

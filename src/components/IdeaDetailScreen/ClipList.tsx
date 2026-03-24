@@ -1,8 +1,5 @@
 import React, { ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { Animated, BackHandler } from "react-native";
-import { AppAlert } from "../common/AppAlert";
-import { useNavigation } from "@react-navigation/native";
-import { ClipActionsSheet } from "../modals/ClipActionsSheet";
 import { ClipNotesSheet } from "../modals/ClipNotesSheet";
 import { useStore } from "../../state/useStore";
 import { type ClipVersion, type CustomTagDefinition } from "../../types";
@@ -10,7 +7,6 @@ import {
   buildClipLineages,
   buildEvolutionListRows,
   buildTimelineEntries,
-  getLineageRootId,
   type ClipLineage,
   type EvolutionListClipEntry,
   type SongTimelineSortDirection,
@@ -24,7 +20,6 @@ import type { SongClipTagFilter } from "./songClipControls";
 import { type ClipCardSharedProps } from "./ClipCard";
 import { EvolutionList } from "./EvolutionList";
 import { TimelineList } from "./TimelineList";
-import { ClipTagPicker } from "./ClipTagPicker";
 
 type ClipListProps = {
   isEditMode: boolean;
@@ -73,16 +68,14 @@ export function ClipList({
   onPickParentTarget,
   onViewLineageHistory,
 }: ClipListProps) {
-  const navigation = useNavigation();
   const inlinePlayer = useInlinePlayer();
   const inlineResetRef = useRef(inlinePlayer.resetInlinePlayer);
+  const clipSelectionMode = useStore((s) => s.clipSelectionMode);
   const [expandedLineageIds, setExpandedLineageIds] = useState<Record<string, boolean>>({});
   const [editingClipId, setEditingClipId] = useState<string | null>(null);
   const [editingClipDraft, setEditingClipDraft] = useState("");
   const [editingClipNotesDraft, setEditingClipNotesDraft] = useState("");
-  const [actionsClipId, setActionsClipId] = useState<string | null>(null);
   const [notesSheetClipId, setNotesSheetClipId] = useState<string | null>(null);
-  const [tagPickerClipId, setTagPickerClipId] = useState<string | null>(null);
   const [assignLineageClipId, setAssignLineageClipId] = useState<string | null>(null);
   const globalCustomTags = useStore((s) => s.globalCustomClipTags);
   const highlightMapRef = useRef<Record<string, Animated.Value>>({});
@@ -223,16 +216,12 @@ export function ClipList({
 
   useEffect(() => {
     if (!isParentPicking) return;
-    setActionsClipId(null);
     setEditingClipId(null);
   }, [isParentPicking]);
 
   if (!selectedIdea) return null;
   const currentIdeaId = selectedIdea.id;
   const isDraftProject = !!selectedIdea.isDraft;
-  const actionsClip = actionsClipId
-    ? selectedIdea.clips.find((clip) => clip.id === actionsClipId) ?? null
-    : null;
   const notesSheetClip = notesSheetClipId
     ? selectedIdea.clips.find((clip) => clip.id === notesSheetClipId) ?? null
     : null;
@@ -336,15 +325,12 @@ export function ClipList({
     onBeginEditing: beginEditingClip,
     onSaveEditing: saveEditingClip,
     onCancelEditing: () => setEditingClipId(null),
-    onOpenActions: (clip) => {
-      if (isEditMode || isDraftProject || isParentPicking || useStore.getState().clipSelectionMode) {
-        return;
-      }
-      setActionsClipId(clip.id);
-    },
+    onOpenActions: () => {},
+    longPressBehavior: "select",
+    showOverflowAction: false,
     onOpenNotesSheet: (clip) => openNotesSheet(clip),
     onPickParentTarget,
-    onOpenTagPicker: (clip) => setTagPickerClipId(clip.id),
+    onOpenTagPicker: (clip) => openNotesSheet(clip),
     globalCustomTags,
     inlinePlayer,
     getHighlightValue: (clipId) => highlightMapRef.current[clipId],
@@ -401,142 +387,6 @@ export function ClipList({
         />
       )}
 
-      <ClipActionsSheet
-        visible={!!actionsClip}
-        title={actionsClip?.title ?? "Clip actions"}
-        subtitle={
-          actionsClip
-            ? `${actionsClip.durationMs ? fmtDuration(actionsClip.durationMs) : "0:00"} • ${formatDate(actionsClip.createdAt)}`
-            : undefined
-        }
-        onCancel={() => setActionsClipId(null)}
-        actions={
-          actionsClip
-            ? [
-                ...(!actionsClip.isPrimary
-                  ? [
-                      {
-                        key: "set-parent",
-                        label: actionsClip.parentClipId ? "Change parent..." : "Set parent...",
-                        icon: "return-up-forward-outline" as const,
-                        onPress: () => {
-                          setActionsClipId(null);
-                          onStartSetParent([actionsClip.id]);
-                        },
-                      },
-                    ]
-                  : []),
-                ...(actionsClip.parentClipId
-                  ? [
-                      {
-                        key: "make-root",
-                        label: "Make root",
-                        icon: "arrow-up-outline" as const,
-                        onPress: () => {
-                          setActionsClipId(null);
-                          onMakeRoot([actionsClip.id]);
-                        },
-                      },
-                    ]
-                  : []),
-                ...(!actionsClip.parentClipId && !actionsClip.isPrimary
-                  ? (() => {
-                      const lineages = buildClipLineages(selectedIdea.clips);
-                      const otherLineages = lineages.filter((l) => l.root.id !== actionsClip.id);
-                      if (otherLineages.length === 0) return [];
-                      return [
-                        {
-                          key: "assign-lineage",
-                          label: "Assign to lineage",
-                          icon: "git-merge-outline" as const,
-                          onPress: () => {
-                            setActionsClipId(null);
-                            setAssignLineageClipId(actionsClip.id);
-                          },
-                        },
-                      ];
-                    })()
-                  : []),
-                {
-                  key: "record-variation",
-                  label: "Record variation",
-                  icon: "mic-outline" as const,
-                  onPress: () => {
-                    setActionsClipId(null);
-                    void (async () => {
-                      await inlinePlayer.resetInlinePlayer();
-                      useStore.getState().setRecordingParentClipId(actionsClip.id);
-                      useStore.getState().setRecordingIdeaId(selectedIdea.id);
-                      navigation.navigate("Recording" as never);
-                    })();
-                  },
-                },
-                {
-                  key: "rename",
-                  label: "Rename",
-                  icon: "pencil-outline" as const,
-                  onPress: () => {
-                    setActionsClipId(null);
-                    beginEditingClip(actionsClip);
-                  },
-                },
-                {
-                  key: "add-notes",
-                  label: actionsClip.notes?.trim() ? "Edit notes" : "Add notes",
-                  icon: "document-text-outline" as const,
-                  onPress: () => {
-                    setActionsClipId(null);
-                    openNotesSheet(actionsClip);
-                  },
-                },
-                ...(onViewLineageHistory
-                  ? [
-                      {
-                        key: "view-lineage",
-                        label: "View history",
-                        icon: "git-branch-outline" as const,
-                        onPress: () => {
-                          setActionsClipId(null);
-                          const rootId = getLineageRootId(selectedIdea.clips, actionsClip.id);
-                          if (rootId) onViewLineageHistory(rootId);
-                        },
-                      },
-                    ]
-                  : []),
-                {
-                  key: "select",
-                  label: "Select",
-                  icon: "checkmark-circle-outline" as const,
-                  onPress: () => {
-                    setActionsClipId(null);
-                    useStore.getState().startClipSelection(actionsClip.id);
-                  },
-                },
-                {
-                  key: "delete",
-                  label: "Delete",
-                  icon: "trash-outline" as const,
-                  destructive: true,
-                  onPress: () => {
-                    setActionsClipId(null);
-                    AppAlert.destructive("Delete clip?", "This cannot be undone.", () => {
-                      deleteClip(actionsClip.id);
-                    });
-                  },
-                },
-              ]
-            : []
-        }
-      />
-
-      <ClipTagPicker
-        visible={!!tagPickerClipId}
-        clip={tagPickerClipId ? selectedIdea.clips.find((c) => c.id === tagPickerClipId) ?? null : null}
-        idea={selectedIdea}
-        globalCustomTags={globalCustomTags}
-        onClose={() => setTagPickerClipId(null)}
-      />
-
       <ClipNotesSheet
         visible={!!notesSheetClip}
         clipSubtitle={
@@ -544,6 +394,9 @@ export function ClipList({
             ? `${notesSheetClip.durationMs ? fmtDuration(notesSheetClip.durationMs) : "0:00"} • ${formatDate(notesSheetClip.createdAt)}`
             : ""
         }
+        clip={notesSheetClip}
+        idea={selectedIdea}
+        globalCustomTags={globalCustomTags}
         titleDraft={editingClipDraft}
         notesDraft={editingClipNotesDraft}
         onChangeTitle={setEditingClipDraft}

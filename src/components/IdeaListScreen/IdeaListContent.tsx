@@ -34,7 +34,6 @@ type IdeaListContentProps = {
   onViewableItemsChanged: (info: { viewableItems: Array<{ item: IdeaListEntry }> }) => void;
   playIdeaFromList: (ideaId: string, clip: any) => Promise<void> | void;
   openIdeaFromList: (ideaId: string, clip: any) => Promise<void> | void;
-  onLongPressActions: (idea: SongIdea) => void;
   unhideIdeasFromList: (ideaIds: string[]) => void;
   hideTimelineDay: (metric: "created" | "updated", dayStartTs: number) => Promise<void>;
   unhideTimelineDay: (metric: "created" | "updated", dayStartTs: number) => void;
@@ -76,7 +75,6 @@ export function IdeaListContent({
   onViewableItemsChanged,
   playIdeaFromList,
   openIdeaFromList,
-  onLongPressActions,
   unhideIdeasFromList,
   hideTimelineDay,
   unhideTimelineDay,
@@ -167,7 +165,6 @@ export function IdeaListContent({
             inlinePlayer={inlinePlayer}
             playIdeaFromList={playIdeaFromList}
             openIdeaFromList={openIdeaFromList}
-            onLongPressActions={onLongPressActions}
             onUnhide={(idea) => unhideIdeasFromList([idea.id])}
             onHideDay={
               activeTimelineMetric && showDateDividers && entry.dayDividerLabel

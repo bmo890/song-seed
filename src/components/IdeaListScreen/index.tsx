@@ -9,11 +9,10 @@ import { styles } from "../../styles";
 import { SongIdea, ClipVersion, PlaybackQueueItem, IdeasTimelineMetric, WorkspaceHiddenDay } from "../../types";
 import { ScreenHeader } from "../common/ScreenHeader";
 import { AppBreadcrumbs } from "../common/AppBreadcrumbs";
-import { AppAlert } from "../common/AppAlert";
 import { QuickNameModal } from "../modals/QuickNameModal";
 import { CollectionMoveModal } from "../modals/CollectionMoveModal";
 import { CollectionActionsModal } from "../modals/CollectionActionsModal";
-import { IdeaActionsSheet } from "../modals/IdeaActionsSheet";
+import { ClipNotesSheet } from "../modals/ClipNotesSheet";
 import { IdeaListHeaderSection } from "./IdeaListHeaderSection";
 import { IdeaListFilterSection } from "./IdeaListFilterSection";
 import { IdeaListNestedCollectionsSection } from "./IdeaListNestedCollectionsSection";
@@ -35,7 +34,6 @@ import {
   importAudioAssets,
   importAudioAsset,
   pickAudioFiles,
-  shareAudioFile,
   type ImportedAudioAsset,
 } from "../../services/audioStorage";
 import { enqueueBackgroundWaveformHydration } from "../../services/backgroundWaveformHydration";
@@ -45,6 +43,8 @@ import {
   buildDefaultIdeaTitle,
   ensureUniqueIdeaTitle,
   ensureUniqueCountedTitle,
+  fmtDuration,
+  formatDate,
   getCollectionAncestors,
   getCollectionById,
   getIdeaSizeBytes,
@@ -115,6 +115,7 @@ export function IdeaListScreen() {
     [activeWorkspace?.collections, collectionId]
   );
   const recordingIdeaId = useStore((s) => s.recordingIdeaId);
+  const globalCustomTags = useStore((s) => s.globalCustomClipTags);
 
   const ideasFilter = useStore((s) => s.ideasFilter);
   const ideasSort = useStore((s) => s.ideasSort);
@@ -188,6 +189,7 @@ export function IdeaListScreen() {
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [editClipId, setEditClipId] = useState<string | null>(null);
   const [editClipDraft, setEditClipDraft] = useState("");
+  const [editClipNotesDraft, setEditClipNotesDraft] = useState("");
   const [importModalOpen, setImportModalOpen] = useState(false);
   const [importAssets, setImportAssets] = useState<ImportedAudioAsset[]>([]);
   const [importMode, setImportMode] = useState<"single-clip" | "song-project" | null>(null);
@@ -279,6 +281,7 @@ export function IdeaListScreen() {
   }, [activityMetricFilter, activityRangeEndTs, activityRangeStartTs, ideas, ideasFilter, ideasSort]);
 
   const editTargetIdea = editClipId ? ideas.find((idea) => idea.id === editClipId) ?? null : null;
+  const editTargetClip = editTargetIdea?.kind === "clip" ? editTargetIdea.clips[0] ?? null : null;
   const selectedIdeasInList = ideas.filter((idea) => selectedListIdeaIds.includes(idea.id));
   const searchNeedle = debouncedSearchQuery.trim().toLowerCase();
   const projectHasLyrics = (idea: SongIdea) =>
@@ -741,58 +744,9 @@ export function IdeaListScreen() {
     await playQueueInPlayer(queue, 0);
   };
 
-  const getShareableClip = (idea: SongIdea) =>
-    idea.kind === "clip"
-      ? idea.clips.find((clip) => !!clip.audioUri) ?? null
-      : idea.clips.find((clip) => clip.isPrimary && !!clip.audioUri) ??
-        idea.clips.find((clip) => !!clip.audioUri) ??
-        null;
-
-  const quickShareIdea = async (idea: SongIdea) => {
-    const clip = getShareableClip(idea);
-    if (!clip?.audioUri) {
-      Alert.alert("Nothing to share", "This item does not have playable audio yet.");
-      return;
-    }
-
-    try {
-      await shareAudioFile(clip.audioUri, clip.title || idea.title);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Could not share this item.";
-      Alert.alert("Share failed", message);
-    }
-  };
-
-  const quickClipboardIdea = (idea: SongIdea, mode: "copy" | "move") => {
-    useStore.getState().replaceListSelection([idea.id]);
-    appActions.startClipboardFromList(mode);
-    Alert.alert(
-      mode === "copy" ? "Copy ready" : "Move ready",
-      mode === "copy"
-        ? `Tap "Paste items here" to copy "${idea.title}" into this or another collection.`
-        : `Open the destination collection and tap "Paste items here" to move "${idea.title}".`
-    );
-  };
-
-  const quickDeleteIdea = (idea: SongIdea) => {
-    const title = idea.title || (idea.kind === "project" ? "this song" : "this clip");
-    const message =
-      idea.kind === "project"
-        ? `Delete "${title}" and all its clips?`
-        : `Delete "${title}"?`;
-
-    AppAlert.destructive("Delete item?", message, () => {
-      const previousIdeas = ideas;
-      useStore.getState().replaceListSelection([idea.id]);
-      appActions.deleteSelectedIdeasFromList();
-      showUndo(`Deleted ${idea.kind === "project" ? "song" : "clip"} "${title}"`, () => {
-        useStore.getState().updateIdeas(() => previousIdeas);
-      });
-    });
-  };
-
   const quickEditIdea = (idea: SongIdea) => {
     if (idea.kind === "project") {
+      useStore.getState().cancelListSelection();
       setSelectedIdeaId(idea.id);
       (rootNavigation ?? navigation).navigate(
         "IdeaDetail" as never,
@@ -803,7 +757,39 @@ export function IdeaListScreen() {
 
     setEditClipId(idea.id);
     setEditClipDraft(idea.title);
+    setEditClipNotesDraft(idea.notes || idea.clips[0]?.notes || "");
     setEditModalOpen(true);
+  };
+
+  const saveStandaloneClipEdit = () => {
+    if (!editTargetIdea || editTargetIdea.kind !== "clip" || !editTargetClip) return;
+
+    const nextTitle = editClipDraft.trim() || "Untitled Clip";
+    const nextNotes = editClipNotesDraft.trim();
+
+    useStore.getState().updateIdeas((ideas) =>
+      ideas.map((idea) =>
+        idea.id !== editTargetIdea.id
+          ? idea
+          : {
+              ...idea,
+              title: nextTitle,
+              notes: nextNotes,
+              clips: idea.clips.map((clip) =>
+                clip.id === editTargetClip.id
+                  ? {
+                      ...clip,
+                      title: nextTitle,
+                      notes: nextNotes,
+                    }
+                  : clip
+              ),
+            }
+      )
+    );
+
+    setEditModalOpen(false);
+    setEditClipId(null);
   };
 
   const maybeResetInlineForIdeaIds = async (ideaIds: string[]) => {
@@ -865,19 +851,6 @@ export function IdeaListScreen() {
     }
     setHeaderMenuOpen(false);
   };
-
-  const [actionSheetIdea, setActionSheetIdea] = useState<SongIdea | null>(null);
-
-  const openIdeaActions = (idea: SongIdea) => {
-    setActionSheetIdea(idea);
-  };
-  const closeIdeaActions = () => {
-    setActionSheetIdea(null);
-  };
-
-  function updateIdeaTitle(id: string, newName: string) {
-    useStore.getState().renameIdeaPreservingActivity(id, newName);
-  }
 
   function createProjectFromSelection() {
     const selectedIdeas = selectedInteractiveIdeas;
@@ -1573,6 +1546,11 @@ export function IdeaListScreen() {
           void toggleHiddenSelection();
         }}
         onDeleteSelected={deleteSelectedIdeasWithUndo}
+        onEditSelected={() => {
+          const targetIdea = selectedInteractiveIdeas[0];
+          if (!targetIdea) return;
+          quickEditIdea(targetIdea);
+        }}
         onAddProject={() => {
           const createdIdeaId = appActions.addIdea(collectionId);
           navigateRoot("IdeaDetail", { ideaId: createdIdeaId });
@@ -1627,20 +1605,25 @@ export function IdeaListScreen() {
         disableSaveWhenEmpty
       />
 
-      <QuickNameModal
-        visible={editModalOpen}
-        title={editTargetIdea?.kind === "project" ? "Edit song" : "Edit clip"}
-        draftValue={editClipDraft}
-        placeholderValue={editTargetIdea?.title ?? "Title"}
-        onChangeDraft={setEditClipDraft}
-        onCancel={() => setEditModalOpen(false)}
-        onSave={() => {
-          const nextTitle = editClipDraft.trim();
-          if (!nextTitle || !editClipId) return;
-          updateIdeaTitle(editClipId, nextTitle);
+      <ClipNotesSheet
+        visible={editModalOpen && editTargetIdea?.kind === "clip"}
+        clipSubtitle={
+          editTargetClip
+            ? `${editTargetClip.durationMs ? fmtDuration(editTargetClip.durationMs) : "0:00"} • ${formatDate(editTargetClip.createdAt)}`
+            : ""
+        }
+        clip={editTargetClip}
+        idea={editTargetIdea?.kind === "clip" ? editTargetIdea : null}
+        globalCustomTags={globalCustomTags}
+        titleDraft={editClipDraft}
+        notesDraft={editClipNotesDraft}
+        onChangeTitle={setEditClipDraft}
+        onChangeNotes={setEditClipNotesDraft}
+        onCancel={() => {
           setEditModalOpen(false);
+          setEditClipId(null);
         }}
-        disableSaveWhenEmpty
+        onSave={saveStandaloneClipEdit}
       />
 
       <QuickNameModal
@@ -1738,7 +1721,6 @@ export function IdeaListScreen() {
         onViewableItemsChanged={onViewableItemsChanged}
         playIdeaFromList={playIdeaFromList}
         openIdeaFromList={openIdeaFromList}
-        onLongPressActions={openIdeaActions}
         unhideIdeasFromList={unhideIdeasFromList}
         hideTimelineDay={hideTimelineDay}
         unhideTimelineDay={unhideTimelineDay}
@@ -1831,21 +1813,6 @@ export function IdeaListScreen() {
           </View>
         </View>
       ) : null}
-
-      <IdeaActionsSheet
-        visible={!!actionSheetIdea}
-        idea={actionSheetIdea}
-        hidden={actionSheetIdea ? hiddenIdeaIdsSet.has(actionSheetIdea.id) : false}
-        onEdit={(idea) => quickEditIdea(idea)}
-        onHide={(idea) => hideIdeasFromList([idea.id])}
-        onUnhide={(idea) => unhideIdeasFromList([idea.id])}
-        onShare={(idea) => quickShareIdea(idea)}
-        onCopy={(idea) => quickClipboardIdea(idea, "copy")}
-        onMove={(idea) => quickClipboardIdea(idea, "move")}
-        onSelect={(idea) => useStore.getState().startListSelection(idea.id)}
-        onDelete={(idea) => quickDeleteIdea(idea)}
-        onCancel={closeIdeaActions}
-      />
 
       <ExpoStatusBar style="dark" />
     </SafeAreaView>

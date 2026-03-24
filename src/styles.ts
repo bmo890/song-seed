@@ -1826,6 +1826,16 @@ export const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  songDetailVersionOverflowBtn: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    borderWidth: 1,
+    borderColor: "#dbe2ea",
+    backgroundColor: "#ffffff",
+    alignItems: "center",
+    justifyContent: "center",
+  },
   songDetailVersionReplyBtnCompact: {
     width: 24,
     height: 24,
@@ -5599,6 +5609,10 @@ export const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 8,
     gap: 12,
+    paddingBottom: 4,
+  },
+  clipNotesSheetScroll: {
+    maxHeight: 560,
   },
   clipNotesSheetSubtitle: {
     fontSize: 12,
@@ -5619,6 +5633,9 @@ export const styles = StyleSheet.create({
     lineHeight: 20,
     textAlignVertical: "top",
     color: "#0f172a",
+  },
+  clipNotesSheetTagSection: {
+    gap: 10,
   },
   clipNotesSheetButtons: {
     flexDirection: "row",

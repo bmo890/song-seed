@@ -1,35 +1,44 @@
 import React, { useMemo, useState } from "react";
-import { View, Text, Pressable, Alert } from "react-native";
+import { Alert } from "react-native";
 import { useNavigation } from "@react-navigation/native";
-import { Ionicons } from "@expo/vector-icons";
-import { styles } from "../../styles";
-import { Button } from "../common/Button";
 import { useStore } from "../../state/useStore";
 import { appActions } from "../../state/actions";
 import { shareAudioClips } from "../../services/audioStorage";
 import type { SongIdea } from "../../types";
 import { SelectionActionSheet } from "../common/SelectionActionSheet";
 import { SelectionDock, type SelectionAction } from "../common/SelectionDock";
+import { ClipNotesSheet } from "../modals/ClipNotesSheet";
+import { fmtDuration, formatDate } from "../../utils";
+import { getLineageRootId } from "../../clipGraph";
 
 const EMPTY_IDEAS: SongIdea[] = [];
 
 type SelectionBarsProps = {
   onStartSetParent: (clipIds: string[]) => void;
   onMakeRoot: (clipIds: string[]) => void;
+  onViewLineageHistory?: (rootClipId: string) => void;
   onDockLayout?: (height: number) => void;
 };
 
-export function SelectionBars({ onStartSetParent, onMakeRoot, onDockLayout }: SelectionBarsProps) {
+export function SelectionBars({
+  onStartSetParent,
+  onMakeRoot,
+  onViewLineageHistory,
+  onDockLayout,
+}: SelectionBarsProps) {
   const navigation = useNavigation();
   const clipSelectionMode = useStore((s) => s.clipSelectionMode);
   const selectedClipIds = useStore((s) => s.selectedClipIds);
   const replaceClipSelection = useStore((s) => s.replaceClipSelection);
-  const movingClipId = useStore((s) => s.movingClipId);
   const activeWorkspaceId = useStore((s) => s.activeWorkspaceId);
   const selectedIdeaId = useStore((s) => s.selectedIdeaId);
   const workspaces = useStore((s) => s.workspaces);
+  const globalCustomTags = useStore((s) => s.globalCustomClipTags);
   const [isSharing, setIsSharing] = useState(false);
   const [moreVisible, setMoreVisible] = useState(false);
+  const [editVisible, setEditVisible] = useState(false);
+  const [editTitleDraft, setEditTitleDraft] = useState("");
+  const [editNotesDraft, setEditNotesDraft] = useState("");
 
   const ideas = useMemo(
     () => workspaces.find((w) => w.id === activeWorkspaceId)?.ideas ?? EMPTY_IDEAS,
@@ -56,7 +65,6 @@ export function SelectionBars({ onStartSetParent, onMakeRoot, onDockLayout }: Se
   const canDeselectAll =
     allSelectableSelected || (selectableClipIds.length === 0 && selectedClipIds.length > 0);
 
-  const targetProjects = ideas.filter((i) => i.kind === "project" && i.id !== selectedIdea?.id);
   const playableSelectedCount = selectedClips.filter((clip) => !!clip.audioUri).length;
   const singleSelectedClip = selectedClips.length === 1 ? selectedClips[0] ?? null : null;
 
@@ -104,18 +112,47 @@ export function SelectionBars({ onStartSetParent, onMakeRoot, onDockLayout }: Se
   }
 
   function handleEditSingleClip() {
-    if (!selectedIdea || !singleSelectedClip?.audioUri) {
-      Alert.alert("Nothing to edit", "This clip does not have playable audio yet.");
-      return;
-    }
-
-    (navigation as any).navigate("Editor", {
-      ideaId: selectedIdea.id,
-      clipId: singleSelectedClip.id,
-      audioUri: singleSelectedClip.audioUri,
-      durationMs: singleSelectedClip.durationMs,
-    });
+    if (!singleSelectedClip) return;
+    setEditTitleDraft(singleSelectedClip.title);
+    setEditNotesDraft(singleSelectedClip.notes || "");
+    setEditVisible(true);
   }
+
+  function saveEditedClip() {
+    if (!selectedIdea || !singleSelectedClip) return;
+    useStore.getState().updateIdeas((ideas) =>
+      ideas.map((idea) =>
+        idea.id !== selectedIdea.id
+          ? idea
+          : {
+              ...idea,
+              clips: idea.clips.map((clip) =>
+                clip.id === singleSelectedClip.id
+                  ? {
+                      ...clip,
+                      title: editTitleDraft.trim() || "Untitled Clip",
+                      notes: editNotesDraft.trim(),
+                    }
+                  : clip
+              ),
+            }
+      )
+    );
+    setEditVisible(false);
+  }
+
+  const confirmDeleteSelection = () => {
+    Alert.alert(
+      selectedClips.length === 1 ? "Delete clip?" : "Delete clips?",
+      selectedClips.length === 1
+        ? "Are you sure you want to remove this clip from the song?"
+        : "Are you sure you want to remove these clips from the song?",
+      [
+        { text: "Cancel", style: "cancel" },
+        { text: "Delete", style: "destructive", onPress: appActions.deleteSelectedClips },
+      ]
+    );
+  };
 
   const dockActions: SelectionAction[] =
     selectedClips.length === 1
@@ -123,30 +160,15 @@ export function SelectionBars({ onStartSetParent, onMakeRoot, onDockLayout }: Se
           {
             key: "edit",
             label: "Edit",
-            icon: "build-outline",
+            icon: "create-outline",
             onPress: handleEditSingleClip,
-          },
-          {
-            key: "copy",
-            label: "Copy",
-            icon: "copy-outline",
-            onPress: () => handleClipboardAction("copy"),
           },
           {
             key: "delete",
             label: "Delete",
             icon: "trash-outline",
             tone: "danger",
-            onPress: () => {
-              Alert.alert(
-                "Delete clip?",
-                "Are you sure you want to remove this clip from the song?",
-                [
-                  { text: "Cancel", style: "cancel" },
-                  { text: "Delete", style: "destructive", onPress: appActions.deleteSelectedClips },
-                ]
-              );
-            },
+            onPress: confirmDeleteSelection,
           },
           {
             key: "more",
@@ -157,32 +179,11 @@ export function SelectionBars({ onStartSetParent, onMakeRoot, onDockLayout }: Se
         ]
       : [
           {
-            key: "copy",
-            label: "Copy",
-            icon: "copy-outline",
-            onPress: () => handleClipboardAction("copy"),
-          },
-          {
-            key: "move",
-            label: "Move",
-            icon: "arrow-forward-outline",
-            onPress: () => handleClipboardAction("move"),
-          },
-          {
             key: "delete",
             label: "Delete",
             icon: "trash-outline",
             tone: "danger",
-            onPress: () => {
-              Alert.alert(
-                "Delete clips?",
-                "Are you sure you want to remove these clips from the song?",
-                [
-                  { text: "Cancel", style: "cancel" },
-                  { text: "Delete", style: "destructive", onPress: appActions.deleteSelectedClips },
-                ]
-              );
-            },
+            onPress: confirmDeleteSelection,
           },
           {
             key: "more",
@@ -193,16 +194,18 @@ export function SelectionBars({ onStartSetParent, onMakeRoot, onDockLayout }: Se
         ];
 
   const sheetActions: SelectionAction[] = [
-    ...(selectedClips.length === 1
-      ? [
-          {
-            key: "move",
-            label: "Move",
-            icon: "arrow-forward-outline" as const,
-            onPress: () => handleClipboardAction("move"),
-          },
-        ]
-      : []),
+    {
+      key: "copy",
+      label: "Copy",
+      icon: "copy-outline",
+      onPress: () => handleClipboardAction("copy"),
+    },
+    {
+      key: "move",
+      label: "Move",
+      icon: "arrow-forward-outline",
+      onPress: () => handleClipboardAction("move"),
+    },
     {
       key: "play",
       label: `Play selected (${playableSelectedCount})`,
@@ -228,10 +231,40 @@ export function SelectionBars({ onStartSetParent, onMakeRoot, onDockLayout }: Se
     ...(selectedClips.length === 1
       ? [
           {
+            key: "record-variation",
+            label: "Record variation",
+            icon: "mic-outline" as const,
+            onPress: () => {
+              if (!selectedIdea || !singleSelectedClip) return;
+              void (async () => {
+                useStore.getState().setRecordingParentClipId(singleSelectedClip.id);
+                useStore.getState().setRecordingIdeaId(selectedIdea.id);
+                navigation.navigate("Recording" as never);
+              })();
+            },
+          },
+        ]
+      : []),
+    ...(selectedClips.length === 1
+      ? [
+          {
             key: "make-root",
             label: "Make root",
             icon: "radio-button-on-outline" as const,
             onPress: () => onMakeRoot(selectedClipIds),
+          },
+        ]
+      : []),
+    ...(selectedClips.length === 1 && onViewLineageHistory && selectedIdea && singleSelectedClip
+      ? [
+          {
+            key: "view-history",
+            label: "View history",
+            icon: "git-branch-outline" as const,
+            onPress: () => {
+              const rootId = getLineageRootId(selectedIdea.clips, singleSelectedClip.id);
+              if (rootId) onViewLineageHistory(rootId);
+            },
           },
         ]
       : []),
@@ -261,26 +294,25 @@ export function SelectionBars({ onStartSetParent, onMakeRoot, onDockLayout }: Se
             actions={sheetActions}
             onClose={() => setMoreVisible(false)}
           />
-        </>
-      ) : null}
 
-      {movingClipId ? (
-        <View style={styles.songSelectionBar}>
-          <View style={styles.songSelectionBarHeader}>
-            <Text style={styles.selectionText}>Move clip to:</Text>
-          </View>
-          <View style={styles.songSelectionBarActions}>
-            {targetProjects.map((project) => (
-              <Button
-                key={project.id}
-                variant="secondary"
-                label={project.title}
-                onPress={() => appActions.moveClipToProject(project.id)}
-              />
-            ))}
-            <Button variant="secondary" label="Cancel" onPress={() => useStore.getState().setMovingClipId(null)} />
-          </View>
-        </View>
+          <ClipNotesSheet
+            visible={editVisible}
+            clipSubtitle={
+              singleSelectedClip
+                ? `${singleSelectedClip.durationMs ? fmtDuration(singleSelectedClip.durationMs) : "0:00"} • ${formatDate(singleSelectedClip.createdAt)}`
+                : ""
+            }
+            clip={singleSelectedClip}
+            idea={selectedIdea ?? null}
+            globalCustomTags={globalCustomTags}
+            titleDraft={editTitleDraft}
+            notesDraft={editNotesDraft}
+            onChangeTitle={setEditTitleDraft}
+            onChangeNotes={setEditNotesDraft}
+            onSave={saveEditedClip}
+            onCancel={() => setEditVisible(false)}
+          />
+        </>
       ) : null}
     </>
   );

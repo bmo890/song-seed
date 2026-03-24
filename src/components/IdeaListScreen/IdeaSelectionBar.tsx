@@ -1,6 +1,5 @@
 import { useMemo, useState } from "react";
 import { Alert } from "react-native";
-import { useNavigation } from "@react-navigation/native";
 import { useStore } from "../../state/useStore";
 import { appActions } from "../../state/actions";
 import { shareAudioClips } from "../../services/audioStorage";
@@ -16,6 +15,7 @@ type IdeaSelectionBarProps = {
   hideActionLabel: "Hide" | "Unhide";
   hideActionDisabled?: boolean;
   onDeleteSelected: () => void;
+  onEditSelected?: () => void;
   onCreateProjectFromSelection?: () => void;
   selectedClipIdeasCount: number;
   onDockLayout?: (height: number) => void;
@@ -29,11 +29,11 @@ export function IdeaSelectionBar({
   hideActionLabel,
   hideActionDisabled,
   onDeleteSelected,
+  onEditSelected,
   onCreateProjectFromSelection,
   selectedClipIdeasCount,
   onDockLayout,
 }: IdeaSelectionBarProps) {
-  const navigation = useNavigation();
   const [isSharing, setIsSharing] = useState(false);
   const [moreVisible, setMoreVisible] = useState(false);
 
@@ -102,9 +102,8 @@ export function IdeaSelectionBar({
     selectableIdeaIds.length > 0 && selectableIdeaIds.every((id) => selectedListIdeaIds.includes(id));
   const canDeselectAll = allSelectableSelected || (selectableIdeaIds.length === 0 && selectedListIdeaIds.length > 0);
   const exactlyOneInteractive = interactiveSelectedIdeas.length === 1;
-  const singleInteractiveIdea = exactlyOneInteractive ? interactiveSelectedIdeas[0] ?? null : null;
-  const canEditSingleClip = !!singleInteractiveIdea && singleInteractiveIdea.kind === "clip";
   const selectedHiddenOnly = selectedIdeas.length > 0 && interactiveSelectedIdeas.length === 0;
+  const canEditSelection = exactlyOneInteractive && !selectedHiddenOnly && !!onEditSelected;
 
   async function handleShareSelected() {
     if (shareableClips.length === 0 || isSharing) return;
@@ -150,22 +149,6 @@ export function IdeaSelectionBar({
     ]);
   }
 
-  function handleEditSingleClip() {
-    if (!singleInteractiveIdea || singleInteractiveIdea.kind !== "clip") return;
-    const primaryClip = singleInteractiveIdea.clips[0];
-    if (!primaryClip?.audioUri) {
-      Alert.alert("Nothing to edit", "This clip does not have playable audio yet.");
-      return;
-    }
-
-    (navigation as any).navigate("Editor", {
-      ideaId: singleInteractiveIdea.id,
-      clipId: primaryClip.id,
-      audioUri: primaryClip.audioUri,
-      durationMs: primaryClip.durationMs,
-    });
-  }
-
   const dockActions: SelectionAction[] = useMemo(() => {
     if (selectedHiddenOnly) {
       return [
@@ -192,19 +175,20 @@ export function IdeaSelectionBar({
       ];
     }
 
-    if (canEditSingleClip) {
+    if (canEditSelection) {
       return [
         {
           key: "edit",
           label: "Edit",
-          icon: "build-outline",
-          onPress: handleEditSingleClip,
+          icon: "create-outline",
+          onPress: onEditSelected!,
         },
         {
-          key: "copy",
-          label: "Copy",
-          icon: "copy-outline",
-          onPress: () => handleClipboardAction("copy"),
+          key: "hide",
+          label: hideActionLabel,
+          icon: hideActionLabel === "Unhide" ? "eye-outline" : "eye-off-outline",
+          onPress: onToggleHideSelected,
+          disabled: hideActionDisabled,
         },
         {
           key: "delete",
@@ -224,16 +208,11 @@ export function IdeaSelectionBar({
 
     return [
       {
-        key: "copy",
-        label: "Copy",
-        icon: "copy-outline",
-        onPress: () => handleClipboardAction("copy"),
-      },
-      {
-        key: "move",
-        label: "Move",
-        icon: "arrow-forward-outline",
-        onPress: () => handleClipboardAction("move"),
+        key: "hide",
+        label: hideActionLabel,
+        icon: hideActionLabel === "Unhide" ? "eye-outline" : "eye-off-outline",
+        onPress: onToggleHideSelected,
+        disabled: hideActionDisabled,
       },
       {
         key: "delete",
@@ -250,11 +229,11 @@ export function IdeaSelectionBar({
       },
     ];
   }, [
-    canEditSingleClip,
+    canEditSelection,
     confirmDeleteSelection,
-    handleEditSingleClip,
     hideActionDisabled,
     hideActionLabel,
+    onEditSelected,
     onToggleHideSelected,
     selectedHiddenOnly,
   ]);
@@ -262,7 +241,7 @@ export function IdeaSelectionBar({
   const sheetActions: SelectionAction[] = useMemo(() => {
     const actions: SelectionAction[] = [];
 
-    if (!selectedHiddenOnly && !canEditSingleClip) {
+    if (!selectedHiddenOnly) {
       actions.push({
         key: "play",
         label: `Play selected (${playbackQueue.length})`,
@@ -284,7 +263,13 @@ export function IdeaSelectionBar({
       });
     }
 
-    if (!selectedHiddenOnly && canEditSingleClip) {
+    if (!selectedHiddenOnly) {
+      actions.push({
+        key: "copy",
+        label: "Copy",
+        icon: "copy-outline",
+        onPress: () => handleClipboardAction("copy"),
+      });
       actions.push({
         key: "move",
         label: "Move",
@@ -292,14 +277,6 @@ export function IdeaSelectionBar({
         onPress: () => handleClipboardAction("move"),
       });
     }
-
-    actions.push({
-      key: "hide",
-      label: hideActionLabel,
-      icon: hideActionLabel === "Unhide" ? "eye-outline" : "eye-off-outline",
-      onPress: onToggleHideSelected,
-      disabled: hideActionDisabled,
-    });
 
     if (!selectedHiddenOnly && selectedClipIdeasCount > 0 && selectedProjects.length === 0 && onCreateProjectFromSelection) {
       actions.push({
@@ -321,14 +298,10 @@ export function IdeaSelectionBar({
     return actions;
   }, [
     canDeselectAll,
-    canEditSingleClip,
     handleShareSelected,
-    hideActionDisabled,
-    hideActionLabel,
     isSharing,
     onCreateProjectFromSelection,
     onPlaySelected,
-    onToggleHideSelected,
     playbackQueue.length,
     replaceListSelection,
     selectableIdeaIds,

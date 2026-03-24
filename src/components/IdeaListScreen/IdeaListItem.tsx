@@ -21,7 +21,6 @@ type IdeaListItemProps = RenderItemParams<SongIdea> & {
     inlinePlayer: InlinePlayer,
     playIdeaFromList: (ideaId: string, clip: ClipVersion) => Promise<void> | void,
     openIdeaFromList: (ideaId: string, clip: ClipVersion) => Promise<void> | void,
-    onLongPressActions: (idea: SongIdea) => void,
     onUnhide: (idea: SongIdea) => void,
     onHideDay?: () => void,
     hidden?: boolean,
@@ -78,7 +77,6 @@ export function IdeaListItem({
     inlinePlayer,
     playIdeaFromList,
     openIdeaFromList,
-    onLongPressActions,
     onUnhide,
     onHideDay,
     hidden = false,
@@ -167,10 +165,14 @@ export function IdeaListItem({
         void playIdeaFromList(item.id, playClip);
     };
 
+    const beginSelection = () => {
+        void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        useStore.getState().startListSelection(item.id);
+    };
+
     const handleLeadLongPress = () => {
         if (listSelectionMode) return;
-        void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-        onLongPressActions(item);
+        beginSelection();
     };
 
     const renderProjectRightMeta = () => (
@@ -445,8 +447,7 @@ export function IdeaListItem({
                                     useStore.getState().toggleListSelection(item.id);
                                     return;
                                 }
-                                void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                                onLongPressActions(item);
+                                beginSelection();
                                 }}
                                 delayLongPress={250}
                             >
