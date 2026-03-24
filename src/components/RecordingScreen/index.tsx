@@ -12,7 +12,7 @@ import { RecordingMeta } from "./RecordingMeta";
 import { RecordingControls } from "./RecordingControls";
 import { useRecording } from "../../hooks/useRecording";
 import { ClipVersion } from "../../types";
-import { ensureUniqueCountedTitle, genClipTitle } from "../../utils";
+import { buildDefaultIdeaTitle, ensureUniqueCountedTitle, genClipTitle } from "../../utils";
 import { RecordingInputPicker } from "./RecordingInputPicker";
 import { getLatestLyricsVersion, lyricsDocumentToText } from "../../lyrics";
 import { PlayerLyricsPanel } from "../PlayerScreen/PlayerLyricsPanel";
@@ -88,15 +88,7 @@ export function RecordingScreen() {
     preferredRecordingInputId
   );
 
-  const fallbackClipTitle = () =>
-    `New Clip — ${new Date().toLocaleString("en-US", {
-      month: "2-digit",
-      day: "2-digit",
-      year: "numeric",
-      hour: "numeric",
-      minute: "2-digit",
-      hour12: true,
-    })}`;
+  const fallbackClipTitle = () => buildDefaultIdeaTitle();
 
   const recordingPlaceholderTitle =
     recordingIdea
