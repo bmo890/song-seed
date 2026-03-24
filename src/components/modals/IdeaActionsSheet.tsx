@@ -12,7 +12,6 @@ type IdeaActionsSheetProps = {
   onShare: (idea: SongIdea) => void;
   onCopy: (idea: SongIdea) => void;
   onMove: (idea: SongIdea) => void;
-  onSelect: (idea: SongIdea) => void;
   onDelete: (idea: SongIdea) => void;
   onCancel: () => void;
 };
@@ -27,7 +26,6 @@ export function IdeaActionsSheet({
   onShare,
   onCopy,
   onMove,
-  onSelect,
   onDelete,
   onCancel,
 }: IdeaActionsSheetProps) {
@@ -45,10 +43,9 @@ export function IdeaActionsSheet({
       { key: "share", label: "Share", icon: "share-social-outline" as const, onPress: dismiss(onShare) },
       { key: "copy", label: "Copy", icon: "copy-outline" as const, onPress: dismiss(onCopy) },
       { key: "move", label: "Move", icon: "arrow-forward-outline" as const, onPress: dismiss(onMove) },
-      { key: "select", label: "Select", icon: "checkmark-circle-outline" as const, onPress: dismiss(onSelect) },
       { key: "delete", label: "Delete", icon: "trash-outline" as const, destructive: true, onPress: dismiss(onDelete) },
     ];
-  }, [idea, hidden, onCancel, onEdit, onHide, onUnhide, onShare, onCopy, onMove, onSelect, onDelete]);
+  }, [idea, hidden, onCancel, onEdit, onHide, onUnhide, onShare, onCopy, onMove, onDelete]);
 
   return (
     <ClipActionsSheet
