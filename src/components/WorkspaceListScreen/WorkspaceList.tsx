@@ -70,10 +70,6 @@ export function WorkspaceList({
             onToggleSelection?.(workspace.id);
           }}
           onTogglePrimary={() => onTogglePrimaryWorkspace(workspace.id)}
-          onOpenActions={() => {
-            if (workspace.id === busyWorkspaceId) return;
-            onOpenWorkspaceActions(workspace.id);
-          }}
         />
       ))}
     </View>

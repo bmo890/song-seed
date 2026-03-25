@@ -2,7 +2,7 @@ import React from "react";
 import { StyleProp, View, Text, ViewStyle } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import Slider from "@react-native-community/slider";
-import { styles } from "../../styles";
+import { styles } from "./styles";
 import { IdeaStatus } from "../../types";
 import { StatusChipRow } from "../common/StatusChipRow";
 

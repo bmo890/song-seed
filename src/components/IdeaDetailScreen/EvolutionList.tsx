@@ -1,14 +1,13 @@
-import React, { ReactNode, useCallback, useMemo, useRef } from "react";
-import { FlatList, Pressable, Text, View } from "react-native";
+import React, { ReactNode, useMemo } from "react";
+import { Pressable, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { styles } from "../../styles";
+import { styles } from "./styles";
 import { buildEvolutionListRows, type EvolutionListRow, type TimelineClipEntry } from "../../clipGraph";
-import { ClipCard, type ClipCardSharedProps } from "./ClipCard";
-import { IdeasHeader } from "./IdeasHeader";
-import { PrimaryTakeSection } from "./PrimaryTakeSection";
+import { type ClipCardContextProps } from "./ClipCard";
 import { type SongTimelineSortDirection, type SongTimelineSortMetric } from "../../clipGraph";
 import { type SongClipTagFilter } from "./songClipControls";
-import { useStickyHeaderScroll } from "../../hooks/useStickyHeaderScroll";
+import { SongClipCard } from "./components/SongClipCard";
+import { SongClipListShell } from "./components/SongClipListShell";
 
 type EvolutionListProps = {
   clips: TimelineClipEntry["clip"][];
@@ -17,30 +16,11 @@ type EvolutionListProps = {
   summaryContent?: ReactNode;
   footerSpacerHeight: number;
   primaryEntry: TimelineClipEntry | null;
-  clipCardProps: ClipCardSharedProps;
-  isEditMode: boolean;
-  viewMode: "timeline" | "evolution";
-  setViewMode: (mode: "timeline" | "evolution") => void;
-  timelineSortMetric: SongTimelineSortMetric;
-  setTimelineSortMetric: (metric: SongTimelineSortMetric) => void;
-  timelineSortDirection: SongTimelineSortDirection;
-  setTimelineSortDirection: (direction: SongTimelineSortDirection) => void;
-  timelineMainTakesOnly: boolean;
-  setTimelineMainTakesOnly: (value: boolean) => void;
-  clipTagFilter: SongClipTagFilter;
-  setClipTagFilter: (filter: SongClipTagFilter) => void;
-  isParentPicking: boolean;
+  clipCardContext: ClipCardContextProps;
   visibleIdeaCount: number;
   onIdeasStickyChange?: (isSticky: boolean) => void;
   onViewLineageHistory?: (lineageRootId: string) => void;
 };
-
-type EvolutionRenderRow =
-  | { kind: "summary-section" }
-  | { kind: "primary-section" }
-  | { kind: "ideas-header" }
-  | { kind: "empty" }
-  | EvolutionListRow;
 
 function EvolutionMoreRow({
   lineageRootId,
@@ -102,19 +82,7 @@ export function EvolutionList({
   summaryContent,
   footerSpacerHeight,
   primaryEntry,
-  clipCardProps,
-  isEditMode,
-  viewMode,
-  setViewMode,
-  timelineSortMetric,
-  setTimelineSortMetric,
-  timelineSortDirection,
-  setTimelineSortDirection,
-  timelineMainTakesOnly,
-  setTimelineMainTakesOnly,
-  clipTagFilter,
-  setClipTagFilter,
-  isParentPicking,
+  clipCardContext,
   visibleIdeaCount,
   onIdeasStickyChange,
   onViewLineageHistory,
@@ -124,103 +92,27 @@ export function EvolutionList({
     [clips, expandedLineageIds]
   );
 
-  const listRows = useMemo<EvolutionRenderRow[]>(() => {
-    const rows: EvolutionRenderRow[] = [];
-    if (summaryContent) rows.push({ kind: "summary-section" });
-    if (primaryEntry) rows.push({ kind: "primary-section" });
-    rows.push({ kind: "ideas-header" });
-    if (contentRows.length === 0) {
-      rows.push({ kind: "empty" });
-      return rows;
-    }
-    rows.push(...contentRows);
-    return rows;
-  }, [contentRows, primaryEntry, summaryContent]);
-
-  const stickyIdeasIndex = useMemo(() => {
-    let index = 0;
-    if (summaryContent) index += 1;
-    if (primaryEntry) index += 1;
-    return index;
-  }, [primaryEntry, summaryContent]);
-
-  const summaryHeightRef = useRef(0);
-  const primaryHeightRef = useRef(0);
-
-  const getSnapY = useCallback(
-    () => summaryHeightRef.current + primaryHeightRef.current,
-    []
-  );
-
-  const { handleScroll, scrollEventThrottle } = useStickyHeaderScroll({
-    onStickyChange: onIdeasStickyChange,
-    getSnapY,
-  });
-
   return (
-    <FlatList
-      data={listRows}
-      stickyHeaderIndices={[stickyIdeasIndex]}
-      onScroll={handleScroll}
-      scrollEventThrottle={scrollEventThrottle}
-      keyExtractor={(row, index) => {
+    <SongClipListShell
+      contentRows={contentRows}
+      summaryContent={summaryContent}
+      footerSpacerHeight={footerSpacerHeight}
+      primaryEntry={primaryEntry}
+      clipCardContext={clipCardContext}
+      visibleIdeaCount={visibleIdeaCount}
+      emptyLabel={primaryEntry ? "No idea clips yet." : "No clips yet."}
+      onIdeasStickyChange={onIdeasStickyChange}
+      contentKeyExtractor={(row, index) => {
         if (row.kind === "clip") return `evolution-clip:${row.entry.clip.id}:${index}`;
-        if (row.kind === "more") return `evolution-more:${row.lineageRootId}`;
-        return `${row.kind}-${index}`;
+        return `evolution-more:${row.lineageRootId}`;
       }}
-      style={styles.songDetailClipList}
-      contentContainerStyle={styles.songDetailClipListContent}
-      ListFooterComponent={<View style={{ height: footerSpacerHeight }} />}
-      renderItem={({ item }) => {
-        if (item.kind === "summary-section") {
-          return summaryContent ? (
-            <View
-              style={styles.songDetailClipSummarySection}
-              onLayout={(e) => { summaryHeightRef.current = e.nativeEvent.layout.height; }}
-            >
-              {summaryContent}
-            </View>
-          ) : null;
-        }
-
-        if (item.kind === "primary-section") {
-          return (
-            <View onLayout={(e) => { primaryHeightRef.current = e.nativeEvent.layout.height; }}>
-              <PrimaryTakeSection entry={primaryEntry} clipCardProps={clipCardProps} />
-            </View>
-          );
-        }
-
-        if (item.kind === "ideas-header") {
-          return (
-            <IdeasHeader
-              isParentPicking={isParentPicking}
-              isEditMode={isEditMode}
-              viewMode={viewMode}
-              setViewMode={setViewMode}
-              timelineSortMetric={timelineSortMetric}
-              setTimelineSortMetric={setTimelineSortMetric}
-              timelineSortDirection={timelineSortDirection}
-              setTimelineSortDirection={setTimelineSortDirection}
-              timelineMainTakesOnly={timelineMainTakesOnly}
-              setTimelineMainTakesOnly={setTimelineMainTakesOnly}
-              clipTagFilter={clipTagFilter}
-              setClipTagFilter={setClipTagFilter}
-              visibleIdeaCount={visibleIdeaCount}
-            />
-          );
-        }
-
-        if (item.kind === "empty") {
-          return <Text style={styles.emptyText}>{primaryEntry ? "No idea clips yet." : "No clips yet."}</Text>;
-        }
-
-        if (item.kind === "more") {
+      renderContentRow={(row) => {
+        if (row.kind === "more") {
           return (
             <EvolutionMoreRow
-              lineageRootId={item.lineageRootId}
-              hiddenCount={item.hiddenCount}
-              expanded={item.expanded}
+              lineageRootId={row.lineageRootId}
+              hiddenCount={row.hiddenCount}
+              expanded={row.expanded}
               onToggle={(lineageRootId) =>
                 setExpandedLineageIds((prev) => ({
                   ...prev,
@@ -232,7 +124,7 @@ export function EvolutionList({
           );
         }
 
-        return <ClipCard entry={item.entry} {...clipCardProps} />;
+        return <SongClipCard entry={row.entry} context={clipCardContext} />;
       }}
     />
   );

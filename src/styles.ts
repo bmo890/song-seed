@@ -1574,9 +1574,6 @@ export const styles = StyleSheet.create({
     marginTop: 4,
     marginBottom: 6,
   },
-  songDetailSectionHeaderStack: {
-    gap: 8,
-  },
   songDetailSectionHeaderCopy: {
     flexDirection: "row",
     alignItems: "baseline",
@@ -1662,35 +1659,6 @@ export const styles = StyleSheet.create({
     fontSize: 12,
     color: "#475569",
     fontWeight: "700",
-  },
-  songDetailViewToggle: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    padding: 3,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "#dbe2ea",
-    backgroundColor: "#ffffff",
-  },
-  songDetailViewToggleOption: {
-    minHeight: 28,
-    borderRadius: 13,
-    paddingHorizontal: 10,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  songDetailViewToggleOptionActive: {
-    backgroundColor: "#0f172a",
-  },
-  songDetailViewToggleText: {
-    fontSize: 12,
-    lineHeight: 14,
-    color: "#475569",
-    fontWeight: "700",
-  },
-  songDetailViewToggleTextActive: {
-    color: "#ffffff",
   },
   songDetailTimelineDividerWrap: {
     paddingTop: 2,
@@ -1817,16 +1785,6 @@ export const styles = StyleSheet.create({
     fontWeight: "700",
   },
   songDetailVersionReplyBtn: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    borderWidth: 1,
-    borderColor: "#dbe2ea",
-    backgroundColor: "#ffffff",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  songDetailVersionOverflowBtn: {
     width: 26,
     height: 26,
     borderRadius: 13,
@@ -2320,12 +2278,6 @@ export const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-  },
-  workspaceBrowseCollectionActions: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    marginLeft: 8,
   },
   workspaceBrowseMatchRow: {
     flexDirection: "row",

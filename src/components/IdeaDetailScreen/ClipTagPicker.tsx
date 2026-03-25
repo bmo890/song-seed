@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Pressable, Text, TextInput, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import { styles } from "../../styles";
+import { styles } from "./styles";
 import { useStore } from "../../state/useStore";
 import type { ClipVersion, CustomTagDefinition, SongIdea } from "../../types";
 import { BottomSheet } from "../common/BottomSheet";

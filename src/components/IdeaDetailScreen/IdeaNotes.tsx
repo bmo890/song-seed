@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Pressable, StyleProp, Text, TextInput, View, ViewStyle } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { styles } from "../../styles";
+import { styles } from "./styles";
 import { Button } from "../common/Button";
 import { appActions } from "../../state/actions";
 

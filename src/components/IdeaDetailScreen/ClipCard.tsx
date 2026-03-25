@@ -1,22 +1,26 @@
 import React from "react";
-import { Animated, Pressable, Text, TextInput, View } from "react-native";
+import { Animated, Pressable, View, type GestureResponderEvent } from "react-native";
 import { useNavigation } from "@react-navigation/native";
-import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import { styles } from "../../styles";
-import { Button } from "../common/Button";
-import { MiniProgress } from "../MiniProgress";
-import { TitleInput } from "../common/TitleInput";
+import { styles } from "./styles";
 import { useStore } from "../../state/useStore";
 import { fmtDuration, formatDate } from "../../utils";
 import { type EvolutionListClipEntry, type TimelineClipEntry } from "../../clipGraph";
 import { type SongIdea, type ClipVersion, type CustomTagDefinition } from "../../types";
 import { type useInlinePlayer } from "../../hooks/useInlinePlayer";
 import { getTagColor, getTagLabel } from "./songClipControls";
+import { ClipCardEditForm } from "./components/clipCard/ClipCardEditForm";
+import { ClipCardEvolutionGuide } from "./components/clipCard/ClipCardEvolutionGuide";
+import { ClipCardInlinePlayer } from "./components/clipCard/ClipCardInlinePlayer";
+import { ClipCardLead } from "./components/clipCard/ClipCardLead";
+import { ClipCardPrimaryIndicator } from "./components/clipCard/ClipCardPrimaryIndicator";
+import { ClipCardReplyButton } from "./components/clipCard/ClipCardReplyButton";
+import { ClipCardSelectionRail } from "./components/clipCard/ClipCardSelectionRail";
+import { ClipCardStaticBody } from "./components/clipCard/ClipCardStaticBody";
 
 export type ClipCardEntry = TimelineClipEntry | EvolutionListClipEntry;
 
-export type ClipCardSharedProps = {
+export type ClipCardModeProps = {
   idea: SongIdea;
   displayPrimaryId: string | null;
   isEditMode: boolean;
@@ -24,6 +28,9 @@ export type ClipCardSharedProps = {
   isParentPicking: boolean;
   parentPickSourceIdSet: Set<string>;
   parentPickInvalidTargetIdSet: Set<string>;
+};
+
+export type ClipCardEditingProps = {
   editingClipId: string | null;
   editingClipDraft: string;
   setEditingClipDraft: (value: string) => void;
@@ -32,72 +39,80 @@ export type ClipCardSharedProps = {
   onBeginEditing: (clip: ClipVersion) => void;
   onSaveEditing: (clipId: string) => void;
   onCancelEditing: () => void;
+};
+
+export type ClipCardActionProps = {
   onOpenActions: (clip: ClipVersion) => void;
   longPressBehavior?: "select" | "actions";
-  showOverflowAction?: boolean;
   onOpenNotesSheet?: (clip: ClipVersion) => void;
   onPickParentTarget: (clipId: string) => void;
   onOpenTagPicker?: (clip: ClipVersion) => void;
+};
+
+export type ClipCardPlaybackProps = {
   globalCustomTags: CustomTagDefinition[];
   inlinePlayer: ReturnType<typeof useInlinePlayer>;
   getHighlightValue: (clipId: string) => Animated.Value | undefined;
 };
 
-type ClipCardProps = ClipCardSharedProps & {
+export type ClipCardContextProps = {
+  mode: ClipCardModeProps;
+  editing: ClipCardEditingProps;
+  actions: ClipCardActionProps;
+  playback: ClipCardPlaybackProps;
+};
+
+type ClipCardProps = {
   entry: ClipCardEntry;
+  context: ClipCardContextProps;
   displayOnly?: boolean;
 };
 
-function renderEvolutionGuide(entry: EvolutionListClipEntry) {
-  if (!entry.indented) return null;
-
-  return (
-    <View style={styles.songDetailEvolutionGuideWrap}>
-      <View
-        style={[
-          styles.songDetailEvolutionStem,
-          !entry.continuesThreadBelow ? styles.songDetailEvolutionStemEnd : null,
-        ]}
-      />
-      <View style={styles.songDetailEvolutionElbow}>
-        <View style={styles.songDetailEvolutionDot} />
-      </View>
-    </View>
-  );
-}
-
 export function ClipCard({
   entry,
-  idea,
-  displayPrimaryId,
-  isEditMode,
-  isDraftProject,
-  isParentPicking,
-  parentPickSourceIdSet,
-  parentPickInvalidTargetIdSet,
-  editingClipId,
-  editingClipDraft,
-  setEditingClipDraft,
-  editingClipNotesDraft,
-  setEditingClipNotesDraft,
-  onBeginEditing,
-  onSaveEditing,
-  onCancelEditing,
-  onOpenActions,
-  longPressBehavior = "select",
-  showOverflowAction = false,
-  onOpenNotesSheet,
-  onPickParentTarget,
-  onOpenTagPicker,
-  globalCustomTags,
-  inlinePlayer,
-  getHighlightValue,
+  context,
   displayOnly,
 }: ClipCardProps) {
+  const {
+    mode: {
+      idea,
+      displayPrimaryId,
+      isEditMode,
+      isDraftProject,
+      isParentPicking,
+      parentPickSourceIdSet,
+      parentPickInvalidTargetIdSet,
+    },
+    editing: {
+      editingClipId,
+      editingClipDraft,
+      setEditingClipDraft,
+      editingClipNotesDraft,
+      setEditingClipNotesDraft,
+      onBeginEditing,
+      onSaveEditing,
+      onCancelEditing,
+    },
+    actions: {
+      onOpenActions,
+      longPressBehavior = "select",
+      onOpenNotesSheet,
+      onPickParentTarget,
+      onOpenTagPicker,
+    },
+    playback: { globalCustomTags, inlinePlayer, getHighlightValue },
+  } = context;
+
   const navigation = useNavigation();
   const clipSelectionMode = useStore((s) => s.clipSelectionMode);
   const selectedClipIds = useStore((s) => s.selectedClipIds);
   const movingClipId = useStore((s) => s.movingClipId);
+  const startClipSelection = useStore((s) => s.startClipSelection);
+  const toggleClipSelection = useStore((s) => s.toggleClipSelection);
+  const setPendingPrimaryClipId = useStore((s) => s.setPendingPrimaryClipId);
+  const setRecordingParentClipId = useStore((s) => s.setRecordingParentClipId);
+  const setRecordingIdeaId = useStore((s) => s.setRecordingIdeaId);
+  const setPlayerQueue = useStore((s) => s.setPlayerQueue);
   const highlightValue = getHighlightValue(entry.clip.id);
   const { clip } = entry;
   const inlineTarget = inlinePlayer.inlineTarget;
@@ -109,36 +124,94 @@ export function ClipCard({
   const isParentPickSource = parentPickSourceIdSet.has(clip.id);
   const isInvalidParentTarget = isParentPicking && parentPickInvalidTargetIdSet.has(clip.id);
   const isValidParentTarget = isParentPicking && !isInvalidParentTarget;
+  const tagBadges = (clip.tags ?? []).map((tagKey) => {
+    const color = getTagColor(tagKey, idea.customTags, globalCustomTags);
+    const label = getTagLabel(tagKey, idea.customTags, globalCustomTags);
+    return {
+      key: tagKey,
+      label,
+      backgroundColor: color.bg,
+      textColor: color.text,
+    };
+  });
+  const canEditTags =
+    !displayOnly && !isEditMode && !isDraftProject && !isParentPicking && !clipSelectionMode;
+  const durationLabel = clip.durationMs ? fmtDuration(clip.durationMs) : "0:00";
+  const canToggleInlinePlayback = !clipSelectionMode && !isDraftProject && !isParentPicking;
+  const canShowReplyButton =
+    !displayOnly && !clipSelectionMode && !isEditMode && !isDraftProject && !isParentPicking;
+
+  const openPlayer = async () => {
+    if (!clip.audioUri) return;
+    await inlinePlayer.resetInlinePlayer();
+    setPlayerQueue([{ ideaId: idea.id, clipId: clip.id }], 0, true);
+    navigation.navigate("Player" as never);
+  };
+
   const beginActions = () => {
     onOpenActions(clip);
   };
   const beginSelection = () => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    useStore.getState().startClipSelection(clip.id);
+    startClipSelection(clip.id);
+  };
+  const handleSetPrimary = () => {
+    setPendingPrimaryClipId(clip.id);
+  };
+  const handleReply = async () => {
+    await inlinePlayer.resetInlinePlayer();
+    setRecordingParentClipId(clip.id);
+    setRecordingIdeaId(idea.id);
+    navigation.navigate("Recording" as never);
+  };
+  const handleLongPress = () => {
+    if (displayOnly || isParentPicking) return;
+    if (clipSelectionMode) {
+      toggleClipSelection(clip.id);
+      return;
+    }
+    if (longPressBehavior === "actions") {
+      beginActions();
+      return;
+    }
+    beginSelection();
+  };
+  const handlePress = async () => {
+    if (displayOnly) {
+      await openPlayer();
+      return;
+    }
+    if (isDraftProject) return;
+    if (isParentPicking) {
+      if (isInvalidParentTarget) return;
+      onPickParentTarget(clip.id);
+      return;
+    }
+    if (clipSelectionMode) {
+      toggleClipSelection(clip.id);
+      return;
+    }
+    if (isEditMode) {
+      onBeginEditing(clip);
+      return;
+    }
+    await openPlayer();
+  };
+  const handleTagsPress = (event: GestureResponderEvent) => {
+    event.stopPropagation();
+    if (onOpenTagPicker) {
+      onOpenTagPicker(clip);
+      return;
+    }
+    onOpenNotesSheet?.(clip);
   };
 
   return (
     <View style={styles.threadRowWrap}>
-      {!displayOnly && (
-        <View
-          style={[
-            styles.selectionIndicatorCol,
-            clipSelectionMode ? null : styles.selectionIndicatorHidden,
-          ]}
-        >
-          {clipSelectionMode ? (
-            <View
-              style={[
-                styles.selectionIndicatorCircle,
-                isSelected ? styles.selectionIndicatorActive : null,
-              ]}
-            >
-              {isSelected ? <Text style={styles.selectionBadgeText}>✓</Text> : null}
-            </View>
-          ) : null}
-        </View>
-      )}
-      {entry.kind === "evolution" ? renderEvolutionGuide(entry) : null}
+      {!displayOnly ? (
+        <ClipCardSelectionRail visible={clipSelectionMode} selected={isSelected} />
+      ) : null}
+      <ClipCardEvolutionGuide entry={entry.kind === "evolution" ? entry : null} />
 
       <View
         style={[
@@ -155,94 +228,20 @@ export function ClipCard({
         ]}
       >
         <View style={styles.songDetailVersionRow}>
-          <View
-            style={[
-              styles.songDetailVersionLead,
-              inlineActive ? styles.songDetailVersionLeadInlineActive : null,
-            ]}
-          >
-            {!clipSelectionMode && !isDraftProject && !isParentPicking ? (
-              <Pressable
-                onPress={(evt) => {
-                  evt.stopPropagation();
-                  void Haptics.selectionAsync();
-                  if (!clip.audioUri) return;
-                  void inlinePlayer.toggleInlinePlayback(idea.id, clip);
-                }}
-                onLongPress={
-                  displayOnly
-                    ? undefined
-                    : longPressBehavior === "actions"
-                      ? beginActions
-                      : beginSelection
-                }
-                style={({ pressed }) => [
-                  styles.ideasInlinePlayBtn,
-                  pressed ? styles.pressDown : null,
-                ]}
-              >
-                <Ionicons
-                  name={inlineActive && inlinePlayer.isInlinePlaying ? "pause" : "play"}
-                  size={15}
-                  color={!clip.audioUri ? "#9ca3af" : "#111827"}
-                  style={inlineActive && inlinePlayer.isInlinePlaying ? undefined : { marginLeft: 2 }}
-                />
-              </Pressable>
-            ) : (
-              <View style={styles.ideasInlinePlayBtn}>
-                <Ionicons name="play" size={15} color="#9ca3af" style={{ marginLeft: 2 }} />
-              </View>
-            )}
-            <View style={styles.songDetailVersionLeadDurationSlot}>
-              <Text style={styles.songDetailVersionLeadDurationText}>
-                {clip.durationMs ? fmtDuration(clip.durationMs) : "0:00"}
-              </Text>
-            </View>
-          </View>
+          <ClipCardLead
+            durationLabel={durationLabel}
+            inlineActive={inlineActive}
+            inlinePlaying={inlinePlayer.isInlinePlaying}
+            canToggleInlinePlayback={canToggleInlinePlayback}
+            canPlay={!!clip.audioUri}
+            onPressPlay={() => inlinePlayer.toggleInlinePlayback(idea.id, clip)}
+            onLongPress={displayOnly ? undefined : handleLongPress}
+          />
 
           <Pressable
             style={styles.songDetailVersionMain}
-            onLongPress={displayOnly ? undefined : () => {
-              if (isParentPicking) return;
-              if (clipSelectionMode) {
-                useStore.getState().toggleClipSelection(clip.id);
-                return;
-              }
-              if (longPressBehavior === "actions") {
-                beginActions();
-                return;
-              }
-              beginSelection();
-            }}
-            onPress={async () => {
-              if (displayOnly) {
-                if (clip.audioUri) {
-                  await inlinePlayer.resetInlinePlayer();
-                  useStore.getState().setPlayerQueue([{ ideaId: idea.id, clipId: clip.id }], 0, true);
-                  navigation.navigate("Player" as never);
-                }
-                return;
-              }
-              if (isDraftProject) return;
-              if (isParentPicking) {
-                if (isInvalidParentTarget) return;
-                onPickParentTarget(clip.id);
-                return;
-              }
-              if (clipSelectionMode) {
-                useStore.getState().toggleClipSelection(clip.id);
-                return;
-              }
-              if (isEditMode) {
-                onBeginEditing(clip);
-                return;
-              }
-              if (clip.audioUri) {
-                await inlinePlayer.resetInlinePlayer();
-                useStore.getState().setPlayerQueue([{ ideaId: idea.id, clipId: clip.id }], 0, true);
-                navigation.navigate("Player" as never);
-              }
-            }}
+            onLongPress={displayOnly ? undefined : handleLongPress}
+            onPress={handlePress}
             delayLongPress={250}
           >
             {highlightValue ? (
@@ -253,172 +252,61 @@ export function ClipCard({
             ) : null}
 
             {!displayOnly && editingClipId === clip.id ? (
-              <View style={styles.inputRow}>
-                <TitleInput
-                  value={editingClipDraft}
-                  onChangeText={setEditingClipDraft}
-                  placeholder="Clip title"
-                  containerStyle={{ marginHorizontal: 0, marginBottom: 8 }}
-                />
-                <TextInput
-                  style={styles.notesInput}
-                  multiline
-                  placeholder="Clip notes"
-                  value={editingClipNotesDraft}
-                  onChangeText={setEditingClipNotesDraft}
-                />
-                <Button variant="secondary" label="Save" onPress={() => onSaveEditing(clip.id)} />
-                <Button variant="secondary" label="Cancel" onPress={onCancelEditing} />
-              </View>
+              <ClipCardEditForm
+                titleDraft={editingClipDraft}
+                notesDraft={editingClipNotesDraft}
+                onChangeTitle={setEditingClipDraft}
+                onChangeNotes={setEditingClipNotesDraft}
+                onSave={() => onSaveEditing(clip.id)}
+                onCancel={onCancelEditing}
+              />
             ) : (
-              <>
-                <View style={styles.songDetailVersionTopRow}>
-                  <View style={styles.songDetailVersionTitleRow}>
-                    <Text style={styles.songDetailVersionTitle} numberOfLines={2}>
-                      {clip.title}
-                    </Text>
-                  </View>
-
-                  <View style={styles.songDetailVersionTrailing}>
-                    {displayOnly ? null : isParentPickSource ? (
-                      <Text style={styles.badge}>SOURCE</Text>
-                    ) : isEditMode ? (
-                      isPrimaryCandidate ? (
-                        <Text style={styles.badge}>PRIMARY</Text>
-                      ) : (
-                        <Pressable
-                          style={styles.songDetailVersionSetPrimaryBtn}
-                          onPress={() => useStore.getState().setPendingPrimaryClipId(clip.id)}
-                        >
-                          <Text style={styles.songDetailVersionSetPrimaryText}>Primary</Text>
-                        </Pressable>
-                      )
-                    ) : clip.isPrimary ? (
-                      <Text style={styles.badge}>PRIMARY</Text>
-                    ) : null}
-
-                    {!displayOnly && showOverflowAction && !clipSelectionMode && !isEditMode && !isDraftProject && !isParentPicking ? (
-                      <Pressable
-                        style={({ pressed }) => [
-                          styles.songDetailVersionOverflowBtn,
-                          compactDensity ? styles.songDetailVersionReplyBtnCompact : null,
-                          pressed ? styles.pressDown : null,
-                        ]}
-                        onPress={(evt) => {
-                          evt.stopPropagation();
-                          void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                          onOpenActions(clip);
-                        }}
-                      >
-                        <Ionicons
-                          name="ellipsis-horizontal"
-                          size={14}
-                          color="#475569"
-                        />
-                      </Pressable>
-                    ) : null}
-
-                    {!displayOnly && !clipSelectionMode && !isEditMode && !isDraftProject && !isParentPicking ? (
-                      <Pressable
-                        style={({ pressed }) => [
-                          styles.songDetailVersionReplyBtn,
-                          compactDensity ? styles.songDetailVersionReplyBtnCompact : null,
-                          pressed ? styles.pressDown : null,
-                        ]}
-                        onPress={async (evt) => {
-                          evt.stopPropagation();
-                          await inlinePlayer.resetInlinePlayer();
-                          useStore.getState().setRecordingParentClipId(clip.id);
-                          useStore.getState().setRecordingIdeaId(idea.id);
-                          navigation.navigate("Recording" as never);
-                        }}
-                      >
-                        <Ionicons
-                          name="return-up-forward-outline"
-                          size={14}
-                          color="#475569"
-                        />
-                      </Pressable>
-                    ) : null}
-                  </View>
-                </View>
-
-                {clip.notes?.trim() ? (
-                  <Pressable
-                    style={styles.clipCardNotesPreview}
-                    onPress={displayOnly ? undefined : () => onOpenNotesSheet?.(clip)}
-                    hitSlop={displayOnly ? undefined : { top: 4, bottom: 4 }}
-                    disabled={displayOnly}
-                  >
-                    <Ionicons name="document-text-outline" size={11} color="#94a3b8" />
-                    <Text style={styles.clipCardNotesPreviewText} numberOfLines={1}>
-                      {clip.notes.trim()}
-                    </Text>
-                  </Pressable>
-                ) : null}
-
-                {clip.tags?.length || (!displayOnly && !isEditMode && !isDraftProject && !isParentPicking && !clipSelectionMode) ? (
-                  <Pressable
-                    style={styles.clipCardTagsRow}
-                    onPress={displayOnly ? undefined : (evt) => {
-                      evt.stopPropagation();
-                      if (onOpenTagPicker) {
-                        onOpenTagPicker(clip);
-                        return;
-                      }
-                      onOpenNotesSheet?.(clip);
-                    }}
-                    hitSlop={displayOnly ? undefined : { top: 2, bottom: 2 }}
-                    disabled={displayOnly}
-                  >
-                    {clip.tags?.map((tagKey) => {
-                      const color = getTagColor(tagKey, idea.customTags, globalCustomTags);
-                      const label = getTagLabel(tagKey, idea.customTags, globalCustomTags);
-                      return (
-                        <View key={tagKey} style={[styles.clipCardTagBadge, { backgroundColor: color.bg }]}>
-                          <Text style={[styles.clipCardTagBadgeText, { color: color.text }]}>{label}</Text>
-                        </View>
-                      );
-                    })}
-                    {!displayOnly && !isEditMode && !isDraftProject && !isParentPicking && !clipSelectionMode ? (
-                      <View style={styles.clipCardAddTagBtn}>
-                        <Ionicons name="add" size={11} color="#94a3b8" />
-                      </View>
-                    ) : null}
-                  </Pressable>
-                ) : null}
-
-                <Text style={styles.songDetailVersionMeta}>{formatDate(clip.createdAt)}</Text>
-              </>
+              <ClipCardStaticBody
+                title={clip.title}
+                trailing={
+                  <>
+                    <ClipCardPrimaryIndicator
+                      displayOnly={displayOnly}
+                      isParentPickSource={isParentPickSource}
+                      isEditMode={isEditMode}
+                      isPrimaryCandidate={isPrimaryCandidate}
+                      isPrimary={clip.isPrimary}
+                      onSetPrimary={handleSetPrimary}
+                    />
+                    <ClipCardReplyButton
+                      visible={canShowReplyButton}
+                      compact={compactDensity}
+                      onPress={handleReply}
+                    />
+                  </>
+                }
+                notes={clip.notes ?? ""}
+                disabled={!!displayOnly}
+                onPressNotes={displayOnly ? undefined : () => onOpenNotesSheet?.(clip)}
+                tags={tagBadges}
+                canEditTags={canEditTags}
+                onPressTags={displayOnly ? undefined : handleTagsPress}
+                createdAtLabel={formatDate(clip.createdAt)}
+              />
             )}
 
             {inlineActive && !displayOnly ? (
-              <View style={styles.songDetailVersionInlinePlayerWrap}>
-                <View style={styles.songDetailVersionInlinePlayerProgress}>
-                  <MiniProgress
-                    currentMs={inlinePlayer.inlinePosition}
-                    durationMs={inlinePlayer.inlineDuration || clip.durationMs || 0}
-                    onSeek={(ms) => {
-                      void inlinePlayer.endInlineScrub(ms);
-                    }}
-                    onSeekStart={() => {
-                      void inlinePlayer.beginInlineScrub();
-                    }}
-                    onSeekCancel={() => {
-                      void inlinePlayer.cancelInlineScrub();
-                    }}
-                  />
-                </View>
-                <Pressable
-                  style={styles.ideasInlineCloseBtn}
-                  onPress={(evt) => {
-                    evt.stopPropagation();
-                    void inlinePlayer.resetInlinePlayer();
-                  }}
-                >
-                  <Ionicons name="close" size={13} color="#64748b" />
-                </Pressable>
-              </View>
+              <ClipCardInlinePlayer
+                currentMs={inlinePlayer.inlinePosition}
+                durationMs={inlinePlayer.inlineDuration || clip.durationMs || 0}
+                onSeek={(ms) => {
+                  void inlinePlayer.endInlineScrub(ms);
+                }}
+                onSeekStart={() => {
+                  void inlinePlayer.beginInlineScrub();
+                }}
+                onSeekCancel={() => {
+                  void inlinePlayer.cancelInlineScrub();
+                }}
+                onClose={() => {
+                  void inlinePlayer.resetInlinePlayer();
+                }}
+              />
             ) : null}
           </Pressable>
         </View>

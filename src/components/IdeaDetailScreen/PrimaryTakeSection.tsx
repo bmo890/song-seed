@@ -1,15 +1,16 @@
 import React from "react";
 import { Text, View } from "react-native";
-import { styles } from "../../styles";
+import { styles } from "./styles";
 import { type TimelineClipEntry } from "../../clipGraph";
-import { ClipCard, type ClipCardSharedProps } from "./ClipCard";
+import { type ClipCardContextProps } from "./ClipCard";
+import { SongClipCard } from "./components/SongClipCard";
 
 type PrimaryTakeSectionProps = {
   entry: TimelineClipEntry | null;
-  clipCardProps: ClipCardSharedProps;
+  clipCardContext: ClipCardContextProps;
 };
 
-export function PrimaryTakeSection({ entry, clipCardProps }: PrimaryTakeSectionProps) {
+export function PrimaryTakeSection({ entry, clipCardContext }: PrimaryTakeSectionProps) {
   if (!entry) return null;
 
   return (
@@ -19,7 +20,7 @@ export function PrimaryTakeSection({ entry, clipCardProps }: PrimaryTakeSectionP
           <Text style={styles.songDetailSectionTitle}>Primary take</Text>
         </View>
       </View>
-      <ClipCard entry={entry} {...clipCardProps} displayOnly />
+      <SongClipCard entry={entry} context={clipCardContext} displayOnly />
     </View>
   );
 }

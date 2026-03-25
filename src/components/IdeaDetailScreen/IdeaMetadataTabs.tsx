@@ -3,7 +3,7 @@ import { Pressable, Text, TextInput, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import Slider from "@react-native-community/slider";
 import { useNavigation } from "@react-navigation/native";
-import { styles } from "../../styles";
+import { styles } from "./styles";
 import { appActions } from "../../state/actions";
 import { getLatestLyricsVersion, lyricsDocumentToText } from "../../lyrics";
 import { IdeaStatus, SongIdea } from "../../types";

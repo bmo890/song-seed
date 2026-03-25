@@ -2,7 +2,7 @@ import React from "react";
 import { Pressable, StyleProp, Text, View, ViewStyle } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
-import { styles } from "../../styles";
+import { styles } from "./styles";
 import { SongIdea } from "../../types";
 import { getLyricsPreview } from "../../lyrics";
 

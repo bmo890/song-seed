@@ -79,6 +79,18 @@ Rule of thumb:
 
 These rules are short, strict enforcement rules. Use [docs/design-system.md](/Users/benmogerman/Projects/song-seed/docs/design-system.md) for the fuller rationale and patterns.
 
+## Code Architecture Rules
+
+Use [docs/code-architecture.md](/Users/benmogerman/Projects/song-seed/docs/code-architecture.md) when refactoring or creating screen structure.
+
+Key rules:
+- Keep screen entry files thin
+- Prefer feature-local providers, hooks, sections, and components
+- Split effects by concern
+- Avoid giant prop surfaces and pass-through model objects
+- Default to local reuse; promote to shared only after real repeated use
+- Treat `Collection` and `Song` as the architecture templates for the rest of the app
+
 ### Core philosophy
 - Song Seed is a creative tool for musicians, not a dashboard.
 - The UI should feel calm, minimal, predictable, and content-first.

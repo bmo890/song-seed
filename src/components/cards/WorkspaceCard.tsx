@@ -19,7 +19,6 @@ type Props = {
   onPress: () => void;
   onLongPress: () => void;
   onTogglePrimary: () => void;
-  onOpenActions?: () => void;
 };
 
 export function WorkspaceCard({
@@ -34,7 +33,6 @@ export function WorkspaceCard({
   onPress,
   onLongPress,
   onTogglePrimary,
-  onOpenActions,
 }: Props) {
   const [sizeBytes, setSizeBytes] = useState<number>(0);
   const topLevelCollectionCount = workspace.collections.filter((collection) => !collection.parentCollectionId).length;
@@ -135,22 +133,6 @@ export function WorkspaceCard({
             </Pressable>
           ) : null}
 
-          {!selectionMode && onOpenActions ? (
-            <Pressable
-              style={({ pressed }) => [
-                styles.collectionInlineActionBtn,
-                pressed ? styles.pressDown : null,
-              ]}
-              onPress={(event) => {
-                event.stopPropagation();
-                onOpenActions();
-              }}
-              accessibilityRole="button"
-              accessibilityLabel={`Open actions for ${workspace.title}`}
-            >
-              <Ionicons name="ellipsis-horizontal" size={15} color="#64748b" />
-            </Pressable>
-          ) : null}
         </View>
       </View>
 
