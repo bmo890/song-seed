@@ -1,6 +1,7 @@
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import Constants from "expo-constants";
 import { ActivityIndicator, Alert, View } from "react-native";
+import * as Clipboard from "expo-clipboard";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   type InitialState,
@@ -45,6 +46,15 @@ import {
 } from "./src/libraryNavigation";
 import type { CollectionDetailRouteParams } from "./src/navigation";
 import { cleanupStaleShareTempFiles } from "./src/services/managedMedia";
+import {
+  BACKUP_SAVE_CANCELLED_MESSAGE,
+  runManualLibraryBackup,
+} from "./src/services/libraryBackup";
+import {
+  buildBackupReminderPromptMessage,
+  markBackupReminderPromptShown,
+  shouldPromptForBackupReminder,
+} from "./src/services/backupStatus";
 import { resumePendingWorkspaceArchiveOperations } from "./src/services/workspaceArchiveRecovery";
 import { recoverPendingRecordingSession } from "./src/services/recordingRecovery";
 
@@ -730,12 +740,80 @@ export default function App() {
           "Recovered recording",
           `${recordingRecovery.title} was restored after the previous session ended unexpectedly.`
         );
+        return;
       } else if (recordingRecovery.status === "failed") {
         Alert.alert(
           "Recording recovery failed",
           "Song Seed found an unfinished recording from the previous session but could not restore it automatically."
         );
+        return;
       }
+
+      const state = useStore.getState();
+      if (
+        !shouldPromptForBackupReminder({
+          workspaces: state.workspaces,
+          backupReminderFrequency: state.backupReminderFrequency,
+          lastSuccessfulBackupAt: state.lastSuccessfulBackupAt,
+        })
+      ) {
+        return;
+      }
+
+      markBackupReminderPromptShown();
+      Alert.alert(
+        "Back up your library?",
+        buildBackupReminderPromptMessage({
+          backupReminderFrequency: state.backupReminderFrequency,
+          lastSuccessfulBackupAt: state.lastSuccessfulBackupAt,
+        }),
+        [
+          { text: "Later", style: "cancel" },
+          {
+            text: "Turn Off Reminders",
+            onPress: () => {
+              useStore.getState().setBackupReminderFrequency("off");
+            },
+          },
+          {
+            text: "Back Up Now",
+            onPress: () => {
+              void (async () => {
+                try {
+                  const result = await runManualLibraryBackup(useStore.getState().workspaces);
+                  const backupFileName = `${result.archiveTitle}.zip`;
+                  useStore.getState().setLastSuccessfulBackupAt(Date.now());
+                  useStore.getState().setLastSuccessfulBackupFileName(backupFileName);
+                  Alert.alert(
+                    "Backup ready",
+                    `Saved ${backupFileName} to the folder you selected.`,
+                    [
+                      {
+                        text: "Copy Name",
+                        onPress: () => {
+                          void Clipboard.setStringAsync(backupFileName);
+                        },
+                      },
+                      { text: "OK" },
+                    ]
+                  );
+                } catch (error) {
+                  if (error instanceof Error && error.message === BACKUP_SAVE_CANCELLED_MESSAGE) {
+                    return;
+                  }
+
+                  Alert.alert(
+                    "Backup failed",
+                    error instanceof Error
+                      ? error.message
+                      : "The library backup could not be completed."
+                  );
+                }
+              })();
+            },
+          },
+        ]
+      );
     })();
   }, [hasHydrated]);
 

@@ -22,6 +22,7 @@ import {
     PlaylistItem,
     WorkspaceListOrder,
     WorkspaceStartupPreference,
+    BackupReminderFrequency,
     PracticeMarker,
 } from "../types";
 import { genClipTitle } from "../utils";
@@ -52,12 +53,18 @@ export type DataSlice = {
     playlists: Playlist[];
     preferredRecordingInputId: string | null;
     globalCustomClipTags: CustomTagDefinition[];
+    backupReminderFrequency: BackupReminderFrequency;
+    lastSuccessfulBackupAt: number | null;
+    lastSuccessfulBackupFileName: string | null;
     setActiveWorkspaceId: (id: string) => void;
     setPrimaryWorkspaceId: (id: string | null) => void;
     setWorkspaceStartupPreference: (value: WorkspaceStartupPreference) => void;
     setWorkspaceListOrder: (value: WorkspaceListOrder) => void;
     markCollectionOpened: (collectionId: string) => void;
     setPreferredRecordingInputId: (id: string | null) => void;
+    setBackupReminderFrequency: (value: BackupReminderFrequency) => void;
+    setLastSuccessfulBackupAt: (timestamp: number | null) => void;
+    setLastSuccessfulBackupFileName: (fileName: string | null) => void;
     addWorkspace: (title: string, description?: string) => void;
     updateWorkspace: (id: string, updates: { title?: string; description?: string }) => void;
     deleteWorkspace: (id: string) => void;
@@ -589,6 +596,9 @@ export const createDataSlice: StateCreator<
     playlists: [],
     preferredRecordingInputId: null,
     globalCustomClipTags: [],
+    backupReminderFrequency: "monthly",
+    lastSuccessfulBackupAt: null,
+    lastSuccessfulBackupFileName: null,
 
     setActiveWorkspaceId: (id) =>
         set((state) => {
@@ -635,6 +645,9 @@ export const createDataSlice: StateCreator<
             };
         }),
     setPreferredRecordingInputId: (id) => set({ preferredRecordingInputId: id }),
+    setBackupReminderFrequency: (value) => set({ backupReminderFrequency: value }),
+    setLastSuccessfulBackupAt: (timestamp) => set({ lastSuccessfulBackupAt: timestamp }),
+    setLastSuccessfulBackupFileName: (fileName) => set({ lastSuccessfulBackupFileName: fileName }),
 
     addWorkspace: (title, description) => {
         const workspaceId = `ws-${Date.now()}`;

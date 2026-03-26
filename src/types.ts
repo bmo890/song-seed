@@ -173,6 +173,7 @@ export type Workspace = {
 
 export type WorkspaceStartupPreference = "primary" | "last-used";
 export type WorkspaceListOrder = "last-worked" | "least-recent" | "title-az" | "title-za";
+export type BackupReminderFrequency = "off" | "weekly" | "monthly" | "quarterly";
 
 export type PlaylistItemKind = "song" | "clip";
 

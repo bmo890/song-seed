@@ -41,12 +41,14 @@ export type ExportLibraryArgs =
           format: "song-seed-archive";
           scope: LibraryExportScope;
           options: SongSeedArchiveOptions;
+          archiveLabel?: string;
       }
     | {
           workspaces: Workspace[];
           format: "standard-zip";
           scope: LibraryExportScope;
           options: StandardZipOptions;
+          archiveLabel?: string;
       };
 
 export type LibraryExportResult = {
@@ -145,7 +147,7 @@ type ExportBuildContext = {
 
 const LIBRARY_EXPORT_SCHEMA_VERSION = 1;
 
-export async function exportLibrary(args: ExportLibraryArgs): Promise<LibraryExportResult> {
+export async function prepareLibraryExportArchive(args: ExportLibraryArgs): Promise<LibraryExportResult> {
     if (!FileSystem.documentDirectory) {
         throw new Error("Document directory unavailable.");
     }
@@ -154,7 +156,9 @@ export async function exportLibrary(args: ExportLibraryArgs): Promise<LibraryExp
 
     await ensureShareDirectory();
 
-    const archiveLabel = args.format === "song-seed-archive" ? "Song Seed Archive" : "Song Seed Export";
+    const archiveLabel =
+        args.archiveLabel ??
+        (args.format === "song-seed-archive" ? "Song Seed Archive" : "Song Seed Export");
     const archiveTitle = `${sanitizeArchiveSegment(archiveLabel)} ${buildTimestampSlug()}`;
     const archiveUri = `${SONG_SEED_SHARE_DIR}/${archiveTitle}.zip`;
 
@@ -211,12 +215,7 @@ export async function exportLibrary(args: ExportLibraryArgs): Promise<LibraryExp
         throw new Error("Nothing to export for the current selection.");
     }
 
-    try {
-        await createZipArchive(archiveUri, zipEntries);
-        await shareFileUri(archiveUri, archiveTitle, "application/zip");
-    } finally {
-        await cleanupShareTempFile(archiveUri);
-    }
+    await createZipArchive(archiveUri, zipEntries);
 
     return {
         archiveUri,
@@ -227,6 +226,18 @@ export async function exportLibrary(args: ExportLibraryArgs): Promise<LibraryExp
         exportedSongs: build.exportedSongs,
         exportedStandaloneClips: build.exportedStandaloneClips,
     };
+}
+
+export async function exportLibrary(args: ExportLibraryArgs): Promise<LibraryExportResult> {
+    const prepared = await prepareLibraryExportArchive(args);
+
+    try {
+        await shareFileUri(prepared.archiveUri, prepared.archiveTitle, "application/zip");
+    } finally {
+        await cleanupShareTempFile(prepared.archiveUri);
+    }
+
+    return prepared;
 }
 
 function buildSongSeedArchive(args: Extract<ExportLibraryArgs, { format: "song-seed-archive" }>): ExportBuildContext {

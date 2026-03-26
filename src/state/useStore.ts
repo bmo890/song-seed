@@ -14,6 +14,10 @@ import {
 import type { ActivityEvent } from "../types";
 import { isIdeaSort } from "../ideaSort";
 import {
+    DEFAULT_BACKUP_REMINDER_FREQUENCY,
+    isBackupReminderFrequency,
+} from "../backupPreferences";
+import {
     DEFAULT_WORKSPACE_LIST_ORDER,
     DEFAULT_WORKSPACE_STARTUP_PREFERENCE,
     isWorkspaceListOrder,
@@ -45,6 +49,9 @@ export type PersistedAppStore = Pick<
     | "playlists"
     | "preferredRecordingInputId"
     | "globalCustomClipTags"
+    | "backupReminderFrequency"
+    | "lastSuccessfulBackupAt"
+    | "lastSuccessfulBackupFileName"
     | "ideasFilter"
     | "ideasSort"
     | "primaryFilter"
@@ -108,6 +115,18 @@ export function sanitizePersistedState(state?: Partial<PersistedAppStore>): Pers
         preferredRecordingInputId:
             typeof state?.preferredRecordingInputId === "string" ? state.preferredRecordingInputId : null,
         globalCustomClipTags: Array.isArray(state?.globalCustomClipTags) ? state.globalCustomClipTags : [],
+        backupReminderFrequency: isBackupReminderFrequency(state?.backupReminderFrequency)
+            ? state.backupReminderFrequency
+            : DEFAULT_BACKUP_REMINDER_FREQUENCY,
+        lastSuccessfulBackupAt:
+            typeof state?.lastSuccessfulBackupAt === "number" && Number.isFinite(state.lastSuccessfulBackupAt)
+                ? state.lastSuccessfulBackupAt
+                : null,
+        lastSuccessfulBackupFileName:
+            typeof state?.lastSuccessfulBackupFileName === "string" &&
+            state.lastSuccessfulBackupFileName.trim().length > 0
+                ? state.lastSuccessfulBackupFileName
+                : null,
         ideasFilter: state?.ideasFilter ?? "all",
         ideasSort: isIdeaSort(state?.ideasSort) ? state.ideasSort : "newest",
         primaryFilter: state?.primaryFilter ?? "all",
@@ -129,6 +148,9 @@ export function buildPersistedAppStoreSnapshot(state: AppStore): PersistedAppSto
         playlists: state.playlists,
         preferredRecordingInputId: state.preferredRecordingInputId,
         globalCustomClipTags: state.globalCustomClipTags,
+        backupReminderFrequency: state.backupReminderFrequency,
+        lastSuccessfulBackupAt: state.lastSuccessfulBackupAt,
+        lastSuccessfulBackupFileName: state.lastSuccessfulBackupFileName,
         ideasFilter: state.ideasFilter,
         ideasSort: state.ideasSort,
         primaryFilter: state.primaryFilter,

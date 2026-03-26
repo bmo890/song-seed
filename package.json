@@ -22,6 +22,7 @@
     "@siteed/expo-audio-ui": "^0.7.2",
     "expo": "~54.0.33",
     "expo-audio": "^1.1.1",
+    "expo-clipboard": "~8.0.8",
     "expo-document-picker": "~14.0.8",
     "expo-file-system": "~19.0.21",
     "expo-haptics": "~15.0.8",

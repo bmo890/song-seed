@@ -6,6 +6,7 @@ import { styles } from "../styles";
 import { useStore } from "../../../state/useStore";
 import { useBrowseRootBackHandler } from "../../../hooks/useBrowseRootBackHandler";
 import { useSettingsScreenModel } from "../hooks/useSettingsScreenModel";
+import { useLibraryBackupFlow } from "../hooks/useLibraryBackupFlow";
 import { useLibraryExportFlow } from "../hooks/useLibraryExportFlow";
 import { useStorageDiagnostics } from "../hooks/useStorageDiagnostics";
 import { useGlobalTagSettings } from "../hooks/useGlobalTagSettings";
@@ -22,6 +23,7 @@ export function SettingsScreenContent() {
   const setWorkspaceStartupPreference = useStore((state) => state.setWorkspaceStartupPreference);
 
   const screen = useSettingsScreenModel();
+  const backupFlow = useLibraryBackupFlow();
   const exportFlow = useLibraryExportFlow();
   const diagnostics = useStorageDiagnostics({ active: screen.view === "storage" });
   const globalTags = useGlobalTagSettings();
@@ -67,6 +69,7 @@ export function SettingsScreenContent() {
           workspaceStartupPreference={workspaceStartupPreference}
           setWorkspaceStartupPreference={setWorkspaceStartupPreference}
           primaryWorkspaceTitle={primaryWorkspaceTitle}
+          backupFlow={backupFlow}
           globalTags={globalTags}
           diagnostics={diagnostics}
           onOpenStorageDetails={() => {
