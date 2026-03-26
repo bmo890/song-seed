@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { ScrollView, Text, View, Pressable } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
@@ -38,8 +39,8 @@ export function ActivityHeatmapGrid({
   onPressDay,
 }: ActivityHeatmapGridProps) {
   const gridWidth = Math.max(0, weeks.length * CELL_STRIDE - 4);
-  const monthRowWidth = gridWidth + 24;
   const displayRangeLabel = selectedRangeLabel?.replace(/, \d{4}/g, "") ?? "Choose a date range";
+  const todayTs = useMemo(() => startOfActivityDay(Date.now()), []);
 
   return (
     <SurfaceCard style={styles.activityCard}>
@@ -86,55 +87,55 @@ export function ActivityHeatmapGrid({
         </View>
       </View>
 
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{ width: monthRowWidth }}
-      >
-        <View style={styles.activityHeatmapContent}>
-          <View style={[styles.activityMonthRow, { width: monthRowWidth }]}>
-            {monthMarkers.map((marker) => {
-              const monthSelected =
-                selectedRange != null &&
-                new Date(selectedRange.startTs).getMonth() === marker.month &&
-                new Date(selectedRange.endTs).getMonth() === marker.month &&
-                new Date(selectedRange.startTs).getFullYear() === year &&
-                new Date(selectedRange.endTs).getFullYear() === year;
+      <View style={styles.activityGridRow}>
+        <View style={styles.activityWeekdayLabels}>
+          {["S", "M", "T", "W", "T", "F", "S"].map((label, index) => (
+            <Text key={`${label}-${index}`} style={styles.activityWeekdayLabel}>
+              {label}
+            </Text>
+          ))}
+        </View>
 
-              return (
-                <Pressable
-                  key={`${marker.month}-${marker.weekIndex}`}
-                  style={({ pressed }) => [
-                    styles.activityMonthPressable,
-                    monthSelected ? styles.activityMonthPressableActive : null,
-                    { left: 24 + marker.weekIndex * CELL_STRIDE },
-                    pressed ? styles.pressDown : null,
-                  ]}
-                  onPress={() => {
-                    void Haptics.selectionAsync();
-                    onPressMonth(marker.month);
-                  }}
-                >
-                  <Text
-                    style={[
-                      styles.activityMonthLabel,
-                      monthSelected ? styles.activityMonthLabelActive : null,
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ width: gridWidth }}
+        >
+          <View style={styles.activityHeatmapContent}>
+            <View style={[styles.activityMonthRow, { width: gridWidth }]}>
+              {monthMarkers.map((marker) => {
+                const monthSelected =
+                  selectedRange != null &&
+                  new Date(selectedRange.startTs).getMonth() === marker.month &&
+                  new Date(selectedRange.endTs).getMonth() === marker.month &&
+                  new Date(selectedRange.startTs).getFullYear() === year &&
+                  new Date(selectedRange.endTs).getFullYear() === year;
+
+                return (
+                  <Pressable
+                    key={`${marker.month}-${marker.weekIndex}`}
+                    style={({ pressed }) => [
+                      styles.activityMonthPressable,
+                      monthSelected ? styles.activityMonthPressableActive : null,
+                      { left: marker.weekIndex * CELL_STRIDE },
+                      pressed ? styles.pressDown : null,
                     ]}
+                    onPress={() => {
+                      void Haptics.selectionAsync();
+                      onPressMonth(marker.month);
+                    }}
                   >
-                    {marker.label}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
-
-          <View style={styles.activityGridRow}>
-            <View style={styles.activityWeekdayLabels}>
-              {["S", "M", "T", "W", "T", "F", "S"].map((label, index) => (
-                <Text key={`${label}-${index}`} style={styles.activityWeekdayLabel}>
-                  {label}
-                </Text>
-              ))}
+                    <Text
+                      style={[
+                        styles.activityMonthLabel,
+                        monthSelected ? styles.activityMonthLabelActive : null,
+                      ]}
+                    >
+                      {marker.label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
             </View>
 
             <View style={[styles.activityWeeksWrap, { width: gridWidth }]}>
@@ -145,6 +146,7 @@ export function ActivityHeatmapGrid({
                     const inYear = new Date(dayTs).getFullYear() === year;
                     const count = countsByDay.get(normalizedDayTs) ?? 0;
                     const backgroundColor = getActivityCellBackground(count, maxDailyCount, inYear);
+                    const isToday = normalizedDayTs === todayTs;
                     const inSelectedRange =
                       selectedRange != null &&
                       normalizedDayTs >= selectedRange.startTs &&
@@ -156,6 +158,7 @@ export function ActivityHeatmapGrid({
                         style={({ pressed }) => [
                           styles.activityDayCell,
                           { width: CELL_SIZE, height: CELL_SIZE },
+                          isToday ? styles.activityDayCellToday : null,
                           inSelectedRange ? styles.activityDayCellRangeSelected : null,
                           pressed && inYear ? styles.activityDayCellPressed : null,
                         ]}
@@ -179,8 +182,8 @@ export function ActivityHeatmapGrid({
               ))}
             </View>
           </View>
-        </View>
-      </ScrollView>
+        </ScrollView>
+      </View>
     </SurfaceCard>
   );
 }

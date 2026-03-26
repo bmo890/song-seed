@@ -2646,7 +2646,6 @@ export const styles = StyleSheet.create({
   activityMonthRow: {
     position: "relative",
     minHeight: 16,
-    paddingLeft: 24,
   },
   activityMonthPressable: {
     position: "absolute",
@@ -2702,7 +2701,7 @@ export const styles = StyleSheet.create({
   activityWeekdayLabels: {
     width: 16,
     gap: 4,
-    paddingTop: 1,
+    paddingTop: 17,
   },
   activityWeekdayLabel: {
     height: 14,
@@ -2736,6 +2735,10 @@ export const styles = StyleSheet.create({
     borderColor: "#2563eb",
     borderWidth: 1.25,
     padding: 1.5,
+  },
+  activityDayCellToday: {
+    borderColor: "#1e293b",
+    borderWidth: 1.5,
   },
   activityDayCellPressed: {
     transform: [{ scale: 0.94 }],
