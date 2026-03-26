@@ -29,10 +29,12 @@ type RuntimeStoreState = {
     playerPositionMs: number;
     playerDurationMs: number;
     playerIsPlaying: boolean;
+    playerCloseRequestToken: number;
     inlineTarget: InlineTarget;
     inlinePositionMs: number;
     inlineDurationMs: number;
     inlineIsPlaying: boolean;
+    inlineStopRequestToken: number;
     recordingIdeaId: string | null;
     recordingParentClipId: string | null;
     quickNamingIdeaId: string | null;
@@ -187,10 +189,18 @@ export function buildRuntimeCleanupPatch(
         playerPositionMs: playerQueueTouchesRemoved ? 0 : store.playerPositionMs,
         playerDurationMs: playerQueueTouchesRemoved ? 0 : store.playerDurationMs,
         playerIsPlaying: playerQueueTouchesRemoved ? false : store.playerIsPlaying,
+        playerCloseRequestToken:
+            playerQueueTouchesRemoved
+                ? store.playerCloseRequestToken + 1
+                : store.playerCloseRequestToken,
         inlineTarget: inlineTouchesRemoved ? null : store.inlineTarget,
         inlinePositionMs: inlineTouchesRemoved ? 0 : store.inlinePositionMs,
         inlineDurationMs: inlineTouchesRemoved ? 0 : store.inlineDurationMs,
         inlineIsPlaying: inlineTouchesRemoved ? false : store.inlineIsPlaying,
+        inlineStopRequestToken:
+            inlineTouchesRemoved
+                ? store.inlineStopRequestToken + 1
+                : store.inlineStopRequestToken,
         recordingIdeaId: recordingIdeaRemoved ? null : store.recordingIdeaId,
         recordingParentClipId:
             recordingIdeaRemoved ||

@@ -43,8 +43,21 @@ export function CollectionFloatingActions() {
     screen.navigateRoot("Player");
   };
 
-  const deleteSelectedIdeasWithUndo = () => {
+  const deleteSelectedIdeasWithUndo = async () => {
     if (screen.selectedListIdeaIds.length === 0) return;
+    const selectedIdeaIds = new Set(screen.selectedListIdeaIds);
+    const activeInlineIdeaId = inlinePlayer.inlineTarget?.ideaId;
+    const activePlayerIdeaId = useStore.getState().playerTarget?.ideaId;
+
+    if (activeInlineIdeaId && selectedIdeaIds.has(activeInlineIdeaId)) {
+      await inlinePlayer.resetInlinePlayer();
+    }
+
+    if (activePlayerIdeaId && selectedIdeaIds.has(activePlayerIdeaId)) {
+      useStore.getState().requestPlayerClose();
+      useStore.getState().clearPlayerQueue();
+    }
+
     const previousIdeas = screen.ideas;
     const deletedCount = screen.selectedListIdeaIds.length;
     appActions.deleteSelectedIdeasFromList();
