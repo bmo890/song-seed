@@ -1,11 +1,6 @@
-import React, { useMemo, useState, useEffect } from "react";
+import React, { useMemo, useState } from "react";
 import { View, StyleSheet, LayoutChangeEvent } from "react-native";
-import { Canvas, Path, Group, Skia } from "@shopify/react-native-skia";
-import {
-    useSharedValue,
-    withSpring,
-    useDerivedValue,
-} from "react-native-reanimated";
+import { Canvas, Path, Skia } from "@shopify/react-native-skia";
 import { DataPoint } from "@siteed/audio-studio";
 
 type Props = {
@@ -32,32 +27,6 @@ export function LiveTapeVisualizer({
     const candleWidth = 2;
     const candleSpace = 1;
     const chunkWidth = candleWidth + candleSpace;
-    const pixelsPerSecond = (1000 / intervalMs) * chunkWidth;
-
-    const translateX = useSharedValue(0);
-
-    useEffect(() => {
-        if (canvasWidth === 0) return;
-        const EXTRA_WIDTH = canvasWidth;
-        const playheadX = canvasWidth / 2;
-        // We displace the target by EXTRA_WIDTH because we render the recording start at x = EXTRA_WIDTH
-        const targetX = playheadX - EXTRA_WIDTH - dataPoints.length * chunkWidth;
-
-        if (dataPoints.length === 0) {
-            translateX.value = targetX;
-        } else {
-            translateX.value = withSpring(targetX, {
-                damping: 20,
-                stiffness: 90,
-                mass: 1,
-            });
-        }
-    }, [dataPoints.length, canvasWidth, chunkWidth]);
-
-    // Skia UI thread translation
-    const transform = useDerivedValue(() => {
-        return [{ translateX: translateX.value }];
-    });
 
     const { wavePath, rulerPath, centerLinePath } = useMemo(() => {
         const wave = Skia.Path.Make();
@@ -66,12 +35,14 @@ export function LiveTapeVisualizer({
 
         const centerY = canvasHeight > 0 ? canvasHeight / 2 : 70;
         const waveMaxHeight = Math.max(10, centerY - 15);
+        const playheadX = canvasWidth > 0 ? canvasWidth / 2 : 0;
 
-        const EXTRA_WIDTH = canvasWidth > 0 ? canvasWidth : 1000;
-        const startX = EXTRA_WIDTH;
-
-        dataPoints.forEach((p, i) => {
-            const x = startX + i * chunkWidth;
+        dataPoints.forEach((p) => {
+            const pointEndTime = Math.min(p.endTime ?? currentTimeMs, currentTimeMs);
+            const x = playheadX - ((currentTimeMs - pointEndTime) / intervalMs) * chunkWidth;
+            if (x < -chunkWidth || x > canvasWidth + chunkWidth) {
+                return;
+            }
             const db = Number.isFinite(p.dB)
                 ? p.dB
                 : 20 * Math.log10(Math.max(0.00001, p.rms || p.amplitude || 0));
@@ -88,12 +59,18 @@ export function LiveTapeVisualizer({
             wave.lineTo(x, centerY + h);
         });
 
-        const totalSeconds = Math.ceil(dataPoints.length * (intervalMs / 1000)) + 5;
-        const negativeSeconds = Math.ceil(EXTRA_WIDTH / pixelsPerSecond);
+        const visibleStartMs =
+            currentTimeMs - (playheadX / chunkWidth) * intervalMs;
+        const visibleEndMs =
+            currentTimeMs +
+            (Math.max(0, canvasWidth - playheadX) / chunkWidth) * intervalMs;
+        const startSecond = Math.floor(Math.max(0, visibleStartMs) / 1000);
+        const endSecond = Math.ceil(Math.max(0, visibleEndMs) / 1000);
 
-        for (let s = -negativeSeconds; s <= totalSeconds; s++) {
-            const x = startX + s * pixelsPerSecond;
-            const isMajor = Math.abs(s) % 5 === 0;
+        for (let second = startSecond; second <= endSecond; second += 1) {
+            const tickMs = second * 1000;
+            const x = playheadX - ((currentTimeMs - tickMs) / intervalMs) * chunkWidth;
+            const isMajor = second % 5 === 0;
 
             const tickHeight = isMajor ? 12 : 6;
             ruler.moveTo(x, 0);
@@ -105,11 +82,11 @@ export function LiveTapeVisualizer({
             }
         }
 
-        centerLine.moveTo(startX - EXTRA_WIDTH, centerY);
-        centerLine.lineTo(startX + (totalSeconds * pixelsPerSecond), centerY);
+        centerLine.moveTo(0, centerY);
+        centerLine.lineTo(canvasWidth, centerY);
 
         return { wavePath: wave, rulerPath: ruler, centerLinePath: centerLine };
-    }, [dataPoints, chunkWidth, intervalMs, pixelsPerSecond, canvasHeight, canvasWidth]);
+    }, [dataPoints, chunkWidth, intervalMs, canvasHeight, canvasWidth, currentTimeMs]);
 
     const onLayout = (e: LayoutChangeEvent) => {
         const nextWidth = e.nativeEvent.layout.width;
@@ -127,27 +104,25 @@ export function LiveTapeVisualizer({
         <View style={[styles.container, { backgroundColor }]} onLayout={onLayout}>
             {canvasWidth > 0 && canvasHeight > 0 && (
                 <Canvas style={{ flex: 1 }}>
-                    <Group transform={transform}>
-                        <Path
-                            path={centerLinePath}
-                            color={rulerColor}
-                            style="stroke"
-                            strokeWidth={1}
-                            opacity={0.3}
-                        />
-                        <Path
-                            path={rulerPath}
-                            color={rulerColor}
-                            style="stroke"
-                            strokeWidth={1.5}
-                        />
-                        <Path
-                            path={wavePath}
-                            color={waveColor}
-                            style="stroke"
-                            strokeWidth={candleWidth}
-                        />
-                    </Group>
+                    <Path
+                        path={centerLinePath}
+                        color={rulerColor}
+                        style="stroke"
+                        strokeWidth={1}
+                        opacity={0.3}
+                    />
+                    <Path
+                        path={rulerPath}
+                        color={rulerColor}
+                        style="stroke"
+                        strokeWidth={1.5}
+                    />
+                    <Path
+                        path={wavePath}
+                        color={waveColor}
+                        style="stroke"
+                        strokeWidth={candleWidth}
+                    />
                 </Canvas>
             )}
 

@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useRef } from "react";
 import { useSharedAudioRecorder, ExpoAudioStreamModule, audioDeviceManager } from "@siteed/audio-studio";
 import * as FileSystem from "expo-file-system/legacy";
 import { Alert, Linking } from "react-native";
@@ -10,8 +10,13 @@ import {
   persistPendingRecordingSession,
 } from "../services/recordingRecovery";
 import { useRecordingDisplayElapsed } from "./useRecordingDisplayElapsed";
+import { useLiveRecordingWaveform } from "./useLiveRecordingWaveform";
 import { useStore } from "../state/useStore";
+
 type OnRecorded = (payload: { audioUri: string; durationMs?: number; waveformPeaks?: number[] }) => void;
+
+const LIVE_WAVEFORM_SEGMENT_MS = __DEV__ ? 60 : 40;
+const LIVE_STREAM_INTERVAL_MS = __DEV__ ? 120 : 40;
 
 function trimNotificationLabel(label: string | null | undefined, fallback: string) {
   const value = label?.trim();
@@ -20,6 +25,7 @@ function trimNotificationLabel(label: string | null | undefined, fallback: strin
 
 export function useRecording(onRecorded: OnRecorded, preferredInputId: string | null) {
   const recorder = useSharedAudioRecorder();
+  const persistedSessionRef = useRef(false);
   const workspaces = useStore((s) => s.workspaces);
   const activeWorkspaceId = useStore((s) => s.activeWorkspaceId);
   const recordingIdeaId = useStore((s) => s.recordingIdeaId);
@@ -29,6 +35,12 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
     isRecording: recorder.isRecording,
     isPaused: recorder.isPaused,
   });
+  const { waveform: liveWaveformData, appendAudioStream, reset: resetLiveWaveform } =
+    useLiveRecordingWaveform({
+      channels: 1,
+      sampleRate: 44100,
+      segmentDurationMs: LIVE_WAVEFORM_SEGMENT_MS,
+    });
   const recordingIdea = useMemo(
     () =>
       workspaces
@@ -136,15 +148,19 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
       }
 
       await activateRecordingAudioSession();
+      persistedSessionRef.current = false;
+      resetLiveWaveform();
 
       const recordingStartedAt = Date.now();
       const startResult = await recorder.startRecording({
         sampleRate: 44100,    // Standard CD-quality sample rate
         channels: 1,          // Mono is standard for voice memos and guarantees clear single-source audio
+        interval: LIVE_STREAM_INTERVAL_MS,
         // In dev (emulator), run the visualizer at 10fps to prevent audio crackle. 
         // In production (real phone), run it at 20fps for smoother visuals.
         intervalAnalysis: __DEV__ ? 150 : 75,
         segmentDurationMs: __DEV__ ? 150 : 75,
+        streamFormat: "float32",
         enableProcessing: true,
         features: { energy: true, rms: true },
         autoResumeAfterInterruption: true,
@@ -186,14 +202,17 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
             categoryOptions: ["MixWithOthers", "AllowBluetooth", "AllowBluetoothA2DP", "DefaultToSpeaker"]
           }
         },
-        onAudioStream: async ({ fileUri }) => {
-          if (!fileUri) return;
-          await persistPendingRecordingSession(fileUri, recordingStartedAt);
+        onAudioStream: async (event) => {
+          appendAudioStream(event);
+          if (!event.fileUri || persistedSessionRef.current) return;
+          persistedSessionRef.current = true;
+          void persistPendingRecordingSession(event.fileUri, recordingStartedAt);
         },
         onRecordingInterrupted: () => {},
         onAudioAnalysis: async () => {}
       });
       if (startResult?.fileUri) {
+        persistedSessionRef.current = true;
         await persistPendingRecordingSession(startResult.fileUri, recordingStartedAt);
       }
     } catch (err) {
@@ -237,6 +256,7 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
   async function saveRecording() {
     try {
       const recordingData = await recorder.stopRecording();
+      resetLiveWaveform();
       if (!recordingData || !recordingData.fileUri) {
         Alert.alert("Recording failed", "No audio file was generated.");
         return false;
@@ -275,6 +295,7 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
   async function discardRecording() {
     try {
       const recordingData = await recorder.stopRecording();
+      resetLiveWaveform();
       if (recordingData?.fileUri) {
         // Discard should clean up the recorder output because the app never imports it into
         // managed storage or stores metadata for later recovery.
@@ -291,6 +312,7 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
     isPaused: recorder.isPaused,
     elapsedMs: displayElapsedMs,
     analysisData: recorder.analysisData,
+    liveWaveformData,
     startRecording,
     pauseRecording,
     resumeRecording,

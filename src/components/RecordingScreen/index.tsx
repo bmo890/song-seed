@@ -288,7 +288,7 @@ export function RecordingScreen() {
               isRecording={recording.isRecording}
               isPaused={recording.isPaused}
               elapsedMs={recording.elapsedMs}
-              analysisData={recording.analysisData}
+              waveformData={recording.liveWaveformData ?? recording.analysisData}
               compact={lyricsExpanded}
             />
 

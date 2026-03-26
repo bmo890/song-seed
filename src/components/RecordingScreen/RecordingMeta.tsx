@@ -10,11 +10,11 @@ type Props = {
     isRecording: boolean;
     isPaused: boolean;
     elapsedMs: number;
-    analysisData?: AudioAnalysis;
+    waveformData?: Pick<AudioAnalysis, "dataPoints" | "segmentDurationMs">;
     compact?: boolean;
 };
 
-export function RecordingMeta({ ideaTitle, isRecording, isPaused, elapsedMs, analysisData, compact = false }: Props) {
+export function RecordingMeta({ ideaTitle, isRecording, isPaused, elapsedMs, waveformData, compact = false }: Props) {
     const statusLabel = !isRecording ? "Ready" : isPaused ? "Paused" : "Recording";
     const showActiveDot = isRecording && !isPaused;
 
@@ -35,11 +35,11 @@ export function RecordingMeta({ ideaTitle, isRecording, isPaused, elapsedMs, ana
             </View>
 
             <View style={[styles.liveWaveWrap, compact ? styles.liveWaveWrapCompact : null]}>
-                {analysisData ? (
+                {waveformData ? (
                     <LiveTapeVisualizer
-                        dataPoints={analysisData.dataPoints || []}
+                        dataPoints={waveformData.dataPoints || []}
                         currentTimeMs={elapsedMs}
-                        intervalMs={analysisData.segmentDurationMs || 50}
+                        intervalMs={waveformData.segmentDurationMs || 50}
                         theme={{
                             waveColor: "#6b7280",
                             rulerColor: "#a8afb8",
