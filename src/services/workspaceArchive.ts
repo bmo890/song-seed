@@ -1,6 +1,7 @@
 import * as FileSystem from "expo-file-system/legacy";
 import { strFromU8, strToU8, unzipSync } from "fflate";
 import type { Workspace, WorkspaceArchiveState } from "../types";
+import { normalizeWorkspaces } from "../state/dataSlice";
 import {
     createZipArchive,
     getArchiveFileExtension,
@@ -200,6 +201,10 @@ function mergeRestoredWorkspace(currentWorkspace: Workspace, snapshotWorkspace: 
         isArchived: false,
         archiveState: undefined,
     };
+}
+
+function normalizeRestoredWorkspace(workspace: Workspace): Workspace {
+    return normalizeWorkspaces([workspace])[0] ?? workspace;
 }
 
 async function verifyArchiveFile(
@@ -406,7 +411,9 @@ export async function restoreWorkspaceFromDevice(workspace: Workspace): Promise<
             : [];
 
     return {
-        restoredWorkspace: mergeRestoredWorkspace(workspace, verification.workspaceSnapshot),
+        restoredWorkspace: normalizeRestoredWorkspace(
+            mergeRestoredWorkspace(workspace, verification.workspaceSnapshot)
+        ),
         restoredAudioUris: verification.manifest.audioFiles.map((file) => file.liveUri),
         warnings,
     };

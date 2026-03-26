@@ -1715,15 +1715,8 @@ export const appActions = {
                     );
 
                     // Restore the full state from manifest
-                    useStore.setState({
-                        workspaces: restoredState.workspaces,
-                        activityEvents: restoredState.activityEvents,
-                        activeWorkspaceId: restoredState.activeWorkspaceId,
-                        primaryWorkspaceId: restoredState.primaryWorkspaceId,
-                        lastUsedWorkspaceId: restoredState.lastUsedWorkspaceId,
-                        playlists: restoredState.playlists,
-                        globalCustomClipTags: restoredState.globalCustomClipTags,
-                    });
+                    useStore.setState(restoredState);
+                    await persistCurrentStoreSnapshot();
 
                     return {
                         recoveredCount: restoredIdeaCount,

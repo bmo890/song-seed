@@ -9,7 +9,8 @@ import { readManifest, type ManifestData } from "./manifestSync";
 import { loadAudioDurationMs } from "./audioStorage";
 import { buildStaticWaveform } from "../utils";
 import type { SongIdea, ClipVersion, Workspace } from "../types";
-import type { PersistedAppStore } from "../state/useStore";
+import { normalizeWorkspaces } from "../state/dataSlice";
+import { sanitizePersistedState, type PersistedAppStore } from "../state/useStore";
 
 /* ── Types ──────────────────────────────────────────────────────── */
 
@@ -110,6 +111,10 @@ function assertManagedRestoreUri(fileUri: string) {
     }
 }
 
+function normalizeRestoredWorkspace(workspace: Workspace): Workspace {
+    return normalizeWorkspaces([workspace])[0] ?? workspace;
+}
+
 /* ── Manifest-based recovery (highest priority) ────────────────── */
 
 /**
@@ -151,7 +156,7 @@ export async function restoreFromManifest(): Promise<ManifestRecoveryResult | nu
     const { schemaVersion, lastWrittenAt, ...persistedState } = manifest;
 
     return {
-        restoredState: persistedState as PersistedAppStore,
+        restoredState: sanitizePersistedState(persistedState as Partial<PersistedAppStore>),
         manifestTimestamp: lastWrittenAt,
     };
 }
@@ -279,7 +284,7 @@ export async function restoreWorkspaceFromArchive(
     }
 
     return {
-        workspace,
+        workspace: normalizeRestoredWorkspace(workspace),
         archiveUri,
         audioFileCount: totalFiles,
         restoredAudioCount,

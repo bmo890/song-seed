@@ -65,7 +65,7 @@ function sanitizeTimestampMap(value: unknown, validIds: Set<string>) {
     return next;
 }
 
-function sanitizePersistedState(state?: Partial<PersistedAppStore>): PersistedAppStore {
+export function sanitizePersistedState(state?: Partial<PersistedAppStore>): PersistedAppStore {
     const fallbackWorkspace = createInitialWorkspace();
     const workspaces = Array.isArray(state?.workspaces) && state.workspaces.length > 0
         ? normalizeWorkspaces(state.workspaces)
