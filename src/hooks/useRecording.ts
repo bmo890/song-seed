@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { useSharedAudioRecorder, ExpoAudioStreamModule, audioDeviceManager } from "@siteed/expo-audio-studio";
 import * as FileSystem from "expo-file-system/legacy";
 import { Alert, Linking } from "react-native";
@@ -9,15 +10,71 @@ import {
   persistPendingRecordingSession,
 } from "../services/recordingRecovery";
 import { useRecordingDisplayElapsed } from "./useRecordingDisplayElapsed";
+import { useStore } from "../state/useStore";
 type OnRecorded = (payload: { audioUri: string; durationMs?: number; waveformPeaks?: number[] }) => void;
+
+function trimNotificationLabel(label: string | null | undefined, fallback: string) {
+  const value = label?.trim();
+  return value && value.length > 0 ? value : fallback;
+}
 
 export function useRecording(onRecorded: OnRecorded, preferredInputId: string | null) {
   const recorder = useSharedAudioRecorder();
+  const workspaces = useStore((s) => s.workspaces);
+  const activeWorkspaceId = useStore((s) => s.activeWorkspaceId);
+  const recordingIdeaId = useStore((s) => s.recordingIdeaId);
+  const recordingParentClipId = useStore((s) => s.recordingParentClipId);
   const displayElapsedMs = useRecordingDisplayElapsed({
     durationMs: recorder.durationMs,
     isRecording: recorder.isRecording,
     isPaused: recorder.isPaused,
   });
+  const recordingIdea = useMemo(
+    () =>
+      workspaces
+        .find((workspace) => workspace.id === activeWorkspaceId)
+        ?.ideas.find((idea) => idea.id === recordingIdeaId) ?? null,
+    [activeWorkspaceId, recordingIdeaId, workspaces]
+  );
+  const recordingParentClip = useMemo(
+    () =>
+      recordingParentClipId && recordingIdea
+        ? recordingIdea.clips.find((clip) => clip.id === recordingParentClipId) ?? null
+        : null,
+    [recordingIdea, recordingParentClipId]
+  );
+  const recordingNotification = useMemo(() => {
+    const targetTitle = trimNotificationLabel(recordingIdea?.title, "Song Seed");
+
+    if (!recordingIdea) {
+      return {
+        title: "Recording in progress",
+        text: "Song Seed is recording in the background.",
+      };
+    }
+
+    if (recordingIdea.kind === "project") {
+      if (recordingParentClip) {
+        return {
+          title: `Recording variation`,
+          text: `Recording into ${targetTitle} from ${trimNotificationLabel(
+            recordingParentClip.title,
+            "current take"
+          )}.`,
+        };
+      }
+
+      return {
+        title: `Recording take`,
+        text: `Recording into ${targetTitle}.`,
+      };
+    }
+
+    return {
+      title: "Recording clip",
+      text: `Recording ${targetTitle}.`,
+    };
+  }, [recordingIdea, recordingParentClip]);
 
   async function requestMicrophonePermission() {
     const permission = await ExpoAudioStreamModule.requestPermissionsAsync();
@@ -93,6 +150,32 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
         autoResumeAfterInterruption: true,
         bufferDurationSeconds: __DEV__ ? 0.25 : 0.15,
         keepAwake: true,
+        showNotification: true,
+        showWaveformInNotification: true,
+        notification: {
+          title: recordingNotification.title,
+          text: recordingNotification.text,
+          android: {
+            channelId: "songseed-recording",
+            channelName: "Recording",
+            channelDescription: "Background recording status and controls",
+            notificationId: 4101,
+            priority: "high",
+            accentColor: "#d81f28",
+            showPauseResumeActions: true,
+            waveform: {
+              color: "#d81f28",
+              opacity: 0.9,
+              strokeWidth: 1.5,
+              style: "stroke",
+              mirror: true,
+              height: 44,
+            },
+          },
+          ios: {
+            categoryIdentifier: "songseed-recording",
+          },
+        },
         android: {
           audioFocusStrategy: "background",
         },
