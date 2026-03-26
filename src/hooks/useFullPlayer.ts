@@ -37,6 +37,8 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
   const statusRef = useRef(status);
   const playerPositionRef = useRef(playerPosition);
   const playerDurationRef = useRef(playerDuration);
+  const lockScreenMetadataRef = useRef<LockScreenMetadata | undefined>(undefined);
+  const isLockScreenActiveRef = useRef(false);
 
   useEffect(() => {
     statusRef.current = status;
@@ -61,28 +63,6 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
     });
   }, [isPlayerPlaying, playerDuration, playerPosition, setPlayerPlaybackState]);
 
-  useEffect(() => {
-    return () => {
-      isMountedRef.current = false;
-      operationIdRef.current += 1;
-      setPlayerPlaybackState({
-        positionMs: 0,
-        durationMs: 0,
-        isPlaying: false,
-      });
-      try {
-        player.clearLockScreenControls();
-      } catch {
-        // ignore released player cleanup races on unmount
-      }
-    };
-  }, [player, setPlayerPlaybackState]);
-
-  const isOperationActive = useCallback(
-    (operationId: number) => isMountedRef.current && operationIdRef.current === operationId,
-    []
-  );
-
   const activateLockScreenControls = useCallback((metadata?: LockScreenMetadata) => {
     player.setActiveForLockScreen(
       true,
@@ -95,7 +75,43 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
         showSeekForward: true,
       }
     );
+    isLockScreenActiveRef.current = true;
   }, [player]);
+
+  const clearLockScreenControls = useCallback(() => {
+    try {
+      player.clearLockScreenControls();
+    } catch {
+      // ignore released player cleanup races
+    }
+    isLockScreenActiveRef.current = false;
+  }, [player]);
+
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+      operationIdRef.current += 1;
+      setPlayerPlaybackState({
+        positionMs: 0,
+        durationMs: 0,
+        isPlaying: false,
+      });
+      clearLockScreenControls();
+    };
+  }, [clearLockScreenControls, setPlayerPlaybackState]);
+
+  useEffect(() => {
+    if (isPlayerPlaying) {
+      activateLockScreenControls(lockScreenMetadataRef.current);
+      return;
+    }
+    clearLockScreenControls();
+  }, [activateLockScreenControls, clearLockScreenControls, isPlayerPlaying]);
+
+  const isOperationActive = useCallback(
+    (operationId: number) => isMountedRef.current && operationIdRef.current === operationId,
+    []
+  );
 
   const closePlayer = useCallback(async () => {
     const operationId = ++operationIdRef.current;
@@ -105,11 +121,7 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
       // ignore stale player shutdown errors
     }
     if (!isOperationActive(operationId)) return;
-    try {
-      player.clearLockScreenControls();
-    } catch {
-      // ignore released player cleanup races
-    }
+    clearLockScreenControls();
     setPlayerPlaybackState({
       positionMs: 0,
       durationMs: 0,
@@ -117,7 +129,7 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
     });
     setPlayerTarget(null);
     setWaveformPeaks([]);
-  }, [isOperationActive, player, setPlayerPlaybackState]);
+  }, [clearLockScreenControls, isOperationActive, player, setPlayerPlaybackState]);
 
   const openPlayer = useCallback(async (
     ideaId: string,
@@ -127,6 +139,7 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
   ) => {
     if (!clip.audioUri) return;
     const operationId = ++operationIdRef.current;
+    lockScreenMetadataRef.current = metadata;
 
     if (onBeforePlayNew) await onBeforePlayNew();
     if (!isOperationActive(operationId)) return;
@@ -145,7 +158,6 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
           ? clip.waveformPeaks
           : buildStaticWaveform(`${clip.id}-${clip.durationMs ?? 0}`)
       );
-      activateLockScreenControls(metadata);
     } catch (err) {
       setPlayerPlaybackState({
         positionMs: 0,
@@ -157,9 +169,13 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
       setWaveformPeaks([]);
       console.log("FULL open error", err);
     }
-  }, [activateLockScreenControls, isOperationActive, onBeforePlayNew, player]);
+  }, [isOperationActive, onBeforePlayNew, player, setPlayerPlaybackState]);
 
   const updateLockScreenMetadata = useCallback((metadata?: LockScreenMetadata) => {
+    lockScreenMetadataRef.current = metadata;
+    if (!isLockScreenActiveRef.current) {
+      return;
+    }
     player.updateLockScreenMetadata({
       ...metadata,
       artist: "SongSeed",

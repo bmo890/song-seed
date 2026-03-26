@@ -1,10 +1,10 @@
 import React from "react";
 import { View } from "react-native";
 import { useNavigation } from "@react-navigation/native";
-import { styles } from "../../styles";
-import { WorkspaceCard } from "../cards/WorkspaceCard";
-import { useStore } from "../../state/useStore";
-import { Workspace } from "../../types";
+import { useStore } from "../../../state/useStore";
+import { styles } from "../styles";
+import { WorkspaceCard } from "../../cards/WorkspaceCard";
+import type { Workspace } from "../../../types";
 
 type Props = {
   onOpenWorkspaceActions: (id: string) => void;

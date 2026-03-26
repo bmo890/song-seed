@@ -62,4 +62,30 @@ export const clipLineageStyles = StyleSheet.create({
   sortTabTextActive: {
     color: "#0f172a",
   },
+  draggableRow: {
+    position: "relative",
+    width: "100%",
+  },
+  draggableRowActive: {
+    opacity: 0.92,
+    transform: [{ scale: 1.01 }],
+  },
+  dragHandle: {
+    position: "absolute",
+    top: 18,
+    right: 18,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#ffffff",
+    borderWidth: 1,
+    borderColor: "#dbe2ea",
+    shadowColor: "#0f172a",
+    shadowOpacity: 0.06,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 6,
+    elevation: 2,
+  },
 });
