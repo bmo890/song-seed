@@ -1,6 +1,6 @@
 import { useRef } from "react";
 import { Ionicons } from "@expo/vector-icons";
-import { useSharedAudioRecorder } from "@siteed/expo-audio-studio";
+import { useSharedAudioRecorder } from "@siteed/audio-studio";
 import { GestureResponderEvent, LayoutChangeEvent, Pressable, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRecordingDisplayElapsed } from "../hooks/useRecordingDisplayElapsed";

@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useAudioDevices } from "@siteed/expo-audio-studio";
+import { useAudioDevices } from "@siteed/audio-studio";
 import { styles } from "../../styles";
 
 type Props = {
@@ -10,42 +10,61 @@ type Props = {
     onChangePreferredInputId: (id: string | null) => void;
 };
 
-function formatDeviceLabel(name: string) {
-    return name.trim() || "Unnamed input";
+const FRIENDLY_LABELS: Record<string, string> = {
+    builtin_mic: "Built-in Mic",
+    bluetooth: "Bluetooth",
+    wired_headset: "Wired Headset",
+    wired_headphones: "Wired Headphones",
+    usb: "USB Microphone",
+    speaker: "Speaker",
+};
+
+function formatDeviceLabel(device: { name: string; type: string }) {
+    const prefix = FRIENDLY_LABELS[device.type];
+    if (!prefix) return device.name.trim() || "Unnamed input";
+    if (device.type !== "builtin_mic") {
+        const trimmed = device.name.trim();
+        if (trimmed) return `${prefix} · ${trimmed}`;
+    }
+    return prefix;
+}
+
+function iconForType(type: string): keyof typeof Ionicons.glyphMap {
+    switch (type) {
+        case "bluetooth": return "bluetooth";
+        case "wired_headset":
+        case "wired_headphones": return "headset-outline";
+        case "usb": return "swap-horizontal-outline";
+        case "speaker": return "volume-high-outline";
+        default: return "mic-outline";
+    }
 }
 
 export function RecordingInputPicker({ disabled, preferredInputId, onChangePreferredInputId }: Props) {
-    const { devices, currentDevice, loading, error, refreshDevices, resetToDefaultDevice, selectDevice } = useAudioDevices();
+    const { devices, loading, error, refreshDevices, selectDevice } = useAudioDevices();
     const [isApplying, setIsApplying] = useState(false);
 
-    const availableDevices = useMemo(
-        () => devices.filter((device) => device.isAvailable),
-        [devices]
-    );
+    const availableDevices = useMemo(() => {
+        const seenTypes = new Set<string>();
+        return devices.filter((device) => {
+            if (!device.isAvailable) return false;
+            if (seenTypes.has(device.type)) return false;
+            seenTypes.add(device.type);
+            return true;
+        });
+    }, [devices]);
 
-    const activeSelectionId = preferredInputId ?? currentDevice?.id ?? null;
-
-    async function handleSelectDefault() {
-        if (disabled || isApplying) return;
-        setIsApplying(true);
-        try {
-            const success = await resetToDefaultDevice();
-            if (success) {
-                onChangePreferredInputId(null);
-            }
-        } finally {
-            setIsApplying(false);
-        }
-    }
+    // If no preference is saved, default to the first available device.
+    const activeSelectionId = preferredInputId ?? availableDevices[0]?.id ?? null;
+    const activeDevice = availableDevices.find((d) => d.id === activeSelectionId);
+    const activeLabel = activeDevice ? formatDeviceLabel(activeDevice) : "Built-in Mic";
 
     async function handleSelectDevice(deviceId: string) {
         if (disabled || isApplying) return;
         setIsApplying(true);
+        onChangePreferredInputId(deviceId);
         try {
-            const success = await selectDevice(deviceId);
-            if (success) {
-                onChangePreferredInputId(deviceId);
-            }
+            await selectDevice(deviceId);
         } finally {
             setIsApplying(false);
         }
@@ -56,9 +75,7 @@ export function RecordingInputPicker({ disabled, preferredInputId, onChangePrefe
             <View style={styles.recordingInputHeader}>
                 <View style={styles.recordingInputHeaderCopy}>
                     <Text style={styles.recordingInputTitle}>Recording Input</Text>
-                    <Text style={styles.recordingInputMeta}>
-                        Output follows your phone&apos;s current route (speaker, wired headphones, or Bluetooth).
-                    </Text>
+                    <Text style={styles.recordingInputActiveLabel}>{activeLabel}</Text>
                 </View>
                 <Pressable
                     style={({ pressed }) => [
@@ -76,65 +93,41 @@ export function RecordingInputPicker({ disabled, preferredInputId, onChangePrefe
                 </Pressable>
             </View>
 
-            <Text style={styles.recordingInputCurrentLabel}>
-                Current input: {currentDevice ? formatDeviceLabel(currentDevice.name) : "System default"}
-            </Text>
-
-            <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.recordingInputChipRow}
-            >
-                <Pressable
-                    style={({ pressed }) => [
-                        styles.recordingInputChip,
-                        activeSelectionId === null ? styles.recordingInputChipActive : null,
-                        disabled ? styles.recordingInputChipDisabled : null,
-                        pressed ? styles.pressDown : null,
-                    ]}
-                    onPress={handleSelectDefault}
-                    disabled={disabled || isApplying}
-                >
-                    <Text
-                        style={[
-                            styles.recordingInputChipText,
-                            activeSelectionId === null ? styles.recordingInputChipTextActive : null,
-                        ]}
-                    >
-                        System
-                    </Text>
-                </Pressable>
-
+            <View style={styles.recordingInputOptionList}>
                 {availableDevices.map((device) => {
                     const isActive = activeSelectionId === device.id;
                     return (
                         <Pressable
                             key={device.id}
                             style={({ pressed }) => [
-                                styles.recordingInputChip,
-                                isActive ? styles.recordingInputChipActive : null,
-                                disabled ? styles.recordingInputChipDisabled : null,
-                                pressed ? styles.pressDown : null,
+                                styles.recordingInputOption,
+                                isActive ? styles.recordingInputOptionActive : null,
+                                disabled ? styles.recordingInputOptionDisabled : null,
+                                pressed && !disabled ? styles.pressDown : null,
                             ]}
                             onPress={() => handleSelectDevice(device.id)}
                             disabled={disabled || isApplying}
                         >
+                            <Ionicons
+                                name={iconForType(device.type)}
+                                size={18}
+                                color={isActive ? "#fff" : "#374151"}
+                            />
                             <Text
                                 style={[
-                                    styles.recordingInputChipText,
-                                    isActive ? styles.recordingInputChipTextActive : null,
+                                    styles.recordingInputOptionText,
+                                    isActive ? styles.recordingInputOptionTextActive : null,
                                 ]}
                             >
-                                {formatDeviceLabel(device.name)}
+                                {formatDeviceLabel(device)}
                             </Text>
+                            {isActive ? (
+                                <Ionicons name="checkmark" size={16} color="#fff" style={styles.recordingInputOptionCheck} />
+                            ) : null}
                         </Pressable>
                     );
                 })}
-            </ScrollView>
-
-            <Text style={styles.recordingInputHint}>
-                Choose a built-in microphone here if you want to keep recording from the phone while listening on Bluetooth.
-            </Text>
+            </View>
 
             {disabled ? (
                 <Text style={styles.recordingInputDisabledNote}>Pause or stop recording to change the input device.</Text>

@@ -6,7 +6,7 @@ import { StackActions, useNavigation, useRoute } from "@react-navigation/native"
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
 import { MultiTimeRangeSelector } from "../common/TimeRangeSelector";
-import { AudioAnalysis, extractAudioAnalysis, trimAudio } from "@siteed/expo-audio-studio";
+import { AudioAnalysis, extractAudioAnalysis, trimAudio } from "@siteed/audio-studio";
 import { styles } from "../../styles";
 import { buildDefaultIdeaTitle, buildStaticWaveform, fmt, genClipTitle, metersToWaveformPeaks } from "../../utils";
 import { RootStackParamList } from "../../../App";

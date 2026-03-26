@@ -14,7 +14,7 @@ import * as Linking from "expo-linking";
 import { useEffect, useMemo, useState } from "react";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createDrawerNavigator, DrawerContentComponentProps } from "@react-navigation/drawer";
-import { AudioRecorderProvider } from "@siteed/expo-audio-studio";
+import { AudioRecorderProvider } from "@siteed/audio-studio";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { ShareIntentModule, ShareIntentProvider, getScheme, getShareExtensionKey } from "expo-share-intent";
 import { IdeaDetailScreen } from "./src/components/IdeaDetailScreen";

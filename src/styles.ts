@@ -3820,6 +3820,9 @@ export const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#d8dbe3",
   },
+  recordingSettingsBtnDisabled: {
+    opacity: 0.55,
+  },
   recordingSettingsModalCard: {
     gap: 12,
   },
@@ -3861,17 +3864,19 @@ export const styles = StyleSheet.create({
   },
   recordingInputHeaderCopy: {
     flex: 1,
-    gap: 4,
+    gap: 2,
   },
   recordingInputTitle: {
-    fontSize: 16,
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#6b7280",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  recordingInputActiveLabel: {
+    fontSize: 17,
     fontWeight: "700",
     color: "#111827",
-  },
-  recordingInputMeta: {
-    fontSize: 12,
-    lineHeight: 17,
-    color: "#64748b",
   },
   recordingInputRefreshBtn: {
     width: 34,
@@ -3883,44 +3888,38 @@ export const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#dbe4ea",
   },
-  recordingInputCurrentLabel: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: "#374151",
+  recordingInputOptionList: {
+    gap: 6,
   },
-  recordingInputChipRow: {
-    gap: 8,
-    paddingRight: 8,
-  },
-  recordingInputChip: {
-    minHeight: 34,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: "#d1d5db",
-    backgroundColor: "#fff",
-    paddingHorizontal: 12,
+  recordingInputOption: {
+    flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
+    gap: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+    backgroundColor: "#fff",
   },
-  recordingInputChipActive: {
+  recordingInputOptionActive: {
     borderColor: "#111827",
     backgroundColor: "#111827",
   },
-  recordingInputChipDisabled: {
+  recordingInputOptionDisabled: {
     opacity: 0.55,
   },
-  recordingInputChipText: {
-    fontSize: 12,
-    fontWeight: "700",
+  recordingInputOptionText: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: "600",
     color: "#374151",
   },
-  recordingInputChipTextActive: {
+  recordingInputOptionTextActive: {
     color: "#fff",
   },
-  recordingInputHint: {
-    fontSize: 12,
-    lineHeight: 17,
-    color: "#4b5563",
+  recordingInputOptionCheck: {
+    marginLeft: "auto",
   },
   recordingInputDisabledNote: {
     fontSize: 12,

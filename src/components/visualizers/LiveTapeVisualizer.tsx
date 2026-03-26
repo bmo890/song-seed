@@ -6,7 +6,7 @@ import {
     withSpring,
     useDerivedValue,
 } from "react-native-reanimated";
-import { DataPoint } from "@siteed/expo-audio-studio";
+import { DataPoint } from "@siteed/audio-studio";
 
 type Props = {
     dataPoints: DataPoint[];

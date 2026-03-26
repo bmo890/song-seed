@@ -3,7 +3,7 @@ import * as FileSystem from "expo-file-system/legacy";
 import { File } from "expo-file-system";
 import { createAudioPlayer } from "expo-audio";
 import { Platform, Share } from "react-native";
-import { extractAudioAnalysis } from "@siteed/expo-audio-studio";
+import { extractAudioAnalysis } from "@siteed/audio-studio";
 import { buildDefaultIdeaTitle, buildStaticWaveform, metersToWaveformPeaks } from "../utils";
 import { SONG_SEED_AUDIO_DIR, SONG_SEED_SHARE_DIR } from "./storagePaths";
 import { cleanupShareTempFile } from "./managedMedia";

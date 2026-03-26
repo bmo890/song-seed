@@ -58,7 +58,7 @@
         }
       ],
       [
-        "@siteed/expo-audio-studio",
+        "@siteed/audio-studio",
         {
           "microphonePermission": "Song Seed needs microphone access so you can record song ideas and voice memos.",
           "enableBackgroundAudio": true,

@@ -256,11 +256,13 @@ export function RecordingScreen() {
                 <Pressable
                   style={({ pressed }) => [
                     styles.recordingSettingsBtn,
+                    recording.isRecording && !recording.isPaused ? styles.recordingSettingsBtnDisabled : null,
                     pressed ? styles.pressDown : null,
                   ]}
                   onPress={() => setSettingsVisible(true)}
+                  disabled={recording.isRecording && !recording.isPaused}
                 >
-                  <Ionicons name="ellipsis-horizontal" size={16} color="#111827" />
+                  <Ionicons name="ellipsis-horizontal" size={16} color={recording.isRecording && !recording.isPaused ? "#9ca3af" : "#111827"} />
                 </Pressable>
               </View>
             }
@@ -373,7 +375,7 @@ export function RecordingScreen() {
             </View>
 
             <RecordingInputPicker
-              disabled={recording.isRecording || recording.isPaused}
+              disabled={recording.isRecording && !recording.isPaused}
               preferredInputId={preferredRecordingInputId}
               onChangePreferredInputId={setPreferredRecordingInputId}
             />

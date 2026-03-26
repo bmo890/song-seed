@@ -32,11 +32,13 @@ export function RecordingControls({
                 style={({ pressed }) => [
                     styles.circleControlBtn,
                     compact ? styles.circleControlBtnCompact : null,
+                    isRecording && !isPaused ? styles.circleControlBtnDisabled : null,
                     pressed ? styles.pressDown : null,
                 ]}
                 onPress={onOpenInput}
+                disabled={isRecording && !isPaused}
             >
-                <Ionicons name="headset-outline" size={compact ? 20 : 24} color="#374151" />
+                <Ionicons name="headset-outline" size={compact ? 20 : 24} color={isRecording && !isPaused ? "#9ca3af" : "#374151"} />
             </Pressable>
 
             <Pressable

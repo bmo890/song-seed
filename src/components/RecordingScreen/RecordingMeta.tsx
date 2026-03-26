@@ -2,7 +2,7 @@ import React from "react";
 import { View, Text } from "react-native";
 import { styles } from "../../styles";
 import { fmtTenths } from "../../utils";
-import { AudioAnalysis } from "@siteed/expo-audio-studio";
+import { AudioAnalysis } from "@siteed/audio-studio";
 import { LiveTapeVisualizer } from "../visualizers/LiveTapeVisualizer";
 
 type Props = {

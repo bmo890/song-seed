@@ -1,4 +1,4 @@
-import { useSharedAudioRecorder, ExpoAudioStreamModule, audioDeviceManager } from "@siteed/expo-audio-studio";
+import { useSharedAudioRecorder, ExpoAudioStreamModule, audioDeviceManager } from "@siteed/audio-studio";
 import * as FileSystem from "expo-file-system/legacy";
 import { Alert, Linking } from "react-native";
 import { metersToWaveformPeaks } from "../utils";
@@ -131,6 +131,20 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
   async function resumeRecording() {
     if (!recorder.isPaused) return;
     try {
+      // Apply any input change the user made while paused.
+      if (preferredInputId) {
+        try {
+          await audioDeviceManager.selectDevice(preferredInputId);
+        } catch (selectionError) {
+          console.warn("Input switch before resume failed", selectionError);
+        }
+      } else {
+        try {
+          await audioDeviceManager.resetToDefaultDevice();
+        } catch (resetError) {
+          console.warn("Input reset before resume failed", resetError);
+        }
+      }
       await recorder.resumeRecording();
     } catch {
       Alert.alert("Resume failed", "Could not continue recording.");
