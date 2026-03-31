@@ -29,6 +29,11 @@ export type SongSeedArchiveOptions = {
     includeHiddenItems: boolean;
 };
 
+export type SongSeedArchiveLibraryPreferences = {
+    primaryWorkspaceId: string | null;
+    primaryCollectionIdByWorkspace: Record<string, string>;
+};
+
 export type StandardZipOptions = {
     includeNotesAsText: boolean;
     includeLyricsAsText: boolean;
@@ -41,6 +46,7 @@ export type ExportLibraryArgs =
           format: "song-seed-archive";
           scope: LibraryExportScope;
           options: SongSeedArchiveOptions;
+          libraryPreferences?: SongSeedArchiveLibraryPreferences;
           archiveLabel?: string;
       }
     | {
@@ -66,6 +72,7 @@ type ArchiveManifest = {
     schemaVersion: number;
     exportedAt: string;
     options: SongSeedArchiveOptions;
+    libraryPreferences: SongSeedArchiveLibraryPreferences;
     scope: LibraryExportScope;
     warnings: string[];
     summary: {
@@ -103,6 +110,7 @@ type ArchiveSongManifest = {
     createdAt: number;
     lastActivityAt: number;
     completionPct: number;
+    isBookmarked: boolean;
     notes?: string;
     lyrics?: string;
     historyIncluded: boolean;
@@ -114,6 +122,7 @@ type ArchiveClipManifest = {
     title: string;
     createdAt: number;
     isPrimary: boolean;
+    isBookmarked?: boolean;
     parentClipId?: string;
     durationMs?: number;
     notes?: string;
@@ -145,7 +154,7 @@ type ExportBuildContext = {
     exportedStandaloneClips: number;
 };
 
-const LIBRARY_EXPORT_SCHEMA_VERSION = 1;
+const LIBRARY_EXPORT_SCHEMA_VERSION = 2;
 
 export async function prepareLibraryExportArchive(args: ExportLibraryArgs): Promise<LibraryExportResult> {
     if (!FileSystem.documentDirectory) {
@@ -250,6 +259,13 @@ function buildSongSeedArchive(args: Extract<ExportLibraryArgs, { format: "song-s
         schemaVersion: LIBRARY_EXPORT_SCHEMA_VERSION,
         exportedAt: new Date().toISOString(),
         options: args.options,
+        libraryPreferences: buildExportedLibraryPreferences(
+            selectedWorkspaces.map(({ workspace, selectedCollectionIds }) => ({
+                workspace,
+                selectedCollectionIds,
+            })),
+            args.libraryPreferences
+        ),
         scope: args.scope,
         warnings: context.warnings,
         summary: {
@@ -434,6 +450,7 @@ function buildArchiveSongManifest(
         createdAt: idea.createdAt,
         lastActivityAt: idea.lastActivityAt,
         completionPct: idea.completionPct,
+        isBookmarked: !!idea.isBookmarked,
         historyIncluded: options.includeFullSongHistory,
         clips: [],
     };
@@ -496,6 +513,7 @@ function buildArchiveStandaloneClip(
         title: idea.title,
         createdAt: idea.createdAt,
         isPrimary: true,
+        isBookmarked: !!idea.isBookmarked,
         durationMs: primaryClip?.durationMs,
     };
 
@@ -569,6 +587,38 @@ function exportStandardClip(
     if (options.includeNotesAsText && idea.notes.trim().length > 0) {
         addTextEntry(context, `${itemStemPath} Notes.txt`, idea.notes);
     }
+}
+
+function buildExportedLibraryPreferences(
+    selectedWorkspaces: Array<{ workspace: Workspace; selectedCollectionIds: Set<string> }>,
+    libraryPreferences?: SongSeedArchiveLibraryPreferences
+): SongSeedArchiveLibraryPreferences {
+    if (!libraryPreferences) {
+        return {
+            primaryWorkspaceId: null,
+            primaryCollectionIdByWorkspace: {},
+        };
+    }
+
+    const selectedWorkspaceIds = new Set(selectedWorkspaces.map(({ workspace }) => workspace.id));
+    const primaryCollectionIdByWorkspace = Object.fromEntries(
+        selectedWorkspaces.flatMap(({ workspace, selectedCollectionIds }) => {
+            const primaryCollectionId = libraryPreferences.primaryCollectionIdByWorkspace[workspace.id];
+            if (!primaryCollectionId || !selectedCollectionIds.has(primaryCollectionId)) {
+                return [];
+            }
+            return [[workspace.id, primaryCollectionId] as const];
+        })
+    );
+
+    return {
+        primaryWorkspaceId:
+            libraryPreferences.primaryWorkspaceId &&
+            selectedWorkspaceIds.has(libraryPreferences.primaryWorkspaceId)
+                ? libraryPreferences.primaryWorkspaceId
+                : null,
+        primaryCollectionIdByWorkspace,
+    };
 }
 
 function getSelectedWorkspaces(workspaces: Workspace[], scope: LibraryExportScope) {

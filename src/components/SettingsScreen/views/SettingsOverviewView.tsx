@@ -21,6 +21,7 @@ export function SettingsOverviewView({
   diagnostics,
   onOpenStorageDetails,
   onBeginExportFlow,
+  onBeginImportFlow,
 }: {
   workspaceStartupPreference: "primary" | "last-used";
   setWorkspaceStartupPreference: (next: "primary" | "last-used") => void;
@@ -30,6 +31,7 @@ export function SettingsOverviewView({
   diagnostics: StorageDiagnostics;
   onOpenStorageDetails: () => void;
   onBeginExportFlow: () => void;
+  onBeginImportFlow: () => void;
 }) {
   return (
     <ScrollView
@@ -237,6 +239,19 @@ export function SettingsOverviewView({
           <Text style={styles.settingsActionCardTitle}>Export Library</Text>
           <Text style={styles.settingsActionCardMeta}>
             Package workspaces or collections as a Song Seed Archive or a Standard ZIP.
+          </Text>
+        </View>
+        <Ionicons name="chevron-forward" size={18} color="#64748b" />
+      </Pressable>
+
+      <Pressable
+        style={({ pressed }) => [styles.settingsActionCard, pressed ? styles.pressDown : null]}
+        onPress={onBeginImportFlow}
+      >
+        <View style={styles.settingsActionCardCopy}>
+          <Text style={styles.settingsActionCardTitle}>Import Song Seed Archive</Text>
+          <Text style={styles.settingsActionCardMeta}>
+            Merge a Song Seed Archive into this library as new workspaces.
           </Text>
         </View>
         <Ionicons name="chevron-forward" size={18} color="#64748b" />

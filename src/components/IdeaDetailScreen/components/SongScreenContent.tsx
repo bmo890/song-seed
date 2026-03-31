@@ -30,7 +30,10 @@ export function SongScreenContent() {
               (screen.navigation as any).goBack();
               return;
             }
-            screen.navigateRoot("Home", { screen: "Browse" });
+            screen.navigateRoot("Home", {
+              screen: "WorkspaceStack",
+              params: { screen: "Browse" },
+            });
           }}
         />
         <Text style={styles.emptyText}>This song could not be found.</Text>

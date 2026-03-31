@@ -134,20 +134,18 @@ export function useWorkspaceListScreenModel() {
             key: "primary",
             label:
               primaryWorkspaceId === singleSelectedWorkspace.id
-                ? "Unset primary"
-                : "Set primary",
+                ? "Main workspace"
+                : "Set main",
             icon:
               primaryWorkspaceId === singleSelectedWorkspace.id
                 ? "star"
                 : "star-outline",
             onPress: () => {
-              setPrimaryWorkspaceId(
-                primaryWorkspaceId === singleSelectedWorkspace.id
-                  ? null
-                  : singleSelectedWorkspace.id
-              );
+              if (primaryWorkspaceId === singleSelectedWorkspace.id) return;
+              setPrimaryWorkspaceId(singleSelectedWorkspace.id);
               selection.setSelectedWorkspaceIds([]);
             },
+            disabled: primaryWorkspaceId === singleSelectedWorkspace.id,
           },
           {
             key: "archive",

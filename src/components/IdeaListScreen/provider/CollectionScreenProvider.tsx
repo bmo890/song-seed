@@ -17,9 +17,9 @@ type CollectionScreenContextValue = {
   inlinePlayer: ReturnType<typeof useInlinePlayer>;
   store: {
     globalCustomTags: CustomTagDefinition[];
-    ideasFilter: "all" | "clips" | "projects";
+    ideasFilter: "all" | "clips" | "projects" | "bookmarked";
     ideasSort: IdeaSort;
-    setIdeasFilter: (value: "all" | "clips" | "projects") => void;
+    setIdeasFilter: (value: "all" | "clips" | "projects" | "bookmarked") => void;
     setIdeasHidden: (collectionId: string, ideaIds: string[], hidden: boolean) => void;
     setTimelineDaysHidden: (collectionId: string, days: WorkspaceHiddenDay[], hidden: boolean) => void;
     updateCollection: (workspaceId: string, collectionId: string, patch: Partial<Collection>) => void;

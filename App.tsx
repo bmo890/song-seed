@@ -2,7 +2,6 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import Constants from "expo-constants";
 import { ActivityIndicator, Alert, View } from "react-native";
 import * as Clipboard from "expo-clipboard";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   type InitialState,
   NavigationContainer,
@@ -58,19 +57,21 @@ import {
 import { resumePendingWorkspaceArchiveOperations } from "./src/services/workspaceArchiveRecovery";
 import { recoverPendingRecordingSession } from "./src/services/recordingRecovery";
 
-const NAVIGATION_STATE_KEY = "song-seed-navigation-state-v1";
-const NON_RESTORABLE_ROUTE_NAMES = new Set(["ShareImport"]);
 
 export type HomeDrawerParamList = {
   Workspaces: undefined;
-  Browse: undefined;
-  CollectionDetail: CollectionDetailRouteParams | undefined;
+  WorkspaceStack: NavigatorScreenParams<WorkspaceStackParamList> | undefined;
   RevisitHome: undefined;
   ActivityHome: undefined;
   TunerHome: undefined;
   MetronomeHome: undefined;
   LibraryHome: undefined;
   SettingsHome: undefined;
+};
+
+export type WorkspaceStackParamList = {
+  Browse: undefined;
+  CollectionDetail: CollectionDetailRouteParams | undefined;
 };
 
 export type RootStackParamList = {
@@ -89,16 +90,20 @@ import { useStore } from "./src/state/useStore";
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const Drawer = createDrawerNavigator<HomeDrawerParamList>();
+const WorkspaceStack = createNativeStackNavigator<WorkspaceStackParamList>();
 const HOME_DRAWER_ROUTE_NAMES: Array<keyof HomeDrawerParamList> = [
   "Workspaces",
-  "Browse",
-  "CollectionDetail",
+  "WorkspaceStack",
   "RevisitHome",
   "ActivityHome",
   "TunerHome",
   "MetronomeHome",
   "LibraryHome",
   "SettingsHome",
+];
+const WORKSPACE_STACK_ROUTE_NAMES: Array<keyof WorkspaceStackParamList> = [
+  "Browse",
+  "CollectionDetail",
 ];
 const ROOT_STACK_ROUTE_NAMES: Array<keyof RootStackParamList> = [
   "Home",
@@ -117,9 +122,19 @@ function createHomeRoute(
   screen: keyof HomeDrawerParamList = "Workspaces",
   params?: HomeDrawerParamList[keyof HomeDrawerParamList]
 ): any {
-  const routes = HOME_DRAWER_ROUTE_NAMES.map((routeName) =>
-    routeName === screen && params !== undefined ? { name: routeName, params } : { name: routeName }
-  );
+  const routes = HOME_DRAWER_ROUTE_NAMES.map((routeName) => {
+    if (routeName === "WorkspaceStack") {
+      if (screen === "WorkspaceStack") {
+        return createWorkspaceStackDrawerRoute(
+          (params as NavigatorScreenParams<WorkspaceStackParamList> | undefined)?.screen ?? "Browse",
+          (params as NavigatorScreenParams<WorkspaceStackParamList> | undefined)?.params
+        );
+      }
+      return createWorkspaceStackDrawerRoute();
+    }
+
+    return routeName === screen && params !== undefined ? { name: routeName, params } : { name: routeName };
+  });
 
   return {
     name: "Home" as const,
@@ -128,6 +143,69 @@ function createHomeRoute(
       index: Math.max(0, HOME_DRAWER_ROUTE_NAMES.indexOf(screen)),
       routeNames: HOME_DRAWER_ROUTE_NAMES,
       routes,
+    },
+  };
+}
+
+function createWorkspaceStackDrawerRoute(
+  screen: keyof WorkspaceStackParamList = "Browse",
+  params?: WorkspaceStackParamList[keyof WorkspaceStackParamList]
+): any {
+  const routes = WORKSPACE_STACK_ROUTE_NAMES.map((routeName) =>
+    routeName === screen && params !== undefined ? { name: routeName, params } : { name: routeName }
+  );
+
+  return {
+    name: "WorkspaceStack" as const,
+    state: {
+      type: "stack" as const,
+      index: Math.max(0, WORKSPACE_STACK_ROUTE_NAMES.indexOf(screen)),
+      routeNames: WORKSPACE_STACK_ROUTE_NAMES,
+      routes,
+    },
+  };
+}
+
+function normalizeWorkspaceStackRoute(route: any): any {
+  if (!route) {
+    return createWorkspaceStackDrawerRoute("Browse");
+  }
+
+  if (route.name === "Browse" || route.name === "CollectionDetail") {
+    return createWorkspaceStackDrawerRoute(route.name, route.params);
+  }
+
+  if (route.params?.screen && typeof route.params.screen === "string") {
+    const targetScreen = route.params.screen as keyof WorkspaceStackParamList;
+    const targetParams = route.params.params;
+    if (WORKSPACE_STACK_ROUTE_NAMES.includes(targetScreen)) {
+      return createWorkspaceStackDrawerRoute(targetScreen, targetParams);
+    }
+  }
+
+  const state = route.state;
+  if (!state?.routes?.length) {
+    return createWorkspaceStackDrawerRoute("Browse");
+  }
+
+  const currentRoute = state.routes[state.index ?? 0];
+  const currentRouteName = WORKSPACE_STACK_ROUTE_NAMES.includes(currentRoute?.name)
+    ? currentRoute.name
+    : "Browse";
+  const normalizedRoutes = WORKSPACE_STACK_ROUTE_NAMES.map((routeName) => {
+    const existingRoute = state.routes.find((candidate: any) => candidate?.name === routeName);
+    return existingRoute ? { ...existingRoute } : { name: routeName };
+  });
+
+  return {
+    name: "WorkspaceStack" as const,
+    state: {
+      ...state,
+      stale: false,
+      type: "stack",
+      routeNames: WORKSPACE_STACK_ROUTE_NAMES,
+      routes: normalizedRoutes,
+      index: Math.max(0, WORKSPACE_STACK_ROUTE_NAMES.indexOf(currentRouteName)),
     },
   };
 }
@@ -172,10 +250,18 @@ function normalizeHomeDrawerRoute(route: any): any {
   }
 
   if (route.params?.screen && typeof route.params.screen === "string") {
-    const targetScreen = route.params.screen as keyof HomeDrawerParamList;
+    const targetScreen = route.params.screen as string;
     const targetParams = route.params.params;
-    if (HOME_DRAWER_ROUTE_NAMES.includes(targetScreen)) {
-      return createHomeRoute(targetScreen, targetParams);
+
+    if (targetScreen === "Browse" || targetScreen === "CollectionDetail") {
+      return createHomeRoute("WorkspaceStack", {
+        screen: targetScreen,
+        params: targetParams,
+      });
+    }
+
+    if (HOME_DRAWER_ROUTE_NAMES.includes(targetScreen as keyof HomeDrawerParamList)) {
+      return createHomeRoute(targetScreen as keyof HomeDrawerParamList, targetParams);
     }
   }
 
@@ -191,10 +277,21 @@ function normalizeHomeDrawerRoute(route: any): any {
     }
   });
   const currentRoute = state.routes[state.index ?? 0];
-  const currentRouteName = HOME_DRAWER_ROUTE_NAMES.includes(currentRoute?.name)
-    ? currentRoute.name
-    : "Workspaces";
+  const currentRouteName =
+    currentRoute?.name === "Browse" || currentRoute?.name === "CollectionDetail"
+      ? "WorkspaceStack"
+      : HOME_DRAWER_ROUTE_NAMES.includes(currentRoute?.name)
+        ? currentRoute.name
+        : "Workspaces";
   const normalizedRoutes = HOME_DRAWER_ROUTE_NAMES.map((routeName) => {
+    if (routeName === "WorkspaceStack") {
+      return normalizeWorkspaceStackRoute(
+        existingByName.get("WorkspaceStack") ??
+          existingByName.get("CollectionDetail") ??
+          existingByName.get("Browse")
+      );
+    }
+
     const existingRoute = existingByName.get(routeName);
     return existingRoute ? { ...existingRoute } : { name: routeName };
   });
@@ -264,7 +361,17 @@ function getActiveWorkspaceRouteContext(args: {
   selectedIdeaId: string | null;
   playerTarget: ReturnType<typeof useStore.getState>["playerTarget"];
 }) {
-  const activeWorkspace =
+  const routeCollectionId = args.deepestParams.collectionId as string | undefined;
+  const routeWorkspaceId = args.deepestParams.workspaceId as string | undefined;
+  const routeWorkspace =
+    (routeWorkspaceId
+      ? args.workspaces.find((workspace) => workspace.id === routeWorkspaceId) ?? null
+      : routeCollectionId
+        ? args.workspaces.find((workspace) =>
+            workspace.collections.some((collection) => collection.id === routeCollectionId)
+          ) ?? null
+        : null);
+  const activeWorkspace = routeWorkspace ??
     args.workspaces.find((workspace) => workspace.id === args.activeWorkspaceId) ?? null;
   const routeIdeaId =
     args.deepestRouteName === "IdeaDetail" ||
@@ -348,17 +455,6 @@ function DrawerContent({ navigation, state }: DrawerContentComponentProps) {
       }))
     : [];
 
-  const favoriteItems = useMemo(
-    () =>
-      workspaces
-        .flatMap((ws) => ws.ideas)
-        .filter((idea) => idea.isFavorite)
-        .sort((a, b) => b.lastActivityAt - a.lastActivityAt)
-        .slice(0, 5)
-        .map((idea) => ({ id: idea.id, title: idea.title, kind: idea.kind })),
-    [workspaces]
-  );
-
   const closeDrawer = () => {
     navigation.closeDrawer();
   };
@@ -368,14 +464,13 @@ function DrawerContent({ navigation, state }: DrawerContentComponentProps) {
       currentRoute={currentRoute}
       workspaceTitle={activeWorkspace?.title ?? null}
       recentCollections={recentCollections}
-      favoriteItems={favoriteItems}
       onGoHome={() => {
         closeDrawer();
         navigation.navigate("Workspaces");
       }}
       onGoWorkspace={() => {
         closeDrawer();
-        navigation.navigate("Browse");
+        navigation.navigate("WorkspaceStack", { screen: "Browse" });
       }}
       onGoRevisit={() => {
         closeDrawer();
@@ -403,12 +498,10 @@ function DrawerContent({ navigation, state }: DrawerContentComponentProps) {
       }}
       onOpenCollection={(collectionId) => {
         closeDrawer();
-        navigation.navigate("CollectionDetail", { collectionId });
-      }}
-      onOpenFavorite={(ideaId) => {
-        closeDrawer();
-        useStore.getState().setSelectedIdeaId(ideaId);
-        navigateRoot("IdeaDetail", { ideaId });
+        navigation.navigate("WorkspaceStack", {
+          screen: "CollectionDetail",
+          params: { collectionId },
+        });
       }}
       onClose={() => {
         closeDrawer();
@@ -457,11 +550,10 @@ function DrawerRoutes() {
     <Drawer.Navigator
       screenOptions={{ headerShown: false }}
       drawerContent={(props) => <DrawerContent {...props} />}
-      initialRouteName={startupWorkspaceId ? "Browse" : "Workspaces"}
+      initialRouteName={startupWorkspaceId ? "WorkspaceStack" : "Workspaces"}
     >
       <Drawer.Screen name="Workspaces" component={WorkspaceListScreen} />
-      <Drawer.Screen name="Browse" component={WorkspaceBrowseScreen} />
-      <Drawer.Screen name="CollectionDetail" component={IdeaListScreen} />
+      <Drawer.Screen name="WorkspaceStack" component={WorkspaceRoutes} />
       <Drawer.Screen name="RevisitHome" component={RevisitScreen} />
       <Drawer.Screen name="ActivityHome" component={ActivityScreen} />
       <Drawer.Screen name="TunerHome" component={TunerScreen} />
@@ -472,6 +564,49 @@ function DrawerRoutes() {
   );
 }
 
+function WorkspaceRoutes() {
+  return (
+    <WorkspaceStack.Navigator screenOptions={{ headerShown: false }} initialRouteName="Browse">
+      <WorkspaceStack.Screen name="Browse" component={WorkspaceBrowseScreen} />
+      <WorkspaceStack.Screen name="CollectionDetail" component={IdeaListScreen} />
+    </WorkspaceStack.Navigator>
+  );
+}
+
+function buildStartupNavigationState(args: {
+  workspaces: ReturnType<typeof useStore.getState>["workspaces"];
+  startupWorkspaceId: string | null;
+  primaryCollectionIdByWorkspace: Record<string, string | null>;
+}): InitialState | undefined {
+  const startupWorkspace = args.workspaces.find((workspace) => workspace.id === args.startupWorkspaceId) ?? null;
+  const startupCollectionId =
+    startupWorkspace && !startupWorkspace.isArchived
+      ? args.primaryCollectionIdByWorkspace[startupWorkspace.id] ?? null
+      : null;
+
+  const homeRoute = startupCollectionId
+    ? createHomeRoute("WorkspaceStack", {
+        screen: "CollectionDetail",
+        params: {
+          collectionId: startupCollectionId,
+          workspaceId: startupWorkspace?.id,
+        },
+      })
+    : startupWorkspace
+      ? createHomeRoute("WorkspaceStack", {
+          screen: "Browse",
+        })
+      : createHomeRoute("Workspaces");
+
+  return sanitizeNavigationState({
+    stale: false,
+    type: "stack",
+    routeNames: ROOT_STACK_ROUTE_NAMES,
+    routes: [homeRoute],
+    index: 0,
+  } as InitialState);
+}
+
 function getDeepestRoute(state: any): { name: string; params?: Record<string, unknown> } {
   if (!state?.routes?.length) return { name: "Home" };
   const route = state.routes[state.index ?? 0];
@@ -479,16 +614,6 @@ function getDeepestRoute(state: any): { name: string; params?: Record<string, un
     return getDeepestRoute(route.state);
   }
   return { name: route?.name ?? "Home", params: route?.params };
-}
-
-function shouldPersistNavigationState(state: InitialState | undefined) {
-  if (!state) return false;
-  const deepestRoute = getDeepestRoute(state);
-  return !NON_RESTORABLE_ROUTE_NAMES.has(deepestRoute.name);
-}
-
-function normalizeRestoredNavigationState(state: InitialState | undefined): InitialState | undefined {
-  return sanitizeNavigationState(state);
 }
 
 
@@ -501,6 +626,10 @@ function AppContent() {
   const [navigationStateReady, setNavigationStateReady] = useState(false);
   const workspaces = useStore((s) => s.workspaces);
   const activeWorkspaceId = useStore((s) => s.activeWorkspaceId);
+  const primaryWorkspaceId = useStore((s) => s.primaryWorkspaceId);
+  const lastUsedWorkspaceId = useStore((s) => s.lastUsedWorkspaceId);
+  const workspaceStartupPreference = useStore((s) => s.workspaceStartupPreference);
+  const primaryCollectionIdByWorkspace = useStore((s) => s.primaryCollectionIdByWorkspace);
   const selectedIdeaId = useStore((s) => s.selectedIdeaId);
   const playerTarget = useStore((s) => s.playerTarget);
   const appScheme = getScheme() ?? Constants.expoConfig?.scheme ?? "songseed";
@@ -509,6 +638,25 @@ function AppContent() {
     Constants.expoConfig?.android?.package ?? Constants.expoConfig?.ios?.bundleIdentifier ?? null;
   const prefix = Linking.createURL("/");
   const shareImportUrl = `${appScheme}://share-import`;
+  const startupWorkspaceId = useMemo(
+    () =>
+      resolveStartupWorkspaceId({
+        workspaces,
+        primaryWorkspaceId,
+        lastUsedWorkspaceId,
+        preference: workspaceStartupPreference,
+      }),
+    [lastUsedWorkspaceId, primaryWorkspaceId, workspaceStartupPreference, workspaces]
+  );
+  const startupNavigationState = useMemo(
+    () =>
+      buildStartupNavigationState({
+        workspaces,
+        startupWorkspaceId,
+        primaryCollectionIdByWorkspace,
+      }),
+    [primaryCollectionIdByWorkspace, startupWorkspaceId, workspaces]
+  );
 
   const linking = useMemo<LinkingOptions<RootStackParamList>>(
     () => ({
@@ -588,15 +736,8 @@ function AppContent() {
         if (initialUrl) {
           return;
         }
-
-        const storedState = await AsyncStorage.getItem(NAVIGATION_STATE_KEY);
-        if (!storedState) {
-          return;
-        }
-
-        const parsedState = normalizeRestoredNavigationState(JSON.parse(storedState) as InitialState);
         if (!cancelled) {
-          setInitialNavigationState(parsedState);
+          setInitialNavigationState(startupNavigationState);
         }
       } catch (error) {
         console.warn("Navigation restore error", error);
@@ -610,19 +751,11 @@ function AppContent() {
     return () => {
       cancelled = true;
     };
-  }, [linking]);
+  }, [linking, startupNavigationState]);
 
   const syncNavigationState = () => {
     const rootState = navigationRef.getRootState();
     if (!rootState) return;
-    const sanitizedRootState = sanitizeNavigationState(rootState);
-    if (shouldPersistNavigationState(rootState) && sanitizedRootState) {
-      // Persist the last stable navigation tree so the app can reopen where the
-      // user left it instead of always dropping back to Home on relaunch. Sanitize
-      // it first so detail screens do not restore from invalid params and so the
-      // root stack does not accumulate duplicate Home routes forever.
-      void AsyncStorage.setItem(NAVIGATION_STATE_KEY, JSON.stringify(sanitizedRootState));
-    }
     const deepestRoute = getDeepestRoute(rootState);
     const nextRoute = deepestRoute.name;
     setActiveRouteName((prev) => (prev === nextRoute ? prev : nextRoute));

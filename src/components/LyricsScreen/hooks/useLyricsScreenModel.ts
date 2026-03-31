@@ -4,7 +4,7 @@ import type { AppBreadcrumbItem } from "../../common/AppBreadcrumbs";
 import { useStore } from "../../../state/useStore";
 import { getCollectionAncestors, getCollectionById } from "../../../utils";
 import { getCollectionHierarchyLevel } from "../../../hierarchy";
-import { openCollectionFromContext } from "../../../navigation";
+import { openCollectionFromContext, openWorkspaceBrowseRoot } from "../../../navigation";
 
 export function useLyricsScreenModel() {
   const navigation = useNavigation<any>();
@@ -48,7 +48,7 @@ export function useLyricsScreenModel() {
         key: `workspace-${activeWorkspace.id}`,
         label: activeWorkspace.title,
         level: "workspace",
-        onPress: () => navigation.navigate("Home", { screen: "Browse" }),
+        onPress: () => openWorkspaceBrowseRoot(navigation),
       },
       ...projectCollectionAncestors.map((collection) => ({
         key: collection.id,

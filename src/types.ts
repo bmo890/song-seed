@@ -83,7 +83,7 @@ export type SongIdea = {
   sourceCreatedAt?: number;
   lastActivityAt: number;
   isDraft?: boolean;
-  isFavorite?: boolean;
+  isBookmarked?: boolean;
 };
 
 export type PlaybackQueueItem = { ideaId: string; clipId: string };
@@ -217,7 +217,7 @@ export type InlinePlayer = {
   resetInlinePlayer: () => Promise<void>;
 };
 
-export type IdeasFilter = "all" | "clips" | "projects";
+export type IdeasFilter = "all" | "clips" | "projects" | "bookmarked";
 export type IdeaSort =
   | "newest"
   | "oldest"

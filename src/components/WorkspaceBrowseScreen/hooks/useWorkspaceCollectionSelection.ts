@@ -29,6 +29,8 @@ export function useWorkspaceCollectionSelection({
   workspaces,
   activeWorkspace,
   activeWorkspaceId,
+  primaryCollectionId,
+  setPrimaryCollectionId,
   collectionEntries,
   updateCollection,
   moveCollection,
@@ -38,6 +40,8 @@ export function useWorkspaceCollectionSelection({
   workspaces: Workspace[];
   activeWorkspace: Workspace | null;
   activeWorkspaceId: string | null;
+  primaryCollectionId: string | null;
+  setPrimaryCollectionId: (workspaceId: string, collectionId: string | null) => void;
   collectionEntries: Array<{ collection: Collection }>;
   updateCollection: (workspaceId: string, collectionId: string, patch: Partial<Collection>) => void;
   moveCollection: (
@@ -198,6 +202,24 @@ export function useWorkspaceCollectionSelection({
               setCollectionDraft(singleSelectedCollection.title);
               setCollectionRenameModalOpen(true);
             },
+          },
+          {
+            key: "primary",
+            label:
+              primaryCollectionId === singleSelectedCollection.id
+                ? "Main collection"
+                : "Set main",
+            icon:
+              primaryCollectionId === singleSelectedCollection.id
+                ? "star"
+                : "star-outline",
+            onPress: () => {
+              if (!activeWorkspaceId) return;
+              if (primaryCollectionId === singleSelectedCollection.id) return;
+              setPrimaryCollectionId(activeWorkspaceId, singleSelectedCollection.id);
+              setSelectedCollectionIds([]);
+            },
+            disabled: primaryCollectionId === singleSelectedCollection.id,
           },
           {
             key: "copy",

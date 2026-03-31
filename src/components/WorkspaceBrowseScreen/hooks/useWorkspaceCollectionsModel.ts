@@ -9,11 +9,13 @@ export function useWorkspaceCollectionsModel() {
   const navigation = useNavigation<any>();
   const workspaces = useStore((state) => state.workspaces);
   const activeWorkspaceId = useStore((state) => state.activeWorkspaceId);
+  const primaryCollectionIdByWorkspace = useStore((state) => state.primaryCollectionIdByWorkspace);
   const addCollection = useStore((state) => state.addCollection);
   const updateCollection = useStore((state) => state.updateCollection);
   const moveCollection = useStore((state) => state.moveCollection);
   const deleteCollection = useStore((state) => state.deleteCollection);
   const markCollectionOpened = useStore((state) => state.markCollectionOpened);
+  const setPrimaryCollectionId = useStore((state) => state.setPrimaryCollectionId);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [sizeMap, setSizeMap] = useState<Record<string, number>>({});
@@ -27,8 +29,15 @@ export function useWorkspaceCollectionsModel() {
     [activeWorkspace?.collections]
   );
   const collectionEntries = useMemo(
-    () => (activeWorkspace ? buildWorkspaceBrowseEntries(activeWorkspace, searchQuery) : []),
-    [activeWorkspace, searchQuery]
+    () =>
+      activeWorkspace
+        ? buildWorkspaceBrowseEntries(
+            activeWorkspace,
+            searchQuery,
+            primaryCollectionIdByWorkspace[activeWorkspace.id] ?? null
+          )
+        : [],
+    [activeWorkspace, primaryCollectionIdByWorkspace, searchQuery]
   );
 
   useEffect(() => {
@@ -76,9 +85,14 @@ export function useWorkspaceCollectionsModel() {
     updateCollection,
     moveCollection,
     deleteCollection,
+    primaryCollectionId: activeWorkspace ? primaryCollectionIdByWorkspace[activeWorkspace.id] ?? null : null,
+    setPrimaryCollectionId,
     openCollection: (collectionId: string) => {
       markCollectionOpened(collectionId);
-      openCollectionInBrowse(navigation, { collectionId });
+      openCollectionInBrowse(navigation, {
+        collectionId,
+        workspaceId: activeWorkspace?.id,
+      });
     },
   };
 }

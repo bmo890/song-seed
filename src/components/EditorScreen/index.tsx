@@ -25,7 +25,7 @@ import { getCollectionAncestors, getCollectionById } from "../../utils";
 import { getCollectionHierarchyLevel, getIdeaHierarchyLevel } from "../../hierarchy";
 import { TransportLayout } from "../common/TransportLayout";
 import { useTransportScrubbing } from "../../hooks/useTransportScrubbing";
-import { openCollectionFromContext } from "../../navigation";
+import { openCollectionFromContext, openWorkspaceBrowseRoot } from "../../navigation";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Editor">;
 
@@ -774,7 +774,7 @@ export function EditorScreen() {
                             key: `workspace-${activeWorkspace.id}`,
                             label: activeWorkspace.title,
                             level: "workspace",
-                            onPress: () => (navigation as any).navigate("Home", { screen: "Browse" }),
+                            onPress: () => openWorkspaceBrowseRoot(navigation),
                         },
                         ...targetCollectionAncestors.map((collection) => ({
                             key: collection.id,

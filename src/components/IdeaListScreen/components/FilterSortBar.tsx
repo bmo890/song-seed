@@ -49,12 +49,14 @@ function getStageTone(stage: ProjectStage) {
   }
 }
 
-function getFilterIcon(filter: "all" | "clips" | "projects") {
+function getFilterIcon(filter: "all" | "clips" | "projects" | "bookmarked") {
   switch (filter) {
     case "clips":
       return getHierarchyIconName("clip");
     case "projects":
       return getHierarchyIconName("song");
+    case "bookmarked":
+      return "bookmark";
     case "all":
     default:
       return "layers-outline";
@@ -103,6 +105,7 @@ export function FilterSortBar({
     { key: "all" as const, label: "All", icon: "layers-outline" },
     { key: "clips" as const, label: "Clips", icon: getHierarchyIconName("clip") },
     { key: "projects" as const, label: "Songs", icon: getHierarchyIconName("song") },
+    { key: "bookmarked" as const, label: "Bookmarked", icon: "bookmark" },
   ];
   const stageOptions = [
     { key: "seed" as const, label: "Seed" },
@@ -110,7 +113,7 @@ export function FilterSortBar({
     { key: "semi" as const, label: "Semi" },
     { key: "song" as const, label: "Song" },
   ];
-  const showProjectFilters = ideasFilter !== "clips";
+  const showProjectFilters = ideasFilter !== "clips" && ideasFilter !== "bookmarked";
   const hasActiveFilters =
     ideasFilter !== "all" || selectedProjectStages.length > 0 || lyricsFilterMode !== "all";
   const hasCustomSort = ideasSort !== "newest";

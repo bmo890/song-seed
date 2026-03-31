@@ -6,6 +6,7 @@ import { WorkspaceCollectionCard } from "./WorkspaceCollectionCard";
 
 export function WorkspaceCollectionList({
   collectionEntries,
+  primaryCollectionId,
   searchQuery,
   selectionMode,
   selectedCollectionIds,
@@ -18,6 +19,7 @@ export function WorkspaceCollectionList({
     itemCount: number;
     matches: Array<{ kind: CollectionSearchMatchKind; label: string; context?: string | null }>;
   }>;
+  primaryCollectionId: string | null;
   searchQuery: string;
   selectionMode: boolean;
   selectedCollectionIds: string[];
@@ -34,6 +36,7 @@ export function WorkspaceCollectionList({
           <WorkspaceCollectionCard
             key={collection.id}
             entry={entry}
+            isPrimary={primaryCollectionId === collection.id}
             searchQuery={searchQuery}
             selectionMode={selectionMode}
             isSelected={isSelected}

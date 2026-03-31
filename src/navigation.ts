@@ -1,5 +1,6 @@
 export type CollectionDetailRouteParams = {
   collectionId: string;
+  workspaceId?: string;
   activityRangeStartTs?: number;
   activityRangeEndTs?: number;
   activityMetricFilter?: "created" | "updated" | "both";
@@ -22,11 +23,24 @@ export function openCollectionInBrowse(navigation: any, params: CollectionDetail
   navigation.navigate("CollectionDetail", params);
 }
 
+export function openWorkspaceBrowseRoot(navigation: any) {
+  const rootNavigation = getRootNavigation(navigation);
+  rootNavigation?.navigate?.("Home", {
+    screen: "WorkspaceStack",
+    params: {
+      screen: "Browse",
+    },
+  });
+}
+
 export function openCollectionAsBrowseRoot(navigation: any, params: CollectionDetailRouteParams) {
   const rootNavigation = getRootNavigation(navigation);
   rootNavigation?.navigate?.("Home", {
-    screen: "CollectionDetail",
-    params,
+    screen: "WorkspaceStack",
+    params: {
+      screen: "CollectionDetail",
+      params,
+    },
   });
 }
 
@@ -39,15 +53,21 @@ export function openCollectionFromContext(navigation: any, params: CollectionDet
 
   if (typeof rootNavigation?.push === "function") {
     rootNavigation.push("Home", {
-      screen: "CollectionDetail",
-      params: contextualParams,
+      screen: "WorkspaceStack",
+      params: {
+        screen: "CollectionDetail",
+        params: contextualParams,
+      },
     });
     return;
   }
 
   rootNavigation?.navigate?.("Home", {
-    screen: "CollectionDetail",
-    params: contextualParams,
+    screen: "WorkspaceStack",
+    params: {
+      screen: "CollectionDetail",
+      params: contextualParams,
+    },
   });
 }
 

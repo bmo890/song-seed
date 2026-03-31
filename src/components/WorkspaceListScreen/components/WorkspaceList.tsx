@@ -8,7 +8,6 @@ import type { Workspace } from "../../../types";
 
 type Props = {
   onOpenWorkspaceActions: (id: string) => void;
-  onTogglePrimaryWorkspace: (id: string) => void;
   editingWorkspaceId: string | null;
   primaryWorkspaceId: string | null;
   workspaces: Workspace[];
@@ -21,7 +20,6 @@ type Props = {
 
 export function WorkspaceList({
   onOpenWorkspaceActions,
-  onTogglePrimaryWorkspace,
   editingWorkspaceId,
   primaryWorkspaceId,
   workspaces,
@@ -31,7 +29,7 @@ export function WorkspaceList({
   selectedWorkspaceIds = [],
   onToggleSelection,
 }: Props) {
-  const navigation = useNavigation();
+  const navigation = useNavigation<any>();
   const activeWorkspaceId = useStore((s) => s.activeWorkspaceId);
   const setActiveWorkspaceId = useStore((s) => s.setActiveWorkspaceId);
 
@@ -59,7 +57,7 @@ export function WorkspaceList({
               return;
             }
             setActiveWorkspaceId(workspace.id);
-            navigation.navigate("Browse" as never);
+            navigation.navigate("WorkspaceStack", { screen: "Browse" });
           }}
           onLongPress={() => {
             if (workspace.id === busyWorkspaceId) return;
@@ -69,7 +67,6 @@ export function WorkspaceList({
             }
             onToggleSelection?.(workspace.id);
           }}
-          onTogglePrimary={() => onTogglePrimaryWorkspace(workspace.id)}
         />
       ))}
     </View>

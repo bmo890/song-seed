@@ -147,11 +147,6 @@ export function WorkspaceListScreenContent() {
           selectionMode={model.data.selectionMode}
           selectedWorkspaceIds={model.selection.selectedWorkspaceIds}
           onToggleSelection={model.selection.toggleWorkspaceSelection}
-          onTogglePrimaryWorkspace={(workspaceId) => {
-            model.actions.setPrimaryWorkspaceId(
-              model.data.primaryWorkspaceId === workspaceId ? null : workspaceId
-            );
-          }}
           onOpenWorkspaceActions={model.modal.openWorkspaceActions}
         />
 

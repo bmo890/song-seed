@@ -25,7 +25,10 @@ export function CollectionScreenContent() {
             screen.showBack
               ? () => {
                   if (!goBackFromParentStack(screen.navigation)) {
-                    screen.navigateRoot("Home", { screen: "Browse" });
+                    screen.navigateRoot("Home", {
+                      screen: "WorkspaceStack",
+                      params: { screen: "Browse" },
+                    });
                   }
                 }
               : undefined

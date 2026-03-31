@@ -19,7 +19,7 @@ import { appActions } from "../../../state/actions";
 import { getLatestLyricsVersion, lyricsDocumentToText } from "../../../lyrics";
 import { formatDate, getCollectionAncestors, getCollectionById } from "../../../utils";
 import { getCollectionHierarchyLevel } from "../../../hierarchy";
-import { openCollectionFromContext } from "../../../navigation";
+import { openCollectionFromContext, openWorkspaceBrowseRoot } from "../../../navigation";
 
 type LyricsVersionRoute = RootStackParamList["LyricsVersion"];
 
@@ -142,7 +142,7 @@ export function useLyricsVersionScreenModel() {
         key: `workspace-${activeWorkspace.id}`,
         label: activeWorkspace.title,
         level: "workspace",
-        onPress: () => navigation.navigate("Home", { screen: "Browse" }),
+        onPress: () => openWorkspaceBrowseRoot(navigation),
       },
       ...projectCollectionAncestors.map((collection) => ({
         key: collection.id,

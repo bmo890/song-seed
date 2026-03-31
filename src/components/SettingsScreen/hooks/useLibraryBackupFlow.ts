@@ -17,6 +17,8 @@ const REMINDER_OPTIONS: BackupReminderFrequency[] = ["off", "weekly", "monthly",
 
 export function useLibraryBackupFlow() {
     const workspaces = useStore((state) => state.workspaces);
+    const primaryWorkspaceId = useStore((state) => state.primaryWorkspaceId);
+    const primaryCollectionIdByWorkspace = useStore((state) => state.primaryCollectionIdByWorkspace);
     const backupReminderFrequency = useStore((state) => state.backupReminderFrequency);
     const setBackupReminderFrequency = useStore((state) => state.setBackupReminderFrequency);
     const lastSuccessfulBackupAt = useStore((state) => state.lastSuccessfulBackupAt);
@@ -42,7 +44,14 @@ export function useLibraryBackupFlow() {
 
         setIsBackingUp(true);
         try {
-            const result = await runManualLibraryBackup(workspaces);
+            const result = await runManualLibraryBackup(workspaces, {
+                primaryWorkspaceId,
+                primaryCollectionIdByWorkspace: Object.fromEntries(
+                    Object.entries(primaryCollectionIdByWorkspace).flatMap(([workspaceId, collectionId]) =>
+                        typeof collectionId === "string" ? [[workspaceId, collectionId] as const] : []
+                    )
+                ),
+            });
             const backupFileName = `${result.archiveTitle}.zip`;
             setLastSuccessfulBackupAt(Date.now());
             setLastSuccessfulBackupFileName(backupFileName);

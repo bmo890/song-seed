@@ -49,7 +49,11 @@ export function IdeaHeader() {
               key: `workspace-${activeWorkspace.id}`,
               label: activeWorkspace.title,
               level: "workspace" as const,
-              onPress: () => screen.navigateRoot("Home", { screen: "Browse" }),
+              onPress: () =>
+                screen.navigateRoot("Home", {
+                  screen: "WorkspaceStack",
+                  params: { screen: "Browse" },
+                }),
               active: !currentCollection,
             },
           ]

@@ -1,6 +1,10 @@
 import * as FileSystem from "expo-file-system/legacy";
 import { Platform } from "react-native";
-import { prepareLibraryExportArchive, type LibraryExportResult } from "./libraryExport";
+import {
+    prepareLibraryExportArchive,
+    type LibraryExportResult,
+    type SongSeedArchiveLibraryPreferences,
+} from "./libraryExport";
 import { cleanupShareTempFile } from "./managedMedia";
 import { shareFileUri } from "./audioStorage";
 import type { Workspace } from "../types";
@@ -15,7 +19,10 @@ function countTotalIdeas(workspaces: Workspace[]) {
     return workspaces.reduce((sum, workspace) => sum + workspace.ideas.length, 0);
 }
 
-export async function runManualLibraryBackup(workspaces: Workspace[]): Promise<ManualLibraryBackupResult> {
+export async function runManualLibraryBackup(
+    workspaces: Workspace[],
+    libraryPreferences?: SongSeedArchiveLibraryPreferences
+): Promise<ManualLibraryBackupResult> {
     if (countTotalIdeas(workspaces) === 0) {
         throw new Error("There is no library data to back up yet.");
     }
@@ -24,6 +31,7 @@ export async function runManualLibraryBackup(workspaces: Workspace[]): Promise<M
         workspaces,
         format: "song-seed-archive",
         archiveLabel: "Song Seed Backup",
+        libraryPreferences,
         scope: {
             workspaceIds: workspaces.map((workspace) => workspace.id),
             collectionIds: [],

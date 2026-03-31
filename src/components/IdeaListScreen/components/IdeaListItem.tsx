@@ -271,15 +271,15 @@ export function IdeaListItem({
                     onPress={(e) => {
                         e.stopPropagation();
                         void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                        useStore.getState().toggleIdeaFavorite(item.id);
+                        useStore.getState().toggleIdeaBookmark(item.id);
                     }}
                     hitSlop={8}
                     style={styles.ideasListFavoriteBtn}
                 >
                     <Ionicons
-                        name={item.isFavorite ? "star" : "star-outline"}
+                        name={item.isBookmarked ? "bookmark" : "bookmark-outline"}
                         size={15}
-                        color={item.isFavorite ? "#f59e0b" : "#cbd5e1"}
+                        color={item.isBookmarked ? "#d97706" : "#cbd5e1"}
                     />
                 </Pressable>
             </View>

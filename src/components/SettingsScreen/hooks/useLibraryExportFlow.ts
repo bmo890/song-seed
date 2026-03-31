@@ -25,6 +25,8 @@ const DEFAULT_STANDARD_OPTIONS: StandardExportOptions = {
 
 export function useLibraryExportFlow() {
   const workspaces = useStore((state) => state.workspaces);
+  const primaryWorkspaceId = useStore((state) => state.primaryWorkspaceId);
+  const primaryCollectionIdByWorkspace = useStore((state) => state.primaryCollectionIdByWorkspace);
   const [format, setFormat] = useState<LibraryExportFormat | null>(null);
   const [selectedWorkspaceIds, setSelectedWorkspaceIds] = useState<string[]>([]);
   const [selectedCollectionIds, setSelectedCollectionIds] = useState<string[]>([]);
@@ -135,6 +137,14 @@ export function useLibraryExportFlow() {
               format,
               scope,
               options: archiveOptions,
+              libraryPreferences: {
+                primaryWorkspaceId,
+                primaryCollectionIdByWorkspace: Object.fromEntries(
+                  Object.entries(primaryCollectionIdByWorkspace).flatMap(([workspaceId, collectionId]) =>
+                    typeof collectionId === "string" ? [[workspaceId, collectionId] as const] : []
+                  )
+                ),
+              },
             })
           : await exportLibrary({
               workspaces,

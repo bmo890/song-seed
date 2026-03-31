@@ -8,9 +8,11 @@ import { useBrowseRootBackHandler } from "../../../hooks/useBrowseRootBackHandle
 import { useSettingsScreenModel } from "../hooks/useSettingsScreenModel";
 import { useLibraryBackupFlow } from "../hooks/useLibraryBackupFlow";
 import { useLibraryExportFlow } from "../hooks/useLibraryExportFlow";
+import { useLibraryImportFlow } from "../hooks/useLibraryImportFlow";
 import { useStorageDiagnostics } from "../hooks/useStorageDiagnostics";
 import { useGlobalTagSettings } from "../hooks/useGlobalTagSettings";
 import { SettingsExportView } from "../views/SettingsExportView";
+import { SettingsImportView } from "../views/SettingsImportView";
 import { SettingsOverviewView } from "../views/SettingsOverviewView";
 import { SettingsStorageView } from "../views/SettingsStorageView";
 
@@ -25,6 +27,7 @@ export function SettingsScreenContent() {
   const screen = useSettingsScreenModel();
   const backupFlow = useLibraryBackupFlow();
   const exportFlow = useLibraryExportFlow();
+  const importFlow = useLibraryImportFlow();
   const diagnostics = useStorageDiagnostics({ active: screen.view === "storage" });
   const globalTags = useGlobalTagSettings();
 
@@ -34,10 +37,14 @@ export function SettingsScreenContent() {
   );
 
   const handleBackPress =
-    screen.view === "export"
-      ? exportFlow.isExporting
-        ? undefined
-        : () => screen.setView("overview")
+    screen.view === "export" || screen.view === "import"
+      ? screen.view === "export"
+        ? exportFlow.isExporting
+          ? undefined
+          : () => screen.setView("overview")
+        : importFlow.isImporting
+          ? undefined
+          : () => screen.setView("overview")
       : screen.view === "storage"
         ? diagnostics.isStorageLoading
           ? undefined
@@ -62,6 +69,15 @@ export function SettingsScreenContent() {
             }
           }}
         />
+      ) : screen.view === "import" ? (
+        <SettingsImportView
+          flow={importFlow}
+          onCancel={() => {
+            if (!importFlow.isImporting) {
+              screen.setView("overview");
+            }
+          }}
+        />
       ) : screen.view === "storage" ? (
         <SettingsStorageView diagnostics={diagnostics} />
       ) : (
@@ -77,6 +93,7 @@ export function SettingsScreenContent() {
             screen.setView("storage");
           }}
           onBeginExportFlow={() => screen.setView("export")}
+          onBeginImportFlow={() => screen.setView("import")}
         />
       )}
     </SafeAreaView>

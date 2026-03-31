@@ -9,10 +9,12 @@ import {
     CustomTagDefinition,
 } from "../types";
 import { useStore } from "./useStore";
-import { createEmptyProjectLyrics, createEmptyWorkspaceIdeasListState } from "./dataSlice";
+import { createEmptyProjectLyrics, createEmptyWorkspaceIdeasListState, normalizeWorkspaces } from "./dataSlice";
 import { createLyricsVersion, lyricsTextToDocument } from "../lyrics";
 import { buildDefaultIdeaTitle, ensureUniqueCountedTitle, ensureUniqueIdeaTitle } from "../utils";
 import { archiveWorkspaceToDevice, restoreWorkspaceFromDevice } from "../services/workspaceArchive";
+import type { ParsedSongSeedArchive } from "../services/libraryImport";
+import { materializeSongSeedArchiveMerge } from "../services/libraryImport";
 import { findOrphanedAudioFiles, enrichOrphanedClips, buildRecoveredIdeas, findWorkspaceArchives, restoreWorkspaceFromArchive, restoreFromManifest } from "../services/audioRecovery";
 import { forceManifestWrite } from "../services/manifestSync";
 import { buildPersistedAppStoreSnapshot } from "./useStore";
@@ -1864,5 +1866,42 @@ export const appActions = {
         } catch { /* non-critical */ }
 
         return { recoveredCount, restoredFromManifest: false, archivedWorkspacesRestored, orphanedClipsRecovered, warnings };
+    },
+
+    importLibraryArchiveIntoLibrary: async (parsedArchive: ParsedSongSeedArchive) => {
+        const store = useStore.getState();
+        const merge = await materializeSongSeedArchiveMerge(
+            parsedArchive,
+            store.workspaces,
+            store.primaryWorkspaceId
+        );
+
+        const nextWorkspaces = normalizeWorkspaces([...store.workspaces, ...merge.importedWorkspaces]);
+        const nextPrimaryCollectionIdByWorkspace = {
+            ...store.primaryCollectionIdByWorkspace,
+            ...merge.suggestedPrimaryCollectionIdByWorkspace,
+        };
+        const nextPrimaryWorkspaceId = store.primaryWorkspaceId ?? merge.suggestedPrimaryWorkspaceId;
+
+        useStore.setState({
+            workspaces: nextWorkspaces,
+            primaryWorkspaceId: nextPrimaryWorkspaceId,
+            primaryCollectionIdByWorkspace: nextPrimaryCollectionIdByWorkspace,
+        });
+
+        useStore.getState().markRecentlyAdded(merge.importedWorkspaceIds);
+
+        try {
+            await forceManifestWrite(buildPersistedAppStoreSnapshot(useStore.getState()));
+        } catch {
+            // Import should not fail because the shadow manifest write failed.
+        }
+
+        return {
+            importedWorkspaces: merge.importedWorkspaces.length,
+            importedIdeas: merge.importedIdeaIds.length,
+            warnings: merge.warnings,
+            importedWorkspaceTitles: merge.importedWorkspaces.map((workspace) => workspace.title),
+        };
     },
 };

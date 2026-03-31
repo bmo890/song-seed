@@ -8,7 +8,7 @@ import { getCollectionAncestors, getCollectionById } from "../../../utils";
 import { getCollectionHierarchyLevel } from "../../../hierarchy";
 import { getDateBucket, getDateBucketLabel } from "../../../dateBuckets";
 import { compareIdeas, getIdeaCreatedAt, getIdeaSortState, getIdeaSortTimestamp, getIdeaUpdatedAt, usesIdeaTimelineDividers } from "../../../ideaSort";
-import { goBackFromParentStack, openCollectionInBrowse } from "../../../navigation";
+import { goBackFromParentStack, openCollectionInBrowse, openWorkspaceBrowseRoot } from "../../../navigation";
 import { getFloatingActionDockBottomOffset, getFloatingActionDockScrollPastClearance } from "../../common/FloatingActionDock";
 import type { IdeaListEntry } from "../types";
 import type { AppBreadcrumbItem } from "../../common/AppBreadcrumbs";
@@ -26,6 +26,7 @@ export function useCollectionScreenModel() {
   const activityRangeEndTs = route.params?.activityRangeEndTs as number | undefined;
   const activityMetricFilter = (route.params?.activityMetricFilter as "created" | "updated" | "both" | undefined) ?? "both";
   const activityLabel = route.params?.activityLabel as string | undefined;
+  const routeWorkspaceId = route.params?.workspaceId as string | undefined;
   const focusIdeaId = route.params?.focusIdeaId as string | undefined;
   const focusToken = route.params?.focusToken as number | undefined;
   const showBack = route.params?.showBack === true;
@@ -33,7 +34,19 @@ export function useCollectionScreenModel() {
 
   const workspaces = useStore((s) => s.workspaces);
   const activeWorkspaceId = useStore((s) => s.activeWorkspaceId);
-  const activeWorkspace = workspaces.find((w) => w.id === activeWorkspaceId);
+  const setActiveWorkspaceId = useStore((s) => s.setActiveWorkspaceId);
+  const routeWorkspace = useMemo(
+    () =>
+      routeWorkspaceId
+        ? workspaces.find((workspace) => workspace.id === routeWorkspaceId) ?? null
+        : collectionId
+          ? workspaces.find((workspace) =>
+              workspace.collections.some((collection) => collection.id === collectionId)
+            ) ?? null
+          : null,
+    [collectionId, routeWorkspaceId, workspaces]
+  );
+  const activeWorkspace = routeWorkspace ?? workspaces.find((w) => w.id === activeWorkspaceId) ?? null;
   const currentCollection = activeWorkspace?.collections.find((collection) => collection.id === collectionId) ?? null;
   const recordingIdeaId = useStore((s) => s.recordingIdeaId);
   const ideasFilter = useStore((s) => s.ideasFilter);
@@ -46,6 +59,12 @@ export function useCollectionScreenModel() {
   const markCollectionOpened = useStore((s) => s.markCollectionOpened);
   const clipClipboard = useStore((s) => s.clipClipboard);
   const inlinePlayerMounted = useStore((s) => s.setInlinePlayerMounted);
+
+  useEffect(() => {
+    if (!routeWorkspace?.id) return;
+    if (activeWorkspaceId === routeWorkspace.id) return;
+    setActiveWorkspaceId(routeWorkspace.id);
+  }, [activeWorkspaceId, routeWorkspace?.id, setActiveWorkspaceId]);
 
   const ideas = useMemo(
     () => activeWorkspace?.ideas.filter((idea) => idea.collectionId === collectionId) ?? [],
@@ -116,7 +135,9 @@ export function useCollectionScreenModel() {
         ? [...ideas]
         : ideasFilter === "clips"
           ? ideas.filter((i) => i.kind === "clip")
-          : ideas.filter((i) => i.kind === "project");
+          : ideasFilter === "projects"
+            ? ideas.filter((i) => i.kind === "project")
+            : ideas.filter((i) => !!i.isBookmarked);
 
     const filteredByActivityRange = base.filter((idea) => {
       if (typeof activityRangeStartTs !== "number" || typeof activityRangeEndTs !== "number") return true;
@@ -273,6 +294,7 @@ export function useCollectionScreenModel() {
   );
 
   const collectionRouteParams = {
+    workspaceId: activeWorkspace?.id,
     activityRangeStartTs,
     activityRangeEndTs,
     activityMetricFilter,
@@ -282,7 +304,7 @@ export function useCollectionScreenModel() {
   };
 
   const goToBrowse = () => {
-    (rootNavigation ?? navigation).navigate("Home" as never, { screen: "Browse" } as never);
+    openWorkspaceBrowseRoot(rootNavigation ?? navigation);
   };
 
   const breadcrumbs: AppBreadcrumbItem[] = [
@@ -408,7 +430,7 @@ export function useCollectionScreenModel() {
       showBack
         ? () => {
             if (!goBackFromParentStack(navigation)) {
-              navigateRoot("Home", { screen: "Browse" });
+              openWorkspaceBrowseRoot(rootNavigation ?? navigation);
             }
           }
         : undefined,

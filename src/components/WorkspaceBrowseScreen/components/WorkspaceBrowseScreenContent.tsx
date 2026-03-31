@@ -24,6 +24,8 @@ export function WorkspaceBrowseScreenContent() {
     workspaces: collectionsModel.workspaces,
     activeWorkspace: collectionsModel.activeWorkspace,
     activeWorkspaceId: collectionsModel.activeWorkspaceId,
+    primaryCollectionId: collectionsModel.primaryCollectionId,
+    setPrimaryCollectionId: collectionsModel.setPrimaryCollectionId,
     collectionEntries: collectionsModel.collectionEntries,
     updateCollection: collectionsModel.updateCollection,
     moveCollection: collectionsModel.moveCollection,
@@ -37,16 +39,16 @@ export function WorkspaceBrowseScreenContent() {
     deleteCollection: collectionsModel.deleteCollection,
   });
 
-  useBrowseRootBackHandler({
-    onBack: () => {
-      if (selectionModel.selectedCollectionIds.length > 0) {
-        selectionModel.setSelectedCollectionIds([]);
-        selectionModel.setSelectionMoreVisible(false);
-        return;
-      }
-      (navigation as any).navigate?.("Workspaces");
-    },
-  });
+  useBrowseRootBackHandler(
+    selectionModel.selectedCollectionIds.length > 0
+      ? {
+          onBack: () => {
+            selectionModel.setSelectedCollectionIds([]);
+            selectionModel.setSelectionMoreVisible(false);
+          },
+        }
+      : true
+  );
 
   if (!collectionsModel.activeWorkspace) {
     return (
@@ -96,6 +98,7 @@ export function WorkspaceBrowseScreenContent() {
 
         <WorkspaceCollectionList
           collectionEntries={collectionsModel.collectionEntries}
+          primaryCollectionId={collectionsModel.primaryCollectionId}
           searchQuery={collectionsModel.searchQuery}
           selectionMode={selectionModel.selectionMode}
           selectedCollectionIds={selectionModel.selectedCollectionIds}

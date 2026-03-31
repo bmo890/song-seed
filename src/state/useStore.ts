@@ -10,6 +10,8 @@ import {
     normalizeActivityEvents,
     normalizePlaylists,
     normalizeWorkspaces,
+    resolvePrimaryCollectionIdByWorkspace,
+    resolvePrimaryWorkspaceId,
 } from "./dataSlice";
 import type { ActivityEvent } from "../types";
 import { isIdeaSort } from "../ideaSort";
@@ -41,6 +43,7 @@ export type PersistedAppStore = Pick<
     | "activityEvents"
     | "activeWorkspaceId"
     | "primaryWorkspaceId"
+    | "primaryCollectionIdByWorkspace"
     | "lastUsedWorkspaceId"
     | "workspaceStartupPreference"
     | "workspaceListOrder"
@@ -59,7 +62,7 @@ export type PersistedAppStore = Pick<
 >;
 
 export const STORE_NAME = "song-seed-store";
-export const STORE_VERSION = 8;
+export const STORE_VERSION = 10;
 
 function sanitizeTimestampMap(value: unknown, validIds: Set<string>) {
     if (!value || typeof value !== "object") return {};
@@ -74,15 +77,28 @@ function sanitizeTimestampMap(value: unknown, validIds: Set<string>) {
 
 export function sanitizePersistedState(state?: Partial<PersistedAppStore>): PersistedAppStore {
     const fallbackWorkspace = createInitialWorkspace();
-    const workspaces = Array.isArray(state?.workspaces) && state.workspaces.length > 0
+    const normalizedWorkspaces = Array.isArray(state?.workspaces) && state.workspaces.length > 0
         ? normalizeWorkspaces(state.workspaces)
         : [fallbackWorkspace];
+    const workspaces = normalizedWorkspaces.some((workspace) => !workspace.isArchived)
+        ? normalizedWorkspaces
+        : [fallbackWorkspace, ...normalizedWorkspaces];
     const workspaceIds = new Set(workspaces.map((workspace) => workspace.id));
     const activeWorkspaceIds = new Set(
         workspaces.filter((workspace) => !workspace.isArchived).map((workspace) => workspace.id)
     );
     const collectionIds = new Set(
         workspaces.flatMap((workspace) => workspace.collections.map((collection) => collection.id))
+    );
+    const topLevelCollectionIdsByWorkspace = new Map(
+        workspaces.map((workspace) => [
+            workspace.id,
+            new Set(
+                workspace.collections
+                    .filter((collection) => !collection.parentCollectionId)
+                    .map((collection) => collection.id)
+            ),
+        ])
     );
 
     const activeWorkspaceId =
@@ -95,10 +111,23 @@ export function sanitizePersistedState(state?: Partial<PersistedAppStore>): Pers
         workspaces,
         activityEvents: normalizeActivityEvents(state?.activityEvents as ActivityEvent[] | undefined),
         activeWorkspaceId,
-        primaryWorkspaceId:
+        primaryWorkspaceId: resolvePrimaryWorkspaceId(
+            workspaces,
             typeof state?.primaryWorkspaceId === "string" && activeWorkspaceIds.has(state.primaryWorkspaceId)
                 ? state.primaryWorkspaceId
-                : null,
+                : null
+        ),
+        primaryCollectionIdByWorkspace: resolvePrimaryCollectionIdByWorkspace(
+            workspaces,
+            state?.primaryCollectionIdByWorkspace && typeof state.primaryCollectionIdByWorkspace === "object"
+                ? Object.fromEntries(
+                    Object.entries(state.primaryCollectionIdByWorkspace).filter(([workspaceId, collectionId]) => {
+                        if (typeof collectionId !== "string") return false;
+                        return topLevelCollectionIdsByWorkspace.get(workspaceId)?.has(collectionId) ?? false;
+                    })
+                )
+                : {}
+        ),
         lastUsedWorkspaceId:
             typeof state?.lastUsedWorkspaceId === "string" && workspaceIds.has(state.lastUsedWorkspaceId)
                 ? state.lastUsedWorkspaceId
@@ -140,6 +169,7 @@ export function buildPersistedAppStoreSnapshot(state: AppStore): PersistedAppSto
         activityEvents: state.activityEvents,
         activeWorkspaceId: state.activeWorkspaceId,
         primaryWorkspaceId: state.primaryWorkspaceId,
+        primaryCollectionIdByWorkspace: state.primaryCollectionIdByWorkspace,
         lastUsedWorkspaceId: state.lastUsedWorkspaceId,
         workspaceStartupPreference: state.workspaceStartupPreference,
         workspaceListOrder: state.workspaceListOrder,

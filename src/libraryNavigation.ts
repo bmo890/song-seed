@@ -320,10 +320,7 @@ export function getRecentCollectionsForWorkspace(
       const scopedRecent = scopedCollections
         .map((candidate) => ({
           collection: candidate,
-          recentAt: Math.max(
-            collectionLastOpenedAt[candidate.id] ?? 0,
-            getCollectionLastWorkedAt(workspace, candidate.id)
-          ),
+          recentAt: collectionLastOpenedAt[candidate.id] ?? 0,
         }))
         .sort(
           (a, b) =>
@@ -339,11 +336,7 @@ export function getRecentCollectionsForWorkspace(
           topRecent && topRecent.collection.id !== collection.id
             ? buildCollectionPathLabel(workspace, topRecent.collection.id)
             : null,
-        recentAt: Math.max(
-          collectionLastOpenedAt[collection.id] ?? 0,
-          getCollectionLastWorkedAt(workspace, collection.id),
-          topRecent?.recentAt ?? 0
-        ),
+        recentAt: Math.max(collectionLastOpenedAt[collection.id] ?? 0, topRecent?.recentAt ?? 0),
       };
     })
     .filter((item) => item.recentAt > 0)
@@ -353,7 +346,8 @@ export function getRecentCollectionsForWorkspace(
 
 export function buildWorkspaceBrowseEntries(
   workspace: Workspace,
-  searchQuery: string
+  searchQuery: string,
+  primaryCollectionId: string | null = null
 ): WorkspaceCollectionBrowseEntry[] {
   const needle = searchQuery.trim().toLowerCase();
 
@@ -380,6 +374,11 @@ export function buildWorkspaceBrowseEntries(
     : entries;
 
   return filteredEntries.sort((a, b) => {
+    if (primaryCollectionId) {
+      if (a.collection.id === primaryCollectionId && b.collection.id !== primaryCollectionId) return -1;
+      if (b.collection.id === primaryCollectionId && a.collection.id !== primaryCollectionId) return 1;
+    }
+
     if (needle.length > 0) {
       return (
         b.matchScore - a.matchScore ||

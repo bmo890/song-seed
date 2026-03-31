@@ -21,7 +21,7 @@ import {
   getActivityCellBackground,
 } from "../helpers";
 import { getDateBucketLabel } from "../../../dateBuckets";
-import { openCollectionFromContext } from "../../../navigation";
+import { openCollectionFromContext, openWorkspaceBrowseRoot } from "../../../navigation";
 import { getPlayableClipForIdea } from "../../../clipPresentation";
 import type { AppBreadcrumbItem } from "../../common/AppBreadcrumbs";
 
@@ -81,7 +81,7 @@ export function useActivityScreenModel() {
         key: `workspace-${collectionScopeWorkspace.id}`,
         label: collectionScopeWorkspace.title,
         level: "workspace",
-        onPress: () => navigation.navigate("Home", { screen: "Browse" }),
+        onPress: () => openWorkspaceBrowseRoot(navigation),
       },
       ...collectionScopeAncestors.map((collection) => ({
         key: collection.id,

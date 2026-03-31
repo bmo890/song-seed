@@ -12,6 +12,7 @@ type WorkspaceCollectionCardProps = {
     itemCount: number;
     matches: Array<{ kind: CollectionSearchMatchKind; label: string; context?: string | null }>;
   };
+  isPrimary: boolean;
   searchQuery: string;
   selectionMode: boolean;
   isSelected: boolean;
@@ -73,6 +74,7 @@ function HighlightedText({ value, query }: { value: string; query: string }) {
 
 export function WorkspaceCollectionCard({
   entry,
+  isPrimary,
   searchQuery,
   selectionMode,
   isSelected,
@@ -83,7 +85,11 @@ export function WorkspaceCollectionCard({
   const collection = entry.collection;
 
   return (
-    <SurfaceCard onPress={onPress} onLongPress={onLongPress}>
+    <SurfaceCard
+      style={isPrimary ? styles.workspaceCardPrimary : null}
+      onPress={onPress}
+      onLongPress={onLongPress}
+    >
       <View style={styles.cardTop}>
         <View style={selectionMode ? styles.cardTitleRowCompact : styles.cardTitleRow}>
           {selectionMode ? (
@@ -106,6 +112,11 @@ export function WorkspaceCollectionCard({
           <Text style={styles.cardTitle}>
             <HighlightedText value={collection.title} query={searchQuery} />
           </Text>
+          {isPrimary ? <Ionicons name="star" size={14} color="#c58b18" /> : null}
+        </View>
+
+        <View style={styles.workspaceCardBadges}>
+          {isPrimary ? <Text style={[styles.badge, styles.badgeArchived]}>MAIN</Text> : null}
         </View>
       </View>
 

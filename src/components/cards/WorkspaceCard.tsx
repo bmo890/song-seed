@@ -1,4 +1,4 @@
-import { Pressable, Text, View } from "react-native";
+import { Text, View } from "react-native";
 import { useEffect, useState } from "react";
 import { Ionicons } from "@expo/vector-icons";
 import { styles } from "../../styles";
@@ -18,7 +18,6 @@ type Props = {
   busyLabel?: string;
   onPress: () => void;
   onLongPress: () => void;
-  onTogglePrimary: () => void;
 };
 
 export function WorkspaceCard({
@@ -32,7 +31,6 @@ export function WorkspaceCard({
   busyLabel,
   onPress,
   onLongPress,
-  onTogglePrimary,
 }: Props) {
   const [sizeBytes, setSizeBytes] = useState<number>(0);
   const topLevelCollectionCount = workspace.collections.filter((collection) => !collection.parentCollectionId).length;
@@ -110,29 +108,6 @@ export function WorkspaceCard({
           ) : isActive ? (
             <Text style={[styles.badge, styles.badgeCurrent]}>CURRENT</Text>
           ) : null}
-
-          {!workspace.isArchived && !selectionMode ? (
-            <Pressable
-              style={({ pressed }) => [
-                styles.workspacePrimaryButton,
-                isPrimary ? styles.workspacePrimaryButtonActive : null,
-                pressed ? styles.pressDown : null,
-              ]}
-              onPress={(event) => {
-                event.stopPropagation();
-                onTogglePrimary();
-              }}
-              accessibilityRole="button"
-              accessibilityLabel={isPrimary ? "Unset primary workspace" : "Set primary workspace"}
-            >
-              <Ionicons
-                name={isPrimary ? "star" : "star-outline"}
-                size={14}
-                color={isPrimary ? "#c58b18" : "#94a3b8"}
-              />
-            </Pressable>
-          ) : null}
-
         </View>
       </View>
 
