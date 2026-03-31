@@ -9,13 +9,44 @@ import { fmt } from "../../utils";
 
 const TIMELINE_HORIZONTAL_PADDING = 20;
 const AnimatedView = Reanimated.createAnimatedComponent(View);
-const ZOOM_LEVELS = [1, 1.5, 2, 2.5, 3, 4, 5] as const;
+const ZOOM_LEVELS = [1, 3, 5, 7, 10] as const;
+const DISPLAY_BAR_PITCH_PX = 3;
+const MIN_ZOOM = ZOOM_LEVELS[0];
+const MAX_ZOOM = ZOOM_LEVELS[ZOOM_LEVELS.length - 1];
+
+function downsampleWaveformPeaks(peaks: number[], targetCount: number) {
+    if (targetCount >= peaks.length) {
+        return peaks;
+    }
+
+    const nextPeaks: number[] = [];
+    const peaksPerBucket = peaks.length / targetCount;
+
+    for (let index = 0; index < targetCount; index += 1) {
+        const start = Math.floor(index * peaksPerBucket);
+        const end = Math.min(peaks.length, Math.floor((index + 1) * peaksPerBucket));
+        let maxPeak = 0;
+
+        for (let cursor = start; cursor < end; cursor += 1) {
+            maxPeak = Math.max(maxPeak, peaks[cursor] ?? 0);
+        }
+
+        nextPeaks.push(maxPeak);
+    }
+
+    return nextPeaks;
+}
 
 type Range = {
     id: string;
     start: number;
     end: number;
     type: "keep" | "remove";
+};
+
+type PracticeMarkerPreview = {
+    id: string;
+    atMs: number;
 };
 
 type OverlayArgs = {
@@ -31,7 +62,13 @@ type Props = {
     waveformPeaks: number[];
     durationMs: number;
     currentTimeMs: number;
+    sharedCurrentTimeMs?: SharedValue<number>;
+    sharedDurationMs?: SharedValue<number>;
+    sharedTransportUpdateToken?: SharedValue<number>;
     isPlaying: boolean;
+    sharedIsPlaying?: SharedValue<boolean>;
+    playbackRate?: number;
+    sharedPlaybackRate?: SharedValue<number>;
     isScrubbing?: boolean;
     compact?: boolean;
     zoomPlacement?: "top" | "bottom";
@@ -42,7 +79,12 @@ type Props = {
     onSeekToEnd: () => void | Promise<void>;
     onScrubStateChange?: (scrubbing: boolean) => void;
     selectedRanges?: Range[];
+    practiceMarkers?: PracticeMarkerPreview[];
+    sharedSelectedRangeStartMs?: SharedValue<number>;
+    sharedSelectedRangeEndMs?: SharedValue<number>;
+    selectedRangeType?: "keep" | "remove";
     renderOverlay?: (args: OverlayArgs) => ReactNode;
+    renderBelowSurface?: (args: OverlayArgs) => ReactNode;
     renderBelowOverlay?: (args: OverlayArgs) => ReactNode;
     chrome?: ReelChrome;
     showTransportControls?: boolean;
@@ -62,7 +104,13 @@ export function AudioReel({
     waveformPeaks,
     durationMs,
     currentTimeMs,
+    sharedCurrentTimeMs,
+    sharedDurationMs,
+    sharedTransportUpdateToken,
     isPlaying,
+    sharedIsPlaying,
+    playbackRate = 1,
+    sharedPlaybackRate,
     isScrubbing = false,
     compact = false,
     zoomPlacement = "bottom",
@@ -73,7 +121,12 @@ export function AudioReel({
     onSeekToEnd,
     onScrubStateChange,
     selectedRanges,
+    practiceMarkers,
+    sharedSelectedRangeStartMs,
+    sharedSelectedRangeEndMs,
+    selectedRangeType,
     renderOverlay,
+    renderBelowSurface,
     renderBelowOverlay,
     chrome = "dark",
     showTransportControls = true,
@@ -92,12 +145,10 @@ export function AudioReel({
     const timelineScale = useSharedValue(1);
     const visualizerHeight = useSharedValue(compact ? 120 : 160);
     const sharedAudioProgress = useSharedValue(0);
-    const baseScale = useSharedValue(1);
 
     const [isExpanded, setIsExpanded] = useState(defaultExpanded);
-    const [zoomIndex, setZoomIndex] = useState(0);
+    const [zoomMultiple, setZoomMultiple] = useState<number>(1);
     const [mainCanvasWidth, setMainCanvasWidth] = useState(0);
-    const [baseScaleValue, setBaseScaleValue] = useState(1);
 
     const collapsedHeight = collapsedHeightOverride ?? (compact ? 120 : 160);
     const expandedHeight = expandedHeightOverride ?? (compact ? 220 : 320);
@@ -106,26 +157,55 @@ export function AudioReel({
         visualizerHeight.value = withTiming(isExpanded ? expandedHeight : collapsedHeight, { duration: 300 });
     }, [collapsedHeight, expandedHeight, isExpanded, visualizerHeight]);
 
-    React.useEffect(() => {
-        if (durationMs > 0) {
-            const progress = currentTimeMs / durationMs;
-            sharedAudioProgress.value = progress;
-        }
-    }, [currentTimeMs, durationMs, sharedAudioProgress]);
-
     const animatedHeightStyle = useAnimatedStyle(() => ({
         height: visualizerHeight.value,
     }));
 
-    const pixelsPerMs = durationMs > 0 ? (waveformPeaks.length * 3) / durationMs : 0;
-    const zoomMultiple = ZOOM_LEVELS[zoomIndex] ?? 1;
     const zoomText = `${zoomMultiple.toFixed(zoomMultiple % 1 === 0 ? 0 : 1)}x`;
+    const nearestZoomIndex = React.useMemo(() => {
+        let bestIndex = 0;
+        let bestDistance = Number.POSITIVE_INFINITY;
+
+        ZOOM_LEVELS.forEach((level, index) => {
+            const distance = Math.abs(level - zoomMultiple);
+            if (distance < bestDistance) {
+                bestDistance = distance;
+                bestIndex = index;
+            }
+        });
+
+        return bestIndex;
+    }, [zoomMultiple]);
+    const targetPeakCount = React.useMemo(() => {
+        if (mainCanvasWidth <= 0) {
+            return Math.min(waveformPeaks.length, 96);
+        }
+
+        const visibleBarCapacity = Math.max(48, Math.round(mainCanvasWidth / DISPLAY_BAR_PITCH_PX));
+        const requestedBarCount = Math.round(visibleBarCapacity * zoomMultiple);
+        return Math.max(48, Math.min(waveformPeaks.length, requestedBarCount));
+    }, [mainCanvasWidth, waveformPeaks.length, zoomMultiple]);
+    const displayWaveformPeaks = React.useMemo(
+        () => downsampleWaveformPeaks(waveformPeaks, targetPeakCount),
+        [targetPeakCount, waveformPeaks]
+    );
+    const overscaleFactor = React.useMemo(() => {
+        if (targetPeakCount <= 0) {
+            return 1;
+        }
+        const visibleBarCapacity = mainCanvasWidth > 0
+            ? Math.max(48, Math.round(mainCanvasWidth / DISPLAY_BAR_PITCH_PX))
+            : 96;
+        const requestedBarCount = Math.max(48, Math.round(visibleBarCapacity * zoomMultiple));
+        return Math.max(1, requestedBarCount / targetPeakCount);
+    }, [mainCanvasWidth, targetPeakCount, zoomMultiple]);
+    const pixelsPerMs = durationMs > 0 ? (displayWaveformPeaks.length * 3) / durationMs : 0;
     const showMinimap =
         showMinimapMode === "always"
             ? true
             : showMinimapMode === "never"
                 ? false
-                : zoomIndex > 0 && (!compact || isExpanded);
+                : zoomMultiple > 1.01 && (!compact || isExpanded);
     const palette = chrome === "light"
         ? {
             surfaceColor: "#f1f2f6",
@@ -183,20 +263,19 @@ export function AudioReel({
     };
 
     React.useEffect(() => {
-        if (baseScaleValue <= 0) return;
-        const nextScale = baseScaleValue * zoomMultiple;
-        baseScale.value = baseScaleValue;
-        timelineScale.value = withTiming(nextScale, { duration: 250 });
-    }, [baseScale, baseScaleValue, timelineScale, zoomMultiple]);
+        timelineScale.value = withTiming(overscaleFactor, { duration: 180 });
+    }, [overscaleFactor, timelineScale]);
 
-    const handleZoom = (direction: "in" | "out") => {
-        setZoomIndex((prev) => {
+    const handleZoom = React.useCallback((direction: "in" | "out") => {
+        setZoomMultiple((currentZoom) => {
+            const currentIndex = ZOOM_LEVELS.findIndex((level) => level >= currentZoom - 0.001);
+            const baseIndex = currentIndex >= 0 ? currentIndex : nearestZoomIndex;
             if (direction === "out") {
-                return Math.max(0, prev - 1);
+                return ZOOM_LEVELS[Math.max(0, baseIndex - 1)] ?? MIN_ZOOM;
             }
-            return Math.min(ZOOM_LEVELS.length - 1, prev + 1);
+            return ZOOM_LEVELS[Math.min(ZOOM_LEVELS.length - 1, baseIndex + 1)] ?? MAX_ZOOM;
         });
-    };
+    }, [nearestZoomIndex]);
 
     const zoomControls = (
         <View style={[audioReelStyles.zoomRow, zoomPlacement === "top" ? audioReelStyles.zoomRowTop : null]}>
@@ -206,12 +285,12 @@ export function AudioReel({
                     audioReelStyles.zoomButton,
                     compact ? audioReelStyles.zoomButtonCompact : null,
                     {
-                        opacity: zoomIndex > 0 ? 1 : 0.3,
+                        opacity: zoomMultiple > MIN_ZOOM ? 1 : 0.3,
                         backgroundColor: palette.utilityBackgroundColor,
                         borderColor: palette.utilityBorderColor,
                     },
                 ]}
-                disabled={zoomIndex === 0}
+                disabled={zoomMultiple <= MIN_ZOOM}
             >
                 <Feather name="zoom-out" size={compact ? 18 : 20} color={palette.utilityIconColor} />
             </TouchableOpacity>
@@ -241,10 +320,12 @@ export function AudioReel({
                     audioReelStyles.zoomButton,
                     compact ? audioReelStyles.zoomButtonCompact : null,
                     {
+                        opacity: zoomMultiple < MAX_ZOOM ? 1 : 0.3,
                         backgroundColor: palette.utilityBackgroundColor,
                         borderColor: palette.utilityBorderColor,
                     },
                 ]}
+                disabled={zoomMultiple >= MAX_ZOOM}
             >
                 <Feather name="zoom-in" size={compact ? 18 : 20} color={palette.utilityIconColor} />
             </TouchableOpacity>
@@ -322,20 +403,27 @@ export function AudioReel({
                 >
                     <View style={audioReelStyles.visualizerLayer}>
                         <PlaybackTapeVisualizer
-                            waveformPeaks={waveformPeaks}
+                            waveformPeaks={displayWaveformPeaks}
                             durationMs={durationMs}
                             currentTimeMs={currentTimeMs}
+                            sharedCurrentTimeMs={sharedCurrentTimeMs}
+                            sharedDurationMs={sharedDurationMs}
+                            sharedTransportUpdateToken={sharedTransportUpdateToken}
+                            isPlaying={isPlaying}
+                            sharedIsPlaying={sharedIsPlaying}
                             isScrubbing={isScrubbing}
+                            playbackRate={playbackRate}
+                            sharedPlaybackRate={sharedPlaybackRate}
                             onSeek={handleSeekCommit}
                             onScrubStateChange={handleInteractionStateChange}
                             selectedRanges={selectedRanges}
+                            practiceMarkers={practiceMarkers}
+                            sharedSelectedRangeStartMs={sharedSelectedRangeStartMs}
+                            sharedSelectedRangeEndMs={sharedSelectedRangeEndMs}
+                            selectedRangeType={selectedRangeType}
                             sharedTranslateX={timelineTranslateX}
                             sharedScale={timelineScale}
                             sharedAudioProgress={sharedAudioProgress}
-                            sharedBaseScale={baseScale}
-                            onBaseScaleChange={(nextScale) => {
-                                setBaseScaleValue((prev) => (prev === nextScale ? prev : nextScale));
-                            }}
                             theme={{
                                 waveColor: palette.waveColor,
                                 rulerColor: palette.rulerColor,
@@ -358,13 +446,11 @@ export function AudioReel({
                 </View>
             </AnimatedView>
 
-            {renderBelowOverlay ? (
+            {renderBelowSurface ? (
                 <View style={{ marginHorizontal: timelineHorizontalPadding, overflow: "visible" }}>
-                    {renderBelowOverlay({ pixelsPerMs, timelineTranslateX, timelineScale, sharedAudioProgress })}
+                    {renderBelowSurface({ pixelsPerMs, timelineTranslateX, timelineScale, sharedAudioProgress })}
                 </View>
             ) : null}
-
-            {showZoomControls && zoomPlacement === "bottom" ? zoomControls : null}
 
             {showMinimap ? (
                 <View style={audioReelStyles.minimapWrap}>
@@ -373,18 +459,32 @@ export function AudioReel({
                             waveformPeaks={waveformPeaks}
                             durationMs={durationMs}
                             currentTimeMs={currentTimeMs}
+                            sharedCurrentTimeMs={sharedCurrentTimeMs}
                             timelineTranslateX={timelineTranslateX}
                             timelineScale={timelineScale}
                             mainCanvasWidth={mainCanvasWidth}
                             selectedRanges={selectedRanges}
+                            practiceMarkers={practiceMarkers}
+                            sharedSelectedRangeStartMs={sharedSelectedRangeStartMs}
+                            sharedSelectedRangeEndMs={sharedSelectedRangeEndMs}
+                            selectedRangeType={selectedRangeType}
                             onSeek={handleSeekCommit}
                             onScrubStateChange={handleInteractionStateChange}
                             chrome={chrome}
                             interactive={minimapInteractive}
+                            sharedAudioProgress={sharedAudioProgress}
                         />
                     ) : null}
                 </View>
             ) : null}
+
+            {renderBelowOverlay ? (
+                <View style={{ marginHorizontal: timelineHorizontalPadding, overflow: "visible" }}>
+                    {renderBelowOverlay({ pixelsPerMs, timelineTranslateX, timelineScale, sharedAudioProgress })}
+                </View>
+            ) : null}
+
+            {showZoomControls && zoomPlacement === "bottom" ? zoomControls : null}
 
             {showTransportControls ? (
                 <View style={[audioReelStyles.transportRow, compact ? audioReelStyles.transportRowCompact : null]}>
@@ -515,10 +615,12 @@ const audioReelStyles = StyleSheet.create({
         borderRadius: 14,
     },
     zoomReadout: {
-        justifyContent: "center",
+        flexDirection: "row",
         alignItems: "center",
+        justifyContent: "center",
         borderRadius: 8,
-        paddingHorizontal: 8,
+        paddingHorizontal: 10,
+        minWidth: 76,
         height: 32,
         borderWidth: 1,
     },
@@ -526,6 +628,7 @@ const audioReelStyles = StyleSheet.create({
         height: 28,
         borderRadius: 7,
         paddingHorizontal: 7,
+        minWidth: 68,
     },
     zoomReadoutText: {
         fontWeight: "600",

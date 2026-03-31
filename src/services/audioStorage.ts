@@ -3,12 +3,13 @@ import * as FileSystem from "expo-file-system/legacy";
 import { File } from "expo-file-system";
 import { createAudioPlayer } from "expo-audio";
 import { Platform, Share } from "react-native";
-import { extractAudioAnalysis } from "@siteed/audio-studio";
+import { extractPreview } from "@siteed/audio-studio";
 import { buildDefaultIdeaTitle, buildStaticWaveform, metersToWaveformPeaks } from "../utils";
 import { SONG_SEED_AUDIO_DIR, SONG_SEED_SHARE_DIR } from "./storagePaths";
 import { cleanupShareTempFile } from "./managedMedia";
 
 export const MAX_DETAILED_AUDIO_ANALYSIS_DURATION_MS = 30 * 60 * 1000;
+export const MANAGED_WAVEFORM_PEAK_COUNT = 256;
 
 export type ImportedAudioAsset = {
     uri: string;
@@ -115,7 +116,7 @@ function analysisToWaveformPeaks(analysis: { dataPoints: Array<{ dB: number; amp
         Number.isFinite(point.dB) ? point.dB : point.amplitude > 0 ? 20 * Math.log10(point.amplitude) : -60
     );
 
-    return metersToWaveformPeaks(levelsAsDb, 96);
+    return metersToWaveformPeaks(levelsAsDb, MANAGED_WAVEFORM_PEAK_COUNT);
 }
 
 type ExpoSharingModule = {
@@ -528,13 +529,18 @@ export async function loadManagedAudioMetadata(
     if (options?.lightweight || (durationMs && durationMs > MAX_DETAILED_AUDIO_ANALYSIS_DURATION_MS)) {
         return {
             durationMs,
-            waveformPeaks: buildStaticWaveform(`${seed}-${durationMs}`, 96),
+            waveformPeaks: buildStaticWaveform(`${seed}-${durationMs}`, MANAGED_WAVEFORM_PEAK_COUNT),
             usedDetailedAnalysis: false,
         };
     }
 
     try {
-        const analysis = await extractAudioAnalysis({ fileUri: audioUri });
+        const analysis = await extractPreview({
+            fileUri: audioUri,
+            numberOfPoints: MANAGED_WAVEFORM_PEAK_COUNT,
+            startTimeMs: 0,
+            endTimeMs: durationMs,
+        });
         return {
             durationMs: analysis.durationMs,
             waveformPeaks: analysisToWaveformPeaks(analysis),
@@ -543,7 +549,7 @@ export async function loadManagedAudioMetadata(
     } catch {
         return {
             durationMs,
-            waveformPeaks: buildStaticWaveform(`${seed}-${durationMs ?? 0}`, 96),
+            waveformPeaks: buildStaticWaveform(`${seed}-${durationMs ?? 0}`, MANAGED_WAVEFORM_PEAK_COUNT),
             usedDetailedAnalysis: false,
         };
     }

@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ClipVersion, PlayerTarget } from "../types";
 import { buildStaticWaveform } from "../utils";
 import { activateAndPlay, replacePlaybackSource } from "../services/transportPlayback";
+import { MANAGED_WAVEFORM_PEAK_COUNT } from "../services/audioStorage";
 import { useStore } from "../state/useStore";
 
 type Args = {
@@ -22,9 +23,15 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
   const operationIdRef = useRef(0);
   const isMountedRef = useRef(true);
   const previousDidJustFinishRef = useRef(false);
+  const lastPublishedPlaybackRef = useRef({
+    at: 0,
+    positionMs: 0,
+    durationMs: 0,
+    isPlaying: false,
+  });
   const setPlayerPlaybackState = useStore((s) => s.setPlayerPlaybackState);
 
-  const playerOptions = useMemo(() => ({ updateInterval: 33 }), []);
+  const playerOptions = useMemo(() => ({ updateInterval: 50 }), []);
   const player = useAudioPlayer(null, playerOptions);
   const status = useAudioPlayerStatus(player);
   const playerPosition = Math.round((status.currentTime ?? 0) * 1000);
@@ -56,11 +63,29 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
   }, [didPlayerJustFinish, playerTarget?.clipId]);
 
   useEffect(() => {
+    const now = Date.now();
+    const lastPublished = lastPublishedPlaybackRef.current;
+    const shouldPublish =
+      lastPublished.isPlaying !== isPlayerPlaying ||
+      lastPublished.durationMs !== playerDuration ||
+      now - lastPublished.at >= 150 ||
+      Math.abs(playerPosition - lastPublished.positionMs) >= 250;
+
+    if (!shouldPublish) {
+      return;
+    }
+
     setPlayerPlaybackState({
       positionMs: playerPosition,
       durationMs: playerDuration,
       isPlaying: isPlayerPlaying,
     });
+    lastPublishedPlaybackRef.current = {
+      at: now,
+      positionMs: playerPosition,
+      durationMs: playerDuration,
+      isPlaying: isPlayerPlaying,
+    };
   }, [isPlayerPlaying, playerDuration, playerPosition, setPlayerPlaybackState]);
 
   const activateLockScreenControls = useCallback((metadata?: LockScreenMetadata) => {
@@ -156,7 +181,7 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
       setWaveformPeaks(
         clip.waveformPeaks?.length
           ? clip.waveformPeaks
-          : buildStaticWaveform(`${clip.id}-${clip.durationMs ?? 0}`)
+          : buildStaticWaveform(`${clip.id}-${clip.durationMs ?? 0}`, MANAGED_WAVEFORM_PEAK_COUNT)
       );
     } catch (err) {
       setPlayerPlaybackState({

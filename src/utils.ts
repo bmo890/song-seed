@@ -197,7 +197,7 @@ export function buildStaticWaveform(seedInput: string, count = 150) {
 }
 
 export function metersToWaveformPeaks(meters: number[], bins = 150) {
-  if (!meters.length) return Array.from({ length: bins }, () => 0.02);
+  if (!meters.length) return Array.from({ length: bins }, () => 0.004);
   const peaks: number[] = [];
   const chunk = Math.max(1, Math.floor(meters.length / bins));
 
@@ -207,11 +207,11 @@ export function metersToWaveformPeaks(meters: number[], bins = 150) {
     const slice = meters.slice(start, end);
     const maxDb = slice.length ? Math.max(...slice) : -60;
     const clamped = Math.max(-60, Math.min(0, maxDb));
-    // Normalize dB (-60 to 0) to a 0-1 linear scale, then apply a sqrt-like
-    // expansion curve (power < 1) so quiet moments are clearly visible rather
-    // than crushed near zero. Power of 0.55 ≈ a gentle gamma lift.
+    // Normalize dB (-60 to 0) to a 0-1 scale with only a mild lift.
+    // The old curve over-emphasized room tone, which made quiet regions in the
+    // player look much louder than they were.
     const normalized = (clamped + 60) / 60;
-    peaks.push(Math.max(0.04, Math.min(1, Math.pow(normalized, 0.55))));
+    peaks.push(Math.max(0.004, Math.min(1, Math.pow(normalized, 1.15))));
   }
 
   return peaks;

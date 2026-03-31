@@ -1,7 +1,14 @@
 import React, { useState } from "react";
 import { View, StyleSheet, LayoutChangeEvent } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
-import Animated, { useSharedValue, useAnimatedStyle, runOnJS, SharedValue, useAnimatedReaction, withSpring, interpolateColor } from "react-native-reanimated";
+import Animated, {
+    useSharedValue,
+    useAnimatedStyle,
+    runOnJS,
+    SharedValue,
+    useAnimatedReaction,
+    withSpring,
+} from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 
 type Region = {
@@ -19,17 +26,23 @@ type Props = {
     sharedTranslateX: SharedValue<number>;
     sharedScale?: SharedValue<number>;
     sharedAudioProgress: SharedValue<number>;
+    sharedPreviewStartMs?: SharedValue<number>;
+    sharedPreviewEndMs?: SharedValue<number>;
     onScrubStateChange?: (scrubbing: boolean) => void;
     onSeek?: (time: number) => void;
+    showVisuals?: boolean;
 };
 
 const HANDLE_WIDTH = 24;
 const GRAB_PILL_WIDTH = 14;
 const GRAB_PILL_HEIGHT = 28;
+const BASE_MIN_LOOP_DURATION_MS = 1000;
+const INTERACTIVE_MIN_LOOP_WIDTH_PX = 44;
+const HANDLE_TOUCH_TARGET_X = 14;
+const HANDLE_TOUCH_TARGET_Y = 16;
 
 function TimeRegionNode({
     region,
-    index,
     durationMs,
     pixelsPerMs,
     targetStartMs,
@@ -40,34 +53,37 @@ function TimeRegionNode({
     sharedTranslateX,
     scale,
     sharedAudioProgress,
+    sharedPreviewStartMs,
+    sharedPreviewEndMs,
     onScrubStateChange,
-    onSeek
+    onSeek,
+    showVisuals = true,
 }: {
-    region: Region,
-    index: number,
-    durationMs: number,
-    pixelsPerMs: number,
-    targetStartMs: number,
-    targetEndMs: number,
-    minBoundMs: number,
-    maxBoundMs: number,
-    onRegionChange: (id: string, start: number, end: number) => void,
-    sharedTranslateX: SharedValue<number>,
-    scale: SharedValue<number>,
-    sharedAudioProgress: SharedValue<number>,
-    onScrubStateChange?: (scrubbing: boolean) => void,
-    onSeek?: (time: number) => void
+    region: Region;
+    durationMs: number;
+    pixelsPerMs: number;
+    targetStartMs: number;
+    targetEndMs: number;
+    minBoundMs: number;
+    maxBoundMs: number;
+    onRegionChange: (id: string, start: number, end: number) => void;
+    sharedTranslateX: SharedValue<number>;
+    scale: SharedValue<number>;
+    sharedAudioProgress: SharedValue<number>;
+    sharedPreviewStartMs?: SharedValue<number>;
+    sharedPreviewEndMs?: SharedValue<number>;
+    onScrubStateChange?: (scrubbing: boolean) => void;
+    onSeek?: (time: number) => void;
+    showVisuals?: boolean;
 }) {
     const isDragging = useSharedValue(false);
     const isBoxDragging = useSharedValue(false);
     const isLeftActive = useSharedValue(false);
     const isRightActive = useSharedValue(false);
 
-    // We use isolated shared values for physics, synced back to React state when gestures end
     const leftTime = useSharedValue(region.start);
     const rightTime = useSharedValue(region.end);
 
-    // Listen for external React state changes (like appending un-focused regions)
     useAnimatedReaction(
         () => ({ start: targetStartMs, end: targetEndMs }),
         ({ start, end }) => {
@@ -79,14 +95,50 @@ function TimeRegionNode({
         [targetStartMs, targetEndMs]
     );
 
+    useAnimatedReaction(
+        () => ({ start: leftTime.value, end: rightTime.value }),
+        ({ start, end }) => {
+            if (sharedPreviewStartMs) {
+                sharedPreviewStartMs.value = start;
+            }
+            if (sharedPreviewEndMs) {
+                sharedPreviewEndMs.value = end;
+            }
+        },
+        [sharedPreviewEndMs, sharedPreviewStartMs]
+    );
+
+    const getMinimumLoopDurationMs = () => {
+        "worklet";
+        return pixelsPerMs > 0 && scale.value > 0
+            ? Math.max(BASE_MIN_LOOP_DURATION_MS, INTERACTIVE_MIN_LOOP_WIDTH_PX / (pixelsPerMs * scale.value))
+            : BASE_MIN_LOOP_DURATION_MS;
+    };
+
     const enforceLimits = () => {
         "worklet";
-        // Floor constraints
-        if (leftTime.value < minBoundMs) leftTime.value = minBoundMs;
-        if (rightTime.value > maxBoundMs) rightTime.value = maxBoundMs;
-        // Self intersection constraints
-        if (rightTime.value < leftTime.value + 1000) rightTime.value = leftTime.value + 1000;
-        if (leftTime.value > rightTime.value - 1000) leftTime.value = rightTime.value - 1000;
+        const minimumLoopDurationMs = getMinimumLoopDurationMs();
+
+        if (leftTime.value < minBoundMs) {
+            leftTime.value = minBoundMs;
+        }
+        if (rightTime.value > maxBoundMs) {
+            rightTime.value = maxBoundMs;
+        }
+        if (rightTime.value < leftTime.value + minimumLoopDurationMs) {
+            rightTime.value = leftTime.value + minimumLoopDurationMs;
+        }
+        if (leftTime.value > rightTime.value - minimumLoopDurationMs) {
+            leftTime.value = rightTime.value - minimumLoopDurationMs;
+        }
+        if (rightTime.value > maxBoundMs) {
+            rightTime.value = maxBoundMs;
+            leftTime.value = Math.max(minBoundMs, rightTime.value - minimumLoopDurationMs);
+        }
+        if (leftTime.value < minBoundMs) {
+            leftTime.value = minBoundMs;
+            rightTime.value = Math.min(maxBoundMs, leftTime.value + minimumLoopDurationMs);
+        }
     };
 
     const commitChanges = () => {
@@ -95,45 +147,75 @@ function TimeRegionNode({
     };
 
     const leftPan = Gesture.Pan()
+        .hitSlop({
+            left: HANDLE_TOUCH_TARGET_X,
+            right: HANDLE_TOUCH_TARGET_X,
+            top: HANDLE_TOUCH_TARGET_Y,
+            bottom: HANDLE_TOUCH_TARGET_Y,
+        })
         .activateAfterLongPress(300)
         .onStart(() => {
             isDragging.value = true;
             isLeftActive.value = true;
-            if (onScrubStateChange) runOnJS(onScrubStateChange)(true);
+            if (onScrubStateChange) {
+                runOnJS(onScrubStateChange)(true);
+            }
             runOnJS(Haptics.selectionAsync)();
         })
         .onChange((e) => {
             if (pixelsPerMs > 0 && scale.value > 0) {
-                leftTime.value += e.changeX / (pixelsPerMs * scale.value);
-                enforceLimits();
+                const minimumLoopDurationMs = getMinimumLoopDurationMs();
+                const nextLeftTime =
+                    leftTime.value + e.changeX / (pixelsPerMs * scale.value);
+                leftTime.value = Math.max(
+                    minBoundMs,
+                    Math.min(nextLeftTime, rightTime.value - minimumLoopDurationMs)
+                );
             }
         })
         .onEnd(() => {
             isDragging.value = false;
             isLeftActive.value = false;
             commitChanges();
-            if (onScrubStateChange) runOnJS(onScrubStateChange)(false);
+            if (onScrubStateChange) {
+                runOnJS(onScrubStateChange)(false);
+            }
         });
 
     const rightPan = Gesture.Pan()
+        .hitSlop({
+            left: HANDLE_TOUCH_TARGET_X,
+            right: HANDLE_TOUCH_TARGET_X,
+            top: HANDLE_TOUCH_TARGET_Y,
+            bottom: HANDLE_TOUCH_TARGET_Y,
+        })
         .activateAfterLongPress(300)
         .onStart(() => {
             isDragging.value = true;
             isRightActive.value = true;
-            if (onScrubStateChange) runOnJS(onScrubStateChange)(true);
+            if (onScrubStateChange) {
+                runOnJS(onScrubStateChange)(true);
+            }
             runOnJS(Haptics.selectionAsync)();
         })
         .onChange((e) => {
             if (pixelsPerMs > 0 && scale.value > 0) {
-                rightTime.value += e.changeX / (pixelsPerMs * scale.value);
-                enforceLimits();
+                const minimumLoopDurationMs = getMinimumLoopDurationMs();
+                const nextRightTime =
+                    rightTime.value + e.changeX / (pixelsPerMs * scale.value);
+                rightTime.value = Math.min(
+                    maxBoundMs,
+                    Math.max(nextRightTime, leftTime.value + minimumLoopDurationMs)
+                );
             }
         })
         .onEnd(() => {
             isDragging.value = false;
             isRightActive.value = false;
             commitChanges();
-            if (onScrubStateChange) runOnJS(onScrubStateChange)(false);
+            if (onScrubStateChange) {
+                runOnJS(onScrubStateChange)(false);
+            }
         });
 
     const boxStartLeft = useSharedValue(0);
@@ -149,11 +231,15 @@ function TimeRegionNode({
             isRightActive.value = true;
             boxStartLeft.value = leftTime.value;
             boxStartRight.value = rightTime.value;
-            if (onScrubStateChange) runOnJS(onScrubStateChange)(true);
+            if (onScrubStateChange) {
+                runOnJS(onScrubStateChange)(true);
+            }
             runOnJS(Haptics.selectionAsync)();
         })
         .onChange((e) => {
-            if (!isBoxDragging.value || pixelsPerMs <= 0 || scale.value <= 0) return;
+            if (!isBoxDragging.value || pixelsPerMs <= 0 || scale.value <= 0) {
+                return;
+            }
 
             const deltaMs = e.translationX / (pixelsPerMs * scale.value);
             const blockWidth = boxStartRight.value - boxStartLeft.value;
@@ -178,7 +264,9 @@ function TimeRegionNode({
             if (isBoxDragging.value) {
                 isBoxDragging.value = false;
                 commitChanges();
-                if (onScrubStateChange) runOnJS(onScrubStateChange)(false);
+                if (onScrubStateChange) {
+                    runOnJS(onScrubStateChange)(false);
+                }
             }
             isDragging.value = false;
             isLeftActive.value = false;
@@ -188,26 +276,34 @@ function TimeRegionNode({
     const scrubPan = Gesture.Pan()
         .onStart(() => {
             scrubStartProgress.value = sharedAudioProgress.value;
-            if (onScrubStateChange) runOnJS(onScrubStateChange)(true);
+            if (onScrubStateChange) {
+                runOnJS(onScrubStateChange)(true);
+            }
         })
         .onChange((e) => {
-            const cw = durationMs * pixelsPerMs * scale.value;
-            if (cw <= 0) return;
+            const contentWidth = durationMs * pixelsPerMs * scale.value;
+            if (contentWidth <= 0) {
+                return;
+            }
 
-            const progressChange = -e.translationX / cw;
+            const progressChange = -e.translationX / contentWidth;
             const newProgress = Math.max(0, Math.min(1, scrubStartProgress.value + progressChange));
             sharedAudioProgress.value = newProgress;
         })
         .onEnd(() => {
-            if (onSeek) runOnJS(onSeek)(sharedAudioProgress.value * durationMs);
-            if (onScrubStateChange) runOnJS(onScrubStateChange)(false);
+            if (onSeek) {
+                runOnJS(onSeek)(sharedAudioProgress.value * durationMs);
+            }
+            if (onScrubStateChange) {
+                runOnJS(onScrubStateChange)(false);
+            }
         });
 
     const combinedGesture = Gesture.Race(moveSelectionPan, scrubPan);
 
     const isKeep = region.type === "keep";
+    const visualOpacity = showVisuals ? 1 : 0;
 
-    // Animated styles for left handle line + grab pill
     const leftStyle = useAnimatedStyle(() => {
         const originalX = leftTime.value * pixelsPerMs * scale.value;
         return { transform: [{ translateX: originalX + sharedTranslateX.value }] };
@@ -220,17 +316,17 @@ function TimeRegionNode({
             backgroundColor: isKeep
                 ? (active ? "rgba(96, 165, 250, 1)" : "rgba(59, 130, 246, 0.9)")
                 : (active ? "rgba(252, 129, 129, 1)" : "rgba(239, 68, 68, 0.8)"),
+            opacity: visualOpacity,
         };
     });
 
-    const leftGrabStyle = useAnimatedStyle(() => {
-        return {
-            opacity: withSpring(isLeftActive.value ? 1 : 0.7, { damping: 20, stiffness: 300 }),
-            transform: [{ scale: withSpring(isLeftActive.value ? 1.15 : 1, { damping: 20, stiffness: 300 }) }],
-        };
-    });
+    const leftGrabStyle = useAnimatedStyle(() => ({
+        opacity: showVisuals
+            ? withSpring(isLeftActive.value ? 1 : 0.7, { damping: 20, stiffness: 300 })
+            : 0,
+        transform: [{ scale: withSpring(isLeftActive.value ? 1.15 : 1, { damping: 20, stiffness: 300 }) }],
+    }));
 
-    // Animated styles for right handle line + grab pill
     const rightStyle = useAnimatedStyle(() => {
         const originalX = rightTime.value * pixelsPerMs * scale.value;
         return { transform: [{ translateX: originalX + sharedTranslateX.value - HANDLE_WIDTH }] };
@@ -243,17 +339,17 @@ function TimeRegionNode({
             backgroundColor: isKeep
                 ? (active ? "rgba(96, 165, 250, 1)" : "rgba(59, 130, 246, 0.9)")
                 : (active ? "rgba(252, 129, 129, 1)" : "rgba(239, 68, 68, 0.8)"),
+            opacity: visualOpacity,
         };
     });
 
-    const rightGrabStyle = useAnimatedStyle(() => {
-        return {
-            opacity: withSpring(isRightActive.value ? 1 : 0.7, { damping: 20, stiffness: 300 }),
-            transform: [{ scale: withSpring(isRightActive.value ? 1.15 : 1, { damping: 20, stiffness: 300 }) }],
-        };
-    });
+    const rightGrabStyle = useAnimatedStyle(() => ({
+        opacity: showVisuals
+            ? withSpring(isRightActive.value ? 1 : 0.7, { damping: 20, stiffness: 300 })
+            : 0,
+        transform: [{ scale: withSpring(isRightActive.value ? 1.15 : 1, { damping: 20, stiffness: 300 }) }],
+    }));
 
-    // Track fill style
     const trackStyle = useAnimatedStyle(() => {
         const originalX = leftTime.value * pixelsPerMs * scale.value;
         const width = (rightTime.value - leftTime.value) * pixelsPerMs * scale.value;
@@ -261,10 +357,10 @@ function TimeRegionNode({
         return {
             transform: [
                 { translateX: originalX + sharedTranslateX.value + 1 },
-                { scaleY: withSpring(bothActive ? 1.05 : 1) }
+                { scaleY: withSpring(bothActive ? 1.05 : 1) },
             ],
             width: Math.max(0, width - 2),
-            opacity: withSpring(bothActive ? 1 : 0.7),
+            opacity: showVisuals ? withSpring(bothActive ? 1 : 0.7) : 0,
             backgroundColor: isKeep
                 ? (bothActive ? "rgba(96, 165, 250, 0.28)" : "rgba(96, 165, 250, 0.18)")
                 : (bothActive ? "rgba(239, 68, 68, 0.25)" : "rgba(239, 68, 68, 0.15)"),
@@ -274,29 +370,59 @@ function TimeRegionNode({
     const grabPillColor = isKeep ? "rgba(59, 130, 246, 0.9)" : "rgba(239, 68, 68, 0.8)";
 
     return (
-        <React.Fragment>
+        <>
             <GestureDetector gesture={combinedGesture}>
-                <Animated.View style={[{ position: "absolute", top: 0, bottom: 0, left: 0, justifyContent: "center", alignItems: "center", borderRadius: 18 }, trackStyle]} />
+                <Animated.View
+                    style={[
+                        {
+                            position: "absolute",
+                            top: 0,
+                            bottom: 0,
+                            left: 0,
+                            justifyContent: "center",
+                            alignItems: "center",
+                            borderRadius: 18,
+                        },
+                        trackStyle,
+                    ]}
+                />
             </GestureDetector>
 
             <GestureDetector gesture={leftPan}>
                 <Animated.View style={[styles.handleContainer, leftStyle]}>
                     <Animated.View style={[styles.handleLine, styles.handleLineLeft, leftLineStyle]} />
-                    <Animated.View style={[styles.grabPill, styles.grabPillLeft, { backgroundColor: grabPillColor }, leftGrabStyle]} />
+                    <Animated.View
+                        style={[styles.grabPill, styles.grabPillLeft, { backgroundColor: grabPillColor }, leftGrabStyle]}
+                    />
                 </Animated.View>
             </GestureDetector>
 
             <GestureDetector gesture={rightPan}>
                 <Animated.View style={[styles.handleContainer, rightStyle]}>
                     <Animated.View style={[styles.handleLine, styles.handleLineRight, rightLineStyle]} />
-                    <Animated.View style={[styles.grabPill, styles.grabPillRight, { backgroundColor: grabPillColor }, rightGrabStyle]} />
+                    <Animated.View
+                        style={[styles.grabPill, styles.grabPillRight, { backgroundColor: grabPillColor }, rightGrabStyle]}
+                    />
                 </Animated.View>
             </GestureDetector>
-        </React.Fragment>
+        </>
     );
 }
 
-export function MultiTimeRangeSelector({ durationMs, pixelsPerMs, regions, onRegionChange, sharedTranslateX, sharedScale, sharedAudioProgress, onScrubStateChange, onSeek }: Props) {
+export function MultiTimeRangeSelector({
+    durationMs,
+    pixelsPerMs,
+    regions,
+    onRegionChange,
+    sharedTranslateX,
+    sharedScale,
+    sharedAudioProgress,
+    sharedPreviewStartMs,
+    sharedPreviewEndMs,
+    onScrubStateChange,
+    onSeek,
+    showVisuals = true,
+}: Props) {
     const [containerWidth, setContainerWidth] = useState(0);
 
     const onLayout = (e: LayoutChangeEvent) => {
@@ -306,39 +432,40 @@ export function MultiTimeRangeSelector({ durationMs, pixelsPerMs, regions, onReg
 
     const fallbackScale = useSharedValue(1);
     const scale = sharedScale || fallbackScale;
-
-    // Pre-sort regions so we can calculate boundaries natively
     const sortedRegions = [...regions].sort((a, b) => a.start - b.start);
 
     return (
         <View style={styles.container} onLayout={onLayout} pointerEvents="box-none">
-            {containerWidth > 0 && sortedRegions.map((region, index) => {
-                const prevRegion = sortedRegions[index - 1];
-                const nextRegion = sortedRegions[index + 1];
+            {containerWidth > 0 &&
+                sortedRegions.map((region, index) => {
+                    const prevRegion = sortedRegions[index - 1];
+                    const nextRegion = sortedRegions[index + 1];
 
-                const minBoundMs = prevRegion ? prevRegion.end : 0;
-                const maxBoundMs = nextRegion ? nextRegion.start : durationMs;
+                    const minBoundMs = prevRegion ? prevRegion.end : 0;
+                    const maxBoundMs = nextRegion ? nextRegion.start : durationMs;
 
-                return (
-                    <TimeRegionNode
-                        key={region.id}
-                        region={region}
-                        index={index}
-                        durationMs={durationMs}
-                        pixelsPerMs={pixelsPerMs}
-                        targetStartMs={region.start}
-                        targetEndMs={region.end}
-                        minBoundMs={minBoundMs}
-                        maxBoundMs={maxBoundMs}
-                        onRegionChange={onRegionChange}
-                        sharedTranslateX={sharedTranslateX}
-                        scale={scale}
-                        sharedAudioProgress={sharedAudioProgress}
-                        onScrubStateChange={onScrubStateChange}
-                        onSeek={onSeek}
-                    />
-                );
-            })}
+                    return (
+                        <TimeRegionNode
+                            key={region.id}
+                            region={region}
+                            durationMs={durationMs}
+                            pixelsPerMs={pixelsPerMs}
+                            targetStartMs={region.start}
+                            targetEndMs={region.end}
+                            minBoundMs={minBoundMs}
+                            maxBoundMs={maxBoundMs}
+                            onRegionChange={onRegionChange}
+                            sharedTranslateX={sharedTranslateX}
+                            scale={scale}
+                            sharedAudioProgress={sharedAudioProgress}
+                            sharedPreviewStartMs={sharedPreviewStartMs}
+                            sharedPreviewEndMs={sharedPreviewEndMs}
+                            onScrubStateChange={onScrubStateChange}
+                            onSeek={onSeek}
+                            showVisuals={showVisuals}
+                        />
+                    );
+                })}
         </View>
     );
 }

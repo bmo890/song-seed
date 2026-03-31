@@ -1,27 +1,38 @@
 import React, { useMemo, useState, useEffect } from "react";
 import { View, StyleSheet, LayoutChangeEvent } from "react-native";
-import { Canvas, Path, Group, Skia, Rect } from "@shopify/react-native-skia";
+import { Canvas, Path, Group, Skia, Rect, RoundedRect } from "@shopify/react-native-skia";
 import Animated, {
     useSharedValue,
-    withTiming,
     withDecay,
     useDerivedValue,
     useAnimatedStyle,
     runOnJS,
     SharedValue,
     cancelAnimation,
-    Easing,
+    useFrameCallback,
 } from "react-native-reanimated";
 import { GestureDetector, Gesture } from "react-native-gesture-handler";
+import type { PracticeMarker } from "../../types";
 
 type Props = {
     waveformPeaks: number[];
     durationMs: number;
     currentTimeMs: number;
+    sharedCurrentTimeMs?: SharedValue<number>;
+    sharedDurationMs?: SharedValue<number>;
+    sharedTransportUpdateToken?: SharedValue<number>;
+    isPlaying?: boolean;
+    sharedIsPlaying?: SharedValue<boolean>;
+    playbackRate?: number;
+    sharedPlaybackRate?: SharedValue<number>;
     isScrubbing?: boolean;
     onSeek: (timeMs: number) => void;
     onBaseScaleChange?: (scale: number) => void;
     selectedRanges?: { id: string; start: number; end: number; type: "keep" | "remove" }[];
+    practiceMarkers?: Pick<PracticeMarker, "id" | "atMs">[];
+    sharedSelectedRangeStartMs?: SharedValue<number>;
+    sharedSelectedRangeEndMs?: SharedValue<number>;
+    selectedRangeType?: "keep" | "remove";
     theme?: {
         waveColor?: string;
         rulerColor?: string;
@@ -35,14 +46,122 @@ type Props = {
     onScrubStateChange?: (isScrubbing: boolean) => void;
 };
 
+type PinMarkerOverlayProps = {
+    canvasHeight: number;
+    markers: Pick<PracticeMarker, "id" | "atMs">[];
+    pixelsPerMs: number;
+};
+
+type LoopRangeOverlayProps = {
+    durationMs: number;
+    baseContentWidth: number;
+    canvasHeight: number;
+    scale: SharedValue<number>;
+    translateX: SharedValue<number>;
+    sharedStartMs: SharedValue<number>;
+    sharedEndMs: SharedValue<number>;
+    rangeType: "keep" | "remove";
+};
+
+const LOOP_HANDLE_WIDTH = 2;
+const LOOP_PILL_WIDTH = 14;
+const LOOP_PILL_HEIGHT = 28;
+
+function LoopRangeOverlay({
+    durationMs,
+    baseContentWidth,
+    canvasHeight,
+    scale,
+    translateX,
+    sharedStartMs,
+    sharedEndMs,
+    rangeType,
+}: LoopRangeOverlayProps) {
+    const fillColor = rangeType === "keep" ? "rgba(96, 165, 250, 0.18)" : "rgba(239, 68, 68, 0.15)";
+    const lineColor = rangeType === "keep" ? "rgba(59, 130, 246, 0.9)" : "rgba(239, 68, 68, 0.8)";
+
+    const leftX = useDerivedValue(() => {
+        if (durationMs <= 0) return 0;
+        const baseX = (sharedStartMs.value / durationMs) * baseContentWidth;
+        return baseX * scale.value + translateX.value;
+    });
+
+    const rightX = useDerivedValue(() => {
+        if (durationMs <= 0) return 0;
+        const baseX = (sharedEndMs.value / durationMs) * baseContentWidth;
+        return baseX * scale.value + translateX.value;
+    });
+
+    const fillWidth = useDerivedValue(() => Math.max(1, rightX.value - leftX.value));
+    const rightLineX = useDerivedValue(() => rightX.value - LOOP_HANDLE_WIDTH);
+    const leftPillX = useDerivedValue(() => leftX.value - LOOP_PILL_WIDTH / 2 + 1);
+    const rightPillX = useDerivedValue(() => rightX.value - LOOP_PILL_WIDTH / 2 - 1);
+
+    return (
+        <>
+            <Rect x={leftX} y={0} width={fillWidth} height={canvasHeight} color={fillColor} />
+            <Rect x={leftX} y={0} width={LOOP_HANDLE_WIDTH} height={canvasHeight} color={lineColor} />
+            <Rect x={rightLineX} y={0} width={LOOP_HANDLE_WIDTH} height={canvasHeight} color={lineColor} />
+            <RoundedRect
+                x={leftPillX}
+                y={canvasHeight / 2 - LOOP_PILL_HEIGHT / 2}
+                width={LOOP_PILL_WIDTH}
+                height={LOOP_PILL_HEIGHT}
+                r={LOOP_PILL_WIDTH / 2}
+                color={lineColor}
+            />
+            <RoundedRect
+                x={rightPillX}
+                y={canvasHeight / 2 - LOOP_PILL_HEIGHT / 2}
+                width={LOOP_PILL_WIDTH}
+                height={LOOP_PILL_HEIGHT}
+                r={LOOP_PILL_WIDTH / 2}
+                color={lineColor}
+            />
+        </>
+    );
+}
+
+function PinMarkerOverlay({
+    canvasHeight,
+    markers,
+    pixelsPerMs,
+}: PinMarkerOverlayProps) {
+    return (
+        <>
+            {markers.map((marker) => (
+                <Rect
+                    key={marker.id}
+                    x={marker.atMs * pixelsPerMs}
+                    y={10}
+                    width={2}
+                    height={Math.max(0, canvasHeight - 20)}
+                    color="rgba(202, 138, 4, 0.78)"
+                />
+            ))}
+        </>
+    );
+}
+
 export function PlaybackTapeVisualizer({
     waveformPeaks,
     durationMs,
     currentTimeMs,
+    sharedCurrentTimeMs,
+    sharedDurationMs,
+    sharedTransportUpdateToken,
+    isPlaying = false,
+    sharedIsPlaying,
+    playbackRate = 1,
+    sharedPlaybackRate,
     isScrubbing = false,
     onSeek,
     onBaseScaleChange,
     selectedRanges,
+    practiceMarkers,
+    sharedSelectedRangeStartMs,
+    sharedSelectedRangeEndMs,
+    selectedRangeType = "keep",
     theme,
     sharedTranslateX,
     sharedScale,
@@ -67,6 +186,21 @@ const baseChunkWidth = 3;
     // The exact percentage distance (0 to 1) of the playhead
     const localAudioProgress = useSharedValue(0);
     const audioProgress = sharedAudioProgress || localAudioProgress;
+    const targetAudioProgress = useSharedValue(0);
+    const localCurrentTimeMs = useSharedValue(currentTimeMs);
+    const currentTimeMsValue = sharedCurrentTimeMs || localCurrentTimeMs;
+    const localDurationMs = useSharedValue(durationMs);
+    const durationMsValue = sharedDurationMs || localDurationMs;
+    const localTransportUpdateToken = useSharedValue(0);
+    const transportUpdateToken = sharedTransportUpdateToken || localTransportUpdateToken;
+    const localIsPlaying = useSharedValue(isPlaying);
+    const isPlayingShared = sharedIsPlaying || localIsPlaying;
+    const isScrubbingShared = useSharedValue(isScrubbing);
+    const localPlaybackRate = useSharedValue(playbackRate);
+    const playbackRateShared = sharedPlaybackRate || localPlaybackRate;
+    const lastSeenTransportUpdate = useSharedValue(0);
+    const reportBaseProgress = useSharedValue(0);
+    const reportFrameTimestamp = useSharedValue(0);
 
     const contentWidth = useDerivedValue(() => baseContentWidth * scale.value);
 
@@ -75,6 +209,35 @@ const baseChunkWidth = 3;
         return audioProgress.value * contentWidth.value;
     });
     // Initial Zoom: Fit the entire waveform fully onto the screen exactly 100% wide
+    useEffect(() => {
+        if (!sharedCurrentTimeMs) {
+            currentTimeMsValue.value = currentTimeMs;
+            transportUpdateToken.value += 1;
+        }
+    }, [currentTimeMs, currentTimeMsValue, sharedCurrentTimeMs, transportUpdateToken]);
+
+    useEffect(() => {
+        if (!sharedDurationMs) {
+            durationMsValue.value = durationMs;
+        }
+    }, [durationMs, durationMsValue, sharedDurationMs]);
+
+    useEffect(() => {
+        if (!sharedIsPlaying) {
+            isPlayingShared.value = isPlaying;
+        }
+    }, [isPlaying, isPlayingShared, sharedIsPlaying]);
+
+    useEffect(() => {
+        if (!sharedPlaybackRate) {
+            playbackRateShared.value = playbackRate;
+        }
+    }, [playbackRate, playbackRateShared, sharedPlaybackRate]);
+
+    useEffect(() => {
+        isScrubbingShared.value = isScrubbing;
+    }, [isScrubbing, isScrubbingShared]);
+
     useEffect(() => {
         if (canvasWidth > 0 && baseContentWidth > 0) {
             const fitScale = canvasWidth / baseContentWidth;
@@ -88,16 +251,56 @@ const baseChunkWidth = 3;
         }
     }, [canvasWidth, baseContentWidth]);
 
-    // Sync the UI translation when the external `currentTimeMs` player changes
-    useEffect(() => {
-        if (canvasWidth === 0 || isScrubbing) return;
-        const progress = durationMs > 0 ? Math.min(1, currentTimeMs / durationMs) : 0;
+    useFrameCallback((frameInfo) => {
+        const duration = durationMsValue.value;
+        if (duration <= 0) return;
 
-        audioProgress.value = withTiming(progress, {
-            duration: 72,
-            easing: Easing.linear,
-        });
-    }, [currentTimeMs, canvasWidth, durationMs, isScrubbing]);
+        if (transportUpdateToken.value !== lastSeenTransportUpdate.value) {
+            lastSeenTransportUpdate.value = transportUpdateToken.value;
+            const reportedProgress = Math.max(0, Math.min(1, currentTimeMsValue.value / duration));
+            const previousProgress = audioProgress.value;
+            const shouldSnap =
+                isScrubbingShared.value ||
+                !isPlayingShared.value ||
+                reportedProgress < previousProgress - 0.002 ||
+                Math.abs(reportedProgress - previousProgress) > 0.04;
+
+            reportBaseProgress.value = reportedProgress;
+            reportFrameTimestamp.value = frameInfo.timestamp;
+
+            if (shouldSnap) {
+                cancelAnimation(audioProgress);
+                audioProgress.value = reportedProgress;
+                targetAudioProgress.value = reportedProgress;
+            }
+        }
+
+        if (isScrubbingShared.value || !isPlayingShared.value) return;
+
+        const frameDeltaMs = frameInfo.timeSincePreviousFrame ?? 16;
+        if (frameDeltaMs <= 0) return;
+
+        const elapsedSinceReport = Math.max(0, frameInfo.timestamp - reportFrameTimestamp.value);
+        const predictedProgress = Math.min(
+            1,
+            reportBaseProgress.value + (elapsedSinceReport * playbackRateShared.value) / duration
+        );
+        const progressError = predictedProgress - audioProgress.value;
+
+        if (Math.abs(progressError) < 0.0002) {
+            return;
+        }
+
+        if (Math.abs(progressError) > 0.03) {
+            audioProgress.value = predictedProgress;
+            return;
+        }
+
+        audioProgress.value = Math.max(
+            0,
+            Math.min(1, audioProgress.value + progressError * 0.35)
+        );
+    });
 
     // Handle Scrubbing Gestures
     const pan = Gesture.Pan()
@@ -193,9 +396,12 @@ const baseChunkWidth = 3;
         return { transform: [{ translateX: playheadX.value }] };
     });
 
-    // Skia UI thread translation
-    const transform = useDerivedValue(() => {
-        return [{ translateX: translateX.value }, { scaleX: scale.value }];
+    const translateTransform = useDerivedValue(() => {
+        return [{ translateX: translateX.value }];
+    });
+
+    const scaleTransform = useDerivedValue(() => {
+        return [{ scaleX: scale.value }];
     });
 
     // Counter-scale stroke widths so lines don't get fat when zoomed
@@ -216,7 +422,7 @@ const baseChunkWidth = 3;
 
         waveformPeaks.forEach((amp, i) => {
             const x = i * baseChunkWidth;
-            const scaleFactor = Math.max(0.02, Math.pow(Math.min(1, Math.max(0, amp)), 0.8));
+            const scaleFactor = Math.max(0, Math.min(1, amp));
             const h = scaleFactor * waveMaxHeight;
 
             wave.moveTo(x, centerY - h);
@@ -280,27 +486,48 @@ const baseChunkWidth = 3;
                 <View style={StyleSheet.absoluteFill}>
                     {canvasWidth > 0 && canvasHeight > 0 && (
                         <Canvas style={{ flex: 1 }}>
-                            <Group transform={transform}>
-                                <Path
-                                    path={centerLinePath}
-                                    color={rulerColor}
-                                    style="stroke"
-                                    strokeWidth={1}
-                                    opacity={0.3}
-                                />
-                                <Path
-                                    path={rulerPath}
-                                    color={rulerColor}
-                                    style="stroke"
-                                    strokeWidth={rulerStrokeWidth}
-                                />
-                                <Path
-                                    path={wavePath}
-                                    color={waveColor}
-                                    style="stroke"
-                                    strokeWidth={waveStrokeWidth}
-                                />
+                            <Group transform={translateTransform}>
+                                <Group transform={scaleTransform}>
+                                    <Path
+                                        path={centerLinePath}
+                                        color={rulerColor}
+                                        style="stroke"
+                                        strokeWidth={1}
+                                        opacity={0.3}
+                                    />
+                                    <Path
+                                        path={rulerPath}
+                                        color={rulerColor}
+                                        style="stroke"
+                                        strokeWidth={rulerStrokeWidth}
+                                    />
+                                    <Path
+                                        path={wavePath}
+                                        color={waveColor}
+                                        style="stroke"
+                                        strokeWidth={waveStrokeWidth}
+                                    />
+                                    {practiceMarkers && practiceMarkers.length > 0 ? (
+                                        <PinMarkerOverlay
+                                            canvasHeight={canvasHeight}
+                                            markers={practiceMarkers}
+                                            pixelsPerMs={durationMs > 0 ? baseContentWidth / durationMs : 0}
+                                        />
+                                    ) : null}
+                                </Group>
                             </Group>
+                            {sharedSelectedRangeStartMs && sharedSelectedRangeEndMs && selectedRanges?.[0] ? (
+                                <LoopRangeOverlay
+                                    durationMs={durationMs}
+                                    baseContentWidth={baseContentWidth}
+                                    canvasHeight={canvasHeight}
+                                    scale={scale}
+                                    translateX={translateX}
+                                    sharedStartMs={sharedSelectedRangeStartMs}
+                                    sharedEndMs={sharedSelectedRangeEndMs}
+                                    rangeType={selectedRangeType}
+                                />
+                            ) : null}
                         </Canvas>
                     )}
                 </View>

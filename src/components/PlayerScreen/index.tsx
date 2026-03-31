@@ -6,18 +6,16 @@ import { Ionicons } from "@expo/vector-icons";
 import Slider from "@react-native-community/slider";
 import { StackActions, useIsFocused, useNavigation } from "@react-navigation/native";
 import { useSharedValue } from "react-native-reanimated";
-import Animated, { useAnimatedStyle } from "react-native-reanimated";
+import type { PracticeMarker } from "../../types";
 import { styles } from "../../styles";
 import { useStore } from "../../state/useStore";
 import { useFullPlayer } from "../../hooks/useFullPlayer";
-import { PlayerControls } from "./PlayerControls";
 import { PlayerQueue } from "./PlayerQueue";
 import { PlayerLyricsPanel } from "./PlayerLyricsPanel";
 import { PlayerSupportPanel } from "./PlayerSupportPanel";
 import { PlayerTransportDock } from "./PlayerTransportDock";
-import { PracticePinBadges } from "./PracticePinBadges";
 import { SegmentedControl } from "../common/SegmentedControl";
-import { shareAudioFile } from "../../services/audioStorage";
+import { MANAGED_WAVEFORM_PEAK_COUNT, loadManagedAudioMetadata, shareAudioFile } from "../../services/audioStorage";
 import { getLatestLyricsVersion, lyricsDocumentToText } from "../../lyrics";
 import { formatDate, fmtDuration } from "../../utils";
 import { getCollectionById } from "../../utils";
@@ -25,30 +23,13 @@ import { TransportLayout } from "../common/TransportLayout";
 import { BottomSheet } from "../common/BottomSheet";
 import { useTransportScrubbing } from "../../hooks/useTransportScrubbing";
 import { appActions } from "../../state/actions";
-import { MultiTimeRangeSelector } from "../common/TimeRangeSelector";
+import { usePlayerTransportClock } from "./hooks/usePlayerTransportClock";
+import { usePracticeLoopController } from "./hooks/usePracticeLoopController";
+import { PlayerTimeline } from "./components/PlayerTimeline";
 
 type PlayerMode = "player" | "practice";
 type CountInOption = "off" | "1b" | "2b";
-type PracticeMarker = {
-  id: string;
-  label: string;
-  atMs: number;
-};
-
 const EMPTY_IDEAS: import("../../types").SongIdea[] = [];
-
-function buildDefaultLoopRegion(durationMs: number, anchorMs = 0) {
-  if (durationMs <= 0) {
-    return { start: 0, end: 0 };
-  }
-  const loopSpan = Math.max(1000, Math.round(durationMs * 0.25));
-  const safeStart = Math.max(0, Math.min(anchorMs, durationMs));
-  const nextEnd = Math.min(durationMs, safeStart + loopSpan);
-  return {
-    start: safeStart,
-    end: nextEnd,
-  };
-}
 
 function extractLyricsMarkers(lyricsText: string, durationMs: number): PracticeMarker[] {
   if (durationMs <= 0) return [];
@@ -71,41 +52,10 @@ function extractLyricsMarkers(lyricsText: string, durationMs: number): PracticeM
   return headingLines;
 }
 
-function findActiveMarker(markers: PracticeMarker[], currentTimeMs: number) {
-  if (markers.length === 0) return null;
-  let activeMarker = markers[0];
-  for (const marker of markers) {
-    if (currentTimeMs + 600 >= marker.atMs) {
-      activeMarker = marker;
-    }
-  }
-  return activeMarker;
-}
-
 function getNoteSummary(notes: string) {
   const trimmed = notes.trim();
   if (!trimmed) return "No clip notes yet.";
   return trimmed;
-}
-
-/* Animated drag indicator line – rendered inside the waveform overlay */
-function DragIndicatorLine({
-  draggingMarkerId,
-  draggingMarkerX,
-}: {
-  draggingMarkerId: { value: string };
-  draggingMarkerX: { value: number };
-}) {
-  const lineStyle = useAnimatedStyle(() => ({
-    position: "absolute" as const,
-    left: draggingMarkerX.value - 1,
-    top: 0,
-    bottom: 0,
-    width: 2,
-    backgroundColor: "#ca8a04",
-    opacity: draggingMarkerId.value !== "" ? 1 : 0,
-  }));
-  return <Animated.View style={lineStyle} pointerEvents="none" />;
 }
 
 export function PlayerScreen() {
@@ -165,9 +115,6 @@ export function PlayerScreen() {
   const [lyricsExpanded, setLyricsExpanded] = useState(false);
   const [notesExpanded, setNotesExpanded] = useState(false);
   const [queueExpanded, setQueueExpanded] = useState(false);
-  const [practiceLoopEnabled, setPracticeLoopEnabled] = useState(false);
-  const [loopPlaybackEngaged, setLoopPlaybackEngaged] = useState(false);
-  const [practiceLoopRange, setPracticeLoopRange] = useState({ start: 0, end: 0 });
   const [playbackSpeed, setPlaybackSpeed] = useState<number>(1);
   const [countInOption, setCountInOption] = useState<CountInOption>("off");
   const [newPinLabel, setNewPinLabel] = useState("");
@@ -175,14 +122,8 @@ export function PlayerScreen() {
   const [pinActionsTarget, setPinActionsTarget] = useState<PracticeMarker | null>(null);
   const [pinActionsVisible, setPinActionsVisible] = useState(false);
   const [pinRenameValue, setPinRenameValue] = useState("");
-  const [isPinDragging, setIsPinDragging] = useState(false);
   const draggingMarkerId = useSharedValue("");
   const draggingMarkerX = useSharedValue(0);
-  const loopSeekLockRef = useRef(false);
-  const practiceSeekInFlightRef = useRef(false);
-  const pendingPracticeSeekMsRef = useRef<number | null>(null);
-  const practiceSeekTokenRef = useRef(0);
-  const manualPracticeJumpRef = useRef(false);
 
   const fullPlayer = useFullPlayer();
   const {
@@ -203,6 +144,12 @@ export function PlayerScreen() {
     setPlaybackRate,
   } = fullPlayer;
   const displayDuration = playerDuration || playerClip?.durationMs || 0;
+  const transportClock = usePlayerTransportClock({
+    positionMs: playerPosition,
+    durationMs: displayDuration,
+    isPlaying: isPlayerPlaying,
+    playbackRate,
+  });
   const hasPreviousTrack = playerQueueIndex > 0;
   const hasNextTrack = playerQueueIndex >= 0 && playerQueueIndex < playerQueue.length - 1;
   const handledToggleTokenRef = useRef(playerToggleRequestToken);
@@ -232,31 +179,34 @@ export function PlayerScreen() {
     // Fall back to extracting markers from lyrics if available
     return extractLyricsMarkers(latestLyricsText, displayDuration);
   }, [displayDuration, latestLyricsText, playerClip?.practiceMarkers]);
-  const activePracticeMarker = useMemo(
-    () => findActiveMarker(practiceMarkers, playerPosition),
-    [playerPosition, practiceMarkers]
-  );
-  const practiceLoopSelection = useMemo(
-    () => [
-      {
-        id: "practice-loop",
-        start: practiceLoopRange.start,
-        end: practiceLoopRange.end,
-        type: "keep" as const,
-      },
-    ],
-    [practiceLoopRange.end, practiceLoopRange.start]
-  );
   const clipNotes = playerClip?.notes ?? "";
   const clipNotesSummary = getNoteSummary(clipNotes);
-  const hasValidPracticeLoop = practiceLoopRange.end > practiceLoopRange.start;
-
-  // Stable reference: memoized to prevent unnecessary useEffect re-triggers
-  const isWithinPracticeLoop = useCallback(
-    (timeMs: number) =>
-      hasValidPracticeLoop && timeMs >= practiceLoopRange.start && timeMs < practiceLoopRange.end,
-    [hasValidPracticeLoop, practiceLoopRange.start, practiceLoopRange.end]
-  );
+  const {
+    practiceLoopEnabled,
+    practiceLoopRange,
+    practiceLoopSelection,
+    hasValidPracticeLoop,
+    isPinDragging,
+    setPracticeLoopRange,
+    cancelPendingPracticeSeek,
+    handleLoopAwareSeek,
+    handlePracticeLoopToggle,
+    handleTransportToggle,
+    handlePinDragStateChange,
+    resetPracticeLoopRange,
+  } = usePracticeLoopController({
+    clipId: playerClip?.id,
+    mode,
+    durationMs: displayDuration,
+    playerPosition,
+    isPlayerPlaying,
+    playbackRate,
+    isScrubbing: transportScrub.isScrubbing,
+    seekTo,
+    playPlayer,
+    pausePlayer,
+    onDisplaySeek: transportClock.setDisplayPositionMs,
+  });
 
   useEffect(() => {
     if (!isFocused) return;
@@ -296,6 +246,36 @@ export function PlayerScreen() {
   }, [activeWorkspaceId, playerDuration, playerClip?.durationMs, playerClip?.id, playerIdea?.id]);
 
   useEffect(() => {
+    if (!activeWorkspaceId || !playerIdea || !playerClip?.audioUri) return;
+    if ((playerClip.waveformPeaks?.length ?? 0) >= MANAGED_WAVEFORM_PEAK_COUNT) return;
+    if (hydratedWaveformClipIdsRef.current.has(playerClip.id)) return;
+
+    hydratedWaveformClipIdsRef.current.add(playerClip.id);
+
+    void loadManagedAudioMetadata(
+      playerClip.audioUri,
+      `${playerIdea.id}-${playerClip.id}`,
+      playerClip.durationMs
+    )
+      .then((metadata) => {
+        appActions.hydrateClipAudioMetadata(activeWorkspaceId, playerIdea.id, playerClip.id, {
+          durationMs: metadata.durationMs,
+          waveformPeaks: metadata.waveformPeaks,
+        });
+      })
+      .catch((error) => {
+        console.warn("Player waveform hydration failed", error);
+      });
+  }, [
+    activeWorkspaceId,
+    playerClip?.audioUri,
+    playerClip?.durationMs,
+    playerClip?.id,
+    playerClip?.waveformPeaks?.length,
+    playerIdea?.id,
+  ]);
+
+  useEffect(() => {
     if (!finishedPlaybackToken) return;
     if (!playerClip?.id) return;
     if (finishedPlaybackClipId !== playerClip.id) return;
@@ -304,17 +284,9 @@ export function PlayerScreen() {
     }
   }, [finishedPlaybackClipId, finishedPlaybackToken, hasNextTrack, playerClip?.id]);
 
-  useEffect(() => {
-    setPracticeLoopRange(buildDefaultLoopRegion(displayDuration));
-  }, [displayDuration, playerClip?.id]);
-
-  useEffect(() => {
-    manualPracticeJumpRef.current = false;
-    setLoopPlaybackEngaged(false);
-  }, [mode, playerClip?.id, practiceLoopEnabled, practiceLoopRange.end, practiceLoopRange.start]);
-
   const wasPlayingBeforeSpeedChange = useRef(false);
   const isSlidingSpeed = useRef(false);
+  const hydratedWaveformClipIdsRef = useRef(new Set<string>());
 
   const cleanSpeed = (v: number) => Math.round(v * 20) / 20; // snap to nearest 0.05
 
@@ -349,55 +321,6 @@ export function PlayerScreen() {
   }, [isPlayerPlaying, pausePlayer, playPlayer, setPlaybackRate]);
 
   useEffect(() => {
-    if (
-      mode !== "practice" ||
-      !practiceLoopEnabled ||
-      !isPlayerPlaying ||
-      transportScrub.isScrubbing ||
-      isPinDragging
-    ) {
-      return;
-    }
-    if (!hasValidPracticeLoop) {
-      return;
-    }
-    if (!loopPlaybackEngaged) {
-      if (isWithinPracticeLoop(playerPosition)) {
-        manualPracticeJumpRef.current = false;
-        setLoopPlaybackEngaged(true);
-      }
-      return;
-    }
-    if (playerPosition < practiceLoopRange.start) {
-      setLoopPlaybackEngaged(false);
-      return;
-    }
-    if (playerPosition < practiceLoopRange.end - 40 || loopSeekLockRef.current) {
-      return;
-    }
-
-    loopSeekLockRef.current = true;
-    void seekTo(practiceLoopRange.start).finally(() => {
-      setTimeout(() => {
-        loopSeekLockRef.current = false;
-      }, 50);
-    });
-  }, [
-    isPlayerPlaying,
-    isWithinPracticeLoop,
-    loopPlaybackEngaged,
-    mode,
-    hasValidPracticeLoop,
-    playerPosition,
-    practiceLoopEnabled,
-    practiceLoopRange.end,
-    practiceLoopRange.start,
-    seekTo,
-    isPinDragging,
-    transportScrub.isScrubbing,
-  ]);
-
-  useEffect(() => {
     if (playerToggleRequestToken === handledToggleTokenRef.current) return;
     handledToggleTokenRef.current = playerToggleRequestToken;
     void handleTransportToggle();
@@ -406,113 +329,26 @@ export function PlayerScreen() {
   useEffect(() => {
     if (playerCloseRequestToken === handledCloseTokenRef.current) return;
     handledCloseTokenRef.current = playerCloseRequestToken;
-    pendingPracticeSeekMsRef.current = null;
-    practiceSeekTokenRef.current += 1;
-    loopSeekLockRef.current = false;
+    cancelPendingPracticeSeek();
     void cancelScrub();
     void closePlayer();
     useStore.getState().clearPlayerQueue();
-  }, [cancelScrub, closePlayer, playerCloseRequestToken]);
+  }, [cancelPendingPracticeSeek, cancelScrub, closePlayer, playerCloseRequestToken]);
 
-  function handleBack() {
-    pendingPracticeSeekMsRef.current = null;
-    practiceSeekTokenRef.current += 1;
-    loopSeekLockRef.current = false;
+  const handleBack = useCallback(() => {
+    cancelPendingPracticeSeek();
     void closePlayer();
     useStore.getState().clearPlayerQueue();
     navigation.goBack();
-  }
+  }, [cancelPendingPracticeSeek, closePlayer, navigation]);
 
-  function handleScrubStateChange(scrubbing: boolean) {
+  const handleScrubStateChange = useCallback((scrubbing: boolean) => {
     if (scrubbing) {
       void beginScrub();
       return;
     }
     void endScrub();
-  }
-
-  function cancelPendingPracticeSeek() {
-    pendingPracticeSeekMsRef.current = null;
-    practiceSeekTokenRef.current += 1;
-    loopSeekLockRef.current = false;
-  }
-
-  async function handleLoopAwareSeek(targetMs: number) {
-    const clampedMs = Math.max(0, Math.min(targetMs, displayDuration || targetMs));
-    const requestToken = ++practiceSeekTokenRef.current;
-    const insideLoop =
-      mode === "practice" && practiceLoopEnabled && hasValidPracticeLoop
-        ? isWithinPracticeLoop(clampedMs)
-        : false;
-
-    manualPracticeJumpRef.current = true;
-
-    if (mode === "practice" && practiceLoopEnabled && hasValidPracticeLoop) {
-      setLoopPlaybackEngaged(isPlayerPlaying && insideLoop);
-    } else {
-      manualPracticeJumpRef.current = false;
-      setLoopPlaybackEngaged(false);
-    }
-
-    pendingPracticeSeekMsRef.current = clampedMs;
-    loopSeekLockRef.current = true;
-
-    if (practiceSeekInFlightRef.current) {
-      return;
-    }
-
-    practiceSeekInFlightRef.current = true;
-    try {
-      while (pendingPracticeSeekMsRef.current !== null) {
-        const nextTargetMs = pendingPracticeSeekMsRef.current;
-        pendingPracticeSeekMsRef.current = null;
-        await seekTo(nextTargetMs);
-      }
-    } finally {
-      practiceSeekInFlightRef.current = false;
-      setTimeout(() => {
-        if (
-          practiceSeekTokenRef.current === requestToken &&
-          pendingPracticeSeekMsRef.current === null
-        ) {
-          loopSeekLockRef.current = false;
-        }
-      }, 80);
-    }
-  }
-
-  function handlePracticeLoopToggle() {
-    setPracticeLoopEnabled((currentValue) => {
-      const nextValue = !currentValue;
-      manualPracticeJumpRef.current = false;
-      if (nextValue) {
-        setPracticeLoopRange(buildDefaultLoopRegion(displayDuration, playerPosition));
-        setLoopPlaybackEngaged(isPlayerPlaying);
-      } else {
-        setLoopPlaybackEngaged(false);
-      }
-      return nextValue;
-    });
-  }
-
-  async function handleTransportToggle() {
-    if (isPlayerPlaying) {
-      cancelPendingPracticeSeek();
-      await pausePlayer();
-      return;
-    }
-    if (mode === "practice" && practiceLoopEnabled && hasValidPracticeLoop) {
-      const shouldResumeFromManualPosition = manualPracticeJumpRef.current;
-      setLoopPlaybackEngaged(isWithinPracticeLoop(playerPosition));
-      if (!shouldResumeFromManualPosition && Math.abs(playerPosition - practiceLoopRange.start) > 20) {
-        await seekTo(practiceLoopRange.start);
-        setLoopPlaybackEngaged(true);
-      }
-      await playPlayer();
-      return;
-    }
-    await playPlayer();
-  }
+  }, [beginScrub, endScrub]);
 
   function minimizePlayer() {
     const routes = navigation.getState()?.routes ?? [];
@@ -530,7 +366,7 @@ export function PlayerScreen() {
     (navigation as any).navigate("Home", { screen: "Workspaces" });
   }
 
-  function handleAddPin(label?: string) {
+  const handleAddPin = useCallback((label?: string) => {
     if (!playerIdea || !playerClip || !activeWorkspaceId) return;
     const resolvedLabel = (label ?? newPinLabel).trim();
 
@@ -543,38 +379,31 @@ export function PlayerScreen() {
     useStore.getState().addClipPracticeMarker(playerIdea.id, playerClip.id, newMarker);
     setNewPinLabel("");
     setPinModalVisible(false);
-  }
+  }, [activeWorkspaceId, newPinLabel, playerClip, playerIdea, playerPosition]);
 
-  function handleRepositionMarker(markerId: string, newAtMs: number) {
+  const handleRepositionMarker = useCallback((markerId: string, newAtMs: number) => {
     if (!playerIdea || !playerClip) return;
     const updated = practiceMarkers.map((m) =>
       m.id === markerId ? { ...m, atMs: Math.round(Math.max(0, Math.min(displayDuration, newAtMs))) } : m
     );
     useStore.getState().setClipPracticeMarkers(playerIdea.id, playerClip.id, updated);
-  }
+  }, [displayDuration, playerClip, playerIdea, practiceMarkers]);
 
-  function handlePinDragStateChange(dragging: boolean) {
-    setIsPinDragging(dragging);
-    if (dragging) {
-      cancelPendingPracticeSeek();
-      setLoopPlaybackEngaged(false);
-      return;
-    }
-
-    if (practiceLoopEnabled && hasValidPracticeLoop && isPlayerPlaying && isWithinPracticeLoop(playerPosition)) {
-      manualPracticeJumpRef.current = false;
-      setLoopPlaybackEngaged(true);
-      return;
-    }
-
-    setLoopPlaybackEngaged(false);
-  }
-
-  function handlePinActions(marker: PracticeMarker) {
+  const handlePinActions = useCallback((marker: PracticeMarker) => {
     setPinActionsTarget(marker);
     setPinRenameValue(marker.label);
     setPinActionsVisible(true);
-  }
+  }, []);
+  const handleLoopRangeChange = useCallback(
+    (start: number, end: number) => setPracticeLoopRange({ start, end }),
+    [setPracticeLoopRange]
+  );
+  const handleRequestAddPin = useCallback(() => {
+    handleAddPin("");
+  }, [handleAddPin]);
+  const handleTogglePlayPress = useCallback(() => {
+    void handleTransportToggle();
+  }, [handleTransportToggle]);
 
   function handleRenamePin() {
     if (!playerIdea || !playerClip || !pinActionsTarget) return;
@@ -701,9 +530,7 @@ export function PlayerScreen() {
             canGoPrevious={hasPreviousTrack}
             canGoNext={hasNextTrack}
             onPrevious={() => useStore.getState().advancePlayerQueue("previous", true)}
-            onTogglePlay={() => {
-              void handleTransportToggle();
-            }}
+            onTogglePlay={handleTogglePlayPress}
             onNext={() => useStore.getState().advancePlayerQueue("next", true)}
             trailingIcon={mode === "practice" ? "repeat" : queueEntries.length > 1 ? "list-outline" : undefined}
             trailingActive={mode === "practice" ? practiceLoopEnabled : queueExpanded}
@@ -721,70 +548,27 @@ export function PlayerScreen() {
       >
         <View style={screenStyles.content}>
           <View style={screenStyles.waveformSection}>
-            <PlayerControls
-              playerPosition={playerPosition}
-              playerDuration={displayDuration}
+            <PlayerTimeline
+              mode={mode}
               waveformPeaks={waveformPeaks}
+              durationMs={displayDuration}
               isPlayerPlaying={isPlayerPlaying}
+              playbackRate={playbackRate}
               isScrubbing={transportScrub.isScrubbing}
-              chrome="light"
-              showTransportControls={false}
-              showExpandToggle={false}
-              showZoomControls={mode === "practice"}
-              showTimingRow={false}
-              defaultExpanded={false}
-              surfaceRadius={26}
-              timelineHorizontalPadding={10}
-              collapsedHeightOverride={168}
-              showMinimapMode={mode === "practice" ? "auto" : "never"}
-              selectedRanges={mode === "practice" && practiceLoopEnabled ? practiceLoopSelection : undefined}
-              renderOverlay={
-                mode === "practice"
-                  ? ({ pixelsPerMs, timelineTranslateX, timelineScale, sharedAudioProgress }) => (
-                      <View style={{ flex: 1, position: "relative" }}>
-                        {practiceLoopEnabled ? (
-                          <MultiTimeRangeSelector
-                            durationMs={displayDuration}
-                            pixelsPerMs={pixelsPerMs}
-                            regions={practiceLoopSelection}
-                            onRegionChange={(_, start, end) => setPracticeLoopRange({ start, end })}
-                            sharedTranslateX={timelineTranslateX}
-                            sharedScale={timelineScale}
-                            sharedAudioProgress={sharedAudioProgress}
-                            onScrubStateChange={handleScrubStateChange}
-                            onSeek={(timeMs) => void handleLoopAwareSeek(timeMs)}
-                          />
-                        ) : null}
-                        <DragIndicatorLine draggingMarkerId={draggingMarkerId} draggingMarkerX={draggingMarkerX} />
-                      </View>
-                    )
-                  : undefined
-              }
-              renderBelowOverlay={
-                mode === "practice"
-                  ? ({ pixelsPerMs, timelineTranslateX, timelineScale }) => (
-                      <PracticePinBadges
-                        markers={practiceMarkers}
-                        pixelsPerMs={pixelsPerMs}
-                        timelineTranslateX={timelineTranslateX}
-                        timelineScale={timelineScale}
-                        durationMs={displayDuration}
-                        onSeek={(t) => void handleLoopAwareSeek(t)}
-                        onRepositionMarker={handleRepositionMarker}
-                        onRequestActions={handlePinActions}
-                        onRequestAdd={() => handleAddPin("")}
-                        onDragStateChange={handlePinDragStateChange}
-                        draggingMarkerId={draggingMarkerId}
-                        draggingMarkerX={draggingMarkerX}
-                      />
-                    )
-                  : undefined
-              }
-              onSeekTo={handleLoopAwareSeek}
-              onTogglePlay={() => {
-                void handleTransportToggle();
-              }}
+              transportClock={transportClock}
+              practiceLoopEnabled={practiceLoopEnabled}
+              practiceLoopSelection={practiceLoopSelection}
+              practiceMarkers={practiceMarkers}
+              draggingMarkerId={draggingMarkerId}
+              draggingMarkerX={draggingMarkerX}
+              onLoopRangeChange={handleLoopRangeChange}
+              onSeek={handleLoopAwareSeek}
+              onTogglePlay={handleTogglePlayPress}
               onScrubStateChange={handleScrubStateChange}
+              onRepositionMarker={handleRepositionMarker}
+              onRequestPinActions={handlePinActions}
+              onRequestAddPin={handleRequestAddPin}
+              onPinDragStateChange={handlePinDragStateChange}
             />
           </View>
 
@@ -803,10 +587,7 @@ export function PlayerScreen() {
                             screenStyles.resetButton,
                             pressed ? { opacity: 0.7 } : null,
                           ]}
-                          onPress={() => {
-                            setPracticeLoopRange(buildDefaultLoopRegion(displayDuration, playerPosition));
-                            setLoopPlaybackEngaged(isPlayerPlaying);
-                          }}
+                          onPress={resetPracticeLoopRange}
                           hitSlop={6}
                         >
                           <Ionicons name="refresh" size={14} color="#6b7280" />
@@ -1130,6 +911,7 @@ const screenStyles = StyleSheet.create({
   },
   waveformSection: {
     gap: 6,
+    marginHorizontal: -14,
   },
   supportStack: {
     gap: 8,

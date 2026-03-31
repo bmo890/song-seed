@@ -7,6 +7,7 @@ type Props = {
     playerDuration: number;
     waveformPeaks: number[];
     isPlayerPlaying: boolean;
+    playbackRate?: number;
     isScrubbing?: boolean;
     compact?: boolean;
     topLeftContent?: ReactNode;
@@ -23,7 +24,14 @@ type Props = {
     showMinimapMode?: "auto" | "always" | "never";
     minimapInteractive?: boolean;
     selectedRanges?: { id: string; start: number; end: number; type: "keep" | "remove" }[];
+    practiceMarkers?: { id: string; atMs: number }[];
     renderOverlay?: (args: {
+        pixelsPerMs: number;
+        timelineTranslateX: SharedValue<number>;
+        timelineScale: SharedValue<number>;
+        sharedAudioProgress: SharedValue<number>;
+    }) => ReactNode;
+    renderBelowSurface?: (args: {
         pixelsPerMs: number;
         timelineTranslateX: SharedValue<number>;
         timelineScale: SharedValue<number>;
@@ -45,6 +53,7 @@ export function PlayerControls({
     playerDuration,
     waveformPeaks,
     isPlayerPlaying,
+    playbackRate,
     isScrubbing,
     compact,
     topLeftContent,
@@ -61,7 +70,9 @@ export function PlayerControls({
     showMinimapMode,
     minimapInteractive,
     selectedRanges,
+    practiceMarkers,
     renderOverlay,
+    renderBelowSurface,
     renderBelowOverlay,
     onSeekTo,
     onTogglePlay,
@@ -73,6 +84,7 @@ export function PlayerControls({
             durationMs={playerDuration}
             currentTimeMs={playerPosition}
             isPlaying={isPlayerPlaying}
+            playbackRate={playbackRate}
             isScrubbing={isScrubbing}
             compact={compact}
             zoomPlacement="top"
@@ -90,7 +102,9 @@ export function PlayerControls({
             showMinimapMode={showMinimapMode}
             minimapInteractive={minimapInteractive}
             selectedRanges={selectedRanges}
+            practiceMarkers={practiceMarkers}
             renderOverlay={renderOverlay}
+            renderBelowSurface={renderBelowSurface}
             renderBelowOverlay={renderBelowOverlay}
             onSeek={onSeekTo}
             onTogglePlay={onTogglePlay}

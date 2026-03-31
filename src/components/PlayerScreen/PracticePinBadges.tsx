@@ -12,11 +12,11 @@ import * as Haptics from "expo-haptics";
 import { Ionicons } from "@expo/vector-icons";
 import type { PracticeMarker } from "../../types";
 
-const BADGE_HEIGHT = 26;
-const BADGE_CHAR_WIDTH = 7;
-const BADGE_H_PAD = 16; // total horizontal padding (8 × 2)
-const ROW_GAP = 4; // gap between staggered rows
-const HEADER_HEIGHT = 28;
+const BADGE_HEIGHT = 22;
+const BADGE_CHAR_WIDTH = 6;
+const BADGE_H_PAD = 14; // total horizontal padding (7 × 2)
+const ROW_GAP = 3; // gap between staggered rows
+const HEADER_HEIGHT = 26;
 
 type Props = {
   markers: PracticeMarker[];
@@ -33,6 +33,36 @@ type Props = {
   draggingMarkerX: SharedValue<number>;
 };
 
+type BadgeAnchor = "start" | "center" | "end";
+const EDGE_GUARD_PX = 8;
+
+function resolveBadgeAnchor(centerX: number, width: number, contentWidth: number): BadgeAnchor {
+  if (centerX - width / 2 < EDGE_GUARD_PX) return "start";
+  if (centerX + width / 2 > contentWidth - EDGE_GUARD_PX) return "end";
+  return "center";
+}
+
+function getBadgeEdges(centerX: number, width: number, anchor: BadgeAnchor) {
+  if (anchor === "start") {
+    return {
+      left: centerX,
+      right: centerX + width,
+    };
+  }
+
+  if (anchor === "end") {
+    return {
+      left: centerX - width,
+      right: centerX,
+    };
+  }
+
+  return {
+    left: centerX - width / 2,
+    right: centerX + width / 2,
+  };
+}
+
 /* ── Estimate badge pixel width from label ─────────────────────── */
 function estimateBadgeWidth(label: string): number {
   if (!label) return BADGE_HEIGHT; // unlabelled pin is a circle
@@ -43,26 +73,29 @@ function estimateBadgeWidth(label: string): number {
 function assignRows(
   markers: PracticeMarker[],
   pixelsPerMs: number,
-  scale: number
-): { marker: PracticeMarker; row: number }[] {
+  scale: number,
+  durationMs: number
+): { marker: PracticeMarker; row: number; anchor: BadgeAnchor }[] {
   if (markers.length === 0) return [];
 
   const sorted = [...markers].sort((a, b) => a.atMs - b.atMs);
-  const result: { marker: PracticeMarker; row: number; rightEdge: number }[] = [];
+  const result: { marker: PracticeMarker; row: number; rightEdge: number; anchor: BadgeAnchor }[] = [];
+  const contentWidth = durationMs * pixelsPerMs * scale;
 
   // Track the right edge of the last badge in each row
   const rowRightEdges: number[] = [-Infinity, -Infinity];
 
   for (const m of sorted) {
     const centerX = m.atMs * pixelsPerMs * scale;
-    const halfW = estimateBadgeWidth(m.label) / 2;
-    const leftEdge = centerX - halfW;
+    const width = estimateBadgeWidth(m.label);
+    const anchor = resolveBadgeAnchor(centerX, width, contentWidth);
+    const { left, right } = getBadgeEdges(centerX, width, anchor);
 
     // Try row 0 first, then row 1
     let assignedRow = 0;
-    if (leftEdge < rowRightEdges[0] + 4) {
+    if (left < rowRightEdges[0] + 4) {
       // Would overlap row 0, try row 1
-      if (leftEdge < rowRightEdges[1] + 4) {
+      if (left < rowRightEdges[1] + 4) {
         // Overlaps both — still put on row 1 (least bad)
         assignedRow = 1;
       } else {
@@ -70,11 +103,11 @@ function assignRows(
       }
     }
 
-    rowRightEdges[assignedRow] = centerX + halfW;
-    result.push({ marker: m, row: assignedRow, rightEdge: centerX + halfW });
+    rowRightEdges[assignedRow] = right;
+    result.push({ marker: m, row: assignedRow, rightEdge: right, anchor });
   }
 
-  return result.map(({ marker, row }) => ({ marker, row }));
+  return result.map(({ marker, row, anchor }) => ({ marker, row, anchor }));
 }
 
 /* ── Individual badge with tap / longpress-drag gestures ────────── */
@@ -82,6 +115,7 @@ function assignRows(
 function PinBadge({
   marker,
   row,
+  anchor,
   pixelsPerMs,
   timelineTranslateX,
   timelineScale,
@@ -95,6 +129,7 @@ function PinBadge({
 }: {
   marker: PracticeMarker;
   row: number;
+  anchor: BadgeAnchor;
   pixelsPerMs: number;
   timelineTranslateX: SharedValue<number>;
   timelineScale: SharedValue<number>;
@@ -168,10 +203,23 @@ function PinBadge({
   const animatedStyle = useAnimatedStyle(() => {
     const timeMs = isDragging.value ? dragTimeMs.value : marker.atMs;
     const x = timeMs * pixelsPerMs * timelineScale.value + timelineTranslateX.value;
+    const contentWidth = durationMs * pixelsPerMs * timelineScale.value;
+    const badgeAnchor =
+      x - badgeW / 2 < EDGE_GUARD_PX
+        ? "start"
+        : x + badgeW / 2 > contentWidth - EDGE_GUARD_PX
+          ? "end"
+          : "center";
+    const anchorOffset =
+      badgeAnchor === "start"
+        ? 0
+        : badgeAnchor === "end"
+          ? -badgeW
+          : -(badgeW / 2);
     return {
       transform: [
         { translateX: x },
-        { translateX: -(badgeW / 2) },
+        { translateX: anchorOffset },
         { scale: withSpring(isDragging.value ? 1.1 : 1, { damping: 20, stiffness: 300 }) },
       ],
       zIndex: isDragging.value ? 10 : 0,
@@ -214,8 +262,8 @@ export function PracticePinBadges({
   // We need current scale for collision detection — derive from shared value
   // For initial render, use 1; the animated positions handle the rest
   const rowAssignments = useMemo(
-    () => assignRows(markers, pixelsPerMs, 1),
-    [markers, pixelsPerMs]
+    () => assignRows(markers, pixelsPerMs, 1, durationMs),
+    [durationMs, markers, pixelsPerMs]
   );
 
   const hasSecondRow = rowAssignments.some((r) => r.row === 1);
@@ -240,11 +288,12 @@ export function PracticePinBadges({
 
       {/* Badge area */}
       <View style={[badgeStyles.badgeArea, { height: badgeAreaHeight }]}>
-        {rowAssignments.map(({ marker, row }) => (
+        {rowAssignments.map(({ marker, row, anchor }) => (
           <PinBadge
             key={marker.id}
             marker={marker}
             row={row}
+            anchor={anchor}
             pixelsPerMs={pixelsPerMs}
             timelineTranslateX={timelineTranslateX}
             timelineScale={timelineScale}
@@ -265,7 +314,7 @@ export function PracticePinBadges({
 const badgeStyles = StyleSheet.create({
   container: {
     overflow: "visible",
-    marginTop: 2,
+    marginTop: -2,
   },
   headerRow: {
     flexDirection: "row",
@@ -275,14 +324,14 @@ const badgeStyles = StyleSheet.create({
     paddingLeft: 2,
   },
   headerTitle: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: "600",
     color: "#b45309",
   },
   addButton: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
     backgroundColor: "#fef3c7",
     alignItems: "center",
     justifyContent: "center",
@@ -297,14 +346,14 @@ const badgeStyles = StyleSheet.create({
     height: BADGE_HEIGHT,
   },
   badge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
     backgroundColor: "#fef3c7",
     borderRadius: 8,
     alignSelf: "flex-start",
   },
   badgeText: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: "600",
     color: "#b45309",
   },

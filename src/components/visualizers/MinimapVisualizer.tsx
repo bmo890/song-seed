@@ -3,15 +3,22 @@ import { View, StyleSheet, LayoutChangeEvent } from "react-native";
 import { Canvas, Path, Rect as SkiaRect, Skia } from "@shopify/react-native-skia";
 import Animated, { useAnimatedStyle, SharedValue, useDerivedValue, runOnJS, useSharedValue } from "react-native-reanimated";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
+import type { PracticeMarker } from "../../types";
 
 type Props = {
     waveformPeaks: number[];
     durationMs: number;
     currentTimeMs: number;
+    sharedCurrentTimeMs?: SharedValue<number>;
     timelineTranslateX: SharedValue<number>;
     timelineScale: SharedValue<number>;
+    sharedAudioProgress?: SharedValue<number>;
     mainCanvasWidth: number;
     selectedRanges?: { id: string; start: number; end: number; type: "keep" | "remove" }[];
+    practiceMarkers?: Pick<PracticeMarker, "id" | "atMs">[];
+    sharedSelectedRangeStartMs?: SharedValue<number>;
+    sharedSelectedRangeEndMs?: SharedValue<number>;
+    selectedRangeType?: "keep" | "remove";
     onSeek: (timeMs: number) => void;
     onScrubStateChange?: (scrubbing: boolean) => void;
     chrome?: "dark" | "light";
@@ -22,10 +29,16 @@ export function MinimapVisualizer({
     waveformPeaks,
     durationMs,
     currentTimeMs,
+    sharedCurrentTimeMs,
     timelineTranslateX,
     timelineScale,
+    sharedAudioProgress,
     mainCanvasWidth,
     selectedRanges,
+    practiceMarkers,
+    sharedSelectedRangeStartMs,
+    sharedSelectedRangeEndMs,
+    selectedRangeType,
     onSeek,
     onScrubStateChange,
     chrome = "dark",
@@ -67,7 +80,7 @@ export function MinimapVisualizer({
             }
 
             const x = i * chunkWidth + chunkWidth / 2;
-            const scaleFactor = Math.max(0.02, Math.pow(Math.min(1, Math.max(0, maxAmp)), 0.8));
+            const scaleFactor = Math.max(0, Math.min(1, maxAmp));
             const h = scaleFactor * waveMaxHeight;
 
             wave.moveTo(x, centerY - h);
@@ -97,6 +110,15 @@ export function MinimapVisualizer({
         };
 
     const rangeRects = useMemo(() => {
+        if (
+            sharedSelectedRangeStartMs &&
+            sharedSelectedRangeEndMs &&
+            selectedRangeType &&
+            durationMs > 0 &&
+            containerWidth > 0
+        ) {
+            return [];
+        }
         if (!selectedRanges || durationMs === 0 || containerWidth === 0) return [];
         return selectedRanges.map(r => {
             const left = (r.start / durationMs) * containerWidth;
@@ -109,15 +131,33 @@ export function MinimapVisualizer({
                 fill: r.type === "keep" ? palette.keepFill : palette.removeFill,
             };
         });
-    }, [selectedRanges, durationMs, containerWidth, palette.keepFill, palette.removeFill]);
+    }, [
+        containerWidth,
+        durationMs,
+        palette.keepFill,
+        palette.removeFill,
+        selectedRangeType,
+        selectedRanges,
+        sharedSelectedRangeEndMs,
+        sharedSelectedRangeStartMs,
+    ]);
 
     const isDragging = useSharedValue(false);
-    const audioProgress = useSharedValue(0);
+    const localAudioProgress = useSharedValue(0);
+    const audioProgress = sharedAudioProgress || localAudioProgress;
+    const localCurrentTimeMs = useSharedValue(currentTimeMs);
+    const currentTimeMsValue = sharedCurrentTimeMs || localCurrentTimeMs;
 
     React.useEffect(() => {
-        if (containerWidth === 0 || isDragging.value || durationMs === 0) return;
-        audioProgress.value = currentTimeMs / durationMs;
-    }, [currentTimeMs, containerWidth, durationMs, isDragging]);
+        if (!sharedCurrentTimeMs) {
+            currentTimeMsValue.value = currentTimeMs;
+        }
+    }, [currentTimeMs, currentTimeMsValue, sharedCurrentTimeMs]);
+
+    React.useEffect(() => {
+        if (sharedAudioProgress || containerWidth === 0 || isDragging.value || durationMs === 0) return;
+        audioProgress.value = currentTimeMsValue.value / durationMs;
+    }, [audioProgress, containerWidth, currentTimeMsValue, durationMs, isDragging, sharedAudioProgress]);
 
     const playheadStyle = useAnimatedStyle(() => {
         return {
@@ -152,6 +192,34 @@ export function MinimapVisualizer({
         };
     }, [palette.windowBorder, palette.windowFill]);
 
+    const previewRangeStyle = useAnimatedStyle(() => {
+        if (
+            !sharedSelectedRangeStartMs ||
+            !sharedSelectedRangeEndMs ||
+            durationMs <= 0 ||
+            containerWidth <= 0
+        ) {
+            return { opacity: 0 };
+        }
+
+        const left = (sharedSelectedRangeStartMs.value / durationMs) * containerWidth;
+        const right = (sharedSelectedRangeEndMs.value / durationMs) * containerWidth;
+        return {
+            opacity: 1,
+            left,
+            width: Math.max(1, right - left),
+            backgroundColor: selectedRangeType === "remove" ? palette.removeFill : palette.keepFill,
+        };
+    }, [
+        containerWidth,
+        durationMs,
+        palette.keepFill,
+        palette.removeFill,
+        selectedRangeType,
+        sharedSelectedRangeEndMs,
+        sharedSelectedRangeStartMs,
+    ]);
+
     const pan = Gesture.Pan()
         .activeOffsetX([-5, 5])
         .onStart(() => {
@@ -185,7 +253,27 @@ export function MinimapVisualizer({
                                 <SkiaRect key={r.id} x={r.x} y={0} width={r.w} height={containerHeight} color={r.fill} />
                             ))}
                             <Path path={wavePath} color={palette.waveColor} style="stroke" strokeWidth={Math.max(1, containerWidth / barCount * 0.7)} strokeCap="round" />
+                            {practiceMarkers?.map((marker) => (
+                                <SkiaRect
+                                    key={marker.id}
+                                    x={(marker.atMs / durationMs) * containerWidth}
+                                    y={6}
+                                    width={2}
+                                    height={containerHeight - 12}
+                                    color="rgba(202, 138, 4, 0.9)"
+                                />
+                            ))}
                         </Canvas>
+
+                        {sharedSelectedRangeStartMs && sharedSelectedRangeEndMs && selectedRangeType ? (
+                            <Animated.View
+                                style={[
+                                    styles.previewRange,
+                                    previewRangeStyle,
+                                ]}
+                                pointerEvents="none"
+                            />
+                        ) : null}
 
                         {/* Playhead indicator */}
                         <Animated.View style={[styles.playhead, playheadStyle, { backgroundColor: palette.playheadColor }]} />
@@ -219,5 +307,10 @@ const styles = StyleSheet.create({
         top: 0,
         bottom: 0,
         left: 0,
-    }
+    },
+    previewRange: {
+        position: "absolute",
+        top: 0,
+        bottom: 0,
+    },
 });

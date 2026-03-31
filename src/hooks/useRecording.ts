@@ -4,7 +4,7 @@ import * as FileSystem from "expo-file-system/legacy";
 import { Alert, Linking } from "react-native";
 import { metersToWaveformPeaks } from "../utils";
 import { activateRecordingAudioSession } from "../services/audioSession";
-import { importRecordedAudioAsset } from "../services/audioStorage";
+import { importRecordedAudioAsset, MANAGED_WAVEFORM_PEAK_COUNT } from "../services/audioStorage";
 import {
   clearPendingRecordingSession,
   persistPendingRecordingSession,
@@ -272,7 +272,7 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
       );
       const waveformPeaks =
         managedAudio.waveformPeaks ??
-        metersToWaveformPeaks(levelsAsDb, 96);
+        metersToWaveformPeaks(levelsAsDb, MANAGED_WAVEFORM_PEAK_COUNT);
 
       onRecorded({
         audioUri: managedAudio.audioUri,
