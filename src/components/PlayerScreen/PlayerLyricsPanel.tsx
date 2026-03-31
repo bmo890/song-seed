@@ -41,7 +41,7 @@ function getAutoscrollLabel(state?: LyricsAutoscrollState) {
   return "Autoscroll off";
 }
 
-export function PlayerLyricsPanel({
+function PlayerLyricsPanelInner({
   text,
   versionLabel,
   updatedAtLabel,
@@ -270,6 +270,8 @@ export function PlayerLyricsPanel({
     </View>
   );
 }
+
+export const PlayerLyricsPanel = React.memo(PlayerLyricsPanelInner);
 
 const styles = StyleSheet.create({
   panel: {

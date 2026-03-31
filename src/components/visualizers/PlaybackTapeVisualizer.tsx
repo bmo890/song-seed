@@ -1,11 +1,10 @@
 import React, { useMemo, useState, useEffect } from "react";
 import { View, StyleSheet, LayoutChangeEvent } from "react-native";
 import { Canvas, Path, Group, Skia, Rect, RoundedRect } from "@shopify/react-native-skia";
-import Animated, {
+import {
     useSharedValue,
     withDecay,
     useDerivedValue,
-    useAnimatedStyle,
     runOnJS,
     SharedValue,
     cancelAnimation,
@@ -44,6 +43,7 @@ type Props = {
     sharedAudioProgress?: SharedValue<number>;
     sharedBaseScale?: SharedValue<number>;
     onScrubStateChange?: (isScrubbing: boolean) => void;
+    freezeSelectedRangeWhenFullyVisible?: boolean;
 };
 
 type PinMarkerOverlayProps = {
@@ -168,6 +168,7 @@ export function PlaybackTapeVisualizer({
     sharedAudioProgress,
     sharedBaseScale,
     onScrubStateChange,
+    freezeSelectedRangeWhenFullyVisible = false,
 }: Props) {
     const [canvasWidth, setCanvasWidth] = useState(0);
     const [canvasHeight, setCanvasHeight] = useState(0);
@@ -201,6 +202,7 @@ const baseChunkWidth = 3;
     const lastSeenTransportUpdate = useSharedValue(0);
     const reportBaseProgress = useSharedValue(0);
     const reportFrameTimestamp = useSharedValue(0);
+    const lastPlayingState = useSharedValue(isPlaying);
 
     const contentWidth = useDerivedValue(() => baseContentWidth * scale.value);
 
@@ -254,6 +256,12 @@ const baseChunkWidth = 3;
     useFrameCallback((frameInfo) => {
         const duration = durationMsValue.value;
         if (duration <= 0) return;
+
+        if (isPlayingShared.value !== lastPlayingState.value) {
+            lastPlayingState.value = isPlayingShared.value;
+            reportBaseProgress.value = audioProgress.value;
+            reportFrameTimestamp.value = frameInfo.timestamp;
+        }
 
         if (transportUpdateToken.value !== lastSeenTransportUpdate.value) {
             lastSeenTransportUpdate.value = transportUpdateToken.value;
@@ -360,6 +368,28 @@ const baseChunkWidth = 3;
         const tx = targetX.value;
         const halfScreen = canvasWidth / 2;
 
+        if (
+            freezeSelectedRangeWhenFullyVisible &&
+            sharedSelectedRangeStartMs &&
+            sharedSelectedRangeEndMs &&
+            durationMs > 0
+        ) {
+            const rangeStartX = (sharedSelectedRangeStartMs.value / durationMs) * cw;
+            const rangeEndX = (sharedSelectedRangeEndMs.value / durationMs) * cw;
+            const rangeWidth = Math.max(0, rangeEndX - rangeStartX);
+            const currentMs = currentTimeMsValue.value;
+            const isInsideRange =
+                sharedSelectedRangeEndMs.value > sharedSelectedRangeStartMs.value &&
+                currentMs >= sharedSelectedRangeStartMs.value &&
+                currentMs <= sharedSelectedRangeEndMs.value;
+
+            if (isInsideRange && rangeWidth > 0 && rangeWidth <= canvasWidth) {
+                const desiredTranslate = canvasWidth / 2 - (rangeStartX + rangeWidth / 2);
+                translateX.value = Math.max(Math.min(desiredTranslate, 0), canvasWidth - cw);
+                return;
+            }
+        }
+
         if (cw <= canvasWidth) {
             translateX.value = 0;
         } else {
@@ -379,6 +409,26 @@ const baseChunkWidth = 3;
         const tx = targetX.value;
         const halfScreen = canvasWidth / 2;
 
+        if (
+            freezeSelectedRangeWhenFullyVisible &&
+            sharedSelectedRangeStartMs &&
+            sharedSelectedRangeEndMs &&
+            durationMs > 0
+        ) {
+            const rangeStartX = (sharedSelectedRangeStartMs.value / durationMs) * cw;
+            const rangeEndX = (sharedSelectedRangeEndMs.value / durationMs) * cw;
+            const rangeWidth = Math.max(0, rangeEndX - rangeStartX);
+            const currentMs = currentTimeMsValue.value;
+            const isInsideRange =
+                sharedSelectedRangeEndMs.value > sharedSelectedRangeStartMs.value &&
+                currentMs >= sharedSelectedRangeStartMs.value &&
+                currentMs <= sharedSelectedRangeEndMs.value;
+
+            if (isInsideRange && rangeWidth > 0 && rangeWidth <= canvasWidth) {
+                return tx + translateX.value;
+            }
+        }
+
         if (cw <= canvasWidth) {
             return tx;
         } else {
@@ -392,9 +442,7 @@ const baseChunkWidth = 3;
         }
     });
 
-    const playheadStyle = useAnimatedStyle(() => {
-        return { transform: [{ translateX: playheadX.value }] };
-    });
+    const playheadRectX = useDerivedValue(() => playheadX.value - 2);
 
     const translateTransform = useDerivedValue(() => {
         return [{ translateX: translateX.value }];
@@ -528,20 +576,17 @@ const baseChunkWidth = 3;
                                     rangeType={selectedRangeType}
                                 />
                             ) : null}
+                            <Rect
+                                x={playheadRectX}
+                                y={0}
+                                width={4}
+                                height={canvasHeight}
+                                color={playheadColor}
+                            />
                         </Canvas>
                     )}
                 </View>
             </GestureDetector>
-
-            {canvasWidth > 0 && (
-                <Animated.View
-                    style={[
-                        styles.playhead,
-                        playheadStyle,
-                        { backgroundColor: playheadColor },
-                    ]}
-                />
-            )}
         </View>
     );
 }
@@ -551,16 +596,5 @@ const styles = StyleSheet.create({
         flex: 1,
         overflow: "hidden",
         position: "relative",
-    },
-    playhead: {
-        position: "absolute",
-        top: 0,
-        bottom: 0,
-        left: 0,
-        width: 4,
-        marginLeft: -2,
-        zIndex: 10,
-        // opacity: 0.96,
-        pointerEvents: "none",
     },
 });

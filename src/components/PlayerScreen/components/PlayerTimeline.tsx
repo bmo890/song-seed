@@ -51,6 +51,8 @@ type Props = {
   onRequestPinActions: (marker: PracticeMarker) => void;
   onRequestAddPin: () => void;
   onPinDragStateChange: (dragging: boolean) => void;
+  practiceZoomMultiple: number;
+  onPracticeZoomMultipleChange: (zoomMultiple: number) => void;
 };
 
 function DragIndicatorLine({
@@ -189,6 +191,8 @@ function PlayerTimelineInner({
   onRequestPinActions,
   onRequestAddPin,
   onPinDragStateChange,
+  practiceZoomMultiple,
+  onPracticeZoomMultipleChange,
 }: Props) {
   const previewRange = practiceLoopSelection[0];
   const sharedLoopPreviewStartMs = useSharedValue(previewRange?.start ?? 0);
@@ -221,7 +225,10 @@ function PlayerTimelineInner({
       surfaceRadius={24}
       timelineHorizontalPadding={0}
       collapsedHeightOverride={160}
+      zoomMultiple={mode === "practice" ? practiceZoomMultiple : 1}
+      onZoomMultipleChange={mode === "practice" ? onPracticeZoomMultipleChange : undefined}
       showMinimapMode={mode === "practice" ? "auto" : "never"}
+      freezeSelectedRangeWhenFullyVisible={mode === "practice" && practiceLoopEnabled}
       selectedRanges={mode === "practice" && practiceLoopEnabled ? practiceLoopSelection : undefined}
       practiceMarkers={mode === "practice" ? practiceMarkers : undefined}
       sharedSelectedRangeStartMs={mode === "practice" && practiceLoopEnabled ? sharedLoopPreviewStartMs : undefined}

@@ -30,6 +30,28 @@ import { PlayerTimeline } from "./components/PlayerTimeline";
 type PlayerMode = "player" | "practice";
 type CountInOption = "off" | "1b" | "2b";
 const EMPTY_IDEAS: import("../../types").SongIdea[] = [];
+const OFF_LYRICS_AUTOSCROLL_STATE = {
+  mode: "off" as const,
+  currentTimeMs: 0,
+  durationMs: 0,
+  activeLineId: null,
+};
+
+function getVisibleTimelineRange(durationMs: number, anchorMs: number, zoomMultiple: number) {
+  if (durationMs <= 0) {
+    return { start: 0, end: 0 };
+  }
+
+  const safeZoom = Math.max(1, zoomMultiple);
+  const visibleDurationMs = Math.min(durationMs, Math.max(1, durationMs / safeZoom));
+  const maxStartMs = Math.max(0, durationMs - visibleDurationMs);
+  const startMs = Math.max(0, Math.min(anchorMs - visibleDurationMs / 2, maxStartMs));
+
+  return {
+    start: Math.round(startMs),
+    end: Math.round(startMs + visibleDurationMs),
+  };
+}
 
 function extractLyricsMarkers(lyricsText: string, durationMs: number): PracticeMarker[] {
   if (durationMs <= 0) return [];
@@ -117,6 +139,7 @@ export function PlayerScreen() {
   const [queueExpanded, setQueueExpanded] = useState(false);
   const [playbackSpeed, setPlaybackSpeed] = useState<number>(1);
   const [countInOption, setCountInOption] = useState<CountInOption>("off");
+  const [practiceZoomMultiple, setPracticeZoomMultiple] = useState<number>(1);
   const [newPinLabel, setNewPinLabel] = useState("");
   const [pinModalVisible, setPinModalVisible] = useState(false);
   const [pinActionsTarget, setPinActionsTarget] = useState<PracticeMarker | null>(null);
@@ -154,6 +177,7 @@ export function PlayerScreen() {
   const hasNextTrack = playerQueueIndex >= 0 && playerQueueIndex < playerQueue.length - 1;
   const handledToggleTokenRef = useRef(playerToggleRequestToken);
   const handledCloseTokenRef = useRef(playerCloseRequestToken);
+  const speedResumeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const transportScrub = useTransportScrubbing({
     isPlaying: isPlayerPlaying,
     durationMs: displayDuration,
@@ -162,15 +186,7 @@ export function PlayerScreen() {
     seekTo,
   });
   const { beginScrub, endScrub, cancelScrub } = transportScrub;
-  const lyricsAutoscrollState = useMemo(
-    () => ({
-      mode: "off" as const,
-      currentTimeMs: playerPosition,
-      durationMs: displayDuration,
-      activeLineId: null,
-    }),
-    [displayDuration, playerPosition]
-  );
+  const lyricsAutoscrollState = OFF_LYRICS_AUTOSCROLL_STATE;
   const practiceMarkers = useMemo(() => {
     // Use custom markers if they exist
     if (playerClip?.practiceMarkers && playerClip.practiceMarkers.length > 0) {
@@ -181,6 +197,10 @@ export function PlayerScreen() {
   }, [displayDuration, latestLyricsText, playerClip?.practiceMarkers]);
   const clipNotes = playerClip?.notes ?? "";
   const clipNotesSummary = getNoteSummary(clipNotes);
+  const visiblePracticeRange = useMemo(
+    () => getVisibleTimelineRange(displayDuration, playerPosition, practiceZoomMultiple),
+    [displayDuration, playerPosition, practiceZoomMultiple]
+  );
   const {
     practiceLoopEnabled,
     practiceLoopRange,
@@ -206,6 +226,8 @@ export function PlayerScreen() {
     playPlayer,
     pausePlayer,
     onDisplaySeek: transportClock.setDisplayPositionMs,
+    visibleWindowStartMs: visiblePracticeRange.start,
+    visibleWindowEndMs: visiblePracticeRange.end,
   });
 
   useEffect(() => {
@@ -290,11 +312,32 @@ export function PlayerScreen() {
 
   const cleanSpeed = (v: number) => Math.round(v * 20) / 20; // snap to nearest 0.05
 
+  const clearScheduledSpeedResume = useCallback(() => {
+    if (speedResumeTimeoutRef.current === null) return;
+    clearTimeout(speedResumeTimeoutRef.current);
+    speedResumeTimeoutRef.current = null;
+  }, []);
+
+  const scheduleSpeedResume = useCallback(() => {
+    clearScheduledSpeedResume();
+    speedResumeTimeoutRef.current = setTimeout(() => {
+      speedResumeTimeoutRef.current = null;
+      void playPlayer();
+    }, 80);
+  }, [clearScheduledSpeedResume, playPlayer]);
+
+  useEffect(() => {
+    return () => {
+      clearScheduledSpeedResume();
+    };
+  }, [clearScheduledSpeedResume]);
+
   const handleSpeedSlideStart = useCallback(() => {
+    clearScheduledSpeedResume();
     isSlidingSpeed.current = true;
     wasPlayingBeforeSpeedChange.current = isPlayerPlaying;
     if (isPlayerPlaying) pausePlayer();
-  }, [isPlayerPlaying, pausePlayer]);
+  }, [clearScheduledSpeedResume, isPlayerPlaying, pausePlayer]);
 
   const handleSpeedSliding = useCallback((v: number) => {
     setPlaybackSpeed(cleanSpeed(v));
@@ -306,19 +349,20 @@ export function PlayerScreen() {
     setPlaybackSpeed(clean);
     setPlaybackRate(clean);
     if (wasPlayingBeforeSpeedChange.current) {
-      setTimeout(() => playPlayer(), 80);
+      scheduleSpeedResume();
     }
-  }, [playPlayer, setPlaybackRate]);
+  }, [scheduleSpeedResume, setPlaybackRate]);
 
   const handleSpeedTap = useCallback((speed: number) => {
+    clearScheduledSpeedResume();
     wasPlayingBeforeSpeedChange.current = isPlayerPlaying;
     if (isPlayerPlaying) pausePlayer();
     setPlaybackSpeed(speed);
     setPlaybackRate(speed);
     if (wasPlayingBeforeSpeedChange.current) {
-      setTimeout(() => playPlayer(), 80);
+      scheduleSpeedResume();
     }
-  }, [isPlayerPlaying, pausePlayer, playPlayer, setPlaybackRate]);
+  }, [clearScheduledSpeedResume, isPlayerPlaying, pausePlayer, scheduleSpeedResume, setPlaybackRate]);
 
   useEffect(() => {
     if (playerToggleRequestToken === handledToggleTokenRef.current) return;
@@ -404,6 +448,15 @@ export function PlayerScreen() {
   const handleTogglePlayPress = useCallback(() => {
     void handleTransportToggle();
   }, [handleTransportToggle]);
+  const handlePreviousTrack = useCallback(() => {
+    useStore.getState().advancePlayerQueue("previous", true);
+  }, []);
+  const handleNextTrack = useCallback(() => {
+    useStore.getState().advancePlayerQueue("next", true);
+  }, []);
+  const handleQueueSelect = useCallback((index: number) => {
+    useStore.getState().setPlayerQueue(playerQueue, index, true);
+  }, [playerQueue]);
 
   function handleRenamePin() {
     if (!playerIdea || !playerClip || !pinActionsTarget) return;
@@ -529,9 +582,9 @@ export function PlayerScreen() {
             isPlaying={isPlayerPlaying}
             canGoPrevious={hasPreviousTrack}
             canGoNext={hasNextTrack}
-            onPrevious={() => useStore.getState().advancePlayerQueue("previous", true)}
+            onPrevious={handlePreviousTrack}
             onTogglePlay={handleTogglePlayPress}
-            onNext={() => useStore.getState().advancePlayerQueue("next", true)}
+            onNext={handleNextTrack}
             trailingIcon={mode === "practice" ? "repeat" : queueEntries.length > 1 ? "list-outline" : undefined}
             trailingActive={mode === "practice" ? practiceLoopEnabled : queueExpanded}
             trailingDisabled={mode === "practice" ? false : queueEntries.length <= 1}
@@ -569,6 +622,8 @@ export function PlayerScreen() {
               onRequestPinActions={handlePinActions}
               onRequestAddPin={handleRequestAddPin}
               onPinDragStateChange={handlePinDragStateChange}
+              practiceZoomMultiple={practiceZoomMultiple}
+              onPracticeZoomMultipleChange={setPracticeZoomMultiple}
             />
           </View>
 
@@ -725,9 +780,7 @@ export function PlayerScreen() {
                     entries={queueEntries}
                     currentClipId={playerClip.id}
                     compact={hasProjectLyrics}
-                    onSelect={(index) => {
-                      useStore.getState().setPlayerQueue(playerQueue, index, true);
-                    }}
+                    onSelect={handleQueueSelect}
                   />
                 </PlayerSupportPanel>
               ) : null}

@@ -16,7 +16,7 @@ type Props = {
   speedBadge?: string;
 };
 
-export function PlayerTransportDock({
+function PlayerTransportDockInner({
   isPlaying,
   canGoPrevious,
   canGoNext,
@@ -91,6 +91,8 @@ export function PlayerTransportDock({
     </View>
   );
 }
+
+export const PlayerTransportDock = React.memo(PlayerTransportDockInner);
 
 const styles = StyleSheet.create({
   dock: {

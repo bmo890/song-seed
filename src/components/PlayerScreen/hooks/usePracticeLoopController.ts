@@ -20,6 +20,8 @@ type Args = {
   playPlayer: () => Promise<void>;
   pausePlayer: () => Promise<void>;
   onDisplaySeek?: (ms: number) => void;
+  visibleWindowStartMs?: number;
+  visibleWindowEndMs?: number;
 };
 
 function buildDefaultLoopRegion(durationMs: number, anchorMs = 0) {
@@ -37,6 +39,37 @@ function buildDefaultLoopRegion(durationMs: number, anchorMs = 0) {
   };
 }
 
+function buildLoopRegionWithinVisibleWindow(
+  durationMs: number,
+  anchorMs = 0,
+  visibleWindowStartMs = 0,
+  visibleWindowEndMs = durationMs
+) {
+  if (durationMs <= 0) {
+    return { start: 0, end: 0 };
+  }
+
+  const safeVisibleStart = Math.max(0, Math.min(visibleWindowStartMs, durationMs));
+  const safeVisibleEnd = Math.max(safeVisibleStart, Math.min(visibleWindowEndMs, durationMs));
+  const visibleDurationMs = safeVisibleEnd - safeVisibleStart;
+
+  if (visibleDurationMs <= 0) {
+    return buildDefaultLoopRegion(durationMs, anchorMs);
+  }
+
+  const loopSpan = Math.min(
+    visibleDurationMs,
+    Math.max(1000, Math.round(visibleDurationMs * 0.25))
+  );
+  const maxStart = Math.max(safeVisibleStart, safeVisibleEnd - loopSpan);
+  const nextStart = Math.max(safeVisibleStart, Math.min(anchorMs, maxStart));
+
+  return {
+    start: Math.round(nextStart),
+    end: Math.round(Math.min(safeVisibleEnd, nextStart + loopSpan)),
+  };
+}
+
 export function usePracticeLoopController({
   clipId,
   mode,
@@ -49,26 +82,52 @@ export function usePracticeLoopController({
   playPlayer,
   pausePlayer,
   onDisplaySeek,
+  visibleWindowStartMs,
+  visibleWindowEndMs,
 }: Args) {
   const [practiceLoopEnabled, setPracticeLoopEnabled] = useState(false);
   const [practiceLoopRange, setPracticeLoopRange] = useState<LoopRange>({ start: 0, end: 0 });
   const [isPinDragging, setIsPinDragging] = useState(false);
 
+  const modeRef = useRef(mode);
+  const durationMsRef = useRef(durationMs);
+  const playerPositionRef = useRef(playerPosition);
+  const isPlayerPlayingRef = useRef(isPlayerPlaying);
+  const practiceLoopEnabledRef = useRef(practiceLoopEnabled);
+  const practiceLoopRangeRef = useRef(practiceLoopRange);
+  const visibleWindowStartMsRef = useRef(visibleWindowStartMs ?? 0);
+  const visibleWindowEndMsRef = useRef(visibleWindowEndMs ?? durationMs);
   const loopStateRef = useRef<LoopTransportState>("idle");
   const practiceSeekInFlightRef = useRef(false);
   const queuedSeekMsRef = useRef<number | null>(null);
   const pendingUnlockTargetMsRef = useRef<number | null>(null);
+  const pendingUnlockSourceMsRef = useRef<number | null>(null);
   const manualPracticeJumpRef = useRef(false);
   const lastLoopCycleAtRef = useRef(0);
+  const loopSuppressedUntilRef = useRef(0);
 
   const hasValidPracticeLoop = practiceLoopRange.end > practiceLoopRange.start;
+  const hasValidPracticeLoopRef = useRef(hasValidPracticeLoop);
   const loopLeadMs = Math.max(45, Math.round(85 * playbackRate));
   const loopUnlockToleranceMs = 60;
+  const loopResumeToleranceMs = Math.max(loopUnlockToleranceMs, Math.round(140 * playbackRate));
+
+  modeRef.current = mode;
+  durationMsRef.current = durationMs;
+  playerPositionRef.current = playerPosition;
+  isPlayerPlayingRef.current = isPlayerPlaying;
+  practiceLoopEnabledRef.current = practiceLoopEnabled;
+  practiceLoopRangeRef.current = practiceLoopRange;
+  visibleWindowStartMsRef.current = visibleWindowStartMs ?? 0;
+  visibleWindowEndMsRef.current = visibleWindowEndMs ?? durationMs;
+  hasValidPracticeLoopRef.current = hasValidPracticeLoop;
 
   const isWithinPracticeLoop = useCallback(
-    (timeMs: number) =>
-      hasValidPracticeLoop && timeMs >= practiceLoopRange.start && timeMs < practiceLoopRange.end,
-    [hasValidPracticeLoop, practiceLoopRange.end, practiceLoopRange.start]
+    (timeMs: number) => {
+      const range = practiceLoopRangeRef.current;
+      return range.end > range.start && timeMs >= range.start && timeMs < range.end;
+    },
+    []
   );
 
   const practiceLoopSelection = useMemo(
@@ -87,11 +146,17 @@ export function usePracticeLoopController({
     loopStateRef.current = nextState;
   }, []);
 
+  const suppressLoopBriefly = useCallback((durationMs = 220) => {
+    loopSuppressedUntilRef.current = Date.now() + durationMs;
+  }, []);
+
   const cancelPendingPracticeSeek = useCallback(() => {
     queuedSeekMsRef.current = null;
     pendingUnlockTargetMsRef.current = null;
+    pendingUnlockSourceMsRef.current = null;
+    suppressLoopBriefly();
     setLoopState("idle");
-  }, []);
+  }, [setLoopState, suppressLoopBriefly]);
 
   useEffect(() => {
     setPracticeLoopRange(buildDefaultLoopRegion(durationMs));
@@ -106,15 +171,29 @@ export function usePracticeLoopController({
 
   useEffect(() => {
     const unlockTargetMs = pendingUnlockTargetMsRef.current;
+    const unlockSourceMs = pendingUnlockSourceMsRef.current;
     if (loopStateRef.current !== "seeking_to_start" || unlockTargetMs === null) {
       return;
     }
 
-    if (Math.abs(playerPosition - unlockTargetMs) <= loopUnlockToleranceMs) {
+    const range = practiceLoopRangeRef.current;
+    const unlockUpperBound = Math.min(
+      range.end,
+      Math.max(unlockTargetMs + loopResumeToleranceMs, range.end - loopLeadMs)
+    );
+    const resumedInsideLoop =
+      range.end > range.start &&
+      playerPosition >= unlockTargetMs &&
+      playerPosition <= unlockUpperBound &&
+      (unlockSourceMs === null ||
+        Math.abs(playerPosition - unlockSourceMs) >= Math.max(loopUnlockToleranceMs, loopLeadMs));
+
+    if (Math.abs(playerPosition - unlockTargetMs) <= loopUnlockToleranceMs || resumedInsideLoop) {
       pendingUnlockTargetMsRef.current = null;
+      pendingUnlockSourceMsRef.current = null;
       setLoopState("looping");
     }
-  }, [loopUnlockToleranceMs, playerPosition, setLoopState]);
+  }, [loopLeadMs, loopResumeToleranceMs, loopUnlockToleranceMs, playerPosition, setLoopState]);
 
   const flushQueuedSeek = useCallback(async () => {
     if (practiceSeekInFlightRef.current) {
@@ -137,6 +216,7 @@ export function usePracticeLoopController({
     async (targetMs: number, nextState: LoopTransportState) => {
       queuedSeekMsRef.current = targetMs;
       pendingUnlockTargetMsRef.current = targetMs;
+      pendingUnlockSourceMsRef.current = playerPositionRef.current;
       onDisplaySeek?.(targetMs);
       setLoopState(nextState);
       await flushQueuedSeek();
@@ -152,6 +232,10 @@ export function usePracticeLoopController({
       isScrubbing ||
       isPinDragging
     ) {
+      return;
+    }
+
+    if (Date.now() < loopSuppressedUntilRef.current) {
       return;
     }
 
@@ -211,21 +295,30 @@ export function usePracticeLoopController({
 
   const handleLoopAwareSeek = useCallback(
     async (targetMs: number) => {
-      const clampedMs = Math.max(0, Math.min(targetMs, durationMs || targetMs));
+      const currentDurationMs = durationMsRef.current;
+      const currentMode = modeRef.current;
+      const currentPracticeLoopEnabled = practiceLoopEnabledRef.current;
+      const currentHasValidPracticeLoop = hasValidPracticeLoopRef.current;
+      const currentIsPlayerPlaying = isPlayerPlayingRef.current;
+      const clampedMs = Math.max(0, Math.min(targetMs, currentDurationMs || targetMs));
       const insideLoop =
-        mode === "practice" && practiceLoopEnabled && hasValidPracticeLoop
+        currentMode === "practice" && currentPracticeLoopEnabled && currentHasValidPracticeLoop
           ? isWithinPracticeLoop(clampedMs)
           : false;
 
       manualPracticeJumpRef.current = true;
       setLoopState(
-        mode === "practice" && practiceLoopEnabled && hasValidPracticeLoop && isPlayerPlaying && insideLoop
+        currentMode === "practice" &&
+          currentPracticeLoopEnabled &&
+          currentHasValidPracticeLoop &&
+          currentIsPlayerPlaying &&
+          insideLoop
           ? "looping"
           : "armed"
       );
       await queueSeek(clampedMs, "seeking_to_start");
     },
-    [durationMs, hasValidPracticeLoop, isPlayerPlaying, isWithinPracticeLoop, mode, practiceLoopEnabled, queueSeek, setLoopState]
+    [isWithinPracticeLoop, queueSeek, setLoopState]
   );
 
   const handlePracticeLoopToggle = useCallback(() => {
@@ -235,32 +328,55 @@ export function usePracticeLoopController({
       setLoopState("idle");
 
       if (nextValue) {
-        setPracticeLoopRange(buildDefaultLoopRegion(durationMs, playerPosition));
-        setLoopState(isPlayerPlaying ? "armed" : "idle");
+        setPracticeLoopRange(
+          buildLoopRegionWithinVisibleWindow(
+            durationMsRef.current,
+            playerPositionRef.current,
+            visibleWindowStartMsRef.current,
+            visibleWindowEndMsRef.current
+          )
+        );
+        setLoopState(isPlayerPlayingRef.current ? "armed" : "idle");
       }
 
       return nextValue;
     });
-  }, [durationMs, isPlayerPlaying, playerPosition, setLoopState]);
+  }, [setLoopState]);
 
   const resetPracticeLoopRange = useCallback(() => {
-    setPracticeLoopRange(buildDefaultLoopRegion(durationMs, playerPosition));
-    setLoopState(isPlayerPlaying ? "armed" : "idle");
-  }, [durationMs, isPlayerPlaying, playerPosition, setLoopState]);
+    setPracticeLoopRange(
+      buildLoopRegionWithinVisibleWindow(
+        durationMsRef.current,
+        playerPositionRef.current,
+        visibleWindowStartMsRef.current,
+        visibleWindowEndMsRef.current
+      )
+    );
+    setLoopState(isPlayerPlayingRef.current ? "armed" : "idle");
+  }, [setLoopState]);
 
   const handleTransportToggle = useCallback(async () => {
-    if (isPlayerPlaying) {
+    if (isPlayerPlayingRef.current) {
       cancelPendingPracticeSeek();
       await pausePlayer();
       return;
     }
 
-    if (mode === "practice" && practiceLoopEnabled && hasValidPracticeLoop) {
-      const shouldResumeFromManualPosition = manualPracticeJumpRef.current;
-      const shouldStartInsideLoop = isWithinPracticeLoop(playerPosition);
+    const currentMode = modeRef.current;
+    const currentPracticeLoopEnabled = practiceLoopEnabledRef.current;
+    const currentHasValidPracticeLoop = hasValidPracticeLoopRef.current;
+    const currentPlayerPosition = playerPositionRef.current;
+    const currentPracticeLoopRange = practiceLoopRangeRef.current;
 
-      if (!shouldResumeFromManualPosition && Math.abs(playerPosition - practiceLoopRange.start) > 20) {
-        await handleLoopAwareSeek(practiceLoopRange.start);
+    if (currentMode === "practice" && currentPracticeLoopEnabled && currentHasValidPracticeLoop) {
+      const shouldResumeFromManualPosition = manualPracticeJumpRef.current;
+      const shouldStartInsideLoop = isWithinPracticeLoop(currentPlayerPosition);
+
+      if (
+        !shouldResumeFromManualPosition &&
+        Math.abs(currentPlayerPosition - currentPracticeLoopRange.start) > 20
+      ) {
+        await handleLoopAwareSeek(currentPracticeLoopRange.start);
         setLoopState("looping");
       } else {
         setLoopState(shouldStartInsideLoop ? "looping" : "armed");
@@ -275,15 +391,9 @@ export function usePracticeLoopController({
   }, [
     cancelPendingPracticeSeek,
     handleLoopAwareSeek,
-    hasValidPracticeLoop,
-    isPlayerPlaying,
     isWithinPracticeLoop,
-    mode,
     pausePlayer,
     playPlayer,
-    playerPosition,
-    practiceLoopEnabled,
-    practiceLoopRange.start,
     setLoopState,
   ]);
 
@@ -297,7 +407,12 @@ export function usePracticeLoopController({
         return;
       }
 
-      if (practiceLoopEnabled && hasValidPracticeLoop && isPlayerPlaying && isWithinPracticeLoop(playerPosition)) {
+      if (
+        practiceLoopEnabledRef.current &&
+        hasValidPracticeLoopRef.current &&
+        isPlayerPlayingRef.current &&
+        isWithinPracticeLoop(playerPositionRef.current)
+      ) {
         manualPracticeJumpRef.current = false;
         setLoopState("looping");
         return;
@@ -305,15 +420,7 @@ export function usePracticeLoopController({
 
       setLoopState("armed");
     },
-    [
-      cancelPendingPracticeSeek,
-      hasValidPracticeLoop,
-      isPlayerPlaying,
-      isWithinPracticeLoop,
-      playerPosition,
-      practiceLoopEnabled,
-      setLoopState,
-    ]
+    [cancelPendingPracticeSeek, isWithinPracticeLoop, setLoopState]
   );
 
   return {

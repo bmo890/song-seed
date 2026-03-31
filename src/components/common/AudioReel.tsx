@@ -98,6 +98,9 @@ type Props = {
     expandedHeightOverride?: number;
     showMinimapMode?: "auto" | "always" | "never";
     minimapInteractive?: boolean;
+    zoomMultiple?: number;
+    onZoomMultipleChange?: (zoomMultiple: number) => void;
+    freezeSelectedRangeWhenFullyVisible?: boolean;
 };
 
 export function AudioReel({
@@ -140,6 +143,9 @@ export function AudioReel({
     expandedHeightOverride,
     showMinimapMode = "auto",
     minimapInteractive = true,
+    zoomMultiple: controlledZoomMultiple,
+    onZoomMultipleChange,
+    freezeSelectedRangeWhenFullyVisible = false,
 }: Props) {
     const timelineTranslateX = useSharedValue(0);
     const timelineScale = useSharedValue(1);
@@ -147,8 +153,9 @@ export function AudioReel({
     const sharedAudioProgress = useSharedValue(0);
 
     const [isExpanded, setIsExpanded] = useState(defaultExpanded);
-    const [zoomMultiple, setZoomMultiple] = useState<number>(1);
+    const [uncontrolledZoomMultiple, setUncontrolledZoomMultiple] = useState<number>(1);
     const [mainCanvasWidth, setMainCanvasWidth] = useState(0);
+    const zoomMultiple = controlledZoomMultiple ?? uncontrolledZoomMultiple;
 
     const collapsedHeight = collapsedHeightOverride ?? (compact ? 120 : 160);
     const expandedHeight = expandedHeightOverride ?? (compact ? 220 : 320);
@@ -267,15 +274,20 @@ export function AudioReel({
     }, [overscaleFactor, timelineScale]);
 
     const handleZoom = React.useCallback((direction: "in" | "out") => {
-        setZoomMultiple((currentZoom) => {
-            const currentIndex = ZOOM_LEVELS.findIndex((level) => level >= currentZoom - 0.001);
-            const baseIndex = currentIndex >= 0 ? currentIndex : nearestZoomIndex;
-            if (direction === "out") {
-                return ZOOM_LEVELS[Math.max(0, baseIndex - 1)] ?? MIN_ZOOM;
-            }
-            return ZOOM_LEVELS[Math.min(ZOOM_LEVELS.length - 1, baseIndex + 1)] ?? MAX_ZOOM;
-        });
-    }, [nearestZoomIndex]);
+        const currentIndex = ZOOM_LEVELS.findIndex((level) => level >= zoomMultiple - 0.001);
+        const baseIndex = currentIndex >= 0 ? currentIndex : nearestZoomIndex;
+        const nextZoom =
+            direction === "out"
+                ? ZOOM_LEVELS[Math.max(0, baseIndex - 1)] ?? MIN_ZOOM
+                : ZOOM_LEVELS[Math.min(ZOOM_LEVELS.length - 1, baseIndex + 1)] ?? MAX_ZOOM;
+
+        if (onZoomMultipleChange) {
+            onZoomMultipleChange(nextZoom);
+            return;
+        }
+
+        setUncontrolledZoomMultiple(nextZoom);
+    }, [nearestZoomIndex, onZoomMultipleChange, zoomMultiple]);
 
     const zoomControls = (
         <View style={[audioReelStyles.zoomRow, zoomPlacement === "top" ? audioReelStyles.zoomRowTop : null]}>
@@ -421,6 +433,7 @@ export function AudioReel({
                             sharedSelectedRangeStartMs={sharedSelectedRangeStartMs}
                             sharedSelectedRangeEndMs={sharedSelectedRangeEndMs}
                             selectedRangeType={selectedRangeType}
+                            freezeSelectedRangeWhenFullyVisible={freezeSelectedRangeWhenFullyVisible}
                             sharedTranslateX={timelineTranslateX}
                             sharedScale={timelineScale}
                             sharedAudioProgress={sharedAudioProgress}

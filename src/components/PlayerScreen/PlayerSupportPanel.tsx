@@ -12,7 +12,7 @@ type Props = {
   children?: ReactNode;
 };
 
-export function PlayerSupportPanel({
+function PlayerSupportPanelInner({
   title,
   meta,
   summary,
@@ -53,6 +53,8 @@ export function PlayerSupportPanel({
     </View>
   );
 }
+
+export const PlayerSupportPanel = React.memo(PlayerSupportPanelInner);
 
 const styles = StyleSheet.create({
   panel: {

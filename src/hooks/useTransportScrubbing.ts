@@ -25,46 +25,64 @@ export function useTransportScrubbing({
 }: Args) {
   const [isScrubbing, setIsScrubbing] = useState(false);
   const wasPlayingRef = useRef(false);
+  const isPlayingRef = useRef(isPlaying);
+  const durationMsRef = useRef(durationMs);
+  const pauseRef = useRef(pause);
+  const playRef = useRef(play);
+  const seekToRef = useRef(seekTo);
+  const settleDelayMsRef = useRef(settleDelayMs);
+  const endToleranceMsRef = useRef(endToleranceMs);
+
+  isPlayingRef.current = isPlaying;
+  durationMsRef.current = durationMs;
+  pauseRef.current = pause;
+  playRef.current = play;
+  seekToRef.current = seekTo;
+  settleDelayMsRef.current = settleDelayMs;
+  endToleranceMsRef.current = endToleranceMs;
 
   const beginScrub = useCallback(async () => {
     setIsScrubbing((prev) => (prev ? prev : true));
-    wasPlayingRef.current = isPlaying || wasPlayingRef.current;
-    if (isPlaying) {
-      await pause();
+    const wasPlaying = isPlayingRef.current;
+    wasPlayingRef.current = wasPlaying || wasPlayingRef.current;
+    if (wasPlaying) {
+      await pauseRef.current();
     }
-  }, [isPlaying, pause]);
+  }, []);
 
   const endScrub = useCallback(async () => {
     setIsScrubbing((prev) => (prev ? false : prev));
     if (wasPlayingRef.current) {
-      await play();
+      await playRef.current();
     }
     wasPlayingRef.current = false;
-  }, [play]);
+  }, []);
 
   const cancelScrub = useCallback(async () => {
     setIsScrubbing((prev) => (prev ? false : prev));
     if (wasPlayingRef.current) {
-      await play();
+      await playRef.current();
     }
     wasPlayingRef.current = false;
-  }, [play]);
+  }, []);
 
   const scrubTo = useCallback(
     async (ms: number) => {
-      const clampedMs = Math.max(0, Math.min(ms, durationMs || ms));
-      const wasPlaying = isPlaying || wasPlayingRef.current;
+      const currentDurationMs = durationMsRef.current;
+      const clampedMs = Math.max(0, Math.min(ms, currentDurationMs || ms));
+      const wasPlaying = isPlayingRef.current || wasPlayingRef.current;
 
       setIsScrubbing((prev) => (prev ? prev : true));
-      await seekTo(clampedMs);
-      await wait(settleDelayMs);
+      await seekToRef.current(clampedMs);
+      await wait(settleDelayMsRef.current);
 
-      const atEnd = durationMs > 0 && clampedMs >= durationMs - endToleranceMs;
+      const atEnd =
+        currentDurationMs > 0 && clampedMs >= currentDurationMs - endToleranceMsRef.current;
       if (!wasPlaying || atEnd) {
         wasPlayingRef.current = false;
       }
     },
-    [durationMs, endToleranceMs, isPlaying, seekTo, settleDelayMs]
+    []
   );
 
   const seekAndSettle = useCallback(

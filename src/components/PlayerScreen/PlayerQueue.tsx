@@ -15,7 +15,7 @@ type PlayerQueueProps = {
   compact?: boolean;
 };
 
-export function PlayerQueue({ entries, currentClipId, onSelect, compact = false }: PlayerQueueProps) {
+function PlayerQueueInner({ entries, currentClipId, onSelect, compact = false }: PlayerQueueProps) {
   if (entries.length <= 1) return null;
 
   return (
@@ -49,6 +49,8 @@ export function PlayerQueue({ entries, currentClipId, onSelect, compact = false 
     </ScrollView>
   );
 }
+
+export const PlayerQueue = React.memo(PlayerQueueInner);
 
 const styles = StyleSheet.create({
   list: {
