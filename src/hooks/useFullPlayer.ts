@@ -1,5 +1,6 @@
 import { useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { AppState, Platform } from "react-native";
 import { ClipVersion, PlayerTarget } from "../types";
 import { buildStaticWaveform } from "../utils";
 import { activateAndPlay, replacePlaybackSource } from "../services/transportPlayback";
@@ -46,6 +47,7 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
   const playerDurationRef = useRef(playerDuration);
   const lockScreenMetadataRef = useRef<LockScreenMetadata | undefined>(undefined);
   const isLockScreenActiveRef = useRef(false);
+  const appStateRef = useRef(AppState.currentState);
 
   useEffect(() => {
     statusRef.current = status;
@@ -89,18 +91,30 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
   }, [isPlayerPlaying, playerDuration, playerPosition, setPlayerPlaybackState]);
 
   const activateLockScreenControls = useCallback((metadata?: LockScreenMetadata) => {
-    player.setActiveForLockScreen(
-      true,
-      {
-        ...metadata,
-        artist: "SongSeed",
-      },
-      {
-        showSeekBackward: true,
-        showSeekForward: true,
+    try {
+      player.setActiveForLockScreen(
+        true,
+        {
+          ...metadata,
+          artist: "SongSeed",
+        },
+        {
+          showSeekBackward: true,
+          showSeekForward: true,
+        }
+      );
+      isLockScreenActiveRef.current = true;
+    } catch (error) {
+      isLockScreenActiveRef.current = false;
+      const message = error instanceof Error ? error.message : String(error);
+      const isBackgroundStartRestriction =
+        Platform.OS === "android" &&
+        message.includes("ForegroundServiceStartNotAllowedException");
+
+      if (!isBackgroundStartRestriction) {
+        console.warn("FULL lock screen activate error", error);
       }
-    );
-    isLockScreenActiveRef.current = true;
+    }
   }, [player]);
 
   const clearLockScreenControls = useCallback(() => {
@@ -111,6 +125,20 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
     }
     isLockScreenActiveRef.current = false;
   }, [player]);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", (nextState) => {
+      appStateRef.current = nextState;
+
+      if (nextState === "active" && isPlayerPlaying && !isLockScreenActiveRef.current) {
+        activateLockScreenControls(lockScreenMetadataRef.current);
+      }
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, [activateLockScreenControls, isPlayerPlaying]);
 
   useEffect(() => {
     return () => {
@@ -127,7 +155,9 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
 
   useEffect(() => {
     if (isPlayerPlaying) {
-      activateLockScreenControls(lockScreenMetadataRef.current);
+      if (appStateRef.current === "active") {
+        activateLockScreenControls(lockScreenMetadataRef.current);
+      }
       return;
     }
     clearLockScreenControls();

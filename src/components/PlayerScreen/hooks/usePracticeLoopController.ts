@@ -8,6 +8,10 @@ type LoopRange = {
   end: number;
 };
 
+type QueueSeekOptions = {
+  trackUnlock?: boolean;
+};
+
 type Args = {
   clipId?: string | null;
   mode: PlayerMode;
@@ -68,6 +72,29 @@ function buildLoopRegionWithinVisibleWindow(
     start: Math.round(nextStart),
     end: Math.round(Math.min(safeVisibleEnd, nextStart + loopSpan)),
   };
+}
+
+function buildLoopRegionPreservingSpan(durationMs: number, anchorMs = 0, spanMs = 0) {
+  if (durationMs <= 0) {
+    return { start: 0, end: 0 };
+  }
+
+  const safeSpanMs = Math.max(
+    Math.min(durationMs, spanMs || BASE_DEFAULT_LOOP_SPAN_MS_FALLBACK(durationMs)),
+    1
+  );
+  const safeAnchorMs = Math.max(0, Math.min(anchorMs, durationMs));
+  const maxStartMs = Math.max(0, durationMs - safeSpanMs);
+  const startMs = Math.max(0, Math.min(safeAnchorMs, maxStartMs));
+
+  return {
+    start: Math.round(startMs),
+    end: Math.round(startMs + safeSpanMs),
+  };
+}
+
+function BASE_DEFAULT_LOOP_SPAN_MS_FALLBACK(durationMs: number) {
+  return Math.max(1000, Math.round(durationMs * 0.25));
 }
 
 export function usePracticeLoopController({
@@ -213,10 +240,19 @@ export function usePracticeLoopController({
   }, [seekTo]);
 
   const queueSeek = useCallback(
-    async (targetMs: number, nextState: LoopTransportState) => {
+    async (
+      targetMs: number,
+      nextState: LoopTransportState,
+      { trackUnlock = true }: QueueSeekOptions = {}
+    ) => {
       queuedSeekMsRef.current = targetMs;
-      pendingUnlockTargetMsRef.current = targetMs;
-      pendingUnlockSourceMsRef.current = playerPositionRef.current;
+      if (trackUnlock) {
+        pendingUnlockTargetMsRef.current = targetMs;
+        pendingUnlockSourceMsRef.current = playerPositionRef.current;
+      } else {
+        pendingUnlockTargetMsRef.current = null;
+        pendingUnlockSourceMsRef.current = null;
+      }
       onDisplaySeek?.(targetMs);
       setLoopState(nextState);
       await flushQueuedSeek();
@@ -256,6 +292,19 @@ export function usePracticeLoopController({
     if (playerPosition < practiceLoopRange.start) {
       setLoopState("armed");
       return;
+    }
+
+    if (manualPracticeJumpRef.current) {
+      if (isWithinPracticeLoop(playerPosition)) {
+        manualPracticeJumpRef.current = false;
+        setLoopState("looping");
+        return;
+      }
+
+      if (playerPosition >= practiceLoopRange.end) {
+        setLoopState("idle");
+        return;
+      }
     }
 
     if (loopStateRef.current === "seeking_to_start") {
@@ -316,7 +365,17 @@ export function usePracticeLoopController({
           ? "looping"
           : "armed"
       );
-      await queueSeek(clampedMs, "seeking_to_start");
+      await queueSeek(
+        clampedMs,
+        currentMode === "practice" &&
+          currentPracticeLoopEnabled &&
+          currentHasValidPracticeLoop &&
+          currentIsPlayerPlaying &&
+          insideLoop
+          ? "looping"
+          : "armed",
+        { trackUnlock: false }
+      );
     },
     [isWithinPracticeLoop, queueSeek, setLoopState]
   );
@@ -328,13 +387,15 @@ export function usePracticeLoopController({
       setLoopState("idle");
 
       if (nextValue) {
-        setPracticeLoopRange(
-          buildLoopRegionWithinVisibleWindow(
-            durationMsRef.current,
-            playerPositionRef.current,
-            visibleWindowStartMsRef.current,
-            visibleWindowEndMsRef.current
-          )
+        setPracticeLoopRange((currentRange) =>
+          currentRange.end > currentRange.start
+            ? currentRange
+            : buildLoopRegionWithinVisibleWindow(
+                durationMsRef.current,
+                playerPositionRef.current,
+                visibleWindowStartMsRef.current,
+                visibleWindowEndMsRef.current
+              )
         );
         setLoopState(isPlayerPlayingRef.current ? "armed" : "idle");
       }
@@ -352,6 +413,34 @@ export function usePracticeLoopController({
         visibleWindowEndMsRef.current
       )
     );
+    setLoopState(isPlayerPlayingRef.current ? "armed" : "idle");
+  }, [setLoopState]);
+
+  const movePracticeLoopToPlayhead = useCallback(() => {
+    setPracticeLoopRange((currentRange) => {
+      const currentSpanMs =
+        currentRange.end > currentRange.start
+          ? currentRange.end - currentRange.start
+          : buildLoopRegionWithinVisibleWindow(
+              durationMsRef.current,
+              playerPositionRef.current,
+              visibleWindowStartMsRef.current,
+              visibleWindowEndMsRef.current
+            ).end -
+            buildLoopRegionWithinVisibleWindow(
+              durationMsRef.current,
+              playerPositionRef.current,
+              visibleWindowStartMsRef.current,
+              visibleWindowEndMsRef.current
+            ).start;
+
+      return buildLoopRegionPreservingSpan(
+        durationMsRef.current,
+        playerPositionRef.current,
+        currentSpanMs
+      );
+    });
+    manualPracticeJumpRef.current = false;
     setLoopState(isPlayerPlayingRef.current ? "armed" : "idle");
   }, [setLoopState]);
 
@@ -379,7 +468,13 @@ export function usePracticeLoopController({
         await handleLoopAwareSeek(currentPracticeLoopRange.start);
         setLoopState("looping");
       } else {
-        setLoopState(shouldStartInsideLoop ? "looping" : "armed");
+        setLoopState(
+          shouldStartInsideLoop
+            ? "looping"
+            : currentPlayerPosition >= currentPracticeLoopRange.end
+              ? "idle"
+              : "armed"
+        );
       }
 
       await playPlayer();
@@ -436,5 +531,6 @@ export function usePracticeLoopController({
     handleTransportToggle,
     handlePinDragStateChange,
     resetPracticeLoopRange,
+    movePracticeLoopToPlayhead,
   };
 }

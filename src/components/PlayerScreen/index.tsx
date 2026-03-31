@@ -30,6 +30,9 @@ import { PlayerTimeline } from "./components/PlayerTimeline";
 type PlayerMode = "player" | "practice";
 type CountInOption = "off" | "1b" | "2b";
 const EMPTY_IDEAS: import("../../types").SongIdea[] = [];
+const PRACTICE_SPEED_PRESETS = [0.5, 0.75, 1, 1.25, 1.5] as const;
+const PRACTICE_SPEED_MIN = 0.5;
+const PRACTICE_SPEED_MAX = 1.5;
 const OFF_LYRICS_AUTOSCROLL_STATE = {
   mode: "off" as const,
   currentTimeMs: 0,
@@ -140,6 +143,7 @@ export function PlayerScreen() {
   const [playbackSpeed, setPlaybackSpeed] = useState<number>(1);
   const [countInOption, setCountInOption] = useState<CountInOption>("off");
   const [practiceZoomMultiple, setPracticeZoomMultiple] = useState<number>(1);
+  const [speedPanelVisible, setSpeedPanelVisible] = useState(false);
   const [newPinLabel, setNewPinLabel] = useState("");
   const [pinModalVisible, setPinModalVisible] = useState(false);
   const [pinActionsTarget, setPinActionsTarget] = useState<PracticeMarker | null>(null);
@@ -214,6 +218,7 @@ export function PlayerScreen() {
     handleTransportToggle,
     handlePinDragStateChange,
     resetPracticeLoopRange,
+    movePracticeLoopToPlayhead,
   } = usePracticeLoopController({
     clipId: playerClip?.id,
     mode,
@@ -310,7 +315,8 @@ export function PlayerScreen() {
   const isSlidingSpeed = useRef(false);
   const hydratedWaveformClipIdsRef = useRef(new Set<string>());
 
-  const cleanSpeed = (v: number) => Math.round(v * 20) / 20; // snap to nearest 0.05
+  const cleanSpeed = (v: number) =>
+    Math.max(PRACTICE_SPEED_MIN, Math.min(PRACTICE_SPEED_MAX, Math.round(v * 20) / 20));
 
   const clearScheduledSpeedResume = useCallback(() => {
     if (speedResumeTimeoutRef.current === null) return;
@@ -363,6 +369,12 @@ export function PlayerScreen() {
       scheduleSpeedResume();
     }
   }, [clearScheduledSpeedResume, isPlayerPlaying, pausePlayer, scheduleSpeedResume, setPlaybackRate]);
+
+  useEffect(() => {
+    if (mode !== "practice" && speedPanelVisible) {
+      setSpeedPanelVisible(false);
+    }
+  }, [mode, speedPanelVisible]);
 
   useEffect(() => {
     if (playerToggleRequestToken === handledToggleTokenRef.current) return;
@@ -578,25 +590,71 @@ export function PlayerScreen() {
           </View>
         }
         footer={
-          <PlayerTransportDock
-            isPlaying={isPlayerPlaying}
-            canGoPrevious={hasPreviousTrack}
-            canGoNext={hasNextTrack}
-            onPrevious={handlePreviousTrack}
-            onTogglePlay={handleTogglePlayPress}
-            onNext={handleNextTrack}
-            trailingIcon={mode === "practice" ? "repeat" : queueEntries.length > 1 ? "list-outline" : undefined}
-            trailingActive={mode === "practice" ? practiceLoopEnabled : queueExpanded}
-            trailingDisabled={mode === "practice" ? false : queueEntries.length <= 1}
-            onTrailingPress={
-              mode === "practice"
-                ? handlePracticeLoopToggle
-                : queueEntries.length > 1
-                  ? () => setQueueExpanded((value) => !value)
+          <View style={screenStyles.footerStack}>
+            {mode === "practice" && speedPanelVisible ? (
+              <View style={screenStyles.speedPopover}>
+                <Slider
+                  style={screenStyles.speedPopoverSlider}
+                  minimumValue={PRACTICE_SPEED_MIN}
+                  maximumValue={PRACTICE_SPEED_MAX}
+                  step={0.05}
+                  value={playbackSpeed}
+                  onValueChange={handleSpeedSliding}
+                  onSlidingStart={handleSpeedSlideStart}
+                  onSlidingComplete={handleSpeedSlideEnd}
+                  minimumTrackTintColor="#3b82f6"
+                  maximumTrackTintColor="#d1d5db"
+                  thumbTintColor="#ffffff"
+                />
+                <View style={screenStyles.speedPopoverTicks}>
+                  {PRACTICE_SPEED_PRESETS.map((tick) => {
+                    const isActive = Math.abs(playbackSpeed - tick) < 0.01;
+                    return (
+                      <TouchableOpacity
+                        key={tick}
+                        onPress={() => handleSpeedTap(tick)}
+                        hitSlop={4}
+                      >
+                        <Text
+                          style={[
+                            screenStyles.speedTickText,
+                            isActive && screenStyles.speedTickTextActive,
+                          ]}
+                        >
+                          {tick}x
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+            ) : null}
+            <PlayerTransportDock
+              isPlaying={isPlayerPlaying}
+              canGoPrevious={hasPreviousTrack}
+              canGoNext={hasNextTrack}
+              onPrevious={handlePreviousTrack}
+              onTogglePlay={handleTogglePlayPress}
+              onNext={handleNextTrack}
+              trailingIcon={mode === "practice" ? "repeat" : queueEntries.length > 1 ? "list-outline" : undefined}
+              trailingActive={mode === "practice" ? practiceLoopEnabled : queueExpanded}
+              trailingDisabled={mode === "practice" ? false : queueEntries.length <= 1}
+              onTrailingPress={
+                mode === "practice"
+                  ? handlePracticeLoopToggle
+                  : queueEntries.length > 1
+                    ? () => setQueueExpanded((value) => !value)
+                    : undefined
+              }
+              speedBadge={mode === "practice" ? `${playbackSpeed}x` : undefined}
+              speedActive={mode === "practice" && speedPanelVisible}
+              onSpeedPress={
+                mode === "practice"
+                  ? () => setSpeedPanelVisible((value) => !value)
                   : undefined
-            }
-            speedBadge={mode === "practice" && Math.abs(playbackSpeed - 1) > 0.001 ? `${playbackSpeed}x` : undefined}
-          />
+              }
+            />
+          </View>
         }
       >
         <View style={screenStyles.content}>
@@ -632,20 +690,48 @@ export function PlayerScreen() {
               <View style={screenStyles.practiceCard}>
                 {/* Loop */}
                 <View style={screenStyles.practiceRow}>
-                  <Text style={screenStyles.practiceLabel}>Loop</Text>
+                  {!practiceLoopEnabled ? (
+                    <Text style={screenStyles.practiceLabel}>Loop</Text>
+                  ) : null}
                   <View style={screenStyles.practiceValueRow}>
                     {practiceLoopEnabled ? (
                       <>
-                        <Text style={screenStyles.loopRangeText}>{practiceRangeLabel}</Text>
                         <Pressable
                           style={({ pressed }) => [
-                            screenStyles.resetButton,
+                            screenStyles.loopRangePill,
+                            pressed ? screenStyles.loopRangePillPressed : null,
+                          ]}
+                          onPress={() => handleLoopAwareSeek(practiceLoopRange.start)}
+                          hitSlop={6}
+                          accessibilityRole="button"
+                          accessibilityLabel="Jump playhead to loop start"
+                        >
+                          <Ionicons name="play-skip-back" size={13} color="#4b5563" />
+                          <Text style={screenStyles.loopRangeText}>{practiceRangeLabel}</Text>
+                        </Pressable>
+                        <Pressable
+                          style={({ pressed }) => [
+                            screenStyles.loopActionButton,
+                            pressed ? { opacity: 0.7 } : null,
+                          ]}
+                          onPress={movePracticeLoopToPlayhead}
+                          hitSlop={6}
+                          accessibilityRole="button"
+                          accessibilityLabel="Move loop to playhead"
+                        >
+                          <Ionicons name="locate-outline" size={15} color="#4b5563" />
+                        </Pressable>
+                        <Pressable
+                          style={({ pressed }) => [
+                            screenStyles.loopActionButton,
                             pressed ? { opacity: 0.7 } : null,
                           ]}
                           onPress={resetPracticeLoopRange}
                           hitSlop={6}
+                          accessibilityRole="button"
+                          accessibilityLabel="Create a new loop from the visible reel"
                         >
-                          <Ionicons name="refresh" size={14} color="#6b7280" />
+                          <Ionicons name="add-circle-outline" size={15} color="#4b5563" />
                         </Pressable>
                       </>
                     ) : null}
@@ -658,49 +744,6 @@ export function PlayerScreen() {
                     >
                       <View style={[screenStyles.toggleKnob, practiceLoopEnabled ? screenStyles.toggleKnobActive : null]} />
                     </Pressable>
-                  </View>
-                </View>
-
-                <View style={screenStyles.divider} />
-
-                {/* Speed slider + ticks */}
-                <View style={screenStyles.practiceRowVertical}>
-                  <View style={screenStyles.speedBlock}>
-                    <Text style={screenStyles.practiceLabel}>Speed</Text>
-                    <Slider
-                      style={screenStyles.speedSlider}
-                      minimumValue={0.5}
-                      maximumValue={2}
-                      step={0.05}
-                      value={playbackSpeed}
-                      onValueChange={handleSpeedSliding}
-                      onSlidingStart={handleSpeedSlideStart}
-                      onSlidingComplete={handleSpeedSlideEnd}
-                      minimumTrackTintColor="#3b82f6"
-                      maximumTrackTintColor="#d1d5db"
-                      thumbTintColor="#ffffff"
-                    />
-                  </View>
-                  <View style={screenStyles.speedTicks}>
-                    {[0.5, 0.75, 1, 1.25, 1.5, 2].map((tick) => {
-                      const isActive = Math.abs(playbackSpeed - tick) < 0.01;
-                      return (
-                        <TouchableOpacity
-                          key={tick}
-                          onPress={() => handleSpeedTap(tick)}
-                          hitSlop={4}
-                        >
-                          <Text
-                            style={[
-                              screenStyles.speedTickText,
-                              isActive && screenStyles.speedTickTextActive,
-                            ]}
-                          >
-                            {tick}x
-                          </Text>
-                        </TouchableOpacity>
-                      );
-                    })}
                   </View>
                 </View>
 
@@ -962,6 +1005,34 @@ const screenStyles = StyleSheet.create({
     paddingBottom: 8,
     gap: 10,
   },
+  footerStack: {
+    gap: 8,
+  },
+  speedPopover: {
+    marginHorizontal: 14,
+    paddingHorizontal: 14,
+    paddingTop: 12,
+    paddingBottom: 10,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "#e3e6eb",
+    backgroundColor: "rgba(246,247,249,0.98)",
+    shadowColor: "#0f172a",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    elevation: 2,
+  },
+  speedPopoverSlider: {
+    width: "100%",
+    height: 30,
+  },
+  speedPopoverTicks: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingHorizontal: 2,
+    marginTop: 2,
+  },
   waveformSection: {
     gap: 6,
     marginHorizontal: -14,
@@ -973,6 +1044,7 @@ const screenStyles = StyleSheet.create({
   practiceContent: {
     gap: 8,
     flexShrink: 1,
+    marginHorizontal: -6,
   },
   notesText: {
     fontSize: 14,
@@ -994,7 +1066,7 @@ const screenStyles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    gap: 10,
+    gap: 8,
     minHeight: 44,
   },
   practiceLabel: {
@@ -1002,37 +1074,29 @@ const screenStyles = StyleSheet.create({
     lineHeight: 18,
     fontWeight: "600",
     color: "#111827",
+    minWidth: 50,
+    flexShrink: 0,
   },
   practiceValueRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
+    justifyContent: "flex-end",
+    gap: 8,
+    flex: 1,
+    minWidth: 0,
   },
-  resetButton: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+  loopActionButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "#eceef2",
+    flexShrink: 0,
   },
   practiceRowVertical: {
     paddingVertical: 8,
     gap: 2,
-  },
-  speedBlock: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  speedSlider: {
-    flex: 1,
-    height: 28,
-  },
-  speedTicks: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    paddingHorizontal: 2,
   },
   speedTickText: {
     fontSize: 12,
@@ -1047,9 +1111,29 @@ const screenStyles = StyleSheet.create({
     fontWeight: "700",
   },
   loopRangeText: {
-    fontSize: 13,
+    fontSize: 11,
+    lineHeight: 11,
     color: "#6b7280",
     fontVariant: ["tabular-nums"] as any,
+    flexShrink: 1,
+    textAlign: "center",
+  },
+  loopRangePill: {
+    height: 36,
+    minWidth: 132,
+    paddingHorizontal: 10,
+    borderRadius: 18,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "#eceef2",
+    flexShrink: 1,
+    flexGrow: 1,
+    maxWidth: 170,
+    justifyContent: "center",
+  },
+  loopRangePillPressed: {
+    opacity: 0.78,
   },
   notesInlineText: {
     fontSize: 14,
@@ -1059,11 +1143,12 @@ const screenStyles = StyleSheet.create({
   },
   toggleShell: {
     width: 52,
-    height: 30,
-    borderRadius: 15,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: "#e5e7eb",
     padding: 3,
     justifyContent: "center",
+    flexShrink: 0,
   },
   toggleShellActive: {
     backgroundColor: "#dbeafe",

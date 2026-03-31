@@ -14,6 +14,8 @@ type Props = {
   trailingDisabled?: boolean;
   onTrailingPress?: () => void;
   speedBadge?: string;
+  speedActive?: boolean;
+  onSpeedPress?: () => void;
 };
 
 function PlayerTransportDockInner({
@@ -28,15 +30,26 @@ function PlayerTransportDockInner({
   trailingDisabled = false,
   onTrailingPress,
   speedBadge,
+  speedActive = false,
+  onSpeedPress,
 }: Props) {
   return (
     <View style={styles.dock}>
       <View style={styles.row}>
         <View style={styles.leadingSlot}>
           {speedBadge ? (
-            <View style={styles.speedBadge}>
-              <Text style={styles.speedBadgeText}>{speedBadge}</Text>
-            </View>
+            <Pressable
+              style={({ pressed }) => [
+                styles.speedBadge,
+                speedActive ? styles.speedBadgeActive : null,
+                pressed ? styles.pressed : null,
+              ]}
+              onPress={onSpeedPress}
+            >
+              <Text style={[styles.speedBadgeText, speedActive ? styles.speedBadgeTextActive : null]}>
+                {speedBadge}
+              </Text>
+            </Pressable>
           ) : null}
         </View>
         <Pressable
@@ -132,20 +145,28 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   leadingSlot: {
-    width: 44,
+    width: 56,
     alignItems: "center",
     justifyContent: "center",
   },
   speedBadge: {
-    paddingHorizontal: 6,
-    paddingVertical: 3,
-    borderRadius: 6,
+    minWidth: 40,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 10,
     backgroundColor: "#dbeafe",
+    alignItems: "center",
+  },
+  speedBadgeActive: {
+    backgroundColor: "#bfdbfe",
   },
   speedBadgeText: {
     fontSize: 11,
     fontWeight: "700",
     color: "#2563eb",
+  },
+  speedBadgeTextActive: {
+    color: "#1d4ed8",
   },
   trailingSlot: {
     width: 44,
