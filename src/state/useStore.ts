@@ -28,6 +28,18 @@ import {
 import { startManifestSync } from "../services/manifestSync";
 import { consumeIntentionalEmptyStateWrite } from "../services/stateIntegrity";
 import {
+    clampMetronomeBpm,
+    clampMetronomeCountInBars,
+    clampMetronomeLevel,
+    DEFAULT_METRONOME_BEEP_LEVEL,
+    DEFAULT_METRONOME_BPM,
+    DEFAULT_METRONOME_COUNT_IN_BARS,
+    DEFAULT_METRONOME_HAPTIC_LEVEL,
+    DEFAULT_METRONOME_METER_ID,
+    DEFAULT_METRONOME_OUTPUTS,
+    isMetronomeMeterId,
+} from "../metronome";
+import {
     getLastPersistedIdeaCount,
     isHydrationComplete,
     isPersistBlocked,
@@ -51,6 +63,12 @@ export type PersistedAppStore = Pick<
     | "collectionLastOpenedAt"
     | "playlists"
     | "preferredRecordingInputId"
+    | "metronomeBpm"
+    | "metronomeMeterId"
+    | "metronomeOutputs"
+    | "metronomeBeepLevel"
+    | "metronomeHapticLevel"
+    | "metronomeCountInBars"
     | "globalCustomClipTags"
     | "backupReminderFrequency"
     | "lastSuccessfulBackupAt"
@@ -62,7 +80,7 @@ export type PersistedAppStore = Pick<
 >;
 
 export const STORE_NAME = "song-seed-store";
-export const STORE_VERSION = 10;
+export const STORE_VERSION = 11;
 
 function sanitizeTimestampMap(value: unknown, validIds: Set<string>) {
     if (!value || typeof value !== "object") return {};
@@ -143,6 +161,42 @@ export function sanitizePersistedState(state?: Partial<PersistedAppStore>): Pers
         playlists: normalizePlaylists(state?.playlists),
         preferredRecordingInputId:
             typeof state?.preferredRecordingInputId === "string" ? state.preferredRecordingInputId : null,
+        metronomeBpm:
+            typeof state?.metronomeBpm === "number" && Number.isFinite(state.metronomeBpm)
+                ? clampMetronomeBpm(state.metronomeBpm)
+                : DEFAULT_METRONOME_BPM,
+        metronomeMeterId: isMetronomeMeterId(state?.metronomeMeterId)
+            ? state.metronomeMeterId
+            : DEFAULT_METRONOME_METER_ID,
+        metronomeOutputs:
+            state?.metronomeOutputs && typeof state.metronomeOutputs === "object"
+                ? {
+                    beep:
+                        typeof state.metronomeOutputs.beep === "boolean"
+                            ? state.metronomeOutputs.beep
+                            : DEFAULT_METRONOME_OUTPUTS.beep,
+                    visual:
+                        typeof state.metronomeOutputs.visual === "boolean"
+                            ? state.metronomeOutputs.visual
+                            : DEFAULT_METRONOME_OUTPUTS.visual,
+                    haptic:
+                        typeof state.metronomeOutputs.haptic === "boolean"
+                            ? state.metronomeOutputs.haptic
+                            : DEFAULT_METRONOME_OUTPUTS.haptic,
+                }
+                : DEFAULT_METRONOME_OUTPUTS,
+        metronomeBeepLevel:
+            typeof state?.metronomeBeepLevel === "number" && Number.isFinite(state.metronomeBeepLevel)
+                ? clampMetronomeLevel(state.metronomeBeepLevel)
+                : DEFAULT_METRONOME_BEEP_LEVEL,
+        metronomeHapticLevel:
+            typeof state?.metronomeHapticLevel === "number" && Number.isFinite(state.metronomeHapticLevel)
+                ? clampMetronomeLevel(state.metronomeHapticLevel)
+                : DEFAULT_METRONOME_HAPTIC_LEVEL,
+        metronomeCountInBars:
+            typeof state?.metronomeCountInBars === "number" && Number.isFinite(state.metronomeCountInBars)
+                ? clampMetronomeCountInBars(state.metronomeCountInBars)
+                : DEFAULT_METRONOME_COUNT_IN_BARS,
         globalCustomClipTags: Array.isArray(state?.globalCustomClipTags) ? state.globalCustomClipTags : [],
         backupReminderFrequency: isBackupReminderFrequency(state?.backupReminderFrequency)
             ? state.backupReminderFrequency
@@ -177,6 +231,12 @@ export function buildPersistedAppStoreSnapshot(state: AppStore): PersistedAppSto
         collectionLastOpenedAt: state.collectionLastOpenedAt,
         playlists: state.playlists,
         preferredRecordingInputId: state.preferredRecordingInputId,
+        metronomeBpm: state.metronomeBpm,
+        metronomeMeterId: state.metronomeMeterId,
+        metronomeOutputs: state.metronomeOutputs,
+        metronomeBeepLevel: state.metronomeBeepLevel,
+        metronomeHapticLevel: state.metronomeHapticLevel,
+        metronomeCountInBars: state.metronomeCountInBars,
         globalCustomClipTags: state.globalCustomClipTags,
         backupReminderFrequency: state.backupReminderFrequency,
         lastSuccessfulBackupAt: state.lastSuccessfulBackupAt,

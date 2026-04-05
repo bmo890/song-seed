@@ -14,9 +14,11 @@ import { useRecording } from "../../hooks/useRecording";
 import { ClipVersion } from "../../types";
 import { buildDefaultIdeaTitle, ensureUniqueCountedTitle, genClipTitle } from "../../utils";
 import { RecordingInputPicker } from "./RecordingInputPicker";
+import { RecordingMetronomeSection } from "./RecordingMetronomeSection";
 import { getLatestLyricsVersion, lyricsDocumentToText } from "../../lyrics";
 import { PlayerLyricsPanel } from "../PlayerScreen/PlayerLyricsPanel";
 import { formatDate } from "../../utils";
+import { useMetronome } from "../../hooks/useMetronome";
 
 export function RecordingScreen() {
   const navigation = useNavigation();
@@ -37,6 +39,8 @@ export function RecordingScreen() {
 
   const [isPrimaryDraft, setIsPrimaryDraft] = useState(false);
   const [settingsVisible, setSettingsVisible] = useState(false);
+  const [recordingMetronomeEnabled, setRecordingMetronomeEnabled] = useState(false);
+  const [isArmingRecording, setIsArmingRecording] = useState(false);
   const [lyricsExpanded, setLyricsExpanded] = useState(false);
   const [lyricsAutoscrollMode, setLyricsAutoscrollMode] = useState<"off" | "follow" | "manual">("follow");
   const [lyricsAutoscrollSpeedMultiplier, setLyricsAutoscrollSpeedMultiplier] = useState(1);
@@ -52,6 +56,9 @@ export function RecordingScreen() {
   const setPreferredRecordingInputId = useStore((s) => s.setPreferredRecordingInputId);
   const updateIdeas = useStore((s) => s.updateIdeas);
   const handledSaveRequestRef = useRef<number | null>(null);
+  const countInPendingRef = useRef(false);
+  const initializedMetronomeRef = useRef(false);
+  const metronome = useMetronome();
 
   // Initialize recording natively!
   const recording = useRecording(
@@ -105,9 +112,33 @@ export function RecordingScreen() {
           )
       : fallbackClipTitle();
 
+  async function stopRecordingMetronome() {
+    if (!metronome.isRunning && !metronome.isCountIn) {
+      return;
+    }
+
+    try {
+      await metronome.stop();
+    } catch (error) {
+      console.warn("Recording metronome stop failed", error);
+    }
+  }
+
+  async function cancelPendingRecordingStart() {
+    countInPendingRef.current = false;
+    setIsArmingRecording(false);
+    await stopRecordingMetronome();
+    await recording.cancelPreparedRecording();
+  }
+
   async function cancelRecording() {
     if (!recordingIdea) return;
-    await recording.discardRecording();
+    if (isArmingRecording) {
+      await cancelPendingRecordingStart();
+    } else {
+      await stopRecordingMetronome();
+      await recording.discardRecording();
+    }
     if (recordingIdea.kind === "clip" && recordingIdea.clips.length === 0) {
       updateIdeas((prev) => prev.filter((i) => i.id !== recordingIdea.id));
     }
@@ -116,7 +147,8 @@ export function RecordingScreen() {
   }
 
   function confirmDiscardAndExit() {
-    const hasRecordingToDiscard = recording.isRecording || recording.isPaused || recording.elapsedMs > 0;
+    const hasRecordingToDiscard =
+      isArmingRecording || recording.isRecording || recording.isPaused || recording.elapsedMs > 0;
     if (!hasRecordingToDiscard) {
       navigation.goBack();
       return;
@@ -140,9 +172,11 @@ export function RecordingScreen() {
 
   async function requestSaveRecording() {
     if (!recordingIdea) return;
+    if (isArmingRecording) return;
     if (!recording.isRecording && !recording.isPaused) return;
     if (recording.isRecording && !recording.isPaused) {
       await recording.pauseRecording();
+      await stopRecordingMetronome();
     }
 
     setQuickNamingIdeaId(recordingIdea.id);
@@ -158,6 +192,7 @@ export function RecordingScreen() {
 
     const saved = await recording.saveRecording();
     if (!saved) return;
+    await stopRecordingMetronome();
 
     const suggestedTitle =
       recordingIdea?.kind === "project"
@@ -223,7 +258,96 @@ export function RecordingScreen() {
     void requestSaveRecording();
   }, [recordingSaveRequestToken]);
 
+  useEffect(() => {
+    if (initializedMetronomeRef.current) {
+      return;
+    }
+    initializedMetronomeRef.current = true;
+
+    if (!recording.isRecording && !recording.isPaused && (metronome.isRunning || metronome.isCountIn)) {
+      void stopRecordingMetronome();
+    }
+  }, [metronome.isCountIn, metronome.isRunning, recording.isPaused, recording.isRecording]);
+
+  useEffect(() => {
+    if (!countInPendingRef.current || metronome.countInCompletionToken === 0) {
+      return;
+    }
+
+    countInPendingRef.current = false;
+    void (async () => {
+      const started = await recording.startPreparedRecording();
+      setIsArmingRecording(false);
+      if (!started) {
+        await stopRecordingMetronome();
+      }
+    })();
+  }, [metronome.countInCompletionToken, recording, stopRecordingMetronome]);
+
+  async function handleStartRecording() {
+    if (isArmingRecording) {
+      return;
+    }
+
+    setSettingsVisible(false);
+
+    if (!recordingMetronomeEnabled || !metronome.isNativeAvailable) {
+      await recording.startRecording();
+      return;
+    }
+
+    const prepared = await recording.prepareRecording();
+    if (!prepared) {
+      return;
+    }
+
+    setIsArmingRecording(true);
+
+    try {
+      if (metronome.countInBars > 0) {
+        countInPendingRef.current = true;
+        await metronome.startCountIn(metronome.countInBars);
+        return;
+      }
+
+      await metronome.start();
+      const started = await recording.startPreparedRecording();
+      if (!started) {
+        await stopRecordingMetronome();
+      }
+    } catch (error) {
+      console.warn("Recording metronome start failed", error);
+      countInPendingRef.current = false;
+      await stopRecordingMetronome();
+      await recording.cancelPreparedRecording();
+    } finally {
+      if (!countInPendingRef.current) {
+        setIsArmingRecording(false);
+      }
+    }
+  }
+
+  async function handlePauseRecording() {
+    await recording.pauseRecording();
+    await stopRecordingMetronome();
+  }
+
+  async function handleResumeRecording() {
+    await recording.resumeRecording();
+    if (recordingMetronomeEnabled && metronome.isNativeAvailable) {
+      try {
+        await metronome.start();
+      } catch (error) {
+        console.warn("Recording metronome resume failed", error);
+      }
+    }
+  }
+
   function minimizeRecording() {
+    if (isArmingRecording) {
+      void cancelPendingRecordingStart().then(() => navigation.goBack());
+      return;
+    }
     if (navigation.canGoBack()) {
       navigation.goBack();
       return;
@@ -256,13 +380,23 @@ export function RecordingScreen() {
                 <Pressable
                   style={({ pressed }) => [
                     styles.recordingSettingsBtn,
-                    recording.isRecording && !recording.isPaused ? styles.recordingSettingsBtnDisabled : null,
+                    isArmingRecording || (recording.isRecording && !recording.isPaused)
+                      ? styles.recordingSettingsBtnDisabled
+                      : null,
                     pressed ? styles.pressDown : null,
                   ]}
                   onPress={() => setSettingsVisible(true)}
-                  disabled={recording.isRecording && !recording.isPaused}
+                  disabled={isArmingRecording || (recording.isRecording && !recording.isPaused)}
                 >
-                  <Ionicons name="ellipsis-horizontal" size={16} color={recording.isRecording && !recording.isPaused ? "#9ca3af" : "#111827"} />
+                  <Ionicons
+                    name="ellipsis-horizontal"
+                    size={16}
+                    color={
+                      isArmingRecording || (recording.isRecording && !recording.isPaused)
+                        ? "#9ca3af"
+                        : "#111827"
+                    }
+                  />
                 </Pressable>
               </View>
             }
@@ -319,15 +453,35 @@ export function RecordingScreen() {
         </ScrollView>
 
         <View style={styles.recordingBottomDock}>
+          <RecordingMetronomeSection
+            enabled={recordingMetronomeEnabled}
+            disabled={isArmingRecording || (recording.isRecording && !recording.isPaused)}
+            bpm={metronome.bpm}
+            meterId={metronome.meterId}
+            countInBars={metronome.countInBars}
+            outputs={metronome.outputs}
+            tapCount={metronome.tapCount}
+            isNativeAvailable={metronome.isNativeAvailable}
+            onToggleEnabled={setRecordingMetronomeEnabled}
+            onNudgeBpm={metronome.nudgeBpm}
+            onSetBpmValue={metronome.setBpmValue}
+            onTapTempo={metronome.tapTempo}
+            onResetTapTempo={metronome.clearTapTempo}
+            onSelectMeter={metronome.setMeterIdValue}
+            onSelectCountInBars={metronome.setCountInBarsValue}
+            onToggleOutput={metronome.toggleOutput}
+          />
+
           <RecordingControls
             isRecording={recording.isRecording}
             isPaused={recording.isPaused}
+            isArming={isArmingRecording}
             compact={false}
             canSave={recording.isRecording || recording.isPaused}
             onOpenInput={() => setSettingsVisible(true)}
-            onPause={recording.pauseRecording}
-            onResume={recording.resumeRecording}
-            onStart={recording.startRecording}
+            onPause={handlePauseRecording}
+            onResume={handleResumeRecording}
+            onStart={handleStartRecording}
             onRequestSave={requestSaveRecording}
           />
         </View>
@@ -375,7 +529,7 @@ export function RecordingScreen() {
             </View>
 
             <RecordingInputPicker
-              disabled={recording.isRecording && !recording.isPaused}
+              disabled={isArmingRecording || (recording.isRecording && !recording.isPaused)}
               preferredInputId={preferredRecordingInputId}
               onChangePreferredInputId={setPreferredRecordingInputId}
             />

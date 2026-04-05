@@ -39,6 +39,20 @@ import {
 } from "../services/managedMedia";
 import { authorizeIntentionalEmptyStateWrite } from "../services/stateIntegrity";
 import { relocateActivityEvents, relocatePlaylists } from "./relocationMetadata";
+import {
+    clampMetronomeBpm,
+    clampMetronomeCountInBars,
+    clampMetronomeLevel,
+    DEFAULT_METRONOME_BEEP_LEVEL,
+    DEFAULT_METRONOME_BPM,
+    DEFAULT_METRONOME_COUNT_IN_BARS,
+    DEFAULT_METRONOME_HAPTIC_LEVEL,
+    DEFAULT_METRONOME_METER_ID,
+    DEFAULT_METRONOME_OUTPUTS,
+    isMetronomeMeterId,
+    type MetronomeMeterId,
+    type MetronomeOutputs,
+} from "../metronome";
 
 export type DataSlice = {
     workspaces: Workspace[];
@@ -57,6 +71,12 @@ export type DataSlice = {
     backupReminderFrequency: BackupReminderFrequency;
     lastSuccessfulBackupAt: number | null;
     lastSuccessfulBackupFileName: string | null;
+    metronomeBpm: number;
+    metronomeMeterId: MetronomeMeterId;
+    metronomeOutputs: MetronomeOutputs;
+    metronomeBeepLevel: number;
+    metronomeHapticLevel: number;
+    metronomeCountInBars: number;
     setActiveWorkspaceId: (id: string) => void;
     setPrimaryWorkspaceId: (id: string | null) => void;
     setPrimaryCollectionId: (workspaceId: string, collectionId: string | null) => void;
@@ -64,6 +84,12 @@ export type DataSlice = {
     setWorkspaceListOrder: (value: WorkspaceListOrder) => void;
     markCollectionOpened: (collectionId: string) => void;
     setPreferredRecordingInputId: (id: string | null) => void;
+    setMetronomeBpm: (value: number) => void;
+    setMetronomeMeterId: (value: MetronomeMeterId) => void;
+    setMetronomeOutputEnabled: (key: keyof MetronomeOutputs, enabled: boolean) => void;
+    setMetronomeBeepLevel: (value: number) => void;
+    setMetronomeHapticLevel: (value: number) => void;
+    setMetronomeCountInBars: (value: number) => void;
     setBackupReminderFrequency: (value: BackupReminderFrequency) => void;
     setLastSuccessfulBackupAt: (timestamp: number | null) => void;
     setLastSuccessfulBackupFileName: (fileName: string | null) => void;
@@ -665,6 +691,12 @@ export const createDataSlice: StateCreator<
     collectionLastOpenedAt: {},
     playlists: [],
     preferredRecordingInputId: null,
+    metronomeBpm: DEFAULT_METRONOME_BPM,
+    metronomeMeterId: DEFAULT_METRONOME_METER_ID,
+    metronomeOutputs: DEFAULT_METRONOME_OUTPUTS,
+    metronomeBeepLevel: DEFAULT_METRONOME_BEEP_LEVEL,
+    metronomeHapticLevel: DEFAULT_METRONOME_HAPTIC_LEVEL,
+    metronomeCountInBars: DEFAULT_METRONOME_COUNT_IN_BARS,
     globalCustomClipTags: [],
     backupReminderFrequency: "monthly",
     lastSuccessfulBackupAt: null,
@@ -739,6 +771,24 @@ export const createDataSlice: StateCreator<
             };
         }),
     setPreferredRecordingInputId: (id) => set({ preferredRecordingInputId: id }),
+    setMetronomeBpm: (value) => set({ metronomeBpm: clampMetronomeBpm(value) }),
+    setMetronomeMeterId: (value) =>
+        set((state) => (state.metronomeMeterId === value ? state : { metronomeMeterId: value })),
+    setMetronomeOutputEnabled: (key, enabled) =>
+        set((state) => {
+            if (state.metronomeOutputs[key] === enabled) {
+                return state;
+            }
+            return {
+                metronomeOutputs: {
+                    ...state.metronomeOutputs,
+                    [key]: enabled,
+                },
+            };
+        }),
+    setMetronomeBeepLevel: (value) => set({ metronomeBeepLevel: clampMetronomeLevel(value) }),
+    setMetronomeHapticLevel: (value) => set({ metronomeHapticLevel: clampMetronomeLevel(value) }),
+    setMetronomeCountInBars: (value) => set({ metronomeCountInBars: clampMetronomeCountInBars(value) }),
     setBackupReminderFrequency: (value) => set({ backupReminderFrequency: value }),
     setLastSuccessfulBackupAt: (timestamp) => set({ lastSuccessfulBackupAt: timestamp }),
     setLastSuccessfulBackupFileName: (fileName) => set({ lastSuccessfulBackupFileName: fileName }),

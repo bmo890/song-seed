@@ -5,6 +5,7 @@ import { ScreenHeader } from "../../common/ScreenHeader";
 import { styles } from "../styles";
 import { useMetronomeScreenModel } from "../hooks/useMetronomeScreenModel";
 import { MetronomeHero } from "./MetronomeHero";
+import { MetronomeMeterSection } from "./MetronomeMeterSection";
 import { MetronomeTempoSection } from "./MetronomeTempoSection";
 import { MetronomeTapTempoSection } from "./MetronomeTapTempoSection";
 import { MetronomeOutputsSection } from "./MetronomeOutputsSection";
@@ -28,6 +29,10 @@ export function MetronomeScreenContent() {
         </View>
 
         <MetronomeHero model={model} />
+        <MetronomeMeterSection
+          meterId={model.meterId}
+          onSelectMeter={model.setMeterIdValue}
+        />
         <MetronomeTempoSection
           bpm={model.bpm}
           onNudge={model.nudgeBpm}

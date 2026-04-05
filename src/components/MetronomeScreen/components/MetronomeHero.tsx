@@ -45,11 +45,11 @@ export function MetronomeHero({ model }: { model: MetronomeModel }) {
         style={({ pressed }) => [
           styles.primaryAction,
           model.isRunning ? styles.primaryActionStop : null,
-          model.isPreparing ? styles.primaryActionDisabled : null,
+          model.isPreparing || !model.isNativeAvailable ? styles.primaryActionDisabled : null,
           pressed ? styles.pressDown : null,
         ]}
         onPress={model.toggleRunning}
-        disabled={model.isPreparing}
+        disabled={model.isPreparing || !model.isNativeAvailable}
       >
         <Text
           style={[
@@ -62,7 +62,9 @@ export function MetronomeHero({ model }: { model: MetronomeModel }) {
       </Pressable>
 
       <Text style={styles.statusLabel}>
-        {model.isPreparing
+        {!model.isNativeAvailable
+          ? "Rebuild the app to enable the native metronome engine."
+          : model.isPreparing
           ? "Rendering the click loop for this tempo."
           : model.isRunning
             ? model.activeOutputCount === 0

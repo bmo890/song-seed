@@ -1,8 +1,17 @@
 export type MetronomeOutputKey = "beep" | "visual" | "haptic";
 export type MetronomeBeepLevel = number;
 export type MetronomeHapticLevel = number;
+export type MetronomeMeterId = "3/4" | "4/4" | "5/4" | "6/8";
 
 export type MetronomeOutputs = Record<MetronomeOutputKey, boolean>;
+export type MetronomeMeterPreset = {
+  id: MetronomeMeterId;
+  label: string;
+  numerator: number;
+  denominator: 4 | 8;
+  pulsesPerBar: number;
+  accentPattern: number[];
+};
 
 export const MIN_METRONOME_BPM = 40;
 export const MAX_METRONOME_BPM = 240;
@@ -10,6 +19,9 @@ export const DEFAULT_METRONOME_BPM = 92;
 export const TAP_TEMPO_RESET_MS = 2200;
 export const MAX_TAP_HISTORY = 8;
 export const METRONOME_LOOP_BEAT_COUNT = 4;
+export const DEFAULT_METRONOME_METER_ID: MetronomeMeterId = "4/4";
+export const METRONOME_COUNT_IN_BAR_OPTIONS = [0, 1, 2] as const;
+export const DEFAULT_METRONOME_COUNT_IN_BARS = 1;
 
 export const DEFAULT_METRONOME_OUTPUTS: MetronomeOutputs = {
   beep: true,
@@ -22,6 +34,41 @@ export const MAX_METRONOME_LEVEL = 100;
 
 export const DEFAULT_METRONOME_BEEP_LEVEL: MetronomeBeepLevel = 72;
 export const DEFAULT_METRONOME_HAPTIC_LEVEL: MetronomeHapticLevel = 96;
+
+export const METRONOME_METER_PRESETS: readonly MetronomeMeterPreset[] = [
+  {
+    id: "3/4",
+    label: "3/4",
+    numerator: 3,
+    denominator: 4,
+    pulsesPerBar: 3,
+    accentPattern: [1, 0.48, 0.48],
+  },
+  {
+    id: "4/4",
+    label: "4/4",
+    numerator: 4,
+    denominator: 4,
+    pulsesPerBar: 4,
+    accentPattern: [1, 0.46, 0.72, 0.46],
+  },
+  {
+    id: "5/4",
+    label: "5/4",
+    numerator: 5,
+    denominator: 4,
+    pulsesPerBar: 5,
+    accentPattern: [1, 0.46, 0.7, 0.46, 0.46],
+  },
+  {
+    id: "6/8",
+    label: "6/8",
+    numerator: 6,
+    denominator: 8,
+    pulsesPerBar: 6,
+    accentPattern: [1, 0.4, 0.32, 0.84, 0.4, 0.32],
+  },
+] as const;
 
 export function clampMetronomeBpm(value: number) {
   return Math.min(MAX_METRONOME_BPM, Math.max(MIN_METRONOME_BPM, Math.round(value)));
@@ -52,8 +99,29 @@ export function formatMetronomeLevel(level: number) {
   return `${clampMetronomeLevel(level)}%`;
 }
 
+export function isMetronomeMeterId(value: unknown): value is MetronomeMeterId {
+  return METRONOME_METER_PRESETS.some((preset) => preset.id === value);
+}
+
+export function getMetronomeMeterPreset(meterId: MetronomeMeterId) {
+  return (
+    METRONOME_METER_PRESETS.find((preset) => preset.id === meterId) ??
+    METRONOME_METER_PRESETS.find((preset) => preset.id === DEFAULT_METRONOME_METER_ID)!
+  );
+}
+
 export function getMetronomeBeatIntervalMs(bpm: number) {
   return 60000 / clampMetronomeBpm(bpm);
+}
+
+export function getMetronomeLoopBeatCountForMeter(meterId: MetronomeMeterId) {
+  return getMetronomeMeterPreset(meterId).pulsesPerBar;
+}
+
+export function clampMetronomeCountInBars(value: number) {
+  const minBars = METRONOME_COUNT_IN_BAR_OPTIONS[0];
+  const maxBars = METRONOME_COUNT_IN_BAR_OPTIONS[METRONOME_COUNT_IN_BAR_OPTIONS.length - 1];
+  return Math.min(maxBars, Math.max(minBars, Math.round(value)));
 }
 
 export function shouldResetTapTempo(lastTapAt: number | null, nextTapAt: number) {

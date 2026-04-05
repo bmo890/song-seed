@@ -6,6 +6,7 @@ import { styles } from "../../styles";
 type Props = {
     isRecording: boolean;
     isPaused: boolean;
+    isArming?: boolean;
     compact?: boolean;
     canSave?: boolean;
     onOpenInput: () => void;
@@ -18,6 +19,7 @@ type Props = {
 export function RecordingControls({
     isRecording,
     isPaused,
+    isArming = false,
     compact = false,
     canSave = true,
     onOpenInput,
@@ -32,23 +34,30 @@ export function RecordingControls({
                 style={({ pressed }) => [
                     styles.circleControlBtn,
                     compact ? styles.circleControlBtnCompact : null,
-                    isRecording && !isPaused ? styles.circleControlBtnDisabled : null,
+                    isArming || (isRecording && !isPaused) ? styles.circleControlBtnDisabled : null,
                     pressed ? styles.pressDown : null,
                 ]}
                 onPress={onOpenInput}
-                disabled={isRecording && !isPaused}
+                disabled={isArming || (isRecording && !isPaused)}
             >
-                <Ionicons name="headset-outline" size={compact ? 20 : 24} color={isRecording && !isPaused ? "#9ca3af" : "#374151"} />
+                <Ionicons
+                    name="headset-outline"
+                    size={compact ? 20 : 24}
+                    color={isArming || (isRecording && !isPaused) ? "#9ca3af" : "#374151"}
+                />
             </Pressable>
 
             <Pressable
                 style={({ pressed }) => [
                     styles.circleRecordBtn,
                     compact ? styles.circleRecordBtnCompact : null,
-                    !isPaused ? styles.circleRecordBtnActive : null,
+                    isArming || !isPaused ? styles.circleRecordBtnActive : null,
                     pressed ? styles.pressDownStrong : null,
                 ]}
                 onPress={async () => {
+                    if (isArming) {
+                        return;
+                    }
                     if (!isRecording) {
                         await onStart();
                         return;
@@ -59,20 +68,29 @@ export function RecordingControls({
                     }
                     await onPause();
                 }}
+                disabled={isArming}
             >
-                <Ionicons name={!isRecording || isPaused ? "mic" : "pause"} size={compact ? 28 : 34} color="#fff" />
+                <Ionicons
+                    name={isArming ? "timer-outline" : !isRecording || isPaused ? "mic" : "pause"}
+                    size={compact ? 28 : 34}
+                    color="#fff"
+                />
             </Pressable>
 
             <Pressable
                 style={[
                     styles.circleControlBtn,
                     compact ? styles.circleControlBtnCompact : null,
-                    !canSave ? styles.circleControlBtnDisabled : null,
+                    !canSave || isArming ? styles.circleControlBtnDisabled : null,
                 ]}
                 onPress={onRequestSave}
-                disabled={!canSave}
+                disabled={!canSave || isArming}
             >
-                <Ionicons name="save-outline" size={compact ? 20 : 24} color={!canSave ? "#9ca3af" : "#374151"} />
+                <Ionicons
+                    name="save-outline"
+                    size={compact ? 20 : 24}
+                    color={!canSave || isArming ? "#9ca3af" : "#374151"}
+                />
             </Pressable>
         </View>
     );
