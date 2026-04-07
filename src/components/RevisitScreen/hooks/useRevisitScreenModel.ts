@@ -31,10 +31,6 @@ export function useRevisitScreenModel() {
   const excludedCollectionIds = useRevisitStore((state) => state.excludedCollectionIds);
   const hiddenCandidateIds = useRevisitStore((state) => state.hiddenCandidateIds);
   const snoozedUntilById = useRevisitStore((state) => state.snoozedUntilById);
-  const ageBias = useRevisitStore((state) => state.ageBias);
-  const density = useRevisitStore((state) => state.density);
-  const setAgeBias = useRevisitStore((state) => state.setAgeBias);
-  const setDensity = useRevisitStore((state) => state.setDensity);
   const setWorkspaceIncluded = useRevisitStore((state) => state.setWorkspaceIncluded);
   const setCollectionIncluded = useRevisitStore((state) => state.setCollectionIncluded);
   const resetSourceFilters = useRevisitStore((state) => state.resetSourceFilters);
@@ -61,14 +57,10 @@ export function useRevisitScreenModel() {
       snoozedUntilById,
       vaultExposureCountById: revisitState.vaultExposureCountById,
       vaultLastSeenAtById: revisitState.vaultLastSeenAtById,
-      ageBias,
-      density,
       now,
     });
   }, [
-    ageBias,
     activityEvents,
-    density,
     excludedCollectionIds,
     excludedWorkspaceIds,
     hiddenCandidateIds,
@@ -205,16 +197,12 @@ export function useRevisitScreenModel() {
   return {
     now,
     isAroundSnapshotOpen,
-    ageBias,
-    density,
     revisitModel,
     hasSourceOverrides,
     hasHiddenItems,
     workspaceFilterGroups,
     expandedWorkspaceId,
     setExpandedWorkspaceId,
-    setAgeBias,
-    setDensity,
     setWorkspaceIncluded,
     setCollectionIncluded,
     resetSourceFilters,

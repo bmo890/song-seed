@@ -8,8 +8,6 @@ const AROUND_THIS_TIME_WINDOW_DAYS = 30;
 const AROUND_THIS_TIME_SNAPSHOT_LIMIT = 10;
 
 export type RevisitSectionKey = "pickup" | "forgotten" | "vault" | "around";
-export type RevisitAgeBias = "balanced" | "older" | "deep-cuts";
-export type RevisitDensity = "less" | "more";
 
 export type RevisitCandidate = {
   key: string;
@@ -83,8 +81,6 @@ type BuildRevisitModelArgs = {
   snoozedUntilById: Record<string, number>;
   vaultExposureCountById: Record<string, number>;
   vaultLastSeenAtById: Record<string, number>;
-  ageBias?: RevisitAgeBias;
-  density?: RevisitDensity;
   now?: number;
 };
 
@@ -129,23 +125,14 @@ function hashFraction(seed: string) {
   return ((hash >>> 0) % 10000) / 10000;
 }
 
-function pickDailySubsetCount(
-  sectionKey: RevisitSectionKey,
-  density: RevisitDensity,
-  poolSize: number,
-  rotationKey: string
-) {
+function pickDailySubsetCount(sectionKey: RevisitSectionKey, poolSize: number, rotationKey: string) {
   if (poolSize <= 0) return 0;
   if (sectionKey === "around") return 1;
 
   const range =
-    density === "less"
-      ? sectionKey === "vault"
-        ? { min: 1, max: 2 }
-        : { min: 1, max: 3 }
-      : sectionKey === "vault"
-        ? { min: 2, max: 4 }
-        : { min: 2, max: 5 };
+    sectionKey === "vault"
+      ? { min: 2, max: 4 }
+      : { min: 2, max: 5 };
 
   const min = Math.min(range.min, poolSize);
   const max = Math.min(range.max, poolSize);
@@ -172,12 +159,11 @@ function shuffleCandidatesDaily<T extends { key: string }>(
 function buildDailyCandidateWindow(
   candidates: RevisitCandidate[],
   sectionKey: RevisitSectionKey,
-  density: RevisitDensity,
   rotationKey: string
 ) {
   if (candidates.length === 0) return candidates;
 
-  const visibleCount = pickDailySubsetCount(sectionKey, density, candidates.length, rotationKey);
+  const visibleCount = pickDailySubsetCount(sectionKey, candidates.length, rotationKey);
   const windowSize = Math.min(
     candidates.length,
     Math.max(visibleCount + 2, visibleCount * 2)
@@ -531,36 +517,19 @@ function getRevisitThresholds(): RevisitThresholds {
   };
 }
 
-function getAgeBiasScoreBoost(ageBias: RevisitAgeBias, ageDays: number) {
-  if (ageBias === "older") {
-    return Math.min(ageDays, 240) * 0.1;
-  }
-
-  if (ageBias === "deep-cuts") {
-    return Math.min(ageDays, 365) * 0.18;
-  }
-
-  return 0;
-}
-
-function applyAgeBiasToCandidates(
+function applyStandardAgeBias(
   candidates: RevisitCandidate[],
-  ageBias: RevisitAgeBias,
   scoreKey: "pickupScore" | "forgottenScore" | "vaultScore"
 ) {
-  if (ageBias === "balanced") {
-    return candidates;
-  }
-
   return candidates
     .map((candidate) => ({
       ...candidate,
       [scoreKey]:
         candidate[scoreKey] +
-        getAgeBiasScoreBoost(
-          ageBias,
-          scoreKey === "pickupScore" ? candidate.ageDays : candidate.archiveAgeDays
-        ),
+        Math.min(
+          scoreKey === "pickupScore" ? candidate.ageDays : candidate.archiveAgeDays,
+          scoreKey === "pickupScore" ? 240 : 365
+        ) * (scoreKey === "pickupScore" ? 0.1 : 0.18),
     }))
     .sort((a, b) => compareByScore(a, b, scoreKey));
 }
@@ -610,8 +579,6 @@ export function buildRevisitModel({
   snoozedUntilById,
   vaultExposureCountById,
   vaultLastSeenAtById,
-  ageBias = "older",
-  density = "less",
   now = Date.now(),
 }: BuildRevisitModelArgs): RevisitModel {
   const activeWorkspaces = workspaces.filter((workspace) => !workspace.isArchived);
@@ -750,12 +717,12 @@ export function buildRevisitModel({
         candidate.ageDays >= thresholds.pickupMinAgeDays &&
         (candidate.itemKind === "project"
           ? (
-              candidate.sessionsCount >= 2 ||
+              candidate.sessionsCount >= 1 ||
               candidate.variationCount >= 1 ||
               candidate.hasNotes ||
               candidate.hasLyrics ||
               candidate.wasRenamed ||
-              candidate.completionPct >= 25
+              candidate.completionPct >= 10
             )
           : (
               candidate.sessionsCount >= 2 ||
@@ -767,11 +734,10 @@ export function buildRevisitModel({
             ))
     )
     .sort((a, b) => compareByScore(a, b, "pickupScore"));
-  const pickupPool = applyAgeBiasToCandidates(pickupPoolBase, ageBias, "pickupScore");
+  const pickupPool = applyStandardAgeBias(pickupPoolBase, "pickupScore");
   const pickupItems = buildDailyCandidateWindow(
     pickupPool,
     "pickup",
-    density,
     rotationKey
   )
     .map((candidate) => ({
@@ -788,15 +754,10 @@ export function buildRevisitModel({
         isForgottenCandidate(candidate, thresholds.forgottenMinAgeDays)
     )
     .sort((a, b) => compareByScore(a, b, "forgottenScore"));
-  const forgottenPool = applyAgeBiasToCandidates(
-    forgottenPoolBase,
-    ageBias,
-    "forgottenScore"
-  );
+  const forgottenPool = applyStandardAgeBias(forgottenPoolBase, "forgottenScore");
   const forgottenItems = buildDailyCandidateWindow(
     forgottenPool,
     "forgotten",
-    density,
     rotationKey
   )
     .map((candidate) => ({
@@ -815,8 +776,8 @@ export function buildRevisitModel({
         isVaultCandidate(candidate, thresholds.vaultMinAgeDays)
     )
     .sort((a, b) => compareByScore(a, b, "vaultScore"));
-  const vaultPool = applyAgeBiasToCandidates(vaultPoolBase, ageBias, "vaultScore");
-  const vaultWindow = buildDailyCandidateWindow(vaultPool, "vault", density, rotationKey);
+  const vaultPool = applyStandardAgeBias(vaultPoolBase, "vaultScore");
+  const vaultWindow = buildDailyCandidateWindow(vaultPool, "vault", rotationKey);
   const vaultItems = pickVaultItems(vaultWindow, vaultWindow.length).map((candidate) => ({
     candidate,
     reason: buildVaultReason(candidate),
@@ -879,7 +840,7 @@ export function buildRevisitModel({
         title: "Pick Up",
         subtitle: "Things that had some momentum and feel worth resuming.",
         items: pickupItems,
-        emptyTitle: "Nothing ready right now",
+        emptyTitle: "No stalled work with momentum right now",
         emptySubtitle: "Check back later.",
       },
       {

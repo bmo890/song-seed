@@ -1,7 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
-import type { RevisitAgeBias, RevisitDensity } from "../revisit";
 
 type PersistedRevisitState = {
   excludedWorkspaceIds: string[];
@@ -11,13 +10,9 @@ type PersistedRevisitState = {
   vaultExposureCountById: Record<string, number>;
   vaultLastSeenAtById: Record<string, number>;
   vaultLastSessionKeyById: Record<string, string>;
-  ageBias: RevisitAgeBias;
-  density: RevisitDensity;
 };
 
 export type RevisitStore = PersistedRevisitState & {
-  setAgeBias: (value: RevisitAgeBias) => void;
-  setDensity: (value: RevisitDensity) => void;
   setWorkspaceIncluded: (workspaceId: string, included: boolean) => void;
   setCollectionIncluded: (collectionId: string, included: boolean) => void;
   resetSourceFilters: () => void;
@@ -29,15 +24,7 @@ export type RevisitStore = PersistedRevisitState & {
 };
 
 const STORE_NAME = "song-seed-revisit-store";
-const STORE_VERSION = 2;
-
-function sanitizeAgeBias(value: unknown): RevisitAgeBias {
-  return value === "balanced" || value === "deep-cuts" ? value : "older";
-}
-
-function sanitizeDensity(value: unknown): RevisitDensity {
-  return value === "more" ? "more" : "less";
-}
+const STORE_VERSION = 3;
 
 function sanitizeStringArray(value: unknown) {
   if (!Array.isArray(value)) return [];
@@ -73,8 +60,6 @@ function sanitizePersistedState(state?: Partial<PersistedRevisitState>): Persist
     vaultExposureCountById: sanitizeNumericRecord(state?.vaultExposureCountById),
     vaultLastSeenAtById: sanitizeNumericRecord(state?.vaultLastSeenAtById),
     vaultLastSessionKeyById: sanitizeStringRecord(state?.vaultLastSessionKeyById),
-    ageBias: sanitizeAgeBias(state?.ageBias),
-    density: sanitizeDensity((state as { density?: unknown } | undefined)?.density),
   };
 }
 
@@ -98,18 +83,6 @@ export const useRevisitStore = create<RevisitStore>()(
       vaultExposureCountById: {},
       vaultLastSeenAtById: {},
       vaultLastSessionKeyById: {},
-      ageBias: "older",
-      density: "less",
-
-      setAgeBias: (value: RevisitAgeBias) =>
-        set({
-          ageBias: value,
-        }),
-
-      setDensity: (value: RevisitDensity) =>
-        set({
-          density: value,
-        }),
 
       setWorkspaceIncluded: (workspaceId: string, included: boolean) =>
         set((state: RevisitStore) => ({
@@ -219,8 +192,6 @@ export const useRevisitStore = create<RevisitStore>()(
         vaultExposureCountById: state.vaultExposureCountById,
         vaultLastSeenAtById: state.vaultLastSeenAtById,
         vaultLastSessionKeyById: state.vaultLastSessionKeyById,
-        ageBias: state.ageBias,
-        density: state.density,
       }),
       merge: (persistedState, currentState) => ({
         ...currentState,

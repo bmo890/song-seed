@@ -6,80 +6,8 @@ export const revisitStyles = StyleSheet.create({
     paddingBottom: 120,
     gap: 14,
   },
-  summaryCard: {
-    gap: 12,
-  },
-  summaryRow: {
-    flexDirection: "row",
-    alignItems: "stretch",
-    gap: 10,
-  },
-  summaryStat: {
-    flex: 1,
-    borderRadius: 16,
-    backgroundColor: "#fff7ed",
-    borderWidth: 1,
-    borderColor: "#fed7aa",
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    gap: 2,
-  },
-  summaryValue: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: "#7c2d12",
-  },
-  summaryLabel: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: "#9a3412",
-  },
   filterPanel: {
     gap: 12,
-  },
-  tuningPanel: {
-    gap: 12,
-  },
-  tuningHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 10,
-  },
-  tuningMetaText: {
-    fontSize: 12,
-    color: "#64748b",
-    fontWeight: "600",
-  },
-  tuningGroup: {
-    gap: 8,
-  },
-  tuningLabel: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: "#9a3412",
-    textTransform: "uppercase",
-    letterSpacing: 0.4,
-  },
-  tuningChip: {
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: "#e2e8f0",
-    backgroundColor: "#f8fafc",
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-  },
-  tuningChipSelected: {
-    backgroundColor: "#fff7ed",
-    borderColor: "#fdba74",
-  },
-  tuningChipText: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: "#475569",
-  },
-  tuningChipTextSelected: {
-    color: "#9a3412",
   },
   filterPanelHeader: {
     flexDirection: "row",

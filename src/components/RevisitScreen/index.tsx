@@ -9,7 +9,6 @@ import { useBrowseRootBackHandler } from "../../hooks/useBrowseRootBackHandler";
 import { useRevisitScreenModel } from "./hooks/useRevisitScreenModel";
 import { revisitStyles } from "./styles";
 import { RevisitAroundSnapshotView } from "./components/RevisitAroundSnapshotView";
-import { RevisitTuningPanel } from "./components/RevisitTuningPanel";
 import { RevisitWorkspaceFilterRow } from "./components/RevisitWorkspaceFilterRow";
 import { RevisitSectionBlock } from "./components/RevisitSectionBlock";
 
@@ -50,36 +49,6 @@ export function RevisitScreen() {
           />
         ) : (
           <>
-            <View style={[styles.card, revisitStyles.summaryCard]}>
-              <View style={revisitStyles.summaryRow}>
-                <View style={revisitStyles.summaryStat}>
-                  <Text style={revisitStyles.summaryValue}>{screen.revisitModel.totalEligibleCount}</Text>
-                  <Text style={revisitStyles.summaryLabel}>ready now</Text>
-                </View>
-                <View style={revisitStyles.summaryStat}>
-                  <Text style={revisitStyles.summaryValue}>
-                    {screen.revisitModel.workspaceOptions.filter((item) => item.included).length}
-                  </Text>
-                  <Text style={revisitStyles.summaryLabel}>workspaces</Text>
-                </View>
-                <View style={revisitStyles.summaryStat}>
-                  <Text style={revisitStyles.summaryValue}>
-                    {screen.revisitModel.sections.find((section) => section.key === "vault")?.totalCount ??
-                      screen.revisitModel.sections.find((section) => section.key === "vault")?.items.length ??
-                      0}
-                  </Text>
-                  <Text style={revisitStyles.summaryLabel}>vault</Text>
-                </View>
-              </View>
-            </View>
-
-            <RevisitTuningPanel
-              ageBias={screen.ageBias}
-              density={screen.density}
-              onSetAgeBias={screen.setAgeBias}
-              onSetDensity={screen.setDensity}
-            />
-
             <View style={[styles.card, revisitStyles.filterPanel]}>
               <View style={revisitStyles.filterPanelHeader}>
                 <Text style={revisitStyles.filterPanelTitle}>Sources</Text>
