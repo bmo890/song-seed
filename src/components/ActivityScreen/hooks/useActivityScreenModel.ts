@@ -4,7 +4,6 @@ import { useNavigation, useRoute } from "@react-navigation/native";
 import { useStore } from "../../../state/useStore";
 import { useInlinePlayer } from "../../../hooks/useInlinePlayer";
 import {
-  type ActivityMetricFilter,
   buildActivityCountsByDay,
   buildActivityHeatmapMatrix,
   buildActivityRangeEntries,
@@ -29,6 +28,7 @@ type ActivityItemRef = { workspaceId: string; ideaId: string; ideaKind: "song" |
 type ActivityCollectionRef = ActivityItemRef & { collectionId: string };
 
 export function useActivityScreenModel() {
+  const metricFilter = "both" as const;
   const navigation = useNavigation<any>();
   const rootNavigation = navigation.getParent?.();
   const navigateRoot = (routeName: string, params?: object) =>
@@ -37,6 +37,19 @@ export function useActivityScreenModel() {
   const routeParams = route.params ?? {};
   const scopedCollectionId = routeParams.collectionId as string | undefined;
   const scopedWorkspaceId = routeParams.workspaceId as string | undefined;
+  const routeYear = typeof routeParams.year === "number" ? routeParams.year : undefined;
+  const routeRangeStartTs =
+    typeof routeParams.rangeStartTs === "number"
+      ? startOfActivityDay(routeParams.rangeStartTs)
+      : undefined;
+  const routeRangeEndTs =
+    typeof routeParams.rangeEndTs === "number"
+      ? startOfActivityDay(routeParams.rangeEndTs)
+      : routeRangeStartTs;
+  const routeHasPrefilledRange =
+    typeof routeYear === "number" &&
+    typeof routeRangeStartTs === "number" &&
+    typeof routeRangeEndTs === "number";
 
   const workspaces = useStore((state) => state.workspaces);
   const primaryWorkspaceId = useStore((state) => state.primaryWorkspaceId);
@@ -102,7 +115,6 @@ export function useActivityScreenModel() {
     scopedCollectionId ? collectionScopeWorkspace?.id ?? null : null
   );
   const [collectionFilterId, setCollectionFilterId] = useState<string | null>(null);
-  const [metricFilter, setMetricFilter] = useState<ActivityMetricFilter>("both");
   const [stickyDayLabel, setStickyDayLabel] = useState<string | null>(null);
   const [stickyDayTop, setStickyDayTop] = useState(0);
   const [resultsSectionTop, setResultsSectionTop] = useState(0);
@@ -118,9 +130,22 @@ export function useActivityScreenModel() {
     return new Date(latestTs).getFullYear();
   }, [allActivityEvents]);
   const currentYear = new Date().getFullYear();
-  const [year, setYear] = useState(latestActivityYear);
-  const [rangeStartTs, setRangeStartTs] = useState<number | null>(null);
-  const [rangeEndTs, setRangeEndTs] = useState<number | null>(null);
+  const [year, setYear] = useState(routeYear ?? latestActivityYear);
+  const [rangeStartTs, setRangeStartTs] = useState<number | null>(routeRangeStartTs ?? null);
+  const [rangeEndTs, setRangeEndTs] = useState<number | null>(routeRangeEndTs ?? null);
+  const [isRouteRangeActive, setIsRouteRangeActive] = useState(routeHasPrefilledRange);
+
+  useEffect(() => {
+    if (!routeHasPrefilledRange || routeYear == null || routeRangeStartTs == null || routeRangeEndTs == null) {
+      setIsRouteRangeActive(false);
+      return;
+    }
+
+    setYear(routeYear);
+    setRangeStartTs(routeRangeStartTs);
+    setRangeEndTs(routeRangeEndTs);
+    setIsRouteRangeActive(true);
+  }, [routeHasPrefilledRange, routeRangeEndTs, routeRangeStartTs, routeYear]);
 
   const effectiveWorkspaceId = scopedCollectionId ? collectionScopeWorkspace?.id ?? null : workspaceFilterId;
   const effectiveCollectionFilterId = scopedCollectionId ?? collectionFilterId;
@@ -148,15 +173,18 @@ export function useActivityScreenModel() {
         metric: metricFilter,
         year,
       }),
-    [allActivityEvents, effectiveCollectionFilterId, effectiveWorkspaceId, metricFilter, workspaces, year]
+    [allActivityEvents, effectiveCollectionFilterId, effectiveWorkspaceId, workspaces, year]
   );
 
   useEffect(() => {
+    if (isRouteRangeActive) {
+      return;
+    }
     const fallbackTs = filteredEvents[0]?.at ?? new Date(year, 0, 1).getTime();
     const fallbackDay = startOfActivityDay(fallbackTs);
     setRangeStartTs(fallbackDay);
     setRangeEndTs(fallbackDay);
-  }, [effectiveCollectionFilterId, effectiveWorkspaceId, filteredEvents, metricFilter, year]);
+  }, [effectiveCollectionFilterId, effectiveWorkspaceId, filteredEvents, isRouteRangeActive, year]);
 
   const countsByDay = useMemo(() => buildActivityCountsByDay(filteredEvents), [filteredEvents]);
   const maxDailyCount = useMemo(() => Math.max(0, ...Array.from(countsByDay.values())), [countsByDay]);
@@ -321,7 +349,6 @@ export function useActivityScreenModel() {
     collectionFilterId,
     setCollectionFilterId,
     metricFilter,
-    setMetricFilter,
     stickyDayLabel,
     showStickyDayChip,
     stickyDayTop,
@@ -338,14 +365,26 @@ export function useActivityScreenModel() {
     legendSwatches,
     selectedRangeEntries,
     itemResults,
-    onChangeYear: (nextYear: number) => setYear(Math.min(nextYear, currentYear)),
+    onChangeYear: (nextYear: number) => {
+      setIsRouteRangeActive(false);
+      setYear(Math.min(nextYear, currentYear));
+    },
+    onJumpToToday: () => {
+      setIsRouteRangeActive(false);
+      const today = startOfActivityDay(Date.now());
+      setYear(new Date(today).getFullYear());
+      setRangeStartTs(today);
+      setRangeEndTs(today);
+    },
     onPressMonth: (month: number) => {
+      setIsRouteRangeActive(false);
       const monthStart = startOfActivityDay(new Date(year, month, 1).getTime());
       const monthEnd = startOfActivityDay(new Date(year, month + 1, 0).getTime());
       setRangeStartTs(monthStart);
       setRangeEndTs(monthEnd);
     },
     onPressDay: (dayTs: number) => {
+      setIsRouteRangeActive(false);
       const normalizedDay = startOfActivityDay(dayTs);
       if (rangeStartTs == null || rangeEndTs != null) {
         setRangeStartTs(normalizedDay);

@@ -2572,6 +2572,21 @@ export const styles = StyleSheet.create({
     alignItems: "center",
     gap: 8,
   },
+  activityTodayBtn: {
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "#dbe2ea",
+    backgroundColor: "#ffffff",
+    paddingHorizontal: 10,
+    height: 30,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  activityTodayBtnText: {
+    fontSize: 12,
+    color: "#334155",
+    fontWeight: "700",
+  },
   activityYearBtn: {
     width: 30,
     height: 30,
@@ -2868,6 +2883,11 @@ export const styles = StyleSheet.create({
     lineHeight: 18,
     color: "#0f172a",
     fontWeight: "700",
+  },
+  activityResultMetaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
   },
   activityResultMeta: {
     fontSize: 11,

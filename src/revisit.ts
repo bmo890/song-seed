@@ -4,8 +4,12 @@ import type { ActivityEvent, ClipVersion, SongIdea, Workspace } from "./types";
 import { getCollectionAncestors, getCollectionById, getCollectionScopeIds } from "./utils";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+const AROUND_THIS_TIME_WINDOW_DAYS = 30;
+const AROUND_THIS_TIME_SNAPSHOT_LIMIT = 10;
 
 export type RevisitSectionKey = "pickup" | "forgotten" | "vault" | "around";
+export type RevisitAgeBias = "balanced" | "older" | "deep-cuts";
+export type RevisitDensity = "less" | "more";
 
 export type RevisitCandidate = {
   key: string;
@@ -21,6 +25,7 @@ export type RevisitCandidate = {
   createdAt: number;
   updatedAt: number;
   ageDays: number;
+  archiveAgeDays: number;
   sessionsCount: number;
   updateEventCount: number;
   variationCount: number;
@@ -44,8 +49,20 @@ export type RevisitSection = {
   title: string;
   subtitle: string;
   items: RevisitSectionItem[];
+  totalCount?: number;
+  actionLabel?: string;
   emptyTitle: string;
   emptySubtitle: string;
+};
+
+export type RevisitAroundSnapshot = {
+  title: string;
+  subtitle: string;
+  windowLabel: string;
+  year: number;
+  startTs: number;
+  endTs: number;
+  items: RevisitSectionItem[];
 };
 
 export type RevisitSourceOption = {
@@ -66,6 +83,8 @@ type BuildRevisitModelArgs = {
   snoozedUntilById: Record<string, number>;
   vaultExposureCountById: Record<string, number>;
   vaultLastSeenAtById: Record<string, number>;
+  ageBias?: RevisitAgeBias;
+  density?: RevisitDensity;
   now?: number;
 };
 
@@ -74,6 +93,14 @@ export type RevisitModel = {
   workspaceOptions: RevisitSourceOption[];
   collectionOptions: RevisitSourceOption[];
   sections: RevisitSection[];
+  aroundSnapshot: RevisitAroundSnapshot;
+};
+
+type RevisitThresholds = {
+  pickupMinAgeDays: number;
+  forgottenMinAgeDays: number;
+  vaultMinAgeDays: number;
+  aroundMinAgeDays: number;
 };
 
 function buildCandidateKey(workspaceId: string, ideaId: string) {
@@ -100,6 +127,63 @@ function hashFraction(seed: string) {
     hash = Math.imul(hash, 16777619);
   }
   return ((hash >>> 0) % 10000) / 10000;
+}
+
+function pickDailySubsetCount(
+  sectionKey: RevisitSectionKey,
+  density: RevisitDensity,
+  poolSize: number,
+  rotationKey: string
+) {
+  if (poolSize <= 0) return 0;
+  if (sectionKey === "around") return 1;
+
+  const range =
+    density === "less"
+      ? sectionKey === "vault"
+        ? { min: 1, max: 2 }
+        : { min: 1, max: 3 }
+      : sectionKey === "vault"
+        ? { min: 2, max: 4 }
+        : { min: 2, max: 5 };
+
+  const min = Math.min(range.min, poolSize);
+  const max = Math.min(range.max, poolSize);
+  if (min >= max) return min;
+
+  const spread = max - min + 1;
+  return min + Math.floor(hashFraction(`${sectionKey}:count:${rotationKey}:${poolSize}`) * spread);
+}
+
+function shuffleCandidatesDaily<T extends { key: string }>(
+  items: T[],
+  sectionKey: RevisitSectionKey,
+  rotationKey: string
+) {
+  if (items.length <= 1) return items;
+
+  return [...items].sort((a, b) => {
+    const aRank = hashFraction(`${sectionKey}:${rotationKey}:${a.key}`);
+    const bRank = hashFraction(`${sectionKey}:${rotationKey}:${b.key}`);
+    return aRank - bRank || a.key.localeCompare(b.key);
+  });
+}
+
+function buildDailyCandidateWindow(
+  candidates: RevisitCandidate[],
+  sectionKey: RevisitSectionKey,
+  density: RevisitDensity,
+  rotationKey: string
+) {
+  if (candidates.length === 0) return candidates;
+
+  const visibleCount = pickDailySubsetCount(sectionKey, density, candidates.length, rotationKey);
+  const windowSize = Math.min(
+    candidates.length,
+    Math.max(visibleCount + 2, visibleCount * 2)
+  );
+  const candidateWindow = candidates.slice(0, windowSize);
+  return shuffleCandidatesDaily(candidateWindow, sectionKey, rotationKey).slice(0, visibleCount);
 }
 
 function formatRelativeAge(days: number) {
@@ -151,6 +235,46 @@ function formatSeasonLabel(ts: number) {
           ? "summer"
           : "fall";
   return `${season} ${year}`;
+}
+
+function formatMonthDayLabel(ts: number) {
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+  }).format(new Date(ts));
+}
+
+function formatAroundSnapshotWindowLabel(now: number) {
+  const nowDate = new Date(now);
+  const center = new Date(nowDate.getFullYear() - 1, nowDate.getMonth(), nowDate.getDate()).getTime();
+  const start = center - AROUND_THIS_TIME_WINDOW_DAYS * DAY_MS;
+  const end = center + AROUND_THIS_TIME_WINDOW_DAYS * DAY_MS;
+  const startDate = new Date(start);
+  const endDate = new Date(end);
+  const sameYear = startDate.getFullYear() === endDate.getFullYear();
+
+  if (sameYear) {
+    return `${formatMonthDayLabel(start)} – ${formatMonthDayLabel(end)}, ${endDate.getFullYear()}`;
+  }
+
+  return `${formatMonthDayLabel(start)}, ${startDate.getFullYear()} – ${formatMonthDayLabel(end)}, ${endDate.getFullYear()}`;
+}
+
+function buildAroundSnapshotWindow(now: number) {
+  const nowDate = new Date(now);
+  const center = new Date(
+    nowDate.getFullYear() - 1,
+    nowDate.getMonth(),
+    nowDate.getDate()
+  ).getTime();
+  const startTs = startOfActivityDay(center - AROUND_THIS_TIME_WINDOW_DAYS * DAY_MS);
+  const endTs = startOfActivityDay(center + AROUND_THIS_TIME_WINDOW_DAYS * DAY_MS);
+
+  return {
+    year: new Date(center).getFullYear(),
+    startTs,
+    endTs,
+  };
 }
 
 function buildCollectionPathLabel(workspace: Workspace, collectionId: string) {
@@ -242,16 +366,12 @@ function computePickupScore(candidate: Omit<RevisitCandidate, "pickupScore" | "f
 }
 
 function computeForgottenScore(candidate: Omit<RevisitCandidate, "pickupScore" | "forgottenScore" | "vaultScore">) {
-  let score = Math.min(candidate.ageDays, 365) * 0.4;
+  let score = Math.min(candidate.archiveAgeDays, 365) * 0.4;
   score += candidate.itemKind === "clip" ? 12 : -120;
   score += candidate.sessionsCount <= 2 ? 14 : 0;
   score += candidate.variationCount === 0 ? 10 : 0;
   score += candidate.wasRenamed ? 8 : 0;
   score += candidate.hasNotes ? 6 : 0;
-
-  if (candidate.ageDays < 21) {
-    score -= 40;
-  }
 
   return score;
 }
@@ -264,7 +384,7 @@ function computeVaultScore(
   now: number
 ) {
   const randomScore = hashFraction(`${candidate.key}:${rotationKey}`) * 72;
-  const ageBoost = Math.min(candidate.ageDays, 720) * 0.08;
+  const ageBoost = Math.min(candidate.archiveAgeDays, 720) * 0.08;
   const underexposedBoost = candidate.sessionsCount <= 1 ? 8 : 0;
   const recentPenalty =
     typeof lastSeenAt === "number" && now - lastSeenAt < 21 * DAY_MS ? 28 : 0;
@@ -292,16 +412,16 @@ function buildPickupReason(candidate: RevisitCandidate, now: number) {
 
 function buildForgottenReason(candidate: RevisitCandidate) {
   if (candidate.sessionsCount <= 1 && candidate.variationCount === 0) {
-    return "Never organized";
+    return "Loose seed";
   }
   if (!candidate.hasNotes) {
-    return "Forgotten seed";
+    return "Raw idea";
   }
   return "Worth another listen";
 }
 
 function buildVaultReason(candidate: RevisitCandidate) {
-  if (candidate.ageDays >= 330) {
+  if (candidate.archiveAgeDays >= 330) {
     return `From ${formatSeasonLabel(candidate.createdAt)}`;
   }
   return "From the vault";
@@ -327,7 +447,7 @@ function getAnniversaryDistanceDays(ts: number, now: number) {
 function computeAroundThisTimeScore(candidate: RevisitCandidate, now: number) {
   const distanceDays = getAnniversaryDistanceDays(candidate.createdAt, now);
   let score = Math.max(0, 45 - distanceDays) * 2.1;
-  score += Math.min(candidate.ageDays, 720) * 0.05;
+  score += Math.min(candidate.archiveAgeDays, 720) * 0.05;
   score += Math.min(candidate.sessionsCount, 4) * 2.5;
   score += candidate.hasNotes ? 6 : 0;
   score += candidate.hasLyrics ? 5 : 0;
@@ -336,7 +456,7 @@ function computeAroundThisTimeScore(candidate: RevisitCandidate, now: number) {
     score += 14;
   }
 
-  if (candidate.ageDays < 60) {
+  if (candidate.archiveAgeDays < 330) {
     score -= 40;
   }
 
@@ -349,9 +469,9 @@ function buildAroundThisTimeReason(candidate: RevisitCandidate, now: number) {
   const distanceDays = getAnniversaryDistanceDays(candidate.createdAt, now);
   const yearsAgo = nowDate.getFullYear() - createdAt.getFullYear();
 
-  if (distanceDays <= 7 && yearsAgo >= 1) {
+  if (distanceDays <= AROUND_THIS_TIME_WINDOW_DAYS && yearsAgo >= 1) {
     return yearsAgo === 1
-      ? "Made around this time last year"
+      ? "From around this time last year"
       : `Made around this time in ${createdAt.getFullYear()}`;
   }
 
@@ -363,9 +483,12 @@ function compareByScore(
   b: RevisitCandidate,
   scoreKey: "pickupScore" | "forgottenScore" | "vaultScore"
 ) {
+  const secondaryAgeKey =
+    scoreKey === "pickupScore" ? "ageDays" : "archiveAgeDays";
+
   return (
     b[scoreKey] - a[scoreKey] ||
-    b.ageDays - a.ageDays ||
+    b[secondaryAgeKey] - a[secondaryAgeKey] ||
     a.title.localeCompare(b.title) ||
     a.key.localeCompare(b.key)
   );
@@ -399,6 +522,85 @@ function pickVaultItems(candidates: RevisitCandidate[], maxItems: number) {
   return picked;
 }
 
+function getRevisitThresholds(): RevisitThresholds {
+  return {
+    pickupMinAgeDays: 10,
+    forgottenMinAgeDays: 21,
+    vaultMinAgeDays: 45,
+    aroundMinAgeDays: 330,
+  };
+}
+
+function getAgeBiasScoreBoost(ageBias: RevisitAgeBias, ageDays: number) {
+  if (ageBias === "older") {
+    return Math.min(ageDays, 240) * 0.1;
+  }
+
+  if (ageBias === "deep-cuts") {
+    return Math.min(ageDays, 365) * 0.18;
+  }
+
+  return 0;
+}
+
+function applyAgeBiasToCandidates(
+  candidates: RevisitCandidate[],
+  ageBias: RevisitAgeBias,
+  scoreKey: "pickupScore" | "forgottenScore" | "vaultScore"
+) {
+  if (ageBias === "balanced") {
+    return candidates;
+  }
+
+  return candidates
+    .map((candidate) => ({
+      ...candidate,
+      [scoreKey]:
+        candidate[scoreKey] +
+        getAgeBiasScoreBoost(
+          ageBias,
+          scoreKey === "pickupScore" ? candidate.ageDays : candidate.archiveAgeDays
+        ),
+    }))
+    .sort((a, b) => compareByScore(a, b, scoreKey));
+}
+
+function isForgottenCandidate(
+  candidate: RevisitCandidate,
+  forgottenMinAgeDays: number
+) {
+  return (
+    candidate.itemKind === "clip" &&
+    candidate.archiveAgeDays >= forgottenMinAgeDays &&
+    candidate.sessionsCount <= 3 &&
+    candidate.variationCount <= 1 &&
+    !candidate.hasLyrics &&
+    candidate.completionPct < 60
+  );
+}
+
+function getVaultDevelopmentSignals(candidate: RevisitCandidate) {
+  let count = 0;
+  if (candidate.itemKind === "project") count += 1;
+  if (candidate.sessionsCount >= 3) count += 1;
+  if (candidate.variationCount >= 1) count += 1;
+  if (candidate.hasNotes) count += 1;
+  if (candidate.hasLyrics) count += 1;
+  if (candidate.wasRenamed) count += 1;
+  if (candidate.completionPct >= 60) count += 1;
+  return count;
+}
+
+function isVaultCandidate(
+  candidate: RevisitCandidate,
+  vaultMinAgeDays: number
+) {
+  return (
+    candidate.archiveAgeDays >= vaultMinAgeDays &&
+    getVaultDevelopmentSignals(candidate) >= 1
+  );
+}
+
 export function buildRevisitModel({
   workspaces,
   activityEvents,
@@ -408,6 +610,8 @@ export function buildRevisitModel({
   snoozedUntilById,
   vaultExposureCountById,
   vaultLastSeenAtById,
+  ageBias = "older",
+  density = "less",
   now = Date.now(),
 }: BuildRevisitModelArgs): RevisitModel {
   const activeWorkspaces = workspaces.filter((workspace) => !workspace.isArchived);
@@ -416,6 +620,7 @@ export function buildRevisitModel({
   const hiddenCandidateIdSet = new Set(hiddenCandidateIds);
   const eventsByIdea = buildEventsByIdea(activeWorkspaces, activityEvents);
   const rotationKey = new Date(now).toISOString().slice(0, 10);
+  const thresholds = getRevisitThresholds();
 
   const workspaceOptions: RevisitSourceOption[] = activeWorkspaces
     .map((workspace) => {
@@ -483,6 +688,7 @@ export function buildRevisitModel({
       const createdAt = getIdeaCreatedAt(idea);
       const updatedAt = getIdeaUpdatedAt(idea);
       const ageDays = Math.max(0, Math.floor((now - updatedAt) / DAY_MS));
+      const archiveAgeDays = Math.max(0, Math.floor((now - createdAt) / DAY_MS));
       const ideaEvents = eventsByIdea.get(key) ?? [];
       const sessionsCount = new Set(
         ideaEvents.map((event) => startOfActivityDay(event.at))
@@ -509,6 +715,7 @@ export function buildRevisitModel({
         createdAt,
         updatedAt,
         ageDays,
+        archiveAgeDays,
         sessionsCount,
         updateEventCount,
         variationCount,
@@ -537,35 +744,62 @@ export function buildRevisitModel({
     }
   }
 
-  const pickupPool = allCandidates
+  const pickupPoolBase = allCandidates
     .filter(
       (candidate) =>
-        candidate.ageDays >= 7 &&
-        (
-          candidate.sessionsCount >= 2 ||
-          candidate.variationCount >= 1 ||
-          candidate.hasNotes ||
-          candidate.hasLyrics ||
-          candidate.wasRenamed
-        )
+        candidate.ageDays >= thresholds.pickupMinAgeDays &&
+        (candidate.itemKind === "project"
+          ? (
+              candidate.sessionsCount >= 2 ||
+              candidate.variationCount >= 1 ||
+              candidate.hasNotes ||
+              candidate.hasLyrics ||
+              candidate.wasRenamed ||
+              candidate.completionPct >= 25
+            )
+          : (
+              candidate.sessionsCount >= 2 ||
+              candidate.updateEventCount >= 2 ||
+              candidate.variationCount >= 1 ||
+              candidate.hasNotes ||
+              (candidate.wasRenamed && candidate.updateEventCount >= 1) ||
+              candidate.completionPct >= 25
+            ))
     )
     .sort((a, b) => compareByScore(a, b, "pickupScore"));
-  const pickupItems = pickupPool.slice(0, 6).map((candidate) => ({
+  const pickupPool = applyAgeBiasToCandidates(pickupPoolBase, ageBias, "pickupScore");
+  const pickupItems = buildDailyCandidateWindow(
+    pickupPool,
+    "pickup",
+    density,
+    rotationKey
+  )
+    .map((candidate) => ({
     candidate,
     reason: buildPickupReason(candidate, now),
   }));
 
   const takenKeys = new Set(pickupItems.map((item) => item.candidate.key));
 
-  const forgottenPool = allCandidates
+  const forgottenPoolBase = allCandidates
     .filter(
       (candidate) =>
         !takenKeys.has(candidate.key) &&
-        candidate.itemKind === "clip" &&
-        candidate.ageDays >= 21
+        isForgottenCandidate(candidate, thresholds.forgottenMinAgeDays)
     )
     .sort((a, b) => compareByScore(a, b, "forgottenScore"));
-  const forgottenItems = forgottenPool.slice(0, 6).map((candidate) => ({
+  const forgottenPool = applyAgeBiasToCandidates(
+    forgottenPoolBase,
+    ageBias,
+    "forgottenScore"
+  );
+  const forgottenItems = buildDailyCandidateWindow(
+    forgottenPool,
+    "forgotten",
+    density,
+    rotationKey
+  )
+    .map((candidate) => ({
     candidate,
     reason: buildForgottenReason(candidate),
   }));
@@ -574,14 +808,16 @@ export function buildRevisitModel({
     takenKeys.add(item.candidate.key);
   }
 
-  const vaultPool = allCandidates
+  const vaultPoolBase = allCandidates
     .filter(
       (candidate) =>
         !takenKeys.has(candidate.key) &&
-        candidate.ageDays >= 45
+        isVaultCandidate(candidate, thresholds.vaultMinAgeDays)
     )
     .sort((a, b) => compareByScore(a, b, "vaultScore"));
-  const vaultItems = pickVaultItems(vaultPool, 3).map((candidate) => ({
+  const vaultPool = applyAgeBiasToCandidates(vaultPoolBase, ageBias, "vaultScore");
+  const vaultWindow = buildDailyCandidateWindow(vaultPool, "vault", density, rotationKey);
+  const vaultItems = pickVaultItems(vaultWindow, vaultWindow.length).map((candidate) => ({
     candidate,
     reason: buildVaultReason(candidate),
   }));
@@ -591,10 +827,12 @@ export function buildRevisitModel({
   }
 
   const aroundMatcher = (candidate: RevisitCandidate) =>
-    candidate.ageDays >= 60 && getAnniversaryDistanceDays(candidate.createdAt, now) <= 45;
+    candidate.archiveAgeDays >= thresholds.aroundMinAgeDays &&
+    getAnniversaryDistanceDays(candidate.createdAt, now) <= AROUND_THIS_TIME_WINDOW_DAYS;
 
-  const buildAroundItems = (pool: RevisitCandidate[]) =>
-    pool
+  const buildAroundItems = (pool: RevisitCandidate[], limit: number) =>
+    shuffleCandidatesDaily(
+      pool
       .filter(aroundMatcher)
       .map((candidate) => ({
         candidate,
@@ -606,64 +844,79 @@ export function buildRevisitModel({
           a.candidate.title.localeCompare(b.candidate.title) ||
           a.candidate.key.localeCompare(b.candidate.key)
       )
-      .slice(0, 4)
-      .map(({ candidate }) => ({
+      .map(({ candidate }) => candidate),
+      "around",
+      rotationKey
+    )
+      .slice(0, limit)
+      .map((candidate) => ({
         candidate,
         reason: buildAroundThisTimeReason(candidate, now),
       }));
 
+  const aroundSnapshotItems = buildAroundItems(allCandidates, AROUND_THIS_TIME_SNAPSHOT_LIMIT);
+  const aroundSnapshotWindow = buildAroundSnapshotWindow(now);
   const aroundItems = (() => {
     const primaryPool = allCandidates.filter((candidate) => !takenKeys.has(candidate.key));
-    const primaryItems = buildAroundItems(primaryPool);
+    const primaryItems = buildAroundItems(primaryPool, 1);
     if (primaryItems.length > 0) return primaryItems;
-    return buildAroundItems(allCandidates);
+    return buildAroundItems(allCandidates, 1);
   })();
+  const eligibleCandidateCount = new Set([
+    ...pickupPoolBase.map((candidate) => candidate.key),
+    ...forgottenPoolBase.map((candidate) => candidate.key),
+    ...vaultPoolBase.map((candidate) => candidate.key),
+    ...aroundSnapshotItems.map((item) => item.candidate.key),
+  ]).size;
 
   return {
-    totalEligibleCount: allCandidates.length,
+    totalEligibleCount: eligibleCandidateCount,
     workspaceOptions,
     collectionOptions,
     sections: [
       {
         key: "pickup",
-        title: "Pick up where you left off",
-        subtitle:
-          "Dormant songs, sketches, and clips that already show signs of momentum.",
+        title: "Pick Up",
+        subtitle: "Things that had some momentum and feel worth resuming.",
         items: pickupItems,
-        emptyTitle: "Nothing is asking for a restart right now",
-        emptySubtitle:
-          "Recent work and filters are keeping this section quiet for the moment.",
+        emptyTitle: "Nothing ready right now",
+        emptySubtitle: "Check back later.",
       },
       {
         key: "forgotten",
-        title: "Forgotten seeds",
-        subtitle:
-          "Older standalone clips that still make good prompts when you want a fresh spark.",
+        title: "Forgotten",
+        subtitle: "Older loose clips and seeds that were left behind.",
         items: forgottenItems,
-        emptyTitle: "No seeds are waiting in the wings",
-        emptySubtitle:
-          "Older standalone clips will show up here once they have had some time to breathe.",
+        emptyTitle: "No older clips yet",
+        emptySubtitle: "Older clips will surface here.",
       },
       {
         key: "vault",
-        title: "From the vault",
-        subtitle:
-          "A deliberately small dose of older material chosen for serendipity, not noise.",
+        title: "Vault",
+        subtitle: "Older material with some shape or history that fell out of rotation.",
         items: vaultItems,
-        emptyTitle: "The vault is staying quiet today",
-        emptySubtitle:
-          "When enough older material builds up, this section will rotate in 1 to 3 surprise picks.",
+        emptyTitle: "Vault is quiet today",
+        emptySubtitle: "More older material will surface later.",
       },
       {
         key: "around",
-        title: "Around this time",
-        subtitle:
-          "Ideas from the same season or calendar stretch in earlier years, resurfaced gently.",
+        title: "Around This Time",
+        subtitle: "A seasonal snapshot from around this time in past years.",
         items: aroundItems,
-        emptyTitle: "Nothing seasonal is lining up just yet",
-        emptySubtitle:
-          "As older material spans more months and years, this section will start bringing back timely rediscoveries.",
+        totalCount: aroundSnapshotItems.length,
+        actionLabel: aroundSnapshotItems.length > aroundItems.length ? "See snapshot" : undefined,
+        emptyTitle: "Nothing seasonal yet",
+        emptySubtitle: "Check back later.",
       },
     ],
+    aroundSnapshot: {
+      title: "Around This Time",
+      subtitle: "A seasonal snapshot from around this point in past years.",
+      windowLabel: formatAroundSnapshotWindowLabel(now),
+      year: aroundSnapshotWindow.year,
+      startTs: aroundSnapshotWindow.startTs,
+      endTs: aroundSnapshotWindow.endTs,
+      items: aroundSnapshotItems,
+    },
   };
 }

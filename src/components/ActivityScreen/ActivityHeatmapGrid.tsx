@@ -19,6 +19,7 @@ type ActivityHeatmapGridProps = {
   maxDailyCount: number;
   legendSwatches: string[];
   onChangeYear: (nextYear: number) => void;
+  onJumpToToday: () => void;
   onPressMonth: (month: number) => void;
   onPressDay: (dayTs: number) => void;
 };
@@ -35,6 +36,7 @@ export function ActivityHeatmapGrid({
   maxDailyCount,
   legendSwatches,
   onChangeYear,
+  onJumpToToday,
   onPressMonth,
   onPressDay,
 }: ActivityHeatmapGridProps) {
@@ -66,6 +68,15 @@ export function ActivityHeatmapGrid({
         </View>
 
         <View style={styles.activityYearControls}>
+          <Pressable
+            style={({ pressed }) => [styles.activityTodayBtn, pressed ? styles.pressDown : null]}
+            onPress={() => {
+              void Haptics.selectionAsync();
+              onJumpToToday();
+            }}
+          >
+            <Text style={styles.activityTodayBtnText}>Today</Text>
+          </Pressable>
           <Pressable
             style={({ pressed }) => [styles.activityYearBtn, pressed ? styles.pressDown : null]}
             onPress={() => onChangeYear(year - 1)}

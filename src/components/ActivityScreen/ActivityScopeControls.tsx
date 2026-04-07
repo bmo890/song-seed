@@ -3,8 +3,6 @@ import { Ionicons } from "@expo/vector-icons";
 import { useState } from "react";
 import { styles } from "../../styles";
 import { Collection, Workspace } from "../../types";
-import { ActivityMetricFilter } from "../../activity";
-import { SegmentedControl } from "../common/SegmentedControl";
 import { getHierarchyIconName } from "../../hierarchy";
 import { sortWorkspacesWithPrimary } from "../../libraryNavigation";
 
@@ -16,10 +14,8 @@ type ActivityScopeControlsProps = {
   workspaceFilterId: string | null;
   topLevelCollections: Collection[];
   collectionFilterId: string | null;
-  metricFilter: ActivityMetricFilter;
   onSelectWorkspace: (workspaceId: string | null) => void;
   onSelectCollection: (collectionId: string | null) => void;
-  onSelectMetric: (metric: ActivityMetricFilter) => void;
 };
 
 export function ActivityScopeControls({
@@ -30,10 +26,8 @@ export function ActivityScopeControls({
   workspaceFilterId,
   topLevelCollections,
   collectionFilterId,
-  metricFilter,
   onSelectWorkspace,
   onSelectCollection,
-  onSelectMetric,
 }: ActivityScopeControlsProps) {
   const [workspaceMenuOpen, setWorkspaceMenuOpen] = useState(false);
   const [collectionMenuOpen, setCollectionMenuOpen] = useState(false);
@@ -259,18 +253,6 @@ export function ActivityScopeControls({
           ) : null}
         </View>
       ) : null}
-
-      <View style={styles.activitySegmentStack}>
-        <SegmentedControl
-          options={[
-            { key: "created", label: "Created" },
-            { key: "updated", label: "Updated" },
-            { key: "both", label: "Both" },
-          ]}
-          selectedKey={metricFilter}
-          onSelect={onSelectMetric}
-        />
-      </View>
     </>
   );
 }

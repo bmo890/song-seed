@@ -46,6 +46,8 @@ export function ActivityResultCard({
   const resultBucket = getDateBucket(result.latestAt);
   const previousBucket = previousResult ? getDateBucket(previousResult.latestAt) : null;
   const showDayDivider = previousBucket?.key !== resultBucket.key;
+  const activityIconName =
+    result.activityLabel === "Updated" ? "sparkles-outline" : "add-circle-outline";
 
   return (
     <View
@@ -136,9 +138,16 @@ export function ActivityResultCard({
                     </View>
                   ) : null}
                 </View>
-                <Text style={styles.activityResultMeta} numberOfLines={1}>
-                  {result.activityLabel}
-                </Text>
+                <View style={styles.activityResultMetaRow}>
+                  <Ionicons
+                    name={activityIconName}
+                    size={12}
+                    color="#64748b"
+                  />
+                  <Text style={styles.activityResultMeta} numberOfLines={1}>
+                    {result.activityLabel}
+                  </Text>
+                </View>
               </View>
 
               {isActive ? (

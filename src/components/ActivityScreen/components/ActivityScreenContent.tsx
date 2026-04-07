@@ -39,10 +39,8 @@ export function ActivityScreenContent() {
           workspaceFilterId={model.workspaceFilterId}
           topLevelCollections={model.topLevelCollections}
           collectionFilterId={model.collectionFilterId}
-          metricFilter={model.metricFilter}
           onSelectWorkspace={model.setWorkspaceFilterId}
           onSelectCollection={model.setCollectionFilterId}
-          onSelectMetric={model.setMetricFilter}
         />
       </View>
 
@@ -74,6 +72,7 @@ export function ActivityScreenContent() {
             maxDailyCount={model.maxDailyCount}
             legendSwatches={model.legendSwatches}
             onChangeYear={model.onChangeYear}
+            onJumpToToday={model.onJumpToToday}
             onPressMonth={model.onPressMonth}
             onPressDay={model.onPressDay}
           />
