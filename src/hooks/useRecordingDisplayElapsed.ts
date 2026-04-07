@@ -13,10 +13,11 @@ export function useRecordingDisplayElapsed({
   isPaused,
   isRecording,
 }: Args) {
-  const [displayElapsedMs, setDisplayElapsedMs] = useState(durationMs);
+  const normalizedDurationMs = Number.isFinite(durationMs) ? Math.max(0, durationMs) : 0;
+  const [displayElapsedMs, setDisplayElapsedMs] = useState(normalizedDurationMs);
   const frameRef = useRef<number | null>(null);
-  const lastDisplayRef = useRef(durationMs);
-  const anchorDurationRef = useRef(durationMs);
+  const lastDisplayRef = useRef(normalizedDurationMs);
+  const anchorDurationRef = useRef(normalizedDurationMs);
   const anchorStartedAtRef = useRef<number | null>(null);
 
   const setDisplayElapsed = (nextMs: number) => {
@@ -33,14 +34,14 @@ export function useRecordingDisplayElapsed({
         frameRef.current = null;
       }
 
-      if (!isRecording && !isPaused && durationMs === 0) {
+      if (!isRecording && !isPaused && normalizedDurationMs === 0) {
         anchorDurationRef.current = 0;
         anchorStartedAtRef.current = null;
         setDisplayElapsed(0);
         return;
       }
 
-      const settledElapsedMs = Math.max(lastDisplayRef.current, durationMs);
+      const settledElapsedMs = Math.max(lastDisplayRef.current, normalizedDurationMs);
       anchorDurationRef.current = settledElapsedMs;
       anchorStartedAtRef.current = null;
       setDisplayElapsed(settledElapsedMs);
@@ -53,7 +54,7 @@ export function useRecordingDisplayElapsed({
         const elapsedSinceAnchor = Date.now() - anchorStartedAt;
         const nextElapsedMs = Math.max(
           lastDisplayRef.current,
-          durationMs,
+          normalizedDurationMs,
           anchorDurationRef.current + elapsedSinceAnchor
         );
         setDisplayElapsed(nextElapsedMs);
@@ -63,7 +64,7 @@ export function useRecordingDisplayElapsed({
       frameRef.current = requestAnimationFrame(tick);
     };
 
-    anchorDurationRef.current = Math.max(lastDisplayRef.current, durationMs);
+    anchorDurationRef.current = Math.max(lastDisplayRef.current, normalizedDurationMs);
     anchorStartedAtRef.current = Date.now();
     startTicking();
 
@@ -79,26 +80,26 @@ export function useRecordingDisplayElapsed({
     const isActive = isRecording && !isPaused;
 
     if (!isActive) {
-      if (!isRecording && !isPaused && durationMs === 0) {
+      if (!isRecording && !isPaused && normalizedDurationMs === 0) {
         anchorDurationRef.current = 0;
         anchorStartedAtRef.current = null;
         setDisplayElapsed(0);
         return;
       }
 
-      if (durationMs > lastDisplayRef.current) {
-        anchorDurationRef.current = durationMs;
-        setDisplayElapsed(durationMs);
+      if (normalizedDurationMs > lastDisplayRef.current) {
+        anchorDurationRef.current = normalizedDurationMs;
+        setDisplayElapsed(normalizedDurationMs);
       }
       return;
     }
 
-    if (durationMs > lastDisplayRef.current + REANCHOR_THRESHOLD_MS) {
-      anchorDurationRef.current = durationMs;
+    if (normalizedDurationMs > lastDisplayRef.current + REANCHOR_THRESHOLD_MS) {
+      anchorDurationRef.current = normalizedDurationMs;
       anchorStartedAtRef.current = Date.now();
-      setDisplayElapsed(durationMs);
+      setDisplayElapsed(normalizedDurationMs);
     }
-  }, [durationMs, isPaused, isRecording]);
+  }, [isPaused, isRecording, normalizedDurationMs]);
 
   return displayElapsedMs;
 }

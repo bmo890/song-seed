@@ -2055,6 +2055,43 @@ export const styles = StyleSheet.create({
     fontSize: 36,
     marginTop: 0,
   },
+  recordingCountInBlock: {
+    gap: 10,
+    paddingVertical: 10,
+  },
+  recordingCountInTitle: {
+    fontSize: 32,
+    lineHeight: 36,
+    fontWeight: "800",
+    color: "#111111",
+    letterSpacing: -0.8,
+  },
+  recordingCountInTitleCompact: {
+    fontSize: 26,
+    lineHeight: 30,
+  },
+  recordingCountInDotsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  recordingCountInDot: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: "#cbd5e1",
+    backgroundColor: "transparent",
+  },
+  recordingCountInDotCompact: {
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+  },
+  recordingCountInDotActive: {
+    backgroundColor: "#e45757",
+    borderColor: "#e45757",
+  },
   recordingStatusRow: {
     flexDirection: "row",
     alignItems: "center",

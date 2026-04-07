@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRecordingDisplayElapsed } from "../hooks/useRecordingDisplayElapsed";
 import { useStore } from "../state/useStore";
 import { styles } from "../styles";
-import { fmtDuration, fmtTenths } from "../utils";
+import { fmtDuration } from "../utils";
 
 const DOCK_SPEED_OPTIONS = [0.5, 0.75, 1] as const;
 
@@ -162,7 +162,7 @@ export function GlobalMediaDock({
           </View>
 
           <View style={styles.miniMediaDockRecordingMetaRow}>
-            <Text style={styles.miniMediaDockRecordingTime}>{fmtTenths(recordingElapsedMs)}</Text>
+            <Text style={styles.miniMediaDockRecordingTime}>{fmtDuration(recordingElapsedMs)}</Text>
             <Text style={styles.miniMediaDockHintText}>Tap to reopen controls</Text>
           </View>
         </Pressable>

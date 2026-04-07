@@ -1,560 +1,109 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React from "react";
+import { View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar as ExpoStatusBar } from "expo-status-bar";
 import { useNavigation } from "@react-navigation/native";
-import { Ionicons } from "@expo/vector-icons";
-import { Alert, Modal, Pressable, ScrollView, Text, View } from "react-native";
 import { styles } from "../../styles";
-import { useStore } from "../../state/useStore";
-import { ScreenHeader } from "../common/ScreenHeader";
 import { QuickNameModal } from "../modals/QuickNameModal";
-import { RecordingMeta } from "./RecordingMeta";
-import { RecordingControls } from "./RecordingControls";
-import { useRecording } from "../../hooks/useRecording";
-import { ClipVersion } from "../../types";
-import { buildDefaultIdeaTitle, ensureUniqueCountedTitle, genClipTitle } from "../../utils";
-import { RecordingInputPicker } from "./RecordingInputPicker";
-import { RecordingMetronomeSection } from "./RecordingMetronomeSection";
-import { getLatestLyricsVersion, lyricsDocumentToText } from "../../lyrics";
-import { PlayerLyricsPanel } from "../PlayerScreen/PlayerLyricsPanel";
-import { formatDate } from "../../utils";
-import { useMetronome } from "../../hooks/useMetronome";
+import { RecordingHeader } from "./RecordingHeader";
+import { RecordingBody } from "./RecordingBody";
+import { RecordingBottomDock } from "./RecordingBottomDock";
+import { RecordingSettingsModal } from "./RecordingSettingsModal";
+import { useRecordingScreenModel } from "./hooks/useRecordingScreenModel";
 
 export function RecordingScreen() {
   const navigation = useNavigation();
-
-  const recordingIdeaId = useStore((s) => s.recordingIdeaId);
-  const recordingParentClipId = useStore((s) => s.recordingParentClipId);
-  const recordingSaveRequestToken = useStore((s) => s.recordingSaveRequestToken);
-
-  const workspaces = useStore((s) => s.workspaces);
-  const activeWorkspaceId = useStore((s) => s.activeWorkspaceId);
-  const recordingIdea = useMemo(
-    () => workspaces.find((w) => w.id === activeWorkspaceId)?.ideas.find((i) => i.id === recordingIdeaId),
-    [workspaces, activeWorkspaceId, recordingIdeaId]
-  );
-  const latestLyricsVersion = recordingIdea?.kind === "project" ? getLatestLyricsVersion(recordingIdea) : null;
-  const latestLyricsText = lyricsDocumentToText(latestLyricsVersion?.document);
-  const hasProjectLyrics = recordingIdea?.kind === "project" && latestLyricsText.trim().length > 0;
-
-  const [isPrimaryDraft, setIsPrimaryDraft] = useState(false);
-  const [settingsVisible, setSettingsVisible] = useState(false);
-  const [recordingMetronomeEnabled, setRecordingMetronomeEnabled] = useState(false);
-  const [isArmingRecording, setIsArmingRecording] = useState(false);
-  const [lyricsExpanded, setLyricsExpanded] = useState(false);
-  const [lyricsAutoscrollMode, setLyricsAutoscrollMode] = useState<"off" | "follow" | "manual">("follow");
-  const [lyricsAutoscrollSpeedMultiplier, setLyricsAutoscrollSpeedMultiplier] = useState(1);
-
-  const quickNameModalVisible = useStore((s) => s.quickNameModalVisible);
-  const quickNameDraft = useStore((s) => s.quickNameDraft);
-  const quickNamingIdeaId = useStore((s) => s.quickNamingIdeaId);
-
-  const setQuickNameModalVisible = useStore((s) => s.setQuickNameModalVisible);
-  const setQuickNameDraft = useStore((s) => s.setQuickNameDraft);
-  const setQuickNamingIdeaId = useStore((s) => s.setQuickNamingIdeaId);
-  const preferredRecordingInputId = useStore((s) => s.preferredRecordingInputId);
-  const setPreferredRecordingInputId = useStore((s) => s.setPreferredRecordingInputId);
-  const updateIdeas = useStore((s) => s.updateIdeas);
-  const handledSaveRequestRef = useRef<number | null>(null);
-  const countInPendingRef = useRef(false);
-  const initializedMetronomeRef = useRef(false);
-  const metronome = useMetronome();
-
-  // Initialize recording natively!
-  const recording = useRecording(
-    (payload) => {
-      if (!recordingIdeaId || !recordingIdea) return;
-      const parentClip = recordingParentClipId
-        ? recordingIdea.clips.find((clip) => clip.id === recordingParentClipId) ?? null
-        : null;
-      const title = genClipTitle(recordingIdea.title, recordingIdea.clips.length + 1);
-
-      const clip: ClipVersion = {
-        id: `clip-${Date.now()}`,
-        title,
-        notes: "",
-        createdAt: Date.now(),
-        isPrimary: recordingIdea.kind === "project" ? isPrimaryDraft : true,
-        parentClipId: recordingParentClipId ?? undefined,
-        audioUri: payload.audioUri,
-        durationMs: payload.durationMs,
-        waveformPeaks: payload.waveformPeaks,
-        tags: parentClip?.tags?.length ? [...parentClip.tags] : undefined,
-      };
-
-      updateIdeas((p) =>
-        p.map((i) => {
-          if (i.id !== recordingIdeaId) return i;
-
-          const nextClips = i.clips.map((c) => (isPrimaryDraft ? { ...c, isPrimary: false } : c));
-
-          return { ...i, clips: [clip, ...nextClips] };
-        })
-      );
-    },
-    preferredRecordingInputId
-  );
-
-  const fallbackClipTitle = () => buildDefaultIdeaTitle();
-
-  const recordingPlaceholderTitle =
-    recordingIdea
-      ? recordingIdea.kind === "project"
-        ? ensureUniqueCountedTitle(
-            genClipTitle(recordingIdea.title, recordingIdea.clips.length + 1),
-            recordingIdea.clips.map((clip) => clip.title)
-          )
-        : ensureUniqueCountedTitle(
-            recordingIdea.title || fallbackClipTitle(),
-            (workspaces.find((w) => w.id === activeWorkspaceId)?.ideas ?? [])
-              .filter((idea) => idea.kind === "clip" && idea.id !== recordingIdea.id)
-              .map((idea) => idea.title)
-          )
-      : fallbackClipTitle();
-
-  async function stopRecordingMetronome() {
-    if (!metronome.isRunning && !metronome.isCountIn) {
-      return;
-    }
-
-    try {
-      await metronome.stop();
-    } catch (error) {
-      console.warn("Recording metronome stop failed", error);
-    }
-  }
-
-  async function cancelPendingRecordingStart() {
-    countInPendingRef.current = false;
-    setIsArmingRecording(false);
-    await stopRecordingMetronome();
-    await recording.cancelPreparedRecording();
-  }
-
-  async function cancelRecording() {
-    if (!recordingIdea) return;
-    if (isArmingRecording) {
-      await cancelPendingRecordingStart();
-    } else {
-      await stopRecordingMetronome();
-      await recording.discardRecording();
-    }
-    if (recordingIdea.kind === "clip" && recordingIdea.clips.length === 0) {
-      updateIdeas((prev) => prev.filter((i) => i.id !== recordingIdea.id));
-    }
-    useStore.getState().setRecordingParentClipId(null);
-    useStore.getState().setRecordingIdeaId(null);
-  }
-
-  function confirmDiscardAndExit() {
-    const hasRecordingToDiscard =
-      isArmingRecording || recording.isRecording || recording.isPaused || recording.elapsedMs > 0;
-    if (!hasRecordingToDiscard) {
-      navigation.goBack();
-      return;
-    }
-
-    Alert.alert(
-      "Discard recording?",
-      "This recording has not been saved yet. If you leave now, it will be deleted.",
-      [
-        { text: "Keep recording", style: "cancel" },
-        {
-          text: "Discard",
-          style: "destructive",
-          onPress: () => {
-            cancelRecording().then(() => navigation.goBack());
-          },
-        },
-      ]
-    );
-  }
-
-  async function requestSaveRecording() {
-    if (!recordingIdea) return;
-    if (isArmingRecording) return;
-    if (!recording.isRecording && !recording.isPaused) return;
-    if (recording.isRecording && !recording.isPaused) {
-      await recording.pauseRecording();
-      await stopRecordingMetronome();
-    }
-
-    setQuickNamingIdeaId(recordingIdea.id);
-    setQuickNameDraft("");
-    setIsPrimaryDraft(false);
-    setQuickNameModalVisible(true);
-  }
-
-  async function saveQuickClipName() {
-    if (!quickNamingIdeaId) return;
-    const targetIdea = recordingIdea;
-    const isStandaloneClipRecording = targetIdea?.kind === "clip";
-
-    const saved = await recording.saveRecording();
-    if (!saved) return;
-    await stopRecordingMetronome();
-
-    const suggestedTitle =
-      recordingIdea?.kind === "project"
-        ? ensureUniqueCountedTitle(
-            genClipTitle(recordingIdea.title, recordingIdea.clips.length + 1),
-            recordingIdea.clips.map((clip) => clip.title)
-          )
-        : ensureUniqueCountedTitle(
-            recordingIdea?.title || fallbackClipTitle(),
-            (workspaces.find((w) => w.id === activeWorkspaceId)?.ideas ?? [])
-              .filter((idea) => idea.kind === "clip" && idea.id !== recordingIdea?.id)
-              .map((idea) => idea.title)
-          );
-    const nextTitle = quickNameDraft.trim() || suggestedTitle;
-
-    updateIdeas((prev) =>
-      prev.map((idea) => {
-        if (idea.id !== quickNamingIdeaId) return idea;
-        const firstClipId = idea.clips[0]?.id;
-        if (!firstClipId) return idea;
-
-        if (idea.kind === "clip") {
-          return {
-            ...idea,
-            title: nextTitle,
-            clips: idea.clips.map((clip) => (clip.id === firstClipId ? { ...clip, title: nextTitle } : clip)),
-          };
-        }
-
-        return {
-          ...idea,
-          clips: idea.clips.map((clip) => (clip.id === firstClipId ? { ...clip, title: nextTitle } : clip)),
-        };
-      })
-    );
-
-    const savedIdea = useStore.getState().workspaces
-      .find((workspace) => workspace.id === activeWorkspaceId)
-      ?.ideas.find((idea) => idea.id === quickNamingIdeaId);
-    const savedClipId = savedIdea?.clips[0]?.id ?? null;
-    if (savedIdea) {
-      useStore
-        .getState()
-        .logIdeaActivity(
-          savedIdea.id,
-          isStandaloneClipRecording ? "created" : "updated",
-          "recording",
-          savedClipId
-        );
-    }
-
-    setQuickNameModalVisible(false);
-    setQuickNameDraft("");
-    setQuickNamingIdeaId(null);
-    useStore.getState().setRecordingParentClipId(null);
-    useStore.getState().setRecordingIdeaId(null);
-  }
-
-  useEffect(() => {
-    if (recordingSaveRequestToken === handledSaveRequestRef.current) return;
-    handledSaveRequestRef.current = recordingSaveRequestToken;
-    if (!recordingSaveRequestToken) return;
-    void requestSaveRecording();
-  }, [recordingSaveRequestToken]);
-
-  useEffect(() => {
-    if (initializedMetronomeRef.current) {
-      return;
-    }
-    initializedMetronomeRef.current = true;
-
-    if (!recording.isRecording && !recording.isPaused && (metronome.isRunning || metronome.isCountIn)) {
-      void stopRecordingMetronome();
-    }
-  }, [metronome.isCountIn, metronome.isRunning, recording.isPaused, recording.isRecording]);
-
-  useEffect(() => {
-    if (!countInPendingRef.current || metronome.countInCompletionToken === 0) {
-      return;
-    }
-
-    countInPendingRef.current = false;
-    void (async () => {
-      const started = await recording.startPreparedRecording();
-      setIsArmingRecording(false);
-      if (!started) {
-        await stopRecordingMetronome();
-      }
-    })();
-  }, [metronome.countInCompletionToken, recording, stopRecordingMetronome]);
-
-  useEffect(() => {
-    if (recording.interruptionToken === 0) {
-      return;
-    }
-
-    countInPendingRef.current = false;
-    setIsArmingRecording(false);
-
-    void (async () => {
-      if (metronome.isRunning || metronome.isCountIn) {
-        try {
-          await metronome.stop();
-        } catch (error) {
-          console.warn("Recording metronome stop after interruption failed", error);
-        }
-      }
-    })();
-  }, [metronome.isCountIn, metronome.isRunning, metronome.stop, recording.interruptionToken]);
-
-  async function handleStartRecording() {
-    if (isArmingRecording) {
-      return;
-    }
-
-    setSettingsVisible(false);
-
-    if (!recordingMetronomeEnabled || !metronome.isNativeAvailable) {
-      await recording.startRecording();
-      return;
-    }
-
-    const prepared = await recording.prepareRecording();
-    if (!prepared) {
-      return;
-    }
-
-    setIsArmingRecording(true);
-
-    try {
-      if (metronome.countInBars > 0) {
-        countInPendingRef.current = true;
-        await metronome.startCountIn(metronome.countInBars, { manageAudioSession: false });
-        return;
-      }
-
-      await metronome.start({ manageAudioSession: false });
-      const started = await recording.startPreparedRecording();
-      if (!started) {
-        await stopRecordingMetronome();
-      }
-    } catch (error) {
-      console.warn("Recording metronome start failed", error);
-      countInPendingRef.current = false;
-      await stopRecordingMetronome();
-      await recording.cancelPreparedRecording();
-    } finally {
-      if (!countInPendingRef.current) {
-        setIsArmingRecording(false);
-      }
-    }
-  }
-
-  async function handlePauseRecording() {
-    await recording.pauseRecording();
-    await stopRecordingMetronome();
-  }
-
-  async function handleResumeRecording() {
-    await recording.resumeRecording();
-    if (recordingMetronomeEnabled && metronome.isNativeAvailable) {
-      try {
-        await metronome.start({ manageAudioSession: false });
-      } catch (error) {
-        console.warn("Recording metronome resume failed", error);
-      }
-    }
-  }
-
-  function minimizeRecording() {
-    if (isArmingRecording) {
-      void cancelPendingRecordingStart().then(() => navigation.goBack());
-      return;
-    }
-    if (navigation.canGoBack()) {
-      navigation.goBack();
-      return;
-    }
-    navigation.navigate("Home" as never);
-  }
+  const screen = useRecordingScreenModel();
 
   return (
     <SafeAreaView style={styles.screen}>
       <View style={styles.recordingScreenLayout}>
-        <View style={styles.transportHeaderZone}>
-          <ScreenHeader
-            title={recordingIdea?.title || "Recording"}
-            leftIcon="back"
-            onLeftPress={confirmDiscardAndExit}
-            rightElement={
-              <View style={styles.transportHeaderActionRow}>
-                <Pressable
-                  style={({ pressed }) => [
-                    styles.transportHeaderActionBtn,
-                    pressed ? styles.pressDown : null,
-                  ]}
-                  onPress={minimizeRecording}
-                  accessibilityRole="button"
-                  accessibilityLabel="Minimize recorder"
-                >
-                  <Ionicons name="remove" size={18} color="#334155" />
-                </Pressable>
+        <RecordingHeader
+          title={screen.recordingIdea?.title || "Recording"}
+          controlsDisabled={screen.recordingControlsDisabled}
+          onBack={screen.confirmDiscardAndExit}
+          onMinimize={screen.minimizeRecording}
+          onOpenSettings={() => screen.setSettingsVisible(true)}
+        />
 
-                <Pressable
-                  style={({ pressed }) => [
-                    styles.recordingSettingsBtn,
-                    isArmingRecording || (recording.isRecording && !recording.isPaused)
-                      ? styles.recordingSettingsBtnDisabled
-                      : null,
-                    pressed ? styles.pressDown : null,
-                  ]}
-                  onPress={() => setSettingsVisible(true)}
-                  disabled={isArmingRecording || (recording.isRecording && !recording.isPaused)}
-                >
-                  <Ionicons
-                    name="ellipsis-horizontal"
-                    size={16}
-                    color={
-                      isArmingRecording || (recording.isRecording && !recording.isPaused)
-                        ? "#9ca3af"
-                        : "#111827"
-                    }
-                  />
-                </Pressable>
-              </View>
-            }
-          />
-        </View>
+        <RecordingBody
+          recordingIdea={screen.recordingIdea ?? null}
+          hasProjectLyrics={screen.hasProjectLyrics}
+          latestLyricsText={screen.latestLyricsText}
+          latestLyricsUpdatedAt={screen.latestLyricsVersion?.updatedAt ?? null}
+          lyricsExpanded={screen.lyricsExpanded}
+          lyricsAutoscrollMode={screen.lyricsAutoscrollMode}
+          lyricsAutoscrollSpeedMultiplier={screen.lyricsAutoscrollSpeedMultiplier}
+          isRecording={screen.recording.isRecording}
+          isPaused={screen.recording.isPaused}
+          elapsedMs={screen.recording.elapsedMs}
+          isCountIn={screen.metronome.isCountIn}
+          countInBars={screen.metronome.countInBars}
+          countInCurrentBar={screen.metronome.currentBar}
+          countInCurrentBeat={screen.metronome.currentBeatInBar}
+          countInBeatsPerBar={screen.metronome.meterPreset.pulsesPerBar}
+          waveformData={screen.recording.liveWaveformData ?? screen.recording.analysisData}
+          onToggleLyricsExpanded={screen.setLyricsExpanded}
+          onToggleLyricsAutoscroll={(enabled) =>
+            screen.setLyricsAutoscrollMode(enabled ? "follow" : "off")
+          }
+          onLyricsAutoscrollInterrupted={() => screen.setLyricsAutoscrollMode("manual")}
+          onSelectLyricsAutoscrollSpeedMultiplier={screen.setLyricsAutoscrollSpeedMultiplier}
+        />
 
-        <ScrollView
-          style={styles.recordingScroll}
-          contentContainerStyle={[
-            styles.recordingScrollContent,
-            hasProjectLyrics && !lyricsExpanded ? styles.recordingScrollContentWithCollapsedLyrics : null,
-          ]}
-          showsVerticalScrollIndicator={false}
-        >
-          <View
-            style={[
-              styles.recordingContentBody,
-              hasProjectLyrics && !lyricsExpanded ? styles.recordingContentBodyCollapsedLyrics : null,
-            ]}
-          >
-            <RecordingMeta
-              ideaTitle=""
-              isRecording={recording.isRecording}
-              isPaused={recording.isPaused}
-              elapsedMs={recording.elapsedMs}
-              waveformData={recording.liveWaveformData ?? recording.analysisData}
-              compact={lyricsExpanded}
-            />
-
-            {hasProjectLyrics && latestLyricsVersion ? (
-              <PlayerLyricsPanel
-                text={latestLyricsText}
-                versionLabel={`Version ${recordingIdea?.lyrics?.versions.length ?? 1}`}
-                updatedAtLabel={formatDate(latestLyricsVersion.updatedAt)}
-                autoscrollState={{
-                  mode: lyricsAutoscrollMode,
-                  currentTimeMs: recording.elapsedMs,
-                  durationMs: recording.elapsedMs,
-                  activeLineId: null,
-                }}
-                variant="recording"
-                expanded={lyricsExpanded}
-                defaultExpanded={false}
-                onToggleExpanded={setLyricsExpanded}
-                autoscrollEnabled={lyricsAutoscrollMode === "follow"}
-                autoscrollActive={recording.isRecording && !recording.isPaused}
-                autoscrollSpeedMultiplier={lyricsAutoscrollSpeedMultiplier}
-                onToggleAutoscroll={(enabled) => setLyricsAutoscrollMode(enabled ? "follow" : "off")}
-                onAutoscrollInterrupted={() => setLyricsAutoscrollMode("manual")}
-                onSelectAutoscrollSpeedMultiplier={setLyricsAutoscrollSpeedMultiplier}
-              />
-            ) : null}
-          </View>
-        </ScrollView>
-
-        <View style={styles.recordingBottomDock}>
-          <RecordingMetronomeSection
-            enabled={recordingMetronomeEnabled}
-            disabled={isArmingRecording || (recording.isRecording && !recording.isPaused)}
-            bpm={metronome.bpm}
-            meterId={metronome.meterId}
-            countInBars={metronome.countInBars}
-            outputs={metronome.outputs}
-            tapCount={metronome.tapCount}
-            isNativeAvailable={metronome.isNativeAvailable}
-            onToggleEnabled={setRecordingMetronomeEnabled}
-            onNudgeBpm={metronome.nudgeBpm}
-            onSetBpmValue={metronome.setBpmValue}
-            onTapTempo={metronome.tapTempo}
-            onResetTapTempo={metronome.clearTapTempo}
-            onSelectMeter={metronome.setMeterIdValue}
-            onSelectCountInBars={metronome.setCountInBarsValue}
-            onToggleOutput={metronome.toggleOutput}
-          />
-
-          <RecordingControls
-            isRecording={recording.isRecording}
-            isPaused={recording.isPaused}
-            isArming={isArmingRecording}
-            compact={false}
-            canSave={recording.isRecording || recording.isPaused}
-            onOpenInput={() => setSettingsVisible(true)}
-            onPause={handlePauseRecording}
-            onResume={handleResumeRecording}
-            onStart={handleStartRecording}
-            onRequestSave={requestSaveRecording}
-          />
-        </View>
+        <RecordingBottomDock
+          metronomeEnabled={screen.recordingMetronomeEnabled}
+          metronomeControlsDisabled={screen.recordingControlsDisabled}
+          metronome={{
+            bpm: screen.metronome.bpm,
+            meterId: screen.metronome.meterId,
+            countInBars: screen.metronome.countInBars,
+            outputs: screen.metronome.outputs,
+            tapCount: screen.metronome.tapCount,
+            isNativeAvailable: screen.metronome.isNativeAvailable,
+            onToggleEnabled: screen.setRecordingMetronomeEnabled,
+            onNudgeBpm: screen.metronome.nudgeBpm,
+            onSetBpmValue: screen.metronome.setBpmValue,
+            onTapTempo: screen.metronome.tapTempo,
+            onResetTapTempo: screen.metronome.clearTapTempo,
+            onSelectMeter: screen.metronome.setMeterIdValue,
+            onSelectCountInBars: screen.metronome.setCountInBarsValue,
+            onToggleOutput: screen.metronome.toggleOutput,
+          }}
+          recording={{
+            isRecording: screen.recording.isRecording,
+            isPaused: screen.recording.isPaused,
+            isArming: screen.isArmingRecording,
+            onOpenInput: () => screen.setSettingsVisible(true),
+            onPause: screen.handlePauseRecording,
+            onResume: screen.handleResumeRecording,
+            onStart: screen.handleStartRecording,
+            onRequestSave: screen.requestSaveRecording,
+          }}
+        />
       </View>
 
       <QuickNameModal
-        visible={quickNameModalVisible}
-        draftValue={quickNameDraft}
-        placeholderValue={recordingPlaceholderTitle}
-        onChangeDraft={setQuickNameDraft}
-        isPrimary={isPrimaryDraft}
-        onChangeIsPrimary={recordingIdea?.kind === "project" ? setIsPrimaryDraft : undefined}
-        onCancel={() => setQuickNameModalVisible(false)}
+        visible={screen.quickNameModalVisible}
+        draftValue={screen.quickNameDraft}
+        placeholderValue={screen.recordingPlaceholderTitle}
+        onChangeDraft={screen.setQuickNameDraft}
+        isPrimary={screen.isPrimaryDraft}
+        onChangeIsPrimary={screen.recordingIdea?.kind === "project" ? screen.setIsPrimaryDraft : undefined}
+        onCancel={() => screen.setQuickNameModalVisible(false)}
         onSave={async () => {
-          await saveQuickClipName();
+          await screen.saveQuickClipName();
           navigation.goBack();
         }}
       />
 
-      <Modal
-        transparent
-        animationType="fade"
-        visible={settingsVisible}
-        onRequestClose={() => setSettingsVisible(false)}
-      >
-        <View style={styles.modalBackdrop}>
-          <View style={[styles.modalCard, styles.recordingSettingsModalCard]}>
-            <View style={styles.recordingSettingsHeader}>
-              <View style={styles.recordingSettingsHeaderCopy}>
-                <Text style={styles.recordingSettingsTitle}>Recording Settings</Text>
-                <Text style={styles.recordingSettingsMeta}>
-                  Choose the microphone here. Playback output still follows your phone&apos;s current route.
-                </Text>
-              </View>
-
-              <Pressable
-                style={({ pressed }) => [
-                  styles.recordingSettingsCloseBtn,
-                  pressed ? styles.pressDown : null,
-                ]}
-                onPress={() => setSettingsVisible(false)}
-              >
-                <Ionicons name="close" size={18} color="#111827" />
-              </Pressable>
-            </View>
-
-            <RecordingInputPicker
-              disabled={isArmingRecording || (recording.isRecording && !recording.isPaused)}
-              preferredInputId={preferredRecordingInputId}
-              onChangePreferredInputId={setPreferredRecordingInputId}
-            />
-          </View>
-        </View>
-      </Modal>
+      <RecordingSettingsModal
+        visible={screen.settingsVisible}
+        disabled={screen.recordingControlsDisabled}
+        preferredInputId={screen.preferredRecordingInputId}
+        onClose={() => screen.setSettingsVisible(false)}
+        onChangePreferredInputId={screen.setPreferredRecordingInputId}
+      />
 
       <ExpoStatusBar style="dark" />
     </SafeAreaView>

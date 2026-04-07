@@ -1,0 +1,103 @@
+import React from "react";
+import { ScrollView, View } from "react-native";
+import type { AudioAnalysis } from "@siteed/audio-studio";
+import type { SongIdea } from "../../types";
+import { styles } from "../../styles";
+import { RecordingMeta } from "./RecordingMeta";
+import { RecordingLyricsSection } from "./RecordingLyricsSection";
+
+type RecordingBodyProps = {
+  recordingIdea: SongIdea | null | undefined;
+  hasProjectLyrics: boolean;
+  latestLyricsText: string;
+  latestLyricsUpdatedAt: number | null;
+  lyricsExpanded: boolean;
+  lyricsAutoscrollMode: "off" | "follow" | "manual";
+  lyricsAutoscrollSpeedMultiplier: number;
+  isRecording: boolean;
+  isPaused: boolean;
+  elapsedMs: number;
+  isCountIn: boolean;
+  countInBars: number;
+  countInCurrentBar: number;
+  countInCurrentBeat: number;
+  countInBeatsPerBar: number;
+  waveformData?: Pick<AudioAnalysis, "dataPoints" | "segmentDurationMs">;
+  onToggleLyricsExpanded: (value: boolean) => void;
+  onToggleLyricsAutoscroll: (enabled: boolean) => void;
+  onLyricsAutoscrollInterrupted: () => void;
+  onSelectLyricsAutoscrollSpeedMultiplier: (value: number) => void;
+};
+
+export function RecordingBody({
+  recordingIdea,
+  hasProjectLyrics,
+  latestLyricsText,
+  latestLyricsUpdatedAt,
+  lyricsExpanded,
+  lyricsAutoscrollMode,
+  lyricsAutoscrollSpeedMultiplier,
+  isRecording,
+  isPaused,
+  elapsedMs,
+  isCountIn,
+  countInBars,
+  countInCurrentBar,
+  countInCurrentBeat,
+  countInBeatsPerBar,
+  waveformData,
+  onToggleLyricsExpanded,
+  onToggleLyricsAutoscroll,
+  onLyricsAutoscrollInterrupted,
+  onSelectLyricsAutoscrollSpeedMultiplier,
+}: RecordingBodyProps) {
+  return (
+    <ScrollView
+      style={styles.recordingScroll}
+      contentContainerStyle={[
+        styles.recordingScrollContent,
+        hasProjectLyrics && !lyricsExpanded ? styles.recordingScrollContentWithCollapsedLyrics : null,
+      ]}
+      showsVerticalScrollIndicator={false}
+    >
+      <View
+        style={[
+          styles.recordingContentBody,
+          hasProjectLyrics && !lyricsExpanded ? styles.recordingContentBodyCollapsedLyrics : null,
+        ]}
+      >
+        <RecordingMeta
+          ideaTitle=""
+          isRecording={isRecording}
+          isPaused={isPaused}
+          elapsedMs={elapsedMs}
+          isCountIn={isCountIn}
+          countInBars={countInBars}
+          countInCurrentBar={countInCurrentBar}
+          countInCurrentBeat={countInCurrentBeat}
+          countInBeatsPerBar={countInBeatsPerBar}
+          waveformData={waveformData}
+          compact={lyricsExpanded}
+        />
+
+        {hasProjectLyrics && latestLyricsUpdatedAt !== null ? (
+          <RecordingLyricsSection
+            text={latestLyricsText}
+            versionCount={recordingIdea?.kind === "project" ? recordingIdea.lyrics?.versions.length ?? 1 : 1}
+            updatedAt={latestLyricsUpdatedAt}
+            elapsedMs={elapsedMs}
+            isRecording={isRecording}
+            isPaused={isPaused}
+            expanded={lyricsExpanded}
+            autoscrollMode={lyricsAutoscrollMode}
+            autoscrollSpeedMultiplier={lyricsAutoscrollSpeedMultiplier}
+            onToggleExpanded={onToggleLyricsExpanded}
+            onToggleAutoscroll={onToggleLyricsAutoscroll}
+            onAutoscrollInterrupted={onLyricsAutoscrollInterrupted}
+            onSelectAutoscrollSpeedMultiplier={onSelectLyricsAutoscrollSpeedMultiplier}
+          />
+        ) : null}
+      </View>
+    </ScrollView>
+  );
+}
