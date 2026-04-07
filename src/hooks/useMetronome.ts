@@ -3,7 +3,10 @@ import { useEventListener } from "expo";
 import * as Haptics from "expo-haptics";
 import { Platform, Vibration } from "react-native";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { activateMetronomeAudioSession } from "../services/audioSession";
+import {
+  activateMetronomeAudioSession,
+  releaseAudioSessionOwner,
+} from "../services/audioSession";
 import {
   clampMetronomeBpm,
   clampMetronomeLevel,
@@ -37,6 +40,12 @@ type UseMetronomeArgs = {
   initialBpm?: number;
   initialOutputs?: Partial<MetronomeOutputs>;
 };
+
+type MetronomeStartOptions = {
+  manageAudioSession?: boolean;
+};
+
+const METRONOME_AUDIO_SESSION_OWNER_ID = "metronome";
 
 export function useMetronome({ initialBpm = DEFAULT_METRONOME_BPM, initialOutputs }: UseMetronomeArgs = {}) {
   if (SongseedMetronomeModule) {
@@ -219,35 +228,56 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
     console.warn("Native metronome error", message);
   });
 
-  const start = useCallback(async () => {
+  const start = useCallback(async (options: MetronomeStartOptions = {}) => {
     if (!SongseedMetronomeModule) return;
-    await activateMetronomeAudioSession();
-    const nextState = await syncNativeConfig();
-    if (nextState) {
-      setNativeState(nextState);
+    try {
+      if (options.manageAudioSession ?? true) {
+        await activateMetronomeAudioSession({ ownerId: METRONOME_AUDIO_SESSION_OWNER_ID });
+      }
+      const nextState = await syncNativeConfig();
+      if (nextState) {
+        setNativeState(nextState);
+      }
+      setBeatCount(0);
+      const state = await SongseedMetronomeModule.start();
+      setNativeState(state);
+    } catch (error) {
+      await releaseAudioSessionOwner(METRONOME_AUDIO_SESSION_OWNER_ID).catch(() => {});
+      throw error;
     }
-    setBeatCount(0);
-    const state = await SongseedMetronomeModule.start();
-    setNativeState(state);
   }, [syncNativeConfig]);
 
-  const startCountIn = useCallback(async (bars = effectiveCountInBars) => {
-    if (!SongseedMetronomeModule) return;
-    await activateMetronomeAudioSession();
-    const nextState = await syncNativeConfig();
-    if (nextState) {
-      setNativeState(nextState);
-    }
-    setBeatCount(0);
-    const state = await SongseedMetronomeModule.startCountIn(bars);
-    setNativeState(state);
-  }, [effectiveCountInBars, syncNativeConfig]);
+  const startCountIn = useCallback(
+    async (bars = effectiveCountInBars, options: MetronomeStartOptions = {}) => {
+      if (!SongseedMetronomeModule) return;
+      try {
+        if (options.manageAudioSession ?? true) {
+          await activateMetronomeAudioSession({ ownerId: METRONOME_AUDIO_SESSION_OWNER_ID });
+        }
+        const nextState = await syncNativeConfig();
+        if (nextState) {
+          setNativeState(nextState);
+        }
+        setBeatCount(0);
+        const state = await SongseedMetronomeModule.startCountIn(bars);
+        setNativeState(state);
+      } catch (error) {
+        await releaseAudioSessionOwner(METRONOME_AUDIO_SESSION_OWNER_ID).catch(() => {});
+        throw error;
+      }
+    },
+    [effectiveCountInBars, syncNativeConfig]
+  );
 
   const stop = useCallback(async () => {
     if (!SongseedMetronomeModule) return;
-    const state = await SongseedMetronomeModule.stop();
-    setNativeState(state);
-    setBeatCount(0);
+    try {
+      const state = await SongseedMetronomeModule.stop();
+      setNativeState(state);
+      setBeatCount(0);
+    } finally {
+      await releaseAudioSessionOwner(METRONOME_AUDIO_SESSION_OWNER_ID).catch(() => {});
+    }
   }, []);
 
   const toggleRunning = useCallback(() => {
@@ -534,7 +564,7 @@ function useLegacyMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
     }
   }, []);
 
-  const stop = useCallback(() => {
+  const stop = useCallback(async () => {
     runTokenRef.current += 1;
     isRunningRef.current = false;
     resetBeatTracking();
@@ -543,10 +573,12 @@ function useLegacyMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
       player.pause();
     } catch {
       // ignore pause races
+    } finally {
+      await releaseAudioSessionOwner(METRONOME_AUDIO_SESSION_OWNER_ID).catch(() => {});
     }
   }, [player, resetBeatTracking]);
 
-  const start = useCallback(async () => {
+  const start = useCallback(async (options: MetronomeStartOptions = {}) => {
     const runToken = runTokenRef.current + 1;
     runTokenRef.current = runToken;
     isRunningRef.current = true;
@@ -554,7 +586,9 @@ function useLegacyMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
     setIsRunning(true);
 
     try {
-      await activateMetronomeAudioSession();
+      if (options.manageAudioSession ?? true) {
+        await activateMetronomeAudioSession({ ownerId: METRONOME_AUDIO_SESSION_OWNER_ID });
+      }
     } catch (error) {
       console.warn("Metronome audio session failed", error);
     }
@@ -574,7 +608,7 @@ function useLegacyMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
 
   const toggleRunning = useCallback(() => {
     if (isRunningRef.current) {
-      stop();
+      void stop().catch(() => {});
       return;
     }
 
@@ -713,6 +747,7 @@ function useLegacyMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
       } catch {
         // ignore cleanup races
       }
+      void releaseAudioSessionOwner(METRONOME_AUDIO_SESSION_OWNER_ID).catch(() => {});
     };
   }, [player]);
 
@@ -737,8 +772,11 @@ function useLegacyMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
     isCountIn: false,
     isNativeAvailable: false,
     start,
-    startCountIn: async () => {
-      await start();
+    startCountIn: async (
+      _bars = DEFAULT_METRONOME_COUNT_IN_BARS,
+      options: MetronomeStartOptions = {}
+    ) => {
+      await start(options);
     },
     stop,
     toggleRunning,

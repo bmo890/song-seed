@@ -284,6 +284,25 @@ export function RecordingScreen() {
     })();
   }, [metronome.countInCompletionToken, recording, stopRecordingMetronome]);
 
+  useEffect(() => {
+    if (recording.interruptionToken === 0) {
+      return;
+    }
+
+    countInPendingRef.current = false;
+    setIsArmingRecording(false);
+
+    void (async () => {
+      if (metronome.isRunning || metronome.isCountIn) {
+        try {
+          await metronome.stop();
+        } catch (error) {
+          console.warn("Recording metronome stop after interruption failed", error);
+        }
+      }
+    })();
+  }, [metronome.isCountIn, metronome.isRunning, metronome.stop, recording.interruptionToken]);
+
   async function handleStartRecording() {
     if (isArmingRecording) {
       return;
@@ -306,11 +325,11 @@ export function RecordingScreen() {
     try {
       if (metronome.countInBars > 0) {
         countInPendingRef.current = true;
-        await metronome.startCountIn(metronome.countInBars);
+        await metronome.startCountIn(metronome.countInBars, { manageAudioSession: false });
         return;
       }
 
-      await metronome.start();
+      await metronome.start({ manageAudioSession: false });
       const started = await recording.startPreparedRecording();
       if (!started) {
         await stopRecordingMetronome();
@@ -336,7 +355,7 @@ export function RecordingScreen() {
     await recording.resumeRecording();
     if (recordingMetronomeEnabled && metronome.isNativeAvailable) {
       try {
-        await metronome.start();
+        await metronome.start({ manageAudioSession: false });
       } catch (error) {
         console.warn("Recording metronome resume failed", error);
       }

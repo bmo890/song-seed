@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, Pressable, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useAudioDevices } from "@siteed/audio-studio";
@@ -58,6 +58,13 @@ export function RecordingInputPicker({ disabled, preferredInputId, onChangePrefe
     const activeSelectionId = preferredInputId ?? availableDevices[0]?.id ?? null;
     const activeDevice = availableDevices.find((d) => d.id === activeSelectionId);
     const activeLabel = activeDevice ? formatDeviceLabel(activeDevice) : "Built-in Mic";
+
+    useEffect(() => {
+        if (loading) return;
+        if (!preferredInputId) return;
+        if (availableDevices.some((device) => device.id === preferredInputId)) return;
+        onChangePreferredInputId(null);
+    }, [availableDevices, loading, onChangePreferredInputId, preferredInputId]);
 
     async function handleSelectDevice(deviceId: string) {
         if (disabled || isApplying) return;

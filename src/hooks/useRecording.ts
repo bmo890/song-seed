@@ -1,15 +1,20 @@
-import { useMemo, useRef } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
   useSharedAudioRecorder,
   ExpoAudioStreamModule,
   audioDeviceManager,
+  type RecordingInterruptionEvent,
   type RecordingConfig,
   type SampleRate,
 } from "@siteed/audio-studio";
 import * as FileSystem from "expo-file-system/legacy";
 import { Alert, Linking } from "react-native";
 import { metersToWaveformPeaks } from "../utils";
-import { activateRecordingAudioSession } from "../services/audioSession";
+import {
+  activateRecordingAudioSession,
+  createAudioSessionOwner,
+  releaseAudioSessionOwner,
+} from "../services/audioSession";
 import { importRecordedAudioAsset, MANAGED_WAVEFORM_PEAK_COUNT } from "../services/audioStorage";
 import {
   clearPendingRecordingSession,
@@ -31,6 +36,7 @@ function trimNotificationLabel(label: string | null | undefined, fallback: strin
 
 export function useRecording(onRecorded: OnRecorded, preferredInputId: string | null) {
   const recorder = useSharedAudioRecorder();
+  const audioSessionOwnerIdRef = useRef(createAudioSessionOwner("recording"));
   const persistedSessionRef = useRef(false);
   const preparedRecordingRef = useRef(false);
   const recordingStartedAtRef = useRef<number | null>(null);
@@ -38,6 +44,7 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
   const activeWorkspaceId = useStore((s) => s.activeWorkspaceId);
   const recordingIdeaId = useStore((s) => s.recordingIdeaId);
   const recordingParentClipId = useStore((s) => s.recordingParentClipId);
+  const setPreferredRecordingInputId = useStore((s) => s.setPreferredRecordingInputId);
   const displayElapsedMs = useRecordingDisplayElapsed({
     durationMs: recorder.durationMs,
     isRecording: recorder.isRecording,
@@ -95,6 +102,44 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
       text: `Recording ${targetTitle}.`,
     };
   }, [recordingIdea, recordingParentClip]);
+  const [lastInterruptionReason, setLastInterruptionReason] =
+    useState<RecordingInterruptionEvent["reason"] | null>(null);
+  const [interruptionToken, setInterruptionToken] = useState(0);
+
+  async function claimRecordingAudioSession() {
+    await activateRecordingAudioSession({ ownerId: audioSessionOwnerIdRef.current });
+  }
+
+  async function releaseRecordingAudioSession() {
+    await releaseAudioSessionOwner(audioSessionOwnerIdRef.current);
+  }
+
+  async function applyPreferredInput() {
+    if (preferredInputId) {
+      try {
+        const selectionResult = await audioDeviceManager.selectDevice(preferredInputId);
+        if (selectionResult !== false) {
+          return;
+        }
+      } catch (selectionError) {
+        console.warn("Preferred input selection failed", selectionError);
+      }
+
+      try {
+        await audioDeviceManager.resetToDefaultDevice();
+      } catch (resetError) {
+        console.warn("Recording input reset after stale preference failed", resetError);
+      }
+      setPreferredRecordingInputId(null);
+      return;
+    }
+
+    try {
+      await audioDeviceManager.resetToDefaultDevice();
+    } catch (resetError) {
+      console.warn("Recording input reset failed", resetError);
+    }
+  }
 
   async function requestMicrophonePermission() {
     const permission = await ExpoAudioStreamModule.requestPermissionsAsync();
@@ -181,7 +226,14 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
         const recordingStartedAt = recordingStartedAtRef.current ?? Date.now();
         void persistPendingRecordingSession(event.fileUri, recordingStartedAt);
       },
-      onRecordingInterrupted: () => {},
+      onRecordingInterrupted: (event) => {
+        preparedRecordingRef.current = false;
+        setLastInterruptionReason(event.reason);
+        setInterruptionToken((current) => current + 1);
+        void releaseAudioSessionOwner(audioSessionOwnerIdRef.current).catch((error) => {
+          console.warn("Recording audio session release after interruption failed", error);
+        });
+      },
       onAudioAnalysis: async () => {},
     };
   }
@@ -194,21 +246,9 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
         return false;
       }
 
-      if (preferredInputId) {
-        try {
-          await audioDeviceManager.selectDevice(preferredInputId);
-        } catch (selectionError) {
-          console.warn("Preferred input selection failed", selectionError);
-        }
-      } else {
-        try {
-          await audioDeviceManager.resetToDefaultDevice();
-        } catch (resetError) {
-          console.warn("Recording input reset failed", resetError);
-        }
-      }
+      await applyPreferredInput();
 
-      await activateRecordingAudioSession();
+      await claimRecordingAudioSession();
       persistedSessionRef.current = false;
       recordingStartedAtRef.current = null;
       resetLiveWaveform();
@@ -216,6 +256,9 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
       preparedRecordingRef.current = true;
       return true;
     } catch (err) {
+      await releaseRecordingAudioSession().catch((error) => {
+        console.warn("Recording audio session release after prepare failure failed", error);
+      });
       console.warn("Recording prepare failed", err);
       Alert.alert("Recording failed", "Could not prepare recording.");
       return false;
@@ -238,21 +281,9 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
         }
       } catch {}
 
-      if (preferredInputId) {
-        try {
-          await audioDeviceManager.selectDevice(preferredInputId);
-        } catch (selectionError) {
-          console.warn("Preferred input selection failed", selectionError);
-        }
-      } else {
-        try {
-          await audioDeviceManager.resetToDefaultDevice();
-        } catch (resetError) {
-          console.warn("Recording input reset failed", resetError);
-        }
-      }
+      await applyPreferredInput();
 
-      await activateRecordingAudioSession();
+      await claimRecordingAudioSession();
       persistedSessionRef.current = false;
       preparedRecordingRef.current = false;
       recordingStartedAtRef.current = null;
@@ -266,6 +297,9 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
         await persistPendingRecordingSession(startResult.fileUri, recordingStartedAt);
       }
     } catch (err) {
+      await releaseRecordingAudioSession().catch((error) => {
+        console.warn("Recording audio session release after start failure failed", error);
+      });
       console.warn("Recording start failed", err);
       Alert.alert("Recording failed", "Could not start recording.");
     }
@@ -292,6 +326,9 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
       return true;
     } catch (err) {
       preparedRecordingRef.current = false;
+      await releaseRecordingAudioSession().catch((error) => {
+        console.warn("Recording audio session release after prepared start failure failed", error);
+      });
       console.warn("Prepared recording start failed", err);
       Alert.alert("Recording failed", "Could not start recording.");
       return false;
@@ -309,6 +346,9 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
       // Ignore cleanup failures when a prepared recorder is canceled before capture begins.
     }
     await clearPendingRecordingSession();
+    await releaseRecordingAudioSession().catch((error) => {
+      console.warn("Recording audio session release after prepare cancel failed", error);
+    });
   }
 
   async function pauseRecording() {
@@ -324,19 +364,8 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
     if (!recorder.isPaused) return;
     try {
       // Apply any input change the user made while paused.
-      if (preferredInputId) {
-        try {
-          await audioDeviceManager.selectDevice(preferredInputId);
-        } catch (selectionError) {
-          console.warn("Input switch before resume failed", selectionError);
-        }
-      } else {
-        try {
-          await audioDeviceManager.resetToDefaultDevice();
-        } catch (resetError) {
-          console.warn("Input reset before resume failed", resetError);
-        }
-      }
+      await applyPreferredInput();
+      await claimRecordingAudioSession();
       await recorder.resumeRecording();
     } catch {
       Alert.alert("Resume failed", "Could not continue recording.");
@@ -381,6 +410,10 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
     } catch {
       Alert.alert("Recording failed", "Could not save recording.");
       return false;
+    } finally {
+      await releaseRecordingAudioSession().catch((error) => {
+        console.warn("Recording audio session release after save failed", error);
+      });
     }
   }
 
@@ -398,6 +431,10 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
       await clearPendingRecordingSession();
     } catch {
       // ignore
+    } finally {
+      await releaseRecordingAudioSession().catch((error) => {
+        console.warn("Recording audio session release after discard failed", error);
+      });
     }
   }
 
@@ -407,6 +444,8 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
     elapsedMs: displayElapsedMs,
     analysisData: recorder.analysisData,
     liveWaveformData,
+    lastInterruptionReason,
+    interruptionToken,
     prepareRecording,
     startRecording,
     startPreparedRecording,
