@@ -15,6 +15,7 @@ import { usePlayerSpeedControls } from "./hooks/usePlayerSpeedControls";
 import { usePlayerPins } from "./hooks/usePlayerPins";
 import { usePlayerScreenData } from "./hooks/usePlayerScreenData";
 import { usePlayerScreenLifecycle } from "./hooks/usePlayerScreenLifecycle";
+import { usePlayerPracticePitchTransport } from "./hooks/usePlayerPracticePitchTransport";
 import { usePlayerScreenUi } from "./hooks/usePlayerScreenUi";
 import { PlayerTimeline } from "./components/PlayerTimeline";
 import { PlayerHeaderSection } from "./components/PlayerHeaderSection";
@@ -60,20 +61,45 @@ export function PlayerScreen() {
   const playerIdea = data.playerIdea;
   const playerClip = data.playerClip;
   const resolvedDisplayDuration = data.displayDuration;
+  const practicePitchTransport = usePlayerPracticePitchTransport({
+    mode: ui.mode,
+    isFocused,
+    clip: playerClip
+      ? {
+          id: playerClip.id,
+          audioUri: playerClip.audioUri,
+        }
+      : null,
+    pitchShiftSemitones: ui.pitchShiftSemitones,
+    playerShouldAutoplay: data.playerShouldAutoplay,
+    fullPlayerPosition: playerPosition,
+    fullPlayerDuration: resolvedDisplayDuration,
+    fullPlayerPlaybackRate: playbackRate,
+    fullPlayerIsPlaying: isPlayerPlaying,
+    pauseFullPlayer: pausePlayer,
+    playFullPlayer: playPlayer,
+    seekFullPlayerTo: seekTo,
+    setFullPlayerPlaybackRate: setPlaybackRate,
+  });
+  const effectivePlayerPosition = practicePitchTransport.effectivePositionMs;
+  const effectivePlayerDuration =
+    practicePitchTransport.effectiveDurationMs || resolvedDisplayDuration;
+  const effectivePlaybackRate = practicePitchTransport.effectivePlaybackRate;
+  const effectiveIsPlaying = practicePitchTransport.effectiveIsPlaying;
   const transportClock = usePlayerTransportClock({
-    positionMs: playerPosition,
-    durationMs: resolvedDisplayDuration,
-    isPlaying: isPlayerPlaying,
-    playbackRate,
+    positionMs: effectivePlayerPosition,
+    durationMs: effectivePlayerDuration,
+    isPlaying: effectiveIsPlaying,
+    playbackRate: effectivePlaybackRate,
   });
   const hasPreviousTrack = data.playerQueueIndex > 0;
   const hasNextTrack = data.playerQueueIndex >= 0 && data.playerQueueIndex < data.playerQueue.length - 1;
   const transportScrub = useTransportScrubbing({
-    isPlaying: isPlayerPlaying,
-    durationMs: resolvedDisplayDuration,
-    pause: pausePlayer,
-    play: playPlayer,
-    seekTo,
+    isPlaying: effectiveIsPlaying,
+    durationMs: effectivePlayerDuration,
+    pause: practicePitchTransport.pause,
+    play: practicePitchTransport.play,
+    seekTo: practicePitchTransport.seekTo,
   });
   const { beginScrub, endScrub, cancelScrub } = transportScrub;
   const {
@@ -87,14 +113,20 @@ export function PlayerScreen() {
   } = usePlayerSpeedControls({
     minSpeed: PRACTICE_SPEED_MIN,
     maxSpeed: PRACTICE_SPEED_MAX,
-    isPlayerPlaying,
-    pausePlayer,
-    playPlayer,
-    setPlaybackRate,
+    playbackRate: effectivePlaybackRate,
+    isPlayerPlaying: effectiveIsPlaying,
+    pausePlayer: practicePitchTransport.pause,
+    playPlayer: practicePitchTransport.play,
+    setPlaybackRate: practicePitchTransport.setPlaybackRate,
   });
   const visiblePracticeRange = useMemo(
-    () => getVisibleTimelineRange(resolvedDisplayDuration, playerPosition, ui.practiceZoomMultiple),
-    [resolvedDisplayDuration, playerPosition, ui.practiceZoomMultiple]
+    () =>
+      getVisibleTimelineRange(
+        effectivePlayerDuration,
+        effectivePlayerPosition,
+        ui.practiceZoomMultiple
+      ),
+    [effectivePlayerDuration, effectivePlayerPosition, ui.practiceZoomMultiple]
   );
   const {
     practiceLoopEnabled,
@@ -113,14 +145,14 @@ export function PlayerScreen() {
   } = usePracticeLoopController({
     clipId: playerClip?.id,
     mode: ui.mode,
-    durationMs: resolvedDisplayDuration,
-    playerPosition,
-    isPlayerPlaying,
-    playbackRate,
+    durationMs: effectivePlayerDuration,
+    playerPosition: effectivePlayerPosition,
+    isPlayerPlaying: effectiveIsPlaying,
+    playbackRate: effectivePlaybackRate,
     isScrubbing: transportScrub.isScrubbing,
-    seekTo,
-    playPlayer,
-    pausePlayer,
+    seekTo: practicePitchTransport.seekTo,
+    playPlayer: practicePitchTransport.play,
+    pausePlayer: practicePitchTransport.pause,
     onDisplaySeek: transportClock.setDisplayPositionMs,
     visibleWindowStartMs: visiblePracticeRange.start,
     visibleWindowEndMs: visiblePracticeRange.end,
@@ -145,8 +177,8 @@ export function PlayerScreen() {
     playerIdeaId: playerIdea?.id,
     playerClipId: playerClip?.id,
     practiceMarkers: data.practiceMarkers,
-    displayDuration: resolvedDisplayDuration,
-    playerPosition,
+    displayDuration: effectivePlayerDuration,
+    playerPosition: effectivePlayerPosition,
   });
   const lifecycle = usePlayerScreenLifecycle({
     navigation,
@@ -165,25 +197,31 @@ export function PlayerScreen() {
     activePlayerTargetClipId: activePlayerTarget?.clipId,
     playerDuration,
     displayDuration: resolvedDisplayDuration,
-    isPlayerPlaying,
-    finishedPlaybackToken,
-    finishedPlaybackClipId,
+    isPlayerPlaying: effectiveIsPlaying,
+    finishedPlaybackToken: practicePitchTransport.isOwningNativeTransport
+      ? practicePitchTransport.finishedPlaybackToken
+      : finishedPlaybackToken,
+    finishedPlaybackClipId: practicePitchTransport.isOwningNativeTransport
+      ? practicePitchTransport.finishedPlaybackClipId
+      : finishedPlaybackClipId,
     hasNextTrack,
     playerQueue: data.playerQueue,
     playerToggleRequestToken: data.playerToggleRequestToken,
     playerCloseRequestToken: data.playerCloseRequestToken,
     mode: ui.mode,
+    suppressAutoplayOnOpen: practicePitchTransport.shouldSuppressSourceAutoplay,
     speedPanelVisible,
     openPlayer,
     closePlayer,
-    pausePlayer,
+    pausePlayer: practicePitchTransport.pause,
     updateLockScreenMetadata,
     beginScrub,
     endScrub,
     cancelScrub,
     cancelPendingPracticeSeek,
-    handleTransportToggle,
+    handleTransportToggle: practicePitchTransport.togglePlay,
     setSpeedPanelVisible,
+    prepareTransportForClose: practicePitchTransport.prepareForPlayerClose,
   });
 
   const handleLoopRangeChange = useCallback(
@@ -216,8 +254,8 @@ export function PlayerScreen() {
             clipTitle={playerClip.title}
             projectTitle={playerIdea.kind === "project" ? playerIdea.title : null}
             createdAt={playerClip.createdAt}
-            playerPosition={playerPosition}
-            displayDuration={resolvedDisplayDuration}
+            playerPosition={effectivePlayerPosition}
+            displayDuration={effectivePlayerDuration}
             mode={ui.mode}
             onBack={lifecycle.handleBack}
             onOverflow={lifecycle.handleOverflowMenu}
@@ -232,7 +270,7 @@ export function PlayerScreen() {
             speedPresets={PRACTICE_SPEED_PRESETS}
             speedMin={PRACTICE_SPEED_MIN}
             speedMax={PRACTICE_SPEED_MAX}
-            isPlaying={isPlayerPlaying}
+            isPlaying={effectiveIsPlaying}
             hasPreviousTrack={hasPreviousTrack}
             hasNextTrack={hasNextTrack}
             queueEntryCount={data.queueEntries.length}
@@ -256,9 +294,9 @@ export function PlayerScreen() {
             <PlayerTimeline
               mode={ui.mode}
               waveformPeaks={waveformPeaks}
-              durationMs={resolvedDisplayDuration}
-              isPlayerPlaying={isPlayerPlaying}
-              playbackRate={playbackRate}
+              durationMs={effectivePlayerDuration}
+              isPlayerPlaying={effectiveIsPlaying}
+              playbackRate={effectivePlaybackRate}
               isScrubbing={transportScrub.isScrubbing}
               transportClock={transportClock}
               practiceLoopEnabled={practiceLoopEnabled}
@@ -285,11 +323,14 @@ export function PlayerScreen() {
               practiceRangeLabel={practiceRangeLabel}
               countInOption={ui.countInOption}
               clipNotes={data.clipNotes}
+              pitchShiftSemitones={ui.pitchShiftSemitones}
+              supportsPitchShift={practicePitchTransport.isPitchShiftAvailable}
               onSeekLoopStart={() => handleLoopAwareSeek(practiceLoopRange.start)}
               onMoveLoopToPlayhead={movePracticeLoopToPlayhead}
               onResetLoopRange={resetPracticeLoopRange}
               onTogglePracticeLoop={handlePracticeLoopToggle}
               onSelectCountIn={ui.setCountInOption}
+              onAdjustPitchShift={ui.setPitchShiftSemitones}
               onPressNotes={() => {
                 // TODO: open notes sheet
               }}
@@ -320,7 +361,7 @@ export function PlayerScreen() {
         pinModalVisible={pinModalVisible}
         pinActionsVisible={pinActionsVisible}
         newPinLabel={newPinLabel}
-        playerPosition={playerPosition}
+        playerPosition={effectivePlayerPosition}
         pinTargetLabel={pinActionsTarget?.label ?? null}
         pinTargetAtMs={pinActionsTarget?.atMs ?? null}
         pinRenameValue={pinRenameValue}

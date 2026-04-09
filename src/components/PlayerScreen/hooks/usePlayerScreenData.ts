@@ -22,6 +22,7 @@ export function usePlayerScreenData({ playerDuration }: UsePlayerScreenDataArgs)
   const playerTarget = useStore((s) => s.playerTarget);
   const playerQueue = useStore((s) => s.playerQueue);
   const playerQueueIndex = useStore((s) => s.playerQueueIndex);
+  const playerShouldAutoplay = useStore((s) => s.playerShouldAutoplay);
   const playerToggleRequestToken = useStore((s) => s.playerToggleRequestToken);
   const playerCloseRequestToken = useStore((s) => s.playerCloseRequestToken);
   const activeWorkspaceId = useStore((s) => s.activeWorkspaceId);
@@ -85,6 +86,7 @@ export function usePlayerScreenData({ playerDuration }: UsePlayerScreenDataArgs)
     playerTarget,
     playerQueue,
     playerQueueIndex,
+    playerShouldAutoplay,
     playerToggleRequestToken,
     playerCloseRequestToken,
     playerIdea,

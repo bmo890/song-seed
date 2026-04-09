@@ -255,6 +255,9 @@ export const playerScreenStyles = StyleSheet.create({
     shadowOffset: { width: 0, height: 3 },
     elevation: 1,
   },
+  optionChipDisabled: {
+    opacity: 0.45,
+  },
   optionChipText: {
     fontSize: 14,
     lineHeight: 16,
@@ -263,6 +266,62 @@ export const playerScreenStyles = StyleSheet.create({
   },
   optionChipTextActive: {
     color: "#111827",
+  },
+  optionChipTextDisabled: {
+    color: "#94a3b8",
+  },
+  practicePitchGroup: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "flex-end",
+    gap: 6,
+    flexWrap: "wrap",
+    flex: 1,
+  },
+  pitchStepButton: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#eceef2",
+  },
+  pitchStepButtonDisabled: {
+    opacity: 0.45,
+  },
+  pitchValueShell: {
+    minWidth: 64,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 12,
+    backgroundColor: "#ffffff",
+    borderWidth: 1,
+    borderColor: "#d8dde6",
+    flexDirection: "row",
+    alignItems: "baseline",
+    justifyContent: "center",
+    gap: 4,
+  },
+  pitchValueText: {
+    fontSize: 14,
+    lineHeight: 16,
+    color: "#111827",
+    fontWeight: "700",
+    fontVariant: ["tabular-nums"],
+  },
+  pitchValueMeta: {
+    fontSize: 11,
+    lineHeight: 14,
+    color: "#6b7280",
+    fontWeight: "700",
+  },
+  pitchSummaryText: {
+    fontSize: 12,
+    lineHeight: 16,
+    color: "#6b7280",
+    fontWeight: "600",
+    minWidth: 74,
+    textAlign: "right",
   },
   pinSheetContent: {
     paddingHorizontal: 20,

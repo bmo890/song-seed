@@ -28,6 +28,7 @@ type UsePlayerScreenLifecycleArgs = {
   playerToggleRequestToken: number;
   playerCloseRequestToken: number;
   mode: "player" | "practice";
+  suppressAutoplayOnOpen?: boolean;
   speedPanelVisible: boolean;
   openPlayer: (ideaId: string, clip: any, metadata?: { title?: string; albumTitle?: string }, autoplay?: boolean) => Promise<void>;
   closePlayer: () => Promise<void>;
@@ -39,6 +40,7 @@ type UsePlayerScreenLifecycleArgs = {
   cancelPendingPracticeSeek: () => void;
   handleTransportToggle: () => Promise<void>;
   setSpeedPanelVisible: (visible: boolean) => void;
+  prepareTransportForClose: () => void;
 };
 
 export function usePlayerScreenLifecycle({
@@ -58,6 +60,7 @@ export function usePlayerScreenLifecycle({
   playerToggleRequestToken,
   playerCloseRequestToken,
   mode,
+  suppressAutoplayOnOpen = false,
   speedPanelVisible,
   openPlayer,
   closePlayer,
@@ -69,6 +72,7 @@ export function usePlayerScreenLifecycle({
   cancelPendingPracticeSeek,
   handleTransportToggle,
   setSpeedPanelVisible,
+  prepareTransportForClose,
 }: UsePlayerScreenLifecycleArgs) {
   const handledToggleTokenRef = useRef(playerToggleRequestToken);
   const handledCloseTokenRef = useRef(playerCloseRequestToken);
@@ -91,9 +95,9 @@ export function usePlayerScreenLifecycle({
         title: playerClip.title,
         albumTitle: playerIdea.title,
       },
-      shouldAutoplay
+      shouldAutoplay && !suppressAutoplayOnOpen
     );
-  }, [activePlayerTargetClipId, isFocused, openPlayer, playerClip, playerIdea]);
+  }, [activePlayerTargetClipId, isFocused, openPlayer, playerClip, playerIdea, suppressAutoplayOnOpen]);
 
   useEffect(() => {
     if (!playerIdea || !playerClip) return;
@@ -164,18 +168,26 @@ export function usePlayerScreenLifecycle({
   useEffect(() => {
     if (playerCloseRequestToken === handledCloseTokenRef.current) return;
     handledCloseTokenRef.current = playerCloseRequestToken;
+    prepareTransportForClose();
     cancelPendingPracticeSeek();
     void cancelScrub();
     void closePlayer();
     useStore.getState().clearPlayerQueue();
-  }, [cancelPendingPracticeSeek, cancelScrub, closePlayer, playerCloseRequestToken]);
+  }, [
+    cancelPendingPracticeSeek,
+    cancelScrub,
+    closePlayer,
+    playerCloseRequestToken,
+    prepareTransportForClose,
+  ]);
 
   const handleBack = useCallback(() => {
+    prepareTransportForClose();
     cancelPendingPracticeSeek();
     void closePlayer();
     useStore.getState().clearPlayerQueue();
     navigation.goBack();
-  }, [cancelPendingPracticeSeek, closePlayer, navigation]);
+  }, [cancelPendingPracticeSeek, closePlayer, navigation, prepareTransportForClose]);
 
   const handleScrubStateChange = useCallback(
     (scrubbing: boolean) => {

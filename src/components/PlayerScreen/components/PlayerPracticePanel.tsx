@@ -1,7 +1,11 @@
 import React from "react";
 import { Pressable, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import type { PracticeMarker } from "../../../types";
+import {
+  formatPitchShiftLabel,
+  PITCH_SHIFT_MAX_SEMITONES,
+  PITCH_SHIFT_MIN_SEMITONES,
+} from "../../../pitchShift";
 import { playerScreenStyles } from "../styles";
 
 type CountInOption = "off" | "1b" | "2b";
@@ -11,11 +15,14 @@ type PlayerPracticePanelProps = {
   practiceRangeLabel: string;
   countInOption: CountInOption;
   clipNotes: string;
+  pitchShiftSemitones: number;
+  supportsPitchShift: boolean;
   onSeekLoopStart: () => void;
   onMoveLoopToPlayhead: () => void;
   onResetLoopRange: () => void;
   onTogglePracticeLoop: () => void;
   onSelectCountIn: (option: CountInOption) => void;
+  onAdjustPitchShift: (value: number) => void;
   onPressNotes: () => void;
 };
 
@@ -24,13 +31,20 @@ export function PlayerPracticePanel({
   practiceRangeLabel,
   countInOption,
   clipNotes,
+  pitchShiftSemitones,
+  supportsPitchShift,
   onSeekLoopStart,
   onMoveLoopToPlayhead,
   onResetLoopRange,
   onTogglePracticeLoop,
   onSelectCountIn,
+  onAdjustPitchShift,
   onPressNotes,
 }: PlayerPracticePanelProps) {
+  const canDecreasePitch = supportsPitchShift && pitchShiftSemitones > PITCH_SHIFT_MIN_SEMITONES;
+  const canIncreasePitch = supportsPitchShift && pitchShiftSemitones < PITCH_SHIFT_MAX_SEMITONES;
+  const isPitchOriginal = pitchShiftSemitones === 0;
+
   return (
     <View style={playerScreenStyles.practiceContent}>
       <View style={playerScreenStyles.practiceCard}>
@@ -94,6 +108,91 @@ export function PlayerPracticePanel({
                 ]}
               />
             </Pressable>
+          </View>
+        </View>
+
+        <View style={playerScreenStyles.divider} />
+
+        <View style={playerScreenStyles.practiceRow}>
+          <Text style={playerScreenStyles.practiceLabel}>Pitch</Text>
+          <View style={playerScreenStyles.practicePitchGroup}>
+            <Pressable
+              style={[
+                playerScreenStyles.pitchStepButton,
+                !canDecreasePitch ? playerScreenStyles.pitchStepButtonDisabled : null,
+              ]}
+              onPress={() => {
+                if (!canDecreasePitch) return;
+                onAdjustPitchShift(pitchShiftSemitones - 1);
+              }}
+              disabled={!canDecreasePitch}
+              accessibilityRole="button"
+              accessibilityLabel="Lower pitch by one semitone"
+            >
+              <Ionicons
+                name="remove"
+                size={16}
+                color={canDecreasePitch ? "#374151" : "#94a3b8"}
+              />
+            </Pressable>
+            <View
+              style={[
+                playerScreenStyles.pitchValueShell,
+                !supportsPitchShift ? playerScreenStyles.optionChipDisabled : null,
+              ]}
+            >
+              <Text style={playerScreenStyles.pitchValueText}>
+                {pitchShiftSemitones > 0 ? "+" : ""}
+                {pitchShiftSemitones}
+              </Text>
+              <Text style={playerScreenStyles.pitchValueMeta}>st</Text>
+            </View>
+            <Pressable
+              style={[
+                playerScreenStyles.pitchStepButton,
+                !canIncreasePitch ? playerScreenStyles.pitchStepButtonDisabled : null,
+              ]}
+              onPress={() => {
+                if (!canIncreasePitch) return;
+                onAdjustPitchShift(pitchShiftSemitones + 1);
+              }}
+              disabled={!canIncreasePitch}
+              accessibilityRole="button"
+              accessibilityLabel="Raise pitch by one semitone"
+            >
+              <Ionicons
+                name="add"
+                size={16}
+                color={canIncreasePitch ? "#374151" : "#94a3b8"}
+              />
+            </Pressable>
+            <Pressable
+              style={[
+                playerScreenStyles.optionChip,
+                isPitchOriginal ? playerScreenStyles.optionChipActive : null,
+                !supportsPitchShift ? playerScreenStyles.optionChipDisabled : null,
+              ]}
+              onPress={() => {
+                if (!supportsPitchShift) return;
+                onAdjustPitchShift(0);
+              }}
+              disabled={!supportsPitchShift}
+              accessibilityRole="button"
+              accessibilityLabel="Reset pitch shift to original"
+            >
+              <Text
+                style={[
+                  playerScreenStyles.optionChipText,
+                  isPitchOriginal ? playerScreenStyles.optionChipTextActive : null,
+                  !supportsPitchShift ? playerScreenStyles.optionChipTextDisabled : null,
+                ]}
+              >
+                Original
+              </Text>
+            </Pressable>
+            <Text style={playerScreenStyles.pitchSummaryText}>
+              {supportsPitchShift ? formatPitchShiftLabel(pitchShiftSemitones) : "Unavailable"}
+            </Text>
           </View>
         </View>
 

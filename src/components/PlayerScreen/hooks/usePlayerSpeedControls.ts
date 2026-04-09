@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 type UsePlayerSpeedControlsArgs = {
   minSpeed: number;
   maxSpeed: number;
+  playbackRate: number;
   isPlayerPlaying: boolean;
   pausePlayer: () => Promise<void>;
   playPlayer: () => Promise<void>;
@@ -12,6 +13,7 @@ type UsePlayerSpeedControlsArgs = {
 export function usePlayerSpeedControls({
   minSpeed,
   maxSpeed,
+  playbackRate,
   isPlayerPlaying,
   pausePlayer,
   playPlayer,
@@ -48,6 +50,13 @@ export function usePlayerSpeedControls({
       clearScheduledSpeedResume();
     };
   }, [clearScheduledSpeedResume]);
+
+  useEffect(() => {
+    if (isSlidingSpeed.current) {
+      return;
+    }
+    setPlaybackSpeed(cleanSpeed(playbackRate));
+  }, [cleanSpeed, playbackRate]);
 
   const handleSpeedSlideStart = useCallback(() => {
     clearScheduledSpeedResume();
