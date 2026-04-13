@@ -1,17 +1,21 @@
 import React from "react";
-import { Pressable, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { styles } from "../../styles";
 
 type EditorFooterSectionProps = {
   activeExportCount: number;
+  hasActiveTransforms: boolean;
   onAddSelection: () => void;
   onOpenExport: () => void;
+  onOpenTransformExport: () => void;
 };
 
 export function EditorFooterSection({
   activeExportCount,
+  hasActiveTransforms,
   onAddSelection,
   onOpenExport,
+  onOpenTransformExport,
 }: EditorFooterSectionProps) {
   return (
     <View style={styles.transportFooterCard}>
@@ -43,7 +47,25 @@ export function EditorFooterSection({
         >
           <Text style={[styles.transportFooterButtonText, styles.transportFooterButtonTextSecondary]}>Export</Text>
         </Pressable>
+        <Pressable
+          onPress={onOpenTransformExport}
+          style={({ pressed }) => [
+            styles.transportFooterButton,
+            editorFooterStyles.transformButton,
+            !hasActiveTransforms ? styles.transportFooterButtonDisabled : null,
+            pressed ? styles.pressDown : null,
+          ]}
+          disabled={!hasActiveTransforms}
+        >
+          <Text style={styles.transportFooterButtonText}>Save Transform</Text>
+        </Pressable>
       </View>
     </View>
   );
 }
+
+const editorFooterStyles = StyleSheet.create({
+  transformButton: {
+    flex: 1,
+  },
+});

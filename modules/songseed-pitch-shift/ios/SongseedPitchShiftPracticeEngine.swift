@@ -47,8 +47,8 @@ final class SongseedPitchShiftPracticeEngine {
     [
       "isAvailable": true,
       "supportsPracticePlayback": true,
-      "supportsEditorPreview": false,
-      "supportsOfflineRender": false,
+      "supportsEditorPreview": true,
+      "supportsOfflineRender": true,
       "minSemitones": -12,
       "maxSemitones": 12
     ]

@@ -144,8 +144,8 @@ class SongseedPitchShiftPracticeEngine(
     return mapOf(
       "isAvailable" to true,
       "supportsPracticePlayback" to true,
-      "supportsEditorPreview" to false,
-      "supportsOfflineRender" to false,
+      "supportsEditorPreview" to true,
+      "supportsOfflineRender" to true,
       "minSemitones" to -12,
       "maxSemitones" to 12,
     )

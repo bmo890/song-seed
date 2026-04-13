@@ -3,6 +3,7 @@ import { Alert } from "react-native";
 import { StackActions } from "@react-navigation/native";
 import { trimAudio, type AudioAnalysis } from "@siteed/audio-studio";
 import { loadManagedAudioMetadata } from "../../../services/audioStorage";
+import { renderPitchShiftedFile } from "../../../services/pitchShift";
 import { useStore } from "../../../state/useStore";
 import type { ClipVersion, EditRegion, SongIdea } from "../../../types";
 import { genClipTitle } from "../../../utils";
@@ -30,6 +31,9 @@ type UseEditorExportFlowArgs = {
   sourceClip: ClipVersion | null;
   keepRegions: EditableSelection[];
   removeRegions: EditableSelection[];
+  transformPitchShiftSemitones: number;
+  transformPlaybackRate: number;
+  hasActiveTransforms: boolean;
   playheadTimeMs: number;
   isPlayerPlaying: boolean;
   player: MinimalPlayer;
@@ -52,6 +56,9 @@ export function useEditorExportFlow({
   sourceClip,
   keepRegions,
   removeRegions,
+  transformPitchShiftSemitones,
+  transformPlaybackRate,
+  hasActiveTransforms,
   playheadTimeMs,
   isPlayerPlaying,
   player,
@@ -73,6 +80,8 @@ export function useEditorExportFlow({
   const [removeOriginalAfterExport, setRemoveOriginalAfterExport] = useState(false);
   const [exportOperation, setExportOperation] = useState<"extract" | "splice">("extract");
   const [previewRegionId, setPreviewRegionId] = useState<string | null>(null);
+  const [transformExportModalVisible, setTransformExportModalVisible] = useState(false);
+  const [transformNameDraft, setTransformNameDraft] = useState("");
 
   const keepRegionIdsKey = keepRegions.map((region) => region.id).join("|");
   const activeExportCount = exportOperation === "extract" ? keepRegions.length : removeRegions.length > 0 ? 1 : 0;
@@ -172,6 +181,27 @@ export function useEditorExportFlow({
     resetPreviewScrubSession();
     setPreviewRegionId(null);
     setExportModalVisible(false);
+  };
+
+  const openTransformExportModal = () => {
+    if (!hasActiveTransforms) {
+      Alert.alert("No Transform", "Adjust pitch or speed first, then save the transformed clip.");
+      return;
+    }
+
+    safePause();
+    resetPreviewScrubSession();
+    setPreviewRegionId(null);
+    setTransformNameDraft("");
+    setRemoveOriginalAfterExport(false);
+    setTransformExportModalVisible(true);
+  };
+
+  const closeTransformExportModal = () => {
+    safePause();
+    resetPreviewScrubSession();
+    setPreviewRegionId(null);
+    setTransformExportModalVisible(false);
   };
 
   const buildExtractTitles = () =>
@@ -474,6 +504,49 @@ export function useEditorExportFlow({
     }
   };
 
+  const exportTransform = async () => {
+    if (!audioUri || !sourceClip) return;
+
+    safePause();
+    setIsExporting(true);
+    try {
+      const title = transformNameDraft.trim() || suggestedExportTitle;
+      const sourceDurationMs = sourceClip.durationMs ?? 0;
+      const expectedDurationMs = Math.max(
+        1,
+        Math.round(sourceDurationMs / Math.max(transformPlaybackRate, 0.01))
+      );
+      const result = await renderPitchShiftedFile({
+        inputUri: audioUri,
+        semitones: transformPitchShiftSemitones,
+        playbackRate: transformPlaybackRate,
+        outputFileName: title.replace(/[^a-zA-Z0-9-_ ]/g, "").trim().replace(/\s+/g, "-") || undefined,
+      });
+      const metadata = await loadManagedAudioMetadata(
+        result.outputUri,
+        `${clipId}-transform-${transformPitchShiftSemitones}-${Math.round(transformPlaybackRate * 100)}`,
+        expectedDurationMs
+      );
+      const derivedClip = buildDerivedClipDraft({
+        title,
+        audioUri: result.outputUri,
+        durationMs: metadata.durationMs,
+        waveformPeaks: metadata.waveformPeaks,
+        editRegions: [],
+      });
+      const newClipIds = derivedClip ? commitExportedClips([derivedClip]) : [];
+      setTransformExportModalVisible(false);
+      finishExport(newClipIds);
+    } catch (error) {
+      Alert.alert(
+        "Transform Save Error",
+        error instanceof Error ? error.message : "Failed to save transformed clip."
+      );
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   const handleExportSave = async () => {
     if (exportOperation === "extract") {
       await exportExtract();
@@ -505,5 +578,11 @@ export function useEditorExportFlow({
     seekRegionPreview,
     cancelRegionPreviewScrub,
     handleExportSave,
+    transformExportModalVisible,
+    transformNameDraft,
+    setTransformNameDraft,
+    openTransformExportModal,
+    closeTransformExportModal,
+    handleTransformSave: exportTransform,
   };
 }

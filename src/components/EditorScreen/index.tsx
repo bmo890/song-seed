@@ -1,8 +1,8 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar as ExpoStatusBar } from "expo-status-bar";
 import { View, Text, ActivityIndicator, TouchableOpacity, Alert, Pressable } from "react-native";
-import { useNavigation, useRoute } from "@react-navigation/native";
+import { useIsFocused, useNavigation, useRoute } from "@react-navigation/native";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
 import { MultiTimeRangeSelector } from "../common/TimeRangeSelector";
@@ -41,12 +41,17 @@ import { EditorSelectionList } from "./EditorSelectionList";
 import { EditorExportProgressModal } from "./EditorExportProgressModal";
 import { EditorExportModal } from "./EditorExportModal";
 import { useEditorExportFlow } from "./hooks/useEditorExportFlow";
+import { useEditorTransformState } from "./hooks/useEditorTransformState";
+import { useEditorPreviewTransport } from "./hooks/useEditorPreviewTransport";
+import { EditorTransformSection } from "./EditorTransformSection";
+import { EditorTransformExportModal } from "./EditorTransformExportModal";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Editor">;
 
 export function EditorScreen() {
     const navigation = useNavigation();
     const route = useRoute<Props["route"]>();
+    const isFocused = useIsFocused();
     const { ideaId, clipId, audioUri, durationMs: routeDurationMs } = route.params;
 
     const [currentTime, setCurrentTime] = useState(0);
@@ -81,21 +86,74 @@ export function EditorScreen() {
     const player = useAudioPlayer(playerSource, playerOptions);
     const status = useAudioPlayerStatus(player);
     const statusTimeMs = typeof status.currentTime === "number" ? Math.round(status.currentTime * 1000) : null;
-    const transportScrub = useTransportScrubbing({
-        isPlaying: !!status.playing,
-        durationMs: analysisData?.durationMs ?? durationHintMs ?? 0,
-        pause: async () => {
-            safePause();
+    const transformState = useEditorTransformState();
+    useEffect(() => {
+        activatePlaybackAudioSession().catch((error) => {
+            console.warn("Editor audio mode setup failed", error);
+        });
+    }, []);
+
+    const safePause = useCallback(async () => {
+        try {
+            if (player) {
+                await player.pause();
+            }
+        } catch (e) {
+            console.warn("Safe pause error:", e);
+        }
+    }, [player]);
+
+    const safePlay = useCallback(async () => {
+        try {
+            if (player) {
+                await player.play();
+            }
+        } catch (e) {
+            console.warn("Safe play error:", e);
+        }
+    }, [player]);
+
+    const setPlayerPlaybackRate = useCallback(
+        (rate: number) => {
+            try {
+                player.setPlaybackRate(rate);
+            } catch (error) {
+                console.warn("Editor playback rate update failed", error);
+            }
         },
-        play: async () => {
-            safePlay();
-        },
-        seekTo: async (timeMs) => {
+        [player]
+    );
+
+    const previewTransport = useEditorPreviewTransport({
+        isFocused,
+        audioUri,
+        playbackRate: transformState.playbackRate,
+        pitchShiftSemitones: transformState.pitchShiftSemitones,
+        sourcePositionMs: statusTimeMs ?? currentTime,
+        sourceDurationMs: analysisData?.durationMs ?? durationHintMs ?? 0,
+        sourceIsPlaying: !!status.playing,
+        pauseSource: safePause,
+        playSource: safePlay,
+        seekSourceTo: async (timeMs) => {
             setCurrentTime((prev) => (prev === timeMs ? prev : timeMs));
             await player.seekTo(timeMs / 1000);
         },
+        setSourcePlaybackRate: setPlayerPlaybackRate,
     });
-    const playheadTimeMs = transportScrub.isScrubbing ? currentTime : statusTimeMs ?? currentTime;
+
+    const transportScrub = useTransportScrubbing({
+        isPlaying: previewTransport.effectiveIsPlaying,
+        durationMs: previewTransport.effectiveDurationMs,
+        pause: previewTransport.pause,
+        play: previewTransport.play,
+        seekTo: async (timeMs) => {
+            setCurrentTime((prev) => (prev === timeMs ? prev : timeMs));
+            await previewTransport.seekTo(timeMs);
+        },
+    });
+    const playheadTimeMs = transportScrub.isScrubbing
+        ? currentTime
+        : previewTransport.effectivePositionMs ?? currentTime;
     const {
         selectedRanges,
         setSelectedRanges,
@@ -110,33 +168,11 @@ export function EditorScreen() {
         playheadTimeMs,
     });
 
-    useEffect(() => {
-        activatePlaybackAudioSession().catch((error) => {
-            console.warn("Editor audio mode setup failed", error);
-        });
-    }, []);
-
-    const safePause = () => {
-        try {
-            if (player) player.pause();
-        } catch (e) {
-            console.warn("Safe pause error:", e);
-        }
-    };
-
-    const safePlay = () => {
-        try {
-            if (player) player.play();
-        } catch (e) {
-            console.warn("Safe play error:", e);
-        }
-    };
-
     const togglePlay = () => {
-        if (status.playing) {
-            safePause();
+        if (previewTransport.effectiveIsPlaying) {
+            void previewTransport.pause();
         } else {
-            safePlay();
+            void previewTransport.play();
         }
     };
     const exportFlow = useEditorExportFlow({
@@ -148,15 +184,24 @@ export function EditorScreen() {
         sourceClip,
         keepRegions,
         removeRegions,
+        transformPitchShiftSemitones: transformState.pitchShiftSemitones,
+        transformPlaybackRate: transformState.playbackRate,
+        hasActiveTransforms: transformState.hasActiveTransforms,
         playheadTimeMs,
-        isPlayerPlaying: !!status.playing,
-        player,
+        isPlayerPlaying: previewTransport.effectiveIsPlaying,
+        player: {
+            seekTo: async (seconds: number) => {
+                await previewTransport.seekTo(seconds * 1000);
+            },
+            play: previewTransport.play,
+            pause: previewTransport.pause,
+        },
         navigation,
         updateIdeas,
         setSelectedIdeaId,
         markRecentlyAdded,
-        safePause,
-        safePlay,
+        safePause: previewTransport.pause,
+        safePlay: previewTransport.play,
         setCurrentTime,
         cancelTransportScrub: transportScrub.cancelScrub,
     });
@@ -232,7 +277,7 @@ export function EditorScreen() {
                         sourceClip={sourceClip}
                         targetIdea={targetIdea}
                         onBack={() => {
-                            safePause();
+                            void previewTransport.pause();
                             navigation.goBack();
                         }}
                     />
@@ -241,8 +286,10 @@ export function EditorScreen() {
                     analysisData ? (
                         <EditorFooterSection
                             activeExportCount={exportFlow.activeExportCount}
+                            hasActiveTransforms={transformState.hasActiveTransforms}
                             onAddSelection={addRange}
                             onOpenExport={exportFlow.openExportModal}
+                            onOpenTransformExport={exportFlow.openTransformExportModal}
                         />
                     ) : null
                 }
@@ -259,7 +306,8 @@ export function EditorScreen() {
                             waveformPeaks={waveformPeaks}
                             durationMs={analysisData.durationMs}
                             currentTimeMs={playheadTimeMs}
-                            isPlaying={!!status.playing}
+                            isPlaying={previewTransport.effectiveIsPlaying}
+                            playbackRate={previewTransport.effectivePlaybackRate}
                             isScrubbing={transportScrub.isScrubbing}
                             onSeek={transportScrub.scrubTo}
                             onTogglePlay={togglePlay}
@@ -290,17 +338,22 @@ export function EditorScreen() {
                                     }}
                                     onSeek={(time) => {
                                         setCurrentTime((prev) => (prev === time ? prev : time));
-                                        try {
-                                            player.seekTo(time / 1000);
-                                        } catch (e) {
-                                            console.warn("Seek error:", e);
-                                        }
+                                        void previewTransport.seekTo(time);
                                     }}
                                     onRegionChange={(id, start, end) => {
                                         setSelectedRanges((prev) => prev.map((r) => (r.id === id ? { ...r, start, end } : r)));
                                     }}
                                 />
                             )}
+                        />
+
+                        <EditorTransformSection
+                            playbackRate={transformState.playbackRate}
+                            pitchShiftSemitones={transformState.pitchShiftSemitones}
+                            supportsPitchPreview={previewTransport.isPitchPreviewAvailable}
+                            onAdjustPlaybackRate={transformState.setPlaybackRate}
+                            onAdjustPitchShift={transformState.setPitchShiftSemitones}
+                            onResetTransforms={transformState.resetTransforms}
                         />
 
                         <EditorSelectionModeTabs editMode={editMode} onSelectMode={setEditMode} />
@@ -331,6 +384,25 @@ export function EditorScreen() {
 
             <EditorExportProgressModal visible={exportFlow.isExporting} />
 
+            <EditorTransformExportModal
+                visible={exportFlow.transformExportModalVisible}
+                targetIdeaKind={targetIdea?.kind ?? null}
+                targetIdeaTitle={targetIdea?.title ?? null}
+                pitchShiftSemitones={transformState.pitchShiftSemitones}
+                playbackRate={transformState.playbackRate}
+                nameDraft={exportFlow.transformNameDraft}
+                suggestedExportTitle={exportFlow.suggestedExportTitle}
+                removeOriginalAfterExport={exportFlow.removeOriginalAfterExport}
+                onClose={exportFlow.closeTransformExportModal}
+                onChangeNameDraft={exportFlow.setTransformNameDraft}
+                onToggleRemoveOriginalAfterExport={() =>
+                    exportFlow.setRemoveOriginalAfterExport((prev) => !prev)
+                }
+                onSave={() => {
+                    void exportFlow.handleTransformSave();
+                }}
+            />
+
             <EditorExportModal
                 visible={exportFlow.exportModalVisible}
                 targetIdeaKind={targetIdea?.kind ?? null}
@@ -340,7 +412,7 @@ export function EditorScreen() {
                 removeRegions={removeRegions}
                 extractNameDrafts={exportFlow.extractNameDrafts}
                 previewRegionId={exportFlow.previewRegionId}
-                isPreviewPlaying={!!status.playing}
+                isPreviewPlaying={previewTransport.effectiveIsPlaying}
                 playheadTimeMs={playheadTimeMs}
                 spliceNameDraft={exportFlow.spliceNameDraft}
                 suggestedExportTitle={exportFlow.suggestedExportTitle}

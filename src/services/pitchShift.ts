@@ -44,7 +44,10 @@ export async function getPitchShiftCapabilities(): Promise<PitchShiftCapabilitie
 }
 
 export async function renderPitchShiftedFile(
-  request: Omit<NativePitchShiftRenderRequest, "semitones"> & { semitones: number }
+  request: Omit<NativePitchShiftRenderRequest, "semitones" | "playbackRate"> & {
+    semitones: number;
+    playbackRate?: number;
+  }
 ): Promise<NativePitchShiftRenderResult> {
   if (!SongseedPitchShiftModule) {
     throw new Error("Pitch shift module unavailable.");
@@ -58,5 +61,6 @@ export async function renderPitchShiftedFile(
   return SongseedPitchShiftModule.renderPitchShiftedFile({
     ...request,
     semitones: clampPitchShiftSemitones(request.semitones),
+    playbackRate: request.playbackRate ?? 1,
   });
 }

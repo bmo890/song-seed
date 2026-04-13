@@ -13,6 +13,7 @@ public class SongseedPitchShiftModule: Module {
       self.sendEvent("onError", ["message": message])
     }
   )
+  private lazy var renderer = SongseedPitchShiftRenderer()
 
   public func definition() -> ModuleDefinition {
     Name("SongseedPitchShift")
@@ -63,12 +64,8 @@ public class SongseedPitchShiftModule: Module {
       return self.engine.setPitchShiftSemitones(semitones)
     }
 
-    AsyncFunction("renderPitchShiftedFile") { (_: [String: Any]) -> [String: Any] in
-      throw NSError(
-        domain: "SongseedPitchShift",
-        code: 1,
-        userInfo: [NSLocalizedDescriptionKey: "Pitch shift file rendering is not available yet."]
-      )
+    AsyncFunction("renderPitchShiftedFile") { (request: [String: Any]) -> [String: Any] in
+      return try self.renderer.renderFile(request)
     }
 
     OnDestroy {

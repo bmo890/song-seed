@@ -30,6 +30,7 @@ export type NativePitchShiftLoadRequest = {
 export type NativePitchShiftRenderRequest = {
   inputUri: string;
   semitones: number;
+  playbackRate?: number;
   outputFileName?: string;
 };
 

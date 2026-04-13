@@ -18,6 +18,11 @@ class SongseedPitchShiftModule : Module() {
       },
     )
   }
+  private val renderer by lazy {
+    SongseedPitchShiftRenderer(
+      context = appContext.reactContext ?: throw IllegalStateException("React context unavailable"),
+    )
+  }
 
   override fun definition() = ModuleDefinition {
     Name("SongseedPitchShift")
@@ -68,10 +73,8 @@ class SongseedPitchShiftModule : Module() {
       engine.setPitchShiftSemitones(semitones)
     }
 
-    AsyncFunction("renderPitchShiftedFile") { _: Map<String, Any?> ->
-      mapOf(
-        "outputUri" to ""
-      )
+    AsyncFunction("renderPitchShiftedFile") { request: Map<String, Any?> ->
+      renderer.renderFile(request)
     }
 
     OnDestroy {
