@@ -1,5 +1,14 @@
 export type IdeaStatus = "seed" | "sprout" | "semi" | "song" | "clip";
 
+export type Note = {
+  id: string;
+  title: string;
+  body: string;
+  createdAt: number;
+  updatedAt: number;
+  isPinned: boolean;
+};
+
 export type EditActionType = "keep" | "remove";
 
 export type EditRegion = {

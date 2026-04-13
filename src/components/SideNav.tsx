@@ -25,6 +25,7 @@ type Props = {
     | "metronome"
     | "library"
     | "settings"
+    | "notepad"
     | null;
   workspaceTitle: string | null;
   recentCollections: RecentCollectionLite[];
@@ -36,6 +37,7 @@ type Props = {
   onGoMetronome: () => void;
   onGoLibrary: () => void;
   onGoSettings: () => void;
+  onGoNotepad: () => void;
   onOpenCollection: (collectionId: string) => void;
   onClose: () => void;
 };
@@ -59,6 +61,7 @@ export function SideNav({
   onGoMetronome,
   onGoLibrary,
   onGoSettings,
+  onGoNotepad,
   onOpenCollection,
   onClose,
 }: Props) {
@@ -188,6 +191,13 @@ export function SideNav({
           label="Metronome"
           active={currentRoute === "metronome"}
           onPress={onGoMetronome}
+        />
+        <NavRow
+          icon={renderNavItemIcon("notepad").icon}
+          iconColor={renderNavItemIcon("notepad").color}
+          label="Notepad"
+          active={currentRoute === "notepad"}
+          onPress={onGoNotepad}
         />
         <NavRow
           icon={renderNavItemIcon("library").icon}

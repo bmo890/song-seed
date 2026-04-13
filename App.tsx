@@ -36,6 +36,7 @@ import { LibraryScreen } from "./src/components/LibraryScreen";
 import { SettingsScreen } from "./src/components/SettingsScreen";
 import { RevisitScreen } from "./src/components/RevisitScreen";
 import { TunerScreen } from "./src/components/TunerScreen";
+import { NotepadScreen } from "./src/components/NotepadScreen";
 import { MetronomeScreen } from "./src/components/MetronomeScreen";
 import { ShareImportScreen } from "./src/components/ShareImportScreen";
 import { getCollectionAncestors, getCollectionById } from "./src/utils";
@@ -67,6 +68,7 @@ export type HomeDrawerParamList = {
   MetronomeHome: undefined;
   LibraryHome: undefined;
   SettingsHome: undefined;
+  NotepadHome: undefined;
 };
 
 export type WorkspaceStackParamList = {
@@ -100,6 +102,7 @@ const HOME_DRAWER_ROUTE_NAMES: Array<keyof HomeDrawerParamList> = [
   "MetronomeHome",
   "LibraryHome",
   "SettingsHome",
+  "NotepadHome",
 ];
 const WORKSPACE_STACK_ROUTE_NAMES: Array<keyof WorkspaceStackParamList> = [
   "Browse",
@@ -443,7 +446,9 @@ function DrawerContent({ navigation, state }: DrawerContentComponentProps) {
           ? "library"
           : deepestRouteName === "SettingsHome"
             ? "settings"
-            : null;
+            : deepestRouteName === "NotepadHome"
+              ? "notepad"
+              : null;
 
   const recentCollections = activeWorkspace
     ? getRecentCollectionsForWorkspace(activeWorkspace, collectionLastOpenedAt, 2).map((entry) => ({
@@ -495,6 +500,10 @@ function DrawerContent({ navigation, state }: DrawerContentComponentProps) {
       onGoSettings={() => {
         closeDrawer();
         navigation.navigate("SettingsHome");
+      }}
+      onGoNotepad={() => {
+        closeDrawer();
+        navigation.navigate("NotepadHome");
       }}
       onOpenCollection={(collectionId) => {
         closeDrawer();
@@ -560,6 +569,7 @@ function DrawerRoutes() {
       <Drawer.Screen name="MetronomeHome" component={MetronomeScreen} />
       <Drawer.Screen name="LibraryHome" component={LibraryScreen} />
       <Drawer.Screen name="SettingsHome" component={SettingsScreen} />
+      <Drawer.Screen name="NotepadHome" component={NotepadScreen} />
     </Drawer.Navigator>
   );
 }

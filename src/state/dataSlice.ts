@@ -24,6 +24,7 @@ import {
     WorkspaceStartupPreference,
     BackupReminderFrequency,
     PracticeMarker,
+    Note,
 } from "../types";
 import { genClipTitle } from "../utils";
 import type { SelectionSlice } from "./selectionSlice";
@@ -90,6 +91,10 @@ export type DataSlice = {
     setMetronomeBeepLevel: (value: number) => void;
     setMetronomeHapticLevel: (value: number) => void;
     setMetronomeCountInBars: (value: number) => void;
+    notes: Note[];
+    addNote: () => string;
+    updateNote: (id: string, updates: { title?: string; body?: string; isPinned?: boolean }) => void;
+    deleteNote: (id: string) => void;
     setBackupReminderFrequency: (value: BackupReminderFrequency) => void;
     setLastSuccessfulBackupAt: (timestamp: number | null) => void;
     setLastSuccessfulBackupFileName: (fileName: string | null) => void;
@@ -698,6 +703,7 @@ export const createDataSlice: StateCreator<
     metronomeHapticLevel: DEFAULT_METRONOME_HAPTIC_LEVEL,
     metronomeCountInBars: DEFAULT_METRONOME_COUNT_IN_BARS,
     globalCustomClipTags: [],
+    notes: [],
     backupReminderFrequency: "monthly",
     lastSuccessfulBackupAt: null,
     lastSuccessfulBackupFileName: null,
@@ -789,6 +795,22 @@ export const createDataSlice: StateCreator<
     setMetronomeBeepLevel: (value) => set({ metronomeBeepLevel: clampMetronomeLevel(value) }),
     setMetronomeHapticLevel: (value) => set({ metronomeHapticLevel: clampMetronomeLevel(value) }),
     setMetronomeCountInBars: (value) => set({ metronomeCountInBars: clampMetronomeCountInBars(value) }),
+    addNote: () => {
+        const id = `note-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+        const now = Date.now();
+        set((state) => ({
+            notes: [{ id, title: "", body: "", createdAt: now, updatedAt: now, isPinned: false }, ...state.notes],
+        }));
+        return id;
+    },
+    updateNote: (id, updates) =>
+        set((state) => ({
+            notes: state.notes.map((note) =>
+                note.id === id ? { ...note, ...updates, updatedAt: Date.now() } : note
+            ),
+        })),
+    deleteNote: (id) =>
+        set((state) => ({ notes: state.notes.filter((note) => note.id !== id) })),
     setBackupReminderFrequency: (value) => set({ backupReminderFrequency: value }),
     setLastSuccessfulBackupAt: (timestamp) => set({ lastSuccessfulBackupAt: timestamp }),
     setLastSuccessfulBackupFileName: (fileName) => set({ lastSuccessfulBackupFileName: fileName }),

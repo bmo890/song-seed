@@ -73,6 +73,7 @@ export type PersistedAppStore = Pick<
     | "backupReminderFrequency"
     | "lastSuccessfulBackupAt"
     | "lastSuccessfulBackupFileName"
+    | "notes"
     | "ideasFilter"
     | "ideasSort"
     | "primaryFilter"
@@ -198,6 +199,7 @@ export function sanitizePersistedState(state?: Partial<PersistedAppStore>): Pers
                 ? clampMetronomeCountInBars(state.metronomeCountInBars)
                 : DEFAULT_METRONOME_COUNT_IN_BARS,
         globalCustomClipTags: Array.isArray(state?.globalCustomClipTags) ? state.globalCustomClipTags : [],
+        notes: Array.isArray(state?.notes) ? state.notes : [],
         backupReminderFrequency: isBackupReminderFrequency(state?.backupReminderFrequency)
             ? state.backupReminderFrequency
             : DEFAULT_BACKUP_REMINDER_FREQUENCY,
@@ -241,6 +243,7 @@ export function buildPersistedAppStoreSnapshot(state: AppStore): PersistedAppSto
         backupReminderFrequency: state.backupReminderFrequency,
         lastSuccessfulBackupAt: state.lastSuccessfulBackupAt,
         lastSuccessfulBackupFileName: state.lastSuccessfulBackupFileName,
+        notes: state.notes,
         ideasFilter: state.ideasFilter,
         ideasSort: state.ideasSort,
         primaryFilter: state.primaryFilter,
