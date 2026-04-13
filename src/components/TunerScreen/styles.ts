@@ -80,7 +80,7 @@ export const styles = {
     indicatorActive: { backgroundColor: "#b5968d" },   // warm taupe: signal present, no note yet
     indicatorNear:   { backgroundColor: "#c07840" },   // earthy amber: close but not there
     indicatorFar:    { backgroundColor: "#a04545" },   // muted earthy red: far off
-    indicatorInTune: { backgroundColor: TERRACOTTA },  // terracotta: in tune — primary accent
+    indicatorInTune: { backgroundColor: "#4a7c5e" },   // muted sage green: universal "in tune" signal
 
     // ± side markers
     flatMarker: {
@@ -151,7 +151,6 @@ export const styles = {
     detuneAbsolute: {
       position: "absolute",
       top: ARC_TRACK_TOP + 10,
-      right: 0,
       paddingHorizontal: 14,
       height: 36,
       borderRadius: 2,              // nearly square — architectural
@@ -159,6 +158,8 @@ export const styles = {
       justifyContent: "center",
       backgroundColor: SURFACE,    // surface-container — tonal layering, no shadow
     },
+    detuneAbsoluteFlat:  { left: 0 },
+    detuneAbsoluteSharp: { right: 0 },
     detuneAbsoluteNear: {},
     detuneAbsoluteFar: {},
     detuneChipValue: {
@@ -184,6 +185,9 @@ export const styles = {
     statusDotActive: {
       backgroundColor: TERRACOTTA,
     },
+    statusDotInTune: {
+      backgroundColor: "#4a7c5e",
+    },
     statusLabel: {
       fontSize: 11,
       fontWeight: "600",
@@ -192,7 +196,7 @@ export const styles = {
       textTransform: "uppercase",
     },
     statusLabelInTune: {
-      color: TERRACOTTA,
+      color: "#4a7c5e",
     },
 
     // Helper + error text

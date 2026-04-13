@@ -44,17 +44,26 @@ export function TunerDial({ model }: { model: TunerModel }) {
         <View style={styles.arcTrack} />
         <View style={styles.arcCutout} />
 
-        {(model.showFlatDetune || model.showSharpDetune) ? (
-          <View
-            style={[
-              styles.detuneAbsolute,
-              model.meterTone === "far"
-                ? styles.detuneAbsoluteFar
-                : styles.detuneAbsoluteNear,
-            ]}
-          >
+        {model.showFlatDetune ? (
+          <View style={[
+            styles.detuneAbsolute,
+            styles.detuneAbsoluteFlat,
+            model.meterTone === "far" ? styles.detuneAbsoluteFar : styles.detuneAbsoluteNear,
+          ]}>
             <Text style={[styles.detuneChipValue, detuneTextStyle]}>
-              {model.showFlatDetune ? model.flatDetuneValue : model.sharpDetuneValue}
+              {model.flatDetuneValue}
+            </Text>
+          </View>
+        ) : null}
+
+        {model.showSharpDetune ? (
+          <View style={[
+            styles.detuneAbsolute,
+            styles.detuneAbsoluteSharp,
+            model.meterTone === "far" ? styles.detuneAbsoluteFar : styles.detuneAbsoluteNear,
+          ]}>
+            <Text style={[styles.detuneChipValue, detuneTextStyle]}>
+              {model.sharpDetuneValue}
             </Text>
           </View>
         ) : null}
@@ -75,7 +84,10 @@ export function TunerDial({ model }: { model: TunerModel }) {
       </View>
 
       <View style={styles.statusRow}>
-        <View style={[styles.statusDot, isActive ? styles.statusDotActive : null]} />
+        <View style={[
+          styles.statusDot,
+          isInTune ? styles.statusDotInTune : isActive ? styles.statusDotActive : null,
+        ]} />
         <Text style={[styles.statusLabel, isInTune ? styles.statusLabelInTune : null]}>
           {statusLabel}
         </Text>
