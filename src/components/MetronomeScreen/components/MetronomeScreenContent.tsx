@@ -1,4 +1,4 @@
-import { ScrollView, Text, View } from "react-native";
+import { ScrollView, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar as ExpoStatusBar } from "expo-status-bar";
 import { ScreenHeader } from "../../common/ScreenHeader";
@@ -15,34 +15,37 @@ export function MetronomeScreenContent() {
 
   return (
     <SafeAreaView style={styles.screen}>
-      <ScreenHeader title="" leftIcon="hamburger" />
+      <ScreenHeader title="Metronome" leftIcon="hamburger" />
 
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.pageContent}
       >
-        <View style={styles.titleBlock}>
-          <Text style={styles.title}>Metronome</Text>
-          <Text style={styles.subtitle}>
-            A steady pulse for practice now, reusable inside recording later.
-          </Text>
-        </View>
-
         <MetronomeHero model={model} />
-        <MetronomeMeterSection
-          meterId={model.meterId}
-          onSelectMeter={model.setMeterIdValue}
-        />
+
+        <View style={styles.divider} />
+
         <MetronomeTempoSection
           bpm={model.bpm}
           onNudge={model.nudgeBpm}
           onChangeValue={model.setBpmValue}
         />
+
         <MetronomeTapTempoSection
           tapCount={model.tapCount}
           onTapTempo={model.tapTempo}
           onReset={model.clearTapTempo}
         />
+
+        <View style={styles.divider} />
+
+        <MetronomeMeterSection
+          meterId={model.meterId}
+          onSelectMeter={model.setMeterIdValue}
+        />
+
+        <View style={styles.divider} />
+
         <MetronomeOutputsSection
           outputs={model.outputs}
           activeOutputCount={model.activeOutputCount}

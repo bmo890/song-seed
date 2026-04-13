@@ -4,8 +4,8 @@ import { styles } from "../styles";
 import { MAX_METRONOME_BPM, MIN_METRONOME_BPM } from "../../../metronome";
 
 const BPM_STEPS = [
-  { label: "-5", delta: -5 },
-  { label: "-1", delta: -1 },
+  { label: "−5", delta: -5 },
+  { label: "−1", delta: -1 },
   { label: "+1", delta: 1 },
   { label: "+5", delta: 5 },
 ];
@@ -19,21 +19,13 @@ type Props = {
 export function MetronomeTempoSection({ bpm, onNudge, onChangeValue }: Props) {
   return (
     <View style={styles.section}>
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Tempo</Text>
-        <Text style={styles.sectionMeta}>
-          {MIN_METRONOME_BPM} to {MAX_METRONOME_BPM} BPM
-        </Text>
-      </View>
+      <Text style={styles.sectionTitle}>Tempo</Text>
 
       <View style={styles.bpmStepRow}>
         {BPM_STEPS.map((step) => (
           <Pressable
             key={step.label}
-            style={({ pressed }) => [
-              styles.stepButton,
-              pressed ? styles.pressDown : null,
-            ]}
+            style={({ pressed }) => [styles.stepButton, pressed ? styles.pressDown : null]}
             onPress={() => onNudge(step.delta)}
           >
             <Text style={styles.stepButtonText}>{step.label}</Text>
@@ -45,9 +37,9 @@ export function MetronomeTempoSection({ bpm, onNudge, onChangeValue }: Props) {
         minimumValue={MIN_METRONOME_BPM}
         maximumValue={MAX_METRONOME_BPM}
         step={1}
-        minimumTrackTintColor="#7aa9da"
-        maximumTrackTintColor="#d7dee8"
-        thumbTintColor="#548ec9"
+        minimumTrackTintColor="#824f3f"
+        maximumTrackTintColor="#d7c2bd"
+        thumbTintColor="#824f3f"
         value={bpm}
         onValueChange={onChangeValue}
       />

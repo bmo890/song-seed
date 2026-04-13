@@ -2,7 +2,6 @@ import type { ComponentProps } from "react";
 import { Ionicons } from "@expo/vector-icons";
 import Slider from "@react-native-community/slider";
 import { Pressable, Text, View } from "react-native";
-import { colors } from "../../../design/tokens";
 import {
   formatMetronomeLevel,
   MAX_METRONOME_LEVEL,
@@ -14,9 +13,9 @@ import { styles } from "../styles";
 type IconName = ComponentProps<typeof Ionicons>["name"];
 
 const OUTPUT_CONTROLS: { key: MetronomeOutputKey; label: string; icon: IconName }[] = [
-  { key: "beep", label: "Beep", icon: "volume-high-outline" },
-  { key: "visual", label: "Visual", icon: "pulse-outline" },
-  { key: "haptic", label: "Haptic", icon: "phone-portrait-outline" },
+  { key: "beep",   label: "Sound",   icon: "volume-high-outline" },
+  { key: "visual", label: "Visual",  icon: "pulse-outline" },
+  { key: "haptic", label: "Haptic",  icon: "phone-portrait-outline" },
 ];
 
 type Props = {
@@ -31,7 +30,6 @@ type Props = {
 
 export function MetronomeOutputsSection({
   outputs,
-  activeOutputCount,
   beepLevel,
   hapticLevel,
   onToggleOutput,
@@ -40,15 +38,11 @@ export function MetronomeOutputsSection({
 }: Props) {
   return (
     <View style={styles.section}>
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Cue outputs</Text>
-        <Text style={styles.sectionMeta}>Use them alone or combined</Text>
-      </View>
+      <Text style={styles.sectionTitle}>Outputs</Text>
 
       <View style={styles.outputRow}>
         {OUTPUT_CONTROLS.map((control) => {
           const active = outputs[control.key];
-
           return (
             <Pressable
               key={control.key}
@@ -61,15 +55,10 @@ export function MetronomeOutputsSection({
             >
               <Ionicons
                 name={control.icon}
-                size={18}
-                color={active ? "#2f6aa8" : colors.iconMuted}
+                size={16}
+                color={active ? "#ffffff" : "#84736f"}
               />
-              <Text
-                style={[
-                  styles.outputToggleText,
-                  active ? styles.outputToggleTextActive : null,
-                ]}
-              >
+              <Text style={[styles.outputToggleText, active ? styles.outputToggleTextActive : null]}>
                 {control.label}
               </Text>
             </Pressable>
@@ -77,57 +66,51 @@ export function MetronomeOutputsSection({
         })}
       </View>
 
-      <Text style={styles.helperText}>
-        {activeOutputCount === 0
-          ? "Enable at least one cue mode to hear, see, or feel the pulse."
-          : "All cue modes can run together, and each toggle takes effect on the next beat."}
-      </Text>
+      {outputs.beep ? (
+        <View style={styles.levelGroup}>
+          <View style={styles.levelHeader}>
+            <Text style={styles.levelTitle}>Volume</Text>
+            <Text style={styles.levelMeta}>{formatMetronomeLevel(beepLevel)}</Text>
+          </View>
+          <Slider
+            minimumValue={MIN_METRONOME_LEVEL}
+            maximumValue={MAX_METRONOME_LEVEL}
+            step={1}
+            minimumTrackTintColor="#824f3f"
+            maximumTrackTintColor="#d7c2bd"
+            thumbTintColor="#824f3f"
+            value={beepLevel}
+            onValueChange={onChangeBeepLevel}
+          />
+          <View style={styles.levelTrackLabels}>
+            <Text style={styles.sliderLabel}>Softer</Text>
+            <Text style={styles.sliderLabel}>Louder</Text>
+          </View>
+        </View>
+      ) : null}
 
-      <View style={styles.levelGroup}>
-        <View style={styles.levelHeader}>
-          <Text style={styles.levelTitle}>Beep level</Text>
-          <Text style={styles.levelMeta}>
-            {outputs.beep ? formatMetronomeLevel(beepLevel) : "Off"}
-          </Text>
+      {outputs.haptic ? (
+        <View style={styles.levelGroup}>
+          <View style={styles.levelHeader}>
+            <Text style={styles.levelTitle}>Haptic intensity</Text>
+            <Text style={styles.levelMeta}>{formatMetronomeLevel(hapticLevel)}</Text>
+          </View>
+          <Slider
+            minimumValue={MIN_METRONOME_LEVEL}
+            maximumValue={MAX_METRONOME_LEVEL}
+            step={1}
+            minimumTrackTintColor="#824f3f"
+            maximumTrackTintColor="#d7c2bd"
+            thumbTintColor="#824f3f"
+            value={hapticLevel}
+            onValueChange={onChangeHapticLevel}
+          />
+          <View style={styles.levelTrackLabels}>
+            <Text style={styles.sliderLabel}>Softer</Text>
+            <Text style={styles.sliderLabel}>Stronger</Text>
+          </View>
         </View>
-        <Slider
-          minimumValue={MIN_METRONOME_LEVEL}
-          maximumValue={MAX_METRONOME_LEVEL}
-          step={1}
-          minimumTrackTintColor="#7aa9da"
-          maximumTrackTintColor="#d7dee8"
-          thumbTintColor="#548ec9"
-          value={beepLevel}
-          onValueChange={onChangeBeepLevel}
-        />
-        <View style={styles.levelTrackLabels}>
-          <Text style={styles.sliderLabel}>Softer</Text>
-          <Text style={styles.sliderLabel}>Stronger</Text>
-        </View>
-      </View>
-
-      <View style={styles.levelGroup}>
-        <View style={styles.levelHeader}>
-          <Text style={styles.levelTitle}>Haptic level</Text>
-          <Text style={styles.levelMeta}>
-            {outputs.haptic ? formatMetronomeLevel(hapticLevel) : "Off"}
-          </Text>
-        </View>
-        <Slider
-          minimumValue={MIN_METRONOME_LEVEL}
-          maximumValue={MAX_METRONOME_LEVEL}
-          step={1}
-          minimumTrackTintColor="#7aa9da"
-          maximumTrackTintColor="#d7dee8"
-          thumbTintColor="#548ec9"
-          value={hapticLevel}
-          onValueChange={onChangeHapticLevel}
-        />
-        <View style={styles.levelTrackLabels}>
-          <Text style={styles.sliderLabel}>Softer</Text>
-          <Text style={styles.sliderLabel}>Stronger</Text>
-        </View>
-      </View>
+      ) : null}
     </View>
   );
 }

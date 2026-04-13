@@ -1,114 +1,126 @@
 import { StyleSheet } from "react-native";
-import { colors, radii, shadows, spacing, text as textTokens } from "../../design/tokens";
+import { spacing, text as textTokens } from "../../design/tokens";
 import { styles as base } from "../../styles";
+
+// Design system palette
+const PAPER      = "#fbf9f5";
+const SURFACE    = "#efeeea";
+const SURFACE_LO = "#e4deda";
+const TERRACOTTA = "#824f3f";
+const INK        = "#1b1c1a";
+const INK_MID    = "#524440";
+const INK_MUTED  = "#84736f";
+const DIVIDER    = "#d7c2bd";
 
 export const styles = {
   ...StyleSheet.create({
-    screen: base.screen,
+    screen: { ...base.screen, backgroundColor: PAPER },
     pressDown: base.pressDown,
     pageContent: {
       paddingTop: spacing.lg,
-      paddingBottom: spacing.xxl + spacing.lg,
-      gap: spacing.xl,
+      paddingBottom: 48,
+      gap: spacing.xxl,
     },
-    titleBlock: {
-      gap: spacing.xs,
-    },
-    title: textTokens.pageTitle,
-    subtitle: {
-      ...textTokens.supporting,
-      maxWidth: 420,
-    },
+
+    // Hero — warm surface, no border, no shadow
     heroSurface: {
       alignItems: "center",
       justifyContent: "center",
-      gap: spacing.sm,
+      gap: spacing.md,
       paddingHorizontal: spacing.xl,
-      paddingVertical: spacing.xxl,
-      borderRadius: radii.xl,
-      backgroundColor: colors.surfaceMuted,
-      borderWidth: 1,
-      borderColor: colors.borderSubtle,
-      ...shadows.card,
+      paddingTop: spacing.xxl,
+      paddingBottom: spacing.xxl,
+      borderRadius: 4,
+      backgroundColor: SURFACE,
     },
+
+    // Pulse animation
     pulseStack: {
-      width: 120,
-      height: 120,
+      width: 100,
+      height: 100,
       alignItems: "center",
       justifyContent: "center",
-      marginBottom: spacing.xs,
     },
     pulseHalo: {
       position: "absolute",
-      width: 120,
-      height: 120,
-      borderRadius: 60,
-      backgroundColor: "rgba(84, 142, 201, 0.24)",
+      width: 100,
+      height: 100,
+      borderRadius: 50,
+      backgroundColor: "rgba(130, 79, 63, 0.18)",
     },
     pulseCore: {
-      width: 88,
-      height: 88,
-      borderRadius: 44,
+      width: 72,
+      height: 72,
+      borderRadius: 36,
       alignItems: "center",
       justifyContent: "center",
-      backgroundColor: "#e7edf4",
-      borderWidth: 1,
-      borderColor: "#d8e0ea",
+      backgroundColor: SURFACE_LO,
     },
     pulseCoreActive: {
-      backgroundColor: "#d7e8f8",
-      borderColor: "#c3d7eb",
+      backgroundColor: TERRACOTTA,
     },
     pulseCoreMuted: {
-      backgroundColor: colors.surface,
+      backgroundColor: SURFACE_LO,
     },
+
+    // BPM display
     bpmValue: {
-      fontSize: 58,
-      lineHeight: 62,
+      fontSize: 72,
+      lineHeight: 76,
       fontWeight: "700",
-      color: colors.textPrimary,
-      letterSpacing: -1.5,
+      color: INK,
+      letterSpacing: -2,
     },
     bpmLabel: {
-      ...textTokens.caption,
-      textTransform: "uppercase",
+      fontSize: 11,
+      fontWeight: "600",
+      color: INK_MUTED,
       letterSpacing: 0.8,
+      textTransform: "uppercase",
     },
-    intervalLabel: {
-      ...textTokens.supporting,
-    },
+
+    // Start / Stop button — architectural, not pill
     primaryAction: {
       marginTop: spacing.sm,
       minWidth: 140,
-      minHeight: 48,
+      minHeight: 46,
       paddingHorizontal: spacing.xl,
-      borderRadius: radii.round,
+      borderRadius: 4,
       alignItems: "center",
       justifyContent: "center",
-      backgroundColor: "#111827",
+      backgroundColor: INK,
     },
     primaryActionStop: {
-      backgroundColor: "#dbe6f1",
+      backgroundColor: SURFACE_LO,
     },
     primaryActionDisabled: {
-      opacity: 0.6,
+      opacity: 0.45,
     },
     primaryActionText: {
       fontSize: 15,
       fontWeight: "700",
-      color: "#f8fafc",
+      color: "#ffffff",
+      letterSpacing: 0.2,
     },
     primaryActionTextStop: {
-      color: "#1e293b",
+      color: INK,
     },
+
+    // Small status line below button
     statusLabel: {
-      ...textTokens.supporting,
+      fontSize: 11,
+      fontWeight: "600",
+      color: INK_MUTED,
+      letterSpacing: 0.6,
+      textTransform: "uppercase",
     },
+    statusLabelRunning: {
+      color: TERRACOTTA,
+    },
+
+    // Sections — separated by spacing, not borders
     section: {
       gap: spacing.md,
-      paddingTop: spacing.sm,
-      borderTopWidth: 1,
-      borderTopColor: colors.borderSubtle,
     },
     sectionHeader: {
       flexDirection: "row",
@@ -117,11 +129,20 @@ export const styles = {
       gap: spacing.sm,
     },
     sectionTitle: {
-      ...textTokens.sectionTitle,
+      fontSize: 11,
+      fontWeight: "700",
+      color: INK_MID,
+      letterSpacing: 0.8,
+      textTransform: "uppercase",
     },
     sectionMeta: {
-      ...textTokens.caption,
+      fontSize: 11,
+      fontWeight: "600",
+      color: INK_MUTED,
+      letterSpacing: 0.4,
     },
+
+    // BPM nudge buttons — tonal, no border
     bpmStepRow: {
       flexDirection: "row",
       alignItems: "center",
@@ -129,28 +150,33 @@ export const styles = {
     },
     stepButton: {
       minWidth: 62,
-      minHeight: 42,
-      borderRadius: radii.round,
+      minHeight: 40,
+      borderRadius: 4,
       alignItems: "center",
       justifyContent: "center",
-      backgroundColor: colors.surface,
-      borderWidth: 1,
-      borderColor: colors.borderStrong,
+      backgroundColor: SURFACE,
     },
     stepButtonText: {
       fontSize: 15,
       fontWeight: "700",
-      color: colors.textPrimary,
+      color: INK,
     },
+
+    // Slider
     sliderLabels: {
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "space-between",
-      marginTop: -4,
+      marginTop: -6,
     },
     sliderLabel: {
-      ...textTokens.caption,
+      fontSize: 11,
+      fontWeight: "600",
+      color: INK_MUTED,
+      letterSpacing: 0.4,
     },
+
+    // Tap tempo
     tapRow: {
       flexDirection: "row",
       alignItems: "center",
@@ -158,33 +184,44 @@ export const styles = {
     },
     tapButton: {
       flex: 1,
-      minHeight: 48,
-      borderRadius: radii.round,
+      minHeight: 52,
+      borderRadius: 4,
       alignItems: "center",
       justifyContent: "center",
-      backgroundColor: "#d9e6f5",
+      backgroundColor: SURFACE,
+    },
+    tapButtonActive: {
+      backgroundColor: SURFACE_LO,
     },
     tapButtonText: {
       fontSize: 15,
       fontWeight: "700",
-      color: "#244b78",
+      color: INK,
     },
     tapResetButton: {
-      minWidth: 90,
-      minHeight: 48,
+      minWidth: 80,
+      minHeight: 52,
       paddingHorizontal: spacing.lg,
-      borderRadius: radii.round,
+      borderRadius: 4,
       alignItems: "center",
       justifyContent: "center",
-      borderWidth: 1,
-      borderColor: colors.borderStrong,
-      backgroundColor: colors.surface,
+      backgroundColor: SURFACE,
     },
     tapResetButtonText: {
       fontSize: 14,
       fontWeight: "600",
-      color: colors.textStrong,
+      color: INK_MID,
     },
+    tapCountLabel: {
+      fontSize: 11,
+      fontWeight: "600",
+      color: INK_MUTED,
+      letterSpacing: 0.4,
+      textTransform: "uppercase",
+      textAlign: "center",
+    },
+
+    // Output toggles — tonal, no border
     outputRow: {
       flexDirection: "row",
       flexWrap: "wrap",
@@ -194,32 +231,26 @@ export const styles = {
       flexDirection: "row",
       alignItems: "center",
       gap: spacing.sm,
-      minHeight: 44,
+      minHeight: 40,
       paddingHorizontal: spacing.lg,
-      borderRadius: radii.round,
-      borderWidth: 1,
-      borderColor: colors.borderStrong,
-      backgroundColor: colors.surface,
+      borderRadius: 4,
+      backgroundColor: SURFACE,
     },
     outputToggleActive: {
-      backgroundColor: "#e8f1fb",
-      borderColor: "#bfd3ea",
+      backgroundColor: INK,
     },
     outputToggleText: {
       fontSize: 14,
       fontWeight: "600",
-      color: colors.textStrong,
+      color: INK_MID,
     },
     outputToggleTextActive: {
-      color: "#244b78",
+      color: "#ffffff",
     },
-    helperText: {
-      ...textTokens.supporting,
-      maxWidth: 480,
-    },
+
+    // Level sliders
     levelGroup: {
       gap: spacing.sm,
-      marginTop: spacing.sm,
     },
     levelHeader: {
       flexDirection: "row",
@@ -228,18 +259,34 @@ export const styles = {
       gap: spacing.sm,
     },
     levelTitle: {
-      fontSize: 14,
-      fontWeight: "700",
-      color: colors.textPrimary,
+      fontSize: 13,
+      fontWeight: "600",
+      color: INK_MID,
     },
     levelMeta: {
-      ...textTokens.caption,
+      fontSize: 11,
+      fontWeight: "600",
+      color: INK_MUTED,
+      letterSpacing: 0.4,
     },
     levelTrackLabels: {
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "space-between",
-      marginTop: -4,
+      marginTop: -6,
+    },
+
+    // Meter chips — same pattern as output toggles
+    divider: {
+      height: 0.5,
+      backgroundColor: DIVIDER,
+      opacity: 0.5,
+    },
+
+    helperText: {
+      fontSize: 13,
+      color: INK_MUTED,
+      lineHeight: 20,
     },
   }),
 };

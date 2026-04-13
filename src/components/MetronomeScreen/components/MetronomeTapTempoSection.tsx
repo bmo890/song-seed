@@ -7,48 +7,42 @@ type Props = {
   onReset: () => void;
 };
 
-export function MetronomeTapTempoSection({
-  tapCount,
-  onTapTempo,
-  onReset,
-}: Props) {
+export function MetronomeTapTempoSection({ tapCount, onTapTempo, onReset }: Props) {
+  const hasEnoughTaps = tapCount >= 3;
+
   return (
     <View style={styles.section}>
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Tap tempo</Text>
-        <Text style={styles.sectionMeta}>
-          {tapCount > 0
-            ? `${tapCount} tap${tapCount === 1 ? "" : "s"} captured`
-            : "Tap 3 or more times"}
-        </Text>
-      </View>
+      <Text style={styles.sectionTitle}>Tap Tempo</Text>
 
       <View style={styles.tapRow}>
         <Pressable
           style={({ pressed }) => [
             styles.tapButton,
+            tapCount > 0 ? styles.tapButtonActive : null,
             pressed ? styles.pressDown : null,
           ]}
           onPress={onTapTempo}
         >
-          <Text style={styles.tapButtonText}>Tap tempo</Text>
+          <Text style={styles.tapButtonText}>Tap</Text>
         </Pressable>
 
-        <Pressable
-          style={({ pressed }) => [
-            styles.tapResetButton,
-            pressed ? styles.pressDown : null,
-          ]}
-          onPress={onReset}
-        >
-          <Text style={styles.tapResetButtonText}>Reset</Text>
-        </Pressable>
+        {tapCount > 0 ? (
+          <Pressable
+            style={({ pressed }) => [styles.tapResetButton, pressed ? styles.pressDown : null]}
+            onPress={onReset}
+          >
+            <Text style={styles.tapResetButtonText}>Reset</Text>
+          </Pressable>
+        ) : null}
       </View>
 
-      <Text style={styles.helperText}>
-        BPM updates from the most recent consistent taps so it settles without bouncing
-        around.
-      </Text>
+      {tapCount > 0 ? (
+        <Text style={styles.tapCountLabel}>
+          {hasEnoughTaps
+            ? `${tapCount} taps`
+            : `${tapCount} tap${tapCount === 1 ? "" : "s"} — keep going`}
+        </Text>
+      ) : null}
     </View>
   );
 }

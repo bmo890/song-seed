@@ -10,15 +10,11 @@ type Props = {
 export function MetronomeMeterSection({ meterId, onSelectMeter }: Props) {
   return (
     <View style={styles.section}>
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Meter</Text>
-        <Text style={styles.sectionMeta}>Accent pattern and bar length</Text>
-      </View>
+      <Text style={styles.sectionTitle}>Meter</Text>
 
       <View style={styles.outputRow}>
         {METRONOME_METER_PRESETS.map((preset) => {
           const active = preset.id === meterId;
-
           return (
             <Pressable
               key={preset.id}
@@ -29,12 +25,7 @@ export function MetronomeMeterSection({ meterId, onSelectMeter }: Props) {
               ]}
               onPress={() => onSelectMeter(preset.id)}
             >
-              <Text
-                style={[
-                  styles.outputToggleText,
-                  active ? styles.outputToggleTextActive : null,
-                ]}
-              >
+              <Text style={[styles.outputToggleText, active ? styles.outputToggleTextActive : null]}>
                 {preset.label}
               </Text>
             </Pressable>
