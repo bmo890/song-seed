@@ -6,17 +6,20 @@ type TunerModel = ReturnType<typeof useTunerScreenModel>;
 
 function getMeterToneStyle(model: TunerModel) {
   switch (model.meterTone) {
-    case "in_tune":
-      return styles.indicatorInTune;
-    case "near":
-      return styles.indicatorNear;
-    case "far":
-      return styles.indicatorFar;
-    case "active":
-      return styles.indicatorActive;
-    default:
-      return styles.indicatorIdle;
+    case "in_tune": return styles.indicatorInTune;
+    case "near":    return styles.indicatorNear;
+    case "far":     return styles.indicatorFar;
+    case "active":  return styles.indicatorActive;
+    default:        return styles.indicatorIdle;
   }
+}
+
+function getStatusLabel(model: TunerModel): string {
+  if (!model.isListening) return "Waiting";
+  if (!model.signalActive) return "Listening";
+  if (model.meterTone === "in_tune") return "In Tune";
+  if (model.meterTone === "near" || model.meterTone === "far") return "Tune Up";
+  return "Signal";
 }
 
 export function TunerDial({ model }: { model: TunerModel }) {
@@ -24,20 +27,24 @@ export function TunerDial({ model }: { model: TunerModel }) {
   const detuneTextStyle =
     model.meterTone === "far" ? styles.detuneChipValueFar : styles.detuneChipValueNear;
 
+  const isInTune = model.meterTone === "in_tune";
+  const statusLabel = getStatusLabel(model);
+  const isActive = model.signalActive;
+
   return (
     <View style={styles.dialSection}>
       <View style={styles.arcStage}>
         <View style={styles.flatMarker}>
-          <Text style={styles.markerText}>-</Text>
+          <Text style={styles.markerText}>♭</Text>
         </View>
         <View style={styles.sharpMarker}>
-          <Text style={styles.markerText}>+</Text>
+          <Text style={styles.markerText}>♯</Text>
         </View>
 
         <View style={styles.arcTrack} />
         <View style={styles.arcCutout} />
 
-        {(model.showFlatDetune || model.showSharpDetune) && (
+        {(model.showFlatDetune || model.showSharpDetune) ? (
           <View
             style={[
               styles.detuneAbsolute,
@@ -50,7 +57,7 @@ export function TunerDial({ model }: { model: TunerModel }) {
               {model.showFlatDetune ? model.flatDetuneValue : model.sharpDetuneValue}
             </Text>
           </View>
-        )}
+        ) : null}
 
         <View
           style={[styles.arcIndicator, detuneToneStyle, model.indicatorPosition]}
@@ -59,10 +66,19 @@ export function TunerDial({ model }: { model: TunerModel }) {
         <View style={styles.noteBlock}>
           <View style={styles.noteRow}>
             <Text style={styles.noteText}>{model.noteText}</Text>
-            <Text style={styles.octaveText}>{model.octaveText}</Text>
+            {model.octaveText ? (
+              <Text style={styles.octaveText}>{model.octaveText}</Text>
+            ) : null}
           </View>
           <Text style={styles.hzInlineValue}>{model.frequencyLabel}</Text>
         </View>
+      </View>
+
+      <View style={styles.statusRow}>
+        <View style={[styles.statusDot, isActive ? styles.statusDotActive : null]} />
+        <Text style={[styles.statusLabel, isInTune ? styles.statusLabelInTune : null]}>
+          {statusLabel}
+        </Text>
       </View>
     </View>
   );

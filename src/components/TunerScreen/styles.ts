@@ -1,5 +1,5 @@
 import { StyleSheet } from "react-native";
-import { colors, shadows, spacing, text as textTokens } from "../../design/tokens";
+import { spacing, text as textTokens } from "../../design/tokens";
 import { styles as base } from "../../styles";
 
 const ARC_STAGE_WIDTH = 300;
@@ -13,23 +13,32 @@ const ARC_CUTOUT_BOTTOM = 22;
 const ARC_INDICATOR_SIZE = 16;
 const ARC_SIDE_LABEL_TOP = ARC_TRACK_TOP + ARC_TRACK_SIZE / 2 - 16;
 
+// Design system palette
+const PAPER      = "#fbf9f5"; // surface
+const SURFACE    = "#efeeea"; // surface-container
+const TERRACOTTA = "#824f3f"; // primary accent
+const INK        = "#1b1c1a"; // on-surface (warm charcoal, not pure black)
+const INK_MID    = "#524440"; // on-surface-variant
+const INK_MUTED  = "#84736f"; // outline
+const DIVIDER    = "#d7c2bd"; // outline-variant
+
 export const styles = {
   ...StyleSheet.create({
-    screen: base.screen,
+    screen: { ...base.screen, backgroundColor: PAPER },
     pageContent: {
       paddingTop: spacing.xl,
       paddingBottom: spacing.xxl + spacing.lg,
       alignItems: "center",
       justifyContent: "center",
       flexGrow: 1,
-      gap: spacing.lg,
+      gap: spacing.xxl,
     },
+
+    // Arc layout
     dialSection: {
       width: "100%",
       alignItems: "center",
       justifyContent: "center",
-      flex: 1,
-      marginTop: -100,
     },
     arcStage: {
       width: ARC_STAGE_WIDTH,
@@ -46,7 +55,7 @@ export const styles = {
       height: ARC_TRACK_SIZE,
       borderRadius: ARC_TRACK_SIZE / 2,
       borderWidth: ARC_TRACK_STROKE,
-      borderColor: "#e2e8f0",
+      borderColor: DIVIDER,           // warm outline-variant, not cold gray
       backgroundColor: "transparent",
     },
     arcCutout: {
@@ -57,20 +66,23 @@ export const styles = {
       height: ARC_CUTOUT_HEIGHT,
       borderTopLeftRadius: ARC_CUTOUT_WIDTH / 2,
       borderTopRightRadius: ARC_CUTOUT_WIDTH / 2,
-      backgroundColor: colors.page,
+      backgroundColor: PAPER,         // match the warm page background
     },
     arcIndicator: {
       position: "absolute",
       width: ARC_INDICATOR_SIZE,
       height: ARC_INDICATOR_SIZE,
       borderRadius: ARC_INDICATOR_SIZE / 2,
-      borderWidth: 0,
     },
-    indicatorIdle: { backgroundColor: "#cbd5e1" },
-    indicatorActive: { backgroundColor: "#60a5fa" },
-    indicatorNear: { backgroundColor: "#f97316" },
-    indicatorFar: { backgroundColor: "#ef4444" },
-    indicatorInTune: { backgroundColor: "#22c55e" },
+
+    // Indicator states — warm palette, no bright saturated colors
+    indicatorIdle:   { backgroundColor: DIVIDER },
+    indicatorActive: { backgroundColor: "#b5968d" },   // warm taupe: signal present, no note yet
+    indicatorNear:   { backgroundColor: "#c07840" },   // earthy amber: close but not there
+    indicatorFar:    { backgroundColor: "#a04545" },   // muted earthy red: far off
+    indicatorInTune: { backgroundColor: TERRACOTTA },  // terracotta: in tune — primary accent
+
+    // ± side markers
     flatMarker: {
       position: "absolute",
       left: -20,
@@ -90,10 +102,12 @@ export const styles = {
       justifyContent: "center",
     },
     markerText: {
-      fontSize: 24,
-      fontWeight: "400",
-      color: "#64748b",
+      fontSize: 22,
+      fontWeight: "300",
+      color: DIVIDER,
     },
+
+    // Note display
     noteBlock: {
       position: "absolute",
       left: ARC_TRACK_LEFT,
@@ -111,56 +125,88 @@ export const styles = {
     noteText: {
       fontSize: 90,
       lineHeight: 104,
-      fontWeight: "600",
-      color: "#1e293b",
+      fontWeight: "700",
+      color: INK,
       letterSpacing: -3,
     },
     octaveText: {
-      marginTop: 8,
+      marginTop: 10,
       marginLeft: 4,
-      fontSize: 48,
+      fontSize: 44,
       lineHeight: 48,
-      fontWeight: "500",
-      color: "#1e293b",
+      fontWeight: "400",
+      color: INK_MID,
     },
     hzInlineValue: {
       marginTop: spacing.md,
-      fontSize: 24,
-      lineHeight: 28,
-      fontWeight: "500",
-      color: "#1e293b",
+      fontSize: 11,
+      lineHeight: 14,
+      fontWeight: "600",
+      color: INK_MUTED,
+      letterSpacing: 0.8,
+      textTransform: "uppercase",
     },
+
+    // Detune badge — tonal surface, no shadow
     detuneAbsolute: {
       position: "absolute",
       top: ARC_TRACK_TOP + 10,
       right: 0,
-      paddingHorizontal: 16,
-      height: 38,
-      borderRadius: 12,
+      paddingHorizontal: 14,
+      height: 36,
+      borderRadius: 2,              // nearly square — architectural
       alignItems: "center",
       justifyContent: "center",
-      backgroundColor: "#ffffff",
-      ...shadows.control,
-      elevation: 3,
+      backgroundColor: SURFACE,    // surface-container — tonal layering, no shadow
     },
-    detuneAbsoluteNear: { borderWidth: 0 },
-    detuneAbsoluteFar: { borderWidth: 0 },
-    detuneChipValueNear: { color: "#f97316" },
-    detuneChipValueFar: { color: "#ef4444" },
+    detuneAbsoluteNear: {},
+    detuneAbsoluteFar: {},
     detuneChipValue: {
-      fontSize: 20,
-      lineHeight: 24,
+      fontSize: 18,
+      lineHeight: 22,
       fontWeight: "600",
     },
+    detuneChipValueNear: { color: "#c07840" },
+    detuneChipValueFar:  { color: "#a04545" },
+
+    // Status row below the dial
+    statusRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing.sm,
+    },
+    statusDot: {
+      width: 6,
+      height: 6,
+      borderRadius: 3,
+      backgroundColor: DIVIDER,
+    },
+    statusDotActive: {
+      backgroundColor: TERRACOTTA,
+    },
+    statusLabel: {
+      fontSize: 11,
+      fontWeight: "600",
+      color: INK_MUTED,
+      letterSpacing: 0.8,
+      textTransform: "uppercase",
+    },
+    statusLabelInTune: {
+      color: TERRACOTTA,
+    },
+
+    // Helper + error text
     helperText: {
       ...textTokens.supporting,
+      color: INK_MUTED,
       textAlign: "center",
-      maxWidth: 280,
+      maxWidth: 260,
+      lineHeight: 22,
     },
     errorText: {
       ...textTokens.supporting,
-      color: "#b91c1c",
-      fontWeight: "700",
+      color: "#a04545",
+      fontWeight: "600",
       textAlign: "center",
       maxWidth: 300,
     },

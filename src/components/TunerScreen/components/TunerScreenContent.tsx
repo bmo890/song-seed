@@ -13,7 +13,7 @@ export function TunerScreenContent() {
 
   return (
     <SafeAreaView style={styles.screen}>
-      <ScreenHeader title="" leftIcon="hamburger" />
+      <ScreenHeader title="Tuner" leftIcon="hamburger" />
 
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -22,8 +22,7 @@ export function TunerScreenContent() {
         <TunerDial model={model} />
 
         <Text style={styles.helperText}>
-          Keep the phone near the instrument, mute nearby noise, and let one string ring
-          at a time.
+          Hold the phone near your instrument and let one string ring at a time.
         </Text>
 
         {model.errorMessage ? (
@@ -36,6 +35,7 @@ export function TunerScreenContent() {
             }}
           >
             {model.errorMessage}
+            {model.permissionBlocked ? " Tap to open settings." : ""}
           </Text>
         ) : null}
       </ScrollView>
