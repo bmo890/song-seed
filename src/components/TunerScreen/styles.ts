@@ -3,15 +3,14 @@ import { spacing, text as textTokens } from "../../design/tokens";
 import { styles as base } from "../../styles";
 
 const ARC_STAGE_WIDTH = 300;
+const ARC_STAGE_HEIGHT = 280;
 const ARC_TRACK_SIZE = 240;
 const ARC_TRACK_STROKE = 4;
-const ARC_TRACK_TOP = 96;
+const ARC_TRACK_TOP = 20;
 const ARC_TRACK_LEFT = (ARC_STAGE_WIDTH - ARC_TRACK_SIZE) / 2;
-const ARC_CUTOUT_WIDTH = 118;
-const ARC_CUTOUT_HEIGHT = 82;
-const ARC_CUTOUT_BOTTOM = 22;
+const ARC_SEMI_HEIGHT = ARC_TRACK_SIZE / 2;
 const ARC_INDICATOR_SIZE = 16;
-const ARC_SIDE_LABEL_TOP = ARC_TRACK_TOP + ARC_TRACK_SIZE / 2 - 16;
+const ARC_SIDE_LABEL_TOP = ARC_TRACK_TOP + ARC_SEMI_HEIGHT - 16;
 
 // Design system palette
 const PAPER      = "#fbf9f5"; // surface
@@ -42,7 +41,7 @@ export const styles = {
     },
     arcStage: {
       width: ARC_STAGE_WIDTH,
-      height: ARC_STAGE_WIDTH,
+      height: ARC_STAGE_HEIGHT,
       position: "relative",
       alignItems: "center",
       justifyContent: "center",
@@ -52,21 +51,20 @@ export const styles = {
       top: ARC_TRACK_TOP,
       left: ARC_TRACK_LEFT,
       width: ARC_TRACK_SIZE,
-      height: ARC_TRACK_SIZE,
-      borderRadius: ARC_TRACK_SIZE / 2,
-      borderWidth: ARC_TRACK_STROKE,
-      borderColor: DIVIDER,           // warm outline-variant, not cold gray
+      height: ARC_SEMI_HEIGHT,
+      borderTopLeftRadius: ARC_TRACK_SIZE / 2,
+      borderTopRightRadius: ARC_TRACK_SIZE / 2,
+      borderBottomLeftRadius: 0,
+      borderBottomRightRadius: 0,
+      borderTopWidth: ARC_TRACK_STROKE,
+      borderLeftWidth: ARC_TRACK_STROKE,
+      borderRightWidth: ARC_TRACK_STROKE,
+      borderBottomWidth: 0,
+      borderColor: DIVIDER,
       backgroundColor: "transparent",
     },
-    arcCutout: {
-      position: "absolute",
-      left: (ARC_STAGE_WIDTH - ARC_CUTOUT_WIDTH) / 2,
-      bottom: ARC_CUTOUT_BOTTOM,
-      width: ARC_CUTOUT_WIDTH,
-      height: ARC_CUTOUT_HEIGHT,
-      borderTopLeftRadius: ARC_CUTOUT_WIDTH / 2,
-      borderTopRightRadius: ARC_CUTOUT_WIDTH / 2,
-      backgroundColor: PAPER,         // match the warm page background
+    arcTrackInTune: {
+      borderColor: "#4a7c5e",
     },
     arcIndicator: {
       position: "absolute",
@@ -107,15 +105,16 @@ export const styles = {
       color: DIVIDER,
     },
 
-    // Note display
+    // Note display — below the semicircle
     noteBlock: {
       position: "absolute",
       left: ARC_TRACK_LEFT,
-      top: ARC_TRACK_TOP,
+      top: ARC_TRACK_TOP + ARC_SEMI_HEIGHT,
       width: ARC_TRACK_SIZE,
-      height: ARC_TRACK_SIZE,
+      height: ARC_STAGE_HEIGHT - (ARC_TRACK_TOP + ARC_SEMI_HEIGHT),
       alignItems: "center",
-      justifyContent: "center",
+      justifyContent: "flex-start",
+      paddingTop: 12,
     },
     noteRow: {
       flexDirection: "row",
@@ -150,7 +149,7 @@ export const styles = {
     // Detune badge — tonal surface, no shadow
     detuneAbsolute: {
       position: "absolute",
-      top: ARC_TRACK_TOP + 10,
+      top: ARC_TRACK_TOP + ARC_SEMI_HEIGHT / 2 - 18,
       paddingHorizontal: 14,
       height: 36,
       borderRadius: 2,              // nearly square — architectural

@@ -86,7 +86,7 @@ export function ActivityScopeControls({
                   <Ionicons
                     name={getHierarchyIconName("workspace")}
                     size={15}
-                    color={workspaceFilterId == null ? "#475569" : "#0f172a"}
+                    color={workspaceFilterId == null ? "#84736f" : "#1b1c1a"}
                   />
                   <Text style={styles.ideasUtilityChipText} numberOfLines={1}>
                     {selectedWorkspaceLabel}
@@ -94,7 +94,7 @@ export function ActivityScopeControls({
                   <Ionicons
                     name={workspaceMenuOpen ? "chevron-up" : "chevron-down"}
                     size={14}
-                    color="#475569"
+                    color="#84736f"
                   />
                 </Pressable>
               </View>
@@ -119,7 +119,7 @@ export function ActivityScopeControls({
                     <Ionicons
                       name={getHierarchyIconName("collection")}
                       size={15}
-                      color={collectionFilterId == null ? "#475569" : "#0f172a"}
+                      color={collectionFilterId == null ? "#84736f" : "#1b1c1a"}
                     />
                     <Text style={styles.ideasUtilityChipText} numberOfLines={1}>
                       {selectedCollection?.title ?? "All collections"}
@@ -127,7 +127,7 @@ export function ActivityScopeControls({
                     <Ionicons
                       name={collectionMenuOpen ? "chevron-up" : "chevron-down"}
                       size={14}
-                      color="#475569"
+                      color="#84736f"
                     />
                   </Pressable>
                 </View>
@@ -150,7 +150,7 @@ export function ActivityScopeControls({
                 }}
               >
                 <View style={styles.ideasMenuItemLead}>
-                  <Ionicons name={getHierarchyIconName("workspace")} size={15} color="#475569" />
+                  <Ionicons name={getHierarchyIconName("workspace")} size={15} color="#84736f" />
                   <Text
                     style={[
                       styles.ideasSortMenuItemText,
@@ -176,7 +176,7 @@ export function ActivityScopeControls({
                   }}
                 >
                   <View style={styles.ideasMenuItemLead}>
-                    <Ionicons name={getHierarchyIconName("workspace")} size={15} color="#475569" />
+                    <Ionicons name={getHierarchyIconName("workspace")} size={15} color="#84736f" />
                     <Text
                       style={[
                         styles.ideasSortMenuItemText,
@@ -210,7 +210,7 @@ export function ActivityScopeControls({
                 }}
               >
                 <View style={styles.ideasMenuItemLead}>
-                  <Ionicons name={getHierarchyIconName("collection")} size={15} color="#64748b" />
+                  <Ionicons name={getHierarchyIconName("collection")} size={15} color="#84736f" />
                   <Text
                     style={[
                       styles.ideasSortMenuItemText,
@@ -235,7 +235,7 @@ export function ActivityScopeControls({
                   }}
                 >
                   <View style={styles.ideasMenuItemLead}>
-                    <Ionicons name={getHierarchyIconName("collection")} size={15} color="#64748b" />
+                    <Ionicons name={getHierarchyIconName("collection")} size={15} color="#84736f" />
                     <Text
                       style={[
                         styles.ideasSortMenuItemText,

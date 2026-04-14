@@ -48,7 +48,7 @@ export function ActivityHeatmapGrid({
     <SurfaceCard style={styles.activityCard}>
       <View style={styles.activityHeatmapHeader}>
         <View style={styles.activityHeatmapHeaderCopy}>
-          <Text style={styles.activityHeatmapEyebrow}>View by date range</Text>
+          <Text style={styles.activityHeatmapEyebrow}>Date range</Text>
           <Text style={styles.activityHeatmapSelectedLabel} numberOfLines={2}>
             {displayRangeLabel}
           </Text>
@@ -81,7 +81,7 @@ export function ActivityHeatmapGrid({
             style={({ pressed }) => [styles.activityYearBtn, pressed ? styles.pressDown : null]}
             onPress={() => onChangeYear(year - 1)}
           >
-            <Ionicons name="chevron-back" size={14} color="#334155" />
+            <Ionicons name="chevron-back" size={14} color="#1b1c1a" />
           </Pressable>
           <Text style={styles.activityYearText}>{year}</Text>
           <Pressable
@@ -92,7 +92,7 @@ export function ActivityHeatmapGrid({
             <Ionicons
               name="chevron-forward"
               size={14}
-              color={year >= currentYear ? "#94a3b8" : "#334155"}
+              color={year >= currentYear ? "#d7c2bd" : "#1b1c1a"}
             />
           </Pressable>
         </View>

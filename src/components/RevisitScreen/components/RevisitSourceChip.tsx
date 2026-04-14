@@ -23,7 +23,7 @@ export function RevisitSourceChip({ option, onPress }: RevisitSourceChipProps) {
       <Ionicons
         name={option.included ? "checkmark-circle" : "ellipse-outline"}
         size={16}
-        color={option.included ? "#9a3412" : "#94a3b8"}
+        color={option.included ? "#824f3f" : "#84736f"}
       />
       <Text
         style={[

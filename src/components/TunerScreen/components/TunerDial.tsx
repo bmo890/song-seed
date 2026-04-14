@@ -41,8 +41,7 @@ export function TunerDial({ model }: { model: TunerModel }) {
           <Text style={styles.markerText}>♯</Text>
         </View>
 
-        <View style={styles.arcTrack} />
-        <View style={styles.arcCutout} />
+        <View style={[styles.arcTrack, isInTune ? styles.arcTrackInTune : null]} />
 
         {model.showFlatDetune ? (
           <View style={[

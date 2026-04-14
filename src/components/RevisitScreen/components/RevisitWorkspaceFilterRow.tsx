@@ -50,7 +50,7 @@ export function RevisitWorkspaceFilterRow({
           <Ionicons
             name={option.included ? "checkmark-circle" : "ellipse-outline"}
             size={18}
-            color={option.included ? "#9a3412" : "#94a3b8"}
+            color={option.included ? "#824f3f" : "#84736f"}
           />
         </Pressable>
 
@@ -72,7 +72,7 @@ export function RevisitWorkspaceFilterRow({
           <Ionicons
             name={expanded ? "chevron-up" : "chevron-down"}
             size={18}
-            color="#94a3b8"
+            color="#84736f"
           />
         </Pressable>
       </View>

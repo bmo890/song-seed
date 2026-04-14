@@ -1,335 +1,365 @@
 import { StyleSheet } from "react-native";
-import { styles } from "../../styles";
+import { styles as base } from "../../styles";
 
-export const revisitStyles = StyleSheet.create({
-  scrollContent: {
-    paddingBottom: 120,
-    gap: 14,
-  },
-  filterPanel: {
-    gap: 12,
-  },
-  filterPanelHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 10,
-  },
-  filterPanelTitle: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#0f172a",
-  },
-  utilityButton: {
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: "#fdba74",
-    backgroundColor: "#fff7ed",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  utilityButtonText: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: "#9a3412",
-  },
-  workspaceFilterList: {
-    gap: 8,
-  },
-  filterWrap: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-  },
-  filterChip: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    borderRadius: 16,
-    borderWidth: 1,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    maxWidth: "100%",
-  },
-  filterChipIncluded: {
-    backgroundColor: "#fff7ed",
-    borderColor: "#fdba74",
-  },
-  filterChipExcluded: {
-    backgroundColor: "#f8fafc",
-    borderColor: "#e2e8f0",
-  },
-  filterChipText: {
-    maxWidth: 220,
-    fontSize: 12,
-    color: "#475569",
-    fontWeight: "600",
-  },
-  filterChipTextIncluded: {
-    color: "#7c2d12",
-  },
-  filterChipCount: {
-    minWidth: 22,
-    borderRadius: 11,
-    backgroundColor: "#ffffff",
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  filterChipCountText: {
-    fontSize: 11,
-    fontWeight: "700",
-    color: "#64748b",
-  },
-  workspaceFilterRow: {
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: "#e2e8f0",
-    backgroundColor: "#f8fafc",
-    padding: 10,
-    gap: 10,
-  },
-  workspaceFilterRowIncluded: {
-    borderColor: "#fdba74",
-    backgroundColor: "#fffaf4",
-  },
-  workspaceFilterTopRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  workspaceIncludeToggle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#ffffff",
-    borderWidth: 1,
-    borderColor: "#e2e8f0",
-  },
-  workspaceIncludeToggleIncluded: {
-    borderColor: "#fdba74",
-    backgroundColor: "#fff7ed",
-  },
-  workspaceFilterMain: {
-    flex: 1,
-    minWidth: 0,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  workspaceFilterCopy: {
-    flex: 1,
-    gap: 2,
-  },
-  workspaceFilterTitle: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: "#0f172a",
-  },
-  workspaceDropdown: {
-    marginLeft: 44,
-    gap: 8,
-  },
-  hiddenResetRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    alignSelf: "flex-start",
-    paddingTop: 2,
-  },
-  hiddenResetText: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: "#9a3412",
-  },
-  sectionWrap: {
-    gap: 10,
-  },
-  sectionHeader: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    justifyContent: "space-between",
-    gap: 10,
-  },
-  sectionHeaderCopy: {
-    flex: 1,
-    minWidth: 0,
-    gap: 4,
-  },
-  sectionHeaderMain: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    lineHeight: 22,
-    fontWeight: "700",
-    color: "#0f172a",
-  },
-  sectionSubtitle: {
-    fontSize: 13,
-    lineHeight: 18,
-    color: "#64748b",
-    fontWeight: "500",
-  },
-  sectionActionButton: {
-    borderRadius: 999,
-    backgroundColor: "#fff7ed",
-    borderWidth: 1,
-    borderColor: "#fed7aa",
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-  },
-  sectionIconButton: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#fff7ed",
-    borderWidth: 1,
-    borderColor: "#fed7aa",
-  },
-  sectionActionText: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: "#9a3412",
-  },
-  sectionCountPill: {
-    minWidth: 32,
-    borderRadius: 16,
-    backgroundColor: "#fff7ed",
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  sectionCountPillText: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: "#9a3412",
-  },
-  emptyCard: {
-    borderStyle: "dashed",
-    borderColor: "#cbd5e1",
-  },
-  candidateWrap: {
-    gap: 0,
-  },
-  reasonText: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: "#9a3412",
-  },
-  candidateCard: {
-    gap: 8,
-  },
-  candidateTopRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
-  candidateLeadCol: {
-    width: 36,
-    alignItems: "center",
-    gap: 6,
-    flexShrink: 0,
-  },
-  candidatePlayBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#f8fafc",
-  },
-  candidateStopBtn: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#f8fafc",
-  },
-  candidateMain: {
-    flex: 1,
-    gap: 6,
-  },
-  candidateTitleRow: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 8,
-  },
-  candidateTitleBlock: {
-    flex: 1,
-    gap: 4,
-  },
-  candidateTitle: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#0f172a",
-  },
-  candidateContext: {
-    fontSize: 13,
-    color: "#64748b",
-    fontWeight: "500",
-  },
-  candidateTopActions: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  candidateKindPill: {
-    borderRadius: 999,
-    backgroundColor: "#f1f5f9",
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-  },
-  candidateKindPillText: {
-    fontSize: 11,
-    fontWeight: "700",
-    color: "#475569",
-  },
-  candidateMenuBtn: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#f8fafc",
-  },
-  candidateProgressWrap: {
-    minHeight: 18,
-    justifyContent: "center",
-  },
-  candidateDurationLabel: {
-    fontSize: 12,
-    color: "#64748b",
-    fontWeight: "600",
-  },
-  emptyStateCard: {
-    borderStyle: "dashed",
-    borderColor: "#cbd5e1",
-  },
-  snapshotHeaderCard: {
-    gap: 8,
-  },
-  snapshotHeaderTopRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 10,
-  },
-  snapshotWindowText: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: "#9a3412",
-  },
-  snapshotList: {
-    gap: 12,
-  },
-});
+const PAPER = "#fbf9f5";
+const SURFACE = "#efeeea";
+const SURFACE_LO = "#e4deda";
+const TERRACOTTA = "#824f3f";
+const INK = "#1b1c1a";
+const INK_LO = "#4a3f3b";
+const MUTED = "#84736f";
+
+export const revisitStyles = {
+  screen: { ...base.screen, backgroundColor: PAPER },
+
+  ...StyleSheet.create({
+    scrollContent: {
+      paddingBottom: 120,
+      gap: 14,
+    },
+
+    // ── Sources filter panel ──────────────────────────────────────────────
+    filterPanel: {
+      gap: 12,
+      backgroundColor: SURFACE,
+      borderWidth: 0,
+      borderRadius: 6,
+      shadowOpacity: 0,
+      elevation: 0,
+    },
+    filterPanelHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: 10,
+    },
+    filterPanelTitle: {
+      fontSize: 16,
+      fontWeight: "700",
+      color: INK,
+    },
+    utilityButton: {
+      borderRadius: 4,
+      backgroundColor: SURFACE_LO,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+    },
+    utilityButtonText: {
+      fontSize: 12,
+      fontWeight: "700",
+      color: INK,
+    },
+
+    // ── Workspace filter rows ─────────────────────────────────────────────
+    workspaceFilterList: {
+      gap: 8,
+    },
+    filterWrap: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: 8,
+    },
+    filterChip: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      borderRadius: 4,
+      paddingHorizontal: 10,
+      paddingVertical: 8,
+      maxWidth: "100%",
+    },
+    filterChipIncluded: {
+      backgroundColor: SURFACE,
+    },
+    filterChipExcluded: {
+      backgroundColor: SURFACE_LO,
+    },
+    filterChipText: {
+      maxWidth: 220,
+      fontSize: 12,
+      color: MUTED,
+      fontWeight: "600",
+    },
+    filterChipTextIncluded: {
+      color: INK_LO,
+    },
+    filterChipCount: {
+      minWidth: 22,
+      borderRadius: 2,
+      backgroundColor: SURFACE_LO,
+      paddingHorizontal: 6,
+      paddingVertical: 2,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    filterChipCountText: {
+      fontSize: 11,
+      fontWeight: "700",
+      color: MUTED,
+    },
+    workspaceFilterRow: {
+      borderRadius: 6,
+      backgroundColor: SURFACE_LO,
+      padding: 10,
+      gap: 10,
+    },
+    workspaceFilterRowIncluded: {
+      backgroundColor: SURFACE,
+    },
+    workspaceFilterTopRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+    },
+    workspaceIncludeToggle: {
+      width: 36,
+      height: 36,
+      borderRadius: 4,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: SURFACE,
+    },
+    workspaceIncludeToggleIncluded: {
+      backgroundColor: SURFACE_LO,
+    },
+    workspaceFilterMain: {
+      flex: 1,
+      minWidth: 0,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+    },
+    workspaceFilterCopy: {
+      flex: 1,
+      gap: 2,
+    },
+    workspaceFilterTitle: {
+      fontSize: 14,
+      fontWeight: "700",
+      color: INK,
+    },
+    workspaceDropdown: {
+      marginLeft: 44,
+      gap: 8,
+    },
+    hiddenResetRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      alignSelf: "flex-start",
+      paddingTop: 2,
+    },
+    hiddenResetText: {
+      fontSize: 12,
+      fontWeight: "700",
+      color: TERRACOTTA,
+    },
+
+    // ── Section blocks ────────────────────────────────────────────────────
+    sectionWrap: {
+      gap: 10,
+    },
+    sectionHeader: {
+      flexDirection: "row",
+      alignItems: "flex-start",
+      justifyContent: "space-between",
+      gap: 10,
+    },
+    sectionHeaderCopy: {
+      flex: 1,
+      minWidth: 0,
+      gap: 4,
+    },
+    sectionHeaderMain: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 10,
+    },
+    sectionTitle: {
+      fontSize: 18,
+      lineHeight: 22,
+      fontWeight: "700",
+      color: INK,
+    },
+    sectionSubtitle: {
+      fontSize: 13,
+      lineHeight: 18,
+      color: MUTED,
+      fontWeight: "500",
+    },
+    sectionActionButton: {
+      borderRadius: 4,
+      backgroundColor: SURFACE_LO,
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+    },
+    sectionIconButton: {
+      width: 28,
+      height: 28,
+      borderRadius: 4,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: SURFACE_LO,
+    },
+    sectionActionText: {
+      fontSize: 12,
+      fontWeight: "700",
+      color: INK,
+    },
+    sectionCountPill: {
+      minWidth: 32,
+      borderRadius: 4,
+      backgroundColor: SURFACE_LO,
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    sectionCountPillText: {
+      fontSize: 12,
+      fontWeight: "700",
+      color: MUTED,
+    },
+
+    // ── Empty states (override styles.card) ──────────────────────────────
+    emptyCard: {
+      backgroundColor: SURFACE,
+      borderWidth: 0,
+      borderRadius: 6,
+      shadowOpacity: 0,
+      elevation: 0,
+    },
+    emptyStateCard: {
+      backgroundColor: SURFACE,
+      borderWidth: 0,
+      borderRadius: 6,
+      shadowOpacity: 0,
+      elevation: 0,
+    },
+
+    // ── Candidate card ────────────────────────────────────────────────────
+    candidateWrap: {
+      gap: 0,
+    },
+    reasonText: {
+      fontSize: 12,
+      fontWeight: "700",
+      color: TERRACOTTA,
+    },
+    candidateCard: {
+      gap: 8,
+      backgroundColor: SURFACE,
+      borderWidth: 0,
+      borderRadius: 6,
+      shadowOpacity: 0,
+      elevation: 0,
+    },
+    candidateTopRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 10,
+    },
+    candidateLeadCol: {
+      width: 36,
+      alignItems: "center",
+      gap: 6,
+      flexShrink: 0,
+    },
+    candidatePlayBtn: {
+      width: 36,
+      height: 36,
+      borderRadius: 4,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: SURFACE_LO,
+    },
+    candidateStopBtn: {
+      width: 24,
+      height: 24,
+      borderRadius: 4,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: SURFACE_LO,
+    },
+    candidateMain: {
+      flex: 1,
+      gap: 6,
+    },
+    candidateTitleRow: {
+      flexDirection: "row",
+      alignItems: "flex-start",
+      gap: 8,
+    },
+    candidateTitleBlock: {
+      flex: 1,
+      gap: 4,
+    },
+    candidateTitle: {
+      fontSize: 16,
+      fontWeight: "700",
+      color: INK,
+    },
+    candidateContext: {
+      fontSize: 13,
+      color: MUTED,
+      fontWeight: "500",
+    },
+    candidateTopActions: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+    },
+    candidateKindPill: {
+      borderRadius: 2,
+      backgroundColor: SURFACE_LO,
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+    },
+    candidateKindPillText: {
+      fontSize: 11,
+      fontWeight: "700",
+      color: MUTED,
+    },
+    candidateMenuBtn: {
+      width: 28,
+      height: 28,
+      borderRadius: 4,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: SURFACE_LO,
+    },
+    candidateProgressWrap: {
+      minHeight: 18,
+      justifyContent: "center",
+    },
+    candidateDurationLabel: {
+      fontSize: 12,
+      color: MUTED,
+      fontWeight: "600",
+    },
+
+    // ── Around snapshot view ──────────────────────────────────────────────
+    snapshotHeaderCard: {
+      gap: 8,
+      backgroundColor: SURFACE,
+      borderWidth: 0,
+      borderRadius: 6,
+      shadowOpacity: 0,
+      elevation: 0,
+    },
+    snapshotHeaderTopRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: 10,
+    },
+    snapshotWindowText: {
+      fontSize: 12,
+      fontWeight: "700",
+      color: TERRACOTTA,
+    },
+    snapshotList: {
+      gap: 12,
+    },
+  }),
+};

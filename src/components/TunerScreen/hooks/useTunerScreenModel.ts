@@ -41,23 +41,25 @@ const INITIAL_LOCK_EVENT_COUNT = 2;
 const SWITCH_LOCK_EVENT_COUNT = 3;
 const INITIAL_LOCK_MS = 70;
 const SWITCH_LOCK_MS = 135;
-const DISPLAY_SMOOTHING_ALPHA = 0.18;
-const DISPLAY_FAST_ALPHA = 0.34;
+const DISPLAY_SMOOTHING_ALPHA = 0.10;
+const DISPLAY_FAST_ALPHA = 0.22;
 const IN_TUNE_GUIDE_CENTS = 5;
+const IN_TUNE_HOLD_MS = 480;
+const IN_TUNE_EXIT_CENTS = 10;
 const MIN_DISPLAY_DELTA_HZ = 0.04;
 const CANDIDATE_SAMPLE_WINDOW = 5;
 const CANDIDATE_MAX_SPREAD_CENTS = 18;
 const MAX_TRACKING_JUMP_CENTS = 42;
-const ACTIVE_CENTS_WINDOW = 11;
+const ACTIVE_CENTS_WINDOW = 14;
 const SIGN_SWITCH_HYSTERESIS_CENTS = 4;
-const DRAMATIC_CHANGE_CENTS = 14;
+const DRAMATIC_CHANGE_CENTS = 18;
 const ENGINE_EVENT_TIMEOUT_MS = 2200;
 const ENGINE_HEALTHCHECK_MS = 1600;
 
 const ARC_STAGE_WIDTH = 300;
 const ARC_TRACK_SIZE = 240;
 const ARC_TRACK_STROKE = 4;
-const ARC_TRACK_TOP = 96;
+const ARC_TRACK_TOP = 20;
 const ARC_TRACK_LEFT = (ARC_STAGE_WIDTH - ARC_TRACK_SIZE) / 2;
 const ARC_INDICATOR_SIZE = 16;
 
@@ -125,7 +127,16 @@ function smoothDisplayedCents(current: number | null, target: number) {
   }
 
   const delta = Math.abs(adjustedTarget - current);
-  const alpha = delta > DRAMATIC_CHANGE_CENTS ? DISPLAY_FAST_ALPHA : DISPLAY_SMOOTHING_ALPHA;
+  let alpha = delta > DRAMATIC_CHANGE_CENTS ? DISPLAY_FAST_ALPHA : DISPLAY_SMOOTHING_ALPHA;
+
+  // Center gravity — extra smoothing when both values are near in-tune
+  if (
+    Math.abs(current) <= IN_TUNE_GUIDE_CENTS + 3 &&
+    Math.abs(adjustedTarget) <= IN_TUNE_GUIDE_CENTS + 3
+  ) {
+    alpha *= 0.4;
+  }
+
   const next = current + (adjustedTarget - current) * alpha;
 
   return Math.abs(adjustedTarget - next) <= 0.2
@@ -189,6 +200,7 @@ export function useTunerScreenModel() {
   const activeReferenceFrequencyRef = useRef<number | null>(null);
   const displayCentsRef = useRef<number | null>(null);
   const activeCentsWindowRef = useRef<number[]>([]);
+  const lastInTuneTsRef = useRef(0);
 
   const [frequency, setFrequency] = useState<number | null>(null);
   const [isListening, setIsListening] = useState(false);
@@ -319,6 +331,7 @@ export function useTunerScreenModel() {
     activeReferenceFrequencyRef.current = null;
     displayCentsRef.current = null;
     activeCentsWindowRef.current = [];
+    lastInTuneTsRef.current = 0;
 
     if (isMountedRef.current) {
       setFrequency(null);
@@ -619,7 +632,22 @@ export function useTunerScreenModel() {
 
   const centsOff = reading?.centsOff ?? 0;
   const indicatorPosition = getArcIndicatorPosition(centsOff);
-  const detuneTone = reading ? getDetuneTone(Math.abs(centsOff)) : "idle";
+  const rawDetuneTone = reading ? getDetuneTone(Math.abs(centsOff)) : "idle";
+
+  // In-tune hold — once locked green, stay green briefly even if cents drift
+  let effectiveTone = rawDetuneTone;
+  if (rawDetuneTone === "in_tune") {
+    lastInTuneTsRef.current = Date.now();
+  } else if (
+    signalActive &&
+    reading &&
+    lastInTuneTsRef.current > 0 &&
+    Date.now() - lastInTuneTsRef.current < IN_TUNE_HOLD_MS &&
+    Math.abs(centsOff) <= IN_TUNE_EXIT_CENTS
+  ) {
+    effectiveTone = "in_tune";
+  }
+
   const showFlatDetune = Boolean(reading && reading.centsOff < -IN_TUNE_GUIDE_CENTS);
   const showSharpDetune = Boolean(reading && reading.centsOff > IN_TUNE_GUIDE_CENTS);
 
@@ -630,7 +658,7 @@ export function useTunerScreenModel() {
     errorMessage,
     permissionBlocked,
     indicatorPosition,
-    meterTone: signalActive && !reading ? "active" : detuneTone,
+    meterTone: signalActive && !reading ? "active" : effectiveTone,
     showFlatDetune,
     showSharpDetune,
     flatDetuneValue: formatDetuneBadge(reading?.centsOff ?? null, "flat"),

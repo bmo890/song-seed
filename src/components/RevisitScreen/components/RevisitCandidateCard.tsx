@@ -64,7 +64,7 @@ export function RevisitCandidateCard({
               <Ionicons
                 name={isActive && isPlaying ? "pause" : "play"}
                 size={18}
-                color="#111827"
+                color="#1b1c1a"
                 style={!isActive || !isPlaying ? { marginLeft: 2 } : undefined}
               />
             </Pressable>
@@ -76,7 +76,7 @@ export function RevisitCandidateCard({
                   onStopPlay();
                 }}
               >
-                <Ionicons name="stop" size={14} color="#64748b" />
+                <Ionicons name="stop" size={14} color="#84736f" />
               </Pressable>
             ) : null}
           </View>
@@ -105,7 +105,7 @@ export function RevisitCandidateCard({
                     onOpenMenu();
                   }}
                 >
-                  <Ionicons name="ellipsis-horizontal" size={16} color="#64748b" />
+                  <Ionicons name="ellipsis-horizontal" size={16} color="#84736f" />
                 </Pressable>
               </View>
             </View>

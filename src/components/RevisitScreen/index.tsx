@@ -19,7 +19,7 @@ export function RevisitScreen() {
   });
 
   return (
-    <SafeAreaView style={styles.screen}>
+    <SafeAreaView style={revisitStyles.screen}>
       <ScreenHeader
         title={screen.isAroundSnapshotOpen ? "Around This Time" : "Revisit"}
         leftIcon={screen.isAroundSnapshotOpen ? "back" : "hamburger"}
@@ -95,7 +95,7 @@ export function RevisitScreen() {
                   ]}
                   onPress={screen.restoreHiddenCandidates}
                 >
-                  <Ionicons name="refresh-outline" size={16} color="#9a3412" />
+                  <Ionicons name="refresh-outline" size={16} color="#824f3f" />
                   <Text style={revisitStyles.hiddenResetText}>
                     Restore hidden ({screen.hiddenCandidateIds.length})
                   </Text>

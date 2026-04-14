@@ -28,15 +28,15 @@ export type ActivityItemResult = ActivityDayEntry & {
 };
 
 export function getActivityCellBackground(count: number, maxCount: number, inYear: boolean) {
-  if (!inYear) return "#edf2f7";
-  if (count <= 0) return "#f3f6fb";
-  if (maxCount <= 1) return "#93c5fd";
+  if (!inYear) return "#ddd8d3";
+  if (count <= 0) return "#e4deda";
+  if (maxCount <= 1) return "#c9968a";
 
   const ratio = count / maxCount;
-  if (ratio >= 0.8) return "#1e3a8a";
-  if (ratio >= 0.55) return "#2563eb";
-  if (ratio >= 0.3) return "#60a5fa";
-  return "#93c5fd";
+  if (ratio >= 0.8) return "#5c2d1e";
+  if (ratio >= 0.55) return "#824f3f";
+  if (ratio >= 0.3) return "#b07060";
+  return "#c9968a";
 }
 
 export function formatEntryMetrics(entry: ActivityDayEntry) {

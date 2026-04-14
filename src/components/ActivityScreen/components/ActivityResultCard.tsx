@@ -98,7 +98,7 @@ export function ActivityResultCard({
                 <Ionicons
                   name={playback.isItemPlaying(result) ? "pause" : "play"}
                   size={15}
-                  color={canPlay ? "#111827" : "#9ca3af"}
+                  color={canPlay ? "#1b1c1a" : "#d7c2bd"}
                 />
               </Pressable>
               {!isActive ? (
@@ -142,7 +142,7 @@ export function ActivityResultCard({
                   <Ionicons
                     name={activityIconName}
                     size={12}
-                    color="#64748b"
+                    color="#84736f"
                   />
                   <Text style={styles.activityResultMeta} numberOfLines={1}>
                     {result.activityLabel}
