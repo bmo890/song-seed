@@ -6,6 +6,7 @@ import { NoteEditor } from "./NoteEditor";
 import { useNotepadScreenModel } from "../hooks/useNotepadScreenModel";
 import { styles } from "../../../styles";
 import type { Note } from "../../../types";
+import { deriveNotePreviewBody, deriveNotePreviewTitle } from "../../../notepad";
 
 function formatRelativeDate(ts: number) {
   const now = Date.now();
@@ -19,20 +20,6 @@ function formatRelativeDate(ts: number) {
   return new Date(ts).toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
-function derivePreviewTitle(note: Note) {
-  if (note.title.trim()) return note.title.trim();
-  const firstLine = note.body.trim().split("\n")[0] ?? "";
-  return firstLine.trim() || "New Note";
-}
-
-function derivePreviewBody(note: Note) {
-  if (!note.title.trim()) {
-    const lines = note.body.trim().split("\n");
-    return lines.slice(1).join(" ").trim() || null;
-  }
-  return note.body.trim() || null;
-}
-
 type NoteItemProps = {
   note: Note;
   onPress: (note: Note) => void;
@@ -40,8 +27,8 @@ type NoteItemProps = {
 };
 
 function NoteListItem({ note, onPress, onTogglePin }: NoteItemProps) {
-  const title = derivePreviewTitle(note);
-  const preview = derivePreviewBody(note);
+  const title = deriveNotePreviewTitle(note);
+  const preview = deriveNotePreviewBody(note);
 
   return (
     <Pressable

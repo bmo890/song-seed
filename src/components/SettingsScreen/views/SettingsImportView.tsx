@@ -60,7 +60,7 @@ export function SettingsImportView({
                                     {flow.preview.workspaceCount} workspace{flow.preview.workspaceCount === 1 ? "" : "s"}
                                 </Text>
                                 <Text style={styles.settingsActionCardMeta}>
-                                    {flow.preview.collectionCount} collections, {flow.preview.songCount} songs, and {flow.preview.standaloneClipCount} standalone clips.
+                                    {flow.preview.collectionCount} collections, {flow.preview.songCount} songs, {flow.preview.standaloneClipCount} standalone clips, and {flow.preview.notepadNoteCount} notepad notes.
                                 </Text>
                             </View>
                         </View>

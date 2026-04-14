@@ -39,6 +39,7 @@ import { TunerScreen } from "./src/components/TunerScreen";
 import { NotepadScreen } from "./src/components/NotepadScreen";
 import { MetronomeScreen } from "./src/components/MetronomeScreen";
 import { ShareImportScreen } from "./src/components/ShareImportScreen";
+import { SearchScreen } from "./src/components/SearchScreen";
 import { getCollectionAncestors, getCollectionById } from "./src/utils";
 import {
   getRecentCollectionsForWorkspace,
@@ -62,13 +63,14 @@ import { recoverPendingRecordingSession } from "./src/services/recordingRecovery
 export type HomeDrawerParamList = {
   Workspaces: undefined;
   WorkspaceStack: NavigatorScreenParams<WorkspaceStackParamList> | undefined;
+  SearchHome: undefined;
   RevisitHome: undefined;
   ActivityHome: undefined;
   TunerHome: undefined;
   MetronomeHome: undefined;
   LibraryHome: undefined;
   SettingsHome: undefined;
-  NotepadHome: undefined;
+  NotepadHome: { noteId?: string; openToken?: number } | undefined;
 };
 
 export type WorkspaceStackParamList = {
@@ -96,6 +98,7 @@ const WorkspaceStack = createNativeStackNavigator<WorkspaceStackParamList>();
 const HOME_DRAWER_ROUTE_NAMES: Array<keyof HomeDrawerParamList> = [
   "Workspaces",
   "WorkspaceStack",
+  "SearchHome",
   "RevisitHome",
   "ActivityHome",
   "TunerHome",
@@ -434,6 +437,8 @@ function DrawerContent({ navigation, state }: DrawerContentComponentProps) {
       ? "home"
       : deepestRouteName === "Browse" || deepestRouteName === "CollectionDetail"
         ? "browse"
+      : deepestRouteName === "SearchHome"
+        ? "search"
       : deepestRouteName === "RevisitHome"
         ? "revisit"
       : deepestRouteName === "Activity" || deepestRouteName === "ActivityHome"
@@ -480,6 +485,10 @@ function DrawerContent({ navigation, state }: DrawerContentComponentProps) {
       onGoRevisit={() => {
         closeDrawer();
         navigation.navigate("RevisitHome");
+      }}
+      onGoSearch={() => {
+        closeDrawer();
+        navigation.navigate("SearchHome");
       }}
       onGoActivity={() => {
         closeDrawer();
@@ -563,6 +572,7 @@ function DrawerRoutes() {
     >
       <Drawer.Screen name="Workspaces" component={WorkspaceListScreen} />
       <Drawer.Screen name="WorkspaceStack" component={WorkspaceRoutes} />
+      <Drawer.Screen name="SearchHome" component={SearchScreen} />
       <Drawer.Screen name="RevisitHome" component={RevisitScreen} />
       <Drawer.Screen name="ActivityHome" component={ActivityScreen} />
       <Drawer.Screen name="TunerHome" component={TunerScreen} />
@@ -923,7 +933,8 @@ export default function App() {
             onPress: () => {
               void (async () => {
                 try {
-                  const result = await runManualLibraryBackup(useStore.getState().workspaces);
+                  const state = useStore.getState();
+                  const result = await runManualLibraryBackup(state.workspaces, state.notes);
                   const backupFileName = `${result.archiveTitle}.zip`;
                   useStore.getState().setLastSuccessfulBackupAt(Date.now());
                   useStore.getState().setLastSuccessfulBackupFileName(backupFileName);

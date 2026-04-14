@@ -17,6 +17,7 @@ const REMINDER_OPTIONS: BackupReminderFrequency[] = ["off", "weekly", "monthly",
 
 export function useLibraryBackupFlow() {
     const workspaces = useStore((state) => state.workspaces);
+    const notes = useStore((state) => state.notes);
     const primaryWorkspaceId = useStore((state) => state.primaryWorkspaceId);
     const primaryCollectionIdByWorkspace = useStore((state) => state.primaryCollectionIdByWorkspace);
     const backupReminderFrequency = useStore((state) => state.backupReminderFrequency);
@@ -44,7 +45,7 @@ export function useLibraryBackupFlow() {
 
         setIsBackingUp(true);
         try {
-            const result = await runManualLibraryBackup(workspaces, {
+            const result = await runManualLibraryBackup(workspaces, notes, {
                 primaryWorkspaceId,
                 primaryCollectionIdByWorkspace: Object.fromEntries(
                     Object.entries(primaryCollectionIdByWorkspace).flatMap(([workspaceId, collectionId]) =>

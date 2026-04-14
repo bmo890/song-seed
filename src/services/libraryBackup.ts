@@ -7,7 +7,7 @@ import {
 } from "./libraryExport";
 import { cleanupShareTempFile } from "./managedMedia";
 import { shareFileUri } from "./audioStorage";
-import type { Workspace } from "../types";
+import type { Note, Workspace } from "../types";
 
 export const BACKUP_SAVE_CANCELLED_MESSAGE = "Backup save was cancelled.";
 
@@ -15,20 +15,22 @@ export type ManualLibraryBackupResult = LibraryExportResult & {
     savedDirectoryUri?: string;
 };
 
-function countTotalIdeas(workspaces: Workspace[]) {
-    return workspaces.reduce((sum, workspace) => sum + workspace.ideas.length, 0);
+function countTotalEntries(workspaces: Workspace[], notes: Note[]) {
+    return workspaces.reduce((sum, workspace) => sum + workspace.ideas.length, 0) + notes.length;
 }
 
 export async function runManualLibraryBackup(
     workspaces: Workspace[],
+    notes: Note[],
     libraryPreferences?: SongSeedArchiveLibraryPreferences
 ): Promise<ManualLibraryBackupResult> {
-    if (countTotalIdeas(workspaces) === 0) {
+    if (countTotalEntries(workspaces, notes) === 0) {
         throw new Error("There is no library data to back up yet.");
     }
 
     const prepared = await prepareLibraryExportArchive({
         workspaces,
+        notes,
         format: "song-seed-archive",
         archiveLabel: "Song Seed Backup",
         libraryPreferences,

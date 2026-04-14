@@ -19,6 +19,7 @@ type Props = {
   currentRoute:
     | "home"
     | "browse"
+    | "search"
     | "revisit"
     | "activity"
     | "tuner"
@@ -31,6 +32,7 @@ type Props = {
   recentCollections: RecentCollectionLite[];
   onGoHome: () => void;
   onGoWorkspace: () => void;
+  onGoSearch: () => void;
   onGoRevisit: () => void;
   onGoActivity: () => void;
   onGoTuner: () => void;
@@ -55,6 +57,7 @@ export function SideNav({
   recentCollections,
   onGoHome,
   onGoWorkspace,
+  onGoSearch,
   onGoRevisit,
   onGoActivity,
   onGoTuner,
@@ -164,6 +167,13 @@ export function SideNav({
         <View style={sideNavStyles.divider} />
 
         <Text style={sideNavStyles.sectionLabel}>Global</Text>
+        <NavRow
+          icon="search"
+          iconColor={colors.textSecondary}
+          label="Search"
+          active={currentRoute === "search"}
+          onPress={onGoSearch}
+        />
         <NavRow
           icon={renderNavItemIcon("revisit").icon}
           iconColor={renderNavItemIcon("revisit").color}

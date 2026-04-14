@@ -6,6 +6,7 @@ import { createEmptyProjectLyrics, createEmptyWorkspaceIdeasListState } from "..
 import type {
     ClipVersion,
     Collection,
+    Note,
     SongIdea,
     Workspace,
 } from "../types";
@@ -60,6 +61,15 @@ type ArchiveWorkspaceManifest = {
     collections: ArchiveCollectionManifest[];
 };
 
+type ArchiveNotepadNoteManifest = {
+    id: string;
+    title: string;
+    body: string;
+    createdAt: number;
+    updatedAt: number;
+    isPinned: boolean;
+};
+
 type ArchiveManifest = {
     format: "song-seed-archive";
     schemaVersion: number;
@@ -76,7 +86,9 @@ type ArchiveManifest = {
         collections: number;
         songs: number;
         standaloneClips: number;
+        notepadNotes?: number;
     };
+    notepadNotes?: ArchiveNotepadNoteManifest[];
     workspaces: ArchiveWorkspaceManifest[];
 };
 
@@ -99,6 +111,7 @@ export type LibraryImportPreview = {
     collectionCount: number;
     songCount: number;
     standaloneClipCount: number;
+    notepadNoteCount: number;
     workspaceTitles: string[];
     warningMessages: string[];
     primaryWorkspaceTitle: string | null;
@@ -106,6 +119,7 @@ export type LibraryImportPreview = {
 
 export type MaterializedSongSeedArchiveMerge = {
     importedWorkspaces: Workspace[];
+    importedNotes: Note[];
     suggestedPrimaryWorkspaceId: string | null;
     suggestedPrimaryCollectionIdByWorkspace: Record<string, string>;
     importedWorkspaceIds: string[];
@@ -131,6 +145,10 @@ function buildIdeaId() {
 
 function buildClipId() {
     return buildEntityId("clip");
+}
+
+function buildNoteId() {
+    return buildEntityId("note");
 }
 
 function getPathExtension(path: string | undefined) {
@@ -267,6 +285,7 @@ export function buildLibraryImportPreview(parsed: ParsedSongSeedArchive): Librar
         collectionCount: parsed.manifest.summary.collections,
         songCount: parsed.manifest.summary.songs,
         standaloneClipCount: parsed.manifest.summary.standaloneClips,
+        notepadNoteCount: parsed.manifest.summary.notepadNotes ?? parsed.manifest.notepadNotes?.length ?? 0,
         workspaceTitles: parsed.manifest.workspaces.map((workspace) => workspace.title),
         warningMessages: parsed.manifest.warnings ?? [],
         primaryWorkspaceTitle,
@@ -280,6 +299,7 @@ export async function materializeSongSeedArchiveMerge(
 ): Promise<MaterializedSongSeedArchiveMerge> {
     const warnings = [...(parsed.manifest.warnings ?? [])];
     const importedWorkspaces: Workspace[] = [];
+    const importedNotes: Note[] = [];
     const importedWorkspaceIds: string[] = [];
     const importedIdeaIds: string[] = [];
     const suggestedPrimaryCollectionIdByWorkspace: Record<string, string> = {};
@@ -287,6 +307,17 @@ export async function materializeSongSeedArchiveMerge(
     const existingWorkspaceTitles = existingWorkspaces.map((workspace) => workspace.title);
     const importedPrimaryWorkspaceSourceId = parsed.manifest.libraryPreferences?.primaryWorkspaceId ?? null;
     let suggestedPrimaryWorkspaceId: string | null = null;
+
+    for (const noteManifest of parsed.manifest.notepadNotes ?? []) {
+        importedNotes.push({
+            id: buildNoteId(),
+            title: noteManifest.title,
+            body: noteManifest.body,
+            createdAt: noteManifest.createdAt,
+            updatedAt: noteManifest.updatedAt,
+            isPinned: !!noteManifest.isPinned,
+        });
+    }
 
     for (const workspaceManifest of parsed.manifest.workspaces) {
         const workspaceId = buildWorkspaceId();
@@ -488,6 +519,7 @@ export async function materializeSongSeedArchiveMerge(
 
     return {
         importedWorkspaces,
+        importedNotes,
         suggestedPrimaryWorkspaceId,
         suggestedPrimaryCollectionIdByWorkspace,
         importedWorkspaceIds,

@@ -1882,9 +1882,11 @@ export const appActions = {
             ...merge.suggestedPrimaryCollectionIdByWorkspace,
         };
         const nextPrimaryWorkspaceId = store.primaryWorkspaceId ?? merge.suggestedPrimaryWorkspaceId;
+        const nextNotes = [...merge.importedNotes, ...store.notes];
 
         useStore.setState({
             workspaces: nextWorkspaces,
+            notes: nextNotes,
             primaryWorkspaceId: nextPrimaryWorkspaceId,
             primaryCollectionIdByWorkspace: nextPrimaryCollectionIdByWorkspace,
         });
@@ -1900,6 +1902,7 @@ export const appActions = {
         return {
             importedWorkspaces: merge.importedWorkspaces.length,
             importedIdeas: merge.importedIdeaIds.length,
+            importedNotes: merge.importedNotes.length,
             warnings: merge.warnings,
             importedWorkspaceTitles: merge.importedWorkspaces.map((workspace) => workspace.title),
         };

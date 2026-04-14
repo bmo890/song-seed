@@ -1,6 +1,7 @@
 import * as FileSystem from "expo-file-system/legacy";
 import { getLatestLyricsText } from "../lyrics";
-import type { ClipVersion, Collection, SongIdea, Workspace } from "../types";
+import { deriveNotePreviewTitle } from "../notepad";
+import type { ClipVersion, Collection, Note, SongIdea, Workspace } from "../types";
 import { getCollectionScopeIds } from "../utils";
 import {
     buildTimestampSlug,
@@ -43,6 +44,7 @@ export type StandardZipOptions = {
 export type ExportLibraryArgs =
     | {
           workspaces: Workspace[];
+          notes: Note[];
           format: "song-seed-archive";
           scope: LibraryExportScope;
           options: SongSeedArchiveOptions;
@@ -51,6 +53,7 @@ export type ExportLibraryArgs =
       }
     | {
           workspaces: Workspace[];
+          notes: Note[];
           format: "standard-zip";
           scope: LibraryExportScope;
           options: StandardZipOptions;
@@ -65,6 +68,7 @@ export type LibraryExportResult = {
     exportedCollections: number;
     exportedSongs: number;
     exportedStandaloneClips: number;
+    exportedNotepadNotes: number;
 };
 
 type ArchiveManifest = {
@@ -80,8 +84,19 @@ type ArchiveManifest = {
         collections: number;
         songs: number;
         standaloneClips: number;
+        notepadNotes: number;
     };
+    notepadNotes: ArchiveNotepadNoteManifest[];
     workspaces: ArchiveWorkspaceManifest[];
+};
+
+type ArchiveNotepadNoteManifest = {
+    id: string;
+    title: string;
+    body: string;
+    createdAt: number;
+    updatedAt: number;
+    isPinned: boolean;
 };
 
 type ArchiveWorkspaceManifest = {
@@ -141,6 +156,7 @@ type StandardExportReport = {
         collections: number;
         songs: number;
         standaloneClips: number;
+        notepadNotes: number;
     };
 };
 
@@ -152,9 +168,10 @@ type ExportBuildContext = {
     exportedCollections: number;
     exportedSongs: number;
     exportedStandaloneClips: number;
+    exportedNotepadNotes: number;
 };
 
-const LIBRARY_EXPORT_SCHEMA_VERSION = 2;
+const LIBRARY_EXPORT_SCHEMA_VERSION = 3;
 
 export async function prepareLibraryExportArchive(args: ExportLibraryArgs): Promise<LibraryExportResult> {
     if (!FileSystem.documentDirectory) {
@@ -200,6 +217,7 @@ export async function prepareLibraryExportArchive(args: ExportLibraryArgs): Prom
                     collections: build.exportedCollections,
                     songs: build.exportedSongs,
                     standaloneClips: build.exportedStandaloneClips,
+                    notepadNotes: build.exportedNotepadNotes,
                 },
             },
             null,
@@ -234,6 +252,7 @@ export async function prepareLibraryExportArchive(args: ExportLibraryArgs): Prom
         exportedCollections: build.exportedCollections,
         exportedSongs: build.exportedSongs,
         exportedStandaloneClips: build.exportedStandaloneClips,
+        exportedNotepadNotes: build.exportedNotepadNotes,
     };
 }
 
@@ -273,9 +292,41 @@ function buildSongSeedArchive(args: Extract<ExportLibraryArgs, { format: "song-s
             collections: 0,
             songs: 0,
             standaloneClips: 0,
+            notepadNotes: 0,
         },
+        notepadNotes: [],
         workspaces: [],
     };
+
+    if (args.options.includeNotes && args.notes.length > 0) {
+        const notepadFolderPath = "Notepad";
+        addDirectory(context, notepadFolderPath);
+        const noteAllocator = createFolderAllocator();
+
+        args.notes
+            .slice()
+            .sort((a, b) => b.updatedAt - a.updatedAt)
+            .forEach((note) => {
+                const noteTitle = deriveNotePreviewTitle(note);
+                const noteStemPath = allocateChildPath(
+                    notepadFolderPath,
+                    noteTitle,
+                    noteAllocator,
+                    "Note"
+                );
+
+                manifest.notepadNotes.push({
+                    id: note.id,
+                    title: note.title,
+                    body: note.body,
+                    createdAt: note.createdAt,
+                    updatedAt: note.updatedAt,
+                    isPinned: note.isPinned,
+                });
+                context.exportedNotepadNotes += 1;
+                addTextEntry(context, `${noteStemPath}.txt`, note.body.trim() || noteTitle);
+            });
+    }
 
     selectedWorkspaces.forEach(({ workspace, selectedCollectionIds }) => {
         const workspaceFolderPath = allocateChildPath("", workspace.title, folderAllocator, "Workspace");
@@ -360,6 +411,7 @@ function buildSongSeedArchive(args: Extract<ExportLibraryArgs, { format: "song-s
         collections: context.exportedCollections,
         songs: context.exportedSongs,
         standaloneClips: context.exportedStandaloneClips,
+        notepadNotes: context.exportedNotepadNotes,
     };
 
     addTextEntry(context, "manifest.json", JSON.stringify(manifest, null, 2));
@@ -412,6 +464,27 @@ function buildStandardZip(args: Extract<ExportLibraryArgs, { format: "standard-z
             });
     });
 
+    if (args.options.includeNotesAsText && args.notes.length > 0) {
+        const notepadFolderPath = "Notepad";
+        addDirectory(context, notepadFolderPath);
+        const noteAllocator = createFolderAllocator();
+
+        args.notes
+            .slice()
+            .sort((a, b) => b.updatedAt - a.updatedAt)
+            .forEach((note) => {
+                const noteTitle = deriveNotePreviewTitle(note);
+                const noteStemPath = allocateChildPath(
+                    notepadFolderPath,
+                    noteTitle,
+                    noteAllocator,
+                    "Note"
+                );
+                context.exportedNotepadNotes += 1;
+                addTextEntry(context, `${noteStemPath}.txt`, note.body.trim() || noteTitle);
+            });
+    }
+
     const report: StandardExportReport = {
         format: "standard-zip",
         exportedAt: new Date().toISOString(),
@@ -423,6 +496,7 @@ function buildStandardZip(args: Extract<ExportLibraryArgs, { format: "standard-z
             collections: context.exportedCollections,
             songs: context.exportedSongs,
             standaloneClips: context.exportedStandaloneClips,
+            notepadNotes: context.exportedNotepadNotes,
         },
     };
 
@@ -709,6 +783,7 @@ function createExportBuildContext(): ExportBuildContext {
         exportedCollections: 0,
         exportedSongs: 0,
         exportedStandaloneClips: 0,
+        exportedNotepadNotes: 0,
     };
 }
 

@@ -60,7 +60,7 @@ export function useLibraryImportFlow() {
                 result.warnings.length > 0 ? "Import finished with warnings" : "Import complete",
                 result.warnings.length > 0
                     ? result.warnings.slice(0, 6).join("\n")
-                    : `${result.importedWorkspaces} workspace${result.importedWorkspaces === 1 ? "" : "s"} and ${result.importedIdeas} item${result.importedIdeas === 1 ? "" : "s"} were imported into your library.`
+                    : `${result.importedWorkspaces} workspace${result.importedWorkspaces === 1 ? "" : "s"}, ${result.importedIdeas} item${result.importedIdeas === 1 ? "" : "s"}, and ${result.importedNotes} notepad note${result.importedNotes === 1 ? "" : "s"} were imported into your library.`
             );
             setParsedArchive(null);
             setPreview(null);

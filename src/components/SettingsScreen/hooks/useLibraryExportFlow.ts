@@ -25,6 +25,7 @@ const DEFAULT_STANDARD_OPTIONS: StandardExportOptions = {
 
 export function useLibraryExportFlow() {
   const workspaces = useStore((state) => state.workspaces);
+  const notes = useStore((state) => state.notes);
   const primaryWorkspaceId = useStore((state) => state.primaryWorkspaceId);
   const primaryCollectionIdByWorkspace = useStore((state) => state.primaryCollectionIdByWorkspace);
   const [format, setFormat] = useState<LibraryExportFormat | null>(null);
@@ -134,6 +135,7 @@ export function useLibraryExportFlow() {
         format === "song-seed-archive"
           ? await exportLibrary({
               workspaces,
+              notes,
               format,
               scope,
               options: archiveOptions,
@@ -148,6 +150,7 @@ export function useLibraryExportFlow() {
             })
           : await exportLibrary({
               workspaces,
+              notes,
               format,
               scope,
               options: standardOptions,
@@ -158,7 +161,7 @@ export function useLibraryExportFlow() {
       } else {
         Alert.alert(
           "Export ready",
-          `${result.exportedWorkspaces} workspace${result.exportedWorkspaces === 1 ? "" : "s"}, ${result.exportedCollections} collection${result.exportedCollections === 1 ? "" : "s"}, ${result.exportedSongs} song${result.exportedSongs === 1 ? "" : "s"}, and ${result.exportedStandaloneClips} standalone clip${result.exportedStandaloneClips === 1 ? "" : "s"} were packaged.`
+          `${result.exportedWorkspaces} workspace${result.exportedWorkspaces === 1 ? "" : "s"}, ${result.exportedCollections} collection${result.exportedCollections === 1 ? "" : "s"}, ${result.exportedSongs} song${result.exportedSongs === 1 ? "" : "s"}, ${result.exportedStandaloneClips} standalone clip${result.exportedStandaloneClips === 1 ? "" : "s"}, and ${result.exportedNotepadNotes} notepad note${result.exportedNotepadNotes === 1 ? "" : "s"} were packaged.`
         );
       }
     } catch (error) {
