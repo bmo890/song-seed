@@ -8,6 +8,7 @@ import { RecordingLyricsSection } from "./RecordingLyricsSection";
 
 type RecordingBodyProps = {
   recordingIdea: SongIdea | null | undefined;
+  recordingOverdubClip?: SongIdea["clips"][number] | null;
   hasProjectLyrics: boolean;
   latestLyricsText: string;
   latestLyricsUpdatedAt: number | null;
@@ -31,6 +32,7 @@ type RecordingBodyProps = {
 
 export function RecordingBody({
   recordingIdea,
+  recordingOverdubClip,
   hasProjectLyrics,
   latestLyricsText,
   latestLyricsUpdatedAt,
@@ -67,7 +69,7 @@ export function RecordingBody({
         ]}
       >
         <RecordingMeta
-          ideaTitle=""
+          ideaTitle={recordingOverdubClip ? `Overdub on ${recordingOverdubClip.title}` : ""}
           isRecording={isRecording}
           isPaused={isPaused}
           elapsedMs={elapsedMs}

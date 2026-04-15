@@ -1,4 +1,6 @@
 import SongseedPitchShiftModule, {
+  type NativeMixedRenderRequest,
+  type NativeMixedRenderResult,
   type NativePitchShiftCapabilities,
   type NativePitchShiftRenderRequest,
   type NativePitchShiftRenderResult,
@@ -63,4 +65,23 @@ export async function renderPitchShiftedFile(
     semitones: clampPitchShiftSemitones(request.semitones),
     playbackRate: request.playbackRate ?? 1,
   });
+}
+
+export async function renderMixedFile(
+  request: NativeMixedRenderRequest
+): Promise<NativeMixedRenderResult> {
+  if (!SongseedPitchShiftModule) {
+    throw new Error("Pitch shift module unavailable.");
+  }
+
+  const capabilities = await getPitchShiftCapabilities();
+  if (!capabilities.isAvailable || !capabilities.supportsOfflineRender) {
+    throw new Error("Mixed audio rendering is not available yet.");
+  }
+
+  if (!Array.isArray(request.inputs) || request.inputs.length === 0) {
+    throw new Error("Mixed audio rendering requires at least one input.");
+  }
+
+  return SongseedPitchShiftModule.renderMixedFile(request);
 }

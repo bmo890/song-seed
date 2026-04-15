@@ -10,6 +10,7 @@ type PlayerHeaderSectionProps = {
   clipTitle: string;
   projectTitle?: string | null;
   createdAt: number;
+  overdubLayerCount?: number;
   playerPosition: number;
   displayDuration: number;
   mode: "player" | "practice";
@@ -22,6 +23,7 @@ export function PlayerHeaderSection({
   clipTitle,
   projectTitle,
   createdAt,
+  overdubLayerCount = 0,
   playerPosition,
   displayDuration,
   mode,
@@ -57,6 +59,14 @@ export function PlayerHeaderSection({
             </>
           ) : null}
           <Text style={playerScreenStyles.metaText}>{formatDate(createdAt)}</Text>
+          {overdubLayerCount > 0 ? (
+            <>
+              <Text style={playerScreenStyles.metaDot}>•</Text>
+              <Text style={playerScreenStyles.metaText}>
+                {overdubLayerCount} {overdubLayerCount === 1 ? "layer" : "layers"}
+              </Text>
+            </>
+          ) : null}
           <View style={playerScreenStyles.metaSpacer} />
           <Text style={playerScreenStyles.timingText}>
             {fmtDuration(playerPosition)} / {fmtDuration(displayDuration)}

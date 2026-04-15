@@ -16,6 +16,14 @@ function collectManagedClipUris(clip: ClipVersion, target: Set<string>) {
     if (clip.sourceAudioUri && isManagedAudioUri(clip.sourceAudioUri)) {
         target.add(clip.sourceAudioUri);
     }
+    if (clip.overdub?.renderedMixUri && isManagedAudioUri(clip.overdub.renderedMixUri)) {
+        target.add(clip.overdub.renderedMixUri);
+    }
+    for (const stem of clip.overdub?.stems ?? []) {
+        if (stem.audioUri && isManagedAudioUri(stem.audioUri)) {
+            target.add(stem.audioUri);
+        }
+    }
 }
 
 export function collectManagedIdeaAudioUris(idea: SongIdea) {

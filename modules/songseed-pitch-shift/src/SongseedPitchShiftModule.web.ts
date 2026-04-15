@@ -1,6 +1,8 @@
 import { NativeModule, registerWebModule } from "expo";
 
 import {
+  type NativeMixedRenderRequest,
+  type NativeMixedRenderResult,
   type NativePitchShiftCapabilities,
   type NativePitchShiftLoadRequest,
   type NativePitchShiftPlaybackState,
@@ -78,6 +80,12 @@ class SongseedPitchShiftModule extends NativeModule {
     _request: NativePitchShiftRenderRequest
   ): Promise<NativePitchShiftRenderResult> {
     throw new Error("Pitch shift rendering is not available on web.");
+  }
+
+  async renderMixedFile(
+    _request: NativeMixedRenderRequest
+  ): Promise<NativeMixedRenderResult> {
+    throw new Error("Mixed audio rendering is not available on web.");
   }
 }
 

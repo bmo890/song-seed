@@ -38,6 +38,22 @@ export type NativePitchShiftRenderResult = {
   outputUri: string;
 };
 
+export type NativeMixedRenderInput = {
+  inputUri: string;
+  gainDb?: number;
+  offsetMs?: number;
+  tonePreset?: "neutral" | "low-cut" | "warm" | "bright";
+};
+
+export type NativeMixedRenderRequest = {
+  inputs: NativeMixedRenderInput[];
+  outputFileName?: string;
+};
+
+export type NativeMixedRenderResult = {
+  outputUri: string;
+};
+
 export type SongseedPitchShiftModuleEvents = {
   onStateChange: (params: NativePitchShiftPlaybackState) => void;
   onPlaybackEnded: (params: NativePitchShiftPlaybackState) => void;

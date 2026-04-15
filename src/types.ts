@@ -51,6 +51,29 @@ export type PracticeMarker = {
   atMs: number;
 };
 
+export type ClipOverdubTonePreset = "neutral" | "low-cut" | "warm" | "bright";
+
+export type ClipOverdubStem = {
+  id: string;
+  title: string;
+  audioUri?: string;
+  gainDb: number;
+  offsetMs: number;
+  tonePreset: ClipOverdubTonePreset;
+  isMuted: boolean;
+  durationMs?: number;
+  waveformPeaks?: number[];
+  createdAt: number;
+};
+
+export type ClipOverdubState = {
+  stems: ClipOverdubStem[];
+  renderedMixUri?: string;
+  renderedMixDurationMs?: number;
+  renderedMixWaveformPeaks?: number[];
+  lastRenderedAt?: number;
+};
+
 export type ClipVersion = {
   id: string;
   title: string;
@@ -68,6 +91,7 @@ export type ClipVersion = {
   tags?: string[];
   practiceMarkers?: PracticeMarker[];
   manualSortOrder?: number;
+  overdub?: ClipOverdubState;
 };
 
 export type CustomTagDefinition = {

@@ -1,5 +1,6 @@
 import { createContext, useContext, useMemo, type ReactNode } from "react";
 import { Alert } from "react-native";
+import { hasClipPlaybackSource } from "../../../clipPresentation";
 import { useStore } from "../../../state/useStore";
 import { appActions } from "../../../state/actions";
 import { useSongEditFlow } from "../hooks/useSongEditFlow";
@@ -83,7 +84,7 @@ export function SongScreenProvider({ children }: { children: ReactNode }) {
     function buildProjectQueue(clipIds?: string[]) {
       if (!screen.selectedIdea || screen.selectedIdea.kind !== "project") return [];
       return screen.selectedIdea.clips
-        .filter((clip) => !!clip.audioUri && (!clipIds || clipIds.includes(clip.id)))
+        .filter((clip) => hasClipPlaybackSource(clip) && (!clipIds || clipIds.includes(clip.id)))
         .map((clip) => ({
           ideaId: screen.selectedIdea!.id,
           clipId: clip.id,

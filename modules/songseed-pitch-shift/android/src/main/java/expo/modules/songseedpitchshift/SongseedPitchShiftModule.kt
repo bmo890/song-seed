@@ -77,6 +77,10 @@ class SongseedPitchShiftModule : Module() {
       renderer.renderFile(request)
     }
 
+    AsyncFunction("renderMixedFile") { request: Map<String, Any?> ->
+      renderer.renderMixedFile(request)
+    }
+
     OnDestroy {
       engine.unload()
     }

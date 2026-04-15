@@ -1,3 +1,4 @@
+import * as FileSystem from "expo-file-system/legacy";
 import {
     IdeaStatus,
     SongIdea,
@@ -7,6 +8,8 @@ import {
     EditRegion,
     PracticeMarker,
     CustomTagDefinition,
+    ClipOverdubState,
+    ClipOverdubStem,
 } from "../types";
 import { useStore } from "./useStore";
 import { createEmptyProjectLyrics, createEmptyWorkspaceIdeasListState, normalizeWorkspaces } from "./dataSlice";
@@ -25,6 +28,16 @@ import {
     deleteManagedAudioUris,
     filterUnreferencedManagedAudioUris,
 } from "../services/managedMedia";
+import { getClipPlaybackUri } from "../clipPresentation";
+import {
+    buildClipOverdubMixInputs,
+    buildCombinedClipTitle,
+    clampOverdubGainDb,
+    getDefaultOverdubStemTitle,
+    toggleLowCutTonePreset,
+} from "../overdub";
+import { importAudioAsset } from "../services/audioStorage";
+import { renderMixedFile } from "../services/pitchShift";
 import {
     clearPendingWorkspaceArchiveOperation,
     upsertPendingWorkspaceArchiveOperation,
@@ -76,8 +89,38 @@ function clonePracticeMarkers(practiceMarkers?: PracticeMarker[]) {
     return practiceMarkers?.map((marker) => ({ ...marker }));
 }
 
+function cloneOverdubStem(stem: ClipOverdubStem): ClipOverdubStem {
+    return {
+        ...stem,
+        waveformPeaks: cloneWaveformPeaks(stem.waveformPeaks),
+    };
+}
+
+function cloneOverdubState(overdub?: ClipOverdubState) {
+    if (!overdub) return undefined;
+    return {
+        ...overdub,
+        stems: overdub.stems.map(cloneOverdubStem),
+    };
+}
+
 function cloneCustomTags(customTags?: CustomTagDefinition[]) {
     return customTags?.map((tag) => ({ ...tag }));
+}
+
+function findWorkspaceIdeaClip(
+    workspaces: Workspace[],
+    ideaId: string,
+    clipId: string
+): { workspace: Workspace; idea: SongIdea; clip: ClipVersion } | null {
+    for (const workspace of workspaces) {
+        const idea = workspace.ideas.find((candidate) => candidate.id === ideaId);
+        if (!idea) continue;
+        const clip = idea.clips.find((candidate) => candidate.id === clipId);
+        if (!clip) continue;
+        return { workspace, idea, clip };
+    }
+    return null;
 }
 
 type ClipTransferSource = {
@@ -98,6 +141,7 @@ function buildTransferredClip(source: ClipTransferSource) {
         editRegions: cloneEditRegions(source.clip.editRegions),
         tags: cloneClipTags(source.clip.tags),
         practiceMarkers: clonePracticeMarkers(source.clip.practiceMarkers),
+        overdub: cloneOverdubState(source.clip.overdub),
     };
 }
 
@@ -408,6 +452,8 @@ function buildWorkspaceArchivalState(
         inlineIsPlaying: inlineInWorkspace ? false : store.inlineIsPlaying,
         recordingIdeaId: recordingIdeaInWorkspace ? null : store.recordingIdeaId,
         recordingParentClipId: recordingIdeaInWorkspace ? null : store.recordingParentClipId,
+        recordingOverdubClipId: recordingIdeaInWorkspace ? null : store.recordingOverdubClipId,
+        recordingGuideMixUri: recordingIdeaInWorkspace ? null : store.recordingGuideMixUri,
         quickNamingIdeaId: quickNamingIdeaInWorkspace ? null : store.quickNamingIdeaId,
         quickNameModalVisible: quickNamingIdeaInWorkspace ? false : store.quickNameModalVisible,
     };
@@ -690,6 +736,317 @@ export const appActions = {
                 };
             }),
         }));
+    },
+
+    startClipOverdubRecording: (ideaId: string, clipId: string) => {
+        const state = useStore.getState();
+        const match = findWorkspaceIdeaClip(state.workspaces, ideaId, clipId);
+        if (!match) {
+            throw new Error("Clip not found.");
+        }
+
+        const guideMixUri = getClipPlaybackUri(match.clip);
+        if (!guideMixUri) {
+            throw new Error("This clip does not have playable audio yet.");
+        }
+
+        state.setRecordingIdeaId(ideaId);
+        state.setRecordingParentClipId(null);
+        state.setRecordingOverdubClipId(clipId);
+        state.setRecordingGuideMixUri(guideMixUri);
+
+        return {
+            ideaId,
+            clipId,
+            guideMixUri,
+        };
+    },
+
+    rerenderClipOverdubMix: async (ideaId: string, clipId: string) => {
+        const state = useStore.getState();
+        const match = findWorkspaceIdeaClip(state.workspaces, ideaId, clipId);
+        if (!match) {
+            throw new Error("Clip not found.");
+        }
+
+        const previousMixUri = match.clip.overdub?.renderedMixUri ?? null;
+        const inputs = buildClipOverdubMixInputs(match.clip);
+
+        if (inputs.length <= 1) {
+            state.clearClipOverdubRenderedMix(ideaId, clipId);
+            if (previousMixUri) {
+                await deleteManagedAudioUris([previousMixUri]);
+            }
+            return null;
+        }
+
+        const rendered = await renderMixedFile({
+            inputs,
+            outputFileName:
+                match.clip.title.replace(/[^a-zA-Z0-9-_ ]/g, "").trim().replace(/\s+/g, "-") || undefined,
+        });
+
+        try {
+            const imported = await importAudioAsset(
+                {
+                    uri: rendered.outputUri,
+                    name: rendered.outputUri.split("/").pop() ?? `${clipId}-mix.m4a`,
+                    mimeType: "audio/mp4",
+                },
+                `${clipId}-overdub-mix-${Date.now()}`
+            );
+
+            state.setClipOverdubRenderedMix(ideaId, clipId, {
+                renderedMixUri: imported.audioUri,
+                renderedMixDurationMs: imported.durationMs,
+                renderedMixWaveformPeaks: imported.waveformPeaks,
+                lastRenderedAt: Date.now(),
+            });
+
+            if (previousMixUri && previousMixUri !== imported.audioUri) {
+                await deleteManagedAudioUris([previousMixUri]);
+            }
+
+            return imported.audioUri;
+        } finally {
+            await FileSystem.deleteAsync(rendered.outputUri, { idempotent: true }).catch(() => {});
+        }
+    },
+
+    attachRecordedOverdubStem: async (
+        ideaId: string,
+        clipId: string,
+        payload: { audioUri: string; durationMs?: number; waveformPeaks?: number[] },
+        title?: string
+    ) => {
+        const state = useStore.getState();
+        const match = findWorkspaceIdeaClip(state.workspaces, ideaId, clipId);
+        if (!match) {
+            throw new Error("Clip not found.");
+        }
+
+        const stem: ClipOverdubStem = {
+            id: buildClipId(),
+            title: title?.trim() || getDefaultOverdubStemTitle(match.clip),
+            audioUri: payload.audioUri,
+            gainDb: 0,
+            offsetMs: 0,
+            tonePreset: "neutral",
+            isMuted: false,
+            durationMs: payload.durationMs,
+            waveformPeaks: payload.waveformPeaks,
+            createdAt: Date.now(),
+        };
+
+        state.addClipOverdubStem(ideaId, clipId, stem);
+        state.logIdeaActivity(ideaId, "updated", "recording", clipId);
+        await appActions.rerenderClipOverdubMix(ideaId, clipId);
+        return stem.id;
+    },
+
+    adjustClipOverdubStemGain: async (ideaId: string, clipId: string, stemId: string, deltaDb: number) => {
+        const state = useStore.getState();
+        const match = findWorkspaceIdeaClip(state.workspaces, ideaId, clipId);
+        const stem = match?.clip.overdub?.stems.find((candidate) => candidate.id === stemId) ?? null;
+        if (!match || !stem) {
+            throw new Error("Overdub stem not found.");
+        }
+
+        state.updateClipOverdubStem(ideaId, clipId, stemId, {
+            gainDb: clampOverdubGainDb(stem.gainDb + deltaDb),
+        });
+        await appActions.rerenderClipOverdubMix(ideaId, clipId);
+    },
+
+    nudgeClipOverdubStem: async (ideaId: string, clipId: string, stemId: string, deltaMs: number) => {
+        const state = useStore.getState();
+        const match = findWorkspaceIdeaClip(state.workspaces, ideaId, clipId);
+        const stem = match?.clip.overdub?.stems.find((candidate) => candidate.id === stemId) ?? null;
+        if (!match || !stem) {
+            throw new Error("Overdub stem not found.");
+        }
+
+        state.updateClipOverdubStem(ideaId, clipId, stemId, {
+            offsetMs: Math.max(0, Math.round(stem.offsetMs + deltaMs)),
+        });
+        await appActions.rerenderClipOverdubMix(ideaId, clipId);
+    },
+
+    toggleClipOverdubStemMute: async (ideaId: string, clipId: string, stemId: string) => {
+        const state = useStore.getState();
+        const match = findWorkspaceIdeaClip(state.workspaces, ideaId, clipId);
+        const stem = match?.clip.overdub?.stems.find((candidate) => candidate.id === stemId) ?? null;
+        if (!match || !stem) {
+            throw new Error("Overdub stem not found.");
+        }
+
+        state.updateClipOverdubStem(ideaId, clipId, stemId, { isMuted: !stem.isMuted });
+        await appActions.rerenderClipOverdubMix(ideaId, clipId);
+    },
+
+    toggleClipOverdubStemLowCut: async (ideaId: string, clipId: string, stemId: string) => {
+        const state = useStore.getState();
+        const match = findWorkspaceIdeaClip(state.workspaces, ideaId, clipId);
+        const stem = match?.clip.overdub?.stems.find((candidate) => candidate.id === stemId) ?? null;
+        if (!match || !stem) {
+            throw new Error("Overdub stem not found.");
+        }
+
+        state.updateClipOverdubStem(ideaId, clipId, stemId, {
+            tonePreset: toggleLowCutTonePreset(stem.tonePreset),
+        });
+        await appActions.rerenderClipOverdubMix(ideaId, clipId);
+    },
+
+    removeClipOverdubStem: async (ideaId: string, clipId: string, stemId: string) => {
+        const state = useStore.getState();
+        const match = findWorkspaceIdeaClip(state.workspaces, ideaId, clipId);
+        const stem = match?.clip.overdub?.stems.find((candidate) => candidate.id === stemId) ?? null;
+        if (!match || !stem) {
+            throw new Error("Overdub stem not found.");
+        }
+
+        state.removeClipOverdubStem(ideaId, clipId, stemId);
+        if (stem.audioUri) {
+            await deleteManagedAudioUris([stem.audioUri]);
+        }
+        await appActions.rerenderClipOverdubMix(ideaId, clipId);
+    },
+
+    saveCombinedClipAsNewClip: async (
+        ideaId: string,
+        clipId: string,
+        options?: { removeOriginalAfterExport?: boolean }
+    ) => {
+        const state = useStore.getState();
+        const match = findWorkspaceIdeaClip(state.workspaces, ideaId, clipId);
+        if (!match) {
+            throw new Error("Clip not found.");
+        }
+
+        const playbackUri = getClipPlaybackUri(match.clip);
+        if (!playbackUri) {
+            throw new Error("This clip does not have a combined playback source yet.");
+        }
+
+        const imported = await importAudioAsset(
+            {
+                uri: playbackUri,
+                name: playbackUri.split("/").pop() ?? `${clipId}-mix.m4a`,
+                mimeType: "audio/mp4",
+            },
+            `${clipId}-flattened-${Date.now()}`
+        );
+
+        const now = Date.now();
+        const removeOriginalAfterExport = !!options?.removeOriginalAfterExport;
+        const nextTitle = buildCombinedClipTitle(match.idea, match.clip);
+
+        if (match.idea.kind === "clip") {
+            const nextIdeaId = removeOriginalAfterExport ? match.idea.id : buildIdeaId();
+            const nextClipId = buildClipId();
+            const flattenedIdea: SongIdea = {
+                id: nextIdeaId,
+                title: nextTitle,
+                notes: match.idea.notes,
+                status: "clip",
+                completionPct: 0,
+                kind: "clip",
+                collectionId: match.idea.collectionId,
+                createdAt: now,
+                lastActivityAt: now,
+                clips: [
+                    {
+                        id: nextClipId,
+                        title: nextTitle,
+                        notes: match.clip.notes,
+                        createdAt: now,
+                        isPrimary: true,
+                        audioUri: imported.audioUri,
+                        sourceAudioUri: imported.audioUri,
+                        durationMs: imported.durationMs,
+                        waveformPeaks: imported.waveformPeaks,
+                        tags: cloneClipTags(match.clip.tags),
+                        practiceMarkers: clonePracticeMarkers(match.clip.practiceMarkers),
+                    },
+                ],
+            };
+
+            state.updateIdeas((prev) => {
+                const remainingIdeas = removeOriginalAfterExport
+                    ? prev.filter((idea) => idea.id !== ideaId)
+                    : prev;
+                return [flattenedIdea, ...remainingIdeas];
+            });
+            state.markRecentlyAdded([nextIdeaId]);
+            state.logActivityEvents([
+                {
+                    at: now,
+                    workspaceId: match.workspace.id,
+                    collectionId: flattenedIdea.collectionId,
+                    ideaId: flattenedIdea.id,
+                    ideaKind: "clip",
+                    ideaTitle: flattenedIdea.title,
+                    clipId: nextClipId,
+                    metric: "created",
+                    source: "audio-edit",
+                },
+            ]);
+
+            return { ideaId: flattenedIdea.id, clipId: nextClipId };
+        }
+
+        const flattenedClipId = buildClipId();
+        state.updateIdeas((prev) =>
+            prev.map((idea) => {
+                if (idea.id !== ideaId) return idea;
+
+                const remainingClips = removeOriginalAfterExport
+                    ? idea.clips.filter((candidate) => candidate.id !== clipId)
+                    : [...idea.clips];
+                const sourceWasPrimary = !!idea.clips.find((candidate) => candidate.id === clipId)?.isPrimary;
+                const noPrimaryRemaining = !remainingClips.some((candidate) => candidate.isPrimary);
+
+                const flattenedClip: ClipVersion = {
+                    id: flattenedClipId,
+                    title: nextTitle,
+                    notes: match.clip.notes,
+                    createdAt: now,
+                    isPrimary: removeOriginalAfterExport && (sourceWasPrimary || noPrimaryRemaining),
+                    parentClipId: removeOriginalAfterExport ? match.clip.parentClipId : clipId,
+                    audioUri: imported.audioUri,
+                    sourceAudioUri: imported.audioUri,
+                    durationMs: imported.durationMs,
+                    waveformPeaks: imported.waveformPeaks,
+                    tags: cloneClipTags(match.clip.tags),
+                    practiceMarkers: clonePracticeMarkers(match.clip.practiceMarkers),
+                };
+
+                const repairedRemainingClips =
+                    removeOriginalAfterExport
+                        ? remainingClips.map((candidate) =>
+                              candidate.parentClipId === clipId
+                                  ? { ...candidate, parentClipId: flattenedClipId }
+                                  : candidate
+                          )
+                        : remainingClips;
+
+                const nextIdea = {
+                    ...idea,
+                    clips: [flattenedClip, ...repairedRemainingClips],
+                };
+
+                if (!nextIdea.clips.some((candidate) => candidate.isPrimary) && nextIdea.clips[0]) {
+                    nextIdea.clips[0] = { ...nextIdea.clips[0], isPrimary: true };
+                }
+
+                return nextIdea;
+            })
+        );
+        state.markRecentlyAdded([flattenedClipId]);
+        state.logIdeaActivity(ideaId, "updated", "audio-edit", flattenedClipId);
+
+        return { ideaId, clipId: flattenedClipId };
     },
 
     saveEditIdea: (id: string, nextTitle: string) => {

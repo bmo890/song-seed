@@ -26,6 +26,27 @@ type ArchiveClipManifest = {
     notes?: string;
     audioPath?: string;
     audioMissing?: boolean;
+    overdub?: ArchiveClipOverdubManifest;
+};
+
+type ArchiveClipOverdubManifest = {
+    renderedMixPath?: string;
+    renderedMixDurationMs?: number;
+    renderedMixWaveformPeaks?: number[];
+    stems: ArchiveClipOverdubStemManifest[];
+};
+
+type ArchiveClipOverdubStemManifest = {
+    id: string;
+    title: string;
+    gainDb: number;
+    offsetMs: number;
+    tonePreset: "neutral" | "low-cut" | "warm" | "bright";
+    isMuted: boolean;
+    durationMs?: number;
+    waveformPeaks?: number[];
+    audioPath?: string;
+    audioMissing?: boolean;
 };
 
 type ArchiveSongManifest = {
@@ -147,6 +168,10 @@ function buildClipId() {
     return buildEntityId("clip");
 }
 
+function buildOverdubStemId() {
+    return buildEntityId("stem");
+}
+
 function buildNoteId() {
     return buildEntityId("note");
 }
@@ -219,6 +244,75 @@ async function writeManagedArchiveAudio(targetId: string, extension: string, byt
         encoding: FileSystem.EncodingType.Base64,
     });
     return destinationUri;
+}
+
+async function materializeArchiveClipOverdub(
+    overdubManifest: ArchiveClipOverdubManifest | undefined,
+    parsed: ParsedSongSeedArchive,
+    clipId: string,
+    warnings: string[],
+    clipLabel: string
+) {
+    if (!overdubManifest) {
+        return undefined;
+    }
+
+    let renderedMixUri: string | undefined;
+    if (overdubManifest.renderedMixPath) {
+        const entryBytes = parsed.zipEntries[overdubManifest.renderedMixPath];
+        if (entryBytes) {
+            renderedMixUri = await writeManagedArchiveAudio(
+                `${clipId}-mix`,
+                getPathExtension(overdubManifest.renderedMixPath),
+                entryBytes
+            );
+        } else {
+            warnings.push(`Missing archived rendered overdub mix for ${clipLabel}.`);
+        }
+    }
+
+    const stems = [];
+    for (const stemManifest of overdubManifest.stems ?? []) {
+        const stemId = buildOverdubStemId();
+        let audioUri: string | undefined;
+        if (stemManifest.audioPath) {
+            const entryBytes = parsed.zipEntries[stemManifest.audioPath];
+            if (entryBytes) {
+                audioUri = await writeManagedArchiveAudio(
+                    `${clipId}-${stemId}`,
+                    getPathExtension(stemManifest.audioPath),
+                    entryBytes
+                );
+            } else {
+                warnings.push(`Missing archived overdub stem for ${clipLabel} / ${stemManifest.title}.`);
+            }
+        }
+
+        stems.push({
+            id: stemId,
+            title: stemManifest.title,
+            audioUri,
+            gainDb: stemManifest.gainDb,
+            offsetMs: stemManifest.offsetMs,
+            tonePreset: stemManifest.tonePreset,
+            isMuted: !!stemManifest.isMuted,
+            durationMs: stemManifest.durationMs,
+            waveformPeaks: stemManifest.waveformPeaks,
+            createdAt: Date.now(),
+        });
+    }
+
+    if (stems.length === 0 && !renderedMixUri) {
+        return undefined;
+    }
+
+    return {
+        stems,
+        renderedMixUri,
+        renderedMixDurationMs: overdubManifest.renderedMixDurationMs,
+        renderedMixWaveformPeaks: overdubManifest.renderedMixWaveformPeaks,
+        lastRenderedAt: Date.now(),
+    };
 }
 
 function isSongSeedArchiveManifest(value: unknown): value is ArchiveManifest {
@@ -399,6 +493,14 @@ export async function materializeSongSeedArchiveMerge(
                         }
                     }
 
+                    const overdub = await materializeArchiveClipOverdub(
+                        clipManifest.overdub,
+                        parsed,
+                        clipId,
+                        warnings,
+                        `${songManifest.title} / ${clipManifest.title}`
+                    );
+
                     clips.push({
                         id: clipId,
                         title: clipManifest.title,
@@ -412,6 +514,7 @@ export async function materializeSongSeedArchiveMerge(
                             `${clipId}-${clipManifest.title}`,
                             MANAGED_WAVEFORM_PEAK_COUNT
                         ),
+                        overdub,
                     });
                 }
 
@@ -466,6 +569,14 @@ export async function materializeSongSeedArchiveMerge(
                     }
                 }
 
+                const overdub = await materializeArchiveClipOverdub(
+                    clipManifest.overdub,
+                    parsed,
+                    clipId,
+                    warnings,
+                    clipManifest.title
+                );
+
                 ideas.push({
                     id: ideaId,
                     title: clipManifest.title,
@@ -487,6 +598,7 @@ export async function materializeSongSeedArchiveMerge(
                                 `${clipId}-${clipManifest.title}`,
                                 MANAGED_WAVEFORM_PEAK_COUNT
                             ),
+                            overdub,
                         },
                     ],
                     createdAt: clipManifest.createdAt,

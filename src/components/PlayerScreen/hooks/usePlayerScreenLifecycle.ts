@@ -1,21 +1,17 @@
 import { useCallback, useEffect, useRef } from "react";
 import { Alert } from "react-native";
 import { StackActions } from "@react-navigation/native";
+import { clipHasOverdubs, getClipPlaybackUri } from "../../../clipPresentation";
 import { MANAGED_WAVEFORM_PEAK_COUNT, loadManagedAudioMetadata, shareAudioFile } from "../../../services/audioStorage";
 import { appActions } from "../../../state/actions";
 import { useStore } from "../../../state/useStore";
+import type { ClipVersion } from "../../../types";
 
 type UsePlayerScreenLifecycleArgs = {
   navigation: any;
   isFocused: boolean;
   playerIdea: { id: string; title: string } | null;
-  playerClip: {
-    id: string;
-    title: string;
-    audioUri?: string | null;
-    durationMs?: number;
-    waveformPeaks?: number[] | null;
-  } | null;
+  playerClip: ClipVersion | null;
   activeWorkspaceId: string | null;
   activePlayerTargetClipId?: string | null;
   playerDuration: number;
@@ -80,8 +76,9 @@ export function usePlayerScreenLifecycle({
 
   useEffect(() => {
     if (!isFocused) return;
-    if (!playerIdea || !playerClip?.audioUri) return;
+    if (!playerIdea || !playerClip) return;
     if (activePlayerTargetClipId === playerClip.id) return;
+    if (!getClipPlaybackUri(playerClip)) return;
 
     const shouldAutoplay = useStore.getState().playerShouldAutoplay;
     if (shouldAutoplay) {
@@ -236,32 +233,112 @@ export function usePlayerScreenLifecycle({
   );
 
   const handleOverflowMenu = useCallback(() => {
+    const hasOverdubs = !!playerClip && clipHasOverdubs(playerClip);
+
+    const openFlattenedEditor = async () => {
+      if (!playerIdea || !playerClip) return;
+      if (isPlayerPlaying) {
+        await pausePlayer();
+      }
+
+      const savedTarget = await appActions.saveCombinedClipAsNewClip(playerIdea.id, playerClip.id);
+      if (!savedTarget) return;
+
+      const savedIdea = useStore
+        .getState()
+        .workspaces.flatMap((workspace) => workspace.ideas)
+        .find((idea) => idea.id === savedTarget.ideaId);
+      const savedClip = savedIdea?.clips.find((clip) => clip.id === savedTarget.clipId) ?? null;
+      if (!savedIdea || !savedClip?.audioUri) {
+        throw new Error("Combined clip could not be opened for editing.");
+      }
+
+      navigation.navigate("Editor", {
+        ideaId: savedIdea.id,
+        clipId: savedClip.id,
+        audioUri: savedClip.audioUri,
+        durationMs: savedClip.durationMs || undefined,
+      });
+    };
+
     Alert.alert("Player options", playerClip?.title, [
       {
         text: "Minimize player",
         onPress: minimizePlayer,
       },
       {
-        text: "Edit clip",
+        text: "Add overdub",
         onPress: async () => {
           if (!playerIdea || !playerClip) return;
           if (isPlayerPlaying) {
             await pausePlayer();
           }
-          navigation.navigate("Editor", {
-            ideaId: playerIdea.id,
-            clipId: playerClip.id,
-            audioUri: playerClip.audioUri,
-            durationMs: displayDuration || undefined,
-          });
+          try {
+            appActions.startClipOverdubRecording(playerIdea.id, playerClip.id);
+            navigation.navigate("Recording" as never);
+          } catch (error) {
+            const message =
+              error instanceof Error ? error.message : "Could not start overdub recording.";
+            Alert.alert("Overdub unavailable", message);
+          }
         },
       },
+      ...(hasOverdubs
+        ? [
+            {
+              text: "Save combined as new clip",
+              onPress: async () => {
+                if (!playerIdea || !playerClip) return;
+                if (isPlayerPlaying) {
+                  await pausePlayer();
+                }
+                try {
+                  await appActions.saveCombinedClipAsNewClip(playerIdea.id, playerClip.id);
+                } catch (error) {
+                  const message =
+                    error instanceof Error ? error.message : "Could not save a combined clip.";
+                  Alert.alert("Save combined failed", message);
+                }
+              },
+            },
+            {
+              text: "Save combined and edit",
+              onPress: async () => {
+                try {
+                  await openFlattenedEditor();
+                } catch (error) {
+                  const message =
+                    error instanceof Error ? error.message : "Could not open the combined clip.";
+                  Alert.alert("Save combined failed", message);
+                }
+              },
+            },
+          ]
+        : [
+            {
+              text: "Edit clip",
+              onPress: async () => {
+                if (!playerIdea || !playerClip) return;
+                if (isPlayerPlaying) {
+                  await pausePlayer();
+                }
+                navigation.navigate("Editor", {
+                  ideaId: playerIdea.id,
+                  clipId: playerClip.id,
+                  audioUri: playerClip.audioUri,
+                  durationMs: displayDuration || undefined,
+                });
+              },
+            },
+          ]),
       {
         text: "Share audio",
         onPress: async () => {
-          if (!playerClip?.audioUri) return;
+          const playbackUri = playerClip ? getClipPlaybackUri(playerClip) : null;
+          if (!playbackUri) return;
+          const clipTitle = playerClip?.title ?? "Clip";
           try {
-            await shareAudioFile(playerClip.audioUri, playerClip.title);
+            await shareAudioFile(playbackUri, clipTitle);
           } catch (error) {
             console.warn("Share audio error", error);
             const message = error instanceof Error ? error.message : "Could not share this audio file.";

@@ -68,6 +68,10 @@ public class SongseedPitchShiftModule: Module {
       return try self.renderer.renderFile(request)
     }
 
+    AsyncFunction("renderMixedFile") { (request: [String: Any]) -> [String: Any] in
+      return try self.renderer.renderMixedFile(request)
+    }
+
     OnDestroy {
       _ = self.engine.unload()
     }

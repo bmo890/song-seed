@@ -28,6 +28,7 @@ export function RecordingScreen() {
 
         <RecordingBody
           recordingIdea={screen.recordingIdea ?? null}
+          recordingOverdubClip={screen.recordingOverdubClip ?? null}
           hasProjectLyrics={screen.hasProjectLyrics}
           latestLyricsText={screen.latestLyricsText}
           latestLyricsUpdatedAt={screen.latestLyricsVersion?.updatedAt ?? null}

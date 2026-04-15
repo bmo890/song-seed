@@ -3,6 +3,8 @@ import { NativeModule, requireOptionalNativeModule } from "expo";
 import type {
   NativePitchShiftCapabilities,
   NativePitchShiftLoadRequest,
+  NativeMixedRenderRequest,
+  NativeMixedRenderResult,
   NativePitchShiftPlaybackState,
   NativePitchShiftRenderRequest,
   NativePitchShiftRenderResult,
@@ -24,6 +26,7 @@ declare class SongseedPitchShiftModule extends NativeModule<SongseedPitchShiftMo
   renderPitchShiftedFile(
     request: NativePitchShiftRenderRequest
   ): Promise<NativePitchShiftRenderResult>;
+  renderMixedFile(request: NativeMixedRenderRequest): Promise<NativeMixedRenderResult>;
 }
 
 export default requireOptionalNativeModule<SongseedPitchShiftModule>("SongseedPitchShift");

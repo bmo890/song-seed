@@ -1,4 +1,11 @@
 import { useMemo } from "react";
+import {
+  clipHasOverdubs,
+  clipUsesRenderedMix,
+  getClipOverdubStemCount,
+  getClipPlaybackDurationMs,
+  getClipPlaybackUri,
+} from "../../../clipPresentation";
 import { getLatestLyricsVersion, lyricsDocumentToText } from "../../../lyrics";
 import { useStore } from "../../../state/useStore";
 import type { SongIdea } from "../../../types";
@@ -12,6 +19,15 @@ export type PlayerQueueEntry = {
   clipId: string;
   title: string;
   subtitle: string;
+};
+
+export type PlayerOverdubStemEntry = {
+  id: string;
+  title: string;
+  meta: string;
+  gainDb: number;
+  isMuted: boolean;
+  tonePreset: string;
 };
 
 type UsePlayerScreenDataArgs = {
@@ -70,7 +86,8 @@ export function usePlayerScreenData({ playerDuration }: UsePlayerScreenDataArgs)
   const hasProjectLyrics = playerIdea?.kind === "project" && latestLyricsText.trim().length > 0;
   const playerCollection =
     playerIdea && activeWorkspace ? getCollectionById(activeWorkspace, playerIdea.collectionId) : null;
-  const displayDuration = playerDuration || playerClip?.durationMs || 0;
+  const playbackAudioUri = playerClip ? getClipPlaybackUri(playerClip) ?? null : null;
+  const displayDuration = playerDuration || (playerClip ? getClipPlaybackDurationMs(playerClip) : 0) || 0;
   const practiceMarkers = useMemo(() => {
     if (playerClip?.practiceMarkers && playerClip.practiceMarkers.length > 0) {
       return playerClip.practiceMarkers;
@@ -79,6 +96,21 @@ export function usePlayerScreenData({ playerDuration }: UsePlayerScreenDataArgs)
   }, [displayDuration, latestLyricsText, playerClip?.practiceMarkers]);
   const clipNotes = playerClip?.notes ?? "";
   const clipNotesSummary = getNoteSummary(clipNotes);
+  const clipOverdubStemCount = playerClip ? getClipOverdubStemCount(playerClip) : 0;
+  const hasClipOverdubs = playerClip ? clipHasOverdubs(playerClip) : false;
+  const clipPlaybackUsesRenderedMix = playerClip ? clipUsesRenderedMix(playerClip) : false;
+  const overdubStemEntries = useMemo(
+    () =>
+      (playerClip?.overdub?.stems ?? []).map((stem, index) => ({
+        id: stem.id,
+        title: stem.title,
+        meta: stem.isMuted ? "Muted stem" : `Overdub ${index + 1}`,
+        gainDb: stem.gainDb,
+        isMuted: stem.isMuted,
+        tonePreset: stem.tonePreset,
+      })),
+    [playerClip?.overdub?.stems]
+  );
 
   return {
     activeWorkspace,
@@ -96,9 +128,14 @@ export function usePlayerScreenData({ playerDuration }: UsePlayerScreenDataArgs)
     latestLyricsText,
     hasProjectLyrics,
     playerCollection,
+    playbackAudioUri,
     displayDuration,
     practiceMarkers,
     clipNotes,
     clipNotesSummary,
+    hasClipOverdubs,
+    clipOverdubStemCount,
+    clipPlaybackUsesRenderedMix,
+    overdubStemEntries,
   };
 }

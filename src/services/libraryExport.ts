@@ -1,5 +1,6 @@
 import * as FileSystem from "expo-file-system/legacy";
 import { getLatestLyricsText } from "../lyrics";
+import { getClipPlaybackUri } from "../clipPresentation";
 import { deriveNotePreviewTitle } from "../notepad";
 import type { ClipVersion, Collection, Note, SongIdea, Workspace } from "../types";
 import { getCollectionScopeIds } from "../utils";
@@ -143,6 +144,27 @@ type ArchiveClipManifest = {
     notes?: string;
     audioPath?: string;
     audioMissing?: boolean;
+    overdub?: ArchiveClipOverdubManifest;
+};
+
+type ArchiveClipOverdubManifest = {
+    renderedMixPath?: string;
+    renderedMixDurationMs?: number;
+    renderedMixWaveformPeaks?: number[];
+    stems: ArchiveClipOverdubStemManifest[];
+};
+
+type ArchiveClipOverdubStemManifest = {
+    id: string;
+    title: string;
+    gainDb: number;
+    offsetMs: number;
+    tonePreset: "neutral" | "low-cut" | "warm" | "bright";
+    isMuted: boolean;
+    durationMs?: number;
+    waveformPeaks?: number[];
+    audioPath?: string;
+    audioMissing?: boolean;
 };
 
 type StandardExportReport = {
@@ -171,7 +193,7 @@ type ExportBuildContext = {
     exportedNotepadNotes: number;
 };
 
-const LIBRARY_EXPORT_SCHEMA_VERSION = 3;
+const LIBRARY_EXPORT_SCHEMA_VERSION = 4;
 
 export async function prepareLibraryExportArchive(args: ExportLibraryArgs): Promise<LibraryExportResult> {
     if (!FileSystem.documentDirectory) {
@@ -541,7 +563,7 @@ function buildArchiveSongManifest(
     }
 
     clipsToExport.forEach((clip) => {
-        const clipAudioUri = getClipExportAudioUri(clip);
+        const clipAudioUri = getArchiveRootClipAudioUri(clip);
         const clipStemPath = allocateChildPath(songFolderPath, clip.title || idea.title, clipAllocator, "Clip");
         const clipManifest: ArchiveClipManifest = {
             id: clip.id,
@@ -566,6 +588,16 @@ function buildArchiveSongManifest(
             context.warnings.push(`Missing clip audio for ${idea.title} / ${clip.title || clip.id}.`);
         }
 
+        const overdubManifest = buildArchiveClipOverdubManifest(
+            clip,
+            clipStemPath,
+            context,
+            `${idea.title} / ${clip.title || clip.id}`
+        );
+        if (overdubManifest) {
+            clipManifest.overdub = overdubManifest;
+        }
+
         songManifest.clips.push(clipManifest);
     });
 
@@ -580,7 +612,7 @@ function buildArchiveStandaloneClip(
     context: ExportBuildContext
 ): ArchiveClipManifest {
     const primaryClip = getPrimaryClip(idea);
-    const clipAudioUri = primaryClip ? getClipExportAudioUri(primaryClip) : undefined;
+    const clipAudioUri = primaryClip ? getArchiveRootClipAudioUri(primaryClip) : undefined;
     const clipStemPath = allocateChildPath(collectionFolderPath, idea.title, itemAllocator, "Clip");
     const clipManifest: ArchiveClipManifest = {
         id: idea.id,
@@ -605,6 +637,18 @@ function buildArchiveStandaloneClip(
         context.warnings.push(`Missing clip audio for ${idea.title}.`);
     }
 
+    if (primaryClip) {
+        const overdubManifest = buildArchiveClipOverdubManifest(
+            primaryClip,
+            clipStemPath,
+            context,
+            idea.title
+        );
+        if (overdubManifest) {
+            clipManifest.overdub = overdubManifest;
+        }
+    }
+
     return clipManifest;
 }
 
@@ -615,7 +659,7 @@ function exportStandardSong(
     context: ExportBuildContext
 ) {
     const primaryClip = getPrimaryClip(idea);
-    const primaryAudioUri = primaryClip ? getClipExportAudioUri(primaryClip) : undefined;
+    const primaryAudioUri = primaryClip ? getStandardExportAudioUri(primaryClip) : undefined;
 
     if (primaryAudioUri) {
         addFileEntry(
@@ -645,7 +689,7 @@ function exportStandardClip(
     context: ExportBuildContext
 ) {
     const primaryClip = getPrimaryClip(idea);
-    const audioUri = primaryClip ? getClipExportAudioUri(primaryClip) : undefined;
+    const audioUri = primaryClip ? getStandardExportAudioUri(primaryClip) : undefined;
 
     if (audioUri) {
         addFileEntry(
@@ -832,6 +876,81 @@ function getPrimaryClip(idea: SongIdea) {
     return idea.clips.find((clip) => clip.isPrimary) ?? idea.clips[0] ?? null;
 }
 
-function getClipExportAudioUri(clip: ClipVersion) {
+function getArchiveRootClipAudioUri(clip: ClipVersion) {
     return clip.audioUri ?? clip.sourceAudioUri;
+}
+
+function getStandardExportAudioUri(clip: ClipVersion) {
+    return getClipPlaybackUri(clip) ?? clip.sourceAudioUri;
+}
+
+function buildArchiveClipOverdubManifest(
+    clip: ClipVersion,
+    clipStemPath: string,
+    context: ExportBuildContext,
+    clipLabel: string
+): ArchiveClipOverdubManifest | undefined {
+    const stems = clip.overdub?.stems ?? [];
+    const renderedMixUri = clip.overdub?.renderedMixUri;
+    if (stems.length === 0 && !renderedMixUri) {
+        return undefined;
+    }
+
+    const overdubManifest: ArchiveClipOverdubManifest = {
+        renderedMixDurationMs: clip.overdub?.renderedMixDurationMs,
+        renderedMixWaveformPeaks: clip.overdub?.renderedMixWaveformPeaks,
+        stems: [],
+    };
+
+    if (renderedMixUri) {
+        const renderedMixPath = `${clipStemPath} Mix.${getArchiveFileExtension(renderedMixUri)}`;
+        overdubManifest.renderedMixPath = renderedMixPath;
+        addFileEntry(
+            context,
+            renderedMixPath,
+            renderedMixUri,
+            `Missing rendered overdub mix for ${clipLabel}.`
+        );
+    }
+
+    const stemAllocator = createFolderAllocator();
+    if (stems.length > 0) {
+        addDirectory(context, `${clipStemPath} Overdubs`);
+    }
+    stems.forEach((stem) => {
+        const stemManifest: ArchiveClipOverdubStemManifest = {
+            id: stem.id,
+            title: stem.title,
+            gainDb: stem.gainDb,
+            offsetMs: stem.offsetMs,
+            tonePreset: stem.tonePreset,
+            isMuted: stem.isMuted,
+            durationMs: stem.durationMs,
+            waveformPeaks: stem.waveformPeaks,
+        };
+
+        if (stem.audioUri) {
+            const stemStemPath = allocateChildPath(
+                `${clipStemPath} Overdubs`,
+                stem.title,
+                stemAllocator,
+                "Layer"
+            );
+            const audioPath = `${stemStemPath}.${getArchiveFileExtension(stem.audioUri)}`;
+            stemManifest.audioPath = audioPath;
+            addFileEntry(
+                context,
+                audioPath,
+                stem.audioUri,
+                `Missing overdub stem for ${clipLabel} / ${stem.title}.`
+            );
+        } else {
+            stemManifest.audioMissing = true;
+            context.warnings.push(`Missing overdub stem for ${clipLabel} / ${stem.title}.`);
+        }
+
+        overdubManifest.stems.push(stemManifest);
+    });
+
+    return overdubManifest;
 }

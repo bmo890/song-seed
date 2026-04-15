@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo } from "react";
-import { Text, View } from "react-native";
+import { Alert, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar as ExpoStatusBar } from "expo-status-bar";
 import { useIsFocused, useNavigation } from "@react-navigation/native";
@@ -17,6 +17,7 @@ import { usePlayerScreenData } from "./hooks/usePlayerScreenData";
 import { usePlayerScreenLifecycle } from "./hooks/usePlayerScreenLifecycle";
 import { usePlayerPracticePitchTransport } from "./hooks/usePlayerPracticePitchTransport";
 import { usePlayerScreenUi } from "./hooks/usePlayerScreenUi";
+import { appActions } from "../../state/actions";
 import { PlayerTimeline } from "./components/PlayerTimeline";
 import { PlayerHeaderSection } from "./components/PlayerHeaderSection";
 import { PlayerFooterSection } from "./components/PlayerFooterSection";
@@ -67,7 +68,7 @@ export function PlayerScreen() {
     clip: playerClip
       ? {
           id: playerClip.id,
-          audioUri: playerClip.audioUri,
+          audioUri: data.playbackAudioUri,
         }
       : null,
     pitchShiftSemitones: ui.pitchShiftSemitones,
@@ -184,15 +185,7 @@ export function PlayerScreen() {
     navigation,
     isFocused,
     playerIdea: playerIdea ? { id: playerIdea.id, title: playerIdea.title } : null,
-    playerClip: playerClip
-      ? {
-          id: playerClip.id,
-          title: playerClip.title,
-          audioUri: playerClip.audioUri,
-          durationMs: playerClip.durationMs,
-          waveformPeaks: playerClip.waveformPeaks,
-        }
-      : null,
+    playerClip,
     activeWorkspaceId: data.activeWorkspaceId,
     activePlayerTargetClipId: activePlayerTarget?.clipId,
     playerDuration,
@@ -231,6 +224,74 @@ export function PlayerScreen() {
   const handleRequestAddPin = useCallback(() => {
     handleAddPin("");
   }, [handleAddPin]);
+  const handleAddOverdub = useCallback(() => {
+    if (!playerIdea || !playerClip) return;
+    try {
+      appActions.startClipOverdubRecording(playerIdea.id, playerClip.id);
+      navigation.navigate("Recording" as never);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Could not start overdub recording.";
+      Alert.alert("Overdub unavailable", message);
+    }
+  }, [navigation, playerClip, playerIdea]);
+  const handleSaveCombined = useCallback(() => {
+    if (!playerIdea || !playerClip) return;
+    void appActions.saveCombinedClipAsNewClip(playerIdea.id, playerClip.id).catch((error) => {
+      const message = error instanceof Error ? error.message : "Could not save a combined clip.";
+      Alert.alert("Save combined failed", message);
+    });
+  }, [playerClip, playerIdea]);
+  const handleAdjustStemGain = useCallback(
+    (stemId: string, deltaDb: number) => {
+      if (!playerIdea || !playerClip) return;
+      void appActions.adjustClipOverdubStemGain(playerIdea.id, playerClip.id, stemId, deltaDb).catch((error) => {
+        const message = error instanceof Error ? error.message : "Could not update the overdub gain.";
+        Alert.alert("Layer update failed", message);
+      });
+    },
+    [playerClip, playerIdea]
+  );
+  const handleToggleStemMute = useCallback(
+    (stemId: string) => {
+      if (!playerIdea || !playerClip) return;
+      void appActions.toggleClipOverdubStemMute(playerIdea.id, playerClip.id, stemId).catch((error) => {
+        const message = error instanceof Error ? error.message : "Could not update the overdub mute state.";
+        Alert.alert("Layer update failed", message);
+      });
+    },
+    [playerClip, playerIdea]
+  );
+  const handleToggleStemLowCut = useCallback(
+    (stemId: string) => {
+      if (!playerIdea || !playerClip) return;
+      void appActions.toggleClipOverdubStemLowCut(playerIdea.id, playerClip.id, stemId).catch((error) => {
+        const message = error instanceof Error ? error.message : "Could not update the overdub tone.";
+        Alert.alert("Layer update failed", message);
+      });
+    },
+    [playerClip, playerIdea]
+  );
+  const handleNudgeStem = useCallback(
+    (stemId: string, deltaMs: number) => {
+      if (!playerIdea || !playerClip) return;
+      void appActions.nudgeClipOverdubStem(playerIdea.id, playerClip.id, stemId, deltaMs).catch((error) => {
+        const message = error instanceof Error ? error.message : "Could not move the overdub timing.";
+        Alert.alert("Layer update failed", message);
+      });
+    },
+    [playerClip, playerIdea]
+  );
+  const handleRemoveStem = useCallback(
+    (stemId: string) => {
+      if (!playerIdea || !playerClip) return;
+      void appActions.removeClipOverdubStem(playerIdea.id, playerClip.id, stemId).catch((error) => {
+        const message = error instanceof Error ? error.message : "Could not remove the overdub stem.";
+        Alert.alert("Layer update failed", message);
+      });
+    },
+    [playerClip, playerIdea]
+  );
 
   if (!playerIdea || !playerClip) {
     return (
@@ -254,6 +315,7 @@ export function PlayerScreen() {
             clipTitle={playerClip.title}
             projectTitle={playerIdea.kind === "project" ? playerIdea.title : null}
             createdAt={playerClip.createdAt}
+            overdubLayerCount={data.clipOverdubStemCount}
             playerPosition={effectivePlayerPosition}
             displayDuration={effectivePlayerDuration}
             mode={ui.mode}
@@ -337,11 +399,23 @@ export function PlayerScreen() {
             />
           ) : (
             <PlayerSupportSections
+              clipTitle={playerClip.title}
               hasProjectLyrics={data.hasProjectLyrics}
               latestLyricsText={data.latestLyricsText}
               lyricsVersionCount={playerIdea.lyrics?.versions.length ?? 1}
               latestLyricsUpdatedAt={data.latestLyricsVersion?.updatedAt ?? null}
               lyricsExpanded={ui.lyricsExpanded}
+              hasClipOverdubs={data.hasClipOverdubs}
+              clipOverdubStemCount={data.clipOverdubStemCount}
+              clipPlaybackUsesRenderedMix={data.clipPlaybackUsesRenderedMix}
+              overdubStemEntries={data.overdubStemEntries}
+              onAddOverdub={handleAddOverdub}
+              onSaveCombined={handleSaveCombined}
+              onAdjustStemGain={handleAdjustStemGain}
+              onToggleStemMute={handleToggleStemMute}
+              onToggleStemLowCut={handleToggleStemLowCut}
+              onNudgeStem={handleNudgeStem}
+              onRemoveStem={handleRemoveStem}
               clipNotes={data.clipNotes}
               clipNotesSummary={data.clipNotesSummary}
               notesExpanded={ui.notesExpanded}

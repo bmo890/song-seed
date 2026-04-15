@@ -115,6 +115,81 @@ export const playerScreenStyles = StyleSheet.create({
     lineHeight: 20,
     color: "#1f2937",
   },
+  layerList: {
+    gap: 8,
+  },
+  layerToolbar: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    flexWrap: "wrap",
+  },
+  layerToolbarButton: {
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 10,
+    backgroundColor: "#ece7e1",
+  },
+  layerToolbarButtonText: {
+    fontSize: 12,
+    lineHeight: 16,
+    color: "#824f3f",
+    fontWeight: "600",
+    textTransform: "uppercase",
+    letterSpacing: 0.4,
+  },
+  layerRow: {
+    paddingVertical: 2,
+    gap: 6,
+  },
+  layerRowCopy: {
+    gap: 2,
+  },
+  layerRowTitle: {
+    fontSize: 14,
+    lineHeight: 19,
+    color: "#1f2937",
+    fontWeight: "600",
+  },
+  layerRowMeta: {
+    fontSize: 11,
+    lineHeight: 15,
+    color: "#6b7280",
+    textTransform: "uppercase",
+    letterSpacing: 0.4,
+  },
+  layerControls: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    flexWrap: "wrap",
+  },
+  layerControlButton: {
+    paddingHorizontal: 9,
+    paddingVertical: 6,
+    borderRadius: 10,
+    backgroundColor: "#efeeea",
+  },
+  layerControlButtonActive: {
+    backgroundColor: "#e3d5cf",
+  },
+  layerControlButtonDestructive: {
+    backgroundColor: "#f3e5e2",
+  },
+  layerControlButtonText: {
+    fontSize: 11,
+    lineHeight: 14,
+    color: "#4b5563",
+    fontWeight: "600",
+    textTransform: "uppercase",
+    letterSpacing: 0.35,
+  },
+  layerControlButtonTextActive: {
+    color: "#824f3f",
+  },
+  layerControlButtonTextDestructive: {
+    color: "#a04b41",
+  },
   notesPlaceholder: {
     color: "#8a93a1",
   },

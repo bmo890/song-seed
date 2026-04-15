@@ -1,6 +1,7 @@
 import { useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ClipVersion, InlineTarget } from "../types";
+import { getClipPlaybackUri } from "../clipPresentation";
 import { activateAndPlay, replacePlaybackSource } from "../services/transportPlayback";
 import { useStore } from "../state/useStore";
 
@@ -128,7 +129,8 @@ export function useInlinePlayer({ onBeforePlayNew }: Args = {}) {
   }
 
   async function toggleInlinePlayback(ideaId: string, clip: ClipVersion) {
-    if (!clip.audioUri) return;
+    const playbackUri = getClipPlaybackUri(clip);
+    if (!playbackUri) return;
 
     if (inlineTarget && inlineTarget.ideaId === ideaId && inlineTarget.clipId === clip.id) {
       await toggleActiveInlinePlayback();
@@ -142,7 +144,7 @@ export function useInlinePlayer({ onBeforePlayNew }: Args = {}) {
       if (onBeforePlayNew) await onBeforePlayNew();
       await resetInlinePlayer();
 
-      await replacePlaybackSource(player, clip.audioUri, true);
+      await replacePlaybackSource(player, playbackUri, true);
       setInlineTarget({ ideaId, clipId: clip.id });
       player.setActiveForLockScreen(
         true,

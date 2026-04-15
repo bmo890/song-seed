@@ -1,11 +1,14 @@
 import { useNavigation } from "@react-navigation/native";
+import { useAudioPlayer } from "expo-audio";
 import { Alert } from "react-native";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { getLatestLyricsVersion, lyricsDocumentToText } from "../../../lyrics";
 import { useRecording } from "../../../hooks/useRecording";
 import { useMetronome } from "../../../hooks/useMetronome";
+import { appActions } from "../../../state/actions";
 import { useStore } from "../../../state/useStore";
 import type { ClipVersion } from "../../../types";
+import { getDefaultOverdubStemTitle } from "../../../overdub";
 import {
   buildDefaultIdeaTitle,
   ensureUniqueCountedTitle,
@@ -17,6 +20,8 @@ export function useRecordingScreenModel() {
 
   const recordingIdeaId = useStore((s) => s.recordingIdeaId);
   const recordingParentClipId = useStore((s) => s.recordingParentClipId);
+  const recordingOverdubClipId = useStore((s) => s.recordingOverdubClipId);
+  const recordingGuideMixUri = useStore((s) => s.recordingGuideMixUri);
   const recordingSaveRequestToken = useStore((s) => s.recordingSaveRequestToken);
   const workspaces = useStore((s) => s.workspaces);
   const activeWorkspaceId = useStore((s) => s.activeWorkspaceId);
@@ -29,14 +34,27 @@ export function useRecordingScreenModel() {
   const preferredRecordingInputId = useStore((s) => s.preferredRecordingInputId);
   const setPreferredRecordingInputId = useStore((s) => s.setPreferredRecordingInputId);
   const updateIdeas = useStore((s) => s.updateIdeas);
+  const clearRecordingContext = useStore((s) => s.clearRecordingContext);
 
   const recordingIdea = useMemo(
     () => workspaces.find((w) => w.id === activeWorkspaceId)?.ideas.find((i) => i.id === recordingIdeaId),
     [workspaces, activeWorkspaceId, recordingIdeaId]
   );
+  const recordingOverdubClip = useMemo(
+    () =>
+      recordingOverdubClipId && recordingIdea
+        ? recordingIdea.clips.find((clip) => clip.id === recordingOverdubClipId) ?? null
+        : null,
+    [recordingIdea, recordingOverdubClipId]
+  );
   const latestLyricsVersion = recordingIdea?.kind === "project" ? getLatestLyricsVersion(recordingIdea) : null;
   const latestLyricsText = lyricsDocumentToText(latestLyricsVersion?.document);
   const hasProjectLyrics = recordingIdea?.kind === "project" && latestLyricsText.trim().length > 0;
+  const guideMixSource = useMemo(
+    () => (recordingGuideMixUri ? { uri: recordingGuideMixUri } : null),
+    [recordingGuideMixUri]
+  );
+  const guideMixPlayer = useAudioPlayer(guideMixSource, { updateInterval: 250 });
 
   const [isPrimaryDraft, setIsPrimaryDraft] = useState(false);
   const [settingsVisible, setSettingsVisible] = useState(false);
@@ -52,8 +70,22 @@ export function useRecordingScreenModel() {
   const metronome = useMetronome();
 
   const recording = useRecording(
-    (payload) => {
+    async (payload) => {
       if (!recordingIdeaId || !recordingIdea) return;
+      if (recordingOverdubClip) {
+        const nextTitle = quickNameDraft.trim() || getDefaultOverdubStemTitle(recordingOverdubClip);
+        try {
+          await appActions.attachRecordedOverdubStem(recordingIdeaId, recordingOverdubClip.id, payload, nextTitle);
+        } catch (error) {
+          console.warn("Overdub mix refresh failed after recording save", error);
+          Alert.alert(
+            "Layer saved",
+            "The overdub was saved, but the combined playback could not be refreshed yet."
+          );
+        }
+        return;
+      }
+
       const parentClip = recordingParentClipId
         ? recordingIdea.clips.find((clip) => clip.id === recordingParentClipId) ?? null
         : null;
@@ -92,7 +124,9 @@ export function useRecordingScreenModel() {
   const fallbackClipTitle = () => buildDefaultIdeaTitle();
 
   const recordingPlaceholderTitle =
-    recordingIdea
+    recordingOverdubClip
+      ? getDefaultOverdubStemTitle(recordingOverdubClip)
+      : recordingIdea
       ? recordingIdea.kind === "project"
         ? ensureUniqueCountedTitle(
             genClipTitle(recordingIdea.title, recordingIdea.clips.length + 1),
@@ -105,6 +139,44 @@ export function useRecordingScreenModel() {
               .map((idea) => idea.title)
           )
       : fallbackClipTitle();
+
+  async function stopGuideMix() {
+    if (!recordingGuideMixUri) return;
+    try {
+      await guideMixPlayer.pause();
+      await guideMixPlayer.seekTo(0);
+    } catch (error) {
+      console.warn("Guide mix stop failed", error);
+    }
+  }
+
+  async function startGuideMixFromBeginning() {
+    if (!recordingGuideMixUri) return;
+    try {
+      await guideMixPlayer.seekTo(0);
+      await guideMixPlayer.play();
+    } catch (error) {
+      console.warn("Guide mix start failed", error);
+    }
+  }
+
+  async function resumeGuideMix() {
+    if (!recordingGuideMixUri) return;
+    try {
+      await guideMixPlayer.play();
+    } catch (error) {
+      console.warn("Guide mix resume failed", error);
+    }
+  }
+
+  async function pauseGuideMix() {
+    if (!recordingGuideMixUri) return;
+    try {
+      await guideMixPlayer.pause();
+    } catch (error) {
+      console.warn("Guide mix pause failed", error);
+    }
+  }
 
   async function stopRecordingMetronome() {
     if (!metronome.isRunning && !metronome.isCountIn) {
@@ -121,6 +193,7 @@ export function useRecordingScreenModel() {
   async function cancelPendingRecordingStart() {
     countInPendingRef.current = false;
     setIsArmingRecording(false);
+    await stopGuideMix();
     await stopRecordingMetronome();
     await recording.cancelPreparedRecording();
   }
@@ -130,14 +203,14 @@ export function useRecordingScreenModel() {
     if (isArmingRecording) {
       await cancelPendingRecordingStart();
     } else {
+      await stopGuideMix();
       await stopRecordingMetronome();
       await recording.discardRecording();
     }
     if (recordingIdea.kind === "clip" && recordingIdea.clips.length === 0) {
       updateIdeas((prevIdeas) => prevIdeas.filter((idea) => idea.id !== recordingIdea.id));
     }
-    useStore.getState().setRecordingParentClipId(null);
-    useStore.getState().setRecordingIdeaId(null);
+    clearRecordingContext();
   }
 
   function confirmDiscardAndExit() {
@@ -170,6 +243,7 @@ export function useRecordingScreenModel() {
     if (!recording.isRecording && !recording.isPaused) return;
     if (recording.isRecording && !recording.isPaused) {
       await recording.pauseRecording();
+      await pauseGuideMix();
       await stopRecordingMetronome();
     }
 
@@ -186,7 +260,16 @@ export function useRecordingScreenModel() {
 
     const saved = await recording.saveRecording();
     if (!saved) return;
+    await stopGuideMix();
     await stopRecordingMetronome();
+
+    if (recordingOverdubClip) {
+      setQuickNameModalVisible(false);
+      setQuickNameDraft("");
+      setQuickNamingIdeaId(null);
+      clearRecordingContext();
+      return;
+    }
 
     const suggestedTitle =
       recordingIdea?.kind === "project"
@@ -246,8 +329,7 @@ export function useRecordingScreenModel() {
     setQuickNameModalVisible(false);
     setQuickNameDraft("");
     setQuickNamingIdeaId(null);
-    useStore.getState().setRecordingParentClipId(null);
-    useStore.getState().setRecordingIdeaId(null);
+    clearRecordingContext();
   }
 
   useEffect(() => {
@@ -279,7 +361,10 @@ export function useRecordingScreenModel() {
       setIsArmingRecording(false);
       if (!started) {
         await stopRecordingMetronome();
+        await stopGuideMix();
+        return;
       }
+      await startGuideMixFromBeginning();
     })();
   }, [metronome.countInCompletionToken, recording, stopRecordingMetronome]);
 
@@ -292,6 +377,7 @@ export function useRecordingScreenModel() {
     setIsArmingRecording(false);
 
     void (async () => {
+      await stopGuideMix();
       if (metronome.isRunning || metronome.isCountIn) {
         try {
           await metronome.stop();
@@ -311,6 +397,7 @@ export function useRecordingScreenModel() {
 
     if (!recordingMetronomeEnabled || !metronome.isNativeAvailable) {
       await recording.startRecording();
+      await startGuideMixFromBeginning();
       return;
     }
 
@@ -332,10 +419,14 @@ export function useRecordingScreenModel() {
       const started = await recording.startPreparedRecording();
       if (!started) {
         await stopRecordingMetronome();
+        await stopGuideMix();
+        return;
       }
+      await startGuideMixFromBeginning();
     } catch (error) {
       console.warn("Recording metronome start failed", error);
       countInPendingRef.current = false;
+      await stopGuideMix();
       await stopRecordingMetronome();
       await recording.cancelPreparedRecording();
     } finally {
@@ -347,11 +438,13 @@ export function useRecordingScreenModel() {
 
   async function handlePauseRecording() {
     await recording.pauseRecording();
+    await pauseGuideMix();
     await stopRecordingMetronome();
   }
 
   async function handleResumeRecording() {
     await recording.resumeRecording();
+    await resumeGuideMix();
     if (recordingMetronomeEnabled && metronome.isNativeAvailable) {
       try {
         await metronome.start({ manageAudioSession: false });
@@ -373,8 +466,19 @@ export function useRecordingScreenModel() {
     navigation.navigate("Home" as never);
   }
 
+  useEffect(() => {
+    return () => {
+      try {
+        guideMixPlayer.pause();
+      } catch {
+        // Ignore teardown noise during unmount.
+      }
+    };
+  }, [guideMixPlayer]);
+
   return {
     recordingIdea,
+    recordingOverdubClip,
     latestLyricsVersion,
     latestLyricsText,
     hasProjectLyrics,

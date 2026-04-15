@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar as ExpoStatusBar } from "expo-status-bar";
 import { View, Text, ActivityIndicator, TouchableOpacity, Alert, Pressable } from "react-native";
-import { useIsFocused, useNavigation, useRoute } from "@react-navigation/native";
+import { StackActions, useIsFocused, useNavigation, useRoute } from "@react-navigation/native";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
 import { MultiTimeRangeSelector } from "../common/TimeRangeSelector";
@@ -12,6 +12,7 @@ import { buildStaticWaveform, genClipTitle } from "../../utils";
 import { RootStackParamList } from "../../../App";
 import { Feather, Ionicons } from "@expo/vector-icons";
 import { useStore } from "../../state/useStore";
+import { appActions } from "../../state/actions";
 import { Button } from "../common/Button";
 import { EditRegion, ClipVersion, SongIdea } from "../../types";
 import { AudioReel } from "../common/AudioReel";
@@ -45,6 +46,7 @@ import { useEditorTransformState } from "./hooks/useEditorTransformState";
 import { useEditorPreviewTransport } from "./hooks/useEditorPreviewTransport";
 import { EditorTransformSection } from "./EditorTransformSection";
 import { EditorTransformExportModal } from "./EditorTransformExportModal";
+import { clipHasOverdubs } from "../../clipPresentation";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Editor">;
 
@@ -58,6 +60,7 @@ export function EditorScreen() {
     const [analysisData, setAnalysisData] = useState<AudioAnalysis | null>(null);
     const [waveformPeaks, setWaveformPeaks] = useState<number[]>([]);
     const [isLoading, setIsLoading] = useState(false);
+    const [isFlatteningOverdub, setIsFlatteningOverdub] = useState(false);
 
     const updateIdeas = useStore((s) => s.updateIdeas);
     const setSelectedIdeaId = useStore((s) => s.setSelectedIdeaId);
@@ -75,6 +78,7 @@ export function EditorScreen() {
         [activeWorkspace, ideaId]
     );
     const sourceClip = targetIdea?.clips.find((clip) => clip.id === clipId) ?? null;
+    const sourceClipHasOverdubs = !!sourceClip && clipHasOverdubs(sourceClip);
     const targetCollection =
         targetIdea && activeWorkspace ? getCollectionById(activeWorkspace, targetIdea.collectionId) : null;
     const targetCollectionAncestors =
@@ -207,6 +211,10 @@ export function EditorScreen() {
     });
 
     useEffect(() => {
+        if (sourceClipHasOverdubs) {
+            setIsLoading(false);
+            return;
+        }
         if (!audioUri) return;
         const editorAudioUri = audioUri;
         let isMounted = true;
@@ -262,7 +270,44 @@ export function EditorScreen() {
 
         loadAudioData();
         return () => { isMounted = false; };
-    }, [audioUri, clipId, durationHintMs, player, sourceClip?.waveformPeaks]);
+    }, [audioUri, clipId, durationHintMs, player, sourceClip?.waveformPeaks, sourceClipHasOverdubs]);
+
+    const handleFlattenOverdubAndContinue = useCallback(async () => {
+        if (!targetIdea || !sourceClip) return;
+
+        setIsFlatteningOverdub(true);
+        try {
+            const savedTarget = await appActions.saveCombinedClipAsNewClip(targetIdea.id, sourceClip.id);
+            if (!savedTarget) {
+                throw new Error("Combined clip could not be saved.");
+            }
+
+            const savedIdea = useStore
+                .getState()
+                .workspaces.flatMap((workspace) => workspace.ideas)
+                .find((idea) => idea.id === savedTarget.ideaId);
+            const savedClip = savedIdea?.clips.find((clip) => clip.id === savedTarget.clipId) ?? null;
+            if (!savedIdea || !savedClip?.audioUri) {
+                throw new Error("Combined clip could not be opened.");
+            }
+
+            navigation.dispatch(
+                StackActions.replace("Editor", {
+                    ideaId: savedIdea.id,
+                    clipId: savedClip.id,
+                    audioUri: savedClip.audioUri,
+                    durationMs: savedClip.durationMs,
+                })
+            );
+        } catch (error) {
+            Alert.alert(
+                "Save combined failed",
+                error instanceof Error ? error.message : "Could not save a combined clip."
+            );
+        } finally {
+            setIsFlatteningOverdub(false);
+        }
+    }, [navigation, sourceClip, targetIdea]);
 
 
     return (
@@ -295,7 +340,27 @@ export function EditorScreen() {
                 }
                 scrollable
             >
-                {isLoading ? (
+                {sourceClipHasOverdubs ? (
+                    <View style={{ gap: 18, paddingTop: 32, paddingHorizontal: 6 }}>
+                        <View style={{ gap: 8 }}>
+                            <Text style={{ fontSize: 24, lineHeight: 30, fontWeight: "700", color: "#1b1c1a" }}>
+                                Save a combined clip first
+                            </Text>
+                            <Text style={{ fontSize: 15, lineHeight: 24, color: "#524440" }}>
+                                This take has overdub layers attached. Timing edits on the root clip would break the
+                                alignment. Save the combined mix as a new clip, then edit that flattened result.
+                            </Text>
+                        </View>
+
+                        <Button
+                            label={isFlatteningOverdub ? "Saving combined clip..." : "Save Combined And Continue"}
+                            disabled={isFlatteningOverdub}
+                            onPress={() => {
+                                void handleFlattenOverdubAndContinue();
+                            }}
+                        />
+                    </View>
+                ) : isLoading ? (
                     <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
                         <ActivityIndicator size="large" color="#10b981" />
                         <Text style={{ marginTop: 10, color: "#64748b" }}>Analyzing audio...</Text>

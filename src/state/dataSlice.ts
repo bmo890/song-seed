@@ -25,6 +25,8 @@ import {
     BackupReminderFrequency,
     PracticeMarker,
     Note,
+    ClipOverdubState,
+    ClipOverdubStem,
 } from "../types";
 import { genClipTitle } from "../utils";
 import type { SelectionSlice } from "./selectionSlice";
@@ -120,6 +122,23 @@ export type DataSlice = {
     addClipPracticeMarker: (ideaId: string, clipId: string, marker: PracticeMarker) => void;
     removeClipPracticeMarker: (ideaId: string, clipId: string, markerId: string) => void;
     setClipPracticeMarkers: (ideaId: string, clipId: string, markers: PracticeMarker[]) => void;
+    addClipOverdubStem: (ideaId: string, clipId: string, stem: ClipOverdubStem) => void;
+    updateClipOverdubStem: (
+        ideaId: string,
+        clipId: string,
+        stemId: string,
+        updates: Partial<Omit<ClipOverdubStem, "id" | "createdAt">>
+    ) => void;
+    removeClipOverdubStem: (ideaId: string, clipId: string, stemId: string) => void;
+    setClipOverdubRenderedMix: (
+        ideaId: string,
+        clipId: string,
+        mix: Pick<
+            ClipOverdubState,
+            "renderedMixUri" | "renderedMixDurationMs" | "renderedMixWaveformPeaks" | "lastRenderedAt"
+        >
+    ) => void;
+    clearClipOverdubRenderedMix: (ideaId: string, clipId: string) => void;
     logIdeaActivity: (
         ideaId: string,
         metric: ActivityMetric,
@@ -381,11 +400,85 @@ function normalizeOptionalTimestamp(value: unknown) {
     return Number.isFinite(value) ? Number(value) : undefined;
 }
 
+function normalizeWaveformPeaks(value: unknown) {
+    if (!Array.isArray(value)) {
+        return undefined;
+    }
+    const peaks = value
+        .map((entry) => Number(entry))
+        .filter((entry) => Number.isFinite(entry));
+    return peaks.length > 0 ? peaks : undefined;
+}
+
+function normalizeClipOverdubStem(stem: ClipOverdubStem | undefined, index: number): ClipOverdubStem | null {
+    if (!stem) {
+        return null;
+    }
+
+    const tonePreset =
+        stem.tonePreset === "low-cut" ||
+        stem.tonePreset === "warm" ||
+        stem.tonePreset === "bright" ||
+        stem.tonePreset === "neutral"
+            ? stem.tonePreset
+            : "neutral";
+    const audioUri = typeof stem.audioUri === "string" && stem.audioUri.length > 0 ? stem.audioUri : undefined;
+
+    return {
+        ...stem,
+        id: typeof stem.id === "string" && stem.id.length > 0 ? stem.id : `stem-${Date.now()}-${index + 1}`,
+        title:
+            typeof stem.title === "string" && stem.title.trim().length > 0
+                ? stem.title.trim()
+                : `Layer ${index + 1}`,
+        audioUri,
+        gainDb: Number.isFinite(stem.gainDb) ? Number(stem.gainDb) : 0,
+        offsetMs: Number.isFinite(stem.offsetMs) ? Number(stem.offsetMs) : 0,
+        tonePreset,
+        isMuted: Boolean(stem.isMuted),
+        durationMs: normalizeOptionalTimestamp(stem.durationMs),
+        waveformPeaks: normalizeWaveformPeaks(stem.waveformPeaks),
+        createdAt: typeof stem.createdAt === "number" ? stem.createdAt : Date.now() + index,
+    };
+}
+
+function cleanupClipOverdubState(overdub?: ClipOverdubState | null): ClipOverdubState | undefined {
+    if (!overdub) {
+        return undefined;
+    }
+
+    const stems = Array.isArray(overdub.stems)
+        ? overdub.stems
+              .map((stem, index) => normalizeClipOverdubStem(stem, index))
+              .filter((stem): stem is ClipOverdubStem => !!stem)
+        : [];
+    const renderedMixUri =
+        typeof overdub.renderedMixUri === "string" && overdub.renderedMixUri.length > 0
+            ? overdub.renderedMixUri
+            : undefined;
+    const renderedMixDurationMs = normalizeOptionalTimestamp(overdub.renderedMixDurationMs);
+    const renderedMixWaveformPeaks = normalizeWaveformPeaks(overdub.renderedMixWaveformPeaks);
+    const lastRenderedAt = normalizeOptionalTimestamp(overdub.lastRenderedAt);
+
+    if (!stems.length && !renderedMixUri && !renderedMixDurationMs && !renderedMixWaveformPeaks && !lastRenderedAt) {
+        return undefined;
+    }
+
+    return {
+        stems,
+        renderedMixUri,
+        renderedMixDurationMs,
+        renderedMixWaveformPeaks,
+        lastRenderedAt,
+    };
+}
+
 function normalizeClip(clip: ClipVersion): ClipVersion {
     return {
         ...clip,
         importedAt: normalizeOptionalTimestamp(clip.importedAt),
         sourceCreatedAt: normalizeOptionalTimestamp(clip.sourceCreatedAt),
+        overdub: cleanupClipOverdubState(clip.overdub),
     };
 }
 
@@ -646,6 +739,17 @@ export function normalizeWorkspaces(workspaces: Workspace[]) {
                         audioUri: undefined,
                         sourceAudioUri: undefined,
                         waveformPeaks: undefined,
+                        overdub: clip.overdub
+                            ? cleanupClipOverdubState({
+                                  ...clip.overdub,
+                                  renderedMixUri: undefined,
+                                  stems: clip.overdub.stems.map((stem) => ({
+                                      ...stem,
+                                      audioUri: undefined,
+                                      waveformPeaks: undefined,
+                                  })),
+                              })
+                            : undefined,
                     })),
                 }))
                 : normalizedIdeas;
@@ -1209,6 +1313,131 @@ export const createDataSlice: StateCreator<
                 ),
             })),
         }));
+    },
+
+    addClipOverdubStem: (ideaId, clipId, stem) => {
+        get().updateIdeas((ideas) =>
+            ideas.map((idea) =>
+                idea.id !== ideaId
+                    ? idea
+                    : {
+                          ...idea,
+                          clips: idea.clips.map((clip) =>
+                              clip.id !== clipId
+                                  ? clip
+                                  : {
+                                        ...clip,
+                                        overdub: cleanupClipOverdubState({
+                                            ...clip.overdub,
+                                            stems: [...(clip.overdub?.stems ?? []), stem],
+                                        }),
+                                    }
+                          ),
+                      }
+            )
+        );
+    },
+
+    updateClipOverdubStem: (ideaId, clipId, stemId, updates) => {
+        get().updateIdeas((ideas) =>
+            ideas.map((idea) =>
+                idea.id !== ideaId
+                    ? idea
+                    : {
+                          ...idea,
+                          clips: idea.clips.map((clip) =>
+                              clip.id !== clipId
+                                  ? clip
+                                  : {
+                                        ...clip,
+                                        overdub: cleanupClipOverdubState({
+                                            ...clip.overdub,
+                                            stems: (clip.overdub?.stems ?? []).map((stem) =>
+                                                stem.id === stemId ? { ...stem, ...updates } : stem
+                                            ),
+                                        }),
+                                    }
+                          ),
+                      }
+            )
+        );
+    },
+
+    removeClipOverdubStem: (ideaId, clipId, stemId) => {
+        get().updateIdeas((ideas) =>
+            ideas.map((idea) =>
+                idea.id !== ideaId
+                    ? idea
+                    : {
+                          ...idea,
+                          clips: idea.clips.map((clip) =>
+                              clip.id !== clipId
+                                  ? clip
+                                  : {
+                                        ...clip,
+                                        overdub: cleanupClipOverdubState({
+                                            ...clip.overdub,
+                                            stems: (clip.overdub?.stems ?? []).filter((stem) => stem.id !== stemId),
+                                        }),
+                                    }
+                          ),
+                      }
+            )
+        );
+    },
+
+    setClipOverdubRenderedMix: (ideaId, clipId, mix) => {
+        get().updateIdeas((ideas) =>
+            ideas.map((idea) =>
+                idea.id !== ideaId
+                    ? idea
+                    : {
+                          ...idea,
+                          clips: idea.clips.map((clip) =>
+                              clip.id !== clipId
+                                  ? clip
+                                  : {
+                                        ...clip,
+                                        overdub: cleanupClipOverdubState({
+                                            ...clip.overdub,
+                                            stems: clip.overdub?.stems ?? [],
+                                            renderedMixUri: mix.renderedMixUri,
+                                            renderedMixDurationMs: mix.renderedMixDurationMs,
+                                            renderedMixWaveformPeaks: mix.renderedMixWaveformPeaks,
+                                            lastRenderedAt: mix.lastRenderedAt ?? Date.now(),
+                                        }),
+                                    }
+                          ),
+                      }
+            )
+        );
+    },
+
+    clearClipOverdubRenderedMix: (ideaId, clipId) => {
+        get().updateIdeas((ideas) =>
+            ideas.map((idea) =>
+                idea.id !== ideaId
+                    ? idea
+                    : {
+                          ...idea,
+                          clips: idea.clips.map((clip) =>
+                              clip.id !== clipId
+                                  ? clip
+                                  : {
+                                        ...clip,
+                                        overdub: cleanupClipOverdubState({
+                                            ...clip.overdub,
+                                            stems: clip.overdub?.stems ?? [],
+                                            renderedMixUri: undefined,
+                                            renderedMixDurationMs: undefined,
+                                            renderedMixWaveformPeaks: undefined,
+                                            lastRenderedAt: undefined,
+                                        }),
+                                    }
+                          ),
+                      }
+            )
+        );
     },
 
     renameIdeaPreservingActivity: (ideaId, nextTitle) => {

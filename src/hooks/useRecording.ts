@@ -24,7 +24,9 @@ import { useRecordingDisplayElapsed } from "./useRecordingDisplayElapsed";
 import { useLiveRecordingWaveform } from "./useLiveRecordingWaveform";
 import { useStore } from "../state/useStore";
 
-type OnRecorded = (payload: { audioUri: string; durationMs?: number; waveformPeaks?: number[] }) => void;
+type OnRecorded = (
+  payload: { audioUri: string; durationMs?: number; waveformPeaks?: number[] }
+) => void | Promise<void>;
 
 const LIVE_WAVEFORM_SEGMENT_MS = __DEV__ ? 60 : 40;
 const LIVE_STREAM_INTERVAL_MS = __DEV__ ? 120 : 40;
@@ -44,6 +46,7 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
   const activeWorkspaceId = useStore((s) => s.activeWorkspaceId);
   const recordingIdeaId = useStore((s) => s.recordingIdeaId);
   const recordingParentClipId = useStore((s) => s.recordingParentClipId);
+  const recordingOverdubClipId = useStore((s) => s.recordingOverdubClipId);
   const setPreferredRecordingInputId = useStore((s) => s.setPreferredRecordingInputId);
   const displayElapsedMs = useRecordingDisplayElapsed({
     durationMs: recorder.durationMs,
@@ -70,6 +73,13 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
         : null,
     [recordingIdea, recordingParentClipId]
   );
+  const recordingOverdubClip = useMemo(
+    () =>
+      recordingOverdubClipId && recordingIdea
+        ? recordingIdea.clips.find((clip) => clip.id === recordingOverdubClipId) ?? null
+        : null,
+    [recordingIdea, recordingOverdubClipId]
+  );
   const recordingNotification = useMemo(() => {
     const targetTitle = trimNotificationLabel(recordingIdea?.title, "Song Seed");
 
@@ -81,6 +91,13 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
     }
 
     if (recordingIdea.kind === "project") {
+      if (recordingOverdubClip) {
+        return {
+          title: "Recording overdub",
+          text: `Recording into ${trimNotificationLabel(recordingOverdubClip.title, targetTitle)}.`,
+        };
+      }
+
       if (recordingParentClip) {
         return {
           title: `Recording variation`,
@@ -101,7 +118,7 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
       title: "Recording clip",
       text: `Recording ${targetTitle}.`,
     };
-  }, [recordingIdea, recordingParentClip]);
+  }, [recordingIdea, recordingOverdubClip, recordingParentClip]);
   const [lastInterruptionReason, setLastInterruptionReason] =
     useState<RecordingInterruptionEvent["reason"] | null>(null);
   const [interruptionToken, setInterruptionToken] = useState(0);
@@ -395,7 +412,7 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
         managedAudio.waveformPeaks ??
         metersToWaveformPeaks(levelsAsDb, MANAGED_WAVEFORM_PEAK_COUNT);
 
-      onRecorded({
+      await onRecorded({
         audioUri: managedAudio.audioUri,
         durationMs: managedAudio.durationMs ?? recordingData.durationMs,
         waveformPeaks,

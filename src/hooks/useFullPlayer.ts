@@ -2,6 +2,11 @@ import { useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppState, Platform } from "react-native";
 import { ClipVersion, PlayerTarget } from "../types";
+import {
+  getClipPlaybackDurationMs,
+  getClipPlaybackUri,
+  getClipPlaybackWaveformPeaks,
+} from "../clipPresentation";
 import { buildStaticWaveform } from "../utils";
 import { activateAndPlay, replacePlaybackSource } from "../services/transportPlayback";
 import { MANAGED_WAVEFORM_PEAK_COUNT } from "../services/audioStorage";
@@ -192,7 +197,8 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
     metadata?: LockScreenMetadata,
     autoPlay = false
   ) => {
-    if (!clip.audioUri) return;
+    const playbackUri = getClipPlaybackUri(clip);
+    if (!playbackUri) return;
     const operationId = ++operationIdRef.current;
     lockScreenMetadataRef.current = metadata;
 
@@ -203,15 +209,19 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
       await player.pause();
       if (!isOperationActive(operationId)) return;
 
-      await replacePlaybackSource(player, clip.audioUri, autoPlay);
+      await replacePlaybackSource(player, playbackUri, autoPlay);
       if (!isOperationActive(operationId)) return;
       // Publish the active target only after the source has loaded. That keeps the UI and
       // persisted player state from pointing at a clip that never actually became playable.
       setPlayerTarget({ ideaId, clipId: clip.id });
+      const playbackWaveformPeaks = getClipPlaybackWaveformPeaks(clip);
       setWaveformPeaks(
-        clip.waveformPeaks?.length
-          ? clip.waveformPeaks
-          : buildStaticWaveform(`${clip.id}-${clip.durationMs ?? 0}`, MANAGED_WAVEFORM_PEAK_COUNT)
+        playbackWaveformPeaks?.length
+          ? playbackWaveformPeaks
+          : buildStaticWaveform(
+              `${clip.id}-${getClipPlaybackDurationMs(clip) ?? 0}`,
+              MANAGED_WAVEFORM_PEAK_COUNT
+            )
       );
     } catch (err) {
       setPlayerPlaybackState({

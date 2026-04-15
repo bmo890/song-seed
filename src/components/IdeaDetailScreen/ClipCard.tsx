@@ -1,9 +1,11 @@
 import React from "react";
-import { Animated, Pressable, View, type GestureResponderEvent } from "react-native";
+import { Alert, Animated, Pressable, View, type GestureResponderEvent } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import * as Haptics from "expo-haptics";
 import { styles } from "./styles";
+import { appActions } from "../../state/actions";
 import { useStore } from "../../state/useStore";
+import { getClipOverdubStemCount, getClipPlaybackDurationMs, hasClipPlaybackSource } from "../../clipPresentation";
 import { fmtDuration, formatDate } from "../../utils";
 import { type EvolutionListClipEntry, type TimelineClipEntry } from "../../clipGraph";
 import { type SongIdea, type ClipVersion, type CustomTagDefinition } from "../../types";
@@ -13,6 +15,7 @@ import { ClipCardEditForm } from "./components/clipCard/ClipCardEditForm";
 import { ClipCardEvolutionGuide } from "./components/clipCard/ClipCardEvolutionGuide";
 import { ClipCardInlinePlayer } from "./components/clipCard/ClipCardInlinePlayer";
 import { ClipCardLead } from "./components/clipCard/ClipCardLead";
+import { ClipCardOverdubButton } from "./components/clipCard/ClipCardOverdubButton";
 import { ClipCardPrimaryIndicator } from "./components/clipCard/ClipCardPrimaryIndicator";
 import { ClipCardReplyButton } from "./components/clipCard/ClipCardReplyButton";
 import { ClipCardSelectionRail } from "./components/clipCard/ClipCardSelectionRail";
@@ -136,13 +139,26 @@ export function ClipCard({
   });
   const canEditTags =
     !displayOnly && !isEditMode && !isDraftProject && !isParentPicking && !clipSelectionMode;
-  const durationLabel = clip.durationMs ? fmtDuration(clip.durationMs) : "0:00";
+  const playbackDurationMs = getClipPlaybackDurationMs(clip);
+  const overdubStemCount = getClipOverdubStemCount(clip);
+  const durationLabel = playbackDurationMs ? fmtDuration(playbackDurationMs) : "0:00";
+  const createdAtLabel =
+    overdubStemCount > 0
+      ? `${formatDate(clip.createdAt)} • ${overdubStemCount} ${overdubStemCount === 1 ? "layer" : "layers"}`
+      : formatDate(clip.createdAt);
   const canToggleInlinePlayback = !clipSelectionMode && !isDraftProject && !isParentPicking;
   const canShowReplyButton =
     !displayOnly && !clipSelectionMode && !isEditMode && !isDraftProject && !isParentPicking;
+  const canShowOverdubButton =
+    !displayOnly &&
+    !clipSelectionMode &&
+    !isEditMode &&
+    !isDraftProject &&
+    !isParentPicking &&
+    hasClipPlaybackSource(clip);
 
   const openPlayer = async () => {
-    if (!clip.audioUri) return;
+    if (!hasClipPlaybackSource(clip)) return;
     await inlinePlayer.resetInlinePlayer();
     setPlayerQueue([{ ideaId: idea.id, clipId: clip.id }], 0, true);
     navigation.navigate("Player" as never);
@@ -163,6 +179,17 @@ export function ClipCard({
     setRecordingParentClipId(clip.id);
     setRecordingIdeaId(idea.id);
     navigation.navigate("Recording" as never);
+  };
+  const handleOverdub = async () => {
+    await inlinePlayer.resetInlinePlayer();
+    try {
+      appActions.startClipOverdubRecording(idea.id, clip.id);
+      navigation.navigate("Recording" as never);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Could not start overdub recording.";
+      Alert.alert("Overdub unavailable", message);
+    }
   };
   const handleLongPress = () => {
     if (displayOnly || isParentPicking) return;
@@ -233,7 +260,7 @@ export function ClipCard({
             inlineActive={inlineActive}
             inlinePlaying={inlinePlayer.isInlinePlaying}
             canToggleInlinePlayback={canToggleInlinePlayback}
-            canPlay={!!clip.audioUri}
+            canPlay={hasClipPlaybackSource(clip)}
             onPressPlay={() => inlinePlayer.toggleInlinePlayback(idea.id, clip)}
             onLongPress={displayOnly ? undefined : handleLongPress}
           />
@@ -278,6 +305,11 @@ export function ClipCard({
                       compact={compactDensity}
                       onPress={handleReply}
                     />
+                    <ClipCardOverdubButton
+                      visible={canShowOverdubButton}
+                      compact={compactDensity}
+                      onPress={handleOverdub}
+                    />
                   </>
                 }
                 notes={clip.notes ?? ""}
@@ -286,14 +318,14 @@ export function ClipCard({
                 tags={tagBadges}
                 canEditTags={canEditTags}
                 onPressTags={displayOnly ? undefined : handleTagsPress}
-                createdAtLabel={formatDate(clip.createdAt)}
+                createdAtLabel={createdAtLabel}
               />
             )}
 
             {inlineActive && !displayOnly ? (
               <ClipCardInlinePlayer
                 currentMs={inlinePlayer.inlinePosition}
-                durationMs={inlinePlayer.inlineDuration || clip.durationMs || 0}
+                durationMs={inlinePlayer.inlineDuration || playbackDurationMs || 0}
                 onSeek={(ms) => {
                   void inlinePlayer.endInlineScrub(ms);
                 }}
