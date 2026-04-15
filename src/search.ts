@@ -296,11 +296,18 @@ export function buildGlobalSearchResults(workspaces: Workspace[], notes: Note[],
   }
 
   for (const note of notes) {
+    const hasExplicitTitle = note.title.trim().length > 0;
+    const fullBody = note.body.trim();
     const title = deriveNotePreviewTitle(note);
-    const body = deriveNotePreviewBody(note) ?? note.body.trim();
+    const body = deriveNotePreviewBody(note) ?? fullBody;
     const noteMatch = findBestFieldMatch(
       [
-        { source: "title", text: title, baseScore: 114 },
+        {
+          source: "title",
+          text: title,
+          baseScore: 114,
+          snippetText: hasExplicitTitle ? body : fullBody,
+        },
         { source: "body", text: body, baseScore: 86 },
       ],
       needle
@@ -314,7 +321,7 @@ export function buildGlobalSearchResults(workspaces: Workspace[], notes: Note[],
       title,
       context: note.isPinned ? "Notepad • Pinned" : "Notepad",
       matchSource: noteMatch.source,
-      snippet: noteMatch.source === "title" ? body || null : noteMatch.snippet,
+      snippet: noteMatch.source === "title" && hasExplicitTitle ? body || null : noteMatch.snippet,
       score: noteMatch.score + (note.isPinned ? 3 : 0),
       updatedAt: note.updatedAt,
       noteId: note.id,

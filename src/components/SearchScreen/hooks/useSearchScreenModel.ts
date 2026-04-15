@@ -15,6 +15,21 @@ type SearchResultGroup = {
   items: GlobalSearchResult[];
 };
 
+function navigateToRoute(navigation: any, routeName: string, params?: Record<string, unknown>) {
+  let current = navigation;
+
+  while (current) {
+    const routeNames = current.getState?.()?.routeNames;
+    if (Array.isArray(routeNames) && routeNames.includes(routeName)) {
+      current.navigate(routeName, params);
+      return true;
+    }
+    current = current.getParent?.();
+  }
+
+  return false;
+}
+
 export function useSearchScreenModel() {
   const navigation = useNavigation<any>();
   const workspaces = useStore((state) => state.workspaces);
@@ -66,7 +81,7 @@ export function useSearchScreenModel() {
         return;
       case "song":
       case "clip":
-        navigation.getParent?.()?.navigate?.("IdeaDetail", { ideaId: result.ideaId });
+        navigateToRoute(navigation, "IdeaDetail", { ideaId: result.ideaId });
         return;
       case "note":
         navigation.navigate("NotepadHome", { noteId: result.noteId, openToken: Date.now() });

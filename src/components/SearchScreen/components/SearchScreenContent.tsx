@@ -4,7 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { ScreenHeader } from "../../common/ScreenHeader";
 import { PageIntro } from "../../common/PageIntro";
 import { SearchField } from "../../common/SearchField";
-import { colors, radii, spacing, text as textTokens } from "../../../design/tokens";
+import { spacing, text as textTokens } from "../../../design/tokens";
 import { styles } from "../../../styles";
 import { getSearchMatchSourceLabel, type GlobalSearchResult } from "../../../search";
 import { useSearchScreenModel } from "../hooks/useSearchScreenModel";
@@ -45,7 +45,7 @@ function SearchResultCard({
           <Ionicons
             name={getResultIconName(result)}
             size={16}
-            color={colors.textSecondary}
+            color="#6a5751"
           />
           <Text style={searchScreenStyles.resultTitle} numberOfLines={1}>
             {result.title}
@@ -57,7 +57,7 @@ function SearchResultCard({
               {getSearchMatchSourceLabel(result.matchSource)}
             </Text>
           </View>
-          <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+          <Ionicons name="chevron-forward" size={16} color="#9b8a84" />
         </View>
       </View>
 
@@ -94,7 +94,7 @@ export function SearchScreenContent() {
 
       {!model.hasQuery ? (
         <View style={searchScreenStyles.emptyState}>
-          <Ionicons name="search-outline" size={28} color={colors.textMuted} />
+          <Ionicons name="search-outline" size={28} color="#9b8a84" />
           <Text style={searchScreenStyles.emptyTitle}>Search your whole library</Text>
           <Text style={searchScreenStyles.emptyBody}>
             Find songs by lyric fragments, clips by notes, or notebook pages by anything inside them.
@@ -102,7 +102,7 @@ export function SearchScreenContent() {
         </View>
       ) : model.resultCount === 0 ? (
         <View style={searchScreenStyles.emptyState}>
-          <Ionicons name="documents-outline" size={28} color={colors.textMuted} />
+          <Ionicons name="documents-outline" size={28} color="#9b8a84" />
           <Text style={searchScreenStyles.emptyTitle}>No matches</Text>
           <Text style={searchScreenStyles.emptyBody}>
             Try a different word or phrase. Search looks through project notes, clip notes, lyrics, chords, and Notepad content.
@@ -140,42 +140,47 @@ export function SearchScreenContent() {
 
 const searchScreenStyles = StyleSheet.create({
   searchField: {
-    marginBottom: 14,
+    marginBottom: 16,
   },
   resultsScroll: {
     flex: 1,
   },
   resultsContent: {
-    paddingBottom: 32,
-    gap: 16,
+    paddingBottom: 36,
+    gap: 18,
   },
   section: {
-    gap: 10,
+    gap: 12,
   },
   sectionHeaderRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+    paddingBottom: 6,
   },
   sectionTitle: {
     ...textTokens.sectionTitle,
-    color: colors.textPrimary,
+    color: "#1b1c1a",
+    letterSpacing: 0.5,
   },
   sectionCount: {
-    ...textTokens.supporting,
-    color: colors.textSecondary,
+    ...textTokens.caption,
+    color: "#6a5751",
+    backgroundColor: "#efeeea",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+    overflow: "hidden",
   },
   sectionStack: {
-    gap: 8,
+    gap: 10,
   },
   resultCard: {
-    backgroundColor: colors.surface,
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    borderColor: colors.borderSubtle,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.md,
-    gap: 6,
+    backgroundColor: "#ffffff",
+    borderRadius: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    gap: 8,
   },
   resultHeaderRow: {
     flexDirection: "row",
@@ -193,7 +198,7 @@ const searchScreenStyles = StyleSheet.create({
   resultTitle: {
     ...textTokens.body,
     fontWeight: "700",
-    color: colors.textPrimary,
+    color: "#1b1c1a",
     flex: 1,
   },
   resultMetaRow: {
@@ -203,21 +208,22 @@ const searchScreenStyles = StyleSheet.create({
   },
   matchChip: {
     borderRadius: 999,
-    backgroundColor: colors.surfaceSubtle,
+    backgroundColor: "#efeeea",
     paddingHorizontal: 10,
-    paddingVertical: 5,
+    paddingVertical: 4,
   },
   matchChipText: {
     ...textTokens.caption,
-    color: colors.textSecondary,
+    color: "#824f3f",
   },
   resultContext: {
     ...textTokens.supporting,
-    color: colors.textSecondary,
+    color: "#6a5751",
   },
   resultSnippet: {
     ...textTokens.body,
-    color: colors.textMuted,
+    color: "#524440",
+    lineHeight: 21,
   },
   emptyState: {
     flex: 1,
@@ -225,16 +231,16 @@ const searchScreenStyles = StyleSheet.create({
     justifyContent: "center",
     paddingHorizontal: 32,
     paddingBottom: 48,
-    gap: 10,
+    gap: 12,
   },
   emptyTitle: {
     ...textTokens.sectionTitle,
-    color: colors.textPrimary,
+    color: "#1b1c1a",
     textAlign: "center",
   },
   emptyBody: {
     ...textTokens.supporting,
-    color: colors.textSecondary,
+    color: "#6a5751",
     textAlign: "center",
     lineHeight: 22,
   },
