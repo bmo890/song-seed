@@ -9,6 +9,7 @@ import {
     PracticeMarker,
     CustomTagDefinition,
     ClipOverdubState,
+    ClipOverdubRootSettings,
     ClipOverdubStem,
 } from "../types";
 import { useStore } from "./useStore";
@@ -32,7 +33,9 @@ import { getClipPlaybackUri } from "../clipPresentation";
 import {
     buildClipOverdubMixInputs,
     buildCombinedClipTitle,
+    clampClipOverdubStemOffsetMs,
     clampOverdubGainDb,
+    getClipOverdubRootSettings,
     getDefaultOverdubStemTitle,
     toggleLowCutTonePreset,
 } from "../overdub";
@@ -121,6 +124,48 @@ function findWorkspaceIdeaClip(
         return { workspace, idea, clip };
     }
     return null;
+}
+
+type ImportedOverdubMix = {
+    audioUri: string;
+    durationMs?: number;
+    waveformPeaks?: number[];
+};
+
+async function buildImportedClipOverdubMix(
+    clip: ClipVersion,
+    clipId: string
+): Promise<ImportedOverdubMix | null> {
+    const inputs = buildClipOverdubMixInputs(clip);
+    if (inputs.length <= 1) {
+        return null;
+    }
+
+    const rendered = await renderMixedFile({
+        inputs,
+        outputFileName: `${
+            clip.title.replace(/[^a-zA-Z0-9-_ ]/g, "").trim().replace(/\s+/g, "-") || clipId
+        }-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    });
+
+    try {
+        const imported = await importAudioAsset(
+            {
+                uri: rendered.outputUri,
+                name: rendered.outputUri.split("/").pop() ?? `${clipId}-mix.m4a`,
+                mimeType: "audio/mp4",
+            },
+            `${clipId}-overdub-mix-${Date.now()}`
+        );
+
+        return {
+            audioUri: imported.audioUri,
+            durationMs: imported.durationMs,
+            waveformPeaks: imported.waveformPeaks,
+        };
+    } finally {
+        await FileSystem.deleteAsync(rendered.outputUri, { idempotent: true }).catch(() => {});
+    }
 }
 
 type ClipTransferSource = {
@@ -770,9 +815,9 @@ export const appActions = {
         }
 
         const previousMixUri = match.clip.overdub?.renderedMixUri ?? null;
-        const inputs = buildClipOverdubMixInputs(match.clip);
+        const nextMix = await buildImportedClipOverdubMix(match.clip, clipId);
 
-        if (inputs.length <= 1) {
+        if (!nextMix) {
             state.clearClipOverdubRenderedMix(ideaId, clipId);
             if (previousMixUri) {
                 await deleteManagedAudioUris([previousMixUri]);
@@ -780,37 +825,18 @@ export const appActions = {
             return null;
         }
 
-        const rendered = await renderMixedFile({
-            inputs,
-            outputFileName:
-                match.clip.title.replace(/[^a-zA-Z0-9-_ ]/g, "").trim().replace(/\s+/g, "-") || undefined,
+        state.setClipOverdubRenderedMix(ideaId, clipId, {
+            renderedMixUri: nextMix.audioUri,
+            renderedMixDurationMs: nextMix.durationMs,
+            renderedMixWaveformPeaks: nextMix.waveformPeaks,
+            lastRenderedAt: Date.now(),
         });
 
-        try {
-            const imported = await importAudioAsset(
-                {
-                    uri: rendered.outputUri,
-                    name: rendered.outputUri.split("/").pop() ?? `${clipId}-mix.m4a`,
-                    mimeType: "audio/mp4",
-                },
-                `${clipId}-overdub-mix-${Date.now()}`
-            );
-
-            state.setClipOverdubRenderedMix(ideaId, clipId, {
-                renderedMixUri: imported.audioUri,
-                renderedMixDurationMs: imported.durationMs,
-                renderedMixWaveformPeaks: imported.waveformPeaks,
-                lastRenderedAt: Date.now(),
-            });
-
-            if (previousMixUri && previousMixUri !== imported.audioUri) {
-                await deleteManagedAudioUris([previousMixUri]);
-            }
-
-            return imported.audioUri;
-        } finally {
-            await FileSystem.deleteAsync(rendered.outputUri, { idempotent: true }).catch(() => {});
+        if (previousMixUri && previousMixUri !== nextMix.audioUri) {
+            await deleteManagedAudioUris([previousMixUri]);
         }
+
+        return nextMix.audioUri;
     },
 
     attachRecordedOverdubStem: async (
@@ -838,10 +864,60 @@ export const appActions = {
             createdAt: Date.now(),
         };
 
+        const previousMixUri = match.clip.overdub?.renderedMixUri ?? null;
+        const nextClip: ClipVersion = {
+            ...match.clip,
+            overdub: {
+                ...(cloneOverdubState(match.clip.overdub) ?? { stems: [] }),
+                stems: [...(match.clip.overdub?.stems ?? []), stem],
+            },
+        };
+        const nextMix = await buildImportedClipOverdubMix(nextClip, clipId);
+
         state.addClipOverdubStem(ideaId, clipId, stem);
+        if (nextMix) {
+            state.setClipOverdubRenderedMix(ideaId, clipId, {
+                renderedMixUri: nextMix.audioUri,
+                renderedMixDurationMs: nextMix.durationMs,
+                renderedMixWaveformPeaks: nextMix.waveformPeaks,
+                lastRenderedAt: Date.now(),
+            });
+        } else {
+            state.clearClipOverdubRenderedMix(ideaId, clipId);
+        }
         state.logIdeaActivity(ideaId, "updated", "recording", clipId);
-        await appActions.rerenderClipOverdubMix(ideaId, clipId);
+        if (previousMixUri && previousMixUri !== nextMix?.audioUri) {
+            await deleteManagedAudioUris([previousMixUri]);
+        }
         return stem.id;
+    },
+
+    adjustClipOverdubRootGain: async (ideaId: string, clipId: string, deltaDb: number) => {
+        const state = useStore.getState();
+        const match = findWorkspaceIdeaClip(state.workspaces, ideaId, clipId);
+        if (!match) {
+            throw new Error("Clip not found.");
+        }
+
+        const rootSettings = getClipOverdubRootSettings(match.clip);
+        state.updateClipOverdubRoot(ideaId, clipId, {
+            gainDb: clampOverdubGainDb(rootSettings.gainDb + deltaDb),
+        });
+        await appActions.rerenderClipOverdubMix(ideaId, clipId);
+    },
+
+    toggleClipOverdubRootLowCut: async (ideaId: string, clipId: string) => {
+        const state = useStore.getState();
+        const match = findWorkspaceIdeaClip(state.workspaces, ideaId, clipId);
+        if (!match) {
+            throw new Error("Clip not found.");
+        }
+
+        const rootSettings = getClipOverdubRootSettings(match.clip);
+        state.updateClipOverdubRoot(ideaId, clipId, {
+            tonePreset: toggleLowCutTonePreset(rootSettings.tonePreset),
+        });
+        await appActions.rerenderClipOverdubMix(ideaId, clipId);
     },
 
     adjustClipOverdubStemGain: async (ideaId: string, clipId: string, stemId: string, deltaDb: number) => {
@@ -867,7 +943,11 @@ export const appActions = {
         }
 
         state.updateClipOverdubStem(ideaId, clipId, stemId, {
-            offsetMs: Math.max(0, Math.round(stem.offsetMs + deltaMs)),
+            offsetMs: clampClipOverdubStemOffsetMs(
+                stem.offsetMs + deltaMs,
+                match.clip.durationMs,
+                stem.durationMs
+            ),
         });
         await appActions.rerenderClipOverdubMix(ideaId, clipId);
     },

@@ -6,6 +6,9 @@ import {
   getClipPlaybackDurationMs,
   getClipPlaybackUri,
 } from "../../../clipPresentation";
+import {
+  getClipOverdubRootSettings,
+} from "../../../overdub";
 import { getLatestLyricsVersion, lyricsDocumentToText } from "../../../lyrics";
 import { useStore } from "../../../state/useStore";
 import type { SongIdea } from "../../../types";
@@ -25,6 +28,9 @@ export type PlayerOverdubStemEntry = {
   id: string;
   title: string;
   meta: string;
+  audioUri: string | null;
+  durationMs: number;
+  waveformPeaks?: number[];
   gainDb: number;
   isMuted: boolean;
   tonePreset: string;
@@ -99,12 +105,16 @@ export function usePlayerScreenData({ playerDuration }: UsePlayerScreenDataArgs)
   const clipOverdubStemCount = playerClip ? getClipOverdubStemCount(playerClip) : 0;
   const hasClipOverdubs = playerClip ? clipHasOverdubs(playerClip) : false;
   const clipPlaybackUsesRenderedMix = playerClip ? clipUsesRenderedMix(playerClip) : false;
+  const overdubRootSettings = playerClip ? getClipOverdubRootSettings(playerClip) : null;
   const overdubStemEntries = useMemo(
     () =>
       (playerClip?.overdub?.stems ?? []).map((stem, index) => ({
         id: stem.id,
         title: stem.title,
         meta: stem.isMuted ? "Muted stem" : `Overdub ${index + 1}`,
+        audioUri: stem.audioUri ?? null,
+        durationMs: stem.durationMs ?? 0,
+        waveformPeaks: stem.waveformPeaks,
         gainDb: stem.gainDb,
         isMuted: stem.isMuted,
         tonePreset: stem.tonePreset,
@@ -136,6 +146,7 @@ export function usePlayerScreenData({ playerDuration }: UsePlayerScreenDataArgs)
     hasClipOverdubs,
     clipOverdubStemCount,
     clipPlaybackUsesRenderedMix,
+    overdubRootSettings,
     overdubStemEntries,
   };
 }

@@ -181,8 +181,8 @@ export function ClipCard({
     navigation.navigate("Recording" as never);
   };
   const handleOverdub = async () => {
-    await inlinePlayer.resetInlinePlayer();
     try {
+      await inlinePlayer.resetInlinePlayer();
       appActions.startClipOverdubRecording(idea.id, clip.id);
       navigation.navigate("Recording" as never);
     } catch (error) {

@@ -23,6 +23,7 @@ import {
 import { useRecordingDisplayElapsed } from "./useRecordingDisplayElapsed";
 import { useLiveRecordingWaveform } from "./useLiveRecordingWaveform";
 import { useStore } from "../state/useStore";
+import { deleteManagedAudioUris } from "../services/managedMedia";
 
 type OnRecorded = (
   payload: { audioUri: string; durationMs?: number; waveformPeaks?: number[] }
@@ -41,6 +42,7 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
   const audioSessionOwnerIdRef = useRef(createAudioSessionOwner("recording"));
   const persistedSessionRef = useRef(false);
   const preparedRecordingRef = useRef(false);
+  const expectedStopReasonRef = useRef(false);
   const recordingStartedAtRef = useRef<number | null>(null);
   const workspaces = useStore((s) => s.workspaces);
   const activeWorkspaceId = useStore((s) => s.activeWorkspaceId);
@@ -244,6 +246,12 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
         void persistPendingRecordingSession(event.fileUri, recordingStartedAt);
       },
       onRecordingInterrupted: (event) => {
+        const isExpectedStoppedEvent =
+          event.reason === "recordingStopped" && expectedStopReasonRef.current;
+        expectedStopReasonRef.current = false;
+        if (isExpectedStoppedEvent) {
+          return;
+        }
         preparedRecordingRef.current = false;
         setLastInterruptionReason(event.reason);
         setInterruptionToken((current) => current + 1);
@@ -293,6 +301,7 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
 
       try {
         if (recorder.isRecording || recorder.isPaused) {
+          expectedStopReasonRef.current = true;
           await recorder.stopRecording();
           await new Promise(r => setTimeout(r, 150));
         }
@@ -358,8 +367,10 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
     persistedSessionRef.current = false;
     resetLiveWaveform();
     try {
+      expectedStopReasonRef.current = true;
       await recorder.stopRecording();
     } catch {
+      expectedStopReasonRef.current = false;
       // Ignore cleanup failures when a prepared recorder is canceled before capture begins.
     }
     await clearPendingRecordingSession();
@@ -390,7 +401,10 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
   }
 
   async function saveRecording() {
+    let managedAudioUriToCleanup: string | null = null;
+    let recorderTempUriToCleanup: string | null = null;
     try {
+      expectedStopReasonRef.current = true;
       const recordingData = await recorder.stopRecording();
       preparedRecordingRef.current = false;
       recordingStartedAtRef.current = null;
@@ -402,6 +416,8 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
 
       const clipId = `clip-${Date.now()}`;
       const managedAudio = await importRecordedAudioAsset(recordingData.fileUri, clipId);
+      managedAudioUriToCleanup = managedAudio.audioUri;
+      recorderTempUriToCleanup = recordingData.fileUri;
 
       // Convert peaks for existing basic renderers (while we migrate the rest)
       const dataPoints = recordingData.analysisData?.dataPoints ?? [];
@@ -417,14 +433,23 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
         durationMs: managedAudio.durationMs ?? recordingData.durationMs,
         waveformPeaks,
       });
+      managedAudioUriToCleanup = null;
       if (recordingData.fileUri && recordingData.fileUri !== managedAudio.audioUri) {
         // The managed import succeeded, so the recorder temp output is now redundant and should
         // be removed instead of silently accumulating across saves.
         await FileSystem.deleteAsync(recordingData.fileUri, { idempotent: true }).catch(() => {});
+        recorderTempUriToCleanup = null;
       }
       await clearPendingRecordingSession();
       return true;
     } catch {
+      expectedStopReasonRef.current = false;
+      if (managedAudioUriToCleanup) {
+        await deleteManagedAudioUris([managedAudioUriToCleanup]).catch(() => {});
+      }
+      if (recorderTempUriToCleanup) {
+        await FileSystem.deleteAsync(recorderTempUriToCleanup, { idempotent: true }).catch(() => {});
+      }
       Alert.alert("Recording failed", "Could not save recording.");
       return false;
     } finally {
@@ -436,6 +461,7 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
 
   async function discardRecording() {
     try {
+      expectedStopReasonRef.current = true;
       const recordingData = await recorder.stopRecording();
       preparedRecordingRef.current = false;
       recordingStartedAtRef.current = null;
@@ -447,6 +473,7 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
       }
       await clearPendingRecordingSession();
     } catch {
+      expectedStopReasonRef.current = false;
       // ignore
     } finally {
       await releaseRecordingAudioSession().catch((error) => {

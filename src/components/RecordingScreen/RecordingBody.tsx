@@ -1,14 +1,21 @@
 import React from "react";
-import { ScrollView, View } from "react-native";
+import { ScrollView, Text, View } from "react-native";
 import type { AudioAnalysis } from "@siteed/audio-studio";
 import type { SongIdea } from "../../types";
 import { styles } from "../../styles";
 import { RecordingMeta } from "./RecordingMeta";
 import { RecordingLyricsSection } from "./RecordingLyricsSection";
+import { RecordingOverdubGuide } from "./RecordingOverdubGuide";
 
 type RecordingBodyProps = {
   recordingIdea: SongIdea | null | undefined;
   recordingOverdubClip?: SongIdea["clips"][number] | null;
+  guideMixIsPlaying: boolean;
+  guideMixPositionMs: number;
+  guideMixDurationMs: number;
+  guideMixWaveformPeaks?: number[];
+  isBluetoothRecordingInput: boolean;
+  recordingInputLabel: string | null;
   hasProjectLyrics: boolean;
   latestLyricsText: string;
   latestLyricsUpdatedAt: number | null;
@@ -33,6 +40,12 @@ type RecordingBodyProps = {
 export function RecordingBody({
   recordingIdea,
   recordingOverdubClip,
+  guideMixIsPlaying,
+  guideMixPositionMs,
+  guideMixDurationMs,
+  guideMixWaveformPeaks,
+  isBluetoothRecordingInput,
+  recordingInputLabel,
   hasProjectLyrics,
   latestLyricsText,
   latestLyricsUpdatedAt,
@@ -68,6 +81,29 @@ export function RecordingBody({
           hasProjectLyrics && !lyricsExpanded ? styles.recordingContentBodyCollapsedLyrics : null,
         ]}
       >
+        {recordingOverdubClip ? (
+          <>
+            {isBluetoothRecordingInput ? (
+              <View style={styles.recordingBluetoothWarning}>
+                <Text style={styles.recordingBluetoothWarningLabel}>Bluetooth monitoring detected</Text>
+                <Text style={styles.recordingBluetoothWarningText}>
+                  {recordingInputLabel
+                    ? `${recordingInputLabel} may add enough delay to make overdubs feel late. Wired headphones are recommended.`
+                    : "Wireless audio may add enough delay to make overdubs feel late. Wired headphones are recommended."}
+                </Text>
+              </View>
+            ) : null}
+
+            <RecordingOverdubGuide
+              title={recordingOverdubClip.title}
+              durationMs={guideMixDurationMs}
+              positionMs={guideMixPositionMs}
+              isPlaying={guideMixIsPlaying}
+              waveformPeaks={guideMixWaveformPeaks}
+            />
+          </>
+        ) : null}
+
         <RecordingMeta
           ideaTitle={recordingOverdubClip ? `Overdub on ${recordingOverdubClip.title}` : ""}
           isRecording={isRecording}

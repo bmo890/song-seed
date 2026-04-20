@@ -29,6 +29,12 @@ export function RecordingScreen() {
         <RecordingBody
           recordingIdea={screen.recordingIdea ?? null}
           recordingOverdubClip={screen.recordingOverdubClip ?? null}
+          guideMixIsPlaying={screen.guideMixIsPlaying}
+          guideMixPositionMs={screen.guideMixPositionMs}
+          guideMixDurationMs={screen.guideMixDurationMs}
+          guideMixWaveformPeaks={screen.guideMixWaveformPeaks}
+          isBluetoothRecordingInput={screen.isBluetoothRecordingInput}
+          recordingInputLabel={screen.recordingInputLabel}
           hasProjectLyrics={screen.hasProjectLyrics}
           latestLyricsText={screen.latestLyricsText}
           latestLyricsUpdatedAt={screen.latestLyricsVersion?.updatedAt ?? null}

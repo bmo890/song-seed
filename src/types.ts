@@ -53,6 +53,11 @@ export type PracticeMarker = {
 
 export type ClipOverdubTonePreset = "neutral" | "low-cut" | "warm" | "bright";
 
+export type ClipOverdubRootSettings = {
+  gainDb: number;
+  tonePreset: ClipOverdubTonePreset;
+};
+
 export type ClipOverdubStem = {
   id: string;
   title: string;
@@ -67,6 +72,7 @@ export type ClipOverdubStem = {
 };
 
 export type ClipOverdubState = {
+  root?: ClipOverdubRootSettings;
   stems: ClipOverdubStem[];
   renderedMixUri?: string;
   renderedMixDurationMs?: number;

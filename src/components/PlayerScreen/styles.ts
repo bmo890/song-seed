@@ -118,6 +118,90 @@ export const playerScreenStyles = StyleSheet.create({
   layerList: {
     gap: 8,
   },
+  layerCard: {
+    backgroundColor: "#fffdf9",
+    borderRadius: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    gap: 10,
+  },
+  layerCardHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  layerPlayButton: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#efeeea",
+  },
+  layerPlayButtonIcon: {
+    marginLeft: 2,
+  },
+  layerCardCopy: {
+    flex: 1,
+    minWidth: 0,
+    gap: 2,
+  },
+  layerEnabledDot: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    borderWidth: 1.5,
+    borderColor: "#b8a69f",
+    backgroundColor: "transparent",
+    marginTop: 2,
+  },
+  layerEnabledDotActive: {
+    backgroundColor: "#824f3f",
+    borderColor: "#824f3f",
+  },
+  layerCardTitleRow: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    gap: 8,
+  },
+  layerCardTitle: {
+    flex: 1,
+    minWidth: 0,
+    fontSize: 15,
+    lineHeight: 19,
+    color: "#1b1c1a",
+    fontWeight: "700",
+  },
+  layerCardDuration: {
+    fontSize: 12,
+    lineHeight: 16,
+    color: "#6a5751",
+    fontVariant: ["tabular-nums"] as never,
+  },
+  layerCardMeta: {
+    fontSize: 11,
+    lineHeight: 15,
+    color: "#6a5751",
+    textTransform: "uppercase",
+    letterSpacing: 0.4,
+  },
+  layerWaveWrap: {
+    position: "relative",
+    overflow: "hidden",
+    borderRadius: 8,
+  },
+  layerWavePlayhead: {
+    position: "absolute",
+    top: 2,
+    bottom: 2,
+    width: 2,
+    marginLeft: -1,
+    backgroundColor: "#824f3f",
+    opacity: 0.8,
+  },
+  layerCardControls: {
+    gap: 8,
+  },
   layerToolbar: {
     flexDirection: "row",
     alignItems: "center",
@@ -137,6 +221,28 @@ export const playerScreenStyles = StyleSheet.create({
     fontWeight: "600",
     textTransform: "uppercase",
     letterSpacing: 0.4,
+  },
+  layerRootSection: {
+    gap: 8,
+    paddingVertical: 4,
+  },
+  layerRootHeader: {
+    gap: 2,
+  },
+  layerRootTitle: {
+    fontSize: 12,
+    lineHeight: 16,
+    color: "#3d302b",
+    fontWeight: "600",
+    textTransform: "uppercase",
+    letterSpacing: 0.4,
+  },
+  layerRootMeta: {
+    fontSize: 11,
+    lineHeight: 15,
+    color: "#6a5751",
+    textTransform: "uppercase",
+    letterSpacing: 0.35,
   },
   layerRow: {
     paddingVertical: 2,
@@ -176,6 +282,10 @@ export const playerScreenStyles = StyleSheet.create({
   layerControlButtonDestructive: {
     backgroundColor: "#f3e5e2",
   },
+  layerControlButtonDisabled: {
+    backgroundColor: "#f3f1ee",
+    opacity: 0.55,
+  },
   layerControlButtonText: {
     fontSize: 11,
     lineHeight: 14,
@@ -189,6 +299,9 @@ export const playerScreenStyles = StyleSheet.create({
   },
   layerControlButtonTextDestructive: {
     color: "#a04b41",
+  },
+  layerControlButtonTextDisabled: {
+    color: "#8c837e",
   },
   notesPlaceholder: {
     color: "#8a93a1",

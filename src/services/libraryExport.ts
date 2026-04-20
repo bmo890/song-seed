@@ -148,10 +148,16 @@ type ArchiveClipManifest = {
 };
 
 type ArchiveClipOverdubManifest = {
+    root?: ArchiveClipOverdubRootManifest;
     renderedMixPath?: string;
     renderedMixDurationMs?: number;
     renderedMixWaveformPeaks?: number[];
     stems: ArchiveClipOverdubStemManifest[];
+};
+
+type ArchiveClipOverdubRootManifest = {
+    gainDb: number;
+    tonePreset: "neutral" | "low-cut" | "warm" | "bright";
 };
 
 type ArchiveClipOverdubStemManifest = {
@@ -193,7 +199,7 @@ type ExportBuildContext = {
     exportedNotepadNotes: number;
 };
 
-const LIBRARY_EXPORT_SCHEMA_VERSION = 4;
+const LIBRARY_EXPORT_SCHEMA_VERSION = 5;
 
 export async function prepareLibraryExportArchive(args: ExportLibraryArgs): Promise<LibraryExportResult> {
     if (!FileSystem.documentDirectory) {
@@ -897,6 +903,12 @@ function buildArchiveClipOverdubManifest(
     }
 
     const overdubManifest: ArchiveClipOverdubManifest = {
+        root: clip.overdub?.root
+            ? {
+                  gainDb: clip.overdub.root.gainDb,
+                  tonePreset: clip.overdub.root.tonePreset,
+              }
+            : undefined,
         renderedMixDurationMs: clip.overdub?.renderedMixDurationMs,
         renderedMixWaveformPeaks: clip.overdub?.renderedMixWaveformPeaks,
         stems: [],

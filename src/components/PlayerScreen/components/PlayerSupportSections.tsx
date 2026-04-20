@@ -1,9 +1,13 @@
-import React from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Pressable, Text, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
 import { PlayerLyricsPanel } from "../PlayerLyricsPanel";
 import { PlayerQueue } from "../PlayerQueue";
 import { PlayerSupportPanel } from "../PlayerSupportPanel";
-import { formatDate } from "../../../utils";
+import { WaveformMiniPreview } from "../../common/WaveformMiniPreview";
+import { formatDate, fmtDuration } from "../../../utils";
+import { activateAndPlay, replacePlaybackSource } from "../../../services/transportPlayback";
 import { playerScreenStyles } from "../styles";
 
 type QueueEntry = {
@@ -17,13 +21,28 @@ type OverdubStemEntry = {
   id: string;
   title: string;
   meta: string;
+  audioUri: string | null;
+  durationMs: number;
+  waveformPeaks?: number[];
   gainDb: number;
   isMuted: boolean;
   tonePreset: string;
 };
 
+type LayerPreviewCardProps = {
+  title: string;
+  meta: string;
+  durationMs: number;
+  waveformPeaks?: number[];
+  isPlaying: boolean;
+  progressRatio: number;
+  onTogglePlay: () => void;
+  enabled?: boolean;
+  onToggleEnabled?: () => void;
+  children?: React.ReactNode;
+};
+
 type PlayerSupportSectionsProps = {
-  clipTitle: string;
   hasProjectLyrics: boolean;
   latestLyricsText: string;
   lyricsVersionCount: number;
@@ -32,13 +51,17 @@ type PlayerSupportSectionsProps = {
   hasClipOverdubs: boolean;
   clipOverdubStemCount: number;
   clipPlaybackUsesRenderedMix: boolean;
+  isMainPlaybackPlaying: boolean;
+  overdubRootSettings: { gainDb: number; tonePreset: string } | null;
   overdubStemEntries: OverdubStemEntry[];
   onAddOverdub: () => void;
   onSaveCombined: () => void;
+  onPauseMainPlayback: () => Promise<void>;
+  onAdjustRootGain: (deltaDb: number) => void;
+  onToggleRootLowCut: () => void;
   onAdjustStemGain: (stemId: string, deltaDb: number) => void;
   onToggleStemMute: (stemId: string) => void;
   onToggleStemLowCut: (stemId: string) => void;
-  onNudgeStem: (stemId: string, deltaMs: number) => void;
   onRemoveStem: (stemId: string) => void;
   clipNotes: string;
   clipNotesSummary: string;
@@ -52,8 +75,106 @@ type PlayerSupportSectionsProps = {
   onSelectQueueEntry: (index: number) => void;
 };
 
+function LayerPreviewCard({
+  title,
+  meta,
+  durationMs,
+  waveformPeaks,
+  isPlaying,
+  progressRatio,
+  onTogglePlay,
+  enabled = true,
+  onToggleEnabled,
+  children,
+}: LayerPreviewCardProps) {
+  return (
+    <View style={playerScreenStyles.layerCard}>
+      <View style={playerScreenStyles.layerCardHeader}>
+        <Pressable style={playerScreenStyles.layerPlayButton} onPress={onTogglePlay}>
+          <Ionicons
+            name={isPlaying ? "pause" : "play"}
+            size={16}
+            color="#824f3f"
+            style={isPlaying ? undefined : playerScreenStyles.layerPlayButtonIcon}
+          />
+        </Pressable>
+        <View style={playerScreenStyles.layerCardCopy}>
+          <View style={playerScreenStyles.layerCardTitleRow}>
+            <Text style={playerScreenStyles.layerCardTitle} numberOfLines={1}>
+              {title}
+            </Text>
+            <Text style={playerScreenStyles.layerCardDuration}>{fmtDuration(durationMs)}</Text>
+          </View>
+          <Text style={playerScreenStyles.layerCardMeta} numberOfLines={1}>
+            {meta}
+          </Text>
+        </View>
+        {onToggleEnabled ? (
+          <Pressable
+            style={[
+              playerScreenStyles.layerEnabledDot,
+              enabled ? playerScreenStyles.layerEnabledDotActive : null,
+            ]}
+            onPress={onToggleEnabled}
+          />
+        ) : null}
+      </View>
+
+      <View style={playerScreenStyles.layerWaveWrap}>
+        <WaveformMiniPreview peaks={waveformPeaks} bars={72} />
+        <View
+          pointerEvents="none"
+          style={[
+            playerScreenStyles.layerWavePlayhead,
+            { left: `${Math.max(0, Math.min(100, progressRatio * 100))}%` },
+          ]}
+        />
+      </View>
+
+      {children ? <View style={playerScreenStyles.layerCardControls}>{children}</View> : null}
+    </View>
+  );
+}
+
+function LayerControlButton({
+  label,
+  onPress,
+  active = false,
+  destructive = false,
+  disabled = false,
+}: {
+  label: string;
+  onPress: () => void;
+  active?: boolean;
+  destructive?: boolean;
+  disabled?: boolean;
+}) {
+  return (
+    <Pressable
+      disabled={disabled}
+      style={[
+        playerScreenStyles.layerControlButton,
+        active ? playerScreenStyles.layerControlButtonActive : null,
+        destructive ? playerScreenStyles.layerControlButtonDestructive : null,
+        disabled ? playerScreenStyles.layerControlButtonDisabled : null,
+      ]}
+      onPress={onPress}
+    >
+      <Text
+        style={[
+          playerScreenStyles.layerControlButtonText,
+          active ? playerScreenStyles.layerControlButtonTextActive : null,
+          destructive ? playerScreenStyles.layerControlButtonTextDestructive : null,
+          disabled ? playerScreenStyles.layerControlButtonTextDisabled : null,
+        ]}
+      >
+        {label}
+      </Text>
+    </Pressable>
+  );
+}
+
 export function PlayerSupportSections({
-  clipTitle,
   hasProjectLyrics,
   latestLyricsText,
   lyricsVersionCount,
@@ -62,13 +183,17 @@ export function PlayerSupportSections({
   hasClipOverdubs,
   clipOverdubStemCount,
   clipPlaybackUsesRenderedMix,
+  isMainPlaybackPlaying,
+  overdubRootSettings,
   overdubStemEntries,
   onAddOverdub,
   onSaveCombined,
+  onPauseMainPlayback,
+  onAdjustRootGain,
+  onToggleRootLowCut,
   onAdjustStemGain,
   onToggleStemMute,
   onToggleStemLowCut,
-  onNudgeStem,
   onRemoveStem,
   clipNotes,
   clipNotesSummary,
@@ -81,6 +206,84 @@ export function PlayerSupportSections({
   onToggleQueueExpanded,
   onSelectQueueEntry,
 }: PlayerSupportSectionsProps) {
+  const layerPreviewPlayer = useAudioPlayer(null, { updateInterval: 120 });
+  const layerPreviewStatus = useAudioPlayerStatus(layerPreviewPlayer);
+  const [activeLayerPreviewId, setActiveLayerPreviewId] = useState<string | null>(null);
+
+  const activeLayerPreviewDurationMs = Math.round((layerPreviewStatus.duration ?? 0) * 1000);
+  const activeLayerPreviewPositionMs = Math.round((layerPreviewStatus.currentTime ?? 0) * 1000);
+
+  function pauseLayerPreviewSafely() {
+    try {
+      const result = layerPreviewPlayer.pause();
+      void Promise.resolve(result).catch(() => {});
+    } catch {
+      // Ignore teardown noise from stale native player handles during unmount/handoff.
+    }
+  }
+
+  useEffect(() => {
+    if (layerPreviewStatus.didJustFinish) {
+      setActiveLayerPreviewId(null);
+    }
+  }, [layerPreviewStatus.didJustFinish]);
+
+  useEffect(() => {
+    if (!isMainPlaybackPlaying || !activeLayerPreviewId) return;
+    pauseLayerPreviewSafely();
+    setActiveLayerPreviewId(null);
+  }, [activeLayerPreviewId, isMainPlaybackPlaying, layerPreviewPlayer]);
+
+  useEffect(() => {
+    return () => {
+      pauseLayerPreviewSafely();
+    };
+  }, [layerPreviewPlayer]);
+
+  const previewSources = useMemo(
+    () =>
+      overdubStemEntries.map((stem) => ({
+        id: stem.id,
+        audioUri: stem.audioUri,
+        durationMs: stem.durationMs,
+      })),
+    [overdubStemEntries]
+  );
+
+  const activeLayerDurationMs =
+    previewSources.find((entry) => entry.id === activeLayerPreviewId)?.durationMs ??
+    activeLayerPreviewDurationMs;
+
+  async function toggleLayerPreview(id: string, audioUri: string | null) {
+    if (!audioUri) return;
+
+    if (activeLayerPreviewId === id && layerPreviewStatus.playing) {
+      await layerPreviewPlayer.pause();
+      return;
+    }
+
+    await onPauseMainPlayback();
+
+    if (activeLayerPreviewId === id) {
+      await activateAndPlay(
+        layerPreviewPlayer,
+        layerPreviewStatus,
+        activeLayerDurationMs,
+        activeLayerPreviewPositionMs
+      );
+      return;
+    }
+
+    await replacePlaybackSource(layerPreviewPlayer, audioUri, false);
+    setActiveLayerPreviewId(id);
+    await activateAndPlay(layerPreviewPlayer, { duration: 0, currentTime: 0 });
+  }
+
+  function getLayerProgressRatio(id: string) {
+    if (activeLayerPreviewId !== id || !activeLayerDurationMs) return 0;
+    return activeLayerPreviewPositionMs / activeLayerDurationMs;
+  }
+
   return (
     <View style={playerScreenStyles.supportStack}>
       {hasProjectLyrics && latestLyricsUpdatedAt !== null ? (
@@ -106,8 +309,8 @@ export function PlayerSupportSections({
           meta={`${clipOverdubStemCount} ${clipOverdubStemCount === 1 ? "overdub" : "overdubs"}`}
           summary={
             clipPlaybackUsesRenderedMix
-              ? "Playback is using the combined clip mix."
-              : "This take has overdubs attached to the original clip."
+              ? "Main playback uses the combined clip mix. Each layer below can also be auditioned on its own."
+              : "This take has overdubs attached, but the combined mix has not been refreshed yet."
           }
         >
           <View style={playerScreenStyles.layerToolbar}>
@@ -119,105 +322,61 @@ export function PlayerSupportSections({
             </Pressable>
           </View>
 
-          <View style={playerScreenStyles.layerList}>
-            <View style={playerScreenStyles.layerRow}>
-              <View style={playerScreenStyles.layerRowCopy}>
-                <Text style={playerScreenStyles.layerRowTitle} numberOfLines={1}>
-                  {clipTitle}
+          {overdubRootSettings ? (
+            <View style={playerScreenStyles.layerRootSection}>
+              <View style={playerScreenStyles.layerRootHeader}>
+                <Text style={playerScreenStyles.layerRootTitle}>Root mix</Text>
+                <Text style={playerScreenStyles.layerRootMeta}>
+                  {`${overdubRootSettings.gainDb > 0 ? "+" : ""}${overdubRootSettings.gainDb} dB${
+                    overdubRootSettings.tonePreset === "low-cut" ? " • Low cut" : ""
+                  }`}
                 </Text>
-                <Text style={playerScreenStyles.layerRowMeta}>Root clip</Text>
+              </View>
+              <View style={playerScreenStyles.layerControls}>
+                <LayerControlButton label="-2 dB" onPress={() => onAdjustRootGain(-2)} />
+                <LayerControlButton label="+2 dB" onPress={() => onAdjustRootGain(2)} />
+                <LayerControlButton
+                  label="Low cut"
+                  active={overdubRootSettings.tonePreset === "low-cut"}
+                  onPress={onToggleRootLowCut}
+                />
               </View>
             </View>
+          ) : null}
 
+          <View style={playerScreenStyles.layerList}>
             {overdubStemEntries.map((stem) => (
-              <View key={stem.id} style={playerScreenStyles.layerRow}>
-                <View style={playerScreenStyles.layerRowCopy}>
-                  <Text style={playerScreenStyles.layerRowTitle} numberOfLines={1}>
-                    {stem.title}
-                  </Text>
-                  <Text style={playerScreenStyles.layerRowMeta}>
-                    {stem.meta} • {stem.gainDb > 0 ? "+" : ""}
-                    {stem.gainDb} dB
-                    {stem.tonePreset === "low-cut" ? " • Low cut" : ""}
-                  </Text>
-                </View>
+              <LayerPreviewCard
+                key={stem.id}
+                title={stem.title}
+                meta={`${stem.meta} • ${stem.gainDb > 0 ? "+" : ""}${stem.gainDb} dB${
+                  stem.tonePreset === "low-cut" ? " • Low cut" : ""
+                }`}
+                durationMs={stem.durationMs}
+                waveformPeaks={stem.waveformPeaks}
+                isPlaying={activeLayerPreviewId === stem.id && !!layerPreviewStatus.playing}
+                progressRatio={getLayerProgressRatio(stem.id)}
+                onTogglePlay={() => toggleLayerPreview(stem.id, stem.audioUri)}
+                enabled={!stem.isMuted}
+                onToggleEnabled={() => onToggleStemMute(stem.id)}
+              >
                 <View style={playerScreenStyles.layerControls}>
-                  <Pressable
-                    style={playerScreenStyles.layerControlButton}
-                    onPress={() => onAdjustStemGain(stem.id, -2)}
-                  >
-                    <Text style={playerScreenStyles.layerControlButtonText}>-2 dB</Text>
-                  </Pressable>
-                  <Pressable
-                    style={playerScreenStyles.layerControlButton}
-                    onPress={() => onAdjustStemGain(stem.id, 2)}
-                  >
-                    <Text style={playerScreenStyles.layerControlButtonText}>+2 dB</Text>
-                  </Pressable>
-                  <Pressable
-                    style={[
-                      playerScreenStyles.layerControlButton,
-                      stem.tonePreset === "low-cut" ? playerScreenStyles.layerControlButtonActive : null,
-                    ]}
+                  <LayerControlButton label="-2 dB" onPress={() => onAdjustStemGain(stem.id, -2)} />
+                  <LayerControlButton label="+2 dB" onPress={() => onAdjustStemGain(stem.id, 2)} />
+                  <LayerControlButton
+                    label="Low cut"
+                    active={stem.tonePreset === "low-cut"}
                     onPress={() => onToggleStemLowCut(stem.id)}
-                  >
-                    <Text
-                      style={[
-                        playerScreenStyles.layerControlButtonText,
-                        stem.tonePreset === "low-cut" ? playerScreenStyles.layerControlButtonTextActive : null,
-                      ]}
-                    >
-                      Low cut
-                    </Text>
-                  </Pressable>
-                  <Pressable
-                    style={[
-                      playerScreenStyles.layerControlButton,
-                      stem.isMuted ? playerScreenStyles.layerControlButtonActive : null,
-                    ]}
-                    onPress={() => onToggleStemMute(stem.id)}
-                  >
-                    <Text
-                      style={[
-                        playerScreenStyles.layerControlButtonText,
-                        stem.isMuted ? playerScreenStyles.layerControlButtonTextActive : null,
-                      ]}
-                    >
-                      {stem.isMuted ? "Muted" : "Mute"}
-                    </Text>
-                  </Pressable>
+                  />
                 </View>
                 <View style={playerScreenStyles.layerControls}>
-                  <Pressable
-                    style={playerScreenStyles.layerControlButton}
-                    onPress={() => onNudgeStem(stem.id, -25)}
-                  >
-                    <Text style={playerScreenStyles.layerControlButtonText}>-25 ms</Text>
-                  </Pressable>
-                  <Pressable
-                    style={playerScreenStyles.layerControlButton}
-                    onPress={() => onNudgeStem(stem.id, 25)}
-                  >
-                    <Text style={playerScreenStyles.layerControlButtonText}>+25 ms</Text>
-                  </Pressable>
-                  <Pressable
-                    style={[
-                      playerScreenStyles.layerControlButton,
-                      playerScreenStyles.layerControlButtonDestructive,
-                    ]}
+                  <LayerControlButton
+                    label="Remove"
+                    destructive
                     onPress={() => onRemoveStem(stem.id)}
-                  >
-                    <Text
-                      style={[
-                        playerScreenStyles.layerControlButtonText,
-                        playerScreenStyles.layerControlButtonTextDestructive,
-                      ]}
-                    >
-                      Remove
-                    </Text>
-                  </Pressable>
+                  />
                 </View>
-              </View>
+              </LayerPreviewCard>
             ))}
           </View>
         </PlayerSupportPanel>

@@ -10,7 +10,12 @@ type Args = {
 };
 
 let inlinePlayerOwnerIdCounter = 1;
-let activeInlinePlayerOwnerId: number | null = null;
+let activeInlinePlayerSession:
+  | {
+      ownerId: number;
+      reset: () => Promise<void>;
+    }
+  | null = null;
 
 export function useInlinePlayer({ onBeforePlayNew }: Args = {}) {
   const [inlineTarget, setInlineTarget] = useState<InlineTarget>(null);
@@ -38,12 +43,27 @@ export function useInlinePlayer({ onBeforePlayNew }: Args = {}) {
   const inlineDuration = Math.round((status.duration ?? 0) * 1000);
   const isInlinePlaying = !!status.playing && !status.didJustFinish;
 
-  function claimInlineOwnership() {
-    activeInlinePlayerOwnerId = ownerIdRef.current;
+  function claimInlineOwnership(reset: () => Promise<void>) {
+    activeInlinePlayerSession = {
+      ownerId: ownerIdRef.current,
+      reset,
+    };
   }
 
   function isInlineOwner() {
-    return activeInlinePlayerOwnerId === ownerIdRef.current;
+    return activeInlinePlayerSession?.ownerId === ownerIdRef.current;
+  }
+
+  async function releasePreviousInlineOwner() {
+    if (!activeInlinePlayerSession || activeInlinePlayerSession.ownerId === ownerIdRef.current) {
+      return;
+    }
+
+    try {
+      await activeInlinePlayerSession.reset();
+    } catch (error) {
+      console.log("INLINE release previous owner error", error);
+    }
   }
 
   useEffect(() => {
@@ -99,7 +119,7 @@ export function useInlinePlayer({ onBeforePlayNew }: Args = {}) {
     }
   }, [inlinePlaybackSpeed, player]);
 
-  async function resetInlinePlayer() {
+  async function resetInlinePlayer(options?: { releaseOwnership?: boolean }) {
     await player.pause();
     try { player.clearLockScreenControls(); } catch {}
     scrubPausePromiseRef.current = null;
@@ -111,7 +131,9 @@ export function useInlinePlayer({ onBeforePlayNew }: Args = {}) {
         durationMs: 0,
         isPlaying: false,
       });
-      activeInlinePlayerOwnerId = null;
+      if (options?.releaseOwnership !== false) {
+        activeInlinePlayerSession = null;
+      }
     }
   }
 
@@ -138,11 +160,12 @@ export function useInlinePlayer({ onBeforePlayNew }: Args = {}) {
     }
 
     try {
-      claimInlineOwnership();
+      await releasePreviousInlineOwner();
+      claimInlineOwnership(() => resetInlinePlayer());
       requestPlayerClose();
       clearPlayerQueue();
       if (onBeforePlayNew) await onBeforePlayNew();
-      await resetInlinePlayer();
+      await resetInlinePlayer({ releaseOwnership: false });
 
       await replacePlaybackSource(player, playbackUri, true);
       setInlineTarget({ ideaId, clipId: clip.id });
@@ -202,7 +225,7 @@ export function useInlinePlayer({ onBeforePlayNew }: Args = {}) {
   useEffect(() => {
     return () => {
       if (!isInlineOwner()) return;
-      activeInlinePlayerOwnerId = null;
+      activeInlinePlayerSession = null;
       setStoreInlineTarget(null);
       setInlinePlaybackState({
         positionMs: 0,

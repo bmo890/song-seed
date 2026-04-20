@@ -30,10 +30,16 @@ type ArchiveClipManifest = {
 };
 
 type ArchiveClipOverdubManifest = {
+    root?: ArchiveClipOverdubRootManifest;
     renderedMixPath?: string;
     renderedMixDurationMs?: number;
     renderedMixWaveformPeaks?: number[];
     stems: ArchiveClipOverdubStemManifest[];
+};
+
+type ArchiveClipOverdubRootManifest = {
+    gainDb: number;
+    tonePreset: "neutral" | "low-cut" | "warm" | "bright";
 };
 
 type ArchiveClipOverdubStemManifest = {
@@ -307,6 +313,12 @@ async function materializeArchiveClipOverdub(
     }
 
     return {
+        root: overdubManifest.root
+            ? {
+                  gainDb: overdubManifest.root.gainDb,
+                  tonePreset: overdubManifest.root.tonePreset,
+              }
+            : undefined,
         stems,
         renderedMixUri,
         renderedMixDurationMs: overdubManifest.renderedMixDurationMs,

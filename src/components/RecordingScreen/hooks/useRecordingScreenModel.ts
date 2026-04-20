@@ -1,7 +1,9 @@
 import { useNavigation } from "@react-navigation/native";
-import { useAudioPlayer } from "expo-audio";
+import { useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
+import { audioDeviceManager, type AudioDevice } from "@siteed/audio-studio";
 import { Alert } from "react-native";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { getClipPlaybackDurationMs, getClipPlaybackWaveformPeaks } from "../../../clipPresentation";
 import { getLatestLyricsVersion, lyricsDocumentToText } from "../../../lyrics";
 import { useRecording } from "../../../hooks/useRecording";
 import { useMetronome } from "../../../hooks/useMetronome";
@@ -55,11 +57,13 @@ export function useRecordingScreenModel() {
     [recordingGuideMixUri]
   );
   const guideMixPlayer = useAudioPlayer(guideMixSource, { updateInterval: 250 });
+  const guideMixStatus = useAudioPlayerStatus(guideMixPlayer);
 
   const [isPrimaryDraft, setIsPrimaryDraft] = useState(false);
   const [settingsVisible, setSettingsVisible] = useState(false);
   const [recordingMetronomeEnabled, setRecordingMetronomeEnabled] = useState(false);
   const [isArmingRecording, setIsArmingRecording] = useState(false);
+  const [currentRecordingInput, setCurrentRecordingInput] = useState<AudioDevice | null>(null);
   const [lyricsExpanded, setLyricsExpanded] = useState(false);
   const [lyricsAutoscrollMode, setLyricsAutoscrollMode] = useState<"off" | "follow" | "manual">("follow");
   const [lyricsAutoscrollSpeedMultiplier, setLyricsAutoscrollSpeedMultiplier] = useState(1);
@@ -67,36 +71,45 @@ export function useRecordingScreenModel() {
   const handledSaveRequestRef = useRef<number | null>(null);
   const countInPendingRef = useRef(false);
   const initializedMetronomeRef = useRef(false);
+  const pendingOverdubSaveRef = useRef<{ ideaId: string; clipId: string; title: string } | null>(null);
+  const previousGuideDidJustFinishRef = useRef(false);
+  const autoStoppingOverdubRef = useRef(false);
   const metronome = useMetronome();
 
   const recording = useRecording(
     async (payload) => {
-      if (!recordingIdeaId || !recordingIdea) return;
-      if (recordingOverdubClip) {
-        const nextTitle = quickNameDraft.trim() || getDefaultOverdubStemTitle(recordingOverdubClip);
-        try {
-          await appActions.attachRecordedOverdubStem(recordingIdeaId, recordingOverdubClip.id, payload, nextTitle);
-        } catch (error) {
-          console.warn("Overdub mix refresh failed after recording save", error);
-          Alert.alert(
-            "Layer saved",
-            "The overdub was saved, but the combined playback could not be refreshed yet."
-          );
-        }
+      const pendingOverdubSave = pendingOverdubSaveRef.current;
+      if (pendingOverdubSave) {
+        await appActions.attachRecordedOverdubStem(
+          pendingOverdubSave.ideaId,
+          pendingOverdubSave.clipId,
+          payload,
+          pendingOverdubSave.title
+        );
         return;
       }
 
+      const state = useStore.getState();
+      const currentWorkspaceId = state.activeWorkspaceId;
+      const targetIdea =
+        recordingIdeaId && currentWorkspaceId
+          ? state.workspaces
+              .find((workspace) => workspace.id === currentWorkspaceId)
+              ?.ideas.find((idea) => idea.id === recordingIdeaId) ?? null
+          : null;
+      if (!recordingIdeaId || !targetIdea) return;
+
       const parentClip = recordingParentClipId
-        ? recordingIdea.clips.find((clip) => clip.id === recordingParentClipId) ?? null
+        ? targetIdea.clips.find((clip) => clip.id === recordingParentClipId) ?? null
         : null;
-      const title = genClipTitle(recordingIdea.title, recordingIdea.clips.length + 1);
+      const title = genClipTitle(targetIdea.title, targetIdea.clips.length + 1);
 
       const clip: ClipVersion = {
         id: `clip-${Date.now()}`,
         title,
         notes: "",
         createdAt: Date.now(),
-        isPrimary: recordingIdea.kind === "project" ? isPrimaryDraft : true,
+        isPrimary: targetIdea.kind === "project" ? isPrimaryDraft : true,
         parentClipId: recordingParentClipId ?? undefined,
         audioUri: payload.audioUri,
         durationMs: payload.durationMs,
@@ -120,6 +133,28 @@ export function useRecordingScreenModel() {
   );
 
   const recordingControlsDisabled = isArmingRecording || (recording.isRecording && !recording.isPaused);
+  const guideMixDurationMs =
+    Math.round((guideMixStatus.duration ?? 0) * 1000) ||
+    (recordingOverdubClip ? getClipPlaybackDurationMs(recordingOverdubClip) ?? 0 : 0);
+  const guideMixPositionMs = Math.round((guideMixStatus.currentTime ?? 0) * 1000);
+  const guideMixWaveformPeaks = recordingOverdubClip
+    ? getClipPlaybackWaveformPeaks(recordingOverdubClip)
+    : undefined;
+  const isBluetoothRecordingInput = useMemo(() => {
+    const device = currentRecordingInput;
+    if (!device) {
+      return false;
+    }
+
+    if (device.type === "bluetooth") {
+      return true;
+    }
+
+    const label = `${device.name} ${device.type}`.toLowerCase();
+    return /airpods|airpods pro|airpods max|bluetooth|buds|earbuds|headphones|headset/.test(label);
+  }, [currentRecordingInput]);
+
+  const recordingInputLabel = currentRecordingInput?.name?.trim() || null;
 
   const fallbackClipTitle = () => buildDefaultIdeaTitle();
 
@@ -240,6 +275,7 @@ export function useRecordingScreenModel() {
   async function requestSaveRecording() {
     if (!recordingIdea) return;
     if (isArmingRecording) return;
+    if (quickNameModalVisible) return;
     if (!recording.isRecording && !recording.isPaused) return;
     if (recording.isRecording && !recording.isPaused) {
       await recording.pauseRecording();
@@ -257,9 +293,30 @@ export function useRecordingScreenModel() {
     if (!quickNamingIdeaId) return;
     const targetIdea = recordingIdea;
     const isStandaloneClipRecording = targetIdea?.kind === "clip";
+    const overdubSaveTarget =
+      recordingIdeaId && recordingOverdubClipId
+        ? {
+            ideaId: recordingIdeaId,
+            clipId: recordingOverdubClipId,
+            title:
+              quickNameDraft.trim() ||
+              (recordingOverdubClip ? getDefaultOverdubStemTitle(recordingOverdubClip) : "Layer 1"),
+          }
+        : null;
+
+    pendingOverdubSaveRef.current = overdubSaveTarget;
 
     const saved = await recording.saveRecording();
-    if (!saved) return;
+    pendingOverdubSaveRef.current = null;
+    if (!saved) {
+      if (overdubSaveTarget) {
+        setQuickNameModalVisible(false);
+        setQuickNameDraft("");
+        setQuickNamingIdeaId(null);
+        clearRecordingContext();
+      }
+      return;
+    }
     await stopGuideMix();
     await stopRecordingMetronome();
 
@@ -340,6 +397,64 @@ export function useRecordingScreenModel() {
   }, [recordingSaveRequestToken]);
 
   useEffect(() => {
+    let cancelled = false;
+
+    async function refreshCurrentRecordingInput() {
+      try {
+        const device = await audioDeviceManager.getCurrentDevice();
+        if (!cancelled) {
+          setCurrentRecordingInput(device ?? null);
+        }
+      } catch {
+        if (!cancelled) {
+          setCurrentRecordingInput(null);
+        }
+      }
+    }
+
+    void refreshCurrentRecordingInput();
+    const removeListener = audioDeviceManager.addDeviceChangeListener(() => {
+      void refreshCurrentRecordingInput();
+    });
+
+    return () => {
+      cancelled = true;
+      removeListener();
+    };
+  }, []);
+
+  useEffect(() => {
+    const guideDidJustFinish = !!guideMixStatus.didJustFinish;
+    const didFinishNow = guideDidJustFinish && !previousGuideDidJustFinishRef.current;
+    previousGuideDidJustFinishRef.current = guideDidJustFinish;
+
+    if (!didFinishNow) {
+      return;
+    }
+    if (!recordingOverdubClip) {
+      return;
+    }
+    if (!recording.isRecording || recording.isPaused || isArmingRecording || quickNameModalVisible) {
+      return;
+    }
+    if (autoStoppingOverdubRef.current) {
+      return;
+    }
+
+    autoStoppingOverdubRef.current = true;
+    void requestSaveRecording().finally(() => {
+      autoStoppingOverdubRef.current = false;
+    });
+  }, [
+    guideMixStatus.didJustFinish,
+    isArmingRecording,
+    quickNameModalVisible,
+    recording.isPaused,
+    recording.isRecording,
+    recordingOverdubClip,
+  ]);
+
+  useEffect(() => {
     if (initializedMetronomeRef.current) {
       return;
     }
@@ -393,6 +508,7 @@ export function useRecordingScreenModel() {
       return;
     }
 
+    autoStoppingOverdubRef.current = false;
     setSettingsVisible(false);
 
     if (!recordingMetronomeEnabled || !metronome.isNativeAvailable) {
@@ -443,6 +559,7 @@ export function useRecordingScreenModel() {
   }
 
   async function handleResumeRecording() {
+    autoStoppingOverdubRef.current = false;
     await recording.resumeRecording();
     await resumeGuideMix();
     if (recordingMetronomeEnabled && metronome.isNativeAvailable) {
@@ -492,6 +609,12 @@ export function useRecordingScreenModel() {
     preferredRecordingInputId,
     recordingMetronomeEnabled,
     isArmingRecording,
+    guideMixIsPlaying: !!guideMixStatus.playing,
+    guideMixPositionMs,
+    guideMixDurationMs,
+    guideMixWaveformPeaks,
+    isBluetoothRecordingInput,
+    recordingInputLabel,
     lyricsExpanded,
     lyricsAutoscrollMode,
     lyricsAutoscrollSpeedMultiplier,

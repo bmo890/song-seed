@@ -26,6 +26,7 @@ import {
     PracticeMarker,
     Note,
     ClipOverdubState,
+    ClipOverdubRootSettings,
     ClipOverdubStem,
 } from "../types";
 import { genClipTitle } from "../utils";
@@ -123,6 +124,11 @@ export type DataSlice = {
     removeClipPracticeMarker: (ideaId: string, clipId: string, markerId: string) => void;
     setClipPracticeMarkers: (ideaId: string, clipId: string, markers: PracticeMarker[]) => void;
     addClipOverdubStem: (ideaId: string, clipId: string, stem: ClipOverdubStem) => void;
+    updateClipOverdubRoot: (
+        ideaId: string,
+        clipId: string,
+        updates: Partial<ClipOverdubRootSettings>
+    ) => void;
     updateClipOverdubStem: (
         ideaId: string,
         clipId: string,
@@ -181,6 +187,21 @@ const DEFAULT_COLLECTION_TITLE = "Inbox";
 
 function buildCollectionId(prefix = "col") {
     return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+}
+
+function normalizeClipOverdubRootSettings(root?: ClipOverdubRootSettings | null): ClipOverdubRootSettings {
+    const tonePreset =
+        root?.tonePreset === "low-cut" ||
+        root?.tonePreset === "warm" ||
+        root?.tonePreset === "bright" ||
+        root?.tonePreset === "neutral"
+            ? root.tonePreset
+            : "neutral";
+
+    return {
+        gainDb: Number.isFinite(root?.gainDb) ? Number(root?.gainDb) : 0,
+        tonePreset,
+    };
 }
 
 function buildActivityEventId() {
@@ -447,6 +468,7 @@ function cleanupClipOverdubState(overdub?: ClipOverdubState | null): ClipOverdub
         return undefined;
     }
 
+    const root = normalizeClipOverdubRootSettings(overdub.root);
     const stems = Array.isArray(overdub.stems)
         ? overdub.stems
               .map((stem, index) => normalizeClipOverdubStem(stem, index))
@@ -465,12 +487,26 @@ function cleanupClipOverdubState(overdub?: ClipOverdubState | null): ClipOverdub
     }
 
     return {
+        root,
         stems,
         renderedMixUri,
         renderedMixDurationMs,
         renderedMixWaveformPeaks,
         lastRenderedAt,
     };
+}
+
+function mergeClipOverdubState(
+    clip: ClipVersion,
+    updates: Partial<ClipOverdubState> & { stems?: ClipOverdubStem[]; root?: ClipOverdubRootSettings }
+): ClipOverdubState | undefined {
+    const current = clip.overdub ?? { stems: [] };
+    return cleanupClipOverdubState({
+        ...current,
+        ...updates,
+        root: updates.root ?? current.root,
+        stems: updates.stems ?? current.stems,
+    });
 }
 
 function normalizeClip(clip: ClipVersion): ClipVersion {
@@ -1327,9 +1363,34 @@ export const createDataSlice: StateCreator<
                                   ? clip
                                   : {
                                         ...clip,
-                                        overdub: cleanupClipOverdubState({
-                                            ...clip.overdub,
+                                        overdub: mergeClipOverdubState(clip, {
                                             stems: [...(clip.overdub?.stems ?? []), stem],
+                                        }),
+                                    }
+                          ),
+                      }
+            )
+        );
+    },
+
+    updateClipOverdubRoot: (ideaId, clipId, updates) => {
+        get().updateIdeas((ideas) =>
+            ideas.map((idea) =>
+                idea.id !== ideaId
+                    ? idea
+                    : {
+                          ...idea,
+                          clips: idea.clips.map((clip) =>
+                              clip.id !== clipId
+                                  ? clip
+                                  : {
+                                        ...clip,
+                                        overdub: mergeClipOverdubState(clip, {
+                                            root: {
+                                                gainDb: clip.overdub?.root?.gainDb ?? 0,
+                                                tonePreset: clip.overdub?.root?.tonePreset ?? "neutral",
+                                                ...updates,
+                                            },
                                         }),
                                     }
                           ),
@@ -1350,8 +1411,7 @@ export const createDataSlice: StateCreator<
                                   ? clip
                                   : {
                                         ...clip,
-                                        overdub: cleanupClipOverdubState({
-                                            ...clip.overdub,
+                                        overdub: mergeClipOverdubState(clip, {
                                             stems: (clip.overdub?.stems ?? []).map((stem) =>
                                                 stem.id === stemId ? { ...stem, ...updates } : stem
                                             ),
@@ -1375,8 +1435,7 @@ export const createDataSlice: StateCreator<
                                   ? clip
                                   : {
                                         ...clip,
-                                        overdub: cleanupClipOverdubState({
-                                            ...clip.overdub,
+                                        overdub: mergeClipOverdubState(clip, {
                                             stems: (clip.overdub?.stems ?? []).filter((stem) => stem.id !== stemId),
                                         }),
                                     }
@@ -1398,9 +1457,7 @@ export const createDataSlice: StateCreator<
                                   ? clip
                                   : {
                                         ...clip,
-                                        overdub: cleanupClipOverdubState({
-                                            ...clip.overdub,
-                                            stems: clip.overdub?.stems ?? [],
+                                        overdub: mergeClipOverdubState(clip, {
                                             renderedMixUri: mix.renderedMixUri,
                                             renderedMixDurationMs: mix.renderedMixDurationMs,
                                             renderedMixWaveformPeaks: mix.renderedMixWaveformPeaks,
@@ -1425,9 +1482,7 @@ export const createDataSlice: StateCreator<
                                   ? clip
                                   : {
                                         ...clip,
-                                        overdub: cleanupClipOverdubState({
-                                            ...clip.overdub,
-                                            stems: clip.overdub?.stems ?? [],
+                                        overdub: mergeClipOverdubState(clip, {
                                             renderedMixUri: undefined,
                                             renderedMixDurationMs: undefined,
                                             renderedMixWaveformPeaks: undefined,

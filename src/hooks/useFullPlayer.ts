@@ -53,6 +53,7 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
   const lockScreenMetadataRef = useRef<LockScreenMetadata | undefined>(undefined);
   const isLockScreenActiveRef = useRef(false);
   const appStateRef = useRef(AppState.currentState);
+  const currentSourceUriRef = useRef<string | null>(null);
 
   useEffect(() => {
     statusRef.current = status;
@@ -189,6 +190,7 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
     });
     setPlayerTarget(null);
     setWaveformPeaks([]);
+    currentSourceUriRef.current = null;
   }, [clearLockScreenControls, isOperationActive, player, setPlayerPlaybackState]);
 
   const openPlayer = useCallback(async (
@@ -211,6 +213,7 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
 
       await replacePlaybackSource(player, playbackUri, autoPlay);
       if (!isOperationActive(operationId)) return;
+      currentSourceUriRef.current = playbackUri;
       // Publish the active target only after the source has loaded. That keeps the UI and
       // persisted player state from pointing at a clip that never actually became playable.
       setPlayerTarget({ ideaId, clipId: clip.id });
@@ -232,9 +235,64 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
       useStore.getState().clearPlayerQueue();
       setPlayerTarget(null);
       setWaveformPeaks([]);
+      currentSourceUriRef.current = null;
       console.log("FULL open error", err);
     }
   }, [isOperationActive, onBeforePlayNew, player, setPlayerPlaybackState]);
+
+  const syncPlayerSource = useCallback(async (
+    ideaId: string,
+    clip: ClipVersion,
+    metadata?: LockScreenMetadata,
+    resumeAtMs = 0,
+    shouldPlay = false
+  ) => {
+    const playbackUri = getClipPlaybackUri(clip);
+    if (!playbackUri) return;
+    if (currentSourceUriRef.current === playbackUri) return;
+
+    const operationId = ++operationIdRef.current;
+    lockScreenMetadataRef.current = metadata;
+
+    try {
+      await player.pause();
+      if (!isOperationActive(operationId)) return;
+
+      await replacePlaybackSource(player, playbackUri, false);
+      if (!isOperationActive(operationId)) return;
+
+      const safeResumeAtMs = Math.max(0, Math.min(resumeAtMs, getClipPlaybackDurationMs(clip) ?? resumeAtMs));
+      await player.seekTo(safeResumeAtMs / 1000);
+      if (!isOperationActive(operationId)) return;
+
+      if (shouldPlay) {
+        await activateAndPlay(
+          player,
+          {
+            duration: (getClipPlaybackDurationMs(clip) ?? 0) / 1000,
+            currentTime: safeResumeAtMs / 1000,
+          },
+          getClipPlaybackDurationMs(clip) ?? 0,
+          safeResumeAtMs
+        );
+        if (!isOperationActive(operationId)) return;
+      }
+
+      currentSourceUriRef.current = playbackUri;
+      setPlayerTarget({ ideaId, clipId: clip.id });
+      const playbackWaveformPeaks = getClipPlaybackWaveformPeaks(clip);
+      setWaveformPeaks(
+        playbackWaveformPeaks?.length
+          ? playbackWaveformPeaks
+          : buildStaticWaveform(
+              `${clip.id}-${getClipPlaybackDurationMs(clip) ?? 0}`,
+              MANAGED_WAVEFORM_PEAK_COUNT
+            )
+      );
+    } catch (err) {
+      console.log("FULL sync source error", err);
+    }
+  }, [isOperationActive, player]);
 
   const updateLockScreenMetadata = useCallback((metadata?: LockScreenMetadata) => {
     lockScreenMetadataRef.current = metadata;
@@ -318,6 +376,8 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
     finishedPlaybackToken,
     finishedPlaybackClipId,
     waveformPeaks,
+    currentPlaybackSourceUri: currentSourceUriRef.current,
+    syncPlayerSource,
     openPlayer,
     closePlayer,
     togglePlayer,

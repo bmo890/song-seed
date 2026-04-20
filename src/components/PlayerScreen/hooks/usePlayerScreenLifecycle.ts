@@ -12,8 +12,11 @@ type UsePlayerScreenLifecycleArgs = {
   isFocused: boolean;
   playerIdea: { id: string; title: string } | null;
   playerClip: ClipVersion | null;
+  playbackAudioUri: string | null;
+  currentPlaybackSourceUri: string | null;
   activeWorkspaceId: string | null;
   activePlayerTargetClipId?: string | null;
+  playerPosition: number;
   playerDuration: number;
   displayDuration: number;
   isPlayerPlaying: boolean;
@@ -27,6 +30,13 @@ type UsePlayerScreenLifecycleArgs = {
   suppressAutoplayOnOpen?: boolean;
   speedPanelVisible: boolean;
   openPlayer: (ideaId: string, clip: any, metadata?: { title?: string; albumTitle?: string }, autoplay?: boolean) => Promise<void>;
+  syncPlayerSource: (
+    ideaId: string,
+    clip: any,
+    metadata?: { title?: string; albumTitle?: string },
+    resumeAtMs?: number,
+    shouldPlay?: boolean
+  ) => Promise<void>;
   closePlayer: () => Promise<void>;
   pausePlayer: () => Promise<void>;
   updateLockScreenMetadata: (metadata: { title?: string; albumTitle?: string }) => void;
@@ -44,8 +54,11 @@ export function usePlayerScreenLifecycle({
   isFocused,
   playerIdea,
   playerClip,
+  playbackAudioUri,
+  currentPlaybackSourceUri,
   activeWorkspaceId,
   activePlayerTargetClipId,
+  playerPosition,
   playerDuration,
   displayDuration,
   isPlayerPlaying,
@@ -59,6 +72,7 @@ export function usePlayerScreenLifecycle({
   suppressAutoplayOnOpen = false,
   speedPanelVisible,
   openPlayer,
+  syncPlayerSource,
   closePlayer,
   pausePlayer,
   updateLockScreenMetadata,
@@ -77,8 +91,15 @@ export function usePlayerScreenLifecycle({
   useEffect(() => {
     if (!isFocused) return;
     if (!playerIdea || !playerClip) return;
-    if (activePlayerTargetClipId === playerClip.id) return;
     if (!getClipPlaybackUri(playerClip)) return;
+
+    const isSameTarget = activePlayerTargetClipId === playerClip.id;
+    if (isSameTarget && currentPlaybackSourceUri) {
+      return;
+    }
+    if (isSameTarget && !currentPlaybackSourceUri && playbackAudioUri == null) {
+      return;
+    }
 
     const shouldAutoplay = useStore.getState().playerShouldAutoplay;
     if (shouldAutoplay) {
@@ -94,7 +115,45 @@ export function usePlayerScreenLifecycle({
       },
       shouldAutoplay && !suppressAutoplayOnOpen
     );
-  }, [activePlayerTargetClipId, isFocused, openPlayer, playerClip, playerIdea, suppressAutoplayOnOpen]);
+  }, [
+    activePlayerTargetClipId,
+    currentPlaybackSourceUri,
+    isFocused,
+    openPlayer,
+    playbackAudioUri,
+    playerClip,
+    playerIdea,
+    suppressAutoplayOnOpen,
+  ]);
+
+  useEffect(() => {
+    if (!isFocused) return;
+    if (!playerIdea || !playerClip || !playbackAudioUri) return;
+    if (activePlayerTargetClipId !== playerClip.id) return;
+    if (!currentPlaybackSourceUri) return;
+    if (currentPlaybackSourceUri === playbackAudioUri) return;
+
+    void syncPlayerSource(
+      playerIdea.id,
+      playerClip,
+      {
+        title: playerClip.title,
+        albumTitle: playerIdea.title,
+      },
+      playerPosition,
+      isPlayerPlaying
+    );
+  }, [
+    activePlayerTargetClipId,
+    isFocused,
+    isPlayerPlaying,
+    currentPlaybackSourceUri,
+    playbackAudioUri,
+    playerClip,
+    playerIdea,
+    playerPosition,
+    syncPlayerSource,
+  ]);
 
   useEffect(() => {
     if (!playerIdea || !playerClip) return;
@@ -294,6 +353,11 @@ export function usePlayerScreenLifecycle({
                 }
                 try {
                   await appActions.saveCombinedClipAsNewClip(playerIdea.id, playerClip.id);
+                  if (navigation.canGoBack()) {
+                    navigation.goBack();
+                    return;
+                  }
+                  Alert.alert("Combined clip saved", "The flattened mix was added as a new clip.");
                 } catch (error) {
                   const message =
                     error instanceof Error ? error.message : "Could not save a combined clip.";
