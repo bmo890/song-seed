@@ -40,6 +40,7 @@ import { NotepadScreen } from "./src/components/NotepadScreen";
 import { MetronomeScreen } from "./src/components/MetronomeScreen";
 import { ShareImportScreen } from "./src/components/ShareImportScreen";
 import { SearchScreen } from "./src/components/SearchScreen";
+import { BluetoothCalibrationScreen } from "./src/components/BluetoothCalibrationScreen";
 import { getCollectionAncestors, getCollectionById } from "./src/utils";
 import {
   getRecentCollectionsForWorkspace,
@@ -83,6 +84,7 @@ export type RootStackParamList = {
   IdeaDetail: { ideaId?: string; startInEdit?: boolean } | undefined;
   Activity: { workspaceId?: string; collectionId?: string } | undefined;
   Recording: undefined;
+  BluetoothCalibration: undefined;
   Player: undefined;
   ShareImport: undefined;
   Editor: { ideaId: string; clipId: string; audioUri?: string; durationMs?: number };
@@ -116,6 +118,7 @@ const ROOT_STACK_ROUTE_NAMES: Array<keyof RootStackParamList> = [
   "Activity",
   "IdeaDetail",
   "Recording",
+  "BluetoothCalibration",
   "Player",
   "ShareImport",
   "Editor",
@@ -224,6 +227,7 @@ function isValidRestorableRootRoute(route: any) {
     case "Activity":
     case "Recording":
     case "Player":
+    case "BluetoothCalibration":
       return true;
     case "IdeaDetail":
       return typeof route.params?.ideaId === "string" && route.params.ideaId.length > 0;
@@ -831,6 +835,7 @@ function AppContent() {
           <Stack.Screen name="Activity" component={ActivityScreen} />
           <Stack.Screen name="IdeaDetail" component={IdeaDetailScreen} />
           <Stack.Screen name="Recording" component={RecordingScreen} />
+          <Stack.Screen name="BluetoothCalibration" component={BluetoothCalibrationScreen} />
           <Stack.Screen name="Player" component={PlayerScreen} />
           <Stack.Screen name="ShareImport">
             {() => <ShareImportScreen fallbackCollectionId={lastCollectionContextId} />}

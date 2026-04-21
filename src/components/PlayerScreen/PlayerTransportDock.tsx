@@ -4,6 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 
 type Props = {
   isPlaying: boolean;
+  playDisabled?: boolean;
   canGoPrevious: boolean;
   canGoNext: boolean;
   onPrevious: () => void;
@@ -20,6 +21,7 @@ type Props = {
 
 function PlayerTransportDockInner({
   isPlaying,
+  playDisabled = false,
   canGoPrevious,
   canGoNext,
   onPrevious,
@@ -64,8 +66,16 @@ function PlayerTransportDockInner({
           <Ionicons name="play-skip-back" size={22} color={canGoPrevious ? "#111827" : "#b6bcc7"} />
         </Pressable>
 
-        <Pressable style={({ pressed }) => [styles.playButton, pressed ? styles.playPressed : null]} onPress={onTogglePlay}>
-          <Ionicons name={isPlaying ? "pause" : "play"} size={24} color="#111827" />
+        <Pressable
+          style={({ pressed }) => [
+            styles.playButton,
+            playDisabled ? styles.playButtonDisabled : null,
+            pressed && !playDisabled ? styles.playPressed : null,
+          ]}
+          onPress={onTogglePlay}
+          disabled={playDisabled}
+        >
+          <Ionicons name={isPlaying ? "pause" : "play"} size={24} color={playDisabled ? "#8c837e" : "#111827"} />
         </Pressable>
 
         <Pressable
@@ -143,6 +153,10 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 3 },
     elevation: 2,
+  },
+  playButtonDisabled: {
+    borderColor: "#b8a69f",
+    backgroundColor: "#f3f1ee",
   },
   leadingSlot: {
     width: 56,

@@ -1,4 +1,5 @@
 import ExpoModulesCore
+import AVFoundation
 
 public class SongseedMetronomeModule: Module {
   private lazy var engine = SongseedMetronomeEngine(
@@ -31,6 +32,47 @@ public class SongseedMetronomeModule: Module {
 
     AsyncFunction("getState") { () -> [String: Any] in
       return self.engine.getState()
+    }
+
+    AsyncFunction("getCurrentAudioOutputRoute") { () -> [String: String]? in
+      let session = AVAudioSession.sharedInstance()
+      guard let output = session.currentRoute.outputs.first else {
+        return nil
+      }
+
+      let type: String
+      switch output.portType {
+      case .bluetoothHFP, .bluetoothA2DP, .bluetoothLE:
+        type = "bluetooth"
+      case .headphones:
+        type = "wired_headphones"
+      case .headsetMic:
+        type = "wired_headset"
+      case .builtInSpeaker:
+        type = "speaker"
+      default:
+        type = "unknown"
+      }
+
+      let name = output.portName.isEmpty ? {
+        switch type {
+        case "bluetooth":
+          return "Bluetooth audio"
+        case "wired_headphones":
+          return "Wired headphones"
+        case "wired_headset":
+          return "Wired headset"
+        case "speaker":
+          return "Built-in speaker"
+        default:
+          return "Audio output"
+        }
+      }() : output.portName
+
+      return [
+        "name": name,
+        "type": type,
+      ]
     }
 
     AsyncFunction("start") { () -> [String: Any] in

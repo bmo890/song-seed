@@ -5,7 +5,7 @@ import { createAudioPlayer } from "expo-audio";
 import { Platform, Share } from "react-native";
 import { extractPreview } from "@siteed/audio-studio";
 import { buildDefaultIdeaTitle, buildStaticWaveform, metersToWaveformPeaks } from "../utils";
-import { SONG_SEED_AUDIO_DIR, SONG_SEED_SHARE_DIR } from "./storagePaths";
+import { SONG_SEED_AUDIO_DIR, SONG_SEED_PREVIEW_AUDIO_DIR, SONG_SEED_SHARE_DIR } from "./storagePaths";
 import { cleanupShareTempFile } from "./managedMedia";
 
 export const MAX_DETAILED_AUDIO_ANALYSIS_DURATION_MS = 30 * 60 * 1000;
@@ -597,6 +597,17 @@ async function ensureAudioDirectory() {
     const info = await FileSystem.getInfoAsync(SONG_SEED_AUDIO_DIR);
     if (!info.exists) {
         await FileSystem.makeDirectoryAsync(SONG_SEED_AUDIO_DIR, { intermediates: true });
+    }
+}
+
+export async function ensurePreviewAudioDirectory() {
+    if (!FileSystem.documentDirectory) {
+        throw new Error("Document directory unavailable.");
+    }
+
+    const info = await FileSystem.getInfoAsync(SONG_SEED_PREVIEW_AUDIO_DIR);
+    if (!info.exists) {
+        await FileSystem.makeDirectoryAsync(SONG_SEED_PREVIEW_AUDIO_DIR, { intermediates: true });
     }
 }
 

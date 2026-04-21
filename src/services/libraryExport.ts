@@ -2,7 +2,14 @@ import * as FileSystem from "expo-file-system/legacy";
 import { getLatestLyricsText } from "../lyrics";
 import { getClipPlaybackUri } from "../clipPresentation";
 import { deriveNotePreviewTitle } from "../notepad";
-import type { ClipVersion, Collection, Note, SongIdea, Workspace } from "../types";
+import type {
+    BluetoothMonitoringCalibration,
+    ClipVersion,
+    Collection,
+    Note,
+    SongIdea,
+    Workspace,
+} from "../types";
 import { getCollectionScopeIds } from "../utils";
 import {
     buildTimestampSlug,
@@ -34,6 +41,7 @@ export type SongSeedArchiveOptions = {
 export type SongSeedArchiveLibraryPreferences = {
     primaryWorkspaceId: string | null;
     primaryCollectionIdByWorkspace: Record<string, string>;
+    bluetoothMonitoringCalibrations?: BluetoothMonitoringCalibration[];
 };
 
 export type StandardZipOptions = {
@@ -721,6 +729,7 @@ function buildExportedLibraryPreferences(
         return {
             primaryWorkspaceId: null,
             primaryCollectionIdByWorkspace: {},
+            bluetoothMonitoringCalibrations: [],
         };
     }
 
@@ -742,6 +751,7 @@ function buildExportedLibraryPreferences(
                 ? libraryPreferences.primaryWorkspaceId
                 : null,
         primaryCollectionIdByWorkspace,
+        bluetoothMonitoringCalibrations: libraryPreferences.bluetoothMonitoringCalibrations ?? [],
     };
 }
 

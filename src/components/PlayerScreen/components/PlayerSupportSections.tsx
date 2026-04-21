@@ -8,6 +8,7 @@ import { PlayerSupportPanel } from "../PlayerSupportPanel";
 import { WaveformMiniPreview } from "../../common/WaveformMiniPreview";
 import { formatDate, fmtDuration } from "../../../utils";
 import { activateAndPlay, replacePlaybackSource } from "../../../services/transportPlayback";
+import { OVERDUB_GAIN_STEP_DB } from "../../../overdub";
 import { playerScreenStyles } from "../styles";
 
 type QueueEntry = {
@@ -51,6 +52,7 @@ type PlayerSupportSectionsProps = {
   hasClipOverdubs: boolean;
   clipOverdubStemCount: number;
   clipPlaybackUsesRenderedMix: boolean;
+  isOverdubPreviewRendering: boolean;
   isMainPlaybackPlaying: boolean;
   overdubRootSettings: { gainDb: number; tonePreset: string } | null;
   overdubStemEntries: OverdubStemEntry[];
@@ -75,7 +77,7 @@ type PlayerSupportSectionsProps = {
   onSelectQueueEntry: (index: number) => void;
 };
 
-function LayerPreviewCard({
+const LayerPreviewCard = React.memo(function LayerPreviewCard({
   title,
   meta,
   durationMs,
@@ -134,9 +136,9 @@ function LayerPreviewCard({
       {children ? <View style={playerScreenStyles.layerCardControls}>{children}</View> : null}
     </View>
   );
-}
+});
 
-function LayerControlButton({
+const LayerControlButton = React.memo(function LayerControlButton({
   label,
   onPress,
   active = false,
@@ -172,7 +174,7 @@ function LayerControlButton({
       </Text>
     </Pressable>
   );
-}
+});
 
 export function PlayerSupportSections({
   hasProjectLyrics,
@@ -183,6 +185,7 @@ export function PlayerSupportSections({
   hasClipOverdubs,
   clipOverdubStemCount,
   clipPlaybackUsesRenderedMix,
+  isOverdubPreviewRendering,
   isMainPlaybackPlaying,
   overdubRootSettings,
   overdubStemEntries,
@@ -308,8 +311,10 @@ export function PlayerSupportSections({
           title="Layers"
           meta={`${clipOverdubStemCount} ${clipOverdubStemCount === 1 ? "overdub" : "overdubs"}`}
           summary={
-            clipPlaybackUsesRenderedMix
-              ? "Main playback uses the combined clip mix. Each layer below can also be auditioned on its own."
+            isOverdubPreviewRendering
+              ? "Updating the combined preview mix. Main playback and scrubbing stay locked until the latest layer changes settle."
+              : clipPlaybackUsesRenderedMix
+              ? "Main playback uses the current combined preview mix. Solo layer audition plays the raw take; gain and low cut are heard in the main mix."
               : "This take has overdubs attached, but the combined mix has not been refreshed yet."
           }
         >
@@ -333,8 +338,14 @@ export function PlayerSupportSections({
                 </Text>
               </View>
               <View style={playerScreenStyles.layerControls}>
-                <LayerControlButton label="-2 dB" onPress={() => onAdjustRootGain(-2)} />
-                <LayerControlButton label="+2 dB" onPress={() => onAdjustRootGain(2)} />
+                <LayerControlButton
+                  label={`-${OVERDUB_GAIN_STEP_DB} dB`}
+                  onPress={() => onAdjustRootGain(-OVERDUB_GAIN_STEP_DB)}
+                />
+                <LayerControlButton
+                  label={`+${OVERDUB_GAIN_STEP_DB} dB`}
+                  onPress={() => onAdjustRootGain(OVERDUB_GAIN_STEP_DB)}
+                />
                 <LayerControlButton
                   label="Low cut"
                   active={overdubRootSettings.tonePreset === "low-cut"}
@@ -361,8 +372,14 @@ export function PlayerSupportSections({
                 onToggleEnabled={() => onToggleStemMute(stem.id)}
               >
                 <View style={playerScreenStyles.layerControls}>
-                  <LayerControlButton label="-2 dB" onPress={() => onAdjustStemGain(stem.id, -2)} />
-                  <LayerControlButton label="+2 dB" onPress={() => onAdjustStemGain(stem.id, 2)} />
+                  <LayerControlButton
+                    label={`-${OVERDUB_GAIN_STEP_DB} dB`}
+                    onPress={() => onAdjustStemGain(stem.id, -OVERDUB_GAIN_STEP_DB)}
+                  />
+                  <LayerControlButton
+                    label={`+${OVERDUB_GAIN_STEP_DB} dB`}
+                    onPress={() => onAdjustStemGain(stem.id, OVERDUB_GAIN_STEP_DB)}
+                  />
                   <LayerControlButton
                     label="Low cut"
                     active={stem.tonePreset === "low-cut"}

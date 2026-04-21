@@ -70,10 +70,17 @@ function createWavHeader(dataSize: number) {
   return header;
 }
 
-function buildClickLoopBytes(bpm: number) {
+type ClickLoopOptions = {
+  beatCount?: number;
+  accentDownbeat?: boolean;
+};
+
+function buildClickLoopBytes(bpm: number, options: ClickLoopOptions = {}) {
+  const beatCount = Math.max(1, options.beatCount ?? METRONOME_LOOP_BEAT_COUNT);
+  const accentDownbeat = options.accentDownbeat ?? true;
   const beatIntervalMs = getMetronomeBeatIntervalMs(bpm);
   const beatFrames = Math.max(1, Math.round((SAMPLE_RATE * beatIntervalMs) / 1000));
-  const totalFrames = beatFrames * METRONOME_LOOP_BEAT_COUNT;
+  const totalFrames = beatFrames * beatCount;
   const totalSamples = totalFrames * CHANNEL_COUNT;
   const pcm = new Float32Array(totalSamples);
   const clickFrameCount = Math.min(
@@ -82,9 +89,9 @@ function buildClickLoopBytes(bpm: number) {
   );
   const attackFrameCount = Math.max(1, Math.round((SAMPLE_RATE * ATTACK_MS) / 1000));
 
-  for (let beatIndex = 0; beatIndex < METRONOME_LOOP_BEAT_COUNT; beatIndex += 1) {
+  for (let beatIndex = 0; beatIndex < beatCount; beatIndex += 1) {
     const startFrame = beatIndex * beatFrames;
-    const isDownbeat = beatIndex === 0;
+    const isDownbeat = accentDownbeat && beatIndex === 0;
     const baseFrequency = isDownbeat ? 1960 : 1560;
     const overtoneFrequency = isDownbeat ? 2940 : 2350;
     const amplitude = isDownbeat ? 0.62 : 0.42;
@@ -158,5 +165,35 @@ export async function ensureMetronomeLoopFile(bpm: number) {
     beatIntervalMs,
     durationMs,
     beatsPerLoop: METRONOME_LOOP_BEAT_COUNT,
+  };
+}
+
+export async function ensureCalibrationClickTrackFile(bpm: number, beatCount: number) {
+  const normalizedBpm = clampMetronomeBpm(bpm);
+  const normalizedBeatCount = Math.max(1, Math.round(beatCount));
+  const beatIntervalMs = getMetronomeBeatIntervalMs(normalizedBpm);
+  const durationMs = beatIntervalMs * normalizedBeatCount;
+  const filename = `calibration-${normalizedBpm}-${normalizedBeatCount}.wav`;
+
+  await ensureMetronomeDirectory();
+
+  const uri = `${METRONOME_DIR}/${filename}`;
+  const info = await FileSystem.getInfoAsync(uri);
+  if (!info.exists) {
+    const wavBytes = buildClickLoopBytes(normalizedBpm, {
+      beatCount: normalizedBeatCount,
+      accentDownbeat: false,
+    });
+    await FileSystem.writeAsStringAsync(uri, bytesToBase64(wavBytes), {
+      encoding: FileSystem.EncodingType.Base64,
+    });
+  }
+
+  return {
+    uri,
+    bpm: normalizedBpm,
+    beatIntervalMs,
+    durationMs,
+    beatsPerLoop: normalizedBeatCount,
   };
 }

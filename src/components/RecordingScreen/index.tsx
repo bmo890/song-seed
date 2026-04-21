@@ -34,7 +34,10 @@ export function RecordingScreen() {
           guideMixDurationMs={screen.guideMixDurationMs}
           guideMixWaveformPeaks={screen.guideMixWaveformPeaks}
           isBluetoothRecordingInput={screen.isBluetoothRecordingInput}
+          isBluetoothMonitoringOutput={screen.isBluetoothMonitoringOutput}
           recordingInputLabel={screen.recordingInputLabel}
+          monitoringOutputLabel={screen.monitoringOutputLabel}
+          activeBluetoothCalibrationMs={screen.activeBluetoothCalibrationMs}
           hasProjectLyrics={screen.hasProjectLyrics}
           latestLyricsText={screen.latestLyricsText}
           latestLyricsUpdatedAt={screen.latestLyricsVersion?.updatedAt ?? null}
@@ -56,6 +59,7 @@ export function RecordingScreen() {
           }
           onLyricsAutoscrollInterrupted={() => screen.setLyricsAutoscrollMode("manual")}
           onSelectLyricsAutoscrollSpeedMultiplier={screen.setLyricsAutoscrollSpeedMultiplier}
+          onOpenBluetoothCalibration={() => navigation.navigate("BluetoothCalibration" as never)}
         />
 
         <RecordingBottomDock
@@ -81,6 +85,7 @@ export function RecordingScreen() {
             isRecording: screen.recording.isRecording,
             isPaused: screen.recording.isPaused,
             isArming: screen.isArmingRecording,
+            isReviewLocked: screen.overdubReviewLocked,
             onOpenInput: () => screen.setSettingsVisible(true),
             onPause: screen.handlePauseRecording,
             onResume: screen.handleResumeRecording,
@@ -97,10 +102,17 @@ export function RecordingScreen() {
         onChangeDraft={screen.setQuickNameDraft}
         isPrimary={screen.isPrimaryDraft}
         onChangeIsPrimary={screen.recordingIdea?.kind === "project" ? screen.setIsPrimaryDraft : undefined}
-        onCancel={() => screen.setQuickNameModalVisible(false)}
+        onCancel={screen.handleQuickNameCancel}
         onSave={async () => {
-          await screen.saveQuickClipName();
-          navigation.goBack();
+          const saved = await screen.saveQuickClipName();
+          if (!saved) {
+            return;
+          }
+          if (navigation.canGoBack()) {
+            navigation.goBack();
+            return;
+          }
+          navigation.navigate("Home" as never);
         }}
       />
 

@@ -28,6 +28,7 @@ export function useLibraryExportFlow() {
   const notes = useStore((state) => state.notes);
   const primaryWorkspaceId = useStore((state) => state.primaryWorkspaceId);
   const primaryCollectionIdByWorkspace = useStore((state) => state.primaryCollectionIdByWorkspace);
+  const bluetoothMonitoringCalibrations = useStore((state) => state.bluetoothMonitoringCalibrations);
   const [format, setFormat] = useState<LibraryExportFormat | null>(null);
   const [selectedWorkspaceIds, setSelectedWorkspaceIds] = useState<string[]>([]);
   const [selectedCollectionIds, setSelectedCollectionIds] = useState<string[]>([]);
@@ -146,6 +147,7 @@ export function useLibraryExportFlow() {
                     typeof collectionId === "string" ? [[workspaceId, collectionId] as const] : []
                   )
                 ),
+                bluetoothMonitoringCalibrations,
               },
             })
           : await exportLibrary({

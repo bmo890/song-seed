@@ -333,7 +333,7 @@ export function usePlayerScreenLifecycle({
             await pausePlayer();
           }
           try {
-            appActions.startClipOverdubRecording(playerIdea.id, playerClip.id);
+            await appActions.startClipOverdubRecording(playerIdea.id, playerClip.id);
             navigation.navigate("Recording" as never);
           } catch (error) {
             const message =

@@ -101,6 +101,38 @@ export const playerScreenStyles = StyleSheet.create({
     gap: 6,
     marginHorizontal: -14,
   },
+  waveformShell: {
+    position: "relative",
+  },
+  mixUpdatingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(251,249,245,0.78)",
+  },
+  mixUpdatingBadge: {
+    maxWidth: 280,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 6,
+    backgroundColor: "#fffdf9",
+    alignItems: "center",
+    gap: 4,
+  },
+  mixUpdatingLabel: {
+    fontSize: 12,
+    lineHeight: 16,
+    color: "#824f3f",
+    fontWeight: "700",
+    textTransform: "uppercase",
+    letterSpacing: 0.45,
+  },
+  mixUpdatingMeta: {
+    fontSize: 12,
+    lineHeight: 16,
+    color: "#6a5751",
+    textAlign: "center",
+  },
   supportStack: {
     gap: 8,
     flexShrink: 1,

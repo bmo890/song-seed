@@ -1,6 +1,7 @@
 import * as FileSystem from "expo-file-system/legacy";
 import type { ClipVersion, SongIdea, Workspace } from "../types";
 import {
+    isManagedPreviewAudioUri,
     SONG_SEED_SHARE_DIR,
     isManagedAudioUri,
     isSongSeedManagedUri,
@@ -10,17 +11,17 @@ export const SHARE_TEMP_FILE_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 export const MAX_IN_MEMORY_ARCHIVE_BYTES = 150 * 1024 * 1024;
 
 function collectManagedClipUris(clip: ClipVersion, target: Set<string>) {
-    if (clip.audioUri && isManagedAudioUri(clip.audioUri)) {
+    if (clip.audioUri && isSongSeedManagedUri(clip.audioUri)) {
         target.add(clip.audioUri);
     }
-    if (clip.sourceAudioUri && isManagedAudioUri(clip.sourceAudioUri)) {
+    if (clip.sourceAudioUri && isSongSeedManagedUri(clip.sourceAudioUri)) {
         target.add(clip.sourceAudioUri);
     }
-    if (clip.overdub?.renderedMixUri && isManagedAudioUri(clip.overdub.renderedMixUri)) {
+    if (clip.overdub?.renderedMixUri && isSongSeedManagedUri(clip.overdub.renderedMixUri)) {
         target.add(clip.overdub.renderedMixUri);
     }
     for (const stem of clip.overdub?.stems ?? []) {
-        if (stem.audioUri && isManagedAudioUri(stem.audioUri)) {
+        if (stem.audioUri && isSongSeedManagedUri(stem.audioUri)) {
             target.add(stem.audioUri);
         }
     }
@@ -54,7 +55,7 @@ export function filterUnreferencedManagedAudioUris(
 ) {
     const nextReferencedUris = collectManagedAudioUrisFromWorkspaces(nextWorkspaces);
     return Array.from(new Set(candidateUris)).filter(
-        (uri) => isManagedAudioUri(uri) && !nextReferencedUris.has(uri)
+        (uri) => (isManagedAudioUri(uri) || isManagedPreviewAudioUri(uri)) && !nextReferencedUris.has(uri)
     );
 }
 

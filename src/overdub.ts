@@ -1,9 +1,9 @@
 import type { ClipOverdubRootSettings, ClipVersion, SongIdea } from "./types";
 import type { NativeMixedRenderInput } from "../modules/songseed-pitch-shift";
 
-export const OVERDUB_GAIN_MIN_DB = -18;
-export const OVERDUB_GAIN_MAX_DB = 6;
-export const OVERDUB_GAIN_STEP_DB = 2;
+export const OVERDUB_GAIN_MIN_DB = -24;
+export const OVERDUB_GAIN_MAX_DB = 12;
+export const OVERDUB_GAIN_STEP_DB = 4;
 export const DEFAULT_CLIP_OVERDUB_ROOT_SETTINGS: ClipOverdubRootSettings = {
   gainDb: 0,
   tonePreset: "neutral",

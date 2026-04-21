@@ -8,6 +8,7 @@ type PlayerFooterSectionProps = {
   mode: "player" | "practice";
   speedPanelVisible: boolean;
   playbackSpeed: number;
+  playDisabled?: boolean;
   speedPresets: readonly number[];
   speedMin: number;
   speedMax: number;
@@ -33,6 +34,7 @@ export function PlayerFooterSection({
   mode,
   speedPanelVisible,
   playbackSpeed,
+  playDisabled = false,
   speedPresets,
   speedMin,
   speedMax,
@@ -92,6 +94,7 @@ export function PlayerFooterSection({
 
       <PlayerTransportDock
         isPlaying={isPlaying}
+        playDisabled={playDisabled}
         canGoPrevious={hasPreviousTrack}
         canGoNext={hasNextTrack}
         onPrevious={onPreviousTrack}

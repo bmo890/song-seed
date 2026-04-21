@@ -20,6 +20,7 @@ export function useLibraryBackupFlow() {
     const notes = useStore((state) => state.notes);
     const primaryWorkspaceId = useStore((state) => state.primaryWorkspaceId);
     const primaryCollectionIdByWorkspace = useStore((state) => state.primaryCollectionIdByWorkspace);
+    const bluetoothMonitoringCalibrations = useStore((state) => state.bluetoothMonitoringCalibrations);
     const backupReminderFrequency = useStore((state) => state.backupReminderFrequency);
     const setBackupReminderFrequency = useStore((state) => state.setBackupReminderFrequency);
     const lastSuccessfulBackupAt = useStore((state) => state.lastSuccessfulBackupAt);
@@ -52,6 +53,7 @@ export function useLibraryBackupFlow() {
                         typeof collectionId === "string" ? [[workspaceId, collectionId] as const] : []
                     )
                 ),
+                bluetoothMonitoringCalibrations,
             });
             const backupFileName = `${result.archiveTitle}.zip`;
             setLastSuccessfulBackupAt(Date.now());

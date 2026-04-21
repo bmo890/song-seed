@@ -25,6 +25,7 @@ import {
     BackupReminderFrequency,
     PracticeMarker,
     Note,
+    BluetoothMonitoringCalibration,
     ClipOverdubState,
     ClipOverdubRootSettings,
     ClipOverdubStem,
@@ -57,6 +58,10 @@ import {
     type MetronomeMeterId,
     type MetronomeOutputs,
 } from "../metronome";
+import {
+    normalizeBluetoothMonitoringCalibration,
+    normalizeBluetoothMonitoringCalibrations,
+} from "../bluetoothMonitoring";
 
 export type DataSlice = {
     workspaces: Workspace[];
@@ -71,6 +76,8 @@ export type DataSlice = {
     collectionLastOpenedAt: Record<string, number>;
     playlists: Playlist[];
     preferredRecordingInputId: string | null;
+    bluetoothMonitoringCalibrations: BluetoothMonitoringCalibration[];
+    overdubPreviewRenderActiveByClipKey: Record<string, boolean>;
     globalCustomClipTags: CustomTagDefinition[];
     backupReminderFrequency: BackupReminderFrequency;
     lastSuccessfulBackupAt: number | null;
@@ -88,6 +95,9 @@ export type DataSlice = {
     setWorkspaceListOrder: (value: WorkspaceListOrder) => void;
     markCollectionOpened: (collectionId: string) => void;
     setPreferredRecordingInputId: (id: string | null) => void;
+    setBluetoothMonitoringCalibration: (routeKey: string, routeLabel: string, offsetMs: number) => void;
+    removeBluetoothMonitoringCalibration: (routeKey: string) => void;
+    setClipOverdubPreviewRenderActive: (ideaId: string, clipId: string, active: boolean) => void;
     setMetronomeBpm: (value: number) => void;
     setMetronomeMeterId: (value: MetronomeMeterId) => void;
     setMetronomeOutputEnabled: (key: keyof MetronomeOutputs, enabled: boolean) => void;
@@ -836,6 +846,8 @@ export const createDataSlice: StateCreator<
     collectionLastOpenedAt: {},
     playlists: [],
     preferredRecordingInputId: null,
+    bluetoothMonitoringCalibrations: [],
+    overdubPreviewRenderActiveByClipKey: {},
     metronomeBpm: DEFAULT_METRONOME_BPM,
     metronomeMeterId: DEFAULT_METRONOME_METER_ID,
     metronomeOutputs: DEFAULT_METRONOME_OUTPUTS,
@@ -917,6 +929,54 @@ export const createDataSlice: StateCreator<
             };
         }),
     setPreferredRecordingInputId: (id) => set({ preferredRecordingInputId: id }),
+    setBluetoothMonitoringCalibration: (routeKey, routeLabel, offsetMs) =>
+        set((state) => {
+            const nextCalibration = normalizeBluetoothMonitoringCalibration({
+                routeKey,
+                routeLabel,
+                offsetMs,
+                updatedAt: Date.now(),
+            });
+            return {
+                bluetoothMonitoringCalibrations: normalizeBluetoothMonitoringCalibrations([
+                    ...state.bluetoothMonitoringCalibrations.filter(
+                        (calibration) => calibration.routeKey !== routeKey
+                    ),
+                    nextCalibration,
+                ]),
+            };
+        }),
+    removeBluetoothMonitoringCalibration: (routeKey) =>
+        set((state) => ({
+            bluetoothMonitoringCalibrations: state.bluetoothMonitoringCalibrations.filter(
+                (calibration) => calibration.routeKey !== routeKey
+            ),
+        })),
+    setClipOverdubPreviewRenderActive: (ideaId, clipId, active) =>
+        set((state) => {
+            const queueKey = `${ideaId}:${clipId}`;
+            if (active) {
+                if (state.overdubPreviewRenderActiveByClipKey[queueKey]) {
+                    return state;
+                }
+                return {
+                    overdubPreviewRenderActiveByClipKey: {
+                        ...state.overdubPreviewRenderActiveByClipKey,
+                        [queueKey]: true,
+                    },
+                };
+            }
+
+            if (!state.overdubPreviewRenderActiveByClipKey[queueKey]) {
+                return state;
+            }
+
+            const nextActiveByClipKey = { ...state.overdubPreviewRenderActiveByClipKey };
+            delete nextActiveByClipKey[queueKey];
+            return {
+                overdubPreviewRenderActiveByClipKey: nextActiveByClipKey,
+            };
+        }),
     setMetronomeBpm: (value) => set({ metronomeBpm: clampMetronomeBpm(value) }),
     setMetronomeMeterId: (value) =>
         set((state) => (state.metronomeMeterId === value ? state : { metronomeMeterId: value })),

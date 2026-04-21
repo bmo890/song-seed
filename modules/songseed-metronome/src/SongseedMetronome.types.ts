@@ -8,6 +8,11 @@ export type NativeMetronomeConfig = {
   clickVolume: number;
 };
 
+export type NativeAudioRouteInfo = {
+  name: string;
+  type: string;
+};
+
 export type NativeMetronomeState = {
   isAvailable: boolean;
   isRunning: boolean;

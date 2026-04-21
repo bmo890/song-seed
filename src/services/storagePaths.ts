@@ -2,6 +2,7 @@ import * as FileSystem from "expo-file-system/legacy";
 
 export const SONG_SEED_ROOT = `${FileSystem.documentDirectory ?? ""}songseed`;
 export const SONG_SEED_AUDIO_DIR = `${SONG_SEED_ROOT}/audio`;
+export const SONG_SEED_PREVIEW_AUDIO_DIR = `${SONG_SEED_ROOT}/preview-audio`;
 export const SONG_SEED_SHARE_DIR = `${SONG_SEED_ROOT}/share`;
 export const SONG_SEED_WORKSPACE_ARCHIVE_DIR = `${SONG_SEED_ROOT}/workspace-archives`;
 export const SONG_SEED_MANIFEST_PATH = `${SONG_SEED_ROOT}/manifest.json`;
@@ -17,4 +18,8 @@ export function isSongSeedManagedUri(uri: string) {
 
 export function isManagedAudioUri(uri: string) {
     return uri.startsWith(normalizeDirectoryUri(SONG_SEED_AUDIO_DIR));
+}
+
+export function isManagedPreviewAudioUri(uri: string) {
+    return uri.startsWith(normalizeDirectoryUri(SONG_SEED_PREVIEW_AUDIO_DIR));
 }

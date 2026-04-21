@@ -7,6 +7,7 @@ type Props = {
     isRecording: boolean;
     isPaused: boolean;
     isArming?: boolean;
+    recordToggleDisabled?: boolean;
     compact?: boolean;
     canSave?: boolean;
     onOpenInput: () => void;
@@ -20,6 +21,7 @@ export function RecordingControls({
     isRecording,
     isPaused,
     isArming = false,
+    recordToggleDisabled = false,
     compact = false,
     canSave = true,
     onOpenInput,
@@ -52,10 +54,11 @@ export function RecordingControls({
                     styles.circleRecordBtn,
                     compact ? styles.circleRecordBtnCompact : null,
                     isArming || !isPaused ? styles.circleRecordBtnActive : null,
+                    recordToggleDisabled ? styles.circleRecordBtnDisabled : null,
                     pressed ? styles.pressDownStrong : null,
                 ]}
                 onPress={async () => {
-                    if (isArming) {
+                    if (isArming || recordToggleDisabled) {
                         return;
                     }
                     if (!isRecording) {
@@ -68,12 +71,12 @@ export function RecordingControls({
                     }
                     await onPause();
                 }}
-                disabled={isArming}
+                disabled={isArming || recordToggleDisabled}
             >
                 <Ionicons
                     name={isArming ? "timer-outline" : !isRecording || isPaused ? "mic" : "pause"}
                     size={compact ? 28 : 34}
-                    color="#fff"
+                    color={recordToggleDisabled ? "#f1e8e4" : "#fff"}
                 />
             </Pressable>
 

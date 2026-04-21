@@ -19,7 +19,9 @@ export function SettingsOverviewView({
   backupFlow,
   globalTags,
   diagnostics,
+  bluetoothCalibrationCount,
   onOpenStorageDetails,
+  onOpenBluetoothCalibration,
   onBeginExportFlow,
   onBeginImportFlow,
 }: {
@@ -29,7 +31,9 @@ export function SettingsOverviewView({
   backupFlow: LibraryBackupFlow;
   globalTags: GlobalTagSettings;
   diagnostics: StorageDiagnostics;
+  bluetoothCalibrationCount: number;
   onOpenStorageDetails: () => void;
+  onOpenBluetoothCalibration: () => void;
   onBeginExportFlow: () => void;
   onBeginImportFlow: () => void;
 }) {
@@ -217,6 +221,21 @@ export function SettingsOverviewView({
           ))}
         </View>
       </View>
+
+      <Pressable
+        style={({ pressed }) => [styles.settingsActionCard, pressed ? styles.pressDown : null]}
+        onPress={onOpenBluetoothCalibration}
+      >
+        <View style={styles.settingsActionCardCopy}>
+          <Text style={styles.settingsActionCardTitle}>Bluetooth recording calibration</Text>
+          <Text style={styles.settingsActionCardMeta}>
+            {bluetoothCalibrationCount > 0
+              ? `${bluetoothCalibrationCount} saved calibration${bluetoothCalibrationCount === 1 ? "" : "s"} for Bluetooth monitoring during recording.`
+              : "Measure Bluetooth monitoring delay to improve metronome and guide timing while recording."}
+          </Text>
+        </View>
+        <Ionicons name="bluetooth" size={18} color="#64748b" />
+      </Pressable>
 
       <Pressable
         style={({ pressed }) => [styles.settingsActionCard, pressed ? styles.pressDown : null]}

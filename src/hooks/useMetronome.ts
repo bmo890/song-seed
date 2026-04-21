@@ -43,6 +43,7 @@ type UseMetronomeArgs = {
 
 type MetronomeStartOptions = {
   manageAudioSession?: boolean;
+  cueDelayMs?: number;
 };
 
 const METRONOME_AUDIO_SESSION_OWNER_ID = "metronome";
@@ -81,6 +82,7 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
   const outputsRef = useRef(outputs);
   const bpmRef = useRef(bpm);
   const configuredRef = useRef(false);
+  const cueActivationAtRef = useRef<number>(0);
 
   const effectiveBpm = configuredRef.current ? bpm : initialBpm;
   const effectiveOutputs = configuredRef.current
@@ -122,6 +124,10 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
   }, []);
 
   const triggerBeatCue = useCallback(() => {
+    if (Date.now() < cueActivationAtRef.current) {
+      return;
+    }
+
     const activeOutputs = outputsRef.current;
     if (activeOutputs.visual) {
       setPulseToken((current) => current + 1);
@@ -231,6 +237,7 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
   const start = useCallback(async (options: MetronomeStartOptions = {}) => {
     if (!SongseedMetronomeModule) return;
     try {
+      cueActivationAtRef.current = Date.now() + Math.max(0, options.cueDelayMs ?? 0);
       if (options.manageAudioSession ?? true) {
         await activateMetronomeAudioSession({ ownerId: METRONOME_AUDIO_SESSION_OWNER_ID });
       }
@@ -251,6 +258,7 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
     async (bars = effectiveCountInBars, options: MetronomeStartOptions = {}) => {
       if (!SongseedMetronomeModule) return;
       try {
+        cueActivationAtRef.current = Date.now() + Math.max(0, options.cueDelayMs ?? 0);
         if (options.manageAudioSession ?? true) {
           await activateMetronomeAudioSession({ ownerId: METRONOME_AUDIO_SESSION_OWNER_ID });
         }
@@ -272,6 +280,7 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
   const stop = useCallback(async () => {
     if (!SongseedMetronomeModule) return;
     try {
+      cueActivationAtRef.current = 0;
       const state = await SongseedMetronomeModule.stop();
       setNativeState(state);
       setBeatCount(0);

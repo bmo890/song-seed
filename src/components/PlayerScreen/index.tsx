@@ -64,6 +64,7 @@ export function PlayerScreen() {
   const playerIdea = data.playerIdea;
   const playerClip = data.playerClip;
   const resolvedDisplayDuration = data.displayDuration;
+  const isMixUpdating = data.isOverdubPreviewRendering;
   const practicePitchTransport = usePlayerPracticePitchTransport({
     mode: ui.mode,
     isFocused,
@@ -230,10 +231,10 @@ export function PlayerScreen() {
   const handleRequestAddPin = useCallback(() => {
     handleAddPin("");
   }, [handleAddPin]);
-  const handleAddOverdub = useCallback(() => {
+  const handleAddOverdub = useCallback(async () => {
     if (!playerIdea || !playerClip) return;
     try {
-      appActions.startClipOverdubRecording(playerIdea.id, playerClip.id);
+      await appActions.startClipOverdubRecording(playerIdea.id, playerClip.id);
       navigation.navigate("Recording" as never);
     } catch (error) {
       const message =
@@ -328,6 +329,7 @@ export function PlayerScreen() {
     practiceLoopRange.end > practiceLoopRange.start
       ? `${fmtDuration(practiceLoopRange.start)} → ${fmtDuration(practiceLoopRange.end)}`
       : "No loop";
+  const isTransportLocked = isMixUpdating;
 
   return (
     <SafeAreaView style={[styles.screen, playerScreenStyles.screen]}>
@@ -352,6 +354,7 @@ export function PlayerScreen() {
             mode={ui.mode}
             speedPanelVisible={speedPanelVisible}
             playbackSpeed={playbackSpeed}
+            playDisabled={isTransportLocked}
             speedPresets={PRACTICE_SPEED_PRESETS}
             speedMin={PRACTICE_SPEED_MIN}
             speedMax={PRACTICE_SPEED_MAX}
@@ -367,7 +370,7 @@ export function PlayerScreen() {
             onSpeedSlideEnd={handleSpeedSlideEnd}
             onSpeedTap={handleSpeedTap}
             onPreviousTrack={lifecycle.handlePreviousTrack}
-            onTogglePlay={lifecycle.handleTogglePlayPress}
+            onTogglePlay={isTransportLocked ? () => {} : lifecycle.handleTogglePlayPress}
             onNextTrack={lifecycle.handleNextTrack}
             onTogglePracticeLoop={handlePracticeLoopToggle}
             onToggleQueueExpanded={() => ui.setQueueExpanded((value) => !value)}
@@ -376,30 +379,42 @@ export function PlayerScreen() {
       >
         <View style={playerScreenStyles.content}>
           <View style={playerScreenStyles.waveformSection}>
-            <PlayerTimeline
-              mode={ui.mode}
-              waveformPeaks={waveformPeaks}
-              durationMs={effectivePlayerDuration}
-              isPlayerPlaying={effectiveIsPlaying}
-              playbackRate={effectivePlaybackRate}
-              isScrubbing={transportScrub.isScrubbing}
-              transportClock={transportClock}
-              practiceLoopEnabled={practiceLoopEnabled}
-              practiceLoopSelection={practiceLoopSelection}
-              practiceMarkers={data.practiceMarkers}
-              draggingMarkerId={draggingMarkerId}
-              draggingMarkerX={draggingMarkerX}
-              onLoopRangeChange={handleLoopRangeChange}
-              onSeek={handleLoopAwareSeek}
-              onTogglePlay={lifecycle.handleTogglePlayPress}
-              onScrubStateChange={lifecycle.handleScrubStateChange}
-              onRepositionMarker={handleRepositionMarker}
-              onRequestPinActions={handlePinActions}
-              onRequestAddPin={handleRequestAddPin}
-              onPinDragStateChange={handlePinDragStateChange}
-              practiceZoomMultiple={ui.practiceZoomMultiple}
-              onPracticeZoomMultipleChange={ui.setPracticeZoomMultiple}
-            />
+            <View style={playerScreenStyles.waveformShell}>
+              <PlayerTimeline
+                mode={ui.mode}
+                waveformPeaks={waveformPeaks}
+                durationMs={effectivePlayerDuration}
+                isPlayerPlaying={effectiveIsPlaying}
+                playbackRate={effectivePlaybackRate}
+                isScrubbing={transportScrub.isScrubbing}
+                transportClock={transportClock}
+                practiceLoopEnabled={practiceLoopEnabled}
+                practiceLoopSelection={practiceLoopSelection}
+                practiceMarkers={data.practiceMarkers}
+                draggingMarkerId={draggingMarkerId}
+                draggingMarkerX={draggingMarkerX}
+                onLoopRangeChange={handleLoopRangeChange}
+                onSeek={isTransportLocked ? () => {} : handleLoopAwareSeek}
+                onTogglePlay={isTransportLocked ? () => {} : lifecycle.handleTogglePlayPress}
+                onScrubStateChange={isTransportLocked ? () => {} : lifecycle.handleScrubStateChange}
+                onRepositionMarker={handleRepositionMarker}
+                onRequestPinActions={handlePinActions}
+                onRequestAddPin={handleRequestAddPin}
+                onPinDragStateChange={handlePinDragStateChange}
+                practiceZoomMultiple={ui.practiceZoomMultiple}
+                onPracticeZoomMultipleChange={ui.setPracticeZoomMultiple}
+              />
+              {isTransportLocked ? (
+                <View style={playerScreenStyles.mixUpdatingOverlay}>
+                  <View style={playerScreenStyles.mixUpdatingBadge}>
+                    <Text style={playerScreenStyles.mixUpdatingLabel}>Updating mix…</Text>
+                    <Text style={playerScreenStyles.mixUpdatingMeta}>
+                      Playback and scrubbing will resume when the latest layer render finishes.
+                    </Text>
+                  </View>
+                </View>
+              ) : null}
+            </View>
           </View>
 
           {ui.mode === "practice" ? (
@@ -430,6 +445,7 @@ export function PlayerScreen() {
               hasClipOverdubs={data.hasClipOverdubs}
               clipOverdubStemCount={data.clipOverdubStemCount}
               clipPlaybackUsesRenderedMix={data.clipPlaybackUsesRenderedMix}
+              isOverdubPreviewRendering={isMixUpdating}
               isMainPlaybackPlaying={effectiveIsPlaying}
               overdubRootSettings={data.overdubRootSettings}
               overdubStemEntries={data.overdubStemEntries}

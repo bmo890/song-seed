@@ -39,6 +39,7 @@ import {
     DEFAULT_METRONOME_OUTPUTS,
     isMetronomeMeterId,
 } from "../metronome";
+import { normalizeBluetoothMonitoringCalibrations } from "../bluetoothMonitoring";
 import {
     getLastPersistedIdeaCount,
     isHydrationComplete,
@@ -63,6 +64,7 @@ export type PersistedAppStore = Pick<
     | "collectionLastOpenedAt"
     | "playlists"
     | "preferredRecordingInputId"
+    | "bluetoothMonitoringCalibrations"
     | "metronomeBpm"
     | "metronomeMeterId"
     | "metronomeOutputs"
@@ -162,6 +164,9 @@ export function sanitizePersistedState(state?: Partial<PersistedAppStore>): Pers
         playlists: normalizePlaylists(state?.playlists),
         preferredRecordingInputId:
             typeof state?.preferredRecordingInputId === "string" ? state.preferredRecordingInputId : null,
+        bluetoothMonitoringCalibrations: normalizeBluetoothMonitoringCalibrations(
+            state?.bluetoothMonitoringCalibrations
+        ),
         metronomeBpm:
             typeof state?.metronomeBpm === "number" && Number.isFinite(state.metronomeBpm)
                 ? clampMetronomeBpm(state.metronomeBpm)
@@ -233,6 +238,7 @@ export function buildPersistedAppStoreSnapshot(state: AppStore): PersistedAppSto
         collectionLastOpenedAt: state.collectionLastOpenedAt,
         playlists: state.playlists,
         preferredRecordingInputId: state.preferredRecordingInputId,
+        bluetoothMonitoringCalibrations: state.bluetoothMonitoringCalibrations,
         metronomeBpm: state.metronomeBpm,
         metronomeMeterId: state.metronomeMeterId,
         metronomeOutputs: state.metronomeOutputs,

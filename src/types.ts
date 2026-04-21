@@ -9,6 +9,13 @@ export type Note = {
   isPinned: boolean;
 };
 
+export type BluetoothMonitoringCalibration = {
+  routeKey: string;
+  routeLabel: string;
+  offsetMs: number;
+  updatedAt: number;
+};
+
 export type EditActionType = "keep" | "remove";
 
 export type EditRegion = {

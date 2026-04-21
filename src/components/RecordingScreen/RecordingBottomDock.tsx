@@ -28,6 +28,7 @@ type RecordingBottomDockProps = {
     isRecording: boolean;
     isPaused: boolean;
     isArming: boolean;
+    isReviewLocked?: boolean;
     onOpenInput: () => void;
     onPause: () => Promise<void>;
     onResume: () => Promise<void>;
@@ -67,6 +68,7 @@ export function RecordingBottomDock({
         isRecording={recording.isRecording}
         isPaused={recording.isPaused}
         isArming={recording.isArming}
+        recordToggleDisabled={recording.isReviewLocked}
         compact={false}
         canSave={recording.isRecording || recording.isPaused}
         onOpenInput={recording.onOpenInput}

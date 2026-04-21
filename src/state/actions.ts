@@ -30,6 +30,7 @@ import {
     filterUnreferencedManagedAudioUris,
 } from "../services/managedMedia";
 import { getClipPlaybackUri } from "../clipPresentation";
+import { normalizeBluetoothMonitoringCalibrations } from "../bluetoothMonitoring";
 import {
     buildClipOverdubMixInputs,
     buildCombinedClipTitle,
@@ -39,7 +40,7 @@ import {
     getDefaultOverdubStemTitle,
     toggleLowCutTonePreset,
 } from "../overdub";
-import { importAudioAsset } from "../services/audioStorage";
+import { ensurePreviewAudioDirectory, importAudioAsset, loadManagedAudioMetadata } from "../services/audioStorage";
 import { renderMixedFile } from "../services/pitchShift";
 import {
     clearPendingWorkspaceArchiveOperation,
@@ -47,6 +48,7 @@ import {
 } from "../services/workspaceArchiveRecovery";
 import { authorizeIntentionalEmptyStateWrite } from "../services/stateIntegrity";
 import { relocateActivityEvents, relocatePlaylists } from "./relocationMetadata";
+import { SONG_SEED_PREVIEW_AUDIO_DIR } from "../services/storagePaths";
 
 function buildEntityId(prefix: string) {
     return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
@@ -132,6 +134,48 @@ type ImportedOverdubMix = {
     waveformPeaks?: number[];
 };
 
+const OVERDUB_PREVIEW_RENDER_DEBOUNCE_MS = 320;
+
+type OverdubRenderWaiter = {
+    resolve: (value: string | null) => void;
+    reject: (error: unknown) => void;
+};
+
+type OverdubRenderQueueEntry = {
+    timer: ReturnType<typeof setTimeout> | null;
+    inFlight: boolean;
+    rerenderQueued: boolean;
+    waiters: OverdubRenderWaiter[];
+};
+
+const overdubRenderQueue = new Map<string, OverdubRenderQueueEntry>();
+
+function buildOverdubRenderQueueKey(ideaId: string, clipId: string) {
+    return `${ideaId}:${clipId}`;
+}
+
+function getOrCreateOverdubRenderQueueEntry(queueKey: string) {
+    const existing = overdubRenderQueue.get(queueKey);
+    if (existing) {
+        return existing;
+    }
+
+    const nextEntry: OverdubRenderQueueEntry = {
+        timer: null,
+        inFlight: false,
+        rerenderQueued: false,
+        waiters: [],
+    };
+    overdubRenderQueue.set(queueKey, nextEntry);
+    return nextEntry;
+}
+
+function resolveCurrentClipPlaybackUri(ideaId: string, clipId: string) {
+    const state = useStore.getState();
+    const match = findWorkspaceIdeaClip(state.workspaces, ideaId, clipId);
+    return match ? getClipPlaybackUri(match.clip) ?? null : null;
+}
+
 async function buildImportedClipOverdubMix(
     clip: ClipVersion,
     clipId: string
@@ -148,24 +192,146 @@ async function buildImportedClipOverdubMix(
         }-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     });
 
+    const extension = rendered.outputUri.match(/\.([a-zA-Z0-9]+)(?:\?|$)/)?.[1]?.toLowerCase() ?? "m4a";
+    const previewUri = `${SONG_SEED_PREVIEW_AUDIO_DIR}/${clipId}-preview-${Date.now()}-${Math.random()
+        .toString(36)
+        .slice(2, 8)}.${extension}`;
+
     try {
-        const imported = await importAudioAsset(
-            {
-                uri: rendered.outputUri,
-                name: rendered.outputUri.split("/").pop() ?? `${clipId}-mix.m4a`,
-                mimeType: "audio/mp4",
-            },
-            `${clipId}-overdub-mix-${Date.now()}`
+        await ensurePreviewAudioDirectory();
+        await FileSystem.copyAsync({ from: rendered.outputUri, to: previewUri });
+        const metadata = await loadManagedAudioMetadata(
+            previewUri,
+            `${clipId}-preview-${Date.now()}`,
+            undefined,
+            { lightweight: true }
         );
 
         return {
-            audioUri: imported.audioUri,
-            durationMs: imported.durationMs,
-            waveformPeaks: imported.waveformPeaks,
+            audioUri: previewUri,
+            durationMs: metadata.durationMs,
+            waveformPeaks: metadata.waveformPeaks,
         };
     } finally {
         await FileSystem.deleteAsync(rendered.outputUri, { idempotent: true }).catch(() => {});
     }
+}
+
+async function performClipOverdubMixRerender(ideaId: string, clipId: string) {
+    const state = useStore.getState();
+    const match = findWorkspaceIdeaClip(state.workspaces, ideaId, clipId);
+    if (!match) {
+        throw new Error("Clip not found.");
+    }
+
+    const previousMixUri = match.clip.overdub?.renderedMixUri ?? null;
+    const nextMix = await buildImportedClipOverdubMix(match.clip, clipId);
+
+    if (!nextMix) {
+        state.clearClipOverdubRenderedMix(ideaId, clipId);
+        if (previousMixUri) {
+            await deleteManagedAudioUris([previousMixUri]);
+        }
+        return null;
+    }
+
+    state.setClipOverdubRenderedMix(ideaId, clipId, {
+        renderedMixUri: nextMix.audioUri,
+        renderedMixDurationMs: nextMix.durationMs,
+        renderedMixWaveformPeaks: nextMix.waveformPeaks,
+        lastRenderedAt: Date.now(),
+    });
+
+    if (previousMixUri && previousMixUri !== nextMix.audioUri) {
+        await deleteManagedAudioUris([previousMixUri]);
+    }
+
+    return nextMix.audioUri;
+}
+
+async function runQueuedClipOverdubRerender(queueKey: string, ideaId: string, clipId: string) {
+    const entry = getOrCreateOverdubRenderQueueEntry(queueKey);
+    useStore.getState().setClipOverdubPreviewRenderActive(ideaId, clipId, true);
+    if (entry.inFlight) {
+        entry.rerenderQueued = true;
+        return;
+    }
+
+    entry.inFlight = true;
+
+    let nextPlaybackUri: string | null = null;
+    let nextError: unknown = null;
+
+    try {
+        nextPlaybackUri = await performClipOverdubMixRerender(ideaId, clipId);
+    } catch (error) {
+        nextError = error;
+    } finally {
+        entry.inFlight = false;
+    }
+
+    if (entry.rerenderQueued) {
+        entry.rerenderQueued = false;
+        if (entry.timer) {
+            clearTimeout(entry.timer);
+        }
+        entry.timer = setTimeout(() => {
+            entry.timer = null;
+            void runQueuedClipOverdubRerender(queueKey, ideaId, clipId);
+        }, 0);
+        return;
+    }
+
+    const waiters = entry.waiters.splice(0);
+    if (nextError) {
+        waiters.forEach((waiter) => waiter.reject(nextError));
+    } else {
+        waiters.forEach((waiter) => waiter.resolve(nextPlaybackUri));
+    }
+
+    if (!entry.timer && !entry.inFlight && !entry.rerenderQueued && entry.waiters.length === 0) {
+        overdubRenderQueue.delete(queueKey);
+    }
+
+    if (!entry.timer && !entry.inFlight && !entry.rerenderQueued) {
+        useStore.getState().setClipOverdubPreviewRenderActive(ideaId, clipId, false);
+    }
+}
+
+function scheduleClipOverdubRerender(
+    ideaId: string,
+    clipId: string,
+    options?: { immediate?: boolean; force?: boolean }
+) {
+    const queueKey = buildOverdubRenderQueueKey(ideaId, clipId);
+    const existing = overdubRenderQueue.get(queueKey);
+    const hasPendingWork = Boolean(existing?.timer || existing?.inFlight || existing?.rerenderQueued);
+
+    if (!options?.force && !hasPendingWork) {
+        return Promise.resolve(resolveCurrentClipPlaybackUri(ideaId, clipId));
+    }
+
+    const entry = getOrCreateOverdubRenderQueueEntry(queueKey);
+
+    return new Promise<string | null>((resolve, reject) => {
+        entry.waiters.push({ resolve, reject });
+
+        if (entry.inFlight) {
+            if (options?.force) {
+                entry.rerenderQueued = true;
+            }
+            return;
+        }
+
+        if (entry.timer) {
+            clearTimeout(entry.timer);
+        }
+
+        entry.timer = setTimeout(() => {
+            entry.timer = null;
+            void runQueuedClipOverdubRerender(queueKey, ideaId, clipId);
+        }, options?.immediate ? 0 : OVERDUB_PREVIEW_RENDER_DEBOUNCE_MS);
+    });
 }
 
 type ClipTransferSource = {
@@ -783,7 +949,8 @@ export const appActions = {
         }));
     },
 
-    startClipOverdubRecording: (ideaId: string, clipId: string) => {
+    startClipOverdubRecording: async (ideaId: string, clipId: string) => {
+        await scheduleClipOverdubRerender(ideaId, clipId, { immediate: true });
         const state = useStore.getState();
         const match = findWorkspaceIdeaClip(state.workspaces, ideaId, clipId);
         if (!match) {
@@ -808,35 +975,7 @@ export const appActions = {
     },
 
     rerenderClipOverdubMix: async (ideaId: string, clipId: string) => {
-        const state = useStore.getState();
-        const match = findWorkspaceIdeaClip(state.workspaces, ideaId, clipId);
-        if (!match) {
-            throw new Error("Clip not found.");
-        }
-
-        const previousMixUri = match.clip.overdub?.renderedMixUri ?? null;
-        const nextMix = await buildImportedClipOverdubMix(match.clip, clipId);
-
-        if (!nextMix) {
-            state.clearClipOverdubRenderedMix(ideaId, clipId);
-            if (previousMixUri) {
-                await deleteManagedAudioUris([previousMixUri]);
-            }
-            return null;
-        }
-
-        state.setClipOverdubRenderedMix(ideaId, clipId, {
-            renderedMixUri: nextMix.audioUri,
-            renderedMixDurationMs: nextMix.durationMs,
-            renderedMixWaveformPeaks: nextMix.waveformPeaks,
-            lastRenderedAt: Date.now(),
-        });
-
-        if (previousMixUri && previousMixUri !== nextMix.audioUri) {
-            await deleteManagedAudioUris([previousMixUri]);
-        }
-
-        return nextMix.audioUri;
+        return scheduleClipOverdubRerender(ideaId, clipId, { immediate: true, force: true });
     },
 
     attachRecordedOverdubStem: async (
@@ -900,10 +1039,14 @@ export const appActions = {
         }
 
         const rootSettings = getClipOverdubRootSettings(match.clip);
+        const nextGainDb = clampOverdubGainDb(rootSettings.gainDb + deltaDb);
+        if (nextGainDb === rootSettings.gainDb) {
+            return getClipPlaybackUri(match.clip) ?? null;
+        }
         state.updateClipOverdubRoot(ideaId, clipId, {
-            gainDb: clampOverdubGainDb(rootSettings.gainDb + deltaDb),
+            gainDb: nextGainDb,
         });
-        await appActions.rerenderClipOverdubMix(ideaId, clipId);
+        await scheduleClipOverdubRerender(ideaId, clipId, { force: true });
     },
 
     toggleClipOverdubRootLowCut: async (ideaId: string, clipId: string) => {
@@ -917,7 +1060,7 @@ export const appActions = {
         state.updateClipOverdubRoot(ideaId, clipId, {
             tonePreset: toggleLowCutTonePreset(rootSettings.tonePreset),
         });
-        await appActions.rerenderClipOverdubMix(ideaId, clipId);
+        await scheduleClipOverdubRerender(ideaId, clipId, { force: true });
     },
 
     adjustClipOverdubStemGain: async (ideaId: string, clipId: string, stemId: string, deltaDb: number) => {
@@ -928,10 +1071,14 @@ export const appActions = {
             throw new Error("Overdub stem not found.");
         }
 
+        const nextGainDb = clampOverdubGainDb(stem.gainDb + deltaDb);
+        if (nextGainDb === stem.gainDb) {
+            return getClipPlaybackUri(match.clip) ?? null;
+        }
         state.updateClipOverdubStem(ideaId, clipId, stemId, {
-            gainDb: clampOverdubGainDb(stem.gainDb + deltaDb),
+            gainDb: nextGainDb,
         });
-        await appActions.rerenderClipOverdubMix(ideaId, clipId);
+        await scheduleClipOverdubRerender(ideaId, clipId, { force: true });
     },
 
     nudgeClipOverdubStem: async (ideaId: string, clipId: string, stemId: string, deltaMs: number) => {
@@ -942,14 +1089,18 @@ export const appActions = {
             throw new Error("Overdub stem not found.");
         }
 
+        const nextOffsetMs = clampClipOverdubStemOffsetMs(
+            stem.offsetMs + deltaMs,
+            match.clip.durationMs,
+            stem.durationMs
+        );
+        if (nextOffsetMs === stem.offsetMs) {
+            return getClipPlaybackUri(match.clip) ?? null;
+        }
         state.updateClipOverdubStem(ideaId, clipId, stemId, {
-            offsetMs: clampClipOverdubStemOffsetMs(
-                stem.offsetMs + deltaMs,
-                match.clip.durationMs,
-                stem.durationMs
-            ),
+            offsetMs: nextOffsetMs,
         });
-        await appActions.rerenderClipOverdubMix(ideaId, clipId);
+        await scheduleClipOverdubRerender(ideaId, clipId, { force: true });
     },
 
     toggleClipOverdubStemMute: async (ideaId: string, clipId: string, stemId: string) => {
@@ -961,7 +1112,7 @@ export const appActions = {
         }
 
         state.updateClipOverdubStem(ideaId, clipId, stemId, { isMuted: !stem.isMuted });
-        await appActions.rerenderClipOverdubMix(ideaId, clipId);
+        await scheduleClipOverdubRerender(ideaId, clipId, { force: true });
     },
 
     toggleClipOverdubStemLowCut: async (ideaId: string, clipId: string, stemId: string) => {
@@ -975,7 +1126,7 @@ export const appActions = {
         state.updateClipOverdubStem(ideaId, clipId, stemId, {
             tonePreset: toggleLowCutTonePreset(stem.tonePreset),
         });
-        await appActions.rerenderClipOverdubMix(ideaId, clipId);
+        await scheduleClipOverdubRerender(ideaId, clipId, { force: true });
     },
 
     removeClipOverdubStem: async (ideaId: string, clipId: string, stemId: string) => {
@@ -990,7 +1141,7 @@ export const appActions = {
         if (stem.audioUri) {
             await deleteManagedAudioUris([stem.audioUri]);
         }
-        await appActions.rerenderClipOverdubMix(ideaId, clipId);
+        await scheduleClipOverdubRerender(ideaId, clipId, { force: true });
     },
 
     saveCombinedClipAsNewClip: async (
@@ -998,6 +1149,7 @@ export const appActions = {
         clipId: string,
         options?: { removeOriginalAfterExport?: boolean }
     ) => {
+        await scheduleClipOverdubRerender(ideaId, clipId, { immediate: true });
         const state = useStore.getState();
         const match = findWorkspaceIdeaClip(state.workspaces, ideaId, clipId);
         if (!match) {
@@ -2320,12 +2472,22 @@ export const appActions = {
         };
         const nextPrimaryWorkspaceId = store.primaryWorkspaceId ?? merge.suggestedPrimaryWorkspaceId;
         const nextNotes = [...merge.importedNotes, ...store.notes];
+        const nextBluetoothMonitoringCalibrations = normalizeBluetoothMonitoringCalibrations([
+            ...store.bluetoothMonitoringCalibrations,
+            ...merge.bluetoothMonitoringCalibrations.filter(
+                (incoming) =>
+                    !store.bluetoothMonitoringCalibrations.some(
+                        (existing) => existing.routeKey === incoming.routeKey
+                    )
+            ),
+        ]);
 
         useStore.setState({
             workspaces: nextWorkspaces,
             notes: nextNotes,
             primaryWorkspaceId: nextPrimaryWorkspaceId,
             primaryCollectionIdByWorkspace: nextPrimaryCollectionIdByWorkspace,
+            bluetoothMonitoringCalibrations: nextBluetoothMonitoringCalibrations,
         });
 
         useStore.getState().markRecentlyAdded(merge.importedWorkspaceIds);

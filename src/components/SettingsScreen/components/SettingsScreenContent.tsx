@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { useNavigation } from "@react-navigation/native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { AppBreadcrumbs } from "../../common/AppBreadcrumbs";
 import { ScreenHeader } from "../../common/ScreenHeader";
@@ -18,9 +19,11 @@ import { SettingsStorageView } from "../views/SettingsStorageView";
 
 export function SettingsScreenContent() {
   useBrowseRootBackHandler();
+  const navigation = useNavigation();
 
   const workspaces = useStore((state) => state.workspaces);
   const primaryWorkspaceId = useStore((state) => state.primaryWorkspaceId);
+  const bluetoothMonitoringCalibrations = useStore((state) => state.bluetoothMonitoringCalibrations);
   const workspaceStartupPreference = useStore((state) => state.workspaceStartupPreference);
   const setWorkspaceStartupPreference = useStore((state) => state.setWorkspaceStartupPreference);
 
@@ -88,10 +91,12 @@ export function SettingsScreenContent() {
           backupFlow={backupFlow}
           globalTags={globalTags}
           diagnostics={diagnostics}
+          bluetoothCalibrationCount={bluetoothMonitoringCalibrations.length}
           onOpenStorageDetails={() => {
             diagnostics.setShowAdvancedStorageDetails(false);
             screen.setView("storage");
           }}
+          onOpenBluetoothCalibration={() => navigation.navigate("BluetoothCalibration" as never)}
           onBeginExportFlow={() => screen.setView("export")}
           onBeginImportFlow={() => screen.setView("import")}
         />

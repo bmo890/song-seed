@@ -1,5 +1,5 @@
 import React from "react";
-import { ScrollView, Text, View } from "react-native";
+import { Pressable, ScrollView, Text, View } from "react-native";
 import type { AudioAnalysis } from "@siteed/audio-studio";
 import type { SongIdea } from "../../types";
 import { styles } from "../../styles";
@@ -15,7 +15,10 @@ type RecordingBodyProps = {
   guideMixDurationMs: number;
   guideMixWaveformPeaks?: number[];
   isBluetoothRecordingInput: boolean;
+  isBluetoothMonitoringOutput: boolean;
   recordingInputLabel: string | null;
+  monitoringOutputLabel: string | null;
+  activeBluetoothCalibrationMs: number | null;
   hasProjectLyrics: boolean;
   latestLyricsText: string;
   latestLyricsUpdatedAt: number | null;
@@ -35,6 +38,7 @@ type RecordingBodyProps = {
   onToggleLyricsAutoscroll: (enabled: boolean) => void;
   onLyricsAutoscrollInterrupted: () => void;
   onSelectLyricsAutoscrollSpeedMultiplier: (value: number) => void;
+  onOpenBluetoothCalibration: () => void;
 };
 
 export function RecordingBody({
@@ -45,7 +49,10 @@ export function RecordingBody({
   guideMixDurationMs,
   guideMixWaveformPeaks,
   isBluetoothRecordingInput,
+  isBluetoothMonitoringOutput,
   recordingInputLabel,
+  monitoringOutputLabel,
+  activeBluetoothCalibrationMs,
   hasProjectLyrics,
   latestLyricsText,
   latestLyricsUpdatedAt,
@@ -65,6 +72,7 @@ export function RecordingBody({
   onToggleLyricsAutoscroll,
   onLyricsAutoscrollInterrupted,
   onSelectLyricsAutoscrollSpeedMultiplier,
+  onOpenBluetoothCalibration,
 }: RecordingBodyProps) {
   return (
     <ScrollView
@@ -81,19 +89,39 @@ export function RecordingBody({
           hasProjectLyrics && !lyricsExpanded ? styles.recordingContentBodyCollapsedLyrics : null,
         ]}
       >
+        {isBluetoothMonitoringOutput ? (
+          <View style={styles.recordingBluetoothWarning}>
+            <Text style={styles.recordingBluetoothWarningLabel}>Bluetooth monitoring detected</Text>
+            <Text style={styles.recordingBluetoothWarningText}>
+              {monitoringOutputLabel
+                ? `${monitoringOutputLabel} may add enough delay to make recording cues feel late. Wired headphones are recommended.`
+                : "Wireless audio may add enough delay to make recording cues feel late. Wired headphones are recommended."}
+            </Text>
+            <Text style={styles.recordingBluetoothWarningMeta}>
+              {activeBluetoothCalibrationMs != null
+                ? `Applied monitoring offset: ${activeBluetoothCalibrationMs} ms${
+                    monitoringOutputLabel ? ` on ${monitoringOutputLabel}` : ""
+                  }.`
+                : "No saved Bluetooth monitoring offset is applied yet."}
+            </Text>
+            <Pressable
+              style={({ pressed }) => [
+                styles.recordingBluetoothWarningButton,
+                pressed ? styles.pressDown : null,
+              ]}
+              onPress={onOpenBluetoothCalibration}
+            >
+              <Text style={styles.recordingBluetoothWarningButtonText}>
+                {activeBluetoothCalibrationMs != null
+                  ? `Recalibrate (${activeBluetoothCalibrationMs} ms)`
+                  : "Calibrate Bluetooth"}
+              </Text>
+            </Pressable>
+          </View>
+        ) : null}
+
         {recordingOverdubClip ? (
           <>
-            {isBluetoothRecordingInput ? (
-              <View style={styles.recordingBluetoothWarning}>
-                <Text style={styles.recordingBluetoothWarningLabel}>Bluetooth monitoring detected</Text>
-                <Text style={styles.recordingBluetoothWarningText}>
-                  {recordingInputLabel
-                    ? `${recordingInputLabel} may add enough delay to make overdubs feel late. Wired headphones are recommended.`
-                    : "Wireless audio may add enough delay to make overdubs feel late. Wired headphones are recommended."}
-                </Text>
-              </View>
-            ) : null}
-
             <RecordingOverdubGuide
               title={recordingOverdubClip.title}
               durationMs={guideMixDurationMs}

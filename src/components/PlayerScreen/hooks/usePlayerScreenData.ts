@@ -49,6 +49,9 @@ export function usePlayerScreenData({ playerDuration }: UsePlayerScreenDataArgs)
   const playerCloseRequestToken = useStore((s) => s.playerCloseRequestToken);
   const activeWorkspaceId = useStore((s) => s.activeWorkspaceId);
   const workspaces = useStore((s) => s.workspaces);
+  const isOverdubPreviewRendering = useStore((s) =>
+    playerTarget ? !!s.overdubPreviewRenderActiveByClipKey[`${playerTarget.ideaId}:${playerTarget.clipId}`] : false
+  );
 
   const activeWorkspace = useMemo(
     () => workspaces.find((workspace) => workspace.id === activeWorkspaceId) ?? null,
@@ -148,5 +151,6 @@ export function usePlayerScreenData({ playerDuration }: UsePlayerScreenDataArgs)
     clipPlaybackUsesRenderedMix,
     overdubRootSettings,
     overdubStemEntries,
+    isOverdubPreviewRendering,
   };
 }

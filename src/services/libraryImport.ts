@@ -4,6 +4,7 @@ import { strFromU8, unzipSync } from "fflate";
 import { createLyricsVersion, lyricsTextToDocument } from "../lyrics";
 import { createEmptyProjectLyrics, createEmptyWorkspaceIdeasListState } from "../state/dataSlice";
 import type {
+    BluetoothMonitoringCalibration,
     ClipVersion,
     Collection,
     Note,
@@ -14,6 +15,7 @@ import { SONG_SEED_AUDIO_DIR } from "./storagePaths";
 import { MANAGED_WAVEFORM_PEAK_COUNT } from "./audioStorage";
 import { buildStaticWaveform, ensureUniqueCountedTitle } from "../utils";
 import type { SongSeedArchiveLibraryPreferences } from "./libraryExport";
+import { normalizeBluetoothMonitoringCalibrations } from "../bluetoothMonitoring";
 
 type ArchiveClipManifest = {
     id: string;
@@ -149,6 +151,7 @@ export type MaterializedSongSeedArchiveMerge = {
     importedNotes: Note[];
     suggestedPrimaryWorkspaceId: string | null;
     suggestedPrimaryCollectionIdByWorkspace: Record<string, string>;
+    bluetoothMonitoringCalibrations: BluetoothMonitoringCalibration[];
     importedWorkspaceIds: string[];
     importedIdeaIds: string[];
     warnings: string[];
@@ -409,6 +412,9 @@ export async function materializeSongSeedArchiveMerge(
     const importedWorkspaceIds: string[] = [];
     const importedIdeaIds: string[] = [];
     const suggestedPrimaryCollectionIdByWorkspace: Record<string, string> = {};
+    const bluetoothMonitoringCalibrations = normalizeBluetoothMonitoringCalibrations(
+        parsed.manifest.libraryPreferences?.bluetoothMonitoringCalibrations
+    );
 
     const existingWorkspaceTitles = existingWorkspaces.map((workspace) => workspace.title);
     const importedPrimaryWorkspaceSourceId = parsed.manifest.libraryPreferences?.primaryWorkspaceId ?? null;
@@ -646,6 +652,7 @@ export async function materializeSongSeedArchiveMerge(
         importedNotes,
         suggestedPrimaryWorkspaceId,
         suggestedPrimaryCollectionIdByWorkspace,
+        bluetoothMonitoringCalibrations,
         importedWorkspaceIds,
         importedIdeaIds,
         warnings,

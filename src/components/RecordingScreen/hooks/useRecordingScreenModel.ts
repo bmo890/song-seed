@@ -3,10 +3,16 @@ import { useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
 import { audioDeviceManager, type AudioDevice } from "@siteed/audio-studio";
 import { Alert } from "react-native";
 import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  buildBluetoothMonitoringRouteKey,
+  getBluetoothMonitoringCalibrationForRoute,
+  isBluetoothLikeAudioDevice,
+} from "../../../bluetoothMonitoring";
 import { getClipPlaybackDurationMs, getClipPlaybackWaveformPeaks } from "../../../clipPresentation";
 import { getLatestLyricsVersion, lyricsDocumentToText } from "../../../lyrics";
 import { useRecording } from "../../../hooks/useRecording";
 import { useMetronome } from "../../../hooks/useMetronome";
+import SongseedMetronomeModule from "../../../../modules/songseed-metronome";
 import { appActions } from "../../../state/actions";
 import { useStore } from "../../../state/useStore";
 import type { ClipVersion } from "../../../types";
@@ -34,6 +40,7 @@ export function useRecordingScreenModel() {
   const setQuickNameDraft = useStore((s) => s.setQuickNameDraft);
   const setQuickNamingIdeaId = useStore((s) => s.setQuickNamingIdeaId);
   const preferredRecordingInputId = useStore((s) => s.preferredRecordingInputId);
+  const bluetoothMonitoringCalibrations = useStore((s) => s.bluetoothMonitoringCalibrations);
   const setPreferredRecordingInputId = useStore((s) => s.setPreferredRecordingInputId);
   const updateIdeas = useStore((s) => s.updateIdeas);
   const clearRecordingContext = useStore((s) => s.clearRecordingContext);
@@ -64,6 +71,9 @@ export function useRecordingScreenModel() {
   const [recordingMetronomeEnabled, setRecordingMetronomeEnabled] = useState(false);
   const [isArmingRecording, setIsArmingRecording] = useState(false);
   const [currentRecordingInput, setCurrentRecordingInput] = useState<AudioDevice | null>(null);
+  const [currentMonitoringOutput, setCurrentMonitoringOutput] = useState<{ name: string; type: string } | null>(null);
+  const [guideMonitoringLeadInMs, setGuideMonitoringLeadInMs] = useState(0);
+  const [overdubReviewLocked, setOverdubReviewLocked] = useState(false);
   const [lyricsExpanded, setLyricsExpanded] = useState(false);
   const [lyricsAutoscrollMode, setLyricsAutoscrollMode] = useState<"off" | "follow" | "manual">("follow");
   const [lyricsAutoscrollSpeedMultiplier, setLyricsAutoscrollSpeedMultiplier] = useState(1);
@@ -72,9 +82,9 @@ export function useRecordingScreenModel() {
   const countInPendingRef = useRef(false);
   const initializedMetronomeRef = useRef(false);
   const pendingOverdubSaveRef = useRef<{ ideaId: string; clipId: string; title: string } | null>(null);
-  const previousGuideDidJustFinishRef = useRef(false);
   const autoStoppingOverdubRef = useRef(false);
   const metronome = useMetronome();
+  const monitoringDelayTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const recording = useRecording(
     async (payload) => {
@@ -136,25 +146,39 @@ export function useRecordingScreenModel() {
   const guideMixDurationMs =
     Math.round((guideMixStatus.duration ?? 0) * 1000) ||
     (recordingOverdubClip ? getClipPlaybackDurationMs(recordingOverdubClip) ?? 0 : 0);
-  const guideMixPositionMs = Math.round((guideMixStatus.currentTime ?? 0) * 1000);
+  const rawGuideMixPositionMs = Math.round((guideMixStatus.currentTime ?? 0) * 1000);
+  const guideMixPositionMs = Math.max(0, rawGuideMixPositionMs - guideMonitoringLeadInMs);
   const guideMixWaveformPeaks = recordingOverdubClip
     ? getClipPlaybackWaveformPeaks(recordingOverdubClip)
     : undefined;
-  const isBluetoothRecordingInput = useMemo(() => {
-    const device = currentRecordingInput;
-    if (!device) {
-      return false;
-    }
-
-    if (device.type === "bluetooth") {
-      return true;
-    }
-
-    const label = `${device.name} ${device.type}`.toLowerCase();
-    return /airpods|airpods pro|airpods max|bluetooth|buds|earbuds|headphones|headset/.test(label);
-  }, [currentRecordingInput]);
+  const isBluetoothRecordingInput = useMemo(() => isBluetoothLikeAudioDevice(currentRecordingInput), [currentRecordingInput]);
+  const isBluetoothMonitoringOutput = useMemo(
+    () => isBluetoothLikeAudioDevice(currentMonitoringOutput),
+    [currentMonitoringOutput]
+  );
+  const bluetoothRouteKey = useMemo(
+    () => buildBluetoothMonitoringRouteKey(currentMonitoringOutput),
+    [currentMonitoringOutput]
+  );
+  const activeBluetoothCalibration = useMemo(
+    () =>
+      getBluetoothMonitoringCalibrationForRoute(
+        bluetoothMonitoringCalibrations,
+        isBluetoothMonitoringOutput ? bluetoothRouteKey : null
+      ),
+    [bluetoothMonitoringCalibrations, bluetoothRouteKey, isBluetoothMonitoringOutput]
+  );
+  const activeBluetoothCalibrationMs = activeBluetoothCalibration?.offsetMs ?? null;
+  const monitoringCompensationMs =
+    isBluetoothMonitoringOutput && activeBluetoothCalibrationMs != null ? activeBluetoothCalibrationMs : 0;
+  const activeMonitoringCompensationMs =
+    monitoringCompensationMs > 0 &&
+    (Boolean(recordingGuideMixUri) || (recordingMetronomeEnabled && metronome.isNativeAvailable))
+      ? monitoringCompensationMs
+      : 0;
 
   const recordingInputLabel = currentRecordingInput?.name?.trim() || null;
+  const monitoringOutputLabel = currentMonitoringOutput?.name?.trim() || null;
 
   const fallbackClipTitle = () => buildDefaultIdeaTitle();
 
@@ -175,7 +199,47 @@ export function useRecordingScreenModel() {
           )
       : fallbackClipTitle();
 
+  function clearMonitoringDelayTimer() {
+    if (monitoringDelayTimeoutRef.current) {
+      clearTimeout(monitoringDelayTimeoutRef.current);
+      monitoringDelayTimeoutRef.current = null;
+    }
+  }
+
+  async function waitForMonitoringCompensation(delayMs: number) {
+    if (delayMs <= 0) {
+      return;
+    }
+
+    await new Promise<void>((resolve) => {
+      monitoringDelayTimeoutRef.current = setTimeout(() => {
+        monitoringDelayTimeoutRef.current = null;
+        resolve();
+      }, delayMs);
+    });
+  }
+
+  async function waitForGuideMixPlaybackStart() {
+    if (!recordingGuideMixUri) {
+      return;
+    }
+
+    const activationDeadline = Date.now() + 1200;
+
+    while (Date.now() < activationDeadline) {
+      if (guideMixPlayer.playing && !guideMixPlayer.isBuffering) {
+        return;
+      }
+
+      await new Promise<void>((resolve) => {
+        setTimeout(resolve, 16);
+      });
+    }
+  }
+
   async function stopGuideMix() {
+    clearMonitoringDelayTimer();
+    setGuideMonitoringLeadInMs(0);
     if (!recordingGuideMixUri) return;
     try {
       await guideMixPlayer.pause();
@@ -188,8 +252,10 @@ export function useRecordingScreenModel() {
   async function startGuideMixFromBeginning() {
     if (!recordingGuideMixUri) return;
     try {
+      setGuideMonitoringLeadInMs(activeMonitoringCompensationMs);
       await guideMixPlayer.seekTo(0);
-      await guideMixPlayer.play();
+      guideMixPlayer.play();
+      await waitForGuideMixPlaybackStart();
     } catch (error) {
       console.warn("Guide mix start failed", error);
     }
@@ -198,13 +264,16 @@ export function useRecordingScreenModel() {
   async function resumeGuideMix() {
     if (!recordingGuideMixUri) return;
     try {
-      await guideMixPlayer.play();
+      setGuideMonitoringLeadInMs(activeMonitoringCompensationMs);
+      guideMixPlayer.play();
+      await waitForGuideMixPlaybackStart();
     } catch (error) {
       console.warn("Guide mix resume failed", error);
     }
   }
 
   async function pauseGuideMix() {
+    clearMonitoringDelayTimer();
     if (!recordingGuideMixUri) return;
     try {
       await guideMixPlayer.pause();
@@ -214,6 +283,7 @@ export function useRecordingScreenModel() {
   }
 
   async function stopRecordingMetronome() {
+    clearMonitoringDelayTimer();
     if (!metronome.isRunning && !metronome.isCountIn) {
       return;
     }
@@ -228,6 +298,8 @@ export function useRecordingScreenModel() {
   async function cancelPendingRecordingStart() {
     countInPendingRef.current = false;
     setIsArmingRecording(false);
+    setOverdubReviewLocked(false);
+    clearMonitoringDelayTimer();
     await stopGuideMix();
     await stopRecordingMetronome();
     await recording.cancelPreparedRecording();
@@ -238,6 +310,8 @@ export function useRecordingScreenModel() {
     if (isArmingRecording) {
       await cancelPendingRecordingStart();
     } else {
+      setOverdubReviewLocked(false);
+      clearMonitoringDelayTimer();
       await stopGuideMix();
       await stopRecordingMetronome();
       await recording.discardRecording();
@@ -289,8 +363,40 @@ export function useRecordingScreenModel() {
     setQuickNameModalVisible(true);
   }
 
+  async function redoOverdubRecording() {
+    setQuickNameModalVisible(false);
+    setQuickNameDraft("");
+    setQuickNamingIdeaId(null);
+    setOverdubReviewLocked(false);
+    await stopGuideMix();
+    await stopRecordingMetronome();
+    await recording.discardRecording();
+  }
+
+  function handleQuickNameCancel() {
+    if (recordingOverdubClip && overdubReviewLocked) {
+      Alert.alert(
+        "Review overdub",
+        "This overdub already reached the end of the guide. You can save it now or discard it and record again.",
+        [
+          { text: "Keep take", style: "cancel" },
+          {
+            text: "Redo overdub",
+            style: "destructive",
+            onPress: () => {
+              void redoOverdubRecording();
+            },
+          },
+        ]
+      );
+      return;
+    }
+
+    setQuickNameModalVisible(false);
+  }
+
   async function saveQuickClipName() {
-    if (!quickNamingIdeaId) return;
+    if (!quickNamingIdeaId) return false;
     const targetIdea = recordingIdea;
     const isStandaloneClipRecording = targetIdea?.kind === "clip";
     const overdubSaveTarget =
@@ -315,7 +421,7 @@ export function useRecordingScreenModel() {
         setQuickNamingIdeaId(null);
         clearRecordingContext();
       }
-      return;
+      return false;
     }
     await stopGuideMix();
     await stopRecordingMetronome();
@@ -324,8 +430,9 @@ export function useRecordingScreenModel() {
       setQuickNameModalVisible(false);
       setQuickNameDraft("");
       setQuickNamingIdeaId(null);
+      setOverdubReviewLocked(false);
       clearRecordingContext();
-      return;
+      return true;
     }
 
     const suggestedTitle =
@@ -386,7 +493,9 @@ export function useRecordingScreenModel() {
     setQuickNameModalVisible(false);
     setQuickNameDraft("");
     setQuickNamingIdeaId(null);
+    setOverdubReviewLocked(false);
     clearRecordingContext();
+    return true;
   }
 
   useEffect(() => {
@@ -402,12 +511,15 @@ export function useRecordingScreenModel() {
     async function refreshCurrentRecordingInput() {
       try {
         const device = await audioDeviceManager.getCurrentDevice();
+        const outputRoute = await SongseedMetronomeModule?.getCurrentAudioOutputRoute?.();
         if (!cancelled) {
           setCurrentRecordingInput(device ?? null);
+          setCurrentMonitoringOutput(outputRoute ?? null);
         }
       } catch {
         if (!cancelled) {
           setCurrentRecordingInput(null);
+          setCurrentMonitoringOutput(null);
         }
       }
     }
@@ -424,17 +536,16 @@ export function useRecordingScreenModel() {
   }, []);
 
   useEffect(() => {
-    const guideDidJustFinish = !!guideMixStatus.didJustFinish;
-    const didFinishNow = guideDidJustFinish && !previousGuideDidJustFinishRef.current;
-    previousGuideDidJustFinishRef.current = guideDidJustFinish;
-
-    if (!didFinishNow) {
-      return;
-    }
     if (!recordingOverdubClip) {
       return;
     }
     if (!recording.isRecording || recording.isPaused || isArmingRecording || quickNameModalVisible) {
+      return;
+    }
+    if (!guideMixDurationMs || guideMixDurationMs <= 0) {
+      return;
+    }
+    if (recording.elapsedMs < guideMixDurationMs) {
       return;
     }
     if (autoStoppingOverdubRef.current) {
@@ -442,13 +553,15 @@ export function useRecordingScreenModel() {
     }
 
     autoStoppingOverdubRef.current = true;
+    setOverdubReviewLocked(true);
     void requestSaveRecording().finally(() => {
       autoStoppingOverdubRef.current = false;
     });
   }, [
-    guideMixStatus.didJustFinish,
+    guideMixDurationMs,
     isArmingRecording,
     quickNameModalVisible,
+    recording.elapsedMs,
     recording.isPaused,
     recording.isRecording,
     recordingOverdubClip,
@@ -472,6 +585,11 @@ export function useRecordingScreenModel() {
 
     countInPendingRef.current = false;
     void (async () => {
+      const delayMs = activeMonitoringCompensationMs;
+      if (recordingGuideMixUri) {
+        await startGuideMixFromBeginning();
+      }
+      await waitForMonitoringCompensation(delayMs);
       const started = await recording.startPreparedRecording();
       setIsArmingRecording(false);
       if (!started) {
@@ -479,9 +597,8 @@ export function useRecordingScreenModel() {
         await stopGuideMix();
         return;
       }
-      await startGuideMixFromBeginning();
     })();
-  }, [metronome.countInCompletionToken, recording, stopRecordingMetronome]);
+  }, [activeMonitoringCompensationMs, metronome.countInCompletionToken, recording, recordingGuideMixUri]);
 
   useEffect(() => {
     if (recording.interruptionToken === 0) {
@@ -507,11 +624,34 @@ export function useRecordingScreenModel() {
     if (isArmingRecording) {
       return;
     }
+    if (overdubReviewLocked) {
+      return;
+    }
 
     autoStoppingOverdubRef.current = false;
     setSettingsVisible(false);
 
     if (!recordingMetronomeEnabled || !metronome.isNativeAvailable) {
+      if (activeMonitoringCompensationMs > 0 && recordingGuideMixUri) {
+        const prepared = await recording.prepareRecording();
+        if (!prepared) {
+          return;
+        }
+
+        setIsArmingRecording(true);
+        try {
+          await startGuideMixFromBeginning();
+          await waitForMonitoringCompensation(activeMonitoringCompensationMs);
+          const started = await recording.startPreparedRecording();
+          if (!started) {
+            await stopGuideMix();
+          }
+        } finally {
+          setIsArmingRecording(false);
+        }
+        return;
+      }
+
       await recording.startRecording();
       await startGuideMixFromBeginning();
       return;
@@ -527,18 +667,25 @@ export function useRecordingScreenModel() {
     try {
       if (metronome.countInBars > 0) {
         countInPendingRef.current = true;
-        await metronome.startCountIn(metronome.countInBars, { manageAudioSession: false });
+        await metronome.startCountIn(metronome.countInBars, {
+          manageAudioSession: false,
+          cueDelayMs: activeMonitoringCompensationMs,
+        });
         return;
       }
 
-      await metronome.start({ manageAudioSession: false });
+      await metronome.start({
+        manageAudioSession: false,
+        cueDelayMs: activeMonitoringCompensationMs,
+      });
+      await startGuideMixFromBeginning();
+      await waitForMonitoringCompensation(activeMonitoringCompensationMs);
       const started = await recording.startPreparedRecording();
       if (!started) {
         await stopRecordingMetronome();
         await stopGuideMix();
         return;
       }
-      await startGuideMixFromBeginning();
     } catch (error) {
       console.warn("Recording metronome start failed", error);
       countInPendingRef.current = false;
@@ -559,16 +706,23 @@ export function useRecordingScreenModel() {
   }
 
   async function handleResumeRecording() {
+    if (overdubReviewLocked) {
+      return;
+    }
     autoStoppingOverdubRef.current = false;
-    await recording.resumeRecording();
     await resumeGuideMix();
     if (recordingMetronomeEnabled && metronome.isNativeAvailable) {
       try {
-        await metronome.start({ manageAudioSession: false });
+        await metronome.start({
+          manageAudioSession: false,
+          cueDelayMs: activeMonitoringCompensationMs,
+        });
       } catch (error) {
         console.warn("Recording metronome resume failed", error);
       }
     }
+    await waitForMonitoringCompensation(activeMonitoringCompensationMs);
+    await recording.resumeRecording();
   }
 
   function minimizeRecording() {
@@ -590,6 +744,7 @@ export function useRecordingScreenModel() {
       } catch {
         // Ignore teardown noise during unmount.
       }
+      clearMonitoringDelayTimer();
     };
   }, [guideMixPlayer]);
 
@@ -609,12 +764,16 @@ export function useRecordingScreenModel() {
     preferredRecordingInputId,
     recordingMetronomeEnabled,
     isArmingRecording,
+    overdubReviewLocked,
     guideMixIsPlaying: !!guideMixStatus.playing,
     guideMixPositionMs,
     guideMixDurationMs,
     guideMixWaveformPeaks,
     isBluetoothRecordingInput,
+    isBluetoothMonitoringOutput,
     recordingInputLabel,
+    monitoringOutputLabel,
+    activeBluetoothCalibrationMs,
     lyricsExpanded,
     lyricsAutoscrollMode,
     lyricsAutoscrollSpeedMultiplier,
@@ -629,6 +788,7 @@ export function useRecordingScreenModel() {
     setLyricsAutoscrollMode,
     setLyricsAutoscrollSpeedMultiplier,
     confirmDiscardAndExit,
+    handleQuickNameCancel,
     minimizeRecording,
     requestSaveRecording,
     saveQuickClipName,

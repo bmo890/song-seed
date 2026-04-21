@@ -2055,6 +2055,26 @@ export const styles = StyleSheet.create({
     lineHeight: 18,
     color: "#4a3b35",
   },
+  recordingBluetoothWarningMeta: {
+    fontSize: 12,
+    lineHeight: 16,
+    color: "#6a5751",
+  },
+  recordingBluetoothWarningButton: {
+    alignSelf: "flex-start",
+    marginTop: 4,
+    minHeight: 32,
+    borderRadius: 4,
+    backgroundColor: "#e6e2dd",
+    paddingHorizontal: 12,
+    justifyContent: "center",
+  },
+  recordingBluetoothWarningButtonText: {
+    fontSize: 13,
+    lineHeight: 18,
+    color: "#824f3f",
+    fontWeight: "700",
+  },
   recordingGuideCard: {
     backgroundColor: "#fffdf9",
     borderRadius: 6,
@@ -2298,6 +2318,11 @@ export const styles = StyleSheet.create({
   circleRecordBtnActive: {
     borderColor: "#d5d8e2",
     borderWidth: 8,
+  },
+  circleRecordBtnDisabled: {
+    backgroundColor: "#b7978f",
+    borderColor: "#e8e1dc",
+    opacity: 0.72,
   },
   controlGlyph: {
     fontSize: 24,
