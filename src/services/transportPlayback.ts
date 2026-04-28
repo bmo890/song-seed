@@ -14,6 +14,10 @@ type TransportAudioPlayer = {
     replace: (source: { uri: string }) => MaybePromise<void>;
 };
 
+type ActivateAndPlayOptions = {
+    onRestartFromEnd?: () => MaybePromise<void>;
+};
+
 export function readPlaybackTimingMs(
     status: TransportPlaybackStatus,
     durationOverrideMs = 0,
@@ -32,15 +36,20 @@ export async function activateAndPlay(
     player: Pick<TransportAudioPlayer, "play" | "seekTo">,
     status: TransportPlaybackStatus,
     durationOverrideMs = 0,
-    positionOverrideMs = 0
+    positionOverrideMs = 0,
+    options: ActivateAndPlayOptions = {}
 ) {
     const { durationMs, positionMs } = readPlaybackTimingMs(status, durationOverrideMs, positionOverrideMs);
+    const shouldRestartFromEnd = isPlaybackNearEnd(positionMs, durationMs);
 
     await activatePlaybackAudioSession();
-    if (isPlaybackNearEnd(positionMs, durationMs)) {
+    if (shouldRestartFromEnd) {
         await player.seekTo(0);
+        await options.onRestartFromEnd?.();
     }
     await player.play();
+
+    return { restartedFromEnd: shouldRestartFromEnd };
 }
 
 export async function replacePlaybackSource(
@@ -50,6 +59,7 @@ export async function replacePlaybackSource(
 ) {
     await activatePlaybackAudioSession();
     await player.replace({ uri: audioUri });
+    await player.seekTo(0);
     if (autoPlay) {
         await player.play();
         return;

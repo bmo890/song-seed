@@ -65,6 +65,9 @@ type Props = {
     sharedCurrentTimeMs?: SharedValue<number>;
     sharedDurationMs?: SharedValue<number>;
     sharedTransportUpdateToken?: SharedValue<number>;
+    sharedAudioProgress?: SharedValue<number>;
+    sharedPauseHoldMs?: SharedValue<number>;
+    sharedPauseHoldToken?: SharedValue<number>;
     isPlaying: boolean;
     sharedIsPlaying?: SharedValue<boolean>;
     playbackRate?: number;
@@ -83,6 +86,7 @@ type Props = {
     sharedSelectedRangeStartMs?: SharedValue<number>;
     sharedSelectedRangeEndMs?: SharedValue<number>;
     selectedRangeType?: "keep" | "remove";
+    resetKey?: string | number | null;
     renderOverlay?: (args: OverlayArgs) => ReactNode;
     renderBelowSurface?: (args: OverlayArgs) => ReactNode;
     renderBelowOverlay?: (args: OverlayArgs) => ReactNode;
@@ -110,6 +114,9 @@ export function AudioReel({
     sharedCurrentTimeMs,
     sharedDurationMs,
     sharedTransportUpdateToken,
+    sharedAudioProgress: externalSharedAudioProgress,
+    sharedPauseHoldMs,
+    sharedPauseHoldToken,
     isPlaying,
     sharedIsPlaying,
     playbackRate = 1,
@@ -128,6 +135,7 @@ export function AudioReel({
     sharedSelectedRangeStartMs,
     sharedSelectedRangeEndMs,
     selectedRangeType,
+    resetKey,
     renderOverlay,
     renderBelowSurface,
     renderBelowOverlay,
@@ -150,7 +158,8 @@ export function AudioReel({
     const timelineTranslateX = useSharedValue(0);
     const timelineScale = useSharedValue(1);
     const visualizerHeight = useSharedValue(compact ? 120 : 160);
-    const sharedAudioProgress = useSharedValue(0);
+    const localAudioProgress = useSharedValue(0);
+    const sharedAudioProgress = externalSharedAudioProgress || localAudioProgress;
 
     const [isExpanded, setIsExpanded] = useState(defaultExpanded);
     const [uncontrolledZoomMultiple, setUncontrolledZoomMultiple] = useState<number>(1);
@@ -418,6 +427,7 @@ export function AudioReel({
                             waveformPeaks={displayWaveformPeaks}
                             durationMs={durationMs}
                             currentTimeMs={currentTimeMs}
+                            resetKey={resetKey}
                             sharedCurrentTimeMs={sharedCurrentTimeMs}
                             sharedDurationMs={sharedDurationMs}
                             sharedTransportUpdateToken={sharedTransportUpdateToken}
@@ -437,6 +447,8 @@ export function AudioReel({
                             sharedTranslateX={timelineTranslateX}
                             sharedScale={timelineScale}
                             sharedAudioProgress={sharedAudioProgress}
+                            sharedPauseHoldMs={sharedPauseHoldMs}
+                            sharedPauseHoldToken={sharedPauseHoldToken}
                             theme={{
                                 waveColor: palette.waveColor,
                                 rulerColor: palette.rulerColor,

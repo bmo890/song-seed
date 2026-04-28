@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Pressable, Text, View } from "react-native";
+import { Alert, Pressable, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
 import { PlayerLyricsPanel } from "../PlayerLyricsPanel";
@@ -216,14 +216,14 @@ export function PlayerSupportSections({
   const activeLayerPreviewDurationMs = Math.round((layerPreviewStatus.duration ?? 0) * 1000);
   const activeLayerPreviewPositionMs = Math.round((layerPreviewStatus.currentTime ?? 0) * 1000);
 
-  function pauseLayerPreviewSafely() {
+  const pauseLayerPreviewSafely = React.useCallback(() => {
     try {
       const result = layerPreviewPlayer.pause();
       void Promise.resolve(result).catch(() => {});
     } catch {
       // Ignore teardown noise from stale native player handles during unmount/handoff.
     }
-  }
+  }, [layerPreviewPlayer]);
 
   useEffect(() => {
     if (layerPreviewStatus.didJustFinish) {
@@ -235,13 +235,13 @@ export function PlayerSupportSections({
     if (!isMainPlaybackPlaying || !activeLayerPreviewId) return;
     pauseLayerPreviewSafely();
     setActiveLayerPreviewId(null);
-  }, [activeLayerPreviewId, isMainPlaybackPlaying, layerPreviewPlayer]);
+  }, [activeLayerPreviewId, isMainPlaybackPlaying, pauseLayerPreviewSafely]);
 
   useEffect(() => {
     return () => {
       pauseLayerPreviewSafely();
     };
-  }, [layerPreviewPlayer]);
+  }, [pauseLayerPreviewSafely]);
 
   const previewSources = useMemo(
     () =>
@@ -253,6 +253,17 @@ export function PlayerSupportSections({
     [overdubStemEntries]
   );
 
+  useEffect(() => {
+    if (!activeLayerPreviewId) return;
+    const activeSourceStillExists = previewSources.some(
+      (entry) => entry.id === activeLayerPreviewId && !!entry.audioUri
+    );
+    if (activeSourceStillExists) return;
+
+    pauseLayerPreviewSafely();
+    setActiveLayerPreviewId(null);
+  }, [activeLayerPreviewId, pauseLayerPreviewSafely, previewSources]);
+
   const activeLayerDurationMs =
     previewSources.find((entry) => entry.id === activeLayerPreviewId)?.durationMs ??
     activeLayerPreviewDurationMs;
@@ -260,31 +271,47 @@ export function PlayerSupportSections({
   async function toggleLayerPreview(id: string, audioUri: string | null) {
     if (!audioUri) return;
 
-    if (activeLayerPreviewId === id && layerPreviewStatus.playing) {
-      await layerPreviewPlayer.pause();
-      return;
+    try {
+      if (activeLayerPreviewId === id && layerPreviewStatus.playing) {
+        await layerPreviewPlayer.pause();
+        return;
+      }
+
+      await onPauseMainPlayback();
+
+      if (activeLayerPreviewId === id) {
+        await activateAndPlay(
+          layerPreviewPlayer,
+          layerPreviewStatus,
+          activeLayerDurationMs,
+          activeLayerPreviewPositionMs
+        );
+        return;
+      }
+
+      await replacePlaybackSource(layerPreviewPlayer, audioUri, false);
+      setActiveLayerPreviewId(id);
+      await activateAndPlay(layerPreviewPlayer, { duration: 0, currentTime: 0 });
+    } catch (error) {
+      pauseLayerPreviewSafely();
+      setActiveLayerPreviewId(null);
+      const message = error instanceof Error ? error.message : "Could not play this overdub layer.";
+      console.warn("Layer preview failed", error);
+      Alert.alert("Layer preview failed", message);
     }
-
-    await onPauseMainPlayback();
-
-    if (activeLayerPreviewId === id) {
-      await activateAndPlay(
-        layerPreviewPlayer,
-        layerPreviewStatus,
-        activeLayerDurationMs,
-        activeLayerPreviewPositionMs
-      );
-      return;
-    }
-
-    await replacePlaybackSource(layerPreviewPlayer, audioUri, false);
-    setActiveLayerPreviewId(id);
-    await activateAndPlay(layerPreviewPlayer, { duration: 0, currentTime: 0 });
   }
 
   function getLayerProgressRatio(id: string) {
     if (activeLayerPreviewId !== id || !activeLayerDurationMs) return 0;
     return activeLayerPreviewPositionMs / activeLayerDurationMs;
+  }
+
+  function removeStemSafely(stemId: string) {
+    if (activeLayerPreviewId === stemId) {
+      pauseLayerPreviewSafely();
+      setActiveLayerPreviewId(null);
+    }
+    onRemoveStem(stemId);
   }
 
   return (
@@ -390,7 +417,7 @@ export function PlayerSupportSections({
                   <LayerControlButton
                     label="Remove"
                     destructive
-                    onPress={() => onRemoveStem(stem.id)}
+                    onPress={() => removeStemSafely(stem.id)}
                   />
                 </View>
               </LayerPreviewCard>

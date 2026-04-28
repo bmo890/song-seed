@@ -23,6 +23,8 @@ import { activatePlaybackAudioSession } from "../../services/audioSession";
 import { getCollectionAncestors, getCollectionById } from "../../utils";
 import { TransportLayout } from "../common/TransportLayout";
 import { useTransportScrubbing } from "../../hooks/useTransportScrubbing";
+import { useTransportClock } from "../../hooks/useTransportClock";
+import { isPlaybackNearEnd } from "../../services/transportPlayback";
 import {
     buildClipId,
     buildFallbackAnalysis,
@@ -144,6 +146,14 @@ export function EditorScreen() {
         },
         setSourcePlaybackRate: setPlayerPlaybackRate,
     });
+    const transportClock = useTransportClock({
+        positionMs: previewTransport.effectivePositionMs ?? currentTime,
+        durationMs: previewTransport.effectiveDurationMs,
+        isPlaying: previewTransport.effectiveIsPlaying,
+        playbackRate: previewTransport.effectivePlaybackRate,
+        resetKey: clipId,
+        resetPositionMs: 0,
+    });
 
     const transportScrub = useTransportScrubbing({
         isPlaying: previewTransport.effectiveIsPlaying,
@@ -152,6 +162,7 @@ export function EditorScreen() {
         play: previewTransport.play,
         seekTo: async (timeMs) => {
             setCurrentTime((prev) => (prev === timeMs ? prev : timeMs));
+            transportClock.setDisplayPositionMs(timeMs);
             await previewTransport.seekTo(timeMs);
         },
     });
@@ -176,6 +187,10 @@ export function EditorScreen() {
         if (previewTransport.effectiveIsPlaying) {
             void previewTransport.pause();
         } else {
+            if (isPlaybackNearEnd(playheadTimeMs, previewTransport.effectiveDurationMs)) {
+                transportClock.setDisplayPositionMs(0);
+                setCurrentTime(0);
+            }
             void previewTransport.play();
         }
     };
@@ -371,8 +386,14 @@ export function EditorScreen() {
                             waveformPeaks={waveformPeaks}
                             durationMs={analysisData.durationMs}
                             currentTimeMs={playheadTimeMs}
+                            resetKey={clipId}
+                            sharedCurrentTimeMs={transportClock.sharedCurrentTimeMs}
+                            sharedDurationMs={transportClock.sharedDurationMs}
+                            sharedTransportUpdateToken={transportClock.sharedUpdateToken}
                             isPlaying={previewTransport.effectiveIsPlaying}
+                            sharedIsPlaying={transportClock.sharedIsPlaying}
                             playbackRate={previewTransport.effectivePlaybackRate}
+                            sharedPlaybackRate={transportClock.sharedPlaybackRate}
                             isScrubbing={transportScrub.isScrubbing}
                             onSeek={transportScrub.scrubTo}
                             onTogglePlay={togglePlay}
@@ -403,7 +424,8 @@ export function EditorScreen() {
                                     }}
                                     onSeek={(time) => {
                                         setCurrentTime((prev) => (prev === time ? prev : time));
-                                        void previewTransport.seekTo(time);
+                                        transportClock.setDisplayPositionMs(time);
+                                        return transportScrub.scrubTo(time);
                                     }}
                                     onRegionChange={(id, start, end) => {
                                         setSelectedRanges((prev) => prev.map((r) => (r.id === id ? { ...r, start, end } : r)));

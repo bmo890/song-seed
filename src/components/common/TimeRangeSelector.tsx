@@ -29,7 +29,7 @@ type Props = {
     sharedPreviewStartMs?: SharedValue<number>;
     sharedPreviewEndMs?: SharedValue<number>;
     onScrubStateChange?: (scrubbing: boolean) => void;
-    onSeek?: (time: number) => void;
+    onSeek?: (time: number) => void | Promise<void>;
     showVisuals?: boolean;
 };
 
@@ -73,7 +73,7 @@ function TimeRegionNode({
     sharedPreviewStartMs?: SharedValue<number>;
     sharedPreviewEndMs?: SharedValue<number>;
     onScrubStateChange?: (scrubbing: boolean) => void;
-    onSeek?: (time: number) => void;
+    onSeek?: (time: number) => void | Promise<void>;
     showVisuals?: boolean;
 }) {
     const isDragging = useSharedValue(false);
@@ -221,6 +221,20 @@ function TimeRegionNode({
     const boxStartLeft = useSharedValue(0);
     const boxStartRight = useSharedValue(0);
     const scrubStartProgress = useSharedValue(0);
+    const handleSeekEnd = React.useCallback(
+        (timeMs: number) => {
+            const maybeSeek = onSeek?.(timeMs);
+            if (maybeSeek && typeof (maybeSeek as Promise<void>).finally === "function") {
+                void Promise.resolve(maybeSeek).finally(() => {
+                    onScrubStateChange?.(false);
+                });
+                return;
+            }
+
+            onScrubStateChange?.(false);
+        },
+        [onScrubStateChange, onSeek]
+    );
 
     const moveSelectionPan = Gesture.Pan()
         .activateAfterLongPress(300)
@@ -291,12 +305,7 @@ function TimeRegionNode({
             sharedAudioProgress.value = newProgress;
         })
         .onEnd(() => {
-            if (onSeek) {
-                runOnJS(onSeek)(sharedAudioProgress.value * durationMs);
-            }
-            if (onScrubStateChange) {
-                runOnJS(onScrubStateChange)(false);
-            }
+            runOnJS(handleSeekEnd)(sharedAudioProgress.value * durationMs);
         });
 
     const combinedGesture = Gesture.Race(moveSelectionPan, scrubPan);

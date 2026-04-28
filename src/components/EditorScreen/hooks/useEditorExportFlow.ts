@@ -41,8 +41,8 @@ type UseEditorExportFlowArgs = {
   updateIdeas: (updater: (ideas: SongIdea[]) => SongIdea[]) => void;
   setSelectedIdeaId: (ideaId: string | null) => void;
   markRecentlyAdded: (ids: string[]) => void;
-  safePause: () => void;
-  safePlay: () => void;
+  safePause: () => Promise<void> | void;
+  safePlay: () => Promise<void> | void;
   setCurrentTime: React.Dispatch<React.SetStateAction<number>>;
   cancelTransportScrub: () => Promise<void>;
 };
@@ -84,7 +84,7 @@ export function useEditorExportFlow({
   const [transformNameDraft, setTransformNameDraft] = useState("");
 
   const keepRegionIdsKey = keepRegions.map((region) => region.id).join("|");
-  const activeExportCount = exportOperation === "extract" ? keepRegions.length : removeRegions.length > 0 ? 1 : 0;
+  const activeExportCount = keepRegions.length > 0 ? keepRegions.length : removeRegions.length > 0 ? 1 : 0;
   const sourceBaseTitle = sourceClip?.title?.trim() || targetIdea?.title?.trim() || buildFallbackClipTitle();
 
   const buildSuggestedTitle = (offset = 0) => {
@@ -137,21 +137,24 @@ export function useEditorExportFlow({
       return;
     }
     if (isPlayerPlaying && playheadTimeMs >= activeRegion.end) {
-      safePause();
-      resetPreviewScrubSession();
-      setPreviewRegionId(null);
-      setCurrentTime(activeRegion.end);
-      try {
-        player.seekTo(activeRegion.end / 1000);
-      } catch (error) {
-        console.warn("Preview stop seek error:", error);
-      }
+      void Promise.resolve(safePause())
+        .then(() => {
+          resetPreviewScrubSession();
+          setPreviewRegionId(null);
+          setCurrentTime(activeRegion.end);
+          return player.seekTo(activeRegion.end / 1000);
+        })
+        .catch((error) => {
+          console.warn("Preview stop seek error:", error);
+        });
     }
   }, [isPlayerPlaying, keepRegions, playheadTimeMs, player, previewRegionId, safePause, setCurrentTime]);
 
   useEffect(() => {
-    if (!exportModalVisible || !previewRegionId) return;
-    safePause();
+    if (exportModalVisible || !previewRegionId) return;
+    void Promise.resolve(safePause()).catch((error) => {
+      console.warn("Preview modal close pause error:", error);
+    });
     resetPreviewScrubSession();
     setPreviewRegionId(null);
   }, [exportModalVisible, previewRegionId, safePause]);
@@ -166,7 +169,9 @@ export function useEditorExportFlow({
     }
 
     const nextOperation = keepCount > 0 ? "extract" : "splice";
-    safePause();
+    void Promise.resolve(safePause()).catch((error) => {
+      console.warn("Preview open pause error:", error);
+    });
     resetPreviewScrubSession();
     setPreviewRegionId(null);
     setExportOperation(nextOperation);
@@ -177,7 +182,9 @@ export function useEditorExportFlow({
   };
 
   const closeExportModal = () => {
-    safePause();
+    void Promise.resolve(safePause()).catch((error) => {
+      console.warn("Preview close pause error:", error);
+    });
     resetPreviewScrubSession();
     setPreviewRegionId(null);
     setExportModalVisible(false);
@@ -189,7 +196,9 @@ export function useEditorExportFlow({
       return;
     }
 
-    safePause();
+    void Promise.resolve(safePause()).catch((error) => {
+      console.warn("Transform modal open pause error:", error);
+    });
     resetPreviewScrubSession();
     setPreviewRegionId(null);
     setTransformNameDraft("");
@@ -198,7 +207,9 @@ export function useEditorExportFlow({
   };
 
   const closeTransformExportModal = () => {
-    safePause();
+    void Promise.resolve(safePause()).catch((error) => {
+      console.warn("Transform modal close pause error:", error);
+    });
     resetPreviewScrubSession();
     setPreviewRegionId(null);
     setTransformExportModalVisible(false);
@@ -347,14 +358,14 @@ export function useEditorExportFlow({
   const toggleRegionPreview = async (region: EditableSelection) => {
     const isSameRegion = previewRegionId === region.id;
     if (isSameRegion && isPlayerPlaying) {
-      safePause();
+      await safePause();
       resetPreviewScrubSession();
       setPreviewRegionId(null);
       return;
     }
 
     await cancelTransportScrub();
-    safePause();
+    await safePause();
     setPreviewRegionId(region.id);
     setCurrentTime(region.start);
 
@@ -392,7 +403,7 @@ export function useEditorExportFlow({
     try {
       await player.seekTo(targetTime / 1000);
       if (previewWasPlayingRef.current) {
-        safePlay();
+        await safePlay();
       }
     } catch (error) {
       console.warn("Preview seek error:", error);
@@ -409,7 +420,7 @@ export function useEditorExportFlow({
       console.warn("Preview scrub cancel settle error:", error);
     }
     if (previewWasPlayingRef.current) {
-      safePlay();
+      await safePlay();
     }
     previewWasPlayingRef.current = false;
     previewPausePromiseRef.current = null;
@@ -418,9 +429,9 @@ export function useEditorExportFlow({
   const exportExtract = async () => {
     if (!audioUri || !sourceClip) return;
 
-    safePause();
     setIsExporting(true);
     try {
+      await safePause();
       const titles = buildExtractTitles();
       const exportedClips: Omit<ClipVersion, "id" | "createdAt" | "isPrimary">[] = [];
 
@@ -467,9 +478,9 @@ export function useEditorExportFlow({
   const exportSplice = async () => {
     if (!audioUri || !sourceClip || !analysisData) return;
 
-    safePause();
     setIsExporting(true);
     try {
+      await safePause();
       const title = buildSpliceTitle();
       const result = await trimAudio({
         fileUri: audioUri,
@@ -507,11 +518,11 @@ export function useEditorExportFlow({
   const exportTransform = async () => {
     if (!audioUri || !sourceClip) return;
 
-    safePause();
     setIsExporting(true);
     try {
+      await safePause();
       const title = transformNameDraft.trim() || suggestedExportTitle;
-      const sourceDurationMs = sourceClip.durationMs ?? 0;
+      const sourceDurationMs = sourceClip.durationMs ?? analysisData?.durationMs ?? 0;
       const expectedDurationMs = Math.max(
         1,
         Math.round(sourceDurationMs / Math.max(transformPlaybackRate, 0.01))

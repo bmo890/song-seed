@@ -72,6 +72,24 @@ export function EditorExportModal({
           </Text>
 
           <View style={{ flexDirection: "row", gap: 8, marginBottom: 12 }}>
+            {keepRegions.length > 0 ? (
+              <Pressable
+                style={[
+                  exportModalStyles.segmentButton,
+                  exportOperation === "extract" ? exportModalStyles.segmentButtonActive : null,
+                ]}
+                onPress={() => onSelectExportOperation("extract")}
+              >
+                <Text
+                  style={[
+                    exportModalStyles.segmentText,
+                    exportOperation === "extract" ? exportModalStyles.segmentTextActive : null,
+                  ]}
+                >
+                  Extract {keepRegions.length}
+                </Text>
+              </Pressable>
+            ) : null}
             {removeRegions.length > 0 ? (
               <Pressable
                 style={[

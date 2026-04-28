@@ -87,6 +87,16 @@ export function usePlayerScreenLifecycle({
   const handledToggleTokenRef = useRef(playerToggleRequestToken);
   const handledCloseTokenRef = useRef(playerCloseRequestToken);
   const hydratedWaveformClipIdsRef = useRef(new Set<string>());
+  const sourceSyncInFlightUriRef = useRef<string | null>(null);
+  const latestPlaybackRef = useRef({
+    positionMs: playerPosition,
+    isPlaying: isPlayerPlaying,
+  });
+
+  latestPlaybackRef.current = {
+    positionMs: playerPosition,
+    isPlaying: isPlayerPlaying,
+  };
 
   useEffect(() => {
     if (!isFocused) return;
@@ -132,7 +142,10 @@ export function usePlayerScreenLifecycle({
     if (activePlayerTargetClipId !== playerClip.id) return;
     if (!currentPlaybackSourceUri) return;
     if (currentPlaybackSourceUri === playbackAudioUri) return;
+    if (sourceSyncInFlightUriRef.current === playbackAudioUri) return;
 
+    sourceSyncInFlightUriRef.current = playbackAudioUri;
+    const playbackSnapshot = latestPlaybackRef.current;
     void syncPlayerSource(
       playerIdea.id,
       playerClip,
@@ -140,18 +153,20 @@ export function usePlayerScreenLifecycle({
         title: playerClip.title,
         albumTitle: playerIdea.title,
       },
-      playerPosition,
-      isPlayerPlaying
-    );
+      playbackSnapshot.positionMs,
+      playbackSnapshot.isPlaying
+    ).finally(() => {
+      if (sourceSyncInFlightUriRef.current === playbackAudioUri) {
+        sourceSyncInFlightUriRef.current = null;
+      }
+    });
   }, [
     activePlayerTargetClipId,
     isFocused,
-    isPlayerPlaying,
     currentPlaybackSourceUri,
     playbackAudioUri,
     playerClip,
     playerIdea,
-    playerPosition,
     syncPlayerSource,
   ]);
 

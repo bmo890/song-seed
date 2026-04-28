@@ -18,6 +18,7 @@ import { usePlayerScreenLifecycle } from "./hooks/usePlayerScreenLifecycle";
 import { usePlayerPracticePitchTransport } from "./hooks/usePlayerPracticePitchTransport";
 import { usePlayerScreenUi } from "./hooks/usePlayerScreenUi";
 import { appActions } from "../../state/actions";
+import { isPlaybackNearEnd } from "../../services/transportPlayback";
 import { PlayerTimeline } from "./components/PlayerTimeline";
 import { PlayerHeaderSection } from "./components/PlayerHeaderSection";
 import { PlayerFooterSection } from "./components/PlayerFooterSection";
@@ -37,6 +38,10 @@ export function PlayerScreen() {
   const ui = usePlayerScreenUi();
   const draggingMarkerId = useSharedValue("");
   const draggingMarkerX = useSharedValue(0);
+  const timelineAudioProgress = useSharedValue(0);
+  const pauseVisualHoldMs = useSharedValue(-1);
+  const pauseVisualHoldToken = useSharedValue(0);
+  const setPauseDisplayPositionRef = React.useRef<((positionMs: number) => void) | null>(null);
 
   const fullPlayer = useFullPlayer();
   const {
@@ -65,6 +70,42 @@ export function PlayerScreen() {
   const playerClip = data.playerClip;
   const resolvedDisplayDuration = data.displayDuration;
   const isMixUpdating = data.isOverdubPreviewRendering;
+  const pauseFullPlayerAtVisiblePosition = useCallback(async () => {
+    const durationMs = resolvedDisplayDuration || playerDuration;
+    const visualProgress = timelineAudioProgress.value;
+    const visualPositionMs = Math.max(
+      0,
+      Math.min(durationMs || 0, visualProgress * (durationMs || 0))
+    );
+    const pauseCorrectionDeltaMs = Math.abs(visualPositionMs - playerPosition);
+    const shouldCorrectNativePause =
+      durationMs > 0 &&
+      visualProgress > 0 &&
+      Number.isFinite(visualPositionMs) &&
+      pauseCorrectionDeltaMs > 12 &&
+      pauseCorrectionDeltaMs <= 250;
+
+    if (shouldCorrectNativePause) {
+      pauseVisualHoldMs.value = visualPositionMs;
+      pauseVisualHoldToken.value += 1;
+      setPauseDisplayPositionRef.current?.(visualPositionMs);
+    }
+
+    await pausePlayer();
+
+    if (shouldCorrectNativePause) {
+      await seekTo(visualPositionMs);
+    }
+  }, [
+    pausePlayer,
+    pauseVisualHoldMs,
+    pauseVisualHoldToken,
+    playerDuration,
+    playerPosition,
+    resolvedDisplayDuration,
+    seekTo,
+    timelineAudioProgress,
+  ]);
   const practicePitchTransport = usePlayerPracticePitchTransport({
     mode: ui.mode,
     isFocused,
@@ -80,7 +121,7 @@ export function PlayerScreen() {
     fullPlayerDuration: resolvedDisplayDuration,
     fullPlayerPlaybackRate: playbackRate,
     fullPlayerIsPlaying: isPlayerPlaying,
-    pauseFullPlayer: pausePlayer,
+    pauseFullPlayer: pauseFullPlayerAtVisiblePosition,
     playFullPlayer: playPlayer,
     seekFullPlayerTo: seekTo,
     setFullPlayerPlaybackRate: setPlaybackRate,
@@ -95,7 +136,10 @@ export function PlayerScreen() {
     durationMs: effectivePlayerDuration,
     isPlaying: effectiveIsPlaying,
     playbackRate: effectivePlaybackRate,
+    resetKey: playerClip?.id ?? null,
+    resetPositionMs: 0,
   });
+  setPauseDisplayPositionRef.current = transportClock.setDisplayPositionMs;
   const hasPreviousTrack = data.playerQueueIndex > 0;
   const hasNextTrack = data.playerQueueIndex >= 0 && data.playerQueueIndex < data.playerQueue.length - 1;
   const transportScrub = useTransportScrubbing({
@@ -161,6 +205,31 @@ export function PlayerScreen() {
     visibleWindowStartMs: visiblePracticeRange.start,
     visibleWindowEndMs: visiblePracticeRange.end,
   });
+  const handleTransportToggleWithDisplaySync = useCallback(async () => {
+    const loopControllerWillSeek =
+      ui.mode === "practice" && practiceLoopEnabled && hasValidPracticeLoop;
+    const shouldDisplayRestart =
+      !effectiveIsPlaying &&
+      !loopControllerWillSeek &&
+      !practicePitchTransport.isOwningNativeTransport &&
+      isPlaybackNearEnd(effectivePlayerPosition, effectivePlayerDuration);
+
+    if (shouldDisplayRestart) {
+      transportClock.setDisplayPositionMs(0);
+    }
+
+    await handleTransportToggle();
+  }, [
+    effectiveIsPlaying,
+    effectivePlayerDuration,
+    effectivePlayerPosition,
+    handleTransportToggle,
+    hasValidPracticeLoop,
+    practiceLoopEnabled,
+    practicePitchTransport.isOwningNativeTransport,
+    transportClock,
+    ui.mode,
+  ]);
   const {
     newPinLabel,
     pinModalVisible,
@@ -219,7 +288,7 @@ export function PlayerScreen() {
     endScrub,
     cancelScrub,
     cancelPendingPracticeSeek,
-    handleTransportToggle: practicePitchTransport.togglePlay,
+    handleTransportToggle: handleTransportToggleWithDisplaySync,
     setSpeedPanelVisible,
     prepareTransportForClose: practicePitchTransport.prepareForPlayerClose,
   });
@@ -384,10 +453,14 @@ export function PlayerScreen() {
                 mode={ui.mode}
                 waveformPeaks={waveformPeaks}
                 durationMs={effectivePlayerDuration}
+                resetKey={playerClip.id}
                 isPlayerPlaying={effectiveIsPlaying}
                 playbackRate={effectivePlaybackRate}
                 isScrubbing={transportScrub.isScrubbing}
                 transportClock={transportClock}
+                sharedAudioProgress={timelineAudioProgress}
+                sharedPauseHoldMs={pauseVisualHoldMs}
+                sharedPauseHoldToken={pauseVisualHoldToken}
                 practiceLoopEnabled={practiceLoopEnabled}
                 practiceLoopSelection={practiceLoopSelection}
                 practiceMarkers={data.practiceMarkers}

@@ -21,6 +21,9 @@ type LockScreenMetadata = {
   albumTitle?: string;
 };
 
+const SOURCE_POSITION_GATE_MS = 1000;
+const SOURCE_POSITION_GATE_TOLERANCE_MS = 120;
+
 export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
   const [playerTarget, setPlayerTarget] = useState<PlayerTarget>(null);
   const [waveformPeaks, setWaveformPeaks] = useState<number[]>([]);
@@ -40,8 +43,30 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
   const playerOptions = useMemo(() => ({ updateInterval: 50 }), []);
   const player = useAudioPlayer(null, playerOptions);
   const status = useAudioPlayerStatus(player);
-  const playerPosition = Math.round((status.currentTime ?? 0) * 1000);
+  const sourcePositionGateRef = useRef<{
+    targetMs: number;
+    until: number;
+    accepted: boolean;
+  } | null>(null);
+  const rawPlayerPosition = Math.round((status.currentTime ?? 0) * 1000);
   const playerDuration = Math.round((status.duration ?? 0) * 1000);
+  const sourcePositionGate = sourcePositionGateRef.current;
+  const playerPosition =
+    sourcePositionGate && !sourcePositionGate.accepted
+      ? Math.abs(rawPlayerPosition - sourcePositionGate.targetMs) <= SOURCE_POSITION_GATE_TOLERANCE_MS
+        ? rawPlayerPosition
+        : Date.now() < sourcePositionGate.until
+          ? sourcePositionGate.targetMs
+          : rawPlayerPosition
+      : rawPlayerPosition;
+  if (
+    sourcePositionGate &&
+    !sourcePositionGate.accepted &&
+    (Math.abs(rawPlayerPosition - sourcePositionGate.targetMs) <= SOURCE_POSITION_GATE_TOLERANCE_MS ||
+      Date.now() >= sourcePositionGate.until)
+  ) {
+    sourcePositionGate.accepted = true;
+  }
   const isPlayerPlaying = !!status.playing && !status.didJustFinish;
   const didPlayerJustFinish = !!status.didJustFinish;
   const playbackRate = status.playbackRate ?? 1;
@@ -54,6 +79,20 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
   const isLockScreenActiveRef = useRef(false);
   const appStateRef = useRef(AppState.currentState);
   const currentSourceUriRef = useRef<string | null>(null);
+
+  const holdSourcePositionAt = useCallback((targetMs: number) => {
+    const safeTargetMs = Math.max(0, targetMs);
+    sourcePositionGateRef.current = {
+      targetMs: safeTargetMs,
+      until: Date.now() + SOURCE_POSITION_GATE_MS,
+      accepted: false,
+    };
+    playerPositionRef.current = safeTargetMs;
+  }, []);
+
+  const releaseSourcePositionHold = useCallback(() => {
+    sourcePositionGateRef.current = null;
+  }, []);
 
   useEffect(() => {
     statusRef.current = status;
@@ -191,7 +230,8 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
     setPlayerTarget(null);
     setWaveformPeaks([]);
     currentSourceUriRef.current = null;
-  }, [clearLockScreenControls, isOperationActive, player, setPlayerPlaybackState]);
+    releaseSourcePositionHold();
+  }, [clearLockScreenControls, isOperationActive, player, releaseSourcePositionHold, setPlayerPlaybackState]);
 
   const openPlayer = useCallback(async (
     ideaId: string,
@@ -208,6 +248,7 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
     if (!isOperationActive(operationId)) return;
 
     try {
+      holdSourcePositionAt(0);
       await player.pause();
       if (!isOperationActive(operationId)) return;
 
@@ -227,6 +268,7 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
             )
       );
     } catch (err) {
+      releaseSourcePositionHold();
       setPlayerPlaybackState({
         positionMs: 0,
         durationMs: 0,
@@ -238,7 +280,7 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
       currentSourceUriRef.current = null;
       console.log("FULL open error", err);
     }
-  }, [isOperationActive, onBeforePlayNew, player, setPlayerPlaybackState]);
+  }, [holdSourcePositionAt, isOperationActive, onBeforePlayNew, player, releaseSourcePositionHold, setPlayerPlaybackState]);
 
   const syncPlayerSource = useCallback(async (
     ideaId: string,
@@ -255,13 +297,14 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
     lockScreenMetadataRef.current = metadata;
 
     try {
+      const safeResumeAtMs = Math.max(0, Math.min(resumeAtMs, getClipPlaybackDurationMs(clip) ?? resumeAtMs));
+      holdSourcePositionAt(safeResumeAtMs);
       await player.pause();
       if (!isOperationActive(operationId)) return;
 
       await replacePlaybackSource(player, playbackUri, false);
       if (!isOperationActive(operationId)) return;
 
-      const safeResumeAtMs = Math.max(0, Math.min(resumeAtMs, getClipPlaybackDurationMs(clip) ?? resumeAtMs));
       await player.seekTo(safeResumeAtMs / 1000);
       if (!isOperationActive(operationId)) return;
 
@@ -290,9 +333,10 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
             )
       );
     } catch (err) {
+      releaseSourcePositionHold();
       console.log("FULL sync source error", err);
     }
-  }, [isOperationActive, player]);
+  }, [holdSourcePositionAt, isOperationActive, player, releaseSourcePositionHold]);
 
   const updateLockScreenMetadata = useCallback((metadata?: LockScreenMetadata) => {
     lockScreenMetadataRef.current = metadata;
@@ -317,7 +361,12 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
         player,
         latestStatus,
         playerDurationRef.current,
-        playerPositionRef.current
+        playerPositionRef.current,
+        {
+          onRestartFromEnd: () => {
+            playerPositionRef.current = 0;
+          },
+        }
       );
     } catch (err) {
       console.log("FULL play error", err);
@@ -339,7 +388,12 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
         player,
         latestStatus,
         playerDurationRef.current,
-        playerPositionRef.current
+        playerPositionRef.current,
+        {
+          onRestartFromEnd: () => {
+            playerPositionRef.current = 0;
+          },
+        }
       );
     } catch (err) {
       console.log("FULL resume error", err);
@@ -351,7 +405,9 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
     const durationMs = playerDurationRef.current || Math.round((latestStatus.duration ?? 0) * 1000);
     const targetMs = Math.max(0, Math.min(ms, durationMs || ms));
     await player.seekTo(targetMs / 1000);
-  }, [player]);
+    playerPositionRef.current = targetMs;
+    releaseSourcePositionHold();
+  }, [player, releaseSourcePositionHold]);
 
   const seekBy = useCallback(async (delta: number) => {
     await seekTo(playerPositionRef.current + delta);

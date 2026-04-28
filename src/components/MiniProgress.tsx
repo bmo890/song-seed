@@ -55,8 +55,8 @@ export function MiniProgress({
     requestAnimationFrame(measureTrackFrame);
   };
 
-  const getSeekTime = (pageX: number) => {
-    if (trackFrame.width <= 0) return 0;
+  const getSeekTime = (pageX: number, fallbackMs = displayMs) => {
+    if (trackFrame.width <= 0) return fallbackMs;
     const effectiveWidth = Math.max(1, trackFrame.width - EDGE_GRAB_INSET * 2);
     const trackRelativeX = pageX - (trackFrame.pageX + EDGE_GRAB_INSET);
     const ratio = Math.max(0, Math.min(1, trackRelativeX / effectiveWidth));

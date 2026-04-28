@@ -17,6 +17,7 @@ type Props = {
     waveformPeaks: number[];
     durationMs: number;
     currentTimeMs: number;
+    resetKey?: string | number | null;
     sharedCurrentTimeMs?: SharedValue<number>;
     sharedDurationMs?: SharedValue<number>;
     sharedTransportUpdateToken?: SharedValue<number>;
@@ -41,6 +42,8 @@ type Props = {
     sharedTranslateX?: SharedValue<number>;
     sharedScale?: SharedValue<number>;
     sharedAudioProgress?: SharedValue<number>;
+    sharedPauseHoldMs?: SharedValue<number>;
+    sharedPauseHoldToken?: SharedValue<number>;
     sharedBaseScale?: SharedValue<number>;
     onScrubStateChange?: (isScrubbing: boolean) => void;
     freezeSelectedRangeWhenFullyVisible?: boolean;
@@ -66,6 +69,15 @@ type LoopRangeOverlayProps = {
 const LOOP_HANDLE_WIDTH = 2;
 const LOOP_PILL_WIDTH = 14;
 const LOOP_PILL_HEIGHT = 28;
+const PLAY_START_STATUS_GRACE_MS = 450;
+const PLAY_START_CORRECTION_FACTOR = 0.06;
+const PLAYING_CORRECTION_FACTOR = 0.16;
+const PLAY_START_STALE_FORWARD_MS = 40;
+const HARD_FORWARD_SNAP_MS = 650;
+const BACKWARD_SNAP_MS = 80;
+const SCRUB_SETTLE_FRAMES = 16;
+const PAUSE_VISUAL_HOLD_MS = 220;
+const PREDICTOR_MAX_LEAD_MS = 80;
 
 function LoopRangeOverlay({
     durationMs,
@@ -147,6 +159,7 @@ export function PlaybackTapeVisualizer({
     waveformPeaks,
     durationMs,
     currentTimeMs,
+    resetKey,
     sharedCurrentTimeMs,
     sharedDurationMs,
     sharedTransportUpdateToken,
@@ -166,6 +179,8 @@ export function PlaybackTapeVisualizer({
     sharedTranslateX,
     sharedScale,
     sharedAudioProgress,
+    sharedPauseHoldMs,
+    sharedPauseHoldToken,
     sharedBaseScale,
     onScrubStateChange,
     freezeSelectedRangeWhenFullyVisible = false,
@@ -173,7 +188,7 @@ export function PlaybackTapeVisualizer({
     const [canvasWidth, setCanvasWidth] = useState(0);
     const [canvasHeight, setCanvasHeight] = useState(0);
 
-const baseChunkWidth = 3;
+    const baseChunkWidth = 3;
     const baseContentWidth = waveformPeaks.length * baseChunkWidth;
 
     const localScale = useSharedValue(1);
@@ -203,6 +218,13 @@ const baseChunkWidth = 3;
     const reportBaseProgress = useSharedValue(0);
     const reportFrameTimestamp = useSharedValue(0);
     const lastPlayingState = useSharedValue(isPlaying);
+    const playingStateChangedAt = useSharedValue(0);
+    const scrubSettlingFrames = useSharedValue(0);
+    const awaitingPlayStartClock = useSharedValue(false);
+    const pauseHoldUntil = useSharedValue(0);
+    const pauseHoldProgress = useSharedValue(0);
+    const pauseAnchorActive = useSharedValue(false);
+    const lastSeenPauseHoldToken = useSharedValue(0);
 
     const contentWidth = useDerivedValue(() => baseContentWidth * scale.value);
 
@@ -241,6 +263,20 @@ const baseChunkWidth = 3;
     }, [isScrubbing, isScrubbingShared]);
 
     useEffect(() => {
+        const resetProgress = durationMs > 0 ? Math.max(0, Math.min(1, currentTimeMs / durationMs)) : 0;
+        cancelAnimation(audioProgress);
+        audioProgress.value = resetProgress;
+        targetAudioProgress.value = resetProgress;
+        reportBaseProgress.value = resetProgress;
+        reportFrameTimestamp.value = 0;
+        lastSeenTransportUpdate.value = transportUpdateToken.value;
+        awaitingPlayStartClock.value = false;
+        pauseHoldUntil.value = 0;
+        pauseHoldProgress.value = resetProgress;
+        pauseAnchorActive.value = false;
+    }, [resetKey]);
+
+    useEffect(() => {
         if (canvasWidth > 0 && baseContentWidth > 0) {
             const fitScale = canvasWidth / baseContentWidth;
             if (!sharedScale) {
@@ -257,40 +293,177 @@ const baseChunkWidth = 3;
         const duration = durationMsValue.value;
         if (duration <= 0) return;
 
+        const scrubVisualLockActive =
+            isDragging.value ||
+            isScrubbingShared.value ||
+            scrubSettlingFrames.value > 0;
+        if (scrubSettlingFrames.value > 0) {
+            scrubSettlingFrames.value -= 1;
+        }
+
+        if (
+            sharedPauseHoldMs &&
+            sharedPauseHoldToken &&
+            sharedPauseHoldToken.value !== lastSeenPauseHoldToken.value
+        ) {
+            lastSeenPauseHoldToken.value = sharedPauseHoldToken.value;
+            const holdMs = sharedPauseHoldMs.value;
+            if (holdMs >= 0) {
+                const holdProgress = Math.max(0, Math.min(1, holdMs / duration));
+                cancelAnimation(audioProgress);
+                audioProgress.value = holdProgress;
+                targetAudioProgress.value = holdProgress;
+                reportBaseProgress.value = holdProgress;
+                reportFrameTimestamp.value = frameInfo.timestamp;
+                pauseHoldProgress.value = holdProgress;
+                pauseHoldUntil.value = frameInfo.timestamp + PAUSE_VISUAL_HOLD_MS;
+                pauseAnchorActive.value = true;
+                awaitingPlayStartClock.value = false;
+            }
+        }
+
         if (isPlayingShared.value !== lastPlayingState.value) {
             lastPlayingState.value = isPlayingShared.value;
-            reportBaseProgress.value = audioProgress.value;
-            reportFrameTimestamp.value = frameInfo.timestamp;
+            playingStateChangedAt.value = frameInfo.timestamp;
+            awaitingPlayStartClock.value = isPlayingShared.value;
+
+            if (scrubVisualLockActive) {
+                awaitingPlayStartClock.value = isPlayingShared.value;
+                pauseHoldUntil.value = 0;
+                pauseAnchorActive.value = false;
+                reportBaseProgress.value = audioProgress.value;
+                reportFrameTimestamp.value = frameInfo.timestamp;
+                targetAudioProgress.value = audioProgress.value;
+            } else if (!isPlayingShared.value) {
+                const heldProgress = audioProgress.value;
+                awaitingPlayStartClock.value = false;
+                pauseHoldProgress.value = heldProgress;
+                pauseHoldUntil.value = frameInfo.timestamp + PAUSE_VISUAL_HOLD_MS;
+                pauseAnchorActive.value = true;
+                cancelAnimation(audioProgress);
+                audioProgress.value = heldProgress;
+                reportBaseProgress.value = heldProgress;
+                reportFrameTimestamp.value = frameInfo.timestamp;
+                targetAudioProgress.value = heldProgress;
+            } else {
+                pauseAnchorActive.value = false;
+                pauseHoldUntil.value = 0;
+                const previousProgress = audioProgress.value;
+                const startProgress = previousProgress;
+                cancelAnimation(audioProgress);
+                audioProgress.value = startProgress;
+                reportBaseProgress.value = startProgress;
+                reportFrameTimestamp.value = frameInfo.timestamp;
+                targetAudioProgress.value = startProgress;
+            }
         }
 
         if (transportUpdateToken.value !== lastSeenTransportUpdate.value) {
             lastSeenTransportUpdate.value = transportUpdateToken.value;
+            if (scrubVisualLockActive) {
+                reportBaseProgress.value = audioProgress.value;
+                targetAudioProgress.value = audioProgress.value;
+                reportFrameTimestamp.value = frameInfo.timestamp;
+                return;
+            }
+
             const reportedProgress = Math.max(0, Math.min(1, currentTimeMsValue.value / duration));
             const previousProgress = audioProgress.value;
-            const shouldSnap =
-                isScrubbingShared.value ||
-                !isPlayingShared.value ||
-                reportedProgress < previousProgress - 0.002 ||
-                Math.abs(reportedProgress - previousProgress) > 0.04;
+            const progressDelta = reportedProgress - previousProgress;
+            const recentlyStartedPlaying =
+                isPlayingShared.value &&
+                frameInfo.timestamp - playingStateChangedAt.value < PLAY_START_STATUS_GRACE_MS;
+            const stalePlayStartForwardProgress = Math.min(0.08, PLAY_START_STALE_FORWARD_MS / duration);
 
-            reportBaseProgress.value = reportedProgress;
+            if (pauseAnchorActive.value) {
+                reportBaseProgress.value = pauseHoldProgress.value;
+                targetAudioProgress.value = pauseHoldProgress.value;
+                reportFrameTimestamp.value = frameInfo.timestamp;
+                return;
+            }
+
+            pauseHoldUntil.value = 0;
+            pauseAnchorActive.value = false;
+
+            if (awaitingPlayStartClock.value && isPlayingShared.value) {
+                const minimumAdvancingProgress = Math.min(0.01, Math.max(0.0005, 12 / duration));
+                const resumeAlignmentProgress = Math.max(0.0005, 18 / duration);
+                const playStartWaitMs = frameInfo.timestamp - playingStateChangedAt.value;
+                const isAtStart = previousProgress <= minimumAdvancingProgress;
+                const clockHasAdvanced =
+                    isAtStart
+                        ? reportedProgress > minimumAdvancingProgress
+                        : reportedProgress + resumeAlignmentProgress >= previousProgress;
+                const waitTimedOut = playStartWaitMs >= PLAY_START_STATUS_GRACE_MS;
+
+                if (!clockHasAdvanced && !waitTimedOut) {
+                    reportBaseProgress.value = previousProgress;
+                    targetAudioProgress.value = previousProgress;
+                    reportFrameTimestamp.value = frameInfo.timestamp;
+                    return;
+                }
+
+                awaitingPlayStartClock.value = false;
+                const releaseProgress = isAtStart ? reportedProgress : previousProgress;
+                cancelAnimation(audioProgress);
+                audioProgress.value = releaseProgress;
+                targetAudioProgress.value = releaseProgress;
+                reportBaseProgress.value = releaseProgress;
+                reportFrameTimestamp.value = frameInfo.timestamp;
+                return;
+            }
+
+            awaitingPlayStartClock.value = false;
+            if (recentlyStartedPlaying && progressDelta > stalePlayStartForwardProgress) {
+                reportBaseProgress.value = previousProgress;
+                targetAudioProgress.value = previousProgress;
+                reportFrameTimestamp.value = frameInfo.timestamp;
+                return;
+            }
+
+            const hardForwardSnapProgress = Math.min(0.18, HARD_FORWARD_SNAP_MS / duration);
+            const backwardSnapProgress = Math.min(0.02, BACKWARD_SNAP_MS / duration);
+            const shouldSnap =
+                !isPlayingShared.value ||
+                progressDelta < -backwardSnapProgress ||
+                (!recentlyStartedPlaying && progressDelta > hardForwardSnapProgress);
+
             reportFrameTimestamp.value = frameInfo.timestamp;
 
             if (shouldSnap) {
                 cancelAnimation(audioProgress);
                 audioProgress.value = reportedProgress;
                 targetAudioProgress.value = reportedProgress;
+                reportBaseProgress.value = reportedProgress;
+            } else {
+                const correctionFactor = recentlyStartedPlaying
+                    ? PLAY_START_CORRECTION_FACTOR
+                    : PLAYING_CORRECTION_FACTOR;
+                const correctedProgress = Math.max(
+                    0,
+                    Math.min(1, previousProgress + progressDelta * correctionFactor)
+                );
+                reportBaseProgress.value = correctedProgress;
+                targetAudioProgress.value = correctedProgress;
             }
         }
 
-        if (isScrubbingShared.value || !isPlayingShared.value) return;
+        if (
+            scrubVisualLockActive ||
+            pauseAnchorActive.value ||
+            !isPlayingShared.value ||
+            awaitingPlayStartClock.value
+        ) return;
 
         const frameDeltaMs = frameInfo.timeSincePreviousFrame ?? 16;
         if (frameDeltaMs <= 0) return;
 
         const elapsedSinceReport = Math.max(0, frameInfo.timestamp - reportFrameTimestamp.value);
+        const reportedProgress = Math.max(0, Math.min(1, currentTimeMsValue.value / duration));
+        const maxLeadProgress = PREDICTOR_MAX_LEAD_MS / duration;
         const predictedProgress = Math.min(
             1,
+            reportedProgress + maxLeadProgress,
             reportBaseProgress.value + (elapsedSinceReport * playbackRateShared.value) / duration
         );
         const progressError = predictedProgress - audioProgress.value;
@@ -315,6 +488,10 @@ const baseChunkWidth = 3;
         .onStart(() => {
             cancelAnimation(audioProgress);
             isDragging.value = true;
+            awaitingPlayStartClock.value = false;
+            pauseHoldUntil.value = 0;
+            pauseAnchorActive.value = false;
+            scrubSettlingFrames.value = 0;
             startProgress.value = audioProgress.value;
             if (onScrubStateChange) runOnJS(onScrubStateChange)(true);
         })
@@ -328,6 +505,7 @@ const baseChunkWidth = 3;
             const settle = (fromFling: boolean) => {
                 "worklet";
                 isDragging.value = false;
+                scrubSettlingFrames.value = SCRUB_SETTLE_FRAMES;
                 let newTime = audioProgress.value * durationMs;
                 const edgeGuardMs = fromFling && durationMs > 200 ? 150 : 0;
                 const minTime = edgeGuardMs > 0 ? edgeGuardMs : 0;

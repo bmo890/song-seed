@@ -34,10 +34,14 @@ type Props = {
   mode: "player" | "practice";
   waveformPeaks: number[];
   durationMs: number;
+  resetKey?: string | number | null;
   isPlayerPlaying: boolean;
   playbackRate: number;
   isScrubbing: boolean;
   transportClock: TransportClock;
+  sharedAudioProgress?: SharedValue<number>;
+  sharedPauseHoldMs?: SharedValue<number>;
+  sharedPauseHoldToken?: SharedValue<number>;
   practiceLoopEnabled: boolean;
   practiceLoopSelection: Range[];
   practiceMarkers: PracticeMarker[];
@@ -174,10 +178,14 @@ function PlayerTimelineInner({
   mode,
   waveformPeaks,
   durationMs,
+  resetKey,
   isPlayerPlaying,
   playbackRate,
   isScrubbing,
   transportClock,
+  sharedAudioProgress,
+  sharedPauseHoldMs,
+  sharedPauseHoldToken,
   practiceLoopEnabled,
   practiceLoopSelection,
   practiceMarkers,
@@ -207,10 +215,14 @@ function PlayerTimelineInner({
     <AudioReel
       waveformPeaks={waveformPeaks}
       durationMs={durationMs}
+      resetKey={resetKey}
       currentTimeMs={0}
       sharedCurrentTimeMs={transportClock.sharedCurrentTimeMs}
       sharedDurationMs={transportClock.sharedDurationMs}
       sharedTransportUpdateToken={transportClock.sharedUpdateToken}
+      sharedAudioProgress={sharedAudioProgress}
+      sharedPauseHoldMs={sharedPauseHoldMs}
+      sharedPauseHoldToken={sharedPauseHoldToken}
       isPlaying={isPlayerPlaying}
       sharedIsPlaying={transportClock.sharedIsPlaying}
       playbackRate={playbackRate}

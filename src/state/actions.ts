@@ -134,7 +134,13 @@ type ImportedOverdubMix = {
     waveformPeaks?: number[];
 };
 
+type ClipOverdubMixRenderResult = {
+    nextMix: ImportedOverdubMix | null;
+    previousMixUri: string | null;
+};
+
 const OVERDUB_PREVIEW_RENDER_DEBOUNCE_MS = 320;
+const STALE_OVERDUB_MIX_DELETE_GRACE_MS = 60000;
 
 type OverdubRenderWaiter = {
     resolve: (value: string | null) => void;
@@ -149,6 +155,19 @@ type OverdubRenderQueueEntry = {
 };
 
 const overdubRenderQueue = new Map<string, OverdubRenderQueueEntry>();
+
+function deleteManagedAudioUrisAfterGrace(uris: Array<string | null | undefined>) {
+    const audioUris = uris.filter((uri): uri is string => Boolean(uri));
+    if (audioUris.length === 0) {
+        return;
+    }
+
+    setTimeout(() => {
+        void deleteManagedAudioUris(audioUris).catch((error) => {
+            console.warn("Deferred managed audio cleanup failed", error);
+        });
+    }, STALE_OVERDUB_MIX_DELETE_GRACE_MS);
+}
 
 function buildOverdubRenderQueueKey(ideaId: string, clipId: string) {
     return `${ideaId}:${clipId}`;
@@ -217,7 +236,10 @@ async function buildImportedClipOverdubMix(
     }
 }
 
-async function performClipOverdubMixRerender(ideaId: string, clipId: string) {
+async function renderClipOverdubMixForRerender(
+    ideaId: string,
+    clipId: string
+): Promise<ClipOverdubMixRenderResult> {
     const state = useStore.getState();
     const match = findWorkspaceIdeaClip(state.workspaces, ideaId, clipId);
     if (!match) {
@@ -227,10 +249,27 @@ async function performClipOverdubMixRerender(ideaId: string, clipId: string) {
     const previousMixUri = match.clip.overdub?.renderedMixUri ?? null;
     const nextMix = await buildImportedClipOverdubMix(match.clip, clipId);
 
+    return { nextMix, previousMixUri };
+}
+
+async function publishClipOverdubMixRerender(
+    ideaId: string,
+    clipId: string,
+    renderResult: ClipOverdubMixRenderResult
+) {
+    const state = useStore.getState();
+    const match = findWorkspaceIdeaClip(state.workspaces, ideaId, clipId);
+    if (!match) {
+        throw new Error("Clip not found.");
+    }
+
+    const currentMixUri = match.clip.overdub?.renderedMixUri ?? renderResult.previousMixUri;
+    const nextMix = renderResult.nextMix;
+
     if (!nextMix) {
         state.clearClipOverdubRenderedMix(ideaId, clipId);
-        if (previousMixUri) {
-            await deleteManagedAudioUris([previousMixUri]);
+        if (currentMixUri) {
+            deleteManagedAudioUrisAfterGrace([currentMixUri]);
         }
         return null;
     }
@@ -242,8 +281,8 @@ async function performClipOverdubMixRerender(ideaId: string, clipId: string) {
         lastRenderedAt: Date.now(),
     });
 
-    if (previousMixUri && previousMixUri !== nextMix.audioUri) {
-        await deleteManagedAudioUris([previousMixUri]);
+    if (currentMixUri && currentMixUri !== nextMix.audioUri) {
+        deleteManagedAudioUrisAfterGrace([currentMixUri]);
     }
 
     return nextMix.audioUri;
@@ -259,18 +298,23 @@ async function runQueuedClipOverdubRerender(queueKey: string, ideaId: string, cl
 
     entry.inFlight = true;
 
+    let renderResult: ClipOverdubMixRenderResult | null = null;
     let nextPlaybackUri: string | null = null;
     let nextError: unknown = null;
 
     try {
-        nextPlaybackUri = await performClipOverdubMixRerender(ideaId, clipId);
+        renderResult = await renderClipOverdubMixForRerender(ideaId, clipId);
     } catch (error) {
         nextError = error;
-    } finally {
-        entry.inFlight = false;
     }
 
     if (entry.rerenderQueued) {
+        entry.inFlight = false;
+        if (renderResult?.nextMix?.audioUri) {
+            void deleteManagedAudioUris([renderResult.nextMix.audioUri]).catch((error) => {
+                console.warn("Discarded overdub render cleanup failed", error);
+            });
+        }
         entry.rerenderQueued = false;
         if (entry.timer) {
             clearTimeout(entry.timer);
@@ -281,6 +325,34 @@ async function runQueuedClipOverdubRerender(queueKey: string, ideaId: string, cl
         }, 0);
         return;
     }
+
+    if (!nextError && renderResult) {
+        try {
+            nextPlaybackUri = await publishClipOverdubMixRerender(ideaId, clipId, renderResult);
+        } catch (error) {
+            nextError = error;
+            if (renderResult.nextMix?.audioUri) {
+                await deleteManagedAudioUris([renderResult.nextMix.audioUri]).catch((cleanupError) => {
+                    console.warn("Failed overdub render cleanup failed", cleanupError);
+                });
+            }
+        }
+    }
+
+    if (entry.rerenderQueued) {
+        entry.inFlight = false;
+        entry.rerenderQueued = false;
+        if (entry.timer) {
+            clearTimeout(entry.timer);
+        }
+        entry.timer = setTimeout(() => {
+            entry.timer = null;
+            void runQueuedClipOverdubRerender(queueKey, ideaId, clipId);
+        }, 0);
+        return;
+    }
+
+    entry.inFlight = false;
 
     const waiters = entry.waiters.splice(0);
     if (nextError) {
@@ -1026,7 +1098,7 @@ export const appActions = {
         }
         state.logIdeaActivity(ideaId, "updated", "recording", clipId);
         if (previousMixUri && previousMixUri !== nextMix?.audioUri) {
-            await deleteManagedAudioUris([previousMixUri]);
+            deleteManagedAudioUrisAfterGrace([previousMixUri]);
         }
         return stem.id;
     },

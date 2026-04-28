@@ -8,6 +8,7 @@ import {
   createAudioSessionOwner,
   releaseAudioSessionOwner,
 } from "../../../services/audioSession";
+import { isPlaybackNearEnd } from "../../../services/transportPlayback";
 import { buildUnavailablePitchShiftCapabilities, clampPitchShiftSemitones, type PitchShiftCapabilities } from "../../../pitchShift";
 
 const DEFAULT_PLAYBACK_STATE: NativePitchShiftPlaybackState = {
@@ -289,8 +290,7 @@ export function useEditorPreviewTransport({
       const normalizedPositionMs = isNativeTransportActive
         ? nativeStateRef.current.currentTimeMs
         : sourcePositionMs;
-      const isAtEnd =
-        normalizedDurationMs > 0 && normalizedPositionMs >= Math.max(0, normalizedDurationMs - 50);
+      const isAtEnd = isPlaybackNearEnd(normalizedPositionMs, normalizedDurationMs);
 
       if (
         SongseedPitchShiftModule &&
@@ -315,6 +315,10 @@ export function useEditorPreviewTransport({
       }
 
       if (isNativeTransportActive && SongseedPitchShiftModule) {
+        if (isAtEnd) {
+          const seekState = await SongseedPitchShiftModule.seekTo(0);
+          setNativeState(seekState);
+        }
         const state = await SongseedPitchShiftModule.play();
         setNativeState(state);
         return;
