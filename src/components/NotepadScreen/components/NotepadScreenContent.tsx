@@ -6,7 +6,11 @@ import { NoteEditor } from "./NoteEditor";
 import { useNotepadScreenModel } from "../hooks/useNotepadScreenModel";
 import { styles } from "../../../styles";
 import type { Note } from "../../../types";
-import { deriveNotePreviewBody, deriveNotePreviewTitle } from "../../../notepad";
+import {
+  buildSearchPreviewSegments,
+  deriveNotePreviewBody,
+  deriveNotePreviewTitle,
+} from "../../../notepad";
 
 function formatRelativeDate(ts: number) {
   const now = Date.now();
@@ -22,13 +26,22 @@ function formatRelativeDate(ts: number) {
 
 type NoteItemProps = {
   note: Note;
+  searchQuery: string;
   onPress: (note: Note) => void;
   onTogglePin: (noteId: string) => void;
 };
 
-function NoteListItem({ note, onPress, onTogglePin }: NoteItemProps) {
+function NoteListItem({ note, searchQuery, onPress, onTogglePin }: NoteItemProps) {
   const title = deriveNotePreviewTitle(note);
-  const preview = deriveNotePreviewBody(note);
+  const fallbackPreview = deriveNotePreviewBody(note);
+  const trimmedQuery = searchQuery.trim();
+
+  const titleSegments = trimmedQuery
+    ? buildSearchPreviewSegments(title, trimmedQuery)
+    : null;
+  const bodySegments = trimmedQuery
+    ? buildSearchPreviewSegments(note.body, trimmedQuery)
+    : null;
 
   return (
     <Pressable
@@ -36,9 +49,33 @@ function NoteListItem({ note, onPress, onTogglePin }: NoteItemProps) {
       onPress={() => onPress(note)}
     >
       <View style={noteStyles.cardBody}>
-        <Text style={noteStyles.cardTitle} numberOfLines={1}>{title}</Text>
-        {preview ? (
-          <Text style={noteStyles.cardPreview} numberOfLines={2}>{preview}</Text>
+        {titleSegments ? (
+          <Text style={noteStyles.cardTitle} numberOfLines={1}>
+            {titleSegments.map((seg, i) => (
+              <Text
+                key={i}
+                style={seg.kind === "match" ? noteStyles.matchText : undefined}
+              >
+                {seg.value}
+              </Text>
+            ))}
+          </Text>
+        ) : (
+          <Text style={noteStyles.cardTitle} numberOfLines={1}>{title}</Text>
+        )}
+        {bodySegments ? (
+          <Text style={noteStyles.cardPreview} numberOfLines={2}>
+            {bodySegments.map((seg, i) => (
+              <Text
+                key={i}
+                style={seg.kind === "match" ? noteStyles.matchText : undefined}
+              >
+                {seg.value}
+              </Text>
+            ))}
+          </Text>
+        ) : fallbackPreview ? (
+          <Text style={noteStyles.cardPreview} numberOfLines={2}>{fallbackPreview}</Text>
         ) : null}
         <Text style={noteStyles.cardMeta}>
           {note.isPinned ? "PINNED  ·  " : ""}{formatRelativeDate(note.updatedAt).toUpperCase()}
@@ -155,6 +192,7 @@ export function NotepadScreenContent() {
                       <NoteListItem
                         key={note.id}
                         note={note}
+                        searchQuery={searchQuery}
                         onPress={handleOpenNote}
                         onTogglePin={handleTogglePin}
                       />
@@ -292,5 +330,10 @@ const noteStyles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     marginTop: 1,
+  },
+  matchText: {
+    backgroundColor: "#f0d4cc",
+    color: "#5c2d1e",
+    fontWeight: "700",
   },
 });
