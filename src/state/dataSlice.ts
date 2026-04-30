@@ -1005,9 +1005,15 @@ export const createDataSlice: StateCreator<
     },
     updateNote: (id, updates) =>
         set((state) => ({
-            notes: state.notes.map((note) =>
-                note.id === id ? { ...note, ...updates, updatedAt: Date.now() } : note
-            ),
+            notes: state.notes.map((note) => {
+                if (note.id !== id) return note;
+                const contentChanged = updates.title !== undefined || updates.body !== undefined;
+                return {
+                    ...note,
+                    ...updates,
+                    updatedAt: contentChanged ? Date.now() : note.updatedAt,
+                };
+            }),
         })),
     deleteNote: (id) =>
         set((state) => ({ notes: state.notes.filter((note) => note.id !== id) })),

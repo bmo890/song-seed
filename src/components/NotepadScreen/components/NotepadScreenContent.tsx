@@ -1,4 +1,4 @@
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { ScreenHeader } from "../../common/ScreenHeader";
@@ -61,7 +61,11 @@ function NoteListItem({ note, onPress, onTogglePin }: NoteItemProps) {
 
 export function NotepadScreenContent() {
   const {
-    sortedNotes,
+    sections,
+    totalNoteCount,
+    isSearching,
+    searchQuery,
+    setSearchQuery,
     activeNote,
     handleNewNote,
     handleOpenNote,
@@ -97,29 +101,70 @@ export function NotepadScreenContent() {
         }
       />
 
-      {sortedNotes.length === 0 ? (
+      {totalNoteCount === 0 ? (
         <View style={listStyles.emptyState}>
-          <Ionicons name="pencil-outline" size={36} color="#c4b5b2" />
-          <Text style={listStyles.emptyTitle}>No notes yet</Text>
-          <Text style={listStyles.emptyBody}>
-            Tap the pencil to capture a fleeting idea, lyric, or anything worth keeping.
-          </Text>
+          <Pressable
+            style={({ pressed }) => [listStyles.emptyAction, pressed ? styles.pressDown : null]}
+            onPress={handleNewNote}
+          >
+            <Ionicons name="add" size={28} color="#824f3f" />
+          </Pressable>
         </View>
       ) : (
-        <ScrollView
-          style={listStyles.scroll}
-          contentContainerStyle={listStyles.scrollContent}
-          showsVerticalScrollIndicator={false}
-        >
-          {sortedNotes.map((note) => (
-            <NoteListItem
-              key={note.id}
-              note={note}
-              onPress={handleOpenNote}
-              onTogglePin={handleTogglePin}
+        <>
+          <View style={listStyles.searchBar}>
+            <Ionicons name="search" size={16} color="#84736f" />
+            <TextInput
+              style={listStyles.searchInput}
+              placeholder="Search notes"
+              placeholderTextColor="#a89994"
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              autoCapitalize="none"
+              autoCorrect={false}
+              returnKeyType="search"
             />
-          ))}
-        </ScrollView>
+            {searchQuery.length > 0 ? (
+              <Pressable
+                onPress={() => setSearchQuery("")}
+                hitSlop={8}
+                style={({ pressed }) => [listStyles.searchClear, pressed ? styles.pressDown : null]}
+              >
+                <Ionicons name="close-circle" size={16} color="#84736f" />
+              </Pressable>
+            ) : null}
+          </View>
+
+          {isSearching && sections.length === 0 ? (
+            <View style={listStyles.emptyState}>
+              <Ionicons name="search" size={28} color="#c4b5b2" />
+              <Text style={listStyles.emptyTitle}>No matches</Text>
+            </View>
+          ) : (
+            <ScrollView
+              style={listStyles.scroll}
+              contentContainerStyle={listStyles.scrollContent}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+            >
+              {sections.map((section) => (
+                <View key={section.key} style={listStyles.section}>
+                  <Text style={listStyles.sectionLabel}>{section.label}</Text>
+                  <View style={listStyles.sectionList}>
+                    {section.notes.map((note) => (
+                      <NoteListItem
+                        key={note.id}
+                        note={note}
+                        onPress={handleOpenNote}
+                        onTogglePin={handleTogglePin}
+                      />
+                    ))}
+                  </View>
+                </View>
+              ))}
+            </ScrollView>
+          )}
+        </>
       )}
     </SafeAreaView>
   );
@@ -142,8 +187,23 @@ const listStyles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    gap: 8,
+    gap: 20,
     paddingBottom: 32,
+  },
+  section: {
+    gap: 8,
+  },
+  sectionLabel: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#84736f",
+    letterSpacing: 0.6,
+    textTransform: "uppercase",
+    paddingHorizontal: 4,
+    marginBottom: 2,
+  },
+  sectionList: {
+    gap: 8,
   },
   emptyState: {
     flex: 1,
@@ -153,16 +213,41 @@ const listStyles = StyleSheet.create({
     paddingHorizontal: 32,
     paddingBottom: 60,
   },
-  emptyTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#1b1c1a",
+  emptyAction: {
+    width: 64,
+    height: 64,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 6,
+    backgroundColor: "#efeeea",
   },
-  emptyBody: {
+  emptyTitle: {
     fontSize: 14,
+    fontWeight: "600",
     color: "#84736f",
-    textAlign: "center",
-    lineHeight: 22,
+    letterSpacing: 0.3,
+  },
+  searchBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "#efeeea",
+    borderRadius: 6,
+    paddingHorizontal: 12,
+    height: 38,
+    marginBottom: 12,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 15,
+    color: "#1b1c1a",
+    paddingVertical: 0,
+  },
+  searchClear: {
+    width: 20,
+    height: 20,
+    alignItems: "center",
+    justifyContent: "center",
   },
 });
 
