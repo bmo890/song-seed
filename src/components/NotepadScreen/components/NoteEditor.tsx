@@ -45,7 +45,6 @@ export function NoteEditor({ note, onBack, onUpdate, onTogglePin, onDelete }: Pr
   // the live selection often collapses the moment a button is tapped (Android
   // blurs the input on outside-tap and clears the highlight before onPress fires).
   const lastNonEmptyRef = useRef<{ start: number; end: number }>({ start: 0, end: 0 });
-  const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (!note.title && !note.body) {
@@ -70,31 +69,18 @@ export function NoteEditor({ note, onBack, onUpdate, onTogglePin, onDelete }: Pr
     return () => clearTimeout(t);
   }, [selectionOverride]);
 
-  // Keep the bar visible briefly after the live selection collapses so taps
-  // on Cut/Copy/Delete have time to register before the bar hides.
+  // Bar visibility — explicit only: bar shows the moment we see a non-empty
+  // selection. It does NOT auto-hide based on selection changes (those are
+  // racy: Android blurs the input the instant you tap outside, which collapses
+  // the highlight before onPress fires). Bar hides only on explicit user
+  // intent: tapping an action, typing in the body, or the close (×) button.
   useEffect(() => {
     const live = liveSelection.end > liveSelection.start;
     if (live) {
       lastNonEmptyRef.current = liveSelection;
-      if (hideTimerRef.current) {
-        clearTimeout(hideTimerRef.current);
-        hideTimerRef.current = null;
-      }
       setBarVisible(true);
-    } else if (barVisible) {
-      if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
-      hideTimerRef.current = setTimeout(() => {
-        setBarVisible(false);
-        hideTimerRef.current = null;
-      }, 350);
     }
-    return () => {
-      if (hideTimerRef.current) {
-        clearTimeout(hideTimerRef.current);
-        hideTimerRef.current = null;
-      }
-    };
-  }, [liveSelection, barVisible]);
+  }, [liveSelection]);
 
   const activeSelection =
     liveSelection.end > liveSelection.start ? liveSelection : lastNonEmptyRef.current;
@@ -108,13 +94,9 @@ export function NoteEditor({ note, onBack, onUpdate, onTogglePin, onDelete }: Pr
   const collapseAfterAction = useCallback((collapsedAt: number) => {
     const collapsed = { start: collapsedAt, end: collapsedAt };
     setLiveSelection(collapsed);
-    lastNonEmptyRef.current = collapsed;
+    lastNonEmptyRef.current = { start: 0, end: 0 };
     setSelectionOverride(collapsed);
     setBarVisible(false);
-    if (hideTimerRef.current) {
-      clearTimeout(hideTimerRef.current);
-      hideTimerRef.current = null;
-    }
   }, []);
 
   const handleCopy = useCallback(async () => {
@@ -200,7 +182,11 @@ export function NoteEditor({ note, onBack, onUpdate, onTogglePin, onDelete }: Pr
             ref={bodyRef}
             style={editorStyles.body}
             value={note.body}
-            onChangeText={(text) => onUpdate({ body: text })}
+            onChangeText={(text) => {
+              onUpdate({ body: text });
+              // User started typing — selection (if any) was replaced.
+              if (barVisible) setBarVisible(false);
+            }}
             selection={selectionOverride ?? undefined}
             onSelectionChange={(e) => setLiveSelection(e.nativeEvent.selection)}
             placeholder="Start writing…"
@@ -214,6 +200,13 @@ export function NoteEditor({ note, onBack, onUpdate, onTogglePin, onDelete }: Pr
 
         {barVisible ? (
           <View style={editorStyles.selectionBar}>
+            <Pressable
+              style={({ pressed }) => [editorStyles.selectionDismiss, pressed ? styles.pressDown : null]}
+              onPress={() => setBarVisible(false)}
+              hitSlop={8}
+            >
+              <Ionicons name="close" size={18} color="#84736f" />
+            </Pressable>
             <Text style={editorStyles.selectionLabel}>
               {selectedLineCount === 1 ? "1 line" : `${selectedLineCount} lines`}
               {"  ·  "}
@@ -347,6 +340,13 @@ const editorStyles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
     gap: 8,
+  },
+  selectionDismiss: {
+    width: 28,
+    height: 28,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 4,
   },
   selectionLabel: {
     fontSize: 11,
