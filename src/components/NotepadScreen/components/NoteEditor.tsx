@@ -35,8 +35,17 @@ function formatTimestamp(ts: number) {
 
 export function NoteEditor({ note, onBack, onUpdate, onTogglePin, onDelete }: Props) {
   const bodyRef = useRef<TextInput>(null);
-  const [bodySelection, setBodySelection] = useState({ start: 0, end: 0 });
+  const [liveSelection, setLiveSelection] = useState({ start: 0, end: 0 });
+  const [selectionOverride, setSelectionOverride] = useState<
+    { start: number; end: number } | null
+  >(null);
+  const [barVisible, setBarVisible] = useState(false);
   const [copiedFlash, setCopiedFlash] = useState(false);
+  // Snapshot of the last non-empty selection — used by action handlers because
+  // the live selection often collapses the moment a button is tapped (Android
+  // blurs the input on outside-tap and clears the highlight before onPress fires).
+  const lastNonEmptyRef = useRef<{ start: number; end: number }>({ start: 0, end: 0 });
+  const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (!note.title && !note.body) {
@@ -53,42 +62,91 @@ export function NoteEditor({ note, onBack, onUpdate, onTogglePin, onDelete }: Pr
     return () => sub.remove();
   }, [onBack]);
 
-  const hasBodySelection = bodySelection.end > bodySelection.start;
-  const selectedText = hasBodySelection
-    ? note.body.slice(bodySelection.start, bodySelection.end)
+  // Clear programmatic selection override after one render so the input is
+  // free again for normal user-driven selection changes.
+  useEffect(() => {
+    if (!selectionOverride) return;
+    const t = setTimeout(() => setSelectionOverride(null), 50);
+    return () => clearTimeout(t);
+  }, [selectionOverride]);
+
+  // Keep the bar visible briefly after the live selection collapses so taps
+  // on Cut/Copy/Delete have time to register before the bar hides.
+  useEffect(() => {
+    const live = liveSelection.end > liveSelection.start;
+    if (live) {
+      lastNonEmptyRef.current = liveSelection;
+      if (hideTimerRef.current) {
+        clearTimeout(hideTimerRef.current);
+        hideTimerRef.current = null;
+      }
+      setBarVisible(true);
+    } else if (barVisible) {
+      if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+      hideTimerRef.current = setTimeout(() => {
+        setBarVisible(false);
+        hideTimerRef.current = null;
+      }, 350);
+    }
+    return () => {
+      if (hideTimerRef.current) {
+        clearTimeout(hideTimerRef.current);
+        hideTimerRef.current = null;
+      }
+    };
+  }, [liveSelection, barVisible]);
+
+  const activeSelection =
+    liveSelection.end > liveSelection.start ? liveSelection : lastNonEmptyRef.current;
+  const hasUsableSelection = activeSelection.end > activeSelection.start;
+  const selectedText = hasUsableSelection
+    ? note.body.slice(activeSelection.start, activeSelection.end)
     : "";
-  const selectedLineCount = hasBodySelection ? selectedText.split("\n").length : 0;
-  const selectedCharCount = hasBodySelection ? selectedText.length : 0;
+  const selectedLineCount = hasUsableSelection ? selectedText.split("\n").length : 0;
+  const selectedCharCount = hasUsableSelection ? selectedText.length : 0;
+
+  const collapseAfterAction = useCallback((collapsedAt: number) => {
+    const collapsed = { start: collapsedAt, end: collapsedAt };
+    setLiveSelection(collapsed);
+    lastNonEmptyRef.current = collapsed;
+    setSelectionOverride(collapsed);
+    setBarVisible(false);
+    if (hideTimerRef.current) {
+      clearTimeout(hideTimerRef.current);
+      hideTimerRef.current = null;
+    }
+  }, []);
 
   const handleCopy = useCallback(async () => {
-    if (!hasBodySelection) return;
+    if (!hasUsableSelection) return;
     await Clipboard.setStringAsync(selectedText);
     setCopiedFlash(true);
     setTimeout(() => setCopiedFlash(false), 1200);
-  }, [hasBodySelection, selectedText]);
+  }, [hasUsableSelection, selectedText]);
 
   const handleDeleteSelection = useCallback(() => {
-    if (!hasBodySelection) return;
+    if (!hasUsableSelection) return;
     const newBody =
-      note.body.slice(0, bodySelection.start) + note.body.slice(bodySelection.end);
+      note.body.slice(0, activeSelection.start) + note.body.slice(activeSelection.end);
     onUpdate({ body: newBody });
-    setBodySelection({ start: bodySelection.start, end: bodySelection.start });
-  }, [hasBodySelection, bodySelection, note.body, onUpdate]);
+    collapseAfterAction(activeSelection.start);
+  }, [hasUsableSelection, activeSelection, note.body, onUpdate, collapseAfterAction]);
 
   const handleCut = useCallback(async () => {
-    if (!hasBodySelection) return;
+    if (!hasUsableSelection) return;
     await Clipboard.setStringAsync(selectedText);
     const newBody =
-      note.body.slice(0, bodySelection.start) + note.body.slice(bodySelection.end);
+      note.body.slice(0, activeSelection.start) + note.body.slice(activeSelection.end);
     onUpdate({ body: newBody });
-    setBodySelection({ start: bodySelection.start, end: bodySelection.start });
-  }, [hasBodySelection, selectedText, bodySelection, note.body, onUpdate]);
+    collapseAfterAction(activeSelection.start);
+  }, [hasUsableSelection, selectedText, activeSelection, note.body, onUpdate, collapseAfterAction]);
 
   return (
     <SafeAreaView style={editorStyles.shell} edges={["top", "bottom"]}>
       <KeyboardAvoidingView
         style={styles.flexFill}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={0}
       >
         <View style={editorStyles.header}>
           <Pressable
@@ -143,8 +201,8 @@ export function NoteEditor({ note, onBack, onUpdate, onTogglePin, onDelete }: Pr
             style={editorStyles.body}
             value={note.body}
             onChangeText={(text) => onUpdate({ body: text })}
-            selection={bodySelection}
-            onSelectionChange={(e) => setBodySelection(e.nativeEvent.selection)}
+            selection={selectionOverride ?? undefined}
+            onSelectionChange={(e) => setLiveSelection(e.nativeEvent.selection)}
             placeholder="Start writing…"
             placeholderTextColor="#c4b5b2"
             multiline
@@ -154,7 +212,7 @@ export function NoteEditor({ note, onBack, onUpdate, onTogglePin, onDelete }: Pr
           />
         </ScrollView>
 
-        {hasBodySelection ? (
+        {barVisible ? (
           <View style={editorStyles.selectionBar}>
             <Text style={editorStyles.selectionLabel}>
               {selectedLineCount === 1 ? "1 line" : `${selectedLineCount} lines`}
