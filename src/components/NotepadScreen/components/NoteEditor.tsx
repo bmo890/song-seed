@@ -75,6 +75,15 @@ export function NoteEditor({ note, onBack, onUpdate, onTogglePin, onDelete }: Pr
     setBodySelection({ start: bodySelection.start, end: bodySelection.start });
   }, [hasBodySelection, bodySelection, note.body, onUpdate]);
 
+  const handleCut = useCallback(async () => {
+    if (!hasBodySelection) return;
+    await Clipboard.setStringAsync(selectedText);
+    const newBody =
+      note.body.slice(0, bodySelection.start) + note.body.slice(bodySelection.end);
+    onUpdate({ body: newBody });
+    setBodySelection({ start: bodySelection.start, end: bodySelection.start });
+  }, [hasBodySelection, selectedText, bodySelection, note.body, onUpdate]);
+
   return (
     <SafeAreaView style={editorStyles.shell} edges={["top", "bottom"]}>
       <KeyboardAvoidingView
@@ -141,6 +150,7 @@ export function NoteEditor({ note, onBack, onUpdate, onTogglePin, onDelete }: Pr
             multiline
             textAlignVertical="top"
             scrollEnabled={false}
+            contextMenuHidden
           />
         </ScrollView>
 
@@ -152,6 +162,13 @@ export function NoteEditor({ note, onBack, onUpdate, onTogglePin, onDelete }: Pr
               {selectedCharCount === 1 ? "1 char" : `${selectedCharCount} chars`}
             </Text>
             <View style={editorStyles.selectionActions}>
+              <Pressable
+                style={({ pressed }) => [editorStyles.selectionBtn, pressed ? styles.pressDown : null]}
+                onPress={handleCut}
+              >
+                <Ionicons name="cut-outline" size={18} color="#1b1c1a" />
+                <Text style={editorStyles.selectionBtnLabel}>Cut</Text>
+              </Pressable>
               <Pressable
                 style={({ pressed }) => [editorStyles.selectionBtn, pressed ? styles.pressDown : null]}
                 onPress={handleCopy}
@@ -269,27 +286,28 @@ const editorStyles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     backgroundColor: "#efeeea",
-    paddingHorizontal: 16,
+    paddingHorizontal: 12,
     paddingVertical: 10,
-    gap: 12,
+    gap: 8,
   },
   selectionLabel: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: "600",
     color: "#84736f",
     letterSpacing: 0.3,
     textTransform: "uppercase",
+    flexShrink: 1,
   },
   selectionActions: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    gap: 6,
   },
   selectionBtn: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
-    paddingHorizontal: 14,
+    gap: 5,
+    paddingHorizontal: 10,
     paddingVertical: 8,
     backgroundColor: "#e4deda",
     borderRadius: 4,
