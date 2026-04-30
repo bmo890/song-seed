@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
+  Alert,
   BackHandler,
   KeyboardAvoidingView,
   Platform,
@@ -12,7 +13,6 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import * as Clipboard from "expo-clipboard";
 import { styles } from "../../../styles";
 import type { Note } from "../../../types";
 
@@ -23,6 +23,8 @@ type Props = {
   onTogglePin: (noteId: string) => void;
   onDelete: (noteId: string) => void;
 };
+
+type Snapshot = { title: string; body: string };
 
 function formatTimestamp(ts: number) {
   const date = new Date(ts);
@@ -35,24 +37,101 @@ function formatTimestamp(ts: number) {
 
 export function NoteEditor({ note, onBack, onUpdate, onTogglePin, onDelete }: Props) {
   const bodyRef = useRef<TextInput>(null);
-  const [liveSelection, setLiveSelection] = useState({ start: 0, end: 0 });
-  const [selectionOverride, setSelectionOverride] = useState<
-    { start: number; end: number } | null
-  >(null);
-  const [barVisible, setBarVisible] = useState(false);
-  const [copiedFlash, setCopiedFlash] = useState(false);
-  // Snapshot of the last non-empty selection — used by action handlers because
-  // the live selection often collapses the moment a button is tapped (Android
-  // blurs the input on outside-tap and clears the highlight before onPress fires).
-  const lastNonEmptyRef = useRef<{ start: number; end: number }>({ start: 0, end: 0 });
 
+  // ── Undo / redo ───────────────────────────────────────────────────────────
+  // History is stored in a ref (no re-render on push) but canUndo/canRedo are
+  // state so the buttons update correctly.
+  const historyRef = useRef<Snapshot[]>([{ title: note.title, body: note.body }]);
+  const historyIndexRef = useRef(0);
+  const [canUndo, setCanUndo] = useState(false);
+  const [canRedo, setCanRedo] = useState(false);
+
+  // Debounce timer — we batch rapid keystrokes into a single history entry.
+  const historyDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Always-current note values so the debounce callback isn't stale.
+  const noteRef = useRef<Snapshot>({ title: note.title, body: note.body });
+  useEffect(() => {
+    noteRef.current = { title: note.title, body: note.body };
+  }, [note.title, note.body]);
+
+  // Reset history whenever the user opens a different note.
+  useEffect(() => {
+    historyRef.current = [{ title: note.title, body: note.body }];
+    historyIndexRef.current = 0;
+    setCanUndo(false);
+    setCanRedo(false);
+  }, [note.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const syncUndoRedoState = useCallback(() => {
+    setCanUndo(historyIndexRef.current > 0);
+    setCanRedo(historyIndexRef.current < historyRef.current.length - 1);
+  }, []);
+
+  // Called after every user edit (debounced).
+  const scheduleHistoryPush = useCallback(() => {
+    if (historyDebounceRef.current) clearTimeout(historyDebounceRef.current);
+    historyDebounceRef.current = setTimeout(() => {
+      const snapshot = { ...noteRef.current };
+      const history = historyRef.current;
+      const idx = historyIndexRef.current;
+      // Discard any redo entries.
+      history.splice(idx + 1);
+      history.push(snapshot);
+      // Cap at 200 entries to avoid unbounded memory use.
+      if (history.length > 200) history.shift();
+      historyIndexRef.current = history.length - 1;
+      syncUndoRedoState();
+    }, 400);
+  }, [syncUndoRedoState]);
+
+  const handleUndo = useCallback(() => {
+    if (historyDebounceRef.current) {
+      // Flush any pending debounced snapshot first so we don't lose it.
+      clearTimeout(historyDebounceRef.current);
+      historyDebounceRef.current = null;
+      const snapshot = { ...noteRef.current };
+      const history = historyRef.current;
+      history.splice(historyIndexRef.current + 1);
+      history.push(snapshot);
+      if (history.length > 200) history.shift();
+      historyIndexRef.current = history.length - 1;
+    }
+    if (historyIndexRef.current <= 0) return;
+    historyIndexRef.current--;
+    const snap = historyRef.current[historyIndexRef.current];
+    onUpdate({ title: snap.title, body: snap.body });
+    syncUndoRedoState();
+  }, [onUpdate, syncUndoRedoState]);
+
+  const handleRedo = useCallback(() => {
+    if (historyIndexRef.current >= historyRef.current.length - 1) return;
+    historyIndexRef.current++;
+    const snap = historyRef.current[historyIndexRef.current];
+    onUpdate({ title: snap.title, body: snap.body });
+    syncUndoRedoState();
+  }, [onUpdate, syncUndoRedoState]);
+
+  // ── Delete confirmation ───────────────────────────────────────────────────
+  const handleDeletePress = useCallback(() => {
+    Alert.alert(
+      "Delete note?",
+      "This can't be undone.",
+      [
+        { text: "Cancel", style: "cancel" },
+        { text: "Delete", style: "destructive", onPress: () => onDelete(note.id) },
+      ],
+      { cancelable: true }
+    );
+  }, [note.id, onDelete]);
+
+  // ── Auto-focus new blank notes ────────────────────────────────────────────
   useEffect(() => {
     if (!note.title && !note.body) {
       setTimeout(() => bodyRef.current?.focus(), 100);
     }
   }, [note.id]);
 
-  // Override Android hardware back to return to the notes list, not the drawer/parent.
+  // ── Android hardware back ─────────────────────────────────────────────────
   useEffect(() => {
     const sub = BackHandler.addEventListener("hardwareBackPress", () => {
       onBack();
@@ -61,67 +140,25 @@ export function NoteEditor({ note, onBack, onUpdate, onTogglePin, onDelete }: Pr
     return () => sub.remove();
   }, [onBack]);
 
-  // Clear programmatic selection override after one render so the input is
-  // free again for normal user-driven selection changes.
+  // ── Keyboard-on-selection ─────────────────────────────────────────────────
+  const focusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
-    if (!selectionOverride) return;
-    const t = setTimeout(() => setSelectionOverride(null), 50);
-    return () => clearTimeout(t);
-  }, [selectionOverride]);
-
-  // Bar visibility — explicit only: bar shows the moment we see a non-empty
-  // selection. It does NOT auto-hide based on selection changes (those are
-  // racy: Android blurs the input the instant you tap outside, which collapses
-  // the highlight before onPress fires). Bar hides only on explicit user
-  // intent: tapping an action, typing in the body, or the close (×) button.
-  useEffect(() => {
-    const live = liveSelection.end > liveSelection.start;
-    if (live) {
-      lastNonEmptyRef.current = liveSelection;
-      setBarVisible(true);
-    }
-  }, [liveSelection]);
-
-  const activeSelection =
-    liveSelection.end > liveSelection.start ? liveSelection : lastNonEmptyRef.current;
-  const hasUsableSelection = activeSelection.end > activeSelection.start;
-  const selectedText = hasUsableSelection
-    ? note.body.slice(activeSelection.start, activeSelection.end)
-    : "";
-  const selectedLineCount = hasUsableSelection ? selectedText.split("\n").length : 0;
-  const selectedCharCount = hasUsableSelection ? selectedText.length : 0;
-
-  const collapseAfterAction = useCallback((collapsedAt: number) => {
-    const collapsed = { start: collapsedAt, end: collapsedAt };
-    setLiveSelection(collapsed);
-    lastNonEmptyRef.current = { start: 0, end: 0 };
-    setSelectionOverride(collapsed);
-    setBarVisible(false);
+    return () => {
+      if (focusTimerRef.current) clearTimeout(focusTimerRef.current);
+      if (historyDebounceRef.current) clearTimeout(historyDebounceRef.current);
+    };
   }, []);
 
-  const handleCopy = useCallback(async () => {
-    if (!hasUsableSelection) return;
-    await Clipboard.setStringAsync(selectedText);
-    setCopiedFlash(true);
-    setTimeout(() => setCopiedFlash(false), 1200);
-  }, [hasUsableSelection, selectedText]);
-
-  const handleDeleteSelection = useCallback(() => {
-    if (!hasUsableSelection) return;
-    const newBody =
-      note.body.slice(0, activeSelection.start) + note.body.slice(activeSelection.end);
-    onUpdate({ body: newBody });
-    collapseAfterAction(activeSelection.start);
-  }, [hasUsableSelection, activeSelection, note.body, onUpdate, collapseAfterAction]);
-
-  const handleCut = useCallback(async () => {
-    if (!hasUsableSelection) return;
-    await Clipboard.setStringAsync(selectedText);
-    const newBody =
-      note.body.slice(0, activeSelection.start) + note.body.slice(activeSelection.end);
-    onUpdate({ body: newBody });
-    collapseAfterAction(activeSelection.start);
-  }, [hasUsableSelection, selectedText, activeSelection, note.body, onUpdate, collapseAfterAction]);
+  const handleSelectionChange = useCallback(
+    (e: { nativeEvent: { selection: { start: number; end: number } } }) => {
+      const { start, end } = e.nativeEvent.selection;
+      if (end > start) {
+        if (focusTimerRef.current) clearTimeout(focusTimerRef.current);
+        focusTimerRef.current = setTimeout(() => bodyRef.current?.focus(), 50);
+      }
+    },
+    []
+  );
 
   return (
     <SafeAreaView style={editorStyles.shell} edges={["top", "bottom"]}>
@@ -131,6 +168,7 @@ export function NoteEditor({ note, onBack, onUpdate, onTogglePin, onDelete }: Pr
         keyboardVerticalOffset={0}
       >
         <View style={editorStyles.header}>
+          {/* Back */}
           <Pressable
             style={({ pressed }) => [editorStyles.backBtn, pressed ? styles.pressDown : null]}
             onPress={onBack}
@@ -138,7 +176,28 @@ export function NoteEditor({ note, onBack, onUpdate, onTogglePin, onDelete }: Pr
             <Ionicons name="chevron-back" size={20} color="#524440" />
             <Text style={editorStyles.backLabel}>Notes</Text>
           </Pressable>
+
+          {/* Right-side actions */}
           <View style={editorStyles.headerActions}>
+            {/* Undo — always visible; dimmed when nothing to step back to */}
+            <Pressable
+              style={({ pressed }) => [editorStyles.iconBtn, pressed && canUndo ? styles.pressDown : null]}
+              onPress={handleUndo}
+              disabled={!canUndo}
+            >
+              <Ionicons name="arrow-undo-outline" size={20} color={canUndo ? "#524440" : "#c4b5b2"} />
+            </Pressable>
+
+            {/* Redo — always visible; dimmed when nothing to step forward to */}
+            <Pressable
+              style={({ pressed }) => [editorStyles.iconBtn, pressed && canRedo ? styles.pressDown : null]}
+              onPress={handleRedo}
+              disabled={!canRedo}
+            >
+              <Ionicons name="arrow-redo-outline" size={20} color={canRedo ? "#524440" : "#c4b5b2"} />
+            </Pressable>
+
+            {/* Pin */}
             <Pressable
               style={({ pressed }) => [editorStyles.iconBtn, pressed ? styles.pressDown : null]}
               onPress={() => onTogglePin(note.id)}
@@ -149,9 +208,11 @@ export function NoteEditor({ note, onBack, onUpdate, onTogglePin, onDelete }: Pr
                 color={note.isPinned ? "#824f3f" : "#84736f"}
               />
             </Pressable>
+
+            {/* Delete (with confirmation) */}
             <Pressable
               style={({ pressed }) => [editorStyles.iconBtn, pressed ? styles.pressDown : null]}
-              onPress={() => onDelete(note.id)}
+              onPress={handleDeletePress}
             >
               <Ionicons name="trash-outline" size={20} color="#84736f" />
             </Pressable>
@@ -166,7 +227,10 @@ export function NoteEditor({ note, onBack, onUpdate, onTogglePin, onDelete }: Pr
           <TextInput
             style={editorStyles.title}
             value={note.title}
-            onChangeText={(text) => onUpdate({ title: text })}
+            onChangeText={(text) => {
+              onUpdate({ title: text });
+              scheduleHistoryPush();
+            }}
             placeholder="Title"
             placeholderTextColor="#c4b5b2"
             multiline={false}
@@ -175,85 +239,23 @@ export function NoteEditor({ note, onBack, onUpdate, onTogglePin, onDelete }: Pr
             onSubmitEditing={() => bodyRef.current?.focus()}
           />
           <View style={editorStyles.divider} />
-          <Text style={editorStyles.timestamp}>
-            {formatTimestamp(note.updatedAt)}
-          </Text>
+          <Text style={editorStyles.timestamp}>{formatTimestamp(note.updatedAt)}</Text>
           <TextInput
             ref={bodyRef}
             style={editorStyles.body}
             value={note.body}
             onChangeText={(text) => {
               onUpdate({ body: text });
-              // User started typing — selection (if any) was replaced.
-              if (barVisible) setBarVisible(false);
+              scheduleHistoryPush();
             }}
-            selection={selectionOverride ?? undefined}
-            onSelectionChange={(e) => setLiveSelection(e.nativeEvent.selection)}
+            onSelectionChange={handleSelectionChange}
             placeholder="Start writing…"
             placeholderTextColor="#c4b5b2"
             multiline
             textAlignVertical="top"
             scrollEnabled={false}
-            contextMenuHidden
           />
         </ScrollView>
-
-        {barVisible ? (
-          <View style={editorStyles.selectionBar}>
-            <Pressable
-              style={({ pressed }) => [editorStyles.selectionDismiss, pressed ? styles.pressDown : null]}
-              onPress={() => setBarVisible(false)}
-              hitSlop={8}
-            >
-              <Ionicons name="close" size={18} color="#84736f" />
-            </Pressable>
-            <Text style={editorStyles.selectionLabel}>
-              {selectedLineCount === 1 ? "1 line" : `${selectedLineCount} lines`}
-              {"  ·  "}
-              {selectedCharCount === 1 ? "1 char" : `${selectedCharCount} chars`}
-            </Text>
-            <View style={editorStyles.selectionActions}>
-              <Pressable
-                style={({ pressed }) => [editorStyles.selectionBtn, pressed ? styles.pressDown : null]}
-                onPress={handleCut}
-              >
-                <Ionicons name="cut-outline" size={18} color="#1b1c1a" />
-                <Text style={editorStyles.selectionBtnLabel}>Cut</Text>
-              </Pressable>
-              <Pressable
-                style={({ pressed }) => [editorStyles.selectionBtn, pressed ? styles.pressDown : null]}
-                onPress={handleCopy}
-              >
-                <Ionicons
-                  name={copiedFlash ? "checkmark" : "copy-outline"}
-                  size={18}
-                  color={copiedFlash ? "#4a7c5e" : "#1b1c1a"}
-                />
-                <Text
-                  style={[
-                    editorStyles.selectionBtnLabel,
-                    copiedFlash ? { color: "#4a7c5e" } : null,
-                  ]}
-                >
-                  {copiedFlash ? "Copied" : "Copy"}
-                </Text>
-              </Pressable>
-              <Pressable
-                style={({ pressed }) => [
-                  editorStyles.selectionBtn,
-                  editorStyles.selectionBtnDanger,
-                  pressed ? styles.pressDown : null,
-                ]}
-                onPress={handleDeleteSelection}
-              >
-                <Ionicons name="trash-outline" size={18} color="#ffffff" />
-                <Text style={[editorStyles.selectionBtnLabel, { color: "#ffffff" }]}>
-                  Delete
-                </Text>
-              </Pressable>
-            </View>
-          </View>
-        ) : null}
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -331,51 +333,5 @@ const editorStyles = StyleSheet.create({
     lineHeight: 26,
     minHeight: 300,
     paddingVertical: 0,
-  },
-  selectionBar: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    backgroundColor: "#efeeea",
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    gap: 8,
-  },
-  selectionDismiss: {
-    width: 28,
-    height: 28,
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 4,
-  },
-  selectionLabel: {
-    fontSize: 11,
-    fontWeight: "600",
-    color: "#84736f",
-    letterSpacing: 0.3,
-    textTransform: "uppercase",
-    flexShrink: 1,
-  },
-  selectionActions: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  selectionBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    backgroundColor: "#e4deda",
-    borderRadius: 4,
-  },
-  selectionBtnDanger: {
-    backgroundColor: "#824f3f",
-  },
-  selectionBtnLabel: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#1b1c1a",
   },
 });
