@@ -29,8 +29,8 @@ type Props = {
     | null;
   workspaceTitle: string | null;
   recentCollections: RecentCollectionLite[];
-  onGoHome: () => void;        // used by ⇄ to switch workspace
-  onGoWorkspace: () => void;   // tapping the workspace name → collections
+  onGoHome: () => void;       // Switch workspace (home = workspace picker)
+  onGoWorkspace: () => void;  // Collections for current workspace
   onGoSearch: () => void;
   onGoRevisit: () => void;
   onGoActivity: () => void;
@@ -67,10 +67,12 @@ export function SideNav({
   onOpenCollection,
   onClose,
 }: Props) {
+  const mostRecent = recentCollections[0] ?? null;
+
   return (
     <SafeAreaView style={sideNavStyles.shell}>
 
-      {/* ── Header row: close + workspace context ─────────────────────── */}
+      {/* ── Close ─────────────────────────────────────────────────────── */}
       <View style={sideNavStyles.header}>
         <Pressable
           style={({ pressed }) => [sideNavStyles.closeBtn, pressed ? styles.pressDown : null]}
@@ -83,37 +85,39 @@ export function SideNav({
 
       {/* ── Workspace context block ────────────────────────────────────── */}
       <View style={sideNavStyles.workspaceBlock}>
-        {/* Workspace name → collections  |  ⇄ → switch workspace */}
-        <Pressable
-          style={({ pressed }) => [
-            sideNavStyles.workspaceRow,
-            currentRoute === "browse" ? sideNavStyles.workspaceRowActive : null,
-            pressed ? styles.pressDown : null,
-          ]}
-          onPress={onGoWorkspace}
-          disabled={!workspaceTitle}
-        >
-          <Ionicons
-            name={navIcon("workspace").icon}
-            size={16}
-            color={workspaceTitle ? navIcon("workspace").color : "#c4b5b2"}
-          />
-          <Text
-            style={[sideNavStyles.workspaceName, !workspaceTitle && sideNavStyles.workspaceNameEmpty]}
-            numberOfLines={1}
-          >
-            {workspaceTitle ?? "No workspace"}
-          </Text>
-          <Pressable
-            style={({ pressed }) => [sideNavStyles.switchBtn, pressed ? styles.pressDown : null]}
-            onPress={onGoHome}
-            hitSlop={8}
-          >
-            <Ionicons name="swap-horizontal-outline" size={16} color="#84736f" />
-          </Pressable>
-        </Pressable>
 
-        {/* Search — scoped to workspace context */}
+        {/* Section label with active-context dot */}
+        <View style={sideNavStyles.workspaceLabelRow}>
+          <View style={sideNavStyles.contextDot} />
+          <Text style={sideNavStyles.sectionLabel}>Workspace</Text>
+        </View>
+
+        {/* Workspace name — identity, not pressable */}
+        <Text style={sideNavStyles.workspaceName} numberOfLines={1}>
+          {workspaceTitle ?? "No workspace selected"}
+        </Text>
+
+        {/* Action chips: Collections + Switch */}
+        <View style={sideNavStyles.actionRow}>
+          {workspaceTitle ? (
+            <Pressable
+              style={({ pressed }) => [sideNavStyles.actionChip, pressed ? styles.pressDown : null]}
+              onPress={onGoWorkspace}
+            >
+              <Text style={sideNavStyles.actionChipLabel}>Collections</Text>
+              <Ionicons name="chevron-forward" size={13} color="#524440" />
+            </Pressable>
+          ) : null}
+          <Pressable
+            style={({ pressed }) => [sideNavStyles.actionChip, pressed ? styles.pressDown : null]}
+            onPress={onGoHome}
+          >
+            <Text style={sideNavStyles.actionChipLabel}>Switch</Text>
+            <Ionicons name="chevron-forward" size={13} color="#524440" />
+          </Pressable>
+        </View>
+
+        {/* Search — workspace-scoped */}
         <NavRow
           icon="search-outline"
           iconColor="#84736f"
@@ -122,54 +126,47 @@ export function SideNav({
           onPress={onGoSearch}
         />
 
-        {/* Recent collections */}
-        {recentCollections.length > 0 ? (
-          <View style={sideNavStyles.collectionList}>
-            {recentCollections.map((collection) => (
-              <Pressable
-                key={collection.id}
-                style={({ pressed }) => [
-                  sideNavStyles.recentItem,
-                  collection.active ? sideNavStyles.recentItemActive : null,
-                  pressed ? styles.pressDown : null,
-                ]}
-                onPress={() => onOpenCollection(collection.id)}
-              >
-                <Ionicons
-                  name={navIcon(collection.level).icon}
-                  size={14}
-                  color={navIcon(collection.level).color}
-                />
-                <View style={sideNavStyles.recentItemCopy}>
-                  <Text style={sideNavStyles.recentItemTitle} numberOfLines={1}>
-                    {collection.title}
+        {/* Most recent collection */}
+        {mostRecent ? (
+          <>
+            <View style={sideNavStyles.recentLabelRow}>
+              <Text style={sideNavStyles.sectionLabel}>Recent</Text>
+            </View>
+            <Pressable
+              style={({ pressed }) => [
+                sideNavStyles.recentItem,
+                mostRecent.active ? sideNavStyles.recentItemActive : null,
+                pressed ? styles.pressDown : null,
+              ]}
+              onPress={() => onOpenCollection(mostRecent.id)}
+            >
+              <Ionicons
+                name={navIcon(mostRecent.level).icon}
+                size={14}
+                color={navIcon(mostRecent.level).color}
+              />
+              <View style={sideNavStyles.recentItemCopy}>
+                <Text style={sideNavStyles.recentItemTitle} numberOfLines={1}>
+                  {mostRecent.title}
+                </Text>
+                {mostRecent.meta ? (
+                  <Text style={sideNavStyles.recentItemMeta} numberOfLines={1}>
+                    {mostRecent.meta}
                   </Text>
-                  {collection.meta ? (
-                    <Text style={sideNavStyles.recentItemMeta} numberOfLines={1}>
-                      {collection.meta}
-                    </Text>
-                  ) : null}
-                </View>
-                {collection.active ? (
-                  <Text style={sideNavStyles.recentItemOpenLabel}>Open</Text>
-                ) : (
-                  <Ionicons name="chevron-forward" size={14} color="#c4b5b2" />
-                )}
-              </Pressable>
-            ))}
-          </View>
-        ) : workspaceTitle ? (
-          <Text style={sideNavStyles.placeholderText}>
-            Recently opened collections will appear here.
-          </Text>
+                ) : null}
+              </View>
+              <Ionicons name="chevron-forward" size={14} color="#c4b5b2" />
+            </Pressable>
+          </>
         ) : null}
       </View>
 
+      {/* ── Scrollable lower sections ──────────────────────────────────── */}
       <ScrollView
         contentContainerStyle={sideNavStyles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* ── Explore ───────────────────────────────────────────────────── */}
+        {/* Explore */}
         <View style={sideNavStyles.divider} />
         <Text style={sideNavStyles.sectionLabel}>Explore</Text>
         <NavRow
@@ -194,7 +191,7 @@ export function SideNav({
           onPress={onGoLibrary}
         />
 
-        {/* ── Tools ─────────────────────────────────────────────────────── */}
+        {/* Tools */}
         <View style={sideNavStyles.divider} />
         <Text style={sideNavStyles.sectionLabel}>Tools</Text>
         <NavRow
@@ -220,7 +217,7 @@ export function SideNav({
         />
       </ScrollView>
 
-      {/* ── Settings — pinned footer ───────────────────────────────────── */}
+      {/* ── Settings pinned footer ─────────────────────────────────────── */}
       <View style={sideNavStyles.footer}>
         <View style={sideNavStyles.footerDivider} />
         <NavRow
@@ -260,45 +257,55 @@ const sideNavStyles = StyleSheet.create({
     justifyContent: "center",
   },
 
-  // Workspace context block (above the scroll)
+  // Workspace block
   workspaceBlock: {
     paddingHorizontal: 10,
-    gap: 2,
+    gap: 6,
   },
-  workspaceRow: {
+  workspaceLabelRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    gap: 6,
     paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: 6,
+    paddingTop: 4,
   },
-  workspaceRowActive: {
-    backgroundColor: "#efeeea",
+  contextDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: "#824f3f",
   },
   workspaceName: {
-    flex: 1,
-    fontSize: 15,
+    fontSize: 18,
     fontWeight: "700",
     color: "#1b1c1a",
     letterSpacing: 0.1,
+    paddingHorizontal: 12,
   },
-  workspaceNameEmpty: {
-    color: "#84736f",
-    fontWeight: "500",
+  actionRow: {
+    flexDirection: "row",
+    gap: 8,
+    paddingHorizontal: 12,
   },
-  switchBtn: {
-    width: 28,
-    height: 28,
+  actionChip: {
+    flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    borderRadius: 4,
+    gap: 4,
+    backgroundColor: "#efeeea",
+    borderRadius: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+  },
+  actionChipLabel: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#524440",
   },
 
-  // Recent collections
-  collectionList: {
-    gap: 2,
-    paddingLeft: 4,
+  // Recent
+  recentLabelRow: {
+    paddingHorizontal: 12,
+    paddingTop: 6,
   },
   recentItem: {
     flexDirection: "row",
@@ -325,26 +332,19 @@ const sideNavStyles = StyleSheet.create({
     fontSize: 11,
     color: "#84736f",
   },
-  recentItemOpenLabel: {
-    fontSize: 10,
-    color: "#824f3f",
-    fontWeight: "700",
-    letterSpacing: 0.4,
-    textTransform: "uppercase",
-  },
-  placeholderText: {
-    fontSize: 12,
-    color: "#84736f",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    lineHeight: 18,
-  },
 
-  // Scrollable section
+  // Scrollable sections
   scrollContent: {
     paddingHorizontal: 10,
     paddingBottom: 8,
     gap: 2,
+  },
+  sectionLabel: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: "#84736f",
+    letterSpacing: 0.8,
+    textTransform: "uppercase",
   },
   divider: {
     height: 0.5,
@@ -353,17 +353,8 @@ const sideNavStyles = StyleSheet.create({
     marginVertical: 8,
     marginHorizontal: 12,
   },
-  sectionLabel: {
-    fontSize: 10,
-    fontWeight: "700",
-    color: "#84736f",
-    letterSpacing: 0.8,
-    textTransform: "uppercase",
-    paddingHorizontal: 12,
-    marginBottom: 2,
-  },
 
-  // Pinned footer
+  // Footer
   footer: {
     paddingHorizontal: 10,
     paddingBottom: 8,
