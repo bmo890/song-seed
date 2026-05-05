@@ -112,8 +112,8 @@ export type DataSlice = {
     setBackupReminderFrequency: (value: BackupReminderFrequency) => void;
     setLastSuccessfulBackupAt: (timestamp: number | null) => void;
     setLastSuccessfulBackupFileName: (fileName: string | null) => void;
-    addWorkspace: (title: string, description?: string) => void;
-    updateWorkspace: (id: string, updates: { title?: string; description?: string; color?: string }) => void;
+    addWorkspace: (title: string, description?: string, avatarKey?: number) => void;
+    updateWorkspace: (id: string, updates: { title?: string; description?: string; color?: string; avatarKey?: number }) => void;
     deleteWorkspace: (id: string) => void;
     archiveWorkspace: (id: string, isArchived: boolean) => void;
     addCollection: (workspaceId: string, title: string, parentCollectionId?: string | null) => string;
@@ -1027,14 +1027,17 @@ export const createDataSlice: StateCreator<
     setLastSuccessfulBackupAt: (timestamp) => set({ lastSuccessfulBackupAt: timestamp }),
     setLastSuccessfulBackupFileName: (fileName) => set({ lastSuccessfulBackupFileName: fileName }),
 
-    addWorkspace: (title, description) => {
+    addWorkspace: (title, description, avatarKey) => {
         const workspaceId = `ws-${Date.now()}`;
-        const color = WORKSPACE_COLORS[get().workspaces.length % WORKSPACE_COLORS.length];
+        const now = Date.now();
+        // Use timestamp to vary color naturally by creation time
+        const color = WORKSPACE_COLORS[now % WORKSPACE_COLORS.length];
         const newWorkspace = {
             id: workspaceId,
             title,
             description,
             color,
+            avatarKey: avatarKey ?? now,
             collections: [],
             ideas: [],
         };

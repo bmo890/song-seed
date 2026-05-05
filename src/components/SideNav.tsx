@@ -295,7 +295,7 @@ const sideNavStyles = StyleSheet.create({
     width: 7,
     height: 7,
     borderRadius: 4,
-    backgroundColor: "#824f3f",
+    backgroundColor: "#B87D6B",
   },
   workspaceNameRow: {
     flexDirection: "row",

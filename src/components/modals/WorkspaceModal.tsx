@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { styles } from "../../styles";
 import { TitleInput } from "../common/TitleInput";
 import { WorkspaceAvatar } from "../common/WorkspaceAvatar";
@@ -11,13 +12,14 @@ type Props = {
   initialName?: string;
   initialDescription?: string;
   initialColor?: string;
+  initialAvatarKey?: number;
   showArchiveAction?: boolean;
   archiveActionLabel?: string;
   archiveActionDisabled?: boolean;
   showDelete?: boolean;
   deleteLabel?: string;
   onCancel: () => void;
-  onSave: (name: string, description: string, color: string) => void;
+  onSave: (name: string, description: string, color: string, avatarKey: number) => void;
   onArchiveAction?: () => void;
   onDelete?: () => void;
 };
@@ -28,6 +30,7 @@ export function WorkspaceModal({
   initialName,
   initialDescription,
   initialColor,
+  initialAvatarKey,
   showArchiveAction,
   archiveActionLabel,
   archiveActionDisabled,
@@ -41,12 +44,18 @@ export function WorkspaceModal({
   const [name, setName] = useState(initialName ?? "");
   const [description, setDescription] = useState(initialDescription ?? "");
   const [color, setColor] = useState(initialColor ?? DEFAULT_WORKSPACE_COLOR);
+  const [avatarKey, setAvatarKey] = useState(initialAvatarKey ?? Date.now());
 
   useEffect(() => {
     setName(initialName ?? "");
     setDescription(initialDescription ?? "");
     setColor(initialColor ?? DEFAULT_WORKSPACE_COLOR);
-  }, [initialName, initialDescription, initialColor, visible]);
+    setAvatarKey(initialAvatarKey ?? Date.now());
+  }, [initialName, initialDescription, initialColor, initialAvatarKey, visible]);
+
+  function randomizeAvatar() {
+    setAvatarKey(Date.now());
+  }
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
@@ -54,9 +63,19 @@ export function WorkspaceModal({
         <View style={styles.modalCard}>
           <Text style={styles.title}>{title}</Text>
 
-          {/* Avatar preview */}
+          {/* Avatar preview + randomize */}
           <View style={modalStyles.avatarPreviewRow}>
-            <WorkspaceAvatar color={color} name={name || "?"} size={52} />
+            <WorkspaceAvatar color={color} name={name || "?"} size={52} avatarKey={avatarKey} />
+            <Pressable
+              style={({ pressed }) => [
+                modalStyles.refreshBtn,
+                pressed ? modalStyles.refreshBtnPressed : null,
+              ]}
+              onPress={randomizeAvatar}
+              hitSlop={8}
+            >
+              <Ionicons name="refresh-outline" size={18} color="#84736f" />
+            </Pressable>
           </View>
 
           {/* Color swatch row */}
@@ -74,13 +93,14 @@ export function WorkspaceModal({
                   key={c}
                   onPress={() => setColor(c)}
                   style={[
-                    modalStyles.swatch,
-                    { backgroundColor: c },
+                    modalStyles.swatchRing,
                     isSelected
-                      ? { borderWidth: 3, borderColor: theme.accent }
-                      : { borderWidth: 3, borderColor: "transparent" },
+                      ? { borderColor: theme.accent }
+                      : { borderColor: "transparent" },
                   ]}
-                />
+                >
+                  <View style={[modalStyles.swatch, { backgroundColor: c }]} />
+                </Pressable>
               );
             })}
           </ScrollView>
@@ -124,7 +144,7 @@ export function WorkspaceModal({
             <Pressable
               style={styles.primaryBtn}
               onPress={() => {
-                onSave(name.trim(), description.trim(), color);
+                onSave(name.trim(), description.trim(), color, avatarKey);
               }}
             >
               <Text style={styles.primaryBtnText}>Save</Text>
@@ -138,8 +158,23 @@ export function WorkspaceModal({
 
 const modalStyles = StyleSheet.create({
   avatarPreviewRow: {
+    flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
+    gap: 12,
     paddingVertical: 8,
+  },
+  refreshBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "#F4F1ED",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  refreshBtnPressed: {
+    opacity: 0.7,
+    transform: [{ scale: 0.95 }],
   },
   swatchScroll: {
     flexGrow: 0,
@@ -151,9 +186,18 @@ const modalStyles = StyleSheet.create({
     paddingHorizontal: 2,
     paddingVertical: 4,
   },
+  swatchRing: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    borderWidth: 2,
+    padding: 3,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   swatch: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
   },
 });

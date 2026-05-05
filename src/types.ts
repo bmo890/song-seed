@@ -211,6 +211,7 @@ export type Workspace = {
   title: string;
   description?: string;
   color?: string;
+  avatarKey?: number;
   isArchived?: boolean;
   archiveState?: WorkspaceArchiveState;
   collections: Collection[];

@@ -13,9 +13,6 @@ type Props = {
   workspaces: Workspace[];
   busyWorkspaceId?: string | null;
   busyLabel?: string | null;
-  selectionMode?: boolean;
-  selectedWorkspaceIds?: string[];
-  onToggleSelection?: (id: string) => void;
 };
 
 export function WorkspaceList({
@@ -25,9 +22,6 @@ export function WorkspaceList({
   workspaces,
   busyWorkspaceId,
   busyLabel,
-  selectionMode = false,
-  selectedWorkspaceIds = [],
-  onToggleSelection,
 }: Props) {
   const navigation = useNavigation<any>();
   const activeWorkspaceId = useStore((s) => s.activeWorkspaceId);
@@ -42,17 +36,13 @@ export function WorkspaceList({
           isActive={workspace.id === activeWorkspaceId}
           isPrimary={workspace.id === primaryWorkspaceId}
           isEditing={workspace.id === editingWorkspaceId}
-          isSelected={selectedWorkspaceIds.includes(workspace.id)}
-          selectionMode={selectionMode}
           isBusy={workspace.id === busyWorkspaceId}
           busyLabel={workspace.id === busyWorkspaceId ? busyLabel ?? undefined : undefined}
+          onOpenActions={() => onOpenWorkspaceActions(workspace.id)}
           onPress={() => {
             if (workspace.id === busyWorkspaceId) return;
-            if (selectionMode) {
-              onToggleSelection?.(workspace.id);
-              return;
-            }
             if (workspace.isArchived) {
+              // Archived: tap opens action sheet
               onOpenWorkspaceActions(workspace.id);
               return;
             }
@@ -61,14 +51,6 @@ export function WorkspaceList({
               screen: "Browse",
               params: { workspaceId: workspace.id },
             });
-          }}
-          onLongPress={() => {
-            if (workspace.id === busyWorkspaceId) return;
-            if (selectionMode) {
-              onToggleSelection?.(workspace.id);
-              return;
-            }
-            onToggleSelection?.(workspace.id);
           }}
         />
       ))}

@@ -36,7 +36,7 @@ const surfaceCardStyles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderRadius: radii.lg,
     borderWidth: 1,
-    borderColor: colors.borderSubtle,
+    borderColor: "rgba(215, 194, 189, 0.1)",
     padding: 14,
     gap: 6,
     position: "relative",

@@ -2,6 +2,18 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import Constants from "expo-constants";
 import { ActivityIndicator, Alert, View } from "react-native";
 import * as Clipboard from "expo-clipboard";
+import { useFonts } from "expo-font";
+import {
+  PlayfairDisplay_400Regular,
+  PlayfairDisplay_600SemiBold,
+  PlayfairDisplay_700Bold,
+} from "@expo-google-fonts/playfair-display";
+import {
+  PlusJakartaSans_400Regular,
+  PlusJakartaSans_500Medium,
+  PlusJakartaSans_600SemiBold,
+  PlusJakartaSans_700Bold,
+} from "@expo-google-fonts/plus-jakarta-sans";
 import {
   type InitialState,
   NavigationContainer,
@@ -645,6 +657,16 @@ function getDeepestRoute(state: any): { name: string; params?: Record<string, un
 
 
 function AppContent() {
+  const [fontsLoaded] = useFonts({
+    PlayfairDisplay_400Regular,
+    PlayfairDisplay_600SemiBold,
+    PlayfairDisplay_700Bold,
+    PlusJakartaSans_400Regular,
+    PlusJakartaSans_500Medium,
+    PlusJakartaSans_600SemiBold,
+    PlusJakartaSans_700Bold,
+  });
+
   const navigationRef = useNavigationContainerRef<RootStackParamList>();
   const [activeRouteName, setActiveRouteName] = useState<string>("Home");
   const [lastCollectionContextId, setLastCollectionContextId] = useState<string | null>(null);
@@ -813,16 +835,16 @@ function AppContent() {
         },
       }}
     >
-      {!navigationStateReady ? (
+      {!navigationStateReady || !fontsLoaded ? (
         <View
           style={{
             flex: 1,
             alignItems: "center",
             justifyContent: "center",
-            backgroundColor: "#f8fafc",
+            backgroundColor: "#FDFBF7",
           }}
         >
-          <ActivityIndicator color="#0f172a" />
+          <ActivityIndicator color="#B87D6B" />
         </View>
       ) : (
       <NavigationContainer
@@ -990,10 +1012,10 @@ export default function App() {
                 flex: 1,
                 alignItems: "center",
                 justifyContent: "center",
-                backgroundColor: "#f8fafc",
+                backgroundColor: "#FDFBF7",
               }}
             >
-              <ActivityIndicator color="#0f172a" />
+              <ActivityIndicator color="#B87D6B" />
             </View>
           ) : (
             <AppContent />
