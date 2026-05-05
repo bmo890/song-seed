@@ -5,6 +5,8 @@ import { getHierarchyIconColor, getHierarchyIconName, type HierarchyLevel } from
 import { styles } from "../styles";
 import { radii, shadows } from "../design/tokens";
 import { NavRow } from "./common/NavRow";
+import { WorkspaceAvatar } from "./common/WorkspaceAvatar";
+import { getWorkspaceTheme } from "../workspaceTheme";
 
 type RecentCollectionLite = {
   id: string;
@@ -28,6 +30,7 @@ type Props = {
     | "notepad"
     | null;
   workspaceTitle: string | null;
+  workspaceColor?: string;
   recentCollections: RecentCollectionLite[];
   onGoHome: () => void;       // Switch workspace (home = workspace picker)
   onGoWorkspace: () => void;  // Collections for current workspace
@@ -53,6 +56,7 @@ function navIcon(level: HierarchyLevel) {
 export function SideNav({
   currentRoute,
   workspaceTitle,
+  workspaceColor,
   recentCollections,
   onGoHome,
   onGoWorkspace,
@@ -68,6 +72,7 @@ export function SideNav({
   onClose,
 }: Props) {
   const mostRecent = recentCollections[0] ?? null;
+  const workspaceTheme = getWorkspaceTheme(workspaceColor);
 
   return (
     <SafeAreaView style={sideNavStyles.shell}>
@@ -87,7 +92,7 @@ export function SideNav({
       <View style={sideNavStyles.workspaceBlock}>
 
         {/* Workspace identity card */}
-        <View style={sideNavStyles.workspaceCard}>
+        <View style={[sideNavStyles.workspaceCard, { backgroundColor: workspaceTheme.tint }]}>
           {/* Label row with dot */}
           <View style={sideNavStyles.workspaceLabelRow}>
             <View style={sideNavStyles.contextDot} />
@@ -96,6 +101,11 @@ export function SideNav({
 
           {/* Workspace name + swap icon inline */}
           <View style={sideNavStyles.workspaceNameRow}>
+            <WorkspaceAvatar
+              color={workspaceColor}
+              name={workspaceTitle ?? "?"}
+              size={32}
+            />
             <Text style={sideNavStyles.workspaceName} numberOfLines={1}>
               {workspaceTitle ?? "No workspace"}
             </Text>

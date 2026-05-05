@@ -1,4 +1,5 @@
 import { StateCreator } from "zustand";
+import { WORKSPACE_COLORS } from "../workspaceTheme";
 import {
     Workspace,
     Collection,
@@ -112,7 +113,7 @@ export type DataSlice = {
     setLastSuccessfulBackupAt: (timestamp: number | null) => void;
     setLastSuccessfulBackupFileName: (fileName: string | null) => void;
     addWorkspace: (title: string, description?: string) => void;
-    updateWorkspace: (id: string, updates: { title?: string; description?: string }) => void;
+    updateWorkspace: (id: string, updates: { title?: string; description?: string; color?: string }) => void;
     deleteWorkspace: (id: string) => void;
     archiveWorkspace: (id: string, isArchived: boolean) => void;
     addCollection: (workspaceId: string, title: string, parentCollectionId?: string | null) => string;
@@ -750,7 +751,7 @@ export function normalizePlaylists(playlists: Playlist[] | undefined) {
 }
 
 export function normalizeWorkspaces(workspaces: Workspace[]) {
-    return workspaces.map((workspace) => {
+    return workspaces.map((workspace, index) => {
         const normalizedArchiveState = normalizeWorkspaceArchiveState(workspace.archiveState);
         const existingCollections = Array.isArray(workspace.collections) ? workspace.collections : [];
         const migratedDefaultCollection =
@@ -815,8 +816,13 @@ export function normalizeWorkspaces(workspaces: Workspace[]) {
                 ideasListState: normalizeWorkspaceIdeasListState(sourceListState, collectionIdeas),
             };
         });
+        // Retroactively assign a color to workspaces created before this feature existed
+        const color = typeof workspace.color === "string" && workspace.color.length > 0
+            ? workspace.color
+            : WORKSPACE_COLORS[index % WORKSPACE_COLORS.length];
         return {
             ...workspace,
+            color,
             isArchived: Boolean(workspace.isArchived || normalizedArchiveState),
             archiveState: normalizedArchiveState,
             collections: normalizedCollections,
@@ -1023,28 +1029,19 @@ export const createDataSlice: StateCreator<
 
     addWorkspace: (title, description) => {
         const workspaceId = `ws-${Date.now()}`;
+        const color = WORKSPACE_COLORS[get().workspaces.length % WORKSPACE_COLORS.length];
+        const newWorkspace = {
+            id: workspaceId,
+            title,
+            description,
+            color,
+            collections: [],
+            ideas: [],
+        };
         set((state) => ({
-                workspaces: [
-                {
-                    id: workspaceId,
-                    title,
-                    description,
-                    collections: [],
-                    ideas: [],
-                },
-                ...state.workspaces,
-            ],
+            workspaces: [newWorkspace, ...state.workspaces],
             primaryWorkspaceId: resolvePrimaryWorkspaceId(
-                [
-                    {
-                        id: workspaceId,
-                        title,
-                        description,
-                        collections: [],
-                        ideas: [],
-                    },
-                    ...state.workspaces,
-                ],
+                [newWorkspace, ...state.workspaces],
                 state.primaryWorkspaceId
             ),
         }));

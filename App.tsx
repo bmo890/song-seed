@@ -477,6 +477,7 @@ function DrawerContent({ navigation, state }: DrawerContentComponentProps) {
     <SideNav
       currentRoute={currentRoute}
       workspaceTitle={activeWorkspace?.title ?? null}
+      workspaceColor={activeWorkspace?.color}
       recentCollections={recentCollections}
       onGoHome={() => {
         closeDrawer();

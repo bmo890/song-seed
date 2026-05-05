@@ -199,11 +199,11 @@ export function useWorkspaceListScreenModel() {
     },
   ];
 
-  function saveWorkspace(name: string, description?: string) {
+  function saveWorkspace(name: string, description: string, color: string) {
     if (archiveActions.busyWorkspaceId) return;
     const finalName = name || defaultWorkspaceTitle();
     if (isEditing && editingWorkspace) {
-      updateWorkspace(editingWorkspace.id, { title: finalName, description });
+      updateWorkspace(editingWorkspace.id, { title: finalName, description, color });
     } else {
       addWorkspace(finalName, description);
     }

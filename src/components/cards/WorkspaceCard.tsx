@@ -4,8 +4,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { styles } from "../../styles";
 import { Workspace } from "../../types";
 import { formatBytes, getWorkspaceSizeBytes } from "../../utils";
-import { getHierarchyIconColor, getHierarchyIconName } from "../../hierarchy";
 import { SurfaceCard } from "../common/SurfaceCard";
+import { WorkspaceAvatar } from "../common/WorkspaceAvatar";
 
 type Props = {
   workspace: Workspace;
@@ -91,10 +91,10 @@ export function WorkspaceCard({
               </View>
             </View>
           ) : null}
-          <Ionicons
-            name={getHierarchyIconName("workspace")}
-            size={16}
-            color={getHierarchyIconColor("workspace")}
+          <WorkspaceAvatar
+            color={workspace.color}
+            name={workspace.title}
+            size={40}
           />
           <Text style={styles.cardTitle}>{workspace.title}</Text>
           {isPrimary ? <Ionicons name="star" size={14} color="#c58b18" /> : null}

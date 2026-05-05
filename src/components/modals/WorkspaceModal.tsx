@@ -1,20 +1,23 @@
 import { useEffect, useState } from "react";
-import { Modal, Pressable, Text, TextInput, View } from "react-native";
+import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { styles } from "../../styles";
 import { TitleInput } from "../common/TitleInput";
+import { WorkspaceAvatar } from "../common/WorkspaceAvatar";
+import { WORKSPACE_COLORS, DEFAULT_WORKSPACE_COLOR, getWorkspaceTheme } from "../../workspaceTheme";
 
 type Props = {
   visible: boolean;
   title: string;
   initialName?: string;
   initialDescription?: string;
+  initialColor?: string;
   showArchiveAction?: boolean;
   archiveActionLabel?: string;
   archiveActionDisabled?: boolean;
   showDelete?: boolean;
   deleteLabel?: string;
   onCancel: () => void;
-  onSave: (name: string, description: string) => void;
+  onSave: (name: string, description: string, color: string) => void;
   onArchiveAction?: () => void;
   onDelete?: () => void;
 };
@@ -24,6 +27,7 @@ export function WorkspaceModal({
   title,
   initialName,
   initialDescription,
+  initialColor,
   showArchiveAction,
   archiveActionLabel,
   archiveActionDisabled,
@@ -36,17 +40,51 @@ export function WorkspaceModal({
 }: Props) {
   const [name, setName] = useState(initialName ?? "");
   const [description, setDescription] = useState(initialDescription ?? "");
+  const [color, setColor] = useState(initialColor ?? DEFAULT_WORKSPACE_COLOR);
 
   useEffect(() => {
     setName(initialName ?? "");
     setDescription(initialDescription ?? "");
-  }, [initialName, initialDescription, visible]);
+    setColor(initialColor ?? DEFAULT_WORKSPACE_COLOR);
+  }, [initialName, initialDescription, initialColor, visible]);
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
-        <View style={styles.modalBackdrop}>
+      <View style={styles.modalBackdrop}>
         <View style={styles.modalCard}>
           <Text style={styles.title}>{title}</Text>
+
+          {/* Avatar preview */}
+          <View style={modalStyles.avatarPreviewRow}>
+            <WorkspaceAvatar color={color} name={name || "?"} size={52} />
+          </View>
+
+          {/* Color swatch row */}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={modalStyles.swatchRow}
+            style={modalStyles.swatchScroll}
+          >
+            {WORKSPACE_COLORS.map((c) => {
+              const theme = getWorkspaceTheme(c);
+              const isSelected = c === color;
+              return (
+                <Pressable
+                  key={c}
+                  onPress={() => setColor(c)}
+                  style={[
+                    modalStyles.swatch,
+                    { backgroundColor: c },
+                    isSelected
+                      ? { borderWidth: 3, borderColor: theme.accent }
+                      : { borderWidth: 3, borderColor: "transparent" },
+                  ]}
+                />
+              );
+            })}
+          </ScrollView>
+
           <TitleInput
             value={name}
             onChangeText={setName}
@@ -86,7 +124,7 @@ export function WorkspaceModal({
             <Pressable
               style={styles.primaryBtn}
               onPress={() => {
-                onSave(name.trim(), description.trim());
+                onSave(name.trim(), description.trim(), color);
               }}
             >
               <Text style={styles.primaryBtnText}>Save</Text>
@@ -97,3 +135,25 @@ export function WorkspaceModal({
     </Modal>
   );
 }
+
+const modalStyles = StyleSheet.create({
+  avatarPreviewRow: {
+    alignItems: "center",
+    paddingVertical: 8,
+  },
+  swatchScroll: {
+    flexGrow: 0,
+    marginBottom: 12,
+  },
+  swatchRow: {
+    flexDirection: "row",
+    gap: 10,
+    paddingHorizontal: 2,
+    paddingVertical: 4,
+  },
+  swatch: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+  },
+});

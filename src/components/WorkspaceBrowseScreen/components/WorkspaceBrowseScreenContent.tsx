@@ -4,6 +4,8 @@ import { StatusBar as ExpoStatusBar } from "expo-status-bar";
 import { useNavigation } from "@react-navigation/native";
 import { styles } from "../styles";
 import { ScreenHeader } from "../../common/ScreenHeader";
+import { WorkspaceThemeProvider, useWorkspaceTheme } from "../../../context/WorkspaceThemeContext";
+import { useStore } from "../../../state/useStore";
 import { PageIntro } from "../../common/PageIntro";
 import { SearchField } from "../../common/SearchField";
 import { QuickNameModal } from "../../modals/QuickNameModal";
@@ -16,7 +18,8 @@ import { useWorkspaceCollectionSelection } from "../hooks/useWorkspaceCollection
 import { useWorkspaceCollectionImportFlow } from "../hooks/useWorkspaceCollectionImportFlow";
 import { WorkspaceCollectionList } from "./WorkspaceCollectionList";
 
-export function WorkspaceBrowseScreenContent() {
+function WorkspaceBrowseInner() {
+  const theme = useWorkspaceTheme();
   const navigation = useNavigation();
   const collectionsModel = useWorkspaceCollectionsModel();
   const selectionModel = useWorkspaceCollectionSelection({
@@ -60,7 +63,7 @@ export function WorkspaceBrowseScreenContent() {
   }
 
   return (
-    <SafeAreaView style={styles.screen}>
+    <SafeAreaView style={[styles.screen, { backgroundColor: theme.bg }]}>
       <ScreenHeader title="Workspace" leftIcon="hamburger" />
       <ScrollView
         style={styles.flexFill}
@@ -212,5 +215,17 @@ export function WorkspaceBrowseScreenContent() {
 
       <ExpoStatusBar style="dark" />
     </SafeAreaView>
+  );
+}
+
+export function WorkspaceBrowseScreenContent() {
+  const activeWorkspaceId = useStore((s) => s.activeWorkspaceId);
+  const workspaceColor = useStore((s) =>
+    s.workspaces.find((w) => w.id === activeWorkspaceId)?.color
+  );
+  return (
+    <WorkspaceThemeProvider color={workspaceColor}>
+      <WorkspaceBrowseInner />
+    </WorkspaceThemeProvider>
   );
 }

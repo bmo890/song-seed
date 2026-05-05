@@ -185,6 +185,7 @@ export function WorkspaceListScreenContent() {
         title={model.modal.isEditing ? "Edit Workspace" : "New Workspace"}
         initialName={model.modal.editingWorkspace?.title}
         initialDescription={model.modal.editingWorkspace?.description}
+        initialColor={model.modal.editingWorkspace?.color}
         showArchiveAction={model.modal.isEditing}
         archiveActionLabel={
           model.modal.editingWorkspace?.isArchived ? "Unarchive" : "Archive"

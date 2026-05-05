@@ -210,6 +210,7 @@ export type Workspace = {
   id: string;
   title: string;
   description?: string;
+  color?: string;
   isArchived?: boolean;
   archiveState?: WorkspaceArchiveState;
   collections: Collection[];
