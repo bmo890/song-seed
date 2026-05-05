@@ -44,6 +44,7 @@ export function WorkspaceAvatar({ color, name, size = 36 }: Props) {
 
   return (
     <View
+      pointerEvents="none"
       style={{
         width: size,
         height: size,
