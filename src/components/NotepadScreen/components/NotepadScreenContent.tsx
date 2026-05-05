@@ -27,11 +27,12 @@ function formatRelativeDate(ts: number) {
 type NoteItemProps = {
   note: Note;
   searchQuery: string;
+  sectionLabel: string;
   onPress: (note: Note) => void;
   onTogglePin: (noteId: string) => void;
 };
 
-function NoteListItem({ note, searchQuery, onPress, onTogglePin }: NoteItemProps) {
+function NoteListItem({ note, searchQuery, sectionLabel, onPress, onTogglePin }: NoteItemProps) {
   const title = deriveNotePreviewTitle(note);
   const fallbackPreview = deriveNotePreviewBody(note);
   const trimmedQuery = searchQuery.trim();
@@ -77,9 +78,13 @@ function NoteListItem({ note, searchQuery, onPress, onTogglePin }: NoteItemProps
         ) : fallbackPreview ? (
           <Text style={noteStyles.cardPreview} numberOfLines={2}>{fallbackPreview}</Text>
         ) : null}
-        <Text style={noteStyles.cardMeta}>
-          {note.isPinned ? "PINNED  ·  " : ""}{formatRelativeDate(note.updatedAt).toUpperCase()}
-        </Text>
+        {(() => {
+          const showTimestamp = sectionLabel === "Earlier this week" || sectionLabel === "Earlier";
+          const parts: string[] = [];
+          if (note.isPinned) parts.push("PINNED");
+          if (showTimestamp) parts.push(formatRelativeDate(note.updatedAt).toUpperCase());
+          return parts.length > 0 ? <Text style={noteStyles.cardMeta}>{parts.join("  ·  ")}</Text> : null;
+        })()}
       </View>
       <Pressable
         style={({ pressed }) => [noteStyles.pinBtn, pressed ? styles.pressDown : null]}
@@ -193,6 +198,7 @@ export function NotepadScreenContent() {
                         key={note.id}
                         note={note}
                         searchQuery={searchQuery}
+                        sectionLabel={section.label}
                         onPress={handleOpenNote}
                         onTogglePin={handleTogglePin}
                       />
