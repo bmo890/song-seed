@@ -1,7 +1,8 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useNavigation } from "@react-navigation/native";
+import { Ionicons } from "@expo/vector-icons";
 import { styles } from "../../styles";
-import { colors, radii, shadows, text as textTokens } from "../../design/tokens";
+import { colors, radii, text as textTokens } from "../../design/tokens";
 
 type Props = {
     title: string;
@@ -58,7 +59,7 @@ export function ScreenHeader({
                     onPress={handleLeftPress}
                 >
                     {effectiveLeftIcon === "hamburger" ? (
-                        <Text style={headerStyles.hamburgerLabel}>☰</Text>
+                        <Ionicons name="menu-outline" size={22} color="#524440" />
                     ) : (
                         <Text style={headerStyles.backBtnText}>Back</Text>
                     )}
@@ -90,11 +91,6 @@ const headerStyles = StyleSheet.create({
         height: 44,
         alignItems: "center",
         justifyContent: "center",
-    },
-    hamburgerLabel: {
-        fontSize: 28,
-        color: "#374151",
-        fontWeight: "400",
     },
     backBtn: {
         borderWidth: 1,

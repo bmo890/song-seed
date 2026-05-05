@@ -2,7 +2,6 @@ import type { ComponentProps, ReactNode } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { styles } from "../../styles";
-import { colors, spacing } from "../../design/tokens";
 
 type NavRowProps = {
   icon: ComponentProps<typeof Ionicons>["name"];
@@ -55,28 +54,28 @@ export function NavRow({
 
 const navRowStyles = StyleSheet.create({
   row: {
-    borderRadius: 14,
-    paddingVertical: 14,
+    borderRadius: 6,
+    paddingVertical: 12,
     paddingHorizontal: 12,
-    backgroundColor: colors.surface,
+    backgroundColor: "transparent",
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    gap: spacing.sm,
+    gap: 8,
   },
   rowActive: {
-    backgroundColor: colors.surfaceSelected,
+    backgroundColor: "#efeeea",
   },
   rowNested: {
     marginLeft: 10,
   },
   rowDisabled: {
-    opacity: 0.6,
+    opacity: 0.5,
   },
   copyRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: spacing.sm,
+    gap: 10,
     flex: 1,
     minWidth: 0,
   },
@@ -86,22 +85,22 @@ const navRowStyles = StyleSheet.create({
     gap: 2,
   },
   eyebrow: {
-    fontSize: 11,
-    lineHeight: 14,
-    color: colors.textSecondary,
+    fontSize: 10,
+    lineHeight: 13,
+    color: "#84736f",
     fontWeight: "700",
     textTransform: "uppercase",
-    letterSpacing: 0.4,
+    letterSpacing: 0.5,
   },
   title: {
-    fontSize: 16,
-    color: colors.textPrimary,
-    fontWeight: "600",
+    fontSize: 15,
+    color: "#1b1c1a",
+    fontWeight: "500",
   },
   titleStrong: {
-    fontSize: 18,
-    lineHeight: 22,
-    color: colors.textPrimary,
-    fontWeight: "700",
+    fontSize: 16,
+    lineHeight: 20,
+    color: "#1b1c1a",
+    fontWeight: "600",
   },
 });
