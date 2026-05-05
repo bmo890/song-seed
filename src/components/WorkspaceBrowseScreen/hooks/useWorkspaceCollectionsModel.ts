@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useRoute } from "@react-navigation/native";
 import { useStore } from "../../../state/useStore";
 import { buildWorkspaceBrowseEntries } from "../../../libraryNavigation";
 import { getCollectionSizeBytes } from "../../../utils";
@@ -7,6 +7,7 @@ import { openCollectionInBrowse } from "../../../navigation";
 
 export function useWorkspaceCollectionsModel() {
   const navigation = useNavigation<any>();
+  const route = useRoute<any>();
   const workspaces = useStore((state) => state.workspaces);
   const activeWorkspaceId = useStore((state) => state.activeWorkspaceId);
   const primaryCollectionIdByWorkspace = useStore((state) => state.primaryCollectionIdByWorkspace);
@@ -20,7 +21,12 @@ export function useWorkspaceCollectionsModel() {
   const [searchQuery, setSearchQuery] = useState("");
   const [sizeMap, setSizeMap] = useState<Record<string, number>>({});
 
-  const activeWorkspace = workspaces.find((workspace) => workspace.id === activeWorkspaceId) ?? null;
+  const routeWorkspaceId = route.params?.workspaceId as string | undefined;
+  const routeWorkspace = routeWorkspaceId
+    ? workspaces.find((workspace) => workspace.id === routeWorkspaceId) ?? null
+    : null;
+  const resolvedWorkspaceId = routeWorkspace?.id ?? activeWorkspaceId;
+  const activeWorkspace = routeWorkspace ?? workspaces.find((workspace) => workspace.id === activeWorkspaceId) ?? null;
   const topLevelCollections = useMemo(
     () =>
       (activeWorkspace?.collections ?? []).filter(
@@ -74,7 +80,7 @@ export function useWorkspaceCollectionsModel() {
   return {
     navigation,
     workspaces,
-    activeWorkspaceId,
+    activeWorkspaceId: resolvedWorkspaceId,
     activeWorkspace,
     topLevelCollections,
     collectionEntries,

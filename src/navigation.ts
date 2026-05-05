@@ -23,12 +23,13 @@ export function openCollectionInBrowse(navigation: any, params: CollectionDetail
   navigation.navigate("CollectionDetail", params);
 }
 
-export function openWorkspaceBrowseRoot(navigation: any) {
+export function openWorkspaceBrowseRoot(navigation: any, workspaceId?: string) {
   const rootNavigation = getRootNavigation(navigation);
   rootNavigation?.navigate?.("Home", {
     screen: "WorkspaceStack",
     params: {
       screen: "Browse",
+      params: workspaceId ? { workspaceId } : undefined,
     },
   });
 }

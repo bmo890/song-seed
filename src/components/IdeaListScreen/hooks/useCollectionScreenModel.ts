@@ -33,8 +33,7 @@ export function useCollectionScreenModel() {
   const collectionSource = route.params?.source as "activity" | "detail" | undefined;
 
   const workspaces = useStore((s) => s.workspaces);
-  const activeWorkspaceId = useStore((s) => s.activeWorkspaceId);
-  const setActiveWorkspaceId = useStore((s) => s.setActiveWorkspaceId);
+  const storeActiveWorkspaceId = useStore((s) => s.activeWorkspaceId);
   const routeWorkspace = useMemo(
     () =>
       routeWorkspaceId
@@ -46,7 +45,8 @@ export function useCollectionScreenModel() {
           : null,
     [collectionId, routeWorkspaceId, workspaces]
   );
-  const activeWorkspace = routeWorkspace ?? workspaces.find((w) => w.id === activeWorkspaceId) ?? null;
+  const activeWorkspaceId = routeWorkspace?.id ?? storeActiveWorkspaceId;
+  const activeWorkspace = routeWorkspace ?? workspaces.find((w) => w.id === storeActiveWorkspaceId) ?? null;
   const currentCollection = activeWorkspace?.collections.find((collection) => collection.id === collectionId) ?? null;
   const recordingIdeaId = useStore((s) => s.recordingIdeaId);
   const ideasFilter = useStore((s) => s.ideasFilter);
@@ -59,12 +59,6 @@ export function useCollectionScreenModel() {
   const markCollectionOpened = useStore((s) => s.markCollectionOpened);
   const clipClipboard = useStore((s) => s.clipClipboard);
   const inlinePlayerMounted = useStore((s) => s.setInlinePlayerMounted);
-
-  useEffect(() => {
-    if (!routeWorkspace?.id) return;
-    if (activeWorkspaceId === routeWorkspace.id) return;
-    setActiveWorkspaceId(routeWorkspace.id);
-  }, [activeWorkspaceId, routeWorkspace?.id, setActiveWorkspaceId]);
 
   const ideas = useMemo(
     () => activeWorkspace?.ideas.filter((idea) => idea.collectionId === collectionId) ?? [],
@@ -304,7 +298,7 @@ export function useCollectionScreenModel() {
   };
 
   const goToBrowse = () => {
-    openWorkspaceBrowseRoot(rootNavigation ?? navigation);
+    openWorkspaceBrowseRoot(rootNavigation ?? navigation, activeWorkspace?.id);
   };
 
   const breadcrumbs: AppBreadcrumbItem[] = [
@@ -430,7 +424,7 @@ export function useCollectionScreenModel() {
       showBack
         ? () => {
             if (!goBackFromParentStack(navigation)) {
-              openWorkspaceBrowseRoot(rootNavigation ?? navigation);
+              openWorkspaceBrowseRoot(rootNavigation ?? navigation, activeWorkspace?.id);
             }
           }
         : undefined,

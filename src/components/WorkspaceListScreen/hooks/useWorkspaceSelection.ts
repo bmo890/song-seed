@@ -15,6 +15,7 @@ export function useWorkspaceSelection({ filteredWorkspaces, workspaces }: Args) 
     () => filteredWorkspaces.map((workspace) => workspace.id),
     [filteredWorkspaces]
   );
+  const selectableWorkspaceIdsKey = selectableWorkspaceIds.join("|");
   const selectedWorkspaces = useMemo(
     () => workspaces.filter((workspace) => selectedWorkspaceIds.includes(workspace.id)),
     [selectedWorkspaceIds, workspaces]
@@ -30,20 +31,19 @@ export function useWorkspaceSelection({ filteredWorkspaces, workspaces }: Args) 
     (selectableWorkspaceIds.length === 0 && selectedWorkspaceIds.length > 0);
 
   useEffect(() => {
+    if (selectedWorkspaceIds.length === 0) return;
     const visibleWorkspaceIdSet = new Set(
-      filteredWorkspaces.map((workspace) => workspace.id)
+      selectableWorkspaceIdsKey ? selectableWorkspaceIdsKey.split("|") : []
     );
-    setSelectedWorkspaceIds((prev) => {
-      const next = prev.filter((workspaceId) => visibleWorkspaceIdSet.has(workspaceId));
-      if (
-        next.length === prev.length &&
-        next.every((workspaceId, index) => workspaceId === prev[index])
-      ) {
-        return prev;
-      }
-      return next;
-    });
-  }, [filteredWorkspaces]);
+    const next = selectedWorkspaceIds.filter((workspaceId) => visibleWorkspaceIdSet.has(workspaceId));
+    if (
+      next.length === selectedWorkspaceIds.length &&
+      next.every((workspaceId, index) => workspaceId === selectedWorkspaceIds[index])
+    ) {
+      return;
+    }
+    setSelectedWorkspaceIds(next);
+  }, [selectableWorkspaceIdsKey, selectedWorkspaceIds]);
 
   function toggleWorkspaceSelection(workspaceId: string) {
     setSelectedWorkspaceIds((prev) =>

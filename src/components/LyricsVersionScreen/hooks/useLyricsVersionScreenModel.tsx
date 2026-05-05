@@ -142,7 +142,7 @@ export function useLyricsVersionScreenModel() {
         key: `workspace-${activeWorkspace.id}`,
         label: activeWorkspace.title,
         level: "workspace",
-        onPress: () => openWorkspaceBrowseRoot(navigation),
+        onPress: () => openWorkspaceBrowseRoot(navigation, activeWorkspace.id),
       },
       ...projectCollectionAncestors.map((collection) => ({
         key: collection.id,

@@ -2,6 +2,7 @@ import { Alert, Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar as ExpoStatusBar } from "expo-status-bar";
 import { Ionicons } from "@expo/vector-icons";
+import { useCallback } from "react";
 import { useBrowseRootBackHandler } from "../../../hooks/useBrowseRootBackHandler";
 import { styles } from "../styles";
 import { useWorkspaceListScreenModel } from "../hooks/useWorkspaceListScreenModel";
@@ -18,15 +19,19 @@ import { WorkspaceList } from "./WorkspaceList";
 
 export function WorkspaceListScreenContent() {
   const model = useWorkspaceListScreenModel();
+  const selectedWorkspaceCount = model.selection.selectedWorkspaceIds.length;
+  const clearSelectedWorkspaceIds = model.selection.setSelectedWorkspaceIds;
+  const setSelectionMoreVisible = model.selection.setSelectionMoreVisible;
+  const handleRootBack = useCallback(() => {
+    if (selectedWorkspaceCount > 0) {
+      clearSelectedWorkspaceIds([]);
+      setSelectionMoreVisible(false);
+      return;
+    }
+  }, [clearSelectedWorkspaceIds, selectedWorkspaceCount, setSelectionMoreVisible]);
 
   useBrowseRootBackHandler({
-    onBack: () => {
-      if (model.selection.selectedWorkspaceIds.length > 0) {
-        model.selection.setSelectedWorkspaceIds([]);
-        model.selection.setSelectionMoreVisible(false);
-        return;
-      }
-    },
+    onBack: handleRootBack,
   });
 
   return (

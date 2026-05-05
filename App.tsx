@@ -75,7 +75,7 @@ export type HomeDrawerParamList = {
 };
 
 export type WorkspaceStackParamList = {
-  Browse: undefined;
+  Browse: { workspaceId?: string } | undefined;
   CollectionDetail: CollectionDetailRouteParams | undefined;
 };
 
@@ -485,7 +485,10 @@ function DrawerContent({ navigation, state }: DrawerContentComponentProps) {
       }}
       onGoWorkspace={() => {
         closeDrawer();
-        navigation.navigate("WorkspaceStack", { screen: "Browse" });
+        navigation.navigate("WorkspaceStack", {
+          screen: "Browse",
+          params: activeWorkspace?.id ? { workspaceId: activeWorkspace.id } : undefined,
+        });
       }}
       onGoRevisit={() => {
         closeDrawer();
@@ -523,7 +526,7 @@ function DrawerContent({ navigation, state }: DrawerContentComponentProps) {
         closeDrawer();
         navigation.navigate("WorkspaceStack", {
           screen: "CollectionDetail",
-          params: { collectionId },
+          params: { collectionId, workspaceId: activeWorkspace?.id },
         });
       }}
       onClose={() => {
@@ -554,13 +557,8 @@ function DrawerRoutes() {
 
   useEffect(() => {
     if (startupApplied) return;
-    if (!startupWorkspaceId) {
-      setStartupApplied(true);
-      return;
-    }
-    if (activeWorkspaceId !== startupWorkspaceId) {
+    if (startupWorkspaceId && activeWorkspaceId !== startupWorkspaceId) {
       setActiveWorkspaceId(startupWorkspaceId);
-      return;
     }
     setStartupApplied(true);
   }, [activeWorkspaceId, setActiveWorkspaceId, startupApplied, startupWorkspaceId]);
@@ -620,6 +618,9 @@ function buildStartupNavigationState(args: {
     : startupWorkspace
       ? createHomeRoute("WorkspaceStack", {
           screen: "Browse",
+          params: {
+            workspaceId: startupWorkspace.id,
+          },
         })
       : createHomeRoute("Workspaces");
 

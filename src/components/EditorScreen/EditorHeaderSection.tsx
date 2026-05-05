@@ -42,7 +42,7 @@ export function EditorHeaderSection({
               key: `workspace-${activeWorkspace.id}`,
               label: activeWorkspace.title,
               level: "workspace",
-              onPress: () => openWorkspaceBrowseRoot(navigation),
+              onPress: () => openWorkspaceBrowseRoot(navigation, activeWorkspace.id),
             },
             ...targetCollectionAncestors.map((collection) => ({
               key: collection.id,

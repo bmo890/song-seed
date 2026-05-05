@@ -94,7 +94,7 @@ export function useActivityScreenModel() {
         key: `workspace-${collectionScopeWorkspace.id}`,
         label: collectionScopeWorkspace.title,
         level: "workspace",
-        onPress: () => openWorkspaceBrowseRoot(navigation),
+        onPress: () => openWorkspaceBrowseRoot(navigation, collectionScopeWorkspace.id),
       },
       ...collectionScopeAncestors.map((collection) => ({
         key: collection.id,

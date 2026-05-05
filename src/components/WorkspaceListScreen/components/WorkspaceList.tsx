@@ -57,7 +57,10 @@ export function WorkspaceList({
               return;
             }
             setActiveWorkspaceId(workspace.id);
-            navigation.navigate("WorkspaceStack", { screen: "Browse" });
+            navigation.navigate("WorkspaceStack", {
+              screen: "Browse",
+              params: { workspaceId: workspace.id },
+            });
           }}
           onLongPress={() => {
             if (workspace.id === busyWorkspaceId) return;

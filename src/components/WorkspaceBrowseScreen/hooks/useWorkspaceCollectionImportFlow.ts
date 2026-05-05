@@ -87,11 +87,12 @@ export function useWorkspaceCollectionImportFlow({
 
   const createCollection = () => {
     if (!activeWorkspaceId) return;
+    const workspaceIdSnapshot = activeWorkspaceId;
     const title = draftTitle.trim() || buildDefaultCollectionTitle(topLevelCollectionCount);
-    const collectionId = addCollection(activeWorkspaceId, title, null);
+    const collectionId = addCollection(workspaceIdSnapshot, title, null);
     setModalOpen(false);
     setDraftTitle("");
-    openCollectionInBrowse(navigation, { collectionId });
+    openCollectionInBrowse(navigation, { collectionId, workspaceId: workspaceIdSnapshot });
   };
 
   const saveImportedCollection = () => {
@@ -111,7 +112,7 @@ export function useWorkspaceCollectionImportFlow({
 
       const collectionId = addCollection(workspaceIdSnapshot, label, null);
       resetImportCollectionModal();
-      openCollectionInBrowse(navigation, { collectionId });
+      openCollectionInBrowse(navigation, { collectionId, workspaceId: workspaceIdSnapshot });
 
       const jobId = `import-${Date.now()}`;
       useImportStore.getState().startJob({ id: jobId, label, total: assets.length });

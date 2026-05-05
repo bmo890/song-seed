@@ -1,7 +1,7 @@
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar as ExpoStatusBar } from "expo-status-bar";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useRoute } from "@react-navigation/native";
 import { styles } from "../styles";
 import { ScreenHeader } from "../../common/ScreenHeader";
 import { WorkspaceThemeProvider, useWorkspaceTheme } from "../../../context/WorkspaceThemeContext";
@@ -36,7 +36,7 @@ function WorkspaceBrowseInner() {
   });
   const importFlow = useWorkspaceCollectionImportFlow({
     navigation,
-    activeWorkspaceId: collectionsModel.activeWorkspaceId,
+    activeWorkspaceId: collectionsModel.activeWorkspace?.id ?? null,
     topLevelCollectionCount: collectionsModel.topLevelCollections.length,
     addCollection: collectionsModel.addCollection,
     deleteCollection: collectionsModel.deleteCollection,
@@ -219,9 +219,11 @@ function WorkspaceBrowseInner() {
 }
 
 export function WorkspaceBrowseScreenContent() {
+  const route = useRoute<any>();
+  const routeWorkspaceId = route.params?.workspaceId as string | undefined;
   const activeWorkspaceId = useStore((s) => s.activeWorkspaceId);
   const workspaceColor = useStore((s) =>
-    s.workspaces.find((w) => w.id === activeWorkspaceId)?.color
+    s.workspaces.find((w) => w.id === (routeWorkspaceId ?? activeWorkspaceId))?.color
   );
   return (
     <WorkspaceThemeProvider color={workspaceColor}>
