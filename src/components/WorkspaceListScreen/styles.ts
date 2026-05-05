@@ -42,7 +42,7 @@ export const styles = StyleSheet.create({
   pageTitle: {
     fontFamily: "PlayfairDisplay_400Regular",
     fontSize: 48,
-    lineHeight: 48,
+    lineHeight: 58,
     color: "#1C1C19",
   },
 
