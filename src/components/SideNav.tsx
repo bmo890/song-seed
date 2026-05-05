@@ -86,35 +86,40 @@ export function SideNav({
       {/* ── Workspace context block ────────────────────────────────────── */}
       <View style={sideNavStyles.workspaceBlock}>
 
-        {/* Section label with active-context dot */}
-        <View style={sideNavStyles.workspaceLabelRow}>
-          <View style={sideNavStyles.contextDot} />
-          <Text style={sideNavStyles.sectionLabel}>Workspace</Text>
-        </View>
+        {/* Workspace identity card */}
+        <View style={sideNavStyles.workspaceCard}>
+          {/* Label row with dot */}
+          <View style={sideNavStyles.workspaceLabelRow}>
+            <View style={sideNavStyles.contextDot} />
+            <Text style={sideNavStyles.sectionLabel}>Workspace</Text>
+          </View>
 
-        {/* Workspace name — identity, not pressable */}
-        <Text style={sideNavStyles.workspaceName} numberOfLines={1}>
-          {workspaceTitle ?? "No workspace selected"}
-        </Text>
-
-        {/* Action chips: Collections + Switch */}
-        <View style={sideNavStyles.actionRow}>
-          {workspaceTitle ? (
+          {/* Workspace name + swap icon inline */}
+          <View style={sideNavStyles.workspaceNameRow}>
+            <Text style={sideNavStyles.workspaceName} numberOfLines={1}>
+              {workspaceTitle ?? "No workspace"}
+            </Text>
             <Pressable
-              style={({ pressed }) => [sideNavStyles.actionChip, pressed ? styles.pressDown : null]}
-              onPress={onGoWorkspace}
+              style={({ pressed }) => [sideNavStyles.switchBtn, pressed ? styles.pressDown : null]}
+              onPress={onGoHome}
+              hitSlop={10}
             >
-              <Text style={sideNavStyles.actionChipLabel}>Collections</Text>
-              <Ionicons name="chevron-forward" size={13} color="#524440" />
+              <Ionicons name="swap-horizontal-outline" size={18} color="#84736f" />
             </Pressable>
+          </View>
+
+          {/* Collections chip */}
+          {workspaceTitle ? (
+            <View style={sideNavStyles.actionRow}>
+              <Pressable
+                style={({ pressed }) => [sideNavStyles.actionChip, pressed ? styles.pressDown : null]}
+                onPress={onGoWorkspace}
+              >
+                <Text style={sideNavStyles.actionChipLabel}>Collections</Text>
+                <Ionicons name="chevron-forward" size={13} color="#524440" />
+              </Pressable>
+            </View>
           ) : null}
-          <Pressable
-            style={({ pressed }) => [sideNavStyles.actionChip, pressed ? styles.pressDown : null]}
-            onPress={onGoHome}
-          >
-            <Text style={sideNavStyles.actionChipLabel}>Switch</Text>
-            <Ionicons name="chevron-forward" size={13} color="#524440" />
-          </Pressable>
         </View>
 
         {/* Search — workspace-scoped */}
@@ -262,12 +267,19 @@ const sideNavStyles = StyleSheet.create({
     paddingHorizontal: 10,
     gap: 6,
   },
+  workspaceCard: {
+    backgroundColor: "#efeeea",
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingTop: 10,
+    paddingBottom: 12,
+    gap: 6,
+    marginHorizontal: 2,
+  },
   workspaceLabelRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    paddingHorizontal: 12,
-    paddingTop: 4,
   },
   contextDot: {
     width: 7,
@@ -275,23 +287,34 @@ const sideNavStyles = StyleSheet.create({
     borderRadius: 4,
     backgroundColor: "#824f3f",
   },
+  workspaceNameRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
   workspaceName: {
-    fontSize: 18,
+    flex: 1,
+    fontSize: 20,
     fontWeight: "700",
     color: "#1b1c1a",
     letterSpacing: 0.1,
-    paddingHorizontal: 12,
+  },
+  switchBtn: {
+    width: 32,
+    height: 32,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 6,
   },
   actionRow: {
     flexDirection: "row",
     gap: 8,
-    paddingHorizontal: 12,
   },
   actionChip: {
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    backgroundColor: "#efeeea",
+    backgroundColor: "#ffffff",
     borderRadius: 6,
     paddingHorizontal: 12,
     paddingVertical: 7,
