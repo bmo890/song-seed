@@ -13,7 +13,6 @@ export function WorkspaceCollectionList({
   onLongPressCollection,
   onRenameCollection,
   onSetPrimaryCollection,
-  onDeleteCollection,
 }: {
   collectionEntries: WorkspaceCollectionBrowseEntry[];
   primaryCollectionId: string | null;
@@ -24,7 +23,6 @@ export function WorkspaceCollectionList({
   onLongPressCollection: (collectionId: string) => void;
   onRenameCollection: (collectionId: string) => void;
   onSetPrimaryCollection: (collectionId: string) => void;
-  onDeleteCollection: (collectionId: string) => void;
 }) {
   return (
     <View style={listStyles.list}>
@@ -43,7 +41,6 @@ export function WorkspaceCollectionList({
             onLongPress={() => onLongPressCollection(collection.id)}
             onRename={() => onRenameCollection(collection.id)}
             onSetPrimary={() => onSetPrimaryCollection(collection.id)}
-            onDelete={() => onDeleteCollection(collection.id)}
           />
         );
       })}

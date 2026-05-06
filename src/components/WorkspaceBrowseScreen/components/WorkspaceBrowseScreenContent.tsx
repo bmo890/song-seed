@@ -1,4 +1,4 @@
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar as ExpoStatusBar } from "expo-status-bar";
 import { Ionicons } from "@expo/vector-icons";
@@ -14,7 +14,6 @@ import { useWorkspaceCollectionsModel } from "../hooks/useWorkspaceCollectionsMo
 import { useWorkspaceCollectionSelection } from "../hooks/useWorkspaceCollectionSelection";
 import { useWorkspaceCollectionImportFlow } from "../hooks/useWorkspaceCollectionImportFlow";
 import { WorkspaceCollectionList } from "./WorkspaceCollectionList";
-import { getCollectionDeleteScope } from "../../../collectionManagement";
 
 function WorkspaceBrowseInner() {
   const theme = useWorkspaceTheme();
@@ -50,30 +49,6 @@ function WorkspaceBrowseInner() {
     collectionsModel.setPrimaryCollectionId(collectionsModel.activeWorkspaceId, collectionId);
   }
 
-  function handleDeleteCollection(collectionId: string) {
-    if (!collectionsModel.activeWorkspace) return;
-    const collection = collectionsModel.activeWorkspace.collections.find(
-      (c) => c.id === collectionId
-    );
-    if (!collection) return;
-    const scope = getCollectionDeleteScope(collectionsModel.activeWorkspace, collectionId);
-    Alert.alert(
-      "Delete collection?",
-      `"${collection.title}" will be removed${
-        scope.childCollectionCount > 0
-          ? ` along with ${scope.childCollectionCount} sub-collection${scope.childCollectionCount === 1 ? "" : "s"}`
-          : ""
-      } and ${scope.itemCount} seed${scope.itemCount === 1 ? "" : "s"}.`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: () => collectionsModel.deleteCollection(collectionId),
-        },
-      ]
-    );
-  }
 
   useBrowseRootBackHandler(
     selectionModel.selectedCollectionIds.length > 0
@@ -179,7 +154,6 @@ function WorkspaceBrowseInner() {
           }}
           onRenameCollection={handleRenameCollection}
           onSetPrimaryCollection={handleSetPrimaryCollection}
-          onDeleteCollection={handleDeleteCollection}
         />
       </ScrollView>
 

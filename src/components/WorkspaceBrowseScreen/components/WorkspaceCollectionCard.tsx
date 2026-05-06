@@ -23,7 +23,6 @@ type WorkspaceCollectionCardProps = {
   onLongPress: () => void;
   onRename: () => void;
   onSetPrimary: () => void;
-  onDelete: () => void;
 };
 
 function formatLastEdited(ts: number): string {
@@ -74,7 +73,6 @@ export function WorkspaceCollectionCard({
   onLongPress,
   onRename,
   onSetPrimary,
-  onDelete,
 }: WorkspaceCollectionCardProps) {
   const { collection, itemCount, childCollectionCount, matches } = entry;
   const ellipsisRef = useRef<View>(null);
@@ -197,20 +195,6 @@ export function WorkspaceCollectionCard({
               </Text>
             </Pressable>
 
-            <View style={dropdownStyles.divider} />
-
-            {/* Delete */}
-            <Pressable
-              style={({ pressed }) => [
-                dropdownStyles.item,
-                dropdownStyles.itemDanger,
-                pressed ? dropdownStyles.itemPressed : null,
-              ]}
-              onPress={() => { closeDropdown(); onDelete(); }}
-            >
-              <Ionicons name="trash-outline" size={14} color="#a83232" />
-              <Text style={[dropdownStyles.itemText, dropdownStyles.itemTextDanger]}>Delete</Text>
-            </Pressable>
           </View>
         </Modal>
       ) : null}
