@@ -1,8 +1,12 @@
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { useRef, useState } from "react";
+import { Dimensions, Modal, Pressable, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { SurfaceCard } from "../../common/SurfaceCard";
 import type { CollectionSearchMatchKind } from "../../../libraryNavigation";
 import type { Collection } from "../../../types";
+
+const SCREEN_WIDTH = Dimensions.get("window").width;
+const DROPDOWN_WIDTH = 188;
 
 type WorkspaceCollectionCardProps = {
   entry: {
@@ -17,7 +21,9 @@ type WorkspaceCollectionCardProps = {
   isSelected: boolean;
   onPress: () => void;
   onLongPress: () => void;
-  onOpenActions: () => void;
+  onRename: () => void;
+  onSetPrimary: () => void;
+  onDelete: () => void;
 };
 
 function formatLastEdited(ts: number): string {
@@ -66,9 +72,26 @@ export function WorkspaceCollectionCard({
   isSelected,
   onPress,
   onLongPress,
-  onOpenActions,
+  onRename,
+  onSetPrimary,
+  onDelete,
 }: WorkspaceCollectionCardProps) {
   const { collection, itemCount, childCollectionCount, matches } = entry;
+  const ellipsisRef = useRef<View>(null);
+  const [dropdownPos, setDropdownPos] = useState<{ top: number; right: number } | null>(null);
+
+  function openDropdown() {
+    ellipsisRef.current?.measure((_fx, _fy, width, height, px, py) => {
+      setDropdownPos({
+        top: py + height + 6,
+        right: SCREEN_WIDTH - px - width,
+      });
+    });
+  }
+
+  function closeDropdown() {
+    setDropdownPos(null);
+  }
 
   const metaParts = [
     `${itemCount} ${itemCount === 1 ? "seed" : "seeds"}`,
@@ -100,7 +123,12 @@ export function WorkspaceCollectionCard({
         ) : null}
 
         {!selectionMode ? (
-          <Pressable style={cardStyles.actionsBtn} onPress={onOpenActions} hitSlop={8}>
+          <Pressable
+            ref={ellipsisRef}
+            style={cardStyles.actionsBtn}
+            onPress={openDropdown}
+            hitSlop={8}
+          >
             <Ionicons name="ellipsis-vertical" size={14} color="#D7C2BD" />
           </Pressable>
         ) : null}
@@ -124,6 +152,67 @@ export function WorkspaceCollectionCard({
             </View>
           ))}
         </View>
+      ) : null}
+
+      {/* Dropdown menu */}
+      {dropdownPos ? (
+        <Modal
+          visible
+          transparent
+          animationType="fade"
+          onRequestClose={closeDropdown}
+        >
+          {/* Backdrop — tapping outside closes */}
+          <Pressable style={StyleSheet.absoluteFillObject} onPress={closeDropdown} />
+
+          <View style={[dropdownStyles.menu, { top: dropdownPos.top, right: dropdownPos.right }]}>
+            {/* Rename */}
+            <Pressable
+              style={({ pressed }) => [dropdownStyles.item, pressed ? dropdownStyles.itemPressed : null]}
+              onPress={() => { closeDropdown(); onRename(); }}
+            >
+              <Ionicons name="create-outline" size={14} color="#84736f" />
+              <Text style={dropdownStyles.itemText}>Rename</Text>
+            </Pressable>
+
+            <View style={dropdownStyles.divider} />
+
+            {/* Set as Primary — always shown, disabled when already primary */}
+            <Pressable
+              style={({ pressed }) => [
+                dropdownStyles.item,
+                isPrimary ? dropdownStyles.itemDisabled : null,
+                pressed && !isPrimary ? dropdownStyles.itemPressed : null,
+              ]}
+              onPress={() => { if (!isPrimary) { closeDropdown(); onSetPrimary(); } }}
+              disabled={isPrimary}
+            >
+              <Ionicons
+                name="star-outline"
+                size={14}
+                color={isPrimary ? "#D7C2BD" : "#84736f"}
+              />
+              <Text style={[dropdownStyles.itemText, isPrimary ? dropdownStyles.itemTextDisabled : null]}>
+                Set as Primary
+              </Text>
+            </Pressable>
+
+            <View style={dropdownStyles.divider} />
+
+            {/* Delete */}
+            <Pressable
+              style={({ pressed }) => [
+                dropdownStyles.item,
+                dropdownStyles.itemDanger,
+                pressed ? dropdownStyles.itemPressed : null,
+              ]}
+              onPress={() => { closeDropdown(); onDelete(); }}
+            >
+              <Ionicons name="trash-outline" size={14} color="#a83232" />
+              <Text style={[dropdownStyles.itemText, dropdownStyles.itemTextDanger]}>Delete</Text>
+            </Pressable>
+          </View>
+        </Modal>
       ) : null}
     </SurfaceCard>
   );
@@ -204,5 +293,52 @@ const cardStyles = StyleSheet.create({
   },
   matchContext: {
     color: "#84736f",
+  },
+});
+
+const dropdownStyles = StyleSheet.create({
+  menu: {
+    position: "absolute",
+    width: DROPDOWN_WIDTH,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "rgba(215, 194, 189, 0.3)",
+    shadowColor: "#3D3732",
+    shadowOpacity: 0.10,
+    shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 16,
+    elevation: 6,
+    overflow: "hidden",
+  },
+  item: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 13,
+  },
+  itemPressed: {
+    backgroundColor: "#F4F1ED",
+  },
+  itemDisabled: {
+    opacity: 0.4,
+  },
+  itemDanger: {},
+  itemText: {
+    fontFamily: "PlusJakartaSans_500Medium",
+    fontSize: 13,
+    color: "#524440",
+  },
+  itemTextDisabled: {
+    color: "#a89994",
+  },
+  itemTextDanger: {
+    color: "#a83232",
+  },
+  divider: {
+    height: 1,
+    backgroundColor: "rgba(215, 194, 189, 0.25)",
+    marginHorizontal: 14,
   },
 });

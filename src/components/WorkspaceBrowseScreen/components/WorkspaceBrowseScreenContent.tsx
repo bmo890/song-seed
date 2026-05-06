@@ -2,14 +2,12 @@ import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-nati
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar as ExpoStatusBar } from "expo-status-bar";
 import { Ionicons } from "@expo/vector-icons";
-import { useState, useMemo } from "react";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { useStore } from "../../../state/useStore";
 import { WorkspaceThemeProvider, useWorkspaceTheme } from "../../../context/WorkspaceThemeContext";
 import { SearchField } from "../../common/SearchField";
 import { QuickNameModal } from "../../modals/QuickNameModal";
 import { CollectionMoveModal } from "../../modals/CollectionMoveModal";
-import { SelectionActionSheet } from "../../common/SelectionActionSheet";
 import { SelectionDock } from "../../common/SelectionDock";
 import { useBrowseRootBackHandler } from "../../../hooks/useBrowseRootBackHandler";
 import { useWorkspaceCollectionsModel } from "../hooks/useWorkspaceCollectionsModel";
@@ -42,77 +40,40 @@ function WorkspaceBrowseInner() {
     deleteCollection: collectionsModel.deleteCollection,
   });
 
-  // ── Per-card ellipsis action sheet ──────────────────────────────────────────
-  const [actionSheetCollectionId, setActionSheetCollectionId] = useState<string | null>(null);
-  const actionSheetCollection = useMemo(
-    () =>
-      actionSheetCollectionId
-        ? (collectionsModel.activeWorkspace?.collections.find(
-            (c) => c.id === actionSheetCollectionId
-          ) ?? null)
-        : null,
-    [actionSheetCollectionId, collectionsModel.activeWorkspace?.collections]
-  );
-  const isPrimaryActionSheet =
-    actionSheetCollectionId === collectionsModel.primaryCollectionId;
+  // ── Per-card dropdown action handlers ───────────────────────────────────────
+  function handleRenameCollection(collectionId: string) {
+    selectionModel.openRenameFor(collectionId);
+  }
 
-  const cardActions = useMemo(() => {
-    if (!actionSheetCollection) return [];
-    return [
-      {
-        key: "rename",
-        label: "Rename",
-        icon: "create-outline" as const,
-        onPress: () => {
-          setActionSheetCollectionId(null);
-          selectionModel.openRenameFor(actionSheetCollection.id);
+  function handleSetPrimaryCollection(collectionId: string) {
+    if (!collectionsModel.activeWorkspaceId) return;
+    collectionsModel.setPrimaryCollectionId(collectionsModel.activeWorkspaceId, collectionId);
+  }
+
+  function handleDeleteCollection(collectionId: string) {
+    if (!collectionsModel.activeWorkspace) return;
+    const collection = collectionsModel.activeWorkspace.collections.find(
+      (c) => c.id === collectionId
+    );
+    if (!collection) return;
+    const scope = getCollectionDeleteScope(collectionsModel.activeWorkspace, collectionId);
+    Alert.alert(
+      "Delete collection?",
+      `"${collection.title}" will be removed${
+        scope.childCollectionCount > 0
+          ? ` along with ${scope.childCollectionCount} sub-collection${scope.childCollectionCount === 1 ? "" : "s"}`
+          : ""
+      } and ${scope.itemCount} seed${scope.itemCount === 1 ? "" : "s"}.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: () => collectionsModel.deleteCollection(collectionId),
         },
-      },
-      {
-        key: "primary",
-        label: isPrimaryActionSheet ? "Unset Primary" : "Set as Primary",
-        icon: isPrimaryActionSheet ? ("star" as const) : ("star-outline" as const),
-        onPress: () => {
-          setActionSheetCollectionId(null);
-          if (!collectionsModel.activeWorkspaceId) return;
-          collectionsModel.setPrimaryCollectionId(
-            collectionsModel.activeWorkspaceId,
-            isPrimaryActionSheet ? null : actionSheetCollection.id
-          );
-        },
-      },
-      {
-        key: "delete",
-        label: "Delete",
-        icon: "trash-outline" as const,
-        tone: "danger" as const,
-        onPress: () => {
-          setActionSheetCollectionId(null);
-          if (!collectionsModel.activeWorkspace) return;
-          const scope = getCollectionDeleteScope(
-            collectionsModel.activeWorkspace,
-            actionSheetCollection.id
-          );
-          Alert.alert(
-            "Delete collection?",
-            `"${actionSheetCollection.title}" will be removed${
-              scope.childCollectionCount > 0
-                ? ` along with ${scope.childCollectionCount} sub-collection${scope.childCollectionCount === 1 ? "" : "s"}`
-                : ""
-            } and ${scope.itemCount} seed${scope.itemCount === 1 ? "" : "s"}.`,
-            [
-              { text: "Cancel", style: "cancel" },
-              {
-                text: "Delete",
-                style: "destructive",
-                onPress: () => collectionsModel.deleteCollection(actionSheetCollection.id),
-              },
-            ]
-          );
-        },
-      },
-    ];
-  }, [actionSheetCollection, isPrimaryActionSheet, collectionsModel, selectionModel]);
+      ]
+    );
+  }
 
   useBrowseRootBackHandler(
     selectionModel.selectedCollectionIds.length > 0
@@ -216,10 +177,9 @@ function WorkspaceBrowseInner() {
             if (selectionModel.selectionMode) return;
             selectionModel.setSelectedCollectionIds([collectionId]);
           }}
-          onOpenCollectionActions={(collectionId) => {
-            if (selectionModel.selectionMode) return;
-            setActionSheetCollectionId(collectionId);
-          }}
+          onRenameCollection={handleRenameCollection}
+          onSetPrimaryCollection={handleSetPrimaryCollection}
+          onDeleteCollection={handleDeleteCollection}
         />
       </ScrollView>
 
@@ -236,14 +196,6 @@ function WorkspaceBrowseInner() {
           }}
         />
       ) : null}
-
-      {/* ── Per-card ellipsis action sheet ──────────────────────────────────── */}
-      <SelectionActionSheet
-        visible={!!actionSheetCollectionId}
-        title={actionSheetCollection?.title ?? "Collection"}
-        actions={cardActions}
-        onClose={() => setActionSheetCollectionId(null)}
-      />
 
       {/* ── Modals ──────────────────────────────────────────────────────────── */}
       <QuickNameModal
