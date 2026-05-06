@@ -1,26 +1,26 @@
-import { Pressable, ScrollView, Text, View } from "react-native";
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar as ExpoStatusBar } from "expo-status-bar";
+import { Ionicons } from "@expo/vector-icons";
+import { useState, useMemo } from "react";
 import { useNavigation, useRoute } from "@react-navigation/native";
-import { styles } from "../styles";
-import { ScreenHeader } from "../../common/ScreenHeader";
-import { WorkspaceThemeProvider, useWorkspaceTheme } from "../../../context/WorkspaceThemeContext";
 import { useStore } from "../../../state/useStore";
-import { PageIntro } from "../../common/PageIntro";
+import { WorkspaceThemeProvider, useWorkspaceTheme } from "../../../context/WorkspaceThemeContext";
 import { SearchField } from "../../common/SearchField";
 import { QuickNameModal } from "../../modals/QuickNameModal";
 import { CollectionMoveModal } from "../../modals/CollectionMoveModal";
-import { useBrowseRootBackHandler } from "../../../hooks/useBrowseRootBackHandler";
 import { SelectionActionSheet } from "../../common/SelectionActionSheet";
 import { SelectionDock } from "../../common/SelectionDock";
+import { useBrowseRootBackHandler } from "../../../hooks/useBrowseRootBackHandler";
 import { useWorkspaceCollectionsModel } from "../hooks/useWorkspaceCollectionsModel";
 import { useWorkspaceCollectionSelection } from "../hooks/useWorkspaceCollectionSelection";
 import { useWorkspaceCollectionImportFlow } from "../hooks/useWorkspaceCollectionImportFlow";
 import { WorkspaceCollectionList } from "./WorkspaceCollectionList";
+import { getCollectionDeleteScope } from "../../../collectionManagement";
 
 function WorkspaceBrowseInner() {
   const theme = useWorkspaceTheme();
-  const navigation = useNavigation();
+  const navigation = useNavigation<any>();
   const collectionsModel = useWorkspaceCollectionsModel();
   const selectionModel = useWorkspaceCollectionSelection({
     navigation,
@@ -42,70 +42,165 @@ function WorkspaceBrowseInner() {
     deleteCollection: collectionsModel.deleteCollection,
   });
 
+  // ── Per-card ellipsis action sheet ──────────────────────────────────────────
+  const [actionSheetCollectionId, setActionSheetCollectionId] = useState<string | null>(null);
+  const actionSheetCollection = useMemo(
+    () =>
+      actionSheetCollectionId
+        ? (collectionsModel.activeWorkspace?.collections.find(
+            (c) => c.id === actionSheetCollectionId
+          ) ?? null)
+        : null,
+    [actionSheetCollectionId, collectionsModel.activeWorkspace?.collections]
+  );
+  const isPrimaryActionSheet =
+    actionSheetCollectionId === collectionsModel.primaryCollectionId;
+
+  const cardActions = useMemo(() => {
+    if (!actionSheetCollection) return [];
+    return [
+      {
+        key: "rename",
+        label: "Rename",
+        icon: "create-outline" as const,
+        onPress: () => {
+          setActionSheetCollectionId(null);
+          selectionModel.openRenameFor(actionSheetCollection.id);
+        },
+      },
+      {
+        key: "primary",
+        label: isPrimaryActionSheet ? "Unset Primary" : "Set as Primary",
+        icon: isPrimaryActionSheet ? ("star" as const) : ("star-outline" as const),
+        onPress: () => {
+          setActionSheetCollectionId(null);
+          if (!collectionsModel.activeWorkspaceId) return;
+          collectionsModel.setPrimaryCollectionId(
+            collectionsModel.activeWorkspaceId,
+            isPrimaryActionSheet ? null : actionSheetCollection.id
+          );
+        },
+      },
+      {
+        key: "delete",
+        label: "Delete",
+        icon: "trash-outline" as const,
+        tone: "danger" as const,
+        onPress: () => {
+          setActionSheetCollectionId(null);
+          if (!collectionsModel.activeWorkspace) return;
+          const scope = getCollectionDeleteScope(
+            collectionsModel.activeWorkspace,
+            actionSheetCollection.id
+          );
+          Alert.alert(
+            "Delete collection?",
+            `"${actionSheetCollection.title}" will be removed${
+              scope.childCollectionCount > 0
+                ? ` along with ${scope.childCollectionCount} sub-collection${scope.childCollectionCount === 1 ? "" : "s"}`
+                : ""
+            } and ${scope.itemCount} seed${scope.itemCount === 1 ? "" : "s"}.`,
+            [
+              { text: "Cancel", style: "cancel" },
+              {
+                text: "Delete",
+                style: "destructive",
+                onPress: () => collectionsModel.deleteCollection(actionSheetCollection.id),
+              },
+            ]
+          );
+        },
+      },
+    ];
+  }, [actionSheetCollection, isPrimaryActionSheet, collectionsModel, selectionModel]);
+
   useBrowseRootBackHandler(
     selectionModel.selectedCollectionIds.length > 0
-      ? {
-          onBack: () => {
-            selectionModel.setSelectedCollectionIds([]);
-            selectionModel.setSelectionMoreVisible(false);
-          },
-        }
+      ? { onBack: () => selectionModel.setSelectedCollectionIds([]) }
       : true
   );
 
+  function openDrawer() {
+    let nav: any = navigation;
+    while (nav) {
+      if (typeof nav.openDrawer === "function") {
+        nav.openDrawer();
+        return;
+      }
+      nav = nav.getParent?.();
+    }
+  }
+
   if (!collectionsModel.activeWorkspace) {
     return (
-      <SafeAreaView style={styles.screen}>
-        <ScreenHeader title="Browse" leftIcon="hamburger" />
-        <Text style={styles.subtitle}>Choose a workspace to browse its collections.</Text>
+      <SafeAreaView style={[browseStyles.screen, { backgroundColor: theme.bg }]}>
+        <Text style={browseStyles.emptyMsg}>Choose a workspace to browse its collections.</Text>
       </SafeAreaView>
     );
   }
 
+  const collectionCount = collectionsModel.topLevelCollections.length;
+
   return (
-    <SafeAreaView style={[styles.screen, { backgroundColor: theme.bg }]}>
-      <ScreenHeader title="Workspace" leftIcon="hamburger" />
+    <SafeAreaView style={[browseStyles.screen, { backgroundColor: theme.bg }]}>
       <ScrollView
-        style={styles.flexFill}
+        style={browseStyles.flexFill}
         contentContainerStyle={[
-          styles.libraryScrollContent,
+          browseStyles.scrollContent,
           {
             paddingBottom: selectionModel.selectionMode
-              ? selectionModel.selectionDockHeight + 24 + Math.max(24, 12)
-              : 24,
+              ? selectionModel.selectionDockHeight + 32
+              : 32,
           },
         ]}
         showsVerticalScrollIndicator={false}
       >
-        <PageIntro
-          title={collectionsModel.activeWorkspace.title}
-          subtitle="Browse collections by recent work, then move deeper into the workspace."
-        />
+        {/* ── Header ──────────────────────────────────────────────────────── */}
+        <View style={browseStyles.header}>
+          <Pressable
+            style={({ pressed }) => [browseStyles.hamburgerBtn, pressed ? browseStyles.pressDown : null]}
+            onPress={openDrawer}
+            hitSlop={8}
+          >
+            <Ionicons name="menu-outline" size={22} color="#84736f" />
+          </Pressable>
+          <Text style={browseStyles.eyebrow}>Current Workspace</Text>
+          <Text style={browseStyles.pageTitle}>{collectionsModel.activeWorkspace.title}</Text>
+        </View>
 
+        {/* ── Search ──────────────────────────────────────────────────────── */}
         <SearchField
           value={collectionsModel.searchQuery}
-          placeholder="Search collections, songs, or clips..."
+          placeholder="Search collections, seeds, or clips..."
           onChangeText={collectionsModel.setSearchQuery}
         />
 
+        {/* ── Section row ─────────────────────────────────────────────────── */}
         {!selectionModel.selectionMode ? (
-          <View style={styles.inputRow}>
+          <View style={browseStyles.sectionRow}>
+            <Text style={browseStyles.sectionLabel}>
+              Active Collections ({collectionCount})
+            </Text>
             <Pressable
-              style={({ pressed }) => [styles.ideasHeaderSelectBtn, pressed ? styles.pressDown : null]}
+              style={({ pressed }) => [
+                browseStyles.newCollectionBtn,
+                pressed ? browseStyles.pressDown : null,
+              ]}
               onPress={importFlow.openAddCollectionFlow}
             >
-              <Text style={styles.ideasHeaderSelectBtnText}>Add</Text>
+              <Ionicons name="add" size={14} color="#B87D6B" />
+              <Text style={browseStyles.newCollectionBtnText}>New Collection</Text>
             </Pressable>
           </View>
         ) : null}
 
+        {/* ── Collection list ──────────────────────────────────────────────── */}
         <WorkspaceCollectionList
           collectionEntries={collectionsModel.collectionEntries}
           primaryCollectionId={collectionsModel.primaryCollectionId}
           searchQuery={collectionsModel.searchQuery}
           selectionMode={selectionModel.selectionMode}
           selectedCollectionIds={selectionModel.selectedCollectionIds}
-          sizeMap={collectionsModel.sizeMap}
           onPressCollection={(collectionId) => {
             if (selectionModel.selectionMode) {
               selectionModel.setSelectedCollectionIds((prev) =>
@@ -121,30 +216,36 @@ function WorkspaceBrowseInner() {
             if (selectionModel.selectionMode) return;
             selectionModel.setSelectedCollectionIds([collectionId]);
           }}
+          onOpenCollectionActions={(collectionId) => {
+            if (selectionModel.selectionMode) return;
+            setActionSheetCollectionId(collectionId);
+          }}
         />
       </ScrollView>
 
+      {/* ── Multi-select dock ────────────────────────────────────────────────── */}
       {selectionModel.selectionMode ? (
-        <>
-          <SelectionDock
-            count={selectionModel.selectedCollectionIds.length}
-            actions={selectionModel.selectionDockActions}
-            onDone={() => selectionModel.setSelectedCollectionIds([])}
-            onLayout={(height) => {
-              selectionModel.setSelectionDockHeight((prev) =>
-                Math.abs(prev - height) < 1 ? prev : height
-              );
-            }}
-          />
-          <SelectionActionSheet
-            visible={selectionModel.selectionMoreVisible}
-            title="Workspace actions"
-            actions={selectionModel.selectionSheetActions}
-            onClose={() => selectionModel.setSelectionMoreVisible(false)}
-          />
-        </>
+        <SelectionDock
+          count={selectionModel.selectedCollectionIds.length}
+          actions={selectionModel.selectionDockActions}
+          onDone={() => selectionModel.setSelectedCollectionIds([])}
+          onLayout={(height) => {
+            selectionModel.setSelectionDockHeight((prev) =>
+              Math.abs(prev - height) < 1 ? prev : height
+            );
+          }}
+        />
       ) : null}
 
+      {/* ── Per-card ellipsis action sheet ──────────────────────────────────── */}
+      <SelectionActionSheet
+        visible={!!actionSheetCollectionId}
+        title={actionSheetCollection?.title ?? "Collection"}
+        actions={cardActions}
+        onClose={() => setActionSheetCollectionId(null)}
+      />
+
+      {/* ── Modals ──────────────────────────────────────────────────────────── */}
       <QuickNameModal
         visible={importFlow.modalOpen}
         title="New Collection"
@@ -156,7 +257,7 @@ function WorkspaceBrowseInner() {
           importFlow.setDraftTitle("");
         }}
         onSave={importFlow.createCollection}
-        helperText="Collections hold songs and clips."
+        helperText="Collections hold seeds and clips."
         saveLabel="Create"
       />
 
@@ -167,13 +268,9 @@ function WorkspaceBrowseInner() {
         placeholderValue={importFlow.defaultImportedTitle}
         onChangeDraft={importFlow.setImportCollectionDraft}
         onCancel={importFlow.resetImportCollectionModal}
-        onSave={() => {
-          importFlow.saveImportedCollection();
-        }}
+        onSave={importFlow.saveImportedCollection}
         helperText={importFlow.importHelperText}
         saveLabel="Create"
-        saveDisabled={false}
-        cancelDisabled={false}
       />
 
       <QuickNameModal
@@ -231,3 +328,85 @@ export function WorkspaceBrowseScreenContent() {
     </WorkspaceThemeProvider>
   );
 }
+
+const browseStyles = StyleSheet.create({
+  screen: {
+    flex: 1,
+  },
+  flexFill: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingHorizontal: 24,
+    paddingTop: 24,
+    gap: 0,
+  },
+  emptyMsg: {
+    fontFamily: "PlusJakartaSans_400Regular",
+    fontSize: 14,
+    color: "#84736f",
+    padding: 24,
+  },
+
+  // ── Header ────────────────────────────────────────────────────────────────
+  header: {
+    paddingTop: 8,
+    marginBottom: 28,
+  },
+  hamburgerBtn: {
+    marginBottom: 20,
+    alignSelf: "flex-start",
+    padding: 4,
+    marginLeft: -4,
+  },
+  eyebrow: {
+    fontFamily: "PlusJakartaSans_600SemiBold",
+    fontSize: 11,
+    lineHeight: 16,
+    color: "#526351",
+    letterSpacing: 1.6,
+    textTransform: "uppercase",
+    marginBottom: 6,
+  },
+  pageTitle: {
+    fontFamily: "PlayfairDisplay_400Regular",
+    fontSize: 40,
+    lineHeight: 50,
+    color: "#1C1C19",
+  },
+
+  // ── Section row ───────────────────────────────────────────────────────────
+  sectionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginTop: 24,
+    marginBottom: 16,
+  },
+  sectionLabel: {
+    fontFamily: "PlusJakartaSans_600SemiBold",
+    fontSize: 10,
+    lineHeight: 14,
+    color: "#84736f",
+    letterSpacing: 0.8,
+    textTransform: "uppercase",
+  },
+  newCollectionBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  newCollectionBtnText: {
+    fontFamily: "PlusJakartaSans_700Bold",
+    fontSize: 11,
+    color: "#B87D6B",
+    letterSpacing: 0.6,
+    textTransform: "uppercase",
+  },
+
+  // ── Shared pressable feedback ──────────────────────────────────────────────
+  pressDown: {
+    opacity: 0.6,
+    transform: [{ scale: 0.97 }],
+  },
+});

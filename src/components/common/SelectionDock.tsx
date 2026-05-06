@@ -58,7 +58,7 @@ export function SelectionDock({ count, actions, onDone, onLayout }: SelectionDoc
               <Ionicons
                 name={action.icon}
                 size={16}
-                color={dangerous ? "#b91c1c" : "#0f172a"}
+                color={dangerous ? "#a83232" : "#84736f"}
               />
               <Text
                 style={[

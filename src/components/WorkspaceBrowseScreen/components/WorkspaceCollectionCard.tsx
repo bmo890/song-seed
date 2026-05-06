@@ -1,72 +1,58 @@
-import { Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { SurfaceCard } from "../../common/SurfaceCard";
-import { styles } from "../styles";
-import { formatBytes } from "../../../utils";
-import { getHierarchyIconColor, getHierarchyIconName } from "../../../hierarchy";
 import type { CollectionSearchMatchKind } from "../../../libraryNavigation";
+import type { Collection } from "../../../types";
 
 type WorkspaceCollectionCardProps = {
   entry: {
-    collection: { id: string; title: string };
+    collection: Collection;
     itemCount: number;
+    childCollectionCount: number;
     matches: Array<{ kind: CollectionSearchMatchKind; label: string; context?: string | null }>;
   };
   isPrimary: boolean;
   searchQuery: string;
   selectionMode: boolean;
   isSelected: boolean;
-  sizeBytes: number;
   onPress: () => void;
   onLongPress: () => void;
+  onOpenActions: () => void;
 };
 
-function getMatchIcon(kind: CollectionSearchMatchKind): keyof typeof Ionicons.glyphMap {
-  switch (kind) {
-    case "collection":
-      return getHierarchyIconName("collection");
-    case "subcollection":
-      return getHierarchyIconName("collection");
-    case "song":
-      return getHierarchyIconName("song");
-    case "clip":
-    default:
-      return getHierarchyIconName("clip");
-  }
+function formatLastEdited(ts: number): string {
+  const days = Math.floor((Date.now() - ts) / 86400000);
+  if (days === 0) return "Edited today";
+  if (days === 1) return "Edited yesterday";
+  if (days < 7) return `Edited ${days} days ago`;
+  if (days < 14) return "Edited last week";
+  return `Edited ${new Date(ts).toLocaleDateString("en-US", { month: "short", day: "numeric" })}`;
 }
 
-function getMatchLabel(kind: CollectionSearchMatchKind) {
+function getMatchLabel(kind: CollectionSearchMatchKind): string {
   switch (kind) {
-    case "collection":
-      return "Collection:";
-    case "subcollection":
-      return "Inside:";
-    case "song":
-      return "Song:";
+    case "collection": return "Collection:";
+    case "subcollection": return "Inside:";
+    case "song": return "Song:";
     case "clip":
-    default:
-      return "Clip:";
+    default: return "Clip:";
   }
 }
 
 function HighlightedText({ value, query }: { value: string; query: string }) {
   const needle = query.trim();
   if (!needle) return <>{value}</>;
-
   const lowerValue = value.toLowerCase();
   const lowerNeedle = needle.toLowerCase();
   const matchIndex = lowerValue.indexOf(lowerNeedle);
-
   if (matchIndex < 0) return <>{value}</>;
-
   const before = value.slice(0, matchIndex);
   const match = value.slice(matchIndex, matchIndex + needle.length);
   const after = value.slice(matchIndex + needle.length);
-
   return (
     <>
       {before}
-      <Text style={styles.workspaceBrowseMatchHighlight}>{match}</Text>
+      <Text style={cardStyles.matchHighlight}>{match}</Text>
       {after}
     </>
   );
@@ -78,69 +64,61 @@ export function WorkspaceCollectionCard({
   searchQuery,
   selectionMode,
   isSelected,
-  sizeBytes,
   onPress,
   onLongPress,
+  onOpenActions,
 }: WorkspaceCollectionCardProps) {
-  const collection = entry.collection;
+  const { collection, itemCount, childCollectionCount, matches } = entry;
+
+  const metaParts = [
+    `${itemCount} ${itemCount === 1 ? "seed" : "seeds"}`,
+    childCollectionCount > 0
+      ? `${childCollectionCount} ${childCollectionCount === 1 ? "sub-collection" : "sub-collections"}`
+      : null,
+    formatLastEdited(collection.updatedAt),
+  ].filter(Boolean).join("  ·  ");
 
   return (
-    <SurfaceCard
-      style={isPrimary ? styles.workspaceCardPrimary : null}
-      onPress={onPress}
-      onLongPress={onLongPress}
-    >
-      <View style={styles.cardTop}>
-        <View style={selectionMode ? styles.cardTitleRowCompact : styles.cardTitleRow}>
-          {selectionMode ? (
-            <View style={styles.cardSelectionLead}>
-              <View
-                style={[
-                  styles.selectionIndicatorCircle,
-                  isSelected ? styles.selectionIndicatorActive : null,
-                ]}
-              >
-                {isSelected ? <Text style={styles.selectionBadgeText}>✓</Text> : null}
-              </View>
-            </View>
-          ) : null}
-          <Ionicons
-            name={getHierarchyIconName("collection")}
-            size={18}
-            color={getHierarchyIconColor("collection")}
-          />
-          <Text style={styles.cardTitle}>
-            <HighlightedText value={collection.title} query={searchQuery} />
-          </Text>
-          {isPrimary ? <Ionicons name="star" size={14} color="#c58b18" /> : null}
-        </View>
+    <SurfaceCard onPress={onPress} onLongPress={onLongPress}>
+      {/* Title row */}
+      <View style={cardStyles.cardTop}>
+        {selectionMode ? (
+          <View style={[cardStyles.selectionDot, isSelected ? cardStyles.selectionDotActive : null]}>
+            {isSelected ? <Ionicons name="checkmark" size={10} color="#FFFFFF" /> : null}
+          </View>
+        ) : null}
 
-        <View style={styles.workspaceCardBadges}>
-          {isPrimary ? <Text style={[styles.badge, styles.badgeArchived]}>MAIN</Text> : null}
-        </View>
-      </View>
-
-      <View style={styles.workspaceBrowseCollectionMetaRow}>
-        <Text style={styles.cardMeta}>
-          {entry.itemCount} {entry.itemCount === 1 ? "item" : "items"}
+        <Text style={cardStyles.title} numberOfLines={1}>
+          <HighlightedText value={collection.title} query={searchQuery} />
         </Text>
-        <Text style={styles.cardMeta}>•</Text>
-        <Text style={styles.cardMeta}>{formatBytes(sizeBytes)}</Text>
+
+        {isPrimary ? (
+          <View style={cardStyles.primaryBadge}>
+            <Ionicons name="star" size={10} color="#B87D6B" />
+            <Text style={cardStyles.primaryLabel}>Primary</Text>
+          </View>
+        ) : null}
+
+        {!selectionMode ? (
+          <Pressable style={cardStyles.actionsBtn} onPress={onOpenActions} hitSlop={8}>
+            <Ionicons name="ellipsis-vertical" size={14} color="#D7C2BD" />
+          </Pressable>
+        ) : null}
       </View>
 
-      {searchQuery.trim().length > 0 && entry.matches.length > 0 ? (
-        <View style={styles.workspaceBrowseMatchRow}>
-          {entry.matches.map((match, index) => (
-            <View
-              key={`${match.kind}-${match.label}-${index}`}
-              style={styles.workspaceBrowseMatchBadge}
-            >
-              <Ionicons name={getMatchIcon(match.kind)} size={12} color="#64748b" />
-              <Text style={styles.workspaceBrowseMatchText} numberOfLines={1}>
+      {/* Meta row */}
+      <Text style={cardStyles.meta}>{metaParts}</Text>
+
+      {/* Search match badges */}
+      {searchQuery.trim().length > 0 && matches.length > 0 ? (
+        <View style={cardStyles.matchRow}>
+          {matches.map((match, index) => (
+            <View key={`${match.kind}-${match.label}-${index}`} style={cardStyles.matchBadge}>
+              <Text style={cardStyles.matchText} numberOfLines={1}>
                 {getMatchLabel(match.kind)}{" "}
                 <HighlightedText value={match.label} query={searchQuery} />
                 {match.context ? (
-                  <Text style={styles.workspaceBrowseMatchContext}> in {match.context}</Text>
+                  <Text style={cardStyles.matchContext}> in {match.context}</Text>
                 ) : null}
               </Text>
             </View>
@@ -150,3 +128,81 @@ export function WorkspaceCollectionCard({
     </SurfaceCard>
   );
 }
+
+const cardStyles = StyleSheet.create({
+  cardTop: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  selectionDot: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    borderWidth: 1.5,
+    borderColor: "#D7C2BD",
+    backgroundColor: "transparent",
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+  },
+  selectionDotActive: {
+    backgroundColor: "#B87D6B",
+    borderColor: "#B87D6B",
+  },
+  title: {
+    flex: 1,
+    fontFamily: "PlusJakartaSans_600SemiBold",
+    fontSize: 16,
+    lineHeight: 22,
+    color: "#1C1C19",
+  },
+  primaryBadge: {
+    alignItems: "center",
+    gap: 2,
+    flexShrink: 0,
+  },
+  primaryLabel: {
+    fontFamily: "PlusJakartaSans_600SemiBold",
+    fontSize: 7,
+    color: "#B87D6B",
+    letterSpacing: 0.5,
+    textTransform: "uppercase",
+    opacity: 0.85,
+  },
+  actionsBtn: {
+    padding: 4,
+    flexShrink: 0,
+  },
+  meta: {
+    fontFamily: "PlusJakartaSans_400Regular",
+    fontSize: 12,
+    lineHeight: 18,
+    color: "#84736f",
+    marginTop: 6,
+  },
+  matchRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 6,
+    marginTop: 10,
+  },
+  matchBadge: {
+    backgroundColor: "#F4F1ED",
+    borderRadius: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  matchText: {
+    fontFamily: "PlusJakartaSans_400Regular",
+    fontSize: 11,
+    color: "#524440",
+  },
+  matchHighlight: {
+    fontFamily: "PlusJakartaSans_700Bold",
+    color: "#1C1C19",
+  },
+  matchContext: {
+    color: "#84736f",
+  },
+});

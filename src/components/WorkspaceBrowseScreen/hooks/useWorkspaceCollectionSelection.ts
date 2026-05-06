@@ -190,84 +190,19 @@ export function useWorkspaceCollectionSelection({
     );
   };
 
-  const selectionDockActions: SelectionAction[] =
-    singleSelectedCollection
-      ? [
-          {
-            key: "rename",
-            label: "Rename",
-            icon: "create-outline",
-            onPress: () => {
-              setManagedCollectionId(singleSelectedCollection.id);
-              setCollectionDraft(singleSelectedCollection.title);
-              setCollectionRenameModalOpen(true);
-            },
-          },
-          {
-            key: "primary",
-            label:
-              primaryCollectionId === singleSelectedCollection.id
-                ? "Main collection"
-                : "Set main",
-            icon:
-              primaryCollectionId === singleSelectedCollection.id
-                ? "star"
-                : "star-outline",
-            onPress: () => {
-              if (!activeWorkspaceId) return;
-              if (primaryCollectionId === singleSelectedCollection.id) return;
-              setPrimaryCollectionId(activeWorkspaceId, singleSelectedCollection.id);
-              setSelectedCollectionIds([]);
-            },
-            disabled: primaryCollectionId === singleSelectedCollection.id,
-          },
-          {
-            key: "copy",
-            label: "Copy",
-            icon: "copy-outline",
-            onPress: () => openCollectionDestination("copy", collapsedSelectedCollectionIds),
-          },
-          {
-            key: "move",
-            label: "Move",
-            icon: "swap-horizontal-outline",
-            onPress: () => openCollectionDestination("move", collapsedSelectedCollectionIds),
-          },
-          {
-            key: "more",
-            label: "More",
-            icon: "ellipsis-horizontal",
-            onPress: () => setSelectionMoreVisible(true),
-          },
-        ]
-      : [
-          {
-            key: "copy",
-            label: "Copy",
-            icon: "copy-outline",
-            onPress: () => openCollectionDestination("copy", collapsedSelectedCollectionIds),
-          },
-          {
-            key: "move",
-            label: "Move",
-            icon: "swap-horizontal-outline",
-            onPress: () => openCollectionDestination("move", collapsedSelectedCollectionIds),
-          },
-          {
-            key: "more",
-            label: "More",
-            icon: "ellipsis-horizontal",
-            onPress: () => setSelectionMoreVisible(true),
-          },
-        ];
-
-  const selectionSheetActions: SelectionAction[] = [
+  // Rename and Set Main are handled by the per-card ellipsis — dock is for multi-item ops only.
+  const selectionDockActions: SelectionAction[] = [
     {
-      key: "select-all",
-      label: canDeselectAll ? "Deselect all" : "Select all",
-      icon: canDeselectAll ? "remove-circle-outline" : "checkmark-circle-outline",
-      onPress: () => setSelectedCollectionIds(canDeselectAll ? [] : selectableCollectionIds),
-      disabled: !canDeselectAll && selectableCollectionIds.length === 0,
+      key: "copy",
+      label: "Copy",
+      icon: "copy-outline",
+      onPress: () => openCollectionDestination("copy", collapsedSelectedCollectionIds),
+    },
+    {
+      key: "move",
+      label: "Move",
+      icon: "swap-horizontal-outline",
+      onPress: () => openCollectionDestination("move", collapsedSelectedCollectionIds),
     },
     {
       key: "delete",
@@ -277,6 +212,25 @@ export function useWorkspaceCollectionSelection({
       onPress: confirmDeleteSelectedCollections,
     },
   ];
+
+  const selectionSheetActions: SelectionAction[] = [
+    {
+      key: "select-all",
+      label: canDeselectAll ? "Deselect all" : "Select all",
+      icon: canDeselectAll ? "remove-circle-outline" : "checkmark-circle-outline",
+      onPress: () => setSelectedCollectionIds(canDeselectAll ? [] : selectableCollectionIds),
+      disabled: !canDeselectAll && selectableCollectionIds.length === 0,
+    },
+  ];
+
+  /** Open the rename modal pre-filled for a specific collection (used by per-card ellipsis). */
+  function openRenameFor(collectionId: string) {
+    const collection = activeWorkspace?.collections.find((c) => c.id === collectionId) ?? null;
+    if (!collection) return;
+    setManagedCollectionId(collectionId);
+    setCollectionDraft(collection.title);
+    setCollectionRenameModalOpen(true);
+  }
 
   return {
     selectionMode,
@@ -302,6 +256,7 @@ export function useWorkspaceCollectionSelection({
     setCollectionDestinationMode,
     setDestinationCollectionIds,
     submitCollectionDestination,
+    openRenameFor,
     renameCollection: () => {
       if (!activeWorkspaceId || !managedCollection) return;
       const nextTitle = collectionDraft.trim();
