@@ -1,5 +1,5 @@
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { StatusBar as ExpoStatusBar } from "expo-status-bar";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation, useRoute } from "@react-navigation/native";
@@ -14,9 +14,11 @@ import { useWorkspaceCollectionsModel } from "../hooks/useWorkspaceCollectionsMo
 import { useWorkspaceCollectionSelection } from "../hooks/useWorkspaceCollectionSelection";
 import { useWorkspaceCollectionImportFlow } from "../hooks/useWorkspaceCollectionImportFlow";
 import { WorkspaceCollectionList } from "./WorkspaceCollectionList";
+import { WorkspaceAvatar } from "../../common/WorkspaceAvatar";
 
 function WorkspaceBrowseInner() {
   const theme = useWorkspaceTheme();
+  const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
   const collectionsModel = useWorkspaceCollectionsModel();
   const selectionModel = useWorkspaceCollectionSelection({
@@ -101,7 +103,17 @@ function WorkspaceBrowseInner() {
             <Ionicons name="menu-outline" size={22} color="#84736f" />
           </Pressable>
           <Text style={browseStyles.eyebrow}>Current Workspace</Text>
-          <Text style={browseStyles.pageTitle}>{collectionsModel.activeWorkspace.title}</Text>
+          <View style={browseStyles.titleRow}>
+            <WorkspaceAvatar
+              name={collectionsModel.activeWorkspace.title}
+              color={collectionsModel.activeWorkspace.color}
+              avatarKey={collectionsModel.activeWorkspace.avatarKey}
+              size={40}
+            />
+            <Text style={browseStyles.pageTitle} numberOfLines={2}>
+              {collectionsModel.activeWorkspace.title}
+            </Text>
+          </View>
         </View>
 
         {/* ── Search ──────────────────────────────────────────────────────── */}
@@ -117,18 +129,10 @@ function WorkspaceBrowseInner() {
             <Text style={browseStyles.sectionLabel}>
               Active Collections ({collectionCount})
             </Text>
-            <Pressable
-              style={({ pressed }) => [
-                browseStyles.newCollectionBtn,
-                pressed ? browseStyles.pressDown : null,
-              ]}
-              onPress={importFlow.openAddCollectionFlow}
-            >
-              <Ionicons name="add" size={14} color="#B87D6B" />
-              <Text style={browseStyles.newCollectionBtnText}>New Collection</Text>
-            </Pressable>
           </View>
-        ) : null}
+        ) : (
+          <View style={{ height: 24 }} />
+        )}
 
         {/* ── Collection list ──────────────────────────────────────────────── */}
         <WorkspaceCollectionList
@@ -171,6 +175,20 @@ function WorkspaceBrowseInner() {
         />
       ) : null}
 
+      {/* ── FAB ─────────────────────────────────────────────────────────────── */}
+      {!selectionModel.selectionMode ? (
+        <Pressable
+          style={({ pressed }) => [
+            browseStyles.fab,
+            { bottom: Math.max(32, insets.bottom + 16) },
+            pressed ? browseStyles.pressDown : null,
+          ]}
+          onPress={importFlow.openAddCollectionFlow}
+        >
+          <Ionicons name="add" size={26} color="#ffffff" />
+        </Pressable>
+      ) : null}
+
       {/* ── Modals ──────────────────────────────────────────────────────────── */}
       <QuickNameModal
         visible={importFlow.modalOpen}
@@ -178,9 +196,12 @@ function WorkspaceBrowseInner() {
         draftValue={importFlow.draftTitle}
         placeholderValue={importFlow.defaultCollectionTitle}
         onChangeDraft={importFlow.setDraftTitle}
+        descriptionValue={importFlow.draftDescription}
+        onChangeDescription={importFlow.setDraftDescription}
         onCancel={() => {
           importFlow.setModalOpen(false);
           importFlow.setDraftTitle("");
+          importFlow.setDraftDescription("");
         }}
         onSave={importFlow.createCollection}
         helperText="Collections hold seeds and clips."
@@ -201,13 +222,16 @@ function WorkspaceBrowseInner() {
 
       <QuickNameModal
         visible={selectionModel.collectionRenameModalOpen}
-        title="Rename collection"
+        title="Edit collection"
         draftValue={selectionModel.collectionDraft}
         placeholderValue={selectionModel.managedCollection?.title ?? "Collection"}
         onChangeDraft={selectionModel.setCollectionDraft}
+        descriptionValue={selectionModel.collectionDescriptionDraft}
+        onChangeDescription={selectionModel.setCollectionDescriptionDraft}
         onCancel={() => {
           selectionModel.setCollectionRenameModalOpen(false);
           selectionModel.setCollectionDraft("");
+          selectionModel.setCollectionDescriptionDraft("");
         }}
         onSave={selectionModel.renameCollection}
         disableSaveWhenEmpty
@@ -294,7 +318,13 @@ const browseStyles = StyleSheet.create({
     textTransform: "uppercase",
     marginBottom: 6,
   },
+  titleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
   pageTitle: {
+    flex: 1,
     fontFamily: "PlayfairDisplay_400Regular",
     fontSize: 40,
     lineHeight: 50,
@@ -303,9 +333,6 @@ const browseStyles = StyleSheet.create({
 
   // ── Section row ───────────────────────────────────────────────────────────
   sectionRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
     marginTop: 24,
     marginBottom: 16,
   },
@@ -317,17 +344,23 @@ const browseStyles = StyleSheet.create({
     letterSpacing: 0.8,
     textTransform: "uppercase",
   },
-  newCollectionBtn: {
-    flexDirection: "row",
+
+  // ── FAB ───────────────────────────────────────────────────────────────────
+  fab: {
+    position: "absolute",
+    bottom: 32,
+    right: 24,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: "#B87D6B",
     alignItems: "center",
-    gap: 4,
-  },
-  newCollectionBtnText: {
-    fontFamily: "PlusJakartaSans_700Bold",
-    fontSize: 11,
-    color: "#B87D6B",
-    letterSpacing: 0.6,
-    textTransform: "uppercase",
+    justifyContent: "center",
+    shadowColor: "#3D3732",
+    shadowOpacity: 0.15,
+    shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 12,
+    elevation: 6,
   },
 
   // ── Shared pressable feedback ──────────────────────────────────────────────

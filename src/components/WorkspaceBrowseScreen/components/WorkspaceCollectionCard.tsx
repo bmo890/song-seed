@@ -135,6 +135,13 @@ export function WorkspaceCollectionCard({
       {/* Meta row */}
       <Text style={cardStyles.meta}>{metaParts}</Text>
 
+      {/* Description */}
+      {collection.description ? (
+        <Text style={cardStyles.description} numberOfLines={2}>
+          {collection.description}
+        </Text>
+      ) : null}
+
       {/* Search match badges */}
       {searchQuery.trim().length > 0 && matches.length > 0 ? (
         <View style={cardStyles.matchRow}>
@@ -170,7 +177,7 @@ export function WorkspaceCollectionCard({
               onPress={() => { closeDropdown(); onRename(); }}
             >
               <Ionicons name="create-outline" size={14} color="#84736f" />
-              <Text style={dropdownStyles.itemText}>Rename</Text>
+              <Text style={dropdownStyles.itemText}>Edit</Text>
             </Pressable>
 
             <View style={dropdownStyles.divider} />
@@ -252,6 +259,13 @@ const cardStyles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 18,
     color: "#84736f",
+    marginTop: 6,
+  },
+  description: {
+    fontFamily: "PlusJakartaSans_400Regular",
+    fontSize: 13,
+    lineHeight: 20,
+    color: "#524440",
     marginTop: 6,
   },
   matchRow: {

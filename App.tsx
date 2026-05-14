@@ -490,6 +490,7 @@ function DrawerContent({ navigation, state }: DrawerContentComponentProps) {
       currentRoute={currentRoute}
       workspaceTitle={activeWorkspace?.title ?? null}
       workspaceColor={activeWorkspace?.color}
+      workspaceAvatarKey={activeWorkspace?.avatarKey}
       recentCollections={recentCollections}
       onGoHome={() => {
         closeDrawer();

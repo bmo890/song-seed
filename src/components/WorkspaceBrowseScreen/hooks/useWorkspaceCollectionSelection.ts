@@ -54,6 +54,7 @@ export function useWorkspaceCollectionSelection({
   const [managedCollectionId, setManagedCollectionId] = useState<string | null>(null);
   const [collectionRenameModalOpen, setCollectionRenameModalOpen] = useState(false);
   const [collectionDraft, setCollectionDraft] = useState("");
+  const [collectionDescriptionDraft, setCollectionDescriptionDraft] = useState("");
   const [collectionDestinationMode, setCollectionDestinationMode] = useState<"move" | "copy" | null>(
     null
   );
@@ -229,6 +230,7 @@ export function useWorkspaceCollectionSelection({
     if (!collection) return;
     setManagedCollectionId(collectionId);
     setCollectionDraft(collection.title);
+    setCollectionDescriptionDraft(collection.description ?? "");
     setCollectionRenameModalOpen(true);
   }
 
@@ -246,6 +248,8 @@ export function useWorkspaceCollectionSelection({
     setCollectionRenameModalOpen,
     collectionDraft,
     setCollectionDraft,
+    collectionDescriptionDraft,
+    setCollectionDescriptionDraft,
     managedCollection,
     collectionDestinationMode,
     moveDestinations,
@@ -261,9 +265,11 @@ export function useWorkspaceCollectionSelection({
       if (!activeWorkspaceId || !managedCollection) return;
       const nextTitle = collectionDraft.trim();
       if (!nextTitle) return;
-      updateCollection(activeWorkspaceId, managedCollection.id, { title: nextTitle });
+      const nextDescription = collectionDescriptionDraft.trim() || undefined;
+      updateCollection(activeWorkspaceId, managedCollection.id, { title: nextTitle, description: nextDescription });
       setCollectionRenameModalOpen(false);
       setCollectionDraft("");
+      setCollectionDescriptionDraft("");
       setManagedCollectionId(null);
     },
     singleSelectedCollection,

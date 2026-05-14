@@ -199,6 +199,7 @@ export type WorkspaceArchiveState = {
 export type Collection = {
   id: string;
   title: string;
+  description?: string;
   workspaceId: string;
   parentCollectionId?: string | null;
   createdAt: number;

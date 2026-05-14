@@ -31,6 +31,7 @@ type Props = {
     | null;
   workspaceTitle: string | null;
   workspaceColor?: string;
+  workspaceAvatarKey?: number;
   recentCollections: RecentCollectionLite[];
   onGoHome: () => void;       // Switch workspace (home = workspace picker)
   onGoWorkspace: () => void;  // Collections for current workspace
@@ -57,6 +58,7 @@ export function SideNav({
   currentRoute,
   workspaceTitle,
   workspaceColor,
+  workspaceAvatarKey,
   recentCollections,
   onGoHome,
   onGoWorkspace,
@@ -104,6 +106,7 @@ export function SideNav({
             <WorkspaceAvatar
               color={workspaceColor}
               name={workspaceTitle ?? "?"}
+              avatarKey={workspaceAvatarKey}
               size={32}
             />
             <Text style={sideNavStyles.workspaceName} numberOfLines={1}>

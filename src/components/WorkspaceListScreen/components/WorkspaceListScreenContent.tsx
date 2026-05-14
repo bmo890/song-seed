@@ -1,5 +1,5 @@
 import { Alert, Pressable, ScrollView, Text, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { StatusBar as ExpoStatusBar } from "expo-status-bar";
 import { Ionicons } from "@expo/vector-icons";
 import { useState } from "react";
@@ -13,6 +13,7 @@ import { WorkspaceList } from "./WorkspaceList";
 
 export function WorkspaceListScreenContent() {
   const model = useWorkspaceListScreenModel();
+  const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
   const [sortMenuOpen, setSortMenuOpen] = useState(false);
 
@@ -188,7 +189,11 @@ export function WorkspaceListScreenContent() {
 
       {/* ── FAB ────────────────────────────────────────────────────────────── */}
       <Pressable
-        style={({ pressed }) => [styles.fab, pressed ? styles.pressDown : null]}
+        style={({ pressed }) => [
+          styles.fab,
+          { bottom: Math.max(32, insets.bottom + 16) },
+          pressed ? styles.pressDown : null,
+        ]}
         onPress={() => {
           model.modal.setEditId(null);
           model.modal.setModalOpen(true);

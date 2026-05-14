@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { Alert } from "react-native";
 import { appActions } from "../../../state/actions";
 import { buildCollectionMoveDestinations } from "../../../collectionManagement";
 import { ensureUniqueCountedTitle } from "../../../utils";
@@ -42,11 +41,12 @@ export function useWorkspaceCollectionImportFlow({
   navigation: any;
   activeWorkspaceId: string | null;
   topLevelCollectionCount: number;
-  addCollection: (workspaceId: string, title: string, parentCollectionId?: string | null) => string;
+  addCollection: (workspaceId: string, title: string, parentCollectionId?: string | null, description?: string) => string;
   deleteCollection: (collectionId: string) => void;
 }) {
   const [modalOpen, setModalOpen] = useState(false);
   const [draftTitle, setDraftTitle] = useState("");
+  const [draftDescription, setDraftDescription] = useState("");
   const [importCollectionModalOpen, setImportCollectionModalOpen] = useState(false);
   const [importCollectionAssets, setImportCollectionAssets] = useState<ImportedAudioAsset[]>([]);
   const [importCollectionDatePreference, setImportCollectionDatePreference] =
@@ -54,16 +54,8 @@ export function useWorkspaceCollectionImportFlow({
   const [importCollectionDraft, setImportCollectionDraft] = useState("");
 
   const openAddCollectionFlow = () => {
-    Alert.alert("Add collection", "Choose how to start this collection.", [
-      {
-        text: "New Collection",
-        onPress: () => {
-          setDraftTitle("");
-          setModalOpen(true);
-        },
-      },
-      { text: "Cancel", style: "cancel" },
-    ]);
+    setDraftTitle("");
+    setModalOpen(true);
   };
 
   const openCollectionImportFlow = async () => {
@@ -89,9 +81,11 @@ export function useWorkspaceCollectionImportFlow({
     if (!activeWorkspaceId) return;
     const workspaceIdSnapshot = activeWorkspaceId;
     const title = draftTitle.trim() || buildDefaultCollectionTitle(topLevelCollectionCount);
-    const collectionId = addCollection(workspaceIdSnapshot, title, null);
+    const description = draftDescription.trim() || undefined;
+    const collectionId = addCollection(workspaceIdSnapshot, title, null, description);
     setModalOpen(false);
     setDraftTitle("");
+    setDraftDescription("");
     openCollectionInBrowse(navigation, { collectionId, workspaceId: workspaceIdSnapshot });
   };
 
@@ -195,6 +189,8 @@ export function useWorkspaceCollectionImportFlow({
     setModalOpen,
     draftTitle,
     setDraftTitle,
+    draftDescription,
+    setDraftDescription,
     importCollectionModalOpen,
     importCollectionAssets,
     importCollectionDatePreference,
