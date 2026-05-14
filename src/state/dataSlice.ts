@@ -116,7 +116,7 @@ export type DataSlice = {
     updateWorkspace: (id: string, updates: { title?: string; description?: string; color?: string; avatarKey?: number }) => void;
     deleteWorkspace: (id: string) => void;
     archiveWorkspace: (id: string, isArchived: boolean) => void;
-    addCollection: (workspaceId: string, title: string, parentCollectionId?: string | null) => string;
+    addCollection: (workspaceId: string, title: string, parentCollectionId?: string | null, description?: string) => string;
     updateCollection: (workspaceId: string, collectionId: string, updates: { title?: string }) => void;
     moveCollection: (
         collectionId: string,
@@ -178,7 +178,7 @@ export type DataSlice = {
 
     addIdea: (title: string, collectionId: string) => string;
     quickRecordIdea: (title: string, collectionId: string) => string;
-    updateIdeas: (updater: (prev: SongIdea[]) => SongIdea[]) => void;
+    updateIdeas: (updater: (prev: SongIdea[]) => SongIdea[], options?: { preserveActivity?: boolean }) => void;
     setClipManualSortOrder: (ideaId: string, orderedClipIds: string[]) => void;
     addClipVersion: (
         targetIdeaId: string,
@@ -321,12 +321,14 @@ export const createEmptyWorkspaceIdeasListState = (): IdeasListState => ({
 export const createCollection = (
     workspaceId: string,
     title: string,
-    parentCollectionId: string | null = null
+    parentCollectionId: string | null = null,
+    description?: string,
 ): Collection => {
     const now = Date.now();
     return {
         id: buildCollectionId(),
         title,
+        description,
         workspaceId,
         parentCollectionId,
         createdAt: now,
@@ -1051,8 +1053,8 @@ export const createDataSlice: StateCreator<
         get().markRecentlyAdded([workspaceId]);
     },
 
-    addCollection: (workspaceId, title, parentCollectionId = null) => {
-        const collection = createCollection(workspaceId, title, parentCollectionId);
+    addCollection: (workspaceId, title, parentCollectionId = null, description) => {
+        const collection = createCollection(workspaceId, title, parentCollectionId, description);
         set((state) => {
             const nextWorkspaces = state.workspaces.map((workspace) =>
                 workspace.id === workspaceId
@@ -1847,7 +1849,7 @@ export const createDataSlice: StateCreator<
         });
     },
 
-    updateIdeas: (updater) => {
+    updateIdeas: (updater, options) => {
         set((state) => {
             const { activeWorkspaceId, workspaces } = state;
             if (!activeWorkspaceId) return state;
@@ -1864,6 +1866,7 @@ export const createDataSlice: StateCreator<
                                 if (!prevIdea) return idea;
                                 if (idea === prevIdea) return idea;
                                 if (idea.kind !== "project") return idea;
+                                if (options?.preserveActivity) return idea;
                                 if (idea.lastActivityAt > prevIdea.lastActivityAt) return idea;
                                 return { ...idea, lastActivityAt: now };
                             });

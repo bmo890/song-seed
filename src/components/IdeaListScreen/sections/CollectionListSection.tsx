@@ -255,7 +255,6 @@ export function CollectionListSection() {
         activeSortMetric: screen.activeSortMetric,
         hoveredIdeaId: screen.hoverState.hoveredIdeaId,
         dropIntent: screen.hoverState.dropIntent,
-        ideaSizeMap: screen.ideaSizeMap,
         lyricsFilterMode: screen.lyricsFilterMode,
         inlinePlayer,
         rowLayoutsRef: screen.rowLayoutsRef,

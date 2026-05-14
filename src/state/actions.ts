@@ -1387,7 +1387,7 @@ export const appActions = {
         if (status === "semi") completionPct = 50;
         if (status === "sprout") completionPct = 25;
 
-        state.updateIdeas((prev) => prev.map((i) => (i.id === selectedIdea.id ? { ...i, status, completionPct } : i)));
+        state.updateIdeas((prev) => prev.map((i) => (i.id === selectedIdea.id ? { ...i, status, completionPct } : i)), { preserveActivity: true });
     },
 
     setIdeaCompletion: (completionPct: number) => {
@@ -1401,7 +1401,7 @@ export const appActions = {
         else if (stepped >= 50) status = "semi";
         else if (stepped >= 25) status = "sprout";
 
-        state.updateIdeas((prev) => prev.map((i) => (i.id === selectedIdea.id ? { ...i, completionPct: stepped, status } : i)));
+        state.updateIdeas((prev) => prev.map((i) => (i.id === selectedIdea.id ? { ...i, completionPct: stepped, status } : i)), { preserveActivity: true });
     },
 
     setIdeaNotes: (notes: string) => {

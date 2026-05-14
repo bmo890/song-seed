@@ -4,13 +4,14 @@ import { IdeaStatus } from "../../types";
 
 type Props = {
     status: IdeaStatus;
+    pct?: number | null;
     style?: StyleProp<TextStyle>;
 };
 
-export function StatusBadge({ status, style }: Props) {
+export function StatusBadge({ status, pct, style }: Props) {
     let viewStyle: StyleProp<ViewStyle>;
     let textStyle: StyleProp<TextStyle>;
-    let label = status.toUpperCase();
+    let label = pct != null ? `${status.toUpperCase()} ${pct}%` : status.toUpperCase();
 
     switch (status) {
         case "seed":

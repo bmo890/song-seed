@@ -6,7 +6,6 @@ import { styles } from "../../../styles";
 import { IdeaSort, InlinePlayer, SongIdea } from "../../../types";
 import { IdeaListItem } from "./IdeaListItem";
 import { CollectionListModel, IdeaListEntry } from "../types";
-import { formatBytes } from "../../../utils";
 import { getIdeaSortTimestamp, type IdeaSortMetric } from "../../../ideaSort";
 import { getDateBucket } from "../../../dateBuckets";
 
@@ -24,7 +23,6 @@ type IdeaListContentProps = {
   activeSortMetric: IdeaSortMetric;
   hoveredIdeaId: string | null;
   dropIntent: "between" | "inside";
-  ideaSizeMap: Record<string, number>;
   lyricsFilterMode: "all" | "with" | "without";
   inlinePlayer: InlinePlayer;
   rowLayoutsRef: MutableRefObject<Record<string, { y: number; height: number }>>;
@@ -68,7 +66,6 @@ export function IdeaListContent(
     activeSortMetric,
     hoveredIdeaId,
     dropIntent,
-    ideaSizeMap,
     lyricsFilterMode,
     inlinePlayer,
     rowLayoutsRef,
@@ -139,7 +136,7 @@ export function IdeaListContent(
                   style={({ pressed }) => [styles.ideasHiddenUnhideInlineBtn, pressed ? styles.pressDown : null]}
                   onPress={() => unhideTimelineDay(entry.metric, entry.dayStartTs)}
                 >
-                  <Ionicons name="eye-outline" size={11} color="#94a3b8" />
+                  <Ionicons name="eye-outline" size={11} color="#84736f" />
                   <Text style={styles.ideasHiddenUnhideInlineBtnText}>
                     {`unhide ${entry.hiddenCount}`}
                   </Text>
@@ -179,7 +176,6 @@ export function IdeaListContent(
                 : undefined
             }
             hidden={entry.hidden}
-            ideaSizeLabel={formatBytes(ideaSizeMap[entry.idea.id] ?? 0)}
             dayDividerLabel={entry.dayDividerLabel}
             searchNeedle={searchNeedle}
             notesMatched={!!searchMeta.notes}

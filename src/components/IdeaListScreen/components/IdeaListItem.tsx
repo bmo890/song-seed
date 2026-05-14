@@ -25,7 +25,6 @@ type IdeaListItemProps = RenderItemParams<SongIdea> & {
     onUnhide: (idea: SongIdea) => void,
     onHideDay?: () => void,
     hidden?: boolean,
-    ideaSizeLabel: string,
     dayDividerLabel?: string | null,
     searchNeedle: string,
     notesMatched: boolean,
@@ -81,7 +80,6 @@ export function IdeaListItem({
     onUnhide,
     onHideDay,
     hidden = false,
-    ideaSizeLabel,
     dayDividerLabel,
     searchNeedle,
     notesMatched,
@@ -142,14 +140,12 @@ export function IdeaListItem({
     })();
     const showExpandedStaticDuration = !compact && !inlineActive;
     const hasExpandedProjectIndicators = item.kind === "project" && (hasProjectLyrics || hasProjectClipCount);
-    const hasDistinctUpdatedAt = getIdeaUpdatedAt(item) !== getIdeaCreatedAt(item);
-    const showUpdatedMetaRow = item.kind === "project" && hasDistinctUpdatedAt;
-    const expandedUpdatedLabel = showUpdatedMetaRow && sortMetric !== "updated" ? `Updated ${updatedAtLabel}` : null;
-    const expandedCreatedLabel = sortMetric !== "created" ? `Created ${createdAtLabel}` : null;
-    const showExpandedProjectContextRow = item.kind === "project" && (!!expandedUpdatedLabel || hasExpandedProjectIndicators);
-    const projectProgressLabel = item.kind === "project" && !compact ? `${Math.max(0, Math.min(100, Math.round(item.completionPct)))}%` : null;
-    const compactProjectProgressLabel = item.kind === "project" && compact && sortMetric === "progress"
-        ? `${Math.max(0, Math.min(100, Math.round(item.completionPct)))}%`
+    const footerDateLabel = sortMetric === "updated" ? updatedAtLabel : createdAtLabel;
+    const showExpandedProjectContextRow = item.kind === "project" && hasExpandedProjectIndicators;
+    const projectProgressPct = item.kind === "project" ? Math.max(0, Math.min(100, Math.round(item.completionPct))) : null;
+    const projectProgressLabel = projectProgressPct !== null && !compact ? `${projectProgressPct}%` : null;
+    const compactProjectProgressLabel = projectProgressPct !== null && compact && sortMetric === "progress"
+        ? `${projectProgressPct}%`
         : null;
 
     const handleLeadPress = (evt: any) => {
@@ -178,7 +174,7 @@ export function IdeaListItem({
             {hasProjectLyrics ? (
                 <View style={styles.ideasListMetaToken}>
                     <View style={styles.ideasListMetaIconWrap}>
-                        <Ionicons name="document-text-outline" size={12} color="#64748b" />
+                        <Ionicons name="document-text-outline" size={12} color="#84736f" />
                     </View>
                 </View>
             ) : null}
@@ -188,7 +184,7 @@ export function IdeaListItem({
             {hasProjectClipCount ? (
                 <View style={styles.ideasListMetaToken}>
                     <View style={styles.ideasListMetaIconWrap}>
-                        <Ionicons name={getHierarchyIconName("clip")} size={12} color="#64748b" />
+                        <Ionicons name={getHierarchyIconName("clip")} size={12} color="#84736f" />
                     </View>
                     <Text style={styles.ideasListMetaText}>{item.clips.length}</Text>
                 </View>
@@ -210,7 +206,7 @@ export function IdeaListItem({
                 {showLyricsIndicator ? (
                     <View style={styles.ideasListMetaToken}>
                         <View style={styles.ideasListMetaIconWrap}>
-                            <Ionicons name="document-text-outline" size={12} color="#64748b" />
+                            <Ionicons name="document-text-outline" size={12} color="#84736f" />
                         </View>
                     </View>
                 ) : null}
@@ -220,7 +216,7 @@ export function IdeaListItem({
                 {showClipCount ? (
                     <View style={styles.ideasListMetaToken}>
                         <View style={styles.ideasListMetaIconWrap}>
-                            <Ionicons name={getHierarchyIconName("clip")} size={12} color="#64748b" />
+                            <Ionicons name={getHierarchyIconName("clip")} size={12} color="#84736f" />
                         </View>
                         <Text style={styles.ideasListMetaText}>{item.clips.length}</Text>
                     </View>
@@ -260,12 +256,11 @@ export function IdeaListItem({
             </View>
             <View style={styles.ideasListCardTrailing}>
                 {item.kind === "project" ? (
-                    <StatusBadge status={item.status} style={styles.ideasListStatusBadgeText} />
-                ) : null}
-                {projectProgressLabel ? (
-                    <Text style={styles.ideasListProgressText}>
-                        {projectProgressLabel}
-                    </Text>
+                    <StatusBadge
+                        status={item.status}
+                        pct={!compact ? projectProgressPct : undefined}
+                        style={styles.ideasListStatusBadgeText}
+                    />
                 ) : null}
                 <Pressable
                     onPress={(e) => {
@@ -279,7 +274,7 @@ export function IdeaListItem({
                     <Ionicons
                         name={item.isBookmarked ? "bookmark" : "bookmark-outline"}
                         size={15}
-                        color={item.isBookmarked ? "#d97706" : "#cbd5e1"}
+                        color={item.isBookmarked ? "#B87D6B" : "rgba(215,194,189,0.7)"}
                     />
                 </Pressable>
             </View>
@@ -342,9 +337,9 @@ export function IdeaListItem({
                             <View style={styles.ideasHiddenTitleWrap}>
                                 <View style={styles.ideasListTitleIconWrap}>
                                     <Ionicons
-                                        name={getHierarchyIconName(getIdeaHierarchyLevel(item))}
+                                        name="eye-off-outline"
                                         size={13}
-                                        color={getHierarchyIconColor(getIdeaHierarchyLevel(item))}
+                                        color="#B8A8A3"
                                     />
                                 </View>
                                 <Text style={styles.ideasHiddenTitle} numberOfLines={1}>
@@ -384,7 +379,7 @@ export function IdeaListItem({
                                 onHideDay();
                             }}
                         >
-                            <Ionicons name="chevron-down" size={12} color="#64748b" />
+                            <Ionicons name="eye-off-outline" size={12} color="#84736f" />
                         </Pressable>
                     ) : null}
                     <View style={styles.ideasDayDividerLine} />
@@ -505,30 +500,6 @@ export function IdeaListItem({
                                         </View>
 
                                         <View style={styles.ideasListExpandedMetaRows}>
-                                            {showExpandedProjectContextRow ? (
-                                                <View style={styles.ideasListExpandedMetaGridRow}>
-                                                    <View style={styles.ideasListExpandedMetaLeadSpacer} />
-                                                    <View style={styles.ideasListExpandedMetaCenterCol}>
-                                                        {expandedUpdatedLabel ? (
-                                                            <View style={styles.ideasListMetaRow}>
-                                                                <View style={styles.ideasListMetaLeftCluster}>
-                                                                    <Text style={styles.ideasListCreatedAtText} numberOfLines={1}>
-                                                                        {expandedUpdatedLabel}
-                                                                    </Text>
-                                                                </View>
-                                                            </View>
-                                                        ) : null}
-                                                    </View>
-                                                    <View style={styles.ideasListExpandedMetaRightCol}>
-                                                        <View style={styles.ideasListMetaRow}>
-                                                            <View style={styles.ideasListMetaRightColInner}>
-                                                                {hasExpandedProjectIndicators ? renderProjectRightMeta() : null}
-                                                            </View>
-                                                        </View>
-                                                    </View>
-                                                </View>
-                                            ) : null}
-
                                             <View style={styles.ideasListExpandedMetaGridRow}>
                                                 <View style={styles.ideasListExpandedMetaLeftCol}>
                                                     <Text style={styles.ideasListLeadDurationText}>
@@ -537,24 +508,16 @@ export function IdeaListItem({
                                                 </View>
 
                                                 <View style={styles.ideasListExpandedMetaCenterCol}>
-                                                    <View style={styles.ideasListMetaRow}>
-                                                        <View style={styles.ideasListMetaLeftCluster}>
-                                                            <Text style={styles.ideasListCreatedAtText} numberOfLines={1}>
-                                                                {expandedCreatedLabel}
-                                                            </Text>
-                                                        </View>
-                                                    </View>
+                                                    <Text style={styles.ideasListCreatedAtText} numberOfLines={1}>
+                                                        {footerDateLabel}
+                                                    </Text>
                                                 </View>
 
-                                                <View style={styles.ideasListExpandedMetaRightCol}>
-                                                    <View style={styles.ideasListMetaRow}>
-                                                        <View style={styles.ideasListMetaRightColInner}>
-                                                            <Text style={styles.ideasListDateSizeText}>
-                                                                {ideaSizeLabel}
-                                                            </Text>
-                                                        </View>
+                                                {hasExpandedProjectIndicators ? (
+                                                    <View style={styles.ideasListExpandedMetaRightIndicators}>
+                                                        {renderProjectRightMeta()}
                                                     </View>
-                                                </View>
+                                                ) : null}
                                             </View>
                                         </View>
                                     </View>
@@ -576,14 +539,7 @@ export function IdeaListItem({
                                             </View>
                                             {inlineActive ? (
                                                 <View style={styles.ideasInlineCloseBtn}>
-                                                    <Ionicons name="stop-circle-outline" size={14} color="#64748b" />
-                                                </View>
-                                            ) : null}
-                                            {showExpandedStaticDuration ? (
-                                                <View style={styles.ideasListLeadDurationSlot}>
-                                                    <Text style={styles.ideasListLeadDurationText}>
-                                                        {item.kind === "project" ? projectPrimaryDurationLabel : clipDurationLabel}
-                                                    </Text>
+                                                    <Ionicons name="stop-circle-outline" size={14} color="#84736f" />
                                                 </View>
                                             ) : null}
                                         </View>
@@ -596,34 +552,22 @@ export function IdeaListItem({
 
                                             <View style={styles.ideasListCardBottomBlock}>
                                                 {!compact ? (
-                                                    <View style={styles.ideasListExpandedMetaStack}>
+                                                    <View style={styles.ideasListMetaRow}>
+                                                        <View style={styles.ideasListMetaLeftCluster}>
+                                                            {showExpandedStaticDuration ? (
+                                                                <Text style={styles.ideasListMetaDurationText}>
+                                                                    {item.kind === "project" ? projectPrimaryDurationLabel : clipDurationLabel}
+                                                                </Text>
+                                                            ) : null}
+                                                            <Text style={styles.ideasListCreatedAtText} numberOfLines={1}>
+                                                                {footerDateLabel}
+                                                            </Text>
+                                                        </View>
                                                         {showExpandedProjectContextRow ? (
-                                                            <View style={styles.ideasListMetaRow}>
-                                                                <View style={styles.ideasListMetaLeftCluster}>
-                                                                    {expandedUpdatedLabel ? (
-                                                                        <Text style={styles.ideasListCreatedAtText} numberOfLines={1}>
-                                                                            {expandedUpdatedLabel}
-                                                                        </Text>
-                                                                    ) : null}
-                                                                </View>
-                                                                <View style={styles.ideasListMetaRightCol}>
-                                                                    {hasExpandedProjectIndicators ? renderProjectRightMeta() : null}
-                                                                </View>
+                                                            <View style={styles.ideasListMetaRightCol}>
+                                                                {renderProjectRightMeta()}
                                                             </View>
                                                         ) : null}
-
-                                                        <View style={styles.ideasListMetaRow}>
-                                                            <View style={styles.ideasListMetaLeftCluster}>
-                                                                <Text style={styles.ideasListCreatedAtText} numberOfLines={1}>
-                                                                    {expandedCreatedLabel}
-                                                                </Text>
-                                                            </View>
-                                                            <View style={styles.ideasListMetaRightCol}>
-                                                                <Text style={styles.ideasListDateSizeText}>
-                                                                    {ideaSizeLabel}
-                                                                </Text>
-                                                            </View>
-                                                        </View>
                                                     </View>
                                                 ) : null}
 

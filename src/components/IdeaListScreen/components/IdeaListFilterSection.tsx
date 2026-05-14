@@ -53,7 +53,7 @@ export function IdeaListFilterSection({
                 style={({ pressed }) => [styles.ideasUnhideAllPill, pressed ? styles.pressDown : null]}
                 onPress={onUnhideAll}
               >
-                <Ionicons name="eye-outline" size={12} color="#64748b" />
+                <Ionicons name="eye-outline" size={12} color="#84736f" />
                 <Text style={styles.ideasUnhideAllPillText}>{`Unhide all (${hiddenItemsCount})`}</Text>
               </Pressable>
             ) : null

@@ -2,13 +2,10 @@ import { Alert, Pressable, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { styles } from "../../../styles";
 import { ClipboardBanner } from "../../ClipboardBanner";
-import { ClipClipboard, Collection } from "../../../types";
-import { PageIntro } from "../../common/PageIntro";
+import { ClipClipboard } from "../../../types";
 import { SearchField } from "../../common/SearchField";
 
 type IdeaListHeaderSectionProps = {
-  currentCollection: Collection;
-  ideasHeaderMeta: string;
   searchQuery: string;
   hasActivityRangeFilter: boolean;
   activityLabel?: string;
@@ -22,8 +19,6 @@ type IdeaListHeaderSectionProps = {
 };
 
 export function IdeaListHeaderSection({
-  currentCollection,
-  ideasHeaderMeta,
   searchQuery,
   hasActivityRangeFilter,
   activityLabel,
@@ -37,12 +32,6 @@ export function IdeaListHeaderSection({
 }: IdeaListHeaderSectionProps) {
   return (
     <>
-      <PageIntro
-        title={currentCollection.title}
-        subtitle={ideasHeaderMeta}
-        subtitleNumberOfLines={1}
-      />
-
       <View style={styles.ideasSearchUtilityRow}>
         <SearchField
           value={searchQuery}

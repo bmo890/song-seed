@@ -2,8 +2,6 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Collection } from "../../../types";
 import { styles } from "../../../styles";
-import { colors, radii, spacing, text as textTokens } from "../../../design/tokens";
-import { getHierarchyIconColor, getHierarchyIconName } from "../../../hierarchy";
 
 type IdeaListNestedCollectionsSectionProps = {
   childCollections: Collection[];
@@ -41,7 +39,7 @@ export function IdeaListNestedCollectionsSection({
         <Ionicons
           name={expanded ? "chevron-up" : "chevron-down"}
           size={15}
-          color={colors.textSecondary}
+          color="#84736f"
         />
       </Pressable>
 
@@ -58,9 +56,9 @@ export function IdeaListNestedCollectionsSection({
                 onLongPress={() => onOpenCollectionActions(collection.id)}
               >
                 <Ionicons
-                  name={getHierarchyIconName("collection")}
+                  name="folder-outline"
                   size={14}
-                  color={getHierarchyIconColor("collection")}
+                  color="#84736f"
                 />
                 <Text style={nestedCollectionStyles.itemTitle} numberOfLines={1}>
                   {collection.title}
@@ -74,7 +72,7 @@ export function IdeaListNestedCollectionsSection({
                 ]}
                 onPress={() => onOpenCollection(collection.id)}
               >
-                <Ionicons name="chevron-forward" size={13} color={colors.textMuted} />
+                <Ionicons name="chevron-forward" size={13} color="#B8A8A3" />
               </Pressable>
             </View>
           ))}
@@ -86,64 +84,68 @@ export function IdeaListNestedCollectionsSection({
 
 const nestedCollectionStyles = StyleSheet.create({
   wrap: {
-    gap: spacing.sm,
-    marginBottom: spacing.md,
+    gap: 8,
+    marginBottom: 12,
   },
   toggleRow: {
     minHeight: 42,
-    borderRadius: radii.lg,
+    borderRadius: 10,
     borderWidth: 1,
-    borderColor: colors.borderSubtle,
-    backgroundColor: colors.surfaceMuted,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
+    borderColor: "rgba(215,194,189,0.3)",
+    backgroundColor: "#FDFBF7",
+    paddingHorizontal: 16,
+    paddingVertical: 10,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    gap: spacing.md,
+    gap: 12,
   },
   toggleRowOpen: {
-    borderColor: colors.borderMuted,
-    backgroundColor: colors.surface,
+    borderColor: "rgba(215,194,189,0.5)",
+    backgroundColor: "#FFFFFF",
   },
   toggleCopy: {
     flex: 1,
     gap: 2,
   },
   toggleLabel: {
-    ...textTokens.caption,
-    color: colors.textStrong,
+    fontFamily: "PlusJakartaSans_600SemiBold",
+    fontSize: 12,
+    color: "#1C1C19",
   },
   toggleMeta: {
-    ...textTokens.supporting,
+    fontFamily: "PlusJakartaSans_400Regular",
+    fontSize: 13,
+    color: "#84736f",
   },
   list: {
-    gap: spacing.sm,
-    paddingLeft: spacing.sm,
+    gap: 8,
+    paddingLeft: 8,
   },
   itemRow: {
     minHeight: 38,
-    borderRadius: radii.md,
+    borderRadius: 8,
     borderWidth: 1,
-    borderColor: colors.borderSubtle,
-    backgroundColor: colors.surface,
-    paddingHorizontal: spacing.md,
+    borderColor: "rgba(215,194,189,0.3)",
+    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 12,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    gap: spacing.sm,
+    gap: 8,
   },
   itemMain: {
     flex: 1,
     minHeight: 38,
     flexDirection: "row",
     alignItems: "center",
-    gap: spacing.sm,
+    gap: 8,
   },
   itemTitle: {
     flex: 1,
-    ...textTokens.body,
-    color: colors.textStrong,
+    fontFamily: "PlusJakartaSans_400Regular",
+    fontSize: 14,
+    color: "#1C1C19",
     fontWeight: "600",
   },
   chevronBtn: {

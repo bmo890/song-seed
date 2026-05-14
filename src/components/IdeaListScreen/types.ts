@@ -80,7 +80,6 @@ export type CollectionListModel = {
   activeSortMetric: IdeaSortMetric;
   hoveredIdeaId: string | null;
   dropIntent: "between" | "inside";
-  ideaSizeMap: Record<string, number>;
   lyricsFilterMode: "all" | "with" | "without";
   inlinePlayer: InlinePlayer;
   rowLayoutsRef: MutableRefObject<Record<string, { y: number; height: number }>>;
