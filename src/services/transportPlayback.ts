@@ -18,6 +18,10 @@ type ActivateAndPlayOptions = {
     onRestartFromEnd?: () => MaybePromise<void>;
 };
 
+type ReplacePlaybackSourceOptions = {
+    seekToStart?: boolean;
+};
+
 export function readPlaybackTimingMs(
     status: TransportPlaybackStatus,
     durationOverrideMs = 0,
@@ -55,11 +59,16 @@ export async function activateAndPlay(
 export async function replacePlaybackSource(
     player: TransportAudioPlayer,
     audioUri: string,
-    autoPlay = false
+    autoPlay = false,
+    options: ReplacePlaybackSourceOptions = {}
 ) {
+    const seekToStart = options.seekToStart ?? true;
+
     await activatePlaybackAudioSession();
     await player.replace({ uri: audioUri });
-    await player.seekTo(0);
+    if (seekToStart) {
+        await player.seekTo(0);
+    }
     if (autoPlay) {
         await player.play();
         return;

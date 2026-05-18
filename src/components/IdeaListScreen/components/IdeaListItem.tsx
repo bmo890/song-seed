@@ -8,11 +8,13 @@ import { InlineTarget, SongIdea, ClipVersion, InlinePlayer } from "../../../type
 import { fmtDuration } from "../../../utils";
 import { useNavigation } from "@react-navigation/native";
 import { getIdeaCreatedAt, getIdeaUpdatedAt, type IdeaSortMetric } from "../../../ideaSort";
-import { getHierarchyIconColor, getHierarchyIconName, getIdeaHierarchyLevel } from "../../../hierarchy";
+import { getHierarchyIconName } from "../../../hierarchy";
 import { getPlayableClipForIdea } from "../../../clipPresentation";
 
 import { useStore } from "../../../state/useStore";
 import { StatusBadge } from "../../common/StatusBadge";
+import { IdeaCard } from "../../common/IdeaCard";
+import { useWorkspaceTheme } from "../../../context/WorkspaceThemeContext";
 
 type IdeaListItemProps = RenderItemParams<SongIdea> & {
     hoveredIdeaId: string | null;
@@ -33,39 +35,6 @@ type IdeaListItemProps = RenderItemParams<SongIdea> & {
     sortMetric: IdeaSortMetric,
     lyricsFilterMode: "all" | "with" | "without",
 };
-
-function renderHighlightedTitle(
-    title: string,
-    searchNeedle: string,
-    baseStyle: object,
-    hitStyle: object,
-    numberOfLines?: number
-) {
-    if (!searchNeedle) {
-        return <Text style={baseStyle} numberOfLines={numberOfLines}>{title}</Text>;
-    }
-
-    const lowerTitle = title.toLowerCase();
-    const lowerNeedle = searchNeedle.toLowerCase();
-    const startIndex = lowerTitle.indexOf(lowerNeedle);
-
-    if (startIndex === -1 || lowerNeedle.length === 0) {
-        return <Text style={baseStyle} numberOfLines={numberOfLines}>{title}</Text>;
-    }
-
-    const endIndex = startIndex + lowerNeedle.length;
-    const before = title.slice(0, startIndex);
-    const hit = title.slice(startIndex, endIndex);
-    const after = title.slice(endIndex);
-
-    return (
-        <Text style={baseStyle} numberOfLines={numberOfLines}>
-            {before}
-            <Text style={hitStyle}>{hit}</Text>
-            {after}
-        </Text>
-    );
-}
 
 export function IdeaListItem({
     item,
@@ -91,6 +60,7 @@ export function IdeaListItem({
     const listSelectionMode = useStore((s) => s.listSelectionMode);
     const selectedListIdeaIds = useStore((s) => s.selectedListIdeaIds);
     const setSelectedIdeaId = useStore((s) => s.setSelectedIdeaId);
+    const { accent: workspaceAccent } = useWorkspaceTheme();
 
     const navigation = useNavigation();
     const rootNavigation = (navigation as any).getParent?.();
@@ -138,35 +108,16 @@ export function IdeaListItem({
         });
         return `${date} • ${time}`;
     })();
-    const showExpandedStaticDuration = !compact && !inlineActive;
     const hasExpandedProjectIndicators = item.kind === "project" && (hasProjectLyrics || hasProjectClipCount);
     const footerDateLabel = sortMetric === "updated" ? updatedAtLabel : createdAtLabel;
-    const showExpandedProjectContextRow = item.kind === "project" && hasExpandedProjectIndicators;
     const projectProgressPct = item.kind === "project" ? Math.max(0, Math.min(100, Math.round(item.completionPct))) : null;
-    const projectProgressLabel = projectProgressPct !== null && !compact ? `${projectProgressPct}%` : null;
     const compactProjectProgressLabel = projectProgressPct !== null && compact && sortMetric === "progress"
         ? `${projectProgressPct}%`
         : null;
 
-    const handleLeadPress = (evt: any) => {
-        evt.stopPropagation();
-        if (listSelectionMode) {
-            useStore.getState().toggleListSelection(item.id);
-            return;
-        }
-        if (!playClip) return;
-        void Haptics.selectionAsync();
-        void playIdeaFromList(item.id, playClip);
-    };
-
     const beginSelection = () => {
         void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         useStore.getState().startListSelection(item.id);
-    };
-
-    const handleLeadLongPress = () => {
-        if (listSelectionMode) return;
-        beginSelection();
     };
 
     const renderProjectRightMeta = () => (
@@ -230,56 +181,6 @@ export function IdeaListItem({
             </View>
         );
     };
-
-    const titleBlock = (
-        <View style={styles.ideasListCardTop}>
-            <View style={[styles.ideasListCardTitleRow, !compact ? styles.ideasListCardTitleRowExpanded : null]}>
-                <View style={styles.ideasListTitleIconWrap}>
-                    <Ionicons
-                        name={getHierarchyIconName(getIdeaHierarchyLevel(item))}
-                        size={compact ? 12 : 13}
-                        color={getHierarchyIconColor(getIdeaHierarchyLevel(item))}
-                    />
-                </View>
-                <View style={styles.cardFlex}>
-                    {renderHighlightedTitle(
-                        item.title,
-                        searchNeedle,
-                        [
-                            styles.ideasListCardTitle,
-                            compact ? styles.ideasListCardTitleCompact : null,
-                        ] as any,
-                        styles.ideasListCardTitleHighlight,
-                        compact ? 1 : undefined
-                    )}
-                </View>
-            </View>
-            <View style={styles.ideasListCardTrailing}>
-                {item.kind === "project" ? (
-                    <StatusBadge
-                        status={item.status}
-                        pct={!compact ? projectProgressPct : undefined}
-                        style={styles.ideasListStatusBadgeText}
-                    />
-                ) : null}
-                <Pressable
-                    onPress={(e) => {
-                        e.stopPropagation();
-                        void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                        useStore.getState().toggleIdeaBookmark(item.id);
-                    }}
-                    hitSlop={8}
-                    style={styles.ideasListFavoriteBtn}
-                >
-                    <Ionicons
-                        name={item.isBookmarked ? "bookmark" : "bookmark-outline"}
-                        size={15}
-                        color={item.isBookmarked ? "#B87D6B" : "rgba(215,194,189,0.7)"}
-                    />
-                </Pressable>
-            </View>
-        </View>
-    );
 
     const searchTagsBlock = searchNeedle && (notesMatched || lyricsMatched) ? (
         <View style={styles.ideasSearchTagRow}>
@@ -387,40 +288,75 @@ export function IdeaListItem({
             ) : null}
 
             {hidden ? hiddenRow : (
-            <View style={styles.listRowWrap}>
-                <View style={styles.cardFlex}>
-                    <View
-                        onLayout={(evt) => {
-                            rowLayoutsRef.current[item.id] = {
-                                y: evt.nativeEvent.layout.y,
-                                height: evt.nativeEvent.layout.height,
-                            };
-                        }}
-                        style={[
-                            styles.cardFlex,
-                            styles.ideasListCard,
-                            compact ? styles.ideasListCardCompact : null,
-                            item.kind === "project" ? styles.ideasListProjectCard : null,
-                            isSelected || isActive ? styles.ideasListCardSelected : null,
-                            inlineActive ? styles.ideasListCardNowPlaying : null,
-                            isInsideTarget ? styles.cardInsideHover : null,
-                            isActive && dropIntent === "inside" ? styles.cardActiveInside : null,
-                        ]}
-                    >
-                        <View style={styles.clipRowWrap}>
-                            {showSelectionIndicator ? (
-                                <View style={styles.selectionIndicatorCol} pointerEvents="none">
-                                    <View style={[styles.selectionIndicatorCircle, isSelected ? styles.selectionIndicatorActive : null]}>
-                                        {isSelected ? <Text style={styles.selectionBadgeText}>✓</Text> : null}
-                                    </View>
-                                </View>
+                <View
+                    onLayout={(evt) => {
+                        rowLayoutsRef.current[item.id] = {
+                            y: evt.nativeEvent.layout.y,
+                            height: evt.nativeEvent.layout.height,
+                        };
+                    }}
+                    style={styles.listRowWrap}
+                >
+                    {showSelectionIndicator ? (
+                        <View style={styles.selectionIndicatorCol} pointerEvents="none">
+                            <View style={[styles.selectionIndicatorCircle, isSelected ? styles.selectionIndicatorActive : null]}>
+                                {isSelected ? <Text style={styles.selectionBadgeText}>✓</Text> : null}
+                            </View>
+                        </View>
+                    ) : null}
+                    <View style={styles.cardFlex}>
+                        <IdeaCard
+                            selected={isSelected || isActive}
+                            isActive={isActive && dropIntent === "inside"}
+                            inlineActive={inlineActive}
+                            isInlinePlaying={inlinePlayer.isInlinePlaying}
+                            nowPlaying={inlineActive}
+                            isInsideTarget={isInsideTarget}
+                            accentBorderColor={item.kind === "project" ? workspaceAccent : null}
+                            compact={compact}
+                            highlightValue={highlightMapRef.current[item.id] ?? null}
+                            canPlay={!!playClip}
+                            durationLabel={item.kind === "project" ? projectPrimaryDurationLabel : clipDurationLabel}
+                            onPressLead={() => {
+                                console.log("[inline-debug:idea-list-item]", "lead-press", {
+                                    ideaId: item.id,
+                                    kind: item.kind,
+                                    hasPlayClip: !!playClip,
+                                    playClipId: playClip?.id ?? null,
+                                    inlineActive,
+                                    inlineTarget,
+                                    isInlinePlaying: inlinePlayer.isInlinePlaying,
+                                    inlinePositionMs: inlinePlayer.inlinePosition,
+                                    inlineDurationMs: inlinePlayer.inlineDuration,
+                                    listSelectionMode,
+                                });
+                                if (listSelectionMode) {
+                                    useStore.getState().toggleListSelection(item.id);
+                                    return;
+                                }
+                                if (!playClip) {
+                                    console.log("[inline-debug:idea-list-item]", "lead-press-no-play-clip", { ideaId: item.id });
+                                    return;
+                                }
+                                void Haptics.selectionAsync();
+                                void playIdeaFromList(item.id, playClip);
+                            }}
+                            onLongPressLead={() => {
+                                if (listSelectionMode) return;
+                                beginSelection();
+                            }}
+                            leadAccessory={inlineActive ? (
+                                <Pressable
+                                    style={({ pressed }) => [styles.ideasInlineCloseBtn, pressed ? styles.pressDown : null]}
+                                    onPress={(evt) => {
+                                        evt.stopPropagation();
+                                        void inlinePlayer.resetInlinePlayer();
+                                    }}
+                                >
+                                    <Ionicons name="stop-circle-outline" size={14} color="#84736f" />
+                                </Pressable>
                             ) : null}
-                            <Pressable
-                                style={({ pressed }) => [
-                                    styles.clipRowCard,
-                                    pressed ? styles.pressDown : null,
-                                ]}
-                                onPress={async () => {
+                            onPress={async () => {
                                 if (listSelectionMode) {
                                     useStore.getState().toggleListSelection(item.id);
                                     return;
@@ -434,191 +370,73 @@ export function IdeaListItem({
                                 await inlinePlayer.resetInlinePlayer();
                                 setSelectedIdeaId(item.id);
                                 navigateRoot("IdeaDetail", { ideaId: item.id });
-                                }}
-                                onLongPress={() => {
+                            }}
+                            onLongPress={() => {
                                 if (listSelectionMode) {
                                     useStore.getState().toggleListSelection(item.id);
                                     return;
                                 }
                                 beginSelection();
-                                }}
-                                delayLongPress={250}
-                            >
-                                {highlightMapRef.current[item.id] ? (
-                                    <Animated.View style={[styles.ideasListCardHighlightOverlay, { opacity: highlightMapRef.current[item.id] }]} pointerEvents="none" />
-                                ) : null}
-                                {inlineActive ? (
-                                    <View style={[styles.ideasListLeadHotzone, styles.ideasListLeadHotzoneInline]}>
-                                        <Pressable
-                                            style={styles.ideasListLeadHotzoneTop}
-                                            onPress={(evt) => {
-                                                evt.stopPropagation();
-                                                void Haptics.selectionAsync();
-                                                if (playClip) void playIdeaFromList(item.id, playClip);
-                                            }}
+                            }}
+                            title={item.title}
+                            titleSemiBold={item.kind === "project"}
+                            searchNeedle={searchNeedle}
+                            trailing={
+                                <>
+                                    {item.kind === "project" ? (
+                                        <StatusBadge
+                                            status={item.status}
+                                            pct={!compact ? projectProgressPct : undefined}
+                                            style={styles.ideasListStatusBadgeText}
                                         />
-                                        <Pressable
-                                            style={styles.ideasListLeadHotzoneBottom}
-                                            onPress={(evt) => {
-                                                evt.stopPropagation();
-                                                void Haptics.selectionAsync();
-                                                void inlinePlayer.resetInlinePlayer();
-                                            }}
-                                        />
-                                    </View>
-                                ) : (
+                                    ) : null}
                                     <Pressable
-                                        style={[
-                                            styles.ideasListLeadHotzone,
-                                            compact ? styles.ideasListLeadHotzoneCompact : null,
-                                            !compact ? styles.ideasListLeadHotzoneExpanded : null,
-                                        ]}
-                                        onPress={handleLeadPress}
-                                        onLongPress={handleLeadLongPress}
-                                        delayLongPress={250}
-                                        disabled={!playClip && !listSelectionMode}
-                                    />
-                                )}
-                                {!compact && !inlineActive ? (
-                                    <View style={styles.ideasListExpandedStaticWrap}>
-                                        <View style={styles.ideasListExpandedHeaderRow}>
-                                            <View style={styles.ideasListExpandedHeaderLead}>
-                                                <View style={styles.ideasInlinePlayBtn}>
-                                                    <Ionicons
-                                                        name="play"
-                                                        size={15}
-                                                        color={!playClip ? "#9ca3af" : "#111827"}
-                                                        style={{ marginLeft: 2 }}
-                                                    />
-                                                </View>
-                                            </View>
-
-                                            <View style={styles.ideasListExpandedHeaderMain}>
-                                                {titleBlock}
-                                                {searchTagsBlock}
-                                            </View>
-                                        </View>
-
-                                        <View style={styles.ideasListExpandedMetaRows}>
-                                            <View style={styles.ideasListExpandedMetaGridRow}>
-                                                <View style={styles.ideasListExpandedMetaLeftCol}>
-                                                    <Text style={styles.ideasListLeadDurationText}>
-                                                        {item.kind === "project" ? projectPrimaryDurationLabel : clipDurationLabel}
-                                                    </Text>
-                                                </View>
-
-                                                <View style={styles.ideasListExpandedMetaCenterCol}>
-                                                    <Text style={styles.ideasListCreatedAtText} numberOfLines={1}>
-                                                        {footerDateLabel}
-                                                    </Text>
-                                                </View>
-
-                                                {hasExpandedProjectIndicators ? (
-                                                    <View style={styles.ideasListExpandedMetaRightIndicators}>
-                                                        {renderProjectRightMeta()}
-                                                    </View>
-                                                ) : null}
-                                            </View>
-                                        </View>
-                                    </View>
-                                ) : (
-                                    <View style={styles.ideasListCardRow}>
-                                        <View style={[styles.ideasListLeadCol, inlineActive ? styles.ideasListLeadColInlineActive : null]}>
-                                            <View
-                                                style={[
-                                                    styles.ideasInlinePlayBtn,
-                                                    compact ? styles.ideasInlinePlayBtnCompact : null,
-                                                ]}
-                                            >
-                                                <Ionicons
-                                                    name={inlineActive && inlinePlayer.isInlinePlaying ? "pause" : "play"}
-                                                    size={15}
-                                                    color={!playClip ? "#9ca3af" : "#111827"}
-                                                    style={inlineActive && inlinePlayer.isInlinePlaying ? undefined : { marginLeft: 2 }}
-                                                />
-                                            </View>
-                                            {inlineActive ? (
-                                                <View style={styles.ideasInlineCloseBtn}>
-                                                    <Ionicons name="stop-circle-outline" size={14} color="#84736f" />
-                                                </View>
-                                            ) : null}
-                                        </View>
-
-                                        <View style={[styles.ideasListCardMain, compact ? styles.ideasListCardMainCompact : null]}>
-                                            <View style={styles.ideasListCardTopBlock}>
-                                                {titleBlock}
-                                                {searchTagsBlock}
-                                            </View>
-
-                                            <View style={styles.ideasListCardBottomBlock}>
-                                                {!compact ? (
-                                                    <View style={styles.ideasListMetaRow}>
-                                                        <View style={styles.ideasListMetaLeftCluster}>
-                                                            {showExpandedStaticDuration ? (
-                                                                <Text style={styles.ideasListMetaDurationText}>
-                                                                    {item.kind === "project" ? projectPrimaryDurationLabel : clipDurationLabel}
-                                                                </Text>
-                                                            ) : null}
-                                                            <Text style={styles.ideasListCreatedAtText} numberOfLines={1}>
-                                                                {footerDateLabel}
-                                                            </Text>
-                                                        </View>
-                                                        {showExpandedProjectContextRow ? (
-                                                            <View style={styles.ideasListMetaRightCol}>
-                                                                {renderProjectRightMeta()}
-                                                            </View>
-                                                        ) : null}
-                                                    </View>
-                                                ) : null}
-
-                                                {compact && item.kind === "project" ? (
-                                                    <View style={styles.ideasListMetaRow}>
-                                                        <View style={styles.ideasListMetaLeftCluster}>
-                                                            <Text style={[styles.ideasListMetaDurationText, compact ? styles.ideasListMetaDurationTextCompact : null]}>
-                                                                {projectPrimaryDurationLabel}
-                                                            </Text>
-                                                        </View>
-                                                        <View style={styles.ideasListMetaRightCol}>
-                                                            {renderCompactProjectRightMeta()}
-                                                        </View>
-                                                    </View>
-                                                ) : compact && !inlineActive ? (
-                                                    <View style={styles.ideasListMetaRow}>
-                                                        <View style={styles.ideasListMetaLeftCluster}>
-                                                            <Text style={[styles.ideasListMetaDurationText, compact ? styles.ideasListMetaDurationTextCompact : null]}>
-                                                                {item.kind === "project" ? projectPrimaryDurationLabel : clipDurationLabel}
-                                                            </Text>
-                                                        </View>
-                                                    </View>
-                                                ) : null}
-
-                                                {inlineActive ? (
-                                                    <MiniProgress
-                                                        currentMs={inlinePlayer.inlinePosition}
-                                                        durationMs={inlinePlayer.inlineDuration || playClip?.durationMs || 0}
-                                                        showTopDivider
-                                                        extraBottomMargin={8}
-                                                        captureWholeLane
-                                                        onSeek={(ms) => {
-                                                            void inlinePlayer.endInlineScrub(ms);
-                                                        }}
-                                                        onSeekStart={() => {
-                                                            void inlinePlayer.beginInlineScrub();
-                                                        }}
-                                                        onSeekCancel={() => {
-                                                            void inlinePlayer.cancelInlineScrub();
-                                                        }}
-                                                    />
-                                                ) : null}
-                                            </View>
-                                        </View>
-                                    </View>
-                                )}
-                            </Pressable>
-                        </View>
+                                        onPress={(e) => {
+                                            e.stopPropagation();
+                                            void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                                            useStore.getState().toggleIdeaBookmark(item.id);
+                                        }}
+                                        hitSlop={8}
+                                        style={styles.ideasListFavoriteBtn}
+                                    >
+                                        <Ionicons
+                                            name={item.isBookmarked ? "bookmark" : "bookmark-outline"}
+                                            size={15}
+                                            color={item.isBookmarked ? "#B87D6B" : "rgba(215,194,189,0.7)"}
+                                        />
+                                    </Pressable>
+                                </>
+                            }
+                            searchTagsContent={searchTagsBlock}
+                            footerDate={!compact ? footerDateLabel : undefined}
+                            footerRightContent={
+                                compact && item.kind === "project"
+                                    ? renderCompactProjectRightMeta()
+                                    : !compact && hasExpandedProjectIndicators
+                                        ? renderProjectRightMeta()
+                                        : null
+                            }
+                            inlinePlayerContent={
+                                <MiniProgress
+                                    currentMs={inlinePlayer.inlinePosition}
+                                    durationMs={inlinePlayer.inlineDuration || playClip?.durationMs || 0}
+                                    showTopDivider
+                                    extraBottomMargin={8}
+                                    captureWholeLane
+                                    onSeek={(ms) => {
+                                        void inlinePlayer.endInlineScrub(ms);
+                                    }}
+                                    onSeekStart={() => {
+                                        void inlinePlayer.beginInlineScrub();
+                                    }}
+                                    onSeekCancel={() => {
+                                        void inlinePlayer.cancelInlineScrub();
+                                    }}
+                                />
+                            }
+                        />
                     </View>
                 </View>
-            </View>
             )}
         </View>
     );

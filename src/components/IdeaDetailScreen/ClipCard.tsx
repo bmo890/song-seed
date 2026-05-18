@@ -1,5 +1,5 @@
 import React from "react";
-import { Alert, Animated, Pressable, View, type GestureResponderEvent } from "react-native";
+import { Alert } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import * as Haptics from "expo-haptics";
 import { styles } from "./styles";
@@ -14,12 +14,14 @@ import { getTagColor, getTagLabel } from "./songClipControls";
 import { ClipCardEditForm } from "./components/clipCard/ClipCardEditForm";
 import { ClipCardEvolutionGuide } from "./components/clipCard/ClipCardEvolutionGuide";
 import { ClipCardInlinePlayer } from "./components/clipCard/ClipCardInlinePlayer";
-import { ClipCardLead } from "./components/clipCard/ClipCardLead";
 import { ClipCardOverdubButton } from "./components/clipCard/ClipCardOverdubButton";
 import { ClipCardPrimaryIndicator } from "./components/clipCard/ClipCardPrimaryIndicator";
 import { ClipCardReplyButton } from "./components/clipCard/ClipCardReplyButton";
 import { ClipCardSelectionRail } from "./components/clipCard/ClipCardSelectionRail";
-import { ClipCardStaticBody } from "./components/clipCard/ClipCardStaticBody";
+import { ClipNotesPreview } from "../common/clip/ClipNotesPreview";
+import { ClipTagBadges } from "../common/clip/ClipTagBadges";
+import { IdeaCard } from "../common/IdeaCard";
+import type { GestureResponderEvent } from "react-native";
 
 export type ClipCardEntry = TimelineClipEntry | EvolutionListClipEntry;
 
@@ -55,7 +57,7 @@ export type ClipCardActionProps = {
 export type ClipCardPlaybackProps = {
   globalCustomTags: CustomTagDefinition[];
   inlinePlayer: ReturnType<typeof useInlinePlayer>;
-  getHighlightValue: (clipId: string) => Animated.Value | undefined;
+  getHighlightValue: (clipId: string) => import("react-native").Animated.Value | undefined;
 };
 
 export type ClipCardContextProps = {
@@ -233,116 +235,111 @@ export function ClipCard({
     onOpenNotesSheet?.(clip);
   };
 
+  // Compute container extra style for parent-picking visual states
+  const parentPickContainerStyle = isValidParentTarget
+    ? styles.songDetailVersionCardParentTarget
+    : isParentPicking && !isParentPickSource && isInvalidParentTarget
+      ? styles.songDetailVersionCardParentTargetDisabled
+      : undefined;
+
   return (
-    <View style={styles.threadRowWrap}>
+    <React.Fragment>
       {!displayOnly ? (
         <ClipCardSelectionRail visible={clipSelectionMode} selected={isSelected} />
       ) : null}
       <ClipCardEvolutionGuide entry={entry.kind === "evolution" ? entry : null} />
 
-      <View
-        style={[
-          styles.card,
-          styles.cardFlex,
-          styles.threadCard,
-          styles.songDetailVersionCard,
-          compactDensity ? styles.songDetailVersionCardCompact : null,
-          isSelected || isMoving || isParentPickSource ? styles.cardSelected : null,
-          isValidParentTarget ? styles.songDetailVersionCardParentTarget : null,
-          isParentPicking && !isParentPickSource && isInvalidParentTarget
-            ? styles.songDetailVersionCardParentTargetDisabled
-            : null,
-        ]}
-      >
-        <View style={styles.songDetailVersionRow}>
-          <ClipCardLead
-            durationLabel={durationLabel}
-            inlineActive={inlineActive}
-            inlinePlaying={inlinePlayer.isInlinePlaying}
-            canToggleInlinePlayback={canToggleInlinePlayback}
-            canPlay={hasClipPlaybackSource(clip)}
-            onPressPlay={() => inlinePlayer.toggleInlinePlayback(idea.id, clip)}
-            onLongPress={displayOnly ? undefined : handleLongPress}
-          />
-
-          <Pressable
-            style={styles.songDetailVersionMain}
-            onLongPress={displayOnly ? undefined : handleLongPress}
-            onPress={handlePress}
-            delayLongPress={250}
-          >
-            {highlightValue ? (
-              <Animated.View
-                style={[styles.cardHighlightOverlay, { opacity: highlightValue }]}
-                pointerEvents="none"
-              />
-            ) : null}
-
-            {!displayOnly && editingClipId === clip.id ? (
-              <ClipCardEditForm
-                titleDraft={editingClipDraft}
-                notesDraft={editingClipNotesDraft}
-                onChangeTitle={setEditingClipDraft}
-                onChangeNotes={setEditingClipNotesDraft}
-                onSave={() => onSaveEditing(clip.id)}
-                onCancel={onCancelEditing}
-              />
-            ) : (
-              <ClipCardStaticBody
-                title={clip.title}
-                trailing={
-                  <>
-                    <ClipCardPrimaryIndicator
-                      displayOnly={displayOnly}
-                      isParentPickSource={isParentPickSource}
-                      isEditMode={isEditMode}
-                      isPrimaryCandidate={isPrimaryCandidate}
-                      isPrimary={clip.isPrimary}
-                      onSetPrimary={handleSetPrimary}
-                    />
-                    <ClipCardReplyButton
-                      visible={canShowReplyButton}
-                      compact={compactDensity}
-                      onPress={handleReply}
-                    />
-                    <ClipCardOverdubButton
-                      visible={canShowOverdubButton}
-                      compact={compactDensity}
-                      onPress={handleOverdub}
-                    />
-                  </>
-                }
-                notes={clip.notes ?? ""}
-                disabled={!!displayOnly}
-                onPressNotes={displayOnly ? undefined : () => onOpenNotesSheet?.(clip)}
-                tags={tagBadges}
-                canEditTags={canEditTags}
-                onPressTags={displayOnly ? undefined : handleTagsPress}
-                createdAtLabel={createdAtLabel}
-              />
-            )}
-
-            {inlineActive && !displayOnly ? (
-              <ClipCardInlinePlayer
-                currentMs={inlinePlayer.inlinePosition}
-                durationMs={inlinePlayer.inlineDuration || playbackDurationMs || 0}
-                onSeek={(ms) => {
-                  void inlinePlayer.endInlineScrub(ms);
-                }}
-                onSeekStart={() => {
-                  void inlinePlayer.beginInlineScrub();
-                }}
-                onSeekCancel={() => {
-                  void inlinePlayer.cancelInlineScrub();
-                }}
-                onClose={() => {
-                  void inlinePlayer.resetInlinePlayer();
-                }}
-              />
-            ) : null}
-          </Pressable>
-        </View>
-      </View>
-    </View>
+      <IdeaCard
+        containerStyle={[{ flex: 1 }, parentPickContainerStyle ?? null]}
+        selected={isSelected || isMoving || isParentPickSource}
+        inlineActive={inlineActive}
+        isInlinePlaying={inlinePlayer.isInlinePlaying}
+        nowPlaying={inlineActive}
+        compact={compactDensity}
+        highlightValue={highlightValue ?? null}
+        canPlay={hasClipPlaybackSource(clip)}
+        durationLabel={durationLabel}
+        onPressLead={() => {
+          if (!canToggleInlinePlayback) return;
+          if (!hasClipPlaybackSource(clip)) return;
+          void Haptics.selectionAsync();
+          void inlinePlayer.toggleInlinePlayback(idea.id, clip);
+        }}
+        onLongPressLead={displayOnly ? undefined : handleLongPress}
+        onPress={handlePress}
+        onLongPress={handleLongPress}
+        title={clip.title}
+        trailing={
+          <>
+            <ClipCardPrimaryIndicator
+              displayOnly={displayOnly}
+              isParentPickSource={isParentPickSource}
+              isEditMode={isEditMode}
+              isPrimaryCandidate={isPrimaryCandidate}
+              isPrimary={clip.isPrimary}
+              onSetPrimary={handleSetPrimary}
+            />
+            <ClipCardReplyButton
+              visible={canShowReplyButton}
+              compact={compactDensity}
+              onPress={handleReply}
+            />
+            <ClipCardOverdubButton
+              visible={canShowOverdubButton}
+              compact={compactDensity}
+              onPress={handleOverdub}
+            />
+          </>
+        }
+        bodyContent={
+          <>
+            <ClipNotesPreview
+              notes={clip.notes ?? ""}
+              disabled={!!displayOnly}
+              onPress={displayOnly ? undefined : () => onOpenNotesSheet?.(clip)}
+            />
+            <ClipTagBadges
+              tags={tagBadges}
+              disabled={!!displayOnly}
+              showAddButton={canEditTags}
+              onPress={displayOnly ? undefined : handleTagsPress}
+            />
+          </>
+        }
+        editContent={
+          !displayOnly && editingClipId === clip.id ? (
+            <ClipCardEditForm
+              titleDraft={editingClipDraft}
+              notesDraft={editingClipNotesDraft}
+              onChangeTitle={setEditingClipDraft}
+              onChangeNotes={setEditingClipNotesDraft}
+              onSave={() => onSaveEditing(clip.id)}
+              onCancel={onCancelEditing}
+            />
+          ) : undefined
+        }
+        footerDate={createdAtLabel}
+        inlinePlayerContent={
+          inlineActive && !displayOnly ? (
+            <ClipCardInlinePlayer
+              currentMs={inlinePlayer.inlinePosition}
+              durationMs={inlinePlayer.inlineDuration || playbackDurationMs || 0}
+              onSeek={(ms) => {
+                void inlinePlayer.endInlineScrub(ms);
+              }}
+              onSeekStart={() => {
+                void inlinePlayer.beginInlineScrub();
+              }}
+              onSeekCancel={() => {
+                void inlinePlayer.cancelInlineScrub();
+              }}
+              onClose={() => {
+                void inlinePlayer.resetInlinePlayer();
+              }}
+            />
+          ) : undefined
+        }
+      />
+    </React.Fragment>
   );
 }

@@ -3,14 +3,14 @@ import { Platform, StyleSheet } from "react-native";
 export const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: "#f4f5f7",
+    backgroundColor: "#FDFBF7",
     paddingHorizontal: 16,
   },
   flexFill: {
     flex: 1,
   },
   screenIdeas: {
-    backgroundColor: "#f4f5f7",
+    backgroundColor: "#FDFBF7",
     paddingHorizontal: 14,
   },
   songDetailHeader: {
@@ -42,7 +42,7 @@ export const styles = StyleSheet.create({
     minWidth: 0,
     fontSize: 16,
     lineHeight: 20,
-    color: "#0f172a",
+    color: "#1C1C19",
     fontWeight: "700",
   },
   songDetailCompactTitleWrap: {
@@ -73,22 +73,22 @@ export const styles = StyleSheet.create({
   songDetailBreadcrumbSeparator: {
     fontSize: 12,
     lineHeight: 14,
-    color: "#94a3b8",
+    color: "#B8A8A3",
     fontWeight: "600",
   },
   songDetailBreadcrumbText: {
     fontSize: 12,
     lineHeight: 14,
-    color: "#64748b",
+    color: "#84736f",
     fontWeight: "600",
   },
   songDetailBreadcrumbTextActive: {
-    color: "#334155",
+    color: "#524440",
   },
   songDetailBreadcrumbEllipsis: {
     fontSize: 12,
     lineHeight: 14,
-    color: "#94a3b8",
+    color: "#B8A8A3",
     fontWeight: "600",
   },
   songDetailNavEditActions: {
@@ -102,17 +102,17 @@ export const styles = StyleSheet.create({
     paddingHorizontal: 10,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#ffffff",
+    backgroundColor: "#F4F1ED",
     borderWidth: 1,
-    borderColor: "#d8dee7",
+    borderColor: "rgba(215,194,189,0.5)",
   },
   songDetailNavTextActionPrimary: {
-    backgroundColor: "#111827",
-    borderColor: "#111827",
+    backgroundColor: "#1C1C19",
+    borderColor: "#1C1C19",
   },
   songDetailNavTextActionText: {
     fontSize: 12,
-    color: "#334155",
+    color: "#524440",
     fontWeight: "700",
   },
   songDetailNavTextActionPrimaryText: {
@@ -130,7 +130,7 @@ export const styles = StyleSheet.create({
   songDetailHeaderModeLabel: {
     fontSize: 11,
     lineHeight: 14,
-    color: "#64748b",
+    color: "#84736f",
     fontWeight: "700",
     textTransform: "uppercase",
     letterSpacing: 0.3,
@@ -157,7 +157,7 @@ export const styles = StyleSheet.create({
     fontSize: 20,
     lineHeight: 24,
     fontWeight: "700",
-    color: "#0f172a",
+    color: "#1C1C19",
   },
   songDetailPageTitleLarge: {
     flex: 1,
@@ -165,7 +165,7 @@ export const styles = StyleSheet.create({
     fontSize: 28,
     lineHeight: 32,
     fontWeight: "700",
-    color: "#0f172a",
+    color: "#1C1C19",
   },
   songDetailPageTitleWithIcon: {
     flexDirection: "row",
@@ -175,7 +175,7 @@ export const styles = StyleSheet.create({
   songDetailTypeLabel: {
     fontSize: 11,
     lineHeight: 14,
-    color: "#64748b",
+    color: "#84736f",
     fontWeight: "700",
     textTransform: "uppercase",
     letterSpacing: 0.5,
@@ -514,12 +514,12 @@ export const styles = StyleSheet.create({
     width: 42,
     height: 24,
     borderRadius: 12,
-    backgroundColor: "#e2e8f0",
+    backgroundColor: "rgba(215,194,189,0.4)",
     padding: 2,
     justifyContent: "center",
   },
   ideasSwitchActive: {
-    backgroundColor: "#0f172a",
+    backgroundColor: "#1C1C19",
   },
   ideasSwitchThumb: {
     width: 20,
@@ -582,14 +582,14 @@ export const styles = StyleSheet.create({
   },
   ideasDropdownDivider: {
     height: 1,
-    backgroundColor: "#e2e8f0",
+    backgroundColor: "rgba(215,194,189,0.4)",
     marginVertical: 4,
   },
   screenProjectDetail: {
-    backgroundColor: "#f4f5f7",
+    backgroundColor: "#FDFBF7",
   },
   screenClipDetail: {
-    backgroundColor: "#f4f5f7",
+    backgroundColor: "#FDFBF7",
   },
   hamburgerBtn: {
     width: 38,
@@ -781,14 +781,14 @@ export const styles = StyleSheet.create({
   },
   songDetailProgressStripLabel: {
     fontSize: 12,
-    color: "#64748b",
+    color: "#84736f",
     fontWeight: "700",
     textTransform: "uppercase",
     letterSpacing: 0.3,
   },
   songDetailProgressStripPercent: {
     fontSize: 12,
-    color: "#0f172a",
+    color: "#1C1C19",
     fontWeight: "700",
   },
   songDetailSongTabs: {
@@ -797,7 +797,7 @@ export const styles = StyleSheet.create({
     marginBottom: 4,
     paddingHorizontal: 4,
     paddingVertical: 3,
-    backgroundColor: "#e2e8f0",
+    backgroundColor: "rgba(215,194,189,0.2)",
     borderRadius: 8,
   },
   songDetailSongTab: {
@@ -808,18 +808,18 @@ export const styles = StyleSheet.create({
   },
   songDetailSongTabActive: {
     backgroundColor: "#ffffff",
-    shadowColor: "#0f172a",
+    shadowColor: "#3D3732",
     shadowOpacity: 0.05,
     shadowRadius: 2,
     elevation: 1,
   },
   songDetailSongTabText: {
     fontSize: 13,
-    color: "#64748b",
+    color: "#84736f",
     fontWeight: "600",
   },
   songDetailSongTabTextActive: {
-    color: "#0f172a",
+    color: "#1C1C19",
   },
   songDetailTabScroll: {
     flex: 1,
@@ -845,16 +845,16 @@ export const styles = StyleSheet.create({
     borderRadius: 14,
     paddingHorizontal: 10,
     paddingVertical: 4,
-    backgroundColor: "#e9edf2",
+    backgroundColor: "#F4F1ED",
     alignItems: "center",
     justifyContent: "center",
   },
   songDetailMetaTabActive: {
-    backgroundColor: "#111827",
+    backgroundColor: "#1C1C19",
   },
   songDetailMetaTabText: {
     fontSize: 11,
-    color: "#475569",
+    color: "#84736f",
     fontWeight: "700",
   },
   songDetailMetaTabTextActive: {
@@ -892,24 +892,24 @@ export const styles = StyleSheet.create({
   },
   songDetailMetaFieldLabel: {
     fontSize: 11,
-    color: "#64748b",
+    color: "#84736f",
     fontWeight: "700",
     textTransform: "uppercase",
     letterSpacing: 0.3,
   },
   songDetailMetaFieldHint: {
     fontSize: 11,
-    color: "#94a3b8",
+    color: "#B8A8A3",
     fontWeight: "600",
   },
   songDetailMetaValue: {
     fontSize: 16,
-    color: "#0f172a",
+    color: "#1C1C19",
     fontWeight: "700",
   },
   songDetailMetaValueCompact: {
     fontSize: 15,
-    color: "#0f172a",
+    color: "#1C1C19",
     fontWeight: "700",
   },
   songDetailMetaSliderWrap: {
@@ -918,10 +918,10 @@ export const styles = StyleSheet.create({
   songDetailMetaPreview: {
     fontSize: 11.5,
     lineHeight: 16,
-    color: "#334155",
+    color: "#524440",
   },
   songDetailMetaPreviewMuted: {
-    color: "#64748b",
+    color: "#84736f",
   },
   songDetailMetaActionRow: {
     flexDirection: "row",
@@ -933,8 +933,8 @@ export const styles = StyleSheet.create({
     minHeight: 26,
     borderRadius: 13,
     borderWidth: 1,
-    borderColor: "#d8dee7",
-    backgroundColor: "#ffffff",
+    borderColor: "rgba(215,194,189,0.5)",
+    backgroundColor: "#F4F1ED",
     paddingHorizontal: 8,
     flexDirection: "row",
     alignItems: "center",
@@ -942,7 +942,7 @@ export const styles = StyleSheet.create({
   },
   songDetailMetaActionChipText: {
     fontSize: 10,
-    color: "#334155",
+    color: "#524440",
     fontWeight: "700",
   },
   songDetailSummaryCard: {
@@ -996,12 +996,12 @@ export const styles = StyleSheet.create({
   },
   songDetailStatusPercent: {
     fontSize: 16,
-    color: "#0f172a",
+    color: "#1C1C19",
     fontWeight: "700",
   },
   songDetailStatusPercentCompact: {
     fontSize: 18,
-    color: "#0f172a",
+    color: "#1C1C19",
     fontWeight: "700",
     lineHeight: 22,
   },
@@ -1065,7 +1065,7 @@ export const styles = StyleSheet.create({
   },
   songDetailMiniCardTitle: {
     fontSize: 13,
-    color: "#0f172a",
+    color: "#1C1C19",
     fontWeight: "700",
   },
   songDetailMiniCardMetaWrap: {
@@ -1080,7 +1080,7 @@ export const styles = StyleSheet.create({
   },
   songDetailMiniCardMetaText: {
     fontSize: 10,
-    color: "#64748b",
+    color: "#84736f",
     fontWeight: "700",
     textTransform: "uppercase",
     letterSpacing: 0.3,
@@ -1088,11 +1088,11 @@ export const styles = StyleSheet.create({
   songDetailMiniCardBody: {
     fontSize: 11.5,
     lineHeight: 16,
-    color: "#64748b",
+    color: "#84736f",
   },
   songDetailMiniCardActionText: {
     fontSize: 10,
-    color: "#0f172a",
+    color: "#1C1C19",
     fontWeight: "700",
     textTransform: "uppercase",
     letterSpacing: 0.3,
@@ -1118,7 +1118,7 @@ export const styles = StyleSheet.create({
   },
   songDetailSummaryLinkTitle: {
     fontSize: 13,
-    color: "#0f172a",
+    color: "#1C1C19",
     fontWeight: "700",
   },
   songDetailSummaryLinkMetaWrap: {
@@ -1129,7 +1129,7 @@ export const styles = StyleSheet.create({
   },
   songDetailSummaryLinkMetaText: {
     fontSize: 10,
-    color: "#64748b",
+    color: "#84736f",
     fontWeight: "700",
     textTransform: "uppercase",
     letterSpacing: 0.3,
@@ -1137,7 +1137,7 @@ export const styles = StyleSheet.create({
   songDetailSummaryLinkBody: {
     fontSize: 11.5,
     lineHeight: 15,
-    color: "#64748b",
+    color: "#84736f",
   },
   songDetailMiniCardButtons: {
     flexDirection: "row",
@@ -1154,13 +1154,13 @@ export const styles = StyleSheet.create({
     fontWeight: "700",
   },
   songDetailLyricsCard: {
-    borderColor: "#dbe2ea",
-    backgroundColor: "#fbfdff",
+    borderColor: "rgba(215,194,189,0.3)",
+    backgroundColor: "#FDFBF7",
     minHeight: 0,
   },
   songDetailSectionEyebrow: {
     fontSize: 11,
-    color: "#64748b",
+    color: "#84736f",
     fontWeight: "700",
     textTransform: "uppercase",
     letterSpacing: 0.3,
@@ -1677,8 +1677,8 @@ export const styles = StyleSheet.create({
     borderRadius: 10,
   },
   songDetailVersionCard: {
-    borderRadius: 22,
-    borderColor: "#e6eaf0",
+    borderRadius: 12,
+    borderColor: "rgba(215,194,189,0.3)",
     shadowOpacity: 0,
     elevation: 0,
     paddingVertical: 7,
@@ -1686,13 +1686,13 @@ export const styles = StyleSheet.create({
     gap: 0,
   },
   songDetailVersionCardCompact: {
-    borderRadius: 18,
+    borderRadius: 10,
     paddingVertical: 5,
     paddingHorizontal: 9,
   },
   songDetailVersionCardParentTarget: {
-    borderColor: "#0f766e",
-    backgroundColor: "#f0fdfa",
+    borderColor: "#B87D6B",
+    backgroundColor: "rgba(184,125,107,0.08)",
   },
   songDetailVersionCardParentTargetDisabled: {
     opacity: 0.48,
@@ -1721,7 +1721,7 @@ export const styles = StyleSheet.create({
   songDetailVersionLeadDurationText: {
     fontSize: 12,
     lineHeight: 14,
-    color: "#64748b",
+    color: "#84736f",
     fontWeight: "600",
     textAlign: "center",
     fontVariant: ["tabular-nums"],
@@ -1749,15 +1749,15 @@ export const styles = StyleSheet.create({
     minHeight: 22,
     borderRadius: 11,
     borderWidth: 1,
-    borderColor: "#dbe2ea",
-    backgroundColor: "#f8fafc",
+    borderColor: "rgba(215,194,189,0.5)",
+    backgroundColor: "#F4F1ED",
     paddingHorizontal: 6,
     alignItems: "center",
     justifyContent: "center",
   },
   songDetailVersionRepliesToggleText: {
     fontSize: 10,
-    color: "#475569",
+    color: "#84736f",
     fontWeight: "700",
   },
   songDetailVersionTitle: {
@@ -1765,7 +1765,7 @@ export const styles = StyleSheet.create({
     minWidth: 0,
     fontSize: 13.5,
     lineHeight: 17,
-    color: "#0f172a",
+    color: "#1C1C19",
     fontWeight: "700",
   },
   songDetailVersionTrailing: {
@@ -1779,15 +1779,15 @@ export const styles = StyleSheet.create({
     minHeight: 24,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "#dbe2ea",
-    backgroundColor: "#ffffff",
+    borderColor: "rgba(215,194,189,0.5)",
+    backgroundColor: "#F4F1ED",
     paddingHorizontal: 8,
     alignItems: "center",
     justifyContent: "center",
   },
   songDetailVersionSetPrimaryText: {
     fontSize: 10,
-    color: "#334155",
+    color: "#524440",
     fontWeight: "700",
   },
   songDetailVersionReplyBtn: {
@@ -1795,8 +1795,8 @@ export const styles = StyleSheet.create({
     height: 26,
     borderRadius: 13,
     borderWidth: 1,
-    borderColor: "#dbe2ea",
-    backgroundColor: "#ffffff",
+    borderColor: "rgba(215,194,189,0.5)",
+    backgroundColor: "#F4F1ED",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -1808,7 +1808,7 @@ export const styles = StyleSheet.create({
   songDetailVersionMeta: {
     fontSize: 10,
     lineHeight: 13,
-    color: "#64748b",
+    color: "#84736f",
     fontWeight: "600",
   },
   clipCardNotesPreview: {
@@ -1820,7 +1820,7 @@ export const styles = StyleSheet.create({
   clipCardNotesPreviewText: {
     fontSize: 11,
     lineHeight: 15,
-    color: "#94a3b8",
+    color: "#B8A8A3",
     flex: 1,
   },
   clipCardTagsRow: {
@@ -3466,7 +3466,7 @@ export const styles = StyleSheet.create({
   miniProgressTopDivider: {
     height: 1,
     borderRadius: 999,
-    backgroundColor: "#e2e8f0",
+    backgroundColor: "rgba(215,194,189,0.4)",
     marginTop: 6,
     marginBottom: 6,
   },
@@ -3477,7 +3477,7 @@ export const styles = StyleSheet.create({
   },
   miniProgressTime: {
     fontSize: 12,
-    color: "#64748b",
+    color: "#84736f",
     fontWeight: "600",
   },
   miniProgressTrackHitbox: {
@@ -5032,6 +5032,7 @@ export const styles = StyleSheet.create({
   },
   ideasListProjectCard: {
     backgroundColor: "#FDFBF7",
+    borderLeftWidth: 3,
   },
   ideasListCardNowPlaying: {
     borderColor: "rgba(184,125,107,0.4)",
@@ -5234,6 +5235,14 @@ export const styles = StyleSheet.create({
   ideasListLeadColInlineActive: {
     justifyContent: "space-evenly",
   },
+  ideaCardLeadCol: {
+    width: 46,
+    alignItems: "center",
+    justifyContent: "space-between",
+    flexShrink: 0,
+    alignSelf: "stretch",
+    paddingVertical: 2,
+  },
   ideasInlineCloseBtn: {
     width: 26,
     height: 26,
@@ -5317,6 +5326,9 @@ export const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 18,
     color: "#1C1C19",
+  },
+  ideasListCardTitleProject: {
+    fontFamily: "PlusJakartaSans_600SemiBold",
   },
   ideasListCardTitleCompact: {
     fontSize: 13,
@@ -5811,22 +5823,22 @@ export const styles = StyleSheet.create({
   songNotesTabEmptyTitle: {
     fontSize: 15,
     fontWeight: "600",
-    color: "#64748b",
+    color: "#84736f",
   },
   songNotesTabEmptySubtitle: {
     fontSize: 13,
-    color: "#94a3b8",
+    color: "#B8A8A3",
   },
   songNotesTabBody: {
     fontSize: 14,
     lineHeight: 20,
-    color: "#334155",
+    color: "#524440",
   },
   songNotesTabEditorInput: {
     width: "100%",
     borderWidth: 1,
-    borderColor: "#d1d5db",
-    backgroundColor: "#fff",
+    borderColor: "rgba(215,194,189,0.5)",
+    backgroundColor: "#FDFBF7",
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 10,
@@ -5834,7 +5846,7 @@ export const styles = StyleSheet.create({
     textAlignVertical: "top",
     fontSize: 14,
     lineHeight: 20,
-    color: "#0f172a",
+    color: "#1C1C19",
     marginBottom: 6,
   },
 });

@@ -21,7 +21,8 @@ export function CollectionListSection() {
     if (screen.isFocused) return;
     void inlinePlayer.resetInlinePlayer();
     useStore.getState().cancelListSelection();
-  }, [inlinePlayer, screen.isFocused]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [screen.isFocused]);
 
   useEffect(() => {
     if (!screen.focusIdeaId || !screen.focusToken || screen.handledFocusTokenRef.current === screen.focusToken) return;
@@ -170,7 +171,37 @@ export function CollectionListSection() {
   };
 
   const playIdeaFromList = async (ideaId: string, clip: ClipVersion) => {
-    await inlinePlayer.toggleInlinePlayback(ideaId, clip);
+    const startedAtMs = Date.now();
+    console.log("[inline-debug:collection-list]", "play-from-list-start", {
+      ideaId,
+      clipId: clip.id,
+      clipTitle: clip.title,
+      clipDurationMs: clip.durationMs,
+      activeTarget: inlinePlayer.inlineTarget,
+      isInlinePlaying: inlinePlayer.isInlinePlaying,
+      inlinePositionMs: inlinePlayer.inlinePosition,
+      inlineDurationMs: inlinePlayer.inlineDuration,
+    });
+    try {
+      await inlinePlayer.toggleInlinePlayback(ideaId, clip);
+      console.log("[inline-debug:collection-list]", "play-from-list-done", {
+        ideaId,
+        clipId: clip.id,
+        elapsedMs: Date.now() - startedAtMs,
+        activeTarget: inlinePlayer.inlineTarget,
+        isInlinePlaying: inlinePlayer.isInlinePlaying,
+        inlinePositionMs: inlinePlayer.inlinePosition,
+        inlineDurationMs: inlinePlayer.inlineDuration,
+      });
+    } catch (error) {
+      console.log("[inline-debug:collection-list]", "play-from-list-error", {
+        ideaId,
+        clipId: clip.id,
+        elapsedMs: Date.now() - startedAtMs,
+        error: error instanceof Error ? { name: error.name, message: error.message } : String(error),
+      });
+      throw error;
+    }
   };
 
   const maybeResetInlineForIdeaIds = async (ideaIds: string[]) => {
