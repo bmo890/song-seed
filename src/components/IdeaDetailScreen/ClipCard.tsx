@@ -71,12 +71,14 @@ type ClipCardProps = {
   entry: ClipCardEntry;
   context: ClipCardContextProps;
   displayOnly?: boolean;
+  displayPrimary?: boolean;
 };
 
 export function ClipCard({
   entry,
   context,
   displayOnly,
+  displayPrimary,
 }: ClipCardProps) {
   const {
     mode: {
@@ -251,6 +253,7 @@ export function ClipCard({
 
       <IdeaCard
         containerStyle={[{ flex: 1 }, parentPickContainerStyle ?? null]}
+        accentBorderColor={displayPrimary ? "#B87D6B" : undefined}
         selected={isSelected || isMoving || isParentPickSource}
         inlineActive={inlineActive}
         isInlinePlaying={inlinePlayer.isInlinePlaying}

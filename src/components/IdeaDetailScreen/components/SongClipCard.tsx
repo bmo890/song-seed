@@ -4,6 +4,7 @@ type SongClipCardProps = {
   entry: ClipCardEntry;
   context: ClipCardContextProps;
   displayOnly?: boolean;
+  displayPrimary?: boolean;
 };
 
 export function SongClipCard(props: SongClipCardProps) {

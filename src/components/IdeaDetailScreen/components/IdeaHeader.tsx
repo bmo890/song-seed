@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { View, Text, Pressable, Alert } from "react-native";
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, interpolate } from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
@@ -6,10 +6,6 @@ import * as Haptics from "expo-haptics";
 import { styles } from "../styles";
 import { appActions } from "../../../state/actions";
 import { TitleInput } from "../../common/TitleInput";
-import { getCollectionAncestors, getCollectionById } from "../../../utils";
-import { AppBreadcrumbs, type AppBreadcrumbItem } from "../../common/AppBreadcrumbs";
-import { getCollectionHierarchyLevel, getHierarchyIconColor, getHierarchyIconName } from "../../../hierarchy";
-import { openCollectionFromContext } from "../../../navigation";
 import { useSongScreen } from "../provider/SongScreenProvider";
 
 export function IdeaHeader() {
@@ -17,10 +13,6 @@ export function IdeaHeader() {
   const { screen, editFlow, actions } = useSongScreen();
 
   const selectedIdea = screen.selectedIdea;
-  const activeWorkspace = useMemo(
-    () => screen.workspaces.find((workspace) => workspace.id === screen.activeWorkspaceId) ?? null,
-    [screen.activeWorkspaceId, screen.workspaces]
-  );
 
   if (!selectedIdea) return null;
 
@@ -28,116 +20,49 @@ export function IdeaHeader() {
   const compactTitleMode = screen.songTab === "takes" && screen.isIdeasSticky;
   const playAllDisabled = !screen.isProject || actions.buildProjectQueue().length === 0;
   const isNewProjectDraft = selectedIdea.isDraft;
-  const ideaLevel = selectedIdea.kind === "project" ? "song" : "clip";
-  const titleIcon = getHierarchyIconName(ideaLevel);
-  const titleIconColor = getHierarchyIconColor(ideaLevel);
-  const currentCollection =
-    activeWorkspace && selectedIdea
-      ? getCollectionById(activeWorkspace, selectedIdea.collectionId)
-      : null;
-  const collectionAncestors =
-    currentCollection && activeWorkspace
-      ? getCollectionAncestors(activeWorkspace, currentCollection.id)
-      : [];
-  const breadcrumbItems = useMemo<Array<AppBreadcrumbItem>>(() => {
-    if (!selectedIdea) return [];
-
-    return [
-      ...(activeWorkspace
-        ? [
-            {
-              key: `workspace-${activeWorkspace.id}`,
-              label: activeWorkspace.title,
-              level: "workspace" as const,
-              onPress: () =>
-                screen.navigateRoot("Home", {
-                  screen: "WorkspaceStack",
-                  params: { screen: "Browse" },
-                }),
-              active: !currentCollection,
-            },
-          ]
-        : []),
-      ...collectionAncestors.map((collection) => ({
-        key: collection.id,
-        label: collection.title,
-        level: getCollectionHierarchyLevel(collection),
-        onPress: () =>
-          openCollectionFromContext(screen.navigation, {
-            collectionId: collection.id,
-            source: "detail",
-          }),
-      })),
-      ...(currentCollection
-        ? [
-            {
-              key: currentCollection.id,
-              label: currentCollection.title,
-              level: getCollectionHierarchyLevel(currentCollection),
-              onPress: () =>
-                openCollectionFromContext(screen.navigation, {
-                  collectionId: currentCollection.id,
-                  source: "detail",
-                }),
-            },
-          ]
-        : []),
-    ];
-  }, [activeWorkspace, collectionAncestors, currentCollection, screen, selectedIdea]);
-  const titleLabel = selectedIdea.kind === "project" ? "SONG" : "CLIP";
+  const titleLabel = selectedIdea.kind === "project" ? "Song" : "Clip";
   const isProject = selectedIdea.kind === "project";
   const showCompactTitle = compactTitleMode && !isEditMode;
 
-  const titleBlockHeight = useSharedValue(0);
   const progress = useSharedValue(showCompactTitle ? 1 : 0);
 
   useEffect(() => {
-    progress.value = withTiming(showCompactTitle ? 1 : 0, { duration: 200 });
+    progress.value = withTiming(showCompactTitle ? 1 : 0, { duration: 180 });
   }, [progress, showCompactTitle]);
 
-  const breadcrumbsAnimStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(progress.value, [0, 0.5], [1, 0]),
-    position: "absolute" as const,
-    left: 0,
-    right: 0,
-  }));
-
   const compactTitleAnimStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(progress.value, [0.5, 1], [0, 1]),
-  }));
-
-  const titleBlockAnimStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(progress.value, [0, 0.5], [1, 0]),
-    height: titleBlockHeight.value > 0
-      ? interpolate(progress.value, [0.3, 1], [titleBlockHeight.value, 0])
-      : undefined,
-    overflow: "hidden" as const,
+    opacity: interpolate(progress.value, [0.4, 1], [0, 1]),
   }));
 
   return (
     <View style={styles.songDetailHeader}>
+      {/* Nav row: chevron back | (spacer or compact title) | ellipsis/edit actions */}
       <View style={styles.songDetailNavRow}>
-        <View style={styles.songDetailNavLead}>
-          <Pressable
-            style={({ pressed }) => [styles.backBtn, pressed ? styles.pressDown : null]}
-            onPress={actions.handleBackToIdeas}
+        <Pressable
+          style={({ pressed }) => [
+            {
+              minHeight: 36,
+              alignItems: "flex-start" as const,
+              justifyContent: "center" as const,
+              paddingRight: 12,
+            },
+            pressed ? styles.pressDown : null,
+          ]}
+          onPress={actions.handleBackToIdeas}
+        >
+          <Ionicons name="chevron-back" size={24} color="#524440" />
+        </Pressable>
+
+        {/* Center: empty spacer in default mode; compact title when sticky */}
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Animated.View
+            style={[styles.songDetailCompactTitleWrap, compactTitleAnimStyle]}
+            pointerEvents={showCompactTitle ? "auto" : "none"}
           >
-            <Text style={styles.backBtnText}>Back</Text>
-          </Pressable>
-          <View style={{ flex: 1, minWidth: 0 }}>
-            <Animated.View style={breadcrumbsAnimStyle} pointerEvents={showCompactTitle ? "none" : "auto"}>
-              <AppBreadcrumbs
-                items={breadcrumbItems}
-                containerStyle={styles.songDetailInlineBreadcrumbs}
-              />
-            </Animated.View>
-            <Animated.View style={[styles.songDetailCompactTitleWrap, compactTitleAnimStyle]} pointerEvents={showCompactTitle ? "auto" : "none"}>
-              <Ionicons name={titleIcon} size={15} color={titleIconColor} />
-              <Text style={styles.songDetailNavCompactTitle} numberOfLines={1}>
-                {selectedIdea.title}
-              </Text>
-            </Animated.View>
-          </View>
+            <Text style={styles.songDetailNavCompactTitle} numberOfLines={1}>
+              {selectedIdea.title}
+            </Text>
+          </Animated.View>
         </View>
 
         {isEditMode ? (
@@ -175,20 +100,14 @@ export function IdeaHeader() {
             style={({ pressed }) => [styles.ideasHeaderMenuBtn, pressed ? styles.pressDown : null]}
             onPress={() => setHeaderMenuOpen((prev) => !prev)}
           >
-            <Ionicons name="ellipsis-horizontal" size={16} color="#334155" />
+            <Ionicons name="ellipsis-horizontal" size={16} color="#524440" />
           </Pressable>
         )}
       </View>
 
-      <Animated.View
-        style={[styles.songDetailTitleBlock, titleBlockAnimStyle]}
-        onLayout={(event) => {
-          const height = event.nativeEvent.layout.height;
-          if (height > 0 && titleBlockHeight.value === 0) {
-            titleBlockHeight.value = height;
-          }
-        }}
-      >
+      {/* Title block — hidden in compact mode */}
+      {!showCompactTitle ? (
+      <View style={styles.songDetailTitleBlock}>
         {isEditMode ? (
           <>
             <Text style={styles.songDetailTypeLabel}>Editing {titleLabel}</Text>
@@ -204,15 +123,13 @@ export function IdeaHeader() {
           </>
         ) : (
           <>
-            <View style={styles.songDetailPageTitleWithIcon}>
-              <Ionicons name={titleIcon} size={14} color={titleIconColor} />
-              <Text style={styles.songDetailPageTitleLarge} numberOfLines={3}>
-                {selectedIdea.title}
-              </Text>
-            </View>
+            <Text style={styles.songDetailTypeEyebrow}>{titleLabel}</Text>
+            <Text style={styles.songDetailPageTitleLarge}>
+              {selectedIdea.title}
+            </Text>
             {isProject ? (
               <View style={styles.songDetailProgressStrip}>
-                <Text style={styles.songDetailProgressStripLabel}>Progress:</Text>
+                <Text style={styles.songDetailProgressStripLabel}>Progress</Text>
                 <Text style={styles.songDetailProgressStripPercent}>
                   {selectedIdea.completionPct}%
                 </Text>
@@ -233,8 +150,10 @@ export function IdeaHeader() {
             ) : null}
           </>
         )}
-      </Animated.View>
+      </View>
+      ) : null}
 
+      {/* Overflow menu */}
       {headerMenuOpen ? (
         <View style={styles.ideasHeaderMenuLayer} pointerEvents="box-none">
           <Pressable
@@ -253,7 +172,7 @@ export function IdeaHeader() {
               <Text style={styles.ideasSortMenuItemText}>
                 {isProject ? "Edit song" : "Edit clip"}
               </Text>
-              <Ionicons name="create-outline" size={15} color="#334155" />
+              <Ionicons name="create-outline" size={15} color="#524440" />
             </Pressable>
             {isProject ? (
               <>
@@ -272,7 +191,7 @@ export function IdeaHeader() {
                   }}
                 >
                   <Text style={styles.ideasSortMenuItemText}>Play all</Text>
-                  <Ionicons name="play-outline" size={15} color="#334155" />
+                  <Ionicons name="play-outline" size={15} color="#524440" />
                 </Pressable>
               </>
             ) : (
@@ -287,7 +206,7 @@ export function IdeaHeader() {
                   }}
                 >
                   <Text style={styles.ideasSortMenuItemText}>Make song</Text>
-                  <Ionicons name="albums-outline" size={15} color="#334155" />
+                  <Ionicons name="albums-outline" size={15} color="#524440" />
                 </Pressable>
               </>
             )}

@@ -104,6 +104,7 @@ export function SongClipListShell<T>({
               }}
             >
               <PrimaryTakeSection entry={primaryEntry} clipCardContext={clipCardContext} />
+              <View style={styles.songDetailPrimaryDivider} />
             </View>
           );
         }

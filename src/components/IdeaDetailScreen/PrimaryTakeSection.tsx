@@ -20,7 +20,7 @@ export function PrimaryTakeSection({ entry, clipCardContext }: PrimaryTakeSectio
           <Text style={styles.songDetailSectionTitle}>Primary take</Text>
         </View>
       </View>
-      <SongClipCard entry={entry} context={clipCardContext} displayOnly />
+      <SongClipCard entry={entry} context={clipCardContext} displayOnly displayPrimary />
     </View>
   );
 }
