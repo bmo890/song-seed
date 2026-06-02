@@ -42,6 +42,14 @@ export function SongClipListContent({
     );
   }
 
+  const evolutionClipCardContext: ClipCardContextProps = {
+    ...clipCardContext,
+    actions: {
+      ...clipCardContext.actions,
+      onViewLineageHistory: actions.openLineageHistory,
+    },
+  };
+
   return (
     <EvolutionList
       clips={filteredIdeaClips}
@@ -50,10 +58,9 @@ export function SongClipListContent({
       summaryContent={summaryContent}
       footerSpacerHeight={footerSpacerHeight}
       primaryEntry={primaryEntry}
-      clipCardContext={clipCardContext}
+      clipCardContext={evolutionClipCardContext}
       visibleIdeaCount={visibleIdeaCount}
       onIdeasStickyChange={screen.setIsIdeasSticky}
-      onViewLineageHistory={actions.openLineageHistory}
     />
   );
 }

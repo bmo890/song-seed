@@ -32,6 +32,7 @@ export type EvolutionListClipEntry = {
   compactPreview: boolean;
   indented: boolean;
   continuesThreadBelow: boolean;
+  hasOlderVersions: boolean;
 };
 
 export type TimelineListRow =
@@ -232,6 +233,7 @@ export function buildEvolutionListRows(
           compactPreview: false,
           indented: false,
           continuesThreadBelow: false,
+          hasOlderVersions: olderClips.length > 0,
         },
       });
 
@@ -256,6 +258,7 @@ export function buildEvolutionListRows(
             compactPreview: true,
             indented: true,
             continuesThreadBelow: index < olderClips.length - 1,
+            hasOlderVersions: false,
           },
         });
       });

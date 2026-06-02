@@ -1833,6 +1833,13 @@ export const styles = StyleSheet.create({
     height: 24,
     borderRadius: 12,
   },
+  songDetailVersionHistoryBtn: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   songDetailVersionMeta: {
     fontSize: 10,
     lineHeight: 13,

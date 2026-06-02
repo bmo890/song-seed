@@ -1,5 +1,6 @@
 import React from "react";
-import { Alert } from "react-native";
+import { Alert, Pressable } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import * as Haptics from "expo-haptics";
 import { styles } from "./styles";
@@ -50,6 +51,7 @@ export type ClipCardActionProps = {
   onOpenNotesSheet?: (clip: ClipVersion) => void;
   onPickParentTarget: (clipId: string) => void;
   onOpenTagPicker?: (clip: ClipVersion) => void;
+  onViewLineageHistory?: (rootClipId: string) => void;
 };
 
 export type ClipCardPlaybackProps = {
@@ -104,6 +106,7 @@ export function ClipCard({
       onOpenNotesSheet,
       onPickParentTarget,
       onOpenTagPicker,
+      onViewLineageHistory,
     },
     playback: { globalCustomTags, inlinePlayer, getHighlightValue },
   } = context;
@@ -266,6 +269,23 @@ export function ClipCard({
               compact={compactDensity}
               onPress={handleReply}
             />
+            {entry.kind === "evolution" &&
+              !entry.indented &&
+              entry.hasOlderVersions &&
+              onViewLineageHistory ? (
+              <Pressable
+                style={({ pressed }) => [
+                  styles.songDetailVersionHistoryBtn,
+                  pressed ? styles.pressDown : null,
+                ]}
+                onPress={(e) => {
+                  e.stopPropagation();
+                  onViewLineageHistory(entry.lineageRootId);
+                }}
+              >
+                <Ionicons name="time-outline" size={14} color="#a89994" />
+              </Pressable>
+            ) : null}
           </>
         }
         bodyContent={

@@ -1,5 +1,6 @@
 import React, { ReactNode, useMemo } from "react";
 import { Pressable, Text, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { styles } from "./styles";
 import { buildEvolutionListRows, type EvolutionListRow, type TimelineClipEntry } from "../../clipGraph";
 import { type ClipCardContextProps } from "./ClipCard";
@@ -18,7 +19,6 @@ type EvolutionListProps = {
   clipCardContext: ClipCardContextProps;
   visibleIdeaCount: number;
   onIdeasStickyChange?: (isSticky: boolean) => void;
-  onViewLineageHistory?: (lineageRootId: string) => void;
 };
 
 function EvolutionMoreRow({
@@ -26,13 +26,11 @@ function EvolutionMoreRow({
   hiddenCount,
   expanded,
   onToggle,
-  onViewHistory,
 }: {
   lineageRootId: string;
   hiddenCount: number;
   expanded: boolean;
   onToggle: (lineageRootId: string) => void;
-  onViewHistory?: (lineageRootId: string) => void;
 }) {
   return (
     <View style={styles.threadRowWrap}>
@@ -41,29 +39,21 @@ function EvolutionMoreRow({
         <View style={styles.songDetailEvolutionMoreStem} />
         <View style={styles.songDetailEvolutionElbow} />
       </View>
-      <View style={styles.songDetailEvolutionExpandRow}>
-        <Pressable
-          style={({ pressed }) => (pressed ? styles.pressDown : null)}
-          onPress={() => onToggle(lineageRootId)}
-        >
-          <Text style={styles.songDetailEvolutionExpandText}>
-            {expanded
-              ? "Hide older takes"
-              : `${hiddenCount} older ${hiddenCount === 1 ? "take" : "takes"}`}
-          </Text>
-        </Pressable>
-        {onViewHistory ? (
-          <>
-            <Text style={styles.songDetailEvolutionExpandSep}>·</Text>
-            <Pressable
-              style={({ pressed }) => (pressed ? styles.pressDown : null)}
-              onPress={() => onViewHistory(lineageRootId)}
-            >
-              <Text style={styles.songDetailEvolutionHistoryLink}>View history</Text>
-            </Pressable>
-          </>
-        ) : null}
-      </View>
+      <Pressable
+        style={({ pressed }) => [styles.songDetailEvolutionExpandRow, pressed ? styles.pressDown : null]}
+        onPress={() => onToggle(lineageRootId)}
+      >
+        <Ionicons
+          name={expanded ? "chevron-up" : "chevron-down"}
+          size={11}
+          color="#84736f"
+        />
+        <Text style={styles.songDetailEvolutionExpandText}>
+          {expanded
+            ? "Hide older takes"
+            : `${hiddenCount} older ${hiddenCount === 1 ? "take" : "takes"}`}
+        </Text>
+      </Pressable>
     </View>
   );
 }
@@ -78,7 +68,6 @@ export function EvolutionList({
   clipCardContext,
   visibleIdeaCount,
   onIdeasStickyChange,
-  onViewLineageHistory,
 }: EvolutionListProps) {
   const contentRows = useMemo(
     () => buildEvolutionListRows(clips, expandedLineageIds),
@@ -112,7 +101,6 @@ export function EvolutionList({
                   [lineageRootId]: !prev[lineageRootId],
                 }))
               }
-              onViewHistory={onViewLineageHistory}
             />
           );
         }
