@@ -33,11 +33,13 @@ function EvolutionMoreRow({
   onToggle: (lineageRootId: string) => void;
 }) {
   return (
-    <View style={styles.threadRowWrap}>
-      <View style={styles.selectionIndicatorCol} />
-      <View style={styles.songDetailEvolutionMoreGuide}>
-        <View style={styles.songDetailEvolutionMoreStem} />
-        <View style={styles.songDetailEvolutionElbow} />
+    <View style={styles.songDetailClipRowWrap}>
+      <View style={styles.songDetailEvolutionGuideWrap}>
+        {expanded ? (
+          <View style={styles.songDetailThreadSpine} />
+        ) : (
+          <View style={styles.songDetailThreadCurve} />
+        )}
       </View>
       <Pressable
         style={({ pressed }) => [styles.songDetailEvolutionExpandRow, pressed ? styles.pressDown : null]}

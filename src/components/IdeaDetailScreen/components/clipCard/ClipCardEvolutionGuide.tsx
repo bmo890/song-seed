@@ -11,15 +11,10 @@ export function ClipCardEvolutionGuide({ entry }: ClipCardEvolutionGuideProps) {
 
   return (
     <View style={styles.songDetailEvolutionGuideWrap}>
-      <View
-        style={[
-          styles.songDetailEvolutionStem,
-          !entry.continuesThreadBelow ? styles.songDetailEvolutionStemEnd : null,
-        ]}
-      />
-      <View style={styles.songDetailEvolutionElbow}>
-        <View style={styles.songDetailEvolutionDot} />
-      </View>
+      {entry.continuesThreadBelow ? (
+        <View style={styles.songDetailThreadSpine} />
+      ) : null}
+      <View style={styles.songDetailThreadCurve} />
     </View>
   );
 }

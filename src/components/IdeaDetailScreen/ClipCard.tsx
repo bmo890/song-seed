@@ -1,5 +1,5 @@
 import React from "react";
-import { Alert, Pressable } from "react-native";
+import { Alert, Pressable, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import * as Haptics from "expo-haptics";
@@ -227,7 +227,7 @@ export function ClipCard({
       : undefined;
 
   return (
-    <React.Fragment>
+    <View style={styles.songDetailClipRowWrap}>
       {!displayOnly ? (
         <ClipCardSelectionRail visible={clipSelectionMode} selected={isSelected} />
       ) : null}
@@ -337,6 +337,6 @@ export function ClipCard({
           ) : undefined
         }
       />
-    </React.Fragment>
+    </View>
   );
 }

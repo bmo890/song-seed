@@ -414,21 +414,26 @@ export const styles = StyleSheet.create({
   ideasSortMenu: {
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: "rgba(215,194,189,0.5)",
+    borderColor: "rgba(180,150,140,0.45)",
     backgroundColor: "#FDFBF7",
     padding: 8,
     gap: 4,
     shadowColor: "#3D3732",
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 4,
+    shadowOpacity: 0.14,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 8,
   },
   ideasPopoverMenu: {
     position: "absolute",
     top: 44,
-    minWidth: 210,
-    maxWidth: 268,
+    alignSelf: "flex-start",
+    minWidth: 220,
+    maxWidth: 272,
     zIndex: 30,
+  },
+  ideasStageChipsScroll: {
+    maxHeight: 168,
   },
   ideasSortMenuItem: {
     minHeight: 38,
@@ -1978,11 +1983,37 @@ export const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
   },
+  songDetailClipRowWrap: {
+    flexDirection: "row",
+    alignItems: "stretch",
+  },
   songDetailEvolutionGuideWrap: {
     position: "relative",
-    width: 20,
+    width: 26,
     flexShrink: 0,
     alignSelf: "stretch",
+  },
+  // Continuous vertical thread line (Reddit-style spine). Negative top/bottom
+  // bridge the FlatList row gap so the line reads as one unbroken thread.
+  songDetailThreadSpine: {
+    position: "absolute",
+    left: 9,
+    top: -6,
+    bottom: -6,
+    width: 1.5,
+    backgroundColor: "#D7C2BD",
+  },
+  // Curved branch (╰) that peels off the spine and curls into each reply card.
+  songDetailThreadCurve: {
+    position: "absolute",
+    left: 9,
+    top: -6,
+    width: 13,
+    height: 28,
+    borderLeftWidth: 1.5,
+    borderBottomWidth: 1.5,
+    borderColor: "#D7C2BD",
+    borderBottomLeftRadius: 10,
   },
   songDetailEvolutionStem: {
     position: "absolute",
@@ -2016,7 +2047,7 @@ export const styles = StyleSheet.create({
     backgroundColor: "#C4AFA9",
   },
   songDetailEvolutionMoreGuide: {
-    width: 20,
+    width: 26,
     alignSelf: "stretch",
     position: "relative",
     flexShrink: 0,

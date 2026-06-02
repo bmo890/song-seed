@@ -1,4 +1,4 @@
-import { Pressable, Text, View } from "react-native";
+import { Pressable, ScrollView, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { styles } from "../../styles";
 import {
@@ -46,7 +46,12 @@ export function SongClipFilterMenu({
           </Text>
         </View>
       </View>
-      <View style={styles.ideasStageChipsWrap}>
+      <ScrollView
+        style={styles.ideasStageChipsScroll}
+        contentContainerStyle={styles.ideasStageChipsWrap}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
         {([
           { key: "all", label: "All" },
           { key: "untagged", label: "Untagged" },
@@ -96,7 +101,7 @@ export function SongClipFilterMenu({
             </Pressable>
           );
         })}
-      </View>
+      </ScrollView>
 
       {clipViewMode === "timeline" ? (
         <>
