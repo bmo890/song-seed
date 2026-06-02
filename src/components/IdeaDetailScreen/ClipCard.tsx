@@ -3,7 +3,6 @@ import { Alert } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import * as Haptics from "expo-haptics";
 import { styles } from "./styles";
-import { appActions } from "../../state/actions";
 import { useStore } from "../../state/useStore";
 import { getClipOverdubStemCount, getClipPlaybackDurationMs, hasClipPlaybackSource } from "../../clipPresentation";
 import { fmtDuration, formatDate } from "../../utils";
@@ -14,7 +13,6 @@ import { getTagColor, getTagLabel } from "./songClipControls";
 import { ClipCardEditForm } from "./components/clipCard/ClipCardEditForm";
 import { ClipCardEvolutionGuide } from "./components/clipCard/ClipCardEvolutionGuide";
 import { ClipCardInlinePlayer } from "./components/clipCard/ClipCardInlinePlayer";
-import { ClipCardOverdubButton } from "./components/clipCard/ClipCardOverdubButton";
 import { ClipCardPrimaryIndicator } from "./components/clipCard/ClipCardPrimaryIndicator";
 import { ClipCardReplyButton } from "./components/clipCard/ClipCardReplyButton";
 import { ClipCardSelectionRail } from "./components/clipCard/ClipCardSelectionRail";
@@ -153,14 +151,6 @@ export function ClipCard({
   const canToggleInlinePlayback = !clipSelectionMode && !isDraftProject && !isParentPicking;
   const canShowReplyButton =
     !displayOnly && !clipSelectionMode && !isEditMode && !isDraftProject && !isParentPicking;
-  const canShowOverdubButton =
-    !displayOnly &&
-    !clipSelectionMode &&
-    !isEditMode &&
-    !isDraftProject &&
-    !isParentPicking &&
-    hasClipPlaybackSource(clip);
-
   const openPlayer = async () => {
     if (!hasClipPlaybackSource(clip)) return;
     await inlinePlayer.resetInlinePlayer();
@@ -183,17 +173,6 @@ export function ClipCard({
     setRecordingParentClipId(clip.id);
     setRecordingIdeaId(idea.id);
     navigation.navigate("Recording" as never);
-  };
-  const handleOverdub = async () => {
-    try {
-      await inlinePlayer.resetInlinePlayer();
-      await appActions.startClipOverdubRecording(idea.id, clip.id);
-      navigation.navigate("Recording" as never);
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Could not start overdub recording.";
-      Alert.alert("Overdub unavailable", message);
-    }
   };
   const handleLongPress = () => {
     if (displayOnly || isParentPicking) return;
@@ -287,11 +266,6 @@ export function ClipCard({
               compact={compactDensity}
               onPress={handleReply}
             />
-            <ClipCardOverdubButton
-              visible={canShowOverdubButton}
-              compact={compactDensity}
-              onPress={handleOverdub}
-            />
           </>
         }
         bodyContent={
@@ -299,7 +273,7 @@ export function ClipCard({
             <ClipNotesPreview
               notes={clip.notes ?? ""}
               disabled={!!displayOnly}
-              onPress={displayOnly ? undefined : () => onOpenNotesSheet?.(clip)}
+              onPress={!displayOnly && clip.notes ? () => onOpenNotesSheet?.(clip) : undefined}
             />
             <ClipTagBadges
               tags={tagBadges}

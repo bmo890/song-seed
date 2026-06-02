@@ -1983,23 +1983,21 @@ export const styles = StyleSheet.create({
     bottom: 0,
     width: 1,
     left: 9,
-    backgroundColor: "#dbe2ea",
+    backgroundColor: "#D7C2BD",
   },
   songDetailEvolutionStemStart: {
     top: "50%",
   },
   songDetailEvolutionStemEnd: {
-    bottom: "50%",
+    height: 22,
   },
   songDetailEvolutionElbow: {
     position: "absolute",
-    top: "50%",
-    width: 12,
+    top: 22,
+    width: 14,
     height: 1,
     left: 9,
-    marginTop: -0.5,
-    backgroundColor: "#cbd5e1",
-    justifyContent: "center",
+    backgroundColor: "#D7C2BD",
   },
   songDetailEvolutionDot: {
     position: "absolute",
@@ -2008,7 +2006,7 @@ export const styles = StyleSheet.create({
     width: 5,
     height: 5,
     borderRadius: 2.5,
-    backgroundColor: "#94a3b8",
+    backgroundColor: "#C4AFA9",
   },
   songDetailEvolutionMoreGuide: {
     width: 20,
@@ -2022,8 +2020,31 @@ export const styles = StyleSheet.create({
     bottom: 0,
     width: 1,
     left: 9,
-    backgroundColor: "#dbe2ea",
+    backgroundColor: "#D7C2BD",
   },
+  songDetailEvolutionExpandRow: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingVertical: 6,
+  },
+  songDetailEvolutionExpandText: {
+    fontFamily: "PlusJakartaSans_600SemiBold",
+    fontSize: 11,
+    color: "#84736f",
+  },
+  songDetailEvolutionExpandSep: {
+    fontFamily: "PlusJakartaSans_400Regular",
+    fontSize: 11,
+    color: "#c4b5b0",
+  },
+  songDetailEvolutionHistoryLink: {
+    fontFamily: "PlusJakartaSans_400Regular",
+    fontSize: 11,
+    color: "#a89994",
+  },
+  // Legacy — kept to avoid TS errors until cleanup
   songDetailEvolutionMoreButtonWrap: {
     alignSelf: "stretch",
     justifyContent: "center",

@@ -1,6 +1,5 @@
 import React, { ReactNode, useMemo } from "react";
 import { Pressable, Text, View } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
 import { styles } from "./styles";
 import { buildEvolutionListRows, type EvolutionListRow, type TimelineClipEntry } from "../../clipGraph";
 import { type ClipCardContextProps } from "./ClipCard";
@@ -40,37 +39,31 @@ function EvolutionMoreRow({
       <View style={styles.selectionIndicatorCol} />
       <View style={styles.songDetailEvolutionMoreGuide}>
         <View style={styles.songDetailEvolutionMoreStem} />
-        <View style={styles.songDetailEvolutionElbow}>
-          <View style={styles.songDetailEvolutionDot} />
-        </View>
+        <View style={styles.songDetailEvolutionElbow} />
       </View>
-      <Pressable
-        style={({ pressed }) => [
-          styles.songDetailEvolutionMoreButtonWrap,
-          pressed ? styles.pressDown : null,
-        ]}
-        onPress={() => onToggle(lineageRootId)}
-      >
-        <View style={styles.songDetailEvolutionMoreButton}>
-          <Text style={styles.songDetailEvolutionMoreButtonText}>
-            {expanded ? "Hide middle takes" : `${hiddenCount} more`}
-          </Text>
-        </View>
-      </Pressable>
-      {onViewHistory ? (
+      <View style={styles.songDetailEvolutionExpandRow}>
         <Pressable
-          style={({ pressed }) => [
-            styles.songDetailEvolutionMoreButtonWrap,
-            pressed ? styles.pressDown : null,
-          ]}
-          onPress={() => onViewHistory(lineageRootId)}
+          style={({ pressed }) => (pressed ? styles.pressDown : null)}
+          onPress={() => onToggle(lineageRootId)}
         >
-          <View style={styles.songDetailEvolutionMoreButton}>
-            <Ionicons name="git-branch-outline" size={12} color="#64748b" style={{ marginRight: 3 }} />
-            <Text style={styles.songDetailEvolutionMoreButtonText}>History</Text>
-          </View>
+          <Text style={styles.songDetailEvolutionExpandText}>
+            {expanded
+              ? "Hide older takes"
+              : `${hiddenCount} older ${hiddenCount === 1 ? "take" : "takes"}`}
+          </Text>
         </Pressable>
-      ) : null}
+        {onViewHistory ? (
+          <>
+            <Text style={styles.songDetailEvolutionExpandSep}>·</Text>
+            <Pressable
+              style={({ pressed }) => (pressed ? styles.pressDown : null)}
+              onPress={() => onViewHistory(lineageRootId)}
+            >
+              <Text style={styles.songDetailEvolutionHistoryLink}>View history</Text>
+            </Pressable>
+          </>
+        ) : null}
+      </View>
     </View>
   );
 }
