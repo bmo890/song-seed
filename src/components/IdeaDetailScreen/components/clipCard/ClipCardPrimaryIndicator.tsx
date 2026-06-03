@@ -26,7 +26,7 @@ export function ClipCardPrimaryIndicator({
 
   if (isEditMode) {
     if (isPrimaryCandidate) {
-      return <Text style={styles.badge}>PRIMARY</Text>;
+      return <Text style={styles.songDetailClipPrimaryLabel}>Primary</Text>;
     }
 
     return (
@@ -37,7 +37,7 @@ export function ClipCardPrimaryIndicator({
   }
 
   if (isPrimary) {
-    return <Text style={styles.badge}>PRIMARY</Text>;
+    return <Text style={styles.songDetailClipPrimaryLabel}>Primary</Text>;
   }
 
   return null;

@@ -1,15 +1,12 @@
-import { useCallback, useMemo, useRef, type ReactElement, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, type ReactElement, type ReactNode } from "react";
 import { FlatList, Text, View } from "react-native";
 import { styles } from "../styles";
 import { type TimelineClipEntry } from "../../../clipGraph";
 import { useStickyHeaderScroll } from "../../../hooks/useStickyHeaderScroll";
-import { type ClipCardContextProps } from "../ClipCard";
-import { PrimaryTakeSection } from "../PrimaryTakeSection";
 import { SongClipListHeader } from "./songClipToolbar/SongClipListHeader";
 
 type ShellRow<T> =
   | { kind: "summary-section" }
-  | { kind: "primary-section" }
   | { kind: "ideas-header" }
   | { kind: "empty" }
   | { kind: "content"; item: T; index: number };
@@ -19,10 +16,11 @@ type SongClipListShellProps<T> = {
   summaryContent?: ReactNode;
   footerSpacerHeight: number;
   primaryEntry: TimelineClipEntry | null;
-  clipCardContext: ClipCardContextProps;
   visibleIdeaCount: number;
   emptyLabel: string;
   onIdeasStickyChange?: (isSticky: boolean) => void;
+  /** When set (with a fresh nonce), scroll the content row at `index` into view. */
+  scrollTarget?: { index: number; nonce: number } | null;
   contentKeyExtractor: (item: T, index: number) => string;
   renderContentRow: (item: T, index: number) => ReactElement | null;
 };
@@ -31,18 +29,16 @@ export function SongClipListShell<T>({
   contentRows,
   summaryContent,
   footerSpacerHeight,
-  primaryEntry,
-  clipCardContext,
   visibleIdeaCount,
   emptyLabel,
   onIdeasStickyChange,
+  scrollTarget,
   contentKeyExtractor,
   renderContentRow,
 }: SongClipListShellProps<T>) {
   const listRows = useMemo<ShellRow<T>[]>(() => {
     const rows: ShellRow<T>[] = [];
     if (summaryContent) rows.push({ kind: "summary-section" });
-    if (primaryEntry) rows.push({ kind: "primary-section" });
     rows.push({ kind: "ideas-header" });
     if (contentRows.length === 0) {
       rows.push({ kind: "empty" });
@@ -50,28 +46,51 @@ export function SongClipListShell<T>({
     }
     rows.push(...contentRows.map((item, index) => ({ kind: "content" as const, item, index })));
     return rows;
-  }, [contentRows, primaryEntry, summaryContent]);
+  }, [contentRows, summaryContent]);
 
   const stickyIdeasIndex = useMemo(() => {
     let index = 0;
     if (summaryContent) index += 1;
-    if (primaryEntry) index += 1;
     return index;
-  }, [primaryEntry, summaryContent]);
+  }, [summaryContent]);
+
+  // Number of non-content rows before the first content row (summary? + ideas-header).
+  const leadingRowCount = useMemo(() => (summaryContent ? 1 : 0) + 1, [summaryContent]);
 
   const summaryHeightRef = useRef(0);
-  const primaryHeightRef = useRef(0);
+  const listRef = useRef<FlatList<ShellRow<T>>>(null);
 
-  const getSnapY = useCallback(() => summaryHeightRef.current + primaryHeightRef.current, []);
+  const getSnapY = useCallback(() => summaryHeightRef.current, []);
 
   const { handleScroll, scrollEventThrottle } = useStickyHeaderScroll({
     onStickyChange: onIdeasStickyChange,
     getSnapY,
   });
 
+  // Scroll the targeted content row into view when a fresh locate request arrives.
+  useEffect(() => {
+    if (!scrollTarget) return;
+    if (scrollTarget.index < 0 || scrollTarget.index >= contentRows.length) return;
+    const rowIndex = leadingRowCount + scrollTarget.index;
+    const id = setTimeout(() => {
+      listRef.current?.scrollToIndex({ index: rowIndex, animated: true, viewPosition: 0.3 });
+    }, 60);
+    return () => clearTimeout(id);
+  }, [scrollTarget?.nonce, contentRows.length, leadingRowCount]);
+
   return (
     <FlatList
+      ref={listRef}
       data={listRows}
+      onScrollToIndexFailed={(info) => {
+        setTimeout(() => {
+          listRef.current?.scrollToIndex({
+            index: info.index,
+            animated: true,
+            viewPosition: 0.3,
+          });
+        }, 250);
+      }}
       stickyHeaderIndices={[stickyIdeasIndex]}
       onScroll={handleScroll}
       scrollEventThrottle={scrollEventThrottle}
@@ -94,19 +113,6 @@ export function SongClipListShell<T>({
               {summaryContent}
             </View>
           ) : null;
-        }
-
-        if (item.kind === "primary-section") {
-          return (
-            <View
-              onLayout={(e) => {
-                primaryHeightRef.current = e.nativeEvent.layout.height;
-              }}
-            >
-              <PrimaryTakeSection entry={primaryEntry} clipCardContext={clipCardContext} />
-              <View style={styles.songDetailPrimaryDivider} />
-            </View>
-          );
         }
 
         if (item.kind === "ideas-header") {

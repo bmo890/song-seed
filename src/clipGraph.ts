@@ -207,17 +207,19 @@ export function buildTimelineListRows(
 
 export function buildEvolutionListRows(
   clips: ClipVersion[],
-  expandedLineageIds: Record<string, boolean>
+  expandedLineageIds: Record<string, boolean>,
+  direction: SongTimelineSortDirection = "desc"
 ): EvolutionListRow[] {
   const rows: EvolutionListRow[] = [];
+  const dir = direction === "asc" ? -1 : 1;
 
   buildClipLineages(clips)
     .slice()
     .sort((a, b) => {
       if (a.latestClip.createdAt !== b.latestClip.createdAt) {
-        return b.latestClip.createdAt - a.latestClip.createdAt;
+        return (b.latestClip.createdAt - a.latestClip.createdAt) * dir;
       }
-      return b.latestClip.id.localeCompare(a.latestClip.id);
+      return b.latestClip.id.localeCompare(a.latestClip.id) * dir;
     })
     .forEach((lineage) => {
       const newestClip = lineage.latestClip;

@@ -202,7 +202,7 @@ export function SelectionBars() {
       onPress: () =>
         parentPicking.handleStartSetParent(selectedClipIds, () => {
           screen.setSongTab("takes");
-          screen.setClipTagFilter("all");
+          screen.setClipTagFilter([]);
           screen.setClipViewMode("evolution");
         }),
     },

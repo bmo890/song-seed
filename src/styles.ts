@@ -1638,12 +1638,71 @@ export const styles = StyleSheet.create({
     backgroundColor: "#F4F1ED",
     paddingTop: 4,
     paddingBottom: 6,
+    overflow: "visible" as const,
+    zIndex: 40,
   },
   songDetailPrimaryDivider: {
     height: 1,
     backgroundColor: "#E8E4DF",
     marginTop: 12,
     marginBottom: 2,
+  },
+  songDetailListWithStrip: {
+    flex: 1,
+  },
+  songDetailPrimaryStrip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingVertical: 8,
+    paddingLeft: 0,
+    paddingRight: 4,
+    marginBottom: 6,
+  },
+  songDetailPrimaryStripAccent: {
+    width: 3,
+    alignSelf: "stretch",
+    borderRadius: 2,
+    backgroundColor: "#B87D6B",
+  },
+  songDetailPrimaryStripPlay: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#824f3f",
+  },
+  songDetailPrimaryStripCopy: {
+    flex: 1,
+    minWidth: 0,
+  },
+  songDetailPrimaryStripLabel: {
+    fontFamily: "PlusJakartaSans_600SemiBold",
+    fontSize: 9,
+    letterSpacing: 0.8,
+    textTransform: "uppercase",
+    color: "#a89994",
+    marginBottom: 1,
+  },
+  songDetailPrimaryStripTitle: {
+    fontFamily: "PlusJakartaSans_600SemiBold",
+    fontSize: 14,
+    color: "#1b1c1a",
+  },
+  songDetailPrimaryStripLocate: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  songDetailClipPrimaryLabel: {
+    fontFamily: "PlusJakartaSans_600SemiBold",
+    fontSize: 9,
+    letterSpacing: 0.8,
+    textTransform: "uppercase",
+    color: "#a89994",
   },
   songDetailTimelineControls: {
     flexDirection: "row",
@@ -5118,7 +5177,6 @@ export const styles = StyleSheet.create({
     minHeight: 0,
   },
   ideasListProjectCard: {
-    backgroundColor: "#FDFBF7",
     borderLeftWidth: 3,
   },
   ideasListCardNowPlaying: {
@@ -5244,8 +5302,10 @@ export const styles = StyleSheet.create({
   },
   ideasListCardHighlightOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(184,125,107,0.08)",
+    backgroundColor: "rgba(184,125,107,0.22)",
     borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: "rgba(184,125,107,0.55)",
   },
   ideasListExpandedStaticWrap: {
     flex: 1,

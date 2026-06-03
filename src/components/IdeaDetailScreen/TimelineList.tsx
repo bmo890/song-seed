@@ -44,7 +44,6 @@ export function TimelineList({
       summaryContent={summaryContent}
       footerSpacerHeight={footerSpacerHeight}
       primaryEntry={primaryEntry}
-      clipCardContext={clipCardContext}
       visibleIdeaCount={visibleIdeaCount}
       emptyLabel={primaryEntry ? "No idea clips yet." : "No clips yet."}
       onIdeasStickyChange={onIdeasStickyChange}

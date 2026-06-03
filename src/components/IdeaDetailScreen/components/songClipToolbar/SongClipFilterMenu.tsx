@@ -2,9 +2,8 @@ import { Pressable, ScrollView, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { styles } from "../../styles";
 import {
-  getSongClipTagFilterSummary,
-  getSongMainTakeFilterSummary,
   getTagColor,
+  getTagLabel,
   SONG_CLIP_TAG_OPTIONS,
   type SongClipTagFilter,
 } from "../../songClipControls";
@@ -32,71 +31,93 @@ export function SongClipFilterMenu({
   globalCustomTags,
   onClose,
 }: SongClipFilterMenuProps) {
+  const toggleTag = (key: string) => {
+    if (clipTagFilter.includes(key)) {
+      setClipTagFilter(clipTagFilter.filter((k) => k !== key));
+    } else {
+      setClipTagFilter([...clipTagFilter, key]);
+    }
+  };
+
+  const allOptions: { key: string; label: string }[] = [
+    { key: "untagged", label: "Untagged" },
+    ...SONG_CLIP_TAG_OPTIONS,
+    ...projectCustomTags.map((t) => ({ key: t.key, label: t.label })),
+    ...globalCustomTags.map((t) => ({ key: t.key, label: t.label })),
+  ];
+
   return (
-    <View style={[styles.ideasSortMenu, styles.ideasPopoverMenu, songClipToolbarStyles.menuOffset]}>
+    <View style={[styles.ideasSortMenu, styles.ideasPopoverMenu, songClipToolbarStyles.menuOffsetRight]}>
+      {/* Header row */}
       <View style={styles.ideasDropdownSectionToggle}>
-        <Text style={styles.ideasDropdownSectionToggleText}>Tags</Text>
-        <View style={styles.ideasDropdownSectionMeta}>
-          <Text style={styles.ideasDropdownSectionMetaText}>
-            {getSongClipTagFilterSummary(
-              clipTagFilter,
-              projectCustomTags,
-              globalCustomTags
-            )}
-          </Text>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
+          <Ionicons name="pricetag-outline" size={12} color="#a89994" />
+          <Text style={styles.ideasDropdownSectionToggleText}>Tags</Text>
         </View>
+        {clipTagFilter.length > 0 ? (
+          <Pressable
+            onPress={() => setClipTagFilter([])}
+            hitSlop={{ top: 6, bottom: 6, left: 8, right: 8 }}
+          >
+            <Text style={songClipToolbarStyles.filterClearText}>Clear</Text>
+          </Pressable>
+        ) : null}
       </View>
+
+      {/* Tag chips (multiselect) — styled to match the actual tag badges on clips */}
       <ScrollView
         style={styles.ideasStageChipsScroll}
         contentContainerStyle={styles.ideasStageChipsWrap}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        {([
-          { key: "all", label: "All" },
-          { key: "untagged", label: "Untagged" },
-          ...SONG_CLIP_TAG_OPTIONS,
-          ...projectCustomTags.map((t) => ({ key: t.key, label: t.label })),
-          ...globalCustomTags.map((t) => ({ key: t.key, label: t.label })),
-        ] as { key: string; label: string }[]).map((option) => {
-          const active = clipTagFilter === option.key;
-          const customColor =
-            option.key !== "all" && option.key !== "untagged"
-              ? getTagColor(option.key, projectCustomTags, globalCustomTags)
-              : null;
-          const isCustom =
-            !SONG_CLIP_TAG_OPTIONS.some((t) => t.key === option.key) &&
-            option.key !== "all" &&
-            option.key !== "untagged";
+        {allOptions.map((option) => {
+          const active = clipTagFilter.includes(option.key);
+          const isUntagged = option.key === "untagged";
+          const tagColor = isUntagged
+            ? null
+            : getTagColor(option.key, projectCustomTags, globalCustomTags);
 
+          if (tagColor) {
+            // Colored tag — matches the badge on the clip card
+            return (
+              <Pressable
+                key={option.key}
+                style={({ pressed }) => [
+                  styles.clipCardTagBadge,
+                  { backgroundColor: tagColor.bg },
+                  active
+                    ? { borderWidth: 1, borderColor: tagColor.text }
+                    : { borderWidth: 1, borderColor: "transparent" },
+                  pressed ? styles.pressDown : null,
+                ]}
+                onPress={() => toggleTag(option.key)}
+              >
+                <Text style={[styles.clipCardTagBadgeText, { color: tagColor.text }]}>
+                  {getTagLabel(option.key, projectCustomTags, globalCustomTags)}
+                </Text>
+              </Pressable>
+            );
+          }
+
+          // "Untagged" — same badge shape, neutral warm color
+          const untaggedBg = "#EDE9E4";
+          const untaggedText = "#84736f";
           return (
             <Pressable
               key={option.key}
               style={({ pressed }) => [
-                styles.ideasStageChip,
-                active ? styles.ideasStageChipActive : null,
+                styles.clipCardTagBadge,
+                { backgroundColor: untaggedBg },
+                active
+                  ? { borderWidth: 1, borderColor: untaggedText }
+                  : { borderWidth: 1, borderColor: "transparent" },
                 pressed ? styles.pressDown : null,
               ]}
-              onPress={() => {
-                setClipTagFilter(option.key);
-                onClose();
-              }}
+              onPress={() => toggleTag(option.key)}
             >
-              {isCustom && customColor ? (
-                <View
-                  style={[
-                    songClipToolbarStyles.customTagDot,
-                    { backgroundColor: customColor.text },
-                  ]}
-                />
-              ) : null}
-              <Text
-                style={[
-                  styles.ideasStageChipText,
-                  active ? styles.ideasStageChipTextActive : null,
-                ]}
-              >
-                {option.label}
+              <Text style={[styles.clipCardTagBadgeText, { color: untaggedText }]}>
+                Untagged
               </Text>
             </Pressable>
           );
@@ -108,11 +129,6 @@ export function SongClipFilterMenu({
           <View style={styles.ideasDropdownDivider} />
           <View style={styles.ideasDropdownSectionToggle}>
             <Text style={styles.ideasDropdownSectionToggleText}>Display</Text>
-            <View style={styles.ideasDropdownSectionMeta}>
-              <Text style={styles.ideasDropdownSectionMetaText}>
-                {getSongMainTakeFilterSummary(timelineMainTakesOnly)}
-              </Text>
-            </View>
           </View>
           <View style={styles.ideasStageChipsWrap}>
             {([

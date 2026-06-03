@@ -35,7 +35,7 @@ export function useSongScreenModel() {
   const [timelineSortMetric, setTimelineSortMetric] = useState<SongTimelineSortMetric>("created");
   const [timelineSortDirection, setTimelineSortDirection] = useState<SongTimelineSortDirection>("desc");
   const [timelineMainTakesOnly, setTimelineMainTakesOnly] = useState(false);
-  const [clipTagFilter, setClipTagFilter] = useState<SongClipTagFilter>("all");
+  const [clipTagFilter, setClipTagFilter] = useState<SongClipTagFilter>([]);
   const [songTab, setSongTab] = useState<"takes" | "lyrics" | "notes">("takes");
   const [draftTitle, setDraftTitle] = useState("");
   const [draftStatus, setDraftStatus] = useState<IdeaStatus>("seed");
@@ -73,7 +73,7 @@ export function useSongScreenModel() {
 
   useEffect(() => {
     setSongTab("takes");
-    setClipTagFilter("all");
+    setClipTagFilter([]);
     setTimelineSortMetric("created");
     setTimelineSortDirection("desc");
     setTimelineMainTakesOnly(false);

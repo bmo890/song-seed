@@ -48,15 +48,17 @@ export function useSongClipListData({
   const ideaClips = useMemo(() => selectedIdea?.clips ?? [], [selectedIdea]);
 
   const filteredIdeaClips = useMemo(() => {
-    if (clipTagFilter === "all") return ideaClips;
+    if (clipTagFilter.length === 0) return ideaClips;
 
     return ideaClips.filter((clip) => {
-      const tags = (clip.tags ?? [])
+      const clipTags = (clip.tags ?? [])
         .map((tag) => tag.trim().toLowerCase())
         .filter(Boolean);
 
-      if (clipTagFilter === "untagged") return tags.length === 0;
-      return tags.includes(clipTagFilter);
+      return clipTagFilter.some((filterKey) => {
+        if (filterKey === "untagged") return clipTags.length === 0;
+        return clipTags.includes(filterKey);
+      });
     });
   }, [clipTagFilter, ideaClips]);
 
@@ -86,7 +88,7 @@ export function useSongClipListData({
   const visibleClipEntries = useMemo<Array<TimelineClipEntry | EvolutionListClipEntry>>(
     () =>
       clipViewMode === "evolution"
-        ? buildEvolutionListRows(filteredIdeaClips, expandedLineageIds)
+        ? buildEvolutionListRows(filteredIdeaClips, expandedLineageIds, timelineSortDirection)
             .filter(
               (row): row is { kind: "clip"; entry: EvolutionListClipEntry } => row.kind === "clip"
             )

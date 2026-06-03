@@ -4,7 +4,7 @@ import { IdeaListSelectionZone } from "../components/IdeaListSelectionZone";
 import { useCollectionScreen } from "../provider/CollectionScreenProvider";
 import { appActions } from "../../../state/actions";
 import { createEmptyProjectLyrics } from "../../../state/dataSlice";
-import { buildDefaultIdeaTitle, ensureUniqueIdeaTitle } from "../../../utils";
+import { buildDefaultIdeaTitle, ensureUniqueIdeaTitle, getBaseClipTitle } from "../../../utils";
 import type { SongIdea } from "../../../types";
 import { useStore } from "../../../state/useStore";
 import { getDateBucket } from "../../../dateBuckets";
@@ -100,9 +100,10 @@ export function CollectionFloatingActions() {
     if (targetClips.length === 0 || !screen.collectionId) return;
     const previousIdeas = screen.ideas;
     const projectId = `idea-${Date.now()}`;
+    const convertingIds = new Set(targetClips.map((idea) => idea.id));
     const generatedTitle = ensureUniqueIdeaTitle(
-      buildDefaultIdeaTitle(),
-      screen.ideas.map((idea) => idea.title)
+      getBaseClipTitle(targetClips[0].title) || buildDefaultIdeaTitle(),
+      screen.ideas.filter((idea) => !convertingIds.has(idea.id)).map((idea) => idea.title)
     );
     const allClips = targetClips.flatMap((idea) => idea.clips).sort((a, b) => b.createdAt - a.createdAt);
     const now = Date.now();

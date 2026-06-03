@@ -4,28 +4,30 @@ import type { CustomTagDefinition } from "../../types";
 export type TagColor = { bg: string; text: string };
 
 export const SONG_CLIP_TAG_OPTIONS = [
-  { key: "riff", label: "Riff", bg: "#dbeafe", text: "#2563eb" },
-  { key: "verse", label: "Verse", bg: "#dcfce7", text: "#16a34a" },
-  { key: "prechorus", label: "Pre-chorus", bg: "#fef3c7", text: "#d97706" },
-  { key: "chorus", label: "Chorus", bg: "#fce7f3", text: "#db2777" },
-  { key: "intro", label: "Intro", bg: "#e0e7ff", text: "#4f46e5" },
-  { key: "outro", label: "Outro", bg: "#f3e8ff", text: "#9333ea" },
-  { key: "interlude", label: "Interlude", bg: "#ccfbf1", text: "#0d9488" },
+  { key: "riff",       label: "Riff",       bg: "#F5E6DC", text: "#9C5A3C" },
+  { key: "verse",      label: "Verse",      bg: "#DDE8D5", text: "#4A7251" },
+  { key: "prechorus",  label: "Pre-chorus", bg: "#F5EAC8", text: "#7A5C1E" },
+  { key: "chorus",     label: "Chorus",     bg: "#F0DADA", text: "#8B4040" },
+  { key: "intro",      label: "Intro",      bg: "#DAE4F0", text: "#3D5A7A" },
+  { key: "outro",      label: "Outro",      bg: "#E8DFF0", text: "#614A7A" },
+  { key: "interlude",  label: "Interlude",  bg: "#D6E8E2", text: "#35706A" },
 ] as const;
 
 export type SongClipBuiltInTag = (typeof SONG_CLIP_TAG_OPTIONS)[number]["key"];
 
-export type SongClipTagFilter = "all" | "untagged" | string;
+/** Empty array = "all clips". Otherwise shows clips that have at least one of the listed tags
+ *  (use "untagged" in the array to include clips with no tags). */
+export type SongClipTagFilter = string[];
 
 const CUSTOM_TAG_PALETTE: TagColor[] = [
-  { bg: "#fee2e2", text: "#dc2626" },
-  { bg: "#ffedd5", text: "#ea580c" },
-  { bg: "#fef9c3", text: "#ca8a04" },
-  { bg: "#d1fae5", text: "#059669" },
-  { bg: "#e0f2fe", text: "#0284c7" },
-  { bg: "#ede9fe", text: "#7c3aed" },
-  { bg: "#fce7f3", text: "#db2777" },
-  { bg: "#f1f5f9", text: "#475569" },
+  { bg: "#F5E6DC", text: "#9C5A3C" },
+  { bg: "#F5EAC8", text: "#7A5C1E" },
+  { bg: "#F0DADA", text: "#8B4040" },
+  { bg: "#DDE8D5", text: "#4A7251" },
+  { bg: "#DAE4F0", text: "#3D5A7A" },
+  { bg: "#E8DFF0", text: "#614A7A" },
+  { bg: "#D6E8E2", text: "#35706A" },
+  { bg: "#EDE9E4", text: "#6B5E56" },
 ];
 
 export const CUSTOM_TAG_COLOR_OPTIONS = CUSTOM_TAG_PALETTE;
@@ -96,9 +98,13 @@ export function getSongClipTagFilterSummary(
   projectCustomTags?: CustomTagDefinition[],
   globalCustomTags?: CustomTagDefinition[]
 ) {
-  if (tagFilter === "all") return "All";
-  if (tagFilter === "untagged") return "Untagged";
-  return getTagLabel(tagFilter, projectCustomTags, globalCustomTags);
+  if (tagFilter.length === 0) return "All";
+  if (tagFilter.length === 1) {
+    const key = tagFilter[0];
+    if (key === "untagged") return "Untagged";
+    return getTagLabel(key, projectCustomTags, globalCustomTags);
+  }
+  return `${tagFilter.length} tags`;
 }
 
 export function getSongMainTakeFilterSummary(mainTakesOnly: boolean) {

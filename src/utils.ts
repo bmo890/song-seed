@@ -111,7 +111,56 @@ export const fmtDuration = (ms = 0) => {
 
 export const formatDate = (ts: number) => new Date(ts).toLocaleString();
 
+/** @deprecated Use genRootClipTitle / genChildClipTitle instead. */
 export const genClipTitle = (idea: string, v: number) => `${idea} v${v}`;
+
+/** Strips a trailing " vN" version suffix, e.g. "Chorus Hook v3" → "Chorus Hook". */
+export function getBaseClipTitle(title: string): string {
+  return title.replace(/\s+v\d+$/, "").trim();
+}
+
+/** Extracts the trailing version number from a title, e.g. "Chorus Hook v3" → 3. Returns null if none. */
+export function extractClipVersionNumber(title: string): number | null {
+  const match = title.match(/\s+v(\d+)$/);
+  return match ? parseInt(match[1], 10) : null;
+}
+
+/** How many parent hops from clipId to the lineage root (0 = root itself). */
+export function getLineageDepth(clips: import("./types").ClipVersion[], clipId: string): number {
+  let depth = 0;
+  let currentId: string | undefined = clipId;
+  while (currentId) {
+    const current = clips.find((c) => c.id === currentId);
+    if (!current?.parentClipId) break;
+    depth++;
+    currentId = current.parentClipId;
+  }
+  return depth;
+}
+
+/**
+ * Auto-title for a new parentless (root) clip within a song.
+ * Counts existing roots and returns "Idea N".
+ */
+export function genRootClipTitle(clips: import("./types").ClipVersion[]): string {
+  const rootCount = clips.filter((c) => !c.parentClipId).length;
+  return `Idea ${rootCount + 1}`;
+}
+
+/**
+ * Auto-title for a new child/reply clip.
+ * Uses the parent's base title + the next version number in the lineage chain.
+ * e.g. parent "Chorus Hook" (depth 0) → "Chorus Hook v2"
+ *      parent "Chorus Hook v2" (depth 1) → "Chorus Hook v3"
+ */
+export function genChildClipTitle(
+  clips: import("./types").ClipVersion[],
+  parentClip: import("./types").ClipVersion
+): string {
+  const depth = getLineageDepth(clips, parentClip.id);
+  const baseTitle = getBaseClipTitle(parentClip.title);
+  return `${baseTitle} v${depth + 2}`;
+}
 
 export const buildDefaultIdeaTitle = (timestamp = Date.now()) => {
   const date = new Date(timestamp);
@@ -136,10 +185,10 @@ export function ensureUniqueIdeaTitle(baseTitle: string, existingTitles: string[
   }
 
   let suffix = 2;
-  let candidate = `${baseTitle} v${suffix}`;
+  let candidate = `${baseTitle} (${suffix})`;
   while (normalizedExisting.has(candidate.trim().toLowerCase())) {
     suffix += 1;
-    candidate = `${baseTitle} v${suffix}`;
+    candidate = `${baseTitle} (${suffix})`;
   }
   return candidate;
 }

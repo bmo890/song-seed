@@ -155,7 +155,20 @@ export function IdeaCard({
         >
             {highlightValue != null ? (
                 <Animated.View
-                    style={[styles.ideasListCardHighlightOverlay, { opacity: highlightValue }]}
+                    style={[
+                        styles.ideasListCardHighlightOverlay,
+                        {
+                            opacity: highlightValue,
+                            transform: [
+                                {
+                                    scale: highlightValue.interpolate({
+                                        inputRange: [0, 0.9],
+                                        outputRange: [0.97, 1.05],
+                                    }),
+                                },
+                            ],
+                        },
+                    ]}
                     pointerEvents="none"
                 />
             ) : null}

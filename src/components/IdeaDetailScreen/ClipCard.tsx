@@ -52,12 +52,13 @@ export type ClipCardActionProps = {
   onPickParentTarget: (clipId: string) => void;
   onOpenTagPicker?: (clip: ClipVersion) => void;
   onViewLineageHistory?: (rootClipId: string) => void;
+  onLocateClip?: (clipId: string) => void;
 };
 
 export type ClipCardPlaybackProps = {
   globalCustomTags: CustomTagDefinition[];
   inlinePlayer: ReturnType<typeof useInlinePlayer>;
-  getHighlightValue: (clipId: string) => import("react-native").Animated.Value | undefined;
+  getHighlightValue: (clipId: string) => import("react-native").Animated.Value | null | undefined;
 };
 
 export type ClipCardContextProps = {
@@ -107,6 +108,7 @@ export function ClipCard({
       onPickParentTarget,
       onOpenTagPicker,
       onViewLineageHistory,
+      onLocateClip,
     },
     playback: { globalCustomTags, inlinePlayer, getHighlightValue },
   } = context;
@@ -144,6 +146,11 @@ export function ClipCard({
   });
   const canEditTags =
     !displayOnly && !isEditMode && !isDraftProject && !isParentPicking && !clipSelectionMode;
+  // In Evolution view only the thread head carries the tag; expanded children
+  // (indented) inherit it from the lineage and stay clean. Timeline shows all.
+  const isEvolutionThreadChild = entry.kind === "evolution" && entry.indented;
+  const visibleTagBadges = isEvolutionThreadChild ? [] : tagBadges;
+  const showAddTagButton = canEditTags && !isEvolutionThreadChild && tagBadges.length === 0;
   const playbackDurationMs = getClipPlaybackDurationMs(clip);
   const overdubStemCount = getClipOverdubStemCount(clip);
   const durationLabel = playbackDurationMs ? fmtDuration(playbackDurationMs) : "0:00";
@@ -152,8 +159,15 @@ export function ClipCard({
       ? `${formatDate(clip.createdAt)} • ${overdubStemCount} ${overdubStemCount === 1 ? "layer" : "layers"}`
       : formatDate(clip.createdAt);
   const canToggleInlinePlayback = !clipSelectionMode && !isDraftProject && !isParentPicking;
-  const canShowReplyButton =
+  const canShowTrailingAction =
     !displayOnly && !clipSelectionMode && !isEditMode && !isDraftProject && !isParentPicking;
+  // Reply (record a new version) belongs only to the most recent take of a thread —
+  // the Evolution head. Indented children are part of one thread, so no reply there.
+  const showReplyButton =
+    canShowTrailingAction && entry.kind === "evolution" && !entry.indented;
+  // Timeline cards swap reply for a "jump to Evolution" locate action.
+  const showLocateButton =
+    canShowTrailingAction && entry.kind === "timeline" && !!onLocateClip;
   const openPlayer = async () => {
     if (!hasClipPlaybackSource(clip)) return;
     await inlinePlayer.resetInlinePlayer();
@@ -235,7 +249,7 @@ export function ClipCard({
 
       <IdeaCard
         containerStyle={[{ flex: 1 }, parentPickContainerStyle ?? null]}
-        accentBorderColor={displayPrimary ? "#B87D6B" : undefined}
+        accentBorderColor={displayPrimary || isPrimaryCandidate ? "#B87D6B" : undefined}
         selected={isSelected || isMoving || isParentPickSource}
         inlineActive={inlineActive}
         isInlinePlaying={inlinePlayer.isInlinePlaying}
@@ -265,10 +279,26 @@ export function ClipCard({
               onSetPrimary={handleSetPrimary}
             />
             <ClipCardReplyButton
-              visible={canShowReplyButton}
+              visible={showReplyButton}
               compact={compactDensity}
               onPress={handleReply}
             />
+            {showLocateButton ? (
+              <Pressable
+                style={({ pressed }) => [
+                  styles.songDetailVersionHistoryBtn,
+                  pressed ? styles.pressDown : null,
+                ]}
+                onPress={(e) => {
+                  e.stopPropagation();
+                  onLocateClip?.(clip.id);
+                }}
+                accessibilityRole="button"
+                accessibilityLabel="Find in Evolution view"
+              >
+                <Ionicons name="git-branch-outline" size={14} color="#a89994" />
+              </Pressable>
+            ) : null}
             {entry.kind === "evolution" &&
               !entry.indented &&
               entry.hasOlderVersions &&
@@ -296,9 +326,9 @@ export function ClipCard({
               onPress={!displayOnly && clip.notes ? () => onOpenNotesSheet?.(clip) : undefined}
             />
             <ClipTagBadges
-              tags={tagBadges}
+              tags={visibleTagBadges}
               disabled={!!displayOnly}
-              showAddButton={canEditTags}
+              showAddButton={showAddTagButton}
               onPress={displayOnly ? undefined : handleTagsPress}
             />
           </>

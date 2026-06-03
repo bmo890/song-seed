@@ -1,8 +1,13 @@
+import { useState } from "react";
+import { View } from "react-native";
+import { styles } from "../styles";
+import { useStore } from "../../../state/useStore";
 import { type ClipCardContextProps } from "../ClipCard";
 import { EvolutionList } from "../EvolutionList";
 import { TimelineList } from "../TimelineList";
+import { PrimaryTakeStrip } from "../PrimaryTakeStrip";
 import { useSongScreen } from "../provider/SongScreenProvider";
-import { type TimelineClipEntry } from "../../../clipGraph";
+import { getLineageRootId, type TimelineClipEntry } from "../../../clipGraph";
 import { SongClipListSummary } from "./SongClipListSummary";
 
 type SongClipListContentProps = {
@@ -24,43 +29,84 @@ export function SongClipListContent({
   expandedLineageIds,
   setExpandedLineageIds,
 }: SongClipListContentProps) {
-  const { screen, parentPicking, actions } = useSongScreen();
+  const { screen, actions } = useSongScreen();
+  const markRecentlyAdded = useStore((s) => s.markRecentlyAdded);
+  const [locateTarget, setLocateTarget] = useState<{ clipId: string; nonce: number } | null>(null);
 
   const summaryContent = <SongClipListSummary />;
 
-  if (screen.clipViewMode === "timeline") {
-    return (
+  const expandLineageForClip = (clipId: string) => {
+    const rootId = getLineageRootId(filteredIdeaClips, clipId);
+    if (rootId) setExpandedLineageIds((prev) => ({ ...prev, [rootId]: true }));
+    return rootId;
+  };
+
+  // Focus a clip in Evolution view: switch view, open its thread, scroll it into
+  // view, and flash-highlight it.
+  const focusClipInEvolution = (clipId: string) => {
+    screen.setClipViewMode("evolution");
+    expandLineageForClip(clipId);
+    markRecentlyAdded([clipId]);
+    setLocateTarget({ clipId, nonce: Date.now() });
+  };
+
+  const onLocatePrimary = () => {
+    if (!primaryEntry) return;
+    focusClipInEvolution(primaryEntry.clip.id);
+  };
+
+  // Timeline → Evolution jump.
+  const onLocateClip = (clipId: string) => {
+    focusClipInEvolution(clipId);
+  };
+
+  const timelineClipCardContext: ClipCardContextProps = {
+    ...clipCardContext,
+    actions: {
+      ...clipCardContext.actions,
+      onLocateClip,
+    },
+  };
+
+  const body =
+    screen.clipViewMode === "timeline" ? (
       <TimelineList
         clips={filteredIdeaClips}
         summaryContent={summaryContent}
         footerSpacerHeight={footerSpacerHeight}
         primaryEntry={primaryEntry}
-        clipCardContext={clipCardContext}
+        clipCardContext={timelineClipCardContext}
         visibleIdeaCount={visibleIdeaCount}
         onIdeasStickyChange={screen.setIsIdeasSticky}
       />
+    ) : (
+      <EvolutionList
+        clips={filteredIdeaClips}
+        expandedLineageIds={expandedLineageIds}
+        setExpandedLineageIds={setExpandedLineageIds}
+        direction={screen.timelineSortDirection}
+        summaryContent={summaryContent}
+        footerSpacerHeight={footerSpacerHeight}
+        primaryEntry={primaryEntry}
+        clipCardContext={{
+          ...clipCardContext,
+          actions: {
+            ...clipCardContext.actions,
+            onViewLineageHistory: actions.openLineageHistory,
+          },
+        }}
+        visibleIdeaCount={visibleIdeaCount}
+        onIdeasStickyChange={screen.setIsIdeasSticky}
+        locateTarget={locateTarget}
+      />
     );
-  }
-
-  const evolutionClipCardContext: ClipCardContextProps = {
-    ...clipCardContext,
-    actions: {
-      ...clipCardContext.actions,
-      onViewLineageHistory: actions.openLineageHistory,
-    },
-  };
 
   return (
-    <EvolutionList
-      clips={filteredIdeaClips}
-      expandedLineageIds={expandedLineageIds}
-      setExpandedLineageIds={setExpandedLineageIds}
-      summaryContent={summaryContent}
-      footerSpacerHeight={footerSpacerHeight}
-      primaryEntry={primaryEntry}
-      clipCardContext={evolutionClipCardContext}
-      visibleIdeaCount={visibleIdeaCount}
-      onIdeasStickyChange={screen.setIsIdeasSticky}
-    />
+    <View style={styles.songDetailListWithStrip}>
+      {primaryEntry ? (
+        <PrimaryTakeStrip entry={primaryEntry} onLocate={onLocatePrimary} />
+      ) : null}
+      {body}
+    </View>
   );
 }
