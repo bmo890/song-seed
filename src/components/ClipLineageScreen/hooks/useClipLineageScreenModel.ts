@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Animated, BackHandler } from "react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -10,7 +10,7 @@ import { type ClipVersion } from "../../../types";
 import { type ClipCardContextProps } from "../../IdeaDetailScreen/ClipCard";
 
 type ClipLineageRoute = RootStackParamList["ClipLineage"];
-type SortMode = "chronological" | "custom";
+type SortDirection = "asc" | "desc";
 
 export function useClipLineageScreenModel() {
   const insets = useSafeAreaInsets();
@@ -19,7 +19,7 @@ export function useClipLineageScreenModel() {
   const { ideaId, rootClipId } = (route.params ?? {}) as ClipLineageRoute;
   const inlinePlayer = useInlinePlayer();
   const inlineResetRef = useRef(inlinePlayer.resetInlinePlayer);
-  const [sortMode, setSortMode] = useState<SortMode>("chronological");
+  const [direction, setDirection] = useState<SortDirection>("asc");
   const [actionsClipId, setActionsClipId] = useState<string | null>(null);
   const [notesSheetClipId, setNotesSheetClipId] = useState<string | null>(null);
   const [editingClipId, setEditingClipId] = useState<string | null>(null);
@@ -32,7 +32,6 @@ export function useClipLineageScreenModel() {
   const updateIdeas = useStore((state) => state.updateIdeas);
   const setInlinePlayerMounted = useStore((state) => state.setInlinePlayerMounted);
   const requestInlineStop = useStore((state) => state.requestInlineStop);
-  const setClipManualSortOrder = useStore((state) => state.setClipManualSortOrder);
   const setRecordingParentClipId = useStore((state) => state.setRecordingParentClipId);
   const setRecordingIdeaId = useStore((state) => state.setRecordingIdeaId);
   const highlightMapRef = useRef<Record<string, Animated.Value>>({});
@@ -48,15 +47,10 @@ export function useClipLineageScreenModel() {
   }, [idea, rootClipId]);
   const sortedClips = useMemo(() => {
     if (!lineage) return [];
-    if (sortMode === "chronological") {
-      return lineage.clipsOldestToNewest;
-    }
-    return [...lineage.clipsOldestToNewest].sort((a, b) => {
-      const aOrder = a.manualSortOrder ?? a.createdAt;
-      const bOrder = b.manualSortOrder ?? b.createdAt;
-      return aOrder - bOrder;
-    });
-  }, [lineage, sortMode]);
+    return direction === "asc"
+      ? lineage.clipsOldestToNewest
+      : lineage.clipsNewestToOldest;
+  }, [lineage, direction]);
   const clipEntries = useMemo<TimelineClipEntry[]>(
     () =>
       sortedClips.map((clip) => ({
@@ -171,13 +165,6 @@ export function useClipLineageScreenModel() {
     );
   };
 
-  const handleDragEnd = useCallback(
-    ({ data }: { data: TimelineClipEntry[] }) => {
-      setClipManualSortOrder(ideaId, data.map((entry) => entry.clip.id));
-    },
-    [ideaId, setClipManualSortOrder]
-  );
-
   const openRecordingVariation = async (clip: ClipVersion) => {
     setActionsClipId(null);
     await inlinePlayer.resetInlinePlayer();
@@ -235,8 +222,8 @@ export function useClipLineageScreenModel() {
   return {
     insets,
     goBack: () => navigation.goBack(),
-    sortMode,
-    setSortMode,
+    direction,
+    toggleDirection: () => setDirection((d) => (d === "asc" ? "desc" : "asc")),
     idea,
     lineage,
     clipEntries,
@@ -254,7 +241,6 @@ export function useClipLineageScreenModel() {
     beginEditingClip,
     saveNotesSheet,
     deleteClip,
-    handleDragEnd,
     openRecordingVariation,
   };
 }

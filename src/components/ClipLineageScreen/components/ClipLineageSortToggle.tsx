@@ -1,41 +1,36 @@
 import { Pressable, Text, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { clipLineageStyles } from "../styles";
 
-type SortMode = "chronological" | "custom";
+type SortDirection = "asc" | "desc";
 
 type ClipLineageSortToggleProps = {
-  sortMode: SortMode;
-  onChangeMode: (next: SortMode) => void;
+  direction: SortDirection;
+  onToggle: () => void;
 };
 
 export function ClipLineageSortToggle({
-  sortMode,
-  onChangeMode,
+  direction,
+  onToggle,
 }: ClipLineageSortToggleProps) {
   return (
-    <View style={clipLineageStyles.sortToggle}>
-      {(["chronological", "custom"] as const).map((mode) => {
-        const active = sortMode === mode;
-        return (
-          <Pressable
-            key={mode}
-            style={[
-              clipLineageStyles.sortTab,
-              active ? clipLineageStyles.sortTabActive : null,
-            ]}
-            onPress={() => onChangeMode(mode)}
-          >
-            <Text
-              style={[
-                clipLineageStyles.sortTabText,
-                active ? clipLineageStyles.sortTabTextActive : null,
-              ]}
-            >
-              {mode === "chronological" ? "Chronological" : "Custom"}
-            </Text>
-          </Pressable>
-        );
-      })}
+    <View style={clipLineageStyles.sortToggleRow}>
+      <Pressable
+        style={({ pressed }) => [
+          clipLineageStyles.sortDirectionPill,
+          pressed ? clipLineageStyles.sortDirectionPillPressed : null,
+        ]}
+        onPress={onToggle}
+      >
+        <Ionicons
+          name={direction === "asc" ? "arrow-up" : "arrow-down"}
+          size={11}
+          color="#84736f"
+        />
+        <Text style={clipLineageStyles.sortDirectionText}>
+          {direction === "asc" ? "Oldest first" : "Newest first"}
+        </Text>
+      </Pressable>
     </View>
   );
 }

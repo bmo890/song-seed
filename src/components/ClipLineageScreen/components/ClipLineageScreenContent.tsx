@@ -31,13 +31,11 @@ export function ClipLineageScreenContent() {
         subtitle={`${model.clipCount} ${model.clipCount === 1 ? "take" : "takes"} · ${model.idea.title}`}
         onBack={model.goBack}
       />
-      <ClipLineageSortToggle sortMode={model.sortMode} onChangeMode={model.setSortMode} />
+      <ClipLineageSortToggle direction={model.direction} onToggle={model.toggleDirection} />
       <ClipLineageList
-        sortMode={model.sortMode}
         clipEntries={model.clipEntries}
         clipCardContext={model.clipCardContext}
         bottomPadding={24 + Math.max(model.insets.bottom, 16)}
-        onDragEnd={model.handleDragEnd}
       />
 
       <ClipActionsSheet
