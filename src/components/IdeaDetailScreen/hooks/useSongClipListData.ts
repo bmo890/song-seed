@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import {
   buildEvolutionListRows,
+  buildClipLineages,
   buildTimelineEntries,
   type EvolutionListClipEntry,
   type TimelineClipEntry,
@@ -9,10 +10,13 @@ import {
 } from "../../../clipGraph";
 import { type SongIdea } from "../../../types";
 import { type SongClipTagFilter } from "../songClipControls";
+import type { SongClipGroupFilter } from "../songClipControls";
 
 type UseSongClipListDataArgs = {
   selectedIdea: SongIdea | null;
   clipTagFilter: SongClipTagFilter;
+  clipGroupFilter: SongClipGroupFilter;
+  clipBookmarkedOnly: boolean;
   clipViewMode: "timeline" | "evolution";
   timelineSortMetric: SongTimelineSortMetric;
   timelineSortDirection: SongTimelineSortDirection;
@@ -31,6 +35,8 @@ type UseSongClipListDataArgs = {
 export function useSongClipListData({
   selectedIdea,
   clipTagFilter,
+  clipGroupFilter,
+  clipBookmarkedOnly,
   clipViewMode,
   timelineSortMetric,
   timelineSortDirection,
@@ -46,11 +52,33 @@ export function useSongClipListData({
   songPageBaseBottomPadding,
 }: UseSongClipListDataArgs) {
   const ideaClips = useMemo(() => selectedIdea?.clips ?? [], [selectedIdea]);
+  const rootIdByClipId = useMemo(() => {
+    const map = new Map<string, string>();
+    buildClipLineages(ideaClips).forEach((lineage) => {
+      lineage.clipsOldestToNewest.forEach((clip) => {
+        map.set(clip.id, lineage.root.id);
+      });
+    });
+    return map;
+  }, [ideaClips]);
 
   const filteredIdeaClips = useMemo(() => {
-    if (clipTagFilter.length === 0) return ideaClips;
+    if (clipTagFilter.length === 0 && clipGroupFilter.length === 0 && !clipBookmarkedOnly) {
+      return ideaClips;
+    }
 
     return ideaClips.filter((clip) => {
+      if (clipBookmarkedOnly && !clip.isBookmarked) return false;
+
+      if (clipGroupFilter.length > 0) {
+        const rootId = rootIdByClipId.get(clip.id);
+        if (!rootId) return false;
+        const assignedGroupId = selectedIdea?.clipGroupAssignments?.[rootId];
+        if (!assignedGroupId || !clipGroupFilter.includes(assignedGroupId)) return false;
+      }
+
+      if (clipTagFilter.length === 0) return true;
+
       const clipTags = (clip.tags ?? [])
         .map((tag) => tag.trim().toLowerCase())
         .filter(Boolean);
@@ -60,7 +88,14 @@ export function useSongClipListData({
         return clipTags.includes(filterKey);
       });
     });
-  }, [clipTagFilter, ideaClips]);
+  }, [
+    clipBookmarkedOnly,
+    clipGroupFilter,
+    clipTagFilter,
+    ideaClips,
+    rootIdByClipId,
+    selectedIdea?.clipGroupAssignments,
+  ]);
 
   const displayPrimaryId = useMemo(
     () => pendingPrimaryClipId ?? selectedIdea?.clips.find((clip) => clip.isPrimary)?.id ?? null,
@@ -88,7 +123,13 @@ export function useSongClipListData({
   const visibleClipEntries = useMemo<Array<TimelineClipEntry | EvolutionListClipEntry>>(
     () =>
       clipViewMode === "evolution"
-        ? buildEvolutionListRows(filteredIdeaClips, expandedLineageIds, timelineSortDirection)
+        ? buildEvolutionListRows(
+            filteredIdeaClips,
+            expandedLineageIds,
+            timelineSortDirection,
+            selectedIdea?.clipGroups ?? [],
+            selectedIdea?.clipGroupAssignments ?? {}
+          )
             .filter(
               (row): row is { kind: "clip"; entry: EvolutionListClipEntry } => row.kind === "clip"
             )
@@ -102,6 +143,8 @@ export function useSongClipListData({
       clipViewMode,
       expandedLineageIds,
       filteredIdeaClips,
+      selectedIdea?.clipGroupAssignments,
+      selectedIdea?.clipGroups,
       timelineMainTakesOnly,
       timelineSortDirection,
       timelineSortMetric,

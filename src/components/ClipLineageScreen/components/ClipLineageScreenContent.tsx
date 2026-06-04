@@ -6,6 +6,7 @@ import { fmtDuration, formatDate } from "../../../utils";
 import { ClipActionsSheet } from "../../modals/ClipActionsSheet";
 import { ClipNotesSheet } from "../../modals/ClipNotesSheet";
 import { AppAlert } from "../../common/AppAlert";
+import { ClipTagPicker } from "../../IdeaDetailScreen/ClipTagPicker";
 import { useClipLineageScreenModel } from "../hooks/useClipLineageScreenModel";
 import { ClipLineageHeader } from "./ClipLineageHeader";
 import { ClipLineageSortToggle } from "./ClipLineageSortToggle";
@@ -102,15 +103,19 @@ export function ClipLineageScreenContent() {
             ? `${model.notesSheetClip.durationMs ? fmtDuration(model.notesSheetClip.durationMs) : "0:00"} · ${formatDate(model.notesSheetClip.createdAt)}`
             : ""
         }
-        clip={model.notesSheetClip}
-        idea={model.idea}
-        globalCustomTags={model.clipCardContext.playback.globalCustomTags}
         titleDraft={model.editingClipDraft}
         notesDraft={model.editingClipNotesDraft}
         onChangeTitle={model.setEditingClipDraft}
         onChangeNotes={model.setEditingClipNotesDraft}
         onSave={model.saveNotesSheet}
         onCancel={() => model.setNotesSheetClipId(null)}
+      />
+      <ClipTagPicker
+        visible={!!model.tagPickerClip}
+        clip={model.tagPickerClip}
+        idea={model.idea}
+        globalCustomTags={model.clipCardContext.playback.globalCustomTags}
+        onClose={() => model.setTagPickerClipId(null)}
       />
 
       <ExpoStatusBar style="dark" />

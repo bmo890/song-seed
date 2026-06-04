@@ -24,6 +24,33 @@ type EvolutionListProps = {
   locateTarget?: { clipId: string; nonce: number } | null;
 };
 
+type EvolutionContentRow =
+  | { kind: "collapse-all" }
+  | EvolutionListRow;
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+function formatGroupFreshness(timestamp: number | null) {
+  if (timestamp == null) return "No clips yet";
+  const today = new Date();
+  const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
+  const target = new Date(timestamp);
+  const targetStart = new Date(target.getFullYear(), target.getMonth(), target.getDate()).getTime();
+  const days = Math.max(0, Math.floor((todayStart - targetStart) / DAY_MS));
+
+  if (days === 0) return "Updated today";
+  if (days === 1) return "Updated yesterday";
+  if (days < 7) return `Updated ${days} days ago`;
+  if (days < 14) return "Updated last week";
+  if (days < 31) {
+    const weeks = Math.max(2, Math.floor(days / 7));
+    return `Updated ${weeks} weeks ago`;
+  }
+  if (days < 62) return "Updated last month";
+  const months = Math.max(2, Math.floor(days / 30));
+  return `Updated ${months} months ago`;
+}
+
 function EvolutionMoreRow({
   lineageRootId,
   hiddenCount,
@@ -70,6 +97,55 @@ function EvolutionMoreRow({
   );
 }
 
+function EvolutionGroupHeaderRow({
+  row,
+}: {
+  row: Extract<EvolutionListRow, { kind: "group" }>;
+}) {
+  const clipSelectionMode = useStore((s) => s.clipSelectionMode);
+  const ideaId = useStore((s) => s.selectedIdeaId);
+  const setClipGroupCollapsed = useStore((s) => s.setClipGroupCollapsed);
+
+  return (
+    <View style={styles.songDetailEvolutionGroupRow}>
+      <View
+        style={[
+          styles.selectionIndicatorCol,
+          clipSelectionMode ? null : styles.selectionIndicatorHidden,
+        ]}
+      />
+      <Pressable
+        style={({ pressed }) => [
+          styles.songDetailEvolutionGroupContent,
+          pressed ? styles.pressDown : null,
+        ]}
+        onPress={() => {
+          if (!ideaId) return;
+          setClipGroupCollapsed(ideaId, row.groupId, !row.collapsed);
+        }}
+      >
+        <View style={styles.songDetailEvolutionGroupTitleRow}>
+          <Ionicons
+            name={row.collapsed ? "chevron-forward" : "chevron-down"}
+            size={13}
+            color="#8F7F79"
+          />
+          <Text style={styles.songDetailEvolutionGroupTitle}>{row.name}</Text>
+        </View>
+        <View style={styles.songDetailEvolutionGroupMetaRow}>
+          <View style={styles.songDetailEvolutionGroupCount}>
+            <Ionicons name="git-branch-outline" size={12} color="#A59691" />
+            <Text style={styles.songDetailEvolutionGroupMeta}>{row.lineageCount}</Text>
+          </View>
+          <Text style={styles.songDetailEvolutionGroupMeta}>
+            · {formatGroupFreshness(row.lastUpdatedAt)}
+          </Text>
+        </View>
+      </Pressable>
+    </View>
+  );
+}
+
 export function EvolutionList({
   clips,
   expandedLineageIds,
@@ -83,10 +159,19 @@ export function EvolutionList({
   onIdeasStickyChange,
   locateTarget,
 }: EvolutionListProps) {
-  const contentRows = useMemo(
-    () => buildEvolutionListRows(clips, expandedLineageIds, direction),
-    [clips, direction, expandedLineageIds]
-  );
+  const groups = clipCardContext.mode.idea.clipGroups ?? [];
+  const groupAssignments = clipCardContext.mode.idea.clipGroupAssignments ?? {};
+  const hasExpandedLineages = Object.values(expandedLineageIds).some(Boolean);
+  const contentRows = useMemo<EvolutionContentRow[]>(() => {
+    const rows = buildEvolutionListRows(
+      clips,
+      expandedLineageIds,
+      direction,
+      groups,
+      groupAssignments
+    );
+    return hasExpandedLineages ? [{ kind: "collapse-all" }, ...rows] : rows;
+  }, [clips, direction, expandedLineageIds, groupAssignments, groups, hasExpandedLineages]);
 
   const scrollTarget = useMemo(() => {
     if (!locateTarget) return null;
@@ -108,10 +193,33 @@ export function EvolutionList({
       onIdeasStickyChange={onIdeasStickyChange}
       scrollTarget={scrollTarget}
       contentKeyExtractor={(row, index) => {
+        if (row.kind === "collapse-all") return "evolution-collapse-all";
         if (row.kind === "clip") return `evolution-clip:${row.entry.clip.id}:${index}`;
+        if (row.kind === "group") return `evolution-group:${row.groupId}`;
         return `evolution-more:${row.lineageRootId}`;
       }}
       renderContentRow={(row) => {
+        if (row.kind === "collapse-all") {
+          return (
+            <View style={styles.songDetailEvolutionCollapseAllRow}>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.songDetailEvolutionCollapseAllButton,
+                  pressed ? styles.pressDown : null,
+                ]}
+                onPress={() => setExpandedLineageIds({})}
+              >
+                <Ionicons name="chevron-collapse-outline" size={13} color="#8F7F79" />
+                <Text style={styles.songDetailEvolutionCollapseAllText}>Collapse all versions</Text>
+              </Pressable>
+            </View>
+          );
+        }
+
+        if (row.kind === "group") {
+          return <EvolutionGroupHeaderRow row={row} />;
+        }
+
         if (row.kind === "more") {
           return (
             <EvolutionMoreRow

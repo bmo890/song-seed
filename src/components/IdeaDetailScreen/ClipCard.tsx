@@ -146,11 +146,8 @@ export function ClipCard({
   });
   const canEditTags =
     !displayOnly && !isEditMode && !isDraftProject && !isParentPicking && !clipSelectionMode;
-  // In Evolution view only the thread head carries the tag; expanded children
-  // (indented) inherit it from the lineage and stay clean. Timeline shows all.
-  const isEvolutionThreadChild = entry.kind === "evolution" && entry.indented;
-  const visibleTagBadges = isEvolutionThreadChild ? [] : tagBadges;
-  const showAddTagButton = canEditTags && !isEvolutionThreadChild && tagBadges.length === 0;
+  const visibleTagBadges = tagBadges;
+  const showAddTagButton = canEditTags && tagBadges.length === 0;
   const playbackDurationMs = getClipPlaybackDurationMs(clip);
   const overdubStemCount = getClipOverdubStemCount(clip);
   const durationLabel = playbackDurationMs ? fmtDuration(playbackDurationMs) : "0:00";
@@ -256,6 +253,9 @@ export function ClipCard({
         nowPlaying={inlineActive}
         compact={compactDensity}
         highlightValue={highlightValue ?? null}
+        cornerBadge={
+          clip.isBookmarked ? <Ionicons name="bookmark" size={15} color="#B87D6B" /> : undefined
+        }
         canPlay={hasClipPlaybackSource(clip)}
         durationLabel={durationLabel}
         onPressLead={() => {

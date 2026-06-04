@@ -8,26 +8,13 @@ type ParentPickState = {
   appliedClipIds: string[];
 };
 
+type ParentChange = {
+  parentId: string | null;
+  parentAssignedAt?: number;
+};
+
 function buildClipMap(clips: ClipVersion[]) {
   return new Map(clips.map((clip) => [clip.id, clip]));
-}
-
-function getTopLevelClipIds(clips: ClipVersion[], clipIds: string[]) {
-  const clipMap = buildClipMap(clips);
-  const selectedIdSet = new Set(clipIds);
-
-  return clipIds.filter((clipId) => {
-    const visitedIds = new Set<string>();
-    let parentId = clipMap.get(clipId)?.parentClipId;
-
-    while (parentId && !visitedIds.has(parentId)) {
-      if (selectedIdSet.has(parentId)) return false;
-      visitedIds.add(parentId);
-      parentId = clipMap.get(parentId)?.parentClipId;
-    }
-
-    return true;
-  });
 }
 
 function collectDescendantClipIds(clips: ClipVersion[], rootClipIds: string[]) {
@@ -71,17 +58,15 @@ export function useSongParentPicking(selectedIdea: SongIdea | null | undefined, 
 
   const parentPickPrompt =
     parentPickState?.appliedClipIds.length === 1
-      ? "Tap the clip this branches from."
+      ? "Tap the parent for this clip."
       : parentPickState
-        ? `Tap the clip these ${parentPickState.appliedClipIds.length} clips branch from.`
+        ? `Tap the parent for these ${parentPickState.appliedClipIds.length} clips.`
         : "";
-  const parentPickMeta =
-    parentPickState &&
-    parentPickState.sourceClipIds.length !== parentPickState.appliedClipIds.length
-      ? `${parentPickState.sourceClipIds.length} selected, ${parentPickState.appliedClipIds.length} top-level clips will move together.`
-      : null;
+  const parentPickMeta = parentPickState
+    ? "Only selected clips move. Their existing children stay in the old lineage."
+    : null;
 
-  function updateClipParents(targetIdeaId: string, parentByClipId: Map<string, string | null>) {
+  function updateClipParents(targetIdeaId: string, parentByClipId: Map<string, ParentChange>) {
     useStore.getState().updateIdeas((ideas) =>
       ideas.map((idea) =>
         idea.id !== targetIdeaId
@@ -90,7 +75,14 @@ export function useSongParentPicking(selectedIdea: SongIdea | null | undefined, 
               ...idea,
               clips: idea.clips.map((clip) =>
                 parentByClipId.has(clip.id)
-                  ? { ...clip, parentClipId: parentByClipId.get(clip.id) ?? undefined }
+                  ? (() => {
+                      const change = parentByClipId.get(clip.id)!;
+                      return {
+                        ...clip,
+                        parentClipId: change.parentId ?? undefined,
+                        parentAssignedAt: change.parentAssignedAt,
+                      };
+                    })()
                   : clip
               ),
             }
@@ -106,31 +98,64 @@ export function useSongParentPicking(selectedIdea: SongIdea | null | undefined, 
       Alert.alert("Primary clip unavailable", "The primary clip stays outside the evolution tree for now. Deselect it and try again.");
       return null;
     }
-    const topLevelClipIds = getTopLevelClipIds(songClips, uniqueClipIds);
-    if (topLevelClipIds.length === 0) return null;
-    return { sourceClipIds: uniqueClipIds, appliedClipIds: topLevelClipIds };
+    return { sourceClipIds: uniqueClipIds, appliedClipIds: uniqueClipIds };
   }
 
   function applyParentChange(sourceClipIds: string[], nextParentClipId: string | null, onUndo: (undo: () => void, message: string) => void) {
     if (!selectedIdea || selectedIdea.kind !== "project") return false;
-    const previousParentByClipId = new Map<string, string | null>();
-    sourceClipIds.forEach((clipId) => {
-      previousParentByClipId.set(clipId, clipMap.get(clipId)?.parentClipId ?? null);
-    });
+    const sourceIdSet = new Set(sourceClipIds);
+    const previousParentByClipId = new Map<string, ParentChange>();
     const changedClipIds = sourceClipIds.filter(
       (clipId) => (clipMap.get(clipId)?.parentClipId ?? null) !== nextParentClipId
     );
     if (changedClipIds.length === 0) return false;
-    const nextParentByClipId = new Map<string, string | null>();
-    changedClipIds.forEach((clipId) => nextParentByClipId.set(clipId, nextParentClipId));
+    const nextParentByClipId = new Map<string, ParentChange>();
+    const parentAssignedAt = Date.now();
+    const getDetachedChildParentId = (clipId: string) => {
+      let parentId = clipMap.get(clipId)?.parentClipId ?? null;
+      const visitedIds = new Set<string>();
+      while (parentId && sourceIdSet.has(parentId) && !visitedIds.has(parentId)) {
+        visitedIds.add(parentId);
+        parentId = clipMap.get(parentId)?.parentClipId ?? null;
+      }
+      return parentId;
+    };
+
+    changedClipIds.forEach((clipId) => {
+      const clip = clipMap.get(clipId);
+      previousParentByClipId.set(clipId, {
+        parentId: clip?.parentClipId ?? null,
+        parentAssignedAt: clip?.parentAssignedAt,
+      });
+      nextParentByClipId.set(clipId, {
+        parentId: nextParentClipId,
+        parentAssignedAt: nextParentClipId ? parentAssignedAt : undefined,
+      });
+
+      const detachedChildParentId = getDetachedChildParentId(clipId);
+      songClips.forEach((clip) => {
+        if (clip.parentClipId !== clipId || sourceIdSet.has(clip.id)) return;
+        if (!previousParentByClipId.has(clip.id)) {
+          previousParentByClipId.set(clip.id, {
+            parentId: clip.parentClipId ?? null,
+            parentAssignedAt: clip.parentAssignedAt,
+          });
+        }
+        nextParentByClipId.set(clip.id, {
+          parentId: detachedChildParentId,
+          parentAssignedAt: detachedChildParentId ? parentAssignedAt : undefined,
+        });
+      });
+    });
+
     updateClipParents(selectedIdea.id, nextParentByClipId);
     onUndo(() => {
-      const restoredParentByClipId = new Map<string, string | null>();
-      changedClipIds.forEach((clipId) => {
-        restoredParentByClipId.set(clipId, previousParentByClipId.get(clipId) ?? null);
+      const restoredParentByClipId = new Map<string, ParentChange>();
+      previousParentByClipId.forEach((change, clipId) => {
+        restoredParentByClipId.set(clipId, change);
       });
       updateClipParents(selectedIdea.id, restoredParentByClipId);
-    }, changedClipIds.length === 1 ? "Parent updated" : "Parents updated");
+    }, sourceClipIds.length === 1 ? "Clip moved" : "Clips moved");
     return true;
   }
 

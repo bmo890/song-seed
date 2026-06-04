@@ -5,6 +5,7 @@ import {
     Collection,
     SongIdea,
     ClipVersion,
+    ClipGroup,
     CustomTagDefinition,
     ActivityEvent,
     ActivityMetric,
@@ -32,6 +33,7 @@ import {
     ClipOverdubStem,
 } from "../types";
 import { genChildClipTitle, genRootClipTitle } from "../utils";
+import { buildClipGraph } from "../clipGraph";
 import type { SelectionSlice } from "./selectionSlice";
 import type { RecordingSlice } from "./recordingSlice";
 import type { PlayerSlice } from "./playerSlice";
@@ -126,7 +128,13 @@ export type DataSlice = {
     deleteCollection: (collectionId: string) => void;
     renameIdeaPreservingActivity: (ideaId: string, nextTitle: string) => void;
     toggleIdeaBookmark: (ideaId: string) => void;
+    toggleClipBookmark: (ideaId: string, clipId: string) => void;
     setClipTags: (ideaId: string, clipId: string, tags: string[]) => void;
+    createClipGroup: (ideaId: string, name?: string) => string | null;
+    renameClipGroup: (ideaId: string, groupId: string, name: string) => void;
+    deleteClipGroup: (ideaId: string, groupId: string) => void;
+    setClipGroupCollapsed: (ideaId: string, groupId: string, collapsed: boolean) => void;
+    assignLineageToClipGroup: (ideaId: string, lineageRootClipId: string, groupId: string | null) => void;
     addProjectCustomTag: (ideaId: string, tag: CustomTagDefinition) => void;
     removeProjectCustomTag: (ideaId: string, tagKey: string) => void;
     addGlobalCustomClipTag: (tag: CustomTagDefinition) => void;
@@ -527,8 +535,56 @@ function normalizeClip(clip: ClipVersion): ClipVersion {
         ...clip,
         importedAt: normalizeOptionalTimestamp(clip.importedAt),
         sourceCreatedAt: normalizeOptionalTimestamp(clip.sourceCreatedAt),
+        isBookmarked: Boolean(clip.isBookmarked),
         overdub: cleanupClipOverdubState(clip.overdub),
     };
+}
+
+function normalizeClipGroups(groups?: ClipGroup[]): ClipGroup[] {
+    if (!Array.isArray(groups)) return [];
+    const seenIds = new Set<string>();
+    return groups
+        .filter((group): group is ClipGroup => {
+            if (!group || typeof group !== "object") return false;
+            if (typeof group.id !== "string" || group.id.trim().length === 0) return false;
+            if (seenIds.has(group.id)) return false;
+            seenIds.add(group.id);
+            return true;
+        })
+        .map((group, index) => {
+            const nowFallback = Date.now() + index;
+            const createdAt = Number.isFinite(group.createdAt) ? group.createdAt : nowFallback;
+            const updatedAt = Number.isFinite(group.updatedAt) ? group.updatedAt : createdAt;
+            return {
+                id: group.id,
+                name: typeof group.name === "string" && group.name.trim().length > 0
+                    ? group.name.trim()
+                    : "Group",
+                collapsed: Boolean(group.collapsed),
+                createdAt,
+                updatedAt,
+            };
+        });
+}
+
+function normalizeClipGroupAssignments(
+    assignments: Record<string, string> | undefined,
+    clips: ClipVersion[],
+    groups: ClipGroup[]
+): Record<string, string> | undefined {
+    if (!assignments || typeof assignments !== "object") return undefined;
+    const groupIds = new Set(groups.map((group) => group.id));
+    if (groupIds.size === 0) return undefined;
+    const rootIds = new Set(buildClipGraph(clips).roots.map((clip) => clip.id));
+    const nextAssignments: Record<string, string> = {};
+
+    Object.entries(assignments).forEach(([rootClipId, groupId]) => {
+        if (!rootIds.has(rootClipId)) return;
+        if (!groupIds.has(groupId)) return;
+        nextAssignments[rootClipId] = groupId;
+    });
+
+    return Object.keys(nextAssignments).length > 0 ? nextAssignments : undefined;
 }
 
 function normalizeIdea(idea: SongIdea): SongIdea {
@@ -555,6 +611,17 @@ function normalizeIdea(idea: SongIdea): SongIdea {
         importedAt: normalizeOptionalTimestamp(idea.importedAt),
         sourceCreatedAt: normalizeOptionalTimestamp(idea.sourceCreatedAt),
         isBookmarked: Boolean(idea.isBookmarked ?? legacyFavorite),
+    };
+    const normalizedGroups = normalizeClipGroups(idea.clipGroups);
+    const normalizedAssignments = normalizeClipGroupAssignments(
+        idea.clipGroupAssignments,
+        normalizedIdea.clips,
+        normalizedGroups
+    );
+    normalizedIdea = {
+        ...normalizedIdea,
+        clipGroups: normalizedGroups.length > 0 ? normalizedGroups : undefined,
+        clipGroupAssignments: normalizedAssignments,
     };
 
     if (idea.lyrics !== normalizedLyrics) {
@@ -1293,6 +1360,26 @@ export const createDataSlice: StateCreator<
         }));
     },
 
+    toggleClipBookmark: (ideaId, clipId) => {
+        set((state) => ({
+            workspaces: state.workspaces.map((workspace) => ({
+                ...workspace,
+                ideas: workspace.ideas.map((idea) =>
+                    idea.id === ideaId
+                        ? {
+                              ...idea,
+                              clips: idea.clips.map((clip) =>
+                                  clip.id === clipId
+                                      ? { ...clip, isBookmarked: !clip.isBookmarked }
+                                      : clip
+                              ),
+                          }
+                        : idea
+                ),
+            })),
+        }));
+    },
+
     setClipTags: (ideaId, clipId, tags) => {
         set((state) => ({
             workspaces: state.workspaces.map((workspace) => ({
@@ -1307,6 +1394,126 @@ export const createDataSlice: StateCreator<
                           }
                         : idea
                 ),
+            })),
+        }));
+    },
+
+    createClipGroup: (ideaId, name) => {
+        const now = Date.now();
+        const groupId = `clip-group-${now}`;
+        let didCreate = false;
+        set((state) => ({
+            workspaces: state.workspaces.map((workspace) => ({
+                ...workspace,
+                ideas: workspace.ideas.map((idea) => {
+                    if (idea.id !== ideaId || idea.kind !== "project") return idea;
+                    const groupCount = idea.clipGroups?.length ?? 0;
+                    const groupName = name?.trim() || `Group ${groupCount + 1}`;
+                    didCreate = true;
+                    return {
+                        ...idea,
+                        clipGroups: [
+                            ...(idea.clipGroups ?? []),
+                            {
+                                id: groupId,
+                                name: groupName,
+                                collapsed: false,
+                                createdAt: now,
+                                updatedAt: now,
+                            },
+                        ],
+                    };
+                }),
+            })),
+        }));
+        return didCreate ? groupId : null;
+    },
+
+    renameClipGroup: (ideaId, groupId, name) => {
+        const nextName = name.trim();
+        if (!nextName) return;
+        set((state) => ({
+            workspaces: state.workspaces.map((workspace) => ({
+                ...workspace,
+                ideas: workspace.ideas.map((idea) =>
+                    idea.id === ideaId
+                        ? {
+                              ...idea,
+                              clipGroups: (idea.clipGroups ?? []).map((group) =>
+                                  group.id === groupId
+                                      ? { ...group, name: nextName, updatedAt: Date.now() }
+                                      : group
+                              ),
+                          }
+                        : idea
+                ),
+            })),
+        }));
+    },
+
+    deleteClipGroup: (ideaId, groupId) => {
+        set((state) => ({
+            workspaces: state.workspaces.map((workspace) => ({
+                ...workspace,
+                ideas: workspace.ideas.map((idea) => {
+                    if (idea.id !== ideaId) return idea;
+                    const nextAssignments = { ...(idea.clipGroupAssignments ?? {}) };
+                    Object.entries(nextAssignments).forEach(([rootClipId, assignedGroupId]) => {
+                        if (assignedGroupId === groupId) delete nextAssignments[rootClipId];
+                    });
+                    return {
+                        ...idea,
+                        clipGroups: (idea.clipGroups ?? []).filter((group) => group.id !== groupId),
+                        clipGroupAssignments:
+                            Object.keys(nextAssignments).length > 0 ? nextAssignments : undefined,
+                    };
+                }),
+            })),
+        }));
+    },
+
+    setClipGroupCollapsed: (ideaId, groupId, collapsed) => {
+        set((state) => ({
+            workspaces: state.workspaces.map((workspace) => ({
+                ...workspace,
+                ideas: workspace.ideas.map((idea) =>
+                    idea.id === ideaId
+                        ? {
+                              ...idea,
+                              clipGroups: (idea.clipGroups ?? []).map((group) =>
+                                  group.id === groupId
+                                      ? { ...group, collapsed, updatedAt: Date.now() }
+                                      : group
+                              ),
+                          }
+                        : idea
+                ),
+            })),
+        }));
+    },
+
+    assignLineageToClipGroup: (ideaId, lineageRootClipId, groupId) => {
+        set((state) => ({
+            workspaces: state.workspaces.map((workspace) => ({
+                ...workspace,
+                ideas: workspace.ideas.map((idea) => {
+                    if (idea.id !== ideaId) return idea;
+                    const rootIds = new Set(buildClipGraph(idea.clips).roots.map((clip) => clip.id));
+                    if (!rootIds.has(lineageRootClipId)) return idea;
+                    const groupIds = new Set((idea.clipGroups ?? []).map((group) => group.id));
+                    if (groupId && !groupIds.has(groupId)) return idea;
+                    const nextAssignments = { ...(idea.clipGroupAssignments ?? {}) };
+                    if (groupId) {
+                        nextAssignments[lineageRootClipId] = groupId;
+                    } else {
+                        delete nextAssignments[lineageRootClipId];
+                    }
+                    return {
+                        ...idea,
+                        clipGroupAssignments:
+                            Object.keys(nextAssignments).length > 0 ? nextAssignments : undefined,
+                    };
+                }),
             })),
         }));
     },

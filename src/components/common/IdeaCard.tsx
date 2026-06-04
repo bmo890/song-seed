@@ -55,6 +55,8 @@ export type IdeaCardProps = {
     highlightValue?: Animated.Value | null;
     /** Extra styles on the outer container (e.g. parent-pick tints) */
     containerStyle?: StyleProp<ViewStyle>;
+    /** Non-interactive marker pinned to the card corner, e.g. bookmarked clip. */
+    cornerBadge?: ReactNode;
 
     // Lead column (play button + duration)
     canPlay: boolean;
@@ -119,6 +121,7 @@ export function IdeaCard({
     compact,
     highlightValue,
     containerStyle,
+    cornerBadge,
     canPlay,
     isInlinePlaying,
     durationLabel,
@@ -171,6 +174,11 @@ export function IdeaCard({
                     ]}
                     pointerEvents="none"
                 />
+            ) : null}
+            {cornerBadge != null ? (
+                <View style={styles.ideasListCardCornerBadge} pointerEvents="none">
+                    {cornerBadge}
+                </View>
             ) : null}
 
             <View style={styles.ideasListCardRow}>

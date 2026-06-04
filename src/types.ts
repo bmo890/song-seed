@@ -99,12 +99,15 @@ export type ClipVersion = {
   sourceCreatedAt?: number;
   isPrimary: boolean;
   parentClipId?: string;
+  /** Time this clip was attached to its current lineage parent. Falls back to createdAt for older clips. */
+  parentAssignedAt?: number;
   audioUri?: string;
   sourceAudioUri?: string;
   durationMs?: number;
   waveformPeaks?: number[];
   editRegions?: EditRegion[];
   tags?: string[];
+  isBookmarked?: boolean;
   practiceMarkers?: PracticeMarker[];
   manualSortOrder?: number;
   overdub?: ClipOverdubState;
@@ -114,6 +117,14 @@ export type CustomTagDefinition = {
   key: string;
   label: string;
   color: string;
+};
+
+export type ClipGroup = {
+  id: string;
+  name: string;
+  collapsed: boolean;
+  createdAt: number;
+  updatedAt: number;
 };
 
 export type SongIdea = {
@@ -127,6 +138,8 @@ export type SongIdea = {
   clips: ClipVersion[];
   lyrics?: ProjectLyrics;
   customTags?: CustomTagDefinition[];
+  clipGroups?: ClipGroup[];
+  clipGroupAssignments?: Record<string, string>;
   createdAt: number;
   importedAt?: number;
   sourceCreatedAt?: number;

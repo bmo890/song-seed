@@ -19,6 +19,8 @@ export type SongClipBuiltInTag = (typeof SONG_CLIP_TAG_OPTIONS)[number]["key"];
  *  (use "untagged" in the array to include clips with no tags). */
 export type SongClipTagFilter = string[];
 
+export type SongClipGroupFilter = string[];
+
 const CUSTOM_TAG_PALETTE: TagColor[] = [
   { bg: "#F5E6DC", text: "#9C5A3C" },
   { bg: "#F5EAC8", text: "#7A5C1E" },

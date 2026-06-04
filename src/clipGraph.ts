@@ -1,4 +1,4 @@
-import { ClipVersion } from "./types";
+import { ClipGroup, ClipVersion } from "./types";
 import { getDateBucket } from "./dateBuckets";
 
 export type SongTimelineSortMetric = "created" | "title" | "length";
@@ -40,12 +40,27 @@ export type TimelineListRow =
   | { kind: "clip"; entry: TimelineClipEntry };
 
 export type EvolutionListRow =
+  | {
+      kind: "group";
+      groupId: string;
+      name: string;
+      collapsed: boolean;
+      lineageCount: number;
+      lastUpdatedAt: number | null;
+    }
   | { kind: "clip"; entry: EvolutionListClipEntry }
   | { kind: "more"; lineageRootId: string; hiddenCount: number; expanded: boolean };
 
 function byCreatedAtAsc(a: ClipVersion, b: ClipVersion) {
   if (a.createdAt !== b.createdAt) return a.createdAt - b.createdAt;
   return a.id.localeCompare(b.id);
+}
+
+function byLineageAssignedAtAsc(a: ClipVersion, b: ClipVersion) {
+  const aOrder = a.parentAssignedAt ?? a.createdAt;
+  const bOrder = b.parentAssignedAt ?? b.createdAt;
+  if (aOrder !== bOrder) return aOrder - bOrder;
+  return byCreatedAtAsc(a, b);
 }
 
 function compareClipsForTimeline(
@@ -112,7 +127,7 @@ function collectLineageClips(graph: ClipGraph, root: ClipVersion) {
     }
   }
 
-  return clips.sort(byCreatedAtAsc);
+  return clips.sort(byLineageAssignedAtAsc);
 }
 
 export function buildClipLineages(clips: ClipVersion[]): ClipLineage[] {
@@ -208,20 +223,38 @@ export function buildTimelineListRows(
 export function buildEvolutionListRows(
   clips: ClipVersion[],
   expandedLineageIds: Record<string, boolean>,
-  direction: SongTimelineSortDirection = "desc"
+  direction: SongTimelineSortDirection = "desc",
+  groups: ClipGroup[] = [],
+  groupAssignments: Record<string, string> = {}
 ): EvolutionListRow[] {
   const rows: EvolutionListRow[] = [];
   const dir = direction === "asc" ? -1 : 1;
 
-  buildClipLineages(clips)
+  const sortedLineages = buildClipLineages(clips)
     .slice()
     .sort((a, b) => {
       if (a.latestClip.createdAt !== b.latestClip.createdAt) {
         return (b.latestClip.createdAt - a.latestClip.createdAt) * dir;
       }
       return b.latestClip.id.localeCompare(a.latestClip.id) * dir;
-    })
-    .forEach((lineage) => {
+    });
+
+  const groupIds = new Set(groups.map((group) => group.id));
+  const lineagesByGroupId = new Map<string, ClipLineage[]>();
+  const unassignedLineages: ClipLineage[] = [];
+
+  sortedLineages.forEach((lineage) => {
+    const groupId = groupAssignments[lineage.root.id];
+    if (groupId && groupIds.has(groupId)) {
+      const group = lineagesByGroupId.get(groupId) ?? [];
+      group.push(lineage);
+      lineagesByGroupId.set(groupId, group);
+      return;
+    }
+    unassignedLineages.push(lineage);
+  });
+
+  const pushLineageRows = (lineage: ClipLineage) => {
       const newestClip = lineage.latestClip;
       const olderClips = lineage.clipsNewestToOldest.filter((clip) => clip.id !== newestClip.id);
       const isExpanded = !!expandedLineageIds[lineage.root.id];
@@ -264,7 +297,27 @@ export function buildEvolutionListRows(
           },
         });
       });
+  };
+
+  unassignedLineages.forEach(pushLineageRows);
+
+  groups.forEach((group) => {
+    const lineages = lineagesByGroupId.get(group.id) ?? [];
+    rows.push({
+      kind: "group",
+      groupId: group.id,
+      name: group.name,
+      collapsed: group.collapsed,
+      lineageCount: lineages.length,
+      lastUpdatedAt: lineages.reduce<number | null>((latestAt, lineage) => {
+        const timestamp = lineage.latestClip.createdAt;
+        return latestAt == null || timestamp > latestAt ? timestamp : latestAt;
+      }, null),
     });
+
+    if (group.collapsed) return;
+    lineages.forEach(pushLineageRows);
+  });
 
   return rows;
 }

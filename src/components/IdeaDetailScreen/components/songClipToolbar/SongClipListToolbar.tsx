@@ -24,7 +24,10 @@ export function SongClipListToolbar({
       />
 
       {selectedIdea.kind === "project" ? (
-        <SongClipToolbarControls projectCustomTags={selectedIdea.customTags ?? []} />
+        <SongClipToolbarControls
+          projectCustomTags={selectedIdea.customTags ?? []}
+          clipGroups={selectedIdea.clipGroups ?? []}
+        />
       ) : null}
     </View>
   );

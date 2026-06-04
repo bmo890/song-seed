@@ -5,15 +5,21 @@ import {
   getTagColor,
   getTagLabel,
   SONG_CLIP_TAG_OPTIONS,
+  type SongClipGroupFilter,
   type SongClipTagFilter,
 } from "../../songClipControls";
-import type { CustomTagDefinition } from "../../../../types";
+import type { ClipGroup, CustomTagDefinition } from "../../../../types";
 import { songClipToolbarStyles } from "./styles";
 
 type SongClipFilterMenuProps = {
   clipViewMode: "timeline" | "evolution";
   clipTagFilter: SongClipTagFilter;
   setClipTagFilter: (filter: SongClipTagFilter) => void;
+  clipGroupFilter: SongClipGroupFilter;
+  setClipGroupFilter: (filter: SongClipGroupFilter) => void;
+  clipBookmarkedOnly: boolean;
+  setClipBookmarkedOnly: (value: boolean) => void;
+  clipGroups: ClipGroup[];
   timelineMainTakesOnly: boolean;
   setTimelineMainTakesOnly: (value: boolean) => void;
   projectCustomTags: CustomTagDefinition[];
@@ -25,6 +31,11 @@ export function SongClipFilterMenu({
   clipViewMode,
   clipTagFilter,
   setClipTagFilter,
+  clipGroupFilter,
+  setClipGroupFilter,
+  clipBookmarkedOnly,
+  setClipBookmarkedOnly,
+  clipGroups,
   timelineMainTakesOnly,
   setTimelineMainTakesOnly,
   projectCustomTags,
@@ -38,6 +49,15 @@ export function SongClipFilterMenu({
       setClipTagFilter([...clipTagFilter, key]);
     }
   };
+  const toggleGroup = (groupId: string) => {
+    if (clipGroupFilter.includes(groupId)) {
+      setClipGroupFilter(clipGroupFilter.filter((id) => id !== groupId));
+    } else {
+      setClipGroupFilter([...clipGroupFilter, groupId]);
+    }
+  };
+  const hasActiveFilters =
+    clipTagFilter.length > 0 || clipGroupFilter.length > 0 || clipBookmarkedOnly;
 
   const allOptions: { key: string; label: string }[] = [
     { key: "untagged", label: "Untagged" },
@@ -54,9 +74,13 @@ export function SongClipFilterMenu({
           <Ionicons name="pricetag-outline" size={12} color="#a89994" />
           <Text style={styles.ideasDropdownSectionToggleText}>Tags</Text>
         </View>
-        {clipTagFilter.length > 0 ? (
+        {hasActiveFilters ? (
           <Pressable
-            onPress={() => setClipTagFilter([])}
+            onPress={() => {
+              setClipTagFilter([]);
+              setClipGroupFilter([]);
+              setClipBookmarkedOnly(false);
+            }}
             hitSlop={{ top: 6, bottom: 6, left: 8, right: 8 }}
           >
             <Text style={songClipToolbarStyles.filterClearText}>Clear</Text>
@@ -123,6 +147,70 @@ export function SongClipFilterMenu({
           );
         })}
       </ScrollView>
+
+      <View style={styles.ideasDropdownDivider} />
+      <View style={styles.ideasDropdownSectionToggle}>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
+          <Ionicons name="bookmark-outline" size={12} color="#a89994" />
+          <Text style={styles.ideasDropdownSectionToggleText}>Saved clips</Text>
+        </View>
+      </View>
+      <View style={styles.ideasStageChipsWrap}>
+        <Pressable
+          style={({ pressed }) => [
+            styles.ideasStageChip,
+            clipBookmarkedOnly ? styles.ideasStageChipActive : null,
+            pressed ? styles.pressDown : null,
+          ]}
+          onPress={() => setClipBookmarkedOnly(!clipBookmarkedOnly)}
+        >
+          <Text
+            style={[
+              styles.ideasStageChipText,
+              clipBookmarkedOnly ? styles.ideasStageChipTextActive : null,
+            ]}
+          >
+            Bookmarked only
+          </Text>
+        </Pressable>
+      </View>
+
+      {clipGroups.length > 0 ? (
+        <>
+          <View style={styles.ideasDropdownDivider} />
+          <View style={styles.ideasDropdownSectionToggle}>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
+              <Ionicons name="folder-open-outline" size={12} color="#a89994" />
+              <Text style={styles.ideasDropdownSectionToggleText}>Groups</Text>
+            </View>
+          </View>
+          <View style={styles.ideasStageChipsWrap}>
+            {clipGroups.map((group) => {
+              const active = clipGroupFilter.includes(group.id);
+              return (
+                <Pressable
+                  key={group.id}
+                  style={({ pressed }) => [
+                    styles.ideasStageChip,
+                    active ? styles.ideasStageChipActive : null,
+                    pressed ? styles.pressDown : null,
+                  ]}
+                  onPress={() => toggleGroup(group.id)}
+                >
+                  <Text
+                    style={[
+                      styles.ideasStageChipText,
+                      active ? styles.ideasStageChipTextActive : null,
+                    ]}
+                  >
+                    {group.name}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </>
+      ) : null}
 
       {clipViewMode === "timeline" ? (
         <>

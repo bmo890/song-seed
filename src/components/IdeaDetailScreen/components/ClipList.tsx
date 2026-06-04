@@ -15,6 +15,7 @@ export function ClipList() {
   const inlinePlayer = useInlinePlayer();
   const clipSelectionMode = useStore((s) => s.clipSelectionMode);
   const [expandedLineageIds, setExpandedLineageIds] = useState<Record<string, boolean>>({});
+  const [tagPickerClipId, setTagPickerClipId] = useState<string | null>(null);
   const globalCustomTags = useStore((s) => s.globalCustomClipTags);
   const pendingPrimaryClipId = useStore((s) => s.pendingPrimaryClipId);
   const selectedIdea = screen.selectedIdea ?? null;
@@ -40,6 +41,8 @@ export function ClipList() {
   } = useSongClipListData({
     selectedIdea,
     clipTagFilter: screen.clipTagFilter,
+    clipGroupFilter: screen.clipGroupFilter,
+    clipBookmarkedOnly: screen.clipBookmarkedOnly,
     clipViewMode: screen.clipViewMode,
     timelineSortMetric: screen.timelineSortMetric,
     timelineSortDirection: screen.timelineSortDirection,
@@ -67,6 +70,10 @@ export function ClipList() {
   });
 
   if (!selectedIdea) return null;
+
+  const tagPickerClip = tagPickerClipId
+    ? selectedIdea.clips.find((clip) => clip.id === tagPickerClipId) ?? null
+    : null;
 
   const clipCardContext: ClipCardContextProps = {
     mode: {
@@ -97,7 +104,7 @@ export function ClipList() {
           undo.showUndo(message, nextUndo);
         });
       },
-      onOpenTagPicker: editing.openNotesSheet,
+      onOpenTagPicker: (clip) => setTagPickerClipId(clip.id),
     },
     playback: {
       globalCustomTags,
@@ -122,12 +129,14 @@ export function ClipList() {
         selectedIdea={selectedIdea}
         globalCustomTags={globalCustomTags}
         notesSheetClip={editing.notesSheetClip}
+        tagPickerClip={tagPickerClip}
         editingClipDraft={editing.editingClipDraft}
         editingClipNotesDraft={editing.editingClipNotesDraft}
         setEditingClipDraft={editing.setEditingClipDraft}
         setEditingClipNotesDraft={editing.setEditingClipNotesDraft}
         saveNotesSheet={editing.saveNotesSheet}
         closeNotesSheet={editing.closeNotesSheet}
+        closeTagPicker={() => setTagPickerClipId(null)}
       />
     </>
   );

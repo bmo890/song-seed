@@ -12,7 +12,7 @@ function buildImportedProjectTitle(name?: string) {
 }
 
 export function CollectionModals() {
-  const { screen, management, importFlow, editModal, store } = useCollectionScreen();
+  const { screen, management, importFlow, editModal } = useCollectionScreen();
 
   return (
     <>
@@ -50,9 +50,6 @@ export function CollectionModals() {
             ? `${editModal.editTargetClip.durationMs ? fmtDuration(editModal.editTargetClip.durationMs) : "0:00"} • ${formatDate(editModal.editTargetClip.createdAt)}`
             : ""
         }
-        clip={editModal.editTargetClip}
-        idea={editModal.editTargetIdea?.kind === "clip" ? editModal.editTargetIdea : null}
-        globalCustomTags={store.globalCustomTags}
         titleDraft={editModal.editClipDraft}
         notesDraft={editModal.editClipNotesDraft}
         onChangeTitle={editModal.setEditClipDraft}

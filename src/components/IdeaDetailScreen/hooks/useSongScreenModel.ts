@@ -5,7 +5,7 @@ import { useStore } from "../../../state/useStore";
 import { getFloatingActionDockBottomOffset, getFloatingActionDockContentClearance } from "../../common/FloatingActionDock";
 import type { IdeaStatus } from "../../../types";
 import type { SongTimelineSortDirection, SongTimelineSortMetric } from "../../../clipGraph";
-import type { SongClipTagFilter } from "../songClipControls";
+import type { SongClipGroupFilter, SongClipTagFilter } from "../songClipControls";
 
 export function useSongScreenModel() {
   const insets = useSafeAreaInsets();
@@ -36,6 +36,8 @@ export function useSongScreenModel() {
   const [timelineSortDirection, setTimelineSortDirection] = useState<SongTimelineSortDirection>("desc");
   const [timelineMainTakesOnly, setTimelineMainTakesOnly] = useState(false);
   const [clipTagFilter, setClipTagFilter] = useState<SongClipTagFilter>([]);
+  const [clipGroupFilter, setClipGroupFilter] = useState<SongClipGroupFilter>([]);
+  const [clipBookmarkedOnly, setClipBookmarkedOnly] = useState(false);
   const [songTab, setSongTab] = useState<"takes" | "lyrics" | "notes">("takes");
   const [draftTitle, setDraftTitle] = useState("");
   const [draftStatus, setDraftStatus] = useState<IdeaStatus>("seed");
@@ -74,6 +76,8 @@ export function useSongScreenModel() {
   useEffect(() => {
     setSongTab("takes");
     setClipTagFilter([]);
+    setClipGroupFilter([]);
+    setClipBookmarkedOnly(false);
     setTimelineSortMetric("created");
     setTimelineSortDirection("desc");
     setTimelineMainTakesOnly(false);
@@ -117,6 +121,10 @@ export function useSongScreenModel() {
     setTimelineMainTakesOnly,
     clipTagFilter,
     setClipTagFilter,
+    clipGroupFilter,
+    setClipGroupFilter,
+    clipBookmarkedOnly,
+    setClipBookmarkedOnly,
     songTab,
     setSongTab,
     draftTitle,

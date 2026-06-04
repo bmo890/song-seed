@@ -4,17 +4,12 @@ import { styles } from "../../styles";
 import { TitleInput } from "../common/TitleInput";
 import { Button } from "../common/Button";
 import { BottomSheet, type BottomSheetRef } from "../common/BottomSheet";
-import type { ClipVersion, CustomTagDefinition, SongIdea } from "../../types";
-import { ClipTagEditorFields } from "../IdeaDetailScreen/ClipTagPicker";
 
 type ClipNotesSheetProps = {
   visible: boolean;
   clipSubtitle: string;
   titleDraft: string;
   notesDraft: string;
-  clip?: ClipVersion | null;
-  idea?: SongIdea | null;
-  globalCustomTags?: CustomTagDefinition[];
   onChangeTitle: (text: string) => void;
   onChangeNotes: (text: string) => void;
   onSave: () => void;
@@ -26,9 +21,6 @@ export function ClipNotesSheet({
   clipSubtitle,
   titleDraft,
   notesDraft,
-  clip,
-  idea,
-  globalCustomTags = [],
   onChangeTitle,
   onChangeNotes,
   onSave,
@@ -73,16 +65,6 @@ export function ClipNotesSheet({
           onChangeText={onChangeNotes}
           autoFocus={!notesDraft}
         />
-
-        {clip && idea ? (
-          <View style={styles.clipNotesSheetTagSection}>
-            <ClipTagEditorFields
-              clip={clip}
-              idea={idea}
-              globalCustomTags={globalCustomTags}
-            />
-          </View>
-        ) : null}
 
         <View style={styles.clipNotesSheetButtons}>
           <Button
