@@ -1,7 +1,7 @@
-import { ScrollView } from "react-native";
 import { LyricsVersionsPanel } from "../../LyricsScreen/LyricsVersionsPanel";
 import { styles } from "../styles";
 import { useSongScreen } from "../provider/SongScreenProvider";
+import { CollapsingTabStage } from "../components/CollapsingTabStage";
 
 export function SongLyricsSection() {
   const { screen } = useSongScreen();
@@ -10,15 +10,13 @@ export function SongLyricsSection() {
   }
 
   return (
-    <ScrollView
-      style={styles.songDetailTabScroll}
+    <CollapsingTabStage
       contentContainerStyle={[
         styles.songDetailTabScrollContent,
         { paddingBottom: screen.songPageBaseBottomPadding },
       ]}
-      showsVerticalScrollIndicator={false}
     >
       <LyricsVersionsPanel projectIdea={screen.selectedIdea} />
-    </ScrollView>
+    </CollapsingTabStage>
   );
 }

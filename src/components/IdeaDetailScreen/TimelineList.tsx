@@ -1,5 +1,6 @@
 import React, { ReactNode, useMemo } from "react";
 import { Text, View } from "react-native";
+import { type SharedValue } from "react-native-reanimated";
 import { styles } from "./styles";
 import { buildTimelineListRows, type TimelineClipEntry, type TimelineListRow } from "../../clipGraph";
 import { type ClipCardContextProps } from "./ClipCard";
@@ -13,8 +14,8 @@ type TimelineListProps = {
   footerSpacerHeight: number;
   primaryEntry: TimelineClipEntry | null;
   clipCardContext: ClipCardContextProps;
-  visibleIdeaCount: number;
-  onIdeasStickyChange?: (isSticky: boolean) => void;
+  scrollY?: SharedValue<number>;
+  contentPaddingTop?: number;
 };
 
 export function TimelineList({
@@ -23,8 +24,8 @@ export function TimelineList({
   footerSpacerHeight,
   primaryEntry,
   clipCardContext,
-  visibleIdeaCount,
-  onIdeasStickyChange,
+  scrollY,
+  contentPaddingTop,
 }: TimelineListProps) {
   const { screen } = useSongScreen();
 
@@ -44,9 +45,9 @@ export function TimelineList({
       summaryContent={summaryContent}
       footerSpacerHeight={footerSpacerHeight}
       primaryEntry={primaryEntry}
-      visibleIdeaCount={visibleIdeaCount}
       emptyLabel={primaryEntry ? "No idea clips yet." : "No clips yet."}
-      onIdeasStickyChange={onIdeasStickyChange}
+      scrollY={scrollY}
+      contentPaddingTop={contentPaddingTop}
       contentKeyExtractor={(row, index) => {
         if (row.kind === "clip") return `timeline-clip:${row.entry.clip.id}:${index}`;
         return `day-divider:${row.dayStartTs}`;

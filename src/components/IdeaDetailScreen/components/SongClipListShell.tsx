@@ -1,13 +1,14 @@
-import { useCallback, useEffect, useMemo, useRef, type ReactElement, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, type ReactElement, type ReactNode } from "react";
 import { FlatList, Text, View } from "react-native";
+import Animated, {
+  useAnimatedScrollHandler,
+  type SharedValue,
+} from "react-native-reanimated";
 import { styles } from "../styles";
 import { type TimelineClipEntry } from "../../../clipGraph";
-import { useStickyHeaderScroll } from "../../../hooks/useStickyHeaderScroll";
-import { SongClipListHeader } from "./songClipToolbar/SongClipListHeader";
 
 type ShellRow<T> =
   | { kind: "summary-section" }
-  | { kind: "ideas-header" }
   | { kind: "empty" }
   | { kind: "content"; item: T; index: number };
 
@@ -16,22 +17,28 @@ type SongClipListShellProps<T> = {
   summaryContent?: ReactNode;
   footerSpacerHeight: number;
   primaryEntry: TimelineClipEntry | null;
-  visibleIdeaCount: number;
   emptyLabel: string;
-  onIdeasStickyChange?: (isSticky: boolean) => void;
+  /** Shared scroll offset driven on the UI thread; powers the collapsing header. */
+  scrollY?: SharedValue<number>;
+  /** Top inset reserving space for the absolute collapsing header overlay. */
+  contentPaddingTop?: number;
   /** When set (with a fresh nonce), scroll the content row at `index` into view. */
   scrollTarget?: { index: number; nonce: number } | null;
   contentKeyExtractor: (item: T, index: number) => string;
   renderContentRow: (item: T, index: number) => ReactElement | null;
 };
 
+// Animated.FlatList retains the runtime FlatList behavior; cast keeps generic
+// prop/ref typing usable in JSX.
+const AnimatedFlatList = Animated.FlatList as unknown as typeof FlatList;
+
 export function SongClipListShell<T>({
   contentRows,
   summaryContent,
   footerSpacerHeight,
-  visibleIdeaCount,
   emptyLabel,
-  onIdeasStickyChange,
+  scrollY,
+  contentPaddingTop,
   scrollTarget,
   contentKeyExtractor,
   renderContentRow,
@@ -39,7 +46,6 @@ export function SongClipListShell<T>({
   const listRows = useMemo<ShellRow<T>[]>(() => {
     const rows: ShellRow<T>[] = [];
     if (summaryContent) rows.push({ kind: "summary-section" });
-    rows.push({ kind: "ideas-header" });
     if (contentRows.length === 0) {
       rows.push({ kind: "empty" });
       return rows;
@@ -48,23 +54,25 @@ export function SongClipListShell<T>({
     return rows;
   }, [contentRows, summaryContent]);
 
-  const stickyIdeasIndex = useMemo(() => {
-    let index = 0;
-    if (summaryContent) index += 1;
-    return index;
-  }, [summaryContent]);
+  // Number of non-content rows before the first content row.
+  const leadingRowCount = useMemo(() => (summaryContent ? 1 : 0), [summaryContent]);
 
-  // Number of non-content rows before the first content row (summary? + ideas-header).
-  const leadingRowCount = useMemo(() => (summaryContent ? 1 : 0) + 1, [summaryContent]);
-
-  const summaryHeightRef = useRef(0);
   const listRef = useRef<FlatList<ShellRow<T>>>(null);
 
-  const getSnapY = useCallback(() => summaryHeightRef.current, []);
+  // Reset the shared scroll offset whenever this list instance mounts (e.g. when
+  // switching between Timeline and Evolution views, which swaps the list). The
+  // fresh list starts at offset 0, so the header must start fully expanded.
+  useEffect(() => {
+    if (scrollY) scrollY.value = 0;
+    return () => {
+      if (scrollY) scrollY.value = 0;
+    };
+  }, [scrollY]);
 
-  const { handleScroll, scrollEventThrottle } = useStickyHeaderScroll({
-    onStickyChange: onIdeasStickyChange,
-    getSnapY,
+  const scrollHandler = useAnimatedScrollHandler({
+    onScroll: (event) => {
+      if (scrollY) scrollY.value = event.contentOffset.y;
+    },
   });
 
   // Scroll the targeted content row into view when a fresh locate request arrives.
@@ -79,7 +87,7 @@ export function SongClipListShell<T>({
   }, [scrollTarget?.nonce, contentRows.length, leadingRowCount]);
 
   return (
-    <FlatList
+    <AnimatedFlatList
       ref={listRef}
       data={listRows}
       onScrollToIndexFailed={(info) => {
@@ -91,32 +99,24 @@ export function SongClipListShell<T>({
           });
         }, 250);
       }}
-      stickyHeaderIndices={[stickyIdeasIndex]}
-      onScroll={handleScroll}
-      scrollEventThrottle={scrollEventThrottle}
+      onScroll={scrollHandler}
+      scrollEventThrottle={16}
+      showsVerticalScrollIndicator={false}
       keyExtractor={(row) => {
         if (row.kind === "content") return contentKeyExtractor(row.item, row.index);
         return `${row.kind}`;
       }}
       style={styles.songDetailClipList}
-      contentContainerStyle={styles.songDetailClipListContent}
+      contentContainerStyle={[
+        styles.songDetailClipListContent,
+        contentPaddingTop ? { paddingTop: contentPaddingTop } : null,
+      ]}
       ListFooterComponent={<View style={{ height: footerSpacerHeight }} />}
       renderItem={({ item }) => {
         if (item.kind === "summary-section") {
           return summaryContent ? (
-            <View
-              style={styles.songDetailClipSummarySection}
-              onLayout={(e) => {
-                summaryHeightRef.current = e.nativeEvent.layout.height;
-              }}
-            >
-              {summaryContent}
-            </View>
+            <View style={styles.songDetailClipSummarySection}>{summaryContent}</View>
           ) : null;
-        }
-
-        if (item.kind === "ideas-header") {
-          return <SongClipListHeader visibleIdeaCount={visibleIdeaCount} />;
         }
 
         if (item.kind === "empty") {

@@ -6,7 +6,7 @@ import * as Haptics from "expo-haptics";
 import { styles } from "./styles";
 import { useStore } from "../../state/useStore";
 import { getClipOverdubStemCount, getClipPlaybackDurationMs, hasClipPlaybackSource } from "../../clipPresentation";
-import { fmtDuration, formatDate } from "../../utils";
+import { fmtDuration, formatClipCardDate } from "../../utils";
 import { type EvolutionListClipEntry, type TimelineClipEntry } from "../../clipGraph";
 import { type SongIdea, type ClipVersion, type CustomTagDefinition } from "../../types";
 import { type useInlinePlayer } from "../../hooks/useInlinePlayer";
@@ -153,8 +153,8 @@ export function ClipCard({
   const durationLabel = playbackDurationMs ? fmtDuration(playbackDurationMs) : "0:00";
   const createdAtLabel =
     overdubStemCount > 0
-      ? `${formatDate(clip.createdAt)} • ${overdubStemCount} ${overdubStemCount === 1 ? "layer" : "layers"}`
-      : formatDate(clip.createdAt);
+      ? `${formatClipCardDate(clip.createdAt)} • ${overdubStemCount} ${overdubStemCount === 1 ? "layer" : "layers"}`
+      : formatClipCardDate(clip.createdAt);
   const canToggleInlinePlayback = !clipSelectionMode && !isDraftProject && !isParentPicking;
   const canShowTrailingAction =
     !displayOnly && !clipSelectionMode && !isEditMode && !isDraftProject && !isParentPicking;
@@ -319,19 +319,13 @@ export function ClipCard({
           </>
         }
         bodyContent={
-          <>
+          clip.notes ? (
             <ClipNotesPreview
               notes={clip.notes ?? ""}
               disabled={!!displayOnly}
-              onPress={!displayOnly && clip.notes ? () => onOpenNotesSheet?.(clip) : undefined}
+              onPress={!displayOnly ? () => onOpenNotesSheet?.(clip) : undefined}
             />
-            <ClipTagBadges
-              tags={visibleTagBadges}
-              disabled={!!displayOnly}
-              showAddButton={showAddTagButton}
-              onPress={displayOnly ? undefined : handleTagsPress}
-            />
-          </>
+          ) : undefined
         }
         editContent={
           !displayOnly && editingClipId === clip.id ? (
@@ -346,6 +340,15 @@ export function ClipCard({
           ) : undefined
         }
         footerDate={createdAtLabel}
+        footerRightContent={
+          <ClipTagBadges
+            tags={visibleTagBadges}
+            disabled={!!displayOnly}
+            showAddButton={showAddTagButton}
+            onPress={displayOnly ? undefined : handleTagsPress}
+            containerStyle={styles.clipCardTagsRowFooter}
+          />
+        }
         inlinePlayerContent={
           inlineActive && !displayOnly ? (
             <ClipCardInlinePlayer

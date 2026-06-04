@@ -111,6 +111,25 @@ export const fmtDuration = (ms = 0) => {
 
 export const formatDate = (ts: number) => new Date(ts).toLocaleString();
 
+/**
+ * Compact, calm date for clip cards: "Today" / "Yesterday" for the two most
+ * recent days, then "12 March" within the last year and "12 March 2024" once
+ * it's more than a year old. No time — list order and version numbers already
+ * convey sequence.
+ */
+export const formatClipCardDate = (ts: number) => {
+  const date = new Date(ts);
+  const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  const dayDiff = Math.round((startOfDay(new Date()) - startOfDay(date)) / 86_400_000);
+  if (dayDiff === 0) return "Today";
+  if (dayDiff === 1) return "Yesterday";
+
+  const day = date.getDate();
+  const month = date.toLocaleDateString("en-US", { month: "long" });
+  const overAYearAgo = Date.now() - ts > 365 * 24 * 60 * 60 * 1000;
+  return overAYearAgo ? `${day} ${month} ${date.getFullYear()}` : `${day} ${month}`;
+};
+
 /** @deprecated Use genRootClipTitle / genChildClipTitle instead. */
 export const genClipTitle = (idea: string, v: number) => `${idea} v${v}`;
 

@@ -151,6 +151,14 @@ export function useSongClipListData({
     ]
   );
 
+  // "Ideas" count = number of distinct lineages (each lineage is one idea), not the
+  // number of visible clip rows — so it stays constant when threads expand/collapse
+  // or the view mode changes. Respects active filters via filteredIdeaClips.
+  const ideaLineageCount = useMemo(
+    () => buildClipLineages(filteredIdeaClips).length,
+    [filteredIdeaClips]
+  );
+
   const footerSpacerHeight =
     isProject && !isEditMode && !clipSelectionMode && !isParentPicking
       ? clipListFooterSpacerHeight
@@ -164,7 +172,7 @@ export function useSongClipListData({
     displayPrimaryId,
     primaryEntry,
     visibleClipEntries,
-    visibleIdeaCount: visibleClipEntries.length,
+    visibleIdeaCount: ideaLineageCount,
     footerSpacerHeight,
     isDraftProject: !!selectedIdea?.isDraft,
   };

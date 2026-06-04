@@ -12,6 +12,9 @@ import {
   getTagColor,
 } from "./songClipControls";
 
+const randomTagColor = () =>
+  CUSTOM_TAG_COLOR_OPTIONS[Math.floor(Math.random() * CUSTOM_TAG_COLOR_OPTIONS.length)].bg;
+
 type ClipTagPickerProps = {
   visible: boolean;
   clip: ClipVersion | null;
@@ -32,13 +35,15 @@ export function ClipTagEditorFields({
   globalCustomTags,
 }: ClipTagEditorFieldsProps) {
   const [newTagLabel, setNewTagLabel] = useState("");
-  const [newTagColor, setNewTagColor] = useState(CUSTOM_TAG_COLOR_OPTIONS[0].bg);
+  // Pre-pick a random color so adding a tag is one step (type + add); the swatch
+  // row below lets the user override it before adding if they care.
+  const [newTagColor, setNewTagColor] = useState(randomTagColor);
 
   const activeTags = useMemo(() => new Set(clip?.tags ?? []), [clip?.tags]);
 
   useEffect(() => {
     setNewTagLabel("");
-    setNewTagColor(CUSTOM_TAG_COLOR_OPTIONS[0].bg);
+    setNewTagColor(randomTagColor());
   }, [clip?.id]);
 
   const toggleTag = useCallback(
@@ -78,6 +83,7 @@ export function ClipTagEditorFields({
       useStore.getState().setClipTags(idea.id, clip.id, [...current, key]);
     }
     setNewTagLabel("");
+    setNewTagColor(randomTagColor());
   }, [newTagLabel, newTagColor, clip, idea.id, idea.customTags, globalCustomTags, activeTags, toggleTag]);
 
   const projectCustomTags = idea.customTags ?? [];
@@ -95,16 +101,13 @@ export function ClipTagEditorFields({
               key={tag.key}
               style={[
                 styles.tagPickerChip,
-                { backgroundColor: active ? tag.bg : "#f1f5f9" },
+                active
+                  ? { backgroundColor: tag.bg, borderColor: tag.bg }
+                  : { backgroundColor: "transparent", borderColor: tag.text },
               ]}
               onPress={() => toggleTag(tag.key)}
             >
-              <Text
-                style={[
-                  styles.tagPickerChipText,
-                  { color: active ? tag.text : "#64748b" },
-                ]}
-              >
+              <Text style={[styles.tagPickerChipText, { color: tag.text }]}>
                 {tag.label}
               </Text>
               {active ? (
@@ -127,17 +130,14 @@ export function ClipTagEditorFields({
                   key={tag.key}
                   style={[
                     styles.tagPickerChip,
-                    { backgroundColor: active ? color.bg : "#f1f5f9" },
+                    active
+                      ? { backgroundColor: color.bg, borderColor: color.bg }
+                      : { backgroundColor: "transparent", borderColor: color.text },
                   ]}
                   onPress={() => toggleTag(tag.key)}
                 >
                   <View style={[styles.tagPickerCustomDot, { backgroundColor: color.text }]} />
-                  <Text
-                    style={[
-                      styles.tagPickerChipText,
-                      { color: active ? color.text : "#64748b" },
-                    ]}
-                  >
+                  <Text style={[styles.tagPickerChipText, { color: color.text }]}>
                     {tag.label}
                   </Text>
                   {active ? (
@@ -162,17 +162,14 @@ export function ClipTagEditorFields({
                   key={tag.key}
                   style={[
                     styles.tagPickerChip,
-                    { backgroundColor: active ? color.bg : "#f1f5f9" },
+                    active
+                      ? { backgroundColor: color.bg, borderColor: color.bg }
+                      : { backgroundColor: "transparent", borderColor: color.text },
                   ]}
                   onPress={() => toggleTag(tag.key)}
                 >
                   <View style={[styles.tagPickerCustomDot, { backgroundColor: color.text }]} />
-                  <Text
-                    style={[
-                      styles.tagPickerChipText,
-                      { color: active ? color.text : "#64748b" },
-                    ]}
-                  >
+                  <Text style={[styles.tagPickerChipText, { color: color.text }]}>
                     {tag.label}
                   </Text>
                   {active ? (
@@ -192,7 +189,7 @@ export function ClipTagEditorFields({
         <TextInput
           style={styles.tagPickerAddInput}
           placeholder="Tag name"
-          placeholderTextColor="#94a3b8"
+          placeholderTextColor="#a89994"
           value={newTagLabel}
           onChangeText={setNewTagLabel}
           onSubmitEditing={addCustomTag}
@@ -207,7 +204,7 @@ export function ClipTagEditorFields({
           onPress={addCustomTag}
           disabled={!newTagLabel.trim()}
         >
-          <Ionicons name="add" size={16} color={newTagLabel.trim() ? "#0f172a" : "#94a3b8"} />
+          <Ionicons name="add" size={16} color={newTagLabel.trim() ? "#1b1c1a" : "#a89994"} />
         </Pressable>
       </View>
       <View style={styles.tagPickerColorRow}>

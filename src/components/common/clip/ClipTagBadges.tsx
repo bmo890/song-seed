@@ -1,4 +1,11 @@
-import { Pressable, Text, View, type GestureResponderEvent } from "react-native";
+import {
+  Pressable,
+  Text,
+  View,
+  type GestureResponderEvent,
+  type StyleProp,
+  type ViewStyle,
+} from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { styles } from "../../../styles";
 
@@ -14,6 +21,7 @@ type ClipTagBadgesProps = {
   disabled?: boolean;
   showAddButton?: boolean;
   onPress?: (event: GestureResponderEvent) => void;
+  containerStyle?: StyleProp<ViewStyle>;
 };
 
 export function ClipTagBadges({
@@ -21,6 +29,7 @@ export function ClipTagBadges({
   disabled,
   showAddButton,
   onPress,
+  containerStyle,
 }: ClipTagBadgesProps) {
   if (tags.length === 0 && !showAddButton) {
     return null;
@@ -28,7 +37,7 @@ export function ClipTagBadges({
 
   return (
     <Pressable
-      style={styles.clipCardTagsRow}
+      style={[styles.clipCardTagsRow, containerStyle]}
       onPress={disabled ? undefined : onPress}
       hitSlop={disabled ? undefined : { top: 2, bottom: 2 }}
       disabled={disabled}

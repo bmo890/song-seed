@@ -1,6 +1,7 @@
 import React, { ReactNode, useMemo } from "react";
 import { Pressable, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { type SharedValue } from "react-native-reanimated";
 import { useStore } from "../../state/useStore";
 import { styles } from "./styles";
 import { buildEvolutionListRows, type EvolutionListRow, type TimelineClipEntry } from "../../clipGraph";
@@ -18,8 +19,8 @@ type EvolutionListProps = {
   footerSpacerHeight: number;
   primaryEntry: TimelineClipEntry | null;
   clipCardContext: ClipCardContextProps;
-  visibleIdeaCount: number;
-  onIdeasStickyChange?: (isSticky: boolean) => void;
+  scrollY?: SharedValue<number>;
+  contentPaddingTop?: number;
   /** Clip to scroll into view (with a fresh nonce per locate request). */
   locateTarget?: { clipId: string; nonce: number } | null;
 };
@@ -75,7 +76,9 @@ function EvolutionMoreRow({
         {expanded ? (
           <View style={styles.songDetailThreadSpine} />
         ) : (
-          <View style={styles.songDetailThreadCurve} />
+          // Override height so the L's horizontal stroke lines up with the text.
+          // Row is ~18px; top:-5 + height:16 = bottom at 11px = text centre.
+          <View style={[styles.songDetailThreadCurve, { height: 16 }]} />
         )}
       </View>
       <Pressable
@@ -128,13 +131,13 @@ function EvolutionGroupHeaderRow({
           <Ionicons
             name={row.collapsed ? "chevron-forward" : "chevron-down"}
             size={13}
-            color="#8F7F79"
+            color="#84736f"
           />
           <Text style={styles.songDetailEvolutionGroupTitle}>{row.name}</Text>
         </View>
         <View style={styles.songDetailEvolutionGroupMetaRow}>
           <View style={styles.songDetailEvolutionGroupCount}>
-            <Ionicons name="git-branch-outline" size={12} color="#A59691" />
+            <Ionicons name="git-branch-outline" size={12} color="#a89994" />
             <Text style={styles.songDetailEvolutionGroupMeta}>{row.lineageCount}</Text>
           </View>
           <Text style={styles.songDetailEvolutionGroupMeta}>
@@ -155,8 +158,8 @@ export function EvolutionList({
   footerSpacerHeight,
   primaryEntry,
   clipCardContext,
-  visibleIdeaCount,
-  onIdeasStickyChange,
+  scrollY,
+  contentPaddingTop,
   locateTarget,
 }: EvolutionListProps) {
   const groups = clipCardContext.mode.idea.clipGroups ?? [];
@@ -188,9 +191,9 @@ export function EvolutionList({
       summaryContent={summaryContent}
       footerSpacerHeight={footerSpacerHeight}
       primaryEntry={primaryEntry}
-      visibleIdeaCount={visibleIdeaCount}
       emptyLabel={primaryEntry ? "No idea clips yet." : "No clips yet."}
-      onIdeasStickyChange={onIdeasStickyChange}
+      scrollY={scrollY}
+      contentPaddingTop={contentPaddingTop}
       scrollTarget={scrollTarget}
       contentKeyExtractor={(row, index) => {
         if (row.kind === "collapse-all") return "evolution-collapse-all";
@@ -209,8 +212,8 @@ export function EvolutionList({
                 ]}
                 onPress={() => setExpandedLineageIds({})}
               >
-                <Ionicons name="chevron-collapse-outline" size={13} color="#8F7F79" />
-                <Text style={styles.songDetailEvolutionCollapseAllText}>Collapse all versions</Text>
+                <Ionicons name="chevron-collapse-outline" size={13} color="#84736f" />
+                <Text style={styles.songDetailEvolutionCollapseAllText}>Collapse all</Text>
               </Pressable>
             </View>
           );

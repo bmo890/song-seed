@@ -4,14 +4,16 @@ export const songClipToolbarStyles = StyleSheet.create({
   headerStack: {
     gap: 8,
     overflow: "visible",
-    zIndex: 40,
+    zIndex: 130,
+    elevation: 13,
   },
   controlsRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     position: "relative",
-    zIndex: 40,
+    zIndex: 130,
+    elevation: 13,
     overflow: "visible",
   },
   controlsRight: {

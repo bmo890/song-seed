@@ -805,6 +805,7 @@ export const styles = StyleSheet.create({
     alignItems: "center",
     gap: 6,
     marginTop: 1,
+    marginBottom: 14,
   },
   songDetailProgressStripLabel: {
     fontFamily: "PlusJakartaSans_600SemiBold",
@@ -817,6 +818,7 @@ export const styles = StyleSheet.create({
     fontFamily: "PlusJakartaSans_600SemiBold",
     fontSize: 10,
     color: "#84736f",
+    fontVariant: ["tabular-nums"],
   },
   songDetailSongTabs: {
     flexDirection: "row",
@@ -1624,6 +1626,7 @@ export const styles = StyleSheet.create({
     fontFamily: "PlusJakartaSans_600SemiBold",
     fontSize: 10,
     color: "#a89994",
+    fontVariant: ["tabular-nums"],
   },
   songDetailClipListHeader: {
     gap: 10,
@@ -1635,11 +1638,15 @@ export const styles = StyleSheet.create({
     gap: 8,
   },
   songDetailStickyIdeasHeader: {
-    backgroundColor: "#F4F1ED",
-    paddingTop: 4,
-    paddingBottom: 6,
+    // Pinned toolbar: opaque page tone so content scrolls cleanly beneath it,
+    // separated by a single 0.5pt technical line rather than a filled band + shadow.
+    backgroundColor: "#FDFBF7",
+    paddingTop: 6,
+    paddingBottom: 8,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: "#E8E4DF",
     overflow: "visible" as const,
-    zIndex: 40,
+    zIndex: 120,
   },
   songDetailPrimaryDivider: {
     height: 1,
@@ -1929,6 +1936,12 @@ export const styles = StyleSheet.create({
     flexWrap: "wrap",
     marginTop: 2,
   },
+  // Tags rendered inline on the footer date row: right-aligned, no stacking margin.
+  clipCardTagsRowFooter: {
+    marginTop: 0,
+    justifyContent: "flex-end",
+    flexShrink: 1,
+  },
   clipCardTagBadge: {
     paddingHorizontal: 7,
     paddingVertical: 2,
@@ -1954,9 +1967,11 @@ export const styles = StyleSheet.create({
     paddingBottom: 4,
   },
   tagPickerSectionLabel: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: "#64748b",
+    fontFamily: "PlusJakartaSans_700Bold",
+    fontSize: 10,
+    letterSpacing: 0.8,
+    textTransform: "uppercase",
+    color: "#a89994",
     marginBottom: 8,
     marginTop: 10,
   },
@@ -1972,11 +1987,15 @@ export const styles = StyleSheet.create({
     gap: 4,
     paddingHorizontal: 10,
     paddingVertical: 6,
-    borderRadius: 8,
+    // Match the card tag-badge corner (radii.md). Border is always present so
+    // the outline (unselected) and filled (selected) states are the same size.
+    borderRadius: 6,
+    borderWidth: 1,
   },
   tagPickerChipText: {
-    fontSize: 13,
-    fontWeight: "600",
+    fontFamily: "PlusJakartaSans_700Bold",
+    fontSize: 12,
+    fontWeight: "700",
   },
   tagPickerCustomDot: {
     width: 6,
@@ -1992,22 +2011,22 @@ export const styles = StyleSheet.create({
     flex: 1,
     height: 36,
     borderWidth: 1,
-    borderColor: "#e2e8f0",
-    borderRadius: 8,
+    borderColor: "#E8E4DF",
+    borderRadius: 6,
     paddingHorizontal: 10,
     fontSize: 13,
-    color: "#0f172a",
-    backgroundColor: "#f8fafc",
+    color: "#1b1c1a",
+    backgroundColor: "#F4F1ED",
   },
   tagPickerAddBtn: {
     width: 36,
     height: 36,
-    borderRadius: 8,
+    borderRadius: 6,
     borderWidth: 1,
-    borderColor: "#e2e8f0",
+    borderColor: "#E8E4DF",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#f8fafc",
+    backgroundColor: "#F4F1ED",
   },
   tagPickerAddBtnDisabled: {
     opacity: 0.5,
@@ -2025,7 +2044,7 @@ export const styles = StyleSheet.create({
   },
   tagPickerColorSwatchActive: {
     borderWidth: 2,
-    borderColor: "#0f172a",
+    borderColor: "#524440",
   },
   songDetailVersionNotes: {
     fontSize: 12,
@@ -2048,7 +2067,7 @@ export const styles = StyleSheet.create({
   },
   songDetailEvolutionGuideWrap: {
     position: "relative",
-    width: 26,
+    width: 42,
     flexShrink: 0,
     alignSelf: "stretch",
   },
@@ -2056,17 +2075,17 @@ export const styles = StyleSheet.create({
   // bridge the FlatList row gap so the line reads as one unbroken thread.
   songDetailThreadSpine: {
     position: "absolute",
-    left: 9,
-    top: -6,
-    bottom: -6,
+    left: 25,
+    top: -5,
+    bottom: -5,
     width: 1.5,
     backgroundColor: "#D7C2BD",
   },
   // Curved branch (╰) that peels off the spine and curls into each reply card.
   songDetailThreadCurve: {
     position: "absolute",
-    left: 9,
-    top: -6,
+    left: 25,
+    top: -5,
     width: 13,
     height: 28,
     borderLeftWidth: 1.5,
@@ -2106,7 +2125,7 @@ export const styles = StyleSheet.create({
     backgroundColor: "#C4AFA9",
   },
   songDetailEvolutionMoreGuide: {
-    width: 26,
+    width: 42,
     alignSelf: "stretch",
     position: "relative",
     flexShrink: 0,
@@ -2116,7 +2135,7 @@ export const styles = StyleSheet.create({
     top: 0,
     bottom: 0,
     width: 1,
-    left: 9,
+    left: 25,
     backgroundColor: "#D7C2BD",
   },
   songDetailEvolutionExpandRow: {
@@ -2124,7 +2143,7 @@ export const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    paddingVertical: 6,
+    paddingVertical: 2,
   },
   songDetailEvolutionExpandText: {
     fontFamily: "PlusJakartaSans_600SemiBold",
@@ -2144,10 +2163,9 @@ export const styles = StyleSheet.create({
     justifyContent: "space-between",
     gap: 8,
     minHeight: 24,
-    borderRadius: 12,
-    backgroundColor: "#F5EFEA",
-    borderWidth: 1,
-    borderColor: "#E5D6D0",
+    // Sharp corners + tonal layering instead of a bubbly 12px radius + 1px border.
+    borderRadius: 6,
+    backgroundColor: "#EDE9E4",
     paddingHorizontal: 10,
     paddingVertical: 7,
   },
@@ -2161,12 +2179,13 @@ export const styles = StyleSheet.create({
   songDetailEvolutionGroupTitle: {
     fontFamily: "PlusJakartaSans_700Bold",
     fontSize: 12,
-    color: "#5E4F49",
+    color: "#524440",
   },
   songDetailEvolutionGroupMeta: {
     fontFamily: "PlusJakartaSans_500Medium",
     fontSize: 11,
-    color: "#A59691",
+    color: "#a89994",
+    fontVariant: ["tabular-nums"],
   },
   songDetailEvolutionGroupMetaRow: {
     flexDirection: "row",
@@ -2185,20 +2204,17 @@ export const styles = StyleSheet.create({
     paddingBottom: 6,
   },
   songDetailEvolutionCollapseAllButton: {
+    // Quiet contextual text action — no bordered/filled pill.
     flexDirection: "row",
     alignItems: "center",
     gap: 5,
-    borderRadius: 999,
-    backgroundColor: "#F7F2EE",
-    borderWidth: 1,
-    borderColor: "#E7DAD4",
-    paddingHorizontal: 10,
+    paddingHorizontal: 6,
     paddingVertical: 6,
   },
   songDetailEvolutionCollapseAllText: {
     fontFamily: "PlusJakartaSans_600SemiBold",
     fontSize: 11,
-    color: "#8F7F79",
+    color: "#84736f",
   },
   songDetailEvolutionExpandSep: {
     fontFamily: "PlusJakartaSans_400Regular",
@@ -4900,7 +4916,7 @@ export const styles = StyleSheet.create({
   songDetailClipListContent: {
     paddingTop: 0,
     paddingBottom: 0,
-    gap: 6,
+    gap: 7,
   },
   selectionText: { fontSize: 13, color: "#374151", fontWeight: "600" },
   selectionDock: {
@@ -5228,16 +5244,17 @@ export const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
     borderStyle: "solid",
-    borderColor: "rgba(215,194,189,0.25)",
-    paddingVertical: 10,
+    // Lighter border + tighter, quieter shadow so cards feel less imposing.
+    borderColor: "rgba(215,194,189,0.18)",
+    paddingVertical: 8,
     paddingHorizontal: 11,
     position: "relative",
     shadowColor: "#3D3732",
-    shadowOpacity: 0.04,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 8,
+    shadowOpacity: 0.03,
+    shadowOffset: { width: 0, height: 1 },
+    shadowRadius: 4,
     elevation: 1,
-    minHeight: 68,
+    minHeight: 60,
   },
   ideasListCardCompact: {
     borderRadius: 10,
@@ -5946,7 +5963,8 @@ export const styles = StyleSheet.create({
   },
   bottomSheetBackdrop: {
     flex: 1,
-    backgroundColor: "rgba(17,24,39,0.25)",
+    // Warm charcoal scrim instead of cold slate.
+    backgroundColor: "rgba(27,28,26,0.35)",
     justifyContent: "flex-end",
   },
   bottomSheetOverlay: {
@@ -5956,11 +5974,18 @@ export const styles = StyleSheet.create({
     borderBottomLeftRadius: 0,
     borderBottomRightRadius: 0,
     paddingTop: 0,
-    borderTopLeftRadius: 22,
-    borderTopRightRadius: 22,
+    borderTopLeftRadius: 18,
+    borderTopRightRadius: 18,
+    // No hard border — soft ambient lift instead (Nocturne Paper).
+    borderWidth: 0,
     paddingHorizontal: 16,
     marginHorizontal: 0,
     marginBottom: 0,
+    shadowColor: "#3D3732",
+    shadowOpacity: 0.1,
+    shadowOffset: { width: 0, height: -3 },
+    shadowRadius: 18,
+    elevation: 16,
   },
   bottomSheetDragZone: {
     paddingTop: 10,
@@ -5971,7 +5996,8 @@ export const styles = StyleSheet.create({
     width: 42,
     height: 4,
     borderRadius: 999,
-    backgroundColor: "#cbd5e1",
+    // Warm muted handle.
+    backgroundColor: "#D7C2BD",
     marginBottom: 4,
   },
   clipActionsTitleBlock: {

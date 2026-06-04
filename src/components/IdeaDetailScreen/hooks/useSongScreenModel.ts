@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useIsFocused, useNavigation, useRoute } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useSharedValue } from "react-native-reanimated";
 import { useStore } from "../../../state/useStore";
 import { getFloatingActionDockBottomOffset, getFloatingActionDockContentClearance } from "../../common/FloatingActionDock";
 import type { IdeaStatus } from "../../../types";
@@ -42,7 +43,13 @@ export function useSongScreenModel() {
   const [draftTitle, setDraftTitle] = useState("");
   const [draftStatus, setDraftStatus] = useState<IdeaStatus>("seed");
   const [draftCompletion, setDraftCompletion] = useState(0);
-  const [isIdeasSticky, setIsIdeasSticky] = useState(false);
+  // Continuous scroll offset of the active tab's scroll view, shared with the
+  // collapsing header overlay. Driven on the UI thread by the animated scroll
+  // handler. `collapsibleHeaderHeight` is the measured height of the part of the
+  // header that scrolls away (title + tabs + primary strip) — the translate clamp
+  // and the nav compact-title fade both key off it.
+  const scrollY = useSharedValue(0);
+  const collapsibleHeaderHeight = useSharedValue(0);
   const [selectionDockHeight, setSelectionDockHeight] = useState(120);
   const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -81,13 +88,15 @@ export function useSongScreenModel() {
     setTimelineSortMetric("created");
     setTimelineSortDirection("desc");
     setTimelineMainTakesOnly(false);
-  }, [selectedIdea?.id]);
+    scrollY.value = 0;
+  }, [selectedIdea?.id, scrollY]);
 
   useEffect(() => {
+    // Leaving the Takes tab re-expands the header (no list to scroll there).
     if (songTab !== "takes") {
-      setIsIdeasSticky(false);
+      scrollY.value = 0;
     }
-  }, [songTab]);
+  }, [songTab, scrollY]);
 
   useEffect(() => {
     return () => {
@@ -133,8 +142,8 @@ export function useSongScreenModel() {
     setDraftStatus,
     draftCompletion,
     setDraftCompletion,
-    isIdeasSticky,
-    setIsIdeasSticky,
+    scrollY,
+    collapsibleHeaderHeight,
     selectionDockHeight,
     setSelectionDockHeight,
     floatingBaseBottom,

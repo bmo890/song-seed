@@ -1,12 +1,17 @@
-import { useEffect, useMemo, useState } from "react";
+import { useState } from "react";
 import { View, Text, Pressable, Alert } from "react-native";
-import Animated, { useSharedValue, useAnimatedStyle, withTiming, interpolate } from "react-native-reanimated";
+import Animated, {
+  Extrapolation,
+  interpolate,
+  useAnimatedStyle,
+} from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { styles } from "../styles";
 import { appActions } from "../../../state/actions";
 import { TitleInput } from "../../common/TitleInput";
 import { useSongScreen } from "../provider/SongScreenProvider";
+import { COMPACT_TITLE_FADE_IN_END, COMPACT_TITLE_FADE_IN_START } from "../headerCollapse";
 
 export function IdeaHeader() {
   const [headerMenuOpen, setHeaderMenuOpen] = useState(false);
@@ -17,22 +22,27 @@ export function IdeaHeader() {
   if (!selectedIdea) return null;
 
   const isEditMode = screen.isEditMode;
-  const compactTitleMode = screen.songTab === "takes" && screen.isIdeasSticky;
   const playAllDisabled = !screen.isProject || actions.buildProjectQueue().length === 0;
   const isNewProjectDraft = selectedIdea.isDraft;
   const titleLabel = selectedIdea.kind === "project" ? "Song" : "Clip";
   const isProject = selectedIdea.kind === "project";
-  const showCompactTitle = compactTitleMode && !isEditMode;
+  const scrollY = screen.scrollY;
+  const collapsibleHeaderHeight = screen.collapsibleHeaderHeight;
 
-  const progress = useSharedValue(showCompactTitle ? 1 : 0);
-
-  useEffect(() => {
-    progress.value = withTiming(showCompactTitle ? 1 : 0, { duration: 180 });
-  }, [progress, showCompactTitle]);
-
-  const compactTitleAnimStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(progress.value, [0.4, 1], [0, 1]),
-  }));
+  // Compact title fades in as the large title (top of the overlay) slides up and
+  // out — keyed to a fixed px window matching the title-block height so neither
+  // title is ever missing during the transition.
+  const compactTitleAnimStyle = useAnimatedStyle(() => {
+    if (isEditMode || collapsibleHeaderHeight.value <= 0) return { opacity: 0 };
+    return {
+      opacity: interpolate(
+        scrollY.value,
+        [COMPACT_TITLE_FADE_IN_START, COMPACT_TITLE_FADE_IN_END],
+        [0, 1],
+        Extrapolation.CLAMP
+      ),
+    };
+  });
 
   return (
     <View style={styles.songDetailHeader}>
@@ -53,11 +63,11 @@ export function IdeaHeader() {
           <Ionicons name="chevron-back" size={24} color="#524440" />
         </Pressable>
 
-        {/* Center: empty spacer in default mode; compact title when sticky */}
+        {/* Center: empty spacer in default mode; compact title fades in on scroll */}
         <View style={{ flex: 1, minWidth: 0 }}>
           <Animated.View
             style={[styles.songDetailCompactTitleWrap, compactTitleAnimStyle]}
-            pointerEvents={showCompactTitle ? "auto" : "none"}
+            pointerEvents="none"
           >
             <Text style={styles.songDetailNavCompactTitle} numberOfLines={1}>
               {selectedIdea.title}
@@ -105,52 +115,21 @@ export function IdeaHeader() {
         )}
       </View>
 
-      {/* Title block — hidden in compact mode */}
-      {!showCompactTitle ? (
-      <View style={styles.songDetailTitleBlock}>
-        {isEditMode ? (
-          <>
-            <Text style={styles.songDetailTypeLabel}>Editing {titleLabel}</Text>
-            <TitleInput
-              value={screen.draftTitle}
-              onChangeText={screen.setDraftTitle}
-              placeholder={`${isProject ? "Song" : "Clip"} title`}
-              containerStyle={styles.songDetailTitleInputWrap}
-              minHeight={40}
-              maxHeight={92}
-              showGenerator={false}
-            />
-          </>
-        ) : (
-          <>
-            <Text style={styles.songDetailTypeEyebrow}>{titleLabel}</Text>
-            <Text style={styles.songDetailPageTitleLarge}>
-              {selectedIdea.title}
-            </Text>
-            {isProject ? (
-              <View style={styles.songDetailProgressStrip}>
-                <Text style={styles.songDetailProgressStripLabel}>Progress</Text>
-                <Text style={styles.songDetailProgressStripPercent}>
-                  {selectedIdea.completionPct}%
-                </Text>
-                <Text
-                  style={
-                    selectedIdea.status === "song"
-                      ? [styles.badge, styles.statusSong, styles.statusSongText]
-                      : selectedIdea.status === "semi"
-                        ? [styles.badge, styles.statusSemi, styles.statusSemiText]
-                        : selectedIdea.status === "sprout"
-                          ? [styles.badge, styles.statusSprout, styles.statusSproutText]
-                          : [styles.badge, styles.statusSeed, styles.statusSeedText]
-                  }
-                >
-                  {selectedIdea.status === "song" ? "SONG" : selectedIdea.status.toUpperCase()}
-                </Text>
-              </View>
-            ) : null}
-          </>
-        )}
-      </View>
+      {/* Edit-mode title input stays fixed under the nav. In view mode the title
+          block lives in the collapsing overlay (SongCollapsibleHeader). */}
+      {isEditMode ? (
+        <View style={styles.songDetailTitleBlock}>
+          <Text style={styles.songDetailTypeLabel}>Editing {titleLabel}</Text>
+          <TitleInput
+            value={screen.draftTitle}
+            onChangeText={screen.setDraftTitle}
+            placeholder={`${isProject ? "Song" : "Clip"} title`}
+            containerStyle={styles.songDetailTitleInputWrap}
+            minHeight={40}
+            maxHeight={92}
+            showGenerator={false}
+          />
+        </View>
       ) : null}
 
       {/* Overflow menu */}

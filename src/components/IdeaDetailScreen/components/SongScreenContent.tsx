@@ -10,7 +10,6 @@ import { SongTakesSection } from "../sections/SongTakesSection";
 import { styles } from "../styles";
 import { useSongScreen } from "../provider/SongScreenProvider";
 import { SelectionBars } from "./SelectionBars";
-import { SongTabs } from "./SongTabs";
 import { SongClipboardBanner } from "./SongClipboardBanner";
 import { SongImportModal } from "./SongImportModal";
 import { SongParentPickBanner } from "./SongParentPickBanner";
@@ -51,7 +50,6 @@ export function SongScreenContent() {
       <SongHeaderSection />
       <SongClipboardBanner />
       {parentPicking.parentPickState ? <SongParentPickBanner /> : <SelectionBars />}
-      <SongTabs />
       <SongLyricsSection />
       <SongNotesSection />
       <SongTakesSection />

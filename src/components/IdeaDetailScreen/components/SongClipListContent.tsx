@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { View } from "react-native";
-import { styles } from "../styles";
 import { useStore } from "../../../state/useStore";
 import { type ClipCardContextProps } from "../ClipCard";
 import { EvolutionList } from "../EvolutionList";
@@ -9,6 +8,9 @@ import { PrimaryTakeStrip } from "../PrimaryTakeStrip";
 import { useSongScreen } from "../provider/SongScreenProvider";
 import { getLineageRootId, type TimelineClipEntry } from "../../../clipGraph";
 import { SongClipListSummary } from "./SongClipListSummary";
+import { SongClipListHeader } from "./songClipToolbar/SongClipListHeader";
+import { CollapsingHeaderOverlay } from "./CollapsingHeaderOverlay";
+import { SongCollapsibleHeader } from "./SongCollapsibleHeader";
 
 type SongClipListContentProps = {
   filteredIdeaClips: TimelineClipEntry["clip"][];
@@ -19,6 +21,9 @@ type SongClipListContentProps = {
   expandedLineageIds: Record<string, boolean>;
   setExpandedLineageIds: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
 };
+
+// Reasonable first-paint estimate for the header height; corrected on measure.
+const DEFAULT_HEADER_HEIGHT = 220;
 
 export function SongClipListContent({
   filteredIdeaClips,
@@ -32,6 +37,7 @@ export function SongClipListContent({
   const { screen, actions } = useSongScreen();
   const markRecentlyAdded = useStore((s) => s.markRecentlyAdded);
   const [locateTarget, setLocateTarget] = useState<{ clipId: string; nonce: number } | null>(null);
+  const [headerHeight, setHeaderHeight] = useState(DEFAULT_HEADER_HEIGHT);
 
   const summaryContent = <SongClipListSummary />;
 
@@ -76,8 +82,8 @@ export function SongClipListContent({
         footerSpacerHeight={footerSpacerHeight}
         primaryEntry={primaryEntry}
         clipCardContext={timelineClipCardContext}
-        visibleIdeaCount={visibleIdeaCount}
-        onIdeasStickyChange={screen.setIsIdeasSticky}
+        scrollY={screen.scrollY}
+        contentPaddingTop={headerHeight}
       />
     ) : (
       <EvolutionList
@@ -95,18 +101,30 @@ export function SongClipListContent({
             onViewLineageHistory: actions.openLineageHistory,
           },
         }}
-        visibleIdeaCount={visibleIdeaCount}
-        onIdeasStickyChange={screen.setIsIdeasSticky}
+        scrollY={screen.scrollY}
+        contentPaddingTop={headerHeight}
         locateTarget={locateTarget}
       />
     );
 
   return (
-    <View style={styles.songDetailListWithStrip}>
-      {primaryEntry ? (
-        <PrimaryTakeStrip entry={primaryEntry} onLocate={onLocatePrimary} />
-      ) : null}
+    <View style={{ flex: 1, overflow: "hidden" }}>
       {body}
+      <CollapsingHeaderOverlay
+        scrollY={screen.scrollY}
+        collapsibleHeight={screen.collapsibleHeaderHeight}
+        onHeaderHeight={setHeaderHeight}
+        collapsible={
+          <SongCollapsibleHeader
+            extra={
+              primaryEntry ? (
+                <PrimaryTakeStrip entry={primaryEntry} onLocate={onLocatePrimary} />
+              ) : null
+            }
+          />
+        }
+        pinned={<SongClipListHeader visibleIdeaCount={visibleIdeaCount} />}
+      />
     </View>
   );
 }

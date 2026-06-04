@@ -1,7 +1,8 @@
-import { ScrollView, View } from "react-native";
+import { View } from "react-native";
 import { styles } from "../styles";
 import { IdeaNotes } from "../IdeaNotes";
 import { useSongScreen } from "../provider/SongScreenProvider";
+import { CollapsingTabStage } from "../components/CollapsingTabStage";
 
 export function SongNotesSection() {
   const { screen } = useSongScreen();
@@ -10,13 +11,11 @@ export function SongNotesSection() {
   }
 
   return (
-    <ScrollView
-      style={styles.songDetailTabScroll}
+    <CollapsingTabStage
       contentContainerStyle={[
         styles.songDetailTabScrollContent,
         { paddingBottom: screen.songPageBaseBottomPadding },
       ]}
-      showsVerticalScrollIndicator={false}
     >
       <View style={styles.songDetailTabPanelWrap}>
         <IdeaNotes
@@ -26,6 +25,6 @@ export function SongNotesSection() {
           cardStyle={styles.songDetailTabPanelCard}
         />
       </View>
-    </ScrollView>
+    </CollapsingTabStage>
   );
 }
