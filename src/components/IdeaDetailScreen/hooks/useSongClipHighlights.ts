@@ -46,14 +46,17 @@ export function useSongClipHighlights(
       animatedValue.setValue(0);
 
       Animated.sequence([
+        // Fast fade-in so the highlight is visible immediately.
         Animated.timing(animatedValue, {
           toValue: 0.9,
           duration: 180,
           useNativeDriver: true,
         }),
+        // Hold at full brightness for a moment, then fade out slowly.
+        Animated.delay(400),
         Animated.timing(animatedValue, {
           toValue: 0,
-          duration: 900,
+          duration: 1400,
           useNativeDriver: true,
         }),
       ]).start(() => {

@@ -2201,7 +2201,23 @@ export const styles = StyleSheet.create({
   songDetailEvolutionCollapseAllRow: {
     flexDirection: "row",
     justifyContent: "flex-end",
-    paddingBottom: 6,
+    paddingTop: 2,
+    paddingBottom: 4,
+  },
+  // Chip style for the collapse-all button when the header is fully collapsed —
+  // matches the sort / filter utility chips in the toolbar so it reads as a
+  // clear, tappable control rather than a whispered text action.
+  songDetailCollapseAllChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    minHeight: 34,
+    borderRadius: 17,
+    borderWidth: 1,
+    borderColor: "rgba(215,194,189,0.5)",
+    backgroundColor: "#FDFBF7",
+    paddingHorizontal: 10,
+    paddingVertical: 8,
   },
   songDetailEvolutionCollapseAllButton: {
     // Quiet contextual text action — no bordered/filled pill.

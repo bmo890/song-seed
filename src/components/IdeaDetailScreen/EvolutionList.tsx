@@ -25,9 +25,7 @@ type EvolutionListProps = {
   locateTarget?: { clipId: string; nonce: number } | null;
 };
 
-type EvolutionContentRow =
-  | { kind: "collapse-all" }
-  | EvolutionListRow;
+type EvolutionContentRow = EvolutionListRow;
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -164,17 +162,18 @@ export function EvolutionList({
 }: EvolutionListProps) {
   const groups = clipCardContext.mode.idea.clipGroups ?? [];
   const groupAssignments = clipCardContext.mode.idea.clipGroupAssignments ?? {};
-  const hasExpandedLineages = Object.values(expandedLineageIds).some(Boolean);
-  const contentRows = useMemo<EvolutionContentRow[]>(() => {
-    const rows = buildEvolutionListRows(
+  // "Collapse all" is lifted out of the FlatList into the sticky pinned overlay
+  // so it stays visible when the header is collapsed — not rendered here.
+  const contentRows = useMemo<EvolutionContentRow[]>(() =>
+    buildEvolutionListRows(
       clips,
       expandedLineageIds,
       direction,
       groups,
       groupAssignments
-    );
-    return hasExpandedLineages ? [{ kind: "collapse-all" }, ...rows] : rows;
-  }, [clips, direction, expandedLineageIds, groupAssignments, groups, hasExpandedLineages]);
+    ),
+    [clips, direction, expandedLineageIds, groupAssignments, groups]
+  );
 
   const scrollTarget = useMemo(() => {
     if (!locateTarget) return null;
@@ -196,29 +195,11 @@ export function EvolutionList({
       contentPaddingTop={contentPaddingTop}
       scrollTarget={scrollTarget}
       contentKeyExtractor={(row, index) => {
-        if (row.kind === "collapse-all") return "evolution-collapse-all";
         if (row.kind === "clip") return `evolution-clip:${row.entry.clip.id}:${index}`;
         if (row.kind === "group") return `evolution-group:${row.groupId}`;
         return `evolution-more:${row.lineageRootId}`;
       }}
       renderContentRow={(row) => {
-        if (row.kind === "collapse-all") {
-          return (
-            <View style={styles.songDetailEvolutionCollapseAllRow}>
-              <Pressable
-                style={({ pressed }) => [
-                  styles.songDetailEvolutionCollapseAllButton,
-                  pressed ? styles.pressDown : null,
-                ]}
-                onPress={() => setExpandedLineageIds({})}
-              >
-                <Ionicons name="chevron-collapse-outline" size={13} color="#84736f" />
-                <Text style={styles.songDetailEvolutionCollapseAllText}>Collapse all</Text>
-              </Pressable>
-            </View>
-          );
-        }
-
         if (row.kind === "group") {
           return <EvolutionGroupHeaderRow row={row} />;
         }

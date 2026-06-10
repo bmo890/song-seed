@@ -1,5 +1,8 @@
 import { useState } from "react";
-import { View } from "react-native";
+import { Pressable, Text, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { useAnimatedReaction, runOnJS } from "react-native-reanimated";
+import { styles } from "../styles";
 import { useStore } from "../../../state/useStore";
 import { type ClipCardContextProps } from "../ClipCard";
 import { EvolutionList } from "../EvolutionList";
@@ -39,11 +42,40 @@ export function SongClipListContent({
   const [locateTarget, setLocateTarget] = useState<{ clipId: string; nonce: number } | null>(null);
   const [headerHeight, setHeaderHeight] = useState(DEFAULT_HEADER_HEIGHT);
 
+  // Derived collapse state — drives the collapse-all button style.
+  const [isHeaderCollapsed, setIsHeaderCollapsed] = useState(false);
+  useAnimatedReaction(
+    () => {
+      const h = screen.collapsibleHeaderHeight.value;
+      return h > 0 && screen.scrollY.value >= h - 2;
+    },
+    (collapsed, prev) => {
+      if (collapsed !== prev) runOnJS(setIsHeaderCollapsed)(collapsed);
+    }
+  );
+
   const summaryContent = <SongClipListSummary />;
 
   const expandLineageForClip = (clipId: string) => {
     const rootId = getLineageRootId(filteredIdeaClips, clipId);
-    if (rootId) setExpandedLineageIds((prev) => ({ ...prev, [rootId]: true }));
+    if (!rootId) return rootId;
+
+    // Expand the version thread.
+    setExpandedLineageIds((prev) => ({ ...prev, [rootId]: true }));
+
+    // If the lineage root is inside a collapsed group, un-collapse that group
+    // first so the FlatList can actually scroll to the clip.
+    const idea = screen.selectedIdea;
+    if (idea) {
+      const groupId = idea.clipGroupAssignments?.[rootId];
+      if (groupId) {
+        const group = idea.clipGroups?.find((g) => g.id === groupId);
+        if (group?.collapsed) {
+          useStore.getState().setClipGroupCollapsed(idea.id, groupId, false);
+        }
+      }
+    }
+
     return rootId;
   };
 
@@ -52,8 +84,13 @@ export function SongClipListContent({
   const focusClipInEvolution = (clipId: string) => {
     screen.setClipViewMode("evolution");
     expandLineageForClip(clipId);
-    markRecentlyAdded([clipId]);
     setLocateTarget({ clipId, nonce: Date.now() });
+    // Defer the highlight until after the expansion + view switch have committed.
+    // If called synchronously, the clip's Animated.Value may not exist yet (it's
+    // inside a collapsed lineage that only becomes visible after expansion renders),
+    // causing the hook to bail silently. 120ms matches the FlatList scroll delay
+    // and gives React a full render cycle to allocate the value first.
+    setTimeout(() => markRecentlyAdded([clipId]), 120);
   };
 
   const onLocatePrimary = () => {
@@ -123,7 +160,28 @@ export function SongClipListContent({
             }
           />
         }
-        pinned={<SongClipListHeader visibleIdeaCount={visibleIdeaCount} />}
+        pinned={
+          <>
+            <SongClipListHeader visibleIdeaCount={visibleIdeaCount} />
+            {screen.clipViewMode === "evolution" &&
+            Object.values(expandedLineageIds).some(Boolean) ? (
+              <View style={styles.songDetailEvolutionCollapseAllRow}>
+                <Pressable
+                  style={({ pressed }) => [
+                    isHeaderCollapsed
+                      ? styles.songDetailCollapseAllChip
+                      : styles.songDetailEvolutionCollapseAllButton,
+                    pressed ? styles.pressDown : null,
+                  ]}
+                  onPress={() => setExpandedLineageIds({})}
+                >
+                  <Ionicons name="chevron-collapse-outline" size={13} color="#84736f" />
+                  <Text style={styles.songDetailEvolutionCollapseAllText}>Collapse all</Text>
+                </Pressable>
+              </View>
+            ) : null}
+          </>
+        }
       />
     </View>
   );

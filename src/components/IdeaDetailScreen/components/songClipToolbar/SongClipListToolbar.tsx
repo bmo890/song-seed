@@ -1,5 +1,6 @@
+import { useState } from "react";
 import { View } from "react-native";
-import { styles } from "../../styles";
+import { useAnimatedReaction, runOnJS } from "react-native-reanimated";
 import { useSongScreen } from "../../provider/SongScreenProvider";
 import { SongClipListSectionLabel } from "./SongClipListSectionLabel";
 import { SongClipToolbarControls } from "./SongClipToolbarControls";
@@ -14,14 +15,29 @@ export function SongClipListToolbar({
 }: SongClipListToolbarProps) {
   const { screen, store } = useSongScreen();
   const selectedIdea = screen.selectedIdea;
+
+  // Hide the "IDEAS N" label once the collapsible header has fully slid away.
+  const [isCollapsed, setIsCollapsed] = useState(false);
+  useAnimatedReaction(
+    () => {
+      const h = screen.collapsibleHeaderHeight.value;
+      return h > 0 && screen.scrollY.value >= h - 2;
+    },
+    (collapsed, prev) => {
+      if (collapsed !== prev) runOnJS(setIsCollapsed)(collapsed);
+    }
+  );
+
   if (!selectedIdea || store.clipSelectionMode) return null;
 
   return (
     <View style={songClipToolbarStyles.headerStack}>
-      <SongClipListSectionLabel
-        title={selectedIdea.kind === "project" ? "Ideas" : "Replies"}
-        count={visibleIdeaCount}
-      />
+      {!isCollapsed ? (
+        <SongClipListSectionLabel
+          title={selectedIdea.kind === "project" ? "Ideas" : "Replies"}
+          count={visibleIdeaCount}
+        />
+      ) : null}
 
       {selectedIdea.kind === "project" ? (
         <SongClipToolbarControls
