@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Alert } from "react-native";
+import { AppAlert } from "../../common/AppAlert";
 import { appActions } from "../../../state/actions";
 import type { Collection, Workspace } from "../../../types";
 import { buildCollectionMoveDestinations, getCollectionDeleteScope } from "../../../collectionManagement";
@@ -72,7 +72,7 @@ export function useCollectionManagement({
     if (!managedCollection) return;
     setCollectionActionsOpen(false);
     if (moveDestinations.length === 0) {
-      Alert.alert(
+      AppAlert.info(
         "No move targets",
         managedCollectionHasChildren
           ? "This collection already has subcollections, so it can only stay at the top level."
@@ -87,7 +87,7 @@ export function useCollectionManagement({
     if (!managedCollection) return;
     setCollectionActionsOpen(false);
     if (moveDestinations.length === 0) {
-      Alert.alert(
+      AppAlert.info(
         "No copy targets",
         managedCollectionHasChildren
           ? "This collection already has subcollections, so it can only be copied to the top level."
@@ -102,20 +102,14 @@ export function useCollectionManagement({
     if (!activeWorkspace || !managedCollection) return;
     const { childCollectionCount, itemCount } = getCollectionDeleteScope(activeWorkspace, managedCollection.id);
     setCollectionActionsOpen(false);
-    Alert.alert(
+    AppAlert.destructive(
       "Delete collection?",
       `${managedCollection.title} will be removed${childCollectionCount > 0 ? ` along with ${childCollectionCount} subcollection${childCollectionCount === 1 ? "" : "s"}` : ""} and ${itemCount} item${itemCount === 1 ? "" : "s"}.`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: () => {
-            deleteCollection(managedCollection.id);
-            setManagedCollectionId(null);
-          },
-        },
-      ]
+      () => {
+        deleteCollection(managedCollection.id);
+        setManagedCollectionId(null);
+      },
+      { confirmLabel: "Delete" }
     );
   };
 
@@ -127,7 +121,7 @@ export function useCollectionManagement({
         : moveCollection(managedCollection.id, selectedMoveWorkspaceId, selectedMoveParentCollectionId);
 
     if (!result.ok) {
-      Alert.alert(
+      AppAlert.info(
         collectionDestinationMode === "copy" ? "Copy failed" : "Move failed",
         result.error ??
           `Could not ${collectionDestinationMode === "copy" ? "copy" : "move"} this collection.`

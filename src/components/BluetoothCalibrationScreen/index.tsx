@@ -3,7 +3,6 @@ import { useAudioPlayer } from "expo-audio";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   Pressable,
   SafeAreaView,
   ScrollView,
@@ -13,6 +12,8 @@ import {
 } from "react-native";
 import { audioDeviceManager, type AudioDevice } from "@siteed/audio-studio";
 import { PageIntro } from "../common/PageIntro";
+import { AppAlert } from "../common/AppAlert";
+import { actionIcons } from "../common/actionIcons";
 import { ScreenHeader } from "../common/ScreenHeader";
 import { styles as globalStyles } from "../../styles";
 import { useStore } from "../../state/useStore";
@@ -371,27 +372,21 @@ export function BluetoothCalibrationScreen() {
       return;
     }
     setCalibration(editableRouteKey, editableRouteLabel, estimatedOffsetMs);
-    Alert.alert("Calibration saved", `Bluetooth monitoring delay set to ${estimatedOffsetMs} ms for ${editableRouteLabel}.`);
+    AppAlert.info("Calibration saved", `Bluetooth monitoring delay set to ${estimatedOffsetMs} ms for ${editableRouteLabel}.`);
     navigation.goBack();
   }
 
   function handleRemoveCalibration(routeKeyToRemove: string, routeLabelToRemove: string) {
-    Alert.alert(
+    AppAlert.destructive(
       "Remove calibration?",
       `Delete the saved Bluetooth monitoring calibration for ${routeLabelToRemove}?`,
-      [
-        { text: "Keep", style: "cancel" },
-        {
-          text: "Remove",
-          style: "destructive",
-          onPress: () => {
-            removeCalibration(routeKeyToRemove);
-            if (routeKeyToRemove === editableRouteKey) {
-              setEstimatedOffsetMs(null);
-            }
-          },
-        },
-      ]
+      () => {
+        removeCalibration(routeKeyToRemove);
+        if (routeKeyToRemove === editableRouteKey) {
+          setEstimatedOffsetMs(null);
+        }
+      },
+      { confirmLabel: "Remove", cancelLabel: "Keep", icon: actionIcons.remove }
     );
   }
 

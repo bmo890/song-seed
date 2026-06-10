@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Alert } from "react-native";
+import { AppAlert } from "../../common/AppAlert";
 import * as Clipboard from "expo-clipboard";
 import {
     formatBackupTimestamp,
@@ -58,17 +58,18 @@ export function useLibraryBackupFlow() {
             const backupFileName = `${result.archiveTitle}.zip`;
             setLastSuccessfulBackupAt(Date.now());
             setLastSuccessfulBackupFileName(backupFileName);
-            Alert.alert(
+            AppAlert.custom(
                 "Backup ready",
                 `Saved ${backupFileName} to the folder you selected.`,
                 [
                     {
-                        text: "Copy Name",
+                        label: "Copy Name",
+                        style: "default",
                         onPress: () => {
                             void Clipboard.setStringAsync(backupFileName);
                         },
                     },
-                    { text: "OK" },
+                    { label: "OK", style: "default" },
                 ]
             );
             return true;
@@ -79,7 +80,7 @@ export function useLibraryBackupFlow() {
 
             const message =
                 error instanceof Error ? error.message : "The library backup could not be completed.";
-            Alert.alert("Backup failed", message);
+            AppAlert.info("Backup failed", message);
             return false;
         } finally {
             setIsBackingUp(false);
@@ -101,7 +102,7 @@ export function useLibraryBackupFlow() {
             }
 
             await Clipboard.setStringAsync(lastSuccessfulBackupFileName);
-            Alert.alert("Copied", "Backup file name copied to clipboard.");
+            AppAlert.info("Copied", "Backup file name copied to clipboard.");
             return true;
         },
     };

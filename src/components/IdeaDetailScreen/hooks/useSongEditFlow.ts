@@ -1,5 +1,6 @@
 import { useCallback, useEffect } from "react";
-import { Alert } from "react-native";
+import { AppAlert } from "../../common/AppAlert";
+import { actionIcons } from "../../common/actionIcons";
 import { useStore } from "../../../state/useStore";
 import { appActions } from "../../../state/actions";
 import { buildDefaultIdeaTitle, ensureUniqueIdeaTitle } from "../../../utils";
@@ -99,23 +100,17 @@ export function useSongEditFlow({
       return;
     }
 
-    Alert.alert(
+    AppAlert.destructive(
       isDraft ? "Remove song without saving?" : "Discard changes?",
       isDraft ? "You haven't saved this new song. Remove it entirely?" : "You have unsaved edits. Discard them?",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: isDraft ? "Yes, remove" : "Yes, discard",
-          style: "destructive",
-          onPress: () => {
-            setIsEditMode(false);
-            if (isDraft) {
-              appActions.deleteSelectedIdea(true);
-            }
-            onDiscardAction?.();
-          },
-        },
-      ]
+      () => {
+        setIsEditMode(false);
+        if (isDraft) {
+          appActions.deleteSelectedIdea(true);
+        }
+        onDiscardAction?.();
+      },
+      { confirmLabel: isDraft ? "Yes, remove" : "Yes, discard", icon: actionIcons.discard }
     );
   }, [hasChanges, selectedIdea?.isDraft, setIsEditMode]);
 

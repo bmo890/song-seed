@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Alert } from "react-native";
+import { AppAlert } from "../../../components/common/AppAlert";
 import { StackActions } from "@react-navigation/native";
 import { trimAudio, type AudioAnalysis } from "@siteed/audio-studio";
 import { loadManagedAudioMetadata } from "../../../services/audioStorage";
@@ -164,7 +164,7 @@ export function useEditorExportFlow({
     const removeCount = removeRegions.length;
 
     if (keepCount === 0 && removeCount === 0) {
-      Alert.alert("No Edits", "Please add some active regions before exporting.");
+      AppAlert.info("No Edits", "Please add some active regions before exporting.");
       return;
     }
 
@@ -192,7 +192,7 @@ export function useEditorExportFlow({
 
   const openTransformExportModal = () => {
     if (!hasActiveTransforms) {
-      Alert.alert("No Transform", "Adjust pitch or speed first, then save the transformed clip.");
+      AppAlert.info("No Transform", "Adjust pitch or speed first, then save the transformed clip.");
       return;
     }
 
@@ -469,7 +469,7 @@ export function useEditorExportFlow({
       const newClipIds = commitExportedClips(exportedClips);
       finishExport(newClipIds);
     } catch {
-      Alert.alert("Export Error", "Failed to extract clips.");
+      AppAlert.info("Export Error", "Failed to extract clips.");
     } finally {
       setIsExporting(false);
     }
@@ -509,7 +509,7 @@ export function useEditorExportFlow({
 
       finishExport(newClipIds);
     } catch {
-      Alert.alert("Export Error", "Failed to splice clip.");
+      AppAlert.info("Export Error", "Failed to splice clip.");
     } finally {
       setIsExporting(false);
     }
@@ -549,7 +549,7 @@ export function useEditorExportFlow({
       setTransformExportModalVisible(false);
       finishExport(newClipIds);
     } catch (error) {
-      Alert.alert(
+      AppAlert.info(
         "Transform Save Error",
         error instanceof Error ? error.message : "Failed to save transformed clip."
       );

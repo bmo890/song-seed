@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Alert } from "react-native";
+import { AppAlert } from "../../common/AppAlert";
 import {
     buildLibraryImportPreview,
     pickSongSeedArchiveFile,
@@ -41,7 +41,7 @@ export function useLibraryImportFlow() {
         } catch (error) {
             const message =
                 error instanceof Error ? error.message : "Could not read this Song Seed Archive.";
-            Alert.alert("Import failed", message);
+            AppAlert.info("Import failed", message);
             return false;
         } finally {
             setIsPicking(false);
@@ -56,7 +56,7 @@ export function useLibraryImportFlow() {
         setIsImporting(true);
         try {
             const result = await appActions.importLibraryArchiveIntoLibrary(parsedArchive);
-            Alert.alert(
+            AppAlert.info(
                 result.warnings.length > 0 ? "Import finished with warnings" : "Import complete",
                 result.warnings.length > 0
                     ? result.warnings.slice(0, 6).join("\n")
@@ -68,7 +68,7 @@ export function useLibraryImportFlow() {
         } catch (error) {
             const message =
                 error instanceof Error ? error.message : "The archive could not be imported.";
-            Alert.alert("Import failed", message);
+            AppAlert.info("Import failed", message);
             return false;
         } finally {
             setIsImporting(false);

@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  Alert,
   Clipboard,
   Keyboard,
   type NativeSyntheticEvent,
@@ -8,6 +7,8 @@ import {
   type TextInputScrollEventData,
   View,
 } from "react-native";
+import { AppAlert } from "../../common/AppAlert";
+import { actionIcons } from "../../common/actionIcons";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
@@ -91,17 +92,10 @@ export function useLyricsVersionScreenModel() {
     const unsubscribe = navigation.addListener("beforeRemove", (event: any) => {
       if (bypassUnsavedGuardRef.current || !hasUnsavedChanges) return;
       event.preventDefault();
-      Alert.alert("Discard changes?", "You have unsaved lyric edits. Discard them?", [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Discard",
-          style: "destructive",
-          onPress: () => {
-            bypassUnsavedGuardRef.current = true;
-            navigation.dispatch(event.data.action);
-          },
-        },
-      ]);
+      AppAlert.destructive("Discard changes?", "You have unsaved lyric edits. Discard them?", () => {
+        bypassUnsavedGuardRef.current = true;
+        navigation.dispatch(event.data.action);
+      }, { confirmLabel: "Discard", icon: actionIcons.discard });
     });
     return unsubscribe;
   }, [hasUnsavedChanges, navigation]);
@@ -196,7 +190,7 @@ export function useLyricsVersionScreenModel() {
     const textToCopy = isEditMode ? draftText : sourceText;
     Clipboard.setString(textToCopy);
     void Haptics.selectionAsync();
-    Alert.alert("Copied", "Lyrics text copied to your clipboard.");
+    AppAlert.info("Copied", "Lyrics text copied to your clipboard.");
   };
 
   const revertDraft = () => {
@@ -216,14 +210,7 @@ export function useLyricsVersionScreenModel() {
       revertDraft();
       return;
     }
-    Alert.alert("Discard changes?", "You have unsaved lyric edits. Discard them?", [
-      { text: "Keep editing", style: "cancel" },
-      {
-        text: "Discard",
-        style: "destructive",
-        onPress: revertDraft,
-      },
-    ]);
+    AppAlert.destructive("Discard changes?", "You have unsaved lyric edits. Discard them?", revertDraft, { confirmLabel: "Discard", cancelLabel: "Keep editing", icon: actionIcons.discard });
   };
 
   const renderScrollIndicator = (viewportHeight: number, contentHeight: number, scrollY: number) => {

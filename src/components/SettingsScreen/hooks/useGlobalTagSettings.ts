@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Alert } from "react-native";
+import { AppAlert } from "../../common/AppAlert";
+import { actionIcons } from "../../common/actionIcons";
 import { useStore } from "../../../state/useStore";
 import { CUSTOM_TAG_COLOR_OPTIONS } from "../../IdeaDetailScreen/songClipControls";
 
@@ -20,14 +21,7 @@ export function useGlobalTagSettings() {
   };
 
   const removeTag = (key: string, label: string) => {
-    Alert.alert("Remove tag?", `Remove "${label}" from global tags?`, [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Remove",
-        style: "destructive",
-        onPress: () => removeGlobalCustomClipTag(key),
-      },
-    ]);
+    AppAlert.destructive("Remove tag?", `Remove "${label}" from global tags?`, () => removeGlobalCustomClipTag(key), { confirmLabel: "Remove", icon: actionIcons.remove });
   };
 
   return {

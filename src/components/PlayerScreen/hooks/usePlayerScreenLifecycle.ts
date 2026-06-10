@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef } from "react";
-import { Alert } from "react-native";
+import { AppAlert } from "../../common/AppAlert";
+import { actionIcons } from "../../common/actionIcons";
 import { StackActions } from "@react-navigation/native";
 import { clipHasOverdubs, getClipPlaybackUri } from "../../../clipPresentation";
 import { MANAGED_WAVEFORM_PEAK_COUNT, loadManagedAudioMetadata, shareAudioFile } from "../../../services/audioStorage";
@@ -335,13 +336,17 @@ export function usePlayerScreenLifecycle({
       });
     };
 
-    Alert.alert("Player options", playerClip?.title, [
+    AppAlert.custom("Player options", playerClip?.title ?? undefined, [
       {
-        text: "Minimize player",
+        label: "Minimize player",
+        style: "default",
+        icon: "chevron-down-outline",
         onPress: minimizePlayer,
       },
       {
-        text: "Add overdub",
+        label: "Add overdub",
+        style: "default",
+        icon: actionIcons.record,
         onPress: async () => {
           if (!playerIdea || !playerClip) return;
           if (isPlayerPlaying) {
@@ -353,14 +358,16 @@ export function usePlayerScreenLifecycle({
           } catch (error) {
             const message =
               error instanceof Error ? error.message : "Could not start overdub recording.";
-            Alert.alert("Overdub unavailable", message);
+            AppAlert.info("Overdub unavailable", message);
           }
         },
       },
       ...(hasOverdubs
         ? [
             {
-              text: "Save combined as new clip",
+              label: "Save combined as new clip",
+              style: "default" as const,
+              icon: actionIcons.add,
               onPress: async () => {
                 if (!playerIdea || !playerClip) return;
                 if (isPlayerPlaying) {
@@ -372,30 +379,34 @@ export function usePlayerScreenLifecycle({
                     navigation.goBack();
                     return;
                   }
-                  Alert.alert("Combined clip saved", "The flattened mix was added as a new clip.");
+                  AppAlert.info("Combined clip saved", "The flattened mix was added as a new clip.");
                 } catch (error) {
                   const message =
                     error instanceof Error ? error.message : "Could not save a combined clip.";
-                  Alert.alert("Save combined failed", message);
+                  AppAlert.info("Save combined failed", message);
                 }
               },
             },
             {
-              text: "Save combined and edit",
+              label: "Save combined and edit",
+              style: "default" as const,
+              icon: actionIcons.edit,
               onPress: async () => {
                 try {
                   await openFlattenedEditor();
                 } catch (error) {
                   const message =
                     error instanceof Error ? error.message : "Could not open the combined clip.";
-                  Alert.alert("Save combined failed", message);
+                  AppAlert.info("Save combined failed", message);
                 }
               },
             },
           ]
         : [
             {
-              text: "Edit clip",
+              label: "Edit clip",
+              style: "default" as const,
+              icon: actionIcons.edit,
               onPress: async () => {
                 if (!playerIdea || !playerClip) return;
                 if (isPlayerPlaying) {
@@ -411,7 +422,9 @@ export function usePlayerScreenLifecycle({
             },
           ]),
       {
-        text: "Share audio",
+        label: "Share audio",
+        style: "default",
+        icon: actionIcons.share,
         onPress: async () => {
           const playbackUri = playerClip ? getClipPlaybackUri(playerClip) : null;
           if (!playbackUri) return;
@@ -421,11 +434,11 @@ export function usePlayerScreenLifecycle({
           } catch (error) {
             console.warn("Share audio error", error);
             const message = error instanceof Error ? error.message : "Could not share this audio file.";
-            Alert.alert("Share failed", message);
+            AppAlert.info("Share failed", message);
           }
         },
       },
-      { text: "Cancel", style: "cancel" },
+      { label: "Cancel", style: "cancel" },
     ]);
   }, [displayDuration, isPlayerPlaying, minimizePlayer, navigation, pausePlayer, playerClip, playerIdea]);
 

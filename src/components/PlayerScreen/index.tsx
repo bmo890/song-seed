@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo } from "react";
-import { Alert, Text, View } from "react-native";
+import { Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar as ExpoStatusBar } from "expo-status-bar";
 import { useIsFocused, useNavigation } from "@react-navigation/native";
@@ -27,6 +27,7 @@ import { PlayerSupportSections } from "./components/PlayerSupportSections";
 import { PlayerPinSheets } from "./components/PlayerPinSheets";
 import { playerScreenStyles } from "./styles";
 import { getVisibleTimelineRange } from "./helpers";
+import { AppAlert } from "../common/AppAlert";
 
 const PRACTICE_SPEED_PRESETS = [0.5, 0.75, 1, 1.25, 1.5] as const;
 const PRACTICE_SPEED_MIN = 0.5;
@@ -308,7 +309,7 @@ export function PlayerScreen() {
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Could not start overdub recording.";
-      Alert.alert("Overdub unavailable", message);
+      AppAlert.info("Overdub unavailable", message);
     }
   }, [navigation, playerClip, playerIdea]);
   const handleSaveCombined = useCallback(async () => {
@@ -322,10 +323,10 @@ export function PlayerScreen() {
         navigation.goBack();
         return;
       }
-      Alert.alert("Combined clip saved", "The flattened mix was added as a new clip.");
+      AppAlert.info("Combined clip saved", "The flattened mix was added as a new clip.");
     } catch (error) {
       const message = error instanceof Error ? error.message : "Could not save a combined clip.";
-      Alert.alert("Save combined failed", message);
+      AppAlert.info("Save combined failed", message);
     }
   }, [effectiveIsPlaying, navigation, playerClip, playerIdea, practicePitchTransport]);
   const handleAdjustRootGain = useCallback(
@@ -333,7 +334,7 @@ export function PlayerScreen() {
       if (!playerIdea || !playerClip) return;
       void appActions.adjustClipOverdubRootGain(playerIdea.id, playerClip.id, deltaDb).catch((error) => {
         const message = error instanceof Error ? error.message : "Could not update the root mix gain.";
-        Alert.alert("Layer update failed", message);
+        AppAlert.info("Layer update failed", message);
       });
     },
     [playerClip, playerIdea]
@@ -342,7 +343,7 @@ export function PlayerScreen() {
     if (!playerIdea || !playerClip) return;
     void appActions.toggleClipOverdubRootLowCut(playerIdea.id, playerClip.id).catch((error) => {
       const message = error instanceof Error ? error.message : "Could not update the root mix tone.";
-      Alert.alert("Layer update failed", message);
+      AppAlert.info("Layer update failed", message);
     });
   }, [playerClip, playerIdea]);
   const handleAdjustStemGain = useCallback(
@@ -350,7 +351,7 @@ export function PlayerScreen() {
       if (!playerIdea || !playerClip) return;
       void appActions.adjustClipOverdubStemGain(playerIdea.id, playerClip.id, stemId, deltaDb).catch((error) => {
         const message = error instanceof Error ? error.message : "Could not update the overdub gain.";
-        Alert.alert("Layer update failed", message);
+        AppAlert.info("Layer update failed", message);
       });
     },
     [playerClip, playerIdea]
@@ -360,7 +361,7 @@ export function PlayerScreen() {
       if (!playerIdea || !playerClip) return;
       void appActions.toggleClipOverdubStemMute(playerIdea.id, playerClip.id, stemId).catch((error) => {
         const message = error instanceof Error ? error.message : "Could not update the overdub mute state.";
-        Alert.alert("Layer update failed", message);
+        AppAlert.info("Layer update failed", message);
       });
     },
     [playerClip, playerIdea]
@@ -370,7 +371,7 @@ export function PlayerScreen() {
       if (!playerIdea || !playerClip) return;
       void appActions.toggleClipOverdubStemLowCut(playerIdea.id, playerClip.id, stemId).catch((error) => {
         const message = error instanceof Error ? error.message : "Could not update the overdub tone.";
-        Alert.alert("Layer update failed", message);
+        AppAlert.info("Layer update failed", message);
       });
     },
     [playerClip, playerIdea]
@@ -380,7 +381,7 @@ export function PlayerScreen() {
       if (!playerIdea || !playerClip) return;
       void appActions.removeClipOverdubStem(playerIdea.id, playerClip.id, stemId).catch((error) => {
         const message = error instanceof Error ? error.message : "Could not remove the overdub stem.";
-        Alert.alert("Layer update failed", message);
+        AppAlert.info("Layer update failed", message);
       });
     },
     [playerClip, playerIdea]

@@ -1,8 +1,9 @@
 import { useNavigation } from "@react-navigation/native";
 import { useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
 import { audioDeviceManager, type AudioDevice } from "@siteed/audio-studio";
-import { Alert } from "react-native";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { AppAlert } from "../../common/AppAlert";
+import { actionIcons } from "../../common/actionIcons";
 import {
   buildBluetoothMonitoringRouteKey,
   getBluetoothMonitoringCalibrationForRoute,
@@ -340,19 +341,13 @@ export function useRecordingScreenModel() {
       return;
     }
 
-    Alert.alert(
+    AppAlert.destructive(
       "Discard recording?",
       "This recording has not been saved yet. If you leave now, it will be deleted.",
-      [
-        { text: "Keep recording", style: "cancel" },
-        {
-          text: "Discard",
-          style: "destructive",
-          onPress: () => {
-            cancelRecording().then(() => navigation.goBack());
-          },
-        },
-      ]
+      () => {
+        cancelRecording().then(() => navigation.goBack());
+      },
+      { confirmLabel: "Discard", cancelLabel: "Keep recording", icon: actionIcons.discard }
     );
   }
 
@@ -385,19 +380,13 @@ export function useRecordingScreenModel() {
 
   function handleQuickNameCancel() {
     if (recordingOverdubClip && overdubReviewLocked) {
-      Alert.alert(
+      AppAlert.destructive(
         "Review overdub",
         "This overdub already reached the end of the guide. You can save it now or discard it and record again.",
-        [
-          { text: "Keep take", style: "cancel" },
-          {
-            text: "Redo overdub",
-            style: "destructive",
-            onPress: () => {
-              void redoOverdubRecording();
-            },
-          },
-        ]
+        () => {
+          void redoOverdubRecording();
+        },
+        { confirmLabel: "Redo overdub", cancelLabel: "Keep take", icon: actionIcons.restore }
       );
       return;
     }

@@ -8,7 +8,8 @@ import {
   type SampleRate,
 } from "@siteed/audio-studio";
 import * as FileSystem from "expo-file-system/legacy";
-import { Alert, Linking } from "react-native";
+import { Linking } from "react-native";
+import { AppAlert } from "../components/common/AppAlert";
 import { metersToWaveformPeaks } from "../utils";
 import {
   activateRecordingAudioSession,
@@ -168,23 +169,24 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
       return true;
     }
 
-    Alert.alert(
-      "Microphone access needed",
-      permission?.canAskAgain === false
-        ? "Song Seed does not currently have microphone access. Enable it in system settings to record."
-        : "Song Seed needs microphone access to start recording.",
-      permission?.canAskAgain === false
-        ? [
-            { text: "Cancel", style: "cancel" },
-            {
-              text: "Open Settings",
-              onPress: () => {
-                void Linking.openSettings();
-              },
+    if (permission?.canAskAgain === false) {
+      AppAlert.custom(
+        "Microphone access needed",
+        "Song Seed does not currently have microphone access. Enable it in system settings to record.",
+        [
+          { label: "Cancel", style: "cancel" },
+          {
+            label: "Open Settings",
+            style: "default",
+            onPress: () => {
+              void Linking.openSettings();
             },
-          ]
-        : [{ text: "OK", style: "default" }]
-    );
+          },
+        ]
+      );
+    } else {
+      AppAlert.info("Microphone access needed", "Song Seed needs microphone access to start recording.");
+    }
 
     return false;
   }
@@ -285,7 +287,7 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
         console.warn("Recording audio session release after prepare failure failed", error);
       });
       console.warn("Recording prepare failed", err);
-      Alert.alert("Recording failed", "Could not prepare recording.");
+      AppAlert.info("Recording failed", "Could not prepare recording.");
       return false;
     }
   }
@@ -327,7 +329,7 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
         console.warn("Recording audio session release after start failure failed", error);
       });
       console.warn("Recording start failed", err);
-      Alert.alert("Recording failed", "Could not start recording.");
+      AppAlert.info("Recording failed", "Could not start recording.");
     }
   }
 
@@ -356,7 +358,7 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
         console.warn("Recording audio session release after prepared start failure failed", error);
       });
       console.warn("Prepared recording start failed", err);
-      Alert.alert("Recording failed", "Could not start recording.");
+      AppAlert.info("Recording failed", "Could not start recording.");
       return false;
     }
   }
@@ -384,7 +386,7 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
     try {
       await recorder.pauseRecording();
     } catch {
-      Alert.alert("Pause failed", "Could not pause recording.");
+      AppAlert.info("Pause failed", "Could not pause recording.");
     }
   }
 
@@ -396,7 +398,7 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
       await claimRecordingAudioSession();
       await recorder.resumeRecording();
     } catch {
-      Alert.alert("Resume failed", "Could not continue recording.");
+      AppAlert.info("Resume failed", "Could not continue recording.");
     }
   }
 
@@ -410,7 +412,7 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
       recordingStartedAtRef.current = null;
       resetLiveWaveform();
       if (!recordingData || !recordingData.fileUri) {
-        Alert.alert("Recording failed", "No audio file was generated.");
+        AppAlert.info("Recording failed", "No audio file was generated.");
         return false;
       }
 
@@ -450,7 +452,7 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
       if (recorderTempUriToCleanup) {
         await FileSystem.deleteAsync(recorderTempUriToCleanup, { idempotent: true }).catch(() => {});
       }
-      Alert.alert("Recording failed", "Could not save recording.");
+      AppAlert.info("Recording failed", "Could not save recording.");
       return false;
     } finally {
       await releaseRecordingAudioSession().catch((error) => {

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Alert } from "react-native";
+import { AppAlert } from "../../common/AppAlert";
 import type { Collection, Workspace } from "../../../types";
 import { appActions } from "../../../state/actions";
 import { buildCollectionMoveDestinations, getCollectionDeleteScope } from "../../../collectionManagement";
@@ -116,7 +116,7 @@ export function useWorkspaceCollectionSelection({
   const openCollectionDestination = (mode: "move" | "copy", collectionIds: string[]) => {
     if (collectionIds.length === 0) return;
     if (moveDestinations.length === 0) {
-      Alert.alert(
+      AppAlert.info(
         mode === "copy" ? "No copy targets" : "No move targets",
         "There are no valid collection destinations available right now."
       );
@@ -143,7 +143,7 @@ export function useWorkspaceCollectionSelection({
           : appActions.copyCollection(collectionId, selectedMoveWorkspaceId, selectedMoveParentCollectionId);
 
       if (!result.ok) {
-        Alert.alert(
+        AppAlert.info(
           collectionDestinationMode === "move" ? "Move failed" : "Copy failed",
           result.error ?? `Could not ${collectionDestinationMode} this collection.`
         );
@@ -171,23 +171,17 @@ export function useWorkspaceCollectionSelection({
       { childCollectionCount: 0, itemCount: 0 }
     );
 
-    Alert.alert(
+    AppAlert.destructive(
       "Delete collections?",
       `${collapsedSelectedCollectionIds.length} collection${collapsedSelectedCollectionIds.length === 1 ? "" : "s"} will be removed${scope.childCollectionCount > 0 ? ` along with ${scope.childCollectionCount} subcollection${scope.childCollectionCount === 1 ? "" : "s"}` : ""} and ${scope.itemCount} item${scope.itemCount === 1 ? "" : "s"}.`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: () => {
-            for (const collectionId of collapsedSelectedCollectionIds) {
-              deleteCollection(collectionId);
-            }
-            setSelectedCollectionIds([]);
-            setSelectionMoreVisible(false);
-          },
-        },
-      ]
+      () => {
+        for (const collectionId of collapsedSelectedCollectionIds) {
+          deleteCollection(collectionId);
+        }
+        setSelectedCollectionIds([]);
+        setSelectionMoreVisible(false);
+      },
+      { confirmLabel: "Delete" }
     );
   };
 

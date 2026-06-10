@@ -16,7 +16,6 @@ import { ClipCardEvolutionGuide } from "./components/clipCard/ClipCardEvolutionG
 import { ClipCardInlinePlayer } from "./components/clipCard/ClipCardInlinePlayer";
 import { ClipCardPrimaryIndicator } from "./components/clipCard/ClipCardPrimaryIndicator";
 import { ClipCardReplyButton } from "./components/clipCard/ClipCardReplyButton";
-import { ClipCardSelectionRail } from "./components/clipCard/ClipCardSelectionRail";
 import { ClipNotesPreview } from "../common/clip/ClipNotesPreview";
 import { ClipTagBadges } from "../common/clip/ClipTagBadges";
 import { IdeaCard } from "../common/IdeaCard";
@@ -239,9 +238,6 @@ export function ClipCard({
 
   return (
     <View style={styles.songDetailClipRowWrap}>
-      {!displayOnly ? (
-        <ClipCardSelectionRail visible={clipSelectionMode} selected={isSelected} />
-      ) : null}
       <ClipCardEvolutionGuide entry={entry.kind === "evolution" ? entry : null} />
 
       <IdeaCard

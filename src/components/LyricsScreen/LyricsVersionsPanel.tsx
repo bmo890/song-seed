@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Alert, Pressable, Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 import * as Haptics from "expo-haptics";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
@@ -9,6 +9,7 @@ import { appActions } from "../../state/actions";
 import { getLatestLyricsVersion, lyricsDocumentToText } from "../../lyrics";
 import { formatDate } from "../../utils";
 import { Button } from "../common/Button";
+import { AppAlert } from "../common/AppAlert";
 
 type LyricsVersionsPanelProps = {
   projectIdea: SongIdea;
@@ -79,17 +80,10 @@ export function LyricsVersionsPanel({ projectIdea }: LyricsVersionsPanelProps) {
           ? "Delete the selected lyrics versions? The next newest remaining version will become current."
           : "Delete the selected lyrics versions?";
 
-    Alert.alert("Delete lyrics versions?", message, [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Delete",
-        style: "destructive",
-        onPress: () => {
-          appActions.deleteProjectLyricsVersions(projectIdea.id, selectedVersionIds);
-          setSelectedVersionIds([]);
-        },
-      },
-    ]);
+    AppAlert.destructive("Delete lyrics versions?", message, () => {
+      appActions.deleteProjectLyricsVersions(projectIdea.id, selectedVersionIds);
+      setSelectedVersionIds([]);
+    }, { confirmLabel: "Delete" });
   }
 
   return (

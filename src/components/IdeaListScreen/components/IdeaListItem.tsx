@@ -207,13 +207,6 @@ export function IdeaListItem({
                 ]}
             >
                 <View style={styles.clipRowWrap}>
-                    {showSelectionIndicator ? (
-                        <View style={styles.selectionIndicatorCol} pointerEvents="none">
-                            <View style={[styles.selectionIndicatorCircle, isSelected ? styles.selectionIndicatorActive : null]}>
-                                {isSelected ? <Text style={styles.selectionBadgeText}>✓</Text> : null}
-                            </View>
-                        </View>
-                    ) : null}
                     <Pressable
                         style={({ pressed }) => [
                             styles.clipRowCard,
@@ -297,13 +290,6 @@ export function IdeaListItem({
                     }}
                     style={styles.listRowWrap}
                 >
-                    {showSelectionIndicator ? (
-                        <View style={styles.selectionIndicatorCol} pointerEvents="none">
-                            <View style={[styles.selectionIndicatorCircle, isSelected ? styles.selectionIndicatorActive : null]}>
-                                {isSelected ? <Text style={styles.selectionBadgeText}>✓</Text> : null}
-                            </View>
-                        </View>
-                    ) : null}
                     <View style={styles.cardFlex}>
                         <IdeaCard
                             selected={isSelected || isActive}

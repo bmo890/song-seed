@@ -1,5 +1,5 @@
-import { Alert } from "react-native";
 import type { ImportedAudioAsset } from "./services/audioStorage";
+import { AppAlert } from "./components/common/AppAlert";
 
 export type ImportDatePreference = "source" | "import";
 
@@ -126,17 +126,19 @@ export async function promptForImportDatePreference(
         : `Original file dates are available for ${summary.availableCount} of ${summary.totalCount} files.\nEarliest original file date: ${summary.previewLabel}\nFiles without one will use import date.`;
 
   return new Promise((resolve) => {
-    Alert.alert(title, message, [
+    AppAlert.custom(title, message, [
       {
-        text: "Use original file date",
+        label: "Use original file date",
+        style: "default",
         onPress: () => resolve("source"),
       },
       {
-        text: "Use import date",
+        label: "Use import date",
+        style: "default",
         onPress: () => resolve("import"),
       },
       {
-        text: "Cancel",
+        label: "Cancel",
         style: "cancel",
         onPress: () => resolve(null),
       },

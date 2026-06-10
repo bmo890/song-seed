@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { View, Text, Pressable, Alert } from "react-native";
+import { View, Text, Pressable } from "react-native";
 import Animated, {
   Extrapolation,
   interpolate,
@@ -12,6 +12,7 @@ import { appActions } from "../../../state/actions";
 import { TitleInput } from "../../common/TitleInput";
 import { useSongScreen } from "../provider/SongScreenProvider";
 import { COMPACT_TITLE_FADE_IN_END, COMPACT_TITLE_FADE_IN_START } from "../headerCollapse";
+import { AppAlert } from "../../common/AppAlert";
 
 export function IdeaHeader() {
   const [headerMenuOpen, setHeaderMenuOpen] = useState(false);
@@ -196,22 +197,16 @@ export function IdeaHeader() {
                   style={({ pressed }) => [styles.ideasToggleRow, pressed ? styles.pressDown : null]}
                   onPress={() => {
                     setHeaderMenuOpen(false);
-                    Alert.alert(
+                    AppAlert.destructive(
                       isProject ? "Delete song?" : "Delete clip?",
                       isProject
                         ? `Delete "${selectedIdea.title}" and all its clips?`
                         : `Delete "${selectedIdea.title}"?`,
-                      [
-                        { text: "Cancel", style: "cancel" },
-                        {
-                          text: "Delete",
-                          style: "destructive",
-                          onPress: () => {
-                            appActions.deleteSelectedIdea();
-                            screen.navigation.goBack();
-                          },
-                        },
-                      ]
+                      () => {
+                        appActions.deleteSelectedIdea();
+                        screen.navigation.goBack();
+                      },
+                      { confirmLabel: "Delete" }
                     );
                   }}
                 >

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Alert } from "react-native";
+import { AppAlert } from "../../common/AppAlert";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { useStore } from "../../../state/useStore";
 import { useInlinePlayer } from "../../../hooks/useInlinePlayer";
@@ -266,7 +266,7 @@ export function useActivityScreenModel() {
     if (item.ideaKind === "clip") {
       const clip = getPlayableClipForItem(item);
       if (!clip) {
-        Alert.alert("Nothing to open", "This clip does not have playable audio yet.");
+        AppAlert.info("Nothing to open", "This clip does not have playable audio yet.");
         return;
       }
       await inlinePlayer.resetInlinePlayer();

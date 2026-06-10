@@ -28,7 +28,7 @@ export function SongClipListToolbar({
     }
   );
 
-  if (!selectedIdea || store.clipSelectionMode) return null;
+  if (!selectedIdea) return null;
 
   return (
     <View style={songClipToolbarStyles.headerStack}>

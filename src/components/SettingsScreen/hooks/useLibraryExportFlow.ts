@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Alert } from "react-native";
+import { AppAlert } from "../../common/AppAlert";
 import { exportLibrary, type LibraryExportFormat } from "../../../services/libraryExport";
 import { useStore } from "../../../state/useStore";
 import type { Workspace } from "../../../types";
@@ -116,12 +116,12 @@ export function useLibraryExportFlow() {
 
   const handleExport = async () => {
     if (!format) {
-      Alert.alert("Choose a format", "Select Song Seed Archive or Standard ZIP before exporting.");
+      AppAlert.info("Choose a format", "Select Song Seed Archive or Standard ZIP before exporting.");
       return;
     }
 
     if (selectedSummary.selectedWorkspaceCount === 0 && selectedSummary.selectedCollectionCount === 0) {
-      Alert.alert("Choose a scope", "Select at least one workspace or collection to export.");
+      AppAlert.info("Choose a scope", "Select at least one workspace or collection to export.");
       return;
     }
 
@@ -159,9 +159,9 @@ export function useLibraryExportFlow() {
             });
 
       if (result.warningMessages.length > 0) {
-        Alert.alert("Export finished with warnings", buildWarningSummary(result.warningMessages));
+        AppAlert.info("Export finished with warnings", buildWarningSummary(result.warningMessages));
       } else {
-        Alert.alert(
+        AppAlert.info(
           "Export ready",
           `${result.exportedWorkspaces} workspace${result.exportedWorkspaces === 1 ? "" : "s"}, ${result.exportedCollections} collection${result.exportedCollections === 1 ? "" : "s"}, ${result.exportedSongs} song${result.exportedSongs === 1 ? "" : "s"}, ${result.exportedStandaloneClips} standalone clip${result.exportedStandaloneClips === 1 ? "" : "s"}, and ${result.exportedNotepadNotes} notepad note${result.exportedNotepadNotes === 1 ? "" : "s"} were packaged.`
         );
@@ -169,7 +169,7 @@ export function useLibraryExportFlow() {
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "The library export could not be completed.";
-      Alert.alert("Export failed", message);
+      AppAlert.info("Export failed", message);
     } finally {
       setIsExporting(false);
     }

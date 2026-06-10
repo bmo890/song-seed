@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Alert, Pressable, Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
 import { PlayerLyricsPanel } from "../PlayerLyricsPanel";
@@ -10,6 +10,7 @@ import { formatDate, fmtDuration } from "../../../utils";
 import { activateAndPlay, replacePlaybackSource } from "../../../services/transportPlayback";
 import { OVERDUB_GAIN_STEP_DB } from "../../../overdub";
 import { playerScreenStyles } from "../styles";
+import { AppAlert } from "../../common/AppAlert";
 
 type QueueEntry = {
   ideaId: string;
@@ -297,7 +298,7 @@ export function PlayerSupportSections({
       setActiveLayerPreviewId(null);
       const message = error instanceof Error ? error.message : "Could not play this overdub layer.";
       console.warn("Layer preview failed", error);
-      Alert.alert("Layer preview failed", message);
+      AppAlert.info("Layer preview failed", message);
     }
   }
 

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Alert } from "react-native";
+import { AppAlert } from "../../../components/common/AppAlert";
 import { EditableSelection, getInitialRegionDurationMs, MIN_REGION_DURATION_MS } from "../helpers";
 
 type UseEditorSelectionStateArgs = {
@@ -74,7 +74,7 @@ export function useEditorSelectionState({
     }
 
     if (maxEnd - newStart < MIN_REGION_DURATION_MS) {
-      Alert.alert("No room", "Selections must be at least 1 second long.");
+      AppAlert.info("No room", "Selections must be at least 1 second long.");
       return;
     }
 

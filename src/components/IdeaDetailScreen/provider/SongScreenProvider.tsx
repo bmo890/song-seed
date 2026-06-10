@@ -1,5 +1,5 @@
 import { createContext, useContext, useMemo, type ReactNode } from "react";
-import { Alert } from "react-native";
+import { AppAlert } from "../../common/AppAlert";
 import { hasClipPlaybackSource } from "../../../clipPresentation";
 import { useStore } from "../../../state/useStore";
 import { appActions } from "../../../state/actions";
@@ -94,7 +94,7 @@ export function SongScreenProvider({ children }: { children: ReactNode }) {
     function playProjectQueue(clipIds?: string[]) {
       const queue = buildProjectQueue(clipIds);
       if (queue.length === 0) {
-        Alert.alert("Nothing to play", "This song does not have any playable clips yet.");
+        AppAlert.info("Nothing to play", "This song does not have any playable clips yet.");
         return;
       }
       useStore.getState().setPlayerQueue(queue, 0, true);

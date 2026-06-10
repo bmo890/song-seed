@@ -61,15 +61,8 @@ function EvolutionMoreRow({
   expanded: boolean;
   onToggle: (lineageRootId: string) => void;
 }) {
-  const clipSelectionMode = useStore((s) => s.clipSelectionMode);
   return (
     <View style={styles.songDetailClipRowWrap}>
-      <View
-        style={[
-          styles.selectionIndicatorCol,
-          clipSelectionMode ? null : styles.selectionIndicatorHidden,
-        ]}
-      />
       <View style={styles.songDetailEvolutionGuideWrap}>
         {expanded ? (
           <View style={styles.songDetailThreadSpine} />
@@ -103,18 +96,11 @@ function EvolutionGroupHeaderRow({
 }: {
   row: Extract<EvolutionListRow, { kind: "group" }>;
 }) {
-  const clipSelectionMode = useStore((s) => s.clipSelectionMode);
   const ideaId = useStore((s) => s.selectedIdeaId);
   const setClipGroupCollapsed = useStore((s) => s.setClipGroupCollapsed);
 
   return (
     <View style={styles.songDetailEvolutionGroupRow}>
-      <View
-        style={[
-          styles.selectionIndicatorCol,
-          clipSelectionMode ? null : styles.selectionIndicatorHidden,
-        ]}
-      />
       <Pressable
         style={({ pressed }) => [
           styles.songDetailEvolutionGroupContent,

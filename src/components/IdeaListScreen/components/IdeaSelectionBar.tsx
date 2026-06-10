@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Alert } from "react-native";
+import { AppAlert } from "../../common/AppAlert";
 import { useStore } from "../../../state/useStore";
 import { appActions } from "../../../state/actions";
 import { shareAudioClips } from "../../../services/audioStorage";
@@ -100,7 +100,7 @@ export function IdeaSelectionBar({
       );
     } catch (error) {
       const message = error instanceof Error ? error.message : "Could not share the selected items.";
-      Alert.alert("Share failed", message);
+      AppAlert.info("Share failed", message);
     } finally {
       setIsSharing(false);
     }
@@ -108,7 +108,7 @@ export function IdeaSelectionBar({
 
   function handleClipboardAction(mode: "copy" | "move") {
     appActions.startClipboardFromList(mode);
-    Alert.alert(
+    AppAlert.info(
       mode === "copy" ? "Copy ready" : "Move ready",
       mode === "copy"
         ? "Tap \"Paste items here\" in this or another collection to finish copying these items."
@@ -127,10 +127,7 @@ export function IdeaSelectionBar({
         ? `This will delete ${selectedProjects.length} song${selectedProjects.length === 1 ? "" : "s"} and all contained clips, plus ${selectedClipIdeas.length} standalone clip${selectedClipIdeas.length === 1 ? "" : "s"}.${projectList}`
         : `Are you sure you want to delete ${selectedClipIdeas.length} selected clip${selectedClipIdeas.length === 1 ? "" : "s"}?`;
 
-    Alert.alert("Delete selected items?", message, [
-      { text: "Cancel", style: "cancel" },
-      { text: "Delete", style: "destructive", onPress: onDeleteSelected },
-    ]);
+    AppAlert.destructive("Delete selected items?", message, onDeleteSelected, { confirmLabel: "Delete" });
   }
 
   const dockActions: SelectionAction[] = useMemo(() => {

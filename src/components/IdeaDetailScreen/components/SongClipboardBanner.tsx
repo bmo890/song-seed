@@ -1,5 +1,5 @@
-import { Alert } from "react-native";
 import { ClipboardBanner } from "../../ClipboardBanner";
+import { AppAlert } from "../../common/AppAlert";
 import { appActions } from "../../../state/actions";
 import { useSongScreen } from "../provider/SongScreenProvider";
 
@@ -49,50 +49,32 @@ export function SongClipboardBanner() {
 
         if (clipClipboard.sourceIdeaId === selectedIdea.id) {
           if (clipClipboard.mode === "move") {
-            Alert.alert(
+            AppAlert.info(
               "Cannot move here",
               "You cannot move clips into the same song they are already in. To duplicate them, cancel and use Copy instead."
             );
             return;
           }
 
-          Alert.alert("Duplicate clips?", duplicateWarningText, [
-            { text: "Cancel", style: "cancel" },
-            {
-              text: "Duplicate",
-              onPress: () => appActions.pasteClipboardToProject(selectedIdea.id),
-            },
-          ]);
+          AppAlert.confirm("Duplicate clips?", duplicateWarningText, () => appActions.pasteClipboardToProject(selectedIdea.id), { confirmLabel: "Duplicate" });
           return;
         }
 
         if (includesProjectsFromList) {
-          Alert.alert(
+          AppAlert.confirm(
             `${clipClipboard.mode === "move" ? "Move primary clips here?" : "Copy primary clips here?"}`,
             `Songs can't be placed inside another song. For now, SongSeed will ${clipClipboard.mode} only the primary clip from each selected song into this song.`,
-            [
-              { text: "Cancel", style: "cancel" },
-              {
-                text: "Continue",
-                style: "default",
-                onPress: () => appActions.pasteClipboardToProject(selectedIdea.id),
-              },
-            ]
+            () => appActions.pasteClipboardToProject(selectedIdea.id),
+            { confirmLabel: "Continue" }
           );
           return;
         }
 
-        Alert.alert(
+        AppAlert.confirm(
           `${clipClipboard.mode === "move" ? "Move" : "Copy"} clips here?`,
           `Are you sure you want to ${clipClipboard.mode} these clips into this song?`,
-          [
-            { text: "Cancel", style: "cancel" },
-            {
-              text: "Yes",
-              style: "default",
-              onPress: () => appActions.pasteClipboardToProject(selectedIdea.id),
-            },
-          ]
+          () => appActions.pasteClipboardToProject(selectedIdea.id),
+          { confirmLabel: "Yes" }
         );
       }}
       onCancel={cancelClipboard}

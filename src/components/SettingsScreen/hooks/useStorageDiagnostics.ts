@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Alert } from "react-native";
+import { AppAlert } from "../../common/AppAlert";
 import { getStorageDetailsReport, type StorageDetailsReport } from "../../../services/storageDetails";
 import { buildPersistedAppStoreSnapshot, useStore } from "../../../state/useStore";
 import { appActions } from "../../../state/actions";
@@ -45,9 +45,9 @@ export function useStorageDiagnostics({ active }: { active: boolean }) {
         setRecoveryProgress(phase);
       });
       if (result.restoredFromManifest) {
-        Alert.alert("Recovery complete", `Restored ${result.recoveredCount} ideas from manifest backup.`);
+        AppAlert.info("Recovery complete", `Restored ${result.recoveredCount} ideas from manifest backup.`);
       } else if (result.archivedWorkspacesRestored === 0 && result.orphanedClipsRecovered === 0) {
-        Alert.alert(
+        AppAlert.info(
           "No recoverable data",
           "All audio files on disk are already linked to clips in your library. No manifest backup or workspace archives were found."
         );
@@ -62,10 +62,10 @@ export function useStorageDiagnostics({ active }: { active: boolean }) {
         if (result.warnings.length > 0) {
           parts.push(`${result.warnings.length} warning${result.warnings.length === 1 ? "" : "s"}`);
         }
-        Alert.alert("Recovery complete", parts.join(". ") + ".");
+        AppAlert.info("Recovery complete", parts.join(". ") + ".");
       }
     } catch (error) {
-      Alert.alert("Recovery failed", "An error occurred while scanning for orphaned audio files.");
+      AppAlert.info("Recovery failed", "An error occurred while scanning for orphaned audio files.");
       console.warn("Recovery error:", error);
     } finally {
       setIsRecovering(false);

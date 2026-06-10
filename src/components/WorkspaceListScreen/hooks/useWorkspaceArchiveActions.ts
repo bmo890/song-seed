@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
-import { Alert } from "react-native";
+import { AppAlert } from "../../common/AppAlert";
+import { actionIcons } from "../../common/actionIcons";
 import { appActions } from "../../../state/actions";
 import { formatBytes } from "../../../utils";
 import type { Workspace } from "../../../types";
@@ -54,9 +55,9 @@ export function useWorkspaceArchiveActions({
       if (result.warnings.length > 0) {
         summary.push(result.warnings.join(" "));
       }
-      Alert.alert("Workspace archived", summary.join(" "));
+      AppAlert.info("Workspace archived", summary.join(" "));
     } catch (error) {
-      Alert.alert(
+      AppAlert.info(
         "Archive failed",
         error instanceof Error ? error.message : "Could not archive this workspace."
       );
@@ -77,9 +78,9 @@ export function useWorkspaceArchiveActions({
       if (result.warnings.length > 0) {
         summary.push(result.warnings.join(" "));
       }
-      Alert.alert("Workspace restored", summary.join(" "));
+      AppAlert.info("Workspace restored", summary.join(" "));
     } catch (error) {
-      Alert.alert(
+      AppAlert.info(
         "Restore failed",
         error instanceof Error ? error.message : "Could not restore this workspace."
       );
@@ -93,7 +94,7 @@ export function useWorkspaceArchiveActions({
     if (selectedWorkspaces.length === 0) return;
 
     if (action === "archive" && activeWorkspaceCount - selectedWorkspaces.length < 1) {
-      Alert.alert("Cannot archive", "You must keep at least one active workspace.");
+      AppAlert.info("Cannot archive", "You must keep at least one active workspace.");
       return;
     }
 
@@ -128,7 +129,7 @@ export function useWorkspaceArchiveActions({
     }
 
     if (failures.length > 0) {
-      Alert.alert(
+      AppAlert.info(
         action === "archive" ? "Archive incomplete" : "Restore incomplete",
         [
           successes.length > 0
@@ -144,7 +145,7 @@ export function useWorkspaceArchiveActions({
       return;
     }
 
-    Alert.alert(
+    AppAlert.info(
       action === "archive" ? "Workspaces archived" : "Workspaces restored",
       `${successes.length} workspace${
         successes.length === 1 ? "" : "s"
@@ -155,7 +156,7 @@ export function useWorkspaceArchiveActions({
   function confirmArchiveSelection(action: "archive" | "restore") {
     if (selectedWorkspaces.length === 0 || busyWorkspaceId) return;
 
-    Alert.alert(
+    AppAlert.confirm(
       action === "archive" ? "Archive workspaces?" : "Unarchive workspaces?",
       action === "archive"
         ? `Archive ${selectedWorkspaces.length} selected workspace${
@@ -164,15 +165,13 @@ export function useWorkspaceArchiveActions({
         : `Restore ${selectedWorkspaces.length} selected workspace${
             selectedWorkspaces.length === 1 ? "" : "s"
           }?`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: action === "archive" ? "Archive" : "Unarchive",
-          onPress: () => {
-            void runSelectionWorkspaceArchive(action);
-          },
-        },
-      ]
+      () => {
+        void runSelectionWorkspaceArchive(action);
+      },
+      {
+        confirmLabel: action === "archive" ? "Archive" : "Unarchive",
+        icon: action === "archive" ? actionIcons.archive : actionIcons.restore,
+      }
     );
   }
 
@@ -181,7 +180,7 @@ export function useWorkspaceArchiveActions({
     const deletingAllActiveSelection =
       !viewingArchived && activeWorkspaceCount <= selectedWorkspaces.length;
 
-    Alert.alert(
+    AppAlert.destructive(
       "Delete workspaces?",
       deletingAllActiveSelection
         ? `This will permanently delete ${selectedWorkspaces.length} workspace${
@@ -190,18 +189,12 @@ export function useWorkspaceArchiveActions({
         : `This will permanently delete ${selectedWorkspaces.length} workspace${
             selectedWorkspaces.length === 1 ? "" : "s"
           }. This cannot be undone.`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete permanently",
-          style: "destructive",
-          onPress: () => {
-            selectedWorkspaces.forEach((workspace) => deleteWorkspace(workspace.id));
-            onClearSelection();
-            onCloseSelectionMore();
-          },
-        },
-      ]
+      () => {
+        selectedWorkspaces.forEach((workspace) => deleteWorkspace(workspace.id));
+        onClearSelection();
+        onCloseSelectionMore();
+      },
+      { confirmLabel: "Delete permanently" }
     );
   }
 
@@ -209,39 +202,29 @@ export function useWorkspaceArchiveActions({
     if (busyWorkspaceId) return;
 
     if (!workspace.isArchived && activeWorkspaceCount <= 1) {
-      Alert.alert("Cannot archive", "You must keep at least one active workspace.");
+      AppAlert.info("Cannot archive", "You must keep at least one active workspace.");
       return;
     }
 
     if (workspace.isArchived) {
-      Alert.alert(
+      AppAlert.confirm(
         `Unarchive ${workspace.title}?`,
         "This restores the compressed audio and returns the workspace to the active list.",
-        [
-          { text: "Cancel", style: "cancel" },
-          {
-            text: "Unarchive",
-            onPress: () => {
-              void runUnarchiveWorkspace(workspace.id);
-            },
-          },
-        ]
+        () => {
+          void runUnarchiveWorkspace(workspace.id);
+        },
+        { confirmLabel: "Unarchive", icon: actionIcons.restore }
       );
       return;
     }
 
-    Alert.alert(
+    AppAlert.confirm(
       `Archive ${workspace.title}?`,
       "This compresses the workspace audio, removes the workspace from the active list, and keeps it available to restore later.",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Archive",
-          onPress: () => {
-            void runArchiveWorkspace(workspace.id);
-          },
-        },
-      ]
+      () => {
+        void runArchiveWorkspace(workspace.id);
+      },
+      { confirmLabel: "Archive", icon: actionIcons.archive }
     );
   }
 
@@ -249,22 +232,16 @@ export function useWorkspaceArchiveActions({
     if (busyWorkspaceId) return;
     const deletingFinalActiveWorkspace = !workspace.isArchived && activeWorkspaceCount <= 1;
 
-    Alert.alert(
+    AppAlert.destructive(
       `Delete ${workspace.title}?`,
       deletingFinalActiveWorkspace
         ? `This will permanently delete ${workspace.ideas.length} ideas. Song Seed will create a fresh empty workspace so the app still has an active home context. This cannot be undone.`
         : `This will permanently delete ${workspace.ideas.length} ideas. This cannot be undone.`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete permanently",
-          style: "destructive",
-          onPress: () => {
-            deleteWorkspace(workspace.id);
-            closeModal();
-          },
-        },
-      ]
+      () => {
+        deleteWorkspace(workspace.id);
+        closeModal();
+      },
+      { confirmLabel: "Delete permanently" }
     );
   }
 

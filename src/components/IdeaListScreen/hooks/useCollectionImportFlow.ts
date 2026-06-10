@@ -1,5 +1,5 @@
-import { Alert } from "react-native";
 import { useState } from "react";
+import { AppAlert } from "../../common/AppAlert";
 import {
   buildImportedTitle,
   importAudioAsset,
@@ -52,7 +52,7 @@ export function useCollectionImportFlow({
 
   const openImportAudioFlow = async () => {
     if (!collectionId) {
-      Alert.alert("Choose a collection", "Open a collection before importing audio.");
+      AppAlert.info("Choose a collection", "Open a collection before importing audio.");
       return;
     }
 
@@ -70,12 +70,13 @@ export function useCollectionImportFlow({
       return;
     }
 
-    Alert.alert(
+    AppAlert.custom(
       "Import audio",
       `Choose how to add ${assets.length} files into ${currentCollectionTitle}.`,
       [
         {
-          text: "Import as individual clips",
+          label: "Import as individual clips",
+          style: "default",
           onPress: () => {
             void (async () => {
               const datePreference = await promptForImportDatePreference(assets);
@@ -85,7 +86,8 @@ export function useCollectionImportFlow({
           },
         },
         {
-          text: "Import as song project",
+          label: "Import as song project",
+          style: "default",
           onPress: () => {
             void (async () => {
               const datePreference = await promptForImportDatePreference(assets);
@@ -98,7 +100,7 @@ export function useCollectionImportFlow({
             })();
           },
         },
-        { text: "Cancel", style: "cancel" },
+        { label: "Cancel", style: "cancel" },
       ]
     );
   };

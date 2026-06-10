@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Alert } from "react-native";
+import { AppAlert } from "../../common/AppAlert";
 import { useNavigation } from "@react-navigation/native";
 import { useShareIntentContext } from "expo-share-intent";
 import { useStore } from "../../../state/useStore";
@@ -342,12 +342,13 @@ export function useShareImportScreenModel({
       return;
     }
 
-    Alert.alert(
+    AppAlert.custom(
       "Import from Share",
       `Choose how to add ${importedAssets.length} files into ${destination.collectionTitle}.`,
       [
         {
-          text: "Import as individual clips",
+          label: "Import as individual clips",
+          style: "default",
           onPress: () => {
             void (async () => {
               const datePreference = await resolveImportDatePreference(
@@ -364,7 +365,8 @@ export function useShareImportScreenModel({
           },
         },
         {
-          text: "Import as song project",
+          label: "Import as song project",
+          style: "default",
           onPress: () => {
             void (async () => {
               const datePreference = await resolveImportDatePreference(
@@ -377,7 +379,7 @@ export function useShareImportScreenModel({
             })();
           },
         },
-        { text: "Cancel", style: "cancel" },
+        { label: "Cancel", style: "cancel" },
       ]
     );
   }

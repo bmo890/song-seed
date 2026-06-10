@@ -1,9 +1,10 @@
-import { Alert, Pressable, Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { styles } from "../../../styles";
 import { ClipboardBanner } from "../../ClipboardBanner";
 import { ClipClipboard } from "../../../types";
 import { SearchField } from "../../common/SearchField";
+import { AppAlert } from "../../common/AppAlert";
 
 type IdeaListHeaderSectionProps = {
   searchQuery: string;
@@ -66,26 +67,21 @@ export function IdeaListHeaderSection({
           onAction={() => {
             if (clipClipboard.sourceCollectionId === collectionId) {
               if (clipClipboard.mode === "move") {
-                Alert.alert(
+                AppAlert.info(
                   "Cannot move here",
                   "You cannot move items into the same collection they are already in. To duplicate them, cancel and use Copy instead."
                 );
                 return;
               }
-              Alert.alert("Duplicate items?", duplicateWarningText, [
-                { text: "Cancel", style: "cancel" },
-                { text: "Duplicate", onPress: onPasteClipboard },
-              ]);
+              AppAlert.confirm("Duplicate items?", duplicateWarningText, onPasteClipboard, { confirmLabel: "Duplicate" });
               return;
             }
 
-            Alert.alert(
+            AppAlert.confirm(
               `${clipClipboard.mode === "move" ? "Move" : "Copy"} items here?`,
               `Are you sure you want to ${clipClipboard.mode} these items into this collection?`,
-              [
-                { text: "Cancel", style: "cancel" },
-                { text: "Yes", style: "default", onPress: onPasteClipboard },
-              ]
+              onPasteClipboard,
+              { confirmLabel: "Yes" }
             );
           }}
           onCancel={onCancelClipboard}

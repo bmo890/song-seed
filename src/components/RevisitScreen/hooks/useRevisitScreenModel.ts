@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { Alert } from "react-native";
+import { AppAlert } from "../../common/AppAlert";
+import { actionIcons } from "../../common/actionIcons";
 import { useNavigation } from "@react-navigation/native";
 import { useStore } from "../../../state/useStore";
 import { useRevisitStore } from "../../../state/useRevisitStore";
@@ -142,34 +143,45 @@ export function useRevisitScreenModel() {
   }
 
   function openCandidateMenu(candidate: RevisitCandidate) {
-    Alert.alert(candidate.title, undefined, [
+    AppAlert.custom(candidate.title, undefined, [
       {
-        text: "Open",
+        label: "Open",
+        style: "default",
+        icon: "open-outline",
         onPress: () => openCandidate(candidate),
       },
       {
-        text: "Continue Recording",
+        label: "Continue Recording",
+        style: "default",
+        icon: actionIcons.record,
         onPress: () => continueCandidate(candidate),
       },
       {
-        text: "View in Collection",
+        label: "View in Collection",
+        style: "default",
+        icon: actionIcons.folder,
         onPress: () => viewCandidateInCollection(candidate),
       },
       {
-        text: "Snooze 2 Weeks",
+        label: "Snooze 2 Weeks",
+        style: "default",
+        icon: "time-outline",
         onPress: () => snoozeCandidate(candidate.key, TWO_WEEKS_MS),
       },
       {
-        text: "Snooze 1 Month",
+        label: "Snooze 1 Month",
+        style: "default",
+        icon: "time-outline",
         onPress: () => snoozeCandidate(candidate.key, ONE_MONTH_MS),
       },
       {
-        text: "Hide",
+        label: "Hide",
         style: "destructive",
+        icon: "eye-off-outline",
         onPress: () => hideCandidate(candidate.key),
       },
       {
-        text: "Cancel",
+        label: "Cancel",
         style: "cancel",
       },
     ]);

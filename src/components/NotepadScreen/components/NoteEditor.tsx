@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  Alert,
   BackHandler,
   KeyboardAvoidingView,
   Platform,
@@ -15,6 +14,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { styles } from "../../../styles";
 import type { Note } from "../../../types";
+import { AppAlert } from "../../common/AppAlert";
 
 type Props = {
   note: Note;
@@ -113,14 +113,11 @@ export function NoteEditor({ note, onBack, onUpdate, onTogglePin, onDelete }: Pr
 
   // ── Delete confirmation ───────────────────────────────────────────────────
   const handleDeletePress = useCallback(() => {
-    Alert.alert(
+    AppAlert.destructive(
       "Delete note?",
       "This can't be undone.",
-      [
-        { text: "Cancel", style: "cancel" },
-        { text: "Delete", style: "destructive", onPress: () => onDelete(note.id) },
-      ],
-      { cancelable: true }
+      () => onDelete(note.id),
+      { confirmLabel: "Delete" }
     );
   }, [note.id, onDelete]);
 

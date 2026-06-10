@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Alert } from "react-native";
+import { AppAlert } from "../../common/AppAlert";
 import { useStore } from "../../../state/useStore";
 import type { ClipVersion, SongIdea } from "../../../types";
 
@@ -95,7 +95,7 @@ export function useSongParentPicking(selectedIdea: SongIdea | null | undefined, 
     const uniqueClipIds = Array.from(new Set(rawClipIds)).filter((clipId) => clipMap.has(clipId));
     if (uniqueClipIds.length === 0) return null;
     if (primaryClipId && uniqueClipIds.includes(primaryClipId)) {
-      Alert.alert("Primary clip unavailable", "The primary clip stays outside the evolution tree for now. Deselect it and try again.");
+      AppAlert.info("Primary clip unavailable", "The primary clip stays outside the evolution tree for now. Deselect it and try again.");
       return null;
     }
     return { sourceClipIds: uniqueClipIds, appliedClipIds: uniqueClipIds };
@@ -168,7 +168,7 @@ export function useSongParentPicking(selectedIdea: SongIdea | null | undefined, 
     if (primaryClipId) invalidTargetIds.add(primaryClipId);
     const hasValidTarget = songClips.some((clip) => !invalidTargetIds.has(clip.id));
     if (!hasValidTarget) {
-      Alert.alert("No valid parent clips", "There is no other clip in this song that can be used as a parent yet.");
+      AppAlert.info("No valid parent clips", "There is no other clip in this song that can be used as a parent yet.");
       return;
     }
     onPrepareTree();
@@ -184,7 +184,7 @@ export function useSongParentPicking(selectedIdea: SongIdea | null | undefined, 
       (undo, _message) => onUndo(undo, source.appliedClipIds.length === 1 ? "Clip moved to root" : "Clips moved to root")
     );
     if (!changed) {
-      Alert.alert("Already root", "Those clips are already at the top level.");
+      AppAlert.info("Already root", "Those clips are already at the top level.");
       return;
     }
     setParentPickState(null);
@@ -199,23 +199,17 @@ export function useSongParentPicking(selectedIdea: SongIdea | null | undefined, 
     );
     if (!hasActualChange) {
       setParentPickState(null);
-      Alert.alert("Already attached", "Those clips already branch from that parent.");
+      AppAlert.info("Already attached", "Those clips already branch from that parent.");
       return;
     }
     const confirmationMessage =
       parentPickState.appliedClipIds.length === 1
         ? `Make "${clipMap.get(parentPickState.appliedClipIds[0])?.title ?? "this clip"}" a variation of "${targetClip.title}"?`
         : `Make ${parentPickState.appliedClipIds.length} clips variations of "${targetClip.title}"?`;
-    Alert.alert("Set parent clip?", confirmationMessage, [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Confirm",
-        onPress: () => {
-          applyParentChange(parentPickState.appliedClipIds, targetClipId, onUndo);
-          setParentPickState(null);
-        },
-      },
-    ]);
+    AppAlert.confirm("Set parent clip?", confirmationMessage, () => {
+      applyParentChange(parentPickState.appliedClipIds, targetClipId, onUndo);
+      setParentPickState(null);
+    }, { confirmLabel: "Confirm" });
   }
 
   return {

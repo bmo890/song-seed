@@ -1,4 +1,4 @@
-import { Alert, Pressable, ScrollView, Text, View } from "react-native";
+import { Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { StatusBar as ExpoStatusBar } from "expo-status-bar";
 import { Ionicons } from "@expo/vector-icons";
@@ -10,6 +10,7 @@ import { WorkspaceModal } from "../../modals/WorkspaceModal";
 import { ClipboardBanner } from "../../ClipboardBanner";
 import { SelectionActionSheet } from "../../common/SelectionActionSheet";
 import { WorkspaceList } from "./WorkspaceList";
+import { AppAlert } from "../../common/AppAlert";
 
 export function WorkspaceListScreenContent() {
   const model = useWorkspaceListScreenModel();
@@ -46,7 +47,7 @@ export function WorkspaceListScreenContent() {
           actionLabel="Choose workspace"
           disabled={true}
           onAction={() => {
-            Alert.alert(
+            AppAlert.info(
               "Choose a workspace",
               "You cannot paste items directly on Home. Open a workspace first."
             );

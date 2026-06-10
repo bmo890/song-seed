@@ -105,6 +105,7 @@ export type RootStackParamList = {
   ClipLineage: { ideaId: string; rootClipId: string };
 };
 import { useStore } from "./src/state/useStore";
+import { AppDialogHost } from "./src/components/common/AppDialog";
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const Drawer = createDrawerNavigator<HomeDrawerParamList>();
@@ -1005,6 +1006,7 @@ export default function App() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <AudioRecorderProvider>
+          <AppDialogHost />
           {!hasHydrated ? (
             // Hold the app shell until persist rehydrates so no screen can mount against the
             // default store and accidentally serialize an empty snapshot back to AsyncStorage.

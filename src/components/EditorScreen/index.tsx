@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar as ExpoStatusBar } from "expo-status-bar";
-import { View, Text, ActivityIndicator, TouchableOpacity, Alert, Pressable } from "react-native";
+import { View, Text, ActivityIndicator, TouchableOpacity, Pressable } from "react-native";
 import { StackActions, useIsFocused, useNavigation, useRoute } from "@react-navigation/native";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
@@ -43,6 +43,7 @@ import { EditorSelectionModeTabs } from "./EditorSelectionModeTabs";
 import { EditorSelectionList } from "./EditorSelectionList";
 import { EditorExportProgressModal } from "./EditorExportProgressModal";
 import { EditorExportModal } from "./EditorExportModal";
+import { AppAlert } from "../common/AppAlert";
 import { useEditorExportFlow } from "./hooks/useEditorExportFlow";
 import { useEditorTransformState } from "./hooks/useEditorTransformState";
 import { useEditorPreviewTransport } from "./hooks/useEditorPreviewTransport";
@@ -274,7 +275,7 @@ export function EditorScreen() {
             } catch (err) {
                 console.error("Failed to prepare audio editor", err);
                 if (isMounted) {
-                    Alert.alert("Edit unavailable", "Could not load this audio for editing.");
+                    AppAlert.info("Edit unavailable", "Could not load this audio for editing.");
                 }
             } finally {
                 if (isMounted) {
@@ -315,7 +316,7 @@ export function EditorScreen() {
                 })
             );
         } catch (error) {
-            Alert.alert(
+            AppAlert.info(
                 "Save combined failed",
                 error instanceof Error ? error.message : "Could not save a combined clip."
             );
