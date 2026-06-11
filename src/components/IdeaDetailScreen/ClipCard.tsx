@@ -8,8 +8,7 @@ import { useStore } from "../../state/useStore";
 import { getClipOverdubStemCount, getClipPlaybackDurationMs, hasClipPlaybackSource } from "../../clipPresentation";
 import { fmtDuration, formatClipCardDate } from "../../utils";
 import { type EvolutionListClipEntry, type TimelineClipEntry } from "../../clipGraph";
-import { type SongIdea, type ClipVersion, type CustomTagDefinition } from "../../types";
-import { type useInlinePlayer } from "../../hooks/useInlinePlayer";
+import { type SongIdea, type ClipVersion, type CustomTagDefinition, type InlinePlayerControls } from "../../types";
 import { getTagColor, getTagLabel } from "./songClipControls";
 import { ClipCardEditForm } from "./components/clipCard/ClipCardEditForm";
 import { ClipCardEvolutionGuide } from "./components/clipCard/ClipCardEvolutionGuide";
@@ -22,6 +21,36 @@ import { IdeaCard } from "../common/IdeaCard";
 import type { GestureResponderEvent } from "react-native";
 
 export type ClipCardEntry = TimelineClipEntry | EvolutionListClipEntry;
+
+function ClipCardInlinePlayerFromStore({
+  inlinePlayer,
+  fallbackDurationMs,
+}: {
+  inlinePlayer: InlinePlayerControls;
+  fallbackDurationMs: number;
+}) {
+  const inlinePosition = useStore((s) => s.inlinePositionMs);
+  const inlineDuration = useStore((s) => s.inlineDurationMs);
+
+  return (
+    <ClipCardInlinePlayer
+      currentMs={inlinePosition}
+      durationMs={inlineDuration || fallbackDurationMs}
+      onSeek={(ms) => {
+        void inlinePlayer.endInlineScrub(ms);
+      }}
+      onSeekStart={() => {
+        void inlinePlayer.beginInlineScrub();
+      }}
+      onSeekCancel={() => {
+        void inlinePlayer.cancelInlineScrub();
+      }}
+      onClose={() => {
+        void inlinePlayer.resetInlinePlayer();
+      }}
+    />
+  );
+}
 
 export type ClipCardModeProps = {
   idea: SongIdea;
@@ -56,7 +85,7 @@ export type ClipCardActionProps = {
 
 export type ClipCardPlaybackProps = {
   globalCustomTags: CustomTagDefinition[];
-  inlinePlayer: ReturnType<typeof useInlinePlayer>;
+  inlinePlayer: InlinePlayerControls;
   getHighlightValue: (clipId: string) => import("react-native").Animated.Value | null | undefined;
 };
 
@@ -122,9 +151,10 @@ export function ClipCard({
   const setRecordingParentClipId = useStore((s) => s.setRecordingParentClipId);
   const setRecordingIdeaId = useStore((s) => s.setRecordingIdeaId);
   const setPlayerQueue = useStore((s) => s.setPlayerQueue);
+  const inlineTarget = useStore((s) => s.inlineTarget);
+  const isInlinePlaying = useStore((s) => s.inlineIsPlaying);
   const highlightValue = getHighlightValue(entry.clip.id);
   const { clip } = entry;
-  const inlineTarget = inlinePlayer.inlineTarget;
   const inlineActive = inlineTarget?.ideaId === idea.id && inlineTarget.clipId === clip.id;
   const isSelected = selectedClipIds.includes(clip.id);
   const isMoving = movingClipId === clip.id;
@@ -183,6 +213,7 @@ export function ClipCard({
   };
   const handleReply = async () => {
     await inlinePlayer.resetInlinePlayer();
+    useStore.getState().requestPlayerClose();
     setRecordingParentClipId(clip.id);
     setRecordingIdeaId(idea.id);
     navigation.navigate("Recording" as never);
@@ -245,7 +276,7 @@ export function ClipCard({
         accentBorderColor={displayPrimary || isPrimaryCandidate ? "#B87D6B" : undefined}
         selected={isSelected || isMoving || isParentPickSource}
         inlineActive={inlineActive}
-        isInlinePlaying={inlinePlayer.isInlinePlaying}
+        isInlinePlaying={isInlinePlaying}
         nowPlaying={inlineActive}
         compact={compactDensity}
         highlightValue={highlightValue ?? null}
@@ -347,21 +378,9 @@ export function ClipCard({
         }
         inlinePlayerContent={
           inlineActive && !displayOnly ? (
-            <ClipCardInlinePlayer
-              currentMs={inlinePlayer.inlinePosition}
-              durationMs={inlinePlayer.inlineDuration || playbackDurationMs || 0}
-              onSeek={(ms) => {
-                void inlinePlayer.endInlineScrub(ms);
-              }}
-              onSeekStart={() => {
-                void inlinePlayer.beginInlineScrub();
-              }}
-              onSeekCancel={() => {
-                void inlinePlayer.cancelInlineScrub();
-              }}
-              onClose={() => {
-                void inlinePlayer.resetInlinePlayer();
-              }}
+            <ClipCardInlinePlayerFromStore
+              inlinePlayer={inlinePlayer}
+              fallbackDurationMs={playbackDurationMs || 0}
             />
           ) : undefined
         }

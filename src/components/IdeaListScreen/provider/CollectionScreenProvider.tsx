@@ -1,12 +1,13 @@
-import { createContext, useContext, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useRef, type ReactNode } from "react";
+import { useIsFocused } from "@react-navigation/native";
 import { useStore } from "../../../state/useStore";
-import { useInlinePlayer } from "../../../hooks/useInlinePlayer";
+import { useMiniPlayerContext } from "../../../hooks/FullPlayerProvider";
 import { useCollectionEditModal } from "../hooks/useCollectionEditModal";
 import { useCollectionImportFlow } from "../hooks/useCollectionImportFlow";
 import { useCollectionManagement } from "../hooks/useCollectionManagement";
 import { useCollectionScreenModel } from "../hooks/useCollectionScreenModel";
 import { useCollectionSelection } from "../hooks/useCollectionSelection";
-import type { Collection, CustomTagDefinition, IdeaSort, WorkspaceHiddenDay } from "../../../types";
+import type { Collection, CustomTagDefinition, IdeaSort, InlinePlayerControls, WorkspaceHiddenDay } from "../../../types";
 
 type CollectionScreenContextValue = {
   screen: ReturnType<typeof useCollectionScreenModel>;
@@ -14,7 +15,7 @@ type CollectionScreenContextValue = {
   management: ReturnType<typeof useCollectionManagement>;
   selection: ReturnType<typeof useCollectionSelection>;
   editModal: ReturnType<typeof useCollectionEditModal>;
-  inlinePlayer: ReturnType<typeof useInlinePlayer>;
+  inlinePlayer: InlinePlayerControls;
   store: {
     globalCustomTags: CustomTagDefinition[];
     ideasFilter: "all" | "clips" | "projects" | "bookmarked";
@@ -45,7 +46,21 @@ export function CollectionScreenProvider({ children }: { children: ReactNode }) 
   const deleteCollection = useStore((s) => s.deleteCollection);
   const setSelectedIdeaId = useStore((s) => s.setSelectedIdeaId);
   const replaceListSelection = useStore((s) => s.replaceListSelection);
-  const inlinePlayer = useInlinePlayer();
+  const inlinePlayer = useMiniPlayerContext();
+
+  // Stop any clip preview when this collection loses focus. The inline engine is
+  // now root-owned (persists across navigation), so without this a preview started
+  // here would keep playing with no visible control after navigating away. Matches
+  // the blur-reset the other preview surfaces (takes/lineage/activity/revisit) use.
+  const isFocused = useIsFocused();
+  const resetInlineRef = useRef(inlinePlayer.resetInlinePlayer);
+  useEffect(() => {
+    resetInlineRef.current = inlinePlayer.resetInlinePlayer;
+  }, [inlinePlayer.resetInlinePlayer]);
+  useEffect(() => {
+    if (isFocused) return;
+    void resetInlineRef.current();
+  }, [isFocused]);
   const importFlow = useCollectionImportFlow({
     activeWorkspaceId: screen.activeWorkspaceId,
     collectionId: screen.collectionId ?? "",

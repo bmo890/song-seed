@@ -46,7 +46,7 @@ export function CollectionFloatingActions() {
   const deleteSelectedIdeasWithUndo = async () => {
     if (screen.selectedListIdeaIds.length === 0) return;
     const selectedIdeaIds = new Set(screen.selectedListIdeaIds);
-    const activeInlineIdeaId = inlinePlayer.inlineTarget?.ideaId;
+    const activeInlineIdeaId = useStore.getState().inlineTarget?.ideaId;
     const activePlayerIdeaId = useStore.getState().playerTarget?.ideaId;
 
     if (activeInlineIdeaId && selectedIdeaIds.has(activeInlineIdeaId)) {
@@ -70,7 +70,7 @@ export function CollectionFloatingActions() {
     if (!screen.collectionId) return;
     const nextIdeaIds = Array.from(new Set(ideaIds));
     if (nextIdeaIds.length === 0) return;
-    const activeIdeaId = inlinePlayer.inlineTarget?.ideaId;
+    const activeIdeaId = useStore.getState().inlineTarget?.ideaId;
     if (activeIdeaId && nextIdeaIds.includes(activeIdeaId)) {
       await inlinePlayer.resetInlinePlayer();
     }
@@ -178,6 +178,8 @@ export function CollectionFloatingActions() {
           screen.navigateRoot("IdeaDetail", { ideaId: createdIdeaId });
         }}
         onQuickRecord={() => {
+          useStore.getState().requestInlineStop();
+          useStore.getState().requestPlayerClose();
           appActions.quickRecordIdea(screen.collectionId!);
           screen.navigateRoot("Recording");
         }}

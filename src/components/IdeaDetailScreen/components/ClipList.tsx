@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { useStore } from "../../../state/useStore";
-import { useInlinePlayer } from "../../../hooks/useInlinePlayer";
+import { useMiniPlayerContext } from "../../../hooks/FullPlayerProvider";
 import { type ClipCardContextProps } from "../ClipCard";
 import { useSongClipEditing } from "../hooks/useSongClipEditing";
 import { useSongClipHighlights } from "../hooks/useSongClipHighlights";
@@ -12,7 +12,7 @@ import { SongClipListModals } from "./SongClipListModals";
 
 export function ClipList() {
   const { screen, parentPicking, undo, store } = useSongScreen();
-  const inlinePlayer = useInlinePlayer();
+  const inlinePlayer = useMiniPlayerContext();
   const clipSelectionMode = useStore((s) => s.clipSelectionMode);
   const [expandedLineageIds, setExpandedLineageIds] = useState<Record<string, boolean>>({});
   const [tagPickerClipId, setTagPickerClipId] = useState<string | null>(null);
@@ -59,9 +59,10 @@ export function ClipList() {
   });
 
   const { getHighlightValue } = useSongClipHighlights(visibleClipEntries);
+  const inlineTarget = useStore((s) => s.inlineTarget);
 
   useSongClipListEffects({
-    inlineTarget: inlinePlayer.inlineTarget,
+    inlineTarget,
     resetInlinePlayer: inlinePlayer.resetInlinePlayer,
     isParentPicking: !!parentPicking.parentPickState,
     clipViewMode: screen.clipViewMode,

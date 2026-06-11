@@ -36,8 +36,6 @@ export function RevisitScreen() {
             getCandidateStatus={screen.getCandidateStatus}
             isCandidateActive={screen.isCandidateActive}
             isCandidatePlaying={screen.isCandidatePlaying}
-            inlinePositionMs={screen.inlinePositionMs}
-            inlineDurationMs={screen.inlineDurationMs}
             onTogglePlay={screen.onTogglePlayCandidate}
             onStopPlay={screen.onStopPlayCandidate}
             onSeekStart={screen.onSeekInlineStart}
@@ -115,8 +113,6 @@ export function RevisitScreen() {
                   getCandidateStatus={screen.getCandidateStatus}
                   isCandidateActive={screen.isCandidateActive}
                   isCandidatePlaying={screen.isCandidatePlaying}
-                  inlinePositionMs={screen.inlinePositionMs}
-                  inlineDurationMs={screen.inlineDurationMs}
                   onTogglePlay={screen.onTogglePlayCandidate}
                   onStopPlay={screen.onStopPlayCandidate}
                   onSeekStart={screen.onSeekInlineStart}

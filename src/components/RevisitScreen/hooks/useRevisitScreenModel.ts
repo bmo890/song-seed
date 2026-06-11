@@ -1,10 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AppAlert } from "../../common/AppAlert";
 import { actionIcons } from "../../common/actionIcons";
-import { useNavigation } from "@react-navigation/native";
+import { useIsFocused, useNavigation } from "@react-navigation/native";
 import { useStore } from "../../../state/useStore";
 import { useRevisitStore } from "../../../state/useRevisitStore";
-import { useInlinePlayer } from "../../../hooks/useInlinePlayer";
+import { useMiniPlayerContext } from "../../../hooks/FullPlayerProvider";
 import {
   buildRevisitModel,
   type RevisitCandidate,
@@ -16,6 +16,7 @@ const ONE_MONTH_MS = 30 * 24 * 60 * 60 * 1000;
 
 export function useRevisitScreenModel() {
   const navigation = useNavigation<any>();
+  const isFocused = useIsFocused();
   const rootNavigation = navigation.getParent?.();
   const navigateRoot = (routeName: string, params?: object) =>
     (rootNavigation ?? navigation).navigate(routeName as never, params as never);
@@ -26,7 +27,10 @@ export function useRevisitScreenModel() {
   const activeWorkspaceId = useStore((state) => state.activeWorkspaceId);
   const setActiveWorkspaceId = useStore((state) => state.setActiveWorkspaceId);
   const setSelectedIdeaId = useStore((state) => state.setSelectedIdeaId);
-  const inlinePlayer = useInlinePlayer();
+  const inlinePlayer = useMiniPlayerContext();
+  const resetInlineRef = useRef(inlinePlayer.resetInlinePlayer);
+  const inlineTarget = useStore((state) => state.inlineTarget);
+  const isInlinePlaying = useStore((state) => state.inlineIsPlaying);
 
   const excludedWorkspaceIds = useRevisitStore((state) => state.excludedWorkspaceIds);
   const excludedCollectionIds = useRevisitStore((state) => state.excludedCollectionIds);
@@ -46,6 +50,15 @@ export function useRevisitScreenModel() {
   useEffect(() => {
     clearExpiredSnoozes();
   }, [clearExpiredSnoozes]);
+
+  useEffect(() => {
+    resetInlineRef.current = inlinePlayer.resetInlinePlayer;
+  }, [inlinePlayer.resetInlinePlayer]);
+
+  useEffect(() => {
+    if (isFocused) return;
+    void resetInlineRef.current();
+  }, [isFocused]);
 
   const revisitModel = useMemo(() => {
     const revisitState = useRevisitStore.getState();
@@ -106,6 +119,7 @@ export function useRevisitScreenModel() {
 
   function continueCandidate(candidate: RevisitCandidate) {
     void inlinePlayer.resetInlinePlayer();
+    useStore.getState().requestPlayerClose();
     syncWorkspaceContext(candidate);
     useStore.getState().setRecordingParentClipId(candidate.primaryClip.id);
     useStore.getState().setRecordingIdeaId(candidate.ideaId);
@@ -186,12 +200,12 @@ export function useRevisitScreenModel() {
   }
 
   function isCandidateActive(candidate: RevisitCandidate) {
-    const target = inlinePlayer.inlineTarget;
+    const target = inlineTarget;
     return target?.ideaId === candidate.ideaId && target.clipId === candidate.primaryClip.id;
   }
 
   function isCandidatePlaying(candidate: RevisitCandidate) {
-    return isCandidateActive(candidate) && inlinePlayer.isInlinePlaying;
+    return isCandidateActive(candidate) && isInlinePlaying;
   }
 
   return {
@@ -208,8 +222,6 @@ export function useRevisitScreenModel() {
     resetSourceFilters,
     restoreHiddenCandidates,
     hiddenCandidateIds,
-    inlinePositionMs: inlinePlayer.inlinePosition,
-    inlineDurationMs: inlinePlayer.inlineDuration,
     getCandidateStatus,
     isCandidateActive,
     isCandidatePlaying,

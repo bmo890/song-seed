@@ -41,7 +41,6 @@ export function SongScreenProvider({ children }: { children: ReactNode }) {
   const clipSelectionMode = useStore((s) => s.clipSelectionMode);
   const setRecordingIdeaId = useStore((s) => s.setRecordingIdeaId);
   const setRecordingParentClipId = useStore((s) => s.setRecordingParentClipId);
-  const setInlinePlayerMounted = useStore((s) => s.setInlinePlayerMounted);
 
   const importFlow = useSongImportFlow({
     selectedIdea: screen.selectedIdea,
@@ -77,7 +76,6 @@ export function SongScreenProvider({ children }: { children: ReactNode }) {
     clipSelectionMode,
     setSongTab: screen.setSongTab,
     setParentPickState: parentPicking.setParentPickState,
-    setInlinePlayerMounted,
   });
 
   const actions = useMemo(() => {
@@ -103,6 +101,8 @@ export function SongScreenProvider({ children }: { children: ReactNode }) {
 
     function startRecording(parentClipId: string | null) {
       if (!screen.selectedIdea) return;
+      useStore.getState().requestInlineStop();
+      useStore.getState().requestPlayerClose();
       setRecordingParentClipId(parentClipId);
       setRecordingIdeaId(screen.selectedIdea.id);
       screen.navigation.navigate("Recording" as never);

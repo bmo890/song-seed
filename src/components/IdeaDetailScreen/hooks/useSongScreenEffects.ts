@@ -9,7 +9,6 @@ type UseSongScreenEffectsParams = {
   clipSelectionMode: boolean;
   setSongTab: (value: "takes" | "lyrics" | "notes") => void;
   setParentPickState: (value: null) => void;
-  setInlinePlayerMounted: (value: boolean) => void;
 };
 
 export function useSongScreenEffects({
@@ -20,7 +19,6 @@ export function useSongScreenEffects({
   clipSelectionMode,
   setSongTab,
   setParentPickState,
-  setInlinePlayerMounted,
 }: UseSongScreenEffectsParams) {
   useEffect(() => {
     if (isEditMode || clipSelectionMode) {
@@ -37,9 +35,12 @@ export function useSongScreenEffects({
 
   useEffect(() => {
     const visible = isFocused && (!isProject || songTab === "takes");
-    setInlinePlayerMounted(visible);
-    return () => setInlinePlayerMounted(false);
-  }, [isFocused, isProject, setInlinePlayerMounted, songTab]);
+    if (visible) return;
+    const { inlineTarget } = useStore.getState();
+    if (inlineTarget) {
+      useStore.getState().requestInlineStop();
+    }
+  }, [isFocused, isProject, songTab]);
 
   useEffect(() => {
     if (isEditMode || songTab !== "takes") {

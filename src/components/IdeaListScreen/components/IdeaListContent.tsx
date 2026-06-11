@@ -3,7 +3,7 @@ import DraggableFlatList from "react-native-draggable-flatlist";
 import { Animated, NativeScrollEvent, NativeSyntheticEvent, Pressable, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { styles } from "../../../styles";
-import { IdeaSort, InlinePlayer, SongIdea } from "../../../types";
+import { IdeaSort, InlinePlayerControls, SongIdea } from "../../../types";
 import { IdeaListItem } from "./IdeaListItem";
 import { CollectionListModel, IdeaListEntry } from "../types";
 import { getIdeaSortTimestamp, type IdeaSortMetric } from "../../../ideaSort";
@@ -24,7 +24,7 @@ type IdeaListContentProps = {
   hoveredIdeaId: string | null;
   dropIntent: "between" | "inside";
   lyricsFilterMode: "all" | "with" | "without";
-  inlinePlayer: InlinePlayer;
+  inlinePlayer: InlinePlayerControls;
   rowLayoutsRef: MutableRefObject<Record<string, { y: number; height: number }>>;
   highlightMapRef: MutableRefObject<Record<string, Animated.Value>>;
   viewabilityConfig: { itemVisiblePercentThreshold: number };

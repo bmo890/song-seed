@@ -58,7 +58,6 @@ export function useCollectionScreenModel() {
   const markRecentlyAdded = useStore((s) => s.markRecentlyAdded);
   const markCollectionOpened = useStore((s) => s.markCollectionOpened);
   const clipClipboard = useStore((s) => s.clipClipboard);
-  const inlinePlayerMounted = useStore((s) => s.setInlinePlayerMounted);
 
   const ideas = useMemo(
     () => activeWorkspace?.ideas.filter((idea) => idea.collectionId === collectionId) ?? [],
@@ -101,11 +100,6 @@ export function useCollectionScreenModel() {
     return metric === "created" || metric === "updated" ? metric : null;
   }, [ideasSort]);
   const activeSortMetric = useMemo(() => getIdeaSortState(ideasSort).metric, [ideasSort]);
-
-  useEffect(() => {
-    inlinePlayerMounted(isFocused);
-    return () => inlinePlayerMounted(false);
-  }, [inlinePlayerMounted, isFocused]);
 
   useEffect(() => {
     if (!collectionId) return;

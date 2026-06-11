@@ -269,11 +269,15 @@ export type PlayerState = {
   duration: number;
 };
 
-export type InlinePlayer = {
+export type InlinePlayerSnapshot = {
   inlineTarget: InlineTarget;
   inlinePosition: number;
   inlineDuration: number;
   isInlinePlaying: boolean;
+};
+
+export type InlinePlayerControls = {
+  getSnapshot: () => InlinePlayerSnapshot;
   toggleInlinePlayback: (ideaId: string, clip: ClipVersion) => Promise<void>;
   beginInlineScrub: () => Promise<void>;
   endInlineScrub: (ms: number) => Promise<void>;
@@ -281,6 +285,8 @@ export type InlinePlayer = {
   seekInline: (ms: number) => Promise<void>;
   resetInlinePlayer: () => Promise<void>;
 };
+
+export type InlinePlayer = InlinePlayerSnapshot & InlinePlayerControls;
 
 export type IdeasFilter = "all" | "clips" | "projects" | "bookmarked";
 export type IdeaSort =

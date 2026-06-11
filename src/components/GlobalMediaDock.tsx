@@ -9,8 +9,6 @@ import { useStore } from "../state/useStore";
 import { styles } from "../styles";
 import { fmtDuration } from "../utils";
 
-const DOCK_SPEED_OPTIONS = [0.5, 0.75, 1] as const;
-
 type GlobalMediaDockProps = {
   activeRouteName: string;
   onOpenPlayer: () => void;
@@ -18,7 +16,6 @@ type GlobalMediaDockProps = {
 };
 
 type PlaybackDockState = {
-  kind: "player" | "inline";
   ideaId: string;
   clipId: string;
   title: string;
@@ -42,8 +39,6 @@ export function GlobalMediaDock({
   const playerDurationMs = useStore((s) => s.playerDurationMs);
   const playerIsPlaying = useStore((s) => s.playerIsPlaying);
   const inlineTarget = useStore((s) => s.inlineTarget);
-  const inlinePositionMs = useStore((s) => s.inlinePositionMs);
-  const inlineDurationMs = useStore((s) => s.inlineDurationMs);
   const inlineIsPlaying = useStore((s) => s.inlineIsPlaying);
   const recordingElapsedMs = useRecordingDisplayElapsed({
     durationMs: recorder.durationMs,
@@ -60,13 +55,10 @@ export function GlobalMediaDock({
 
   const playerQueue = useStore((s) => s.playerQueue);
   const fullPlayer = useFullPlayerContext();
-  const inlinePlayerMounted = useStore((s) => s.inlinePlayerMounted);
-  const inlinePlaybackSpeed = useStore((s) => s.inlinePlaybackSpeed);
+  const isPreviewingClip = !!inlineTarget && inlineIsPlaying && !!playerTarget && !playerIsPlaying;
 
-  // Priority 1: full player is active and user has minimized it (navigated away
-  // from the Player screen while audio continues playing in the background).
-  // Priority 2: inline clip is playing but the ClipList is unmounted
-  // (e.g. user switched from Takes to Lyrics/Notes tab).
+  // The dock only represents the durable full-player queue/session. Clip-card
+  // preview playback is separate and does not take over the dock UI.
   const activePlayback: PlaybackDockState | null = (() => {
     if (playerTarget && playerQueue.length > 0 && activeRouteName !== "Player") {
       const idea = allIdeas.find((item) => item.id === playerTarget.ideaId);
@@ -75,7 +67,6 @@ export function GlobalMediaDock({
         // The engine is persistent (FullPlayerProvider), so playerPositionMs
         // stays live even while the Player screen is unmounted.
         return {
-          kind: "player",
           ideaId: idea.id,
           clipId: clip.id,
           title: clip.title,
@@ -83,22 +74,6 @@ export function GlobalMediaDock({
           isPlaying: playerIsPlaying,
           positionMs: playerPositionMs,
           durationMs: playerDurationMs || clip.durationMs || 0,
-        } satisfies PlaybackDockState;
-      }
-    }
-    if (inlineTarget && !inlinePlayerMounted) {
-      const idea = allIdeas.find((item) => item.id === inlineTarget.ideaId);
-      const clip = idea?.clips.find((item) => item.id === inlineTarget.clipId);
-      if (idea && clip) {
-        return {
-          kind: "inline",
-          ideaId: idea.id,
-          clipId: clip.id,
-          title: clip.title,
-          subtitle: idea.title,
-          isPlaying: inlineIsPlaying,
-          positionMs: inlinePositionMs,
-          durationMs: inlineDurationMs || clip.durationMs || 0,
         } satisfies PlaybackDockState;
       }
     }
@@ -198,9 +173,13 @@ export function GlobalMediaDock({
       <Pressable
         style={({ pressed }) => [
           styles.miniMediaDockCard,
+          isPreviewingClip ? styles.miniMediaDockCardPreviewPaused : null,
           pressed ? styles.pressDown : null,
         ]}
-        onPress={onOpenPlayer}
+        onPress={() => {
+          useStore.getState().requestInlineStop();
+          onOpenPlayer();
+        }}
       >
         <View style={styles.miniMediaDockTopRow}>
           <View style={styles.miniMediaDockCopy}>
@@ -208,20 +187,26 @@ export function GlobalMediaDock({
               <View
                 style={[
                   styles.miniMediaDockStatusDot,
-                  activePlayback.isPlaying
+                  isPreviewingClip
+                    ? styles.miniMediaDockStatusDotPreview
+                    : activePlayback.isPlaying
                     ? styles.miniMediaDockStatusDotPlaying
                     : styles.miniMediaDockStatusDotPaused,
                 ]}
               />
               <Text style={styles.miniMediaDockBadgeText}>
-                {activePlayback.isPlaying ? "Playing" : "Paused"}
+                {isPreviewingClip
+                  ? "Previewing clip"
+                  : activePlayback.isPlaying
+                    ? "Playing"
+                    : "Paused"}
               </Text>
             </View>
             <Text style={styles.miniMediaDockTitle} numberOfLines={1}>
               {activePlayback.title}
             </Text>
             <Text style={styles.miniMediaDockSubtitle} numberOfLines={1}>
-              {activePlayback.subtitle}
+              {isPreviewingClip ? `Resume ${activePlayback.subtitle}` : activePlayback.subtitle}
             </Text>
           </View>
 
@@ -234,15 +219,11 @@ export function GlobalMediaDock({
               ]}
               onPress={(evt) => {
                 evt.stopPropagation();
-                if (activePlayback.kind === "player") {
-                  if (activePlayback.isPlaying) {
-                    void fullPlayer.pausePlayer();
-                  } else {
-                    void fullPlayer.playPlayer();
-                  }
-                  return;
+                if (activePlayback.isPlaying) {
+                  void fullPlayer.pausePlayer();
+                } else {
+                  void fullPlayer.playPlayer();
                 }
-                useStore.getState().requestInlineToggle();
               }}
               accessibilityRole="button"
               accessibilityLabel={activePlayback.isPlaying ? "Pause playback" : "Play playback"}
@@ -261,17 +242,13 @@ export function GlobalMediaDock({
               ]}
               onPress={(evt) => {
                 evt.stopPropagation();
-                if (activePlayback.kind === "player") {
-                  void fullPlayer.closePlayer();
-                  useStore.getState().clearPlayerQueue();
-                  return;
-                }
-                useStore.getState().requestInlineStop();
+                void fullPlayer.closePlayer();
+                useStore.getState().clearPlayerQueue();
               }}
               accessibilityRole="button"
-              accessibilityLabel="Stop playback"
+              accessibilityLabel="Close playback"
             >
-              <Ionicons name="stop-circle-outline" size={16} color="#475569" />
+              <Ionicons name="close" size={16} color="#475569" />
             </Pressable>
           </View>
         </View>
@@ -282,39 +259,13 @@ export function GlobalMediaDock({
             currentMs={activePlayback.positionMs}
             durationMs={activePlayback.durationMs}
             onSeek={(ms) => {
-              if (activePlayback.kind === "player") {
-                void fullPlayer.seekTo(ms);
-                return;
-              }
-              useStore.getState().requestInlineSeek(ms);
+              useStore.getState().requestInlineStop();
+              void fullPlayer.seekTo(ms);
             }}
           />
         </View>
         <View style={styles.miniMediaDockTimesRow}>
           <Text style={styles.miniMediaDockTime}>{fmtDuration(activePlayback.positionMs)}</Text>
-          {activePlayback.kind === "inline" ? (
-            <Pressable
-              style={({ pressed }) => [
-                styles.miniMediaDockSpeedChip,
-                inlinePlaybackSpeed !== 1 ? styles.miniMediaDockSpeedChipActive : null,
-                pressed ? styles.pressDown : null,
-              ]}
-              onPress={(e) => {
-                e.stopPropagation();
-                const currentIdx = DOCK_SPEED_OPTIONS.indexOf(inlinePlaybackSpeed as any);
-                const nextIdx = (currentIdx + 1) % DOCK_SPEED_OPTIONS.length;
-                useStore.getState().setInlinePlaybackSpeed(DOCK_SPEED_OPTIONS[nextIdx]);
-              }}
-              hitSlop={4}
-            >
-              <Text style={[
-                styles.miniMediaDockSpeedChipText,
-                inlinePlaybackSpeed !== 1 ? styles.miniMediaDockSpeedChipTextActive : null,
-              ]}>
-                {inlinePlaybackSpeed}x
-              </Text>
-            </Pressable>
-          ) : null}
           <Text style={styles.miniMediaDockTime}>{fmtDuration(activePlayback.durationMs)}</Text>
         </View>
       </Pressable>

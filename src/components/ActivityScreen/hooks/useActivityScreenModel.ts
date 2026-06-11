@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AppAlert } from "../../common/AppAlert";
-import { useNavigation, useRoute } from "@react-navigation/native";
+import { useIsFocused, useNavigation, useRoute } from "@react-navigation/native";
 import { useStore } from "../../../state/useStore";
-import { useInlinePlayer } from "../../../hooks/useInlinePlayer";
+import { useMiniPlayerContext } from "../../../hooks/FullPlayerProvider";
 import {
   buildActivityCountsByDay,
   buildActivityHeatmapMatrix,
@@ -30,6 +30,7 @@ type ActivityCollectionRef = ActivityItemRef & { collectionId: string };
 export function useActivityScreenModel() {
   const metricFilter = "both" as const;
   const navigation = useNavigation<any>();
+  const isFocused = useIsFocused();
   const rootNavigation = navigation.getParent?.();
   const navigateRoot = (routeName: string, params?: object) =>
     (rootNavigation ?? navigation).navigate(routeName as never, params as never);
@@ -58,11 +59,23 @@ export function useActivityScreenModel() {
   const activeWorkspaceId = useStore((state) => state.activeWorkspaceId);
   const setActiveWorkspaceId = useStore((state) => state.setActiveWorkspaceId);
   const setSelectedIdeaId = useStore((state) => state.setSelectedIdeaId);
-  const inlinePlayer = useInlinePlayer();
+  const inlinePlayer = useMiniPlayerContext();
+  const resetInlineRef = useRef(inlinePlayer.resetInlinePlayer);
+  const inlineTarget = useStore((state) => state.inlineTarget);
+  const isInlinePlaying = useStore((state) => state.inlineIsPlaying);
   const {
     handleScroll: handleCollapseScroll,
     animStyle: headerCollapseAnimStyle,
   } = useScrollCollapseHeader();
+
+  useEffect(() => {
+    resetInlineRef.current = inlinePlayer.resetInlinePlayer;
+  }, [inlinePlayer.resetInlinePlayer]);
+
+  useEffect(() => {
+    if (isFocused) return;
+    void resetInlineRef.current();
+  }, [isFocused]);
 
   const collectionScopeWorkspace = useMemo(() => {
     if (!scopedCollectionId) return null;
@@ -409,16 +422,13 @@ export function useActivityScreenModel() {
     canPlayItem: (item: ActivityItemRef) => !!getPlayableClipForItem(item),
     isItemPlaying: (item: ActivityItemRef) => {
       const clip = getPlayableClipForItem(item);
-      const inlineTarget = inlinePlayer.inlineTarget;
       return !!clip &&
         inlineTarget?.ideaId === item.ideaId &&
         inlineTarget.clipId === clip.id &&
-        inlinePlayer.isInlinePlaying;
+        isInlinePlaying;
     },
     getItemDurationMs: (item: ActivityItemRef) => getPlayableClipForItem(item)?.durationMs ?? 0,
-    activeInlineItemId: inlinePlayer.inlineTarget?.ideaId ?? null,
-    inlinePositionMs: inlinePlayer.inlinePosition,
-    inlineDurationMs: inlinePlayer.inlineDuration,
+    activeInlineItemId: inlineTarget?.ideaId ?? null,
     onTogglePlayItem: (item: ActivityItemRef) => {
       const clip = getPlayableClipForItem(item);
       if (!clip) return;

@@ -1,53 +1,158 @@
-import React, { createContext, useContext, useEffect, useRef } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef } from "react";
 import { useFullPlayer } from "./useFullPlayer";
+import { useInlinePlayer } from "./useInlinePlayer";
 import { useStore } from "../state/useStore";
+import type { InlinePlayerControls, InlinePlayerSnapshot } from "../types";
 
 type FullPlayerValue = ReturnType<typeof useFullPlayer>;
+type MiniPlayerValue = ReturnType<typeof useInlinePlayer>;
 
 const FullPlayerContext = createContext<FullPlayerValue | null>(null);
+const MiniPlayerControlsContext = createContext<InlinePlayerControls | null>(null);
 
 /**
- * Holds the single full-player audio engine, mounted once above the navigator
- * so playback persists across navigation. Both the PlayerScreen (full view) and
- * the GlobalMediaDock (mini view) read from this one engine, so minimizing the
- * player keeps audio playing and the dock controls reach the live transport.
+ * Holds the root-owned user-facing playback engines above the navigator.
  *
- * Plan A of the audio architecture: lift the full player to the root. (Inline
- * clip-card playback is still per-screen — Plan B unifies everything later.)
+ * The dock/full player and clip-card miniplayer remain separate UX concepts, but
+ * this provider coordinates focus so only one session is audible at a time.
  */
 export function FullPlayerProvider({ children }: { children: React.ReactNode }) {
-  // Reverse direction: when the full player loads a new clip, stop any inline
-  // clip-card playback so the two engines never overlap.
-  const fullPlayer = useFullPlayer({
-    onBeforePlayNew: () => {
-      useStore.getState().requestInlineStop();
+  const rawDockRef = useRef<FullPlayerValue | null>(null);
+  const miniRef = useRef<MiniPlayerValue | null>(null);
+
+  const mini = useInlinePlayer({
+    onBeforePlayNew: async () => {
+      await rawDockRef.current?.pausePlayer();
     },
   });
+  miniRef.current = mini;
 
-  // Interim cross-engine coordination (until Plan B unifies the engines):
-  // anything that starts a *different* sound (inline clip-card playback, etc.)
-  // calls requestPlayerClose(). Previously only the PlayerScreen handled that
-  // token, so when the full player was minimized (screen unmounted) the request
-  // was ignored and two clips played at once. Handle it here at the root so the
-  // persistent engine always stops when something else takes over.
+  const rawDock = useFullPlayer({
+    onBeforePlayNew: async () => {
+      await miniRef.current?.resetInlinePlayer();
+    },
+  });
+  rawDockRef.current = rawDock;
+
+  const miniControls = useMemo<InlinePlayerControls>(() => {
+    const snapshot = (): InlinePlayerSnapshot => {
+      const current = miniRef.current;
+      return {
+        inlineTarget: current?.inlineTarget ?? null,
+        inlinePosition: current?.inlinePosition ?? 0,
+        inlineDuration: current?.inlineDuration ?? 0,
+        isInlinePlaying: current?.isInlinePlaying ?? false,
+      };
+    };
+
+    return {
+      getSnapshot: snapshot,
+      toggleInlinePlayback: async (...args: Parameters<MiniPlayerValue["toggleInlinePlayback"]>) => {
+        await miniRef.current?.toggleInlinePlayback(...args);
+      },
+      beginInlineScrub: async () => {
+        await miniRef.current?.beginInlineScrub();
+      },
+      endInlineScrub: async (...args: Parameters<MiniPlayerValue["endInlineScrub"]>) => {
+        await miniRef.current?.endInlineScrub(...args);
+      },
+      cancelInlineScrub: async () => {
+        await miniRef.current?.cancelInlineScrub();
+      },
+      seekInline: async (...args: Parameters<MiniPlayerValue["seekInline"]>) => {
+        await miniRef.current?.seekInline(...args);
+      },
+      resetInlinePlayer: async () => {
+        await miniRef.current?.resetInlinePlayer();
+      },
+    };
+  }, []);
+
+  // Stop an in-progress clip preview before the dock takes over audio output.
+  // Stable identity (reads miniRef) so it never invalidates downstream effects.
+  const stopMiniFirst = useCallback(async () => {
+    if (!miniRef.current?.inlineTarget) return;
+    await miniRef.current.resetInlinePlayer();
+  }, []);
+
+  // Dock control overrides that coordinate with the miniplayer. These are pinned
+  // to STABLE identities (via refs, not the freshly-rebuilt rawDock object) so a
+  // consumer's callback-keyed effects (PlayerScreen open/sync effects, etc.) do
+  // NOT re-run on every ~50ms playback tick. Live STATE still flows because the
+  // `dock` object below is rebuilt each render from rawDock.
+  const openPlayer = useCallback<FullPlayerValue["openPlayer"]>(
+    async (...args) => {
+      await stopMiniFirst();
+      return rawDockRef.current!.openPlayer(...args);
+    },
+    [stopMiniFirst]
+  );
+  const syncPlayerSource = useCallback<FullPlayerValue["syncPlayerSource"]>(
+    async (...args) => {
+      const shouldPlay = args[4] === true;
+      if (shouldPlay) await stopMiniFirst();
+      return rawDockRef.current!.syncPlayerSource(...args);
+    },
+    [stopMiniFirst]
+  );
+  const togglePlayer = useCallback<FullPlayerValue["togglePlayer"]>(async () => {
+    if (!rawDockRef.current!.isPlayerPlaying) await stopMiniFirst();
+    return rawDockRef.current!.togglePlayer();
+  }, [stopMiniFirst]);
+  const playPlayer = useCallback<FullPlayerValue["playPlayer"]>(async () => {
+    await stopMiniFirst();
+    return rawDockRef.current!.playPlayer();
+  }, [stopMiniFirst]);
+
+  // `dock` identity changes each render so live playback state (position,
+  // isPlaying, waveform) still reaches the few live consumers (player screen +
+  // dock). Only the control functions above are held stable.
+  const dock = useMemo<FullPlayerValue>(
+    () => ({
+      ...rawDock,
+      openPlayer,
+      syncPlayerSource,
+      togglePlayer,
+      playPlayer,
+    }),
+    [rawDock, openPlayer, syncPlayerSource, togglePlayer, playPlayer]
+  );
+
+  // Legacy close requests still originate from screens that do not need direct
+  // access to the dock engine. Handle them at the root so minimized playback
+  // stops consistently.
   const closeToken = useStore((s) => s.playerCloseRequestToken);
-  const fullPlayerRef = useRef(fullPlayer);
-  fullPlayerRef.current = fullPlayer;
+  const dockRef = useRef(dock);
+  dockRef.current = dock;
   const handledCloseTokenRef = useRef(closeToken);
   useEffect(() => {
     if (closeToken === handledCloseTokenRef.current) return;
     handledCloseTokenRef.current = closeToken;
-    void fullPlayerRef.current.closePlayer();
+    void dockRef.current.closePlayer();
     useStore.getState().clearPlayerQueue();
   }, [closeToken]);
 
-  return <FullPlayerContext.Provider value={fullPlayer}>{children}</FullPlayerContext.Provider>;
+  return (
+    <FullPlayerContext.Provider value={dock}>
+      <MiniPlayerControlsContext.Provider value={miniControls}>
+        {children}
+      </MiniPlayerControlsContext.Provider>
+    </FullPlayerContext.Provider>
+  );
 }
 
 export function useFullPlayerContext(): FullPlayerValue {
   const ctx = useContext(FullPlayerContext);
   if (!ctx) {
     throw new Error("useFullPlayerContext must be used within a FullPlayerProvider");
+  }
+  return ctx;
+}
+
+export function useMiniPlayerContext(): InlinePlayerControls {
+  const ctx = useContext(MiniPlayerControlsContext);
+  if (!ctx) {
+    throw new Error("useMiniPlayerContext must be used within a FullPlayerProvider");
   }
   return ctx;
 }

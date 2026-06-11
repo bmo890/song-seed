@@ -4,7 +4,7 @@ import { useNavigation, useRoute } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { RootStackParamList } from "../../../../App";
 import { useStore } from "../../../state/useStore";
-import { useInlinePlayer } from "../../../hooks/useInlinePlayer";
+import { useMiniPlayerContext } from "../../../hooks/FullPlayerProvider";
 import { buildClipLineages, type ClipLineage, type TimelineClipEntry } from "../../../clipGraph";
 import {
   buildLineageTitlePlan,
@@ -24,8 +24,9 @@ export function useClipLineageScreenModel() {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const { ideaId, rootClipId } = (route.params ?? {}) as ClipLineageRoute;
-  const inlinePlayer = useInlinePlayer();
+  const inlinePlayer = useMiniPlayerContext();
   const inlineResetRef = useRef(inlinePlayer.resetInlinePlayer);
+  const inlineTarget = useStore((state) => state.inlineTarget);
   const [direction, setDirection] = useState<SortDirection>("asc");
   const [actionsClipId, setActionsClipId] = useState<string | null>(null);
   const [notesSheetClipId, setNotesSheetClipId] = useState<string | null>(null);
@@ -38,8 +39,6 @@ export function useClipLineageScreenModel() {
   const workspaces = useStore((state) => state.workspaces);
   const activeWorkspaceId = useStore((state) => state.activeWorkspaceId);
   const updateIdeas = useStore((state) => state.updateIdeas);
-  const setInlinePlayerMounted = useStore((state) => state.setInlinePlayerMounted);
-  const requestInlineStop = useStore((state) => state.requestInlineStop);
   const setRecordingParentClipId = useStore((state) => state.setRecordingParentClipId);
   const setRecordingIdeaId = useStore((state) => state.setRecordingIdeaId);
   const highlightMapRef = useRef<Record<string, Animated.Value>>({});
@@ -76,24 +75,19 @@ export function useClipLineageScreenModel() {
   }, [inlinePlayer.resetInlinePlayer]);
 
   useEffect(() => {
-    if (!inlinePlayer.inlineTarget) return;
+    if (!inlineTarget) return;
     const handler = BackHandler.addEventListener("hardwareBackPress", () => {
       void inlineResetRef.current();
       return true;
     });
     return () => handler.remove();
-  }, [inlinePlayer.inlineTarget]);
-
-  useEffect(() => {
-    setInlinePlayerMounted(true);
-    return () => setInlinePlayerMounted(false);
-  }, [setInlinePlayerMounted]);
+  }, [inlineTarget]);
 
   useEffect(
     () => () => {
-      requestInlineStop();
+      void inlineResetRef.current();
     },
-    [requestInlineStop]
+    []
   );
 
   const actionsClip = actionsClipId
@@ -207,6 +201,7 @@ export function useClipLineageScreenModel() {
   const openRecordingVariation = async (clip: ClipVersion) => {
     setActionsClipId(null);
     await inlinePlayer.resetInlinePlayer();
+    useStore.getState().requestPlayerClose();
     setRecordingParentClipId(clip.id);
     setRecordingIdeaId(ideaId);
     navigation.navigate("Recording");

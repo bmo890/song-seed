@@ -172,26 +172,28 @@ export function CollectionListSection() {
 
   const playIdeaFromList = async (ideaId: string, clip: ClipVersion) => {
     const startedAtMs = Date.now();
+    const beforeSnapshot = inlinePlayer.getSnapshot();
     console.log("[inline-debug:collection-list]", "play-from-list-start", {
       ideaId,
       clipId: clip.id,
       clipTitle: clip.title,
       clipDurationMs: clip.durationMs,
-      activeTarget: inlinePlayer.inlineTarget,
-      isInlinePlaying: inlinePlayer.isInlinePlaying,
-      inlinePositionMs: inlinePlayer.inlinePosition,
-      inlineDurationMs: inlinePlayer.inlineDuration,
+      activeTarget: beforeSnapshot.inlineTarget,
+      isInlinePlaying: beforeSnapshot.isInlinePlaying,
+      inlinePositionMs: beforeSnapshot.inlinePosition,
+      inlineDurationMs: beforeSnapshot.inlineDuration,
     });
     try {
       await inlinePlayer.toggleInlinePlayback(ideaId, clip);
+      const afterSnapshot = inlinePlayer.getSnapshot();
       console.log("[inline-debug:collection-list]", "play-from-list-done", {
         ideaId,
         clipId: clip.id,
         elapsedMs: Date.now() - startedAtMs,
-        activeTarget: inlinePlayer.inlineTarget,
-        isInlinePlaying: inlinePlayer.isInlinePlaying,
-        inlinePositionMs: inlinePlayer.inlinePosition,
-        inlineDurationMs: inlinePlayer.inlineDuration,
+        activeTarget: afterSnapshot.inlineTarget,
+        isInlinePlaying: afterSnapshot.isInlinePlaying,
+        inlinePositionMs: afterSnapshot.inlinePosition,
+        inlineDurationMs: afterSnapshot.inlineDuration,
       });
     } catch (error) {
       console.log("[inline-debug:collection-list]", "play-from-list-error", {
@@ -205,7 +207,7 @@ export function CollectionListSection() {
   };
 
   const maybeResetInlineForIdeaIds = async (ideaIds: string[]) => {
-    const activeIdeaId = inlinePlayer.inlineTarget?.ideaId;
+    const activeIdeaId = useStore.getState().inlineTarget?.ideaId;
     if (!activeIdeaId || !ideaIds.includes(activeIdeaId)) return;
     await inlinePlayer.resetInlinePlayer();
   };

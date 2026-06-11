@@ -4,7 +4,7 @@ import * as Haptics from "expo-haptics";
 import { RenderItemParams } from "react-native-draggable-flatlist";
 import { styles } from "../../../styles";
 import { MiniProgress } from "../../MiniProgress";
-import { InlineTarget, SongIdea, ClipVersion, InlinePlayer } from "../../../types";
+import { InlineTarget, SongIdea, ClipVersion, InlinePlayerControls } from "../../../types";
 import { fmtDuration } from "../../../utils";
 import { useNavigation } from "@react-navigation/native";
 import { getIdeaCreatedAt, getIdeaUpdatedAt, type IdeaSortMetric } from "../../../ideaSort";
@@ -16,12 +16,42 @@ import { StatusBadge } from "../../common/StatusBadge";
 import { IdeaCard } from "../../common/IdeaCard";
 import { useWorkspaceTheme } from "../../../context/WorkspaceThemeContext";
 
+function IdeaListInlineProgress({
+    inlinePlayer,
+    fallbackDurationMs,
+}: {
+    inlinePlayer: InlinePlayerControls;
+    fallbackDurationMs: number;
+}) {
+    const inlinePosition = useStore((s) => s.inlinePositionMs);
+    const inlineDuration = useStore((s) => s.inlineDurationMs);
+
+    return (
+        <MiniProgress
+            currentMs={inlinePosition}
+            durationMs={inlineDuration || fallbackDurationMs}
+            showTopDivider
+            extraBottomMargin={8}
+            captureWholeLane
+            onSeek={(ms) => {
+                void inlinePlayer.endInlineScrub(ms);
+            }}
+            onSeekStart={() => {
+                void inlinePlayer.beginInlineScrub();
+            }}
+            onSeekCancel={() => {
+                void inlinePlayer.cancelInlineScrub();
+            }}
+        />
+    );
+}
+
 type IdeaListItemProps = RenderItemParams<SongIdea> & {
     hoveredIdeaId: string | null;
     dropIntent: "between" | "inside";
     rowLayoutsRef: React.MutableRefObject<Record<string, { y: number; height: number }>>;
     highlightMapRef: React.MutableRefObject<Record<string, Animated.Value>>;
-    inlinePlayer: InlinePlayer,
+    inlinePlayer: InlinePlayerControls,
     playIdeaFromList: (ideaId: string, clip: ClipVersion) => Promise<void> | void,
     openIdeaFromList: (ideaId: string, clip: ClipVersion) => Promise<void> | void,
     onUnhide: (idea: SongIdea) => void,
@@ -60,6 +90,8 @@ export function IdeaListItem({
     const listSelectionMode = useStore((s) => s.listSelectionMode);
     const selectedListIdeaIds = useStore((s) => s.selectedListIdeaIds);
     const setSelectedIdeaId = useStore((s) => s.setSelectedIdeaId);
+    const inlineTarget: InlineTarget = useStore((s) => s.inlineTarget);
+    const isInlinePlaying = useStore((s) => s.inlineIsPlaying);
     const { accent: workspaceAccent } = useWorkspaceTheme();
 
     const navigation = useNavigation();
@@ -69,7 +101,6 @@ export function IdeaListItem({
 
     const primaryClip = item.clips.find((c) => c.isPrimary);
     const playClip = getPlayableClipForIdea(item);
-    const inlineTarget: InlineTarget = inlinePlayer.inlineTarget;
     const inlineActive = !!playClip && inlineTarget?.ideaId === item.id && inlineTarget.clipId === playClip.id;
 
     const isInsideTarget = hoveredIdeaId === item.id && dropIntent === "inside";
@@ -295,7 +326,7 @@ export function IdeaListItem({
                             selected={isSelected || isActive}
                             isActive={isActive && dropIntent === "inside"}
                             inlineActive={inlineActive}
-                            isInlinePlaying={inlinePlayer.isInlinePlaying}
+                            isInlinePlaying={isInlinePlaying}
                             nowPlaying={inlineActive}
                             isInsideTarget={isInsideTarget}
                             accentBorderColor={item.kind === "project" ? workspaceAccent : null}
@@ -304,6 +335,7 @@ export function IdeaListItem({
                             canPlay={!!playClip}
                             durationLabel={item.kind === "project" ? projectPrimaryDurationLabel : clipDurationLabel}
                             onPressLead={() => {
+                                const inlineSnapshot = useStore.getState();
                                 console.log("[inline-debug:idea-list-item]", "lead-press", {
                                     ideaId: item.id,
                                     kind: item.kind,
@@ -311,9 +343,9 @@ export function IdeaListItem({
                                     playClipId: playClip?.id ?? null,
                                     inlineActive,
                                     inlineTarget,
-                                    isInlinePlaying: inlinePlayer.isInlinePlaying,
-                                    inlinePositionMs: inlinePlayer.inlinePosition,
-                                    inlineDurationMs: inlinePlayer.inlineDuration,
+                                    isInlinePlaying,
+                                    inlinePositionMs: inlineSnapshot.inlinePositionMs,
+                                    inlineDurationMs: inlineSnapshot.inlineDurationMs,
                                     listSelectionMode,
                                 });
                                 if (listSelectionMode) {
@@ -403,21 +435,9 @@ export function IdeaListItem({
                                         : null
                             }
                             inlinePlayerContent={
-                                <MiniProgress
-                                    currentMs={inlinePlayer.inlinePosition}
-                                    durationMs={inlinePlayer.inlineDuration || playClip?.durationMs || 0}
-                                    showTopDivider
-                                    extraBottomMargin={8}
-                                    captureWholeLane
-                                    onSeek={(ms) => {
-                                        void inlinePlayer.endInlineScrub(ms);
-                                    }}
-                                    onSeekStart={() => {
-                                        void inlinePlayer.beginInlineScrub();
-                                    }}
-                                    onSeekCancel={() => {
-                                        void inlinePlayer.cancelInlineScrub();
-                                    }}
+                                <IdeaListInlineProgress
+                                    inlinePlayer={inlinePlayer}
+                                    fallbackDurationMs={playClip?.durationMs || 0}
                                 />
                             }
                         />

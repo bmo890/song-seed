@@ -8,6 +8,35 @@ import type { ActivityItemResult } from "../helpers";
 import { fmtDuration } from "../../../utils";
 import { getHierarchyIconColor, getHierarchyIconName } from "../../../hierarchy";
 import { getDateBucket } from "../../../dateBuckets";
+import { useStore } from "../../../state/useStore";
+
+function ActivityInlineProgress({
+  durationMs,
+  onSeek,
+  onSeekStart,
+  onSeekCancel,
+}: {
+  durationMs: number;
+  onSeek: (ms: number) => void;
+  onSeekStart: () => void;
+  onSeekCancel: () => void;
+}) {
+  const inlinePositionMs = useStore((s) => s.inlinePositionMs);
+  const inlineDurationMs = useStore((s) => s.inlineDurationMs);
+
+  return (
+    <MiniProgress
+      currentMs={inlinePositionMs}
+      durationMs={inlineDurationMs || durationMs || 0}
+      showTopDivider
+      extraBottomMargin={2}
+      captureWholeLane
+      onSeek={onSeek}
+      onSeekStart={onSeekStart}
+      onSeekCancel={onSeekCancel}
+    />
+  );
+}
 
 type ActivityResultCardProps = {
   result: ActivityItemResult;
@@ -19,8 +48,6 @@ type ActivityResultCardProps = {
     isItemPlaying: (item: ActivityItemResult) => boolean;
     getItemDurationMs: (item: ActivityItemResult) => number;
     activeInlineItemId: string | null;
-    inlinePositionMs: number;
-    inlineDurationMs: number;
     onTogglePlayItem: (item: ActivityItemResult) => void;
     onSeekInline: (ms: number) => void;
     onSeekInlineStart: () => void;
@@ -151,12 +178,8 @@ export function ActivityResultCard({
               </View>
 
               {isActive ? (
-                <MiniProgress
-                  currentMs={playback.inlinePositionMs}
-                  durationMs={playback.inlineDurationMs || durationMs || 0}
-                  showTopDivider
-                  extraBottomMargin={2}
-                  captureWholeLane
+                <ActivityInlineProgress
+                  durationMs={durationMs}
                   onSeek={playback.onSeekInline}
                   onSeekStart={playback.onSeekInlineStart}
                   onSeekCancel={playback.onSeekInlineCancel}

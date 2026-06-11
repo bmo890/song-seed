@@ -88,8 +88,6 @@ export function ActivityScreenContent() {
           isItemPlaying={model.isItemPlaying}
           getItemDurationMs={model.getItemDurationMs}
           activeInlineItemId={model.activeInlineItemId}
-          inlinePositionMs={model.inlinePositionMs}
-          inlineDurationMs={model.inlineDurationMs}
           onTogglePlayItem={model.onTogglePlayItem}
           onSeekInline={model.onSeekInline}
           onSeekInlineStart={model.onSeekInlineStart}

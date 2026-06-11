@@ -8,6 +8,35 @@ import type { SongIdea } from "../../../types";
 import type { RevisitCandidate } from "../../../revisit";
 import { fmtDuration } from "../../../utils";
 import { revisitStyles } from "../styles";
+import { useStore } from "../../../state/useStore";
+
+function RevisitInlineProgress({
+  durationMs,
+  onSeek,
+  onSeekStart,
+  onSeekCancel,
+}: {
+  durationMs: number;
+  onSeek: (ms: number) => void;
+  onSeekStart: () => void;
+  onSeekCancel: () => void;
+}) {
+  const inlinePositionMs = useStore((s) => s.inlinePositionMs);
+  const inlineDurationMs = useStore((s) => s.inlineDurationMs);
+
+  return (
+    <MiniProgress
+      currentMs={inlinePositionMs}
+      durationMs={inlineDurationMs || durationMs || 0}
+      showTopDivider
+      extraBottomMargin={2}
+      captureWholeLane
+      onSeek={onSeek}
+      onSeekStart={onSeekStart}
+      onSeekCancel={onSeekCancel}
+    />
+  );
+}
 
 type RevisitCandidateCardProps = {
   candidate: RevisitCandidate;
@@ -16,8 +45,6 @@ type RevisitCandidateCardProps = {
   status: SongIdea["status"] | null;
   isActive: boolean;
   isPlaying: boolean;
-  inlinePositionMs: number;
-  inlineDurationMs: number;
   onOpen: () => void;
   onTogglePlay: () => void;
   onStopPlay: () => void;
@@ -34,8 +61,6 @@ export function RevisitCandidateCard({
   status,
   isActive,
   isPlaying,
-  inlinePositionMs,
-  inlineDurationMs,
   onOpen,
   onTogglePlay,
   onStopPlay,
@@ -112,12 +137,8 @@ export function RevisitCandidateCard({
 
             {isActive ? (
               <View style={revisitStyles.candidateProgressWrap}>
-                <MiniProgress
-                  currentMs={inlinePositionMs}
-                  durationMs={inlineDurationMs || durationMs || 0}
-                  showTopDivider
-                  extraBottomMargin={2}
-                  captureWholeLane
+                <RevisitInlineProgress
+                  durationMs={durationMs}
                   onSeek={onSeek}
                   onSeekStart={onSeekStart}
                   onSeekCancel={onSeekCancel}

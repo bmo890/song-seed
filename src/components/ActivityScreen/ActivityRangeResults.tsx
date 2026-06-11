@@ -14,8 +14,6 @@ type ActivityRangeResultsProps = {
   isItemPlaying: (item: ActivityItemResult) => boolean;
   getItemDurationMs: (item: ActivityItemResult) => number;
   activeInlineItemId: string | null;
-  inlinePositionMs: number;
-  inlineDurationMs: number;
   onTogglePlayItem: (item: ActivityItemResult) => void;
   onSeekInline: (ms: number) => void;
   onSeekInlineStart: () => void;
@@ -32,8 +30,6 @@ type ActivityResultsListProps = {
   isItemPlaying: (item: ActivityItemResult) => boolean;
   getItemDurationMs: (item: ActivityItemResult) => number;
   activeInlineItemId: string | null;
-  inlinePositionMs: number;
-  inlineDurationMs: number;
   onTogglePlayItem: (item: ActivityItemResult) => void;
   onSeekInline: (ms: number) => void;
   onSeekInlineStart: () => void;
@@ -50,8 +46,6 @@ function renderItemResults({
   isItemPlaying,
   getItemDurationMs,
   activeInlineItemId,
-  inlinePositionMs,
-  inlineDurationMs,
   onTogglePlayItem,
   onSeekInline,
   onSeekInlineStart,
@@ -87,8 +81,6 @@ function renderItemResults({
               isItemPlaying,
               getItemDurationMs,
               activeInlineItemId,
-              inlinePositionMs,
-              inlineDurationMs,
               onTogglePlayItem,
               onSeekInline,
               onSeekInlineStart,
@@ -113,8 +105,6 @@ export function ActivityRangeResults({
   isItemPlaying,
   getItemDurationMs,
   activeInlineItemId,
-  inlinePositionMs,
-  inlineDurationMs,
   onTogglePlayItem,
   onSeekInline,
   onSeekInlineStart,
@@ -142,8 +132,6 @@ export function ActivityRangeResults({
         isItemPlaying,
         getItemDurationMs,
         activeInlineItemId,
-        inlinePositionMs,
-        inlineDurationMs,
         onTogglePlayItem,
         onSeekInline,
         onSeekInlineStart,

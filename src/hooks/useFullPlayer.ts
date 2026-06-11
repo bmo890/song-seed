@@ -278,7 +278,7 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
       setPlayerTarget(null);
       setWaveformPeaks([]);
       currentSourceUriRef.current = null;
-      console.log("FULL open error", err);
+      console.warn("FULL open error", err);
     }
   }, [holdSourcePositionAt, isOperationActive, onBeforePlayNew, player, releaseSourcePositionHold, setPlayerPlaybackState]);
 
@@ -334,7 +334,7 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
       );
     } catch (err) {
       releaseSourcePositionHold();
-      console.log("FULL sync source error", err);
+      console.warn("FULL sync source error", err);
     }
   }, [holdSourcePositionAt, isOperationActive, player, releaseSourcePositionHold]);
 
@@ -369,7 +369,7 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
         }
       );
     } catch (err) {
-      console.log("FULL play error", err);
+      console.warn("FULL play error", err);
     }
   }, [player]);
 
@@ -377,7 +377,7 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
     try {
       await player.pause();
     } catch (err) {
-      console.log("FULL pause error", err);
+      console.warn("FULL pause error", err);
     }
   }, [player]);
 
@@ -396,7 +396,7 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
         }
       );
     } catch (err) {
-      console.log("FULL resume error", err);
+      console.warn("FULL resume error", err);
     }
   }, [player]);
 
@@ -418,7 +418,7 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
     try {
       player.setPlaybackRate(nextRate);
     } catch (err) {
-      console.log("FULL setPlaybackRate error", err);
+      console.warn("FULL setPlaybackRate error", err);
     }
   }, [player]);
 

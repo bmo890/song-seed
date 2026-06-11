@@ -1,6 +1,6 @@
 import { SongIdea, IdeasTimelineMetric, ClipClipboard, Collection, IdeaSort } from "../../types";
 import type { IdeaSortMetric } from "../../ideaSort";
-import type { InlinePlayer } from "../../types";
+import type { InlinePlayerControls } from "../../types";
 import type { MutableRefObject } from "react";
 import type { Animated } from "react-native";
 import type { ImportedAudioAsset } from "../../services/audioStorage";
@@ -81,7 +81,7 @@ export type CollectionListModel = {
   hoveredIdeaId: string | null;
   dropIntent: "between" | "inside";
   lyricsFilterMode: "all" | "with" | "without";
-  inlinePlayer: InlinePlayer;
+  inlinePlayer: InlinePlayerControls;
   rowLayoutsRef: MutableRefObject<Record<string, { y: number; height: number }>>;
   highlightMapRef: MutableRefObject<Record<string, Animated.Value>>;
   viewabilityConfig: { itemVisiblePercentThreshold: number };

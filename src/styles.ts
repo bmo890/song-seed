@@ -4674,6 +4674,11 @@ export const styles = StyleSheet.create({
     borderColor: "#fecaca",
     backgroundColor: "#fff7f7",
   },
+  miniMediaDockCardPreviewPaused: {
+    borderColor: "#e5d8d3",
+    backgroundColor: "#fffaf8",
+    shadowOpacity: 0.08,
+  },
   miniMediaDockTopRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -4700,6 +4705,9 @@ export const styles = StyleSheet.create({
   },
   miniMediaDockStatusDotPaused: {
     backgroundColor: "#94a3b8",
+  },
+  miniMediaDockStatusDotPreview: {
+    backgroundColor: "#B87D6B",
   },
   miniMediaDockStatusDotRecording: {
     backgroundColor: "#dc2626",

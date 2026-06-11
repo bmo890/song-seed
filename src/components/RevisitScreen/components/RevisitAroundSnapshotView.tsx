@@ -12,8 +12,6 @@ type RevisitAroundSnapshotViewProps = {
   getCandidateStatus: (candidate: RevisitCandidate) => SongIdea["status"] | null;
   isCandidateActive: (candidate: RevisitCandidate) => boolean;
   isCandidatePlaying: (candidate: RevisitCandidate) => boolean;
-  inlinePositionMs: number;
-  inlineDurationMs: number;
   onTogglePlay: (candidate: RevisitCandidate) => void;
   onStopPlay: () => void;
   onSeekStart: () => void;
@@ -29,8 +27,6 @@ export function RevisitAroundSnapshotView({
   getCandidateStatus,
   isCandidateActive,
   isCandidatePlaying,
-  inlinePositionMs,
-  inlineDurationMs,
   onTogglePlay,
   onStopPlay,
   onSeekStart,
@@ -79,8 +75,6 @@ export function RevisitAroundSnapshotView({
             status={getCandidateStatus(candidate)}
             isActive={isCandidateActive(candidate)}
             isPlaying={isCandidatePlaying(candidate)}
-            inlinePositionMs={inlinePositionMs}
-            inlineDurationMs={inlineDurationMs}
             onOpen={() => onOpen(candidate)}
             onTogglePlay={() => onTogglePlay(candidate)}
             onStopPlay={onStopPlay}
