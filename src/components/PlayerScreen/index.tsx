@@ -5,7 +5,7 @@ import { StatusBar as ExpoStatusBar } from "expo-status-bar";
 import { useIsFocused, useNavigation } from "@react-navigation/native";
 import { useSharedValue } from "react-native-reanimated";
 import { styles } from "../../styles";
-import { useFullPlayer } from "../../hooks/useFullPlayer";
+import { useFullPlayerContext } from "../../hooks/FullPlayerProvider";
 import { fmtDuration } from "../../utils";
 import { TransportLayout } from "../common/TransportLayout";
 import { useTransportScrubbing } from "../../hooks/useTransportScrubbing";
@@ -44,7 +44,7 @@ export function PlayerScreen() {
   const pauseVisualHoldToken = useSharedValue(0);
   const setPauseDisplayPositionRef = React.useRef<((positionMs: number) => void) | null>(null);
 
-  const fullPlayer = useFullPlayer();
+  const fullPlayer = useFullPlayerContext();
   const {
     playerTarget: activePlayerTarget,
     playerPosition,
@@ -415,6 +415,7 @@ export function PlayerScreen() {
             displayDuration={effectivePlayerDuration}
             mode={ui.mode}
             onBack={lifecycle.handleBack}
+            onMinimize={lifecycle.minimizePlayer}
             onOverflow={lifecycle.handleOverflowMenu}
             onChangeMode={ui.setMode}
           />

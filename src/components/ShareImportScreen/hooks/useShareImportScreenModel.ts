@@ -347,7 +347,9 @@ export function useShareImportScreenModel({
       `Choose how to add ${importedAssets.length} files into ${destination.collectionTitle}.`,
       [
         {
-          label: "Import as individual clips",
+          label: "Individual clips",
+          description: "Each file becomes its own clip",
+          icon: "musical-notes-outline",
           style: "default",
           onPress: () => {
             void (async () => {
@@ -365,7 +367,9 @@ export function useShareImportScreenModel({
           },
         },
         {
-          label: "Import as song project",
+          label: "Song project",
+          description: "Combine all files into one song",
+          icon: "albums-outline",
           style: "default",
           onPress: () => {
             void (async () => {

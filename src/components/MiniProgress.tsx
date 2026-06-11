@@ -12,6 +12,8 @@ type Props = {
   showTopDivider?: boolean;
   extraBottomMargin?: number;
   captureWholeLane?: boolean;
+  /** Hide the built-in current/duration labels (e.g. when the host renders its own). */
+  hideTimes?: boolean;
 };
 
 const EDGE_GRAB_INSET = 10;
@@ -25,6 +27,7 @@ export function MiniProgress({
   showTopDivider = false,
   extraBottomMargin = 0,
   captureWholeLane = false,
+  hideTimes = false,
 }: Props) {
   const safeDuration = durationMs || 1;
   const trackRef = useRef<View | null>(null);
@@ -116,10 +119,12 @@ export function MiniProgress({
       {...(captureWholeLane ? responderHandlers : {})}
     >
       {showTopDivider ? <View style={styles.miniProgressTopDivider} /> : null}
-      <View style={styles.miniProgressTimes}>
-        <Text style={styles.miniProgressTime}>{fmtDuration(displayMs)}</Text>
-        <Text style={styles.miniProgressTime}>{fmtDuration(durationMs || 0)}</Text>
-      </View>
+      {hideTimes ? null : (
+        <View style={styles.miniProgressTimes}>
+          <Text style={styles.miniProgressTime}>{fmtDuration(displayMs)}</Text>
+          <Text style={styles.miniProgressTime}>{fmtDuration(durationMs || 0)}</Text>
+        </View>
+      )}
       <View
         ref={trackRef}
         onLayout={handleTrackLayout}

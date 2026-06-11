@@ -178,6 +178,7 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
           {
             label: "Open Settings",
             style: "default",
+            icon: "settings-outline",
             onPress: () => {
               void Linking.openSettings();
             },

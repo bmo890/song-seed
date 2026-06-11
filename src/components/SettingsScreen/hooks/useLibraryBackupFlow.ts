@@ -65,6 +65,7 @@ export function useLibraryBackupFlow() {
                     {
                         label: "Copy Name",
                         style: "default",
+                        icon: "copy-outline",
                         onPress: () => {
                             void Clipboard.setStringAsync(backupFileName);
                         },

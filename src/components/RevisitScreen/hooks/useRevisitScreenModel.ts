@@ -163,18 +163,6 @@ export function useRevisitScreenModel() {
         onPress: () => viewCandidateInCollection(candidate),
       },
       {
-        label: "Snooze 2 Weeks",
-        style: "default",
-        icon: "time-outline",
-        onPress: () => snoozeCandidate(candidate.key, TWO_WEEKS_MS),
-      },
-      {
-        label: "Snooze 1 Month",
-        style: "default",
-        icon: "time-outline",
-        onPress: () => snoozeCandidate(candidate.key, ONE_MONTH_MS),
-      },
-      {
         label: "Hide",
         style: "destructive",
         icon: "eye-off-outline",

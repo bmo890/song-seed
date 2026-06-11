@@ -75,7 +75,9 @@ export function useCollectionImportFlow({
       `Choose how to add ${assets.length} files into ${currentCollectionTitle}.`,
       [
         {
-          label: "Import as individual clips",
+          label: "Individual clips",
+          description: "Each file becomes its own clip",
+          icon: "musical-notes-outline",
           style: "default",
           onPress: () => {
             void (async () => {
@@ -86,7 +88,9 @@ export function useCollectionImportFlow({
           },
         },
         {
-          label: "Import as song project",
+          label: "Song project",
+          description: "Combine all files into one song",
+          icon: "albums-outline",
           style: "default",
           onPress: () => {
             void (async () => {

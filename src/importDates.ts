@@ -128,12 +128,16 @@ export async function promptForImportDatePreference(
   return new Promise((resolve) => {
     AppAlert.custom(title, message, [
       {
-        label: "Use original file date",
+        label: "Original date",
+        description: "Use when the file was recorded",
+        icon: "calendar-outline",
         style: "default",
         onPress: () => resolve("source"),
       },
       {
-        label: "Use import date",
+        label: "Today's date",
+        description: "Use when you imported it",
+        icon: "time-outline",
         style: "default",
         onPress: () => resolve("import"),
       },

@@ -15,6 +15,7 @@ type PlayerHeaderSectionProps = {
   displayDuration: number;
   mode: "player" | "practice";
   onBack: () => void;
+  onMinimize: () => void;
   onOverflow: () => void;
   onChangeMode: (mode: "player" | "practice") => void;
 };
@@ -28,6 +29,7 @@ export function PlayerHeaderSection({
   displayDuration,
   mode,
   onBack,
+  onMinimize,
   onOverflow,
   onChangeMode,
 }: PlayerHeaderSectionProps) {
@@ -38,15 +40,33 @@ export function PlayerHeaderSection({
           <Text style={styles.backBtnText}>Back</Text>
         </Pressable>
 
-        <Pressable
-          style={({ pressed }) => [
-            playerScreenStyles.overflowButton,
-            pressed ? playerScreenStyles.overflowButtonPressed : null,
-          ]}
-          onPress={onOverflow}
-        >
-          <Ionicons name="ellipsis-horizontal" size={18} color="#111827" />
-        </Pressable>
+        <View style={playerScreenStyles.navRowRight}>
+          {/* Chevron-down = minimize (keep playing in the dock). Only in player mode:
+              practice mode's engine can't persist across navigation, so minimizing
+              would tear down the loop/pitch — practice is a focused, on-screen mode. */}
+          {mode === "player" ? (
+            <Pressable
+              style={({ pressed }) => [
+                playerScreenStyles.overflowButton,
+                pressed ? playerScreenStyles.overflowButtonPressed : null,
+              ]}
+              onPress={onMinimize}
+              accessibilityLabel="Minimize player"
+            >
+              <Ionicons name="chevron-down" size={22} color="#524440" />
+            </Pressable>
+          ) : null}
+
+          <Pressable
+            style={({ pressed }) => [
+              playerScreenStyles.overflowButton,
+              pressed ? playerScreenStyles.overflowButtonPressed : null,
+            ]}
+            onPress={onOverflow}
+          >
+            <Ionicons name="ellipsis-horizontal" size={18} color="#111827" />
+          </Pressable>
+        </View>
       </View>
 
       <View style={playerScreenStyles.titleBlock}>

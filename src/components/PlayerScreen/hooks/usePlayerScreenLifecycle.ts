@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef } from "react";
 import { AppAlert } from "../../common/AppAlert";
 import { actionIcons } from "../../common/actionIcons";
-import { StackActions } from "@react-navigation/native";
 import { clipHasOverdubs, getClipPlaybackUri } from "../../../clipPresentation";
 import { MANAGED_WAVEFORM_PEAK_COUNT, loadManagedAudioMetadata, shareAudioFile } from "../../../services/audioStorage";
 import { appActions } from "../../../state/actions";
@@ -253,13 +252,11 @@ export function usePlayerScreenLifecycle({
     prepareTransportForClose,
   ]);
 
+  // On-screen Back button: just pop. The beforeRemove listener does the
+  // stop + clear-queue cleanup (same path as hardware/gesture back).
   const handleBack = useCallback(() => {
-    prepareTransportForClose();
-    cancelPendingPracticeSeek();
-    void closePlayer();
-    useStore.getState().clearPlayerQueue();
     navigation.goBack();
-  }, [cancelPendingPracticeSeek, closePlayer, navigation, prepareTransportForClose]);
+  }, [navigation]);
 
   const handleScrubStateChange = useCallback(
     (scrubbing: boolean) => {
@@ -272,21 +269,36 @@ export function usePlayerScreenLifecycle({
     [beginScrub, endScrub]
   );
 
+  // Minimize: pop the Player screen WITHOUT stopping audio. The engine lives in
+  // FullPlayerProvider (above the navigator), so it keeps playing and the mini
+  // dock controls the same live transport — position is preserved automatically.
+  // The flag tells the beforeRemove listener below to skip the stop/clear cleanup.
+  const isMinimizingRef = useRef(false);
   const minimizePlayer = useCallback(() => {
-    const routes = navigation.getState()?.routes ?? [];
-    const targetRoute =
-      [...routes]
-        .slice(0, -1)
-        .reverse()
-        .find((route) => route.name !== "Player" && route.name !== "Recording") ?? null;
-
-    if (targetRoute) {
-      navigation.dispatch(StackActions.push(targetRoute.name, targetRoute.params));
-      return;
+    isMinimizingRef.current = true;
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+    } else {
+      navigation.navigate("Home", { screen: "Workspaces" });
     }
-
-    navigation.navigate("Home", { screen: "Workspaces" });
   }, [navigation]);
+
+  // Any exit that ISN'T a minimize (the on-screen Back button, the hardware/gesture
+  // back) should stop playback and clear the queue. beforeRemove fires for every
+  // pop of this screen; we run the cleanup unless the minimize flag is set.
+  useEffect(() => {
+    const unsubscribe = navigation.addListener("beforeRemove", () => {
+      if (isMinimizingRef.current) {
+        isMinimizingRef.current = false;
+        return; // minimized — keep playing in the dock
+      }
+      prepareTransportForClose();
+      cancelPendingPracticeSeek();
+      void closePlayer();
+      useStore.getState().clearPlayerQueue();
+    });
+    return unsubscribe;
+  }, [cancelPendingPracticeSeek, closePlayer, navigation, prepareTransportForClose]);
 
   const handleTogglePlayPress = useCallback(() => {
     void handleTransportToggle();
@@ -337,12 +349,6 @@ export function usePlayerScreenLifecycle({
     };
 
     AppAlert.custom("Player options", playerClip?.title ?? undefined, [
-      {
-        label: "Minimize player",
-        style: "default",
-        icon: "chevron-down-outline",
-        onPress: minimizePlayer,
-      },
       {
         label: "Add overdub",
         style: "default",
@@ -444,6 +450,7 @@ export function usePlayerScreenLifecycle({
 
   return {
     handleBack,
+    minimizePlayer,
     handleScrubStateChange,
     handleTogglePlayPress,
     handlePreviousTrack,

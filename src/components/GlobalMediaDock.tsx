@@ -1,9 +1,10 @@
-import { useRef } from "react";
 import { Ionicons } from "@expo/vector-icons";
 import { useSharedAudioRecorder } from "@siteed/audio-studio";
-import { GestureResponderEvent, LayoutChangeEvent, Pressable, Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
+import { MiniProgress } from "./MiniProgress";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRecordingDisplayElapsed } from "../hooks/useRecordingDisplayElapsed";
+import { useFullPlayerContext } from "../hooks/FullPlayerProvider";
 import { useStore } from "../state/useStore";
 import { styles } from "../styles";
 import { fmtDuration } from "../utils";
@@ -57,14 +58,34 @@ export function GlobalMediaDock({
   const hasRecordingSession =
     !!recordingIdea && (recorder.isRecording || recorder.isPaused);
 
+  const playerQueue = useStore((s) => s.playerQueue);
+  const fullPlayer = useFullPlayerContext();
   const inlinePlayerMounted = useStore((s) => s.inlinePlayerMounted);
   const inlinePlaybackSpeed = useStore((s) => s.inlinePlaybackSpeed);
-  const scrubTrackWidthRef = useRef(0);
 
-  // Show the inline playback dock when audio is playing but ClipList is
-  // unmounted (e.g. user switched from Takes to Lyrics/Notes tab).
-  // Full player dock remains disabled until queue/playlist is built.
+  // Priority 1: full player is active and user has minimized it (navigated away
+  // from the Player screen while audio continues playing in the background).
+  // Priority 2: inline clip is playing but the ClipList is unmounted
+  // (e.g. user switched from Takes to Lyrics/Notes tab).
   const activePlayback: PlaybackDockState | null = (() => {
+    if (playerTarget && playerQueue.length > 0 && activeRouteName !== "Player") {
+      const idea = allIdeas.find((item) => item.id === playerTarget.ideaId);
+      const clip = idea?.clips.find((item) => item.id === playerTarget.clipId);
+      if (idea && clip) {
+        // The engine is persistent (FullPlayerProvider), so playerPositionMs
+        // stays live even while the Player screen is unmounted.
+        return {
+          kind: "player",
+          ideaId: idea.id,
+          clipId: clip.id,
+          title: clip.title,
+          subtitle: idea.title,
+          isPlaying: playerIsPlaying,
+          positionMs: playerPositionMs,
+          durationMs: playerDurationMs || clip.durationMs || 0,
+        } satisfies PlaybackDockState;
+      }
+    }
     if (inlineTarget && !inlinePlayerMounted) {
       const idea = allIdeas.find((item) => item.id === inlineTarget.ideaId);
       const clip = idea?.clips.find((item) => item.id === inlineTarget.clipId);
@@ -172,11 +193,6 @@ export function GlobalMediaDock({
 
   if (!activePlayback) return null;
 
-  const progressPct =
-    activePlayback.durationMs > 0
-      ? Math.max(0, Math.min(100, (activePlayback.positionMs / activePlayback.durationMs) * 100))
-      : 0;
-
   return (
     <View style={[styles.miniMediaDockWrap, { bottom: Math.max(insets.bottom, 14) }]}>
       <Pressable
@@ -218,7 +234,15 @@ export function GlobalMediaDock({
               ]}
               onPress={(evt) => {
                 evt.stopPropagation();
-                useStore.getState().requestPlayerToggle();
+                if (activePlayback.kind === "player") {
+                  if (activePlayback.isPlaying) {
+                    void fullPlayer.pausePlayer();
+                  } else {
+                    void fullPlayer.playPlayer();
+                  }
+                  return;
+                }
+                useStore.getState().requestInlineToggle();
               }}
               accessibilityRole="button"
               accessibilityLabel={activePlayback.isPlaying ? "Pause playback" : "Play playback"}
@@ -238,6 +262,7 @@ export function GlobalMediaDock({
               onPress={(evt) => {
                 evt.stopPropagation();
                 if (activePlayback.kind === "player") {
+                  void fullPlayer.closePlayer();
                   useStore.getState().clearPlayerQueue();
                   return;
                 }
@@ -251,25 +276,20 @@ export function GlobalMediaDock({
           </View>
         </View>
 
-        <Pressable
-          style={styles.miniMediaDockScrubWrap}
-          onLayout={(e: LayoutChangeEvent) => {
-            scrubTrackWidthRef.current = e.nativeEvent.layout.width;
-          }}
-          onPress={(e: GestureResponderEvent) => {
-            e.stopPropagation();
-            if (scrubTrackWidthRef.current <= 0 || activePlayback.durationMs <= 0) return;
-            const x = e.nativeEvent.locationX;
-            const pct = Math.max(0, Math.min(1, x / scrubTrackWidthRef.current));
-            const targetMs = Math.round(pct * activePlayback.durationMs);
-            useStore.getState().requestInlineSeek(targetMs);
-          }}
-          hitSlop={{ top: 8, bottom: 8 }}
-        >
-          <View style={styles.miniMediaDockProgressTrack}>
-            <View style={[styles.miniMediaDockProgressFill, { width: `${progressPct}%` }]} />
-          </View>
-        </Pressable>
+        <View style={styles.miniMediaDockScrubWrap}>
+          <MiniProgress
+            hideTimes
+            currentMs={activePlayback.positionMs}
+            durationMs={activePlayback.durationMs}
+            onSeek={(ms) => {
+              if (activePlayback.kind === "player") {
+                void fullPlayer.seekTo(ms);
+                return;
+              }
+              useStore.getState().requestInlineSeek(ms);
+            }}
+          />
+        </View>
         <View style={styles.miniMediaDockTimesRow}>
           <Text style={styles.miniMediaDockTime}>{fmtDuration(activePlayback.positionMs)}</Text>
           {activePlayback.kind === "inline" ? (

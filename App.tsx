@@ -106,6 +106,7 @@ export type RootStackParamList = {
 };
 import { useStore } from "./src/state/useStore";
 import { AppDialogHost } from "./src/components/common/AppDialog";
+import { FullPlayerProvider } from "./src/hooks/FullPlayerProvider";
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const Drawer = createDrawerNavigator<HomeDrawerParamList>();
@@ -849,6 +850,7 @@ function AppContent() {
           <ActivityIndicator color="#B87D6B" />
         </View>
       ) : (
+      <FullPlayerProvider>
       <NavigationContainer
         ref={navigationRef}
         linking={linking}
@@ -862,7 +864,11 @@ function AppContent() {
           <Stack.Screen name="IdeaDetail" component={IdeaDetailScreen} />
           <Stack.Screen name="Recording" component={RecordingScreen} />
           <Stack.Screen name="BluetoothCalibration" component={BluetoothCalibrationScreen} />
-          <Stack.Screen name="Player" component={PlayerScreen} />
+          <Stack.Screen
+            name="Player"
+            component={PlayerScreen}
+            options={{ animation: "slide_from_bottom", animationDuration: 260 }}
+          />
           <Stack.Screen name="ShareImport">
             {() => <ShareImportScreen fallbackCollectionId={lastCollectionContextId} />}
           </Stack.Screen>
@@ -885,6 +891,7 @@ function AppContent() {
         <ImportProgressBanner />
         <DuplicateReviewSheet />
       </NavigationContainer>
+      </FullPlayerProvider>
       )}
     </ShareIntentProvider>
   );

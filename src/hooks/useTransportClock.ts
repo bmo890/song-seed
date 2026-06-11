@@ -21,11 +21,17 @@ export function useTransportClock({
   resetKey,
   resetPositionMs = 0,
 }: Args) {
-  const initialPositionMs = resetKey == null ? positionMs : resetPositionMs;
+  // Seed the visual playhead from the live position, not resetPositionMs. On a
+  // fresh mount the source may already be loaded mid-track (e.g. returning to the
+  // full player from the minimized dock while paused) — we want to show that
+  // position immediately, not snap to 0. The reset hold only applies when the
+  // source actually CHANGES after mount (handled by the resetKey effect below),
+  // so we start with no hold here.
+  const initialPositionMs = positionMs;
   const nativePositionRef = useRef(initialPositionMs);
   const playbackRateRef = useRef(playbackRate);
   const resetKeyRef = useRef(resetKey);
-  const resetHoldUntilRef = useRef(resetKey == null ? 0 : Date.now() + SOURCE_RESET_HOLD_MS);
+  const resetHoldUntilRef = useRef(0);
   const pendingDisplaySeekRef = useRef<{
     sourceMs: number;
     targetMs: number;

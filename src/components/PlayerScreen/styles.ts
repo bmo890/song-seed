@@ -15,6 +15,11 @@ export const playerScreenStyles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
   },
+  navRowRight: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
   overflowButton: {
     width: 40,
     height: 40,
