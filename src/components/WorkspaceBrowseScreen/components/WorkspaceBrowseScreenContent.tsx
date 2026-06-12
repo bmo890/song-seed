@@ -9,6 +9,7 @@ import { SearchField } from "../../common/SearchField";
 import { QuickNameModal } from "../../modals/QuickNameModal";
 import { CollectionMoveModal } from "../../modals/CollectionMoveModal";
 import { SelectionDock } from "../../common/SelectionDock";
+import { SelectionTopBar } from "../../common/SelectionTopBar";
 import { useBrowseRootBackHandler } from "../../../hooks/useBrowseRootBackHandler";
 import { useWorkspaceCollectionsModel } from "../hooks/useWorkspaceCollectionsModel";
 import { useWorkspaceCollectionSelection } from "../hooks/useWorkspaceCollectionSelection";
@@ -81,6 +82,16 @@ function WorkspaceBrowseInner() {
 
   return (
     <SafeAreaView style={[browseStyles.screen, { backgroundColor: theme.bg }]}>
+      {selectionModel.selectionMode ? (
+        <SelectionTopBar
+          count={selectionModel.selectedCollectionIds.length}
+          allSelected={selectionModel.canDeselectAll}
+          onSelectAll={() =>
+            selectionModel.setSelectedCollectionIds(selectionModel.selectableCollectionIds)
+          }
+          onCancel={() => selectionModel.setSelectedCollectionIds([])}
+        />
+      ) : null}
       <ScrollView
         style={browseStyles.flexFill}
         contentContainerStyle={[
@@ -164,9 +175,7 @@ function WorkspaceBrowseInner() {
       {/* ── Multi-select dock ────────────────────────────────────────────────── */}
       {selectionModel.selectionMode ? (
         <SelectionDock
-          count={selectionModel.selectedCollectionIds.length}
           actions={selectionModel.selectionDockActions}
-          onDone={() => selectionModel.setSelectedCollectionIds([])}
           onLayout={(height) => {
             selectionModel.setSelectionDockHeight((prev) =>
               Math.abs(prev - height) < 1 ? prev : height

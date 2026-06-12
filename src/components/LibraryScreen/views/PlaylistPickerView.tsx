@@ -2,6 +2,7 @@ import { Pressable, ScrollView, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { SelectionActionSheet } from "../../common/SelectionActionSheet";
 import { SelectionDock } from "../../common/SelectionDock";
+import { SelectionTopBar } from "../../common/SelectionTopBar";
 import { styles } from "../styles";
 import type { Workspace } from "../../../types";
 import { getHierarchyIconColor, getHierarchyIconName } from "../../../hierarchy";
@@ -291,10 +292,13 @@ export function PlaylistPickerView({
 
       {pickerState.selectedItems.length > 0 ? (
         <>
-          <SelectionDock
+          <SelectionTopBar
             count={pickerState.selectedItems.length}
+            allSelected={false}
+            onCancel={onCancel}
+          />
+          <SelectionDock
             actions={model.selectionDockActions}
-            onDone={onCancel}
             onLayout={(height) => {
               model.setSelectionDockHeight((prev) => (Math.abs(prev - height) < 1 ? prev : height));
             }}

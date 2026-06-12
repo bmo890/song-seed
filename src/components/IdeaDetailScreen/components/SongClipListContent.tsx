@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useAnimatedReaction, runOnJS } from "react-native-reanimated";
 import { styles } from "../styles";
 import { useStore } from "../../../state/useStore";
 import { type ClipCardContextProps } from "../ClipCard";
@@ -12,8 +11,9 @@ import { useSongScreen } from "../provider/SongScreenProvider";
 import { getLineageRootId, type TimelineClipEntry } from "../../../clipGraph";
 import { SongClipListSummary } from "./SongClipListSummary";
 import { SongClipListHeader } from "./songClipToolbar/SongClipListHeader";
-import { CollapsingHeaderOverlay } from "./CollapsingHeaderOverlay";
+import { CollapsingHeaderOverlay } from "../../common/CollapsingHeaderOverlay";
 import { SongCollapsibleHeader } from "./SongCollapsibleHeader";
+import { SelectionTopBar } from "../../common/SelectionTopBar";
 
 type SongClipListContentProps = {
   filteredIdeaClips: TimelineClipEntry["clip"][];
@@ -41,18 +41,6 @@ export function SongClipListContent({
   const markRecentlyAdded = useStore((s) => s.markRecentlyAdded);
   const [locateTarget, setLocateTarget] = useState<{ clipId: string; nonce: number } | null>(null);
   const [headerHeight, setHeaderHeight] = useState(DEFAULT_HEADER_HEIGHT);
-
-  // Derived collapse state — drives the collapse-all button style.
-  const [isHeaderCollapsed, setIsHeaderCollapsed] = useState(false);
-  useAnimatedReaction(
-    () => {
-      const h = screen.collapsibleHeaderHeight.value;
-      return h > 0 && screen.scrollY.value >= h - 2;
-    },
-    (collapsed, prev) => {
-      if (collapsed !== prev) runOnJS(setIsHeaderCollapsed)(collapsed);
-    }
-  );
 
   const summaryContent = <SongClipListSummary />;
 
@@ -121,6 +109,7 @@ export function SongClipListContent({
         clipCardContext={timelineClipCardContext}
         scrollY={screen.scrollY}
         contentPaddingTop={headerHeight}
+        contentPaddingHorizontal={16}
       />
     ) : (
       <EvolutionList
@@ -140,49 +129,87 @@ export function SongClipListContent({
         }}
         scrollY={screen.scrollY}
         contentPaddingTop={headerHeight}
+        contentPaddingHorizontal={16}
         locateTarget={locateTarget}
       />
     );
 
   return (
-    <View style={{ flex: 1, overflow: "hidden" }}>
+    <View style={{ flex: 1, overflow: "hidden", marginHorizontal: -16 }}>
       {body}
       <CollapsingHeaderOverlay
         scrollY={screen.scrollY}
         collapsibleHeight={screen.collapsibleHeaderHeight}
         onHeaderHeight={setHeaderHeight}
         collapsible={
-          <SongCollapsibleHeader
-            extra={
-              primaryEntry ? (
-                <PrimaryTakeStrip entry={primaryEntry} onLocate={onLocatePrimary} />
-              ) : null
-            }
-          />
+          <View style={{ paddingHorizontal: 16 }}>
+            <SongCollapsibleHeader
+              extra={
+                primaryEntry ? (
+                  <PrimaryTakeStrip entry={primaryEntry} onLocate={onLocatePrimary} />
+                ) : null
+              }
+            />
+          </View>
         }
         pinned={
-          <>
+          <View style={{ backgroundColor: "#FDFBF7" }} pointerEvents="box-none">
             <SongClipListHeader visibleIdeaCount={visibleIdeaCount} />
+            <SongClipSelectionTopBar />
             {screen.clipViewMode === "evolution" &&
             Object.values(expandedLineageIds).some(Boolean) ? (
-              <View style={styles.songDetailEvolutionCollapseAllRow}>
-                <Pressable
-                  style={({ pressed }) => [
-                    isHeaderCollapsed
-                      ? styles.songDetailCollapseAllChip
-                      : styles.songDetailEvolutionCollapseAllButton,
-                    pressed ? styles.pressDown : null,
-                  ]}
-                  onPress={() => setExpandedLineageIds({})}
-                >
-                  <Ionicons name="chevron-collapse-outline" size={13} color="#84736f" />
-                  <Text style={styles.songDetailEvolutionCollapseAllText}>Collapse all</Text>
-                </Pressable>
-              </View>
+              <CollapseAllPill onPress={() => setExpandedLineageIds({})} />
             ) : null}
-          </>
+          </View>
         }
       />
+    </View>
+  );
+}
+
+/**
+ * Selection bar pinned under the toolbar (top of the timeline) while clips are
+ * being multi-selected. Isolated so selection-state changes re-render only this
+ * bar, and so the "Collapse all" pill below it shifts down naturally in flow.
+ */
+function SongClipSelectionTopBar() {
+  const { screen } = useSongScreen();
+  const clipSelectionMode = useStore((s) => s.clipSelectionMode);
+  const selectedClipIds = useStore((s) => s.selectedClipIds);
+  if (!clipSelectionMode) return null;
+
+  const selectableClipIds = (screen.selectedIdea?.clips ?? []).map((c) => c.id);
+  const allSelected =
+    selectableClipIds.length === 0 ||
+    selectableClipIds.every((id) => selectedClipIds.includes(id));
+
+  return (
+    <SelectionTopBar
+      count={selectedClipIds.length}
+      allSelected={allSelected}
+      onSelectAll={() => useStore.getState().replaceClipSelection(selectableClipIds)}
+      onCancel={() => useStore.getState().cancelClipSelection()}
+    />
+  );
+}
+
+/**
+ * "Collapse all" pill in the pinned toolbar. It keeps one fixed chip shape so
+ * the measured pinned header height does not change while scrolling.
+ */
+function CollapseAllPill({ onPress }: { onPress: () => void }) {
+  return (
+    <View style={styles.songDetailEvolutionCollapseAllRow}>
+      <Pressable
+        style={({ pressed }) => [
+          styles.songDetailCollapseAllChip,
+          pressed ? styles.pressDown : null,
+        ]}
+        onPress={onPress}
+      >
+        <Ionicons name="chevron-collapse-outline" size={13} color="#84736f" />
+        <Text style={styles.songDetailEvolutionCollapseAllText}>Collapse all</Text>
+      </Pressable>
     </View>
   );
 }

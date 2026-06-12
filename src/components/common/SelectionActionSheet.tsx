@@ -29,7 +29,7 @@ export function SelectionActionSheet({
               style={({ pressed }) => [
                 styles.selectionSheetAction,
                 dangerous ? styles.selectionSheetActionDanger : null,
-                action.disabled ? styles.selectionDockActionDisabled : null,
+                action.disabled ? styles.selectionToolbarActionDisabled : null,
                 pressed && !action.disabled ? styles.pressDown : null,
               ]}
               disabled={action.disabled}

@@ -2,16 +2,61 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Animated } from "react-native";
 import { useIsFocused, useNavigation, useRoute } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useSharedValue } from "react-native-reanimated";
 import { useStore } from "../../../state/useStore";
-import { useScrollCollapseHeader } from "../../../hooks/useScrollCollapseHeader";
-import { getCollectionAncestors, getCollectionById } from "../../../utils";
+import { fmtDuration, getCollectionAncestors } from "../../../utils";
 import { getCollectionHierarchyLevel } from "../../../hierarchy";
 import { getDateBucket, getDateBucketLabel } from "../../../dateBuckets";
 import { compareIdeas, getIdeaCreatedAt, getIdeaSortState, getIdeaSortTimestamp, getIdeaUpdatedAt, usesIdeaTimelineDividers } from "../../../ideaSort";
 import { goBackFromParentStack, openCollectionInBrowse, openWorkspaceBrowseRoot } from "../../../navigation";
 import { getFloatingActionDockBottomOffset, getFloatingActionDockScrollPastClearance } from "../../common/FloatingActionDock";
-import type { IdeaListEntry } from "../types";
+import { getPlayableClipForIdea } from "../../../clipPresentation";
+import type { IdeaListEntry, IdeaListItemMeta } from "../types";
 import type { AppBreadcrumbItem } from "../../common/AppBreadcrumbs";
+import { stickyDayStore } from "../stickyDayStore";
+import type { SongIdea } from "../../../types";
+
+const formatIdeaTimestamp = (timestamp: number) => {
+  const dateValue = new Date(timestamp);
+  const date = dateValue.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+  const time = dateValue.toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+  return `${date} • ${time}`;
+};
+
+const projectHasLyrics = (idea: SongIdea) =>
+  idea.kind === "project" &&
+  (idea.lyrics?.versions ?? []).some((version) =>
+    version.document.lines.some((line) => line.text.trim().length > 0 || line.chords.length > 0)
+  );
+
+const buildIdeaListItemMeta = (idea: SongIdea): IdeaListItemMeta => {
+  const primaryClip = idea.clips.find((clip) => clip.isPrimary) ?? null;
+  const playClip = getPlayableClipForIdea(idea) ?? null;
+  const hasProjectLyrics = projectHasLyrics(idea);
+  const hasProjectClipCount = idea.kind === "project" && idea.clips.length > 0;
+  const projectProgressPct =
+    idea.kind === "project" ? Math.max(0, Math.min(100, Math.round(idea.completionPct))) : null;
+
+  return {
+    playClip,
+    clipDurationLabel: playClip?.durationMs ? fmtDuration(playClip.durationMs) : "0:00",
+    projectPrimaryDurationLabel: primaryClip?.durationMs ? fmtDuration(primaryClip.durationMs) : "0:00",
+    projectClipCount: idea.kind === "project" ? idea.clips.length : 0,
+    hasProjectLyrics,
+    hasProjectClipCount,
+    hasExpandedProjectIndicators: idea.kind === "project" && (hasProjectLyrics || hasProjectClipCount),
+    createdAtLabel: formatIdeaTimestamp(getIdeaCreatedAt(idea)),
+    updatedAtLabel: formatIdeaTimestamp(getIdeaUpdatedAt(idea)),
+    projectProgressPct,
+  };
+};
 
 export function useCollectionScreenModel() {
   const navigation = useNavigation();
@@ -68,8 +113,6 @@ export function useCollectionScreenModel() {
     [activeWorkspace?.collections, collectionId]
   );
 
-  const [hoveredIdeaId, setHoveredIdeaId] = useState<string | null>(null);
-  const [dropIntent] = useState<"between" | "inside">("between");
   const [nestedCollectionsExpanded, setNestedCollectionsExpanded] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
@@ -78,8 +121,6 @@ export function useCollectionScreenModel() {
   const [listDensity, setListDensity] = useState<"comfortable" | "compact">("comfortable");
   const [headerMenuOpen, setHeaderMenuOpen] = useState(false);
   const [ideaSizeMap, setIdeaSizeMap] = useState<Record<string, number>>({});
-  const [stickyDayLabel, setStickyDayLabel] = useState<string | null>(null);
-  const [stickyDayTop, setStickyDayTop] = useState<number>(0);
   const [floatingDockHeight, setFloatingDockHeight] = useState(62);
   const [selectionDockHeight, setSelectionDockHeight] = useState(120);
   const rowLayoutsRef = useRef<Record<string, { y: number; height: number }>>({});
@@ -88,8 +129,16 @@ export function useCollectionScreenModel() {
   const listRef = useRef<any>(null);
   const handledFocusTokenRef = useRef<number | null>(null);
   const focusScrollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const viewabilityConfigRef = useRef({ itemVisiblePercentThreshold: 35 });
-  const { handleScroll, scrollEventThrottle, animStyle: headerCollapseAnimStyle } = useScrollCollapseHeader();
+  // Low threshold so the sticky day chip swaps labels the instant a new
+  // cohort's divider/row crosses under it at the top of the list — not after
+  // it's already well into view.
+  const viewabilityConfigRef = useRef({ itemVisiblePercentThreshold: 1 });
+
+  // Collapsing header (same mechanism as the song page): the list's UI-thread
+  // scroll offset drives an absolute overlay that translates up via transform.
+  // collapsibleHeaderHeight is measured by the overlay.
+  const scrollY = useSharedValue(0);
+  const collapsibleHeaderHeight = useSharedValue(0);
 
   const hiddenIdeaIds = currentCollection?.ideasListState.hiddenIdeaIds ?? [];
   const hiddenDays = currentCollection?.ideasListState.hiddenDays ?? [];
@@ -105,6 +154,11 @@ export function useCollectionScreenModel() {
     if (!collectionId) return;
     markCollectionOpened(collectionId);
   }, [collectionId, markCollectionOpened]);
+
+  // Navigating to a different collection starts at the top — header expanded.
+  useEffect(() => {
+    scrollY.value = 0;
+  }, [collectionId, scrollY]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -143,11 +197,6 @@ export function useCollectionScreenModel() {
   }, [activityMetricFilter, activityRangeEndTs, activityRangeStartTs, ideas, ideasFilter, ideasSort]);
 
   const searchNeedle = debouncedSearchQuery.trim().toLowerCase();
-  const projectHasLyrics = (idea: any) =>
-    idea.kind === "project" &&
-    (idea.lyrics?.versions ?? []).some((version: any) =>
-      version.document.lines.some((line: any) => line.text.trim().length > 0 || line.chords.length > 0)
-    );
 
   const searchMetaByIdeaId = useMemo(() => {
     const map = new Map<string, { matches: boolean; title: boolean; notes: boolean; lyrics: boolean }>();
@@ -196,6 +245,14 @@ export function useCollectionScreenModel() {
       }),
     [filteredIdeas, lyricsFilterMode, recordingIdeaId, searchMetaByIdeaId, selectedProjectStages]
   );
+
+  const itemMetaByIdeaId = useMemo(() => {
+    const map = new Map<string, IdeaListItemMeta>();
+    for (const idea of listIdeas) {
+      map.set(idea.id, buildIdeaListItemMeta(idea));
+    }
+    return map;
+  }, [listIdeas]);
 
   const showDateDividers = usesIdeaTimelineDividers(ideasSort);
   const listEntries = useMemo<IdeaListEntry[]>(() => {
@@ -251,11 +308,14 @@ export function useCollectionScreenModel() {
 
   useEffect(() => {
     if (!showDateDividers || listEntries.length === 0) {
-      setStickyDayLabel(null);
+      stickyDayStore.set(null);
+      stickyDayStore.setTopLabel(null);
       return;
     }
     const firstEntry = listEntries[0]!;
-    setStickyDayLabel(firstEntry.type === "idea" ? getDateBucketLabel(getIdeaSortTimestamp(firstEntry.idea, ideasSort)) : firstEntry.dayLabel);
+    const firstLabel = firstEntry.type === "idea" ? getDateBucketLabel(getIdeaSortTimestamp(firstEntry.idea, ideasSort)) : firstEntry.dayLabel;
+    stickyDayStore.set(firstLabel);
+    stickyDayStore.setTopLabel(firstLabel);
   }, [ideasSort, listEntries, showDateDividers]);
 
   useEffect(() => {
@@ -334,7 +394,8 @@ export function useCollectionScreenModel() {
 
   const floatingBaseBottom = getFloatingActionDockBottomOffset(insets.bottom);
   const floatingStripBottom = floatingBaseBottom + 70;
-  const selectionDockBottom = 12 + Math.max(insets.bottom, 12);
+  const playerDockHeight = useStore((s) => s.playerDockHeight);
+  const selectionDockBottom = 12 + Math.max(insets.bottom, 12) + playerDockHeight;
   const bottomToolbarAllowance = 18;
   const activeDockHeight = listSelectionMode ? selectionDockHeight : floatingDockHeight;
   const activeDockClearance = listSelectionMode ? selectionDockBottom + selectionDockHeight : getFloatingActionDockScrollPastClearance(insets.bottom);
@@ -353,6 +414,7 @@ export function useCollectionScreenModel() {
     childCollections,
     ideas,
     listEntries,
+    itemMetaByIdeaId,
     listIdeas,
     selectedListIdeaIds,
     listSelectionMode,
@@ -370,10 +432,6 @@ export function useCollectionScreenModel() {
     setNestedCollectionsExpanded,
     ideaSizeMap,
     setIdeaSizeMap,
-    stickyDayLabel,
-    setStickyDayLabel,
-    stickyDayTop,
-    setStickyDayTop,
     floatingDockHeight,
     setFloatingDockHeight,
     selectionDockHeight,
@@ -387,7 +445,6 @@ export function useCollectionScreenModel() {
     focusToken,
     handledFocusTokenRef,
     focusScrollTimerRef,
-    hoverState: { hoveredIdeaId, setHoveredIdeaId, dropIntent },
     searchMetaByIdeaId,
     hiddenIdeaIds,
     hiddenIdeaIdsSet,
@@ -403,9 +460,8 @@ export function useCollectionScreenModel() {
     searchNeedle,
     breadcrumbs,
     collectionRouteParams,
-    handleListScroll: handleScroll,
-    listScrollThrottle: scrollEventThrottle,
-    headerCollapseAnimStyle,
+    scrollY,
+    collapsibleHeaderHeight,
     floatingStripBottom,
     listFooterSpacerHeight,
     activityLabel,

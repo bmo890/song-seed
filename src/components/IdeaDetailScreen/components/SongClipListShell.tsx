@@ -22,6 +22,8 @@ type SongClipListShellProps<T> = {
   scrollY?: SharedValue<number>;
   /** Top inset reserving space for the absolute collapsing header overlay. */
   contentPaddingTop?: number;
+  /** Horizontal inset compensating for an edge-to-edge stage (selection bar bleed). */
+  contentPaddingHorizontal?: number;
   /** When set (with a fresh nonce), scroll the content row at `index` into view. */
   scrollTarget?: { index: number; nonce: number } | null;
   contentKeyExtractor: (item: T, index: number) => string;
@@ -39,6 +41,7 @@ export function SongClipListShell<T>({
   emptyLabel,
   scrollY,
   contentPaddingTop,
+  contentPaddingHorizontal,
   scrollTarget,
   contentKeyExtractor,
   renderContentRow,
@@ -110,6 +113,7 @@ export function SongClipListShell<T>({
       contentContainerStyle={[
         styles.songDetailClipListContent,
         contentPaddingTop ? { paddingTop: contentPaddingTop } : null,
+        contentPaddingHorizontal ? { paddingHorizontal: contentPaddingHorizontal } : null,
       ]}
       ListFooterComponent={<View style={{ height: footerSpacerHeight }} />}
       renderItem={({ item }) => {

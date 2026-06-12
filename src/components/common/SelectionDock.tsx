@@ -1,7 +1,10 @@
+import { useEffect } from "react";
 import { Pressable, Text, View } from "react-native";
+import Animated, { SlideInDown, SlideOutDown } from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { styles } from "../../styles";
+import { useStore } from "../../state/useStore";
 
 export type SelectionActionTone = "default" | "danger";
 
@@ -15,41 +18,40 @@ export type SelectionAction = {
 };
 
 type SelectionDockProps = {
-  count: number;
   actions: SelectionAction[];
-  onDone: () => void;
   onLayout?: (height: number) => void;
 };
 
-export function SelectionDock({ count, actions, onDone, onLayout }: SelectionDockProps) {
+export function SelectionDock({ actions, onLayout }: SelectionDockProps) {
   const insets = useSafeAreaInsets();
-  const bottomOffset = 12 + Math.max(insets.bottom, 12);
+
+  // Publish height so GlobalMediaDock can sit above us; clear on unmount.
+  useEffect(() => {
+    return () => {
+      useStore.getState().setActiveSelectionDockHeight(0);
+    };
+  }, []);
 
   return (
-    <View
-      style={[styles.selectionDock, { bottom: bottomOffset }]}
-      onLayout={(event) => onLayout?.(event.nativeEvent.layout.height)}
+    <Animated.View
+      style={[styles.selectionToolbar, { paddingBottom: Math.max(insets.bottom, 6) }]}
+      entering={SlideInDown.duration(220)}
+      exiting={SlideOutDown.duration(180)}
+      onLayout={(e) => {
+        const h = e.nativeEvent.layout.height;
+        onLayout?.(h);
+        useStore.getState().setActiveSelectionDockHeight(h);
+      }}
     >
-      <View style={styles.selectionDockHeader}>
-        <Text style={styles.selectionDockCount}>{count} selected</Text>
-        <Pressable
-          style={({ pressed }) => [styles.selectionDockDoneBtn, pressed ? styles.pressDown : null]}
-          onPress={onDone}
-        >
-          <Text style={styles.selectionDockDoneBtnText}>Done</Text>
-        </Pressable>
-      </View>
-
-      <View style={styles.selectionDockActionsRow}>
+      <View style={styles.selectionToolbarActions}>
         {actions.map((action) => {
           const dangerous = action.tone === "danger";
           return (
             <Pressable
               key={action.key}
               style={({ pressed }) => [
-                styles.selectionDockAction,
-                dangerous ? styles.selectionDockActionDanger : null,
-                action.disabled ? styles.selectionDockActionDisabled : null,
+                styles.selectionToolbarAction,
+                action.disabled ? styles.selectionToolbarActionDisabled : null,
                 pressed && !action.disabled ? styles.pressDown : null,
               ]}
               disabled={action.disabled}
@@ -57,13 +59,20 @@ export function SelectionDock({ count, actions, onDone, onLayout }: SelectionDoc
             >
               <Ionicons
                 name={action.icon}
-                size={16}
-                color={dangerous ? "#a83232" : "#84736f"}
+                size={20}
+                color={
+                  action.disabled
+                    ? "#c4b8b4"
+                    : dangerous
+                    ? "#a83232"
+                    : "#524440"
+                }
               />
               <Text
                 style={[
-                  styles.selectionDockActionText,
-                  dangerous ? styles.selectionDockActionTextDanger : null,
+                  styles.selectionToolbarActionLabel,
+                  dangerous ? styles.selectionToolbarActionLabelDanger : null,
+                  action.disabled ? styles.selectionToolbarActionLabelDisabled : null,
                 ]}
                 numberOfLines={1}
               >
@@ -73,6 +82,6 @@ export function SelectionDock({ count, actions, onDone, onLayout }: SelectionDoc
           );
         })}
       </View>
-    </View>
+    </Animated.View>
   );
 }

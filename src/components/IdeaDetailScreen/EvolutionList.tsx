@@ -21,6 +21,7 @@ type EvolutionListProps = {
   clipCardContext: ClipCardContextProps;
   scrollY?: SharedValue<number>;
   contentPaddingTop?: number;
+  contentPaddingHorizontal?: number;
   /** Clip to scroll into view (with a fresh nonce per locate request). */
   locateTarget?: { clipId: string; nonce: number } | null;
 };
@@ -144,6 +145,7 @@ export function EvolutionList({
   clipCardContext,
   scrollY,
   contentPaddingTop,
+  contentPaddingHorizontal,
   locateTarget,
 }: EvolutionListProps) {
   const groups = clipCardContext.mode.idea.clipGroups ?? [];
@@ -179,6 +181,7 @@ export function EvolutionList({
       emptyLabel={primaryEntry ? "No idea clips yet." : "No clips yet."}
       scrollY={scrollY}
       contentPaddingTop={contentPaddingTop}
+      contentPaddingHorizontal={contentPaddingHorizontal}
       scrollTarget={scrollTarget}
       contentKeyExtractor={(row, index) => {
         if (row.kind === "clip") return `evolution-clip:${row.entry.clip.id}:${index}`;

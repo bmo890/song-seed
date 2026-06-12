@@ -2,7 +2,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { View, type StyleProp, type ViewStyle } from "react-native";
 import Animated, { useAnimatedScrollHandler } from "react-native-reanimated";
 import { useSongScreen } from "../provider/SongScreenProvider";
-import { CollapsingHeaderOverlay } from "./CollapsingHeaderOverlay";
+import { CollapsingHeaderOverlay } from "../../common/CollapsingHeaderOverlay";
 import { SongCollapsibleHeader } from "./SongCollapsibleHeader";
 
 const DEFAULT_HEADER_HEIGHT = 130;

@@ -27,6 +27,13 @@ type CollapsingHeaderOverlayProps = {
  * The owning "stage" must set `overflow: "hidden"` so the collapsible group is
  * clipped as it slides up under the nav, and must pad its scroll content by the
  * reported header height.
+ *
+ * Stability details:
+ * - Scroll offsets are clamped at 0 in the worklet so overscroll/bounce (negative
+ *   offsets) can never push the header *down* — that reads as up-down jitter.
+ * - Measured heights are rounded to whole px. Android reports fractional dp that
+ *   can oscillate between layout passes; feeding that back into paddingTop would
+ *   shift content mid-scroll (another micro-jitter source).
  */
 export function CollapsingHeaderOverlay({
   scrollY,
@@ -44,7 +51,7 @@ export function CollapsingHeaderOverlay({
 
   const onCollapsibleLayout = useCallback(
     (e: LayoutChangeEvent) => {
-      const h = e.nativeEvent.layout.height;
+      const h = Math.round(e.nativeEvent.layout.height);
       if (h === collapsibleHRef.current) return;
       collapsibleHRef.current = h;
       collapsibleHeight.value = h;
@@ -55,7 +62,7 @@ export function CollapsingHeaderOverlay({
 
   const onPinnedLayout = useCallback(
     (e: LayoutChangeEvent) => {
-      const h = e.nativeEvent.layout.height;
+      const h = Math.round(e.nativeEvent.layout.height);
       if (h === pinnedHRef.current) return;
       pinnedHRef.current = h;
       report();
@@ -63,9 +70,12 @@ export function CollapsingHeaderOverlay({
     [report]
   );
 
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: -Math.min(scrollY.value, collapsibleHeight.value) }],
-  }));
+  const animatedStyle = useAnimatedStyle(() => {
+    const y = Math.max(0, scrollY.value);
+    return {
+      transform: [{ translateY: -Math.min(y, collapsibleHeight.value) }],
+    };
+  });
 
   return (
     <Animated.View

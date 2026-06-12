@@ -1,7 +1,20 @@
 import { useEffect, useState } from "react";
 import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
+import Animated, { withSpring, withTiming } from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
 import { dialogStore, type DialogButton, type DialogConfig } from "./dialogStore";
+
+// Soft pop: slight scale-up + fade, spring-settled. Subtle enough for alerts.
+const cardPopIn = () => {
+  "worklet";
+  return {
+    initialValues: { opacity: 0, transform: [{ scale: 0.94 }] },
+    animations: {
+      opacity: withTiming(1, { duration: 160 }),
+      transform: [{ scale: withSpring(1, { damping: 18, stiffness: 320 }) }],
+    },
+  };
+};
 
 /**
  * Styled in-app dialog that replaces native Alert.alert.
@@ -40,7 +53,7 @@ export function AppDialogHost() {
     <Modal visible transparent animationType="fade" onRequestClose={hasCancel ? dismiss : undefined}>
       <Pressable style={s.scrim} onPress={hasCancel ? dismiss : undefined} />
       <View style={s.centring} pointerEvents="box-none">
-        <View style={s.card}>
+        <Animated.View style={s.card} entering={cardPopIn}>
           {/* Header */}
           <View style={[s.body, isRich ? s.bodyRich : null]}>
             <Text style={s.title}>{config.title}</Text>
@@ -96,7 +109,7 @@ export function AppDialogHost() {
               ))}
             </>
           )}
-        </View>
+        </Animated.View>
       </View>
     </Modal>
   );

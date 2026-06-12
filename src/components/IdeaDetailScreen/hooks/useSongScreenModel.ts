@@ -53,10 +53,11 @@ export function useSongScreenModel() {
   const [selectionDockHeight, setSelectionDockHeight] = useState(120);
   const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const playerDockHeight = useStore((s) => s.playerDockHeight);
   const floatingBaseBottom = getFloatingActionDockBottomOffset(insets.bottom);
   const songPageBaseBottomPadding = 24 + Math.max(insets.bottom, 16);
   const clipListFooterSpacerHeight = getFloatingActionDockContentClearance(insets.bottom);
-  const clipSelectionFooterSpacerHeight = selectionDockHeight + 24 + Math.max(insets.bottom, 12);
+  const clipSelectionFooterSpacerHeight = selectionDockHeight + 24 + Math.max(insets.bottom, 12) + playerDockHeight;
 
   useEffect(() => {
     if (routeIdeaId && routeIdeaId !== selectedIdeaId) {

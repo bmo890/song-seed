@@ -268,14 +268,6 @@ export function IdeaSelectionBar({
       });
     }
 
-    actions.push({
-      key: "select-all",
-      label: canDeselectAll ? "Deselect all" : "Select all",
-      icon: canDeselectAll ? "remove-circle-outline" : "checkmark-circle-outline",
-      onPress: () => replaceListSelection(canDeselectAll ? [] : selectableIdeaIds),
-      disabled: !canDeselectAll && selectableIdeaIds.length === 0,
-    });
-
     return actions;
   }, [
     canDeselectAll,
@@ -295,9 +287,7 @@ export function IdeaSelectionBar({
   return (
     <>
       <SelectionDock
-        count={selectedListIdeaIds.length}
         actions={dockActions}
-        onDone={() => useStore.getState().cancelListSelection()}
         onLayout={onDockLayout}
       />
 

@@ -14,6 +14,8 @@ type Props = {
   captureWholeLane?: boolean;
   /** Hide the built-in current/duration labels (e.g. when the host renders its own). */
   hideTimes?: boolean;
+  /** Override the fill + scrub-dot color. Defaults to the global track fill (#111827). */
+  accentColor?: string;
 };
 
 const EDGE_GRAB_INSET = 10;
@@ -28,6 +30,7 @@ export function MiniProgress({
   extraBottomMargin = 0,
   captureWholeLane = false,
   hideTimes = false,
+  accentColor,
 }: Props) {
   const safeDuration = durationMs || 1;
   const trackRef = useRef<View | null>(null);
@@ -136,8 +139,20 @@ export function MiniProgress({
         {...(!captureWholeLane ? responderHandlers : {})}
       >
         <View style={styles.miniProgressTrack}>
-          <View style={[styles.miniProgressFill, { width: `${clamped * 100}%` }]} />
-          <View style={[styles.miniProgressDot, { left: `${clamped * 100}%` }]} />
+          <View
+            style={[
+              styles.miniProgressFill,
+              { width: `${clamped * 100}%` },
+              accentColor ? { backgroundColor: accentColor } : null,
+            ]}
+          />
+          <View
+            style={[
+              styles.miniProgressDot,
+              { left: `${clamped * 100}%` },
+              accentColor ? { backgroundColor: accentColor } : null,
+            ]}
+          />
         </View>
       </View>
     </View>

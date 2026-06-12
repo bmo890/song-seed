@@ -1,12 +1,10 @@
 import { IdeaListFilterSection } from "../components/IdeaListFilterSection";
-import { IdeaListNestedCollectionsSection } from "../components/IdeaListNestedCollectionsSection";
 import { useCollectionScreen } from "../provider/CollectionScreenProvider";
 import { getDateBucket } from "../../../dateBuckets";
 import { getIdeaSortTimestamp } from "../../../ideaSort";
-import { openCollectionInBrowse } from "../../../navigation";
 
 export function CollectionFilterSection() {
-  const { screen, management, store } = useCollectionScreen();
+  const { screen, store } = useCollectionScreen();
 
   const isIdeaHiddenByDay = (idea: any) =>
     screen.activeTimelineMetric
@@ -49,38 +47,18 @@ export function CollectionFilterSection() {
   };
 
   return (
-    <>
-      <IdeaListFilterSection
-        selectedProjectStages={screen.selectedProjectStages}
-        lyricsFilterMode={screen.lyricsFilterMode}
-        showDateDividers={screen.showDateDividers}
-        stickyDayLabel={screen.stickyDayLabel}
-        stickyDayTop={screen.stickyDayTop}
-        hiddenItemsCount={hiddenItemsCount}
-        onLayout={(nextTop) =>
-          screen.setStickyDayTop((prev) => (Math.abs(prev - nextTop) < 1 ? prev : nextTop))
-        }
-        onToggleProjectStage={(stage) => {
-          screen.setSelectedProjectStages((prev) =>
-            prev.includes(stage) ? prev.filter((item) => item !== stage) : [...prev, stage]
-          );
-        }}
-        onClearProjectStages={() => screen.setSelectedProjectStages([])}
-        onLyricsFilterModeChange={screen.setLyricsFilterMode}
-        onUnhideAll={unhideAllInCurrentView}
-      />
-      <IdeaListNestedCollectionsSection
-        childCollections={screen.childCollections}
-        expanded={screen.nestedCollectionsExpanded}
-        onToggleExpanded={() => screen.setNestedCollectionsExpanded((prev) => !prev)}
-        onOpenCollection={(nextCollectionId) =>
-          openCollectionInBrowse(screen.navigation, {
-            collectionId: nextCollectionId,
-            ...screen.collectionRouteParams,
-          })
-        }
-        onOpenCollectionActions={management.openCollectionActions}
-      />
-    </>
+    <IdeaListFilterSection
+      selectedProjectStages={screen.selectedProjectStages}
+      lyricsFilterMode={screen.lyricsFilterMode}
+      hiddenItemsCount={hiddenItemsCount}
+      onToggleProjectStage={(stage) => {
+        screen.setSelectedProjectStages((prev) =>
+          prev.includes(stage) ? prev.filter((item) => item !== stage) : [...prev, stage]
+        );
+      }}
+      onClearProjectStages={() => screen.setSelectedProjectStages([])}
+      onLyricsFilterModeChange={screen.setLyricsFilterMode}
+      onUnhideAll={unhideAllInCurrentView}
+    />
   );
 }

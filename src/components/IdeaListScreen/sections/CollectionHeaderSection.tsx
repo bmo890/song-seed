@@ -1,4 +1,8 @@
-import ReAnimated from "react-native-reanimated";
+import ReAnimated, {
+  Extrapolation,
+  interpolate,
+  useAnimatedStyle,
+} from "react-native-reanimated";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { IdeaListHeaderSection } from "../components/IdeaListHeaderSection";
@@ -17,104 +21,151 @@ function formatLastEdited(ts: number): string {
   return `Edited ${new Date(ts).toLocaleDateString("en-US", { month: "short", day: "numeric" })}`;
 }
 
+/**
+ * Fixed nav row: back/hamburger, compact workspace identity (fades in as the
+ * large identity block slides away beneath it), overflow menu.
+ */
 export function CollectionHeaderSection() {
   const { screen } = useCollectionScreen();
-  const cancelClipboard = () => useStore.getState().setClipClipboard(null);
 
   const collection = screen.currentCollection;
   const workspace = screen.activeWorkspace;
 
-  // Eyebrow: workspace › parent collections
-  const eyebrowText = screen.breadcrumbs.map((b) => b.label).join("  ›  ");
+  // Compact identity fades in across the last stretch of the identity block's
+  // slide-out, so one title is always readable — never both, never neither.
+  // Locals only: capturing `screen` would serialize the whole context into the worklet.
+  const scrollY = screen.scrollY;
+  const collapsibleHeaderHeight = screen.collapsibleHeaderHeight;
+  const compactTitleStyle = useAnimatedStyle(() => {
+    const h = collapsibleHeaderHeight.value;
+    if (h <= 0) return { opacity: 0 };
+    return {
+      opacity: interpolate(
+        scrollY.value,
+        [h * 0.45, h * 0.95],
+        [0, 1],
+        Extrapolation.CLAMP
+      ),
+    };
+  });
 
-  // Meta line: seed count + last edited
+  return (
+    <View style={collStyles.navRow}>
+      <Pressable
+        style={({ pressed }) => [collStyles.navBtn, pressed ? styles.pressDown : null]}
+        onPress={screen.onBack}
+        hitSlop={8}
+      >
+        {screen.showBack ? (
+          <Ionicons name="chevron-back" size={20} color="#84736f" />
+        ) : (
+          <Ionicons name="menu-outline" size={22} color="#84736f" />
+        )}
+      </Pressable>
+
+      {/* Compact identity: fades in when the identity block scrolls away */}
+      <ReAnimated.View style={[collStyles.navCompact, compactTitleStyle]} pointerEvents="none">
+        {workspace ? (
+          <WorkspaceAvatar
+            color={workspace.color}
+            name={workspace.title}
+            size={16}
+            avatarKey={workspace.avatarKey}
+          />
+        ) : null}
+        <Text style={collStyles.navCompactTitle} numberOfLines={1}>
+          {collection?.title ?? ""}
+        </Text>
+      </ReAnimated.View>
+
+      {!screen.listSelectionMode ? (
+        <Pressable
+          style={({ pressed }) => [styles.ideasHeaderMenuBtn, pressed ? styles.pressDown : null]}
+          onPress={() => screen.setHeaderMenuOpen((prev) => !prev)}
+        >
+          <Ionicons name="ellipsis-horizontal" size={16} color="#84736f" />
+        </Pressable>
+      ) : (
+        <View style={styles.ideasHeaderMenuBtnPlaceholder} />
+      )}
+    </View>
+  );
+}
+
+/**
+ * The collapsible identity block (workspace eyebrow, large collection title,
+ * seeds/edited meta, description). Rendered inside CollapsingHeaderOverlay so
+ * it slides up and clips away under the nav on scroll.
+ */
+export function CollectionCollapsibleIdentity() {
+  const { screen } = useCollectionScreen();
+  const collection = screen.currentCollection;
+  const workspace = screen.activeWorkspace;
+  if (!collection) return null;
+
+  const eyebrowText = screen.breadcrumbs.map((b) => b.label).join("  ›  ");
   const seedMeta = screen.ideasHeaderMeta.replace(/\bideas?\b/g, (m) =>
     m === "idea" ? "seed" : "seeds"
   );
-  const lastEditedMeta = collection ? formatLastEdited(collection.updatedAt) : null;
+  const lastEditedMeta = formatLastEdited(collection.updatedAt);
   const metaLine = [seedMeta, lastEditedMeta].filter(Boolean).join("  ·  ");
 
   return (
-    <>
-      {/* ── Top nav row ─────────────────────────────────────────────────── */}
-      <View style={collStyles.navRow}>
-        <Pressable
-          style={({ pressed }) => [collStyles.navBtn, pressed ? styles.pressDown : null]}
-          onPress={screen.onBack}
-          hitSlop={8}
-        >
-          {screen.showBack ? (
-            <Ionicons name="chevron-back" size={20} color="#84736f" />
-          ) : (
-            <Ionicons name="menu-outline" size={22} color="#84736f" />
-          )}
-        </Pressable>
-
-        {!screen.listSelectionMode ? (
-          <Pressable
-            style={({ pressed }) => [styles.ideasHeaderMenuBtn, pressed ? styles.pressDown : null]}
-            onPress={() => screen.setHeaderMenuOpen((prev) => !prev)}
-          >
-            <Ionicons name="ellipsis-horizontal" size={16} color="#84736f" />
-          </Pressable>
-        ) : (
-          <View style={styles.ideasHeaderMenuBtnPlaceholder} />
-        )}
-      </View>
-
-      {/* ── Collection identity block ────────────────────────────────────── */}
-      {collection ? (
-        <View style={collStyles.identityBlock}>
-          {eyebrowText ? (
-            <View style={collStyles.eyebrowRow}>
-              {workspace ? (
-                <WorkspaceAvatar
-                  color={workspace.color}
-                  name={workspace.title}
-                  size={18}
-                  avatarKey={workspace.avatarKey}
-                />
-              ) : null}
-              <Text style={collStyles.eyebrow} numberOfLines={1}>{eyebrowText}</Text>
-            </View>
+    // Non-interactive: drags on the title fall through to the list beneath.
+    <View style={collStyles.identityBlock} pointerEvents="none">
+      {eyebrowText ? (
+        <View style={collStyles.eyebrowRow}>
+          {workspace ? (
+            <WorkspaceAvatar
+              color={workspace.color}
+              name={workspace.title}
+              size={18}
+              avatarKey={workspace.avatarKey}
+            />
           ) : null}
-          <Text style={collStyles.collectionTitle} numberOfLines={2}>
-            {collection.title}
-          </Text>
-          <Text style={collStyles.meta}>{metaLine}</Text>
-          {collection.description ? (
-            <Text style={collStyles.description} numberOfLines={2}>
-              {collection.description}
-            </Text>
-          ) : null}
+          <Text style={collStyles.eyebrow} numberOfLines={1}>{eyebrowText}</Text>
         </View>
       ) : null}
+      <Text style={collStyles.collectionTitle} numberOfLines={2}>
+        {collection.title}
+      </Text>
+      <Text style={collStyles.meta}>{metaLine}</Text>
+      {collection.description ? (
+        <Text style={collStyles.description} numberOfLines={2}>
+          {collection.description}
+        </Text>
+      ) : null}
+    </View>
+  );
+}
 
-      {/* ── Collapsible search + banners ────────────────────────────────── */}
-      <ReAnimated.View style={screen.headerCollapseAnimStyle}>
-        <IdeaListHeaderSection
-          searchQuery={screen.searchQuery}
-          hasActivityRangeFilter={screen.hasActivityRangeFilter}
-          activityLabel={screen.activityLabel}
-          collectionId={screen.collectionId!}
-          clipClipboard={screen.clipClipboard}
-          duplicateWarningText={screen.duplicateWarningText}
-          onSearchQueryChange={screen.setSearchQuery}
-          onClearActivityRange={() => {
-            (screen.navigation as any).setParams({
-              activityRangeStartTs: undefined,
-              activityRangeEndTs: undefined,
-              activityMetricFilter: undefined,
-              activityLabel: undefined,
-            });
-          }}
-          onPasteClipboard={() => {
-            void appActions.pasteClipboardToCollection(screen.collectionId!);
-          }}
-          onCancelClipboard={cancelClipboard}
-        />
-      </ReAnimated.View>
-    </>
+/** Search field + clipboard/duplicate banners — pinned under the nav. */
+export function CollectionSearchSection() {
+  const { screen } = useCollectionScreen();
+  const cancelClipboard = () => useStore.getState().setClipClipboard(null);
+
+  return (
+    <IdeaListHeaderSection
+      searchQuery={screen.searchQuery}
+      hasActivityRangeFilter={screen.hasActivityRangeFilter}
+      activityLabel={screen.activityLabel}
+      collectionId={screen.collectionId!}
+      clipClipboard={screen.clipClipboard}
+      duplicateWarningText={screen.duplicateWarningText}
+      onSearchQueryChange={screen.setSearchQuery}
+      onClearActivityRange={() => {
+        (screen.navigation as any).setParams({
+          activityRangeStartTs: undefined,
+          activityRangeEndTs: undefined,
+          activityMetricFilter: undefined,
+          activityLabel: undefined,
+        });
+      }}
+      onPasteClipboard={() => {
+        void appActions.pasteClipboardToCollection(screen.collectionId!);
+      }}
+      onCancelClipboard={cancelClipboard}
+    />
   );
 }
 
@@ -124,7 +175,7 @@ const collStyles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     paddingTop: 8,
-    marginBottom: 20,
+    marginBottom: 12,
   },
   navBtn: {
     width: 36,
@@ -132,9 +183,25 @@ const collStyles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  navCompact: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 8,
+    overflow: "hidden",
+  },
+  navCompactTitle: {
+    flex: 1,
+    fontFamily: "PlayfairDisplay_400Regular",
+    fontSize: 17,
+    color: "#1C1C19",
+  },
   identityBlock: {
-    marginBottom: 20,
+    paddingHorizontal: 14,
+    paddingBottom: 20,
     gap: 4,
+    backgroundColor: "#FDFBF7",
   },
   eyebrowRow: {
     flexDirection: "row",

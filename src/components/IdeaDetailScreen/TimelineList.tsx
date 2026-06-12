@@ -16,6 +16,7 @@ type TimelineListProps = {
   clipCardContext: ClipCardContextProps;
   scrollY?: SharedValue<number>;
   contentPaddingTop?: number;
+  contentPaddingHorizontal?: number;
 };
 
 export function TimelineList({
@@ -26,6 +27,7 @@ export function TimelineList({
   clipCardContext,
   scrollY,
   contentPaddingTop,
+  contentPaddingHorizontal,
 }: TimelineListProps) {
   const { screen } = useSongScreen();
 
@@ -48,6 +50,7 @@ export function TimelineList({
       emptyLabel={primaryEntry ? "No idea clips yet." : "No clips yet."}
       scrollY={scrollY}
       contentPaddingTop={contentPaddingTop}
+      contentPaddingHorizontal={contentPaddingHorizontal}
       contentKeyExtractor={(row, index) => {
         if (row.kind === "clip") return `timeline-clip:${row.entry.clip.id}:${index}`;
         return `day-divider:${row.dayStartTs}`;

@@ -41,9 +41,9 @@ export function useScrollCollapseHeader(opts?: UseScrollCollapseHeaderOptions) {
 
   const progress = useSharedValue(0); // 0 = expanded, 1 = collapsed
 
-  const handleScroll = useCallback(
-    (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-      const y = e.nativeEvent.contentOffset.y;
+  // Core logic operating on a raw scroll offset (y).
+  const applyScrollOffset = useCallback(
+    (y: number) => {
       const prevY = prevYRef.current;
       prevYRef.current = y;
 
@@ -82,6 +82,14 @@ export function useScrollCollapseHeader(opts?: UseScrollCollapseHeaderOptions) {
       }
     },
     [collapseThreshold, expandThreshold, duration, progress]
+  );
+
+  // For standard ScrollView/FlatList onScroll events.
+  const handleScroll = useCallback(
+    (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+      applyScrollOffset(e.nativeEvent.contentOffset.y);
+    },
+    [applyScrollOffset]
   );
 
   const animStyle = useAnimatedStyle(() => ({

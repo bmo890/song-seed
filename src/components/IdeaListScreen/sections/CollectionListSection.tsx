@@ -2,14 +2,22 @@ import { useEffect, useRef } from "react";
 import { Animated } from "react-native";
 import { IdeaListContent } from "../components/IdeaListContent";
 import { useCollectionScreen } from "../provider/CollectionScreenProvider";
-import type { ClipVersion, SongIdea } from "../../../types";
+import type { ClipVersion } from "../../../types";
 import type { IdeaListEntry } from "../types";
+import type { ReactNode } from "react";
 import { getDateBucket, getDateBucketLabel } from "../../../dateBuckets";
 import { getIdeaSortTimestamp } from "../../../ideaSort";
 import { getIdeaSizeBytes } from "../../../utils";
 import { useStore } from "../../../state/useStore";
+import { stickyDayStore } from "../stickyDayStore";
 
-export function CollectionListSection() {
+export function CollectionListSection({
+  contentPaddingTop,
+  topContent,
+}: {
+  contentPaddingTop: number;
+  topContent?: ReactNode;
+}) {
   const { screen, inlinePlayer, store } = useCollectionScreen();
   const ideasSortRef = useRef(store.ideasSort);
 
@@ -241,44 +249,22 @@ export function CollectionListSection() {
     const first = viewableItems?.[0]?.item;
     if (!first) return;
     if (first.type === "hidden-day") {
-      screen.setStickyDayLabel(first.dayLabel);
+      stickyDayStore.set(first.dayLabel);
       return;
     }
     const ts = getIdeaSortTimestamp(first.idea, ideasSortRef.current);
-    screen.setStickyDayLabel(getDateBucketLabel(ts));
-  };
-
-  const onReorderIdeas = (opts: {
-    items: SongIdea[];
-    from: number;
-    to: number;
-    sourceId?: string;
-    targetId?: string;
-    intent: "between";
-  }) => {
-    if (!screen.collectionId) return;
-    useStore.getState().updateIdeas((prev) => {
-      const map = new Map(prev.map((idea) => [idea.id, idea]));
-      const reorderedIdeas = opts.items.map((idea) => map.get(idea.id)!).filter(Boolean);
-      let reorderIndex = 0;
-      return prev.map((idea) => {
-        if (idea.collectionId !== screen.collectionId) return idea;
-        const nextIdea = reorderedIdeas[reorderIndex];
-        reorderIndex += 1;
-        return nextIdea ?? idea;
-      });
-    });
+    stickyDayStore.set(getDateBucketLabel(ts));
   };
 
   return (
     <IdeaListContent
       listModel={{
         listRef: screen.listRef,
-        onScroll: screen.handleListScroll,
-        scrollEventThrottle: screen.listScrollThrottle,
-        listSelectionMode: screen.listSelectionMode,
-        allowReorder: !screen.listSelectionMode && store.ideasFilter === "all" && !screen.searchNeedle,
+        collapseScrollY: screen.scrollY,
+        contentPaddingTop,
         listEntries: screen.listEntries,
+        itemMetaByIdeaId: screen.itemMetaByIdeaId,
+        topContent,
         listDensity: screen.listDensity,
         showDateDividers: screen.showDateDividers,
         listFooterSpacerHeight: screen.listFooterSpacerHeight,
@@ -286,8 +272,6 @@ export function CollectionListSection() {
         ideasSort: store.ideasSort,
         activeTimelineMetric: screen.activeTimelineMetric,
         activeSortMetric: screen.activeSortMetric,
-        hoveredIdeaId: screen.hoverState.hoveredIdeaId,
-        dropIntent: screen.hoverState.dropIntent,
         lyricsFilterMode: screen.lyricsFilterMode,
         inlinePlayer,
         rowLayoutsRef: screen.rowLayoutsRef,
@@ -300,8 +284,6 @@ export function CollectionListSection() {
         unhideIdeasFromList,
         hideTimelineDay,
         unhideTimelineDay,
-        setHoveredIdeaId: screen.hoverState.setHoveredIdeaId,
-        onReorderIdeas,
       }}
     />
   );

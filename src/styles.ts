@@ -1641,6 +1641,7 @@ export const styles = StyleSheet.create({
     // Pinned toolbar: opaque page tone so content scrolls cleanly beneath it,
     // separated by a single 0.5pt technical line rather than a filled band + shadow.
     backgroundColor: "#FDFBF7",
+    paddingHorizontal: 16,
     paddingTop: 6,
     paddingBottom: 8,
     borderBottomWidth: StyleSheet.hairlineWidth,
@@ -2201,6 +2202,7 @@ export const styles = StyleSheet.create({
   songDetailEvolutionCollapseAllRow: {
     flexDirection: "row",
     justifyContent: "flex-end",
+    paddingHorizontal: 16,
     paddingTop: 2,
     paddingBottom: 4,
   },
@@ -3521,10 +3523,14 @@ export const styles = StyleSheet.create({
   },
   ideasStickyDayWrap: {
     position: "absolute",
-    top: 0,
     left: 0,
     right: 0,
+    height: 34,
     alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#FDFBF7",
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(215,194,189,0.35)",
     zIndex: 25,
   },
   ideasStickyDayChip: {
@@ -4650,77 +4656,135 @@ export const styles = StyleSheet.create({
     fontWeight: "700",
     fontVariant: ["tabular-nums"],
   },
+  // ─── Global Media Dock ──────────────────────────────────────────────────────
   miniMediaDockWrap: {
     position: "absolute",
-    left: 16,
-    right: 16,
+    left: 0,
+    right: 0,
+    bottom: 0,
     zIndex: 50,
   },
-  miniMediaDockCard: {
-    minHeight: 72,
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: "#dbe2ea",
-    backgroundColor: "#ffffff",
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    gap: 10,
-    shadowColor: "#0f172a",
-    shadowOpacity: 0.12,
-    shadowRadius: 16,
-    elevation: 8,
+  // Playback surface — full-width, hairline top, warm paper
+  miniMediaDockSurface: {
+    backgroundColor: "#FDFBF7",
+    borderTopWidth: 1,
+    borderTopColor: "#E8E4DF",
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 6,
   },
-  miniMediaDockCardRecording: {
-    borderColor: "#fecaca",
+  // Recording tint variant
+  miniMediaDockSurfaceRecording: {
     backgroundColor: "#fff7f7",
+    borderTopColor: "#fecaca",
   },
-  miniMediaDockCardPreviewPaused: {
-    borderColor: "#e5d8d3",
-    backgroundColor: "#fffaf8",
-    shadowOpacity: 0.08,
+  // Inner content wrapper — dims as a unit for preview state
+  miniMediaDockContent: {
+    gap: 4,
   },
-  miniMediaDockTopRow: {
+  // ✕ dismiss — small absolute button, top-right corner
+  miniMediaDockCloseBtn: {
+    position: "absolute",
+    top: 10,
+    right: 12,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: "#EAE5DF",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 2,
+  },
+  // Row 1: "Title · Project" — paddingRight clears the absolute ✕
+  miniMediaDockTitleRow: {
+    paddingRight: 32,
+  },
+  miniMediaDockTitle: {
+    fontSize: 14,
+    lineHeight: 18,
+    fontWeight: "700",
+    color: "#1b1c1a",
+  },
+  miniMediaDockSubtitle: {
+    fontSize: 12,
+    fontWeight: "400",
+    color: "#84736f",
+  },
+  // Row 2: transport — centered ⏮  ▶/⏸  ⏭ (compact)
+  miniMediaDockTransportRow: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    gap: 10,
+    justifyContent: "center",
+    gap: 16,
+    paddingVertical: 2,
   },
-  miniMediaDockCopy: {
+  // Filled terracotta circle — primary play/pause
+  miniMediaDockPlayBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#824f3f",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  // Bare skip buttons — no background
+  miniMediaDockSkipBtn: {
+    width: 36,
+    height: 36,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  // ─── Compact dock (shown while a selection toolbar is active) ───────────────
+  miniMediaDockCompact: {
+    backgroundColor: "#FDFBF7",
+    borderTopWidth: 1,
+    borderTopColor: "#E8E4DF",
+  },
+  miniMediaDockCompactTrack: {
+    height: 2,
+    backgroundColor: "#E2DAD3",
+  },
+  miniMediaDockCompactFill: {
+    height: 2,
+    backgroundColor: "#824f3f",
+  },
+  miniMediaDockCompactRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingHorizontal: 16,
+    paddingTop: 7,
+    paddingBottom: 7,
+  },
+  miniMediaDockCompactPlayBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "#824f3f",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  // Recording dock row: copy block
+  miniMediaDockRecordingCopy: {
     flex: 1,
     minWidth: 0,
-    gap: 3,
+    gap: 2,
   },
-  miniMediaDockBadgeRow: {
+  miniMediaDockRecordingBadge: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
+    gap: 5,
   },
-  miniMediaDockStatusDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-  miniMediaDockStatusDotPlaying: {
-    backgroundColor: "#166534",
-  },
-  miniMediaDockStatusDotPaused: {
-    backgroundColor: "#94a3b8",
-  },
-  miniMediaDockStatusDotPreview: {
-    backgroundColor: "#B87D6B",
-  },
-  miniMediaDockStatusDotRecording: {
+  miniMediaDockRecordingDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
     backgroundColor: "#dc2626",
   },
-  miniMediaDockBadgeText: {
-    fontSize: 11,
-    lineHeight: 14,
-    color: "#475569",
-    fontWeight: "700",
-    letterSpacing: 0.2,
-    textTransform: "uppercase",
+  miniMediaDockRecordingDotPaused: {
+    backgroundColor: "#94a3b8",
   },
-  miniMediaDockBadgeTextRecording: {
+  miniMediaDockRecordingBadgeText: {
     fontSize: 11,
     lineHeight: 14,
     color: "#991b1b",
@@ -4728,93 +4792,42 @@ export const styles = StyleSheet.create({
     letterSpacing: 0.2,
     textTransform: "uppercase",
   },
-  miniMediaDockTitle: {
-    fontSize: 14,
-    lineHeight: 18,
-    color: "#0f172a",
+  miniMediaDockRecordingTitle: {
+    fontSize: 15,
+    lineHeight: 19,
     fontWeight: "700",
+    color: "#1b1c1a",
   },
-  miniMediaDockSubtitle: {
+  miniMediaDockRecordingMeta: {
     fontSize: 12,
     lineHeight: 16,
-    color: "#64748b",
-    fontWeight: "600",
+    color: "#7f1d1d",
   },
-  miniMediaDockActionsRow: {
+  // Recording transport: pause + stop
+  miniMediaDockRecordingActions: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    gap: 10,
+    flexShrink: 0,
   },
-  miniMediaDockActionBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+  miniMediaDockRecordingBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     borderWidth: 1,
-    borderColor: "#dbe2ea",
-    backgroundColor: "#f8fafc",
+    borderColor: "#fecaca",
+    backgroundColor: "#fff1f2",
     alignItems: "center",
     justifyContent: "center",
   },
-  miniMediaDockActionBtnPrimary: {
-    borderColor: "#0f172a",
-    backgroundColor: "#0f172a",
-  },
-  miniMediaDockActionBtnRecording: {
-    borderColor: "#fecaca",
-    backgroundColor: "#fff1f2",
-  },
-  miniMediaDockActionBtnRecordingPrimary: {
+  miniMediaDockRecordingStopBtn: {
     borderColor: "#d92d20",
     backgroundColor: "#d92d20",
   },
-  miniMediaDockProgressTrack: {
-    height: 4,
-    borderRadius: 999,
-    backgroundColor: "#e2e8f0",
-    overflow: "hidden",
-  },
-  miniMediaDockProgressFill: {
-    height: "100%",
-    backgroundColor: "#0f172a",
-  },
-  miniMediaDockTimesRow: {
+  miniMediaDockRecordingFooter: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    gap: 8,
-  },
-  miniMediaDockTime: {
-    fontSize: 11,
-    lineHeight: 14,
-    color: "#64748b",
-    fontWeight: "700",
-    fontVariant: ["tabular-nums"],
-  },
-  miniMediaDockScrubWrap: {
-    paddingVertical: 4,
-  },
-  miniMediaDockSpeedChip: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
-    backgroundColor: "#f1f5f9",
-  },
-  miniMediaDockSpeedChipActive: {
-    backgroundColor: "#dbeafe",
-  },
-  miniMediaDockSpeedChipText: {
-    fontSize: 10,
-    fontWeight: "700",
-    color: "#94a3b8",
-  },
-  miniMediaDockSpeedChipTextActive: {
-    color: "#2563eb",
-  },
-  miniMediaDockRecordingMetaRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 12,
   },
   miniMediaDockRecordingTime: {
     fontSize: 18,
@@ -4943,84 +4956,84 @@ export const styles = StyleSheet.create({
     gap: 7,
   },
   selectionText: { fontSize: 13, color: "#374151", fontWeight: "600" },
-  selectionDock: {
+  // ─── Selection top bar (count · All/None · Done) ────────────────────────────
+  selectionTopBar: {
+    backgroundColor: "#EDE8E2",
+    borderBottomWidth: 1,
+    borderBottomColor: "#D9D2CA",
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    gap: 10,
+    zIndex: 20, // above FlatList sticky date headers
+  },
+  selectionTopBarCount: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#1b1c1a",
+  },
+  // Bordered "All" chip — sits right after the count
+  selectionTopBarChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 4,
+    borderRadius: 6,
+    borderWidth: 1.5,
+    borderColor: "#824f3f",
+  },
+  selectionTopBarChipText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#824f3f",
+  },
+  selectionTopBarCancelBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 6,
+    backgroundColor: "#824f3f",
+  },
+  selectionTopBarCancelBtnText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#FDFBF7",
+  },
+  // ─── Selection toolbar (icon-only bottom action bar) ─────────────────────────
+  selectionToolbar: {
     position: "absolute",
-    left: 20,
-    right: 20,
-    bottom: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "rgba(215, 194, 189, 0.2)",
-    backgroundColor: "#FFFFFF",
-    padding: 16,
-    gap: 14,
-    shadowColor: "#3D3732",
-    shadowOpacity: 0.10,
-    shadowOffset: { width: 0, height: 8 },
-    shadowRadius: 24,
-    elevation: 8,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "#FDFBF7",
+    borderTopWidth: 1,
+    borderTopColor: "#E8E4DF",
     zIndex: 50,
   },
-  selectionDockHeader: {
+  selectionToolbarActions: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    gap: 8,
   },
-  selectionDockCount: {
-    fontFamily: "PlusJakartaSans_600SemiBold",
-    fontSize: 13,
-    color: "#1C1C19",
-  },
-  selectionDockDoneBtn: {
-    minHeight: 28,
-    borderRadius: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    backgroundColor: "#F4F1ED",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  selectionDockDoneBtnText: {
-    fontFamily: "PlusJakartaSans_700Bold",
-    fontSize: 11,
-    color: "#524440",
-    letterSpacing: 0.4,
-  },
-  selectionDockActionsRow: {
-    flexDirection: "row",
-    alignItems: "stretch",
-    gap: 8,
-  },
-  selectionDockAction: {
+  selectionToolbarAction: {
     flex: 1,
-    minHeight: 52,
-    borderRadius: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 8,
-    backgroundColor: "#FDFBF7",
-    borderWidth: 1,
-    borderColor: "rgba(215, 194, 189, 0.25)",
     alignItems: "center",
     justifyContent: "center",
-    gap: 5,
+    paddingVertical: 10,
+    gap: 3,
   },
-  selectionDockActionDanger: {
-    backgroundColor: "#FDF5F4",
-    borderColor: "rgba(184, 50, 50, 0.15)",
+  selectionToolbarActionDisabled: {
+    opacity: 0.35,
   },
-  selectionDockActionDisabled: {
-    opacity: 0.4,
-  },
-  selectionDockActionText: {
-    fontFamily: "PlusJakartaSans_600SemiBold",
+  selectionToolbarActionLabel: {
+    fontFamily: "PlusJakartaSans_500Medium",
     fontSize: 10,
     color: "#524440",
     textAlign: "center",
-    letterSpacing: 0.3,
+    letterSpacing: 0.1,
   },
-  selectionDockActionTextDanger: {
+  selectionToolbarActionLabelDanger: {
     color: "#a83232",
+  },
+  selectionToolbarActionLabelDisabled: {
+    color: "#b8a9a5",
   },
   selectionSheetTitle: {
     fontFamily: "PlusJakartaSans_700Bold",

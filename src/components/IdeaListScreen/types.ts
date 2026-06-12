@@ -1,8 +1,16 @@
-import { SongIdea, IdeasTimelineMetric, ClipClipboard, Collection, IdeaSort } from "../../types";
 import type { IdeaSortMetric } from "../../ideaSort";
-import type { InlinePlayerControls } from "../../types";
-import type { MutableRefObject } from "react";
+import type {
+  ClipClipboard,
+  ClipVersion,
+  Collection,
+  IdeaSort,
+  IdeasTimelineMetric,
+  InlinePlayerControls,
+  SongIdea,
+} from "../../types";
+import type { MutableRefObject, ReactNode } from "react";
 import type { Animated } from "react-native";
+import type { SharedValue } from "react-native-reanimated";
 import type { ImportedAudioAsset } from "../../services/audioStorage";
 import type { AppBreadcrumbItem } from "../common/AppBreadcrumbs";
 
@@ -24,6 +32,19 @@ export type IdeaListEntry =
       metric: IdeasTimelineMetric;
       hiddenCount: number;
     };
+
+export type IdeaListItemMeta = {
+  playClip: ClipVersion | null;
+  clipDurationLabel: string;
+  projectPrimaryDurationLabel: string;
+  projectClipCount: number;
+  hasProjectLyrics: boolean;
+  hasProjectClipCount: boolean;
+  hasExpandedProjectIndicators: boolean;
+  createdAtLabel: string;
+  updatedAtLabel: string;
+  projectProgressPct: number | null;
+};
 
 export type CollectionHeaderModel = {
   showBack: boolean;
@@ -47,30 +68,11 @@ export type CollectionHeaderModel = {
   onBack?: () => void;
 };
 
-export type CollectionFilterModel = {
-  selectedProjectStages: Array<"seed" | "sprout" | "semi" | "song">;
-  lyricsFilterMode: "all" | "with" | "without";
-  showDateDividers: boolean;
-  stickyDayLabel: string | null;
-  stickyDayTop: number;
-  hiddenItemsCount: number;
-  nestedCollectionsExpanded: boolean;
-  childCollections: Collection[];
-  onStickyLayout: (top: number) => void;
-  onToggleProjectStage: (stage: "seed" | "sprout" | "semi" | "song") => void;
-  onClearProjectStages: () => void;
-  onLyricsFilterModeChange: (mode: "all" | "with" | "without") => void;
-  onUnhideAll: () => void;
-  onToggleNestedCollections: () => void;
-  onOpenNestedCollection: (collectionId: string) => void;
-  onOpenNestedCollectionActions: (collectionId: string) => void;
-};
-
 export type CollectionListModel = {
   listRef?: MutableRefObject<any>;
-  listSelectionMode: boolean;
-  allowReorder: boolean;
   listEntries: IdeaListEntry[];
+  itemMetaByIdeaId: Map<string, IdeaListItemMeta>;
+  topContent?: ReactNode;
   listDensity: "comfortable" | "compact";
   showDateDividers: boolean;
   listFooterSpacerHeight: number;
@@ -78,8 +80,6 @@ export type CollectionListModel = {
   ideasSort: IdeaSort;
   activeTimelineMetric: "created" | "updated" | null;
   activeSortMetric: IdeaSortMetric;
-  hoveredIdeaId: string | null;
-  dropIntent: "between" | "inside";
   lyricsFilterMode: "all" | "with" | "without";
   inlinePlayer: InlinePlayerControls;
   rowLayoutsRef: MutableRefObject<Record<string, { y: number; height: number }>>;
@@ -92,17 +92,10 @@ export type CollectionListModel = {
   unhideIdeasFromList: (ideaIds: string[]) => void;
   hideTimelineDay: (metric: "created" | "updated", dayStartTs: number) => Promise<void>;
   unhideTimelineDay: (metric: "created" | "updated", dayStartTs: number) => void;
-  setHoveredIdeaId: (ideaId: string | null) => void;
-  onReorderIdeas: (args: {
-    items: SongIdea[];
-    from: number;
-    to: number;
-    sourceId?: string;
-    targetId?: string;
-    intent: "between";
-  }) => void;
-  onScroll?: (e: any) => void;
-  scrollEventThrottle?: number;
+  /** UI-thread scroll offset mirrored from the list — drives the collapsing header. */
+  collapseScrollY?: SharedValue<number>;
+  /** Top inset reserving space for the absolute collapsing header overlay. */
+  contentPaddingTop?: number;
 };
 
 export type CollectionImportModel = {

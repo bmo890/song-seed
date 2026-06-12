@@ -313,13 +313,6 @@ export function SelectionBars() {
             onPress: confirmDeleteSelection,
           },
           {
-            key: "select-all",
-            label: canDeselectAll ? "Deselect all" : "Select all",
-            icon: canDeselectAll ? "remove-circle-outline" : "checkmark-circle-outline",
-            onPress: () => replaceClipSelection(canDeselectAll ? [] : selectableClipIds),
-            disabled: !canDeselectAll && selectableClipIds.length === 0,
-          },
-          {
             key: "more",
             label: "More",
             icon: "ellipsis-horizontal",
@@ -392,21 +385,6 @@ export function SelectionBars() {
           },
         ]
       : []),
-    // Select all available at the bottom of More for single-clip mode
-    // (for multi-clip it lives in the dock directly).
-    ...(selectedClips.length === 1
-      ? [
-          {
-            key: "select-all",
-            label: canDeselectAll ? "Deselect all" : "Select all",
-            icon: (canDeselectAll
-              ? "remove-circle-outline"
-              : "checkmark-circle-outline") as SelectionAction["icon"],
-            onPress: () => replaceClipSelection(canDeselectAll ? [] : selectableClipIds),
-            disabled: !canDeselectAll && selectableClipIds.length === 0,
-          },
-        ]
-      : []),
   ];
 
   if (!clipSelectionMode) {
@@ -416,9 +394,7 @@ export function SelectionBars() {
   return (
     <>
       <SelectionDock
-        count={selectedClipIds.length}
         actions={dockActions}
-        onDone={() => useStore.getState().cancelClipSelection()}
         onLayout={(height) => {
           screen.setSelectionDockHeight((prev) => (Math.abs(prev - height) < 1 ? prev : height));
         }}

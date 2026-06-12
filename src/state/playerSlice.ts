@@ -23,6 +23,14 @@ export type PlayerSlice = {
      *  dock), the root provider drives queue auto-advance + source loading. */
     isPlayerScreenMounted: boolean;
     setPlayerScreenMounted: (mounted: boolean) => void;
+    /** Measured height of the media dock surface (0 when not visible). Used by
+     *  SelectionDock and other bottom-anchored UI to avoid being covered. */
+    playerDockHeight: number;
+    setPlayerDockHeight: (height: number) => void;
+    /** Measured height of the active selection toolbar (0 when not visible). Used by
+     *  GlobalMediaDock to sit above the selection bar rather than overlap it. */
+    activeSelectionDockHeight: number;
+    setActiveSelectionDockHeight: (height: number) => void;
 
     inlineTarget: InlineTarget;
     setInlineTarget: (target: InlineTarget) => void;
@@ -102,6 +110,10 @@ export const createPlayerSlice: StateCreator<PlayerSlice> = (set) => ({
     consumePlayerAutoplay: () => set({ playerShouldAutoplay: false }),
     isPlayerScreenMounted: false,
     setPlayerScreenMounted: (mounted) => set({ isPlayerScreenMounted: mounted }),
+    playerDockHeight: 0,
+    setPlayerDockHeight: (height) => set({ playerDockHeight: height }),
+    activeSelectionDockHeight: 0,
+    setActiveSelectionDockHeight: (height) => set({ activeSelectionDockHeight: height }),
 
     inlineTarget: null,
     setInlineTarget: (target) => set({ inlineTarget: target }),

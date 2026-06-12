@@ -1,19 +1,21 @@
-import { MutableRefObject } from "react";
-import DraggableFlatList from "react-native-draggable-flatlist";
-import { Animated, NativeScrollEvent, NativeSyntheticEvent, Pressable, Text, View } from "react-native";
+import { MutableRefObject, ReactNode } from "react";
+import { Animated, FlatList, Pressable, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import ReAnimated, { useAnimatedScrollHandler, type SharedValue } from "react-native-reanimated";
 import { styles } from "../../../styles";
-import { IdeaSort, InlinePlayerControls, SongIdea } from "../../../types";
+import { IdeaSort, InlinePlayerControls } from "../../../types";
 import { IdeaListItem } from "./IdeaListItem";
-import { CollectionListModel, IdeaListEntry } from "../types";
+import { CollectionListModel, IdeaListEntry, IdeaListItemMeta } from "../types";
 import { getIdeaSortTimestamp, type IdeaSortMetric } from "../../../ideaSort";
 import { getDateBucket } from "../../../dateBuckets";
 
+const AnimatedFlatList = ReAnimated.FlatList as unknown as typeof FlatList;
+
 type IdeaListContentProps = {
   listRef?: MutableRefObject<any>;
-  listSelectionMode: boolean;
-  allowReorder: boolean;
   listEntries: IdeaListEntry[];
+  itemMetaByIdeaId: Map<string, IdeaListItemMeta>;
+  topContent?: ReactNode;
   listDensity: "comfortable" | "compact";
   showDateDividers: boolean;
   listFooterSpacerHeight: number;
@@ -21,8 +23,6 @@ type IdeaListContentProps = {
   ideasSort: IdeaSort;
   activeTimelineMetric: "created" | "updated" | null;
   activeSortMetric: IdeaSortMetric;
-  hoveredIdeaId: string | null;
-  dropIntent: "between" | "inside";
   lyricsFilterMode: "all" | "with" | "without";
   inlinePlayer: InlinePlayerControls;
   rowLayoutsRef: MutableRefObject<Record<string, { y: number; height: number }>>;
@@ -35,17 +35,10 @@ type IdeaListContentProps = {
   unhideIdeasFromList: (ideaIds: string[]) => void;
   hideTimelineDay: (metric: "created" | "updated", dayStartTs: number) => Promise<void>;
   unhideTimelineDay: (metric: "created" | "updated", dayStartTs: number) => void;
-  setHoveredIdeaId: (ideaId: string | null) => void;
-  onReorderIdeas: (args: {
-    items: SongIdea[];
-    from: number;
-    to: number;
-    sourceId?: string;
-    targetId?: string;
-    intent: "between";
-  }) => void;
-  onScroll?: (e: NativeSyntheticEvent<NativeScrollEvent>) => void;
-  scrollEventThrottle?: number;
+  /** UI-thread scroll offset mirrored from the list — drives the collapsing header. */
+  collapseScrollY?: SharedValue<number>;
+  /** Top inset reserving space for the absolute collapsing header overlay. */
+  contentPaddingTop?: number;
 };
 
 
@@ -54,9 +47,9 @@ export function IdeaListContent(
 ) {
   const {
     listRef,
-    listSelectionMode,
-    allowReorder,
     listEntries,
+    itemMetaByIdeaId,
+    topContent,
     listDensity,
     showDateDividers,
     listFooterSpacerHeight,
@@ -64,8 +57,6 @@ export function IdeaListContent(
     ideasSort,
     activeTimelineMetric,
     activeSortMetric,
-    hoveredIdeaId,
-    dropIntent,
     lyricsFilterMode,
     inlinePlayer,
     rowLayoutsRef,
@@ -78,24 +69,33 @@ export function IdeaListContent(
     unhideIdeasFromList,
     hideTimelineDay,
     unhideTimelineDay,
-    setHoveredIdeaId,
-    onReorderIdeas,
-    onScroll,
-    scrollEventThrottle,
+    collapseScrollY,
+    contentPaddingTop,
   } = "listModel" in props ? props.listModel : props;
+
+  const scrollHandler = useAnimatedScrollHandler({
+    onScroll: (event) => {
+      if (collapseScrollY) {
+        collapseScrollY.value = event.contentOffset.y;
+      }
+    },
+  });
+
   return (
-    <DraggableFlatList<IdeaListEntry>
+    <AnimatedFlatList<IdeaListEntry>
       ref={listRef}
       data={listEntries}
-      onScroll={onScroll}
-      scrollEventThrottle={scrollEventThrottle ?? 0}
       keyExtractor={(item) => item.key}
+      onScroll={scrollHandler}
+      scrollEventThrottle={16}
       contentContainerStyle={[
         styles.listContent,
         listDensity === "compact" ? styles.listContentCompact : null,
         showDateDividers ? styles.listContentTimeline : null,
-        { paddingBottom: 12 },
+        { paddingHorizontal: 14, paddingBottom: 12 },
+        contentPaddingTop ? { paddingTop: contentPaddingTop } : null,
       ]}
+      ListHeaderComponent={topContent ? <>{topContent}</> : null}
       ListFooterComponent={<View style={{ height: listFooterSpacerHeight }} />}
       ListEmptyComponent={
         listEntries.length === 0 ? (
@@ -156,10 +156,8 @@ export function IdeaListContent(
 
         return (
           <IdeaListItem
-            {...props}
             item={entry.idea}
-            hoveredIdeaId={hoveredIdeaId}
-            dropIntent={dropIntent}
+            itemMeta={itemMetaByIdeaId.get(entry.idea.id)}
             rowLayoutsRef={rowLayoutsRef}
             highlightMapRef={highlightMapRef}
             inlinePlayer={inlinePlayer}
@@ -185,37 +183,6 @@ export function IdeaListContent(
             lyricsFilterMode={lyricsFilterMode}
           />
         );
-      }}
-      onDragBegin={(index) => {
-        if (listSelectionMode) return;
-        const hoveredEntry = listEntries[index];
-        if (hoveredEntry?.type === "idea") {
-          setHoveredIdeaId(hoveredEntry.idea.id);
-        }
-      }}
-      onPlaceholderIndexChange={(index) => {
-        if (listSelectionMode) return;
-        const hoveredEntry = listEntries[index];
-        if (hoveredEntry?.type === "idea") {
-          setHoveredIdeaId(hoveredEntry.idea.id);
-        }
-      }}
-      onDragEnd={({ data, from, to }) => {
-        if (allowReorder) {
-          onReorderIdeas({
-            items: data
-              .filter((entry): entry is Extract<IdeaListEntry, { type: "idea" }> => entry.type === "idea")
-              .map((entry) => entry.idea),
-            from,
-            to,
-            sourceId: listEntries[from]?.type === "idea" ? listEntries[from].idea.id : undefined,
-            targetId:
-              hoveredIdeaId ??
-              (listEntries[to]?.type === "idea" ? listEntries[to].idea.id : undefined),
-            intent: "between",
-          });
-        }
-        setHoveredIdeaId(null);
       }}
     />
   );

@@ -208,15 +208,7 @@ export function useWorkspaceCollectionSelection({
     },
   ];
 
-  const selectionSheetActions: SelectionAction[] = [
-    {
-      key: "select-all",
-      label: canDeselectAll ? "Deselect all" : "Select all",
-      icon: canDeselectAll ? "remove-circle-outline" : "checkmark-circle-outline",
-      onPress: () => setSelectedCollectionIds(canDeselectAll ? [] : selectableCollectionIds),
-      disabled: !canDeselectAll && selectableCollectionIds.length === 0,
-    },
-  ];
+  const selectionSheetActions: SelectionAction[] = [];
 
   /** Open the rename modal pre-filled for a specific collection (used by per-card ellipsis). */
   function openRenameFor(collectionId: string) {
@@ -231,6 +223,8 @@ export function useWorkspaceCollectionSelection({
   return {
     selectionMode,
     selectedCollectionIds,
+    selectableCollectionIds,
+    canDeselectAll,
     setSelectedCollectionIds,
     selectionMoreVisible,
     setSelectionMoreVisible,

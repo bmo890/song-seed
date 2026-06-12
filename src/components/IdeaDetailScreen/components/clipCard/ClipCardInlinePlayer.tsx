@@ -1,4 +1,5 @@
 import { Pressable, View } from "react-native";
+import Animated, { FadeIn } from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
 import { MiniProgress } from "../../../MiniProgress";
 import { styles } from "../../styles";
@@ -21,7 +22,8 @@ export function ClipCardInlinePlayer({
   onClose,
 }: ClipCardInlinePlayerProps) {
   return (
-    <View style={styles.songDetailVersionInlinePlayerWrap}>
+    // entering only: exiting animations inside recycled list rows misbehave.
+    <Animated.View style={styles.songDetailVersionInlinePlayerWrap} entering={FadeIn.duration(160)}>
       <View style={styles.songDetailVersionInlinePlayerProgress}>
         <MiniProgress
           currentMs={currentMs}
@@ -40,6 +42,6 @@ export function ClipCardInlinePlayer({
       >
         <Ionicons name="close" size={13} color="#64748b" />
       </Pressable>
-    </View>
+    </Animated.View>
   );
 }
