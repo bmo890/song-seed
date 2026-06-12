@@ -19,6 +19,10 @@ export type PlayerSlice = {
     clearPlayerQueue: () => void;
     advancePlayerQueue: (direction: "next" | "previous", shouldAutoplay?: boolean) => void;
     consumePlayerAutoplay: () => void;
+    /** True while the full Player screen is mounted. When false (minimized to the
+     *  dock), the root provider drives queue auto-advance + source loading. */
+    isPlayerScreenMounted: boolean;
+    setPlayerScreenMounted: (mounted: boolean) => void;
 
     inlineTarget: InlineTarget;
     setInlineTarget: (target: InlineTarget) => void;
@@ -96,6 +100,8 @@ export const createPlayerSlice: StateCreator<PlayerSlice> = (set) => ({
             };
         }),
     consumePlayerAutoplay: () => set({ playerShouldAutoplay: false }),
+    isPlayerScreenMounted: false,
+    setPlayerScreenMounted: (mounted) => set({ isPlayerScreenMounted: mounted }),
 
     inlineTarget: null,
     setInlineTarget: (target) => set({ inlineTarget: target }),

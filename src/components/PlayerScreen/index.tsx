@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo } from "react";
+import React, { useCallback, useEffect, useMemo } from "react";
 import { Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar as ExpoStatusBar } from "expo-status-bar";
@@ -18,6 +18,7 @@ import { usePlayerScreenLifecycle } from "./hooks/usePlayerScreenLifecycle";
 import { usePlayerPracticePitchTransport } from "./hooks/usePlayerPracticePitchTransport";
 import { usePlayerScreenUi } from "./hooks/usePlayerScreenUi";
 import { appActions } from "../../state/actions";
+import { useStore } from "../../state/useStore";
 import { isPlaybackNearEnd } from "../../services/transportPlayback";
 import { PlayerTimeline } from "./components/PlayerTimeline";
 import { PlayerHeaderSection } from "./components/PlayerHeaderSection";
@@ -36,6 +37,14 @@ const PRACTICE_SPEED_MAX = 1.5;
 export function PlayerScreen() {
   const navigation = useNavigation();
   const isFocused = useIsFocused();
+
+  // Tell the root provider this screen owns queue loading/advancing while mounted;
+  // when unmounted (minimized to the dock) the provider takes over.
+  useEffect(() => {
+    useStore.getState().setPlayerScreenMounted(true);
+    return () => useStore.getState().setPlayerScreenMounted(false);
+  }, []);
+
   const ui = usePlayerScreenUi();
   const draggingMarkerId = useSharedValue("");
   const draggingMarkerX = useSharedValue(0);

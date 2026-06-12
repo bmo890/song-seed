@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import { Ionicons } from "@expo/vector-icons";
 import { useSharedAudioRecorder } from "@siteed/audio-studio";
 import { Pressable, Text, View } from "react-native";
@@ -54,8 +55,39 @@ export function GlobalMediaDock({
     !!recordingIdea && (recorder.isRecording || recorder.isPaused);
 
   const playerQueue = useStore((s) => s.playerQueue);
+  const playerQueueIndex = useStore((s) => s.playerQueueIndex);
   const fullPlayer = useFullPlayerContext();
   const isPreviewingClip = !!inlineTarget && inlineIsPlaying && !!playerTarget && !playerIsPlaying;
+
+  const hasNextInQueue = playerQueue.length > 0 && playerQueueIndex < playerQueue.length - 1;
+  const hasPrevInQueue = playerQueueIndex > 0;
+  const prevTapTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleQueueNext = () => {
+    if (!hasNextInQueue) return;
+    useStore.getState().requestInlineStop();
+    useStore.getState().advancePlayerQueue("next", true);
+  };
+
+  // Single tap restarts the current clip; a double tap jumps to the previous one
+  // (or just restarts if this is already the first clip in the queue).
+  const handleQueuePrev = () => {
+    useStore.getState().requestInlineStop();
+    if (prevTapTimeoutRef.current) {
+      clearTimeout(prevTapTimeoutRef.current);
+      prevTapTimeoutRef.current = null;
+      if (hasPrevInQueue) {
+        useStore.getState().advancePlayerQueue("previous", true);
+      } else {
+        void fullPlayer.seekTo(0);
+      }
+      return;
+    }
+    prevTapTimeoutRef.current = setTimeout(() => {
+      prevTapTimeoutRef.current = null;
+      void fullPlayer.seekTo(0);
+    }, 280);
+  };
 
   // The dock only represents the durable full-player queue/session. Clip-card
   // preview playback is separate and does not take over the dock UI.
@@ -214,6 +246,21 @@ export function GlobalMediaDock({
             <Pressable
               style={({ pressed }) => [
                 styles.miniMediaDockActionBtn,
+                pressed ? styles.pressDownStrong : null,
+              ]}
+              onPress={(evt) => {
+                evt.stopPropagation();
+                handleQueuePrev();
+              }}
+              accessibilityRole="button"
+              accessibilityLabel="Restart, double-tap for previous"
+            >
+              <Ionicons name="play-skip-back" size={16} color="#475569" />
+            </Pressable>
+
+            <Pressable
+              style={({ pressed }) => [
+                styles.miniMediaDockActionBtn,
                 styles.miniMediaDockActionBtnPrimary,
                 pressed ? styles.pressDownStrong : null,
               ]}
@@ -233,6 +280,23 @@ export function GlobalMediaDock({
                 size={18}
                 color="#ffffff"
               />
+            </Pressable>
+
+            <Pressable
+              style={({ pressed }) => [
+                styles.miniMediaDockActionBtn,
+                !hasNextInQueue ? { opacity: 0.35 } : null,
+                pressed && hasNextInQueue ? styles.pressDownStrong : null,
+              ]}
+              disabled={!hasNextInQueue}
+              onPress={(evt) => {
+                evt.stopPropagation();
+                handleQueueNext();
+              }}
+              accessibilityRole="button"
+              accessibilityLabel="Next"
+            >
+              <Ionicons name="play-skip-forward" size={16} color="#475569" />
             </Pressable>
 
             <Pressable

@@ -132,6 +132,48 @@ export function FullPlayerProvider({ children }: { children: React.ReactNode }) 
     useStore.getState().clearPlayerQueue();
   }, [closeToken]);
 
+  // ── Queue driver while minimized ──────────────────────────────────────────
+  // The full Player screen owns queue loading + advancing while it's mounted.
+  // When minimized (dock only), drive them here so the queue keeps playing,
+  // auto-advances when a clip finishes, and responds to the dock's prev/next.
+  const isPlayerScreenMounted = useStore((s) => s.isPlayerScreenMounted);
+  const queueTarget = useStore((s) => s.playerTarget);
+
+  // Load the queue's current target into the engine when it changes.
+  useEffect(() => {
+    if (isPlayerScreenMounted || !queueTarget) return;
+    const engine = rawDockRef.current;
+    if (!engine) return;
+    // Already on this clip (e.g. just minimized) — don't reload.
+    if (engine.playerTarget?.clipId === queueTarget.clipId && engine.currentPlaybackSourceUri) {
+      return;
+    }
+    const idea = useStore
+      .getState()
+      .workspaces.flatMap((w) => w.ideas)
+      .find((i) => i.id === queueTarget.ideaId);
+    const clip = idea?.clips.find((c) => c.id === queueTarget.clipId);
+    if (!idea || !clip) return;
+    const shouldAutoplay = useStore.getState().playerShouldAutoplay;
+    useStore.getState().consumePlayerAutoplay();
+    void openPlayer(idea.id, clip, { title: clip.title, albumTitle: idea.title }, shouldAutoplay);
+  }, [isPlayerScreenMounted, queueTarget, openPlayer]);
+
+  // Auto-advance to the next clip when the current one finishes (mirrors the
+  // Player screen's behavior: advance if there's a next track, else stay put).
+  const finishedToken = rawDock.finishedPlaybackToken;
+  const handledFinishTokenRef = useRef(finishedToken);
+  useEffect(() => {
+    if (finishedToken === handledFinishTokenRef.current) return;
+    handledFinishTokenRef.current = finishedToken;
+    if (isPlayerScreenMounted) return;
+    const state = useStore.getState();
+    if (state.playerQueue.length === 0) return;
+    if (state.playerQueueIndex < state.playerQueue.length - 1) {
+      state.advancePlayerQueue("next", true);
+    }
+  }, [finishedToken, isPlayerScreenMounted]);
+
   return (
     <FullPlayerContext.Provider value={dock}>
       <MiniPlayerControlsContext.Provider value={miniControls}>
