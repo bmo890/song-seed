@@ -1,4 +1,4 @@
-import { MutableRefObject, ReactNode } from "react";
+import { MutableRefObject, ReactNode, useCallback, useEffect, useRef } from "react";
 import { Animated, FlatList, Pressable, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import ReAnimated, { useAnimatedScrollHandler, type SharedValue } from "react-native-reanimated";
@@ -30,6 +30,7 @@ type IdeaListContentProps = {
   viewabilityConfig: { itemVisiblePercentThreshold: number };
   searchMetaByIdeaId: Map<string, { matches: boolean; title: boolean; notes: boolean; lyrics: boolean }>;
   onViewableItemsChanged: (info: { viewableItems: Array<{ item: IdeaListEntry }> }) => void;
+  onItemCellLayout?: (key: string, y: number) => void;
   playIdeaFromList: (ideaId: string, clip: any) => Promise<void> | void;
   openIdeaFromList: (ideaId: string, clip: any) => Promise<void> | void;
   unhideIdeasFromList: (ideaIds: string[]) => void;
@@ -71,7 +72,37 @@ export function IdeaListContent(
     unhideTimelineDay,
     collapseScrollY,
     contentPaddingTop,
+    onItemCellLayout,
   } = "listModel" in props ? props.listModel : props;
+  const scrollRetryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Stable CellRendererComponent so FlatList doesn't remount all cells on re-render.
+  // Reads the latest onItemCellLayout via a ref to avoid stale closures.
+  const onItemCellLayoutRef = useRef(onItemCellLayout);
+  useEffect(() => { onItemCellLayoutRef.current = onItemCellLayout; }, [onItemCellLayout]);
+  const CellRendererComponent = useCallback(
+    ({ cellKey, children, onLayout: origOnLayout, ...rest }: any) => (
+      <View
+        {...rest}
+        onLayout={(e: any) => {
+          onItemCellLayoutRef.current?.(cellKey, e.nativeEvent.layout.y);
+          origOnLayout?.(e);
+        }}
+      >
+        {children}
+      </View>
+    ),
+    []
+  );
+
+  useEffect(() => {
+    return () => {
+      if (scrollRetryTimerRef.current) {
+        clearTimeout(scrollRetryTimerRef.current);
+        scrollRetryTimerRef.current = null;
+      }
+    };
+  }, []);
 
   const scrollHandler = useAnimatedScrollHandler({
     onScroll: (event) => {
@@ -86,6 +117,7 @@ export function IdeaListContent(
       ref={listRef}
       data={listEntries}
       keyExtractor={(item) => item.key}
+      CellRendererComponent={CellRendererComponent}
       onScroll={scrollHandler}
       scrollEventThrottle={16}
       contentContainerStyle={[
@@ -110,16 +142,20 @@ export function IdeaListContent(
       maxToRenderPerBatch={10}
       windowSize={7}
       onScrollToIndexFailed={(info) => {
+        if (scrollRetryTimerRef.current) {
+          clearTimeout(scrollRetryTimerRef.current);
+        }
         listRef?.current?.scrollToOffset?.({
           offset: Math.max(0, info.averageItemLength * info.index),
           animated: true,
         });
-        setTimeout(() => {
+        scrollRetryTimerRef.current = setTimeout(() => {
           listRef?.current?.scrollToIndex?.({
             index: info.index,
             animated: true,
             viewPosition: 0.35,
           });
+          scrollRetryTimerRef.current = null;
         }, 120);
       }}
       removeClippedSubviews

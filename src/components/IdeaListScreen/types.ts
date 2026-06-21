@@ -87,6 +87,7 @@ export type CollectionListModel = {
   viewabilityConfig: { itemVisiblePercentThreshold: number };
   searchMetaByIdeaId: Map<string, { matches: boolean; title: boolean; notes: boolean; lyrics: boolean }>;
   onViewableItemsChanged: (info: { viewableItems: Array<{ item: IdeaListEntry }> }) => void;
+  onItemCellLayout?: (key: string, y: number) => void;
   playIdeaFromList: (ideaId: string, clip: any) => Promise<void> | void;
   openIdeaFromList: (ideaId: string, clip: any) => Promise<void> | void;
   unhideIdeasFromList: (ideaIds: string[]) => void;

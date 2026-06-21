@@ -3525,12 +3525,7 @@ export const styles = StyleSheet.create({
     position: "absolute",
     left: 0,
     right: 0,
-    height: 34,
     alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#FDFBF7",
-    borderBottomWidth: 1,
-    borderBottomColor: "rgba(215,194,189,0.35)",
     zIndex: 25,
   },
   ideasStickyDayChip: {

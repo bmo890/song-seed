@@ -32,7 +32,7 @@ function StickyDayChip({ visible }: { visible: boolean }) {
   const pastTopCohort = useStickyDayChipVisible();
   if (!visible || !label || !pastTopCohort) return null;
   return (
-    <View style={[styles.ideasStickyDayWrap, { top: "100%" }]} pointerEvents="none">
+    <View style={[styles.ideasStickyDayWrap, { top: "100%", marginTop: 6 }]} pointerEvents="none">
       <View style={styles.ideasStickyDayChip}>
         <Text style={styles.ideasStickyDayChipText}>{label}</Text>
       </View>
@@ -67,7 +67,7 @@ export function CollectionScreenContent() {
     .filter((e): e is Extract<typeof e, { type: "idea" }> => e.type === "idea")
     .map((e) => e.idea.id);
   const allListSelected =
-    selectableListIdeaIds.length === 0 ||
+    selectableListIdeaIds.length > 0 &&
     selectableListIdeaIds.every((id) => selectedListIdeaIds.includes(id));
 
   if (!screen.activeWorkspace || !screen.collectionId || !screen.currentCollection) {

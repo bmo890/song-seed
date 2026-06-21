@@ -1,5 +1,5 @@
-import { useEffect, useRef } from "react";
-import { Animated } from "react-native";
+import { useCallback, useEffect, useRef } from "react";
+import { useAnimatedReaction, runOnJS } from "react-native-reanimated";
 import { IdeaListContent } from "../components/IdeaListContent";
 import { useCollectionScreen } from "../provider/CollectionScreenProvider";
 import type { ClipVersion } from "../../../types";
@@ -7,7 +7,6 @@ import type { IdeaListEntry } from "../types";
 import type { ReactNode } from "react";
 import { getDateBucket, getDateBucketLabel } from "../../../dateBuckets";
 import { getIdeaSortTimestamp } from "../../../ideaSort";
-import { getIdeaSizeBytes } from "../../../utils";
 import { useStore } from "../../../state/useStore";
 import { stickyDayStore } from "../stickyDayStore";
 
@@ -19,11 +18,18 @@ export function CollectionListSection({
   topContent?: ReactNode;
 }) {
   const { screen, inlinePlayer, store } = useCollectionScreen();
-  const ideasSortRef = useRef(store.ideasSort);
+  const {
+    ideasFilter,
+    ideasSort,
+    setIdeasFilter,
+    setIdeasHidden,
+    setTimelineDaysHidden,
+  } = store;
+  const ideasSortRef = useRef(ideasSort);
 
   useEffect(() => {
-    ideasSortRef.current = store.ideasSort;
-  }, [store.ideasSort]);
+    ideasSortRef.current = ideasSort;
+  }, [ideasSort]);
 
   useEffect(() => {
     if (screen.isFocused) return;
@@ -58,8 +64,8 @@ export function CollectionListSection({
         screen.setLyricsFilterMode("all");
         changed = true;
       }
-      if (store.ideasFilter !== "all") {
-        store.setIdeasFilter("all");
+      if (ideasFilter !== "all") {
+        setIdeasFilter("all");
         changed = true;
       }
       if (!changed) {
@@ -104,73 +110,25 @@ export function CollectionListSection({
     scrollToFocusedIdea(0);
     (screen.navigation as any).setParams({ focusIdeaId: undefined, focusToken: undefined });
   }, [
-    screen,
-    store,
+    ideasFilter,
+    screen.focusIdeaId,
+    screen.focusToken,
+    screen.focusScrollTimerRef,
+    screen.handledFocusTokenRef,
+    screen.ideas,
+    screen.listEntries,
+    screen.listRef,
+    screen.lyricsFilterMode,
+    screen.markRecentlyAdded,
+    screen.navigation,
+    screen.rowLayoutsRef,
+    screen.searchQuery,
+    screen.selectedProjectStages,
+    screen.setLyricsFilterMode,
+    screen.setSearchQuery,
+    screen.setSelectedProjectStages,
+    setIdeasFilter,
   ]);
-
-  useEffect(() => {
-    const visibleIds = new Set(screen.listIdeas.map((idea) => idea.id));
-    const idsToAnimate = useStore
-      .getState()
-      .recentlyAddedItemIds.filter(
-        (id) => visibleIds.has(id) && !screen.animatingHighlightIdsRef.current.has(id)
-      );
-
-    idsToAnimate.forEach((id) => {
-      screen.animatingHighlightIdsRef.current.add(id);
-      const animatedValue = new Animated.Value(0);
-      screen.highlightMapRef.current[id] = animatedValue;
-
-      Animated.sequence([
-        Animated.timing(animatedValue, {
-          toValue: 0.9,
-          duration: 180,
-          useNativeDriver: true,
-        }),
-        Animated.timing(animatedValue, {
-          toValue: 0,
-          duration: 900,
-          useNativeDriver: true,
-        }),
-      ]).start(() => {
-        delete screen.highlightMapRef.current[id];
-        screen.animatingHighlightIdsRef.current.delete(id);
-        useStore.getState().clearRecentlyAdded([id]);
-      });
-    });
-  }, [screen.listIdeas, screen]);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    const run = async () => {
-      const entries = await Promise.all(
-        screen.listIdeas.map(async (idea) => {
-          const bytes = await getIdeaSizeBytes(idea);
-          return [idea.id, bytes] as const;
-        })
-      );
-
-      if (cancelled) return;
-
-      screen.setIdeaSizeMap((prev) => {
-        let changed = false;
-        const next = { ...prev };
-        for (const [ideaId, sizeBytes] of entries) {
-          if (next[ideaId] !== sizeBytes) {
-            next[ideaId] = sizeBytes;
-            changed = true;
-          }
-        }
-        return changed ? next : prev;
-      });
-    };
-
-    void run();
-    return () => {
-      cancelled = true;
-    };
-  }, [screen.listIdeas, screen]);
 
   const openIdeaFromList = async (ideaId: string, clip: ClipVersion) => {
     await inlinePlayer.resetInlinePlayer();
@@ -179,39 +137,7 @@ export function CollectionListSection({
   };
 
   const playIdeaFromList = async (ideaId: string, clip: ClipVersion) => {
-    const startedAtMs = Date.now();
-    const beforeSnapshot = inlinePlayer.getSnapshot();
-    console.log("[inline-debug:collection-list]", "play-from-list-start", {
-      ideaId,
-      clipId: clip.id,
-      clipTitle: clip.title,
-      clipDurationMs: clip.durationMs,
-      activeTarget: beforeSnapshot.inlineTarget,
-      isInlinePlaying: beforeSnapshot.isInlinePlaying,
-      inlinePositionMs: beforeSnapshot.inlinePosition,
-      inlineDurationMs: beforeSnapshot.inlineDuration,
-    });
-    try {
-      await inlinePlayer.toggleInlinePlayback(ideaId, clip);
-      const afterSnapshot = inlinePlayer.getSnapshot();
-      console.log("[inline-debug:collection-list]", "play-from-list-done", {
-        ideaId,
-        clipId: clip.id,
-        elapsedMs: Date.now() - startedAtMs,
-        activeTarget: afterSnapshot.inlineTarget,
-        isInlinePlaying: afterSnapshot.isInlinePlaying,
-        inlinePositionMs: afterSnapshot.inlinePosition,
-        inlineDurationMs: afterSnapshot.inlineDuration,
-      });
-    } catch (error) {
-      console.log("[inline-debug:collection-list]", "play-from-list-error", {
-        ideaId,
-        clipId: clip.id,
-        elapsedMs: Date.now() - startedAtMs,
-        error: error instanceof Error ? { name: error.name, message: error.message } : String(error),
-      });
-      throw error;
-    }
+    await inlinePlayer.toggleInlinePlayback(ideaId, clip);
   };
 
   const maybeResetInlineForIdeaIds = async (ideaIds: string[]) => {
@@ -224,37 +150,68 @@ export function CollectionListSection({
     if (!screen.collectionId) return;
     const nextIdeaIds = Array.from(new Set(ideaIds));
     if (nextIdeaIds.length === 0) return;
-    store.setIdeasHidden(screen.collectionId, nextIdeaIds, false);
+    setIdeasHidden(screen.collectionId, nextIdeaIds, false);
   };
 
   const hideTimelineDay = async (metric: "created" | "updated", dayStartTs: number) => {
     if (!screen.collectionId) return;
     const ideaIdsInDay = screen.listIdeas
-      .filter((idea) => getDateBucket(getIdeaSortTimestamp(idea, store.ideasSort)).startTs === dayStartTs)
+      .filter((idea) => getDateBucket(getIdeaSortTimestamp(idea, ideasSort)).startTs === dayStartTs)
       .map((idea) => idea.id);
     await maybeResetInlineForIdeaIds(ideaIdsInDay);
-    store.setTimelineDaysHidden(screen.collectionId, [{ metric, dayStartTs }], true);
+    setTimelineDaysHidden(screen.collectionId, [{ metric, dayStartTs }], true);
   };
 
   const unhideTimelineDay = (metric: "created" | "updated", dayStartTs: number) => {
     if (!screen.collectionId) return;
-    store.setTimelineDaysHidden(screen.collectionId, [{ metric, dayStartTs }], false);
+    setTimelineDaysHidden(screen.collectionId, [{ metric, dayStartTs }], false);
   };
 
-  const onViewableItemsChanged = ({
-    viewableItems,
-  }: {
-    viewableItems: Array<{ item: IdeaListEntry }>;
-  }) => {
-    const first = viewableItems?.[0]?.item;
-    if (!first) return;
-    if (first.type === "hidden-day") {
-      stickyDayStore.set(first.dayLabel);
-      return;
+  // Tracks the absolute content-y of each FlatList cell (keyed by entry.key).
+  // Populated by the CellRendererComponent's onLayout, which fires with the cell's
+  // y relative to the FlatList content container — i.e., the true scroll-content offset.
+  const itemCellLayoutsRef = useRef<Record<string, number>>({});
+  const listEntriesRef = useRef(screen.listEntries);
+  useEffect(() => { listEntriesRef.current = screen.listEntries; }, [screen.listEntries]);
+  const contentPaddingTopRef = useRef(contentPaddingTop);
+  useEffect(() => { contentPaddingTopRef.current = contentPaddingTop; }, [contentPaddingTop]);
+
+  // Called from the Reanimated UI thread via runOnJS to update the sticky day chip.
+  // effectiveTop is the content-coordinate of the visible-area boundary:
+  //   effectiveTop = contentPaddingTop + max(0, scrollY - collapsibleHeaderHeight)
+  // Labels are sourced by finding the last entry whose cell top <= effectiveTop.
+  const updateStickyLabel = useCallback((scrollYVal: number, colHVal: number) => {
+    const entries = listEntriesRef.current;
+    const paddingTop = contentPaddingTopRef.current;
+    const effectiveTop = paddingTop + Math.max(0, scrollYVal - colHVal);
+    let foundLabel: string | null = null;
+    for (const entry of entries) {
+      const cellY = itemCellLayoutsRef.current[entry.key];
+      if (cellY === undefined) continue;
+      if (cellY > effectiveTop) break;
+      foundLabel =
+        entry.type === "hidden-day"
+          ? entry.dayLabel
+          : getDateBucketLabel(getIdeaSortTimestamp(entry.idea, ideasSortRef.current));
     }
-    const ts = getIdeaSortTimestamp(first.idea, ideasSortRef.current);
-    stickyDayStore.set(getDateBucketLabel(ts));
-  };
+    if (foundLabel !== null) stickyDayStore.set(foundLabel);
+  }, []);
+
+  useAnimatedReaction(
+    () => screen.scrollY.value,
+    (scrollYVal, prev) => {
+      if (scrollYVal !== prev) {
+        runOnJS(updateStickyLabel)(scrollYVal, screen.collapsibleHeaderHeight.value);
+      }
+    }
+  );
+
+  const onItemCellLayout = useCallback((key: string, y: number) => {
+    itemCellLayoutsRef.current[key] = y;
+  }, []);
+
+  // No-op — sticky label is now driven by the scroll reaction above.
+  const onViewableItemsChanged = useCallback(() => {}, []);
 
   return (
     <IdeaListContent
@@ -269,7 +226,7 @@ export function CollectionListSection({
         showDateDividers: screen.showDateDividers,
         listFooterSpacerHeight: screen.listFooterSpacerHeight,
         searchNeedle: screen.searchNeedle,
-        ideasSort: store.ideasSort,
+        ideasSort,
         activeTimelineMetric: screen.activeTimelineMetric,
         activeSortMetric: screen.activeSortMetric,
         lyricsFilterMode: screen.lyricsFilterMode,
@@ -279,6 +236,7 @@ export function CollectionListSection({
         viewabilityConfig: screen.viewabilityConfigRef.current,
         searchMetaByIdeaId: screen.searchMetaByIdeaId,
         onViewableItemsChanged,
+        onItemCellLayout,
         playIdeaFromList,
         openIdeaFromList,
         unhideIdeasFromList,
