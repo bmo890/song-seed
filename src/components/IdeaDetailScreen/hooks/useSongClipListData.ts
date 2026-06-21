@@ -1,9 +1,9 @@
 import { useMemo } from "react";
 import {
-  buildEvolutionListRows,
   buildClipLineages,
-  buildTimelineEntries,
-  type EvolutionListClipEntry,
+  buildTimelineEntriesFromLineages,
+  filterClipLineagesByVisibleClipIds,
+  type ClipLineage,
   type TimelineClipEntry,
   type SongTimelineSortDirection,
   type SongTimelineSortMetric,
@@ -17,11 +17,8 @@ type UseSongClipListDataArgs = {
   clipTagFilter: SongClipTagFilter;
   clipGroupFilter: SongClipGroupFilter;
   clipBookmarkedOnly: boolean;
-  clipViewMode: "timeline" | "evolution";
   timelineSortMetric: SongTimelineSortMetric;
   timelineSortDirection: SongTimelineSortDirection;
-  timelineMainTakesOnly: boolean;
-  expandedLineageIds: Record<string, boolean>;
   pendingPrimaryClipId: string | null;
   isProject: boolean;
   isEditMode: boolean;
@@ -37,11 +34,8 @@ export function useSongClipListData({
   clipTagFilter,
   clipGroupFilter,
   clipBookmarkedOnly,
-  clipViewMode,
   timelineSortMetric,
   timelineSortDirection,
-  timelineMainTakesOnly,
-  expandedLineageIds,
   pendingPrimaryClipId,
   isProject,
   isEditMode,
@@ -52,15 +46,16 @@ export function useSongClipListData({
   songPageBaseBottomPadding,
 }: UseSongClipListDataArgs) {
   const ideaClips = useMemo(() => selectedIdea?.clips ?? [], [selectedIdea]);
+  const allLineages = useMemo(() => buildClipLineages(ideaClips), [ideaClips]);
   const rootIdByClipId = useMemo(() => {
     const map = new Map<string, string>();
-    buildClipLineages(ideaClips).forEach((lineage) => {
+    allLineages.forEach((lineage) => {
       lineage.clipsOldestToNewest.forEach((clip) => {
         map.set(clip.id, lineage.root.id);
       });
     });
     return map;
-  }, [ideaClips]);
+  }, [allLineages]);
 
   const filteredIdeaClips = useMemo(() => {
     if (clipTagFilter.length === 0 && clipGroupFilter.length === 0 && !clipBookmarkedOnly) {
@@ -97,6 +92,14 @@ export function useSongClipListData({
     selectedIdea?.clipGroupAssignments,
   ]);
 
+  const filteredLineages = useMemo<ClipLineage[]>(() => {
+    if (filteredIdeaClips.length === ideaClips.length) return allLineages;
+    return filterClipLineagesByVisibleClipIds(
+      allLineages,
+      new Set(filteredIdeaClips.map((clip) => clip.id))
+    );
+  }, [allLineages, filteredIdeaClips, ideaClips.length]);
+
   const displayPrimaryId = useMemo(
     () => pendingPrimaryClipId ?? selectedIdea?.clips.find((clip) => clip.isPrimary)?.id ?? null,
     [pendingPrimaryClipId, selectedIdea?.clips]
@@ -120,32 +123,15 @@ export function useSongClipListData({
       }
     : null;
 
-  const visibleClipEntries = useMemo<Array<TimelineClipEntry | EvolutionListClipEntry>>(
+  const visibleClipEntries = useMemo<TimelineClipEntry[]>(
     () =>
-      clipViewMode === "evolution"
-        ? buildEvolutionListRows(
-            filteredIdeaClips,
-            expandedLineageIds,
-            timelineSortDirection,
-            selectedIdea?.clipGroups ?? [],
-            selectedIdea?.clipGroupAssignments ?? {}
-          )
-            .filter(
-              (row): row is { kind: "clip"; entry: EvolutionListClipEntry } => row.kind === "clip"
-            )
-            .map((row) => row.entry)
-        : buildTimelineEntries(filteredIdeaClips, {
-            metric: timelineSortMetric,
-            direction: timelineSortDirection,
-            mainTakesOnly: timelineMainTakesOnly,
-          }),
+      buildTimelineEntriesFromLineages(filteredLineages, {
+        metric: timelineSortMetric,
+        direction: timelineSortDirection,
+        mainTakesOnly: false,
+      }),
     [
-      clipViewMode,
-      expandedLineageIds,
-      filteredIdeaClips,
-      selectedIdea?.clipGroupAssignments,
-      selectedIdea?.clipGroups,
-      timelineMainTakesOnly,
+      filteredLineages,
       timelineSortDirection,
       timelineSortMetric,
     ]
@@ -154,10 +140,7 @@ export function useSongClipListData({
   // "Ideas" count = number of distinct lineages (each lineage is one idea), not the
   // number of visible clip rows — so it stays constant when threads expand/collapse
   // or the view mode changes. Respects active filters via filteredIdeaClips.
-  const ideaLineageCount = useMemo(
-    () => buildClipLineages(filteredIdeaClips).length,
-    [filteredIdeaClips]
-  );
+  const ideaLineageCount = filteredLineages.length;
 
   const footerSpacerHeight =
     isProject && !isEditMode && !clipSelectionMode && !isParentPicking
@@ -168,7 +151,8 @@ export function useSongClipListData({
 
   return {
     ideaClips,
-    filteredIdeaClips,
+    filteredLineages,
+    rootIdByClipId,
     displayPrimaryId,
     primaryEntry,
     visibleClipEntries,

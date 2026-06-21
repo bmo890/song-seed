@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { styles } from "../styles";
@@ -8,7 +8,7 @@ import { EvolutionList } from "../EvolutionList";
 import { TimelineList } from "../TimelineList";
 import { PrimaryTakeStrip } from "../PrimaryTakeStrip";
 import { useSongScreen } from "../provider/SongScreenProvider";
-import { getLineageRootId, type TimelineClipEntry } from "../../../clipGraph";
+import { type ClipLineage, type TimelineClipEntry } from "../../../clipGraph";
 import { SongClipListSummary } from "./SongClipListSummary";
 import { SongClipListHeader } from "./songClipToolbar/SongClipListHeader";
 import { CollapsingHeaderOverlay } from "../../common/CollapsingHeaderOverlay";
@@ -16,7 +16,8 @@ import { SongCollapsibleHeader } from "./SongCollapsibleHeader";
 import { SelectionTopBar } from "../../common/SelectionTopBar";
 
 type SongClipListContentProps = {
-  filteredIdeaClips: TimelineClipEntry["clip"][];
+  filteredLineages: ClipLineage[];
+  rootIdByClipId: Map<string, string>;
   footerSpacerHeight: number;
   primaryEntry: TimelineClipEntry | null;
   clipCardContext: ClipCardContextProps;
@@ -29,7 +30,8 @@ type SongClipListContentProps = {
 const DEFAULT_HEADER_HEIGHT = 220;
 
 export function SongClipListContent({
-  filteredIdeaClips,
+  filteredLineages,
+  rootIdByClipId,
   footerSpacerHeight,
   primaryEntry,
   clipCardContext,
@@ -41,11 +43,21 @@ export function SongClipListContent({
   const markRecentlyAdded = useStore((s) => s.markRecentlyAdded);
   const [locateTarget, setLocateTarget] = useState<{ clipId: string; nonce: number } | null>(null);
   const [headerHeight, setHeaderHeight] = useState(DEFAULT_HEADER_HEIGHT);
+  const highlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const summaryContent = <SongClipListSummary />;
 
+  useEffect(() => {
+    return () => {
+      if (highlightTimerRef.current) {
+        clearTimeout(highlightTimerRef.current);
+        highlightTimerRef.current = null;
+      }
+    };
+  }, []);
+
   const expandLineageForClip = (clipId: string) => {
-    const rootId = getLineageRootId(filteredIdeaClips, clipId);
+    const rootId = rootIdByClipId.get(clipId) ?? null;
     if (!rootId) return rootId;
 
     // Expand the version thread.
@@ -78,7 +90,13 @@ export function SongClipListContent({
     // inside a collapsed lineage that only becomes visible after expansion renders),
     // causing the hook to bail silently. 120ms matches the FlatList scroll delay
     // and gives React a full render cycle to allocate the value first.
-    setTimeout(() => markRecentlyAdded([clipId]), 120);
+    if (highlightTimerRef.current) {
+      clearTimeout(highlightTimerRef.current);
+    }
+    highlightTimerRef.current = setTimeout(() => {
+      markRecentlyAdded([clipId]);
+      highlightTimerRef.current = null;
+    }, 120);
   };
 
   const onLocatePrimary = () => {
@@ -102,7 +120,7 @@ export function SongClipListContent({
   const body =
     screen.clipViewMode === "timeline" ? (
       <TimelineList
-        clips={filteredIdeaClips}
+        lineages={filteredLineages}
         summaryContent={summaryContent}
         footerSpacerHeight={footerSpacerHeight}
         primaryEntry={primaryEntry}
@@ -113,7 +131,7 @@ export function SongClipListContent({
       />
     ) : (
       <EvolutionList
-        clips={filteredIdeaClips}
+        lineages={filteredLineages}
         expandedLineageIds={expandedLineageIds}
         setExpandedLineageIds={setExpandedLineageIds}
         direction={screen.timelineSortDirection}
@@ -180,7 +198,7 @@ function SongClipSelectionTopBar() {
 
   const selectableClipIds = (screen.selectedIdea?.clips ?? []).map((c) => c.id);
   const allSelected =
-    selectableClipIds.length === 0 ||
+    selectableClipIds.length > 0 &&
     selectableClipIds.every((id) => selectedClipIds.includes(id));
 
   return (

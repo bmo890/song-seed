@@ -61,6 +61,7 @@ export function SongClipListShell<T>({
   const leadingRowCount = useMemo(() => (summaryContent ? 1 : 0), [summaryContent]);
 
   const listRef = useRef<FlatList<ShellRow<T>>>(null);
+  const scrollRetryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Reset the shared scroll offset whenever this list instance mounts (e.g. when
   // switching between Timeline and Evolution views, which swaps the list). The
@@ -69,6 +70,10 @@ export function SongClipListShell<T>({
     if (scrollY) scrollY.value = 0;
     return () => {
       if (scrollY) scrollY.value = 0;
+      if (scrollRetryTimerRef.current) {
+        clearTimeout(scrollRetryTimerRef.current);
+        scrollRetryTimerRef.current = null;
+      }
     };
   }, [scrollY]);
 
@@ -94,12 +99,16 @@ export function SongClipListShell<T>({
       ref={listRef}
       data={listRows}
       onScrollToIndexFailed={(info) => {
-        setTimeout(() => {
+        if (scrollRetryTimerRef.current) {
+          clearTimeout(scrollRetryTimerRef.current);
+        }
+        scrollRetryTimerRef.current = setTimeout(() => {
           listRef.current?.scrollToIndex({
             index: info.index,
             animated: true,
             viewPosition: 0.3,
           });
+          scrollRetryTimerRef.current = null;
         }, 250);
       }}
       onScroll={scrollHandler}

@@ -4,7 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { styles } from "../../../styles";
 import { MiniProgress } from "../../MiniProgress";
-import { InlineTarget, SongIdea, ClipVersion, InlinePlayerControls } from "../../../types";
+import { SongIdea, ClipVersion, InlinePlayerControls } from "../../../types";
 import { fmtDuration } from "../../../utils";
 import { useNavigation } from "@react-navigation/native";
 import { getIdeaCreatedAt, getIdeaUpdatedAt, type IdeaSortMetric } from "../../../ideaSort";
@@ -131,8 +131,6 @@ export function IdeaListItem({
 }: IdeaListItemProps) {
     const listSelectionMode = useStore((s) => s.listSelectionMode);
     const setSelectedIdeaId = useStore((s) => s.setSelectedIdeaId);
-    const inlineTarget: InlineTarget = useStore((s) => s.inlineTarget);
-    const isInlinePlaying = useStore((s) => s.inlineIsPlaying);
     const { accent: workspaceAccent } = useWorkspaceTheme();
 
     const navigation = useNavigation();
@@ -153,7 +151,16 @@ export function IdeaListItem({
         updatedAtLabel,
         projectProgressPct,
     } = fallbackMeta;
-    const inlineActive = !!playClip && inlineTarget?.ideaId === item.id && inlineTarget.clipId === playClip.id;
+    const inlineActive = useStore(
+        (s) => !!playClip && s.inlineTarget?.ideaId === item.id && s.inlineTarget.clipId === playClip.id
+    );
+    const isInlinePlaying = useStore(
+        (s) =>
+            !!playClip &&
+            s.inlineTarget?.ideaId === item.id &&
+            s.inlineTarget.clipId === playClip.id &&
+            s.inlineIsPlaying
+    );
 
     const isSelected = useStore((s) => s.selectedListIdeaIds.includes(item.id));
     const showSelectionIndicator = listSelectionMode;
@@ -350,25 +357,11 @@ export function IdeaListItem({
                             canPlay={!!playClip}
                             durationLabel={item.kind === "project" ? projectPrimaryDurationLabel : clipDurationLabel}
                             onPressLead={() => {
-                                const inlineSnapshot = useStore.getState();
-                                console.log("[inline-debug:idea-list-item]", "lead-press", {
-                                    ideaId: item.id,
-                                    kind: item.kind,
-                                    hasPlayClip: !!playClip,
-                                    playClipId: playClip?.id ?? null,
-                                    inlineActive,
-                                    inlineTarget,
-                                    isInlinePlaying,
-                                    inlinePositionMs: inlineSnapshot.inlinePositionMs,
-                                    inlineDurationMs: inlineSnapshot.inlineDurationMs,
-                                    listSelectionMode,
-                                });
                                 if (listSelectionMode) {
                                     useStore.getState().toggleListSelection(item.id);
                                     return;
                                 }
                                 if (!playClip) {
-                                    console.log("[inline-debug:idea-list-item]", "lead-press-no-play-clip", { ideaId: item.id });
                                     return;
                                 }
                                 void Haptics.selectionAsync();

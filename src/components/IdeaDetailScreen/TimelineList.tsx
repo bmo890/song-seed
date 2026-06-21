@@ -2,14 +2,19 @@ import React, { ReactNode, useMemo } from "react";
 import { Text, View } from "react-native";
 import { type SharedValue } from "react-native-reanimated";
 import { styles } from "./styles";
-import { buildTimelineListRows, type TimelineClipEntry, type TimelineListRow } from "../../clipGraph";
+import {
+  buildTimelineListRowsFromLineages,
+  type ClipLineage,
+  type TimelineClipEntry,
+  type TimelineListRow,
+} from "../../clipGraph";
 import { type ClipCardContextProps } from "./ClipCard";
 import { SongClipCard } from "./components/SongClipCard";
 import { SongClipListShell } from "./components/SongClipListShell";
 import { useSongScreen } from "./provider/SongScreenProvider";
 
 type TimelineListProps = {
-  clips: TimelineClipEntry["clip"][];
+  lineages: ClipLineage[];
   summaryContent?: ReactNode;
   footerSpacerHeight: number;
   primaryEntry: TimelineClipEntry | null;
@@ -20,7 +25,7 @@ type TimelineListProps = {
 };
 
 export function TimelineList({
-  clips,
+  lineages,
   summaryContent,
   footerSpacerHeight,
   primaryEntry,
@@ -33,12 +38,12 @@ export function TimelineList({
 
   const contentRows = useMemo(
     () =>
-      buildTimelineListRows(clips, {
+      buildTimelineListRowsFromLineages(lineages, {
         metric: screen.timelineSortMetric,
         direction: screen.timelineSortDirection,
         mainTakesOnly: screen.timelineMainTakesOnly,
       }),
-    [clips, screen.timelineMainTakesOnly, screen.timelineSortDirection, screen.timelineSortMetric]
+    [lineages, screen.timelineMainTakesOnly, screen.timelineSortDirection, screen.timelineSortMetric]
   );
 
   return (

@@ -1,11 +1,15 @@
 import { useEffect, useRef, useState } from "react";
 
+type UndoState = {
+  id: string;
+  message: string;
+  undo: () => void;
+  onExpire?: () => void;
+};
+
 export function useCollectionSelection() {
-  const [undoState, setUndoState] = useState<{
-    id: string;
-    message: string;
-    undo: () => void;
-  } | null>(null);
+  const [undoState, setUndoState] = useState<UndoState | null>(null);
+  const undoStateRef = useRef<UndoState | null>(null);
   const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -13,28 +17,50 @@ export function useCollectionSelection() {
       if (undoTimerRef.current) {
         clearTimeout(undoTimerRef.current);
       }
+      undoStateRef.current?.onExpire?.();
+      undoStateRef.current = null;
     };
   }, []);
 
-  const showUndo = (message: string, undo: () => void) => {
+  const clearPendingUndo = (commit: boolean) => {
     if (undoTimerRef.current) {
       clearTimeout(undoTimerRef.current);
+      undoTimerRef.current = null;
     }
+    const pending = undoStateRef.current;
+    if (commit) {
+      pending?.onExpire?.();
+    }
+    undoStateRef.current = null;
+    setUndoState(null);
+  };
+
+  const showUndo = (message: string, undo: () => void, onExpire?: () => void) => {
+    clearPendingUndo(true);
     const id = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-    setUndoState({ id, message, undo });
+    const nextUndoState = { id, message, undo, onExpire };
+    undoStateRef.current = nextUndoState;
+    setUndoState(nextUndoState);
     undoTimerRef.current = setTimeout(() => {
-      setUndoState((prev) => (prev?.id === id ? null : prev));
+      const pending = undoStateRef.current;
+      if (pending?.id === id) {
+        pending.onExpire?.();
+        undoStateRef.current = null;
+        setUndoState(null);
+      }
       undoTimerRef.current = null;
     }, 5000);
   };
 
   const triggerUndo = () => {
-    if (!undoState) return;
+    const pending = undoStateRef.current;
+    if (!pending) return;
     if (undoTimerRef.current) {
       clearTimeout(undoTimerRef.current);
       undoTimerRef.current = null;
     }
-    undoState.undo();
+    pending.undo();
+    undoStateRef.current = null;
     setUndoState(null);
   };
 
@@ -42,6 +68,6 @@ export function useCollectionSelection() {
     undoState,
     showUndo,
     triggerUndo,
-    clearUndo: () => setUndoState(null),
+    clearUndo: () => clearPendingUndo(true),
   };
 }

@@ -4,14 +4,19 @@ import { Ionicons } from "@expo/vector-icons";
 import { type SharedValue } from "react-native-reanimated";
 import { useStore } from "../../state/useStore";
 import { styles } from "./styles";
-import { buildEvolutionListRows, type EvolutionListRow, type TimelineClipEntry } from "../../clipGraph";
+import {
+  buildEvolutionListRowsFromLineages,
+  type ClipLineage,
+  type EvolutionListRow,
+  type TimelineClipEntry,
+} from "../../clipGraph";
 import { type ClipCardContextProps } from "./ClipCard";
 import { type SongTimelineSortDirection, type SongTimelineSortMetric } from "../../clipGraph";
 import { SongClipCard } from "./components/SongClipCard";
 import { SongClipListShell } from "./components/SongClipListShell";
 
 type EvolutionListProps = {
-  clips: TimelineClipEntry["clip"][];
+  lineages: ClipLineage[];
   expandedLineageIds: Record<string, boolean>;
   setExpandedLineageIds: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
   direction: SongTimelineSortDirection;
@@ -135,7 +140,7 @@ function EvolutionGroupHeaderRow({
 }
 
 export function EvolutionList({
-  clips,
+  lineages,
   expandedLineageIds,
   setExpandedLineageIds,
   direction,
@@ -153,14 +158,14 @@ export function EvolutionList({
   // "Collapse all" is lifted out of the FlatList into the sticky pinned overlay
   // so it stays visible when the header is collapsed — not rendered here.
   const contentRows = useMemo<EvolutionContentRow[]>(() =>
-    buildEvolutionListRows(
-      clips,
+    buildEvolutionListRowsFromLineages(
+      lineages,
       expandedLineageIds,
       direction,
       groups,
       groupAssignments
     ),
-    [clips, direction, expandedLineageIds, groupAssignments, groups]
+    [lineages, direction, expandedLineageIds, groupAssignments, groups]
   );
 
   const scrollTarget = useMemo(() => {

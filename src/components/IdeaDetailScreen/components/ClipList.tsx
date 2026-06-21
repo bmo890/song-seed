@@ -31,7 +31,8 @@ export function ClipList() {
   );
 
   const {
-    filteredIdeaClips,
+    filteredLineages,
+    rootIdByClipId,
     displayPrimaryId,
     primaryEntry,
     visibleClipEntries,
@@ -43,11 +44,8 @@ export function ClipList() {
     clipTagFilter: screen.clipTagFilter,
     clipGroupFilter: screen.clipGroupFilter,
     clipBookmarkedOnly: screen.clipBookmarkedOnly,
-    clipViewMode: screen.clipViewMode,
     timelineSortMetric: screen.timelineSortMetric,
     timelineSortDirection: screen.timelineSortDirection,
-    timelineMainTakesOnly: screen.timelineMainTakesOnly,
-    expandedLineageIds,
     pendingPrimaryClipId,
     isProject: screen.isProject,
     isEditMode: screen.isEditMode,
@@ -117,7 +115,8 @@ export function ClipList() {
   return (
     <>
       <SongClipListContent
-        filteredIdeaClips={filteredIdeaClips}
+        filteredLineages={filteredLineages}
+        rootIdByClipId={rootIdByClipId}
         footerSpacerHeight={footerSpacerHeight}
         primaryEntry={primaryEntry}
         clipCardContext={clipCardContext}

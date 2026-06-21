@@ -141,23 +141,27 @@ export function ClipCard({
     playback: { globalCustomTags, inlinePlayer, getHighlightValue },
   } = context;
 
+  const { clip } = entry;
   const navigation = useNavigation();
   const clipSelectionMode = useStore((s) => s.clipSelectionMode);
-  const selectedClipIds = useStore((s) => s.selectedClipIds);
-  const movingClipId = useStore((s) => s.movingClipId);
+  const isSelected = useStore((s) => s.selectedClipIds.includes(clip.id));
+  const isMoving = useStore((s) => s.movingClipId === clip.id);
   const startClipSelection = useStore((s) => s.startClipSelection);
   const toggleClipSelection = useStore((s) => s.toggleClipSelection);
   const setPendingPrimaryClipId = useStore((s) => s.setPendingPrimaryClipId);
   const setRecordingParentClipId = useStore((s) => s.setRecordingParentClipId);
   const setRecordingIdeaId = useStore((s) => s.setRecordingIdeaId);
   const setPlayerQueue = useStore((s) => s.setPlayerQueue);
-  const inlineTarget = useStore((s) => s.inlineTarget);
-  const isInlinePlaying = useStore((s) => s.inlineIsPlaying);
-  const highlightValue = getHighlightValue(entry.clip.id);
-  const { clip } = entry;
-  const inlineActive = inlineTarget?.ideaId === idea.id && inlineTarget.clipId === clip.id;
-  const isSelected = selectedClipIds.includes(clip.id);
-  const isMoving = movingClipId === clip.id;
+  const inlineActive = useStore(
+    (s) => s.inlineTarget?.ideaId === idea.id && s.inlineTarget.clipId === clip.id
+  );
+  const isInlinePlaying = useStore(
+    (s) =>
+      s.inlineTarget?.ideaId === idea.id &&
+      s.inlineTarget.clipId === clip.id &&
+      s.inlineIsPlaying
+  );
+  const highlightValue = getHighlightValue(clip.id);
   const isPrimaryCandidate = displayPrimaryId === clip.id;
   const compactDensity = entry.kind === "evolution" ? entry.compactPreview : false;
   const isParentPickSource = parentPickSourceIdSet.has(clip.id);

@@ -66,6 +66,7 @@ export function SelectionBars() {
       AppAlert.info("Nothing to play", "None of the selected clips have playable audio yet.");
       return;
     }
+    useStore.getState().requestInlineStop();
     useStore.getState().setPlayerQueue(queue, 0, true);
     screen.navigation.navigate("Player" as never);
   }

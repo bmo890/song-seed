@@ -4,12 +4,105 @@ import { IdeaListSelectionZone } from "../components/IdeaListSelectionZone";
 import { useCollectionScreen } from "../provider/CollectionScreenProvider";
 import { appActions } from "../../../state/actions";
 import { createEmptyProjectLyrics } from "../../../state/dataSlice";
+import { relocateActivityEvents, relocatePlaylists } from "../../../state/relocationMetadata";
+import { buildRuntimeCleanupPatch } from "../../../state/runtimeCleanup";
+import {
+  collectManagedIdeaAudioUris,
+  deleteManagedAudioUris,
+  filterUnreferencedManagedAudioUris,
+} from "../../../services/managedMedia";
+import { authorizeIntentionalEmptyStateWrite } from "../../../services/stateIntegrity";
 import { buildDefaultIdeaTitle, ensureUniqueIdeaTitle, getBaseClipTitle } from "../../../utils";
-import type { SongIdea } from "../../../types";
+import type { ActivityEvent, IdeasHiddenDay, IdeasListState, Playlist, SongIdea, Workspace } from "../../../types";
 import { useStore } from "../../../state/useStore";
 import { getDateBucket } from "../../../dateBuckets";
 import { getIdeaSortTimestamp } from "../../../ideaSort";
 import { buildPlayableQueueFromIdeas } from "../../../clipPresentation";
+
+type CollectionUndoSnapshot = {
+  workspaceId: string;
+  collections: Workspace["collections"];
+  ideas: SongIdea[];
+  activityEvents: ActivityEvent[];
+  playlists: Playlist[];
+};
+
+function normalizeIdeasListState(
+  ideasListState: IdeasListState | undefined,
+  ideas: SongIdea[]
+): IdeasListState {
+  const ideaIdSet = new Set(ideas.map((idea) => idea.id));
+  const hiddenIdeaIds = Array.isArray(ideasListState?.hiddenIdeaIds)
+    ? Array.from(new Set(ideasListState.hiddenIdeaIds.filter((id) => ideaIdSet.has(id))))
+    : [];
+  const hiddenDayMap = new Map<string, IdeasHiddenDay>();
+  for (const hiddenDay of ideasListState?.hiddenDays ?? []) {
+    if (
+      (hiddenDay?.metric === "created" || hiddenDay?.metric === "updated") &&
+      Number.isFinite(hiddenDay?.dayStartTs)
+    ) {
+      hiddenDayMap.set(`${hiddenDay.metric}:${hiddenDay.dayStartTs}`, {
+        metric: hiddenDay.metric,
+        dayStartTs: hiddenDay.dayStartTs,
+      });
+    }
+  }
+  return {
+    hiddenIdeaIds,
+    hiddenDays: Array.from(hiddenDayMap.values()),
+  };
+}
+
+function normalizeCollectionVisibility(workspace: Workspace): Workspace {
+  return {
+    ...workspace,
+    collections: workspace.collections.map((collection) => {
+      const collectionIdeas = workspace.ideas.filter((idea) => idea.collectionId === collection.id);
+      return {
+        ...collection,
+        ideasListState: normalizeIdeasListState(collection.ideasListState, collectionIdeas),
+      };
+    }),
+  };
+}
+
+function buildCollectionUndoSnapshot(workspace: Workspace): CollectionUndoSnapshot {
+  const state = useStore.getState();
+  return {
+    workspaceId: workspace.id,
+    collections: workspace.collections,
+    ideas: workspace.ideas,
+    activityEvents: state.activityEvents,
+    playlists: state.playlists,
+  };
+}
+
+function restoreCollectionUndoSnapshot(snapshot: CollectionUndoSnapshot) {
+  useStore.setState((store) => ({
+    workspaces: store.workspaces.map((workspace) =>
+      workspace.id === snapshot.workspaceId
+        ? {
+            ...workspace,
+            collections: snapshot.collections,
+            ideas: snapshot.ideas,
+          }
+        : workspace
+    ),
+    activityEvents: snapshot.activityEvents,
+    playlists: snapshot.playlists,
+  }));
+}
+
+function deleteManagedAudioUrisIfStillUnreferenced(candidateUris: string[]) {
+  const urisToDelete = filterUnreferencedManagedAudioUris(
+    candidateUris,
+    useStore.getState().workspaces
+  );
+  if (urisToDelete.length === 0) return;
+  void deleteManagedAudioUris(urisToDelete).catch((error) => {
+    console.warn("[Collection] Deferred managed audio cleanup failed", error);
+  });
+}
 
 export function CollectionFloatingActions() {
   const { screen, importFlow, selection, editModal, inlinePlayer, store } = useCollectionScreen();
@@ -46,8 +139,15 @@ export function CollectionFloatingActions() {
   const deleteSelectedIdeasWithUndo = async () => {
     if (screen.selectedListIdeaIds.length === 0) return;
     const selectedIdeaIds = new Set(screen.selectedListIdeaIds);
-    const activeInlineIdeaId = useStore.getState().inlineTarget?.ideaId;
-    const activePlayerIdeaId = useStore.getState().playerTarget?.ideaId;
+    const state = useStore.getState();
+    const activeWorkspace = state.workspaces.find((workspace) => workspace.id === state.activeWorkspaceId);
+    if (!activeWorkspace) return;
+
+    const removedIdeas = activeWorkspace.ideas.filter((idea) => selectedIdeaIds.has(idea.id));
+    if (removedIdeas.length === 0) return;
+
+    const activeInlineIdeaId = state.inlineTarget?.ideaId;
+    const activePlayerIdeaId = state.playerTarget?.ideaId;
 
     if (activeInlineIdeaId && selectedIdeaIds.has(activeInlineIdeaId)) {
       await inlinePlayer.resetInlinePlayer();
@@ -58,12 +158,43 @@ export function CollectionFloatingActions() {
       useStore.getState().clearPlayerQueue();
     }
 
-    const previousIdeas = screen.ideas;
+    const previousSnapshot = buildCollectionUndoSnapshot(activeWorkspace);
+    const removedClipIds = removedIdeas.flatMap((idea) => idea.clips.map((clip) => clip.id));
+    const candidateAudioUris = removedIdeas.flatMap((idea) =>
+      Array.from(collectManagedIdeaAudioUris(idea))
+    );
     const deletedCount = screen.selectedListIdeaIds.length;
-    appActions.deleteSelectedIdeasFromList();
-    selection.showUndo(`Deleted ${deletedCount} item${deletedCount === 1 ? "" : "s"}`, () => {
-      useStore.getState().updateIdeas(() => previousIdeas);
+    useStore.setState((storeState) => {
+      const nextWorkspaces = storeState.workspaces.map((workspace) =>
+        workspace.id !== storeState.activeWorkspaceId
+          ? workspace
+          : normalizeCollectionVisibility({
+              ...workspace,
+              ideas: workspace.ideas.filter((idea) => !selectedIdeaIds.has(idea.id)),
+            })
+      );
+
+      if (nextWorkspaces.reduce((sum, workspace) => sum + workspace.ideas.length, 0) === 0) {
+        authorizeIntentionalEmptyStateWrite(6);
+      }
+
+      return {
+        ...buildRuntimeCleanupPatch(storeState, {
+          nextWorkspaces,
+          removedIdeaIds: selectedIdeaIds,
+          removedClipIds,
+        }),
+        workspaces: nextWorkspaces,
+        activityEvents: storeState.activityEvents.filter((event) => !selectedIdeaIds.has(event.ideaId)),
+        playlists: storeState.playlists.map((playlist) => ({
+          ...playlist,
+          items: playlist.items.filter((item) => !selectedIdeaIds.has(item.ideaId)),
+        })),
+      };
     });
+    selection.showUndo(`Deleted ${deletedCount} item${deletedCount === 1 ? "" : "s"}`, () => {
+      restoreCollectionUndoSnapshot(previousSnapshot);
+    }, () => deleteManagedAudioUrisIfStillUnreferenced(candidateAudioUris));
   };
 
   const hideIdeasFromList = async (ideaIds: string[]) => {
@@ -98,7 +229,10 @@ export function CollectionFloatingActions() {
 
   const createProjectFromClipIdeas = (targetClips: SongIdea[]) => {
     if (targetClips.length === 0 || !screen.collectionId) return;
-    const previousIdeas = screen.ideas;
+    const state = useStore.getState();
+    const activeWorkspace = state.workspaces.find((workspace) => workspace.id === state.activeWorkspaceId);
+    if (!activeWorkspace) return;
+    const previousSnapshot = buildCollectionUndoSnapshot(activeWorkspace);
     const projectId = `idea-${Date.now()}`;
     const convertingIds = new Set(targetClips.map((idea) => idea.id));
     const generatedTitle = ensureUniqueIdeaTitle(
@@ -124,13 +258,55 @@ export function CollectionFloatingActions() {
     };
 
     const selectedClipIds = targetClips.map((idea) => idea.id);
-    useStore.getState().updateIdeas((prev) => [
-      mergedProject,
-      ...prev.filter((idea) => !selectedClipIds.includes(idea.id)),
-    ]);
+    const activeInlineIdeaId = state.inlineTarget?.ideaId;
+    const activePlayerIdeaId = state.playerTarget?.ideaId;
+    if (activeInlineIdeaId && selectedClipIds.includes(activeInlineIdeaId)) {
+      useStore.getState().requestInlineStop();
+    }
+    if (activePlayerIdeaId && selectedClipIds.includes(activePlayerIdeaId)) {
+      useStore.getState().requestPlayerClose();
+      useStore.getState().clearPlayerQueue();
+    }
+    const ideaRelocations = targetClips.map((idea) => ({
+      ideaId: idea.id,
+      workspaceId: activeWorkspace.id,
+      collectionId: screen.collectionId!,
+      ideaKind: "song" as const,
+      ideaTitle: generatedTitle,
+    }));
+    const clipRelocations = allClips.map((clip) => ({
+      clipId: clip.id,
+      ideaId: projectId,
+      workspaceId: activeWorkspace.id,
+      collectionId: screen.collectionId!,
+      ideaKind: "song" as const,
+      ideaTitle: generatedTitle,
+    }));
+
+    useStore.setState((storeState) => ({
+      workspaces: storeState.workspaces.map((workspace) =>
+        workspace.id !== activeWorkspace.id
+          ? workspace
+          : normalizeCollectionVisibility({
+              ...workspace,
+              ideas: [
+                mergedProject,
+                ...workspace.ideas.filter((idea) => !selectedClipIds.includes(idea.id)),
+              ],
+            })
+      ),
+      activityEvents: relocateActivityEvents(storeState.activityEvents, {
+        ideas: ideaRelocations,
+        clips: clipRelocations,
+      }),
+      playlists: relocatePlaylists(storeState.playlists, {
+        ideas: ideaRelocations,
+        clips: clipRelocations,
+      }),
+    }));
     useStore.getState().cancelListSelection();
     selection.showUndo(`Created song "${generatedTitle}"`, () => {
-      useStore.getState().updateIdeas(() => previousIdeas);
+      restoreCollectionUndoSnapshot(previousSnapshot);
     });
     store.setSelectedIdeaId(projectId);
     screen.navigateRoot("IdeaDetail", { ideaId: projectId });

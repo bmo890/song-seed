@@ -120,7 +120,6 @@ export function useCollectionScreenModel() {
   const [lyricsFilterMode, setLyricsFilterMode] = useState<"all" | "with" | "without">("all");
   const [listDensity, setListDensity] = useState<"comfortable" | "compact">("comfortable");
   const [headerMenuOpen, setHeaderMenuOpen] = useState(false);
-  const [ideaSizeMap, setIdeaSizeMap] = useState<Record<string, number>>({});
   const [floatingDockHeight, setFloatingDockHeight] = useState(62);
   const [selectionDockHeight, setSelectionDockHeight] = useState(120);
   const rowLayoutsRef = useRef<Record<string, { y: number; height: number }>>({});
@@ -430,15 +429,12 @@ export function useCollectionScreenModel() {
     setHeaderMenuOpen,
     nestedCollectionsExpanded,
     setNestedCollectionsExpanded,
-    ideaSizeMap,
-    setIdeaSizeMap,
     floatingDockHeight,
     setFloatingDockHeight,
     selectionDockHeight,
     setSelectionDockHeight,
     rowLayoutsRef,
     highlightMapRef,
-    animatingHighlightIdsRef,
     viewabilityConfigRef,
     listRef,
     focusIdeaId,

@@ -146,6 +146,26 @@ export function buildClipLineages(clips: ClipVersion[]): ClipLineage[] {
     .sort((a, b) => byCreatedAtAsc(a.root, b.root));
 }
 
+export function filterClipLineagesByVisibleClipIds(
+  lineages: ClipLineage[],
+  visibleClipIds: Set<string>
+): ClipLineage[] {
+  return lineages
+    .map((lineage) => {
+      const clipsOldestToNewest = lineage.clipsOldestToNewest.filter((clip) =>
+        visibleClipIds.has(clip.id)
+      );
+      if (clipsOldestToNewest.length === 0) return null;
+      return {
+        root: lineage.root,
+        clipsOldestToNewest,
+        clipsNewestToOldest: [...clipsOldestToNewest].reverse(),
+        latestClip: clipsOldestToNewest[clipsOldestToNewest.length - 1]!,
+      };
+    })
+    .filter((lineage): lineage is ClipLineage => lineage != null);
+}
+
 export function findLineageForClip(clips: ClipVersion[], clipId: string): ClipLineage | null {
   const lineages = buildClipLineages(clips);
   return lineages.find((lineage) =>
@@ -166,14 +186,26 @@ export function buildTimelineEntries(
     mainTakesOnly?: boolean;
   } = {}
 ): TimelineClipEntry[] {
-  const graph = buildClipGraph(clips);
+  return buildTimelineEntriesFromLineages(buildClipLineages(clips), options);
+}
+
+export function buildTimelineEntriesFromLineages(
+  lineages: ClipLineage[],
+  options: {
+    metric?: SongTimelineSortMetric;
+    direction?: SongTimelineSortDirection;
+    mainTakesOnly?: boolean;
+  } = {}
+): TimelineClipEntry[] {
+  const visibleClips = lineages.flatMap((lineage) => lineage.clipsOldestToNewest);
+  const sourceClips = options.mainTakesOnly
+    ? lineages.map((lineage) => lineage.latestClip)
+    : visibleClips;
+  const graph = buildClipGraph(visibleClips);
   const metric = options.metric ?? "created";
   const direction = options.direction ?? "desc";
-  const sourceClips = options.mainTakesOnly
-    ? buildClipLineages(clips).map((lineage) => lineage.latestClip)
-    : [...clips];
 
-  return sourceClips
+  return [...sourceClips]
     .sort((a, b) => {
       const base = compareClipsForTimeline(a, b, metric);
       return direction === "desc" ? -base : base;
@@ -198,10 +230,21 @@ export function buildTimelineListRows(
     mainTakesOnly?: boolean;
   } = {}
 ): TimelineListRow[] {
+  return buildTimelineListRowsFromLineages(buildClipLineages(clips), options);
+}
+
+export function buildTimelineListRowsFromLineages(
+  lineages: ClipLineage[],
+  options: {
+    metric?: SongTimelineSortMetric;
+    direction?: SongTimelineSortDirection;
+    mainTakesOnly?: boolean;
+  } = {}
+): TimelineListRow[] {
   const rows: TimelineListRow[] = [];
   let lastBucketKey: string | null = null;
 
-  buildTimelineEntries(clips, options).forEach((entry) => {
+  buildTimelineEntriesFromLineages(lineages, options).forEach((entry) => {
     if ((options.metric ?? "created") === "created") {
       const bucket = getDateBucket(entry.clip.createdAt);
       if (bucket.key !== lastBucketKey) {
@@ -227,10 +270,26 @@ export function buildEvolutionListRows(
   groups: ClipGroup[] = [],
   groupAssignments: Record<string, string> = {}
 ): EvolutionListRow[] {
+  return buildEvolutionListRowsFromLineages(
+    buildClipLineages(clips),
+    expandedLineageIds,
+    direction,
+    groups,
+    groupAssignments
+  );
+}
+
+export function buildEvolutionListRowsFromLineages(
+  lineages: ClipLineage[],
+  expandedLineageIds: Record<string, boolean>,
+  direction: SongTimelineSortDirection = "desc",
+  groups: ClipGroup[] = [],
+  groupAssignments: Record<string, string> = {}
+): EvolutionListRow[] {
   const rows: EvolutionListRow[] = [];
   const dir = direction === "asc" ? -1 : 1;
 
-  const sortedLineages = buildClipLineages(clips)
+  const sortedLineages = lineages
     .slice()
     .sort((a, b) => {
       if (a.latestClip.createdAt !== b.latestClip.createdAt) {
