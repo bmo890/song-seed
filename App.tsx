@@ -64,7 +64,7 @@ import { readManifest } from "./src/services/manifestSync";
 import { appActions } from "./src/state/actions";
 import {
   BACKUP_SAVE_CANCELLED_MESSAGE,
-  runManualLibraryBackup,
+  runExactLibraryBackup,
 } from "./src/services/libraryBackup";
 import {
   buildBackupReminderPromptMessage,
@@ -1008,14 +1008,21 @@ export default function App() {
             onPress: () => {
               void (async () => {
                 try {
-                  const state = useStore.getState();
-                  const result = await runManualLibraryBackup(state.workspaces, state.notes);
-                  const backupFileName = `${result.archiveTitle}.zip`;
+                  const result = await runExactLibraryBackup(useStore.getState());
+                  const backupFileName = result.archiveTitle;
                   useStore.getState().setLastSuccessfulBackupAt(Date.now());
                   useStore.getState().setLastSuccessfulBackupFileName(backupFileName);
+                  if (result.status === "incomplete") {
+                    const missingCritical = result.manifest.missing.filter((entry) => entry.critical);
+                    Alert.alert(
+                      "Backup saved, but incomplete",
+                      `Saved ${backupFileName}, but ${missingCritical.length} recording${missingCritical.length === 1 ? "" : "s"} could not be found. Check your audio storage and back up again.`
+                    );
+                    return;
+                  }
                   Alert.alert(
                     "Backup ready",
-                    `Saved ${backupFileName} to the folder you selected.`,
+                    `Saved ${backupFileName} to the location you chose.`,
                     [
                       {
                         text: "Copy Name",
