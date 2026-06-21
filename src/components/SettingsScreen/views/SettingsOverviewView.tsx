@@ -81,7 +81,7 @@ export function SettingsOverviewView({
           <Text style={styles.settingsSectionMeta}>{backupFlow.lastSuccessfulBackupLabel}</Text>
         </View>
         <Text style={styles.settingsSectionHint}>
-          Backups package your full Song Seed library as a Song Seed Archive so you can save it to Files, iCloud Drive, Google Drive, or another location you choose.
+          A backup is a complete, verified copy of your library — every recording, take, and detail — that can fully restore Song Seed on a new device or after reinstalling. Save it to Files, iCloud Drive, Google Drive, or another location you choose.
         </Text>
 
         <View style={settingsScreenStyles.backupSummaryBlock}>
@@ -117,13 +117,37 @@ export function SettingsOverviewView({
           <View style={styles.settingsActionCardCopy}>
             <Text style={styles.settingsActionCardTitle}>Back Up Now</Text>
             <Text style={styles.settingsActionCardMeta}>
-              Build a full-library backup and choose where to save it.
+              Build a complete, verified backup and choose where to save it.
             </Text>
           </View>
           {backupFlow.isBackingUp ? (
             <ActivityIndicator size="small" color="#64748b" />
           ) : (
             <Ionicons name="cloud-upload-outline" size={18} color="#64748b" />
+          )}
+        </Pressable>
+
+        <Pressable
+          style={({ pressed }) => [
+            styles.settingsActionCard,
+            pressed ? styles.pressDown : null,
+            backupFlow.isRestoring || backupFlow.isBackingUp
+              ? settingsScreenStyles.actionCardDisabled
+              : null,
+          ]}
+          onPress={backupFlow.handleRestore}
+          disabled={backupFlow.isRestoring || backupFlow.isBackingUp}
+        >
+          <View style={styles.settingsActionCardCopy}>
+            <Text style={styles.settingsActionCardTitle}>Restore from Backup</Text>
+            <Text style={styles.settingsActionCardMeta}>
+              Replace this library with a verified backup file. Requires a restart.
+            </Text>
+          </View>
+          {backupFlow.isRestoring ? (
+            <ActivityIndicator size="small" color="#64748b" />
+          ) : (
+            <Ionicons name="cloud-download-outline" size={18} color="#64748b" />
           )}
         </Pressable>
 

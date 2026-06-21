@@ -109,7 +109,9 @@ export function useRecordingScreenModel() {
               .find((workspace) => workspace.id === currentWorkspaceId)
               ?.ideas.find((idea) => idea.id === recordingIdeaId) ?? null
           : null;
-      if (!recordingIdeaId || !targetIdea) return;
+      // Signal non-attachment so saveRecording preserves the take for recovery instead of
+      // clearing the session and silently orphaning the audio.
+      if (!recordingIdeaId || !targetIdea) return false;
 
       const parentClip = recordingParentClipId
         ? targetIdea.clips.find((clip) => clip.id === recordingParentClipId) ?? null

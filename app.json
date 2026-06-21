@@ -75,7 +75,8 @@
           }
         }
       ],
-      "expo-font"
+      "expo-font",
+      "expo-sqlite"
     ],
     "web": {
       "favicon": "./assets/favicon.png"

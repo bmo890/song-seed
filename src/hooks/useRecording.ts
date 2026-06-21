@@ -28,7 +28,7 @@ import { deleteManagedAudioUris } from "../services/managedMedia";
 
 type OnRecorded = (
   payload: { audioUri: string; durationMs?: number; waveformPeaks?: number[] }
-) => void | Promise<void>;
+) => void | boolean | Promise<void | boolean>;
 
 const LIVE_WAVEFORM_SEGMENT_MS = __DEV__ ? 60 : 40;
 const LIVE_STREAM_INTERVAL_MS = __DEV__ ? 120 : 40;
@@ -431,11 +431,28 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
         managedAudio.waveformPeaks ??
         metersToWaveformPeaks(levelsAsDb, MANAGED_WAVEFORM_PEAK_COUNT);
 
-      await onRecorded({
+      const attached = await onRecorded({
         audioUri: managedAudio.audioUri,
         durationMs: managedAudio.durationMs ?? recordingData.durationMs,
         waveformPeaks,
       });
+
+      if (attached === false) {
+        // The take could not be attached (e.g. its project was removed mid-recording).
+        // Preserve the recording rather than silently orphaning it: keep the recorder temp
+        // file AND the pending-session marker so the next launch salvages it into the Inbox.
+        // Drop only the redundant managed copy.
+        if (managedAudioUriToCleanup) {
+          await deleteManagedAudioUris([managedAudioUriToCleanup]).catch(() => {});
+          managedAudioUriToCleanup = null;
+        }
+        AppAlert.info(
+          "Recording kept for recovery",
+          "We couldn't attach this take to its project, so it's been saved safely. Reopen Song Seed to restore it."
+        );
+        return false;
+      }
+
       managedAudioUriToCleanup = null;
       if (recordingData.fileUri && recordingData.fileUri !== managedAudio.audioUri) {
         // The managed import succeeded, so the recorder temp output is now redundant and should

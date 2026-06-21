@@ -1,4 +1,3 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { DataSlice, createDataSlice } from "./dataSlice";
@@ -26,6 +25,8 @@ import {
     isWorkspaceStartupPreference,
 } from "../libraryNavigation";
 import { startManifestSync } from "../services/manifestSync";
+import { rebaseWorkspacesManagedMedia } from "./rebaseManagedMedia";
+import { sqliteStringStorage, persistRawSnapshot } from "./db/storage";
 import { consumeIntentionalEmptyStateWrite } from "../services/stateIntegrity";
 import {
     clampMetronomeBpm,
@@ -85,6 +86,13 @@ export type PersistedAppStore = Pick<
 export const STORE_NAME = "song-seed-store";
 export const STORE_VERSION = 11;
 
+// Corruption guard thresholds: an unauthorized idea-count drop is treated as
+// suspected data loss only when it is BOTH large in absolute terms and a large
+// fraction of the library, so ordinary edits and small-library deletes never
+// trip the persist lock.
+const GUARD_MIN_ABS_DROP = 10;
+const GUARD_MIN_DROP_FRACTION = 0.4;
+
 function sanitizeTimestampMap(value: unknown, validIds: Set<string>) {
     if (!value || typeof value !== "object") return {};
 
@@ -101,9 +109,13 @@ export function sanitizePersistedState(state?: Partial<PersistedAppStore>): Pers
     const normalizedWorkspaces = Array.isArray(state?.workspaces) && state.workspaces.length > 0
         ? normalizeWorkspaces(state.workspaces)
         : [fallbackWorkspace];
-    const workspaces = normalizedWorkspaces.some((workspace) => !workspace.isArchived)
+    const baseWorkspaces = normalizedWorkspaces.some((workspace) => !workspace.isArchived)
         ? normalizedWorkspaces
         : [fallbackWorkspace, ...normalizedWorkspaces];
+    // Heal managed audio URIs against the live document directory so absolute paths
+    // that embedded a stale container prefix (notably iOS after reinstall/restore)
+    // keep resolving. No-op on Android and after normal updates.
+    const workspaces = rebaseWorkspacesManagedMedia(baseWorkspaces);
     const workspaceIds = new Set(workspaces.map((workspace) => workspace.id));
     const activeWorkspaceIds = new Set(
         workspaces.filter((workspace) => !workspace.isArchived).map((workspace) => workspace.id)
@@ -263,7 +275,9 @@ export function buildPersistedAppStoreSnapshot(state: AppStore): PersistedAppSto
  * can't skip writes because zustand always calls setItem with the result.
  */
 function createGuardedStorage() {
-    const baseStorage = createJSONStorage(() => AsyncStorage)!;
+    // SQLite is the authoritative backing store; it transparently imports any legacy
+    // AsyncStorage blob on first read and falls back to AsyncStorage if SQLite fails.
+    const baseStorage = createJSONStorage(() => sqliteStringStorage)!;
 
     return {
         getItem: baseStorage.getItem.bind(baseStorage),
@@ -282,6 +296,7 @@ function createGuardedStorage() {
                     const parsed = typeof value === "string" ? JSON.parse(value) : value;
                     const state = (parsed as { state?: PersistedAppStore })?.state;
                     if (state?.workspaces) {
+                        const lastCount = getLastPersistedIdeaCount();
                         const newIdeaCount = state.workspaces.reduce(
                             (sum: number, ws) => sum + (ws.ideas?.length ?? 0), 0
                         );
@@ -291,8 +306,26 @@ function createGuardedStorage() {
                             if (!consumeIntentionalEmptyStateWrite()) {
                                 setPersistBlocked(true);
                                 console.warn(
-                                    `[PersistGuard] BLOCKED and LOCKED: attempted to write 0 ideas when last known count was ${getLastPersistedIdeaCount()}. ` +
+                                    `[PersistGuard] BLOCKED and LOCKED: attempted to write 0 ideas when last known count was ${lastCount}. ` +
                                     `All future writes blocked until app restart.`
+                                );
+                                return; // Block the write
+                            }
+                        } else {
+                            // Catastrophic partial loss: a large, proportionally significant
+                            // drop that wasn't authorized by a deliberate bulk delete. Thresholds
+                            // are conservative (both absolute and fractional) so ordinary editing
+                            // and small-library deletes never trip the lock.
+                            const lost = lastCount - newIdeaCount;
+                            if (
+                                lost >= GUARD_MIN_ABS_DROP &&
+                                lost / lastCount >= GUARD_MIN_DROP_FRACTION &&
+                                !consumeIntentionalEmptyStateWrite()
+                            ) {
+                                setPersistBlocked(true);
+                                console.warn(
+                                    `[PersistGuard] BLOCKED and LOCKED: idea count dropped from ${lastCount} to ${newIdeaCount} (−${lost}) ` +
+                                    `without an authorized bulk delete. All future writes blocked until app restart.`
                                 );
                                 return; // Block the write
                             }
@@ -364,3 +397,14 @@ export const useStore = create<AppStore>()(
         }
     )
 );
+
+/**
+ * Durably flush the current persisted snapshot to the authoritative store immediately,
+ * rather than waiting for zustand's asynchronous persist. Used before media deletions so
+ * the metadata change (the audio reference removed) is committed *before* the file is moved
+ * to trash — closing the crash window between an in-memory delete and its file removal.
+ */
+export async function flushPersistedSnapshot(): Promise<void> {
+    const snapshot = buildPersistedAppStoreSnapshot(useStore.getState());
+    await persistRawSnapshot(STORE_NAME, JSON.stringify({ state: snapshot, version: STORE_VERSION }));
+}

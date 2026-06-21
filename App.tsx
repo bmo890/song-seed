@@ -59,7 +59,7 @@ import {
   resolveStartupWorkspaceId,
 } from "./src/libraryNavigation";
 import type { CollectionDetailRouteParams } from "./src/navigation";
-import { cleanupStaleShareTempFiles } from "./src/services/managedMedia";
+import { cleanupStaleShareTempFiles, purgeExpiredTrash } from "./src/services/managedMedia";
 import {
   BACKUP_SAVE_CANCELLED_MESSAGE,
   runManualLibraryBackup,
@@ -924,6 +924,8 @@ export default function App() {
     // storage usage from artifacts that were never part of persisted user state.
     void (async () => {
       await cleanupStaleShareTempFiles();
+      // Permanently purge quarantined (deleted) audio past its retention window.
+      await purgeExpiredTrash();
       await resumePendingWorkspaceArchiveOperations();
       const recordingRecovery = await recoverPendingRecordingSession();
       if (recordingRecovery.status === "recovered") {

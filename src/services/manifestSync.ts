@@ -26,6 +26,11 @@ import { consumeIntentionalEmptyStateWrite } from "./stateIntegrity";
 
 const MANIFEST_SCHEMA_VERSION = 1;
 
+// Mirror of the persist guard's partial-loss thresholds (see useStore.ts): only a
+// large absolute AND large fractional unauthorized drop is treated as corruption.
+const MANIFEST_GUARD_MIN_ABS_DROP = 10;
+const MANIFEST_GUARD_MIN_DROP_FRACTION = 0.4;
+
 export type ManifestData = PersistedAppStore & {
     schemaVersion: number;
     lastWrittenAt: string;
@@ -125,6 +130,25 @@ async function writeManifestToDisk(state: PersistedAppStore): Promise<void> {
                         // shadow manifest is stale and must be allowed to catch up on restart.
                     }
                 }
+            }
+        } else {
+            // Catastrophic partial loss guard, mirroring the persist guard: refuse to
+            // overwrite the shadow with a much smaller library that wasn't authorized by a
+            // deliberate bulk delete. Compares against the in-memory shadow count, which the
+            // persist guard keeps high when it blocks a corrupt write.
+            const lastCount = getLastPersistedIdeaCount();
+            const lost = lastCount - newIdeaCount;
+            if (
+                lastCount > 0 &&
+                lost >= MANIFEST_GUARD_MIN_ABS_DROP &&
+                lost / lastCount >= MANIFEST_GUARD_MIN_DROP_FRACTION &&
+                !consumeIntentionalEmptyStateWrite()
+            ) {
+                console.warn(
+                    `[ManifestSync] BLOCKED: refusing to write manifest with ${newIdeaCount} ideas, ` +
+                    `${lost} fewer than the last known ${lastCount}, without an authorized bulk delete.`
+                );
+                return;
             }
         }
 

@@ -46,6 +46,7 @@ import {
     filterUnreferencedManagedAudioUris,
 } from "../services/managedMedia";
 import { authorizeIntentionalEmptyStateWrite } from "../services/stateIntegrity";
+import { flushPersistedSnapshot } from "./useStore";
 import { relocateActivityEvents, relocatePlaylists } from "./relocationMetadata";
 import {
     clampMetronomeBpm,
@@ -1344,9 +1345,9 @@ export const createDataSlice: StateCreator<
                 })),
             };
         });
-        // Delete managed media only after the store no longer references it so file cleanup
-        // cannot race ahead of persisted metadata updates and orphan the library state.
-        void deleteManagedAudioUris(audioUrisToDelete);
+        // Durably commit the metadata change (audio refs removed) before trashing files, so a
+        // crash can never leave persisted metadata pointing at moved/removed audio.
+        void flushPersistedSnapshot().then(() => deleteManagedAudioUris(audioUrisToDelete));
     },
 
     toggleIdeaBookmark: (ideaId) => {
@@ -1901,11 +1902,14 @@ export const createDataSlice: StateCreator<
                 })),
             };
         });
-        // Best-effort storage cleanup happens after references are removed from persisted state.
-        void Promise.all([
-            deleteManagedAudioUris(audioUrisToDelete),
-            deleteManagedArchiveUri(archiveUriToDelete),
-        ]);
+        // Durably commit the metadata change before trashing files, so a crash can never
+        // leave persisted metadata pointing at moved/removed audio.
+        void flushPersistedSnapshot().then(() =>
+            Promise.all([
+                deleteManagedAudioUris(audioUrisToDelete),
+                deleteManagedArchiveUri(archiveUriToDelete),
+            ])
+        );
     },
 
     archiveWorkspace: (id, isArchived) => {
@@ -2315,9 +2319,9 @@ export const createDataSlice: StateCreator<
                 })),
             };
         });
-        // Keep file deletion behind state mutation so a crash cannot erase media before the
-        // persisted model forgets the idea.
-        void deleteManagedAudioUris(audioUrisToDelete);
+        // Durably commit the metadata change before trashing files, so a crash cannot erase
+        // media before the persisted model has forgotten the idea.
+        void flushPersistedSnapshot().then(() => deleteManagedAudioUris(audioUrisToDelete));
     },
     };
 };

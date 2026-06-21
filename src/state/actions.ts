@@ -21,7 +21,7 @@ import type { ParsedSongSeedArchive } from "../services/libraryImport";
 import { materializeSongSeedArchiveMerge } from "../services/libraryImport";
 import { findOrphanedAudioFiles, enrichOrphanedClips, buildRecoveredIdeas, findWorkspaceArchives, restoreWorkspaceFromArchive, restoreFromManifest } from "../services/audioRecovery";
 import { forceManifestWrite } from "../services/manifestSync";
-import { buildPersistedAppStoreSnapshot } from "./useStore";
+import { buildPersistedAppStoreSnapshot, flushPersistedSnapshot } from "./useStore";
 import { buildRuntimeCleanupPatch } from "./runtimeCleanup";
 import {
     collectManagedIdeaAudioUris,
@@ -1590,7 +1590,8 @@ export const appActions = {
                 })),
             };
         });
-        void deleteManagedAudioUris(audioUrisToDelete);
+        // Durably commit the metadata change before trashing files (see flushPersistedSnapshot).
+        void flushPersistedSnapshot().then(() => deleteManagedAudioUris(audioUrisToDelete));
     },
 
     convertSelectedClipIdeaToProject: () => {
