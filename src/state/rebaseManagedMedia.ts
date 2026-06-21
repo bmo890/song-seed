@@ -19,9 +19,25 @@ export function mapWorkspacesManagedMedia(workspaces: Workspace[], mapUri: UriMa
             if (nextIdea !== idea) ideasChanged = true;
             return nextIdea;
         });
-        if (!ideasChanged) return workspace;
+
+        // Archived workspaces hold their only copy of audio inside a managed package whose
+        // path is also container-dependent — it must be healed/relativized too.
+        let nextArchiveState = workspace.archiveState;
+        if (workspace.archiveState?.archiveUri) {
+            const mappedArchiveUri = mapUri(workspace.archiveState.archiveUri);
+            if (mappedArchiveUri !== workspace.archiveState.archiveUri) {
+                nextArchiveState = { ...workspace.archiveState, archiveUri: mappedArchiveUri };
+            }
+        }
+
+        const archiveChanged = nextArchiveState !== workspace.archiveState;
+        if (!ideasChanged && !archiveChanged) return workspace;
         workspacesChanged = true;
-        return { ...workspace, ideas: nextIdeas };
+        return {
+            ...workspace,
+            ...(ideasChanged ? { ideas: nextIdeas } : null),
+            ...(archiveChanged ? { archiveState: nextArchiveState } : null),
+        };
     });
     return workspacesChanged ? nextWorkspaces : workspaces;
 }

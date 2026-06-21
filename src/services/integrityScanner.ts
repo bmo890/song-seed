@@ -128,15 +128,18 @@ async function checkFiles(workspaces: Workspace[], issues: IntegrityIssue[]) {
     const referenced = collectManagedAudioUrisFromWorkspaces(workspaces);
 
     // Missing files: every referenced managed audio file must exist on disk.
-    for (const uri of referenced) {
-        try {
-            const info = await FileSystem.getInfoAsync(uri);
-            if (!info.exists) {
-                issues.push({ type: "missing-file", ref: "clip-audio", path: uri });
+    const missingChecks = await Promise.all(
+        Array.from(referenced).map(async (uri) => {
+            try {
+                const info = await FileSystem.getInfoAsync(uri);
+                return info.exists ? null : uri;
+            } catch {
+                return uri;
             }
-        } catch {
-            issues.push({ type: "missing-file", ref: "clip-audio", path: uri });
-        }
+        })
+    );
+    for (const uri of missingChecks) {
+        if (uri) issues.push({ type: "missing-file", ref: "clip-audio", path: uri });
     }
 
     // Orphan files: managed audio on disk that nothing references (overdub-aware via the

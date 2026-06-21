@@ -405,6 +405,9 @@ export const useStore = create<AppStore>()(
  * to trash — closing the crash window between an in-memory delete and its file removal.
  */
 export async function flushPersistedSnapshot(): Promise<void> {
+    // Respect the persist lock: when corruption is suspected or a restore is awaiting restart,
+    // the in-memory store must not be written back over the protected/restored data.
+    if (isPersistBlocked()) return;
     const snapshot = buildPersistedAppStoreSnapshot(useStore.getState());
     await persistRawSnapshot(STORE_NAME, JSON.stringify({ state: snapshot, version: STORE_VERSION }));
 }

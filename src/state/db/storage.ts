@@ -6,32 +6,44 @@ import { getDb } from "./database";
  * persisted store (wrapped by `createJSONStorage` + the corruption guard in useStore.ts).
  *
  * Safety properties:
- * - SQLite is authoritative. Writes are a single atomic statement.
+ * - SQLite is authoritative. Writes are a single atomic statement, run asynchronously so the
+ *   JS thread is never blocked (zustand fires a write on every state change — including
+ *   high-frequency playback-position updates — even when the persisted slice is unchanged).
+ * - Redundant writes are skipped: if the serialized snapshot matches what was last written,
+ *   the DB is not touched at all, so playback ticks don't churn storage.
  * - On first read, a legacy AsyncStorage blob is imported into SQLite once (seamless
  *   migration) and the legacy blob is left in place as an emergency fallback.
- * - If SQLite is ever unavailable, every operation falls back to AsyncStorage, so a
- *   SQLite failure degrades gracefully instead of losing access to the library.
+ * - If SQLite is ever unavailable, every operation falls back to AsyncStorage, so a SQLite
+ *   failure degrades gracefully instead of losing access to the library.
  */
+
+// Last value successfully written per key, so unchanged snapshots skip the DB entirely.
+const lastWritten = new Map<string, string>();
+
 export const sqliteStringStorage = {
     getItem: async (name: string): Promise<string | null> => {
         try {
             const db = getDb();
-            const row = db.getFirstSync<{ value: string }>(
+            const row = await db.getFirstAsync<{ value: string }>(
                 "SELECT value FROM kv WHERE key = ?",
                 name
             );
-            if (row?.value != null) return row.value;
+            if (row?.value != null) {
+                lastWritten.set(name, row.value);
+                return row.value;
+            }
 
             // One-time migration: adopt the legacy AsyncStorage blob into SQLite.
             const legacy = await AsyncStorage.getItem(name);
             if (legacy != null) {
                 try {
-                    db.runSync(
+                    await db.runAsync(
                         "INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, ?)",
                         name,
                         legacy,
                         Date.now()
                     );
+                    lastWritten.set(name, legacy);
                 } catch {
                     // Import is best-effort; returning the legacy value is what matters.
                 }
@@ -44,23 +56,31 @@ export const sqliteStringStorage = {
     },
 
     setItem: async (name: string, value: string): Promise<void> => {
+        if (lastWritten.get(name) === value) return; // unchanged — skip the write
         try {
-            getDb().runSync(
+            await getDb().runAsync(
                 "INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, ?)",
                 name,
                 value,
                 Date.now()
             );
+            lastWritten.set(name, value);
         } catch (err) {
-            // Last-resort durability: keep the write in AsyncStorage if SQLite failed.
+            // Last-resort durability: keep the write in AsyncStorage if SQLite failed. Do NOT
+            // update lastWritten, so the next attempt retries the SQLite write.
             console.warn("[sqliteStorage] setItem fell back to AsyncStorage:", err);
-            await AsyncStorage.setItem(name, value);
+            try {
+                await AsyncStorage.setItem(name, value);
+            } catch {
+                // Both stores failed — surface nothing; the in-memory store is still intact.
+            }
         }
     },
 
     removeItem: async (name: string): Promise<void> => {
+        lastWritten.delete(name);
         try {
-            getDb().runSync("DELETE FROM kv WHERE key = ?", name);
+            await getDb().runAsync("DELETE FROM kv WHERE key = ?", name);
         } catch (err) {
             console.warn("[sqliteStorage] removeItem fell back to AsyncStorage:", err);
             await AsyncStorage.removeItem(name);

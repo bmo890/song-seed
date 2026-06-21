@@ -92,6 +92,11 @@ function countTotalIdeas(workspaces: PersistedAppStore["workspaces"]): number {
  */
 async function writeManifestToDisk(state: PersistedAppStore): Promise<void> {
     try {
+        // When persistence is locked (suspected corruption, or a completed restore awaiting
+        // restart), do not let the stale in-memory state overwrite the shadow manifest — it is
+        // a recovery copy and must not be clobbered while the primary store is frozen.
+        if (isPersistBlocked()) return;
+
         // Ensure root directory exists
         const rootInfo = await FileSystem.getInfoAsync(SONG_SEED_ROOT);
         if (!rootInfo.exists) {

@@ -148,23 +148,21 @@ export async function restoreFromDisasterRecoveryBackup(archiveUri: string): Pro
         throw new DrRestoreError("Backup snapshot is unreadable.");
     }
 
-    // Pre-encode each media file's base64 once (reused for both verify and write) and check
-    // its SHA-256 before any write occurs.
-    const encodedByPath = new Map<string, string>();
+    // Verify every file's SHA-256 BEFORE writing anything. Base64 is encoded one file at a
+    // time and discarded after hashing so peak memory stays bounded (the unzipped bytes are
+    // already held; we don't additionally retain every file's base64 at once).
     for (const record of manifest.files) {
         const data = unzipped[`${MEDIA_PREFIX}${record.path}`];
         if (!data) {
             throw new DrRestoreError(`Backup is missing audio file listed in its manifest: ${record.path}`);
         }
-        const base64 = bytesToBase64(data);
-        const sha = await sha256OfString(base64);
+        const sha = await sha256OfString(bytesToBase64(data));
         if (sha !== record.sha256) {
             throw new DrRestoreError(`Audio file failed its integrity check: ${record.path}`);
         }
-        encodedByPath.set(record.path, base64);
     }
 
-    // ── All checks passed — write media, then commit metadata last ──
+    // ── All checks passed — write media, then commit metadata last ── (re-encode per file)
     const ensuredDirs = new Set<string>();
     for (const record of manifest.files) {
         const targetUri = resolveManagedUri(record.path);
@@ -176,7 +174,7 @@ export async function restoreFromDisasterRecoveryBackup(archiveUri: string): Pro
             }
             ensuredDirs.add(dir);
         }
-        await FileSystem.writeAsStringAsync(targetUri, encodedByPath.get(record.path)!, {
+        await FileSystem.writeAsStringAsync(targetUri, bytesToBase64(unzipped[`${MEDIA_PREFIX}${record.path}`]!), {
             encoding: FileSystem.EncodingType.Base64,
         });
     }

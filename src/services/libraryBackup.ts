@@ -1,10 +1,5 @@
 import * as FileSystem from "expo-file-system/legacy";
 import { Platform } from "react-native";
-import {
-    prepareLibraryExportArchive,
-    type LibraryExportResult,
-    type SongSeedArchiveLibraryPreferences,
-} from "./libraryExport";
 import { cleanupShareTempFile } from "./managedMedia";
 import { shareFileUri } from "./audioStorage";
 import {
@@ -12,13 +7,8 @@ import {
     type DrBackupManifest,
 } from "./disasterRecoveryBackup";
 import type { AppStore } from "../state/useStore";
-import type { Note, Workspace } from "../types";
 
 export const BACKUP_SAVE_CANCELLED_MESSAGE = "Backup save was cancelled.";
-
-export type ManualLibraryBackupResult = LibraryExportResult & {
-    savedDirectoryUri?: string;
-};
 
 export type ManualExactBackupResult = {
     archiveTitle: string;
@@ -26,10 +16,6 @@ export type ManualExactBackupResult = {
     manifest: DrBackupManifest;
     savedDirectoryUri?: string;
 };
-
-function countTotalEntries(workspaces: Workspace[], notes: Note[]) {
-    return workspaces.reduce((sum, workspace) => sum + workspace.ideas.length, 0) + notes.length;
-}
 
 /**
  * Persist a prepared archive to a user-chosen location: a Storage Access Framework
@@ -65,8 +51,8 @@ async function saveArchiveToUserLocation(
 
 /**
  * The primary backup: an EXACT, checksummed disaster-recovery archive that can fully
- * reconstruct the library on a fresh install. Distinct from the human-readable
- * `runManualLibraryBackup` export below, which exists for sharing songs with others.
+ * reconstruct the library on a fresh install. Distinct from the human-readable library
+ * export (Export Library flow / `libraryExport.ts`), which is for sharing songs with others.
  */
 export async function runExactLibraryBackup(state: AppStore): Promise<ManualExactBackupResult> {
     const result = await buildDisasterRecoveryBackup(state);
@@ -80,45 +66,5 @@ export async function runExactLibraryBackup(state: AppStore): Promise<ManualExac
         };
     } finally {
         await cleanupShareTempFile(result.archiveUri);
-    }
-}
-
-export async function runManualLibraryBackup(
-    workspaces: Workspace[],
-    notes: Note[],
-    libraryPreferences?: SongSeedArchiveLibraryPreferences
-): Promise<ManualLibraryBackupResult> {
-    if (countTotalEntries(workspaces, notes) === 0) {
-        throw new Error("There is no library data to back up yet.");
-    }
-
-    const prepared = await prepareLibraryExportArchive({
-        workspaces,
-        notes,
-        format: "song-seed-archive",
-        archiveLabel: "Song Seed Backup",
-        libraryPreferences,
-        scope: {
-            workspaceIds: workspaces.map((workspace) => workspace.id),
-            collectionIds: [],
-            excludedCollectionIds: [],
-        },
-        options: {
-            includeFullSongHistory: true,
-            includeNotes: true,
-            includeLyrics: true,
-            includeHiddenItems: true,
-        },
-    });
-
-    try {
-        const saved = await saveArchiveToUserLocation(prepared.archiveUri, prepared.archiveTitle);
-        return {
-            ...prepared,
-            archiveUri: saved.savedUri,
-            savedDirectoryUri: saved.savedDirectoryUri,
-        };
-    } finally {
-        await cleanupShareTempFile(prepared.archiveUri);
     }
 }

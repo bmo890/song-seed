@@ -186,7 +186,7 @@ export async function buildDisasterRecoveryBackup(
 
         const sha256 = await sha256OfFile(ref.absUri);
         entries.push({ archiveName: `${MEDIA_PREFIX}${ref.relativePath}`, fileUri: ref.absUri });
-        files.push({ path: ref.relativePath, sha256, sizeBytes: info.exists ? (info.size ?? 0) : 0 });
+        files.push({ path: ref.relativePath, sha256, sizeBytes: info.size ?? 0 });
     }
 
     const manifest: DrBackupManifest = {

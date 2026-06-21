@@ -118,35 +118,24 @@ function runMigrations(database: SQLiteDatabase) {
         }
         void deleteFileQuiet(MIGRATION_SNAPSHOT_PATH);
     } catch (err) {
-        // Roll back to the pre-migration snapshot. Caller (getDb) will surface the throw so
-        // hydration can enter recovery mode rather than open a half-migrated library.
-        restoreDbFileSync();
+        // Each migration runs in its own transaction, so the failed one has already rolled
+        // back and schema_version sits at the last successfully-committed migration — the DB
+        // is never left half-migrated. The pre-migration snapshot is kept on disk for manual
+        // recovery. Surfacing the throw leaves `db` null, so getDb()'s callers fall back to
+        // AsyncStorage rather than running on a partially-upgraded store.
         throw err;
     }
 }
 
 function snapshotDbFileSync(database: SQLiteDatabase) {
     try {
-        // VACUUM INTO requires the destination not to exist.
+        // VACUUM INTO writes a clean single-file pre-migration backup (kept on disk if a
+        // migration fails, for manual recovery). Requires the destination not to exist.
         database.execSync(`VACUUM INTO '${MIGRATION_SNAPSHOT_PATH.replace(/'/g, "''")}'`);
     } catch {
-        // Best-effort: if VACUUM INTO is unavailable we still attempt the migration, but
-        // without a rollback snapshot. Migrations themselves run inside transactions.
+        // Best-effort: if VACUUM INTO is unavailable we still attempt the migration. Each
+        // migration is transactional, so a failure cannot leave the DB half-migrated.
     }
-}
-
-function restoreDbFileSync() {
-    // Close the handle so the file can be replaced, then reopen on next getDb().
-    try {
-        db?.closeSync();
-    } catch {
-        // ignore
-    }
-    db = null;
-    // The synchronous FileSystem copy isn't available; rollback relies on the WAL-mode
-    // transaction already having reverted in-flight changes. The snapshot remains on disk
-    // for manual/Phase-5 recovery. (Revisit with a real file swap when the first migration
-    // is introduced — there are none yet.)
 }
 
 async function deleteFileQuiet(uri: string) {
@@ -155,9 +144,4 @@ async function deleteFileQuiet(uri: string) {
     } catch {
         // ignore
     }
-}
-
-/** Absolute path to the live SQLite database file (for diagnostics / future backup). */
-export function getDatabaseFilePath(): string {
-    return DB_PATH;
 }
