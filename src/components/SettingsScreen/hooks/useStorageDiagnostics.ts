@@ -2,6 +2,11 @@ import { useEffect, useState } from "react";
 import { AppAlert } from "../../common/AppAlert";
 import { getStorageDetailsReport, type StorageDetailsReport } from "../../../services/storageDetails";
 import { buildPersistedAppStoreSnapshot, useStore } from "../../../state/useStore";
+import {
+  scanLibraryIntegrity,
+  summarizeIntegrityReport,
+  type IntegrityReport,
+} from "../../../services/integrityScanner";
 import { appActions } from "../../../state/actions";
 
 export function useStorageDiagnostics({ active }: { active: boolean }) {
@@ -11,6 +16,8 @@ export function useStorageDiagnostics({ active }: { active: boolean }) {
   const [showAdvancedStorageDetails, setShowAdvancedStorageDetails] = useState(false);
   const [isRecovering, setIsRecovering] = useState(false);
   const [recoveryProgress, setRecoveryProgress] = useState("");
+  const [isScanning, setIsScanning] = useState(false);
+  const [integrityReport, setIntegrityReport] = useState<IntegrityReport | null>(null);
 
   const loadStorageDetails = async () => {
     setIsStorageLoading(true);
@@ -73,6 +80,25 @@ export function useStorageDiagnostics({ active }: { active: boolean }) {
     }
   };
 
+  const runIntegrityScan = async () => {
+    if (isScanning) return;
+    setIsScanning(true);
+    try {
+      const state = useStore.getState();
+      const report = await scanLibraryIntegrity(state.workspaces, state.playlists);
+      setIntegrityReport(report);
+      AppAlert.info(
+        report.ok ? "Integrity check passed" : "Integrity issues found",
+        summarizeIntegrityReport(report)
+      );
+    } catch (error) {
+      AppAlert.info("Integrity check failed", "An error occurred while scanning the library.");
+      console.warn("Integrity scan error:", error);
+    } finally {
+      setIsScanning(false);
+    }
+  };
+
   return {
     storageReport,
     storageError,
@@ -83,5 +109,8 @@ export function useStorageDiagnostics({ active }: { active: boolean }) {
     isRecovering,
     recoveryProgress,
     runRecovery,
+    isScanning,
+    integrityReport,
+    runIntegrityScan,
   };
 }

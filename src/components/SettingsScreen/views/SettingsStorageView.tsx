@@ -4,6 +4,7 @@ import { Button } from "../../common/Button";
 import { styles } from "../styles";
 import { AccordionSection, StorageMetricRow, StoragePathRow } from "../components/SettingsShared";
 import type { useStorageDiagnostics } from "../hooks/useStorageDiagnostics";
+import { summarizeIntegrityReport } from "../../../services/integrityScanner";
 import { formatBytes } from "../../../utils";
 
 type StorageDiagnostics = ReturnType<typeof useStorageDiagnostics>;
@@ -19,6 +20,28 @@ export function SettingsStorageView({ diagnostics }: { diagnostics: StorageDiagn
         title="Storage details"
         subtitle="Song Seed keeps your live library in app-managed storage on this device. Recorded and imported audio is copied into Song Seed storage, while archived workspaces keep compressed packages until you restore them."
       />
+
+      <View style={styles.settingsSummaryPanel}>
+        <Text style={styles.settingsSummaryTitle}>Library health</Text>
+        <Text style={styles.settingsSummaryMeta}>
+          Check your library for broken links, missing audio, or orphaned files.
+        </Text>
+        {diagnostics.integrityReport ? (
+          <Text style={styles.settingsSummaryMeta}>
+            {diagnostics.integrityReport.ok
+              ? "Last check: no problems found."
+              : `Last check: ${summarizeIntegrityReport(diagnostics.integrityReport)}.`}
+          </Text>
+        ) : null}
+        <View style={styles.settingsActionRow}>
+          <Button
+            label={diagnostics.isScanning ? "Checking..." : "Check integrity"}
+            variant="secondary"
+            onPress={() => void diagnostics.runIntegrityScan()}
+            disabled={diagnostics.isScanning}
+          />
+        </View>
+      </View>
 
       {diagnostics.isStorageLoading && !diagnostics.storageReport ? (
         <View style={styles.settingsSummaryPanel}>

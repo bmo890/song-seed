@@ -60,6 +60,8 @@ import {
 } from "./src/libraryNavigation";
 import type { CollectionDetailRouteParams } from "./src/navigation";
 import { cleanupStaleShareTempFiles, purgeExpiredTrash } from "./src/services/managedMedia";
+import { readManifest } from "./src/services/manifestSync";
+import { appActions } from "./src/state/actions";
 import {
   BACKUP_SAVE_CANCELLED_MESSAGE,
   runManualLibraryBackup,
@@ -927,6 +929,39 @@ export default function App() {
       // Permanently purge quarantined (deleted) audio past its retention window.
       await purgeExpiredTrash();
       await resumePendingWorkspaceArchiveOperations();
+
+      // Recovery mode: if the library hydrated empty but the shadow manifest still holds
+      // data, surface a restore prompt instead of silently presenting an empty, writable
+      // library (the catastrophic-loss scenario). The persist + manifest guards keep the
+      // manifest intact until the user recovers.
+      const hydratedState = useStore.getState();
+      const liveIdeaCount = hydratedState.workspaces.reduce(
+        (sum, ws) => sum + ws.ideas.length,
+        0
+      );
+      if (liveIdeaCount === 0) {
+        const manifest = await readManifest();
+        const manifestIdeaCount = manifest
+          ? manifest.workspaces.reduce((sum, ws) => sum + (ws.ideas?.length ?? 0), 0)
+          : 0;
+        if (manifestIdeaCount > 0) {
+          Alert.alert(
+            "Restore your library?",
+            `Song Seed opened with an empty library, but a backup with ${manifestIdeaCount} item${manifestIdeaCount === 1 ? "" : "s"} was found on this device. Restore it now?`,
+            [
+              { text: "Not now", style: "cancel" },
+              {
+                text: "Restore",
+                onPress: () => {
+                  void appActions.recoverOrphanedAudio();
+                },
+              },
+            ]
+          );
+          return;
+        }
+      }
+
       const recordingRecovery = await recoverPendingRecordingSession();
       if (recordingRecovery.status === "recovered") {
         Alert.alert(
