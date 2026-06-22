@@ -82,6 +82,11 @@ export function useEditorPreviewTransport({
   const clampedPitchShiftSemitones = clampPitchShiftSemitones(pitchShiftSemitones);
 
   nativeStateRef.current = nativeState;
+  // Read the latest source position from a ref inside the sync effect so high-frequency
+  // playback position updates (~30/sec) don't re-run that effect; it only needs the position
+  // as the load start point, captured when an actual control (pitch/rate/source) changes.
+  const sourcePositionMsRef = useRef(sourcePositionMs);
+  sourcePositionMsRef.current = sourcePositionMs;
 
   useEffect(() => {
     if (!SongseedPitchShiftModule) {
@@ -223,7 +228,7 @@ export function useEditorPreviewTransport({
       if (shouldReload) {
         const state = await nativeModule.loadForPractice({
           sourceUri: audioUri,
-          startPositionMs: sourcePositionMs,
+          startPositionMs: sourcePositionMsRef.current,
           autoplay: sourceIsPlaying,
           playbackRate,
           pitchShiftSemitones: clampedPitchShiftSemitones,
@@ -267,7 +272,6 @@ export function useEditorPreviewTransport({
     playbackRate,
     shouldUseNativeTransport,
     sourceIsPlaying,
-    sourcePositionMs,
     syncBackToSource,
   ]);
 

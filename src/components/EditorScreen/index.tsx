@@ -6,19 +6,16 @@ import { StackActions, useIsFocused, useNavigation, useRoute } from "@react-navi
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
 import { MultiTimeRangeSelector } from "../common/TimeRangeSelector";
-import { AudioAnalysis, extractAudioAnalysis, trimAudio } from "@siteed/audio-studio";
+import { AudioAnalysis, extractAudioAnalysis } from "@siteed/audio-studio";
 import { styles } from "../../styles";
-import { buildStaticWaveform, genClipTitle } from "../../utils";
+import { buildStaticWaveform } from "../../utils";
 import { RootStackParamList } from "../../../App";
-import { Feather, Ionicons } from "@expo/vector-icons";
+import { Ionicons } from "@expo/vector-icons";
 import { useStore } from "../../state/useStore";
 import { appActions } from "../../state/actions";
 import { Button } from "../common/Button";
-import { EditRegion, ClipVersion, SongIdea } from "../../types";
 import { AudioReel } from "../common/AudioReel";
-import { MiniProgress } from "../MiniProgress";
-import { TitleInput } from "../common/TitleInput";
-import { MAX_DETAILED_AUDIO_ANALYSIS_DURATION_MS, loadAudioDurationMs, loadManagedAudioMetadata } from "../../services/audioStorage";
+import { MAX_DETAILED_AUDIO_ANALYSIS_DURATION_MS, loadAudioDurationMs } from "../../services/audioStorage";
 import { activatePlaybackAudioSession } from "../../services/audioSession";
 import { getCollectionAncestors, getCollectionById } from "../../utils";
 import { TransportLayout } from "../common/TransportLayout";
@@ -26,15 +23,8 @@ import { useTransportScrubbing } from "../../hooks/useTransportScrubbing";
 import { useTransportClock } from "../../hooks/useTransportClock";
 import { isPlaybackNearEnd } from "../../services/transportPlayback";
 import {
-    buildClipId,
     buildFallbackAnalysis,
-    buildFallbackClipTitle,
     buildWaveformPeaks,
-    cloneEditRegions,
-    clonePracticeMarkers,
-    cloneTags,
-    EditableSelection,
-    formatSelectionDuration,
 } from "./helpers";
 import { useEditorSelectionState } from "./hooks/useEditorSelectionState";
 import { EditorHeaderSection } from "./EditorHeaderSection";

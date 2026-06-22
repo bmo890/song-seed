@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
+import * as FileSystem from "expo-file-system/legacy";
 import { AppAlert } from "../../../components/common/AppAlert";
 import { StackActions } from "@react-navigation/native";
 import { trimAudio, type AudioAnalysis } from "@siteed/audio-studio";
-import { loadManagedAudioMetadata } from "../../../services/audioStorage";
+import { importAudioAsset } from "../../../services/audioStorage";
 import { renderPitchShiftedFile } from "../../../services/pitchShift";
 import { useStore } from "../../../state/useStore";
 import type { ClipVersion, EditRegion, SongIdea } from "../../../types";
@@ -21,6 +22,22 @@ type MinimalPlayer = {
   play: () => Promise<void> | void;
   pause: () => Promise<void> | void;
 };
+
+/**
+ * Copy a freshly-rendered file (trim/splice/transform output, which the native libraries
+ * write to the app's temp/files dir) into managed Song Seed storage, then remove the temp
+ * source. Editor-created clips must reference managed audio so they are rebased on
+ * reinstall/restore and included in disaster-recovery backups — otherwise they'd point at
+ * an unmanaged (and on iOS, purgeable temporary) path.
+ */
+async function importRenderedFileToManaged(renderedUri: string) {
+  const baseName = renderedUri.split("/").pop() || "edit.wav";
+  const imported = await importAudioAsset({ uri: renderedUri, name: baseName }, buildClipId());
+  if (imported.audioUri !== renderedUri) {
+    await FileSystem.deleteAsync(renderedUri, { idempotent: true }).catch(() => {});
+  }
+  return imported;
+}
 
 type UseEditorExportFlowArgs = {
   ideaId: string;
@@ -442,14 +459,10 @@ export function useEditorExportFlow({
           startTimeMs: region.start,
           endTimeMs: region.end,
         });
-        const metadata = await loadManagedAudioMetadata(
-          result.uri,
-          `${clipId}-${region.id}-${index}`,
-          region.end - region.start
-        );
+        const metadata = await importRenderedFileToManaged(result.uri);
         const derivedClip = buildDerivedClipDraft({
           title: titles[index] ?? genClipTitle(targetIdea?.title ?? "Clip", index + 1),
-          audioUri: result.uri,
+          audioUri: metadata.audioUri,
           durationMs: metadata.durationMs,
           waveformPeaks: metadata.waveformPeaks,
           editRegions: [
@@ -487,15 +500,11 @@ export function useEditorExportFlow({
         mode: "remove",
         ranges: removeRegions.map((region) => ({ startTimeMs: region.start, endTimeMs: region.end })),
       });
-      const keptDurationMs = Math.max(
-        0,
-        removeRegions.reduce((total, region) => total - (region.end - region.start), analysisData.durationMs)
-      );
-      const metadata = await loadManagedAudioMetadata(result.uri, `${clipId}-splice-${removeRegions.length}`, keptDurationMs);
+      const metadata = await importRenderedFileToManaged(result.uri);
 
       const derivedClip = buildDerivedClipDraft({
         title,
-        audioUri: result.uri,
+        audioUri: metadata.audioUri,
         durationMs: metadata.durationMs,
         waveformPeaks: metadata.waveformPeaks,
         editRegions: removeRegions.map<EditRegion>((region) => ({
@@ -522,25 +531,16 @@ export function useEditorExportFlow({
     try {
       await safePause();
       const title = transformNameDraft.trim() || suggestedExportTitle;
-      const sourceDurationMs = sourceClip.durationMs ?? analysisData?.durationMs ?? 0;
-      const expectedDurationMs = Math.max(
-        1,
-        Math.round(sourceDurationMs / Math.max(transformPlaybackRate, 0.01))
-      );
       const result = await renderPitchShiftedFile({
         inputUri: audioUri,
         semitones: transformPitchShiftSemitones,
         playbackRate: transformPlaybackRate,
         outputFileName: title.replace(/[^a-zA-Z0-9-_ ]/g, "").trim().replace(/\s+/g, "-") || undefined,
       });
-      const metadata = await loadManagedAudioMetadata(
-        result.outputUri,
-        `${clipId}-transform-${transformPitchShiftSemitones}-${Math.round(transformPlaybackRate * 100)}`,
-        expectedDurationMs
-      );
+      const metadata = await importRenderedFileToManaged(result.outputUri);
       const derivedClip = buildDerivedClipDraft({
         title,
-        audioUri: result.outputUri,
+        audioUri: metadata.audioUri,
         durationMs: metadata.durationMs,
         waveformPeaks: metadata.waveformPeaks,
         editRegions: [],
