@@ -46,7 +46,7 @@ import {
     filterUnreferencedManagedAudioUris,
 } from "../services/managedMedia";
 import { authorizeIntentionalEmptyStateWrite } from "../services/stateIntegrity";
-import { flushPersistedSnapshot } from "./useStore";
+import { persistAppStoreSnapshot } from "./persistedSnapshot";
 import { relocateActivityEvents, relocatePlaylists } from "./relocationMetadata";
 import {
     clampMetronomeBpm,
@@ -1347,7 +1347,7 @@ export const createDataSlice: StateCreator<
         });
         // Durably commit the metadata change (audio refs removed) before trashing files, so a
         // crash can never leave persisted metadata pointing at moved/removed audio.
-        void flushPersistedSnapshot().then(() => deleteManagedAudioUris(audioUrisToDelete));
+        void persistAppStoreSnapshot(get()).then(() => deleteManagedAudioUris(audioUrisToDelete));
     },
 
     toggleIdeaBookmark: (ideaId) => {
@@ -1904,7 +1904,7 @@ export const createDataSlice: StateCreator<
         });
         // Durably commit the metadata change before trashing files, so a crash can never
         // leave persisted metadata pointing at moved/removed audio.
-        void flushPersistedSnapshot().then(() =>
+        void persistAppStoreSnapshot(get()).then(() =>
             Promise.all([
                 deleteManagedAudioUris(audioUrisToDelete),
                 deleteManagedArchiveUri(archiveUriToDelete),
@@ -2321,7 +2321,7 @@ export const createDataSlice: StateCreator<
         });
         // Durably commit the metadata change before trashing files, so a crash cannot erase
         // media before the persisted model has forgotten the idea.
-        void flushPersistedSnapshot().then(() => deleteManagedAudioUris(audioUrisToDelete));
+        void persistAppStoreSnapshot(get()).then(() => deleteManagedAudioUris(audioUrisToDelete));
     },
     };
 };

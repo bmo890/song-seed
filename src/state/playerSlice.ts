@@ -16,17 +16,26 @@ export type PlayerSlice = {
     playerCloseRequestToken: number;
     requestPlayerClose: () => void;
     setPlayerQueue: (queue: PlaybackQueueItem[], startIndex: number, shouldAutoplay?: boolean) => void;
+    /** Sets the queue while atomically suppressing the dock during navigation to Player. */
+    setPlayerQueueForScreen: (
+        queue: PlaybackQueueItem[],
+        startIndex: number,
+        shouldAutoplay?: boolean
+    ) => void;
     clearPlayerQueue: () => void;
     advancePlayerQueue: (direction: "next" | "previous", shouldAutoplay?: boolean) => void;
     consumePlayerAutoplay: () => void;
-    /** True while the full Player screen is mounted. When false (minimized to the
-     *  dock), the root provider drives queue auto-advance + source loading. */
+    /** True while the full Player screen is opening or mounted. When false (minimized
+     *  to the dock), the root provider drives queue auto-advance + source loading. */
     isPlayerScreenMounted: boolean;
     setPlayerScreenMounted: (mounted: boolean) => void;
     /** Measured height of the media dock surface (0 when not visible). Used by
      *  SelectionDock and other bottom-anchored UI to avoid being covered. */
     playerDockHeight: number;
     setPlayerDockHeight: (height: number) => void;
+    /** Keeps an existing dock visible while its full Player transition is opening. */
+    playerDockPresentationHold: boolean;
+    setPlayerDockPresentationHold: (hold: boolean) => void;
     /** Measured height of the active selection toolbar (0 when not visible). Used by
      *  GlobalMediaDock to sit above the selection bar rather than overlap it. */
     activeSelectionDockHeight: number;
@@ -85,6 +94,17 @@ export const createPlayerSlice: StateCreator<PlayerSlice> = (set) => ({
             playerShouldAutoplay: shouldAutoplay && queue.length > 0,
         });
     },
+    setPlayerQueueForScreen: (queue, startIndex, shouldAutoplay = false) => {
+        const clampedIndex = Math.max(0, Math.min(startIndex, Math.max(queue.length - 1, 0)));
+        set({
+            playerQueue: queue,
+            playerQueueIndex: clampedIndex,
+            playerTarget: queue[clampedIndex] ?? null,
+            playerShouldAutoplay: shouldAutoplay && queue.length > 0,
+            isPlayerScreenMounted: true,
+            playerDockPresentationHold: false,
+        });
+    },
     clearPlayerQueue: () =>
         set({
             playerQueue: [],
@@ -112,6 +132,8 @@ export const createPlayerSlice: StateCreator<PlayerSlice> = (set) => ({
     setPlayerScreenMounted: (mounted) => set({ isPlayerScreenMounted: mounted }),
     playerDockHeight: 0,
     setPlayerDockHeight: (height) => set({ playerDockHeight: height }),
+    playerDockPresentationHold: false,
+    setPlayerDockPresentationHold: (hold) => set({ playerDockPresentationHold: hold }),
     activeSelectionDockHeight: 0,
     setActiveSelectionDockHeight: (height) => set({ activeSelectionDockHeight: height }),
 

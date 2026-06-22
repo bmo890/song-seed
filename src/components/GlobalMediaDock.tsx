@@ -41,6 +41,7 @@ export function GlobalMediaDock({
   const playerDurationMs = useStore((s) => s.playerDurationMs);
   const playerIsPlaying = useStore((s) => s.playerIsPlaying);
   const isPlayerScreenMounted = useStore((s) => s.isPlayerScreenMounted);
+  const playerDockPresentationHold = useStore((s) => s.playerDockPresentationHold);
   const inlineTarget = useStore((s) => s.inlineTarget);
   const inlineIsPlaying = useStore((s) => s.inlineIsPlaying);
   const recordingElapsedMs = useRecordingDisplayElapsed({
@@ -100,10 +101,12 @@ export function GlobalMediaDock({
   // The dock only represents the durable full-player queue/session. Clip-card
   // preview playback is separate and does not take over the dock UI.
   const activePlayback: PlaybackDockState | null = (() => {
-    // Hide as soon as the Player screen mounts, not only once the route name syncs — the
-    // latter lags a frame or two behind navigation, briefly showing the dock over the
-    // opening player.
-    if (playerTarget && playerQueue.length > 0 && activeRouteName !== "Player" && !isPlayerScreenMounted) {
+    // Clip-card opens suppress the dock before navigation. Maximizing the existing dock
+    // holds it through the Player fade so the underlying collection never flashes through.
+    const shouldShowPlaybackDock =
+      playerDockPresentationHold ||
+      (activeRouteName !== "Player" && !isPlayerScreenMounted);
+    if (playerTarget && playerQueue.length > 0 && shouldShowPlaybackDock) {
       const idea = allIdeas.find((item) => item.id === playerTarget.ideaId);
       const clip = idea?.clips.find((item) => item.id === playerTarget.clipId);
       if (idea && clip) {
@@ -221,7 +224,6 @@ export function GlobalMediaDock({
       <Animated.View
         style={[styles.miniMediaDockWrap, { bottom: activeSelectionDockHeight }]}
         entering={FadeIn.duration(160)}
-        exiting={FadeOut.duration(120)}
       >
         <Pressable
           style={styles.miniMediaDockCompact}

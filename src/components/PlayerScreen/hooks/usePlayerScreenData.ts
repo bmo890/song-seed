@@ -5,6 +5,7 @@ import {
   getClipOverdubStemCount,
   getClipPlaybackDurationMs,
   getClipPlaybackUri,
+  getClipPlaybackWaveformPeaksOrFallback,
 } from "../../../clipPresentation";
 import {
   getClipOverdubRootSettings,
@@ -97,6 +98,10 @@ export function usePlayerScreenData({ playerDuration }: UsePlayerScreenDataArgs)
     playerIdea && activeWorkspace ? getCollectionById(activeWorkspace, playerIdea.collectionId) : null;
   const playbackAudioUri = playerClip ? getClipPlaybackUri(playerClip) ?? null : null;
   const displayDuration = playerDuration || (playerClip ? getClipPlaybackDurationMs(playerClip) : 0) || 0;
+  const waveformPeaks = useMemo(
+    () => (playerClip ? getClipPlaybackWaveformPeaksOrFallback(playerClip) : []),
+    [playerClip]
+  );
   const practiceMarkers = useMemo(() => {
     if (playerClip?.practiceMarkers && playerClip.practiceMarkers.length > 0) {
       return playerClip.practiceMarkers;
@@ -142,6 +147,7 @@ export function usePlayerScreenData({ playerDuration }: UsePlayerScreenDataArgs)
     hasProjectLyrics,
     playerCollection,
     playbackAudioUri,
+    waveformPeaks,
     displayDuration,
     practiceMarkers,
     clipNotes,

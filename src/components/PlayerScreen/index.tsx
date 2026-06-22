@@ -3,7 +3,9 @@ import { Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar as ExpoStatusBar } from "expo-status-bar";
 import { useIsFocused, useNavigation } from "@react-navigation/native";
+import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useSharedValue } from "react-native-reanimated";
+import type { RootStackParamList } from "../../../App";
 import { styles } from "../../styles";
 import { useFullPlayerContext } from "../../hooks/FullPlayerProvider";
 import { fmtDuration } from "../../utils";
@@ -35,15 +37,24 @@ const PRACTICE_SPEED_MIN = 0.5;
 const PRACTICE_SPEED_MAX = 1.5;
 
 export function PlayerScreen() {
-  const navigation = useNavigation();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList, "Player">>();
   const isFocused = useIsFocused();
 
   // Tell the root provider this screen owns queue loading/advancing while mounted;
   // when unmounted (minimized to the dock) the provider takes over.
   useEffect(() => {
     useStore.getState().setPlayerScreenMounted(true);
-    return () => useStore.getState().setPlayerScreenMounted(false);
-  }, []);
+    const unsubscribeTransitionEnd = navigation.addListener("transitionEnd", (event) => {
+      if (event.data?.closing) return;
+      useStore.getState().setPlayerDockPresentationHold(false);
+    });
+
+    return () => {
+      unsubscribeTransitionEnd();
+      useStore.getState().setPlayerScreenMounted(false);
+      useStore.getState().setPlayerDockPresentationHold(false);
+    };
+  }, [navigation]);
 
   const ui = usePlayerScreenUi();
   const draggingMarkerId = useSharedValue("");
@@ -60,7 +71,6 @@ export function PlayerScreen() {
     playerDuration,
     playbackRate,
     isPlayerPlaying,
-    waveformPeaks,
     finishedPlaybackToken,
     finishedPlaybackClipId,
     currentPlaybackSourceUri,
@@ -462,7 +472,7 @@ export function PlayerScreen() {
             <View style={playerScreenStyles.waveformShell}>
               <PlayerTimeline
                 mode={ui.mode}
-                waveformPeaks={waveformPeaks}
+                waveformPeaks={data.waveformPeaks}
                 durationMs={effectivePlayerDuration}
                 resetKey={playerClip.id}
                 isPlayerPlaying={effectiveIsPlaying}

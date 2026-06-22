@@ -151,7 +151,7 @@ export function ClipCard({
   const setPendingPrimaryClipId = useStore((s) => s.setPendingPrimaryClipId);
   const setRecordingParentClipId = useStore((s) => s.setRecordingParentClipId);
   const setRecordingIdeaId = useStore((s) => s.setRecordingIdeaId);
-  const setPlayerQueue = useStore((s) => s.setPlayerQueue);
+  const setPlayerQueueForScreen = useStore((s) => s.setPlayerQueueForScreen);
   const inlineActive = useStore(
     (s) => s.inlineTarget?.ideaId === idea.id && s.inlineTarget.clipId === clip.id
   );
@@ -201,10 +201,7 @@ export function ClipCard({
   const openPlayer = async () => {
     if (!hasClipPlaybackSource(clip)) return;
     await inlinePlayer.resetInlinePlayer();
-    // Mark the player active before setting the queue so the floating dock (which keys off
-    // the queue) doesn't flash on for a frame between setPlayerQueue and the route changing.
-    useStore.getState().setPlayerScreenMounted(true);
-    setPlayerQueue([{ ideaId: idea.id, clipId: clip.id }], 0, true);
+    setPlayerQueueForScreen([{ ideaId: idea.id, clipId: clip.id }], 0, true);
     navigation.navigate("Player" as never);
   };
 

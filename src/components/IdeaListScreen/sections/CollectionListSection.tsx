@@ -132,7 +132,7 @@ export function CollectionListSection({
 
   const openIdeaFromList = async (ideaId: string, clip: ClipVersion) => {
     await inlinePlayer.resetInlinePlayer();
-    useStore.getState().setPlayerQueue([{ ideaId, clipId: clip.id }], 0);
+    useStore.getState().setPlayerQueueForScreen([{ ideaId, clipId: clip.id }], 0);
     screen.navigateRoot("Player");
   };
 

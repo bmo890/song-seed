@@ -285,7 +285,11 @@ export function useActivityScreenModel() {
         return;
       }
       await inlinePlayer.resetInlinePlayer();
-      useStore.getState().setPlayerQueue([{ ideaId: item.ideaId, clipId: clip.id }], 0, true);
+      useStore.getState().setPlayerQueueForScreen(
+        [{ ideaId: item.ideaId, clipId: clip.id }],
+        0,
+        true
+      );
       navigateRoot("Player");
       return;
     }

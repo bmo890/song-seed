@@ -26,7 +26,7 @@ import {
 } from "../libraryNavigation";
 import { startManifestSync } from "../services/manifestSync";
 import { rebaseWorkspacesManagedMedia } from "./rebaseManagedMedia";
-import { sqliteStringStorage, persistRawSnapshot } from "./db/storage";
+import { sqliteStringStorage } from "./db/storage";
 import { consumeIntentionalEmptyStateWrite } from "../services/stateIntegrity";
 import {
     clampMetronomeBpm,
@@ -49,42 +49,16 @@ import {
     setLastPersistedIdeaCount,
     setPersistBlocked,
 } from "./persistRuntime";
+import {
+    buildPersistedAppStoreSnapshot,
+    persistAppStoreSnapshot,
+    STORE_NAME,
+    STORE_VERSION,
+} from "./persistedSnapshot";
+import type { AppStore, PersistedAppStore } from "./storeTypes";
 
-export type AppStore = DataSlice & SelectionSlice & RecordingSlice & PlayerSlice;
-export type PersistedAppStore = Pick<
-    AppStore,
-    | "workspaces"
-    | "activityEvents"
-    | "activeWorkspaceId"
-    | "primaryWorkspaceId"
-    | "primaryCollectionIdByWorkspace"
-    | "lastUsedWorkspaceId"
-    | "workspaceStartupPreference"
-    | "workspaceListOrder"
-    | "workspaceLastOpenedAt"
-    | "collectionLastOpenedAt"
-    | "playlists"
-    | "preferredRecordingInputId"
-    | "bluetoothMonitoringCalibrations"
-    | "metronomeBpm"
-    | "metronomeMeterId"
-    | "metronomeOutputs"
-    | "metronomeBeepLevel"
-    | "metronomeHapticLevel"
-    | "metronomeCountInBars"
-    | "globalCustomClipTags"
-    | "backupReminderFrequency"
-    | "lastSuccessfulBackupAt"
-    | "lastSuccessfulBackupFileName"
-    | "notes"
-    | "ideasFilter"
-    | "ideasSort"
-    | "primaryFilter"
-    | "primarySort"
->;
-
-export const STORE_NAME = "song-seed-store";
-export const STORE_VERSION = 11;
+export { buildPersistedAppStoreSnapshot, STORE_NAME, STORE_VERSION } from "./persistedSnapshot";
+export type { AppStore, PersistedAppStore } from "./storeTypes";
 
 // Corruption guard thresholds: an unauthorized idea-count drop is treated as
 // suspected data loss only when it is BOTH large in absolute terms and a large
@@ -236,39 +210,6 @@ export function sanitizePersistedState(state?: Partial<PersistedAppStore>): Pers
     };
 }
 
-export function buildPersistedAppStoreSnapshot(state: AppStore): PersistedAppStore {
-    return {
-        workspaces: state.workspaces,
-        activityEvents: state.activityEvents,
-        activeWorkspaceId: state.activeWorkspaceId,
-        primaryWorkspaceId: state.primaryWorkspaceId,
-        primaryCollectionIdByWorkspace: state.primaryCollectionIdByWorkspace,
-        lastUsedWorkspaceId: state.lastUsedWorkspaceId,
-        workspaceStartupPreference: state.workspaceStartupPreference,
-        workspaceListOrder: state.workspaceListOrder,
-        workspaceLastOpenedAt: state.workspaceLastOpenedAt,
-        collectionLastOpenedAt: state.collectionLastOpenedAt,
-        playlists: state.playlists,
-        preferredRecordingInputId: state.preferredRecordingInputId,
-        bluetoothMonitoringCalibrations: state.bluetoothMonitoringCalibrations,
-        metronomeBpm: state.metronomeBpm,
-        metronomeMeterId: state.metronomeMeterId,
-        metronomeOutputs: state.metronomeOutputs,
-        metronomeBeepLevel: state.metronomeBeepLevel,
-        metronomeHapticLevel: state.metronomeHapticLevel,
-        metronomeCountInBars: state.metronomeCountInBars,
-        globalCustomClipTags: state.globalCustomClipTags,
-        backupReminderFrequency: state.backupReminderFrequency,
-        lastSuccessfulBackupAt: state.lastSuccessfulBackupAt,
-        lastSuccessfulBackupFileName: state.lastSuccessfulBackupFileName,
-        notes: state.notes,
-        ideasFilter: state.ideasFilter,
-        ideasSort: state.ideasSort,
-        primaryFilter: state.primaryFilter,
-        primarySort: state.primarySort,
-    };
-}
-
 /**
  * Guarded AsyncStorage adapter that ACTUALLY blocks writes when data
  * loss is detected. This is the real safety net — `partialize` alone
@@ -405,9 +346,5 @@ export const useStore = create<AppStore>()(
  * to trash — closing the crash window between an in-memory delete and its file removal.
  */
 export async function flushPersistedSnapshot(): Promise<void> {
-    // Respect the persist lock: when corruption is suspected or a restore is awaiting restart,
-    // the in-memory store must not be written back over the protected/restored data.
-    if (isPersistBlocked()) return;
-    const snapshot = buildPersistedAppStoreSnapshot(useStore.getState());
-    await persistRawSnapshot(STORE_NAME, JSON.stringify({ state: snapshot, version: STORE_VERSION }));
+    await persistAppStoreSnapshot(useStore.getState());
 }

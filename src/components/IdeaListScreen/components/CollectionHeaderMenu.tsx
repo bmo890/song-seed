@@ -18,7 +18,7 @@ export function CollectionHeaderMenu() {
     const queue = buildPlayableQueueFromIdeas(playableIdeas);
     if (queue.length === 0) return;
     await inlinePlayer.resetInlinePlayer();
-    useStore.getState().setPlayerQueue(queue, 0, true);
+    useStore.getState().setPlayerQueueForScreen(queue, 0, true);
     screen.navigateRoot("Player");
   };
 

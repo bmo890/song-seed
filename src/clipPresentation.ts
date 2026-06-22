@@ -1,4 +1,5 @@
 import type { ClipVersion, SongIdea } from "./types";
+import { buildStaticWaveform } from "./utils";
 
 type PlayableClipOptions = {
   preferPrimaryProjectClip?: boolean;
@@ -48,6 +49,16 @@ export function getClipPlaybackWaveformPeaks(clip: ClipVersion): number[] | unde
   return clip.overdub?.renderedMixWaveformPeaks?.length
     ? clip.overdub.renderedMixWaveformPeaks
     : clip.waveformPeaks;
+}
+
+export function getClipPlaybackWaveformPeaksOrFallback(
+  clip: ClipVersion,
+  peakCount = 256
+): number[] {
+  const storedPeaks = getClipPlaybackWaveformPeaks(clip);
+  return storedPeaks?.length
+    ? storedPeaks
+    : buildStaticWaveform(`${clip.id}-${getClipPlaybackDurationMs(clip) ?? 0}`, peakCount);
 }
 
 export function getClipOverdubStemCount(clip: ClipVersion): number {

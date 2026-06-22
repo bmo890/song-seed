@@ -883,6 +883,9 @@ function AppContent() {
           activeRouteName={activeRouteName}
           onOpenPlayer={() => {
             if (!navigationRef.isReady()) return;
+            // Keep the existing dock in place until the Player's fade transition completes.
+            // Clip-card opens use a separate queue action and never create this hold.
+            useStore.getState().setPlayerDockPresentationHold(true);
             navigationRef.navigate("Player");
           }}
           onOpenRecording={() => {

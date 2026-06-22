@@ -5,11 +5,8 @@ import { ClipVersion, PlayerTarget } from "../types";
 import {
   getClipPlaybackDurationMs,
   getClipPlaybackUri,
-  getClipPlaybackWaveformPeaks,
 } from "../clipPresentation";
-import { buildStaticWaveform } from "../utils";
 import { activateAndPlay, replacePlaybackSource } from "../services/transportPlayback";
-import { MANAGED_WAVEFORM_PEAK_COUNT } from "../services/audioStorage";
 import { useStore } from "../state/useStore";
 
 type Args = {
@@ -26,7 +23,6 @@ const SOURCE_POSITION_GATE_TOLERANCE_MS = 120;
 
 export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
   const [playerTarget, setPlayerTarget] = useState<PlayerTarget>(null);
-  const [waveformPeaks, setWaveformPeaks] = useState<number[]>([]);
   const [finishedPlaybackToken, setFinishedPlaybackToken] = useState(0);
   const [finishedPlaybackClipId, setFinishedPlaybackClipId] = useState<string | null>(null);
   const operationIdRef = useRef(0);
@@ -228,7 +224,6 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
       isPlaying: false,
     });
     setPlayerTarget(null);
-    setWaveformPeaks([]);
     currentSourceUriRef.current = null;
     releaseSourcePositionHold();
   }, [clearLockScreenControls, isOperationActive, player, releaseSourcePositionHold, setPlayerPlaybackState]);
@@ -246,19 +241,6 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
 
     if (onBeforePlayNew) await onBeforePlayNew();
     if (!isOperationActive(operationId)) return;
-
-    // Paint the waveform immediately from the clip's stored peaks — it needs no audio load,
-    // so don't gate it behind replacePlaybackSource. Waiting made the player open with an
-    // empty timeline that popped in and rescaled once the source finished loading.
-    const playbackWaveformPeaks = getClipPlaybackWaveformPeaks(clip);
-    setWaveformPeaks(
-      playbackWaveformPeaks?.length
-        ? playbackWaveformPeaks
-        : buildStaticWaveform(
-            `${clip.id}-${getClipPlaybackDurationMs(clip) ?? 0}`,
-            MANAGED_WAVEFORM_PEAK_COUNT
-          )
-    );
 
     try {
       holdSourcePositionAt(0);
@@ -280,7 +262,6 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
       });
       useStore.getState().clearPlayerQueue();
       setPlayerTarget(null);
-      setWaveformPeaks([]);
       currentSourceUriRef.current = null;
       console.warn("FULL open error", err);
     }
@@ -299,18 +280,6 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
 
     const operationId = ++operationIdRef.current;
     lockScreenMetadataRef.current = metadata;
-
-    // Paint the waveform immediately from the clip's stored peaks (no audio load needed),
-    // so the timeline doesn't open empty and rescale once the source finishes loading.
-    const playbackWaveformPeaks = getClipPlaybackWaveformPeaks(clip);
-    setWaveformPeaks(
-      playbackWaveformPeaks?.length
-        ? playbackWaveformPeaks
-        : buildStaticWaveform(
-            `${clip.id}-${getClipPlaybackDurationMs(clip) ?? 0}`,
-            MANAGED_WAVEFORM_PEAK_COUNT
-          )
-    );
 
     try {
       const safeResumeAtMs = Math.max(0, Math.min(resumeAtMs, getClipPlaybackDurationMs(clip) ?? resumeAtMs));
@@ -438,7 +407,6 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
     playbackRate,
     finishedPlaybackToken,
     finishedPlaybackClipId,
-    waveformPeaks,
     currentPlaybackSourceUri: currentSourceUriRef.current,
     syncPlayerSource,
     openPlayer,

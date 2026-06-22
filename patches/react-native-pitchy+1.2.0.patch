@@ -1,0 +1,15 @@
+diff --git a/node_modules/react-native-pitchy/android/CMakeLists.txt b/node_modules/react-native-pitchy/android/CMakeLists.txt
+index 4af295f..e08847a 100644
+--- a/node_modules/react-native-pitchy/android/CMakeLists.txt
++++ b/node_modules/react-native-pitchy/android/CMakeLists.txt
+@@ -12,3 +12,10 @@ add_library(react-native-pitchy            SHARED
++# NDK r27 does not enable flexible page sizes by default. Align LOAD segments
++# for Android devices that use 16 KB memory pages.
++target_link_options(react-native-pitchy PRIVATE
++            "-Wl,-z,max-page-size=16384"
++            "-Wl,-z,common-page-size=16384"
++)
++
+ # Specifies a path to native header files.
+ include_directories(
+             ../cpp
