@@ -4,6 +4,7 @@ import { Canvas, Path, Rect as SkiaRect, Skia } from "@shopify/react-native-skia
 import Animated, { useAnimatedStyle, SharedValue, useDerivedValue, runOnJS, useSharedValue } from "react-native-reanimated";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import type { PracticeMarker } from "../../types";
+import { useDeferredSkiaMount } from "./useDeferredSkiaMount";
 
 type Props = {
     waveformPeaks: number[];
@@ -46,6 +47,7 @@ export function MinimapVisualizer({
 }: Props) {
     const [containerWidth, setContainerWidth] = useState(0);
     const containerHeight = 40; // Fixed height minimap
+    const skiaReady = useDeferredSkiaMount();
 
     const baseContentWidth = waveformPeaks.length * 3;
 
@@ -245,7 +247,7 @@ export function MinimapVisualizer({
 
     return (
         <View style={[styles.container, { backgroundColor: palette.backgroundColor }]} onLayout={onLayout}>
-            {containerWidth > 0 && wavePath && (
+            {containerWidth > 0 && wavePath && skiaReady && (
                 <GestureDetector gesture={interactive ? composed : Gesture.Tap()}>
                     <View style={StyleSheet.absoluteFill}>
                         <Canvas style={{ flex: 1 }}>
