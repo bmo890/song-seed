@@ -131,7 +131,10 @@ export function useActivityScreenModel() {
   const [stickyDayLabel, setStickyDayLabel] = useState<string | null>(null);
   const [stickyDayTop, setStickyDayTop] = useState(0);
   const [resultsSectionTop, setResultsSectionTop] = useState(0);
-  const [activityScrollY, setActivityScrollY] = useState(0);
+  // Whether the timeline has scrolled past its first day. Stored as a boolean (flipped only
+  // on threshold crossings) rather than the raw scroll offset, so scrolling doesn't re-render
+  // the whole screen — and the non-virtualized result list — on every frame.
+  const [scrolledPastFirstDay, setScrolledPastFirstDay] = useState(false);
   const activityDayLayoutsRef = useRef<Record<string, { y: number; height: number }>>({});
 
   const allActivityEvents = useMemo(
@@ -340,14 +343,8 @@ export function useActivityScreenModel() {
     setStickyDayLabel((prev) => (prev === nextLabel ? prev : nextLabel));
   };
 
-  const firstTimelineDayLabel = itemResults.length > 0 ? getDateBucketLabel(itemResults[0]!.latestAt) : null;
-  const firstTimelineDayLayout =
-    firstTimelineDayLabel != null ? activityDayLayoutsRef.current[firstTimelineDayLabel] : null;
   const showStickyDayChip =
-    itemResults.length > 0 &&
-    stickyDayLabel != null &&
-    firstTimelineDayLayout != null &&
-    activityScrollY >= resultsSectionTop + firstTimelineDayLayout.y;
+    itemResults.length > 0 && stickyDayLabel != null && scrolledPastFirstDay;
 
   return {
     workspaces,
@@ -408,7 +405,12 @@ export function useActivityScreenModel() {
     },
     onHeaderScroll: (event: any) => {
       const nextScrollY = event.nativeEvent.contentOffset.y;
-      setActivityScrollY(nextScrollY);
+      const firstDayLabel =
+        itemResults.length > 0 ? getDateBucketLabel(itemResults[0]!.latestAt) : null;
+      const firstDayLayout = firstDayLabel ? activityDayLayoutsRef.current[firstDayLabel] : null;
+      const pastFirstDay =
+        firstDayLayout != null && nextScrollY >= resultsSectionTop + firstDayLayout.y;
+      setScrolledPastFirstDay((prev) => (prev === pastFirstDay ? prev : pastFirstDay));
       updateStickyDayLabel(nextScrollY);
       handleCollapseScroll(event);
     },

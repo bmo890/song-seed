@@ -290,28 +290,43 @@ function buildEventsByIdea(
   return eventsByIdea;
 }
 
-function isIdeaHiddenByExistingState(workspace: Workspace, idea: SongIdea) {
-  const collection = getCollectionById(workspace, idea.collectionId);
-  const createdDayTs = startOfActivityDay(getIdeaCreatedAt(idea));
-  const updatedDayTs = startOfActivityDay(getIdeaUpdatedAt(idea));
-  const hiddenKeys = new Set<string>();
+type WorkspaceHiddenIndex = {
+  hiddenIdeaIds: Set<string>;
+  hiddenDayKeys: Set<string>;
+  byCollection: Map<string, { hiddenIdeaIds: Set<string>; hiddenDayKeys: Set<string> }>;
+};
 
-  for (const hiddenDay of workspace.ideasListState?.hiddenDays ?? []) {
-    hiddenKeys.add(`${hiddenDay.metric}:${hiddenDay.dayStartTs}`);
+function toHiddenDayKeys(hiddenDays: { metric: string; dayStartTs: number }[] | undefined) {
+  return new Set((hiddenDays ?? []).map((hiddenDay) => `${hiddenDay.metric}:${hiddenDay.dayStartTs}`));
+}
+
+/** Precompute a workspace's hidden ideas/days once, so per-idea checks don't rebuild Sets. */
+function buildWorkspaceHiddenIndex(workspace: Workspace): WorkspaceHiddenIndex {
+  const byCollection = new Map<string, { hiddenIdeaIds: Set<string>; hiddenDayKeys: Set<string> }>();
+  for (const collection of workspace.collections) {
+    byCollection.set(collection.id, {
+      hiddenIdeaIds: new Set(collection.ideasListState.hiddenIdeaIds ?? []),
+      hiddenDayKeys: toHiddenDayKeys(collection.ideasListState.hiddenDays),
+    });
   }
-  for (const hiddenDay of collection?.ideasListState.hiddenDays ?? []) {
-    hiddenKeys.add(`${hiddenDay.metric}:${hiddenDay.dayStartTs}`);
-  }
+  return {
+    hiddenIdeaIds: new Set(workspace.ideasListState?.hiddenIdeaIds ?? []),
+    hiddenDayKeys: toHiddenDayKeys(workspace.ideasListState?.hiddenDays),
+    byCollection,
+  };
+}
 
-  const hiddenIdeaIds = new Set([
-    ...(workspace.ideasListState?.hiddenIdeaIds ?? []),
-    ...(collection?.ideasListState.hiddenIdeaIds ?? []),
-  ]);
+function isIdeaHiddenByIndex(index: WorkspaceHiddenIndex, idea: SongIdea) {
+  const collection = index.byCollection.get(idea.collectionId);
+  if (index.hiddenIdeaIds.has(idea.id) || collection?.hiddenIdeaIds.has(idea.id)) return true;
 
+  const createdKey = `created:${startOfActivityDay(getIdeaCreatedAt(idea))}`;
+  const updatedKey = `updated:${startOfActivityDay(getIdeaUpdatedAt(idea))}`;
   return (
-    hiddenIdeaIds.has(idea.id) ||
-    hiddenKeys.has(`created:${createdDayTs}`) ||
-    hiddenKeys.has(`updated:${updatedDayTs}`)
+    index.hiddenDayKeys.has(createdKey) ||
+    index.hiddenDayKeys.has(updatedKey) ||
+    !!collection?.hiddenDayKeys.has(createdKey) ||
+    !!collection?.hiddenDayKeys.has(updatedKey)
   );
 }
 
@@ -588,12 +603,16 @@ export function buildRevisitModel({
   const eventsByIdea = buildEventsByIdea(activeWorkspaces, activityEvents);
   const rotationKey = new Date(now).toISOString().slice(0, 10);
   const thresholds = getRevisitThresholds();
+  const hiddenIndexByWorkspaceId = new Map(
+    activeWorkspaces.map((workspace) => [workspace.id, buildWorkspaceHiddenIndex(workspace)])
+  );
 
   const workspaceOptions: RevisitSourceOption[] = activeWorkspaces
     .map((workspace) => {
+      const hiddenIndex = hiddenIndexByWorkspaceId.get(workspace.id)!;
       const count = workspace.ideas.filter((idea) => {
         const primaryClip = getPrimaryClip(idea);
-        return !!primaryClip?.audioUri && !isIdeaHiddenByExistingState(workspace, idea);
+        return !!primaryClip?.audioUri && !isIdeaHiddenByIndex(hiddenIndex, idea);
       }).length;
 
       return {
@@ -606,15 +625,16 @@ export function buildRevisitModel({
     .sort((a, b) => a.label.localeCompare(b.label));
 
   const collectionOptions: RevisitSourceOption[] = activeWorkspaces
-    .flatMap((workspace) =>
-      workspace.collections.map((collection) => {
+    .flatMap((workspace) => {
+      const hiddenIndex = hiddenIndexByWorkspaceId.get(workspace.id)!;
+      return workspace.collections.map((collection) => {
         const scopeIds = getCollectionScopeIds(workspace, collection.id);
         const count = workspace.ideas.filter((idea) => {
           const primaryClip = getPrimaryClip(idea);
           return (
             scopeIds.has(idea.collectionId) &&
             !!primaryClip?.audioUri &&
-            !isIdeaHiddenByExistingState(workspace, idea)
+            !isIdeaHiddenByIndex(hiddenIndex, idea)
           );
         }).length;
 
@@ -628,19 +648,20 @@ export function buildRevisitModel({
             !excludedWorkspaceIdSet.has(workspace.id) &&
             !isCollectionExcluded(workspace, collection.id, excludedCollectionIdSet),
         };
-      })
-    )
+      });
+    })
     .sort((a, b) => a.label.localeCompare(b.label));
 
   const allCandidates: RevisitCandidate[] = [];
 
   for (const workspace of activeWorkspaces) {
     if (excludedWorkspaceIdSet.has(workspace.id)) continue;
+    const hiddenIndex = hiddenIndexByWorkspaceId.get(workspace.id)!;
 
     for (const idea of workspace.ideas) {
       const primaryClip = getPrimaryClip(idea);
       if (!primaryClip?.audioUri) continue;
-      if (isIdeaHiddenByExistingState(workspace, idea)) continue;
+      if (isIdeaHiddenByIndex(hiddenIndex, idea)) continue;
       if (isCollectionExcluded(workspace, idea.collectionId, excludedCollectionIdSet)) continue;
 
       const key = buildCandidateKey(workspace.id, idea.id);

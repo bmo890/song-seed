@@ -1,24 +1,15 @@
 import {
-  ActivityDateRegion,
   ActivityDayEntry,
   ActivityMetricFilter,
-  buildActivityDateRegion,
-  filterActivityEvents,
   formatActivityDayLabel,
   getActivityCollectionPath,
   startOfActivityDay,
 } from "../../activity";
-import { IdeaStatus, Workspace } from "../../types";
+import { IdeaStatus, SongIdea, Workspace } from "../../types";
 
 export const CELL_SIZE = 15;
 export const CELL_GAP = 4;
 export const CELL_STRIDE = CELL_SIZE + CELL_GAP;
-
-export type ActivityDayWorkspaceGroup = {
-  workspaceId: string;
-  workspaceTitle: string;
-  entries: ActivityDayEntry[];
-};
 
 export type ActivityItemResult = ActivityDayEntry & {
   ideaStatus: IdeaStatus;
@@ -39,21 +30,6 @@ export function getActivityCellBackground(count: number, maxCount: number, inYea
   return "#c9968a";
 }
 
-export function formatEntryMetrics(entry: ActivityDayEntry) {
-  return formatActivityMatch(entry.createdCount, entry.updatedCount);
-}
-
-export function formatActivityMatch(createdCount: number, updatedCount: number) {
-  const parts: string[] = [];
-  if (createdCount > 0) {
-    parts.push(createdCount > 1 ? `${createdCount} created` : "Created");
-  }
-  if (updatedCount > 0) {
-    parts.push(updatedCount > 1 ? `${updatedCount} updated` : "Updated");
-  }
-  return parts.join(" • ");
-}
-
 export function formatActivityCardMatch(
   createdCount: number,
   updatedCount: number,
@@ -67,28 +43,11 @@ export function formatActivityCardMatch(
   return "";
 }
 
-export function formatMonthRangeLabel(year: number, month: number, metric: ActivityMetricFilter) {
-  const region = buildActivityDateRegion("month", new Date(year, month, 1).getTime());
-  return formatActivityRegionLabel(region, metric);
-}
-
-export function formatDayRangeLabel(ts: number, metric: ActivityMetricFilter) {
-  return formatActivityRegionLabel(buildActivityDateRegion("day", ts), metric);
-}
-
 function formatActivityDateLabel(ts: number, includeYear = true) {
   return new Date(ts).toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",
     ...(includeYear ? { year: "numeric" } : {}),
-  });
-}
-
-export function formatActivityListDayLabel(ts: number) {
-  return new Date(ts).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
   });
 }
 
@@ -102,23 +61,6 @@ export function formatActivityTimeLabel(ts: number) {
 function formatMetricSuffix(metric: ActivityMetricFilter) {
   if (metric === "both") return "";
   return ` • ${metric === "created" ? "Created" : "Updated"}`;
-}
-
-export function formatActivityRegionLabel(region: ActivityDateRegion, metric: ActivityMetricFilter) {
-  if (region.kind === "day") {
-    return `${formatActivityDayLabel(region.startTs)}${formatMetricSuffix(metric)}`;
-  }
-
-  if (region.kind === "week") {
-    const startLabel = formatActivityDateLabel(region.startTs, true);
-    const endLabel = formatActivityDateLabel(region.endTs, region.startTs !== region.endTs);
-    return `Week of ${startLabel} – ${endLabel}${formatMetricSuffix(metric)}`;
-  }
-
-  return `${new Date(region.startTs).toLocaleDateString("en-US", {
-    month: "long",
-    year: "numeric",
-  })}${formatMetricSuffix(metric)}`;
 }
 
 export function formatSelectedRangeLabel(
@@ -136,23 +78,20 @@ export function formatSelectedRangeLabel(
   return `${base}${formatMetricSuffix(metric)}`;
 }
 
-export function getMonthEventCount(
-  events: ReturnType<typeof filterActivityEvents>,
-  year: number,
-  month: number
-) {
-  const start = new Date(year, month, 1).getTime();
-  const end = new Date(year, month + 1, 1).getTime();
-  return events.filter((event) => event.at >= start && event.at < end).length;
-}
-
 export function buildActivityItemResults(
   entries: ActivityDayEntry[],
   workspaces: Workspace[]
 ): ActivityItemResult[] {
+  // Index ideas by workspace:idea once so this is O(entries), not O(entries × ideas).
+  const ideaByKey = new Map<string, SongIdea>();
+  for (const workspace of workspaces) {
+    for (const idea of workspace.ideas) {
+      ideaByKey.set(`${workspace.id}:${idea.id}`, idea);
+    }
+  }
+
   return entries.map((entry) => {
-    const workspace = workspaces.find((candidate) => candidate.id === entry.workspaceId);
-    const idea = workspace?.ideas.find((candidate) => candidate.id === entry.ideaId);
+    const idea = ideaByKey.get(`${entry.workspaceId}:${entry.ideaId}`);
 
     return {
       ...entry,

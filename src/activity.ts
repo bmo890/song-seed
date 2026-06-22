@@ -3,14 +3,6 @@ import { getCollectionById, getCollectionScopeIds } from "./utils";
 import type { ActivityEvent, ActivityMetric, ActivitySource, SongIdea, Workspace } from "./types";
 
 export type ActivityMetricFilter = ActivityMetric | "both";
-export type ActivityRegionKind = "day" | "week" | "month";
-
-export type ActivityDateRegion = {
-  kind: ActivityRegionKind;
-  anchorTs: number;
-  startTs: number;
-  endTs: number;
-};
 
 export type ActivityDayEntry = {
   ideaId: string;
@@ -38,10 +30,6 @@ export function startOfActivityDay(ts: number) {
   return date.getTime();
 }
 
-export function endOfActivityDay(ts: number) {
-  return startOfActivityDay(ts) + DAY_MS - 1;
-}
-
 export function startOfActivityWeek(ts: number) {
   const date = new Date(startOfActivityDay(ts));
   date.setDate(date.getDate() - date.getDay());
@@ -50,47 +38,6 @@ export function startOfActivityWeek(ts: number) {
 
 export function endOfActivityWeek(ts: number) {
   return startOfActivityWeek(ts) + 6 * DAY_MS;
-}
-
-export function startOfActivityMonth(ts: number) {
-  const date = new Date(startOfActivityDay(ts));
-  date.setDate(1);
-  return date.getTime();
-}
-
-export function endOfActivityMonth(ts: number) {
-  const date = new Date(startOfActivityMonth(ts));
-  date.setMonth(date.getMonth() + 1, 0);
-  return startOfActivityDay(date.getTime());
-}
-
-export function buildActivityDateRegion(kind: ActivityRegionKind, anchorTs: number): ActivityDateRegion {
-  const normalizedAnchor = startOfActivityDay(anchorTs);
-
-  if (kind === "day") {
-    return {
-      kind,
-      anchorTs: normalizedAnchor,
-      startTs: normalizedAnchor,
-      endTs: normalizedAnchor,
-    };
-  }
-
-  if (kind === "week") {
-    return {
-      kind,
-      anchorTs: normalizedAnchor,
-      startTs: startOfActivityWeek(normalizedAnchor),
-      endTs: endOfActivityWeek(normalizedAnchor),
-    };
-  }
-
-  return {
-    kind,
-    anchorTs: normalizedAnchor,
-    startTs: startOfActivityMonth(normalizedAnchor),
-    endTs: endOfActivityMonth(normalizedAnchor),
-  };
 }
 
 function buildSyntheticEvent(
@@ -230,10 +177,6 @@ export function buildActivityCountsByDay(events: ActivityEvent[]) {
   return counts;
 }
 
-export function buildActivityDayEntries(events: ActivityEvent[], dayTs: number) {
-  return buildActivityRangeEntries(events, dayTs, dayTs);
-}
-
 export function buildActivityRangeEntries(
   events: ActivityEvent[],
   startDayTs: number,
@@ -279,10 +222,15 @@ export function buildActivityHeatmapMatrix(year: number) {
   const end = endOfActivityWeek(new Date(year, 11, 31).getTime());
   const weeks: number[][] = [];
 
-  for (let cursor = start; cursor <= end; cursor += WEEK_MS) {
+  // Step by calendar day (not fixed 24h) so a DST transition can't drift a cell off local
+  // midnight, which would duplicate one day and drop another on two weeks each year.
+  const weekCount = Math.round((end - start) / WEEK_MS) + 1;
+  const cursor = new Date(start);
+  for (let weekIndex = 0; weekIndex < weekCount; weekIndex += 1) {
     const week: number[] = [];
     for (let offset = 0; offset < 7; offset += 1) {
-      week.push(cursor + offset * DAY_MS);
+      week.push(startOfActivityDay(cursor.getTime()));
+      cursor.setDate(cursor.getDate() + 1);
     }
     weeks.push(week);
   }

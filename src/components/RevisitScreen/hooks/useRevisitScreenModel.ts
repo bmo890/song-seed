@@ -41,7 +41,6 @@ export function useRevisitScreenModel() {
   const resetSourceFilters = useRevisitStore((state) => state.resetSourceFilters);
   const restoreHiddenCandidates = useRevisitStore((state) => state.restoreHiddenCandidates);
   const hideCandidate = useRevisitStore((state) => state.hideCandidate);
-  const snoozeCandidate = useRevisitStore((state) => state.snoozeCandidate);
   const clearExpiredSnoozes = useRevisitStore((state) => state.clearExpiredSnoozes);
   const markVaultExposure = useRevisitStore((state) => state.markVaultExposure);
   const [expandedWorkspaceId, setExpandedWorkspaceId] = useState<string | null>(null);
