@@ -201,6 +201,9 @@ export function ClipCard({
   const openPlayer = async () => {
     if (!hasClipPlaybackSource(clip)) return;
     await inlinePlayer.resetInlinePlayer();
+    // Mark the player active before setting the queue so the floating dock (which keys off
+    // the queue) doesn't flash on for a frame between setPlayerQueue and the route changing.
+    useStore.getState().setPlayerScreenMounted(true);
     setPlayerQueue([{ ideaId: idea.id, clipId: clip.id }], 0, true);
     navigation.navigate("Player" as never);
   };

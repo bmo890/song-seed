@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ScrollView, Text, View, Pressable } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
@@ -40,9 +40,37 @@ export function ActivityHeatmapGrid({
   onPressMonth,
   onPressDay,
 }: ActivityHeatmapGridProps) {
+  const gridScrollRef = useRef<ScrollView>(null);
+  const [gridViewportWidth, setGridViewportWidth] = useState(0);
   const gridWidth = Math.max(0, weeks.length * CELL_STRIDE - 4);
   const displayRangeLabel = selectedRangeLabel?.replace(/, \d{4}/g, "") ?? "Choose a date range";
   const todayTs = useMemo(() => startOfActivityDay(Date.now()), []);
+  const focusedDayTs = selectedRange?.endTs ?? (year === currentYear ? todayTs : null);
+  const focusedWeekIndex = useMemo(
+    () =>
+      focusedDayTs == null
+        ? -1
+        : weeks.findIndex((week) =>
+            week.some((dayTs) => startOfActivityDay(dayTs) === focusedDayTs)
+          ),
+    [focusedDayTs, weeks]
+  );
+
+  useEffect(() => {
+    if (gridViewportWidth <= 0 || focusedWeekIndex < 0) return;
+
+    const maxOffset = Math.max(0, gridWidth - gridViewportWidth);
+    const focusedWeekX = focusedWeekIndex * CELL_STRIDE;
+    const targetOffset = Math.min(
+      maxOffset,
+      Math.max(0, focusedWeekX - gridViewportWidth + CELL_STRIDE * 3)
+    );
+    const frame = requestAnimationFrame(() => {
+      gridScrollRef.current?.scrollTo({ x: targetOffset, animated: false });
+    });
+
+    return () => cancelAnimationFrame(frame);
+  }, [focusedWeekIndex, gridViewportWidth, gridWidth]);
 
   return (
     <SurfaceCard style={styles.activityCard}>
@@ -108,9 +136,11 @@ export function ActivityHeatmapGrid({
         </View>
 
         <ScrollView
+          ref={gridScrollRef}
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={{ width: gridWidth }}
+          onLayout={(event) => setGridViewportWidth(event.nativeEvent.layout.width)}
         >
           <View style={styles.activityHeatmapContent}>
             <View style={[styles.activityMonthRow, { width: gridWidth }]}>

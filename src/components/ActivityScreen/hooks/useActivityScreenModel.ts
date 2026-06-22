@@ -141,14 +141,11 @@ export function useActivityScreenModel() {
     () => getActivityEventsWithHistory(workspaces, activityEvents),
     [activityEvents, workspaces]
   );
-  const latestActivityYear = useMemo(() => {
-    const latestTs = allActivityEvents[0]?.at ?? Date.now();
-    return new Date(latestTs).getFullYear();
-  }, [allActivityEvents]);
   const currentYear = new Date().getFullYear();
-  const [year, setYear] = useState(routeYear ?? latestActivityYear);
-  const [rangeStartTs, setRangeStartTs] = useState<number | null>(routeRangeStartTs ?? null);
-  const [rangeEndTs, setRangeEndTs] = useState<number | null>(routeRangeEndTs ?? null);
+  const today = startOfActivityDay(Date.now());
+  const [year, setYear] = useState(routeYear ?? currentYear);
+  const [rangeStartTs, setRangeStartTs] = useState<number | null>(routeRangeStartTs ?? today);
+  const [rangeEndTs, setRangeEndTs] = useState<number | null>(routeRangeEndTs ?? today);
   const [isRouteRangeActive, setIsRouteRangeActive] = useState(routeHasPrefilledRange);
 
   useEffect(() => {
@@ -196,11 +193,13 @@ export function useActivityScreenModel() {
     if (isRouteRangeActive) {
       return;
     }
-    const fallbackTs = filteredEvents[0]?.at ?? new Date(year, 0, 1).getTime();
+    const fallbackTs = year === currentYear
+      ? Date.now()
+      : filteredEvents[0]?.at ?? new Date(year, 0, 1).getTime();
     const fallbackDay = startOfActivityDay(fallbackTs);
     setRangeStartTs(fallbackDay);
     setRangeEndTs(fallbackDay);
-  }, [effectiveCollectionFilterId, effectiveWorkspaceId, filteredEvents, isRouteRangeActive, year]);
+  }, [currentYear, effectiveCollectionFilterId, effectiveWorkspaceId, filteredEvents, isRouteRangeActive, year]);
 
   const countsByDay = useMemo(() => buildActivityCountsByDay(filteredEvents), [filteredEvents]);
   const maxDailyCount = useMemo(() => Math.max(0, ...Array.from(countsByDay.values())), [countsByDay]);

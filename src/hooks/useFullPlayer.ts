@@ -247,6 +247,19 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
     if (onBeforePlayNew) await onBeforePlayNew();
     if (!isOperationActive(operationId)) return;
 
+    // Paint the waveform immediately from the clip's stored peaks — it needs no audio load,
+    // so don't gate it behind replacePlaybackSource. Waiting made the player open with an
+    // empty timeline that popped in and rescaled once the source finished loading.
+    const playbackWaveformPeaks = getClipPlaybackWaveformPeaks(clip);
+    setWaveformPeaks(
+      playbackWaveformPeaks?.length
+        ? playbackWaveformPeaks
+        : buildStaticWaveform(
+            `${clip.id}-${getClipPlaybackDurationMs(clip) ?? 0}`,
+            MANAGED_WAVEFORM_PEAK_COUNT
+          )
+    );
+
     try {
       holdSourcePositionAt(0);
       await player.pause();
@@ -258,15 +271,6 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
       // Publish the active target only after the source has loaded. That keeps the UI and
       // persisted player state from pointing at a clip that never actually became playable.
       setPlayerTarget({ ideaId, clipId: clip.id });
-      const playbackWaveformPeaks = getClipPlaybackWaveformPeaks(clip);
-      setWaveformPeaks(
-        playbackWaveformPeaks?.length
-          ? playbackWaveformPeaks
-          : buildStaticWaveform(
-              `${clip.id}-${getClipPlaybackDurationMs(clip) ?? 0}`,
-              MANAGED_WAVEFORM_PEAK_COUNT
-            )
-      );
     } catch (err) {
       releaseSourcePositionHold();
       setPlayerPlaybackState({
@@ -296,6 +300,18 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
     const operationId = ++operationIdRef.current;
     lockScreenMetadataRef.current = metadata;
 
+    // Paint the waveform immediately from the clip's stored peaks (no audio load needed),
+    // so the timeline doesn't open empty and rescale once the source finishes loading.
+    const playbackWaveformPeaks = getClipPlaybackWaveformPeaks(clip);
+    setWaveformPeaks(
+      playbackWaveformPeaks?.length
+        ? playbackWaveformPeaks
+        : buildStaticWaveform(
+            `${clip.id}-${getClipPlaybackDurationMs(clip) ?? 0}`,
+            MANAGED_WAVEFORM_PEAK_COUNT
+          )
+    );
+
     try {
       const safeResumeAtMs = Math.max(0, Math.min(resumeAtMs, getClipPlaybackDurationMs(clip) ?? resumeAtMs));
       holdSourcePositionAt(safeResumeAtMs);
@@ -323,15 +339,6 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
 
       currentSourceUriRef.current = playbackUri;
       setPlayerTarget({ ideaId, clipId: clip.id });
-      const playbackWaveformPeaks = getClipPlaybackWaveformPeaks(clip);
-      setWaveformPeaks(
-        playbackWaveformPeaks?.length
-          ? playbackWaveformPeaks
-          : buildStaticWaveform(
-              `${clip.id}-${getClipPlaybackDurationMs(clip) ?? 0}`,
-              MANAGED_WAVEFORM_PEAK_COUNT
-            )
-      );
     } catch (err) {
       releaseSourcePositionHold();
       console.warn("FULL sync source error", err);

@@ -95,6 +95,9 @@ export function SongScreenProvider({ children }: { children: ReactNode }) {
         AppAlert.info("Nothing to play", "This song does not have any playable clips yet.");
         return;
       }
+      // Mark the player active before setting the queue so the floating dock (which keys off
+      // the queue) doesn't flash on for a frame between setPlayerQueue and the route changing.
+      useStore.getState().setPlayerScreenMounted(true);
       useStore.getState().setPlayerQueue(queue, 0, true);
       screen.navigation.navigate("Player" as never);
     }

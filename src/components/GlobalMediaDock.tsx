@@ -40,6 +40,7 @@ export function GlobalMediaDock({
   const playerPositionMs = useStore((s) => s.playerPositionMs);
   const playerDurationMs = useStore((s) => s.playerDurationMs);
   const playerIsPlaying = useStore((s) => s.playerIsPlaying);
+  const isPlayerScreenMounted = useStore((s) => s.isPlayerScreenMounted);
   const inlineTarget = useStore((s) => s.inlineTarget);
   const inlineIsPlaying = useStore((s) => s.inlineIsPlaying);
   const recordingElapsedMs = useRecordingDisplayElapsed({
@@ -99,7 +100,10 @@ export function GlobalMediaDock({
   // The dock only represents the durable full-player queue/session. Clip-card
   // preview playback is separate and does not take over the dock UI.
   const activePlayback: PlaybackDockState | null = (() => {
-    if (playerTarget && playerQueue.length > 0 && activeRouteName !== "Player") {
+    // Hide as soon as the Player screen mounts, not only once the route name syncs — the
+    // latter lags a frame or two behind navigation, briefly showing the dock over the
+    // opening player.
+    if (playerTarget && playerQueue.length > 0 && activeRouteName !== "Player" && !isPlayerScreenMounted) {
       const idea = allIdeas.find((item) => item.id === playerTarget.ideaId);
       const clip = idea?.clips.find((item) => item.id === playerTarget.clipId);
       if (idea && clip) {
