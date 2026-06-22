@@ -12,7 +12,6 @@ import {
 } from "react-native-reanimated";
 import { GestureDetector, Gesture } from "react-native-gesture-handler";
 import type { PracticeMarker } from "../../types";
-import { useDeferredSkiaMount } from "./useDeferredSkiaMount";
 
 type Props = {
     waveformPeaks: number[];
@@ -188,7 +187,6 @@ export function PlaybackTapeVisualizer({
 }: Props) {
     const [canvasWidth, setCanvasWidth] = useState(0);
     const [canvasHeight, setCanvasHeight] = useState(0);
-    const skiaReady = useDeferredSkiaMount();
 
     const baseChunkWidth = 3;
     const baseContentWidth = waveformPeaks.length * baseChunkWidth;
@@ -712,7 +710,7 @@ export function PlaybackTapeVisualizer({
         <View style={[styles.container, { backgroundColor }]} onLayout={onLayout}>
             <GestureDetector gesture={pan}>
                 <View style={StyleSheet.absoluteFill}>
-                    {canvasWidth > 0 && canvasHeight > 0 && skiaReady && (
+                    {canvasWidth > 0 && canvasHeight > 0 && (
                         <Canvas style={{ flex: 1 }}>
                             <Group transform={translateTransform}>
                                 <Group transform={scaleTransform}>

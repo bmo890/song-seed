@@ -869,7 +869,7 @@ function AppContent() {
           <Stack.Screen
             name="Player"
             component={PlayerScreen}
-            options={{ animation: "slide_from_bottom", animationDuration: 260 }}
+            options={{ animation: "fade", animationDuration: 220 }}
           />
           <Stack.Screen name="ShareImport">
             {() => <ShareImportScreen fallbackCollectionId={lastCollectionContextId} />}

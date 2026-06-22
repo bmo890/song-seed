@@ -264,10 +264,13 @@ export function GlobalMediaDock({
   }
 
   return (
+    // No `exiting` animation: when opening the full player the route flips to "Player"
+    // and this dock unmounts. A reanimated exit fade would linger ~150ms into the player's
+    // fade-in transition, briefly showing the dock over the opening player. Hiding instantly
+    // is also the natural behavior for the ✕-dismiss and queue-empty cases.
     <Animated.View
       style={styles.miniMediaDockWrap}
       entering={FadeInDown.duration(200)}
-      exiting={FadeOut.duration(150)}
     >
       <Pressable
         style={[styles.miniMediaDockSurface, safeBottomPadding]}

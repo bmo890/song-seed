@@ -2,7 +2,6 @@ import React, { useMemo, useState } from "react";
 import { View, StyleSheet, LayoutChangeEvent } from "react-native";
 import { Canvas, Path, Skia } from "@shopify/react-native-skia";
 import { DataPoint } from "@siteed/audio-studio";
-import { useDeferredSkiaMount } from "./useDeferredSkiaMount";
 
 type Props = {
     dataPoints: DataPoint[];
@@ -24,7 +23,6 @@ export function LiveTapeVisualizer({
 }: Props) {
     const [canvasWidth, setCanvasWidth] = useState(0);
     const [canvasHeight, setCanvasHeight] = useState(0);
-    const skiaReady = useDeferredSkiaMount();
 
     const candleWidth = 2;
     const candleSpace = 1;
@@ -104,7 +102,7 @@ export function LiveTapeVisualizer({
 
     return (
         <View style={[styles.container, { backgroundColor }]} onLayout={onLayout}>
-            {canvasWidth > 0 && canvasHeight > 0 && skiaReady && (
+            {canvasWidth > 0 && canvasHeight > 0 && (
                 <Canvas style={{ flex: 1 }}>
                     <Path
                         path={centerLinePath}
