@@ -29,9 +29,14 @@ export function CollapsingTabStage({ children, contentContainerStyle }: Collapsi
     };
   }, [screen.scrollY]);
 
+  // Capture only the SharedValue as a local — referencing `screen.scrollY` directly would
+  // pull the whole `screen` model into the worklet closure, and Reanimated deep-freezes
+  // captured plain objects, freezing any refs on `screen` and crashing later writes to them
+  // on Hermes ("cannot add a new property").
+  const scrollY = screen.scrollY;
   const scrollHandler = useAnimatedScrollHandler({
     onScroll: (event) => {
-      screen.scrollY.value = event.contentOffset.y;
+      scrollY.value = event.contentOffset.y;
     },
   });
 

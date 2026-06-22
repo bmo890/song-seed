@@ -197,11 +197,18 @@ export function CollectionListSection({
     if (foundLabel !== null) stickyDayStore.set(foundLabel);
   }, []);
 
+  // Capture the SharedValues as locals so the worklet closure only serializes those
+  // (SharedValues are made to be shared). Referencing `screen.*` here would pull the whole
+  // `screen` context into the worklet, and Reanimated deep-freezes captured plain objects —
+  // freezing screen.rowLayoutsRef.current and crashing later onLayout writes on Hermes
+  // ("cannot add a new property"). See CollectionHeaderSection's "Locals only" note.
+  const scrollYValue = screen.scrollY;
+  const collapsibleHeaderHeight = screen.collapsibleHeaderHeight;
   useAnimatedReaction(
-    () => screen.scrollY.value,
+    () => scrollYValue.value,
     (scrollYVal, prev) => {
       if (scrollYVal !== prev) {
-        runOnJS(updateStickyLabel)(scrollYVal, screen.collapsibleHeaderHeight.value);
+        runOnJS(updateStickyLabel)(scrollYVal, collapsibleHeaderHeight.value);
       }
     }
   );
