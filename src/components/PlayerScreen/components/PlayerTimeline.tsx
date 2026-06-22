@@ -72,7 +72,7 @@ function DragIndicatorLine({
     top: 0,
     bottom: 0,
     width: 2,
-    backgroundColor: "#ca8a04",
+    backgroundColor: "#B87D6B",
     opacity: draggingMarkerId.value !== "" ? 1 : 0,
   }));
 
@@ -232,11 +232,15 @@ function PlayerTimelineInner({
       showTransportControls={false}
       showExpandToggle={false}
       showZoomControls={mode === "practice"}
+      zoomPlacement="overlay"
       showTimingRow={false}
       defaultExpanded={false}
-      surfaceRadius={24}
+      surfaceRadius={4}
       timelineHorizontalPadding={0}
-      collapsedHeightOverride={160}
+      // Bigger reel in the default listening view (waveform as hero); smaller when Tools
+      // are open to leave room for the practice console. Horizontal precision in practice
+      // comes from zoom + minimap, not reel height.
+      collapsedHeightOverride={mode === "practice" ? 128 : 184}
       zoomMultiple={mode === "practice" ? practiceZoomMultiple : 1}
       onZoomMultipleChange={mode === "practice" ? onPracticeZoomMultipleChange : undefined}
       showMinimapMode={mode === "practice" ? "auto" : "never"}
@@ -270,27 +274,20 @@ function PlayerTimelineInner({
                   draggingMarkerId={draggingMarkerId}
                   draggingMarkerX={draggingMarkerX}
                 />
+                <PracticePinBadges
+                  markers={practiceMarkers}
+                  pixelsPerMs={pixelsPerMs}
+                  timelineTranslateX={timelineTranslateX}
+                  timelineScale={timelineScale}
+                  durationMs={durationMs}
+                  onSeek={(timeMs) => void onSeek(timeMs)}
+                  onRepositionMarker={onRepositionMarker}
+                  onRequestActions={onRequestPinActions}
+                  onDragStateChange={onPinDragStateChange}
+                  draggingMarkerId={draggingMarkerId}
+                  draggingMarkerX={draggingMarkerX}
+                />
               </View>
-            )
-          : undefined
-      }
-      renderBelowOverlay={
-        mode === "practice"
-          ? ({ pixelsPerMs, timelineTranslateX, timelineScale }) => (
-              <PracticePinBadges
-                markers={practiceMarkers}
-                pixelsPerMs={pixelsPerMs}
-                timelineTranslateX={timelineTranslateX}
-                timelineScale={timelineScale}
-                durationMs={durationMs}
-                onSeek={(timeMs) => void onSeek(timeMs)}
-                onRepositionMarker={onRepositionMarker}
-                onRequestActions={onRequestPinActions}
-                onRequestAdd={onRequestAddPin}
-                onDragStateChange={onPinDragStateChange}
-                draggingMarkerId={draggingMarkerId}
-                draggingMarkerX={draggingMarkerX}
-              />
             )
           : undefined
       }
@@ -345,7 +342,7 @@ const timelineStyles = StyleSheet.create({
     width: LOOP_MOVE_PILL_WIDTH,
     height: LOOP_MOVE_PILL_HEIGHT,
     borderRadius: LOOP_MOVE_PILL_HEIGHT / 2,
-    backgroundColor: "rgba(59, 130, 246, 0.92)",
+    backgroundColor: "rgba(184, 125, 107, 0.95)",
     alignItems: "center",
     justifyContent: "center",
     shadowColor: "#0f172a",

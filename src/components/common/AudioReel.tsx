@@ -1,7 +1,8 @@
 import React, { ReactNode, useState } from "react";
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import * as Reanimated from "react-native-reanimated";
-import { useSharedValue, withTiming, SharedValue, useAnimatedStyle } from "react-native-reanimated";
+import { useSharedValue, withTiming, SharedValue, useAnimatedStyle, runOnJS } from "react-native-reanimated";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { Feather } from "@expo/vector-icons";
 import { PlaybackTapeVisualizer } from "../visualizers/PlaybackTapeVisualizer";
 import { MinimapVisualizer } from "../visualizers/MinimapVisualizer";
@@ -74,7 +75,7 @@ type Props = {
     sharedPlaybackRate?: SharedValue<number>;
     isScrubbing?: boolean;
     compact?: boolean;
-    zoomPlacement?: "top" | "bottom";
+    zoomPlacement?: "top" | "bottom" | "overlay";
     topLeftContent?: ReactNode;
     onSeek: (timeMs: number) => void | Promise<void>;
     onTogglePlay: () => void;
@@ -298,6 +299,17 @@ export function AudioReel({
         setUncontrolledZoomMultiple(nextZoom);
     }, [nearestZoomIndex, onZoomMultipleChange, zoomMultiple]);
 
+    // RNGH taps (not TouchableOpacity) for the on-reel overlay zoom, so the press wins over
+    // the waveform's pan/scrub gesture underneath it instead of being swallowed.
+    const zoomOutTap = React.useMemo(
+        () => Gesture.Tap().onEnd(() => { runOnJS(handleZoom)("out"); }),
+        [handleZoom]
+    );
+    const zoomInTap = React.useMemo(
+        () => Gesture.Tap().onEnd(() => { runOnJS(handleZoom)("in"); }),
+        [handleZoom]
+    );
+
     const zoomControls = (
         <View style={[audioReelStyles.zoomRow, zoomPlacement === "top" ? audioReelStyles.zoomRowTop : null]}>
             <TouchableOpacity
@@ -471,6 +483,37 @@ export function AudioReel({
                 </View>
             </AnimatedView>
 
+            {/* Rendered as a static sibling of the animated surface (not inside it) so RNGH
+                hit-testing isn't thrown off by the surface's animated height. Positioned over
+                the reel's bottom-right via the known collapsed height. */}
+            {showZoomControls && zoomPlacement === "overlay" ? (
+                <View style={[audioReelStyles.zoomOverlay, { top: collapsedHeight - 34 }]} pointerEvents="box-none">
+                    <View style={audioReelStyles.zoomOverlayPill}>
+                        <GestureDetector gesture={zoomOutTap}>
+                            <View style={audioReelStyles.zoomOverlayButton}>
+                                <Feather
+                                    name="zoom-out"
+                                    size={15}
+                                    color="#524440"
+                                    style={{ opacity: zoomMultiple > MIN_ZOOM ? 1 : 0.3 }}
+                                />
+                            </View>
+                        </GestureDetector>
+                        <Text style={audioReelStyles.zoomOverlayText}>{zoomText}</Text>
+                        <GestureDetector gesture={zoomInTap}>
+                            <View style={audioReelStyles.zoomOverlayButton}>
+                                <Feather
+                                    name="zoom-in"
+                                    size={15}
+                                    color="#524440"
+                                    style={{ opacity: zoomMultiple < MAX_ZOOM ? 1 : 0.3 }}
+                                />
+                            </View>
+                        </GestureDetector>
+                    </View>
+                </View>
+            ) : null}
+
             {renderBelowSurface ? (
                 <View style={{ marginHorizontal: timelineHorizontalPadding, overflow: "visible" }}>
                     {renderBelowSurface({ pixelsPerMs, timelineTranslateX, timelineScale, sharedAudioProgress })}
@@ -613,6 +656,35 @@ const audioReelStyles = StyleSheet.create({
     },
     timingTextCompact: {
         fontSize: 12,
+    },
+    zoomOverlay: {
+        position: "absolute",
+        right: 6,
+    },
+    zoomOverlayPill: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 1,
+        paddingHorizontal: 3,
+        paddingVertical: 2,
+        borderRadius: 999,
+        borderWidth: 0.5,
+        borderColor: "#D7C2BD",
+        backgroundColor: "rgba(253,251,247,0.96)",
+    },
+    zoomOverlayButton: {
+        width: 24,
+        height: 24,
+        alignItems: "center",
+        justifyContent: "center",
+    },
+    zoomOverlayText: {
+        fontFamily: "PlusJakartaSans_600SemiBold",
+        fontSize: 11,
+        color: "#524440",
+        minWidth: 22,
+        textAlign: "center",
+        fontVariant: ["tabular-nums"],
     },
     zoomRow: {
         flexDirection: "row",

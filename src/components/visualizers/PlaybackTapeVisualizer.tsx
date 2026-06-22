@@ -145,10 +145,10 @@ function PinMarkerOverlay({
                 <Rect
                     key={marker.id}
                     x={marker.atMs * pixelsPerMs}
-                    y={10}
-                    width={2}
-                    height={Math.max(0, canvasHeight - 20)}
-                    color="rgba(202, 138, 4, 0.78)"
+                    y={3}
+                    width={2.5}
+                    height={Math.max(0, canvasHeight - 6)}
+                    color="#B87D6B"
                 />
             ))}
         </>

@@ -1,9 +1,9 @@
 import React from "react";
 import { Pressable, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { SegmentedControl } from "../../common/SegmentedControl";
 import { fmtDuration, formatDate } from "../../../utils";
 import { styles } from "../../../styles";
+import { colors } from "../../../design/tokens";
 import { playerScreenStyles } from "../styles";
 
 type PlayerHeaderSectionProps = {
@@ -17,7 +17,6 @@ type PlayerHeaderSectionProps = {
   onBack: () => void;
   onMinimize: () => void;
   onOverflow: () => void;
-  onChangeMode: (mode: "player" | "practice") => void;
 };
 
 export function PlayerHeaderSection({
@@ -31,8 +30,38 @@ export function PlayerHeaderSection({
   onBack,
   onMinimize,
   onOverflow,
-  onChangeMode,
 }: PlayerHeaderSectionProps) {
+  const overflowButton = (label: string, icon: keyof typeof Ionicons.glyphMap, onPress: () => void, size = 18) => (
+    <Pressable
+      style={({ pressed }) => [
+        playerScreenStyles.overflowButton,
+        pressed ? playerScreenStyles.overflowButtonPressed : null,
+      ]}
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+    >
+      <Ionicons name={icon} size={size} color={colors.textStrong} />
+    </Pressable>
+  );
+
+  // Collapsed (practice / Tools on): title tucks into the nav row, metadata hidden,
+  // so the reel sits near the top and the practice console gets the vertical room.
+  if (mode === "practice") {
+    return (
+      <View style={playerScreenStyles.headerBlock}>
+        <View style={playerScreenStyles.navRow}>
+          {overflowButton("Back", "chevron-back", onBack, 22)}
+          <Text style={playerScreenStyles.navTitle} numberOfLines={1}>
+            {clipTitle}
+          </Text>
+          <View style={playerScreenStyles.navRowRight}>{overflowButton("More options", "ellipsis-horizontal", onOverflow)}</View>
+        </View>
+      </View>
+    );
+  }
+
+  // Expanded (player / listening): full title + metadata.
   return (
     <View style={playerScreenStyles.headerBlock}>
       <View style={playerScreenStyles.navRow}>
@@ -41,31 +70,8 @@ export function PlayerHeaderSection({
         </Pressable>
 
         <View style={playerScreenStyles.navRowRight}>
-          {/* Chevron-down = minimize (keep playing in the dock). Only in player mode:
-              practice mode's engine can't persist across navigation, so minimizing
-              would tear down the loop/pitch — practice is a focused, on-screen mode. */}
-          {mode === "player" ? (
-            <Pressable
-              style={({ pressed }) => [
-                playerScreenStyles.overflowButton,
-                pressed ? playerScreenStyles.overflowButtonPressed : null,
-              ]}
-              onPress={onMinimize}
-              accessibilityLabel="Minimize player"
-            >
-              <Ionicons name="chevron-down" size={22} color="#524440" />
-            </Pressable>
-          ) : null}
-
-          <Pressable
-            style={({ pressed }) => [
-              playerScreenStyles.overflowButton,
-              pressed ? playerScreenStyles.overflowButtonPressed : null,
-            ]}
-            onPress={onOverflow}
-          >
-            <Ionicons name="ellipsis-horizontal" size={18} color="#111827" />
-          </Pressable>
+          {overflowButton("Minimize player", "chevron-down", onMinimize, 22)}
+          {overflowButton("More options", "ellipsis-horizontal", onOverflow)}
         </View>
       </View>
 
@@ -93,15 +99,6 @@ export function PlayerHeaderSection({
           </Text>
         </View>
       </View>
-
-      <SegmentedControl
-        options={[
-          { key: "player", label: "Player" },
-          { key: "practice", label: "Practice" },
-        ]}
-        value={mode}
-        onChange={onChangeMode}
-      />
     </View>
   );
 }

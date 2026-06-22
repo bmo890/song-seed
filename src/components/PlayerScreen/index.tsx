@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo } from "react";
-import { Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar as ExpoStatusBar } from "expo-status-bar";
 import { useIsFocused, useNavigation } from "@react-navigation/native";
@@ -7,6 +8,7 @@ import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useSharedValue } from "react-native-reanimated";
 import type { RootStackParamList } from "../../../App";
 import { styles } from "../../styles";
+import { colors } from "../../design/tokens";
 import { useFullPlayerContext } from "../../hooks/FullPlayerProvider";
 import { fmtDuration } from "../../utils";
 import { TransportLayout } from "../common/TransportLayout";
@@ -436,29 +438,18 @@ export function PlayerScreen() {
             onBack={lifecycle.handleBack}
             onMinimize={lifecycle.minimizePlayer}
             onOverflow={lifecycle.handleOverflowMenu}
-            onChangeMode={ui.setMode}
           />
         }
         footer={
           <PlayerFooterSection
             mode={ui.mode}
-            speedPanelVisible={speedPanelVisible}
-            playbackSpeed={playbackSpeed}
             playDisabled={isTransportLocked}
-            speedPresets={PRACTICE_SPEED_PRESETS}
-            speedMin={PRACTICE_SPEED_MIN}
-            speedMax={PRACTICE_SPEED_MAX}
             isPlaying={effectiveIsPlaying}
             hasPreviousTrack={hasPreviousTrack}
             hasNextTrack={hasNextTrack}
             queueEntryCount={data.queueEntries.length}
             practiceLoopEnabled={practiceLoopEnabled}
             queueExpanded={ui.queueExpanded}
-            onToggleSpeedPanel={() => setSpeedPanelVisible((value) => !value)}
-            onSpeedSliding={handleSpeedSliding}
-            onSpeedSlideStart={handleSpeedSlideStart}
-            onSpeedSlideEnd={handleSpeedSlideEnd}
-            onSpeedTap={handleSpeedTap}
             onPreviousTrack={lifecycle.handlePreviousTrack}
             onTogglePlay={isTransportLocked ? () => {} : lifecycle.handleTogglePlayPress}
             onNextTrack={lifecycle.handleNextTrack}
@@ -511,23 +502,65 @@ export function PlayerScreen() {
             </View>
           </View>
 
+          {/* Tools toggle lives under the reel (not the header) so the waveform stays at
+              the very top. Opening it switches the screen into practice mode. */}
+          <View style={playerScreenStyles.reelToolbar}>
+            <Pressable
+              style={({ pressed }) => [
+                playerScreenStyles.toolsPill,
+                ui.mode === "practice" ? playerScreenStyles.toolsPillActive : null,
+                pressed ? playerScreenStyles.overflowButtonPressed : null,
+              ]}
+              onPress={() => ui.setMode(ui.mode === "practice" ? "player" : "practice")}
+              accessibilityRole="button"
+              accessibilityState={{ selected: ui.mode === "practice" }}
+              accessibilityLabel={ui.mode === "practice" ? "Close practice tools" : "Open practice tools"}
+            >
+              <Ionicons
+                name="options-outline"
+                size={15}
+                color={ui.mode === "practice" ? colors.onPrimary : colors.textSecondary}
+              />
+              <Text
+                style={[
+                  playerScreenStyles.toolsPillText,
+                  ui.mode === "practice" ? playerScreenStyles.toolsPillTextActive : null,
+                ]}
+              >
+                Tools
+              </Text>
+            </Pressable>
+          </View>
+
           {ui.mode === "practice" ? (
             <PlayerPracticePanel
+              expandedTool={ui.expandedTool}
+              onToggleTool={ui.toggleTool}
+              onClose={ui.closeTool}
               practiceLoopEnabled={practiceLoopEnabled}
               practiceRangeLabel={practiceRangeLabel}
-              countInOption={ui.countInOption}
-              clipNotes={data.clipNotes}
-              pitchShiftSemitones={ui.pitchShiftSemitones}
-              supportsPitchShift={practicePitchTransport.isPitchShiftAvailable}
               onSeekLoopStart={() => handleLoopAwareSeek(practiceLoopRange.start)}
               onMoveLoopToPlayhead={movePracticeLoopToPlayhead}
               onResetLoopRange={resetPracticeLoopRange}
               onTogglePracticeLoop={handlePracticeLoopToggle}
-              onSelectCountIn={ui.setCountInOption}
+              practiceMarkers={data.practiceMarkers}
+              playheadMs={effectivePlayerPosition}
+              onAddPin={handleRequestAddPin}
+              onSeekPin={isTransportLocked ? () => {} : handleLoopAwareSeek}
+              onPinActions={handlePinActions}
+              playbackSpeed={playbackSpeed}
+              speedPresets={PRACTICE_SPEED_PRESETS}
+              speedMin={PRACTICE_SPEED_MIN}
+              speedMax={PRACTICE_SPEED_MAX}
+              onSpeedTap={handleSpeedTap}
+              onSpeedSlideStart={handleSpeedSlideStart}
+              onSpeedSliding={handleSpeedSliding}
+              onSpeedSlideEnd={handleSpeedSlideEnd}
+              pitchShiftSemitones={ui.pitchShiftSemitones}
+              supportsPitchShift={practicePitchTransport.isPitchShiftAvailable}
               onAdjustPitchShift={ui.setPitchShiftSemitones}
-              onPressNotes={() => {
-                // TODO: open notes sheet
-              }}
+              countInOption={ui.countInOption}
+              onSelectCountIn={ui.setCountInOption}
             />
           ) : (
             <PlayerSupportSections

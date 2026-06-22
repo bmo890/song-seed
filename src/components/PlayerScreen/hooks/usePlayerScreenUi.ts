@@ -3,6 +3,8 @@ import { clampPitchShiftSemitones } from "../../../pitchShift";
 
 export type PlayerMode = "player" | "practice";
 export type CountInOption = "off" | "1b" | "2b";
+/** Practice tools. pins/loop expand inline (accordion); speed/pitch/countin open a popover. */
+export type PracticeTool = "pins" | "loop" | "speed" | "pitch" | "countin";
 
 export function usePlayerScreenUi() {
   const [mode, setMode] = useState<PlayerMode>("player");
@@ -12,10 +14,17 @@ export function usePlayerScreenUi() {
   const [countInOption, setCountInOption] = useState<CountInOption>("off");
   const [practiceZoomMultiple, setPracticeZoomMultiple] = useState<number>(1);
   const [pitchShiftSemitones, setPitchShiftSemitonesState] = useState(0);
+  const [expandedTool, setExpandedTool] = useState<PracticeTool | null>(null);
 
   const setPitchShiftSemitones = (value: number) => {
     setPitchShiftSemitonesState(clampPitchShiftSemitones(value));
   };
+
+  const toggleTool = (tool: PracticeTool) => {
+    setExpandedTool((prev) => (prev === tool ? null : tool));
+  };
+
+  const closeTool = () => setExpandedTool(null);
 
   return {
     mode,
@@ -32,5 +41,8 @@ export function usePlayerScreenUi() {
     setPracticeZoomMultiple,
     pitchShiftSemitones,
     setPitchShiftSemitones,
+    expandedTool,
+    toggleTool,
+    closeTool,
   };
 }
