@@ -1,7 +1,22 @@
+const mockFiles = new Set<string>();
+const mockDirectories = new Set<string>();
+
+function mockImmediateChildren(uri: string) {
+    const prefix = uri.endsWith("/") ? uri : `${uri}/`;
+    return Array.from(new Set([...mockFiles, ...mockDirectories]))
+        .filter((path) => path.startsWith(prefix) && path !== uri)
+        .map((path) => path.slice(prefix.length))
+        .filter((path) => path.length > 0 && !path.includes("/"));
+}
+
 jest.mock("expo-file-system/legacy", () => ({
     documentDirectory: "file:///doc/",
-    getInfoAsync: jest.fn(async () => ({ exists: true, size: 1 })),
-    readDirectoryAsync: jest.fn(async () => []),
+    getInfoAsync: jest.fn(async (uri: string) =>
+        mockFiles.has(uri)
+            ? { exists: true, size: 1, isDirectory: false }
+            : { exists: mockDirectories.has(uri), isDirectory: mockDirectories.has(uri) }
+    ),
+    readDirectoryAsync: jest.fn(async (uri: string) => mockImmediateChildren(uri)),
 }));
 
 import { scanLibraryIntegrity, type IntegrityIssue } from "../integrityScanner";
@@ -50,6 +65,12 @@ function workspace(ideas: SongIdea[], collections: Collection[] = []): Workspace
 const types = (issues: IntegrityIssue[]) => issues.map((i) => i.type).sort();
 
 describe("scanLibraryIntegrity", () => {
+    beforeEach(() => {
+        mockFiles.clear();
+        mockDirectories.clear();
+        mockDirectories.add("file:///doc/songseed/audio");
+    });
+
     it("reports no issues for a clean library", async () => {
         const ws = workspace([idea("idea-1", [clip("c1", { isPrimary: true }), clip("c2", { parentClipId: "c1" })])]);
         const report = await scanLibraryIntegrity([ws], []);
@@ -114,5 +135,25 @@ describe("scanLibraryIntegrity", () => {
         };
         const report = await scanLibraryIntegrity([ws], [playlist]);
         expect(types(report.issues)).toContain("dangling-playlist-item");
+    });
+
+    it("handles nested restored media by full URI instead of basename", async () => {
+        const restoredDirectory = "file:///doc/songseed/audio/restored-token";
+        const restoredUri = `${restoredDirectory}/clip.m4a`;
+        const orphanWithSameName = "file:///doc/songseed/audio/clip.m4a";
+        mockDirectories.add(restoredDirectory);
+        mockFiles.add(restoredUri);
+        mockFiles.add(orphanWithSameName);
+        const ws = workspace([
+            idea("idea-1", [clip("c1", { isPrimary: true, audioUri: restoredUri })]),
+        ]);
+
+        const report = await scanLibraryIntegrity([ws], []);
+
+        expect(report.issues).toContainEqual({
+            type: "orphan-file",
+            path: orphanWithSameName,
+        });
+        expect(report.issues).not.toContainEqual({ type: "orphan-file", path: restoredUri });
     });
 });

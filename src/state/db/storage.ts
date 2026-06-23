@@ -19,6 +19,14 @@ import { getDb } from "./database";
 
 // Last value successfully written per key, so unchanged snapshots skip the DB entirely.
 const lastWritten = new Map<string, string>();
+let writeQueue: Promise<void> = Promise.resolve();
+
+function enqueueWrite(operation: () => Promise<void>) {
+    const result = writeQueue.then(operation, operation);
+    // Keep the queue usable after a failed write while still returning the failure to its caller.
+    writeQueue = result.catch(() => undefined);
+    return result;
+}
 
 export const sqliteStringStorage = {
     getItem: async (name: string): Promise<string | null> => {
@@ -55,37 +63,39 @@ export const sqliteStringStorage = {
         }
     },
 
-    setItem: async (name: string, value: string): Promise<void> => {
-        if (lastWritten.get(name) === value) return; // unchanged — skip the write
-        try {
-            await getDb().runAsync(
-                "INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, ?)",
-                name,
-                value,
-                Date.now()
-            );
-            lastWritten.set(name, value);
-        } catch (err) {
-            // Last-resort durability: keep the write in AsyncStorage if SQLite failed. Do NOT
-            // update lastWritten, so the next attempt retries the SQLite write.
-            console.warn("[sqliteStorage] setItem fell back to AsyncStorage:", err);
+    setItem: (name: string, value: string): Promise<void> =>
+        enqueueWrite(async () => {
+            if (lastWritten.get(name) === value) return; // unchanged — skip the write
             try {
-                await AsyncStorage.setItem(name, value);
-            } catch {
-                // Both stores failed — surface nothing; the in-memory store is still intact.
+                await getDb().runAsync(
+                    "INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, ?)",
+                    name,
+                    value,
+                    Date.now()
+                );
+                lastWritten.set(name, value);
+            } catch (err) {
+                // Last-resort durability: keep the write in AsyncStorage if SQLite failed. Do NOT
+                // update lastWritten, so the next attempt retries the SQLite write.
+                console.warn("[sqliteStorage] setItem fell back to AsyncStorage:", err);
+                try {
+                    await AsyncStorage.setItem(name, value);
+                } catch {
+                    // Both stores failed — surface nothing; the in-memory store is still intact.
+                }
             }
-        }
-    },
+        }),
 
-    removeItem: async (name: string): Promise<void> => {
-        lastWritten.delete(name);
-        try {
-            await getDb().runAsync("DELETE FROM kv WHERE key = ?", name);
-        } catch (err) {
-            console.warn("[sqliteStorage] removeItem fell back to AsyncStorage:", err);
-            await AsyncStorage.removeItem(name);
-        }
-    },
+    removeItem: (name: string): Promise<void> =>
+        enqueueWrite(async () => {
+            lastWritten.delete(name);
+            try {
+                await getDb().runAsync("DELETE FROM kv WHERE key = ?", name);
+            } catch (err) {
+                console.warn("[sqliteStorage] removeItem fell back to AsyncStorage:", err);
+                await AsyncStorage.removeItem(name);
+            }
+        }),
 };
 
 /**
@@ -94,5 +104,25 @@ export const sqliteStringStorage = {
  * exact location hydration reads from on next launch.
  */
 export async function persistRawSnapshot(name: string, value: string): Promise<void> {
-    await sqliteStringStorage.setItem(name, value);
+    await enqueueWrite(async () => {
+        try {
+            await getDb().runAsync(
+                "INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, ?)",
+                name,
+                value,
+                Date.now()
+            );
+            lastWritten.set(name, value);
+        } catch (error) {
+            // A fallback copy is still useful for manual recovery, but it is not authoritative
+            // while a readable SQLite row exists. Surface the failure so callers never delete
+            // media or report a restore as successful without committing SQLite first.
+            try {
+                await AsyncStorage.setItem(name, value);
+            } catch {
+                // Preserve the authoritative SQLite error below.
+            }
+            throw error;
+        }
+    });
 }

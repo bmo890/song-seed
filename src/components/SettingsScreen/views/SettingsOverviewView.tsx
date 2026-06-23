@@ -117,7 +117,8 @@ export function SettingsOverviewView({
           <View style={styles.settingsActionCardCopy}>
             <Text style={styles.settingsActionCardTitle}>Back Up Now</Text>
             <Text style={styles.settingsActionCardMeta}>
-              Build a complete, verified backup and choose where to save it.
+              {backupFlow.backupProgressLabel ??
+                "Build a complete, verified backup and choose where to save it."}
             </Text>
           </View>
           {backupFlow.isBackingUp ? (
@@ -126,6 +127,18 @@ export function SettingsOverviewView({
             <Ionicons name="cloud-upload-outline" size={18} color="#64748b" />
           )}
         </Pressable>
+        {backupFlow.isBackingUp ? (
+          <Pressable
+            style={({ pressed }) => [
+              settingsScreenStyles.backupCancelButton,
+              pressed ? styles.pressDown : null,
+            ]}
+            onPress={backupFlow.cancelBackup}
+          >
+            <Ionicons name="close-circle-outline" size={16} color="#64748b" />
+            <Text style={settingsScreenStyles.backupCancelText}>Cancel backup</Text>
+          </Pressable>
+        ) : null}
 
         <Pressable
           style={({ pressed }) => [
@@ -141,7 +154,8 @@ export function SettingsOverviewView({
           <View style={styles.settingsActionCardCopy}>
             <Text style={styles.settingsActionCardTitle}>Restore from Backup</Text>
             <Text style={styles.settingsActionCardMeta}>
-              Replace this library with a verified backup file. Requires a restart.
+              {backupFlow.restoreProgressLabel ??
+                "Replace this library with a verified backup file. Requires a restart."}
             </Text>
           </View>
           {backupFlow.isRestoring ? (
@@ -150,6 +164,18 @@ export function SettingsOverviewView({
             <Ionicons name="cloud-download-outline" size={18} color="#64748b" />
           )}
         </Pressable>
+        {backupFlow.canCancelRestore ? (
+          <Pressable
+            style={({ pressed }) => [
+              settingsScreenStyles.backupCancelButton,
+              pressed ? styles.pressDown : null,
+            ]}
+            onPress={backupFlow.cancelRestore}
+          >
+            <Ionicons name="close-circle-outline" size={16} color="#64748b" />
+            <Text style={settingsScreenStyles.backupCancelText}>Cancel restore</Text>
+          </Pressable>
+        ) : null}
 
         <View style={styles.settingsOptionStack}>
           {backupFlow.reminderOptions.map((option) => (

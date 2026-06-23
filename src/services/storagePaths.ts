@@ -44,6 +44,11 @@ export function isManagedPreviewAudioUri(uri: string) {
  */
 export function toRelativeManagedPath(uri: string | undefined | null): string | null {
     if (!uri) return null;
+    // Disaster-recovery snapshots intentionally persist canonical relative paths. Accept
+    // those directly so hydration can resolve them against the new app container.
+    if (uri.startsWith("songseed/")) {
+        return uri;
+    }
     const base = FileSystem.documentDirectory ?? "";
     // Same container (always true on Android; on iOS until the container UUID changes):
     // strip the live document-directory prefix and confirm it lands in the managed tree.

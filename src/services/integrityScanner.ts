@@ -1,7 +1,10 @@
 import * as FileSystem from "expo-file-system/legacy";
 import type { Playlist, SongIdea, Workspace } from "../types";
 import { SONG_SEED_AUDIO_DIR } from "./storagePaths";
-import { collectManagedAudioUrisFromWorkspaces } from "./managedMedia";
+import {
+    collectManagedAudioUrisFromWorkspaces,
+    listFilesRecursively,
+} from "./managedMedia";
 
 /**
  * Read-only structural + referential integrity scan of the library. Surfaces the problems
@@ -142,19 +145,13 @@ async function checkFiles(workspaces: Workspace[], issues: IntegrityIssue[]) {
         if (uri) issues.push({ type: "missing-file", ref: "clip-audio", path: uri });
     }
 
-    // Orphan files: managed audio on disk that nothing references (overdub-aware via the
-    // `referenced` set, which already includes stems + rendered mixes + source audio).
+    // Orphan files: compare canonical full URIs recursively. Restores intentionally place
+    // media in token-scoped subdirectories, and basenames are not globally unique.
     try {
-        const dirInfo = await FileSystem.getInfoAsync(SONG_SEED_AUDIO_DIR);
-        if (dirInfo.exists) {
-            const referencedNames = new Set(
-                Array.from(referenced).map((uri) => uri.split("/").pop()).filter(Boolean) as string[]
-            );
-            const filenames = await FileSystem.readDirectoryAsync(SONG_SEED_AUDIO_DIR);
-            for (const filename of filenames) {
-                if (!referencedNames.has(filename)) {
-                    issues.push({ type: "orphan-file", path: `${SONG_SEED_AUDIO_DIR}/${filename}` });
-                }
+        const files = await listFilesRecursively(SONG_SEED_AUDIO_DIR);
+        for (const fileUri of files) {
+            if (!referenced.has(fileUri)) {
+                issues.push({ type: "orphan-file", path: fileUri });
             }
         }
     } catch {

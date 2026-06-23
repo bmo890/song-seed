@@ -11,6 +11,10 @@ import { buildStaticWaveform } from "../utils";
 import type { SongIdea, ClipVersion, Workspace } from "../types";
 import { normalizeWorkspaces } from "../state/dataSlice";
 import { sanitizePersistedState, type PersistedAppStore } from "../state/useStore";
+import {
+    collectManagedAudioUrisFromWorkspaces,
+    listFilesRecursively,
+} from "./managedMedia";
 
 /* ── Types ──────────────────────────────────────────────────────── */
 
@@ -426,31 +430,19 @@ export async function performFullRecovery(
 export async function findOrphanedAudioFiles(
     workspaces: Workspace[]
 ): Promise<RecoveredClip[]> {
-    const dirInfo = await FileSystem.getInfoAsync(SONG_SEED_AUDIO_DIR);
-    if (!dirInfo.exists) return [];
-
-    const files = await FileSystem.readDirectoryAsync(SONG_SEED_AUDIO_DIR);
+    const files = await listFilesRecursively(SONG_SEED_AUDIO_DIR);
     if (files.length === 0) return [];
 
-    // Build a set of all audioUri values currently referenced by the store
-    const knownUris = new Set<string>();
-    for (const ws of workspaces) {
-        for (const idea of ws.ideas) {
-            for (const clip of idea.clips) {
-                if (clip.audioUri) knownUris.add(clip.audioUri);
-                if (clip.sourceAudioUri) knownUris.add(clip.sourceAudioUri);
-            }
-        }
-    }
+    const knownUris = collectManagedAudioUrisFromWorkspaces(workspaces);
 
     const audioExtensions = new Set(["m4a", "mp3", "wav", "aac", "ogg", "flac", "mp4"]);
     const orphans: RecoveredClip[] = [];
 
-    for (const filename of files) {
+    for (const fullUri of files) {
+        const filename = fullUri.split("/").pop() || "";
         const ext = filename.split(".").pop()?.toLowerCase();
         if (!ext || !audioExtensions.has(ext)) continue;
 
-        const fullUri = `${SONG_SEED_AUDIO_DIR}/${filename}`;
         if (knownUris.has(fullUri)) continue;
 
         // This file is orphaned — not referenced by any clip

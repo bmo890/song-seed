@@ -1,6 +1,7 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import * as Clipboard from "expo-clipboard";
 import * as DocumentPicker from "expo-document-picker";
+import { useSharedAudioRecorder } from "@siteed/audio-studio";
 import { AppAlert } from "../../common/AppAlert";
 import {
     formatBackupTimestamp,
@@ -12,12 +13,17 @@ import {
     runExactLibraryBackup,
 } from "../../../services/libraryBackup";
 import { restoreFromDisasterRecoveryBackup } from "../../../services/disasterRecoveryRestore";
+import {
+    isBackupOperationCancelled,
+    type BackupOperationProgress,
+} from "../../../services/backupOperation";
 import { useStore } from "../../../state/useStore";
 import type { BackupReminderFrequency } from "../../../types";
 
 const REMINDER_OPTIONS: BackupReminderFrequency[] = ["off", "weekly", "monthly", "quarterly"];
 
 export function useLibraryBackupFlow() {
+    const recorder = useSharedAudioRecorder();
     const backupReminderFrequency = useStore((state) => state.backupReminderFrequency);
     const setBackupReminderFrequency = useStore((state) => state.setBackupReminderFrequency);
     const lastSuccessfulBackupAt = useStore((state) => state.lastSuccessfulBackupAt);
@@ -26,6 +32,18 @@ export function useLibraryBackupFlow() {
     const setLastSuccessfulBackupFileName = useStore((state) => state.setLastSuccessfulBackupFileName);
     const [isBackingUp, setIsBackingUp] = useState(false);
     const [isRestoring, setIsRestoring] = useState(false);
+    const [backupProgress, setBackupProgress] = useState<BackupOperationProgress | null>(null);
+    const [restoreProgress, setRestoreProgress] = useState<BackupOperationProgress | null>(null);
+    const backupAbortRef = useRef<AbortController | null>(null);
+    const restoreAbortRef = useRef<AbortController | null>(null);
+
+    useEffect(
+        () => () => {
+            backupAbortRef.current?.abort();
+            restoreAbortRef.current?.abort();
+        },
+        []
+    );
 
     const reminderOptions = useMemo(
         () =>
@@ -42,12 +60,21 @@ export function useLibraryBackupFlow() {
             return false;
         }
 
+        const controller = new AbortController();
+        backupAbortRef.current = controller;
         setIsBackingUp(true);
+        setBackupProgress({
+            phase: "preparing",
+            completedBytes: 0,
+            totalBytes: 0,
+            message: "Preparing library backup",
+        });
         try {
-            const result = await runExactLibraryBackup(useStore.getState());
+            const result = await runExactLibraryBackup(useStore.getState(), {
+                signal: controller.signal,
+                onProgress: setBackupProgress,
+            });
             const backupFileName = result.archiveTitle;
-            setLastSuccessfulBackupAt(Date.now());
-            setLastSuccessfulBackupFileName(backupFileName);
 
             if (result.status === "incomplete") {
                 const missingCritical = result.manifest.missing.filter((entry) => entry.critical);
@@ -60,23 +87,49 @@ export function useLibraryBackupFlow() {
                 return false;
             }
 
-            AppAlert.custom(
-                "Backup ready",
-                `Saved ${backupFileName} to the location you chose.`,
-                [
-                    {
-                        label: "Copy Name",
-                        style: "default",
-                        icon: "copy-outline",
-                        onPress: () => {
-                            void Clipboard.setStringAsync(backupFileName);
+            const recordSuccessfulBackup = () => {
+                setLastSuccessfulBackupAt(Date.now());
+                setLastSuccessfulBackupFileName(backupFileName);
+                AppAlert.custom(
+                    "Backup ready",
+                    `Saved ${backupFileName} to the location you chose.`,
+                    [
+                        {
+                            label: "Copy Name",
+                            style: "default",
+                            icon: "copy-outline",
+                            onPress: () => {
+                                void Clipboard.setStringAsync(backupFileName);
+                            },
                         },
-                    },
-                    { label: "OK", style: "default" },
-                ]
-            );
+                        { label: "OK", style: "default" },
+                    ]
+                );
+            };
+
+            if (!result.saveConfirmed) {
+                AppAlert.custom(
+                    "Confirm backup saved",
+                    "The system share sheet cannot tell Song Seed whether you completed Save to Files. " +
+                        "Only confirm if the backup now appears in Files, iCloud Drive, or another location.",
+                    [
+                        { label: "Not Saved", style: "cancel" },
+                        {
+                            label: "I Saved It",
+                            style: "default",
+                            onPress: recordSuccessfulBackup,
+                        },
+                    ]
+                );
+                return false;
+            }
+
+            recordSuccessfulBackup();
             return true;
         } catch (error) {
+            if (isBackupOperationCancelled(error)) {
+                return false;
+            }
             if (error instanceof Error && error.message === BACKUP_SAVE_CANCELLED_MESSAGE) {
                 return false;
             }
@@ -86,37 +139,62 @@ export function useLibraryBackupFlow() {
             AppAlert.info("Backup failed", message);
             return false;
         } finally {
+            if (backupAbortRef.current === controller) {
+                backupAbortRef.current = null;
+            }
             setIsBackingUp(false);
+            setBackupProgress(null);
         }
     };
 
     const runRestore = async (archiveUri: string) => {
-        setIsRestoring(true);
-        try {
-            const result = await restoreFromDisasterRecoveryBackup(archiveUri);
-            const { ideas, workspaces } = result.counts;
-            const summary =
-                `${ideas} item${ideas === 1 ? "" : "s"} across ${workspaces} workspace${workspaces === 1 ? "" : "s"} restored.`;
-            const missingNote =
-                result.missing.length > 0
-                    ? ` Note: ${result.missing.length} optional file${result.missing.length === 1 ? "" : "s"} from the ` +
-                      `original backup ${result.missing.length === 1 ? "was" : "were"} not included.`
-                    : "";
+        if (recorder.isRecording || recorder.isPaused) {
             AppAlert.info(
-                "Restore complete — restart required",
-                `${summary}${missingNote}\n\nFully close and reopen Song Seed to finish loading your restored library.`
+                "Finish recording first",
+                "Save or discard the active recording before replacing the library from a backup."
             );
+            return;
+        }
+        const controller = new AbortController();
+        restoreAbortRef.current = controller;
+        setIsRestoring(true);
+        setRestoreProgress({
+            phase: "inspecting",
+            completedBytes: 0,
+            totalBytes: 0,
+            message: "Inspecting backup",
+        });
+        try {
+            await restoreFromDisasterRecoveryBackup(archiveUri, {
+                signal: controller.signal,
+                onProgress: setRestoreProgress,
+                displacedWorkspaces: useStore.getState().workspaces,
+            });
         } catch (error) {
+            if (isBackupOperationCancelled(error)) {
+                return;
+            }
             const message =
                 error instanceof Error ? error.message : "The backup could not be restored.";
             AppAlert.info("Restore failed", message);
         } finally {
+            if (restoreAbortRef.current === controller) {
+                restoreAbortRef.current = null;
+            }
             setIsRestoring(false);
+            setRestoreProgress(null);
         }
     };
 
     const handleRestore = async () => {
         if (isRestoring || isBackingUp) {
+            return;
+        }
+        if (recorder.isRecording || recorder.isPaused) {
+            AppAlert.info(
+                "Finish recording first",
+                "Save or discard the active recording before replacing the library from a backup."
+            );
             return;
         }
 
@@ -155,9 +233,14 @@ export function useLibraryBackupFlow() {
         lastSuccessfulBackupLabel: formatBackupTimestamp(lastSuccessfulBackupAt),
         reminderOptions,
         isBackingUp,
+        backupProgressLabel: formatOperationProgress(backupProgress),
         handleBackupNow,
+        cancelBackup: () => backupAbortRef.current?.abort(),
         isRestoring,
+        restoreProgressLabel: formatOperationProgress(restoreProgress),
+        canCancelRestore: isRestoring && restoreProgress?.phase !== "committing",
         handleRestore,
+        cancelRestore: () => restoreAbortRef.current?.abort(),
         copyLastBackupFileName: async () => {
             if (!lastSuccessfulBackupFileName) {
                 return false;
@@ -168,4 +251,14 @@ export function useLibraryBackupFlow() {
             return true;
         },
     };
+}
+
+function formatOperationProgress(progress: BackupOperationProgress | null) {
+    if (!progress) return null;
+    if (progress.totalBytes <= 0) return progress.message;
+    const percent = Math.min(
+        100,
+        Math.max(0, Math.round((progress.completedBytes / progress.totalBytes) * 100))
+    );
+    return `${progress.message} · ${percent}%`;
 }

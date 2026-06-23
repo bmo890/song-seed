@@ -7,6 +7,13 @@ import { extractPreview } from "@siteed/audio-studio";
 import { buildDefaultIdeaTitle, buildStaticWaveform, metersToWaveformPeaks } from "../utils";
 import { SONG_SEED_AUDIO_DIR, SONG_SEED_PREVIEW_AUDIO_DIR, SONG_SEED_SHARE_DIR } from "./storagePaths";
 import { cleanupShareTempFile } from "./managedMedia";
+import {
+    reportBackupProgress,
+    throwIfBackupCancelled,
+    yieldToBackupUi,
+    type BackupOperationOptions,
+} from "./backupOperation";
+import { IncrementalCrc32 } from "./streamingIntegrity";
 
 export const MAX_DETAILED_AUDIO_ANALYSIS_DURATION_MS = 30 * 60 * 1000;
 export const MANAGED_WAVEFORM_PEAK_COUNT = 256;
@@ -50,6 +57,9 @@ export type ZipArchiveEntry = {
     data?: string | Uint8Array;
     directory?: boolean;
     missingMessage?: string;
+    /** Precomputed by callers that already scan large files for another checksum. */
+    sizeBytes?: number;
+    crc32?: number;
 };
 
 const MIN_PLAUSIBLE_EXTERNAL_TIMESTAMP = Date.UTC(1990, 0, 1);
@@ -219,35 +229,13 @@ function bytesToBase64(bytes: Uint8Array) {
     return output;
 }
 
-const CRC32_TABLE = (() => {
-    const table = new Uint32Array(256);
-    for (let index = 0; index < 256; index += 1) {
-        let value = index;
-        for (let bit = 0; bit < 8; bit += 1) {
-            value = (value & 1) === 1 ? (0xedb88320 ^ (value >>> 1)) : (value >>> 1);
-        }
-        table[index] = value >>> 0;
-    }
-    return table;
-})();
-
 function crc32(bytes: Uint8Array) {
-    let crc = 0xffffffff;
-    for (let index = 0; index < bytes.length; index += 1) {
-        crc = CRC32_TABLE[(crc ^ bytes[index]) & 0xff] ^ (crc >>> 8);
-    }
-    return (crc ^ 0xffffffff) >>> 0;
-}
-
-function updateCrc32(crc: number, bytes: Uint8Array) {
-    let nextCrc = crc;
-    for (let index = 0; index < bytes.length; index += 1) {
-        nextCrc = CRC32_TABLE[(nextCrc ^ bytes[index]) & 0xff] ^ (nextCrc >>> 8);
-    }
-    return nextCrc;
+    return new IncrementalCrc32().update(bytes).digest();
 }
 
 const ZIP_STREAM_CHUNK_BYTES = 64 * 1024;
+const ZIP32_MAX_VALUE = 0xffffffff;
+const ZIP32_MAX_ENTRIES = 0xffff;
 
 function buildZipLocalHeader(filenameBytes: Uint8Array, size: number, checksum: number) {
     const header = new Uint8Array(30 + filenameBytes.length);
@@ -353,95 +341,175 @@ export async function shareFileUri(fileUri: string, title: string, mimeType: str
     );
 }
 
-export async function createZipArchive(destinationUri: string, entries: ZipArchiveEntry[]) {
-    const resolvedEntries = await Promise.all(
-        entries.map(async (entry) => {
-            if (entry.directory) {
-                const directoryName = entry.archiveName.endsWith("/") ? entry.archiveName : `${entry.archiveName}/`;
-                return {
-                    archiveName: directoryName,
-                    filenameBytes: encodeUtf8(directoryName),
-                    data: new Uint8Array(0),
-                    checksum: 0,
-                    size: 0,
-                };
+export async function createZipArchive(
+    destinationUri: string,
+    entries: ZipArchiveEntry[],
+    options?: BackupOperationOptions
+) {
+    const resolvedEntries: Array<{
+        archiveName: string;
+        filenameBytes: Uint8Array;
+        data?: Uint8Array;
+        fileUri?: string;
+        checksum: number;
+        size: number;
+    }> = [];
+
+    for (const entry of entries) {
+        throwIfBackupCancelled(options?.signal);
+        if (entry.directory) {
+            const directoryName = entry.archiveName.endsWith("/")
+                ? entry.archiveName
+                : `${entry.archiveName}/`;
+            resolvedEntries.push({
+                archiveName: directoryName,
+                filenameBytes: encodeUtf8(directoryName),
+                data: new Uint8Array(0),
+                checksum: 0,
+                size: 0,
+            });
+            continue;
+        }
+
+        if (typeof entry.fileUri === "string") {
+            const file = new File(entry.fileUri);
+            const info = await FileSystem.getInfoAsync(entry.fileUri);
+            if (!info.exists) {
+                throw new Error(`Missing file: ${entry.archiveName}`);
             }
 
-            if (typeof entry.fileUri === "string") {
-                const file = new File(entry.fileUri);
-                const info = await FileSystem.getInfoAsync(entry.fileUri);
-                if (!info.exists) {
-                    throw new Error(`Missing file: ${entry.archiveName}`);
-                }
-
-                let crc = 0xffffffff;
-                let size = 0;
+            let checksum = entry.crc32;
+            let size = entry.sizeBytes;
+            if (checksum == null || size == null) {
+                const crc = new IncrementalCrc32();
+                size = 0;
+                let bytesSinceYield = 0;
                 const handle = file.open();
                 try {
                     while (true) {
+                        throwIfBackupCancelled(options?.signal);
                         const chunk = handle.readBytes(ZIP_STREAM_CHUNK_BYTES);
                         if (chunk.length === 0) break;
-                        crc = updateCrc32(crc, chunk);
+                        crc.update(chunk);
                         size += chunk.length;
+                        bytesSinceYield += chunk.length;
+                            if (bytesSinceYield >= 2 * 1024 * 1024) {
+                            bytesSinceYield = 0;
+                            await yieldToBackupUi(options?.signal);
+                        }
                     }
                 } finally {
                     handle.close();
                 }
-
-                return {
-                    archiveName: entry.archiveName,
-                    filenameBytes: encodeUtf8(entry.archiveName),
-                    fileUri: entry.fileUri,
-                    checksum: (crc ^ 0xffffffff) >>> 0,
-                    size,
-                };
+                checksum = crc.digest();
+            } else if (info.size != null && info.size !== size) {
+                throw new Error(`File changed while preparing archive: ${entry.archiveName}`);
             }
 
-            let data: Uint8Array;
-            if (typeof entry.data === "string") {
-                data = encodeUtf8(entry.data);
-            } else if (entry.data instanceof Uint8Array) {
-                data = entry.data;
-            } else {
-                throw new Error(`No archive data for ${entry.archiveName}`);
-            }
-
-            return {
+            resolvedEntries.push({
                 archiveName: entry.archiveName,
                 filenameBytes: encodeUtf8(entry.archiveName),
-                data,
-                checksum: crc32(data),
-                size: data.length,
-            };
-        })
+                fileUri: entry.fileUri,
+                checksum,
+                size,
+            });
+            continue;
+        }
+
+        let data: Uint8Array;
+        if (typeof entry.data === "string") {
+            data = encodeUtf8(entry.data);
+        } else if (entry.data instanceof Uint8Array) {
+            data = entry.data;
+        } else {
+            throw new Error(`No archive data for ${entry.archiveName}`);
+        }
+
+        resolvedEntries.push({
+            archiveName: entry.archiveName,
+            filenameBytes: encodeUtf8(entry.archiveName),
+            data,
+            checksum: crc32(data),
+            size: data.length,
+        });
+    }
+
+    if (resolvedEntries.length >= ZIP32_MAX_ENTRIES) {
+        throw new Error("Archive contains too many files for the supported ZIP format.");
+    }
+    let projectedOffset = 0;
+    for (const entry of resolvedEntries) {
+        if (entry.size > ZIP32_MAX_VALUE) {
+            throw new Error(`Archive file is too large for the supported ZIP format: ${entry.archiveName}`);
+        }
+        projectedOffset += 30 + entry.filenameBytes.length + entry.size;
+        if (projectedOffset > ZIP32_MAX_VALUE) {
+            throw new Error("Archive exceeds the 4 GB limit of the supported ZIP format.");
+        }
+    }
+    const projectedCentralDirectorySize = resolvedEntries.reduce(
+        (sum, entry) => sum + 46 + entry.filenameBytes.length,
+        0
     );
+    if (projectedOffset + projectedCentralDirectorySize + 22 > ZIP32_MAX_VALUE) {
+        throw new Error("Archive exceeds the 4 GB limit of the supported ZIP format.");
+    }
 
     const destinationFile = new File(destinationUri);
     destinationFile.create({ intermediates: true, overwrite: true });
     const destinationHandle = destinationFile.open();
+    const totalSourceBytes = resolvedEntries.reduce((sum, entry) => sum + entry.size, 0);
+    let completedSourceBytes = 0;
+    let completed = false;
 
     try {
         let localOffset = 0;
         const centralParts: Uint8Array[] = [];
 
         for (const entry of resolvedEntries) {
+            throwIfBackupCancelled(options?.signal);
             const localHeader = buildZipLocalHeader(entry.filenameBytes, entry.size, entry.checksum);
             destinationHandle.writeBytes(localHeader);
 
             if (entry.fileUri) {
                 const sourceFile = new File(entry.fileUri);
                 const sourceHandle = sourceFile.open();
+                let writtenForEntry = 0;
+                let bytesSinceYield = 0;
+                const writtenCrc = new IncrementalCrc32();
                 try {
                     while (true) {
+                        throwIfBackupCancelled(options?.signal);
                         const chunk = sourceHandle.readBytes(ZIP_STREAM_CHUNK_BYTES);
                         if (chunk.length === 0) break;
                         destinationHandle.writeBytes(chunk);
+                        writtenCrc.update(chunk);
+                        writtenForEntry += chunk.length;
+                        completedSourceBytes += chunk.length;
+                        bytesSinceYield += chunk.length;
+                        if (bytesSinceYield >= 2 * 1024 * 1024) {
+                            reportBackupProgress(options, {
+                                phase: "packaging",
+                                completedBytes: completedSourceBytes,
+                                totalBytes: totalSourceBytes,
+                                message: "Packaging backup",
+                            });
+                            bytesSinceYield = 0;
+                            await yieldToBackupUi(options?.signal);
+                        }
                     }
                 } finally {
                     sourceHandle.close();
                 }
+                if (writtenForEntry !== entry.size) {
+                    throw new Error(`File changed while packaging archive: ${entry.archiveName}`);
+                }
+                if (writtenCrc.digest() !== entry.checksum) {
+                    throw new Error(`File changed while packaging archive: ${entry.archiveName}`);
+                }
             } else if (entry.data) {
                 destinationHandle.writeBytes(entry.data);
+                completedSourceBytes += entry.data.length;
             }
 
             centralParts.push(
@@ -457,9 +525,20 @@ export async function createZipArchive(destinationUri: string, entries: ZipArchi
         destinationHandle.writeBytes(
             buildZipEndRecord(resolvedEntries.length, centralDirectorySize, localOffset)
         );
+        completed = true;
     } finally {
         destinationHandle.close();
+        if (!completed) {
+            await FileSystem.deleteAsync(destinationUri, { idempotent: true }).catch(() => {});
+        }
     }
+
+    reportBackupProgress(options, {
+        phase: "packaging",
+        completedBytes: totalSourceBytes,
+        totalBytes: totalSourceBytes,
+        message: "Backup packaged",
+    });
 }
 
 export async function loadAudioDurationMs(audioUri: string, timeoutMs = 5000): Promise<number | undefined> {

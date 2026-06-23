@@ -6,6 +6,8 @@ import {
     SONG_SEED_TRASH_DIR,
     isManagedAudioUri,
     isSongSeedManagedUri,
+    resolveManagedUri,
+    toRelativeManagedPath,
 } from "./storagePaths";
 
 export const SHARE_TEMP_FILE_MAX_AGE_MS = 24 * 60 * 60 * 1000;
@@ -14,19 +16,15 @@ export const MAX_IN_MEMORY_ARCHIVE_BYTES = 150 * 1024 * 1024;
 export const TRASH_RETENTION_MS = 14 * 24 * 60 * 60 * 1000;
 
 function collectManagedClipUris(clip: ClipVersion, target: Set<string>) {
-    if (clip.audioUri && isSongSeedManagedUri(clip.audioUri)) {
-        target.add(clip.audioUri);
-    }
-    if (clip.sourceAudioUri && isSongSeedManagedUri(clip.sourceAudioUri)) {
-        target.add(clip.sourceAudioUri);
-    }
-    if (clip.overdub?.renderedMixUri && isSongSeedManagedUri(clip.overdub.renderedMixUri)) {
-        target.add(clip.overdub.renderedMixUri);
-    }
+    const add = (uri: string | undefined) => {
+        const path = toRelativeManagedPath(uri);
+        if (path) target.add(resolveManagedUri(path));
+    };
+    add(clip.audioUri);
+    add(clip.sourceAudioUri);
+    add(clip.overdub?.renderedMixUri);
     for (const stem of clip.overdub?.stems ?? []) {
-        if (stem.audioUri && isSongSeedManagedUri(stem.audioUri)) {
-            target.add(stem.audioUri);
-        }
+        add(stem.audioUri);
     }
 }
 
@@ -50,6 +48,44 @@ export function collectManagedAudioUrisFromWorkspaces(workspaces: Workspace[]) {
         collectManagedWorkspaceAudioUris(workspace).forEach((uri) => uris.add(uri));
     });
     return uris;
+}
+
+export function collectManagedLibraryFilePathsFromWorkspaces(workspaces: Workspace[]) {
+    const paths = new Set<string>();
+    for (const workspace of workspaces) {
+        const archivePath = toRelativeManagedPath(workspace.archiveState?.archiveUri);
+        if (archivePath) paths.add(archivePath);
+        for (const uri of collectManagedWorkspaceAudioUris(workspace)) {
+            const path = toRelativeManagedPath(uri);
+            if (path) paths.add(path);
+        }
+    }
+    return paths;
+}
+
+export async function listFilesRecursively(rootUri: string): Promise<string[]> {
+    const rootInfo = await FileSystem.getInfoAsync(rootUri);
+    if (!rootInfo.exists) return [];
+    if (!("isDirectory" in rootInfo) || rootInfo.isDirectory !== true) return [rootUri];
+
+    const files: string[] = [];
+    const pending = [rootUri];
+    while (pending.length > 0) {
+        const directory = pending.pop()!;
+        const names = await FileSystem.readDirectoryAsync(directory);
+        for (const name of names) {
+            const uri = `${directory}/${name}`;
+            const info = await FileSystem.getInfoAsync(uri);
+            if (!info.exists) continue;
+            if ("isDirectory" in info && info.isDirectory === true) {
+                pending.push(uri);
+            } else {
+                files.push(uri);
+            }
+        }
+    }
+    files.sort();
+    return files;
 }
 
 export function filterUnreferencedManagedAudioUris(
@@ -91,19 +127,21 @@ async function ensureTrashDir() {
  * change is durable, the audio survives in quarantine and can be recovered. Purged after
  * TRASH_RETENTION_MS by `purgeExpiredTrash`.
  */
-async function trashFileIfManaged(uri: string) {
+async function trashFileIfManaged(uri: string): Promise<boolean> {
     if (!isSongSeedManagedUri(uri)) {
-        return;
+        return false;
     }
     try {
         const info = await FileSystem.getInfoAsync(uri);
-        if (!info.exists) return;
+        if (!info.exists) return true;
         await ensureTrashDir();
         const basename = uri.split("/").pop() || "audio";
         const trashUri = `${SONG_SEED_TRASH_DIR}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}-${basename}`;
         await FileSystem.moveAsync({ from: uri, to: trashUri });
+        return true;
     } catch (error) {
         console.warn("[ManagedMedia] Failed to move managed file to trash", uri, error);
+        return false;
     }
 }
 
@@ -114,6 +152,17 @@ export async function deleteManagedAudioUris(uris: Iterable<string>) {
 export async function deleteManagedArchiveUri(uri: string | null | undefined) {
     if (!uri) return;
     await trashFileIfManaged(uri);
+}
+
+export async function quarantineManagedPaths(paths: Iterable<string>) {
+    const failedPaths: string[] = [];
+    for (const path of new Set(paths)) {
+        const relativePath = toRelativeManagedPath(path);
+        if (!relativePath || !(await trashFileIfManaged(resolveManagedUri(relativePath)))) {
+            failedPaths.push(path);
+        }
+    }
+    return { complete: failedPaths.length === 0, failedPaths };
 }
 
 export async function cleanupShareTempFile(fileUri: string) {

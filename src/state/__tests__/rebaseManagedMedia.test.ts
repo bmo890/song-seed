@@ -117,4 +117,15 @@ describe("toRelativeWorkspacesManagedMedia", () => {
         expect(clip.overdub!.stems[0].audioUri).toBe("songseed/audio/stem-1.m4a");
         expect(clip.overdub!.renderedMixUri).toBe("songseed/audio/mix-1.m4a");
     });
+
+    it("hydrates canonical relative backup paths against the live container", () => {
+        const relative = toRelativeWorkspacesManagedMedia(libraryWith(NEW));
+        const hydrated = rebaseWorkspacesManagedMedia(relative);
+        const clip = hydrated[0].ideas[0].clips[0];
+
+        expect(clip.audioUri).toBe(`${NEW}/clip-1.m4a`);
+        expect(clip.sourceAudioUri).toBe(`${NEW}/clip-1-src.m4a`);
+        expect(clip.overdub!.renderedMixUri).toBe(`${NEW}/mix-1.m4a`);
+        expect(clip.overdub!.stems[0].audioUri).toBe(`${NEW}/stem-1.m4a`);
+    });
 });

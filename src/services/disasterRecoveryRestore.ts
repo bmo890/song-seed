@@ -1,26 +1,50 @@
 import * as FileSystem from "expo-file-system/legacy";
 import * as Crypto from "expo-crypto";
-import { strFromU8, unzipSync } from "fflate";
+import { File } from "expo-file-system";
+import { strFromU8 } from "fflate";
 import { resolveManagedUri } from "./storagePaths";
 import { persistRawSnapshot } from "../state/db/storage";
 import {
     DR_BACKUP_FORMAT_VERSION,
     type DrBackupManifest,
 } from "./disasterRecoveryBackup";
-import { STORE_NAME, STORE_VERSION, type PersistedAppStore } from "../state/useStore";
+import { STORE_NAME, STORE_VERSION } from "../state/useStore";
 import { setPersistBlocked } from "../state/persistRuntime";
+import { requireRestoreRestart } from "../state/restoreRuntime";
+import type { Workspace } from "../types";
+import {
+    prepareDisasterRecoverySnapshot,
+    validateDisasterRecoveryManifest,
+} from "./disasterRecoveryValidation";
+import {
+    ensureBackupDiskSpace,
+    isBackupOperationCancelled,
+    reportBackupProgress,
+    throwIfBackupCancelled,
+    type BackupOperationOptions,
+} from "./backupOperation";
+import { IncrementalBase64Sha256 } from "./streamingIntegrity";
+import {
+    indexStoredZipArchive,
+    readStoredZipEntryBytes,
+    streamStoredZipEntry,
+} from "./storedZipArchive";
+import {
+    beginDisasterRecoveryRestoreJournal,
+    completeDisasterRecoveryRestoreJournal,
+    markDisasterRecoveryRestoreCommitted,
+} from "./disasterRecoveryTemp";
+import { collectManagedLibraryFilePathsFromWorkspaces } from "./managedMedia";
 
 /**
  * Restore from a disaster-recovery archive produced by `buildDisasterRecoveryBackup`.
  *
- * Safety model: the archive is fully unzipped and EVERY file is verified against the
- * manifest's SHA-256 BEFORE anything is written. Only once all checks pass are media
- * files written and the metadata snapshot committed — so a corrupt or truncated backup
- * never partially overwrites the live library. Metadata is committed LAST, so a failure
- * mid-restore can leave (harmless) orphan audio files but never metadata pointing at
- * missing/bad files.
+ * Safety model: EVERY file is streamed through CRC-32 and SHA-256 verification BEFORE
+ * anything is written. Only once all checks pass are media files streamed to unique
+ * destinations and the metadata snapshot committed. Metadata is committed LAST, and a
+ * restore journal lets the next launch clean files left by a killed restore process.
  *
- * The snapshot stores relative media paths; it is committed to AsyncStorage and rebased
+ * The snapshot stores relative media paths; it is committed to SQLite and rebased
  * to absolute URIs by `sanitizePersistedState` on the next hydration, so the caller must
  * restart the app to finish loading the restored library.
  */
@@ -38,52 +62,15 @@ export type DrRestoreResult = {
     needsRestart: true;
 };
 
+export type DisasterRecoveryRestoreOptions = BackupOperationOptions & {
+    displacedWorkspaces?: Workspace[];
+};
+
 export class DrRestoreError extends Error {
     constructor(message: string) {
         super(message);
         this.name = "DrRestoreError";
     }
-}
-
-function base64ToBytes(base64: string) {
-    const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-    const clean = base64.replace(/[^A-Za-z0-9+/=]/g, "");
-    let buffer = 0;
-    let bits = 0;
-    const output: number[] = [];
-
-    for (const char of clean) {
-        if (char === "=") break;
-        const index = alphabet.indexOf(char);
-        if (index < 0) continue;
-        buffer = (buffer << 6) | index;
-        bits += 6;
-        if (bits >= 8) {
-            bits -= 8;
-            output.push((buffer >> bits) & 0xff);
-        }
-    }
-
-    return Uint8Array.from(output);
-}
-
-function bytesToBase64(bytes: Uint8Array) {
-    const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-    let output = "";
-
-    for (let index = 0; index < bytes.length; index += 3) {
-        const a = bytes[index] ?? 0;
-        const b = bytes[index + 1] ?? 0;
-        const c = bytes[index + 2] ?? 0;
-        const chunk = (a << 16) | (b << 8) | c;
-
-        output += alphabet[(chunk >> 18) & 0x3f];
-        output += alphabet[(chunk >> 12) & 0x3f];
-        output += index + 1 < bytes.length ? alphabet[(chunk >> 6) & 0x3f] : "=";
-        output += index + 2 < bytes.length ? alphabet[chunk & 0x3f] : "=";
-    }
-
-    return output;
 }
 
 async function sha256OfString(data: string): Promise<string> {
@@ -95,45 +82,103 @@ function parentDirOf(uri: string): string {
     return idx === -1 ? uri : uri.slice(0, idx);
 }
 
-export async function restoreFromDisasterRecoveryBackup(archiveUri: string): Promise<DrRestoreResult> {
+async function cleanupWrittenRestoreFiles(uris: Iterable<string>) {
+    const targets = Array.from(uris);
+    await Promise.all(
+        targets.map(async (uri) => {
+            try {
+                await FileSystem.deleteAsync(uri, { idempotent: true });
+            } catch {
+                // Failed restore files are unreferenced. Startup integrity cleanup can recover
+                // from a filesystem provider refusing immediate deletion.
+            }
+        })
+    );
+    const remaining = await Promise.all(
+        targets.map(async (uri) => {
+            try {
+                return (await FileSystem.getInfoAsync(uri)).exists;
+            } catch {
+                return true;
+            }
+        })
+    );
+    return remaining.every((exists) => !exists);
+}
+
+export async function restoreFromDisasterRecoveryBackup(
+    archiveUri: string,
+    options?: DisasterRecoveryRestoreOptions
+): Promise<DrRestoreResult> {
+    throwIfBackupCancelled(options?.signal);
     const info = await FileSystem.getInfoAsync(archiveUri);
     if (!info.exists) {
         throw new DrRestoreError("Backup file could not be found.");
     }
 
-    // Read + unzip the whole archive. fflate validates each entry's CRC-32 here and throws
-    // on corruption, giving a first integrity gate before our SHA-256 checks.
-    const archiveBase64 = await FileSystem.readAsStringAsync(archiveUri, {
-        encoding: FileSystem.EncodingType.Base64,
-    });
-    let unzipped: Record<string, Uint8Array>;
+    let archiveIndex;
     try {
-        unzipped = unzipSync(base64ToBytes(archiveBase64));
+        archiveIndex = await indexStoredZipArchive(archiveUri, options);
     } catch (err) {
+        if (isBackupOperationCancelled(err)) throw err;
         throw new DrRestoreError(
             `Backup archive is corrupt or unreadable: ${err instanceof Error ? err.message : String(err)}`
         );
     }
 
-    const snapshotBytes = unzipped[SNAPSHOT_ENTRY];
-    const manifestBytes = unzipped[MANIFEST_ENTRY];
-    if (!snapshotBytes || !manifestBytes) {
+    const snapshotEntry = archiveIndex.entries.get(SNAPSHOT_ENTRY);
+    const manifestEntry = archiveIndex.entries.get(MANIFEST_ENTRY);
+    if (!snapshotEntry || !manifestEntry) {
         throw new DrRestoreError("Backup is missing its snapshot or manifest — not a Song Seed backup.");
     }
 
-    let manifest: DrBackupManifest;
+    let manifestJson: string;
     try {
-        manifest = JSON.parse(strFromU8(manifestBytes)) as DrBackupManifest;
-    } catch {
-        throw new DrRestoreError("Backup manifest is unreadable.");
-    }
-    if (typeof manifest.formatVersion !== "number" || manifest.formatVersion > DR_BACKUP_FORMAT_VERSION) {
+        manifestJson = strFromU8(
+            await readStoredZipEntryBytes(archiveIndex, manifestEntry, undefined, options)
+        );
+    } catch (error) {
+        if (isBackupOperationCancelled(error)) throw error;
         throw new DrRestoreError(
-            `Backup was made by a newer app version (format ${manifest.formatVersion}). Update the app to restore it.`
+            error instanceof Error ? error.message : "Backup metadata is unreadable."
         );
     }
 
-    const snapshotJson = strFromU8(snapshotBytes);
+    let manifestValue: unknown;
+    try {
+        manifestValue = JSON.parse(manifestJson);
+    } catch {
+        throw new DrRestoreError("Backup manifest is unreadable.");
+    }
+    let manifest;
+    try {
+        manifest = validateDisasterRecoveryManifest(
+            manifestValue,
+            DR_BACKUP_FORMAT_VERSION,
+            STORE_VERSION
+        );
+    } catch (error) {
+        throw new DrRestoreError(error instanceof Error ? error.message : "Backup manifest is invalid.");
+    }
+    const missingCritical = manifest.missing.filter((entry) => entry.critical);
+    if (missingCritical.length > 0 || manifest.status === "incomplete") {
+        throw new DrRestoreError(
+            `This backup is incomplete and cannot safely restore the library. ${missingCritical.length} ` +
+                `critical recording${missingCritical.length === 1 ? " is" : "s are"} missing.`
+        );
+    }
+
+    let snapshotJson: string;
+    try {
+        snapshotJson = strFromU8(
+            await readStoredZipEntryBytes(archiveIndex, snapshotEntry, undefined, options)
+        );
+    } catch (error) {
+        if (isBackupOperationCancelled(error)) throw error;
+        throw new DrRestoreError(
+            error instanceof Error ? error.message : "Backup snapshot is unreadable."
+        );
+    }
 
     // ── Verify EVERYTHING before writing anything ──
     const snapshotSha = await sha256OfString(snapshotJson);
@@ -141,60 +186,228 @@ export async function restoreFromDisasterRecoveryBackup(archiveUri: string): Pro
         throw new DrRestoreError("Backup metadata failed its integrity check (snapshot checksum mismatch).");
     }
 
-    let snapshot: PersistedAppStore;
+    let snapshotValue: unknown;
     try {
-        snapshot = JSON.parse(snapshotJson) as PersistedAppStore;
+        snapshotValue = JSON.parse(snapshotJson);
     } catch {
         throw new DrRestoreError("Backup snapshot is unreadable.");
     }
 
-    // Verify every file's SHA-256 BEFORE writing anything. Base64 is encoded one file at a
-    // time and discarded after hashing so peak memory stays bounded (the unzipped bytes are
-    // already held; we don't additionally retain every file's base64 at once).
-    for (const record of manifest.files) {
-        const data = unzipped[`${MEDIA_PREFIX}${record.path}`];
-        if (!data) {
-            throw new DrRestoreError(`Backup is missing audio file listed in its manifest: ${record.path}`);
-        }
-        const sha = await sha256OfString(bytesToBase64(data));
-        if (sha !== record.sha256) {
-            throw new DrRestoreError(`Audio file failed its integrity check: ${record.path}`);
-        }
+    const restoreToken = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+    let prepared;
+    try {
+        prepared = prepareDisasterRecoverySnapshot(snapshotValue, manifest, restoreToken);
+    } catch (error) {
+        throw new DrRestoreError(error instanceof Error ? error.message : "Backup snapshot is invalid.");
     }
 
-    // ── All checks passed — write media, then commit metadata last ── (re-encode per file)
-    const ensuredDirs = new Set<string>();
+    const expectedEntries = new Set([
+        SNAPSHOT_ENTRY,
+        MANIFEST_ENTRY,
+        ...manifest.files.map((record) => `${MEDIA_PREFIX}${record.path}`),
+    ]);
+    const unexpectedEntry = Array.from(archiveIndex.entries.keys()).find(
+        (entry) => !expectedEntries.has(entry)
+    );
+    if (unexpectedEntry) {
+        throw new DrRestoreError(`Backup contains an unexpected archive entry: ${unexpectedEntry}`);
+    }
+    if (archiveIndex.entries.size !== expectedEntries.size) {
+        throw new DrRestoreError("Backup archive entry count does not match its manifest.");
+    }
+
+    let totalMediaBytes = 0;
     for (const record of manifest.files) {
-        const targetUri = resolveManagedUri(record.path);
-        const dir = parentDirOf(targetUri);
-        if (!ensuredDirs.has(dir)) {
-            const dirInfo = await FileSystem.getInfoAsync(dir);
-            if (!dirInfo.exists) {
-                await FileSystem.makeDirectoryAsync(dir, { intermediates: true });
-            }
-            ensuredDirs.add(dir);
+        const entry = archiveIndex.entries.get(`${MEDIA_PREFIX}${record.path}`);
+        if (!entry) {
+            throw new DrRestoreError(
+                `Backup is missing audio file listed in its manifest: ${record.path}`
+            );
         }
-        await FileSystem.writeAsStringAsync(targetUri, bytesToBase64(unzipped[`${MEDIA_PREFIX}${record.path}`]!), {
-            encoding: FileSystem.EncodingType.Base64,
+        if (entry.sizeBytes !== record.sizeBytes) {
+            throw new DrRestoreError(
+                `Audio file size does not match the backup manifest: ${record.path}`
+            );
+        }
+        totalMediaBytes += record.sizeBytes;
+        if (!Number.isSafeInteger(totalMediaBytes) || totalMediaBytes > archiveIndex.archiveSizeBytes) {
+            throw new DrRestoreError("Backup media sizes are invalid.");
+        }
+    }
+    await ensureBackupDiskSpace(totalMediaBytes, "restore this backup");
+    throwIfBackupCancelled(options?.signal);
+
+    // Verify every file before writing anything. The backup format hashes each file's
+    // base64 representation for compatibility with existing v1 backups; encoding and
+    // hashing are both incremental here.
+    let verifiedBytes = 0;
+    reportBackupProgress(options, {
+        phase: "verifying",
+        completedBytes: 0,
+        totalBytes: totalMediaBytes,
+        message: "Verifying backup recordings",
+    });
+    for (const record of manifest.files) {
+        throwIfBackupCancelled(options?.signal);
+        const entry = archiveIndex.entries.get(`${MEDIA_PREFIX}${record.path}`);
+        if (!entry) throw new DrRestoreError(`Backup media entry disappeared: ${record.path}`);
+        const sha = new IncrementalBase64Sha256();
+        try {
+            await streamStoredZipEntry(
+                archiveIndex,
+                entry,
+                (chunk) => {
+                    sha.update(chunk);
+                },
+                {
+                    ...options,
+                    phase: "verifying",
+                    progressOffsetBytes: verifiedBytes,
+                    progressTotalBytes: totalMediaBytes,
+                    progressMessage: "Verifying backup recordings",
+                }
+            );
+        } catch (error) {
+            throw new DrRestoreError(
+                error instanceof Error ? error.message : `Audio file is corrupt: ${record.path}`
+            );
+        }
+        if (sha.digestHex() !== record.sha256) {
+            throw new DrRestoreError(`Audio file failed its integrity check: ${record.path}`);
+        }
+        verifiedBytes += record.sizeBytes;
+        reportBackupProgress(options, {
+            phase: "verifying",
+            completedBytes: verifiedBytes,
+            totalBytes: totalMediaBytes,
+            message: "Verifying backup recordings",
         });
     }
 
-    // Commit metadata last, to the authoritative store (SQLite) that hydration reads from.
-    // The snapshot keeps relative media paths; sanitizePersistedState rebases them to the
-    // live container on the next hydration.
-    await persistRawSnapshot(
-        STORE_NAME,
-        JSON.stringify({ state: snapshot, version: STORE_VERSION })
-    );
+    // Write every restored file to a unique managed destination. Existing live files are
+    // never overwritten: if the process stops before metadata commits, the old library is
+    // untouched and the partial restore consists only of harmless unreferenced files.
+    const ensuredDirs = new Set<string>();
+    const writtenUris: string[] = [];
+    let persistenceLocked = false;
+    let journalStarted = false;
+    let restoredBytes = 0;
+    try {
+        await beginDisasterRecoveryRestoreJournal(
+            restoreToken,
+            prepared.destinationPathBySourcePath.values(),
+            collectManagedLibraryFilePathsFromWorkspaces(options?.displacedWorkspaces ?? [])
+        );
+        journalStarted = true;
+        reportBackupProgress(options, {
+            phase: "restoring",
+            completedBytes: 0,
+            totalBytes: totalMediaBytes,
+            message: "Restoring recordings",
+        });
+
+        for (const record of manifest.files) {
+            throwIfBackupCancelled(options?.signal);
+            const destinationPath = prepared.destinationPathBySourcePath.get(record.path);
+            if (!destinationPath) {
+                throw new DrRestoreError(`Backup restore destination is missing for ${record.path}`);
+            }
+            const targetUri = resolveManagedUri(destinationPath);
+            const dir = parentDirOf(targetUri);
+            if (!ensuredDirs.has(dir)) {
+                const dirInfo = await FileSystem.getInfoAsync(dir);
+                if (!dirInfo.exists) {
+                    await FileSystem.makeDirectoryAsync(dir, { intermediates: true });
+                }
+                ensuredDirs.add(dir);
+            }
+            const existingTarget = await FileSystem.getInfoAsync(targetUri);
+            if (existingTarget.exists) {
+                throw new DrRestoreError(`Restore destination already exists for ${record.path}`);
+            }
+
+            const entry = archiveIndex.entries.get(`${MEDIA_PREFIX}${record.path}`);
+            if (!entry) {
+                throw new DrRestoreError(`Backup is missing audio file listed in its manifest: ${record.path}`);
+            }
+            const targetFile = new File(targetUri);
+            targetFile.create({ intermediates: true, overwrite: false });
+            writtenUris.push(targetUri);
+            const targetHandle = targetFile.open();
+            try {
+                await streamStoredZipEntry(
+                    archiveIndex,
+                    entry,
+                    (chunk) => targetHandle.writeBytes(chunk),
+                    {
+                        ...options,
+                        phase: "restoring",
+                        progressOffsetBytes: restoredBytes,
+                        progressTotalBytes: totalMediaBytes,
+                        progressMessage: "Restoring recordings",
+                    }
+                );
+            } finally {
+                targetHandle.close();
+            }
+            if (!targetFile.exists || targetFile.size !== record.sizeBytes) {
+                throw new DrRestoreError(`Could not verify restored audio file: ${record.path}`);
+            }
+            restoredBytes += record.sizeBytes;
+            reportBackupProgress(options, {
+                phase: "restoring",
+                completedBytes: restoredBytes,
+                totalBytes: totalMediaBytes,
+                message: "Restoring recordings",
+            });
+        }
+
+        // Stop new Zustand writes, wait behind any write already in flight, then commit the
+        // restored metadata last. The serialized SQLite queue guarantees this snapshot wins.
+        throwIfBackupCancelled(options?.signal);
+        reportBackupProgress(options, {
+            phase: "committing",
+            completedBytes: totalMediaBytes,
+            totalBytes: totalMediaBytes,
+            message: "Finishing restore",
+        });
+        setPersistBlocked(true);
+        persistenceLocked = true;
+        await persistRawSnapshot(
+            STORE_NAME,
+            JSON.stringify({ state: prepared.snapshot, version: manifest.storeVersion })
+        );
+    } catch (error) {
+        if (persistenceLocked) {
+            setPersistBlocked(false);
+        }
+        const cleanupComplete = await cleanupWrittenRestoreFiles(writtenUris);
+        if (journalStarted && cleanupComplete) {
+            await completeDisasterRecoveryRestoreJournal(restoreToken);
+        }
+        if (isBackupOperationCancelled(error)) {
+            throw error;
+        }
+        throw error instanceof DrRestoreError
+            ? error
+            : new DrRestoreError(error instanceof Error ? error.message : "Backup restore failed.");
+    }
 
     // Lock persistence so the still-loaded (pre-restore) in-memory store cannot write back
-    // over the restored snapshot before the user restarts. The lock resets on next launch.
-    setPersistBlocked(true);
-
-    return {
+    // over the restored snapshot before the app reloads. Publish the blocking runtime state
+    // before any best-effort journal bookkeeping so there is no interactive stale-state gap.
+    const result: DrRestoreResult = {
         status: manifest.status,
         counts: manifest.counts,
         missing: manifest.missing,
         needsRestart: true,
     };
+    requireRestoreRestart(result.counts, result.missing.length);
+
+    // Keep the committed journal until the restored snapshot hydrates. Startup finalization
+    // verifies the restored destinations before quarantining files displaced by the restore.
+    await markDisasterRecoveryRestoreCommitted(restoreToken).catch((error) => {
+        console.warn("[Backup] Failed to mark completed restore journal", error);
+    });
+    return result;
 }

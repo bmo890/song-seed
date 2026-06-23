@@ -42,4 +42,17 @@ export const settingsScreenStyles = StyleSheet.create({
     lineHeight: 20,
     color: "#334155",
   },
+  backupCancelButton: {
+    alignSelf: "flex-start",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingVertical: 6,
+    paddingHorizontal: 2,
+  },
+  backupCancelText: {
+    fontSize: 13,
+    lineHeight: 18,
+    color: "#64748b",
+  },
 });

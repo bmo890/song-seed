@@ -8,7 +8,12 @@ import {
     sanitizeArchiveSegment,
     type ZipArchiveEntry,
 } from "./audioStorage";
-import { SONG_SEED_WORKSPACE_ARCHIVE_DIR, isSongSeedManagedUri } from "./storagePaths";
+import {
+    SONG_SEED_WORKSPACE_ARCHIVE_DIR,
+    isSongSeedManagedUri,
+    rebaseManagedUri,
+} from "./storagePaths";
+import { rebaseWorkspacesManagedMedia } from "../state/rebaseManagedMedia";
 
 const WORKSPACE_ARCHIVE_SCHEMA_VERSION = 1;
 
@@ -204,7 +209,8 @@ function mergeRestoredWorkspace(currentWorkspace: Workspace, snapshotWorkspace: 
 }
 
 function normalizeRestoredWorkspace(workspace: Workspace): Workspace {
-    return normalizeWorkspaces([workspace])[0] ?? workspace;
+    const rebased = rebaseWorkspacesManagedMedia([workspace])[0] ?? workspace;
+    return normalizeWorkspaces([rebased])[0] ?? rebased;
 }
 
 async function verifyArchiveFile(
@@ -376,17 +382,18 @@ export async function restoreWorkspaceFromDevice(workspace: Workspace): Promise<
             if (!entryBytes) {
                 throw new Error(`Archive package is missing ${file.archivePath}.`);
             }
-            assertManagedRestoreUri(file.liveUri);
+            const targetUri = rebaseManagedUri(file.liveUri);
+            assertManagedRestoreUri(targetUri);
 
-            await writeFileBytes(file.liveUri, entryBytes);
-            const restoredInfo = await FileSystem.getInfoAsync(file.liveUri);
+            await writeFileBytes(targetUri, entryBytes);
+            const restoredInfo = await FileSystem.getInfoAsync(targetUri);
             if (!restoredInfo.exists) {
-                throw new Error(`Could not restore ${file.liveUri}.`);
+                throw new Error(`Could not restore ${targetUri}.`);
             }
             if (typeof restoredInfo.size === "number" && restoredInfo.size !== file.originalSizeBytes) {
-                throw new Error(`Restored file size mismatch for ${file.liveUri}.`);
+                throw new Error(`Restored file size mismatch for ${targetUri}.`);
             }
-            writtenFiles.push(file);
+            writtenFiles.push({ ...file, liveUri: targetUri });
         }
     } catch (error) {
         await Promise.all(
@@ -414,7 +421,7 @@ export async function restoreWorkspaceFromDevice(workspace: Workspace): Promise<
         restoredWorkspace: normalizeRestoredWorkspace(
             mergeRestoredWorkspace(workspace, verification.workspaceSnapshot)
         ),
-        restoredAudioUris: verification.manifest.audioFiles.map((file) => file.liveUri),
+        restoredAudioUris: writtenFiles.map((file) => file.liveUri),
         warnings,
     };
 }

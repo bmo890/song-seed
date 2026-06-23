@@ -1,0 +1,59 @@
+diff --git a/node_modules/expo-file-system/android/src/main/java/expo/modules/filesystem/FileSystemFileHandle.kt b/node_modules/expo-file-system/android/src/main/java/expo/modules/filesystem/FileSystemFileHandle.kt
+index 58bee04..a76e02d 100644
+--- a/node_modules/expo-file-system/android/src/main/java/expo/modules/filesystem/FileSystemFileHandle.kt
++++ b/node_modules/expo-file-system/android/src/main/java/expo/modules/filesystem/FileSystemFileHandle.kt
+@@ -24,9 +24,21 @@ class FileSystemFileHandle(file: FileSystemFile) : SharedRef<FileChannel>(Random
+   fun read(length: Int): ByteArray {
+     ensureIsOpen()
+     try {
+-      val buffer = ByteBuffer.allocate(length.coerceAtMost((fileChannel.size() - fileChannel.position()).toInt()))
+-      fileChannel.read(buffer)
+-      return buffer.array()
++      val remaining = (fileChannel.size() - fileChannel.position()).coerceAtLeast(0L)
++      val bytesToRead = remaining.coerceAtMost(length.toLong()).toInt()
++      val buffer = ByteBuffer.allocate(bytesToRead)
++      // FileChannel.read may transfer fewer bytes than requested; loop until the buffer is
++      // full or EOF so callers never receive a short / zero-padded read.
++      while (buffer.hasRemaining()) {
++        if (fileChannel.read(buffer) < 0) {
++          break
++        }
++      }
++      return if (buffer.position() == buffer.capacity()) {
++        buffer.array()
++      } else {
++        buffer.array().copyOf(buffer.position())
++      }
+     } catch (e: Exception) {
+       throw UnableToReadHandleException(e.message ?: "unknown error")
+     }
+@@ -36,7 +48,10 @@ class FileSystemFileHandle(file: FileSystemFile) : SharedRef<FileChannel>(Random
+     ensureIsOpen()
+     try {
+       val buffer = ByteBuffer.wrap(data)
+-      fileChannel.write(buffer)
++      // FileChannel.write may transfer fewer bytes than requested; loop until fully drained.
++      while (buffer.hasRemaining()) {
++        fileChannel.write(buffer)
++      }
+     } catch (e: Exception) {
+       throw UnableToWriteHandleException(e.message ?: "unknown error")
+     }
+diff --git a/node_modules/expo-file-system/expo-module.config.json b/node_modules/expo-file-system/expo-module.config.json
+index 58e26fa..61c6eb9 100644
+--- a/node_modules/expo-file-system/expo-module.config.json
++++ b/node_modules/expo-file-system/expo-module.config.json
+@@ -8,12 +8,6 @@
+     "modules": [
+       "expo.modules.filesystem.FileSystemModule",
+       "expo.modules.filesystem.legacy.FileSystemLegacyModule"
+-    ],
+-    "publication": {
+-      "groupId": "host.exp.exponent",
+-      "artifactId": "expo.modules.filesystem",
+-      "version": "19.0.21",
+-      "repository": "local-maven-repo"
+-    }
++    ]
+   }
+ }

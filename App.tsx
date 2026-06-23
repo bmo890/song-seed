@@ -1,7 +1,6 @@
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import Constants from "expo-constants";
 import { ActivityIndicator, Alert, View } from "react-native";
-import * as Clipboard from "expo-clipboard";
 import { useFonts } from "expo-font";
 import {
   PlayfairDisplay_400Regular,
@@ -17,7 +16,7 @@ import {
 import {
   type InitialState,
   NavigationContainer,
-  useNavigationContainerRef,
+  createNavigationContainerRef,
   type LinkingOptions,
   type NavigatorScreenParams,
   getStateFromPath as getNavigationStateFromPath,
@@ -63,16 +62,14 @@ import { cleanupStaleShareTempFiles, purgeExpiredTrash } from "./src/services/ma
 import { readManifest } from "./src/services/manifestSync";
 import { appActions } from "./src/state/actions";
 import {
-  BACKUP_SAVE_CANCELLED_MESSAGE,
-  runExactLibraryBackup,
-} from "./src/services/libraryBackup";
-import {
   buildBackupReminderPromptMessage,
   markBackupReminderPromptShown,
   shouldPromptForBackupReminder,
 } from "./src/services/backupStatus";
 import { resumePendingWorkspaceArchiveOperations } from "./src/services/workspaceArchiveRecovery";
 import { recoverPendingRecordingSession } from "./src/services/recordingRecovery";
+import { cleanupStaleDisasterRecoveryBackupFiles } from "./src/services/disasterRecoveryBackup";
+import { cleanupInterruptedDisasterRecoveryRestores } from "./src/services/disasterRecoveryTemp";
 
 
 export type HomeDrawerParamList = {
@@ -106,8 +103,11 @@ export type RootStackParamList = {
   LyricsVersion: { ideaId: string; versionId?: string; startInEdit?: boolean; forceNewVersion?: boolean; createDraft?: boolean };
   ClipLineage: { ideaId: string; rootClipId: string };
 };
+
+const navigationRef = createNavigationContainerRef<RootStackParamList>();
 import { useStore } from "./src/state/useStore";
 import { AppDialogHost } from "./src/components/common/AppDialog";
+import { RestoreRestartGate } from "./src/components/common/RestoreRestartGate";
 import { FullPlayerProvider } from "./src/hooks/FullPlayerProvider";
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -672,7 +672,6 @@ function AppContent() {
     PlusJakartaSans_700Bold,
   });
 
-  const navigationRef = useNavigationContainerRef<RootStackParamList>();
   const [activeRouteName, setActiveRouteName] = useState<string>("Home");
   const [lastCollectionContextId, setLastCollectionContextId] = useState<string | null>(null);
   const [initialNavigationState, setInitialNavigationState] = useState<InitialState | undefined>(undefined);
@@ -896,6 +895,7 @@ function AppContent() {
         <ImportProgressBanner />
         <DuplicateReviewSheet />
       </NavigationContainer>
+      <RestoreRestartGate />
       </FullPlayerProvider>
       )}
     </ShareIntentProvider>
@@ -929,6 +929,9 @@ export default function App() {
     // storage usage from artifacts that were never part of persisted user state.
     void (async () => {
       await cleanupStaleShareTempFiles();
+      await cleanupStaleDisasterRecoveryBackupFiles();
+      const hydratedState = useStore.getState();
+      await cleanupInterruptedDisasterRecoveryRestores(hydratedState.workspaces);
       // Permanently purge quarantined (deleted) audio past its retention window.
       await purgeExpiredTrash();
       await resumePendingWorkspaceArchiveOperations();
@@ -937,7 +940,6 @@ export default function App() {
       // data, surface a restore prompt instead of silently presenting an empty, writable
       // library (the catastrophic-loss scenario). The persist + manifest guards keep the
       // manifest intact until the user recovers.
-      const hydratedState = useStore.getState();
       const liveIdeaCount = hydratedState.workspaces.reduce(
         (sum, ws) => sum + ws.ideas.length,
         0
@@ -1007,48 +1009,10 @@ export default function App() {
             },
           },
           {
-            text: "Back Up Now",
+            text: "Open Backup Settings",
             onPress: () => {
-              void (async () => {
-                try {
-                  const result = await runExactLibraryBackup(useStore.getState());
-                  const backupFileName = result.archiveTitle;
-                  useStore.getState().setLastSuccessfulBackupAt(Date.now());
-                  useStore.getState().setLastSuccessfulBackupFileName(backupFileName);
-                  if (result.status === "incomplete") {
-                    const missingCritical = result.manifest.missing.filter((entry) => entry.critical);
-                    Alert.alert(
-                      "Backup saved, but incomplete",
-                      `Saved ${backupFileName}, but ${missingCritical.length} recording${missingCritical.length === 1 ? "" : "s"} could not be found. Check your audio storage and back up again.`
-                    );
-                    return;
-                  }
-                  Alert.alert(
-                    "Backup ready",
-                    `Saved ${backupFileName} to the location you chose.`,
-                    [
-                      {
-                        text: "Copy Name",
-                        onPress: () => {
-                          void Clipboard.setStringAsync(backupFileName);
-                        },
-                      },
-                      { text: "OK" },
-                    ]
-                  );
-                } catch (error) {
-                  if (error instanceof Error && error.message === BACKUP_SAVE_CANCELLED_MESSAGE) {
-                    return;
-                  }
-
-                  Alert.alert(
-                    "Backup failed",
-                    error instanceof Error
-                      ? error.message
-                      : "The library backup could not be completed."
-                  );
-                }
-              })();
+              if (!navigationRef.isReady()) return;
+              navigationRef.navigate("Home", { screen: "SettingsHome" });
             },
           },
         ]
