@@ -658,7 +658,10 @@ export function useRecordingScreenModel() {
         return;
       }
 
-      await recording.startRecording();
+      const started = await recording.startRecording();
+      if (!started) {
+        return;
+      }
       await startGuideMixFromBeginning();
       return;
     }

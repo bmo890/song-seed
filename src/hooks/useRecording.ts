@@ -8,7 +8,7 @@ import {
   type SampleRate,
 } from "@siteed/audio-studio";
 import * as FileSystem from "expo-file-system/legacy";
-import { Linking } from "react-native";
+import { Linking, Platform } from "react-native";
 import { AppAlert } from "../components/common/AppAlert";
 import { metersToWaveformPeaks } from "../utils";
 import {
@@ -38,6 +38,15 @@ function trimNotificationLabel(label: string | null | undefined, fallback: strin
   return value && value.length > 0 ? value : fallback;
 }
 
+function getErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : String(error);
+}
+
+function isNotificationPermissionError(error: unknown) {
+  const message = getErrorMessage(error).toLowerCase();
+  return message.includes("notification permission") || message.includes("post_notifications");
+}
+
 export function useRecording(onRecorded: OnRecorded, preferredInputId: string | null) {
   const recorder = useSharedAudioRecorder();
   const audioSessionOwnerIdRef = useRef(createAudioSessionOwner("recording"));
@@ -45,6 +54,9 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
   const preparedRecordingRef = useRef(false);
   const expectedStopReasonRef = useRef(false);
   const recordingStartedAtRef = useRef<number | null>(null);
+  const permissionRequestRef = useRef<Promise<boolean> | null>(null);
+  const prepareInFlightRef = useRef(false);
+  const startInFlightRef = useRef(false);
   const workspaces = useStore((s) => s.workspaces);
   const activeWorkspaceId = useStore((s) => s.activeWorkspaceId);
   const recordingIdeaId = useStore((s) => s.recordingIdeaId);
@@ -192,6 +204,111 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
     return false;
   }
 
+  function showNotificationPermissionAlert(blocked: boolean) {
+    const message = blocked
+      ? "Song Seed cannot show the required active-recording notification. Enable notifications in system settings to record."
+      : "Android requires Song Seed to show an active notification while recording. Allow notifications to start recording.";
+
+    if (!blocked) {
+      AppAlert.info("Notification access needed", message);
+      return;
+    }
+
+    AppAlert.custom("Notification access needed", message, [
+      { label: "Cancel", style: "cancel" },
+      {
+        label: "Open Settings",
+        style: "default",
+        icon: "settings-outline",
+        onPress: () => {
+          void Linking.openSettings();
+        },
+      },
+    ]);
+  }
+
+  async function requestRecordingNotificationPermission() {
+    if (Platform.OS !== "android") {
+      return true;
+    }
+
+    const currentPermission = await ExpoAudioStreamModule.getNotificationPermissionsAsync();
+    const alreadyGranted =
+      currentPermission?.granted ?? currentPermission?.status === "granted";
+    if (alreadyGranted) {
+      return true;
+    }
+
+    const permission = await ExpoAudioStreamModule.requestNotificationPermissionsAsync();
+    const granted = permission?.granted ?? permission?.status === "granted";
+    if (granted) {
+      return true;
+    }
+
+    showNotificationPermissionAlert(permission?.canAskAgain === false);
+    return false;
+  }
+
+  async function requestRecordingPermissions() {
+    if (permissionRequestRef.current) {
+      return permissionRequestRef.current;
+    }
+
+    const request = (async () => {
+      if (!(await requestMicrophonePermission())) {
+        return false;
+      }
+      return requestRecordingNotificationPermission();
+    })();
+    permissionRequestRef.current = request;
+
+    try {
+      return await request;
+    } finally {
+      if (permissionRequestRef.current === request) {
+        permissionRequestRef.current = null;
+      }
+    }
+  }
+
+  function showRecordingFailure(error: unknown, fallback: string) {
+    if (isNotificationPermissionError(error)) {
+      showNotificationPermissionAlert(true);
+      return;
+    }
+    AppAlert.info("Recording failed", fallback);
+  }
+
+  async function rollbackFailedRecordingStart(
+    nativeStartAttempted: boolean,
+    audioSessionClaimed: boolean
+  ) {
+    preparedRecordingRef.current = false;
+    recordingStartedAtRef.current = null;
+    persistedSessionRef.current = false;
+
+    if (nativeStartAttempted || recorder.isRecording || recorder.isPaused) {
+      try {
+        expectedStopReasonRef.current = true;
+        await recorder.stopRecording();
+      } catch (stopError) {
+        expectedStopReasonRef.current = false;
+        console.warn("Recording rollback stop failed", stopError);
+      }
+    }
+
+    if (nativeStartAttempted) {
+      await clearPendingRecordingSession().catch((error) => {
+        console.warn("Recording rollback recovery cleanup failed", error);
+      });
+    }
+    if (audioSessionClaimed) {
+      await releaseRecordingAudioSession().catch((error) => {
+        console.warn("Recording audio session release after start failure failed", error);
+      });
+    }
+  }
+
   function buildRecordingConfig(): RecordingConfig {
     return {
       sampleRate: 44100 as SampleRate,
@@ -267,9 +384,10 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
   }
 
   async function prepareRecording() {
-    if (recorder.isRecording || recorder.isPaused) return false;
+    if (recorder.isRecording || recorder.isPaused || prepareInFlightRef.current) return false;
+    prepareInFlightRef.current = true;
     try {
-      const hasPermission = await requestMicrophonePermission();
+      const hasPermission = await requestRecordingPermissions();
       if (!hasPermission) {
         return false;
       }
@@ -288,18 +406,23 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
         console.warn("Recording audio session release after prepare failure failed", error);
       });
       console.warn("Recording prepare failed", err);
-      AppAlert.info("Recording failed", "Could not prepare recording.");
+      showRecordingFailure(err, "Could not prepare recording.");
       return false;
+    } finally {
+      prepareInFlightRef.current = false;
     }
   }
 
 
   async function startRecording() {
-    if (recorder.isRecording) return;
+    if (recorder.isRecording || recorder.isPaused || startInFlightRef.current) return false;
+    startInFlightRef.current = true;
+    let nativeStartAttempted = false;
+    let audioSessionClaimed = false;
     try {
-      const hasPermission = await requestMicrophonePermission();
+      const hasPermission = await requestRecordingPermissions();
       if (!hasPermission) {
-        return;
+        return false;
       }
 
       try {
@@ -313,6 +436,7 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
       await applyPreferredInput();
 
       await claimRecordingAudioSession();
+      audioSessionClaimed = true;
       persistedSessionRef.current = false;
       preparedRecordingRef.current = false;
       recordingStartedAtRef.current = null;
@@ -320,32 +444,43 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
 
       const recordingStartedAt = Date.now();
       recordingStartedAtRef.current = recordingStartedAt;
+      nativeStartAttempted = true;
       const startResult = await recorder.startRecording(buildRecordingConfig());
       if (startResult?.fileUri) {
         persistedSessionRef.current = true;
         await persistPendingRecordingSession(startResult.fileUri, recordingStartedAt);
       }
+      return true;
     } catch (err) {
-      await releaseRecordingAudioSession().catch((error) => {
-        console.warn("Recording audio session release after start failure failed", error);
-      });
+      await rollbackFailedRecordingStart(nativeStartAttempted, audioSessionClaimed);
       console.warn("Recording start failed", err);
-      AppAlert.info("Recording failed", "Could not start recording.");
+      showRecordingFailure(err, "Could not start recording.");
+      return false;
+    } finally {
+      startInFlightRef.current = false;
     }
   }
 
   async function startPreparedRecording() {
-    if (recorder.isRecording || recorder.isPaused) return false;
+    if (recorder.isRecording || recorder.isPaused || startInFlightRef.current) return false;
+    startInFlightRef.current = true;
+    let nativeStartAttempted = false;
+    let audioSessionClaimed = preparedRecordingRef.current;
     try {
+      if (!(await requestRecordingPermissions())) {
+        return false;
+      }
       if (!preparedRecordingRef.current) {
         const prepared = await prepareRecording();
         if (!prepared) {
           return false;
         }
+        audioSessionClaimed = true;
       }
 
       const recordingStartedAt = Date.now();
       recordingStartedAtRef.current = recordingStartedAt;
+      nativeStartAttempted = true;
       const startResult = await recorder.startRecording(buildRecordingConfig());
       preparedRecordingRef.current = false;
       if (startResult?.fileUri) {
@@ -354,13 +489,12 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
       }
       return true;
     } catch (err) {
-      preparedRecordingRef.current = false;
-      await releaseRecordingAudioSession().catch((error) => {
-        console.warn("Recording audio session release after prepared start failure failed", error);
-      });
+      await rollbackFailedRecordingStart(nativeStartAttempted, audioSessionClaimed);
       console.warn("Prepared recording start failed", err);
-      AppAlert.info("Recording failed", "Could not start recording.");
+      showRecordingFailure(err, "Could not start recording.");
       return false;
+    } finally {
+      startInFlightRef.current = false;
     }
   }
 

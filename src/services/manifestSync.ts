@@ -36,6 +36,11 @@ export type ManifestData = PersistedAppStore & {
     lastWrittenAt: string;
 };
 
+function isMissingFileError(error: unknown): boolean {
+    const message = error instanceof Error ? error.message : String(error);
+    return message.includes("ENOENT") || message.includes("FileNotFoundException");
+}
+
 /* ── Read ──────────────────────────────────────────────────────── */
 
 /**
@@ -69,6 +74,9 @@ export async function readManifest(): Promise<ManifestData | null> {
 
             return parsed;
         } catch (err) {
+            // The manifest and its crash-recovery backup are optional on a fresh install.
+            // A writer can also remove the backup between getInfoAsync and the read.
+            if (isMissingFileError(err)) continue;
             console.warn(`[ManifestSync] Failed to read manifest at ${path}:`, err);
         }
     }
