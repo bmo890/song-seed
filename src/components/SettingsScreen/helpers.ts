@@ -189,6 +189,7 @@ export function getOptionsSummary(
           archiveOptions.includeNotes ? "notes" : null,
           archiveOptions.includeLyrics ? "lyrics" : null,
           archiveOptions.includeHiddenItems ? "hidden" : null,
+          archiveOptions.preserveAllMetadata ? "metadata" : null,
         ]
       : [
           standardOptions.includeNotesAsText ? "notes" : null,

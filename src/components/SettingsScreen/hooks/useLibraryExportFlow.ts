@@ -1,6 +1,10 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AppAlert } from "../../common/AppAlert";
-import { exportLibrary, type LibraryExportFormat } from "../../../services/libraryExport";
+import {
+  estimateLibraryArchiveSizes,
+  exportLibrary,
+  type LibraryExportFormat,
+} from "../../../services/libraryExport";
 import { BACKUP_SAVE_CANCELLED_MESSAGE } from "../../../services/archiveSave";
 import { useStore } from "../../../state/useStore";
 import type { Workspace } from "../../../types";
@@ -40,11 +44,74 @@ export function useLibraryExportFlow() {
   const [archiveOptions, setArchiveOptions] = useState(DEFAULT_ARCHIVE_OPTIONS);
   const [standardOptions, setStandardOptions] = useState(DEFAULT_STANDARD_OPTIONS);
   const [isExporting, setIsExporting] = useState(false);
+  const [archiveSizeEstimate, setArchiveSizeEstimate] = useState<
+    { standardBytes: number; fullBytes: number } | null
+  >(null);
+  const [isEstimatingArchiveSize, setIsEstimatingArchiveSize] = useState(false);
+  const estimateTokenRef = useRef(0);
 
   const includeHiddenItems =
     format === "song-seed-archive"
       ? archiveOptions.includeHiddenItems
       : standardOptions.includeHiddenItems;
+
+  const hasArchiveScope =
+    selectedWorkspaceIds.length > 0 || selectedCollectionIds.length > 0;
+
+  // Estimate standard vs full archive size so the metadata toggle can show the cost. Debounced
+  // and race-guarded because it stats every included audio file. preserveAllMetadata is excluded
+  // from the deps on purpose — both sizes are computed together and the toggle shouldn't refetch.
+  useEffect(() => {
+    if (format !== "song-seed-archive" || !hasArchiveScope) {
+      setArchiveSizeEstimate(null);
+      setIsEstimatingArchiveSize(false);
+      return;
+    }
+    const token = ++estimateTokenRef.current;
+    setIsEstimatingArchiveSize(true);
+    const timer = setTimeout(() => {
+      void estimateLibraryArchiveSizes({
+        workspaces,
+        notes,
+        format: "song-seed-archive",
+        scope: {
+          workspaceIds: selectedWorkspaceIds,
+          collectionIds: selectedCollectionIds,
+          excludedCollectionIds,
+        },
+        options: archiveOptions,
+      })
+        .then((sizes) => {
+          if (estimateTokenRef.current === token) {
+            setArchiveSizeEstimate(sizes);
+          }
+        })
+        .catch(() => {
+          if (estimateTokenRef.current === token) {
+            setArchiveSizeEstimate(null);
+          }
+        })
+        .finally(() => {
+          if (estimateTokenRef.current === token) {
+            setIsEstimatingArchiveSize(false);
+          }
+        });
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [
+    format,
+    hasArchiveScope,
+    workspaces,
+    notes,
+    selectedWorkspaceIds,
+    selectedCollectionIds,
+    excludedCollectionIds,
+    archiveOptions.includeFullSongHistory,
+    archiveOptions.includeNotes,
+    archiveOptions.includeLyrics,
+    archiveOptions.includeHiddenItems,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  ]);
 
   const selectedSummary = useMemo(
     () =>
@@ -199,6 +266,8 @@ export function useLibraryExportFlow() {
     isExporting,
     includeHiddenItems,
     selectedSummary,
+    archiveSizeEstimate,
+    isEstimatingArchiveSize,
     toggleWorkspace,
     toggleCollection,
     toggleArchiveOption,

@@ -5,6 +5,7 @@ import { styles } from "../styles";
 import { AccordionSection, CollectionTreeRow, FormatOptionRow, ToggleRow, WorkspaceScopeRow } from "../components/SettingsShared";
 import { countWorkspaceIdeas, getFormatSummary } from "../helpers";
 import { getOptionsSummary } from "../helpers";
+import { formatBytes } from "../../../utils";
 import type { useLibraryExportFlow } from "../hooks/useLibraryExportFlow";
 
 type ExportFlow = ReturnType<typeof useLibraryExportFlow>;
@@ -147,6 +148,21 @@ export function SettingsExportView({ flow, onCancel }: { flow: ExportFlow; onCan
               value={flow.archiveOptions.includeHiddenItems}
               onPress={() => flow.toggleArchiveOption("includeHiddenItems")}
             />
+            <ToggleRow
+              title="Preserve all metadata"
+              subtitle="Keep sections, markers, tags, groups, analysis, edit history, lyric versions, and the real waveforms. Best for a true archive; turn off for a smaller, human-readable file."
+              value={flow.archiveOptions.preserveAllMetadata}
+              onPress={() => flow.toggleArchiveOption("preserveAllMetadata")}
+            />
+            {flow.archiveSizeEstimate ? (
+              <Text style={styles.settingsSectionHint}>
+                {`With all metadata ≈ ${formatBytes(flow.archiveSizeEstimate.fullBytes)}  ·  without ≈ ${formatBytes(flow.archiveSizeEstimate.standardBytes)}`}
+              </Text>
+            ) : flow.isEstimatingArchiveSize ? (
+              <Text style={styles.settingsSectionHint}>Estimating archive size…</Text>
+            ) : (
+              <Text style={styles.settingsSectionHint}>Select a scope to estimate the archive size.</Text>
+            )}
           </View>
         ) : null}
 

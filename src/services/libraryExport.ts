@@ -221,6 +221,68 @@ export async function exportLibrary(args: ExportLibraryArgs): Promise<LibraryExp
     }
 }
 
+// Keys dropped from the per-song readable summary (kept in full in the root manifest.json).
+const READABLE_SUMMARY_OMITTED_KEYS = new Set([
+    "waveformPeaks",
+    "renderedMixWaveformPeaks",
+    "lyricsVersions",
+    "sections",
+    "practiceMarkers",
+    "editRegions",
+    "analysis",
+]);
+
+function readableSummaryReplacer(key: string, value: unknown) {
+    return READABLE_SUMMARY_OMITTED_KEYS.has(key) ? undefined : value;
+}
+
+/**
+ * Estimate the archive byte size for both fidelity modes so the export UI can show the cost of
+ * "preserve all metadata" before the user commits. Builds the entry list in memory (no zip
+ * write) and sums metadata JSON + each referenced audio file's on-disk size. The audio is
+ * identical in both modes; the difference is the extra metadata in full fidelity. The figure is
+ * an upper-ish estimate — the real archive is deflate-compressed — but good enough to decide.
+ */
+export async function estimateLibraryArchiveSizes(
+    args: Extract<ExportLibraryArgs, { format: "song-seed-archive" }>
+): Promise<{ standardBytes: number; fullBytes: number }> {
+    const encoder = new TextEncoder();
+    const fileSizeCache = new Map<string, number>();
+
+    const measure = async (context: ExportBuildContext): Promise<number> => {
+        let total = 0;
+        for (const entry of context.entries) {
+            if (entry.directory) continue;
+            if (typeof entry.data === "string") {
+                total += encoder.encode(entry.data).length;
+            } else if (entry.fileUri) {
+                let size = fileSizeCache.get(entry.fileUri);
+                if (size == null) {
+                    try {
+                        const info = await FileSystem.getInfoAsync(entry.fileUri);
+                        size = info.exists && typeof info.size === "number" ? info.size : 0;
+                    } catch {
+                        size = 0;
+                    }
+                    fileSizeCache.set(entry.fileUri, size);
+                }
+                total += size;
+            }
+        }
+        return total;
+    };
+
+    const standard = buildSongSeedArchive({
+        ...args,
+        options: { ...args.options, preserveAllMetadata: false },
+    });
+    const full = buildSongSeedArchive({
+        ...args,
+        options: { ...args.options, preserveAllMetadata: true },
+    });
+    return { standardBytes: await measure(standard), fullBytes: await measure(full) };
+}
+
 function buildSongSeedArchive(args: Extract<ExportLibraryArgs, { format: "song-seed-archive" }>): ExportBuildContext {
     const context = createExportBuildContext();
     const selectedWorkspaces = getSelectedWorkspaces(args.workspaces, args.scope);
@@ -347,10 +409,13 @@ function buildSongSeedArchive(args: Extract<ExportLibraryArgs, { format: "song-s
 
                     const songManifest = buildArchiveSongManifest(idea, songFolderPath, args.options, context);
                     collectionManifest.songs.push(songManifest);
+                    // song.json is a human-readable summary; the heavy machine-only fields
+                    // (waveforms, markers, sections, analysis, lyric versions) live once in the
+                    // root manifest.json that import reads, so strip them here to avoid bloat.
                     addTextEntry(
                         context,
                         `${songFolderPath}/song.json`,
-                        JSON.stringify(songManifest, null, 2)
+                        JSON.stringify(songManifest, readableSummaryReplacer, 2)
                     );
                 } else {
                     const clipManifest = buildArchiveStandaloneClip(
