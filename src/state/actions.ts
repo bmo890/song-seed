@@ -7,6 +7,8 @@ import {
     Collection,
     EditRegion,
     PracticeMarker,
+    ClipSection,
+    ClipAnalysis,
     CustomTagDefinition,
     ClipOverdubState,
     ClipOverdubRootSettings,
@@ -92,6 +94,14 @@ function cloneEditRegions(editRegions?: EditRegion[]) {
 
 function clonePracticeMarkers(practiceMarkers?: PracticeMarker[]) {
     return practiceMarkers?.map((marker) => ({ ...marker }));
+}
+
+function cloneClipSections(sections?: ClipSection[]) {
+    return sections?.map((section) => ({ ...section }));
+}
+
+function cloneClipAnalysis(analysis?: ClipAnalysis) {
+    return analysis ? { ...analysis } : undefined;
 }
 
 function cloneOverdubStem(stem: ClipOverdubStem): ClipOverdubStem {
@@ -424,6 +434,8 @@ function buildTransferredClip(source: ClipTransferSource) {
         editRegions: cloneEditRegions(source.clip.editRegions),
         tags: cloneClipTags(source.clip.tags),
         practiceMarkers: clonePracticeMarkers(source.clip.practiceMarkers),
+        sections: cloneClipSections(source.clip.sections),
+        analysis: cloneClipAnalysis(source.clip.analysis),
         overdub: cloneOverdubState(source.clip.overdub),
     };
 }
@@ -1272,6 +1284,8 @@ export const appActions = {
                         waveformPeaks: imported.waveformPeaks,
                         tags: cloneClipTags(match.clip.tags),
                         practiceMarkers: clonePracticeMarkers(match.clip.practiceMarkers),
+                        sections: cloneClipSections(match.clip.sections),
+                        analysis: cloneClipAnalysis(match.clip.analysis),
                     },
                 ],
             };
@@ -1324,6 +1338,8 @@ export const appActions = {
                     waveformPeaks: imported.waveformPeaks,
                     tags: cloneClipTags(match.clip.tags),
                     practiceMarkers: clonePracticeMarkers(match.clip.practiceMarkers),
+                    sections: cloneClipSections(match.clip.sections),
+                    analysis: cloneClipAnalysis(match.clip.analysis),
                 };
 
                 const repairedRemainingClips =
@@ -1591,7 +1607,11 @@ export const appActions = {
             };
         });
         // Durably commit the metadata change before trashing files (see flushPersistedSnapshot).
-        void flushPersistedSnapshot().then(() => deleteManagedAudioUris(audioUrisToDelete));
+        void flushPersistedSnapshot()
+            .then(() => deleteManagedAudioUris(audioUrisToDelete))
+            .catch((error) => {
+                console.warn("[DataSafety] Media deletion skipped because metadata was not durable.", error);
+            });
     },
 
     convertSelectedClipIdeaToProject: () => {

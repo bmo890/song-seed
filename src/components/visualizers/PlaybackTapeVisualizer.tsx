@@ -12,6 +12,7 @@ import {
 } from "react-native-reanimated";
 import { GestureDetector, Gesture } from "react-native-gesture-handler";
 import type { PracticeMarker } from "../../types";
+import type { SectionBand } from "../../playerSections";
 
 type Props = {
     waveformPeaks: number[];
@@ -30,6 +31,7 @@ type Props = {
     onBaseScaleChange?: (scale: number) => void;
     selectedRanges?: { id: string; start: number; end: number; type: "keep" | "remove" }[];
     practiceMarkers?: Pick<PracticeMarker, "id" | "atMs">[];
+    sectionBands?: SectionBand[];
     sharedSelectedRangeStartMs?: SharedValue<number>;
     sharedSelectedRangeEndMs?: SharedValue<number>;
     selectedRangeType?: "keep" | "remove";
@@ -89,8 +91,10 @@ function LoopRangeOverlay({
     sharedEndMs,
     rangeType,
 }: LoopRangeOverlayProps) {
-    const fillColor = rangeType === "keep" ? "rgba(96, 165, 250, 0.18)" : "rgba(239, 68, 68, 0.15)";
-    const lineColor = rangeType === "keep" ? "rgba(59, 130, 246, 0.9)" : "rgba(239, 68, 68, 0.8)";
+    // Looper sits above section bands, so give it a stronger blue that reads clearly even
+    // when it overlaps a tinted section (the section still shows through underneath).
+    const fillColor = rangeType === "keep" ? "rgba(59, 130, 246, 0.30)" : "rgba(239, 68, 68, 0.15)";
+    const lineColor = rangeType === "keep" ? "rgba(37, 99, 235, 0.95)" : "rgba(239, 68, 68, 0.8)";
 
     const leftX = useDerivedValue(() => {
         if (durationMs <= 0) return 0;
@@ -134,6 +138,32 @@ function LoopRangeOverlay({
     );
 }
 
+function SectionBandOverlay({
+    canvasHeight,
+    bands,
+    pixelsPerMs,
+}: {
+    canvasHeight: number;
+    bands: SectionBand[];
+    pixelsPerMs: number;
+}) {
+    return (
+        <>
+            {bands.map((band) => {
+                const x = band.startMs * pixelsPerMs;
+                const width = Math.max(0, (band.endMs - band.startMs) * pixelsPerMs);
+                if (width <= 0) return null;
+                return (
+                    <Group key={band.id}>
+                        <Rect x={x} y={0} width={width} height={canvasHeight} color={band.color} />
+                        <Rect x={x} y={0} width={width} height={2.5} color={band.railColor} />
+                    </Group>
+                );
+            })}
+        </>
+    );
+}
+
 function PinMarkerOverlay({
     canvasHeight,
     markers,
@@ -172,6 +202,7 @@ export function PlaybackTapeVisualizer({
     onBaseScaleChange,
     selectedRanges,
     practiceMarkers,
+    sectionBands,
     sharedSelectedRangeStartMs,
     sharedSelectedRangeEndMs,
     selectedRangeType = "keep",
@@ -714,6 +745,13 @@ export function PlaybackTapeVisualizer({
                         <Canvas style={{ flex: 1 }}>
                             <Group transform={translateTransform}>
                                 <Group transform={scaleTransform}>
+                                    {sectionBands && sectionBands.length > 0 ? (
+                                        <SectionBandOverlay
+                                            canvasHeight={canvasHeight}
+                                            bands={sectionBands}
+                                            pixelsPerMs={durationMs > 0 ? baseContentWidth / durationMs : 0}
+                                        />
+                                    ) : null}
                                     <Path
                                         path={centerLinePath}
                                         color={rulerColor}

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -7,6 +7,7 @@ import { useIsFocused, useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useSharedValue } from "react-native-reanimated";
 import type { RootStackParamList } from "../../../App";
+import type { ClipSection, PracticeMarker } from "../../types";
 import { styles } from "../../styles";
 import { colors } from "../../design/tokens";
 import { useFullPlayerContext } from "../../hooks/FullPlayerProvider";
@@ -17,6 +18,8 @@ import { usePlayerTransportClock } from "./hooks/usePlayerTransportClock";
 import { usePracticeLoopController } from "./hooks/usePracticeLoopController";
 import { usePlayerSpeedControls } from "./hooks/usePlayerSpeedControls";
 import { usePlayerPins } from "./hooks/usePlayerPins";
+import { usePlayerSections } from "./hooks/usePlayerSections";
+import { useClipAnalysis } from "./hooks/useClipAnalysis";
 import { usePlayerScreenData } from "./hooks/usePlayerScreenData";
 import { usePlayerScreenLifecycle } from "./hooks/usePlayerScreenLifecycle";
 import { usePlayerPracticePitchTransport } from "./hooks/usePlayerPracticePitchTransport";
@@ -37,6 +40,10 @@ import { AppAlert } from "../common/AppAlert";
 const PRACTICE_SPEED_PRESETS = [0.5, 0.75, 1, 1.25, 1.5] as const;
 const PRACTICE_SPEED_MIN = 0.5;
 const PRACTICE_SPEED_MAX = 1.5;
+
+// Stable empty arrays so hiding reel markers doesn't churn the memoized timeline.
+const EMPTY_MARKERS: PracticeMarker[] = [];
+const EMPTY_SECTIONS: ClipSection[] = [];
 
 export function PlayerScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList, "Player">>();
@@ -65,6 +72,12 @@ export function PlayerScreen() {
   const pauseVisualHoldMs = useSharedValue(-1);
   const pauseVisualHoldToken = useSharedValue(0);
   const setPauseDisplayPositionRef = React.useRef<((positionMs: number) => void) | null>(null);
+  const [pinPreview, setPinPreview] = useState<{ id: string; atMs: number } | null>(null);
+  const [sectionPreview, setSectionPreview] = useState<{
+    id: string;
+    startMs?: number;
+    endMs?: number;
+  } | null>(null);
 
   const fullPlayer = useFullPlayerContext();
   const {
@@ -92,6 +105,27 @@ export function PlayerScreen() {
   const playerClip = data.playerClip;
   const resolvedDisplayDuration = data.displayDuration;
   const isMixUpdating = data.isOverdubPreviewRendering;
+  // While a pin is dragged/nudged we override its position locally so the reel moves live,
+  // without writing the whole library snapshot to SQLite on every tick.
+  const previewedMarkers = useMemo(() => {
+    if (!pinPreview) return data.practiceMarkers;
+    return data.practiceMarkers.map((marker) =>
+      marker.id === pinPreview.id ? { ...marker, atMs: pinPreview.atMs } : marker
+    );
+  }, [data.practiceMarkers, pinPreview]);
+  // Same live-override trick for a section boundary while its slider is dragged.
+  const previewedSections = useMemo(() => {
+    if (!sectionPreview) return data.sections;
+    return data.sections.map((section) =>
+      section.id === sectionPreview.id
+        ? {
+            ...section,
+            ...(sectionPreview.startMs != null ? { startMs: sectionPreview.startMs } : null),
+            ...(sectionPreview.endMs != null ? { endMs: sectionPreview.endMs } : null),
+          }
+        : section
+    );
+  }, [data.sections, sectionPreview]);
   const pauseFullPlayerAtVisiblePosition = useCallback(async () => {
     const durationMs = resolvedDisplayDuration || playerDuration;
     const visualProgress = timelineAudioProgress.value;
@@ -268,6 +302,13 @@ export function PlayerScreen() {
     handlePinActions,
     handleRenamePin,
     handleDeletePin,
+    handleEditPin,
+    handleDeletePinId,
+    expandedPinId,
+    pinNoteDraft,
+    setPinNoteDraft,
+    togglePinExpanded,
+    commitPinNote,
   } = usePlayerPins({
     playerIdeaId: playerIdea?.id,
     playerClipId: playerClip?.id,
@@ -275,6 +316,23 @@ export function PlayerScreen() {
     displayDuration: effectivePlayerDuration,
     playerPosition: effectivePlayerPosition,
   });
+  const sectionsApi = usePlayerSections({
+    playerIdeaId: playerIdea?.id,
+    playerClipId: playerClip?.id,
+    sections: data.sections,
+    displayDuration: effectivePlayerDuration,
+    playerPosition: effectivePlayerPosition,
+  });
+  const clipAnalysis = useClipAnalysis({
+    playerIdeaId: playerIdea?.id,
+    playerClipId: playerClip?.id,
+    audioUri: data.playbackAudioUri,
+  });
+  // Repeat (playlist-style): replay the clip from the top when it finishes.
+  const replayClip = useCallback(async () => {
+    await practicePitchTransport.seekTo(0);
+    await practicePitchTransport.play();
+  }, [practicePitchTransport]);
   const lifecycle = usePlayerScreenLifecycle({
     navigation,
     isFocused,
@@ -295,6 +353,8 @@ export function PlayerScreen() {
       ? practicePitchTransport.finishedPlaybackClipId
       : finishedPlaybackClipId,
     hasNextTrack,
+    repeatEnabled: ui.repeatEnabled,
+    replayClip,
     playerQueue: data.playerQueue,
     playerToggleRequestToken: data.playerToggleRequestToken,
     playerCloseRequestToken: data.playerCloseRequestToken,
@@ -318,6 +378,13 @@ export function PlayerScreen() {
   const handleLoopRangeChange = useCallback(
     (start: number, end: number) => setPracticeLoopRange({ start, end }),
     [setPracticeLoopRange]
+  );
+  const handleLoopSection = useCallback(
+    (section: ClipSection) => {
+      setPracticeLoopRange({ start: section.startMs, end: section.endMs });
+      if (!practiceLoopEnabled) handlePracticeLoopToggle();
+    },
+    [setPracticeLoopRange, practiceLoopEnabled, handlePracticeLoopToggle]
   );
   const handleRequestAddPin = useCallback(() => {
     handleAddPin("");
@@ -440,6 +507,130 @@ export function PlayerScreen() {
             onOverflow={lifecycle.handleOverflowMenu}
           />
         }
+        stickyTop={
+          <View style={playerScreenStyles.stickyReel}>
+            {/* When the page header is collapsed (practice mode) it no longer shows the
+                timing, so surface a compact playhead / length row just above the reel. */}
+            {ui.mode === "practice" ? (
+              <View style={playerScreenStyles.reelTimingRow}>
+                <Text style={playerScreenStyles.reelTimingText}>
+                  {fmtDuration(effectivePlayerPosition)} / {fmtDuration(effectivePlayerDuration)}
+                </Text>
+              </View>
+            ) : null}
+            <View style={playerScreenStyles.waveformSection}>
+              <View style={playerScreenStyles.waveformShell}>
+                <PlayerTimeline
+                  mode={ui.mode}
+                  reelExpanded={ui.reelExpanded}
+                  waveformPeaks={data.waveformPeaks}
+                  durationMs={effectivePlayerDuration}
+                  resetKey={playerClip.id}
+                  isPlayerPlaying={effectiveIsPlaying}
+                  playbackRate={effectivePlaybackRate}
+                  isScrubbing={transportScrub.isScrubbing}
+                  transportClock={transportClock}
+                  sharedAudioProgress={timelineAudioProgress}
+                  sharedPauseHoldMs={pauseVisualHoldMs}
+                  sharedPauseHoldToken={pauseVisualHoldToken}
+                  practiceLoopEnabled={practiceLoopEnabled}
+                  practiceLoopSelection={practiceLoopSelection}
+                  practiceMarkers={ui.markersVisible ? previewedMarkers : EMPTY_MARKERS}
+                  sections={ui.markersVisible ? previewedSections : EMPTY_SECTIONS}
+                  draggingMarkerId={draggingMarkerId}
+                  draggingMarkerX={draggingMarkerX}
+                  onLoopRangeChange={handleLoopRangeChange}
+                  onSeek={isTransportLocked ? () => {} : handleLoopAwareSeek}
+                  onTogglePlay={isTransportLocked ? () => {} : lifecycle.handleTogglePlayPress}
+                  onScrubStateChange={isTransportLocked ? () => {} : lifecycle.handleScrubStateChange}
+                  onRepositionMarker={handleRepositionMarker}
+                  onRequestPinActions={handlePinActions}
+                  onRequestAddPin={handleRequestAddPin}
+                  onPinDragStateChange={handlePinDragStateChange}
+                  practiceZoomMultiple={ui.practiceZoomMultiple}
+                  onPracticeZoomMultipleChange={ui.setPracticeZoomMultiple}
+                />
+                {isTransportLocked ? (
+                  <View style={playerScreenStyles.mixUpdatingOverlay}>
+                    <View style={playerScreenStyles.mixUpdatingBadge}>
+                      <Text style={playerScreenStyles.mixUpdatingLabel}>Updating mix…</Text>
+                      <Text style={playerScreenStyles.mixUpdatingMeta}>
+                        Playback and scrubbing will resume when the latest layer render finishes.
+                      </Text>
+                    </View>
+                  </View>
+                ) : null}
+                {/* Expand/shrink floats in the reel's top-right corner, out of the toolbar. */}
+                <Pressable
+                  style={({ pressed }) => [
+                    playerScreenStyles.reelCornerButton,
+                    pressed ? playerScreenStyles.overflowButtonPressed : null,
+                  ]}
+                  onPress={() => ui.setReelExpanded((value) => !value)}
+                  hitSlop={6}
+                  accessibilityRole="button"
+                  accessibilityState={{ expanded: ui.reelExpanded }}
+                  accessibilityLabel={ui.reelExpanded ? "Shrink waveform" : "Expand waveform"}
+                >
+                  <Ionicons
+                    name={ui.reelExpanded ? "contract-outline" : "expand-outline"}
+                    size={15}
+                    color={colors.textSecondary}
+                  />
+                </Pressable>
+              </View>
+            </View>
+
+            {/* Reel stays pinned above the scrollable tools. Show/hide toggles all markers;
+                Tools toggles practice mode. */}
+            <View style={playerScreenStyles.reelToolbar}>
+              <Pressable
+                style={({ pressed }) => [
+                  playerScreenStyles.reelExpandButton,
+                  pressed ? playerScreenStyles.overflowButtonPressed : null,
+                ]}
+                onPress={() => ui.setMarkersVisible((value) => !value)}
+                accessibilityRole="button"
+                accessibilityState={{ checked: ui.markersVisible }}
+                accessibilityLabel={ui.markersVisible ? "Hide markers" : "Show markers"}
+              >
+                <Ionicons
+                  name={ui.markersVisible ? "eye-outline" : "eye-off-outline"}
+                  size={14}
+                  color={colors.textSecondary}
+                />
+                <Text style={playerScreenStyles.reelExpandText}>
+                  {ui.markersVisible ? "Hide markers" : "Show markers"}
+                </Text>
+              </Pressable>
+              <Pressable
+                style={({ pressed }) => [
+                  playerScreenStyles.toolsPill,
+                  ui.mode === "practice" ? playerScreenStyles.toolsPillActive : null,
+                  pressed ? playerScreenStyles.overflowButtonPressed : null,
+                ]}
+                onPress={() => ui.setMode(ui.mode === "practice" ? "player" : "practice")}
+                accessibilityRole="button"
+                accessibilityState={{ selected: ui.mode === "practice" }}
+                accessibilityLabel={ui.mode === "practice" ? "Close practice tools" : "Open practice tools"}
+              >
+                <Ionicons
+                  name="options-outline"
+                  size={15}
+                  color={ui.mode === "practice" ? colors.onPrimary : colors.textSecondary}
+                />
+                <Text
+                  style={[
+                    playerScreenStyles.toolsPillText,
+                    ui.mode === "practice" ? playerScreenStyles.toolsPillTextActive : null,
+                  ]}
+                >
+                  Tools
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+        }
         footer={
           <PlayerFooterSection
             mode={ui.mode}
@@ -448,106 +639,53 @@ export function PlayerScreen() {
             hasPreviousTrack={hasPreviousTrack}
             hasNextTrack={hasNextTrack}
             queueEntryCount={data.queueEntries.length}
-            practiceLoopEnabled={practiceLoopEnabled}
+            repeatEnabled={ui.repeatEnabled}
             queueExpanded={ui.queueExpanded}
             onPreviousTrack={lifecycle.handlePreviousTrack}
             onTogglePlay={isTransportLocked ? () => {} : lifecycle.handleTogglePlayPress}
             onNextTrack={lifecycle.handleNextTrack}
-            onTogglePracticeLoop={handlePracticeLoopToggle}
+            onToggleRepeat={() => ui.setRepeatEnabled((value) => !value)}
             onToggleQueueExpanded={() => ui.setQueueExpanded((value) => !value)}
           />
         }
       >
         <View style={playerScreenStyles.content}>
-          <View style={playerScreenStyles.waveformSection}>
-            <View style={playerScreenStyles.waveformShell}>
-              <PlayerTimeline
-                mode={ui.mode}
-                waveformPeaks={data.waveformPeaks}
-                durationMs={effectivePlayerDuration}
-                resetKey={playerClip.id}
-                isPlayerPlaying={effectiveIsPlaying}
-                playbackRate={effectivePlaybackRate}
-                isScrubbing={transportScrub.isScrubbing}
-                transportClock={transportClock}
-                sharedAudioProgress={timelineAudioProgress}
-                sharedPauseHoldMs={pauseVisualHoldMs}
-                sharedPauseHoldToken={pauseVisualHoldToken}
-                practiceLoopEnabled={practiceLoopEnabled}
-                practiceLoopSelection={practiceLoopSelection}
-                practiceMarkers={data.practiceMarkers}
-                draggingMarkerId={draggingMarkerId}
-                draggingMarkerX={draggingMarkerX}
-                onLoopRangeChange={handleLoopRangeChange}
-                onSeek={isTransportLocked ? () => {} : handleLoopAwareSeek}
-                onTogglePlay={isTransportLocked ? () => {} : lifecycle.handleTogglePlayPress}
-                onScrubStateChange={isTransportLocked ? () => {} : lifecycle.handleScrubStateChange}
-                onRepositionMarker={handleRepositionMarker}
-                onRequestPinActions={handlePinActions}
-                onRequestAddPin={handleRequestAddPin}
-                onPinDragStateChange={handlePinDragStateChange}
-                practiceZoomMultiple={ui.practiceZoomMultiple}
-                onPracticeZoomMultipleChange={ui.setPracticeZoomMultiple}
-              />
-              {isTransportLocked ? (
-                <View style={playerScreenStyles.mixUpdatingOverlay}>
-                  <View style={playerScreenStyles.mixUpdatingBadge}>
-                    <Text style={playerScreenStyles.mixUpdatingLabel}>Updating mix…</Text>
-                    <Text style={playerScreenStyles.mixUpdatingMeta}>
-                      Playback and scrubbing will resume when the latest layer render finishes.
-                    </Text>
-                  </View>
-                </View>
-              ) : null}
-            </View>
-          </View>
-
-          {/* Tools toggle lives under the reel (not the header) so the waveform stays at
-              the very top. Opening it switches the screen into practice mode. */}
-          <View style={playerScreenStyles.reelToolbar}>
-            <Pressable
-              style={({ pressed }) => [
-                playerScreenStyles.toolsPill,
-                ui.mode === "practice" ? playerScreenStyles.toolsPillActive : null,
-                pressed ? playerScreenStyles.overflowButtonPressed : null,
-              ]}
-              onPress={() => ui.setMode(ui.mode === "practice" ? "player" : "practice")}
-              accessibilityRole="button"
-              accessibilityState={{ selected: ui.mode === "practice" }}
-              accessibilityLabel={ui.mode === "practice" ? "Close practice tools" : "Open practice tools"}
-            >
-              <Ionicons
-                name="options-outline"
-                size={15}
-                color={ui.mode === "practice" ? colors.onPrimary : colors.textSecondary}
-              />
-              <Text
-                style={[
-                  playerScreenStyles.toolsPillText,
-                  ui.mode === "practice" ? playerScreenStyles.toolsPillTextActive : null,
-                ]}
-              >
-                Tools
-              </Text>
-            </Pressable>
-          </View>
-
           {ui.mode === "practice" ? (
             <PlayerPracticePanel
               expandedTool={ui.expandedTool}
               onToggleTool={ui.toggleTool}
               onClose={ui.closeTool}
+              analysis={data.analysis}
+              isAnalyzing={clipAnalysis.isAnalyzing}
+              analysisError={clipAnalysis.error}
+              onDetectAnalysis={clipAnalysis.runAnalysis}
               practiceLoopEnabled={practiceLoopEnabled}
               practiceRangeLabel={practiceRangeLabel}
               onSeekLoopStart={() => handleLoopAwareSeek(practiceLoopRange.start)}
               onMoveLoopToPlayhead={movePracticeLoopToPlayhead}
-              onResetLoopRange={resetPracticeLoopRange}
+              onLoopSection={handleLoopSection}
               onTogglePracticeLoop={handlePracticeLoopToggle}
               practiceMarkers={data.practiceMarkers}
               playheadMs={effectivePlayerPosition}
               onAddPin={handleRequestAddPin}
               onSeekPin={isTransportLocked ? () => {} : handleLoopAwareSeek}
-              onPinActions={handlePinActions}
+              expandedPinId={expandedPinId}
+              pinsDurationMs={effectivePlayerDuration}
+              onTogglePinExpanded={togglePinExpanded}
+              onRepositionPin={handleRepositionMarker}
+              onPinPreview={setPinPreview}
+              onEditPin={handleEditPin}
+              onDeletePin={handleDeletePinId}
+              sections={data.sections}
+              sectionsDurationMs={effectivePlayerDuration}
+              editingSectionId={sectionsApi.editingSectionId}
+              onAddSection={sectionsApi.handleAddSection}
+              onSeekSection={isTransportLocked ? () => {} : handleLoopAwareSeek}
+              onToggleSectionEdit={sectionsApi.handleToggleEdit}
+              onEditSection={sectionsApi.handleEditSection}
+              onRepositionSectionEdge={sectionsApi.handleRepositionSectionEdge}
+              onSectionPreview={setSectionPreview}
+              onDeleteSection={sectionsApi.handleDeleteSection}
               playbackSpeed={playbackSpeed}
               speedPresets={PRACTICE_SPEED_PRESETS}
               speedMin={PRACTICE_SPEED_MIN}
@@ -561,6 +699,7 @@ export function PlayerScreen() {
               onAdjustPitchShift={ui.setPitchShiftSemitones}
               countInOption={ui.countInOption}
               onSelectCountIn={ui.setCountInOption}
+              onRecordOverdub={handleAddOverdub}
             />
           ) : (
             <PlayerSupportSections

@@ -4,13 +4,15 @@ import { styles } from "../../styles";
 
 type Props = {
   header?: ReactNode;
+  /** Fixed region between the header and the scrollable body (e.g. a pinned waveform). */
+  stickyTop?: ReactNode;
   floating?: ReactNode;
   footer?: ReactNode;
   children: ReactNode;
   scrollable?: boolean;
 };
 
-export function TransportLayout({ header, floating, footer, children, scrollable = false }: Props) {
+export function TransportLayout({ header, stickyTop, floating, footer, children, scrollable = false }: Props) {
   const surfaceStyle = [styles.transportSurface, floating ? styles.transportSurfaceWithFloating : null];
   const content = scrollable ? (
     <ScrollView
@@ -30,6 +32,7 @@ export function TransportLayout({ header, floating, footer, children, scrollable
   return (
     <View style={styles.transportLayout}>
       {header ? <View style={styles.transportHeaderZone}>{header}</View> : null}
+      {stickyTop ?? null}
       <View style={styles.transportBodyZone}>
         {content}
         {floating ? <View style={styles.transportFloatingZone}>{floating}</View> : null}

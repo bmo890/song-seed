@@ -7,7 +7,9 @@ import * as Haptics from "expo-haptics";
 import { AudioReel } from "../../common/AudioReel";
 import { MultiTimeRangeSelector } from "../../common/TimeRangeSelector";
 import { PracticePinBadges } from "../PracticePinBadges";
-import type { PracticeMarker } from "../../../types";
+import { SectionLabelBadges } from "../SectionLabelBadges";
+import type { PracticeMarker, ClipSection } from "../../../types";
+import { buildSectionBands } from "../../../playerSections";
 
 type Range = {
   id: string;
@@ -19,8 +21,10 @@ type Range = {
 const LOOP_MOVE_PILL_WIDTH = 34;
 const LOOP_MOVE_PILL_HEIGHT = 10;
 const LOOP_MOVE_HITBOX_WIDTH = 52;
-const LOOP_MOVE_HITBOX_HEIGHT = 28;
-const LOOP_MOVE_ROW_HEIGHT = 24;
+const LOOP_MOVE_HITBOX_HEIGHT = 24;
+const LOOP_MOVE_ROW_HEIGHT = 14;
+/** Looper accent — matches the blue loop region drawn on the reel. */
+const LOOP_ACCENT = "rgba(59, 130, 246, 0.95)";
 
 type TransportClock = {
   sharedCurrentTimeMs: SharedValue<number>;
@@ -32,6 +36,7 @@ type TransportClock = {
 
 type Props = {
   mode: "player" | "practice";
+  reelExpanded: boolean;
   waveformPeaks: number[];
   durationMs: number;
   resetKey?: string | number | null;
@@ -45,6 +50,7 @@ type Props = {
   practiceLoopEnabled: boolean;
   practiceLoopSelection: Range[];
   practiceMarkers: PracticeMarker[];
+  sections: ClipSection[];
   draggingMarkerId: SharedValue<string>;
   draggingMarkerX: SharedValue<number>;
   onLoopRangeChange: (start: number, end: number) => void;
@@ -176,6 +182,7 @@ function LoopMoveHandle({
 
 function PlayerTimelineInner({
   mode,
+  reelExpanded,
   waveformPeaks,
   durationMs,
   resetKey,
@@ -189,6 +196,7 @@ function PlayerTimelineInner({
   practiceLoopEnabled,
   practiceLoopSelection,
   practiceMarkers,
+  sections,
   draggingMarkerId,
   draggingMarkerX,
   onLoopRangeChange,
@@ -210,6 +218,13 @@ function PlayerTimelineInner({
     sharedLoopPreviewStartMs.value = previewRange?.start ?? 0;
     sharedLoopPreviewEndMs.value = previewRange?.end ?? Math.max(1000, durationMs);
   }, [durationMs, previewRange?.end, previewRange?.start, sharedLoopPreviewEndMs, sharedLoopPreviewStartMs]);
+
+  // Section bands ride inside the Skia surface (behind the wave) so they scroll and
+  // scale with it. Shown in both modes — the song map is useful while listening too.
+  const sectionBands = React.useMemo(
+    () => buildSectionBands(sections, durationMs),
+    [sections, durationMs]
+  );
 
   return (
     <AudioReel
@@ -240,57 +255,65 @@ function PlayerTimelineInner({
       // Bigger reel in the default listening view (waveform as hero); smaller when Tools
       // are open to leave room for the practice console. Horizontal precision in practice
       // comes from zoom + minimap, not reel height.
-      collapsedHeightOverride={mode === "practice" ? 128 : 184}
+      collapsedHeightOverride={reelExpanded ? 250 : mode === "practice" ? 128 : 184}
       zoomMultiple={mode === "practice" ? practiceZoomMultiple : 1}
       onZoomMultipleChange={mode === "practice" ? onPracticeZoomMultipleChange : undefined}
       showMinimapMode={mode === "practice" ? "auto" : "never"}
       freezeSelectedRangeWhenFullyVisible={mode === "practice" && practiceLoopEnabled}
       selectedRanges={mode === "practice" && practiceLoopEnabled ? practiceLoopSelection : undefined}
       practiceMarkers={mode === "practice" ? practiceMarkers : undefined}
+      sectionBands={sectionBands}
       sharedSelectedRangeStartMs={mode === "practice" && practiceLoopEnabled ? sharedLoopPreviewStartMs : undefined}
       sharedSelectedRangeEndMs={mode === "practice" && practiceLoopEnabled ? sharedLoopPreviewEndMs : undefined}
       selectedRangeType={previewRange?.type}
-      renderOverlay={
-        mode === "practice"
-          ? ({ pixelsPerMs, timelineTranslateX, timelineScale, sharedAudioProgress }) => (
-              <View style={{ flex: 1, position: "relative" }}>
-                {practiceLoopEnabled ? (
-                  <MultiTimeRangeSelector
-                    durationMs={durationMs}
-                    pixelsPerMs={pixelsPerMs}
-                    regions={practiceLoopSelection}
-                    onRegionChange={(_, start, end) => onLoopRangeChange(start, end)}
-                    sharedTranslateX={timelineTranslateX}
-                    sharedScale={timelineScale}
-                    sharedAudioProgress={sharedAudioProgress}
-                    sharedPreviewStartMs={sharedLoopPreviewStartMs}
-                    sharedPreviewEndMs={sharedLoopPreviewEndMs}
-                    onScrubStateChange={onScrubStateChange}
-                    onSeek={(timeMs) => void onSeek(timeMs)}
-                    showVisuals={false}
-                  />
-                ) : null}
-                <DragIndicatorLine
-                  draggingMarkerId={draggingMarkerId}
-                  draggingMarkerX={draggingMarkerX}
-                />
-                <PracticePinBadges
-                  markers={practiceMarkers}
-                  pixelsPerMs={pixelsPerMs}
-                  timelineTranslateX={timelineTranslateX}
-                  timelineScale={timelineScale}
+      renderOverlay={({ pixelsPerMs, timelineTranslateX, timelineScale, sharedAudioProgress }) => (
+        <View style={{ flex: 1, position: "relative" }}>
+          {/* Section titles ride the reel in every mode (the song map is useful while listening). */}
+          <SectionLabelBadges
+            sections={sections}
+            pixelsPerMs={pixelsPerMs}
+            timelineTranslateX={timelineTranslateX}
+            timelineScale={timelineScale}
+          />
+          {mode === "practice" ? (
+            <>
+              {practiceLoopEnabled ? (
+                <MultiTimeRangeSelector
                   durationMs={durationMs}
+                  pixelsPerMs={pixelsPerMs}
+                  regions={practiceLoopSelection}
+                  onRegionChange={(_, start, end) => onLoopRangeChange(start, end)}
+                  sharedTranslateX={timelineTranslateX}
+                  sharedScale={timelineScale}
+                  sharedAudioProgress={sharedAudioProgress}
+                  sharedPreviewStartMs={sharedLoopPreviewStartMs}
+                  sharedPreviewEndMs={sharedLoopPreviewEndMs}
+                  onScrubStateChange={onScrubStateChange}
                   onSeek={(timeMs) => void onSeek(timeMs)}
-                  onRepositionMarker={onRepositionMarker}
-                  onRequestActions={onRequestPinActions}
-                  onDragStateChange={onPinDragStateChange}
-                  draggingMarkerId={draggingMarkerId}
-                  draggingMarkerX={draggingMarkerX}
+                  showVisuals={false}
                 />
-              </View>
-            )
-          : undefined
-      }
+              ) : null}
+              <DragIndicatorLine
+                draggingMarkerId={draggingMarkerId}
+                draggingMarkerX={draggingMarkerX}
+              />
+              <PracticePinBadges
+                markers={practiceMarkers}
+                pixelsPerMs={pixelsPerMs}
+                timelineTranslateX={timelineTranslateX}
+                timelineScale={timelineScale}
+                durationMs={durationMs}
+                onSeek={(timeMs) => void onSeek(timeMs)}
+                onRepositionMarker={onRepositionMarker}
+                onRequestActions={onRequestPinActions}
+                onDragStateChange={onPinDragStateChange}
+                draggingMarkerId={draggingMarkerId}
+                draggingMarkerX={draggingMarkerX}
+              />
+            </>
+          ) : null}
+        </View>
+      )}
       renderBelowSurface={
         mode === "practice"
           ? ({ pixelsPerMs, timelineTranslateX, timelineScale }) => (
@@ -327,8 +350,8 @@ const timelineStyles = StyleSheet.create({
   loopMoveRow: {
     height: LOOP_MOVE_ROW_HEIGHT,
     overflow: "visible",
-    marginTop: -2,
-    marginBottom: 2,
+    marginTop: -4,
+    marginBottom: 0,
   },
   loopMoveHitbox: {
     position: "absolute",
@@ -342,7 +365,7 @@ const timelineStyles = StyleSheet.create({
     width: LOOP_MOVE_PILL_WIDTH,
     height: LOOP_MOVE_PILL_HEIGHT,
     borderRadius: LOOP_MOVE_PILL_HEIGHT / 2,
-    backgroundColor: "rgba(184, 125, 107, 0.95)",
+    backgroundColor: LOOP_ACCENT,
     alignItems: "center",
     justifyContent: "center",
     shadowColor: "#0f172a",

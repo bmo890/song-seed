@@ -4,6 +4,7 @@ import { Canvas, Path, Rect as SkiaRect, Skia } from "@shopify/react-native-skia
 import Animated, { useAnimatedStyle, SharedValue, useDerivedValue, runOnJS, useSharedValue } from "react-native-reanimated";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import type { PracticeMarker } from "../../types";
+import type { SectionBand } from "../../playerSections";
 
 type Props = {
     waveformPeaks: number[];
@@ -16,6 +17,7 @@ type Props = {
     mainCanvasWidth: number;
     selectedRanges?: { id: string; start: number; end: number; type: "keep" | "remove" }[];
     practiceMarkers?: Pick<PracticeMarker, "id" | "atMs">[];
+    sectionBands?: SectionBand[];
     sharedSelectedRangeStartMs?: SharedValue<number>;
     sharedSelectedRangeEndMs?: SharedValue<number>;
     selectedRangeType?: "keep" | "remove";
@@ -36,6 +38,7 @@ export function MinimapVisualizer({
     mainCanvasWidth,
     selectedRanges,
     practiceMarkers,
+    sectionBands,
     sharedSelectedRangeStartMs,
     sharedSelectedRangeEndMs,
     selectedRangeType,
@@ -141,6 +144,15 @@ export function MinimapVisualizer({
         sharedSelectedRangeEndMs,
         sharedSelectedRangeStartMs,
     ]);
+
+    const sectionRects = useMemo(() => {
+        if (!sectionBands || durationMs === 0 || containerWidth === 0) return [];
+        return sectionBands.map((band) => {
+            const left = (band.startMs / durationMs) * containerWidth;
+            const right = (band.endMs / durationMs) * containerWidth;
+            return { id: band.id, x: left, w: Math.max(1, right - left), fill: band.color, rail: band.railColor };
+        });
+    }, [sectionBands, durationMs, containerWidth]);
 
     const isDragging = useSharedValue(false);
     const localAudioProgress = useSharedValue(0);
@@ -249,6 +261,13 @@ export function MinimapVisualizer({
                 <GestureDetector gesture={interactive ? composed : Gesture.Tap()}>
                     <View style={StyleSheet.absoluteFill}>
                         <Canvas style={{ flex: 1 }}>
+                            {/* Section bands sit lowest; the loop range and waveform draw over them. */}
+                            {sectionRects.map(sec => (
+                                <React.Fragment key={sec.id}>
+                                    <SkiaRect x={sec.x} y={0} width={sec.w} height={containerHeight} color={sec.fill} />
+                                    <SkiaRect x={sec.x} y={0} width={Math.min(2, sec.w)} height={containerHeight} color={sec.rail} />
+                                </React.Fragment>
+                            ))}
                             {rangeRects.map(r => (
                                 <SkiaRect key={r.id} x={r.x} y={0} width={r.w} height={containerHeight} color={r.fill} />
                             ))}

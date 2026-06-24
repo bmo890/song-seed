@@ -22,6 +22,8 @@ export function usePlayerPins({
   const [pinActionsTarget, setPinActionsTarget] = useState<PracticeMarker | null>(null);
   const [pinActionsVisible, setPinActionsVisible] = useState(false);
   const [pinRenameValue, setPinRenameValue] = useState("");
+  const [expandedPinId, setExpandedPinId] = useState<string | null>(null);
+  const [pinNoteDraft, setPinNoteDraft] = useState("");
 
   const handleAddPin = useCallback(
     (label?: string) => {
@@ -79,21 +81,71 @@ export function usePlayerPins({
     setPinActionsTarget(null);
   }, [pinActionsTarget, playerClipId, playerIdeaId]);
 
+  const commitPinNote = useCallback(
+    (markerId: string, note: string) => {
+      if (!playerIdeaId || !playerClipId) return;
+      const trimmed = note.trim();
+      const nextNote = trimmed ? trimmed : undefined;
+      const current = practiceMarkers.find((marker) => marker.id === markerId);
+      // Skip the (snapshot-serializing) store write when the note hasn't actually changed.
+      if (!current || (current.note ?? undefined) === nextNote) return;
+      const updated = practiceMarkers.map((marker) =>
+        marker.id === markerId ? { ...marker, note: nextNote } : marker
+      );
+      useStore.getState().setClipPracticeMarkers(playerIdeaId, playerClipId, updated);
+    },
+    [playerClipId, playerIdeaId, practiceMarkers]
+  );
+
+  // The caret just toggles the inline timing adjuster now; name/note live in the editor modal.
+  const togglePinExpanded = useCallback((marker: PracticeMarker) => {
+    setExpandedPinId((prev) => (prev === marker.id ? null : marker.id));
+  }, []);
+
+  const handleEditPin = useCallback(
+    (markerId: string, edits: { label: string; note: string }) => {
+      if (!playerIdeaId || !playerClipId) return;
+      const label = edits.label.trim();
+      const note = edits.note.trim() || undefined;
+      const updated = practiceMarkers.map((marker) =>
+        marker.id === markerId ? { ...marker, label, note } : marker
+      );
+      useStore.getState().setClipPracticeMarkers(playerIdeaId, playerClipId, updated);
+    },
+    [playerClipId, playerIdeaId, practiceMarkers]
+  );
+
+  const handleDeletePinId = useCallback(
+    (markerId: string) => {
+      if (!playerIdeaId || !playerClipId) return;
+      useStore.getState().removeClipPracticeMarker(playerIdeaId, playerClipId, markerId);
+      setExpandedPinId((prev) => (prev === markerId ? null : prev));
+    },
+    [playerClipId, playerIdeaId]
+  );
+
   return {
     newPinLabel,
     pinModalVisible,
     pinActionsTarget,
     pinActionsVisible,
     pinRenameValue,
+    expandedPinId,
+    pinNoteDraft,
     setNewPinLabel,
     setPinModalVisible,
     setPinActionsTarget,
     setPinActionsVisible,
     setPinRenameValue,
+    setPinNoteDraft,
     handleAddPin,
     handleRepositionMarker,
     handlePinActions,
     handleRenamePin,
     handleDeletePin,
+    handleEditPin,
+    handleDeletePinId,
+    togglePinExpanded,
+    commitPinNote,
   };
 }

@@ -10,12 +10,12 @@ type PlayerFooterSectionProps = {
   hasPreviousTrack: boolean;
   hasNextTrack: boolean;
   queueEntryCount: number;
-  practiceLoopEnabled: boolean;
+  repeatEnabled: boolean;
   queueExpanded: boolean;
   onPreviousTrack: () => void;
   onTogglePlay: () => void;
   onNextTrack: () => void;
-  onTogglePracticeLoop: () => void;
+  onToggleRepeat: () => void;
   onToggleQueueExpanded: () => void;
 };
 
@@ -26,12 +26,12 @@ export function PlayerFooterSection({
   hasPreviousTrack,
   hasNextTrack,
   queueEntryCount,
-  practiceLoopEnabled,
+  repeatEnabled,
   queueExpanded,
   onPreviousTrack,
   onTogglePlay,
   onNextTrack,
-  onTogglePracticeLoop,
+  onToggleRepeat,
   onToggleQueueExpanded,
 }: PlayerFooterSectionProps) {
   return (
@@ -45,11 +45,11 @@ export function PlayerFooterSection({
         onTogglePlay={onTogglePlay}
         onNext={onNextTrack}
         trailingIcon={mode === "practice" ? "repeat" : queueEntryCount > 1 ? "list-outline" : undefined}
-        trailingActive={mode === "practice" ? practiceLoopEnabled : queueExpanded}
+        trailingActive={mode === "practice" ? repeatEnabled : queueExpanded}
         trailingDisabled={mode === "practice" ? false : queueEntryCount <= 1}
         onTrailingPress={
           mode === "practice"
-            ? onTogglePracticeLoop
+            ? onToggleRepeat
             : queueEntryCount > 1
               ? onToggleQueueExpanded
               : undefined

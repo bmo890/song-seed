@@ -23,6 +23,8 @@ type UsePlayerScreenLifecycleArgs = {
   finishedPlaybackToken: number;
   finishedPlaybackClipId: string | null;
   hasNextTrack: boolean;
+  repeatEnabled: boolean;
+  replayClip: () => Promise<void>;
   playerQueue: { ideaId: string; clipId: string }[];
   playerToggleRequestToken: number;
   playerCloseRequestToken: number;
@@ -65,6 +67,8 @@ export function usePlayerScreenLifecycle({
   finishedPlaybackToken,
   finishedPlaybackClipId,
   hasNextTrack,
+  repeatEnabled,
+  replayClip,
   playerQueue,
   playerToggleRequestToken,
   playerCloseRequestToken,
@@ -219,10 +223,15 @@ export function usePlayerScreenLifecycle({
   useEffect(() => {
     if (!finishedPlaybackToken || !playerClip?.id) return;
     if (finishedPlaybackClipId !== playerClip.id) return;
+    // Repeat wins over queue advance — replay this clip from the top.
+    if (repeatEnabled) {
+      void replayClip();
+      return;
+    }
     if (hasNextTrack) {
       useStore.getState().advancePlayerQueue("next", true);
     }
-  }, [finishedPlaybackClipId, finishedPlaybackToken, hasNextTrack, playerClip?.id]);
+  }, [finishedPlaybackClipId, finishedPlaybackToken, hasNextTrack, playerClip?.id, repeatEnabled, replayClip]);
 
   useEffect(() => {
     if (mode !== "practice" && speedPanelVisible) {

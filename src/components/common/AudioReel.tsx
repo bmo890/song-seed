@@ -6,6 +6,7 @@ import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { Feather } from "@expo/vector-icons";
 import { PlaybackTapeVisualizer } from "../visualizers/PlaybackTapeVisualizer";
 import { MinimapVisualizer } from "../visualizers/MinimapVisualizer";
+import type { SectionBand } from "../../playerSections";
 import { fmt } from "../../utils";
 
 const TIMELINE_HORIZONTAL_PADDING = 20;
@@ -84,6 +85,7 @@ type Props = {
     onScrubStateChange?: (scrubbing: boolean) => void;
     selectedRanges?: Range[];
     practiceMarkers?: PracticeMarkerPreview[];
+    sectionBands?: SectionBand[];
     sharedSelectedRangeStartMs?: SharedValue<number>;
     sharedSelectedRangeEndMs?: SharedValue<number>;
     selectedRangeType?: "keep" | "remove";
@@ -133,6 +135,7 @@ export function AudioReel({
     onScrubStateChange,
     selectedRanges,
     practiceMarkers,
+    sectionBands,
     sharedSelectedRangeStartMs,
     sharedSelectedRangeEndMs,
     selectedRangeType,
@@ -310,6 +313,25 @@ export function AudioReel({
         [handleZoom]
     );
 
+    // The overlay zoom collapses to a single magnifier puck; tapping expands the full
+    // −/+ control, which auto-collapses again after a few idle seconds.
+    const [zoomExpanded, setZoomExpanded] = useState(false);
+    const zoomCollapseTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+    const scheduleZoomCollapse = React.useCallback(() => {
+        if (zoomCollapseTimer.current) clearTimeout(zoomCollapseTimer.current);
+        zoomCollapseTimer.current = setTimeout(() => setZoomExpanded(false), 2800);
+    }, []);
+    React.useEffect(() => () => {
+        if (zoomCollapseTimer.current) clearTimeout(zoomCollapseTimer.current);
+    }, []);
+    const zoomExpandTap = React.useMemo(
+        () => Gesture.Tap().onEnd(() => {
+            runOnJS(setZoomExpanded)(true);
+            runOnJS(scheduleZoomCollapse)();
+        }),
+        [scheduleZoomCollapse]
+    );
+
     const zoomControls = (
         <View style={[audioReelStyles.zoomRow, zoomPlacement === "top" ? audioReelStyles.zoomRowTop : null]}>
             <TouchableOpacity
@@ -452,6 +474,7 @@ export function AudioReel({
                             onScrubStateChange={handleInteractionStateChange}
                             selectedRanges={selectedRanges}
                             practiceMarkers={practiceMarkers}
+                            sectionBands={sectionBands}
                             sharedSelectedRangeStartMs={sharedSelectedRangeStartMs}
                             sharedSelectedRangeEndMs={sharedSelectedRangeEndMs}
                             selectedRangeType={selectedRangeType}
@@ -488,29 +511,49 @@ export function AudioReel({
                 the reel's bottom-right via the known collapsed height. */}
             {showZoomControls && zoomPlacement === "overlay" ? (
                 <View style={[audioReelStyles.zoomOverlay, { top: collapsedHeight - 34 }]} pointerEvents="box-none">
-                    <View style={audioReelStyles.zoomOverlayPill}>
-                        <GestureDetector gesture={zoomOutTap}>
-                            <View style={audioReelStyles.zoomOverlayButton}>
-                                <Feather
-                                    name="zoom-out"
-                                    size={15}
-                                    color="#524440"
-                                    style={{ opacity: zoomMultiple > MIN_ZOOM ? 1 : 0.3 }}
-                                />
-                            </View>
-                        </GestureDetector>
-                        <Text style={audioReelStyles.zoomOverlayText}>{zoomText}</Text>
-                        <GestureDetector gesture={zoomInTap}>
-                            <View style={audioReelStyles.zoomOverlayButton}>
-                                <Feather
-                                    name="zoom-in"
-                                    size={15}
-                                    color="#524440"
-                                    style={{ opacity: zoomMultiple < MAX_ZOOM ? 1 : 0.3 }}
-                                />
-                            </View>
-                        </GestureDetector>
-                    </View>
+                    {zoomExpanded ? (
+                        <AnimatedView
+                            key="zoom-pill"
+                            entering={Reanimated.FadeIn.duration(140)}
+                            exiting={Reanimated.FadeOut.duration(120)}
+                            style={audioReelStyles.zoomOverlayPill}
+                            onTouchStart={scheduleZoomCollapse}
+                        >
+                            <GestureDetector gesture={zoomOutTap}>
+                                <View style={audioReelStyles.zoomOverlayButton}>
+                                    <Feather
+                                        name="zoom-out"
+                                        size={15}
+                                        color="#524440"
+                                        style={{ opacity: zoomMultiple > MIN_ZOOM ? 1 : 0.3 }}
+                                    />
+                                </View>
+                            </GestureDetector>
+                            <Text style={audioReelStyles.zoomOverlayText}>{zoomText}</Text>
+                            <GestureDetector gesture={zoomInTap}>
+                                <View style={audioReelStyles.zoomOverlayButton}>
+                                    <Feather
+                                        name="zoom-in"
+                                        size={15}
+                                        color="#524440"
+                                        style={{ opacity: zoomMultiple < MAX_ZOOM ? 1 : 0.3 }}
+                                    />
+                                </View>
+                            </GestureDetector>
+                        </AnimatedView>
+                    ) : (
+                        <AnimatedView
+                            key="zoom-puck"
+                            entering={Reanimated.FadeIn.duration(140)}
+                            exiting={Reanimated.FadeOut.duration(120)}
+                        >
+                            <GestureDetector gesture={zoomExpandTap}>
+                                <View style={audioReelStyles.zoomPuck}>
+                                    <Feather name="search" size={15} color="#524440" />
+                                </View>
+                            </GestureDetector>
+                        </AnimatedView>
+                    )}
                 </View>
             ) : null}
 
@@ -533,6 +576,7 @@ export function AudioReel({
                             mainCanvasWidth={mainCanvasWidth}
                             selectedRanges={selectedRanges}
                             practiceMarkers={practiceMarkers}
+                            sectionBands={sectionBands}
                             sharedSelectedRangeStartMs={sharedSelectedRangeStartMs}
                             sharedSelectedRangeEndMs={sharedSelectedRangeEndMs}
                             selectedRangeType={selectedRangeType}
@@ -675,6 +719,16 @@ const audioReelStyles = StyleSheet.create({
     zoomOverlayButton: {
         width: 24,
         height: 24,
+        alignItems: "center",
+        justifyContent: "center",
+    },
+    zoomPuck: {
+        width: 30,
+        height: 30,
+        borderRadius: 999,
+        borderWidth: 0.5,
+        borderColor: "#D7C2BD",
+        backgroundColor: "rgba(253,251,247,0.96)",
         alignItems: "center",
         justifyContent: "center",
     },

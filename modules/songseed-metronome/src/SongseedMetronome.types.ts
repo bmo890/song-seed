@@ -6,6 +6,9 @@ export type NativeMetronomeConfig = {
   accentPattern: number[];
   clickEnabled: boolean;
   clickVolume: number;
+  /** Output latency (ms) of the active route. Delays only the visual beat so it lands with
+   *  the audible click (e.g. Bluetooth lag). Omit / 0 = immediate, no compensation. */
+  outputLatencyMs?: number;
 };
 
 export type NativeAudioRouteInfo = {

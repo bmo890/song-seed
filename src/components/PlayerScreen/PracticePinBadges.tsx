@@ -189,9 +189,10 @@ function PinBadge({
             <Text style={badgeStyles.badgeText} numberOfLines={1}>
               {marker.label}
             </Text>
+            {marker.note ? <View style={badgeStyles.noteDot} /> : null}
           </View>
         ) : (
-          <View style={badgeStyles.badgeDot} />
+          <View style={[badgeStyles.badgeDot, marker.note ? badgeStyles.badgeDotNote : null]} />
         )}
       </Animated.View>
     </GestureDetector>
@@ -245,6 +246,8 @@ const badgeStyles = StyleSheet.create({
     height: BADGE_HEIGHT,
   },
   badge: {
+    flexDirection: "row",
+    alignItems: "center",
     paddingHorizontal: 6,
     paddingVertical: 2,
     backgroundColor: colors.primary,
@@ -262,5 +265,17 @@ const badgeStyles = StyleSheet.create({
     borderRadius: 5,
     backgroundColor: colors.primary,
     marginTop: 2,
+  },
+  badgeDotNote: {
+    borderWidth: 1.5,
+    borderColor: colors.onPrimary,
+  },
+  noteDot: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: colors.onPrimary,
+    opacity: 0.85,
+    marginLeft: 4,
   },
 });

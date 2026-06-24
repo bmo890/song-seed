@@ -26,6 +26,8 @@ import {
     WorkspaceStartupPreference,
     BackupReminderFrequency,
     PracticeMarker,
+    ClipSection,
+    ClipAnalysis,
     Note,
     BluetoothMonitoringCalibration,
     ClipOverdubState,
@@ -143,6 +145,8 @@ export type DataSlice = {
     addClipPracticeMarker: (ideaId: string, clipId: string, marker: PracticeMarker) => void;
     removeClipPracticeMarker: (ideaId: string, clipId: string, markerId: string) => void;
     setClipPracticeMarkers: (ideaId: string, clipId: string, markers: PracticeMarker[]) => void;
+    setClipSections: (ideaId: string, clipId: string, sections: ClipSection[]) => void;
+    setClipAnalysis: (ideaId: string, clipId: string, analysis: ClipAnalysis) => void;
     addClipOverdubStem: (ideaId: string, clipId: string, stem: ClipOverdubStem) => void;
     updateClipOverdubRoot: (
         ideaId: string,
@@ -1347,7 +1351,11 @@ export const createDataSlice: StateCreator<
         });
         // Durably commit the metadata change (audio refs removed) before trashing files, so a
         // crash can never leave persisted metadata pointing at moved/removed audio.
-        void persistAppStoreSnapshot(get()).then(() => deleteManagedAudioUris(audioUrisToDelete));
+        void persistAppStoreSnapshot(get())
+            .then(() => deleteManagedAudioUris(audioUrisToDelete))
+            .catch((error) => {
+                console.warn("[DataSafety] Media deletion skipped because metadata was not durable.", error);
+            });
     },
 
     toggleIdeaBookmark: (ideaId) => {
@@ -1619,6 +1627,42 @@ export const createDataSlice: StateCreator<
                               ...idea,
                               clips: idea.clips.map((clip) =>
                                   clip.id === clipId ? { ...clip, practiceMarkers: markers } : clip
+                              ),
+                          }
+                        : idea
+                ),
+            })),
+        }));
+    },
+
+    setClipSections: (ideaId, clipId, sections) => {
+        set((state) => ({
+            workspaces: state.workspaces.map((workspace) => ({
+                ...workspace,
+                ideas: workspace.ideas.map((idea) =>
+                    idea.id === ideaId
+                        ? {
+                              ...idea,
+                              clips: idea.clips.map((clip) =>
+                                  clip.id === clipId ? { ...clip, sections } : clip
+                              ),
+                          }
+                        : idea
+                ),
+            })),
+        }));
+    },
+
+    setClipAnalysis: (ideaId, clipId, analysis) => {
+        set((state) => ({
+            workspaces: state.workspaces.map((workspace) => ({
+                ...workspace,
+                ideas: workspace.ideas.map((idea) =>
+                    idea.id === ideaId
+                        ? {
+                              ...idea,
+                              clips: idea.clips.map((clip) =>
+                                  clip.id === clipId ? { ...clip, analysis } : clip
                               ),
                           }
                         : idea
@@ -1904,12 +1948,16 @@ export const createDataSlice: StateCreator<
         });
         // Durably commit the metadata change before trashing files, so a crash can never
         // leave persisted metadata pointing at moved/removed audio.
-        void persistAppStoreSnapshot(get()).then(() =>
-            Promise.all([
-                deleteManagedAudioUris(audioUrisToDelete),
-                deleteManagedArchiveUri(archiveUriToDelete),
-            ])
-        );
+        void persistAppStoreSnapshot(get())
+            .then(() =>
+                Promise.all([
+                    deleteManagedAudioUris(audioUrisToDelete),
+                    deleteManagedArchiveUri(archiveUriToDelete),
+                ])
+            )
+            .catch((error) => {
+                console.warn("[DataSafety] Workspace media deletion skipped because metadata was not durable.", error);
+            });
     },
 
     archiveWorkspace: (id, isArchived) => {
@@ -2321,7 +2369,11 @@ export const createDataSlice: StateCreator<
         });
         // Durably commit the metadata change before trashing files, so a crash cannot erase
         // media before the persisted model has forgotten the idea.
-        void persistAppStoreSnapshot(get()).then(() => deleteManagedAudioUris(audioUrisToDelete));
+        void persistAppStoreSnapshot(get())
+            .then(() => deleteManagedAudioUris(audioUrisToDelete))
+            .catch((error) => {
+                console.warn("[DataSafety] Media deletion skipped because metadata was not durable.", error);
+            });
     },
     };
 };

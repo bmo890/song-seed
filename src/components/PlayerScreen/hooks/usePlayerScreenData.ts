@@ -11,6 +11,7 @@ import {
   getClipOverdubRootSettings,
 } from "../../../overdub";
 import { getLatestLyricsVersion, lyricsDocumentToText } from "../../../lyrics";
+import { normalizeSections } from "../../../playerSections";
 import { useStore } from "../../../state/useStore";
 import type { SongIdea } from "../../../types";
 import { getCollectionById } from "../../../utils";
@@ -108,6 +109,11 @@ export function usePlayerScreenData({ playerDuration }: UsePlayerScreenDataArgs)
     }
     return extractLyricsMarkers(latestLyricsText, displayDuration);
   }, [displayDuration, latestLyricsText, playerClip?.practiceMarkers]);
+  const sections = useMemo(
+    () => normalizeSections(playerClip?.sections ?? [], displayDuration),
+    [playerClip?.sections, displayDuration]
+  );
+  const analysis = playerClip?.analysis ?? null;
   const clipNotes = playerClip?.notes ?? "";
   const clipNotesSummary = getNoteSummary(clipNotes);
   const clipOverdubStemCount = playerClip ? getClipOverdubStemCount(playerClip) : 0;
@@ -150,6 +156,8 @@ export function usePlayerScreenData({ playerDuration }: UsePlayerScreenDataArgs)
     waveformPeaks,
     displayDuration,
     practiceMarkers,
+    sections,
+    analysis,
     clipNotes,
     clipNotesSummary,
     hasClipOverdubs,

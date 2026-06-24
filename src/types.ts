@@ -56,6 +56,50 @@ export type PracticeMarker = {
   id: string;
   label: string;
   atMs: number;
+  /** Optional free-text note ("try minor IV here"). */
+  note?: string;
+};
+
+export type ClipSectionKind =
+  | "intro"
+  | "verse"
+  | "prechorus"
+  | "chorus"
+  | "bridge"
+  | "solo"
+  | "outro"
+  | "custom";
+
+/** A labelled span of a clip's structure (verse, chorus, …). Each section has an explicit
+ *  start and end; sections never overlap but may leave gaps between them. `color` is only
+ *  set for custom sections (presets derive their colour from the kind). Legacy sections
+ *  stored without `endMs` are backfilled on load (see normalizeSections). */
+export type ClipSection = {
+  id: string;
+  startMs: number;
+  endMs: number;
+  label: string;
+  kind: ClipSectionKind;
+  color?: string;
+};
+
+export type MusicalMode = "major" | "minor";
+
+/** Cached result of offline key/tempo detection for a clip. */
+export type ClipAnalysis = {
+  schemaVersion: number;
+  analyzedAt: number;
+  /** Tonal centre label, e.g. "E♭" / "F♯". null when detection was inconclusive. */
+  key: string | null;
+  mode: MusicalMode | null;
+  /** 0..1 — separation between the winning key and the runner-up. */
+  keyConfidence: number;
+  /** Detected tempo (BPM), rounded. null when inconclusive. */
+  bpm: number | null;
+  /** 0..1 — how steady the tempo is; gates the steady click / count-in. */
+  bpmSteadiness: number;
+  /** Set once the user confirms or overrides the suggestion. */
+  confirmed?: boolean;
 };
 
 export type ClipOverdubTonePreset = "neutral" | "low-cut" | "warm" | "bright";
@@ -109,6 +153,8 @@ export type ClipVersion = {
   tags?: string[];
   isBookmarked?: boolean;
   practiceMarkers?: PracticeMarker[];
+  sections?: ClipSection[];
+  analysis?: ClipAnalysis;
   manualSortOrder?: number;
   overdub?: ClipOverdubState;
 };

@@ -8,6 +8,9 @@ private struct MetronomeConfig {
   var accentPattern: [Double] = [1.0, 0.46, 0.72, 0.46]
   var clickEnabled: Bool = true
   var clickVolume: Double = 0.5
+  /// Output latency (ms) of the active route. Delays only the visual beat so it lands with
+  /// the audible click (e.g. Bluetooth lag). 0 = immediate / no compensation.
+  var outputLatencyMs: Int = 0
 }
 
 final class SongseedMetronomeEngine {
@@ -234,7 +237,7 @@ final class SongseedMetronomeEngine {
     let accentIndex = min(max(beatInBar - 1, 0), max(config.accentPattern.count - 1, 0))
     let barsRemainingBeforeBeat = countInBarsRemaining()
 
-    onBeat([
+    let beatPayload: [String: Any] = [
       "beatInBar": beatInBar,
       "barNumber": barNumber,
       "absolutePulse": absolutePulse,
@@ -243,7 +246,18 @@ final class SongseedMetronomeEngine {
       "isCountIn": isCountIn,
       "countInBarsRemaining": barsRemainingBeforeBeat,
       "timestampMs": Date().timeIntervalSince1970 * 1000
-    ])
+    ]
+    // Delay only the visual/haptic beat by the configured output latency so the on-screen
+    // beat lands with the audible click. The audio itself is untouched.
+    if config.outputLatencyMs > 0 {
+      let delay = Double(config.outputLatencyMs) / 1000.0
+      queue.asyncAfter(deadline: .now() + delay) { [weak self] in
+        guard let self = self, self.isRunning else { return }
+        self.onBeat(beatPayload)
+      }
+    } else {
+      onBeat(beatPayload)
+    }
 
     if isCountIn && countInPulsesRemaining > 0 {
       countInPulsesRemaining -= 1
@@ -304,6 +318,12 @@ final class SongseedMetronomeEngine {
       next.clickVolume = min(1, max(0, clickVolume))
     } else if let clickVolume = rawConfig["clickVolume"] as? NSNumber {
       next.clickVolume = min(1, max(0, clickVolume.doubleValue))
+    }
+
+    if let outputLatencyMs = rawConfig["outputLatencyMs"] as? Int {
+      next.outputLatencyMs = min(1000, max(0, outputLatencyMs))
+    } else if let outputLatencyMs = rawConfig["outputLatencyMs"] as? NSNumber {
+      next.outputLatencyMs = min(1000, max(0, outputLatencyMs.intValue))
     }
 
     return next

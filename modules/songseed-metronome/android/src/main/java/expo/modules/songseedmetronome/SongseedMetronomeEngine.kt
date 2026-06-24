@@ -21,7 +21,10 @@ private data class MetronomeConfig(
   val denominator: Int = 4,
   val accentPattern: List<Double> = listOf(1.0, 0.46, 0.72, 0.46),
   val clickEnabled: Boolean = true,
-  val clickVolume: Double = 0.5
+  val clickVolume: Double = 0.5,
+  /** Output latency (ms) of the active route. Delays only the visual beat so it lands
+   *  with the audible click (e.g. Bluetooth lag). 0 = immediate / no compensation. */
+  val outputLatencyMs: Int = 0
 )
 
 class SongseedMetronomeEngine(
@@ -244,18 +247,24 @@ class SongseedMetronomeEngine(
     val accent = config.accentPattern[(beatInBar - 1).coerceAtMost(config.accentPattern.lastIndex)]
     val barsRemainingBeforeBeat = countInBarsRemaining()
 
-    onBeat(
-      mapOf(
-        "beatInBar" to beatInBar,
-        "barNumber" to barNumber,
-        "absolutePulse" to absolutePulse,
-        "isDownbeat" to (beatInBar == 1),
-        "accent" to accent,
-        "isCountIn" to isCountIn,
-        "countInBarsRemaining" to barsRemainingBeforeBeat,
-        "timestampMs" to System.currentTimeMillis()
-      )
+    val beatPayload = mapOf(
+      "beatInBar" to beatInBar,
+      "barNumber" to barNumber,
+      "absolutePulse" to absolutePulse,
+      "isDownbeat" to (beatInBar == 1),
+      "accent" to accent,
+      "isCountIn" to isCountIn,
+      "countInBarsRemaining" to barsRemainingBeforeBeat,
+      "timestampMs" to System.currentTimeMillis()
     )
+    // Delay only the visual/haptic beat event by the configured output latency so the
+    // on-screen beat lands with the audible click. The audio itself is untouched.
+    val latency = config.outputLatencyMs.toLong()
+    if (latency > 0L) {
+      handler?.postDelayed({ if (isRunning) onBeat(beatPayload) }, latency)
+    } else {
+      onBeat(beatPayload)
+    }
 
     if (isCountIn && countInPulsesRemaining > 0) {
       countInPulsesRemaining -= 1
@@ -290,6 +299,8 @@ class SongseedMetronomeEngine(
     val clickEnabled = rawConfig["clickEnabled"] as? Boolean ?: config.clickEnabled
     val clickVolume = (rawConfig["clickVolume"] as? Number)?.toDouble()?.coerceIn(0.0, 1.0)
       ?: config.clickVolume
+    val outputLatencyMs = (rawConfig["outputLatencyMs"] as? Number)?.toInt()?.coerceIn(0, 1000)
+      ?: config.outputLatencyMs
 
     return MetronomeConfig(
       bpm = bpm,
@@ -298,7 +309,8 @@ class SongseedMetronomeEngine(
       denominator = denominator,
       accentPattern = accentPattern,
       clickEnabled = clickEnabled,
-      clickVolume = clickVolume
+      clickVolume = clickVolume,
+      outputLatencyMs = outputLatencyMs
     )
   }
 

@@ -3,11 +3,14 @@ import { clampPitchShiftSemitones } from "../../../pitchShift";
 
 export type PlayerMode = "player" | "practice";
 export type CountInOption = "off" | "1b" | "2b";
-/** Practice tools. pins/loop expand inline (accordion); speed/pitch/countin open a popover. */
-export type PracticeTool = "pins" | "loop" | "speed" | "pitch" | "countin";
+/** Practice tools. pins/loop/sections expand inline (accordion); speed/pitch/countin open a popover. */
+export type PracticeTool = "pins" | "loop" | "sections" | "speed" | "pitch" | "countin";
 
 export function usePlayerScreenUi() {
   const [mode, setMode] = useState<PlayerMode>("player");
+  const [reelExpanded, setReelExpanded] = useState(false);
+  const [markersVisible, setMarkersVisible] = useState(true);
+  const [repeatEnabled, setRepeatEnabled] = useState(false);
   const [lyricsExpanded, setLyricsExpanded] = useState(false);
   const [notesExpanded, setNotesExpanded] = useState(false);
   const [queueExpanded, setQueueExpanded] = useState(false);
@@ -29,6 +32,12 @@ export function usePlayerScreenUi() {
   return {
     mode,
     setMode,
+    reelExpanded,
+    setReelExpanded,
+    markersVisible,
+    setMarkersVisible,
+    repeatEnabled,
+    setRepeatEnabled,
     lyricsExpanded,
     setLyricsExpanded,
     notesExpanded,

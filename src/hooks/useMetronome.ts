@@ -191,6 +191,11 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
         accentPattern: meterPreset.accentPattern,
         clickEnabled: outputs.beep,
         clickVolume: getMetronomeBeepVolume(beepLevel),
+        // Latency compensation for the on-screen beat. Keep 0 unless we know the *live*
+        // output is Bluetooth — feed getBluetoothMonitoringCalibrationForRoute(...).offsetMs
+        // for the active route here once route detection confirms BT is the current output.
+        // Applying an offset on the built-in speaker would push the visual late, so default 0.
+        outputLatencyMs: 0,
       });
     } finally {
       setIsPreparing(false);
