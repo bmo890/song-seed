@@ -2585,6 +2585,10 @@ export const appActions = {
 
         useStore.getState().markRecentlyAdded(merge.importedWorkspaceIds);
 
+        // Durably commit the imported library to the authoritative store BEFORE reporting
+        // success, so a crash in the window between the in-memory merge and zustand's async
+        // persist can't silently drop the import. The shadow manifest is best-effort after.
+        await flushPersistedSnapshot();
         try {
             await forceManifestWrite(buildPersistedAppStoreSnapshot(useStore.getState()));
         } catch {

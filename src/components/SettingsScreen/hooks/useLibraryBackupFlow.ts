@@ -13,6 +13,7 @@ import {
     runExactLibraryBackup,
 } from "../../../services/libraryBackup";
 import { restoreFromDisasterRecoveryBackup } from "../../../services/disasterRecoveryRestore";
+import { detectPickedArchiveKind } from "../../../services/archiveKind";
 import {
     isBackupOperationCancelled,
     type BackupOperationProgress,
@@ -215,6 +216,17 @@ export function useLibraryBackupFlow() {
         }
 
         const asset = picked.assets[0]!;
+
+        // A shareable Song Seed Archive is a different format and belongs in the Import flow.
+        // Catch it before the destructive confirm so the user isn't told their backup is corrupt.
+        if ((await detectPickedArchiveKind(asset.uri)) === "song-seed-archive") {
+            AppAlert.info(
+                "That's a shareable archive",
+                "This file is a Song Seed Archive (an export for sharing or merging), not a full backup. To bring it into your library, use Settings → Import Song Seed Archive."
+            );
+            return;
+        }
+
         AppAlert.destructive(
             "Restore from backup?",
             "This replaces your entire current library with the contents of this backup. Anything not in the backup will be lost, and the app will need to restart afterward.",

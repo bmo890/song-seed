@@ -7,6 +7,7 @@ import {
     type LibraryImportPreview,
     type ParsedSongSeedArchive,
 } from "../../../services/libraryImport";
+import { detectPickedArchiveKind } from "../../../services/archiveKind";
 import { appActions } from "../../../state/actions";
 
 export function useLibraryImportFlow() {
@@ -30,6 +31,17 @@ export function useLibraryImportFlow() {
         try {
             const picked = await pickSongSeedArchiveFile();
             if (!picked) {
+                return false;
+            }
+
+            // A full disaster-recovery backup is a different format and belongs in the Restore
+            // flow. Detect it here and point the user to the right place instead of failing with
+            // a confusing "not a valid Song Seed Archive" error.
+            if ((await detectPickedArchiveKind(picked.uri)) === "song-seed-backup") {
+                AppAlert.info(
+                    "That's a full backup",
+                    "This file is a full Song Seed backup, not a shareable archive. To restore it, go to Settings → Backups → Restore from Backup (that replaces your whole library with the backup)."
+                );
                 return false;
             }
 
