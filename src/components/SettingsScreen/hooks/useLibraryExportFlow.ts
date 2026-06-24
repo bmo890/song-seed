@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { AppAlert } from "../../common/AppAlert";
 import { exportLibrary, type LibraryExportFormat } from "../../../services/libraryExport";
+import { BACKUP_SAVE_CANCELLED_MESSAGE } from "../../../services/archiveSave";
 import { useStore } from "../../../state/useStore";
 import type { Workspace } from "../../../types";
 import { getCollectionScopeIds } from "../../../utils";
@@ -158,15 +159,22 @@ export function useLibraryExportFlow() {
               options: standardOptions,
             });
 
+      const summary = `${result.exportedWorkspaces} workspace${result.exportedWorkspaces === 1 ? "" : "s"}, ${result.exportedCollections} collection${result.exportedCollections === 1 ? "" : "s"}, ${result.exportedSongs} song${result.exportedSongs === 1 ? "" : "s"}, ${result.exportedStandaloneClips} standalone clip${result.exportedStandaloneClips === 1 ? "" : "s"}, and ${result.exportedNotepadNotes} notepad note${result.exportedNotepadNotes === 1 ? "" : "s"}`;
+
       if (result.warningMessages.length > 0) {
         AppAlert.info("Export finished with warnings", buildWarningSummary(result.warningMessages));
+      } else if (result.saveConfirmed) {
+        // Android: copied into the folder the user chose.
+        AppAlert.info("Export saved", `${summary} were saved to the folder you chose.`);
       } else {
-        AppAlert.info(
-          "Export ready",
-          `${result.exportedWorkspaces} workspace${result.exportedWorkspaces === 1 ? "" : "s"}, ${result.exportedCollections} collection${result.exportedCollections === 1 ? "" : "s"}, ${result.exportedSongs} song${result.exportedSongs === 1 ? "" : "s"}, ${result.exportedStandaloneClips} standalone clip${result.exportedStandaloneClips === 1 ? "" : "s"}, and ${result.exportedNotepadNotes} notepad note${result.exportedNotepadNotes === 1 ? "" : "s"} were packaged.`
-        );
+        // iOS share sheet: we can't confirm the destination, only that it was handed off.
+        AppAlert.info("Export ready", `${summary} were packaged and handed to the share sheet.`);
       }
     } catch (error) {
+      // A cancelled Android folder picker is a silent no-op, not a failure.
+      if (error instanceof Error && error.message === BACKUP_SAVE_CANCELLED_MESSAGE) {
+        return;
+      }
       const message =
         error instanceof Error ? error.message : "The library export could not be completed.";
       AppAlert.info("Export failed", message);

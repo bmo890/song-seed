@@ -17,11 +17,11 @@ import {
     ensureShareDirectory,
     getArchiveFileExtension,
     sanitizeArchiveSegment,
-    shareFileUri,
     type ZipArchiveEntry,
 } from "./audioStorage";
 import { SONG_SEED_SHARE_DIR } from "./storagePaths";
 import { cleanupShareTempFile } from "./managedMedia";
+import { saveArchiveToUserLocation } from "./archiveSave";
 
 export type LibraryExportFormat = "song-seed-archive" | "standard-zip";
 
@@ -78,6 +78,10 @@ export type LibraryExportResult = {
     exportedSongs: number;
     exportedStandaloneClips: number;
     exportedNotepadNotes: number;
+    /** Android Storage Access Framework folder the archive was saved into, when applicable. */
+    savedDirectoryUri?: string;
+    /** True when the save destination is confirmed (Android folder copy); false for the iOS share sheet. */
+    saveConfirmed?: boolean;
 };
 
 type ArchiveManifest = {
@@ -296,12 +300,18 @@ export async function exportLibrary(args: ExportLibraryArgs): Promise<LibraryExp
     const prepared = await prepareLibraryExportArchive(args);
 
     try {
-        await shareFileUri(prepared.archiveUri, prepared.archiveTitle, "application/zip");
+        // Save through the same crash-safe path as backups: an Android folder copy we await
+        // (no Intent-share race) or the iOS share sheet. Only after the save returns do we
+        // delete the temporary archive in `finally`.
+        const saved = await saveArchiveToUserLocation(prepared.archiveUri, `${prepared.archiveTitle}.zip`);
+        return {
+            ...prepared,
+            savedDirectoryUri: saved.savedDirectoryUri,
+            saveConfirmed: saved.saveConfirmed,
+        };
     } finally {
         await cleanupShareTempFile(prepared.archiveUri);
     }
-
-    return prepared;
 }
 
 function buildSongSeedArchive(args: Extract<ExportLibraryArgs, { format: "song-seed-archive" }>): ExportBuildContext {
