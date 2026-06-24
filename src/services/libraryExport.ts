@@ -22,6 +22,29 @@ import {
 import { SONG_SEED_SHARE_DIR } from "./storagePaths";
 import { cleanupShareTempFile } from "./managedMedia";
 import { saveArchiveToUserLocation } from "./archiveSave";
+import {
+    LIBRARY_EXPORT_SCHEMA_VERSION,
+    SONG_SEED_ARCHIVE_FORMAT,
+    type ArchiveClipManifest,
+    type ArchiveClipOverdubManifest,
+    type ArchiveClipOverdubStemManifest,
+    type ArchiveManifest,
+    type ArchiveSongManifest,
+    type ArchiveWorkspaceManifest,
+    type ArchiveCollectionManifest,
+} from "./libraryArchiveManifest";
+
+// The archive manifest shape and the two option/preference types live in
+// libraryArchiveManifest.ts so the importer and exporter share one definition. Re-exported here
+// for existing importers that reach for them through libraryExport.
+export type {
+    SongSeedArchiveOptions,
+    SongSeedArchiveLibraryPreferences,
+} from "./libraryArchiveManifest";
+import type {
+    SongSeedArchiveOptions,
+    SongSeedArchiveLibraryPreferences,
+} from "./libraryArchiveManifest";
 
 export type LibraryExportFormat = "song-seed-archive" | "standard-zip";
 
@@ -29,19 +52,6 @@ export type LibraryExportScope = {
     workspaceIds: string[];
     collectionIds: string[];
     excludedCollectionIds?: string[];
-};
-
-export type SongSeedArchiveOptions = {
-    includeFullSongHistory: boolean;
-    includeNotes: boolean;
-    includeLyrics: boolean;
-    includeHiddenItems: boolean;
-};
-
-export type SongSeedArchiveLibraryPreferences = {
-    primaryWorkspaceId: string | null;
-    primaryCollectionIdByWorkspace: Record<string, string>;
-    bluetoothMonitoringCalibrations?: BluetoothMonitoringCalibration[];
 };
 
 export type StandardZipOptions = {
@@ -84,107 +94,6 @@ export type LibraryExportResult = {
     saveConfirmed?: boolean;
 };
 
-type ArchiveManifest = {
-    format: "song-seed-archive";
-    schemaVersion: number;
-    exportedAt: string;
-    options: SongSeedArchiveOptions;
-    libraryPreferences: SongSeedArchiveLibraryPreferences;
-    scope: LibraryExportScope;
-    warnings: string[];
-    summary: {
-        workspaces: number;
-        collections: number;
-        songs: number;
-        standaloneClips: number;
-        notepadNotes: number;
-    };
-    notepadNotes: ArchiveNotepadNoteManifest[];
-    workspaces: ArchiveWorkspaceManifest[];
-};
-
-type ArchiveNotepadNoteManifest = {
-    id: string;
-    title: string;
-    body: string;
-    createdAt: number;
-    updatedAt: number;
-    isPinned: boolean;
-};
-
-type ArchiveWorkspaceManifest = {
-    id: string;
-    title: string;
-    description?: string;
-    isArchived?: boolean;
-    folderPath: string;
-    collections: ArchiveCollectionManifest[];
-};
-
-type ArchiveCollectionManifest = {
-    id: string;
-    title: string;
-    parentCollectionId?: string | null;
-    folderPath: string;
-    songs: ArchiveSongManifest[];
-    standaloneClips: ArchiveClipManifest[];
-};
-
-type ArchiveSongManifest = {
-    id: string;
-    title: string;
-    folderPath: string;
-    collectionId: string;
-    createdAt: number;
-    lastActivityAt: number;
-    completionPct: number;
-    isBookmarked: boolean;
-    notes?: string;
-    lyrics?: string;
-    historyIncluded: boolean;
-    clips: ArchiveClipManifest[];
-};
-
-type ArchiveClipManifest = {
-    id: string;
-    title: string;
-    createdAt: number;
-    isPrimary: boolean;
-    isBookmarked?: boolean;
-    parentClipId?: string;
-    durationMs?: number;
-    notes?: string;
-    audioPath?: string;
-    audioMissing?: boolean;
-    overdub?: ArchiveClipOverdubManifest;
-};
-
-type ArchiveClipOverdubManifest = {
-    root?: ArchiveClipOverdubRootManifest;
-    renderedMixPath?: string;
-    renderedMixDurationMs?: number;
-    renderedMixWaveformPeaks?: number[];
-    stems: ArchiveClipOverdubStemManifest[];
-};
-
-type ArchiveClipOverdubRootManifest = {
-    gainDb: number;
-    tonePreset: "neutral" | "low-cut" | "warm" | "bright";
-};
-
-type ArchiveClipOverdubStemManifest = {
-    id: string;
-    title: string;
-    gainDb: number;
-    offsetMs: number;
-    tonePreset: "neutral" | "low-cut" | "warm" | "bright";
-    isMuted: boolean;
-    durationMs?: number;
-    waveformPeaks?: number[];
-    audioPath?: string;
-    audioMissing?: boolean;
-};
-
 type StandardExportReport = {
     format: "standard-zip";
     exportedAt: string;
@@ -210,8 +119,6 @@ type ExportBuildContext = {
     exportedStandaloneClips: number;
     exportedNotepadNotes: number;
 };
-
-const LIBRARY_EXPORT_SCHEMA_VERSION = 5;
 
 export async function prepareLibraryExportArchive(args: ExportLibraryArgs): Promise<LibraryExportResult> {
     if (!FileSystem.documentDirectory) {
@@ -319,9 +226,11 @@ function buildSongSeedArchive(args: Extract<ExportLibraryArgs, { format: "song-s
     const selectedWorkspaces = getSelectedWorkspaces(args.workspaces, args.scope);
     const folderAllocator = createFolderAllocator();
     const collectionFolderPaths = new Map<string, string>();
+    const preserveAllMetadata = args.options.preserveAllMetadata;
     const manifest: ArchiveManifest = {
-        format: "song-seed-archive",
+        format: SONG_SEED_ARCHIVE_FORMAT,
         schemaVersion: LIBRARY_EXPORT_SCHEMA_VERSION,
+        fidelity: preserveAllMetadata ? "full" : "standard",
         exportedAt: new Date().toISOString(),
         options: args.options,
         libraryPreferences: buildExportedLibraryPreferences(
@@ -361,7 +270,7 @@ function buildSongSeedArchive(args: Extract<ExportLibraryArgs, { format: "song-s
                     "Note"
                 );
 
-                manifest.notepadNotes.push({
+                (manifest.notepadNotes ??= []).push({
                     id: note.id,
                     title: note.title,
                     body: note.body,
@@ -387,6 +296,9 @@ function buildSongSeedArchive(args: Extract<ExportLibraryArgs, { format: "song-s
             isArchived: workspace.isArchived,
             folderPath: workspaceFolderPath,
             collections: [],
+            ...(preserveAllMetadata
+                ? { color: workspace.color, avatarKey: workspace.avatarKey }
+                : null),
         };
 
         assignCollectionFolderPaths(workspace, workspaceFolderPath, folderAllocator, collectionFolderPaths);
@@ -407,6 +319,13 @@ function buildSongSeedArchive(args: Extract<ExportLibraryArgs, { format: "song-s
                 folderPath: collectionFolderPath,
                 songs: [],
                 standaloneClips: [],
+                ...(preserveAllMetadata
+                    ? {
+                          description: collection.description,
+                          createdAt: collection.createdAt,
+                          updatedAt: collection.updatedAt,
+                      }
+                    : null),
             };
 
             const itemFolderAllocator = createFolderAllocator();
@@ -553,6 +472,37 @@ function buildStandardZip(args: Extract<ExportLibraryArgs, { format: "standard-z
     return context;
 }
 
+/**
+ * Attach every persisted clip field to the manifest (full-fidelity export only). Undefined
+ * fields are dropped by JSON.stringify, so absent metadata stays absent on the round-trip.
+ * `isBookmarked` is handled by the caller because standalone clips reuse it for the idea's
+ * bookmark, so it must not be blindly overwritten with the clip's own value here.
+ */
+function applyFullClipMetadata(manifest: ArchiveClipManifest, clip: ClipVersion): void {
+    manifest.isTitleAutoGenerated = clip.isTitleAutoGenerated;
+    manifest.importedAt = clip.importedAt;
+    manifest.sourceCreatedAt = clip.sourceCreatedAt;
+    manifest.parentAssignedAt = clip.parentAssignedAt;
+    manifest.waveformPeaks = clip.waveformPeaks;
+    manifest.editRegions = clip.editRegions;
+    manifest.tags = clip.tags;
+    manifest.practiceMarkers = clip.practiceMarkers;
+    manifest.sections = clip.sections;
+    manifest.analysis = clip.analysis;
+    manifest.manualSortOrder = clip.manualSortOrder;
+}
+
+/** Attach project-level fields the standard archive drops (full-fidelity export only). */
+function applyFullSongMetadata(manifest: ArchiveSongManifest, idea: SongIdea): void {
+    manifest.status = idea.status;
+    manifest.isDraft = idea.isDraft;
+    manifest.importedAt = idea.importedAt;
+    manifest.sourceCreatedAt = idea.sourceCreatedAt;
+    manifest.customTags = idea.customTags;
+    manifest.clipGroups = idea.clipGroups;
+    manifest.clipGroupAssignments = idea.clipGroupAssignments;
+}
+
 function buildArchiveSongManifest(
     idea: SongIdea,
     songFolderPath: string,
@@ -575,6 +525,10 @@ function buildArchiveSongManifest(
         clips: [],
     };
 
+    if (options.preserveAllMetadata) {
+        applyFullSongMetadata(songManifest, idea);
+    }
+
     if (options.includeNotes && idea.notes.trim().length > 0) {
         songManifest.notes = idea.notes;
         addTextEntry(context, `${songFolderPath}/Notes.txt`, idea.notes);
@@ -584,6 +538,10 @@ function buildArchiveSongManifest(
     if (lyricsText) {
         songManifest.lyrics = lyricsText;
         addTextEntry(context, `${songFolderPath}/Lyrics.txt`, lyricsText);
+    }
+    // Full fidelity keeps every lyric version (with chords); the .txt above stays human-readable.
+    if (options.preserveAllMetadata && options.includeLyrics && idea.lyrics?.versions?.length) {
+        songManifest.lyricsVersions = idea.lyrics.versions;
     }
 
     clipsToExport.forEach((clip) => {
@@ -620,6 +578,11 @@ function buildArchiveSongManifest(
         );
         if (overdubManifest) {
             clipManifest.overdub = overdubManifest;
+        }
+
+        if (options.preserveAllMetadata) {
+            applyFullClipMetadata(clipManifest, clip);
+            clipManifest.isBookmarked = clip.isBookmarked;
         }
 
         songManifest.clips.push(clipManifest);
@@ -670,6 +633,11 @@ function buildArchiveStandaloneClip(
         );
         if (overdubManifest) {
             clipManifest.overdub = overdubManifest;
+        }
+
+        // Preserve the clip's creative metadata; isBookmarked already carries the idea's bookmark.
+        if (options.preserveAllMetadata) {
+            applyFullClipMetadata(clipManifest, primaryClip);
         }
     }
 

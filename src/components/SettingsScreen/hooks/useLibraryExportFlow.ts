@@ -16,6 +16,7 @@ const DEFAULT_ARCHIVE_OPTIONS: ArchiveExportOptions = {
   includeNotes: true,
   includeLyrics: true,
   includeHiddenItems: false,
+  preserveAllMetadata: true,
 };
 
 const DEFAULT_STANDARD_OPTIONS: StandardExportOptions = {

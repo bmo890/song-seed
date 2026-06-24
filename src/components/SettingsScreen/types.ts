@@ -5,6 +5,8 @@ export type ArchiveExportOptions = {
   includeNotes: boolean;
   includeLyrics: boolean;
   includeHiddenItems: boolean;
+  /** Preserve all Song Seed metadata (markers, sections, tags, groups, analysis, waveforms…). */
+  preserveAllMetadata: boolean;
 };
 
 export type StandardExportOptions = {
