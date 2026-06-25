@@ -19,6 +19,7 @@ import { useStore } from "../../../state/useStore";
 import type { ClipVersion } from "../../../types";
 import { getDefaultOverdubStemTitle } from "../../../overdub";
 import { buildSaveDestinations, resolveSaveDestinationLabel, type SaveDestination } from "../../../collectionManagement";
+import { authorizeIntentionalEmptyStateWrite } from "../../../services/stateIntegrity";
 import {
   buildDefaultIdeaTitle,
   ensureUniqueCountedTitle,
@@ -941,6 +942,10 @@ export function useRecordingScreenModel() {
       }
       if (quickNameModalVisible) return;
 
+      // This can legitimately take the library from one idea to zero (e.g. the user's very
+      // first quick-record, abandoned before anything was captured) — authorize it so the
+      // persist guard doesn't mistake it for unannounced data loss.
+      authorizeIntentionalEmptyStateWrite(6);
       updateIdeas((prevIdeas) => prevIdeas.filter((idea) => idea.id !== recordingIdea.id));
       clearRecordingContext();
     };

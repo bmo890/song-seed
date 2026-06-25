@@ -5,7 +5,9 @@
   "scripts": {
     "start": "expo start",
     "start:dev": "expo start --dev-client --scheme songseed-dev",
-    "android": "expo run:android --variant developmentDebug --app-id com.bmostudio.songseed.dev",
+    "android": "sh scripts/android-dev.sh",
+    "android:uninstall": "adb uninstall com.bmostudio.songseed.dev",
+    "android:clear-data": "adb shell pm clear com.bmostudio.songseed.dev",
     "android:release": "APP_VARIANT=production expo run:android --variant productionRelease --app-id com.bmostudio.songseed",
     "ios": "expo run:ios",
     "web": "expo start --web",
