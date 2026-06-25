@@ -1,24 +1,19 @@
 import { useCallback, useMemo, useState } from "react";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { useStore } from "../../../state/useStore";
-import { appActions } from "../../../state/actions";
 import { AppAlert } from "../../common/AppAlert";
 import {
   addWord,
-  createLineFromPairing,
   createPairing,
   deriveExerciseTitle,
   dropPairingsForRemovedWords,
-  getColumnALabel,
   removePairing,
   removeWord,
   shufflePairings,
   toggleLock,
   updateWordText,
 } from "../../../wordLadder";
-import type { WordLadderLine, WordLadderMode, WordLadderWord } from "../../../types";
-
-export type WordLadderTab = "words" | "pairings" | "lines";
+import type { WordLadderStep, WordLadderWord } from "../../../types";
 
 export function useWordLadderScreenModel() {
   const route = useRoute<any>();
@@ -28,16 +23,15 @@ export function useWordLadderScreenModel() {
   const wordLadders = useStore((s) => s.wordLadders);
   const updateWordLadder = useStore((s) => s.updateWordLadder);
   const deleteWordLadder = useStore((s) => s.deleteWordLadder);
-  const workspaces = useStore((s) => s.workspaces);
+  const addNote = useStore((s) => s.addNote);
+  const updateNote = useStore((s) => s.updateNote);
 
   const exercise = useMemo(
     () => wordLadders.find((item) => item.id === exerciseId) ?? null,
     [wordLadders, exerciseId]
   );
 
-  const [activeTab, setActiveTab] = useState<WordLadderTab>("words");
   const [armedWord, setArmedWord] = useState<{ column: "a" | "b"; wordId: string } | null>(null);
-  const [songExportVisible, setSongExportVisible] = useState(false);
 
   const apply = useCallback(
     (updates: Parameters<typeof updateWordLadder>[1]) => {
@@ -47,22 +41,41 @@ export function useWordLadderScreenModel() {
     [exerciseId, updateWordLadder]
   );
 
-  const setMode = useCallback(
-    (mode: WordLadderMode) => {
-      if (!exercise) return;
-      apply({
-        mode,
-        columnALabel: getColumnALabel(mode),
-        title: deriveExerciseTitle(mode, exercise.seedLabel),
-      });
+  // ── Wizard navigation ─────────────────────────────────────────────────────
+  // "setup" is a one-way gate: once committed, the seeds are frozen and the
+  // writer moves between pairing and the line draft. The current step is
+  // persisted on the exercise so reopening resumes where they left off.
+  const step: WordLadderStep = exercise?.step ?? "setup";
+
+  const goToStep = useCallback(
+    (next: WordLadderStep) => {
+      apply({ step: next });
+    },
+    [apply]
+  );
+
+  /** Records that the current step's help has been opened, so its highlight can
+   * recede to a quiet link on return visits. */
+  const markHelpSeen = useCallback(
+    (which: WordLadderStep) => {
+      if (!exercise || exercise.seenHelpSteps.includes(which)) return;
+      apply({ seenHelpSteps: [...exercise.seenHelpSteps, which] });
     },
     [apply, exercise]
   );
 
-  const setSeedLabel = useCallback(
-    (seedLabel: string) => {
+  const setRoleSeed = useCallback(
+    (roleSeed: string) => {
       if (!exercise) return;
-      apply({ seedLabel, title: deriveExerciseTitle(exercise.mode, seedLabel) });
+      apply({ roleSeed, title: deriveExerciseTitle(roleSeed, exercise.placeSeed) });
+    },
+    [apply, exercise]
+  );
+
+  const setPlaceSeed = useCallback(
+    (placeSeed: string) => {
+      if (!exercise) return;
+      apply({ placeSeed, title: deriveExerciseTitle(exercise.roleSeed, placeSeed) });
     },
     [apply, exercise]
   );
@@ -148,59 +161,36 @@ export function useWordLadderScreenModel() {
     apply({ pairings: shufflePairings(exercise) });
   }, [apply, exercise]);
 
-  const makeLineFromPairing = useCallback(
-    (pairingId: string) => {
-      if (!exercise) return;
-      const pairing = exercise.pairings.find((p) => p.id === pairingId);
-      if (!pairing) return;
-      const line = createLineFromPairing(exercise.mode, pairing, exercise.columnA, exercise.columnB);
-      if (!line) return;
-      apply({ lines: [...exercise.lines, line] });
-      setActiveTab("lines");
-    },
-    [apply, exercise]
-  );
-
-  const updateLineText = useCallback(
-    (lineId: string, text: string) => {
-      if (!exercise) return;
-      apply({ lines: exercise.lines.map((line) => (line.id === lineId ? { ...line, text } : line)) });
-    },
-    [apply, exercise]
-  );
-
-  const toggleStarLine = useCallback(
-    (lineId: string) => {
-      if (!exercise) return;
-      apply({
-        lines: exercise.lines.map((line) =>
-          line.id === lineId ? { ...line, starred: !line.starred } : line
-        ),
-      });
-    },
-    [apply, exercise]
-  );
-
-  const reorderLines = useCallback(
-    (lines: WordLadderLine[]) => {
-      apply({ lines });
+  const setDraft = useCallback(
+    (draft: string) => {
+      apply({ draft });
     },
     [apply]
   );
 
-  const deleteLine = useCallback(
-    (lineId: string) => {
+  const toggleSparkUsed = useCallback(
+    (pairingId: string) => {
       if (!exercise) return;
-      apply({ lines: exercise.lines.filter((line) => line.id !== lineId) });
+      const used = exercise.usedSparkIds.includes(pairingId)
+        ? exercise.usedSparkIds.filter((id) => id !== pairingId)
+        : [...exercise.usedSparkIds, pairingId];
+      apply({ usedSparkIds: used });
     },
     [apply, exercise]
+  );
+
+  const setRevision = useCallback(
+    (revision: string) => {
+      apply({ revision });
+    },
+    [apply]
   );
 
   const deleteExercise = useCallback(() => {
     if (!exerciseId) return;
     AppAlert.destructive(
       "Delete this Word Ladder?",
-      "Its words, pairings, and lines will be gone for good.",
+      "Its words, pairings, and poem will be gone for good.",
       () => {
         deleteWordLadder(exerciseId);
         navigation.navigate("NotepadHome");
@@ -209,48 +199,28 @@ export function useWordLadderScreenModel() {
     );
   }, [deleteWordLadder, exerciseId, navigation]);
 
-  const songOptions = useMemo(
-    () =>
-      workspaces.flatMap((workspace) =>
-        workspace.ideas
-          .filter((idea) => idea.kind === "project")
-          .map((idea) => ({
-            workspaceTitle: workspace.title,
-            songId: idea.id,
-            songTitle: idea.title,
-          }))
-      ),
-    [workspaces]
-  );
-
-  const sendLinesToSong = useCallback(
-    (songId: string) => {
-      if (!exercise) return;
-      const starred = exercise.lines.filter((line) => line.starred && line.text.trim());
-      const source = starred.length > 0 ? starred : exercise.lines.filter((line) => line.text.trim());
-      const text = source.map((line) => line.text.trim()).join("\n");
-      if (!text) {
-        AppAlert.info("Nothing to send", "Write or star at least one line first.");
-        return;
-      }
-      appActions.saveProjectLyricsAsNewVersion(songId, text);
-      setSongExportVisible(false);
-      const songTitle = songOptions.find((opt) => opt.songId === songId)?.songTitle ?? "the song";
-      AppAlert.info("Sent to song", `${source.length} line${source.length === 1 ? "" : "s"} added to "${songTitle}" as new lyrics.`);
-    },
-    [exercise, songOptions]
-  );
+  /** Saves the revision (falling back to the draft) as a new page in the global
+   * Lyrics Pad, then opens it there. */
+  const saveAsLyrics = useCallback(() => {
+    if (!exercise) return;
+    const text = (exercise.revision.trim() ? exercise.revision : exercise.draft).trim();
+    if (!text) {
+      AppAlert.info("Nothing to save", "Write and revise a few lines first.");
+      return;
+    }
+    const noteId = addNote();
+    updateNote(noteId, { title: exercise.title, body: text });
+    navigation.navigate("NotepadHome", { noteId, openToken: Date.now() });
+  }, [exercise, addNote, updateNote, navigation]);
 
   return {
     exercise,
-    activeTab,
-    setActiveTab,
+    step,
+    goToStep,
+    markHelpSeen,
     armedWord,
-    songExportVisible,
-    setSongExportVisible,
-    songOptions,
-    setMode,
-    setSeedLabel,
+    setRoleSeed,
+    setPlaceSeed,
     addColumnWord,
     editColumnWord,
     reorderColumnWords,
@@ -259,13 +229,11 @@ export function useWordLadderScreenModel() {
     unpairWord,
     toggleLockPairing,
     shuffle,
-    makeLineFromPairing,
-    updateLineText,
-    toggleStarLine,
-    reorderLines,
-    deleteLine,
+    setDraft,
+    toggleSparkUsed,
+    setRevision,
     deleteExercise,
-    sendLinesToSong,
+    saveAsLyrics,
     goBack: () => navigation.navigate("NotepadHome"),
   };
 }

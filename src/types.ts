@@ -9,12 +9,11 @@ export type Note = {
   isPinned: boolean;
 };
 
-/** "Word Ladder" is a Jeff Tweedy-style writing exercise: pair a column of
- * role-verbs (or place-adjectives) against a column of nouns to spark odd,
- * unplanned lyric collisions. Lives in the global Lyrics Notebook alongside
- * Notes, not attached to a song unless the writer chooses to send a line on. */
-export type WordLadderMode = "role" | "place";
-
+/** "Word Ladder" is a Jeff Tweedy-style writing exercise: name a job/role and a
+ * room/location, then list the verbs that job does (column A) and the nouns
+ * found in that room (column B). Pairing the two columns sparks odd, unplanned
+ * lyric collisions. Lives in the global Lyrics Notebook alongside Notes, not
+ * attached to a song unless the writer chooses to send a line on. */
 export type WordLadderWord = {
   id: string;
   text: string;
@@ -27,25 +26,34 @@ export type WordLadderPairing = {
   locked: boolean;
 };
 
-export type WordLadderLine = {
-  id: string;
-  text: string;
-  pairingId: string | null;
-  starred: boolean;
-};
+/** The exercise runs as a linear wizard following Tweedy's method: list words,
+ * pair them, write a loose first draft from the pairs, then revise it into
+ * something worth keeping. "setup" is a one-time gate that freezes the seeds. */
+export type WordLadderStep = "setup" | "pairs" | "draft" | "revise";
 
 export type WordLadderExercise = {
   id: string;
   title: string;
   createdAt: number;
   updatedAt: number;
-  mode: WordLadderMode;
-  seedLabel: string;
-  columnALabel: string;
+  /** Wizard position; "setup" until the writer commits their seeds + words. */
+  step: WordLadderStep;
+  /** The job/role whose verbs fill column A — e.g. "doctor", "thief". */
+  roleSeed: string;
+  /** The room/location whose nouns fill column B — e.g. "kitchen", "chapel". */
+  placeSeed: string;
   columnA: WordLadderWord[];
   columnB: WordLadderWord[];
   pairings: WordLadderPairing[];
-  lines: WordLadderLine[];
+  /** Steps whose help has already been opened — so the help affordance can
+   * highlight on a step's first visit, then recede to a quiet link. */
+  seenHelpSteps: WordLadderStep[];
+  /** Pairing ids the writer has crossed off as "used" while drafting. */
+  usedSparkIds: string[];
+  /** The loose, unjudged first draft written from the pairs. */
+  draft: string;
+  /** The tightened rewrite — what gets saved as lyrics. */
+  revision: string;
 };
 
 export type BluetoothMonitoringCalibration = {

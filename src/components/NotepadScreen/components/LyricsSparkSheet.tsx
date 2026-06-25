@@ -7,24 +7,27 @@ import { colors, radii, spacing, text as textTokens } from "../../../design/toke
 type Props = {
   visible: boolean;
   onClose: () => void;
-  onNewPage: () => void;
+  onNewWordLadder: () => void;
 };
 
-export function NewLyricsPadItemSheet({ visible, onClose, onNewPage }: Props) {
+export function LyricsSparkSheet({ visible, onClose, onNewWordLadder }: Props) {
   return (
     <BottomSheet visible={visible} onClose={onClose}>
-      <Text style={sheetStyles.title}>New in the Notepad</Text>
+      <Text style={sheetStyles.title}>Lyrics Spark</Text>
+      <Text style={sheetStyles.subtitle}>Short exercises to knock loose a line you wouldn't write on purpose.</Text>
 
       <Pressable
         style={({ pressed }) => [sheetStyles.option, pressed ? appStyles.pressDown : null]}
-        onPress={onNewPage}
+        onPress={onNewWordLadder}
       >
         <View style={sheetStyles.iconWrap}>
-          <Ionicons name="document-text-outline" size={18} color={colors.primary} />
+          <Ionicons name="shuffle-outline" size={18} color={colors.primary} />
         </View>
         <View style={sheetStyles.optionCopy}>
-          <Text style={sheetStyles.optionTitle}>New page</Text>
-          <Text style={sheetStyles.optionBody}>A blank page for lyrics, notes, or anything else.</Text>
+          <Text style={sheetStyles.optionTitle}>Word Ladder</Text>
+          <Text style={sheetStyles.optionBody}>
+            Pair two columns of words to find lyric lines you wouldn't have written on purpose.
+          </Text>
         </View>
       </Pressable>
     </BottomSheet>
@@ -36,6 +39,11 @@ const sheetStyles = StyleSheet.create({
     fontFamily: "PlayfairDisplay_600SemiBold",
     fontSize: 19,
     color: colors.textPrimary,
+    marginBottom: 4,
+  },
+  subtitle: {
+    ...textTokens.supporting,
+    fontSize: 13,
     marginBottom: spacing.md,
   },
   option: {

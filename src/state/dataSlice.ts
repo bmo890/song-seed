@@ -30,7 +30,6 @@ import {
     ClipAnalysis,
     Note,
     WordLadderExercise,
-    WordLadderMode,
     BluetoothMonitoringCalibration,
     ClipOverdubState,
     ClipOverdubRootSettings,
@@ -118,7 +117,7 @@ export type DataSlice = {
     updateNote: (id: string, updates: { title?: string; body?: string; isPinned?: boolean }) => void;
     deleteNote: (id: string) => void;
     wordLadders: WordLadderExercise[];
-    addWordLadder: (mode?: WordLadderMode, seedLabel?: string) => string;
+    addWordLadder: (roleSeed?: string, placeSeed?: string) => string;
     updateWordLadder: (id: string, updates: Partial<Omit<WordLadderExercise, "id" | "createdAt">>) => void;
     deleteWordLadder: (id: string) => void;
     setBackupReminderFrequency: (value: BackupReminderFrequency) => void;
@@ -1105,8 +1104,8 @@ export const createDataSlice: StateCreator<
         })),
     deleteNote: (id) =>
         set((state) => ({ notes: state.notes.filter((note) => note.id !== id) })),
-    addWordLadder: (mode = "role", seedLabel = "") => {
-        const exercise = createWordLadderExercise(mode, seedLabel);
+    addWordLadder: (roleSeed = "", placeSeed = "") => {
+        const exercise = createWordLadderExercise(roleSeed, placeSeed);
         set((state) => ({ wordLadders: [exercise, ...state.wordLadders] }));
         return exercise.id;
     },

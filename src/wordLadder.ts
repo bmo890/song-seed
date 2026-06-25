@@ -1,8 +1,7 @@
 import type {
   WordLadderExercise,
-  WordLadderLine,
-  WordLadderMode,
   WordLadderPairing,
+  WordLadderStep,
   WordLadderWord,
 } from "./types";
 
@@ -10,46 +9,63 @@ function randomId(prefix: string) {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 }
 
-export function getColumnALabel(mode: WordLadderMode) {
-  return mode === "role" ? "Verbs" : "Adjectives";
+/** Column A is always the role's verbs; column B is always the room's nouns. */
+export const COLUMN_A_LABEL = "Verbs";
+export const COLUMN_B_LABEL = "Nouns";
+
+export const ROLE_SEED_PLACEHOLDER = "e.g. doctor";
+export const PLACE_SEED_PLACEHOLDER = "e.g. bedroom";
+
+export function getColumnAPlaceholder(_roleSeed: string) {
+  return "Add a verb";
 }
 
-export function getColumnBLabel() {
-  return "Nouns";
+export function getColumnBPlaceholder(_placeSeed: string) {
+  return "Add a noun";
 }
 
-export function getSeedPlaceholder(mode: WordLadderMode) {
-  return mode === "role" ? "doctor, astronaut, thief…" : "bedroom, highway, chapel…";
-}
-
-export function getColumnAPlaceholder(mode: WordLadderMode) {
-  return mode === "role" ? "A verb this role does" : "An adjective for this place";
-}
-
-export function deriveExerciseTitle(mode: WordLadderMode, seedLabel: string) {
-  const trimmed = seedLabel.trim();
-  if (!trimmed) return "Untitled Word Ladder";
-  return mode === "role" ? `The ${trimmed}` : trimmed.replace(/^the\s+/i, (m) => m);
+export function deriveExerciseTitle(roleSeed: string, placeSeed: string) {
+  const role = roleSeed.trim();
+  const place = placeSeed.trim();
+  if (role && place) return `The ${role} in the ${place}`;
+  if (role) return `The ${role}`;
+  if (place) return `The ${place}`;
+  return "Untitled Word Ladder";
 }
 
 export function createWordLadderExercise(
-  mode: WordLadderMode = "role",
-  seedLabel: string = ""
+  roleSeed: string = "",
+  placeSeed: string = ""
 ): WordLadderExercise {
   const now = Date.now();
   return {
     id: randomId("ladder"),
-    title: deriveExerciseTitle(mode, seedLabel),
+    title: deriveExerciseTitle(roleSeed, placeSeed),
     createdAt: now,
     updatedAt: now,
-    mode,
-    seedLabel,
-    columnALabel: getColumnALabel(mode),
+    step: "setup",
+    roleSeed,
+    placeSeed,
     columnA: [],
     columnB: [],
     pairings: [],
-    lines: [],
+    seenHelpSteps: [],
+    usedSparkIds: [],
+    draft: "",
+    revision: "",
   };
+}
+
+/** A pairing's two words, looked up for display as a spark in the poem step. */
+export function pairingSeedWords(
+  pairing: WordLadderPairing,
+  columnA: WordLadderWord[],
+  columnB: WordLadderWord[]
+): { seedA: string; seedB: string } | null {
+  const wordA = columnA.find((w) => w.id === pairing.columnAWordId);
+  const wordB = columnB.find((w) => w.id === pairing.columnBWordId);
+  if (!wordA || !wordB) return null;
+  return { seedA: wordA.text, seedB: wordB.text };
 }
 
 export function addWord(words: WordLadderWord[], text: string): WordLadderWord[] {
@@ -126,59 +142,11 @@ export function shufflePairings(exercise: Pick<WordLadderExercise, "columnA" | "
   return [...locked, ...reshuffled];
 }
 
-const VOWELS = new Set(["a", "e", "i", "o", "u"]);
-
-function conjugateThirdPerson(verb: string): string {
-  const v = verb.trim().toLowerCase();
-  if (!v) return v;
-  if (v.endsWith("y") && v.length > 1 && !VOWELS.has(v[v.length - 2])) {
-    return `${v.slice(0, -1)}ies`;
-  }
-  if (/(s|sh|ch|x|z|o)$/.test(v)) {
-    return `${v}es`;
-  }
-  return `${v}s`;
-}
-
-/** Naive line-seed templating — deliberately mechanical (no AI), just enough
- * of a nudge to spark an edit. "heal" + "guitar" -> "the guitar heals". */
-export function buildLineTextFromPairing(
-  mode: WordLadderMode,
-  columnAText: string,
-  columnBText: string
-): string {
-  const noun = columnBText.trim().toLowerCase();
-  const other = columnAText.trim().toLowerCase();
-  if (!noun || !other) return "";
-
-  if (mode === "role") {
-    return `the ${noun} ${conjugateThirdPerson(other)}`;
-  }
-  return `the ${other} ${noun}`;
-}
-
-export function createLineFromPairing(
-  mode: WordLadderMode,
-  pairing: WordLadderPairing,
-  columnA: WordLadderWord[],
-  columnB: WordLadderWord[]
-): WordLadderLine | null {
-  const wordA = columnA.find((w) => w.id === pairing.columnAWordId);
-  const wordB = columnB.find((w) => w.id === pairing.columnBWordId);
-  if (!wordA || !wordB) return null;
-  return {
-    id: randomId("line"),
-    text: buildLineTextFromPairing(mode, wordA.text, wordB.text),
-    pairingId: pairing.id,
-    starred: false,
-  };
-}
-
 export function exerciseSummary(exercise: WordLadderExercise) {
-  const lineCount = exercise.lines.length;
   const pairCount = exercise.pairings.length;
   const parts = [`${pairCount} pair${pairCount === 1 ? "" : "s"}`];
-  if (lineCount > 0) parts.push(`${lineCount} line${lineCount === 1 ? "" : "s"}`);
+  if (exercise.revision.trim()) parts.push("revised");
+  else if (exercise.draft.trim()) parts.push("draft started");
   return parts.join(" · ");
 }
 
@@ -225,20 +193,22 @@ function sanitizePairings(raw: unknown, columnA: WordLadderWord[], columnB: Word
   return out;
 }
 
-function sanitizeLines(raw: unknown): WordLadderLine[] {
-  if (!Array.isArray(raw)) return [];
-  const out: WordLadderLine[] = [];
-  for (const item of raw) {
-    if (item && typeof item === "object" && isNonEmptyString((item as any).id) && isNonEmptyString((item as any).text)) {
-      out.push({
-        id: (item as any).id,
-        text: (item as any).text,
-        pairingId: isNonEmptyString((item as any).pairingId) ? (item as any).pairingId : null,
-        starred: (item as any).starred === true,
-      });
-    }
+/** Migration: the draft once lived under `poem`, and before that as an array of
+ * per-pair `lines`; fold whichever exists into the draft so nothing is lost. */
+function sanitizeDraft(draftRaw: unknown, poemRaw: unknown, legacyLines: unknown): string {
+  if (isNonEmptyString(draftRaw)) return draftRaw;
+  if (isNonEmptyString(poemRaw)) return poemRaw;
+  if (Array.isArray(legacyLines)) {
+    const texts = legacyLines
+      .map((item) =>
+        item && typeof item === "object" && isNonEmptyString((item as any).text)
+          ? (item as any).text.trim()
+          : ""
+      )
+      .filter((text) => text.length > 0);
+    if (texts.length > 0) return texts.join("\n");
   }
-  return out;
+  return "";
 }
 
 export function sanitizeWordLadderExercise(raw: unknown): WordLadderExercise | null {
@@ -246,22 +216,55 @@ export function sanitizeWordLadderExercise(raw: unknown): WordLadderExercise | n
   const obj = raw as Record<string, unknown>;
   if (!isNonEmptyString(obj.id)) return null;
 
-  const mode: WordLadderMode = obj.mode === "place" ? "place" : "role";
   const columnA = sanitizeWords(obj.columnA);
   const columnB = sanitizeWords(obj.columnB);
+
+  // Migration: older exercises stored a single `seedLabel` under a `mode`
+  // toggle ("role" | "place"). Fold that value into whichever new seed matches.
+  const legacySeed = isNonEmptyString(obj.seedLabel) ? obj.seedLabel : "";
+  const roleSeed = isNonEmptyString(obj.roleSeed)
+    ? obj.roleSeed
+    : obj.mode === "place"
+      ? ""
+      : legacySeed;
+  const placeSeed = isNonEmptyString(obj.placeSeed)
+    ? obj.placeSeed
+    : obj.mode === "place"
+      ? legacySeed
+      : "";
+
+  // Map legacy final-step keys ("poem", "lines") onto the new "draft" step.
+  const step: WordLadderStep =
+    obj.step === "pairs"
+      ? "pairs"
+      : obj.step === "revise"
+        ? "revise"
+        : obj.step === "draft" || obj.step === "poem" || obj.step === "lines"
+          ? "draft"
+          : "setup";
 
   return {
     id: obj.id,
     title: isNonEmptyString(obj.title) && obj.title.trim() ? obj.title : "Untitled Word Ladder",
     createdAt: typeof obj.createdAt === "number" ? obj.createdAt : Date.now(),
     updatedAt: typeof obj.updatedAt === "number" ? obj.updatedAt : Date.now(),
-    mode,
-    seedLabel: isNonEmptyString(obj.seedLabel) ? obj.seedLabel : "",
-    columnALabel: isNonEmptyString(obj.columnALabel) ? obj.columnALabel : getColumnALabel(mode),
+    step,
+    roleSeed,
+    placeSeed,
     columnA,
     columnB,
     pairings: sanitizePairings(obj.pairings, columnA, columnB),
-    lines: sanitizeLines(obj.lines),
+    seenHelpSteps: Array.isArray(obj.seenHelpSteps)
+      ? obj.seenHelpSteps.filter(
+          (s): s is WordLadderStep =>
+            s === "setup" || s === "pairs" || s === "draft" || s === "revise"
+        )
+      : [],
+    usedSparkIds: Array.isArray(obj.usedSparkIds)
+      ? obj.usedSparkIds.filter((id): id is string => isNonEmptyString(id))
+      : [],
+    draft: sanitizeDraft(obj.draft, obj.poem, obj.lines),
+    revision: isNonEmptyString(obj.revision) ? obj.revision : "",
   };
 }
 

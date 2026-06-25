@@ -2,7 +2,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { styles as appStyles } from "../../../styles";
 import { colors, radii, shadows, spacing, text as textTokens } from "../../../design/tokens";
-import { getUnpairedWords } from "../../../wordLadder";
+import { COLUMN_A_LABEL, COLUMN_B_LABEL, getUnpairedWords } from "../../../wordLadder";
 import type { WordLadderExercise } from "../../../types";
 
 type Props = {
@@ -12,7 +12,6 @@ type Props = {
   onUnpair: (pairingId: string) => void;
   onToggleLock: (pairingId: string) => void;
   onShuffle: () => void;
-  onMakeLine: (pairingId: string) => void;
 };
 
 /** A tiny deterministic wobble so word scraps feel hand-scattered rather
@@ -30,29 +29,86 @@ export function WordLadderPairingBoard({
   onUnpair,
   onToggleLock,
   onShuffle,
-  onMakeLine,
 }: Props) {
   const unpairedA = getUnpairedWords(exercise.columnA, exercise.pairings, "a");
   const unpairedB = getUnpairedWords(exercise.columnB, exercise.pairings, "b");
+  const hasUnpaired = unpairedA.length > 0 || unpairedB.length > 0;
+  const pairCount = exercise.pairings.length;
+  const canShuffle = exercise.columnA.length > 0 && exercise.columnB.length > 0;
 
   return (
     <ScrollView style={boardStyles.root} showsVerticalScrollIndicator={false}>
       <View style={boardStyles.toolbar}>
         <Text style={boardStyles.hint}>
-          {exercise.pairings.length > 0
-            ? `${exercise.pairings.length} pair${exercise.pairings.length === 1 ? "" : "s"} on the board`
-            : "Tap a word, then tap one across to connect them"}
+          {hasUnpaired
+            ? armedWord
+              ? "Now tap a word across to connect them"
+              : "Tap a word, then its partner across"
+            : "All paired — shuffle to remix"}
         </Text>
         <Pressable
-          style={({ pressed }) => [boardStyles.shuffleBtn, pressed ? appStyles.pressDown : null]}
+          style={({ pressed }) => [
+            boardStyles.shuffleBtn,
+            !canShuffle ? boardStyles.shuffleBtnDisabled : null,
+            pressed && canShuffle ? appStyles.pressDown : null,
+          ]}
           onPress={onShuffle}
+          disabled={!canShuffle}
         >
           <Ionicons name="shuffle" size={14} color={colors.onPrimary} />
           <Text style={boardStyles.shuffleBtnText}>Shuffle</Text>
         </Pressable>
       </View>
 
-      {exercise.pairings.length === 0 ? null : (
+      {hasUnpaired ? (
+        <View style={boardStyles.poolsCard}>
+          <Text style={boardStyles.sectionLabel}>{COLUMN_A_LABEL}</Text>
+          <View style={boardStyles.scrapWrap}>
+            {unpairedA.length > 0 ? (
+              unpairedA.map((word) => (
+                <Scrap
+                  key={word.id}
+                  text={word.text}
+                  armed={armedWord?.column === "a" && armedWord.wordId === word.id}
+                  onPress={() => onTapWord("a", word.id)}
+                />
+              ))
+            ) : (
+              <Text style={boardStyles.poolEmpty}>all paired</Text>
+            )}
+          </View>
+
+          <Text style={[boardStyles.sectionLabel, boardStyles.sectionLabelSecond]}>{COLUMN_B_LABEL}</Text>
+          <View style={boardStyles.scrapWrap}>
+            {unpairedB.length > 0 ? (
+              unpairedB.map((word) => (
+                <Scrap
+                  key={word.id}
+                  text={word.text}
+                  armed={armedWord?.column === "b" && armedWord.wordId === word.id}
+                  onPress={() => onTapWord("b", word.id)}
+                />
+              ))
+            ) : (
+              <Text style={boardStyles.poolEmpty}>all paired</Text>
+            )}
+          </View>
+        </View>
+      ) : null}
+
+      <View style={boardStyles.pairsHeaderRow}>
+        <Text style={boardStyles.sectionLabel}>Pairs</Text>
+        <Text style={boardStyles.pairsCount}>{pairCount}</Text>
+      </View>
+
+      {pairCount === 0 ? (
+        <View style={boardStyles.pairsEmpty}>
+          <Ionicons name="git-compare-outline" size={22} color={colors.textMuted} />
+          <Text style={boardStyles.pairsEmptyText}>
+            No pairs yet. Tap a word above, then its partner across — or hit Shuffle to pair them all at once.
+          </Text>
+        </View>
+      ) : (
         <View style={boardStyles.pairingList}>
           {exercise.pairings.map((pairing) => {
             const wordA = exercise.columnA.find((w) => w.id === pairing.columnAWordId);
@@ -88,13 +144,6 @@ export function WordLadderPairingBoard({
                 </Text>
 
                 <Pressable
-                  style={({ pressed }) => [boardStyles.lineBtn, pressed ? appStyles.pressDown : null]}
-                  onPress={() => onMakeLine(pairing.id)}
-                  hitSlop={6}
-                >
-                  <Ionicons name="create-outline" size={14} color={colors.primary} />
-                </Pressable>
-                <Pressable
                   style={({ pressed }) => [boardStyles.unpairBtn, pressed ? appStyles.pressDown : null]}
                   onPress={() => onUnpair(pairing.id)}
                   hitSlop={6}
@@ -106,40 +155,6 @@ export function WordLadderPairingBoard({
           })}
         </View>
       )}
-
-      {unpairedA.length > 0 || unpairedB.length > 0 ? (
-        <View style={boardStyles.unpairedSection}>
-          <Text style={boardStyles.sectionLabel}>{exercise.columnALabel}</Text>
-          <View style={boardStyles.scrapWrap}>
-            {unpairedA.map((word) => (
-              <Scrap
-                key={word.id}
-                text={word.text}
-                armed={armedWord?.column === "a" && armedWord.wordId === word.id}
-                onPress={() => onTapWord("a", word.id)}
-              />
-            ))}
-          </View>
-
-          <Text style={[boardStyles.sectionLabel, boardStyles.sectionLabelSecond]}>Nouns</Text>
-          <View style={boardStyles.scrapWrap}>
-            {unpairedB.map((word) => (
-              <Scrap
-                key={word.id}
-                text={word.text}
-                armed={armedWord?.column === "b" && armedWord.wordId === word.id}
-                onPress={() => onTapWord("b", word.id)}
-              />
-            ))}
-          </View>
-        </View>
-      ) : null}
-
-      {exercise.columnA.length === 0 && exercise.columnB.length === 0 ? (
-        <Text style={boardStyles.emptyHint}>
-          Add a few words on the Words tab first — then come back here to pair them up.
-        </Text>
-      ) : null}
     </ScrollView>
   );
 }
@@ -187,10 +202,59 @@ const boardStyles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: 7,
   },
+  shuffleBtnDisabled: {
+    backgroundColor: colors.borderMuted,
+  },
   shuffleBtnText: {
     fontFamily: "PlusJakartaSans_700Bold",
     fontSize: 12,
     color: colors.onPrimary,
+  },
+  poolsCard: {
+    backgroundColor: colors.surfaceHigh,
+    borderRadius: radii.lg,
+    padding: spacing.md,
+    gap: spacing.xs,
+    marginBottom: spacing.lg,
+  },
+  pairsHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    marginBottom: spacing.sm,
+  },
+  pairsCount: {
+    fontFamily: "PlusJakartaSans_700Bold",
+    fontSize: 11,
+    lineHeight: 16,
+    textAlignVertical: "center",
+    includeFontPadding: false,
+    color: colors.onPrimary,
+    backgroundColor: colors.primary,
+    minWidth: 18,
+    textAlign: "center",
+    borderRadius: radii.round,
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    overflow: "hidden",
+  },
+  pairsEmpty: {
+    alignItems: "center",
+    gap: spacing.sm,
+    paddingVertical: spacing.xl,
+    paddingHorizontal: spacing.lg,
+  },
+  pairsEmptyText: {
+    ...textTokens.supporting,
+    fontSize: 13,
+    textAlign: "center",
+  },
+  poolEmpty: {
+    ...textTokens.supporting,
+    fontSize: 12,
+    color: colors.textMuted,
+    fontStyle: "italic",
+    paddingVertical: 6,
   },
   pairingList: {
     gap: spacing.xs,
@@ -221,6 +285,8 @@ const boardStyles = StyleSheet.create({
     minWidth: 0,
     fontFamily: "PlayfairDisplay_600SemiBold",
     fontSize: 15,
+    lineHeight: 18,
+    includeFontPadding: false,
     color: colors.textStrong,
     textAlign: "right",
   },
@@ -239,20 +305,11 @@ const boardStyles = StyleSheet.create({
     borderRadius: radii.round,
     backgroundColor: colors.borderMuted,
   },
-  lineBtn: {
-    width: 24,
-    height: 24,
-    alignItems: "center",
-    justifyContent: "center",
-  },
   unpairBtn: {
     width: 22,
     height: 22,
     alignItems: "center",
     justifyContent: "center",
-  },
-  unpairedSection: {
-    gap: spacing.xs,
   },
   sectionLabel: {
     ...textTokens.annotation,
@@ -285,12 +342,5 @@ const boardStyles = StyleSheet.create({
   },
   scrapTextArmed: {
     color: colors.onPrimary,
-  },
-  emptyHint: {
-    ...textTokens.supporting,
-    fontSize: 13,
-    textAlign: "center",
-    marginTop: spacing.xxl,
-    paddingHorizontal: spacing.lg,
   },
 });

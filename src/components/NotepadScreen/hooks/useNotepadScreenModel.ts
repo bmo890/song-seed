@@ -3,7 +3,7 @@ import { Share } from "react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { useStore } from "../../../state/useStore";
 import { buildShareTextFromNotes } from "../../../notepad";
-import type { Note, WordLadderExercise, WordLadderMode } from "../../../types";
+import type { Note, WordLadderExercise } from "../../../types";
 
 export type NotebookEntry =
   | { kind: "note"; updatedAt: number; isPinned: boolean; note: Note }
@@ -19,11 +19,13 @@ export function useNotepadScreenModel() {
   const startSongTargetPicking = useStore((s) => s.startSongTargetPicking);
   const wordLadders = useStore((s) => s.wordLadders);
   const addWordLadder = useStore((s) => s.addWordLadder);
+  const deleteWordLadder = useStore((s) => s.deleteWordLadder);
 
   const [activeNoteId, setActiveNoteId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedNoteIds, setSelectedNoteIds] = useState<string[]>([]);
+  const [selectedLadderIds, setSelectedLadderIds] = useState<string[]>([]);
   const handledRouteOpenTokenRef = useRef<number | null>(null);
   const hasAutoOpenedRef = useRef(false);
 
@@ -44,8 +46,10 @@ export function useNotepadScreenModel() {
     return wordLadders.filter((exercise) => {
       return (
         exercise.title.toLowerCase().includes(needle) ||
-        exercise.seedLabel.toLowerCase().includes(needle) ||
-        exercise.lines.some((line) => line.text.toLowerCase().includes(needle))
+        exercise.roleSeed.toLowerCase().includes(needle) ||
+        exercise.placeSeed.toLowerCase().includes(needle) ||
+        exercise.draft.toLowerCase().includes(needle) ||
+        exercise.revision.toLowerCase().includes(needle)
       );
     });
   }, [wordLadders, searchQuery]);
@@ -136,13 +140,10 @@ export function useNotepadScreenModel() {
     setActiveNoteId(id);
   }, [addNote]);
 
-  const handleNewWordLadder = useCallback(
-    (mode: WordLadderMode = "role") => {
-      const id = addWordLadder(mode, "");
-      navigation.navigate("WordLadderHome", { exerciseId: id });
-    },
-    [addWordLadder, navigation]
-  );
+  const handleNewWordLadder = useCallback(() => {
+    const id = addWordLadder("", "");
+    navigation.navigate("WordLadderHome", { exerciseId: id });
+  }, [addWordLadder, navigation]);
 
   useEffect(() => {
     if (hasAutoOpenedRef.current) return;
@@ -168,10 +169,13 @@ export function useNotepadScreenModel() {
 
   const handleOpenLadder = useCallback(
     (exercise: WordLadderExercise) => {
-      if (selectionMode) return;
+      if (selectionMode) {
+        toggleSelectLadder(exercise.id);
+        return;
+      }
       navigation.navigate("WordLadderHome", { exerciseId: exercise.id });
     },
-    [navigation, selectionMode]
+    [navigation, selectionMode] // eslint-disable-line react-hooks/exhaustive-deps
   );
 
   const handleCloseNote = useCallback(() => {
@@ -209,28 +213,49 @@ export function useNotepadScreenModel() {
     [activeNoteId, deleteNote]
   );
 
-  // ── Selection mode (notes only — Word Ladder exercises aren't bulk-selectable) ──
+  // ── Selection mode (notes and Word Ladder sparks can be bulk-selected) ──
   const beginSelection = useCallback((noteId: string) => {
     setSelectionMode(true);
     setSelectedNoteIds([noteId]);
+    setSelectedLadderIds([]);
+  }, []);
+
+  const beginLadderSelection = useCallback((ladderId: string) => {
+    setSelectionMode(true);
+    setSelectedLadderIds([ladderId]);
+    setSelectedNoteIds([]);
   }, []);
 
   const toggleSelectNote = useCallback((noteId: string) => {
-    setSelectedNoteIds((prev) => {
-      const next = prev.includes(noteId) ? prev.filter((id) => id !== noteId) : [...prev, noteId];
-      if (next.length === 0) setSelectionMode(false);
-      return next;
-    });
+    setSelectedNoteIds((prev) =>
+      prev.includes(noteId) ? prev.filter((id) => id !== noteId) : [...prev, noteId]
+    );
   }, []);
+
+  const toggleSelectLadder = useCallback((ladderId: string) => {
+    setSelectedLadderIds((prev) =>
+      prev.includes(ladderId) ? prev.filter((id) => id !== ladderId) : [...prev, ladderId]
+    );
+  }, []);
+
+  // Leave selection mode automatically once nothing is selected, regardless of
+  // whether the last item deselected was a note or a spark.
+  useEffect(() => {
+    if (selectionMode && selectedNoteIds.length === 0 && selectedLadderIds.length === 0) {
+      setSelectionMode(false);
+    }
+  }, [selectionMode, selectedNoteIds, selectedLadderIds]);
 
   const cancelSelection = useCallback(() => {
     setSelectionMode(false);
     setSelectedNoteIds([]);
+    setSelectedLadderIds([]);
   }, []);
 
   const selectAllVisible = useCallback(() => {
     setSelectedNoteIds(filteredNotes.map((note) => note.id));
-  }, [filteredNotes]);
+    setSelectedLadderIds(filteredLadders.map((exercise) => exercise.id));
+  }, [filteredNotes, filteredLadders]);
 
   const selectedNotes = useMemo(
     () => notes.filter((note) => selectedNoteIds.includes(note.id)),
@@ -238,13 +263,16 @@ export function useNotepadScreenModel() {
   );
 
   const allSelected =
-    filteredNotes.length > 0 && filteredNotes.every((note) => selectedNoteIds.includes(note.id));
+    filteredNotes.length + filteredLadders.length > 0 &&
+    filteredNotes.every((note) => selectedNoteIds.includes(note.id)) &&
+    filteredLadders.every((exercise) => selectedLadderIds.includes(exercise.id));
   const allSelectedPinned = selectedNotes.length > 0 && selectedNotes.every((note) => note.isPinned);
 
   const handleDeleteSelected = useCallback(() => {
     selectedNoteIds.forEach((id) => deleteNote(id));
+    selectedLadderIds.forEach((id) => deleteWordLadder(id));
     cancelSelection();
-  }, [selectedNoteIds, deleteNote, cancelSelection]);
+  }, [selectedNoteIds, selectedLadderIds, deleteNote, deleteWordLadder, cancelSelection]);
 
   const handleToggleSelectedPin = useCallback(() => {
     const nextPinned = !allSelectedPinned;
@@ -304,11 +332,14 @@ export function useNotepadScreenModel() {
 
     selectionMode,
     selectedNoteIds,
+    selectedLadderIds,
     selectedNotes,
     allSelected,
     allSelectedPinned,
     beginSelection,
+    beginLadderSelection,
     toggleSelectNote,
+    toggleSelectLadder,
     cancelSelection,
     selectAllVisible,
     handleDeleteSelected,

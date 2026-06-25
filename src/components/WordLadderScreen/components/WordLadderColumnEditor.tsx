@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import DraggableFlatList, { type RenderItemParams } from "react-native-draggable-flatlist";
 import { Ionicons } from "@expo/vector-icons";
@@ -11,7 +11,9 @@ type Props = {
   placeholder: string;
   words: WordLadderWord[];
   targetCount?: number;
-  tint: "a" | "b";
+  /** Optional content rendered above the column header — used in the wizard's
+   * setup step to sit the job/role (or room/place) seed input atop its list. */
+  seedSlot?: ReactNode;
   onAdd: (text: string) => void;
   onEdit: (wordId: string, text: string) => void;
   onReorder: (words: WordLadderWord[]) => void;
@@ -23,7 +25,7 @@ export function WordLadderColumnEditor({
   placeholder,
   words,
   targetCount = 10,
-  tint,
+  seedSlot,
   onAdd,
   onEdit,
   onReorder,
@@ -37,14 +39,17 @@ export function WordLadderColumnEditor({
     setDraft("");
   }
 
-  const chipBg = tint === "a" ? colors.surfaceHigh : colors.surface;
+  // Both columns sit on a tonal panel, so chips are plain white to read
+  // clearly against it (columns are distinguished by position, not tint).
+  const chipBg = colors.surface;
 
   return (
     <View style={editorStyles.column}>
+      {seedSlot ? <View style={editorStyles.seedSlot}>{seedSlot}</View> : null}
       <View style={editorStyles.headerRow}>
         <Text style={editorStyles.label}>{label}</Text>
         <Text style={editorStyles.count}>
-          {words.length} of ~{targetCount}
+          {words.length} of {targetCount}
         </Text>
       </View>
 
@@ -64,7 +69,7 @@ export function WordLadderColumnEditor({
           onPress={submitDraft}
           hitSlop={6}
         >
-          <Ionicons name="add" size={18} color={colors.onPrimary} />
+          <Ionicons name="add" size={16} color={colors.onPrimary} />
         </Pressable>
       </View>
 
@@ -73,38 +78,88 @@ export function WordLadderColumnEditor({
         keyExtractor={(word) => word.id}
         onDragEnd={({ data }) => onReorder(data)}
         style={editorStyles.list}
-        ListEmptyComponent={<Text style={editorStyles.emptyHint}>Nothing here yet — add a word above.</Text>}
+        contentContainerStyle={words.length === 0 ? editorStyles.listEmptyContent : undefined}
+        ListEmptyComponent={<Text style={editorStyles.emptyHint}>Nothing here yet</Text>}
         renderItem={({ item: word, drag, isActive }: RenderItemParams<WordLadderWord>) => (
-          <View
-            style={[
-              editorStyles.chipRow,
-              { backgroundColor: chipBg },
-              isActive ? editorStyles.chipRowActive : null,
-            ]}
-          >
-            <TextInput
-              style={editorStyles.chipInput}
-              value={word.text}
-              onChangeText={(text) => onEdit(word.id, text)}
-            />
-            <Pressable
-              style={({ pressed }) => [editorStyles.dragHandle, pressed ? appStyles.pressDown : null]}
-              onLongPress={drag}
-              delayLongPress={120}
-              hitSlop={6}
-            >
-              <Ionicons name="reorder-three" size={15} color={colors.textMuted} />
-            </Pressable>
-            <Pressable
-              style={({ pressed }) => [editorStyles.removeBtn, pressed ? appStyles.pressDown : null]}
-              onPress={() => onRemove(word.id)}
-              hitSlop={6}
-            >
-              <Ionicons name="close" size={15} color={colors.textMuted} />
-            </Pressable>
-          </View>
+          <WordChip
+            word={word}
+            chipBg={chipBg}
+            isActive={isActive}
+            onDrag={drag}
+            onEdit={(text) => onEdit(word.id, text)}
+            onRemove={() => onRemove(word.id)}
+          />
         )}
       />
+    </View>
+  );
+}
+
+/** A single word in a column. Displays as plain text — tap to edit in place,
+ * matching the rest of the list rather than always looking like an input. */
+function WordChip({
+  word,
+  chipBg,
+  isActive,
+  onDrag,
+  onEdit,
+  onRemove,
+}: {
+  word: WordLadderWord;
+  chipBg: string;
+  isActive: boolean;
+  onDrag: () => void;
+  onEdit: (text: string) => void;
+  onRemove: () => void;
+}) {
+  const [isEditing, setIsEditing] = useState(false);
+  const inputRef = useRef<TextInput>(null);
+
+  useEffect(() => {
+    if (isEditing) inputRef.current?.focus();
+  }, [isEditing]);
+
+  function finishEditing() {
+    setIsEditing(false);
+  }
+
+  return (
+    <View
+      style={[editorStyles.chipRow, { backgroundColor: chipBg }, isActive ? editorStyles.chipRowActive : null]}
+    >
+      {isEditing ? (
+        <TextInput
+          ref={inputRef}
+          style={editorStyles.chipInput}
+          value={word.text}
+          onChangeText={onEdit}
+          onSubmitEditing={finishEditing}
+          onBlur={finishEditing}
+          returnKeyType="done"
+          autoFocus
+        />
+      ) : (
+        <Pressable style={editorStyles.chipTextWrap} onPress={() => setIsEditing(true)} hitSlop={4}>
+          <Text style={editorStyles.chipText} numberOfLines={1}>
+            {word.text}
+          </Text>
+        </Pressable>
+      )}
+      <Pressable
+        style={({ pressed }) => [editorStyles.dragHandle, pressed ? appStyles.pressDown : null]}
+        onLongPress={onDrag}
+        delayLongPress={120}
+        hitSlop={6}
+      >
+        <Ionicons name="reorder-three" size={15} color={colors.textMuted} />
+      </Pressable>
+      <Pressable
+        style={({ pressed }) => [editorStyles.removeBtn, pressed ? appStyles.pressDown : null]}
+        onPress={onRemove}
+        hitSlop={6}
+      >
+        <Ionicons name="close" size={15} color={colors.textMuted} />
+      </Pressable>
     </View>
   );
 }
@@ -114,6 +169,13 @@ const editorStyles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
     gap: spacing.sm,
+    backgroundColor: colors.surfaceHigh,
+    borderRadius: radii.lg,
+    padding: spacing.sm,
+  },
+  seedSlot: {
+    gap: 2,
+    marginBottom: spacing.xs,
   },
   headerRow: {
     flexDirection: "row",
@@ -135,60 +197,79 @@ const editorStyles = StyleSheet.create({
   addInput: {
     flex: 1,
     minWidth: 0,
+    height: 38,
     backgroundColor: colors.surface,
     borderRadius: radii.sm,
     paddingHorizontal: spacing.sm,
-    paddingVertical: 8,
+    paddingVertical: 0,
     fontFamily: "PlusJakartaSans_400Regular",
     fontSize: 13,
     color: colors.textPrimary,
   },
   addBtn: {
-    width: 34,
-    height: 34,
+    width: 30,
+    height: 38,
     borderRadius: radii.sm,
     backgroundColor: colors.primary,
     alignItems: "center",
     justifyContent: "center",
   },
   list: {
+    // Content-sized up to a cap, then scrolls. A flex height collapses
+    // DraggableFlatList to zero inside the column, hiding added words.
     maxHeight: 320,
+  },
+  listEmptyContent: {
+    alignItems: "center",
+    paddingVertical: spacing.lg,
   },
   emptyHint: {
     ...textTokens.supporting,
     fontSize: 12,
-    paddingVertical: spacing.sm,
+    color: colors.textMuted,
+    textAlign: "center",
   },
   chipRow: {
     flexDirection: "row",
     alignItems: "center",
     borderRadius: radii.sm,
-    paddingHorizontal: spacing.xs,
-    paddingVertical: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
     marginBottom: spacing.xs,
-    gap: 4,
+    gap: 2,
   },
   chipRowActive: {
     opacity: 0.85,
+  },
+  chipTextWrap: {
+    flex: 1,
+    minWidth: 0,
+    paddingVertical: 6,
+    paddingHorizontal: 2,
+  },
+  chipText: {
+    fontFamily: "PlusJakartaSans_600SemiBold",
+    fontSize: 13,
+    color: colors.textStrong,
   },
   chipInput: {
     flex: 1,
     minWidth: 0,
     fontFamily: "PlusJakartaSans_600SemiBold",
-    fontSize: 14,
+    fontSize: 13,
     color: colors.textStrong,
     paddingVertical: 6,
-    paddingHorizontal: 4,
+    paddingHorizontal: 2,
   },
   dragHandle: {
-    width: 24,
-    height: 24,
+    width: 20,
+    height: 20,
     alignItems: "center",
     justifyContent: "center",
   },
   removeBtn: {
-    width: 22,
-    height: 22,
+    width: 20,
+    height: 20,
     alignItems: "center",
     justifyContent: "center",
   },

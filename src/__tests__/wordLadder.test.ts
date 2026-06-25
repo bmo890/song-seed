@@ -1,10 +1,10 @@
 import {
   addWord,
-  buildLineTextFromPairing,
   createPairing,
   createWordLadderExercise,
   dropPairingsForRemovedWords,
   getUnpairedWords,
+  pairingSeedWords,
   removeWord,
   sanitizeWordLadderExercise,
   sanitizeWordLadders,
@@ -14,16 +14,23 @@ import {
 import type { WordLadderExercise } from "../types";
 
 describe("createWordLadderExercise", () => {
-  it("starts empty with mode-derived column A label", () => {
-    const exercise = createWordLadderExercise("role", "astronaut");
-    expect(exercise.columnALabel).toBe("Verbs");
+  it("starts empty, holding the role and place seeds", () => {
+    const exercise = createWordLadderExercise("astronaut", "chapel");
+    expect(exercise.roleSeed).toBe("astronaut");
+    expect(exercise.placeSeed).toBe("chapel");
+    expect(exercise.title).toBe("The astronaut in the chapel");
+    expect(exercise.step).toBe("setup");
     expect(exercise.columnA).toEqual([]);
     expect(exercise.columnB).toEqual([]);
     expect(exercise.pairings).toEqual([]);
-    expect(exercise.lines).toEqual([]);
+    expect(exercise.draft).toBe("");
+    expect(exercise.revision).toBe("");
+  });
 
-    const place = createWordLadderExercise("place", "chapel");
-    expect(place.columnALabel).toBe("Adjectives");
+  it("derives a title from whichever seeds are present", () => {
+    expect(createWordLadderExercise("thief", "").title).toBe("The thief");
+    expect(createWordLadderExercise("", "basement").title).toBe("The basement");
+    expect(createWordLadderExercise("", "").title).toBe("Untitled Word Ladder");
   });
 });
 
@@ -49,7 +56,7 @@ describe("pairing + shuffle", () => {
     columnB = addWord(columnB, "window");
     columnB = addWord(columnB, "highway");
 
-    const exercise = createWordLadderExercise("role", "drummer");
+    const exercise = createWordLadderExercise("drummer", "garage");
     return { ...exercise, columnA, columnB };
   }
 
@@ -119,27 +126,26 @@ describe("pairing + shuffle", () => {
   });
 });
 
-describe("buildLineTextFromPairing", () => {
-  it("conjugates the verb for role mode", () => {
-    expect(buildLineTextFromPairing("role", "heal", "guitar")).toBe("the guitar heals");
-    expect(buildLineTextFromPairing("role", "listen", "window")).toBe("the window listens");
-    expect(buildLineTextFromPairing("role", "wash", "dish")).toBe("the dish washes");
-    expect(buildLineTextFromPairing("role", "carry", "bag")).toBe("the bag carries");
+describe("pairingSeedWords", () => {
+  it("resolves a pairing to its two spark words", () => {
+    const columnA = addWord([], "heal");
+    const columnB = addWord([], "guitar");
+    const pairing = createPairing(columnA[0].id, columnB[0].id);
+
+    expect(pairingSeedWords(pairing, columnA, columnB)).toEqual({ seedA: "heal", seedB: "guitar" });
   });
 
-  it("uses adjective + noun for place mode", () => {
-    expect(buildLineTextFromPairing("place", "broken", "window")).toBe("the broken window");
-  });
-
-  it("returns an empty string if either side is blank", () => {
-    expect(buildLineTextFromPairing("role", "", "guitar")).toBe("");
-    expect(buildLineTextFromPairing("role", "heal", "")).toBe("");
+  it("returns null when a paired word is missing from its column", () => {
+    const columnA = addWord([], "heal");
+    const columnB = addWord([], "guitar");
+    const pairing = createPairing("missing", columnB[0].id);
+    expect(pairingSeedWords(pairing, columnA, columnB)).toBeNull();
   });
 });
 
 describe("sanitizeWordLadderExercise", () => {
   it("passes through a well-formed exercise", () => {
-    const exercise = createWordLadderExercise("role", "ghost");
+    const exercise = createWordLadderExercise("ghost", "attic");
     expect(sanitizeWordLadderExercise(exercise)).toEqual(exercise);
   });
 
@@ -152,23 +158,63 @@ describe("sanitizeWordLadderExercise", () => {
   it("repairs a partially-completed exercise instead of crashing", () => {
     const partial = {
       id: "ladder-1",
-      mode: "place",
-      columnA: [{ id: "a1", text: "broken" }],
-      // columnB, pairings, lines, title, timestamps all missing
+      columnA: [{ id: "a1", text: "heal" }],
+      // columnB, pairings, draft, title, seeds, timestamps all missing
     };
     const sanitized = sanitizeWordLadderExercise(partial);
     expect(sanitized).not.toBeNull();
     expect(sanitized?.columnB).toEqual([]);
     expect(sanitized?.pairings).toEqual([]);
-    expect(sanitized?.lines).toEqual([]);
+    expect(sanitized?.draft).toBe("");
+    expect(sanitized?.revision).toBe("");
     expect(sanitized?.title).toBe("Untitled Word Ladder");
-    expect(sanitized?.columnALabel).toBe("Adjectives");
+    expect(sanitized?.roleSeed).toBe("");
+    expect(sanitized?.placeSeed).toBe("");
+    expect(sanitized?.step).toBe("setup");
+  });
+
+  it("preserves valid steps and maps legacy final-step keys onto 'draft'", () => {
+    expect(sanitizeWordLadderExercise({ id: "s1", step: "pairs" })?.step).toBe("pairs");
+    expect(sanitizeWordLadderExercise({ id: "s2", step: "draft" })?.step).toBe("draft");
+    expect(sanitizeWordLadderExercise({ id: "s3", step: "revise" })?.step).toBe("revise");
+    expect(sanitizeWordLadderExercise({ id: "s4", step: "poem" })?.step).toBe("draft");
+    expect(sanitizeWordLadderExercise({ id: "s5", step: "lines" })?.step).toBe("draft");
+    expect(sanitizeWordLadderExercise({ id: "s6", step: "nonsense" })?.step).toBe("setup");
+  });
+
+  it("migrates a legacy poem, then legacy per-pair lines, into the draft", () => {
+    expect(sanitizeWordLadderExercise({ id: "p1", poem: "a kept poem" })?.draft).toBe("a kept poem");
+
+    const legacyLines = {
+      id: "ladder-legacy-lines",
+      lines: [
+        { id: "l1", text: "the bottle heals" },
+        { id: "l2", text: "  " },
+        { id: "l3", text: "the window listens" },
+      ],
+    };
+    expect(sanitizeWordLadderExercise(legacyLines)?.draft).toBe(
+      "the bottle heals\nthe window listens"
+    );
+  });
+
+  it("migrates legacy role-mode data into the role seed", () => {
+    const legacy = { id: "ladder-old-role", mode: "role", seedLabel: "doctor" };
+    const sanitized = sanitizeWordLadderExercise(legacy);
+    expect(sanitized?.roleSeed).toBe("doctor");
+    expect(sanitized?.placeSeed).toBe("");
+  });
+
+  it("migrates legacy place-mode data into the place seed", () => {
+    const legacy = { id: "ladder-old-place", mode: "place", seedLabel: "chapel" };
+    const sanitized = sanitizeWordLadderExercise(legacy);
+    expect(sanitized?.roleSeed).toBe("");
+    expect(sanitized?.placeSeed).toBe("chapel");
   });
 
   it("drops a pairing that references a word id no longer present in either column", () => {
     const malformed = {
       id: "ladder-2",
-      mode: "role",
       columnA: [{ id: "a1", text: "heal" }],
       columnB: [{ id: "b1", text: "guitar" }],
       pairings: [
@@ -185,7 +231,7 @@ describe("sanitizeWordLadderExercise", () => {
 
 describe("sanitizeWordLadders", () => {
   it("filters out garbage entries and keeps valid ones", () => {
-    const valid = createWordLadderExercise("role", "thief");
+    const valid = createWordLadderExercise("thief", "vault");
     const result = sanitizeWordLadders([valid, null, "garbage", 42, { noId: true }]);
     expect(result).toEqual([valid]);
   });

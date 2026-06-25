@@ -11,6 +11,7 @@ import { SelectionActionSheet } from "../../common/SelectionActionSheet";
 import { AppAlert } from "../../common/AppAlert";
 import { NoteEditor } from "./NoteEditor";
 import { NewLyricsPadItemSheet } from "./NewLyricsPadItemSheet";
+import { LyricsSparkSheet } from "./LyricsSparkSheet";
 import { useNotepadScreenModel, type NotebookEntry } from "../hooks/useNotepadScreenModel";
 import { styles } from "../../../styles";
 import { colors, radii, spacing, text as textTokens } from "../../../design/tokens";
@@ -140,19 +141,31 @@ function NoteListItem({
 type WordLadderItemProps = {
   exercise: WordLadderExercise;
   selectionMode: boolean;
+  isSelected: boolean;
   onPress: (exercise: WordLadderExercise) => void;
+  onBeginSelection: (ladderId: string) => void;
+  onToggleSelect: (ladderId: string) => void;
 };
 
-function WordLadderListItem({ exercise, selectionMode, onPress }: WordLadderItemProps) {
+function WordLadderListItem({
+  exercise,
+  selectionMode,
+  isSelected,
+  onPress,
+  onBeginSelection,
+  onToggleSelect,
+}: WordLadderItemProps) {
   return (
     <Pressable
       style={({ pressed }) => [
         noteStyles.card,
         noteStyles.ladderCard,
-        selectionMode ? noteStyles.ladderCardDimmed : null,
-        pressed && !selectionMode ? styles.pressDown : null,
+        isSelected ? noteStyles.cardSelected : null,
+        pressed ? styles.pressDown : null,
       ]}
       onPress={() => onPress(exercise)}
+      onLongPress={() => (selectionMode ? onToggleSelect(exercise.id) : onBeginSelection(exercise.id))}
+      delayLongPress={250}
     >
       <View style={noteStyles.ladderIconWrap}>
         <Ionicons name="shuffle-outline" size={16} color={colors.primary} />
@@ -163,7 +176,13 @@ function WordLadderListItem({ exercise, selectionMode, onPress }: WordLadderItem
         </Text>
         <Text style={noteStyles.cardMeta}>WORD LADDER  ·  {exerciseSummary(exercise)}</Text>
       </View>
-      {!selectionMode ? <Ionicons name="chevron-forward" size={16} color={colors.textMuted} /> : null}
+      {selectionMode ? (
+        <View style={[noteStyles.selectIndicator, isSelected ? noteStyles.selectIndicatorChecked : null]}>
+          {isSelected ? <Ionicons name="checkmark" size={13} color={colors.onPrimary} /> : null}
+        </View>
+      ) : (
+        <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+      )}
     </Pressable>
   );
 }
@@ -187,10 +206,13 @@ export function NotepadScreenContent() {
 
     selectionMode,
     selectedNoteIds,
+    selectedLadderIds,
     allSelected,
     allSelectedPinned,
     beginSelection,
+    beginLadderSelection,
     toggleSelectNote,
+    toggleSelectLadder,
     cancelSelection,
     selectAllVisible,
     handleDeleteSelected,
@@ -201,6 +223,7 @@ export function NotepadScreenContent() {
   } = useNotepadScreenModel();
   const [moreVisible, setMoreVisible] = useState(false);
   const [newItemSheetVisible, setNewItemSheetVisible] = useState(false);
+  const [sparkSheetVisible, setSparkSheetVisible] = useState(false);
 
   if (activeNote) {
     return (
@@ -216,11 +239,15 @@ export function NotepadScreenContent() {
 
   const emptyBody = "Verses, hooks, and lines that don't have a song yet.";
   const countLabel = `${totalEntryCount} page${totalEntryCount === 1 ? "" : "s"} of lyrics and loose lines.`;
-  const selectedCount = selectedNoteIds.length;
+  const selectedCount = selectedNoteIds.length + selectedLadderIds.length;
+  // Sparks support only Delete — the note-specific actions (Add to Song,
+  // Pin, Duplicate, Share) don't apply, so a selection containing any spark
+  // collapses the dock to just Delete.
+  const hasLadderSelection = selectedLadderIds.length > 0;
 
   function confirmDeleteSelected() {
     AppAlert.destructive(
-      selectedCount === 1 ? "Delete page?" : `Delete ${selectedCount} pages?`,
+      selectedCount === 1 ? "Delete item?" : `Delete ${selectedCount} items?`,
       "This can't be undone.",
       handleDeleteSelected,
       { confirmLabel: "Delete" }
@@ -232,33 +259,37 @@ export function NotepadScreenContent() {
     AppAlert.info("Duplicated", `${count} page${count === 1 ? "" : "s"} added as a copy.`);
   }
 
-  const dockActions: SelectionAction[] = [
-    {
-      key: "add-to-song",
-      label: "Add to Song",
-      icon: "albums-outline",
-      onPress: handleStartAddToSong,
-    },
-    {
-      key: "pin",
-      label: allSelectedPinned ? "Unpin" : "Pin",
-      icon: allSelectedPinned ? "bookmark" : "bookmark-outline",
-      onPress: handleToggleSelectedPin,
-    },
-    {
-      key: "delete",
-      label: "Delete",
-      icon: "trash-outline",
-      tone: "danger",
-      onPress: confirmDeleteSelected,
-    },
-    {
-      key: "more",
-      label: "More",
-      icon: "ellipsis-horizontal",
-      onPress: () => setMoreVisible(true),
-    },
-  ];
+  const deleteAction: SelectionAction = {
+    key: "delete",
+    label: "Delete",
+    icon: "trash-outline",
+    tone: "danger",
+    onPress: confirmDeleteSelected,
+  };
+
+  const dockActions: SelectionAction[] = hasLadderSelection
+    ? [deleteAction]
+    : [
+        {
+          key: "add-to-song",
+          label: "Add to Song",
+          icon: "albums-outline",
+          onPress: handleStartAddToSong,
+        },
+        {
+          key: "pin",
+          label: allSelectedPinned ? "Unpin" : "Pin",
+          icon: allSelectedPinned ? "bookmark" : "bookmark-outline",
+          onPress: handleToggleSelectedPin,
+        },
+        deleteAction,
+        {
+          key: "more",
+          label: "More",
+          icon: "ellipsis-horizontal",
+          onPress: () => setMoreVisible(true),
+        },
+      ];
 
   const sheetActions: SelectionAction[] = [
     {
@@ -281,13 +312,22 @@ export function NotepadScreenContent() {
         <ScreenHeader
           title="Lyrics Pad"
           rightElement={
-            <Pressable
-              style={({ pressed }) => [listStyles.newBtn, pressed ? styles.pressDown : null]}
-              onPress={() => setNewItemSheetVisible(true)}
-              hitSlop={4}
-            >
-              <Ionicons name="add" size={22} color={colors.primary} />
-            </Pressable>
+            <View style={listStyles.headerActions}>
+              <Pressable
+                style={({ pressed }) => [listStyles.newBtn, pressed ? styles.pressDown : null]}
+                onPress={() => setSparkSheetVisible(true)}
+                hitSlop={4}
+              >
+                <Ionicons name="sparkles-outline" size={20} color={colors.primary} />
+              </Pressable>
+              <Pressable
+                style={({ pressed }) => [listStyles.newBtn, pressed ? styles.pressDown : null]}
+                onPress={() => setNewItemSheetVisible(true)}
+                hitSlop={4}
+              >
+                <Ionicons name="add" size={22} color={colors.primary} />
+              </Pressable>
+            </View>
           }
         />
       ) : null}
@@ -366,7 +406,10 @@ export function NotepadScreenContent() {
                           key={entry.exercise.id}
                           exercise={entry.exercise}
                           selectionMode={selectionMode}
+                          isSelected={selectedLadderIds.includes(entry.exercise.id)}
                           onPress={handleOpenLadder}
+                          onBeginSelection={beginLadderSelection}
+                          onToggleSelect={toggleSelectLadder}
                         />
                       )
                     )}
@@ -394,8 +437,13 @@ export function NotepadScreenContent() {
           setNewItemSheetVisible(false);
           handleNewNote();
         }}
+      />
+
+      <LyricsSparkSheet
+        visible={sparkSheetVisible}
+        onClose={() => setSparkSheetVisible(false)}
         onNewWordLadder={() => {
-          setNewItemSheetVisible(false);
+          setSparkSheetVisible(false);
           handleNewWordLadder();
         }}
       />
@@ -404,6 +452,10 @@ export function NotepadScreenContent() {
 }
 
 const listStyles = StyleSheet.create({
+  headerActions: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
   newBtn: {
     width: 40,
     height: 40,
@@ -560,9 +612,6 @@ const noteStyles = StyleSheet.create({
   },
   ladderCard: {
     alignItems: "center",
-  },
-  ladderCardDimmed: {
-    opacity: 0.5,
   },
   ladderIconWrap: {
     width: 32,

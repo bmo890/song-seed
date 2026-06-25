@@ -1,29 +1,69 @@
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { useEffect, useState } from "react";
+import {
+  Keyboard,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import DraggableFlatList from "react-native-draggable-flatlist";
 import { Ionicons } from "@expo/vector-icons";
 import { ScreenHeader } from "../../common/ScreenHeader";
 import { styles as appStyles } from "../../../styles";
 import { colors, radii, shadows, spacing, text as textTokens } from "../../../design/tokens";
-import { useWordLadderScreenModel, type WordLadderTab } from "../hooks/useWordLadderScreenModel";
+import { useWordLadderScreenModel } from "../hooks/useWordLadderScreenModel";
 import { WordLadderColumnEditor } from "./WordLadderColumnEditor";
 import { WordLadderPairingBoard } from "./WordLadderPairingBoard";
-import { WordLadderLineCard } from "./WordLadderLineCard";
-import { WordLadderSongExportSheet } from "./WordLadderSongExportSheet";
-import { getColumnAPlaceholder, getSeedPlaceholder } from "../../../wordLadder";
-import type { WordLadderMode } from "../../../types";
+import { WordLadderHelpSheet } from "./WordLadderHelpSheet";
+import {
+  COLUMN_A_LABEL,
+  COLUMN_B_LABEL,
+  PLACE_SEED_PLACEHOLDER,
+  ROLE_SEED_PLACEHOLDER,
+  getColumnAPlaceholder,
+  getColumnBPlaceholder,
+  pairingSeedWords,
+} from "../../../wordLadder";
+import type { WordLadderStep } from "../../../types";
 
 const KRAFT_BG = "#F2E9DC";
 
-const TABS: Array<{ key: WordLadderTab; label: string }> = [
-  { key: "words", label: "Words" },
-  { key: "pairings", label: "Pair" },
-  { key: "lines", label: "Lines" },
+const STEPS: Array<{ key: WordLadderStep; label: string }> = [
+  { key: "setup", label: "Words" },
+  { key: "pairs", label: "Pair" },
+  { key: "draft", label: "Draft" },
+  { key: "revise", label: "Revise" },
 ];
+
+/** "a, b and c" — joins the still-missing setup pieces into a readable hint. */
+function formatMissing(parts: string[]): string {
+  if (parts.length <= 1) return parts.join("");
+  if (parts.length === 2) return `${parts[0]} and ${parts[1]}`;
+  return `${parts.slice(0, -1).join(", ")}, and ${parts[parts.length - 1]}`;
+}
 
 export function WordLadderScreenContent() {
   const model = useWordLadderScreenModel();
   const { exercise } = model;
+  const [helpVisible, setHelpVisible] = useState(false);
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
+
+  // Hide the step-nav footer (and shrink the draft reference) while typing so
+  // the editor gets the room — the nav buttons aren't needed mid-keystroke.
+  useEffect(() => {
+    const showEvt = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const hideEvt = Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+    const show = Keyboard.addListener(showEvt, () => setKeyboardVisible(true));
+    const hide = Keyboard.addListener(hideEvt, () => setKeyboardVisible(false));
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, []);
 
   if (!exercise) {
     return (
@@ -40,8 +80,62 @@ export function WordLadderScreenContent() {
     );
   }
 
+  // ── Per-step completion gates ─────────────────────────────────────────────
+  // The writer can't advance until the current step holds enough to make the
+  // next one meaningful: setup needs both seeds, at least one word per column,
+  // AND an equal count on each side so every word finds a partner; pairing
+  // needs at least one connected pair.
+  const verbCount = exercise.columnA.length;
+  const nounCount = exercise.columnB.length;
+  const hasRole = exercise.roleSeed.trim().length > 0;
+  const hasPlace = exercise.placeSeed.trim().length > 0;
+  const hasVerbs = verbCount > 0;
+  const hasNouns = nounCount > 0;
+  const countsMatch = verbCount === nounCount;
+  const canLeaveSetup = hasRole && hasPlace && hasVerbs && hasNouns && countsMatch;
+
+  const pairCount = exercise.pairings.length;
+  const canLeavePairs = pairCount > 0;
+  // Each pairing consumes one word from each column, so leftovers are simply
+  // the difference. We nudge (non-blocking) when words would be left behind.
+  const unpairedCount = verbCount - pairCount + (nounCount - pairCount);
+
+  // The pairs become a reference palette of sparks on the draft step.
+  const sparks = exercise.pairings
+    .map((pairing) => {
+      const seed = pairingSeedWords(pairing, exercise.columnA, exercise.columnB);
+      return seed ? { id: pairing.id, ...seed } : null;
+    })
+    .filter((spark): spark is { id: string; seedA: string; seedB: string } => spark !== null);
+  const usedSparks = new Set(exercise.usedSparkIds);
+  const hasDraft = exercise.draft.trim().length > 0;
+  const hasRevision = exercise.revision.trim().length > 0;
+
+  const setupMissing: string[] = [];
+  if (!hasRole) setupMissing.push("a job/role");
+  if (!hasVerbs) setupMissing.push("a verb");
+  if (!hasPlace) setupMissing.push("a room/place");
+  if (!hasNouns) setupMissing.push("a noun");
+
+  // Single setup message: list what's missing first, then nudge toward an even
+  // count once both columns have words but differ in length.
+  let setupWarning: string | null = null;
+  if (setupMissing.length > 0) {
+    setupWarning = `Add ${formatMissing(setupMissing)} to continue.`;
+  } else if (!countsMatch) {
+    const diff = Math.abs(verbCount - nounCount);
+    const side = verbCount > nounCount ? "noun" : "verb";
+    const verbLabel = verbCount === 1 ? "verb" : "verbs";
+    const nounLabel = nounCount === 1 ? "noun" : "nouns";
+    setupWarning = `${verbCount} ${verbLabel} vs ${nounCount} ${nounLabel} — add ${diff} more ${side}${diff === 1 ? "" : "s"} so both sides match.`;
+  }
+
   return (
     <SafeAreaView style={[contentStyles.shell, { backgroundColor: KRAFT_BG }]} edges={["top", "bottom"]}>
+      <KeyboardAvoidingView
+        style={contentStyles.keyboardView}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+      >
       <ScreenHeader
         title="Word Ladder"
         leftIcon="back"
@@ -57,178 +151,429 @@ export function WordLadderScreenContent() {
         }
       />
 
-      <SeedHeader
-        mode={exercise.mode}
-        seedLabel={exercise.seedLabel}
-        onChangeMode={model.setMode}
-        onChangeSeed={model.setSeedLabel}
+      <StepProgress step={model.step} />
+
+      <HelpButton
+        label={STEPS.find((s) => s.key === model.step)?.label ?? "Help"}
+        seen={exercise.seenHelpSteps.includes(model.step)}
+        onPress={() => {
+          model.markHelpSeen(model.step);
+          setHelpVisible(true);
+        }}
       />
 
-      <View style={contentStyles.tabStrip}>
-        {TABS.map((tab) => {
-          const active = tab.key === model.activeTab;
-          const badge =
-            tab.key === "pairings"
-              ? exercise.pairings.length
-              : tab.key === "lines"
-                ? exercise.lines.length
-                : 0;
-          return (
-            <Pressable
-              key={tab.key}
-              style={({ pressed }) => [
-                contentStyles.tab,
-                active ? contentStyles.tabActive : null,
-                pressed ? appStyles.pressDown : null,
-              ]}
-              onPress={() => model.setActiveTab(tab.key)}
-            >
-              <Text style={[contentStyles.tabLabel, active ? contentStyles.tabLabelActive : null]}>
-                {tab.label}
-              </Text>
-              {badge > 0 ? (
-                <View style={[contentStyles.tabBadge, active ? contentStyles.tabBadgeActive : null]}>
-                  <Text style={[contentStyles.tabBadgeText, active ? contentStyles.tabBadgeTextActive : null]}>
-                    {badge}
-                  </Text>
-                </View>
-              ) : null}
-            </Pressable>
-          );
-        })}
-      </View>
-
-      {model.activeTab === "words" ? (
-        <ScrollView
-          style={contentStyles.scroll}
-          contentContainerStyle={contentStyles.scrollContent}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-        >
+      {model.step === "setup" ? (
+        <>
           <View style={contentStyles.columnsRow}>
             <WordLadderColumnEditor
-              label={exercise.columnALabel}
-              placeholder={getColumnAPlaceholder(exercise.mode)}
+              label={COLUMN_A_LABEL}
+              placeholder={getColumnAPlaceholder(exercise.roleSeed)}
               words={exercise.columnA}
-              tint="a"
+              seedSlot={
+                <SetupSeedField
+                  label="Job / role"
+                  value={exercise.roleSeed}
+                  placeholder={ROLE_SEED_PLACEHOLDER}
+                  onChange={model.setRoleSeed}
+                />
+              }
               onAdd={(text) => model.addColumnWord("a", text)}
               onEdit={(id, text) => model.editColumnWord("a", id, text)}
               onReorder={(words) => model.reorderColumnWords("a", words)}
               onRemove={(id) => model.removeColumnWord("a", id)}
             />
+            <View style={contentStyles.columnDivider} />
             <WordLadderColumnEditor
-              label="Nouns"
-              placeholder="From the room, memory, anywhere…"
+              label={COLUMN_B_LABEL}
+              placeholder={getColumnBPlaceholder(exercise.placeSeed)}
               words={exercise.columnB}
-              tint="b"
+              seedSlot={
+                <SetupSeedField
+                  label="Room / place"
+                  value={exercise.placeSeed}
+                  placeholder={PLACE_SEED_PLACEHOLDER}
+                  onChange={model.setPlaceSeed}
+                />
+              }
               onAdd={(text) => model.addColumnWord("b", text)}
               onEdit={(id, text) => model.editColumnWord("b", id, text)}
               onReorder={(words) => model.reorderColumnWords("b", words)}
               onRemove={(id) => model.removeColumnWord("b", id)}
             />
           </View>
-        </ScrollView>
-      ) : null}
 
-      {model.activeTab === "pairings" ? (
-        <WordLadderPairingBoard
-          exercise={exercise}
-          armedWord={model.armedWord}
-          onTapWord={model.handleWordTapForPairing}
-          onUnpair={model.unpairWord}
-          onToggleLock={model.toggleLockPairing}
-          onShuffle={model.shuffle}
-          onMakeLine={model.makeLineFromPairing}
-        />
-      ) : null}
+          <View style={contentStyles.setupSpacer} />
 
-      {model.activeTab === "lines" ? (
-        <DraggableFlatList
-          data={exercise.lines}
-          keyExtractor={(line) => line.id}
-          onDragEnd={({ data }) => model.reorderLines(data)}
-          style={contentStyles.scroll}
-          contentContainerStyle={contentStyles.scrollContent}
-          showsVerticalScrollIndicator={false}
-          ListEmptyComponent={
-            <Text style={contentStyles.emptyHint}>
-              No lines yet. Pair some words, then tap the pencil on a pair to turn it into a lyric scrap.
-            </Text>
-          }
-          ListFooterComponent={
-            exercise.lines.length > 0 ? (
-              <Pressable
-                style={({ pressed }) => [contentStyles.exportBtn, pressed ? appStyles.pressDown : null]}
-                onPress={() => model.setSongExportVisible(true)}
+          <View style={contentStyles.wizardFooter}>
+            {setupWarning ? (
+              <View style={contentStyles.warnRow}>
+                <Ionicons name="alert-circle-outline" size={14} color={colors.textSecondary} />
+                <Text style={contentStyles.footerHint}>{setupWarning}</Text>
+              </View>
+            ) : null}
+            <Pressable
+              style={({ pressed }) => [
+                contentStyles.nextBtn,
+                !canLeaveSetup ? contentStyles.nextBtnDisabled : null,
+                pressed && canLeaveSetup ? appStyles.pressDown : null,
+              ]}
+              onPress={() => model.goToStep("pairs")}
+              disabled={!canLeaveSetup}
+            >
+              <Text
+                style={[contentStyles.nextBtnText, !canLeaveSetup ? contentStyles.nextBtnTextDisabled : null]}
               >
-                <Ionicons name="send-outline" size={15} color={colors.onPrimary} />
-                <Text style={contentStyles.exportBtnText}>Send to a song</Text>
-              </Pressable>
-            ) : null
-          }
-          renderItem={({ item: line, drag, isActive }) => (
-            <WordLadderLineCard
-              line={line}
-              isActive={isActive}
-              drag={drag}
-              onChangeText={(text) => model.updateLineText(line.id, text)}
-              onToggleStar={() => model.toggleStarLine(line.id)}
-              onDelete={() => model.deleteLine(line.id)}
-            />
-          )}
-        />
+                Next: pair them up
+              </Text>
+              <Ionicons
+                name="arrow-forward"
+                size={16}
+                color={canLeaveSetup ? colors.onPrimary : colors.textSecondary}
+              />
+            </Pressable>
+          </View>
+        </>
       ) : null}
 
-      <WordLadderSongExportSheet
-        visible={model.songExportVisible}
-        songOptions={model.songOptions}
-        onClose={() => model.setSongExportVisible(false)}
-        onSelect={model.sendLinesToSong}
+      {model.step === "pairs" ? (
+        <>
+          <FrozenSeedBanner roleSeed={exercise.roleSeed} placeSeed={exercise.placeSeed} />
+          <View style={contentStyles.stepBody}>
+            <WordLadderPairingBoard
+              exercise={exercise}
+              armedWord={model.armedWord}
+              onTapWord={model.handleWordTapForPairing}
+              onUnpair={model.unpairWord}
+              onToggleLock={model.toggleLockPairing}
+              onShuffle={model.shuffle}
+            />
+          </View>
+
+          <View style={contentStyles.wizardFooter}>
+            {!canLeavePairs ? (
+              <View style={contentStyles.warnRow}>
+                <Ionicons name="alert-circle-outline" size={14} color={colors.textSecondary} />
+                <Text style={contentStyles.footerHint}>Connect at least one pair to continue.</Text>
+              </View>
+            ) : unpairedCount > 0 ? (
+              <Text style={contentStyles.footerHint}>
+                {unpairedCount} word{unpairedCount === 1 ? "" : "s"} still unpaired — only pairs become sparks.
+              </Text>
+            ) : null}
+            <View style={contentStyles.footerRow}>
+              <Pressable
+                style={({ pressed }) => [contentStyles.backBtn, pressed ? appStyles.pressDown : null]}
+                onPress={() => model.goToStep("setup")}
+              >
+                <Ionicons name="arrow-back" size={16} color={colors.textSecondary} />
+                <Text style={contentStyles.backBtnText}>Words</Text>
+              </Pressable>
+              <Pressable
+                style={({ pressed }) => [
+                  contentStyles.nextBtn,
+                  contentStyles.nextBtnGrow,
+                  !canLeavePairs ? contentStyles.nextBtnDisabled : null,
+                  pressed && canLeavePairs ? appStyles.pressDown : null,
+                ]}
+                onPress={() => model.goToStep("draft")}
+                disabled={!canLeavePairs}
+              >
+                <Text
+                  style={[contentStyles.nextBtnText, !canLeavePairs ? contentStyles.nextBtnTextDisabled : null]}
+                >
+                  Next: draft a poem
+                </Text>
+                <Ionicons
+                  name="arrow-forward"
+                  size={16}
+                  color={canLeavePairs ? colors.onPrimary : colors.textSecondary}
+                />
+              </Pressable>
+            </View>
+          </View>
+        </>
+      ) : null}
+
+      {model.step === "draft" ? (
+        <>
+          {sparks.length > 0 ? (
+            <View style={contentStyles.palette}>
+              <View style={contentStyles.paletteHeader}>
+                <Text style={contentStyles.paletteLabel}>Your sparks</Text>
+                <Text style={contentStyles.paletteHint}>tap one when you've used it</Text>
+              </View>
+              <ScrollView
+                style={contentStyles.paletteScroll}
+                contentContainerStyle={contentStyles.paletteWrap}
+                showsVerticalScrollIndicator={false}
+              >
+                {sparks.map((spark) => {
+                  const used = usedSparks.has(spark.id);
+                  return (
+                    <Pressable
+                      key={spark.id}
+                      style={({ pressed }) => [
+                        contentStyles.sparkChip,
+                        used ? contentStyles.sparkChipUsed : null,
+                        pressed ? appStyles.pressDown : null,
+                      ]}
+                      onPress={() => model.toggleSparkUsed(spark.id)}
+                    >
+                      <Text style={[contentStyles.sparkText, used ? contentStyles.sparkTextUsed : null]}>
+                        {spark.seedA}
+                        <Text style={contentStyles.sparkDot}>  ·  </Text>
+                        {spark.seedB}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
+            </View>
+          ) : null}
+
+          <View style={contentStyles.poemCard}>
+            <TextInput
+              style={contentStyles.poemInput}
+              value={exercise.draft}
+              onChangeText={model.setDraft}
+              multiline
+              textAlignVertical="top"
+              placeholder="Write loosely. Pull from the sparks above, bend them, leave some behind — don't judge it. This is just a warm-up."
+              placeholderTextColor={colors.textMuted}
+            />
+          </View>
+
+          {keyboardVisible ? null : (
+            <View style={contentStyles.wizardFooter}>
+              <View style={contentStyles.footerRow}>
+                <Pressable
+                  style={({ pressed }) => [contentStyles.backBtn, pressed ? appStyles.pressDown : null]}
+                  onPress={() => model.goToStep("pairs")}
+                >
+                  <Ionicons name="arrow-back" size={16} color={colors.textSecondary} />
+                  <Text style={contentStyles.backBtnText}>Pairs</Text>
+                </Pressable>
+                <Pressable
+                  style={({ pressed }) => [
+                    contentStyles.nextBtn,
+                    contentStyles.nextBtnGrow,
+                    !hasDraft ? contentStyles.nextBtnDisabled : null,
+                    pressed && hasDraft ? appStyles.pressDown : null,
+                  ]}
+                  onPress={() => model.goToStep("revise")}
+                  disabled={!hasDraft}
+                >
+                  <Text style={[contentStyles.nextBtnText, !hasDraft ? contentStyles.nextBtnTextDisabled : null]}>
+                    Next: revise
+                  </Text>
+                  <Ionicons
+                    name="arrow-forward"
+                    size={16}
+                    color={hasDraft ? colors.onPrimary : colors.textSecondary}
+                  />
+                </Pressable>
+              </View>
+            </View>
+          )}
+        </>
+      ) : null}
+
+      {model.step === "revise" ? (
+        <>
+          <View style={contentStyles.draftRef}>
+            <Text style={contentStyles.draftRefLabel}>Your draft</Text>
+            <ScrollView
+              style={[
+                contentStyles.draftRefScroll,
+                keyboardVisible ? contentStyles.draftRefScrollCompact : null,
+              ]}
+              showsVerticalScrollIndicator={false}
+            >
+              <Text style={contentStyles.draftRefText}>{exercise.draft.trim() || "—"}</Text>
+            </ScrollView>
+          </View>
+
+          {keyboardVisible ? null : (
+            <Text style={contentStyles.reviseHint}>
+              Rewrite it below into lines you'd keep — cut, reorder, change words. The revision is what gets
+              saved.
+            </Text>
+          )}
+
+          <View style={contentStyles.poemCard}>
+            <TextInput
+              style={contentStyles.poemInput}
+              value={exercise.revision}
+              onChangeText={model.setRevision}
+              multiline
+              textAlignVertical="top"
+              placeholder="Start your revision on a clean page…"
+              placeholderTextColor={colors.textMuted}
+            />
+          </View>
+
+          {keyboardVisible ? null : (
+            <View style={contentStyles.wizardFooter}>
+              <View style={contentStyles.footerRow}>
+                <Pressable
+                  style={({ pressed }) => [contentStyles.backBtn, pressed ? appStyles.pressDown : null]}
+                  onPress={() => model.goToStep("draft")}
+                >
+                  <Ionicons name="arrow-back" size={16} color={colors.textSecondary} />
+                  <Text style={contentStyles.backBtnText}>Draft</Text>
+                </Pressable>
+                <Pressable
+                  style={({ pressed }) => [
+                    contentStyles.nextBtn,
+                    contentStyles.nextBtnGrow,
+                    !hasRevision ? contentStyles.nextBtnDisabled : null,
+                    pressed && hasRevision ? appStyles.pressDown : null,
+                  ]}
+                  onPress={model.saveAsLyrics}
+                  disabled={!hasRevision}
+                >
+                  <Ionicons
+                    name="bookmark-outline"
+                    size={15}
+                    color={hasRevision ? colors.onPrimary : colors.textSecondary}
+                  />
+                  <Text
+                    style={[contentStyles.nextBtnText, !hasRevision ? contentStyles.nextBtnTextDisabled : null]}
+                  >
+                    Save as lyrics
+                  </Text>
+                </Pressable>
+              </View>
+            </View>
+          )}
+        </>
+      ) : null}
+      </KeyboardAvoidingView>
+
+      <WordLadderHelpSheet
+        visible={helpVisible}
+        step={model.step}
+        onClose={() => setHelpVisible(false)}
       />
     </SafeAreaView>
   );
 }
 
-function SeedHeader({
-  mode,
-  seedLabel,
-  onChangeMode,
-  onChangeSeed,
-}: {
-  mode: WordLadderMode;
-  seedLabel: string;
-  onChangeMode: (mode: WordLadderMode) => void;
-  onChangeSeed: (text: string) => void;
-}) {
+/** Non-interactive wizard progress — clarifies "step N of 4" without letting
+ * the writer jump around (that's what the Next/Back buttons are for). */
+function StepProgress({ step }: { step: WordLadderStep }) {
+  const currentIndex = STEPS.findIndex((s) => s.key === step);
   return (
-    <View style={contentStyles.seedCard}>
-      <View style={contentStyles.modeRow}>
-        <ModePill label="Role / Person / Job" active={mode === "role"} onPress={() => onChangeMode("role")} />
-        <ModePill label="Place / Location" active={mode === "place"} onPress={() => onChangeMode("place")} />
-      </View>
-      <TextInput
-        style={contentStyles.seedInput}
-        value={seedLabel}
-        onChangeText={onChangeSeed}
-        placeholder={getSeedPlaceholder(mode)}
-        placeholderTextColor={colors.textMuted}
-      />
+    <View style={contentStyles.progressRow}>
+      {STEPS.map((s, index) => {
+        const state = index < currentIndex ? "done" : index === currentIndex ? "current" : "upcoming";
+        const isCurrent = state === "current";
+        return (
+          <View key={s.key} style={contentStyles.progressItem}>
+            <View
+              style={[
+                contentStyles.progressDot,
+                isCurrent ? contentStyles.progressDotCurrent : null,
+                state === "done" ? contentStyles.progressDotDone : null,
+              ]}
+            >
+              {state === "done" ? (
+                <Ionicons name="checkmark" size={11} color={colors.onPrimary} />
+              ) : (
+                <Text
+                  style={[contentStyles.progressNum, isCurrent ? contentStyles.progressNumCurrent : null]}
+                >
+                  {index + 1}
+                </Text>
+              )}
+            </View>
+            <Text
+              style={[contentStyles.progressLabel, isCurrent ? contentStyles.progressLabelCurrent : null]}
+            >
+              {s.label}
+            </Text>
+          </View>
+        );
+      })}
     </View>
   );
 }
 
-function ModePill({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
+/** A "(?) {step}" button. It highlights (filled) until the current step's help
+ * has been opened, then recedes to a quiet link — the re-highlight on each new
+ * step signals there's fresh, step-specific guidance to read. */
+function HelpButton({ label, seen, onPress }: { label: string; seen: boolean; onPress: () => void }) {
   return (
     <Pressable
       style={({ pressed }) => [
-        contentStyles.modePill,
-        active ? contentStyles.modePillActive : null,
+        contentStyles.helpBtn,
+        seen ? contentStyles.helpBtnSeen : contentStyles.helpBtnNew,
         pressed ? appStyles.pressDown : null,
       ]}
       onPress={onPress}
+      hitSlop={6}
     >
-      <Text style={[contentStyles.modePillText, active ? contentStyles.modePillTextActive : null]}>{label}</Text>
+      <Ionicons
+        name="help-circle"
+        size={15}
+        color={seen ? colors.textMuted : colors.onPrimary}
+      />
+      <Text style={[contentStyles.helpBtnText, seen ? contentStyles.helpBtnTextSeen : contentStyles.helpBtnTextNew]}>
+        {label}
+      </Text>
     </Pressable>
+  );
+}
+
+/** The seed input that sits atop a column during the setup step. */
+function SetupSeedField({
+  label,
+  value,
+  placeholder,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  placeholder: string;
+  onChange: (text: string) => void;
+}) {
+  return (
+    <View style={contentStyles.seedHeader}>
+      <Text style={contentStyles.seedLabel}>{label}</Text>
+      <TextInput
+        style={contentStyles.seedInput}
+        value={value}
+        onChangeText={onChange}
+        placeholder={placeholder}
+        placeholderTextColor={colors.textMuted}
+        autoCapitalize="none"
+      />
+      <View style={contentStyles.seedHeaderDivider} />
+    </View>
+  );
+}
+
+/** A read-only reminder of the locked seeds, shown on the pair and line steps. */
+function FrozenSeedBanner({ roleSeed, placeSeed }: { roleSeed: string; placeSeed: string }) {
+  const role = roleSeed.trim();
+  const place = placeSeed.trim();
+  if (!role && !place) return null;
+  return (
+    <View style={contentStyles.frozenBanner}>
+      {role ? (
+        <View style={contentStyles.frozenChip}>
+          <Ionicons name="briefcase-outline" size={12} color={colors.textSecondary} />
+          <Text style={contentStyles.frozenText}>{role}</Text>
+        </View>
+      ) : null}
+      {role && place ? <View style={contentStyles.frozenDot} /> : null}
+      {place ? (
+        <View style={contentStyles.frozenChip}>
+          <Ionicons name="location-outline" size={12} color={colors.textSecondary} />
+          <Text style={contentStyles.frozenText}>{place}</Text>
+        </View>
+      ) : null}
+    </View>
   );
 }
 
@@ -237,11 +582,8 @@ const contentStyles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 16,
   },
-  scroll: {
+  keyboardView: {
     flex: 1,
-  },
-  scrollContent: {
-    paddingBottom: 48,
   },
   deleteBtn: {
     width: 36,
@@ -265,114 +607,297 @@ const contentStyles = StyleSheet.create({
     ...textTokens.supporting,
     textAlign: "center",
   },
-  seedCard: {
-    backgroundColor: colors.surface,
-    borderRadius: radii.sm,
-    padding: spacing.md,
-    gap: spacing.sm,
-    marginBottom: spacing.lg,
-    ...shadows.card,
-  },
-  modeRow: {
-    flexDirection: "row",
-    gap: spacing.xs,
-  },
-  modePill: {
-    flex: 1,
-    paddingVertical: 7,
-    borderRadius: radii.round,
+  seedHeader: {
+    marginHorizontal: -spacing.sm,
+    marginTop: -spacing.sm,
+    paddingHorizontal: spacing.sm,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.sm,
     backgroundColor: colors.surfaceContainer,
-    alignItems: "center",
+    borderTopLeftRadius: radii.lg,
+    borderTopRightRadius: radii.lg,
   },
-  modePillActive: {
-    backgroundColor: colors.primary,
-  },
-  modePillText: {
-    fontFamily: "PlusJakartaSans_600SemiBold",
-    fontSize: 12,
-    color: colors.textSecondary,
-  },
-  modePillTextActive: {
-    color: colors.onPrimary,
+  seedLabel: {
+    fontFamily: "PlusJakartaSans_700Bold",
+    fontSize: 11,
+    color: colors.textStrong,
+    letterSpacing: 1.0,
+    textTransform: "uppercase",
   },
   seedInput: {
+    backgroundColor: colors.surface,
+    borderRadius: radii.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 9,
+    marginTop: 5,
     fontFamily: "PlayfairDisplay_400Regular",
-    fontSize: 20,
+    fontSize: 17,
     color: colors.textPrimary,
-    paddingVertical: 2,
   },
-  tabStrip: {
-    flexDirection: "row",
-    backgroundColor: "rgba(0,0,0,0.05)",
-    borderRadius: radii.round,
-    padding: 3,
-    marginBottom: spacing.lg,
+  seedHeaderDivider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: colors.borderMuted,
+    marginTop: spacing.sm,
   },
-  tab: {
-    flex: 1,
+  progressRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 5,
-    paddingVertical: 8,
-    borderRadius: radii.round,
+    gap: spacing.sm,
+    marginBottom: spacing.lg,
   },
-  tabActive: {
-    backgroundColor: colors.surface,
-    ...shadows.control,
+  progressItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
   },
-  tabLabel: {
-    fontFamily: "PlusJakartaSans_600SemiBold",
-    fontSize: 13,
-    color: colors.textSecondary,
-  },
-  tabLabelActive: {
-    color: colors.textPrimary,
-  },
-  tabBadge: {
-    minWidth: 16,
-    height: 16,
+  progressDot: {
+    width: 20,
+    height: 20,
     borderRadius: radii.round,
     backgroundColor: colors.borderMuted,
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 3,
   },
-  tabBadgeActive: {
+  progressDotCurrent: {
     backgroundColor: colors.primary,
   },
-  tabBadgeText: {
-    fontFamily: "PlusJakartaSans_700Bold",
-    fontSize: 9,
-    color: colors.textStrong,
+  progressDotDone: {
+    backgroundColor: colors.primary,
   },
-  tabBadgeTextActive: {
+  progressNum: {
+    fontFamily: "PlusJakartaSans_700Bold",
+    fontSize: 10,
+    lineHeight: 12,
+    textAlign: "center",
+    textAlignVertical: "center",
+    includeFontPadding: false,
+    color: colors.textSecondary,
+  },
+  progressNumCurrent: {
     color: colors.onPrimary,
+  },
+  progressLabel: {
+    fontFamily: "PlusJakartaSans_600SemiBold",
+    fontSize: 12,
+    color: colors.textMuted,
+  },
+  progressLabelCurrent: {
+    color: colors.textPrimary,
+  },
+  frozenBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.sm,
+    paddingVertical: spacing.xs,
+    marginBottom: spacing.sm,
+  },
+  frozenChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  frozenText: {
+    fontFamily: "PlusJakartaSans_600SemiBold",
+    fontSize: 13,
+    color: colors.textSecondary,
+  },
+  frozenDot: {
+    width: 3,
+    height: 3,
+    borderRadius: radii.round,
+    backgroundColor: colors.textMuted,
+  },
+  stepBody: {
+    flex: 1,
+  },
+  helpBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "flex-end",
+    gap: 5,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 6,
+    marginBottom: spacing.sm,
+    borderRadius: radii.round,
+  },
+  helpBtnNew: {
+    backgroundColor: colors.primary,
+    ...shadows.control,
+  },
+  helpBtnSeen: {
+    backgroundColor: "transparent",
+  },
+  helpBtnText: {
+    fontFamily: "PlusJakartaSans_700Bold",
+    fontSize: 12,
+  },
+  helpBtnTextNew: {
+    color: colors.onPrimary,
+  },
+  helpBtnTextSeen: {
+    color: colors.textMuted,
+    fontFamily: "PlusJakartaSans_600SemiBold",
+  },
+  columnDivider: {
+    width: StyleSheet.hairlineWidth,
+    alignSelf: "stretch",
+    backgroundColor: colors.borderMuted,
+  },
+  setupSpacer: {
+    flex: 1,
+  },
+  warnRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 5,
   },
   columnsRow: {
     flexDirection: "row",
-    gap: spacing.md,
+    alignItems: "stretch",
+    gap: spacing.sm,
   },
-  emptyHint: {
-    ...textTokens.supporting,
-    fontSize: 13,
+  wizardFooter: {
+    paddingVertical: spacing.md,
+    gap: spacing.sm,
+  },
+  footerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+  },
+  footerHint: {
+    fontFamily: "PlusJakartaSans_500Medium",
+    fontSize: 12,
+    color: colors.textMuted,
     textAlign: "center",
-    marginTop: spacing.xxl,
-    paddingHorizontal: spacing.lg,
   },
-  exportBtn: {
+  nextBtn: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: spacing.xs,
     backgroundColor: colors.primary,
     borderRadius: radii.round,
-    paddingVertical: 12,
-    marginTop: spacing.sm,
+    paddingVertical: 14,
   },
-  exportBtnText: {
+  nextBtnGrow: {
+    flex: 1,
+  },
+  nextBtnDisabled: {
+    backgroundColor: colors.borderMuted,
+  },
+  nextBtnText: {
     fontFamily: "PlusJakartaSans_700Bold",
-    fontSize: 13,
+    fontSize: 14,
     color: colors.onPrimary,
+  },
+  nextBtnTextDisabled: {
+    color: colors.textSecondary,
+  },
+  backBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.xs,
+    paddingVertical: 12,
+  },
+  backBtnText: {
+    fontFamily: "PlusJakartaSans_600SemiBold",
+    fontSize: 14,
+    color: colors.textSecondary,
+  },
+  palette: {
+    backgroundColor: colors.surfaceHigh,
+    borderRadius: radii.lg,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+  },
+  paletteHeader: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    justifyContent: "space-between",
+    marginBottom: spacing.sm,
+  },
+  paletteLabel: {
+    ...textTokens.annotation,
+  },
+  paletteHint: {
+    fontFamily: "PlusJakartaSans_400Regular",
+    fontSize: 10,
+    color: colors.textMuted,
+  },
+  paletteScroll: {
+    maxHeight: 96,
+  },
+  paletteWrap: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.xs,
+  },
+  sparkChip: {
+    backgroundColor: colors.surface,
+    borderRadius: radii.md,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 6,
+  },
+  sparkChipUsed: {
+    backgroundColor: colors.surfaceContainer,
+    opacity: 0.6,
+  },
+  sparkText: {
+    fontFamily: "PlusJakartaSans_600SemiBold",
+    fontSize: 12,
+    color: colors.textStrong,
+  },
+  sparkTextUsed: {
+    color: colors.textMuted,
+    textDecorationLine: "line-through",
+  },
+  sparkDot: {
+    color: colors.textMuted,
+  },
+  draftRef: {
+    backgroundColor: colors.surfaceHigh,
+    borderRadius: radii.lg,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+  },
+  draftRefLabel: {
+    ...textTokens.annotation,
+    marginBottom: spacing.xs,
+  },
+  draftRefScroll: {
+    maxHeight: 150,
+  },
+  draftRefScrollCompact: {
+    maxHeight: 64,
+  },
+  draftRefText: {
+    fontFamily: "PlayfairDisplay_400Regular",
+    fontSize: 15,
+    lineHeight: 23,
+    color: colors.textSecondary,
+  },
+  reviseHint: {
+    ...textTokens.supporting,
+    fontSize: 12,
+    marginBottom: spacing.sm,
+  },
+  poemCard: {
+    flex: 1,
+    backgroundColor: colors.surface,
+    borderRadius: radii.lg,
+    padding: spacing.md,
+    ...shadows.card,
+  },
+  poemInput: {
+    flex: 1,
+    fontFamily: "PlayfairDisplay_400Regular",
+    fontSize: 18,
+    lineHeight: 28,
+    color: colors.textPrimary,
   },
 });
