@@ -31,6 +31,7 @@ export type PersistedAppStore = Pick<
     | "lastSuccessfulBackupAt"
     | "lastSuccessfulBackupFileName"
     | "notes"
+    | "wordLadders"
     | "ideasFilter"
     | "ideasSort"
     | "primaryFilter"

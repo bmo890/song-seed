@@ -3,7 +3,11 @@ import { Share } from "react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { useStore } from "../../../state/useStore";
 import { buildShareTextFromNotes } from "../../../notepad";
-import type { Note } from "../../../types";
+import type { Note, WordLadderExercise, WordLadderMode } from "../../../types";
+
+export type NotebookEntry =
+  | { kind: "note"; updatedAt: number; isPinned: boolean; note: Note }
+  | { kind: "ladder"; updatedAt: number; isPinned: false; exercise: WordLadderExercise };
 
 export function useNotepadScreenModel() {
   const route = useRoute<any>();
@@ -13,6 +17,8 @@ export function useNotepadScreenModel() {
   const updateNote = useStore((s) => s.updateNote);
   const deleteNote = useStore((s) => s.deleteNote);
   const startSongTargetPicking = useStore((s) => s.startSongTargetPicking);
+  const wordLadders = useStore((s) => s.wordLadders);
+  const addWordLadder = useStore((s) => s.addWordLadder);
 
   const [activeNoteId, setActiveNoteId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -32,6 +38,34 @@ export function useNotepadScreenModel() {
     });
   }, [notes, searchQuery]);
 
+  const filteredLadders = useMemo(() => {
+    const needle = searchQuery.trim().toLowerCase();
+    if (!needle) return wordLadders;
+    return wordLadders.filter((exercise) => {
+      return (
+        exercise.title.toLowerCase().includes(needle) ||
+        exercise.seedLabel.toLowerCase().includes(needle) ||
+        exercise.lines.some((line) => line.text.toLowerCase().includes(needle))
+      );
+    });
+  }, [wordLadders, searchQuery]);
+
+  const entries: NotebookEntry[] = useMemo(() => {
+    const noteEntries: NotebookEntry[] = filteredNotes.map((note) => ({
+      kind: "note",
+      updatedAt: note.updatedAt,
+      isPinned: note.isPinned,
+      note,
+    }));
+    const ladderEntries: NotebookEntry[] = filteredLadders.map((exercise) => ({
+      kind: "ladder",
+      updatedAt: exercise.updatedAt,
+      isPinned: false,
+      exercise,
+    }));
+    return [...noteEntries, ...ladderEntries];
+  }, [filteredNotes, filteredLadders]);
+
   const sections = useMemo(() => {
     const startOfToday = new Date();
     startOfToday.setHours(0, 0, 0, 0);
@@ -39,41 +73,42 @@ export function useNotepadScreenModel() {
     const startOfYesterdayMs = startOfTodayMs - 24 * 60 * 60 * 1000;
     const startOfWeekMs = startOfTodayMs - 7 * 24 * 60 * 60 * 1000;
 
-    const pinned: Note[] = [];
-    const today: Note[] = [];
-    const yesterday: Note[] = [];
-    const thisWeek: Note[] = [];
-    const earlier: Note[] = [];
+    const pinned: NotebookEntry[] = [];
+    const today: NotebookEntry[] = [];
+    const yesterday: NotebookEntry[] = [];
+    const thisWeek: NotebookEntry[] = [];
+    const earlier: NotebookEntry[] = [];
 
-    for (const note of filteredNotes) {
-      if (note.isPinned) {
-        pinned.push(note);
+    for (const entry of entries) {
+      if (entry.isPinned) {
+        pinned.push(entry);
         continue;
       }
-      if (note.updatedAt >= startOfTodayMs) {
-        today.push(note);
-      } else if (note.updatedAt >= startOfYesterdayMs) {
-        yesterday.push(note);
-      } else if (note.updatedAt >= startOfWeekMs) {
-        thisWeek.push(note);
+      if (entry.updatedAt >= startOfTodayMs) {
+        today.push(entry);
+      } else if (entry.updatedAt >= startOfYesterdayMs) {
+        yesterday.push(entry);
+      } else if (entry.updatedAt >= startOfWeekMs) {
+        thisWeek.push(entry);
       } else {
-        earlier.push(note);
+        earlier.push(entry);
       }
     }
 
-    const sortDesc = (a: Note, b: Note) => b.updatedAt - a.updatedAt;
-    const buckets: Array<{ key: string; label: string; notes: Note[] }> = [
-      { key: "pinned", label: "Pinned", notes: pinned.sort(sortDesc) },
-      { key: "today", label: "Today", notes: today.sort(sortDesc) },
-      { key: "yesterday", label: "Yesterday", notes: yesterday.sort(sortDesc) },
-      { key: "thisWeek", label: "Earlier this week", notes: thisWeek.sort(sortDesc) },
-      { key: "earlier", label: "Earlier", notes: earlier.sort(sortDesc) },
+    const sortDesc = (a: NotebookEntry, b: NotebookEntry) => b.updatedAt - a.updatedAt;
+    const buckets: Array<{ key: string; label: string; entries: NotebookEntry[] }> = [
+      { key: "pinned", label: "Pinned", entries: pinned.sort(sortDesc) },
+      { key: "today", label: "Today", entries: today.sort(sortDesc) },
+      { key: "yesterday", label: "Yesterday", entries: yesterday.sort(sortDesc) },
+      { key: "thisWeek", label: "Earlier this week", entries: thisWeek.sort(sortDesc) },
+      { key: "earlier", label: "Earlier", entries: earlier.sort(sortDesc) },
     ];
 
-    return buckets.filter((bucket) => bucket.notes.length > 0);
-  }, [filteredNotes]);
+    return buckets.filter((bucket) => bucket.entries.length > 0);
+  }, [entries]);
 
   const totalNoteCount = notes.length;
+  const totalEntryCount = notes.length + wordLadders.length;
   const isSearching = searchQuery.trim().length > 0;
 
   const activeNote = useMemo(
@@ -101,16 +136,24 @@ export function useNotepadScreenModel() {
     setActiveNoteId(id);
   }, [addNote]);
 
+  const handleNewWordLadder = useCallback(
+    (mode: WordLadderMode = "role") => {
+      const id = addWordLadder(mode, "");
+      navigation.navigate("WordLadderHome", { exerciseId: id });
+    },
+    [addWordLadder, navigation]
+  );
+
   useEffect(() => {
     if (hasAutoOpenedRef.current) return;
-    if (totalNoteCount !== 0) {
+    if (totalEntryCount !== 0) {
       hasAutoOpenedRef.current = true;
       return;
     }
     if (activeNoteId !== null) return;
     hasAutoOpenedRef.current = true;
     handleNewNote();
-  }, [totalNoteCount, activeNoteId, handleNewNote]);
+  }, [totalEntryCount, activeNoteId, handleNewNote]);
 
   const handleOpenNote = useCallback(
     (note: Note) => {
@@ -121,6 +164,14 @@ export function useNotepadScreenModel() {
       setActiveNoteId(note.id);
     },
     [selectionMode] // eslint-disable-line react-hooks/exhaustive-deps
+  );
+
+  const handleOpenLadder = useCallback(
+    (exercise: WordLadderExercise) => {
+      if (selectionMode) return;
+      navigation.navigate("WordLadderHome", { exerciseId: exercise.id });
+    },
+    [navigation, selectionMode]
   );
 
   const handleCloseNote = useCallback(() => {
@@ -158,7 +209,7 @@ export function useNotepadScreenModel() {
     [activeNoteId, deleteNote]
   );
 
-  // ── Selection mode ──────────────────────────────────────────────────────
+  // ── Selection mode (notes only — Word Ladder exercises aren't bulk-selectable) ──
   const beginSelection = useCallback((noteId: string) => {
     setSelectionMode(true);
     setSelectedNoteIds([noteId]);
@@ -237,12 +288,15 @@ export function useNotepadScreenModel() {
   return {
     sections,
     totalNoteCount,
+    totalEntryCount,
     isSearching,
     searchQuery,
     setSearchQuery,
     activeNote,
     handleNewNote,
+    handleNewWordLadder,
     handleOpenNote,
+    handleOpenLadder,
     handleCloseNote,
     handleUpdateNote,
     handleTogglePin,

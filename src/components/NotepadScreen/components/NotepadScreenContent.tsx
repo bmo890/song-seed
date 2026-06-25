@@ -10,10 +10,12 @@ import { SelectionDock, type SelectionAction } from "../../common/SelectionDock"
 import { SelectionActionSheet } from "../../common/SelectionActionSheet";
 import { AppAlert } from "../../common/AppAlert";
 import { NoteEditor } from "./NoteEditor";
-import { useNotepadScreenModel } from "../hooks/useNotepadScreenModel";
+import { NewLyricsPadItemSheet } from "./NewLyricsPadItemSheet";
+import { useNotepadScreenModel, type NotebookEntry } from "../hooks/useNotepadScreenModel";
 import { styles } from "../../../styles";
 import { colors, radii, spacing, text as textTokens } from "../../../design/tokens";
-import type { Note } from "../../../types";
+import { exerciseSummary } from "../../../wordLadder";
+import type { Note, WordLadderExercise } from "../../../types";
 import {
   buildSearchPreviewSegments,
   deriveNotePreviewBody,
@@ -135,16 +137,49 @@ function NoteListItem({
   );
 }
 
+type WordLadderItemProps = {
+  exercise: WordLadderExercise;
+  selectionMode: boolean;
+  onPress: (exercise: WordLadderExercise) => void;
+};
+
+function WordLadderListItem({ exercise, selectionMode, onPress }: WordLadderItemProps) {
+  return (
+    <Pressable
+      style={({ pressed }) => [
+        noteStyles.card,
+        noteStyles.ladderCard,
+        selectionMode ? noteStyles.ladderCardDimmed : null,
+        pressed && !selectionMode ? styles.pressDown : null,
+      ]}
+      onPress={() => onPress(exercise)}
+    >
+      <View style={noteStyles.ladderIconWrap}>
+        <Ionicons name="shuffle-outline" size={16} color={colors.primary} />
+      </View>
+      <View style={noteStyles.cardBody}>
+        <Text style={noteStyles.cardTitle} numberOfLines={1}>
+          {exercise.title}
+        </Text>
+        <Text style={noteStyles.cardMeta}>WORD LADDER  ·  {exerciseSummary(exercise)}</Text>
+      </View>
+      {!selectionMode ? <Ionicons name="chevron-forward" size={16} color={colors.textMuted} /> : null}
+    </Pressable>
+  );
+}
+
 export function NotepadScreenContent() {
   const {
     sections,
-    totalNoteCount,
+    totalEntryCount,
     isSearching,
     searchQuery,
     setSearchQuery,
     activeNote,
     handleNewNote,
+    handleNewWordLadder,
     handleOpenNote,
+    handleOpenLadder,
     handleCloseNote,
     handleUpdateNote,
     handleTogglePin,
@@ -165,6 +200,7 @@ export function NotepadScreenContent() {
     handleStartAddToSong,
   } = useNotepadScreenModel();
   const [moreVisible, setMoreVisible] = useState(false);
+  const [newItemSheetVisible, setNewItemSheetVisible] = useState(false);
 
   if (activeNote) {
     return (
@@ -179,7 +215,7 @@ export function NotepadScreenContent() {
   }
 
   const emptyBody = "Verses, hooks, and lines that don't have a song yet.";
-  const countLabel = `${totalNoteCount} page${totalNoteCount === 1 ? "" : "s"} of lyrics and loose lines.`;
+  const countLabel = `${totalEntryCount} page${totalEntryCount === 1 ? "" : "s"} of lyrics and loose lines.`;
   const selectedCount = selectedNoteIds.length;
 
   function confirmDeleteSelected() {
@@ -247,7 +283,7 @@ export function NotepadScreenContent() {
           rightElement={
             <Pressable
               style={({ pressed }) => [listStyles.newBtn, pressed ? styles.pressDown : null]}
-              onPress={handleNewNote}
+              onPress={() => setNewItemSheetVisible(true)}
               hitSlop={4}
             >
               <Ionicons name="add" size={22} color={colors.primary} />
@@ -256,7 +292,7 @@ export function NotepadScreenContent() {
         />
       ) : null}
 
-      {totalNoteCount === 0 ? (
+      {totalEntryCount === 0 ? (
         <View style={listStyles.emptyState}>
           <View style={listStyles.emptyIconWrap}>
             <Ionicons name="document-text-outline" size={26} color={colors.primary} />
@@ -308,23 +344,32 @@ export function NotepadScreenContent() {
                 <View key={section.key} style={listStyles.section}>
                   <View style={listStyles.sectionHeaderRow}>
                     <Text style={listStyles.sectionLabel}>{section.label}</Text>
-                    <Text style={listStyles.sectionCount}>{section.notes.length}</Text>
+                    <Text style={listStyles.sectionCount}>{section.entries.length}</Text>
                   </View>
                   <View style={listStyles.sectionStack}>
-                    {section.notes.map((note) => (
-                      <NoteListItem
-                        key={note.id}
-                        note={note}
-                        searchQuery={searchQuery}
-                        sectionKey={section.key}
-                        selectionMode={selectionMode}
-                        isSelected={selectedNoteIds.includes(note.id)}
-                        onPress={handleOpenNote}
-                        onTogglePin={handleTogglePin}
-                        onBeginSelection={beginSelection}
-                        onToggleSelect={toggleSelectNote}
-                      />
-                    ))}
+                    {section.entries.map((entry: NotebookEntry) =>
+                      entry.kind === "note" ? (
+                        <NoteListItem
+                          key={entry.note.id}
+                          note={entry.note}
+                          searchQuery={searchQuery}
+                          sectionKey={section.key}
+                          selectionMode={selectionMode}
+                          isSelected={selectedNoteIds.includes(entry.note.id)}
+                          onPress={handleOpenNote}
+                          onTogglePin={handleTogglePin}
+                          onBeginSelection={beginSelection}
+                          onToggleSelect={toggleSelectNote}
+                        />
+                      ) : (
+                        <WordLadderListItem
+                          key={entry.exercise.id}
+                          exercise={entry.exercise}
+                          selectionMode={selectionMode}
+                          onPress={handleOpenLadder}
+                        />
+                      )
+                    )}
                   </View>
                 </View>
               ))}
@@ -340,6 +385,19 @@ export function NotepadScreenContent() {
         title="Page actions"
         actions={sheetActions}
         onClose={() => setMoreVisible(false)}
+      />
+
+      <NewLyricsPadItemSheet
+        visible={newItemSheetVisible}
+        onClose={() => setNewItemSheetVisible(false)}
+        onNewPage={() => {
+          setNewItemSheetVisible(false);
+          handleNewNote();
+        }}
+        onNewWordLadder={() => {
+          setNewItemSheetVisible(false);
+          handleNewWordLadder();
+        }}
       />
     </SafeAreaView>
   );
@@ -499,5 +557,20 @@ const noteStyles = StyleSheet.create({
     backgroundColor: "#f0d4cc",
     color: "#5c2d1e",
     fontWeight: "700",
+  },
+  ladderCard: {
+    alignItems: "center",
+  },
+  ladderCardDimmed: {
+    opacity: 0.5,
+  },
+  ladderIconWrap: {
+    width: 32,
+    height: 32,
+    borderRadius: radii.round,
+    backgroundColor: colors.surfaceHigh,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 1,
   },
 });

@@ -9,6 +9,45 @@ export type Note = {
   isPinned: boolean;
 };
 
+/** "Word Ladder" is a Jeff Tweedy-style writing exercise: pair a column of
+ * role-verbs (or place-adjectives) against a column of nouns to spark odd,
+ * unplanned lyric collisions. Lives in the global Lyrics Notebook alongside
+ * Notes, not attached to a song unless the writer chooses to send a line on. */
+export type WordLadderMode = "role" | "place";
+
+export type WordLadderWord = {
+  id: string;
+  text: string;
+};
+
+export type WordLadderPairing = {
+  id: string;
+  columnAWordId: string;
+  columnBWordId: string;
+  locked: boolean;
+};
+
+export type WordLadderLine = {
+  id: string;
+  text: string;
+  pairingId: string | null;
+  starred: boolean;
+};
+
+export type WordLadderExercise = {
+  id: string;
+  title: string;
+  createdAt: number;
+  updatedAt: number;
+  mode: WordLadderMode;
+  seedLabel: string;
+  columnALabel: string;
+  columnA: WordLadderWord[];
+  columnB: WordLadderWord[];
+  pairings: WordLadderPairing[];
+  lines: WordLadderLine[];
+};
+
 export type BluetoothMonitoringCalibration = {
   routeKey: string;
   routeLabel: string;

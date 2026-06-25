@@ -29,11 +29,14 @@ import {
     ClipSection,
     ClipAnalysis,
     Note,
+    WordLadderExercise,
+    WordLadderMode,
     BluetoothMonitoringCalibration,
     ClipOverdubState,
     ClipOverdubRootSettings,
     ClipOverdubStem,
 } from "../types";
+import { createWordLadderExercise } from "../wordLadder";
 import { genChildClipTitle, genRootClipTitle } from "../utils";
 import { buildClipGraph } from "../clipGraph";
 import type { SelectionSlice } from "./selectionSlice";
@@ -114,6 +117,10 @@ export type DataSlice = {
     addNote: () => string;
     updateNote: (id: string, updates: { title?: string; body?: string; isPinned?: boolean }) => void;
     deleteNote: (id: string) => void;
+    wordLadders: WordLadderExercise[];
+    addWordLadder: (mode?: WordLadderMode, seedLabel?: string) => string;
+    updateWordLadder: (id: string, updates: Partial<Omit<WordLadderExercise, "id" | "createdAt">>) => void;
+    deleteWordLadder: (id: string) => void;
     setBackupReminderFrequency: (value: BackupReminderFrequency) => void;
     setLastSuccessfulBackupAt: (timestamp: number | null) => void;
     setLastSuccessfulBackupFileName: (fileName: string | null) => void;
@@ -936,6 +943,7 @@ export const createDataSlice: StateCreator<
     metronomeCountInBars: DEFAULT_METRONOME_COUNT_IN_BARS,
     globalCustomClipTags: [],
     notes: [],
+    wordLadders: [],
     backupReminderFrequency: "monthly",
     lastSuccessfulBackupAt: null,
     lastSuccessfulBackupFileName: null,
@@ -1097,6 +1105,19 @@ export const createDataSlice: StateCreator<
         })),
     deleteNote: (id) =>
         set((state) => ({ notes: state.notes.filter((note) => note.id !== id) })),
+    addWordLadder: (mode = "role", seedLabel = "") => {
+        const exercise = createWordLadderExercise(mode, seedLabel);
+        set((state) => ({ wordLadders: [exercise, ...state.wordLadders] }));
+        return exercise.id;
+    },
+    updateWordLadder: (id, updates) =>
+        set((state) => ({
+            wordLadders: state.wordLadders.map((exercise) =>
+                exercise.id === id ? { ...exercise, ...updates, updatedAt: Date.now() } : exercise
+            ),
+        })),
+    deleteWordLadder: (id) =>
+        set((state) => ({ wordLadders: state.wordLadders.filter((exercise) => exercise.id !== id) })),
     setBackupReminderFrequency: (value) => set({ backupReminderFrequency: value }),
     setLastSuccessfulBackupAt: (timestamp) => set({ lastSuccessfulBackupAt: timestamp }),
     setLastSuccessfulBackupFileName: (fileName) => set({ lastSuccessfulBackupFileName: fileName }),
