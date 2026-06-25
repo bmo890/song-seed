@@ -3,7 +3,6 @@ import {
   LayoutChangeEvent,
   NativeScrollEvent,
   NativeSyntheticEvent,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -12,14 +11,16 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { styles as appStyles } from "../../styles";
-import { LyricsAutoscrollState } from "../../types";
+import { LyricsAutoscrollState, LyricsLine } from "../../types";
+import { ChordChartLines } from "../LyricsVersionScreen/components/chords/ChordChart";
 
 type Props = {
   text: string;
   versionLabel: string;
   updatedAtLabel: string;
-  /** Render the body in a monospace font so chord-over-lyric columns stay aligned. */
-  monospace?: boolean;
+  /** When the version has chords, the structured lines render as a chord chart
+   * (chords above lyrics) instead of the plain `text`. */
+  chordLines?: LyricsLine[];
   /** Collapsed-state preview line; defaults to the first meaningful line of `text`. */
   summaryText?: string;
   autoscrollState?: LyricsAutoscrollState;
@@ -50,7 +51,7 @@ function PlayerLyricsPanelInner({
   text,
   versionLabel,
   updatedAtLabel,
-  monospace = false,
+  chordLines,
   summaryText,
   autoscrollState,
   variant = "default",
@@ -87,8 +88,7 @@ function PlayerLyricsPanelInner({
     return firstMeaningfulLine ?? "";
   }, [summaryText, text]);
 
-  const monoFont = Platform.select({ ios: "Menlo", android: "monospace", default: "monospace" });
-  const monoTextStyle = monospace ? { fontFamily: monoFont } : null;
+  const showChart = !!chordLines && chordLines.some((line) => line.chords.length > 0);
 
   if (!text.trim()) return null;
 
@@ -233,12 +233,8 @@ function PlayerLyricsPanelInner({
               persistentScrollbar
               scrollEventThrottle={16}
             >
-              {monospace ? (
-                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                  <Text style={[appStyles.playerLyricsText, appStyles.recordingLyricsText, monoTextStyle]}>
-                    {text}
-                  </Text>
-                </ScrollView>
+              {showChart ? (
+                <ChordChartLines lines={chordLines!} editable={false} />
               ) : (
                 <Text style={[appStyles.playerLyricsText, appStyles.recordingLyricsText]}>{text}</Text>
               )}
@@ -282,10 +278,8 @@ function PlayerLyricsPanelInner({
             showsVerticalScrollIndicator={false}
             scrollEventThrottle={16}
           >
-            {monospace ? (
-              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                <Text style={[styles.text, monoTextStyle]}>{text}</Text>
-              </ScrollView>
+            {showChart ? (
+              <ChordChartLines lines={chordLines!} editable={false} />
             ) : (
               <Text style={styles.text}>{text}</Text>
             )}

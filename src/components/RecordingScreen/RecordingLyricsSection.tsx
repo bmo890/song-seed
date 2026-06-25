@@ -1,11 +1,11 @@
 import React from "react";
 import { PlayerLyricsPanel } from "../PlayerScreen/PlayerLyricsPanel";
 import { formatDate } from "../../utils";
+import type { LyricsLine } from "../../types";
 
 type RecordingLyricsSectionProps = {
   text: string;
-  monospace?: boolean;
-  summaryText?: string;
+  chordLines?: LyricsLine[];
   versionCount: number;
   updatedAt: number;
   elapsedMs: number;
@@ -22,8 +22,7 @@ type RecordingLyricsSectionProps = {
 
 export function RecordingLyricsSection({
   text,
-  monospace,
-  summaryText,
+  chordLines,
   versionCount,
   updatedAt,
   elapsedMs,
@@ -40,8 +39,7 @@ export function RecordingLyricsSection({
   return (
     <PlayerLyricsPanel
       text={text}
-      monospace={monospace}
-      summaryText={summaryText}
+      chordLines={chordLines}
       versionLabel={`Version ${versionCount}`}
       updatedAtLabel={formatDate(updatedAt)}
       autoscrollState={{

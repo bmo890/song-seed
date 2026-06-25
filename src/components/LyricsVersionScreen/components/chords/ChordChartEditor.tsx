@@ -1,25 +1,43 @@
-import { StyleSheet, Text, View } from "react-native";
+import { Share, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Button } from "../../../common/Button";
-import { colors, spacing } from "../../../../design/tokens";
-import { sortedPalette } from "../../../../chords";
+import { colors } from "../../../../design/tokens";
+import { serializeChordChartText, serializeChordPro, sortedPalette } from "../../../../chords";
+import { AppAlert } from "../../../common/AppAlert";
 import type { LyricsVersion, SongChordPaletteItem } from "../../../../types";
 import { styles as screenStyles } from "../../styles";
 import { ChordChart } from "./ChordChart";
+import { ChordPaletteBar } from "./ChordPaletteBar";
 import { ChordPickerSheet } from "./ChordPickerSheet";
 import { useChordEditing } from "./useChordEditing";
 
 type Props = {
   ideaId: string;
   version: LyricsVersion;
+  songTitle: string;
   palette: SongChordPaletteItem[] | undefined;
   onDone: () => void;
 };
 
-/** Edit-mode chord chart: tap a lyric to add, tap a chord to edit, drag to move. */
-export function ChordChartEditor({ ideaId, version, palette, onDone }: Props) {
+/** Edit-mode chord chart: tap a lyric to add, tap a chord to edit, drag to move,
+ * or arm a palette chord and tap to drop it. */
+export function ChordChartEditor({ ideaId, version, songTitle, palette, onDone }: Props) {
   const editing = useChordEditing(ideaId, version.id);
   const sorted = sortedPalette(palette);
+
+  function shareChart() {
+    const lines = version.document.lines;
+    const chart = serializeChordChartText(lines);
+    const chordPro = serializeChordPro(lines);
+    if (!chart.trim()) {
+      AppAlert.info("Nothing to share", "Add some lyrics and chords first.");
+      return;
+    }
+    void Share.share({
+      title: `${songTitle} — chords`,
+      message: `${chart}\n\n— ChordPro —\n${chordPro}`,
+    });
+  }
 
   return (
     <View style={screenStyles.flexFill}>
@@ -30,17 +48,28 @@ export function ChordChartEditor({ ideaId, version, palette, onDone }: Props) {
           style={screenStyles.lyricsActionBtn}
           textStyle={screenStyles.lyricsActionBtnText}
         />
+        <Button
+          variant="secondary"
+          label="Share"
+          onPress={shareChart}
+          style={screenStyles.lyricsActionBtn}
+          textStyle={screenStyles.lyricsActionBtnText}
+        />
         <View style={chartStyles.hintRow}>
           <Ionicons name="hand-left-outline" size={13} color={colors.textMuted} />
-          <Text style={chartStyles.hint}>Tap a lyric to add · tap a chord to edit · drag to move</Text>
+          <Text style={chartStyles.hint} numberOfLines={1}>
+            Tap a lyric · drag a chord to move
+          </Text>
         </View>
       </View>
+
+      <ChordPaletteBar palette={sorted} armedId={editing.armed?.id ?? null} onToggleArmed={editing.toggleArmed} />
 
       <View style={[screenStyles.lyricsPreviewWrap, screenStyles.lyricsPreviewWrapExpanded, chartStyles.chartCard]}>
         <ChordChart
           lines={version.document.lines}
           editable
-          onAddAt={editing.openAdd}
+          onAddAt={editing.addAt}
           onEditChord={editing.openEdit}
           onMoveChord={editing.move}
           emptyLabel="Add lyrics first, then come back to chart the chords."
@@ -70,6 +99,7 @@ const chartStyles = StyleSheet.create({
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "flex-end",
     gap: 5,
     flexShrink: 1,
   },

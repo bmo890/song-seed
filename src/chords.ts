@@ -50,10 +50,10 @@ export type ChordParts = {
   customSuffix?: string;
 };
 
-/** ASCII accidental, matching common chord-chart notation ("#"/"b"). */
+/** Rendered accidental glyph (♯/♭). Natural and undefined render as nothing. */
 export function accidentalSymbol(accidental?: ChordAccidental): string {
-  if (accidental === "sharp") return "#";
-  if (accidental === "flat") return "b";
+  if (accidental === "sharp") return "♯";
+  if (accidental === "flat") return "♭";
   return "";
 }
 
@@ -139,6 +139,30 @@ export function sortedPalette(palette: SongChordPaletteItem[] | undefined): Song
     if (recencyDiff !== 0) return recencyDiff;
     return (b.useCount ?? 0) - (a.useCount ?? 0);
   });
+}
+
+/** Renders ChordPro inline-bracket notation ("[C]hello [G]world"), the most
+ * widely importable chord-lyric format. */
+export function serializeChordPro(lines: LyricsLine[]): string {
+  return lines
+    .map((line) => {
+      const text = line.text ?? "";
+      const chords = [...(line.chords ?? [])].sort((a, b) => a.at - b.at);
+      if (chords.length === 0) return text;
+      let result = "";
+      let cursor = 0;
+      for (const chord of chords) {
+        const at = clampChordIndex(chord.at, text.length);
+        if (at > cursor) {
+          result += text.slice(cursor, at);
+          cursor = at;
+        }
+        result += `[${chord.chord}]`;
+      }
+      result += text.slice(cursor);
+      return result;
+    })
+    .join("\n");
 }
 
 /** Renders a chord-over-lyrics plaintext block (monospace-aligned), suitable for

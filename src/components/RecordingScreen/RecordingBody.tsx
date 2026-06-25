@@ -4,7 +4,6 @@ import type { AudioAnalysis } from "@siteed/audio-studio";
 import type { SongIdea } from "../../types";
 import { styles } from "../../styles";
 import { getLatestLyricsVersion } from "../../lyrics";
-import { serializeChordChartText } from "../../chords";
 import { RecordingMeta } from "./RecordingMeta";
 import { RecordingLyricsSection } from "./RecordingLyricsSection";
 import { RecordingOverdubGuide } from "./RecordingOverdubGuide";
@@ -154,12 +153,11 @@ export function RecordingBody({
               (recordingIdea?.kind === "project"
                 ? getLatestLyricsVersion(recordingIdea)?.document.lines
                 : null) ?? [];
-            const recHasChords = recLines.some((line) => line.chords.length > 0);
+            const recChordLines = recLines.some((line) => line.chords.length > 0) ? recLines : undefined;
             return (
           <RecordingLyricsSection
-            text={recHasChords ? serializeChordChartText(recLines) : latestLyricsText}
-            monospace={recHasChords}
-            summaryText={recHasChords ? recLines.find((line) => line.text.trim().length > 0)?.text ?? "" : undefined}
+            text={latestLyricsText}
+            chordLines={recChordLines}
             versionCount={recordingIdea?.kind === "project" ? recordingIdea.lyrics?.versions.length ?? 1 : 1}
             updatedAt={latestLyricsUpdatedAt}
             elapsedMs={elapsedMs}

@@ -4,25 +4,21 @@ import type { ChordPlacement, LyricsLine } from "../../../../types";
 import { ChordLine } from "./ChordLine";
 import { LYRIC_FONT_SIZE, MEASURE_SAMPLE, MONO_FONT, chordChartColors } from "./chordChartStyle";
 
-type Props = {
+type LinesProps = {
   lines: LyricsLine[];
   editable: boolean;
   onAddAt?: (lineId: string, at: number) => void;
   onEditChord?: (lineId: string, chord: ChordPlacement) => void;
   onMoveChord?: (lineId: string, chordId: string, at: number) => void;
-  emptyLabel?: string;
 };
 
-/** Renders a chord-over-lyrics chart. Measures the monospace advance width once,
- * then positions every chord by `at * charWidth`. Long lines scroll horizontally
- * as a block (like a printed chart); horizontal scroll pauses while a chord is
- * being dragged so the two horizontal gestures don't fight. */
-export function ChordChart({ lines, editable, onAddAt, onEditChord, onMoveChord, emptyLabel }: Props) {
+/** The chart body — measuring text + a horizontally-scrolling column of lines.
+ * Has no vertical scroll of its own, so it can be dropped inside any vertical
+ * scroller (the lyric sheet's, or the player/recording autoscroll panel). */
+export function ChordChartLines({ lines, editable, onAddAt, onEditChord, onMoveChord }: LinesProps) {
   const [charWidth, setCharWidth] = useState(0);
   const [containerWidth, setContainerWidth] = useState(0);
   const [dragging, setDragging] = useState(false);
-
-  const hasLyrics = lines.some((line) => line.text.trim().length > 0) || lines.length > 0;
 
   const longestUnit = lines.reduce((max, line) => {
     const textUnits = line.text.length;
@@ -33,7 +29,7 @@ export function ChordChart({ lines, editable, onAddAt, onEditChord, onMoveChord,
   const contentWidth = Math.max(measuredContentWidth, containerWidth);
 
   return (
-    <View style={styles.fill} onLayout={(e) => setContainerWidth(e.nativeEvent.layout.width)}>
+    <View onLayout={(e) => setContainerWidth(e.nativeEvent.layout.width)}>
       {/* Hidden measuring text — gives us the exact monospace advance width. */}
       <Text
         style={styles.measure}
@@ -45,41 +41,53 @@ export function ChordChart({ lines, editable, onAddAt, onEditChord, onMoveChord,
         {MEASURE_SAMPLE}
       </Text>
 
-      {!hasLyrics ? (
-        <View style={styles.empty}>
-          <Text style={styles.emptyText}>{emptyLabel ?? "No lyrics in this version yet."}</Text>
-        </View>
-      ) : charWidth <= 0 ? null : (
+      {charWidth <= 0 ? null : (
         <ScrollView
-          style={styles.fill}
-          contentContainerStyle={styles.vContent}
-          showsVerticalScrollIndicator={false}
+          horizontal
+          scrollEnabled={!dragging}
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ width: contentWidth }}
         >
-          <ScrollView
-            horizontal
-            scrollEnabled={!dragging}
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{ width: contentWidth }}
-          >
-            <View style={{ width: contentWidth }}>
-              {lines.map((line) => (
-                <ChordLine
-                  key={line.id}
-                  line={line}
-                  charWidth={charWidth}
-                  contentWidth={contentWidth}
-                  editable={editable}
-                  onAddAt={onAddAt}
-                  onEditChord={onEditChord}
-                  onMoveChord={onMoveChord}
-                  onDragStateChange={setDragging}
-                />
-              ))}
-            </View>
-          </ScrollView>
+          <View style={{ width: contentWidth }}>
+            {lines.map((line) => (
+              <ChordLine
+                key={line.id}
+                line={line}
+                charWidth={charWidth}
+                contentWidth={contentWidth}
+                editable={editable}
+                onAddAt={onAddAt}
+                onEditChord={onEditChord}
+                onMoveChord={onMoveChord}
+                onDragStateChange={setDragging}
+              />
+            ))}
+          </View>
         </ScrollView>
       )}
     </View>
+  );
+}
+
+type Props = LinesProps & { emptyLabel?: string };
+
+/** Standalone chord chart with its own vertical scroll + empty state, used as the
+ * lyric sheet's read/edit surface. */
+export function ChordChart({ emptyLabel, ...lineProps }: Props) {
+  const hasLyrics = lineProps.lines.length > 0;
+
+  if (!hasLyrics) {
+    return (
+      <View style={styles.empty}>
+        <Text style={styles.emptyText}>{emptyLabel ?? "No lyrics in this version yet."}</Text>
+      </View>
+    );
+  }
+
+  return (
+    <ScrollView style={styles.fill} contentContainerStyle={styles.vContent} showsVerticalScrollIndicator={false}>
+      <ChordChartLines {...lineProps} />
+    </ScrollView>
   );
 }
 

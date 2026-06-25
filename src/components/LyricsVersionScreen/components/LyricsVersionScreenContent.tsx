@@ -64,6 +64,7 @@ export function LyricsVersionScreenContent() {
           <ChordChartEditor
             ideaId={model.projectIdea.id}
             version={model.resolvedVersion!}
+            songTitle={model.projectIdea.title}
             palette={model.projectIdea.chordPalette}
             onDone={() => setChordEditMode(false)}
           />

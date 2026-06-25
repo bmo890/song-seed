@@ -4,6 +4,7 @@ import {
   paletteKey,
   recordChordInPalette,
   serializeChordChartText,
+  serializeChordPro,
   sortedPalette,
 } from "../chords";
 import type { ChordPlacement, LyricsLine, SongChordPaletteItem } from "../types";
@@ -22,12 +23,12 @@ describe("buildChordDisplay", () => {
         bassRoot: "G",
         bassAccidental: "sharp",
       })
-    ).toBe("C#m7/G#");
+    ).toBe("C♯m7/G♯");
   });
 
   it("renders a flat root and a flat slash bass", () => {
     expect(buildChordDisplay({ root: "B", accidental: "flat", bassRoot: "D", bassAccidental: "flat" })).toBe(
-      "Bb/Db"
+      "B♭/D♭"
     );
   });
 
@@ -112,5 +113,22 @@ describe("serializeChordChartText", () => {
       { id: "l2", text: "no chords here", chords: [] },
     ];
     expect(serializeChordChartText(lines)).toBe("C     G\nhello world\nno chords here");
+  });
+});
+
+describe("serializeChordPro", () => {
+  it("inlines chords as bracket notation at their anchors", () => {
+    const lines: LyricsLine[] = [
+      {
+        id: "l1",
+        text: "hello world",
+        chords: [
+          { id: "c1", chord: "C", at: 0 },
+          { id: "c2", chord: "G", at: 6 },
+        ],
+      },
+      { id: "l2", text: "plain line", chords: [] },
+    ];
+    expect(serializeChordPro(lines)).toBe("[C]hello [G]world\nplain line");
   });
 });

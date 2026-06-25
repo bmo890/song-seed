@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
+import type { LyricsLine } from "../../../types";
 import { PlayerLyricsPanel } from "../PlayerLyricsPanel";
 import { PlayerQueue } from "../PlayerQueue";
 import { PlayerSupportPanel } from "../PlayerSupportPanel";
@@ -47,8 +48,7 @@ type LayerPreviewCardProps = {
 type PlayerSupportSectionsProps = {
   hasProjectLyrics: boolean;
   latestLyricsText: string;
-  lyricsMonospace?: boolean;
-  lyricsSummary?: string;
+  lyricsChordLines?: LyricsLine[];
   lyricsVersionCount: number;
   latestLyricsUpdatedAt: number | null;
   lyricsExpanded: boolean;
@@ -182,8 +182,7 @@ const LayerControlButton = React.memo(function LayerControlButton({
 export function PlayerSupportSections({
   hasProjectLyrics,
   latestLyricsText,
-  lyricsMonospace,
-  lyricsSummary,
+  lyricsChordLines,
   lyricsVersionCount,
   latestLyricsUpdatedAt,
   lyricsExpanded,
@@ -324,8 +323,7 @@ export function PlayerSupportSections({
       {hasProjectLyrics && latestLyricsUpdatedAt !== null ? (
         <PlayerLyricsPanel
           text={latestLyricsText}
-          monospace={lyricsMonospace}
-          summaryText={lyricsSummary}
+          chordLines={lyricsChordLines}
           versionLabel={`Version ${lyricsVersionCount}`}
           updatedAtLabel={formatDate(latestLyricsUpdatedAt)}
           autoscrollState={{
