@@ -90,9 +90,9 @@ export function RecordingMeta({
                         currentTimeMs={safeElapsedMs}
                         intervalMs={waveformData.segmentDurationMs || 50}
                         theme={{
-                            waveColor: "#6b7280",
-                            rulerColor: "#a8afb8",
-                            playheadColor: "#e45757",
+                            waveColor: "#a89994",
+                            rulerColor: "#D7C2BD",
+                            playheadColor: "#B5483A",
                         }}
                     />
                 ) : null}

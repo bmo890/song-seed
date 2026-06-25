@@ -9,6 +9,8 @@ import { RecordingHeader } from "./RecordingHeader";
 import { RecordingBody } from "./RecordingBody";
 import { RecordingBottomDock } from "./RecordingBottomDock";
 import { RecordingSettingsModal } from "./RecordingSettingsModal";
+import { RecordingMetronomeSheet } from "./RecordingMetronomeSheet";
+import { SaveDestinationPickerSheet } from "../modals/SaveDestinationPickerSheet";
 import { useRecordingScreenModel } from "./hooks/useRecordingScreenModel";
 
 export function RecordingScreen() {
@@ -19,7 +21,9 @@ export function RecordingScreen() {
     <SafeAreaView style={styles.screen}>
       <View style={styles.recordingScreenLayout}>
         <RecordingHeader
+          eyebrow={screen.headerEyebrow}
           title={screen.recordingIdea?.title || "Recording"}
+          titleIsPlaceholder={screen.headerTitlePlaceholder}
           controlsDisabled={screen.recordingControlsDisabled}
           onBack={screen.confirmDiscardAndExit}
           onMinimize={screen.minimizeRecording}
@@ -66,31 +70,30 @@ export function RecordingScreen() {
           metronomeEnabled={screen.recordingMetronomeEnabled}
           metronomeControlsDisabled={screen.recordingControlsDisabled}
           metronome={{
+            isNativeAvailable: screen.metronome.isNativeAvailable,
             bpm: screen.metronome.bpm,
             meterId: screen.metronome.meterId,
             countInBars: screen.metronome.countInBars,
-            outputs: screen.metronome.outputs,
-            tapCount: screen.metronome.tapCount,
-            isNativeAvailable: screen.metronome.isNativeAvailable,
-            onToggleEnabled: screen.setRecordingMetronomeEnabled,
-            onNudgeBpm: screen.metronome.nudgeBpm,
-            onSetBpmValue: screen.metronome.setBpmValue,
-            onTapTempo: screen.metronome.tapTempo,
-            onResetTapTempo: screen.metronome.clearTapTempo,
-            onSelectMeter: screen.metronome.setMeterIdValue,
+            beatToken: screen.metronome.beatCount,
+            beatInBar: screen.metronome.currentBeatInBar,
+            isCountIn: screen.metronome.isCountIn,
+            isRunning: screen.metronome.isRunning,
+            onToggleEnabled: screen.toggleMetronomePreview,
+            onOpenSheet: () => screen.setMetronomeSheetVisible(true),
             onSelectCountInBars: screen.metronome.setCountInBarsValue,
-            onToggleOutput: screen.metronome.toggleOutput,
           }}
+          onOpenInput={() => screen.setSettingsVisible(true)}
+          inputLabel={screen.recordingInputLabel}
           recording={{
             isRecording: screen.recording.isRecording,
             isPaused: screen.recording.isPaused,
             isArming: screen.isArmingRecording,
             isReviewLocked: screen.overdubReviewLocked,
-            onOpenInput: () => screen.setSettingsVisible(true),
             onPause: screen.handlePauseRecording,
             onResume: screen.handleResumeRecording,
             onStart: screen.handleStartRecording,
             onRequestSave: screen.requestSaveRecording,
+            onDiscard: screen.confirmDiscardAndExit,
           }}
         />
       </View>
@@ -114,14 +117,55 @@ export function RecordingScreen() {
           }
           navigation.navigate("Home" as never);
         }}
+        destinationWorkspaceTitle={
+          screen.canPickSaveDestination ? screen.effectiveDestinationWorkspaceTitle : undefined
+        }
+        destinationCollectionLabel={
+          screen.canPickSaveDestination ? screen.effectiveDestinationCollectionLabel : undefined
+        }
+        onPressDestination={
+          screen.canPickSaveDestination ? () => screen.setSaveDestinationPickerVisible(true) : undefined
+        }
+      />
+
+      <SaveDestinationPickerSheet
+        visible={screen.saveDestinationPickerVisible}
+        destinations={screen.saveDestinations}
+        selectedCollectionId={
+          screen.saveDestinationOverride?.collectionId ?? screen.recordingIdea?.collectionId ?? null
+        }
+        onClose={() => screen.setSaveDestinationPickerVisible(false)}
+        onSelect={screen.handleSelectSaveDestination}
       />
 
       <RecordingSettingsModal
         visible={screen.settingsVisible}
         disabled={screen.recordingControlsDisabled}
         preferredInputId={screen.preferredRecordingInputId}
+        outputLabel={screen.monitoringOutputLabel}
+        isBluetoothOutput={screen.isBluetoothMonitoringOutput}
         onClose={() => screen.setSettingsVisible(false)}
         onChangePreferredInputId={screen.setPreferredRecordingInputId}
+      />
+
+      <RecordingMetronomeSheet
+        visible={screen.metronomeSheetVisible}
+        onClose={() => screen.setMetronomeSheetVisible(false)}
+        disabled={screen.recordingControlsDisabled}
+        isNativeAvailable={screen.metronome.isNativeAvailable}
+        bpm={screen.metronome.bpm}
+        meterId={screen.metronome.meterId}
+        outputs={screen.metronome.outputs}
+        beepLevel={screen.metronome.beepLevel}
+        hapticLevel={screen.metronome.hapticLevel}
+        tapCount={screen.metronome.tapCount}
+        onNudgeBpm={screen.metronome.nudgeBpm}
+        onSetBpmValue={screen.metronome.setBpmValue}
+        onTapTempo={screen.metronome.tapTempo}
+        onSelectMeter={screen.metronome.setMeterIdValue}
+        onToggleOutput={screen.metronome.toggleOutput}
+        onChangeBeepLevel={screen.metronome.setBeepLevelValue}
+        onChangeHapticLevel={screen.metronome.setHapticLevelValue}
       />
 
       <ExpoStatusBar style="dark" />

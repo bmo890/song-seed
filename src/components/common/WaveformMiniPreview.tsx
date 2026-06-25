@@ -62,10 +62,8 @@ export function WaveformMiniPreview({
 const styles = StyleSheet.create({
   wrap: {
     height: 24,
-    borderRadius: 8,
-    backgroundColor: "#f8fafc",
-    borderWidth: 1,
-    borderColor: "#e2e8f0",
+    borderRadius: 4,
+    backgroundColor: "#F4F1ED",
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
@@ -75,21 +73,19 @@ const styles = StyleSheet.create({
   },
   wrapCompact: {
     height: 18,
-    borderRadius: 6,
+    borderRadius: 4,
     paddingHorizontal: 5,
     gap: 1,
   },
   bar: {
     width: 2,
     borderRadius: 2,
-    backgroundColor: "#64748b",
+    backgroundColor: "#a89994",
   },
   placeholder: {
     height: 24,
-    borderRadius: 8,
-    backgroundColor: "#f8fafc",
-    borderWidth: 1,
-    borderColor: "#e2e8f0",
+    borderRadius: 4,
+    backgroundColor: "#F4F1ED",
   },
   placeholderCompact: {
     height: 18,

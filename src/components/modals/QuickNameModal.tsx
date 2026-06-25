@@ -20,6 +20,9 @@ type Props = {
     disableSaveWhenEmpty?: boolean;
     saveDisabled?: boolean;
     cancelDisabled?: boolean;
+    destinationWorkspaceTitle?: string;
+    destinationCollectionLabel?: string;
+    onPressDestination?: () => void;
 };
 
 export function QuickNameModal({
@@ -39,6 +42,9 @@ export function QuickNameModal({
     disableSaveWhenEmpty = false,
     saveDisabled = false,
     cancelDisabled = false,
+    destinationWorkspaceTitle,
+    destinationCollectionLabel,
+    onPressDestination,
 }: Props) {
     const isSaveDisabled = saveDisabled || (disableSaveWhenEmpty && draftValue.trim().length === 0);
 
@@ -91,6 +97,30 @@ export function QuickNameModal({
             ) : null}
 
             <Text style={qStyles.helperText}>{helperText}</Text>
+
+            {onPressDestination ? (
+                <>
+                    <Text style={qStyles.destinationLabel}>Save to</Text>
+                    <Pressable
+                        style={({ pressed }) => [
+                            qStyles.destinationRow,
+                            pressed ? qStyles.pressDown : null,
+                        ]}
+                        onPress={onPressDestination}
+                    >
+                        <Ionicons name="folder-outline" size={18} color="#B87D6B" />
+                        <View style={qStyles.destinationCopy}>
+                            {destinationWorkspaceTitle ? (
+                                <Text style={qStyles.destinationWorkspace}>{destinationWorkspaceTitle}</Text>
+                            ) : null}
+                            <Text style={qStyles.destinationCollection} numberOfLines={1}>
+                                {destinationCollectionLabel ?? "Choose a collection"}
+                            </Text>
+                        </View>
+                        <Ionicons name="chevron-forward" size={18} color="#a89994" />
+                    </Pressable>
+                </>
+            ) : null}
 
             {onChangeIsPrimary !== undefined ? (
                 <Pressable
@@ -181,6 +211,40 @@ const qStyles = StyleSheet.create({
         lineHeight: 18,
         color: "#84736f",
         marginTop: 8,
+    },
+    destinationLabel: {
+        fontFamily: "PlusJakartaSans_600SemiBold",
+        fontSize: 11,
+        color: "#84736f",
+        textTransform: "uppercase",
+        letterSpacing: 0.5,
+        marginTop: 14,
+        marginBottom: 6,
+    },
+    destinationRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 11,
+        borderWidth: 1,
+        borderColor: "rgba(215,194,189,0.6)",
+        backgroundColor: "#FFFFFF",
+        borderRadius: 10,
+        paddingHorizontal: 13,
+        paddingVertical: 11,
+    },
+    destinationCopy: {
+        flex: 1,
+        gap: 1,
+    },
+    destinationWorkspace: {
+        fontFamily: "PlusJakartaSans_400Regular",
+        fontSize: 11,
+        color: "#a89994",
+    },
+    destinationCollection: {
+        fontFamily: "PlusJakartaSans_500Medium",
+        fontSize: 14,
+        color: "#1b1c1a",
     },
     checkRow: {
         flexDirection: "row",

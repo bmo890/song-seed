@@ -783,6 +783,45 @@ export const appActions = {
         state.setRecordingIdeaId(createdId);
     },
 
+    /** Relocates a single, just-created idea to a different collection, possibly in a
+     * different workspace. Used by the recording save flow's destination picker — scoped to
+     * one freshly recorded idea, so unlike clipboard move/copy this never needs ID remapping
+     * or descendant-collection handling. */
+    relocateIdeaToCollection: (
+        ideaId: string,
+        sourceWorkspaceId: string,
+        targetWorkspaceId: string,
+        targetCollectionId: string
+    ) => {
+        if (sourceWorkspaceId === targetWorkspaceId) {
+            useStore.getState().updateIdeas((ideas) =>
+                ideas.map((idea) =>
+                    idea.id === ideaId ? { ...idea, collectionId: targetCollectionId } : idea
+                )
+            );
+            return;
+        }
+
+        useStore.setState((store) => {
+            const sourceWorkspace = store.workspaces.find((workspace) => workspace.id === sourceWorkspaceId);
+            const movingIdea = sourceWorkspace?.ideas.find((idea) => idea.id === ideaId);
+            if (!movingIdea) return store;
+
+            const relocatedIdea = { ...movingIdea, collectionId: targetCollectionId };
+            return {
+                workspaces: store.workspaces.map((workspace) => {
+                    if (workspace.id === sourceWorkspaceId) {
+                        return { ...workspace, ideas: workspace.ideas.filter((idea) => idea.id !== ideaId) };
+                    }
+                    if (workspace.id === targetWorkspaceId) {
+                        return { ...workspace, ideas: [relocatedIdea, ...workspace.ideas] };
+                    }
+                    return workspace;
+                }),
+            };
+        });
+    },
+
     importClipToCollection: (
         collectionId: string,
         payload: {

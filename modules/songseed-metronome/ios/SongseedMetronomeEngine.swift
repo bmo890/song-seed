@@ -259,6 +259,11 @@ final class SongseedMetronomeEngine {
       onBeat(beatPayload)
     }
 
+    // Snapshot state for *this* beat before flipping isCountIn off below, so the final count-in
+    // beat (e.g. dot 4 of 4) still reports isCountIn=true and gets a chance to render before the
+    // UI transitions to "recording" on the next beat.
+    onStateChange(getState())
+
     if isCountIn && countInPulsesRemaining > 0 {
       countInPulsesRemaining -= 1
       if countInPulsesRemaining <= 0 {
@@ -268,8 +273,6 @@ final class SongseedMetronomeEngine {
         ])
       }
     }
-
-    onStateChange(getState())
   }
 
   private func countInBarsRemaining() -> Int {

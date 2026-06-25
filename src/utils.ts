@@ -197,6 +197,11 @@ export const buildDefaultIdeaTitle = (timestamp = Date.now()) => {
   return `${time} ${month} ${day}${suffix}`;
 };
 
+/** True when `title` is still the unedited auto-generated timestamp from `buildDefaultIdeaTitle`. */
+export function isDefaultIdeaTitle(title: string, createdAt: number) {
+  return title === buildDefaultIdeaTitle(createdAt);
+}
+
 export function ensureUniqueIdeaTitle(baseTitle: string, existingTitles: string[]) {
   const normalizedExisting = new Set(existingTitles.map((title) => title.trim().toLowerCase()));
   if (!normalizedExisting.has(baseTitle.trim().toLowerCase())) {

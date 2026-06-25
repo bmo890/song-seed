@@ -18,11 +18,13 @@ import { appActions } from "../../../state/actions";
 import { useStore } from "../../../state/useStore";
 import type { ClipVersion } from "../../../types";
 import { getDefaultOverdubStemTitle } from "../../../overdub";
+import { buildSaveDestinations, resolveSaveDestinationLabel, type SaveDestination } from "../../../collectionManagement";
 import {
   buildDefaultIdeaTitle,
   ensureUniqueCountedTitle,
   genChildClipTitle,
   genRootClipTitle,
+  isDefaultIdeaTitle,
 } from "../../../utils";
 
 export function useRecordingScreenModel() {
@@ -58,9 +60,31 @@ export function useRecordingScreenModel() {
         : null,
     [recordingIdea, recordingOverdubClipId]
   );
+  const headerTitlePlaceholder =
+    !recordingOverdubClip && !!recordingIdea && isDefaultIdeaTitle(recordingIdea.title, recordingIdea.createdAt);
+  const headerEyebrow = recordingOverdubClip
+    ? "Overdub"
+    : recordingIdea
+      ? headerTitlePlaceholder
+        ? "New recording"
+        : "Recording into"
+      : null;
   const latestLyricsVersion = recordingIdea?.kind === "project" ? getLatestLyricsVersion(recordingIdea) : null;
   const latestLyricsText = lyricsDocumentToText(latestLyricsVersion?.document);
   const hasProjectLyrics = recordingIdea?.kind === "project" && latestLyricsText.trim().length > 0;
+
+  // A save-destination choice only makes sense for a fresh standalone take — overdubs and
+  // project variations/children must attach to their existing parent idea/clip, so their
+  // location is fixed.
+  const canPickSaveDestination =
+    !!recordingIdea && recordingIdea.kind === "clip" && !recordingOverdubClip && !recordingParentClipId;
+  const saveDestinations = useMemo(
+    () => (canPickSaveDestination ? buildSaveDestinations(workspaces, activeWorkspaceId) : []),
+    [canPickSaveDestination, workspaces, activeWorkspaceId]
+  );
+  const defaultDestinationLabel = recordingIdea
+    ? resolveSaveDestinationLabel(workspaces, activeWorkspaceId, recordingIdea.collectionId)
+    : null;
   const guideMixSource = useMemo(
     () => (recordingGuideMixUri ? { uri: recordingGuideMixUri } : null),
     [recordingGuideMixUri]
@@ -70,6 +94,7 @@ export function useRecordingScreenModel() {
 
   const [isPrimaryDraft, setIsPrimaryDraft] = useState(false);
   const [settingsVisible, setSettingsVisible] = useState(false);
+  const [metronomeSheetVisible, setMetronomeSheetVisible] = useState(false);
   const [recordingMetronomeEnabled, setRecordingMetronomeEnabled] = useState(false);
   const [isArmingRecording, setIsArmingRecording] = useState(false);
   const [currentRecordingInput, setCurrentRecordingInput] = useState<AudioDevice | null>(null);
@@ -79,12 +104,24 @@ export function useRecordingScreenModel() {
   const [lyricsExpanded, setLyricsExpanded] = useState(false);
   const [lyricsAutoscrollMode, setLyricsAutoscrollMode] = useState<"off" | "follow" | "manual">("follow");
   const [lyricsAutoscrollSpeedMultiplier, setLyricsAutoscrollSpeedMultiplier] = useState(1);
+  const [saveDestinationOverride, setSaveDestinationOverride] = useState<SaveDestination | null>(null);
+  const [saveDestinationPickerVisible, setSaveDestinationPickerVisible] = useState(false);
+
+  const effectiveDestinationWorkspaceTitle =
+    saveDestinationOverride?.workspaceTitle ?? defaultDestinationLabel?.workspaceTitle ?? undefined;
+  const effectiveDestinationCollectionLabel =
+    saveDestinationOverride?.pathLabel ??
+    saveDestinationOverride?.label ??
+    defaultDestinationLabel?.collectionLabel ??
+    undefined;
 
   const handledSaveRequestRef = useRef<number | null>(null);
   const countInPendingRef = useRef(false);
+  const countInModeRef = useRef<"start" | "resume">("start");
   const initializedMetronomeRef = useRef(false);
   const pendingOverdubSaveRef = useRef<{ ideaId: string; clipId: string; title: string } | null>(null);
   const autoStoppingOverdubRef = useRef(false);
+  const abandonedPlaceholderCleanupRef = useRef<() => void>(() => {});
   const metronome = useMetronome();
   const monitoringDelayTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -308,6 +345,32 @@ export function useRecordingScreenModel() {
     }
   }
 
+  // Lets you hear the metronome while idle, before recording starts. Toggling
+  // mid-take is a no-op here — the recording start/pause/resume flow owns the
+  // click in that case.
+  async function toggleMetronomePreview(nextEnabled: boolean) {
+    setRecordingMetronomeEnabled(nextEnabled);
+
+    if (isArmingRecording || recording.isRecording || recording.isPaused) {
+      return;
+    }
+
+    if (!metronome.isNativeAvailable) {
+      return;
+    }
+
+    if (nextEnabled) {
+      try {
+        await metronome.start({ manageAudioSession: true });
+      } catch (error) {
+        console.warn("Metronome preview start failed", error);
+      }
+      return;
+    }
+
+    await stopRecordingMetronome();
+  }
+
   async function cancelPendingRecordingStart() {
     countInPendingRef.current = false;
     setIsArmingRecording(false);
@@ -367,7 +430,13 @@ export function useRecordingScreenModel() {
     setQuickNamingIdeaId(recordingIdea.id);
     setQuickNameDraft("");
     setIsPrimaryDraft(false);
+    setSaveDestinationOverride(null);
     setQuickNameModalVisible(true);
+  }
+
+  function handleSelectSaveDestination(destination: SaveDestination) {
+    setSaveDestinationOverride(destination);
+    setSaveDestinationPickerVisible(false);
   }
 
   async function redoOverdubRecording() {
@@ -420,6 +489,7 @@ export function useRecordingScreenModel() {
         setQuickNameModalVisible(false);
         setQuickNameDraft("");
         setQuickNamingIdeaId(null);
+        setSaveDestinationOverride(null);
         clearRecordingContext();
       }
       return false;
@@ -432,6 +502,7 @@ export function useRecordingScreenModel() {
       setQuickNameDraft("");
       setQuickNamingIdeaId(null);
       setOverdubReviewLocked(false);
+      setSaveDestinationOverride(null);
       clearRecordingContext();
       return true;
     }
@@ -480,9 +551,30 @@ export function useRecordingScreenModel() {
       })
     );
 
-    const savedIdea = useStore
+    const savedIdeaBeforeRelocation = useStore
       .getState()
       .workspaces.find((workspace) => workspace.id === activeWorkspaceId)
+      ?.ideas.find((idea) => idea.id === quickNamingIdeaId);
+
+    if (
+      isStandaloneClipRecording &&
+      saveDestinationOverride &&
+      activeWorkspaceId &&
+      (saveDestinationOverride.workspaceId !== activeWorkspaceId ||
+        saveDestinationOverride.collectionId !== savedIdeaBeforeRelocation?.collectionId)
+    ) {
+      appActions.relocateIdeaToCollection(
+        quickNamingIdeaId,
+        activeWorkspaceId,
+        saveDestinationOverride.workspaceId,
+        saveDestinationOverride.collectionId
+      );
+    }
+
+    const finalWorkspaceId = saveDestinationOverride?.workspaceId ?? activeWorkspaceId;
+    const savedIdea = useStore
+      .getState()
+      .workspaces.find((workspace) => workspace.id === finalWorkspaceId)
       ?.ideas.find((idea) => idea.id === quickNamingIdeaId);
     const savedClipId = savedIdea?.clips[0]?.id ?? null;
     if (savedIdea) {
@@ -500,6 +592,7 @@ export function useRecordingScreenModel() {
     setQuickNameDraft("");
     setQuickNamingIdeaId(null);
     setOverdubReviewLocked(false);
+    setSaveDestinationOverride(null);
     clearRecordingContext();
     return true;
   }
@@ -590,21 +683,49 @@ export function useRecordingScreenModel() {
     }
 
     countInPendingRef.current = false;
+    const mode = countInModeRef.current;
     void (async () => {
       const delayMs = activeMonitoringCompensationMs;
-      if (recordingGuideMixUri) {
-        await startGuideMixFromBeginning();
+      let started = false;
+
+      if (mode === "resume") {
+        await resumeGuideMix();
+        await waitForMonitoringCompensation(delayMs);
+        await recording.resumeRecording();
+        started = true;
+      } else {
+        if (recordingGuideMixUri) {
+          await startGuideMixFromBeginning();
+        }
+        await waitForMonitoringCompensation(delayMs);
+        started = await recording.startPreparedRecording();
       }
-      await waitForMonitoringCompensation(delayMs);
-      const started = await recording.startPreparedRecording();
+
       setIsArmingRecording(false);
       if (!started) {
         await stopRecordingMetronome();
         await stopGuideMix();
         return;
       }
+
+      // Count-in is one-shot: clear it so the next take doesn't auto-count-in unless the
+      // user explicitly re-enables it.
+      metronome.setCountInBarsValue(0);
+
+      // If the metronome wasn't meant to click through the take, silence it now that the
+      // count-in is done and recording has begun.
+      if (!recordingMetronomeEnabled) {
+        await stopRecordingMetronome();
+      }
     })();
-  }, [activeMonitoringCompensationMs, metronome.countInCompletionToken, recording, recordingGuideMixUri]);
+  }, [
+    activeMonitoringCompensationMs,
+    metronome.countInCompletionToken,
+    metronome.setCountInBarsValue,
+    recording,
+    recordingGuideMixUri,
+    recordingMetronomeEnabled,
+  ]);
 
   useEffect(() => {
     if (recording.interruptionToken === 0) {
@@ -636,8 +757,48 @@ export function useRecordingScreenModel() {
 
     autoStoppingOverdubRef.current = false;
     setSettingsVisible(false);
+    setMetronomeSheetVisible(false);
 
-    if (!recordingMetronomeEnabled || !metronome.isNativeAvailable) {
+    // Count-in is independent of whether the metronome clicks through the take: a count-in
+    // can run (using the metronome's bpm/meter/cues) even when the metronome itself is "off",
+    // in which case the click is silenced the moment recording begins (see the count-in
+    // completion effect). The click only continues into the take when the metronome is enabled.
+    const wantsCountIn = metronome.countInBars > 0 && metronome.isNativeAvailable;
+    const wantsClickDuringTake = recordingMetronomeEnabled && metronome.isNativeAvailable;
+
+    if (wantsCountIn) {
+      const prepared = await recording.prepareRecording();
+      if (!prepared) {
+        return;
+      }
+
+      setIsArmingRecording(true);
+      try {
+        // If the metronome was already clicking as a pre-recording preview, restart it cleanly
+        // for the count-in rather than layering the count-in on top of the running loop.
+        const alreadyPreviewing = metronome.isRunning && !metronome.isCountIn;
+        if (alreadyPreviewing) {
+          await metronome.stop();
+          await new Promise((resolve) => setTimeout(resolve, 180));
+        }
+        countInModeRef.current = "start";
+        countInPendingRef.current = true;
+        await metronome.startCountIn(metronome.countInBars, {
+          manageAudioSession: false,
+          cueDelayMs: activeMonitoringCompensationMs,
+        });
+      } catch (error) {
+        console.warn("Recording count-in start failed", error);
+        countInPendingRef.current = false;
+        await stopGuideMix();
+        await stopRecordingMetronome();
+        await recording.cancelPreparedRecording();
+        setIsArmingRecording(false);
+      }
+      return;
+    }
+
+    if (!wantsClickDuringTake) {
       if (activeMonitoringCompensationMs > 0 && recordingGuideMixUri) {
         const prepared = await recording.prepareRecording();
         if (!prepared) {
@@ -674,19 +835,13 @@ export function useRecordingScreenModel() {
     setIsArmingRecording(true);
 
     try {
-      if (metronome.countInBars > 0) {
-        countInPendingRef.current = true;
-        await metronome.startCountIn(metronome.countInBars, {
+      const alreadyPreviewing = metronome.isRunning && !metronome.isCountIn;
+      if (!alreadyPreviewing) {
+        await metronome.start({
           manageAudioSession: false,
           cueDelayMs: activeMonitoringCompensationMs,
         });
-        return;
       }
-
-      await metronome.start({
-        manageAudioSession: false,
-        cueDelayMs: activeMonitoringCompensationMs,
-      });
       await startGuideMixFromBeginning();
       await waitForMonitoringCompensation(activeMonitoringCompensationMs);
       const started = await recording.startPreparedRecording();
@@ -697,14 +852,11 @@ export function useRecordingScreenModel() {
       }
     } catch (error) {
       console.warn("Recording metronome start failed", error);
-      countInPendingRef.current = false;
       await stopGuideMix();
       await stopRecordingMetronome();
       await recording.cancelPreparedRecording();
     } finally {
-      if (!countInPendingRef.current) {
-        setIsArmingRecording(false);
-      }
+      setIsArmingRecording(false);
     }
   }
 
@@ -719,6 +871,33 @@ export function useRecordingScreenModel() {
       return;
     }
     autoStoppingOverdubRef.current = false;
+
+    // If count-in was (re)enabled while paused, run a fresh count-in before resuming. The
+    // completion effect handles the actual resume (mode "resume") and one-shot reset.
+    const wantsCountIn = metronome.countInBars > 0 && metronome.isNativeAvailable;
+    if (wantsCountIn) {
+      setIsArmingRecording(true);
+      try {
+        const alreadyPreviewing = metronome.isRunning && !metronome.isCountIn;
+        if (alreadyPreviewing) {
+          await metronome.stop();
+          await new Promise((resolve) => setTimeout(resolve, 180));
+        }
+        countInModeRef.current = "resume";
+        countInPendingRef.current = true;
+        await metronome.startCountIn(metronome.countInBars, {
+          manageAudioSession: false,
+          cueDelayMs: activeMonitoringCompensationMs,
+        });
+      } catch (error) {
+        console.warn("Recording count-in resume failed", error);
+        countInPendingRef.current = false;
+        await stopRecordingMetronome();
+        setIsArmingRecording(false);
+      }
+      return;
+    }
+
     await resumeGuideMix();
     if (recordingMetronomeEnabled && metronome.isNativeAvailable) {
       try {
@@ -746,6 +925,27 @@ export function useRecordingScreenModel() {
     navigation.navigate("Home" as never);
   }
 
+  // Keep an always-current cleanup closure so the unmount effect (which runs with empty deps)
+  // sees the latest state instead of a stale snapshot from first render.
+  useEffect(() => {
+    abandonedPlaceholderCleanupRef.current = () => {
+      // Quick Record inserts an empty placeholder "clip" idea up front, before any audio is
+      // captured. If the screen is left without ever recording (back button, minimize, hardware
+      // back, or swipe gesture), remove that placeholder so it doesn't linger in the collection
+      // as a ghost clip. Guarded to only touch an empty standalone-clip placeholder with no take
+      // in progress — never a project or an idea that already has clips.
+      if (!recordingIdea) return;
+      if (recordingIdea.kind !== "clip" || recordingIdea.clips.length > 0) return;
+      if (recording.isRecording || recording.isPaused || isArmingRecording || recording.elapsedMs > 0) {
+        return;
+      }
+      if (quickNameModalVisible) return;
+
+      updateIdeas((prevIdeas) => prevIdeas.filter((idea) => idea.id !== recordingIdea.id));
+      clearRecordingContext();
+    };
+  });
+
   useEffect(() => {
     return () => {
       try {
@@ -757,9 +957,19 @@ export function useRecordingScreenModel() {
     };
   }, [guideMixPlayer]);
 
+  // Unmount-only: drop an abandoned empty placeholder idea. Empty deps so it fires solely on
+  // screen teardown, not when guideMixPlayer is recreated mid-session.
+  useEffect(() => {
+    return () => {
+      abandonedPlaceholderCleanupRef.current();
+    };
+  }, []);
+
   return {
     recordingIdea,
     recordingOverdubClip,
+    headerEyebrow,
+    headerTitlePlaceholder,
     latestLyricsVersion,
     latestLyricsText,
     hasProjectLyrics,
@@ -770,6 +980,7 @@ export function useRecordingScreenModel() {
     quickNameDraft,
     isPrimaryDraft,
     settingsVisible,
+    metronomeSheetVisible,
     preferredRecordingInputId,
     recordingMetronomeEnabled,
     isArmingRecording,
@@ -787,12 +998,22 @@ export function useRecordingScreenModel() {
     lyricsAutoscrollMode,
     lyricsAutoscrollSpeedMultiplier,
     metronome,
+    canPickSaveDestination,
+    saveDestinations,
+    saveDestinationPickerVisible,
+    saveDestinationOverride,
+    effectiveDestinationWorkspaceTitle,
+    effectiveDestinationCollectionLabel,
+    setSaveDestinationPickerVisible,
+    handleSelectSaveDestination,
     setQuickNameDraft,
     setQuickNameModalVisible,
     setIsPrimaryDraft,
     setSettingsVisible,
+    setMetronomeSheetVisible,
     setPreferredRecordingInputId,
     setRecordingMetronomeEnabled,
+    toggleMetronomePreview,
     setLyricsExpanded,
     setLyricsAutoscrollMode,
     setLyricsAutoscrollSpeedMultiplier,

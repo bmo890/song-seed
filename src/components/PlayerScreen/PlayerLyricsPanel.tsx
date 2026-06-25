@@ -177,7 +177,7 @@ function PlayerLyricsPanelInner({
             onPress={handleToggle}
             hitSlop={6}
           >
-            <Ionicons name={isExpanded ? "chevron-up" : "chevron-down"} size={18} color="#4b5563" />
+            <Ionicons name={isExpanded ? "chevron-up" : "chevron-down"} size={18} color="#524440" />
           </Pressable>
         </View>
 

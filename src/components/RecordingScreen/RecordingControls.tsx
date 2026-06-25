@@ -2,6 +2,7 @@ import React from "react";
 import { View, Pressable } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { styles } from "../../styles";
+import { colors } from "../../design/tokens";
 
 type Props = {
     isRecording: boolean;
@@ -10,11 +11,12 @@ type Props = {
     recordToggleDisabled?: boolean;
     compact?: boolean;
     canSave?: boolean;
-    onOpenInput: () => void;
+    canDiscard?: boolean;
     onPause: () => Promise<void>;
     onResume: () => Promise<void>;
     onStart: () => Promise<void>;
     onRequestSave: () => void;
+    onDiscard: () => void;
 };
 
 export function RecordingControls({
@@ -24,30 +26,34 @@ export function RecordingControls({
     recordToggleDisabled = false,
     compact = false,
     canSave = true,
-    onOpenInput,
+    canDiscard = true,
     onPause,
     onResume,
     onStart,
     onRequestSave,
+    onDiscard,
 }: Props) {
     return (
         <View style={[styles.recordingControlsBar, compact ? styles.recordingControlsBarCompact : null]}>
-            <Pressable
-                style={({ pressed }) => [
-                    styles.circleControlBtn,
-                    compact ? styles.circleControlBtnCompact : null,
-                    isArming || (isRecording && !isPaused) ? styles.circleControlBtnDisabled : null,
-                    pressed ? styles.pressDown : null,
-                ]}
-                onPress={onOpenInput}
-                disabled={isArming || (isRecording && !isPaused)}
-            >
-                <Ionicons
-                    name="headset-outline"
-                    size={compact ? 20 : 24}
-                    color={isArming || (isRecording && !isPaused) ? "#9ca3af" : "#374151"}
-                />
-            </Pressable>
+            <View style={styles.recordingControlsSaveColumn}>
+                <Pressable
+                    style={[
+                        styles.circleControlBtn,
+                        compact ? styles.circleControlBtnCompact : null,
+                        !canDiscard || isArming ? styles.circleControlBtnDisabled : null,
+                    ]}
+                    onPress={onDiscard}
+                    disabled={!canDiscard || isArming}
+                    accessibilityRole="button"
+                    accessibilityLabel="Discard recording"
+                >
+                    <Ionicons
+                        name="trash-outline"
+                        size={compact ? 20 : 22}
+                        color={!canDiscard || isArming ? colors.textMuted : "#B5483A"}
+                    />
+                </Pressable>
+            </View>
 
             <Pressable
                 style={({ pressed }) => [
@@ -76,25 +82,27 @@ export function RecordingControls({
                 <Ionicons
                     name={isArming ? "timer-outline" : !isRecording || isPaused ? "mic" : "pause"}
                     size={compact ? 28 : 34}
-                    color={recordToggleDisabled ? "#f1e8e4" : "#fff"}
+                    color={recordToggleDisabled ? colors.surfaceHigh : colors.onPrimary}
                 />
             </Pressable>
 
-            <Pressable
-                style={[
-                    styles.circleControlBtn,
-                    compact ? styles.circleControlBtnCompact : null,
-                    !canSave || isArming ? styles.circleControlBtnDisabled : null,
-                ]}
-                onPress={onRequestSave}
-                disabled={!canSave || isArming}
-            >
-                <Ionicons
-                    name="save-outline"
-                    size={compact ? 20 : 24}
-                    color={!canSave || isArming ? "#9ca3af" : "#374151"}
-                />
-            </Pressable>
+            <View style={styles.recordingControlsSaveColumn}>
+                <Pressable
+                    style={[
+                        styles.circleControlBtn,
+                        compact ? styles.circleControlBtnCompact : null,
+                        !canSave || isArming ? styles.circleControlBtnDisabled : null,
+                    ]}
+                    onPress={onRequestSave}
+                    disabled={!canSave || isArming}
+                >
+                    <Ionicons
+                        name="save-outline"
+                        size={compact ? 20 : 24}
+                        color={!canSave || isArming ? colors.textMuted : colors.textStrong}
+                    />
+                </Pressable>
+            </View>
         </View>
     );
 }

@@ -45,9 +45,18 @@ export function RecordingInputPicker({ disabled, preferredInputId, onChangePrefe
     const [isApplying, setIsApplying] = useState(false);
 
     const availableDevices = useMemo(() => {
+        const available = devices.filter((device) => device.isAvailable);
+        const hasBuiltinMic = available.some((device) => device.type === "builtin_mic");
+
         const seenTypes = new Set<string>();
-        return devices.filter((device) => {
-            if (!device.isAvailable) return false;
+        return available.filter((device) => {
+            // The OS commonly surfaces the built-in mic twice: once as a typed `builtin_mic`
+            // entry and once as an unrecognized-type "default" entry named by the phone model
+            // (e.g. "SM-S921U1"). Collapse that duplicate into the single Built-in Mic option,
+            // but only when a real builtin_mic exists so we never end up hiding the only device.
+            const isUnknownType = !(device.type in FRIENDLY_LABELS);
+            if (isUnknownType && hasBuiltinMic) return false;
+
             if (seenTypes.has(device.type)) return false;
             seenTypes.add(device.type);
             return true;
@@ -93,9 +102,9 @@ export function RecordingInputPicker({ disabled, preferredInputId, onChangePrefe
                     disabled={loading || isApplying}
                 >
                     {loading || isApplying ? (
-                        <ActivityIndicator size="small" color="#1f2937" />
+                        <ActivityIndicator size="small" color="#524440" />
                     ) : (
-                        <Ionicons name="refresh" size={16} color="#1f2937" />
+                        <Ionicons name="refresh" size={16} color="#524440" />
                     )}
                 </Pressable>
             </View>
@@ -118,7 +127,7 @@ export function RecordingInputPicker({ disabled, preferredInputId, onChangePrefe
                             <Ionicons
                                 name={iconForType(device.type)}
                                 size={18}
-                                color={isActive ? "#fff" : "#374151"}
+                                color={isActive ? "#FFFFFF" : "#524440"}
                             />
                             <Text
                                 style={[
@@ -129,7 +138,7 @@ export function RecordingInputPicker({ disabled, preferredInputId, onChangePrefe
                                 {formatDeviceLabel(device)}
                             </Text>
                             {isActive ? (
-                                <Ionicons name="checkmark" size={16} color="#fff" style={styles.recordingInputOptionCheck} />
+                                <Ionicons name="checkmark" size={16} color="#FFFFFF" style={styles.recordingInputOptionCheck} />
                             ) : null}
                         </Pressable>
                     );

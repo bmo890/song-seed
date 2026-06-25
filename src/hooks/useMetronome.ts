@@ -184,7 +184,7 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
     setIsPreparing(true);
     try {
       return await SongseedMetronomeModule.configure({
-        bpm: bpmRef.current,
+        bpm,
         meterId: meterId,
         pulsesPerBar: meterPreset.pulsesPerBar,
         denominator: meterPreset.denominator,
@@ -200,17 +200,35 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
     } finally {
       setIsPreparing(false);
     }
-  }, [beepLevel, meterId, meterPreset, outputs.beep]);
+  }, [bpm, beepLevel, meterId, meterPreset, outputs.beep]);
 
+  // Debounced: the native engine treats configure() as a full restart whenever it's already
+  // running (beat position resets, click buffer rebuilds), so without this, dragging the tempo
+  // slider or repeated +/- taps would restart audibly on every single intermediate value. This
+  // also fixes bpm never reaching a running engine at all — it used to be read from a ref outside
+  // this callback's dependencies, so changing it alone never re-triggered a sync.
+  const configSyncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     if (!SongseedMetronomeModule) {
       return;
     }
-    void syncNativeConfig().then((state) => {
-      if (state) {
-        setNativeState(state);
+    if (configSyncTimerRef.current) {
+      clearTimeout(configSyncTimerRef.current);
+    }
+    configSyncTimerRef.current = setTimeout(() => {
+      void syncNativeConfig().then((state) => {
+        if (state) {
+          setNativeState(state);
+        }
+      });
+    }, 280);
+
+    return () => {
+      if (configSyncTimerRef.current) {
+        clearTimeout(configSyncTimerRef.current);
+        configSyncTimerRef.current = null;
       }
-    });
+    };
   }, [syncNativeConfig]);
 
   useEffect(() => {

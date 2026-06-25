@@ -95,9 +95,9 @@ export function LiveTapeVisualizer({
         setCanvasHeight((prev) => (prev === nextHeight ? prev : nextHeight));
     };
 
-    const waveColor = theme?.waveColor || "#64748b";
-    const rulerColor = theme?.rulerColor || "#9ca3af";
-    const playheadColor = theme?.playheadColor || "#ef4444";
+    const waveColor = theme?.waveColor || "#a89994";
+    const rulerColor = theme?.rulerColor || "#D7C2BD";
+    const playheadColor = theme?.playheadColor || "#B5483A";
     const backgroundColor = theme?.backgroundColor || "transparent";
 
     return (
