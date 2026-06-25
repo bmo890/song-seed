@@ -1319,11 +1319,10 @@ export const createDataSlice: StateCreator<
                 nextWorkspaces
             );
 
-            if (countTotalIdeas(nextWorkspaces) === 0) {
-                // Deleting the final idea is a valid zero-state transition and must
-                // explicitly authorize the persist/manifest guards before they block it.
-                authorizeIntentionalEmptyStateWrite(6);
-            }
+            // Deleting a whole collection (and its descendants) is an explicit bulk action —
+            // it can legitimately drop the library to zero, or just take a large bite out of
+            // it, so authorize the persist/manifest guards either way.
+            authorizeIntentionalEmptyStateWrite(6);
 
             return {
                 ...buildRuntimeCleanupPatch(state, {
@@ -1915,10 +1914,9 @@ export const createDataSlice: StateCreator<
             );
             archiveUriToDelete = removedWorkspace.archiveState?.archiveUri;
 
-            if (countTotalIdeas(nextWorkspaces) === 0) {
-                // Workspace deletion can legitimately remove the last remaining idea.
-                authorizeIntentionalEmptyStateWrite(6);
-            }
+            // Deleting a whole workspace is an explicit bulk action — it can legitimately drop
+            // the library to zero, or just take a large bite out of it, so authorize either way.
+            authorizeIntentionalEmptyStateWrite(6);
 
             return {
                 ...buildRuntimeCleanupPatch(state, {

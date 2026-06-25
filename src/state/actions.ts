@@ -2270,10 +2270,9 @@ export const appActions = {
                 nextWorkspaces
             );
 
-            if (nextWorkspaces.reduce((sum, workspace) => sum + workspace.ideas.length, 0) === 0) {
-                // Multi-delete can intentionally clear the final remaining ideas from the library.
-                authorizeIntentionalEmptyStateWrite(6);
-            }
+            // Multi-delete is an explicit bulk action — it can intentionally clear the final
+            // remaining ideas, or just remove a large chunk of the library, so authorize either way.
+            authorizeIntentionalEmptyStateWrite(6);
 
             return {
                 ...buildRuntimeCleanupPatch(store, {
