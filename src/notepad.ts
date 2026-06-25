@@ -3,7 +3,7 @@ import type { Note } from "./types";
 export function deriveNotePreviewTitle(note: Note) {
   if (note.title.trim()) return note.title.trim();
   const firstLine = note.body.trim().split("\n")[0] ?? "";
-  return firstLine.trim() || "New Note";
+  return firstLine.trim() || "New Page";
 }
 
 export function deriveNotePreviewBody(note: Note) {
@@ -13,6 +13,24 @@ export function deriveNotePreviewBody(note: Note) {
   }
 
   return note.body.trim() || null;
+}
+
+/** Flattens a Lyrics Pad page into plain text suitable for a new song lyrics
+ *  version — the title (if any) becomes a heading line above the body. */
+export function buildLyricsTextFromNote(note: Note) {
+  const title = note.title.trim();
+  const body = note.body.trim();
+  if (!title) return body;
+  if (!body) return title;
+  return `${title}\n\n${body}`;
+}
+
+/** Combines one or more Lyrics Pad pages into a single shareable text block. */
+export function buildShareTextFromNotes(notes: Note[]) {
+  return notes
+    .map((note) => buildLyricsTextFromNote(note))
+    .filter((text) => text.length > 0)
+    .join("\n\n— — —\n\n");
 }
 
 export type SearchPreviewSegment =

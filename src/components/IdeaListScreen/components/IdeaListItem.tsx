@@ -13,8 +13,10 @@ import { getPlayableClipForIdea } from "../../../clipPresentation";
 import type { IdeaListItemMeta } from "../types";
 
 import { useStore } from "../../../state/useStore";
+import { appActions } from "../../../state/actions";
 import { StatusBadge } from "../../common/StatusBadge";
 import { IdeaCard } from "../../common/IdeaCard";
+import { AppAlert } from "../../common/AppAlert";
 import { useWorkspaceTheme } from "../../../context/WorkspaceThemeContext";
 
 function IdeaListInlineProgress({
@@ -130,6 +132,7 @@ export function IdeaListItem({
     lyricsFilterMode,
 }: IdeaListItemProps) {
     const listSelectionMode = useStore((s) => s.listSelectionMode);
+    const songTargetPicker = useStore((s) => s.songTargetPicker);
     const setSelectedIdeaId = useStore((s) => s.setSelectedIdeaId);
     const { accent: workspaceAccent } = useWorkspaceTheme();
 
@@ -173,6 +176,24 @@ export function IdeaListItem({
     const beginSelection = () => {
         void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         useStore.getState().startListSelection(item.id);
+    };
+
+    const confirmPickAsSongTarget = () => {
+        if (!songTargetPicker) return;
+        const count = songTargetPicker.noteIds.length;
+        void Haptics.selectionAsync();
+        AppAlert.confirm(
+            "Add to this song?",
+            `Add ${count} page${count === 1 ? "" : "s"} of lyrics to "${item.title}" as new lyrics version${count === 1 ? "" : "s"}?`,
+            () => {
+                const result = appActions.completeSongTargetPicking(item.id);
+                AppAlert.info(
+                    "Added to song",
+                    `${result.count} page${result.count === 1 ? "" : "s"} added to "${result.songTitle}" as new lyrics.`
+                );
+            },
+            { confirmLabel: "Add" }
+        );
     };
 
     const renderProjectRightMeta = () => (
@@ -353,6 +374,9 @@ export function IdeaListItem({
                             nowPlaying={inlineActive}
                             accentBorderColor={item.kind === "project" ? workspaceAccent : null}
                             compact={compact}
+                            containerStyle={
+                                songTargetPicker && item.kind !== "project" ? { opacity: 0.4 } : undefined
+                            }
                             highlightValue={highlightMapRef.current[item.id] ?? null}
                             canPlay={!!playClip}
                             durationLabel={item.kind === "project" ? projectPrimaryDurationLabel : clipDurationLabel}
@@ -368,7 +392,7 @@ export function IdeaListItem({
                                 void playIdeaFromList(item.id, playClip);
                             }}
                             onLongPressLead={() => {
-                                if (listSelectionMode) return;
+                                if (listSelectionMode || songTargetPicker) return;
                                 beginSelection();
                             }}
                             leadAccessory={inlineActive ? (
@@ -383,6 +407,10 @@ export function IdeaListItem({
                                 </Pressable>
                             ) : null}
                             onPress={async () => {
+                                if (songTargetPicker) {
+                                    if (item.kind === "project") confirmPickAsSongTarget();
+                                    return;
+                                }
                                 if (listSelectionMode) {
                                     useStore.getState().toggleListSelection(item.id);
                                     return;
@@ -398,6 +426,10 @@ export function IdeaListItem({
                                 navigateRoot("IdeaDetail", { ideaId: item.id });
                             }}
                             onLongPress={() => {
+                                if (songTargetPicker) {
+                                    if (item.kind === "project") confirmPickAsSongTarget();
+                                    return;
+                                }
                                 if (listSelectionMode) {
                                     useStore.getState().toggleListSelection(item.id);
                                     return;

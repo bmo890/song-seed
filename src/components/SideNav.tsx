@@ -215,7 +215,7 @@ export function SideNav({
         <NavRow
           icon={navIcon("notepad").icon}
           iconColor={navIcon("notepad").color}
-          label="Notepad"
+          label="Lyrics Pad"
           active={currentRoute === "notepad"}
           onPress={onGoNotepad}
         />

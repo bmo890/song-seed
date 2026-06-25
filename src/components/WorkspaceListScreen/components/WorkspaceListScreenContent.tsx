@@ -6,14 +6,18 @@ import { useState } from "react";
 import { useNavigation } from "@react-navigation/native";
 import { styles } from "../styles";
 import { useWorkspaceListScreenModel } from "../hooks/useWorkspaceListScreenModel";
+import { useStore } from "../../../state/useStore";
 import { WorkspaceModal } from "../../modals/WorkspaceModal";
 import { ClipboardBanner } from "../../ClipboardBanner";
+import { SongTargetPickerBanner } from "../../SongTargetPickerBanner";
 import { SelectionActionSheet } from "../../common/SelectionActionSheet";
 import { WorkspaceList } from "./WorkspaceList";
 import { AppAlert } from "../../common/AppAlert";
 
 export function WorkspaceListScreenContent() {
   const model = useWorkspaceListScreenModel();
+  const songTargetPicker = useStore((s) => s.songTargetPicker);
+  const cancelSongTargetPicking = useStore((s) => s.cancelSongTargetPicking);
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
   const [sortMenuOpen, setSortMenuOpen] = useState(false);
@@ -38,6 +42,10 @@ export function WorkspaceListScreenContent() {
 
   return (
     <SafeAreaView style={styles.screen}>
+
+      {songTargetPicker ? (
+        <SongTargetPickerBanner count={songTargetPicker.noteIds.length} onCancel={cancelSongTargetPicking} />
+      ) : null}
 
       {model.clipClipboard ? (
         <ClipboardBanner

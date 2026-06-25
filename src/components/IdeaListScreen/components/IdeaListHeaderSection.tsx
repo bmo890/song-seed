@@ -2,7 +2,9 @@ import { Pressable, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { styles } from "../../../styles";
 import { ClipboardBanner } from "../../ClipboardBanner";
+import { SongTargetPickerBanner } from "../../SongTargetPickerBanner";
 import { ClipClipboard } from "../../../types";
+import { useStore } from "../../../state/useStore";
 import { SearchField } from "../../common/SearchField";
 import { AppAlert } from "../../common/AppAlert";
 
@@ -31,8 +33,15 @@ export function IdeaListHeaderSection({
   onPasteClipboard,
   onCancelClipboard,
 }: IdeaListHeaderSectionProps) {
+  const songTargetPicker = useStore((s) => s.songTargetPicker);
+  const cancelSongTargetPicking = useStore((s) => s.cancelSongTargetPicking);
+
   return (
     <>
+      {songTargetPicker ? (
+        <SongTargetPickerBanner count={songTargetPicker.noteIds.length} onCancel={cancelSongTargetPicking} />
+      ) : null}
+
       <View style={styles.ideasSearchUtilityRow}>
         <SearchField
           value={searchQuery}

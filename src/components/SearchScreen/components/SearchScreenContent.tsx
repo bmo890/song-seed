@@ -77,8 +77,8 @@ function SearchResultCard({
 export function SearchScreenContent() {
   const model = useSearchScreenModel();
   const subtitle = model.hasQuery
-    ? `${model.resultCount} match${model.resultCount === 1 ? "" : "es"} across titles, notes, clip notes, lyrics, chords, and Notepad.`
-    : "Search across workspaces, collections, songs, clips, lyrics, notes, and Notepad.";
+    ? `${model.resultCount} match${model.resultCount === 1 ? "" : "es"} across titles, notes, clip notes, lyrics, chords, and your Lyrics Pad.`
+    : "Search across workspaces, collections, songs, clips, lyrics, notes, and your Lyrics Pad.";
 
   return (
     <SafeAreaView style={styles.screen}>
@@ -87,7 +87,7 @@ export function SearchScreenContent() {
 
       <SearchField
         value={model.searchQuery}
-        placeholder="Search titles, lyrics, notes, and Notepad"
+        placeholder="Search titles, lyrics, notes, and your Lyrics Pad"
         onChangeText={model.setSearchQuery}
         containerStyle={searchScreenStyles.searchField}
       />
@@ -97,7 +97,7 @@ export function SearchScreenContent() {
           <Ionicons name="search-outline" size={28} color="#9b8a84" />
           <Text style={searchScreenStyles.emptyTitle}>Search your whole library</Text>
           <Text style={searchScreenStyles.emptyBody}>
-            Find songs by lyric fragments, clips by notes, or notebook pages by anything inside them.
+            Find songs by lyric fragments, clips by notes, or pages in your Lyrics Pad by anything inside them.
           </Text>
         </View>
       ) : model.resultCount === 0 ? (
@@ -105,7 +105,7 @@ export function SearchScreenContent() {
           <Ionicons name="documents-outline" size={28} color="#9b8a84" />
           <Text style={searchScreenStyles.emptyTitle}>No matches</Text>
           <Text style={searchScreenStyles.emptyBody}>
-            Try a different word or phrase. Search looks through project notes, clip notes, lyrics, chords, and Notepad content.
+            Try a different word or phrase. Search looks through project notes, clip notes, lyrics, chords, and your Lyrics Pad.
           </Text>
         </View>
       ) : (

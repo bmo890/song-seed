@@ -19,6 +19,10 @@ export type SelectionSlice = {
     listSelectionMode: boolean;
     selectedListIdeaIds: string[];
 
+    songTargetPicker: { noteIds: string[] } | null;
+    startSongTargetPicking: (noteIds: string[]) => void;
+    cancelSongTargetPicking: () => void;
+
     clipClipboard: ClipClipboard | null;
     startClipboardFromList: (mode: "copy" | "move") => void;
     startClipboardFromProject: (mode: "copy" | "move") => void;
@@ -69,6 +73,10 @@ export const createSelectionSlice: StateCreator<
     selectedClipIds: [],
     listSelectionMode: false,
     selectedListIdeaIds: [],
+
+    songTargetPicker: null,
+    startSongTargetPicking: (noteIds) => set({ songTargetPicker: { noteIds } }),
+    cancelSongTargetPicking: () => set({ songTargetPicker: null }),
 
     clipClipboard: null,
     startClipboardFromList: (mode) => {

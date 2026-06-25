@@ -17,6 +17,7 @@ import {
 import { useStore } from "./useStore";
 import { createEmptyProjectLyrics, createEmptyWorkspaceIdeasListState, normalizeWorkspaces } from "./dataSlice";
 import { createLyricsVersion, lyricsTextToDocument } from "../lyrics";
+import { buildLyricsTextFromNote } from "../notepad";
 import { buildDefaultIdeaTitle, ensureUniqueCountedTitle, ensureUniqueIdeaTitle } from "../utils";
 import { archiveWorkspaceToDevice, restoreWorkspaceFromDevice } from "../services/workspaceArchive";
 import type { ParsedSongSeedArchive } from "../services/libraryImport";
@@ -1527,6 +1528,29 @@ export const appActions = {
             })
         );
         state.logIdeaActivity(projectId, "updated", "lyrics-save");
+    },
+
+    /** Finishes a Lyrics Pad "Add to Song" navigate-and-pick flow: adds each pending
+     * page as its own new lyrics version on the chosen song, then clears the picker. */
+    completeSongTargetPicking: (songId: string) => {
+        const state = useStore.getState();
+        const picker = state.songTargetPicker;
+        if (!picker) return { count: 0, songTitle: "" };
+
+        const notesToAdd = state.notes.filter((note) => picker.noteIds.includes(note.id));
+        let addedCount = 0;
+        notesToAdd.forEach((note) => {
+            const text = buildLyricsTextFromNote(note);
+            if (!text) return;
+            appActions.saveProjectLyricsAsNewVersion(songId, text);
+            addedCount += 1;
+        });
+
+        const songTitle =
+            state.workspaces.flatMap((workspace) => workspace.ideas).find((idea) => idea.id === songId)?.title ??
+            "that song";
+        state.cancelSongTargetPicking();
+        return { count: addedCount, songTitle };
     },
 
     deleteProjectLyricsVersion: (projectId: string, versionId: string) => {

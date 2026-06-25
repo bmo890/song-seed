@@ -13,6 +13,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { styles } from "../../../styles";
+import { colors, radii, spacing, text as textTokens } from "../../../design/tokens";
 import type { Note } from "../../../types";
 import { AppAlert } from "../../common/AppAlert";
 
@@ -114,7 +115,7 @@ export function NoteEditor({ note, onBack, onUpdate, onTogglePin, onDelete }: Pr
   // ── Delete confirmation ───────────────────────────────────────────────────
   const handleDeletePress = useCallback(() => {
     AppAlert.destructive(
-      "Delete note?",
+      "Delete page?",
       "This can't be undone.",
       () => onDelete(note.id),
       { confirmLabel: "Delete" }
@@ -170,8 +171,8 @@ export function NoteEditor({ note, onBack, onUpdate, onTogglePin, onDelete }: Pr
             style={({ pressed }) => [editorStyles.backBtn, pressed ? styles.pressDown : null]}
             onPress={onBack}
           >
-            <Ionicons name="chevron-back" size={20} color="#524440" />
-            <Text style={editorStyles.backLabel}>Notes</Text>
+            <Ionicons name="chevron-back" size={20} color={colors.textStrong} />
+            <Text style={editorStyles.backLabel}>Lyrics Pad</Text>
           </Pressable>
 
           {/* Right-side actions */}
@@ -182,7 +183,11 @@ export function NoteEditor({ note, onBack, onUpdate, onTogglePin, onDelete }: Pr
               onPress={handleUndo}
               disabled={!canUndo}
             >
-              <Ionicons name="arrow-undo-outline" size={20} color={canUndo ? "#524440" : "#c4b5b2"} />
+              <Ionicons
+                name="arrow-undo-outline"
+                size={20}
+                color={canUndo ? colors.textStrong : colors.textMuted}
+              />
             </Pressable>
 
             {/* Redo — always visible; dimmed when nothing to step forward to */}
@@ -191,8 +196,14 @@ export function NoteEditor({ note, onBack, onUpdate, onTogglePin, onDelete }: Pr
               onPress={handleRedo}
               disabled={!canRedo}
             >
-              <Ionicons name="arrow-redo-outline" size={20} color={canRedo ? "#524440" : "#c4b5b2"} />
+              <Ionicons
+                name="arrow-redo-outline"
+                size={20}
+                color={canRedo ? colors.textStrong : colors.textMuted}
+              />
             </Pressable>
+
+            <View style={editorStyles.headerDivider} />
 
             {/* Pin */}
             <Pressable
@@ -202,7 +213,7 @@ export function NoteEditor({ note, onBack, onUpdate, onTogglePin, onDelete }: Pr
               <Ionicons
                 name={note.isPinned ? "bookmark" : "bookmark-outline"}
                 size={20}
-                color={note.isPinned ? "#824f3f" : "#84736f"}
+                color={note.isPinned ? colors.primary : colors.textSecondary}
               />
             </Pressable>
 
@@ -211,7 +222,7 @@ export function NoteEditor({ note, onBack, onUpdate, onTogglePin, onDelete }: Pr
               style={({ pressed }) => [editorStyles.iconBtn, pressed ? styles.pressDown : null]}
               onPress={handleDeletePress}
             >
-              <Ionicons name="trash-outline" size={20} color="#84736f" />
+              <Ionicons name="trash-outline" size={20} color={colors.textSecondary} />
             </Pressable>
           </View>
         </View>
@@ -229,14 +240,16 @@ export function NoteEditor({ note, onBack, onUpdate, onTogglePin, onDelete }: Pr
               scheduleHistoryPush();
             }}
             placeholder="Title"
-            placeholderTextColor="#c4b5b2"
+            placeholderTextColor={colors.textMuted}
             multiline={false}
             returnKeyType="next"
             blurOnSubmit
             onSubmitEditing={() => bodyRef.current?.focus()}
           />
+
+          <Text style={editorStyles.metaText}>{formatTimestamp(note.updatedAt)}</Text>
           <View style={editorStyles.divider} />
-          <Text style={editorStyles.timestamp}>{formatTimestamp(note.updatedAt)}</Text>
+
           <TextInput
             ref={bodyRef}
             style={editorStyles.body}
@@ -247,7 +260,7 @@ export function NoteEditor({ note, onBack, onUpdate, onTogglePin, onDelete }: Pr
             }}
             onSelectionChange={handleSelectionChange}
             placeholder="Start writing…"
-            placeholderTextColor="#c4b5b2"
+            placeholderTextColor={colors.textMuted}
             multiline
             textAlignVertical="top"
             scrollEnabled={false}
@@ -261,73 +274,74 @@ export function NoteEditor({ note, onBack, onUpdate, onTogglePin, onDelete }: Pr
 const editorStyles = StyleSheet.create({
   shell: {
     flex: 1,
-    backgroundColor: "#fbf9f5",
+    backgroundColor: colors.page,
   },
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 16,
+    paddingHorizontal: spacing.lg,
     paddingVertical: 10,
   },
   backBtn: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 4,
+    gap: 2,
     paddingVertical: 6,
     paddingRight: 12,
   },
   backLabel: {
-    fontSize: 16,
-    color: "#524440",
-    fontWeight: "500",
+    ...textTokens.body,
+    fontFamily: "PlusJakartaSans_600SemiBold",
+    color: colors.textStrong,
   },
   headerActions: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 4,
+    gap: 2,
+  },
+  headerDivider: {
+    width: 1,
+    height: 18,
+    backgroundColor: colors.borderMuted,
+    marginHorizontal: 4,
   },
   iconBtn: {
     width: 40,
     height: 40,
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: 8,
+    borderRadius: radii.round,
   },
   scroll: {
     flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: 24,
-    paddingTop: 8,
+    paddingHorizontal: spacing.xxl,
+    paddingTop: spacing.sm,
     paddingBottom: 40,
   },
   title: {
-    fontSize: 26,
-    fontWeight: "700",
-    color: "#1b1c1a",
-    lineHeight: 34,
+    fontFamily: "PlayfairDisplay_600SemiBold",
+    fontSize: 28,
+    color: colors.textPrimary,
+    lineHeight: 32,
     paddingVertical: 0,
-    marginBottom: 12,
+    marginBottom: spacing.sm,
+  },
+  metaText: {
+    ...textTokens.annotation,
+    marginBottom: spacing.sm,
   },
   divider: {
-    height: 0.5,
-    backgroundColor: "#d7c2bd",
-    opacity: 0.5,
-    marginBottom: 8,
-  },
-  timestamp: {
-    fontSize: 11,
-    color: "#84736f",
-    fontWeight: "600",
-    letterSpacing: 0.05,
-    textTransform: "uppercase",
-    marginBottom: 16,
+    height: 1,
+    backgroundColor: colors.borderSubtle,
+    marginBottom: spacing.lg,
   },
   body: {
+    ...textTokens.body,
     fontSize: 16,
-    color: "#1b1c1a",
-    lineHeight: 26,
+    lineHeight: 22,
     minHeight: 300,
     paddingVertical: 0,
   },

@@ -5,11 +5,15 @@ import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { styles } from "../../styles";
 import { SongIdea } from "../../types";
+import { useStore } from "../../state/useStore";
 import { appActions } from "../../state/actions";
 import { getLatestLyricsVersion, lyricsDocumentToText } from "../../lyrics";
+import { buildLyricsTextFromNote } from "../../notepad";
 import { formatDate } from "../../utils";
 import { Button } from "../common/Button";
 import { AppAlert } from "../common/AppAlert";
+import { NotePickerSheet } from "../modals/NotePickerSheet";
+import type { Note } from "../../types";
 
 type LyricsVersionsPanelProps = {
   projectIdea: SongIdea;
@@ -17,6 +21,7 @@ type LyricsVersionsPanelProps = {
 
 export function LyricsVersionsPanel({ projectIdea }: LyricsVersionsPanelProps) {
   const navigation = useNavigation<any>();
+  const notes = useStore((s) => s.notes);
   const versions = projectIdea.kind === "project" ? projectIdea.lyrics?.versions ?? [] : [];
   const latestVersion = useMemo(() => getLatestLyricsVersion(projectIdea), [projectIdea]);
   const versionsNewestFirst = [...versions].reverse();
@@ -24,6 +29,7 @@ export function LyricsVersionsPanel({ projectIdea }: LyricsVersionsPanelProps) {
 
   const [expandedVersionIds, setExpandedVersionIds] = useState<string[]>([]);
   const [selectedVersionIds, setSelectedVersionIds] = useState<string[]>([]);
+  const [notePickerVisible, setNotePickerVisible] = useState(false);
 
   useEffect(() => {
     setExpandedVersionIds((prev) => {
@@ -86,6 +92,17 @@ export function LyricsVersionsPanel({ projectIdea }: LyricsVersionsPanelProps) {
     }, { confirmLabel: "Delete" });
   }
 
+  function importFromLyricsPad(note: Note) {
+    const text = buildLyricsTextFromNote(note);
+    setNotePickerVisible(false);
+    if (!text) {
+      AppAlert.info("Empty page", "That Lyrics Pad page has no text to import.");
+      return;
+    }
+    appActions.saveProjectLyricsAsNewVersion(projectIdea.id, text);
+    void Haptics.selectionAsync();
+  }
+
   return (
     <View style={styles.songDetailTabPanelWrap}>
       {selectionMode ? (
@@ -116,6 +133,11 @@ export function LyricsVersionsPanel({ projectIdea }: LyricsVersionsPanelProps) {
             label="New Draft"
             onPress={() => openVersion(latestVersion?.id, { startInEdit: true, forceNewVersion: true })}
           />
+          <Button
+            variant="secondary"
+            label="From Lyrics Pad"
+            onPress={() => setNotePickerVisible(true)}
+          />
         </View>
       ) : null}
 
@@ -129,6 +151,11 @@ export function LyricsVersionsPanel({ projectIdea }: LyricsVersionsPanelProps) {
             <Button
               label="Start Writing"
               onPress={() => openVersion(undefined, { createDraft: true, startInEdit: true, forceNewVersion: true })}
+            />
+            <Button
+              variant="secondary"
+              label="From Lyrics Pad"
+              onPress={() => setNotePickerVisible(true)}
             />
           </View>
         </View>
@@ -199,6 +226,13 @@ export function LyricsVersionsPanel({ projectIdea }: LyricsVersionsPanelProps) {
           );
         })
       )}
+
+      <NotePickerSheet
+        visible={notePickerVisible}
+        notes={notes}
+        onClose={() => setNotePickerVisible(false)}
+        onSelect={importFromLyricsPad}
+      />
     </View>
   );
 }

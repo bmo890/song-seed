@@ -1,17 +1,23 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useRoute } from "@react-navigation/native";
+import { Share } from "react-native";
+import { useNavigation, useRoute } from "@react-navigation/native";
 import { useStore } from "../../../state/useStore";
+import { buildShareTextFromNotes } from "../../../notepad";
 import type { Note } from "../../../types";
 
 export function useNotepadScreenModel() {
   const route = useRoute<any>();
+  const navigation = useNavigation<any>();
   const notes = useStore((s) => s.notes);
   const addNote = useStore((s) => s.addNote);
   const updateNote = useStore((s) => s.updateNote);
   const deleteNote = useStore((s) => s.deleteNote);
+  const startSongTargetPicking = useStore((s) => s.startSongTargetPicking);
 
   const [activeNoteId, setActiveNoteId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedNoteIds, setSelectedNoteIds] = useState<string[]>([]);
   const handledRouteOpenTokenRef = useRef<number | null>(null);
   const hasAutoOpenedRef = useRef(false);
 
@@ -106,9 +112,16 @@ export function useNotepadScreenModel() {
     handleNewNote();
   }, [totalNoteCount, activeNoteId, handleNewNote]);
 
-  const handleOpenNote = useCallback((note: Note) => {
-    setActiveNoteId(note.id);
-  }, []);
+  const handleOpenNote = useCallback(
+    (note: Note) => {
+      if (selectionMode) {
+        toggleSelectNote(note.id);
+        return;
+      }
+      setActiveNoteId(note.id);
+    },
+    [selectionMode] // eslint-disable-line react-hooks/exhaustive-deps
+  );
 
   const handleCloseNote = useCallback(() => {
     if (activeNoteId) {
@@ -145,6 +158,82 @@ export function useNotepadScreenModel() {
     [activeNoteId, deleteNote]
   );
 
+  // ── Selection mode ──────────────────────────────────────────────────────
+  const beginSelection = useCallback((noteId: string) => {
+    setSelectionMode(true);
+    setSelectedNoteIds([noteId]);
+  }, []);
+
+  const toggleSelectNote = useCallback((noteId: string) => {
+    setSelectedNoteIds((prev) => {
+      const next = prev.includes(noteId) ? prev.filter((id) => id !== noteId) : [...prev, noteId];
+      if (next.length === 0) setSelectionMode(false);
+      return next;
+    });
+  }, []);
+
+  const cancelSelection = useCallback(() => {
+    setSelectionMode(false);
+    setSelectedNoteIds([]);
+  }, []);
+
+  const selectAllVisible = useCallback(() => {
+    setSelectedNoteIds(filteredNotes.map((note) => note.id));
+  }, [filteredNotes]);
+
+  const selectedNotes = useMemo(
+    () => notes.filter((note) => selectedNoteIds.includes(note.id)),
+    [notes, selectedNoteIds]
+  );
+
+  const allSelected =
+    filteredNotes.length > 0 && filteredNotes.every((note) => selectedNoteIds.includes(note.id));
+  const allSelectedPinned = selectedNotes.length > 0 && selectedNotes.every((note) => note.isPinned);
+
+  const handleDeleteSelected = useCallback(() => {
+    selectedNoteIds.forEach((id) => deleteNote(id));
+    cancelSelection();
+  }, [selectedNoteIds, deleteNote, cancelSelection]);
+
+  const handleToggleSelectedPin = useCallback(() => {
+    const nextPinned = !allSelectedPinned;
+    selectedNoteIds.forEach((id) => updateNote(id, { isPinned: nextPinned }));
+    cancelSelection();
+  }, [selectedNoteIds, allSelectedPinned, updateNote, cancelSelection]);
+
+  const handleDuplicateSelected = useCallback(() => {
+    const notesToCopy = selectedNotes;
+    notesToCopy.forEach((note) => {
+      const newId = addNote();
+      updateNote(newId, {
+        title: note.title.trim() ? `${note.title} (Copy)` : note.title,
+        body: note.body,
+      });
+    });
+    cancelSelection();
+    return notesToCopy.length;
+  }, [selectedNotes, addNote, updateNote, cancelSelection]);
+
+  const handleShareSelected = useCallback(() => {
+    const text = buildShareTextFromNotes(selectedNotes);
+    if (!text) return;
+    const count = selectedNotes.length;
+    void Share.share({
+      title: count === 1 ? "Lyrics Pad page" : `${count} Lyrics Pad pages`,
+      message: text,
+    });
+  }, [selectedNotes]);
+
+  // ── Add to song ─────────────────────────────────────────────────────────
+  // Hands the pending pages off to the global song-target-picker and sends the
+  // user to the workspace list to navigate to whichever song they want, the same
+  // way clipboard copy/move works elsewhere in the app.
+  const handleStartAddToSong = useCallback(() => {
+    startSongTargetPicking(selectedNoteIds);
+    cancelSelection();
+    navigation.navigate("Workspaces");
+  }, [startSongTargetPicking, selectedNoteIds, cancelSelection, navigation]);
+
   return {
     sections,
     totalNoteCount,
@@ -158,5 +247,20 @@ export function useNotepadScreenModel() {
     handleUpdateNote,
     handleTogglePin,
     handleDeleteNote,
+
+    selectionMode,
+    selectedNoteIds,
+    selectedNotes,
+    allSelected,
+    allSelectedPinned,
+    beginSelection,
+    toggleSelectNote,
+    cancelSelection,
+    selectAllVisible,
+    handleDeleteSelected,
+    handleToggleSelectedPin,
+    handleDuplicateSelected,
+    handleShareSelected,
+    handleStartAddToSong,
   };
 }

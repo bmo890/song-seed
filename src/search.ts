@@ -210,7 +210,7 @@ export function getSearchResultKindLabel(kind: GlobalSearchResultKind) {
     case "clip":
       return "Clips";
     case "note":
-      return "Notepad";
+      return "Lyrics Pad";
     case "collection":
       return "Collections";
     case "workspace":
@@ -319,7 +319,7 @@ export function buildGlobalSearchResults(workspaces: Workspace[], notes: Note[],
       id: `note:${note.id}`,
       kind: "note",
       title,
-      context: note.isPinned ? "Notepad • Pinned" : "Notepad",
+      context: note.isPinned ? "Lyrics Pad • Pinned" : "Lyrics Pad",
       matchSource: noteMatch.source,
       snippet: noteMatch.source === "title" && hasExplicitTitle ? body || null : noteMatch.snippet,
       score: noteMatch.score + (note.isPinned ? 3 : 0),

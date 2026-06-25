@@ -1,10 +1,18 @@
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { useState } from "react";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { ScreenHeader } from "../../common/ScreenHeader";
+import { SearchField } from "../../common/SearchField";
+import { Button } from "../../common/Button";
+import { SelectionTopBar } from "../../common/SelectionTopBar";
+import { SelectionDock, type SelectionAction } from "../../common/SelectionDock";
+import { SelectionActionSheet } from "../../common/SelectionActionSheet";
+import { AppAlert } from "../../common/AppAlert";
 import { NoteEditor } from "./NoteEditor";
 import { useNotepadScreenModel } from "../hooks/useNotepadScreenModel";
 import { styles } from "../../../styles";
+import { colors, radii, spacing, text as textTokens } from "../../../design/tokens";
 import type { Note } from "../../../types";
 import {
   buildSearchPreviewSegments,
@@ -27,12 +35,26 @@ function formatRelativeDate(ts: number) {
 type NoteItemProps = {
   note: Note;
   searchQuery: string;
-  sectionLabel: string;
+  sectionKey: string;
+  selectionMode: boolean;
+  isSelected: boolean;
   onPress: (note: Note) => void;
   onTogglePin: (noteId: string) => void;
+  onBeginSelection: (noteId: string) => void;
+  onToggleSelect: (noteId: string) => void;
 };
 
-function NoteListItem({ note, searchQuery, sectionLabel, onPress, onTogglePin }: NoteItemProps) {
+function NoteListItem({
+  note,
+  searchQuery,
+  sectionKey,
+  selectionMode,
+  isSelected,
+  onPress,
+  onTogglePin,
+  onBeginSelection,
+  onToggleSelect,
+}: NoteItemProps) {
   const title = deriveNotePreviewTitle(note);
   const fallbackPreview = deriveNotePreviewBody(note);
   const trimmedQuery = searchQuery.trim();
@@ -44,59 +66,71 @@ function NoteListItem({ note, searchQuery, sectionLabel, onPress, onTogglePin }:
     ? buildSearchPreviewSegments(note.body, trimmedQuery)
     : null;
 
+  const showTimestamp = sectionKey === "thisWeek" || sectionKey === "earlier";
+
   return (
     <Pressable
-      style={({ pressed }) => [noteStyles.card, pressed ? styles.pressDown : null]}
+      style={({ pressed }) => [
+        noteStyles.card,
+        note.isPinned ? noteStyles.cardPinned : null,
+        isSelected ? noteStyles.cardSelected : null,
+        pressed ? styles.pressDown : null,
+      ]}
       onPress={() => onPress(note)}
+      onLongPress={() => (selectionMode ? onToggleSelect(note.id) : onBeginSelection(note.id))}
+      delayLongPress={250}
     >
       <View style={noteStyles.cardBody}>
         {titleSegments ? (
           <Text style={noteStyles.cardTitle} numberOfLines={1}>
             {titleSegments.map((seg, i) => (
-              <Text
-                key={i}
-                style={seg.kind === "match" ? noteStyles.matchText : undefined}
-              >
+              <Text key={i} style={seg.kind === "match" ? noteStyles.matchText : undefined}>
                 {seg.value}
               </Text>
             ))}
           </Text>
         ) : (
-          <Text style={noteStyles.cardTitle} numberOfLines={1}>{title}</Text>
+          <Text style={noteStyles.cardTitle} numberOfLines={1}>
+            {title}
+          </Text>
         )}
         {bodySegments ? (
           <Text style={noteStyles.cardPreview} numberOfLines={2}>
             {bodySegments.map((seg, i) => (
-              <Text
-                key={i}
-                style={seg.kind === "match" ? noteStyles.matchText : undefined}
-              >
+              <Text key={i} style={seg.kind === "match" ? noteStyles.matchText : undefined}>
                 {seg.value}
               </Text>
             ))}
           </Text>
         ) : fallbackPreview ? (
-          <Text style={noteStyles.cardPreview} numberOfLines={2}>{fallbackPreview}</Text>
+          <Text style={noteStyles.cardPreview} numberOfLines={2}>
+            {fallbackPreview}
+          </Text>
+        ) : (
+          <Text style={noteStyles.cardPreviewEmpty}>Empty note</Text>
+        )}
+        {showTimestamp ? (
+          <Text style={noteStyles.cardMeta}>{formatRelativeDate(note.updatedAt).toUpperCase()}</Text>
         ) : null}
-        {(() => {
-          const showTimestamp = sectionLabel === "Earlier this week" || sectionLabel === "Earlier";
-          const parts: string[] = [];
-          if (note.isPinned) parts.push("PINNED");
-          if (showTimestamp) parts.push(formatRelativeDate(note.updatedAt).toUpperCase());
-          return parts.length > 0 ? <Text style={noteStyles.cardMeta}>{parts.join("  ·  ")}</Text> : null;
-        })()}
       </View>
-      <Pressable
-        style={({ pressed }) => [noteStyles.pinBtn, pressed ? styles.pressDown : null]}
-        onPress={() => onTogglePin(note.id)}
-        hitSlop={8}
-      >
-        <Ionicons
-          name={note.isPinned ? "bookmark" : "bookmark-outline"}
-          size={16}
-          color={note.isPinned ? "#824f3f" : "#c4b5b2"}
-        />
-      </Pressable>
+
+      {selectionMode ? (
+        <View style={[noteStyles.selectIndicator, isSelected ? noteStyles.selectIndicatorChecked : null]}>
+          {isSelected ? <Ionicons name="checkmark" size={13} color={colors.onPrimary} /> : null}
+        </View>
+      ) : (
+        <Pressable
+          style={({ pressed }) => [noteStyles.pinBtn, pressed ? styles.pressDown : null]}
+          onPress={() => onTogglePin(note.id)}
+          hitSlop={8}
+        >
+          <Ionicons
+            name={note.isPinned ? "bookmark" : "bookmark-outline"}
+            size={16}
+            color={note.isPinned ? colors.primary : colors.textMuted}
+          />
+        </Pressable>
+      )}
     </Pressable>
   );
 }
@@ -115,7 +149,22 @@ export function NotepadScreenContent() {
     handleUpdateNote,
     handleTogglePin,
     handleDeleteNote,
+
+    selectionMode,
+    selectedNoteIds,
+    allSelected,
+    allSelectedPinned,
+    beginSelection,
+    toggleSelectNote,
+    cancelSelection,
+    selectAllVisible,
+    handleDeleteSelected,
+    handleToggleSelectedPin,
+    handleDuplicateSelected,
+    handleShareSelected,
+    handleStartAddToSong,
   } = useNotepadScreenModel();
+  const [moreVisible, setMoreVisible] = useState(false);
 
   if (activeNote) {
     return (
@@ -129,78 +178,151 @@ export function NotepadScreenContent() {
     );
   }
 
+  const emptyBody = "Verses, hooks, and lines that don't have a song yet.";
+  const countLabel = `${totalNoteCount} page${totalNoteCount === 1 ? "" : "s"} of lyrics and loose lines.`;
+  const selectedCount = selectedNoteIds.length;
+
+  function confirmDeleteSelected() {
+    AppAlert.destructive(
+      selectedCount === 1 ? "Delete page?" : `Delete ${selectedCount} pages?`,
+      "This can't be undone.",
+      handleDeleteSelected,
+      { confirmLabel: "Delete" }
+    );
+  }
+
+  function handleDuplicatePress() {
+    const count = handleDuplicateSelected();
+    AppAlert.info("Duplicated", `${count} page${count === 1 ? "" : "s"} added as a copy.`);
+  }
+
+  const dockActions: SelectionAction[] = [
+    {
+      key: "add-to-song",
+      label: "Add to Song",
+      icon: "albums-outline",
+      onPress: handleStartAddToSong,
+    },
+    {
+      key: "pin",
+      label: allSelectedPinned ? "Unpin" : "Pin",
+      icon: allSelectedPinned ? "bookmark" : "bookmark-outline",
+      onPress: handleToggleSelectedPin,
+    },
+    {
+      key: "delete",
+      label: "Delete",
+      icon: "trash-outline",
+      tone: "danger",
+      onPress: confirmDeleteSelected,
+    },
+    {
+      key: "more",
+      label: "More",
+      icon: "ellipsis-horizontal",
+      onPress: () => setMoreVisible(true),
+    },
+  ];
+
+  const sheetActions: SelectionAction[] = [
+    {
+      key: "duplicate",
+      label: "Duplicate",
+      icon: "copy-outline",
+      onPress: handleDuplicatePress,
+    },
+    {
+      key: "share",
+      label: "Share",
+      icon: "share-social-outline",
+      onPress: handleShareSelected,
+    },
+  ];
+
   return (
-    <SafeAreaView style={listStyles.shell} edges={["top", "bottom"]}>
-      <ScreenHeader
-        title="Notepad"
-        rightElement={
-          <Pressable
-            style={({ pressed }) => [listStyles.newBtn, pressed ? styles.pressDown : null]}
-            onPress={handleNewNote}
-          >
-            <Ionicons name="add" size={22} color="#824f3f" />
-          </Pressable>
-        }
-      />
+    <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
+      {!selectionMode ? (
+        <ScreenHeader
+          title="Lyrics Pad"
+          rightElement={
+            <Pressable
+              style={({ pressed }) => [listStyles.newBtn, pressed ? styles.pressDown : null]}
+              onPress={handleNewNote}
+              hitSlop={4}
+            >
+              <Ionicons name="add" size={22} color={colors.primary} />
+            </Pressable>
+          }
+        />
+      ) : null}
 
       {totalNoteCount === 0 ? (
         <View style={listStyles.emptyState}>
-          <Pressable
-            style={({ pressed }) => [listStyles.emptyAction, pressed ? styles.pressDown : null]}
-            onPress={handleNewNote}
-          >
-            <Ionicons name="add" size={28} color="#824f3f" />
-          </Pressable>
+          <View style={listStyles.emptyIconWrap}>
+            <Ionicons name="document-text-outline" size={26} color={colors.primary} />
+          </View>
+          <Text style={listStyles.emptyTitle}>A blank page</Text>
+          <Text style={listStyles.emptyBody}>{emptyBody}</Text>
+          <Button label="Write something" onPress={handleNewNote} style={listStyles.emptyAction} />
         </View>
       ) : (
         <>
-          <View style={listStyles.searchBar}>
-            <Ionicons name="search" size={16} color="#84736f" />
-            <TextInput
-              style={listStyles.searchInput}
-              placeholder="Search notes"
-              placeholderTextColor="#a89994"
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-              autoCapitalize="none"
-              autoCorrect={false}
-              returnKeyType="search"
-            />
-            {searchQuery.length > 0 ? (
-              <Pressable
-                onPress={() => setSearchQuery("")}
-                hitSlop={8}
-                style={({ pressed }) => [listStyles.searchClear, pressed ? styles.pressDown : null]}
-              >
-                <Ionicons name="close-circle" size={16} color="#84736f" />
-              </Pressable>
-            ) : null}
-          </View>
+          {!selectionMode ? <Text style={listStyles.countLabel}>{countLabel}</Text> : null}
+          <SearchField
+            value={searchQuery}
+            placeholder="Search notes"
+            onChangeText={setSearchQuery}
+            containerStyle={listStyles.searchField}
+          />
+
+          {selectionMode ? (
+            <View style={listStyles.selectionBarWrap}>
+              <SelectionTopBar
+                count={selectedCount}
+                allSelected={allSelected}
+                onSelectAll={selectAllVisible}
+                onCancel={cancelSelection}
+              />
+            </View>
+          ) : null}
 
           {isSearching && sections.length === 0 ? (
             <View style={listStyles.emptyState}>
-              <Ionicons name="search" size={28} color="#c4b5b2" />
+              <Ionicons name="search-outline" size={26} color={colors.textMuted} />
               <Text style={listStyles.emptyTitle}>No matches</Text>
+              <Text style={listStyles.emptyBody}>
+                Try a different word — search looks through every page's title and body.
+              </Text>
             </View>
           ) : (
             <ScrollView
               style={listStyles.scroll}
-              contentContainerStyle={listStyles.scrollContent}
+              contentContainerStyle={[
+                listStyles.scrollContent,
+                selectionMode ? listStyles.scrollContentSelecting : null,
+              ]}
               showsVerticalScrollIndicator={false}
               keyboardShouldPersistTaps="handled"
             >
               {sections.map((section) => (
                 <View key={section.key} style={listStyles.section}>
-                  <Text style={listStyles.sectionLabel}>{section.label}</Text>
-                  <View style={listStyles.sectionList}>
+                  <View style={listStyles.sectionHeaderRow}>
+                    <Text style={listStyles.sectionLabel}>{section.label}</Text>
+                    <Text style={listStyles.sectionCount}>{section.notes.length}</Text>
+                  </View>
+                  <View style={listStyles.sectionStack}>
                     {section.notes.map((note) => (
                       <NoteListItem
                         key={note.id}
                         note={note}
                         searchQuery={searchQuery}
-                        sectionLabel={section.label}
+                        sectionKey={section.key}
+                        selectionMode={selectionMode}
+                        isSelected={selectedNoteIds.includes(note.id)}
                         onPress={handleOpenNote}
                         onTogglePin={handleTogglePin}
+                        onBeginSelection={beginSelection}
+                        onToggleSelect={toggleSelectNote}
                       />
                     ))}
                   </View>
@@ -210,101 +332,123 @@ export function NotepadScreenContent() {
           )}
         </>
       )}
+
+      {selectionMode ? <SelectionDock actions={dockActions} /> : null}
+
+      <SelectionActionSheet
+        visible={moreVisible}
+        title="Page actions"
+        actions={sheetActions}
+        onClose={() => setMoreVisible(false)}
+      />
     </SafeAreaView>
   );
 }
 
 const listStyles = StyleSheet.create({
-  shell: {
-    flex: 1,
-    backgroundColor: "#fbf9f5",
-    paddingHorizontal: 16,
-  },
   newBtn: {
     width: 40,
     height: 40,
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: 8,
+    borderRadius: radii.round,
+  },
+  countLabel: {
+    ...textTokens.supporting,
+    marginBottom: spacing.md,
+  },
+  searchField: {
+    marginBottom: spacing.lg,
+  },
+  selectionBarWrap: {
+    marginBottom: spacing.md,
   },
   scroll: {
     flex: 1,
   },
   scrollContent: {
-    gap: 20,
+    gap: 22,
     paddingBottom: 32,
   },
+  scrollContentSelecting: {
+    paddingBottom: 100,
+  },
   section: {
-    gap: 8,
+    gap: spacing.md,
+  },
+  sectionHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
   },
   sectionLabel: {
-    fontSize: 11,
-    fontWeight: "700",
-    color: "#84736f",
-    letterSpacing: 0.6,
-    textTransform: "uppercase",
-    paddingHorizontal: 4,
-    marginBottom: 2,
+    ...textTokens.sectionTitle,
+    color: colors.textPrimary,
+    letterSpacing: 0.5,
   },
-  sectionList: {
-    gap: 8,
+  sectionCount: {
+    ...textTokens.caption,
+    color: colors.textStrong,
+    backgroundColor: colors.surfaceHigh,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: radii.round,
+    overflow: "hidden",
+  },
+  sectionStack: {
+    gap: spacing.sm,
   },
   emptyState: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    gap: 12,
-    paddingHorizontal: 32,
+    gap: spacing.sm,
+    paddingHorizontal: 36,
     paddingBottom: 60,
   },
-  emptyAction: {
-    width: 64,
-    height: 64,
+  emptyIconWrap: {
+    width: 56,
+    height: 56,
+    borderRadius: radii.round,
+    backgroundColor: colors.surfaceContainer,
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: 6,
-    backgroundColor: "#efeeea",
+    marginBottom: spacing.xs,
   },
   emptyTitle: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#84736f",
-    letterSpacing: 0.3,
+    fontFamily: "PlayfairDisplay_600SemiBold",
+    fontSize: 20,
+    color: colors.textPrimary,
   },
-  searchBar: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    backgroundColor: "#efeeea",
-    borderRadius: 6,
-    paddingHorizontal: 12,
-    height: 38,
-    marginBottom: 12,
+  emptyBody: {
+    ...textTokens.supporting,
+    textAlign: "center",
+    lineHeight: 19,
   },
-  searchInput: {
-    flex: 1,
-    fontSize: 15,
-    color: "#1b1c1a",
-    paddingVertical: 0,
-  },
-  searchClear: {
-    width: 20,
-    height: 20,
-    alignItems: "center",
-    justifyContent: "center",
+  emptyAction: {
+    marginTop: spacing.md,
   },
 });
 
 const noteStyles = StyleSheet.create({
   card: {
-    backgroundColor: "#ffffff",
-    borderRadius: 4,
+    backgroundColor: colors.surfaceContainer,
+    borderRadius: radii.md,
     paddingVertical: 14,
     paddingLeft: 16,
     paddingRight: 12,
     flexDirection: "row",
     alignItems: "flex-start",
-    gap: 8,
+    gap: spacing.sm,
+    borderWidth: 2,
+    borderColor: "transparent",
+  },
+  cardPinned: {
+    borderLeftColor: colors.primary,
+    borderLeftWidth: 2,
+  },
+  cardSelected: {
+    borderColor: colors.primary,
   },
   cardBody: {
     flex: 1,
@@ -312,22 +456,22 @@ const noteStyles = StyleSheet.create({
     minWidth: 0,
   },
   cardTitle: {
+    fontFamily: "PlusJakartaSans_700Bold",
     fontSize: 16,
-    fontWeight: "700",
-    color: "#1b1c1a",
+    color: colors.textPrimary,
     lineHeight: 22,
   },
   cardPreview: {
-    fontSize: 13,
-    color: "#524440",
-    lineHeight: 19,
+    ...textTokens.supporting,
+    lineHeight: 17,
+  },
+  cardPreviewEmpty: {
+    ...textTokens.supporting,
+    color: colors.textMuted,
+    fontStyle: "italic",
   },
   cardMeta: {
-    fontSize: 10,
-    color: "#84736f",
-    fontWeight: "600",
-    letterSpacing: 0.05,
-    textTransform: "uppercase",
+    ...textTokens.annotation,
     marginTop: 2,
   },
   pinBtn: {
@@ -336,6 +480,20 @@ const noteStyles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     marginTop: 1,
+  },
+  selectIndicator: {
+    width: 22,
+    height: 22,
+    borderRadius: radii.round,
+    borderWidth: 1.5,
+    borderColor: colors.borderMuted,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 2,
+  },
+  selectIndicatorChecked: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   matchText: {
     backgroundColor: "#f0d4cc",
