@@ -4,6 +4,8 @@ import { formatDate } from "../../utils";
 
 type RecordingLyricsSectionProps = {
   text: string;
+  monospace?: boolean;
+  summaryText?: string;
   versionCount: number;
   updatedAt: number;
   elapsedMs: number;
@@ -20,6 +22,8 @@ type RecordingLyricsSectionProps = {
 
 export function RecordingLyricsSection({
   text,
+  monospace,
+  summaryText,
   versionCount,
   updatedAt,
   elapsedMs,
@@ -36,6 +40,8 @@ export function RecordingLyricsSection({
   return (
     <PlayerLyricsPanel
       text={text}
+      monospace={monospace}
+      summaryText={summaryText}
       versionLabel={`Version ${versionCount}`}
       updatedAtLabel={formatDate(updatedAt)}
       autoscrollState={{

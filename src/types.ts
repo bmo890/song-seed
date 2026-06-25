@@ -72,10 +72,46 @@ export type EditRegion = {
   type: EditActionType;
 };
 
+export type ChordRoot = "A" | "B" | "C" | "D" | "E" | "F" | "G";
+export type ChordAccidental = "natural" | "sharp" | "flat";
+
+/** A chord anchored to a position in a lyric line. `chord` is the rendered
+ * display text (e.g. "C♯m7/G♯") and `at` is the character index it sits above —
+ * both kept for backward compatibility. The optional structured fields let the
+ * picker rebuild/edit the chord without re-parsing the display string. */
 export type ChordPlacement = {
   id: string;
+  /** Display text, e.g. "Cmaj7". */
   chord: string;
+  /** Character index in the lyric line this chord is anchored above. */
   at: number;
+  /** Structured parts (optional; absent on legacy chords typed as free text). */
+  root?: ChordRoot;
+  accidental?: ChordAccidental;
+  quality?: string;
+  extension?: string;
+  bassRoot?: ChordRoot;
+  bassAccidental?: ChordAccidental;
+  customSuffix?: string;
+  wordIndex?: number;
+  createdAt?: number;
+  updatedAt?: number;
+};
+
+/** A reusable chord saved/used within a single song, surfaced as quick-insert
+ * buttons. Not a global favourites system. */
+export type SongChordPaletteItem = {
+  id: string;
+  displayText: string;
+  root?: ChordRoot;
+  accidental?: ChordAccidental;
+  quality?: string;
+  extension?: string;
+  bassRoot?: ChordRoot;
+  bassAccidental?: ChordAccidental;
+  customSuffix?: string;
+  useCount?: number;
+  lastUsedAt?: number;
 };
 
 export type LyricsLine = {
@@ -230,6 +266,8 @@ export type SongIdea = {
   collectionId: string;
   clips: ClipVersion[];
   lyrics?: ProjectLyrics;
+  /** Chords saved/used within this song, surfaced as quick-insert buttons. */
+  chordPalette?: SongChordPaletteItem[];
   customTags?: CustomTagDefinition[];
   clipGroups?: ClipGroup[];
   clipGroupAssignments?: Record<string, string>;

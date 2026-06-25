@@ -8,6 +8,7 @@ import type {
     IdeaStatus,
     LyricsVersion,
     PracticeMarker,
+    SongChordPaletteItem,
 } from "../types";
 
 /**
@@ -124,6 +125,8 @@ export type ArchiveSongManifest = {
     clipGroupAssignments?: Record<string, string>;
     /** All lyric versions with their full documents (chords included). */
     lyricsVersions?: LyricsVersion[];
+    /** Song-level quick-insert chord palette. */
+    chordPalette?: SongChordPaletteItem[];
 };
 
 export type ArchiveCollectionManifest = {

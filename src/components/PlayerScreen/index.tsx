@@ -10,6 +10,7 @@ import type { RootStackParamList } from "../../../App";
 import type { ClipSection, PracticeMarker } from "../../types";
 import { styles } from "../../styles";
 import { colors } from "../../design/tokens";
+import { serializeChordChartText } from "../../chords";
 import { useFullPlayerContext } from "../../hooks/FullPlayerProvider";
 import { fmtDuration } from "../../utils";
 import { TransportLayout } from "../common/TransportLayout";
@@ -105,6 +106,18 @@ export function PlayerScreen() {
   const playerClip = data.playerClip;
   const resolvedDisplayDuration = data.displayDuration;
   const isMixUpdating = data.isOverdubPreviewRendering;
+  // When the latest lyric version has chords, feed the panel a monospace
+  // chord-over-lyrics chart so musicians can read chords while playing.
+  const lyricsBody = useMemo(() => {
+    const lines = data.latestLyricsVersion?.document.lines ?? [];
+    const hasChords = lines.some((line) => line.chords.length > 0);
+    if (!hasChords) return { text: data.latestLyricsText, monospace: false, summary: undefined as string | undefined };
+    return {
+      text: serializeChordChartText(lines),
+      monospace: true,
+      summary: lines.find((line) => line.text.trim().length > 0)?.text ?? "",
+    };
+  }, [data.latestLyricsVersion, data.latestLyricsText]);
   // While a pin is dragged/nudged we override its position locally so the reel moves live,
   // without writing the whole library snapshot to SQLite on every tick.
   const previewedMarkers = useMemo(() => {
@@ -704,7 +717,9 @@ export function PlayerScreen() {
           ) : (
             <PlayerSupportSections
               hasProjectLyrics={data.hasProjectLyrics}
-              latestLyricsText={data.latestLyricsText}
+              latestLyricsText={lyricsBody.text}
+              lyricsMonospace={lyricsBody.monospace}
+              lyricsSummary={lyricsBody.summary}
               lyricsVersionCount={playerIdea.lyrics?.versions.length ?? 1}
               latestLyricsUpdatedAt={data.latestLyricsVersion?.updatedAt ?? null}
               lyricsExpanded={ui.lyricsExpanded}

@@ -3,6 +3,7 @@ import {
   LayoutChangeEvent,
   NativeScrollEvent,
   NativeSyntheticEvent,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -17,6 +18,10 @@ type Props = {
   text: string;
   versionLabel: string;
   updatedAtLabel: string;
+  /** Render the body in a monospace font so chord-over-lyric columns stay aligned. */
+  monospace?: boolean;
+  /** Collapsed-state preview line; defaults to the first meaningful line of `text`. */
+  summaryText?: string;
   autoscrollState?: LyricsAutoscrollState;
   variant?: "default" | "recording";
   expanded?: boolean;
@@ -45,6 +50,8 @@ function PlayerLyricsPanelInner({
   text,
   versionLabel,
   updatedAtLabel,
+  monospace = false,
+  summaryText,
   autoscrollState,
   variant = "default",
   expanded,
@@ -72,12 +79,16 @@ function PlayerLyricsPanelInner({
   const effectiveDurationMs = baseDurationMs / autoscrollSpeedMultiplier;
   const autoscrollSpeedPxPerSecond = maxOffset > 0 ? maxOffset / (effectiveDurationMs / 1000) : 0;
   const previewText = useMemo(() => {
+    if (summaryText !== undefined) return summaryText;
     const firstMeaningfulLine = text
       .split("\n")
       .map((line) => line.trim())
       .find((line) => line.length > 0);
     return firstMeaningfulLine ?? "";
-  }, [text]);
+  }, [summaryText, text]);
+
+  const monoFont = Platform.select({ ios: "Menlo", android: "monospace", default: "monospace" });
+  const monoTextStyle = monospace ? { fontFamily: monoFont } : null;
 
   if (!text.trim()) return null;
 
@@ -222,7 +233,15 @@ function PlayerLyricsPanelInner({
               persistentScrollbar
               scrollEventThrottle={16}
             >
-              <Text style={[appStyles.playerLyricsText, appStyles.recordingLyricsText]}>{text}</Text>
+              {monospace ? (
+                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                  <Text style={[appStyles.playerLyricsText, appStyles.recordingLyricsText, monoTextStyle]}>
+                    {text}
+                  </Text>
+                </ScrollView>
+              ) : (
+                <Text style={[appStyles.playerLyricsText, appStyles.recordingLyricsText]}>{text}</Text>
+              )}
             </ScrollView>
           </View>
         ) : null}
@@ -263,7 +282,13 @@ function PlayerLyricsPanelInner({
             showsVerticalScrollIndicator={false}
             scrollEventThrottle={16}
           >
-            <Text style={styles.text}>{text}</Text>
+            {monospace ? (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                <Text style={[styles.text, monoTextStyle]}>{text}</Text>
+              </ScrollView>
+            ) : (
+              <Text style={styles.text}>{text}</Text>
+            )}
           </ScrollView>
         </View>
       ) : null}

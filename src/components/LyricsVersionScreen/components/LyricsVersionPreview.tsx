@@ -2,11 +2,17 @@ import type { ReactNode } from "react";
 import { ScrollView, Text, View } from "react-native";
 import { Button } from "../../common/Button";
 import { styles } from "../styles";
+import type { LyricsLine } from "../../../types";
+import { ChordChart } from "./chords/ChordChart";
 
 type LyricsVersionPreviewProps = {
   sourceText: string;
+  lines: LyricsLine[];
+  hasChords: boolean;
+  canChart: boolean;
   showNewDraft: boolean;
   onEdit: () => void;
+  onChords: () => void;
   onNewDraft: () => void;
   onCopy: () => void;
   onLayout: (height: number) => void;
@@ -17,8 +23,12 @@ type LyricsVersionPreviewProps = {
 
 export function LyricsVersionPreview({
   sourceText,
+  lines,
+  hasChords,
+  canChart,
   showNewDraft,
   onEdit,
+  onChords,
   onNewDraft,
   onCopy,
   onLayout,
@@ -35,6 +45,15 @@ export function LyricsVersionPreview({
           style={styles.lyricsActionBtn}
           textStyle={styles.lyricsActionBtnText}
         />
+        {canChart ? (
+          <Button
+            variant="secondary"
+            label="Chords"
+            onPress={onChords}
+            style={styles.lyricsActionBtn}
+            textStyle={styles.lyricsActionBtnText}
+          />
+        ) : null}
         {showNewDraft ? (
           <Button
             variant="secondary"
@@ -59,20 +78,27 @@ export function LyricsVersionPreview({
             styles.lyricsPreviewWrapExpanded,
             styles.lyricsPreviewWrapDocument,
             styles.lyricsScrollableWrap,
+            hasChords ? { paddingHorizontal: 0, paddingVertical: 0 } : null,
           ]}
           onLayout={(event) => onLayout(event.nativeEvent.layout.height)}
         >
-          <ScrollView
-            style={styles.flexFill}
-            contentContainerStyle={styles.lyricsVersionPreviewContent}
-            showsVerticalScrollIndicator={false}
-            onContentSizeChange={(_, height) => onContentSizeChange(height)}
-            onScroll={(event) => onScroll(event.nativeEvent.contentOffset.y)}
-            scrollEventThrottle={16}
-          >
-            <Text style={styles.lyricsPreviewText}>{sourceText || "No lyrics in this version."}</Text>
-          </ScrollView>
-          {scrollIndicator}
+          {hasChords ? (
+            <ChordChart lines={lines} editable={false} />
+          ) : (
+            <>
+              <ScrollView
+                style={styles.flexFill}
+                contentContainerStyle={styles.lyricsVersionPreviewContent}
+                showsVerticalScrollIndicator={false}
+                onContentSizeChange={(_, height) => onContentSizeChange(height)}
+                onScroll={(event) => onScroll(event.nativeEvent.contentOffset.y)}
+                scrollEventThrottle={16}
+              >
+                <Text style={styles.lyricsPreviewText}>{sourceText || "No lyrics in this version."}</Text>
+              </ScrollView>
+              {scrollIndicator}
+            </>
+          )}
         </View>
       </View>
     </View>

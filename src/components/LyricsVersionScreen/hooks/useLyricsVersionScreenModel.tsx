@@ -18,6 +18,7 @@ import { styles } from "../styles";
 import { useStore } from "../../../state/useStore";
 import { appActions } from "../../../state/actions";
 import { getLatestLyricsVersion, lyricsDocumentToText } from "../../../lyrics";
+import { serializeChordChartText } from "../../../chords";
 import { formatDate, getCollectionAncestors, getCollectionById } from "../../../utils";
 import { getCollectionHierarchyLevel } from "../../../hierarchy";
 import { openCollectionFromContext, openWorkspaceBrowseRoot } from "../../../navigation";
@@ -178,7 +179,8 @@ export function useLyricsVersionScreenModel() {
     const shouldSaveAsNew = asNewOverride ?? editSavesAsNew;
     void Haptics.selectionAsync();
     if (shouldSaveAsNew) {
-      appActions.saveProjectLyricsAsNewVersion(projectIdea.id, draftText);
+      // Base the new version on the version being edited so its chords copy forward.
+      appActions.saveProjectLyricsAsNewVersion(projectIdea.id, draftText, resolvedVersion?.document);
     } else {
       appActions.saveProjectLyrics(projectIdea.id, draftText);
     }
@@ -187,10 +189,15 @@ export function useLyricsVersionScreenModel() {
   };
 
   const copyText = () => {
-    const textToCopy = isEditMode ? draftText : sourceText;
+    // In read mode, copy a chord-over-lyrics chart when the version has chords;
+    // otherwise (and while editing) copy the plain lyric text.
+    const versionLines = resolvedVersion?.document.lines ?? [];
+    const hasChords = versionLines.some((line) => line.chords.length > 0);
+    const textToCopy =
+      !isEditMode && hasChords ? serializeChordChartText(versionLines) : isEditMode ? draftText : sourceText;
     Clipboard.setString(textToCopy);
     void Haptics.selectionAsync();
-    AppAlert.info("Copied", "Lyrics text copied to your clipboard.");
+    AppAlert.info("Copied", hasChords && !isEditMode ? "Chord chart copied to your clipboard." : "Lyrics text copied to your clipboard.");
   };
 
   const revertDraft = () => {

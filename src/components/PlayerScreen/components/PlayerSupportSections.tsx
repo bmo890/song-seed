@@ -47,6 +47,8 @@ type LayerPreviewCardProps = {
 type PlayerSupportSectionsProps = {
   hasProjectLyrics: boolean;
   latestLyricsText: string;
+  lyricsMonospace?: boolean;
+  lyricsSummary?: string;
   lyricsVersionCount: number;
   latestLyricsUpdatedAt: number | null;
   lyricsExpanded: boolean;
@@ -180,6 +182,8 @@ const LayerControlButton = React.memo(function LayerControlButton({
 export function PlayerSupportSections({
   hasProjectLyrics,
   latestLyricsText,
+  lyricsMonospace,
+  lyricsSummary,
   lyricsVersionCount,
   latestLyricsUpdatedAt,
   lyricsExpanded,
@@ -320,6 +324,8 @@ export function PlayerSupportSections({
       {hasProjectLyrics && latestLyricsUpdatedAt !== null ? (
         <PlayerLyricsPanel
           text={latestLyricsText}
+          monospace={lyricsMonospace}
+          summaryText={lyricsSummary}
           versionLabel={`Version ${lyricsVersionCount}`}
           updatedAtLabel={formatDate(latestLyricsUpdatedAt)}
           autoscrollState={{

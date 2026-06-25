@@ -226,6 +226,7 @@ const READABLE_SUMMARY_OMITTED_KEYS = new Set([
     "waveformPeaks",
     "renderedMixWaveformPeaks",
     "lyricsVersions",
+    "chordPalette",
     "sections",
     "practiceMarkers",
     "editRegions",
@@ -566,6 +567,7 @@ function applyFullSongMetadata(manifest: ArchiveSongManifest, idea: SongIdea): v
     manifest.customTags = idea.customTags;
     manifest.clipGroups = idea.clipGroups;
     manifest.clipGroupAssignments = idea.clipGroupAssignments;
+    manifest.chordPalette = idea.chordPalette;
 }
 
 function buildArchiveSongManifest(

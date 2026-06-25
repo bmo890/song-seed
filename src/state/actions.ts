@@ -17,6 +17,8 @@ import {
 import { useStore } from "./useStore";
 import { createEmptyProjectLyrics, createEmptyWorkspaceIdeasListState, normalizeWorkspaces } from "./dataSlice";
 import { createLyricsVersion, lyricsTextToDocument } from "../lyrics";
+import { buildChordDisplay, clampChordIndex, recordChordInPalette, type ChordParts } from "../chords";
+import type { ChordPlacement, LyricsDocument, LyricsLine } from "../types";
 import { buildLyricsTextFromNote } from "../notepad";
 import { buildDefaultIdeaTitle, ensureUniqueCountedTitle, ensureUniqueIdeaTitle } from "../utils";
 import { archiveWorkspaceToDevice, restoreWorkspaceFromDevice } from "../services/workspaceArchive";
@@ -79,6 +81,35 @@ function buildLyricsLineId() {
 
 function buildChordPlacementId() {
     return buildEntityId("chord");
+}
+
+function buildChordPaletteId() {
+    return buildEntityId("palette-chord");
+}
+
+/** Applies `updater` to a single lyric line within a single version of a project
+ * idea, bumping the version's updatedAt. Returns the idea unchanged if anything
+ * is missing, so callers stay safe against stale ids. */
+function updateLyricsLineInVersion(
+    idea: SongIdea,
+    versionId: string,
+    lineId: string,
+    updater: (line: LyricsLine) => LyricsLine
+): SongIdea {
+    if (idea.kind !== "project" || !idea.lyrics) return idea;
+    const now = Date.now();
+    let touched = false;
+    const versions = idea.lyrics.versions.map((version) => {
+        if (version.id !== versionId) return version;
+        const lines = version.document.lines.map((line) => {
+            if (line.id !== lineId) return line;
+            touched = true;
+            return updater(line);
+        });
+        return touched ? { ...version, updatedAt: now, document: { ...version.document, lines } } : version;
+    });
+    if (!touched) return idea;
+    return { ...idea, lyrics: { ...idea.lyrics, versions } };
 }
 
 function cloneClipTags(tags?: string[]) {
@@ -522,6 +553,7 @@ function cloneIdeaForCopy(idea: SongIdea, collectionId: string): SongIdea {
             lastActivityAt: now,
             clips: cloneProjectClipsForCopy(idea.clips, now),
             lyrics: cloneLyricsForCopy(idea.lyrics, now),
+            chordPalette: idea.chordPalette ? idea.chordPalette.map((item) => ({ ...item })) : undefined,
             customTags: cloneCustomTags(idea.customTags),
         };
     }
@@ -1509,7 +1541,7 @@ export const appActions = {
         state.logIdeaActivity(projectId, "updated", "lyrics-save");
     },
 
-    saveProjectLyricsAsNewVersion: (projectId: string, text: string) => {
+    saveProjectLyricsAsNewVersion: (projectId: string, text: string, baseDocument?: LyricsDocument) => {
         const state = useStore.getState();
         state.updateIdeas((prev) =>
             prev.map((idea) => {
@@ -1517,7 +1549,9 @@ export const appActions = {
 
                 const versions = idea.lyrics?.versions ?? [];
                 const latestVersion = versions[versions.length - 1];
-                const nextDocument = lyricsTextToDocument(text, latestVersion?.document);
+                // Carry chords forward from the version the draft was based on (when
+                // provided) so charting an older version and forking it keeps its chart.
+                const nextDocument = lyricsTextToDocument(text, baseDocument ?? latestVersion?.document);
 
                 return {
                     ...idea,
@@ -1528,6 +1562,92 @@ export const appActions = {
             })
         );
         state.logIdeaActivity(projectId, "updated", "lyrics-save");
+    },
+
+    /** Adds a new chord (no id) or updates an existing one (with id) on a lyric
+     * line, and records it in the song's quick-insert palette. */
+    upsertChordPlacement: (
+        projectId: string,
+        versionId: string,
+        lineId: string,
+        input: ChordParts & { at: number; id?: string }
+    ) => {
+        const display = buildChordDisplay(input);
+        if (!display) return;
+        const now = Date.now();
+        const state = useStore.getState();
+        state.updateIdeas((prev) =>
+            prev.map((idea) => {
+                if (idea.id !== projectId || idea.kind !== "project") return idea;
+
+                let placement: ChordPlacement | null = null;
+                const withChord = updateLyricsLineInVersion(idea, versionId, lineId, (line) => {
+                    const at = clampChordIndex(input.at, line.text.length);
+                    const existing = input.id ? line.chords.find((chord) => chord.id === input.id) : undefined;
+                    placement = {
+                        id: input.id ?? buildChordPlacementId(),
+                        chord: display,
+                        at,
+                        root: input.root,
+                        accidental: input.accidental,
+                        quality: input.quality,
+                        extension: input.extension,
+                        bassRoot: input.bassRoot,
+                        bassAccidental: input.bassAccidental,
+                        customSuffix: input.customSuffix,
+                        createdAt: existing?.createdAt ?? now,
+                        updatedAt: now,
+                    };
+                    const chords = existing
+                        ? line.chords.map((chord) => (chord.id === input.id ? placement! : chord))
+                        : [...line.chords, placement!];
+                    return { ...line, chords };
+                });
+
+                if (!placement) return idea;
+                return {
+                    ...withChord,
+                    chordPalette: recordChordInPalette(idea.chordPalette, placement, buildChordPaletteId(), now),
+                };
+            })
+        );
+        state.logIdeaActivity(projectId, "updated", "lyrics-save");
+    },
+
+    /** Repositions a chord's character anchor (used on drag-end). */
+    moveChordPlacement: (
+        projectId: string,
+        versionId: string,
+        lineId: string,
+        chordId: string,
+        at: number
+    ) => {
+        const now = Date.now();
+        useStore.getState().updateIdeas((prev) =>
+            prev.map((idea) => {
+                if (idea.id !== projectId || idea.kind !== "project") return idea;
+                return updateLyricsLineInVersion(idea, versionId, lineId, (line) => ({
+                    ...line,
+                    chords: line.chords.map((chord) =>
+                        chord.id === chordId
+                            ? { ...chord, at: clampChordIndex(at, line.text.length), updatedAt: now }
+                            : chord
+                    ),
+                }));
+            })
+        );
+    },
+
+    removeChordPlacement: (projectId: string, versionId: string, lineId: string, chordId: string) => {
+        useStore.getState().updateIdeas((prev) =>
+            prev.map((idea) => {
+                if (idea.id !== projectId || idea.kind !== "project") return idea;
+                return updateLyricsLineInVersion(idea, versionId, lineId, (line) => ({
+                    ...line,
+                    chords: line.chords.filter((chord) => chord.id !== chordId),
+                }));
+            })
+        );
     },
 
     /** Finishes a Lyrics Pad "Add to Song" navigate-and-pick flow: adds each pending

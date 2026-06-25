@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { KeyboardAvoidingView, Text } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { StatusBar as ExpoStatusBar } from "expo-status-bar";
@@ -8,12 +9,25 @@ import { useLyricsVersionScreenModel } from "../hooks/useLyricsVersionScreenMode
 import { LyricsVersionEditor } from "./LyricsVersionEditor";
 import { LyricsVersionPreview } from "./LyricsVersionPreview";
 import { LyricsVersionUnavailableState } from "./LyricsVersionUnavailableState";
+import { ChordChartEditor } from "./chords/ChordChartEditor";
 
 export function LyricsVersionScreenContent() {
   const insets = useSafeAreaInsets();
   const model = useLyricsVersionScreenModel();
+  const [chordEditMode, setChordEditMode] = useState(false);
+
+  const resolvedVersionId = model.resolvedVersion?.id;
+  // Leave chord-edit mode whenever the underlying version changes or text editing begins.
+  useEffect(() => {
+    setChordEditMode(false);
+  }, [resolvedVersionId, model.isEditMode]);
 
   if (!model.projectIdea) return <LyricsVersionUnavailableState />;
+
+  const lines = model.resolvedVersion?.document.lines ?? [];
+  const hasChords = lines.some((line) => line.chords.length > 0);
+  const canChart = !!model.resolvedVersion && lines.length > 0;
+  const showChordEditor = chordEditMode && !model.isEditMode && !!model.resolvedVersion;
 
   return (
     <SafeAreaView style={styles.screen} edges={["top", "left", "right"]}>
@@ -46,11 +60,22 @@ export function LyricsVersionScreenContent() {
               model.editorScrollY
             )}
           />
+        ) : showChordEditor ? (
+          <ChordChartEditor
+            ideaId={model.projectIdea.id}
+            version={model.resolvedVersion!}
+            palette={model.projectIdea.chordPalette}
+            onDone={() => setChordEditMode(false)}
+          />
         ) : (
           <LyricsVersionPreview
             sourceText={model.sourceText}
+            lines={lines}
+            hasChords={hasChords}
+            canChart={canChart}
             showNewDraft={model.isLatestSource}
             onEdit={model.beginEdit}
+            onChords={() => setChordEditMode(true)}
             onNewDraft={model.beginNewDraft}
             onCopy={model.copyText}
             onLayout={model.setPreviewViewportHeight}

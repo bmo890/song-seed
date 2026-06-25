@@ -1,4 +1,5 @@
 import { LyricsDocument, LyricsLine, LyricsVersion, SongIdea } from "./types";
+import { clampChordIndex } from "./chords";
 
 function buildLyricsLineId() {
   return `lyrics-line-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -24,7 +25,14 @@ export function lyricsTextToDocument(text: string, previousDocument?: LyricsDocu
 
   const lines: LyricsLine[] = rawLines.map((lineText, index) => {
     const previousLine = previousLines[index];
-    const preserveChords = previousLine?.text === lineText ? previousLine.chords : [];
+    // Keep chords anchored to the same line index across edits. When the text is
+    // unchanged the anchors are exact; when it changed we clamp each anchor into
+    // the new length rather than dropping the chart the writer built.
+    const previousChords = previousLine?.chords ?? [];
+    const preserveChords =
+      previousLine?.text === lineText
+        ? previousChords
+        : previousChords.map((chord) => ({ ...chord, at: clampChordIndex(chord.at, lineText.length) }));
 
     return {
       id: previousLine?.id ?? buildLyricsLineId(),

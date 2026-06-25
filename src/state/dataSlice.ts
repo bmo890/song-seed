@@ -17,6 +17,7 @@ import {
     LyricsVersion,
     LyricsLine,
     ChordPlacement,
+    SongChordPaletteItem,
     IdeasListState,
     IdeasHiddenDay,
     WorkspaceArchiveState,
@@ -384,7 +385,10 @@ function deriveIdeaLastActivityTimestamp(idea: SongIdea) {
 }
 
 function normalizeChordPlacement(chord: ChordPlacement | undefined, lineIndex: number, chordIndex: number): ChordPlacement {
+    // Preserve the optional structured fields (root/quality/bass/etc.) so chord
+    // metadata survives normalization and round-trips through backup/import.
     return {
+        ...chord,
         id: chord?.id || `chord-${lineIndex + 1}-${chordIndex + 1}`,
         chord: chord?.chord ?? "",
         at: Number.isFinite(chord?.at) ? chord!.at : 0,
@@ -433,6 +437,15 @@ function isNormalizedProjectLyrics(lyrics: ProjectLyrics) {
             )
         )
     );
+}
+
+function normalizeChordPalette(palette: SongChordPaletteItem[] | undefined): SongChordPaletteItem[] | undefined {
+    if (!Array.isArray(palette)) return undefined;
+    const cleaned = palette.filter(
+        (item): item is SongChordPaletteItem =>
+            !!item && typeof item.id === "string" && typeof item.displayText === "string" && item.displayText.length > 0
+    );
+    return cleaned.length > 0 ? cleaned : undefined;
 }
 
 function normalizeProjectLyrics(lyrics?: ProjectLyrics): ProjectLyrics {
@@ -616,9 +629,11 @@ function normalizeIdea(idea: SongIdea): SongIdea {
     }
 
     const normalizedLyrics = normalizeProjectLyrics(idea.lyrics);
+    const normalizedChordPalette = normalizeChordPalette(idea.chordPalette);
     let normalizedIdea: SongIdea = {
         ...idea,
         clips: idea.clips.map(normalizeClip),
+        chordPalette: normalizedChordPalette,
         importedAt: normalizeOptionalTimestamp(idea.importedAt),
         sourceCreatedAt: normalizeOptionalTimestamp(idea.sourceCreatedAt),
         isBookmarked: Boolean(idea.isBookmarked ?? legacyFavorite),
