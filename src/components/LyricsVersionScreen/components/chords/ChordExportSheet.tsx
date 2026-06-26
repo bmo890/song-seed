@@ -25,8 +25,8 @@ export function ChordExportSheet({ visible, onClose, onExportPdf, onExportText, 
       />
       <Option
         icon="text-outline"
-        title="Text & ChordPro"
-        body="Chord-over-lyrics plus ChordPro, to paste into other apps."
+        title="Text"
+        body="Plain chords-over-lyrics to share or paste into other apps."
         onPress={onExportText}
       />
       {onCopy ? (
