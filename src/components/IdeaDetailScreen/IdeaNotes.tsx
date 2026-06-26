@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from "react";
-import { Pressable, StyleProp, Text, TextInput, View, ViewStyle } from "react-native";
+import { Pressable, StyleProp, Text, View, ViewStyle } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { styles } from "./styles";
-import { Button } from "../common/Button";
 import { appActions } from "../../state/actions";
+import { SongNotesEditor } from "./components/SongNotesEditor";
 
 type IdeaNotesProps = {
     isEditMode: boolean;
@@ -23,87 +23,118 @@ export function IdeaNotes({
     tabMode = false,
 }: IdeaNotesProps) {
     const [isEditingNotes, setIsEditingNotes] = useState(false);
-    const [draftNotes, setDraftNotes] = useState(notes);
 
+    // Editing isn't available while the song itself is being edited.
     useEffect(() => {
-        if (!isEditingNotes) {
-            setDraftNotes(notes);
-        }
-    }, [isEditingNotes, notes]);
-
-    useEffect(() => {
-        if (isEditMode) {
-            setIsEditingNotes(false);
-        }
+        if (isEditMode) setIsEditingNotes(false);
     }, [isEditMode]);
+
+    // A focused, keyboard-safe editor replaces the old in-place textareas.
+    const editor = (
+        <SongNotesEditor
+            visible={isEditingNotes}
+            initialNotes={notes}
+            onSave={(text) => {
+                appActions.setIdeaNotes(text);
+                setIsEditingNotes(false);
+            }}
+            onClose={() => setIsEditingNotes(false)}
+        />
+    );
 
     // -- Tab mode: full-width layout for the Notes tab --
     if (tabMode && !isEditMode) {
-        if (isEditingNotes) {
+        if (!notes.trim()) {
             return (
-                <View style={[styles.songDetailTabPanelWrap, cardStyle]}>
+                <>
+                    <Pressable
+                        style={[styles.songNotesTabEmpty, cardStyle]}
+                        onPress={() => setIsEditingNotes(true)}
+                    >
+                        <Ionicons name="document-text-outline" size={32} color="#a89994" />
+                        <Text style={styles.songNotesTabEmptyTitle}>No notes yet</Text>
+                        <Text style={styles.songNotesTabEmptySubtitle}>Tap to start writing</Text>
+                    </Pressable>
+                    {editor}
+                </>
+            );
+        }
+
+        return (
+            <>
+                <Pressable
+                    style={({ pressed }) => [
+                        styles.songDetailTabPanelWrap,
+                        cardStyle,
+                        pressed ? styles.pressDown : null,
+                    ]}
+                    onPress={() => setIsEditingNotes(true)}
+                >
                     <View style={styles.songDetailMiniCardHeader}>
                         <View style={styles.songDetailMiniCardTitleWrap}>
                             <Ionicons name="create-outline" size={14} color="#84736f" />
                             <Text style={styles.songDetailMiniCardTitle}>Notes</Text>
                         </View>
-                        <Text style={styles.songDetailMiniCardMetaText}>Editing</Text>
+                        <View style={styles.songDetailMiniCardActionWrap}>
+                            <Text style={styles.songDetailMiniCardActionText}>Edit</Text>
+                            <Ionicons name="chevron-forward" size={14} color="#a89994" />
+                        </View>
                     </View>
-                    <TextInput
-                        style={styles.songNotesTabEditorInput}
-                        multiline
-                        placeholder="Write your notes here..."
-                        placeholderTextColor="#a89994"
-                        value={draftNotes}
-                        onChangeText={setDraftNotes}
-                        autoFocus
-                        editable
-                    />
-                    <View style={styles.songDetailMiniCardButtons}>
-                        <Button
-                            variant="secondary"
-                            label="Cancel"
-                            style={styles.songDetailMiniCardButton}
-                            textStyle={styles.songDetailMiniCardButtonText}
-                            onPress={() => {
-                                setDraftNotes(notes);
-                                setIsEditingNotes(false);
-                            }}
-                        />
-                        <Button
-                            label="Save"
-                            style={styles.songDetailMiniCardButton}
-                            textStyle={styles.songDetailMiniCardButtonText}
-                            onPress={() => {
-                                appActions.setIdeaNotes(draftNotes);
-                                setIsEditingNotes(false);
-                            }}
-                        />
-                    </View>
-                </View>
-            );
-        }
+                    <Text style={styles.songNotesTabBody}>{notes.trim()}</Text>
+                </Pressable>
+                {editor}
+            </>
+        );
+    }
 
-        if (!notes.trim()) {
-            return (
+    const actionLabel = isEditMode ? "Locked" : notes.trim() ? "Edit" : "Add";
+
+    if (compactRow) {
+        return (
+            <>
                 <Pressable
-                    style={[styles.songNotesTabEmpty, cardStyle]}
+                    style={({ pressed }) => [
+                        styles.card,
+                        styles.songDetailSummaryLinkCard,
+                        cardStyle,
+                        isEditMode ? styles.btnDisabled : null,
+                        pressed && !isEditMode ? styles.pressDown : null,
+                    ]}
+                    disabled={isEditMode}
                     onPress={() => setIsEditingNotes(true)}
                 >
-                    <Ionicons name="document-text-outline" size={32} color="#a89994" />
-                    <Text style={styles.songNotesTabEmptyTitle}>No notes yet</Text>
-                    <Text style={styles.songNotesTabEmptySubtitle}>Tap to start writing</Text>
+                    <View style={styles.songDetailSummaryLinkHeader}>
+                        <View style={styles.songDetailSummaryLinkLead}>
+                            <Ionicons name="create-outline" size={14} color="#84736f" />
+                            <Text style={styles.songDetailSummaryLinkTitle}>Notes</Text>
+                        </View>
+                        <View style={styles.songDetailSummaryLinkMetaWrap}>
+                            <Text style={styles.songDetailSummaryLinkMetaText}>{actionLabel}</Text>
+                            {!isEditMode ? (
+                                <Ionicons name="chevron-forward" size={14} color="#a89994" />
+                            ) : null}
+                        </View>
+                    </View>
+                    <Text style={styles.songDetailSummaryLinkBody} numberOfLines={1}>
+                        {notes.trim() || "No notes yet"}
+                    </Text>
                 </Pressable>
-            );
-        }
+                {editor}
+            </>
+        );
+    }
 
-        return (
+    return (
+        <>
             <Pressable
                 style={({ pressed }) => [
-                    styles.songDetailTabPanelWrap,
+                    styles.card,
+                    styles.songDetailMiniCard,
                     cardStyle,
-                    pressed ? styles.pressDown : null,
+                    isEditMode ? styles.btnDisabled : null,
+                    pressed && !isEditMode ? styles.pressDown : null,
                 ]}
+                disabled={isEditMode}
                 onPress={() => setIsEditingNotes(true)}
             >
                 <View style={styles.songDetailMiniCardHeader}>
@@ -112,124 +143,17 @@ export function IdeaNotes({
                         <Text style={styles.songDetailMiniCardTitle}>Notes</Text>
                     </View>
                     <View style={styles.songDetailMiniCardActionWrap}>
-                        <Text style={styles.songDetailMiniCardActionText}>Edit</Text>
-                        <Ionicons name="chevron-forward" size={14} color="#a89994" />
-                    </View>
-                </View>
-                <Text style={styles.songNotesTabBody}>
-                    {notes.trim()}
-                </Text>
-            </Pressable>
-        );
-    }
-
-    // -- Standard editing mode (inline card editor) --
-    if (isEditingNotes && !isEditMode) {
-        return (
-            <View style={[styles.card, styles.songDetailEditorCard, styles.songDetailNotesEditorCard, cardStyle]}>
-                <View style={styles.songDetailMiniCardHeader}>
-                    <View style={styles.songDetailMiniCardTitleWrap}>
-                        <Ionicons name="create-outline" size={14} color="#84736f" />
-                        <Text style={styles.songDetailMiniCardTitle}>Notes</Text>
-                    </View>
-                    <Text style={styles.songDetailMiniCardMetaText}>Editing</Text>
-                </View>
-                <TextInput
-                    style={styles.notesInput}
-                    multiline
-                    placeholder="Song notes"
-                    value={draftNotes}
-                    onChangeText={setDraftNotes}
-                    editable
-                />
-                <View style={styles.songDetailMiniCardButtons}>
-                    <Button
-                        variant="secondary"
-                        label="Cancel"
-                        style={styles.songDetailMiniCardButton}
-                        textStyle={styles.songDetailMiniCardButtonText}
-                        onPress={() => {
-                            setDraftNotes(notes);
-                            setIsEditingNotes(false);
-                        }}
-                    />
-                    <Button
-                        label="Save"
-                        style={styles.songDetailMiniCardButton}
-                        textStyle={styles.songDetailMiniCardButtonText}
-                        onPress={() => {
-                            appActions.setIdeaNotes(draftNotes);
-                            setIsEditingNotes(false);
-                        }}
-                    />
-                </View>
-            </View>
-        );
-    }
-
-    const actionLabel = isEditMode ? "Locked" : notes.trim() ? "Edit" : "Add";
-
-    if (compactRow && !isEditingNotes) {
-        return (
-            <Pressable
-                style={({ pressed }) => [
-                    styles.card,
-                    styles.songDetailSummaryLinkCard,
-                    cardStyle,
-                    isEditMode ? styles.btnDisabled : null,
-                    pressed && !isEditMode ? styles.pressDown : null,
-                ]}
-                disabled={isEditMode}
-                onPress={() => setIsEditingNotes(true)}
-            >
-                <View style={styles.songDetailSummaryLinkHeader}>
-                    <View style={styles.songDetailSummaryLinkLead}>
-                        <Ionicons name="create-outline" size={14} color="#84736f" />
-                        <Text style={styles.songDetailSummaryLinkTitle}>Notes</Text>
-                    </View>
-                    <View style={styles.songDetailSummaryLinkMetaWrap}>
-                        <Text style={styles.songDetailSummaryLinkMetaText}>{actionLabel}</Text>
+                        <Text style={styles.songDetailMiniCardActionText}>{actionLabel}</Text>
                         {!isEditMode ? (
                             <Ionicons name="chevron-forward" size={14} color="#a89994" />
                         ) : null}
                     </View>
                 </View>
-                <Text style={styles.songDetailSummaryLinkBody} numberOfLines={1}>
-                    {notes.trim() || "No notes yet"}
+                <Text style={styles.songDetailMiniCardBody} numberOfLines={previewLines}>
+                    {notes.trim() || "No notes yet."}
                 </Text>
             </Pressable>
-        );
-    }
-
-    return (
-        <Pressable
-            style={({ pressed }) => [
-                styles.card,
-                styles.songDetailMiniCard,
-                cardStyle,
-                isEditMode ? styles.btnDisabled : null,
-                pressed && !isEditMode ? styles.pressDown : null,
-            ]}
-            disabled={isEditMode}
-            onPress={() => setIsEditingNotes(true)}
-        >
-            <View style={styles.songDetailMiniCardHeader}>
-                <View style={styles.songDetailMiniCardTitleWrap}>
-                    <Ionicons name="create-outline" size={14} color="#84736f" />
-                    <Text style={styles.songDetailMiniCardTitle}>Notes</Text>
-                </View>
-                <View style={styles.songDetailMiniCardActionWrap}>
-                    <Text style={styles.songDetailMiniCardActionText}>
-                        {actionLabel}
-                    </Text>
-                    {!isEditMode ? (
-                        <Ionicons name="chevron-forward" size={14} color="#a89994" />
-                    ) : null}
-                </View>
-            </View>
-            <Text style={styles.songDetailMiniCardBody} numberOfLines={previewLines}>
-                {notes.trim() || "No notes yet."}
-            </Text>
-        </Pressable>
+            {editor}
+        </>
     );
 }
