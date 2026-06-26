@@ -165,25 +165,73 @@ export function serializeChordPro(lines: LyricsLine[]): string {
     .join("\n");
 }
 
+/** Builds the space-aligned chord row that sits above a lyric line (monospace).
+ * Returns "" when the line has no chords. */
+export function buildChordRowLine(line: LyricsLine): string {
+  const text = line.text ?? "";
+  const chords = [...(line.chords ?? [])].sort((a, b) => a.at - b.at);
+  if (chords.length === 0) return "";
+  let row = "";
+  for (const chord of chords) {
+    const at = clampChordIndex(chord.at, text.length);
+    if (row.length < at) row += " ".repeat(at - row.length);
+    // If two chords collide, leave a single space between them.
+    if (row.length > at) row += " ";
+    row += chord.chord;
+  }
+  return row.replace(/\s+$/, "");
+}
+
 /** Renders a chord-over-lyrics plaintext block (monospace-aligned), suitable for
  * copy/export. Lines without chords render as the lyric line alone. */
 export function serializeChordChartText(lines: LyricsLine[]): string {
   const out: string[] = [];
   for (const line of lines) {
-    const text = line.text ?? "";
-    const chords = [...(line.chords ?? [])].sort((a, b) => a.at - b.at);
-    if (chords.length > 0) {
-      let chordLine = "";
-      for (const chord of chords) {
-        const at = clampChordIndex(chord.at, text.length);
-        if (chordLine.length < at) chordLine += " ".repeat(at - chordLine.length);
-        // If two chords collide, leave a single space between them.
-        if (chordLine.length > at) chordLine += " ";
-        chordLine += chord.chord;
-      }
-      out.push(chordLine.replace(/\s+$/, ""));
-    }
-    out.push(text);
+    const row = buildChordRowLine(line);
+    if (row) out.push(row);
+    out.push(line.text ?? "");
   }
   return out.join("\n");
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+/** Builds a printable HTML chord chart (monospace, chords in accent colour above
+ * each lyric line) for PDF export. Pure string — no native deps. */
+export function buildChordChartHtml(
+  title: string,
+  subtitle: string,
+  lines: LyricsLine[]
+): string {
+  const body = lines
+    .map((line) => {
+      const row = buildChordRowLine(line);
+      const chordPre = row ? `<pre class="chords">${escapeHtml(row)}</pre>` : "";
+      const lyric = line.text ?? "";
+      const lyricPre = `<pre class="lyric">${escapeHtml(lyric.length > 0 ? lyric : " ")}</pre>`;
+      return `<div class="line">${chordPre}${lyricPre}</div>`;
+    })
+    .join("\n");
+
+  return `<!DOCTYPE html><html><head><meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+  @page { margin: 40px; }
+  body { color: #1b1c1a; -webkit-text-size-adjust: 100%; }
+  h1 { font-family: Georgia, 'Times New Roman', serif; font-size: 22px; margin: 0 0 2px; }
+  .sub { color: #6b7280; font-size: 12px; margin: 0 0 22px; font-family: -apple-system, Helvetica, Arial, sans-serif; }
+  .line { margin-bottom: 10px; break-inside: avoid; }
+  pre { margin: 0; font-family: 'Courier New', Courier, monospace; font-size: 13px; line-height: 1.2; white-space: pre; }
+  pre.chords { color: #824f3f; font-weight: 700; }
+  pre.lyric { color: #1b1c1a; }
+</style></head><body>
+  <h1>${escapeHtml(title || "Untitled")}</h1>
+  <div class="sub">${escapeHtml(subtitle)}</div>
+  ${body}
+</body></html>`;
 }

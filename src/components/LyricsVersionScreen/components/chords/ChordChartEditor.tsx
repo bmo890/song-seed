@@ -1,14 +1,18 @@
+import { useState } from "react";
 import { Share, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Button } from "../../../common/Button";
 import { colors } from "../../../../design/tokens";
 import { serializeChordChartText, serializeChordPro, sortedPalette } from "../../../../chords";
+import { shareChordChartPdf } from "../../../../services/chordChartPdf";
+import { formatDate } from "../../../../utils";
 import { AppAlert } from "../../../common/AppAlert";
 import type { LyricsVersion, SongChordPaletteItem } from "../../../../types";
 import { styles as screenStyles } from "../../styles";
 import { ChordChart } from "./ChordChart";
 import { ChordPaletteBar } from "./ChordPaletteBar";
 import { ChordPickerSheet } from "./ChordPickerSheet";
+import { ChordExportSheet } from "./ChordExportSheet";
 import { useChordEditing } from "./useChordEditing";
 
 type Props = {
@@ -24,19 +28,32 @@ type Props = {
 export function ChordChartEditor({ ideaId, version, songTitle, palette, onDone }: Props) {
   const editing = useChordEditing(ideaId, version.id);
   const sorted = sortedPalette(palette);
+  const [exportVisible, setExportVisible] = useState(false);
 
-  function shareChart() {
+  const subtitle = `${songTitle} · ${formatDate(version.updatedAt)}`;
+
+  function exportText() {
+    setExportVisible(false);
     const lines = version.document.lines;
     const chart = serializeChordChartText(lines);
-    const chordPro = serializeChordPro(lines);
     if (!chart.trim()) {
       AppAlert.info("Nothing to share", "Add some lyrics and chords first.");
       return;
     }
     void Share.share({
       title: `${songTitle} — chords`,
-      message: `${chart}\n\n— ChordPro —\n${chordPro}`,
+      message: `${chart}\n\n— ChordPro —\n${serializeChordPro(lines)}`,
     });
+  }
+
+  async function exportPdf() {
+    setExportVisible(false);
+    try {
+      const ok = await shareChordChartPdf({ title: songTitle, subtitle, lines: version.document.lines });
+      if (!ok) AppAlert.info("Nothing to export", "Add some lyrics and chords first.");
+    } catch {
+      AppAlert.info("Export failed", "Couldn't create the PDF. Please try again.");
+    }
   }
 
   return (
@@ -50,8 +67,8 @@ export function ChordChartEditor({ ideaId, version, songTitle, palette, onDone }
         />
         <Button
           variant="secondary"
-          label="Share"
-          onPress={shareChart}
+          label="Export"
+          onPress={() => setExportVisible(true)}
           style={screenStyles.lyricsActionBtn}
           textStyle={screenStyles.lyricsActionBtnText}
         />
@@ -84,6 +101,13 @@ export function ChordChartEditor({ ideaId, version, songTitle, palette, onDone }
         onClose={editing.close}
         onSave={editing.save}
         onDelete={editing.remove}
+      />
+
+      <ChordExportSheet
+        visible={exportVisible}
+        onClose={() => setExportVisible(false)}
+        onExportPdf={exportPdf}
+        onExportText={exportText}
       />
     </View>
   );
