@@ -1,7 +1,8 @@
-import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import Slider from "@react-native-community/slider";
 import { BottomSheet } from "../../common/BottomSheet";
 import { StatusChipRow } from "../../common/StatusChipRow";
+import { TitleInput } from "../../common/TitleInput";
 import { styles as appStyles } from "../../../styles";
 import { colors, radii, spacing, text as textTokens } from "../../../design/tokens";
 import type { IdeaStatus } from "../../../types";
@@ -36,17 +37,20 @@ export function SongEditSheet({
   onCancel,
 }: Props) {
   return (
-    <BottomSheet visible={visible} onClose={onCancel}>
+    <BottomSheet visible={visible} onClose={onCancel} keyboardAvoiding>
       <Text style={styles.heading}>{isDraft ? "New Song" : "Edit Song"}</Text>
 
       <Text style={styles.label}>Title</Text>
-      <TextInput
-        style={styles.titleInput}
+      <TitleInput
         value={title}
         onChangeText={onChangeTitle}
         placeholder="Song title"
-        placeholderTextColor={colors.textMuted}
+        showGenerator
+        showClear
         multiline
+        minHeight={44}
+        maxHeight={92}
+        containerStyle={styles.titleWrap}
       />
 
       <Text style={[styles.label, styles.labelSpaced]}>Progress</Text>
@@ -104,18 +108,7 @@ const styles = StyleSheet.create({
   },
   label: { ...textTokens.annotation, marginBottom: spacing.xs },
   labelSpaced: { marginTop: spacing.lg },
-  titleInput: {
-    backgroundColor: colors.surfaceContainer,
-    borderRadius: radii.sm,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 10,
-    fontFamily: "PlayfairDisplay_400Regular",
-    fontSize: 20,
-    lineHeight: 26,
-    color: colors.textPrimary,
-    minHeight: 44,
-    textAlignVertical: "top",
-  },
+  titleWrap: { marginHorizontal: 0 },
   completion: {
     ...textTokens.supporting,
     fontSize: 12,
