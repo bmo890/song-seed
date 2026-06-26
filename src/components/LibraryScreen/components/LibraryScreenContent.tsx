@@ -1,7 +1,6 @@
 import { useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Ionicons } from "@expo/vector-icons";
 import { ScreenHeader } from "../../common/ScreenHeader";
 import { AppBreadcrumbs } from "../../common/AppBreadcrumbs";
 import { PageIntro } from "../../common/PageIntro";
@@ -10,12 +9,16 @@ import { colors, radii, spacing } from "../../../design/tokens";
 import { styles } from "../styles";
 import { useLibraryScreenModel } from "../hooks/useLibraryScreenModel";
 import { useSongbookModel } from "../hooks/useSongbookModel";
+import { useSetlistModel } from "../hooks/useSetlistModel";
 import { PlaylistListView } from "../views/PlaylistListView";
 import { PlaylistDetailView } from "../views/PlaylistDetailView";
 import { PlaylistPickerView } from "../views/PlaylistPickerView";
 import { SongbookListView } from "../views/SongbookListView";
 import { SongbookDetailView } from "../views/SongbookDetailView";
 import { SongbookPickerView } from "../views/SongbookPickerView";
+import { SetlistListView } from "../views/SetlistListView";
+import { SetlistDetailView } from "../views/SetlistDetailView";
+import { SetlistEntryBuilderView } from "../views/SetlistEntryBuilderView";
 
 type Section = "playlists" | "songbook" | "setlists";
 
@@ -28,12 +31,21 @@ const SECTIONS: Array<{ key: Section; label: string }> = [
 export function LibraryScreenContent() {
   const model = useLibraryScreenModel();
   const songbook = useSongbookModel();
+  const setlist = useSetlistModel();
   const [section, setSection] = useState<Section>("playlists");
 
   const inSub =
-    section === "playlists" ? model.showBack : section === "songbook" ? songbook.showBack : false;
+    section === "playlists"
+      ? model.showBack
+      : section === "songbook"
+        ? songbook.showBack
+        : setlist.showBack;
   const onBack =
-    section === "playlists" ? model.handleBackPress : section === "songbook" ? songbook.handleBack : undefined;
+    section === "playlists"
+      ? model.handleBackPress
+      : section === "songbook"
+        ? songbook.handleBack
+        : setlist.handleBack;
 
   const headerTitle =
     section === "playlists"
@@ -42,7 +54,11 @@ export function LibraryScreenContent() {
         ? songbook.pickerState
           ? "Add Charts"
           : songbook.activeSongbook?.title ?? "Library"
-        : "Library";
+        : setlist.builder
+          ? setlist.builder.editingEntryId
+            ? "Edit Song"
+            : "Add Song"
+          : setlist.activeSetlist?.title ?? "Library";
 
   return (
     <SafeAreaView style={styles.screen}>
@@ -138,18 +154,38 @@ export function LibraryScreenContent() {
       ) : null}
 
       {section === "setlists" ? (
-        <ScrollView style={styles.flexFill} contentContainerStyle={styles.libraryScrollContent}>
-          <View style={styles.card}>
-            <View style={styles.cardTitleRow}>
-              <Ionicons name="albums-outline" size={18} color="#0f172a" />
-              <Text style={styles.cardTitle}>Setlists</Text>
-            </View>
-            <Text style={styles.cardMeta}>
-              Coming soon — group clips and charts into an ordered set you can share with your band as a
-              ready-to-play bundle.
-            </Text>
-          </View>
-        </ScrollView>
+        setlist.builder ? (
+          <SetlistEntryBuilderView
+            ideaId={setlist.builder.ideaId}
+            isEditing={!!setlist.builder.editingEntryId}
+            song={setlist.builderSong}
+            workspaces={setlist.pickerWorkspaces}
+            clipIds={setlist.builder.clipIds}
+            lyricVersionIds={setlist.builder.lyricVersionIds}
+            includeChordSheet={setlist.builder.includeChordSheet}
+            onSelectSong={setlist.builderSelectSong}
+            onToggleClip={setlist.builderToggleClip}
+            onToggleVersion={setlist.builderToggleVersion}
+            onToggleChordSheet={setlist.builderToggleChordSheet}
+            onConfirm={setlist.confirmBuilder}
+          />
+        ) : setlist.activeSetlist ? (
+          <SetlistDetailView
+            entries={setlist.displayEntries}
+            onAddSong={setlist.openBuilder}
+            onShare={setlist.shareActiveSetlist}
+            onEditEntry={setlist.editEntry}
+            onMoveEntry={setlist.moveEntry}
+            onRemoveEntry={setlist.removeEntry}
+            onDeleteSetlist={setlist.deleteActiveSetlist}
+          />
+        ) : (
+          <SetlistListView
+            setlists={setlist.sortedSetlists}
+            onCreate={setlist.openCreate}
+            onOpen={setlist.openSetlist}
+          />
+        )
       ) : null}
 
       <QuickNameModal
@@ -179,6 +215,21 @@ export function LibraryScreenContent() {
         }}
         onSave={songbook.createSongbook}
         helperText="Songbooks collect lyric and chord charts from any workspace."
+        saveLabel="Create"
+      />
+
+      <QuickNameModal
+        visible={setlist.createModalOpen}
+        title="New Setlist"
+        draftValue={setlist.draftTitle}
+        placeholderValue={setlist.defaultTitle}
+        onChangeDraft={setlist.setDraftTitle}
+        onCancel={() => {
+          setlist.setCreateModalOpen(false);
+          setlist.setDraftTitle("");
+        }}
+        onSave={setlist.createSetlist}
+        helperText="Setlists hold an ordered set of songs (clips + charts) to share with your band."
         saveLabel="Create"
       />
     </SafeAreaView>

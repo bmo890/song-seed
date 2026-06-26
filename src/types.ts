@@ -439,6 +439,30 @@ export type Songbook = {
   items: SongbookItem[];
 };
 
+/** One song in a setlist, trimmed to just what the band needs: the chosen clips
+ * and charts from that song (no version history/lineage). */
+export type SetlistEntry = {
+  id: string;
+  workspaceId: string;
+  ideaId: string;
+  /** Clip ids to include (e.g. main mix + an isolated bass part). */
+  clipIds: string[];
+  /** Lyric version ids whose charts to include. */
+  lyricVersionIds: string[];
+  /** Whether to include the song's standalone chord chart. */
+  includeChordSheet: boolean;
+  addedAt: number;
+};
+
+/** An ordered, shareable set of songs (clips + charts) for a gig/rehearsal. */
+export type Setlist = {
+  id: string;
+  title: string;
+  createdAt: number;
+  updatedAt: number;
+  entries: SetlistEntry[];
+};
+
 export type PlayerState = {
   target: PlayerTarget;
   isPlaying: boolean;

@@ -25,6 +25,8 @@ import {
     PlaylistItem,
     Songbook,
     SongbookItem,
+    Setlist,
+    SetlistEntry,
     WorkspaceListOrder,
     WorkspaceStartupPreference,
     BackupReminderFrequency,
@@ -88,6 +90,7 @@ export type DataSlice = {
     collectionLastOpenedAt: Record<string, number>;
     playlists: Playlist[];
     songbooks: Songbook[];
+    setlists: Setlist[];
     preferredRecordingInputId: string | null;
     bluetoothMonitoringCalibrations: BluetoothMonitoringCalibration[];
     overdubPreviewRenderActiveByClipKey: Record<string, boolean>;
@@ -221,6 +224,17 @@ export type DataSlice = {
     removeSongbookItem: (songbookId: string, songbookItemId: string) => void;
     renameSongbook: (songbookId: string, title: string) => void;
     deleteSongbook: (songbookId: string) => void;
+    addSetlist: (title: string) => string;
+    addSetlistEntry: (setlistId: string, entry: Omit<SetlistEntry, "id" | "addedAt">) => void;
+    updateSetlistEntry: (
+        setlistId: string,
+        entryId: string,
+        patch: Partial<Pick<SetlistEntry, "clipIds" | "lyricVersionIds" | "includeChordSheet">>
+    ) => void;
+    removeSetlistEntry: (setlistId: string, entryId: string) => void;
+    reorderSetlistEntries: (setlistId: string, orderedEntryIds: string[]) => void;
+    renameSetlist: (setlistId: string, title: string) => void;
+    deleteSetlist: (setlistId: string) => void;
     deleteIdea: (ideaId: string) => void;
 };
 
@@ -263,6 +277,14 @@ function buildSongbookId() {
 
 function buildSongbookItemId() {
     return `songbook-item-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+}
+
+function buildSetlistId() {
+    return `setlist-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+}
+
+function buildSetlistEntryId() {
+    return `setlist-entry-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 }
 
 function countTotalIdeas(workspaces: Workspace[]) {
@@ -898,6 +920,50 @@ export function normalizeSongbooks(songbooks: Songbook[] | undefined) {
         }));
 }
 
+function normalizeSetlistEntries(entries: SetlistEntry[] | undefined) {
+    if (!Array.isArray(entries)) return [];
+    return entries
+        .filter((entry): entry is SetlistEntry => {
+            if (!entry || typeof entry !== "object") return false;
+            return (
+                typeof entry.id === "string" &&
+                typeof entry.workspaceId === "string" &&
+                typeof entry.ideaId === "string" &&
+                Number.isFinite(entry.addedAt)
+            );
+        })
+        .map((entry) => ({
+            id: entry.id,
+            workspaceId: entry.workspaceId,
+            ideaId: entry.ideaId,
+            clipIds: Array.isArray(entry.clipIds) ? entry.clipIds.filter((c) => typeof c === "string") : [],
+            lyricVersionIds: Array.isArray(entry.lyricVersionIds)
+                ? entry.lyricVersionIds.filter((v) => typeof v === "string")
+                : [],
+            includeChordSheet: entry.includeChordSheet === true,
+            addedAt: entry.addedAt,
+        }));
+}
+
+export function normalizeSetlists(setlists: Setlist[] | undefined) {
+    if (!Array.isArray(setlists)) return [];
+    return setlists
+        .filter((setlist): setlist is Setlist => {
+            if (!setlist || typeof setlist !== "object") return false;
+            return (
+                typeof setlist.id === "string" &&
+                typeof setlist.title === "string" &&
+                Number.isFinite(setlist.createdAt) &&
+                Number.isFinite(setlist.updatedAt)
+            );
+        })
+        .map((setlist) => ({
+            ...setlist,
+            title: setlist.title.trim() || "Untitled Setlist",
+            entries: normalizeSetlistEntries(setlist.entries),
+        }));
+}
+
 export function normalizeWorkspaces(workspaces: Workspace[]) {
     return workspaces.map((workspace, index) => {
         const normalizedArchiveState = normalizeWorkspaceArchiveState(workspace.archiveState);
@@ -1000,6 +1066,7 @@ export const createDataSlice: StateCreator<
     collectionLastOpenedAt: {},
     playlists: [],
     songbooks: [],
+    setlists: [],
     preferredRecordingInputId: null,
     bluetoothMonitoringCalibrations: [],
     overdubPreviewRenderActiveByClipKey: {},
@@ -2481,6 +2548,94 @@ export const createDataSlice: StateCreator<
 
     deleteSongbook: (songbookId) => {
         set((state) => ({ songbooks: state.songbooks.filter((songbook) => songbook.id !== songbookId) }));
+    },
+
+    addSetlist: (title) => {
+        const now = Date.now();
+        const id = buildSetlistId();
+        set((state) => ({
+            setlists: [
+                { id, title: title.trim() || "Untitled Setlist", createdAt: now, updatedAt: now, entries: [] },
+                ...state.setlists,
+            ],
+        }));
+        return id;
+    },
+
+    addSetlistEntry: (setlistId, entry) => {
+        const now = Date.now();
+        set((state) => ({
+            setlists: state.setlists.map((setlist) =>
+                setlist.id !== setlistId
+                    ? setlist
+                    : {
+                        ...setlist,
+                        updatedAt: now,
+                        entries: [...setlist.entries, { ...entry, id: buildSetlistEntryId(), addedAt: now }],
+                    }
+            ),
+        }));
+    },
+
+    updateSetlistEntry: (setlistId, entryId, patch) => {
+        set((state) => ({
+            setlists: state.setlists.map((setlist) =>
+                setlist.id !== setlistId
+                    ? setlist
+                    : {
+                        ...setlist,
+                        updatedAt: Date.now(),
+                        entries: setlist.entries.map((entry) =>
+                            entry.id === entryId ? { ...entry, ...patch } : entry
+                        ),
+                    }
+            ),
+        }));
+    },
+
+    removeSetlistEntry: (setlistId, entryId) => {
+        set((state) => ({
+            setlists: state.setlists.map((setlist) =>
+                setlist.id !== setlistId
+                    ? setlist
+                    : {
+                        ...setlist,
+                        updatedAt: Date.now(),
+                        entries: setlist.entries.filter((entry) => entry.id !== entryId),
+                    }
+            ),
+        }));
+    },
+
+    reorderSetlistEntries: (setlistId, orderedEntryIds) => {
+        set((state) => ({
+            setlists: state.setlists.map((setlist) => {
+                if (setlist.id !== setlistId) return setlist;
+                const map = new Map(setlist.entries.map((entry) => [entry.id, entry]));
+                const next = orderedEntryIds
+                    .map((id) => map.get(id) ?? null)
+                    .filter((entry): entry is SetlistEntry => !!entry);
+                const seen = new Set(next.map((entry) => entry.id));
+                setlist.entries.forEach((entry) => {
+                    if (!seen.has(entry.id)) next.push(entry);
+                });
+                return { ...setlist, updatedAt: Date.now(), entries: next };
+            }),
+        }));
+    },
+
+    renameSetlist: (setlistId, title) => {
+        set((state) => ({
+            setlists: state.setlists.map((setlist) =>
+                setlist.id !== setlistId
+                    ? setlist
+                    : { ...setlist, updatedAt: Date.now(), title: title.trim() || setlist.title }
+            ),
+        }));
+    },
+
+    deleteSetlist: (setlistId) => {
+        set((state) => ({ setlists: state.setlists.filter((setlist) => setlist.id !== setlistId) }));
     },
 
     deleteIdea: (ideaId) => {

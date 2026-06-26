@@ -19,6 +19,7 @@ export function buildPersistedAppStoreSnapshot(state: AppStore): PersistedAppSto
         collectionLastOpenedAt: state.collectionLastOpenedAt,
         playlists: state.playlists,
         songbooks: state.songbooks,
+        setlists: state.setlists,
         preferredRecordingInputId: state.preferredRecordingInputId,
         bluetoothMonitoringCalibrations: state.bluetoothMonitoringCalibrations,
         metronomeBpm: state.metronomeBpm,
