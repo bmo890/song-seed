@@ -93,9 +93,9 @@ export function IdeaStatusProgress({
                         else if (val >= 25) setDraftStatus("sprout");
                         else setDraftStatus("seed");
                     }}
-                    minimumTrackTintColor="#1b1c1a"
+                    minimumTrackTintColor="#B87D6B"
                     maximumTrackTintColor="#D7C2BD"
-                    thumbTintColor="#1b1c1a"
+                    thumbTintColor="#B87D6B"
                 />
             </View>
         </View>

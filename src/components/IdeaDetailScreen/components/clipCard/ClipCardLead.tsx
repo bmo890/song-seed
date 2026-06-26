@@ -46,7 +46,7 @@ export function ClipCardLead({
           <Ionicons
             name={inlineActive && inlinePlaying ? "pause" : "play"}
             size={15}
-            color={!canPlay ? "#a89994" : "#1b1c1a"}
+            color={!canPlay ? "#a89994" : "#B87D6B"}
             style={inlineActive && inlinePlaying ? undefined : { marginLeft: 2 }}
           />
         </Pressable>

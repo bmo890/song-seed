@@ -51,7 +51,12 @@ export function StatusChipRow<T extends StatusChipValue>({
                         onPress={() => onPress(item)}
                         disabled={disabled}
                     >
-                        <Text style={[styles.secondaryBtnText, textStyle]}>
+                        <Text
+                            style={[styles.statusChipLabel, textStyle]}
+                            numberOfLines={1}
+                            adjustsFontSizeToFit
+                            minimumFontScale={0.85}
+                        >
                             {getLabel(item)}
                         </Text>
                     </Pressable>
