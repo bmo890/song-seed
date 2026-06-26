@@ -49,7 +49,7 @@ export function ChordLine({
   );
 
   return (
-    <View style={[styles.line, { width: contentWidth }]}>
+    <View style={[styles.line, { minWidth: contentWidth }]}>
       {showChordRow ? (
         <View style={styles.chordRow}>
           {chords.map((chord) => (
@@ -81,6 +81,9 @@ export function ChordLine({
 const styles = StyleSheet.create({
   line: {
     marginBottom: 6,
+    // Slack past the last character so it never sits flush against the scroll edge
+    // (and so a chord dragged to the end stays comfortably visible).
+    paddingRight: 24,
   },
   chordRow: {
     height: CHORD_ROW_HEIGHT,

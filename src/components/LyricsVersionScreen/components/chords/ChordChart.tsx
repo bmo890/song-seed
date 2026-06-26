@@ -48,9 +48,9 @@ export function ChordChartLines({ lines, editable, onAddAt, onEditChord, onMoveC
           horizontal
           scrollEnabled={!dragging}
           showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ width: contentWidth }}
+          contentContainerStyle={{ minWidth: contentWidth }}
         >
-          <View style={{ width: contentWidth }}>
+          <View style={{ minWidth: contentWidth }}>
             {lines.map((line) => (
               <ChordLine
                 key={line.id}
