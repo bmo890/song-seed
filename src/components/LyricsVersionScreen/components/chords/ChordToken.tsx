@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { Animated, PanResponder, StyleSheet, Text, View } from "react-native";
 import * as Haptics from "expo-haptics";
 import type { ChordPlacement } from "../../../../types";
@@ -32,8 +32,20 @@ export function ChordToken({
   onDragStateChange,
 }: Props) {
   const translateX = useRef(new Animated.Value(0)).current;
+  const scale = useRef(new Animated.Value(1)).current;
   const draggingRef = useRef(false);
+  const [active, setActive] = useState(false);
   const baseLeft = clampChordIndex(chord.at, lineLength) * charWidth;
+
+  const lift = (up: boolean) => {
+    setActive(up);
+    Animated.spring(scale, {
+      toValue: up ? 1.18 : 1,
+      useNativeDriver: true,
+      friction: 6,
+      tension: 180,
+    }).start();
+  };
 
   const panResponder = useRef(
     PanResponder.create({
@@ -51,6 +63,7 @@ export function ChordToken({
         if (!draggingRef.current && Math.abs(gesture.dx) > TAP_SLOP) {
           draggingRef.current = true;
           onDragStateChange?.(true);
+          lift(true);
           void Haptics.selectionAsync();
         }
         if (draggingRef.current) translateX.setValue(gesture.dx);
@@ -63,12 +76,16 @@ export function ChordToken({
           onPress?.();
           return;
         }
+        lift(false);
         onDragStateChange?.(false);
         const nextAt = clampChordIndex(chord.at + gesture.dx / Math.max(charWidth, 1), lineLength);
         if (nextAt !== chord.at) onMove?.(nextAt);
       },
       onPanResponderTerminate: () => {
-        if (draggingRef.current) onDragStateChange?.(false);
+        if (draggingRef.current) {
+          onDragStateChange?.(false);
+          lift(false);
+        }
         draggingRef.current = false;
         translateX.setValue(0);
       },
@@ -90,9 +107,11 @@ export function ChordToken({
       style={[styles.wrap, styles.wrapEditable, { left: baseLeft - GRAB, transform: [{ translateX }] }]}
       {...panResponder.panHandlers}
     >
-      <View style={styles.chip}>
+      <Animated.View
+        style={[styles.chip, active ? styles.chipActive : null, { transform: [{ scale }] }]}
+      >
         <Text style={styles.text}>{chord.chord}</Text>
-      </View>
+      </Animated.View>
     </Animated.View>
   );
 }
@@ -119,6 +138,9 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     paddingHorizontal: 5,
     paddingVertical: 1,
+  },
+  chipActive: {
+    backgroundColor: chordChartColors.chordActive,
   },
   text: {
     fontFamily: MONO_FONT,
