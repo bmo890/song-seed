@@ -25,7 +25,9 @@ export function ChordChartLines({ lines, editable, onAddAt, onEditChord, onMoveC
     const chordUnits = line.chords.reduce((m, chord) => Math.max(m, chord.at + chord.chord.length + 1), 0);
     return Math.max(max, textUnits, chordUnits);
   }, 0);
-  const measuredContentWidth = charWidth > 0 ? longestUnit * charWidth + 24 : 0;
+  // Extra character-widths of slack so the longest lyric line never clips, and so
+  // there's room to drag a chord a little past the final character.
+  const measuredContentWidth = charWidth > 0 ? longestUnit * charWidth + charWidth * 4 + 24 : 0;
   const contentWidth = Math.max(measuredContentWidth, containerWidth);
 
   return (

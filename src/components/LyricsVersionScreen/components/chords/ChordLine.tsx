@@ -43,7 +43,7 @@ export function ChordLine({
   }
 
   const lyricText = (
-    <Text style={styles.lyric} numberOfLines={1}>
+    <Text style={styles.lyric} numberOfLines={1} ellipsizeMode="clip">
       {line.text.length > 0 ? line.text : " "}
     </Text>
   );

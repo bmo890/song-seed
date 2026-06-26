@@ -1,5 +1,5 @@
 import { useRef } from "react";
-import { Animated, PanResponder, Pressable, StyleSheet, Text } from "react-native";
+import { Animated, PanResponder, StyleSheet, Text, View } from "react-native";
 import * as Haptics from "expo-haptics";
 import type { ChordPlacement } from "../../../../types";
 import { clampChordIndex } from "../../../../chords";
@@ -15,9 +15,13 @@ type Props = {
   onDragStateChange?: (dragging: boolean) => void;
 };
 
-/** A chord symbol anchored above a character. In edit mode it can be tapped
- * (edit) or dragged horizontally to re-anchor; the move commits on release so
- * persistence isn't churned on every frame. */
+const TAP_SLOP = 6;
+
+/** A chord symbol anchored above a character. In edit mode the token claims the
+ * touch on press-down — so the surrounding horizontal ScrollView never steals the
+ * drag (which is why dragging only worked at a scroll extreme before). A release
+ * that barely moved is treated as a tap (edit); a real drag re-anchors the chord
+ * and commits on release. */
 export function ChordToken({
   chord,
   charWidth,
@@ -28,58 +32,86 @@ export function ChordToken({
   onDragStateChange,
 }: Props) {
   const translateX = useRef(new Animated.Value(0)).current;
+  const draggingRef = useRef(false);
   const baseLeft = clampChordIndex(chord.at, lineLength) * charWidth;
 
   const panResponder = useRef(
     PanResponder.create({
-      onMoveShouldSetPanResponder: (_evt, gesture) =>
-        editable && Math.abs(gesture.dx) > 4 && Math.abs(gesture.dx) > Math.abs(gesture.dy),
-      // Capture horizontal moves that start on the chord before the surrounding
-      // horizontal ScrollView can claim them, so dragging a chord never scrolls.
-      onMoveShouldSetPanResponderCapture: (_evt, gesture) =>
-        editable && Math.abs(gesture.dx) > 6 && Math.abs(gesture.dx) > Math.abs(gesture.dy),
+      // Claim the touch at the start (capture phase) so the parent scroll view
+      // can't grab the horizontal gesture first.
+      onStartShouldSetPanResponder: () => editable,
+      onStartShouldSetPanResponderCapture: () => editable,
+      onMoveShouldSetPanResponder: () => editable,
+      onMoveShouldSetPanResponderCapture: () => editable,
+      onPanResponderTerminationRequest: () => false,
       onPanResponderGrant: () => {
-        onDragStateChange?.(true);
-        void Haptics.selectionAsync();
+        draggingRef.current = false;
       },
       onPanResponderMove: (_evt, gesture) => {
-        translateX.setValue(gesture.dx);
+        if (!draggingRef.current && Math.abs(gesture.dx) > TAP_SLOP) {
+          draggingRef.current = true;
+          onDragStateChange?.(true);
+          void Haptics.selectionAsync();
+        }
+        if (draggingRef.current) translateX.setValue(gesture.dx);
       },
       onPanResponderRelease: (_evt, gesture) => {
+        const wasDragging = draggingRef.current;
+        draggingRef.current = false;
+        translateX.setValue(0);
+        if (!wasDragging) {
+          onPress?.();
+          return;
+        }
         onDragStateChange?.(false);
         const nextAt = clampChordIndex(chord.at + gesture.dx / Math.max(charWidth, 1), lineLength);
-        translateX.setValue(0);
         if (nextAt !== chord.at) onMove?.(nextAt);
       },
       onPanResponderTerminate: () => {
-        onDragStateChange?.(false);
+        if (draggingRef.current) onDragStateChange?.(false);
+        draggingRef.current = false;
         translateX.setValue(0);
       },
     })
   ).current;
 
+  if (!editable) {
+    return (
+      <View style={[styles.wrap, { left: baseLeft }]} pointerEvents="none">
+        <View style={styles.chip}>
+          <Text style={styles.text}>{chord.chord}</Text>
+        </View>
+      </View>
+    );
+  }
+
   return (
     <Animated.View
-      style={[styles.wrap, { left: baseLeft, transform: [{ translateX }] }]}
-      {...(editable ? panResponder.panHandlers : {})}
+      style={[styles.wrap, styles.wrapEditable, { left: baseLeft - GRAB, transform: [{ translateX }] }]}
+      {...panResponder.panHandlers}
     >
-      <Pressable
-        onPress={editable ? onPress : undefined}
-        hitSlop={editable ? { top: 8, bottom: 4, left: 6, right: 6 } : undefined}
-        style={({ pressed }) => [styles.chip, editable && pressed ? styles.chipPressed : null]}
-      >
-        <Text style={styles.text} numberOfLines={1}>
-          {chord.chord}
-        </Text>
-      </Pressable>
+      <View style={styles.chip}>
+        <Text style={styles.text}>{chord.chord}</Text>
+      </View>
     </Animated.View>
   );
 }
+
+/** Invisible padding around the chip that enlarges the drag target. The wrap is
+ * shifted left by this amount so the chip stays aligned to its character. */
+const GRAB = 8;
 
 const styles = StyleSheet.create({
   wrap: {
     position: "absolute",
     top: 0,
+  },
+  wrapEditable: {
+    // A wider invisible grab area makes the small chip easy to catch and drag.
+    paddingLeft: GRAB,
+    paddingRight: GRAB,
+    paddingTop: 2,
+    paddingBottom: 8,
   },
   chip: {
     alignSelf: "flex-start",
@@ -87,9 +119,6 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     paddingHorizontal: 5,
     paddingVertical: 1,
-  },
-  chipPressed: {
-    opacity: 0.7,
   },
   text: {
     fontFamily: MONO_FONT,
