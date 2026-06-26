@@ -1,7 +1,17 @@
 import * as Print from "expo-print";
 import * as Sharing from "expo-sharing";
 import { buildChordChartHtml } from "../chords";
-import type { LyricsLine } from "../types";
+import { buildChordSheetHtml, isChordSheetEmpty } from "../chordSheet";
+import type { ChordSheet, LyricsLine } from "../types";
+
+async function sharePdfFromHtml(html: string, dialogTitle: string): Promise<void> {
+  const { uri } = await Print.printToFileAsync({ html });
+  if (await Sharing.isAvailableAsync()) {
+    await Sharing.shareAsync(uri, { mimeType: "application/pdf", dialogTitle, UTI: "com.adobe.pdf" });
+  } else {
+    await Print.printAsync({ uri });
+  }
+}
 
 type ChordChartPdfInput = {
   title: string;
@@ -16,18 +26,19 @@ export async function shareChordChartPdf({ title, subtitle, lines }: ChordChartP
   const hasContent = lines.some((line) => line.text.trim().length > 0 || line.chords.length > 0);
   if (!hasContent) return false;
 
-  const html = buildChordChartHtml(title, subtitle, lines);
-  const { uri } = await Print.printToFileAsync({ html });
+  await sharePdfFromHtml(buildChordChartHtml(title, subtitle, lines), `${title} — chords`);
+  return true;
+}
 
-  if (await Sharing.isAvailableAsync()) {
-    await Sharing.shareAsync(uri, {
-      mimeType: "application/pdf",
-      dialogTitle: `${title} — chords`,
-      UTI: "com.adobe.pdf",
-    });
-  } else {
-    // No share sheet available — fall back to the native print dialog.
-    await Print.printAsync({ uri });
-  }
+type ChordSheetPdfInput = {
+  title: string;
+  subtitle: string;
+  sheet: ChordSheet;
+};
+
+/** Renders a standalone block chord chart to a PDF and shares/prints it. */
+export async function shareChordSheetPdf({ title, subtitle, sheet }: ChordSheetPdfInput): Promise<boolean> {
+  if (isChordSheetEmpty(sheet)) return false;
+  await sharePdfFromHtml(buildChordSheetHtml(title, subtitle, sheet), `${title} — chord chart`);
   return true;
 }

@@ -5,6 +5,7 @@ import type {
     ClipSection,
     CustomTagDefinition,
     EditRegion,
+    ChordSheet,
     IdeaStatus,
     LyricsVersion,
     PracticeMarker,
@@ -127,6 +128,8 @@ export type ArchiveSongManifest = {
     lyricsVersions?: LyricsVersion[];
     /** Song-level quick-insert chord palette. */
     chordPalette?: SongChordPaletteItem[];
+    /** Standalone block chord chart for the song. */
+    chordSheet?: ChordSheet;
 };
 
 export type ArchiveCollectionManifest = {

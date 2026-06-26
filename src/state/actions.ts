@@ -17,8 +17,9 @@ import {
 import { useStore } from "./useStore";
 import { createEmptyProjectLyrics, createEmptyWorkspaceIdeasListState, normalizeWorkspaces } from "./dataSlice";
 import { createLyricsVersion, lyricsTextToDocument } from "../lyrics";
+import { cloneChordSheet } from "../chordSheet";
 import { buildChordDisplay, clampChordIndex, recordChordInPalette, type ChordParts } from "../chords";
-import type { ChordPlacement, LyricsDocument, LyricsLine } from "../types";
+import type { ChordPlacement, ChordSheet, LyricsDocument, LyricsLine } from "../types";
 import { buildLyricsTextFromNote } from "../notepad";
 import { buildDefaultIdeaTitle, ensureUniqueCountedTitle, ensureUniqueIdeaTitle } from "../utils";
 import { archiveWorkspaceToDevice, restoreWorkspaceFromDevice } from "../services/workspaceArchive";
@@ -554,6 +555,7 @@ function cloneIdeaForCopy(idea: SongIdea, collectionId: string): SongIdea {
             clips: cloneProjectClipsForCopy(idea.clips, now),
             lyrics: cloneLyricsForCopy(idea.lyrics, now),
             chordPalette: idea.chordPalette ? idea.chordPalette.map((item) => ({ ...item })) : undefined,
+            chordSheet: cloneChordSheet(idea.chordSheet),
             customTags: cloneCustomTags(idea.customTags),
         };
     }
@@ -1647,6 +1649,40 @@ export const appActions = {
                     chords: line.chords.filter((chord) => chord.id !== chordId),
                 }));
             })
+        );
+    },
+
+    /** Replaces a song's standalone block chord chart. An empty sheet (no
+     * sections) is stored as undefined to keep the idea clean. */
+    setSongChordSheet: (projectId: string, sheet: ChordSheet) => {
+        const state = useStore.getState();
+        state.updateIdeas((prev) =>
+            prev.map((idea) => {
+                if (idea.id !== projectId || idea.kind !== "project") return idea;
+                const next =
+                    sheet.sections.length > 0 ? { ...sheet, updatedAt: Date.now() } : undefined;
+                return { ...idea, chordSheet: next };
+            })
+        );
+        state.logIdeaActivity(projectId, "updated", "lyrics-save");
+    },
+
+    /** Records a chord into the song's quick-insert palette (used when picking a
+     * chord into a chord-sheet measure). */
+    recordSongChord: (projectId: string, parts: ChordParts) => {
+        const display = buildChordDisplay(parts);
+        if (!display) return;
+        const now = Date.now();
+        const chord: ChordPlacement = { id: "", chord: display, at: 0, ...parts };
+        useStore.getState().updateIdeas((prev) =>
+            prev.map((idea) =>
+                idea.id === projectId && idea.kind === "project"
+                    ? {
+                          ...idea,
+                          chordPalette: recordChordInPalette(idea.chordPalette, chord, buildChordPaletteId(), now),
+                      }
+                    : idea
+            )
         );
     },
 

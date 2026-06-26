@@ -37,6 +37,7 @@ import {
     ClipOverdubStem,
 } from "../types";
 import { createWordLadderExercise } from "../wordLadder";
+import { sanitizeChordSheet } from "../chordSheet";
 import { genChildClipTitle, genRootClipTitle } from "../utils";
 import { buildClipGraph } from "../clipGraph";
 import type { SelectionSlice } from "./selectionSlice";
@@ -634,6 +635,7 @@ function normalizeIdea(idea: SongIdea): SongIdea {
         ...idea,
         clips: idea.clips.map(normalizeClip),
         chordPalette: normalizedChordPalette,
+        chordSheet: sanitizeChordSheet(idea.chordSheet),
         importedAt: normalizeOptionalTimestamp(idea.importedAt),
         sourceCreatedAt: normalizeOptionalTimestamp(idea.sourceCreatedAt),
         isBookmarked: Boolean(idea.isBookmarked ?? legacyFavorite),

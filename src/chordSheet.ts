@@ -1,0 +1,156 @@
+import type { ChordSheet, ChordSheetMeasure, ChordSheetSection } from "./types";
+
+function randomId(prefix: string) {
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+}
+
+/** Section labels offered as quick-add presets (free custom labels also allowed). */
+export const SECTION_PRESETS = ["Intro", "Verse", "Pre-Chorus", "Chorus", "Bridge", "Solo", "Outro"];
+
+export function createMeasure(chords: string[] = []): ChordSheetMeasure {
+  return { id: randomId("measure"), chords };
+}
+
+/** A new section starts with four empty bars — a sensible default block. */
+export function createSection(label: string, measureCount = 4): ChordSheetSection {
+  return {
+    id: randomId("section"),
+    label,
+    measures: Array.from({ length: Math.max(0, measureCount) }, () => createMeasure()),
+    notes: "",
+  };
+}
+
+export function createChordSheet(): ChordSheet {
+  return { sections: [], updatedAt: Date.now() };
+}
+
+export function isChordSheetEmpty(sheet: ChordSheet | undefined): boolean {
+  if (!sheet || sheet.sections.length === 0) return true;
+  return sheet.sections.every(
+    (section) => section.measures.every((m) => m.chords.length === 0) && !section.notes.trim()
+  );
+}
+
+// ── Defensive sanitization (persisted/imported data may be partial) ──────────
+
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === "string";
+}
+
+function sanitizeMeasure(raw: unknown): ChordSheetMeasure | null {
+  if (!raw || typeof raw !== "object") return null;
+  const obj = raw as Record<string, unknown>;
+  if (!isNonEmptyString(obj.id)) return null;
+  const chords = Array.isArray(obj.chords)
+    ? obj.chords.filter((c): c is string => isNonEmptyString(c))
+    : [];
+  return { id: obj.id, chords };
+}
+
+function sanitizeSection(raw: unknown): ChordSheetSection | null {
+  if (!raw || typeof raw !== "object") return null;
+  const obj = raw as Record<string, unknown>;
+  if (!isNonEmptyString(obj.id)) return null;
+  const measures = Array.isArray(obj.measures)
+    ? obj.measures.map(sanitizeMeasure).filter((m): m is ChordSheetMeasure => m !== null)
+    : [];
+  return {
+    id: obj.id,
+    label: isNonEmptyString(obj.label) ? obj.label : "Section",
+    measures,
+    notes: isNonEmptyString(obj.notes) ? obj.notes : "",
+  };
+}
+
+export function sanitizeChordSheet(raw: unknown): ChordSheet | undefined {
+  if (!raw || typeof raw !== "object") return undefined;
+  const obj = raw as Record<string, unknown>;
+  if (!Array.isArray(obj.sections)) return undefined;
+  const sections = obj.sections.map(sanitizeSection).filter((s): s is ChordSheetSection => s !== null);
+  if (sections.length === 0) return undefined;
+  return {
+    sections,
+    updatedAt: typeof obj.updatedAt === "number" ? obj.updatedAt : Date.now(),
+  };
+}
+
+/** Deep clone with fresh ids — used when duplicating a song. */
+export function cloneChordSheet(sheet: ChordSheet | undefined): ChordSheet | undefined {
+  if (!sheet) return undefined;
+  return {
+    updatedAt: Date.now(),
+    sections: sheet.sections.map((section) => ({
+      id: randomId("section"),
+      label: section.label,
+      notes: section.notes,
+      measures: section.measures.map((m) => ({ id: randomId("measure"), chords: [...m.chords] })),
+    })),
+  };
+}
+
+/** Renders a measure as "| Cmaj7 A7 |" content (chords joined by spaces). */
+function measureText(measure: ChordSheetMeasure): string {
+  return measure.chords.length > 0 ? measure.chords.join(" ") : " ";
+}
+
+/** Plain-text chart: each section's label, its bars in rows of `perRow`, then notes. */
+export function serializeChordSheetText(sheet: ChordSheet, perRow = 4): string {
+  const blocks = sheet.sections.map((section) => {
+    const lines: string[] = [section.label.toUpperCase()];
+    for (let i = 0; i < section.measures.length; i += perRow) {
+      const row = section.measures.slice(i, i + perRow);
+      lines.push(`| ${row.map(measureText).join(" | ")} |`);
+    }
+    if (section.measures.length === 0) lines.push("(no bars yet)");
+    if (section.notes.trim()) lines.push(section.notes.trim());
+    return lines.join("\n");
+  });
+  return blocks.join("\n\n");
+}
+
+function escapeHtml(value: string): string {
+  return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+/** Printable HTML chord chart for PDF export. */
+export function buildChordSheetHtml(
+  title: string,
+  subtitle: string,
+  sheet: ChordSheet,
+  perRow = 4
+): string {
+  const sectionsHtml = sheet.sections
+    .map((section) => {
+      const rows: string[] = [];
+      for (let i = 0; i < section.measures.length; i += perRow) {
+        const cells = section.measures
+          .slice(i, i + perRow)
+          .map((m) => `<td class="bar">${escapeHtml(measureText(m)).trim() || "&nbsp;"}</td>`)
+          .join("");
+        rows.push(`<tr>${cells}</tr>`);
+      }
+      const grid = rows.length > 0 ? `<table class="bars">${rows.join("")}</table>` : "";
+      const notes = section.notes.trim() ? `<div class="notes">${escapeHtml(section.notes.trim())}</div>` : "";
+      return `<div class="section"><div class="label">${escapeHtml(section.label)}</div>${grid}${notes}</div>`;
+    })
+    .join("\n");
+
+  return `<!DOCTYPE html><html><head><meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+  @page { margin: 40px; }
+  body { color: #1b1c1a; font-family: -apple-system, Helvetica, Arial, sans-serif; }
+  h1 { font-family: Georgia, 'Times New Roman', serif; font-size: 22px; margin: 0 0 2px; }
+  .sub { color: #6b7280; font-size: 12px; margin: 0 0 22px; }
+  .section { margin-bottom: 22px; break-inside: avoid; }
+  .label { text-transform: uppercase; letter-spacing: 1px; font-size: 11px; font-weight: 700; color: #824f3f; margin-bottom: 6px; }
+  table.bars { border-collapse: collapse; width: 100%; table-layout: fixed; }
+  td.bar { border: 1px solid #d7c2bd; padding: 10px 8px; font-size: 15px; font-weight: 600; text-align: center; }
+  .notes { margin-top: 8px; font-size: 13px; color: #4b5563; white-space: pre-wrap; }
+</style></head><body>
+  <h1>${escapeHtml(title || "Untitled")}</h1>
+  <div class="sub">${escapeHtml(subtitle)}</div>
+  ${sectionsHtml}
+</body></html>`;
+}

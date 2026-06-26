@@ -114,6 +114,29 @@ export type SongChordPaletteItem = {
   lastUsedAt?: number;
 };
 
+/** A single bar in a block chord chart — usually one or two chord symbols.
+ * `chords` holds display strings (e.g. "Cmaj7", "A7"). */
+export type ChordSheetMeasure = {
+  id: string;
+  chords: string[];
+};
+
+/** A labelled block of measures (Intro, Verse, Chorus, …) with optional notes.
+ * Blocks are independent — they don't have to fill a line/page like sheet music. */
+export type ChordSheetSection = {
+  id: string;
+  label: string;
+  measures: ChordSheetMeasure[];
+  notes: string;
+};
+
+/** A standalone "real book"-style chord chart for a song: ordered blocks of
+ * measures, separate from the lyric-anchored chord chart. */
+export type ChordSheet = {
+  sections: ChordSheetSection[];
+  updatedAt: number;
+};
+
 export type LyricsLine = {
   id: string;
   text: string;
@@ -268,6 +291,8 @@ export type SongIdea = {
   lyrics?: ProjectLyrics;
   /** Chords saved/used within this song, surfaced as quick-insert buttons. */
   chordPalette?: SongChordPaletteItem[];
+  /** Standalone block chord chart (real-book style) for this song. */
+  chordSheet?: ChordSheet;
   customTags?: CustomTagDefinition[];
   clipGroups?: ClipGroup[];
   clipGroupAssignments?: Record<string, string>;

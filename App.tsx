@@ -38,6 +38,7 @@ import { SideNav } from "./src/components/SideNav";
 import { EditorScreen } from "./src/components/EditorScreen";
 import { LyricsScreen } from "./src/components/LyricsScreen";
 import { LyricsVersionScreen } from "./src/components/LyricsVersionScreen";
+import { ChordSheetScreen } from "./src/components/ChordSheetScreen";
 import { ClipLineageScreen } from "./src/components/ClipLineageScreen";
 import { ActivityScreen } from "./src/components/ActivityScreen";
 import { GlobalMediaDock } from "./src/components/GlobalMediaDock";
@@ -103,6 +104,7 @@ export type RootStackParamList = {
   Editor: { ideaId: string; clipId: string; audioUri?: string; durationMs?: number };
   Lyrics: { ideaId: string };
   LyricsVersion: { ideaId: string; versionId?: string; startInEdit?: boolean; forceNewVersion?: boolean; createDraft?: boolean };
+  ChordSheet: { ideaId: string };
   ClipLineage: { ideaId: string; rootClipId: string };
 };
 
@@ -143,6 +145,7 @@ const ROOT_STACK_ROUTE_NAMES: Array<keyof RootStackParamList> = [
   "Editor",
   "Lyrics",
   "LyricsVersion",
+  "ChordSheet",
   "ClipLineage",
 ];
 
@@ -880,6 +883,7 @@ function AppContent() {
           <Stack.Screen name="Editor" component={EditorScreen} />
           <Stack.Screen name="Lyrics" component={LyricsScreen} />
           <Stack.Screen name="LyricsVersion" component={LyricsVersionScreen} />
+          <Stack.Screen name="ChordSheet" component={ChordSheetScreen} />
           <Stack.Screen name="ClipLineage" component={ClipLineageScreen} />
         </Stack.Navigator>
         <GlobalMediaDock

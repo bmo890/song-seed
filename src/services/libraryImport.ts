@@ -530,6 +530,7 @@ export async function materializeSongSeedArchiveMerge(
                     clips: remappedClips,
                     lyrics,
                     chordPalette: songManifest.chordPalette,
+                    chordSheet: songManifest.chordSheet,
                     customTags: songManifest.customTags,
                     clipGroups,
                     clipGroupAssignments,
