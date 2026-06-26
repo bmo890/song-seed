@@ -78,7 +78,9 @@ export function ClipList() {
     mode: {
       idea: selectedIdea,
       displayPrimaryId,
-      isEditMode: screen.isEditMode,
+      // Songs edit via the sheet, so their clip cards never enter edit mode (no
+      // "set primary" buttons / tap-to-edit). Clips keep their in-place edit.
+      isEditMode: screen.isEditMode && !screen.isProject,
       isDraftProject,
       isParentPicking: !!parentPicking.parentPickState,
       parentPickSourceIdSet,

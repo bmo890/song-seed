@@ -43,8 +43,10 @@ export function SongCollapsibleHeader({ extra }: SongCollapsibleHeaderProps) {
   const titleLabel = isProject ? "Song" : "Clip";
   // In edit mode the title is edited in the fixed nav header, so the collapsible
   // title block + tabs are suppressed here to avoid a duplicate title.
-  const showTitle = !screen.isEditMode;
-  const showTabs = isProject && !screen.isEditMode;
+  // Songs edit via a sheet, so their title + tabs stay visible while editing.
+  // Clips still use the in-place edit (title moves into the nav), so hide there.
+  const showTitle = isProject || !screen.isEditMode;
+  const showTabs = isProject;
 
   return (
     // box-none + a non-interactive title lets drags on the title fall through to

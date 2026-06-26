@@ -15,9 +15,10 @@ import { SongClipboardBanner } from "./SongClipboardBanner";
 import { SongImportModal } from "./SongImportModal";
 import { SongParentPickBanner } from "./SongParentPickBanner";
 import { SongUndoBanner } from "./SongUndoBanner";
+import { SongEditSheet } from "./SongEditSheet";
 
 export function SongScreenContent() {
-  const { screen, parentPicking, store, actions, importFlow } = useSongScreen();
+  const { screen, parentPicking, store, actions, importFlow, editFlow } = useSongScreen();
 
   if (!screen.selectedIdea) {
     return (
@@ -76,6 +77,20 @@ export function SongScreenContent() {
       ) : null}
       <SongUndoBanner />
       <SongImportModal />
+      {screen.isProject ? (
+        <SongEditSheet
+          visible={screen.isEditMode}
+          isDraft={!!screen.selectedIdea.isDraft}
+          title={screen.draftTitle}
+          onChangeTitle={screen.setDraftTitle}
+          status={screen.draftStatus}
+          onChangeStatus={screen.setDraftStatus}
+          completion={screen.draftCompletion}
+          onChangeCompletion={screen.setDraftCompletion}
+          onSave={editFlow.handleSave}
+          onCancel={() => editFlow.handleCancel()}
+        />
+      ) : null}
       <ExpoStatusBar style="dark" />
     </SafeAreaView>
   );

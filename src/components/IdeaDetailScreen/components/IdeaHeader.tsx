@@ -76,7 +76,7 @@ export function IdeaHeader() {
           </Animated.View>
         </View>
 
-        {isEditMode ? (
+        {isEditMode && !isProject ? (
           <View style={styles.songDetailNavEditActions}>
             <Pressable
               style={({ pressed }) => [
@@ -116,9 +116,9 @@ export function IdeaHeader() {
         )}
       </View>
 
-      {/* Edit-mode title input stays fixed under the nav. In view mode the title
-          block lives in the collapsing overlay (SongCollapsibleHeader). */}
-      {isEditMode ? (
+      {/* Clips edit their title inline under the nav. Songs use the edit sheet,
+          so their title block stays in the collapsing overlay. */}
+      {isEditMode && !isProject ? (
         <View style={styles.songDetailTitleBlock}>
           <Text style={styles.songDetailTypeLabel}>Editing {titleLabel}</Text>
           <TitleInput

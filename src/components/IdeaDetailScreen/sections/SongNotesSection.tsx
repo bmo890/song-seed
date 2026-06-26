@@ -6,7 +6,7 @@ import { CollapsingTabStage } from "../components/CollapsingTabStage";
 
 export function SongNotesSection() {
   const { screen } = useSongScreen();
-  if (!screen.selectedIdea || screen.isEditMode || screen.songTab !== "notes") {
+  if (!screen.selectedIdea || screen.songTab !== "notes") {
     return null;
   }
 

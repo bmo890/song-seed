@@ -16,7 +16,7 @@ export function SongChartSection() {
   const model = useChordSheetModel(idea?.kind === "project" ? idea.id : undefined);
   const [exportVisible, setExportVisible] = useState(false);
 
-  if (idea?.kind !== "project" || screen.isEditMode || screen.songTab !== "chart") {
+  if (idea?.kind !== "project" || screen.songTab !== "chart") {
     return null;
   }
 
