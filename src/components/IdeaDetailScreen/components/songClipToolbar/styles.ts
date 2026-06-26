@@ -47,7 +47,7 @@ export const songClipToolbarStyles = StyleSheet.create({
     paddingLeft: 12,
     paddingRight: 12,
     minHeight: 32,
-    borderRadius: 14,
+    borderRadius: 999,
     backgroundColor: "rgba(215,194,189,0.2)",
   },
   viewTriggerOpen: {
@@ -70,12 +70,12 @@ export const songClipToolbarStyles = StyleSheet.create({
     alignItems: "center",
     gap: 4,
     padding: 3,
-    borderRadius: 14,
+    borderRadius: 999,
     backgroundColor: "rgba(215,194,189,0.2)",
   },
   viewToggleOption: {
     minHeight: 28,
-    borderRadius: 11,
+    borderRadius: 999,
     paddingHorizontal: 12,
     alignItems: "center",
     justifyContent: "center",

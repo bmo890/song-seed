@@ -96,7 +96,7 @@ const localStyles = StyleSheet.create({
   },
   sectionLabel: {
     fontSize: 11,
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
     color: "#a89994",
     textTransform: "uppercase",
     letterSpacing: 0.6,
@@ -109,7 +109,7 @@ const localStyles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 11,
-    borderRadius: 10,
+    borderRadius: 4,
     paddingHorizontal: 13,
     paddingVertical: 11,
     backgroundColor: "#F4F1ED",
@@ -127,6 +127,6 @@ const localStyles = StyleSheet.create({
   },
   optionTextSelected: {
     color: "#FFFFFF",
-    fontWeight: "600",
+    fontFamily: "PlusJakartaSans_600SemiBold",
   },
 });

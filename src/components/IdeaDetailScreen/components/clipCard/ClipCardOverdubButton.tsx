@@ -27,7 +27,7 @@ export function ClipCardOverdubButton({
         await onPress();
       }}
     >
-      <Ionicons name="mic-outline" size={14} color="#475569" />
+      <Ionicons name="mic-outline" size={14} color="#84736f" />
     </Pressable>
   );
 }

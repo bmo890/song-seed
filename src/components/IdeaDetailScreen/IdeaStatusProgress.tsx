@@ -47,7 +47,7 @@ export function IdeaStatusProgress({
             <View style={[styles.card, styles.songDetailSummaryCard, styles.songDetailSummaryCardCompact, cardStyle]}>
                 <View style={styles.songDetailSummaryHeader}>
                     <View style={styles.songDetailSummaryTitleWrap}>
-                        <Ionicons name="trending-up-outline" size={14} color="#64748b" />
+                        <Ionicons name="trending-up-outline" size={14} color="#84736f" />
                         <Text style={styles.songDetailMiniCardTitle}>Progress</Text>
                     </View>
                 </View>
@@ -93,9 +93,9 @@ export function IdeaStatusProgress({
                         else if (val >= 25) setDraftStatus("sprout");
                         else setDraftStatus("seed");
                     }}
-                    minimumTrackTintColor="#111827"
-                    maximumTrackTintColor="#d1d5db"
-                    thumbTintColor="#111827"
+                    minimumTrackTintColor="#1b1c1a"
+                    maximumTrackTintColor="#D7C2BD"
+                    thumbTintColor="#1b1c1a"
                 />
             </View>
         </View>

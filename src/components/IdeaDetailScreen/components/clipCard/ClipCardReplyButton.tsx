@@ -27,7 +27,7 @@ export function ClipCardReplyButton({
         await onPress();
       }}
     >
-      <Ionicons name="return-up-forward-outline" size={14} color="#475569" />
+      <Ionicons name="return-up-forward-outline" size={14} color="#84736f" />
     </Pressable>
   );
 }

@@ -40,7 +40,7 @@ export function ClipCardInlinePlayer({
           onClose();
         }}
       >
-        <Ionicons name="close" size={13} color="#64748b" />
+        <Ionicons name="close" size={13} color="#84736f" />
       </Pressable>
     </Animated.View>
   );

@@ -242,7 +242,7 @@ export function LyricsVersionsPanel({ projectIdea }: LyricsVersionsPanelProps) {
                         toggleExpanded(version.id);
                       }}
                     >
-                      <Ionicons name={isExpanded ? "chevron-up" : "chevron-down"} size={16} color="#4b5563" />
+                      <Ionicons name={isExpanded ? "chevron-up" : "chevron-down"} size={16} color="#84736f" />
                     </Pressable>
                   </View>
                 </View>

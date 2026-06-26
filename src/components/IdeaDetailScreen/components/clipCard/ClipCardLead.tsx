@@ -46,13 +46,13 @@ export function ClipCardLead({
           <Ionicons
             name={inlineActive && inlinePlaying ? "pause" : "play"}
             size={15}
-            color={!canPlay ? "#9ca3af" : "#111827"}
+            color={!canPlay ? "#a89994" : "#1b1c1a"}
             style={inlineActive && inlinePlaying ? undefined : { marginLeft: 2 }}
           />
         </Pressable>
       ) : (
         <View style={styles.ideasInlinePlayBtn}>
-          <Ionicons name="play" size={15} color="#9ca3af" style={{ marginLeft: 2 }} />
+          <Ionicons name="play" size={15} color="#a89994" style={{ marginLeft: 2 }} />
         </View>
       )}
       <View style={styles.songDetailVersionLeadDurationSlot}>

@@ -48,7 +48,7 @@ export function AssignLineageSheet({
               }}
             >
               <View style={localStyles.lineageRow}>
-                <Ionicons name="git-branch-outline" size={16} color="#334155" />
+                <Ionicons name="git-branch-outline" size={16} color="#524440" />
                 <View style={localStyles.lineageInfo}>
                   <Text style={styles.collectionActionsOptionText} numberOfLines={1}>
                     {lineage.root.title || "Untitled"}
@@ -61,7 +61,7 @@ export function AssignLineageSheet({
                   </Text>
                 </View>
               </View>
-              <Ionicons name="chevron-forward" size={15} color="#94a3b8" />
+              <Ionicons name="chevron-forward" size={15} color="#a89994" />
             </Pressable>
           );
         })}
@@ -74,7 +74,7 @@ export function AssignLineageSheet({
           onPress={() => sheetRef.current?.close()}
         >
           <View style={styles.collectionActionsOptionLead}>
-            <Ionicons name="close-outline" size={16} color="#334155" />
+            <Ionicons name="close-outline" size={16} color="#524440" />
             <Text style={styles.collectionActionsOptionText}>Cancel</Text>
           </View>
         </Pressable>
@@ -97,7 +97,7 @@ const localStyles = StyleSheet.create({
   },
   lineageMeta: {
     fontSize: 12,
-    color: "#94a3b8",
+    color: "#a89994",
     marginTop: 1,
   },
 });

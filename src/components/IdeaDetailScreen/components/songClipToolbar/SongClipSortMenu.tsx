@@ -35,7 +35,7 @@ export function SongClipSortMenu({
             <Ionicons
               name="arrow-up"
               size={14}
-              color={timelineSortDirection === "asc" ? "#ffffff" : "#475569"}
+              color={timelineSortDirection === "asc" ? "#ffffff" : "#84736f"}
             />
             <Text
               style={[
@@ -59,7 +59,7 @@ export function SongClipSortMenu({
             <Ionicons
               name="arrow-down"
               size={14}
-              color={timelineSortDirection === "desc" ? "#ffffff" : "#475569"}
+              color={timelineSortDirection === "desc" ? "#ffffff" : "#84736f"}
             />
             <Text
               style={[
@@ -98,7 +98,7 @@ export function SongClipSortMenu({
               <Ionicons
                 name={option.icon as any}
                 size={15}
-                color={active ? "#0f172a" : "#64748b"}
+                color={active ? "#1b1c1a" : "#84736f"}
               />
               <Text
                 style={[
@@ -109,7 +109,7 @@ export function SongClipSortMenu({
                 {option.label}
               </Text>
             </View>
-            {active ? <Ionicons name="checkmark" size={15} color="#0f172a" /> : null}
+            {active ? <Ionicons name="checkmark" size={15} color="#1b1c1a" /> : null}
           </Pressable>
         );
       })}

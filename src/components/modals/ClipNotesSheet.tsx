@@ -60,7 +60,7 @@ export function ClipNotesSheet({
           style={styles.clipNotesSheetTextInput}
           multiline
           placeholder="Add notes about this clip..."
-          placeholderTextColor="#94a3b8"
+          placeholderTextColor="#a89994"
           value={notesDraft}
           onChangeText={onChangeNotes}
           autoFocus={!notesDraft}

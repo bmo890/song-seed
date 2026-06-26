@@ -83,13 +83,13 @@ export const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 14,
     color: "#B8A8A3",
-    fontWeight: "600",
+    fontFamily: "PlusJakartaSans_600SemiBold",
   },
   songDetailBreadcrumbText: {
     fontSize: 12,
     lineHeight: 14,
     color: "#84736f",
-    fontWeight: "600",
+    fontFamily: "PlusJakartaSans_600SemiBold",
   },
   songDetailBreadcrumbTextActive: {
     color: "#524440",
@@ -98,7 +98,7 @@ export const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 14,
     color: "#B8A8A3",
-    fontWeight: "600",
+    fontFamily: "PlusJakartaSans_600SemiBold",
   },
   songDetailNavEditActions: {
     flexDirection: "row",
@@ -122,12 +122,12 @@ export const styles = StyleSheet.create({
   songDetailNavTextActionText: {
     fontSize: 12,
     color: "#524440",
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
   },
   songDetailNavTextActionPrimaryText: {
     fontSize: 12,
     color: "#ffffff",
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
   },
   songDetailTitleBlock: {
     marginTop: 4,
@@ -140,7 +140,7 @@ export const styles = StyleSheet.create({
     fontSize: 11,
     lineHeight: 14,
     color: "#84736f",
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
     textTransform: "uppercase",
     letterSpacing: 0.3,
   },
@@ -165,13 +165,13 @@ export const styles = StyleSheet.create({
     flex: 1,
     fontSize: 20,
     lineHeight: 24,
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
     color: "#1C1C19",
   },
   songDetailPageTitleLarge: {
-    fontFamily: "PlusJakartaSans_600SemiBold",
-    fontSize: 24,
-    lineHeight: 30,
+    fontFamily: "PlayfairDisplay_600SemiBold",
+    fontSize: 26,
+    lineHeight: 32,
     color: "#1b1c1a",
   },
   songDetailPageTitleWithIcon: {
@@ -183,7 +183,7 @@ export const styles = StyleSheet.create({
     fontSize: 11,
     lineHeight: 14,
     color: "#84736f",
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
     textTransform: "uppercase",
     letterSpacing: 0.5,
   },
@@ -218,7 +218,7 @@ export const styles = StyleSheet.create({
     flex: 1,
     fontSize: 13,
     color: "#b91c1c",
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
   },
   ideasSearchUtilityRow: {
     flexDirection: "row",
@@ -738,12 +738,12 @@ export const styles = StyleSheet.create({
     borderRadius: 4,
     paddingLeft: 10,
     paddingRight: 64,
-    paddingVertical: 4,
-    fontSize: 18,
-    lineHeight: 20,
-    fontWeight: "700",
+    paddingVertical: 6,
+    fontSize: 20,
+    lineHeight: 26,
+    fontFamily: "PlayfairDisplay_600SemiBold",
     color: "#1b1c1a",
-    minHeight: 34,
+    minHeight: 38,
     textAlignVertical: "top",
   },
   titleInlineInputPlaceholder: {
@@ -846,7 +846,7 @@ export const styles = StyleSheet.create({
   songDetailSongTabText: {
     fontSize: 13,
     color: "#84736f",
-    fontWeight: "600",
+    fontFamily: "PlusJakartaSans_600SemiBold",
   },
   songDetailSongTabTextActive: {
     color: "#1C1C19",
@@ -885,7 +885,7 @@ export const styles = StyleSheet.create({
   songDetailMetaTabText: {
     fontSize: 11,
     color: "#84736f",
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
   },
   songDetailMetaTabTextActive: {
     color: "#FDFBF7",
@@ -923,24 +923,25 @@ export const styles = StyleSheet.create({
   songDetailMetaFieldLabel: {
     fontSize: 11,
     color: "#84736f",
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
     textTransform: "uppercase",
     letterSpacing: 0.3,
   },
   songDetailMetaFieldHint: {
     fontSize: 11,
     color: "#B8A8A3",
-    fontWeight: "600",
+    fontFamily: "PlusJakartaSans_600SemiBold",
   },
   songDetailMetaValue: {
     fontSize: 16,
     color: "#1C1C19",
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
   },
   songDetailMetaValueCompact: {
     fontSize: 15,
     color: "#1C1C19",
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
+    fontVariant: ["tabular-nums"],
   },
   songDetailMetaSliderWrap: {
     gap: 2,
@@ -973,7 +974,7 @@ export const styles = StyleSheet.create({
   songDetailMetaActionChipText: {
     fontSize: 10,
     color: "#524440",
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
   },
   songDetailSummaryCard: {
     gap: 8,
@@ -1027,12 +1028,12 @@ export const styles = StyleSheet.create({
   songDetailStatusPercent: {
     fontSize: 16,
     color: "#1C1C19",
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
   },
   songDetailStatusPercentCompact: {
     fontSize: 18,
     color: "#1C1C19",
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
     lineHeight: 22,
   },
   songDetailStatusBadgeLarge: {
@@ -1096,7 +1097,7 @@ export const styles = StyleSheet.create({
   songDetailMiniCardTitle: {
     fontSize: 13,
     color: "#1C1C19",
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
   },
   songDetailMiniCardMetaWrap: {
     flexDirection: "row",
@@ -1111,7 +1112,7 @@ export const styles = StyleSheet.create({
   songDetailMiniCardMetaText: {
     fontSize: 10,
     color: "#84736f",
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
     textTransform: "uppercase",
     letterSpacing: 0.3,
   },
@@ -1123,7 +1124,7 @@ export const styles = StyleSheet.create({
   songDetailMiniCardActionText: {
     fontSize: 10,
     color: "#1C1C19",
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
     textTransform: "uppercase",
     letterSpacing: 0.3,
   },
@@ -1149,7 +1150,7 @@ export const styles = StyleSheet.create({
   songDetailSummaryLinkTitle: {
     fontSize: 13,
     color: "#1C1C19",
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
   },
   songDetailSummaryLinkMetaWrap: {
     flexDirection: "row",
@@ -1160,7 +1161,7 @@ export const styles = StyleSheet.create({
   songDetailSummaryLinkMetaText: {
     fontSize: 10,
     color: "#84736f",
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
     textTransform: "uppercase",
     letterSpacing: 0.3,
   },
@@ -1181,7 +1182,7 @@ export const styles = StyleSheet.create({
   },
   songDetailMiniCardButtonText: {
     fontSize: 12,
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
   },
   songDetailLyricsCard: {
     borderColor: "rgba(215,194,189,0.3)",
@@ -1191,7 +1192,7 @@ export const styles = StyleSheet.create({
   songDetailSectionEyebrow: {
     fontSize: 11,
     color: "#84736f",
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
     textTransform: "uppercase",
     letterSpacing: 0.3,
   },
@@ -1254,9 +1255,10 @@ export const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 12,
     paddingRight: 18,
-    fontSize: 15,
-    lineHeight: 22,
+    fontSize: 16,
+    lineHeight: 25,
     color: "#1b1c1a",
+    fontFamily: "PlayfairDisplay_400Regular",
     textAlignVertical: "top",
     marginBottom: 20,
   },
@@ -1740,7 +1742,7 @@ export const styles = StyleSheet.create({
   songDetailTimelineMetricChipText: {
     fontSize: 12,
     color: "#84736f",
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
   },
   songDetailTimelineMetricChipTextActive: {
     color: "#ffffff",
@@ -1761,7 +1763,7 @@ export const styles = StyleSheet.create({
   songDetailTimelineDirectionText: {
     fontSize: 12,
     color: "#84736f",
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
   },
   songDetailTimelineDividerWrap: {
     paddingTop: 2,
@@ -1819,7 +1821,7 @@ export const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 14,
     color: "#84736f",
-    fontWeight: "600",
+    fontFamily: "PlusJakartaSans_600SemiBold",
     textAlign: "center",
     fontVariant: ["tabular-nums"],
   },
@@ -1855,7 +1857,7 @@ export const styles = StyleSheet.create({
   songDetailVersionRepliesToggleText: {
     fontSize: 10,
     color: "#84736f",
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
   },
   songDetailVersionTitle: {
     flex: 1,
@@ -1863,7 +1865,7 @@ export const styles = StyleSheet.create({
     fontSize: 13.5,
     lineHeight: 17,
     color: "#1C1C19",
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
   },
   songDetailVersionTrailing: {
     flexDirection: "row",
@@ -1885,7 +1887,7 @@ export const styles = StyleSheet.create({
   songDetailVersionSetPrimaryText: {
     fontSize: 10,
     color: "#524440",
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
   },
   songDetailVersionReplyBtn: {
     width: 26,
@@ -1913,7 +1915,7 @@ export const styles = StyleSheet.create({
     fontSize: 10,
     lineHeight: 13,
     color: "#84736f",
-    fontWeight: "600",
+    fontFamily: "PlusJakartaSans_600SemiBold",
   },
   clipCardNotesPreview: {
     flexDirection: "row",
@@ -1947,7 +1949,7 @@ export const styles = StyleSheet.create({
   },
   clipCardTagBadgeText: {
     fontSize: 10,
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
   },
   clipCardAddTagBtn: {
     width: 18,
@@ -2260,7 +2262,7 @@ export const styles = StyleSheet.create({
     fontSize: 11,
     lineHeight: 14,
     color: "#84736f",
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
   },
   recordingScreenLayout: {
     flex: 1,
@@ -4305,7 +4307,8 @@ export const styles = StyleSheet.create({
     borderRadius: 999,
     paddingHorizontal: 8,
     paddingVertical: 3,
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
+    letterSpacing: 0.3,
   },
   badgeCurrent: {
     backgroundColor: colors.primary,
@@ -5032,13 +5035,13 @@ export const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 16,
     color: "#84736f",
-    fontWeight: "600",
+    fontFamily: "PlusJakartaSans_600SemiBold",
   },
   songDetailParentPickMeta: {
     fontSize: 11,
     lineHeight: 15,
     color: "#84736f",
-    fontWeight: "500",
+    fontFamily: "PlusJakartaSans_500Medium",
   },
   songDetailParentPickInlineHint: {
     borderRadius: 12,
@@ -5052,13 +5055,13 @@ export const styles = StyleSheet.create({
   songDetailParentPickInlineTitle: {
     fontSize: 12,
     color: "#1b1c1a",
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
   },
   songDetailParentPickInlineText: {
     fontSize: 11,
     lineHeight: 15,
     color: "#84736f",
-    fontWeight: "600",
+    fontFamily: "PlusJakartaSans_600SemiBold",
   },
   ideasSelectionDock: {
     position: "absolute",
@@ -5791,7 +5794,7 @@ export const styles = StyleSheet.create({
   },
   primaryPickLabel: {
     fontSize: 8,
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
     color: "#1b1c1a",
   },
   cardGhostProject: {
@@ -5978,7 +5981,7 @@ export const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 18,
     color: "#84736f",
-    fontWeight: "500",
+    fontFamily: "PlusJakartaSans_500Medium",
   },
   clipActionsOptionList: {
     gap: 6,

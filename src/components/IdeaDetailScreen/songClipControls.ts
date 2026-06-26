@@ -53,13 +53,13 @@ export function getTagColor(
   const projectTag = projectCustomTags?.find((t) => t.key === key);
   if (projectTag) {
     const palette = CUSTOM_TAG_PALETTE.find((p) => p.bg === projectTag.color);
-    return palette ?? { bg: projectTag.color, text: "#374151" };
+    return palette ?? { bg: projectTag.color, text: "#524440" };
   }
 
   const globalTag = globalCustomTags?.find((t) => t.key === key);
   if (globalTag) {
     const palette = CUSTOM_TAG_PALETTE.find((p) => p.bg === globalTag.color);
-    return palette ?? { bg: globalTag.color, text: "#374151" };
+    return palette ?? { bg: globalTag.color, text: "#524440" };
   }
 
   return CUSTOM_TAG_PALETTE[hashString(key) % CUSTOM_TAG_PALETTE.length];
