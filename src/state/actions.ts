@@ -2796,6 +2796,8 @@ export const appActions = {
         useStore.setState({
             workspaces: nextWorkspaces,
             notes: nextNotes,
+            songbooks: [...merge.importedSongbooks, ...store.songbooks],
+            setlists: [...merge.importedSetlists, ...store.setlists],
             primaryWorkspaceId: nextPrimaryWorkspaceId,
             primaryCollectionIdByWorkspace: nextPrimaryCollectionIdByWorkspace,
             bluetoothMonitoringCalibrations: nextBluetoothMonitoringCalibrations,

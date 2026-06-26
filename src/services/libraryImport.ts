@@ -9,6 +9,8 @@ import type {
     Collection,
     Note,
     ProjectLyrics,
+    Setlist,
+    Songbook,
     SongIdea,
     Workspace,
 } from "../types";
@@ -51,6 +53,8 @@ export type LibraryImportPreview = {
 export type MaterializedSongSeedArchiveMerge = {
     importedWorkspaces: Workspace[];
     importedNotes: Note[];
+    importedSongbooks: Songbook[];
+    importedSetlists: Setlist[];
     suggestedPrimaryWorkspaceId: string | null;
     suggestedPrimaryCollectionIdByWorkspace: Record<string, string>;
     bluetoothMonitoringCalibrations: BluetoothMonitoringCalibration[];
@@ -348,6 +352,11 @@ export async function materializeSongSeedArchiveMerge(
     const importedNotes: Note[] = [];
     const importedWorkspaceIds: string[] = [];
     const importedIdeaIds: string[] = [];
+    // Source-id -> new-id maps so global songbook/setlist references survive the
+    // re-id that import performs. (Lyric version ids are preserved as-is.)
+    const workspaceIdMap = new Map<string, string>();
+    const ideaIdMap = new Map<string, string>();
+    const clipIdMapGlobal = new Map<string, string>();
     const suggestedPrimaryCollectionIdByWorkspace: Record<string, string> = {};
     const bluetoothMonitoringCalibrations = normalizeBluetoothMonitoringCalibrations(
         parsed.manifest.libraryPreferences?.bluetoothMonitoringCalibrations
@@ -370,6 +379,7 @@ export async function materializeSongSeedArchiveMerge(
 
     for (const workspaceManifest of parsed.manifest.workspaces) {
         const workspaceId = buildWorkspaceId();
+        workspaceIdMap.set(workspaceManifest.id, workspaceId);
         const workspaceTitle = ensureUniqueCountedTitle(
             workspaceManifest.title,
             existingWorkspaceTitles
@@ -434,12 +444,14 @@ export async function materializeSongSeedArchiveMerge(
 
             for (const songManifest of collectionManifest.songs) {
                 const ideaId = buildIdeaId();
+                ideaIdMap.set(songManifest.id, ideaId);
                 importedIdeaIds.push(ideaId);
 
                 const clips: ClipVersion[] = [];
                 for (const clipManifest of songManifest.clips) {
                     const clipId = buildClipId();
                     clipIdMap.set(clipManifest.id, clipId);
+                    clipIdMapGlobal.set(clipManifest.id, clipId);
                     let audioUri: string | undefined;
 
                     if (clipManifest.audioPath) {
@@ -624,9 +636,55 @@ export async function materializeSongSeedArchiveMerge(
         }
     }
 
+    // Remap global songbooks/setlists onto the freshly imported ids, dropping any
+    // references whose songs/clips weren't part of this archive.
+    const importedSongbooks: Songbook[] = (parsed.manifest.songbooks ?? [])
+        .map((songbook) => ({
+            id: buildEntityId("songbook"),
+            title: songbook.title,
+            createdAt: songbook.createdAt,
+            updatedAt: songbook.updatedAt,
+            items: (songbook.items ?? [])
+                .map((item) => {
+                    const workspaceId = workspaceIdMap.get(item.workspaceId);
+                    const ideaId = ideaIdMap.get(item.ideaId);
+                    if (!workspaceId || !ideaId) return null;
+                    return { ...item, id: buildEntityId("songbook-item"), workspaceId, ideaId };
+                })
+                .filter((item): item is Songbook["items"][number] => item !== null),
+        }))
+        .filter((songbook) => songbook.items.length > 0);
+
+    const importedSetlists: Setlist[] = (parsed.manifest.setlists ?? [])
+        .map((setlist) => ({
+            id: buildEntityId("setlist"),
+            title: setlist.title,
+            createdAt: setlist.createdAt,
+            updatedAt: setlist.updatedAt,
+            entries: (setlist.entries ?? [])
+                .map((entry) => {
+                    const workspaceId = workspaceIdMap.get(entry.workspaceId);
+                    const ideaId = ideaIdMap.get(entry.ideaId);
+                    if (!workspaceId || !ideaId) return null;
+                    return {
+                        ...entry,
+                        id: buildEntityId("setlist-entry"),
+                        workspaceId,
+                        ideaId,
+                        clipIds: (entry.clipIds ?? [])
+                            .map((clipId) => clipIdMapGlobal.get(clipId))
+                            .filter((clipId): clipId is string => !!clipId),
+                    };
+                })
+                .filter((entry): entry is Setlist["entries"][number] => entry !== null),
+        }))
+        .filter((setlist) => setlist.entries.length > 0);
+
     return {
         importedWorkspaces,
         importedNotes,
+        importedSongbooks,
+        importedSetlists,
         suggestedPrimaryWorkspaceId,
         suggestedPrimaryCollectionIdByWorkspace,
         bluetoothMonitoringCalibrations,

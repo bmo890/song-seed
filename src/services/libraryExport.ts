@@ -7,6 +7,8 @@ import type {
     ClipVersion,
     Collection,
     Note,
+    Setlist,
+    Songbook,
     SongIdea,
     Workspace,
 } from "../types";
@@ -68,6 +70,8 @@ export type ExportLibraryArgs =
           scope: LibraryExportScope;
           options: SongSeedArchiveOptions;
           libraryPreferences?: SongSeedArchiveLibraryPreferences;
+          songbooks?: Songbook[];
+          setlists?: Setlist[];
           archiveLabel?: string;
       }
     | {
@@ -316,6 +320,11 @@ function buildSongSeedArchive(args: Extract<ExportLibraryArgs, { format: "song-s
         notepadNotes: [],
         workspaces: [],
     };
+
+    if (preserveAllMetadata) {
+        if (args.songbooks?.length) manifest.songbooks = args.songbooks;
+        if (args.setlists?.length) manifest.setlists = args.setlists;
+    }
 
     if (args.options.includeNotes && args.notes.length > 0) {
         const notepadFolderPath = "Notepad";

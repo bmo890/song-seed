@@ -9,6 +9,8 @@ import type {
     IdeaStatus,
     LyricsVersion,
     PracticeMarker,
+    Setlist,
+    Songbook,
     SongChordPaletteItem,
 } from "../types";
 
@@ -189,4 +191,7 @@ export type ArchiveManifest = {
     };
     notepadNotes?: ArchiveNotepadNoteManifest[];
     workspaces: ArchiveWorkspaceManifest[];
+    /** Global songbooks/setlists (full fidelity); references remapped on import. */
+    songbooks?: Songbook[];
+    setlists?: Setlist[];
 };

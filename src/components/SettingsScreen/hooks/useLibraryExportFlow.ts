@@ -32,6 +32,8 @@ const DEFAULT_STANDARD_OPTIONS: StandardExportOptions = {
 export function useLibraryExportFlow() {
   const workspaces = useStore((state) => state.workspaces);
   const notes = useStore((state) => state.notes);
+  const songbooks = useStore((state) => state.songbooks);
+  const setlists = useStore((state) => state.setlists);
   const primaryWorkspaceId = useStore((state) => state.primaryWorkspaceId);
   const primaryCollectionIdByWorkspace = useStore((state) => state.primaryCollectionIdByWorkspace);
   const bluetoothMonitoringCalibrations = useStore((state) => state.bluetoothMonitoringCalibrations);
@@ -206,6 +208,8 @@ export function useLibraryExportFlow() {
           ? await exportLibrary({
               workspaces,
               notes,
+              songbooks,
+              setlists,
               format,
               scope,
               options: archiveOptions,

@@ -304,6 +304,74 @@ describe("Song Seed Archive round-trip — full fidelity", () => {
         expect(clip.tags).toEqual(["idea"]);
         expect(clip.sections?.[0]).toMatchObject({ label: "Hook", kind: "chorus" });
     });
+
+    it("round-trips songbooks and setlists, remapping refs and dropping unresolved ones", async () => {
+        const { workspaces } = buildLibrary();
+        const prepared = await prepareLibraryExportArchive({
+            workspaces,
+            notes: [],
+            songbooks: [
+                {
+                    id: "sb-1",
+                    title: "My Book",
+                    createdAt: 1,
+                    updatedAt: 1,
+                    items: [
+                        { id: "sbi-1", kind: "lyricChart", workspaceId: "ws-1", ideaId: "idea-1", versionId: "lv-1", addedAt: 1 },
+                        { id: "sbi-bad", kind: "chordChart", workspaceId: "ws-1", ideaId: "missing", addedAt: 2 },
+                    ],
+                },
+            ],
+            setlists: [
+                {
+                    id: "sl-1",
+                    title: "Gig",
+                    createdAt: 1,
+                    updatedAt: 1,
+                    entries: [
+                        {
+                            id: "se-1",
+                            workspaceId: "ws-1",
+                            ideaId: "idea-1",
+                            clipIds: ["clip-root", "missing-clip"],
+                            lyricVersionIds: ["lv-1"],
+                            includeChordSheet: false,
+                            addedAt: 1,
+                        },
+                    ],
+                },
+            ],
+            format: "song-seed-archive",
+            scope: { workspaceIds: ["ws-1"], collectionIds: [] },
+            options: {
+                includeFullSongHistory: true,
+                includeNotes: true,
+                includeLyrics: true,
+                includeHiddenItems: true,
+                preserveAllMetadata: true,
+            },
+            libraryPreferences: { primaryWorkspaceId: "ws-1", primaryCollectionIdByWorkspace: { "ws-1": "col-1" } },
+        });
+        const parsed = await readSongSeedArchive(prepared.archiveUri, "archive.zip");
+        const merge = await materializeSongSeedArchiveMerge(parsed, [], null);
+
+        const project = merge.importedWorkspaces.flatMap((w) => w.ideas).find((i) => i.kind === "project")!;
+        const rootClipId = project.clips.find((c) => c.title === "Root take")!.id;
+
+        // Songbook: the lyric chart remaps to the new idea id; the bad ref is dropped.
+        expect(merge.importedSongbooks).toHaveLength(1);
+        expect(merge.importedSongbooks[0].items).toHaveLength(1);
+        expect(merge.importedSongbooks[0].items[0].ideaId).toBe(project.id);
+        expect(merge.importedSongbooks[0].items[0].versionId).toBe("lv-1");
+        expect(merge.importedSongbooks[0].id).not.toBe("sb-1");
+
+        // Setlist: idea + clip ids remap, missing clip dropped, version id preserved.
+        expect(merge.importedSetlists).toHaveLength(1);
+        const entry = merge.importedSetlists[0].entries[0];
+        expect(entry.ideaId).toBe(project.id);
+        expect(entry.clipIds).toEqual([rootClipId]);
+        expect(entry.lyricVersionIds).toEqual(["lv-1"]);
+    });
 });
 
 describe("Song Seed Archive round-trip — standard (lossy)", () => {
