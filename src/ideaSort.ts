@@ -66,9 +66,18 @@ export function getIdeaCreatedAt(idea: SongIdea): number {
     return idea.createdAt;
   }
 
-  // "Created" on the Ideas timeline follows the first clip/import date
-  // once an idea has audio, so old projects stay anchored to their first seed.
-  return idea.clips.reduce((minTs, clip) => Math.min(minTs, clip.createdAt), idea.createdAt);
+  // "Created" follows the earliest clip once an idea has audio, so a recorded idea
+  // stays anchored to its first seed. But a clip imported AFTER the idea was created
+  // carries the source file's date (which can be far in the past) — importing an old
+  // recording into today's song shouldn't backdate the song, so post-creation imports
+  // are skipped here. (An idea created FROM an old import already has its own old
+  // createdAt, so it's unaffected.)
+  return idea.clips.reduce((minTs, clip) => {
+    if (typeof clip.importedAt === "number" && clip.importedAt > idea.createdAt) {
+      return minTs;
+    }
+    return Math.min(minTs, clip.createdAt);
+  }, idea.createdAt);
 }
 
 export function getIdeaUpdatedAt(idea: SongIdea): number {
