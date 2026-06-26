@@ -1,8 +1,9 @@
-import React, { ReactNode, useMemo } from "react";
+import React, { ReactNode, useMemo, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { type SharedValue } from "react-native-reanimated";
 import { useStore } from "../../state/useStore";
+import { QuickNameModal } from "../modals/QuickNameModal";
 import { styles } from "./styles";
 import {
   buildEvolutionListRowsFromLineages,
@@ -99,8 +100,10 @@ function EvolutionMoreRow({
 
 function EvolutionGroupHeaderRow({
   row,
+  onRename,
 }: {
   row: Extract<EvolutionListRow, { kind: "group" }>;
+  onRename: (groupId: string, name: string) => void;
 }) {
   const ideaId = useStore((s) => s.selectedIdeaId);
   const setClipGroupCollapsed = useStore((s) => s.setClipGroupCollapsed);
@@ -116,6 +119,8 @@ function EvolutionGroupHeaderRow({
           if (!ideaId) return;
           setClipGroupCollapsed(ideaId, row.groupId, !row.collapsed);
         }}
+        onLongPress={() => onRename(row.groupId, row.name)}
+        delayLongPress={300}
       >
         <View style={styles.songDetailEvolutionGroupTitleRow}>
           <Ionicons
@@ -135,9 +140,24 @@ function EvolutionGroupHeaderRow({
           </Text>
         </View>
       </Pressable>
+      <Pressable
+        style={({ pressed }) => [groupRenameBtn, pressed ? styles.pressDown : null]}
+        onPress={() => onRename(row.groupId, row.name)}
+        hitSlop={8}
+        accessibilityLabel="Rename group"
+      >
+        <Ionicons name="create-outline" size={15} color="#84736f" />
+      </Pressable>
     </View>
   );
 }
+
+const groupRenameBtn = {
+  width: 34,
+  height: 34,
+  alignItems: "center" as const,
+  justifyContent: "center" as const,
+};
 
 export function EvolutionList({
   lineages,
@@ -153,6 +173,11 @@ export function EvolutionList({
   contentPaddingHorizontal,
   locateTarget,
 }: EvolutionListProps) {
+  const ideaId = clipCardContext.mode.idea.id;
+  const renameClipGroup = useStore((s) => s.renameClipGroup);
+  const [renameTarget, setRenameTarget] = useState<{ groupId: string; name: string } | null>(null);
+  const [renameDraft, setRenameDraft] = useState("");
+
   const groups = clipCardContext.mode.idea.clipGroups ?? [];
   const groupAssignments = clipCardContext.mode.idea.clipGroupAssignments ?? {};
   // "Collapse all" is lifted out of the FlatList into the sticky pinned overlay
@@ -178,6 +203,7 @@ export function EvolutionList({
   }, [locateTarget?.clipId, locateTarget?.nonce, contentRows]);
 
   return (
+    <>
     <SongClipListShell
       contentRows={contentRows}
       summaryContent={summaryContent}
@@ -195,7 +221,15 @@ export function EvolutionList({
       }}
       renderContentRow={(row) => {
         if (row.kind === "group") {
-          return <EvolutionGroupHeaderRow row={row} />;
+          return (
+            <EvolutionGroupHeaderRow
+              row={row}
+              onRename={(groupId, name) => {
+                setRenameTarget({ groupId, name });
+                setRenameDraft(name);
+              }}
+            />
+          );
         }
 
         if (row.kind === "more") {
@@ -217,5 +251,21 @@ export function EvolutionList({
         return <SongClipCard entry={row.entry} context={clipCardContext} />;
       }}
     />
+    <QuickNameModal
+      visible={!!renameTarget}
+      title="Rename group"
+      draftValue={renameDraft}
+      placeholderValue={renameTarget?.name}
+      onChangeDraft={setRenameDraft}
+      onCancel={() => setRenameTarget(null)}
+      onSave={() => {
+        const next = renameDraft.trim();
+        if (renameTarget && next) renameClipGroup(ideaId, renameTarget.groupId, next);
+        setRenameTarget(null);
+      }}
+      helperText="Give this lineage group a clearer name."
+      saveLabel="Rename"
+    />
+    </>
   );
 }
