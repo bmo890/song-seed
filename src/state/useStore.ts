@@ -8,6 +8,7 @@ import {
     createInitialWorkspace,
     normalizeActivityEvents,
     normalizePlaylists,
+    normalizeSongbooks,
     normalizeWorkspaces,
     resolvePrimaryCollectionIdByWorkspace,
     resolvePrimaryWorkspaceId,
@@ -149,6 +150,7 @@ export function sanitizePersistedState(state?: Partial<PersistedAppStore>): Pers
         workspaceLastOpenedAt: sanitizeTimestampMap(state?.workspaceLastOpenedAt, workspaceIds),
         collectionLastOpenedAt: sanitizeTimestampMap(state?.collectionLastOpenedAt, collectionIds),
         playlists: normalizePlaylists(state?.playlists),
+        songbooks: normalizeSongbooks(state?.songbooks),
         preferredRecordingInputId:
             typeof state?.preferredRecordingInputId === "string" ? state.preferredRecordingInputId : null,
         bluetoothMonitoringCalibrations: normalizeBluetoothMonitoringCalibrations(

@@ -18,6 +18,7 @@ export type PersistedAppStore = Pick<
     | "workspaceLastOpenedAt"
     | "collectionLastOpenedAt"
     | "playlists"
+    | "songbooks"
     | "preferredRecordingInputId"
     | "bluetoothMonitoringCalibrations"
     | "metronomeBpm"

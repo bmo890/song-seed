@@ -23,6 +23,8 @@ import {
     WorkspaceArchiveState,
     Playlist,
     PlaylistItem,
+    Songbook,
+    SongbookItem,
     WorkspaceListOrder,
     WorkspaceStartupPreference,
     BackupReminderFrequency,
@@ -85,6 +87,7 @@ export type DataSlice = {
     workspaceLastOpenedAt: Record<string, number>;
     collectionLastOpenedAt: Record<string, number>;
     playlists: Playlist[];
+    songbooks: Songbook[];
     preferredRecordingInputId: string | null;
     bluetoothMonitoringCalibrations: BluetoothMonitoringCalibration[];
     overdubPreviewRenderActiveByClipKey: Record<string, boolean>;
@@ -212,6 +215,12 @@ export type DataSlice = {
     ) => void;
     reorderPlaylistItems: (playlistId: string, orderedItemIds: string[]) => void;
     removePlaylistItem: (playlistId: string, playlistItemId: string) => void;
+    addSongbook: (title: string) => string;
+    addItemsToSongbook: (songbookId: string, items: Array<Omit<SongbookItem, "id" | "addedAt">>) => void;
+    reorderSongbookItems: (songbookId: string, orderedItemIds: string[]) => void;
+    removeSongbookItem: (songbookId: string, songbookItemId: string) => void;
+    renameSongbook: (songbookId: string, title: string) => void;
+    deleteSongbook: (songbookId: string) => void;
     deleteIdea: (ideaId: string) => void;
 };
 
@@ -246,6 +255,14 @@ function buildPlaylistId() {
 
 function buildPlaylistItemId() {
     return `playlist-item-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+}
+
+function buildSongbookId() {
+    return `songbook-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+}
+
+function buildSongbookItemId() {
+    return `songbook-item-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 }
 
 function countTotalIdeas(workspaces: Workspace[]) {
@@ -847,6 +864,40 @@ export function normalizePlaylists(playlists: Playlist[] | undefined) {
         }));
 }
 
+function normalizeSongbookItems(items: SongbookItem[] | undefined) {
+    if (!Array.isArray(items)) return [];
+    return items.filter((item): item is SongbookItem => {
+        if (!item || typeof item !== "object") return false;
+        return (
+            typeof item.id === "string" &&
+            (item.kind === "lyricChart" || item.kind === "chordChart") &&
+            typeof item.workspaceId === "string" &&
+            typeof item.ideaId === "string" &&
+            (item.versionId == null || typeof item.versionId === "string") &&
+            Number.isFinite(item.addedAt)
+        );
+    });
+}
+
+export function normalizeSongbooks(songbooks: Songbook[] | undefined) {
+    if (!Array.isArray(songbooks)) return [];
+    return songbooks
+        .filter((songbook): songbook is Songbook => {
+            if (!songbook || typeof songbook !== "object") return false;
+            return (
+                typeof songbook.id === "string" &&
+                typeof songbook.title === "string" &&
+                Number.isFinite(songbook.createdAt) &&
+                Number.isFinite(songbook.updatedAt)
+            );
+        })
+        .map((songbook) => ({
+            ...songbook,
+            title: songbook.title.trim() || "Untitled Songbook",
+            items: normalizeSongbookItems(songbook.items),
+        }));
+}
+
 export function normalizeWorkspaces(workspaces: Workspace[]) {
     return workspaces.map((workspace, index) => {
         const normalizedArchiveState = normalizeWorkspaceArchiveState(workspace.archiveState);
@@ -948,6 +999,7 @@ export const createDataSlice: StateCreator<
     workspaceLastOpenedAt: {},
     collectionLastOpenedAt: {},
     playlists: [],
+    songbooks: [],
     preferredRecordingInputId: null,
     bluetoothMonitoringCalibrations: [],
     overdubPreviewRenderActiveByClipKey: {},
@@ -2347,6 +2399,88 @@ export const createDataSlice: StateCreator<
                     }
             ),
         }));
+    },
+
+    addSongbook: (title) => {
+        const now = Date.now();
+        const id = buildSongbookId();
+        set((state) => ({
+            songbooks: [
+                { id, title: title.trim() || "Untitled Songbook", createdAt: now, updatedAt: now, items: [] },
+                ...state.songbooks,
+            ],
+        }));
+        return id;
+    },
+
+    addItemsToSongbook: (songbookId, items) => {
+        if (items.length === 0) return;
+        set((state) => {
+            const now = Date.now();
+            return {
+                songbooks: state.songbooks.map((songbook) =>
+                    songbook.id !== songbookId
+                        ? songbook
+                        : {
+                            ...songbook,
+                            updatedAt: now,
+                            items: [
+                                ...songbook.items,
+                                ...items.map((item, index) => ({
+                                    ...item,
+                                    id: `${buildSongbookItemId()}-${index}`,
+                                    addedAt: now + index,
+                                })),
+                            ],
+                        }
+                ),
+            };
+        });
+    },
+
+    reorderSongbookItems: (songbookId, orderedItemIds) => {
+        set((state) => ({
+            songbooks: state.songbooks.map((songbook) => {
+                if (songbook.id !== songbookId) return songbook;
+                const itemMap = new Map(songbook.items.map((item) => [item.id, item]));
+                const nextItems = orderedItemIds
+                    .map((itemId) => itemMap.get(itemId) ?? null)
+                    .filter((item): item is SongbookItem => !!item);
+                const seenIds = new Set(nextItems.map((item) => item.id));
+                songbook.items.forEach((item) => {
+                    if (!seenIds.has(item.id)) nextItems.push(item);
+                });
+                return { ...songbook, updatedAt: Date.now(), items: nextItems };
+            }),
+        }));
+    },
+
+    removeSongbookItem: (songbookId, songbookItemId) => {
+        set((state) => ({
+            songbooks: state.songbooks.map((songbook) =>
+                songbook.id !== songbookId
+                    ? songbook
+                    : {
+                        ...songbook,
+                        updatedAt: Date.now(),
+                        items: songbook.items.filter((item) => item.id !== songbookItemId),
+                    }
+            ),
+        }));
+    },
+
+    renameSongbook: (songbookId, title) => {
+        set((state) => ({
+            songbooks: state.songbooks.map((songbook) =>
+                songbook.id !== songbookId
+                    ? songbook
+                    : { ...songbook, updatedAt: Date.now(), title: title.trim() || songbook.title }
+            ),
+        }));
+    },
+
+    deleteSongbook: (songbookId) => {
+        set((state) => ({ songbooks: state.songbooks.filter((songbook) => songbook.id !== songbookId) }));
     },
 
     deleteIdea: (ideaId) => {

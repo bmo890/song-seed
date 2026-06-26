@@ -416,6 +416,29 @@ export type Playlist = {
   items: PlaylistItem[];
 };
 
+/** A chart collected into a global Songbook. References its source song live
+ * (by id) rather than snapshotting — exports produce the self-contained copy. */
+export type SongbookItemKind = "lyricChart" | "chordChart";
+
+export type SongbookItem = {
+  id: string;
+  kind: SongbookItemKind;
+  workspaceId: string;
+  ideaId: string;
+  /** The lyric version for a lyricChart; chordChart uses the song's chordSheet. */
+  versionId?: string;
+  addedAt: number;
+};
+
+/** A global, cross-workspace collection of lyric/chord charts. */
+export type Songbook = {
+  id: string;
+  title: string;
+  createdAt: number;
+  updatedAt: number;
+  items: SongbookItem[];
+};
+
 export type PlayerState = {
   target: PlayerTarget;
   isPlaying: boolean;
