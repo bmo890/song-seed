@@ -8,9 +8,10 @@ type Props = {
   visible: boolean;
   onClose: () => void;
   onNewWordLadder: () => void;
+  onNewCutUp: () => void;
 };
 
-export function LyricsSparkSheet({ visible, onClose, onNewWordLadder }: Props) {
+export function LyricsSparkSheet({ visible, onClose, onNewWordLadder, onNewCutUp }: Props) {
   return (
     <BottomSheet visible={visible} onClose={onClose}>
       <Text style={sheetStyles.title}>Lyrics Spark</Text>
@@ -27,6 +28,21 @@ export function LyricsSparkSheet({ visible, onClose, onNewWordLadder }: Props) {
           <Text style={sheetStyles.optionTitle}>Word Ladder</Text>
           <Text style={sheetStyles.optionBody}>
             Pair two columns of words to find lyric lines you wouldn't have written on purpose.
+          </Text>
+        </View>
+      </Pressable>
+
+      <Pressable
+        style={({ pressed }) => [sheetStyles.option, pressed ? appStyles.pressDown : null]}
+        onPress={onNewCutUp}
+      >
+        <View style={sheetStyles.iconWrap}>
+          <Ionicons name="cut-outline" size={18} color={colors.primary} />
+        </View>
+        <View style={sheetStyles.optionCopy}>
+          <Text style={sheetStyles.optionTitle}>Cut-Up</Text>
+          <Text style={sheetStyles.optionBody}>
+            Slice a stuck lyric into strips, shuffle them, and rebuild it into something new.
           </Text>
         </View>
       </Pressable>

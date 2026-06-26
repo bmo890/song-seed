@@ -16,7 +16,8 @@ import { useNotepadScreenModel, type NotebookEntry } from "../hooks/useNotepadSc
 import { styles } from "../../../styles";
 import { colors, radii, spacing, text as textTokens } from "../../../design/tokens";
 import { exerciseSummary } from "../../../wordLadder";
-import type { Note, WordLadderExercise } from "../../../types";
+import { cutUpSummary } from "../../../cutUp";
+import type { Note, WordLadderExercise, CutUpSpark } from "../../../types";
 import {
   buildSearchPreviewSegments,
   deriveNotePreviewBody,
@@ -187,6 +188,55 @@ function WordLadderListItem({
   );
 }
 
+type CutUpItemProps = {
+  spark: CutUpSpark;
+  selectionMode: boolean;
+  isSelected: boolean;
+  onPress: (spark: CutUpSpark) => void;
+  onBeginSelection: (sparkId: string) => void;
+  onToggleSelect: (sparkId: string) => void;
+};
+
+function CutUpListItem({
+  spark,
+  selectionMode,
+  isSelected,
+  onPress,
+  onBeginSelection,
+  onToggleSelect,
+}: CutUpItemProps) {
+  return (
+    <Pressable
+      style={({ pressed }) => [
+        noteStyles.card,
+        noteStyles.ladderCard,
+        isSelected ? noteStyles.cardSelected : null,
+        pressed ? styles.pressDown : null,
+      ]}
+      onPress={() => onPress(spark)}
+      onLongPress={() => (selectionMode ? onToggleSelect(spark.id) : onBeginSelection(spark.id))}
+      delayLongPress={250}
+    >
+      <View style={noteStyles.ladderIconWrap}>
+        <Ionicons name="cut-outline" size={16} color={colors.primary} />
+      </View>
+      <View style={noteStyles.cardBody}>
+        <Text style={noteStyles.cardTitle} numberOfLines={1}>
+          {spark.title}
+        </Text>
+        <Text style={noteStyles.cardMeta}>CUT-UP  ·  {cutUpSummary(spark)}</Text>
+      </View>
+      {selectionMode ? (
+        <View style={[noteStyles.selectIndicator, isSelected ? noteStyles.selectIndicatorChecked : null]}>
+          {isSelected ? <Ionicons name="checkmark" size={13} color={colors.onPrimary} /> : null}
+        </View>
+      ) : (
+        <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+      )}
+    </Pressable>
+  );
+}
+
 export function NotepadScreenContent() {
   const {
     sections,
@@ -197,8 +247,10 @@ export function NotepadScreenContent() {
     activeNote,
     handleNewNote,
     handleNewWordLadder,
+    handleNewCutUp,
     handleOpenNote,
     handleOpenLadder,
+    handleOpenCutUp,
     handleCloseNote,
     handleUpdateNote,
     handleTogglePin,
@@ -207,12 +259,15 @@ export function NotepadScreenContent() {
     selectionMode,
     selectedNoteIds,
     selectedLadderIds,
+    selectedCutUpIds,
     allSelected,
     allSelectedPinned,
     beginSelection,
     beginLadderSelection,
+    beginCutUpSelection,
     toggleSelectNote,
     toggleSelectLadder,
+    toggleSelectCutUp,
     cancelSelection,
     selectAllVisible,
     handleDeleteSelected,
@@ -239,11 +294,11 @@ export function NotepadScreenContent() {
 
   const emptyBody = "Verses, hooks, and lines that don't have a song yet.";
   const countLabel = `${totalEntryCount} page${totalEntryCount === 1 ? "" : "s"} of lyrics and loose lines.`;
-  const selectedCount = selectedNoteIds.length + selectedLadderIds.length;
+  const selectedCount = selectedNoteIds.length + selectedLadderIds.length + selectedCutUpIds.length;
   // Sparks support only Delete — the note-specific actions (Add to Song,
   // Pin, Duplicate, Share) don't apply, so a selection containing any spark
   // collapses the dock to just Delete.
-  const hasLadderSelection = selectedLadderIds.length > 0;
+  const hasSparkSelection = selectedLadderIds.length > 0 || selectedCutUpIds.length > 0;
 
   function confirmDeleteSelected() {
     AppAlert.destructive(
@@ -267,7 +322,7 @@ export function NotepadScreenContent() {
     onPress: confirmDeleteSelected,
   };
 
-  const dockActions: SelectionAction[] = hasLadderSelection
+  const dockActions: SelectionAction[] = hasSparkSelection
     ? [deleteAction]
     : [
         {
@@ -401,7 +456,7 @@ export function NotepadScreenContent() {
                           onBeginSelection={beginSelection}
                           onToggleSelect={toggleSelectNote}
                         />
-                      ) : (
+                      ) : entry.kind === "ladder" ? (
                         <WordLadderListItem
                           key={entry.exercise.id}
                           exercise={entry.exercise}
@@ -410,6 +465,16 @@ export function NotepadScreenContent() {
                           onPress={handleOpenLadder}
                           onBeginSelection={beginLadderSelection}
                           onToggleSelect={toggleSelectLadder}
+                        />
+                      ) : (
+                        <CutUpListItem
+                          key={entry.spark.id}
+                          spark={entry.spark}
+                          selectionMode={selectionMode}
+                          isSelected={selectedCutUpIds.includes(entry.spark.id)}
+                          onPress={handleOpenCutUp}
+                          onBeginSelection={beginCutUpSelection}
+                          onToggleSelect={toggleSelectCutUp}
                         />
                       )
                     )}
@@ -445,6 +510,10 @@ export function NotepadScreenContent() {
         onNewWordLadder={() => {
           setSparkSheetVisible(false);
           handleNewWordLadder();
+        }}
+        onNewCutUp={() => {
+          setSparkSheetVisible(false);
+          handleNewCutUp();
         }}
       />
     </SafeAreaView>

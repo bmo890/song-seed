@@ -35,12 +35,14 @@ import {
     ClipAnalysis,
     Note,
     WordLadderExercise,
+    CutUpSpark,
     BluetoothMonitoringCalibration,
     ClipOverdubState,
     ClipOverdubRootSettings,
     ClipOverdubStem,
 } from "../types";
 import { createWordLadderExercise } from "../wordLadder";
+import { createCutUpSpark } from "../cutUp";
 import { sanitizeChordSheet } from "../chordSheet";
 import { genChildClipTitle, genRootClipTitle } from "../utils";
 import { buildClipGraph } from "../clipGraph";
@@ -128,6 +130,10 @@ export type DataSlice = {
     addWordLadder: (roleSeed?: string, placeSeed?: string) => string;
     updateWordLadder: (id: string, updates: Partial<Omit<WordLadderExercise, "id" | "createdAt">>) => void;
     deleteWordLadder: (id: string) => void;
+    cutUpSparks: CutUpSpark[];
+    addCutUpSpark: (sourceText?: string) => string;
+    updateCutUpSpark: (id: string, updates: Partial<Omit<CutUpSpark, "id" | "type" | "createdAt">>) => void;
+    deleteCutUpSpark: (id: string) => void;
     setBackupReminderFrequency: (value: BackupReminderFrequency) => void;
     setLastSuccessfulBackupAt: (timestamp: number | null) => void;
     setLastSuccessfulBackupFileName: (fileName: string | null) => void;
@@ -1079,6 +1085,7 @@ export const createDataSlice: StateCreator<
     globalCustomClipTags: [],
     notes: [],
     wordLadders: [],
+    cutUpSparks: [],
     backupReminderFrequency: "monthly",
     lastSuccessfulBackupAt: null,
     lastSuccessfulBackupFileName: null,
@@ -1253,6 +1260,19 @@ export const createDataSlice: StateCreator<
         })),
     deleteWordLadder: (id) =>
         set((state) => ({ wordLadders: state.wordLadders.filter((exercise) => exercise.id !== id) })),
+    addCutUpSpark: (sourceText = "") => {
+        const spark = createCutUpSpark(sourceText);
+        set((state) => ({ cutUpSparks: [spark, ...state.cutUpSparks] }));
+        return spark.id;
+    },
+    updateCutUpSpark: (id, updates) =>
+        set((state) => ({
+            cutUpSparks: state.cutUpSparks.map((spark) =>
+                spark.id === id ? { ...spark, ...updates, updatedAt: Date.now() } : spark
+            ),
+        })),
+    deleteCutUpSpark: (id) =>
+        set((state) => ({ cutUpSparks: state.cutUpSparks.filter((spark) => spark.id !== id) })),
     setBackupReminderFrequency: (value) => set({ backupReminderFrequency: value }),
     setLastSuccessfulBackupAt: (timestamp) => set({ lastSuccessfulBackupAt: timestamp }),
     setLastSuccessfulBackupFileName: (fileName) => set({ lastSuccessfulBackupFileName: fileName }),

@@ -56,6 +56,67 @@ export type WordLadderExercise = {
   revision: string;
 };
 
+// ── Cut-Up Spark ─────────────────────────────────────────────────────────────
+/** A second Lyrics Spark exercise, after Jeff Tweedy's cut-up technique (How to
+ * Write One Song, 2020): take something already written, slice it into moveable
+ * chunks, rearrange them like cut-out paper strips to find unexpected phrase
+ * relationships, then rebuild a fresh draft. Lives in the global Lyrics Notebook
+ * alongside Notes and Word Ladders; not attached to a song unless sent on. */
+export type CutUpChunkMode = "phrase" | "line" | "word" | "custom";
+
+export type CutUpChunk = {
+  id: string;
+  text: string;
+  /** Character span in the source text this chunk was cut from (reference only;
+   * approximate after manual splits/merges). */
+  sourceStartIndex: number;
+  sourceEndIndex: number;
+  included: boolean;
+  locked?: boolean;
+  createdAt: number;
+  updatedAt: number;
+};
+
+/** A chunk placed on the cut-out board. References a chunk by id; may carry a
+ * light text edit (textOverride), be locked against shuffles, or be removed —
+ * kept for restore rather than deleted outright. */
+export type CutUpBoardItem = {
+  id: string;
+  chunkId: string;
+  textOverride?: string;
+  order: number;
+  x?: number;
+  y?: number;
+  locked?: boolean;
+  removed?: boolean;
+};
+
+/** Wizard position: paste/choose a source, cut it into chunks, rearrange them on
+ * the board, then rebuild and edit the draft. */
+export type CutUpStep = "source" | "chunk" | "board" | "draft";
+
+export type CutUpSpark = {
+  id: string;
+  type: "cut-up";
+  title: string;
+  createdAt: number;
+  updatedAt: number;
+  /** Wizard position; resumes here on reopen. */
+  step: CutUpStep;
+  sourceText: string;
+  sourceLyricId?: string;
+  sourceSongId?: string;
+  sourceLyricVersionId?: string;
+  chunkMode: CutUpChunkMode;
+  chunks: CutUpChunk[];
+  boardItems: CutUpBoardItem[];
+  /** The rebuilt + edited draft; preserved alongside the chunks. */
+  assembledDraftText: string;
+  savedLyricId?: string;
+  /** Steps whose help has already been opened — highlight on first visit. */
+  seenHelpSteps: CutUpStep[];
+};
+
 export type BluetoothMonitoringCalibration = {
   routeKey: string;
   routeLabel: string;

@@ -44,6 +44,7 @@ import {
 } from "../metronome";
 import { normalizeBluetoothMonitoringCalibrations } from "../bluetoothMonitoring";
 import { sanitizeWordLadders } from "../wordLadder";
+import { sanitizeCutUpSparks } from "../cutUp";
 import {
     getLastPersistedIdeaCount,
     isHydrationComplete,
@@ -197,6 +198,7 @@ export function sanitizePersistedState(state?: Partial<PersistedAppStore>): Pers
         globalCustomClipTags: Array.isArray(state?.globalCustomClipTags) ? state.globalCustomClipTags : [],
         notes: Array.isArray(state?.notes) ? state.notes : [],
         wordLadders: sanitizeWordLadders(state?.wordLadders),
+        cutUpSparks: sanitizeCutUpSparks(state?.cutUpSparks),
         backupReminderFrequency: isBackupReminderFrequency(state?.backupReminderFrequency)
             ? state.backupReminderFrequency
             : DEFAULT_BACKUP_REMINDER_FREQUENCY,
