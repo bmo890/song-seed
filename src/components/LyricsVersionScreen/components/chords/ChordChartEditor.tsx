@@ -1,12 +1,9 @@
 import { useState } from "react";
-import { Share, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Button } from "../../../common/Button";
 import { colors } from "../../../../design/tokens";
-import { serializeChordChartText, serializeChordPro, sortedPalette } from "../../../../chords";
-import { shareChordChartPdf } from "../../../../services/chordChartPdf";
-import { formatDate } from "../../../../utils";
-import { AppAlert } from "../../../common/AppAlert";
+import { sortedPalette } from "../../../../chords";
 import type { LyricsVersion, SongChordPaletteItem } from "../../../../types";
 import { styles as screenStyles } from "../../styles";
 import { ChordChart } from "./ChordChart";
@@ -14,6 +11,7 @@ import { ChordPaletteBar } from "./ChordPaletteBar";
 import { ChordPickerSheet } from "./ChordPickerSheet";
 import { ChordExportSheet } from "./ChordExportSheet";
 import { useChordEditing } from "./useChordEditing";
+import { useChordExport } from "./useChordExport";
 
 type Props = {
   ideaId: string;
@@ -29,32 +27,7 @@ export function ChordChartEditor({ ideaId, version, songTitle, palette, onDone }
   const editing = useChordEditing(ideaId, version.id);
   const sorted = sortedPalette(palette);
   const [exportVisible, setExportVisible] = useState(false);
-
-  const subtitle = `${songTitle} · ${formatDate(version.updatedAt)}`;
-
-  function exportText() {
-    setExportVisible(false);
-    const lines = version.document.lines;
-    const chart = serializeChordChartText(lines);
-    if (!chart.trim()) {
-      AppAlert.info("Nothing to share", "Add some lyrics and chords first.");
-      return;
-    }
-    void Share.share({
-      title: `${songTitle} — chords`,
-      message: `${chart}\n\n— ChordPro —\n${serializeChordPro(lines)}`,
-    });
-  }
-
-  async function exportPdf() {
-    setExportVisible(false);
-    try {
-      const ok = await shareChordChartPdf({ title: songTitle, subtitle, lines: version.document.lines });
-      if (!ok) AppAlert.info("Nothing to export", "Add some lyrics and chords first.");
-    } catch {
-      AppAlert.info("Export failed", "Couldn't create the PDF. Please try again.");
-    }
-  }
+  const { exportPdf, exportText } = useChordExport(songTitle, version);
 
   return (
     <View style={screenStyles.flexFill}>
@@ -106,8 +79,14 @@ export function ChordChartEditor({ ideaId, version, songTitle, palette, onDone }
       <ChordExportSheet
         visible={exportVisible}
         onClose={() => setExportVisible(false)}
-        onExportPdf={exportPdf}
-        onExportText={exportText}
+        onExportPdf={() => {
+          setExportVisible(false);
+          void exportPdf();
+        }}
+        onExportText={() => {
+          setExportVisible(false);
+          exportText();
+        }}
       />
     </View>
   );

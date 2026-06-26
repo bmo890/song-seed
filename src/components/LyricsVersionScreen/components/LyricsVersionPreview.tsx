@@ -14,7 +14,7 @@ type LyricsVersionPreviewProps = {
   onEdit: () => void;
   onChords: () => void;
   onNewDraft: () => void;
-  onCopy: () => void;
+  onExport: () => void;
   onLayout: (height: number) => void;
   onContentSizeChange: (height: number) => void;
   onScroll: (nextY: number) => void;
@@ -30,7 +30,7 @@ export function LyricsVersionPreview({
   onEdit,
   onChords,
   onNewDraft,
-  onCopy,
+  onExport,
   onLayout,
   onContentSizeChange,
   onScroll,
@@ -65,8 +65,8 @@ export function LyricsVersionPreview({
         ) : null}
         <Button
           variant="secondary"
-          label="Copy"
-          onPress={onCopy}
+          label="Export"
+          onPress={onExport}
           style={styles.lyricsActionBtn}
           textStyle={styles.lyricsActionBtnText}
         />

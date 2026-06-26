@@ -10,11 +10,18 @@ import { LyricsVersionEditor } from "./LyricsVersionEditor";
 import { LyricsVersionPreview } from "./LyricsVersionPreview";
 import { LyricsVersionUnavailableState } from "./LyricsVersionUnavailableState";
 import { ChordChartEditor } from "./chords/ChordChartEditor";
+import { ChordExportSheet } from "./chords/ChordExportSheet";
+import { useChordExport } from "./chords/useChordExport";
 
 export function LyricsVersionScreenContent() {
   const insets = useSafeAreaInsets();
   const model = useLyricsVersionScreenModel();
   const [chordEditMode, setChordEditMode] = useState(false);
+  const [exportVisible, setExportVisible] = useState(false);
+  const { exportPdf, exportText } = useChordExport(
+    model.projectIdea?.title ?? "",
+    model.resolvedVersion
+  );
 
   const resolvedVersionId = model.resolvedVersion?.id;
   // Leave chord-edit mode whenever the underlying version changes or text editing begins.
@@ -78,7 +85,7 @@ export function LyricsVersionScreenContent() {
             onEdit={model.beginEdit}
             onChords={() => setChordEditMode(true)}
             onNewDraft={model.beginNewDraft}
-            onCopy={model.copyText}
+            onExport={() => setExportVisible(true)}
             onLayout={model.setPreviewViewportHeight}
             onContentSizeChange={model.setPreviewContentHeight}
             onScroll={model.setPreviewScrollY}
@@ -90,6 +97,23 @@ export function LyricsVersionScreenContent() {
           />
         )}
       </KeyboardAvoidingView>
+
+      <ChordExportSheet
+        visible={exportVisible}
+        onClose={() => setExportVisible(false)}
+        onExportPdf={() => {
+          setExportVisible(false);
+          void exportPdf();
+        }}
+        onExportText={() => {
+          setExportVisible(false);
+          exportText();
+        }}
+        onCopy={() => {
+          setExportVisible(false);
+          model.copyText();
+        }}
+      />
 
       <ExpoStatusBar style="dark" />
     </SafeAreaView>

@@ -9,9 +9,10 @@ type Props = {
   onClose: () => void;
   onExportPdf: () => void;
   onExportText: () => void;
+  onCopy?: () => void;
 };
 
-export function ChordExportSheet({ visible, onClose, onExportPdf, onExportText }: Props) {
+export function ChordExportSheet({ visible, onClose, onExportPdf, onExportText, onCopy }: Props) {
   return (
     <BottomSheet visible={visible} onClose={onClose}>
       <Text style={sheetStyles.title}>Export chords</Text>
@@ -28,6 +29,14 @@ export function ChordExportSheet({ visible, onClose, onExportPdf, onExportText }
         body="Chord-over-lyrics plus ChordPro, to paste into other apps."
         onPress={onExportText}
       />
+      {onCopy ? (
+        <Option
+          icon="copy-outline"
+          title="Copy to clipboard"
+          body="The chord chart as plain text."
+          onPress={onCopy}
+        />
+      ) : null}
     </BottomSheet>
   );
 }
