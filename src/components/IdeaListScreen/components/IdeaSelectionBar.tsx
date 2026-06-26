@@ -88,6 +88,19 @@ export function IdeaSelectionBar({
   const exactlyOneInteractive = interactiveSelectedIdeas.length === 1;
   const selectedHiddenOnly = selectedIdeas.length > 0 && interactiveSelectedIdeas.length === 0;
   const canEditSelection = exactlyOneInteractive && !selectedHiddenOnly && !!onEditSelected;
+  // Turning clip(s) into a song is a primary intent — surface it on the dock,
+  // not buried in the overflow.
+  const canMakeSong =
+    !selectedHiddenOnly &&
+    selectedClipIdeasCount > 0 &&
+    selectedProjects.length === 0 &&
+    !!onCreateProjectFromSelection;
+  const makeSongAction: SelectionAction = {
+    key: "make-song",
+    label: selectedClipIdeasCount > 1 ? `Make song (${selectedClipIdeasCount})` : "Make song",
+    icon: "albums-outline",
+    onPress: () => onCreateProjectFromSelection?.(),
+  };
 
   async function handleShareSelected() {
     if (shareableClips.length === 0 || isSharing) return;
@@ -158,6 +171,7 @@ export function IdeaSelectionBar({
 
     if (canEditSelection) {
       return [
+        ...(canMakeSong ? [makeSongAction] : []),
         {
           key: "edit",
           label: "Edit",
@@ -188,6 +202,7 @@ export function IdeaSelectionBar({
     }
 
     return [
+      ...(canMakeSong ? [makeSongAction] : []),
       {
         key: "hide",
         label: hideActionLabel,
@@ -211,6 +226,8 @@ export function IdeaSelectionBar({
     ];
   }, [
     canEditSelection,
+    canMakeSong,
+    makeSongAction,
     confirmDeleteSelection,
     hideActionDisabled,
     hideActionLabel,
@@ -259,14 +276,7 @@ export function IdeaSelectionBar({
       });
     }
 
-    if (!selectedHiddenOnly && selectedClipIdeasCount > 0 && selectedProjects.length === 0 && onCreateProjectFromSelection) {
-      actions.push({
-        key: "create-song",
-        label: `Create song (${selectedClipIdeasCount})`,
-        icon: "albums-outline",
-        onPress: onCreateProjectFromSelection,
-      });
-    }
+    // "Make song" lives on the dock now (see makeSongAction).
 
     return actions;
   }, [

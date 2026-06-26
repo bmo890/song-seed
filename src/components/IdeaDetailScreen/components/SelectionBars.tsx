@@ -9,6 +9,7 @@ import { SONG_SEED_AUDIO_DIR } from "../../../services/storagePaths";
 import { SelectionActionSheet } from "../../common/SelectionActionSheet";
 import { SelectionDock, type SelectionAction } from "../../common/SelectionDock";
 import { ClipNotesSheet } from "../../modals/ClipNotesSheet";
+import { ClipTagPicker } from "../ClipTagPicker";
 import { fmtDuration, formatDate } from "../../../utils";
 import { getLineageRootId } from "../../../clipGraph";
 import {
@@ -24,7 +25,9 @@ export function SelectionBars() {
   const replaceClipSelection = useStore((s) => s.replaceClipSelection);
   const [isSharing, setIsSharing] = useState(false);
   const [moreVisible, setMoreVisible] = useState(false);
+  const [tagSheetVisible, setTagSheetVisible] = useState(false);
   const [groupSheetVisible, setGroupSheetVisible] = useState(false);
+  const globalCustomClipTags = useStore((s) => s.globalCustomClipTags);
   const [editVisible, setEditVisible] = useState(false);
   const [editTitleDraft, setEditTitleDraft] = useState("");
   const [editNotesDraft, setEditNotesDraft] = useState("");
@@ -285,6 +288,12 @@ export function SelectionBars() {
             onPress: handleEditSingleClip,
           },
           {
+            key: "tags",
+            label: "Tags",
+            icon: "pricetag-outline",
+            onPress: () => setTagSheetVisible(true),
+          },
+          {
             key: "delete",
             label: "Delete",
             icon: "trash-outline",
@@ -437,6 +446,16 @@ export function SelectionBars() {
         ]}
         onClose={() => setGroupSheetVisible(false)}
       />
+
+      {selectedIdea ? (
+        <ClipTagPicker
+          visible={tagSheetVisible}
+          clip={singleSelectedClip}
+          idea={selectedIdea}
+          globalCustomTags={globalCustomClipTags}
+          onClose={() => setTagSheetVisible(false)}
+        />
+      ) : null}
 
       <ClipNotesSheet
         visible={editVisible}
