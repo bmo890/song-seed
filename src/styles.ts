@@ -6049,16 +6049,18 @@ export const styles = StyleSheet.create({
   },
   songNotesTabEmptyTitle: {
     fontSize: 15,
-    fontWeight: "600",
+    fontFamily: "PlusJakartaSans_600SemiBold",
     color: "#84736f",
   },
   songNotesTabEmptySubtitle: {
     fontSize: 13,
+    fontFamily: "PlusJakartaSans_400Regular",
     color: "#B8A8A3",
   },
   songNotesTabBody: {
-    fontSize: 14,
-    lineHeight: 20,
+    fontSize: 15,
+    lineHeight: 23,
+    fontFamily: "PlusJakartaSans_400Regular",
     color: "#524440",
   },
   songNotesTabEditorInput: {
@@ -6071,8 +6073,9 @@ export const styles = StyleSheet.create({
     paddingVertical: 10,
     minHeight: 280,
     textAlignVertical: "top",
-    fontSize: 14,
-    lineHeight: 20,
+    fontSize: 15,
+    lineHeight: 23,
+    fontFamily: "PlusJakartaSans_400Regular",
     color: "#1C1C19",
     marginBottom: 6,
   },

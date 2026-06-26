@@ -48,6 +48,11 @@ export function CollapsingTabStage({ children, contentContainerStyle }: Collapsi
         onScroll={scrollHandler}
         scrollEventThrottle={16}
         showsVerticalScrollIndicator={false}
+        // Keep an in-tab editor (e.g. the Notes textarea) above the keyboard. iOS
+        // insets the scroll for the keyboard; Android resizes via adjustResize.
+        automaticallyAdjustKeyboardInsets
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
       >
         {children}
       </Animated.ScrollView>
