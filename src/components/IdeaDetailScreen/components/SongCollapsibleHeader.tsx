@@ -6,6 +6,7 @@ import { useSongScreen } from "../provider/SongScreenProvider";
 const SONG_TABS = [
   { key: "takes", label: "Takes" },
   { key: "lyrics", label: "Lyrics" },
+  { key: "chart", label: "Chart" },
   { key: "notes", label: "Notes" },
 ] as const;
 

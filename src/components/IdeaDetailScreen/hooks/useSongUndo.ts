@@ -12,7 +12,7 @@ type UseSongUndoParams = {
   isEditMode: boolean;
   clipSelectionMode: boolean;
   isParentPicking: boolean;
-  songTab: "takes" | "lyrics" | "notes";
+  songTab: "takes" | "lyrics" | "chart" | "notes";
 };
 
 export function useSongUndo({

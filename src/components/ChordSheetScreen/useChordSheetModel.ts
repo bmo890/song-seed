@@ -17,10 +17,10 @@ import type { ChordSheet, SongIdea } from "../../types";
 
 type PickerTarget = { sectionId: string; measureId: string };
 
-export function useChordSheetModel() {
+export function useChordSheetModel(ideaIdOverride?: string) {
   const route = useRoute<any>();
   const navigation = useNavigation<any>();
-  const ideaId = route.params?.ideaId as string | undefined;
+  const ideaId = ideaIdOverride ?? (route.params?.ideaId as string | undefined);
 
   const workspaces = useStore((s) => s.workspaces);
 

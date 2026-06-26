@@ -5,6 +5,7 @@ import { ScreenHeader } from "../../common/ScreenHeader";
 import { FloatingActionDock } from "../../common/FloatingActionDock";
 import { SongHeaderSection } from "../sections/SongHeaderSection";
 import { SongLyricsSection } from "../sections/SongLyricsSection";
+import { SongChartSection } from "../sections/SongChartSection";
 import { SongNotesSection } from "../sections/SongNotesSection";
 import { SongTakesSection } from "../sections/SongTakesSection";
 import { styles } from "../styles";
@@ -51,6 +52,7 @@ export function SongScreenContent() {
       <SongClipboardBanner />
       {parentPicking.parentPickState ? <SongParentPickBanner /> : <SelectionBars />}
       <SongLyricsSection />
+      <SongChartSection />
       <SongNotesSection />
       <SongTakesSection />
       {screen.isProject &&

@@ -39,7 +39,7 @@ export function useSongScreenModel() {
   const [clipTagFilter, setClipTagFilter] = useState<SongClipTagFilter>([]);
   const [clipGroupFilter, setClipGroupFilter] = useState<SongClipGroupFilter>([]);
   const [clipBookmarkedOnly, setClipBookmarkedOnly] = useState(false);
-  const [songTab, setSongTab] = useState<"takes" | "lyrics" | "notes">("takes");
+  const [songTab, setSongTab] = useState<"takes" | "lyrics" | "chart" | "notes">("takes");
   const [draftTitle, setDraftTitle] = useState("");
   const [draftStatus, setDraftStatus] = useState<IdeaStatus>("seed");
   const [draftCompletion, setDraftCompletion] = useState(0);

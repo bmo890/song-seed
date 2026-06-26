@@ -4,10 +4,10 @@ import { useStore } from "../../../state/useStore";
 type UseSongScreenEffectsParams = {
   isFocused: boolean;
   isProject: boolean;
-  songTab: "takes" | "lyrics" | "notes";
+  songTab: "takes" | "lyrics" | "chart" | "notes";
   isEditMode: boolean;
   clipSelectionMode: boolean;
-  setSongTab: (value: "takes" | "lyrics" | "notes") => void;
+  setSongTab: (value: "takes" | "lyrics" | "chart" | "notes") => void;
   setParentPickState: (value: null) => void;
 };
 
