@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { Animated, PanResponder, StyleSheet, Text, View } from "react-native";
 import * as Haptics from "expo-haptics";
 import type { ChordPlacement } from "../../../../types";
@@ -16,12 +16,19 @@ type Props = {
 };
 
 const TAP_SLOP = 6;
+/** Invisible padding around the chip that enlarges the drag target. The chip's
+ * left edge stays pinned to its character; this just extends the touchable area. */
+const GRAB = 8;
 
-/** A chord symbol anchored above a character. In edit mode the token claims the
- * touch on press-down — so the surrounding horizontal ScrollView never steals the
- * drag (which is why dragging only worked at a scroll extreme before). A release
- * that barely moved is treated as a tap (edit); a real drag re-anchors the chord
- * and commits on release. */
+/** A chord symbol anchored above a character by its LEFT edge. In edit mode the
+ * token claims the touch on press-down — so the surrounding horizontal ScrollView
+ * never steals the drag. A release that barely moved is a tap (edit); a real drag
+ * snaps to the nearest character and commits.
+ *
+ * Position is driven entirely by one Animated value (`posX`) rather than a React
+ * `left` + transform, so the committed anchor and the live drag offset can never
+ * desync into a one-frame jump. The PanResponder reads the latest anchor/metrics
+ * through refs, so re-dragging a chord always measures from where it actually is. */
 export function ChordToken({
   chord,
   charWidth,
@@ -31,11 +38,39 @@ export function ChordToken({
   onMove,
   onDragStateChange,
 }: Props) {
-  const translateX = useRef(new Animated.Value(0)).current;
+  const base = clampChordIndex(chord.at, lineLength);
+  const baseLeft = base * charWidth;
+  const restX = baseLeft - GRAB;
+
+  const posX = useRef(new Animated.Value(restX)).current;
   const scale = useRef(new Animated.Value(1)).current;
   const draggingRef = useRef(false);
   const [active, setActive] = useState(false);
-  const baseLeft = clampChordIndex(chord.at, lineLength) * charWidth;
+
+  // Latest values for the once-created PanResponder to read, avoiding stale
+  // closures that made a re-dragged chord compute its move from a prior anchor.
+  const baseRef = useRef(base);
+  const restXRef = useRef(restX);
+  const cwRef = useRef(charWidth);
+  const lenRef = useRef(lineLength);
+  const onMoveRef = useRef(onMove);
+  const onPressRef = useRef(onPress);
+  const onDragRef = useRef(onDragStateChange);
+  baseRef.current = base;
+  restXRef.current = restX;
+  cwRef.current = charWidth;
+  lenRef.current = lineLength;
+  onMoveRef.current = onMove;
+  onPressRef.current = onPress;
+  onDragRef.current = onDragStateChange;
+
+  // Glue the chip to its committed anchor whenever that changes (a move commit, a
+  // re-measure, or a text edit that shifts the anchor) — but never yank it
+  // mid-drag. Because posX is the single source of truth, the value we set on
+  // release equals the value this restores, so the commit is seamless.
+  useLayoutEffect(() => {
+    if (!draggingRef.current) posX.setValue(restX);
+  }, [restX, posX]);
 
   const lift = (up: boolean) => {
     setActive(up);
@@ -51,10 +86,10 @@ export function ChordToken({
     PanResponder.create({
       // Claim the touch at the start (capture phase) so the parent scroll view
       // can't grab the horizontal gesture first.
-      onStartShouldSetPanResponder: () => editable,
-      onStartShouldSetPanResponderCapture: () => editable,
-      onMoveShouldSetPanResponder: () => editable,
-      onMoveShouldSetPanResponderCapture: () => editable,
+      onStartShouldSetPanResponder: () => true,
+      onStartShouldSetPanResponderCapture: () => true,
+      onMoveShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponderCapture: () => true,
       onPanResponderTerminationRequest: () => false,
       onPanResponderGrant: () => {
         draggingRef.current = false;
@@ -62,32 +97,36 @@ export function ChordToken({
       onPanResponderMove: (_evt, gesture) => {
         if (!draggingRef.current && Math.abs(gesture.dx) > TAP_SLOP) {
           draggingRef.current = true;
-          onDragStateChange?.(true);
+          onDragRef.current?.(true);
           lift(true);
           void Haptics.selectionAsync();
         }
-        if (draggingRef.current) translateX.setValue(gesture.dx);
+        if (draggingRef.current) posX.setValue(restXRef.current + gesture.dx);
       },
       onPanResponderRelease: (_evt, gesture) => {
         const wasDragging = draggingRef.current;
         draggingRef.current = false;
-        translateX.setValue(0);
         if (!wasDragging) {
-          onPress?.();
+          onPressRef.current?.();
           return;
         }
         lift(false);
-        onDragStateChange?.(false);
-        const nextAt = clampChordIndex(chord.at + gesture.dx / Math.max(charWidth, 1), lineLength);
-        if (nextAt !== chord.at) onMove?.(nextAt);
+        onDragRef.current?.(false);
+        const cw = Math.max(cwRef.current, 1);
+        const target = clampChordIndex(baseRef.current + gesture.dx / cw, lenRef.current);
+        // Land exactly on the nearest character (where the left edge is), then
+        // commit. Setting posX before the move means the commit's re-render
+        // restores the same pixel — no jump back toward the old anchor.
+        posX.setValue(target * cwRef.current - GRAB);
+        if (target !== baseRef.current) onMoveRef.current?.(target);
       },
       onPanResponderTerminate: () => {
         if (draggingRef.current) {
-          onDragStateChange?.(false);
+          onDragRef.current?.(false);
           lift(false);
         }
         draggingRef.current = false;
-        translateX.setValue(0);
+        posX.setValue(restXRef.current);
       },
     })
   ).current;
@@ -104,7 +143,7 @@ export function ChordToken({
 
   return (
     <Animated.View
-      style={[styles.wrap, styles.wrapEditable, { left: baseLeft - GRAB, transform: [{ translateX }] }]}
+      style={[styles.wrap, styles.wrapEditable, { transform: [{ translateX: posX }] }]}
       {...panResponder.panHandlers}
     >
       <Animated.View
@@ -116,14 +155,11 @@ export function ChordToken({
   );
 }
 
-/** Invisible padding around the chip that enlarges the drag target. The wrap is
- * shifted left by this amount so the chip stays aligned to its character. */
-const GRAB = 8;
-
 const styles = StyleSheet.create({
   wrap: {
     position: "absolute",
     top: 0,
+    left: 0,
   },
   wrapEditable: {
     // A wider invisible grab area makes the small chip easy to catch and drag.
@@ -138,6 +174,8 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     paddingHorizontal: 5,
     paddingVertical: 1,
+    // Grow from the left edge so the active "lift" never shifts the anchor.
+    transformOrigin: "left center",
   },
   chipActive: {
     backgroundColor: chordChartColors.chordActive,
