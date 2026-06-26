@@ -199,15 +199,8 @@ export function useSetlistModel() {
       });
     },
     removeEntry: (entryId: string) => activeSetlist && removeSetlistEntry(activeSetlist.id, entryId),
-    moveEntry: (entryId: string, dir: -1 | 1) => {
-      if (!activeSetlist) return;
-      const ids = activeSetlist.entries.map((e) => e.id);
-      const index = ids.indexOf(entryId);
-      const target = index + dir;
-      if (index < 0 || target < 0 || target >= ids.length) return;
-      [ids[index], ids[target]] = [ids[target], ids[index]];
-      reorderSetlistEntries(activeSetlist.id, ids);
-    },
+    reorderEntries: (orderedEntryIds: string[]) =>
+      activeSetlist && reorderSetlistEntries(activeSetlist.id, orderedEntryIds),
     deleteActiveSetlist: () => {
       if (!activeSetlist) return;
       deleteSetlist(activeSetlist.id);

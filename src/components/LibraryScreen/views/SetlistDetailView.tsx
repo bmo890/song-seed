@@ -1,4 +1,5 @@
-import { Pressable, ScrollView, Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
+import DraggableFlatList, { type RenderItemParams } from "react-native-draggable-flatlist";
 import { Ionicons } from "@expo/vector-icons";
 import { Button } from "../../common/Button";
 import { styles } from "../styles";
@@ -10,7 +11,7 @@ export function SetlistDetailView({
   onAddSong,
   onShare,
   onEditEntry,
-  onMoveEntry,
+  onReorder,
   onRemoveEntry,
   onDeleteSetlist,
 }: {
@@ -18,65 +19,70 @@ export function SetlistDetailView({
   onAddSong: () => void;
   onShare: () => void;
   onEditEntry: (entryId: string) => void;
-  onMoveEntry: (entryId: string, dir: -1 | 1) => void;
+  onReorder: (orderedEntryIds: string[]) => void;
   onRemoveEntry: (entryId: string) => void;
   onDeleteSetlist: () => void;
 }) {
+  const header = (
+    <View style={styles.rowButtons}>
+      <Button label="Add Song" onPress={onAddSong} />
+      {entries.length > 0 ? <Button variant="secondary" label="Share" onPress={onShare} /> : null}
+      <Button variant="secondary" label="Delete" onPress={onDeleteSetlist} />
+    </View>
+  );
+
+  if (entries.length === 0) {
+    return (
+      <View style={[styles.flexFill, styles.libraryScrollContent]}>
+        {header}
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>No songs yet</Text>
+          <Text style={styles.cardMeta}>Add a song and choose which clips and charts to include.</Text>
+        </View>
+      </View>
+    );
+  }
+
   return (
-    <ScrollView
-      style={styles.flexFill}
+    <DraggableFlatList
+      data={entries}
+      keyExtractor={(entry) => entry.id}
+      onDragEnd={({ data }) => onReorder(data.map((entry) => entry.id))}
+      containerStyle={styles.flexFill}
       contentContainerStyle={styles.libraryScrollContent}
       showsVerticalScrollIndicator={false}
-    >
-      <View style={styles.rowButtons}>
-        <Button label="Add Song" onPress={onAddSong} />
-        {entries.length > 0 ? <Button variant="secondary" label="Share" onPress={onShare} /> : null}
-        <Button variant="secondary" label="Delete" onPress={onDeleteSetlist} />
-      </View>
-
-      <View style={styles.listContent}>
-        {entries.map((entry, index) => (
-          <View key={entry.id} style={styles.card}>
-            <View style={styles.cardTop}>
-              <Pressable
-                style={{ flex: 1, minWidth: 0 }}
-                onPress={() => onEditEntry(entry.id)}
-                disabled={!entry.available}
-              >
-                <View style={styles.cardTitleRow}>
-                  <Text style={[styles.cardMeta, { width: 22 }]}>{index + 1}.</Text>
-                  <View style={{ flex: 1, minWidth: 0 }}>
-                    <Text style={styles.cardTitle} numberOfLines={1}>
-                      {entry.title}
-                    </Text>
-                    <Text style={styles.cardMeta} numberOfLines={1}>
-                      {entry.subtitle} • {entry.summary}
-                    </Text>
-                  </View>
+      ListHeaderComponent={header}
+      renderItem={({ item: entry, drag, isActive, getIndex }: RenderItemParams<SetlistDisplayEntry>) => (
+        <View style={[styles.card, isActive ? { opacity: 0.9 } : null]}>
+          <View style={styles.cardTop}>
+            <Pressable
+              style={({ pressed }) => [{ flex: 1, minWidth: 0 }, pressed ? styles.pressDown : null]}
+              onPress={() => onEditEntry(entry.id)}
+              disabled={!entry.available}
+            >
+              <View style={styles.cardTitleRow}>
+                <Text style={[styles.cardMeta, { width: 22 }]}>{(getIndex() ?? 0) + 1}.</Text>
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text style={styles.cardTitle} numberOfLines={1}>
+                    {entry.title}
+                  </Text>
+                  <Text style={styles.cardMeta} numberOfLines={1}>
+                    {entry.subtitle} • {entry.summary}
+                  </Text>
                 </View>
-              </Pressable>
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 2 }}>
-                <Pressable onPress={() => onMoveEntry(entry.id, -1)} hitSlop={6} style={{ padding: 4 }}>
-                  <Ionicons name="arrow-up" size={15} color={colors.textSecondary} />
-                </Pressable>
-                <Pressable onPress={() => onMoveEntry(entry.id, 1)} hitSlop={6} style={{ padding: 4 }}>
-                  <Ionicons name="arrow-down" size={15} color={colors.textSecondary} />
-                </Pressable>
-                <Pressable onPress={() => onRemoveEntry(entry.id)} hitSlop={6} style={{ padding: 4 }}>
-                  <Ionicons name="close" size={16} color={colors.textMuted} />
-                </Pressable>
               </View>
+            </Pressable>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 2 }}>
+              <Pressable onLongPress={drag} delayLongPress={120} hitSlop={6} style={{ padding: 4 }}>
+                <Ionicons name="reorder-three" size={18} color={colors.textMuted} />
+              </Pressable>
+              <Pressable onPress={() => onRemoveEntry(entry.id)} hitSlop={6} style={{ padding: 4 }}>
+                <Ionicons name="close" size={16} color={colors.textMuted} />
+              </Pressable>
             </View>
           </View>
-        ))}
-
-        {entries.length === 0 ? (
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>No songs yet</Text>
-            <Text style={styles.cardMeta}>Add a song and choose which clips and charts to include.</Text>
-          </View>
-        ) : null}
-      </View>
-    </ScrollView>
+        </View>
+      )}
+    />
   );
 }

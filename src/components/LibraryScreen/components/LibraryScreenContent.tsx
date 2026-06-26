@@ -175,7 +175,7 @@ export function LibraryScreenContent() {
             onAddSong={setlist.openBuilder}
             onShare={setlist.shareActiveSetlist}
             onEditEntry={setlist.editEntry}
-            onMoveEntry={setlist.moveEntry}
+            onReorder={setlist.reorderEntries}
             onRemoveEntry={setlist.removeEntry}
             onDeleteSetlist={setlist.deleteActiveSetlist}
           />
