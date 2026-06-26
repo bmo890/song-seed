@@ -11,6 +11,7 @@ import {
   createMeasure,
   createSection,
   serializeChordSheetText,
+  MAX_CHORDS_PER_BAR,
 } from "../../chordSheet";
 import { shareChordSheetPdf } from "../../services/chordChartPdf";
 import type { ChordSheet, SongIdea } from "../../types";
@@ -81,6 +82,14 @@ export function useChordSheetModel(ideaIdOverride?: string) {
       measures: s.measures.map((m) => (m.id === measureId ? { ...m, chords: [] } : m)),
     }));
 
+  const removeChordAt = (sectionId: string, measureId: string, index: number) =>
+    mutateSection(sectionId, (s) => ({
+      ...s,
+      measures: s.measures.map((m) =>
+        m.id === measureId ? { ...m, chords: m.chords.filter((_, i) => i !== index) } : m
+      ),
+    }));
+
   const openPicker = (sectionId: string, measureId: string) => setPickerTarget({ sectionId, measureId });
   const closePicker = () => setPickerTarget(null);
 
@@ -91,7 +100,10 @@ export function useChordSheetModel(ideaIdOverride?: string) {
     mutateSection(pickerTarget.sectionId, (s) => ({
       ...s,
       measures: s.measures.map((m) =>
-        m.id === pickerTarget.measureId ? { ...m, chords: [...m.chords, display] } : m
+        // A bar holds up to MAX_CHORDS_PER_BAR chords.
+        m.id === pickerTarget.measureId && m.chords.length < MAX_CHORDS_PER_BAR
+          ? { ...m, chords: [...m.chords, display] }
+          : m
       ),
     }));
     appActions.recordSongChord(projectIdea.id, parts);
@@ -135,6 +147,7 @@ export function useChordSheetModel(ideaIdOverride?: string) {
     addMeasure,
     removeMeasure,
     clearMeasure,
+    removeChordAt,
     openPicker,
     closePicker,
     addChord,

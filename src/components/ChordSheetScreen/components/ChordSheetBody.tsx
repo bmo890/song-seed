@@ -21,8 +21,8 @@ export function ChordSheetBody({ model }: { model: ReturnType<typeof useChordShe
           <Ionicons name="grid-outline" size={26} color={colors.textMuted} />
           <Text style={styles.emptyTitle}>Start a chord chart</Text>
           <Text style={styles.emptyBody}>
-            Add a block of bars for each part of the song — an intro, a verse, a chorus — and drop chords
-            into the bars. Blocks stand on their own; they don't have to fill the page.
+            Add a section — intro, verse, chorus, or a custom +. Then tap a bar to drop in a chord, and tap
+            + to add more bars. Sketch it out like a page of staff paper.
           </Text>
         </View>
       ) : (
@@ -32,12 +32,9 @@ export function ChordSheetBody({ model }: { model: ReturnType<typeof useChordShe
             section={section}
             editable={isEditing}
             onTapMeasure={(measureId) => model.openPicker(section.id, measureId)}
-            onClearMeasure={(measureId) => model.clearMeasure(section.id, measureId)}
             onAddMeasure={() => model.addMeasure(section.id)}
-            onRemoveLastMeasure={() =>
-              section.measures.length > 0 &&
-              model.removeMeasure(section.id, section.measures[section.measures.length - 1].id)
-            }
+            onRemoveChord={(measureId, index) => model.removeChordAt(section.id, measureId, index)}
+            onRemoveMeasure={(measureId) => model.removeMeasure(section.id, measureId)}
             onRename={(label) => model.renameSection(section.id, label)}
             onNotes={(notes) => model.setSectionNotes(section.id, notes)}
             onMove={(dir) => model.moveSection(section.id, dir)}
@@ -63,6 +60,17 @@ export function ChordSheetBody({ model }: { model: ReturnType<typeof useChordShe
                 <Text style={styles.presetChipText}>{preset}</Text>
               </Pressable>
             ))}
+            {/* Custom section — just a +, name it inline afterwards. */}
+            <Pressable
+              style={({ pressed }) => [styles.presetChipCustom, pressed ? appStyles.pressDown : null]}
+              onPress={() => {
+                model.addSection("Section");
+                if (!isEditing) model.setIsEditing(true);
+              }}
+              accessibilityLabel="Add a custom section"
+            >
+              <Ionicons name="add" size={17} color={colors.primary} />
+            </Pressable>
           </View>
         </View>
       ) : null}
@@ -106,4 +114,12 @@ const styles = StyleSheet.create({
     paddingVertical: 7,
   },
   presetChipText: { fontFamily: "PlusJakartaSans_600SemiBold", fontSize: 13, color: colors.primary },
+  presetChipCustom: {
+    width: 36,
+    height: 36,
+    borderRadius: radii.round,
+    backgroundColor: colors.surfaceHigh,
+    alignItems: "center",
+    justifyContent: "center",
+  },
 });

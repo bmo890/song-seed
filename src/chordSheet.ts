@@ -5,7 +5,10 @@ function randomId(prefix: string) {
 }
 
 /** Section labels offered as quick-add presets (free custom labels also allowed). */
-export const SECTION_PRESETS = ["Intro", "Verse", "Pre-Chorus", "Chorus", "Bridge", "Solo", "Outro"];
+export const SECTION_PRESETS = ["Intro", "Verse", "Pre-Chorus", "Chorus", "Bridge", "Interlude", "Solo", "Outro"];
+
+/** A bar can hold several chords, but stays readable — cap it. */
+export const MAX_CHORDS_PER_BAR = 7;
 
 export function createMeasure(chords: string[] = []): ChordSheetMeasure {
   return { id: randomId("measure"), chords };
