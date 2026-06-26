@@ -1,4 +1,5 @@
-import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { useState } from "react";
+import { Pressable, StyleSheet, Text, TextInput, View, type LayoutChangeEvent } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { styles as appStyles } from "../../styles";
 import { colors, spacing, text as textTokens } from "../../design/tokens";
@@ -12,11 +13,21 @@ type Props = {
   onAddMeasure: () => void;
   onRemoveChord: (measureId: string, index: number) => void;
   onRemoveMeasure: (measureId: string) => void;
-  onRename: (label: string) => void;
   onNotes: (notes: string) => void;
-  onMove: (dir: -1 | 1) => void;
-  onRemoveSection: () => void;
+  onOpenMenu: () => void;
 };
+
+const BAR_WIDTH = 76;
+const BARLINE = colors.borderMuted;
+
+type Cell = { kind: "bar"; measure: ChordSheetMeasure } | { kind: "add" };
+
+function chunk<T>(items: T[], size: number): T[][] {
+  if (size < 1) return items.length ? [items] : [];
+  const rows: T[][] = [];
+  for (let i = 0; i < items.length; i += size) rows.push(items.slice(i, i + size));
+  return rows;
+}
 
 export function ChordSheetSection({
   section,
@@ -25,55 +36,66 @@ export function ChordSheetSection({
   onAddMeasure,
   onRemoveChord,
   onRemoveMeasure,
-  onRename,
   onNotes,
-  onMove,
-  onRemoveSection,
+  onOpenMenu,
 }: Props) {
+  const [barsPerRow, setBarsPerRow] = useState(4);
+
+  const onStaffLayout = (e: LayoutChangeEvent) => {
+    const next = Math.max(1, Math.floor(e.nativeEvent.layout.width / BAR_WIDTH));
+    setBarsPerRow((prev) => (prev === next ? prev : next));
+  };
+
+  const cells: Cell[] = [
+    ...section.measures.map((measure) => ({ kind: "bar" as const, measure })),
+    ...(editable ? [{ kind: "add" as const }] : []),
+  ];
+  const rows = chunk(cells, barsPerRow);
+
   return (
     <View style={styles.section}>
       {editable ? (
-        <View style={styles.headerEdit}>
-          <TextInput
-            style={styles.labelInput}
-            value={section.label}
-            onChangeText={onRename}
-            placeholder="SECTION"
-            placeholderTextColor={colors.textMuted}
-            autoCapitalize="characters"
-          />
-          <GhostIcon icon="chevron-up" onPress={() => onMove(-1)} />
-          <GhostIcon icon="chevron-down" onPress={() => onMove(1)} />
-          <GhostIcon icon="trash-outline" onPress={onRemoveSection} />
-        </View>
+        <Pressable
+          style={({ pressed }) => [styles.headerRow, pressed ? appStyles.pressDown : null]}
+          onPress={onOpenMenu}
+          onLongPress={onOpenMenu}
+          delayLongPress={300}
+        >
+          <Text style={styles.label}>{section.label || "Section"}</Text>
+          <Ionicons name="ellipsis-horizontal" size={16} color={colors.textMuted} />
+        </Pressable>
       ) : (
         <Text style={styles.label}>{section.label}</Text>
       )}
 
-      {/* The staff: bars divided by thin barlines, flowing and wrapping freely. */}
-      <View style={styles.staff}>
-        {section.measures.map((measure) => (
-          <Bar
-            key={measure.id}
-            measure={measure}
-            editable={editable}
-            onAddChord={() => onTapMeasure(measure.id)}
-            onRemoveChord={(index) => onRemoveChord(measure.id, index)}
-            onRemoveBar={() => onRemoveMeasure(measure.id)}
-          />
+      {/* The staff: fixed-width bars divided by barlines, wrapped into clean rows
+       * each closed by a final barline — like a page of staff paper. */}
+      <View onLayout={onStaffLayout}>
+        {rows.map((row, rowIndex) => (
+          <View key={rowIndex} style={styles.staffRow}>
+            {row.map((cell, cellIndex) =>
+              cell.kind === "add" ? (
+                <Pressable
+                  key={`add-${cellIndex}`}
+                  style={({ pressed }) => [styles.bar, styles.addBar, pressed ? appStyles.pressDown : null]}
+                  onPress={onAddMeasure}
+                >
+                  <Ionicons name="add" size={16} color={colors.primary} />
+                </Pressable>
+              ) : (
+                <Bar
+                  key={cell.measure.id}
+                  measure={cell.measure}
+                  editable={editable}
+                  onAddChord={() => onTapMeasure(cell.measure.id)}
+                  onRemoveChord={(index) => onRemoveChord(cell.measure.id, index)}
+                  onRemoveBar={() => onRemoveMeasure(cell.measure.id)}
+                />
+              )
+            )}
+            <View style={styles.closingLine} />
+          </View>
         ))}
-
-        {editable ? (
-          <Pressable
-            style={({ pressed }) => [styles.addBar, pressed ? appStyles.pressDown : null]}
-            onPress={onAddMeasure}
-            hitSlop={4}
-          >
-            <Ionicons name="add" size={16} color={colors.primary} />
-          </Pressable>
-        ) : section.measures.length > 0 ? (
-          <View style={styles.closingLine} />
-        ) : null}
       </View>
 
       {editable ? (
@@ -108,83 +130,49 @@ function Bar({
   const chords = measure.chords;
   const isFull = chords.length >= MAX_CHORDS_PER_BAR;
 
-  if (!editable) {
-    return (
-      <View style={styles.bar}>
+  return (
+    <Pressable
+      style={styles.bar}
+      onPress={editable && !isFull ? onAddChord : undefined}
+      disabled={!editable}
+    >
+      {editable ? (
+        <Pressable style={styles.barDelete} onPress={onRemoveBar} hitSlop={6}>
+          <Ionicons name="close" size={11} color={colors.textSecondary} />
+        </Pressable>
+      ) : null}
+
+      <View style={styles.barChords}>
         {chords.length > 0 ? (
-          chords.map((chord, index) => (
-            <Text key={index} style={styles.chord}>
-              {chord}
-            </Text>
-          ))
+          chords.map((chord, index) =>
+            editable ? (
+              <Pressable key={index} onPress={() => onRemoveChord(index)} hitSlop={2}>
+                <Text style={styles.chord}>{chord}</Text>
+              </Pressable>
+            ) : (
+              <Text key={index} style={styles.chord}>
+                {chord}
+              </Text>
+            )
+          )
+        ) : editable ? (
+          <Ionicons name="add" size={13} color={colors.borderMuted} />
         ) : (
           <Text style={styles.rest}>{"—"}</Text>
         )}
       </View>
-    );
-  }
-
-  return (
-    <Pressable
-      style={styles.bar}
-      onPress={isFull ? undefined : onAddChord}
-      onLongPress={onRemoveBar}
-      delayLongPress={350}
-    >
-      {chords.length > 0 ? (
-        chords.map((chord, index) => (
-          <Pressable key={index} onPress={() => onRemoveChord(index)} hitSlop={3}>
-            <Text style={styles.chord}>{chord}</Text>
-          </Pressable>
-        ))
-      ) : (
-        <Ionicons name="add" size={14} color={colors.borderMuted} />
-      )}
     </Pressable>
   );
 }
-
-function GhostIcon({ icon, onPress }: { icon: keyof typeof Ionicons.glyphMap; onPress: () => void }) {
-  return (
-    <Pressable
-      style={({ pressed }) => [styles.ghostIcon, pressed ? appStyles.pressDown : null]}
-      onPress={onPress}
-      hitSlop={6}
-    >
-      <Ionicons name={icon} size={15} color={colors.textMuted} />
-    </Pressable>
-  );
-}
-
-const BAR_MIN_WIDTH = 62;
-const BAR_HEIGHT = 46;
-const BARLINE = colors.borderMuted;
 
 const styles = StyleSheet.create({
-  section: {
-    marginBottom: spacing.xl,
-  },
-  headerEdit: {
+  section: { marginBottom: spacing.xl },
+  headerRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 2,
-    marginBottom: spacing.xs,
-  },
-  labelInput: {
-    flex: 1,
-    minWidth: 0,
-    fontFamily: "PlusJakartaSans_700Bold",
-    fontSize: 12,
-    letterSpacing: 1.2,
-    textTransform: "uppercase",
-    color: colors.primary,
+    justifyContent: "space-between",
     paddingVertical: 4,
-  },
-  ghostIcon: {
-    width: 30,
-    height: 30,
-    alignItems: "center",
-    justifyContent: "center",
+    marginBottom: spacing.xs,
   },
   label: {
     fontFamily: "PlusJakartaSans_700Bold",
@@ -194,45 +182,54 @@ const styles = StyleSheet.create({
     color: colors.primary,
     marginBottom: spacing.xs,
   },
-  staff: {
+  staffRow: {
     flexDirection: "row",
-    flexWrap: "wrap",
     alignItems: "stretch",
-    rowGap: 12,
+    marginBottom: 12,
   },
   bar: {
-    flexDirection: "row",
+    width: BAR_WIDTH,
+    minHeight: 40,
+    paddingHorizontal: 6,
+    paddingVertical: 6,
     alignItems: "center",
     justifyContent: "center",
-    gap: spacing.sm,
-    minWidth: BAR_MIN_WIDTH,
-    minHeight: BAR_HEIGHT,
-    paddingHorizontal: spacing.md,
-    // The barline that opens each bar; bars sit flush so the lines read as a staff.
     borderLeftWidth: 1,
     borderLeftColor: BARLINE,
+  },
+  addBar: {
+    width: BAR_WIDTH,
+  },
+  barChords: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "center",
+    justifyContent: "center",
+    columnGap: spacing.sm,
+    rowGap: 2,
+  },
+  barDelete: {
+    position: "absolute",
+    top: 0,
+    right: 2,
+    width: 16,
+    height: 16,
+    alignItems: "center",
+    justifyContent: "center",
   },
   closingLine: {
     width: 1,
-    minHeight: BAR_HEIGHT,
+    alignSelf: "stretch",
     backgroundColor: BARLINE,
-  },
-  addBar: {
-    width: 44,
-    minHeight: BAR_HEIGHT,
-    alignItems: "center",
-    justifyContent: "center",
-    borderLeftWidth: 1,
-    borderLeftColor: BARLINE,
   },
   chord: {
     fontFamily: "PlusJakartaSans_700Bold",
-    fontSize: 17,
+    fontSize: 15,
     color: colors.textPrimary,
   },
   rest: {
     fontFamily: "PlusJakartaSans_400Regular",
-    fontSize: 15,
+    fontSize: 14,
     color: colors.borderMuted,
   },
   note: {
