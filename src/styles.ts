@@ -1,4 +1,5 @@
 import { Platform, StyleSheet } from "react-native";
+import { colors, radii, shadows } from "./design/tokens";
 
 export const styles = StyleSheet.create({
   screen: {
@@ -724,7 +725,7 @@ export const styles = StyleSheet.create({
     color: "#4b5563",
   },
   title: { fontSize: 22, fontWeight: "700", color: "#0f172a" },
-  pageTitleCompact: { fontSize: 20, fontWeight: "700", color: "#0f172a" },
+  pageTitleCompact: { fontSize: 20, fontFamily: "PlayfairDisplay_600SemiBold", color: colors.textPrimary },
   titleInlineWrap: {
     marginHorizontal: 8,
     position: "relative",
@@ -1270,10 +1271,8 @@ export const styles = StyleSheet.create({
     borderStyle: "dashed",
   },
   lyricsPreviewWrap: {
-    borderWidth: 1,
-    borderColor: "#d1d5db",
-    backgroundColor: "#fff",
-    borderRadius: 12,
+    backgroundColor: colors.surfaceContainer,
+    borderRadius: radii.sm,
     paddingHorizontal: 12,
     paddingVertical: 12,
     minHeight: 160,
@@ -1352,8 +1351,9 @@ export const styles = StyleSheet.create({
   },
   lyricsPreviewText: {
     fontSize: 15,
-    lineHeight: 22,
-    color: "#111827",
+    lineHeight: 23,
+    color: colors.textPrimary,
+    fontFamily: "PlayfairDisplay_400Regular",
   },
   playerLyricsHeader: {
     flexDirection: "row",
@@ -1584,15 +1584,20 @@ export const styles = StyleSheet.create({
     fontWeight: "600",
   },
   primaryBtn: {
-    backgroundColor: "#111827",
-    borderRadius: 10,
+    backgroundColor: colors.primary,
+    borderRadius: radii.round,
     minHeight: 36,
-    paddingHorizontal: 14,
+    paddingHorizontal: 16,
     paddingVertical: 6,
     alignItems: "center",
     justifyContent: "center",
   },
-  primaryBtnText: { fontSize: 12, color: "white", fontWeight: "700", letterSpacing: 0.2 },
+  primaryBtnText: {
+    fontSize: 13,
+    color: colors.onPrimary,
+    fontFamily: "PlusJakartaSans_700Bold",
+    letterSpacing: 0.2,
+  },
   songDetailSectionHeader: {
     flexDirection: "row",
     alignItems: "center",
@@ -3526,16 +3531,11 @@ export const styles = StyleSheet.create({
   cardFlex: { flex: 1 },
   selectionIndicatorHidden: { width: 0, marginRight: 0 },
   card: {
-    backgroundColor: "#fff",
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "#e2e8f0",
+    backgroundColor: colors.surface,
+    borderRadius: radii.sm,
     padding: 14,
     gap: 6,
-    shadowColor: "#0f172a",
-    shadowOpacity: 0.06,
-    shadowRadius: 10,
-    elevation: 2,
+    ...shadows.card,
     position: "relative",
   },
   transportLayout: {
@@ -3736,8 +3736,8 @@ export const styles = StyleSheet.create({
   },
   cardTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 8 },
   cardTitleRow: { flex: 1, flexDirection: "row", alignItems: "center", gap: 6 },
-  cardTitle: { flex: 1, fontSize: 16, fontWeight: "600", color: "#0f172a" },
-  cardMeta: { fontSize: 12, color: "#64748b" },
+  cardTitle: { flex: 1, fontSize: 16, fontFamily: "PlusJakartaSans_600SemiBold", color: colors.textPrimary },
+  cardMeta: { fontSize: 12, color: colors.textSecondary, fontFamily: "PlusJakartaSans_400Regular" },
   cardMetaWarning: { color: "#b45309" },
   settingsScrollContent: {
     paddingBottom: 24,
@@ -4308,8 +4308,10 @@ export const styles = StyleSheet.create({
     fontWeight: "700",
   },
   badgeCurrent: {
-    backgroundColor: "#dcfce7",
-    color: "#166534",
+    backgroundColor: colors.primary,
+    color: colors.onPrimary,
+    fontFamily: "PlusJakartaSans_700Bold",
+    letterSpacing: 0.4,
     overflow: "hidden",
   },
   badgeArchived: {
@@ -4334,17 +4336,15 @@ export const styles = StyleSheet.create({
   statusClipText: { color: "#4b5563" },
   secondaryBtn: {
     alignSelf: "flex-start",
-    borderWidth: 1,
-    borderColor: "#cbd5e1",
-    borderRadius: 10,
+    borderRadius: radii.round,
     minHeight: 36,
-    paddingHorizontal: 12,
+    paddingHorizontal: 14,
     paddingVertical: 6,
-    backgroundColor: "#fff",
+    backgroundColor: colors.surfaceHigh,
     alignItems: "center",
     justifyContent: "center",
   },
-  secondaryBtnText: { fontSize: 12, color: "#334155", fontWeight: "600" },
+  secondaryBtnText: { fontSize: 13, color: colors.textStrong, fontFamily: "PlusJakartaSans_600SemiBold" },
   setPrimaryBtn: {
     alignSelf: "flex-start",
     marginTop: 2,
@@ -4852,10 +4852,8 @@ export const styles = StyleSheet.create({
     marginTop: 4,
     marginBottom: 8,
     padding: 10,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: "#e5e7eb",
-    backgroundColor: "#fff",
+    borderRadius: radii.md,
+    backgroundColor: colors.surfaceHigh,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
@@ -4891,7 +4889,7 @@ export const styles = StyleSheet.create({
     paddingBottom: 0,
     gap: 7,
   },
-  selectionText: { fontSize: 13, color: "#374151", fontWeight: "600" },
+  selectionText: { fontSize: 13, color: colors.textStrong, fontFamily: "PlusJakartaSans_600SemiBold" },
   // ─── Selection top bar (count · All/None · Done) ────────────────────────────
   selectionTopBar: {
     backgroundColor: "#EDE8E2",
@@ -5164,11 +5162,11 @@ export const styles = StyleSheet.create({
     backgroundColor: "#f3f4f6",
   },
   dangerBtnText: { color: "#b91c1c", fontWeight: "700", fontSize: 14 },
-  cardSelected: { borderColor: "#111827", borderWidth: 2 },
+  cardSelected: { borderColor: colors.primary, borderWidth: 1.5 },
   listCardSelected: {
-    borderColor: "#111827",
-    borderWidth: 2,
-    borderStyle: "dashed",
+    borderColor: colors.primary,
+    borderWidth: 1.5,
+    ...shadows.cardActive,
   },
   cardEditing: { borderColor: "#2563eb", borderWidth: 2 },
   cardHighlight: { borderColor: "#22c55e", borderWidth: 2 },

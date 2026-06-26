@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Pressable, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import * as Haptics from "expo-haptics";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
@@ -13,6 +13,9 @@ import { formatDate } from "../../utils";
 import { Button } from "../common/Button";
 import { AppAlert } from "../common/AppAlert";
 import { NotePickerSheet } from "../modals/NotePickerSheet";
+import { SelectionActionSheet } from "../common/SelectionActionSheet";
+import type { SelectionAction } from "../common/SelectionDock";
+import { colors, radii } from "../../design/tokens";
 import type { Note } from "../../types";
 
 type LyricsVersionsPanelProps = {
@@ -30,6 +33,7 @@ export function LyricsVersionsPanel({ projectIdea }: LyricsVersionsPanelProps) {
   const [expandedVersionIds, setExpandedVersionIds] = useState<string[]>([]);
   const [selectedVersionIds, setSelectedVersionIds] = useState<string[]>([]);
   const [notePickerVisible, setNotePickerVisible] = useState(false);
+  const [moreVisible, setMoreVisible] = useState(false);
 
   useEffect(() => {
     setExpandedVersionIds((prev) => {
@@ -103,28 +107,55 @@ export function LyricsVersionsPanel({ projectIdea }: LyricsVersionsPanelProps) {
     void Haptics.selectionAsync();
   }
 
+  const selectionSheetActions: SelectionAction[] = [
+    ...(selectedSingleVersion
+      ? [
+          {
+            key: "new-draft",
+            label: "New draft from this",
+            icon: "git-branch-outline" as const,
+            onPress: () =>
+              openVersion(selectedSingleVersion.id, { startInEdit: true, forceNewVersion: true }),
+          },
+        ]
+      : []),
+    {
+      key: "delete",
+      label: selectedVersionIds.length === 1 ? "Delete version" : "Delete versions",
+      icon: "trash-outline" as const,
+      tone: "danger" as const,
+      onPress: deleteSelectedVersions,
+    },
+  ];
+
   return (
     <View style={styles.songDetailTabPanelWrap}>
       {selectionMode ? (
         <View style={styles.selectionBar}>
           <Text style={styles.selectionText}>{selectedVersionIds.length} selected</Text>
-          <View style={styles.rowButtons}>
+          <View style={panelStyles.selectionActions}>
             {selectedSingleVersion ? (
-              <>
-                <Button
-                  variant="secondary"
-                  label="New Draft"
-                  onPress={() => openVersion(selectedSingleVersion.id, { startInEdit: true, forceNewVersion: true })}
-                />
-                <Button
-                  variant="secondary"
-                  label="Edit"
-                  onPress={() => openVersion(selectedSingleVersion.id, { startInEdit: true })}
-                />
-              </>
+              <Button
+                variant="secondary"
+                label="Edit"
+                onPress={() => openVersion(selectedSingleVersion.id, { startInEdit: true })}
+              />
             ) : null}
-            <Button variant="secondary" label="Delete" onPress={deleteSelectedVersions} />
-            <Button variant="secondary" label="Done" onPress={() => setSelectedVersionIds([])} />
+            <Pressable
+              style={({ pressed }) => [panelStyles.iconBtn, pressed ? styles.pressDown : null]}
+              onPress={() => setMoreVisible(true)}
+              hitSlop={6}
+              accessibilityLabel="More actions"
+            >
+              <Ionicons name="ellipsis-horizontal" size={18} color={colors.textStrong} />
+            </Pressable>
+            <Pressable
+              style={({ pressed }) => [panelStyles.doneBtn, pressed ? styles.pressDown : null]}
+              onPress={() => setSelectedVersionIds([])}
+              hitSlop={6}
+            >
+              <Text style={panelStyles.doneText}>Done</Text>
+            </Pressable>
           </View>
         </View>
       ) : versions.length > 0 ? (
@@ -233,6 +264,40 @@ export function LyricsVersionsPanel({ projectIdea }: LyricsVersionsPanelProps) {
         onClose={() => setNotePickerVisible(false)}
         onSelect={importFromLyricsPad}
       />
+
+      <SelectionActionSheet
+        visible={moreVisible}
+        title="Lyrics version actions"
+        actions={selectionSheetActions}
+        onClose={() => setMoreVisible(false)}
+      />
     </View>
   );
 }
+
+const panelStyles = StyleSheet.create({
+  selectionActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  iconBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: radii.round,
+    backgroundColor: colors.surface,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  doneBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: radii.round,
+    backgroundColor: colors.primary,
+  },
+  doneText: {
+    fontFamily: "PlusJakartaSans_700Bold",
+    fontSize: 13,
+    color: colors.onPrimary,
+  },
+});
