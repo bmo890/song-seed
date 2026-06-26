@@ -145,11 +145,6 @@ export function IdeaMetadataTabs({
     });
   }
 
-  function openChordChart() {
-    if (idea.kind !== "project" || idea.isDraft) return;
-    navigation.navigate("ChordSheet", { ideaId: idea.id });
-  }
-
   function createLyricsVersion() {
     if (idea.kind !== "project" || idea.isDraft) return;
     navigation.navigate("LyricsVersion", {
@@ -244,12 +239,6 @@ export function IdeaMetadataTabs({
             label="New"
             icon="add-outline"
             onPress={createLyricsVersion}
-            disabled={!!idea.isDraft}
-          />
-          <MetadataActionChip
-            label="Chords"
-            icon="grid-outline"
-            onPress={openChordChart}
             disabled={!!idea.isDraft}
           />
         </View>
