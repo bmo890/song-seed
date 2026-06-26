@@ -87,7 +87,7 @@ function buildLibrary(): { workspaces: Workspace[]; idea: SongIdea } {
         id: "idea-1",
         title: "My Song",
         notes: "song notes",
-        status: "semi",
+        status: "stem",
         completionPct: 42,
         kind: "project",
         collectionId: "col-1",
@@ -261,7 +261,7 @@ describe("Song Seed Archive round-trip — full fidelity", () => {
         expect(workspace.collections[0].description).toBe("collection desc");
 
         const song = workspace.ideas.find((idea) => idea.kind === "project")!;
-        expect(song.status).toBe("semi");
+        expect(song.status).toBe("stem");
         expect(song.isDraft).toBe(true);
         expect(song.customTags).toEqual([{ key: "mood", label: "Mood", color: "#abc" }]);
         expect(song.lyrics?.versions).toHaveLength(2);

@@ -7,7 +7,7 @@ import { getIdeaSortState, getIdeaSortValue, IdeaSortMetric } from "../../../ide
 import { getHierarchyIconName } from "../../../hierarchy";
 import { FilterSortControls } from "../../common/FilterSortControls";
 
-type ProjectStage = "seed" | "sprout" | "semi" | "song";
+type ProjectStage = "seed" | "sprout" | "stem" | "song";
 type LyricsFilterMode = "all" | "with" | "without";
 
 type FilterSortBarProps = {
@@ -31,10 +31,10 @@ function getStageTone(stage: ProjectStage) {
         chipStyle: [styles.statusSprout, { borderColor: "#93c5fd" }],
         textStyle: styles.statusSproutText,
       };
-    case "semi":
+    case "stem":
       return {
-        chipStyle: [styles.statusSemi, { borderColor: "#fcd34d" }],
-        textStyle: styles.statusSemiText,
+        chipStyle: [styles.statusStem, { borderColor: "#fcd34d" }],
+        textStyle: styles.statusStemText,
       };
     case "song":
       return {
@@ -110,7 +110,7 @@ export function FilterSortBar({
   const stageOptions = [
     { key: "seed" as const, label: "Seed" },
     { key: "sprout" as const, label: "Sprout" },
-    { key: "semi" as const, label: "Semi" },
+    { key: "stem" as const, label: "Stem" },
     { key: "song" as const, label: "Song" },
   ];
   const showProjectFilters = ideasFilter !== "clips" && ideasFilter !== "bookmarked";

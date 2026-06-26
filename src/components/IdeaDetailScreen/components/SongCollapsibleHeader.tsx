@@ -14,8 +14,8 @@ function statusBadgeStyle(status: string) {
   switch (status) {
     case "song":
       return [styles.badge, styles.statusSong, styles.statusSongText];
-    case "semi":
-      return [styles.badge, styles.statusSemi, styles.statusSemiText];
+    case "stem":
+      return [styles.badge, styles.statusStem, styles.statusStemText];
     case "sprout":
       return [styles.badge, styles.statusSprout, styles.statusSproutText];
     default:

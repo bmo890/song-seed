@@ -116,7 +116,7 @@ export function useCollectionScreenModel() {
   const [nestedCollectionsExpanded, setNestedCollectionsExpanded] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
-  const [selectedProjectStages, setSelectedProjectStages] = useState<Array<"seed" | "sprout" | "semi" | "song">>([]);
+  const [selectedProjectStages, setSelectedProjectStages] = useState<Array<"seed" | "sprout" | "stem" | "song">>([]);
   const [lyricsFilterMode, setLyricsFilterMode] = useState<"all" | "with" | "without">("all");
   const [listDensity, setListDensity] = useState<"comfortable" | "compact">("comfortable");
   const [headerMenuOpen, setHeaderMenuOpen] = useState(false);

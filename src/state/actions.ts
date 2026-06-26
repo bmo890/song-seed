@@ -1474,7 +1474,7 @@ export const appActions = {
 
         let completionPct = 0;
         if (status === "song") completionPct = 75;
-        if (status === "semi") completionPct = 50;
+        if (status === "stem") completionPct = 50;
         if (status === "sprout") completionPct = 25;
 
         state.updateIdeas((prev) => prev.map((i) => (i.id === selectedIdea.id ? { ...i, status, completionPct } : i)), { preserveActivity: true });
@@ -1488,7 +1488,7 @@ export const appActions = {
         const stepped = Math.max(0, Math.min(100, Math.round(completionPct / 5) * 5));
         let status: IdeaStatus = "seed";
         if (stepped >= 75) status = "song";
-        else if (stepped >= 50) status = "semi";
+        else if (stepped >= 50) status = "stem";
         else if (stepped >= 25) status = "sprout";
 
         state.updateIdeas((prev) => prev.map((i) => (i.id === selectedIdea.id ? { ...i, completionPct: stepped, status } : i)), { preserveActivity: true });

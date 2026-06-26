@@ -16,7 +16,7 @@ type Props<T extends StatusChipValue> = {
 function getChipStyles(value: StatusChipValue) {
     if (value === "seed") return { viewStyle: styles.statusSeed, textStyle: styles.statusSeedText };
     if (value === "sprout") return { viewStyle: styles.statusSprout, textStyle: styles.statusSproutText };
-    if (value === "semi") return { viewStyle: styles.statusSemi, textStyle: styles.statusSemiText };
+    if (value === "stem") return { viewStyle: styles.statusStem, textStyle: styles.statusStemText };
     if (value === "song") return { viewStyle: styles.statusSong, textStyle: styles.statusSongText };
     return { viewStyle: null, textStyle: null };
 }

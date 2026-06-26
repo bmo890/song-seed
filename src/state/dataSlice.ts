@@ -678,6 +678,8 @@ function normalizeIdea(idea: SongIdea): SongIdea {
     const normalizedChordPalette = normalizeChordPalette(idea.chordPalette);
     let normalizedIdea: SongIdea = {
         ...idea,
+        // Migration: the third stage was renamed "semi" → "stem".
+        status: ((idea.status as string) === "semi" ? "stem" : idea.status) as SongIdea["status"],
         clips: idea.clips.map(normalizeClip),
         chordPalette: normalizedChordPalette,
         chordSheet: sanitizeChordSheet(idea.chordSheet),

@@ -6,7 +6,7 @@ import { styles } from "./styles";
 import { IdeaStatus } from "../../types";
 import { StatusChipRow } from "../common/StatusChipRow";
 
-const PROJECT_STATUSES: IdeaStatus[] = ["seed", "sprout", "semi", "song"];
+const PROJECT_STATUSES: IdeaStatus[] = ["seed", "sprout", "stem", "song"];
 
 type IdeaStatusProgressProps = {
     isEditMode: boolean;
@@ -37,8 +37,8 @@ export function IdeaStatusProgress({
         const stageStyle =
             status === "song"
                 ? [styles.badge, styles.statusSong, styles.statusSongText]
-                : status === "semi"
-                    ? [styles.badge, styles.statusSemi, styles.statusSemiText]
+                : status === "stem"
+                    ? [styles.badge, styles.statusStem, styles.statusStemText]
                     : status === "sprout"
                         ? [styles.badge, styles.statusSprout, styles.statusSproutText]
                         : [styles.badge, styles.statusSeed, styles.statusSeedText];
@@ -73,7 +73,7 @@ export function IdeaStatusProgress({
                     setDraftStatus(s);
 
                     if (s === "song") setDraftCompletion(75);
-                    if (s === "semi") setDraftCompletion(50);
+                    if (s === "stem") setDraftCompletion(50);
                     if (s === "sprout") setDraftCompletion(25);
                     if (s === "seed" && draftCompletion >= 25) setDraftCompletion(0);
                 }}
@@ -89,7 +89,7 @@ export function IdeaStatusProgress({
                     onValueChange={(val) => {
                         setDraftCompletion(val);
                         if (val >= 75) setDraftStatus("song");
-                        else if (val >= 50) setDraftStatus("semi");
+                        else if (val >= 50) setDraftStatus("stem");
                         else if (val >= 25) setDraftStatus("sprout");
                         else setDraftStatus("seed");
                     }}

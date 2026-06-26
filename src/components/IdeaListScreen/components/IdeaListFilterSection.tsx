@@ -3,7 +3,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { styles } from "../../../styles";
 import { FilterSortBar } from "./FilterSortBar";
 
-type ProjectStage = "seed" | "sprout" | "semi" | "song";
+type ProjectStage = "seed" | "sprout" | "stem" | "song";
 type LyricsFilterMode = "all" | "with" | "without";
 
 type IdeaListFilterSectionProps = {

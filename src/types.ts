@@ -1,4 +1,4 @@
-export type IdeaStatus = "seed" | "sprout" | "semi" | "song" | "clip";
+export type IdeaStatus = "seed" | "sprout" | "stem" | "song" | "clip";
 
 export type Note = {
   id: string;

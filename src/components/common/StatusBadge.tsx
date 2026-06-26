@@ -22,9 +22,9 @@ export function StatusBadge({ status, pct, style }: Props) {
             viewStyle = styles.statusSprout;
             textStyle = styles.statusSproutText;
             break;
-        case "semi":
-            viewStyle = styles.statusSemi;
-            textStyle = styles.statusSemiText;
+        case "stem":
+            viewStyle = styles.statusStem;
+            textStyle = styles.statusStemText;
             break;
         case "song":
             viewStyle = styles.statusSong;

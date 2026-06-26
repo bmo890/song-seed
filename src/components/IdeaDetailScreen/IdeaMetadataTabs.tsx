@@ -27,18 +27,18 @@ type MetadataActionChipProps = {
   disabled?: boolean;
 };
 
-const PROJECT_STATUSES: IdeaStatus[] = ["seed", "sprout", "semi", "song"];
+const PROJECT_STATUSES: IdeaStatus[] = ["seed", "sprout", "stem", "song"];
 
 function getStatusChipStyles(status: IdeaStatus) {
   if (status === "song") return [styles.badge, styles.statusSong, styles.statusSongText];
-  if (status === "semi") return [styles.badge, styles.statusSemi, styles.statusSemiText];
+  if (status === "stem") return [styles.badge, styles.statusStem, styles.statusStemText];
   if (status === "sprout") return [styles.badge, styles.statusSprout, styles.statusSproutText];
   return [styles.badge, styles.statusSeed, styles.statusSeedText];
 }
 
 function getStatusFromCompletion(value: number): IdeaStatus {
   if (value >= 75) return "song";
-  if (value >= 50) return "semi";
+  if (value >= 50) return "stem";
   if (value >= 25) return "sprout";
   return "seed";
 }
@@ -174,7 +174,7 @@ export function IdeaMetadataTabs({
             onPress={(status) => {
               setDraftStatus(status);
               if (status === "song") setDraftCompletion(75);
-              else if (status === "semi") setDraftCompletion(50);
+              else if (status === "stem") setDraftCompletion(50);
               else if (status === "sprout") setDraftCompletion(25);
               else setDraftCompletion(0);
             }}
