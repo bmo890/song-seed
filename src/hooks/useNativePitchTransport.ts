@@ -19,6 +19,12 @@ import {
  * only (never called from render) so it doesn't spam. Filter logs by "[pitch]". */
 const pitchLog = (...args: unknown[]) => console.log("[pitch]", ...args);
 
+/** Coalesce fast pitch/speed taps into a single native reconfiguration — media3's
+ * audio pipeline stalls (buffer underrun, audio freezes) when `playbackParameters`
+ * is flushed many times in quick succession during playback. Only the final value
+ * of a burst is applied. Structural changes (load/ownership) stay immediate. */
+const NATIVE_PARAM_DEBOUNCE_MS = 160;
+
 export const DEFAULT_NATIVE_PLAYBACK_STATE: NativePitchShiftPlaybackState = {
   isAvailable: false,
   isLoaded: false,
@@ -340,17 +346,20 @@ export function useNativePitchTransport({
     });
   }, [disableNativeTransport, reconcileNative, runExclusive]);
 
+  // Structural changes (load / hand-back / source swap) reconcile immediately so
+  // play and source switches stay responsive.
   useEffect(() => {
     requestReconcile();
-  }, [
-    shouldOwnNativeTransport,
-    source.sourceKey,
-    source.audioUri,
-    clamped,
-    playbackRate,
-    extraAutoplay,
-    requestReconcile,
-  ]);
+  }, [shouldOwnNativeTransport, source.sourceKey, source.audioUri, extraAutoplay, requestReconcile]);
+
+  // Pitch/speed changes are debounced: a burst of fast +/- taps collapses to one
+  // native reconfiguration (the final value), since rapid playbackParameters
+  // flushes stall media3's audio pipeline. A single deliberate tap still applies
+  // after the short window.
+  useEffect(() => {
+    const handle = setTimeout(requestReconcile, NATIVE_PARAM_DEBOUNCE_MS);
+    return () => clearTimeout(handle);
+  }, [clamped, playbackRate, requestReconcile]);
 
   useEffect(() => {
     return () => {
