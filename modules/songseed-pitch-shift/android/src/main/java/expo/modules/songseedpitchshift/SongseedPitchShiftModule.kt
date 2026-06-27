@@ -81,6 +81,14 @@ class SongseedPitchShiftModule : Module() {
       renderer.renderMixedFile(request)
     }
 
+    AsyncFunction("renderTrim") { request: Map<String, Any?> ->
+      renderer.renderTrim(request)
+    }
+
+    AsyncFunction("computeWaveform") { request: Map<String, Any?> ->
+      renderer.computeWaveform(request)
+    }
+
     OnDestroy {
       engine.unload()
     }

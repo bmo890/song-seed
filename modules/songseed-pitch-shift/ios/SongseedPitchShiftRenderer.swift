@@ -253,4 +253,151 @@ final class SongseedPitchShiftRenderer {
     let joined = String(scalars).trimmingCharacters(in: CharacterSet(charactersIn: "-"))
     return joined.isEmpty ? fallback : joined
   }
+
+  // MARK: - Tier 2: trim/extract/cut via AVMutableComposition
+
+  func renderTrim(_ request: [String: Any]) throws -> [String: Any] {
+    guard let inputUri = request["inputUri"] as? String else {
+      throw NSError(domain: "SongseedPitchShift", code: 20, userInfo: [NSLocalizedDescriptionKey: "Trim rendering requires inputUri."])
+    }
+    guard let rawRanges = request["ranges"] as? [Any] else {
+      throw NSError(domain: "SongseedPitchShift", code: 21, userInfo: [NSLocalizedDescriptionKey: "Trim rendering requires ranges."])
+    }
+    let outputFileName = (request["outputFileName"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines)
+    let inputURL = URL(string: inputUri) ?? URL(fileURLWithPath: inputUri)
+    let asset = AVURLAsset(url: inputURL)
+    guard let sourceTrack = asset.tracks(withMediaType: .audio).first else {
+      throw NSError(domain: "SongseedPitchShift", code: 22, userInfo: [NSLocalizedDescriptionKey: "No audio track found."])
+    }
+
+    let composition = AVMutableComposition()
+    guard let compTrack = composition.addMutableTrack(
+      withMediaType: .audio,
+      preferredTrackID: kCMPersistentTrackID_Invalid
+    ) else {
+      throw NSError(domain: "SongseedPitchShift", code: 23, userInfo: [NSLocalizedDescriptionKey: "Could not create composition track."])
+    }
+
+    var cursor = CMTime.zero
+    var inserted = false
+    for raw in rawRanges {
+      guard let map = raw as? [String: Any] else { continue }
+      let startMs = (map["startTimeMs"] as? Double) ?? Double((map["startTimeMs"] as? Int) ?? -1)
+      let endMs = (map["endTimeMs"] as? Double) ?? Double((map["endTimeMs"] as? Int) ?? -1)
+      if startMs < 0 || endMs <= startMs { continue }
+      let start = CMTime(seconds: startMs / 1000.0, preferredTimescale: 1000)
+      let end = CMTime(seconds: endMs / 1000.0, preferredTimescale: 1000)
+      let timeRange = CMTimeRange(start: start, end: end)
+      try compTrack.insertTimeRange(timeRange, of: sourceTrack, at: cursor)
+      cursor = CMTimeAdd(cursor, timeRange.duration)
+      inserted = true
+    }
+    if !inserted {
+      throw NSError(domain: "SongseedPitchShift", code: 24, userInfo: [NSLocalizedDescriptionKey: "Trim rendering requires at least one valid range."])
+    }
+
+    let outputURL = buildExportOutputURL(fileName: outputFileName)
+    guard let exportSession = AVAssetExportSession(asset: composition, presetName: AVAssetExportPresetAppleM4A) else {
+      throw NSError(domain: "SongseedPitchShift", code: 25, userInfo: [NSLocalizedDescriptionKey: "Could not create export session."])
+    }
+    exportSession.outputURL = outputURL
+    exportSession.outputFileType = .m4a
+
+    let semaphore = DispatchSemaphore(value: 0)
+    var exportError: Error?
+    exportSession.exportAsynchronously {
+      if exportSession.status == .failed {
+        exportError = exportSession.error
+          ?? NSError(domain: "SongseedPitchShift", code: 26, userInfo: [NSLocalizedDescriptionKey: "Trim export failed."])
+      }
+      semaphore.signal()
+    }
+    semaphore.wait()
+    if let exportError {
+      try? FileManager.default.removeItem(at: outputURL)
+      throw exportError
+    }
+
+    return ["outputUri": outputURL.absoluteString]
+  }
+
+  private func buildExportOutputURL(fileName: String?) -> URL {
+    let safeName = sanitizeFileName(fileName)
+    let finalName = safeName.hasSuffix(".m4a") ? safeName : "\(safeName).m4a"
+    let url = FileManager.default.temporaryDirectory.appendingPathComponent(finalName)
+    try? FileManager.default.removeItem(at: url)
+    return url
+  }
+
+  // MARK: - Tier 3: waveform analysis via AVAssetReader
+
+  func computeWaveform(_ request: [String: Any]) throws -> [String: Any] {
+    guard let inputUri = request["inputUri"] as? String else {
+      throw NSError(domain: "SongseedPitchShift", code: 27, userInfo: [NSLocalizedDescriptionKey: "Waveform analysis requires inputUri."])
+    }
+    let numberOfPoints = max(1, (request["numberOfPoints"] as? Int) ?? Int((request["numberOfPoints"] as? Double) ?? 256))
+    let inputURL = URL(string: inputUri) ?? URL(fileURLWithPath: inputUri)
+    let asset = AVURLAsset(url: inputURL)
+    guard let track = asset.tracks(withMediaType: .audio).first else {
+      throw NSError(domain: "SongseedPitchShift", code: 28, userInfo: [NSLocalizedDescriptionKey: "No audio track found."])
+    }
+
+    let totalDurationSec = CMTimeGetSeconds(asset.duration)
+    let durationMs = totalDurationSec.isFinite ? totalDurationSec * 1000.0 : 0
+
+    let reader = try AVAssetReader(asset: asset)
+    let settings: [String: Any] = [
+      AVFormatIDKey: kAudioFormatLinearPCM,
+      AVLinearPCMBitDepthKey: 16,
+      AVLinearPCMIsBigEndianKey: false,
+      AVLinearPCMIsFloatKey: false,
+      AVLinearPCMIsNonInterleaved: false,
+    ]
+    let output = AVAssetReaderTrackOutput(track: track, outputSettings: settings)
+    output.alwaysCopiesSampleData = false
+    reader.add(output)
+    reader.startReading()
+
+    var peaks = [Float](repeating: 0, count: numberOfPoints)
+
+    while reader.status == .reading, let sampleBuffer = output.copyNextSampleBuffer() {
+      let ptsSec = CMTimeGetSeconds(CMSampleBufferGetPresentationTimeStamp(sampleBuffer))
+      guard let blockBuffer = CMSampleBufferGetDataBuffer(sampleBuffer) else {
+        CMSampleBufferInvalidate(sampleBuffer)
+        continue
+      }
+      var length = 0
+      var dataPointer: UnsafeMutablePointer<Int8>?
+      CMBlockBufferGetDataPointer(
+        blockBuffer,
+        atOffset: 0,
+        lengthAtOffsetOut: nil,
+        totalLengthOut: &length,
+        dataPointerOut: &dataPointer
+      )
+      if let dataPointer, length > 1 {
+        let sampleCount = length / 2
+        let frac = totalDurationSec > 0 ? min(0.999999, max(0, ptsSec / totalDurationSec)) : 0
+        let bin = min(numberOfPoints - 1, Int(frac * Double(numberOfPoints)))
+        var localPeak = peaks[bin]
+        dataPointer.withMemoryRebound(to: Int16.self, capacity: sampleCount) { ptr in
+          var i = 0
+          while i < sampleCount {
+            let sample = abs(Float(ptr[i]) / 32768.0)
+            if sample > localPeak { localPeak = sample }
+            i += 1
+          }
+        }
+        peaks[bin] = localPeak
+      }
+      CMSampleBufferInvalidate(sampleBuffer)
+    }
+
+    if reader.status == .failed {
+      throw reader.error
+        ?? NSError(domain: "SongseedPitchShift", code: 29, userInfo: [NSLocalizedDescriptionKey: "Waveform analysis failed."])
+    }
+
+    return ["peaks": peaks.map { Double($0) }, "durationMs": durationMs]
+  }
 }

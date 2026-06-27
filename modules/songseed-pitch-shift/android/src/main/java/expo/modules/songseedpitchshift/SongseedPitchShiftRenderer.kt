@@ -1,6 +1,9 @@
 package expo.modules.songseedpitchshift
 
 import android.content.Context
+import android.media.MediaCodec
+import android.media.MediaExtractor
+import android.media.MediaFormat
 import android.net.Uri
 import android.os.Handler
 import android.os.HandlerThread
@@ -20,6 +23,7 @@ import androidx.media3.transformer.ExportException
 import androidx.media3.transformer.ExportResult
 import androidx.media3.transformer.Transformer
 import java.io.File
+import java.nio.ByteOrder
 import java.util.UUID
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
@@ -301,5 +305,162 @@ class SongseedPitchShiftRenderer(
       }
 
     return IllegalStateException(message, throwable)
+  }
+
+  // --- Tier 2: trim/extract/cut via media3 Transformer ---------------------------
+
+  fun renderTrim(request: Map<String, Any?>): Map<String, Any> {
+    val inputUri = request["inputUri"] as? String
+      ?: throw IllegalArgumentException("Trim rendering requires inputUri.")
+    val rawRanges = request["ranges"] as? List<*>
+      ?: throw IllegalArgumentException("Trim rendering requires ranges.")
+    val outputFileName = (request["outputFileName"] as? String)?.trim()
+    val ranges = rawRanges.mapNotNull { parseTrimRange(it) }
+    if (ranges.isEmpty()) {
+      throw IllegalArgumentException("Trim rendering requires at least one valid range.")
+    }
+
+    val outputFile = buildOutputFile(outputFileName)
+    try {
+      return renderComposition(buildTrimComposition(inputUri, ranges), outputFile)
+    } catch (throwable: Throwable) {
+      if (outputFile.exists()) {
+        outputFile.delete()
+      }
+      throw throwable
+    }
+  }
+
+  private fun buildTrimComposition(inputUri: String, ranges: List<TrimRange>): Composition {
+    val uri = parseInputUri(inputUri)
+    val sequenceBuilder = EditedMediaItemSequence.Builder(emptyList())
+    for (range in ranges) {
+      val mediaItem = MediaItem.Builder()
+        .setUri(uri)
+        .setClippingConfiguration(
+          MediaItem.ClippingConfiguration.Builder()
+            .setStartPositionMs(range.startMs)
+            .setEndPositionMs(range.endMs)
+            .build()
+        )
+        .build()
+      val editedItem = EditedMediaItem.Builder(mediaItem)
+        .setRemoveVideo(true)
+        .setEffects(Effects(listOf(ToInt16PcmAudioProcessor()), emptyList()))
+        .build()
+      sequenceBuilder.addItem(editedItem)
+    }
+
+    // A single sequence of multiple clipped items plays them back-to-back, i.e.
+    // concatenates the kept ranges into one continuous output.
+    return Composition.Builder(sequenceBuilder.build())
+      .experimentalSetForceAudioTrack(true)
+      .build()
+  }
+
+  private data class TrimRange(val startMs: Long, val endMs: Long)
+
+  private fun parseTrimRange(value: Any?): TrimRange? {
+    val map = value as? Map<*, *> ?: return null
+    val start = max(0L, (map["startTimeMs"] as? Number)?.toLong() ?: return null)
+    val end = (map["endTimeMs"] as? Number)?.toLong() ?: return null
+    if (end <= start) return null
+    return TrimRange(start, end)
+  }
+
+  // --- Tier 3: waveform analysis via MediaExtractor + MediaCodec ------------------
+
+  fun computeWaveform(request: Map<String, Any?>): Map<String, Any> {
+    val inputUri = request["inputUri"] as? String
+      ?: throw IllegalArgumentException("Waveform analysis requires inputUri.")
+    val numberOfPoints = max(1, (request["numberOfPoints"] as? Number)?.toInt() ?: 256)
+    val startTimeMs = max(0L, (request["startTimeMs"] as? Number)?.toLong() ?: 0L)
+    val endTimeMsRaw = (request["endTimeMs"] as? Number)?.toLong() ?: 0L
+
+    val extractor = MediaExtractor()
+    var codec: MediaCodec? = null
+    try {
+      extractor.setDataSource(appContext, parseInputUri(inputUri), null)
+      val trackIndex = (0 until extractor.trackCount).firstOrNull { index ->
+        extractor.getTrackFormat(index).getString(MediaFormat.KEY_MIME)?.startsWith("audio/") == true
+      } ?: throw IllegalStateException("No audio track found.")
+
+      val format = extractor.getTrackFormat(trackIndex)
+      extractor.selectTrack(trackIndex)
+
+      val durationUs = if (format.containsKey(MediaFormat.KEY_DURATION)) format.getLong(MediaFormat.KEY_DURATION) else 0L
+      val durationMs = durationUs / 1000L
+      val startUs = startTimeMs * 1000L
+      val endUs = if (endTimeMsRaw > 0L) endTimeMsRaw * 1000L else durationUs
+      val rangeUs = max(1L, endUs - startUs)
+
+      if (startUs > 0L) {
+        extractor.seekTo(startUs, MediaExtractor.SEEK_TO_PREVIOUS_SYNC)
+      }
+
+      val mime = format.getString(MediaFormat.KEY_MIME) ?: throw IllegalStateException("Unknown audio mime type.")
+      codec = MediaCodec.createDecoderByType(mime)
+      codec.configure(format, null, null, 0)
+      codec.start()
+
+      val peaks = FloatArray(numberOfPoints)
+      val bufferInfo = MediaCodec.BufferInfo()
+      var sawInputEos = false
+      var sawOutputEos = false
+      val timeoutUs = 10_000L
+
+      while (!sawOutputEos) {
+        if (!sawInputEos) {
+          val inIndex = codec.dequeueInputBuffer(timeoutUs)
+          if (inIndex >= 0) {
+            val inputBuffer = codec.getInputBuffer(inIndex)
+            val sampleSize = if (inputBuffer != null) extractor.readSampleData(inputBuffer, 0) else -1
+            if (sampleSize < 0) {
+              codec.queueInputBuffer(inIndex, 0, 0, 0L, MediaCodec.BUFFER_FLAG_END_OF_STREAM)
+              sawInputEos = true
+            } else {
+              codec.queueInputBuffer(inIndex, 0, sampleSize, extractor.sampleTime, 0)
+              extractor.advance()
+            }
+          }
+        }
+
+        val outIndex = codec.dequeueOutputBuffer(bufferInfo, timeoutUs)
+        if (outIndex >= 0) {
+          if (bufferInfo.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM != 0) {
+            sawOutputEos = true
+          }
+          val outputBuffer = codec.getOutputBuffer(outIndex)
+          if (outputBuffer != null && bufferInfo.size > 0) {
+            val ptsUs = bufferInfo.presentationTimeUs
+            if (ptsUs in startUs..endUs) {
+              outputBuffer.order(ByteOrder.LITTLE_ENDIAN)
+              val shorts = outputBuffer.asShortBuffer()
+              val sampleCount = shorts.remaining()
+              val frac = ((ptsUs - startUs).toDouble() / rangeUs).coerceIn(0.0, 0.999999)
+              val bin = (frac * numberOfPoints).toInt().coerceIn(0, numberOfPoints - 1)
+              var localPeak = peaks[bin]
+              var i = 0
+              while (i < sampleCount) {
+                val sample = Math.abs(shorts.get(i).toInt()) / 32768f
+                if (sample > localPeak) localPeak = sample
+                i += 1
+              }
+              peaks[bin] = localPeak
+            }
+          }
+          codec.releaseOutputBuffer(outIndex, false)
+        }
+      }
+
+      return mapOf(
+        "peaks" to peaks.map { it.toDouble() },
+        "durationMs" to durationMs,
+      )
+    } finally {
+      try { codec?.stop() } catch (_: Throwable) {}
+      try { codec?.release() } catch (_: Throwable) {}
+      try { extractor.release() } catch (_: Throwable) {}
+    }
   }
 }
