@@ -15,6 +15,10 @@ import {
   type PitchShiftCapabilities,
 } from "../pitchShift";
 
+/** Tagged, greppable diagnostics for the native pitch/speed engine. Event-driven
+ * only (never called from render) so it doesn't spam. Filter logs by "[pitch]". */
+const pitchLog = (...args: unknown[]) => console.log("[pitch]", ...args);
+
 export const DEFAULT_NATIVE_PLAYBACK_STATE: NativePitchShiftPlaybackState = {
   isAvailable: false,
   isLoaded: false,
@@ -123,12 +127,14 @@ export function useNativePitchTransport({
     if (!SongseedPitchShiftModule) {
       return;
     }
+    pitchLog(`[${ownerLabel}] subscribing to native pitch engine`);
     let cancelled = false;
     void SongseedPitchShiftModule.getCapabilities()
       .then((value) => {
+        pitchLog(`[${ownerLabel}] capabilities`, value);
         if (!cancelled) setCapabilities(normalizeNativePitchCapabilities(value));
       })
-      .catch((error) => console.warn("Pitch transport capabilities lookup failed", error));
+      .catch((error) => console.warn("[pitch] capabilities lookup failed", error));
     void SongseedPitchShiftModule.getPlaybackState()
       .then((value) => {
         if (!cancelled) setNativeState(value);
@@ -139,11 +145,12 @@ export function useNativePitchTransport({
       setNativeState(value);
     });
     const endSub = SongseedPitchShiftModule.addListener("onPlaybackEnded", (value) => {
+      pitchLog(`[${ownerLabel}] onPlaybackEnded`, { key: loadedKeyRef.current, atMs: value.currentTimeMs });
       setNativeState(value);
       onEndedRef.current?.(loadedKeyRef.current);
     });
     const errorSub = SongseedPitchShiftModule.addListener("onError", ({ message }) => {
-      console.warn("Pitch transport error", message);
+      console.error(`[pitch] [${ownerLabel}] native engine error`, message);
       setNativeTransportDisabled(true);
     });
     return () => {
@@ -190,6 +197,12 @@ export function useNativePitchTransport({
       }
 
       const snapshot = nativeStateRef.current;
+      pitchLog(`[${ownerLabel}] syncBack → source`, {
+        resumePlayback,
+        positionMs: snapshot.currentTimeMs,
+        playbackRate: snapshot.playbackRate,
+        wasPlaying: snapshot.isPlaying,
+      });
       loadedKeyRef.current = null;
       const state = await SongseedPitchShiftModule.unload();
       setNativeState(state);
@@ -206,7 +219,7 @@ export function useNativePitchTransport({
 
   const disableNativeTransport = useCallback(
     async (reason: string, options?: { forcePlay?: boolean }) => {
-      console.warn(reason);
+      console.warn(`[pitch] [${ownerLabel}] disabling native transport:`, reason);
       setNativeTransportDisabled(true);
       await syncBackToSource(false);
       if (options?.forcePlay) {
@@ -246,6 +259,12 @@ export function useNativePitchTransport({
           extraAutoplay || (loadedKeyRef.current ? nativeStateRef.current.isPlaying : src.isPlaying);
         const startPositionMs =
           loadedKeyRef.current && loadedKeyRef.current !== src.sourceKey ? 0 : src.positionMs;
+        pitchLog(`[${ownerLabel}] sync → loadForPractice`, {
+          startPositionMs,
+          autoplay,
+          playbackRate,
+          pitchShiftSemitones: clamped,
+        });
         const state = await nativeModule.loadForPractice({
           sourceUri: src.audioUri,
           startPositionMs,
@@ -260,10 +279,12 @@ export function useNativePitchTransport({
       }
 
       if (Math.abs(nativeStateRef.current.playbackRate - playbackRate) > 0.01) {
+        pitchLog(`[${ownerLabel}] sync → setPlaybackRate`, playbackRate);
         const state = await nativeModule.setPlaybackRate(playbackRate);
         if (op === operationRef.current) setNativeState(state);
       }
       if (nativeStateRef.current.pitchShiftSemitones !== clamped) {
+        pitchLog(`[${ownerLabel}] sync → setPitchShiftSemitones`, clamped);
         const state = await nativeModule.setPitchShiftSemitones(clamped);
         if (op === operationRef.current) setNativeState(state);
       }
@@ -303,6 +324,11 @@ export function useNativePitchTransport({
         : src.durationMs;
       const positionMs = isNativeTransportActive ? nativeStateRef.current.currentTimeMs : src.positionMs;
       const atEnd = restartAtEndOnPlay && isPlaybackNearEnd(positionMs, durationMs);
+      pitchLog(`[${ownerLabel}] play`, {
+        native: isNativeTransportActive,
+        shouldOwn: shouldOwnNativeTransport,
+        atEnd,
+      });
 
       if (
         SongseedPitchShiftModule &&
@@ -311,6 +337,11 @@ export function useNativePitchTransport({
         src.audioUri &&
         src.sourceKey != null
       ) {
+        pitchLog(`[${ownerLabel}] play → loadForPractice`, {
+          startPositionMs: atEnd ? 0 : src.positionMs,
+          playbackRate,
+          pitchShiftSemitones: clamped,
+        });
         await ensureAudioSessionOwnership();
         if (src.isPlaying) await src.pause();
         const state = await SongseedPitchShiftModule.loadForPractice({

@@ -7,7 +7,7 @@ import { StackActions, useIsFocused, useNavigation, useRoute } from "@react-navi
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
 import { MultiTimeRangeSelector } from "../common/TimeRangeSelector";
-import { AudioAnalysis, extractAudioAnalysis } from "@siteed/audio-studio";
+import { AudioAnalysis, extractPreview } from "@siteed/audio-studio";
 import { styles } from "../../styles";
 import { buildStaticWaveform } from "../../utils";
 import { RootStackParamList } from "../../../App";
@@ -16,7 +16,7 @@ import { useStore } from "../../state/useStore";
 import { appActions } from "../../state/actions";
 import { Button } from "../common/Button";
 import { AudioReel } from "../common/AudioReel";
-import { MAX_DETAILED_AUDIO_ANALYSIS_DURATION_MS, loadAudioDurationMs } from "../../services/audioStorage";
+import { loadAudioDurationMs } from "../../services/audioStorage";
 import { activatePlaybackAudioSession } from "../../services/audioSession";
 import { getCollectionById } from "../../utils";
 import { TransportLayout } from "../common/TransportLayout";
@@ -49,6 +49,13 @@ const EDITOR_MODES = [
     { key: "trim" as const, label: "Trim" },
     { key: "transform" as const, label: "Speed & pitch" },
 ];
+
+// Downsampled point count for the editor waveform — fixed regardless of clip
+// length, so the analysis is memory-safe even on long recordings.
+const EDITOR_WAVEFORM_POINTS = 256;
+
+/** Tagged, greppable editor diagnostics — filter logs by "[editor]". */
+const editorLog = (...args: unknown[]) => console.log("[editor]", ...args);
 
 const editorLocalStyles = StyleSheet.create({
     regionsHead: {
@@ -205,9 +212,12 @@ export function EditorScreen() {
 
     const togglePlay = () => {
         if (previewTransport.effectiveIsPlaying) {
+            editorLog("togglePlay → pause", { positionMs: playheadTimeMs });
             void previewTransport.pause();
         } else {
-            if (isPlaybackNearEnd(playheadTimeMs, previewTransport.effectiveDurationMs)) {
+            const atEnd = isPlaybackNearEnd(playheadTimeMs, previewTransport.effectiveDurationMs);
+            editorLog("togglePlay → play", { positionMs: playheadTimeMs, atEnd });
+            if (atEnd) {
                 transportClock.setDisplayPositionMs(0);
                 setCurrentTime(0);
             }
@@ -255,29 +265,37 @@ export function EditorScreen() {
         let isMounted = true;
 
         async function loadAudioData() {
+            editorLog("load: start", { clipId, audioUri: editorAudioUri, durationHintMs });
             setIsLoading(true);
             try {
                 const resolvedDurationMs =
                     durationHintMs && durationHintMs > 0 ? durationHintMs : await loadAudioDurationMs(editorAudioUri);
-                const fallbackWaveform =
-                    sourceClip?.waveformPeaks?.length
-                        ? sourceClip.waveformPeaks
-                        : buildStaticWaveform(`${clipId}-${resolvedDurationMs ?? 0}`, 96);
-                const shouldAttemptDetailedAnalysis =
-                    !resolvedDurationMs || resolvedDurationMs <= MAX_DETAILED_AUDIO_ANALYSIS_DURATION_MS;
+                editorLog("load: resolved duration", resolvedDurationMs);
 
-                if (shouldAttemptDetailedAnalysis) {
+                // Build the waveform with the downsampled `extractPreview` (fixed
+                // point count) — the same memory-safe path the rest of the app uses —
+                // instead of the full per-sample decode that OOMs on long clips.
+                if (resolvedDurationMs && resolvedDurationMs > 0) {
                     try {
-                        const analysis = await extractAudioAnalysis({ fileUri: editorAudioUri });
+                        const analysis = await extractPreview({
+                            fileUri: editorAudioUri,
+                            numberOfPoints: EDITOR_WAVEFORM_POINTS,
+                            startTimeMs: 0,
+                            endTimeMs: resolvedDurationMs,
+                        });
+                        editorLog("load: preview ok", {
+                            durationMs: analysis.durationMs,
+                            points: analysis.dataPoints?.length ?? 0,
+                        });
                         if (isMounted) {
-                            setAnalysisData(analysis);
+                            setAnalysisData({ ...analysis, durationMs: analysis.durationMs || resolvedDurationMs });
                             setWaveformPeaks(buildWaveformPeaks(analysis));
                             setCurrentTime(0);
                             player.seekTo(0);
                         }
                         return;
                     } catch (err) {
-                        console.warn("Falling back to simplified editor analysis", err);
+                        console.warn("Editor waveform preview failed; using stored waveform", err);
                     }
                 }
 
@@ -285,6 +303,12 @@ export function EditorScreen() {
                     throw new Error("Audio duration unavailable.");
                 }
 
+                const fallbackWaveform = sourceClip?.waveformPeaks?.length
+                    ? sourceClip.waveformPeaks
+                    : buildStaticWaveform(`${clipId}-${resolvedDurationMs}`, EDITOR_WAVEFORM_POINTS);
+                editorLog("load: using fallback waveform", {
+                    stored: !!sourceClip?.waveformPeaks?.length,
+                });
                 if (isMounted) {
                     setAnalysisData(buildFallbackAnalysis(resolvedDurationMs));
                     setWaveformPeaks(fallbackWaveform);
@@ -310,12 +334,14 @@ export function EditorScreen() {
     const handleFlattenOverdubAndContinue = useCallback(async () => {
         if (!targetIdea || !sourceClip) return;
 
+        editorLog("flatten overdub: start", { ideaId: targetIdea.id, clipId: sourceClip.id });
         setIsFlatteningOverdub(true);
         try {
             const savedTarget = await appActions.saveCombinedClipAsNewClip(targetIdea.id, sourceClip.id);
             if (!savedTarget) {
                 throw new Error("Combined clip could not be saved.");
             }
+            editorLog("flatten overdub: saved combined", savedTarget);
 
             const savedIdea = useStore
                 .getState()
@@ -335,6 +361,7 @@ export function EditorScreen() {
                 })
             );
         } catch (error) {
+            console.warn("[editor] flatten overdub failed", error);
             AppAlert.info(
                 "Save combined failed",
                 error instanceof Error ? error.message : "Could not save a combined clip."

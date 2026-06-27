@@ -143,7 +143,10 @@ export function useEditorExportFlow({
       }
       return next;
     });
-  }, [exportModalVisible, exportOperation, keepRegionIdsKey, keepRegions]);
+    // Keyed off the region id-string, not the array, so this only runs when the
+    // set of regions changes — `keepRegions` is a fresh array every render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [exportModalVisible, exportOperation, keepRegionIdsKey]);
 
   useEffect(() => {
     if (!previewRegionId) return;
@@ -449,10 +452,16 @@ export function useEditorExportFlow({
     setIsExporting(true);
     try {
       await safePause();
+      console.log("[editor:export] extract start", { regions: keepRegions.length });
       const titles = buildExtractTitles();
       const exportedClips: Omit<ClipVersion, "id" | "createdAt" | "isPrimary">[] = [];
 
       for (const [index, region] of keepRegions.entries()) {
+        console.log("[editor:export] extract region", {
+          index,
+          startMs: region.start,
+          endMs: region.end,
+        });
         const result = await trimAudio({
           fileUri: audioUri,
           mode: "single",
@@ -480,8 +489,10 @@ export function useEditorExportFlow({
       }
 
       const newClipIds = commitExportedClips(exportedClips);
+      console.log("[editor:export] extract done", { newClipIds });
       finishExport(newClipIds);
-    } catch {
+    } catch (error) {
+      console.warn("Editor extract failed", error);
       AppAlert.info("Export Error", "Failed to extract clips.");
     } finally {
       setIsExporting(false);
@@ -494,6 +505,9 @@ export function useEditorExportFlow({
     setIsExporting(true);
     try {
       await safePause();
+      console.log("[editor:export] splice start", {
+        ranges: removeRegions.map((region) => ({ startMs: region.start, endMs: region.end })),
+      });
       const title = buildSpliceTitle();
       const result = await trimAudio({
         fileUri: audioUri,
@@ -515,9 +529,11 @@ export function useEditorExportFlow({
         })),
       });
       const newClipIds = derivedClip ? commitExportedClips([derivedClip]) : [];
+      console.log("[editor:export] splice done", { newClipIds });
 
       finishExport(newClipIds);
-    } catch {
+    } catch (error) {
+      console.warn("Editor splice failed", error);
       AppAlert.info("Export Error", "Failed to splice clip.");
     } finally {
       setIsExporting(false);
@@ -530,6 +546,10 @@ export function useEditorExportFlow({
     setIsExporting(true);
     try {
       await safePause();
+      console.log("[editor:export] transform start", {
+        semitones: transformPitchShiftSemitones,
+        playbackRate: transformPlaybackRate,
+      });
       const title = transformNameDraft.trim() || suggestedExportTitle;
       const result = await renderPitchShiftedFile({
         inputUri: audioUri,
@@ -546,9 +566,11 @@ export function useEditorExportFlow({
         editRegions: [],
       });
       const newClipIds = derivedClip ? commitExportedClips([derivedClip]) : [];
+      console.log("[editor:export] transform done", { newClipIds });
       setTransformExportModalVisible(false);
       finishExport(newClipIds);
     } catch (error) {
+      console.warn("Editor transform save failed", error);
       AppAlert.info(
         "Transform Save Error",
         error instanceof Error ? error.message : "Failed to save transformed clip."
