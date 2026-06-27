@@ -54,6 +54,8 @@ export type WordLadderExercise = {
   draft: string;
   /** The tightened rewrite — what gets saved as lyrics. */
   revision: string;
+  /** Set once the revision has been saved to the Lyrics Pad. */
+  savedLyricId?: string;
 };
 
 // ── Cut-Up Spark ─────────────────────────────────────────────────────────────

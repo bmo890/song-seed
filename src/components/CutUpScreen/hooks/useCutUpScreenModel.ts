@@ -2,6 +2,7 @@ import { useCallback, useMemo } from "react";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { useStore } from "../../../state/useStore";
 import { AppAlert } from "../../common/AppAlert";
+import { actionIcons } from "../../common/actionIcons";
 import {
   assembleDraftText,
   deriveCutUpTitle,
@@ -250,6 +251,37 @@ export function useCutUpScreenModel() {
     );
   }, [deleteCutUpSpark, sparkId, navigation]);
 
+  const goBack = useCallback(() => {
+    const hasContent =
+      !!spark &&
+      (spark.sourceText.trim().length > 0 ||
+        spark.chunks.length > 0 ||
+        spark.assembledDraftText.trim().length > 0);
+
+    if (!hasContent || spark?.savedLyricId) {
+      navigation.navigate("NotepadHome");
+      return;
+    }
+
+    AppAlert.custom("Save as unfinished?", "Keep this exercise to come back to, or discard it.", [
+      {
+        label: "Discard",
+        style: "destructive",
+        icon: actionIcons.discard,
+        onPress: () => {
+          if (sparkId) deleteCutUpSpark(sparkId);
+          navigation.navigate("NotepadHome");
+        },
+      },
+      {
+        label: "Save as unfinished",
+        style: "default",
+        icon: actionIcons.bookmark,
+        onPress: () => navigation.navigate("NotepadHome"),
+      },
+    ]);
+  }, [spark, sparkId, deleteCutUpSpark, navigation]);
+
   return {
     spark,
     step,
@@ -275,6 +307,6 @@ export function useCutUpScreenModel() {
     rebuildDraftFromBoard,
     saveAsLyrics,
     deleteSpark,
-    goBack: () => navigation.navigate("NotepadHome"),
+    goBack,
   };
 }

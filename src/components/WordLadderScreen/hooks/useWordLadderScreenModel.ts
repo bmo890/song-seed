@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState } from "react";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { useStore } from "../../../state/useStore";
 import { AppAlert } from "../../common/AppAlert";
+import { actionIcons } from "../../common/actionIcons";
 import {
   addWord,
   createPairing,
@@ -210,8 +211,41 @@ export function useWordLadderScreenModel() {
     }
     const noteId = addNote();
     updateNote(noteId, { title: exercise.title, body: text });
+    apply({ savedLyricId: noteId });
     navigation.navigate("NotepadHome", { noteId, openToken: Date.now() });
-  }, [exercise, addNote, updateNote, navigation]);
+  }, [exercise, addNote, updateNote, apply, navigation]);
+
+  const goBack = useCallback(() => {
+    const hasContent =
+      !!exercise &&
+      (exercise.columnA.length > 0 ||
+        exercise.columnB.length > 0 ||
+        exercise.draft.trim().length > 0 ||
+        exercise.revision.trim().length > 0);
+
+    if (!hasContent || exercise?.savedLyricId) {
+      navigation.navigate("NotepadHome");
+      return;
+    }
+
+    AppAlert.custom("Save as unfinished?", "Keep this exercise to come back to, or discard it.", [
+      {
+        label: "Discard",
+        style: "destructive",
+        icon: actionIcons.discard,
+        onPress: () => {
+          if (exerciseId) deleteWordLadder(exerciseId);
+          navigation.navigate("NotepadHome");
+        },
+      },
+      {
+        label: "Save as unfinished",
+        style: "default",
+        icon: actionIcons.bookmark,
+        onPress: () => navigation.navigate("NotepadHome"),
+      },
+    ]);
+  }, [exercise, exerciseId, deleteWordLadder, navigation]);
 
   return {
     exercise,
@@ -234,6 +268,6 @@ export function useWordLadderScreenModel() {
     setRevision,
     deleteExercise,
     saveAsLyrics,
-    goBack: () => navigation.navigate("NotepadHome"),
+    goBack,
   };
 }
