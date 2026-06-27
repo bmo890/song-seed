@@ -92,6 +92,16 @@ export function useEditorSelectionState({
     setSelectedRanges((prev) => prev.filter((range) => range.id !== id));
   };
 
+  // Intent is global: flipping it recolors EVERY region to the new type so the
+  // edit always produces one kind of output (N extracted clips, or 1 trimmed
+  // clip) — never a confusing mix.
+  const setIntent = (mode: "keep" | "remove") => {
+    setEditMode(mode);
+    setSelectedRanges((prev) =>
+      prev.every((range) => range.type === mode) ? prev : prev.map((range) => ({ ...range, type: mode }))
+    );
+  };
+
   const keepRegions = selectedRanges.filter((range) => range.type === "keep");
   const removeRegions = selectedRanges.filter((range) => range.type === "remove");
 
@@ -100,6 +110,7 @@ export function useEditorSelectionState({
     setSelectedRanges,
     editMode,
     setEditMode,
+    setIntent,
     keepRegions,
     removeRegions,
     addRange,

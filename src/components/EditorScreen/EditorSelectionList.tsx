@@ -1,107 +1,118 @@
 import React from "react";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Feather } from "@expo/vector-icons";
-import { fmt } from "../../utils";
+import { fmt, fmtDuration } from "../../utils";
 import { colors, radii } from "../../design/tokens";
-import type { EditableSelection } from "./helpers";
-
-// Keep / remove stay semantic green / red so the edit intent reads at a glance
-// (matches the edit-mode tabs and trash affordances elsewhere in the editor).
-const KEEP_COLOR = "#10b981";
-const REMOVE_COLOR = "#ef4444";
+import { CUT_COLOR, KEEP_COLOR, type EditableSelection } from "./helpers";
 
 type EditorSelectionListProps = {
   selectedRanges: EditableSelection[];
-  keepRegions: EditableSelection[];
-  removeRegions: EditableSelection[];
+  intent: "keep" | "remove";
   onSeekRangeStart: (range: EditableSelection) => void;
   onSeekRangeEnd: (range: EditableSelection) => void;
   onRemoveRange: (id: string) => void;
 };
 
+/** Neutral region rows — type is the global intent, so rows just show the span;
+ * the left accent + index color reflect the current keep/cut intent. */
 export function EditorSelectionList({
   selectedRanges,
-  keepRegions,
-  removeRegions,
+  intent,
   onSeekRangeStart,
   onSeekRangeEnd,
   onRemoveRange,
 }: EditorSelectionListProps) {
   if (selectedRanges.length === 0) {
-    return null;
+    return (
+      <View style={s.empty}>
+        <Text style={s.emptyText}>
+          No regions yet — drag across the waveform or tap “Add at playhead”.
+        </Text>
+      </View>
+    );
   }
 
+  const accent = intent === "keep" ? KEEP_COLOR : CUT_COLOR;
+  const ordered = [...selectedRanges].sort((a, b) => a.start - b.start);
+
   return (
-    <View style={styles.wrap}>
-      <Text style={styles.heading}>Selected Regions ({selectedRanges.length})</Text>
-      {selectedRanges.map((range) => (
-        <View key={range.id} style={styles.row}>
-          <View
-            style={[
-              styles.card,
-              { borderLeftColor: range.type === "keep" ? KEEP_COLOR : REMOVE_COLOR },
-            ]}
-          >
-            <View style={styles.copy}>
-              <Text style={styles.title}>
-                {range.type === "keep"
-                  ? `Clip ${keepRegions.findIndex((region) => region.id === range.id) + 1}`
-                  : `Delete ${removeRegions.findIndex((region) => region.id === range.id) + 1}`}
-              </Text>
-              <Text style={styles.meta}>
-                {fmt(range.start)} - {fmt(range.end)}
-              </Text>
-            </View>
-            <View style={styles.actions}>
-              <TouchableOpacity onPress={() => onSeekRangeStart(range)} style={styles.iconBtn}>
-                <Feather name="skip-back" size={18} color={colors.primary} />
-              </TouchableOpacity>
-              <TouchableOpacity onPress={() => onSeekRangeEnd(range)} style={styles.iconBtn}>
-                <Feather name="skip-forward" size={18} color={colors.primary} />
-              </TouchableOpacity>
-            </View>
+    <View style={s.wrap}>
+      {ordered.map((range, index) => (
+        <View key={range.id} style={[s.row, { borderLeftColor: accent }]}>
+          <View style={[s.idx, { backgroundColor: accent }]}>
+            <Text style={s.idxText}>{index + 1}</Text>
           </View>
-          <TouchableOpacity onPress={() => onRemoveRange(range.id)} style={styles.trashBtn}>
-            <Feather name="trash-2" size={18} color={REMOVE_COLOR} />
-          </TouchableOpacity>
+          <View style={s.copy}>
+            <Text style={s.times}>
+              {fmt(range.start)} – {fmt(range.end)}
+            </Text>
+            <Text style={s.dur}>{fmtDuration(range.end - range.start)}</Text>
+          </View>
+          <View style={s.actions}>
+            <Pressable onPress={() => onSeekRangeStart(range)} hitSlop={6} style={s.iconBtn} accessibilityLabel="Jump to start">
+              <Feather name="skip-back" size={16} color={colors.textSecondary} />
+            </Pressable>
+            <Pressable onPress={() => onSeekRangeEnd(range)} hitSlop={6} style={s.iconBtn} accessibilityLabel="Jump to end">
+              <Feather name="skip-forward" size={16} color={colors.textSecondary} />
+            </Pressable>
+            <Pressable onPress={() => onRemoveRange(range.id)} hitSlop={6} style={s.iconBtn} accessibilityLabel="Delete region">
+              <Feather name="trash-2" size={16} color={CUT_COLOR} />
+            </Pressable>
+          </View>
         </View>
       ))}
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  wrap: { marginTop: 24, paddingHorizontal: 36 },
-  heading: {
-    fontFamily: "PlusJakartaSans_700Bold",
-    fontSize: 16,
-    color: colors.textPrimary,
-    marginBottom: 12,
-  },
-  row: { flexDirection: "row", alignItems: "center", marginBottom: 8, gap: 10 },
-  card: {
-    flex: 1,
+const s = StyleSheet.create({
+  wrap: { paddingHorizontal: 16, gap: 8 },
+  row: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
-    backgroundColor: colors.surfaceContainer,
-    padding: 12,
+    gap: 10,
+    backgroundColor: colors.surface,
     borderRadius: radii.sm,
-    borderLeftWidth: 4,
+    borderLeftWidth: 3,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
   },
-  copy: { flex: 1 },
-  title: {
+  idx: {
+    width: 20,
+    height: 20,
+    borderRadius: radii.round,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  idxText: {
     fontFamily: "PlusJakartaSans_700Bold",
-    fontSize: 15,
+    fontSize: 11,
+    color: colors.onPrimary,
+  },
+  copy: { flex: 1, flexDirection: "row", alignItems: "baseline", gap: 8 },
+  times: {
+    fontFamily: "PlusJakartaSans_600SemiBold",
+    fontSize: 14,
     color: colors.textPrimary,
-    marginBottom: 2,
+    fontVariant: ["tabular-nums"],
   },
-  meta: {
-    fontFamily: "PlusJakartaSans_500Medium",
+  dur: {
+    fontFamily: "PlusJakartaSans_400Regular",
+    fontSize: 12,
+    color: colors.textMuted,
+    fontVariant: ["tabular-nums"],
+  },
+  actions: { flexDirection: "row", alignItems: "center", gap: 14 },
+  iconBtn: { padding: 2 },
+  empty: {
+    paddingHorizontal: 16,
+    paddingVertical: 18,
+  },
+  emptyText: {
+    fontFamily: "PlusJakartaSans_400Regular",
     fontSize: 13,
-    color: colors.textSecondary,
+    lineHeight: 19,
+    color: colors.textMuted,
+    textAlign: "center",
   },
-  actions: { flexDirection: "row", alignItems: "center", gap: 16, paddingRight: 4 },
-  iconBtn: { padding: 4 },
-  trashBtn: { padding: 6 },
 });

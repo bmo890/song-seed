@@ -1,71 +1,77 @@
 import React from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
-import { styles } from "../../styles";
+import { Pressable, StyleSheet, Text } from "react-native";
+import { colors, radii } from "../../design/tokens";
+import { styles as appStyles } from "../../styles";
 
 type EditorFooterSectionProps = {
-  activeExportCount: number;
+  editorMode: "trim" | "transform";
+  intent: "keep" | "remove";
+  keepCount: number;
+  removeCount: number;
   hasActiveTransforms: boolean;
-  onAddSelection: () => void;
-  onOpenExport: () => void;
-  onOpenTransformExport: () => void;
+  onExport: () => void;
+  onSaveTransform: () => void;
 };
 
+/** One contextual primary action — the editor always has a single obvious next
+ * step depending on the mode and intent. */
 export function EditorFooterSection({
-  activeExportCount,
+  editorMode,
+  intent,
+  keepCount,
+  removeCount,
   hasActiveTransforms,
-  onAddSelection,
-  onOpenExport,
-  onOpenTransformExport,
+  onExport,
+  onSaveTransform,
 }: EditorFooterSectionProps) {
+  let label: string;
+  let enabled: boolean;
+  let onPress: () => void;
+
+  if (editorMode === "transform") {
+    label = "Save as new clip";
+    enabled = hasActiveTransforms;
+    onPress = onSaveTransform;
+  } else if (intent === "keep") {
+    label = keepCount > 0 ? `Extract ${keepCount} clip${keepCount === 1 ? "" : "s"}` : "Extract clips";
+    enabled = keepCount > 0;
+    onPress = onExport;
+  } else {
+    label = "Save trimmed clip";
+    enabled = removeCount > 0;
+    onPress = onExport;
+  }
+
   return (
-    <View style={styles.transportFooterCard}>
-      <View style={styles.transportFooterMeta}>
-        <Text style={styles.transportFooterEyebrow}>Sticky Controls</Text>
-        <Text style={styles.transportFooterTitle}>
-          {activeExportCount > 0 ? `${activeExportCount} export${activeExportCount === 1 ? "" : "s"} ready` : "Build edit regions"}
-        </Text>
-      </View>
-      <View style={styles.transportFooterRow}>
-        <Pressable
-          onPress={onAddSelection}
-          style={({ pressed }) => [
-            styles.transportFooterButton,
-            pressed ? styles.pressDown : null,
-          ]}
-        >
-          <Text style={styles.transportFooterButtonText}>Add Selection</Text>
-        </Pressable>
-        <Pressable
-          onPress={onOpenExport}
-          style={({ pressed }) => [
-            styles.transportFooterButton,
-            styles.transportFooterButtonSecondary,
-            activeExportCount === 0 ? styles.transportFooterButtonDisabled : null,
-            pressed ? styles.pressDown : null,
-          ]}
-          disabled={activeExportCount === 0}
-        >
-          <Text style={[styles.transportFooterButtonText, styles.transportFooterButtonTextSecondary]}>Export</Text>
-        </Pressable>
-        <Pressable
-          onPress={onOpenTransformExport}
-          style={({ pressed }) => [
-            styles.transportFooterButton,
-            editorFooterStyles.transformButton,
-            !hasActiveTransforms ? styles.transportFooterButtonDisabled : null,
-            pressed ? styles.pressDown : null,
-          ]}
-          disabled={!hasActiveTransforms}
-        >
-          <Text style={styles.transportFooterButtonText}>Save Transform</Text>
-        </Pressable>
-      </View>
-    </View>
+    <Pressable
+      onPress={enabled ? onPress : undefined}
+      disabled={!enabled}
+      style={({ pressed }) => [
+        s.cta,
+        !enabled ? s.ctaDisabled : null,
+        pressed && enabled ? appStyles.pressDown : null,
+      ]}
+      accessibilityRole="button"
+      accessibilityState={{ disabled: !enabled }}
+    >
+      <Text style={[s.ctaText, !enabled ? s.ctaTextDisabled : null]}>{label}</Text>
+    </Pressable>
   );
 }
 
-const editorFooterStyles = StyleSheet.create({
-  transformButton: {
-    flex: 1,
+const s = StyleSheet.create({
+  cta: {
+    backgroundColor: colors.primary,
+    borderRadius: radii.round,
+    paddingVertical: 14,
+    alignItems: "center",
+    justifyContent: "center",
   },
+  ctaDisabled: { backgroundColor: colors.surfaceHigh },
+  ctaText: {
+    fontFamily: "PlusJakartaSans_700Bold",
+    fontSize: 15,
+    color: colors.onPrimary,
+  },
+  ctaTextDisabled: { color: colors.textMuted },
 });

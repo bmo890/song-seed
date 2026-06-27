@@ -43,9 +43,9 @@ export function EditorTransformSection({
     <View style={editorTransformStyles.section}>
       <View style={editorTransformStyles.headerRow}>
         <View>
-          <Text style={editorTransformStyles.label}>Preview Transforms</Text>
+          <Text style={editorTransformStyles.label}>Speed &amp; pitch</Text>
           <Text style={editorTransformStyles.meta}>
-            Audition speed now. Pitch preview uses native playback; saving transformed audio comes later.
+            Audition the change, then save the result as a new clip.
           </Text>
         </View>
         <Pressable

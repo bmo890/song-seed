@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { colors } from "../../design/tokens";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar as ExpoStatusBar } from "expo-status-bar";
-import { View, Text, ActivityIndicator, TouchableOpacity, Pressable } from "react-native";
+import { View, Text, ActivityIndicator, TouchableOpacity, Pressable, StyleSheet } from "react-native";
 import { StackActions, useIsFocused, useNavigation, useRoute } from "@react-navigation/native";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
@@ -30,7 +30,8 @@ import {
 import { useEditorSelectionState } from "./hooks/useEditorSelectionState";
 import { EditorHeaderSection } from "./EditorHeaderSection";
 import { EditorFooterSection } from "./EditorFooterSection";
-import { EditorSelectionModeTabs } from "./EditorSelectionModeTabs";
+import { EditorTrimIntent } from "./EditorTrimIntent";
+import { SegmentedControl } from "../common/SegmentedControl";
 import { EditorSelectionList } from "./EditorSelectionList";
 import { EditorExportProgressModal } from "./EditorExportProgressModal";
 import { EditorExportModal } from "./EditorExportModal";
@@ -44,6 +45,34 @@ import { clipHasOverdubs } from "../../clipPresentation";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Editor">;
 
+const EDITOR_MODES = [
+    { key: "trim" as const, label: "Trim" },
+    { key: "transform" as const, label: "Speed & pitch" },
+];
+
+const editorLocalStyles = StyleSheet.create({
+    regionsHead: {
+        flexDirection: "row",
+        alignItems: "baseline",
+        justifyContent: "space-between",
+        paddingHorizontal: 16,
+        marginTop: 16,
+        marginBottom: 4,
+    },
+    regionsLabel: {
+        fontFamily: "PlusJakartaSans_700Bold",
+        fontSize: 11,
+        letterSpacing: 1,
+        textTransform: "uppercase",
+        color: colors.textSecondary,
+    },
+    addLink: {
+        fontFamily: "PlusJakartaSans_600SemiBold",
+        fontSize: 13,
+        color: colors.primary,
+    },
+});
+
 export function EditorScreen() {
     const navigation = useNavigation();
     const route = useRoute<Props["route"]>();
@@ -55,6 +84,7 @@ export function EditorScreen() {
     const [waveformPeaks, setWaveformPeaks] = useState<number[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [isFlatteningOverdub, setIsFlatteningOverdub] = useState(false);
+    const [editorMode, setEditorMode] = useState<"trim" | "transform">("trim");
 
     const updateIdeas = useStore((s) => s.updateIdeas);
     const setSelectedIdeaId = useStore((s) => s.setSelectedIdeaId);
@@ -163,7 +193,7 @@ export function EditorScreen() {
         selectedRanges,
         setSelectedRanges,
         editMode,
-        setEditMode,
+        setIntent,
         keepRegions,
         removeRegions,
         addRange,
@@ -330,11 +360,13 @@ export function EditorScreen() {
                 footer={
                     analysisData ? (
                         <EditorFooterSection
-                            activeExportCount={exportFlow.activeExportCount}
+                            editorMode={editorMode}
+                            intent={editMode}
+                            keepCount={keepRegions.length}
+                            removeCount={removeRegions.length}
                             hasActiveTransforms={transformState.hasActiveTransforms}
-                            onAddSelection={addRange}
-                            onOpenExport={exportFlow.openExportModal}
-                            onOpenTransformExport={exportFlow.openTransformExportModal}
+                            onExport={exportFlow.openExportModal}
+                            onSaveTransform={exportFlow.openTransformExportModal}
                         />
                     ) : null
                 }
@@ -367,6 +399,14 @@ export function EditorScreen() {
                     </View>
                 ) : analysisData ? (
                     <>
+                        <View style={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 6 }}>
+                            <SegmentedControl
+                                options={EDITOR_MODES}
+                                value={editorMode}
+                                onChange={setEditorMode}
+                            />
+                        </View>
+
                         <AudioReel
                             waveformPeaks={waveformPeaks}
                             durationMs={analysisData.durationMs}
@@ -419,31 +459,50 @@ export function EditorScreen() {
                             )}
                         />
 
-                        <EditorTransformSection
-                            playbackRate={transformState.playbackRate}
-                            pitchShiftSemitones={transformState.pitchShiftSemitones}
-                            supportsPitchPreview={previewTransport.isPitchPreviewAvailable}
-                            onAdjustPlaybackRate={transformState.setPlaybackRate}
-                            onAdjustPitchShift={transformState.setPitchShiftSemitones}
-                            onResetTransforms={transformState.resetTransforms}
-                        />
+                        {editorMode === "trim" ? (
+                            <>
+                                <EditorTrimIntent
+                                    intent={editMode}
+                                    clipCount={keepRegions.length}
+                                    removedMs={removeRegions.reduce((sum, r) => sum + (r.end - r.start), 0)}
+                                    onSelectIntent={setIntent}
+                                />
 
-                        <EditorSelectionModeTabs editMode={editMode} onSelectMode={setEditMode} />
+                                <View style={editorLocalStyles.regionsHead}>
+                                    <Text style={editorLocalStyles.regionsLabel}>Regions</Text>
+                                    <Pressable
+                                        onPress={addRange}
+                                        hitSlop={6}
+                                        style={({ pressed }) => (pressed ? styles.pressDown : null)}
+                                    >
+                                        <Text style={editorLocalStyles.addLink}>+ Add at playhead</Text>
+                                    </Pressable>
+                                </View>
 
-                        <EditorSelectionList
-                            selectedRanges={selectedRanges}
-                            keepRegions={keepRegions}
-                            removeRegions={removeRegions}
-                            onSeekRangeStart={(range) => {
-                                void transportScrub.seekAndSettle(range.start);
-                            }}
-                            onSeekRangeEnd={(range) => {
-                                void transportScrub.seekAndSettle(range.end);
-                            }}
-                            onRemoveRange={removeRange}
-                        />
+                                <EditorSelectionList
+                                    selectedRanges={selectedRanges}
+                                    intent={editMode}
+                                    onSeekRangeStart={(range) => {
+                                        void transportScrub.seekAndSettle(range.start);
+                                    }}
+                                    onSeekRangeEnd={(range) => {
+                                        void transportScrub.seekAndSettle(range.end);
+                                    }}
+                                    onRemoveRange={removeRange}
+                                />
 
-                        <View style={{ height: 40 }} />
+                                <View style={{ height: 24 }} />
+                            </>
+                        ) : (
+                            <EditorTransformSection
+                                playbackRate={transformState.playbackRate}
+                                pitchShiftSemitones={transformState.pitchShiftSemitones}
+                                supportsPitchPreview={previewTransport.isPitchPreviewAvailable}
+                                onAdjustPlaybackRate={transformState.setPlaybackRate}
+                                onAdjustPitchShift={transformState.setPitchShiftSemitones}
+                                onResetTransforms={transformState.resetTransforms}
+                            />
+                        )}
                     </>
                 ) : (
                     <Text style={{ textAlign: "center", marginTop: 40, color: colors.textSecondary }}>

@@ -72,8 +72,8 @@ export function EditorExportModal({
               : `Save extracted clips back into ${targetIdeaTitle ?? "this folder"} as new clip cards.`}
           </Text>
 
-          <View style={{ flexDirection: "row", gap: 8, marginBottom: 12 }}>
-            {keepRegions.length > 0 ? (
+          {keepRegions.length > 0 && removeRegions.length > 0 ? (
+            <View style={{ flexDirection: "row", gap: 8, marginBottom: 12 }}>
               <Pressable
                 style={[
                   exportModalStyles.segmentButton,
@@ -90,8 +90,6 @@ export function EditorExportModal({
                   Extract {keepRegions.length}
                 </Text>
               </Pressable>
-            ) : null}
-            {removeRegions.length > 0 ? (
               <Pressable
                 style={[
                   exportModalStyles.segmentButton,
@@ -108,8 +106,8 @@ export function EditorExportModal({
                   Splice 1
                 </Text>
               </Pressable>
-            ) : null}
-          </View>
+            </View>
+          ) : null}
 
           {exportOperation === "extract" ? (
             <>

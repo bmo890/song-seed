@@ -5,6 +5,11 @@ import { buildDefaultIdeaTitle, metersToWaveformPeaks } from "../../utils";
 export const MIN_REGION_DURATION_MS = 1000;
 export const NEW_REGION_FRACTION_OF_DURATION = 8;
 
+// Keep / cut intent colors — warm-leaning green + brick red so they read as
+// semantic (keep = good, cut = remove) without clashing with the paper palette.
+export const KEEP_COLOR = "#3E8E6B";
+export const CUT_COLOR = "#B5564A";
+
 export type EditableSelection = {
   id: string;
   start: number;
