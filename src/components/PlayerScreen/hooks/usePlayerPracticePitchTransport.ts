@@ -1,32 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import SongseedPitchShiftModule from "../../../../modules/songseed-pitch-shift";
-import type {
-  NativePitchShiftCapabilities,
-  NativePitchShiftPlaybackState,
-} from "../../../../modules/songseed-pitch-shift";
-import {
-  activatePlaybackAudioSession,
-  createAudioSessionOwner,
-  releaseAudioSessionOwner,
-} from "../../../services/audioSession";
 import { useStore } from "../../../state/useStore";
+import { clampPitchShiftSemitones } from "../../../pitchShift";
 import {
-  buildUnavailablePitchShiftCapabilities,
-  clampPitchShiftSemitones,
-  type PitchShiftCapabilities,
-} from "../../../pitchShift";
-
-const DEFAULT_PLAYBACK_STATE: NativePitchShiftPlaybackState = {
-  isAvailable: false,
-  isLoaded: false,
-  isPlaying: false,
-  didJustFinish: false,
-  currentTimeMs: 0,
-  durationMs: 0,
-  playbackRate: 1,
-  pitchShiftSemitones: 0,
-  sourceUri: null,
-};
+  useNativePitchTransport,
+  type NativeTransportSource,
+} from "../../../hooks/useNativePitchTransport";
 
 type Args = {
   mode: "player" | "practice" | "playalong";
@@ -44,23 +22,12 @@ type Args = {
   setFullPlayerPlaybackRate: (rate: number) => void;
 };
 
-function normalizeCapabilities(
-  value: NativePitchShiftCapabilities | null | undefined
-): PitchShiftCapabilities {
-  if (!value) {
-    return buildUnavailablePitchShiftCapabilities();
-  }
-
-  return {
-    isAvailable: value.isAvailable,
-    supportsPracticePlayback: value.supportsPracticePlayback,
-    supportsEditorPreview: value.supportsEditorPreview,
-    supportsOfflineRender: value.supportsOfflineRender,
-    minSemitones: value.minSemitones,
-    maxSemitones: value.maxSemitones,
-  };
-}
-
+/**
+ * Practice playback transport for the full player — pitch/speed via the native
+ * engine, handed off to/from the full player. A thin adapter over the shared
+ * `useNativePitchTransport` core: it adds the practice-only concerns (sticky
+ * ownership, publishing position to the store, queue finish tokens, dock-close).
+ */
 export function usePlayerPracticePitchTransport({
   mode,
   isFocused,
@@ -76,503 +43,126 @@ export function usePlayerPracticePitchTransport({
   seekFullPlayerTo,
   setFullPlayerPlaybackRate,
 }: Args) {
-  const [capabilities, setCapabilities] = useState<PitchShiftCapabilities>(
-    buildUnavailablePitchShiftCapabilities()
-  );
-  const [nativeState, setNativeState] =
-    useState<NativePitchShiftPlaybackState>(DEFAULT_PLAYBACK_STATE);
-  const [nativeTransportDisabled, setNativeTransportDisabled] = useState(false);
+  const setPlayerPlaybackState = useStore((s) => s.setPlayerPlaybackState);
+  const clamped = clampPitchShiftSemitones(pitchShiftSemitones);
+
   const [finishedPlaybackToken, setFinishedPlaybackToken] = useState(0);
   const [finishedPlaybackClipId, setFinishedPlaybackClipId] = useState<string | null>(null);
-  const nativeStateRef = useRef(nativeState);
-  const nativeTransportStickyRef = useRef(false);
-  const loadedClipIdRef = useRef<string | null>(null);
-  const operationRef = useRef(0);
-  const shouldResumeOnReleaseRef = useRef(true);
-  const audioSessionOwnerIdRef = useRef(createAudioSessionOwner("player-screen"));
-  const ownsAudioSessionRef = useRef(false);
-  const lastPublishedPlaybackRef = useRef({
-    at: 0,
-    positionMs: 0,
-    durationMs: 0,
-    isPlaying: false,
-  });
-  const setPlayerPlaybackState = useStore((s) => s.setPlayerPlaybackState);
-  const clampedPitchShiftSemitones = clampPitchShiftSemitones(pitchShiftSemitones);
 
-  nativeStateRef.current = nativeState;
+  // Sticky: once practice playback engages with a pitch shift, keep owning the
+  // native transport even if pitch returns to 0, to avoid an audio re-route glitch.
+  const stickyRef = useRef(false);
 
-  useEffect(() => {
-    if (!SongseedPitchShiftModule) {
-      return;
-    }
-
-    let cancelled = false;
-    void SongseedPitchShiftModule.getCapabilities()
-      .then((value) => {
-        if (!cancelled) {
-          setCapabilities(normalizeCapabilities(value));
-        }
-      })
-      .catch((error) => {
-        console.warn("Pitch shift capabilities lookup failed", error);
-      });
-
-    void SongseedPitchShiftModule.getPlaybackState()
-      .then((value) => {
-        if (!cancelled) {
-          setNativeState(value);
-        }
-      })
-      .catch(() => {});
-
-    const stateSub = SongseedPitchShiftModule.addListener("onStateChange", (value) => {
-      setNativeState(value);
-    });
-    const endSub = SongseedPitchShiftModule.addListener("onPlaybackEnded", (value) => {
-      setNativeState(value);
-      if (loadedClipIdRef.current) {
-        setFinishedPlaybackClipId(loadedClipIdRef.current);
-        setFinishedPlaybackToken((prev) => prev + 1);
-      }
-    });
-    const errorSub = SongseedPitchShiftModule.addListener("onError", ({ message }) => {
-      console.warn("Pitch shift playback error", message);
-      nativeTransportStickyRef.current = false;
-      setNativeTransportDisabled(true);
-    });
-
-    return () => {
-      cancelled = true;
-      stateSub.remove();
-      endSub.remove();
-      errorSub.remove();
-    };
+  const onEnded = useCallback((sourceKey: string | null) => {
+    if (!sourceKey) return;
+    setFinishedPlaybackClipId(sourceKey);
+    setFinishedPlaybackToken((prev) => prev + 1);
   }, []);
 
-  useEffect(() => {
-    if (mode !== "practice" || !isFocused) {
-      nativeTransportStickyRef.current = false;
-      setNativeTransportDisabled(false);
-      return;
-    }
-
-    if (clampedPitchShiftSemitones !== 0) {
-      nativeTransportStickyRef.current = true;
-      if (nativeTransportDisabled) {
-        setNativeTransportDisabled(false);
-      }
-    }
-  }, [clampedPitchShiftSemitones, isFocused, mode, nativeTransportDisabled]);
-
-  const shouldOwnNativeTransport =
-    mode === "practice" &&
-    isFocused &&
-    capabilities.supportsPracticePlayback &&
-    !nativeTransportDisabled &&
-    !!clip?.audioUri &&
-    (nativeTransportStickyRef.current || clampedPitchShiftSemitones !== 0);
-  const isNativeTransportActive =
-    shouldOwnNativeTransport &&
-    !!clip?.id &&
-    loadedClipIdRef.current === clip.id &&
-    nativeState.isLoaded;
-
-  const ensureAudioSessionOwnership = useCallback(async () => {
-    if (ownsAudioSessionRef.current) {
-      return;
-    }
-    await activatePlaybackAudioSession({
-      ownerId: audioSessionOwnerIdRef.current,
-    });
-    ownsAudioSessionRef.current = true;
-  }, []);
-
-  const releaseAudioSessionOwnership = useCallback(async () => {
-    if (!ownsAudioSessionRef.current) {
-      return;
-    }
-    ownsAudioSessionRef.current = false;
-    await releaseAudioSessionOwner(audioSessionOwnerIdRef.current);
-  }, []);
-
-  const syncBackToFullPlayer = useCallback(
-    async (resumePlayback: boolean) => {
-      const hasNativeSession = loadedClipIdRef.current || nativeStateRef.current.isLoaded;
-
-      if (!SongseedPitchShiftModule) {
-        if (ownsAudioSessionRef.current) {
-          await releaseAudioSessionOwnership();
-        }
-        shouldResumeOnReleaseRef.current = true;
-        return;
-      }
-
-      if (!hasNativeSession && !ownsAudioSessionRef.current) {
-        shouldResumeOnReleaseRef.current = true;
-        return;
-      }
-
-      const snapshot = nativeStateRef.current;
-      loadedClipIdRef.current = null;
-      const state = await SongseedPitchShiftModule.unload();
-      setNativeState(state);
-      await releaseAudioSessionOwnership();
-      await seekFullPlayerTo(snapshot.currentTimeMs);
-      setFullPlayerPlaybackRate(snapshot.playbackRate);
-      if (resumePlayback && snapshot.isPlaying) {
-        await playFullPlayer();
-      }
-      shouldResumeOnReleaseRef.current = true;
-    },
+  const source = useMemo<NativeTransportSource>(
+    () => ({
+      sourceKey: clip?.id ?? null,
+      audioUri: clip?.audioUri ?? null,
+      positionMs: fullPlayerPosition,
+      durationMs: fullPlayerDuration,
+      isPlaying: fullPlayerIsPlaying,
+      pause: pauseFullPlayer,
+      play: playFullPlayer,
+      seekTo: seekFullPlayerTo,
+      setPlaybackRate: setFullPlayerPlaybackRate,
+    }),
     [
+      clip?.id,
+      clip?.audioUri,
+      fullPlayerDuration,
+      fullPlayerIsPlaying,
+      fullPlayerPosition,
+      pauseFullPlayer,
       playFullPlayer,
-      releaseAudioSessionOwnership,
       seekFullPlayerTo,
       setFullPlayerPlaybackRate,
     ]
   );
 
-  const disableNativeTransport = useCallback(
-    async (reason: string, options?: { forcePlay?: boolean }) => {
-      console.warn(reason);
-      nativeTransportStickyRef.current = false;
-      setNativeTransportDisabled(true);
-      await syncBackToFullPlayer(false);
-      if (options?.forcePlay) {
-        await playFullPlayer();
-      }
-    },
-    [playFullPlayer, syncBackToFullPlayer]
-  );
+  const wantsNative = mode === "practice" && isFocused && (stickyRef.current || clamped !== 0);
 
+  const core = useNativePitchTransport({
+    ownerLabel: "player-screen",
+    wantsNative,
+    selectSupported: (caps) => caps.supportsPracticePlayback,
+    source,
+    playbackRate: fullPlayerPlaybackRate,
+    pitchShiftSemitones,
+    extraAutoplay: playerShouldAutoplay,
+    onEnded,
+  });
+
+  // Maintain sticky ownership + clear a prior error-disable on re-engage / mode exit.
   useEffect(() => {
-    if (!SongseedPitchShiftModule) {
+    if (mode !== "practice" || !isFocused) {
+      stickyRef.current = false;
+      if (core.nativeTransportDisabled) core.clearDisabled();
       return;
     }
-
-    const run = async () => {
-      const op = ++operationRef.current;
-      const nativeModule = SongseedPitchShiftModule;
-
-      if (!nativeModule || !shouldOwnNativeTransport || !clip?.audioUri) {
-        if (loadedClipIdRef.current || ownsAudioSessionRef.current) {
-          await syncBackToFullPlayer(
-            shouldResumeOnReleaseRef.current && nativeStateRef.current.isPlaying
-          );
-        }
-        return;
-      }
-
-      shouldResumeOnReleaseRef.current = true;
-      await ensureAudioSessionOwnership();
-      if (op !== operationRef.current) {
-        return;
-      }
-
-      if (fullPlayerIsPlaying) {
-        await pauseFullPlayer();
-      }
-      if (op !== operationRef.current) {
-        return;
-      }
-
-      const nextPitch = clampedPitchShiftSemitones;
-      const shouldReload =
-        loadedClipIdRef.current !== clip.id || !nativeStateRef.current.isLoaded;
-
-      if (shouldReload) {
-        const shouldAutoplay =
-          playerShouldAutoplay ||
-          (loadedClipIdRef.current ? nativeStateRef.current.isPlaying : fullPlayerIsPlaying);
-        const startPositionMs =
-          loadedClipIdRef.current && loadedClipIdRef.current !== clip.id
-            ? 0
-            : fullPlayerPosition;
-        const state = await nativeModule.loadForPractice({
-          sourceUri: clip.audioUri,
-          startPositionMs,
-          autoplay: shouldAutoplay,
-          playbackRate: fullPlayerPlaybackRate,
-          pitchShiftSemitones: nextPitch,
-        });
-        if (op !== operationRef.current) {
-          return;
-        }
-        loadedClipIdRef.current = clip.id;
-        setNativeState(state);
-        return;
-      }
-
-      if (Math.abs(nativeStateRef.current.playbackRate - fullPlayerPlaybackRate) > 0.01) {
-        const state = await nativeModule.setPlaybackRate(fullPlayerPlaybackRate);
-        if (op === operationRef.current) {
-          setNativeState(state);
-        }
-      }
-
-      if (nativeStateRef.current.pitchShiftSemitones !== nextPitch) {
-        const state = await nativeModule.setPitchShiftSemitones(nextPitch);
-        if (op === operationRef.current) {
-          setNativeState(state);
-        }
-      }
-    };
-
-    void run().catch((error) => {
-      void disableNativeTransport(
-        `Player native transport sync failed: ${
-          error instanceof Error ? error.message : String(error)
-        }`
-      );
-    });
-  }, [
-    clip?.audioUri,
-    clip?.id,
-    clampedPitchShiftSemitones,
-    disableNativeTransport,
-    ensureAudioSessionOwnership,
-    fullPlayerIsPlaying,
-    fullPlayerPlaybackRate,
-    fullPlayerPosition,
-    isFocused,
-    mode,
-    nativeTransportDisabled,
-    pauseFullPlayer,
-    playerShouldAutoplay,
-    shouldOwnNativeTransport,
-    syncBackToFullPlayer,
-  ]);
-
-  useEffect(() => {
-    if (!shouldOwnNativeTransport || !isNativeTransportActive) {
-      return;
+    if (clamped !== 0) {
+      stickyRef.current = true;
+      if (core.nativeTransportDisabled) core.clearDisabled();
     }
+  }, [clamped, core.clearDisabled, core.nativeTransportDisabled, isFocused, mode]);
 
+  // Publish native playback position into the store so the rest of the app (dock,
+  // lock screen) tracks practice playback while the native engine owns transport.
+  const lastPublishedRef = useRef({ at: 0, positionMs: 0, durationMs: 0, isPlaying: false });
+  const ns = core.nativeState;
+  useEffect(() => {
+    if (!core.isOwningNativeTransport || !core.isNativeTransportActive) return;
     const now = Date.now();
-    const lastPublished = lastPublishedPlaybackRef.current;
+    const last = lastPublishedRef.current;
     const shouldPublish =
-      lastPublished.isPlaying !== nativeState.isPlaying ||
-      lastPublished.durationMs !== nativeState.durationMs ||
-      now - lastPublished.at >= 150 ||
-      Math.abs(nativeState.currentTimeMs - lastPublished.positionMs) >= 250;
-
-    if (!shouldPublish) {
-      return;
-    }
-
+      last.isPlaying !== ns.isPlaying ||
+      last.durationMs !== ns.durationMs ||
+      now - last.at >= 150 ||
+      Math.abs(ns.currentTimeMs - last.positionMs) >= 250;
+    if (!shouldPublish) return;
     setPlayerPlaybackState({
-      positionMs: nativeState.currentTimeMs,
-      durationMs: nativeState.durationMs,
-      isPlaying: nativeState.isPlaying,
+      positionMs: ns.currentTimeMs,
+      durationMs: ns.durationMs,
+      isPlaying: ns.isPlaying,
     });
-    lastPublishedPlaybackRef.current = {
+    lastPublishedRef.current = {
       at: now,
-      positionMs: nativeState.currentTimeMs,
-      durationMs: nativeState.durationMs,
-      isPlaying: nativeState.isPlaying,
+      positionMs: ns.currentTimeMs,
+      durationMs: ns.durationMs,
+      isPlaying: ns.isPlaying,
     };
   }, [
-    isNativeTransportActive,
-    nativeState.currentTimeMs,
-    nativeState.durationMs,
-    nativeState.isPlaying,
+    core.isOwningNativeTransport,
+    core.isNativeTransportActive,
+    ns.currentTimeMs,
+    ns.durationMs,
+    ns.isPlaying,
     setPlayerPlaybackState,
-    shouldOwnNativeTransport,
   ]);
-
-  useEffect(() => {
-    return () => {
-      if (!SongseedPitchShiftModule) {
-        return;
-      }
-      void SongseedPitchShiftModule.unload().catch(() => {});
-      void releaseAudioSessionOwnership().catch(() => {});
-      loadedClipIdRef.current = null;
-    };
-  }, [releaseAudioSessionOwnership]);
-
-  const play = useCallback(async () => {
-    try {
-      if (SongseedPitchShiftModule && shouldOwnNativeTransport) {
-        await ensureAudioSessionOwnership();
-      }
-
-      if (
-        SongseedPitchShiftModule &&
-        shouldOwnNativeTransport &&
-        !isNativeTransportActive &&
-        clip?.audioUri &&
-        clip?.id
-      ) {
-        if (fullPlayerIsPlaying) {
-          await pauseFullPlayer();
-        }
-        const state = await SongseedPitchShiftModule.loadForPractice({
-          sourceUri: clip.audioUri,
-          startPositionMs: fullPlayerPosition,
-          autoplay: true,
-          playbackRate: fullPlayerPlaybackRate,
-          pitchShiftSemitones: clampedPitchShiftSemitones,
-        });
-        loadedClipIdRef.current = clip.id;
-        setNativeState(state);
-        return;
-      }
-
-      if (isNativeTransportActive && SongseedPitchShiftModule) {
-        const state = await SongseedPitchShiftModule.play();
-        setNativeState(state);
-        return;
-      }
-      await playFullPlayer();
-    } catch (error) {
-      await disableNativeTransport(
-        `Player native transport play failed: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
-        { forcePlay: true }
-      );
-    }
-  }, [
-    disableNativeTransport,
-    clip?.audioUri,
-    clip?.id,
-    clampedPitchShiftSemitones,
-    ensureAudioSessionOwnership,
-    fullPlayerIsPlaying,
-    fullPlayerPlaybackRate,
-    fullPlayerPosition,
-    isNativeTransportActive,
-    pauseFullPlayer,
-    playFullPlayer,
-    shouldOwnNativeTransport,
-  ]);
-
-  const pause = useCallback(async () => {
-    try {
-      if (isNativeTransportActive && SongseedPitchShiftModule) {
-        const state = await SongseedPitchShiftModule.pause();
-        setNativeState(state);
-        return;
-      }
-      await pauseFullPlayer();
-    } catch (error) {
-      await disableNativeTransport(
-        `Player native transport pause failed: ${
-          error instanceof Error ? error.message : String(error)
-        }`
-      );
-      await pauseFullPlayer();
-    }
-  }, [disableNativeTransport, isNativeTransportActive, pauseFullPlayer]);
-
-  const seekTo = useCallback(
-    async (positionMs: number) => {
-      try {
-        if (isNativeTransportActive && SongseedPitchShiftModule) {
-          const state = await SongseedPitchShiftModule.seekTo(positionMs);
-          setNativeState(state);
-          return;
-        }
-        await seekFullPlayerTo(positionMs);
-      } catch (error) {
-        await disableNativeTransport(
-          `Player native transport seek failed: ${
-            error instanceof Error ? error.message : String(error)
-          }`
-        );
-        await seekFullPlayerTo(positionMs);
-      }
-    },
-    [disableNativeTransport, isNativeTransportActive, seekFullPlayerTo]
-  );
-
-  const setPlaybackRate = useCallback(
-    async (rate: number) => {
-      try {
-        if (isNativeTransportActive && SongseedPitchShiftModule) {
-          const state = await SongseedPitchShiftModule.setPlaybackRate(rate);
-          setNativeState(state);
-        }
-        setFullPlayerPlaybackRate(rate);
-      } catch (error) {
-        await disableNativeTransport(
-          `Player native transport rate change failed: ${
-            error instanceof Error ? error.message : String(error)
-          }`
-        );
-        setFullPlayerPlaybackRate(rate);
-      }
-    },
-    [disableNativeTransport, isNativeTransportActive, setFullPlayerPlaybackRate]
-  );
-
-  const togglePlay = useCallback(async () => {
-    const isPlaying = isNativeTransportActive
-      ? nativeStateRef.current.isPlaying
-      : fullPlayerIsPlaying;
-    if (isPlaying) {
-      await pause();
-      return;
-    }
-    await play();
-  }, [fullPlayerIsPlaying, isNativeTransportActive, pause, play]);
-
-  const prepareForPlayerClose = useCallback(() => {
-    shouldResumeOnReleaseRef.current = false;
-  }, []);
-
-  const effectivePositionMs = isNativeTransportActive
-    ? nativeState.currentTimeMs
-    : fullPlayerPosition;
-  const effectiveDurationMs = isNativeTransportActive
-    ? nativeState.durationMs || fullPlayerDuration
-    : fullPlayerDuration;
-  const effectiveIsPlaying = isNativeTransportActive
-    ? nativeState.isPlaying
-    : fullPlayerIsPlaying;
-  const effectivePlaybackRate = isNativeTransportActive
-    ? nativeState.playbackRate
-    : fullPlayerPlaybackRate;
 
   return useMemo(
     () => ({
-      capabilities,
-      effectivePositionMs,
-      effectiveDurationMs,
-      effectiveIsPlaying,
-      effectivePlaybackRate,
-      finishedPlaybackToken: isNativeTransportActive ? finishedPlaybackToken : 0,
-      finishedPlaybackClipId: isNativeTransportActive ? finishedPlaybackClipId : null,
-      isOwningNativeTransport: shouldOwnNativeTransport,
-      isPitchShiftAvailable:
-        capabilities.supportsPracticePlayback && !nativeTransportDisabled,
-      play,
-      pause,
-      seekTo,
-      setPlaybackRate,
-      togglePlay,
-      prepareForPlayerClose,
-      shouldSuppressSourceAutoplay: shouldOwnNativeTransport,
+      capabilities: core.capabilities,
+      effectivePositionMs: core.effectivePositionMs,
+      effectiveDurationMs: core.effectiveDurationMs,
+      effectiveIsPlaying: core.effectiveIsPlaying,
+      effectivePlaybackRate: core.effectivePlaybackRate,
+      finishedPlaybackToken: core.isNativeTransportActive ? finishedPlaybackToken : 0,
+      finishedPlaybackClipId: core.isNativeTransportActive ? finishedPlaybackClipId : null,
+      isOwningNativeTransport: core.isOwningNativeTransport,
+      isPitchShiftAvailable: core.capabilities.supportsPracticePlayback && !core.nativeTransportDisabled,
+      play: core.play,
+      pause: core.pause,
+      seekTo: core.seekTo,
+      setPlaybackRate: core.setPlaybackRate,
+      togglePlay: core.togglePlay,
+      prepareForPlayerClose: core.prepareForRelease,
+      shouldSuppressSourceAutoplay: core.isOwningNativeTransport,
     }),
-    [
-      capabilities,
-      effectiveDurationMs,
-      effectiveIsPlaying,
-      effectivePlaybackRate,
-      effectivePositionMs,
-      finishedPlaybackClipId,
-      finishedPlaybackToken,
-      isNativeTransportActive,
-      nativeTransportDisabled,
-      pause,
-      play,
-      prepareForPlayerClose,
-      seekTo,
-      setPlaybackRate,
-      shouldOwnNativeTransport,
-      togglePlay,
-    ]
+    [core, finishedPlaybackClipId, finishedPlaybackToken]
   );
 }
