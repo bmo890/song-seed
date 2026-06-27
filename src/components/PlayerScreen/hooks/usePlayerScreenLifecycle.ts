@@ -90,6 +90,7 @@ export function usePlayerScreenLifecycle({
 }: UsePlayerScreenLifecycleArgs) {
   const handledToggleTokenRef = useRef(playerToggleRequestToken);
   const handledCloseTokenRef = useRef(playerCloseRequestToken);
+  const handledFinishTokenRef = useRef(0);
   const hydratedWaveformClipIdsRef = useRef(new Set<string>());
   const sourceSyncInFlightUriRef = useRef<string | null>(null);
   const latestPlaybackRef = useRef({
@@ -221,8 +222,13 @@ export function usePlayerScreenLifecycle({
   ]);
 
   useEffect(() => {
-    if (!finishedPlaybackToken || !playerClip?.id) return;
-    if (finishedPlaybackClipId !== playerClip.id) return;
+    if (!finishedPlaybackToken || finishedPlaybackToken === handledFinishTokenRef.current) return;
+    if (!playerClip?.id || finishedPlaybackClipId !== playerClip.id) return;
+    // Consume this finish exactly once: each real end-of-clip carries a new token,
+    // so this still fires per playthrough (incl. repeat), but unrelated dep changes
+    // while the finished clip is still current (e.g. toggling Repeat at clip end)
+    // can no longer re-trigger a replay or queue advance.
+    handledFinishTokenRef.current = finishedPlaybackToken;
     // Repeat wins over queue advance — replay this clip from the top.
     if (repeatEnabled) {
       void replayClip();

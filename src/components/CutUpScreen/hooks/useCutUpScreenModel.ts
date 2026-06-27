@@ -252,13 +252,22 @@ export function useCutUpScreenModel() {
   }, [deleteCutUpSpark, sparkId, navigation]);
 
   const goBack = useCallback(() => {
+    // Already saved to the Lyrics Pad → just leave (the spark stays for resuming).
+    if (spark?.savedLyricId) {
+      navigation.navigate("NotepadHome");
+      return;
+    }
+
     const hasContent =
       !!spark &&
       (spark.sourceText.trim().length > 0 ||
         spark.chunks.length > 0 ||
         spark.assembledDraftText.trim().length > 0);
 
-    if (!hasContent || spark?.savedLyricId) {
+    // A freshly-opened spark with nothing in it should not linger in the pad —
+    // discard the auto-created record rather than silently keeping it.
+    if (!hasContent) {
+      if (sparkId) deleteCutUpSpark(sparkId);
       navigation.navigate("NotepadHome");
       return;
     }

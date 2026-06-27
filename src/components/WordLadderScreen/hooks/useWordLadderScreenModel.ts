@@ -216,14 +216,25 @@ export function useWordLadderScreenModel() {
   }, [exercise, addNote, updateNote, apply, navigation]);
 
   const goBack = useCallback(() => {
+    // Already saved to the Lyrics Pad → just leave (the exercise stays for resuming).
+    if (exercise?.savedLyricId) {
+      navigation.navigate("NotepadHome");
+      return;
+    }
+
     const hasContent =
       !!exercise &&
-      (exercise.columnA.length > 0 ||
+      (exercise.roleSeed.trim().length > 0 ||
+        exercise.placeSeed.trim().length > 0 ||
+        exercise.columnA.length > 0 ||
         exercise.columnB.length > 0 ||
         exercise.draft.trim().length > 0 ||
         exercise.revision.trim().length > 0);
 
-    if (!hasContent || exercise?.savedLyricId) {
+    // A freshly-opened spark with nothing in it should not linger in the pad —
+    // discard the auto-created record rather than silently keeping it.
+    if (!hasContent) {
+      if (exerciseId) deleteWordLadder(exerciseId);
       navigation.navigate("NotepadHome");
       return;
     }
