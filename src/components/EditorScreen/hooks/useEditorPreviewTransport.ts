@@ -80,6 +80,15 @@ export function useEditorPreviewTransport({
     setSourcePlaybackRate(playbackRate);
   }, [playbackRate, setSourcePlaybackRate]);
 
+  // Recover from a transient native error: clear the disable latch when leaving
+  // the editor or when the user dials in a pitch again, so pitch preview doesn't
+  // stay permanently "unavailable" for the rest of the session.
+  useEffect(() => {
+    if ((!isFocused || clamped !== 0) && core.nativeTransportDisabled) {
+      core.clearDisabled();
+    }
+  }, [clamped, core.clearDisabled, core.nativeTransportDisabled, isFocused]);
+
   return useMemo(
     () => ({
       capabilities: core.capabilities,

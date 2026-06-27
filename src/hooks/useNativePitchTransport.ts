@@ -107,7 +107,6 @@ export function useNativePitchTransport({
 
   const nativeStateRef = useRef(nativeState);
   const loadedKeyRef = useRef<string | null>(null);
-  const operationRef = useRef(0);
   const shouldResumeOnReleaseRef = useRef(true);
   const audioSessionOwnerIdRef = useRef(createAudioSessionOwner(ownerLabel));
   const ownsAudioSessionRef = useRef(false);
@@ -122,6 +121,32 @@ export function useNativePitchTransport({
 
   const clamped = clampPitchShiftSemitones(pitchShiftSemitones);
   const supported = selectSupported(capabilities);
+
+  // Serialize every native engine command through one promise chain so rapid
+  // changes (e.g. dragging the pitch stepper) can never issue overlapping
+  // reconfigurations — the native audio graph throws "Unexpected runtime error"
+  // when commanded concurrently. Each command waits for the previous to settle.
+  const nativeOpChainRef = useRef<Promise<unknown>>(Promise.resolve());
+  const runExclusive = useCallback(<T,>(task: () => Promise<T>): Promise<T> => {
+    const result = nativeOpChainRef.current.then(task, task);
+    nativeOpChainRef.current = result.then(
+      () => undefined,
+      () => undefined
+    );
+    return result;
+  }, []);
+
+  // Latest desired transport target — read inside the coalesced reconcile so a
+  // burst of changes collapses to the final value instead of replaying each step.
+  const desiredRef = useRef({
+    shouldOwn: false,
+    sourceKey: source.sourceKey,
+    audioUri: source.audioUri,
+    playbackRate,
+    pitch: clamped,
+    extraAutoplay,
+  });
+  const reconcileQueuedRef = useRef(false);
 
   useEffect(() => {
     if (!SongseedPitchShiftModule) {
@@ -168,6 +193,15 @@ export function useNativePitchTransport({
     !!source.sourceKey &&
     loadedKeyRef.current === source.sourceKey &&
     nativeState.isLoaded;
+
+  desiredRef.current = {
+    shouldOwn: shouldOwnNativeTransport,
+    sourceKey: source.sourceKey,
+    audioUri: source.audioUri,
+    playbackRate,
+    pitch: clamped,
+    extraAutoplay,
+  };
 
   const ensureAudioSessionOwnership = useCallback(async () => {
     if (ownsAudioSessionRef.current) return;
@@ -231,70 +265,83 @@ export function useNativePitchTransport({
 
   const clearDisabled = useCallback(() => setNativeTransportDisabled(false), []);
 
-  useEffect(() => {
-    if (!SongseedPitchShiftModule) {
+  // Bring the native engine in line with the latest desired target. Always runs
+  // inside `runExclusive`, and reads `desiredRef` (not closure) so a coalesced
+  // run applies the freshest value rather than a stale step from mid-drag.
+  const reconcileNative = useCallback(async () => {
+    const nativeModule = SongseedPitchShiftModule;
+    if (!nativeModule) return;
+    const d = desiredRef.current;
+    const src = sourceRef.current;
+
+    if (!d.shouldOwn || !d.audioUri) {
+      if (loadedKeyRef.current || ownsAudioSessionRef.current) {
+        await syncBackToSource(shouldResumeOnReleaseRef.current && nativeStateRef.current.isPlaying);
+      }
       return;
     }
-    const run = async () => {
-      const op = ++operationRef.current;
-      const nativeModule = SongseedPitchShiftModule;
-      const src = sourceRef.current;
-      if (!nativeModule || !shouldOwnNativeTransport || !src.audioUri) {
-        if (loadedKeyRef.current || ownsAudioSessionRef.current) {
-          await syncBackToSource(shouldResumeOnReleaseRef.current && nativeStateRef.current.isPlaying);
-        }
-        return;
+
+    shouldResumeOnReleaseRef.current = true;
+    await ensureAudioSessionOwnership();
+    if (src.isPlaying) await src.pause();
+
+    const shouldReload = loadedKeyRef.current !== d.sourceKey || !nativeStateRef.current.isLoaded;
+    if (shouldReload) {
+      const autoplay =
+        d.extraAutoplay || (loadedKeyRef.current ? nativeStateRef.current.isPlaying : src.isPlaying);
+      const startPositionMs =
+        loadedKeyRef.current && loadedKeyRef.current !== d.sourceKey ? 0 : src.positionMs;
+      pitchLog(`[${ownerLabel}] sync → loadForPractice`, {
+        startPositionMs,
+        autoplay,
+        playbackRate: d.playbackRate,
+        pitchShiftSemitones: d.pitch,
+      });
+      const state = await nativeModule.loadForPractice({
+        sourceUri: d.audioUri,
+        startPositionMs,
+        autoplay,
+        playbackRate: d.playbackRate,
+        pitchShiftSemitones: d.pitch,
+      });
+      loadedKeyRef.current = d.sourceKey;
+      setNativeState(state);
+      return;
+    }
+
+    if (Math.abs(nativeStateRef.current.playbackRate - desiredRef.current.playbackRate) > 0.01) {
+      pitchLog(`[${ownerLabel}] sync → setPlaybackRate`, desiredRef.current.playbackRate);
+      const state = await nativeModule.setPlaybackRate(desiredRef.current.playbackRate);
+      setNativeState(state);
+    }
+    if (nativeStateRef.current.pitchShiftSemitones !== desiredRef.current.pitch) {
+      pitchLog(`[${ownerLabel}] sync → setPitchShiftSemitones`, desiredRef.current.pitch);
+      const state = await nativeModule.setPitchShiftSemitones(desiredRef.current.pitch);
+      setNativeState(state);
+    }
+  }, [ensureAudioSessionOwnership, ownerLabel, syncBackToSource]);
+
+  // Schedule a reconcile on the serialized chain. Coalesced: while one is already
+  // queued, further requests fold into it (it reads the latest target when it
+  // runs); the flag clears at run start so changes mid-run queue a trailing pass.
+  const requestReconcile = useCallback(() => {
+    if (!SongseedPitchShiftModule) return;
+    if (reconcileQueuedRef.current) return;
+    reconcileQueuedRef.current = true;
+    void runExclusive(async () => {
+      reconcileQueuedRef.current = false;
+      try {
+        await reconcileNative();
+      } catch (error) {
+        await disableNativeTransport(
+          `Native transport sync failed: ${error instanceof Error ? error.message : String(error)}`
+        );
       }
-
-      shouldResumeOnReleaseRef.current = true;
-      await ensureAudioSessionOwnership();
-      if (op !== operationRef.current) return;
-
-      if (src.isPlaying) await src.pause();
-      if (op !== operationRef.current) return;
-
-      const shouldReload = loadedKeyRef.current !== src.sourceKey || !nativeStateRef.current.isLoaded;
-      if (shouldReload) {
-        const autoplay =
-          extraAutoplay || (loadedKeyRef.current ? nativeStateRef.current.isPlaying : src.isPlaying);
-        const startPositionMs =
-          loadedKeyRef.current && loadedKeyRef.current !== src.sourceKey ? 0 : src.positionMs;
-        pitchLog(`[${ownerLabel}] sync → loadForPractice`, {
-          startPositionMs,
-          autoplay,
-          playbackRate,
-          pitchShiftSemitones: clamped,
-        });
-        const state = await nativeModule.loadForPractice({
-          sourceUri: src.audioUri,
-          startPositionMs,
-          autoplay,
-          playbackRate,
-          pitchShiftSemitones: clamped,
-        });
-        if (op !== operationRef.current) return;
-        loadedKeyRef.current = src.sourceKey;
-        setNativeState(state);
-        return;
-      }
-
-      if (Math.abs(nativeStateRef.current.playbackRate - playbackRate) > 0.01) {
-        pitchLog(`[${ownerLabel}] sync → setPlaybackRate`, playbackRate);
-        const state = await nativeModule.setPlaybackRate(playbackRate);
-        if (op === operationRef.current) setNativeState(state);
-      }
-      if (nativeStateRef.current.pitchShiftSemitones !== clamped) {
-        pitchLog(`[${ownerLabel}] sync → setPitchShiftSemitones`, clamped);
-        const state = await nativeModule.setPitchShiftSemitones(clamped);
-        if (op === operationRef.current) setNativeState(state);
-      }
-    };
-
-    void run().catch((error) => {
-      void disableNativeTransport(
-        `Native transport sync failed: ${error instanceof Error ? error.message : String(error)}`
-      );
     });
+  }, [disableNativeTransport, reconcileNative, runExclusive]);
+
+  useEffect(() => {
+    requestReconcile();
   }, [
     shouldOwnNativeTransport,
     source.sourceKey,
@@ -302,139 +349,149 @@ export function useNativePitchTransport({
     clamped,
     playbackRate,
     extraAutoplay,
-    ensureAudioSessionOwnership,
-    syncBackToSource,
-    disableNativeTransport,
+    requestReconcile,
   ]);
 
   useEffect(() => {
     return () => {
-      if (!SongseedPitchShiftModule) return;
-      void SongseedPitchShiftModule.unload().catch(() => {});
+      const nativeModule = SongseedPitchShiftModule;
+      if (!nativeModule) return;
+      void runExclusive(() => nativeModule.unload()).catch(() => {});
       void releaseAudioSessionOwnership().catch(() => {});
       loadedKeyRef.current = null;
     };
-  }, [releaseAudioSessionOwnership]);
+  }, [releaseAudioSessionOwnership, runExclusive]);
 
-  const play = useCallback(async () => {
-    const src = sourceRef.current;
-    try {
-      const durationMs = isNativeTransportActive
-        ? nativeStateRef.current.durationMs || src.durationMs
-        : src.durationMs;
-      const positionMs = isNativeTransportActive ? nativeStateRef.current.currentTimeMs : src.positionMs;
-      const atEnd = restartAtEndOnPlay && isPlaybackNearEnd(positionMs, durationMs);
-      pitchLog(`[${ownerLabel}] play`, {
-        native: isNativeTransportActive,
-        shouldOwn: shouldOwnNativeTransport,
-        atEnd,
-      });
+  const play = useCallback(
+    () =>
+      runExclusive(async () => {
+        const src = sourceRef.current;
+        try {
+          const durationMs = isNativeTransportActive
+            ? nativeStateRef.current.durationMs || src.durationMs
+            : src.durationMs;
+          const positionMs = isNativeTransportActive ? nativeStateRef.current.currentTimeMs : src.positionMs;
+          const atEnd = restartAtEndOnPlay && isPlaybackNearEnd(positionMs, durationMs);
+          pitchLog(`[${ownerLabel}] play`, {
+            native: isNativeTransportActive,
+            shouldOwn: shouldOwnNativeTransport,
+            atEnd,
+          });
 
-      if (
-        SongseedPitchShiftModule &&
-        shouldOwnNativeTransport &&
-        !isNativeTransportActive &&
-        src.audioUri &&
-        src.sourceKey != null
-      ) {
-        pitchLog(`[${ownerLabel}] play → loadForPractice`, {
-          startPositionMs: atEnd ? 0 : src.positionMs,
-          playbackRate,
-          pitchShiftSemitones: clamped,
-        });
-        await ensureAudioSessionOwnership();
-        if (src.isPlaying) await src.pause();
-        const state = await SongseedPitchShiftModule.loadForPractice({
-          sourceUri: src.audioUri,
-          startPositionMs: atEnd ? 0 : src.positionMs,
-          autoplay: true,
-          playbackRate,
-          pitchShiftSemitones: clamped,
-        });
-        loadedKeyRef.current = src.sourceKey;
-        setNativeState(state);
-        return;
-      }
+          if (
+            SongseedPitchShiftModule &&
+            shouldOwnNativeTransport &&
+            !isNativeTransportActive &&
+            src.audioUri &&
+            src.sourceKey != null
+          ) {
+            pitchLog(`[${ownerLabel}] play → loadForPractice`, {
+              startPositionMs: atEnd ? 0 : src.positionMs,
+              playbackRate,
+              pitchShiftSemitones: clamped,
+            });
+            await ensureAudioSessionOwnership();
+            if (src.isPlaying) await src.pause();
+            const state = await SongseedPitchShiftModule.loadForPractice({
+              sourceUri: src.audioUri,
+              startPositionMs: atEnd ? 0 : src.positionMs,
+              autoplay: true,
+              playbackRate,
+              pitchShiftSemitones: clamped,
+            });
+            loadedKeyRef.current = src.sourceKey;
+            setNativeState(state);
+            return;
+          }
 
-      if (isNativeTransportActive && SongseedPitchShiftModule) {
-        if (atEnd) {
-          const seekState = await SongseedPitchShiftModule.seekTo(0);
-          setNativeState(seekState);
+          if (isNativeTransportActive && SongseedPitchShiftModule) {
+            if (atEnd) {
+              const seekState = await SongseedPitchShiftModule.seekTo(0);
+              setNativeState(seekState);
+            }
+            const state = await SongseedPitchShiftModule.play();
+            setNativeState(state);
+            return;
+          }
+
+          if (atEnd) await src.seekTo(0);
+          await src.play();
+        } catch (error) {
+          await disableNativeTransport(
+            `Native transport play failed: ${error instanceof Error ? error.message : String(error)}`,
+            { forcePlay: true }
+          );
         }
-        const state = await SongseedPitchShiftModule.play();
-        setNativeState(state);
-        return;
-      }
+      }),
+    [
+      clamped,
+      disableNativeTransport,
+      ensureAudioSessionOwnership,
+      isNativeTransportActive,
+      playbackRate,
+      restartAtEndOnPlay,
+      runExclusive,
+      shouldOwnNativeTransport,
+    ]
+  );
 
-      if (atEnd) await src.seekTo(0);
-      await src.play();
-    } catch (error) {
-      await disableNativeTransport(
-        `Native transport play failed: ${error instanceof Error ? error.message : String(error)}`,
-        { forcePlay: true }
-      );
-    }
-  }, [
-    clamped,
-    disableNativeTransport,
-    ensureAudioSessionOwnership,
-    isNativeTransportActive,
-    playbackRate,
-    restartAtEndOnPlay,
-    shouldOwnNativeTransport,
-  ]);
-
-  const pause = useCallback(async () => {
-    try {
-      if (isNativeTransportActive && SongseedPitchShiftModule) {
-        const state = await SongseedPitchShiftModule.pause();
-        setNativeState(state);
-        return;
-      }
-      await sourceRef.current.pause();
-    } catch (error) {
-      await disableNativeTransport(
-        `Native transport pause failed: ${error instanceof Error ? error.message : String(error)}`
-      );
-      await sourceRef.current.pause();
-    }
-  }, [disableNativeTransport, isNativeTransportActive]);
+  const pause = useCallback(
+    () =>
+      runExclusive(async () => {
+        try {
+          if (isNativeTransportActive && SongseedPitchShiftModule) {
+            const state = await SongseedPitchShiftModule.pause();
+            setNativeState(state);
+            return;
+          }
+          await sourceRef.current.pause();
+        } catch (error) {
+          await disableNativeTransport(
+            `Native transport pause failed: ${error instanceof Error ? error.message : String(error)}`
+          );
+          await sourceRef.current.pause();
+        }
+      }),
+    [disableNativeTransport, isNativeTransportActive, runExclusive]
+  );
 
   const seekTo = useCallback(
-    async (positionMs: number) => {
-      try {
-        if (isNativeTransportActive && SongseedPitchShiftModule) {
-          const state = await SongseedPitchShiftModule.seekTo(positionMs);
-          setNativeState(state);
-          return;
+    (positionMs: number) =>
+      runExclusive(async () => {
+        try {
+          if (isNativeTransportActive && SongseedPitchShiftModule) {
+            const state = await SongseedPitchShiftModule.seekTo(positionMs);
+            setNativeState(state);
+            return;
+          }
+          await sourceRef.current.seekTo(positionMs);
+        } catch (error) {
+          await disableNativeTransport(
+            `Native transport seek failed: ${error instanceof Error ? error.message : String(error)}`
+          );
+          await sourceRef.current.seekTo(positionMs);
         }
-        await sourceRef.current.seekTo(positionMs);
-      } catch (error) {
-        await disableNativeTransport(
-          `Native transport seek failed: ${error instanceof Error ? error.message : String(error)}`
-        );
-        await sourceRef.current.seekTo(positionMs);
-      }
-    },
-    [disableNativeTransport, isNativeTransportActive]
+      }),
+    [disableNativeTransport, isNativeTransportActive, runExclusive]
   );
 
   const setPlaybackRate = useCallback(
-    async (rate: number) => {
-      try {
-        if (isNativeTransportActive && SongseedPitchShiftModule) {
-          const state = await SongseedPitchShiftModule.setPlaybackRate(rate);
-          setNativeState(state);
+    (rate: number) =>
+      runExclusive(async () => {
+        try {
+          if (isNativeTransportActive && SongseedPitchShiftModule) {
+            const state = await SongseedPitchShiftModule.setPlaybackRate(rate);
+            setNativeState(state);
+          }
+          sourceRef.current.setPlaybackRate(rate);
+        } catch (error) {
+          await disableNativeTransport(
+            `Native transport rate change failed: ${error instanceof Error ? error.message : String(error)}`
+          );
+          sourceRef.current.setPlaybackRate(rate);
         }
-        sourceRef.current.setPlaybackRate(rate);
-      } catch (error) {
-        await disableNativeTransport(
-          `Native transport rate change failed: ${error instanceof Error ? error.message : String(error)}`
-        );
-        sourceRef.current.setPlaybackRate(rate);
-      }
-    },
-    [disableNativeTransport, isNativeTransportActive]
+      }),
+    [disableNativeTransport, isNativeTransportActive, runExclusive]
   );
 
   const togglePlay = useCallback(async () => {
