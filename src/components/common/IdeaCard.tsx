@@ -52,6 +52,9 @@ export type IdeaCardProps = {
     /** Left accent bar color (workspace color for song cards) */
     accentBorderColor?: string | null;
     compact?: boolean;
+    /** Flush, single-line dense row (collection "compact" density). Replaces the
+     * whole card shell — small play, inline meta, hairline divider. */
+    denseRow?: boolean;
     highlightValue?: Animated.Value | null;
     /** Extra styles on the outer container (e.g. parent-pick tints) */
     containerStyle?: StyleProp<ViewStyle>;
@@ -119,6 +122,7 @@ export function IdeaCard({
     isDragActiveInside,
     accentBorderColor,
     compact,
+    denseRow,
     highlightValue,
     containerStyle,
     cornerBadge,
@@ -142,6 +146,78 @@ export function IdeaCard({
     footerRightContent,
     inlinePlayerContent,
 }: IdeaCardProps) {
+    if (denseRow) {
+        return (
+            <View
+                style={[
+                    styles.ideaDenseRow,
+                    accentBorderColor
+                        ? { borderLeftWidth: 2, borderLeftColor: accentBorderColor, paddingLeft: 8 }
+                        : null,
+                    (selected || isActive) ? styles.ideaDenseRowSelected : null,
+                    nowPlaying ? styles.ideaDenseRowNowPlaying : null,
+                    containerStyle ?? null,
+                ]}
+            >
+                {highlightValue != null ? (
+                    <Animated.View
+                        style={[styles.ideasListCardHighlightOverlay, { opacity: highlightValue }]}
+                        pointerEvents="none"
+                    />
+                ) : null}
+                <View style={styles.ideaDenseInner}>
+                    <Pressable
+                        style={({ pressed }) => [
+                            styles.ideaDensePlay,
+                            pressed && canPlay ? styles.pressDown : null,
+                        ]}
+                        onPress={(evt) => {
+                            evt.stopPropagation();
+                            onPressLead();
+                        }}
+                        onLongPress={onLongPressLead}
+                    >
+                        <Ionicons
+                            name={inlineActive && isInlinePlaying ? "pause" : "play"}
+                            size={13}
+                            color={!canPlay ? "#9ca3af" : "#111827"}
+                            style={inlineActive && isInlinePlaying ? undefined : { marginLeft: 2 }}
+                        />
+                    </Pressable>
+                    <Pressable
+                        style={styles.ideaDenseMain}
+                        onPress={() => { void onPress(); }}
+                        onLongPress={onLongPress}
+                        delayLongPress={delayLongPress}
+                    >
+                        <HighlightedText
+                            text={title}
+                            needle={searchNeedle}
+                            textStyle={[
+                                styles.ideaDenseTitle,
+                                titleSemiBold ? styles.ideaDenseTitleProject : null,
+                            ]}
+                            hitStyle={styles.ideasListCardTitleHighlight}
+                            numberOfLines={1}
+                        />
+                    </Pressable>
+                    {inlineActive ? (
+                        leadAccessory ?? null
+                    ) : (
+                        <View style={styles.ideaDenseMeta}>
+                            {footerRightContent ?? null}
+                            <Text style={styles.ideaDenseDuration}>{durationLabel}</Text>
+                            {trailing ?? null}
+                        </View>
+                    )}
+                </View>
+                {inlineActive ? (
+                    <View style={styles.ideaDenseScrubber}>{inlinePlayerContent ?? null}</View>
+                ) : null}
+            </View>
+        );
+    }
+
     return (
         <View
             style={[

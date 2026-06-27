@@ -252,6 +252,21 @@ export function useCollectionScreenModel() {
     return map;
   }, [listIdeas]);
 
+  // "Hidden" items (by id or by hidden day) collapse out of the list by default.
+  // A single "N hidden" toggle reveals them inline (dimmed, with a per-row
+  // restore) — no dimmed always-on rows, no per-day dashed dividers.
+  const [showHidden, setShowHidden] = useState(false);
+  const effectivelyHiddenCount = useMemo(
+    () =>
+      listIdeas.filter((idea) => {
+        if (hiddenIdeaIdsSet.has(idea.id)) return true;
+        if (!activeTimelineMetric) return false;
+        const dayTs = getDateBucket(getIdeaSortTimestamp(idea, ideasSort)).startTs;
+        return hiddenDayKeySet.has(`${activeTimelineMetric}:${dayTs}`);
+      }).length,
+    [activeTimelineMetric, hiddenDayKeySet, hiddenIdeaIdsSet, ideasSort, listIdeas]
+  );
+
   const showDateDividers = usesIdeaTimelineDividers(ideasSort);
   const listEntries = useMemo<IdeaListEntry[]>(() => {
     const buildIdeaEntry = (idea: any, hidden: boolean, dayDividerLabel?: string | null, dayStartTsValue?: number | null): IdeaListEntry => ({
@@ -264,7 +279,13 @@ export function useCollectionScreenModel() {
     });
 
     if (!showDateDividers || !activeTimelineMetric) {
-      return listIdeas.map((idea) => buildIdeaEntry(idea, hiddenIdeaIdsSet.has(idea.id)));
+      const out: IdeaListEntry[] = [];
+      for (const idea of listIdeas) {
+        const hidden = hiddenIdeaIdsSet.has(idea.id);
+        if (hidden && !showHidden) continue;
+        out.push(buildIdeaEntry(idea, hidden));
+      }
+      return out;
     }
 
     const entries: IdeaListEntry[] = [];
@@ -284,25 +305,20 @@ export function useCollectionScreenModel() {
       const dayLabel = firstBucket.label;
       const bucketStartTs = firstBucket.startTs;
       const dayHidden = hiddenDayKeySet.has(`${activeTimelineMetric}:${bucketStartTs}`);
-      if (dayHidden) {
-        entries.push({
-          key: `hidden-day:${activeTimelineMetric}:${bucketStartTs}`,
-          type: "hidden-day",
-          dayLabel,
-          dayDividerLabel: dayLabel,
-          dayStartTs: bucketStartTs,
-          metric: activeTimelineMetric,
-          hiddenCount: groupIdeas.length,
-        });
-      } else {
-        groupIdeas.forEach((idea, groupIndex) => {
-          entries.push(buildIdeaEntry(idea, hiddenIdeaIdsSet.has(idea.id), entries.length > 0 && groupIndex === 0 ? dayLabel : null, bucketStartTs));
-        });
-      }
+      // The day label rides the first *visible* item of the group, so a partly
+      // hidden day still reads correctly while peeking.
+      let pushedInGroup = false;
+      groupIdeas.forEach((idea) => {
+        const hidden = dayHidden || hiddenIdeaIdsSet.has(idea.id);
+        if (hidden && !showHidden) return;
+        const label = !pushedInGroup && entries.length > 0 ? dayLabel : null;
+        entries.push(buildIdeaEntry(idea, hidden, label, bucketStartTs));
+        pushedInGroup = true;
+      });
       index = nextIndex;
     }
     return entries;
-  }, [activeTimelineMetric, hiddenDayKeySet, hiddenIdeaIdsSet, ideasSort, listIdeas, showDateDividers]);
+  }, [activeTimelineMetric, hiddenDayKeySet, hiddenIdeaIdsSet, ideasSort, listIdeas, showDateDividers, showHidden]);
 
   useEffect(() => {
     if (!showDateDividers || listEntries.length === 0) {
@@ -311,7 +327,7 @@ export function useCollectionScreenModel() {
       return;
     }
     const firstEntry = listEntries[0]!;
-    const firstLabel = firstEntry.type === "idea" ? getDateBucketLabel(getIdeaSortTimestamp(firstEntry.idea, ideasSort)) : firstEntry.dayLabel;
+    const firstLabel = getDateBucketLabel(getIdeaSortTimestamp(firstEntry.idea, ideasSort));
     stickyDayStore.set(firstLabel);
     stickyDayStore.setTopLabel(firstLabel);
   }, [ideasSort, listEntries, showDateDividers]);
@@ -445,6 +461,9 @@ export function useCollectionScreenModel() {
     hiddenIdeaIdsSet,
     hiddenDays,
     hiddenDayKeySet,
+    showHidden,
+    setShowHidden,
+    effectivelyHiddenCount,
     showDateDividers,
     activeTimelineMetric,
     activeSortMetric,

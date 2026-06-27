@@ -25,24 +25,14 @@ export type AppBreadcrumbItem = {
   iconOnly?: boolean;
 };
 
-export type IdeaListEntry =
-  | {
-      key: string;
-      type: "idea";
-      idea: SongIdea;
-      hidden: boolean;
-      dayDividerLabel?: string | null;
-      dayStartTs?: number | null;
-    }
-  | {
-      key: string;
-      type: "hidden-day";
-      dayLabel: string;
-      dayDividerLabel: string;
-      dayStartTs: number;
-      metric: IdeasTimelineMetric;
-      hiddenCount: number;
-    };
+export type IdeaListEntry = {
+  key: string;
+  type: "idea";
+  idea: SongIdea;
+  hidden: boolean;
+  dayDividerLabel?: string | null;
+  dayStartTs?: number | null;
+};
 
 export type IdeaListItemMeta = {
   playClip: ClipVersion | null;
@@ -101,9 +91,8 @@ export type CollectionListModel = {
   onItemCellLayout?: (key: string, y: number) => void;
   playIdeaFromList: (ideaId: string, clip: any) => Promise<void> | void;
   openIdeaFromList: (ideaId: string, clip: any) => Promise<void> | void;
-  unhideIdeasFromList: (ideaIds: string[]) => void;
+  onRestore: (idea: SongIdea) => void;
   hideTimelineDay: (metric: "created" | "updated", dayStartTs: number) => Promise<void>;
-  unhideTimelineDay: (metric: "created" | "updated", dayStartTs: number) => void;
   /** UI-thread scroll offset mirrored from the list — drives the collapsing header. */
   collapseScrollY?: SharedValue<number>;
   /** Top inset reserving space for the absolute collapsing header overlay. */

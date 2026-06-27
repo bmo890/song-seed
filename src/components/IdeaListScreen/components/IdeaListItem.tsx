@@ -100,7 +100,7 @@ type IdeaListItemProps = {
     inlinePlayer: InlinePlayerControls,
     playIdeaFromList: (ideaId: string, clip: ClipVersion) => Promise<void> | void,
     openIdeaFromList: (ideaId: string, clip: ClipVersion) => Promise<void> | void,
-    onUnhide: (idea: SongIdea) => void,
+    onRestore: (idea: SongIdea) => void,
     onHideDay?: () => void,
     hidden?: boolean,
     dayDividerLabel?: string | null,
@@ -120,7 +120,7 @@ export function IdeaListItem({
     inlinePlayer,
     playIdeaFromList,
     openIdeaFromList,
-    onUnhide,
+    onRestore,
     onHideDay,
     hidden = false,
     dayDividerLabel,
@@ -273,90 +273,49 @@ export function IdeaListItem({
         </View>
     ) : null;
 
-    const hiddenRow = (
-        <View style={styles.listRowWrap}>
-            <View
-                style={[
-                    styles.cardFlex,
-                    styles.ideasHiddenCard,
-                    isSelected ? styles.ideasListCardSelected : null,
-                ]}
-            >
-                <View style={styles.clipRowWrap}>
-                    <Pressable
-                        style={({ pressed }) => [
-                            styles.clipRowCard,
-                            styles.ideasHiddenCardPressable,
-                            pressed && !listSelectionMode ? styles.pressDown : null,
-                        ]}
-                        onPress={() => {
-                            if (!listSelectionMode) return;
-                            useStore.getState().toggleListSelection(item.id);
-                        }}
-                        onLongPress={() => {
-                            if (!listSelectionMode) {
-                                useStore.getState().startListSelection(item.id);
-                            }
-                        }}
-                        delayLongPress={250}
-                    >
-                        {highlightMapRef.current[item.id] ? (
-                            <Animated.View style={[styles.ideasListCardHighlightOverlay, { opacity: highlightMapRef.current[item.id] }]} pointerEvents="none" />
-                        ) : null}
-                        <View style={styles.ideasHiddenRowInner}>
-                            <View style={styles.ideasHiddenTitleWrap}>
-                                <View style={styles.ideasListTitleIconWrap}>
-                                    <Ionicons
-                                        name="eye-off-outline"
-                                        size={13}
-                                        color="#B8A8A3"
-                                    />
-                                </View>
-                                <Text style={styles.ideasHiddenTitle} numberOfLines={1}>
-                                    {item.title}
-                                </Text>
-                            </View>
-                            <Pressable
-                                style={({ pressed }) => [styles.ideasHiddenUnhideBtn, pressed ? styles.pressDown : null]}
-                                onPress={(evt) => {
-                                    evt.stopPropagation();
-                                    onUnhide(item);
-                                }}
-                            >
-                                <Text style={styles.ideasHiddenUnhideBtnText}>Unhide</Text>
-                            </Pressable>
-                        </View>
-                    </Pressable>
-                </View>
-            </View>
-        </View>
-    );
+    const confirmHideSection = () => {
+        if (!onHideDay) return;
+        void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        AppAlert.confirm(
+            dayDividerLabel ? `Hide "${dayDividerLabel}"?` : "Hide this section?",
+            "These items get tucked away. Reveal them anytime with the hidden toggle.",
+            onHideDay,
+            { confirmLabel: "Hide" }
+        );
+    };
 
     return (
         <View style={styles.ideasListItemWrap}>
             {dayDividerLabel ? (
-                <View style={styles.ideasDayDividerRow}>
+                <Pressable
+                    style={[styles.ideasDayDividerRow, compact ? styles.ideasDayDividerRowDense : null]}
+                    onLongPress={onHideDay ? confirmHideSection : undefined}
+                    delayLongPress={350}
+                >
                     <View style={styles.ideasDayDividerLine} />
                     <Text style={styles.ideasDayDividerText}>{dayDividerLabel}</Text>
                     {onHideDay ? (
                         <Pressable
                             style={({ pressed }) => [
-                                styles.ideasDayDividerActionBtn,
+                                styles.ideasDayDividerHideBtn,
                                 pressed ? styles.pressDown : null,
                             ]}
                             onPress={(evt) => {
                                 evt.stopPropagation();
-                                onHideDay();
+                                confirmHideSection();
                             }}
+                            hitSlop={8}
+                            accessibilityRole="button"
+                            accessibilityLabel={dayDividerLabel ? `Hide ${dayDividerLabel}` : "Hide section"}
                         >
-                            <Ionicons name="eye-off-outline" size={12} color="#84736f" />
+                            <Ionicons name="eye-off-outline" size={13} color="#84736f" />
                         </Pressable>
                     ) : null}
                     <View style={styles.ideasDayDividerLine} />
-                </View>
+                </Pressable>
             ) : null}
 
-            {hidden ? hiddenRow : (
+            {(
                 <View
                     onLayout={(evt) => {
                         rowLayoutsRef.current[item.id] = {
@@ -374,9 +333,11 @@ export function IdeaListItem({
                             nowPlaying={inlineActive}
                             accentBorderColor={item.kind === "project" ? workspaceAccent : null}
                             compact={compact}
-                            containerStyle={
-                                songTargetPicker && item.kind !== "project" ? { opacity: 0.4 } : undefined
-                            }
+                            denseRow={compact}
+                            containerStyle={[
+                                hidden ? styles.ideaRowHiddenDim : null,
+                                songTargetPicker && item.kind !== "project" ? { opacity: 0.4 } : null,
+                            ]}
                             highlightValue={highlightMapRef.current[item.id] ?? null}
                             canPlay={!!playClip}
                             durationLabel={item.kind === "project" ? projectPrimaryDurationLabel : clipDurationLabel}
@@ -445,24 +406,41 @@ export function IdeaListItem({
                                         <StatusBadge
                                             status={item.status}
                                             pct={!compact ? projectProgressPct : undefined}
+                                            dense={compact}
                                             style={styles.ideasListStatusBadgeText}
                                         />
                                     ) : null}
-                                    <Pressable
-                                        onPress={(e) => {
-                                            e.stopPropagation();
-                                            void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                                            useStore.getState().toggleIdeaBookmark(item.id);
-                                        }}
-                                        hitSlop={8}
-                                        style={styles.ideasListFavoriteBtn}
-                                    >
-                                        <Ionicons
-                                            name={item.isBookmarked ? "bookmark" : "bookmark-outline"}
-                                            size={15}
-                                            color={item.isBookmarked ? "#B87D6B" : "rgba(215,194,189,0.7)"}
-                                        />
-                                    </Pressable>
+                                    {hidden ? (
+                                        <Pressable
+                                            onPress={(e) => {
+                                                e.stopPropagation();
+                                                void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                                                onRestore(item);
+                                            }}
+                                            hitSlop={8}
+                                            style={styles.ideasListFavoriteBtn}
+                                            accessibilityRole="button"
+                                            accessibilityLabel="Restore"
+                                        >
+                                            <Ionicons name="eye-outline" size={16} color="#824f3f" />
+                                        </Pressable>
+                                    ) : (
+                                        <Pressable
+                                            onPress={(e) => {
+                                                e.stopPropagation();
+                                                void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                                                useStore.getState().toggleIdeaBookmark(item.id);
+                                            }}
+                                            hitSlop={8}
+                                            style={styles.ideasListFavoriteBtn}
+                                        >
+                                            <Ionicons
+                                                name={item.isBookmarked ? "bookmark" : "bookmark-outline"}
+                                                size={15}
+                                                color={item.isBookmarked ? "#B87D6B" : "rgba(215,194,189,0.7)"}
+                                            />
+                                        </Pressable>
+                                    )}
                                 </>
                             }
                             searchTagsContent={searchTagsBlock}

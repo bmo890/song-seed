@@ -146,11 +146,23 @@ export function CollectionListSection({
     await inlinePlayer.resetInlinePlayer();
   };
 
-  const unhideIdeasFromList = (ideaIds: string[]) => {
+  // Restore a single peeked item: unhide it, and if it sits inside a hidden day,
+  // bring that day back too — so the tapped row is guaranteed to become visible.
+  const onRestore = (idea: any) => {
     if (!screen.collectionId) return;
-    const nextIdeaIds = Array.from(new Set(ideaIds));
-    if (nextIdeaIds.length === 0) return;
-    setIdeasHidden(screen.collectionId, nextIdeaIds, false);
+    if (screen.hiddenIdeaIdsSet.has(idea.id)) {
+      setIdeasHidden(screen.collectionId, [idea.id], false);
+    }
+    if (screen.activeTimelineMetric) {
+      const dayTs = getDateBucket(getIdeaSortTimestamp(idea, ideasSort)).startTs;
+      if (screen.hiddenDayKeySet.has(`${screen.activeTimelineMetric}:${dayTs}`)) {
+        setTimelineDaysHidden(
+          screen.collectionId,
+          [{ metric: screen.activeTimelineMetric, dayStartTs: dayTs }],
+          false
+        );
+      }
+    }
   };
 
   const hideTimelineDay = async (metric: "created" | "updated", dayStartTs: number) => {
@@ -160,11 +172,6 @@ export function CollectionListSection({
       .map((idea) => idea.id);
     await maybeResetInlineForIdeaIds(ideaIdsInDay);
     setTimelineDaysHidden(screen.collectionId, [{ metric, dayStartTs }], true);
-  };
-
-  const unhideTimelineDay = (metric: "created" | "updated", dayStartTs: number) => {
-    if (!screen.collectionId) return;
-    setTimelineDaysHidden(screen.collectionId, [{ metric, dayStartTs }], false);
   };
 
   // Tracks the absolute content-y of each FlatList cell (keyed by entry.key).
@@ -189,10 +196,7 @@ export function CollectionListSection({
       const cellY = itemCellLayoutsRef.current[entry.key];
       if (cellY === undefined) continue;
       if (cellY > effectiveTop) break;
-      foundLabel =
-        entry.type === "hidden-day"
-          ? entry.dayLabel
-          : getDateBucketLabel(getIdeaSortTimestamp(entry.idea, ideasSortRef.current));
+      foundLabel = getDateBucketLabel(getIdeaSortTimestamp(entry.idea, ideasSortRef.current));
     }
     if (foundLabel !== null) stickyDayStore.set(foundLabel);
   }, []);
@@ -246,9 +250,8 @@ export function CollectionListSection({
         onItemCellLayout,
         playIdeaFromList,
         openIdeaFromList,
-        unhideIdeasFromList,
+        onRestore,
         hideTimelineDay,
-        unhideTimelineDay,
       }}
     />
   );

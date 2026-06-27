@@ -2650,7 +2650,7 @@ export const styles = StyleSheet.create({
     paddingTop: 34,
   },
   listContentCompact: {
-    gap: 5,
+    gap: 0,
     paddingVertical: 6,
   },
   workspaceBrowseSection: {
@@ -3481,36 +3481,12 @@ export const styles = StyleSheet.create({
     height: 1,
     backgroundColor: "rgba(215,194,189,0.35)",
   },
-  ideasDayDividerLineDashed: {
-    flex: 1,
-    height: 1,
-    borderTopWidth: 1,
-    borderColor: "rgba(215,194,189,0.4)",
-    borderStyle: "dashed",
-  },
   ideasDayDividerText: {
     fontFamily: "PlusJakartaSans_600SemiBold",
     fontSize: 11,
     color: "#84736f",
     fontWeight: "700",
     letterSpacing: 0.6,
-  },
-  ideasDayDividerTextHidden: {
-    fontFamily: "PlusJakartaSans_400Regular",
-    fontSize: 11,
-    color: "#B8A8A3",
-    fontWeight: "400",
-    letterSpacing: 0.2,
-  },
-  ideasDayDividerActionBtn: {
-    width: 20,
-    height: 20,
-    borderRadius: radii.round,
-    borderWidth: 1,
-    borderColor: "rgba(215,194,189,0.5)",
-    backgroundColor: "#FDFBF7",
-    alignItems: "center",
-    justifyContent: "center",
   },
   ideasStickyDayWrap: {
     position: "absolute",
@@ -4341,6 +4317,16 @@ export const styles = StyleSheet.create({
   statusSongText: { color: "#824f3f" },
   statusClip: { backgroundColor: "#F4F1ED" },
   statusClipText: { color: "#84736f" },
+  // Dense stage marker (collection compact rows): a small colored dot + short
+  // caps label instead of the chunky pill.
+  statusDenseWrap: { flexDirection: "row", alignItems: "center", gap: 4 },
+  statusDenseDot: { width: 7, height: 7, borderRadius: 999 },
+  statusDenseLabel: {
+    fontFamily: "PlusJakartaSans_700Bold",
+    fontSize: 11,
+    letterSpacing: 0.4,
+    fontVariant: ["tabular-nums"],
+  },
   secondaryBtn: {
     alignSelf: "flex-start",
     borderRadius: radii.round,
@@ -5243,6 +5229,57 @@ export const styles = StyleSheet.create({
     paddingHorizontal: 9,
     minHeight: 0,
   },
+  // ── Dense compact row (collection "compact" density) ──────────────────────
+  // A flush, single-line list row — no card shell, hairline divider between
+  // rows — so the list scans tightly instead of as smaller cards.
+  ideaDenseRow: {
+    position: "relative",
+    paddingHorizontal: 8,
+    paddingVertical: 7,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: "#E8E4DF",
+    backgroundColor: "transparent",
+  },
+  ideaDenseRowSelected: { backgroundColor: "#EDE9E4" },
+  ideaDenseRowNowPlaying: { backgroundColor: "rgba(184,125,107,0.08)" },
+  ideaDenseInner: { flexDirection: "row", alignItems: "center", gap: 10 },
+  ideaDensePlay: {
+    width: 28,
+    height: 28,
+    borderRadius: radii.round,
+    borderWidth: 1,
+    borderColor: "rgba(215,194,189,0.5)",
+    backgroundColor: "#FDFBF7",
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+  },
+  ideaDenseMain: { flex: 1, minWidth: 0 },
+  ideaDenseTitle: {
+    fontFamily: "PlusJakartaSans_500Medium",
+    fontSize: 14,
+    lineHeight: 18,
+    color: "#1C1C19",
+  },
+  ideaDenseTitleProject: { fontFamily: "PlusJakartaSans_700Bold" },
+  ideaDenseMeta: { flexDirection: "row", alignItems: "center", gap: 8, flexShrink: 0 },
+  ideaDenseDuration: {
+    fontFamily: "PlusJakartaSans_500Medium",
+    fontSize: 12,
+    color: "#84736f",
+    fontVariant: ["tabular-nums"],
+  },
+  ideaDenseScrubber: { marginTop: 6 },
+  // Day dividers need breathing room above when rows sit flush (dense list).
+  ideasDayDividerRowDense: { marginTop: 12, marginBottom: 3 },
+  // Quiet "hide this section" affordance at the end of a timeline divider.
+  ideasDayDividerHideBtn: {
+    width: 26,
+    height: 22,
+    alignItems: "center",
+    justifyContent: "center",
+    marginLeft: 2,
+  },
   ideasListProjectCard: {
     borderLeftWidth: 3,
   },
@@ -5265,75 +5302,7 @@ export const styles = StyleSheet.create({
     justifyContent: "center",
     backgroundColor: "rgba(255,255,255,0.9)",
   },
-  ideasHiddenCard: {
-    backgroundColor: "#FDFBF7",
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: "rgba(215,194,189,0.3)",
-    paddingVertical: 4,
-    paddingHorizontal: 10,
-  },
-  ideasHiddenCardPressable: {
-    flex: 1,
-  },
-  ideasHiddenRowInner: {
-    minHeight: 28,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 8,
-  },
-  ideasHiddenTitleWrap: {
-    flex: 1,
-    minWidth: 0,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  ideasHiddenTitle: {
-    fontFamily: "PlusJakartaSans_400Regular",
-    flex: 1,
-    minWidth: 0,
-    fontSize: 12,
-    lineHeight: 15,
-    color: "#B8A8A3",
-    fontWeight: "500",
-  },
-  ideasHiddenUnhideBtn: {
-    minHeight: 24,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "rgba(215,194,189,0.5)",
-    backgroundColor: "#FDFBF7",
-    paddingHorizontal: 8,
-    alignItems: "center",
-    justifyContent: "center",
-    flexDirection: "row",
-    gap: 4,
-  },
-  ideasHiddenUnhideBtnText: {
-    fontFamily: "PlusJakartaSans_600SemiBold",
-    fontSize: 10,
-    color: "#524440",
-    fontWeight: "700",
-  },
   // Compact inline version embedded in the dashed separator row
-  ideasHiddenUnhideInlineBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 3,
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-    borderRadius: 8,
-    backgroundColor: "#F4F1ED",
-    marginHorizontal: 4,
-  },
-  ideasHiddenUnhideInlineBtnText: {
-    fontFamily: "PlusJakartaSans_400Regular",
-    fontSize: 10,
-    color: "#84736f",
-    fontWeight: "500",
-  },
   // Pill shown near filter bar when any items are hidden
   ideasUnhideAllPill: {
     flexDirection: "row",
@@ -5352,20 +5321,22 @@ export const styles = StyleSheet.create({
     color: "#84736f",
     fontWeight: "600",
   },
-  ideasHiddenDayCard: {
-    flex: 1,
-    minHeight: 38,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: "rgba(215,194,189,0.3)",
-    backgroundColor: "#FDFBF7",
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 10,
+  // Active (peeking) state of the "N hidden" toggle chip.
+  ideasUnhideAllPillActive: {
+    backgroundColor: "#F2E4DF",
+    borderColor: "rgba(184,125,107,0.5)",
   },
+  ideasUnhideAllPillTextActive: {
+    color: "#824f3f",
+  },
+  // Per-row restore (eye) button shown while peeking at hidden items.
+  ideaDenseRestoreBtn: {
+    width: 28,
+    height: 28,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  ideaRowHiddenDim: { opacity: 0.5 },
   ideasHiddenDayCopy: {
     flex: 1,
     minWidth: 0,

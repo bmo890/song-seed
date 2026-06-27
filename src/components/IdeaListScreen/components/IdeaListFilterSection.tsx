@@ -10,20 +10,22 @@ type IdeaListFilterSectionProps = {
   selectedProjectStages: ProjectStage[];
   lyricsFilterMode: LyricsFilterMode;
   hiddenItemsCount: number;
+  showHidden: boolean;
   onToggleProjectStage: (stage: ProjectStage) => void;
   onClearProjectStages: () => void;
   onLyricsFilterModeChange: (mode: LyricsFilterMode) => void;
-  onUnhideAll: () => void;
+  onToggleShowHidden: () => void;
 };
 
 export function IdeaListFilterSection({
   selectedProjectStages,
   lyricsFilterMode,
   hiddenItemsCount,
+  showHidden,
   onToggleProjectStage,
   onClearProjectStages,
   onLyricsFilterModeChange,
-  onUnhideAll,
+  onToggleShowHidden,
 }: IdeaListFilterSectionProps) {
   return (
     <FilterSortBar
@@ -35,11 +37,29 @@ export function IdeaListFilterSection({
       rightSlot={
         hiddenItemsCount > 0 ? (
           <Pressable
-            style={({ pressed }) => [styles.ideasUnhideAllPill, pressed ? styles.pressDown : null]}
-            onPress={onUnhideAll}
+            style={({ pressed }) => [
+              styles.ideasUnhideAllPill,
+              showHidden ? styles.ideasUnhideAllPillActive : null,
+              pressed ? styles.pressDown : null,
+            ]}
+            onPress={onToggleShowHidden}
+            accessibilityRole="button"
+            accessibilityState={{ selected: showHidden }}
+            accessibilityLabel={showHidden ? "Tuck hidden items away" : "Show hidden items"}
           >
-            <Ionicons name="eye-outline" size={12} color="#84736f" />
-            <Text style={styles.ideasUnhideAllPillText}>{`Unhide all (${hiddenItemsCount})`}</Text>
+            <Ionicons
+              name={showHidden ? "eye" : "eye-off-outline"}
+              size={12}
+              color={showHidden ? "#824f3f" : "#84736f"}
+            />
+            <Text
+              style={[
+                styles.ideasUnhideAllPillText,
+                showHidden ? styles.ideasUnhideAllPillTextActive : null,
+              ]}
+            >
+              {`${hiddenItemsCount} hidden`}
+            </Text>
           </Pressable>
         ) : null
       }

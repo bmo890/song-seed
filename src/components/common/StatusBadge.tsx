@@ -1,14 +1,45 @@
-import { Text, StyleProp, TextStyle, ViewStyle } from "react-native";
+import { Text, View, StyleProp, TextStyle, ViewStyle } from "react-native";
 import { styles } from "../../styles";
 import { IdeaStatus } from "../../types";
 
 type Props = {
     status: IdeaStatus;
     pct?: number | null;
+    /** Dense list rows: render a small colored dot + short caps label instead of
+     * the pill, so it reads as a quiet stage marker in a tight row. */
+    dense?: boolean;
     style?: StyleProp<TextStyle>;
 };
 
-export function StatusBadge({ status, pct, style }: Props) {
+const DENSE_COLORS: Record<string, string> = {
+    seed: "#a89994",
+    sprout: "#7A6340",
+    stem: "#7A4E2D",
+    song: "#824f3f",
+    clip: "#84736f",
+};
+
+const DENSE_LABELS: Record<string, string> = {
+    seed: "SEED",
+    sprout: "SPRT",
+    stem: "STEM",
+    song: "SONG",
+    clip: "CLIP",
+};
+
+export function StatusBadge({ status, pct, dense, style }: Props) {
+    if (dense) {
+        const color = DENSE_COLORS[status] ?? DENSE_COLORS.clip;
+        return (
+            <View style={styles.statusDenseWrap}>
+                <View style={[styles.statusDenseDot, { backgroundColor: color }]} />
+                <Text style={[styles.statusDenseLabel, { color }]}>
+                    {DENSE_LABELS[status] ?? status.toUpperCase()}
+                </Text>
+            </View>
+        );
+    }
+
     let viewStyle: StyleProp<ViewStyle>;
     let textStyle: StyleProp<TextStyle>;
     let label = pct != null ? `${status.toUpperCase()} ${pct}%` : status.toUpperCase();

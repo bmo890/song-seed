@@ -33,9 +33,8 @@ type IdeaListContentProps = {
   onItemCellLayout?: (key: string, y: number) => void;
   playIdeaFromList: (ideaId: string, clip: any) => Promise<void> | void;
   openIdeaFromList: (ideaId: string, clip: any) => Promise<void> | void;
-  unhideIdeasFromList: (ideaIds: string[]) => void;
+  onRestore: (idea: any) => void;
   hideTimelineDay: (metric: "created" | "updated", dayStartTs: number) => Promise<void>;
-  unhideTimelineDay: (metric: "created" | "updated", dayStartTs: number) => void;
   /** UI-thread scroll offset mirrored from the list — drives the collapsing header. */
   collapseScrollY?: SharedValue<number>;
   /** Top inset reserving space for the absolute collapsing header overlay. */
@@ -67,9 +66,8 @@ export function IdeaListContent(
     onViewableItemsChanged,
     playIdeaFromList,
     openIdeaFromList,
-    unhideIdeasFromList,
+    onRestore,
     hideTimelineDay,
-    unhideTimelineDay,
     collapseScrollY,
     contentPaddingTop,
     onItemCellLayout,
@@ -162,27 +160,6 @@ export function IdeaListContent(
       renderItem={(props) => {
         const entry = props.item;
 
-        if (entry.type === "hidden-day") {
-          return (
-            <View style={styles.ideasListItemWrap}>
-              <View style={styles.ideasDayDividerRow}>
-                <View style={styles.ideasDayDividerLineDashed} />
-                <Text style={styles.ideasDayDividerTextHidden}>{entry.dayDividerLabel}</Text>
-                <Pressable
-                  style={({ pressed }) => [styles.ideasHiddenUnhideInlineBtn, pressed ? styles.pressDown : null]}
-                  onPress={() => unhideTimelineDay(entry.metric, entry.dayStartTs)}
-                >
-                  <Ionicons name="eye-outline" size={11} color="#84736f" />
-                  <Text style={styles.ideasHiddenUnhideInlineBtnText}>
-                    {`unhide ${entry.hiddenCount}`}
-                  </Text>
-                </Pressable>
-                <View style={styles.ideasDayDividerLineDashed} />
-              </View>
-            </View>
-          );
-        }
-
         const searchMeta = searchMetaByIdeaId.get(entry.idea.id) ?? {
           matches: true,
           title: false,
@@ -199,7 +176,7 @@ export function IdeaListContent(
             inlinePlayer={inlinePlayer}
             playIdeaFromList={playIdeaFromList}
             openIdeaFromList={openIdeaFromList}
-            onUnhide={(idea) => unhideIdeasFromList([idea.id])}
+            onRestore={onRestore}
             onHideDay={
               activeTimelineMetric && showDateDividers && entry.dayDividerLabel
                 ? () =>
