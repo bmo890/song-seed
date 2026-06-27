@@ -11,6 +11,14 @@ export const SONG_SEED_TRASH_DIR = `${SONG_SEED_ROOT}/trash`;
 export const SONG_SEED_MANIFEST_PATH = `${SONG_SEED_ROOT}/manifest.json`;
 export const SONG_SEED_MANIFEST_TMP_PATH = `${SONG_SEED_ROOT}/manifest.tmp.json`;
 
+/** Detail-waveform sidecar suffix. The sidecar lives at `<audioUri>.waveform`, i.e.
+ *  right next to its audio file, so it is cleaned up, rebased, and archived alongside
+ *  the audio automatically — and is always regenerable from the audio if missing. */
+export const WAVEFORM_SIDECAR_SUFFIX = ".waveform";
+export function waveformSidecarUri(audioUri: string) {
+    return `${audioUri}${WAVEFORM_SIDECAR_SUFFIX}`;
+}
+
 function normalizeDirectoryUri(uri: string) {
     return uri.endsWith("/") ? uri : `${uri}/`;
 }

@@ -10,6 +10,7 @@ import {
 import {
   getClipOverdubRootSettings,
 } from "../../../overdub";
+import { useClipWaveform } from "../../../hooks/useClipWaveform";
 import { getLatestLyricsVersion, lyricsDocumentToText } from "../../../lyrics";
 import { normalizeSections } from "../../../playerSections";
 import { useStore } from "../../../state/useStore";
@@ -99,10 +100,19 @@ export function usePlayerScreenData({ playerDuration }: UsePlayerScreenDataArgs)
     playerIdea && activeWorkspace ? getCollectionById(activeWorkspace, playerIdea.collectionId) : null;
   const playbackAudioUri = playerClip ? getClipPlaybackUri(playerClip) ?? null : null;
   const displayDuration = playerDuration || (playerClip ? getClipPlaybackDurationMs(playerClip) : 0) || 0;
-  const waveformPeaks = useMemo(
+  const thumbnailWaveformPeaks = useMemo(
     () => (playerClip ? getClipPlaybackWaveformPeaksOrFallback(playerClip) : []),
     [playerClip]
   );
+  // Detail waveform (sidecar) for the playback audio, with the inline thumbnail as
+  // the fallback until it loads — keeps the player reel crisp at every zoom.
+  const clipWaveform = useClipWaveform({
+    audioUri: playbackAudioUri,
+    thumbnailPeaks: thumbnailWaveformPeaks,
+    durationMs: displayDuration,
+    enabled: !!playbackAudioUri,
+  });
+  const waveformPeaks = clipWaveform.peaks;
   const practiceMarkers = useMemo(() => {
     if (playerClip?.practiceMarkers && playerClip.practiceMarkers.length > 0) {
       return playerClip.practiceMarkers;

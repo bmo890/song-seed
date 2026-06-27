@@ -16,6 +16,7 @@ import { useStore } from "../../state/useStore";
 import { appActions } from "../../state/actions";
 import { Button } from "../common/Button";
 import { AudioReel } from "../common/AudioReel";
+import { useClipWaveform } from "../../hooks/useClipWaveform";
 import { loadAudioDurationMs } from "../../services/audioStorage";
 import { activatePlaybackAudioSession } from "../../services/audioSession";
 import { getCollectionById } from "../../utils";
@@ -113,6 +114,16 @@ export function EditorScreen() {
     const targetCollection =
         targetIdea && activeWorkspace ? getCollectionById(activeWorkspace, targetIdea.collectionId) : null;
     const durationHintMs = routeDurationMs ?? sourceClip?.durationMs;
+
+    // High-resolution detail waveform (sidecar), with the inline 256-bin analysis as
+    // the thumbnail fallback until it loads. This is what makes the reel stay crisp
+    // all the way to max zoom.
+    const clipWaveform = useClipWaveform({
+        audioUri,
+        thumbnailPeaks: waveformPeaks,
+        durationMs: durationHintMs,
+        enabled: isFocused,
+    });
 
     const playerSource = useMemo(() => (audioUri ? { uri: audioUri } : null), [audioUri]);
     const playerOptions = useMemo(() => ({ updateInterval: 33 }), []);
@@ -435,7 +446,7 @@ export function EditorScreen() {
                         </View>
 
                         <AudioReel
-                            waveformPeaks={waveformPeaks}
+                            waveformPeaks={clipWaveform.peaks}
                             durationMs={analysisData.durationMs}
                             currentTimeMs={playheadTimeMs}
                             resetKey={clipId}

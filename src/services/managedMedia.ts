@@ -8,6 +8,7 @@ import {
     isSongSeedManagedUri,
     resolveManagedUri,
     toRelativeManagedPath,
+    waveformSidecarUri,
 } from "./storagePaths";
 
 export const SHARE_TEMP_FILE_MAX_AGE_MS = 24 * 60 * 60 * 1000;
@@ -146,7 +147,13 @@ async function trashFileIfManaged(uri: string): Promise<boolean> {
 }
 
 export async function deleteManagedAudioUris(uris: Iterable<string>) {
-    await Promise.all(Array.from(new Set(uris)).map((uri) => trashFileIfManaged(uri)));
+    const unique = Array.from(new Set(uris));
+    await Promise.all([
+        ...unique.map((uri) => trashFileIfManaged(uri)),
+        // Detail-waveform sidecars are derived data (regenerable from audio), so
+        // hard-delete them with their clip rather than retaining them in the trash.
+        ...unique.map((uri) => hardDeleteFileIfManaged(waveformSidecarUri(uri))),
+    ]);
 }
 
 export async function deleteManagedArchiveUri(uri: string | null | undefined) {

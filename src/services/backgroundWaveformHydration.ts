@@ -1,4 +1,5 @@
 import { loadManagedAudioMetadata } from "./audioStorage";
+import { ensureWaveformSidecar } from "./waveformSidecar";
 import { appActions } from "../state/actions";
 import { useStore } from "../state/useStore";
 
@@ -54,6 +55,11 @@ async function processQueue() {
                 durationMs: metadata.durationMs,
                 waveformPeaks: metadata.waveformPeaks,
             });
+
+            // Pre-build the high-res detail sidecar so the first editor/player open is
+            // instant rather than decoding on demand. Best-effort; the reel regenerates
+            // it lazily if this is skipped or fails.
+            await ensureWaveformSidecar(job.audioUri, metadata.durationMs);
         } catch (error) {
             console.warn("Background waveform hydration failed", error);
         } finally {
