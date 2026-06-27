@@ -5269,6 +5269,12 @@ export const styles = StyleSheet.create({
     color: "#84736f",
     fontVariant: ["tabular-nums"],
   },
+  ideaDenseDate: {
+    fontFamily: "PlusJakartaSans_500Medium",
+    fontSize: 12,
+    color: "#a89994",
+    fontVariant: ["tabular-nums"],
+  },
   ideaDenseScrubber: { marginTop: 6 },
   // Day dividers need breathing room above when rows sit flush (dense list).
   ideasDayDividerRowDense: { marginTop: 12, marginBottom: 3 },

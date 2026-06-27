@@ -192,6 +192,7 @@ export function IdeaListContent(
             notesMatched={!!searchMeta.notes}
             lyricsMatched={!!searchMeta.lyrics}
             listDensity={listDensity}
+            showDateDividers={showDateDividers}
             sortMetric={activeSortMetric}
             lyricsFilterMode={lyricsFilterMode}
           />

@@ -6,7 +6,7 @@ import * as Haptics from "expo-haptics";
 import { styles } from "./styles";
 import { useStore } from "../../state/useStore";
 import { getClipOverdubStemCount, getClipPlaybackDurationMs, hasClipPlaybackSource } from "../../clipPresentation";
-import { fmtDuration, formatClipCardDate } from "../../utils";
+import { fmtDuration, formatClipDate } from "../../utils";
 import { type EvolutionListClipEntry, type TimelineClipEntry } from "../../clipGraph";
 import { type SongIdea, type ClipVersion, type CustomTagDefinition, type InlinePlayerControls } from "../../types";
 import { getTagColor, getTagLabel } from "./songClipControls";
@@ -186,8 +186,8 @@ export function ClipCard({
   const durationLabel = playbackDurationMs ? fmtDuration(playbackDurationMs) : "0:00";
   const createdAtLabel =
     overdubStemCount > 0
-      ? `${formatClipCardDate(clip.createdAt)} • ${overdubStemCount} ${overdubStemCount === 1 ? "layer" : "layers"}`
-      : formatClipCardDate(clip.createdAt);
+      ? `${formatClipDate(clip.createdAt)} • ${overdubStemCount} ${overdubStemCount === 1 ? "layer" : "layers"}`
+      : formatClipDate(clip.createdAt);
   const canToggleInlinePlayback = !clipSelectionMode && !isDraftProject && !isParentPicking;
   const canShowTrailingAction =
     !displayOnly && !clipSelectionMode && !isEditMode && !isDraftProject && !isParentPicking;

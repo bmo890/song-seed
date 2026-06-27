@@ -112,22 +112,47 @@ export const fmtDuration = (ms = 0) => {
 export const formatDate = (ts: number) => new Date(ts).toLocaleString();
 
 /**
- * Compact, calm date for clip cards: "Today" / "Yesterday" for the two most
- * recent days, then "12 March" within the last year and "12 March 2024" once
- * it's more than a year old. No time — list order and version numbers already
- * convey sequence.
+ * One cohesive, minimal date voice for clip cards across the app. Recency-first,
+ * collapsing to the smallest unambiguous form and only showing the year when it
+ * isn't the current one:
+ *
+ *   Just now · 12m ago · 3h ago        (today)
+ *   Yesterday
+ *   Tue                                 (2–6 days ago — weekday)
+ *   Jun 26                              (this year)
+ *   Jun 26 2024                         (older)
+ *
+ * Cohesion with timeline dividers: pass the item's section label (Today / Last
+ * week / Last month …). If the card's own label would just echo that section,
+ * it drops to the clock time instead — so the card always adds the finer detail
+ * the divider doesn't, never repeating it. (In practice only "Yesterday" collides.)
  */
-export const formatClipCardDate = (ts: number) => {
+export const formatClipDate = (ts: number, sectionLabel?: string): string => {
+  const now = Date.now();
   const date = new Date(ts);
   const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
-  const dayDiff = Math.round((startOfDay(new Date()) - startOfDay(date)) / 86_400_000);
-  if (dayDiff === 0) return "Today";
-  if (dayDiff === 1) return "Yesterday";
+  const dayDiff = Math.round((startOfDay(new Date(now)) - startOfDay(date)) / 86_400_000);
 
-  const day = date.getDate();
-  const month = date.toLocaleDateString("en-US", { month: "long" });
-  const overAYearAgo = Date.now() - ts > 365 * 24 * 60 * 60 * 1000;
-  return overAYearAgo ? `${day} ${month} ${date.getFullYear()}` : `${day} ${month}`;
+  let label: string;
+  if (dayDiff <= 0) {
+    const mins = Math.floor(Math.max(0, now - ts) / 60_000);
+    if (mins < 1) label = "Just now";
+    else if (mins < 60) label = `${mins}m ago`;
+    else label = `${Math.floor(mins / 60)}h ago`;
+  } else if (dayDiff === 1) {
+    label = "Yesterday";
+  } else if (dayDiff < 7) {
+    label = date.toLocaleDateString("en-US", { weekday: "short" });
+  } else {
+    const month = date.toLocaleDateString("en-US", { month: "short" });
+    const sameYear = date.getFullYear() === new Date(now).getFullYear();
+    label = sameYear ? `${month} ${date.getDate()}` : `${month} ${date.getDate()} ${date.getFullYear()}`;
+  }
+
+  if (sectionLabel && label === sectionLabel) {
+    return date.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  }
+  return label;
 };
 
 /** @deprecated Use genRootClipTitle / genChildClipTitle instead. */

@@ -205,6 +205,7 @@ export function IdeaCard({
                         leadAccessory ?? null
                     ) : (
                         <View style={styles.ideaDenseMeta}>
+                            {footerDate ? <Text style={styles.ideaDenseDate}>{footerDate}</Text> : null}
                             {footerRightContent ?? null}
                             <Text style={styles.ideaDenseDuration}>{durationLabel}</Text>
                             {trailing ?? null}

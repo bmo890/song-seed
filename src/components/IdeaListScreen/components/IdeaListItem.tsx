@@ -5,7 +5,8 @@ import * as Haptics from "expo-haptics";
 import { styles } from "../../../styles";
 import { MiniProgress } from "../../MiniProgress";
 import { SongIdea, ClipVersion, InlinePlayerControls } from "../../../types";
-import { fmtDuration } from "../../../utils";
+import { fmtDuration, formatClipDate, isDefaultIdeaTitle } from "../../../utils";
+import { getDateBucketLabel } from "../../../dateBuckets";
 import { useNavigation } from "@react-navigation/native";
 import { getIdeaCreatedAt, getIdeaUpdatedAt, type IdeaSortMetric } from "../../../ideaSort";
 import { getHierarchyIconName } from "../../../hierarchy";
@@ -108,6 +109,7 @@ type IdeaListItemProps = {
     notesMatched: boolean,
     lyricsMatched: boolean,
     listDensity: "comfortable" | "compact",
+    showDateDividers: boolean,
     sortMetric: IdeaSortMetric,
     lyricsFilterMode: "all" | "with" | "without",
 };
@@ -128,6 +130,7 @@ export function IdeaListItem({
     notesMatched,
     lyricsMatched,
     listDensity,
+    showDateDividers,
     sortMetric,
     lyricsFilterMode,
 }: IdeaListItemProps) {
@@ -168,7 +171,15 @@ export function IdeaListItem({
     const isSelected = useStore((s) => s.selectedListIdeaIds.includes(item.id));
     const showSelectionIndicator = listSelectionMode;
     const compact = listDensity === "compact";
-    const footerDateLabel = sortMetric === "updated" ? updatedAtLabel : createdAtLabel;
+    const sortTs = sortMetric === "updated" ? getIdeaUpdatedAt(item) : getIdeaCreatedAt(item);
+    // One cohesive relative date; when the timeline is grouped it dovetails with
+    // the section divider (never echoing it) instead of repeating the day.
+    const dateLabel = formatClipDate(sortTs, showDateDividers ? getDateBucketLabel(sortTs) : undefined);
+    // When the title is still the auto timestamp "plug", the date IS the identity:
+    // show it as the headline and skip the footer date so the date appears once.
+    const titleIsPlug = isDefaultIdeaTitle(item.title, item.createdAt);
+    const displayTitle = titleIsPlug ? dateLabel : item.title;
+    const showFooterDate = !titleIsPlug;
     const compactProjectProgressLabel = projectProgressPct !== null && compact && sortMetric === "progress"
         ? `${projectProgressPct}%`
         : null;
@@ -397,7 +408,7 @@ export function IdeaListItem({
                                 }
                                 beginSelection();
                             }}
-                            title={item.title}
+                            title={displayTitle}
                             titleSemiBold={item.kind === "project"}
                             searchNeedle={searchNeedle}
                             trailing={
@@ -444,7 +455,7 @@ export function IdeaListItem({
                                 </>
                             }
                             searchTagsContent={searchTagsBlock}
-                            footerDate={!compact ? footerDateLabel : undefined}
+                            footerDate={showFooterDate ? dateLabel : undefined}
                             footerRightContent={
                                 compact && item.kind === "project"
                                     ? renderCompactProjectRightMeta()
