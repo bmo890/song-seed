@@ -11,8 +11,7 @@ import { compareIdeas, getIdeaCreatedAt, getIdeaSortState, getIdeaSortTimestamp,
 import { goBackFromParentStack, openCollectionInBrowse, openWorkspaceBrowseRoot } from "../../../navigation";
 import { getFloatingActionDockBottomOffset, getFloatingActionDockScrollPastClearance } from "../../common/FloatingActionDock";
 import { getPlayableClipForIdea } from "../../../clipPresentation";
-import type { IdeaListEntry, IdeaListItemMeta } from "../types";
-import type { AppBreadcrumbItem } from "../../common/AppBreadcrumbs";
+import type { AppBreadcrumbItem, IdeaListEntry, IdeaListItemMeta } from "../types";
 import { stickyDayStore } from "../stickyDayStore";
 import type { SongIdea } from "../../../types";
 
@@ -474,6 +473,18 @@ export function useCollectionScreenModel() {
             }
           }
         : undefined,
+    // Root of the collection screen shows the hamburger — walk up to the drawer
+    // navigator and open it (same pattern as the other drawer-root screens).
+    openDrawer: () => {
+      let nav: any = navigation;
+      while (nav) {
+        if (typeof nav.openDrawer === "function") {
+          nav.openDrawer();
+          return;
+        }
+        nav = nav.getParent?.();
+      }
+    },
     markRecentlyAdded,
   };
 }

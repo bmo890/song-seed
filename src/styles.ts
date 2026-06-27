@@ -107,7 +107,7 @@ export const styles = StyleSheet.create({
   },
   songDetailNavTextAction: {
     minHeight: 30,
-    borderRadius: 15,
+    borderRadius: radii.round,
     paddingHorizontal: 10,
     alignItems: "center",
     justifyContent: "center",
@@ -267,7 +267,7 @@ export const styles = StyleSheet.create({
   },
   ideasFilterChip: {
     minHeight: 32,
-    borderRadius: 16,
+    borderRadius: radii.round,
     paddingHorizontal: 12,
     paddingVertical: 6,
     backgroundColor: "#F4F1ED",
@@ -323,7 +323,7 @@ export const styles = StyleSheet.create({
     alignItems: "center",
     gap: 6,
     minHeight: 34,
-    borderRadius: 17,
+    borderRadius: radii.round,
     borderWidth: 1,
     borderColor: "rgba(215,194,189,0.5)",
     backgroundColor: "#FDFBF7",
@@ -385,7 +385,7 @@ export const styles = StyleSheet.create({
   ideasUtilityIconChip: {
     width: 34,
     height: 34,
-    borderRadius: 17,
+    borderRadius: radii.round,
     borderWidth: 1,
     borderColor: "rgba(215,194,189,0.5)",
     backgroundColor: "#FDFBF7",
@@ -395,7 +395,7 @@ export const styles = StyleSheet.create({
   ideasUtilityIconDanger: {
     width: 34,
     height: 34,
-    borderRadius: 17,
+    borderRadius: radii.round,
     borderWidth: 1,
     borderColor: "rgba(184,50,50,0.2)",
     backgroundColor: "rgba(184,50,50,0.05)",
@@ -405,7 +405,7 @@ export const styles = StyleSheet.create({
   ideasUtilityClearIconBtn: {
     width: 20,
     height: 20,
-    borderRadius: 10,
+    borderRadius: radii.round,
     borderWidth: 1,
     borderColor: "rgba(215,194,189,0.5)",
     backgroundColor: "#F4F1ED",
@@ -508,7 +508,7 @@ export const styles = StyleSheet.create({
   },
   ideasStageChip: {
     minHeight: 30,
-    borderRadius: 15,
+    borderRadius: radii.round,
     borderWidth: 1,
     borderColor: "rgba(215,194,189,0.5)",
     backgroundColor: "#FDFBF7",
@@ -553,7 +553,7 @@ export const styles = StyleSheet.create({
   ideasSwitchThumb: {
     width: 20,
     height: 20,
-    borderRadius: 10,
+    borderRadius: radii.round,
     backgroundColor: "#ffffff",
     alignSelf: "flex-start",
   },
@@ -575,7 +575,7 @@ export const styles = StyleSheet.create({
   },
   ideasSortDirectionChip: {
     minHeight: 30,
-    borderRadius: 15,
+    borderRadius: radii.round,
     borderWidth: 1,
     borderColor: "rgba(215,194,189,0.5)",
     backgroundColor: "#FDFBF7",
@@ -623,7 +623,7 @@ export const styles = StyleSheet.create({
   hamburgerBtn: {
     width: 38,
     height: 38,
-    borderRadius: 19,
+    borderRadius: radii.round,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "#fff",
@@ -962,7 +962,7 @@ export const styles = StyleSheet.create({
   },
   songDetailMetaActionChip: {
     minHeight: 26,
-    borderRadius: 13,
+    borderRadius: radii.round,
     borderWidth: 1,
     borderColor: "rgba(215,194,189,0.5)",
     backgroundColor: "#F4F1ED",
@@ -1178,7 +1178,7 @@ export const styles = StyleSheet.create({
   songDetailMiniCardButton: {
     minHeight: 30,
     paddingHorizontal: 12,
-    borderRadius: 10,
+    borderRadius: radii.round,
   },
   songDetailMiniCardButtonText: {
     fontSize: 12,
@@ -1311,7 +1311,7 @@ export const styles = StyleSheet.create({
     minHeight: 32,
     paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: 9,
+    borderRadius: radii.round,
   },
   lyricsActionBtnText: {
     fontSize: 11,
@@ -1338,7 +1338,7 @@ export const styles = StyleSheet.create({
   lyricsVersionToggleBtn: {
     width: 36,
     height: 36,
-    borderRadius: 18,
+    borderRadius: radii.round,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "#F4F1ED",
@@ -1386,7 +1386,7 @@ export const styles = StyleSheet.create({
   playerLyricsToggleBtn: {
     width: 34,
     height: 34,
-    borderRadius: 17,
+    borderRadius: radii.round,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "#F4F1ED",
@@ -1459,7 +1459,7 @@ export const styles = StyleSheet.create({
   },
   recordingLyricsSpeedChip: {
     minHeight: 28,
-    borderRadius: 14,
+    borderRadius: radii.round,
     borderWidth: 1,
     borderColor: "#E8E4DF",
     paddingHorizontal: 10,
@@ -1492,7 +1492,7 @@ export const styles = StyleSheet.create({
     minHeight: 32,
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 10,
+    borderRadius: radii.round,
     backgroundColor: "#10b981",
     alignItems: "center",
     justifyContent: "center",
@@ -1726,7 +1726,7 @@ export const styles = StyleSheet.create({
   },
   songDetailTimelineMetricChip: {
     minHeight: 28,
-    borderRadius: 14,
+    borderRadius: radii.round,
     borderWidth: 1,
     borderColor: "#E8E4DF",
     backgroundColor: "#ffffff",
@@ -1749,7 +1749,7 @@ export const styles = StyleSheet.create({
   },
   songDetailTimelineDirectionChip: {
     minHeight: 28,
-    borderRadius: 14,
+    borderRadius: radii.round,
     borderWidth: 1,
     borderColor: "#E8E4DF",
     backgroundColor: "#ffffff",
@@ -1773,7 +1773,7 @@ export const styles = StyleSheet.create({
     minHeight: 34,
     paddingHorizontal: 12,
     paddingVertical: 5,
-    borderRadius: 10,
+    borderRadius: radii.round,
   },
   songDetailVersionCard: {
     borderRadius: 12,
@@ -1846,7 +1846,7 @@ export const styles = StyleSheet.create({
   },
   songDetailVersionRepliesToggle: {
     minHeight: 22,
-    borderRadius: 11,
+    borderRadius: radii.round,
     borderWidth: 1,
     borderColor: "rgba(215,194,189,0.5)",
     backgroundColor: "#F4F1ED",
@@ -1892,7 +1892,7 @@ export const styles = StyleSheet.create({
   songDetailVersionReplyBtn: {
     width: 26,
     height: 26,
-    borderRadius: 13,
+    borderRadius: radii.round,
     borderWidth: 1,
     borderColor: "rgba(215,194,189,0.5)",
     backgroundColor: "#F4F1ED",
@@ -1907,7 +1907,7 @@ export const styles = StyleSheet.create({
   songDetailVersionHistoryBtn: {
     width: 26,
     height: 26,
-    borderRadius: 13,
+    borderRadius: radii.round,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -1954,7 +1954,7 @@ export const styles = StyleSheet.create({
   clipCardAddTagBtn: {
     width: 18,
     height: 18,
-    borderRadius: 9,
+    borderRadius: radii.round,
     borderWidth: 1,
     borderColor: "#E8E4DF",
     borderStyle: "dashed",
@@ -2213,7 +2213,7 @@ export const styles = StyleSheet.create({
     alignItems: "center",
     gap: 5,
     minHeight: 34,
-    borderRadius: 17,
+    borderRadius: radii.round,
     borderWidth: 1,
     borderColor: "rgba(215,194,189,0.5)",
     backgroundColor: "#FDFBF7",
@@ -2251,7 +2251,7 @@ export const styles = StyleSheet.create({
   songDetailEvolutionMoreButton: {
     minHeight: 26,
     alignSelf: "flex-start",
-    borderRadius: 13,
+    borderRadius: radii.round,
     borderWidth: 1,
     borderColor: "#E8E4DF",
     backgroundColor: "#FDFBF7",
@@ -2534,7 +2534,7 @@ export const styles = StyleSheet.create({
   circleControlBtn: {
     width: 48,
     height: 48,
-    borderRadius: 24,
+    borderRadius: radii.round,
     backgroundColor: "#F4F1ED",
     alignItems: "center",
     justifyContent: "center",
@@ -2542,7 +2542,7 @@ export const styles = StyleSheet.create({
   circleControlBtnCompact: {
     width: 54,
     height: 54,
-    borderRadius: 27,
+    borderRadius: radii.round,
   },
   circleControlBtnDisabled: {
     opacity: 0.5,
@@ -2550,7 +2550,7 @@ export const styles = StyleSheet.create({
   circleRecordBtn: {
     width: 96,
     height: 96,
-    borderRadius: 48,
+    borderRadius: radii.round,
     backgroundColor: "#B5483A",
     borderWidth: 8,
     borderColor: "#EDE9E4",
@@ -2565,7 +2565,7 @@ export const styles = StyleSheet.create({
   circleRecordBtnCompact: {
     width: 74,
     height: 74,
-    borderRadius: 37,
+    borderRadius: radii.round,
   },
   circleRecordBtnActive: {
     borderColor: "#D7C2BD",
@@ -2577,20 +2577,24 @@ export const styles = StyleSheet.create({
     opacity: 0.72,
   },
   backBtn: {
-    borderWidth: 1,
-    borderColor: "#D7C2BD",
-    backgroundColor: "#fff",
-    borderRadius: 10,
-    minHeight: 36,
-    minWidth: 36,
-    paddingHorizontal: 10,
+    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
+    minHeight: 36,
+    paddingHorizontal: 14,
+    borderRadius: radii.round,
+    borderWidth: 0.5,
+    borderColor: colors.borderSubtle,
+    backgroundColor: colors.surface,
   },
-  backBtnText: { color: "#524440", fontWeight: "600" },
+  backBtnText: {
+    fontFamily: "PlusJakartaSans_600SemiBold",
+    fontSize: 14,
+    color: colors.textStrong,
+  },
   ideasHeaderSelectBtn: {
     minHeight: 32,
-    borderRadius: 16,
+    borderRadius: radii.round,
     borderWidth: 1,
     borderColor: "#E8E4DF",
     backgroundColor: "#ffffff",
@@ -2618,7 +2622,7 @@ export const styles = StyleSheet.create({
   ideasHeaderMenuBtn: {
     width: 32,
     height: 32,
-    borderRadius: 16,
+    borderRadius: radii.round,
     borderWidth: 1,
     borderColor: "rgba(215,194,189,0.5)",
     backgroundColor: "#F4F1ED",
@@ -2755,7 +2759,7 @@ export const styles = StyleSheet.create({
   collectionInlineActionBtn: {
     width: 28,
     height: 28,
-    borderRadius: 14,
+    borderRadius: radii.round,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "#FDFBF7",
@@ -2858,7 +2862,7 @@ export const styles = StyleSheet.create({
   },
   activityFilterChip: {
     minHeight: 34,
-    borderRadius: 17,
+    borderRadius: radii.round,
     borderWidth: 1,
     borderColor: "#E8E4DF",
     backgroundColor: "#ffffff",
@@ -3501,7 +3505,7 @@ export const styles = StyleSheet.create({
   ideasDayDividerActionBtn: {
     width: 20,
     height: 20,
-    borderRadius: 10,
+    borderRadius: radii.round,
     borderWidth: 1,
     borderColor: "rgba(215,194,189,0.5)",
     backgroundColor: "#FDFBF7",
@@ -3554,7 +3558,7 @@ export const styles = StyleSheet.create({
   transportHeaderActionBtn: {
     width: 36,
     height: 36,
-    borderRadius: 18,
+    borderRadius: radii.round,
     borderWidth: 1,
     borderColor: "#E8E4DF",
     backgroundColor: "#ffffff",
@@ -3915,7 +3919,7 @@ export const styles = StyleSheet.create({
   settingsWorkspaceExpandBtn: {
     width: 34,
     height: 34,
-    borderRadius: 17,
+    borderRadius: radii.round,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "#FDFBF7",
@@ -3990,7 +3994,7 @@ export const styles = StyleSheet.create({
   settingsToggleThumb: {
     width: 20,
     height: 20,
-    borderRadius: 10,
+    borderRadius: radii.round,
     backgroundColor: "#ffffff",
   },
   settingsToggleThumbActive: {
@@ -4192,7 +4196,7 @@ export const styles = StyleSheet.create({
   workspacePrimaryButton: {
     width: 28,
     height: 28,
-    borderRadius: 14,
+    borderRadius: radii.round,
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
@@ -4244,7 +4248,7 @@ export const styles = StyleSheet.create({
   recordingInputRefreshBtn: {
     width: 34,
     height: 34,
-    borderRadius: 17,
+    borderRadius: radii.round,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "#F4F1ED",
@@ -4449,7 +4453,7 @@ export const styles = StyleSheet.create({
   ideasNowPlayingBtn: {
     width: 30,
     height: 30,
-    borderRadius: 15,
+    borderRadius: radii.round,
     borderWidth: 1,
     borderColor: "#E8E4DF",
     backgroundColor: "#FDFBF7",
@@ -4509,7 +4513,7 @@ export const styles = StyleSheet.create({
   },
   ideasUndoBtn: {
     minHeight: 28,
-    borderRadius: 14,
+    borderRadius: radii.round,
     borderWidth: 1,
     borderColor: "#a89994",
     backgroundColor: "#524440",
@@ -4568,7 +4572,7 @@ export const styles = StyleSheet.create({
   globalInlineDockCloseBtn: {
     width: 26,
     height: 26,
-    borderRadius: 13,
+    borderRadius: radii.round,
     borderWidth: 1,
     borderColor: "#E8E4DF",
     backgroundColor: "#FDFBF7",
@@ -4664,7 +4668,7 @@ export const styles = StyleSheet.create({
   miniMediaDockPlayBtn: {
     width: 40,
     height: 40,
-    borderRadius: 20,
+    borderRadius: radii.round,
     backgroundColor: "#824f3f",
     alignItems: "center",
     justifyContent: "center",
@@ -4701,7 +4705,7 @@ export const styles = StyleSheet.create({
   miniMediaDockCompactPlayBtn: {
     width: 32,
     height: 32,
-    borderRadius: 16,
+    borderRadius: radii.round,
     backgroundColor: "#824f3f",
     alignItems: "center",
     justifyContent: "center",
@@ -4755,7 +4759,7 @@ export const styles = StyleSheet.create({
   miniMediaDockRecordingBtn: {
     width: 40,
     height: 40,
-    borderRadius: 20,
+    borderRadius: radii.round,
     borderWidth: 1,
     borderColor: "#fecaca",
     backgroundColor: "#fff1f2",
@@ -4795,7 +4799,7 @@ export const styles = StyleSheet.create({
     alignItems: "center",
     gap: 8,
     minHeight: 38,
-    borderRadius: 19,
+    borderRadius: radii.round,
     backgroundColor: "#ffffff",
     borderWidth: 1,
     borderColor: "#E8E4DF",
@@ -4819,7 +4823,7 @@ export const styles = StyleSheet.create({
   ideasCreateFab: {
     width: 46,
     height: 46,
-    borderRadius: 23,
+    borderRadius: radii.round,
     backgroundColor: "#ffffff",
     borderWidth: 1,
     borderColor: "#E8E4DF",
@@ -4833,7 +4837,7 @@ export const styles = StyleSheet.create({
   ideasRecordFab: {
     width: 62,
     height: 62,
-    borderRadius: 31,
+    borderRadius: radii.round,
     backgroundColor: "#d92d20",
     alignItems: "center",
     justifyContent: "center",
@@ -5101,7 +5105,7 @@ export const styles = StyleSheet.create({
   },
   ideasSelectionHeaderBtn: {
     minHeight: 30,
-    borderRadius: 15,
+    borderRadius: radii.round,
     paddingHorizontal: 10,
     paddingVertical: 4,
     backgroundColor: "#F4F1ED",
@@ -5122,7 +5126,7 @@ export const styles = StyleSheet.create({
     alignItems: "center",
     gap: 6,
     minHeight: 36,
-    borderRadius: 18,
+    borderRadius: radii.round,
     paddingHorizontal: 12,
     paddingVertical: 6,
     backgroundColor: "#FDFBF7",
@@ -5139,7 +5143,7 @@ export const styles = StyleSheet.create({
     alignItems: "center",
     gap: 6,
     minHeight: 36,
-    borderRadius: 18,
+    borderRadius: radii.round,
     paddingHorizontal: 12,
     paddingVertical: 6,
     backgroundColor: "#fef2f2",
@@ -5337,7 +5341,7 @@ export const styles = StyleSheet.create({
     gap: 4,
     paddingHorizontal: 9,
     paddingVertical: 4,
-    borderRadius: 10,
+    borderRadius: radii.round,
     backgroundColor: "#F4F1ED",
     borderWidth: 1,
     borderColor: "rgba(215,194,189,0.5)",
@@ -5467,7 +5471,7 @@ export const styles = StyleSheet.create({
   ideasInlineCloseBtn: {
     width: 26,
     height: 26,
-    borderRadius: 13,
+    borderRadius: radii.round,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "#F4F1ED",
@@ -5737,7 +5741,7 @@ export const styles = StyleSheet.create({
   ideasInlinePlayBtn: {
     width: 38,
     height: 38,
-    borderRadius: 19,
+    borderRadius: radii.round,
     borderWidth: 1,
     borderColor: "rgba(215,194,189,0.5)",
     alignItems: "center",
@@ -5747,7 +5751,7 @@ export const styles = StyleSheet.create({
   ideasInlinePlayBtnCompact: {
     width: 34,
     height: 34,
-    borderRadius: 17,
+    borderRadius: radii.round,
   },
   ideasListNowPlayingTrack: {
     position: "absolute",
@@ -5816,7 +5820,7 @@ export const styles = StyleSheet.create({
   inlinePlayBtn: {
     width: 34,
     height: 34,
-    borderRadius: 17,
+    borderRadius: radii.round,
     borderWidth: 1,
     borderColor: "#D7C2BD",
     alignItems: "center",

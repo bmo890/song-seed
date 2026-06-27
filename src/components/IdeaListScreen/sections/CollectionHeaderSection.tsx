@@ -53,8 +53,10 @@ export function CollectionHeaderSection() {
     <View style={collStyles.navRow}>
       <Pressable
         style={({ pressed }) => [collStyles.navBtn, pressed ? styles.pressDown : null]}
-        onPress={screen.onBack}
+        onPress={screen.showBack ? screen.onBack : screen.openDrawer}
         hitSlop={8}
+        accessibilityRole="button"
+        accessibilityLabel={screen.showBack ? "Back" : "Open menu"}
       >
         {screen.showBack ? (
           <Ionicons name="chevron-back" size={20} color="#84736f" />
