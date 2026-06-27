@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { styles as appStyles } from "../../styles";
+import { colors, radii, spacing } from "../../design/tokens";
 import { LyricsAutoscrollState, LyricsLine } from "../../types";
 import { ChordChartLines } from "../LyricsVersionScreen/components/chords/ChordChart";
 
@@ -245,45 +246,39 @@ function PlayerLyricsPanelInner({
     );
   }
 
+  // Player variant: the lyrics are the reading hero. No card-in-card — when
+  // expanded they flow directly on the page (carried by the screen's own
+  // scroll), so a long lyric gets real room instead of a cramped inner box.
   return (
     <View style={styles.panel}>
-      <View style={styles.header}>
+      <Pressable style={styles.header} onPress={handleToggle} hitSlop={6}>
         <View style={styles.headerText}>
-          <Text style={styles.title}>Lyrics</Text>
+          <Text style={styles.kicker}>Lyrics</Text>
           <Text style={styles.meta}>
-            {versionLabel} • {updatedAtLabel}
+            {versionLabel} · {updatedAtLabel}
           </Text>
           {!isExpanded && previewText ? (
             <Text style={styles.summary} numberOfLines={2}>
               {previewText}
             </Text>
           ) : null}
-          {isExpanded && autoscrollLabel && autoscrollState?.mode !== "off" ? (
-            <Text style={styles.autoscrollMeta}>{autoscrollLabel}</Text>
-          ) : null}
         </View>
-        <Pressable style={styles.toggle} onPress={handleToggle} hitSlop={6}>
-          <Ionicons name={isExpanded ? "chevron-up" : "chevron-down"} size={18} color="#4b5563" />
-        </Pressable>
-      </View>
+        <View style={styles.toggle}>
+          <Ionicons
+            name={isExpanded ? "chevron-up" : "chevron-down"}
+            size={18}
+            color={colors.textSecondary}
+          />
+        </View>
+      </Pressable>
 
       {isExpanded ? (
         <View style={styles.body}>
-          <ScrollView
-            ref={scrollRef}
-            style={styles.scroll}
-            onLayout={handleLyricsLayout}
-            onContentSizeChange={(_, height) => setContentHeight(height)}
-            onScroll={handleLyricsScroll}
-            showsVerticalScrollIndicator={false}
-            scrollEventThrottle={16}
-          >
-            {showChart ? (
-              <ChordChartLines lines={chordLines!} editable={false} />
-            ) : (
-              <Text style={styles.text}>{text}</Text>
-            )}
-          </ScrollView>
+          {showChart ? (
+            <ChordChartLines lines={chordLines!} editable={false} />
+          ) : (
+            <Text style={styles.text}>{text}</Text>
+          )}
         </View>
       ) : null}
     </View>
@@ -294,70 +289,56 @@ export const PlayerLyricsPanel = React.memo(PlayerLyricsPanelInner);
 
 const styles = StyleSheet.create({
   panel: {
-    backgroundColor: "#f6f7f9",
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: "#e3e6eb",
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    gap: 8,
+    gap: spacing.sm,
   },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "flex-start",
-    gap: 10,
+    gap: spacing.sm,
+    paddingVertical: spacing.xs,
   },
   headerText: {
     flex: 1,
     gap: 3,
   },
-  title: {
-    fontSize: 16,
-    lineHeight: 20,
-    fontWeight: "700",
-    color: "#111827",
+  kicker: {
+    fontFamily: "PlusJakartaSans_700Bold",
+    fontSize: 11,
+    letterSpacing: 1.2,
+    textTransform: "uppercase",
+    color: colors.textSecondary,
   },
   meta: {
+    fontFamily: "PlusJakartaSans_400Regular",
     fontSize: 12,
     lineHeight: 16,
-    color: "#6b7280",
+    color: colors.textMuted,
   },
   summary: {
-    fontSize: 14,
-    lineHeight: 20,
-    color: "#374151",
-  },
-  autoscrollMeta: {
-    fontSize: 11,
-    lineHeight: 14,
-    fontWeight: "600",
-    color: "#40658c",
+    fontFamily: "PlayfairDisplay_400Regular",
+    fontSize: 16,
+    lineHeight: 24,
+    color: colors.textSecondary,
+    marginTop: 2,
   },
   toggle: {
     width: 30,
     height: 30,
-    borderRadius: 15,
+    borderRadius: radii.round,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#ffffff",
-    borderWidth: 1,
-    borderColor: "#dde3ea",
+    backgroundColor: colors.surfaceContainer,
   },
   body: {
-    borderRadius: 16,
-    backgroundColor: "#ffffff",
-    borderWidth: 1,
-    borderColor: "#e3e6eb",
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-  },
-  scroll: {
-    maxHeight: 176,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.borderSubtle,
+    paddingTop: spacing.md,
   },
   text: {
-    fontSize: 16,
-    lineHeight: 26,
-    color: "#111827",
+    fontFamily: "PlayfairDisplay_400Regular",
+    fontSize: 18,
+    lineHeight: 30,
+    color: colors.textPrimary,
   },
 });

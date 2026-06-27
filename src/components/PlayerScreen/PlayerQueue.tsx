@@ -1,5 +1,6 @@
 import React from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { colors, radii } from "../../design/tokens";
 
 type QueueEntry = {
   ideaId: string;
@@ -33,7 +34,7 @@ function PlayerQueueInner({ entries, currentClipId, onSelect, compact = false }:
               ]}
               onPress={() => onSelect(index)}
             >
-              <Text style={styles.index}>{index + 1}</Text>
+              <Text style={[styles.index, isActive ? styles.indexActive : null]}>{index + 1}</Text>
               <View style={styles.itemText}>
                 <Text style={[styles.title, compact ? styles.titleCompact : null]} numberOfLines={1}>
                   {entry.title}
@@ -62,42 +63,43 @@ const styles = StyleSheet.create({
     gap: 10,
     paddingHorizontal: 12,
     paddingVertical: 10,
-    borderRadius: 14,
-    backgroundColor: "#ffffff",
-    borderWidth: 1,
-    borderColor: "#e2e6ec",
+    borderRadius: radii.sm,
+    backgroundColor: colors.surfaceContainer,
   },
   itemActive: {
-    backgroundColor: "#e8f1fb",
-    borderColor: "#b5cde7",
+    backgroundColor: colors.surfaceHigh,
   },
   itemPressed: {
     opacity: 0.86,
   },
   index: {
     width: 20,
+    fontFamily: "PlusJakartaSans_700Bold",
     fontSize: 12,
     lineHeight: 16,
-    fontWeight: "700",
-    color: "#6b7280",
+    color: colors.textMuted,
     textAlign: "center",
+  },
+  indexActive: {
+    color: colors.primary,
   },
   itemText: {
     flex: 1,
     gap: 2,
   },
   title: {
+    fontFamily: "PlusJakartaSans_600SemiBold",
     fontSize: 15,
     lineHeight: 18,
-    fontWeight: "600",
-    color: "#111827",
+    color: colors.textPrimary,
   },
   titleCompact: {
     fontSize: 14,
   },
   subtitle: {
+    fontFamily: "PlusJakartaSans_400Regular",
     fontSize: 12,
     lineHeight: 16,
-    color: "#64748b",
+    color: colors.textSecondary,
   },
 });
