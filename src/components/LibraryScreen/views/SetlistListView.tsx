@@ -1,4 +1,5 @@
 import { Pressable, ScrollView, Text, View } from "react-native";
+import { colors } from "../../../design/tokens";
 import { Ionicons } from "@expo/vector-icons";
 import { Button } from "../../common/Button";
 import { styles } from "../styles";
@@ -32,10 +33,10 @@ export function SetlistListView({
           >
             <View style={styles.cardTop}>
               <View style={styles.cardTitleRow}>
-                <Ionicons name="albums-outline" size={18} color="#0f172a" />
+                <Ionicons name="albums-outline" size={18} color={colors.textPrimary} />
                 <Text style={styles.cardTitle}>{setlist.title}</Text>
               </View>
-              <Ionicons name="chevron-forward" size={16} color="#94a3b8" />
+              <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
             </View>
             <Text style={styles.cardMeta}>
               {setlist.entries.length} {setlist.entries.length === 1 ? "song" : "songs"}

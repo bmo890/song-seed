@@ -1,4 +1,5 @@
 import { Pressable, ScrollView, Text, View } from "react-native";
+import { colors } from "../../../design/tokens";
 import { Ionicons } from "@expo/vector-icons";
 import { SelectionActionSheet } from "../../common/SelectionActionSheet";
 import { SelectionDock } from "../../common/SelectionDock";
@@ -87,7 +88,7 @@ export function PlaylistPickerView({
                 })
               }
             >
-              <Ionicons name="arrow-back" size={14} color="#64748b" />
+              <Ionicons name="arrow-back" size={14} color={colors.textSecondary} />
               <Text style={styles.libraryPickerBackText}>Choose another workspace</Text>
             </Pressable>
 
@@ -112,7 +113,7 @@ export function PlaylistPickerView({
                     />
                     <Text style={styles.cardTitle}>{entry.collection.title}</Text>
                   </View>
-                  <Ionicons name="chevron-forward" size={16} color="#94a3b8" />
+                  <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
                 </View>
                 <Text style={styles.cardMeta}>
                   {entry.itemCount} {entry.itemCount === 1 ? "item" : "items"}
@@ -143,7 +144,7 @@ export function PlaylistPickerView({
                 })
               }
             >
-              <Ionicons name="arrow-back" size={14} color="#64748b" />
+              <Ionicons name="arrow-back" size={14} color={colors.textSecondary} />
               <Text style={styles.libraryPickerBackText}>{model.workspace.title}</Text>
             </Pressable>
 
@@ -171,7 +172,7 @@ export function PlaylistPickerView({
                         />
                         <Text style={styles.cardTitle}>{child.title}</Text>
                       </View>
-                      <Ionicons name="chevron-forward" size={16} color="#94a3b8" />
+                      <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
                     </View>
                     <Text style={styles.cardMeta}>{model.workspace!.title}</Text>
                   </Pressable>
@@ -197,7 +198,7 @@ export function PlaylistPickerView({
                       <Ionicons
                         name={selected ? "checkmark-circle" : "ellipse-outline"}
                         size={18}
-                        color={selected ? "#0f172a" : "#94a3b8"}
+                        color={selected ? colors.textPrimary : colors.textMuted}
                       />
                       <View style={styles.libraryPickerItemCopy}>
                         <Text style={styles.cardTitle}>{idea.title}</Text>
@@ -219,7 +220,7 @@ export function PlaylistPickerView({
                           })
                         }
                       >
-                        <Ionicons name="chevron-forward" size={15} color="#64748b" />
+                        <Ionicons name="chevron-forward" size={15} color={colors.textSecondary} />
                       </Pressable>
                     ) : null}
                   </View>
@@ -249,7 +250,7 @@ export function PlaylistPickerView({
                 })
               }
             >
-              <Ionicons name="arrow-back" size={14} color="#64748b" />
+              <Ionicons name="arrow-back" size={14} color={colors.textSecondary} />
               <Text style={styles.libraryPickerBackText}>{model.selectedSongIdea.title}</Text>
             </Pressable>
 
@@ -275,7 +276,7 @@ export function PlaylistPickerView({
                   <Ionicons
                     name={selected ? "checkmark-circle" : "ellipse-outline"}
                     size={18}
-                    color={selected ? "#0f172a" : "#94a3b8"}
+                    color={selected ? colors.textPrimary : colors.textMuted}
                   />
                   <View style={styles.libraryPickerItemCopy}>
                     <Text style={styles.cardTitle}>{clip.title}</Text>

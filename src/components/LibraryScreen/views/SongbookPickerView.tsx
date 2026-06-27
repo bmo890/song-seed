@@ -47,12 +47,12 @@ export function SongbookPickerView({
                 >
                   <View style={styles.cardTop}>
                     <View style={styles.cardTitleRow}>
-                      <Ionicons name="musical-notes-outline" size={16} color="#0f172a" />
+                      <Ionicons name="musical-notes-outline" size={16} color={colors.textPrimary} />
                       <Text style={styles.cardTitle} numberOfLines={1}>
                         {song.title}
                       </Text>
                     </View>
-                    <Ionicons name="chevron-forward" size={16} color="#94a3b8" />
+                    <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
                   </View>
                 </Pressable>
               ))}
@@ -93,14 +93,14 @@ export function SongbookPickerView({
                     <Ionicons
                       name={chart.choice.kind === "chordChart" ? "grid-outline" : "document-text-outline"}
                       size={16}
-                      color="#0f172a"
+                      color={colors.textPrimary}
                     />
                     <Text style={styles.cardTitle}>{chart.label}</Text>
                   </View>
                   <Ionicons
                     name={checked ? "checkmark-circle" : "ellipse-outline"}
                     size={20}
-                    color={checked ? colors.primary : "#cbd5e1"}
+                    color={checked ? colors.primary : colors.borderMuted}
                   />
                 </View>
               </Pressable>

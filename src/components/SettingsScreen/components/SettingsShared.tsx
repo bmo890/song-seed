@@ -1,4 +1,5 @@
 import type { ComponentProps, ReactNode } from "react";
+import { colors } from "../../../design/tokens";
 import { Pressable, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import type { Collection, Workspace } from "../../../types";
@@ -75,7 +76,7 @@ export function AccordionSection({
           <Text style={styles.settingsAccordionTitle}>{title}</Text>
           <Text style={styles.settingsAccordionHint}>{hint}</Text>
         </View>
-        <Ionicons name={open ? "chevron-up" : "chevron-down"} size={16} color="#64748b" />
+        <Ionicons name={open ? "chevron-up" : "chevron-down"} size={16} color={colors.textSecondary} />
       </Pressable>
 
       {open ? <View style={styles.settingsAccordionBody}>{children}</View> : null}
@@ -219,7 +220,7 @@ export function WorkspaceScopeRow({
         style={({ pressed }) => [styles.settingsWorkspaceExpandBtn, pressed ? styles.pressDown : null]}
         onPress={onToggleExpanded}
       >
-        <Ionicons name={expanded ? "chevron-up" : "chevron-down"} size={16} color="#64748b" />
+        <Ionicons name={expanded ? "chevron-up" : "chevron-down"} size={16} color={colors.textSecondary} />
       </Pressable>
     </View>
   );
@@ -298,12 +299,12 @@ export function SelectionMark({ state }: { state: CollectionSelectionState }) {
           : "ellipse-outline";
   const color =
     state === "selected"
-      ? "#0f172a"
+      ? colors.textPrimary
       : state === "excluded"
         ? "#b91c1c"
         : state === "inherited"
-          ? "#64748b"
-          : "#94a3b8";
+          ? colors.textSecondary
+          : colors.textMuted;
 
   return <Ionicons name={iconName} size={18} color={color} />;
 }

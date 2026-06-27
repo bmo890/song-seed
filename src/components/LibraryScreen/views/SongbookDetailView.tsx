@@ -44,7 +44,7 @@ export function SongbookDetailView({
                 <Ionicons
                   name={item.metaLabel === "CHORDS" ? "grid-outline" : "document-text-outline"}
                   size={18}
-                  color={item.available ? "#0f172a" : "#9ca3af"}
+                  color={item.available ? colors.textPrimary : colors.textMuted}
                 />
                 <View style={{ flex: 1, minWidth: 0 }}>
                   <Text style={styles.cardTitle} numberOfLines={1}>

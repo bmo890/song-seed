@@ -1,4 +1,5 @@
 import React from "react";
+import { colors } from "../../design/tokens";
 import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { Button } from "../common/Button";
@@ -79,7 +80,7 @@ export function EditorTransformExportModal({
             <Feather
               name={removeOriginalAfterExport ? "check-square" : "square"}
               size={18}
-              color={removeOriginalAfterExport ? "#2563eb" : "#9ca3af"}
+              color={removeOriginalAfterExport ? colors.primary : colors.textMuted}
             />
             <Text style={transformModalStyles.checkboxLabel}>
               Delete the original clip after saving
@@ -113,9 +114,9 @@ const transformModalStyles = StyleSheet.create({
   },
   summaryCard: {
     borderWidth: 1,
-    borderColor: "#e5e7eb",
+    borderColor: colors.borderSubtle,
     borderRadius: 14,
-    backgroundColor: "#f8fafc",
+    backgroundColor: colors.surface,
     padding: 14,
     gap: 10,
     marginBottom: 14,
@@ -128,12 +129,12 @@ const transformModalStyles = StyleSheet.create({
   summaryLabel: {
     fontSize: 13,
     fontWeight: "600",
-    color: "#475569",
+    color: colors.textSecondary,
   },
   summaryValue: {
     fontSize: 13,
     fontWeight: "700",
-    color: "#0f172a",
+    color: colors.textPrimary,
   },
   checkboxRow: {
     flexDirection: "row",
@@ -143,6 +144,6 @@ const transformModalStyles = StyleSheet.create({
   checkboxLabel: {
     marginLeft: 8,
     fontSize: 14,
-    color: "#4b5563",
+    color: colors.textSecondary,
   },
 });

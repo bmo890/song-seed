@@ -1,8 +1,14 @@
 import React from "react";
-import { Text, TouchableOpacity, View } from "react-native";
+import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { fmt } from "../../utils";
+import { colors, radii } from "../../design/tokens";
 import type { EditableSelection } from "./helpers";
+
+// Keep / remove stay semantic green / red so the edit intent reads at a glance
+// (matches the edit-mode tabs and trash affordances elsewhere in the editor).
+const KEEP_COLOR = "#10b981";
+const REMOVE_COLOR = "#ef4444";
 
 type EditorSelectionListProps = {
   selectedRanges: EditableSelection[];
@@ -26,49 +32,76 @@ export function EditorSelectionList({
   }
 
   return (
-    <View style={{ marginTop: 24, paddingHorizontal: 36 }}>
-      <Text style={{ fontSize: 16, fontWeight: "600", color: "#f8fafc", marginBottom: 12 }}>
-        Selected Regions ({selectedRanges.length})
-      </Text>
+    <View style={styles.wrap}>
+      <Text style={styles.heading}>Selected Regions ({selectedRanges.length})</Text>
       {selectedRanges.map((range) => (
-        <View key={range.id} style={{ flexDirection: "row", alignItems: "center", marginBottom: 8, gap: 10 }}>
+        <View key={range.id} style={styles.row}>
           <View
-            style={{
-              flex: 1,
-              flexDirection: "row",
-              justifyContent: "space-between",
-              alignItems: "center",
-              backgroundColor: "#1e293b",
-              padding: 12,
-              borderRadius: 8,
-              borderLeftWidth: 4,
-              borderLeftColor: range.type === "keep" ? "#10b981" : "#ef4444",
-            }}
+            style={[
+              styles.card,
+              { borderLeftColor: range.type === "keep" ? KEEP_COLOR : REMOVE_COLOR },
+            ]}
           >
-            <View style={{ flex: 1 }}>
-              <Text style={{ color: "#f8fafc", fontSize: 15, fontWeight: "700", marginBottom: 2 }}>
+            <View style={styles.copy}>
+              <Text style={styles.title}>
                 {range.type === "keep"
                   ? `Clip ${keepRegions.findIndex((region) => region.id === range.id) + 1}`
                   : `Delete ${removeRegions.findIndex((region) => region.id === range.id) + 1}`}
               </Text>
-              <Text style={{ color: "#cbd5e1", fontSize: 13, fontWeight: "500" }}>
+              <Text style={styles.meta}>
                 {fmt(range.start)} - {fmt(range.end)}
               </Text>
             </View>
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 16, paddingRight: 4 }}>
-              <TouchableOpacity onPress={() => onSeekRangeStart(range)} style={{ padding: 4 }}>
-                <Feather name="skip-back" size={18} color="#3b82f6" />
+            <View style={styles.actions}>
+              <TouchableOpacity onPress={() => onSeekRangeStart(range)} style={styles.iconBtn}>
+                <Feather name="skip-back" size={18} color={colors.primary} />
               </TouchableOpacity>
-              <TouchableOpacity onPress={() => onSeekRangeEnd(range)} style={{ padding: 4 }}>
-                <Feather name="skip-forward" size={18} color="#3b82f6" />
+              <TouchableOpacity onPress={() => onSeekRangeEnd(range)} style={styles.iconBtn}>
+                <Feather name="skip-forward" size={18} color={colors.primary} />
               </TouchableOpacity>
             </View>
           </View>
-          <TouchableOpacity onPress={() => onRemoveRange(range.id)} style={{ padding: 6 }}>
-            <Feather name="trash-2" size={18} color="#ef4444" />
+          <TouchableOpacity onPress={() => onRemoveRange(range.id)} style={styles.trashBtn}>
+            <Feather name="trash-2" size={18} color={REMOVE_COLOR} />
           </TouchableOpacity>
         </View>
       ))}
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  wrap: { marginTop: 24, paddingHorizontal: 36 },
+  heading: {
+    fontFamily: "PlusJakartaSans_700Bold",
+    fontSize: 16,
+    color: colors.textPrimary,
+    marginBottom: 12,
+  },
+  row: { flexDirection: "row", alignItems: "center", marginBottom: 8, gap: 10 },
+  card: {
+    flex: 1,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    backgroundColor: colors.surfaceContainer,
+    padding: 12,
+    borderRadius: radii.sm,
+    borderLeftWidth: 4,
+  },
+  copy: { flex: 1 },
+  title: {
+    fontFamily: "PlusJakartaSans_700Bold",
+    fontSize: 15,
+    color: colors.textPrimary,
+    marginBottom: 2,
+  },
+  meta: {
+    fontFamily: "PlusJakartaSans_500Medium",
+    fontSize: 13,
+    color: colors.textSecondary,
+  },
+  actions: { flexDirection: "row", alignItems: "center", gap: 16, paddingRight: 4 },
+  iconBtn: { padding: 4 },
+  trashBtn: { padding: 6 },
+});

@@ -1,4 +1,5 @@
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from "react-native";
+import { colors } from "../../../design/tokens";
 import { Ionicons } from "@expo/vector-icons";
 import { PageIntro } from "../../common/PageIntro";
 import { settingsScreenStyles, styles } from "../styles";
@@ -37,9 +38,9 @@ export function SettingsImportView({
                     </Text>
                 </View>
                 {flow.isPicking ? (
-                    <ActivityIndicator size="small" color="#64748b" />
+                    <ActivityIndicator size="small" color={colors.textSecondary} />
                 ) : (
-                    <Ionicons name="folder-open-outline" size={18} color="#64748b" />
+                    <Ionicons name="folder-open-outline" size={18} color={colors.textSecondary} />
                 )}
             </Pressable>
 
@@ -104,9 +105,9 @@ export function SettingsImportView({
                                 </Text>
                             </View>
                             {flow.isImporting ? (
-                                <ActivityIndicator size="small" color="#64748b" />
+                                <ActivityIndicator size="small" color={colors.textSecondary} />
                             ) : (
-                                <Ionicons name="download-outline" size={18} color="#64748b" />
+                                <Ionicons name="download-outline" size={18} color={colors.textSecondary} />
                             )}
                         </Pressable>
 
@@ -124,7 +125,7 @@ export function SettingsImportView({
                                     Remove this archive from the preview without importing it.
                                 </Text>
                             </View>
-                            <Ionicons name="close-outline" size={18} color="#64748b" />
+                            <Ionicons name="close-outline" size={18} color={colors.textSecondary} />
                         </Pressable>
                     </View>
                 </View>
@@ -141,7 +142,7 @@ export function SettingsImportView({
                         Return without importing an archive.
                     </Text>
                 </View>
-                <Ionicons name="chevron-back" size={18} color="#64748b" />
+                <Ionicons name="chevron-back" size={18} color={colors.textSecondary} />
             </Pressable>
         </ScrollView>
     );

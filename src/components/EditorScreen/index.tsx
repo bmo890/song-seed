@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { colors } from "../../design/tokens";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar as ExpoStatusBar } from "expo-status-bar";
 import { View, Text, ActivityIndicator, TouchableOpacity, Pressable } from "react-native";
@@ -17,7 +18,7 @@ import { Button } from "../common/Button";
 import { AudioReel } from "../common/AudioReel";
 import { MAX_DETAILED_AUDIO_ANALYSIS_DURATION_MS, loadAudioDurationMs } from "../../services/audioStorage";
 import { activatePlaybackAudioSession } from "../../services/audioSession";
-import { getCollectionAncestors, getCollectionById } from "../../utils";
+import { getCollectionById } from "../../utils";
 import { TransportLayout } from "../common/TransportLayout";
 import { useTransportScrubbing } from "../../hooks/useTransportScrubbing";
 import { useTransportClock } from "../../hooks/useTransportClock";
@@ -74,8 +75,6 @@ export function EditorScreen() {
     const sourceClipHasOverdubs = !!sourceClip && clipHasOverdubs(sourceClip);
     const targetCollection =
         targetIdea && activeWorkspace ? getCollectionById(activeWorkspace, targetIdea.collectionId) : null;
-    const targetCollectionAncestors =
-        targetCollection && activeWorkspace ? getCollectionAncestors(activeWorkspace, targetCollection.id) : [];
     const durationHintMs = routeDurationMs ?? sourceClip?.durationMs;
 
     const playerSource = useMemo(() => (audioUri ? { uri: audioUri } : null), [audioUri]);
@@ -321,12 +320,7 @@ export function EditorScreen() {
             <TransportLayout
                 header={
                     <EditorHeaderSection
-                        navigation={navigation as any}
-                        activeWorkspace={activeWorkspace}
-                        targetCollection={targetCollection}
-                        targetCollectionAncestors={targetCollectionAncestors}
                         sourceClip={sourceClip}
-                        targetIdea={targetIdea}
                         onBack={() => {
                             void previewTransport.pause();
                             navigation.goBack();
@@ -368,8 +362,8 @@ export function EditorScreen() {
                     </View>
                 ) : isLoading ? (
                     <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-                        <ActivityIndicator size="large" color="#10b981" />
-                        <Text style={{ marginTop: 10, color: "#64748b" }}>Analyzing audio...</Text>
+                        <ActivityIndicator size="large" color={colors.primary} />
+                        <Text style={{ marginTop: 10, color: colors.textSecondary }}>Analyzing audio...</Text>
                     </View>
                 ) : analysisData ? (
                     <>
@@ -452,7 +446,7 @@ export function EditorScreen() {
                         <View style={{ height: 40 }} />
                     </>
                 ) : (
-                    <Text style={{ textAlign: "center", marginTop: 40, color: "#64748b" }}>
+                    <Text style={{ textAlign: "center", marginTop: 40, color: colors.textSecondary }}>
                         No file available to edit.
                     </Text>
                 )}

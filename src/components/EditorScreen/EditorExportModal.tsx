@@ -1,4 +1,5 @@
 import React from "react";
+import { colors } from "../../design/tokens";
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Feather, Ionicons } from "@expo/vector-icons";
 import { Button } from "../common/Button";
@@ -148,7 +149,7 @@ export function EditorExportModal({
                           <Ionicons
                             name={previewActive && isPreviewPlaying ? "pause" : "play"}
                             size={14}
-                            color="#111827"
+                            color={colors.textPrimary}
                           />
                         </Pressable>
                         <View style={[styles.inlinePlayerWrap, exportModalStyles.extractMiniWrap]}>
@@ -194,9 +195,9 @@ export function EditorExportModal({
             <Feather
               name={removeOriginalAfterExport ? "check-square" : "square"}
               size={18}
-              color={removeOriginalAfterExport ? "#2563eb" : "#9ca3af"}
+              color={removeOriginalAfterExport ? colors.primary : colors.textMuted}
             />
-            <Text style={{ marginLeft: 8, fontSize: 14, color: "#4b5563" }}>
+            <Text style={{ marginLeft: 8, fontSize: 14, color: colors.textSecondary }}>
               Delete the original full recording after export
             </Text>
           </Pressable>
@@ -229,22 +230,22 @@ const exportModalStyles = StyleSheet.create({
   segmentButton: {
     flex: 1,
     borderWidth: 1,
-    borderColor: "#d1d5db",
+    borderColor: colors.borderSubtle,
     borderRadius: 10,
     paddingVertical: 10,
     alignItems: "center",
-    backgroundColor: "#f8fafc",
+    backgroundColor: colors.surface,
   },
   segmentButtonActive: {
-    backgroundColor: "#dbeafe",
-    borderColor: "#60a5fa",
+    backgroundColor: colors.surfaceHigh,
+    borderColor: colors.primary,
   },
   segmentText: {
-    color: "#475569",
+    color: colors.textSecondary,
     fontWeight: "600",
   },
   segmentTextActive: {
-    color: "#1d4ed8",
+    color: colors.primary,
   },
   extractList: {
     maxHeight: 360,
@@ -255,10 +256,10 @@ const exportModalStyles = StyleSheet.create({
   },
   extractCard: {
     borderWidth: 1,
-    borderColor: "#e5e7eb",
+    borderColor: colors.borderSubtle,
     borderRadius: 14,
     padding: 14,
-    backgroundColor: "#f8fafc",
+    backgroundColor: colors.surface,
   },
   extractCardTop: {
     flexDirection: "row",
@@ -269,12 +270,12 @@ const exportModalStyles = StyleSheet.create({
   extractCardTitle: {
     fontSize: 15,
     fontWeight: "700",
-    color: "#0f172a",
+    color: colors.textPrimary,
   },
   extractCardDuration: {
     fontSize: 13,
     fontWeight: "600",
-    color: "#64748b",
+    color: colors.textSecondary,
   },
   extractPreviewRow: {
     flexDirection: "row",

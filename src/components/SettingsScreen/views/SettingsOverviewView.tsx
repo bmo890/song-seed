@@ -1,4 +1,5 @@
 import { ActivityIndicator, Alert, Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { colors } from "../../../design/tokens";
 import { Ionicons } from "@expo/vector-icons";
 import { PageIntro } from "../../common/PageIntro";
 import { settingsScreenStyles, styles } from "../styles";
@@ -99,7 +100,7 @@ export function SettingsOverviewView({
             </Text>
             {backupFlow.lastSuccessfulBackupFileName ? (
               <Pressable onPress={() => void backupFlow.copyLastBackupFileName()} hitSlop={8}>
-                <Ionicons name="copy-outline" size={16} color="#64748b" />
+                <Ionicons name="copy-outline" size={16} color={colors.textSecondary} />
               </Pressable>
             ) : null}
           </View>
@@ -122,9 +123,9 @@ export function SettingsOverviewView({
             </Text>
           </View>
           {backupFlow.isBackingUp ? (
-            <ActivityIndicator size="small" color="#64748b" />
+            <ActivityIndicator size="small" color={colors.textSecondary} />
           ) : (
-            <Ionicons name="cloud-upload-outline" size={18} color="#64748b" />
+            <Ionicons name="cloud-upload-outline" size={18} color={colors.textSecondary} />
           )}
         </Pressable>
         {backupFlow.isBackingUp ? (
@@ -135,7 +136,7 @@ export function SettingsOverviewView({
             ]}
             onPress={backupFlow.cancelBackup}
           >
-            <Ionicons name="close-circle-outline" size={16} color="#64748b" />
+            <Ionicons name="close-circle-outline" size={16} color={colors.textSecondary} />
             <Text style={settingsScreenStyles.backupCancelText}>Cancel backup</Text>
           </Pressable>
         ) : null}
@@ -159,9 +160,9 @@ export function SettingsOverviewView({
             </Text>
           </View>
           {backupFlow.isRestoring ? (
-            <ActivityIndicator size="small" color="#64748b" />
+            <ActivityIndicator size="small" color={colors.textSecondary} />
           ) : (
-            <Ionicons name="cloud-download-outline" size={18} color="#64748b" />
+            <Ionicons name="cloud-download-outline" size={18} color={colors.textSecondary} />
           )}
         </Pressable>
         {backupFlow.canCancelRestore ? (
@@ -172,7 +173,7 @@ export function SettingsOverviewView({
             ]}
             onPress={backupFlow.cancelRestore}
           >
-            <Ionicons name="close-circle-outline" size={16} color="#64748b" />
+            <Ionicons name="close-circle-outline" size={16} color={colors.textSecondary} />
             <Text style={settingsScreenStyles.backupCancelText}>Cancel restore</Text>
           </Pressable>
         ) : null}
@@ -223,7 +224,7 @@ export function SettingsOverviewView({
                     </Text>
                   </View>
                   <Pressable onPress={() => globalTags.removeTag(tag.key, tag.label)} hitSlop={6}>
-                    <Ionicons name="close-circle" size={16} color="#94a3b8" />
+                    <Ionicons name="close-circle" size={16} color={colors.textMuted} />
                   </Pressable>
                 </View>
               );
@@ -235,7 +236,7 @@ export function SettingsOverviewView({
           <TextInput
             style={styles.tagPickerAddInput}
             placeholder="New tag name"
-            placeholderTextColor="#94a3b8"
+            placeholderTextColor={colors.textMuted}
             value={globalTags.newGlobalTagLabel}
             onChangeText={globalTags.setNewGlobalTagLabel}
             onSubmitEditing={globalTags.addTag}
@@ -253,7 +254,7 @@ export function SettingsOverviewView({
             <Ionicons
               name="add"
               size={16}
-              color={globalTags.canAddTag ? "#0f172a" : "#94a3b8"}
+              color={globalTags.canAddTag ? colors.textPrimary : colors.textMuted}
             />
           </Pressable>
         </View>
@@ -284,7 +285,7 @@ export function SettingsOverviewView({
               : "Measure Bluetooth monitoring delay to improve metronome and guide timing while recording."}
           </Text>
         </View>
-        <Ionicons name="bluetooth" size={18} color="#64748b" />
+        <Ionicons name="bluetooth" size={18} color={colors.textSecondary} />
       </Pressable>
 
       <Pressable
@@ -297,7 +298,7 @@ export function SettingsOverviewView({
             See how much Song Seed storage your library, archives, and temporary exports use on this device.
           </Text>
         </View>
-        <Ionicons name="chevron-forward" size={18} color="#64748b" />
+        <Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />
       </Pressable>
 
       <Pressable
@@ -310,7 +311,7 @@ export function SettingsOverviewView({
             Package workspaces or collections as a Song Seed Archive or a Standard ZIP.
           </Text>
         </View>
-        <Ionicons name="chevron-forward" size={18} color="#64748b" />
+        <Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />
       </Pressable>
 
       <Pressable
@@ -323,7 +324,7 @@ export function SettingsOverviewView({
             Merge a Song Seed Archive into this library as new workspaces.
           </Text>
         </View>
-        <Ionicons name="chevron-forward" size={18} color="#64748b" />
+        <Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />
       </Pressable>
 
       <Pressable
@@ -344,9 +345,9 @@ export function SettingsOverviewView({
           </Text>
         </View>
         {diagnostics.isRecovering ? (
-          <ActivityIndicator size="small" color="#64748b" />
+          <ActivityIndicator size="small" color={colors.textSecondary} />
         ) : (
-          <Ionicons name="refresh" size={18} color="#64748b" />
+          <Ionicons name="refresh" size={18} color={colors.textSecondary} />
         )}
       </Pressable>
     </ScrollView>

@@ -1,4 +1,5 @@
 import { Pressable, Text, View } from "react-native";
+import { colors } from "../../../design/tokens";
 import DraggableFlatList from "react-native-draggable-flatlist";
 import { Ionicons } from "@expo/vector-icons";
 import { Button } from "../../common/Button";
@@ -97,7 +98,7 @@ export function PlaylistDetailView({
               ]}
               onPress={() => onRemoveItem(item.id)}
             >
-              <Ionicons name="close" size={14} color="#64748b" />
+              <Ionicons name="close" size={14} color={colors.textSecondary} />
             </Pressable>
             <Pressable
               style={({ pressed }) => [
@@ -107,7 +108,7 @@ export function PlaylistDetailView({
               onLongPress={drag}
               delayLongPress={120}
             >
-              <Ionicons name="reorder-three" size={15} color="#64748b" />
+              <Ionicons name="reorder-three" size={15} color={colors.textSecondary} />
             </Pressable>
           </View>
         </View>

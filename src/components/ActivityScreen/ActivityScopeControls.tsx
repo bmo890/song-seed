@@ -1,4 +1,5 @@
 import { Pressable, ScrollView, Text, View } from "react-native";
+import { colors } from "../../design/tokens";
 import { Ionicons } from "@expo/vector-icons";
 import { useState } from "react";
 import { styles } from "../../styles";
@@ -188,7 +189,7 @@ export function ActivityScopeControls({
                       {workspace.title}
                     </Text>
                     {workspace.id === primaryWorkspaceId ? (
-                      <Ionicons name="star" size={12} color="#c58b18" />
+                      <Ionicons name="star" size={12} color={colors.primary} />
                     ) : null}
                   </View>
                 </Pressable>

@@ -1,4 +1,5 @@
 import React from "react";
+import { colors } from "../../design/tokens";
 import { Text, TouchableOpacity, View } from "react-native";
 
 type EditorSelectionModeTabsProps = {
@@ -23,7 +24,7 @@ export function EditorSelectionModeTabs({
             borderBottomColor: editMode === "keep" ? "#10b981" : "transparent",
           }}
         >
-          <Text style={{ color: editMode === "keep" ? "#10b981" : "#64748b", fontWeight: "600" }}>
+          <Text style={{ color: editMode === "keep" ? "#10b981" : colors.textSecondary, fontWeight: "600" }}>
             Extract (Keep)
           </Text>
         </TouchableOpacity>
@@ -37,7 +38,7 @@ export function EditorSelectionModeTabs({
             borderBottomColor: editMode === "remove" ? "#ef4444" : "transparent",
           }}
         >
-          <Text style={{ color: editMode === "remove" ? "#ef4444" : "#64748b", fontWeight: "600" }}>
+          <Text style={{ color: editMode === "remove" ? "#ef4444" : colors.textSecondary, fontWeight: "600" }}>
             Delete (Remove)
           </Text>
         </TouchableOpacity>

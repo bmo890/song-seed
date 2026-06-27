@@ -1,4 +1,5 @@
 import React from "react";
+import { colors } from "../../design/tokens";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import {
@@ -77,7 +78,7 @@ export function EditorTransformSection({
             onPress={() => canDecreaseSpeed && onAdjustPlaybackRate(playbackRate - PLAYBACK_RATE_STEP)}
             disabled={!canDecreaseSpeed}
           >
-            <Ionicons name="remove" size={16} color={canDecreaseSpeed ? "#374151" : "#94a3b8"} />
+            <Ionicons name="remove" size={16} color={canDecreaseSpeed ? colors.textStrong : colors.textMuted} />
           </Pressable>
           <View style={editorTransformStyles.valuePill}>
             <Text style={editorTransformStyles.valueText}>{formatPlaybackRate(playbackRate)}</Text>
@@ -90,7 +91,7 @@ export function EditorTransformSection({
             onPress={() => canIncreaseSpeed && onAdjustPlaybackRate(playbackRate + PLAYBACK_RATE_STEP)}
             disabled={!canIncreaseSpeed}
           >
-            <Ionicons name="add" size={16} color={canIncreaseSpeed ? "#374151" : "#94a3b8"} />
+            <Ionicons name="add" size={16} color={canIncreaseSpeed ? colors.textStrong : colors.textMuted} />
           </Pressable>
         </View>
       </View>
@@ -106,7 +107,7 @@ export function EditorTransformSection({
             onPress={() => canDecreasePitch && onAdjustPitchShift(pitchShiftSemitones - 1)}
             disabled={!canDecreasePitch}
           >
-            <Ionicons name="remove" size={16} color={canDecreasePitch ? "#374151" : "#94a3b8"} />
+            <Ionicons name="remove" size={16} color={canDecreasePitch ? colors.textStrong : colors.textMuted} />
           </Pressable>
           <View style={[editorTransformStyles.valuePill, !supportsPitchPreview ? editorTransformStyles.valuePillDisabled : null]}>
             <Text style={editorTransformStyles.valueText}>
@@ -121,7 +122,7 @@ export function EditorTransformSection({
             onPress={() => canIncreasePitch && onAdjustPitchShift(pitchShiftSemitones + 1)}
             disabled={!canIncreasePitch}
           >
-            <Ionicons name="add" size={16} color={canIncreasePitch ? "#374151" : "#94a3b8"} />
+            <Ionicons name="add" size={16} color={canIncreasePitch ? colors.textStrong : colors.textMuted} />
           </Pressable>
           <Text style={editorTransformStyles.summaryText}>
             {supportsPitchPreview ? formatPitchShiftLabel(pitchShiftSemitones) : "Pitch preview unavailable"}
@@ -147,13 +148,13 @@ const editorTransformStyles = StyleSheet.create({
   label: {
     fontSize: 14,
     fontWeight: "700",
-    color: "#0f172a",
+    color: colors.textPrimary,
   },
   meta: {
     marginTop: 4,
     fontSize: 12,
     lineHeight: 18,
-    color: "#64748b",
+    color: colors.textSecondary,
     maxWidth: 260,
   },
   resetButton: {
@@ -161,18 +162,18 @@ const editorTransformStyles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 999,
-    backgroundColor: "#e2e8f0",
+    backgroundColor: colors.surfaceContainer,
   },
   resetButtonDisabled: {
-    backgroundColor: "#f1f5f9",
+    backgroundColor: colors.surfaceContainer,
   },
   resetButtonText: {
     fontSize: 12,
     fontWeight: "700",
-    color: "#334155",
+    color: colors.textStrong,
   },
   resetButtonTextDisabled: {
-    color: "#94a3b8",
+    color: colors.textMuted,
   },
   row: {
     flexDirection: "row",
@@ -183,7 +184,7 @@ const editorTransformStyles = StyleSheet.create({
   rowLabel: {
     fontSize: 13,
     fontWeight: "700",
-    color: "#334155",
+    color: colors.textStrong,
     paddingTop: 8,
     minWidth: 48,
   },
@@ -199,31 +200,31 @@ const editorTransformStyles = StyleSheet.create({
     width: 34,
     height: 34,
     borderRadius: 999,
-    backgroundColor: "#e2e8f0",
+    backgroundColor: colors.surfaceContainer,
     alignItems: "center",
     justifyContent: "center",
   },
   stepButtonDisabled: {
-    backgroundColor: "#f1f5f9",
+    backgroundColor: colors.surfaceContainer,
   },
   valuePill: {
     minWidth: 74,
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 999,
-    backgroundColor: "#f8fafc",
+    backgroundColor: colors.surface,
     alignItems: "center",
   },
   valuePillDisabled: {
-    backgroundColor: "#f8fafc",
+    backgroundColor: colors.surface,
   },
   valueText: {
     fontSize: 13,
     fontWeight: "700",
-    color: "#0f172a",
+    color: colors.textPrimary,
   },
   summaryText: {
     fontSize: 12,
-    color: "#64748b",
+    color: colors.textSecondary,
   },
 });

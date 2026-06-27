@@ -1,4 +1,5 @@
 import { StyleSheet } from "react-native";
+import { colors } from "../../design/tokens";
 
 export { styles } from "../../styles";
 
@@ -40,7 +41,7 @@ export const settingsScreenStyles = StyleSheet.create({
     minWidth: 0,
     fontSize: 14,
     lineHeight: 20,
-    color: "#334155",
+    color: colors.textStrong,
   },
   backupCancelButton: {
     alignSelf: "flex-start",
@@ -53,6 +54,6 @@ export const settingsScreenStyles = StyleSheet.create({
   backupCancelText: {
     fontSize: 13,
     lineHeight: 18,
-    color: "#64748b",
+    color: colors.textSecondary,
   },
 });

@@ -25,7 +25,7 @@ function CheckRow({ label, checked, onPress }: { label: string; checked: boolean
         <Ionicons
           name={checked ? "checkmark-circle" : "ellipse-outline"}
           size={20}
-          color={checked ? colors.primary : "#cbd5e1"}
+          color={checked ? colors.primary : colors.borderMuted}
         />
       </View>
     </Pressable>
@@ -79,12 +79,12 @@ export function SetlistEntryBuilderView({
                 >
                   <View style={styles.cardTop}>
                     <View style={styles.cardTitleRow}>
-                      <Ionicons name="musical-notes-outline" size={16} color="#0f172a" />
+                      <Ionicons name="musical-notes-outline" size={16} color={colors.textPrimary} />
                       <Text style={styles.cardTitle} numberOfLines={1}>
                         {s.title}
                       </Text>
                     </View>
-                    <Ionicons name="chevron-forward" size={16} color="#94a3b8" />
+                    <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
                   </View>
                 </Pressable>
               ))}
