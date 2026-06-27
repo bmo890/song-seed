@@ -7,7 +7,9 @@ import { CUT_COLOR, KEEP_COLOR, formatSelectionDuration } from "./helpers";
 
 type EditorTrimIntentProps = {
   intent: "keep" | "remove";
-  clipCount: number;
+  /** Number of regions for the ACTIVE intent (keep regions when extracting,
+   *  cut regions when cutting) — drives the outcome summary. */
+  regionCount: number;
   removedMs: number;
   onSelectIntent: (intent: "keep" | "remove") => void;
 };
@@ -16,7 +18,7 @@ type EditorTrimIntentProps = {
  * clip) or cut (removed, the rest joined into one clip). One color, one outcome. */
 export function EditorTrimIntent({
   intent,
-  clipCount,
+  regionCount,
   removedMs,
   onSelectIntent,
 }: EditorTrimIntentProps) {
@@ -24,12 +26,12 @@ export function EditorTrimIntent({
   const cutActive = intent === "remove";
 
   const outcome =
-    clipCount === 0
+    regionCount === 0
       ? "Mark a part of the waveform to begin."
       : keepActive
-        ? `${clipCount} new clip${clipCount === 1 ? "" : "s"} — one per highlight.`
+        ? `${regionCount} new clip${regionCount === 1 ? "" : "s"} — one per highlight.`
         : `1 trimmed clip — ${formatSelectionDuration(removedMs)} removed.`;
-  const pipColor = clipCount === 0 ? colors.textMuted : keepActive ? KEEP_COLOR : CUT_COLOR;
+  const pipColor = regionCount === 0 ? colors.textMuted : keepActive ? KEEP_COLOR : CUT_COLOR;
 
   return (
     <View style={s.wrap}>

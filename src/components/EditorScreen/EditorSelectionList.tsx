@@ -26,7 +26,7 @@ export function EditorSelectionList({
     return (
       <View style={s.empty}>
         <Text style={s.emptyText}>
-          No regions yet — drag across the waveform or tap “Add at playhead”.
+          No regions yet — tap “Add at playhead”, then drag the handles to fit.
         </Text>
       </View>
     );

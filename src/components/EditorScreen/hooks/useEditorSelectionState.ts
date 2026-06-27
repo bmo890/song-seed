@@ -109,7 +109,6 @@ export function useEditorSelectionState({
     selectedRanges,
     setSelectedRanges,
     editMode,
-    setEditMode,
     setIntent,
     keepRegions,
     removeRegions,

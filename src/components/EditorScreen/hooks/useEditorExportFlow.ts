@@ -103,7 +103,6 @@ export function useEditorExportFlow({
   const [transformNameDraft, setTransformNameDraft] = useState("");
 
   const keepRegionIdsKey = keepRegions.map((region) => region.id).join("|");
-  const activeExportCount = keepRegions.length > 0 ? keepRegions.length : removeRegions.length > 0 ? 1 : 0;
   const sourceBaseTitle = sourceClip?.title?.trim() || targetIdea?.title?.trim() || buildFallbackClipTitle();
 
   const buildSuggestedTitle = (offset = 0) => {
@@ -607,7 +606,6 @@ export function useEditorExportFlow({
     exportOperation,
     setExportOperation,
     previewRegionId,
-    activeExportCount,
     suggestedExportTitle,
     buildSuggestedTitle,
     openExportModal,

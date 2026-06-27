@@ -7,9 +7,8 @@ import { StackActions, useIsFocused, useNavigation, useRoute } from "@react-navi
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
 import { MultiTimeRangeSelector } from "../common/TimeRangeSelector";
-import { AudioAnalysis, extractPreview } from "@siteed/audio-studio";
+import { AudioAnalysis } from "@siteed/audio-studio";
 import { styles } from "../../styles";
-import { buildStaticWaveform } from "../../utils";
 import { RootStackParamList } from "../../../App";
 import { Ionicons } from "@expo/vector-icons";
 import { useStore } from "../../state/useStore";
@@ -24,10 +23,7 @@ import { TransportLayout } from "../common/TransportLayout";
 import { useTransportScrubbing } from "../../hooks/useTransportScrubbing";
 import { useTransportClock } from "../../hooks/useTransportClock";
 import { isPlaybackNearEnd } from "../../services/transportPlayback";
-import {
-    buildFallbackAnalysis,
-    buildWaveformPeaks,
-} from "./helpers";
+import { buildFallbackAnalysis } from "./helpers";
 import { useEditorSelectionState } from "./hooks/useEditorSelectionState";
 import { EditorHeaderSection } from "./EditorHeaderSection";
 import { EditorFooterSection } from "./EditorFooterSection";
@@ -50,10 +46,6 @@ const EDITOR_MODES = [
     { key: "trim" as const, label: "Trim" },
     { key: "transform" as const, label: "Speed & pitch" },
 ];
-
-// Downsampled point count for the editor waveform — fixed regardless of clip
-// length, so the analysis is memory-safe even on long recordings.
-const EDITOR_WAVEFORM_POINTS = 256;
 
 /** Tagged, greppable editor diagnostics — filter logs by "[editor]". */
 const editorLog = (...args: unknown[]) => console.log("[editor]", ...args);
@@ -89,7 +81,6 @@ export function EditorScreen() {
 
     const [currentTime, setCurrentTime] = useState(0);
     const [analysisData, setAnalysisData] = useState<AudioAnalysis | null>(null);
-    const [waveformPeaks, setWaveformPeaks] = useState<number[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [isFlatteningOverdub, setIsFlatteningOverdub] = useState(false);
     const [editorMode, setEditorMode] = useState<"trim" | "transform">("trim");
@@ -115,12 +106,12 @@ export function EditorScreen() {
         targetIdea && activeWorkspace ? getCollectionById(activeWorkspace, targetIdea.collectionId) : null;
     const durationHintMs = routeDurationMs ?? sourceClip?.durationMs;
 
-    // High-resolution detail waveform (sidecar), with the inline 256-bin analysis as
-    // the thumbnail fallback until it loads. This is what makes the reel stay crisp
-    // all the way to max zoom.
+    // High-resolution detail waveform (sidecar), with the clip's stored inline
+    // thumbnail as the fallback until it loads. This is the single source for the
+    // reel — keeps it crisp to max zoom and avoids a second decode on open.
     const clipWaveform = useClipWaveform({
         audioUri,
-        thumbnailPeaks: waveformPeaks,
+        thumbnailPeaks: sourceClip?.waveformPeaks,
         durationMs: durationHintMs,
         enabled: isFocused,
     });
@@ -276,53 +267,20 @@ export function EditorScreen() {
         let isMounted = true;
 
         async function loadAudioData() {
-            editorLog("load: start", { clipId, audioUri: editorAudioUri, durationHintMs });
+            editorLog("load: start", { clipId, audioUri: editorAudioUri });
             setIsLoading(true);
             try {
+                // The reel waveform is supplied by the detail sidecar (useClipWaveform);
+                // here we only need the clip duration for the trim timeline + transport.
+                // No decode on load — just a fast metadata read when no hint is provided.
                 const resolvedDurationMs =
                     durationHintMs && durationHintMs > 0 ? durationHintMs : await loadAudioDurationMs(editorAudioUri);
                 editorLog("load: resolved duration", resolvedDurationMs);
-
-                // Build the waveform with the downsampled `extractPreview` (fixed
-                // point count) — the same memory-safe path the rest of the app uses —
-                // instead of the full per-sample decode that OOMs on long clips.
-                if (resolvedDurationMs && resolvedDurationMs > 0) {
-                    try {
-                        const analysis = await extractPreview({
-                            fileUri: editorAudioUri,
-                            numberOfPoints: EDITOR_WAVEFORM_POINTS,
-                            startTimeMs: 0,
-                            endTimeMs: resolvedDurationMs,
-                        });
-                        editorLog("load: preview ok", {
-                            durationMs: analysis.durationMs,
-                            points: analysis.dataPoints?.length ?? 0,
-                        });
-                        if (isMounted) {
-                            setAnalysisData({ ...analysis, durationMs: analysis.durationMs || resolvedDurationMs });
-                            setWaveformPeaks(buildWaveformPeaks(analysis));
-                            setCurrentTime(0);
-                            player.seekTo(0);
-                        }
-                        return;
-                    } catch (err) {
-                        console.warn("Editor waveform preview failed; using stored waveform", err);
-                    }
-                }
-
-                if (!resolvedDurationMs) {
+                if (!resolvedDurationMs || resolvedDurationMs <= 0) {
                     throw new Error("Audio duration unavailable.");
                 }
-
-                const fallbackWaveform = sourceClip?.waveformPeaks?.length
-                    ? sourceClip.waveformPeaks
-                    : buildStaticWaveform(`${clipId}-${resolvedDurationMs}`, EDITOR_WAVEFORM_POINTS);
-                editorLog("load: using fallback waveform", {
-                    stored: !!sourceClip?.waveformPeaks?.length,
-                });
                 if (isMounted) {
                     setAnalysisData(buildFallbackAnalysis(resolvedDurationMs));
-                    setWaveformPeaks(fallbackWaveform);
                     setCurrentTime(0);
                     player.seekTo(0);
                 }
@@ -340,7 +298,11 @@ export function EditorScreen() {
 
         loadAudioData();
         return () => { isMounted = false; };
-    }, [audioUri, clipId, durationHintMs, player, sourceClip?.waveformPeaks, sourceClipHasOverdubs]);
+        // durationHintMs is read fresh when the clip changes; intentionally not a
+        // dependency so a background clip update (e.g. waveform hydration) cannot
+        // re-trigger a load and reset the playhead mid-edit.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [audioUri, clipId, sourceClipHasOverdubs, player]);
 
     const handleFlattenOverdubAndContinue = useCallback(async () => {
         if (!targetIdea || !sourceClip) return;
@@ -469,39 +431,43 @@ export function EditorScreen() {
                                 }
                                 void transportScrub.endScrub();
                             }}
-                            selectedRanges={selectedRanges}
-                            renderOverlay={({ pixelsPerMs, timelineTranslateX, timelineScale, sharedAudioProgress }) => (
-                                <MultiTimeRangeSelector
-                                    durationMs={analysisData.durationMs}
-                                    pixelsPerMs={pixelsPerMs}
-                                    regions={selectedRanges}
-                                    sharedTranslateX={timelineTranslateX}
-                                    sharedScale={timelineScale}
-                                    sharedAudioProgress={sharedAudioProgress}
-                                    onScrubStateChange={(scrubbing) => {
-                                        if (scrubbing) {
-                                            void transportScrub.beginScrub();
-                                            return;
-                                        }
-                                        void transportScrub.endScrub();
-                                    }}
-                                    onSeek={(time) => {
-                                        setCurrentTime((prev) => (prev === time ? prev : time));
-                                        transportClock.setDisplayPositionMs(time);
-                                        return transportScrub.scrubTo(time);
-                                    }}
-                                    onRegionChange={(id, start, end) => {
-                                        setSelectedRanges((prev) => prev.map((r) => (r.id === id ? { ...r, start, end } : r)));
-                                    }}
-                                />
-                            )}
+                            selectedRanges={editorMode === "trim" ? selectedRanges : []}
+                            renderOverlay={
+                                editorMode === "trim"
+                                    ? ({ pixelsPerMs, timelineTranslateX, timelineScale, sharedAudioProgress }) => (
+                                          <MultiTimeRangeSelector
+                                              durationMs={analysisData.durationMs}
+                                              pixelsPerMs={pixelsPerMs}
+                                              regions={selectedRanges}
+                                              sharedTranslateX={timelineTranslateX}
+                                              sharedScale={timelineScale}
+                                              sharedAudioProgress={sharedAudioProgress}
+                                              onScrubStateChange={(scrubbing) => {
+                                                  if (scrubbing) {
+                                                      void transportScrub.beginScrub();
+                                                      return;
+                                                  }
+                                                  void transportScrub.endScrub();
+                                              }}
+                                              onSeek={(time) => {
+                                                  setCurrentTime((prev) => (prev === time ? prev : time));
+                                                  transportClock.setDisplayPositionMs(time);
+                                                  return transportScrub.scrubTo(time);
+                                              }}
+                                              onRegionChange={(id, start, end) => {
+                                                  setSelectedRanges((prev) => prev.map((r) => (r.id === id ? { ...r, start, end } : r)));
+                                              }}
+                                          />
+                                      )
+                                    : undefined
+                            }
                         />
 
                         {editorMode === "trim" ? (
                             <>
                                 <EditorTrimIntent
                                     intent={editMode}
-                                    clipCount={keepRegions.length}
+                                    regionCount={editMode === "keep" ? keepRegions.length : removeRegions.length}
                                     removedMs={removeRegions.reduce((sum, r) => sum + (r.end - r.start), 0)}
                                     onSelectIntent={setIntent}
                                 />
