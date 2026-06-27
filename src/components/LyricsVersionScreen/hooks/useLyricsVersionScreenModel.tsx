@@ -12,16 +12,13 @@ import { actionIcons } from "../../common/actionIcons";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
-import type { AppBreadcrumbItem } from "../../common/AppBreadcrumbs";
 import type { RootStackParamList } from "../../../../App";
 import { styles } from "../styles";
 import { useStore } from "../../../state/useStore";
 import { appActions } from "../../../state/actions";
 import { getLatestLyricsVersion, lyricsDocumentToText } from "../../../lyrics";
 import { serializeChordChartText } from "../../../chords";
-import { formatDate, getCollectionAncestors, getCollectionById } from "../../../utils";
-import { getCollectionHierarchyLevel } from "../../../hierarchy";
-import { openCollectionFromContext, openWorkspaceBrowseRoot } from "../../../navigation";
+import { formatDate } from "../../../utils";
 
 type LyricsVersionRoute = RootStackParamList["LyricsVersion"];
 
@@ -109,70 +106,6 @@ export function useLyricsVersionScreenModel() {
       hideSub.remove();
     };
   }, []);
-
-  const projectCollection = useMemo(
-    () => (activeWorkspace && projectIdea ? getCollectionById(activeWorkspace, projectIdea.collectionId) : null),
-    [activeWorkspace, projectIdea]
-  );
-  const projectCollectionAncestors = useMemo(
-    () =>
-      activeWorkspace && projectCollection
-        ? getCollectionAncestors(activeWorkspace, projectCollection.id)
-        : [],
-    [activeWorkspace, projectCollection]
-  );
-
-  const breadcrumbItems = useMemo<AppBreadcrumbItem[]>(() => {
-    if (!activeWorkspace || !projectCollection || !projectIdea) return [];
-
-    return [
-      {
-        key: "home",
-        label: "Home",
-        level: "home",
-        iconOnly: true,
-        onPress: () => navigation.navigate("Home", { screen: "Workspaces" }),
-      },
-      {
-        key: `workspace-${activeWorkspace.id}`,
-        label: activeWorkspace.title,
-        level: "workspace",
-        onPress: () => openWorkspaceBrowseRoot(navigation, activeWorkspace.id),
-      },
-      ...projectCollectionAncestors.map((collection) => ({
-        key: collection.id,
-        label: collection.title,
-        level: getCollectionHierarchyLevel(collection),
-        onPress: () =>
-          openCollectionFromContext(navigation, {
-            collectionId: collection.id,
-            source: "detail" as const,
-          }),
-      })),
-      {
-        key: projectCollection.id,
-        label: projectCollection.title,
-        level: getCollectionHierarchyLevel(projectCollection),
-        onPress: () =>
-          openCollectionFromContext(navigation, {
-            collectionId: projectCollection.id,
-            source: "detail",
-          }),
-      },
-      {
-        key: projectIdea.id,
-        label: projectIdea.title,
-        level: "song",
-        onPress: () => navigation.navigate("IdeaDetail", { ideaId: projectIdea.id }),
-      },
-      {
-        key: "lyrics",
-        label: "Lyrics",
-        level: "lyrics",
-        active: true,
-      },
-    ];
-  }, [activeWorkspace, navigation, projectCollection, projectCollectionAncestors, projectIdea]);
 
   const saveDraft = (asNewOverride?: boolean) => {
     if (!projectIdea || !canSave) return;
@@ -264,7 +197,6 @@ export function useLyricsVersionScreenModel() {
 
   return {
     projectIdea,
-    breadcrumbItems,
     versionLabel,
     versionMeta,
     isEditMode,

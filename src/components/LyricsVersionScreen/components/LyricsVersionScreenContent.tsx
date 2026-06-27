@@ -4,7 +4,6 @@ import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
 import { StatusBar as ExpoStatusBar } from "expo-status-bar";
 import { styles } from "../styles";
 import { ScreenHeader } from "../../common/ScreenHeader";
-import { AppBreadcrumbs } from "../../common/AppBreadcrumbs";
 import { useLyricsVersionScreenModel } from "../hooks/useLyricsVersionScreenModel";
 import { LyricsVersionEditor } from "./LyricsVersionEditor";
 import { LyricsVersionPreview } from "./LyricsVersionPreview";
@@ -39,8 +38,6 @@ export function LyricsVersionScreenContent() {
   return (
     <SafeAreaView style={styles.screen} edges={["top", "left", "right"]}>
       <ScreenHeader title={model.versionLabel} leftIcon="back" />
-
-      {model.breadcrumbItems.length > 0 ? <AppBreadcrumbs items={model.breadcrumbItems} /> : null}
 
       <Text style={styles.subtitle}>{model.versionMeta}</Text>
 

@@ -1,6 +1,7 @@
 import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { styles } from "../../styles";
+import { colors, radii, shadows } from "../../design/tokens";
 
 type SegmentedOption<T extends string> = {
   key: T;
@@ -63,30 +64,26 @@ const segmentedControlStyles = StyleSheet.create({
     flexDirection: "row",
     paddingHorizontal: 4,
     paddingVertical: 3,
-    borderRadius: 8,
-    backgroundColor: "#e2e8f0",
+    borderRadius: radii.round,
+    backgroundColor: colors.surfaceContainer,
   },
   segment: {
     flex: 1,
-    paddingVertical: 6,
-    borderRadius: 6,
+    paddingVertical: 7,
+    borderRadius: radii.round,
     alignItems: "center",
     justifyContent: "center",
   },
   segmentActive: {
-    backgroundColor: "#ffffff",
-    shadowColor: "#0f172a",
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    shadowOffset: { width: 0, height: 1 },
-    elevation: 1,
+    backgroundColor: colors.surface,
+    ...shadows.control,
   },
   segmentLabel: {
+    fontFamily: "PlusJakartaSans_600SemiBold",
     fontSize: 13,
-    fontWeight: "600",
-    color: "#64748b",
+    color: colors.textSecondary,
   },
   segmentLabelActive: {
-    color: "#0f172a",
+    color: colors.textPrimary,
   },
 });

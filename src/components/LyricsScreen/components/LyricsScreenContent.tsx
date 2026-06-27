@@ -4,15 +4,14 @@ import { StatusBar as ExpoStatusBar } from "expo-status-bar";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { styles } from "../styles";
-import { colors, radii, spacing } from "../../../design/tokens";
+import { colors, radii, shadows, spacing } from "../../../design/tokens";
 import { ScreenHeader } from "../../common/ScreenHeader";
-import { AppBreadcrumbs } from "../../common/AppBreadcrumbs";
 import { LyricsVersionsPanel } from "../LyricsVersionsPanel";
 import { useLyricsScreenModel } from "../hooks/useLyricsScreenModel";
 import { LyricsUnavailableState } from "./LyricsUnavailableState";
 
 export function LyricsScreenContent() {
-  const { projectIdea, versionCount, breadcrumbItems } = useLyricsScreenModel();
+  const { projectIdea, versionCount } = useLyricsScreenModel();
   const navigation = useNavigation<any>();
 
   if (!projectIdea) return <LyricsUnavailableState />;
@@ -31,8 +30,6 @@ export function LyricsScreenContent() {
           </View>
         }
       />
-
-      {breadcrumbItems.length > 0 ? <AppBreadcrumbs items={breadcrumbItems} /> : null}
 
       <Text style={styles.subtitle}>{projectIdea.title}</Text>
 
@@ -67,10 +64,10 @@ const chordSheetLink = StyleSheet.create({
     alignItems: "center",
     gap: spacing.md,
     backgroundColor: colors.surface,
-    borderRadius: radii.lg,
+    borderRadius: radii.sm,
     padding: spacing.md,
     marginBottom: spacing.md,
-    ...{ shadowColor: "#3D3732", shadowOpacity: 0.03, shadowOffset: { width: 0, height: 4 }, shadowRadius: 10, elevation: 2 },
+    ...shadows.card,
   },
   iconWrap: {
     width: 36,

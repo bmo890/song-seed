@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigation } from "@react-navigation/native";
-import type { AppBreadcrumbItem } from "../../common/AppBreadcrumbs";
 import { useStore } from "../../../state/useStore";
 import type { Playlist } from "../../../types";
 import {
@@ -160,45 +159,6 @@ export function useLibraryScreenModel() {
       ? "Playlists are saved groups of songs and clips. They stay separate from the current queue."
       : "Playlists are saved groups of songs and clips. They do not replace the queue used inside ideas and songs.";
 
-  const breadcrumbItems = useMemo<AppBreadcrumbItem[]>(() => {
-    const items: AppBreadcrumbItem[] = [
-      {
-        key: "library",
-        label: "Library",
-        level: "library",
-        active: !activePlaylist && !pickerState,
-        onPress:
-          activePlaylist || pickerState
-            ? () => {
-                setPickerState(null);
-                setSelectedPlaylistId(null);
-              }
-            : undefined,
-      },
-    ];
-
-    if (activePlaylist) {
-      items.push({
-        key: "playlist",
-        label: activePlaylist.title,
-        level: "library",
-        active: !pickerState,
-        onPress: pickerState ? () => setPickerState(null) : undefined,
-      });
-    }
-
-    if (pickerState) {
-      items.push({
-        key: "picker",
-        label: "Add Items",
-        level: "library",
-        active: true,
-      });
-    }
-
-    return items;
-  }, [activePlaylist, pickerState]);
-
   const handleBackPress = () => {
     if (pickerState?.songIdeaId) {
       setPickerState((current) => (current ? { ...current, songIdeaId: null } : current));
@@ -223,7 +183,6 @@ export function useLibraryScreenModel() {
     activeWorkspaceId,
     pageTitle,
     pageSubtitle,
-    breadcrumbItems,
     showBack: !!activePlaylist || !!pickerState,
     sortedPlaylists,
     pickerWorkspaceChoices,

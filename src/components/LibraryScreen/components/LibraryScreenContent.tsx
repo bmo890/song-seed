@@ -1,11 +1,10 @@
 import { useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ScreenHeader } from "../../common/ScreenHeader";
-import { AppBreadcrumbs } from "../../common/AppBreadcrumbs";
-import { PageIntro } from "../../common/PageIntro";
+import { SegmentedControl } from "../../common/SegmentedControl";
 import { QuickNameModal } from "../../modals/QuickNameModal";
-import { colors, radii, spacing } from "../../../design/tokens";
+import { colors, spacing } from "../../../design/tokens";
 import { styles } from "../styles";
 import { useLibraryScreenModel } from "../hooks/useLibraryScreenModel";
 import { useSongbookModel } from "../hooks/useSongbookModel";
@@ -69,26 +68,14 @@ export function LibraryScreenContent() {
       />
 
       {!inSub ? (
-        <View style={tabStyles.row}>
-          {SECTIONS.map((tab) => {
-            const active = tab.key === section;
-            return (
-              <Pressable
-                key={tab.key}
-                style={[tabStyles.tab, active ? tabStyles.tabActive : null]}
-                onPress={() => setSection(tab.key)}
-              >
-                <Text style={[tabStyles.tabText, active ? tabStyles.tabTextActive : null]}>{tab.label}</Text>
-              </Pressable>
-            );
-          })}
+        <View style={local.tabsWrap}>
+          <SegmentedControl options={SECTIONS} value={section} onChange={setSection} />
         </View>
       ) : null}
 
       {section === "playlists" ? (
         <>
-          {model.showBack ? <AppBreadcrumbs items={model.breadcrumbItems} /> : null}
-          <PageIntro title={model.pageTitle} subtitle={model.pageSubtitle} />
+          {!model.showBack ? <Text style={local.desc}>{model.pageSubtitle}</Text> : null}
 
           {!model.activePlaylist && !model.pickerState ? (
             <PlaylistListView
@@ -236,30 +223,15 @@ export function LibraryScreenContent() {
   );
 }
 
-const tabStyles = StyleSheet.create({
-  row: {
-    flexDirection: "row",
-    backgroundColor: "rgba(0,0,0,0.05)",
-    borderRadius: radii.round,
-    padding: 3,
-    marginHorizontal: 16,
+const local = StyleSheet.create({
+  tabsWrap: {
     marginBottom: spacing.md,
   },
-  tab: {
-    flex: 1,
-    alignItems: "center",
-    paddingVertical: 8,
-    borderRadius: radii.round,
-  },
-  tabActive: {
-    backgroundColor: colors.surface,
-  },
-  tabText: {
-    fontFamily: "PlusJakartaSans_600SemiBold",
+  desc: {
+    fontFamily: "PlusJakartaSans_400Regular",
     fontSize: 13,
+    lineHeight: 18,
     color: colors.textSecondary,
-  },
-  tabTextActive: {
-    color: colors.textPrimary,
+    marginBottom: spacing.md,
   },
 });

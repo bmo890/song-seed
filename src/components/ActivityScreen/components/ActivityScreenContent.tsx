@@ -1,8 +1,6 @@
 import { ScrollView, Text, View } from "react-native";
-import ReAnimated from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ScreenHeader } from "../../common/ScreenHeader";
-import { AppBreadcrumbs } from "../../common/AppBreadcrumbs";
 import { styles } from "../styles";
 import { ActivityScopeControls } from "../ActivityScopeControls";
 import { ActivityHeatmapGrid } from "../ActivityHeatmapGrid";
@@ -17,10 +15,6 @@ export function ActivityScreenContent() {
   return (
     <SafeAreaView style={styles.screen}>
       <ScreenHeader title="Activity" leftIcon="hamburger" />
-
-      <ReAnimated.View style={model.headerCollapseAnimStyle}>
-        {model.breadcrumbItems.length > 0 ? <AppBreadcrumbs items={model.breadcrumbItems} /> : null}
-      </ReAnimated.View>
 
       <View
         onLayout={(event) => {

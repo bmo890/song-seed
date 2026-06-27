@@ -11,18 +11,15 @@ import {
   getActivityEventsWithHistory,
   startOfActivityDay,
 } from "../../../activity";
-import { getCollectionAncestors, getCollectionById } from "../../../utils";
-import { getCollectionHierarchyLevel } from "../../../hierarchy";
-import { useScrollCollapseHeader } from "../../../hooks/useScrollCollapseHeader";
+import { getCollectionById } from "../../../utils";
 import {
   buildActivityItemResults,
   formatSelectedRangeLabel,
   getActivityCellBackground,
 } from "../helpers";
 import { getDateBucketLabel } from "../../../dateBuckets";
-import { openCollectionFromContext, openWorkspaceBrowseRoot } from "../../../navigation";
+import { openCollectionFromContext } from "../../../navigation";
 import { getPlayableClipForIdea } from "../../../clipPresentation";
-import type { AppBreadcrumbItem } from "../../common/AppBreadcrumbs";
 
 type ActivityItemRef = { workspaceId: string; ideaId: string; ideaKind: "song" | "clip" };
 type ActivityCollectionRef = ActivityItemRef & { collectionId: string };
@@ -63,10 +60,6 @@ export function useActivityScreenModel() {
   const resetInlineRef = useRef(inlinePlayer.resetInlinePlayer);
   const inlineTarget = useStore((state) => state.inlineTarget);
   const isInlinePlaying = useStore((state) => state.inlineIsPlaying);
-  const {
-    handleScroll: handleCollapseScroll,
-    animStyle: headerCollapseAnimStyle,
-  } = useScrollCollapseHeader();
 
   useEffect(() => {
     resetInlineRef.current = inlinePlayer.resetInlinePlayer;
@@ -93,37 +86,6 @@ export function useActivityScreenModel() {
     if (!scopedCollectionId || !collectionScopeWorkspace) return null;
     return getCollectionById(collectionScopeWorkspace, scopedCollectionId);
   }, [collectionScopeWorkspace, scopedCollectionId]);
-  const collectionScopeAncestors = useMemo(
-    () =>
-      collectionScope && collectionScopeWorkspace
-        ? getCollectionAncestors(collectionScopeWorkspace, collectionScope.id)
-        : [],
-    [collectionScope, collectionScopeWorkspace]
-  );
-  const breadcrumbItems = useMemo<AppBreadcrumbItem[]>(() => {
-    if (!collectionScope || !collectionScopeWorkspace) return [];
-    return [
-      {
-        key: `workspace-${collectionScopeWorkspace.id}`,
-        label: collectionScopeWorkspace.title,
-        level: "workspace",
-        onPress: () => openWorkspaceBrowseRoot(navigation, collectionScopeWorkspace.id),
-      },
-      ...collectionScopeAncestors.map((collection) => ({
-        key: collection.id,
-        label: collection.title,
-        level: getCollectionHierarchyLevel(collection),
-        onPress: () => openCollectionFromActivityContext(collection.id),
-      })),
-      {
-        key: collectionScope.id,
-        label: collectionScope.title,
-        level: getCollectionHierarchyLevel(collectionScope),
-        onPress: () => openCollectionFromActivityContext(collectionScope.id),
-      },
-    ];
-  }, [collectionScope, collectionScopeAncestors, collectionScopeWorkspace, navigation]);
-
   const [workspaceFilterId, setWorkspaceFilterId] = useState<string | null>(
     scopedCollectionId ? collectionScopeWorkspace?.id ?? null : null
   );
@@ -354,8 +316,6 @@ export function useActivityScreenModel() {
     primaryWorkspaceId,
     workspaceLastOpenedAt,
     collectionScope,
-    breadcrumbItems,
-    headerCollapseAnimStyle,
     topLevelCollections,
     workspaceFilterId,
     setWorkspaceFilterId,
@@ -415,7 +375,6 @@ export function useActivityScreenModel() {
         firstDayLayout != null && nextScrollY >= resultsSectionTop + firstDayLayout.y;
       setScrolledPastFirstDay((prev) => (prev === pastFirstDay ? prev : pastFirstDay));
       updateStickyDayLabel(nextScrollY);
-      handleCollapseScroll(event);
     },
     onResultsLayout: (y: number) => {
       setResultsSectionTop((prev) => (Math.abs(prev - y) < 1 ? prev : y));

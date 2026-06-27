@@ -1,7 +1,6 @@
 import { useMemo } from "react";
 import { useNavigation } from "@react-navigation/native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { AppBreadcrumbs } from "../../common/AppBreadcrumbs";
 import { ScreenHeader } from "../../common/ScreenHeader";
 import { styles } from "../styles";
 import { useStore } from "../../../state/useStore";
@@ -61,7 +60,6 @@ export function SettingsScreenContent() {
         leftIcon={screen.showSubscreen ? "back" : "hamburger"}
         onLeftPress={handleBackPress}
       />
-      {screen.showSubscreen ? <AppBreadcrumbs items={screen.breadcrumbItems} /> : null}
 
       {screen.view === "export" ? (
         <SettingsExportView
