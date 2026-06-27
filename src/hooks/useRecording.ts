@@ -556,14 +556,19 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
       managedAudioUriToCleanup = managedAudio.audioUri;
       recorderTempUriToCleanup = recordingData.fileUri;
 
-      // Convert peaks for existing basic renderers (while we migrate the rest)
+      // Prefer the capture-time analysis (real RMS/peak per ~75ms segment of the
+      // actual take) over a post-hoc re-decode — the re-decode path can fall back
+      // to the synthetic placeholder waveform, which is what made stored waveforms
+      // look unrelated to the audio. Only use managedAudio's peaks if the recorder
+      // produced no analysis.
       const dataPoints = recordingData.analysisData?.dataPoints ?? [];
       const levelsAsDb = dataPoints.map((p) =>
         Number.isFinite(p.dB) ? p.dB : p.amplitude > 0 ? 20 * Math.log10(p.amplitude) : -60
       );
-      const waveformPeaks =
-        managedAudio.waveformPeaks ??
-        metersToWaveformPeaks(levelsAsDb, MANAGED_WAVEFORM_PEAK_COUNT);
+      const capturePeaks = levelsAsDb.length
+        ? metersToWaveformPeaks(levelsAsDb, MANAGED_WAVEFORM_PEAK_COUNT)
+        : null;
+      const waveformPeaks = capturePeaks ?? managedAudio.waveformPeaks;
 
       const attached = await onRecorded({
         audioUri: managedAudio.audioUri,

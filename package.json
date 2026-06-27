@@ -26,7 +26,6 @@
     "@react-navigation/stack": "^7.7.2",
     "@shopify/react-native-skia": "^2.4.21",
     "@siteed/audio-studio": "^3.0.2",
-    "@siteed/expo-audio-ui": "^0.7.2",
     "@types/jest": "29.5.14",
     "expo": "~54.0.33",
     "expo-audio": "^1.1.1",
