@@ -8,6 +8,10 @@ import type {
   NativePitchShiftPlaybackState,
   NativePitchShiftRenderRequest,
   NativePitchShiftRenderResult,
+  NativeTrimRequest,
+  NativeTrimResult,
+  NativeWaveformRequest,
+  NativeWaveformResult,
   SongseedPitchShiftModuleEvents,
 } from "./SongseedPitchShift.types";
 
@@ -27,6 +31,10 @@ declare class SongseedPitchShiftModule extends NativeModule<SongseedPitchShiftMo
     request: NativePitchShiftRenderRequest
   ): Promise<NativePitchShiftRenderResult>;
   renderMixedFile(request: NativeMixedRenderRequest): Promise<NativeMixedRenderResult>;
+  // Optional: present only once the native module is rebuilt with these. Callers
+  // feature-detect (`if (mod.renderTrim)`) and fall back to @siteed otherwise.
+  renderTrim?(request: NativeTrimRequest): Promise<NativeTrimResult>;
+  computeWaveform?(request: NativeWaveformRequest): Promise<NativeWaveformResult>;
 }
 
 export default requireOptionalNativeModule<SongseedPitchShiftModule>("SongseedPitchShift");

@@ -1,7 +1,6 @@
 import * as FileSystem from "expo-file-system/legacy";
-import { extractPreview } from "@siteed/audio-studio";
-import { metersToWaveformPeaks } from "../utils";
 import { loadAudioDurationMs } from "./audioStorage";
+import { computeWaveformPeaks } from "./waveformAnalysis";
 import { waveformSidecarUri } from "./storagePaths";
 
 /**
@@ -19,19 +18,6 @@ import { waveformSidecarUri } from "./storagePaths";
 export const WAVEFORM_DETAIL_BINS = 2048;
 
 type SidecarFile = { v: number; bins: number[] };
-
-function analysisToDetailPeaks(analysis: {
-  dataPoints?: Array<{ dB: number; amplitude: number }>;
-}): number[] {
-  const dataPoints = analysis.dataPoints ?? [];
-  if (!dataPoints.length) return [];
-  const levelsAsDb = dataPoints.map((point) =>
-    Number.isFinite(point.dB) ? point.dB : point.amplitude > 0 ? 20 * Math.log10(point.amplitude) : -60
-  );
-  // Reuse the app-wide dB→0..1 normalization so the detail envelope matches the
-  // look of inline thumbnails and recorded waveforms everywhere else.
-  return metersToWaveformPeaks(levelsAsDb, WAVEFORM_DETAIL_BINS);
-}
 
 /** 8-bit quantized JSON — visually lossless for an envelope, ~a few KB on disk. */
 function encode(peaks: number[]): string {
@@ -87,13 +73,7 @@ export async function generateWaveformSidecar(
     const resolvedDurationMs =
       durationMs && durationMs > 0 ? durationMs : await loadAudioDurationMs(audioUri);
     if (!resolvedDurationMs || resolvedDurationMs <= 0) return null;
-    const analysis = await extractPreview({
-      fileUri: audioUri,
-      numberOfPoints: WAVEFORM_DETAIL_BINS,
-      startTimeMs: 0,
-      endTimeMs: resolvedDurationMs,
-    });
-    const peaks = analysisToDetailPeaks(analysis);
+    const peaks = await computeWaveformPeaks(audioUri, WAVEFORM_DETAIL_BINS, resolvedDurationMs);
     if (peaks.length) await writeWaveformSidecar(audioUri, peaks);
     return peaks.length ? peaks : null;
   } catch (error) {

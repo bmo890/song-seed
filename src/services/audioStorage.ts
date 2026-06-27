@@ -3,8 +3,8 @@ import * as FileSystem from "expo-file-system/legacy";
 import { File } from "expo-file-system";
 import { createAudioPlayer } from "expo-audio";
 import { Platform, Share } from "react-native";
-import { extractPreview } from "@siteed/audio-studio";
-import { buildDefaultIdeaTitle, buildStaticWaveform, metersToWaveformPeaks } from "../utils";
+import { computeWaveformPeaks } from "./waveformAnalysis";
+import { buildDefaultIdeaTitle, buildStaticWaveform } from "../utils";
 import { SONG_SEED_AUDIO_DIR, SONG_SEED_PREVIEW_AUDIO_DIR, SONG_SEED_SHARE_DIR } from "./storagePaths";
 import { cleanupShareTempFile } from "./managedMedia";
 import {
@@ -119,14 +119,6 @@ export async function enrichImportedAudioAsset(
     }
 
     return { ...asset };
-}
-
-function analysisToWaveformPeaks(analysis: { dataPoints: Array<{ dB: number; amplitude: number }> }) {
-    const levelsAsDb = analysis.dataPoints.map((point) =>
-        Number.isFinite(point.dB) ? point.dB : point.amplitude > 0 ? 20 * Math.log10(point.amplitude) : -60
-    );
-
-    return metersToWaveformPeaks(levelsAsDb, MANAGED_WAVEFORM_PEAK_COUNT);
 }
 
 type ExpoSharingModule = {
@@ -614,24 +606,23 @@ export async function loadManagedAudioMetadata(
     }
 
     try {
-        const analysis = await extractPreview({
-            fileUri: audioUri,
-            numberOfPoints: MANAGED_WAVEFORM_PEAK_COUNT,
-            startTimeMs: 0,
-            endTimeMs: durationMs,
-        });
-        return {
-            durationMs: analysis.durationMs,
-            waveformPeaks: analysisToWaveformPeaks(analysis),
-            usedDetailedAnalysis: true,
-        };
+        const peaks = await computeWaveformPeaks(audioUri, MANAGED_WAVEFORM_PEAK_COUNT, durationMs ?? 0);
+        if (peaks.length) {
+            return {
+                durationMs,
+                waveformPeaks: peaks,
+                usedDetailedAnalysis: true,
+            };
+        }
     } catch {
-        return {
-            durationMs,
-            waveformPeaks: buildStaticWaveform(`${seed}-${durationMs ?? 0}`, MANAGED_WAVEFORM_PEAK_COUNT),
-            usedDetailedAnalysis: false,
-        };
+        // fall through to the deterministic placeholder below
     }
+
+    return {
+        durationMs,
+        waveformPeaks: buildStaticWaveform(`${seed}-${durationMs ?? 0}`, MANAGED_WAVEFORM_PEAK_COUNT),
+        usedDetailedAnalysis: false,
+    };
 }
 
 function getFileExtension(name?: string, mimeType?: string | null) {

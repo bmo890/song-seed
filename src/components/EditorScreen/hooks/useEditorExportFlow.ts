@@ -2,7 +2,9 @@ import { useEffect, useRef, useState } from "react";
 import * as FileSystem from "expo-file-system/legacy";
 import { AppAlert } from "../../../components/common/AppAlert";
 import { StackActions } from "@react-navigation/native";
-import { trimAudio, type AudioAnalysis } from "@siteed/audio-studio";
+import { type AudioAnalysis } from "@siteed/audio-studio";
+import { trimAudioRanges } from "../../../services/audioTrim";
+import { ensureWaveformSidecar } from "../../../services/waveformSidecar";
 import { importAudioAsset } from "../../../services/audioStorage";
 import { renderPitchShiftedFile } from "../../../services/pitchShift";
 import { useStore } from "../../../state/useStore";
@@ -462,13 +464,14 @@ export function useEditorExportFlow({
           startMs: region.start,
           endMs: region.end,
         });
-        const result = await trimAudio({
+        const result = await trimAudioRanges({
           fileUri: audioUri,
           mode: "single",
           startTimeMs: region.start,
           endTimeMs: region.end,
         });
         const metadata = await importRenderedFileToManaged(result.uri);
+        void ensureWaveformSidecar(metadata.audioUri, metadata.durationMs);
         const derivedClip = buildDerivedClipDraft({
           title: titles[index] ?? genClipTitle(targetIdea?.title ?? "Clip", index + 1),
           audioUri: metadata.audioUri,
@@ -509,12 +512,14 @@ export function useEditorExportFlow({
         ranges: removeRegions.map((region) => ({ startMs: region.start, endMs: region.end })),
       });
       const title = buildSpliceTitle();
-      const result = await trimAudio({
+      const result = await trimAudioRanges({
         fileUri: audioUri,
         mode: "remove",
         ranges: removeRegions.map((region) => ({ startTimeMs: region.start, endTimeMs: region.end })),
+        durationMs: analysisData.durationMs,
       });
       const metadata = await importRenderedFileToManaged(result.uri);
+      void ensureWaveformSidecar(metadata.audioUri, metadata.durationMs);
 
       const derivedClip = buildDerivedClipDraft({
         title,
@@ -558,6 +563,7 @@ export function useEditorExportFlow({
         outputFileName: title.replace(/[^a-zA-Z0-9-_ ]/g, "").trim().replace(/\s+/g, "-") || undefined,
       });
       const metadata = await importRenderedFileToManaged(result.outputUri);
+      void ensureWaveformSidecar(metadata.audioUri, metadata.durationMs);
       const derivedClip = buildDerivedClipDraft({
         title,
         audioUri: metadata.audioUri,
