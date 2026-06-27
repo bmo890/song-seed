@@ -185,6 +185,15 @@ function PinMarkerOverlay({
     );
 }
 
+// Display-only waveform shaping (purely visual — the stored peaks are unchanged).
+// Stored amplitudes for typical material cluster in a compressed mid band, which
+// reads flat. We expand that window across the full bar height so quiet→loud
+// variation is pronounced and detailed. Tune these to taste.
+const WAVEFORM_DISPLAY_FLOOR = 0.16; // amplitudes at/below this read as ~silent
+const WAVEFORM_DISPLAY_GAIN = 1.12; // headroom so the loudest peaks fill the reel
+const WAVEFORM_DISPLAY_MIN = 0.02; // faint hairline so silent passages still register
+const WAVEFORM_EDGE_MARGIN_PX = 6; // top/bottom margin (was 15) — taller peaks
+
 export function PlaybackTapeVisualizer({
     waveformPeaks,
     durationMs,
@@ -670,16 +679,26 @@ export function PlaybackTapeVisualizer({
         const centerLine = Skia.Path.Make();
 
         const centerY = canvasHeight > 0 ? canvasHeight / 2 : 70;
-        const waveMaxHeight = Math.max(10, centerY - 15);
+        const waveMaxHeight = Math.max(10, centerY - WAVEFORM_EDGE_MARGIN_PX);
 
         // waveformPeaks is ALREADY an array of absolute normalized amplitudes from 0 to 1
         // (calculated meticulously by `metersToWaveformPeaks` using absolute dBFS).
         // Do NOT normalize this against its own max! If we do, a completely silent
         // room tone clip will mathematically expand to max volume blocks.
+        //
+        // We do, however, apply a fixed (clip-independent) display expansion: subtract
+        // a noise floor and stretch the remaining window to full height, so the
+        // compressed mid band reads with real dynamic range. This is constant across
+        // all clips, so silence stays silent — it never inflates room tone.
 
         waveformPeaks.forEach((amp, i) => {
             const x = i * baseChunkWidth;
-            const scaleFactor = Math.max(0, Math.min(1, amp));
+            const clamped = Math.max(0, Math.min(1, amp));
+            const expanded =
+                clamped <= WAVEFORM_DISPLAY_FLOOR
+                    ? 0
+                    : (clamped - WAVEFORM_DISPLAY_FLOOR) / (1 - WAVEFORM_DISPLAY_FLOOR);
+            const scaleFactor = Math.min(1, Math.max(WAVEFORM_DISPLAY_MIN, expanded * WAVEFORM_DISPLAY_GAIN));
             const h = scaleFactor * waveMaxHeight;
 
             wave.moveTo(x, centerY - h);
