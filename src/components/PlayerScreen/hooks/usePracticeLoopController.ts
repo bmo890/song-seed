@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-type PlayerMode = "player" | "practice";
+type PlayerMode = "player" | "practice" | "playalong";
 type LoopTransportState = "idle" | "armed" | "looping" | "seeking_to_start";
 
 type LoopRange = {

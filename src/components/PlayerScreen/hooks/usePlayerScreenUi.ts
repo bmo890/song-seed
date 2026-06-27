@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { clampPitchShiftSemitones } from "../../../pitchShift";
 
-export type PlayerMode = "player" | "practice";
+export type PlayerMode = "player" | "practice" | "playalong";
 export type CountInOption = "off" | "1b" | "2b";
 /** Practice tools. pins/loop/sections expand inline (accordion); speed/pitch/countin open a popover. */
 export type PracticeTool = "pins" | "loop" | "sections" | "speed" | "pitch" | "countin";

@@ -29,7 +29,7 @@ const DEFAULT_PLAYBACK_STATE: NativePitchShiftPlaybackState = {
 };
 
 type Args = {
-  mode: "player" | "practice";
+  mode: "player" | "practice" | "playalong";
   isFocused: boolean;
   clip: { id: string; audioUri?: string | null } | null;
   pitchShiftSemitones: number;

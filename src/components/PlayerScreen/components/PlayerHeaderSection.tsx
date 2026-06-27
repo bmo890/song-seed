@@ -13,7 +13,7 @@ type PlayerHeaderSectionProps = {
   overdubLayerCount?: number;
   playerPosition: number;
   displayDuration: number;
-  mode: "player" | "practice";
+  mode: "player" | "practice" | "playalong";
   onBack: () => void;
   onMinimize: () => void;
   onOverflow: () => void;
@@ -45,9 +45,10 @@ export function PlayerHeaderSection({
     </Pressable>
   );
 
-  // Collapsed (practice / Tools on): title tucks into the nav row, metadata hidden,
-  // so the reel sits near the top and the practice console gets the vertical room.
-  if (mode === "practice") {
+  // Collapsed (practice / play-along): title tucks into the nav row, metadata
+  // hidden, so the reel sits near the top and the lyrics / practice console get
+  // the vertical room.
+  if (mode !== "player") {
     return (
       <View style={playerScreenStyles.headerBlock}>
         <View style={playerScreenStyles.navRow}>

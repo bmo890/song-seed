@@ -35,7 +35,7 @@ type TransportClock = {
 };
 
 type Props = {
-  mode: "player" | "practice";
+  mode: "player" | "practice" | "playalong";
   reelExpanded: boolean;
   waveformPeaks: number[];
   durationMs: number;
@@ -255,7 +255,9 @@ function PlayerTimelineInner({
       // Bigger reel in the default listening view (waveform as hero); smaller when Tools
       // are open to leave room for the practice console. Horizontal precision in practice
       // comes from zoom + minimap, not reel height.
-      collapsedHeightOverride={reelExpanded ? 250 : mode === "practice" ? 128 : 184}
+      collapsedHeightOverride={
+        reelExpanded ? 250 : mode === "practice" ? 128 : mode === "playalong" ? 112 : 184
+      }
       zoomMultiple={mode === "practice" ? practiceZoomMultiple : 1}
       onZoomMultipleChange={mode === "practice" ? onPracticeZoomMultipleChange : undefined}
       showMinimapMode={mode === "practice" ? "auto" : "never"}

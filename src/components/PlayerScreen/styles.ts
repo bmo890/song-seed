@@ -84,6 +84,11 @@ export const playerScreenStyles = StyleSheet.create({
     justifyContent: "space-between",
     paddingTop: 10,
   },
+  reelToolbarRight: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
   stickyReel: {
     paddingHorizontal: 14,
     paddingTop: 4,
@@ -160,6 +165,10 @@ export const playerScreenStyles = StyleSheet.create({
     paddingTop: 4,
     paddingBottom: 8,
     gap: 10,
+  },
+  // Play-along fills the body so the lyrics get every spare pixel.
+  playAlongContent: {
+    flex: 1,
   },
   footerStack: {
     gap: 8,

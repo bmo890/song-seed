@@ -4,7 +4,7 @@ import { PlayerTransportDock } from "../PlayerTransportDock";
 import { playerScreenStyles } from "../styles";
 
 type PlayerFooterSectionProps = {
-  mode: "player" | "practice";
+  mode: "player" | "practice" | "playalong";
   playDisabled?: boolean;
   isPlaying: boolean;
   hasPreviousTrack: boolean;
@@ -44,11 +44,11 @@ export function PlayerFooterSection({
         onPrevious={onPreviousTrack}
         onTogglePlay={onTogglePlay}
         onNext={onNextTrack}
-        trailingIcon={mode === "practice" ? "repeat" : queueEntryCount > 1 ? "list-outline" : undefined}
-        trailingActive={mode === "practice" ? repeatEnabled : queueExpanded}
-        trailingDisabled={mode === "practice" ? false : queueEntryCount <= 1}
+        trailingIcon={mode !== "player" ? "repeat" : queueEntryCount > 1 ? "list-outline" : undefined}
+        trailingActive={mode !== "player" ? repeatEnabled : queueExpanded}
+        trailingDisabled={mode !== "player" ? false : queueEntryCount <= 1}
         onTrailingPress={
-          mode === "practice"
+          mode !== "player"
             ? onToggleRepeat
             : queueEntryCount > 1
               ? onToggleQueueExpanded

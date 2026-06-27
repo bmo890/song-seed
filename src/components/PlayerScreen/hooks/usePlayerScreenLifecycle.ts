@@ -28,7 +28,7 @@ type UsePlayerScreenLifecycleArgs = {
   playerQueue: { ideaId: string; clipId: string }[];
   playerToggleRequestToken: number;
   playerCloseRequestToken: number;
-  mode: "player" | "practice";
+  mode: "player" | "practice" | "playalong";
   suppressAutoplayOnOpen?: boolean;
   speedPanelVisible: boolean;
   openPlayer: (ideaId: string, clip: any, metadata?: { title?: string; albumTitle?: string }, autoplay?: boolean) => Promise<void>;

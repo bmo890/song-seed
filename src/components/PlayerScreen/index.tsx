@@ -32,6 +32,7 @@ import { PlayerHeaderSection } from "./components/PlayerHeaderSection";
 import { PlayerFooterSection } from "./components/PlayerFooterSection";
 import { PlayerPracticePanel } from "./components/PlayerPracticePanel";
 import { PlayerSupportSections } from "./components/PlayerSupportSections";
+import { PlayAlongLyrics, PlayAlongSpeedControl } from "./components/PlayAlongLyrics";
 import { PlayerPinSheets } from "./components/PlayerPinSheets";
 import { playerScreenStyles } from "./styles";
 import { getVisibleTimelineRange } from "./helpers";
@@ -498,7 +499,7 @@ export function PlayerScreen() {
   return (
     <SafeAreaView style={[styles.screen, playerScreenStyles.screen]}>
       <TransportLayout
-        scrollable
+        scrollable={ui.mode !== "playalong"}
         header={
           <PlayerHeaderSection
             clipTitle={playerClip.title}
@@ -515,9 +516,9 @@ export function PlayerScreen() {
         }
         stickyTop={
           <View style={playerScreenStyles.stickyReel}>
-            {/* When the page header is collapsed (practice mode) it no longer shows the
-                timing, so surface a compact playhead / length row just above the reel. */}
-            {ui.mode === "practice" ? (
+            {/* When the page header is collapsed (practice / play-along) it no longer
+                shows the timing, so surface a compact playhead / length row above the reel. */}
+            {ui.mode !== "player" ? (
               <View style={playerScreenStyles.reelTimingRow}>
                 <Text style={playerScreenStyles.reelTimingText}>
                   {fmtDuration(effectivePlayerPosition)} / {fmtDuration(effectivePlayerDuration)}
@@ -587,53 +588,102 @@ export function PlayerScreen() {
               </View>
             </View>
 
-            {/* Reel stays pinned above the scrollable tools. Show/hide toggles all markers;
-                Tools toggles practice mode. */}
+            {/* Reel stays pinned above the scrollable tools. In play-along the row
+                becomes a label + Done; otherwise it carries markers / Play along / Tools. */}
             <View style={playerScreenStyles.reelToolbar}>
-              <Pressable
-                style={({ pressed }) => [
-                  playerScreenStyles.reelExpandButton,
-                  pressed ? playerScreenStyles.overflowButtonPressed : null,
-                ]}
-                onPress={() => ui.setMarkersVisible((value) => !value)}
-                accessibilityRole="button"
-                accessibilityState={{ checked: ui.markersVisible }}
-                accessibilityLabel={ui.markersVisible ? "Hide markers" : "Show markers"}
-              >
-                <Ionicons
-                  name={ui.markersVisible ? "eye-outline" : "eye-off-outline"}
-                  size={14}
-                  color={colors.textSecondary}
-                />
-                <Text style={playerScreenStyles.reelExpandText}>
-                  {ui.markersVisible ? "Hide markers" : "Show markers"}
-                </Text>
-              </Pressable>
-              <Pressable
-                style={({ pressed }) => [
-                  playerScreenStyles.toolsPill,
-                  ui.mode === "practice" ? playerScreenStyles.toolsPillActive : null,
-                  pressed ? playerScreenStyles.overflowButtonPressed : null,
-                ]}
-                onPress={() => ui.setMode(ui.mode === "practice" ? "player" : "practice")}
-                accessibilityRole="button"
-                accessibilityState={{ selected: ui.mode === "practice" }}
-                accessibilityLabel={ui.mode === "practice" ? "Close practice tools" : "Open practice tools"}
-              >
-                <Ionicons
-                  name="options-outline"
-                  size={15}
-                  color={ui.mode === "practice" ? colors.onPrimary : colors.textSecondary}
-                />
-                <Text
-                  style={[
-                    playerScreenStyles.toolsPillText,
-                    ui.mode === "practice" ? playerScreenStyles.toolsPillTextActive : null,
-                  ]}
-                >
-                  Tools
-                </Text>
-              </Pressable>
+              {ui.mode === "playalong" ? (
+                <>
+                  <View style={playerScreenStyles.reelExpandButton}>
+                    <Ionicons name="musical-notes" size={14} color={colors.primary} />
+                    <Text style={playerScreenStyles.reelExpandText}>Play along</Text>
+                  </View>
+                  <PlayAlongSpeedControl
+                    speed={playbackSpeed}
+                    presets={PRACTICE_SPEED_PRESETS}
+                    min={PRACTICE_SPEED_MIN}
+                    max={PRACTICE_SPEED_MAX}
+                    onSelect={handleSpeedTap}
+                  />
+                  <Pressable
+                    style={({ pressed }) => [
+                      playerScreenStyles.toolsPill,
+                      playerScreenStyles.toolsPillActive,
+                      pressed ? playerScreenStyles.overflowButtonPressed : null,
+                    ]}
+                    onPress={() => ui.setMode("player")}
+                    accessibilityRole="button"
+                    accessibilityLabel="Exit play along"
+                  >
+                    <Ionicons name="checkmark" size={15} color={colors.onPrimary} />
+                    <Text style={[playerScreenStyles.toolsPillText, playerScreenStyles.toolsPillTextActive]}>
+                      Done
+                    </Text>
+                  </Pressable>
+                </>
+              ) : (
+                <>
+                  <Pressable
+                    style={({ pressed }) => [
+                      playerScreenStyles.reelExpandButton,
+                      pressed ? playerScreenStyles.overflowButtonPressed : null,
+                    ]}
+                    onPress={() => ui.setMarkersVisible((value) => !value)}
+                    accessibilityRole="button"
+                    accessibilityState={{ checked: ui.markersVisible }}
+                    accessibilityLabel={ui.markersVisible ? "Hide markers" : "Show markers"}
+                  >
+                    <Ionicons
+                      name={ui.markersVisible ? "eye-outline" : "eye-off-outline"}
+                      size={14}
+                      color={colors.textSecondary}
+                    />
+                    <Text style={playerScreenStyles.reelExpandText}>
+                      {ui.markersVisible ? "Hide markers" : "Show markers"}
+                    </Text>
+                  </Pressable>
+                  <View style={playerScreenStyles.reelToolbarRight}>
+                    {data.hasProjectLyrics && ui.mode === "player" ? (
+                      <Pressable
+                        style={({ pressed }) => [
+                          playerScreenStyles.toolsPill,
+                          pressed ? playerScreenStyles.overflowButtonPressed : null,
+                        ]}
+                        onPress={() => ui.setMode("playalong")}
+                        accessibilityRole="button"
+                        accessibilityLabel="Play along with lyrics"
+                      >
+                        <Ionicons name="musical-notes-outline" size={15} color={colors.textSecondary} />
+                        <Text style={playerScreenStyles.toolsPillText}>Play along</Text>
+                      </Pressable>
+                    ) : null}
+                    <Pressable
+                      style={({ pressed }) => [
+                        playerScreenStyles.toolsPill,
+                        ui.mode === "practice" ? playerScreenStyles.toolsPillActive : null,
+                        pressed ? playerScreenStyles.overflowButtonPressed : null,
+                      ]}
+                      onPress={() => ui.setMode(ui.mode === "practice" ? "player" : "practice")}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected: ui.mode === "practice" }}
+                      accessibilityLabel={ui.mode === "practice" ? "Close practice tools" : "Open practice tools"}
+                    >
+                      <Ionicons
+                        name="options-outline"
+                        size={15}
+                        color={ui.mode === "practice" ? colors.onPrimary : colors.textSecondary}
+                      />
+                      <Text
+                        style={[
+                          playerScreenStyles.toolsPillText,
+                          ui.mode === "practice" ? playerScreenStyles.toolsPillTextActive : null,
+                        ]}
+                      >
+                        Tools
+                      </Text>
+                    </Pressable>
+                  </View>
+                </>
+              )}
             </View>
           </View>
         }
@@ -655,8 +705,17 @@ export function PlayerScreen() {
           />
         }
       >
-        <View style={playerScreenStyles.content}>
-          {ui.mode === "practice" ? (
+        <View style={ui.mode === "playalong" ? playerScreenStyles.playAlongContent : playerScreenStyles.content}>
+          {ui.mode === "playalong" ? (
+            <PlayAlongLyrics
+              text={data.latestLyricsText}
+              chordLines={lyricsChordLines}
+              positionMs={effectivePlayerPosition}
+              durationMs={effectivePlayerDuration}
+              isPlaying={effectiveIsPlaying}
+              playbackRate={effectivePlaybackRate}
+            />
+          ) : ui.mode === "practice" ? (
             <PlayerPracticePanel
               expandedTool={ui.expandedTool}
               onToggleTool={ui.toggleTool}
