@@ -39,6 +39,10 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+# native module build outputs (Gradle/Kotlin caches, dex, transforms)
+modules/*/android/build/
+modules/*/android/.gradle/
+modules/*/android/.cxx/
 
 # local working docs
 /docs/local/
