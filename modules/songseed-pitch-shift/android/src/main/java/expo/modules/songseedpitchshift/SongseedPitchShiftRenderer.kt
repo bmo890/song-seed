@@ -403,7 +403,8 @@ class SongseedPitchShiftRenderer(
       codec.configure(format, null, null, 0)
       codec.start()
 
-      val peaks = FloatArray(numberOfPoints)
+      val sumSquares = DoubleArray(numberOfPoints)
+      val sampleCounts = LongArray(numberOfPoints)
       val bufferInfo = MediaCodec.BufferInfo()
       var sawInputEos = false
       var sawOutputEos = false
@@ -439,22 +440,34 @@ class SongseedPitchShiftRenderer(
               val sampleCount = shorts.remaining()
               val frac = ((ptsUs - startUs).toDouble() / rangeUs).coerceIn(0.0, 0.999999)
               val bin = (frac * numberOfPoints).toInt().coerceIn(0, numberOfPoints - 1)
-              var localPeak = peaks[bin]
               var i = 0
               while (i < sampleCount) {
-                val sample = Math.abs(shorts.get(i).toInt()) / 32768f
-                if (sample > localPeak) localPeak = sample
+                val sample = shorts.get(i).toInt() / 32768.0
+                sumSquares[bin] += sample * sample
+                sampleCounts[bin] += 1L
                 i += 1
               }
-              peaks[bin] = localPeak
             }
           }
           codec.releaseOutputBuffer(outIndex, false)
         }
       }
 
+      // Per-bin RMS energy → the same dB-normalized 0..1 curve as the rest of the
+      // app (metersToWaveformPeaks). RMS traces the loudness envelope (a song's
+      // verse/chorus dynamics); a peak waveform sits near 0 dBFS in every bin of a
+      // loud/mastered mix and renders as a featureless solid block.
+      val peaks = DoubleArray(numberOfPoints)
+      for (b in 0 until numberOfPoints) {
+        val rms = if (sampleCounts[b] > 0L) Math.sqrt(sumSquares[b] / sampleCounts[b].toDouble()) else 0.0
+        val db = if (rms > 1e-6) 20.0 * Math.log10(rms) else -60.0
+        val clamped = Math.max(-60.0, Math.min(0.0, db))
+        val normalized = (clamped + 60.0) / 60.0
+        peaks[b] = Math.max(0.004, Math.min(1.0, Math.pow(normalized, 1.15)))
+      }
+
       return mapOf(
-        "peaks" to peaks.map { it.toDouble() },
+        "peaks" to peaks.toList(),
         "durationMs" to durationMs,
       )
     } finally {

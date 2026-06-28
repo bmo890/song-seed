@@ -358,7 +358,8 @@ final class SongseedPitchShiftRenderer {
     reader.add(output)
     reader.startReading()
 
-    var peaks = [Float](repeating: 0, count: numberOfPoints)
+    var sumSquares = [Double](repeating: 0, count: numberOfPoints)
+    var sampleCounts = [Int](repeating: 0, count: numberOfPoints)
 
     while reader.status == .reading, let sampleBuffer = output.copyNextSampleBuffer() {
       let ptsSec = CMTimeGetSeconds(CMSampleBufferGetPresentationTimeStamp(sampleBuffer))
@@ -379,16 +380,15 @@ final class SongseedPitchShiftRenderer {
         let sampleCount = length / 2
         let frac = totalDurationSec > 0 ? min(0.999999, max(0, ptsSec / totalDurationSec)) : 0
         let bin = min(numberOfPoints - 1, Int(frac * Double(numberOfPoints)))
-        var localPeak = peaks[bin]
         dataPointer.withMemoryRebound(to: Int16.self, capacity: sampleCount) { ptr in
           var i = 0
           while i < sampleCount {
-            let sample = abs(Float(ptr[i]) / 32768.0)
-            if sample > localPeak { localPeak = sample }
+            let sample = Double(ptr[i]) / 32768.0
+            sumSquares[bin] += sample * sample
+            sampleCounts[bin] += 1
             i += 1
           }
         }
-        peaks[bin] = localPeak
       }
       CMSampleBufferInvalidate(sampleBuffer)
     }
@@ -398,6 +398,17 @@ final class SongseedPitchShiftRenderer {
         ?? NSError(domain: "SongseedPitchShift", code: 29, userInfo: [NSLocalizedDescriptionKey: "Waveform analysis failed."])
     }
 
-    return ["peaks": peaks.map { Double($0) }, "durationMs": durationMs]
+    // Per-bin RMS energy → the same dB-normalized 0..1 curve as the rest of the app
+    // (metersToWaveformPeaks). RMS traces the loudness envelope (verse/chorus
+    // dynamics); a peak waveform saturates to a solid block for loud/mastered mixes.
+    let peaks: [Double] = (0..<numberOfPoints).map { b in
+      let rms = sampleCounts[b] > 0 ? (sumSquares[b] / Double(sampleCounts[b])).squareRoot() : 0
+      let db = rms > 1e-6 ? 20.0 * log10(rms) : -60.0
+      let clamped = max(-60.0, min(0.0, db))
+      let normalized = (clamped + 60.0) / 60.0
+      return max(0.004, min(1.0, pow(normalized, 1.15)))
+    }
+
+    return ["peaks": peaks, "durationMs": durationMs]
   }
 }
