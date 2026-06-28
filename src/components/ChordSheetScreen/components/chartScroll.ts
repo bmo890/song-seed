@@ -1,5 +1,5 @@
-import { createContext, useCallback, useContext, useEffect, useRef, type RefObject } from "react";
-import { Keyboard, Platform, type TextInput } from "react-native";
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type RefObject } from "react";
+import { Keyboard, type TextInput } from "react-native";
 
 /** Brings a focused inline chart input above the keyboard. */
 export type ScrollToInput = (inputRef: RefObject<any>) => void;
@@ -17,13 +17,18 @@ export function useScrollIntoViewOnFocus() {
   return { ref, onFocus };
 }
 
-const SAFE_GAP = 24;
+const SAFE_GAP = 56;
+type MeasureCb = (x: number, y: number, width: number, height: number) => void;
 
 /**
- * Host helper: tracks the keyboard and returns a `ScrollToInput` that scrolls a
- * focused input above the keyboard. The old ScrollResponder keyboard helper
- * no-ops on the New Architecture, so we measure the input against the keyboard's
- * top edge and drive the scroll view's imperative `scrollTo` ourselves.
+ * Host helper for keyboard-safe editing. Returns:
+ *  - `keyboardHeight`: add it to the scroll view's bottom padding so there's
+ *    room to scroll the last fields up. Necessary under Android edge-to-edge
+ *    (Expo SDK 54+) where the window no longer resizes for the keyboard, so
+ *    KeyboardAvoidingView / adjustResize don't make room on their own.
+ *  - `scrollToInput`: on focus, measures the input against the keyboard's top
+ *    edge and drives the scroll view's imperative `scrollTo` to lift it above
+ *    the keyboard (the ScrollResponder keyboard helper no-ops on Fabric).
  *
  * `scrollTo` receives an absolute content offset; `getOffset` returns the
  * current one.
@@ -31,9 +36,10 @@ const SAFE_GAP = 24;
 export function useChartKeyboardScroller(opts: {
   scrollTo: (y: number) => void;
   getOffset: () => number;
-}): ScrollToInput {
+}): { scrollToInput: ScrollToInput; keyboardHeight: number } {
   const optsRef = useRef(opts);
   optsRef.current = opts;
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
   const kbTop = useRef(Number.POSITIVE_INFINITY); // screen-Y of the keyboard's top edge
   const pending = useRef<RefObject<any> | null>(null);
 
@@ -47,15 +53,15 @@ export function useChartKeyboardScroller(opts: {
   }, []);
 
   useEffect(() => {
-    const showEvt = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
-    const hideEvt = Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
-    const show = Keyboard.addListener(showEvt, (e) => {
+    const show = Keyboard.addListener("keyboardDidShow", (e) => {
       kbTop.current = e.endCoordinates?.screenY ?? Number.POSITIVE_INFINITY;
-      // Let the keyboard frame settle before measuring/scrolling.
-      setTimeout(apply, 60);
+      setKeyboardHeight(e.endCoordinates?.height ?? 0);
+      // Let the bottom-padding re-render + layout settle, then scroll the field in.
+      setTimeout(apply, 70);
     });
-    const hide = Keyboard.addListener(hideEvt, () => {
+    const hide = Keyboard.addListener("keyboardDidHide", () => {
       kbTop.current = Number.POSITIVE_INFINITY;
+      setKeyboardHeight(0);
     });
     return () => {
       show.remove();
@@ -63,13 +69,13 @@ export function useChartKeyboardScroller(opts: {
     };
   }, [apply]);
 
-  return useCallback(
+  const scrollToInput = useCallback<ScrollToInput>(
     (inputRef) => {
       pending.current = inputRef;
       if (Number.isFinite(kbTop.current)) apply(); // keyboard already up (switching fields)
     },
     [apply]
   );
-}
 
-type MeasureCb = (x: number, y: number, width: number, height: number) => void;
+  return { scrollToInput, keyboardHeight };
+}

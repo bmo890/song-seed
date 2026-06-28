@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar as ExpoStatusBar } from "expo-status-bar";
 import { Ionicons } from "@expo/vector-icons";
@@ -18,7 +18,7 @@ export function ChordSheetScreenContent() {
   const model = useChordSheetModel();
   const scrollRef = useRef<ScrollView>(null);
   const offsetRef = useRef(0);
-  const scrollToInput = useChartKeyboardScroller({
+  const { scrollToInput, keyboardHeight } = useChartKeyboardScroller({
     scrollTo: (y) => scrollRef.current?.scrollTo({ y, animated: true }),
     getOffset: () => offsetRef.current,
   });
@@ -71,26 +71,28 @@ export function ChordSheetScreenContent() {
 
       <Text style={styles.subtitle}>{model.projectIdea.title}</Text>
 
-      <KeyboardAvoidingView style={styles.fill} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-        <ScrollView
-          ref={scrollRef}
-          style={styles.fill}
-          contentContainerStyle={[styles.scrollContent, model.barSelection ? styles.scrollContentSelecting : null]}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-          keyboardDismissMode="interactive"
-          onScroll={(e) => {
-            offsetRef.current = e.nativeEvent.contentOffset.y;
-          }}
-          scrollEventThrottle={16}
-        >
-          <ChartScrollProvider value={scrollToInput}>
-            <ChordSheetBody model={model} />
-          </ChartScrollProvider>
-        </ScrollView>
-      </KeyboardAvoidingView>
+      <ScrollView
+        ref={scrollRef}
+        style={styles.fill}
+        contentContainerStyle={[
+          styles.scrollContent,
+          model.barSelection ? styles.scrollContentSelecting : null,
+          keyboardHeight > 0 ? { paddingBottom: 48 + keyboardHeight } : null,
+        ]}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
+        onScroll={(e) => {
+          offsetRef.current = e.nativeEvent.contentOffset.y;
+        }}
+        scrollEventThrottle={16}
+      >
+        <ChartScrollProvider value={scrollToInput}>
+          <ChordSheetBody model={model} />
+        </ChartScrollProvider>
+      </ScrollView>
 
-      <ChartSelectionDock model={model} />
+      {keyboardHeight === 0 ? <ChartSelectionDock model={model} /> : null}
 
       <ChordExportSheet
         visible={exportVisible}

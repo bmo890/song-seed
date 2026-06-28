@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode, type Ref } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { View, type StyleProp, type ViewStyle } from "react-native";
 import Animated, { useAnimatedScrollHandler } from "react-native-reanimated";
 import { useSongScreen } from "../provider/SongScreenProvider";
@@ -10,8 +10,6 @@ const DEFAULT_HEADER_HEIGHT = 130;
 type CollapsingTabStageProps = {
   children: ReactNode;
   contentContainerStyle?: StyleProp<ViewStyle>;
-  /** Forwarded to the inner scroll view so a tab body can scroll an input above the keyboard. */
-  scrollRef?: Ref<any>;
 };
 
 /**
@@ -19,7 +17,7 @@ type CollapsingTabStageProps = {
  * on top. Same mechanism as the takes stage: content scrolls 1:1, the header
  * translates up via transform, no pinned toolbar here.
  */
-export function CollapsingTabStage({ children, contentContainerStyle, scrollRef }: CollapsingTabStageProps) {
+export function CollapsingTabStage({ children, contentContainerStyle }: CollapsingTabStageProps) {
   const { screen } = useSongScreen();
   const [headerHeight, setHeaderHeight] = useState(DEFAULT_HEADER_HEIGHT);
 
@@ -45,7 +43,6 @@ export function CollapsingTabStage({ children, contentContainerStyle, scrollRef 
   return (
     <View style={{ flex: 1, overflow: "hidden" }}>
       <Animated.ScrollView
-        ref={scrollRef}
         style={{ flex: 1 }}
         contentContainerStyle={[{ paddingTop: headerHeight }, contentContainerStyle]}
         onScroll={scrollHandler}
