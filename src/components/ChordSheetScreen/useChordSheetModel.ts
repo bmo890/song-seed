@@ -5,7 +5,7 @@ import { useStore } from "../../state/useStore";
 import { appActions } from "../../state/actions";
 import { AppAlert } from "../common/AppAlert";
 import { formatDate } from "../../utils";
-import { buildChordDisplay, sortedPalette, type ChordParts } from "../../chords";
+import { buildChordDisplay, parseChordDisplay, sortedPalette, type ChordParts } from "../../chords";
 import {
   buildChordSheetFromLyrics,
   createChordSheet,
@@ -22,7 +22,9 @@ import { getLatestLyricsVersion } from "../../lyrics";
 import { shareChordSheetPdf } from "../../services/chordChartPdf";
 import type { ChordSheet, SongIdea } from "../../types";
 
-type PickerTarget = { sectionId: string; measureId: string };
+// index === null adds a chord to the bar; a number edits the chord at that index.
+type PickerTarget = { sectionId: string; measureId: string; index: number | null };
+type BarEditorTarget = { sectionId: string; measureId: string };
 
 export function useChordSheetModel(ideaIdOverride?: string) {
   const route = useRoute<any>();
@@ -68,6 +70,7 @@ export function useChordSheetModel(ideaIdOverride?: string) {
 
   const [isEditing, setIsEditing] = useState(false);
   const [pickerTarget, setPickerTarget] = useState<PickerTarget | null>(null);
+  const [barEditor, setBarEditor] = useState<BarEditorTarget | null>(null);
 
   // Undo/redo history for the editing session (snapshots of the whole chart).
   const pastRef = useRef<ChordSheet[]>([]);
@@ -226,8 +229,29 @@ export function useChordSheetModel(ideaIdOverride?: string) {
       ),
     }));
 
-  const openPicker = (sectionId: string, measureId: string) => setPickerTarget({ sectionId, measureId });
+  // Tapping a bar opens a focused editor for just that bar; the chord picker is
+  // launched from there to add (index null) or change/delete one chord (index n).
+  const openBarEditor = (sectionId: string, measureId: string) => setBarEditor({ sectionId, measureId });
+  const closeBarEditor = () => setBarEditor(null);
+
+  const barEditorMeasure = barEditor
+    ? sheet.sections.find((s) => s.id === barEditor.sectionId)?.measures.find((m) => m.id === barEditor.measureId) ??
+      null
+    : null;
+
+  const openChordPicker = (sectionId: string, measureId: string, index: number | null) =>
+    setPickerTarget({ sectionId, measureId, index });
   const closePicker = () => setPickerTarget(null);
+
+  const pickerMode: "add" | "edit" = pickerTarget?.index != null ? "edit" : "add";
+  const pickerInitial: ChordParts | null =
+    pickerTarget && pickerTarget.index != null
+      ? parseChordDisplay(
+          sheet.sections
+            .find((s) => s.id === pickerTarget.sectionId)
+            ?.measures.find((m) => m.id === pickerTarget.measureId)?.chords[pickerTarget.index] ?? ""
+        )
+      : null;
 
   // ── Bar selection (shared by the staff and the screen-level selection dock) ──
   // Scoped to one section so insert/paste/delete targets stay unambiguous.
@@ -322,20 +346,33 @@ export function useChordSheetModel(ideaIdOverride?: string) {
     (barSelectionSection?.measures.find((m) => m.id === barSelection?.measureIds[0])?.chords.length ?? 0) > 1;
   const canPaste = !!barClipboard?.length;
 
-  const addChord = (parts: ChordParts) => {
+  const saveChord = (parts: ChordParts) => {
     if (!projectIdea || !pickerTarget) return;
     const display = buildChordDisplay(parts);
     if (!display) return;
+    const { measureId, index } = pickerTarget;
     mutateSection(pickerTarget.sectionId, (s) => ({
       ...s,
-      measures: s.measures.map((m) =>
-        // A bar holds up to MAX_CHORDS_PER_BAR chords.
-        m.id === pickerTarget.measureId && m.chords.length < MAX_CHORDS_PER_BAR
-          ? { ...m, chords: [...m.chords, display] }
-          : m
-      ),
+      measures: s.measures.map((m) => {
+        if (m.id !== measureId) return m;
+        if (index == null) {
+          // A bar holds up to MAX_CHORDS_PER_BAR chords.
+          return m.chords.length < MAX_CHORDS_PER_BAR ? { ...m, chords: [...m.chords, display] } : m;
+        }
+        return { ...m, chords: m.chords.map((c, i) => (i === index ? display : c)) };
+      }),
     }));
     appActions.recordSongChord(projectIdea.id, parts);
+    closePicker();
+  };
+
+  // Delete the chord currently being edited in the picker (its onDelete).
+  const removeEditingChord = () => {
+    if (!pickerTarget || pickerTarget.index == null) {
+      closePicker();
+      return;
+    }
+    removeChordAt(pickerTarget.sectionId, pickerTarget.measureId, pickerTarget.index);
     closePicker();
   };
 
@@ -369,6 +406,10 @@ export function useChordSheetModel(ideaIdOverride?: string) {
     isEditing,
     setIsEditing,
     pickerTarget,
+    pickerMode,
+    pickerInitial,
+    barEditor,
+    barEditorMeasure,
     addSection,
     addTextBlock,
     setBlockText,
@@ -390,9 +431,12 @@ export function useChordSheetModel(ideaIdOverride?: string) {
     redo,
     canUndo,
     canRedo,
-    openPicker,
+    openBarEditor,
+    closeBarEditor,
+    openChordPicker,
     closePicker,
-    addChord,
+    saveChord,
+    removeEditingChord,
     barSelection,
     selectedBarCount,
     canSplitSelection,

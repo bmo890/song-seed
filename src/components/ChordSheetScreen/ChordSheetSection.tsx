@@ -13,12 +13,12 @@ type Props = {
   onTapMeasure: (measureId: string) => void;
   onLongPressMeasure: (measureId: string) => void;
   onAddMeasure: () => void;
-  onRemoveChord: (measureId: string, index: number) => void;
   onNotes: (notes: string) => void;
   onOpenMenu: () => void;
 };
 
-const BARLINE = colors.borderMuted;
+// A touch darker than borderMuted so the barlines read clearly on the page.
+const BARLINE = "#BCA59B";
 // Four bars to a line — the standard chart convention. Bars are a quarter of the
 // width each so a full line always fits and fills the row evenly (no fixed width
 // that leaves a gap on the right).
@@ -39,7 +39,6 @@ export function ChordSheetSection({
   onTapMeasure,
   onLongPressMeasure,
   onAddMeasure,
-  onRemoveChord,
   onNotes,
   onOpenMenu,
 }: Props) {
@@ -96,11 +95,9 @@ export function ChordSheetSection({
                 measure={measure}
                 isLast={i === row.length - 1}
                 editable={editable}
-                selectionActive={selectionActive}
                 selected={selectedSet.has(measure.id)}
                 onTap={() => onTapMeasure(measure.id)}
                 onLongPress={() => onLongPressMeasure(measure.id)}
-                onRemoveChord={(index) => onRemoveChord(measure.id, index)}
               />
             ))}
           </View>
@@ -119,26 +116,21 @@ function Bar({
   measure,
   isLast,
   editable,
-  selectionActive,
   selected,
   onTap,
   onLongPress,
-  onRemoveChord,
 }: {
   measure: ChordSheetMeasure;
   isLast: boolean;
   editable: boolean;
-  selectionActive: boolean;
   selected: boolean;
   onTap: () => void;
   onLongPress: () => void;
-  onRemoveChord: (index: number) => void;
 }) {
   const chords = measure.chords;
-  // Individual chords are tappable-to-remove only when editing and NOT selecting
-  // bars — in selection mode the whole bar toggles instead.
-  const chordsRemovable = editable && !selectionActive;
-
+  // A bar's chords render as one auto-shrinking line so they fit the cell instead
+  // of being clipped — keeps every row the same height. Editing a bar's chords
+  // happens in the bar editor (single-press), never by tapping chords on the staff.
   return (
     <Pressable
       style={[styles.bar, isLast ? styles.barLast : null, selected ? styles.barSelected : null]}
@@ -147,23 +139,13 @@ function Bar({
       delayLongPress={300}
       disabled={!editable}
     >
-      <View style={styles.barChords}>
-        {chords.length > 0 ? (
-          chords.map((chord, index) =>
-            chordsRemovable ? (
-              <Pressable key={index} onPress={() => onRemoveChord(index)} hitSlop={2}>
-                <Text style={styles.chord}>{chord}</Text>
-              </Pressable>
-            ) : (
-              <Text key={index} style={styles.chord}>
-                {chord}
-              </Text>
-            )
-          )
-        ) : (
-          <Text style={styles.rest}>{"—"}</Text>
-        )}
-      </View>
+      {chords.length === 0 ? (
+        <Text style={styles.rest}>{"—"}</Text>
+      ) : (
+        <Text style={[styles.chord, styles.chordFill]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.5}>
+          {chords.join("  ")}
+        </Text>
+      )}
     </Pressable>
   );
 }
@@ -221,6 +203,7 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
     alignItems: "center",
     justifyContent: "center",
+    overflow: "hidden",
     borderLeftWidth: 1,
     borderLeftColor: BARLINE,
   },
@@ -246,18 +229,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  barChords: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    alignItems: "center",
-    justifyContent: "center",
-    columnGap: 4,
-    rowGap: 2,
-  },
+  chordFill: { alignSelf: "stretch" },
   chord: {
     fontFamily: "PlusJakartaSans_700Bold",
-    fontSize: 14,
+    fontSize: 16,
     color: colors.textPrimary,
+    textAlign: "center",
   },
   rest: {
     fontFamily: "PlusJakartaSans_400Regular",

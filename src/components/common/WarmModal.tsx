@@ -3,7 +3,7 @@ import { KeyboardAvoidingView, Modal, ScrollView, StyleSheet, Text, View } from 
 type Props = {
   visible: boolean;
   onRequestClose: () => void;
-  title: string;
+  title?: string;
   children: React.ReactNode;
   /** Wrap content in a ScrollView — use for taller modals that may overflow on small screens */
   scrollable?: boolean;
@@ -16,7 +16,7 @@ export function WarmModal({ visible, onRequestClose, title, children, scrollable
       <KeyboardAvoidingView style={warmModalStyles.avoid} behavior="padding">
         <View style={warmModalStyles.center}>
           <View style={warmModalStyles.card}>
-            <Text style={warmModalStyles.title}>{title}</Text>
+            {title ? <Text style={warmModalStyles.title}>{title}</Text> : null}
             {scrollable ? (
               <ScrollView
                 showsVerticalScrollIndicator={false}

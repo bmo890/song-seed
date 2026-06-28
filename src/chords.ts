@@ -72,6 +72,18 @@ export function buildChordDisplay(parts: ChordParts): string {
   return text;
 }
 
+/** Best-effort reverse of buildChordDisplay for chart bars (which store only the
+ * rendered string). Splits off the root + accidental and keeps everything else
+ * as `quality`, so buildChordDisplay round-trips the original string exactly. */
+export function parseChordDisplay(display: string): ChordParts {
+  const text = (display ?? "").trim();
+  const match = text.match(/^([A-G])(♯|♭|#|b)?(.*)$/);
+  if (!match) return { quality: "", customSuffix: text };
+  const accidental: ChordAccidental =
+    match[2] === "♯" || match[2] === "#" ? "sharp" : match[2] === "♭" || match[2] === "b" ? "flat" : "natural";
+  return { root: match[1] as ChordRoot, accidental, quality: match[3] ?? "" };
+}
+
 /** Clamps a chord's character anchor into a line of the given length. A chord
  * may sit at index === length (just past the final character). */
 export function clampChordIndex(at: number, textLength: number): number {

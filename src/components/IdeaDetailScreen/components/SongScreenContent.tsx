@@ -44,6 +44,9 @@ export function SongScreenContent() {
 
   return (
     <SafeAreaView
+      // The bottom-anchored overlays (selection dock, FAB) and the scroll content
+      // already account for the safe-area inset themselves, so don't pad it twice.
+      edges={["top", "left", "right"]}
       style={[
         styles.screen,
         screen.selectedIdea.kind === "project" ? styles.screenProjectDetail : styles.screenClipDetail,

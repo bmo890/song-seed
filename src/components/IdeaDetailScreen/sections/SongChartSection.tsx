@@ -5,7 +5,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { styles as appStyles } from "../../../styles";
 import { colors, radii, spacing } from "../../../design/tokens";
 import { useChordSheetModel } from "../../ChordSheetScreen/useChordSheetModel";
-import { ChordSheetBody } from "../../ChordSheetScreen/components/ChordSheetBody";
+import { ChordSheetBody, ChordSheetFullView } from "../../ChordSheetScreen/components/ChordSheetBody";
 import { ChartSelectionDock } from "../../ChordSheetScreen/components/ChartSelectionDock";
 import { ChartScrollProvider, useChartKeyboardScroller } from "../../ChordSheetScreen/components/chartScroll";
 import { ChordExportSheet } from "../../LyricsVersionScreen/components/chords/ChordExportSheet";
@@ -18,6 +18,7 @@ export function SongChartSection() {
   const idea = screen.selectedIdea;
   const model = useChordSheetModel(idea?.kind === "project" ? idea.id : undefined);
   const [exportVisible, setExportVisible] = useState(false);
+  const [fullViewOpen, setFullViewOpen] = useState(false);
   const { setIsEditing, isEditing } = model;
 
   // Editing happens in a dedicated keyboard-safe scroll view (below); track its
@@ -143,45 +144,70 @@ export function SongChartSection() {
   // ── Read-only view: the collapsing song header + tabs stay in place. ─────────
   const isEmpty = model.sheet.sections.length === 0;
   return (
-    <CollapsingTabStage
-      contentContainerStyle={[
-        styles.songDetailTabScrollContent,
-        { paddingBottom: screen.songPageBaseBottomPadding },
-      ]}
-    >
-      {!isEmpty ? (
-        <View style={chartControls.row}>
-          <Pressable
-            style={({ pressed }) => [chartControls.iconBtn, pressed ? appStyles.pressDown : null]}
-            onPress={() => setExportVisible(true)}
-            hitSlop={6}
-          >
-            <Ionicons name="share-outline" size={18} color={colors.textSecondary} />
-          </Pressable>
-          <Pressable
-            style={({ pressed }) => [chartControls.editPill, pressed ? appStyles.pressDown : null]}
-            onPress={() => setIsEditing(true)}
-            hitSlop={6}
-          >
-            <Text style={chartControls.editPillText}>Edit</Text>
-          </Pressable>
-        </View>
-      ) : null}
+    <>
+      <CollapsingTabStage
+        contentContainerStyle={[
+          styles.songDetailTabScrollContent,
+          { paddingBottom: screen.songPageBaseBottomPadding },
+        ]}
+      >
+        {!isEmpty ? (
+          <View style={chartControls.row}>
+            <View style={chartControls.group}>
+              <Pressable
+                style={({ pressed }) => [chartControls.iconBtn, pressed ? appStyles.pressDown : null]}
+                onPress={() => setFullViewOpen(true)}
+                hitSlop={6}
+                accessibilityLabel="Full view"
+              >
+                <Ionicons name="expand-outline" size={19} color={colors.primary} />
+              </Pressable>
+              <Pressable
+                style={({ pressed }) => [chartControls.iconBtn, pressed ? appStyles.pressDown : null]}
+                onPress={() => setExportVisible(true)}
+                hitSlop={6}
+                accessibilityLabel="Export"
+              >
+                <Ionicons name="share-outline" size={18} color={colors.textSecondary} />
+              </Pressable>
+            </View>
+            <Pressable
+              style={({ pressed }) => [chartControls.editIconBtn, pressed ? appStyles.pressDown : null]}
+              onPress={() => setIsEditing(true)}
+              hitSlop={6}
+              accessibilityLabel="Edit"
+            >
+              <Ionicons name="pencil" size={18} color={colors.onPrimary} />
+            </Pressable>
+          </View>
+        ) : null}
 
-      <ChordSheetBody model={model} />
+        <ChordSheetBody model={model} />
 
-      {exportSheet}
-    </CollapsingTabStage>
+        {exportSheet}
+      </CollapsingTabStage>
+
+      <ChordSheetFullView
+        visible={fullViewOpen}
+        title={model.projectIdea?.title ?? "Chord chart"}
+        sheet={model.sheet}
+        onClose={() => setFullViewOpen(false)}
+      />
+    </>
   );
 }
 
 const chartControls = StyleSheet.create({
   row: {
     flexDirection: "row",
-    justifyContent: "flex-end",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: spacing.sm,
+  },
+  group: {
+    flexDirection: "row",
     alignItems: "center",
     gap: spacing.sm,
-    marginBottom: spacing.sm,
   },
   editorBar: {
     flexDirection: "row",
@@ -208,7 +234,15 @@ const chartControls = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: 7,
     borderRadius: radii.round,
-    backgroundColor: colors.surfaceHigh,
+    backgroundColor: colors.primary,
   },
-  editPillText: { fontFamily: "PlusJakartaSans_700Bold", fontSize: 13, color: colors.primary },
+  editPillText: { fontFamily: "PlusJakartaSans_700Bold", fontSize: 13, color: colors.onPrimary },
+  editIconBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: radii.round,
+    backgroundColor: colors.primary,
+    alignItems: "center",
+    justifyContent: "center",
+  },
 });

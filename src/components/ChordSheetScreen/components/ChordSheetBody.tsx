@@ -13,6 +13,7 @@ import type { SelectionAction } from "../../common/SelectionDock";
 import { QuickNameModal } from "../../modals/QuickNameModal";
 import { AppAlert } from "../../common/AppAlert";
 import { ChordSheetSection } from "../ChordSheetSection";
+import { BarEditorSheet } from "./BarEditorSheet";
 import { useScrollIntoViewOnFocus } from "./chartScroll";
 import type { useChordSheetModel } from "../useChordSheetModel";
 
@@ -29,7 +30,6 @@ export function ChordSheetBody({ model }: { model: ReturnType<typeof useChordShe
   const [menuTarget, setMenuTarget] = useState<MenuTarget | null>(null);
   const [renameTarget, setRenameTarget] = useState<{ id: string; label: string } | null>(null);
   const [renameDraft, setRenameDraft] = useState("");
-  const [fullViewOpen, setFullViewOpen] = useState(false);
 
   const barSelection = model.barSelection;
 
@@ -99,35 +99,24 @@ export function ChordSheetBody({ model }: { model: ReturnType<typeof useChordShe
 
   return (
     <>
-      <View style={styles.addBlock}>
-        {isEditing || isEmpty ? (
-          <>
-            <Pressable
-              style={({ pressed }) => [styles.actionBtn, pressed ? appStyles.pressDown : null]}
-              onPress={() => setAddSheetOpen(true)}
-            >
-              <Ionicons name="add" size={15} color={colors.primary} />
-              <Text style={styles.actionBtnText}>Add a section</Text>
-            </Pressable>
-            <Pressable
-              style={({ pressed }) => [styles.actionBtn, pressed ? appStyles.pressDown : null]}
-              onPress={() => model.buildFromLyrics()}
-            >
-              <Ionicons name="sparkles-outline" size={14} color={colors.primary} />
-              <Text style={styles.actionBtnText}>Build from lyrics</Text>
-            </Pressable>
-          </>
-        ) : null}
-        {!isEmpty ? (
+      {isEditing || isEmpty ? (
+        <View style={styles.addBlock}>
           <Pressable
             style={({ pressed }) => [styles.actionBtn, pressed ? appStyles.pressDown : null]}
-            onPress={() => setFullViewOpen(true)}
+            onPress={() => setAddSheetOpen(true)}
           >
-            <Ionicons name="newspaper-outline" size={14} color={colors.primary} />
-            <Text style={styles.actionBtnText}>Full view</Text>
+            <Ionicons name="add" size={15} color={colors.primary} />
+            <Text style={styles.actionBtnText}>Add a section</Text>
           </Pressable>
-        ) : null}
-      </View>
+          <Pressable
+            style={({ pressed }) => [styles.actionBtn, pressed ? appStyles.pressDown : null]}
+            onPress={() => model.buildFromLyrics()}
+          >
+            <Ionicons name="sparkles-outline" size={14} color={colors.primary} />
+            <Text style={styles.actionBtnText}>Build from lyrics</Text>
+          </Pressable>
+        </View>
+      ) : null}
 
       <View style={isEditing ? styles.editSurface : undefined}>
       {isEmpty ? (
@@ -167,11 +156,10 @@ export function ChordSheetBody({ model }: { model: ReturnType<typeof useChordShe
               onTapMeasure={(measureId) =>
                 barSelection
                   ? model.toggleBarSelection(section.id, measureId)
-                  : model.openPicker(section.id, measureId)
+                  : model.openBarEditor(section.id, measureId)
               }
               onLongPressMeasure={(measureId) => model.toggleBarSelection(section.id, measureId)}
               onAddMeasure={() => model.addMeasure(section.id)}
-              onRemoveChord={(measureId, i) => model.removeChordAt(section.id, measureId, i)}
               onNotes={(notes) => model.setSectionNotes(section.id, notes)}
               onOpenMenu={() =>
                 setMenuTarget({
@@ -188,14 +176,26 @@ export function ChordSheetBody({ model }: { model: ReturnType<typeof useChordShe
       )}
       </View>
 
+      <BarEditorSheet
+        visible={!!model.barEditor}
+        chords={model.barEditorMeasure?.chords ?? []}
+        onAddChord={() =>
+          model.barEditor && model.openChordPicker(model.barEditor.sectionId, model.barEditor.measureId, null)
+        }
+        onEditChord={(index) =>
+          model.barEditor && model.openChordPicker(model.barEditor.sectionId, model.barEditor.measureId, index)
+        }
+        onClose={model.closeBarEditor}
+      />
+
       <ChordPickerSheet
         visible={!!model.pickerTarget}
-        mode="add"
-        initial={null}
+        mode={model.pickerMode}
+        initial={model.pickerInitial}
         palette={model.palette}
         onClose={model.closePicker}
-        onSave={model.addChord}
-        onDelete={model.closePicker}
+        onSave={model.saveChord}
+        onDelete={model.removeEditingChord}
       />
 
       <SelectionActionSheet
@@ -231,19 +231,12 @@ export function ChordSheetBody({ model }: { model: ReturnType<typeof useChordShe
         }}
         saveLabel="Rename"
       />
-
-      <ChordSheetFullView
-        visible={fullViewOpen}
-        title={model.projectIdea?.title ?? "Chord chart"}
-        sheet={sheet}
-        onClose={() => setFullViewOpen(false)}
-      />
     </>
   );
 }
 
 /** Read-only "document" view of the whole chart — the in-app print preview. */
-function ChordSheetFullView({
+export function ChordSheetFullView({
   visible,
   title,
   sheet,
@@ -306,7 +299,6 @@ function ChordSheetFullView({
                         onTapMeasure={() => {}}
                         onLongPressMeasure={() => {}}
                         onAddMeasure={() => {}}
-                        onRemoveChord={() => {}}
                         onNotes={() => {}}
                         onOpenMenu={() => {}}
                       />

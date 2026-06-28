@@ -8,7 +8,7 @@ import { styles as appStyles } from "../../../styles";
 import { colors, radii, spacing, text as textTokens } from "../../../design/tokens";
 import { ChordExportSheet } from "../../LyricsVersionScreen/components/chords/ChordExportSheet";
 import { useChordSheetModel } from "../useChordSheetModel";
-import { ChordSheetBody } from "./ChordSheetBody";
+import { ChordSheetBody, ChordSheetFullView } from "./ChordSheetBody";
 import { ChartSelectionDock } from "./ChartSelectionDock";
 import { ChartScrollProvider, useChartKeyboardScroller } from "./chartScroll";
 
@@ -23,6 +23,7 @@ export function ChordSheetScreenContent() {
     getOffset: () => offsetRef.current,
   });
   const [exportVisible, setExportVisible] = useState(false);
+  const [fullViewOpen, setFullViewOpen] = useState(false);
 
   if (!model.projectIdea) {
     return (
@@ -77,23 +78,45 @@ export function ChordSheetScreenContent() {
                 </Pressable>
               </>
             ) : null}
+            {!isEmpty && !isEditing ? (
+              <Pressable
+                style={({ pressed }) => [styles.headerBtn, pressed ? appStyles.pressDown : null]}
+                onPress={() => setFullViewOpen(true)}
+                hitSlop={6}
+                accessibilityLabel="Full view"
+              >
+                <Ionicons name="expand-outline" size={19} color={colors.primary} />
+              </Pressable>
+            ) : null}
             {!isEmpty ? (
               <Pressable
                 style={({ pressed }) => [styles.headerBtn, pressed ? appStyles.pressDown : null]}
                 onPress={() => setExportVisible(true)}
                 hitSlop={6}
+                accessibilityLabel="Export"
               >
                 <Ionicons name="share-outline" size={18} color={colors.textSecondary} />
               </Pressable>
             ) : null}
             {!isEmpty ? (
-              <Pressable
-                style={({ pressed }) => [styles.editPill, pressed ? appStyles.pressDown : null]}
-                onPress={() => model.setIsEditing(!isEditing)}
-                hitSlop={6}
-              >
-                <Text style={styles.editPillText}>{isEditing ? "Done" : "Edit"}</Text>
-              </Pressable>
+              isEditing ? (
+                <Pressable
+                  style={({ pressed }) => [styles.editPill, pressed ? appStyles.pressDown : null]}
+                  onPress={() => model.setIsEditing(false)}
+                  hitSlop={6}
+                >
+                  <Text style={styles.editPillText}>Done</Text>
+                </Pressable>
+              ) : (
+                <Pressable
+                  style={({ pressed }) => [styles.editIconBtn, pressed ? appStyles.pressDown : null]}
+                  onPress={() => model.setIsEditing(true)}
+                  hitSlop={6}
+                  accessibilityLabel="Edit"
+                >
+                  <Ionicons name="pencil" size={18} color={colors.onPrimary} />
+                </Pressable>
+              )
             ) : null}
           </View>
         }
@@ -137,6 +160,13 @@ export function ChordSheetScreenContent() {
         }}
       />
 
+      <ChordSheetFullView
+        visible={fullViewOpen}
+        title={model.projectIdea.title}
+        sheet={sheet}
+        onClose={() => setFullViewOpen(false)}
+      />
+
       <ExpoStatusBar style="dark" />
     </SafeAreaView>
   );
@@ -151,9 +181,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: 6,
     borderRadius: radii.round,
-    backgroundColor: colors.surfaceHigh,
+    backgroundColor: colors.primary,
   },
-  editPillText: { fontFamily: "PlusJakartaSans_700Bold", fontSize: 13, color: colors.primary },
+  editPillText: { fontFamily: "PlusJakartaSans_700Bold", fontSize: 13, color: colors.onPrimary },
+  editIconBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: radii.round,
+    backgroundColor: colors.primary,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   subtitle: { ...textTokens.supporting, marginBottom: spacing.md },
   scrollContent: { paddingBottom: 48 },
   scrollContentSelecting: { paddingBottom: 110 },
