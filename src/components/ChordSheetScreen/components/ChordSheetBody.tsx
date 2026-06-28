@@ -339,6 +339,9 @@ function ChordTextBlock({
     if (!text.trim()) return null;
     return (
       <View style={styles.textBlock}>
+        <View style={styles.textBlockHeader}>
+          <Ionicons name="document-text-outline" size={13} color={colors.textMuted} />
+        </View>
         <Text style={styles.textBlockText}>{text.trim()}</Text>
       </View>
     );
@@ -409,9 +412,6 @@ const styles = StyleSheet.create({
   emptyBody: { ...textTokens.supporting, textAlign: "center" },
   textBlock: {
     marginBottom: spacing.lg,
-    paddingLeft: spacing.sm,
-    borderLeftWidth: 2,
-    borderLeftColor: colors.borderMuted,
   },
   textBlockHeader: {
     flexDirection: "row",

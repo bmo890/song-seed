@@ -1,5 +1,4 @@
-import { useState } from "react";
-import { Pressable, StyleSheet, Text, TextInput, View, type LayoutChangeEvent } from "react-native";
+import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { styles as appStyles } from "../../styles";
 import { colors, spacing, text as textTokens } from "../../design/tokens";
@@ -19,8 +18,11 @@ type Props = {
   onOpenMenu: () => void;
 };
 
-const BAR_WIDTH = 76;
 const BARLINE = colors.borderMuted;
+// Four bars to a line — the standard chart convention. Bars are a quarter of the
+// width each so a full line always fits and fills the row evenly (no fixed width
+// that leaves a gap on the right).
+const BARS_PER_ROW = 4;
 
 function chunk<T>(items: T[], size: number): T[][] {
   if (size < 1) return items.length ? [items] : [];
@@ -41,21 +43,11 @@ export function ChordSheetSection({
   onNotes,
   onOpenMenu,
 }: Props) {
-  const [barsPerRow, setBarsPerRow] = useState(4);
   const selectedSet = new Set(selectedMeasureIds);
   const noteField = useScrollIntoViewOnFocus();
 
-  const onStaffLayout = (e: LayoutChangeEvent) => {
-    const next = Math.max(1, Math.floor(e.nativeEvent.layout.width / BAR_WIDTH));
-    setBarsPerRow((prev) => (prev === next ? prev : next));
-  };
-
-  const rows = chunk(section.measures, barsPerRow);
+  const rows = chunk(section.measures, BARS_PER_ROW);
   const showAdd = editable && !selectionActive;
-  // The add button sits to the right of the last bar; if that row is full (or the
-  // section is empty) it drops to its own row so it never overflows the staff.
-  const lastRowFull = rows.length > 0 && rows[rows.length - 1].length >= barsPerRow;
-  const addOnOwnRow = showAdd && (rows.length === 0 || lastRowFull);
 
   return (
     <View style={styles.section}>
@@ -93,15 +85,16 @@ export function ChordSheetSection({
         </View>
       )}
 
-      {/* The staff: fixed-width bars divided by barlines, wrapped into clean rows
-       * each closed by a final barline — like a page of staff paper. */}
-      <View onLayout={onStaffLayout}>
+      {/* The staff: quarter-width bars divided by barlines, four to a line, the
+       * last bar of each line closed by its own right barline. */}
+      <View>
         {rows.map((row, rowIndex) => (
           <View key={rowIndex} style={styles.staffRow}>
-            {row.map((measure) => (
+            {row.map((measure, i) => (
               <Bar
                 key={measure.id}
                 measure={measure}
+                isLast={i === row.length - 1}
                 editable={editable}
                 selectionActive={selectionActive}
                 selected={selectedSet.has(measure.id)}
@@ -110,14 +103,10 @@ export function ChordSheetSection({
                 onRemoveChord={(index) => onRemoveChord(measure.id, index)}
               />
             ))}
-            <View style={styles.closingLine} />
-            {showAdd && !lastRowFull && rowIndex === rows.length - 1 ? (
-              <AddBarButton onPress={onAddMeasure} />
-            ) : null}
           </View>
         ))}
-        {addOnOwnRow ? (
-          <View style={styles.staffRow}>
+        {showAdd ? (
+          <View style={styles.addRow}>
             <AddBarButton onPress={onAddMeasure} />
           </View>
         ) : null}
@@ -128,6 +117,7 @@ export function ChordSheetSection({
 
 function Bar({
   measure,
+  isLast,
   editable,
   selectionActive,
   selected,
@@ -136,6 +126,7 @@ function Bar({
   onRemoveChord,
 }: {
   measure: ChordSheetMeasure;
+  isLast: boolean;
   editable: boolean;
   selectionActive: boolean;
   selected: boolean;
@@ -150,7 +141,7 @@ function Bar({
 
   return (
     <Pressable
-      style={[styles.bar, selected ? styles.barSelected : null]}
+      style={[styles.bar, isLast ? styles.barLast : null, selected ? styles.barSelected : null]}
       onPress={editable ? onTap : undefined}
       onLongPress={editable ? onLongPress : undefined}
       delayLongPress={300}
@@ -177,16 +168,16 @@ function Bar({
   );
 }
 
-/** Small circular "+" after the last bar — adds a new bar to the end of the row. */
+/** Small filled "+" centered below the staff — adds a new bar to the section. */
 function AddBarButton({ onPress }: { onPress: () => void }) {
   return (
     <Pressable
       onPress={onPress}
-      hitSlop={8}
+      hitSlop={10}
       accessibilityLabel="Add bar"
       style={({ pressed }) => [styles.addCircle, pressed ? appStyles.pressDown : null]}
     >
-      <Ionicons name="add" size={16} color={colors.primary} />
+      <Ionicons name="add" size={15} color={colors.onPrimary} />
     </Pressable>
   );
 }
@@ -221,49 +212,52 @@ const styles = StyleSheet.create({
   staffRow: {
     flexDirection: "row",
     alignItems: "stretch",
+    justifyContent: "center",
     marginBottom: 8,
   },
   bar: {
-    width: BAR_WIDTH,
+    width: "25%",
     minHeight: 38,
-    paddingHorizontal: 6,
+    paddingHorizontal: 4,
     paddingVertical: 5,
     alignItems: "center",
     justifyContent: "center",
     borderLeftWidth: 1,
     borderLeftColor: BARLINE,
   },
+  barLast: {
+    borderRightWidth: 1,
+    borderRightColor: BARLINE,
+  },
   barSelected: {
     backgroundColor: colors.surfaceHigh,
     borderLeftColor: colors.primary,
   },
+  addRow: {
+    flexDirection: "row",
+    justifyContent: "center",
+    marginTop: 2,
+    marginBottom: 4,
+  },
   addCircle: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: colors.primary,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: colors.primary,
     alignItems: "center",
     justifyContent: "center",
-    alignSelf: "center",
-    marginLeft: 8,
   },
   barChords: {
     flexDirection: "row",
     flexWrap: "wrap",
     alignItems: "center",
     justifyContent: "center",
-    columnGap: spacing.sm,
+    columnGap: 4,
     rowGap: 2,
-  },
-  closingLine: {
-    width: 1,
-    alignSelf: "stretch",
-    backgroundColor: BARLINE,
   },
   chord: {
     fontFamily: "PlusJakartaSans_700Bold",
-    fontSize: 15,
+    fontSize: 14,
     color: colors.textPrimary,
   },
   rest: {
