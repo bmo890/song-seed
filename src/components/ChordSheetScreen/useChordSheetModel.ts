@@ -11,6 +11,7 @@ import {
   createChordSheet,
   createMeasure,
   createSection,
+  createTextBlock,
   isChordSheetEmpty,
   serializeChordSheetText,
   splitMeasureChords,
@@ -56,6 +57,11 @@ export function useChordSheetModel(ideaIdOverride?: string) {
   };
 
   const addSection = (label: string) => commit({ ...sheet, sections: [...sheet.sections, createSection(label)] });
+
+  const addTextBlock = () => commit({ ...sheet, sections: [...sheet.sections, createTextBlock()] });
+
+  const setBlockText = (sectionId: string, text: string) =>
+    mutateSection(sectionId, (s) => ({ ...s, text }));
 
   const removeSection = (sectionId: string) =>
     commit({ ...sheet, sections: sheet.sections.filter((section) => section.id !== sectionId) });
@@ -211,6 +217,8 @@ export function useChordSheetModel(ideaIdOverride?: string) {
     setIsEditing,
     pickerTarget,
     addSection,
+    addTextBlock,
+    setBlockText,
     removeSection,
     renameSection,
     setSectionNotes,

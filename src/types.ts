@@ -184,13 +184,17 @@ export type ChordSheetMeasure = {
   chords: string[];
 };
 
-/** A labelled block of measures (Intro, Verse, Chorus, …) with optional notes.
- * Blocks are independent — they don't have to fill a line/page like sheet music. */
+/** A block in a chord chart. `kind: "text"` is a free-form prose block (its
+ * `text` is shown instead of bars) — used for spoken-word parts, structure notes,
+ * etc. between musical sections. Anything else is a normal measure block. The
+ * field is optional so legacy charts (all measure blocks) deserialize unchanged. */
 export type ChordSheetSection = {
   id: string;
   label: string;
   measures: ChordSheetMeasure[];
   notes: string;
+  kind?: "section" | "text";
+  text?: string;
 };
 
 /** A standalone "real book"-style chord chart for a song: ordered blocks of

@@ -30,6 +30,11 @@ export function createSection(label: string, measureCount = 4): ChordSheetSectio
   };
 }
 
+/** A free-form prose block placed between sections (not a section's note). */
+export function createTextBlock(text = ""): ChordSheetSection {
+  return { id: randomId("text"), label: "", measures: [], notes: "", kind: "text", text };
+}
+
 export function createChordSheet(): ChordSheet {
   return { sections: [], updatedAt: Date.now() };
 }
@@ -115,8 +120,10 @@ export function buildChordSheetFromLyrics(version: LyricsVersion | null | undefi
 
 export function isChordSheetEmpty(sheet: ChordSheet | undefined): boolean {
   if (!sheet || sheet.sections.length === 0) return true;
-  return sheet.sections.every(
-    (section) => section.measures.every((m) => m.chords.length === 0) && !section.notes.trim()
+  return sheet.sections.every((section) =>
+    section.kind === "text"
+      ? !(section.text ?? "").trim()
+      : section.measures.every((m) => m.chords.length === 0) && !section.notes.trim()
   );
 }
 
@@ -148,6 +155,8 @@ function sanitizeSection(raw: unknown): ChordSheetSection | null {
     label: isNonEmptyString(obj.label) ? obj.label : "Section",
     measures,
     notes: isNonEmptyString(obj.notes) ? obj.notes : "",
+    kind: obj.kind === "text" ? "text" : undefined,
+    text: isNonEmptyString(obj.text) ? obj.text : undefined,
   };
 }
 
@@ -169,10 +178,12 @@ export function cloneChordSheet(sheet: ChordSheet | undefined): ChordSheet | und
   return {
     updatedAt: Date.now(),
     sections: sheet.sections.map((section) => ({
-      id: randomId("section"),
+      id: randomId(section.kind === "text" ? "text" : "section"),
       label: section.label,
       notes: section.notes,
       measures: section.measures.map((m) => ({ id: randomId("measure"), chords: [...m.chords] })),
+      kind: section.kind,
+      text: section.text,
     })),
   };
 }
@@ -185,6 +196,7 @@ function measureText(measure: ChordSheetMeasure): string {
 /** Plain-text chart: each section's label, its bars in rows of `perRow`, then notes. */
 export function serializeChordSheetText(sheet: ChordSheet, perRow = 4): string {
   const blocks = sheet.sections.map((section) => {
+    if (section.kind === "text") return (section.text ?? "").trim();
     const lines: string[] = [section.label.toUpperCase()];
     for (let i = 0; i < section.measures.length; i += perRow) {
       const row = section.measures.slice(i, i + perRow);
@@ -210,6 +222,10 @@ export function buildChordSheetHtml(
 ): string {
   const sectionsHtml = sheet.sections
     .map((section) => {
+      if (section.kind === "text") {
+        const t = (section.text ?? "").trim();
+        return t ? `<div class="textblock">${escapeHtml(t)}</div>` : "";
+      }
       const rows: string[] = [];
       for (let i = 0; i < section.measures.length; i += perRow) {
         const cells = section.measures
@@ -236,6 +252,7 @@ export function buildChordSheetHtml(
   table.bars { border-collapse: collapse; width: 100%; table-layout: fixed; }
   td.bar { border: 1px solid #d7c2bd; padding: 10px 8px; font-size: 15px; font-weight: 600; text-align: center; }
   .notes { margin-top: 8px; font-size: 13px; color: #4b5563; white-space: pre-wrap; }
+  .textblock { margin-bottom: 22px; font-size: 14px; line-height: 1.5; color: #1b1c1a; white-space: pre-wrap; break-inside: avoid; }
 </style></head><body>
   <h1>${escapeHtml(title || "Untitled")}</h1>
   <div class="sub">${escapeHtml(subtitle)}</div>

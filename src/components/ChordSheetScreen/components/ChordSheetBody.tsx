@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { styles as appStyles } from "../../../styles";
 import { colors, radii, spacing, text as textTokens } from "../../../design/tokens";
@@ -12,7 +12,7 @@ import { AppAlert } from "../../common/AppAlert";
 import { ChordSheetSection } from "../ChordSheetSection";
 import type { useChordSheetModel } from "../useChordSheetModel";
 
-type MenuTarget = { id: string; label: string; index: number; count: number };
+type MenuTarget = { id: string; label: string; index: number; count: number; kind: "section" | "text" };
 type BarSelection = { sectionId: string; measureIds: string[] };
 
 /** The chord-sheet content shared by the standalone screen and the song "Chart"
@@ -32,6 +32,11 @@ export function ChordSheetBody({ model }: { model: ReturnType<typeof useChordShe
 
   const addSection = (label: string) => {
     model.addSection(label);
+    if (!isEditing) model.setIsEditing(true);
+  };
+
+  const addTextBlock = () => {
+    model.addTextBlock();
     if (!isEditing) model.setIsEditing(true);
   };
 
@@ -150,15 +155,19 @@ export function ChordSheetBody({ model }: { model: ReturnType<typeof useChordShe
 
   const menuActions: SelectionAction[] = menuTarget
     ? [
-        {
-          key: "rename",
-          label: "Rename",
-          icon: "create-outline",
-          onPress: () => {
-            setRenameTarget({ id: menuTarget.id, label: menuTarget.label });
-            setRenameDraft(menuTarget.label);
-          },
-        },
+        ...(menuTarget.kind === "text"
+          ? []
+          : [
+              {
+                key: "rename",
+                label: "Rename",
+                icon: "create-outline" as const,
+                onPress: () => {
+                  setRenameTarget({ id: menuTarget.id, label: menuTarget.label });
+                  setRenameDraft(menuTarget.label);
+                },
+              },
+            ]),
         ...(menuTarget.index > 0
           ? [
               {
@@ -181,14 +190,15 @@ export function ChordSheetBody({ model }: { model: ReturnType<typeof useChordShe
           : []),
         {
           key: "delete",
-          label: "Delete section",
+          label: menuTarget.kind === "text" ? "Delete text block" : "Delete section",
           icon: "trash-outline",
           tone: "danger",
           onPress: () => {
             const id = menuTarget.id;
+            const isText = menuTarget.kind === "text";
             AppAlert.destructive(
-              "Delete section?",
-              "Its bars and chords will be removed.",
+              isText ? "Delete text block?" : "Delete section?",
+              isText ? "This text block will be removed." : "Its bars and chords will be removed.",
               () => model.removeSection(id),
               { confirmLabel: "Delete" }
             );
@@ -251,23 +261,47 @@ export function ChordSheetBody({ model }: { model: ReturnType<typeof useChordShe
           </Text>
         </View>
       ) : (
-        sheet.sections.map((section, index) => (
-          <ChordSheetSection
-            key={section.id}
-            section={section}
-            editable={isEditing}
-            selectionActive={!!barSelection}
-            selectedMeasureIds={barSelection?.sectionId === section.id ? barSelection.measureIds : []}
-            onTapMeasure={(measureId) => handleBarTap(section.id, measureId)}
-            onLongPressMeasure={(measureId) => toggleBar(section.id, measureId)}
-            onAddMeasure={() => model.addMeasure(section.id)}
-            onRemoveChord={(measureId, i) => model.removeChordAt(section.id, measureId, i)}
-            onNotes={(notes) => model.setSectionNotes(section.id, notes)}
-            onOpenMenu={() =>
-              setMenuTarget({ id: section.id, label: section.label, index, count: sheet.sections.length })
-            }
-          />
-        ))
+        sheet.sections.map((section, index) =>
+          section.kind === "text" ? (
+            <ChordTextBlock
+              key={section.id}
+              text={section.text ?? ""}
+              editable={isEditing}
+              onChangeText={(t) => model.setBlockText(section.id, t)}
+              onOpenMenu={() =>
+                setMenuTarget({
+                  id: section.id,
+                  label: section.label || "Text",
+                  index,
+                  count: sheet.sections.length,
+                  kind: "text",
+                })
+              }
+            />
+          ) : (
+            <ChordSheetSection
+              key={section.id}
+              section={section}
+              editable={isEditing}
+              selectionActive={!!barSelection}
+              selectedMeasureIds={barSelection?.sectionId === section.id ? barSelection.measureIds : []}
+              onTapMeasure={(measureId) => handleBarTap(section.id, measureId)}
+              onLongPressMeasure={(measureId) => toggleBar(section.id, measureId)}
+              onAddMeasure={() => model.addMeasure(section.id)}
+              onRemoveChord={(measureId, i) => model.removeChordAt(section.id, measureId, i)}
+              onNotes={(notes) => model.setSectionNotes(section.id, notes)}
+              onOpenMenu={() =>
+                setMenuTarget({
+                  id: section.id,
+                  label: section.label,
+                  index,
+                  count: sheet.sections.length,
+                  kind: "section",
+                })
+              }
+            />
+          )
+        )
       )}
 
       <ChordPickerSheet
@@ -283,7 +317,7 @@ export function ChordSheetBody({ model }: { model: ReturnType<typeof useChordShe
       <SelectionActionSheet
         visible={addSheetOpen}
         title="Add a section"
-        actions={addSectionActions(addSection)}
+        actions={addSectionActions(addSection, addTextBlock)}
         onClose={() => setAddSheetOpen(false)}
       />
 
@@ -319,7 +353,10 @@ export function ChordSheetBody({ model }: { model: ReturnType<typeof useChordShe
   );
 }
 
-function addSectionActions(addSection: (label: string) => void): SelectionAction[] {
+function addSectionActions(
+  addSection: (label: string) => void,
+  addText: () => void
+): SelectionAction[] {
   return [
     ...SECTION_PRESETS.map((preset) => ({
       key: preset,
@@ -333,7 +370,54 @@ function addSectionActions(addSection: (label: string) => void): SelectionAction
       icon: "create-outline" as const,
       onPress: () => addSection("Section"),
     },
+    {
+      key: "text",
+      label: "Text block",
+      icon: "document-text-outline" as const,
+      onPress: addText,
+    },
   ];
+}
+
+/** A free-form prose block between sections (not a section's note). */
+function ChordTextBlock({
+  text,
+  editable,
+  onChangeText,
+  onOpenMenu,
+}: {
+  text: string;
+  editable: boolean;
+  onChangeText: (text: string) => void;
+  onOpenMenu: () => void;
+}) {
+  if (!editable) {
+    if (!text.trim()) return null;
+    return (
+      <View style={styles.textBlock}>
+        <Text style={styles.textBlockText}>{text.trim()}</Text>
+      </View>
+    );
+  }
+  return (
+    <View style={styles.textBlock}>
+      <View style={styles.textBlockHeader}>
+        <Ionicons name="document-text-outline" size={13} color={colors.textMuted} />
+        <View style={appStyles.flexFill} />
+        <Pressable onPress={onOpenMenu} hitSlop={8}>
+          <Ionicons name="ellipsis-horizontal" size={16} color={colors.textMuted} />
+        </Pressable>
+      </View>
+      <TextInput
+        style={styles.textBlockInput}
+        value={text}
+        onChangeText={onChangeText}
+        placeholder="Write a free-form block — a spoken part, an arrangement note…"
+        placeholderTextColor={colors.textMuted}
+        multiline
+      />
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
@@ -396,4 +480,29 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
   },
   emptyBody: { ...textTokens.supporting, textAlign: "center" },
+  textBlock: {
+    marginBottom: spacing.lg,
+    paddingLeft: spacing.sm,
+    borderLeftWidth: 2,
+    borderLeftColor: colors.borderMuted,
+  },
+  textBlockHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 2,
+  },
+  textBlockText: {
+    fontFamily: "PlusJakartaSans_400Regular",
+    fontSize: 14,
+    lineHeight: 21,
+    color: colors.textPrimary,
+  },
+  textBlockInput: {
+    fontFamily: "PlusJakartaSans_400Regular",
+    fontSize: 14,
+    lineHeight: 21,
+    color: colors.textPrimary,
+    paddingVertical: 2,
+    minHeight: 30,
+  },
 });
