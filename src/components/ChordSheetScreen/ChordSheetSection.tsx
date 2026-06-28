@@ -212,7 +212,6 @@ const styles = StyleSheet.create({
   staffRow: {
     flexDirection: "row",
     alignItems: "stretch",
-    justifyContent: "center",
     marginBottom: 8,
   },
   bar: {
