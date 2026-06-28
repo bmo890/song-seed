@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, Text, TextInput, View, type LayoutChangeEvent } 
 import { Ionicons } from "@expo/vector-icons";
 import { styles as appStyles } from "../../styles";
 import { colors, spacing, text as textTokens } from "../../design/tokens";
+import { useScrollIntoViewOnFocus } from "./components/chartScroll";
 import type { ChordSheetMeasure, ChordSheetSection as Section } from "../../types";
 
 type Props = {
@@ -42,6 +43,7 @@ export function ChordSheetSection({
 }: Props) {
   const [barsPerRow, setBarsPerRow] = useState(4);
   const selectedSet = new Set(selectedMeasureIds);
+  const noteField = useScrollIntoViewOnFocus();
 
   const onStaffLayout = (e: LayoutChangeEvent) => {
     const next = Math.max(1, Math.floor(e.nativeEvent.layout.width / BAR_WIDTH));
@@ -61,6 +63,8 @@ export function ChordSheetSection({
         <View style={styles.headerRow}>
           <Text style={styles.label}>{section.label || "Section"}</Text>
           <TextInput
+            ref={noteField.ref}
+            onFocus={noteField.onFocus}
             style={styles.noteInlineInput}
             value={section.notes}
             onChangeText={onNotes}

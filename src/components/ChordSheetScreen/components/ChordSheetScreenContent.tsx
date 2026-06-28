@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar as ExpoStatusBar } from "expo-status-bar";
@@ -10,11 +10,18 @@ import { ChordExportSheet } from "../../LyricsVersionScreen/components/chords/Ch
 import { useChordSheetModel } from "../useChordSheetModel";
 import { ChordSheetBody } from "./ChordSheetBody";
 import { ChartSelectionDock } from "./ChartSelectionDock";
+import { ChartScrollProvider, type ScrollInputIntoView } from "./chartScroll";
 
 const KRAFT_BG = "#F2E9DC";
 
 export function ChordSheetScreenContent() {
   const model = useChordSheetModel();
+  const scrollRef = useRef<ScrollView>(null);
+  const scrollIntoView = useCallback<ScrollInputIntoView>((node) => {
+    if (node == null) return;
+    const responder = scrollRef.current?.getScrollResponder?.() as any;
+    responder?.scrollResponderScrollNativeHandleToKeyboard?.(node, 90, true);
+  }, []);
   const [exportVisible, setExportVisible] = useState(false);
 
   if (!model.projectIdea) {
@@ -66,11 +73,16 @@ export function ChordSheetScreenContent() {
 
       <KeyboardAvoidingView style={styles.fill} behavior={Platform.OS === "ios" ? "padding" : undefined}>
         <ScrollView
+          ref={scrollRef}
           style={styles.fill}
           contentContainerStyle={[styles.scrollContent, model.barSelection ? styles.scrollContentSelecting : null]}
           showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="interactive"
         >
-          <ChordSheetBody model={model} />
+          <ChartScrollProvider value={scrollIntoView}>
+            <ChordSheetBody model={model} />
+          </ChartScrollProvider>
         </ScrollView>
       </KeyboardAvoidingView>
 

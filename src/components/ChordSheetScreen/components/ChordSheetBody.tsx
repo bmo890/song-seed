@@ -12,6 +12,7 @@ import type { SelectionAction } from "../../common/SelectionDock";
 import { QuickNameModal } from "../../modals/QuickNameModal";
 import { AppAlert } from "../../common/AppAlert";
 import { ChordSheetSection } from "../ChordSheetSection";
+import { useScrollIntoViewOnFocus } from "./chartScroll";
 import type { useChordSheetModel } from "../useChordSheetModel";
 
 type MenuTarget = { id: string; label: string; index: number; count: number; kind: "section" | "text" };
@@ -333,6 +334,7 @@ function ChordTextBlock({
   onChangeText: (text: string) => void;
   onOpenMenu: () => void;
 }) {
+  const field = useScrollIntoViewOnFocus();
   if (!editable) {
     if (!text.trim()) return null;
     return (
@@ -351,6 +353,8 @@ function ChordTextBlock({
         </Pressable>
       </View>
       <TextInput
+        ref={field.ref}
+        onFocus={field.onFocus}
         style={styles.textBlockInput}
         value={text}
         onChangeText={onChangeText}
