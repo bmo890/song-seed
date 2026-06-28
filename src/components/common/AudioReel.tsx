@@ -16,6 +16,22 @@ const DISPLAY_BAR_PITCH_PX = 3;
 const MIN_ZOOM = ZOOM_LEVELS[0];
 const MAX_ZOOM = ZOOM_LEVELS[ZOOM_LEVELS.length - 1];
 
+/** Snap an arbitrary desired zoom (e.g. duration / target-window) to the nearest
+ *  supported step, clamped to [MIN_ZOOM, MAX_ZOOM]. */
+function snapToZoomLevel(value: number | undefined | null): number {
+    if (!value || !Number.isFinite(value) || value <= MIN_ZOOM) return MIN_ZOOM;
+    let nearest: number = ZOOM_LEVELS[0];
+    let bestDistance = Math.abs(value - nearest);
+    for (const level of ZOOM_LEVELS) {
+        const distance = Math.abs(value - level);
+        if (distance < bestDistance) {
+            bestDistance = distance;
+            nearest = level;
+        }
+    }
+    return nearest;
+}
+
 function downsampleWaveformPeaks(peaks: number[], targetCount: number) {
     if (targetCount >= peaks.length) {
         return peaks;
@@ -107,6 +123,10 @@ type Props = {
     minimapInteractive?: boolean;
     zoomMultiple?: number;
     onZoomMultipleChange?: (zoomMultiple: number) => void;
+    /** Desired initial zoom for the uncontrolled case (snapped to the nearest step).
+     *  Callers pass duration / target-window so longer files open more zoomed; short
+     *  files snap to 1x (whole clip). Re-applied when `resetKey` changes (new clip). */
+    initialZoomMultiple?: number;
     freezeSelectedRangeWhenFullyVisible?: boolean;
 };
 
@@ -157,6 +177,7 @@ export function AudioReel({
     minimapInteractive = true,
     zoomMultiple: controlledZoomMultiple,
     onZoomMultipleChange,
+    initialZoomMultiple,
     freezeSelectedRangeWhenFullyVisible = false,
 }: Props) {
     const timelineTranslateX = useSharedValue(0);
@@ -166,9 +187,23 @@ export function AudioReel({
     const sharedAudioProgress = externalSharedAudioProgress || localAudioProgress;
 
     const [isExpanded, setIsExpanded] = useState(defaultExpanded);
-    const [uncontrolledZoomMultiple, setUncontrolledZoomMultiple] = useState<number>(1);
+    const [uncontrolledZoomMultiple, setUncontrolledZoomMultiple] = useState<number>(
+        () => snapToZoomLevel(initialZoomMultiple)
+    );
     const [mainCanvasWidth, setMainCanvasWidth] = useState(0);
     const zoomMultiple = controlledZoomMultiple ?? uncontrolledZoomMultiple;
+
+    // Re-apply the duration-aware default zoom when the source changes (new clip),
+    // unless the caller controls zoom. Manual zoom within a clip is preserved — this
+    // only fires on an actual resetKey change, not on every render.
+    const lastZoomResetKeyRef = React.useRef(resetKey);
+    React.useEffect(() => {
+        if (lastZoomResetKeyRef.current === resetKey) return;
+        lastZoomResetKeyRef.current = resetKey;
+        if (controlledZoomMultiple == null) {
+            setUncontrolledZoomMultiple(snapToZoomLevel(initialZoomMultiple));
+        }
+    }, [resetKey, initialZoomMultiple, controlledZoomMultiple]);
 
     const collapsedHeight = collapsedHeightOverride ?? (compact ? 120 : 160);
     const expandedHeight = expandedHeightOverride ?? (compact ? 220 : 320);
