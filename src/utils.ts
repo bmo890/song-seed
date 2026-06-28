@@ -296,20 +296,37 @@ export function buildStaticWaveform(seedInput: string, count = 150) {
 
 export function metersToWaveformPeaks(meters: number[], bins = 150) {
   if (!meters.length) return Array.from({ length: bins }, () => 0.004);
-  const peaks: number[] = [];
-  const chunk = Math.max(1, Math.floor(meters.length / bins));
 
+  // Normalize a dB level (-60..0) to a 0-1 bar height with only a mild lift. The
+  // old curve over-emphasized room tone, making quiet regions look much louder.
+  const normalizeDb = (db: number) => {
+    const clamped = Math.max(-60, Math.min(0, Number.isFinite(db) ? db : -60));
+    return Math.max(0.004, Math.min(1, Math.pow((clamped + 60) / 60, 1.15)));
+  };
+
+  const peaks: number[] = [];
+
+  // Fewer samples than bins (e.g. a short recording → ~13 points/sec): stretch the
+  // envelope across the full width (nearest-neighbour) instead of filling only the
+  // first N bins and leaving a flat tail — which squished short clips to the left.
+  if (meters.length <= bins) {
+    for (let i = 0; i < bins; i++) {
+      const src = Math.min(meters.length - 1, Math.floor((i * meters.length) / bins));
+      peaks.push(normalizeDb(meters[src]));
+    }
+    return peaks;
+  }
+
+  // More samples than bins: downsample by peak (max dB) per bucket.
   for (let i = 0; i < bins; i++) {
-    const start = i * chunk;
-    const end = i === bins - 1 ? meters.length : Math.min(meters.length, start + chunk);
-    const slice = meters.slice(start, end);
-    const maxDb = slice.length ? Math.max(...slice) : -60;
-    const clamped = Math.max(-60, Math.min(0, maxDb));
-    // Normalize dB (-60 to 0) to a 0-1 scale with only a mild lift.
-    // The old curve over-emphasized room tone, which made quiet regions in the
-    // player look much louder than they were.
-    const normalized = (clamped + 60) / 60;
-    peaks.push(Math.max(0.004, Math.min(1, Math.pow(normalized, 1.15))));
+    const start = Math.floor((i * meters.length) / bins);
+    const end = i === bins - 1 ? meters.length : Math.floor(((i + 1) * meters.length) / bins);
+    let maxDb = -60;
+    for (let j = start; j < end; j++) {
+      const value = meters[j];
+      if (Number.isFinite(value) && value > maxDb) maxDb = value;
+    }
+    peaks.push(normalizeDb(maxDb));
   }
 
   return peaks;

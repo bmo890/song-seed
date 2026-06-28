@@ -17,6 +17,7 @@ import {
   releaseAudioSessionOwner,
 } from "../services/audioSession";
 import { importRecordedAudioAsset, MANAGED_WAVEFORM_PEAK_COUNT } from "../services/audioStorage";
+import { writeWaveformSidecar, WAVEFORM_DETAIL_BINS } from "../services/waveformSidecar";
 import {
   clearPendingRecordingSession,
   persistPendingRecordingSession,
@@ -569,6 +570,14 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
         ? metersToWaveformPeaks(levelsAsDb, MANAGED_WAVEFORM_PEAK_COUNT)
         : null;
       const waveformPeaks = capturePeaks ?? managedAudio.waveformPeaks;
+
+      // Persist the high-res detail sidecar from the SAME capture data, so the
+      // editor/player reels read it directly instead of re-decoding the saved m4a
+      // (which produced a squished/low-detail waveform). Keyed to the managed audio
+      // path the clip will reference.
+      if (levelsAsDb.length) {
+        await writeWaveformSidecar(managedAudio.audioUri, metersToWaveformPeaks(levelsAsDb, WAVEFORM_DETAIL_BINS));
+      }
 
       const attached = await onRecorded({
         audioUri: managedAudio.audioUri,
