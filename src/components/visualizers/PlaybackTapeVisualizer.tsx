@@ -189,10 +189,14 @@ function PinMarkerOverlay({
 // Stored amplitudes for typical material cluster in a compressed mid band, which
 // reads flat. We expand that window across the full bar height so quiet→loud
 // variation is pronounced and detailed. Tune these to taste.
-const WAVEFORM_DISPLAY_FLOOR = 0.16; // amplitudes at/below this read as ~silent
-const WAVEFORM_DISPLAY_GAIN = 1.12; // headroom so the loudest peaks fill the reel
+const WAVEFORM_DISPLAY_FLOOR = 0.16; // amplitudes at/below this read as ~silent (bottom contrast)
+const WAVEFORM_DISPLAY_GAIN = 1.0; // no ceiling push — >1 saturated loud/mastered material
 const WAVEFORM_DISPLAY_MIN = 0.02; // faint hairline so silent passages still register
-const WAVEFORM_EDGE_MARGIN_PX = 6; // top/bottom margin (was 15) — taller peaks
+const WAVEFORM_EDGE_MARGIN_PX = 6; // top/bottom px margin
+// Vertical headroom: even the loudest content tops out at this fraction of the
+// half-height, so a loud/mastered track reads as a full-but-breathing band rather
+// than bars slamming the top and bottom edges.
+const WAVEFORM_HEADROOM = 0.84;
 
 export function PlaybackTapeVisualizer({
     waveformPeaks,
@@ -679,7 +683,7 @@ export function PlaybackTapeVisualizer({
         const centerLine = Skia.Path.Make();
 
         const centerY = canvasHeight > 0 ? canvasHeight / 2 : 70;
-        const waveMaxHeight = Math.max(10, centerY - WAVEFORM_EDGE_MARGIN_PX);
+        const waveMaxHeight = Math.max(10, (centerY - WAVEFORM_EDGE_MARGIN_PX) * WAVEFORM_HEADROOM);
 
         // waveformPeaks is ALREADY an array of absolute normalized amplitudes from 0 to 1
         // (calculated meticulously by `metersToWaveformPeaks` using absolute dBFS).
