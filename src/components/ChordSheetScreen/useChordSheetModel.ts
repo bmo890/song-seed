@@ -7,12 +7,16 @@ import { AppAlert } from "../common/AppAlert";
 import { formatDate } from "../../utils";
 import { buildChordDisplay, sortedPalette, type ChordParts } from "../../chords";
 import {
+  buildChordSheetFromLyrics,
   createChordSheet,
   createMeasure,
   createSection,
+  isChordSheetEmpty,
   serializeChordSheetText,
+  splitMeasureChords,
   MAX_CHORDS_PER_BAR,
 } from "../../chordSheet";
+import { getLatestLyricsVersion } from "../../lyrics";
 import { shareChordSheetPdf } from "../../services/chordChartPdf";
 import type { ChordSheet, SongIdea } from "../../types";
 
@@ -73,8 +77,53 @@ export function useChordSheetModel(ideaIdOverride?: string) {
   const addMeasure = (sectionId: string) =>
     mutateSection(sectionId, (s) => ({ ...s, measures: [...s.measures, createMeasure()] }));
 
+  const insertMeasure = (sectionId: string, atIndex: number) =>
+    mutateSection(sectionId, (s) => {
+      const measures = [...s.measures];
+      measures.splice(Math.max(0, Math.min(measures.length, atIndex)), 0, createMeasure());
+      return { ...s, measures };
+    });
+
+  const splitMeasure = (sectionId: string, measureId: string) =>
+    mutateSection(sectionId, (s) => {
+      const index = s.measures.findIndex((m) => m.id === measureId);
+      if (index < 0) return s;
+      const split = splitMeasureChords(s.measures[index]);
+      if (split.length <= 1) return s;
+      return { ...s, measures: [...s.measures.slice(0, index), ...split, ...s.measures.slice(index + 1)] };
+    });
+
   const removeMeasure = (sectionId: string, measureId: string) =>
     mutateSection(sectionId, (s) => ({ ...s, measures: s.measures.filter((m) => m.id !== measureId) }));
+
+  /** Build the whole chart from the song's latest lyrics version (chords packed
+   *  into bars, sections split on blank lines). Confirms before replacing a
+   *  non-empty chart. */
+  const buildFromLyrics = () => {
+    if (!projectIdea) return;
+    const built = buildChordSheetFromLyrics(getLatestLyricsVersion(projectIdea));
+    if (built.sections.length === 0) {
+      AppAlert.info(
+        "No chords in lyrics",
+        "Add chords to a lyrics version first, then build the chart from it."
+      );
+      return;
+    }
+    const apply = () => {
+      commit(built);
+      if (!isEditing) setIsEditing(true);
+    };
+    if (!isChordSheetEmpty(sheet)) {
+      AppAlert.destructive(
+        "Replace chart?",
+        "Build a fresh chart from the latest lyrics? This replaces the current chart.",
+        apply,
+        { confirmLabel: "Replace" }
+      );
+      return;
+    }
+    apply();
+  };
 
   const clearMeasure = (sectionId: string, measureId: string) =>
     mutateSection(sectionId, (s) => ({
@@ -145,9 +194,12 @@ export function useChordSheetModel(ideaIdOverride?: string) {
     setSectionNotes,
     moveSection,
     addMeasure,
+    insertMeasure,
+    splitMeasure,
     removeMeasure,
     clearMeasure,
     removeChordAt,
+    buildFromLyrics,
     openPicker,
     closePicker,
     addChord,

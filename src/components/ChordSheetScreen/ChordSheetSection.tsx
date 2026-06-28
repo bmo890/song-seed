@@ -4,6 +4,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { styles as appStyles } from "../../styles";
 import { colors, spacing, text as textTokens } from "../../design/tokens";
 import { MAX_CHORDS_PER_BAR } from "../../chordSheet";
+import { SelectionActionSheet } from "../common/SelectionActionSheet";
+import type { SelectionAction } from "../common/SelectionDock";
 import type { ChordSheetMeasure, ChordSheetSection as Section } from "../../types";
 
 type Props = {
@@ -11,8 +13,11 @@ type Props = {
   editable: boolean;
   onTapMeasure: (measureId: string) => void;
   onAddMeasure: () => void;
+  onInsertMeasure: (atIndex: number) => void;
+  onSplitMeasure: (measureId: string) => void;
   onRemoveChord: (measureId: string, index: number) => void;
   onRemoveMeasure: (measureId: string) => void;
+  onClearMeasure: (measureId: string) => void;
   onNotes: (notes: string) => void;
   onOpenMenu: () => void;
 };
@@ -21,6 +26,7 @@ const BAR_WIDTH = 76;
 const BARLINE = colors.borderMuted;
 
 type Cell = { kind: "bar"; measure: ChordSheetMeasure } | { kind: "add" };
+type BarMenu = { measureId: string; index: number; chordCount: number };
 
 function chunk<T>(items: T[], size: number): T[][] {
   if (size < 1) return items.length ? [items] : [];
@@ -34,12 +40,16 @@ export function ChordSheetSection({
   editable,
   onTapMeasure,
   onAddMeasure,
+  onInsertMeasure,
+  onSplitMeasure,
   onRemoveChord,
   onRemoveMeasure,
+  onClearMeasure,
   onNotes,
   onOpenMenu,
 }: Props) {
   const [barsPerRow, setBarsPerRow] = useState(4);
+  const [barMenu, setBarMenu] = useState<BarMenu | null>(null);
 
   const onStaffLayout = (e: LayoutChangeEvent) => {
     const next = Math.max(1, Math.floor(e.nativeEvent.layout.width / BAR_WIDTH));
@@ -52,20 +62,82 @@ export function ChordSheetSection({
   ];
   const rows = chunk(cells, barsPerRow);
 
+  const barMenuActions: SelectionAction[] = barMenu
+    ? [
+        {
+          key: "insert-before",
+          label: "Insert bar before",
+          icon: "arrow-back-outline",
+          onPress: () => onInsertMeasure(barMenu.index),
+        },
+        {
+          key: "insert-after",
+          label: "Insert bar after",
+          icon: "arrow-forward-outline",
+          onPress: () => onInsertMeasure(barMenu.index + 1),
+        },
+        ...(barMenu.chordCount > 1
+          ? [
+              {
+                key: "split",
+                label: "Split into separate bars",
+                icon: "git-branch-outline" as const,
+                onPress: () => onSplitMeasure(barMenu.measureId),
+              },
+            ]
+          : []),
+        ...(barMenu.chordCount > 0
+          ? [
+              {
+                key: "clear",
+                label: "Clear bar",
+                icon: "backspace-outline" as const,
+                onPress: () => onClearMeasure(barMenu.measureId),
+              },
+            ]
+          : []),
+        {
+          key: "delete",
+          label: "Delete bar",
+          icon: "trash-outline",
+          tone: "danger",
+          onPress: () => onRemoveMeasure(barMenu.measureId),
+        },
+      ]
+    : [];
+
   return (
     <View style={styles.section}>
       {editable ? (
-        <Pressable
-          style={({ pressed }) => [styles.headerRow, pressed ? appStyles.pressDown : null]}
-          onPress={onOpenMenu}
-          onLongPress={onOpenMenu}
-          delayLongPress={300}
-        >
+        <View style={styles.headerRow}>
           <Text style={styles.label}>{section.label || "Section"}</Text>
-          <Ionicons name="ellipsis-horizontal" size={16} color={colors.textMuted} />
-        </Pressable>
+          <TextInput
+            style={styles.noteInlineInput}
+            value={section.notes}
+            onChangeText={onNotes}
+            placeholder="note…"
+            placeholderTextColor={colors.textMuted}
+            multiline
+          />
+          <Pressable
+            onPress={onOpenMenu}
+            onLongPress={onOpenMenu}
+            delayLongPress={300}
+            hitSlop={8}
+            style={({ pressed }) => (pressed ? appStyles.pressDown : null)}
+          >
+            <Ionicons name="ellipsis-horizontal" size={16} color={colors.textMuted} />
+          </Pressable>
+        </View>
       ) : (
-        <Text style={styles.label}>{section.label}</Text>
+        <View style={styles.headerRow}>
+          <Text style={styles.label}>{section.label}</Text>
+          {section.notes.trim() ? (
+            <Text style={styles.noteInline} numberOfLines={2}>
+              {section.notes.trim()}
+            </Text>
+          ) : null}
+        </View>
       )}
 
       {/* The staff: fixed-width bars divided by barlines, wrapped into clean rows
@@ -90,6 +162,13 @@ export function ChordSheetSection({
                   onAddChord={() => onTapMeasure(cell.measure.id)}
                   onRemoveChord={(index) => onRemoveChord(cell.measure.id, index)}
                   onRemoveBar={() => onRemoveMeasure(cell.measure.id)}
+                  onOpenMenu={() =>
+                    setBarMenu({
+                      measureId: cell.measure.id,
+                      index: section.measures.findIndex((m) => m.id === cell.measure.id),
+                      chordCount: cell.measure.chords.length,
+                    })
+                  }
                 />
               )
             )}
@@ -98,18 +177,12 @@ export function ChordSheetSection({
         ))}
       </View>
 
-      {editable ? (
-        <TextInput
-          style={styles.noteInput}
-          value={section.notes}
-          onChangeText={onNotes}
-          placeholder="Add a note…"
-          placeholderTextColor={colors.textMuted}
-          multiline
-        />
-      ) : section.notes.trim() ? (
-        <Text style={styles.note}>{section.notes.trim()}</Text>
-      ) : null}
+      <SelectionActionSheet
+        visible={!!barMenu}
+        title="Bar"
+        actions={barMenuActions}
+        onClose={() => setBarMenu(null)}
+      />
     </View>
   );
 }
@@ -120,12 +193,14 @@ function Bar({
   onAddChord,
   onRemoveChord,
   onRemoveBar,
+  onOpenMenu,
 }: {
   measure: ChordSheetMeasure;
   editable: boolean;
   onAddChord: () => void;
   onRemoveChord: (index: number) => void;
   onRemoveBar: () => void;
+  onOpenMenu: () => void;
 }) {
   const chords = measure.chords;
   const isFull = chords.length >= MAX_CHORDS_PER_BAR;
@@ -134,6 +209,8 @@ function Bar({
     <Pressable
       style={styles.bar}
       onPress={editable && !isFull ? onAddChord : undefined}
+      onLongPress={editable ? onOpenMenu : undefined}
+      delayLongPress={300}
       disabled={!editable}
     >
       {editable ? (
@@ -166,12 +243,11 @@ function Bar({
 }
 
 const styles = StyleSheet.create({
-  section: { marginBottom: spacing.xl },
+  section: { marginBottom: spacing.lg },
   headerRow: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    paddingVertical: 4,
+    gap: spacing.sm,
     marginBottom: spacing.xs,
   },
   label: {
@@ -180,18 +256,29 @@ const styles = StyleSheet.create({
     letterSpacing: 1.2,
     textTransform: "uppercase",
     color: colors.primary,
-    marginBottom: spacing.xs,
+  },
+  noteInline: {
+    ...textTokens.supporting,
+    fontStyle: "italic",
+    flex: 1,
+  },
+  noteInlineInput: {
+    ...textTokens.supporting,
+    fontStyle: "italic",
+    flex: 1,
+    paddingVertical: 2,
+    maxHeight: 44,
   },
   staffRow: {
     flexDirection: "row",
     alignItems: "stretch",
-    marginBottom: 12,
+    marginBottom: 8,
   },
   bar: {
     width: BAR_WIDTH,
-    minHeight: 40,
+    minHeight: 38,
     paddingHorizontal: 6,
-    paddingVertical: 6,
+    paddingVertical: 5,
     alignItems: "center",
     justifyContent: "center",
     borderLeftWidth: 1,
@@ -231,16 +318,5 @@ const styles = StyleSheet.create({
     fontFamily: "PlusJakartaSans_400Regular",
     fontSize: 14,
     color: colors.borderMuted,
-  },
-  note: {
-    ...textTokens.supporting,
-    fontStyle: "italic",
-    marginTop: spacing.sm,
-  },
-  noteInput: {
-    ...textTokens.supporting,
-    fontStyle: "italic",
-    marginTop: spacing.sm,
-    paddingVertical: 4,
   },
 });

@@ -21,7 +21,7 @@ export function ChordSheetBody({ model }: { model: ReturnType<typeof useChordShe
   const { sheet, isEditing } = model;
   const isEmpty = sheet.sections.length === 0;
 
-  const [addOpen, setAddOpen] = useState(isEmpty);
+  const [addSheetOpen, setAddSheetOpen] = useState(false);
   const [menuTarget, setMenuTarget] = useState<MenuTarget | null>(null);
   const [renameTarget, setRenameTarget] = useState<{ id: string; label: string } | null>(null);
   const [renameDraft, setRenameDraft] = useState("");
@@ -30,6 +30,21 @@ export function ChordSheetBody({ model }: { model: ReturnType<typeof useChordShe
     model.addSection(label);
     if (!isEditing) model.setIsEditing(true);
   };
+
+  const addSectionActions: SelectionAction[] = [
+    ...SECTION_PRESETS.map((preset) => ({
+      key: preset,
+      label: preset,
+      icon: "add" as const,
+      onPress: () => addSection(preset),
+    })),
+    {
+      key: "custom",
+      label: "Custom section",
+      icon: "create-outline" as const,
+      onPress: () => addSection("Section"),
+    },
+  ];
 
   const menuActions: SelectionAction[] = menuTarget
     ? [
@@ -85,36 +100,19 @@ export function ChordSheetBody({ model }: { model: ReturnType<typeof useChordShe
       {isEditing || isEmpty ? (
         <View style={styles.addBlock}>
           <Pressable
-            style={({ pressed }) => [styles.addHeader, pressed ? appStyles.pressDown : null]}
-            onPress={() => setAddOpen((open) => !open)}
+            style={({ pressed }) => [styles.actionBtn, pressed ? appStyles.pressDown : null]}
+            onPress={() => setAddSheetOpen(true)}
           >
-            <Ionicons name="add" size={16} color={colors.primary} />
-            <Text style={styles.addHeaderText}>Add a section</Text>
-            <View style={appStyles.flexFill} />
-            <Ionicons name={addOpen ? "chevron-up" : "chevron-down"} size={16} color={colors.textMuted} />
+            <Ionicons name="add" size={15} color={colors.primary} />
+            <Text style={styles.actionBtnText}>Add a section</Text>
           </Pressable>
-
-          {addOpen ? (
-            <View style={styles.presetRow}>
-              {SECTION_PRESETS.map((preset) => (
-                <Pressable
-                  key={preset}
-                  style={({ pressed }) => [styles.presetChip, pressed ? appStyles.pressDown : null]}
-                  onPress={() => addSection(preset)}
-                >
-                  <Ionicons name="add" size={13} color={colors.primary} />
-                  <Text style={styles.presetChipText}>{preset}</Text>
-                </Pressable>
-              ))}
-              <Pressable
-                style={({ pressed }) => [styles.presetChipCustom, pressed ? appStyles.pressDown : null]}
-                onPress={() => addSection("Section")}
-                accessibilityLabel="Add a custom section"
-              >
-                <Ionicons name="add" size={17} color={colors.primary} />
-              </Pressable>
-            </View>
-          ) : null}
+          <Pressable
+            style={({ pressed }) => [styles.actionBtn, pressed ? appStyles.pressDown : null]}
+            onPress={() => model.buildFromLyrics()}
+          >
+            <Ionicons name="sparkles-outline" size={14} color={colors.primary} />
+            <Text style={styles.actionBtnText}>Build from lyrics</Text>
+          </Pressable>
         </View>
       ) : null}
 
@@ -135,8 +133,11 @@ export function ChordSheetBody({ model }: { model: ReturnType<typeof useChordShe
             editable={isEditing}
             onTapMeasure={(measureId) => model.openPicker(section.id, measureId)}
             onAddMeasure={() => model.addMeasure(section.id)}
+            onInsertMeasure={(atIndex) => model.insertMeasure(section.id, atIndex)}
+            onSplitMeasure={(measureId) => model.splitMeasure(section.id, measureId)}
             onRemoveChord={(measureId, i) => model.removeChordAt(section.id, measureId, i)}
             onRemoveMeasure={(measureId) => model.removeMeasure(section.id, measureId)}
+            onClearMeasure={(measureId) => model.clearMeasure(section.id, measureId)}
             onNotes={(notes) => model.setSectionNotes(section.id, notes)}
             onOpenMenu={() =>
               setMenuTarget({ id: section.id, label: section.label, index, count: sheet.sections.length })
@@ -153,6 +154,13 @@ export function ChordSheetBody({ model }: { model: ReturnType<typeof useChordShe
         onClose={model.closePicker}
         onSave={model.addChord}
         onDelete={model.closePicker}
+      />
+
+      <SelectionActionSheet
+        visible={addSheetOpen}
+        title="Add a section"
+        actions={addSectionActions}
+        onClose={() => setAddSheetOpen(false)}
       />
 
       <SelectionActionSheet
@@ -181,41 +189,25 @@ export function ChordSheetBody({ model }: { model: ReturnType<typeof useChordShe
 }
 
 const styles = StyleSheet.create({
-  addBlock: { marginBottom: spacing.lg },
-  addHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    paddingVertical: 8,
-  },
-  addHeaderText: {
-    fontFamily: "PlusJakartaSans_700Bold",
-    fontSize: 13,
-    color: colors.primary,
-  },
-  presetRow: {
+  addBlock: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: spacing.xs,
-    marginTop: spacing.xs,
+    marginBottom: spacing.md,
   },
-  presetChip: {
+  actionBtn: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 3,
+    gap: 5,
     backgroundColor: colors.surfaceHigh,
     borderRadius: radii.round,
     paddingHorizontal: spacing.md,
-    paddingVertical: 7,
+    paddingVertical: 8,
   },
-  presetChipText: { fontFamily: "PlusJakartaSans_600SemiBold", fontSize: 13, color: colors.primary },
-  presetChipCustom: {
-    width: 36,
-    height: 36,
-    borderRadius: radii.round,
-    backgroundColor: colors.surfaceHigh,
-    alignItems: "center",
-    justifyContent: "center",
+  actionBtnText: {
+    fontFamily: "PlusJakartaSans_600SemiBold",
+    fontSize: 13,
+    color: colors.primary,
   },
   empty: {
     alignItems: "center",

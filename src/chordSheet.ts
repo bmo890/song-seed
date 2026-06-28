@@ -1,4 +1,10 @@
-import type { ChordSheet, ChordSheetMeasure, ChordSheetSection } from "./types";
+import type {
+  ChordSheet,
+  ChordSheetMeasure,
+  ChordSheetSection,
+  LyricsLine,
+  LyricsVersion,
+} from "./types";
 
 function randomId(prefix: string) {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
@@ -26,6 +32,85 @@ export function createSection(label: string, measureCount = 4): ChordSheetSectio
 
 export function createChordSheet(): ChordSheet {
   return { sections: [], updatedAt: Date.now() };
+}
+
+/** Chords packed per bar when building a chart from lyrics — kept low so the
+ *  result is editable; the writer can "split" a bar afterward. */
+export const IMPORT_CHORDS_PER_BAR = 2;
+
+/** Split a bar's chords into one bar per chord (used by the "split bar" action). */
+export function splitMeasureChords(measure: ChordSheetMeasure): ChordSheetMeasure[] {
+  if (measure.chords.length <= 1) return [measure];
+  return measure.chords.map((chord) => createMeasure([chord]));
+}
+
+/** A lyric line that is a section header, e.g. "[Chorus]" or "Chorus:" — returns
+ *  the label, or null if the line is ordinary lyrics. */
+function sectionLabelFromLine(text: string): string | null {
+  const trimmed = text.trim();
+  if (!trimmed) return null;
+  const bracket = trimmed.match(/^\[([^\]]+)\]$/);
+  if (bracket) return bracket[1].trim();
+  const colon = trimmed.match(/^([A-Za-z][A-Za-z0-9 '\-]{0,24}):$/);
+  if (colon) return colon[1].trim();
+  return null;
+}
+
+function lineChordsInOrder(line: LyricsLine): string[] {
+  return [...line.chords]
+    .sort((a, b) => a.at - b.at)
+    .map((chord) => chord.chord)
+    .filter((chord) => !!chord && chord.trim().length > 0);
+}
+
+/**
+ * Build a block chord chart from a lyrics version: split into sections on blank
+ * lines (and honour a leading "[Tag]"/"Tag:" header), collect each section's
+ * chords in order, and pack them `IMPORT_CHORDS_PER_BAR` per bar. Sections with no
+ * chords are skipped — it's a chord chart, not the lyrics. Returns an empty sheet
+ * when the lyrics carry no chords.
+ */
+export function buildChordSheetFromLyrics(version: LyricsVersion | null | undefined): ChordSheet {
+  const lines = version?.document.lines ?? [];
+
+  const groups: LyricsLine[][] = [];
+  let current: LyricsLine[] = [];
+  for (const line of lines) {
+    const isBlank = !line.text.trim() && line.chords.length === 0;
+    if (isBlank) {
+      if (current.length) {
+        groups.push(current);
+        current = [];
+      }
+    } else {
+      current.push(line);
+    }
+  }
+  if (current.length) groups.push(current);
+
+  const sections: ChordSheetSection[] = [];
+  for (const group of groups) {
+    const tag = sectionLabelFromLine(group[0]?.text ?? "");
+    const bodyLines = tag ? group.slice(1) : group;
+
+    const chords: string[] = [];
+    for (const line of bodyLines) chords.push(...lineChordsInOrder(line));
+    if (chords.length === 0) continue;
+
+    const measures: ChordSheetMeasure[] = [];
+    for (let i = 0; i < chords.length; i += IMPORT_CHORDS_PER_BAR) {
+      measures.push(createMeasure(chords.slice(i, i + IMPORT_CHORDS_PER_BAR)));
+    }
+
+    sections.push({
+      id: randomId("section"),
+      label: tag ?? `Section ${sections.length + 1}`,
+      measures,
+      notes: "",
+    });
+  }
+
+  return { sections, updatedAt: Date.now() };
 }
 
 export function isChordSheetEmpty(sheet: ChordSheet | undefined): boolean {
