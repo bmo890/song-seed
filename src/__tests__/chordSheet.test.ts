@@ -70,6 +70,25 @@ describe("serializeChordSheetText", () => {
     };
     expect(serializeChordSheetText(sheet)).toBe("A\n| C | C | C | C |\n| C | C |");
   });
+
+  it("renders empty bars as a closed '| - |'", () => {
+    const sheet: ChordSheet = {
+      updatedAt: 1,
+      sections: [
+        {
+          id: "s",
+          label: "Intro",
+          notes: "",
+          measures: [
+            { id: "m1", chords: ["C"] },
+            { id: "m2", chords: ["C", "Fmaj"] },
+            { id: "m3", chords: [] },
+          ],
+        },
+      ],
+    };
+    expect(serializeChordSheetText(sheet)).toBe("INTRO\n| C | C Fmaj | - |");
+  });
 });
 
 describe("sanitizeChordSheet", () => {

@@ -188,9 +188,10 @@ export function cloneChordSheet(sheet: ChordSheet | undefined): ChordSheet | und
   };
 }
 
-/** Renders a measure as "| Cmaj7 A7 |" content (chords joined by spaces). */
+/** Renders a measure's content — chords joined by spaces, or "-" for an empty
+ * bar so it reads as a real (closed) bar: "| - |" rather than a blank "|   |". */
 function measureText(measure: ChordSheetMeasure): string {
-  return measure.chords.length > 0 ? measure.chords.join(" ") : " ";
+  return measure.chords.length > 0 ? measure.chords.join(" ") : "-";
 }
 
 /** Plain-text chart: each section's label, its bars in rows of `perRow`, then notes. */

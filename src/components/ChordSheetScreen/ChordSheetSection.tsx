@@ -2,8 +2,7 @@ import { useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View, type LayoutChangeEvent } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { styles as appStyles } from "../../styles";
-import { colors, radii, spacing, text as textTokens } from "../../design/tokens";
-import { MAX_CHORDS_PER_BAR } from "../../chordSheet";
+import { colors, spacing, text as textTokens } from "../../design/tokens";
 import type { ChordSheetMeasure, ChordSheetSection as Section } from "../../types";
 
 type Props = {
@@ -21,8 +20,6 @@ type Props = {
 
 const BAR_WIDTH = 76;
 const BARLINE = colors.borderMuted;
-
-type Cell = { kind: "bar"; measure: ChordSheetMeasure } | { kind: "add" };
 
 function chunk<T>(items: T[], size: number): T[][] {
   if (size < 1) return items.length ? [items] : [];
@@ -51,11 +48,12 @@ export function ChordSheetSection({
     setBarsPerRow((prev) => (prev === next ? prev : next));
   };
 
-  const cells: Cell[] = [
-    ...section.measures.map((measure) => ({ kind: "bar" as const, measure })),
-    ...(editable && !selectionActive ? [{ kind: "add" as const }] : []),
-  ];
-  const rows = chunk(cells, barsPerRow);
+  const rows = chunk(section.measures, barsPerRow);
+  const showAdd = editable && !selectionActive;
+  // The add button sits to the right of the last bar; if that row is full (or the
+  // section is empty) it drops to its own row so it never overflows the staff.
+  const lastRowFull = rows.length > 0 && rows[rows.length - 1].length >= barsPerRow;
+  const addOnOwnRow = showAdd && (rows.length === 0 || lastRowFull);
 
   return (
     <View style={styles.section}>
@@ -96,31 +94,29 @@ export function ChordSheetSection({
       <View onLayout={onStaffLayout}>
         {rows.map((row, rowIndex) => (
           <View key={rowIndex} style={styles.staffRow}>
-            {row.map((cell, cellIndex) =>
-              cell.kind === "add" ? (
-                <Pressable
-                  key={`add-${cellIndex}`}
-                  style={({ pressed }) => [styles.bar, styles.addBar, pressed ? appStyles.pressDown : null]}
-                  onPress={onAddMeasure}
-                >
-                  <Ionicons name="add" size={16} color={colors.primary} />
-                </Pressable>
-              ) : (
-                <Bar
-                  key={cell.measure.id}
-                  measure={cell.measure}
-                  editable={editable}
-                  selectionActive={selectionActive}
-                  selected={selectedSet.has(cell.measure.id)}
-                  onTap={() => onTapMeasure(cell.measure.id)}
-                  onLongPress={() => onLongPressMeasure(cell.measure.id)}
-                  onRemoveChord={(index) => onRemoveChord(cell.measure.id, index)}
-                />
-              )
-            )}
+            {row.map((measure) => (
+              <Bar
+                key={measure.id}
+                measure={measure}
+                editable={editable}
+                selectionActive={selectionActive}
+                selected={selectedSet.has(measure.id)}
+                onTap={() => onTapMeasure(measure.id)}
+                onLongPress={() => onLongPressMeasure(measure.id)}
+                onRemoveChord={(index) => onRemoveChord(measure.id, index)}
+              />
+            ))}
             <View style={styles.closingLine} />
+            {showAdd && !lastRowFull && rowIndex === rows.length - 1 ? (
+              <AddBarButton onPress={onAddMeasure} />
+            ) : null}
           </View>
         ))}
+        {addOnOwnRow ? (
+          <View style={styles.staffRow}>
+            <AddBarButton onPress={onAddMeasure} />
+          </View>
+        ) : null}
       </View>
     </View>
   );
@@ -169,12 +165,24 @@ function Bar({
               </Text>
             )
           )
-        ) : editable && !selectionActive ? (
-          <Ionicons name="add" size={13} color={colors.borderMuted} />
         ) : (
           <Text style={styles.rest}>{"—"}</Text>
         )}
       </View>
+    </Pressable>
+  );
+}
+
+/** Small circular "+" after the last bar — adds a new bar to the end of the row. */
+function AddBarButton({ onPress }: { onPress: () => void }) {
+  return (
+    <Pressable
+      onPress={onPress}
+      hitSlop={8}
+      accessibilityLabel="Add bar"
+      style={({ pressed }) => [styles.addCircle, pressed ? appStyles.pressDown : null]}
+    >
+      <Ionicons name="add" size={16} color={colors.primary} />
     </Pressable>
   );
 }
@@ -225,8 +233,16 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceHigh,
     borderLeftColor: colors.primary,
   },
-  addBar: {
-    width: BAR_WIDTH,
+  addCircle: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    alignItems: "center",
+    justifyContent: "center",
+    alignSelf: "center",
+    marginLeft: 8,
   },
   barChords: {
     flexDirection: "row",
