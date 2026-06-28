@@ -41,11 +41,15 @@ export async function computeWaveformPeaks(
         endTimeMs: durationMs,
       });
       if (result?.peaks?.length) {
+        console.log("[waveform] decoder=native", { rawPoints: result.peaks.length, requested: numberOfPoints });
         return result.peaks.map(clamp01);
       }
+      console.warn("[waveform] native computeWaveform returned no points; falling back to @siteed");
     } catch (error) {
       console.warn("[waveform] native computeWaveform failed; falling back to @siteed", error);
     }
+  } else {
+    console.log("[waveform] decoder=extractPreview (native computeWaveform unavailable in this build)");
   }
 
   try {
@@ -54,6 +58,10 @@ export async function computeWaveformPeaks(
       numberOfPoints,
       startTimeMs: 0,
       endTimeMs: durationMs,
+    });
+    console.log("[waveform] decoder=extractPreview", {
+      rawPoints: analysis.dataPoints?.length ?? 0,
+      requested: numberOfPoints,
     });
     return analysisToPeaks(analysis, numberOfPoints);
   } catch (error) {
