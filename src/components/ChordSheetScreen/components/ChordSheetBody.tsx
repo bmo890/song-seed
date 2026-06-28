@@ -357,6 +357,11 @@ export function ChordSheetBody({ model }: { model: ReturnType<typeof useChordShe
         draftValue={renameDraft}
         placeholderValue={renameTarget?.label}
         onChangeDraft={setRenameDraft}
+        suggestions={model.labelSuggestions}
+        onSelectSuggestion={(value) => {
+          if (renameTarget) model.renameSection(renameTarget.id, value);
+          setRenameTarget(null);
+        }}
         onCancel={() => setRenameTarget(null)}
         onSave={() => {
           const next = renameDraft.trim();

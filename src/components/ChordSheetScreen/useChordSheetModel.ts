@@ -16,6 +16,7 @@ import {
   serializeChordSheetText,
   splitMeasureChords,
   MAX_CHORDS_PER_BAR,
+  SECTION_PRESETS,
 } from "../../chordSheet";
 import { getLatestLyricsVersion } from "../../lyrics";
 import { shareChordSheetPdf } from "../../services/chordChartPdf";
@@ -40,6 +41,30 @@ export function useChordSheetModel(ideaIdOverride?: string) {
 
   const sheet = projectIdea?.chordSheet ?? createChordSheet();
   const palette = useMemo(() => sortedPalette(projectIdea?.chordPalette), [projectIdea?.chordPalette]);
+
+  // Autocomplete corpus for renaming sections: the presets plus every section
+  // label the writer has actually used across their charts (custom names too).
+  const labelSuggestions = useMemo(() => {
+    const seen = new Set<string>();
+    const out: string[] = [];
+    const add = (label: string) => {
+      const trimmed = label.trim();
+      const key = trimmed.toLowerCase();
+      if (!trimmed || seen.has(key)) return;
+      seen.add(key);
+      out.push(trimmed);
+    };
+    SECTION_PRESETS.forEach(add);
+    for (const workspace of workspaces) {
+      for (const idea of workspace.ideas) {
+        if (idea.kind !== "project") continue;
+        for (const section of idea.chordSheet?.sections ?? []) {
+          if (section.kind !== "text") add(section.label);
+        }
+      }
+    }
+    return out;
+  }, [workspaces]);
 
   const [isEditing, setIsEditing] = useState(false);
   const [pickerTarget, setPickerTarget] = useState<PickerTarget | null>(null);
@@ -213,6 +238,7 @@ export function useChordSheetModel(ideaIdOverride?: string) {
     projectIdea,
     sheet,
     palette,
+    labelSuggestions,
     isEditing,
     setIsEditing,
     pickerTarget,

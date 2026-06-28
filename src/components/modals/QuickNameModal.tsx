@@ -9,6 +9,10 @@ type Props = {
     draftValue: string;
     placeholderValue?: string;
     onChangeDraft: (val: string) => void;
+    /** Optional autocomplete corpus shown as tappable chips under the name field. */
+    suggestions?: string[];
+    /** Tapping a suggestion calls this (e.g. to finish immediately); falls back to filling the field. */
+    onSelectSuggestion?: (value: string) => void;
     descriptionValue?: string;
     onChangeDescription?: (val: string) => void;
     isPrimary?: boolean;
@@ -31,6 +35,8 @@ export function QuickNameModal({
     draftValue,
     placeholderValue,
     onChangeDraft,
+    suggestions,
+    onSelectSuggestion,
     descriptionValue,
     onChangeDescription,
     isPrimary,
@@ -47,6 +53,22 @@ export function QuickNameModal({
     onPressDestination,
 }: Props) {
     const isSaveDisabled = saveDisabled || (disableSaveWhenEmpty && draftValue.trim().length === 0);
+
+    // Autocomplete: match the corpus against what's typed (prefix matches first),
+    // hiding an exact match since there's nothing left to complete.
+    const query = draftValue.trim().toLowerCase();
+    const suggestionMatches = (suggestions ?? [])
+        .filter((s) => {
+            const sl = s.trim().toLowerCase();
+            if (!sl) return false;
+            return query ? sl.includes(query) && sl !== query : true;
+        })
+        .sort((a, b) => {
+            if (!query) return 0;
+            const rank = (x: string) => (x.toLowerCase().startsWith(query) ? 0 : 1);
+            return rank(a) - rank(b);
+        })
+        .slice(0, 8);
 
     return (
         <WarmModal visible={visible} onRequestClose={onCancel} title={title}>
@@ -82,6 +104,21 @@ export function QuickNameModal({
                     ) : null}
                 </View>
             </View>
+
+            {/* ── Autocomplete suggestions ── */}
+            {suggestions && suggestionMatches.length > 0 ? (
+                <View style={qStyles.suggestRow}>
+                    {suggestionMatches.map((s) => (
+                        <Pressable
+                            key={s}
+                            style={({ pressed }) => [qStyles.suggestChip, pressed ? qStyles.pressDown : null]}
+                            onPress={() => (onSelectSuggestion ? onSelectSuggestion(s) : onChangeDraft(s))}
+                        >
+                            <Text style={qStyles.suggestChipText}>{s}</Text>
+                        </Pressable>
+                    ))}
+                </View>
+            ) : null}
 
             {/* ── Optional description input ── */}
             {onChangeDescription !== undefined ? (
@@ -204,6 +241,23 @@ const qStyles = StyleSheet.create({
         backgroundColor: "#F4F1ED",
         alignItems: "center",
         justifyContent: "center",
+    },
+    suggestRow: {
+        flexDirection: "row",
+        flexWrap: "wrap",
+        gap: 6,
+        marginTop: 10,
+    },
+    suggestChip: {
+        backgroundColor: "#F4F1ED",
+        borderRadius: 14,
+        paddingHorizontal: 12,
+        paddingVertical: 7,
+    },
+    suggestChipText: {
+        fontFamily: "PlusJakartaSans_600SemiBold",
+        fontSize: 13,
+        color: "#524440",
     },
     helperText: {
         fontFamily: "PlusJakartaSans_400Regular",
