@@ -1,5 +1,6 @@
-import { useCallback, useMemo } from "react";
-import { useNavigation, useRoute } from "@react-navigation/native";
+import { useCallback, useMemo, useRef } from "react";
+import { BackHandler } from "react-native";
+import { useFocusEffect, useNavigation, useRoute } from "@react-navigation/native";
 import { useStore } from "../../../state/useStore";
 import { AppAlert } from "../../common/AppAlert";
 import { actionIcons } from "../../common/actionIcons";
@@ -251,18 +252,18 @@ export function useCutUpScreenModel() {
     );
   }, [deleteCutUpSpark, sparkId, navigation]);
 
+  const hasContent =
+    !!spark &&
+    (spark.sourceText.trim().length > 0 ||
+      spark.chunks.length > 0 ||
+      spark.assembledDraftText.trim().length > 0);
+
   const goBack = useCallback(() => {
     // Already saved to the Lyrics Pad → just leave (the spark stays for resuming).
     if (spark?.savedLyricId) {
       navigation.navigate("NotepadHome");
       return;
     }
-
-    const hasContent =
-      !!spark &&
-      (spark.sourceText.trim().length > 0 ||
-        spark.chunks.length > 0 ||
-        spark.assembledDraftText.trim().length > 0);
 
     // A freshly-opened spark with nothing in it should not linger in the pad —
     // discard the auto-created record rather than silently keeping it.
@@ -289,7 +290,33 @@ export function useCutUpScreenModel() {
         onPress: () => navigation.navigate("NotepadHome"),
       },
     ]);
-  }, [spark, sparkId, deleteCutUpSpark, navigation]);
+  }, [spark?.savedLyricId, hasContent, sparkId, deleteCutUpSpark, navigation]);
+
+  // Catch every other way of leaving. Hardware back runs the same prompt as the
+  // in-app Back button. A drawer switch can't be intercepted before it happens, so
+  // on blur we silently discard an empty, unsaved spark (a started one is kept as
+  // unfinished, like Lyrics Pad notes). Refs keep the focus effect from
+  // re-subscribing on every keystroke — which would delete the spark mid-edit.
+  const goBackRef = useRef(goBack);
+  goBackRef.current = goBack;
+  const abandonRef = useRef({ sparkId, savedLyricId: spark?.savedLyricId ?? null, hasContent });
+  abandonRef.current = { sparkId, savedLyricId: spark?.savedLyricId ?? null, hasContent };
+
+  useFocusEffect(
+    useCallback(() => {
+      const sub = BackHandler.addEventListener("hardwareBackPress", () => {
+        goBackRef.current();
+        return true;
+      });
+      return () => {
+        sub.remove();
+        const snapshot = abandonRef.current;
+        if (snapshot.sparkId && !snapshot.savedLyricId && !snapshot.hasContent) {
+          deleteCutUpSpark(snapshot.sparkId);
+        }
+      };
+    }, [deleteCutUpSpark])
+  );
 
   return {
     spark,

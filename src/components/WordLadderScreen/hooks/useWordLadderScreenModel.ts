@@ -1,5 +1,6 @@
-import { useCallback, useMemo, useState } from "react";
-import { useNavigation, useRoute } from "@react-navigation/native";
+import { useCallback, useMemo, useRef, useState } from "react";
+import { BackHandler } from "react-native";
+import { useFocusEffect, useNavigation, useRoute } from "@react-navigation/native";
 import { useStore } from "../../../state/useStore";
 import { AppAlert } from "../../common/AppAlert";
 import { actionIcons } from "../../common/actionIcons";
@@ -215,21 +216,21 @@ export function useWordLadderScreenModel() {
     navigation.navigate("NotepadHome", { noteId, openToken: Date.now() });
   }, [exercise, addNote, updateNote, apply, navigation]);
 
+  const hasContent =
+    !!exercise &&
+    (exercise.roleSeed.trim().length > 0 ||
+      exercise.placeSeed.trim().length > 0 ||
+      exercise.columnA.length > 0 ||
+      exercise.columnB.length > 0 ||
+      exercise.draft.trim().length > 0 ||
+      exercise.revision.trim().length > 0);
+
   const goBack = useCallback(() => {
     // Already saved to the Lyrics Pad → just leave (the exercise stays for resuming).
     if (exercise?.savedLyricId) {
       navigation.navigate("NotepadHome");
       return;
     }
-
-    const hasContent =
-      !!exercise &&
-      (exercise.roleSeed.trim().length > 0 ||
-        exercise.placeSeed.trim().length > 0 ||
-        exercise.columnA.length > 0 ||
-        exercise.columnB.length > 0 ||
-        exercise.draft.trim().length > 0 ||
-        exercise.revision.trim().length > 0);
 
     // A freshly-opened spark with nothing in it should not linger in the pad —
     // discard the auto-created record rather than silently keeping it.
@@ -256,7 +257,33 @@ export function useWordLadderScreenModel() {
         onPress: () => navigation.navigate("NotepadHome"),
       },
     ]);
-  }, [exercise, exerciseId, deleteWordLadder, navigation]);
+  }, [exercise?.savedLyricId, hasContent, exerciseId, deleteWordLadder, navigation]);
+
+  // Catch every other way of leaving. Hardware back runs the same prompt as the
+  // in-app Back button. A drawer switch can't be intercepted before it happens, so
+  // on blur we silently discard an empty, unsaved spark (a started one is kept as
+  // unfinished, like Lyrics Pad notes). Refs keep the focus effect from
+  // re-subscribing on every keystroke — which would delete the spark mid-edit.
+  const goBackRef = useRef(goBack);
+  goBackRef.current = goBack;
+  const abandonRef = useRef({ exerciseId, savedLyricId: exercise?.savedLyricId ?? null, hasContent });
+  abandonRef.current = { exerciseId, savedLyricId: exercise?.savedLyricId ?? null, hasContent };
+
+  useFocusEffect(
+    useCallback(() => {
+      const sub = BackHandler.addEventListener("hardwareBackPress", () => {
+        goBackRef.current();
+        return true;
+      });
+      return () => {
+        sub.remove();
+        const snapshot = abandonRef.current;
+        if (snapshot.exerciseId && !snapshot.savedLyricId && !snapshot.hasContent) {
+          deleteWordLadder(snapshot.exerciseId);
+        }
+      };
+    }, [deleteWordLadder])
+  );
 
   return {
     exercise,
