@@ -4,7 +4,8 @@ import * as Haptics from "expo-haptics";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { styles } from "../../styles";
-import { SongIdea } from "../../types";
+import { SongIdea, type LyricsVersion } from "../../types";
+import { ChordChart } from "../LyricsVersionScreen/components/chords/ChordChart";
 import { useStore } from "../../state/useStore";
 import { appActions } from "../../state/actions";
 import { getLatestLyricsVersion, lyricsDocumentToText } from "../../lyrics";
@@ -34,6 +35,14 @@ export function LyricsVersionsPanel({ projectIdea }: LyricsVersionsPanelProps) {
   const [selectedVersionIds, setSelectedVersionIds] = useState<string[]>([]);
   const [notePickerVisible, setNotePickerVisible] = useState(false);
   const [moreVisible, setMoreVisible] = useState(false);
+  const [showChords, setShowChords] = useState(false);
+
+  const versionHasChords = (version: LyricsVersion) =>
+    version.document.lines.some((line) => line.chords.length > 0);
+  const anyVersionHasChords = useMemo(
+    () => versions.some(versionHasChords),
+    [versions]
+  );
 
   useEffect(() => {
     setExpandedVersionIds((prev) => {
@@ -172,6 +181,28 @@ export function LyricsVersionsPanel({ projectIdea }: LyricsVersionsPanelProps) {
         </View>
       ) : null}
 
+      {!selectionMode && anyVersionHasChords ? (
+        <Pressable
+          onPress={() => setShowChords((prev) => !prev)}
+          style={({ pressed }) => [
+            panelStyles.chordToggle,
+            showChords ? panelStyles.chordToggleActive : null,
+            pressed ? styles.pressDown : null,
+          ]}
+          accessibilityRole="button"
+          accessibilityState={{ selected: showChords }}
+        >
+          <Ionicons
+            name="musical-notes-outline"
+            size={14}
+            color={showChords ? colors.primary : colors.textSecondary}
+          />
+          <Text style={[panelStyles.chordToggleText, showChords ? panelStyles.chordToggleTextActive : null]}>
+            {showChords ? "Hide chords" : "Show chords"}
+          </Text>
+        </Pressable>
+      ) : null}
+
       {versions.length === 0 ? (
         <View style={[styles.card, styles.songDetailTabPanelCard]}>
           <Text style={styles.pageTitleCompact}>Start Lyrics</Text>
@@ -250,7 +281,11 @@ export function LyricsVersionsPanel({ projectIdea }: LyricsVersionsPanelProps) {
 
               {isExpanded ? (
                 <View style={styles.lyricsPreviewWrap}>
-                  <Text style={styles.lyricsPreviewText}>{previewText || "No lyrics in this version."}</Text>
+                  {showChords && versionHasChords(version) ? (
+                    <ChordChart lines={version.document.lines} editable={false} />
+                  ) : (
+                    <Text style={styles.lyricsPreviewText}>{previewText || "No lyrics in this version."}</Text>
+                  )}
                 </View>
               ) : null}
             </View>
@@ -299,5 +334,26 @@ const panelStyles = StyleSheet.create({
     fontFamily: "PlusJakartaSans_700Bold",
     fontSize: 13,
     color: colors.onPrimary,
+  },
+  chordToggle: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    alignSelf: "flex-start",
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: radii.round,
+    backgroundColor: colors.surfaceContainer,
+  },
+  chordToggleActive: {
+    backgroundColor: colors.surfaceHigh,
+  },
+  chordToggleText: {
+    fontFamily: "PlusJakartaSans_600SemiBold",
+    fontSize: 12,
+    color: colors.textSecondary,
+  },
+  chordToggleTextActive: {
+    color: colors.primary,
   },
 });

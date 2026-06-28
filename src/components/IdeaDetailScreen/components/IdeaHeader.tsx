@@ -13,10 +13,14 @@ import { TitleInput } from "../../common/TitleInput";
 import { useSongScreen } from "../provider/SongScreenProvider";
 import { COMPACT_TITLE_FADE_IN_END, COMPACT_TITLE_FADE_IN_START } from "../headerCollapse";
 import { AppAlert } from "../../common/AppAlert";
+import { useStore } from "../../../state/useStore";
 
 export function IdeaHeader() {
   const [headerMenuOpen, setHeaderMenuOpen] = useState(false);
   const { screen, editFlow, actions } = useSongScreen();
+  // While clips are selected, the bottom bar already offers a clip "Delete". Disable
+  // the song-level delete here so it can't be tapped by mistake mid-selection.
+  const isSelectingClips = useStore((s) => s.selectedClipIds.length > 0);
 
   const selectedIdea = screen.selectedIdea;
 
@@ -194,7 +198,12 @@ export function IdeaHeader() {
               <>
                 <View style={styles.ideasDropdownDivider} />
                 <Pressable
-                  style={({ pressed }) => [styles.ideasToggleRow, pressed ? styles.pressDown : null]}
+                  style={({ pressed }) => [
+                    styles.ideasToggleRow,
+                    isSelectingClips ? styles.btnDisabled : null,
+                    pressed && !isSelectingClips ? styles.pressDown : null,
+                  ]}
+                  disabled={isSelectingClips}
                   onPress={() => {
                     setHeaderMenuOpen(false);
                     AppAlert.destructive(
@@ -210,10 +219,10 @@ export function IdeaHeader() {
                     );
                   }}
                 >
-                  <Text style={styles.songDetailDangerMenuText}>
+                  <Text style={isSelectingClips ? styles.ideasSortMenuItemText : styles.songDetailDangerMenuText}>
                     {isProject ? "Delete song" : "Delete clip"}
                   </Text>
-                  <Ionicons name="trash-outline" size={15} color="#b91c1c" />
+                  <Ionicons name="trash-outline" size={15} color={isSelectingClips ? "#a89a96" : "#b91c1c"} />
                 </Pressable>
               </>
             ) : null}
