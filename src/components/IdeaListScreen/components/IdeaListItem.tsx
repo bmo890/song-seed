@@ -5,7 +5,7 @@ import * as Haptics from "expo-haptics";
 import { styles } from "../../../styles";
 import { MiniProgress } from "../../MiniProgress";
 import { SongIdea, ClipVersion, InlinePlayerControls } from "../../../types";
-import { fmtDuration, formatClipDate, isDefaultIdeaTitle } from "../../../utils";
+import { fmtDuration, formatClipDate } from "../../../utils";
 import { getDateBucketLabel } from "../../../dateBuckets";
 import { useNavigation } from "@react-navigation/native";
 import { getIdeaCreatedAt, getIdeaUpdatedAt, type IdeaSortMetric } from "../../../ideaSort";
@@ -172,14 +172,13 @@ export function IdeaListItem({
     const showSelectionIndicator = listSelectionMode;
     const compact = listDensity === "compact";
     const sortTs = sortMetric === "updated" ? getIdeaUpdatedAt(item) : getIdeaCreatedAt(item);
-    // One cohesive relative date; when the timeline is grouped it dovetails with
-    // the section divider (never echoing it) instead of repeating the day.
+    // Metadata only: one cohesive relative date. When the timeline is grouped it
+    // dovetails with the section divider (never echoing it) instead of repeating
+    // the day. The title is always the clip's own title — for unnamed clips that's
+    // the auto date/time plug (e.g. "10:43 AM Jun 28th"); the relative date is the
+    // footer's job, never the headline's.
     const dateLabel = formatClipDate(sortTs, showDateDividers ? getDateBucketLabel(sortTs) : undefined);
-    // When the title is still the auto timestamp "plug", the date IS the identity:
-    // show it as the headline and skip the footer date so the date appears once.
-    const titleIsPlug = isDefaultIdeaTitle(item.title, item.createdAt);
-    const displayTitle = titleIsPlug ? dateLabel : item.title;
-    const showFooterDate = !titleIsPlug;
+    const displayTitle = item.title;
     const compactProjectProgressLabel = projectProgressPct !== null && compact && sortMetric === "progress"
         ? `${projectProgressPct}%`
         : null;
@@ -455,7 +454,7 @@ export function IdeaListItem({
                                 </>
                             }
                             searchTagsContent={searchTagsBlock}
-                            footerDate={showFooterDate ? dateLabel : undefined}
+                            footerDate={dateLabel}
                             footerRightContent={
                                 compact && item.kind === "project"
                                     ? renderCompactProjectRightMeta()
