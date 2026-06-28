@@ -2,22 +2,19 @@ import { useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View, type LayoutChangeEvent } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { styles as appStyles } from "../../styles";
-import { colors, spacing, text as textTokens } from "../../design/tokens";
+import { colors, radii, spacing, text as textTokens } from "../../design/tokens";
 import { MAX_CHORDS_PER_BAR } from "../../chordSheet";
-import { SelectionActionSheet } from "../common/SelectionActionSheet";
-import type { SelectionAction } from "../common/SelectionDock";
 import type { ChordSheetMeasure, ChordSheetSection as Section } from "../../types";
 
 type Props = {
   section: Section;
   editable: boolean;
+  selectionActive: boolean;
+  selectedMeasureIds: string[];
   onTapMeasure: (measureId: string) => void;
+  onLongPressMeasure: (measureId: string) => void;
   onAddMeasure: () => void;
-  onInsertMeasure: (atIndex: number) => void;
-  onSplitMeasure: (measureId: string) => void;
   onRemoveChord: (measureId: string, index: number) => void;
-  onRemoveMeasure: (measureId: string) => void;
-  onClearMeasure: (measureId: string) => void;
   onNotes: (notes: string) => void;
   onOpenMenu: () => void;
 };
@@ -26,7 +23,6 @@ const BAR_WIDTH = 76;
 const BARLINE = colors.borderMuted;
 
 type Cell = { kind: "bar"; measure: ChordSheetMeasure } | { kind: "add" };
-type BarMenu = { measureId: string; index: number; chordCount: number };
 
 function chunk<T>(items: T[], size: number): T[][] {
   if (size < 1) return items.length ? [items] : [];
@@ -38,18 +34,17 @@ function chunk<T>(items: T[], size: number): T[][] {
 export function ChordSheetSection({
   section,
   editable,
+  selectionActive,
+  selectedMeasureIds,
   onTapMeasure,
+  onLongPressMeasure,
   onAddMeasure,
-  onInsertMeasure,
-  onSplitMeasure,
   onRemoveChord,
-  onRemoveMeasure,
-  onClearMeasure,
   onNotes,
   onOpenMenu,
 }: Props) {
   const [barsPerRow, setBarsPerRow] = useState(4);
-  const [barMenu, setBarMenu] = useState<BarMenu | null>(null);
+  const selectedSet = new Set(selectedMeasureIds);
 
   const onStaffLayout = (e: LayoutChangeEvent) => {
     const next = Math.max(1, Math.floor(e.nativeEvent.layout.width / BAR_WIDTH));
@@ -58,53 +53,9 @@ export function ChordSheetSection({
 
   const cells: Cell[] = [
     ...section.measures.map((measure) => ({ kind: "bar" as const, measure })),
-    ...(editable ? [{ kind: "add" as const }] : []),
+    ...(editable && !selectionActive ? [{ kind: "add" as const }] : []),
   ];
   const rows = chunk(cells, barsPerRow);
-
-  const barMenuActions: SelectionAction[] = barMenu
-    ? [
-        {
-          key: "insert-before",
-          label: "Insert bar before",
-          icon: "arrow-back-outline",
-          onPress: () => onInsertMeasure(barMenu.index),
-        },
-        {
-          key: "insert-after",
-          label: "Insert bar after",
-          icon: "arrow-forward-outline",
-          onPress: () => onInsertMeasure(barMenu.index + 1),
-        },
-        ...(barMenu.chordCount > 1
-          ? [
-              {
-                key: "split",
-                label: "Split into separate bars",
-                icon: "git-branch-outline" as const,
-                onPress: () => onSplitMeasure(barMenu.measureId),
-              },
-            ]
-          : []),
-        ...(barMenu.chordCount > 0
-          ? [
-              {
-                key: "clear",
-                label: "Clear bar",
-                icon: "backspace-outline" as const,
-                onPress: () => onClearMeasure(barMenu.measureId),
-              },
-            ]
-          : []),
-        {
-          key: "delete",
-          label: "Delete bar",
-          icon: "trash-outline",
-          tone: "danger",
-          onPress: () => onRemoveMeasure(barMenu.measureId),
-        },
-      ]
-    : [];
 
   return (
     <View style={styles.section}>
@@ -159,16 +110,11 @@ export function ChordSheetSection({
                   key={cell.measure.id}
                   measure={cell.measure}
                   editable={editable}
-                  onAddChord={() => onTapMeasure(cell.measure.id)}
+                  selectionActive={selectionActive}
+                  selected={selectedSet.has(cell.measure.id)}
+                  onTap={() => onTapMeasure(cell.measure.id)}
+                  onLongPress={() => onLongPressMeasure(cell.measure.id)}
                   onRemoveChord={(index) => onRemoveChord(cell.measure.id, index)}
-                  onRemoveBar={() => onRemoveMeasure(cell.measure.id)}
-                  onOpenMenu={() =>
-                    setBarMenu({
-                      measureId: cell.measure.id,
-                      index: section.measures.findIndex((m) => m.id === cell.measure.id),
-                      chordCount: cell.measure.chords.length,
-                    })
-                  }
                 />
               )
             )}
@@ -176,13 +122,6 @@ export function ChordSheetSection({
           </View>
         ))}
       </View>
-
-      <SelectionActionSheet
-        visible={!!barMenu}
-        title="Bar"
-        actions={barMenuActions}
-        onClose={() => setBarMenu(null)}
-      />
     </View>
   );
 }
@@ -190,39 +129,37 @@ export function ChordSheetSection({
 function Bar({
   measure,
   editable,
-  onAddChord,
+  selectionActive,
+  selected,
+  onTap,
+  onLongPress,
   onRemoveChord,
-  onRemoveBar,
-  onOpenMenu,
 }: {
   measure: ChordSheetMeasure;
   editable: boolean;
-  onAddChord: () => void;
+  selectionActive: boolean;
+  selected: boolean;
+  onTap: () => void;
+  onLongPress: () => void;
   onRemoveChord: (index: number) => void;
-  onRemoveBar: () => void;
-  onOpenMenu: () => void;
 }) {
   const chords = measure.chords;
-  const isFull = chords.length >= MAX_CHORDS_PER_BAR;
+  // Individual chords are tappable-to-remove only when editing and NOT selecting
+  // bars — in selection mode the whole bar toggles instead.
+  const chordsRemovable = editable && !selectionActive;
 
   return (
     <Pressable
-      style={styles.bar}
-      onPress={editable && !isFull ? onAddChord : undefined}
-      onLongPress={editable ? onOpenMenu : undefined}
+      style={[styles.bar, selected ? styles.barSelected : null]}
+      onPress={editable ? onTap : undefined}
+      onLongPress={editable ? onLongPress : undefined}
       delayLongPress={300}
       disabled={!editable}
     >
-      {editable ? (
-        <Pressable style={styles.barDelete} onPress={onRemoveBar} hitSlop={6}>
-          <Ionicons name="close" size={11} color={colors.textSecondary} />
-        </Pressable>
-      ) : null}
-
       <View style={styles.barChords}>
         {chords.length > 0 ? (
           chords.map((chord, index) =>
-            editable ? (
+            chordsRemovable ? (
               <Pressable key={index} onPress={() => onRemoveChord(index)} hitSlop={2}>
                 <Text style={styles.chord}>{chord}</Text>
               </Pressable>
@@ -232,7 +169,7 @@ function Bar({
               </Text>
             )
           )
-        ) : editable ? (
+        ) : editable && !selectionActive ? (
           <Ionicons name="add" size={13} color={colors.borderMuted} />
         ) : (
           <Text style={styles.rest}>{"—"}</Text>
@@ -284,6 +221,10 @@ const styles = StyleSheet.create({
     borderLeftWidth: 1,
     borderLeftColor: BARLINE,
   },
+  barSelected: {
+    backgroundColor: colors.surfaceHigh,
+    borderLeftColor: colors.primary,
+  },
   addBar: {
     width: BAR_WIDTH,
   },
@@ -294,15 +235,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     columnGap: spacing.sm,
     rowGap: 2,
-  },
-  barDelete: {
-    position: "absolute",
-    top: 0,
-    right: 2,
-    width: 16,
-    height: 16,
-    alignItems: "center",
-    justifyContent: "center",
   },
   closingLine: {
     width: 1,

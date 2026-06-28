@@ -96,6 +96,20 @@ export function useChordSheetModel(ideaIdOverride?: string) {
   const removeMeasure = (sectionId: string, measureId: string) =>
     mutateSection(sectionId, (s) => ({ ...s, measures: s.measures.filter((m) => m.id !== measureId) }));
 
+  const removeMeasures = (sectionId: string, measureIds: string[]) => {
+    const ids = new Set(measureIds);
+    mutateSection(sectionId, (s) => ({ ...s, measures: s.measures.filter((m) => !ids.has(m.id)) }));
+  };
+
+  /** Insert bars (built fresh from `chordsList`) at `atIndex` — used for paste. */
+  const insertMeasuresAt = (sectionId: string, atIndex: number, chordsList: string[][]) =>
+    mutateSection(sectionId, (s) => {
+      const measures = [...s.measures];
+      const clampedIndex = Math.max(0, Math.min(measures.length, atIndex));
+      measures.splice(clampedIndex, 0, ...chordsList.map((chords) => createMeasure([...chords])));
+      return { ...s, measures };
+    });
+
   /** Build the whole chart from the song's latest lyrics version (chords packed
    *  into bars, sections split on blank lines). Confirms before replacing a
    *  non-empty chart. */
@@ -130,6 +144,14 @@ export function useChordSheetModel(ideaIdOverride?: string) {
       ...s,
       measures: s.measures.map((m) => (m.id === measureId ? { ...m, chords: [] } : m)),
     }));
+
+  const clearMeasures = (sectionId: string, measureIds: string[]) => {
+    const ids = new Set(measureIds);
+    mutateSection(sectionId, (s) => ({
+      ...s,
+      measures: s.measures.map((m) => (ids.has(m.id) ? { ...m, chords: [] } : m)),
+    }));
+  };
 
   const removeChordAt = (sectionId: string, measureId: string, index: number) =>
     mutateSection(sectionId, (s) => ({
@@ -195,9 +217,12 @@ export function useChordSheetModel(ideaIdOverride?: string) {
     moveSection,
     addMeasure,
     insertMeasure,
+    insertMeasuresAt,
     splitMeasure,
     removeMeasure,
+    removeMeasures,
     clearMeasure,
+    clearMeasures,
     removeChordAt,
     buildFromLyrics,
     openPicker,
