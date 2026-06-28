@@ -7,14 +7,21 @@ function clamp01(value: number) {
 }
 
 function analysisToPeaks(
-  analysis: { dataPoints?: Array<{ dB: number; amplitude: number }> },
+  analysis: { dataPoints?: Array<{ dB: number; amplitude: number; rms?: number }> },
   numberOfPoints: number
 ): number[] {
   const dataPoints = analysis.dataPoints ?? [];
   if (!dataPoints.length) return [];
-  const levelsAsDb = dataPoints.map((point) =>
-    Number.isFinite(point.dB) ? point.dB : point.amplitude > 0 ? 20 * Math.log10(point.amplitude) : -60
-  );
+  const levelsAsDb = dataPoints.map((point) => {
+    // Prefer RMS energy → dB. It traces the loudness envelope (a song's verse/
+    // chorus dynamics). Peak dB sits near 0 dBFS for almost every bin of a loud or
+    // mastered track, so a peak waveform renders as a featureless solid block.
+    if (typeof point.rms === "number" && point.rms > 0) {
+      return 20 * Math.log10(point.rms);
+    }
+    if (Number.isFinite(point.dB)) return point.dB;
+    return point.amplitude > 0 ? 20 * Math.log10(point.amplitude) : -60;
+  });
   return metersToWaveformPeaks(levelsAsDb, numberOfPoints);
 }
 
@@ -62,6 +69,7 @@ export async function computeWaveformPeaks(
     console.log("[waveform] decoder=extractPreview", {
       rawPoints: analysis.dataPoints?.length ?? 0,
       requested: numberOfPoints,
+      hasRms: analysis.dataPoints?.some((p) => typeof (p as { rms?: number }).rms === "number" && (p as { rms?: number }).rms! > 0) ?? false,
     });
     return analysisToPeaks(analysis, numberOfPoints);
   } catch (error) {
