@@ -306,13 +306,25 @@ export function metersToWaveformPeaks(meters: number[], bins = 150) {
 
   const peaks: number[] = [];
 
-  // Fewer samples than bins (e.g. a short recording → ~13 points/sec): stretch the
-  // envelope across the full width (nearest-neighbour) instead of filling only the
-  // first N bins and leaving a flat tail — which squished short clips to the left.
+  // Fewer samples than bins (e.g. a short recording → ~13 points/sec): linearly
+  // interpolate between the real samples across the full width. Stretching by
+  // nearest-neighbour instead repeated each value in flat steps (blocky groups of
+  // identical bars); interpolation reads as a smooth, variable envelope. (And it
+  // never squishes into the left with a flat tail, the original bug.)
   if (meters.length <= bins) {
+    const lastIndex = meters.length - 1;
+    if (lastIndex <= 0) {
+      return Array.from({ length: bins }, () => normalizeDb(meters[0]));
+    }
+    const span = bins > 1 ? bins - 1 : 1;
     for (let i = 0; i < bins; i++) {
-      const src = Math.min(meters.length - 1, Math.floor((i * meters.length) / bins));
-      peaks.push(normalizeDb(meters[src]));
+      const pos = (i * lastIndex) / span;
+      const lo = Math.floor(pos);
+      const hi = Math.min(lastIndex, lo + 1);
+      const frac = pos - lo;
+      const loDb = Number.isFinite(meters[lo]) ? meters[lo] : -60;
+      const hiDb = Number.isFinite(meters[hi]) ? meters[hi] : -60;
+      peaks.push(normalizeDb(loDb + (hiDb - loDb) * frac));
     }
     return peaks;
   }
