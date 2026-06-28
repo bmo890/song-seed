@@ -1,9 +1,11 @@
 import { useState } from "react";
-import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { styles as appStyles } from "../../../styles";
 import { colors, radii, spacing, text as textTokens } from "../../../design/tokens";
 import { SECTION_PRESETS } from "../../../chordSheet";
+import type { ChordSheet } from "../../../types";
 import { ChordPickerSheet } from "../../LyricsVersionScreen/components/chords/ChordPickerSheet";
 import { SelectionActionSheet } from "../../common/SelectionActionSheet";
 import type { SelectionAction } from "../../common/SelectionDock";
@@ -29,6 +31,7 @@ export function ChordSheetBody({ model }: { model: ReturnType<typeof useChordShe
   const [barSelection, setBarSelection] = useState<BarSelection | null>(null);
   const [barClipboard, setBarClipboard] = useState<string[][] | null>(null);
   const [barMenuOpen, setBarMenuOpen] = useState(false);
+  const [fullViewOpen, setFullViewOpen] = useState(false);
 
   const addSection = (label: string) => {
     model.addSection(label);
@@ -232,24 +235,37 @@ export function ChordSheetBody({ model }: { model: ReturnType<typeof useChordShe
             </Pressable>
           </View>
         </View>
-      ) : isEditing || isEmpty ? (
+      ) : (
         <View style={styles.addBlock}>
-          <Pressable
-            style={({ pressed }) => [styles.actionBtn, pressed ? appStyles.pressDown : null]}
-            onPress={() => setAddSheetOpen(true)}
-          >
-            <Ionicons name="add" size={15} color={colors.primary} />
-            <Text style={styles.actionBtnText}>Add a section</Text>
-          </Pressable>
-          <Pressable
-            style={({ pressed }) => [styles.actionBtn, pressed ? appStyles.pressDown : null]}
-            onPress={() => model.buildFromLyrics()}
-          >
-            <Ionicons name="sparkles-outline" size={14} color={colors.primary} />
-            <Text style={styles.actionBtnText}>Build from lyrics</Text>
-          </Pressable>
+          {isEditing || isEmpty ? (
+            <>
+              <Pressable
+                style={({ pressed }) => [styles.actionBtn, pressed ? appStyles.pressDown : null]}
+                onPress={() => setAddSheetOpen(true)}
+              >
+                <Ionicons name="add" size={15} color={colors.primary} />
+                <Text style={styles.actionBtnText}>Add a section</Text>
+              </Pressable>
+              <Pressable
+                style={({ pressed }) => [styles.actionBtn, pressed ? appStyles.pressDown : null]}
+                onPress={() => model.buildFromLyrics()}
+              >
+                <Ionicons name="sparkles-outline" size={14} color={colors.primary} />
+                <Text style={styles.actionBtnText}>Build from lyrics</Text>
+              </Pressable>
+            </>
+          ) : null}
+          {!isEmpty ? (
+            <Pressable
+              style={({ pressed }) => [styles.actionBtn, pressed ? appStyles.pressDown : null]}
+              onPress={() => setFullViewOpen(true)}
+            >
+              <Ionicons name="newspaper-outline" size={14} color={colors.primary} />
+              <Text style={styles.actionBtnText}>Full view</Text>
+            </Pressable>
+          ) : null}
         </View>
-      ) : null}
+      )}
 
       {isEmpty ? (
         <View style={styles.empty}>
@@ -349,7 +365,69 @@ export function ChordSheetBody({ model }: { model: ReturnType<typeof useChordShe
         }}
         saveLabel="Rename"
       />
+
+      <ChordSheetFullView
+        visible={fullViewOpen}
+        title={model.projectIdea?.title ?? "Chord chart"}
+        sheet={sheet}
+        onClose={() => setFullViewOpen(false)}
+      />
     </>
+  );
+}
+
+/** Read-only "document" view of the whole chart — the in-app print preview. */
+function ChordSheetFullView({
+  visible,
+  title,
+  sheet,
+  onClose,
+}: {
+  visible: boolean;
+  title: string;
+  sheet: ChordSheet;
+  onClose: () => void;
+}) {
+  return (
+    <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
+      <SafeAreaView style={fullView.screen}>
+        <View style={fullView.bar}>
+          <Text style={fullView.title} numberOfLines={1}>
+            {title}
+          </Text>
+          <Pressable onPress={onClose} hitSlop={8} style={({ pressed }) => [fullView.close, pressed ? appStyles.pressDown : null]}>
+            <Ionicons name="close" size={20} color={colors.textStrong} />
+          </Pressable>
+        </View>
+        <ScrollView contentContainerStyle={fullView.page} showsVerticalScrollIndicator={false}>
+          {sheet.sections.map((section) =>
+            section.kind === "text" ? (
+              <ChordTextBlock
+                key={section.id}
+                text={section.text ?? ""}
+                editable={false}
+                onChangeText={() => {}}
+                onOpenMenu={() => {}}
+              />
+            ) : (
+              <ChordSheetSection
+                key={section.id}
+                section={section}
+                editable={false}
+                selectionActive={false}
+                selectedMeasureIds={[]}
+                onTapMeasure={() => {}}
+                onLongPressMeasure={() => {}}
+                onAddMeasure={() => {}}
+                onRemoveChord={() => {}}
+                onNotes={() => {}}
+                onOpenMenu={() => {}}
+              />
+            )
+          )}
+        </ScrollView>
+      </SafeAreaView>
+    </Modal>
   );
 }
 
@@ -504,5 +582,38 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     paddingVertical: 2,
     minHeight: 30,
+  },
+});
+
+const fullView = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: colors.surface },
+  bar: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderMuted,
+  },
+  title: {
+    flex: 1,
+    fontFamily: "PlayfairDisplay_600SemiBold",
+    fontSize: 20,
+    color: colors.textPrimary,
+    marginRight: spacing.md,
+  },
+  close: {
+    width: 36,
+    height: 36,
+    borderRadius: radii.round,
+    backgroundColor: colors.surfaceHigh,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  page: {
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.xl,
   },
 });
