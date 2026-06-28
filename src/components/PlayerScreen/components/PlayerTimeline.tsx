@@ -253,7 +253,7 @@ function PlayerTimelineInner({
       chrome="light"
       showTransportControls={false}
       showExpandToggle={false}
-      showZoomControls={mode === "practice"}
+      showZoomControls={mode !== "playalong"}
       zoomPlacement="overlay"
       showTimingRow={false}
       defaultExpanded={false}

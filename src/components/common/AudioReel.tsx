@@ -11,7 +11,11 @@ import { fmt } from "../../utils";
 
 const TIMELINE_HORIZONTAL_PADDING = 20;
 const AnimatedView = Reanimated.createAnimatedComponent(View);
-const ZOOM_LEVELS = [1, 3, 5, 7, 10] as const;
+// Geometric steps — each press ~doubles the zoom so every tap feels equally
+// meaningful (linear steps make the high end feel like nothing). 16x is the useful
+// ceiling for a ~2048-point sidecar at the reel's bar density; beyond it a long
+// clip runs out of points and goes blocky.
+const ZOOM_LEVELS = [1, 2, 4, 8, 16] as const;
 const DISPLAY_BAR_PITCH_PX = 3;
 const MIN_ZOOM = ZOOM_LEVELS[0];
 const MAX_ZOOM = ZOOM_LEVELS[ZOOM_LEVELS.length - 1];
