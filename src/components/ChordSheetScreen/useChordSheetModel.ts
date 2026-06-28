@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Share } from "react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { useStore } from "../../state/useStore";
@@ -69,10 +69,44 @@ export function useChordSheetModel(ideaIdOverride?: string) {
   const [isEditing, setIsEditing] = useState(false);
   const [pickerTarget, setPickerTarget] = useState<PickerTarget | null>(null);
 
-  const commit = (next: ChordSheet) => {
+  // Undo/redo history for the editing session (snapshots of the whole chart).
+  const pastRef = useRef<ChordSheet[]>([]);
+  const futureRef = useRef<ChordSheet[]>([]);
+  const [, bumpHistory] = useState(0);
+
+  const applySheet = (next: ChordSheet) => {
     if (!projectIdea) return;
     appActions.setSongChordSheet(projectIdea.id, next);
   };
+
+  const commit = (next: ChordSheet) => {
+    if (!projectIdea) return;
+    pastRef.current = [...pastRef.current.slice(-49), sheet];
+    futureRef.current = [];
+    bumpHistory((v) => v + 1);
+    applySheet(next);
+  };
+
+  const undo = () => {
+    const past = pastRef.current;
+    if (!past.length || !projectIdea) return;
+    pastRef.current = past.slice(0, -1);
+    futureRef.current = [...futureRef.current, sheet];
+    bumpHistory((v) => v + 1);
+    applySheet(past[past.length - 1]);
+  };
+
+  const redo = () => {
+    const future = futureRef.current;
+    if (!future.length || !projectIdea) return;
+    futureRef.current = future.slice(0, -1);
+    pastRef.current = [...pastRef.current, sheet];
+    bumpHistory((v) => v + 1);
+    applySheet(future[future.length - 1]);
+  };
+
+  const canUndo = pastRef.current.length > 0;
+  const canRedo = futureRef.current.length > 0;
 
   const mutateSection = (sectionId: string, updater: (section: ChordSheet["sections"][number]) => ChordSheet["sections"][number]) => {
     commit({
@@ -200,10 +234,14 @@ export function useChordSheetModel(ideaIdOverride?: string) {
   const [barSelection, setBarSelection] = useState<{ sectionId: string; measureIds: string[] } | null>(null);
   const [barClipboard, setBarClipboard] = useState<string[][] | null>(null);
 
-  // Leaving edit mode (Done, tab change, blur) always drops any selection so we
-  // never return to a stale highlighted state.
+  // Leaving edit mode (Done, tab change, blur) drops any selection and the undo
+  // history, so each edit session starts clean.
   useEffect(() => {
-    if (!isEditing) setBarSelection(null);
+    if (!isEditing) {
+      setBarSelection(null);
+      pastRef.current = [];
+      futureRef.current = [];
+    }
   }, [isEditing]);
 
   const toggleBarSelection = (sectionId: string, measureId: string) =>
@@ -348,6 +386,10 @@ export function useChordSheetModel(ideaIdOverride?: string) {
     clearMeasures,
     removeChordAt,
     buildFromLyrics,
+    undo,
+    redo,
+    canUndo,
+    canRedo,
     openPicker,
     closePicker,
     addChord,

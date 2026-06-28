@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import Slider from "@react-native-community/slider";
 import { Ionicons } from "@expo/vector-icons";
 import { styles as appStyles } from "../../../styles";
 import { colors, radii, spacing, text as textTokens } from "../../../design/tokens";
@@ -253,6 +254,15 @@ function ChordSheetFullView({
   sheet: ChordSheet;
   onClose: () => void;
 }) {
+  const [scale, setScale] = useState(1);
+  const [pageWidth, setPageWidth] = useState(0);
+  const [contentHeight, setContentHeight] = useState(0);
+
+  // Each open starts at 100%.
+  useEffect(() => {
+    if (visible) setScale(1);
+  }, [visible]);
+
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
       <SafeAreaView style={fullView.screen}>
@@ -264,33 +274,77 @@ function ChordSheetFullView({
             <Ionicons name="close" size={20} color={colors.textStrong} />
           </Pressable>
         </View>
-        <ScrollView contentContainerStyle={fullView.page} showsVerticalScrollIndicator={false}>
-          {sheet.sections.map((section) =>
-            section.kind === "text" ? (
-              <ChordTextBlock
-                key={section.id}
-                text={section.text ?? ""}
-                editable={false}
-                onChangeText={() => {}}
-                onOpenMenu={() => {}}
-              />
-            ) : (
-              <ChordSheetSection
-                key={section.id}
-                section={section}
-                editable={false}
-                selectionActive={false}
-                selectedMeasureIds={[]}
-                onTapMeasure={() => {}}
-                onLongPressMeasure={() => {}}
-                onAddMeasure={() => {}}
-                onRemoveChord={() => {}}
-                onNotes={() => {}}
-                onOpenMenu={() => {}}
-              />
-            )
-          )}
+
+        <ScrollView style={appStyles.flexFill} contentContainerStyle={fullView.page} showsVerticalScrollIndicator={false}>
+          {/* The page is laid out at width/scale then scaled to fit, so the bars
+           * always fill the width (no horizontal overflow) while text and row
+           * height scale — zoom out to fit more, in to fit less. The outer box is
+           * sized to the scaled height so vertical scrolling matches the zoom. */}
+          <View style={fullView.measure} onLayout={(e) => setPageWidth(e.nativeEvent.layout.width)}>
+            {pageWidth > 0 ? (
+              <View style={{ height: contentHeight ? contentHeight * scale : undefined }}>
+                <View
+                  onLayout={(e) => setContentHeight(e.nativeEvent.layout.height)}
+                  style={{ width: pageWidth / scale, transform: [{ scale }], transformOrigin: "top left" }}
+                >
+                  {sheet.sections.map((section) =>
+                    section.kind === "text" ? (
+                      <ChordTextBlock
+                        key={section.id}
+                        text={section.text ?? ""}
+                        editable={false}
+                        onChangeText={() => {}}
+                        onOpenMenu={() => {}}
+                      />
+                    ) : (
+                      <ChordSheetSection
+                        key={section.id}
+                        section={section}
+                        editable={false}
+                        selectionActive={false}
+                        selectedMeasureIds={[]}
+                        onTapMeasure={() => {}}
+                        onLongPressMeasure={() => {}}
+                        onAddMeasure={() => {}}
+                        onRemoveChord={() => {}}
+                        onNotes={() => {}}
+                        onOpenMenu={() => {}}
+                      />
+                    )
+                  )}
+                </View>
+              </View>
+            ) : null}
+          </View>
         </ScrollView>
+
+        <View style={fullView.zoomBar}>
+          <Ionicons name="text" size={13} color={colors.textMuted} />
+          <Slider
+            style={appStyles.flexFill}
+            minimumValue={0.5}
+            maximumValue={1.6}
+            value={scale}
+            onValueChange={setScale}
+            minimumTrackTintColor={colors.primary}
+            maximumTrackTintColor={colors.borderMuted}
+            thumbTintColor={colors.primary}
+          />
+          <Ionicons name="text" size={20} color={colors.textMuted} />
+          <Pressable
+            onPress={() => setScale(1)}
+            disabled={Math.abs(scale - 1) < 0.001}
+            hitSlop={8}
+            accessibilityLabel="Reset zoom"
+            style={({ pressed }) => [fullView.reset, pressed ? appStyles.pressDown : null]}
+          >
+            <Ionicons
+              name="refresh"
+              size={16}
+              color={Math.abs(scale - 1) < 0.001 ? colors.borderMuted : colors.primary}
+            />
+          </Pressable>
+        </View>
       </SafeAreaView>
     </Modal>
   );
@@ -464,5 +518,23 @@ const fullView = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.lg,
     paddingBottom: spacing.xl,
+  },
+  measure: { width: "100%" },
+  zoomBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.borderMuted,
+  },
+  reset: {
+    width: 32,
+    height: 32,
+    borderRadius: radii.round,
+    backgroundColor: colors.surfaceHigh,
+    alignItems: "center",
+    justifyContent: "center",
   },
 });

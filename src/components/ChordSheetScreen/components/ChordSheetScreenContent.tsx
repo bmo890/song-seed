@@ -47,6 +47,36 @@ export function ChordSheetScreenContent() {
         onLeftPress={model.goBack}
         rightElement={
           <View style={styles.headerActions}>
+            {isEditing ? (
+              <>
+                <Pressable
+                  style={({ pressed }) => [styles.headerBtn, pressed && model.canUndo ? appStyles.pressDown : null]}
+                  onPress={model.undo}
+                  disabled={!model.canUndo}
+                  hitSlop={6}
+                  accessibilityLabel="Undo"
+                >
+                  <Ionicons
+                    name="arrow-undo-outline"
+                    size={18}
+                    color={model.canUndo ? colors.textSecondary : colors.borderMuted}
+                  />
+                </Pressable>
+                <Pressable
+                  style={({ pressed }) => [styles.headerBtn, pressed && model.canRedo ? appStyles.pressDown : null]}
+                  onPress={model.redo}
+                  disabled={!model.canRedo}
+                  hitSlop={6}
+                  accessibilityLabel="Redo"
+                >
+                  <Ionicons
+                    name="arrow-redo-outline"
+                    size={18}
+                    color={model.canRedo ? colors.textSecondary : colors.borderMuted}
+                  />
+                </Pressable>
+              </>
+            ) : null}
             {!isEmpty ? (
               <Pressable
                 style={({ pressed }) => [styles.headerBtn, pressed ? appStyles.pressDown : null]}

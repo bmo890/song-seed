@@ -68,20 +68,50 @@ export function SongChartSection() {
     return (
       <View style={appStyles.flexFill}>
         <View style={chartControls.editorBar}>
-          <Pressable
-            style={({ pressed }) => [chartControls.iconBtn, pressed ? appStyles.pressDown : null]}
-            onPress={() => setExportVisible(true)}
-            hitSlop={6}
-          >
-            <Ionicons name="share-outline" size={18} color={colors.textSecondary} />
-          </Pressable>
-          <Pressable
-            style={({ pressed }) => [chartControls.editPill, pressed ? appStyles.pressDown : null]}
-            onPress={() => setIsEditing(false)}
-            hitSlop={6}
-          >
-            <Text style={chartControls.editPillText}>Done</Text>
-          </Pressable>
+          <View style={chartControls.editorGroup}>
+            <Pressable
+              style={({ pressed }) => [chartControls.iconBtn, pressed && model.canUndo ? appStyles.pressDown : null]}
+              onPress={model.undo}
+              disabled={!model.canUndo}
+              hitSlop={6}
+              accessibilityLabel="Undo"
+            >
+              <Ionicons
+                name="arrow-undo-outline"
+                size={18}
+                color={model.canUndo ? colors.textSecondary : colors.borderMuted}
+              />
+            </Pressable>
+            <Pressable
+              style={({ pressed }) => [chartControls.iconBtn, pressed && model.canRedo ? appStyles.pressDown : null]}
+              onPress={model.redo}
+              disabled={!model.canRedo}
+              hitSlop={6}
+              accessibilityLabel="Redo"
+            >
+              <Ionicons
+                name="arrow-redo-outline"
+                size={18}
+                color={model.canRedo ? colors.textSecondary : colors.borderMuted}
+              />
+            </Pressable>
+          </View>
+          <View style={chartControls.editorGroup}>
+            <Pressable
+              style={({ pressed }) => [chartControls.iconBtn, pressed ? appStyles.pressDown : null]}
+              onPress={() => setExportVisible(true)}
+              hitSlop={6}
+            >
+              <Ionicons name="share-outline" size={18} color={colors.textSecondary} />
+            </Pressable>
+            <Pressable
+              style={({ pressed }) => [chartControls.editPill, pressed ? appStyles.pressDown : null]}
+              onPress={() => setIsEditing(false)}
+              hitSlop={6}
+            >
+              <Text style={chartControls.editPillText}>Done</Text>
+            </Pressable>
+          </View>
         </View>
 
         <ScrollView
@@ -155,12 +185,16 @@ const chartControls = StyleSheet.create({
   },
   editorBar: {
     flexDirection: "row",
-    justifyContent: "flex-end",
+    justifyContent: "space-between",
     alignItems: "center",
-    gap: spacing.sm,
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.sm,
     paddingBottom: spacing.sm,
+  },
+  editorGroup: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
   },
   iconBtn: {
     width: 34,
