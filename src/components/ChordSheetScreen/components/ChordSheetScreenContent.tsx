@@ -9,6 +9,7 @@ import { colors, radii, spacing, text as textTokens } from "../../../design/toke
 import { ChordExportSheet } from "../../LyricsVersionScreen/components/chords/ChordExportSheet";
 import { useChordSheetModel } from "../useChordSheetModel";
 import { ChordSheetBody } from "./ChordSheetBody";
+import { ChartSelectionDock } from "./ChartSelectionDock";
 
 const KRAFT_BG = "#F2E9DC";
 
@@ -64,10 +65,16 @@ export function ChordSheetScreenContent() {
       <Text style={styles.subtitle}>{model.projectIdea.title}</Text>
 
       <KeyboardAvoidingView style={styles.fill} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-        <ScrollView style={styles.fill} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          style={styles.fill}
+          contentContainerStyle={[styles.scrollContent, model.barSelection ? styles.scrollContentSelecting : null]}
+          showsVerticalScrollIndicator={false}
+        >
           <ChordSheetBody model={model} />
         </ScrollView>
       </KeyboardAvoidingView>
+
+      <ChartSelectionDock model={model} />
 
       <ChordExportSheet
         visible={exportVisible}
@@ -101,6 +108,7 @@ const styles = StyleSheet.create({
   editPillText: { fontFamily: "PlusJakartaSans_700Bold", fontSize: 13, color: colors.primary },
   subtitle: { ...textTokens.supporting, marginBottom: spacing.md },
   scrollContent: { paddingBottom: 48 },
+  scrollContentSelecting: { paddingBottom: 110 },
   missing: { flex: 1, alignItems: "center", justifyContent: "center", gap: spacing.sm },
   missingText: { ...textTokens.supporting },
 });

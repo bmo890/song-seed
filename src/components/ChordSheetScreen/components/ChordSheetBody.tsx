@@ -15,7 +15,6 @@ import { ChordSheetSection } from "../ChordSheetSection";
 import type { useChordSheetModel } from "../useChordSheetModel";
 
 type MenuTarget = { id: string; label: string; index: number; count: number; kind: "section" | "text" };
-type BarSelection = { sectionId: string; measureIds: string[] };
 
 /** The chord-sheet content shared by the standalone screen and the song "Chart"
  * tab: add-section + build controls, the section staves with bar selection, and
@@ -28,10 +27,9 @@ export function ChordSheetBody({ model }: { model: ReturnType<typeof useChordShe
   const [menuTarget, setMenuTarget] = useState<MenuTarget | null>(null);
   const [renameTarget, setRenameTarget] = useState<{ id: string; label: string } | null>(null);
   const [renameDraft, setRenameDraft] = useState("");
-  const [barSelection, setBarSelection] = useState<BarSelection | null>(null);
-  const [barClipboard, setBarClipboard] = useState<string[][] | null>(null);
-  const [barMenuOpen, setBarMenuOpen] = useState(false);
   const [fullViewOpen, setFullViewOpen] = useState(false);
+
+  const barSelection = model.barSelection;
 
   const addSection = (label: string) => {
     model.addSection(label);
@@ -42,119 +40,6 @@ export function ChordSheetBody({ model }: { model: ReturnType<typeof useChordShe
     model.addTextBlock();
     if (!isEditing) model.setIsEditing(true);
   };
-
-  // ── Bar selection (multi-select + a control sheet) ──────────────────────────
-  // Selection is scoped to one section so insert/paste/delete stay unambiguous.
-  const toggleBar = (sectionId: string, measureId: string) =>
-    setBarSelection((prev) => {
-      if (!prev || prev.sectionId !== sectionId) return { sectionId, measureIds: [measureId] };
-      const measureIds = prev.measureIds.includes(measureId)
-        ? prev.measureIds.filter((id) => id !== measureId)
-        : [...prev.measureIds, measureId];
-      return measureIds.length ? { sectionId, measureIds } : null;
-    });
-
-  const handleBarTap = (sectionId: string, measureId: string) => {
-    if (barSelection) {
-      toggleBar(sectionId, measureId);
-      return;
-    }
-    model.openPicker(sectionId, measureId);
-  };
-
-  const barSection = barSelection
-    ? sheet.sections.find((s) => s.id === barSelection.sectionId) ?? null
-    : null;
-  const selectedCount = barSelection?.measureIds.length ?? 0;
-
-  const barActions: SelectionAction[] = (() => {
-    if (!barSelection || !barSection) return [];
-    const sel = barSelection;
-    const sec = barSection;
-    const indices = sel.measureIds
-      .map((id) => sec.measures.findIndex((m) => m.id === id))
-      .filter((i) => i >= 0)
-      .sort((a, b) => a - b);
-    const minIndex = indices[0] ?? 0;
-    const maxIndex = indices[indices.length - 1] ?? -1;
-    const selectedChords = () =>
-      sec.measures.filter((m) => sel.measureIds.includes(m.id)).map((m) => [...m.chords]);
-    const onlyMeasure = selectedCount === 1 ? sec.measures[minIndex] : null;
-    const noun = selectedCount === 1 ? "bar" : "bars";
-
-    return [
-      {
-        key: "add-before",
-        label: "Add bar before",
-        icon: "arrow-back-outline",
-        onPress: () => model.insertMeasure(sel.sectionId, minIndex),
-      },
-      {
-        key: "add-after",
-        label: "Add bar after",
-        icon: "arrow-forward-outline",
-        onPress: () => model.insertMeasure(sel.sectionId, maxIndex + 1),
-      },
-      {
-        key: "copy",
-        label: `Copy ${noun}`,
-        icon: "copy-outline",
-        onPress: () => setBarClipboard(selectedChords()),
-      },
-      {
-        key: "cut",
-        label: `Cut ${noun}`,
-        icon: "cut-outline",
-        onPress: () => {
-          setBarClipboard(selectedChords());
-          model.removeMeasures(sel.sectionId, sel.measureIds);
-          setBarSelection(null);
-        },
-      },
-      ...(barClipboard && barClipboard.length
-        ? [
-            {
-              key: "paste",
-              label: `Paste ${barClipboard.length} ${barClipboard.length === 1 ? "bar" : "bars"}`,
-              icon: "clipboard-outline" as const,
-              onPress: () => {
-                model.insertMeasuresAt(sel.sectionId, maxIndex + 1, barClipboard);
-                setBarSelection(null);
-              },
-            },
-          ]
-        : []),
-      ...(onlyMeasure && onlyMeasure.chords.length > 1
-        ? [
-            {
-              key: "split",
-              label: "Split into separate bars",
-              icon: "git-branch-outline" as const,
-              onPress: () => {
-                model.splitMeasure(sel.sectionId, sel.measureIds[0]);
-                setBarSelection(null);
-              },
-            },
-          ]
-        : []),
-      {
-        key: "clear",
-        label: `Clear ${noun}`,
-        icon: "backspace-outline",
-        onPress: () => model.clearMeasures(sel.sectionId, sel.measureIds),
-      },
-      {
-        key: "delete",
-        label: `Delete ${noun}`,
-        icon: "trash-outline",
-        tone: "danger",
-        onPress: () => {
-          model.removeMeasures(sel.sectionId, sel.measureIds);
-          setBarSelection(null);
-        },
-      },
-    ];
-  })();
 
   const menuActions: SelectionAction[] = menuTarget
     ? [
@@ -212,61 +97,37 @@ export function ChordSheetBody({ model }: { model: ReturnType<typeof useChordShe
 
   return (
     <>
-      {barSelection ? (
-        <View style={[appStyles.selectionBar, styles.selectionBar]}>
-          <Text style={appStyles.selectionText}>
-            {selectedCount} {selectedCount === 1 ? "bar" : "bars"} selected
-          </Text>
-          <View style={styles.selectionActions}>
-            <Pressable
-              style={({ pressed }) => [styles.selIconBtn, pressed ? appStyles.pressDown : null]}
-              onPress={() => setBarMenuOpen(true)}
-              hitSlop={6}
-              accessibilityLabel="Bar actions"
-            >
-              <Ionicons name="ellipsis-horizontal" size={18} color={colors.textStrong} />
-            </Pressable>
-            <Pressable
-              style={({ pressed }) => [styles.selDoneBtn, pressed ? appStyles.pressDown : null]}
-              onPress={() => setBarSelection(null)}
-              hitSlop={6}
-            >
-              <Text style={styles.selDoneText}>Done</Text>
-            </Pressable>
-          </View>
-        </View>
-      ) : (
-        <View style={styles.addBlock}>
-          {isEditing || isEmpty ? (
-            <>
-              <Pressable
-                style={({ pressed }) => [styles.actionBtn, pressed ? appStyles.pressDown : null]}
-                onPress={() => setAddSheetOpen(true)}
-              >
-                <Ionicons name="add" size={15} color={colors.primary} />
-                <Text style={styles.actionBtnText}>Add a section</Text>
-              </Pressable>
-              <Pressable
-                style={({ pressed }) => [styles.actionBtn, pressed ? appStyles.pressDown : null]}
-                onPress={() => model.buildFromLyrics()}
-              >
-                <Ionicons name="sparkles-outline" size={14} color={colors.primary} />
-                <Text style={styles.actionBtnText}>Build from lyrics</Text>
-              </Pressable>
-            </>
-          ) : null}
-          {!isEmpty ? (
+      <View style={styles.addBlock}>
+        {isEditing || isEmpty ? (
+          <>
             <Pressable
               style={({ pressed }) => [styles.actionBtn, pressed ? appStyles.pressDown : null]}
-              onPress={() => setFullViewOpen(true)}
+              onPress={() => setAddSheetOpen(true)}
             >
-              <Ionicons name="newspaper-outline" size={14} color={colors.primary} />
-              <Text style={styles.actionBtnText}>Full view</Text>
+              <Ionicons name="add" size={15} color={colors.primary} />
+              <Text style={styles.actionBtnText}>Add a section</Text>
             </Pressable>
-          ) : null}
-        </View>
-      )}
+            <Pressable
+              style={({ pressed }) => [styles.actionBtn, pressed ? appStyles.pressDown : null]}
+              onPress={() => model.buildFromLyrics()}
+            >
+              <Ionicons name="sparkles-outline" size={14} color={colors.primary} />
+              <Text style={styles.actionBtnText}>Build from lyrics</Text>
+            </Pressable>
+          </>
+        ) : null}
+        {!isEmpty ? (
+          <Pressable
+            style={({ pressed }) => [styles.actionBtn, pressed ? appStyles.pressDown : null]}
+            onPress={() => setFullViewOpen(true)}
+          >
+            <Ionicons name="newspaper-outline" size={14} color={colors.primary} />
+            <Text style={styles.actionBtnText}>Full view</Text>
+          </Pressable>
+        ) : null}
+      </View>
 
+      <View style={isEditing ? styles.editSurface : undefined}>
       {isEmpty ? (
         <View style={styles.empty}>
           <Ionicons name="grid-outline" size={26} color={colors.textMuted} />
@@ -301,8 +162,12 @@ export function ChordSheetBody({ model }: { model: ReturnType<typeof useChordShe
               editable={isEditing}
               selectionActive={!!barSelection}
               selectedMeasureIds={barSelection?.sectionId === section.id ? barSelection.measureIds : []}
-              onTapMeasure={(measureId) => handleBarTap(section.id, measureId)}
-              onLongPressMeasure={(measureId) => toggleBar(section.id, measureId)}
+              onTapMeasure={(measureId) =>
+                barSelection
+                  ? model.toggleBarSelection(section.id, measureId)
+                  : model.openPicker(section.id, measureId)
+              }
+              onLongPressMeasure={(measureId) => model.toggleBarSelection(section.id, measureId)}
               onAddMeasure={() => model.addMeasure(section.id)}
               onRemoveChord={(measureId, i) => model.removeChordAt(section.id, measureId, i)}
               onNotes={(notes) => model.setSectionNotes(section.id, notes)}
@@ -319,6 +184,7 @@ export function ChordSheetBody({ model }: { model: ReturnType<typeof useChordShe
           )
         )
       )}
+      </View>
 
       <ChordPickerSheet
         visible={!!model.pickerTarget}
@@ -335,13 +201,6 @@ export function ChordSheetBody({ model }: { model: ReturnType<typeof useChordShe
         title="Add a section"
         actions={addSectionActions(addSection, addTextBlock)}
         onClose={() => setAddSheetOpen(false)}
-      />
-
-      <SelectionActionSheet
-        visible={barMenuOpen}
-        title={`${selectedCount} ${selectedCount === 1 ? "bar" : "bars"}`}
-        actions={barActions}
-        onClose={() => setBarMenuOpen(false)}
       />
 
       <SelectionActionSheet
@@ -524,32 +383,13 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.primary,
   },
-  selectionBar: {
-    marginBottom: spacing.md,
-  },
-  selectionActions: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  selIconBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: radii.round,
+  editSurface: {
     backgroundColor: colors.surface,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  selDoneBtn: {
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: radii.round,
-    backgroundColor: colors.primary,
-  },
-  selDoneText: {
-    fontFamily: "PlusJakartaSans_700Bold",
-    fontSize: 13,
-    color: colors.onPrimary,
+    borderWidth: 1,
+    borderColor: colors.borderMuted,
+    borderRadius: radii.lg,
+    padding: spacing.md,
+    marginBottom: spacing.md,
   },
   empty: {
     alignItems: "center",

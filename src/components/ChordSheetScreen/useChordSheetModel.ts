@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Share } from "react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { useStore } from "../../state/useStore";
@@ -195,6 +195,95 @@ export function useChordSheetModel(ideaIdOverride?: string) {
   const openPicker = (sectionId: string, measureId: string) => setPickerTarget({ sectionId, measureId });
   const closePicker = () => setPickerTarget(null);
 
+  // ── Bar selection (shared by the staff and the screen-level selection dock) ──
+  // Scoped to one section so insert/paste/delete targets stay unambiguous.
+  const [barSelection, setBarSelection] = useState<{ sectionId: string; measureIds: string[] } | null>(null);
+  const [barClipboard, setBarClipboard] = useState<string[][] | null>(null);
+
+  // Leaving edit mode (Done, tab change, blur) always drops any selection so we
+  // never return to a stale highlighted state.
+  useEffect(() => {
+    if (!isEditing) setBarSelection(null);
+  }, [isEditing]);
+
+  const toggleBarSelection = (sectionId: string, measureId: string) =>
+    setBarSelection((prev) => {
+      if (!prev || prev.sectionId !== sectionId) return { sectionId, measureIds: [measureId] };
+      const measureIds = prev.measureIds.includes(measureId)
+        ? prev.measureIds.filter((id) => id !== measureId)
+        : [...prev.measureIds, measureId];
+      return measureIds.length ? { sectionId, measureIds } : null;
+    });
+
+  const clearBarSelection = () => setBarSelection(null);
+
+  const barSelectionSection = barSelection
+    ? sheet.sections.find((s) => s.id === barSelection.sectionId) ?? null
+    : null;
+
+  const selectedBarIndices = () => {
+    if (!barSelection || !barSelectionSection) return [] as number[];
+    return barSelection.measureIds
+      .map((id) => barSelectionSection.measures.findIndex((m) => m.id === id))
+      .filter((i) => i >= 0)
+      .sort((a, b) => a - b);
+  };
+
+  const addBarBeforeSelection = () => {
+    if (!barSelection) return;
+    const idx = selectedBarIndices();
+    insertMeasure(barSelection.sectionId, idx[0] ?? 0);
+  };
+
+  const addBarAfterSelection = () => {
+    if (!barSelection) return;
+    const idx = selectedBarIndices();
+    insertMeasure(barSelection.sectionId, (idx[idx.length - 1] ?? -1) + 1);
+  };
+
+  const clearSelectedBars = () => {
+    if (!barSelection) return;
+    clearMeasures(barSelection.sectionId, barSelection.measureIds);
+  };
+
+  const deleteSelectedBars = () => {
+    if (!barSelection) return;
+    removeMeasures(barSelection.sectionId, barSelection.measureIds);
+    setBarSelection(null);
+  };
+
+  const copySelectedBars = () => {
+    if (!barSelection || !barSelectionSection) return;
+    const ids = barSelection.measureIds;
+    setBarClipboard(
+      barSelectionSection.measures.filter((m) => ids.includes(m.id)).map((m) => [...m.chords])
+    );
+  };
+
+  const cutSelectedBars = () => {
+    copySelectedBars();
+    deleteSelectedBars();
+  };
+
+  const pasteBars = () => {
+    if (!barSelection || !barClipboard?.length) return;
+    const idx = selectedBarIndices();
+    insertMeasuresAt(barSelection.sectionId, (idx[idx.length - 1] ?? -1) + 1, barClipboard);
+    setBarSelection(null);
+  };
+
+  const splitSelectedBar = () => {
+    if (!barSelection || barSelection.measureIds.length !== 1) return;
+    splitMeasure(barSelection.sectionId, barSelection.measureIds[0]);
+    setBarSelection(null);
+  };
+
+  const selectedBarCount = barSelection?.measureIds.length ?? 0;
+  const canSplitSelection =
+    selectedBarCount === 1 &&
+    (barSelectionSection?.measures.find((m) => m.id === barSelection?.measureIds[0])?.chords.length ?? 0) > 1;
+  const canPaste = !!barClipboard?.length;
+
   const addChord = (parts: ChordParts) => {
     if (!projectIdea || !pickerTarget) return;
     const display = buildChordDisplay(parts);
@@ -262,6 +351,20 @@ export function useChordSheetModel(ideaIdOverride?: string) {
     openPicker,
     closePicker,
     addChord,
+    barSelection,
+    selectedBarCount,
+    canSplitSelection,
+    canPaste,
+    toggleBarSelection,
+    clearBarSelection,
+    addBarBeforeSelection,
+    addBarAfterSelection,
+    clearSelectedBars,
+    deleteSelectedBars,
+    copySelectedBars,
+    cutSelectedBars,
+    pasteBars,
+    splitSelectedBar,
     exportPdf,
     exportText,
     goBack: () => navigation.goBack(),

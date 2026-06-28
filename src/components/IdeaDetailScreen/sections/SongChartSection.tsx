@@ -1,10 +1,12 @@
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { styles as appStyles } from "../../../styles";
 import { colors, radii, spacing } from "../../../design/tokens";
 import { useChordSheetModel } from "../../ChordSheetScreen/useChordSheetModel";
 import { ChordSheetBody } from "../../ChordSheetScreen/components/ChordSheetBody";
+import { ChartSelectionDock } from "../../ChordSheetScreen/components/ChartSelectionDock";
 import { ChordExportSheet } from "../../LyricsVersionScreen/components/chords/ChordExportSheet";
 import { styles } from "../styles";
 import { useSongScreen } from "../provider/SongScreenProvider";
@@ -15,6 +17,19 @@ export function SongChartSection() {
   const idea = screen.selectedIdea;
   const model = useChordSheetModel(idea?.kind === "project" ? idea.id : undefined);
   const [exportVisible, setExportVisible] = useState(false);
+  const { setIsEditing } = model;
+
+  // Leaving the chart tab (or the whole song screen) ends edit mode, so coming
+  // back lands in read-only view and nothing gets changed by accident.
+  useEffect(() => {
+    if (screen.songTab !== "chart") setIsEditing(false);
+  }, [screen.songTab, setIsEditing]);
+
+  useFocusEffect(
+    useCallback(() => {
+      return () => setIsEditing(false);
+    }, [setIsEditing])
+  );
 
   if (idea?.kind !== "project" || screen.songTab !== "chart") {
     return null;
@@ -23,12 +38,13 @@ export function SongChartSection() {
   const isEmpty = model.sheet.sections.length === 0;
 
   return (
-    <CollapsingTabStage
-      contentContainerStyle={[
-        styles.songDetailTabScrollContent,
-        { paddingBottom: screen.songPageBaseBottomPadding },
-      ]}
-    >
+    <>
+      <CollapsingTabStage
+        contentContainerStyle={[
+          styles.songDetailTabScrollContent,
+          { paddingBottom: screen.songPageBaseBottomPadding + (model.barSelection ? 80 : 0) },
+        ]}
+      >
       {!isEmpty ? (
         <View style={chartControls.row}>
           <Pressable
@@ -62,7 +78,9 @@ export function SongChartSection() {
           model.exportText();
         }}
       />
-    </CollapsingTabStage>
+      </CollapsingTabStage>
+      <ChartSelectionDock model={model} />
+    </>
   );
 }
 
