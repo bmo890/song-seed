@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import Animated, { runOnUI, scrollTo, useAnimatedRef } from "react-native-reanimated";
 import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { styles as appStyles } from "../../../styles";
@@ -7,7 +8,7 @@ import { colors, radii, spacing } from "../../../design/tokens";
 import { useChordSheetModel } from "../../ChordSheetScreen/useChordSheetModel";
 import { ChordSheetBody } from "../../ChordSheetScreen/components/ChordSheetBody";
 import { ChartSelectionDock } from "../../ChordSheetScreen/components/ChartSelectionDock";
-import { ChartScrollProvider, type ScrollInputIntoView } from "../../ChordSheetScreen/components/chartScroll";
+import { ChartScrollProvider, useChartKeyboardScroller } from "../../ChordSheetScreen/components/chartScroll";
 import { ChordExportSheet } from "../../LyricsVersionScreen/components/chords/ChordExportSheet";
 import { styles } from "../styles";
 import { useSongScreen } from "../provider/SongScreenProvider";
@@ -22,12 +23,15 @@ export function SongChartSection() {
 
   // Scroll a focused note/text-block input above the keyboard (the collapsing
   // header's scroll only insets for the keyboard, it doesn't scroll the field in).
-  const scrollRef = useRef<any>(null);
-  const scrollIntoView = useCallback<ScrollInputIntoView>((node) => {
-    if (node == null) return;
-    const responder = (scrollRef.current as any)?.getScrollResponder?.();
-    responder?.scrollResponderScrollNativeHandleToKeyboard?.(node, 90, true);
-  }, []);
+  const scrollRef = useAnimatedRef<Animated.ScrollView>();
+  const scrollToInput = useChartKeyboardScroller({
+    scrollTo: (y) =>
+      runOnUI(() => {
+        "worklet";
+        scrollTo(scrollRef, 0, y, true);
+      })(),
+    getOffset: () => screen.scrollY.value,
+  });
 
   // Leaving the chart tab (or the whole song screen) ends edit mode, so coming
   // back lands in read-only view and nothing gets changed by accident.
@@ -75,7 +79,7 @@ export function SongChartSection() {
         </View>
       ) : null}
 
-      <ChartScrollProvider value={scrollIntoView}>
+      <ChartScrollProvider value={scrollToInput}>
         <ChordSheetBody model={model} />
       </ChartScrollProvider>
 

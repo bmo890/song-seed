@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar as ExpoStatusBar } from "expo-status-bar";
@@ -10,18 +10,18 @@ import { ChordExportSheet } from "../../LyricsVersionScreen/components/chords/Ch
 import { useChordSheetModel } from "../useChordSheetModel";
 import { ChordSheetBody } from "./ChordSheetBody";
 import { ChartSelectionDock } from "./ChartSelectionDock";
-import { ChartScrollProvider, type ScrollInputIntoView } from "./chartScroll";
+import { ChartScrollProvider, useChartKeyboardScroller } from "./chartScroll";
 
 const KRAFT_BG = "#F2E9DC";
 
 export function ChordSheetScreenContent() {
   const model = useChordSheetModel();
   const scrollRef = useRef<ScrollView>(null);
-  const scrollIntoView = useCallback<ScrollInputIntoView>((node) => {
-    if (node == null) return;
-    const responder = scrollRef.current?.getScrollResponder?.() as any;
-    responder?.scrollResponderScrollNativeHandleToKeyboard?.(node, 90, true);
-  }, []);
+  const offsetRef = useRef(0);
+  const scrollToInput = useChartKeyboardScroller({
+    scrollTo: (y) => scrollRef.current?.scrollTo({ y, animated: true }),
+    getOffset: () => offsetRef.current,
+  });
   const [exportVisible, setExportVisible] = useState(false);
 
   if (!model.projectIdea) {
@@ -79,8 +79,12 @@ export function ChordSheetScreenContent() {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="interactive"
+          onScroll={(e) => {
+            offsetRef.current = e.nativeEvent.contentOffset.y;
+          }}
+          scrollEventThrottle={16}
         >
-          <ChartScrollProvider value={scrollIntoView}>
+          <ChartScrollProvider value={scrollToInput}>
             <ChordSheetBody model={model} />
           </ChartScrollProvider>
         </ScrollView>
