@@ -279,15 +279,12 @@ export function IdeaListItem({
         </View>
     ) : null;
 
-    const confirmHideSection = () => {
+    // Collapsing is instant and reversible (tap the day marker to expand), so no
+    // confirm — just fold it with a light haptic.
+    const collapseSection = () => {
         if (!onHideDay) return;
         void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-        AppAlert.confirm(
-            dayDividerLabel ? `Collapse "${dayDividerLabel}"?` : "Collapse this day?",
-            "These items fold away under the day. Tap the day to bring them back.",
-            onHideDay,
-            { confirmLabel: "Collapse" }
-        );
+        onHideDay();
     };
 
     return (
@@ -295,7 +292,7 @@ export function IdeaListItem({
             {dayDividerLabel ? (
                 <Pressable
                     style={[styles.ideasDayDividerRow, compact ? styles.ideasDayDividerRowDense : null]}
-                    onLongPress={onHideDay ? confirmHideSection : undefined}
+                    onLongPress={onHideDay ? collapseSection : undefined}
                     delayLongPress={350}
                 >
                     <View style={styles.ideasDayDividerLine} />
@@ -308,7 +305,7 @@ export function IdeaListItem({
                             ]}
                             onPress={(evt) => {
                                 evt.stopPropagation();
-                                confirmHideSection();
+                                collapseSection();
                             }}
                             hitSlop={8}
                             accessibilityRole="button"
