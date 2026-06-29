@@ -16,6 +16,7 @@ type Props = {
   charWidth: number;
   contentWidth: number;
   editable: boolean;
+  zoom?: number;
   onAddAt?: (lineId: string, at: number) => void;
   onEditChord?: (lineId: string, chord: ChordPlacement) => void;
   onMoveChord?: (lineId: string, chordId: string, at: number) => void;
@@ -27,6 +28,7 @@ export function ChordLine({
   charWidth,
   contentWidth,
   editable,
+  zoom = 1,
   onAddAt,
   onEditChord,
   onMoveChord,
@@ -43,7 +45,11 @@ export function ChordLine({
   }
 
   const lyricText = (
-    <Text style={styles.lyric} numberOfLines={1} ellipsizeMode="clip">
+    <Text
+      style={[styles.lyric, { fontSize: LYRIC_FONT_SIZE * zoom, lineHeight: LYRIC_LINE_HEIGHT * zoom }]}
+      numberOfLines={1}
+      ellipsizeMode="clip"
+    >
       {line.text.length > 0 ? line.text : " "}
     </Text>
   );
@@ -51,7 +57,7 @@ export function ChordLine({
   return (
     <View style={[styles.line, { minWidth: contentWidth }]}>
       {showChordRow ? (
-        <View style={styles.chordRow}>
+        <View style={[styles.chordRow, { height: CHORD_ROW_HEIGHT * zoom }]}>
           {chords.map((chord) => (
             <ChordToken
               key={chord.id}
@@ -59,6 +65,7 @@ export function ChordLine({
               charWidth={charWidth}
               lineLength={lineLength}
               editable={editable}
+              zoom={zoom}
               onPress={() => onEditChord?.(line.id, chord)}
               onMove={(at) => onMoveChord?.(line.id, chord.id, at)}
               onDragStateChange={onDragStateChange}
@@ -68,7 +75,7 @@ export function ChordLine({
       ) : null}
 
       {editable ? (
-        <Pressable onPress={handleTapToAdd} style={styles.lyricPressable}>
+        <Pressable onPress={handleTapToAdd} style={[styles.lyricPressable, { minHeight: LYRIC_LINE_HEIGHT * zoom }]}>
           {lyricText}
         </Pressable>
       ) : (

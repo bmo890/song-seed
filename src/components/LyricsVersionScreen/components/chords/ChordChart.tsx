@@ -7,6 +7,9 @@ import { LYRIC_FONT_SIZE, MEASURE_SAMPLE, MONO_FONT, chordChartColors } from "./
 type LinesProps = {
   lines: LyricsLine[];
   editable: boolean;
+  /** Font-zoom multiplier (1 = natural). Scales char width + font sizes together
+   * so chords stay aligned at any zoom. */
+  zoom?: number;
   onAddAt?: (lineId: string, at: number) => void;
   onEditChord?: (lineId: string, chord: ChordPlacement) => void;
   onMoveChord?: (lineId: string, chordId: string, at: number) => void;
@@ -15,10 +18,14 @@ type LinesProps = {
 /** The chart body — measuring text + a horizontally-scrolling column of lines.
  * Has no vertical scroll of its own, so it can be dropped inside any vertical
  * scroller (the lyric sheet's, or the player/recording autoscroll panel). */
-export function ChordChartLines({ lines, editable, onAddAt, onEditChord, onMoveChord }: LinesProps) {
+export function ChordChartLines({ lines, editable, zoom = 1, onAddAt, onEditChord, onMoveChord }: LinesProps) {
   const [charWidth, setCharWidth] = useState(0);
   const [containerWidth, setContainerWidth] = useState(0);
   const [dragging, setDragging] = useState(false);
+
+  // charWidth is measured at the base font; scaling it by zoom keeps every metric
+  // (positions, line width) proportional to the zoomed lyric/chord text.
+  const scaledCharWidth = charWidth * zoom;
 
   const longestUnit = lines.reduce((max, line) => {
     const textUnits = line.text.length;
@@ -27,7 +34,7 @@ export function ChordChartLines({ lines, editable, onAddAt, onEditChord, onMoveC
   }, 0);
   // Extra character-widths of slack so the longest lyric line never clips, and so
   // there's room to drag a chord a little past the final character.
-  const measuredContentWidth = charWidth > 0 ? longestUnit * charWidth + charWidth * 4 + 24 : 0;
+  const measuredContentWidth = scaledCharWidth > 0 ? longestUnit * scaledCharWidth + scaledCharWidth * 4 + 24 : 0;
   const contentWidth = Math.max(measuredContentWidth, containerWidth);
 
   return (
@@ -55,9 +62,10 @@ export function ChordChartLines({ lines, editable, onAddAt, onEditChord, onMoveC
               <ChordLine
                 key={line.id}
                 line={line}
-                charWidth={charWidth}
+                charWidth={scaledCharWidth}
                 contentWidth={contentWidth}
                 editable={editable}
+                zoom={zoom}
                 onAddAt={onAddAt}
                 onEditChord={onEditChord}
                 onMoveChord={onMoveChord}

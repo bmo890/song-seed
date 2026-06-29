@@ -7,6 +7,7 @@ import { sortedPalette } from "../../../../chords";
 import type { LyricsVersion, SongChordPaletteItem } from "../../../../types";
 import { styles as screenStyles } from "../../styles";
 import { ChordChart } from "./ChordChart";
+import { ChordZoomBar } from "./ChordZoomBar";
 import { ChordPaletteBar } from "./ChordPaletteBar";
 import { ChordPickerSheet } from "./ChordPickerSheet";
 import { ChordExportSheet } from "./ChordExportSheet";
@@ -27,6 +28,7 @@ export function ChordChartEditor({ ideaId, version, songTitle, palette, onDone }
   const editing = useChordEditing(ideaId, version.id);
   const sorted = sortedPalette(palette);
   const [exportVisible, setExportVisible] = useState(false);
+  const [zoom, setZoom] = useState(1);
   const { exportPdf, exportText } = useChordExport(songTitle, version);
 
   return (
@@ -55,15 +57,17 @@ export function ChordChartEditor({ ideaId, version, songTitle, palette, onDone }
 
       <ChordPaletteBar palette={sorted} armedId={editing.armed?.id ?? null} onToggleArmed={editing.toggleArmed} />
 
-      <View style={[screenStyles.lyricsPreviewWrap, screenStyles.lyricsPreviewWrapExpanded, chartStyles.chartCard]}>
+      <View style={[screenStyles.lyricsPreviewWrap, screenStyles.lyricsPreviewWrapExpanded, chartStyles.chartCard, screenStyles.lyricsChordChartFlush]}>
         <ChordChart
           lines={version.document.lines}
           editable
+          zoom={zoom}
           onAddAt={editing.addAt}
           onEditChord={editing.openEdit}
           onMoveChord={editing.move}
           emptyLabel="Add lyrics first, then come back to chart the chords."
         />
+        <ChordZoomBar zoom={zoom} onChange={setZoom} />
       </View>
 
       <ChordPickerSheet

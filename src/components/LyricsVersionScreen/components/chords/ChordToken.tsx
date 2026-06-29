@@ -10,6 +10,7 @@ type Props = {
   charWidth: number;
   lineLength: number;
   editable: boolean;
+  zoom?: number;
   onPress?: () => void;
   onMove?: (at: number) => void;
   onDragStateChange?: (dragging: boolean) => void;
@@ -34,10 +35,12 @@ export function ChordToken({
   charWidth,
   lineLength,
   editable,
+  zoom = 1,
   onPress,
   onMove,
   onDragStateChange,
 }: Props) {
+  const chordTextStyle = { fontSize: CHORD_FONT_SIZE * zoom, lineHeight: (CHORD_FONT_SIZE + 4) * zoom };
   const base = clampChordIndex(chord.at, lineLength);
   const baseLeft = base * charWidth;
   const restX = baseLeft - GRAB;
@@ -135,7 +138,7 @@ export function ChordToken({
     return (
       <View style={[styles.wrap, { left: baseLeft }]} pointerEvents="none">
         <View style={styles.chip}>
-          <Text style={styles.text}>{chord.chord}</Text>
+          <Text style={[styles.text, chordTextStyle]}>{chord.chord}</Text>
         </View>
       </View>
     );
@@ -149,7 +152,7 @@ export function ChordToken({
       <Animated.View
         style={[styles.chip, active ? styles.chipActive : null, { transform: [{ scale }] }]}
       >
-        <Text style={styles.text}>{chord.chord}</Text>
+        <Text style={[styles.text, chordTextStyle]}>{chord.chord}</Text>
       </Animated.View>
     </Animated.View>
   );

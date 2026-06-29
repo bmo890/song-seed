@@ -1293,6 +1293,20 @@ export const styles = StyleSheet.create({
     position: "relative",
     marginBottom: 0,
   },
+  // Chord view: drop the stacked bottom padding so the zoom bar sits at the screen
+  // bottom (above the safe-area inset).
+  lyricsVersionBodyFlush: {
+    paddingBottom: 0,
+  },
+  // Chord view: bleed the chart band to the screen edges (cancels the screen's
+  // 16px horizontal padding) for maximum horizontal room, square corners.
+  lyricsChordChartFlush: {
+    paddingHorizontal: 0,
+    paddingVertical: 0,
+    marginHorizontal: -16,
+    marginBottom: 0,
+    borderRadius: 0,
+  },
   lyricsScrollIndicatorTrack: {
     position: "absolute",
     top: 4,

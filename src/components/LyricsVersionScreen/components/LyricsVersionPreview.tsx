@@ -1,9 +1,10 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { ScrollView, Text, View } from "react-native";
 import { Button } from "../../common/Button";
 import { styles } from "../styles";
 import type { LyricsLine } from "../../../types";
 import { ChordChart } from "./chords/ChordChart";
+import { ChordZoomBar } from "./chords/ChordZoomBar";
 
 type LyricsVersionPreviewProps = {
   sourceText: string;
@@ -36,8 +37,9 @@ export function LyricsVersionPreview({
   onScroll,
   scrollIndicator,
 }: LyricsVersionPreviewProps) {
+  const [zoom, setZoom] = useState(1);
   return (
-    <View style={styles.lyricsVersionScreenBody}>
+    <View style={[styles.lyricsVersionScreenBody, hasChords ? styles.lyricsVersionBodyFlush : null]}>
       <View style={styles.lyricsVersionTopActions}>
         <Button
           label={showNewDraft ? "Edit" : "Edit as New"}
@@ -71,19 +73,22 @@ export function LyricsVersionPreview({
           textStyle={styles.lyricsActionBtnText}
         />
       </View>
-      <View style={styles.lyricsVersionDocumentFill}>
+      <View style={[styles.lyricsVersionDocumentFill, hasChords ? styles.lyricsVersionBodyFlush : null]}>
         <View
           style={[
             styles.lyricsPreviewWrap,
             styles.lyricsPreviewWrapExpanded,
             styles.lyricsPreviewWrapDocument,
             styles.lyricsScrollableWrap,
-            hasChords ? { paddingHorizontal: 0, paddingVertical: 0 } : null,
+            hasChords ? styles.lyricsChordChartFlush : null,
           ]}
           onLayout={(event) => onLayout(event.nativeEvent.layout.height)}
         >
           {hasChords ? (
-            <ChordChart lines={lines} editable={false} />
+            <>
+              <ChordChart lines={lines} editable={false} zoom={zoom} />
+              <ChordZoomBar zoom={zoom} onChange={setZoom} />
+            </>
           ) : (
             <>
               <ScrollView
