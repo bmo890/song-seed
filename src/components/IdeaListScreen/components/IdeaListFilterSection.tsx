@@ -10,22 +10,20 @@ type IdeaListFilterSectionProps = {
   selectedProjectStages: ProjectStage[];
   lyricsFilterMode: LyricsFilterMode;
   hiddenItemsCount: number;
-  showHidden: boolean;
   onToggleProjectStage: (stage: ProjectStage) => void;
   onClearProjectStages: () => void;
   onLyricsFilterModeChange: (mode: LyricsFilterMode) => void;
-  onToggleShowHidden: () => void;
+  onShowAll: () => void;
 };
 
 export function IdeaListFilterSection({
   selectedProjectStages,
   lyricsFilterMode,
   hiddenItemsCount,
-  showHidden,
   onToggleProjectStage,
   onClearProjectStages,
   onLyricsFilterModeChange,
-  onToggleShowHidden,
+  onShowAll,
 }: IdeaListFilterSectionProps) {
   return (
     <FilterSortBar
@@ -39,26 +37,15 @@ export function IdeaListFilterSection({
           <Pressable
             style={({ pressed }) => [
               styles.ideasUnhideAllPill,
-              showHidden ? styles.ideasUnhideAllPillActive : null,
               pressed ? styles.pressDown : null,
             ]}
-            onPress={onToggleShowHidden}
+            onPress={onShowAll}
             accessibilityRole="button"
-            accessibilityState={{ selected: showHidden }}
-            accessibilityLabel={showHidden ? "Tuck hidden items away" : "Show hidden items"}
+            accessibilityLabel={`Show all hidden items, ${hiddenItemsCount} hidden`}
           >
-            <Ionicons
-              name={showHidden ? "eye" : "eye-off-outline"}
-              size={12}
-              color={showHidden ? "#824f3f" : "#84736f"}
-            />
-            <Text
-              style={[
-                styles.ideasUnhideAllPillText,
-                showHidden ? styles.ideasUnhideAllPillTextActive : null,
-              ]}
-            >
-              {`${hiddenItemsCount} hidden`}
+            <Ionicons name="eye-outline" size={12} color="#84736f" />
+            <Text style={styles.ideasUnhideAllPillText}>
+              {`Show all (${hiddenItemsCount})`}
             </Text>
           </Pressable>
         ) : null

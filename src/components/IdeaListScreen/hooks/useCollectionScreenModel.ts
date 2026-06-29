@@ -252,10 +252,10 @@ export function useCollectionScreenModel() {
     return map;
   }, [listIdeas]);
 
-  // "Hidden" items (by id or by hidden day) collapse out of the list by default.
-  // A single "N hidden" toggle reveals them inline (dimmed, with a per-row
-  // restore) — no dimmed always-on rows, no per-day dashed dividers.
-  const [showHidden, setShowHidden] = useState(false);
+  // Hidden state is split into two gestures that share one count:
+  //   • one-off hidden items (hiddenIdeaIds) — collapse out of the list silently.
+  //   • collapsed day groups (hiddenDays)    — render a labelled marker you tap to expand.
+  // Both persist; "Show all" (showAllHidden) is the single bulk reset.
   const effectivelyHiddenCount = useMemo(
     () =>
       listIdeas.filter((idea) => {
@@ -269,11 +269,10 @@ export function useCollectionScreenModel() {
 
   const showDateDividers = usesIdeaTimelineDividers(ideasSort);
   const listEntries = useMemo<IdeaListEntry[]>(() => {
-    const buildIdeaEntry = (idea: any, hidden: boolean, dayDividerLabel?: string | null, dayStartTsValue?: number | null): IdeaListEntry => ({
+    const buildIdeaEntry = (idea: any, dayDividerLabel?: string | null, dayStartTsValue?: number | null): IdeaListEntry => ({
       key: `idea:${idea.id}`,
       type: "idea",
       idea,
-      hidden,
       dayDividerLabel,
       dayStartTs: dayStartTsValue ?? null,
     });
@@ -281,9 +280,8 @@ export function useCollectionScreenModel() {
     if (!showDateDividers || !activeTimelineMetric) {
       const out: IdeaListEntry[] = [];
       for (const idea of listIdeas) {
-        const hidden = hiddenIdeaIdsSet.has(idea.id);
-        if (hidden && !showHidden) continue;
-        out.push(buildIdeaEntry(idea, hidden));
+        if (hiddenIdeaIdsSet.has(idea.id)) continue; // one-off hidden
+        out.push(buildIdeaEntry(idea));
       }
       return out;
     }
@@ -304,21 +302,35 @@ export function useCollectionScreenModel() {
       }
       const dayLabel = firstBucket.label;
       const bucketStartTs = firstBucket.startTs;
-      const dayHidden = hiddenDayKeySet.has(`${activeTimelineMetric}:${bucketStartTs}`);
-      // The day label rides the first *visible* item of the group, so a partly
-      // hidden day still reads correctly while peeking.
+      index = nextIndex;
+
+      // A collapsed day folds to a single labelled marker (atomic — expand the
+      // whole day to get its items back). The marker always carries its label,
+      // even as the topmost group.
+      if (hiddenDayKeySet.has(`${activeTimelineMetric}:${bucketStartTs}`)) {
+        entries.push({
+          key: `collapsedDay:${activeTimelineMetric}:${bucketStartTs}`,
+          type: "collapsedDay",
+          label: dayLabel,
+          dayStartTs: bucketStartTs,
+          count: groupIdeas.length,
+        });
+        continue;
+      }
+
+      // Visible day: drop one-off hidden items; the label rides the first
+      // remaining item (suppressed on the very first group — the sticky chip
+      // covers the top).
       let pushedInGroup = false;
       groupIdeas.forEach((idea) => {
-        const hidden = dayHidden || hiddenIdeaIdsSet.has(idea.id);
-        if (hidden && !showHidden) return;
+        if (hiddenIdeaIdsSet.has(idea.id)) return;
         const label = !pushedInGroup && entries.length > 0 ? dayLabel : null;
-        entries.push(buildIdeaEntry(idea, hidden, label, bucketStartTs));
+        entries.push(buildIdeaEntry(idea, label, bucketStartTs));
         pushedInGroup = true;
       });
-      index = nextIndex;
     }
     return entries;
-  }, [activeTimelineMetric, hiddenDayKeySet, hiddenIdeaIdsSet, ideasSort, listIdeas, showDateDividers, showHidden]);
+  }, [activeTimelineMetric, hiddenDayKeySet, hiddenIdeaIdsSet, ideasSort, listIdeas, showDateDividers]);
 
   useEffect(() => {
     if (!showDateDividers || listEntries.length === 0) {
@@ -327,7 +339,10 @@ export function useCollectionScreenModel() {
       return;
     }
     const firstEntry = listEntries[0]!;
-    const firstLabel = getDateBucketLabel(getIdeaSortTimestamp(firstEntry.idea, ideasSort));
+    const firstLabel =
+      firstEntry.type === "collapsedDay"
+        ? firstEntry.label
+        : getDateBucketLabel(getIdeaSortTimestamp(firstEntry.idea, ideasSort));
     stickyDayStore.set(firstLabel);
     stickyDayStore.setTopLabel(firstLabel);
   }, [ideasSort, listEntries, showDateDividers]);
@@ -461,8 +476,6 @@ export function useCollectionScreenModel() {
     hiddenIdeaIdsSet,
     hiddenDays,
     hiddenDayKeySet,
-    showHidden,
-    setShowHidden,
     effectivelyHiddenCount,
     showDateDividers,
     activeTimelineMetric,

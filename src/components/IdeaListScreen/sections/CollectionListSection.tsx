@@ -22,7 +22,6 @@ export function CollectionListSection({
     ideasFilter,
     ideasSort,
     setIdeasFilter,
-    setIdeasHidden,
     setTimelineDaysHidden,
   } = store;
   const ideasSortRef = useRef(ideasSort);
@@ -146,23 +145,10 @@ export function CollectionListSection({
     await inlinePlayer.resetInlinePlayer();
   };
 
-  // Restore a single peeked item: unhide it, and if it sits inside a hidden day,
-  // bring that day back too — so the tapped row is guaranteed to become visible.
-  const onRestore = (idea: any) => {
+  // Expand a collapsed day group back into the list (atomic — the whole day).
+  const expandTimelineDay = (metric: "created" | "updated", dayStartTs: number) => {
     if (!screen.collectionId) return;
-    if (screen.hiddenIdeaIdsSet.has(idea.id)) {
-      setIdeasHidden(screen.collectionId, [idea.id], false);
-    }
-    if (screen.activeTimelineMetric) {
-      const dayTs = getDateBucket(getIdeaSortTimestamp(idea, ideasSort)).startTs;
-      if (screen.hiddenDayKeySet.has(`${screen.activeTimelineMetric}:${dayTs}`)) {
-        setTimelineDaysHidden(
-          screen.collectionId,
-          [{ metric: screen.activeTimelineMetric, dayStartTs: dayTs }],
-          false
-        );
-      }
-    }
+    setTimelineDaysHidden(screen.collectionId, [{ metric, dayStartTs }], false);
   };
 
   const hideTimelineDay = async (metric: "created" | "updated", dayStartTs: number) => {
@@ -196,7 +182,10 @@ export function CollectionListSection({
       const cellY = itemCellLayoutsRef.current[entry.key];
       if (cellY === undefined) continue;
       if (cellY > effectiveTop) break;
-      foundLabel = getDateBucketLabel(getIdeaSortTimestamp(entry.idea, ideasSortRef.current));
+      foundLabel =
+        entry.type === "collapsedDay"
+          ? entry.label
+          : getDateBucketLabel(getIdeaSortTimestamp(entry.idea, ideasSortRef.current));
     }
     if (foundLabel !== null) stickyDayStore.set(foundLabel);
   }, []);
@@ -250,8 +239,8 @@ export function CollectionListSection({
         onItemCellLayout,
         playIdeaFromList,
         openIdeaFromList,
-        onRestore,
         hideTimelineDay,
+        expandTimelineDay,
       }}
     />
   );

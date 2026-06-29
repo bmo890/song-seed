@@ -101,9 +101,7 @@ type IdeaListItemProps = {
     inlinePlayer: InlinePlayerControls,
     playIdeaFromList: (ideaId: string, clip: ClipVersion) => Promise<void> | void,
     openIdeaFromList: (ideaId: string, clip: ClipVersion) => Promise<void> | void,
-    onRestore: (idea: SongIdea) => void,
     onHideDay?: () => void,
-    hidden?: boolean,
     dayDividerLabel?: string | null,
     searchNeedle: string,
     notesMatched: boolean,
@@ -122,9 +120,7 @@ export function IdeaListItem({
     inlinePlayer,
     playIdeaFromList,
     openIdeaFromList,
-    onRestore,
     onHideDay,
-    hidden = false,
     dayDividerLabel,
     searchNeedle,
     notesMatched,
@@ -287,10 +283,10 @@ export function IdeaListItem({
         if (!onHideDay) return;
         void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         AppAlert.confirm(
-            dayDividerLabel ? `Hide "${dayDividerLabel}"?` : "Hide this section?",
-            "These items get tucked away. Reveal them anytime with the hidden toggle.",
+            dayDividerLabel ? `Collapse "${dayDividerLabel}"?` : "Collapse this day?",
+            "These items fold away under the day. Tap the day to bring them back.",
             onHideDay,
-            { confirmLabel: "Hide" }
+            { confirmLabel: "Collapse" }
         );
     };
 
@@ -345,7 +341,6 @@ export function IdeaListItem({
                             compact={compact}
                             denseRow={compact}
                             containerStyle={[
-                                hidden ? styles.ideaRowHiddenDim : null,
                                 songTargetPicker && item.kind !== "project" ? { opacity: 0.4 } : null,
                             ]}
                             highlightValue={highlightMapRef.current[item.id] ?? null}
@@ -420,37 +415,21 @@ export function IdeaListItem({
                                             style={styles.ideasListStatusBadgeText}
                                         />
                                     ) : null}
-                                    {hidden ? (
-                                        <Pressable
-                                            onPress={(e) => {
-                                                e.stopPropagation();
-                                                void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                                                onRestore(item);
-                                            }}
-                                            hitSlop={8}
-                                            style={styles.ideasListFavoriteBtn}
-                                            accessibilityRole="button"
-                                            accessibilityLabel="Restore"
-                                        >
-                                            <Ionicons name="eye-outline" size={16} color="#824f3f" />
-                                        </Pressable>
-                                    ) : (
-                                        <Pressable
-                                            onPress={(e) => {
-                                                e.stopPropagation();
-                                                void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                                                useStore.getState().toggleIdeaBookmark(item.id);
-                                            }}
-                                            hitSlop={8}
-                                            style={styles.ideasListFavoriteBtn}
-                                        >
-                                            <Ionicons
-                                                name={item.isBookmarked ? "bookmark" : "bookmark-outline"}
-                                                size={15}
-                                                color={item.isBookmarked ? "#B87D6B" : "rgba(215,194,189,0.7)"}
-                                            />
-                                        </Pressable>
-                                    )}
+                                    <Pressable
+                                        onPress={(e) => {
+                                            e.stopPropagation();
+                                            void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                                            useStore.getState().toggleIdeaBookmark(item.id);
+                                        }}
+                                        hitSlop={8}
+                                        style={styles.ideasListFavoriteBtn}
+                                    >
+                                        <Ionicons
+                                            name={item.isBookmarked ? "bookmark" : "bookmark-outline"}
+                                            size={15}
+                                            color={item.isBookmarked ? "#B87D6B" : "rgba(215,194,189,0.7)"}
+                                        />
+                                    </Pressable>
                                 </>
                             }
                             searchTagsContent={searchTagsBlock}
@@ -472,6 +451,46 @@ export function IdeaListItem({
                     </View>
                 </View>
             )}
+        </View>
+    );
+}
+
+/**
+ * A folded day group: a labelled divider standing in for all of a day's items,
+ * with a count of what's tucked inside. Tap to expand the whole day back into
+ * the list. Atomic — there's no reaching inside a collapsed day.
+ */
+export function CollapsedDayRow({
+    label,
+    count,
+    compact,
+    onExpand,
+}: {
+    label: string;
+    count: number;
+    compact?: boolean;
+    onExpand?: () => void;
+}) {
+    return (
+        <View style={styles.ideasListItemWrap}>
+            <Pressable
+                style={({ pressed }) => [
+                    styles.ideasDayDividerRow,
+                    compact ? styles.ideasDayDividerRowDense : null,
+                    pressed ? styles.pressDown : null,
+                ]}
+                onPress={onExpand}
+                accessibilityRole="button"
+                accessibilityLabel={`Expand ${label}, ${count} hidden`}
+            >
+                <View style={styles.ideasDayDividerLine} />
+                <Ionicons name="chevron-forward" size={12} color="#84736f" />
+                <Text style={styles.ideasDayDividerText}>{label}</Text>
+                <View style={styles.ideasCollapsedDayCountPill}>
+                    <Text style={styles.ideasCollapsedDayCountText}>{count} hidden</Text>
+                </View>
+                <View style={styles.ideasDayDividerLine} />
+            </Pressable>
         </View>
     );
 }

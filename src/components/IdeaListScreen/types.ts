@@ -25,14 +25,23 @@ export type AppBreadcrumbItem = {
   iconOnly?: boolean;
 };
 
-export type IdeaListEntry = {
-  key: string;
-  type: "idea";
-  idea: SongIdea;
-  hidden: boolean;
-  dayDividerLabel?: string | null;
-  dayStartTs?: number | null;
-};
+export type IdeaListEntry =
+  | {
+      key: string;
+      type: "idea";
+      idea: SongIdea;
+      dayDividerLabel?: string | null;
+      dayStartTs?: number | null;
+    }
+  | {
+      /** A folded day group. Renders a labelled marker in place of its items;
+       *  tap to expand. Carries the count of items tucked inside. */
+      key: string;
+      type: "collapsedDay";
+      label: string;
+      dayStartTs: number;
+      count: number;
+    };
 
 export type IdeaListItemMeta = {
   playClip: ClipVersion | null;
@@ -91,8 +100,9 @@ export type CollectionListModel = {
   onItemCellLayout?: (key: string, y: number) => void;
   playIdeaFromList: (ideaId: string, clip: any) => Promise<void> | void;
   openIdeaFromList: (ideaId: string, clip: any) => Promise<void> | void;
-  onRestore: (idea: SongIdea) => void;
   hideTimelineDay: (metric: "created" | "updated", dayStartTs: number) => Promise<void>;
+  /** Expand a previously-collapsed day group back into the list. */
+  expandTimelineDay: (metric: "created" | "updated", dayStartTs: number) => void;
   /** UI-thread scroll offset mirrored from the list — drives the collapsing header. */
   collapseScrollY?: SharedValue<number>;
   /** Top inset reserving space for the absolute collapsing header overlay. */

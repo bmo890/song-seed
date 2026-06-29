@@ -3488,6 +3488,19 @@ export const styles = StyleSheet.create({
     fontWeight: "700",
     letterSpacing: 0.6,
   },
+  // Count pill on a collapsed-day marker, e.g. "23 hidden".
+  ideasCollapsedDayCountPill: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: radii.round,
+    backgroundColor: "#F2E4DF",
+  },
+  ideasCollapsedDayCountText: {
+    fontFamily: "PlusJakartaSans_600SemiBold",
+    fontSize: 10,
+    color: "#824f3f",
+    letterSpacing: 0.4,
+  },
   ideasStickyDayWrap: {
     position: "absolute",
     left: 0,

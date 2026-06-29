@@ -208,6 +208,9 @@ export type DataSlice = {
     setPrimarySort: (v: IdeaSort) => void;
     setIdeasHidden: (collectionId: string, ideaIds: string[], hidden: boolean) => void;
     setTimelineDaysHidden: (collectionId: string, days: IdeasHiddenDay[], hidden: boolean) => void;
+    /** Reset a collection's hidden state entirely: un-hide all one-off items and
+     *  expand all collapsed days. Backs the "Show all" affordance. */
+    showAllHidden: (collectionId: string) => void;
 
     addIdea: (title: string, collectionId: string) => string;
     quickRecordIdea: (title: string, collectionId: string) => string;
@@ -2247,6 +2250,30 @@ export const createDataSlice: StateCreator<
                                     ...prevState,
                                     hiddenDays: Array.from(hiddenDayMap.values()),
                                 },
+                            };
+                        }),
+                    };
+                }),
+            };
+        });
+    },
+    showAllHidden: (collectionId) => {
+        set((state) => {
+            if (!state.activeWorkspaceId) return state;
+            return {
+                workspaces: state.workspaces.map((workspace) => {
+                    if (workspace.id !== state.activeWorkspaceId) return workspace;
+                    return {
+                        ...workspace,
+                        collections: workspace.collections.map((collection) => {
+                            if (collection.id !== collectionId) return collection;
+                            const prev = collection.ideasListState;
+                            if (!prev || (prev.hiddenIdeaIds.length === 0 && prev.hiddenDays.length === 0)) {
+                                return collection;
+                            }
+                            return {
+                                ...collection,
+                                ideasListState: { hiddenIdeaIds: [], hiddenDays: [] },
                             };
                         }),
                     };

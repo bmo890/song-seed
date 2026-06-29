@@ -11,7 +11,7 @@ export function CollectionHeaderMenu() {
   if (!screen.headerMenuOpen) return null;
 
   const playableIdeas = screen.listEntries
-    .filter((entry): entry is Extract<(typeof screen.listEntries)[number], { type: "idea" }> => entry.type === "idea" && !entry.hidden)
+    .filter((entry): entry is Extract<(typeof screen.listEntries)[number], { type: "idea" }> => entry.type === "idea")
     .map((entry) => entry.idea);
 
   const playAllIdeas = async () => {

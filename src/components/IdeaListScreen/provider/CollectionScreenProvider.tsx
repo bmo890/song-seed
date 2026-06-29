@@ -23,6 +23,7 @@ type CollectionScreenContextValue = {
     setIdeasFilter: (value: "all" | "clips" | "projects" | "bookmarked") => void;
     setIdeasHidden: (collectionId: string, ideaIds: string[], hidden: boolean) => void;
     setTimelineDaysHidden: (collectionId: string, days: WorkspaceHiddenDay[], hidden: boolean) => void;
+    showAllHidden: (collectionId: string) => void;
     updateCollection: (workspaceId: string, collectionId: string, patch: Partial<Collection>) => void;
     moveCollection: (collectionId: string, workspaceId: string, parentCollectionId?: string | null) => { ok: boolean; error?: string };
     deleteCollection: (collectionId: string) => void;
@@ -41,6 +42,7 @@ export function CollectionScreenProvider({ children }: { children: ReactNode }) 
   const setIdeasFilter = useStore((s) => s.setIdeasFilter);
   const setIdeasHidden = useStore((s) => s.setIdeasHidden);
   const setTimelineDaysHidden = useStore((s) => s.setTimelineDaysHidden);
+  const showAllHidden = useStore((s) => s.showAllHidden);
   const updateCollection = useStore((s) => s.updateCollection);
   const moveCollection = useStore((s) => s.moveCollection);
   const deleteCollection = useStore((s) => s.deleteCollection);
@@ -96,6 +98,7 @@ export function CollectionScreenProvider({ children }: { children: ReactNode }) 
           setIdeasFilter,
           setIdeasHidden,
           setTimelineDaysHidden,
+          showAllHidden,
           updateCollection,
           moveCollection,
           deleteCollection,

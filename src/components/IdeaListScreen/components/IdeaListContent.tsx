@@ -4,7 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 import ReAnimated, { useAnimatedScrollHandler, type SharedValue } from "react-native-reanimated";
 import { styles } from "../../../styles";
 import { IdeaSort, InlinePlayerControls } from "../../../types";
-import { IdeaListItem } from "./IdeaListItem";
+import { IdeaListItem, CollapsedDayRow } from "./IdeaListItem";
 import { CollectionListModel, IdeaListEntry, IdeaListItemMeta } from "../types";
 import { getIdeaSortTimestamp, type IdeaSortMetric } from "../../../ideaSort";
 import { getDateBucket } from "../../../dateBuckets";
@@ -33,8 +33,8 @@ type IdeaListContentProps = {
   onItemCellLayout?: (key: string, y: number) => void;
   playIdeaFromList: (ideaId: string, clip: any) => Promise<void> | void;
   openIdeaFromList: (ideaId: string, clip: any) => Promise<void> | void;
-  onRestore: (idea: any) => void;
   hideTimelineDay: (metric: "created" | "updated", dayStartTs: number) => Promise<void>;
+  expandTimelineDay: (metric: "created" | "updated", dayStartTs: number) => void;
   /** UI-thread scroll offset mirrored from the list — drives the collapsing header. */
   collapseScrollY?: SharedValue<number>;
   /** Top inset reserving space for the absolute collapsing header overlay. */
@@ -66,8 +66,8 @@ export function IdeaListContent(
     onViewableItemsChanged,
     playIdeaFromList,
     openIdeaFromList,
-    onRestore,
     hideTimelineDay,
+    expandTimelineDay,
     collapseScrollY,
     contentPaddingTop,
     onItemCellLayout,
@@ -160,6 +160,21 @@ export function IdeaListContent(
       renderItem={(props) => {
         const entry = props.item;
 
+        if (entry.type === "collapsedDay") {
+          return (
+            <CollapsedDayRow
+              label={entry.label}
+              count={entry.count}
+              compact={listDensity === "compact"}
+              onExpand={
+                activeTimelineMetric
+                  ? () => expandTimelineDay(activeTimelineMetric, entry.dayStartTs)
+                  : undefined
+              }
+            />
+          );
+        }
+
         const searchMeta = searchMetaByIdeaId.get(entry.idea.id) ?? {
           matches: true,
           title: false,
@@ -176,7 +191,6 @@ export function IdeaListContent(
             inlinePlayer={inlinePlayer}
             playIdeaFromList={playIdeaFromList}
             openIdeaFromList={openIdeaFromList}
-            onRestore={onRestore}
             onHideDay={
               activeTimelineMetric && showDateDividers && entry.dayDividerLabel
                 ? () =>
@@ -186,7 +200,6 @@ export function IdeaListContent(
                     )
                 : undefined
             }
-            hidden={entry.hidden}
             dayDividerLabel={entry.dayDividerLabel}
             searchNeedle={searchNeedle}
             notesMatched={!!searchMeta.notes}
