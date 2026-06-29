@@ -6,16 +6,18 @@ import { colors, radii, shadows } from "../../design/tokens";
 type SurfaceCardProps = {
   children: ReactNode;
   style?: StyleProp<ViewStyle>;
+  selected?: boolean;
   onPress?: () => void;
   onLongPress?: () => void;
 };
 
-export function SurfaceCard({ children, style, onPress, onLongPress }: SurfaceCardProps) {
+export function SurfaceCard({ children, style, selected, onPress, onLongPress }: SurfaceCardProps) {
   if (onPress || onLongPress) {
     return (
       <Pressable
         style={({ pressed }) => [
           surfaceCardStyles.card,
+          selected ? surfaceCardStyles.cardSelected : null,
           style,
           pressed ? styles.pressDown : null,
         ]}
@@ -28,7 +30,11 @@ export function SurfaceCard({ children, style, onPress, onLongPress }: SurfaceCa
     );
   }
 
-  return <View style={[surfaceCardStyles.card, style]}>{children}</View>;
+  return (
+    <View style={[surfaceCardStyles.card, selected ? surfaceCardStyles.cardSelected : null, style]}>
+      {children}
+    </View>
+  );
 }
 
 const surfaceCardStyles = StyleSheet.create({
@@ -41,5 +47,10 @@ const surfaceCardStyles = StyleSheet.create({
     gap: 6,
     position: "relative",
     ...shadows.card,
+  },
+  cardSelected: {
+    backgroundColor: "#FDF5F2",
+    borderColor: "#B87D6B",
+    borderWidth: 2,
   },
 });

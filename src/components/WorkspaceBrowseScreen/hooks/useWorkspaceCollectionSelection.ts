@@ -185,19 +185,26 @@ export function useWorkspaceCollectionSelection({
     );
   };
 
-  // Rename and Set Main are handled by the per-card ellipsis — dock is for multi-item ops only.
   const selectionDockActions: SelectionAction[] = [
     {
-      key: "copy",
-      label: "Copy",
-      icon: "copy-outline",
-      onPress: () => openCollectionDestination("copy", collapsedSelectedCollectionIds),
+      key: "edit",
+      label: "Edit",
+      icon: "create-outline",
+      disabled: !singleSelectedCollection,
+      onPress: () => {
+        if (singleSelectedCollection) openRenameFor(singleSelectedCollection.id);
+      },
     },
     {
-      key: "move",
-      label: "Move",
-      icon: "swap-horizontal-outline",
-      onPress: () => openCollectionDestination("move", collapsedSelectedCollectionIds),
+      key: "set-primary",
+      label: "Set Primary",
+      icon: "star-outline",
+      disabled: !singleSelectedCollection || singleSelectedCollection.id === primaryCollectionId,
+      onPress: () => {
+        if (!activeWorkspaceId || !singleSelectedCollection) return;
+        setPrimaryCollectionId(activeWorkspaceId, singleSelectedCollection.id);
+        setSelectedCollectionIds([]);
+      },
     },
     {
       key: "delete",
@@ -206,9 +213,34 @@ export function useWorkspaceCollectionSelection({
       tone: "danger",
       onPress: confirmDeleteSelectedCollections,
     },
+    {
+      key: "more",
+      label: "More",
+      icon: "ellipsis-horizontal",
+      onPress: () => setSelectionMoreVisible(true),
+    },
   ];
 
-  const selectionSheetActions: SelectionAction[] = [];
+  const selectionSheetActions: SelectionAction[] = [
+    {
+      key: "copy",
+      label: "Copy",
+      icon: "copy-outline",
+      onPress: () => {
+        setSelectionMoreVisible(false);
+        openCollectionDestination("copy", collapsedSelectedCollectionIds);
+      },
+    },
+    {
+      key: "move",
+      label: "Move",
+      icon: "swap-horizontal-outline",
+      onPress: () => {
+        setSelectionMoreVisible(false);
+        openCollectionDestination("move", collapsedSelectedCollectionIds);
+      },
+    },
+  ];
 
   /** Open the rename modal pre-filled for a specific collection (used by per-card ellipsis). */
   function openRenameFor(collectionId: string) {

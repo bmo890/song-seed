@@ -5295,6 +5295,7 @@ export const styles = StyleSheet.create({
   ideasListCardSelected: {
     borderColor: "#B87D6B",
     borderWidth: 2,
+    backgroundColor: "#FDF5F2",
   },
   ideasListCardCornerBadge: {
     position: "absolute",
