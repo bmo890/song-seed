@@ -24,6 +24,8 @@ const BARLINE = "#BCA59B";
 // that leaves a gap on the right).
 const BARS_PER_ROW = 4;
 
+type Cell = { kind: "bar"; measure: ChordSheetMeasure } | { kind: "add" };
+
 function chunk<T>(items: T[], size: number): T[][] {
   if (size < 1) return items.length ? [items] : [];
   const rows: T[][] = [];
@@ -45,8 +47,14 @@ export function ChordSheetSection({
   const selectedSet = new Set(selectedMeasureIds);
   const noteField = useScrollIntoViewOnFocus();
 
-  const rows = chunk(section.measures, BARS_PER_ROW);
   const showAdd = editable && !selectionActive;
+  // The add affordance is a faint "ghost" bar that flows in the staff where the
+  // next bar would go, rather than a separate button.
+  const cells: Cell[] = [
+    ...section.measures.map((measure) => ({ kind: "bar" as const, measure })),
+    ...(showAdd ? [{ kind: "add" as const }] : []),
+  ];
+  const rows = chunk(cells, BARS_PER_ROW);
 
   return (
     <View style={styles.section}>
@@ -89,24 +97,23 @@ export function ChordSheetSection({
       <View>
         {rows.map((row, rowIndex) => (
           <View key={rowIndex} style={styles.staffRow}>
-            {row.map((measure, i) => (
-              <Bar
-                key={measure.id}
-                measure={measure}
-                isLast={i === row.length - 1}
-                editable={editable}
-                selected={selectedSet.has(measure.id)}
-                onTap={() => onTapMeasure(measure.id)}
-                onLongPress={() => onLongPressMeasure(measure.id)}
-              />
-            ))}
+            {row.map((cell, i) =>
+              cell.kind === "add" ? (
+                <GhostBar key="add" isLast={i === row.length - 1} onPress={onAddMeasure} />
+              ) : (
+                <Bar
+                  key={cell.measure.id}
+                  measure={cell.measure}
+                  isLast={i === row.length - 1}
+                  editable={editable}
+                  selected={selectedSet.has(cell.measure.id)}
+                  onTap={() => onTapMeasure(cell.measure.id)}
+                  onLongPress={() => onLongPressMeasure(cell.measure.id)}
+                />
+              )
+            )}
           </View>
         ))}
-        {showAdd ? (
-          <View style={styles.addRow}>
-            <AddBarButton onPress={onAddMeasure} />
-          </View>
-        ) : null}
       </View>
     </View>
   );
@@ -150,16 +157,15 @@ function Bar({
   );
 }
 
-/** Small filled "+" centered below the staff — adds a new bar to the section. */
-function AddBarButton({ onPress }: { onPress: () => void }) {
+/** A faint phantom bar in the next slot — tap to append a bar to the section. */
+function GhostBar({ isLast, onPress }: { isLast: boolean; onPress: () => void }) {
   return (
     <Pressable
       onPress={onPress}
-      hitSlop={10}
       accessibilityLabel="Add bar"
-      style={({ pressed }) => [styles.addCircle, pressed ? appStyles.pressDown : null]}
+      style={({ pressed }) => [styles.ghostBar, isLast ? styles.ghostBarLast : null, pressed ? appStyles.pressDown : null]}
     >
-      <Ionicons name="add" size={15} color={colors.onPrimary} />
+      <Ionicons name="add" size={16} color="#C2A99F" />
     </Pressable>
   );
 }
@@ -215,19 +221,18 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceHigh,
     borderLeftColor: colors.primary,
   },
-  addRow: {
-    flexDirection: "row",
-    justifyContent: "center",
-    marginTop: 2,
-    marginBottom: 4,
-  },
-  addCircle: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: colors.primary,
+  ghostBar: {
+    width: "25%",
+    minHeight: 38,
     alignItems: "center",
     justifyContent: "center",
+    backgroundColor: "#F7F0EA",
+    borderLeftWidth: 1,
+    borderLeftColor: "#E4D5CE",
+  },
+  ghostBarLast: {
+    borderRightWidth: 1,
+    borderRightColor: "#E4D5CE",
   },
   chordFill: { alignSelf: "stretch" },
   chord: {

@@ -108,13 +108,15 @@ export function ChordSheetBody({ model }: { model: ReturnType<typeof useChordShe
             <Ionicons name="add" size={15} color={colors.primary} />
             <Text style={styles.actionBtnText}>Add a section</Text>
           </Pressable>
-          <Pressable
-            style={({ pressed }) => [styles.actionBtn, pressed ? appStyles.pressDown : null]}
-            onPress={() => model.buildFromLyrics()}
-          >
-            <Ionicons name="sparkles-outline" size={14} color={colors.primary} />
-            <Text style={styles.actionBtnText}>Build from lyrics</Text>
-          </Pressable>
+          {isEmpty ? (
+            <Pressable
+              style={({ pressed }) => [styles.actionBtn, pressed ? appStyles.pressDown : null]}
+              onPress={() => model.buildFromLyrics()}
+            >
+              <Ionicons name="sparkles-outline" size={14} color={colors.primary} />
+              <Text style={styles.actionBtnText}>Build from lyrics</Text>
+            </Pressable>
+          ) : null}
         </View>
       ) : null}
 
