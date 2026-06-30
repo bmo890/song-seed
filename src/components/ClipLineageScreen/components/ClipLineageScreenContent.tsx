@@ -112,7 +112,7 @@ export function ClipLineageScreenContent() {
       />
       <ClipTagPicker
         visible={!!model.tagPickerClip}
-        clip={model.tagPickerClip}
+        clips={model.tagPickerClip ? [model.tagPickerClip] : []}
         idea={model.idea}
         globalCustomTags={model.clipCardContext.playback.globalCustomTags}
         onClose={() => model.setTagPickerClipId(null)}

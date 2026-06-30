@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { Pressable, Text, TextInput, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
@@ -10,58 +10,88 @@ import {
   SONG_CLIP_TAG_OPTIONS,
   CUSTOM_TAG_COLOR_OPTIONS,
   getTagColor,
+  type TagColor,
 } from "./songClipControls";
 
 const randomTagColor = () =>
   CUSTOM_TAG_COLOR_OPTIONS[Math.floor(Math.random() * CUSTOM_TAG_COLOR_OPTIONS.length)].bg;
 
+/** How many of the targeted clips carry a tag — drives the tri-state chip. */
+type TagState = "none" | "some" | "all";
+
 type ClipTagPickerProps = {
   visible: boolean;
-  clip: ClipVersion | null;
+  clips: ClipVersion[];
   idea: SongIdea;
   globalCustomTags: CustomTagDefinition[];
   onClose: () => void;
 };
 
 type ClipTagEditorFieldsProps = {
-  clip: ClipVersion | null;
+  clips: ClipVersion[];
   idea: SongIdea;
   globalCustomTags: CustomTagDefinition[];
 };
 
+/** Edits tags across one or more clips. With multiple, a chip is "all" (every
+ * clip has it), "some", or "none"; tapping applies to all, or removes from all
+ * when every clip already has it. */
 export function ClipTagEditorFields({
-  clip,
+  clips,
   idea,
   globalCustomTags,
 }: ClipTagEditorFieldsProps) {
   const [newTagLabel, setNewTagLabel] = useState("");
-  // Pre-pick a random color so adding a tag is one step (type + add); the swatch
-  // row below lets the user override it before adding if they care.
   const [newTagColor, setNewTagColor] = useState(randomTagColor);
-
-  const activeTags = useMemo(() => new Set(clip?.tags ?? []), [clip?.tags]);
+  const clipsKey = clips.map((clip) => clip.id).join("|");
 
   useEffect(() => {
     setNewTagLabel("");
     setNewTagColor(randomTagColor());
-  }, [clip?.id]);
+  }, [clipsKey]);
+
+  const tagState = useCallback(
+    (key: string): TagState => {
+      if (clips.length === 0) return "none";
+      const count = clips.filter((clip) => (clip.tags ?? []).includes(key)).length;
+      return count === 0 ? "none" : count === clips.length ? "all" : "some";
+    },
+    [clips]
+  );
+
+  const applyToAll = useCallback(
+    (key: string) => {
+      clips.forEach((clip) => {
+        const current = clip.tags ?? [];
+        if (!current.includes(key)) {
+          useStore.getState().setClipTags(idea.id, clip.id, [...current, key]);
+        }
+      });
+    },
+    [clips, idea.id]
+  );
 
   const toggleTag = useCallback(
-    (tagKey: string) => {
-      if (!clip) return;
+    (key: string) => {
+      if (clips.length === 0) return;
       void Haptics.selectionAsync();
-      const current = clip.tags ?? [];
-      const next = current.includes(tagKey)
-        ? current.filter((k) => k !== tagKey)
-        : [...current, tagKey];
-      useStore.getState().setClipTags(idea.id, clip.id, next);
+      const removing = tagState(key) === "all";
+      clips.forEach((clip) => {
+        const current = clip.tags ?? [];
+        const has = current.includes(key);
+        if (removing && has) {
+          useStore.getState().setClipTags(idea.id, clip.id, current.filter((k) => k !== key));
+        } else if (!removing && !has) {
+          useStore.getState().setClipTags(idea.id, clip.id, [...current, key]);
+        }
+      });
     },
-    [clip, idea.id]
+    [clips, idea.id, tagState]
   );
 
   const addCustomTag = useCallback(() => {
     const label = newTagLabel.trim();
-    if (!label || !clip) return;
+    if (!label || clips.length === 0) return;
     const key = label.toLowerCase().replace(/\s+/g, "-");
 
     const alreadyExists =
@@ -70,82 +100,63 @@ export function ClipTagEditorFields({
       globalCustomTags.some((t) => t.key === key);
 
     if (alreadyExists) {
-      if (!activeTags.has(key)) toggleTag(key);
+      applyToAll(key);
       setNewTagLabel("");
       return;
     }
 
     useStore.getState().addProjectCustomTag(idea.id, { key, label, color: newTagColor });
     void Haptics.selectionAsync();
-
-    const current = clip.tags ?? [];
-    if (!current.includes(key)) {
-      useStore.getState().setClipTags(idea.id, clip.id, [...current, key]);
-    }
+    applyToAll(key);
     setNewTagLabel("");
     setNewTagColor(randomTagColor());
-  }, [newTagLabel, newTagColor, clip, idea.id, idea.customTags, globalCustomTags, activeTags, toggleTag]);
+  }, [newTagLabel, newTagColor, clips.length, idea.id, idea.customTags, globalCustomTags, applyToAll]);
 
   const projectCustomTags = idea.customTags ?? [];
 
-  if (!clip) return null;
+  if (clips.length === 0) return null;
+
+  const renderChip = (key: string, label: string, color: TagColor, withDot: boolean) => {
+    const state = tagState(key);
+    const active = state !== "none";
+    return (
+      <Pressable
+        key={key}
+        style={[
+          styles.tagPickerChip,
+          active
+            ? { backgroundColor: color.bg, borderColor: color.bg }
+            : { backgroundColor: "transparent", borderColor: color.text },
+        ]}
+        onPress={() => toggleTag(key)}
+      >
+        {withDot ? <View style={[styles.tagPickerCustomDot, { backgroundColor: color.text }]} /> : null}
+        <Text style={[styles.tagPickerChipText, { color: color.text }]}>{label}</Text>
+        {state === "all" ? (
+          <Ionicons name="checkmark" size={12} color={color.text} />
+        ) : state === "some" ? (
+          <Ionicons name="remove" size={12} color={color.text} />
+        ) : null}
+      </Pressable>
+    );
+  };
 
   return (
     <>
       <Text style={styles.tagPickerSectionLabel}>Tags</Text>
       <View style={styles.tagPickerChipsWrap}>
-        {SONG_CLIP_TAG_OPTIONS.map((tag) => {
-          const active = activeTags.has(tag.key);
-          return (
-            <Pressable
-              key={tag.key}
-              style={[
-                styles.tagPickerChip,
-                active
-                  ? { backgroundColor: tag.bg, borderColor: tag.bg }
-                  : { backgroundColor: "transparent", borderColor: tag.text },
-              ]}
-              onPress={() => toggleTag(tag.key)}
-            >
-              <Text style={[styles.tagPickerChipText, { color: tag.text }]}>
-                {tag.label}
-              </Text>
-              {active ? (
-                <Ionicons name="checkmark" size={12} color={tag.text} />
-              ) : null}
-            </Pressable>
-          );
-        })}
+        {SONG_CLIP_TAG_OPTIONS.map((tag) =>
+          renderChip(tag.key, tag.label, { bg: tag.bg, text: tag.text }, false)
+        )}
       </View>
 
       {projectCustomTags.length > 0 ? (
         <>
           <Text style={styles.tagPickerSectionLabel}>Project tags</Text>
           <View style={styles.tagPickerChipsWrap}>
-            {projectCustomTags.map((tag) => {
-              const active = activeTags.has(tag.key);
-              const color = getTagColor(tag.key, projectCustomTags, globalCustomTags);
-              return (
-                <Pressable
-                  key={tag.key}
-                  style={[
-                    styles.tagPickerChip,
-                    active
-                      ? { backgroundColor: color.bg, borderColor: color.bg }
-                      : { backgroundColor: "transparent", borderColor: color.text },
-                  ]}
-                  onPress={() => toggleTag(tag.key)}
-                >
-                  <View style={[styles.tagPickerCustomDot, { backgroundColor: color.text }]} />
-                  <Text style={[styles.tagPickerChipText, { color: color.text }]}>
-                    {tag.label}
-                  </Text>
-                  {active ? (
-                    <Ionicons name="checkmark" size={12} color={color.text} />
-                  ) : null}
-                </Pressable>
-              );
-            })}
+            {projectCustomTags.map((tag) =>
+              renderChip(tag.key, tag.label, getTagColor(tag.key, projectCustomTags, globalCustomTags), true)
+            )}
           </View>
         </>
       ) : null}
@@ -154,37 +165,14 @@ export function ClipTagEditorFields({
         <>
           <Text style={styles.tagPickerSectionLabel}>Global tags</Text>
           <View style={styles.tagPickerChipsWrap}>
-            {globalCustomTags.map((tag) => {
-              const active = activeTags.has(tag.key);
-              const color = getTagColor(tag.key, projectCustomTags, globalCustomTags);
-              return (
-                <Pressable
-                  key={tag.key}
-                  style={[
-                    styles.tagPickerChip,
-                    active
-                      ? { backgroundColor: color.bg, borderColor: color.bg }
-                      : { backgroundColor: "transparent", borderColor: color.text },
-                  ]}
-                  onPress={() => toggleTag(tag.key)}
-                >
-                  <View style={[styles.tagPickerCustomDot, { backgroundColor: color.text }]} />
-                  <Text style={[styles.tagPickerChipText, { color: color.text }]}>
-                    {tag.label}
-                  </Text>
-                  {active ? (
-                    <Ionicons name="checkmark" size={12} color={color.text} />
-                  ) : null}
-                </Pressable>
-              );
-            })}
+            {globalCustomTags.map((tag) =>
+              renderChip(tag.key, tag.label, getTagColor(tag.key, projectCustomTags, globalCustomTags), true)
+            )}
           </View>
         </>
       ) : null}
 
-      <Text style={[styles.tagPickerSectionLabel, { marginTop: 14 }]}>
-        Add project tag
-      </Text>
+      <Text style={[styles.tagPickerSectionLabel, { marginTop: 14 }]}>Add project tag</Text>
       <View style={styles.tagPickerAddRow}>
         <TextInput
           style={styles.tagPickerAddInput}
@@ -226,7 +214,7 @@ export function ClipTagEditorFields({
 
 export function ClipTagPicker({
   visible,
-  clip,
+  clips,
   idea,
   globalCustomTags,
   onClose,
@@ -234,7 +222,10 @@ export function ClipTagPicker({
   return (
     <BottomSheet visible={visible} onClose={onClose} dismissDistance={420} keyboardAvoiding>
       <View style={styles.tagPickerContent}>
-        <ClipTagEditorFields clip={clip} idea={idea} globalCustomTags={globalCustomTags} />
+        {clips.length > 1 ? (
+          <Text style={styles.tagPickerSectionLabel}>{`${clips.length} clips`}</Text>
+        ) : null}
+        <ClipTagEditorFields clips={clips} idea={idea} globalCustomTags={globalCustomTags} />
       </View>
     </BottomSheet>
   );

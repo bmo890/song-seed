@@ -48,7 +48,7 @@ export function SongClipListModals({
       />
       <ClipTagPicker
         visible={!!tagPickerClip}
-        clip={tagPickerClip}
+        clips={tagPickerClip ? [tagPickerClip] : []}
         idea={selectedIdea}
         globalCustomTags={globalCustomTags}
         onClose={closeTagPicker}

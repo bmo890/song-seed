@@ -316,6 +316,12 @@ export function SelectionBars() {
             disabled: playableSelectedCount === 0,
           },
           {
+            key: "tags",
+            label: "Tags",
+            icon: "pricetag-outline",
+            onPress: () => setTagSheetVisible(true),
+          },
+          {
             key: "delete",
             label: "Delete",
             icon: "trash-outline",
@@ -450,7 +456,7 @@ export function SelectionBars() {
       {selectedIdea ? (
         <ClipTagPicker
           visible={tagSheetVisible}
-          clip={singleSelectedClip}
+          clips={selectedClips}
           idea={selectedIdea}
           globalCustomTags={globalCustomClipTags}
           onClose={() => setTagSheetVisible(false)}
