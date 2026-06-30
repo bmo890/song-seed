@@ -18,9 +18,18 @@ import { useStore } from "../../../state/useStore";
 import { appActions } from "../../../state/actions";
 import { getLatestLyricsVersion, lyricsDocumentToText } from "../../../lyrics";
 import { serializeChordChartText } from "../../../chords";
-import { formatDate } from "../../../utils";
-
 type LyricsVersionRoute = RootStackParamList["LyricsVersion"];
+
+/** Quiet, humanized "edited" line for the version subtitle — "Edited today",
+ * "Edited 3 days ago", "Edited Jun 28" — rather than a raw timestamp. */
+function formatVersionEdited(ts: number): string {
+  const days = Math.floor((Date.now() - ts) / 86400000);
+  if (days <= 0) return "Edited today";
+  if (days === 1) return "Edited yesterday";
+  if (days < 7) return `Edited ${days} days ago`;
+  if (days < 14) return "Edited last week";
+  return `Edited ${new Date(ts).toLocaleDateString("en-US", { month: "short", day: "numeric" })}`;
+}
 
 export function useLyricsVersionScreenModel() {
   const navigation = useNavigation<any>();
@@ -84,7 +93,7 @@ export function useLyricsVersionScreenModel() {
   const displayedVersionNumber =
     !resolvedVersion || editSavesAsNew ? versions.length + 1 : sourceVersionNumber ?? versions.length + 1;
   const versionLabel = `Version ${displayedVersionNumber}`;
-  const versionMeta = !resolvedVersion ? "Unsaved draft" : formatDate(resolvedVersion.updatedAt);
+  const versionMeta = !resolvedVersion ? "Unsaved draft" : formatVersionEdited(resolvedVersion.updatedAt);
 
   useEffect(() => {
     const unsubscribe = navigation.addListener("beforeRemove", (event: any) => {
@@ -117,8 +126,17 @@ export function useLyricsVersionScreenModel() {
     } else {
       appActions.saveProjectLyrics(projectIdea.id, draftText);
     }
-    bypassUnsavedGuardRef.current = true;
-    navigation.goBack();
+    // Land on the saved version's full view (not back at the song). Either path
+    // makes the saved version the latest, so clear the params that force edit mode
+    // and point at the latest — the effect above then drops us into read mode. No
+    // goBack, so the beforeRemove guard isn't involved; the effect resets the
+    // baseline, clearing the unsaved flag.
+    navigation.setParams({
+      versionId: undefined,
+      startInEdit: undefined,
+      createDraft: undefined,
+      forceNewVersion: undefined,
+    });
   };
 
   const copyText = () => {

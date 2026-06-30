@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { KeyboardAvoidingView, Text } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { StatusBar as ExpoStatusBar } from "expo-status-bar";
+import { useNavigation } from "@react-navigation/native";
 import { styles } from "../styles";
 import { ScreenHeader } from "../../common/ScreenHeader";
 import { useLyricsVersionScreenModel } from "../hooks/useLyricsVersionScreenModel";
@@ -14,9 +15,29 @@ import { useChordExport } from "./chords/useChordExport";
 
 export function LyricsVersionScreenContent() {
   const insets = useSafeAreaInsets();
+  const navigation = useNavigation<any>();
   const model = useLyricsVersionScreenModel();
   const [chordEditMode, setChordEditMode] = useState(false);
   const [exportVisible, setExportVisible] = useState(false);
+
+  // "Back" steps up exactly one level: an edit mode returns to the version view;
+  // the version view returns to the song. (cancelEdit confirms if there are
+  // unsaved lyric edits; the beforeRemove guard covers a brand-new draft.)
+  function handleBack() {
+    if (chordEditMode) {
+      setChordEditMode(false);
+      return;
+    }
+    if (model.isEditMode) {
+      if (model.resolvedVersion) {
+        model.cancelEdit();
+      } else {
+        navigation.goBack();
+      }
+      return;
+    }
+    navigation.goBack();
+  }
   const { exportPdf, exportText } = useChordExport(
     model.projectIdea?.title ?? "",
     model.resolvedVersion
@@ -37,9 +58,11 @@ export function LyricsVersionScreenContent() {
 
   return (
     <SafeAreaView style={styles.screen} edges={["top", "left", "right"]}>
-      <ScreenHeader title={model.versionLabel} leftIcon="back" />
+      <ScreenHeader title={model.versionLabel} leftIcon="back" onLeftPress={handleBack} />
 
-      <Text style={styles.subtitle}>{model.versionMeta}</Text>
+      <Text style={styles.subtitle}>
+        {model.projectIdea.title} · {model.versionMeta}
+      </Text>
 
       <KeyboardAvoidingView
         style={[styles.flexFill, { paddingBottom: model.isKeyboardVisible ? 0 : insets.bottom }]}
@@ -54,7 +77,6 @@ export function LyricsVersionScreenContent() {
             onChangeText={model.setDraftText}
             onSave={() => model.saveDraft()}
             onSaveAsNew={() => model.saveDraft(true)}
-            onCancel={model.cancelEdit}
             onLayout={model.setEditorViewportHeight}
             onContentSizeChange={model.handleEditorContentSize}
             onScroll={model.handleEditorScroll}
@@ -70,7 +92,6 @@ export function LyricsVersionScreenContent() {
             version={model.resolvedVersion!}
             songTitle={model.projectIdea.title}
             palette={model.projectIdea.chordPalette}
-            onDone={() => setChordEditMode(false)}
           />
         ) : (
           <LyricsVersionPreview
@@ -78,10 +99,8 @@ export function LyricsVersionScreenContent() {
             lines={lines}
             hasChords={hasChords}
             canChart={canChart}
-            showNewDraft={model.isLatestSource}
             onEdit={model.beginEdit}
             onChords={() => setChordEditMode(true)}
-            onNewDraft={model.beginNewDraft}
             onExport={() => setExportVisible(true)}
             onLayout={model.setPreviewViewportHeight}
             onContentSizeChange={model.setPreviewContentHeight}
