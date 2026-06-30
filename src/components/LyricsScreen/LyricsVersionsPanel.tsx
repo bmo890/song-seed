@@ -1,11 +1,11 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import * as Haptics from "expo-haptics";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { styles } from "../../styles";
 import { SongIdea, type LyricsVersion } from "../../types";
-import { ChordChart } from "../LyricsVersionScreen/components/chords/ChordChart";
+import { ChordChartLines } from "../LyricsVersionScreen/components/chords/ChordChart";
 import { useStore } from "../../state/useStore";
 import { appActions } from "../../state/actions";
 import { getLatestLyricsVersion, lyricsDocumentToText } from "../../lyrics";
@@ -56,16 +56,11 @@ export function LyricsVersionsPanel({ projectIdea }: LyricsVersionsPanelProps) {
     version.document.lines.some((line) => line.chords.length > 0);
 
   useEffect(() => {
-    setExpandedVersionIds((prev) => {
-      const visibleIds = new Set(versions.map((version) => version.id));
-      const next = prev.filter((id) => visibleIds.has(id));
-      if (latestVersion?.id && !next.includes(latestVersion.id)) {
-        return [latestVersion.id, ...next];
-      }
-      return next;
-    });
-    setSelectedVersionIds((prev) => prev.filter((id) => versions.some((version) => version.id === id)));
-  }, [latestVersion?.id, versions, versionsKey]);
+    // Everything starts collapsed — prune stale ids, never auto-expand.
+    const visibleIds = new Set(versions.map((version) => version.id));
+    setExpandedVersionIds((prev) => prev.filter((id) => visibleIds.has(id)));
+    setSelectedVersionIds((prev) => prev.filter((id) => visibleIds.has(id)));
+  }, [versions, versionsKey]);
 
   const selectionMode = selectedVersionIds.length > 0;
   const selectedVersions = versions.filter((version) => selectedVersionIds.includes(version.id));
@@ -247,10 +242,10 @@ export function LyricsVersionsPanel({ projectIdea }: LyricsVersionsPanelProps) {
               style={[
                 styles.card,
                 styles.songDetailTabPanelCard,
-                isLatest ? panelStyles.cardCurrent : null,
                 isSelected ? styles.listCardSelected : null,
               ]}
             >
+              {isLatest && !isExpanded ? <View style={panelStyles.accentStripe} /> : null}
               <Pressable
                 style={({ pressed }) => (pressed && !selectionMode ? styles.pressDown : null)}
                 onLongPress={() => startSelection(version.id)}
@@ -301,7 +296,7 @@ export function LyricsVersionsPanel({ projectIdea }: LyricsVersionsPanelProps) {
                       ) : null}
                     </View>
 
-                    {!isExpanded ? (
+                    {isLatest && !isExpanded ? (
                       <Text style={panelStyles.preview} numberOfLines={2}>
                         {previewText || "No lyrics in this version."}
                       </Text>
@@ -326,11 +321,17 @@ export function LyricsVersionsPanel({ projectIdea }: LyricsVersionsPanelProps) {
                       />
                     </View>
                   ) : null}
-                  {chordVersionIds.includes(version.id) && hasChords ? (
-                    <ChordChart lines={version.document.lines} editable={false} />
-                  ) : (
-                    <Text style={styles.lyricsPreviewText}>{previewText || "No lyrics in this version."}</Text>
-                  )}
+                  <ScrollView
+                    style={panelStyles.expandedScroll}
+                    nestedScrollEnabled
+                    showsVerticalScrollIndicator
+                  >
+                    {chordVersionIds.includes(version.id) && hasChords ? (
+                      <ChordChartLines lines={version.document.lines} editable={false} />
+                    ) : (
+                      <Text style={styles.lyricsPreviewText}>{previewText || "No lyrics in this version."}</Text>
+                    )}
+                  </ScrollView>
                 </View>
               ) : null}
             </View>
@@ -416,9 +417,21 @@ const panelStyles = StyleSheet.create({
   },
 
   // ── Version card ────────────────────────────────────────────────────────────
-  cardCurrent: {
-    borderLeftWidth: 3,
-    borderLeftColor: colors.primary,
+  // Clay accent for the current version — absolute so it spans only the (short)
+  // collapsed card, never the full height of an expanded one, and never shifts
+  // content. Shown only while collapsed.
+  accentStripe: {
+    position: "absolute",
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 3,
+    backgroundColor: colors.primary,
+    borderTopLeftRadius: radii.sm,
+    borderBottomLeftRadius: radii.sm,
+  },
+  expandedScroll: {
+    maxHeight: 320,
   },
   cardTop: {
     flexDirection: "row",
