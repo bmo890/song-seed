@@ -9,7 +9,7 @@ import { getClipOverdubStemCount, getClipPlaybackDurationMs, hasClipPlaybackSour
 import { fmtDuration, formatClipDate } from "../../utils";
 import { type EvolutionListClipEntry, type TimelineClipEntry } from "../../clipGraph";
 import { type SongIdea, type ClipVersion, type CustomTagDefinition, type InlinePlayerControls } from "../../types";
-import { getTagColor, getTagLabel } from "./songClipControls";
+import { getTagColor, getTagLabel, suggestedSectionTagsForClip } from "./songClipControls";
 import { ClipCardEditForm } from "./components/clipCard/ClipCardEditForm";
 import { ClipCardEvolutionGuide } from "./components/clipCard/ClipCardEvolutionGuide";
 import { ClipCardInlinePlayer } from "./components/clipCard/ClipCardInlinePlayer";
@@ -180,7 +180,21 @@ export function ClipCard({
   const canEditTags =
     !displayOnly && !isEditMode && !isDraftProject && !isParentPicking && !clipSelectionMode;
   const visibleTagBadges = tagBadges;
-  const showAddTagButton = canEditTags && tagBadges.length === 0;
+  // The add affordance is always offered while editable (labeled "Tag" when the
+  // clip has none yet), so tagging is discoverable whether or not tags exist.
+  const showAddTagButton = canEditTags;
+  const tagSuggestions = canEditTags
+    ? suggestedSectionTagsForClip(clip.title, clip.tags ?? []).map((suggestion) => {
+        const color = getTagColor(suggestion.key, idea.customTags, globalCustomTags);
+        return { key: suggestion.key, label: suggestion.label, textColor: color.text };
+      })
+    : [];
+  const applyTag = (tagKey: string) => {
+    void Haptics.selectionAsync();
+    const current = clip.tags ?? [];
+    if (current.includes(tagKey)) return;
+    useStore.getState().setClipTags(idea.id, clip.id, [...current, tagKey]);
+  };
   const playbackDurationMs = getClipPlaybackDurationMs(clip);
   const overdubStemCount = getClipOverdubStemCount(clip);
   const durationLabel = playbackDurationMs ? fmtDuration(playbackDurationMs) : "0:00";
@@ -377,6 +391,8 @@ export function ClipCard({
             disabled={!!displayOnly}
             showAddButton={showAddTagButton}
             onPress={displayOnly ? undefined : handleTagsPress}
+            suggestions={tagSuggestions}
+            onApplySuggestion={applyTag}
             containerStyle={styles.clipCardTagsRowFooter}
           />
         }

@@ -82,6 +82,27 @@ export function getTagLabel(
   return key;
 }
 
+/** Section tags whose name appears as a whole word in the clip title and aren't
+ * already applied — surfaced as one-tap suggestions on the card. Word-boundary
+ * matching avoids false hits like "introspective" → intro. */
+export function suggestedSectionTagsForClip(
+  title: string | undefined,
+  existingKeys: Iterable<string>
+): { key: string; label: string }[] {
+  const text = (title ?? "").toLowerCase();
+  if (!text.trim()) return [];
+  const existing = new Set(existingKeys);
+  const matched = SONG_CLIP_TAG_OPTIONS.filter((tag) => {
+    if (existing.has(tag.key)) return false;
+    const needle = tag.label.toLowerCase().replace(/[-\s]+/g, "[-\\s]?");
+    return new RegExp(`\\b${needle}\\b`, "i").test(text);
+  }).map((tag) => ({ key: tag.key, label: tag.label }));
+  // "Pre-chorus" also trips the plain "chorus" matcher — keep only the specific one.
+  return matched.some((m) => m.key === "prechorus")
+    ? matched.filter((m) => m.key !== "chorus")
+    : matched;
+}
+
 export function getSongTimelineSortMetricIcon(metric: SongTimelineSortMetric) {
   switch (metric) {
     case "created":
