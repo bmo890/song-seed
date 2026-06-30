@@ -7,7 +7,7 @@ import { styles } from "../styles";
 import type { LyricsLine } from "../../../types";
 import { ChordChart } from "./chords/ChordChart";
 import { ChordZoomBar } from "./chords/ChordZoomBar";
-import { SegmentedControl } from "../../common/SegmentedControl";
+import { LyricsChordsToggle } from "../../common/LyricsChordsToggle";
 import { HelpSheet, type HelpItem } from "../../common/HelpSheet";
 
 type LyricsVersionPreviewProps = {
@@ -82,14 +82,7 @@ export function LyricsVersionPreview({
 
       {canChart ? (
         <View style={controls.toggleWrap}>
-          <SegmentedControl
-            options={[
-              { key: "lyrics", label: "Lyrics" },
-              { key: "chords", label: "Chords" },
-            ]}
-            value={viewMode}
-            onChange={(next) => setViewMode(next)}
-          />
+          <LyricsChordsToggle value={viewMode} onChange={setViewMode} />
         </View>
       ) : null}
 
@@ -170,7 +163,6 @@ const controls = StyleSheet.create({
   },
   toggleWrap: {
     alignSelf: "flex-start",
-    minWidth: 200,
     marginBottom: spacing.sm,
   },
 });

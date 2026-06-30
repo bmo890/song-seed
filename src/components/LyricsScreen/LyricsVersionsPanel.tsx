@@ -15,7 +15,7 @@ import { Button } from "../common/Button";
 import { AppAlert } from "../common/AppAlert";
 import { NotePickerSheet } from "../modals/NotePickerSheet";
 import { SelectionActionSheet } from "../common/SelectionActionSheet";
-import { SegmentedControl } from "../common/SegmentedControl";
+import { LyricsChordsToggle } from "../common/LyricsChordsToggle";
 import type { SelectionAction } from "../common/SelectionDock";
 import { colors, radii, spacing } from "../../design/tokens";
 import type { Note } from "../../types";
@@ -281,11 +281,7 @@ export function LyricsVersionsPanel({ projectIdea }: LyricsVersionsPanelProps) {
                 <View style={styles.lyricsPreviewWrap}>
                   {versionHasChords(version) ? (
                     <View style={panelStyles.cardViewToggle}>
-                      <SegmentedControl
-                        options={[
-                          { key: "lyrics", label: "Lyrics" },
-                          { key: "chords", label: "Chords" },
-                        ]}
+                      <LyricsChordsToggle
                         value={chordVersionIds.includes(version.id) ? "chords" : "lyrics"}
                         onChange={(next) =>
                           setChordVersionIds((prev) =>
@@ -358,11 +354,8 @@ const panelStyles = StyleSheet.create({
     fontSize: 13,
     color: colors.onPrimary,
   },
-  // Per-card Lyrics/Chords toggle — kept narrow so it reads as a control, not a
-  // full-width bar.
   cardViewToggle: {
     alignSelf: "flex-start",
-    minWidth: 200,
     marginBottom: 12,
   },
   // Top control row: a single accented (+) that opens the New version sheet
