@@ -15,8 +15,9 @@ import { Button } from "../common/Button";
 import { AppAlert } from "../common/AppAlert";
 import { NotePickerSheet } from "../modals/NotePickerSheet";
 import { SelectionActionSheet } from "../common/SelectionActionSheet";
+import { SegmentedControl } from "../common/SegmentedControl";
 import type { SelectionAction } from "../common/SelectionDock";
-import { colors, radii } from "../../design/tokens";
+import { colors, radii, spacing } from "../../design/tokens";
 import type { Note } from "../../types";
 
 type LyricsVersionsPanelProps = {
@@ -35,14 +36,13 @@ export function LyricsVersionsPanel({ projectIdea }: LyricsVersionsPanelProps) {
   const [selectedVersionIds, setSelectedVersionIds] = useState<string[]>([]);
   const [notePickerVisible, setNotePickerVisible] = useState(false);
   const [moreVisible, setMoreVisible] = useState(false);
-  const [showChords, setShowChords] = useState(false);
+  const [createVisible, setCreateVisible] = useState(false);
+  // Chord view is per-version (per card), not global — each card remembers whether
+  // it's showing lyrics or chords.
+  const [chordVersionIds, setChordVersionIds] = useState<string[]>([]);
 
   const versionHasChords = (version: LyricsVersion) =>
     version.document.lines.some((line) => line.chords.length > 0);
-  const anyVersionHasChords = useMemo(
-    () => versions.some(versionHasChords),
-    [versions]
-  );
 
   useEffect(() => {
     setExpandedVersionIds((prev) => {
@@ -116,6 +116,27 @@ export function LyricsVersionsPanel({ projectIdea }: LyricsVersionsPanelProps) {
     void Haptics.selectionAsync();
   }
 
+  const createActions: SelectionAction[] = [
+    {
+      key: "from-current",
+      label: "New version from current",
+      icon: "git-branch-outline",
+      onPress: () => openVersion(latestVersion?.id, { startInEdit: true, forceNewVersion: true }),
+    },
+    {
+      key: "blank",
+      label: "Blank version",
+      icon: "document-outline",
+      onPress: () => openVersion(undefined, { createDraft: true, startInEdit: true, forceNewVersion: true }),
+    },
+    {
+      key: "from-lyrics-pad",
+      label: "From Lyrics Pad",
+      icon: "clipboard-outline",
+      onPress: () => setNotePickerVisible(true),
+    },
+  ];
+
   const selectionSheetActions: SelectionAction[] = [
     ...(selectedSingleVersion
       ? [
@@ -168,39 +189,16 @@ export function LyricsVersionsPanel({ projectIdea }: LyricsVersionsPanelProps) {
           </View>
         </View>
       ) : versions.length > 0 ? (
-        <View style={styles.rowButtons}>
-          <Button
-            label="New Draft"
-            onPress={() => openVersion(latestVersion?.id, { startInEdit: true, forceNewVersion: true })}
-          />
-          <Button
-            variant="secondary"
-            label="From Lyrics Pad"
-            onPress={() => setNotePickerVisible(true)}
-          />
+        <View style={panelStyles.controlRow}>
+          <Pressable
+            style={({ pressed }) => [panelStyles.addBtn, pressed ? styles.pressDown : null]}
+            onPress={() => setCreateVisible(true)}
+            hitSlop={6}
+            accessibilityLabel="New version"
+          >
+            <Ionicons name="add" size={22} color={colors.onPrimary} />
+          </Pressable>
         </View>
-      ) : null}
-
-      {!selectionMode && anyVersionHasChords ? (
-        <Pressable
-          onPress={() => setShowChords((prev) => !prev)}
-          style={({ pressed }) => [
-            panelStyles.chordToggle,
-            showChords ? panelStyles.chordToggleActive : null,
-            pressed ? styles.pressDown : null,
-          ]}
-          accessibilityRole="button"
-          accessibilityState={{ selected: showChords }}
-        >
-          <Ionicons
-            name="musical-notes-outline"
-            size={14}
-            color={showChords ? colors.primary : colors.textSecondary}
-          />
-          <Text style={[panelStyles.chordToggleText, showChords ? panelStyles.chordToggleTextActive : null]}>
-            {showChords ? "Hide chords" : "Show chords"}
-          </Text>
-        </Pressable>
       ) : null}
 
       {versions.length === 0 ? (
@@ -281,7 +279,25 @@ export function LyricsVersionsPanel({ projectIdea }: LyricsVersionsPanelProps) {
 
               {isExpanded ? (
                 <View style={styles.lyricsPreviewWrap}>
-                  {showChords && versionHasChords(version) ? (
+                  {versionHasChords(version) ? (
+                    <View style={panelStyles.cardViewToggle}>
+                      <SegmentedControl
+                        options={[
+                          { key: "lyrics", label: "Lyrics" },
+                          { key: "chords", label: "Chords" },
+                        ]}
+                        value={chordVersionIds.includes(version.id) ? "chords" : "lyrics"}
+                        onChange={(next) =>
+                          setChordVersionIds((prev) =>
+                            next === "chords"
+                              ? [...new Set([...prev, version.id])]
+                              : prev.filter((id) => id !== version.id)
+                          )
+                        }
+                      />
+                    </View>
+                  ) : null}
+                  {chordVersionIds.includes(version.id) && versionHasChords(version) ? (
                     <ChordChart lines={version.document.lines} editable={false} />
                   ) : (
                     <Text style={styles.lyricsPreviewText}>{previewText || "No lyrics in this version."}</Text>
@@ -305,6 +321,13 @@ export function LyricsVersionsPanel({ projectIdea }: LyricsVersionsPanelProps) {
         title="Lyrics version actions"
         actions={selectionSheetActions}
         onClose={() => setMoreVisible(false)}
+      />
+
+      <SelectionActionSheet
+        visible={createVisible}
+        title="New version"
+        actions={createActions}
+        onClose={() => setCreateVisible(false)}
       />
     </View>
   );
@@ -335,25 +358,27 @@ const panelStyles = StyleSheet.create({
     fontSize: 13,
     color: colors.onPrimary,
   },
-  chordToggle: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
+  // Per-card Lyrics/Chords toggle — kept narrow so it reads as a control, not a
+  // full-width bar.
+  cardViewToggle: {
     alignSelf: "flex-start",
-    paddingHorizontal: 12,
-    paddingVertical: 7,
+    minWidth: 200,
+    marginBottom: 12,
+  },
+  // Top control row: a single accented (+) that opens the New version sheet
+  // (new from current, blank, or from Lyrics Pad).
+  controlRow: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    alignItems: "center",
+    marginBottom: spacing.sm,
+  },
+  addBtn: {
+    width: 40,
+    height: 40,
     borderRadius: radii.round,
-    backgroundColor: colors.surfaceContainer,
-  },
-  chordToggleActive: {
-    backgroundColor: colors.surfaceHigh,
-  },
-  chordToggleText: {
-    fontFamily: "PlusJakartaSans_600SemiBold",
-    fontSize: 12,
-    color: colors.textSecondary,
-  },
-  chordToggleTextActive: {
-    color: colors.primary,
+    backgroundColor: colors.primary,
+    alignItems: "center",
+    justifyContent: "center",
   },
 });
