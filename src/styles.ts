@@ -1438,6 +1438,11 @@ export const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#1b1c1a",
   },
+  // Expanded: same look as collapsed, just a touch smaller.
+  recordingLyricsTitleExpanded: {
+    fontSize: 16,
+    lineHeight: 20,
+  },
   recordingLyricsMeta: {
     fontSize: 13,
     color: "#84736f",
@@ -1484,31 +1489,15 @@ export const styles = StyleSheet.create({
     marginRight: -28,
     paddingRight: 8,
   },
+  // Pushes the title + chord toggle to the left and the rest of the controls
+  // to the right edge.
+  recordingLyricsHeaderSpacer: {
+    flex: 1,
+  },
   recordingLyricsHeaderActions: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-  },
-  recordingLyricsHeaderChip: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderRadius: radii.round,
-    backgroundColor: "#F4F1ED",
-  },
-  recordingLyricsHeaderChipActive: {
-    backgroundColor: "#B87D6B",
-  },
-  recordingLyricsHeaderChipText: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: "#824f3f",
-    fontVariant: ["tabular-nums"],
-  },
-  recordingLyricsHeaderChipTextActive: {
-    color: "#ffffff",
   },
   recordingLyricsZoomBtn: {
     width: 34,
@@ -1521,105 +1510,57 @@ export const styles = StyleSheet.create({
   recordingLyricsZoomBtnActive: {
     backgroundColor: "#F2E4DF",
   },
-  recordingLyricsMenuOverlay: {
-    position: "absolute",
-    top: 44,
-    left: -28,
-    right: -28,
-    bottom: -1500,
-    zIndex: 20,
-  },
-  recordingLyricsMenu: {
-    position: "absolute",
-    top: 44,
-    right: 36,
-    minWidth: 116,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 12,
-    paddingVertical: 4,
-    borderWidth: 1,
-    borderColor: "#E8E4DF",
-    zIndex: 30,
-    shadowColor: "#000",
-    shadowOpacity: 0.12,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 8,
-  },
-  recordingLyricsMenuItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 16,
-    paddingVertical: 9,
-    paddingHorizontal: 14,
-  },
-  recordingLyricsMenuItemText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#524440",
-  },
-  recordingLyricsMenuItemTextActive: {
-    color: "#824f3f",
-    fontWeight: "700",
-  },
-  recordingLyricsControlRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 8,
-    paddingHorizontal: 14,
-  },
-  recordingLyricsAutoToggle: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: radii.round,
-    backgroundColor: "#F4F1ED",
-  },
-  recordingLyricsAutoToggleActive: {
-    backgroundColor: "#B87D6B",
-  },
-  recordingLyricsAutoToggleText: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: "#824f3f",
-  },
-  recordingLyricsAutoToggleTextActive: {
-    color: "#ffffff",
-  },
-  recordingLyricsScrollContent: {
-    paddingHorizontal: 16,
-    paddingBottom: 6,
-  },
-  recordingLyricsSpeedRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  recordingLyricsSpeedChip: {
-    minHeight: 30,
-    borderRadius: radii.round,
-    borderWidth: 1,
-    borderColor: "#E8E4DF",
+  // Speed readout button — same footprint as the icon buttons beside it.
+  recordingLyricsSpeedBtn: {
+    minWidth: 34,
+    height: 34,
     paddingHorizontal: 8,
+    borderRadius: radii.round,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "#F4F1ED",
   },
-  recordingLyricsSpeedChipActive: {
-    borderColor: "#B87D6B",
+  recordingLyricsSpeedBtnText: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#84736f",
+    fontVariant: ["tabular-nums"],
+  },
+  recordingLyricsSpeedBtnTextActive: {
+    color: "#824f3f",
+  },
+  // Flat numeric speed row — revealed only by the speed button, closes itself
+  // the moment a number is picked or a take starts.
+  recordingLyricsSpeedRow: {
+    flexDirection: "row",
+    gap: 6,
+    paddingBottom: 8,
+  },
+  recordingLyricsSpeedRowItem: {
+    flex: 1,
+    paddingVertical: 8,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#F4F1ED",
+  },
+  recordingLyricsSpeedRowItemActive: {
     backgroundColor: "#B87D6B",
   },
-  recordingLyricsSpeedChipText: {
-    fontSize: 12,
-    color: "#84736f",
+  recordingLyricsSpeedRowText: {
+    fontSize: 13,
     fontWeight: "700",
+    color: "#84736f",
+    fontVariant: ["tabular-nums"],
   },
-  recordingLyricsSpeedChipTextActive: {
+  recordingLyricsSpeedRowTextActive: {
     color: "#ffffff",
+  },
+  recordingLyricsScrollContent: {
+    paddingHorizontal: 16,
+    // A blank line of lead-in above the first lyric so autoscroll has a buffer.
+    paddingTop: 34,
+    paddingBottom: 6,
   },
   recordingLyricsScroll: {
     flex: 1,
@@ -2415,6 +2356,13 @@ export const styles = StyleSheet.create({
   },
   recordingScrollContent: {
     flexGrow: 1,
+    paddingHorizontal: 28,
+    paddingTop: 0,
+    paddingBottom: 12,
+    gap: 14,
+  },
+  recordingPerformBody: {
+    flex: 1,
     paddingHorizontal: 28,
     paddingTop: 0,
     paddingBottom: 12,

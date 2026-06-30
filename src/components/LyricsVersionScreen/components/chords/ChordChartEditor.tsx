@@ -50,7 +50,7 @@ export function ChordChartEditor({ ideaId, version, palette }: Props) {
 
       <ChordPaletteBar palette={sorted} armedId={editing.armed?.id ?? null} onToggleArmed={editing.toggleArmed} />
 
-      <View style={[screenStyles.lyricsPreviewWrap, screenStyles.lyricsPreviewWrapExpanded, chartStyles.chartCard, screenStyles.lyricsChordChartFlush]}>
+      <View style={[screenStyles.lyricsPreviewWrap, screenStyles.lyricsPreviewWrapExpanded, chartStyles.chartCardEdit]}>
         <ChordChart
           lines={version.document.lines}
           editable
@@ -102,9 +102,14 @@ const chartControls = StyleSheet.create({
 });
 
 const chartStyles = StyleSheet.create({
-  chartCard: {
-    paddingHorizontal: 0,
-    paddingVertical: 0,
+  // Edit mode reads as a white, dashed "you're editing" surface — mirrors the
+  // words editor — and sits inset rather than edge-to-edge.
+  chartCardEdit: {
+    backgroundColor: "#fff",
+    borderWidth: 2,
+    borderColor: "#a89994",
+    borderStyle: "dashed",
+    borderRadius: 4,
     overflow: "hidden",
   },
 });

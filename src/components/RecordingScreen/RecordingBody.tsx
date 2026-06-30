@@ -81,15 +81,7 @@ export function RecordingBody({
   onSelectLyricsAutoscrollSpeedMultiplier,
   onOpenBluetoothCalibration,
 }: RecordingBodyProps) {
-  return (
-    <ScrollView
-      style={styles.recordingScroll}
-      contentContainerStyle={[
-        styles.recordingScrollContent,
-        hasProjectLyrics && !lyricsExpanded ? styles.recordingScrollContentWithCollapsedLyrics : null,
-      ]}
-      showsVerticalScrollIndicator={false}
-    >
+  const bodyContent = (
       <View
         style={[
           styles.recordingContentBody,
@@ -186,6 +178,25 @@ export function RecordingBody({
           })()
         ) : null}
       </View>
+  );
+
+  // Perform mode: a plain flex container (not a ScrollView) so the lyrics
+  // ScrollView gets a bounded height and fills to the bottom. The outer scroll
+  // is only needed for the no-lyrics / collapsed layouts.
+  if (lyricsExpanded) {
+    return <View style={styles.recordingPerformBody}>{bodyContent}</View>;
+  }
+
+  return (
+    <ScrollView
+      style={styles.recordingScroll}
+      contentContainerStyle={[
+        styles.recordingScrollContent,
+        hasProjectLyrics && !lyricsExpanded ? styles.recordingScrollContentWithCollapsedLyrics : null,
+      ]}
+      showsVerticalScrollIndicator={false}
+    >
+      {bodyContent}
     </ScrollView>
   );
 }

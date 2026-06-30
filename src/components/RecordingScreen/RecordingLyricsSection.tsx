@@ -53,7 +53,9 @@ export function RecordingLyricsSection({
       defaultExpanded={false}
       onToggleExpanded={onToggleExpanded}
       autoscrollEnabled={autoscrollMode === "follow"}
-      autoscrollActive={isRecording && !isPaused}
+      // Scroll is allowed when not take-paused; the panel decides idle (Test) vs take.
+      autoscrollActive={!isPaused}
+      isRecording={isRecording}
       autoscrollSpeedMultiplier={autoscrollSpeedMultiplier}
       onToggleAutoscroll={onToggleAutoscroll}
       onAutoscrollInterrupted={onAutoscrollInterrupted}

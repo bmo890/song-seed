@@ -9,7 +9,7 @@ import {
   Text,
   View,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { styles as appStyles } from "../../styles";
 import { colors, radii, spacing } from "../../design/tokens";
 import { LyricsAutoscrollState, LyricsLine } from "../../types";
@@ -31,22 +31,24 @@ type Props = {
   defaultExpanded?: boolean;
   onToggleExpanded?: (expanded: boolean) => void;
   autoscrollEnabled?: boolean;
+  /** Whether the scroll may run right now (idle preview OR an unpaused take). */
   autoscrollActive?: boolean;
+  /** True while a take is recording — flips Test→Pause and rewinds at take start. */
+  isRecording?: boolean;
   autoscrollSpeedMultiplier?: number;
   onToggleAutoscroll?: (enabled: boolean) => void;
   onAutoscrollInterrupted?: () => void;
   onSelectAutoscrollSpeedMultiplier?: (multiplier: number) => void;
 };
 
-const AUTOSCROLL_SPEED_OPTIONS = [0.5, 0.75, 1, 1.5, 2];
+// Autoscroll speed is a multiplier on the base rate (1 ≈ one lyric line every
+// ~BASE_MS_PER_LINE). Discrete steps you can tap by number — no slider.
+const AUTOSCROLL_SPEED_OPTIONS = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2];
 const BASE_MS_PER_LINE = 2600;
 const MIN_AUTOSCROLL_DURATION_MS = 12000;
 
-function getAutoscrollLabel(state?: LyricsAutoscrollState) {
-  if (!state) return null;
-  if (state.mode === "follow") return "Autoscroll on";
-  if (state.mode === "manual") return "Autoscroll paused";
-  return "Autoscroll off";
+function autoscrollSpeedLabel(speed: number) {
+  return speed.toString().replace(/^0/, "");
 }
 
 function PlayerLyricsPanelInner({
@@ -62,6 +64,7 @@ function PlayerLyricsPanelInner({
   onToggleExpanded,
   autoscrollEnabled = false,
   autoscrollActive = false,
+  isRecording = false,
   autoscrollSpeedMultiplier = 1,
   onToggleAutoscroll,
   onAutoscrollInterrupted,
@@ -70,8 +73,9 @@ function PlayerLyricsPanelInner({
   const [uncontrolledExpanded, setUncontrolledExpanded] = useState(defaultExpanded);
   const [zoom, setZoom] = useState(1);
   const [zoomOpen, setZoomOpen] = useState(false);
-  const [autoscrollMenuOpen, setAutoscrollMenuOpen] = useState(false);
-  const autoscrollLabel = getAutoscrollLabel(autoscrollState);
+  // Reveals the numeric speed row; auto-closes on pick or when a take starts.
+  const [speedOpen, setSpeedOpen] = useState(false);
+  const [chordsOn, setChordsOn] = useState(true);
   const isRecordingVariant = variant === "recording";
   const isExpanded = expanded ?? uncontrolledExpanded;
   const scrollRef = useRef<ScrollView>(null);
@@ -81,6 +85,12 @@ function PlayerLyricsPanelInner({
   // scroll interval before it ever fires.
   const onToggleAutoscrollRef = useRef(onToggleAutoscroll);
   onToggleAutoscrollRef.current = onToggleAutoscroll;
+  const onAutoscrollInterruptedRef = useRef(onAutoscrollInterrupted);
+  onAutoscrollInterruptedRef.current = onAutoscrollInterrupted;
+  const prevRecordingRef = useRef(false);
+  // True while a finger is actively dragging the lyrics — lets a manual scroll
+  // coexist with autoscroll instead of pausing it.
+  const isDraggingRef = useRef(false);
   const [viewportHeight, setViewportHeight] = useState(0);
   const [contentHeight, setContentHeight] = useState(0);
   const canAutoscroll = isExpanded && contentHeight > viewportHeight + 12;
@@ -98,7 +108,15 @@ function PlayerLyricsPanelInner({
     return firstMeaningfulLine ?? "";
   }, [summaryText, text]);
 
-  const showChart = !!chordLines && chordLines.some((line) => line.chords.length > 0);
+  const hasChords = !!chordLines && chordLines.some((line) => line.chords.length > 0);
+  const showChart = chordsOn && hasChords;
+
+  // One play/pause button, one meaning everywhere: is it scrolling right now?
+  // Works identically idle (testing the speed) or mid-take (pausing/resuming) —
+  // autoscrollActive is simply "not take-paused", so this needs no separate
+  // "armed" or "testing" state.
+  const isScrolling = autoscrollEnabled && autoscrollActive;
+  const speedRowVisible = isRecordingVariant && isExpanded && canAutoscroll && speedOpen;
 
   if (!text.trim()) return null;
 
@@ -118,10 +136,6 @@ function PlayerLyricsPanelInner({
     currentOffsetRef.current = event.nativeEvent.contentOffset.y;
   }
 
-  function handleAutoscrollToggle() {
-    onToggleAutoscroll?.(!autoscrollEnabled);
-  }
-
   useEffect(() => {
     if (!isExpanded) {
       currentOffsetRef.current = 0;
@@ -129,15 +143,35 @@ function PlayerLyricsPanelInner({
     }
   }, [isExpanded]);
 
+  // Rewind to the top when a take starts, and close the speed row — each take
+  // begins fresh; pause/resume mid-take keeps your place.
   useEffect(() => {
-    if (autoscrollEnabled) {
+    if (isRecording && !prevRecordingRef.current) {
+      currentOffsetRef.current = 0;
+      scrollRef.current?.scrollTo({ y: 0, animated: false });
+      setSpeedOpen(false);
+    }
+    prevRecordingRef.current = !!isRecording;
+  }, [isRecording]);
+
+  // Rewind when the lyric text itself changes (e.g. switching versions).
+  useEffect(() => {
+    currentOffsetRef.current = 0;
+    scrollRef.current?.scrollTo({ y: 0, animated: false });
+  }, [text]);
+
+  // Player variant: rewind whenever autoscroll is switched on (its original
+  // behaviour). The recording variant rewinds on take start instead, so that
+  // pause/resume mid-take keeps your place.
+  useEffect(() => {
+    if (!isRecordingVariant && autoscrollEnabled) {
       currentOffsetRef.current = 0;
       scrollRef.current?.scrollTo({ y: 0, animated: false });
     }
-  }, [autoscrollEnabled, text]);
+  }, [autoscrollEnabled, isRecordingVariant]);
 
   useEffect(() => {
-    if (!isExpanded || !canAutoscroll || !autoscrollEnabled || !autoscrollActive) {
+    if (!isExpanded || !canAutoscroll || !isScrolling) {
       return;
     }
 
@@ -146,6 +180,14 @@ function PlayerLyricsPanelInner({
       const now = Date.now();
       const elapsedMs = now - lastTick;
       lastTick = now;
+
+      // A manual scroll doesn't pause autoscroll — but skip the programmatic
+      // scrollTo while a finger is down so it doesn't fight the drag. Resetting
+      // lastTick every tick means the moment the drag ends, scrolling resumes
+      // from wherever it was left with no catch-up jump.
+      if (isDraggingRef.current) {
+        return;
+      }
 
       const nextOffset = Math.min(
         maxOffset,
@@ -156,18 +198,19 @@ function PlayerLyricsPanelInner({
       scrollRef.current?.scrollTo({ y: nextOffset, animated: false });
 
       if (nextOffset >= maxOffset) {
-        onToggleAutoscrollRef.current?.(false);
+        if (isRecordingVariant) onAutoscrollInterruptedRef.current?.();
+        else onToggleAutoscrollRef.current?.(false);
       }
     }, 50);
 
     return () => clearInterval(intervalId);
   }, [
-    autoscrollActive,
-    autoscrollEnabled,
+    isScrolling,
     autoscrollSpeedMultiplier,
     canAutoscroll,
     contentHeight,
     isExpanded,
+    isRecordingVariant,
     maxOffset,
     viewportHeight,
   ]);
@@ -182,8 +225,21 @@ function PlayerLyricsPanelInner({
             isExpanded ? appStyles.recordingLyricsHeaderExpanded : null,
           ]}
         >
-          <Pressable style={appStyles.recordingLyricsTitleArea} onPress={handleToggle} hitSlop={6}>
-            <Text style={[appStyles.playerLyricsTitle, appStyles.recordingLyricsTitle]}>Lyrics</Text>
+          <Pressable
+            style={isExpanded ? null : appStyles.recordingLyricsTitleArea}
+            onPress={handleToggle}
+            hitSlop={6}
+          >
+            <Text
+              style={[
+                appStyles.playerLyricsTitle,
+                appStyles.recordingLyricsTitle,
+                isExpanded ? appStyles.recordingLyricsTitleExpanded : null,
+              ]}
+              numberOfLines={1}
+            >
+              Lyrics
+            </Text>
             {!isExpanded ? (
               <Text style={[appStyles.playerLyricsMeta, appStyles.recordingLyricsMeta]}>
                 {versionLabel} • {updatedAtLabel}
@@ -191,36 +247,62 @@ function PlayerLyricsPanelInner({
             ) : null}
           </Pressable>
 
+          {isExpanded && hasChords ? (
+            <Pressable
+              style={appStyles.recordingLyricsZoomBtn}
+              onPress={() => setChordsOn((on) => !on)}
+              hitSlop={6}
+              accessibilityLabel={chordsOn ? "Hide chords" : "Show chords"}
+            >
+              <MaterialCommunityIcons name={chordsOn ? "music" : "music-off"} size={16} color="#84736f" />
+            </Pressable>
+          ) : null}
+
+          {isExpanded ? <View style={appStyles.recordingLyricsHeaderSpacer} /> : null}
+
           {isExpanded ? (
             <View style={appStyles.recordingLyricsHeaderActions}>
               {canAutoscroll ? (
-                <Pressable
-                  style={[
-                    appStyles.recordingLyricsHeaderChip,
-                    autoscrollEnabled ? appStyles.recordingLyricsHeaderChipActive : null,
-                  ]}
-                  onPress={() => setAutoscrollMenuOpen((open) => !open)}
-                  hitSlop={6}
-                >
-                  <Ionicons
-                    name="play"
-                    size={12}
-                    color={autoscrollEnabled ? "#ffffff" : "#824f3f"}
-                  />
-                  <Text
+                <>
+                  {/* The whole control: is it scrolling right now? Same single tap
+                   * idle (test the speed) or mid-take (pause/resume). */}
+                  <Pressable
                     style={[
-                      appStyles.recordingLyricsHeaderChipText,
-                      autoscrollEnabled ? appStyles.recordingLyricsHeaderChipTextActive : null,
+                      appStyles.recordingLyricsZoomBtn,
+                      isScrolling ? appStyles.recordingLyricsZoomBtnActive : null,
                     ]}
+                    onPress={() =>
+                      autoscrollEnabled ? onAutoscrollInterrupted?.() : onToggleAutoscroll?.(true)
+                    }
+                    hitSlop={6}
+                    accessibilityLabel={isScrolling ? "Pause autoscroll" : "Start autoscroll"}
                   >
-                    {autoscrollEnabled ? `${autoscrollSpeedMultiplier}×` : "Auto"}
-                  </Text>
-                  <Ionicons
-                    name="chevron-down"
-                    size={12}
-                    color={autoscrollEnabled ? "#ffffff" : "#a89994"}
-                  />
-                </Pressable>
+                    <Ionicons
+                      name={isScrolling ? "pause" : "play"}
+                      size={16}
+                      color={isScrolling ? "#824f3f" : "#84736f"}
+                    />
+                  </Pressable>
+
+                  <Pressable
+                    style={[
+                      appStyles.recordingLyricsSpeedBtn,
+                      speedOpen ? appStyles.recordingLyricsZoomBtnActive : null,
+                    ]}
+                    onPress={() => setSpeedOpen((open) => !open)}
+                    hitSlop={6}
+                    accessibilityLabel="Autoscroll speed"
+                  >
+                    <Text
+                      style={[
+                        appStyles.recordingLyricsSpeedBtnText,
+                        speedOpen ? appStyles.recordingLyricsSpeedBtnTextActive : null,
+                      ]}
+                    >
+                      {autoscrollSpeedLabel(autoscrollSpeedMultiplier)}×
+                    </Text>
+                  </Pressable>
+                </>
               ) : null}
 
               <Pressable
@@ -246,61 +328,55 @@ function PlayerLyricsPanelInner({
           </Pressable>
         </View>
 
-        {isExpanded && autoscrollMenuOpen ? (
-          <>
-            <Pressable
-              style={appStyles.recordingLyricsMenuOverlay}
-              onPress={() => setAutoscrollMenuOpen(false)}
-            />
-            <View style={appStyles.recordingLyricsMenu}>
-              {[null, ...AUTOSCROLL_SPEED_OPTIONS].map((speed) => {
-                const isOff = speed === null;
-                const isActive = isOff
-                  ? !autoscrollEnabled
-                  : autoscrollEnabled && Math.abs(speed - autoscrollSpeedMultiplier) < 0.001;
-                return (
-                  <Pressable
-                    key={isOff ? "off" : speed}
-                    style={({ pressed }) => [
-                      appStyles.recordingLyricsMenuItem,
-                      pressed ? { backgroundColor: "#F4F1ED" } : null,
+        {speedRowVisible ? (
+          <View style={appStyles.recordingLyricsSpeedRow}>
+            {AUTOSCROLL_SPEED_OPTIONS.map((speed) => {
+              const active = Math.abs(speed - autoscrollSpeedMultiplier) < 0.001;
+              return (
+                <Pressable
+                  key={speed}
+                  style={[
+                    appStyles.recordingLyricsSpeedRowItem,
+                    active ? appStyles.recordingLyricsSpeedRowItemActive : null,
+                  ]}
+                  onPress={() => {
+                    onSelectAutoscrollSpeedMultiplier?.(speed);
+                    setSpeedOpen(false);
+                  }}
+                  hitSlop={4}
+                >
+                  <Text
+                    style={[
+                      appStyles.recordingLyricsSpeedRowText,
+                      active ? appStyles.recordingLyricsSpeedRowTextActive : null,
                     ]}
-                    onPress={() => {
-                      if (isOff) {
-                        onToggleAutoscroll?.(false);
-                      } else {
-                        onSelectAutoscrollSpeedMultiplier?.(speed);
-                        if (!autoscrollEnabled) onToggleAutoscroll?.(true);
-                      }
-                      setAutoscrollMenuOpen(false);
-                    }}
                   >
-                    <Text
-                      style={[
-                        appStyles.recordingLyricsMenuItemText,
-                        isActive ? appStyles.recordingLyricsMenuItemTextActive : null,
-                      ]}
-                    >
-                      {isOff ? "Off" : `${speed}×`}
-                    </Text>
-                    {isActive ? <Ionicons name="checkmark" size={15} color="#824f3f" /> : null}
-                  </Pressable>
-                );
-              })}
-            </View>
-          </>
+                    {autoscrollSpeedLabel(speed)}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
         ) : null}
 
         {isExpanded ? (
           <View style={appStyles.recordingLyricsBodyExpanded}>
             <ScrollView
               ref={scrollRef}
-              style={[appStyles.playerLyricsScroll, appStyles.recordingLyricsScroll]}
+              style={appStyles.recordingLyricsScroll}
               contentContainerStyle={appStyles.recordingLyricsScrollContent}
               onLayout={handleLyricsLayout}
               onContentSizeChange={(_, height) => setContentHeight(height)}
               onScroll={handleLyricsScroll}
-              onScrollBeginDrag={autoscrollEnabled ? onAutoscrollInterrupted : undefined}
+              onScrollBeginDrag={() => {
+                isDraggingRef.current = true;
+              }}
+              onScrollEndDrag={() => {
+                isDraggingRef.current = false;
+              }}
+              onMomentumScrollEnd={() => {
+                isDraggingRef.current = false;
+              }}
               nestedScrollEnabled
               showsVerticalScrollIndicator
               persistentScrollbar

@@ -103,7 +103,7 @@ export function useRecordingScreenModel() {
   const [guideMonitoringLeadInMs, setGuideMonitoringLeadInMs] = useState(0);
   const [overdubReviewLocked, setOverdubReviewLocked] = useState(false);
   const [lyricsExpanded, setLyricsExpanded] = useState(false);
-  const [lyricsAutoscrollMode, setLyricsAutoscrollMode] = useState<"off" | "follow" | "manual">("follow");
+  const [lyricsAutoscrollMode, setLyricsAutoscrollMode] = useState<"off" | "follow" | "manual">("off");
   const [lyricsAutoscrollSpeedMultiplier, setLyricsAutoscrollSpeedMultiplier] = useState(1);
   const [saveDestinationOverride, setSaveDestinationOverride] = useState<SaveDestination | null>(null);
   const [saveDestinationPickerVisible, setSaveDestinationPickerVisible] = useState(false);
