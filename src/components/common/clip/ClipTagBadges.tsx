@@ -65,9 +65,8 @@ export function ClipTagBadges({
           ))}
           {showAddButton ? (
             tags.length === 0 ? (
-              <View style={localStyles.addChip}>
-                <Ionicons name="add" size={12} color="#84736f" />
-                <Text style={localStyles.addChipText}>Tag</Text>
+              <View style={localStyles.addTagIcon}>
+                <Ionicons name="pricetag-outline" size={15} color="#a89994" />
               </View>
             ) : (
               <View style={styles.clipCardAddTagBtn}>
@@ -110,21 +109,10 @@ const localStyles = StyleSheet.create({
     flexWrap: "wrap",
     gap: 6,
   },
-  addChip: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 2,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderStyle: "dashed",
-    borderColor: "#cdbfb6",
-  },
-  addChipText: {
-    fontFamily: "PlusJakartaSans_600SemiBold",
-    fontSize: 11,
-    color: "#84736f",
+  // Empty state: a quiet tag glyph — subtle, but enough to signal "you can tag this".
+  addTagIcon: {
+    paddingHorizontal: 2,
+    paddingVertical: 2,
   },
   suggestChip: {
     flexDirection: "row",
