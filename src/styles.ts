@@ -2301,6 +2301,9 @@ export const styles = StyleSheet.create({
   recordingContentBodyCollapsedLyrics: {
     justifyContent: "space-between",
   },
+  recordingContentBodyNoLyrics: {
+    justifyContent: "center",
+  },
   recordingBluetoothWarning: {
     backgroundColor: "#F4F1ED",
     borderRadius: 4,

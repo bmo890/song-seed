@@ -87,7 +87,13 @@ export function RecordingBody({
       <View
         style={[
           styles.recordingContentBody,
-          hasProjectLyrics && !lyricsExpanded ? styles.recordingContentBodyCollapsedLyrics : null,
+          hasProjectLyrics
+            ? !lyricsExpanded
+              ? styles.recordingContentBodyCollapsedLyrics
+              : null
+            : // No lyrics: center the reel block in the space between the header and
+              // the (now taller) metronome/count-in/input dock.
+              styles.recordingContentBodyNoLyrics,
         ]}
       >
         {isBluetoothMonitoringOutput ? (
