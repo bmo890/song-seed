@@ -10,7 +10,6 @@ import { useStore } from "../../state/useStore";
 import { appActions } from "../../state/actions";
 import { getLatestLyricsVersion, lyricsDocumentToText } from "../../lyrics";
 import { buildLyricsTextFromNote } from "../../notepad";
-import { formatDate } from "../../utils";
 import { Button } from "../common/Button";
 import { AppAlert } from "../common/AppAlert";
 import { NotePickerSheet } from "../modals/NotePickerSheet";
@@ -23,6 +22,18 @@ import type { Note } from "../../types";
 type LyricsVersionsPanelProps = {
   projectIdea: SongIdea;
 };
+
+/** Humanized card date — "Today · 1:14 AM", "Yesterday · …", "3 days ago", "Jun 28". */
+function formatCardDate(ts: number): string {
+  const date = new Date(ts);
+  const startOf = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  const days = Math.round((startOf(new Date()) - startOf(date)) / 86400000);
+  const time = date.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  if (days <= 0) return `Today · ${time}`;
+  if (days === 1) return `Yesterday · ${time}`;
+  if (days < 7) return `${days} days ago`;
+  return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
 
 export function LyricsVersionsPanel({ projectIdea }: LyricsVersionsPanelProps) {
   const navigation = useNavigation<any>();
@@ -190,6 +201,7 @@ export function LyricsVersionsPanel({ projectIdea }: LyricsVersionsPanelProps) {
         </View>
       ) : versions.length > 0 ? (
         <View style={panelStyles.controlRow}>
+          <Text style={panelStyles.sectionLabel}>{`Versions · ${versions.length}`}</Text>
           <Pressable
             style={({ pressed }) => [panelStyles.addBtn, pressed ? styles.pressDown : null]}
             onPress={() => setCreateVisible(true)}
@@ -226,22 +238,21 @@ export function LyricsVersionsPanel({ projectIdea }: LyricsVersionsPanelProps) {
           const isSelected = selectedVersionIds.includes(version.id);
           const versionNumber = versions.findIndex((item) => item.id === version.id) + 1;
           const previewText = lyricsDocumentToText(version.document);
+          const lineCount = version.document.lines.filter((line) => line.text.trim().length > 0).length;
+          const hasChords = versionHasChords(version);
 
           return (
             <View
               key={version.id}
               style={[
                 styles.card,
-                styles.lyricsTimelineCard,
                 styles.songDetailTabPanelCard,
+                isLatest ? panelStyles.cardCurrent : null,
                 isSelected ? styles.listCardSelected : null,
               ]}
             >
               <Pressable
-                style={({ pressed }) => [
-                  styles.lyricsTimelineCardPressable,
-                  pressed && !selectionMode ? styles.pressDown : null,
-                ]}
+                style={({ pressed }) => (pressed && !selectionMode ? styles.pressDown : null)}
                 onLongPress={() => startSelection(version.id)}
                 delayLongPress={250}
                 onPress={() => {
@@ -252,34 +263,56 @@ export function LyricsVersionsPanel({ projectIdea }: LyricsVersionsPanelProps) {
                   openVersion(version.id);
                 }}
               >
-                <View style={styles.lyricsVersionHeader}>
-                  <View style={styles.lyricsVersionHeaderRow}>
-                    <Text style={styles.cardTitle}>{`Version ${versionNumber}`}</Text>
-                    {isLatest ? (
-                      <Text style={[styles.badge, styles.badgeCurrent]}>CURRENT</Text>
-                    ) : (
-                      <View style={styles.lyricsVersionBadgePlaceholder} />
-                    )}
+                <View style={panelStyles.cardTop}>
+                  <View style={[panelStyles.vnum, isLatest ? panelStyles.vnumCur : null]}>
+                    <Text style={[panelStyles.vnumText, isLatest ? panelStyles.vnumTextCur : null]}>
+                      {versionNumber}
+                    </Text>
                   </View>
-                  <View style={styles.lyricsVersionHeaderRow}>
-                    <Text style={styles.cardMeta}>{formatDate(version.updatedAt)}</Text>
-                    <Pressable
-                      style={styles.lyricsVersionToggleBtn}
-                      hitSlop={6}
-                      onPress={(event) => {
-                        event.stopPropagation();
-                        toggleExpanded(version.id);
-                      }}
-                    >
-                      <Ionicons name={isExpanded ? "chevron-up" : "chevron-down"} size={16} color="#84736f" />
-                    </Pressable>
+                  <View style={panelStyles.cardBody}>
+                    <View style={panelStyles.titleRow}>
+                      <Text style={panelStyles.title} numberOfLines={1}>{`Version ${versionNumber}`}</Text>
+                      {isLatest ? <Text style={panelStyles.currentChip}>CURRENT</Text> : null}
+                      <Pressable
+                        style={({ pressed }) => [panelStyles.chev, pressed ? styles.pressDown : null]}
+                        hitSlop={6}
+                        onPress={(event) => {
+                          event.stopPropagation();
+                          toggleExpanded(version.id);
+                        }}
+                        accessibilityLabel={isExpanded ? "Collapse" : "Expand"}
+                      >
+                        <Ionicons name={isExpanded ? "chevron-up" : "chevron-down"} size={15} color="#84736f" />
+                      </Pressable>
+                    </View>
+
+                    <View style={panelStyles.metaRow}>
+                      <Text style={panelStyles.meta}>{formatCardDate(version.updatedAt)}</Text>
+                      <Text style={panelStyles.metaDot}>·</Text>
+                      <Text style={panelStyles.meta}>{`${lineCount} ${lineCount === 1 ? "line" : "lines"}`}</Text>
+                      {hasChords ? (
+                        <>
+                          <Text style={panelStyles.metaDot}>·</Text>
+                          <View style={panelStyles.chordMeta}>
+                            <Ionicons name="musical-notes" size={12} color={colors.primary} />
+                            <Text style={panelStyles.chordMetaText}>chords</Text>
+                          </View>
+                        </>
+                      ) : null}
+                    </View>
+
+                    {!isExpanded ? (
+                      <Text style={panelStyles.preview} numberOfLines={2}>
+                        {previewText || "No lyrics in this version."}
+                      </Text>
+                    ) : null}
                   </View>
                 </View>
               </Pressable>
 
               {isExpanded ? (
-                <View style={styles.lyricsPreviewWrap}>
-                  {versionHasChords(version) ? (
+                <View style={panelStyles.expanded}>
+                  {hasChords ? (
                     <View style={panelStyles.cardViewToggle}>
                       <LyricsChordsToggle
                         value={chordVersionIds.includes(version.id) ? "chords" : "lyrics"}
@@ -293,7 +326,7 @@ export function LyricsVersionsPanel({ projectIdea }: LyricsVersionsPanelProps) {
                       />
                     </View>
                   ) : null}
-                  {chordVersionIds.includes(version.id) && versionHasChords(version) ? (
+                  {chordVersionIds.includes(version.id) && hasChords ? (
                     <ChordChart lines={version.document.lines} editable={false} />
                   ) : (
                     <Text style={styles.lyricsPreviewText}>{previewText || "No lyrics in this version."}</Text>
@@ -358,13 +391,20 @@ const panelStyles = StyleSheet.create({
     alignSelf: "flex-start",
     marginBottom: 12,
   },
-  // Top control row: a single accented (+) that opens the New version sheet
-  // (new from current, blank, or from Lyrics Pad).
+  // Section header: a quiet "Versions · N" label that anchors the accented (+),
+  // which opens the New version sheet (new from current, blank, or Lyrics Pad).
   controlRow: {
     flexDirection: "row",
-    justifyContent: "flex-end",
+    justifyContent: "space-between",
     alignItems: "center",
     marginBottom: spacing.sm,
+  },
+  sectionLabel: {
+    fontFamily: "PlusJakartaSans_600SemiBold",
+    fontSize: 11,
+    letterSpacing: 1,
+    textTransform: "uppercase",
+    color: colors.textMuted,
   },
   addBtn: {
     width: 40,
@@ -373,5 +413,106 @@ const panelStyles = StyleSheet.create({
     backgroundColor: colors.primary,
     alignItems: "center",
     justifyContent: "center",
+  },
+
+  // ── Version card ────────────────────────────────────────────────────────────
+  cardCurrent: {
+    borderLeftWidth: 3,
+    borderLeftColor: colors.primary,
+  },
+  cardTop: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 10,
+  },
+  vnum: {
+    width: 30,
+    height: 30,
+    borderRadius: 8,
+    backgroundColor: "#F2ECE4",
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 1,
+  },
+  vnumCur: {
+    backgroundColor: "#F2E4DF",
+  },
+  vnumText: {
+    fontFamily: "PlusJakartaSans_700Bold",
+    fontSize: 13,
+    color: "#6b5b54",
+    fontVariant: ["tabular-nums"],
+  },
+  vnumTextCur: {
+    color: "#824f3f",
+  },
+  cardBody: {
+    flex: 1,
+  },
+  titleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  title: {
+    flex: 1,
+    fontFamily: "PlayfairDisplay_600SemiBold",
+    fontSize: 18,
+    color: "#1C1C19",
+  },
+  currentChip: {
+    fontFamily: "PlusJakartaSans_700Bold",
+    fontSize: 9,
+    letterSpacing: 0.6,
+    color: "#824f3f",
+    backgroundColor: "#F2E4DF",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: radii.round,
+    overflow: "hidden",
+  },
+  chev: {
+    width: 30,
+    height: 30,
+    borderRadius: radii.round,
+    backgroundColor: "#F4EEE7",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  metaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 6,
+  },
+  meta: {
+    fontFamily: "PlusJakartaSans_400Regular",
+    fontSize: 12,
+    color: "#a89994",
+    fontVariant: ["tabular-nums"],
+  },
+  metaDot: {
+    fontSize: 12,
+    color: "#d8cabf",
+  },
+  chordMeta: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+  },
+  chordMetaText: {
+    fontFamily: "PlusJakartaSans_500Medium",
+    fontSize: 12,
+    color: colors.primary,
+  },
+  preview: {
+    fontFamily: "PlayfairDisplay_400Regular",
+    fontSize: 14,
+    lineHeight: 21,
+    color: "#9a8a82",
+    marginTop: 10,
+  },
+  expanded: {
+    marginTop: 12,
   },
 });
