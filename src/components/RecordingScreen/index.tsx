@@ -11,11 +11,17 @@ import { RecordingBottomDock } from "./RecordingBottomDock";
 import { RecordingSettingsModal } from "./RecordingSettingsModal";
 import { RecordingMetronomeSheet } from "./RecordingMetronomeSheet";
 import { SaveDestinationPickerSheet } from "../modals/SaveDestinationPickerSheet";
+import { METRONOME_METER_PRESETS } from "../../metronome";
 import { useRecordingScreenModel } from "./hooks/useRecordingScreenModel";
 
 export function RecordingScreen() {
   const navigation = useNavigation();
   const screen = useRecordingScreenModel();
+  const meterLabel =
+    METRONOME_METER_PRESETS.find((p) => p.id === screen.metronome.meterId)?.label ?? "";
+  const metronomeSummary = `${screen.metronome.bpm} · ${meterLabel}${
+    screen.metronome.countInBars > 0 ? ` · count ${screen.metronome.countInBars}` : ""
+  }`;
 
   return (
     <SafeAreaView style={styles.screen}>
@@ -25,6 +31,7 @@ export function RecordingScreen() {
           title={screen.recordingIdea?.title || "Recording"}
           titleIsPlaceholder={screen.headerTitlePlaceholder}
           controlsDisabled={screen.recordingControlsDisabled}
+          collapsed={screen.lyricsExpanded}
           onBack={screen.confirmDiscardAndExit}
           onMinimize={screen.minimizeRecording}
           onOpenSettings={() => screen.setSettingsVisible(true)}
@@ -57,6 +64,9 @@ export function RecordingScreen() {
           countInCurrentBeat={screen.metronome.currentBeatInBar}
           countInBeatsPerBar={screen.metronome.meterPreset.pulsesPerBar}
           waveformData={screen.recording.liveWaveformData ?? screen.recording.analysisData}
+          metronomeEnabled={screen.recordingMetronomeEnabled}
+          metronomeSummary={metronomeSummary}
+          onOpenMetronome={() => screen.setMetronomeSheetVisible(true)}
           onToggleLyricsExpanded={screen.setLyricsExpanded}
           onToggleLyricsAutoscroll={(enabled) =>
             screen.setLyricsAutoscrollMode(enabled ? "follow" : "off")
@@ -67,23 +77,13 @@ export function RecordingScreen() {
         />
 
         <RecordingBottomDock
-          metronomeEnabled={screen.recordingMetronomeEnabled}
-          metronomeControlsDisabled={screen.recordingControlsDisabled}
+          compact={screen.lyricsExpanded}
           metronome={{
-            isNativeAvailable: screen.metronome.isNativeAvailable,
-            bpm: screen.metronome.bpm,
-            meterId: screen.metronome.meterId,
-            countInBars: screen.metronome.countInBars,
             beatToken: screen.metronome.beatCount,
             beatInBar: screen.metronome.currentBeatInBar,
             isCountIn: screen.metronome.isCountIn,
             isRunning: screen.metronome.isRunning,
-            onToggleEnabled: screen.toggleMetronomePreview,
-            onOpenSheet: () => screen.setMetronomeSheetVisible(true),
-            onSelectCountInBars: screen.metronome.setCountInBarsValue,
           }}
-          onOpenInput={() => screen.setSettingsVisible(true)}
-          inputLabel={screen.recordingInputLabel}
           recording={{
             isRecording: screen.recording.isRecording,
             isPaused: screen.recording.isPaused,
@@ -153,8 +153,18 @@ export function RecordingScreen() {
         onClose={() => screen.setMetronomeSheetVisible(false)}
         disabled={screen.recordingControlsDisabled}
         isNativeAvailable={screen.metronome.isNativeAvailable}
+        enabled={screen.recordingMetronomeEnabled}
+        previewPlaying={
+          screen.metronome.isRunning &&
+          !screen.metronome.isCountIn &&
+          !screen.recording.isRecording &&
+          !screen.recording.isPaused
+        }
+        onToggleEnabled={screen.setMetronomeEnabledForTake}
+        onTogglePreview={screen.toggleMetronomeSound}
         bpm={screen.metronome.bpm}
         meterId={screen.metronome.meterId}
+        countInBars={screen.metronome.countInBars}
         outputs={screen.metronome.outputs}
         beepLevel={screen.metronome.beepLevel}
         hapticLevel={screen.metronome.hapticLevel}
@@ -163,6 +173,7 @@ export function RecordingScreen() {
         onSetBpmValue={screen.metronome.setBpmValue}
         onTapTempo={screen.metronome.tapTempo}
         onSelectMeter={screen.metronome.setMeterIdValue}
+        onSelectCountInBars={screen.metronome.setCountInBarsValue}
         onToggleOutput={screen.metronome.toggleOutput}
         onChangeBeepLevel={screen.metronome.setBeepLevelValue}
         onChangeHapticLevel={screen.metronome.setHapticLevelValue}

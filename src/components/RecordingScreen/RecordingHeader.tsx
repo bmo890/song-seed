@@ -8,6 +8,9 @@ type RecordingHeaderProps = {
   title: string;
   titleIsPlaceholder: boolean;
   controlsDisabled: boolean;
+  /** Slim down to just the nav row (drop eyebrow + title) — used when the lyrics
+   * panel is expanded so the lyrics get the reclaimed height. */
+  collapsed?: boolean;
   onBack: () => void;
   onMinimize: () => void;
   onOpenSettings: () => void;
@@ -18,12 +21,13 @@ export function RecordingHeader({
   title,
   titleIsPlaceholder,
   controlsDisabled,
+  collapsed = false,
   onBack,
   onMinimize,
   onOpenSettings,
 }: RecordingHeaderProps) {
   return (
-    <View style={localStyles.zone}>
+    <View style={[localStyles.zone, collapsed ? localStyles.zoneCollapsed : null]}>
       <View style={localStyles.topRow}>
         <Pressable
           style={({ pressed }) => [localStyles.backBtn, pressed ? localStyles.pressDown : null]}
@@ -61,19 +65,21 @@ export function RecordingHeader({
         </View>
       </View>
 
-      {eyebrow ? (
+      {!collapsed && eyebrow ? (
         <View style={localStyles.eyebrowRow}>
           <View style={localStyles.eyebrowDot} />
           <Text style={localStyles.eyebrowText}>{eyebrow}</Text>
         </View>
       ) : null}
 
-      <Text
-        style={titleIsPlaceholder ? localStyles.titlePlaceholder : localStyles.title}
-        numberOfLines={1}
-      >
-        {title}
-      </Text>
+      {!collapsed ? (
+        <Text
+          style={titleIsPlaceholder ? localStyles.titlePlaceholder : localStyles.title}
+          numberOfLines={1}
+        >
+          {title}
+        </Text>
+      ) : null}
     </View>
   );
 }
@@ -82,6 +88,10 @@ const localStyles = StyleSheet.create({
   zone: {
     gap: 6,
     marginBottom: 12,
+  },
+  zoneCollapsed: {
+    gap: 0,
+    marginBottom: 6,
   },
   topRow: {
     flexDirection: "row",

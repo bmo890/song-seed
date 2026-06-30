@@ -14,6 +14,7 @@ import { styles as appStyles } from "../../styles";
 import { colors, radii, spacing } from "../../design/tokens";
 import { LyricsAutoscrollState, LyricsLine } from "../../types";
 import { ChordChartLines } from "../LyricsVersionScreen/components/chords/ChordChart";
+import { ChordZoomBar } from "../LyricsVersionScreen/components/chords/ChordZoomBar";
 
 type Props = {
   text: string;
@@ -37,7 +38,7 @@ type Props = {
   onSelectAutoscrollSpeedMultiplier?: (multiplier: number) => void;
 };
 
-const AUTOSCROLL_SPEED_OPTIONS = [1, 1.25, 1.5, 2];
+const AUTOSCROLL_SPEED_OPTIONS = [0.5, 0.75, 1, 1.5, 2];
 const BASE_MS_PER_LINE = 2600;
 const MIN_AUTOSCROLL_DURATION_MS = 12000;
 
@@ -67,11 +68,19 @@ function PlayerLyricsPanelInner({
   onSelectAutoscrollSpeedMultiplier,
 }: Props) {
   const [uncontrolledExpanded, setUncontrolledExpanded] = useState(defaultExpanded);
+  const [zoom, setZoom] = useState(1);
+  const [zoomOpen, setZoomOpen] = useState(false);
+  const [autoscrollMenuOpen, setAutoscrollMenuOpen] = useState(false);
   const autoscrollLabel = getAutoscrollLabel(autoscrollState);
   const isRecordingVariant = variant === "recording";
   const isExpanded = expanded ?? uncontrolledExpanded;
   const scrollRef = useRef<ScrollView>(null);
   const currentOffsetRef = useRef(0);
+  // Keep the latest callback without making it an effect dependency — otherwise
+  // the per-tick re-renders during recording would tear down and recreate the
+  // scroll interval before it ever fires.
+  const onToggleAutoscrollRef = useRef(onToggleAutoscroll);
+  onToggleAutoscrollRef.current = onToggleAutoscroll;
   const [viewportHeight, setViewportHeight] = useState(0);
   const [contentHeight, setContentHeight] = useState(0);
   const canAutoscroll = isExpanded && contentHeight > viewportHeight + 12;
@@ -147,7 +156,7 @@ function PlayerLyricsPanelInner({
       scrollRef.current?.scrollTo({ y: nextOffset, animated: false });
 
       if (nextOffset >= maxOffset) {
-        onToggleAutoscroll?.(false);
+        onToggleAutoscrollRef.current?.(false);
       }
     }, 50);
 
@@ -160,30 +169,74 @@ function PlayerLyricsPanelInner({
     contentHeight,
     isExpanded,
     maxOffset,
-    onToggleAutoscroll,
     viewportHeight,
   ]);
 
   if (isRecordingVariant) {
     return (
-      <View style={appStyles.recordingLyricsPanel}>
-        <View style={[appStyles.playerLyricsHeader, appStyles.recordingLyricsHeader]}>
-          <View style={appStyles.playerLyricsHeaderText}>
+      <View style={[appStyles.recordingLyricsPanel, isExpanded ? appStyles.recordingLyricsPanelExpanded : null]}>
+        <View
+          style={[
+            appStyles.playerLyricsHeader,
+            appStyles.recordingLyricsHeader,
+            isExpanded ? appStyles.recordingLyricsHeaderExpanded : null,
+          ]}
+        >
+          <Pressable style={appStyles.recordingLyricsTitleArea} onPress={handleToggle} hitSlop={6}>
             <Text style={[appStyles.playerLyricsTitle, appStyles.recordingLyricsTitle]}>Lyrics</Text>
-            <Text style={[appStyles.playerLyricsMeta, appStyles.recordingLyricsMeta]}>
-              {versionLabel} • {updatedAtLabel}
-            </Text>
-            {autoscrollLabel && canAutoscroll ? (
-              <Pressable
-                style={appStyles.recordingLyricsAutoscrollBtn}
-                onPress={handleAutoscrollToggle}
-              >
-                <Text style={[appStyles.playerLyricsSyncMeta, appStyles.recordingLyricsSyncMeta]}>
-                  {autoscrollLabel}
-                </Text>
-              </Pressable>
+            {!isExpanded ? (
+              <Text style={[appStyles.playerLyricsMeta, appStyles.recordingLyricsMeta]}>
+                {versionLabel} • {updatedAtLabel}
+              </Text>
             ) : null}
-          </View>
+          </Pressable>
+
+          {isExpanded ? (
+            <View style={appStyles.recordingLyricsHeaderActions}>
+              {canAutoscroll ? (
+                <Pressable
+                  style={[
+                    appStyles.recordingLyricsHeaderChip,
+                    autoscrollEnabled ? appStyles.recordingLyricsHeaderChipActive : null,
+                  ]}
+                  onPress={() => setAutoscrollMenuOpen((open) => !open)}
+                  hitSlop={6}
+                >
+                  <Ionicons
+                    name="play"
+                    size={12}
+                    color={autoscrollEnabled ? "#ffffff" : "#824f3f"}
+                  />
+                  <Text
+                    style={[
+                      appStyles.recordingLyricsHeaderChipText,
+                      autoscrollEnabled ? appStyles.recordingLyricsHeaderChipTextActive : null,
+                    ]}
+                  >
+                    {autoscrollEnabled ? `${autoscrollSpeedMultiplier}×` : "Auto"}
+                  </Text>
+                  <Ionicons
+                    name="chevron-down"
+                    size={12}
+                    color={autoscrollEnabled ? "#ffffff" : "#a89994"}
+                  />
+                </Pressable>
+              ) : null}
+
+              <Pressable
+                style={[
+                  appStyles.recordingLyricsZoomBtn,
+                  zoomOpen ? appStyles.recordingLyricsZoomBtnActive : null,
+                ]}
+                onPress={() => setZoomOpen((open) => !open)}
+                hitSlop={6}
+                accessibilityLabel="Adjust lyric size"
+              >
+                <Ionicons name="text" size={16} color={zoomOpen ? "#824f3f" : "#84736f"} />
+              </Pressable>
+            </View>
+          ) : null}
+
           <Pressable
             style={[appStyles.playerLyricsToggleBtn, appStyles.recordingLyricsToggleBtn]}
             onPress={handleToggle}
@@ -193,38 +246,57 @@ function PlayerLyricsPanelInner({
           </Pressable>
         </View>
 
-        {isExpanded ? (
-          <View style={[appStyles.playerLyricsBody, appStyles.recordingLyricsBody]}>
-            {canAutoscroll ? (
-              <View style={appStyles.recordingLyricsSpeedRow}>
-                {AUTOSCROLL_SPEED_OPTIONS.map((speed) => {
-                  const isActive = Math.abs(speed - autoscrollSpeedMultiplier) < 0.001;
-                  return (
-                    <Pressable
-                      key={speed}
+        {isExpanded && autoscrollMenuOpen ? (
+          <>
+            <Pressable
+              style={appStyles.recordingLyricsMenuOverlay}
+              onPress={() => setAutoscrollMenuOpen(false)}
+            />
+            <View style={appStyles.recordingLyricsMenu}>
+              {[null, ...AUTOSCROLL_SPEED_OPTIONS].map((speed) => {
+                const isOff = speed === null;
+                const isActive = isOff
+                  ? !autoscrollEnabled
+                  : autoscrollEnabled && Math.abs(speed - autoscrollSpeedMultiplier) < 0.001;
+                return (
+                  <Pressable
+                    key={isOff ? "off" : speed}
+                    style={({ pressed }) => [
+                      appStyles.recordingLyricsMenuItem,
+                      pressed ? { backgroundColor: "#F4F1ED" } : null,
+                    ]}
+                    onPress={() => {
+                      if (isOff) {
+                        onToggleAutoscroll?.(false);
+                      } else {
+                        onSelectAutoscrollSpeedMultiplier?.(speed);
+                        if (!autoscrollEnabled) onToggleAutoscroll?.(true);
+                      }
+                      setAutoscrollMenuOpen(false);
+                    }}
+                  >
+                    <Text
                       style={[
-                        appStyles.recordingLyricsSpeedChip,
-                        isActive ? appStyles.recordingLyricsSpeedChipActive : null,
+                        appStyles.recordingLyricsMenuItemText,
+                        isActive ? appStyles.recordingLyricsMenuItemTextActive : null,
                       ]}
-                      onPress={() => onSelectAutoscrollSpeedMultiplier?.(speed)}
                     >
-                      <Text
-                        style={[
-                          appStyles.recordingLyricsSpeedChipText,
-                          isActive ? appStyles.recordingLyricsSpeedChipTextActive : null,
-                        ]}
-                      >
-                        {speed.toFixed(speed % 1 === 0 ? 1 : 2)}x
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
-            ) : null}
+                      {isOff ? "Off" : `${speed}×`}
+                    </Text>
+                    {isActive ? <Ionicons name="checkmark" size={15} color="#824f3f" /> : null}
+                  </Pressable>
+                );
+              })}
+            </View>
+          </>
+        ) : null}
 
+        {isExpanded ? (
+          <View style={appStyles.recordingLyricsBodyExpanded}>
             <ScrollView
               ref={scrollRef}
               style={[appStyles.playerLyricsScroll, appStyles.recordingLyricsScroll]}
+              contentContainerStyle={appStyles.recordingLyricsScrollContent}
               onLayout={handleLyricsLayout}
               onContentSizeChange={(_, height) => setContentHeight(height)}
               onScroll={handleLyricsScroll}
@@ -235,11 +307,21 @@ function PlayerLyricsPanelInner({
               scrollEventThrottle={16}
             >
               {showChart ? (
-                <ChordChartLines lines={chordLines!} editable={false} />
+                <ChordChartLines lines={chordLines!} editable={false} zoom={zoom} />
               ) : (
-                <Text style={[appStyles.playerLyricsText, appStyles.recordingLyricsText]}>{text}</Text>
+                <Text
+                  style={[
+                    appStyles.playerLyricsText,
+                    appStyles.recordingLyricsText,
+                    { fontSize: 20 * zoom, lineHeight: 36 * zoom },
+                  ]}
+                >
+                  {text}
+                </Text>
               )}
             </ScrollView>
+
+            {zoomOpen ? <ChordZoomBar zoom={zoom} onChange={setZoom} compact /> : null}
           </View>
         ) : null}
       </View>

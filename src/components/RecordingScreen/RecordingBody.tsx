@@ -35,6 +35,9 @@ type RecordingBodyProps = {
   countInCurrentBeat: number;
   countInBeatsPerBar: number;
   waveformData?: Pick<AudioAnalysis, "dataPoints" | "segmentDurationMs">;
+  metronomeEnabled: boolean;
+  metronomeSummary: string;
+  onOpenMetronome: () => void;
   onToggleLyricsExpanded: (value: boolean) => void;
   onToggleLyricsAutoscroll: (enabled: boolean) => void;
   onLyricsAutoscrollInterrupted: () => void;
@@ -69,6 +72,9 @@ export function RecordingBody({
   countInCurrentBeat,
   countInBeatsPerBar,
   waveformData,
+  metronomeEnabled,
+  metronomeSummary,
+  onOpenMetronome,
   onToggleLyricsExpanded,
   onToggleLyricsAutoscroll,
   onLyricsAutoscrollInterrupted,
@@ -145,6 +151,11 @@ export function RecordingBody({
           countInBeatsPerBar={countInBeatsPerBar}
           waveformData={waveformData}
           compact={lyricsExpanded}
+          fill={!lyricsExpanded}
+          hasLyrics={hasProjectLyrics}
+          metronomeEnabled={metronomeEnabled}
+          metronomeSummary={metronomeSummary}
+          onOpenMetronome={onOpenMetronome}
         />
 
         {hasProjectLyrics && latestLyricsUpdatedAt !== null ? (

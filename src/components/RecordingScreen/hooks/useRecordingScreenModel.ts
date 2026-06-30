@@ -346,30 +346,37 @@ export function useRecordingScreenModel() {
     }
   }
 
-  // Lets you hear the metronome while idle, before recording starts. Toggling
-  // mid-take is a no-op here — the recording start/pause/resume flow owns the
-  // click in that case.
-  async function toggleMetronomePreview(nextEnabled: boolean) {
+  // Persistent "use the metronome in the take" flag. Stays put regardless of
+  // whether the preview is currently sounding — stopping the preview must not
+  // disable the click during recording. Turning it off silences any preview.
+  function setMetronomeEnabledForTake(nextEnabled: boolean) {
     setRecordingMetronomeEnabled(nextEnabled);
+    if (!nextEnabled && !isArmingRecording && !recording.isRecording && !recording.isPaused) {
+      void stopRecordingMetronome();
+    }
+  }
 
+  // Start/stop only the audible preview while idle, without changing whether the
+  // metronome is enabled for the take. Lets you silence the preview but still
+  // have the click during recording (or audition without committing).
+  async function toggleMetronomeSound() {
     if (isArmingRecording || recording.isRecording || recording.isPaused) {
       return;
     }
-
     if (!metronome.isNativeAvailable) {
       return;
     }
 
-    if (nextEnabled) {
-      try {
-        await metronome.start({ manageAudioSession: true });
-      } catch (error) {
-        console.warn("Metronome preview start failed", error);
-      }
+    if (metronome.isRunning && !metronome.isCountIn) {
+      await stopRecordingMetronome();
       return;
     }
 
-    await stopRecordingMetronome();
+    try {
+      await metronome.start({ manageAudioSession: true });
+    } catch (error) {
+      console.warn("Metronome preview start failed", error);
+    }
   }
 
   async function cancelPendingRecordingStart() {
@@ -1018,7 +1025,8 @@ export function useRecordingScreenModel() {
     setMetronomeSheetVisible,
     setPreferredRecordingInputId,
     setRecordingMetronomeEnabled,
-    toggleMetronomePreview,
+    setMetronomeEnabledForTake,
+    toggleMetronomeSound,
     setLyricsExpanded,
     setLyricsAutoscrollMode,
     setLyricsAutoscrollSpeedMultiplier,

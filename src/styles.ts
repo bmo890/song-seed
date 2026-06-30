@@ -1464,19 +1464,147 @@ export const styles = StyleSheet.create({
     paddingHorizontal: 0,
     paddingVertical: 4,
   },
-  recordingLyricsSpeedRow: {
+  // Expanded "perform" view: break out of the 28px gutter to full-bleed and
+  // fill the height left below the slim reel.
+  recordingLyricsPanelExpanded: {
+    flex: 1,
+  },
+  recordingLyricsBodyExpanded: {
+    flex: 1,
+    marginHorizontal: -28,
+    gap: 10,
+    paddingTop: 4,
+  },
+  recordingLyricsTitleArea: {
+    flex: 1,
+  },
+  // Expanded: extend the header to the right screen edge so the autoscroll/zoom
+  // controls and the collapse chevron line up with the full-bleed lyrics.
+  recordingLyricsHeaderExpanded: {
+    marginRight: -28,
+    paddingRight: 8,
+  },
+  recordingLyricsHeaderActions: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    marginBottom: 10,
-    flexWrap: "wrap",
+  },
+  recordingLyricsHeaderChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: radii.round,
+    backgroundColor: "#F4F1ED",
+  },
+  recordingLyricsHeaderChipActive: {
+    backgroundColor: "#B87D6B",
+  },
+  recordingLyricsHeaderChipText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#824f3f",
+    fontVariant: ["tabular-nums"],
+  },
+  recordingLyricsHeaderChipTextActive: {
+    color: "#ffffff",
+  },
+  recordingLyricsZoomBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: radii.round,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#F4F1ED",
+  },
+  recordingLyricsZoomBtnActive: {
+    backgroundColor: "#F2E4DF",
+  },
+  recordingLyricsMenuOverlay: {
+    position: "absolute",
+    top: 44,
+    left: -28,
+    right: -28,
+    bottom: -1500,
+    zIndex: 20,
+  },
+  recordingLyricsMenu: {
+    position: "absolute",
+    top: 44,
+    right: 36,
+    minWidth: 116,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
+    paddingVertical: 4,
+    borderWidth: 1,
+    borderColor: "#E8E4DF",
+    zIndex: 30,
+    shadowColor: "#000",
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 8,
+  },
+  recordingLyricsMenuItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 16,
+    paddingVertical: 9,
+    paddingHorizontal: 14,
+  },
+  recordingLyricsMenuItemText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#524440",
+  },
+  recordingLyricsMenuItemTextActive: {
+    color: "#824f3f",
+    fontWeight: "700",
+  },
+  recordingLyricsControlRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
+    paddingHorizontal: 14,
+  },
+  recordingLyricsAutoToggle: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: radii.round,
+    backgroundColor: "#F4F1ED",
+  },
+  recordingLyricsAutoToggleActive: {
+    backgroundColor: "#B87D6B",
+  },
+  recordingLyricsAutoToggleText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#824f3f",
+  },
+  recordingLyricsAutoToggleTextActive: {
+    color: "#ffffff",
+  },
+  recordingLyricsScrollContent: {
+    paddingHorizontal: 16,
+    paddingBottom: 6,
+  },
+  recordingLyricsSpeedRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
   },
   recordingLyricsSpeedChip: {
-    minHeight: 28,
+    minHeight: 30,
     borderRadius: radii.round,
     borderWidth: 1,
     borderColor: "#E8E4DF",
-    paddingHorizontal: 10,
+    paddingHorizontal: 8,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "#F4F1ED",
@@ -1494,7 +1622,8 @@ export const styles = StyleSheet.create({
     color: "#ffffff",
   },
   recordingLyricsScroll: {
-    maxHeight: 420,
+    flex: 1,
+    minHeight: 160,
   },
   recordingLyricsText: {
     fontSize: 20,
@@ -2490,15 +2619,27 @@ export const styles = StyleSheet.create({
     marginHorizontal: -28,
     backgroundColor: "#F4F1ED",
     borderRadius: 4,
-    height: 320,
     justifyContent: "center",
     paddingHorizontal: 8,
     position: "relative",
     overflow: "hidden",
   },
+  liveWaveWrapDefault: {
+    height: 320,
+  },
+  // Expanded ("perform") layout: a slim confidence monitor so the lyrics get the height.
   liveWaveWrapCompact: {
-    height: 176,
+    height: 130,
     marginBottom: 0,
+  },
+  // Collapsed-lyrics layout: the reel fills the leftover space above the lyrics tab.
+  liveWaveWrapFill: {
+    flex: 1,
+    minHeight: 220,
+  },
+  recordingMetaSectionFill: {
+    flex: 1,
+    justifyContent: "center",
   },
   recordingControlsBar: {
     flexDirection: "row",
@@ -2554,12 +2695,27 @@ export const styles = StyleSheet.create({
     justifyContent: "center",
   },
   circleControlBtnCompact: {
-    width: 54,
-    height: 54,
+    width: 42,
+    height: 42,
     borderRadius: radii.round,
   },
   circleControlBtnDisabled: {
     opacity: 0.5,
+  },
+  recordBtnWrap: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  recordBeatHalo: {
+    position: "absolute",
+    width: 96,
+    height: 96,
+    borderRadius: radii.round,
+    backgroundColor: "#B5483A",
+  },
+  recordBeatHaloCompact: {
+    width: 60,
+    height: 60,
   },
   circleRecordBtn: {
     width: 96,
@@ -2577,9 +2733,10 @@ export const styles = StyleSheet.create({
     elevation: 3,
   },
   circleRecordBtnCompact: {
-    width: 74,
-    height: 74,
+    width: 60,
+    height: 60,
     borderRadius: radii.round,
+    borderWidth: 5,
   },
   circleRecordBtnActive: {
     borderColor: "#D7C2BD",
@@ -4308,6 +4465,10 @@ export const styles = StyleSheet.create({
     backgroundColor: "rgba(253,251,247,0.98)",
     borderTopWidth: 1,
     borderTopColor: "#E8E4DF",
+  },
+  recordingBottomDockCompact: {
+    paddingTop: 4,
+    paddingBottom: 6,
   },
   badge: {
     fontSize: 10,

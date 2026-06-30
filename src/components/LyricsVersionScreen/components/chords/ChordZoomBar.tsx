@@ -8,10 +8,18 @@ export const CHORD_ZOOM_MAX = 1.6;
 
 /** Horizontal font-zoom for the chord chart — shrink to fit a long line on one
  * screen, or enlarge for readability. Mirrors the chord-sheet full-view zoom. */
-export function ChordZoomBar({ zoom, onChange }: { zoom: number; onChange: (value: number) => void }) {
+export function ChordZoomBar({
+  zoom,
+  onChange,
+  compact = false,
+}: {
+  zoom: number;
+  onChange: (value: number) => void;
+  compact?: boolean;
+}) {
   const atDefault = Math.abs(zoom - 1) < 0.001;
   return (
-    <View style={styles.zoomBar}>
+    <View style={[styles.zoomBar, compact ? styles.zoomBarCompact : null]}>
       <Ionicons name="text" size={13} color={colors.textMuted} />
       <Slider
         style={styles.slider}
@@ -46,6 +54,10 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     borderTopWidth: 1,
     borderTopColor: colors.borderMuted,
+  },
+  zoomBarCompact: {
+    paddingHorizontal: 16,
+    paddingVertical: 4,
   },
   slider: {
     flex: 1,
