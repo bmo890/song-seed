@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
-import { KeyboardAvoidingView, Text } from "react-native";
+import { KeyboardAvoidingView, Pressable, StyleSheet, Text } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { StatusBar as ExpoStatusBar } from "expo-status-bar";
 import { useNavigation } from "@react-navigation/native";
+import { colors, radii } from "../../../design/tokens";
 import { styles } from "../styles";
 import { ScreenHeader } from "../../common/ScreenHeader";
 import { useLyricsVersionScreenModel } from "../hooks/useLyricsVersionScreenModel";
@@ -55,10 +57,29 @@ export function LyricsVersionScreenContent() {
   const hasChords = lines.some((line) => line.chords.length > 0);
   const canChart = !!model.resolvedVersion && lines.length > 0;
   const showChordEditor = chordEditMode && !model.isEditMode && !!model.resolvedVersion;
+  // Export lives in the header for both reading and charting chords (a version
+  // exists in both); only the plain-text lyric editor hides it.
+  const canExport = !model.isEditMode;
 
   return (
     <SafeAreaView style={styles.screen} edges={["top", "left", "right"]}>
-      <ScreenHeader title={model.versionLabel} leftIcon="back" onLeftPress={handleBack} />
+      <ScreenHeader
+        title={model.versionLabel}
+        leftIcon="back"
+        onLeftPress={handleBack}
+        rightElement={
+          canExport ? (
+            <Pressable
+              style={({ pressed }) => [headerStyles.exportBtn, pressed ? styles.pressDown : null]}
+              onPress={() => setExportVisible(true)}
+              hitSlop={6}
+              accessibilityLabel="Export"
+            >
+              <Ionicons name="share-outline" size={20} color={colors.textSecondary} />
+            </Pressable>
+          ) : undefined
+        }
+      />
 
       <Text style={styles.subtitle}>
         {model.projectIdea.title} · {model.versionMeta}
@@ -90,7 +111,6 @@ export function LyricsVersionScreenContent() {
           <ChordChartEditor
             ideaId={model.projectIdea.id}
             version={model.resolvedVersion!}
-            songTitle={model.projectIdea.title}
             palette={model.projectIdea.chordPalette}
           />
         ) : (
@@ -101,7 +121,6 @@ export function LyricsVersionScreenContent() {
             canChart={canChart}
             onEdit={model.beginEdit}
             onChords={() => setChordEditMode(true)}
-            onExport={() => setExportVisible(true)}
             onLayout={model.setPreviewViewportHeight}
             onContentSizeChange={model.setPreviewContentHeight}
             onScroll={model.setPreviewScrollY}
@@ -135,3 +154,14 @@ export function LyricsVersionScreenContent() {
     </SafeAreaView>
   );
 }
+
+const headerStyles = StyleSheet.create({
+  exportBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: radii.round,
+    backgroundColor: colors.surfaceHigh,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+});
