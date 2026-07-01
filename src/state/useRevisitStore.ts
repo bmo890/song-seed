@@ -10,6 +10,10 @@ type PersistedRevisitState = {
   vaultExposureCountById: Record<string, number>;
   vaultLastSeenAtById: Record<string, number>;
   vaultLastSessionKeyById: Record<string, string>;
+  /** tag id -> enabled; missing tags default to on. */
+  tagPrefs: Record<string, boolean>;
+  /** false = keep the same batch until the user acts. */
+  dailyRefresh: boolean;
 };
 
 export type RevisitStore = PersistedRevisitState & {
@@ -21,6 +25,8 @@ export type RevisitStore = PersistedRevisitState & {
   snoozeCandidate: (candidateKey: string, durationMs: number) => void;
   clearExpiredSnoozes: (now?: number) => void;
   markVaultExposure: (candidateKeys: string[], sessionKey: string, seenAt?: number) => void;
+  setTagEnabled: (tag: string, enabled: boolean) => void;
+  setDailyRefresh: (value: boolean) => void;
 };
 
 const STORE_NAME = "song-seed-revisit-store";
@@ -51,6 +57,16 @@ function sanitizeStringRecord(value: unknown) {
   );
 }
 
+function sanitizeBooleanRecord(value: unknown) {
+  if (!value || typeof value !== "object") return {};
+  return Object.fromEntries(
+    Object.entries(value).filter(
+      (entry): entry is [string, boolean] =>
+        typeof entry[0] === "string" && typeof entry[1] === "boolean"
+    )
+  );
+}
+
 function sanitizePersistedState(state?: Partial<PersistedRevisitState>): PersistedRevisitState {
   return {
     excludedWorkspaceIds: sanitizeStringArray(state?.excludedWorkspaceIds),
@@ -60,6 +76,8 @@ function sanitizePersistedState(state?: Partial<PersistedRevisitState>): Persist
     vaultExposureCountById: sanitizeNumericRecord(state?.vaultExposureCountById),
     vaultLastSeenAtById: sanitizeNumericRecord(state?.vaultLastSeenAtById),
     vaultLastSessionKeyById: sanitizeStringRecord(state?.vaultLastSessionKeyById),
+    tagPrefs: sanitizeBooleanRecord(state?.tagPrefs),
+    dailyRefresh: typeof state?.dailyRefresh === "boolean" ? state.dailyRefresh : true,
   };
 }
 
@@ -83,6 +101,15 @@ export const useRevisitStore = create<RevisitStore>()(
       vaultExposureCountById: {},
       vaultLastSeenAtById: {},
       vaultLastSessionKeyById: {},
+      tagPrefs: {},
+      dailyRefresh: true,
+
+      setTagEnabled: (tag: string, enabled: boolean) =>
+        set((state: RevisitStore) => ({
+          tagPrefs: { ...state.tagPrefs, [tag]: enabled },
+        })),
+
+      setDailyRefresh: (value: boolean) => set({ dailyRefresh: value }),
 
       setWorkspaceIncluded: (workspaceId: string, included: boolean) =>
         set((state: RevisitStore) => ({
@@ -192,6 +219,8 @@ export const useRevisitStore = create<RevisitStore>()(
         vaultExposureCountById: state.vaultExposureCountById,
         vaultLastSeenAtById: state.vaultLastSeenAtById,
         vaultLastSessionKeyById: state.vaultLastSessionKeyById,
+        tagPrefs: state.tagPrefs,
+        dailyRefresh: state.dailyRefresh,
       }),
       merge: (persistedState, currentState) => ({
         ...currentState,

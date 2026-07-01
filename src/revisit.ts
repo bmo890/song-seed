@@ -42,6 +42,31 @@ export type RevisitSectionItem = {
   reason: string;
 };
 
+/** The four ways an idea can resurface — shown as a "why" tag on each feed card. */
+export type RevisitTag = "unfinished" | "seed" | "vault" | "anniversary";
+
+export type RevisitFeedItem = {
+  candidate: RevisitCandidate;
+  reason: string;
+  tag: RevisitTag;
+};
+
+/** Which resurfacing types the user wants in their feed (all on by default). */
+export type RevisitTagPrefs = Partial<Record<RevisitTag, boolean>>;
+
+// DEV PREVIEW ONLY — set true to drop the age gates + burial rule so your real,
+// recent ideas populate the feed (to eyeball the page). Revert to false before
+// shipping. Only ever active in dev builds. "Anniversary" still needs a genuinely
+// ~1-year-old item near today's date, so it won't appear from recent data.
+const REVISIT_PREVIEW_ALL = __DEV__ && false;
+
+// The "active shelf" per workspace: the N most-recently-touched ideas are your
+// current work, not something to rediscover — so they never qualify. This also
+// keeps low-activity accounts quiet (nothing has been buried yet).
+const RECENT_SHELF_SIZE = REVISIT_PREVIEW_ALL ? 0 : 3;
+// Cap the daily feed so it reads as a curated shortlist, not an inbox.
+const REVISIT_FEED_LIMIT = 5;
+
 export type RevisitSection = {
   key: RevisitSectionKey;
   title: string;
@@ -70,6 +95,10 @@ export type RevisitSourceOption = {
   included: boolean;
   workspaceId?: string;
   depth?: number;
+  /** Workspace avatar inputs (workspace rows only) so Sources can render the
+   * same marble avatar used across the app. */
+  color?: string;
+  avatarKey?: number;
 };
 
 type BuildRevisitModelArgs = {
@@ -81,11 +110,16 @@ type BuildRevisitModelArgs = {
   snoozedUntilById: Record<string, number>;
   vaultExposureCountById: Record<string, number>;
   vaultLastSeenAtById: Record<string, number>;
+  /** Which resurfacing types to include; omitted tags default to on. */
+  enabledTags?: RevisitTagPrefs;
+  /** false = keep the same batch until the user acts (no daily reshuffle). */
+  dailyRefresh?: boolean;
   now?: number;
 };
 
 export type RevisitModel = {
   totalEligibleCount: number;
+  feed: RevisitFeedItem[];
   workspaceOptions: RevisitSourceOption[];
   collectionOptions: RevisitSourceOption[];
   sections: RevisitSection[];
@@ -129,17 +163,12 @@ function pickDailySubsetCount(sectionKey: RevisitSectionKey, poolSize: number, r
   if (poolSize <= 0) return 0;
   if (sectionKey === "around") return 1;
 
-  const range =
-    sectionKey === "vault"
-      ? { min: 2, max: 4 }
-      : { min: 2, max: 5 };
-
-  const min = Math.min(range.min, poolSize);
-  const max = Math.min(range.max, poolSize);
-  if (min >= max) return min;
-
-  const spread = max - min + 1;
-  return min + Math.floor(hashFraction(`${sectionKey}:count:${rotationKey}:${poolSize}`) * spread);
+  // A daily feature: one idea per section is the norm. A section only earns a
+  // second card on the ~1-in-5 days its hash clears the bar — so the page reads
+  // as a tight, single-pick set, with the occasional pair for variety.
+  if (poolSize < 2) return 1;
+  const promoteToTwo = hashFraction(`${sectionKey}:count:${rotationKey}:${poolSize}`) > 0.8;
+  return promoteToTwo ? 2 : 1;
 }
 
 function shuffleCandidatesDaily<T extends { key: string }>(
@@ -406,26 +435,26 @@ function buildPickupReason(candidate: RevisitCandidate, now: number) {
   if (candidate.hasNotes) {
     return "Notes are waiting here";
   }
-  return `Not touched in ${formatDormancyDuration(
+  return `Untouched for ${formatDormancyDuration(
     Math.max(0, Math.floor((now - candidate.updatedAt) / DAY_MS))
   )}`;
 }
 
 function buildForgottenReason(candidate: RevisitCandidate) {
   if (candidate.sessionsCount <= 1 && candidate.variationCount === 0) {
-    return "Loose seed";
+    return "One take, never revisited";
   }
   if (!candidate.hasNotes) {
-    return "Raw idea";
+    return "Just a raw capture";
   }
-  return "Worth another listen";
+  return `Recorded ${formatDormancyDuration(candidate.archiveAgeDays)} ago`;
 }
 
 function buildVaultReason(candidate: RevisitCandidate) {
   if (candidate.archiveAgeDays >= 330) {
     return `From ${formatSeasonLabel(candidate.createdAt)}`;
   }
-  return "From the vault";
+  return `Made ${formatDormancyDuration(candidate.archiveAgeDays)} ago`;
 }
 
 function getAnniversaryDistanceDays(ts: number, now: number) {
@@ -471,9 +500,7 @@ function buildAroundThisTimeReason(candidate: RevisitCandidate, now: number) {
   const yearsAgo = nowDate.getFullYear() - createdAt.getFullYear();
 
   if (distanceDays <= AROUND_THIS_TIME_WINDOW_DAYS && yearsAgo >= 1) {
-    return yearsAgo === 1
-      ? "From around this time last year"
-      : `Made around this time in ${createdAt.getFullYear()}`;
+    return yearsAgo === 1 ? "A year ago this week" : `This week in ${createdAt.getFullYear()}`;
   }
 
   return `From ${formatSeasonLabel(candidate.createdAt)}`;
@@ -524,6 +551,11 @@ function pickVaultItems(candidates: RevisitCandidate[], maxItems: number) {
 }
 
 function getRevisitThresholds(): RevisitThresholds {
+  if (REVISIT_PREVIEW_ALL) {
+    // Keep the anniversary gate honest (it's date-based); relax the rest so
+    // recent items surface for a preview.
+    return { pickupMinAgeDays: 0, forgottenMinAgeDays: 0, vaultMinAgeDays: 0, aroundMinAgeDays: 330 };
+  }
   return {
     pickupMinAgeDays: 10,
     forgottenMinAgeDays: 21,
@@ -594,6 +626,8 @@ export function buildRevisitModel({
   snoozedUntilById,
   vaultExposureCountById,
   vaultLastSeenAtById,
+  enabledTags,
+  dailyRefresh = true,
   now = Date.now(),
 }: BuildRevisitModelArgs): RevisitModel {
   const activeWorkspaces = workspaces.filter((workspace) => !workspace.isArchived);
@@ -601,7 +635,9 @@ export function buildRevisitModel({
   const excludedCollectionIdSet = new Set(excludedCollectionIds);
   const hiddenCandidateIdSet = new Set(hiddenCandidateIds);
   const eventsByIdea = buildEventsByIdea(activeWorkspaces, activityEvents);
-  const rotationKey = new Date(now).toISOString().slice(0, 10);
+  // Daily rotation reshuffles the batch each day; "stays put" uses a fixed key.
+  const rotationKey = dailyRefresh ? new Date(now).toISOString().slice(0, 10) : "stable";
+  const isTagOn = (tag: RevisitTag) => enabledTags?.[tag] !== false;
   const thresholds = getRevisitThresholds();
   const hiddenIndexByWorkspaceId = new Map(
     activeWorkspaces.map((workspace) => [workspace.id, buildWorkspaceHiddenIndex(workspace)])
@@ -620,6 +656,8 @@ export function buildRevisitModel({
         label: workspace.title,
         count,
         included: !excludedWorkspaceIdSet.has(workspace.id),
+        color: workspace.color,
+        avatarKey: workspace.avatarKey,
       };
     })
     .sort((a, b) => a.label.localeCompare(b.label));
@@ -732,7 +770,28 @@ export function buildRevisitModel({
     }
   }
 
-  const pickupPoolBase = allCandidates
+  // Burial gate: an idea only resurfaces once newer work has been layered on top
+  // of it. Per workspace, the RECENT_SHELF_SIZE most-recently-touched ideas are
+  // your active shelf and never qualify — which also keeps low-activity accounts
+  // quiet (nothing has been buried yet).
+  const recentShelfKeys = new Set<string>();
+  const candidatesByWorkspace = new Map<string, RevisitCandidate[]>();
+  for (const candidate of allCandidates) {
+    const list = candidatesByWorkspace.get(candidate.workspaceId);
+    if (list) list.push(candidate);
+    else candidatesByWorkspace.set(candidate.workspaceId, [candidate]);
+  }
+  for (const list of candidatesByWorkspace.values()) {
+    list.sort((a, b) => b.updatedAt - a.updatedAt);
+    for (let i = 0; i < Math.min(RECENT_SHELF_SIZE, list.length); i++) {
+      recentShelfKeys.add(list[i].key);
+    }
+  }
+  const eligibleCandidates = allCandidates.filter(
+    (candidate) => !recentShelfKeys.has(candidate.key)
+  );
+
+  const pickupPoolBase = eligibleCandidates
     .filter(
       (candidate) =>
         candidate.ageDays >= thresholds.pickupMinAgeDays &&
@@ -768,7 +827,7 @@ export function buildRevisitModel({
 
   const takenKeys = new Set(pickupItems.map((item) => item.candidate.key));
 
-  const forgottenPoolBase = allCandidates
+  const forgottenPoolBase = eligibleCandidates
     .filter(
       (candidate) =>
         !takenKeys.has(candidate.key) &&
@@ -790,7 +849,7 @@ export function buildRevisitModel({
     takenKeys.add(item.candidate.key);
   }
 
-  const vaultPoolBase = allCandidates
+  const vaultPoolBase = eligibleCandidates
     .filter(
       (candidate) =>
         !takenKeys.has(candidate.key) &&
@@ -836,13 +895,13 @@ export function buildRevisitModel({
         reason: buildAroundThisTimeReason(candidate, now),
       }));
 
-  const aroundSnapshotItems = buildAroundItems(allCandidates, AROUND_THIS_TIME_SNAPSHOT_LIMIT);
+  const aroundSnapshotItems = buildAroundItems(eligibleCandidates, AROUND_THIS_TIME_SNAPSHOT_LIMIT);
   const aroundSnapshotWindow = buildAroundSnapshotWindow(now);
   const aroundItems = (() => {
-    const primaryPool = allCandidates.filter((candidate) => !takenKeys.has(candidate.key));
+    const primaryPool = eligibleCandidates.filter((candidate) => !takenKeys.has(candidate.key));
     const primaryItems = buildAroundItems(primaryPool, 1);
     if (primaryItems.length > 0) return primaryItems;
-    return buildAroundItems(allCandidates, 1);
+    return buildAroundItems(eligibleCandidates, 1);
   })();
   const eligibleCandidateCount = new Set([
     ...pickupPoolBase.map((candidate) => candidate.key),
@@ -851,39 +910,64 @@ export function buildRevisitModel({
     ...aroundSnapshotItems.map((item) => item.candidate.key),
   ]).size;
 
+  // Single "Revisit today" feed: round-robin the enabled buckets (highest-intent
+  // first) for a varied, capped daily batch, each item wearing its own tag.
+  const feedBuckets: { items: RevisitSectionItem[]; tag: RevisitTag }[] = (
+    [
+      { items: pickupItems, tag: "unfinished" as const },
+      { items: forgottenItems, tag: "seed" as const },
+      { items: vaultItems, tag: "vault" as const },
+      { items: aroundItems, tag: "anniversary" as const },
+    ]
+  ).filter((bucket) => isTagOn(bucket.tag));
+
+  const feed: RevisitFeedItem[] = [];
+  const seenFeedKeys = new Set<string>();
+  const maxBucketLength = Math.max(0, ...feedBuckets.map((bucket) => bucket.items.length));
+  for (let index = 0; index < maxBucketLength && feed.length < REVISIT_FEED_LIMIT; index += 1) {
+    for (const bucket of feedBuckets) {
+      const item = bucket.items[index];
+      if (!item || seenFeedKeys.has(item.candidate.key)) continue;
+      seenFeedKeys.add(item.candidate.key);
+      feed.push({ candidate: item.candidate, reason: item.reason, tag: bucket.tag });
+      if (feed.length >= REVISIT_FEED_LIMIT) break;
+    }
+  }
+
   return {
     totalEligibleCount: eligibleCandidateCount,
+    feed,
     workspaceOptions,
     collectionOptions,
     sections: [
       {
         key: "pickup",
-        title: "Pick Up",
-        subtitle: "Things that had some momentum and feel worth resuming.",
+        title: "Unfinished",
+        subtitle: "You put work in, then set it down",
         items: pickupItems,
-        emptyTitle: "No stalled work with momentum right now",
+        emptyTitle: "Nothing left unfinished",
         emptySubtitle: "Check back later.",
       },
       {
         key: "forgotten",
-        title: "Forgotten",
-        subtitle: "Older loose clips and seeds that were left behind.",
+        title: "Loose seeds",
+        subtitle: "Recorded once, never developed",
         items: forgottenItems,
-        emptyTitle: "No older clips yet",
+        emptyTitle: "No loose seeds today",
         emptySubtitle: "Older clips will surface here.",
       },
       {
         key: "vault",
-        title: "Vault",
-        subtitle: "Older material with some shape or history that fell out of rotation.",
+        title: "Deep cuts",
+        subtitle: "Older pieces, shuffled back up",
         items: vaultItems,
-        emptyTitle: "Vault is quiet today",
+        emptyTitle: "No deep cuts today",
         emptySubtitle: "More older material will surface later.",
       },
       {
         key: "around",
-        title: "Around This Time",
-        subtitle: "A seasonal snapshot from around this time in past years.",
+        title: "Around this time",
+        subtitle: "From this date in past years",
         items: aroundItems,
         totalCount: aroundSnapshotItems.length,
         actionLabel: aroundSnapshotItems.length > aroundItems.length ? "See snapshot" : undefined,

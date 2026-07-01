@@ -15,7 +15,14 @@ export const revisitStyles = {
   ...StyleSheet.create({
     scrollContent: {
       paddingBottom: 120,
-      gap: 14,
+      gap: 18,
+    },
+
+    // A quiet, on-brand rule between sections — sits centered in the generous
+    // inter-section gap so the page reads as distinct, unhurried chapters.
+    sectionDivider: {
+      height: 1,
+      backgroundColor: "#EAE3D9",
     },
 
     // ── Sources filter panel ──────────────────────────────────────────────
@@ -50,98 +57,7 @@ export const revisitStyles = {
       color: INK,
     },
 
-    // ── Workspace filter rows ─────────────────────────────────────────────
-    workspaceFilterList: {
-      gap: 8,
-    },
-    filterWrap: {
-      flexDirection: "row",
-      flexWrap: "wrap",
-      gap: 8,
-    },
-    filterChip: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 8,
-      borderRadius: 4,
-      paddingHorizontal: 10,
-      paddingVertical: 8,
-      maxWidth: "100%",
-    },
-    filterChipIncluded: {
-      backgroundColor: SURFACE,
-    },
-    filterChipExcluded: {
-      backgroundColor: SURFACE_LO,
-    },
-    filterChipText: {
-      maxWidth: 220,
-      fontSize: 12,
-      color: MUTED,
-      fontWeight: "600",
-    },
-    filterChipTextIncluded: {
-      color: INK_LO,
-    },
-    filterChipCount: {
-      minWidth: 22,
-      borderRadius: 2,
-      backgroundColor: SURFACE_LO,
-      paddingHorizontal: 6,
-      paddingVertical: 2,
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    filterChipCountText: {
-      fontSize: 11,
-      fontWeight: "700",
-      color: MUTED,
-    },
-    workspaceFilterRow: {
-      borderRadius: 6,
-      backgroundColor: SURFACE_LO,
-      padding: 10,
-      gap: 10,
-    },
-    workspaceFilterRowIncluded: {
-      backgroundColor: SURFACE,
-    },
-    workspaceFilterTopRow: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 8,
-    },
-    workspaceIncludeToggle: {
-      width: 36,
-      height: 36,
-      borderRadius: 4,
-      alignItems: "center",
-      justifyContent: "center",
-      backgroundColor: SURFACE,
-    },
-    workspaceIncludeToggleIncluded: {
-      backgroundColor: SURFACE_LO,
-    },
-    workspaceFilterMain: {
-      flex: 1,
-      minWidth: 0,
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 8,
-    },
-    workspaceFilterCopy: {
-      flex: 1,
-      gap: 2,
-    },
-    workspaceFilterTitle: {
-      fontSize: 14,
-      fontWeight: "700",
-      color: INK,
-    },
-    workspaceDropdown: {
-      marginLeft: 44,
-      gap: 8,
-    },
+    // ── Restore hidden ────────────────────────────────────────────────────
     hiddenResetRow: {
       flexDirection: "row",
       alignItems: "center",
@@ -163,7 +79,12 @@ export const revisitStyles = {
       flexDirection: "row",
       alignItems: "flex-start",
       justifyContent: "space-between",
-      gap: 10,
+      gap: 9,
+    },
+    sectionTitleRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
     },
     sectionHeaderCopy: {
       flex: 1,
@@ -320,14 +241,6 @@ export const revisitStyles = {
       fontWeight: "700",
       color: MUTED,
     },
-    candidateMenuBtn: {
-      width: 28,
-      height: 28,
-      borderRadius: 4,
-      alignItems: "center",
-      justifyContent: "center",
-      backgroundColor: SURFACE_LO,
-    },
     candidateProgressWrap: {
       minHeight: 18,
       justifyContent: "center",
@@ -336,6 +249,294 @@ export const revisitStyles = {
       fontSize: 12,
       color: MUTED,
       fontWeight: "600",
+    },
+
+    // ── Header help + sources chip (redesign) ────────────────────────────
+    headerHelpBtn: {
+      width: 34,
+      height: 34,
+      borderRadius: 17,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: SURFACE,
+    },
+    sourcesChip: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 7,
+      alignSelf: "flex-start",
+      paddingVertical: 9,
+      paddingHorizontal: 13,
+      borderRadius: 999,
+      backgroundColor: "#F1EAE2",
+    },
+    sourcesChipText: {
+      fontSize: 13,
+      fontWeight: "600",
+      color: "#6f5d57",
+    },
+    sourcesChipCount: {
+      fontSize: 12,
+      color: "#a89994",
+      fontVariant: ["tabular-nums"],
+    },
+
+    // ── Sources sheet ─────────────────────────────────────────────────────
+    sheetHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      marginBottom: 12,
+    },
+    sheetTitle: {
+      fontFamily: "PlayfairDisplay_600SemiBold",
+      fontSize: 19,
+      color: INK,
+    },
+    sheetList: {
+      gap: 10,
+    },
+
+    // ── Section header (redesign) ─────────────────────────────────────────
+    sectionHeaderRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+    },
+    sectionHeaderCol: {
+      flex: 1,
+      minWidth: 0,
+      gap: 2,
+    },
+    sectionTitleSerif: {
+      fontFamily: "PlayfairDisplay_600SemiBold",
+      fontSize: 19,
+      color: INK,
+    },
+    sectionSubShort: {
+      fontSize: 12,
+      lineHeight: 16,
+      color: MUTED,
+      paddingLeft: 24,
+    },
+    sectionCount: {
+      fontSize: 12,
+      fontWeight: "700",
+      color: "#c0b3aa",
+      fontVariant: ["tabular-nums"],
+    },
+    sectionGoBtn: {
+      marginLeft: "auto",
+    },
+    sectionGoText: {
+      fontSize: 13,
+      fontWeight: "700",
+      color: TERRACOTTA,
+    },
+    sectionEmptyLine: {
+      fontSize: 13,
+      color: "#b4a79f",
+      paddingLeft: 1,
+    },
+
+    // ── Candidate card trailing (IdeaCard slot) ───────────────────────────
+    cardTrailing: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+    },
+
+    // ── Why-tag + detail row on each feed card ────────────────────────────
+    cardTagRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 7,
+      marginTop: 3,
+    },
+    cardTagChip: {
+      paddingHorizontal: 7,
+      paddingVertical: 2,
+      borderRadius: 999,
+      backgroundColor: "#EFE8E1",
+    },
+    cardTagChipPrimary: {
+      backgroundColor: "#F2E4DF",
+    },
+    cardTagChipText: {
+      fontSize: 10,
+      fontWeight: "700",
+      letterSpacing: 0.4,
+      textTransform: "uppercase",
+      color: "#7a6a63",
+    },
+    cardTagChipTextPrimary: {
+      color: "#824f3f",
+    },
+    cardTagDetail: {
+      flex: 1,
+      fontSize: 12,
+      color: "#9a8b83",
+    },
+
+    // ── "Today" hook ──────────────────────────────────────────────────────
+    pageHeader: {
+      gap: 6,
+    },
+    pageDescription: {
+      fontSize: 13,
+      lineHeight: 18,
+      color: MUTED,
+    },
+    todayRow: {
+      flexDirection: "row",
+      alignItems: "baseline",
+      gap: 8,
+    },
+    todayEyebrow: {
+      fontFamily: "PlusJakartaSans_600SemiBold",
+      fontSize: 10,
+      letterSpacing: 0.8,
+      textTransform: "uppercase",
+      color: TERRACOTTA,
+    },
+    todayCount: {
+      fontSize: 12,
+      color: MUTED,
+      fontVariant: ["tabular-nums"],
+    },
+    feedList: {
+      gap: 14,
+    },
+    feedFooterLink: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+      alignSelf: "flex-start",
+      paddingVertical: 6,
+    },
+    feedFooterLinkText: {
+      fontSize: 13,
+      fontWeight: "700",
+      color: TERRACOTTA,
+    },
+
+    // ── Customize sheet extras ────────────────────────────────────────────
+    sheetSectionLabel: {
+      fontSize: 11,
+      fontWeight: "700",
+      letterSpacing: 0.6,
+      textTransform: "uppercase",
+      color: MUTED,
+      marginTop: 18,
+      marginBottom: 10,
+    },
+    sheetSectionDesc: {
+      marginTop: -6,
+      marginBottom: 12,
+      fontSize: 12,
+      lineHeight: 16,
+      color: "#9a8b83",
+    },
+    toggleRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: 12,
+      paddingVertical: 8,
+    },
+    toggleIconWrap: {
+      width: 20,
+      alignItems: "flex-start",
+    },
+    toggleRowTextCol: {
+      flex: 1,
+      gap: 2,
+    },
+    toggleRowText: {
+      fontSize: 15,
+      color: INK,
+      fontWeight: "600",
+    },
+    toggleRowDesc: {
+      fontSize: 12,
+      lineHeight: 16,
+      color: MUTED,
+    },
+    // ── Sources rows (redesign: workspace avatar + switch) ────────────────
+    sourceRow: {
+      backgroundColor: "#F8F4EE",
+      borderRadius: 14,
+      paddingVertical: 12,
+      paddingHorizontal: 14,
+      gap: 10,
+    },
+    sourceRowExcluded: {
+      backgroundColor: "#F4F1EC",
+    },
+    sourceTopRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 12,
+    },
+    sourceAvatarMuted: {
+      opacity: 0.4,
+    },
+    sourceCopy: {
+      flex: 1,
+      minWidth: 0,
+      gap: 2,
+    },
+    sourceTitle: {
+      fontFamily: "PlusJakartaSans_600SemiBold",
+      fontSize: 15,
+      color: INK,
+    },
+    sourceMetaRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 5,
+    },
+    sourceMeta: {
+      flexShrink: 1,
+      fontSize: 12,
+      color: MUTED,
+    },
+    // Collections as a quiet indented sub-list under a hairline, not chips.
+    sourceCollections: {
+      marginLeft: 48,
+      paddingTop: 8,
+      borderTopWidth: 1,
+      borderTopColor: "#EBE3D8",
+    },
+    sourceCollectionRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 10,
+      paddingVertical: 7,
+    },
+    sourceCollectionName: {
+      flex: 1,
+      minWidth: 0,
+      fontSize: 13,
+      fontWeight: "600",
+      color: INK_LO,
+    },
+    sourceCollectionNameOff: {
+      color: "#b3a49c",
+      fontWeight: "500",
+    },
+    sourceCollectionCount: {
+      fontSize: 12,
+      color: "#a89994",
+      fontVariant: ["tabular-nums"],
+    },
+    sourceHint: {
+      marginLeft: 48,
+      paddingTop: 8,
+      borderTopWidth: 1,
+      borderTopColor: "#EBE3D8",
+      fontSize: 12,
+      color: "#a89994",
     },
 
     // ── Around snapshot view ──────────────────────────────────────────────

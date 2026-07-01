@@ -36,6 +36,10 @@ export function useRevisitScreenModel() {
   const excludedCollectionIds = useRevisitStore((state) => state.excludedCollectionIds);
   const hiddenCandidateIds = useRevisitStore((state) => state.hiddenCandidateIds);
   const snoozedUntilById = useRevisitStore((state) => state.snoozedUntilById);
+  const tagPrefs = useRevisitStore((state) => state.tagPrefs);
+  const dailyRefresh = useRevisitStore((state) => state.dailyRefresh);
+  const setTagEnabled = useRevisitStore((state) => state.setTagEnabled);
+  const setDailyRefresh = useRevisitStore((state) => state.setDailyRefresh);
   const setWorkspaceIncluded = useRevisitStore((state) => state.setWorkspaceIncluded);
   const setCollectionIncluded = useRevisitStore((state) => state.setCollectionIncluded);
   const resetSourceFilters = useRevisitStore((state) => state.resetSourceFilters);
@@ -70,15 +74,19 @@ export function useRevisitScreenModel() {
       snoozedUntilById,
       vaultExposureCountById: revisitState.vaultExposureCountById,
       vaultLastSeenAtById: revisitState.vaultLastSeenAtById,
+      enabledTags: tagPrefs,
+      dailyRefresh,
       now,
     });
   }, [
     activityEvents,
+    dailyRefresh,
     excludedCollectionIds,
     excludedWorkspaceIds,
     hiddenCandidateIds,
     now,
     snoozedUntilById,
+    tagPrefs,
     workspaces,
   ]);
 
@@ -110,19 +118,19 @@ export function useRevisitScreenModel() {
     setSelectedIdeaId(candidate.ideaId);
   }
 
+  // Mirrors the collection card's tap: a raw clip opens the full Player to
+  // listen; a project opens its song page. Same destinations, same behavior.
   function openCandidate(candidate: RevisitCandidate) {
     void inlinePlayer.resetInlinePlayer();
     syncWorkspaceContext(candidate);
+    if (candidate.itemKind === "clip") {
+      useStore
+        .getState()
+        .setPlayerQueueForScreen([{ ideaId: candidate.ideaId, clipId: candidate.primaryClip.id }], 0);
+      navigateRoot("Player");
+      return;
+    }
     navigateRoot("IdeaDetail", { ideaId: candidate.ideaId });
-  }
-
-  function continueCandidate(candidate: RevisitCandidate) {
-    void inlinePlayer.resetInlinePlayer();
-    useStore.getState().requestPlayerClose();
-    syncWorkspaceContext(candidate);
-    useStore.getState().setRecordingParentClipId(candidate.primaryClip.id);
-    useStore.getState().setRecordingIdeaId(candidate.ideaId);
-    navigateRoot("Recording");
   }
 
   function viewCandidateInCollection(candidate: RevisitCandidate) {
@@ -155,20 +163,17 @@ export function useRevisitScreenModel() {
     });
   }
 
+  function confirmHideCandidate(candidate: RevisitCandidate) {
+    AppAlert.destructive(
+      "Hide from Revisit?",
+      "This idea won't resurface in Revisit again. It stays right where it is in your collection — you can bring it back anytime from Customize → Restore hidden.",
+      () => hideCandidate(candidate.key),
+      { confirmLabel: "Okay", icon: "eye-off-outline" }
+    );
+  }
+
   function openCandidateMenu(candidate: RevisitCandidate) {
     AppAlert.custom(candidate.title, undefined, [
-      {
-        label: "Open",
-        style: "default",
-        icon: "open-outline",
-        onPress: () => openCandidate(candidate),
-      },
-      {
-        label: "Continue Recording",
-        style: "default",
-        icon: actionIcons.record,
-        onPress: () => continueCandidate(candidate),
-      },
       {
         label: "View in Collection",
         style: "default",
@@ -179,7 +184,7 @@ export function useRevisitScreenModel() {
         label: "Hide",
         style: "destructive",
         icon: "eye-off-outline",
-        onPress: () => hideCandidate(candidate.key),
+        onPress: () => confirmHideCandidate(candidate),
       },
       {
         label: "Cancel",
@@ -221,6 +226,10 @@ export function useRevisitScreenModel() {
     resetSourceFilters,
     restoreHiddenCandidates,
     hiddenCandidateIds,
+    tagPrefs,
+    dailyRefresh,
+    setTagEnabled,
+    setDailyRefresh,
     getCandidateStatus,
     isCandidateActive,
     isCandidatePlaying,

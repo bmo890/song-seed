@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar as ExpoStatusBar } from "expo-status-bar";
@@ -9,14 +9,36 @@ import { useBrowseRootBackHandler } from "../../hooks/useBrowseRootBackHandler";
 import { useRevisitScreenModel } from "./hooks/useRevisitScreenModel";
 import { revisitStyles } from "./styles";
 import { RevisitAroundSnapshotView } from "./components/RevisitAroundSnapshotView";
-import { RevisitWorkspaceFilterRow } from "./components/RevisitWorkspaceFilterRow";
 import { RevisitSectionBlock } from "./components/RevisitSectionBlock";
+import { RevisitCustomizeSheet } from "./components/RevisitCustomizeSheet";
+
+// Maps a section to its "What to surface" tag so the Customize toggles hide it.
+const SECTION_TAG: Record<string, string> = {
+  pickup: "unfinished",
+  forgotten: "seed",
+  vault: "vault",
+  around: "anniversary",
+};
 
 export function RevisitScreen() {
   const screen = useRevisitScreenModel();
+  const [customizeOpen, setCustomizeOpen] = useState(false);
+
   useBrowseRootBackHandler({
     onBack: screen.isAroundSnapshotOpen ? screen.closeAroundSnapshot : undefined,
   });
+
+  const dateLabel = new Date(screen.now).toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+  });
+  const populatedSections = screen.revisitModel.sections.filter(
+    (section) => section.items.length > 0 && screen.tagPrefs[SECTION_TAG[section.key]] !== false
+  );
+  const shownCount = populatedSections.reduce(
+    (sum, section) => sum + Math.min(section.items.length, 2),
+    0
+  );
 
   return (
     <SafeAreaView style={revisitStyles.screen}>
@@ -24,12 +46,21 @@ export function RevisitScreen() {
         title={screen.isAroundSnapshotOpen ? "Around This Time" : "Revisit"}
         leftIcon={screen.isAroundSnapshotOpen ? "back" : "hamburger"}
         onLeftPress={screen.isAroundSnapshotOpen ? screen.closeAroundSnapshot : undefined}
+        rightElement={
+          screen.isAroundSnapshotOpen ? undefined : (
+            <Pressable
+              style={({ pressed }) => [revisitStyles.headerHelpBtn, pressed ? styles.pressDown : null]}
+              onPress={() => setCustomizeOpen(true)}
+              hitSlop={6}
+              accessibilityLabel="Customize Revisit"
+            >
+              <Ionicons name="options-outline" size={18} color="#84736f" />
+            </Pressable>
+          )
+        }
       />
 
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={revisitStyles.scrollContent}
-      >
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={revisitStyles.scrollContent}>
         {screen.isAroundSnapshotOpen ? (
           <RevisitAroundSnapshotView
             snapshot={screen.revisitModel.aroundSnapshot}
@@ -47,86 +78,70 @@ export function RevisitScreen() {
           />
         ) : (
           <>
-            <View style={[styles.card, revisitStyles.filterPanel]}>
-              <View style={revisitStyles.filterPanelHeader}>
-                <Text style={revisitStyles.filterPanelTitle}>Sources</Text>
-                {screen.hasSourceOverrides ? (
-                  <Pressable
-                    style={({ pressed }) => [
-                      revisitStyles.utilityButton,
-                      pressed ? styles.pressDown : null,
-                    ]}
-                    onPress={screen.resetSourceFilters}
-                  >
-                    <Text style={revisitStyles.utilityButtonText}>Reset</Text>
-                  </Pressable>
+            <View style={revisitStyles.pageHeader}>
+              <View style={revisitStyles.todayRow}>
+                <Text style={revisitStyles.todayEyebrow}>
+                  {screen.dailyRefresh ? `Today · ${dateLabel}` : "To revisit"}
+                </Text>
+                {shownCount > 0 ? (
+                  <Text style={revisitStyles.todayCount}>
+                    {shownCount} {shownCount === 1 ? "idea" : "ideas"}
+                  </Text>
                 ) : null}
               </View>
-
-              <View style={revisitStyles.workspaceFilterList}>
-                {screen.workspaceFilterGroups.map(({ workspace, collections }) => (
-                  <RevisitWorkspaceFilterRow
-                    key={workspace.id}
-                    option={workspace}
-                    collections={collections}
-                    expanded={screen.expandedWorkspaceId === workspace.id}
-                    onToggleWorkspace={() =>
-                      screen.setWorkspaceIncluded(workspace.id, !workspace.included)
-                    }
-                    onToggleExpand={() =>
-                      screen.setExpandedWorkspaceId((prev) =>
-                        prev === workspace.id ? null : workspace.id
-                      )
-                    }
-                    onToggleCollection={(collectionId, included) =>
-                      screen.setCollectionIncluded(collectionId, included)
-                    }
-                  />
-                ))}
-              </View>
-
-              {screen.hasHiddenItems ? (
-                <Pressable
-                  style={({ pressed }) => [
-                    revisitStyles.hiddenResetRow,
-                    pressed ? styles.pressDown : null,
-                  ]}
-                  onPress={screen.restoreHiddenCandidates}
-                >
-                  <Ionicons name="refresh-outline" size={16} color="#824f3f" />
-                  <Text style={revisitStyles.hiddenResetText}>
-                    Restore hidden ({screen.hiddenCandidateIds.length})
-                  </Text>
-                </Pressable>
-              ) : null}
+              <Text style={revisitStyles.pageDescription}>
+                A daily set of older ideas that newer work has buried: things you left unfinished,
+                loose seeds, deep cuts, and work from past years.
+              </Text>
             </View>
 
-            {screen.revisitModel.totalEligibleCount === 0 ? (
-              <View style={[styles.card, revisitStyles.emptyStateCard]}>
-                <Text style={styles.cardTitle}>Nothing ready right now</Text>
-              </View>
+            {populatedSections.length === 0 ? (
+              <Text style={[revisitStyles.sectionEmptyLine, { paddingTop: 16 }]}>
+                Nothing to revisit yet — as newer work stacks up, older ideas will resurface here.
+              </Text>
             ) : (
-              screen.revisitModel.sections.map((section) => (
-                <RevisitSectionBlock
-                  key={section.key}
-                  section={section}
-                  getCandidateStatus={screen.getCandidateStatus}
-                  isCandidateActive={screen.isCandidateActive}
-                  isCandidatePlaying={screen.isCandidatePlaying}
-                  onTogglePlay={screen.onTogglePlayCandidate}
-                  onStopPlay={screen.onStopPlayCandidate}
-                  onSeekStart={screen.onSeekInlineStart}
-                  onSeek={screen.onSeekInline}
-                  onSeekCancel={screen.onSeekInlineCancel}
-                  onOpen={screen.onOpenCandidate}
-                  onOpenMenu={screen.onOpenCandidateMenu}
-                  onOpenSection={section.key === "around" ? screen.openAroundSnapshot : undefined}
-                />
+              populatedSections.map((section, index) => (
+                <React.Fragment key={section.key}>
+                  {index > 0 ? <View style={revisitStyles.sectionDivider} /> : null}
+                  <RevisitSectionBlock
+                    section={section}
+                    getCandidateStatus={screen.getCandidateStatus}
+                    isCandidateActive={screen.isCandidateActive}
+                    isCandidatePlaying={screen.isCandidatePlaying}
+                    onTogglePlay={screen.onTogglePlayCandidate}
+                    onStopPlay={screen.onStopPlayCandidate}
+                    onSeekStart={screen.onSeekInlineStart}
+                    onSeek={screen.onSeekInline}
+                    onSeekCancel={screen.onSeekInlineCancel}
+                    onOpen={screen.onOpenCandidate}
+                    onOpenMenu={screen.onOpenCandidateMenu}
+                    onOpenSection={section.key === "around" ? screen.openAroundSnapshot : undefined}
+                  />
+                </React.Fragment>
               ))
             )}
           </>
         )}
       </ScrollView>
+
+      <RevisitCustomizeSheet
+        visible={customizeOpen}
+        onClose={() => setCustomizeOpen(false)}
+        groups={screen.workspaceFilterGroups}
+        expandedWorkspaceId={screen.expandedWorkspaceId}
+        setExpandedWorkspaceId={screen.setExpandedWorkspaceId}
+        setWorkspaceIncluded={screen.setWorkspaceIncluded}
+        setCollectionIncluded={screen.setCollectionIncluded}
+        hasSourceOverrides={screen.hasSourceOverrides}
+        resetSourceFilters={screen.resetSourceFilters}
+        hasHiddenItems={screen.hasHiddenItems}
+        hiddenCount={screen.hiddenCandidateIds.length}
+        restoreHiddenCandidates={screen.restoreHiddenCandidates}
+        tagPrefs={screen.tagPrefs}
+        setTagEnabled={screen.setTagEnabled}
+        dailyRefresh={screen.dailyRefresh}
+        setDailyRefresh={screen.setDailyRefresh}
+      />
 
       <ExpoStatusBar style="dark" />
     </SafeAreaView>

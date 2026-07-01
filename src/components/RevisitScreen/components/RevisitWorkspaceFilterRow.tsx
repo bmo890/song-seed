@@ -1,10 +1,10 @@
 import React from "react";
-import { Pressable, Text, View } from "react-native";
+import { Pressable, Switch, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { styles } from "../../../styles";
 import type { RevisitSourceOption } from "../../../revisit";
 import { revisitStyles } from "../styles";
-import { RevisitSourceChip } from "./RevisitSourceChip";
+import { WorkspaceAvatar } from "../../common/WorkspaceAvatar";
 
 type RevisitWorkspaceFilterRowProps = {
   option: RevisitSourceOption;
@@ -29,72 +29,105 @@ export function RevisitWorkspaceFilterRow({
   onToggleExpand,
   onToggleCollection,
 }: RevisitWorkspaceFilterRowProps) {
+  const hasCollections = collections.length > 0;
   const excludedCollectionsCount = collections.filter((item) => !item.included).length;
+
+  const metaText =
+    `${option.count} ${option.count === 1 ? "idea" : "ideas"}` +
+    (hasCollections
+      ? ` · ${collections.length} ${collections.length === 1 ? "collection" : "collections"}`
+      : "") +
+    (excludedCollectionsCount > 0 ? ` · ${excludedCollectionsCount} hidden` : "");
 
   return (
     <View
       style={[
-        revisitStyles.workspaceFilterRow,
-        option.included ? revisitStyles.workspaceFilterRowIncluded : null,
+        revisitStyles.sourceRow,
+        option.included ? null : revisitStyles.sourceRowExcluded,
       ]}
     >
-      <View style={revisitStyles.workspaceFilterTopRow}>
-        <Pressable
-          style={({ pressed }) => [
-            revisitStyles.workspaceIncludeToggle,
-            option.included ? revisitStyles.workspaceIncludeToggleIncluded : null,
-            pressed ? styles.pressDown : null,
-          ]}
-          onPress={onToggleWorkspace}
-        >
-          <Ionicons
-            name={option.included ? "checkmark-circle" : "ellipse-outline"}
-            size={18}
-            color={option.included ? "#824f3f" : "#84736f"}
+      <View style={revisitStyles.sourceTopRow}>
+        <View style={option.included ? null : revisitStyles.sourceAvatarMuted}>
+          <WorkspaceAvatar
+            color={option.color}
+            name={option.label}
+            avatarKey={option.avatarKey}
+            size={36}
           />
-        </Pressable>
+        </View>
 
         <Pressable
           style={({ pressed }) => [
-            revisitStyles.workspaceFilterMain,
-            pressed ? styles.pressDown : null,
+            revisitStyles.sourceCopy,
+            pressed && hasCollections ? styles.pressDown : null,
           ]}
-          onPress={onToggleExpand}
+          onPress={hasCollections ? onToggleExpand : undefined}
+          disabled={!hasCollections}
         >
-          <View style={revisitStyles.workspaceFilterCopy}>
-            <Text style={revisitStyles.workspaceFilterTitle}>{option.label}</Text>
-            <Text style={styles.cardMeta}>
-              {option.count} ideas
-              {collections.length > 0 ? ` • ${collections.length} collections` : ""}
-              {excludedCollectionsCount > 0 ? ` • ${excludedCollectionsCount} hidden` : ""}
+          <Text style={revisitStyles.sourceTitle} numberOfLines={1}>
+            {option.label}
+          </Text>
+          <View style={revisitStyles.sourceMetaRow}>
+            <Text style={revisitStyles.sourceMeta} numberOfLines={1}>
+              {metaText}
             </Text>
+            {hasCollections ? (
+              <Ionicons
+                name={expanded ? "chevron-up" : "chevron-down"}
+                size={13}
+                color="#a89994"
+              />
+            ) : null}
           </View>
-          <Ionicons
-            name={expanded ? "chevron-up" : "chevron-down"}
-            size={18}
-            color="#84736f"
-          />
         </Pressable>
+
+        <Switch
+          value={option.included}
+          onValueChange={onToggleWorkspace}
+          trackColor={{ false: "#E3DCD4", true: "#B87D6B" }}
+          thumbColor="#ffffff"
+        />
       </View>
 
-      {expanded ? (
-        <View style={revisitStyles.workspaceDropdown}>
-          {option.included && collections.length > 0 ? (
-            <View style={revisitStyles.filterWrap}>
-              {collections.map((collection) => (
-                <RevisitSourceChip
+      {expanded && hasCollections ? (
+        option.included ? (
+          <View style={revisitStyles.sourceCollections}>
+            {collections.map((collection) => {
+              const included = collection.included;
+              return (
+                <Pressable
                   key={collection.id}
-                  option={{ ...collection, label: getCollectionLabel(collection) }}
-                  onPress={() => onToggleCollection(collection.id, !collection.included)}
-                />
-              ))}
-            </View>
-          ) : option.included ? (
-            <Text style={styles.cardMeta}>No collections yet.</Text>
-          ) : (
-            <Text style={styles.cardMeta}>Include this workspace to filter collections.</Text>
-          )}
-        </View>
+                  style={({ pressed }) => [
+                    revisitStyles.sourceCollectionRow,
+                    pressed ? styles.pressDown : null,
+                  ]}
+                  onPress={() => onToggleCollection(collection.id, !included)}
+                  hitSlop={4}
+                >
+                  <Ionicons
+                    name={included ? "checkmark-circle" : "ellipse-outline"}
+                    size={17}
+                    color={included ? "#824f3f" : "#c3b6ae"}
+                  />
+                  <Text
+                    style={[
+                      revisitStyles.sourceCollectionName,
+                      included ? null : revisitStyles.sourceCollectionNameOff,
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {getCollectionLabel(collection)}
+                  </Text>
+                  <Text style={revisitStyles.sourceCollectionCount}>{collection.count}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        ) : (
+          <Text style={revisitStyles.sourceHint}>
+            Turn this workspace on to choose collections.
+          </Text>
+        )
       ) : null}
     </View>
   );

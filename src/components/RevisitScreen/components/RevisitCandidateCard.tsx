@@ -1,9 +1,10 @@
 import React from "react";
-import { Pressable, Text, View } from "react-native";
+import { Pressable, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { SurfaceCard } from "../../common/SurfaceCard";
+import { IdeaCard } from "../../common/IdeaCard";
 import { MiniProgress } from "../../MiniProgress";
 import { StatusBadge } from "../../common/StatusBadge";
+import { styles } from "../../../styles";
 import type { SongIdea } from "../../../types";
 import type { RevisitCandidate } from "../../../revisit";
 import { fmtDuration } from "../../../utils";
@@ -71,85 +72,65 @@ export function RevisitCandidateCard({
 }: RevisitCandidateCardProps) {
   const durationMs = candidate.primaryClip.durationMs ?? 0;
   const durationLabel = durationMs > 0 ? fmtDuration(durationMs) : "--:--";
+  const isProject = candidate.itemKind === "project";
+  // Match the collection card: projects show the stage pill with completion %,
+  // clips show no badge (getCandidateStatus returns null for them).
+  const pct = status ? Math.max(0, Math.min(100, Math.round(candidate.completionPct))) : undefined;
+
+  const trailing = (
+    <View style={revisitStyles.cardTrailing}>
+      {status ? (
+        <StatusBadge status={status} pct={pct} style={styles.ideasListStatusBadgeText} />
+      ) : null}
+      <Pressable
+        style={styles.ideasListFavoriteBtn}
+        onPress={(event) => {
+          event.stopPropagation();
+          onOpenMenu();
+        }}
+        hitSlop={8}
+        accessibilityLabel="More options"
+      >
+        <Ionicons name="ellipsis-horizontal" size={16} color="#B8A8A3" />
+      </Pressable>
+    </View>
+  );
 
   return (
-    <View style={revisitStyles.candidateWrap}>
-      <SurfaceCard style={revisitStyles.candidateCard} onPress={onOpen}>
-        {showReason ? <Text style={revisitStyles.reasonText}>{reason}</Text> : null}
-
-        <View style={revisitStyles.candidateTopRow}>
-          <View style={revisitStyles.candidateLeadCol}>
-            <Pressable
-              style={({ pressed }) => [revisitStyles.candidatePlayBtn, pressed ? { opacity: 0.78 } : null]}
-              onPress={(event) => {
-                event.stopPropagation();
-                onTogglePlay();
-              }}
-            >
-              <Ionicons
-                name={isActive && isPlaying ? "pause" : "play"}
-                size={18}
-                color="#1b1c1a"
-                style={!isActive || !isPlaying ? { marginLeft: 2 } : undefined}
-              />
-            </Pressable>
-            {isActive ? (
-              <Pressable
-                style={({ pressed }) => [revisitStyles.candidateStopBtn, pressed ? { opacity: 0.78 } : null]}
-                onPress={(event) => {
-                  event.stopPropagation();
-                  onStopPlay();
-                }}
-              >
-                <Ionicons name="stop" size={14} color="#84736f" />
-              </Pressable>
-            ) : null}
-          </View>
-
-          <View style={revisitStyles.candidateMain}>
-            <View style={revisitStyles.candidateTitleRow}>
-              <View style={revisitStyles.candidateTitleBlock}>
-                <Text style={revisitStyles.candidateTitle} numberOfLines={1}>
-                  {candidate.title}
-                </Text>
-                <Text style={revisitStyles.candidateContext} numberOfLines={1}>
-                  {candidate.workspaceTitle} • {candidate.collectionPathLabel}
-                </Text>
-              </View>
-              <View style={revisitStyles.candidateTopActions}>
-                <View style={revisitStyles.candidateKindPill}>
-                  <Text style={revisitStyles.candidateKindPillText}>
-                    {candidate.itemKind === "project" ? "Song" : "Clip"}
-                  </Text>
-                </View>
-                {status ? <StatusBadge status={status} /> : null}
-                <Pressable
-                  style={({ pressed }) => [revisitStyles.candidateMenuBtn, pressed ? { opacity: 0.78 } : null]}
-                  onPress={(event) => {
-                    event.stopPropagation();
-                    onOpenMenu();
-                  }}
-                >
-                  <Ionicons name="ellipsis-horizontal" size={16} color="#84736f" />
-                </Pressable>
-              </View>
-            </View>
-
-            {isActive ? (
-              <View style={revisitStyles.candidateProgressWrap}>
-                <RevisitInlineProgress
-                  durationMs={durationMs}
-                  onSeek={onSeek}
-                  onSeekStart={onSeekStart}
-                  onSeekCancel={onSeekCancel}
-                />
-              </View>
-            ) : (
-              <Text style={revisitStyles.candidateDurationLabel}>{durationLabel}</Text>
-            )}
-          </View>
-        </View>
-      </SurfaceCard>
-    </View>
+    <IdeaCard
+      accentBorderColor={isProject ? "#B87D6B" : null}
+      canPlay={durationMs > 0}
+      isInlinePlaying={isPlaying}
+      inlineActive={isActive}
+      durationLabel={durationLabel}
+      onPressLead={onTogglePlay}
+      leadAccessory={
+        isActive ? (
+          <Pressable
+            style={({ pressed }) => [styles.ideasInlineCloseBtn, pressed ? styles.pressDown : null]}
+            onPress={(event) => {
+              event.stopPropagation();
+              onStopPlay();
+            }}
+          >
+            <Ionicons name="stop-circle-outline" size={14} color="#84736f" />
+          </Pressable>
+        ) : null
+      }
+      onPress={onOpen}
+      onLongPress={onOpenMenu}
+      title={candidate.title}
+      titleSemiBold={isProject}
+      trailing={trailing}
+      footerDate={showReason && reason ? reason : undefined}
+      inlinePlayerContent={
+        <RevisitInlineProgress
+          durationMs={durationMs}
+          onSeek={onSeek}
+          onSeekStart={onSeekStart}
+          onSeekCancel={onSeekCancel}
+        />
+      }
+    />
   );
 }
