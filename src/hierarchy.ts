@@ -1,6 +1,6 @@
 import type { ComponentProps } from "react";
 import { Ionicons } from "@expo/vector-icons";
-import type { Collection, SongIdea } from "./types";
+import type { SongIdea } from "./types";
 
 export type HierarchyLevel =
   | "home"
@@ -60,10 +60,6 @@ export function getHierarchyIconName(level: HierarchyLevel) {
 
 export function getHierarchyIconColor(level: HierarchyLevel) {
   return HIERARCHY_ICON_COLORS[level];
-}
-
-export function getCollectionHierarchyLevel(collection: Pick<Collection, "parentCollectionId">): HierarchyLevel {
-  return collection.parentCollectionId ? "subcollection" : "collection";
 }
 
 export function getIdeaHierarchyLevel(idea: Pick<SongIdea, "kind">): HierarchyLevel {

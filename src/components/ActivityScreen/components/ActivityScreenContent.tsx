@@ -1,20 +1,38 @@
-import { ScrollView, Text, View } from "react-native";
+import { useState } from "react";
+import { Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
 import { ScreenHeader } from "../../common/ScreenHeader";
 import { styles } from "../styles";
-import { ActivityScopeControls } from "../ActivityScopeControls";
 import { ActivityHeatmapGrid } from "../ActivityHeatmapGrid";
 import { ActivityRangeResults } from "../ActivityRangeResults";
+import { ActivityCustomizeSheet } from "./ActivityCustomizeSheet";
 import { useBrowseRootBackHandler } from "../../../hooks/useBrowseRootBackHandler";
 import { useActivityScreenModel } from "../hooks/useActivityScreenModel";
 
 export function ActivityScreenContent() {
   useBrowseRootBackHandler();
   const model = useActivityScreenModel();
+  const [customizeOpen, setCustomizeOpen] = useState(false);
 
   return (
     <SafeAreaView style={styles.screen}>
-      <ScreenHeader title="Activity" leftIcon="hamburger" />
+      <ScreenHeader
+        title="Activity"
+        leftIcon="hamburger"
+        rightElement={
+          model.isCollectionScoped ? undefined : (
+            <Pressable
+              style={({ pressed }) => [styles.customizeBtn, pressed ? styles.pressDown : null]}
+              onPress={() => setCustomizeOpen(true)}
+              hitSlop={6}
+              accessibilityLabel="Customize Activity"
+            >
+              <Ionicons name="options-outline" size={18} color="#84736f" />
+            </Pressable>
+          )
+        }
+      />
 
       <View
         onLayout={(event) => {
@@ -24,19 +42,7 @@ export function ActivityScreenContent() {
             return Math.abs(prev - nextTop) < 1 ? prev : nextTop;
           });
         }}
-      >
-        <ActivityScopeControls
-          collectionScopeActive={!!model.collectionScope}
-          workspaces={model.workspaces}
-          primaryWorkspaceId={model.primaryWorkspaceId}
-          workspaceLastOpenedAt={model.workspaceLastOpenedAt}
-          workspaceFilterId={model.workspaceFilterId}
-          topLevelCollections={model.topLevelCollections}
-          collectionFilterId={model.collectionFilterId}
-          onSelectWorkspace={model.setWorkspaceFilterId}
-          onSelectCollection={model.setCollectionFilterId}
-        />
-      </View>
+      />
 
       {model.showStickyDayChip ? (
         <View style={[styles.ideasStickyDayWrap, { top: model.stickyDayTop }]} pointerEvents="none">
@@ -53,6 +59,10 @@ export function ActivityScreenContent() {
         scrollEventThrottle={16}
         onScroll={model.onHeaderScroll}
       >
+        <Text style={styles.intro}>
+          A year of your creative activity at a glance. Tap any day to see what you made.
+        </Text>
+
         <View>
           <ActivityHeatmapGrid
             year={model.year}
@@ -83,6 +93,7 @@ export function ActivityScreenContent() {
           getItemDurationMs={model.getItemDurationMs}
           activeInlineItemId={model.activeInlineItemId}
           onTogglePlayItem={model.onTogglePlayItem}
+          onStopPlayItem={model.onStopPlayItem}
           onSeekInline={model.onSeekInline}
           onSeekInlineStart={model.onSeekInlineStart}
           onSeekInlineCancel={model.onSeekInlineCancel}
@@ -90,6 +101,18 @@ export function ActivityScreenContent() {
           onViewInCollection={model.onViewInCollection}
         />
       </ScrollView>
+
+      <ActivityCustomizeSheet
+        visible={customizeOpen}
+        onClose={() => setCustomizeOpen(false)}
+        groups={model.workspaceFilterGroups}
+        expandedWorkspaceId={model.expandedWorkspaceId}
+        setExpandedWorkspaceId={model.setExpandedWorkspaceId}
+        setWorkspaceIncluded={model.setWorkspaceIncluded}
+        setCollectionIncluded={model.setCollectionIncluded}
+        hasSourceOverrides={model.hasSourceOverrides}
+        resetSourceFilters={model.resetSourceFilters}
+      />
     </SafeAreaView>
   );
 }

@@ -52,14 +52,28 @@ export function CollectionHeaderSection() {
   return (
     <View style={collStyles.navRow}>
       <Pressable
-        style={({ pressed }) => [collStyles.navBtn, pressed ? styles.pressDown : null]}
+        style={({ pressed }) => [
+          screen.showBack && screen.backLabel ? collStyles.navBackLabeled : collStyles.navBtn,
+          pressed ? styles.pressDown : null,
+        ]}
         onPress={screen.showBack ? screen.onBack : screen.openDrawer}
         hitSlop={8}
         accessibilityRole="button"
-        accessibilityLabel={screen.showBack ? "Back" : "Open menu"}
+        accessibilityLabel={
+          screen.showBack
+            ? screen.backLabel
+              ? `Back to ${screen.backLabel}`
+              : "Back"
+            : "Open menu"
+        }
       >
         {screen.showBack ? (
-          <Ionicons name="chevron-back" size={20} color="#84736f" />
+          <>
+            <Ionicons name="chevron-back" size={20} color="#84736f" />
+            {screen.backLabel ? (
+              <Text style={collStyles.navBackLabelText}>{screen.backLabel}</Text>
+            ) : null}
+          </>
         ) : (
           <Ionicons name="menu-outline" size={22} color="#84736f" />
         )}
@@ -105,7 +119,7 @@ export function CollectionCollapsibleIdentity() {
   const workspace = screen.activeWorkspace;
   if (!collection) return null;
 
-  const eyebrowText = screen.breadcrumbs.map((b) => b.label).join("  ›  ");
+  const eyebrowText = screen.breadcrumbs.join("  ›  ");
   const seedMeta = screen.ideasHeaderMeta.replace(/\bideas?\b/g, (m) =>
     m === "idea" ? "seed" : "seeds"
   );
@@ -184,6 +198,21 @@ const collStyles = StyleSheet.create({
     height: 36,
     alignItems: "center",
     justifyContent: "center",
+  },
+  // Labelled back for a contextual open ("‹ Activity") — a quiet cue that back
+  // returns to where you came from, not into the workspace browse.
+  navBackLabeled: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 1,
+    height: 36,
+    paddingRight: 10,
+    marginLeft: -4,
+  },
+  navBackLabelText: {
+    fontFamily: "PlusJakartaSans_600SemiBold",
+    fontSize: 14,
+    color: "#84736f",
   },
   navCompact: {
     flex: 1,

@@ -3,13 +3,13 @@ import { Pressable, ScrollView, Switch, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { BottomSheet } from "../../common/BottomSheet";
 import { styles } from "../../../styles";
-import type { RevisitSourceOption, RevisitTag } from "../../../revisit";
+import type { RevisitTag } from "../../../revisit";
 import { revisitStyles } from "../styles";
-import { RevisitWorkspaceFilterRow } from "./RevisitWorkspaceFilterRow";
+import { SourceFilterRow, type SourceFilterOption } from "../../common/SourceFilterRow";
 
 type WorkspaceGroup = {
-  workspace: RevisitSourceOption;
-  collections: RevisitSourceOption[];
+  workspace: SourceFilterOption;
+  collections: SourceFilterOption[];
 };
 
 const TAG_OPTIONS: {
@@ -147,7 +147,7 @@ export function RevisitCustomizeSheet({
         </Text>
         <View style={revisitStyles.sheetList}>
           {groups.map(({ workspace, collections }) => (
-            <RevisitWorkspaceFilterRow
+            <SourceFilterRow
               key={workspace.id}
               option={workspace}
               collections={collections}

@@ -1,42 +1,9 @@
-import { Pressable, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { SurfaceCard } from "../../common/SurfaceCard";
-import { MiniProgress } from "../../MiniProgress";
-import { StatusBadge } from "../../common/StatusBadge";
+import { InlineIdeaCard } from "../../common/InlineIdeaCard";
 import { styles } from "../styles";
 import type { ActivityItemResult } from "../helpers";
-import { fmtDuration } from "../../../utils";
-import { getHierarchyIconColor, getHierarchyIconName } from "../../../hierarchy";
 import { getDateBucket } from "../../../dateBuckets";
-import { useStore } from "../../../state/useStore";
-
-function ActivityInlineProgress({
-  durationMs,
-  onSeek,
-  onSeekStart,
-  onSeekCancel,
-}: {
-  durationMs: number;
-  onSeek: (ms: number) => void;
-  onSeekStart: () => void;
-  onSeekCancel: () => void;
-}) {
-  const inlinePositionMs = useStore((s) => s.inlinePositionMs);
-  const inlineDurationMs = useStore((s) => s.inlineDurationMs);
-
-  return (
-    <MiniProgress
-      currentMs={inlinePositionMs}
-      durationMs={inlineDurationMs || durationMs || 0}
-      showTopDivider
-      extraBottomMargin={2}
-      captureWholeLane
-      onSeek={onSeek}
-      onSeekStart={onSeekStart}
-      onSeekCancel={onSeekCancel}
-    />
-  );
-}
 
 type ActivityResultCardProps = {
   result: ActivityItemResult;
@@ -49,6 +16,7 @@ type ActivityResultCardProps = {
     getItemDurationMs: (item: ActivityItemResult) => number;
     activeInlineItemId: string | null;
     onTogglePlayItem: (item: ActivityItemResult) => void;
+    onStopPlayItem: () => void;
     onSeekInline: (ms: number) => void;
     onSeekInlineStart: () => void;
     onSeekInlineCancel: () => void;
@@ -66,15 +34,39 @@ export function ActivityResultCard({
   onOpenItem,
   onViewInCollection,
 }: ActivityResultCardProps) {
+  const isSong = result.ideaKind === "song";
   const canPlay = playback.canPlayItem(result);
   const isActive = playback.activeInlineItemId === result.ideaId && canPlay;
   const durationMs = playback.getItemDurationMs(result);
-  const durationLabel = durationMs > 0 ? fmtDuration(durationMs) : null;
   const resultBucket = getDateBucket(result.latestAt);
   const previousBucket = previousResult ? getDateBucket(previousResult.latestAt) : null;
   const showDayDivider = previousBucket?.key !== resultBucket.key;
-  const activityIconName =
-    result.activityLabel === "Updated" ? "sparkles-outline" : "add-circle-outline";
+  const activityIcon =
+    result.activityLabel === "Updated" ? "pencil-outline" : "bulb-outline";
+
+  const footerContent = (
+    <View style={cardStyles.footer}>
+      {result.activityLabel ? (
+        <View style={cardStyles.action}>
+          <Ionicons name={activityIcon} size={12} color="#84736f" />
+          <Text style={cardStyles.actionLabel}>{result.activityLabel}</Text>
+        </View>
+      ) : (
+        <View />
+      )}
+      <Pressable
+        style={({ pressed }) => [cardStyles.viewBtn, pressed ? styles.pressDown : null]}
+        onPress={(event) => {
+          event.stopPropagation();
+          onViewInCollection();
+        }}
+        hitSlop={6}
+      >
+        <Ionicons name="folder-outline" size={12} color="#824f3f" />
+        <Text style={cardStyles.viewBtnText}>View in collection</Text>
+      </Pressable>
+    </View>
+  );
 
   return (
     <View
@@ -98,119 +90,54 @@ export function ActivityResultCard({
         </View>
       ) : null}
 
-      <View style={styles.activityResultsRowWrap}>
-        <SurfaceCard
-          style={[styles.activityResultCard, styles.activityResultsCardFill]}
-          onPress={onOpenItem}
-        >
-          <View style={styles.activityResultCardRow}>
-            <View
-              style={[
-                styles.activityResultLeadCol,
-                isActive ? styles.activityResultLeadColActive : null,
-              ]}
-            >
-              <Pressable
-                style={({ pressed }) => [
-                  styles.ideasInlinePlayBtn,
-                  pressed ? styles.pressDown : null,
-                  !canPlay ? styles.activityResultIconBtnDisabled : null,
-                ]}
-                onPress={(event) => {
-                  event.stopPropagation();
-                  playback.onTogglePlayItem(result);
-                }}
-                disabled={!canPlay}
-              >
-                <Ionicons
-                  name={playback.isItemPlaying(result) ? "pause" : "play"}
-                  size={15}
-                  color={canPlay ? "#1b1c1a" : "#d7c2bd"}
-                />
-              </Pressable>
-              {!isActive ? (
-                <View style={styles.activityResultLeadDurationSlot}>
-                  <Text style={styles.ideasListLeadDurationText}>
-                    {durationLabel ?? "--:--"}
-                  </Text>
-                </View>
-              ) : null}
-            </View>
-
-            <View style={styles.activityResultMain}>
-              <View style={styles.activityResultTop}>
-                <View style={styles.ideasListCardTop}>
-                  <View style={styles.ideasListCardTitleRow}>
-                    <View style={styles.ideasListTitleIconWrap}>
-                      <Ionicons
-                        name={getHierarchyIconName(
-                          result.ideaKind === "song" ? "song" : "clip"
-                        )}
-                        size={13}
-                        color={getHierarchyIconColor(
-                          result.ideaKind === "song" ? "song" : "clip"
-                        )}
-                      />
-                    </View>
-                    <Text style={styles.activityResultTitle} numberOfLines={1}>
-                      {result.ideaTitle}
-                    </Text>
-                  </View>
-                  {result.ideaKind === "song" ? (
-                    <View style={styles.ideasListCardTrailing}>
-                      <StatusBadge
-                        status={result.ideaStatus}
-                        style={styles.ideasListStatusBadgeText}
-                      />
-                    </View>
-                  ) : null}
-                </View>
-                <View style={styles.activityResultMetaRow}>
-                  <Ionicons
-                    name={activityIconName}
-                    size={12}
-                    color="#84736f"
-                  />
-                  <Text style={styles.activityResultMeta} numberOfLines={1}>
-                    {result.activityLabel}
-                  </Text>
-                </View>
-              </View>
-
-              {isActive ? (
-                <ActivityInlineProgress
-                  durationMs={durationMs}
-                  onSeek={playback.onSeekInline}
-                  onSeekStart={playback.onSeekInlineStart}
-                  onSeekCancel={playback.onSeekInlineCancel}
-                />
-              ) : null}
-
-              <View style={styles.activityResultBottomRow}>
-                <Text style={styles.activityResultContext} numberOfLines={1}>
-                  {result.contextLabel}
-                </Text>
-                <View style={styles.activityResultActions}>
-                  <Pressable
-                    style={({ pressed }) => [
-                      styles.activityResultActionBtn,
-                      pressed ? styles.pressDown : null,
-                    ]}
-                    onPress={(event) => {
-                      event.stopPropagation();
-                      onViewInCollection();
-                    }}
-                  >
-                    <Text style={styles.activityResultActionBtnText}>
-                      View in collection
-                    </Text>
-                  </Pressable>
-                </View>
-              </View>
-            </View>
-          </View>
-        </SurfaceCard>
-      </View>
+      <InlineIdeaCard
+        title={result.ideaTitle}
+        isProject={isSong}
+        status={isSong ? result.ideaStatus : null}
+        completionPct={result.completionPct}
+        durationMs={durationMs}
+        canPlay={canPlay}
+        isActive={isActive}
+        isPlaying={playback.isItemPlaying(result)}
+        footerContent={footerContent}
+        onOpen={onOpenItem}
+        onTogglePlay={() => playback.onTogglePlayItem(result)}
+        onStopPlay={playback.onStopPlayItem}
+        onSeekStart={playback.onSeekInlineStart}
+        onSeek={playback.onSeekInline}
+        onSeekCancel={playback.onSeekInlineCancel}
+      />
     </View>
   );
 }
+
+const cardStyles = StyleSheet.create({
+  footer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
+    minHeight: 16,
+  },
+  action: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    flexShrink: 1,
+  },
+  actionLabel: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: "#84736f",
+  },
+  viewBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  viewBtnText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#824f3f",
+  },
+});

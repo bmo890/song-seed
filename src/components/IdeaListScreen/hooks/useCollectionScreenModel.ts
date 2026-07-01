@@ -1,17 +1,16 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Animated } from "react-native";
 import { useIsFocused, useNavigation, useRoute } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useSharedValue } from "react-native-reanimated";
 import { useStore } from "../../../state/useStore";
 import { fmtDuration, getCollectionAncestors } from "../../../utils";
-import { getCollectionHierarchyLevel } from "../../../hierarchy";
 import { getDateBucket, getDateBucketLabel } from "../../../dateBuckets";
 import { compareIdeas, getIdeaCreatedAt, getIdeaSortState, getIdeaSortTimestamp, getIdeaUpdatedAt, usesIdeaTimelineDividers } from "../../../ideaSort";
-import { goBackFromParentStack, openCollectionInBrowse, openWorkspaceBrowseRoot } from "../../../navigation";
+import { getRootNavigation, goBackFromParentStack, openWorkspaceBrowseRoot } from "../../../navigation";
 import { getFloatingActionDockBottomOffset, getFloatingActionDockScrollPastClearance } from "../../common/FloatingActionDock";
 import { getPlayableClipForIdea } from "../../../clipPresentation";
-import type { AppBreadcrumbItem, IdeaListEntry, IdeaListItemMeta } from "../types";
+import type { IdeaListEntry, IdeaListItemMeta } from "../types";
 import { stickyDayStore } from "../stickyDayStore";
 import type { SongIdea } from "../../../types";
 
@@ -75,6 +74,45 @@ export function useCollectionScreenModel() {
   const focusToken = route.params?.focusToken as number | undefined;
   const showBack = route.params?.showBack === true;
   const collectionSource = route.params?.source as "activity" | "detail" | undefined;
+  const backLabel = route.params?.backLabel as string | undefined;
+  // A "contextual" open (view-in-collection from Activity/Revisit) carries a
+  // source. Those are pushed as a fresh Home over the origin, so "back" should
+  // return to that origin — not fall through to the Browse root beneath this
+  // WorkspaceStack.
+  const isContextualOpen = collectionSource != null;
+
+  // Pop the whole pushed Home off the ROOT stack to land back on the origin
+  // (Activity/Revisit) with its scroll and selection intact. The ref guards
+  // against re-entrancy when our own root pop unmounts this screen.
+  const originBackHandledRef = useRef(false);
+  const popBackToOrigin = useCallback(() => {
+    if (originBackHandledRef.current) return;
+    originBackHandledRef.current = true;
+    const root = getRootNavigation(navigation);
+    if (root?.canGoBack?.()) {
+      root.goBack();
+    } else if (!goBackFromParentStack(navigation)) {
+      (root ?? navigation).navigate("Home" as never);
+    }
+  }, [navigation]);
+
+  // The header back button calls `onBack` (below), which pops the root directly.
+  // This listener covers the native swipe gesture and Android hardware back,
+  // which remove the screen without going through `onBack`. It must only fire on
+  // real BACK actions (GO_BACK/POP) — never a forward/lateral navigation that
+  // happens to unmount this screen (any NAVIGATE/REPLACE), or it would hijack it
+  // and bounce the user to the origin.
+  useEffect(() => {
+    if (!isContextualOpen) return;
+    const unsubscribe = (navigation as any).addListener("beforeRemove", (event: any) => {
+      if (originBackHandledRef.current) return;
+      const actionType = event?.data?.action?.type;
+      if (actionType !== "GO_BACK" && actionType !== "POP" && actionType !== "POP_TO_TOP") return;
+      event.preventDefault();
+      popBackToOrigin();
+    });
+    return unsubscribe;
+  }, [isContextualOpen, navigation, popBackToOrigin]);
 
   const workspaces = useStore((s) => s.workspaces);
   const storeActiveWorkspaceId = useStore((s) => s.activeWorkspaceId);
@@ -380,25 +418,11 @@ export function useCollectionScreenModel() {
     source: collectionSource,
   };
 
-  const goToBrowse = () => {
-    openWorkspaceBrowseRoot(rootNavigation ?? navigation, activeWorkspace?.id);
-  };
-
-  const breadcrumbs: AppBreadcrumbItem[] = [
-    ...(activeWorkspace
-      ? [{
-          key: `workspace-${activeWorkspace.id}`,
-          label: activeWorkspace.title,
-          level: "workspace" as const,
-          onPress: goToBrowse,
-        }]
-      : []),
-    ...collectionAncestors.map((collection) => ({
-      key: collection.id,
-      label: collection.title,
-      level: getCollectionHierarchyLevel(collection),
-      onPress: () => openCollectionInBrowse(navigation, { collectionId: collection.id, ...collectionRouteParams }),
-    })),
+  // Just the label trail for the header eyebrow (Workspace › Parent › …).
+  // Interactive breadcrumbs were removed; only these strings are rendered.
+  const breadcrumbs: string[] = [
+    ...(activeWorkspace ? [activeWorkspace.title] : []),
+    ...collectionAncestors.map((collection) => collection.title),
   ];
 
   const hasActivityRangeFilter = typeof activityRangeStartTs === "number" && typeof activityRangeEndTs === "number";
@@ -496,10 +520,14 @@ export function useCollectionScreenModel() {
     activityRangeEndTs,
     activityMetricFilter,
     collectionSource,
-    goToBrowse,
+    backLabel,
     onBack:
       showBack
         ? () => {
+            if (isContextualOpen) {
+              popBackToOrigin();
+              return;
+            }
             if (!goBackFromParentStack(navigation)) {
               openWorkspaceBrowseRoot(rootNavigation ?? navigation, activeWorkspace?.id);
             }

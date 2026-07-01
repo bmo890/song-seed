@@ -23,6 +23,8 @@ export function useRevisitScreenModel() {
 
   const now = useMemo(() => Date.now(), []);
   const workspaces = useStore((state) => state.workspaces);
+  const primaryWorkspaceId = useStore((state) => state.primaryWorkspaceId);
+  const primaryCollectionIdByWorkspace = useStore((state) => state.primaryCollectionIdByWorkspace);
   const activityEvents = useStore((state) => state.activityEvents);
   const activeWorkspaceId = useStore((state) => state.activeWorkspaceId);
   const setActiveWorkspaceId = useStore((state) => state.setActiveWorkspaceId);
@@ -103,12 +105,24 @@ export function useRevisitScreenModel() {
   const workspaceFilterGroups = useMemo(
     () =>
       revisitModel.workspaceOptions.map((workspaceOption) => ({
-        workspace: workspaceOption,
-        collections: revisitModel.collectionOptions.filter(
-          (collectionOption) => collectionOption.workspaceId === workspaceOption.id
-        ),
+        workspace: {
+          ...workspaceOption,
+          isPrimary: workspaceOption.id === primaryWorkspaceId,
+        },
+        collections: revisitModel.collectionOptions
+          .filter((collectionOption) => collectionOption.workspaceId === workspaceOption.id)
+          .map((collectionOption) => ({
+            ...collectionOption,
+            isPrimary:
+              primaryCollectionIdByWorkspace[workspaceOption.id] === collectionOption.id,
+          })),
       })),
-    [revisitModel.collectionOptions, revisitModel.workspaceOptions]
+    [
+      revisitModel.collectionOptions,
+      revisitModel.workspaceOptions,
+      primaryWorkspaceId,
+      primaryCollectionIdByWorkspace,
+    ]
   );
 
   function syncWorkspaceContext(candidate: RevisitCandidate) {
@@ -144,6 +158,7 @@ export function useRevisitScreenModel() {
       focusIdeaId: candidate.ideaId,
       focusToken: Date.now(),
       source: "detail",
+      backLabel: "Revisit",
     });
   }
 

@@ -12,18 +12,6 @@ import type { MutableRefObject, ReactNode } from "react";
 import type { Animated } from "react-native";
 import type { SharedValue } from "react-native-reanimated";
 import type { ImportedAudioAsset } from "../../services/audioStorage";
-import type { HierarchyLevel } from "../../hierarchy";
-
-/** One node in a collection's hierarchy path, rendered as the quiet `A › B › C`
- * eyebrow above a collection. (Formerly powered the removed AppBreadcrumbs pill.) */
-export type AppBreadcrumbItem = {
-  key: string;
-  label: string;
-  level: HierarchyLevel;
-  onPress?: () => void;
-  active?: boolean;
-  iconOnly?: boolean;
-};
 
 export type IdeaListEntry =
   | {
@@ -61,7 +49,7 @@ export type CollectionHeaderModel = {
   headerMenuOpen: boolean;
   title: string;
   workspaceTitle: string;
-  breadcrumbs: AppBreadcrumbItem[];
+  breadcrumbs: string[];
   currentCollection: Collection;
   ideasHeaderMeta: string;
   searchQuery: string;
