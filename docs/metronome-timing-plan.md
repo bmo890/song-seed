@@ -16,6 +16,56 @@ verification checklist, and later phases assume earlier ones are verified.
 
 ---
 
+## STATUS (updated as work lands)
+
+| Phase | Status |
+|---|---|
+| 1 — `recordingGrid` metadata | **Implemented** (types + capture at take start + attach on save for clips & stems + store normalizer + archive round-trip in all fidelities + restore-on-overdub + sheet label). `tsc` + Jest green. Needs device smoke. |
+| 2 — Calibration sharpening | **Implemented** (tap grid re-anchored to actual playback start; `getCurrentAudioRouteLatencyMs` on iOS/Android/web; calibration screen shows reported latency + "use reported" seed). Native halves need device verification. |
+| 3 — Stem nudge | **Implemented** (negative-offset support in BOTH native mixers — iOS `scheduleSegment` head-skip, Android `ClippingConfiguration` head clip; offset clamp to −2s; ±10/±25 ms nudge buttons + offset label in the Layers sheet via existing `nudgeClipOverdubStem`). Native halves need device verification. |
+| 4 — Engine hardening | **Implemented** (live-vs-structural `configure()` split + `setClickVolume`; Bresenham pulse framing; `getGridAnchor()` on both engines; level sliders usable mid-take). Anchor-driven Reanimated visual cues intentionally deferred — the anchor API is in place; the cue rewrite needs on-device iteration. |
+| 5 — Deterministic downbeat | **At the decision gate** — see "Phase 5 decision-gate findings" below. Do not start without device testing. |
+| 6 — Overdub timestamps | Blocked on Phase 5. |
+| 7 — Unified engine | Not started (optional). |
+
+### Phase 5 decision-gate findings (investigated 2026-07)
+
+`@siteed/audio-studio` ships **full native source** in the package (Kotlin under
+`android/src/main/java/net/siteed/audiostudio/`, Swift under `ios/`), so
+**option (a) — patch-package — is viable**, and the repo already maintains
+`patches/`. What the patch must do:
+
+- **iOS** (`ios/AudioStreamManager.swift`): the input tap already receives an
+  `AVAudioTime` per buffer (`lastBufferTime`, tap block ~line 2135). Convert the
+  FIRST buffer's `hostTime` to epoch/uptime ms and emit it as
+  `captureStartTimeMs` (+ `inputLatencyMs` from `AVAudioSession`) in the
+  `startRecording` result / first `onAudioStream` event. The data is already
+  flowing — it just isn't surfaced.
+- **Android** (`android/src/main/java/net/siteed/audiostudio/AudioRecorderManager.kt`):
+  after `audioRecord.startRecording()` (~line 264) and the first successful
+  `read()`, call `AudioRecord.getTimestamp(..., TIMEBASE_MONOTONIC)` to map
+  frame position → `elapsedRealtimeNanos`, back-compute frame 0's time, emit as
+  `captureStartTimeMs`. Fall back to omitting the field when `getTimestamp`
+  is unsupported (OEM-variable) — callers treat absence as unknown.
+- **JS consumer**: `firstDownbeatMs = (gridAnchor.anchorEpochMs +
+  countInPulses · msPerPulse) − captureStartTimeMs` — the metronome side
+  (`getGridAnchor()`) already landed in Phase 4.
+
+**Why it stopped here:** the patch edits the hot recording path of a 1,700-line
+third-party recorder on two platforms. A subtle mistake corrupts every take.
+This must be developed against a device with the Phase 5 verification
+checklist (record 20×, measure first-click sample positions), not merged
+blind. Everything up to the gate — including the grid anchor the computation
+needs and the metadata field the result lands in — is already in place.
+
+Also deliberately deferred with Phase 5: the arm-sequence reorder
+(capture-before-count-in). It changes elapsed-time display, the overdub
+auto-stop threshold (`elapsedMs >= guideMixDurationMs` would fire early with
+count-in audio included), waveform trimming, and recovery semantics — all of
+which are exercised only on device.
+
+---
+
 ## Phase 0 — Baseline & guardrails (S)
 
 Do once before starting:
