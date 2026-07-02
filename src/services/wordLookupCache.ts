@@ -7,11 +7,13 @@ import { setWordLookupPersistentStore } from "../wordTools";
  * free forever on this device — across app restarts and offline.
  *
  * Size guardrails: rows are capped at MAX_ROWS (oldest-written evicted in
- * batches), and a full cache is only ~4–5 MB on disk — trivial next to the
- * audio library. Entries never expire by age because the data never changes.
+ * batches); a full cache is ~10–12 MB on disk — trivial next to the audio
+ * library. The cap is sized generously because theme words multiply distinct
+ * keys (word × mode × theme). Entries never expire by age because the data
+ * never changes.
  */
 
-const MAX_ROWS = 2000;
+const MAX_ROWS = 5000;
 /** Evict in batches so we don't pay a DELETE scan on every insert. */
 const EVICTION_CHECK_EVERY = 100;
 
