@@ -33,10 +33,11 @@ import {
  *  than keeping a few ms of pre-roll. */
 const HEAD_TRIM_SAFETY_EARLY_MS = 15;
 /** How far ahead of the downbeat to fire the guide's play() so its (unmeasurable ahead of
- *  time) start latency lands the guide near the "one". Alignment does NOT depend on this —
- *  the stem is trimmed to the guide's MEASURED start; this only tunes the musical feel of
- *  the count-in→guide transition. */
+ *  time) start latency lands the guide near the "one". Only the FIRST guess — the actual
+ *  phase is measured right after and corrected with a seek. */
 const GUIDE_DOWNBEAT_LEAD_MS = 80;
+/** Below this the live click vs guide phase error is inaudible — don't bother seeking. */
+const GUIDE_PHASE_CORRECTION_THRESHOLD_MS = 30;
 
 export function useRecordingScreenModel() {
   const navigation = useNavigation();
@@ -805,15 +806,64 @@ export function useRecordingScreenModel() {
 
         let headMs = 0;
         if (recordingGuideMixUri) {
-          // Aim the guide's start at the downbeat (feel only — alignment comes from the
-          // measured start below, so a wrong start-latency guess can't misalign the stem).
+          // Aim the guide's start at the downbeat as a first guess...
           if (downbeatEpochMs != null) {
             const aimWaitMs = downbeatEpochMs - Date.now() - GUIDE_DOWNBEAT_LEAD_MS;
             if (aimWaitMs > 0) {
               await waitForMonitoringCompensation(aimWaitMs);
             }
           }
-          const guideStartEpochMs = await startGuideMixFromBeginningAnchored();
+          let guideStartEpochMs = await startGuideMixFromBeginningAnchored();
+
+          // ...then MEASURE the guide's phase against the metronome grid and correct it
+          // with a seek, so the live click and the guide's recorded click actually land
+          // together (a start-latency guess alone can be off by 50–150 ms). Only possible
+          // when the master's own downbeat position is known — a master with unmeasured
+          // pre-roll (recorded before downbeat trimming existed) cannot be phase-locked.
+          const masterFirstDownbeatMs =
+            recordingOverdubClip?.recordingGrid?.firstDownbeatMs ?? null;
+          if (
+            guideStartEpochMs != null &&
+            downbeatEpochMs != null &&
+            masterFirstDownbeatMs != null
+          ) {
+            const targetStartEpochMs = downbeatEpochMs - masterFirstDownbeatMs;
+            const phaseErrorMs = guideStartEpochMs - targetStartEpochMs;
+            console.log(
+              `[timing] guide phase vs metronome grid: ${Math.round(phaseErrorMs)}ms ` +
+                `(+ = guide late)`
+            );
+            if (Math.abs(phaseErrorMs) > GUIDE_PHASE_CORRECTION_THRESHOLD_MS) {
+              try {
+                const currentPositionSec = guideMixPlayer.currentTime ?? 0;
+                await guideMixPlayer.seekTo(
+                  Math.max(0, currentPositionSec + phaseErrorMs / 1000)
+                );
+                // Let the seek settle, then re-anchor off the corrected position — the
+                // remeasured anchor is what the head-trim math must use.
+                await new Promise<void>((resolve) => {
+                  setTimeout(resolve, 120);
+                });
+                const remeasuredPositionSec = guideMixPlayer.currentTime ?? 0;
+                if (guideMixPlayer.playing && remeasuredPositionSec > 0) {
+                  guideStartEpochMs = Date.now() - remeasuredPositionSec * 1000;
+                  console.log(
+                    `[timing] guide phase corrected → ${Math.round(
+                      guideStartEpochMs - targetStartEpochMs
+                    )}ms`
+                  );
+                }
+              } catch (error) {
+                console.warn("Guide phase correction failed", error);
+              }
+            }
+          } else if (masterFirstDownbeatMs == null) {
+            console.log(
+              "[timing] master has no measured downbeat (recorded before trimming) — " +
+                "live click cannot be phase-locked to it"
+            );
+          }
+
           if (captureStartEpochMs != null && guideStartEpochMs != null) {
             headMs =
               guideStartEpochMs - captureStartEpochMs + delayMs - HEAD_TRIM_SAFETY_EARLY_MS;
@@ -823,6 +873,11 @@ export function useRecordingScreenModel() {
         }
         // headMs <= 0 or unmeasurable → commit 0: the take keeps its pre-roll instead of
         // guessing a cut (never trim on a guess).
+        console.log(
+          `[timing] head trim committed: ${Math.round(headMs)}ms ` +
+            `(captureStart=${captureStartEpochMs != null ? "measured" : "MISSING"}, ` +
+            `anchor=${downbeatEpochMs != null ? "measured" : "MISSING"})`
+        );
         recording.commitHeadTrim(headMs);
       }
 
@@ -852,6 +907,7 @@ export function useRecordingScreenModel() {
     recording,
     recordingGuideMixUri,
     recordingMetronomeEnabled,
+    recordingOverdubClip,
   ]);
 
   useEffect(() => {

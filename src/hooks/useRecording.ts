@@ -653,9 +653,14 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
           sourceAudioUri = trimmed.uri;
           trimTempUriToCleanup = trimmed.uri;
           headTrimmedMs = headTrimMs;
+          console.log(`[timing] trimmed ${headTrimMs}ms head off the saved take`);
         } catch (trimError) {
           console.warn("Recording head trim failed; keeping the untrimmed take", trimError);
         }
+      } else if (headTrimMs > 0) {
+        console.log(
+          `[timing] head trim of ${headTrimMs}ms skipped (take too short or below threshold)`
+        );
       }
 
       const clipId = `clip-${Date.now()}`;
