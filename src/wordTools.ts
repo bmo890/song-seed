@@ -331,13 +331,19 @@ function writePersistent(key: string, value: unknown) {
   }
 }
 
-export async function fetchWordSuggestions(
+/**
+ * Cache-only lookup (memory, then SQLite) — resolves in milliseconds and never
+ * touches the network. The sheet calls this immediately on every query change
+ * so cached words render instantly; only true network fetches wait out the
+ * typing debounce behind fetchWordSuggestions.
+ */
+export async function getCachedWordSuggestions(
   mode: WordLookupMode,
   word: string,
-  options?: WordLookupOptions & { signal?: AbortSignal }
-): Promise<WordSuggestion[]> {
+  options?: WordLookupOptions
+): Promise<WordSuggestion[] | null> {
   const normalized = word.trim().toLowerCase();
-  if (!normalized) return [];
+  if (!normalized) return null;
 
   const themeKey = sanitizeThemeWords(options?.theme ?? "").join(",");
   const cacheKey = `${mode}:${themeKey}:${normalized}`;
@@ -349,7 +355,22 @@ export async function fetchWordSuggestions(
     rememberInMemory(cacheKey, stored);
     return stored;
   }
+  return null;
+}
 
+export async function fetchWordSuggestions(
+  mode: WordLookupMode,
+  word: string,
+  options?: WordLookupOptions & { signal?: AbortSignal }
+): Promise<WordSuggestion[]> {
+  const normalized = word.trim().toLowerCase();
+  if (!normalized) return [];
+
+  const cached = await getCachedWordSuggestions(mode, normalized, options);
+  if (cached !== null) return cached;
+
+  const themeKey = sanitizeThemeWords(options?.theme ?? "").join(",");
+  const cacheKey = `${mode}:${themeKey}:${normalized}`;
   const url = buildWordLookupUrl(mode, normalized, options);
   const suggestions = parseWordSuggestions(await fetchWordServiceJson(url, options?.signal));
 
