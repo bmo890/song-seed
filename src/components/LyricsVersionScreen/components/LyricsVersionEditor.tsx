@@ -11,13 +11,17 @@ import { styles as appStyles } from "../../../styles";
 import { colors, radii, spacing } from "../../../design/tokens";
 import { styles } from "../styles";
 import { HelpSheet, type HelpItem } from "../../common/HelpSheet";
-import { WordFinderSheet } from "./WordFinderSheet";
-import { extractWordRange, insertWordIntoText } from "../../../wordTools";
+import { WordFinderSheet } from "../../common/WordFinderSheet";
+import { applyPickedWord, extractWordRange } from "../../../wordTools";
 
 type LyricsVersionEditorProps = {
   draftText: string;
   canSave: boolean;
   showSaveAsNew: boolean;
+  canUndo: boolean;
+  canRedo: boolean;
+  onUndo: () => void;
+  onRedo: () => void;
   onChangeText: (next: string) => void;
   onSave: () => void;
   onSaveAsNew: () => void;
@@ -31,6 +35,10 @@ export function LyricsVersionEditor({
   draftText,
   canSave,
   showSaveAsNew,
+  canUndo,
+  canRedo,
+  onUndo,
+  onRedo,
   onChangeText,
   onSave,
   onSaveAsNew,
@@ -59,18 +67,8 @@ export function LyricsVersionEditor({
   };
 
   const handlePickWord = (word: string) => {
-    let { start, end } = selectionRef.current;
-    const range = extractWordRange(draftText, start, end);
-    if (end > start && range) {
-      // Explicit selection: replace it (trimmed to its word characters).
-      start = range.start;
-      end = range.end;
-    } else if (range && range.start < start && start < range.end) {
-      // Caret strictly inside a word: replace the whole word rather than split it.
-      start = range.start;
-      end = range.end;
-    }
-    const next = insertWordIntoText(draftText, start, end, word);
+    const { start, end } = selectionRef.current;
+    const next = applyPickedWord(draftText, start, end, word);
     onChangeText(next.text);
     selectionRef.current = { start: next.caret, end: next.caret };
     setWordFinderVisible(false);
@@ -78,6 +76,11 @@ export function LyricsVersionEditor({
 
   const helpItems: HelpItem[] = [
     { icon: "checkmark", label: "Save", description: "Save your changes to this version." },
+    {
+      icon: "arrow-undo-outline",
+      label: "Undo / redo",
+      description: "Step back and forward through this editing session's changes.",
+    },
     ...(showSaveAsNew
       ? [
           {
@@ -100,6 +103,32 @@ export function LyricsVersionEditor({
     <View style={styles.flexFill}>
       <View style={editorControls.row}>
         <View style={editorControls.group}>
+          <Pressable
+            style={({ pressed }) => [
+              editorControls.iconBtn,
+              !canUndo ? editorControls.iconBtnDisabled : null,
+              pressed && canUndo ? appStyles.pressDown : null,
+            ]}
+            onPress={onUndo}
+            disabled={!canUndo}
+            hitSlop={6}
+            accessibilityLabel="Undo"
+          >
+            <Ionicons name="arrow-undo-outline" size={18} color={canUndo ? colors.textSecondary : colors.borderMuted} />
+          </Pressable>
+          <Pressable
+            style={({ pressed }) => [
+              editorControls.iconBtn,
+              !canRedo ? editorControls.iconBtnDisabled : null,
+              pressed && canRedo ? appStyles.pressDown : null,
+            ]}
+            onPress={onRedo}
+            disabled={!canRedo}
+            hitSlop={6}
+            accessibilityLabel="Redo"
+          >
+            <Ionicons name="arrow-redo-outline" size={18} color={canRedo ? colors.textSecondary : colors.borderMuted} />
+          </Pressable>
           {showSaveAsNew ? (
             <Pressable
               style={({ pressed }) => [

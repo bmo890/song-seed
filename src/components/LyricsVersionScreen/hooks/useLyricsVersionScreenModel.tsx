@@ -18,6 +18,7 @@ import { appActions } from "../../../state/actions";
 import { getLatestLyricsVersion, lyricsDocumentToText } from "../../../lyrics";
 import { serializeChordChartText } from "../../../chords";
 import { haptic } from "../../../design/haptics";
+import { useEditHistory } from "../../../hooks/useEditHistory";
 type LyricsVersionRoute = RootStackParamList["LyricsVersion"];
 
 /** Quiet, humanized "edited" line for the version subtitle — "Edited today",
@@ -81,12 +82,22 @@ export function useLyricsVersionScreenModel() {
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
   const bypassUnsavedGuardRef = useRef(false);
 
+  // In-session undo/redo for draft edits, same engine as the Lyrics Pad editor.
+  const draftHistory = useEditHistory(draftText, setDraftText);
+  const { reset: resetDraftHistory, schedulePush: pushDraftHistory } = draftHistory;
+
+  const handleDraftTextChange = (text: string) => {
+    setDraftText(text);
+    pushDraftHistory();
+  };
+
   useEffect(() => {
     setDraftText(sourceText);
     setBaselineText(sourceText);
     setIsEditMode(startInEdit || createDraft || !resolvedVersion);
     setEditSavesAsNew(forceNewVersion || createDraft || !isLatestSource);
-  }, [createDraft, forceNewVersion, isLatestSource, resolvedVersion?.id, sourceText, startInEdit]);
+    resetDraftHistory(sourceText);
+  }, [createDraft, forceNewVersion, isLatestSource, resetDraftHistory, resolvedVersion?.id, sourceText, startInEdit]);
 
   const hasUnsavedChanges = isEditMode && draftText !== baselineText;
   const canSave = hasUnsavedChanges && (draftText.trim().length > 0 || versions.length > 0);
@@ -157,8 +168,10 @@ export function useLyricsVersionScreenModel() {
     if (!resolvedVersion) {
       setDraftText("");
       setBaselineText("");
+      resetDraftHistory("");
       return;
     }
+    resetDraftHistory(sourceText);
     setIsEditMode(false);
     setEditSavesAsNew(forceNewVersion || !isLatestSource);
   };
@@ -224,6 +237,11 @@ export function useLyricsVersionScreenModel() {
     resolvedVersion,
     draftText,
     setDraftText,
+    handleDraftTextChange,
+    canUndoDraft: draftHistory.canUndo,
+    canRedoDraft: draftHistory.canRedo,
+    undoDraft: draftHistory.undo,
+    redoDraft: draftHistory.redo,
     sourceText,
     isKeyboardVisible,
     bottomInset: insets.bottom,
