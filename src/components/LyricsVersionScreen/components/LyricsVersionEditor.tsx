@@ -11,8 +11,8 @@ import { styles as appStyles } from "../../../styles";
 import { colors, radii, spacing } from "../../../design/tokens";
 import { styles } from "../styles";
 import { HelpSheet, type HelpItem } from "../../common/HelpSheet";
-import { WordFinderSheet } from "./WordFinderSheet";
-import { extractWordRange, insertWordIntoText } from "../../../wordTools";
+import { WordFinderSheet } from "../../common/WordFinderSheet";
+import { applyPickedWord, extractWordRange } from "../../../wordTools";
 
 type LyricsVersionEditorProps = {
   draftText: string;
@@ -59,18 +59,8 @@ export function LyricsVersionEditor({
   };
 
   const handlePickWord = (word: string) => {
-    let { start, end } = selectionRef.current;
-    const range = extractWordRange(draftText, start, end);
-    if (end > start && range) {
-      // Explicit selection: replace it (trimmed to its word characters).
-      start = range.start;
-      end = range.end;
-    } else if (range && range.start < start && start < range.end) {
-      // Caret strictly inside a word: replace the whole word rather than split it.
-      start = range.start;
-      end = range.end;
-    }
-    const next = insertWordIntoText(draftText, start, end, word);
+    const { start, end } = selectionRef.current;
+    const next = applyPickedWord(draftText, start, end, word);
     onChangeText(next.text);
     selectionRef.current = { start: next.caret, end: next.caret };
     setWordFinderVisible(false);

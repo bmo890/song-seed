@@ -16,6 +16,8 @@ import { styles } from "../../../styles";
 import { colors, radii, spacing, text as textTokens } from "../../../design/tokens";
 import type { Note } from "../../../types";
 import { AppAlert } from "../../common/AppAlert";
+import { WordFinderSheet } from "../../common/WordFinderSheet";
+import { applyPickedWord, extractWordRange } from "../../../wordTools";
 
 type Props = {
   note: Note;
@@ -147,15 +149,41 @@ export function NoteEditor({ note, onBack, onUpdate, onTogglePin, onDelete }: Pr
     };
   }, []);
 
+  const selectionRef = useRef({ start: 0, end: 0 });
+
   const handleSelectionChange = useCallback(
     (e: { nativeEvent: { selection: { start: number; end: number } } }) => {
       const { start, end } = e.nativeEvent.selection;
+      selectionRef.current = { start, end };
       if (end > start) {
         if (focusTimerRef.current) clearTimeout(focusTimerRef.current);
         focusTimerRef.current = setTimeout(() => bodyRef.current?.focus(), 50);
       }
     },
     []
+  );
+
+  // ── Word Finder (rhymes / thesaurus) ──────────────────────────────────────
+  const [wordFinderVisible, setWordFinderVisible] = useState(false);
+  const [wordFinderSeed, setWordFinderSeed] = useState("");
+
+  const openWordFinder = useCallback(() => {
+    const { start, end } = selectionRef.current;
+    const range = extractWordRange(note.body, start, end);
+    setWordFinderSeed(range?.word ?? "");
+    setWordFinderVisible(true);
+  }, [note.body]);
+
+  const handlePickWord = useCallback(
+    (word: string) => {
+      const { start, end } = selectionRef.current;
+      const next = applyPickedWord(note.body, start, end, word);
+      onUpdate({ body: next.text });
+      scheduleHistoryPush();
+      selectionRef.current = { start: next.caret, end: next.caret };
+      setWordFinderVisible(false);
+    },
+    [note.body, onUpdate, scheduleHistoryPush]
   );
 
   return (
@@ -204,6 +232,15 @@ export function NoteEditor({ note, onBack, onUpdate, onTogglePin, onDelete }: Pr
             </Pressable>
 
             <View style={editorStyles.headerDivider} />
+
+            {/* Word finder — rhymes and similar words for the word at the cursor */}
+            <Pressable
+              style={({ pressed }) => [editorStyles.iconBtn, pressed ? styles.pressDown : null]}
+              onPress={openWordFinder}
+              accessibilityLabel="Word finder"
+            >
+              <Ionicons name="book-outline" size={20} color={colors.textSecondary} />
+            </Pressable>
 
             {/* Pin */}
             <Pressable
@@ -267,6 +304,13 @@ export function NoteEditor({ note, onBack, onUpdate, onTogglePin, onDelete }: Pr
           />
         </ScrollView>
       </KeyboardAvoidingView>
+
+      <WordFinderSheet
+        visible={wordFinderVisible}
+        initialWord={wordFinderSeed}
+        onClose={() => setWordFinderVisible(false)}
+        onPickWord={handlePickWord}
+      />
     </SafeAreaView>
   );
 }

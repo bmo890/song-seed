@@ -1,4 +1,5 @@
 import {
+  applyPickedWord,
   buildWordLookupUrl,
   extractWordRange,
   insertWordIntoText,
@@ -63,6 +64,30 @@ describe("insertWordIntoText", () => {
 
   it("inserts plainly into empty text", () => {
     expect(insertWordIntoText("", 0, 0, "hello").text).toBe("hello");
+  });
+});
+
+describe("applyPickedWord", () => {
+  const text = "the fire tonight";
+
+  it("replaces an explicit selection trimmed to word characters", () => {
+    // " fire " selected sloppily with surrounding spaces
+    expect(applyPickedWord(text, 3, 9, "flame").text).toBe("the flame tonight");
+  });
+
+  it("replaces the whole word when the caret sits strictly inside it", () => {
+    // caret between "fi|re"
+    expect(applyPickedWord(text, 6, 6, "flame").text).toBe("the flame tonight");
+  });
+
+  it("inserts at the caret when it sits at a word end", () => {
+    // caret right after "fire" — the common just-typed position
+    const result = applyPickedWord(text, 8, 8, "flame");
+    expect(result.text).toBe("the fire flame tonight");
+  });
+
+  it("inserts plainly on whitespace with no adjacent word", () => {
+    expect(applyPickedWord("hello  world", 6, 6, "big").text).toBe("hello big world");
   });
 });
 

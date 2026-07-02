@@ -10,12 +10,12 @@ import {
 } from "react-native";
 import Animated, { FadeIn } from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
-import { BottomSheet } from "../../common/BottomSheet";
-import { SegmentedControl } from "../../common/SegmentedControl";
-import { styles as appStyles } from "../../../styles";
-import { colors, radii, spacing } from "../../../design/tokens";
-import { haptic } from "../../../design/haptics";
-import { durations } from "../../../design/motion";
+import { BottomSheet } from "./BottomSheet";
+import { SegmentedControl } from "./SegmentedControl";
+import { styles as appStyles } from "../../styles";
+import { colors, radii, spacing } from "../../design/tokens";
+import { haptic } from "../../design/haptics";
+import { durations } from "../../design/motion";
 import {
   fetchWordSuggestions,
   WORD_LOOKUP_MODE_ORDER,
@@ -23,7 +23,7 @@ import {
   WordLookupOfflineError,
   type WordLookupMode,
   type WordSuggestion,
-} from "../../../wordTools";
+} from "../../wordTools";
 
 const LOOKUP_DEBOUNCE_MS = 350;
 

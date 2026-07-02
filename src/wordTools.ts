@@ -98,6 +98,29 @@ export function insertWordIntoText(
   return { text: before + insert + after, caret: from + insert.length };
 }
 
+/**
+ * Place a picked suggestion into text, given the editor's current selection.
+ * An explicit selection is replaced (trimmed to its word characters); a caret
+ * strictly inside a word replaces the whole word rather than splitting it;
+ * otherwise the word is inserted at the caret with smart spacing. Shared by
+ * every editor that hosts the Word Finder so picking behaves identically.
+ */
+export function applyPickedWord(
+  text: string,
+  selStart: number,
+  selEnd: number,
+  word: string
+): { text: string; caret: number } {
+  let start = selStart;
+  let end = selEnd;
+  const range = extractWordRange(text, selStart, selEnd);
+  if (range && (selEnd > selStart || (range.start < selStart && selStart < range.end))) {
+    start = range.start;
+    end = range.end;
+  }
+  return insertWordIntoText(text, start, end, word);
+}
+
 export function buildWordLookupUrl(
   mode: WordLookupMode,
   word: string,
