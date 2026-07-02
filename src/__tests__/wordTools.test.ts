@@ -5,6 +5,7 @@ import {
   clearWordLookupCache,
   extractWordRange,
   fetchWordSuggestions,
+  getCachedWordSuggestions,
   groupBySyllableCount,
   insertWordIntoText,
   parseWordSuggestions,
@@ -242,7 +243,6 @@ describe("persistent cache layer", () => {
   it("getCachedWordSuggestions returns null on a full miss without any network", async () => {
     setWordLookupPersistentStore({ get: async () => null, set: () => {} });
     // No fetch mock installed — a network attempt would throw, null means cache-only.
-    const { getCachedWordSuggestions } = await import("../wordTools");
     expect(await getCachedWordSuggestions("rhymes", "love")).toBeNull();
   });
 
@@ -256,7 +256,6 @@ describe("persistent cache layer", () => {
       },
       set: () => {},
     });
-    const { getCachedWordSuggestions } = await import("../wordTools");
     expect(await getCachedWordSuggestions("rhymes", "love")).toEqual(stored);
     // Second call is a memory hit — the durable store isn't re-read.
     expect(await getCachedWordSuggestions("rhymes", "love")).toEqual(stored);
