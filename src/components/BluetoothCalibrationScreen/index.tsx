@@ -18,6 +18,11 @@ import { ScreenHeader } from "../common/ScreenHeader";
 import { styles as globalStyles } from "../../styles";
 import { useStore } from "../../state/useStore";
 import { ensureCalibrationClickTrackFile } from "../../services/metronomeLoop";
+import {
+  activatePlaybackAudioSession,
+  releaseAudioSessionOwner,
+} from "../../services/audioSession";
+import { sanitizeOsOutputLatencyMs } from "../../services/latencyModel";
 import SongseedMetronomeModule from "../../../modules/songseed-metronome";
 import {
   MAX_BLUETOOTH_MONITORING_AUTO_OFFSET_MS,
@@ -150,6 +155,18 @@ export function BluetoothCalibrationScreen() {
   const editableRouteKey = bluetoothTargetRoute?.routeKey ?? (isBluetoothRoute ? activeRouteKey : null);
   const editableRouteLabel = bluetoothTargetRoute?.routeLabel ?? (isBluetoothRoute ? activeRouteLabel : null);
 
+  // Recording flows can leave the audio session forcing output away from A2DP (which made
+  // this screen see "speaker" with headphones connected and refuse to start). Claim a plain
+  // playback session while calibrating so the Bluetooth route is actually active.
+  useEffect(() => {
+    void activatePlaybackAudioSession({ ownerId: "bluetooth-calibration", force: true }).catch(
+      () => {}
+    );
+    return () => {
+      void releaseAudioSessionOwner("bluetooth-calibration").catch(() => {});
+    };
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
 
@@ -163,11 +180,11 @@ export function BluetoothCalibrationScreen() {
         if (!cancelled) {
           setCurrentDevice(device ?? null);
           setCurrentOutputRoute(outputRoute ?? null);
-          setReportedLatencyMs(
-            typeof routeLatency?.outputMs === "number" && routeLatency.outputMs > 0
-              ? Math.round(routeLatency.outputMs)
-              : null
-          );
+          // Sanitize through the latency model: raw values can be buffer-inflated garbage
+          // (device logs: 209ms reported where the real sink latency is 108ms — and a
+          // poisoned "use reported" seed corrupts every cue and trim downstream).
+          const sanitized = sanitizeOsOutputLatencyMs(routeLatency?.outputMs ?? null, null);
+          setReportedLatencyMs(sanitized.source === "os" ? Math.round(sanitized.outputMs) : null);
         }
       } catch {
         if (!cancelled) {

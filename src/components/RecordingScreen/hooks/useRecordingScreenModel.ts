@@ -450,18 +450,39 @@ export function useRecordingScreenModel() {
         setGuideMonitoringLeadInMs(activeMonitoringCompensationMs);
         guideMixPlayer.volume = 0;
         await guideMixPlayer.seekTo(0);
-        const playCallAtMs = Date.now();
+        const coldPlayCallAtMs = Date.now();
         guideMixPlayer.play();
-        const warmAnchorEpochMs = await measureGuideAnchorEpochMs(1200);
+        const coldAnchorEpochMs = await measureGuideAnchorEpochMs(1200);
         if (guideScheduleRef.current.token !== token) return null;
-        const startLatencyMs =
-          warmAnchorEpochMs != null
-            ? Math.max(0, Math.min(600, warmAnchorEpochMs - playCallAtMs))
+        const coldStartLatencyMs =
+          coldAnchorEpochMs != null
+            ? Math.max(0, Math.min(600, coldAnchorEpochMs - coldPlayCallAtMs))
             : GUIDE_DOWNBEAT_LEAD_MS;
         await guideMixPlayer.pause();
         await guideMixPlayer.seekTo(0);
         if (guideScheduleRef.current.token !== token) return null;
-        console.log(`[timing] guide warm-start latency: ${Math.round(startLatencyMs)}ms`);
+
+        // The REAL start is a resume-from-pause, which is far faster than the cold start
+        // (device logs: cold 233–518ms vs resume ~35–70ms — scheduling with the cold
+        // number fired the guide up to half a second EARLY, before the count-in ended).
+        // Measure the resume latency with a second muted cycle when there's time.
+        let startLatencyMs = Math.min(coldStartLatencyMs, 80);
+        if (targetStartEpochMs - Date.now() > 700) {
+          const resumePlayCallAtMs = Date.now();
+          guideMixPlayer.play();
+          const resumeAnchorEpochMs = await measureGuideAnchorEpochMs(800);
+          if (guideScheduleRef.current.token !== token) return null;
+          if (resumeAnchorEpochMs != null) {
+            startLatencyMs = Math.max(0, Math.min(600, resumeAnchorEpochMs - resumePlayCallAtMs));
+          }
+          await guideMixPlayer.pause();
+          await guideMixPlayer.seekTo(0);
+          if (guideScheduleRef.current.token !== token) return null;
+        }
+        console.log(
+          `[timing] guide start latency: cold=${Math.round(coldStartLatencyMs)}ms ` +
+            `resume=${Math.round(startLatencyMs)}ms`
+        );
 
         await waitPlainMs(targetStartEpochMs - startLatencyMs - Date.now());
         if (guideScheduleRef.current.token !== token) return null;
