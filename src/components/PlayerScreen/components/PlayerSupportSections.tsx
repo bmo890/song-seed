@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
-import type { LyricsLine } from "../../../types";
+import type { LyricsLine, RecordingGrid } from "../../../types";
 import { PlayerLyricsPanel } from "../PlayerLyricsPanel";
 import { PlayerQueue } from "../PlayerQueue";
 import { WaveformMiniPreview } from "../../common/WaveformMiniPreview";
@@ -19,6 +19,7 @@ import {
 } from "../../../overdub";
 import { playerScreenStyles } from "../styles";
 import { AppAlert } from "../../common/AppAlert";
+import { StemAlignmentOverlay } from "./StemAlignmentOverlay";
 
 type QueueEntry = {
   ideaId: string;
@@ -67,6 +68,11 @@ type PlayerSupportSectionsProps = {
   isMainPlaybackPlaying: boolean;
   overdubRootSettings: { gainDb: number; tonePreset: string } | null;
   overdubStemEntries: OverdubStemEntry[];
+  /** The root take the stems are mixed against (its audio is the mix's t=0 reference). */
+  overdubRootAudioUri: string | null;
+  overdubRootDurationMs: number;
+  overdubRootWaveformPeaks?: number[];
+  overdubRootRecordingGrid?: RecordingGrid | null;
   onAddOverdub: () => void;
   onSaveCombined: () => void;
   onPauseMainPlayback: () => Promise<void>;
@@ -234,6 +240,10 @@ export function PlayerSupportSections({
   isMainPlaybackPlaying,
   overdubRootSettings,
   overdubStemEntries,
+  overdubRootAudioUri,
+  overdubRootDurationMs,
+  overdubRootWaveformPeaks,
+  overdubRootRecordingGrid,
   onAddOverdub,
   onSaveCombined,
   onPauseMainPlayback,
@@ -536,7 +546,18 @@ export function PlayerSupportSections({
                   </View>
                   {/* Fine timing alignment against the guide: negative pulls the layer
                       earlier (the usual fix for a late-recorded overdub), positive delays
-                      it. Ears beat eyes below ~20 ms — audition after each nudge. */}
+                      it. The overlay shows where the layer sits on the master's timeline;
+                      ears still beat eyes below ~20 ms — audition after each nudge. */}
+                  <StemAlignmentOverlay
+                    masterAudioUri={overdubRootAudioUri}
+                    masterDurationMs={overdubRootDurationMs}
+                    masterFallbackPeaks={overdubRootWaveformPeaks}
+                    stemAudioUri={stem.audioUri}
+                    stemDurationMs={stem.durationMs}
+                    stemFallbackPeaks={stem.waveformPeaks}
+                    offsetMs={stem.offsetMs}
+                    recordingGrid={overdubRootRecordingGrid}
+                  />
                   <View style={playerScreenStyles.layerControls}>
                     <LayerControlButton
                       label={`◀ ${OVERDUB_STEM_NUDGE_STEP_LARGE_MS} ms`}

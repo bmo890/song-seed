@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   useSharedAudioRecorder,
   ExpoAudioStreamModule,
@@ -22,17 +22,29 @@ import {
   clearPendingRecordingSession,
   persistPendingRecordingSession,
 } from "../services/recordingRecovery";
+import { trimAudioRanges } from "../services/audioTrim";
 import { useRecordingDisplayElapsed } from "./useRecordingDisplayElapsed";
 import { useLiveRecordingWaveform } from "./useLiveRecordingWaveform";
 import { useStore } from "../state/useStore";
 import { deleteManagedAudioUris } from "../services/managedMedia";
 
 type OnRecorded = (
-  payload: { audioUri: string; durationMs?: number; waveformPeaks?: number[] }
+  payload: {
+    audioUri: string;
+    durationMs?: number;
+    waveformPeaks?: number[];
+    /** ms cut from the front of the take at save (count-in/pre-roll head). 0 = untrimmed. */
+    headTrimmedMs?: number;
+  }
 ) => void | boolean | Promise<void | boolean>;
 
 const LIVE_WAVEFORM_SEGMENT_MS = __DEV__ ? 60 : 40;
 const LIVE_STREAM_INTERVAL_MS = __DEV__ ? 120 : 40;
+const ANALYSIS_SEGMENT_MS = __DEV__ ? 150 : 75;
+/** Below this the head trim is noise, not a count-in — skip the re-render. */
+const MIN_HEAD_TRIM_MS = 24;
+/** Ignore absurd trim values (a count-in head is at most a few bars). */
+const MAX_HEAD_TRIM_MS = 30_000;
 
 function trimNotificationLabel(label: string | null | undefined, fallback: string) {
   const value = label?.trim();
@@ -55,6 +67,20 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
   const preparedRecordingRef = useRef(false);
   const expectedStopReasonRef = useRef(false);
   const recordingStartedAtRef = useRef<number | null>(null);
+  // Head-trim state for record-through-count-in takes: capture starts BEFORE the
+  // count-in, the screen model measures where the musical start (downbeat / guide start)
+  // landed, and the head is cut at save. While `pending`, the take's elapsed time reads 0
+  // (capture is rolling but the take hasn't musically started).
+  const [headTrim, setHeadTrim] = useState<{ pending: boolean; ms: number }>({ pending: false, ms: 0 });
+  const headTrimRef = useRef(headTrim);
+  headTrimRef.current = headTrim;
+  // Estimate of when capture actually started (epoch ms), derived from the recorder's
+  // reported captured duration: candidate = now − durationMs, min over early updates
+  // (delivery latency is always ≥ 0, so the minimum converges on the true start).
+  const captureStartEstimateRef = useRef<{ epochMs: number | null; samples: number }>({
+    epochMs: null,
+    samples: 0,
+  });
   const permissionRequestRef = useRef<Promise<boolean> | null>(null);
   const prepareInFlightRef = useRef(false);
   const startInFlightRef = useRef(false);
@@ -69,6 +95,50 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
     isRecording: recorder.isRecording,
     isPaused: recorder.isPaused,
   });
+
+  useEffect(() => {
+    if (!recorder.isRecording || recorder.isPaused) {
+      return;
+    }
+    const estimate = captureStartEstimateRef.current;
+    // Only the first ~2s of updates matter; freeze afterwards so pauses can't skew it.
+    if (estimate.samples >= 50) {
+      return;
+    }
+    const durationMs = recorder.durationMs;
+    if (!Number.isFinite(durationMs) || durationMs <= 0 || durationMs > 2500) {
+      return;
+    }
+    const candidate = Date.now() - durationMs;
+    estimate.epochMs = estimate.epochMs === null ? candidate : Math.min(estimate.epochMs, candidate);
+    estimate.samples += 1;
+  }, [recorder.durationMs, recorder.isPaused, recorder.isRecording]);
+
+  function resetCaptureStartEstimate() {
+    captureStartEstimateRef.current = { epochMs: null, samples: 0 };
+  }
+
+  /** Best estimate of when capture began (epoch ms); falls back to the JS-side stamp
+   *  taken just before the native start call. Null when nothing is recording. */
+  function getCaptureStartEpochMs() {
+    return captureStartEstimateRef.current.epochMs ?? recordingStartedAtRef.current;
+  }
+
+  /** Mark the in-flight take as record-through: elapsed reads 0 until the head is known. */
+  function armHeadTrim() {
+    setHeadTrim({ pending: true, ms: 0 });
+  }
+
+  /** Fix the head length (ms of pre-roll to cut at save). Ends the pending state. */
+  function commitHeadTrim(ms: number) {
+    const safeMs = Number.isFinite(ms) && ms > 0 && ms <= MAX_HEAD_TRIM_MS ? Math.round(ms) : 0;
+    setHeadTrim({ pending: false, ms: safeMs });
+  }
+
+  /** Drop any head-trim bookkeeping (interruption/cancel paths). */
+  function abortHeadTrim() {
+    setHeadTrim({ pending: false, ms: 0 });
+  }
   const { waveform: liveWaveformData, appendAudioStream, reset: resetLiveWaveform } =
     useLiveRecordingWaveform({
       channels: 1,
@@ -374,6 +444,9 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
           return;
         }
         preparedRecordingRef.current = false;
+        // A committed head stays valid (the front of the file is unchanged); only a
+        // mid-count-in interruption leaves an unmeasurable pending head to drop.
+        setHeadTrim((current) => (current.pending ? { pending: false, ms: 0 } : current));
         setLastInterruptionReason(event.reason);
         setInterruptionToken((current) => current + 1);
         void releaseAudioSessionOwner(audioSessionOwnerIdRef.current).catch((error) => {
@@ -398,6 +471,8 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
       await claimRecordingAudioSession();
       persistedSessionRef.current = false;
       recordingStartedAtRef.current = null;
+      resetCaptureStartEstimate();
+      setHeadTrim({ pending: false, ms: 0 });
       resetLiveWaveform();
       await recorder.prepareRecording(buildRecordingConfig());
       preparedRecordingRef.current = true;
@@ -441,6 +516,8 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
       persistedSessionRef.current = false;
       preparedRecordingRef.current = false;
       recordingStartedAtRef.current = null;
+      resetCaptureStartEstimate();
+      setHeadTrim({ pending: false, ms: 0 });
       resetLiveWaveform();
 
       const recordingStartedAt = Date.now();
@@ -481,6 +558,8 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
 
       const recordingStartedAt = Date.now();
       recordingStartedAtRef.current = recordingStartedAt;
+      resetCaptureStartEstimate();
+      setHeadTrim({ pending: false, ms: 0 });
       nativeStartAttempted = true;
       const startResult = await recorder.startRecording(buildRecordingConfig());
       preparedRecordingRef.current = false;
@@ -503,6 +582,7 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
     preparedRecordingRef.current = false;
     recordingStartedAtRef.current = null;
     persistedSessionRef.current = false;
+    abortHeadTrim();
     resetLiveWaveform();
     try {
       expectedStopReasonRef.current = true;
@@ -541,6 +621,7 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
   async function saveRecording() {
     let managedAudioUriToCleanup: string | null = null;
     let recorderTempUriToCleanup: string | null = null;
+    let trimTempUriToCleanup: string | null = null;
     try {
       expectedStopReasonRef.current = true;
       const recordingData = await recorder.stopRecording();
@@ -552,8 +633,33 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
         return false;
       }
 
+      // Record-through-count-in: cut the measured pre-roll head so the file starts at the
+      // musical start (downbeat / guide start). The untrimmed recorder temp file and the
+      // pending-session marker stay in place until the trimmed attach succeeds, so a
+      // failure at any point still recovers the full take.
+      const rawDurationMs = recordingData.durationMs ?? 0;
+      const headTrimMs = headTrimRef.current.pending ? 0 : headTrimRef.current.ms;
+      setHeadTrim({ pending: false, ms: 0 });
+      let sourceAudioUri = recordingData.fileUri;
+      let headTrimmedMs = 0;
+      if (headTrimMs >= MIN_HEAD_TRIM_MS && rawDurationMs > headTrimMs + 250) {
+        try {
+          const trimmed = await trimAudioRanges({
+            fileUri: recordingData.fileUri,
+            mode: "single",
+            startTimeMs: headTrimMs,
+            endTimeMs: Math.max(rawDurationMs, headTrimMs + 1),
+          });
+          sourceAudioUri = trimmed.uri;
+          trimTempUriToCleanup = trimmed.uri;
+          headTrimmedMs = headTrimMs;
+        } catch (trimError) {
+          console.warn("Recording head trim failed; keeping the untrimmed take", trimError);
+        }
+      }
+
       const clipId = `clip-${Date.now()}`;
-      const managedAudio = await importRecordedAudioAsset(recordingData.fileUri, clipId);
+      const managedAudio = await importRecordedAudioAsset(sourceAudioUri, clipId);
       managedAudioUriToCleanup = managedAudio.audioUri;
       recorderTempUriToCleanup = recordingData.fileUri;
 
@@ -561,8 +667,10 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
       // actual take) over a post-hoc re-decode — the re-decode path can fall back
       // to the synthetic placeholder waveform, which is what made stored waveforms
       // look unrelated to the audio. Only use managedAudio's peaks if the recorder
-      // produced no analysis.
-      const dataPoints = recordingData.analysisData?.dataPoints ?? [];
+      // produced no analysis. The analysis covers the UNTRIMMED capture, so drop the
+      // segments that fell inside the trimmed head to keep the waveform aligned.
+      const headDropCount = headTrimmedMs > 0 ? Math.round(headTrimmedMs / ANALYSIS_SEGMENT_MS) : 0;
+      const dataPoints = (recordingData.analysisData?.dataPoints ?? []).slice(headDropCount);
       const levelsAsDb = dataPoints.map((p) =>
         Number.isFinite(p.dB) ? p.dB : p.amplitude > 0 ? 20 * Math.log10(p.amplitude) : -60
       );
@@ -581,8 +689,13 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
 
       const attached = await onRecorded({
         audioUri: managedAudio.audioUri,
-        durationMs: managedAudio.durationMs ?? recordingData.durationMs,
+        durationMs:
+          managedAudio.durationMs ??
+          (recordingData.durationMs != null
+            ? Math.max(0, recordingData.durationMs - headTrimmedMs)
+            : undefined),
         waveformPeaks,
+        headTrimmedMs,
       });
 
       if (attached === false) {
@@ -608,6 +721,10 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
         await FileSystem.deleteAsync(recordingData.fileUri, { idempotent: true }).catch(() => {});
         recorderTempUriToCleanup = null;
       }
+      if (trimTempUriToCleanup && trimTempUriToCleanup !== managedAudio.audioUri) {
+        await FileSystem.deleteAsync(trimTempUriToCleanup, { idempotent: true }).catch(() => {});
+        trimTempUriToCleanup = null;
+      }
       await clearPendingRecordingSession();
       return true;
     } catch {
@@ -617,6 +734,9 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
       }
       if (recorderTempUriToCleanup) {
         await FileSystem.deleteAsync(recorderTempUriToCleanup, { idempotent: true }).catch(() => {});
+      }
+      if (trimTempUriToCleanup) {
+        await FileSystem.deleteAsync(trimTempUriToCleanup, { idempotent: true }).catch(() => {});
       }
       AppAlert.info("Recording failed", "Could not save recording.");
       return false;
@@ -633,6 +753,7 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
       const recordingData = await recorder.stopRecording();
       preparedRecordingRef.current = false;
       recordingStartedAtRef.current = null;
+      abortHeadTrim();
       resetLiveWaveform();
       if (recordingData?.fileUri) {
         // Discard should clean up the recorder output because the app never imports it into
@@ -653,7 +774,10 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
   return {
     isRecording: recorder.isRecording,
     isPaused: recorder.isPaused,
-    elapsedMs: displayElapsedMs,
+    // Record-through takes: the pre-roll head isn't part of the take, so elapsed reads 0
+    // during the count-in and the head is subtracted once measured. Downstream consumers
+    // (display clock, overdub auto-stop threshold) then need no head awareness.
+    elapsedMs: headTrim.pending ? 0 : Math.max(0, displayElapsedMs - headTrim.ms),
     analysisData: recorder.analysisData,
     liveWaveformData,
     lastInterruptionReason,
@@ -666,5 +790,9 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
     resumeRecording,
     saveRecording,
     discardRecording,
+    armHeadTrim,
+    commitHeadTrim,
+    abortHeadTrim,
+    getCaptureStartEpochMs,
   };
 }

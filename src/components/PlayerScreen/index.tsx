@@ -791,6 +791,10 @@ export function PlayerScreen() {
               isMainPlaybackPlaying={effectiveIsPlaying}
               overdubRootSettings={data.overdubRootSettings}
               overdubStemEntries={data.overdubStemEntries}
+              overdubRootAudioUri={playerClip.audioUri ?? null}
+              overdubRootDurationMs={playerClip.durationMs ?? 0}
+              overdubRootWaveformPeaks={playerClip.waveformPeaks}
+              overdubRootRecordingGrid={playerClip.recordingGrid ?? null}
               onAddOverdub={handleAddOverdub}
               onSaveCombined={handleSaveCombined}
               onPauseMainPlayback={practicePitchTransport.pause}

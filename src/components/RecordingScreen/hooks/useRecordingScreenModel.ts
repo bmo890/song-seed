@@ -28,6 +28,16 @@ import {
   isDefaultIdeaTitle,
 } from "../../../utils";
 
+/** Trim slightly early rather than late: the capture-start estimate is biased late by
+ *  bridge delivery latency (~10-20 ms), and cutting into the downbeat transient is worse
+ *  than keeping a few ms of pre-roll. */
+const HEAD_TRIM_SAFETY_EARLY_MS = 15;
+/** How far ahead of the downbeat to fire the guide's play() so its (unmeasurable ahead of
+ *  time) start latency lands the guide near the "one". Alignment does NOT depend on this —
+ *  the stem is trimmed to the guide's MEASURED start; this only tunes the musical feel of
+ *  the count-in→guide transition. */
+const GUIDE_DOWNBEAT_LEAD_MS = 80;
+
 export function useRecordingScreenModel() {
   const navigation = useNavigation();
 
@@ -132,12 +142,24 @@ export function useRecordingScreenModel() {
 
   const recording = useRecording(
     async (payload) => {
+      // A trimmed head means the file now STARTS at the musical start (downbeat for solo
+      // takes, guide t=0 for overdubs) — record that certainty in the grid metadata.
+      const takeGrid = takeGridRef.current
+        ? {
+            ...takeGridRef.current,
+            firstDownbeatMs:
+              payload.headTrimmedMs != null && payload.headTrimmedMs > 0
+                ? 0
+                : takeGridRef.current.firstDownbeatMs,
+          }
+        : undefined;
+
       const pendingOverdubSave = pendingOverdubSaveRef.current;
       if (pendingOverdubSave) {
         await appActions.attachRecordedOverdubStem(
           pendingOverdubSave.ideaId,
           pendingOverdubSave.clipId,
-          { ...payload, recordingGrid: takeGridRef.current ?? undefined },
+          { ...payload, recordingGrid: takeGrid },
           pendingOverdubSave.title
         );
         return;
@@ -174,7 +196,7 @@ export function useRecordingScreenModel() {
         audioUri: payload.audioUri,
         durationMs: payload.durationMs,
         waveformPeaks: payload.waveformPeaks,
-        recordingGrid: takeGridRef.current ?? undefined,
+        recordingGrid: takeGrid,
         tags: parentClip?.tags?.length ? [...parentClip.tags] : undefined,
       };
 
@@ -315,6 +337,32 @@ export function useRecordingScreenModel() {
     } catch (error) {
       console.warn("Guide mix start failed", error);
     }
+  }
+
+  /** Start the guide from t=0 and return the epoch time its audio actually started
+   *  (anchored off the player's reported position, same technique as the calibration
+   *  baseline fix). Null when the anchor couldn't be established. */
+  async function startGuideMixFromBeginningAnchored(): Promise<number | null> {
+    if (!recordingGuideMixUri) return null;
+    try {
+      setGuideMonitoringLeadInMs(activeMonitoringCompensationMs);
+      await guideMixPlayer.seekTo(0);
+      guideMixPlayer.play();
+
+      const anchorDeadline = Date.now() + 1500;
+      while (Date.now() < anchorDeadline) {
+        const positionSec = guideMixPlayer.currentTime ?? 0;
+        if (guideMixPlayer.playing && !guideMixPlayer.isBuffering && positionSec > 0) {
+          return Date.now() - positionSec * 1000;
+        }
+        await new Promise<void>((resolve) => {
+          setTimeout(resolve, 16);
+        });
+      }
+    } catch (error) {
+      console.warn("Guide mix anchored start failed", error);
+    }
+    return null;
   }
 
   async function resumeGuideMix() {
@@ -739,17 +787,50 @@ export function useRecordingScreenModel() {
         await recording.resumeRecording();
         started = true;
       } else {
+        // Capture has been rolling since before the count-in (record-through). Nothing to
+        // start here — instead, measure where the musical start lands in the capture and
+        // commit that head for trimming at save. The completion event fires ON the last
+        // count-in click, one beat interval before the actual downbeat, so the downbeat
+        // epoch computed from the grid anchor is (correctly) in the near future.
+        started = recording.isRecording;
+        const captureStartEpochMs = recording.getCaptureStartEpochMs();
+        const anchor = await SongseedMetronomeModule?.getGridAnchor?.().catch(() => null);
+        const grid = takeGridRef.current;
+        const countInPulses =
+          (grid?.countInBars ?? 0) * (anchor?.pulsesPerBar ?? metronome.meterPreset.pulsesPerBar);
+        const downbeatEpochMs =
+          anchor?.isRunning && anchor.anchorEpochMs != null && anchor.msPerPulse != null
+            ? anchor.anchorEpochMs + countInPulses * anchor.msPerPulse
+            : null;
+
+        let headMs = 0;
         if (recordingGuideMixUri) {
-          await startGuideMixFromBeginning();
+          // Aim the guide's start at the downbeat (feel only — alignment comes from the
+          // measured start below, so a wrong start-latency guess can't misalign the stem).
+          if (downbeatEpochMs != null) {
+            const aimWaitMs = downbeatEpochMs - Date.now() - GUIDE_DOWNBEAT_LEAD_MS;
+            if (aimWaitMs > 0) {
+              await waitForMonitoringCompensation(aimWaitMs);
+            }
+          }
+          const guideStartEpochMs = await startGuideMixFromBeginningAnchored();
+          if (captureStartEpochMs != null && guideStartEpochMs != null) {
+            headMs =
+              guideStartEpochMs - captureStartEpochMs + delayMs - HEAD_TRIM_SAFETY_EARLY_MS;
+          }
+        } else if (captureStartEpochMs != null && downbeatEpochMs != null) {
+          headMs = downbeatEpochMs - captureStartEpochMs + delayMs - HEAD_TRIM_SAFETY_EARLY_MS;
         }
-        await waitForMonitoringCompensation(delayMs);
-        started = await recording.startPreparedRecording();
+        // headMs <= 0 or unmeasurable → commit 0: the take keeps its pre-roll instead of
+        // guessing a cut (never trim on a guess).
+        recording.commitHeadTrim(headMs);
       }
 
       setIsArmingRecording(false);
       if (!started) {
         await stopRecordingMetronome();
         await stopGuideMix();
+        await recording.cancelPreparedRecording();
         return;
       }
 
@@ -766,6 +847,7 @@ export function useRecordingScreenModel() {
   }, [
     activeMonitoringCompensationMs,
     metronome.countInCompletionToken,
+    metronome.meterPreset.pulsesPerBar,
     metronome.setCountInBarsValue,
     recording,
     recordingGuideMixUri,
@@ -840,6 +922,19 @@ export function useRecordingScreenModel() {
           await metronome.stop();
           await new Promise((resolve) => setTimeout(resolve, 180));
         }
+
+        // Record THROUGH the count-in: capture rolls before the first click, the count-in
+        // completion effect measures where the musical start (downbeat / guide start)
+        // landed in the capture, and the head is trimmed at save. Starting capture at the
+        // completion event instead used to leave a random ~half-beat of pre-roll (the JS
+        // chain raced the final count-in beat).
+        const started = await recording.startPreparedRecording();
+        if (!started) {
+          setIsArmingRecording(false);
+          return;
+        }
+        recording.armHeadTrim();
+
         countInModeRef.current = "start";
         countInPendingRef.current = true;
         await metronome.startCountIn(metronome.countInBars, {
