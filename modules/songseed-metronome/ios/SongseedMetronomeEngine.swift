@@ -354,8 +354,20 @@ final class SongseedMetronomeEngine {
 
     // Snapshot state for *this* beat before flipping isCountIn off below, so the final count-in
     // beat (e.g. dot 4 of 4) still reports isCountIn=true and gets a chance to render before the
-    // UI transitions to "recording" on the next beat.
-    onStateChange(getState())
+    // UI transitions to "recording" on the next beat. The snapshot is emitted with the SAME
+    // output-latency delay as onBeat: beat numbers / count-in dots are driven off this state,
+    // and undelayed they run a full route latency AHEAD of the audible click (the "screen
+    // counts before I hear the beep" bug on Bluetooth).
+    let beatStateSnapshot = getState()
+    if config.outputLatencyMs > 0 {
+      let delay = Double(config.outputLatencyMs) / 1000.0
+      queue.asyncAfter(deadline: .now() + delay) { [weak self] in
+        guard let self = self, self.isRunning else { return }
+        self.onStateChange(beatStateSnapshot)
+      }
+    } else {
+      onStateChange(beatStateSnapshot)
+    }
 
     if isCountIn && countInPulsesRemaining > 0 {
       countInPulsesRemaining -= 1

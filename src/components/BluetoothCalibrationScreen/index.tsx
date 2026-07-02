@@ -90,8 +90,9 @@ function analyzeAudioPhaseTaps(taps: number[], totalBeats: number): PhaseAnalysi
       return;
     }
 
-    const existing = residualByBeat.get(beatIndex);
-    if (existing == null || Math.abs(residual) < Math.abs(existing)) {
+    // First tap per beat wins. Keeping the closest-to-zero tap (the old rule) biased the
+    // median LOW whenever a beat window caught a stray second tap.
+    if (!residualByBeat.has(beatIndex)) {
       residualByBeat.set(beatIndex, residual);
     }
   });

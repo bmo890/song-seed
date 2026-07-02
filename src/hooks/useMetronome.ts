@@ -110,6 +110,7 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
   const refreshRouteLatencyForCues = useCallback(async () => {
     try {
       const inputs = cueLatencyInputsRef.current;
+      const route = (await SongseedMetronomeModule?.getCurrentAudioOutputRoute?.().catch(() => null)) ?? null;
       const profile = await resolveCurrentRouteLatencyProfile({
         calibrations: inputs.calibrations,
         activeOutputs: inputs.outputs,
@@ -120,7 +121,14 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
         visualLeadMs: Math.round(profile.visualLeadMs),
         hapticLeadMs: Math.round(profile.hapticLeadMs),
       };
-    } catch {
+      console.log(
+        `[timing] cue profile @start: route=${route?.type ?? "?"}/${route?.name ?? "?"} ` +
+          `out=${Math.round(profile.outputMs)}ms(${profile.sources.output}) ` +
+          `visualLead=${Math.round(profile.visualLeadMs)}ms hapticLead=${Math.round(profile.hapticLeadMs)}ms ` +
+          `(${inputs.calibrations.length} calibration${inputs.calibrations.length === 1 ? "" : "s"} saved)`
+      );
+    } catch (error) {
+      console.warn("[timing] cue profile resolution failed", error);
       routeLatencyProfileRef.current = { outputMs: 0, visualLeadMs: 0, hapticLeadMs: 0 };
     }
   }, []);
