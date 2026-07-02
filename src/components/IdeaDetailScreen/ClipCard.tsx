@@ -2,7 +2,6 @@ import React from "react";
 import { Alert, Pressable, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
-import * as Haptics from "expo-haptics";
 import { styles } from "./styles";
 import { useStore } from "../../state/useStore";
 import { getClipOverdubStemCount, getClipPlaybackDurationMs, hasClipPlaybackSource } from "../../clipPresentation";
@@ -19,6 +18,7 @@ import { ClipNotesPreview } from "../common/clip/ClipNotesPreview";
 import { ClipTagBadges } from "../common/clip/ClipTagBadges";
 import { IdeaCard } from "../common/IdeaCard";
 import type { GestureResponderEvent } from "react-native";
+import { haptic } from "../../design/haptics";
 
 export type ClipCardEntry = TimelineClipEntry | EvolutionListClipEntry;
 
@@ -190,7 +190,7 @@ export function ClipCard({
       })
     : [];
   const applyTag = (tagKey: string) => {
-    void Haptics.selectionAsync();
+    haptic.tap();
     const current = clip.tags ?? [];
     if (current.includes(tagKey)) return;
     useStore.getState().setClipTags(idea.id, clip.id, [...current, tagKey]);
@@ -223,7 +223,7 @@ export function ClipCard({
     onOpenActions(clip);
   };
   const beginSelection = () => {
-    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    haptic.grab();
     startClipSelection(clip.id);
   };
   const handleSetPrimary = () => {
@@ -306,7 +306,7 @@ export function ClipCard({
         onPressLead={() => {
           if (!canToggleInlinePlayback) return;
           if (!hasClipPlaybackSource(clip)) return;
-          void Haptics.selectionAsync();
+          haptic.tap();
           void inlinePlayer.toggleInlinePlayback(idea.id, clip);
         }}
         onLongPressLead={displayOnly ? undefined : handleLongPress}

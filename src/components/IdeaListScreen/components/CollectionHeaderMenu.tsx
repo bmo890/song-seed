@@ -6,6 +6,7 @@ import { useCollectionScreen } from "../provider/CollectionScreenProvider";
 import { useStore } from "../../../state/useStore";
 import { buildPlayableQueueFromIdeas } from "../../../clipPresentation";
 import { durations } from "../../../design/motion";
+import { haptic } from "../../../design/haptics";
 
 export function CollectionHeaderMenu() {
   const { screen, inlinePlayer, store } = useCollectionScreen();
@@ -41,6 +42,7 @@ export function CollectionHeaderMenu() {
             pressed ? styles.pressDown : null,
           ]}
           onPress={() => {
+            haptic.tap();
             screen.setHeaderMenuOpen(false);
             void playAllIdeas();
           }}
@@ -76,6 +78,7 @@ export function CollectionHeaderMenu() {
         <Pressable
           style={({ pressed }) => [styles.ideasToggleRow, pressed ? styles.pressDown : null]}
           onPress={() => {
+            haptic.tap();
             screen.setHeaderMenuOpen(false);
             screen.navigateRoot("Activity", {
               workspaceId: screen.activeWorkspace?.id,

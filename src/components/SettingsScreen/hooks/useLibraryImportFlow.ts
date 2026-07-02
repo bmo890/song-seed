@@ -9,6 +9,7 @@ import {
 } from "../../../services/libraryImport";
 import { detectPickedArchiveKind } from "../../../services/archiveKind";
 import { appActions } from "../../../state/actions";
+import { haptic } from "../../../design/haptics";
 
 export function useLibraryImportFlow() {
     const [parsedArchive, setParsedArchive] = useState<ParsedSongSeedArchive | null>(null);
@@ -68,6 +69,7 @@ export function useLibraryImportFlow() {
         setIsImporting(true);
         try {
             const result = await appActions.importLibraryArchiveIntoLibrary(parsedArchive);
+            if (result.warnings.length === 0) haptic.success();
             AppAlert.info(
                 result.warnings.length > 0 ? "Import finished with warnings" : "Import complete",
                 result.warnings.length > 0

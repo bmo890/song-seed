@@ -1,11 +1,11 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { Pressable, Text, TextInput, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import * as Haptics from "expo-haptics";
 import { styles } from "./styles";
 import { useStore } from "../../state/useStore";
 import type { ClipVersion, CustomTagDefinition, SongIdea } from "../../types";
 import { BottomSheet } from "../common/BottomSheet";
+import { haptic } from "../../design/haptics";
 import {
   SONG_CLIP_TAG_OPTIONS,
   CUSTOM_TAG_COLOR_OPTIONS,
@@ -74,7 +74,7 @@ export function ClipTagEditorFields({
   const toggleTag = useCallback(
     (key: string) => {
       if (clips.length === 0) return;
-      void Haptics.selectionAsync();
+      haptic.tap();
       const removing = tagState(key) === "all";
       clips.forEach((clip) => {
         const current = clip.tags ?? [];
@@ -106,7 +106,7 @@ export function ClipTagEditorFields({
     }
 
     useStore.getState().addProjectCustomTag(idea.id, { key, label, color: newTagColor });
-    void Haptics.selectionAsync();
+    haptic.tap();
     applyToAll(key);
     setNewTagLabel("");
     setNewTagColor(randomTagColor());

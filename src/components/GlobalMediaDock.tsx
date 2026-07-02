@@ -10,6 +10,7 @@ import { useFullPlayerContext } from "../hooks/FullPlayerProvider";
 import { useStore } from "../state/useStore";
 import { styles } from "../styles";
 import { fmtDuration } from "../utils";
+import { haptic } from "../design/haptics";
 
 type GlobalMediaDockProps = {
   activeRouteName: string;
@@ -166,6 +167,7 @@ export function GlobalMediaDock({
                   ]}
                   onPress={(evt) => {
                     evt.stopPropagation();
+                    haptic.grab();
                     if (recorder.isPaused) {
                       void recorder.resumeRecording();
                     } else {
@@ -190,6 +192,7 @@ export function GlobalMediaDock({
                   ]}
                   onPress={(evt) => {
                     evt.stopPropagation();
+                    haptic.tap();
                     useStore.getState().requestRecordingSave();
                     onOpenRecording();
                   }}
@@ -244,6 +247,7 @@ export function GlobalMediaDock({
               ]}
               onPress={(evt) => {
                 evt.stopPropagation();
+                    haptic.tap();
                 if (activePlayback.isPlaying) {
                   void fullPlayer.pausePlayer();
                 } else {
@@ -292,6 +296,7 @@ export function GlobalMediaDock({
           style={styles.miniMediaDockCloseBtn}
           onPress={(evt) => {
             evt.stopPropagation();
+            haptic.tap();
             void fullPlayer.closePlayer();
             useStore.getState().clearPlayerQueue();
           }}
@@ -326,6 +331,7 @@ export function GlobalMediaDock({
               ]}
               onPress={(evt) => {
                 evt.stopPropagation();
+                haptic.tap();
                 handleQueuePrev();
               }}
               accessibilityRole="button"
@@ -341,6 +347,7 @@ export function GlobalMediaDock({
               ]}
               onPress={(evt) => {
                 evt.stopPropagation();
+                    haptic.tap();
                 if (activePlayback.isPlaying) {
                   void fullPlayer.pausePlayer();
                 } else {
@@ -366,6 +373,7 @@ export function GlobalMediaDock({
               disabled={!hasNextInQueue}
               onPress={(evt) => {
                 evt.stopPropagation();
+                haptic.tap();
                 handleQueueNext();
               }}
               accessibilityRole="button"

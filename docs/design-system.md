@@ -337,6 +337,8 @@ directly:
 - Sliders tick once on release (`onSlidingComplete`), not per value change
 - Users can disable all UI haptics in Settings → Feedback (the `hapticsEnabled`
   preference gates the whole vocabulary centrally)
+- Exception: the metronome's beat pulse (`useMetronome.ts`) is a musical output
+  with its own intensity control — it bypasses the UI-haptics toggle on purpose
 
 ### Motion
 Durations and spring profiles come from `src/design/motion.ts`:

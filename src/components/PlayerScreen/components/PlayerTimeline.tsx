@@ -3,13 +3,13 @@ import { SharedValue, useAnimatedStyle, useSharedValue, runOnJS, withSpring } fr
 import Animated from "react-native-reanimated";
 import { StyleSheet, View } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
-import * as Haptics from "expo-haptics";
 import { AudioReel } from "../../common/AudioReel";
 import { MultiTimeRangeSelector } from "../../common/TimeRangeSelector";
 import { PracticePinBadges } from "../PracticePinBadges";
 import { SectionLabelBadges } from "../SectionLabelBadges";
 import type { PracticeMarker, ClipSection } from "../../../types";
 import { buildSectionBands } from "../../../playerSections";
+import { haptic } from "../../../design/haptics";
 
 type Range = {
   id: string;
@@ -130,7 +130,7 @@ function LoopMoveHandle({
       dragStartStartMs.value = sharedPreviewStartMs.value;
       dragStartEndMs.value = sharedPreviewEndMs.value;
       runOnJS(onScrubStateChange)(true);
-      runOnJS(Haptics.selectionAsync)();
+      runOnJS(haptic.tap)();
     })
     .onChange((event) => {
       if (pixelsPerMs <= 0 || timelineScale.value <= 0) {

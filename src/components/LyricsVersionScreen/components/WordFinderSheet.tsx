@@ -8,12 +8,14 @@ import {
   TextInput,
   View,
 } from "react-native";
+import Animated, { FadeIn } from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
-import * as Haptics from "expo-haptics";
 import { BottomSheet } from "../../common/BottomSheet";
 import { SegmentedControl } from "../../common/SegmentedControl";
 import { styles as appStyles } from "../../../styles";
 import { colors, radii, spacing } from "../../../design/tokens";
+import { haptic } from "../../../design/haptics";
+import { durations } from "../../../design/motion";
 import {
   fetchWordSuggestions,
   WORD_LOOKUP_MODE_ORDER,
@@ -90,7 +92,7 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
   }, [visible, query, mode]);
 
   const handlePick = (word: string) => {
-    void Haptics.selectionAsync();
+    haptic.tap();
     onPickWord(word);
   };
 
@@ -138,7 +140,7 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
           </Text>
         ) : (
           <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-            <View style={finderStyles.chipWrap}>
+            <Animated.View entering={FadeIn.duration(durations.fast)} style={finderStyles.chipWrap}>
               {lookup.suggestions.map((suggestion) => (
                 <Pressable
                   key={suggestion.word}
@@ -149,7 +151,7 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
                   <Text style={finderStyles.chipText}>{suggestion.word}</Text>
                 </Pressable>
               ))}
-            </View>
+            </Animated.View>
           </ScrollView>
         )}
       </View>

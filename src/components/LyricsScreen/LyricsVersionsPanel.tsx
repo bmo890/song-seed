@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import * as Haptics from "expo-haptics";
 import { haptic } from "../../design/haptics";
 import Animated, { FadeIn } from "react-native-reanimated";
 import { durations } from "../../design/motion";
@@ -123,7 +122,7 @@ export function LyricsVersionsPanel({ projectIdea }: LyricsVersionsPanelProps) {
       return;
     }
     appActions.saveProjectLyricsAsNewVersion(projectIdea.id, text);
-    void Haptics.selectionAsync();
+    haptic.tap();
   }
 
   const createActions: SelectionAction[] = [
