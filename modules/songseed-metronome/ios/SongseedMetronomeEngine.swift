@@ -33,6 +33,7 @@ final class SongseedMetronomeEngine {
   private var absolutePulse = 0
   private var lastEmittedPulse = -1
   private var framesPerPulse = 0
+  private var exactFramesPerPulse: Double = 1
   private var totalFrames = 0
   private var lastFrameWithinLoop = 0
   private var loopCount = 0
@@ -66,7 +67,26 @@ final class SongseedMetronomeEngine {
       ? Int(ceil(Double(countInPulsesRemaining) / Double(max(config.pulsesPerBar, 1))))
       : 0
 
+    let previous = config
     config = parseConfig(rawConfig)
+
+    // Live params (volume) must never restart a running engine — a restart resets the
+    // beat phase, which is audible and breaks grid continuity mid-take. Only structural
+    // changes (tempo, meter, accent shape, click on/off) rebuild and rephase.
+    let structuralChange =
+      previous.bpm != config.bpm ||
+      previous.meterId != config.meterId ||
+      previous.pulsesPerBar != config.pulsesPerBar ||
+      previous.denominator != config.denominator ||
+      previous.accentPattern != config.accentPattern ||
+      previous.clickEnabled != config.clickEnabled
+
+    if !structuralChange {
+      player.volume = Float(config.clickVolume)
+      onStateChange(getState())
+      return getState()
+    }
+
     updateDerivedValues()
 
     if wasRunning {
@@ -74,6 +94,13 @@ final class SongseedMetronomeEngine {
     }
 
     onStateChange(getState())
+    return getState()
+  }
+
+  /** Apply click volume live, without touching the running grid. */
+  func setClickVolume(_ volume: Double) -> [String: Any] {
+    config.clickVolume = min(1, max(0, volume))
+    player.volume = Float(config.clickVolume)
     return getState()
   }
 
@@ -132,6 +159,44 @@ final class SongseedMetronomeEngine {
     ]
   }
 
+  /**
+   * One anchor instead of an event stream: the epoch time of pulse 0 (grid t=0), plus the
+   * exact pulse spacing. Everything else — current beat, time-to-next-downbeat, count-in
+   * progress, UI cue scheduling — derives from this without racing bridge events. When the
+   * click is audible the anchor comes from the audio clock (player sample position);
+   * silent runs fall back to the uptime clock.
+   */
+  func getGridAnchor() -> [String: Any] {
+    guard isRunning else {
+      return ["isRunning": false]
+    }
+
+    let nowEpochMs = Date().timeIntervalSince1970 * 1000
+    var anchorEpochMs = nowEpochMs
+
+    if config.clickEnabled,
+       player.isPlaying,
+       let renderTime = player.lastRenderTime,
+       let playerTime = player.playerTime(forNodeTime: renderTime) {
+      let currentFrameWithinLoop = Int(playerTime.sampleTime) % max(totalFrames, 1)
+      let absoluteFrames = loopCount * totalFrames + currentFrameWithinLoop
+      anchorEpochMs = nowEpochMs - Double(absoluteFrames) / sampleRate * 1000
+    } else {
+      let elapsedMs = max(0, ProcessInfo.processInfo.systemUptime * 1000 - startUptimeMs)
+      anchorEpochMs = nowEpochMs - elapsedMs
+    }
+
+    return [
+      "isRunning": true,
+      "isCountIn": isCountIn,
+      "anchorEpochMs": anchorEpochMs,
+      "msPerPulse": beatIntervalMs(for: config.bpm),
+      "pulsesPerBar": config.pulsesPerBar,
+      "countInPulsesRemaining": countInPulsesRemaining,
+      "absolutePulse": absolutePulse
+    ]
+  }
+
   private func stopInternal(emitState: Bool) {
     pollTimer?.cancel()
     pollTimer = nil
@@ -154,8 +219,13 @@ final class SongseedMetronomeEngine {
   }
 
   private func updateDerivedValues() {
-    framesPerPulse = max(1, Int(round(sampleRate * beatIntervalMs(for: config.bpm) / 1000)))
-    totalFrames = max(1, framesPerPulse * max(config.pulsesPerBar, 1))
+    // Keep the BAR sample-exact for the nominal BPM (Bresenham: pulse boundaries are
+    // round(k · exact), so per-pulse rounding error never accumulates). A uniformly
+    // rounded framesPerPulse quantizes the tempo and drifts several ms/minute against
+    // an external metronome or DAW set to the same BPM.
+    exactFramesPerPulse = max(1.0, sampleRate * beatIntervalMs(for: config.bpm) / 1000)
+    framesPerPulse = max(1, Int(round(exactFramesPerPulse)))
+    totalFrames = max(1, Int(round(exactFramesPerPulse * Double(max(config.pulsesPerBar, 1)))))
     loopBuffer = buildLoopBuffer()
   }
 
@@ -213,7 +283,7 @@ final class SongseedMetronomeEngine {
       }
       lastFrameWithinLoop = currentFrameWithinLoop
       let absoluteFrames = loopCount * totalFrames + currentFrameWithinLoop
-      pulseOrdinal = Int(floor(Double(absoluteFrames) / Double(framesPerPulse)))
+      pulseOrdinal = Int(floor(Double(absoluteFrames) / exactFramesPerPulse))
     } else {
       let elapsedMs = max(0, ProcessInfo.processInfo.systemUptime * 1000 - startUptimeMs)
       pulseOrdinal = Int(floor(elapsedMs / beatIntervalMs(for: config.bpm)))
@@ -349,7 +419,7 @@ final class SongseedMetronomeEngine {
 
     for pulseIndex in 0..<config.pulsesPerBar {
       let accent = config.accentPattern[min(pulseIndex, max(config.accentPattern.count - 1, 0))]
-      let startFrame = pulseIndex * framesPerPulse
+      let startFrame = Int(round(Double(pulseIndex) * exactFramesPerPulse))
       let baseFrequency = pulseIndex == 0 ? 1960.0 : 1560.0
       let overtoneFrequency = pulseIndex == 0 ? 2940.0 : 2350.0
       let amplitude = Float(0.22 + accent * 0.46)

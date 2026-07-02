@@ -41,6 +41,14 @@ class SongseedMetronomeModule : Module() {
       engine.getState()
     }
 
+    AsyncFunction("setClickVolume") { volume: Double ->
+      engine.setClickVolume(volume)
+    }
+
+    AsyncFunction("getGridAnchor") {
+      engine.getGridAnchor()
+    }
+
     AsyncFunction("getCurrentAudioOutputRoute") {
       val context = appContext.reactContext ?: return@AsyncFunction null
       getCurrentAudioOutputRoute(context)

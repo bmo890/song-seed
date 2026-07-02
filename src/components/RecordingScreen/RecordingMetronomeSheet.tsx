@@ -296,6 +296,9 @@ export function RecordingMetronomeSheet({
             })}
           </View>
 
+          {/* Levels stay adjustable mid-take: volume is a live param on the native engine
+              (no restart, no phase reset) and haptic strength is JS-side only. Structural
+              controls (tempo/meter/count-in/cue toggles) stay locked while recording. */}
           {outputs.beep ? (
             <View style={s.subControl}>
               <Ionicons name="volume-low-outline" size={14} color="#a89994" />
@@ -309,7 +312,6 @@ export function RecordingMetronomeSheet({
                 thumbTintColor="#B87D6B"
                 value={beepLevel}
                 onValueChange={onChangeBeepLevel}
-                disabled={disabled}
               />
               <Ionicons name="volume-high-outline" size={14} color="#a89994" />
             </View>
@@ -324,7 +326,6 @@ export function RecordingMetronomeSheet({
                     key={preset.id}
                     style={({ pressed }) => [s.segment, active ? s.segmentActive : null, pressed ? s.pressed : null]}
                     onPress={() => onChangeHapticLevel(preset.level)}
-                    disabled={disabled}
                   >
                     <Text style={[s.segmentText, active ? s.segmentTextActive : null]}>{preset.label}</Text>
                   </Pressable>

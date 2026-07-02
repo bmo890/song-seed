@@ -43,6 +43,19 @@ export type NativeMetronomeState = {
   countInBarsRemaining: number;
 };
 
+/** Snapshot of the running beat grid: everything derives from one anchor instead of a
+ *  bridge-event stream. `anchorEpochMs` is the epoch time of pulse 0 (grid t=0); the time
+ *  of pulse N is `anchorEpochMs + N * msPerPulse`. */
+export type NativeGridAnchor = {
+  isRunning: boolean;
+  isCountIn?: boolean;
+  anchorEpochMs?: number;
+  msPerPulse?: number;
+  pulsesPerBar?: number;
+  countInPulsesRemaining?: number;
+  absolutePulse?: number;
+};
+
 export type BeatEventPayload = {
   beatInBar: number;
   barNumber: number;

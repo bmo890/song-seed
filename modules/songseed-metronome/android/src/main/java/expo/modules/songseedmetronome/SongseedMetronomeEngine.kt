@@ -52,8 +52,13 @@ class SongseedMetronomeEngine(
   private var loopCount = 0L
   private var lastPlaybackHeadFrames = 0L
 
+  // Keep the BAR sample-exact for the nominal BPM (Bresenham: pulse boundaries are
+  // round(k · exact), so per-pulse rounding error never accumulates). A uniformly rounded
+  // framesPerPulse quantizes the tempo and drifts several ms/minute against an external
+  // metronome or DAW set to the same BPM.
+  private var exactFramesPerPulse = exactFramesPerPulseForBpm(config.bpm)
   private var framesPerPulse = framesPerPulseForBpm(config.bpm)
-  private var totalFrames = framesPerPulse * config.pulsesPerBar
+  private var totalFrames = (exactFramesPerPulse * config.pulsesPerBar).roundToInt()
 
   private val pollRunnable = object : Runnable {
     override fun run() {
@@ -71,9 +76,33 @@ class SongseedMetronomeEngine(
       0
     }
 
+    val previous = config
     config = nextConfig
+
+    // Live params (volume) must never restart a running engine — a restart resets the
+    // beat phase, which is audible and breaks grid continuity mid-take. Only structural
+    // changes (tempo, meter, accent shape, click on/off) rebuild and rephase.
+    val structuralChange =
+      previous.bpm != config.bpm ||
+        previous.meterId != config.meterId ||
+        previous.pulsesPerBar != config.pulsesPerBar ||
+        previous.denominator != config.denominator ||
+        previous.accentPattern != config.accentPattern ||
+        previous.clickEnabled != config.clickEnabled
+
+    if (!structuralChange) {
+      try {
+        audioTrack?.setVolume(config.clickVolume.toFloat())
+      } catch (_: Throwable) {
+      }
+      val state = getState()
+      onStateChange(state)
+      return state
+    }
+
+    exactFramesPerPulse = exactFramesPerPulseForBpm(config.bpm)
     framesPerPulse = framesPerPulseForBpm(config.bpm)
-    totalFrames = max(1, framesPerPulse * config.pulsesPerBar)
+    totalFrames = max(1, (exactFramesPerPulse * config.pulsesPerBar).roundToInt())
 
     if (wasRunning) {
       return start(pendingCountInBars)
@@ -83,6 +112,16 @@ class SongseedMetronomeEngine(
     val state = getState()
     onStateChange(state)
     return state
+  }
+
+  /** Apply click volume live, without touching the running grid. */
+  fun setClickVolume(volume: Double): Map<String, Any> {
+    config = config.copy(clickVolume = min(1.0, max(0.0, volume)))
+    try {
+      audioTrack?.setVolume(config.clickVolume.toFloat())
+    } catch (_: Throwable) {
+    }
+    return getState()
   }
 
   fun start(countInBars: Int): Map<String, Any> {
@@ -103,7 +142,7 @@ class SongseedMetronomeEngine(
 
     try {
       if (config.clickEnabled) {
-        val pcm = buildLoopPcm16(config, framesPerPulse, totalFrames, sampleRate)
+        val pcm = buildLoopPcm16(config, exactFramesPerPulse, totalFrames, sampleRate)
         val minBufferSize = AudioTrack.getMinBufferSize(
           sampleRate,
           AudioFormat.CHANNEL_OUT_MONO,
@@ -277,7 +316,7 @@ class SongseedMetronomeEngine(
       }
       lastPlaybackHeadFrames = currentPlaybackHeadFrames
       val absoluteFrames = loopCount * totalFrames + currentPlaybackHeadFrames
-      floor(absoluteFrames.toDouble() / framesPerPulse.toDouble()).toInt()
+      floor(absoluteFrames.toDouble() / exactFramesPerPulse).toInt()
     } else {
       val elapsedMs = max(0L, SystemClock.elapsedRealtime() - startUptimeMs).toDouble()
       floor(elapsedMs / beatIntervalMsForBpm(config.bpm)).toInt()
@@ -375,14 +414,52 @@ class SongseedMetronomeEngine(
     return 60_000.0 / bpm.toDouble()
   }
 
+  private fun exactFramesPerPulseForBpm(bpm: Int): Double {
+    return max(1.0, sampleRate * beatIntervalMsForBpm(bpm) / 1000.0)
+  }
+
   private fun framesPerPulseForBpm(bpm: Int): Int {
-    return max(1, (sampleRate * beatIntervalMsForBpm(bpm) / 1000.0).roundToInt())
+    return max(1, exactFramesPerPulseForBpm(bpm).roundToInt())
+  }
+
+  /**
+   * One anchor instead of an event stream: the epoch time of pulse 0 (grid t=0), plus the
+   * exact pulse spacing. Everything else — current beat, time-to-next-downbeat, count-in
+   * progress, UI cue scheduling — derives from this without racing bridge events. When the
+   * click is audible the anchor comes from the audio clock (playback head position);
+   * silent runs fall back to the uptime clock.
+   */
+  fun getGridAnchor(): Map<String, Any> {
+    if (!isRunning) {
+      return mapOf("isRunning" to false)
+    }
+
+    val nowEpochMs = System.currentTimeMillis().toDouble()
+    val track = audioTrack
+    val anchorEpochMs = if (config.clickEnabled && track != null) {
+      val currentPlaybackHeadFrames = track.playbackHeadPosition.toLong() and 0xffffffffL
+      val absoluteFrames = loopCount * totalFrames + currentPlaybackHeadFrames
+      nowEpochMs - absoluteFrames.toDouble() / sampleRate.toDouble() * 1000.0
+    } else {
+      val elapsedMs = max(0L, SystemClock.elapsedRealtime() - startUptimeMs).toDouble()
+      nowEpochMs - elapsedMs
+    }
+
+    return mapOf(
+      "isRunning" to true,
+      "isCountIn" to isCountIn,
+      "anchorEpochMs" to anchorEpochMs,
+      "msPerPulse" to beatIntervalMsForBpm(config.bpm),
+      "pulsesPerBar" to config.pulsesPerBar,
+      "countInPulsesRemaining" to countInPulsesRemaining,
+      "absolutePulse" to absolutePulse,
+    )
   }
 }
 
 private fun buildLoopPcm16(
   config: MetronomeConfig,
-  framesPerPulse: Int,
+  exactFramesPerPulse: Double,
   totalFrames: Int,
   sampleRate: Int
 ): ByteArray {
@@ -392,7 +469,7 @@ private fun buildLoopPcm16(
 
   for (pulseIndex in 0 until config.pulsesPerBar) {
     val accent = config.accentPattern[pulseIndex.coerceAtMost(config.accentPattern.lastIndex)]
-    val startFrame = pulseIndex * framesPerPulse
+    val startFrame = (pulseIndex * exactFramesPerPulse).roundToInt()
     val baseFrequency = if (pulseIndex == 0) 1960.0 else 1560.0
     val overtoneFrequency = if (pulseIndex == 0) 2940.0 else 2350.0
     val amplitude = 0.22 + accent * 0.46

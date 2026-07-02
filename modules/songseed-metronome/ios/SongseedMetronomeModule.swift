@@ -34,6 +34,14 @@ public class SongseedMetronomeModule: Module {
       return self.engine.getState()
     }
 
+    AsyncFunction("setClickVolume") { (volume: Double) -> [String: Any] in
+      return self.engine.setClickVolume(volume)
+    }
+
+    AsyncFunction("getGridAnchor") { () -> [String: Any] in
+      return self.engine.getGridAnchor()
+    }
+
     AsyncFunction("getCurrentAudioOutputRoute") { () -> [String: String]? in
       let session = AVAudioSession.sharedInstance()
       guard let output = session.currentRoute.outputs.first else {
