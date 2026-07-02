@@ -2,8 +2,10 @@ import {
   applyPickedWord,
   buildWordLookupUrl,
   extractWordRange,
+  groupBySyllableCount,
   insertWordIntoText,
   parseWordSuggestions,
+  sanitizeThemeWords,
 } from "../wordTools";
 
 describe("extractWordRange", () => {
@@ -92,22 +94,82 @@ describe("applyPickedWord", () => {
 });
 
 describe("buildWordLookupUrl", () => {
-  it("maps each mode to its Datamuse parameter", () => {
-    expect(buildWordLookupUrl("rhymes", "love", "https://example.com")).toContain("rel_rhy=love");
-    expect(buildWordLookupUrl("near", "love", "https://example.com")).toContain("rel_nry=love");
-    expect(buildWordLookupUrl("similar", "love", "https://example.com")).toContain("ml=love");
-    expect(buildWordLookupUrl("related", "love", "https://example.com")).toContain("rel_trg=love");
+  const base = { baseUrl: "https://example.com" };
+
+  it("maps each quick mode to its Datamuse parameter", () => {
+    expect(buildWordLookupUrl("rhymes", "love", base)).toContain("rel_rhy=love");
+    expect(buildWordLookupUrl("near", "love", base)).toContain("rel_nry=love");
+    expect(buildWordLookupUrl("similar", "love", base)).toContain("ml=love");
+    expect(buildWordLookupUrl("related", "love", base)).toContain("rel_trg=love");
+  });
+
+  it("maps each extended mode to its Datamuse parameter", () => {
+    expect(buildWordLookupUrl("homophones", "course", base)).toContain("rel_hom=course");
+    expect(buildWordLookupUrl("consonance", "sample", base)).toContain("rel_cns=sample");
+    expect(buildWordLookupUrl("soundsLike", "fizix", base)).toContain("sl=fizix");
+    expect(buildWordLookupUrl("opposite", "love", base)).toContain("rel_ant=love");
+    expect(buildWordLookupUrl("synonyms", "happy", base)).toContain("rel_syn=happy");
+    expect(buildWordLookupUrl("describe", "ocean", base)).toContain("rel_jjb=ocean");
+    expect(buildWordLookupUrl("kinds", "bird", base)).toContain("rel_gen=bird");
+    expect(buildWordLookupUrl("parts", "car", base)).toContain("rel_com=car");
   });
 
   it("lowercases and encodes the word", () => {
-    const url = buildWordLookupUrl("rhymes", "Don't", "https://example.com");
+    const url = buildWordLookupUrl("rhymes", "Don't", base);
     expect(url).toContain("rel_rhy=don%27t");
   });
 
   it("requests syllable metadata and caps results", () => {
-    const url = buildWordLookupUrl("rhymes", "love", "https://example.com");
+    const url = buildWordLookupUrl("rhymes", "love", base);
     expect(url).toContain("md=s");
     expect(url).toContain("max=40");
+  });
+
+  it("adds sanitized theme words as topics", () => {
+    const url = buildWordLookupUrl("rhymes", "night", { ...base, theme: "Love, leaving " });
+    expect(url).toContain("topics=love%2Cleaving");
+  });
+
+  it("omits topics when the theme is empty or junk", () => {
+    expect(buildWordLookupUrl("rhymes", "night", base)).not.toContain("topics");
+    expect(buildWordLookupUrl("rhymes", "night", { ...base, theme: " , 123 " })).not.toContain("topics");
+  });
+});
+
+describe("sanitizeThemeWords", () => {
+  it("splits on commas and whitespace, lowercases, strips junk", () => {
+    expect(sanitizeThemeWords("Love, leaving  TOWN!")).toEqual(["love", "leaving", "town"]);
+  });
+
+  it("caps at five words", () => {
+    expect(sanitizeThemeWords("a b c d e f g")).toHaveLength(5);
+  });
+
+  it("drops entries without letters", () => {
+    expect(sanitizeThemeWords("123, --, love")).toEqual(["love"]);
+  });
+});
+
+describe("groupBySyllableCount", () => {
+  it("buckets ascending by syllables, unknown last, keeping order within groups", () => {
+    const groups = groupBySyllableCount([
+      { word: "above", score: 5, numSyllables: 2 },
+      { word: "dove", score: 4, numSyllables: 1 },
+      { word: "thereof", score: 3, numSyllables: 2 },
+      { word: "mystery", score: 2 },
+      { word: "glove", score: 1, numSyllables: 1 },
+    ]);
+    expect(groups.map((g) => g.syllables)).toEqual([1, 2, null]);
+    expect(groups[0].suggestions.map((s) => s.word)).toEqual(["dove", "glove"]);
+    expect(groups[1].suggestions.map((s) => s.word)).toEqual(["above", "thereof"]);
+  });
+
+  it("returns a single bucket when all counts match", () => {
+    const groups = groupBySyllableCount([
+      { word: "dove", score: 2, numSyllables: 1 },
+      { word: "glove", score: 1, numSyllables: 1 },
+    ]);
+    expect(groups).toHaveLength(1);
   });
 });
 

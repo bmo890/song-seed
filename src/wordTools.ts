@@ -13,7 +13,19 @@ export const WORD_SERVICE_BASE_URL = "https://api.datamuse.com";
 const MAX_RESULTS = 40;
 const REQUEST_TIMEOUT_MS = 8000;
 
-export type WordLookupMode = "rhymes" | "near" | "similar" | "related";
+export type WordLookupMode =
+  | "rhymes"
+  | "near"
+  | "similar"
+  | "related"
+  | "homophones"
+  | "consonance"
+  | "soundsLike"
+  | "opposite"
+  | "synonyms"
+  | "describe"
+  | "kinds"
+  | "parts";
 
 export type WordSuggestion = {
   word: string;
@@ -26,16 +38,92 @@ type ModeConfig = {
   /** Datamuse query parameter carrying the looked-up word. */
   param: string;
   description: string;
+  /** Sound-alike modes group results by syllable count for meter matching. */
+  groupBySyllables?: boolean;
 };
 
 export const WORD_LOOKUP_MODES: Record<WordLookupMode, ModeConfig> = {
-  rhymes: { label: "Rhymes", param: "rel_rhy", description: "Perfect rhymes." },
-  near: { label: "Near", param: "rel_nry", description: "Near rhymes — close but not exact." },
+  // Quick modes — always visible in the sheet's segmented row.
+  rhymes: { label: "Rhymes", param: "rel_rhy", description: "Perfect rhymes.", groupBySyllables: true },
+  near: { label: "Near", param: "rel_nry", description: "Near rhymes — close but not exact.", groupBySyllables: true },
   similar: { label: "Similar", param: "ml", description: "Words with a similar meaning." },
   related: { label: "Related", param: "rel_trg", description: "Words the theme brings to mind." },
+  // Extended modes — behind the ••• picker, grouped by goal.
+  homophones: {
+    label: "Homophones",
+    param: "rel_hom",
+    description: "Same sound, different word — course, coarse.",
+    groupBySyllables: true,
+  },
+  consonance: {
+    label: "Consonance",
+    param: "rel_cns",
+    description: "Same consonant bones — sample, simple.",
+    groupBySyllables: true,
+  },
+  soundsLike: {
+    label: "Sounds like",
+    param: "sl",
+    description: "Close in sound, loose on spelling.",
+    groupBySyllables: true,
+  },
+  opposite: { label: "Opposites", param: "rel_ant", description: "Antonyms — for contrast lines." },
+  synonyms: { label: "Synonyms", param: "rel_syn", description: "Strict synonyms only." },
+  describe: { label: "Describing words", param: "rel_jjb", description: "Adjectives for it — ocean: deep, vast." },
+  kinds: { label: "Kinds of it", param: "rel_gen", description: "More specific — bird: sparrow, heron." },
+  parts: { label: "Parts of it", param: "rel_com", description: "What it contains — car: dashboard." },
 };
 
+/** The four quick modes shown as segments. */
 export const WORD_LOOKUP_MODE_ORDER: WordLookupMode[] = ["rhymes", "near", "similar", "related"];
+
+/** Extended modes for the ••• picker, grouped by the writer's goal. */
+export const EXTENDED_WORD_MODE_GROUPS: { title: string; modes: WordLookupMode[] }[] = [
+  { title: "Sound", modes: ["homophones", "consonance", "soundsLike"] },
+  { title: "Meaning", modes: ["opposite", "synonyms"] },
+  { title: "Imagery", modes: ["describe", "kinds", "parts"] },
+];
+
+export function isQuickWordMode(mode: WordLookupMode): boolean {
+  return WORD_LOOKUP_MODE_ORDER.includes(mode);
+}
+
+/**
+ * Normalize a free-typed theme ("love, leaving  town") into Datamuse topic
+ * words — the API accepts at most five.
+ */
+export function sanitizeThemeWords(theme: string): string[] {
+  return theme
+    .toLowerCase()
+    .split(/[,\s]+/)
+    .map((word) => word.replace(/[^a-z'-]/g, ""))
+    .filter((word) => /[a-z]/.test(word))
+    .slice(0, 5);
+}
+
+export type SyllableGroup = { syllables: number | null; suggestions: WordSuggestion[] };
+
+/**
+ * Bucket suggestions by syllable count (ascending, unknown last) so a writer
+ * matching a melody can scan same-length words together. Relevance order is
+ * preserved within each bucket.
+ */
+export function groupBySyllableCount(suggestions: WordSuggestion[]): SyllableGroup[] {
+  const buckets = new Map<number | null, WordSuggestion[]>();
+  for (const suggestion of suggestions) {
+    const key = suggestion.numSyllables ?? null;
+    const bucket = buckets.get(key);
+    if (bucket) bucket.push(suggestion);
+    else buckets.set(key, [suggestion]);
+  }
+  return [...buckets.entries()]
+    .sort(([a], [b]) => {
+      if (a === null) return 1;
+      if (b === null) return -1;
+      return a - b;
+    })
+    .map(([syllables, grouped]) => ({ syllables, suggestions: grouped }));
+}
 
 /** Characters that count as part of a lyric word (apostrophes for contractions, hyphens). */
 const WORD_CHAR = /[A-Za-z0-9'’-]/;
@@ -121,18 +209,26 @@ export function applyPickedWord(
   return insertWordIntoText(text, start, end, word);
 }
 
+export type WordLookupOptions = {
+  baseUrl?: string;
+  /** Free-typed theme words — biases any mode via Datamuse's topics param. */
+  theme?: string;
+};
+
 export function buildWordLookupUrl(
   mode: WordLookupMode,
   word: string,
-  baseUrl: string = WORD_SERVICE_BASE_URL
+  options?: WordLookupOptions
 ): string {
   const config = WORD_LOOKUP_MODES[mode];
   const params = new URLSearchParams();
   params.set(config.param, word.trim().toLowerCase());
+  const topics = sanitizeThemeWords(options?.theme ?? "");
+  if (topics.length > 0) params.set("topics", topics.join(","));
   params.set("max", String(MAX_RESULTS));
   // Syllable counts let the UI (and future meter tools) speak a songwriter's language.
   params.set("md", "s");
-  return `${baseUrl}/words?${params.toString()}`;
+  return `${options?.baseUrl ?? WORD_SERVICE_BASE_URL}/words?${params.toString()}`;
 }
 
 export function parseWordSuggestions(payload: unknown): WordSuggestion[] {
@@ -172,16 +268,17 @@ export function clearWordLookupCache() {
 export async function fetchWordSuggestions(
   mode: WordLookupMode,
   word: string,
-  options?: { signal?: AbortSignal; baseUrl?: string }
+  options?: WordLookupOptions & { signal?: AbortSignal }
 ): Promise<WordSuggestion[]> {
   const normalized = word.trim().toLowerCase();
   if (!normalized) return [];
 
-  const cacheKey = `${mode}:${normalized}`;
+  const themeKey = sanitizeThemeWords(options?.theme ?? "").join(",");
+  const cacheKey = `${mode}:${themeKey}:${normalized}`;
   const cached = cache.get(cacheKey);
   if (cached) return cached;
 
-  const url = buildWordLookupUrl(mode, normalized, options?.baseUrl);
+  const url = buildWordLookupUrl(mode, normalized, options);
   const timeoutController = new AbortController();
   const timeout = setTimeout(() => timeoutController.abort(), REQUEST_TIMEOUT_MS);
   const abort = () => timeoutController.abort();
