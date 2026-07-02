@@ -6,6 +6,7 @@ import { TitleInput } from "../../common/TitleInput";
 import { styles as appStyles } from "../../../styles";
 import { colors, radii, spacing, text as textTokens } from "../../../design/tokens";
 import type { IdeaStatus } from "../../../types";
+import { haptic } from "../../../design/haptics";
 
 const PROJECT_STATUSES: IdeaStatus[] = ["seed", "sprout", "stem", "song"];
 
@@ -68,6 +69,7 @@ export function SongEditSheet({
       />
       <Text style={styles.completion}>Completion: {completion}%</Text>
       <Slider
+        onSlidingComplete={() => haptic.tap()}
         minimumValue={0}
         maximumValue={100}
         step={5}

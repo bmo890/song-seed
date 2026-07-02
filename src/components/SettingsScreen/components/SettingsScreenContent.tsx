@@ -25,6 +25,8 @@ export function SettingsScreenContent() {
   const bluetoothMonitoringCalibrations = useStore((state) => state.bluetoothMonitoringCalibrations);
   const workspaceStartupPreference = useStore((state) => state.workspaceStartupPreference);
   const setWorkspaceStartupPreference = useStore((state) => state.setWorkspaceStartupPreference);
+  const hapticsEnabled = useStore((state) => state.hapticsEnabled);
+  const setHapticsEnabled = useStore((state) => state.setHapticsEnabled);
 
   const screen = useSettingsScreenModel();
   const backupFlow = useLibraryBackupFlow();
@@ -85,6 +87,8 @@ export function SettingsScreenContent() {
         <SettingsOverviewView
           workspaceStartupPreference={workspaceStartupPreference}
           setWorkspaceStartupPreference={setWorkspaceStartupPreference}
+          hapticsEnabled={hapticsEnabled}
+          setHapticsEnabled={setHapticsEnabled}
           primaryWorkspaceTitle={primaryWorkspaceTitle}
           backupFlow={backupFlow}
           globalTags={globalTags}

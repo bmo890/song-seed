@@ -881,7 +881,8 @@ function AppContent() {
           <Stack.Screen
             name="Player"
             component={PlayerScreen}
-            options={{ animation: "fade", animationDuration: 220 }}
+            // Now-playing surface rises from the dock (per docs/audio-architecture-plan.md).
+            options={{ animation: "slide_from_bottom", animationDuration: 260 }}
           />
           <Stack.Screen name="ShareImport">
             {() => <ShareImportScreen fallbackCollectionId={lastCollectionContextId} />}

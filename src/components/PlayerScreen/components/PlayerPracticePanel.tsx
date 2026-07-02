@@ -25,6 +25,7 @@ import { playerScreenStyles as s } from "../styles";
 import type { CountInOption, PracticeTool } from "../hooks/usePlayerScreenUi";
 import type { ClipAnalysis, ClipSection, ClipSectionKind, PracticeMarker } from "../../../types";
 import { styles as appStyles } from "../../../styles";
+import { haptic } from "../../../design/haptics";
 
 type PlayerPracticePanelProps = {
   expandedTool: PracticeTool | null;
@@ -227,6 +228,7 @@ function PinTimingAdjuster({
             onPreview({ id: marker.id, atMs: next });
           }}
           onSlidingComplete={(value) => {
+            haptic.tap();
             onReposition(marker.id, Math.round(value));
             onPreview(null);
             setDragMs(null);
@@ -406,6 +408,7 @@ function SectionEdgeAdjuster({
             onPreview({ id: section.id, [isStart ? "startMs" : "endMs"]: next });
           }}
           onSlidingComplete={(value) => {
+            haptic.tap();
             onReposition(section.id, edge, Math.round(value));
             onPreview(null);
             setDragMs(null);
@@ -747,7 +750,10 @@ export function PlayerPracticePanel({
             value={playbackSpeed}
             onValueChange={onSpeedSliding}
             onSlidingStart={onSpeedSlideStart}
-            onSlidingComplete={onSpeedSlideEnd}
+            onSlidingComplete={(value) => {
+              haptic.tap();
+              onSpeedSlideEnd(value);
+            }}
             minimumTrackTintColor={colors.primary}
             maximumTrackTintColor={colors.surfaceHigh}
             thumbTintColor={colors.primary}

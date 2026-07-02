@@ -8,6 +8,7 @@ import type { useGlobalTagSettings } from "../hooks/useGlobalTagSettings";
 import type { useLibraryBackupFlow } from "../hooks/useLibraryBackupFlow";
 import type { useStorageDiagnostics } from "../hooks/useStorageDiagnostics";
 import { getTagColor } from "../../IdeaDetailScreen/songClipControls";
+import { haptic } from "../../../design/haptics";
 
 type GlobalTagSettings = ReturnType<typeof useGlobalTagSettings>;
 type LibraryBackupFlow = ReturnType<typeof useLibraryBackupFlow>;
@@ -16,6 +17,8 @@ type StorageDiagnostics = ReturnType<typeof useStorageDiagnostics>;
 export function SettingsOverviewView({
   workspaceStartupPreference,
   setWorkspaceStartupPreference,
+  hapticsEnabled,
+  setHapticsEnabled,
   primaryWorkspaceTitle,
   backupFlow,
   globalTags,
@@ -28,6 +31,8 @@ export function SettingsOverviewView({
 }: {
   workspaceStartupPreference: "primary" | "last-used";
   setWorkspaceStartupPreference: (next: "primary" | "last-used") => void;
+  hapticsEnabled: boolean;
+  setHapticsEnabled: (next: boolean) => void;
   primaryWorkspaceTitle: string | null;
   backupFlow: LibraryBackupFlow;
   globalTags: GlobalTagSettings;
@@ -72,6 +77,32 @@ export function SettingsOverviewView({
             subtitle="Returns to the workspace you most recently opened or worked in."
             selected={workspaceStartupPreference === "last-used"}
             onPress={() => setWorkspaceStartupPreference("last-used")}
+          />
+        </View>
+      </View>
+
+      <View style={styles.settingsSection}>
+        <View style={styles.settingsSectionHeaderRow}>
+          <Text style={styles.settingsSectionLabel}>Feedback</Text>
+          <Text style={styles.settingsSectionMeta}>{hapticsEnabled ? "Haptics on" : "Haptics off"}</Text>
+        </View>
+
+        <View style={styles.settingsOptionStack}>
+          <FormatOptionRow
+            title="Haptics on"
+            subtitle="Gentle taps confirm presses, saves, and state changes."
+            selected={hapticsEnabled}
+            onPress={() => {
+              setHapticsEnabled(true);
+              // Fires after enabling, so switching haptics on is itself felt.
+              haptic.tap();
+            }}
+          />
+          <FormatOptionRow
+            title="Haptics off"
+            subtitle="No vibration from interface interactions."
+            selected={!hapticsEnabled}
+            onPress={() => setHapticsEnabled(false)}
           />
         </View>
       </View>

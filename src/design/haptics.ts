@@ -1,5 +1,13 @@
 import * as Haptics from "expo-haptics";
 
+// Master switch, driven by the persisted `hapticsEnabled` preference (see
+// useStore) so a single Settings toggle silences every call site.
+let hapticsEnabled = true;
+
+export function setHapticsEnabled(value: boolean) {
+  hapticsEnabled = value;
+}
+
 /**
  * Semantic haptic vocabulary — call these instead of expo-haptics directly so
  * the same physical gesture always feels the same everywhere.
@@ -15,13 +23,25 @@ import * as Haptics from "expo-haptics";
  * All fire-and-forget; failures are swallowed (haptics are never load-bearing).
  */
 export const haptic = {
-  tap: () => void Haptics.selectionAsync().catch(() => {}),
-  light: () => void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {}),
-  grab: () => void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {}),
-  success: () =>
-    void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {}),
-  warning: () =>
-    void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {}),
-  error: () =>
-    void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {}),
+  tap: () => {
+    if (hapticsEnabled) void Haptics.selectionAsync().catch(() => {});
+  },
+  light: () => {
+    if (hapticsEnabled) void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+  },
+  grab: () => {
+    if (hapticsEnabled) void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+  },
+  success: () => {
+    if (hapticsEnabled)
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+  },
+  warning: () => {
+    if (hapticsEnabled)
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
+  },
+  error: () => {
+    if (hapticsEnabled)
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
+  },
 } as const;

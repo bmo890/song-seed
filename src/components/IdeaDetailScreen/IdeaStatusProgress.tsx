@@ -5,6 +5,7 @@ import Slider from "@react-native-community/slider";
 import { styles } from "./styles";
 import { IdeaStatus } from "../../types";
 import { StatusChipRow } from "../common/StatusChipRow";
+import { haptic } from "../../design/haptics";
 
 const PROJECT_STATUSES: IdeaStatus[] = ["seed", "sprout", "stem", "song"];
 
@@ -82,6 +83,7 @@ export function IdeaStatusProgress({
             <View style={styles.progressWrap}>
                 <Text style={styles.progressMeta}>Completion: {draftCompletion}%</Text>
                 <Slider
+                    onSlidingComplete={() => haptic.tap()}
                     minimumValue={0}
                     maximumValue={100}
                     step={5}

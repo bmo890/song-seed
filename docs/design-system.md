@@ -334,6 +334,9 @@ directly:
 - `haptic.grab` — drag lift, entering selection mode, record state changes
 - `haptic.success` / `haptic.warning` / `haptic.error` — completions, destructive
   confirms opening, failures
+- Sliders tick once on release (`onSlidingComplete`), not per value change
+- Users can disable all UI haptics in Settings → Feedback (the `hapticsEnabled`
+  preference gates the whole vocabulary centrally)
 
 ### Motion
 Durations and spring profiles come from `src/design/motion.ts`:

@@ -16,6 +16,7 @@ import { ChordSheetSection } from "../ChordSheetSection";
 import { BarEditorSheet } from "./BarEditorSheet";
 import { useScrollIntoViewOnFocus } from "./chartScroll";
 import type { useChordSheetModel } from "../useChordSheetModel";
+import { haptic } from "../../../design/haptics";
 
 type MenuTarget = { id: string; label: string; index: number; count: number; kind: "section" | "text" };
 
@@ -315,6 +316,7 @@ export function ChordSheetFullView({
         <View style={fullView.zoomBar}>
           <Ionicons name="text" size={13} color={colors.textMuted} />
           <Slider
+            onSlidingComplete={() => haptic.tap()}
             style={appStyles.flexFill}
             minimumValue={0.5}
             maximumValue={1.6}
