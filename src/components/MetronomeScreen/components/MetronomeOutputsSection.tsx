@@ -9,6 +9,7 @@ import {
   type MetronomeOutputKey,
 } from "../../../metronome";
 import { styles } from "../styles";
+import { haptic } from "../../../design/haptics";
 
 type IconName = ComponentProps<typeof Ionicons>["name"];
 
@@ -73,6 +74,7 @@ export function MetronomeOutputsSection({
             <Text style={styles.levelMeta}>{formatMetronomeLevel(beepLevel)}</Text>
           </View>
           <Slider
+            onSlidingComplete={() => haptic.tap()}
             minimumValue={MIN_METRONOME_LEVEL}
             maximumValue={MAX_METRONOME_LEVEL}
             step={1}
@@ -96,6 +98,7 @@ export function MetronomeOutputsSection({
             <Text style={styles.levelMeta}>{formatMetronomeLevel(hapticLevel)}</Text>
           </View>
           <Slider
+            onSlidingComplete={() => haptic.tap()}
             minimumValue={MIN_METRONOME_LEVEL}
             maximumValue={MAX_METRONOME_LEVEL}
             step={1}

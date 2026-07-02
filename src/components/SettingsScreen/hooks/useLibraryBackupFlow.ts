@@ -20,6 +20,7 @@ import {
 } from "../../../services/backupOperation";
 import { useStore } from "../../../state/useStore";
 import type { BackupReminderFrequency } from "../../../types";
+import { haptic } from "../../../design/haptics";
 
 const REMINDER_OPTIONS: BackupReminderFrequency[] = ["off", "weekly", "monthly", "quarterly"];
 
@@ -89,6 +90,7 @@ export function useLibraryBackupFlow() {
             }
 
             const recordSuccessfulBackup = () => {
+                haptic.success();
                 setLastSuccessfulBackupAt(Date.now());
                 setLastSuccessfulBackupFileName(backupFileName);
                 AppAlert.custom(

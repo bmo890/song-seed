@@ -3,6 +3,7 @@ import { Animated, View, Pressable } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { styles } from "../../styles";
 import { colors } from "../../design/tokens";
+import { haptic } from "../../design/haptics";
 
 type Props = {
     isRecording: boolean;
@@ -75,7 +76,10 @@ export function RecordingControls({
                         compact ? styles.circleControlBtnCompact : null,
                         !canDiscard || isArming ? styles.circleControlBtnDisabled : null,
                     ]}
-                    onPress={onDiscard}
+                    onPress={() => {
+                        haptic.tap();
+                        onDiscard();
+                    }}
                     disabled={!canDiscard || isArming}
                     accessibilityRole="button"
                     accessibilityLabel="Discard recording"
@@ -105,6 +109,9 @@ export function RecordingControls({
                         if (isArming || recordToggleDisabled) {
                             return;
                         }
+                        // The most tactile moment in the app — every record-state
+                        // change gets a firm pulse.
+                        haptic.grab();
                         if (!isRecording) {
                             await onStart();
                             return;
@@ -132,7 +139,10 @@ export function RecordingControls({
                         compact ? styles.circleControlBtnCompact : null,
                         !canSave || isArming ? styles.circleControlBtnDisabled : null,
                     ]}
-                    onPress={onRequestSave}
+                    onPress={() => {
+                        haptic.tap();
+                        onRequestSave();
+                    }}
                     disabled={!canSave || isArming}
                 >
                     <Ionicons

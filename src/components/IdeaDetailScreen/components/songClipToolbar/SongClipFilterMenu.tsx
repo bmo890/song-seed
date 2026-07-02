@@ -10,6 +10,8 @@ import {
 } from "../../songClipControls";
 import type { ClipGroup, CustomTagDefinition } from "../../../../types";
 import { songClipToolbarStyles } from "./styles";
+import Animated, { FadeIn } from "react-native-reanimated";
+import { durations } from "../../../../design/motion";
 
 type SongClipFilterMenuProps = {
   clipViewMode: "timeline" | "evolution";
@@ -67,7 +69,7 @@ export function SongClipFilterMenu({
   ];
 
   return (
-    <View style={[styles.ideasSortMenu, styles.ideasPopoverMenu, songClipToolbarStyles.menuOffsetRight]}>
+    <Animated.View entering={FadeIn.duration(durations.fast)} style={[styles.ideasSortMenu, styles.ideasPopoverMenu, songClipToolbarStyles.menuOffsetRight]}>
       {/* Header row */}
       <View style={styles.ideasDropdownSectionToggle}>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
@@ -251,6 +253,6 @@ export function SongClipFilterMenu({
           </View>
         </>
       ) : null}
-    </View>
+    </Animated.View>
   );
 }

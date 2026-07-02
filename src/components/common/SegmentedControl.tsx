@@ -1,7 +1,9 @@
-import React from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import React, { useEffect, useRef, useState } from "react";
+import { Animated, Pressable, StyleSheet, Text, View } from "react-native";
 import { styles } from "../../styles";
 import { colors, radii, shadows } from "../../design/tokens";
+import { durations } from "../../design/motion";
+import { haptic } from "../../design/haptics";
 
 type SegmentedOption<T extends string> = {
   key: T;
@@ -16,6 +18,8 @@ type Props<T extends string> = {
   onSelect?: (key: T) => void;
 };
 
+const TRACK_PAD_H = 4;
+
 export function SegmentedControl<T extends string>({
   options,
   value,
@@ -24,14 +28,45 @@ export function SegmentedControl<T extends string>({
   onSelect,
 }: Props<T>) {
   const activeKey = selectedKey ?? value;
+  const activeIndex = Math.max(
+    0,
+    options.findIndex((option) => option.key === activeKey)
+  );
+
+  const [trackWidth, setTrackWidth] = useState(0);
+  const segmentWidth = trackWidth > 0 ? (trackWidth - TRACK_PAD_H * 2) / options.length : 0;
+  const thumbX = useRef(new Animated.Value(activeIndex * segmentWidth)).current;
+
+  // Slide the thumb under the active segment instead of swapping backgrounds.
+  useEffect(() => {
+    if (segmentWidth <= 0) return;
+    Animated.timing(thumbX, {
+      toValue: activeIndex * segmentWidth,
+      duration: durations.base,
+      useNativeDriver: true,
+    }).start();
+  }, [activeIndex, segmentWidth, thumbX]);
 
   function handleSelect(key: T) {
+    if (key === activeKey) return;
+    haptic.tap();
     onSelect?.(key);
     onChange?.(key);
   }
 
   return (
-    <View style={segmentedControlStyles.root}>
+    <View
+      style={segmentedControlStyles.root}
+      onLayout={(event) => setTrackWidth(event.nativeEvent.layout.width)}
+    >
+      {segmentWidth > 0 ? (
+        <Animated.View
+          style={[
+            segmentedControlStyles.thumb,
+            { width: segmentWidth, transform: [{ translateX: thumbX }] },
+          ]}
+        />
+      ) : null}
       {options.map((option) => {
         const active = option.key === activeKey;
         return (
@@ -39,10 +74,11 @@ export function SegmentedControl<T extends string>({
             key={option.key}
             style={({ pressed }) => [
               segmentedControlStyles.segment,
-              active ? segmentedControlStyles.segmentActive : null,
               pressed ? styles.pressDown : null,
             ]}
             onPress={() => handleSelect(option.key)}
+            accessibilityRole="button"
+            accessibilityState={{ selected: active }}
           >
             <Text
               style={[
@@ -62,10 +98,19 @@ export function SegmentedControl<T extends string>({
 const segmentedControlStyles = StyleSheet.create({
   root: {
     flexDirection: "row",
-    paddingHorizontal: 4,
+    paddingHorizontal: TRACK_PAD_H,
     paddingVertical: 3,
     borderRadius: radii.round,
     backgroundColor: colors.surfaceContainer,
+  },
+  thumb: {
+    position: "absolute",
+    top: 3,
+    bottom: 3,
+    left: TRACK_PAD_H,
+    borderRadius: radii.round,
+    backgroundColor: colors.surface,
+    ...shadows.control,
   },
   segment: {
     flex: 1,
@@ -73,10 +118,6 @@ const segmentedControlStyles = StyleSheet.create({
     borderRadius: radii.round,
     alignItems: "center",
     justifyContent: "center",
-  },
-  segmentActive: {
-    backgroundColor: colors.surface,
-    ...shadows.control,
   },
   segmentLabel: {
     fontFamily: "PlusJakartaSans_600SemiBold",

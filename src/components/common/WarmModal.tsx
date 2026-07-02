@@ -1,4 +1,6 @@
 import { KeyboardAvoidingView, Modal, ScrollView, StyleSheet, Text, View } from "react-native";
+import Animated from "react-native-reanimated";
+import { popIn } from "../../design/motion";
 
 type Props = {
   visible: boolean;
@@ -15,7 +17,7 @@ export function WarmModal({ visible, onRequestClose, title, children, scrollable
       <View style={warmModalStyles.backdropFill} />
       <KeyboardAvoidingView style={warmModalStyles.avoid} behavior="padding">
         <View style={warmModalStyles.center}>
-          <View style={warmModalStyles.card}>
+          <Animated.View style={warmModalStyles.card} entering={popIn}>
             {title ? <Text style={warmModalStyles.title}>{title}</Text> : null}
             {scrollable ? (
               <ScrollView
@@ -28,7 +30,7 @@ export function WarmModal({ visible, onRequestClose, title, children, scrollable
             ) : (
               children
             )}
-          </View>
+          </Animated.View>
         </View>
       </KeyboardAvoidingView>
     </Modal>

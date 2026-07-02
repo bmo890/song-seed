@@ -8,9 +8,9 @@ import Animated, {
   SharedValue,
   withSpring,
 } from "react-native-reanimated";
-import * as Haptics from "expo-haptics";
 import type { PracticeMarker } from "../../types";
 import { colors } from "../../design/tokens";
+import { haptic } from "../../design/haptics";
 
 const BADGE_HEIGHT = 18;
 const BADGE_CHAR_WIDTH = 6;
@@ -133,7 +133,7 @@ function PinBadge({
       draggingMarkerX.value =
         marker.atMs * pixelsPerMs * timelineScale.value + timelineTranslateX.value;
       if (onDragStateChange) runOnJS(onDragStateChange)(true);
-      runOnJS(Haptics.selectionAsync)();
+      runOnJS(haptic.tap)();
     })
     .onChange((e) => {
       if (pixelsPerMs <= 0 || timelineScale.value <= 0) return;

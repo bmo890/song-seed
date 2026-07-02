@@ -3,6 +3,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { styles } from "../../styles";
 import type { SongTimelineSortDirection, SongTimelineSortMetric } from "../../../../clipGraph";
 import { songClipToolbarStyles } from "./styles";
+import Animated, { FadeIn } from "react-native-reanimated";
+import { durations } from "../../../../design/motion";
 
 type SongClipSortMenuProps = {
   timelineSortMetric: SongTimelineSortMetric;
@@ -20,7 +22,7 @@ export function SongClipSortMenu({
   onClose,
 }: SongClipSortMenuProps) {
   return (
-    <View style={[styles.ideasSortMenu, styles.ideasPopoverMenu, songClipToolbarStyles.menuOffset]}>
+    <Animated.View entering={FadeIn.duration(durations.fast)} style={[styles.ideasSortMenu, styles.ideasPopoverMenu, songClipToolbarStyles.menuOffset]}>
       <View style={styles.ideasSortDirectionRow}>
         <Text style={styles.ideasDropdownSectionToggleText}>Direction</Text>
         <View style={styles.ideasSortDirectionControls}>
@@ -113,6 +115,6 @@ export function SongClipSortMenu({
           </Pressable>
         );
       })}
-    </View>
+    </Animated.View>
   );
 }

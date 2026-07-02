@@ -74,7 +74,7 @@ export function RecordingMeta({
         <Pressable
             style={({ pressed }) => [
                 metronomeEnabled ? metaStyles.metroChipOn : metaStyles.metroChipOff,
-                pressed ? { opacity: 0.6 } : null,
+                pressed ? styles.pressDown : null,
             ]}
             onPress={onOpenMetronome}
             hitSlop={8}

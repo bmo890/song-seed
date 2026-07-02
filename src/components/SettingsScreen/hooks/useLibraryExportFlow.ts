@@ -14,6 +14,7 @@ import {
   getSelectionSummary,
 } from "../helpers";
 import type { ArchiveExportOptions, ExportSectionKey, StandardExportOptions } from "../types";
+import { haptic } from "../../../design/haptics";
 
 const DEFAULT_ARCHIVE_OPTIONS: ArchiveExportOptions = {
   includeFullSongHistory: true,
@@ -237,6 +238,7 @@ export function useLibraryExportFlow() {
         AppAlert.info("Export finished with warnings", buildWarningSummary(result.warningMessages));
       } else if (result.saveConfirmed) {
         // Android: copied into the folder the user chose.
+        haptic.success();
         AppAlert.info("Export saved", `${summary} were saved to the folder you chose.`);
       } else {
         // iOS share sheet: we can't confirm the destination, only that it was handed off.

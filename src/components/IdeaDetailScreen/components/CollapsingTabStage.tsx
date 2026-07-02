@@ -1,9 +1,11 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { View, type StyleProp, type ViewStyle } from "react-native";
-import Animated, { useAnimatedScrollHandler } from "react-native-reanimated";
+import Animated, {
+  FadeIn, useAnimatedScrollHandler } from "react-native-reanimated";
 import { useSongScreen } from "../provider/SongScreenProvider";
 import { CollapsingHeaderOverlay } from "../../common/CollapsingHeaderOverlay";
 import { SongCollapsibleHeader } from "./SongCollapsibleHeader";
+import { durations } from "../../../design/motion";
 
 const DEFAULT_HEADER_HEIGHT = 130;
 
@@ -54,7 +56,7 @@ export function CollapsingTabStage({ children, contentContainerStyle }: Collapsi
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="interactive"
       >
-        {children}
+        <Animated.View entering={FadeIn.duration(durations.fast)}>{children}</Animated.View>
       </Animated.ScrollView>
       <CollapsingHeaderOverlay
         scrollY={screen.scrollY}

@@ -15,6 +15,7 @@ import { type ClipCardContextProps } from "./ClipCard";
 import { type SongTimelineSortDirection, type SongTimelineSortMetric } from "../../clipGraph";
 import { SongClipCard } from "./components/SongClipCard";
 import { SongClipListShell } from "./components/SongClipListShell";
+import { haptic } from "../../design/haptics";
 
 type EvolutionListProps = {
   lineages: ClipLineage[];
@@ -81,7 +82,10 @@ function EvolutionMoreRow({
       </View>
       <Pressable
         style={({ pressed }) => [styles.songDetailEvolutionExpandRow, pressed ? styles.pressDown : null]}
-        onPress={() => onToggle(lineageRootId)}
+        onPress={() => {
+          haptic.light();
+          onToggle(lineageRootId);
+        }}
       >
         <Ionicons
           name={expanded ? "chevron-up" : "chevron-down"}

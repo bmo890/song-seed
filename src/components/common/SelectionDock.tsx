@@ -5,6 +5,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { styles } from "../../styles";
 import { useStore } from "../../state/useStore";
+import { haptic } from "../../design/haptics";
 
 export type SelectionActionTone = "default" | "danger";
 
@@ -55,7 +56,10 @@ export function SelectionDock({ actions, onLayout }: SelectionDockProps) {
                 pressed && !action.disabled ? styles.pressDown : null,
               ]}
               disabled={action.disabled}
-              onPress={action.onPress}
+              onPress={() => {
+                haptic.tap();
+                action.onPress();
+              }}
             >
               <Ionicons
                 name={action.icon}
