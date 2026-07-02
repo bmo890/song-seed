@@ -30,7 +30,9 @@ yarn-error.*
 .DS_Store
 *.pem
 
-# local env files
+# local env files — no .env variant is ever committed
+.env
+.env.*
 .env*.local
 
 # typescript
