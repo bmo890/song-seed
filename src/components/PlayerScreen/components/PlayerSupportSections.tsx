@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
-import type { LyricsLine } from "../../../types";
+import type { LyricsLine, RecordingGrid } from "../../../types";
 import { PlayerLyricsPanel } from "../PlayerLyricsPanel";
 import { PlayerQueue } from "../PlayerQueue";
 import { WaveformMiniPreview } from "../../common/WaveformMiniPreview";
@@ -72,6 +72,7 @@ type PlayerSupportSectionsProps = {
   overdubRootAudioUri: string | null;
   overdubRootDurationMs: number;
   overdubRootWaveformPeaks?: number[];
+  overdubRootRecordingGrid?: RecordingGrid | null;
   onAddOverdub: () => void;
   onSaveCombined: () => void;
   onPauseMainPlayback: () => Promise<void>;
@@ -242,6 +243,7 @@ export function PlayerSupportSections({
   overdubRootAudioUri,
   overdubRootDurationMs,
   overdubRootWaveformPeaks,
+  overdubRootRecordingGrid,
   onAddOverdub,
   onSaveCombined,
   onPauseMainPlayback,
@@ -554,6 +556,7 @@ export function PlayerSupportSections({
                     stemDurationMs={stem.durationMs}
                     stemFallbackPeaks={stem.waveformPeaks}
                     offsetMs={stem.offsetMs}
+                    recordingGrid={overdubRootRecordingGrid}
                   />
                   <View style={playerScreenStyles.layerControls}>
                     <LayerControlButton

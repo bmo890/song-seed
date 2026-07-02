@@ -2,6 +2,8 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { ensureWaveformSidecar } from "../../../services/waveformSidecar";
 import { formatClipOverdubStemOffsetLabel } from "../../../overdub";
+import { getMetronomeMeterPreset } from "../../../metronome";
+import type { RecordingGrid } from "../../../types";
 
 /**
  * Superimposed master + stem waveforms on one shared time axis, with the stem shifted by
@@ -14,10 +16,13 @@ import { formatClipOverdubStemOffsetLabel } from "../../../overdub";
 const DISPLAY_BARS = 72;
 const BAR_WIDTH = 3;
 const BAR_GAP = 1;
+const CONTENT_WIDTH = DISPLAY_BARS * BAR_WIDTH + (DISPLAY_BARS - 1) * BAR_GAP;
 const VIEW_HEIGHT = 46;
 const MASTER_AMPLITUDE = 40;
 const STEM_AMPLITUDE = 26;
 const ZOOM_WINDOW_MS = 4000;
+/** Above this many ticks the grid is visual noise — thin it out (or drop it). */
+const MAX_GRID_TICKS = 96;
 
 type Props = {
   masterAudioUri: string | null;
@@ -27,6 +32,9 @@ type Props = {
   stemDurationMs: number;
   stemFallbackPeaks?: number[];
   offsetMs: number;
+  /** The MASTER's beat grid. Ticks are drawn only when its downbeat anchor was actually
+   *  measured (firstDownbeatMs != null) — never guessed onto the timeline. */
+  recordingGrid?: RecordingGrid | null;
 };
 
 /** Max of `peaks` over the time range [fromMs, toMs) of an audio lasting durationMs. */
@@ -75,19 +83,21 @@ export function StemAlignmentOverlay({
   stemDurationMs,
   stemFallbackPeaks,
   offsetMs,
+  recordingGrid,
 }: Props) {
   const [zoomed, setZoomed] = useState(true);
   const masterPeaks = useDetailPeaks(masterAudioUri, masterFallbackPeaks);
   const stemPeaks = useDetailPeaks(stemAudioUri, stemFallbackPeaks);
 
+  // Timeline t=0 is the master's start. The stem occupies [offsetMs, offsetMs + stemDur];
+  // a negative offset drops the stem's head (mirrors the mixers' behavior).
+  const fullTimelineMs = Math.max(masterDurationMs, offsetMs + stemDurationMs, 1);
+  const timelineMs = zoomed ? Math.min(ZOOM_WINDOW_MS, fullTimelineMs) : fullTimelineMs;
+
   const bars = useMemo(() => {
     if (masterDurationMs <= 0 && stemDurationMs <= 0) {
       return [];
     }
-    // Timeline t=0 is the master's start. The stem occupies [offsetMs, offsetMs + stemDur];
-    // a negative offset drops the stem's head (mirrors the mixers' behavior).
-    const fullTimelineMs = Math.max(masterDurationMs, offsetMs + stemDurationMs, 1);
-    const timelineMs = zoomed ? Math.min(ZOOM_WINDOW_MS, fullTimelineMs) : fullTimelineMs;
     const barDurationMs = timelineMs / DISPLAY_BARS;
 
     return Array.from({ length: DISPLAY_BARS }, (_, index) => {
@@ -98,7 +108,52 @@ export function StemAlignmentOverlay({
         stem: samplePeakRange(stemPeaks, stemDurationMs, fromMs - offsetMs, toMs - offsetMs),
       };
     });
-  }, [masterDurationMs, masterPeaks, offsetMs, stemDurationMs, stemPeaks, zoomed]);
+  }, [masterDurationMs, masterPeaks, offsetMs, stemDurationMs, stemPeaks, timelineMs]);
+
+  // Beat-grid ticks on the master's timeline: downbeats accented, other beats faint.
+  // Density-limited — all beats when they fit, downbeats only when bars fit, then every
+  // Nth bar. Anchored at the measured first downbeat, never at an assumed zero.
+  const gridTicks = useMemo(() => {
+    if (!recordingGrid || recordingGrid.firstDownbeatMs == null || recordingGrid.bpm <= 0) {
+      return [];
+    }
+    const beatMs = 60000 / recordingGrid.bpm;
+    const pulsesPerBar = Math.max(1, getMetronomeMeterPreset(recordingGrid.meterId).pulsesPerBar);
+    const anchorMs = recordingGrid.firstDownbeatMs;
+
+    const totalBeatsInView = Math.floor(timelineMs / beatMs) + 1;
+    const totalBarsInView = totalBeatsInView / pulsesPerBar;
+    const drawEveryBeat = totalBeatsInView <= MAX_GRID_TICKS;
+    const barStep = drawEveryBeat ? 1 : Math.max(1, Math.ceil(totalBarsInView / MAX_GRID_TICKS));
+
+    const ticks: { leftPx: number; isDownbeat: boolean }[] = [];
+    // Cover pickup space before the anchor too (beats extend backwards to timeline 0).
+    const firstBeatIndex = -Math.floor(anchorMs / beatMs);
+    for (let beatIndex = firstBeatIndex; ; beatIndex += 1) {
+      const timeMs = anchorMs + beatIndex * beatMs;
+      if (timeMs > timelineMs) {
+        break;
+      }
+      if (timeMs < 0) {
+        continue;
+      }
+      const isDownbeat = ((beatIndex % pulsesPerBar) + pulsesPerBar) % pulsesPerBar === 0;
+      if (!drawEveryBeat) {
+        if (!isDownbeat) {
+          continue;
+        }
+        const barIndex = Math.round(beatIndex / pulsesPerBar);
+        if (((barIndex % barStep) + barStep) % barStep !== 0) {
+          continue;
+        }
+      }
+      ticks.push({ leftPx: (timeMs / timelineMs) * CONTENT_WIDTH, isDownbeat });
+      if (ticks.length > MAX_GRID_TICKS) {
+        break;
+      }
+    }
+    return ticks;
+  }, [recordingGrid, timelineMs]);
 
   if (!bars.length) {
     return null;
@@ -113,6 +168,7 @@ export function StemAlignmentOverlay({
           <Text style={styles.legendStem}>▮ this layer</Text>
           {"   "}
           {formatClipOverdubStemOffsetLabel(offsetMs)}
+          {gridTicks.length > 0 && recordingGrid ? `   · ${recordingGrid.bpm} BPM grid` : ""}
         </Text>
         <Pressable
           style={({ pressed }) => [styles.zoomChip, pressed ? styles.pressed : null]}
@@ -124,23 +180,34 @@ export function StemAlignmentOverlay({
         </Pressable>
       </View>
       <View style={styles.stage}>
-        {bars.map((bar, index) => {
-          const masterHeight = 3 + Math.max(0.05, Math.min(1, bar.master)) * MASTER_AMPLITUDE;
-          const stemHeight = bar.stem > 0 ? 3 + Math.min(1, bar.stem) * STEM_AMPLITUDE : 0;
-          return (
-            <View key={`align-bar-${index}`} style={styles.column}>
-              <View style={[styles.masterBar, { height: masterHeight }]} />
-              {stemHeight > 0 ? (
-                <View
-                  style={[
-                    styles.stemBar,
-                    { height: stemHeight, top: (VIEW_HEIGHT - stemHeight) / 2 },
-                  ]}
-                />
-              ) : null}
-            </View>
-          );
-        })}
+        <View style={styles.content}>
+          {gridTicks.map((tick, index) => (
+            <View
+              key={`grid-tick-${index}`}
+              style={[
+                tick.isDownbeat ? styles.downbeatTick : styles.beatTick,
+                { left: tick.leftPx },
+              ]}
+            />
+          ))}
+          {bars.map((bar, index) => {
+            const masterHeight = 3 + Math.max(0.05, Math.min(1, bar.master)) * MASTER_AMPLITUDE;
+            const stemHeight = bar.stem > 0 ? 3 + Math.min(1, bar.stem) * STEM_AMPLITUDE : 0;
+            return (
+              <View key={`align-bar-${index}`} style={styles.column}>
+                <View style={[styles.masterBar, { height: masterHeight }]} />
+                {stemHeight > 0 ? (
+                  <View
+                    style={[
+                      styles.stemBar,
+                      { height: stemHeight, top: (VIEW_HEIGHT - stemHeight) / 2 },
+                    ]}
+                  />
+                ) : null}
+              </View>
+            );
+          })}
+        </View>
       </View>
     </View>
   );
@@ -184,12 +251,33 @@ const styles = StyleSheet.create({
     height: VIEW_HEIGHT,
     borderRadius: 4,
     backgroundColor: "#F7F4F0",
-    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: BAR_GAP,
-    paddingHorizontal: 6,
     overflow: "hidden",
+  },
+  // Fixed-width inner canvas: bars AND grid ticks share the same time→pixel mapping.
+  content: {
+    width: CONTENT_WIDTH,
+    height: VIEW_HEIGHT,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: BAR_GAP,
+  },
+  beatTick: {
+    position: "absolute",
+    top: 8,
+    bottom: 8,
+    width: 1,
+    backgroundColor: "#c8b8ac",
+    opacity: 0.55,
+  },
+  downbeatTick: {
+    position: "absolute",
+    top: 2,
+    bottom: 2,
+    width: 1,
+    backgroundColor: "#8a6f5f",
+    opacity: 0.75,
   },
   column: {
     width: BAR_WIDTH,
