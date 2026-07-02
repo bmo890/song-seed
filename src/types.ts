@@ -295,6 +295,9 @@ export type RecordingGrid = {
    *  before downbeat measurement existed). Becomes 0 by construction once recordings are
    *  trimmed to the downbeat. */
   firstDownbeatMs: number | null;
+  /** Set when something invalidated the grid mid-take (audio route change, interruption):
+   *  the grid is trustworthy only up to this take position. Absent = valid throughout. */
+  gridValidToMs?: number;
   source: RecordingGridSource;
 };
 

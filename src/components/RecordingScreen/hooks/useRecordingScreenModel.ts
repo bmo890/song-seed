@@ -39,6 +39,15 @@ const HEAD_TRIM_SAFETY_EARLY_MS = 15;
 /** Fallback lead for the guide's play() when its start latency couldn't be measured.
  *  The primary path measures the real latency with a muted warm-start instead. */
 const GUIDE_DOWNBEAT_LEAD_MS = 80;
+/** BT latency drifts with codec renegotiation and firmware — nudge a re-check when the
+ *  ear calibration is older than this. */
+const CALIBRATION_STALE_AFTER_MS = 30 * 24 * 60 * 60 * 1000;
+
+export type RecordingTimingWarning = {
+  kind: "uncalibrated-bt" | "stale-calibration" | "bt-mic" | "route-changed";
+  message: string;
+  showCalibrateAction: boolean;
+};
 
 export function useRecordingScreenModel() {
   const navigation = useNavigation();
@@ -112,6 +121,9 @@ export function useRecordingScreenModel() {
   const [isArmingRecording, setIsArmingRecording] = useState(false);
   const [currentRecordingInput, setCurrentRecordingInput] = useState<AudioDevice | null>(null);
   const [currentMonitoringOutput, setCurrentMonitoringOutput] = useState<{ name: string; type: string } | null>(null);
+  // Take position at which the audio route changed mid-take (null = it didn't). The grid
+  // is only trustworthy up to that point — surfaced as a warning and stamped on the grid.
+  const [midTakeRouteChangeMs, setMidTakeRouteChangeMs] = useState<number | null>(null);
   const [guideMonitoringLeadInMs, setGuideMonitoringLeadInMs] = useState(0);
   const [overdubReviewLocked, setOverdubReviewLocked] = useState(false);
   const [lyricsExpanded, setLyricsExpanded] = useState(false);
@@ -261,6 +273,58 @@ export function useRecordingScreenModel() {
 
   const recordingInputLabel = currentRecordingInput?.name?.trim() || null;
   const monitoringOutputLabel = currentMonitoringOutput?.name?.trim() || null;
+
+  // Honesty layer: surface every situation where timing can't be trusted BEFORE the user
+  // wastes a take on it, with a one-tap path to fix what's fixable.
+  const timingWarnings = useMemo<RecordingTimingWarning[]>(() => {
+    const warnings: RecordingTimingWarning[] = [];
+    const outputName = monitoringOutputLabel ?? "These headphones";
+
+    if (isBluetoothMonitoringOutput) {
+      if (!activeBluetoothCalibration) {
+        warnings.push({
+          kind: "uncalibrated-bt",
+          message: `${outputName} aren't calibrated — recorded takes may land off the beat.`,
+          showCalibrateAction: true,
+        });
+      } else if (Date.now() - activeBluetoothCalibration.updatedAt > CALIBRATION_STALE_AFTER_MS) {
+        warnings.push({
+          kind: "stale-calibration",
+          message: `${outputName} were calibrated over a month ago — a quick re-check keeps takes tight.`,
+          showCalibrateAction: true,
+        });
+      }
+    }
+
+    if (isBluetoothRecordingInput) {
+      warnings.push({
+        kind: "bt-mic",
+        message:
+          "Recording through a Bluetooth microphone — its delay can't be corrected. Use the phone or a wired mic for tight takes.",
+        showCalibrateAction: false,
+      });
+    }
+
+    if (midTakeRouteChangeMs != null) {
+      warnings.push({
+        kind: "route-changed",
+        message: `Audio route changed ${Math.round(midTakeRouteChangeMs / 1000)}s into the take — timing after that point may drift.`,
+        showCalibrateAction: false,
+      });
+    }
+
+    return warnings;
+  }, [
+    activeBluetoothCalibration,
+    isBluetoothMonitoringOutput,
+    isBluetoothRecordingInput,
+    midTakeRouteChangeMs,
+    monitoringOutputLabel,
+  ]);
+
+  function openBluetoothCalibration() {
+    navigation.navigate("BluetoothCalibration" as never);
+  }
 
   const fallbackClipTitle = () => buildDefaultIdeaTitle();
 
@@ -524,6 +588,7 @@ export function useRecordingScreenModel() {
 
   async function cancelPendingRecordingStart() {
     takeGridRef.current = null;
+    setMidTakeRouteChangeMs(null);
     countInPendingRef.current = false;
     setIsArmingRecording(false);
     setOverdubReviewLocked(false);
@@ -758,6 +823,14 @@ export function useRecordingScreenModel() {
     void requestSaveRecording();
   }, [recordingSaveRequestToken]);
 
+  // Latest take state for the device-change listener (it outlives renders).
+  const takeStateRef = useRef({ capturing: false, elapsedMs: 0 });
+  takeStateRef.current = {
+    capturing: recording.isRecording || recording.isPaused,
+    elapsedMs: recording.elapsedMs,
+  };
+  const lastMonitoringRouteKeyRef = useRef<string | null>(null);
+
   useEffect(() => {
     let cancelled = false;
 
@@ -768,6 +841,28 @@ export function useRecordingScreenModel() {
         if (!cancelled) {
           setCurrentRecordingInput(device ?? null);
           setCurrentMonitoringOutput(outputRoute ?? null);
+
+          // Mid-take route change (headphones died, BT reconnected…): every latency in
+          // the model just changed, so the grid reference is broken from here on. Stamp
+          // the take instead of silently pretending the grid survived.
+          const routeKey = buildBluetoothMonitoringRouteKey(outputRoute ?? null);
+          const previousRouteKey = lastMonitoringRouteKeyRef.current;
+          lastMonitoringRouteKeyRef.current = routeKey;
+          if (
+            previousRouteKey !== null &&
+            routeKey !== previousRouteKey &&
+            takeStateRef.current.capturing
+          ) {
+            const atMs = Math.max(0, Math.round(takeStateRef.current.elapsedMs));
+            console.warn(`[timing] audio route changed mid-take at ${atMs}ms — grid marked`);
+            setMidTakeRouteChangeMs((current) => current ?? atMs);
+            if (takeGridRef.current) {
+              takeGridRef.current = {
+                ...takeGridRef.current,
+                gridValidToMs: Math.min(takeGridRef.current.gridValidToMs ?? Infinity, atMs),
+              };
+            }
+          }
         }
       } catch {
         if (!cancelled) {
@@ -1023,6 +1118,7 @@ export function useRecordingScreenModel() {
     }
 
     autoStoppingOverdubRef.current = false;
+    setMidTakeRouteChangeMs(null);
     setSettingsVisible(false);
     setMetronomeSheetVisible(false);
 
@@ -1319,6 +1415,8 @@ export function useRecordingScreenModel() {
     recordingInputLabel,
     monitoringOutputLabel,
     activeBluetoothCalibrationMs,
+    timingWarnings,
+    openBluetoothCalibration,
     lyricsExpanded,
     lyricsAutoscrollMode,
     lyricsAutoscrollSpeedMultiplier,

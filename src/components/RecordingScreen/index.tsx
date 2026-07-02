@@ -10,6 +10,7 @@ import { RecordingBody } from "./RecordingBody";
 import { RecordingBottomDock } from "./RecordingBottomDock";
 import { RecordingSettingsModal } from "./RecordingSettingsModal";
 import { RecordingMetronomeSheet } from "./RecordingMetronomeSheet";
+import { RecordingTimingWarnings } from "./RecordingTimingWarnings";
 import { SaveDestinationPickerSheet } from "../modals/SaveDestinationPickerSheet";
 import { METRONOME_METER_PRESETS } from "../../metronome";
 import { useRecordingScreenModel } from "./hooks/useRecordingScreenModel";
@@ -35,6 +36,11 @@ export function RecordingScreen() {
           onBack={screen.confirmDiscardAndExit}
           onMinimize={screen.minimizeRecording}
           onOpenSettings={() => screen.setSettingsVisible(true)}
+        />
+
+        <RecordingTimingWarnings
+          warnings={screen.timingWarnings}
+          onCalibrate={screen.openBluetoothCalibration}
         />
 
         <RecordingBody
