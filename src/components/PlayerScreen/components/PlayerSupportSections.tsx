@@ -5,21 +5,16 @@ import { useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
 import type { LyricsLine, RecordingGrid } from "../../../types";
 import { PlayerLyricsPanel } from "../PlayerLyricsPanel";
 import { PlayerQueue } from "../PlayerQueue";
-import { WaveformMiniPreview } from "../../common/WaveformMiniPreview";
 import { BottomSheet } from "../../common/BottomSheet";
 import { styles as appStyles } from "../../../styles";
 import { colors, radii, spacing, text as textTokens } from "../../../design/tokens";
-import { formatDate, fmtDuration } from "../../../utils";
+import { formatDate } from "../../../utils";
 import { activateAndPlay, replacePlaybackSource } from "../../../services/transportPlayback";
-import {
-  formatClipOverdubStemOffsetLabel,
-  OVERDUB_GAIN_STEP_DB,
-  OVERDUB_STEM_NUDGE_STEP_LARGE_MS,
-  OVERDUB_STEM_NUDGE_STEP_SMALL_MS,
-} from "../../../overdub";
+import { OVERDUB_GAIN_STEP_DB } from "../../../overdub";
 import { playerScreenStyles } from "../styles";
 import { AppAlert } from "../../common/AppAlert";
-import { StemAlignmentOverlay } from "./StemAlignmentOverlay";
+import { LayerControlButton, OverdubLayerCard, type OverdubLayerSection } from "./OverdubLayerCard";
+import { useOverdubAlignmentAudition } from "../hooks/useOverdubAlignmentAudition";
 
 type QueueEntry = {
   ideaId: string;
@@ -39,19 +34,6 @@ type OverdubStemEntry = {
   offsetMs: number;
   isMuted: boolean;
   tonePreset: string;
-};
-
-type LayerPreviewCardProps = {
-  title: string;
-  meta: string;
-  durationMs: number;
-  waveformPeaks?: number[];
-  isPlaying: boolean;
-  progressRatio: number;
-  onTogglePlay: () => void;
-  enabled?: boolean;
-  onToggleEnabled?: () => void;
-  children?: React.ReactNode;
 };
 
 type PlayerSupportSectionsProps = {
@@ -94,105 +76,6 @@ type PlayerSupportSectionsProps = {
   onToggleQueueExpanded: (value: boolean) => void;
   onSelectQueueEntry: (index: number) => void;
 };
-
-const LayerPreviewCard = React.memo(function LayerPreviewCard({
-  title,
-  meta,
-  durationMs,
-  waveformPeaks,
-  isPlaying,
-  progressRatio,
-  onTogglePlay,
-  enabled = true,
-  onToggleEnabled,
-  children,
-}: LayerPreviewCardProps) {
-  return (
-    <View style={playerScreenStyles.layerCard}>
-      <View style={playerScreenStyles.layerCardHeader}>
-        <Pressable style={playerScreenStyles.layerPlayButton} onPress={onTogglePlay}>
-          <Ionicons
-            name={isPlaying ? "pause" : "play"}
-            size={16}
-            color="#824f3f"
-            style={isPlaying ? undefined : playerScreenStyles.layerPlayButtonIcon}
-          />
-        </Pressable>
-        <View style={playerScreenStyles.layerCardCopy}>
-          <View style={playerScreenStyles.layerCardTitleRow}>
-            <Text style={playerScreenStyles.layerCardTitle} numberOfLines={1}>
-              {title}
-            </Text>
-            <Text style={playerScreenStyles.layerCardDuration}>{fmtDuration(durationMs)}</Text>
-          </View>
-          <Text style={playerScreenStyles.layerCardMeta} numberOfLines={1}>
-            {meta}
-          </Text>
-        </View>
-        {onToggleEnabled ? (
-          <Pressable
-            style={[
-              playerScreenStyles.layerEnabledDot,
-              enabled ? playerScreenStyles.layerEnabledDotActive : null,
-            ]}
-            onPress={onToggleEnabled}
-          />
-        ) : null}
-      </View>
-
-      <View style={playerScreenStyles.layerWaveWrap}>
-        <WaveformMiniPreview peaks={waveformPeaks} bars={72} />
-        <View
-          pointerEvents="none"
-          style={[
-            playerScreenStyles.layerWavePlayhead,
-            { left: `${Math.max(0, Math.min(100, progressRatio * 100))}%` },
-          ]}
-        />
-      </View>
-
-      {children ? <View style={playerScreenStyles.layerCardControls}>{children}</View> : null}
-    </View>
-  );
-});
-
-const LayerControlButton = React.memo(function LayerControlButton({
-  label,
-  onPress,
-  active = false,
-  destructive = false,
-  disabled = false,
-}: {
-  label: string;
-  onPress: () => void;
-  active?: boolean;
-  destructive?: boolean;
-  disabled?: boolean;
-}) {
-  return (
-    <Pressable
-      disabled={disabled}
-      style={[
-        playerScreenStyles.layerControlButton,
-        active ? playerScreenStyles.layerControlButtonActive : null,
-        destructive ? playerScreenStyles.layerControlButtonDestructive : null,
-        disabled ? playerScreenStyles.layerControlButtonDisabled : null,
-      ]}
-      onPress={onPress}
-    >
-      <Text
-        style={[
-          playerScreenStyles.layerControlButtonText,
-          active ? playerScreenStyles.layerControlButtonTextActive : null,
-          destructive ? playerScreenStyles.layerControlButtonTextDestructive : null,
-          disabled ? playerScreenStyles.layerControlButtonTextDisabled : null,
-        ]}
-      >
-        {label}
-      </Text>
-    </Pressable>
-  );
-});
 
 /** A quiet pill in the utility row beneath the lyrics. Carries an optional
  * count badge (Layers/Queue) or a terracotta presence dot (Notes). */
@@ -268,6 +151,20 @@ export function PlayerSupportSections({
   const layerPreviewStatus = useAudioPlayerStatus(layerPreviewPlayer);
   const [activeLayerPreviewId, setActiveLayerPreviewId] = useState<string | null>(null);
   const [layersSheetOpen, setLayersSheetOpen] = useState(false);
+  // Progressive disclosure: one section open at a time across the whole sheet (accordion),
+  // so the layer list stays scannable instead of every control being permanently expanded.
+  const [rootMixExpanded, setRootMixExpanded] = useState(false);
+  const [expandedStemSection, setExpandedStemSection] = useState<{
+    stemId: string;
+    section: OverdubLayerSection;
+  } | null>(null);
+
+  // In-place master+layer audition for the Align section — the nudge feedback loop.
+  const audition = useOverdubAlignmentAudition();
+  const auditioningStem =
+    overdubStemEntries.find((stem) => stem.id === audition.auditioningStemId) ?? null;
+  const lastAuditionOffsetRef = React.useRef<number | null>(null);
+  const auditionRestartTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const activeLayerPreviewDurationMs = Math.round((layerPreviewStatus.duration ?? 0) * 1000);
   const activeLayerPreviewPositionMs = Math.round((layerPreviewStatus.currentTime ?? 0) * 1000);
@@ -292,6 +189,51 @@ export function PlayerSupportSections({
     pauseLayerPreviewSafely();
     setActiveLayerPreviewId(null);
   }, [activeLayerPreviewId, isMainPlaybackPlaying, pauseLayerPreviewSafely]);
+
+  // Main playback wins over the alignment audition too — never two transports at once.
+  useEffect(() => {
+    if (isMainPlaybackPlaying && audition.auditioningStemId) {
+      audition.stop();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [audition.auditioningStemId, isMainPlaybackPlaying]);
+
+  // Hearing a nudge is the point: while auditioning, an offset change restarts playback
+  // at the new offset after a short settle, so successive nudge taps coalesce into one
+  // restart and each landing is audible within ~a third of a second.
+  useEffect(() => {
+    if (!auditioningStem || !auditioningStem.audioUri || !overdubRootAudioUri) {
+      return;
+    }
+    if (lastAuditionOffsetRef.current === auditioningStem.offsetMs) {
+      return;
+    }
+    if (auditionRestartTimerRef.current) {
+      clearTimeout(auditionRestartTimerRef.current);
+    }
+    const target = {
+      stemId: auditioningStem.id,
+      masterAudioUri: overdubRootAudioUri,
+      stemAudioUri: auditioningStem.audioUri,
+      offsetMs: auditioningStem.offsetMs,
+      stemGainDb: auditioningStem.gainDb,
+    };
+    auditionRestartTimerRef.current = setTimeout(() => {
+      auditionRestartTimerRef.current = null;
+      lastAuditionOffsetRef.current = target.offsetMs;
+      void audition.start(target).catch(() => {
+        audition.stop();
+      });
+    }, 350);
+
+    return () => {
+      if (auditionRestartTimerRef.current) {
+        clearTimeout(auditionRestartTimerRef.current);
+        auditionRestartTimerRef.current = null;
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [auditioningStem?.id, auditioningStem?.offsetMs, overdubRootAudioUri]);
 
   useEffect(() => {
     return () => {
@@ -333,6 +275,7 @@ export function PlayerSupportSections({
         return;
       }
 
+      audition.stop();
       await onPauseMainPlayback();
 
       if (activeLayerPreviewId === id) {
@@ -367,7 +310,58 @@ export function PlayerSupportSections({
       pauseLayerPreviewSafely();
       setActiveLayerPreviewId(null);
     }
+    if (audition.auditioningStemId === stemId) {
+      audition.stop();
+    }
+    if (expandedStemSection?.stemId === stemId) {
+      setExpandedStemSection(null);
+    }
     onRemoveStem(stemId);
+  }
+
+  function toggleStemSection(stemId: string, section: OverdubLayerSection) {
+    const isClosing =
+      expandedStemSection?.stemId === stemId && expandedStemSection.section === section;
+    // Collapsing (or switching away from) an Align section ends its audition — the
+    // controls it belongs to are gone.
+    if (audition.auditioningStemId && (isClosing || audition.auditioningStemId !== stemId)) {
+      audition.stop();
+    }
+    setExpandedStemSection(isClosing ? null : { stemId, section });
+    if (!isClosing) {
+      setRootMixExpanded(false);
+    }
+  }
+
+  function toggleStemAudition(stem: (typeof overdubStemEntries)[number]) {
+    if (audition.auditioningStemId === stem.id) {
+      audition.stop();
+      return;
+    }
+    if (!stem.audioUri || !overdubRootAudioUri) {
+      return;
+    }
+    pauseLayerPreviewSafely();
+    setActiveLayerPreviewId(null);
+    lastAuditionOffsetRef.current = stem.offsetMs;
+    void onPauseMainPlayback().catch(() => {});
+    void audition
+      .start({
+        stemId: stem.id,
+        masterAudioUri: overdubRootAudioUri,
+        stemAudioUri: stem.audioUri,
+        offsetMs: stem.offsetMs,
+        stemGainDb: stem.gainDb,
+      })
+      .catch((error) => {
+        console.warn("Alignment audition failed", error);
+        audition.stop();
+      });
+  }
+
+  function closeLayersSheet() {
+    audition.stop();
+    setLayersSheetOpen(false);
   }
 
   const hasLyrics = hasProjectLyrics && latestLyricsUpdatedAt !== null;
@@ -453,7 +447,7 @@ export function PlayerSupportSections({
 
       {/* Layers (overdub mixer) */}
       {hasClipOverdubs ? (
-        <BottomSheet visible={layersSheetOpen} onClose={() => setLayersSheetOpen(false)}>
+        <BottomSheet visible={layersSheetOpen} onClose={closeLayersSheet}>
           <Text style={chipStyles.sheetTitle}>Layers</Text>
           <Text style={chipStyles.sheetMeta}>
             {`${clipOverdubStemCount} ${clipOverdubStemCount === 1 ? "overdub" : "overdubs"}`}
@@ -468,7 +462,7 @@ export function PlayerSupportSections({
               <Pressable
                 style={playerScreenStyles.layerToolbarButton}
                 onPress={() => {
-                  setLayersSheetOpen(false);
+                  closeLayersSheet();
                   onAddOverdub();
                 }}
               >
@@ -477,7 +471,7 @@ export function PlayerSupportSections({
               <Pressable
                 style={playerScreenStyles.layerToolbarButton}
                 onPress={() => {
-                  setLayersSheetOpen(false);
+                  closeLayersSheet();
                   onSaveCombined();
                 }}
               >
@@ -485,105 +479,83 @@ export function PlayerSupportSections({
               </Pressable>
             </View>
 
+            {/* Root mix: one quiet row; its controls disclose on tap like the layers'. */}
             {overdubRootSettings ? (
               <View style={playerScreenStyles.layerRootSection}>
-                <View style={playerScreenStyles.layerRootHeader}>
+                <Pressable
+                  style={playerScreenStyles.layerRootHeader}
+                  onPress={() => {
+                    setRootMixExpanded((current) => !current);
+                    setExpandedStemSection(null);
+                  }}
+                  accessibilityRole="button"
+                  accessibilityLabel="Root mix settings"
+                >
                   <Text style={playerScreenStyles.layerRootTitle}>Root mix</Text>
-                  <Text style={playerScreenStyles.layerRootMeta}>
-                    {`${overdubRootSettings.gainDb > 0 ? "+" : ""}${overdubRootSettings.gainDb} dB${
-                      overdubRootSettings.tonePreset === "low-cut" ? " • Low cut" : ""
-                    }`}
-                  </Text>
-                </View>
-                <View style={playerScreenStyles.layerControls}>
-                  <LayerControlButton
-                    label={`-${OVERDUB_GAIN_STEP_DB} dB`}
-                    onPress={() => onAdjustRootGain(-OVERDUB_GAIN_STEP_DB)}
-                  />
-                  <LayerControlButton
-                    label={`+${OVERDUB_GAIN_STEP_DB} dB`}
-                    onPress={() => onAdjustRootGain(OVERDUB_GAIN_STEP_DB)}
-                  />
-                  <LayerControlButton
-                    label="Low cut"
-                    active={overdubRootSettings.tonePreset === "low-cut"}
-                    onPress={onToggleRootLowCut}
-                  />
-                </View>
+                  <View style={chipStyles.rootMetaCluster}>
+                    <Text style={playerScreenStyles.layerRootMeta}>
+                      {`${overdubRootSettings.gainDb > 0 ? "+" : ""}${overdubRootSettings.gainDb} dB${
+                        overdubRootSettings.tonePreset === "low-cut" ? " · Low cut" : ""
+                      }`}
+                    </Text>
+                    <Ionicons
+                      name={rootMixExpanded ? "chevron-up" : "chevron-down"}
+                      size={13}
+                      color="#a89994"
+                    />
+                  </View>
+                </Pressable>
+                {rootMixExpanded ? (
+                  <View style={playerScreenStyles.layerControls}>
+                    <LayerControlButton
+                      label={`-${OVERDUB_GAIN_STEP_DB} dB`}
+                      onPress={() => onAdjustRootGain(-OVERDUB_GAIN_STEP_DB)}
+                    />
+                    <LayerControlButton
+                      label={`+${OVERDUB_GAIN_STEP_DB} dB`}
+                      onPress={() => onAdjustRootGain(OVERDUB_GAIN_STEP_DB)}
+                    />
+                    <LayerControlButton
+                      label="Low cut"
+                      active={overdubRootSettings.tonePreset === "low-cut"}
+                      onPress={onToggleRootLowCut}
+                    />
+                  </View>
+                ) : null}
               </View>
             ) : null}
 
             <View style={playerScreenStyles.layerList}>
               {overdubStemEntries.map((stem) => (
-                <LayerPreviewCard
+                <OverdubLayerCard
                   key={stem.id}
                   title={stem.title}
-                  meta={`${stem.meta} • ${stem.gainDb > 0 ? "+" : ""}${stem.gainDb} dB${
-                    stem.tonePreset === "low-cut" ? " • Low cut" : ""
-                  }${stem.offsetMs !== 0 ? ` • ${formatClipOverdubStemOffsetLabel(stem.offsetMs)}` : ""}`}
                   durationMs={stem.durationMs}
                   waveformPeaks={stem.waveformPeaks}
-                  isPlaying={activeLayerPreviewId === stem.id && !!layerPreviewStatus.playing}
-                  progressRatio={getLayerProgressRatio(stem.id)}
-                  onTogglePlay={() => toggleLayerPreview(stem.id, stem.audioUri)}
-                  enabled={!stem.isMuted}
-                  onToggleEnabled={() => onToggleStemMute(stem.id)}
-                >
-                  <View style={playerScreenStyles.layerControls}>
-                    <LayerControlButton
-                      label={`-${OVERDUB_GAIN_STEP_DB} dB`}
-                      onPress={() => onAdjustStemGain(stem.id, -OVERDUB_GAIN_STEP_DB)}
-                    />
-                    <LayerControlButton
-                      label={`+${OVERDUB_GAIN_STEP_DB} dB`}
-                      onPress={() => onAdjustStemGain(stem.id, OVERDUB_GAIN_STEP_DB)}
-                    />
-                    <LayerControlButton
-                      label="Low cut"
-                      active={stem.tonePreset === "low-cut"}
-                      onPress={() => onToggleStemLowCut(stem.id)}
-                    />
-                  </View>
-                  {/* Fine timing alignment against the guide: negative pulls the layer
-                      earlier (the usual fix for a late-recorded overdub), positive delays
-                      it. The overlay shows where the layer sits on the master's timeline;
-                      ears still beat eyes below ~20 ms — audition after each nudge. */}
-                  <StemAlignmentOverlay
-                    masterAudioUri={overdubRootAudioUri}
-                    masterDurationMs={overdubRootDurationMs}
-                    masterFallbackPeaks={overdubRootWaveformPeaks}
-                    stemAudioUri={stem.audioUri}
-                    stemDurationMs={stem.durationMs}
-                    stemFallbackPeaks={stem.waveformPeaks}
-                    offsetMs={stem.offsetMs}
-                    recordingGrid={overdubRootRecordingGrid}
-                  />
-                  <View style={playerScreenStyles.layerControls}>
-                    <LayerControlButton
-                      label={`◀ ${OVERDUB_STEM_NUDGE_STEP_LARGE_MS} ms`}
-                      onPress={() => onNudgeStem(stem.id, -OVERDUB_STEM_NUDGE_STEP_LARGE_MS)}
-                    />
-                    <LayerControlButton
-                      label={`◀ ${OVERDUB_STEM_NUDGE_STEP_SMALL_MS} ms`}
-                      onPress={() => onNudgeStem(stem.id, -OVERDUB_STEM_NUDGE_STEP_SMALL_MS)}
-                    />
-                    <LayerControlButton
-                      label={`${OVERDUB_STEM_NUDGE_STEP_SMALL_MS} ms ▶`}
-                      onPress={() => onNudgeStem(stem.id, OVERDUB_STEM_NUDGE_STEP_SMALL_MS)}
-                    />
-                    <LayerControlButton
-                      label={`${OVERDUB_STEM_NUDGE_STEP_LARGE_MS} ms ▶`}
-                      onPress={() => onNudgeStem(stem.id, OVERDUB_STEM_NUDGE_STEP_LARGE_MS)}
-                    />
-                  </View>
-                  <View style={playerScreenStyles.layerControls}>
-                    <LayerControlButton
-                      label="Remove"
-                      destructive
-                      onPress={() => removeStemSafely(stem.id)}
-                    />
-                  </View>
-                </LayerPreviewCard>
+                  gainDb={stem.gainDb}
+                  offsetMs={stem.offsetMs}
+                  tonePreset={stem.tonePreset}
+                  isMuted={stem.isMuted}
+                  audioUri={stem.audioUri}
+                  isPreviewPlaying={activeLayerPreviewId === stem.id && !!layerPreviewStatus.playing}
+                  previewProgressRatio={getLayerProgressRatio(stem.id)}
+                  onTogglePreview={() => toggleLayerPreview(stem.id, stem.audioUri)}
+                  onToggleMuted={() => onToggleStemMute(stem.id)}
+                  expandedSection={
+                    expandedStemSection?.stemId === stem.id ? expandedStemSection.section : null
+                  }
+                  onToggleSection={(section) => toggleStemSection(stem.id, section)}
+                  onAdjustGain={(deltaDb) => onAdjustStemGain(stem.id, deltaDb)}
+                  onToggleLowCut={() => onToggleStemLowCut(stem.id)}
+                  onRemove={() => removeStemSafely(stem.id)}
+                  masterAudioUri={overdubRootAudioUri}
+                  masterDurationMs={overdubRootDurationMs}
+                  masterWaveformPeaks={overdubRootWaveformPeaks}
+                  masterRecordingGrid={overdubRootRecordingGrid}
+                  onNudge={(deltaMs) => onNudgeStem(stem.id, deltaMs)}
+                  isAuditioning={audition.auditioningStemId === stem.id}
+                  onToggleAudition={() => toggleStemAudition(stem)}
+                />
               ))}
             </View>
           </ScrollView>
@@ -633,6 +605,11 @@ const chipStyles = StyleSheet.create({
     height: 7,
     borderRadius: radii.round,
     backgroundColor: colors.primary,
+  },
+  rootMetaCluster: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
   },
   sheetTitle: {
     fontFamily: "PlayfairDisplay_600SemiBold",
