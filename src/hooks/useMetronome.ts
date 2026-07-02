@@ -32,6 +32,7 @@ import {
   shouldResetTapTempo,
 } from "../metronome";
 import { ensureMetronomeLoopFile } from "../services/metronomeLoop";
+import { resolveCurrentRouteLatencyProfile } from "../services/latencyModel";
 import SongseedMetronomeModule from "../../modules/songseed-metronome";
 import type { BeatEventPayload, NativeMetronomeState } from "../../modules/songseed-metronome";
 import { useStore } from "../state/useStore";
@@ -76,6 +77,8 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
   const [isPreparing, setIsPreparing] = useState(false);
   const [nativeState, setNativeState] = useState<NativeMetronomeState | null>(null);
   const [countInCompletionToken, setCountInCompletionToken] = useState(0);
+  const bluetoothMonitoringCalibrations = useStore((s) => s.bluetoothMonitoringCalibrations);
+
   const tapTimesRef = useRef<number[]>([]);
   const lastTapAtRef = useRef<number | null>(null);
   const hapticLevelRef = useRef(hapticLevel);
@@ -83,6 +86,34 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
   const bpmRef = useRef(bpm);
   const configuredRef = useRef(false);
   const cueActivationAtRef = useRef<number>(0);
+  // Live-route cue delay (latency model output). Refreshed at every start so the engine
+  // delays visual/haptic beat events to land with the audible click on this route —
+  // meaningful on Bluetooth (150–350ms) where the delay dwarfs cue-pipeline jitter.
+  const routeOutputLatencyMsRef = useRef(0);
+  const cueLatencyInputsRef = useRef({
+    calibrations: bluetoothMonitoringCalibrations,
+    outputs,
+    barMs: getMetronomeBeatIntervalMs(bpm) * getMetronomeMeterPreset(meterId).pulsesPerBar,
+  });
+  cueLatencyInputsRef.current = {
+    calibrations: bluetoothMonitoringCalibrations,
+    outputs,
+    barMs: getMetronomeBeatIntervalMs(bpm) * getMetronomeMeterPreset(meterId).pulsesPerBar,
+  };
+
+  const refreshRouteLatencyForCues = useCallback(async () => {
+    try {
+      const inputs = cueLatencyInputsRef.current;
+      const profile = await resolveCurrentRouteLatencyProfile({
+        calibrations: inputs.calibrations,
+        activeOutputs: inputs.outputs,
+        clickLoopBarMs: inputs.barMs,
+      });
+      routeOutputLatencyMsRef.current = Math.round(profile.outputMs);
+    } catch {
+      routeOutputLatencyMsRef.current = 0;
+    }
+  }, []);
 
   const effectiveBpm = configuredRef.current ? bpm : initialBpm;
   const effectiveOutputs = configuredRef.current
@@ -191,11 +222,11 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
         accentPattern: meterPreset.accentPattern,
         clickEnabled: outputs.beep,
         clickVolume: getMetronomeBeepVolume(beepLevel),
-        // Latency compensation for the on-screen beat. Keep 0 unless we know the *live*
-        // output is Bluetooth — feed getBluetoothMonitoringCalibrationForRoute(...).offsetMs
-        // for the active route here once route detection confirms BT is the current output.
-        // Applying an offset on the built-in speaker would push the visual late, so default 0.
-        outputLatencyMs: 0,
+        // Live-route cue delay from the latency model (refreshed at start): delays the
+        // visual/haptic beat events so they land with the audible click. Until Stage B's
+        // anchor-scheduled cues, this can only delay (never fire early) — which is the
+        // right trade on Bluetooth and a no-op-ish on the speaker.
+        outputLatencyMs: routeOutputLatencyMsRef.current,
       });
     } finally {
       setIsPreparing(false);
@@ -279,6 +310,7 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
       if (options.manageAudioSession ?? true) {
         await activateMetronomeAudioSession({ ownerId: METRONOME_AUDIO_SESSION_OWNER_ID });
       }
+      await refreshRouteLatencyForCues();
       const nextState = await syncNativeConfig();
       if (nextState) {
         setNativeState(nextState);
@@ -300,6 +332,7 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
         if (options.manageAudioSession ?? true) {
           await activateMetronomeAudioSession({ ownerId: METRONOME_AUDIO_SESSION_OWNER_ID });
         }
+        await refreshRouteLatencyForCues();
         const nextState = await syncNativeConfig();
         if (nextState) {
           setNativeState(nextState);

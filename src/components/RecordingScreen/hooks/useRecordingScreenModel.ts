@@ -13,6 +13,10 @@ import { getClipPlaybackDurationMs, getClipPlaybackWaveformPeaks } from "../../.
 import { getLatestLyricsVersion, lyricsDocumentToText } from "../../../lyrics";
 import { useRecording } from "../../../hooks/useRecording";
 import { useMetronome } from "../../../hooks/useMetronome";
+import {
+  formatLatencyProfileLog,
+  resolveCurrentRouteLatencyProfile,
+} from "../../../services/latencyModel";
 import SongseedMetronomeModule from "../../../../modules/songseed-metronome";
 import { appActions } from "../../../state/actions";
 import { useStore } from "../../../state/useStore";
@@ -883,52 +887,28 @@ export function useRecordingScreenModel() {
         const anchor = await SongseedMetronomeModule?.getGridAnchor?.().catch(() => null);
 
         // CRITICAL time-domain correction: the grid anchor and player positions live in
-        // the RENDER domain, but what the mic recorded is the AUDIBLE event — later by
-        // the route's output latency (150–250ms on Android speakers — half a beat at
-        // ~118 BPM) plus the mic path's input latency. Trim to the audible downbeat, not
-        // the render-domain one, or every take's clicks sit that far into the file. For
-        // calibrated BT routes the monitoring compensation already measures the output
-        // side by ear — take the larger of the two, never both.
-        const routeLatency = await SongseedMetronomeModule?.getCurrentAudioRouteLatencyMs?.().catch(
-          () => null
-        );
-        let outputLatencyMs =
-          typeof routeLatency?.outputMs === "number" && routeLatency.outputMs > 0
-            ? routeLatency.outputMs
-            : 0;
-        // Android's hidden AudioTrack#getLatency on the metronome's MODE_STATIC loop
-        // reports the track's entire one-bar buffer PLUS the real sink latency (device
-        // logs: 2142ms at 118 BPM = 2034ms bar + 108ms sink). Strip the bar when the
-        // value is clearly buffer-inflated; anything still implausible is unknown, and
-        // an unknown must be 0 — a wrong correction is worse than none.
+        // the RENDER domain, but the performer plays to what they PERCEIVE and the mic
+        // stamps that another input-latency later. The latency model owns all of it:
+        // route output latency (OS-reported, bar-stripped, or BT ear-calibration),
+        // input latency, and the reference modality — an overdub locks to the audible
+        // guide; a solo take locks to whichever met cue is active (audible > haptic >
+        // visual), so a silent-click take no longer gets an audible-domain correction.
         const barMs =
           anchor?.msPerPulse != null
             ? anchor.msPerPulse * (anchor.pulsesPerBar ?? metronome.meterPreset.pulsesPerBar)
             : null;
-        if (outputLatencyMs > 600 && barMs != null && outputLatencyMs > barMs) {
-          const strippedMs = outputLatencyMs - barMs;
-          console.log(
-            `[timing] output latency ${Math.round(outputLatencyMs)}ms includes the click ` +
-              `loop buffer — using ${Math.round(strippedMs)}ms`
-          );
-          outputLatencyMs = strippedMs;
+        const latencyProfile = await resolveCurrentRouteLatencyProfile({
+          calibrations: bluetoothMonitoringCalibrations,
+          activeOutputs: recordingGuideMixUri
+            ? { beep: true, visual: false, haptic: false }
+            : metronome.outputs,
+          clickLoopBarMs: barMs,
+        });
+        const audibleCorrectionMs = latencyProfile.recordingCorrectionMs;
+        console.log(`[timing] latency profile: ${formatLatencyProfileLog(latencyProfile)}`);
+        if (latencyProfile.sources.output === "unknown" && latencyProfile.referenceModality === "audible") {
+          console.log("[timing] OUTPUT LATENCY UNKNOWN — trim stays render-domain");
         }
-        if (!(outputLatencyMs > 0 && outputLatencyMs <= 600)) {
-          outputLatencyMs = 0;
-        }
-        const inputLatencyMs =
-          typeof routeLatency?.inputMs === "number" &&
-          routeLatency.inputMs > 0 &&
-          routeLatency.inputMs <= 600
-            ? routeLatency.inputMs
-            : 0;
-        const audibleCorrectionMs = Math.max(outputLatencyMs, delayMs) + inputLatencyMs;
-        console.log(
-          `[timing] route latency: out=${Math.round(outputLatencyMs)}ms in=${Math.round(
-            inputLatencyMs
-          )}ms → audible correction ${Math.round(audibleCorrectionMs)}ms` +
-            (outputLatencyMs === 0 ? " (OUTPUT LATENCY UNKNOWN — trim stays render-domain)" : "")
-        );
         const grid = takeGridRef.current;
         const countInPulses =
           (grid?.countInBars ?? 0) * (anchor?.pulsesPerBar ?? metronome.meterPreset.pulsesPerBar);
@@ -1006,6 +986,8 @@ export function useRecordingScreenModel() {
     metronome.countInCompletionToken,
     metronome.meterPreset.pulsesPerBar,
     metronome.setCountInBarsValue,
+    bluetoothMonitoringCalibrations,
+    metronome.outputs,
     recording,
     recordingGuideMixUri,
     recordingMetronomeEnabled,
