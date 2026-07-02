@@ -18,13 +18,16 @@ import { haptic } from "../../design/haptics";
 import { durations } from "../../design/motion";
 import {
   EXTENDED_WORD_MODE_GROUPS,
+  fetchWordDefinitions,
   fetchWordSuggestions,
   groupBySyllableCount,
   isQuickWordMode,
+  partOfSpeechLabel,
   sanitizeThemeWords,
   WORD_LOOKUP_MODE_ORDER,
   WORD_LOOKUP_MODES,
   WordLookupOfflineError,
+  type WordDefinition,
   type WordLookupMode,
   type WordSuggestion,
 } from "../../wordTools";
@@ -47,14 +50,22 @@ type LookupState =
   | { status: "offline" }
   | { status: "error" };
 
+type PreviewState = {
+  word: string;
+  status: "loading" | "loaded" | "empty" | "offline" | "error";
+  defs: WordDefinition[];
+};
+
 /**
  * Word Finder — one quiet surface for every word lookup while writing lyrics.
  *
  * Quick layer: four segments (Rhymes / Near / Similar / Related), tap a chip to
  * insert. Depth is disclosed progressively: the ••• opens goal-grouped extended
  * modes (sound / meaning / imagery), an optional theme biases every mode toward
- * the song's subject, holding a chip explores that word, and sound modes group
- * results by syllable count for meter matching.
+ * the song's subject, and sound modes group results by syllable count for meter
+ * matching. Holding a chip previews its definition first — explore (look that
+ * word up in turn) is an explicit action inside the preview, not the gesture
+ * itself, so a hold is never a surprise navigation.
  */
 export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: WordFinderSheetProps) {
   const [query, setQuery] = useState(initialWord);
@@ -65,7 +76,9 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
   const [theme, setTheme] = useState("");
   const [themeVisible, setThemeVisible] = useState(false);
   const [drillStack, setDrillStack] = useState<string[]>([]);
+  const [preview, setPreview] = useState<PreviewState | null>(null);
   const requestIdRef = useRef(0);
+  const previewRequestIdRef = useRef(0);
 
   // Re-seed from the editor each time the sheet opens on a new word.
   useEffect(() => {
@@ -74,6 +87,7 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
     setMode("rhymes");
     setModePickerOpen(false);
     setDrillStack([]);
+    setPreview(null);
   }, [visible, initialWord]);
 
   const themeActive = sanitizeThemeWords(theme).length > 0;
@@ -113,9 +127,10 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
     onPickWord(word);
   };
 
-  /** Long-press: look the suggestion itself up, keeping the current mode. */
+  /** Explore: look the suggestion itself up, keeping the current mode. */
   const drillInto = (word: string) => {
     haptic.grab();
+    setPreview(null);
     setDrillStack((prev) => [...prev, query]);
     setQuery(word);
   };
@@ -128,6 +143,33 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
       if (previous !== undefined) setQuery(previous);
       return next;
     });
+  };
+
+  /** Long-press: show a quick definition first — exploring is a deliberate
+   * next step inside the preview, not implied by the hold. */
+  const openPreview = (word: string) => {
+    haptic.tap();
+    setModePickerOpen(false);
+    const requestId = ++previewRequestIdRef.current;
+    setPreview({ word, status: "loading", defs: [] });
+    fetchWordDefinitions(word)
+      .then((defs) => {
+        if (requestId !== previewRequestIdRef.current) return;
+        setPreview({ word, status: defs.length > 0 ? "loaded" : "empty", defs });
+      })
+      .catch((error) => {
+        if (requestId !== previewRequestIdRef.current) return;
+        setPreview({
+          word,
+          status: error instanceof WordLookupOfflineError ? "offline" : "error",
+          defs: [],
+        });
+      });
+  };
+
+  const closePreview = () => {
+    haptic.tap();
+    setPreview(null);
   };
 
   const selectExtendedMode = (next: WordLookupMode) => {
@@ -143,6 +185,7 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
 
   const toggleModePicker = () => {
     haptic.tap();
+    setPreview(null);
     setModePickerOpen((prev) => !prev);
   };
 
@@ -156,9 +199,9 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
       key={suggestion.word}
       style={({ pressed }) => [finderStyles.chip, pressed ? appStyles.pressDown : null]}
       onPress={() => handlePick(suggestion.word)}
-      onLongPress={() => drillInto(suggestion.word)}
+      onLongPress={() => openPreview(suggestion.word)}
       accessibilityLabel={`Insert ${suggestion.word}`}
-      accessibilityHint="Hold to explore this word"
+      accessibilityHint="Hold for a definition"
     >
       <Text style={finderStyles.chipText}>{suggestion.word}</Text>
     </Pressable>
@@ -218,6 +261,49 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
         ))}
       </Animated.View>
     </ScrollView>
+  );
+
+  const renderPreview = (state: PreviewState) => (
+    <Animated.View entering={FadeIn.duration(durations.fast)} style={finderStyles.previewCard}>
+      <View style={finderStyles.previewHeader}>
+        <Text style={finderStyles.previewWord}>{state.word}</Text>
+        <Pressable onPress={closePreview} hitSlop={8} accessibilityLabel="Close preview">
+          <Ionicons name="close" size={16} color={colors.textMuted} />
+        </Pressable>
+      </View>
+
+      {state.status === "loading" ? (
+        <View style={finderStyles.previewLoading}>
+          <ActivityIndicator size="small" color={colors.textMuted} />
+        </View>
+      ) : state.status === "offline" ? (
+        <Text style={finderStyles.previewMeta}>You're offline — can't load a definition right now.</Text>
+      ) : state.status === "error" ? (
+        <Text style={finderStyles.previewMeta}>Couldn't load a definition right now.</Text>
+      ) : state.status === "empty" ? (
+        <Text style={finderStyles.previewMeta}>No definition found for this word.</Text>
+      ) : (
+        <View style={finderStyles.previewDefs}>
+          {state.defs.slice(0, 3).map((def, index) => (
+            <View key={index} style={finderStyles.previewDefRow}>
+              <Text style={finderStyles.previewPos}>{partOfSpeechLabel(def.partOfSpeech)}</Text>
+              <Text style={finderStyles.previewDefText} numberOfLines={2}>
+                {def.text}
+              </Text>
+            </View>
+          ))}
+        </View>
+      )}
+
+      <Pressable
+        style={({ pressed }) => [finderStyles.exploreBtn, pressed ? appStyles.pressDown : null]}
+        onPress={() => drillInto(state.word)}
+        accessibilityLabel={`Explore ${state.word}`}
+      >
+        <Text style={finderStyles.exploreBtnText}>Explore this word</Text>
+        <Ionicons name="arrow-forward" size={14} color={colors.onPrimary} />
+      </Pressable>
+    </Animated.View>
   );
 
   const quickMode = isQuickWordMode(mode);
@@ -324,6 +410,8 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
       <View style={finderStyles.resultsArea}>
         {modePickerOpen ? (
           renderModePicker()
+        ) : preview ? (
+          renderPreview(preview)
         ) : lookup.status === "idle" ? (
           <Text style={finderStyles.stateText}>Type a word to look it up.</Text>
         ) : lookup.status === "loading" ? (
@@ -347,8 +435,8 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
         )}
       </View>
 
-      {!modePickerOpen && lookup.status === "results" && lookup.suggestions.length > 0 ? (
-        <Text style={finderStyles.hint}>Tap to insert · hold to explore</Text>
+      {!modePickerOpen && !preview && lookup.status === "results" && lookup.suggestions.length > 0 ? (
+        <Text style={finderStyles.hint}>Tap to insert · hold for a definition</Text>
       ) : null}
     </BottomSheet>
   );
@@ -503,5 +591,69 @@ const finderStyles = StyleSheet.create({
     color: colors.textMuted,
     textAlign: "center",
     marginTop: spacing.sm,
+  },
+  previewCard: {
+    backgroundColor: colors.surfaceContainer,
+    borderRadius: radii.lg,
+    padding: spacing.lg,
+    gap: spacing.md,
+  },
+  previewHeader: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+  },
+  previewWord: {
+    fontFamily: "PlayfairDisplay_600SemiBold",
+    fontSize: 20,
+    color: colors.textPrimary,
+  },
+  previewLoading: {
+    paddingVertical: spacing.md,
+    alignItems: "center",
+  },
+  previewMeta: {
+    fontFamily: "PlusJakartaSans_400Regular",
+    fontSize: 13,
+    lineHeight: 19,
+    color: colors.textSecondary,
+  },
+  previewDefs: {
+    gap: spacing.sm,
+  },
+  previewDefRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: spacing.sm,
+  },
+  previewPos: {
+    fontFamily: "PlusJakartaSans_700Bold",
+    fontSize: 10,
+    letterSpacing: 0.4,
+    color: colors.primary,
+    textTransform: "uppercase",
+    paddingTop: 2,
+    minWidth: 46,
+  },
+  previewDefText: {
+    flex: 1,
+    fontFamily: "PlusJakartaSans_400Regular",
+    fontSize: 13,
+    lineHeight: 19,
+    color: colors.textPrimary,
+  },
+  exploreBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    backgroundColor: colors.primary,
+    borderRadius: radii.round,
+    paddingVertical: 10,
+  },
+  exploreBtnText: {
+    fontFamily: "PlusJakartaSans_600SemiBold",
+    fontSize: 13,
+    color: colors.onPrimary,
   },
 });

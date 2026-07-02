@@ -256,6 +256,28 @@ export class WordLookupOfflineError extends Error {
   }
 }
 
+/** Shared fetch: timeout, external-abort passthrough, and the offline mapping. */
+async function fetchWordServiceJson(url: string, signal?: AbortSignal): Promise<unknown> {
+  const timeoutController = new AbortController();
+  const timeout = setTimeout(() => timeoutController.abort(), REQUEST_TIMEOUT_MS);
+  const abort = () => timeoutController.abort();
+  signal?.addEventListener("abort", abort);
+
+  let response: Response;
+  try {
+    response = await fetch(url, { signal: timeoutController.signal });
+  } catch (error) {
+    if (signal?.aborted) throw error;
+    throw new WordLookupOfflineError();
+  } finally {
+    clearTimeout(timeout);
+    signal?.removeEventListener("abort", abort);
+  }
+
+  if (!response.ok) throw new Error(`Word lookup failed (${response.status})`);
+  return response.json();
+}
+
 // Session-scoped cache: rhymes/synonyms for a word never change, so repeat lookups
 // while writing (flipping between modes, re-checking a word) should be instant and free.
 const cache = new Map<string, WordSuggestion[]>();
@@ -279,24 +301,7 @@ export async function fetchWordSuggestions(
   if (cached) return cached;
 
   const url = buildWordLookupUrl(mode, normalized, options);
-  const timeoutController = new AbortController();
-  const timeout = setTimeout(() => timeoutController.abort(), REQUEST_TIMEOUT_MS);
-  const abort = () => timeoutController.abort();
-  options?.signal?.addEventListener("abort", abort);
-
-  let response: Response;
-  try {
-    response = await fetch(url, { signal: timeoutController.signal });
-  } catch (error) {
-    if (options?.signal?.aborted) throw error;
-    throw new WordLookupOfflineError();
-  } finally {
-    clearTimeout(timeout);
-    options?.signal?.removeEventListener("abort", abort);
-  }
-
-  if (!response.ok) throw new Error(`Word lookup failed (${response.status})`);
-  const suggestions = parseWordSuggestions(await response.json());
+  const suggestions = parseWordSuggestions(await fetchWordServiceJson(url, options?.signal));
 
   if (cache.size >= CACHE_LIMIT) {
     const oldest = cache.keys().next().value;
@@ -304,4 +309,78 @@ export async function fetchWordSuggestions(
   }
   cache.set(cacheKey, suggestions);
   return suggestions;
+}
+
+// ── Definitions ──────────────────────────────────────────────────────────────
+
+export type WordDefinition = { partOfSpeech: string; text: string };
+
+const PART_OF_SPEECH_LABELS: Record<string, string> = {
+  n: "noun",
+  v: "verb",
+  adj: "adjective",
+  adv: "adverb",
+  u: "other",
+};
+
+export function partOfSpeechLabel(tag: string): string {
+  return PART_OF_SPEECH_LABELS[tag] ?? tag;
+}
+
+function parseWordDefinitions(raw: unknown): WordDefinition[] {
+  if (!Array.isArray(raw)) return [];
+  const defs: WordDefinition[] = [];
+  for (const entry of raw) {
+    if (typeof entry !== "string") continue;
+    const tab = entry.indexOf("\t");
+    if (tab === -1) continue;
+    const text = entry.slice(tab + 1).trim();
+    if (!text) continue;
+    defs.push({ partOfSpeech: entry.slice(0, tab).trim(), text });
+  }
+  return defs;
+}
+
+export function buildDefinitionLookupUrl(word: string, baseUrl: string = WORD_SERVICE_BASE_URL): string {
+  const params = new URLSearchParams();
+  // sp= (spelled like) is Datamuse's documented way to fetch a single word's
+  // record — an exact word also matches as its own best "spelled like" hit.
+  params.set("sp", word.trim().toLowerCase());
+  params.set("md", "d");
+  params.set("max", "1");
+  return `${baseUrl}/words?${params.toString()}`;
+}
+
+// Separate from the suggestions cache: keyed by word only, no mode/theme.
+const definitionCache = new Map<string, WordDefinition[]>();
+const DEFINITION_CACHE_LIMIT = 200;
+
+/**
+ * Fetch a word's definitions for the "hold to preview" popover. Returns an
+ * empty array when the word isn't in Datamuse's dictionary data (common for
+ * slang, names, or coined lyric words) — not an error, just nothing to show.
+ */
+export async function fetchWordDefinitions(
+  word: string,
+  options?: { signal?: AbortSignal; baseUrl?: string }
+): Promise<WordDefinition[]> {
+  const normalized = word.trim().toLowerCase();
+  if (!normalized) return [];
+
+  const cached = definitionCache.get(normalized);
+  if (cached) return cached;
+
+  const url = buildDefinitionLookupUrl(normalized, options?.baseUrl);
+  const payload = await fetchWordServiceJson(url, options?.signal);
+  const first = Array.isArray(payload) ? payload[0] : null;
+  const matchesWord =
+    first && typeof first === "object" && (first as { word?: unknown }).word === normalized;
+  const defs = matchesWord ? parseWordDefinitions((first as { defs?: unknown }).defs) : [];
+
+  if (definitionCache.size >= DEFINITION_CACHE_LIMIT) {
+    const oldest = definitionCache.keys().next().value;
+    if (oldest !== undefined) definitionCache.delete(oldest);
+  }
+  definitionCache.set(normalized, defs);
+  return defs;
 }

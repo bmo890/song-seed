@@ -1,10 +1,12 @@
 import {
   applyPickedWord,
+  buildDefinitionLookupUrl,
   buildWordLookupUrl,
   extractWordRange,
   groupBySyllableCount,
   insertWordIntoText,
   parseWordSuggestions,
+  partOfSpeechLabel,
   sanitizeThemeWords,
 } from "../wordTools";
 
@@ -147,6 +149,31 @@ describe("sanitizeThemeWords", () => {
 
   it("drops entries without letters", () => {
     expect(sanitizeThemeWords("123, --, love")).toEqual(["love"]);
+  });
+});
+
+describe("buildDefinitionLookupUrl", () => {
+  it("requests the word by spelling with definitions and a single result", () => {
+    const url = buildDefinitionLookupUrl("love", "https://example.com");
+    expect(url).toBe("https://example.com/words?sp=love&md=d&max=1");
+  });
+
+  it("lowercases and trims the word", () => {
+    const url = buildDefinitionLookupUrl("  Love  ", "https://example.com");
+    expect(url).toContain("sp=love");
+  });
+});
+
+describe("partOfSpeechLabel", () => {
+  it("expands known Datamuse tags", () => {
+    expect(partOfSpeechLabel("n")).toBe("noun");
+    expect(partOfSpeechLabel("v")).toBe("verb");
+    expect(partOfSpeechLabel("adj")).toBe("adjective");
+    expect(partOfSpeechLabel("adv")).toBe("adverb");
+  });
+
+  it("falls back to the raw tag when unrecognized", () => {
+    expect(partOfSpeechLabel("interjection")).toBe("interjection");
   });
 });
 

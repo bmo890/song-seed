@@ -17,10 +17,10 @@
 const UPSTREAM = "https://api.datamuse.com";
 
 // Only the query params the app actually uses may pass through
-// (keep in sync with WORD_LOOKUP_MODES in src/wordTools.ts).
+// (keep in sync with WORD_LOOKUP_MODES / buildDefinitionLookupUrl in src/wordTools.ts).
 const ALLOWED_PARAMS = new Set([
   "rel_rhy", "rel_nry", "ml", "rel_trg",
-  "rel_hom", "rel_cns", "sl",
+  "rel_hom", "rel_cns", "sl", "sp",
   "rel_ant", "rel_syn",
   "rel_jjb", "rel_gen", "rel_com",
   "topics", "max", "md", "v",
