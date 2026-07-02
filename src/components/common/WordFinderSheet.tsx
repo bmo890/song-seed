@@ -21,6 +21,7 @@ import {
   EXTENDED_WORD_MODE_GROUPS,
   fetchWordDefinitions,
   fetchWordSuggestions,
+  getCachedWordSuggestions,
   groupBySyllableCount,
   partOfSpeechLabel,
   sanitizeThemeWords,
@@ -125,17 +126,28 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
 
     const requestId = ++requestIdRef.current;
     const controller = new AbortController();
+    let settled = false;
     setLookup({ status: "loading" });
 
+    const showResults = (suggestions: WordSuggestion[]) => {
+      if (requestId !== requestIdRef.current || settled) return;
+      settled = true;
+      setExpandedChipKeys(new Set());
+      setLookup({ status: "results", suggestions });
+    };
+
+    // Cached lookups (memory or SQLite) render immediately — the typing
+    // debounce below only gates true network fetches.
+    void getCachedWordSuggestions(activeMode, trimmed, { theme: themeParam }).then((cached) => {
+      if (cached !== null) showResults(cached);
+    });
+
     const timer = setTimeout(() => {
+      if (settled) return;
       fetchWordSuggestions(activeMode, trimmed, { signal: controller.signal, theme: themeParam })
-        .then((suggestions) => {
-          if (requestId !== requestIdRef.current) return;
-          setExpandedChipKeys(new Set());
-          setLookup({ status: "results", suggestions });
-        })
+        .then(showResults)
         .catch((error) => {
-          if (requestId !== requestIdRef.current || controller.signal.aborted) return;
+          if (requestId !== requestIdRef.current || controller.signal.aborted || settled) return;
           setLookup(error instanceof WordLookupOfflineError ? { status: "offline" } : { status: "error" });
         });
     }, LOOKUP_DEBOUNCE_MS);

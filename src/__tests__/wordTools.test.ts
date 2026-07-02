@@ -5,6 +5,7 @@ import {
   clearWordLookupCache,
   extractWordRange,
   fetchWordSuggestions,
+  getCachedWordSuggestions,
   groupBySyllableCount,
   insertWordIntoText,
   parseWordSuggestions,
@@ -237,6 +238,28 @@ describe("persistent cache layer", () => {
     const result = await fetchWordSuggestions("rhymes", "love");
     expect(result[0].word).toBe("dove");
     expect(JSON.parse(writes["rhymes::love"])).toEqual([{ word: "dove", score: 5, numSyllables: 1 }]);
+  });
+
+  it("getCachedWordSuggestions returns null on a full miss without any network", async () => {
+    setWordLookupPersistentStore({ get: async () => null, set: () => {} });
+    // No fetch mock installed — a network attempt would throw, null means cache-only.
+    expect(await getCachedWordSuggestions("rhymes", "love")).toBeNull();
+  });
+
+  it("getCachedWordSuggestions serves the durable store and hydrates memory", async () => {
+    const stored = [{ word: "dove", score: 3, numSyllables: 1 }];
+    let reads = 0;
+    setWordLookupPersistentStore({
+      get: async () => {
+        reads += 1;
+        return JSON.stringify(stored);
+      },
+      set: () => {},
+    });
+    expect(await getCachedWordSuggestions("rhymes", "love")).toEqual(stored);
+    // Second call is a memory hit — the durable store isn't re-read.
+    expect(await getCachedWordSuggestions("rhymes", "love")).toEqual(stored);
+    expect(reads).toBe(1);
   });
 
   it("falls through to the network when the store read fails", async () => {
