@@ -892,12 +892,34 @@ export function useRecordingScreenModel() {
         const routeLatency = await SongseedMetronomeModule?.getCurrentAudioRouteLatencyMs?.().catch(
           () => null
         );
-        const outputLatencyMs =
+        let outputLatencyMs =
           typeof routeLatency?.outputMs === "number" && routeLatency.outputMs > 0
             ? routeLatency.outputMs
             : 0;
+        // Android's hidden AudioTrack#getLatency on the metronome's MODE_STATIC loop
+        // reports the track's entire one-bar buffer PLUS the real sink latency (device
+        // logs: 2142ms at 118 BPM = 2034ms bar + 108ms sink). Strip the bar when the
+        // value is clearly buffer-inflated; anything still implausible is unknown, and
+        // an unknown must be 0 — a wrong correction is worse than none.
+        const barMs =
+          anchor?.msPerPulse != null
+            ? anchor.msPerPulse * (anchor.pulsesPerBar ?? metronome.meterPreset.pulsesPerBar)
+            : null;
+        if (outputLatencyMs > 600 && barMs != null && outputLatencyMs > barMs) {
+          const strippedMs = outputLatencyMs - barMs;
+          console.log(
+            `[timing] output latency ${Math.round(outputLatencyMs)}ms includes the click ` +
+              `loop buffer — using ${Math.round(strippedMs)}ms`
+          );
+          outputLatencyMs = strippedMs;
+        }
+        if (!(outputLatencyMs > 0 && outputLatencyMs <= 600)) {
+          outputLatencyMs = 0;
+        }
         const inputLatencyMs =
-          typeof routeLatency?.inputMs === "number" && routeLatency.inputMs > 0
+          typeof routeLatency?.inputMs === "number" &&
+          routeLatency.inputMs > 0 &&
+          routeLatency.inputMs <= 600
             ? routeLatency.inputMs
             : 0;
         const audibleCorrectionMs = Math.max(outputLatencyMs, delayMs) + inputLatencyMs;

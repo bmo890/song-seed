@@ -197,7 +197,17 @@ class SongseedMetronomeEngine(
     val track = existing ?: buildProbeTrack() ?: return null
     return try {
       val method = AudioTrack::class.java.getMethod("getLatency")
-      (method.invoke(track) as? Int)?.takeIf { it in 1..3000 }
+      val rawLatencyMs = (method.invoke(track) as? Int) ?: return null
+      // getLatency() folds the track's OWN buffer into the number. For the live
+      // MODE_STATIC click loop that buffer is a whole bar (2s+ at slow tempos) — strip
+      // it to recover the actual sink latency. The throwaway probe's MODE_STREAM buffer
+      // is a few ms and is a fair part of real playback latency, so it stays.
+      val bufferMs = if (existing != null) {
+        (totalFrames.toDouble() / sampleRate.toDouble() * 1000.0).roundToInt()
+      } else {
+        0
+      }
+      (rawLatencyMs - bufferMs).takeIf { it in 1..600 }
     } catch (_: Throwable) {
       null
     } finally {
