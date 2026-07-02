@@ -127,6 +127,7 @@ function readFullClipMetadata(clipManifest: ArchiveClipManifest) {
         practiceMarkers: clipManifest.practiceMarkers,
         sections: clipManifest.sections,
         analysis: clipManifest.analysis,
+        recordingGrid: clipManifest.recordingGrid,
         manualSortOrder: clipManifest.manualSortOrder,
     };
 }
@@ -248,6 +249,7 @@ async function materializeArchiveClipOverdub(
             isMuted: !!stemManifest.isMuted,
             durationMs: stemManifest.durationMs,
             waveformPeaks: stemManifest.waveformPeaks,
+            recordingGrid: stemManifest.recordingGrid,
             createdAt: Date.now(),
         });
     }

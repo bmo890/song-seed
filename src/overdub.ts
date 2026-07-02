@@ -33,6 +33,24 @@ export function toggleLowCutTonePreset(current: string | undefined) {
   return current === "low-cut" ? "neutral" : "low-cut";
 }
 
+/** Fine-alignment steps for nudging a stem against the guide (same interaction pattern
+ *  as the Bluetooth calibration tweaks). Coarse placement is the recording flow's job. */
+export const OVERDUB_STEM_NUDGE_STEP_SMALL_MS = 10;
+export const OVERDUB_STEM_NUDGE_STEP_LARGE_MS = 25;
+
+/** How far a stem may be pulled EARLIER than the guide (negative offset = the mixer
+ *  drops the first |offset| of the stem). Recording latency makes stems land late, so
+ *  correction is usually in this direction; bounded so a runaway nudge can't silence
+ *  the whole stem. */
+export const MIN_CLIP_OVERDUB_STEM_OFFSET_MS = -2000;
+
+export function getMinClipOverdubStemOffsetMs(stemDurationMs: number | undefined) {
+  if (!Number.isFinite(stemDurationMs)) {
+    return MIN_CLIP_OVERDUB_STEM_OFFSET_MS;
+  }
+  return Math.max(MIN_CLIP_OVERDUB_STEM_OFFSET_MS, -Math.round(stemDurationMs!));
+}
+
 export function getMaxClipOverdubStemOffsetMs(
   rootDurationMs: number | undefined,
   stemDurationMs: number | undefined
@@ -50,7 +68,15 @@ export function clampClipOverdubStemOffsetMs(
   stemDurationMs: number | undefined
 ) {
   const maxOffsetMs = getMaxClipOverdubStemOffsetMs(rootDurationMs, stemDurationMs);
-  return Math.max(0, Math.min(maxOffsetMs, Math.round(nextOffsetMs)));
+  const minOffsetMs = getMinClipOverdubStemOffsetMs(stemDurationMs);
+  return Math.max(minOffsetMs, Math.min(maxOffsetMs, Math.round(nextOffsetMs)));
+}
+
+export function formatClipOverdubStemOffsetLabel(offsetMs: number) {
+  if (!Number.isFinite(offsetMs) || offsetMs === 0) {
+    return "In place";
+  }
+  return offsetMs > 0 ? `+${Math.round(offsetMs)} ms` : `${Math.round(offsetMs)} ms`;
 }
 
 export function buildClipOverdubMixInputs(clip: ClipVersion): NativeMixedRenderInput[] {

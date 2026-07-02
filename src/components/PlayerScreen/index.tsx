@@ -451,6 +451,16 @@ export function PlayerScreen() {
     },
     [playerClip, playerIdea]
   );
+  const handleNudgeStem = useCallback(
+    (stemId: string, deltaMs: number) => {
+      if (!playerIdea || !playerClip) return;
+      void appActions.nudgeClipOverdubStem(playerIdea.id, playerClip.id, stemId, deltaMs).catch((error) => {
+        const message = error instanceof Error ? error.message : "Could not adjust the overdub timing.";
+        AppAlert.info("Layer update failed", message);
+      });
+    },
+    [playerClip, playerIdea]
+  );
   const handleToggleStemMute = useCallback(
     (stemId: string) => {
       if (!playerIdea || !playerClip) return;
@@ -787,6 +797,7 @@ export function PlayerScreen() {
               onAdjustRootGain={handleAdjustRootGain}
               onToggleRootLowCut={handleToggleRootLowCut}
               onAdjustStemGain={handleAdjustStemGain}
+              onNudgeStem={handleNudgeStem}
               onToggleStemMute={handleToggleStemMute}
               onToggleStemLowCut={handleToggleStemLowCut}
               onRemoveStem={handleRemoveStem}

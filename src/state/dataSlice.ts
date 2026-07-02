@@ -40,6 +40,7 @@ import {
     ClipOverdubState,
     ClipOverdubRootSettings,
     ClipOverdubStem,
+    RecordingGrid,
 } from "../types";
 import { createWordLadderExercise } from "../wordLadder";
 import { createCutUpSpark } from "../cutUp";
@@ -528,6 +529,27 @@ function normalizeWaveformPeaks(value: unknown) {
     return peaks.length > 0 ? peaks : undefined;
 }
 
+function normalizeRecordingGrid(grid: RecordingGrid | undefined | null): RecordingGrid | undefined {
+    if (!grid || typeof grid !== "object") {
+        return undefined;
+    }
+    if (!Number.isFinite(grid.bpm) || !isMetronomeMeterId(grid.meterId)) {
+        return undefined;
+    }
+
+    return {
+        bpm: clampMetronomeBpm(grid.bpm),
+        meterId: grid.meterId,
+        countInBars: Number.isFinite(grid.countInBars) ? Math.max(0, Math.round(grid.countInBars)) : 0,
+        clickThroughTake: Boolean(grid.clickThroughTake),
+        firstDownbeatMs:
+            typeof grid.firstDownbeatMs === "number" && Number.isFinite(grid.firstDownbeatMs)
+                ? Math.max(0, grid.firstDownbeatMs)
+                : null,
+        source: grid.source === "detected" || grid.source === "manual" ? grid.source : "metronome",
+    };
+}
+
 function normalizeClipOverdubStem(stem: ClipOverdubStem | undefined, index: number): ClipOverdubStem | null {
     if (!stem) {
         return null;
@@ -556,6 +578,7 @@ function normalizeClipOverdubStem(stem: ClipOverdubStem | undefined, index: numb
         isMuted: Boolean(stem.isMuted),
         durationMs: normalizeOptionalTimestamp(stem.durationMs),
         waveformPeaks: normalizeWaveformPeaks(stem.waveformPeaks),
+        recordingGrid: normalizeRecordingGrid(stem.recordingGrid),
         createdAt: typeof stem.createdAt === "number" ? stem.createdAt : Date.now() + index,
     };
 }
@@ -612,6 +635,7 @@ function normalizeClip(clip: ClipVersion): ClipVersion {
         importedAt: normalizeOptionalTimestamp(clip.importedAt),
         sourceCreatedAt: normalizeOptionalTimestamp(clip.sourceCreatedAt),
         isBookmarked: Boolean(clip.isBookmarked),
+        recordingGrid: normalizeRecordingGrid(clip.recordingGrid),
         overdub: cleanupClipOverdubState(clip.overdub),
     };
 }

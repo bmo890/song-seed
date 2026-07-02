@@ -16,6 +16,16 @@ export type NativeAudioRouteInfo = {
   type: string;
 };
 
+/** OS-reported latency of the active audio route. Fields are omitted when the platform
+ *  can't report them (Android reporting is OEM-variable) — callers must treat absence as
+ *  "unknown", never as zero. */
+export type NativeAudioRouteLatency = {
+  /** Output (playback) latency in ms, including Bluetooth codec buffering where the OS knows it. */
+  outputMs?: number;
+  /** Input (capture) latency in ms. */
+  inputMs?: number;
+};
+
 export type NativeMetronomeState = {
   isAvailable: boolean;
   isRunning: boolean;
@@ -31,6 +41,19 @@ export type NativeMetronomeState = {
   barNumber: number;
   absolutePulse: number;
   countInBarsRemaining: number;
+};
+
+/** Snapshot of the running beat grid: everything derives from one anchor instead of a
+ *  bridge-event stream. `anchorEpochMs` is the epoch time of pulse 0 (grid t=0); the time
+ *  of pulse N is `anchorEpochMs + N * msPerPulse`. */
+export type NativeGridAnchor = {
+  isRunning: boolean;
+  isCountIn?: boolean;
+  anchorEpochMs?: number;
+  msPerPulse?: number;
+  pulsesPerBar?: number;
+  countInPulsesRemaining?: number;
+  absolutePulse?: number;
 };
 
 export type BeatEventPayload = {

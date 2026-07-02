@@ -41,6 +41,9 @@ export type NativePitchShiftRenderResult = {
 export type NativeMixedRenderInput = {
   inputUri: string;
   gainDb?: number;
+  /** Placement of this input on the mix timeline. Positive delays it with leading
+   *  silence; NEGATIVE pulls it earlier by dropping the first |offset| of the input
+   *  (how a late-recorded overdub gets corrected). */
   offsetMs?: number;
   tonePreset?: "neutral" | "low-cut" | "warm" | "bright";
 };

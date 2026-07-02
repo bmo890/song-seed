@@ -11,7 +11,12 @@ import { styles as appStyles } from "../../../styles";
 import { colors, radii, spacing, text as textTokens } from "../../../design/tokens";
 import { formatDate, fmtDuration } from "../../../utils";
 import { activateAndPlay, replacePlaybackSource } from "../../../services/transportPlayback";
-import { OVERDUB_GAIN_STEP_DB } from "../../../overdub";
+import {
+  formatClipOverdubStemOffsetLabel,
+  OVERDUB_GAIN_STEP_DB,
+  OVERDUB_STEM_NUDGE_STEP_LARGE_MS,
+  OVERDUB_STEM_NUDGE_STEP_SMALL_MS,
+} from "../../../overdub";
 import { playerScreenStyles } from "../styles";
 import { AppAlert } from "../../common/AppAlert";
 
@@ -30,6 +35,7 @@ type OverdubStemEntry = {
   durationMs: number;
   waveformPeaks?: number[];
   gainDb: number;
+  offsetMs: number;
   isMuted: boolean;
   tonePreset: string;
 };
@@ -67,6 +73,7 @@ type PlayerSupportSectionsProps = {
   onAdjustRootGain: (deltaDb: number) => void;
   onToggleRootLowCut: () => void;
   onAdjustStemGain: (stemId: string, deltaDb: number) => void;
+  onNudgeStem: (stemId: string, deltaMs: number) => void;
   onToggleStemMute: (stemId: string) => void;
   onToggleStemLowCut: (stemId: string) => void;
   onRemoveStem: (stemId: string) => void;
@@ -233,6 +240,7 @@ export function PlayerSupportSections({
   onAdjustRootGain,
   onToggleRootLowCut,
   onAdjustStemGain,
+  onNudgeStem,
   onToggleStemMute,
   onToggleStemLowCut,
   onRemoveStem,
@@ -502,7 +510,7 @@ export function PlayerSupportSections({
                   title={stem.title}
                   meta={`${stem.meta} • ${stem.gainDb > 0 ? "+" : ""}${stem.gainDb} dB${
                     stem.tonePreset === "low-cut" ? " • Low cut" : ""
-                  }`}
+                  }${stem.offsetMs !== 0 ? ` • ${formatClipOverdubStemOffsetLabel(stem.offsetMs)}` : ""}`}
                   durationMs={stem.durationMs}
                   waveformPeaks={stem.waveformPeaks}
                   isPlaying={activeLayerPreviewId === stem.id && !!layerPreviewStatus.playing}
@@ -524,6 +532,27 @@ export function PlayerSupportSections({
                       label="Low cut"
                       active={stem.tonePreset === "low-cut"}
                       onPress={() => onToggleStemLowCut(stem.id)}
+                    />
+                  </View>
+                  {/* Fine timing alignment against the guide: negative pulls the layer
+                      earlier (the usual fix for a late-recorded overdub), positive delays
+                      it. Ears beat eyes below ~20 ms — audition after each nudge. */}
+                  <View style={playerScreenStyles.layerControls}>
+                    <LayerControlButton
+                      label={`◀ ${OVERDUB_STEM_NUDGE_STEP_LARGE_MS} ms`}
+                      onPress={() => onNudgeStem(stem.id, -OVERDUB_STEM_NUDGE_STEP_LARGE_MS)}
+                    />
+                    <LayerControlButton
+                      label={`◀ ${OVERDUB_STEM_NUDGE_STEP_SMALL_MS} ms`}
+                      onPress={() => onNudgeStem(stem.id, -OVERDUB_STEM_NUDGE_STEP_SMALL_MS)}
+                    />
+                    <LayerControlButton
+                      label={`${OVERDUB_STEM_NUDGE_STEP_SMALL_MS} ms ▶`}
+                      onPress={() => onNudgeStem(stem.id, OVERDUB_STEM_NUDGE_STEP_SMALL_MS)}
+                    />
+                    <LayerControlButton
+                      label={`${OVERDUB_STEM_NUDGE_STEP_LARGE_MS} ms ▶`}
+                      onPress={() => onNudgeStem(stem.id, OVERDUB_STEM_NUDGE_STEP_LARGE_MS)}
                     />
                   </View>
                   <View style={playerScreenStyles.layerControls}>

@@ -632,6 +632,7 @@ function buildArchiveSongManifest(
             isPrimary: clip.isPrimary,
             parentClipId: clip.parentClipId,
             durationMs: clip.durationMs,
+            recordingGrid: clip.recordingGrid,
         };
 
         if (options.includeNotes && clip.notes.trim().length > 0) {
@@ -686,6 +687,7 @@ function buildArchiveStandaloneClip(
         isPrimary: true,
         isBookmarked: !!idea.isBookmarked,
         durationMs: primaryClip?.durationMs,
+        recordingGrid: primaryClip?.recordingGrid,
     };
 
     if (options.includeNotes && idea.notes.trim().length > 0) {
@@ -1005,6 +1007,7 @@ function buildArchiveClipOverdubManifest(
             isMuted: stem.isMuted,
             durationMs: stem.durationMs,
             waveformPeaks: stem.waveformPeaks,
+            recordingGrid: stem.recordingGrid,
         };
 
         if (stem.audioUri) {

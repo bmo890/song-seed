@@ -1,6 +1,8 @@
 import { NativeModule, registerWebModule } from "expo";
 
 import type {
+  NativeAudioRouteLatency,
+  NativeGridAnchor,
   NativeMetronomeConfig,
   NativeMetronomeState,
   SongseedMetronomeModuleEvents,
@@ -46,6 +48,19 @@ class SongseedMetronomeModule extends NativeModule<SongseedMetronomeModuleEvents
 
   async getState(): Promise<NativeMetronomeState> {
     return this.state;
+  }
+
+  async getCurrentAudioRouteLatencyMs(): Promise<NativeAudioRouteLatency | null> {
+    return null;
+  }
+
+  async setClickVolume(volume: number): Promise<NativeMetronomeState> {
+    this.state = { ...this.state, clickVolume: Math.max(0, Math.min(1, volume)) };
+    return this.state;
+  }
+
+  async getGridAnchor(): Promise<NativeGridAnchor> {
+    return { isRunning: false };
   }
 
   async start(): Promise<NativeMetronomeState> {

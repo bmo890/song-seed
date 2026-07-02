@@ -202,11 +202,26 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
     }
   }, [bpm, beepLevel, meterId, meterPreset, outputs.beep]);
 
-  // Debounced: the native engine treats configure() as a full restart whenever it's already
-  // running (beat position resets, click buffer rebuilds), so without this, dragging the tempo
-  // slider or repeated +/- taps would restart audibly on every single intermediate value. This
-  // also fixes bpm never reaching a running engine at all — it used to be read from a ref outside
-  // this callback's dependencies, so changing it alone never re-triggered a sync.
+  // Volume applies instantly and live: the native engines treat volume as a live param
+  // (no restart, no phase reset), so a mid-take level tweak never breaks the grid. On
+  // binaries that predate setClickVolume the debounced configure below still carries it.
+  useEffect(() => {
+    if (!SongseedMetronomeModule?.setClickVolume) {
+      return;
+    }
+    void SongseedMetronomeModule.setClickVolume(getMetronomeBeepVolume(beepLevel))
+      .then((state) => {
+        setNativeState(state);
+      })
+      .catch(() => {});
+  }, [beepLevel]);
+
+  // Debounced: the native engine treats structural configure() changes (tempo/meter) as a
+  // full restart whenever it's already running (beat position resets, click buffer
+  // rebuilds), so without this, dragging the tempo slider or repeated +/- taps would
+  // restart audibly on every single intermediate value. This also fixes bpm never reaching
+  // a running engine at all — it used to be read from a ref outside this callback's
+  // dependencies, so changing it alone never re-triggered a sync.
   const configSyncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     if (!SongseedMetronomeModule) {

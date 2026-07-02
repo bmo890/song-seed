@@ -133,6 +133,7 @@ export function BluetoothCalibrationScreen() {
   const [bluetoothTargetRoute, setBluetoothTargetRoute] = useState<{ routeKey: string; routeLabel: string } | null>(
     null
   );
+  const [reportedLatencyMs, setReportedLatencyMs] = useState<number | null>(null);
 
   const timersRef = useRef<number[]>([]);
   const progressIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -155,14 +156,23 @@ export function BluetoothCalibrationScreen() {
       try {
         const device = await audioDeviceManager.getCurrentDevice();
         const outputRoute = await SongseedMetronomeModule?.getCurrentAudioOutputRoute?.();
+        // OS-reported route latency (iOS reliable incl. BT codec buffer; Android best-effort).
+        // Used to seed the estimate so the tap pass verifies instead of measuring from zero.
+        const routeLatency = await SongseedMetronomeModule?.getCurrentAudioRouteLatencyMs?.().catch(() => null);
         if (!cancelled) {
           setCurrentDevice(device ?? null);
           setCurrentOutputRoute(outputRoute ?? null);
+          setReportedLatencyMs(
+            typeof routeLatency?.outputMs === "number" && routeLatency.outputMs > 0
+              ? Math.round(routeLatency.outputMs)
+              : null
+          );
         }
       } catch {
         if (!cancelled) {
           setCurrentDevice(null);
           setCurrentOutputRoute(null);
+          setReportedLatencyMs(null);
         }
       }
     }
@@ -252,6 +262,21 @@ export function BluetoothCalibrationScreen() {
     try {
       await audioPlayer.seekTo(0);
       audioPlayer.play();
+
+      // Re-anchor the tap grid to when audio *actually* started. The player's own start
+      // latency (20–150 ms, different every run) would otherwise be measured as route
+      // latency, which is the largest fixable error in this calibration (audit F13).
+      const anchorDeadline = Date.now() + 1500;
+      while (Date.now() < anchorDeadline) {
+        const positionSec = audioPlayer.currentTime ?? 0;
+        if (audioPlayer.playing && positionSec > 0) {
+          phaseStartAtRef.current = Date.now() - positionSec * 1000;
+          return;
+        }
+        await new Promise<void>((resolve) => {
+          setTimeout(resolve, 16);
+        });
+      }
     } catch {
       // Ignore calibration playback failures; analysis will likely fail and prompt retry.
     }
@@ -325,11 +350,13 @@ export function BluetoothCalibrationScreen() {
 
       void startAudioPlayback();
 
+      // Slack covers the player start latency the anchor re-anchors around, so the final
+      // beat still falls inside the capture window even when playback started late.
       const finishTimer = setTimeout(() => {
         void stopAudioPlayback().finally(() => {
           completePhase();
         });
-      }, CALIBRATION_BEAT_COUNT * CALIBRATION_BEAT_INTERVAL_MS + 40);
+      }, CALIBRATION_BEAT_COUNT * CALIBRATION_BEAT_INTERVAL_MS + 300);
       timersRef.current.push(finishTimer as unknown as number);
     }, START_DELAY_MS);
 
@@ -398,6 +425,22 @@ export function BluetoothCalibrationScreen() {
     resetRunState("idle");
   }
 
+  // Skip the tap pass entirely and start from the OS-reported route latency; the user can
+  // fine-tune by ear with the ± buttons before saving.
+  function useReportedLatency() {
+    if (reportedLatencyMs == null || !isBluetoothRoute || !activeRouteKey) {
+      return;
+    }
+    setBluetoothTargetRoute({
+      routeKey: activeRouteKey,
+      routeLabel: activeRouteLabel,
+    });
+    setEstimatedOffsetMs(normalizeBluetoothMonitoringSavedOffsetMs(reportedLatencyMs));
+    setPhaseError(null);
+    setLastAnalysisSummary(`Seeded from the OS-reported route latency (${reportedLatencyMs} ms).`);
+    resetRunState("result");
+  }
+
   return (
     <SafeAreaView style={globalStyles.screen}>
       <View style={globalStyles.transportHeaderZone}>
@@ -426,6 +469,11 @@ export function BluetoothCalibrationScreen() {
                 ? "Ready for Bluetooth calibration."
                 : "Switch audio output to the Bluetooth headphones you want to calibrate."}
             </Text>
+            {isBluetoothRoute && reportedLatencyMs != null ? (
+              <Text style={screenStyles.routeMeta}>
+                Reported route latency: ~{reportedLatencyMs} ms
+              </Text>
+            ) : null}
           </View>
         </View>
 
@@ -489,17 +537,30 @@ export function BluetoothCalibrationScreen() {
             ) : null}
 
             {phase === "idle" ? (
-              <Pressable
-                style={({ pressed }) => [
-                  screenStyles.primaryButton,
-                  (!isBluetoothRoute || isPreparingAudio) ? screenStyles.buttonDisabled : null,
-                  pressed ? globalStyles.pressDown : null,
-                ]}
-                onPress={schedulePhase}
-                disabled={!isBluetoothRoute || isPreparingAudio}
-              >
-                <Text style={screenStyles.primaryButtonText}>Start Bluetooth calibration</Text>
-              </Pressable>
+              <View style={screenStyles.actionRow}>
+                <Pressable
+                  style={({ pressed }) => [
+                    screenStyles.primaryButton,
+                    (!isBluetoothRoute || isPreparingAudio) ? screenStyles.buttonDisabled : null,
+                    pressed ? globalStyles.pressDown : null,
+                  ]}
+                  onPress={schedulePhase}
+                  disabled={!isBluetoothRoute || isPreparingAudio}
+                >
+                  <Text style={screenStyles.primaryButtonText}>Start Bluetooth calibration</Text>
+                </Pressable>
+                {isBluetoothRoute && reportedLatencyMs != null ? (
+                  <Pressable
+                    style={({ pressed }) => [
+                      screenStyles.secondaryButton,
+                      pressed ? globalStyles.pressDown : null,
+                    ]}
+                    onPress={useReportedLatency}
+                  >
+                    <Text style={screenStyles.secondaryButtonText}>Use reported (~{reportedLatencyMs} ms)</Text>
+                  </Pressable>
+                ) : null}
+              </View>
             ) : null}
 
             {phase === "result" ? (

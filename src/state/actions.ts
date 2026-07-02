@@ -19,7 +19,7 @@ import { createEmptyProjectLyrics, createEmptyWorkspaceIdeasListState, normalize
 import { createLyricsVersion, lyricsTextToDocument } from "../lyrics";
 import { cloneChordSheet } from "../chordSheet";
 import { buildChordDisplay, clampChordIndex, recordChordInPalette, type ChordParts } from "../chords";
-import type { ChordPlacement, ChordSheet, LyricsDocument, LyricsLine } from "../types";
+import type { ChordPlacement, ChordSheet, LyricsDocument, LyricsLine, RecordingGrid } from "../types";
 import { buildLyricsTextFromNote } from "../notepad";
 import { buildDefaultIdeaTitle, ensureUniqueCountedTitle, ensureUniqueIdeaTitle } from "../utils";
 import { archiveWorkspaceToDevice, restoreWorkspaceFromDevice } from "../services/workspaceArchive";
@@ -1139,7 +1139,12 @@ export const appActions = {
     attachRecordedOverdubStem: async (
         ideaId: string,
         clipId: string,
-        payload: { audioUri: string; durationMs?: number; waveformPeaks?: number[] },
+        payload: {
+            audioUri: string;
+            durationMs?: number;
+            waveformPeaks?: number[];
+            recordingGrid?: RecordingGrid;
+        },
         title?: string
     ) => {
         const state = useStore.getState();
@@ -1158,6 +1163,7 @@ export const appActions = {
             isMuted: false,
             durationMs: payload.durationMs,
             waveformPeaks: payload.waveformPeaks,
+            recordingGrid: payload.recordingGrid,
             createdAt: Date.now(),
         };
 
