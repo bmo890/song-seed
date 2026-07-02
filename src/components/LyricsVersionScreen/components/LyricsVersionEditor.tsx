@@ -1,8 +1,9 @@
-import { useState, type ReactNode } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import type {
   NativeSyntheticEvent,
   TextInputContentSizeChangeEventData,
   TextInputScrollEventData,
+  TextInputSelectionChangeEventData,
 } from "react-native";
 import { Pressable, StyleSheet, TextInput, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
@@ -10,6 +11,8 @@ import { styles as appStyles } from "../../../styles";
 import { colors, radii, spacing } from "../../../design/tokens";
 import { styles } from "../styles";
 import { HelpSheet, type HelpItem } from "../../common/HelpSheet";
+import { WordFinderSheet } from "./WordFinderSheet";
+import { extractWordRange, insertWordIntoText } from "../../../wordTools";
 
 type LyricsVersionEditorProps = {
   draftText: string;
@@ -37,6 +40,41 @@ export function LyricsVersionEditor({
   scrollIndicator,
 }: LyricsVersionEditorProps) {
   const [helpVisible, setHelpVisible] = useState(false);
+  const [wordFinderVisible, setWordFinderVisible] = useState(false);
+  const [wordFinderSeed, setWordFinderSeed] = useState("");
+  // Tracked in a ref: selection moves on every keystroke and shouldn't re-render.
+  const selectionRef = useRef({ start: 0, end: 0 });
+
+  const handleSelectionChange = (
+    event: NativeSyntheticEvent<TextInputSelectionChangeEventData>
+  ) => {
+    selectionRef.current = event.nativeEvent.selection;
+  };
+
+  const openWordFinder = () => {
+    const { start, end } = selectionRef.current;
+    const range = extractWordRange(draftText, start, end);
+    setWordFinderSeed(range?.word ?? "");
+    setWordFinderVisible(true);
+  };
+
+  const handlePickWord = (word: string) => {
+    let { start, end } = selectionRef.current;
+    const range = extractWordRange(draftText, start, end);
+    if (end > start && range) {
+      // Explicit selection: replace it (trimmed to its word characters).
+      start = range.start;
+      end = range.end;
+    } else if (range && range.start < start && start < range.end) {
+      // Caret strictly inside a word: replace the whole word rather than split it.
+      start = range.start;
+      end = range.end;
+    }
+    const next = insertWordIntoText(draftText, start, end, word);
+    onChangeText(next.text);
+    selectionRef.current = { start: next.caret, end: next.caret };
+    setWordFinderVisible(false);
+  };
 
   const helpItems: HelpItem[] = [
     { icon: "checkmark", label: "Save", description: "Save your changes to this version." },
@@ -49,6 +87,12 @@ export function LyricsVersionEditor({
           },
         ]
       : []),
+    {
+      icon: "book-outline",
+      label: "Word finder",
+      description:
+        "Rhymes, near rhymes, and similar words for the word at your cursor. Tap a word to drop it into the lyric.",
+    },
     { icon: "arrow-back", label: "Back", description: "Return to the version — you'll be asked before discarding edits." },
   ];
 
@@ -71,6 +115,14 @@ export function LyricsVersionEditor({
               <Ionicons name="git-branch-outline" size={18} color={canSave ? colors.textSecondary : colors.borderMuted} />
             </Pressable>
           ) : null}
+          <Pressable
+            style={({ pressed }) => [editorControls.iconBtn, pressed ? appStyles.pressDown : null]}
+            onPress={openWordFinder}
+            hitSlop={6}
+            accessibilityLabel="Word finder"
+          >
+            <Ionicons name="book-outline" size={18} color={colors.textSecondary} />
+          </Pressable>
           <Pressable
             style={({ pressed }) => [editorControls.iconBtn, pressed ? appStyles.pressDown : null]}
             onPress={() => setHelpVisible(true)}
@@ -106,6 +158,7 @@ export function LyricsVersionEditor({
               placeholder="Write your lyrics here"
               value={draftText}
               onChangeText={onChangeText}
+              onSelectionChange={handleSelectionChange}
               textAlignVertical="top"
               scrollEnabled
               onContentSizeChange={onContentSizeChange}
@@ -122,6 +175,13 @@ export function LyricsVersionEditor({
         title="Editing lyrics"
         intro="Type your lyrics, then save — over this version, or as a new one."
         items={helpItems}
+      />
+
+      <WordFinderSheet
+        visible={wordFinderVisible}
+        initialWord={wordFinderSeed}
+        onClose={() => setWordFinderVisible(false)}
+        onPickWord={handlePickWord}
       />
     </View>
   );

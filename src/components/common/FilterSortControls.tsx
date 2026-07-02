@@ -2,6 +2,8 @@ import { ReactNode, useState } from "react";
 import { Pressable, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { styles } from "../../styles";
+import Animated, { FadeIn } from "react-native-reanimated";
+import { durations } from "../../design/motion";
 
 type FilterMenuRenderContext = {
   close: () => void;
@@ -145,15 +147,21 @@ export function FilterSortControls({ filter, sort, rightSlot }: FilterSortContro
       </View>
 
       {filter && filterMenuOpen ? (
-        <View style={[styles.ideasSortMenu, styles.ideasPopoverMenu, { left: filterAnchorX }]}>
+        <Animated.View
+          entering={FadeIn.duration(durations.fast)}
+          style={[styles.ideasSortMenu, styles.ideasPopoverMenu, { left: filterAnchorX }]}
+        >
           {filter.renderMenu({ close: () => setFilterMenuOpen(false) })}
-        </View>
+        </Animated.View>
       ) : null}
 
       {sort && sortMenuOpen ? (
-        <View style={[styles.ideasSortMenu, styles.ideasPopoverMenu, { left: sortAnchorX }]}>
+        <Animated.View
+          entering={FadeIn.duration(durations.fast)}
+          style={[styles.ideasSortMenu, styles.ideasPopoverMenu, { left: sortAnchorX }]}
+        >
           {sort.renderMenu({ close: () => setSortMenuOpen(false) })}
-        </View>
+        </Animated.View>
       ) : null}
     </View>
   );

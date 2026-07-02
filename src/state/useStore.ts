@@ -60,6 +60,7 @@ import {
     STORE_VERSION,
 } from "./persistedSnapshot";
 import type { AppStore, PersistedAppStore } from "./storeTypes";
+import { setHapticsEnabled } from "../design/haptics";
 
 export { buildPersistedAppStoreSnapshot, STORE_NAME, STORE_VERSION } from "./persistedSnapshot";
 export type { AppStore, PersistedAppStore } from "./storeTypes";
@@ -202,6 +203,7 @@ export function sanitizePersistedState(state?: Partial<PersistedAppStore>): Pers
         backupReminderFrequency: isBackupReminderFrequency(state?.backupReminderFrequency)
             ? state.backupReminderFrequency
             : DEFAULT_BACKUP_REMINDER_FREQUENCY,
+        hapticsEnabled: state?.hapticsEnabled !== false,
         lastSuccessfulBackupAt:
             typeof state?.lastSuccessfulBackupAt === "number" && Number.isFinite(state.lastSuccessfulBackupAt)
                 ? state.lastSuccessfulBackupAt
@@ -346,6 +348,11 @@ export const useStore = create<AppStore>()(
         }
     )
 );
+
+// Keep the fire-and-forget haptics module (src/design/haptics.ts) in step with the
+// persisted preference — on boot, after rehydration, and whenever the toggle changes.
+setHapticsEnabled(useStore.getState().hapticsEnabled);
+useStore.subscribe((state) => setHapticsEnabled(state.hapticsEnabled));
 
 /**
  * Durably flush the current persisted snapshot to the authoritative store immediately,

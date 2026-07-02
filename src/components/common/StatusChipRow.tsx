@@ -1,6 +1,7 @@
 import React from "react";
 import { Pressable, Text, View } from "react-native";
 import { styles } from "../../styles";
+import { haptic } from "../../design/haptics";
 import { IdeaStatus } from "../../types";
 
 type StatusChipValue = "all" | IdeaStatus;
@@ -41,14 +42,18 @@ export function StatusChipRow<T extends StatusChipValue>({
                 return (
                     <Pressable
                         key={item}
-                        style={[
+                        style={({ pressed }) => [
                             styles.statusChipBtn,
                             viewStyle,
                             isActive ? styles.statusBtnActive : null,
                             stretch ? { flex: 1, alignItems: "center" } : null,
                             disabled ? styles.btnDisabled : null,
+                            pressed && !disabled ? styles.pressDown : null,
                         ]}
-                        onPress={() => onPress(item)}
+                        onPress={() => {
+                            haptic.light();
+                            onPress(item);
+                        }}
                         disabled={disabled}
                     >
                         <Text

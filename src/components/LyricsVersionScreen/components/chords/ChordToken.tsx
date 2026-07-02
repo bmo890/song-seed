@@ -1,9 +1,9 @@
 import { useLayoutEffect, useRef, useState } from "react";
 import { Animated, PanResponder, StyleSheet, Text, View } from "react-native";
-import * as Haptics from "expo-haptics";
 import type { ChordPlacement } from "../../../../types";
 import { clampChordIndex } from "../../../../chords";
 import { CHORD_FONT_SIZE, MONO_FONT, chordChartColors } from "./chordChartStyle";
+import { haptic } from "../../../../design/haptics";
 
 type Props = {
   chord: ChordPlacement;
@@ -102,7 +102,7 @@ export function ChordToken({
           draggingRef.current = true;
           onDragRef.current?.(true);
           lift(true);
-          void Haptics.selectionAsync();
+          haptic.tap();
         }
         if (draggingRef.current) posX.setValue(restXRef.current + gesture.dx);
       },

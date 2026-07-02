@@ -1,0 +1,6 @@
+name = "songseed-word-proxy"
+main = "worker.js"
+compatibility_date = "2026-07-01"
+
+# Secrets (set via `wrangler secret put DATAMUSE_KEY`):
+#   DATAMUSE_KEY — app-level Datamuse API key (required starting Jan 1 2027)

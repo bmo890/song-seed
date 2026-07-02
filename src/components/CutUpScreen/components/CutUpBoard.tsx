@@ -4,6 +4,7 @@ import DraggableFlatList, { type RenderItemParams } from "react-native-draggable
 import { Ionicons } from "@expo/vector-icons";
 import { styles as appStyles } from "../../../styles";
 import { colors, radii, spacing, text as textTokens } from "../../../design/tokens";
+import { haptic } from "../../../design/haptics";
 import { boardItemText } from "../../../cutUp";
 import type { CutUpBoardItem, CutUpChunk, CutUpSpark } from "../../../types";
 import type { useCutUpScreenModel } from "../hooks/useCutUpScreenModel";
@@ -44,7 +45,8 @@ export function CutUpBoard({ model, spark }: { model: Model; spark: CutUpSpark }
       <DraggableFlatList
         data={active}
         keyExtractor={(item) => item.id}
-        onDragEnd={({ data }) => model.reorder(data.map((item) => item.id))}
+        onDragBegin={haptic.grab}
+      onDragEnd={({ data }) => model.reorder(data.map((item) => item.id))}
         containerStyle={styles.listFill}
         contentContainerStyle={active.length === 0 ? styles.listEmptyContent : styles.listContent}
         showsVerticalScrollIndicator={false}

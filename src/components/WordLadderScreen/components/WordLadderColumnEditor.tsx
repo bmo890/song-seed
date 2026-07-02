@@ -4,6 +4,7 @@ import DraggableFlatList, { type RenderItemParams } from "react-native-draggable
 import { Ionicons } from "@expo/vector-icons";
 import { styles as appStyles } from "../../../styles";
 import { colors, radii, spacing, text as textTokens } from "../../../design/tokens";
+import { haptic } from "../../../design/haptics";
 import type { WordLadderWord } from "../../../types";
 
 type Props = {
@@ -76,7 +77,8 @@ export function WordLadderColumnEditor({
       <DraggableFlatList
         data={words}
         keyExtractor={(word) => word.id}
-        onDragEnd={({ data }) => onReorder(data)}
+        onDragBegin={haptic.grab}
+      onDragEnd={({ data }) => onReorder(data)}
         style={editorStyles.list}
         contentContainerStyle={words.length === 0 ? editorStyles.listEmptyContent : undefined}
         ListEmptyComponent={<Text style={editorStyles.emptyHint}>Nothing here yet</Text>}

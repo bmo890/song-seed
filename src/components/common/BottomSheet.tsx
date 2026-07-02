@@ -18,6 +18,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { styles } from "../../styles";
+import { haptic } from "../../design/haptics";
 
 export type BottomSheetRef = { close: () => void };
 
@@ -126,6 +127,7 @@ export const BottomSheet = forwardRef<BottomSheetRef, BottomSheetProps>(
           },
           onPanResponderRelease: (_, gs) => {
             if (gs.dy > 96 || gs.vy > 0.9) {
+              haptic.light();
               closeWithSlide();
               return;
             }

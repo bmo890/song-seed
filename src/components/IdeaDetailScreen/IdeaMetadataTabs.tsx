@@ -8,6 +8,7 @@ import { appActions } from "../../state/actions";
 import { getLatestLyricsVersion, lyricsDocumentToText } from "../../lyrics";
 import { IdeaStatus, SongIdea } from "../../types";
 import { StatusChipRow } from "../common/StatusChipRow";
+import { haptic } from "../../design/haptics";
 
 type MetadataTabKey = "progress" | "lyrics" | "notes";
 
@@ -181,6 +182,7 @@ export function IdeaMetadataTabs({
           />
           <View style={styles.songDetailMetaSliderWrap}>
             <Slider
+              onSlidingComplete={() => haptic.tap()}
               minimumValue={0}
               maximumValue={100}
               step={5}

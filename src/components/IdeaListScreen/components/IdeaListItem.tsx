@@ -1,7 +1,6 @@
 import { Pressable, Text, View, Animated } from "react-native";
 import ReAnimated, { FadeIn } from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
-import * as Haptics from "expo-haptics";
 import { styles } from "../../../styles";
 import { MiniProgress } from "../../MiniProgress";
 import { SongIdea, ClipVersion, InlinePlayerControls } from "../../../types";
@@ -19,6 +18,7 @@ import { StatusBadge } from "../../common/StatusBadge";
 import { IdeaCard } from "../../common/IdeaCard";
 import { AppAlert } from "../../common/AppAlert";
 import { useWorkspaceTheme } from "../../../context/WorkspaceThemeContext";
+import { haptic } from "../../../design/haptics";
 
 function IdeaListInlineProgress({
     inlinePlayer,
@@ -180,14 +180,14 @@ export function IdeaListItem({
         : null;
 
     const beginSelection = () => {
-        void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        haptic.grab();
         useStore.getState().startListSelection(item.id);
     };
 
     const confirmPickAsSongTarget = () => {
         if (!songTargetPicker) return;
         const count = songTargetPicker.noteIds.length;
-        void Haptics.selectionAsync();
+        haptic.tap();
         AppAlert.confirm(
             "Add to this song?",
             `Add ${count} page${count === 1 ? "" : "s"} of lyrics to "${item.title}" as new lyrics version${count === 1 ? "" : "s"}?`,
@@ -283,7 +283,7 @@ export function IdeaListItem({
     // confirm — just fold it with a light haptic.
     const collapseSection = () => {
         if (!onHideDay) return;
-        void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        haptic.grab();
         onHideDay();
     };
 
@@ -351,7 +351,7 @@ export function IdeaListItem({
                                 if (!playClip) {
                                     return;
                                 }
-                                void Haptics.selectionAsync();
+                                haptic.tap();
                                 void playIdeaFromList(item.id, playClip);
                             }}
                             onLongPressLead={() => {
@@ -415,7 +415,7 @@ export function IdeaListItem({
                                     <Pressable
                                         onPress={(e) => {
                                             e.stopPropagation();
-                                            void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                                            haptic.light();
                                             useStore.getState().toggleIdeaBookmark(item.id);
                                         }}
                                         hitSlop={8}

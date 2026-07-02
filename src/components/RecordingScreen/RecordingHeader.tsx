@@ -127,7 +127,8 @@ const localStyles = StyleSheet.create({
     opacity: 0.55,
   },
   pressDown: {
-    opacity: 0.7,
+    opacity: 0.9,
+    transform: [{ scale: 0.985 }],
   },
   eyebrowRow: {
     flexDirection: "row",
