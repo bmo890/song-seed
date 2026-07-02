@@ -146,6 +146,10 @@ class SongseedPitchShiftRenderer(
 
         val builder = EditedMediaItemSequence.Builder(emptyList())
         if (input.offsetMs > 0) {
+          // media3 requires the force-audio flag on the SEQUENCE (not just the
+          // composition) when a sequence opens with a gap, or it throws
+          // IllegalArgumentException at build time.
+          builder.experimentalSetForceAudioTrack(true)
           builder.addGap(input.offsetMs * MIX_OFFSET_US)
         }
         builder.addItem(editedItem)
