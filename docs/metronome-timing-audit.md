@@ -358,7 +358,76 @@ alignment stops depending on "when the user heard it".
 
 ---
 
-## 5. Acceptance criteria ("what consistent means")
+## 5. Addendum — Bluetooth calibration review & manual alignment
+
+*(Added after review of `src/components/BluetoothCalibrationScreen/index.tsx` and
+`src/bluetoothMonitoring.ts`.)*
+
+### What the tap calibration actually measures today
+
+The design is pragmatically sound (12-beat click track at 90 BPM, per-beat tap
+residuals, median + MAD outlier gating, 10 ms rounding, manual ±10/±25 tweak).
+But the number it produces is a *bundle*:
+
+**F13. The tap-grid baseline is stamped before audio actually starts.**
+`phaseStartAtRef.current = Date.now()` is set and *then* `startAudioPlayback()`
+is called (`BluetoothCalibrationScreen/index.tsx:316-326`), so the expo-audio
+player's own start latency (20–150 ms, variable per run) is baked into every
+measurement. This is the largest fixable error source and it is JS-only:
+anchor the beat grid to the player's actual reported position once it is
+playing, and back-compute the true audio start.
+
+**F14. Tap timestamps ride the touch stack.** `Pressable` → bridge →
+`Date.now()` adds 30–80 ms of touchscreen/bridge latency — partially cancelled
+by negative mean asynchrony (humans tapping along to a beat tap ~20–50 ms
+*early*). Two opposing biases roughly net out, which is why results are usable
+but fuzzy. Not worth chasing further than F13; the statistics already handle
+the noise.
+
+**F15. The OS already knows most of the answer and is never asked.**
+iOS `AVAudioSession.outputLatency` reports the active route's output latency
+(including a Bluetooth codec-buffer estimate, decently accurate). Android
+`AudioTrack.getTimestamp()` on many devices folds in the A2DP sink's reported
+delay. The metronome module already exposes `getCurrentAudioOutputRoute()` —
+the natural place to also return reported latency. The calibration flow should
+*seed* from the reported value and use the tap test as a verification/
+fine-tune pass, not measure from zero.
+
+**Scope note that lowers the stakes:** once Phase-2/3 timestamping (this doc,
+§3) lands, calibration affects only *what the performer hears while tracking*
+— never what is saved. Today a wrong calibration produces a permanently
+misaligned overdub file; after, it produces slightly-off monitoring cues.
+Decoupling "BT feel" from "file correctness" is the structural win; the
+calibration accuracy work above is comfort, not correctness.
+
+### Manual overdub alignment (nudge UI) — endorsed as a permanent tool
+
+A manual stem-nudge tool is the right get-by *and* worth keeping forever (full
+DAWs keep manual nudge because no measurement covers every routing). The data
+model is already shaped for it: stems carry `offsetMs`, waveform peaks are
+stored, and the rendered mix rebuilds from stems — this is UI work, not a
+schema change. Design constraints from the codebase:
+
+- **Coarse by eye, fine by ear.** Stored waveforms are 256 peaks
+  (`MANAGED_WAVEFORM_PEAK_COUNT`) / 2048 detail bins (`WAVEFORM_DETAIL_BINS`)
+  — ~88 ms/bin on a 3-minute take, too coarse to *see* a 15 ms misalignment.
+  Drag the stem waveform against the guide for coarse placement; fine-tune
+  with ±5/±10 ms buttons and an instant loop-audition of a short window
+  (first downbeat). Ears resolve 5–10 ms flams; eyes at this zoom cannot.
+  (Same interaction pattern as the calibration screen's tweak buttons.)
+- **Preview cheaply, render once.** Don't re-render the overdub mix per
+  nudge; audition with two live players at the trial offset and re-render
+  only on commit.
+- **The metronome is a free visual anchor.** Once record-through-count-in
+  lands, takes usually contain acoustic bleed of the count-in clicks. Drawing
+  grid lines over the stem waveform lets the click transients visibly snap to
+  them — and an onset-detection/cross-correlation pass in that window can
+  auto-suggest the offset. Opportunistic (little bleed with headphones), but
+  free alignment when it fires.
+
+---
+
+## 6. Acceptance criteria ("what consistent means")
 
 1. Record with count-in at any BPM/meter, 20 times: file `t=0` is the downbeat
    within ±5 ms, every take (verify by recording the click acoustically and
