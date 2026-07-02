@@ -32,6 +32,10 @@ class SongseedMetronomeModule extends NativeModule<SongseedMetronomeModuleEvents
     return false;
   }
 
+  supportsScheduledCues(): boolean {
+    return false;
+  }
+
   async configure(config: NativeMetronomeConfig): Promise<NativeMetronomeState> {
     this.state = {
       ...this.state,

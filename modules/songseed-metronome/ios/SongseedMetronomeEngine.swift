@@ -1,4 +1,5 @@
 import AVFoundation
+import UIKit
 
 private struct MetronomeConfig {
   var bpm: Int = 92
@@ -11,6 +12,12 @@ private struct MetronomeConfig {
   /// Output latency (ms) of the active route. Delays only the visual beat so it lands with
   /// the audible click (e.g. Bluetooth lag). 0 = immediate / no compensation.
   var outputLatencyMs: Int = 0
+  /// Native scheduled haptics: fired from the engine (no bridge at fire time), offset by
+  /// `hapticOffsetMs` relative to the render-domain beat so the tap LANDS with the audible
+  /// click (signed: route latency − motor spin-up; may be negative on fast routes).
+  var hapticEnabled: Bool = false
+  var hapticStrength: Double = 0.6
+  var hapticOffsetMs: Int = 0
 }
 
 final class SongseedMetronomeEngine {
@@ -73,6 +80,7 @@ final class SongseedMetronomeEngine {
     // Live params (volume) must never restart a running engine — a restart resets the
     // beat phase, which is audible and breaks grid continuity mid-take. Only structural
     // changes (tempo, meter, accent shape, click on/off) rebuild and rephase.
+    // Haptic params are live too: scheduling reads the current config on every beat.
     let structuralChange =
       previous.bpm != config.bpm ||
       previous.meterId != config.meterId ||
@@ -127,6 +135,13 @@ final class SongseedMetronomeEngine {
     } catch {
       onError("iOS metronome audio start failed: \(error.localizedDescription)")
       stopPlayer()
+    }
+
+    // Pulse 0's haptic can't be scheduled from a previous beat — aim it at "now + offset"
+    // (audio starts near-immediately from the pre-built buffer); pulses 1+ self-correct
+    // off the audio clock via emitBeat.
+    if config.hapticEnabled {
+      scheduleHaptic(afterMs: Double(max(0, config.hapticOffsetMs)))
     }
 
     startPolling()
@@ -329,6 +344,14 @@ final class SongseedMetronomeEngine {
       onBeat(beatPayload)
     }
 
+    // Schedule the NEXT beat's haptic natively: one beat of lead means the signed offset
+    // (route latency − motor spin-up) can land the tap exactly on the audible click, even
+    // when it must fire BEFORE the beat event — something a bridge-event chain can never do.
+    if config.hapticEnabled {
+      let intervalMs = beatIntervalMs(for: config.bpm)
+      scheduleHaptic(afterMs: max(1, intervalMs + Double(config.hapticOffsetMs)))
+    }
+
     // Snapshot state for *this* beat before flipping isCountIn off below, so the final count-in
     // beat (e.g. dot 4 of 4) still reports isCountIn=true and gets a chance to render before the
     // UI transitions to "recording" on the next beat.
@@ -342,6 +365,17 @@ final class SongseedMetronomeEngine {
           "timestampMs": Date().timeIntervalSince1970 * 1000
         ])
       }
+    }
+  }
+
+  private func scheduleHaptic(afterMs: Double) {
+    let strength = min(1, max(0, config.hapticStrength))
+    DispatchQueue.main.asyncAfter(deadline: .now() + afterMs / 1000.0) { [weak self] in
+      guard let self = self, self.isRunning, self.config.hapticEnabled else { return }
+      let style: UIImpactFeedbackGenerator.FeedbackStyle =
+        strength >= 0.75 ? .heavy : strength >= 0.4 ? .medium : .light
+      let generator = UIImpactFeedbackGenerator(style: style)
+      generator.impactOccurred(intensity: CGFloat(0.5 + strength * 0.5))
     }
   }
 
@@ -397,6 +431,22 @@ final class SongseedMetronomeEngine {
       next.outputLatencyMs = min(1000, max(0, outputLatencyMs))
     } else if let outputLatencyMs = rawConfig["outputLatencyMs"] as? NSNumber {
       next.outputLatencyMs = min(1000, max(0, outputLatencyMs.intValue))
+    }
+
+    if let hapticEnabled = rawConfig["hapticEnabled"] as? Bool {
+      next.hapticEnabled = hapticEnabled
+    }
+
+    if let hapticStrength = rawConfig["hapticStrength"] as? Double {
+      next.hapticStrength = min(1, max(0, hapticStrength))
+    } else if let hapticStrength = rawConfig["hapticStrength"] as? NSNumber {
+      next.hapticStrength = min(1, max(0, hapticStrength.doubleValue))
+    }
+
+    if let hapticOffsetMs = rawConfig["hapticOffsetMs"] as? Int {
+      next.hapticOffsetMs = min(1000, max(-200, hapticOffsetMs))
+    } else if let hapticOffsetMs = rawConfig["hapticOffsetMs"] as? NSNumber {
+      next.hapticOffsetMs = min(1000, max(-200, hapticOffsetMs.intValue))
     }
 
     return next

@@ -3,8 +3,13 @@ package expo.modules.songseedmetronome
 import android.content.Context
 import android.media.AudioDeviceInfo
 import android.media.AudioManager
+import android.os.Build
+import android.os.VibrationEffect
+import android.os.Vibrator
+import android.os.VibratorManager
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
+import kotlin.math.roundToInt
 
 class SongseedMetronomeModule : Module() {
   private val engine by lazy {
@@ -20,8 +25,37 @@ class SongseedMetronomeModule : Module() {
       },
       onError = { message ->
         sendEvent("onError", mapOf("message" to message))
+      },
+      triggerHaptic = { strength ->
+        fireVibrator(strength)
       }
     )
+  }
+
+  private fun fireVibrator(strength: Double) {
+    val context = appContext.reactContext ?: return
+    try {
+      val vibrator: Vibrator? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        (context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? VibratorManager)
+          ?.defaultVibrator
+      } else {
+        @Suppress("DEPRECATION")
+        context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
+      }
+      if (vibrator?.hasVibrator() != true) return
+
+      val clamped = strength.coerceIn(0.0, 1.0)
+      val durationMs = (28 + clamped * 42).roundToInt().toLong()
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        val amplitude = (60 + clamped * 195).roundToInt().coerceIn(1, 255)
+        vibrator.vibrate(VibrationEffect.createOneShot(durationMs, amplitude))
+      } else {
+        @Suppress("DEPRECATION")
+        vibrator.vibrate(durationMs)
+      }
+    } catch (_: Throwable) {
+      // A failed buzz must never take down the click.
+    }
   }
 
   override fun definition() = ModuleDefinition {
@@ -30,6 +64,10 @@ class SongseedMetronomeModule : Module() {
     Events("onBeat", "onStateChange", "onCountInComplete", "onError")
 
     Function("isAvailable") {
+      true
+    }
+
+    Function("supportsScheduledCues") {
       true
     }
 

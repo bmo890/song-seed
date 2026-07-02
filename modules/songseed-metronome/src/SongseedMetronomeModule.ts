@@ -11,6 +11,8 @@ import type {
 
 declare class SongseedMetronomeModule extends NativeModule<SongseedMetronomeModuleEvents> {
   isAvailable(): boolean;
+  /** Optional: true on binaries whose engines schedule haptic cues natively. */
+  supportsScheduledCues?(): boolean;
   configure(config: NativeMetronomeConfig): Promise<NativeMetronomeState>;
   getState(): Promise<NativeMetronomeState>;
   getCurrentAudioOutputRoute(): Promise<NativeAudioRouteInfo | null>;

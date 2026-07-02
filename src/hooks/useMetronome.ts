@@ -22,6 +22,7 @@ import {
   getMetronomeBeatIntervalMs,
   getMetronomeHapticFallbackDuration,
   getMetronomeMeterPreset,
+  MAX_METRONOME_LEVEL,
   MAX_TAP_HISTORY,
   METRONOME_LOOP_BEAT_COUNT,
   type MetronomeBeepLevel,
@@ -86,10 +87,15 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
   const bpmRef = useRef(bpm);
   const configuredRef = useRef(false);
   const cueActivationAtRef = useRef<number>(0);
-  // Live-route cue delay (latency model output). Refreshed at every start so the engine
-  // delays visual/haptic beat events to land with the audible click on this route —
-  // meaningful on Bluetooth (150–350ms) where the delay dwarfs cue-pipeline jitter.
-  const routeOutputLatencyMsRef = useRef(0);
+  // Binaries whose engines schedule haptics natively (no bridge at fire time). On older
+  // binaries the JS event-driven fallback below keeps working.
+  const nativeCuesSupported = !!SongseedMetronomeModule?.supportsScheduledCues?.();
+
+  // Live-route cue timing (latency model output), refreshed at every start. outputMs
+  // delays visual/haptic beat EVENTS on the engine (matters on Bluetooth); the signed
+  // leads drive the scheduled cue paths (native haptics + the JS visual scheduler),
+  // which unlike events can fire EARLY when the cue pipeline is slower than the route.
+  const routeLatencyProfileRef = useRef({ outputMs: 0, visualLeadMs: 0, hapticLeadMs: 0 });
   const cueLatencyInputsRef = useRef({
     calibrations: bluetoothMonitoringCalibrations,
     outputs,
@@ -109,11 +115,112 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
         activeOutputs: inputs.outputs,
         clickLoopBarMs: inputs.barMs,
       });
-      routeOutputLatencyMsRef.current = Math.round(profile.outputMs);
+      routeLatencyProfileRef.current = {
+        outputMs: Math.round(profile.outputMs),
+        visualLeadMs: Math.round(profile.visualLeadMs),
+        hapticLeadMs: Math.round(profile.hapticLeadMs),
+      };
     } catch {
-      routeOutputLatencyMsRef.current = 0;
+      routeLatencyProfileRef.current = { outputMs: 0, visualLeadMs: 0, hapticLeadMs: 0 };
     }
   }, []);
+
+  // ── Anchor-aligned visual scheduler ────────────────────────────────────────────────
+  // The pulse is scheduled AGAINST THE GRID (getGridAnchor) with the signed visual lead,
+  // instead of reacting to per-beat bridge events — so it can fire early where the render
+  // pipeline is slower than the route, and its jitter is JS-timer class instead of
+  // poll+bridge+render class. Re-anchors to the audio clock every bar, so tempo changes
+  // and drift self-heal. Falls back to event-driven pulses when no anchor is available.
+  const visualSchedulerRef = useRef<{
+    token: number;
+    timer: ReturnType<typeof setTimeout> | null;
+    active: boolean;
+  }>({ token: 0, timer: null, active: false });
+
+  const stopVisualScheduler = useCallback(() => {
+    const scheduler = visualSchedulerRef.current;
+    scheduler.token += 1;
+    scheduler.active = false;
+    if (scheduler.timer) {
+      clearTimeout(scheduler.timer);
+      scheduler.timer = null;
+    }
+  }, []);
+
+  const startVisualScheduler = useCallback(async () => {
+    if (!SongseedMetronomeModule?.getGridAnchor) {
+      return;
+    }
+    const scheduler = visualSchedulerRef.current;
+    scheduler.token += 1;
+    const token = scheduler.token;
+
+    const fetchAnchor = async () => {
+      const next = await SongseedMetronomeModule!.getGridAnchor!().catch(() => null);
+      if (!next?.isRunning || next.anchorEpochMs == null || next.msPerPulse == null) {
+        return null;
+      }
+      return next;
+    };
+
+    // Let the engine's audio clock settle before anchoring.
+    await new Promise<void>((resolve) => {
+      setTimeout(resolve, 90);
+    });
+    let anchor = await fetchAnchor();
+    if (!anchor || scheduler.token !== token) {
+      scheduler.active = false;
+      return;
+    }
+    scheduler.active = true;
+    let pulsesSinceAnchorRefresh = 0;
+
+    const scheduleNext = () => {
+      if (scheduler.token !== token) {
+        return;
+      }
+      const msPerPulse = anchor!.msPerPulse!;
+      const visualOffsetMs = routeLatencyProfileRef.current.visualLeadMs;
+      const now = Date.now();
+      const pulseIndex = Math.max(
+        0,
+        Math.ceil((now - anchor!.anchorEpochMs! - visualOffsetMs + 4) / msPerPulse)
+      );
+      const fireAtMs = anchor!.anchorEpochMs! + pulseIndex * msPerPulse + visualOffsetMs;
+
+      scheduler.timer = setTimeout(() => {
+        void (async () => {
+          if (scheduler.token !== token) {
+            return;
+          }
+          if (outputsRef.current.visual && Date.now() >= cueActivationAtRef.current) {
+            setPulseToken((current) => current + 1);
+          }
+          pulsesSinceAnchorRefresh += 1;
+          if (pulsesSinceAnchorRefresh >= (anchor!.pulsesPerBar ?? 4)) {
+            pulsesSinceAnchorRefresh = 0;
+            const refreshed = await fetchAnchor();
+            if (scheduler.token !== token) {
+              return;
+            }
+            if (!refreshed) {
+              scheduler.active = false;
+              return;
+            }
+            anchor = refreshed;
+          }
+          scheduleNext();
+        })();
+      }, Math.max(1, fireAtMs - now));
+    };
+    scheduleNext();
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      stopVisualScheduler();
+    };
+  }, [stopVisualScheduler]);
 
   const effectiveBpm = configuredRef.current ? bpm : initialBpm;
   const effectiveOutputs = configuredRef.current
@@ -160,11 +267,19 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
     }
 
     const activeOutputs = outputsRef.current;
-    if (activeOutputs.visual) {
+    // The anchor-aligned scheduler owns the pulse when it's running; event-driven pulses
+    // are the fallback for engines with no grid anchor.
+    if (activeOutputs.visual && !visualSchedulerRef.current.active) {
       setPulseToken((current) => current + 1);
     }
 
     if (!activeOutputs.haptic) {
+      return;
+    }
+
+    // Engines with scheduled cues fire haptics natively (no bridge at fire time, signed
+    // lead applied) — the JS fallback below is for older binaries only.
+    if (nativeCuesSupported) {
       return;
     }
 
@@ -223,15 +338,17 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
         clickEnabled: outputs.beep,
         clickVolume: getMetronomeBeepVolume(beepLevel),
         // Live-route cue delay from the latency model (refreshed at start): delays the
-        // visual/haptic beat events so they land with the audible click. Until Stage B's
-        // anchor-scheduled cues, this can only delay (never fire early) — which is the
-        // right trade on Bluetooth and a no-op-ish on the speaker.
-        outputLatencyMs: routeOutputLatencyMsRef.current,
+        // visual/haptic beat EVENTS so legacy consumers land with the audible click.
+        outputLatencyMs: routeLatencyProfileRef.current.outputMs,
+        // Scheduled-cue engines fire haptics themselves with the signed lead.
+        hapticEnabled: nativeCuesSupported && outputs.haptic,
+        hapticStrength: clampMetronomeLevel(hapticLevel) / MAX_METRONOME_LEVEL,
+        hapticOffsetMs: routeLatencyProfileRef.current.hapticLeadMs,
       });
     } finally {
       setIsPreparing(false);
     }
-  }, [bpm, beepLevel, meterId, meterPreset, outputs.beep]);
+  }, [bpm, beepLevel, hapticLevel, meterId, meterPreset, nativeCuesSupported, outputs.beep, outputs.haptic]);
 
   // Volume applies instantly and live: the native engines treat volume as a live param
   // (no restart, no phase reset), so a mid-take level tweak never breaks the grid. On
@@ -318,11 +435,12 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
       setBeatCount(0);
       const state = await SongseedMetronomeModule.start();
       setNativeState(state);
+      void startVisualScheduler();
     } catch (error) {
       await releaseAudioSessionOwner(METRONOME_AUDIO_SESSION_OWNER_ID).catch(() => {});
       throw error;
     }
-  }, [syncNativeConfig]);
+  }, [startVisualScheduler, syncNativeConfig]);
 
   const startCountIn = useCallback(
     async (bars = effectiveCountInBars, options: MetronomeStartOptions = {}) => {
@@ -340,17 +458,19 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
         setBeatCount(0);
         const state = await SongseedMetronomeModule.startCountIn(bars);
         setNativeState(state);
+        void startVisualScheduler();
       } catch (error) {
         await releaseAudioSessionOwner(METRONOME_AUDIO_SESSION_OWNER_ID).catch(() => {});
         throw error;
       }
     },
-    [effectiveCountInBars, syncNativeConfig]
+    [effectiveCountInBars, startVisualScheduler, syncNativeConfig]
   );
 
   const stop = useCallback(async () => {
     if (!SongseedMetronomeModule) return;
     try {
+      stopVisualScheduler();
       cueActivationAtRef.current = 0;
       const state = await SongseedMetronomeModule.stop();
       setNativeState(state);
@@ -358,7 +478,7 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
     } finally {
       await releaseAudioSessionOwner(METRONOME_AUDIO_SESSION_OWNER_ID).catch(() => {});
     }
-  }, []);
+  }, [stopVisualScheduler]);
 
   const toggleRunning = useCallback(() => {
     if (nativeState?.isRunning) {
