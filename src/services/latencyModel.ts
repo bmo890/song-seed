@@ -39,6 +39,9 @@ export type RouteLatencyProfile = {
   /** Start the guide this many ms EARLY (relative to the render-domain grid target) so
    *  its sound reaches the ear together with the click's. max(0, player − click). */
   guideStartAdvanceMs: number;
+  /** Per-connection BT drift applied to the ear calibration (current OS report minus the
+   *  calibration-time OS report). 0 when unknown or not on BT. */
+  btDriftMs: number;
   /** Mic path: sound → capture buffer, ms. 0 when the platform can't say. */
   inputMs: number;
   /** Estimated latency of the visual pulse pipeline (bridge → render → display). */
@@ -130,13 +133,26 @@ export function resolveRouteLatencyProfile({
   let outputMs = sanitizedOutput.outputMs;
   let outputSource = sanitizedOutput.source;
   let guidePlayerOutputMs = sanitizedOutput.outputMs;
+  let btDriftMs = 0;
   if (route && isBluetoothLikeAudioDevice(route)) {
     const routeKey = buildBluetoothMonitoringRouteKey(route);
     const calibration = getBluetoothMonitoringCalibrationForRoute(calibrations, routeKey);
     if (calibration) {
-      guidePlayerOutputMs = Math.max(guidePlayerOutputMs, calibration.offsetMs);
+      // BT sink latency renegotiates per connection. When both the calibration-time and
+      // current OS reports are known, the difference is exactly that drift — apply the
+      // ear-measured numbers as a bias on top of it, so a calibration taken during one
+      // connection stays valid in the next instead of needing a re-run per session.
+      if (
+        sanitizedOutput.source === "os" &&
+        calibration.osOutputAtCalibrationMs != null &&
+        calibration.osOutputAtCalibrationMs > 0
+      ) {
+        btDriftMs = sanitizedOutput.outputMs - calibration.osOutputAtCalibrationMs;
+      }
+      const driftedPlayerMs = Math.max(0, Math.min(1000, calibration.offsetMs + btDriftMs));
+      guidePlayerOutputMs = Math.max(guidePlayerOutputMs, driftedPlayerMs);
       if (calibration.clickOffsetMs != null && calibration.clickOffsetMs > 0) {
-        outputMs = calibration.clickOffsetMs;
+        outputMs = Math.max(0, Math.min(1000, calibration.clickOffsetMs + btDriftMs));
         outputSource = "calibration";
       } else if (outputMs === 0 && calibration.offsetMs > 0) {
         // No click measurement and no OS report: the player number is a better guess
@@ -176,6 +192,7 @@ export function resolveRouteLatencyProfile({
     outputMs,
     guidePlayerOutputMs,
     guideStartAdvanceMs: Math.max(0, guidePlayerOutputMs - outputMs),
+    btDriftMs,
     inputMs,
     visualLatencyMs: VISUAL_PIPELINE_LATENCY_MS,
     hapticLatencyMs: HAPTIC_PIPELINE_LATENCY_MS,
@@ -221,6 +238,7 @@ export function formatLatencyProfileLog(profile: RouteLatencyProfile) {
     `click=${Math.round(profile.outputMs)}ms(${profile.sources.output}) ` +
     `player=${Math.round(profile.guidePlayerOutputMs)}ms ` +
     `guideAdvance=${Math.round(profile.guideStartAdvanceMs)}ms ` +
+    (profile.btDriftMs !== 0 ? `btDrift=${Math.round(profile.btDriftMs)}ms ` : "") +
     `in=${Math.round(profile.inputMs)}ms(${profile.sources.input}) ` +
     `ref=${profile.referenceModality} → correction ${Math.round(profile.recordingCorrectionMs)}ms`
   );

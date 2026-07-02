@@ -131,6 +131,11 @@ export type BluetoothMonitoringCalibration = {
   /** Ear-measured latency of the METRONOME CLICK pipeline (raw audio track path).
    *  Absent on calibrations saved before the two-pass flow — resolvers fall back. */
   clickOffsetMs?: number;
+  /** OS-reported output latency at the moment this calibration was taken. BT sink
+   *  latency renegotiates per connection; storing the contemporaneous OS number lets
+   *  resolvers apply the ear-measured values as a BIAS on top of the CURRENT OS report,
+   *  so per-connection drift tracks automatically instead of staling the calibration. */
+  osOutputAtCalibrationMs?: number;
   updatedAt: number;
 };
 

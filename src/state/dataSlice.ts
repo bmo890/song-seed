@@ -120,7 +120,8 @@ export type DataSlice = {
         routeKey: string,
         routeLabel: string,
         offsetMs: number,
-        clickOffsetMs?: number
+        clickOffsetMs?: number,
+        osOutputAtCalibrationMs?: number
     ) => void;
     removeBluetoothMonitoringCalibration: (routeKey: string) => void;
     setClipOverdubPreviewRenderActive: (ideaId: string, clipId: string, active: boolean) => void;
@@ -1201,7 +1202,7 @@ export const createDataSlice: StateCreator<
             };
         }),
     setPreferredRecordingInputId: (id) => set({ preferredRecordingInputId: id }),
-    setBluetoothMonitoringCalibration: (routeKey, routeLabel, offsetMs, clickOffsetMs) =>
+    setBluetoothMonitoringCalibration: (routeKey, routeLabel, offsetMs, clickOffsetMs, osOutputAtCalibrationMs) =>
         set((state) => {
             const previous = state.bluetoothMonitoringCalibrations.find(
                 (calibration) => calibration.routeKey === routeKey
@@ -1210,9 +1211,10 @@ export const createDataSlice: StateCreator<
                 routeKey,
                 routeLabel,
                 offsetMs,
-                // Preserve an existing click-path measurement when only the player-path
-                // number is being updated.
+                // Preserve existing companion measurements when only one number is
+                // being updated (e.g. the saved-list ±10 tweaks touch offsetMs alone).
                 clickOffsetMs: clickOffsetMs ?? previous?.clickOffsetMs,
+                osOutputAtCalibrationMs: osOutputAtCalibrationMs ?? previous?.osOutputAtCalibrationMs,
                 updatedAt: Date.now(),
             });
             return {

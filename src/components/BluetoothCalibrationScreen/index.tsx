@@ -527,7 +527,10 @@ export function BluetoothCalibrationScreen() {
       editableRouteKey,
       editableRouteLabel,
       estimatedOffsetMs,
-      estimatedClickOffsetMs ?? undefined
+      estimatedClickOffsetMs ?? undefined,
+      // Contemporaneous OS report → future sessions apply the ear numbers as a bias on
+      // top of the then-current report, tracking per-connection BT drift automatically.
+      reportedLatencyMs ?? undefined
     );
     AppAlert.info(
       "Calibration saved",

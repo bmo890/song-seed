@@ -164,6 +164,32 @@ describe("resolveRouteLatencyProfile", () => {
     expect(profile.recordingCorrectionMs).toBe(0);
   });
 
+  it("applies per-connection BT drift as a bias on the ear calibration", () => {
+    // Calibrated when the OS reported 200; this connection reports 260 → +60 drift.
+    const calibration = { ...btCalibration(500, 370), osOutputAtCalibrationMs: 200 };
+    const profile = resolveRouteLatencyProfile({
+      route: BT_BUDS,
+      osLatency: { outputMs: 260 },
+      calibrations: [calibration],
+      activeOutputs: ALL_CUES,
+    });
+    expect(profile.btDriftMs).toBe(60);
+    expect(profile.outputMs).toBe(430); // 370 + 60
+    expect(profile.guidePlayerOutputMs).toBe(560); // 500 + 60
+  });
+
+  it("no drift is applied when either OS report is missing", () => {
+    const calibration = { ...btCalibration(500, 370), osOutputAtCalibrationMs: 200 };
+    const profile = resolveRouteLatencyProfile({
+      route: BT_BUDS,
+      osLatency: null,
+      calibrations: [calibration],
+      activeOutputs: ALL_CUES,
+    });
+    expect(profile.btDriftMs).toBe(0);
+    expect(profile.outputMs).toBe(370);
+  });
+
   it("cue leads are signed: BT delays cues, speaker demands early fire", () => {
     const bt = resolveRouteLatencyProfile({
       route: BT_BUDS,
