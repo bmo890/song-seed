@@ -16,7 +16,7 @@ import { useMetronome } from "../../../hooks/useMetronome";
 import SongseedMetronomeModule from "../../../../modules/songseed-metronome";
 import { appActions } from "../../../state/actions";
 import { useStore } from "../../../state/useStore";
-import type { ClipVersion } from "../../../types";
+import type { ClipVersion, RecordingGrid } from "../../../types";
 import { getDefaultOverdubStemTitle } from "../../../overdub";
 import { buildSaveDestinations, resolveSaveDestinationLabel, type SaveDestination } from "../../../collectionManagement";
 import { authorizeIntentionalEmptyStateWrite } from "../../../services/stateIntegrity";
@@ -117,6 +117,10 @@ export function useRecordingScreenModel() {
     undefined;
 
   const handledSaveRequestRef = useRef<number | null>(null);
+  // Beat grid the in-flight take is being recorded against, snapshotted when the take
+  // starts (the global metronome settings can change afterwards). Attached to the saved
+  // clip/stem as `recordingGrid`; null when the take doesn't use the metronome at all.
+  const takeGridRef = useRef<RecordingGrid | null>(null);
   const countInPendingRef = useRef(false);
   const countInModeRef = useRef<"start" | "resume">("start");
   const initializedMetronomeRef = useRef(false);
@@ -133,7 +137,7 @@ export function useRecordingScreenModel() {
         await appActions.attachRecordedOverdubStem(
           pendingOverdubSave.ideaId,
           pendingOverdubSave.clipId,
-          payload,
+          { ...payload, recordingGrid: takeGridRef.current ?? undefined },
           pendingOverdubSave.title
         );
         return;
@@ -170,6 +174,7 @@ export function useRecordingScreenModel() {
         audioUri: payload.audioUri,
         durationMs: payload.durationMs,
         waveformPeaks: payload.waveformPeaks,
+        recordingGrid: takeGridRef.current ?? undefined,
         tags: parentClip?.tags?.length ? [...parentClip.tags] : undefined,
       };
 
@@ -380,6 +385,7 @@ export function useRecordingScreenModel() {
   }
 
   async function cancelPendingRecordingStart() {
+    takeGridRef.current = null;
     countInPendingRef.current = false;
     setIsArmingRecording(false);
     setOverdubReviewLocked(false);
@@ -394,6 +400,7 @@ export function useRecordingScreenModel() {
     if (isArmingRecording) {
       await cancelPendingRecordingStart();
     } else {
+      takeGridRef.current = null;
       setOverdubReviewLocked(false);
       clearMonitoringDelayTimer();
       await stopGuideMix();
@@ -448,6 +455,7 @@ export function useRecordingScreenModel() {
   }
 
   async function redoOverdubRecording() {
+    takeGridRef.current = null;
     setQuickNameModalVisible(false);
     setQuickNameDraft("");
     setQuickNamingIdeaId(null);
@@ -674,6 +682,35 @@ export function useRecordingScreenModel() {
     recordingOverdubClip,
   ]);
 
+  // Preset the metronome from the target clip's saved recording grid so overdubs and
+  // variations line up with the tempo/meter the original take was actually recorded
+  // against — regardless of what the global metronome was changed to since. Count-in
+  // stays the user's global preference. Runs once per target clip.
+  const takeGridSourceClip = useMemo(
+    () =>
+      recordingOverdubClip ??
+      (recordingParentClipId && recordingIdea
+        ? recordingIdea.clips.find((clip) => clip.id === recordingParentClipId) ?? null
+        : null),
+    [recordingIdea, recordingOverdubClip, recordingParentClipId]
+  );
+  const restoredGridLabel = takeGridSourceClip?.recordingGrid
+    ? `Original take: ${takeGridSourceClip.recordingGrid.bpm} BPM · ${takeGridSourceClip.recordingGrid.meterId}`
+    : null;
+  const restoredGridClipIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    const grid = takeGridSourceClip?.recordingGrid;
+    if (!takeGridSourceClip || !grid) {
+      return;
+    }
+    if (restoredGridClipIdRef.current === takeGridSourceClip.id) {
+      return;
+    }
+    restoredGridClipIdRef.current = takeGridSourceClip.id;
+    metronome.setBpmValue(grid.bpm);
+    metronome.setMeterIdValue(grid.meterId);
+  }, [metronome, takeGridSourceClip]);
+
   useEffect(() => {
     if (initializedMetronomeRef.current) {
       return;
@@ -773,6 +810,20 @@ export function useRecordingScreenModel() {
     // completion effect). The click only continues into the take when the metronome is enabled.
     const wantsCountIn = metronome.countInBars > 0 && metronome.isNativeAvailable;
     const wantsClickDuringTake = recordingMetronomeEnabled && metronome.isNativeAvailable;
+
+    // Snapshot the beat grid this take is recorded against before anything can mutate the
+    // global metronome settings (the count-in completion effect resets countInBars to 0).
+    takeGridRef.current =
+      wantsCountIn || wantsClickDuringTake
+        ? {
+            bpm: metronome.bpm,
+            meterId: metronome.meterId,
+            countInBars: wantsCountIn ? metronome.countInBars : 0,
+            clickThroughTake: wantsClickDuringTake,
+            firstDownbeatMs: null,
+            source: "metronome",
+          }
+        : null;
 
     if (wantsCountIn) {
       const prepared = await recording.prepareRecording();
@@ -1010,6 +1061,7 @@ export function useRecordingScreenModel() {
     lyricsAutoscrollMode,
     lyricsAutoscrollSpeedMultiplier,
     metronome,
+    restoredGridLabel,
     canPickSaveDestination,
     saveDestinations,
     saveDestinationPickerVisible,

@@ -54,6 +54,9 @@ type Props = {
   beepLevel: number;
   hapticLevel: number;
   tapCount: number;
+  /** "Original take: 92 BPM · 4/4" when the target clip carries a saved recording grid
+   *  (the metronome was preset to it on entry). Null when there's nothing to restore. */
+  restoredGridLabel?: string | null;
   onToggleEnabled: (value: boolean) => void;
   onTogglePreview: () => void;
   onNudgeBpm: (delta: number) => void;
@@ -80,6 +83,7 @@ export function RecordingMetronomeSheet({
   beepLevel,
   hapticLevel,
   tapCount,
+  restoredGridLabel,
   onToggleEnabled,
   onTogglePreview,
   onNudgeBpm,
@@ -109,6 +113,7 @@ export function RecordingMetronomeSheet({
         <View style={s.titleLead}>
           <Text style={s.title}>Metronome</Text>
           <Text style={s.titleSub}>{enabled ? "On — clicks while you record" : "Off — no click in the take"}</Text>
+          {restoredGridLabel ? <Text style={s.titleGridNote}>{restoredGridLabel}</Text> : null}
         </View>
         <Switch
           value={enabled}
@@ -352,6 +357,12 @@ const s = StyleSheet.create({
     fontSize: 11,
     color: "#84736f",
     marginTop: 1,
+  },
+  titleGridNote: {
+    fontSize: 11,
+    color: "#824f3f",
+    fontWeight: "600",
+    marginTop: 2,
   },
   listenBtn: {
     flexDirection: "row",

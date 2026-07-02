@@ -1,3 +1,5 @@
+import type { MetronomeMeterId } from "./metronome";
+
 export type IdeaStatus = "seed" | "sprout" | "stem" | "song" | "clip";
 
 export type Note = {
@@ -275,6 +277,27 @@ export type ClipAnalysis = {
   confirmed?: boolean;
 };
 
+/** How a clip's recording grid was established. */
+export type RecordingGridSource = "metronome" | "detected" | "manual";
+
+/** The beat grid a take was recorded against. Snapshotted from the metronome at the
+ *  moment recording started, so the tempo/meter a take belongs to survives the global
+ *  metronome settings changing later, travels with the clip through archive/share, and
+ *  presets the metronome when the user returns to overdub or re-record. */
+export type RecordingGrid = {
+  bpm: number;
+  meterId: MetronomeMeterId;
+  /** Count-in bars used for this take (0 = none). Kept for re-record parity. */
+  countInBars: number;
+  /** Whether the click sounded through the take (vs count-in only). */
+  clickThroughTake: boolean;
+  /** ms from file t=0 to the first downbeat of the grid. null = unknown (takes recorded
+   *  before downbeat measurement existed). Becomes 0 by construction once recordings are
+   *  trimmed to the downbeat. */
+  firstDownbeatMs: number | null;
+  source: RecordingGridSource;
+};
+
 export type ClipOverdubTonePreset = "neutral" | "low-cut" | "warm" | "bright";
 
 export type ClipOverdubRootSettings = {
@@ -292,6 +315,7 @@ export type ClipOverdubStem = {
   isMuted: boolean;
   durationMs?: number;
   waveformPeaks?: number[];
+  recordingGrid?: RecordingGrid;
   createdAt: number;
 };
 
@@ -328,6 +352,7 @@ export type ClipVersion = {
   practiceMarkers?: PracticeMarker[];
   sections?: ClipSection[];
   analysis?: ClipAnalysis;
+  recordingGrid?: RecordingGrid;
   manualSortOrder?: number;
   overdub?: ClipOverdubState;
 };

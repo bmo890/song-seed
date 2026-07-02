@@ -169,6 +169,7 @@ export function RecordingScreen() {
         beepLevel={screen.metronome.beepLevel}
         hapticLevel={screen.metronome.hapticLevel}
         tapCount={screen.metronome.tapCount}
+        restoredGridLabel={screen.restoredGridLabel}
         onNudgeBpm={screen.metronome.nudgeBpm}
         onSetBpmValue={screen.metronome.setBpmValue}
         onTapTempo={screen.metronome.tapTempo}
