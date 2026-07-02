@@ -459,6 +459,51 @@ export function usePlayerScreenLifecycle({
           }
         },
       },
+      {
+        label: "Delete clip",
+        style: "destructive",
+        icon: "trash-outline",
+        onPress: () => {
+          if (!playerIdea || !playerClip) return;
+          const clipId = playerClip.id;
+          const fullIdea = useStore
+            .getState()
+            .workspaces.flatMap((workspace) => workspace.ideas)
+            .find((idea) => idea.id === playerIdea.id);
+          const isProject = fullIdea?.kind === "project";
+          // Deleting the idea's only clip would leave it empty — for a song we
+          // delete the whole project (with clear wording); for a standalone clip
+          // that just is the delete.
+          const emptiesIdea = (fullIdea?.clips.length ?? 0) <= 1;
+
+          const title = emptiesIdea && isProject ? "Delete song?" : "Delete clip?";
+          const message =
+            emptiesIdea && isProject
+              ? `This is the only clip in "${playerIdea.title}", so deleting it removes the whole song. Its audio moves to Trash.`
+              : emptiesIdea
+                ? `Delete "${playerClip.title ?? playerIdea.title}"? Its audio moves to Trash.`
+                : "Remove this clip from the song? Its audio moves to Trash.";
+
+          AppAlert.destructive(
+            title,
+            message,
+            async () => {
+              if (isPlayerPlaying) {
+                await pausePlayer();
+              }
+              if (emptiesIdea) {
+                useStore.getState().deleteIdea(playerIdea.id);
+              } else {
+                appActions.deleteClipFromIdea(playerIdea.id, clipId);
+              }
+              // Close the player — it was pointed at the now-deleted clip. The
+              // beforeRemove listener stops audio and clears the queue.
+              navigation.goBack();
+            },
+            { confirmLabel: emptiesIdea && isProject ? "Delete song" : "Delete", icon: "trash-outline" }
+          );
+        },
+      },
       { label: "Cancel", style: "cancel" },
     ]);
   }, [displayDuration, isPlayerPlaying, minimizePlayer, navigation, pausePlayer, playerClip, playerIdea]);

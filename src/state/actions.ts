@@ -1839,6 +1839,84 @@ export const appActions = {
             });
     },
 
+    // Remove one clip from an idea by id, anywhere (not tied to the active
+    // workspace or the selection). Mirrors deleteSelectedClips' safety: repairs
+    // dangling overdub parents, reassigns primary, and trashes now-unreferenced
+    // audio only after the metadata change is durable. Callers must ensure this
+    // is NOT the idea's last clip — deleting the last clip empties the idea, so
+    // route that through deleteIdea instead.
+    deleteClipFromIdea: (ideaId: string, clipId: string) => {
+        const removedClipIdSet = new Set([clipId]);
+        let audioUrisToDelete: string[] = [];
+
+        useStore.setState((store) => {
+            let removedClips: ClipVersion[] = [];
+            const nextWorkspaces = store.workspaces.map((workspace) => {
+                if (!workspace.ideas.some((idea) => idea.id === ideaId)) return workspace;
+                return {
+                    ...workspace,
+                    ideas: workspace.ideas.map((idea) => {
+                        if (idea.id !== ideaId) return idea;
+                        removedClips = idea.clips.filter((clip) => clip.id === clipId);
+                        const kept = repairDanglingClipParents(
+                            idea.clips.filter((clip) => clip.id !== clipId),
+                            removedClipIdSet
+                        );
+                        if (kept.length > 0 && !kept.some((clip) => clip.isPrimary)) {
+                            kept[0] = { ...kept[0], isPrimary: true };
+                        }
+                        return { ...idea, clips: kept };
+                    }),
+                };
+            });
+
+            if (removedClips.length === 0) {
+                return store;
+            }
+
+            audioUrisToDelete = filterUnreferencedManagedAudioUris(
+                removedClips.flatMap((clip) =>
+                    Array.from(
+                        collectManagedIdeaAudioUris({
+                            id: "deleted-clip",
+                            title: "",
+                            notes: "",
+                            status: "clip",
+                            completionPct: 0,
+                            kind: "clip",
+                            collectionId: "",
+                            createdAt: 0,
+                            lastActivityAt: 0,
+                            clips: [clip],
+                        })
+                    )
+                ),
+                nextWorkspaces
+            );
+
+            return {
+                ...buildRuntimeCleanupPatch(store, {
+                    nextWorkspaces,
+                    removedClipIds: [clipId],
+                }),
+                workspaces: nextWorkspaces,
+                activityEvents: store.activityEvents.filter(
+                    (event) => !event.clipId || event.clipId !== clipId
+                ),
+                playlists: store.playlists.map((playlist) => ({
+                    ...playlist,
+                    items: playlist.items.filter((item) => !item.clipId || item.clipId !== clipId),
+                })),
+            };
+        });
+
+        void flushPersistedSnapshot()
+            .then(() => deleteManagedAudioUris(audioUrisToDelete))
+            .catch((error) => {
+                console.warn("[DataSafety] Media deletion skipped because metadata was not durable.", error);
+            });
+    },
+
     convertSelectedClipIdeaToProject: () => {
         const state = useStore.getState();
         const selectedIdea = state.workspaces.find(w => w.id === state.activeWorkspaceId)?.ideas.find(i => i.id === state.selectedIdeaId);
