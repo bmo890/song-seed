@@ -29,8 +29,16 @@ export type LatencySource = "calibration" | "os" | "default" | "unknown";
 export type CueReferenceModality = "audible" | "haptic" | "visual" | "none";
 
 export type RouteLatencyProfile = {
-  /** Audible path: grid → transducer, ms. BT ear-calibration wins over OS reports. */
+  /** Audible latency of the METRONOME CLICK pipeline (raw audio track → transducer).
+   *  This is the reference for cue leads and grid-referenced trims. */
   outputMs: number;
+  /** Audible latency of the MEDIA PLAYER pipeline (guide/master playback). ExoPlayer
+   *  buffering makes it substantially larger than the click path on many devices —
+   *  device logs showed ~500ms player vs ~200ms click on Samsung + AirPods. */
+  guidePlayerOutputMs: number;
+  /** Start the guide this many ms EARLY (relative to the render-domain grid target) so
+   *  its sound reaches the ear together with the click's. max(0, player − click). */
+  guideStartAdvanceMs: number;
   /** Mic path: sound → capture buffer, ms. 0 when the platform can't say. */
   inputMs: number;
   /** Estimated latency of the visual pulse pipeline (bridge → render → display). */
@@ -114,18 +122,31 @@ export function resolveRouteLatencyProfile({
 }: ResolveRouteLatencyProfileArgs): RouteLatencyProfile {
   const sanitizedOutput = sanitizeOsOutputLatencyMs(osLatency?.outputMs, clickLoopBarMs);
 
-  // Bluetooth: the ear calibration measured the whole audible path on this exact
-  // headphone — it beats OS reports (which on Android BT often exclude the sink buffer).
+  // Two audible pipelines, calibrated separately: the tap test's player pass measures the
+  // media-player path (offsetMs); its click pass measures the metronome path
+  // (clickOffsetMs). Legacy calibrations only carry offsetMs — for the click path prefer
+  // the OS report then, since applying a player-pipeline number to the click was exactly
+  // the failure device testing exposed (550ms cue leads against a ~200ms click).
   let outputMs = sanitizedOutput.outputMs;
   let outputSource = sanitizedOutput.source;
+  let guidePlayerOutputMs = sanitizedOutput.outputMs;
   if (route && isBluetoothLikeAudioDevice(route)) {
     const routeKey = buildBluetoothMonitoringRouteKey(route);
     const calibration = getBluetoothMonitoringCalibrationForRoute(calibrations, routeKey);
-    if (calibration && calibration.offsetMs > outputMs) {
-      outputMs = calibration.offsetMs;
-      outputSource = "calibration";
+    if (calibration) {
+      guidePlayerOutputMs = Math.max(guidePlayerOutputMs, calibration.offsetMs);
+      if (calibration.clickOffsetMs != null && calibration.clickOffsetMs > 0) {
+        outputMs = calibration.clickOffsetMs;
+        outputSource = "calibration";
+      } else if (outputMs === 0 && calibration.offsetMs > 0) {
+        // No click measurement and no OS report: the player number is a better guess
+        // than zero, but it is a guess — keep the source honest.
+        outputMs = calibration.offsetMs;
+        outputSource = "calibration";
+      }
     }
   }
+  guidePlayerOutputMs = Math.max(guidePlayerOutputMs, outputMs);
 
   const rawInputMs = typeof osLatency?.inputMs === "number" ? osLatency.inputMs : 0;
   const inputKnown = rawInputMs > 0 && rawInputMs <= MAX_PLAUSIBLE_INPUT_LATENCY_MS;
@@ -153,6 +174,8 @@ export function resolveRouteLatencyProfile({
 
   return {
     outputMs,
+    guidePlayerOutputMs,
+    guideStartAdvanceMs: Math.max(0, guidePlayerOutputMs - outputMs),
     inputMs,
     visualLatencyMs: VISUAL_PIPELINE_LATENCY_MS,
     hapticLatencyMs: HAPTIC_PIPELINE_LATENCY_MS,
@@ -195,7 +218,9 @@ export async function resolveCurrentRouteLatencyProfile(args: {
 
 export function formatLatencyProfileLog(profile: RouteLatencyProfile) {
   return (
-    `out=${Math.round(profile.outputMs)}ms(${profile.sources.output}) ` +
+    `click=${Math.round(profile.outputMs)}ms(${profile.sources.output}) ` +
+    `player=${Math.round(profile.guidePlayerOutputMs)}ms ` +
+    `guideAdvance=${Math.round(profile.guideStartAdvanceMs)}ms ` +
     `in=${Math.round(profile.inputMs)}ms(${profile.sources.input}) ` +
     `ref=${profile.referenceModality} → correction ${Math.round(profile.recordingCorrectionMs)}ms`
   );

@@ -1222,7 +1222,21 @@ export function useRecordingScreenModel() {
                   "starting guide at the live downbeat; its internal pre-roll cannot be locked"
               );
             }
-            void schedulePhaseLockedGuideStart(downbeatEpochMs - (masterFirstDownbeatMs ?? 0));
+            // The guide rides the MEDIA PLAYER pipeline, which reaches the ear later
+            // than the click pipeline (ExoPlayer buffering). Start it early by the
+            // measured difference so guide and click land together in the ear.
+            const profile = await resolveCurrentRouteLatencyProfile({
+              calibrations: bluetoothMonitoringCalibrations,
+              activeOutputs: { beep: true, visual: false, haptic: false },
+              clickLoopBarMs: anchor.msPerPulse * (anchor.pulsesPerBar ?? 4),
+            }).catch(() => null);
+            const guideAdvanceMs = profile?.guideStartAdvanceMs ?? 0;
+            if (guideAdvanceMs > 0) {
+              console.log(`[timing] guide start advanced ${Math.round(guideAdvanceMs)}ms (player vs click pipeline)`);
+            }
+            void schedulePhaseLockedGuideStart(
+              downbeatEpochMs - (masterFirstDownbeatMs ?? 0) - guideAdvanceMs
+            );
           })();
         }
       } catch (error) {

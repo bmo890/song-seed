@@ -17,11 +17,12 @@ const HAPTIC_ONLY = { beep: false, visual: false, haptic: true };
 const VISUAL_ONLY = { beep: false, visual: true, haptic: false };
 const NO_CUES = { beep: false, visual: false, haptic: false };
 
-function btCalibration(offsetMs: number): BluetoothMonitoringCalibration {
+function btCalibration(offsetMs: number, clickOffsetMs?: number): BluetoothMonitoringCalibration {
   return {
     routeKey: "bluetooth:wh-1000xm5",
     routeLabel: "WH-1000XM5",
     offsetMs,
+    clickOffsetMs,
     updatedAt: 1,
   };
 }
@@ -65,26 +66,45 @@ describe("resolveRouteLatencyProfile", () => {
     expect(profile.sources).toEqual({ output: "os", input: "os" });
   });
 
-  it("BT ear-calibration wins over a smaller OS report", () => {
+  it("splits pipelines: click pass drives outputMs, player pass drives the guide", () => {
+    // Device-log case: click path ~200ms (raw track), player path ~500ms (ExoPlayer).
     const profile = resolveRouteLatencyProfile({
       route: BT_BUDS,
-      osLatency: { outputMs: 80 },
+      osLatency: { outputMs: 180 },
+      calibrations: [btCalibration(500, 200)],
+      activeOutputs: ALL_CUES,
+    });
+    expect(profile.outputMs).toBe(200);
+    expect(profile.sources.output).toBe("calibration");
+    expect(profile.guidePlayerOutputMs).toBe(500);
+    expect(profile.guideStartAdvanceMs).toBe(300);
+    // Cues and trims reference the CLICK path, never the player path.
+    expect(profile.recordingCorrectionMs).toBe(200);
+  });
+
+  it("legacy calibration (player-only): OS report keeps the click path honest", () => {
+    const profile = resolveRouteLatencyProfile({
+      route: BT_BUDS,
+      osLatency: { outputMs: 180 },
+      calibrations: [btCalibration(500)],
+      activeOutputs: ALL_CUES,
+    });
+    expect(profile.outputMs).toBe(180);
+    expect(profile.sources.output).toBe("os");
+    expect(profile.guidePlayerOutputMs).toBe(500);
+    expect(profile.guideStartAdvanceMs).toBe(320);
+  });
+
+  it("legacy calibration with no OS report: player number beats zero for the click", () => {
+    const profile = resolveRouteLatencyProfile({
+      route: BT_BUDS,
+      osLatency: null,
       calibrations: [btCalibration(220)],
       activeOutputs: ALL_CUES,
     });
     expect(profile.outputMs).toBe(220);
     expect(profile.sources.output).toBe("calibration");
-  });
-
-  it("keeps the larger OS report over a smaller calibration", () => {
-    const profile = resolveRouteLatencyProfile({
-      route: BT_BUDS,
-      osLatency: { outputMs: 240 },
-      calibrations: [btCalibration(180)],
-      activeOutputs: ALL_CUES,
-    });
-    expect(profile.outputMs).toBe(240);
-    expect(profile.sources.output).toBe("os");
+    expect(profile.guideStartAdvanceMs).toBe(0);
   });
 
   it("ignores calibrations on non-BT routes", () => {

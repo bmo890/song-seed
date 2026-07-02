@@ -116,7 +116,12 @@ export type DataSlice = {
     setWorkspaceListOrder: (value: WorkspaceListOrder) => void;
     markCollectionOpened: (collectionId: string) => void;
     setPreferredRecordingInputId: (id: string | null) => void;
-    setBluetoothMonitoringCalibration: (routeKey: string, routeLabel: string, offsetMs: number) => void;
+    setBluetoothMonitoringCalibration: (
+        routeKey: string,
+        routeLabel: string,
+        offsetMs: number,
+        clickOffsetMs?: number
+    ) => void;
     removeBluetoothMonitoringCalibration: (routeKey: string) => void;
     setClipOverdubPreviewRenderActive: (ideaId: string, clipId: string, active: boolean) => void;
     setMetronomeBpm: (value: number) => void;
@@ -1196,12 +1201,18 @@ export const createDataSlice: StateCreator<
             };
         }),
     setPreferredRecordingInputId: (id) => set({ preferredRecordingInputId: id }),
-    setBluetoothMonitoringCalibration: (routeKey, routeLabel, offsetMs) =>
+    setBluetoothMonitoringCalibration: (routeKey, routeLabel, offsetMs, clickOffsetMs) =>
         set((state) => {
+            const previous = state.bluetoothMonitoringCalibrations.find(
+                (calibration) => calibration.routeKey === routeKey
+            );
             const nextCalibration = normalizeBluetoothMonitoringCalibration({
                 routeKey,
                 routeLabel,
                 offsetMs,
+                // Preserve an existing click-path measurement when only the player-path
+                // number is being updated.
+                clickOffsetMs: clickOffsetMs ?? previous?.clickOffsetMs,
                 updatedAt: Date.now(),
             });
             return {

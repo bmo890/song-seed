@@ -124,7 +124,13 @@ export type CutUpSpark = {
 export type BluetoothMonitoringCalibration = {
   routeKey: string;
   routeLabel: string;
+  /** Ear-measured latency of the MEDIA PLAYER pipeline (guide/master playback path).
+   *  Historically the only measured number; ExoPlayer buffering makes it much larger
+   *  than the click path on many devices. */
   offsetMs: number;
+  /** Ear-measured latency of the METRONOME CLICK pipeline (raw audio track path).
+   *  Absent on calibrations saved before the two-pass flow — resolvers fall back. */
+  clickOffsetMs?: number;
   updatedAt: number;
 };
 

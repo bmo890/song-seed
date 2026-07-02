@@ -95,6 +95,10 @@ export function normalizeBluetoothMonitoringCalibration(
     routeKey: calibration.routeKey,
     routeLabel: calibration.routeLabel,
     offsetMs: normalizeBluetoothMonitoringSavedOffsetMs(calibration.offsetMs),
+    clickOffsetMs:
+      typeof calibration.clickOffsetMs === "number" && Number.isFinite(calibration.clickOffsetMs)
+        ? normalizeBluetoothMonitoringSavedOffsetMs(calibration.clickOffsetMs)
+        : undefined,
     updatedAt: Number.isFinite(calibration.updatedAt) ? calibration.updatedAt : Date.now(),
   };
 }
