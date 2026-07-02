@@ -118,7 +118,21 @@ class SongseedPitchShiftRenderer(
   private fun buildMixedComposition(inputs: List<MixedRenderInput>): Composition {
     val sequences =
       inputs.map { input ->
-        val mediaItem = MediaItem.fromUri(parseInputUri(input.inputUri))
+        // Negative offset pulls the input EARLIER: clip its head by |offset| and start it
+        // at t=0. Positive offset delays it with a leading gap. This is what corrects a
+        // late-recorded overdub.
+        val mediaItem = if (input.offsetMs < 0) {
+          MediaItem.Builder()
+            .setUri(parseInputUri(input.inputUri))
+            .setClippingConfiguration(
+              MediaItem.ClippingConfiguration.Builder()
+                .setStartPositionMs(-input.offsetMs)
+                .build()
+            )
+            .build()
+        } else {
+          MediaItem.fromUri(parseInputUri(input.inputUri))
+        }
         val editedItem =
           EditedMediaItem.Builder(mediaItem)
             .setRemoveVideo(true)
@@ -247,7 +261,8 @@ class SongseedPitchShiftRenderer(
     val request = value as? Map<*, *> ?: return null
     val inputUri = request["inputUri"] as? String ?: return null
     val gainDb = max(OVERDUB_GAIN_MIN_DB, min(OVERDUB_GAIN_MAX_DB, (request["gainDb"] as? Number)?.toDouble() ?: 0.0))
-    val offsetMs = max(0L, (request["offsetMs"] as? Number)?.toLong() ?: 0L)
+    // Negative offsets are legal: they pull the input earlier by clipping its head.
+    val offsetMs = ((request["offsetMs"] as? Number)?.toLong() ?: 0L).coerceIn(-600_000L, 600_000L)
     val tonePreset = (request["tonePreset"] as? String)?.trim()?.ifEmpty { "neutral" } ?: "neutral"
 
     return MixedRenderInput(

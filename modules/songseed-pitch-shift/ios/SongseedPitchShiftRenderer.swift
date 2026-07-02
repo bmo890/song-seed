@@ -149,10 +149,26 @@ final class SongseedPitchShiftRenderer {
       engine.connect(eqNode, to: engine.mainMixerNode, format: audioFile.processingFormat)
 
       let offsetFrames = AVAudioFramePosition((input.offsetMs / 1000.0) * renderFormat.sampleRate)
-      let scheduledTime = AVAudioTime(sampleTime: offsetFrames, atRate: renderFormat.sampleRate)
-      playerNode.scheduleFile(audioFile, at: scheduledTime, completionHandler: nil)
-
-      scheduledLengthFrames = max(scheduledLengthFrames, offsetFrames + audioFile.length)
+      if offsetFrames >= 0 {
+        let scheduledTime = AVAudioTime(sampleTime: offsetFrames, atRate: renderFormat.sampleRate)
+        playerNode.scheduleFile(audioFile, at: scheduledTime, completionHandler: nil)
+        scheduledLengthFrames = max(scheduledLengthFrames, offsetFrames + audioFile.length)
+      } else {
+        // Negative offset pulls the input EARLIER: drop the first |offset| of the file and
+        // play the remainder from t=0. This is what corrects a late-recorded overdub.
+        let skipFrames = min(audioFile.length, -offsetFrames)
+        let remainingFrames = audioFile.length - skipFrames
+        if remainingFrames > 0 {
+          playerNode.scheduleSegment(
+            audioFile,
+            startingFrame: skipFrames,
+            frameCount: AVAudioFrameCount(remainingFrames),
+            at: AVAudioTime(sampleTime: 0, atRate: renderFormat.sampleRate),
+            completionHandler: nil
+          )
+          scheduledLengthFrames = max(scheduledLengthFrames, remainingFrames)
+        }
+      }
       playerNodes.append(playerNode)
       eqNodes.append(eqNode)
     }
@@ -212,7 +228,9 @@ final class SongseedPitchShiftRenderer {
     }
 
     let gainDb = max(-18.0, min(6.0, (value["gainDb"] as? Double) ?? Double((value["gainDb"] as? Int) ?? 0)))
-    let offsetMs = max(0.0, (value["offsetMs"] as? Double) ?? Double((value["offsetMs"] as? Int) ?? 0))
+    // Negative offsets are legal: they pull the input earlier by trimming its head.
+    let rawOffsetMs = (value["offsetMs"] as? Double) ?? Double((value["offsetMs"] as? Int) ?? 0)
+    let offsetMs = max(-600_000.0, min(600_000.0, rawOffsetMs))
     let tonePreset = (value["tonePreset"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "neutral"
     let inputURL = URL(string: inputUri) ?? URL(fileURLWithPath: inputUri)
 

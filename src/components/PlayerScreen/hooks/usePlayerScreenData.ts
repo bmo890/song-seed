@@ -140,6 +140,7 @@ export function usePlayerScreenData({ playerDuration }: UsePlayerScreenDataArgs)
         durationMs: stem.durationMs ?? 0,
         waveformPeaks: stem.waveformPeaks,
         gainDb: stem.gainDb,
+        offsetMs: stem.offsetMs,
         isMuted: stem.isMuted,
         tonePreset: stem.tonePreset,
       })),
