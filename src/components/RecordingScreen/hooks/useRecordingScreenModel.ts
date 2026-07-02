@@ -881,6 +881,32 @@ export function useRecordingScreenModel() {
         started = recording.isRecording;
         const captureStartEpochMs = recording.getCaptureStartEpochMs();
         const anchor = await SongseedMetronomeModule?.getGridAnchor?.().catch(() => null);
+
+        // CRITICAL time-domain correction: the grid anchor and player positions live in
+        // the RENDER domain, but what the mic recorded is the AUDIBLE event — later by
+        // the route's output latency (150–250ms on Android speakers — half a beat at
+        // ~118 BPM) plus the mic path's input latency. Trim to the audible downbeat, not
+        // the render-domain one, or every take's clicks sit that far into the file. For
+        // calibrated BT routes the monitoring compensation already measures the output
+        // side by ear — take the larger of the two, never both.
+        const routeLatency = await SongseedMetronomeModule?.getCurrentAudioRouteLatencyMs?.().catch(
+          () => null
+        );
+        const outputLatencyMs =
+          typeof routeLatency?.outputMs === "number" && routeLatency.outputMs > 0
+            ? routeLatency.outputMs
+            : 0;
+        const inputLatencyMs =
+          typeof routeLatency?.inputMs === "number" && routeLatency.inputMs > 0
+            ? routeLatency.inputMs
+            : 0;
+        const audibleCorrectionMs = Math.max(outputLatencyMs, delayMs) + inputLatencyMs;
+        console.log(
+          `[timing] route latency: out=${Math.round(outputLatencyMs)}ms in=${Math.round(
+            inputLatencyMs
+          )}ms → audible correction ${Math.round(audibleCorrectionMs)}ms` +
+            (outputLatencyMs === 0 ? " (OUTPUT LATENCY UNKNOWN — trim stays render-domain)" : "")
+        );
         const grid = takeGridRef.current;
         const countInPulses =
           (grid?.countInBars ?? 0) * (anchor?.pulsesPerBar ?? metronome.meterPreset.pulsesPerBar);
@@ -913,10 +939,17 @@ export function useRecordingScreenModel() {
 
           if (captureStartEpochMs != null && guideStartEpochMs != null) {
             headMs =
-              guideStartEpochMs - captureStartEpochMs + delayMs - HEAD_TRIM_SAFETY_EARLY_MS;
+              guideStartEpochMs -
+              captureStartEpochMs +
+              audibleCorrectionMs -
+              HEAD_TRIM_SAFETY_EARLY_MS;
           }
         } else if (captureStartEpochMs != null && downbeatEpochMs != null) {
-          headMs = downbeatEpochMs - captureStartEpochMs + delayMs - HEAD_TRIM_SAFETY_EARLY_MS;
+          headMs =
+            downbeatEpochMs -
+            captureStartEpochMs +
+            audibleCorrectionMs -
+            HEAD_TRIM_SAFETY_EARLY_MS;
         }
         // headMs <= 0 or unmeasurable → commit 0: the take keeps its pre-roll instead of
         // guessing a cut (never trim on a guess).
