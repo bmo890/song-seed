@@ -44,6 +44,12 @@ export const OVERDUB_STEM_NUDGE_STEP_LARGE_MS = 25;
  *  the whole stem. */
 export const MIN_CLIP_OVERDUB_STEM_OFFSET_MS = -2000;
 
+/** Extra positive headroom past the "fits inside the master" bound. A typical overdub is
+ *  the same length as its guide, which used to make the natural max 0 — no positive
+ *  nudge at all. Pushing later may extend the stem past the master's end; the mix render
+ *  already sizes its output to the longest input, so the tail simply plays out. */
+export const MAX_EXTRA_CLIP_OVERDUB_STEM_OFFSET_MS = 2000;
+
 export function getMinClipOverdubStemOffsetMs(stemDurationMs: number | undefined) {
   if (!Number.isFinite(stemDurationMs)) {
     return MIN_CLIP_OVERDUB_STEM_OFFSET_MS;
@@ -56,10 +62,13 @@ export function getMaxClipOverdubStemOffsetMs(
   stemDurationMs: number | undefined
 ) {
   if (!Number.isFinite(rootDurationMs) || !Number.isFinite(stemDurationMs)) {
-    return 0;
+    return MAX_EXTRA_CLIP_OVERDUB_STEM_OFFSET_MS;
   }
 
-  return Math.max(0, Math.round(rootDurationMs!) - Math.round(stemDurationMs!));
+  return (
+    Math.max(0, Math.round(rootDurationMs!) - Math.round(stemDurationMs!)) +
+    MAX_EXTRA_CLIP_OVERDUB_STEM_OFFSET_MS
+  );
 }
 
 export function clampClipOverdubStemOffsetMs(
