@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Animated as RNAnimated,
+  Keyboard,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -34,6 +37,9 @@ import {
 const LOOKUP_DEBOUNCE_MS = 350;
 /** Fixed body height so the sheet never jumps as content changes. */
 const SHEET_BODY_HEIGHT = 440;
+/** Compact body while the keyboard is up — the sheet stays low instead of
+ * shoving the whole stage above the keyboard; results peek under the modes. */
+const SHEET_BODY_HEIGHT_COMPACT = 250;
 /** Chips shown per syllable group / flat list before "+ n more". */
 const GROUP_CHIP_CAP = 10;
 const FLAT_CHIP_CAP = 24;
@@ -85,7 +91,7 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
   const [lookup, setLookup] = useState<LookupState>({ status: "idle" });
   // Theme is deliberately sticky across opens — a writer sets it once per song.
   const [theme, setTheme] = useState("");
-  const [themeExpanded, setThemeExpanded] = useState(false);
+  const [themeEditing, setThemeEditing] = useState(false);
   const [drillStack, setDrillStack] = useState<string[]>([]);
   const [preview, setPreview] = useState<PreviewState | null>(null);
   const [expandedChipKeys, setExpandedChipKeys] = useState<Set<string>>(new Set());
@@ -103,11 +109,26 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
     setMoreTab(false);
     setDrillStack([]);
     setPreview(null);
-    setThemeExpanded(false);
+    setThemeEditing(false);
     setExpandedChipKeys(new Set());
   }, [visible, initialWord]);
 
   const themeActive = sanitizeThemeWords(theme).length > 0;
+
+  // Shrink the stage while the keyboard is up so the sheet isn't pushed off-screen.
+  const bodyHeight = useRef(new RNAnimated.Value(SHEET_BODY_HEIGHT)).current;
+  useEffect(() => {
+    const showEvent = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const hideEvent = Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+    const animateTo = (toValue: number) =>
+      RNAnimated.timing(bodyHeight, { toValue, duration: durations.gentle, useNativeDriver: false }).start();
+    const showSub = Keyboard.addListener(showEvent, () => animateTo(SHEET_BODY_HEIGHT_COMPACT));
+    const hideSub = Keyboard.addListener(hideEvent, () => animateTo(SHEET_BODY_HEIGHT));
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, [bodyHeight]);
 
   useEffect(() => {
     if (!visible) return;
@@ -204,9 +225,14 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
     setExtendedMode(next);
   };
 
-  const toggleThemeExpanded = () => {
+  const beginThemeEdit = () => {
     haptic.tap();
-    setThemeExpanded((prev) => !prev);
+    setThemeEditing(true);
+  };
+
+  const endThemeEdit = () => {
+    haptic.tap();
+    setThemeEditing(false);
   };
 
   const expandChipKey = (key: string) => {
@@ -340,7 +366,7 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
 
   return (
     <BottomSheet visible={visible} onClose={onClose} keyboardAvoiding>
-      <View style={finderStyles.body}>
+      <RNAnimated.View style={[finderStyles.body, { height: bodyHeight }]}>
         {preview ? (
           renderPreview(preview)
         ) : (
@@ -370,45 +396,60 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
               ) : null}
             </View>
 
-            {/* Theme: a labeled disclosure row — visible, never hidden in an icon. */}
-            {themeExpanded ? (
-              <View style={[finderStyles.themeRow, finderStyles.themeRowExpanded]}>
-                <Ionicons name="funnel-outline" size={13} color={themeActive ? colors.primary : colors.textMuted} />
-                <TextInput
-                  style={finderStyles.themeInput}
-                  value={theme}
-                  onChangeText={setTheme}
-                  placeholder="Song's theme — e.g. love, leaving"
-                  placeholderTextColor={colors.textMuted}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  autoFocus
-                />
-                {theme.length > 0 ? (
-                  <Pressable onPress={() => setTheme("")} hitSlop={8} accessibilityLabel="Clear theme">
-                    <Ionicons name="close-circle" size={14} color={colors.textMuted} />
+            {/* Theme: a quiet inline line — a small pill when set, a ghost
+                "Add theme" affordance when not, an inline input while editing. */}
+            <View style={finderStyles.themeLine}>
+              {themeEditing ? (
+                <>
+                  <Ionicons name="funnel-outline" size={12} color={colors.primary} />
+                  <TextInput
+                    style={finderStyles.themeInput}
+                    value={theme}
+                    onChangeText={setTheme}
+                    placeholder="Song's theme — e.g. love, leaving"
+                    placeholderTextColor={colors.textMuted}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    autoFocus
+                    returnKeyType="done"
+                    onSubmitEditing={endThemeEdit}
+                  />
+                  <Pressable onPress={endThemeEdit} hitSlop={8} accessibilityLabel="Done with theme">
+                    <Ionicons name="checkmark" size={16} color={colors.primary} />
                   </Pressable>
-                ) : null}
-                <Pressable onPress={toggleThemeExpanded} hitSlop={8} accessibilityLabel="Done with theme">
-                  <Ionicons name="chevron-up" size={14} color={colors.textSecondary} />
+                </>
+              ) : themeActive ? (
+                <Pressable
+                  style={({ pressed }) => [finderStyles.themePill, pressed ? appStyles.pressDown : null]}
+                  onPress={beginThemeEdit}
+                  accessibilityLabel={`Theme: ${themeSummary}. Tap to edit.`}
+                >
+                  <Ionicons name="funnel" size={10} color={colors.onPrimary} />
+                  <Text style={finderStyles.themePillText} numberOfLines={1}>
+                    {themeSummary}
+                  </Text>
+                  <Pressable
+                    onPress={() => {
+                      haptic.light();
+                      setTheme("");
+                    }}
+                    hitSlop={8}
+                    accessibilityLabel="Clear theme"
+                  >
+                    <Ionicons name="close" size={12} color={colors.onPrimary} />
+                  </Pressable>
                 </Pressable>
-              </View>
-            ) : (
-              <Pressable
-                style={({ pressed }) => [finderStyles.themeRow, pressed ? appStyles.pressDown : null]}
-                onPress={toggleThemeExpanded}
-                accessibilityLabel={`Theme: ${themeSummary}. Biases results toward your song's subject.`}
-              >
-                <Ionicons name="funnel-outline" size={13} color={themeActive ? colors.primary : colors.textMuted} />
-                <Text style={[finderStyles.themeLabel, themeActive ? finderStyles.themeLabelActive : null]}>
-                  Theme
-                </Text>
-                <Text style={finderStyles.themeValue} numberOfLines={1}>
-                  {themeSummary}
-                </Text>
-                <Ionicons name="chevron-down" size={14} color={colors.textMuted} />
-              </Pressable>
-            )}
+              ) : (
+                <Pressable
+                  style={({ pressed }) => [finderStyles.themeAdd, pressed ? appStyles.pressDown : null]}
+                  onPress={beginThemeEdit}
+                  accessibilityLabel="Add a theme to bias results toward your song's subject"
+                >
+                  <Ionicons name="funnel-outline" size={11} color={colors.textMuted} />
+                  <Text style={finderStyles.themeAddText}>Add theme</Text>
+                </Pressable>
+              )}
+            </View>
 
             <SegmentedControl<SegmentKey>
               options={[
@@ -486,14 +527,14 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
             </View>
           </>
         )}
-      </View>
+      </RNAnimated.View>
     </BottomSheet>
   );
 }
 
 const finderStyles = StyleSheet.create({
   body: {
-    height: SHEET_BODY_HEIGHT,
+    overflow: "hidden",
   },
   searchRow: {
     flexDirection: "row",
@@ -511,41 +552,47 @@ const finderStyles = StyleSheet.create({
     color: colors.textPrimary,
     paddingVertical: 10,
   },
-  themeRow: {
+  themeLine: {
+    height: 30,
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.sm,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 7,
     marginBottom: spacing.sm,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    borderColor: colors.borderSubtle,
   },
-  themeRowExpanded: {
-    paddingVertical: 0,
+  themeAdd: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingVertical: 4,
+    paddingRight: spacing.sm,
   },
-  themeLabel: {
+  themeAddText: {
     fontFamily: "PlusJakartaSans_600SemiBold",
-    fontSize: 12,
-    color: colors.textSecondary,
-  },
-  themeLabelActive: {
-    color: colors.primary,
-  },
-  themeValue: {
-    flex: 1,
-    fontFamily: "PlusJakartaSans_400Regular",
-    fontSize: 12,
+    fontSize: 11,
     color: colors.textMuted,
-    textAlign: "right",
+  },
+  themePill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: colors.primary,
+    borderRadius: radii.round,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 5,
+    maxWidth: "80%",
+  },
+  themePillText: {
+    flexShrink: 1,
+    fontFamily: "PlusJakartaSans_600SemiBold",
+    fontSize: 11,
+    color: colors.onPrimary,
   },
   themeInput: {
     flex: 1,
     fontFamily: "PlusJakartaSans_400Regular",
     fontSize: 13,
     color: colors.textPrimary,
-    paddingVertical: 7,
+    paddingVertical: 4,
   },
   toolRow: {
     flexDirection: "row",
