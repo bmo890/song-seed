@@ -18,6 +18,7 @@ import type { Note } from "../../../types";
 import { AppAlert } from "../../common/AppAlert";
 import { WordFinderSheet } from "../../common/WordFinderSheet";
 import { applyPickedWord, extractWordRange } from "../../../wordTools";
+import { useEditHistory } from "../../../hooks/useEditHistory";
 
 type Props = {
   note: Note;
@@ -42,77 +43,24 @@ export function NoteEditor({ note, onBack, onUpdate, onTogglePin, onDelete }: Pr
   const bodyRef = useRef<TextInput>(null);
 
   // ── Undo / redo ───────────────────────────────────────────────────────────
-  // History is stored in a ref (no re-render on push) but canUndo/canRedo are
-  // state so the buttons update correctly.
-  const historyRef = useRef<Snapshot[]>([{ title: note.title, body: note.body }]);
-  const historyIndexRef = useRef(0);
-  const [canUndo, setCanUndo] = useState(false);
-  const [canRedo, setCanRedo] = useState(false);
-
-  // Debounce timer — we batch rapid keystrokes into a single history entry.
-  const historyDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // Always-current note values so the debounce callback isn't stale.
-  const noteRef = useRef<Snapshot>({ title: note.title, body: note.body });
-  useEffect(() => {
-    noteRef.current = { title: note.title, body: note.body };
-  }, [note.title, note.body]);
+  // Shared history engine (src/hooks/useEditHistory) — also used by the song
+  // lyrics editor so undo behaves identically in both.
+  const {
+    canUndo,
+    canRedo,
+    schedulePush: scheduleHistoryPush,
+    undo: handleUndo,
+    redo: handleRedo,
+    reset: resetHistory,
+  } = useEditHistory<Snapshot>(
+    { title: note.title, body: note.body },
+    (snap) => onUpdate({ title: snap.title, body: snap.body })
+  );
 
   // Reset history whenever the user opens a different note.
   useEffect(() => {
-    historyRef.current = [{ title: note.title, body: note.body }];
-    historyIndexRef.current = 0;
-    setCanUndo(false);
-    setCanRedo(false);
-  }, [note.id]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const syncUndoRedoState = useCallback(() => {
-    setCanUndo(historyIndexRef.current > 0);
-    setCanRedo(historyIndexRef.current < historyRef.current.length - 1);
-  }, []);
-
-  // Called after every user edit (debounced).
-  const scheduleHistoryPush = useCallback(() => {
-    if (historyDebounceRef.current) clearTimeout(historyDebounceRef.current);
-    historyDebounceRef.current = setTimeout(() => {
-      const snapshot = { ...noteRef.current };
-      const history = historyRef.current;
-      const idx = historyIndexRef.current;
-      // Discard any redo entries.
-      history.splice(idx + 1);
-      history.push(snapshot);
-      // Cap at 200 entries to avoid unbounded memory use.
-      if (history.length > 200) history.shift();
-      historyIndexRef.current = history.length - 1;
-      syncUndoRedoState();
-    }, 400);
-  }, [syncUndoRedoState]);
-
-  const handleUndo = useCallback(() => {
-    if (historyDebounceRef.current) {
-      // Flush any pending debounced snapshot first so we don't lose it.
-      clearTimeout(historyDebounceRef.current);
-      historyDebounceRef.current = null;
-      const snapshot = { ...noteRef.current };
-      const history = historyRef.current;
-      history.splice(historyIndexRef.current + 1);
-      history.push(snapshot);
-      if (history.length > 200) history.shift();
-      historyIndexRef.current = history.length - 1;
-    }
-    if (historyIndexRef.current <= 0) return;
-    historyIndexRef.current--;
-    const snap = historyRef.current[historyIndexRef.current];
-    onUpdate({ title: snap.title, body: snap.body });
-    syncUndoRedoState();
-  }, [onUpdate, syncUndoRedoState]);
-
-  const handleRedo = useCallback(() => {
-    if (historyIndexRef.current >= historyRef.current.length - 1) return;
-    historyIndexRef.current++;
-    const snap = historyRef.current[historyIndexRef.current];
-    onUpdate({ title: snap.title, body: snap.body });
-    syncUndoRedoState();
-  }, [onUpdate, syncUndoRedoState]);
+    resetHistory({ title: note.title, body: note.body });
+  }, [note.id, resetHistory]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Delete confirmation ───────────────────────────────────────────────────
   const handleDeletePress = useCallback(() => {
@@ -145,7 +93,6 @@ export function NoteEditor({ note, onBack, onUpdate, onTogglePin, onDelete }: Pr
   useEffect(() => {
     return () => {
       if (focusTimerRef.current) clearTimeout(focusTimerRef.current);
-      if (historyDebounceRef.current) clearTimeout(historyDebounceRef.current);
     };
   }, []);
 
