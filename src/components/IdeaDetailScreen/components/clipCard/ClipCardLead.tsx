@@ -1,7 +1,7 @@
 import { Pressable, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import * as Haptics from "expo-haptics";
 import { styles } from "../../styles";
+import { haptic } from "../../../../design/haptics";
 
 type ClipCardLeadProps = {
   durationLabel: string;
@@ -33,7 +33,7 @@ export function ClipCardLead({
         <Pressable
           onPress={(event) => {
             event.stopPropagation();
-            void Haptics.selectionAsync();
+            haptic.tap();
             if (!canPlay) return;
             onPressPlay();
           }}

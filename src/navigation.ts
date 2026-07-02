@@ -9,9 +9,13 @@ export type CollectionDetailRouteParams = {
   focusToken?: number;
   showBack?: boolean;
   source?: "activity" | "detail";
+  /** Origin this collection was opened from (e.g. "Activity", "Revisit"). When
+   * set, the collection is a contextual jump: back returns to that origin and
+   * the back button is labelled with it. */
+  backLabel?: string;
 };
 
-function getRootNavigation(navigation: any) {
+export function getRootNavigation(navigation: any) {
   let currentNavigation = navigation;
   while (currentNavigation?.getParent?.()) {
     currentNavigation = currentNavigation.getParent();

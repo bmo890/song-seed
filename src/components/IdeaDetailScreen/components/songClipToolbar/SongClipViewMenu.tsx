@@ -9,6 +9,8 @@ import {
 import type { SongTimelineSortDirection } from "../../../../clipGraph";
 import type { CustomTagDefinition } from "../../../../types";
 import { songClipToolbarStyles } from "./styles";
+import Animated, { FadeIn } from "react-native-reanimated";
+import { durations } from "../../../../design/motion";
 
 type SongClipViewMenuProps = {
   clipViewMode: "timeline" | "evolution";
@@ -34,7 +36,7 @@ export function SongClipViewMenu({
   onClose,
 }: SongClipViewMenuProps) {
   return (
-    <View style={[styles.ideasSortMenu, styles.ideasPopoverMenu, songClipToolbarStyles.menuOffset]}>
+    <Animated.View entering={FadeIn.duration(durations.fast)} style={[styles.ideasSortMenu, styles.ideasPopoverMenu, songClipToolbarStyles.menuOffset]}>
       <View style={styles.ideasDropdownSectionToggle}>
         <Text style={styles.ideasDropdownSectionToggleText}>Layout</Text>
       </View>
@@ -172,6 +174,6 @@ export function SongClipViewMenu({
           );
         })}
       </ScrollView>
-    </View>
+    </Animated.View>
   );
 }

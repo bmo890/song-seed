@@ -11,7 +11,9 @@ import {
   getActivityEventsWithHistory,
   startOfActivityDay,
 } from "../../../activity";
-import { getCollectionById } from "../../../utils";
+import { getCollectionById, getCollectionScopeIds, getCollectionAncestors } from "../../../utils";
+import { buildCollectionPathLabel } from "../../../libraryNavigation";
+import { useActivityStore } from "../../../state/useActivityStore";
 import {
   buildActivityItemResults,
   formatSelectedRangeLabel,
@@ -51,8 +53,13 @@ export function useActivityScreenModel() {
 
   const workspaces = useStore((state) => state.workspaces);
   const primaryWorkspaceId = useStore((state) => state.primaryWorkspaceId);
-  const workspaceLastOpenedAt = useStore((state) => state.workspaceLastOpenedAt);
+  const primaryCollectionIdByWorkspace = useStore((state) => state.primaryCollectionIdByWorkspace);
   const activityEvents = useStore((state) => state.activityEvents);
+  const excludedWorkspaceIds = useActivityStore((state) => state.excludedWorkspaceIds);
+  const excludedCollectionIds = useActivityStore((state) => state.excludedCollectionIds);
+  const setWorkspaceIncluded = useActivityStore((state) => state.setWorkspaceIncluded);
+  const setCollectionIncluded = useActivityStore((state) => state.setCollectionIncluded);
+  const resetSourceFilters = useActivityStore((state) => state.resetSourceFilters);
   const activeWorkspaceId = useStore((state) => state.activeWorkspaceId);
   const setActiveWorkspaceId = useStore((state) => state.setActiveWorkspaceId);
   const setSelectedIdeaId = useStore((state) => state.setSelectedIdeaId);
@@ -86,10 +93,7 @@ export function useActivityScreenModel() {
     if (!scopedCollectionId || !collectionScopeWorkspace) return null;
     return getCollectionById(collectionScopeWorkspace, scopedCollectionId);
   }, [collectionScopeWorkspace, scopedCollectionId]);
-  const [workspaceFilterId, setWorkspaceFilterId] = useState<string | null>(
-    scopedCollectionId ? collectionScopeWorkspace?.id ?? null : null
-  );
-  const [collectionFilterId, setCollectionFilterId] = useState<string | null>(null);
+  const [expandedWorkspaceId, setExpandedWorkspaceId] = useState<string | null>(null);
   const [stickyDayLabel, setStickyDayLabel] = useState<string | null>(null);
   const [stickyDayTop, setStickyDayTop] = useState(0);
   const [resultsSectionTop, setResultsSectionTop] = useState(0);
@@ -122,34 +126,89 @@ export function useActivityScreenModel() {
     setIsRouteRangeActive(true);
   }, [routeHasPrefilledRange, routeRangeEndTs, routeRangeStartTs, routeYear]);
 
-  const effectiveWorkspaceId = scopedCollectionId ? collectionScopeWorkspace?.id ?? null : workspaceFilterId;
-  const effectiveCollectionFilterId = scopedCollectionId ?? collectionFilterId;
-  const selectedWorkspace = useMemo(
-    () =>
-      effectiveWorkspaceId
-        ? workspaces.find((workspace) => workspace.id === effectiveWorkspaceId) ?? null
-        : null,
-    [effectiveWorkspaceId, workspaces]
-  );
-  const topLevelCollections = useMemo(
-    () => selectedWorkspace?.collections.filter((collection) => !collection.parentCollectionId) ?? [],
-    [selectedWorkspace]
-  );
-
-  useEffect(() => {
-    setCollectionFilterId(null);
-  }, [workspaceFilterId]);
+  // Collection-level page keeps single-scope; the global page uses the
+  // multi-exclude source filter from the Customize sheet.
+  const isCollectionScoped = !!scopedCollectionId;
+  const effectiveWorkspaceId = isCollectionScoped ? collectionScopeWorkspace?.id ?? null : null;
+  const effectiveCollectionFilterId = scopedCollectionId ?? null;
 
   const filteredEvents = useMemo(
     () =>
-      filterActivityEvents(allActivityEvents, workspaces, {
-        workspaceId: effectiveWorkspaceId,
-        collectionId: effectiveCollectionFilterId,
-        metric: metricFilter,
-        year,
-      }),
-    [allActivityEvents, effectiveCollectionFilterId, effectiveWorkspaceId, workspaces, year]
+      isCollectionScoped
+        ? filterActivityEvents(allActivityEvents, workspaces, {
+            workspaceId: effectiveWorkspaceId,
+            collectionId: effectiveCollectionFilterId,
+            metric: metricFilter,
+            year,
+          })
+        : filterActivityEvents(allActivityEvents, workspaces, {
+            excludedWorkspaceIds: new Set(excludedWorkspaceIds),
+            excludedCollectionIds: new Set(excludedCollectionIds),
+            metric: metricFilter,
+            year,
+          }),
+    [
+      allActivityEvents,
+      workspaces,
+      isCollectionScoped,
+      effectiveCollectionFilterId,
+      effectiveWorkspaceId,
+      excludedWorkspaceIds,
+      excludedCollectionIds,
+      year,
+    ]
   );
+
+  const workspaceFilterGroups = useMemo(() => {
+    const sortedWorkspaces = workspaces
+      .filter((workspace) => !workspace.isArchived)
+      .sort((a, b) => a.title.localeCompare(b.title));
+
+    return sortedWorkspaces.map((workspace) => {
+      const workspaceIncluded = !excludedWorkspaceIds.includes(workspace.id);
+      const collections = workspace.collections
+        .map((collection) => {
+          const scopeIds = getCollectionScopeIds(workspace, collection.id);
+          const count = workspace.ideas.filter((idea) => scopeIds.has(idea.collectionId)).length;
+          const excludedByAncestor =
+            excludedCollectionIds.includes(collection.id) ||
+            getCollectionAncestors(workspace, collection.id).some((ancestor) =>
+              excludedCollectionIds.includes(ancestor.id)
+            );
+          return {
+            id: collection.id,
+            workspaceId: workspace.id,
+            label: `${workspace.title} • ${buildCollectionPathLabel(workspace, collection.id)}`,
+            count,
+            included: workspaceIncluded && !excludedByAncestor,
+            isPrimary: primaryCollectionIdByWorkspace[workspace.id] === collection.id,
+          };
+        })
+        .sort((a, b) => a.label.localeCompare(b.label));
+
+      return {
+        workspace: {
+          id: workspace.id,
+          label: workspace.title,
+          count: workspace.ideas.length,
+          included: workspaceIncluded,
+          color: workspace.color,
+          avatarKey: workspace.avatarKey,
+          isPrimary: workspace.id === primaryWorkspaceId,
+        },
+        collections,
+      };
+    });
+  }, [
+    workspaces,
+    excludedWorkspaceIds,
+    excludedCollectionIds,
+    primaryWorkspaceId,
+    primaryCollectionIdByWorkspace,
+  ]);
+
+  const hasSourceOverrides =
+    excludedWorkspaceIds.length > 0 || excludedCollectionIds.length > 0;
 
   useEffect(() => {
     if (isRouteRangeActive) {
@@ -209,11 +268,18 @@ export function useActivityScreenModel() {
     if (collectionScope && collectionScopeWorkspace) {
       return `${collectionScopeWorkspace.title} / ${collectionScope.title}`;
     }
-    if (selectedWorkspace) {
-      return `${selectedWorkspace.title} workspace`;
+    if (excludedWorkspaceIds.length === 0 && excludedCollectionIds.length === 0) {
+      return "All workspaces";
     }
-    return "All workspaces";
-  }, [collectionScope, collectionScopeWorkspace, selectedWorkspace]);
+    const liveWorkspaces = workspaces.filter((workspace) => !workspace.isArchived);
+    const activeCount = liveWorkspaces.filter(
+      (workspace) => !excludedWorkspaceIds.includes(workspace.id)
+    ).length;
+    if (excludedCollectionIds.length === 0) {
+      return `${activeCount} of ${liveWorkspaces.length} workspaces`;
+    }
+    return "Filtered sources";
+  }, [collectionScope, collectionScopeWorkspace, excludedWorkspaceIds, excludedCollectionIds, workspaces]);
 
   useEffect(() => {
     activityDayLayoutsRef.current = {};
@@ -261,16 +327,15 @@ export function useActivityScreenModel() {
   };
 
   function openCollectionFromActivityContext(collectionId: string, focusIdeaId?: string) {
+    // Open the clip in its full collection context — scrolled to and highlighted,
+    // surrounded by its neighbors — rather than filtering the collection down to
+    // the clip's activity date (which just re-shows what Activity already did).
     openCollectionFromContext(navigation, {
       collectionId,
-      activityRangeStartTs: normalizedRange?.startTs,
-      activityRangeEndTs:
-        normalizedRange != null ? normalizedRange.endTs + 24 * 60 * 60 * 1000 - 1 : undefined,
-      activityMetricFilter: metricFilter,
-      activityLabel: selectedRangeLabel ?? undefined,
       focusIdeaId,
       focusToken: focusIdeaId ? Date.now() : undefined,
       source: "activity",
+      backLabel: "Activity",
     });
   }
 
@@ -313,14 +378,15 @@ export function useActivityScreenModel() {
 
   return {
     workspaces,
-    primaryWorkspaceId,
-    workspaceLastOpenedAt,
     collectionScope,
-    topLevelCollections,
-    workspaceFilterId,
-    setWorkspaceFilterId,
-    collectionFilterId,
-    setCollectionFilterId,
+    isCollectionScoped,
+    workspaceFilterGroups,
+    expandedWorkspaceId,
+    setExpandedWorkspaceId,
+    setWorkspaceIncluded,
+    setCollectionIncluded,
+    resetSourceFilters,
+    hasSourceOverrides,
     metricFilter,
     stickyDayLabel,
     showStickyDayChip,
@@ -397,6 +463,9 @@ export function useActivityScreenModel() {
       const clip = getPlayableClipForItem(item);
       if (!clip) return;
       void inlinePlayer.toggleInlinePlayback(item.ideaId, clip);
+    },
+    onStopPlayItem: () => {
+      void inlinePlayer.resetInlinePlayer();
     },
     onSeekInline: (ms: number) => {
       void inlinePlayer.endInlineScrub(ms);

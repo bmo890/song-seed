@@ -2,6 +2,8 @@ import { Pressable, StyleSheet, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import Slider from "@react-native-community/slider";
 import { colors, radii, spacing } from "../../../../design/tokens";
+import { styles as appStyles } from "../../../../styles";
+import { haptic } from "../../../../design/haptics";
 
 export const CHORD_ZOOM_MIN = 0.5;
 export const CHORD_ZOOM_MAX = 1.6;
@@ -22,6 +24,7 @@ export function ChordZoomBar({
     <View style={[styles.zoomBar, compact ? styles.zoomBarCompact : null]}>
       <Ionicons name="text" size={13} color={colors.textMuted} />
       <Slider
+        onSlidingComplete={() => haptic.tap()}
         style={styles.slider}
         minimumValue={CHORD_ZOOM_MIN}
         maximumValue={CHORD_ZOOM_MAX}
@@ -37,7 +40,7 @@ export function ChordZoomBar({
         disabled={atDefault}
         hitSlop={8}
         accessibilityLabel="Reset zoom"
-        style={({ pressed }) => [styles.reset, pressed ? { opacity: 0.6 } : null]}
+        style={({ pressed }) => [styles.reset, pressed ? appStyles.pressDown : null]}
       >
         <Ionicons name="refresh" size={16} color={atDefault ? colors.borderMuted : colors.primary} />
       </Pressable>

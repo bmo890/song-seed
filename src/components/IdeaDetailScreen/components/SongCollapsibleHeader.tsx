@@ -2,6 +2,7 @@ import { type ReactNode } from "react";
 import { Pressable, Text, View } from "react-native";
 import { styles } from "../styles";
 import { useSongScreen } from "../provider/SongScreenProvider";
+import { haptic } from "../../../design/haptics";
 
 const SONG_TABS = [
   { key: "takes", label: "Takes" },
@@ -77,11 +78,16 @@ export function SongCollapsibleHeader({ extra }: SongCollapsibleHeaderProps) {
             return (
               <Pressable
                 key={tab.key}
-                style={[
+                style={({ pressed }) => [
                   styles.songDetailSongTab,
                   active ? styles.songDetailSongTabActive : null,
+                  pressed && !active ? styles.pressDown : null,
                 ]}
-                onPress={() => screen.setSongTab(tab.key)}
+                onPress={() => {
+                  if (active) return;
+                  haptic.tap();
+                  screen.setSongTab(tab.key);
+                }}
               >
                 <Text
                   style={[

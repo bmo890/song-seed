@@ -3,6 +3,7 @@ import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from "react-nat
 import { Ionicons } from "@expo/vector-icons";
 import Slider from "@react-native-community/slider";
 import { BottomSheet } from "../common/BottomSheet";
+import { haptic } from "../../design/haptics";
 import {
   MAX_METRONOME_BPM,
   MAX_METRONOME_LEVEL,
@@ -189,6 +190,7 @@ export function RecordingMetronomeSheet({
             </Pressable>
           </View>
           <Slider
+            onSlidingComplete={() => haptic.tap()}
             minimumValue={MIN_METRONOME_BPM}
             maximumValue={MAX_METRONOME_BPM}
             step={1}
@@ -303,6 +305,7 @@ export function RecordingMetronomeSheet({
             <View style={s.subControl}>
               <Ionicons name="volume-low-outline" size={14} color="#a89994" />
               <Slider
+                onSlidingComplete={() => haptic.tap()}
                 style={s.subSlider}
                 minimumValue={MIN_METRONOME_LEVEL}
                 maximumValue={MAX_METRONOME_LEVEL}

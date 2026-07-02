@@ -2,6 +2,7 @@ import Slider from "@react-native-community/slider";
 import { Pressable, Text, View } from "react-native";
 import { styles } from "../styles";
 import { MAX_METRONOME_BPM, MIN_METRONOME_BPM } from "../../../metronome";
+import { haptic } from "../../../design/haptics";
 
 const BPM_STEPS = [
   { label: "−5", delta: -5 },
@@ -34,6 +35,7 @@ export function MetronomeTempoSection({ bpm, onNudge, onChangeValue }: Props) {
       </View>
 
       <Slider
+        onSlidingComplete={() => haptic.tap()}
         minimumValue={MIN_METRONOME_BPM}
         maximumValue={MAX_METRONOME_BPM}
         step={1}

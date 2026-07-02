@@ -11,13 +11,13 @@ import { AppAlert } from "../../common/AppAlert";
 import { actionIcons } from "../../common/actionIcons";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import * as Haptics from "expo-haptics";
 import type { RootStackParamList } from "../../../../App";
 import { styles } from "../styles";
 import { useStore } from "../../../state/useStore";
 import { appActions } from "../../../state/actions";
 import { getLatestLyricsVersion, lyricsDocumentToText } from "../../../lyrics";
 import { serializeChordChartText } from "../../../chords";
+import { haptic } from "../../../design/haptics";
 type LyricsVersionRoute = RootStackParamList["LyricsVersion"];
 
 /** Quiet, humanized "edited" line for the version subtitle — "Edited today",
@@ -119,7 +119,7 @@ export function useLyricsVersionScreenModel() {
   const saveDraft = (asNewOverride?: boolean) => {
     if (!projectIdea || !canSave) return;
     const shouldSaveAsNew = asNewOverride ?? editSavesAsNew;
-    void Haptics.selectionAsync();
+    haptic.tap();
     if (shouldSaveAsNew) {
       // Base the new version on the version being edited so its chords copy forward.
       appActions.saveProjectLyricsAsNewVersion(projectIdea.id, draftText, resolvedVersion?.document);
@@ -147,7 +147,7 @@ export function useLyricsVersionScreenModel() {
     const textToCopy =
       !isEditMode && hasChords ? serializeChordChartText(versionLines) : isEditMode ? draftText : sourceText;
     Clipboard.setString(textToCopy);
-    void Haptics.selectionAsync();
+    haptic.tap();
     AppAlert.info("Copied", hasChords && !isEditMode ? "Chord chart copied to your clipboard." : "Lyrics text copied to your clipboard.");
   };
 
@@ -192,13 +192,13 @@ export function useLyricsVersionScreenModel() {
   };
 
   const beginEdit = () => {
-    void Haptics.selectionAsync();
+    haptic.tap();
     setIsEditMode(true);
     setEditSavesAsNew(!isLatestSource || forceNewVersion);
   };
 
   const beginNewDraft = () => {
-    void Haptics.selectionAsync();
+    haptic.tap();
     setIsEditMode(true);
     setEditSavesAsNew(true);
   };

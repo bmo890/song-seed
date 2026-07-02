@@ -102,6 +102,9 @@ export type IdeaCardProps = {
     // Footer row
     footerDate?: string;
     footerRightContent?: ReactNode;
+    /** Replaces the whole footer row (date + right content) with custom content,
+     * e.g. an Activity card's action label + inline "view in collection" link. */
+    footerContent?: ReactNode;
 
     // Inline player (shown in place of footer when inlineActive)
     inlinePlayerContent?: ReactNode;
@@ -144,6 +147,7 @@ export function IdeaCard({
     editContent,
     footerDate,
     footerRightContent,
+    footerContent,
     inlinePlayerContent,
 }: IdeaCardProps) {
     if (denseRow) {
@@ -326,6 +330,8 @@ export function IdeaCard({
                             {/* Footer or inline player */}
                             {inlineActive ? (
                                 inlinePlayerContent ?? null
+                            ) : footerContent != null ? (
+                                footerContent
                             ) : (footerDate != null || footerRightContent != null) ? (
                                 <View style={styles.ideasListMetaRow}>
                                     {footerDate != null ? (

@@ -30,6 +30,7 @@ export type PersistedAppStore = Pick<
     | "metronomeCountInBars"
     | "globalCustomClipTags"
     | "backupReminderFrequency"
+    | "hapticsEnabled"
     | "lastSuccessfulBackupAt"
     | "lastSuccessfulBackupFileName"
     | "notes"

@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import * as Haptics from "expo-haptics";
+import { haptic } from "../../design/haptics";
+import Animated, { FadeIn } from "react-native-reanimated";
+import { durations } from "../../design/motion";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { styles } from "../../styles";
@@ -77,13 +79,14 @@ export function LyricsVersionsPanel({ projectIdea }: LyricsVersionsPanelProps) {
   }
 
   function toggleExpanded(versionId: string) {
+    haptic.light();
     setExpandedVersionIds((prev) =>
       prev.includes(versionId) ? prev.filter((id) => id !== versionId) : [...prev, versionId]
     );
   }
 
   function startSelection(versionId: string) {
-    void Haptics.selectionAsync();
+    haptic.grab();
     setSelectedVersionIds([versionId]);
   }
 
@@ -119,7 +122,7 @@ export function LyricsVersionsPanel({ projectIdea }: LyricsVersionsPanelProps) {
       return;
     }
     appActions.saveProjectLyricsAsNewVersion(projectIdea.id, text);
-    void Haptics.selectionAsync();
+    haptic.tap();
   }
 
   const createActions: SelectionAction[] = [
@@ -306,7 +309,7 @@ export function LyricsVersionsPanel({ projectIdea }: LyricsVersionsPanelProps) {
               </Pressable>
 
               {isExpanded ? (
-                <View style={panelStyles.expanded}>
+                <Animated.View entering={FadeIn.duration(durations.base)} style={panelStyles.expanded}>
                   {hasChords ? (
                     <View style={panelStyles.cardViewToggle}>
                       <LyricsChordsToggle
@@ -332,7 +335,7 @@ export function LyricsVersionsPanel({ projectIdea }: LyricsVersionsPanelProps) {
                       <Text style={styles.lyricsPreviewText}>{previewText || "No lyrics in this version."}</Text>
                     )}
                   </ScrollView>
-                </View>
+                </Animated.View>
               ) : null}
             </View>
           );

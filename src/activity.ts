@@ -142,11 +142,19 @@ export function filterActivityEvents(
   {
     workspaceId,
     collectionId,
+    excludedWorkspaceIds,
+    excludedCollectionIds,
     metric,
     year,
   }: {
+    /** Single-scope (collection-level activity page): keep only this workspace… */
     workspaceId?: string | null;
+    /** …and this collection subtree. */
     collectionId?: string | null;
+    /** Multi-exclude (global activity page): drop these whole workspaces… */
+    excludedWorkspaceIds?: Set<string>;
+    /** …and these collection subtrees. */
+    excludedCollectionIds?: Set<string>;
     metric: ActivityMetricFilter;
     year: number;
   }
@@ -156,6 +164,22 @@ export function filterActivityEvents(
     : null;
   const collectionScopeIds =
     workspace && collectionId ? getCollectionScopeIds(workspace, collectionId) : null;
+
+  // Expand each excluded collection to its whole subtree so descendants drop too.
+  let excludedCollectionScopeIds: Set<string> | null = null;
+  if (excludedCollectionIds && excludedCollectionIds.size > 0) {
+    excludedCollectionScopeIds = new Set();
+    for (const ws of workspaces) {
+      for (const excludedId of excludedCollectionIds) {
+        if (ws.collections.some((collection) => collection.id === excludedId)) {
+          for (const id of getCollectionScopeIds(ws, excludedId)) {
+            excludedCollectionScopeIds.add(id);
+          }
+        }
+      }
+    }
+  }
+
   const start = new Date(year, 0, 1).getTime();
   const end = new Date(year + 1, 0, 1).getTime();
 
@@ -163,6 +187,8 @@ export function filterActivityEvents(
     if (event.at < start || event.at >= end) return false;
     if (workspaceId && event.workspaceId !== workspaceId) return false;
     if (collectionScopeIds && !collectionScopeIds.has(event.collectionId)) return false;
+    if (excludedWorkspaceIds && excludedWorkspaceIds.has(event.workspaceId)) return false;
+    if (excludedCollectionScopeIds && excludedCollectionScopeIds.has(event.collectionId)) return false;
     if (metric !== "both" && event.metric !== metric) return false;
     return true;
   });

@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { Animated, Pressable, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors, radii, shadows } from "../../design/tokens";
+import { haptic } from "../../design/haptics";
 
 export type LyricsChordsValue = "lyrics" | "chords";
 
@@ -40,7 +41,11 @@ export function LyricsChordsToggle({
           <Pressable
             key={key}
             style={styles.seg}
-            onPress={() => onChange(key)}
+            onPress={() => {
+              if (key === value) return;
+              haptic.tap();
+              onChange(key);
+            }}
             accessibilityRole="button"
             accessibilityState={{ selected: active }}
             accessibilityLabel={key === "lyrics" ? "Lyrics" : "Chords"}

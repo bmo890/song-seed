@@ -1,5 +1,6 @@
 import { Pressable, Text, View } from "react-native";
 import { colors } from "../../../design/tokens";
+import { haptic } from "../../../design/haptics";
 import DraggableFlatList from "react-native-draggable-flatlist";
 import { Ionicons } from "@expo/vector-icons";
 import { Button } from "../../common/Button";
@@ -31,6 +32,7 @@ export function PlaylistDetailView({
     <DraggableFlatList
       data={displayItems}
       keyExtractor={(item) => item.id}
+      onDragBegin={haptic.grab}
       onDragEnd={({ data }) => onReorderItems(data.map((item) => item.id))}
       contentContainerStyle={styles.libraryScrollContent}
       showsVerticalScrollIndicator={false}

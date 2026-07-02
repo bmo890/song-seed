@@ -1,9 +1,11 @@
 import { useState } from "react";
 import { Pressable, Text, View, StyleProp, ViewStyle } from "react-native";
+import Animated, { FadeInDown, FadeOut } from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
-import * as Haptics from "expo-haptics";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { styles } from "../../styles";
+import { durations } from "../../design/motion";
+import { haptic } from "../../design/haptics";
 
 const FLOATING_ACTION_DOCK_BASE_BOTTOM = 12;
 const FLOATING_ACTION_DOCK_MIN_SAFE_AREA = 16;
@@ -55,13 +57,17 @@ export function FloatingActionDock({
   return (
     <View pointerEvents="box-none" style={[styles.ideasFabWrap, { bottom: bottomOffset }, wrapStyle]}>
       {menuOpen && menuItems.length > 0 ? (
-        <View style={styles.ideasFabMenu}>
+        <Animated.View
+          style={styles.ideasFabMenu}
+          entering={FadeInDown.duration(durations.base)}
+          exiting={FadeOut.duration(durations.fast)}
+        >
           {menuItems.map((item) => (
             <Pressable
               key={item.key}
               style={({ pressed }) => [styles.ideasFabMenuItem, pressed ? styles.pressDown : null]}
               onPress={() => {
-                void Haptics.selectionAsync();
+                haptic.tap();
                 setMenuOpen(false);
                 item.onPress();
               }}
@@ -70,7 +76,7 @@ export function FloatingActionDock({
               <Text style={styles.ideasFabMenuItemText}>{item.label}</Text>
             </Pressable>
           ))}
-        </View>
+        </Animated.View>
       ) : null}
 
       <View
@@ -82,7 +88,7 @@ export function FloatingActionDock({
         <Pressable
           style={({ pressed }) => [styles.ideasCreateFab, pressed ? styles.pressDownStrong : null]}
           onPress={() => {
-            void Haptics.selectionAsync();
+            haptic.tap();
             setMenuOpen((prev) => !prev);
           }}
         >
@@ -92,7 +98,7 @@ export function FloatingActionDock({
         <Pressable
           style={({ pressed }) => [styles.ideasRecordFab, pressed ? styles.pressDownStrong : null]}
           onPress={() => {
-            void Haptics.selectionAsync();
+            haptic.grab();
             setMenuOpen(false);
             onRecord();
           }}

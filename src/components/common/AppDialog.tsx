@@ -1,20 +1,10 @@
 import { useEffect, useState } from "react";
 import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
-import Animated, { withSpring, withTiming } from "react-native-reanimated";
+import Animated from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
+import { haptic } from "../../design/haptics";
+import { popIn } from "../../design/motion";
 import { dialogStore, type DialogButton, type DialogConfig } from "./dialogStore";
-
-// Soft pop: slight scale-up + fade, spring-settled. Subtle enough for alerts.
-const cardPopIn = () => {
-  "worklet";
-  return {
-    initialValues: { opacity: 0, transform: [{ scale: 0.94 }] },
-    animations: {
-      opacity: withTiming(1, { duration: 160 }),
-      transform: [{ scale: withSpring(1, { damping: 18, stiffness: 320 }) }],
-    },
-  };
-};
 
 /**
  * Styled in-app dialog that replaces native Alert.alert.
@@ -33,10 +23,16 @@ export function AppDialogHost() {
 
   useEffect(() => dialogStore.subscribe(setConfig), []);
 
+  // A destructive ask should be felt before it's read.
+  useEffect(() => {
+    if (config?.buttons.some((b) => b.style === "destructive")) haptic.warning();
+  }, [config]);
+
   if (!config) return null;
 
   const dismiss = () => dialogStore.dismiss();
   const handleButton = (onPress?: () => void) => {
+    haptic.tap();
     dismiss();
     onPress?.();
   };
@@ -53,7 +49,7 @@ export function AppDialogHost() {
     <Modal visible transparent animationType="fade" onRequestClose={hasCancel ? dismiss : undefined}>
       <Pressable style={s.scrim} onPress={hasCancel ? dismiss : undefined} />
       <View style={s.centring} pointerEvents="box-none">
-        <Animated.View style={s.card} entering={cardPopIn}>
+        <Animated.View style={s.card} entering={popIn}>
           {/* Header */}
           <View style={[s.body, isRich ? s.bodyRich : null]}>
             <Text style={s.title}>{config.title}</Text>

@@ -3,6 +3,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { BottomSheet } from "./BottomSheet";
 import { styles } from "../../styles";
 import type { SelectionAction } from "./SelectionDock";
+import { haptic } from "../../design/haptics";
 
 type SelectionActionSheetProps = {
   visible: boolean;
@@ -34,6 +35,7 @@ export function SelectionActionSheet({
               ]}
               disabled={action.disabled}
               onPress={() => {
+                haptic.tap();
                 onClose();
                 action.onPress();
               }}

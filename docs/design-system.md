@@ -317,6 +317,46 @@ Primary color usage:
 
 Most surfaces should remain neutral.
 
+## Interaction Feedback
+
+The app has a shared interaction layer; new UI must use it rather than inventing
+per-screen feedback.
+
+### Press feedback
+- Every tappable surface uses `styles.pressDown` (or `pressDownStrong` for large
+  floating controls). No ad-hoc opacity values.
+
+### Haptics
+Use the semantic vocabulary in `src/design/haptics.ts` — never call `expo-haptics`
+directly:
+- `haptic.tap` — any acknowledged press (buttons, menu rows, toggles, transport)
+- `haptic.light` — small state flips (bookmark, chip select)
+- `haptic.grab` — drag lift, entering selection mode, record state changes
+- `haptic.success` / `haptic.warning` / `haptic.error` — completions, destructive
+  confirms opening, failures
+- Sliders tick once on release (`onSlidingComplete`), not per value change
+- Users can disable all UI haptics in Settings → Feedback (the `hapticsEnabled`
+  preference gates the whole vocabulary centrally)
+- Exception: the metronome's beat pulse (`useMetronome.ts`) is a musical output
+  with its own intensity control — it bypasses the UI-haptics toggle on purpose
+
+### Motion
+Durations and spring profiles come from `src/design/motion.ts`:
+- `durations.fast` (120ms) menus/overlays fading in · `base` (180ms) toggles and
+  thumbs · `gentle` (220ms) docks/sheets · `slow` (300ms) panel expansion
+- `springs.surface` for sheets/docks, `springs.pop` for dialog cards,
+  `springs.handle` for gesture handles
+- Centered cards enter with the shared `popIn` preset (used by `AppDialog` and
+  `WarmModal`)
+- Popover menus fade in with `FadeIn.duration(durations.fast)`
+- Selection thumbs slide (see `SegmentedControl`, `LyricsChordsToggle`) rather
+  than swapping backgrounds
+
+### Sound
+No UI click sounds — the calm aesthetic relies on haptics for feel. The
+metronome click is a musical output, not UI feedback, and stays the only
+app-generated sound.
+
 ## Future Growth
 
 As features expand, they should still follow the same principles:

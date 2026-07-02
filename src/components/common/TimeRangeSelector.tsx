@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { View, StyleSheet, LayoutChangeEvent } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
+import { haptic } from "../../design/haptics";
 import Animated, {
     useSharedValue,
     useAnimatedStyle,
@@ -9,7 +10,6 @@ import Animated, {
     useAnimatedReaction,
     withSpring,
 } from "react-native-reanimated";
-import * as Haptics from "expo-haptics";
 
 type Region = {
     id: string;
@@ -160,7 +160,7 @@ function TimeRegionNode({
             if (onScrubStateChange) {
                 runOnJS(onScrubStateChange)(true);
             }
-            runOnJS(Haptics.selectionAsync)();
+            runOnJS(haptic.tap)();
         })
         .onChange((e) => {
             if (pixelsPerMs > 0 && scale.value > 0) {
@@ -196,7 +196,7 @@ function TimeRegionNode({
             if (onScrubStateChange) {
                 runOnJS(onScrubStateChange)(true);
             }
-            runOnJS(Haptics.selectionAsync)();
+            runOnJS(haptic.tap)();
         })
         .onChange((e) => {
             if (pixelsPerMs > 0 && scale.value > 0) {
@@ -248,7 +248,7 @@ function TimeRegionNode({
             if (onScrubStateChange) {
                 runOnJS(onScrubStateChange)(true);
             }
-            runOnJS(Haptics.selectionAsync)();
+            runOnJS(haptic.tap)();
         })
         .onChange((e) => {
             if (!isBoxDragging.value || pixelsPerMs <= 0 || scale.value <= 0) {

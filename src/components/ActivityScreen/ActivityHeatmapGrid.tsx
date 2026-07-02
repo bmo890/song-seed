@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ScrollView, Text, View, Pressable } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import * as Haptics from "expo-haptics";
 import { SurfaceCard } from "../common/SurfaceCard";
 import { startOfActivityDay } from "../../activity";
 import { styles } from "../../styles";
 import { CELL_SIZE, CELL_STRIDE, getActivityCellBackground } from "./helpers";
+import { haptic } from "../../design/haptics";
 
 type ActivityHeatmapGridProps = {
   year: number;
@@ -99,7 +99,7 @@ export function ActivityHeatmapGrid({
           <Pressable
             style={({ pressed }) => [styles.activityTodayBtn, pressed ? styles.pressDown : null]}
             onPress={() => {
-              void Haptics.selectionAsync();
+              haptic.tap();
               onJumpToToday();
             }}
           >
@@ -162,7 +162,7 @@ export function ActivityHeatmapGrid({
                       pressed ? styles.pressDown : null,
                     ]}
                     onPress={() => {
-                      void Haptics.selectionAsync();
+                      haptic.tap();
                       onPressMonth(marker.month);
                     }}
                   >
@@ -205,7 +205,7 @@ export function ActivityHeatmapGrid({
                         ]}
                         onPress={() => {
                           if (!inYear) return;
-                          void Haptics.selectionAsync();
+                          haptic.tap();
                           onPressDay(dayTs);
                         }}
                       >

@@ -99,6 +99,8 @@ export type DataSlice = {
     overdubPreviewRenderActiveByClipKey: Record<string, boolean>;
     globalCustomClipTags: CustomTagDefinition[];
     backupReminderFrequency: BackupReminderFrequency;
+    /** Master switch for UI haptic feedback (src/design/haptics.ts). */
+    hapticsEnabled: boolean;
     lastSuccessfulBackupAt: number | null;
     lastSuccessfulBackupFileName: string | null;
     metronomeBpm: number;
@@ -136,6 +138,7 @@ export type DataSlice = {
     updateCutUpSpark: (id: string, updates: Partial<Omit<CutUpSpark, "id" | "type" | "createdAt">>) => void;
     deleteCutUpSpark: (id: string) => void;
     setBackupReminderFrequency: (value: BackupReminderFrequency) => void;
+    setHapticsEnabled: (value: boolean) => void;
     setLastSuccessfulBackupAt: (timestamp: number | null) => void;
     setLastSuccessfulBackupFileName: (fileName: string | null) => void;
     addWorkspace: (title: string, description?: string, avatarKey?: number) => void;
@@ -1116,6 +1119,7 @@ export const createDataSlice: StateCreator<
     wordLadders: [],
     cutUpSparks: [],
     backupReminderFrequency: "monthly",
+    hapticsEnabled: true,
     lastSuccessfulBackupAt: null,
     lastSuccessfulBackupFileName: null,
 
@@ -1303,6 +1307,7 @@ export const createDataSlice: StateCreator<
     deleteCutUpSpark: (id) =>
         set((state) => ({ cutUpSparks: state.cutUpSparks.filter((spark) => spark.id !== id) })),
     setBackupReminderFrequency: (value) => set({ backupReminderFrequency: value }),
+    setHapticsEnabled: (value) => set({ hapticsEnabled: value }),
     setLastSuccessfulBackupAt: (timestamp) => set({ lastSuccessfulBackupAt: timestamp }),
     setLastSuccessfulBackupFileName: (fileName) => set({ lastSuccessfulBackupFileName: fileName }),
 

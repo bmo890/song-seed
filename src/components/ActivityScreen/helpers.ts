@@ -13,6 +13,7 @@ export const CELL_STRIDE = CELL_SIZE + CELL_GAP;
 
 export type ActivityItemResult = ActivityDayEntry & {
   ideaStatus: IdeaStatus;
+  completionPct: number;
   activityLabel: string;
   timeLabel: string;
   contextLabel: string;
@@ -96,6 +97,7 @@ export function buildActivityItemResults(
     return {
       ...entry,
       ideaStatus: idea?.status ?? (entry.ideaKind === "song" ? "seed" : "clip"),
+      completionPct: idea?.completionPct ?? 0,
       activityLabel: formatActivityCardMatch(
         entry.createdCount,
         entry.updatedCount,
