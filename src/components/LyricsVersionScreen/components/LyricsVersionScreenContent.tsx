@@ -95,7 +95,11 @@ export function LyricsVersionScreenContent() {
             draftText={model.draftText}
             canSave={model.canSave}
             showSaveAsNew={!!model.resolvedVersion && model.isLatestSource && !model.editSavesAsNew}
-            onChangeText={model.setDraftText}
+            canUndo={model.canUndoDraft}
+            canRedo={model.canRedoDraft}
+            onUndo={model.undoDraft}
+            onRedo={model.redoDraft}
+            onChangeText={model.handleDraftTextChange}
             onSave={() => model.saveDraft()}
             onSaveAsNew={() => model.saveDraft(true)}
             onLayout={model.setEditorViewportHeight}

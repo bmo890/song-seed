@@ -54,6 +54,7 @@ import { CutUpScreen } from "./src/components/CutUpScreen";
 import { MetronomeScreen } from "./src/components/MetronomeScreen";
 import { ShareImportScreen } from "./src/components/ShareImportScreen";
 import { SearchScreen } from "./src/components/SearchScreen";
+import { installWordLookupCache } from "./src/services/wordLookupCache";
 import { BluetoothCalibrationScreen } from "./src/components/BluetoothCalibrationScreen";
 import { getCollectionAncestors, getCollectionById } from "./src/utils";
 import {
@@ -115,6 +116,9 @@ import { useStore } from "./src/state/useStore";
 import { AppDialogHost } from "./src/components/common/AppDialog";
 import { RestoreRestartGate } from "./src/components/common/RestoreRestartGate";
 import { FullPlayerProvider } from "./src/hooks/FullPlayerProvider";
+
+// Durable Word Finder cache (SQLite) — registered once; touched lazily on first lookup.
+installWordLookupCache();
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const Drawer = createDrawerNavigator<HomeDrawerParamList>();
