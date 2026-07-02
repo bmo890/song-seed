@@ -1,9 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
-  Animated as RNAnimated,
   Keyboard,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -34,17 +32,16 @@ import {
   type WordSuggestion,
 } from "../../wordTools";
 
-const LOOKUP_DEBOUNCE_MS = 350;
-/** Fixed body height so the sheet never jumps as content changes. */
+const LOOKUP_DEBOUNCE_MS = 400;
+/** Fixed body height so the sheet never resizes as content changes. The sheet
+ * deliberately does NOT avoid the keyboard: it stays put and the keyboard
+ * overlays the results; the search/theme/mode controls at the top stay
+ * visible and results reappear when the keyboard is dismissed. */
 const SHEET_BODY_HEIGHT = 440;
-/** Compact body while the keyboard is up — the sheet stays low instead of
- * shoving the whole stage above the keyboard; results peek under the modes. */
-const SHEET_BODY_HEIGHT_COMPACT = 250;
 /** Chips shown per syllable group / flat list before "+ n more". */
 const GROUP_CHIP_CAP = 10;
 const FLAT_CHIP_CAP = 24;
-
-const EXTENDED_MODES: WordLookupMode[] = EXTENDED_WORD_MODE_GROUPS.flatMap((group) => group.modes);
+const MAX_THEMES = 5;
 
 /** The segmented row: the four quick modes plus a More tab for extended tools. */
 const MORE_TAB = "__more";
@@ -75,12 +72,12 @@ type PreviewState = {
 /**
  * Word Finder — one quiet surface for every word lookup while writing lyrics.
  *
- * The body is a fixed-height stage so the sheet never resizes while browsing.
- * Modes live in one segmented row: Rhymes / Near / Similar / Related / More —
- * More reveals a chip row of extended tools (sound / meaning / imagery).
- * A labeled Theme row biases every mode toward the song's subject. Holding a
- * suggestion takes over the sheet with its definition; from there, inserting
- * or exploring the word are explicit buttons — never a surprise navigation.
+ * Modes live in one segmented row: Rhymes / Near / Similar / Related / More.
+ * More shows a described list of extended tools (sound / meaning / imagery);
+ * a chosen tool collapses to a compact bar that reopens the list. Theme words
+ * are committed pills — added explicitly, so typing a theme never fires
+ * per-keystroke requests. Holding a suggestion takes over the sheet with its
+ * definition; inserting or exploring are explicit buttons inside it.
  */
 export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: WordFinderSheetProps) {
   const [query, setQuery] = useState(initialWord);
@@ -88,10 +85,12 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
   const [moreTab, setMoreTab] = useState(false);
   // Remembered across More visits so the tab reopens on the last-used tool.
   const [extendedMode, setExtendedMode] = useState<WordLookupMode | null>(null);
+  const [toolListOpen, setToolListOpen] = useState(false);
   const [lookup, setLookup] = useState<LookupState>({ status: "idle" });
-  // Theme is deliberately sticky across opens — a writer sets it once per song.
-  const [theme, setTheme] = useState("");
+  // Committed theme words — deliberately sticky across opens (set once per song).
+  const [themes, setThemes] = useState<string[]>([]);
   const [themeEditing, setThemeEditing] = useState(false);
+  const [themeDraft, setThemeDraft] = useState("");
   const [drillStack, setDrillStack] = useState<string[]>([]);
   const [preview, setPreview] = useState<PreviewState | null>(null);
   const [expandedChipKeys, setExpandedChipKeys] = useState<Set<string>>(new Set());
@@ -100,6 +99,7 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
 
   /** The mode actually queried; null while More is open with no tool picked. */
   const activeMode: WordLookupMode | null = moreTab ? extendedMode : quickMode;
+  const themeParam = themes.join(", ");
 
   // Re-seed from the editor each time the sheet opens on a new word.
   useEffect(() => {
@@ -107,28 +107,13 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
     setQuery(initialWord);
     setQuickMode("rhymes");
     setMoreTab(false);
+    setToolListOpen(false);
     setDrillStack([]);
     setPreview(null);
     setThemeEditing(false);
+    setThemeDraft("");
     setExpandedChipKeys(new Set());
   }, [visible, initialWord]);
-
-  const themeActive = sanitizeThemeWords(theme).length > 0;
-
-  // Shrink the stage while the keyboard is up so the sheet isn't pushed off-screen.
-  const bodyHeight = useRef(new RNAnimated.Value(SHEET_BODY_HEIGHT)).current;
-  useEffect(() => {
-    const showEvent = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
-    const hideEvent = Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
-    const animateTo = (toValue: number) =>
-      RNAnimated.timing(bodyHeight, { toValue, duration: durations.gentle, useNativeDriver: false }).start();
-    const showSub = Keyboard.addListener(showEvent, () => animateTo(SHEET_BODY_HEIGHT_COMPACT));
-    const hideSub = Keyboard.addListener(hideEvent, () => animateTo(SHEET_BODY_HEIGHT));
-    return () => {
-      showSub.remove();
-      hideSub.remove();
-    };
-  }, [bodyHeight]);
 
   useEffect(() => {
     if (!visible) return;
@@ -143,7 +128,7 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
     setLookup({ status: "loading" });
 
     const timer = setTimeout(() => {
-      fetchWordSuggestions(activeMode, trimmed, { signal: controller.signal, theme })
+      fetchWordSuggestions(activeMode, trimmed, { signal: controller.signal, theme: themeParam })
         .then((suggestions) => {
           if (requestId !== requestIdRef.current) return;
           setExpandedChipKeys(new Set());
@@ -159,7 +144,7 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
       clearTimeout(timer);
       controller.abort();
     };
-  }, [visible, query, activeMode, theme]);
+  }, [visible, query, activeMode, themeParam]);
 
   const handlePick = (word: string) => {
     haptic.tap();
@@ -188,6 +173,7 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
    * explicit buttons inside it, so a hold is never a surprise action. */
   const openPreview = (word: string) => {
     haptic.tap();
+    Keyboard.dismiss();
     const requestId = ++previewRequestIdRef.current;
     setPreview({ word, status: "loading", defs: [] });
     fetchWordDefinitions(word)
@@ -211,8 +197,10 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
   };
 
   const handleSegmentChange = (key: SegmentKey) => {
+    Keyboard.dismiss();
     if (key === MORE_TAB) {
       setMoreTab(true);
+      setToolListOpen(extendedMode === null);
       return;
     }
     setMoreTab(false);
@@ -220,21 +208,106 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
   };
 
   const selectExtendedMode = (next: WordLookupMode) => {
-    if (next === extendedMode) return;
     haptic.tap();
+    Keyboard.dismiss();
     setExtendedMode(next);
+    setToolListOpen(false);
   };
 
+  const reopenToolList = () => {
+    haptic.tap();
+    Keyboard.dismiss();
+    setToolListOpen(true);
+  };
+
+  // ── Theme pills ────────────────────────────────────────────────────────────
   const beginThemeEdit = () => {
     haptic.tap();
     setThemeEditing(true);
   };
 
-  const endThemeEdit = () => {
+  /** Commit the draft: sanitized words become pills; requests only fire now. */
+  const commitThemeDraft = () => {
     haptic.tap();
+    const words = sanitizeThemeWords(themeDraft);
+    if (words.length > 0) {
+      setThemes((prev) => [...new Set([...prev, ...words])].slice(0, MAX_THEMES));
+    }
+    setThemeDraft("");
     setThemeEditing(false);
+    Keyboard.dismiss();
   };
 
+  const removeTheme = (word: string) => {
+    haptic.light();
+    setThemes((prev) => prev.filter((entry) => entry !== word));
+  };
+
+  const renderThemeLine = () => (
+    <View style={finderStyles.themeLine}>
+      {themes.length > 0 || themeEditing ? (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={finderStyles.themeScroll}
+        >
+          <Ionicons name="funnel-outline" size={12} color={themes.length > 0 ? colors.primary : colors.textMuted} />
+          {themes.map((word) => (
+            <View key={word} style={finderStyles.themePill}>
+              <Text style={finderStyles.themePillText}>{word}</Text>
+              <Pressable onPress={() => removeTheme(word)} hitSlop={8} accessibilityLabel={`Remove theme ${word}`}>
+                <Ionicons name="close" size={12} color={colors.onPrimary} />
+              </Pressable>
+            </View>
+          ))}
+          {themeEditing ? (
+            <>
+              <TextInput
+                style={finderStyles.themeInput}
+                value={themeDraft}
+                onChangeText={setThemeDraft}
+                placeholder="e.g. love"
+                placeholderTextColor={colors.textMuted}
+                autoCapitalize="none"
+                autoCorrect={false}
+                autoFocus
+                returnKeyType="done"
+                onSubmitEditing={commitThemeDraft}
+              />
+              <Pressable
+                style={({ pressed }) => [finderStyles.themeAddBtn, pressed ? appStyles.pressDown : null]}
+                onPress={commitThemeDraft}
+                accessibilityLabel="Add theme word"
+              >
+                <Text style={finderStyles.themeAddBtnText}>Add</Text>
+              </Pressable>
+            </>
+          ) : themes.length < MAX_THEMES ? (
+            <Pressable
+              style={({ pressed }) => [finderStyles.themePlusBtn, pressed ? appStyles.pressDown : null]}
+              onPress={beginThemeEdit}
+              hitSlop={6}
+              accessibilityLabel="Add another theme word"
+            >
+              <Ionicons name="add" size={14} color={colors.textSecondary} />
+            </Pressable>
+          ) : null}
+        </ScrollView>
+      ) : (
+        <Pressable
+          style={({ pressed }) => [finderStyles.themeAdd, pressed ? appStyles.pressDown : null]}
+          onPress={beginThemeEdit}
+          accessibilityLabel="Add a theme to bias results toward your song's subject"
+        >
+          <Ionicons name="funnel-outline" size={11} color={colors.textMuted} />
+          <Text style={finderStyles.themeAddText}>Add theme</Text>
+        </Pressable>
+      )}
+    </View>
+  );
+
+  // ── Results ────────────────────────────────────────────────────────────────
   const expandChipKey = (key: string) => {
     haptic.light();
     setExpandedChipKeys((prev) => new Set(prev).add(key));
@@ -299,6 +372,44 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
     );
   };
 
+  /** The described tool list shown under the More tab. */
+  const renderToolList = () => (
+    <ScrollView
+      keyboardShouldPersistTaps="handled"
+      keyboardDismissMode="on-drag"
+      showsVerticalScrollIndicator={false}
+    >
+      <Animated.View entering={FadeIn.duration(durations.fast)}>
+        {EXTENDED_WORD_MODE_GROUPS.map((group) => (
+          <View key={group.title} style={finderStyles.toolGroup}>
+            <Text style={finderStyles.toolGroupTitle}>{group.title.toUpperCase()}</Text>
+            {group.modes.map((key) => {
+              const config = WORD_LOOKUP_MODES[key];
+              const active = extendedMode === key;
+              return (
+                <Pressable
+                  key={key}
+                  style={({ pressed }) => [finderStyles.toolRow, pressed ? appStyles.pressDown : null]}
+                  onPress={() => selectExtendedMode(key)}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: active }}
+                >
+                  <View style={finderStyles.toolRowText}>
+                    <Text style={finderStyles.toolRowLabel}>{config.label}</Text>
+                    <Text style={finderStyles.toolRowDesc} numberOfLines={1}>
+                      {config.description}
+                    </Text>
+                  </View>
+                  {active ? <Ionicons name="checkmark" size={16} color={colors.primary} /> : null}
+                </Pressable>
+              );
+            })}
+          </View>
+        ))}
+      </Animated.View>
+    </ScrollView>
+  );
+
   // ── Definition preview: takes over the whole sheet body ──────────────────
   const renderPreview = (state: PreviewState) => (
     <Animated.View entering={FadeIn.duration(durations.fast)} style={finderStyles.previewFill}>
@@ -362,11 +473,11 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
     </Animated.View>
   );
 
-  const themeSummary = themeActive ? sanitizeThemeWords(theme).join(", ") : "Off";
+  const showToolList = moreTab && (toolListOpen || !extendedMode);
 
   return (
-    <BottomSheet visible={visible} onClose={onClose} keyboardAvoiding>
-      <RNAnimated.View style={[finderStyles.body, { height: bodyHeight }]}>
+    <BottomSheet visible={visible} onClose={onClose}>
+      <View style={finderStyles.body}>
         {preview ? (
           renderPreview(preview)
         ) : (
@@ -388,6 +499,7 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
                 autoCapitalize="none"
                 autoCorrect={false}
                 returnKeyType="search"
+                onSubmitEditing={() => Keyboard.dismiss()}
               />
               {query.length > 0 ? (
                 <Pressable onPress={() => setQuery("")} hitSlop={8} accessibilityLabel="Clear word">
@@ -396,60 +508,7 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
               ) : null}
             </View>
 
-            {/* Theme: a quiet inline line — a small pill when set, a ghost
-                "Add theme" affordance when not, an inline input while editing. */}
-            <View style={finderStyles.themeLine}>
-              {themeEditing ? (
-                <>
-                  <Ionicons name="funnel-outline" size={12} color={colors.primary} />
-                  <TextInput
-                    style={finderStyles.themeInput}
-                    value={theme}
-                    onChangeText={setTheme}
-                    placeholder="Song's theme — e.g. love, leaving"
-                    placeholderTextColor={colors.textMuted}
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    autoFocus
-                    returnKeyType="done"
-                    onSubmitEditing={endThemeEdit}
-                  />
-                  <Pressable onPress={endThemeEdit} hitSlop={8} accessibilityLabel="Done with theme">
-                    <Ionicons name="checkmark" size={16} color={colors.primary} />
-                  </Pressable>
-                </>
-              ) : themeActive ? (
-                <Pressable
-                  style={({ pressed }) => [finderStyles.themePill, pressed ? appStyles.pressDown : null]}
-                  onPress={beginThemeEdit}
-                  accessibilityLabel={`Theme: ${themeSummary}. Tap to edit.`}
-                >
-                  <Ionicons name="funnel" size={10} color={colors.onPrimary} />
-                  <Text style={finderStyles.themePillText} numberOfLines={1}>
-                    {themeSummary}
-                  </Text>
-                  <Pressable
-                    onPress={() => {
-                      haptic.light();
-                      setTheme("");
-                    }}
-                    hitSlop={8}
-                    accessibilityLabel="Clear theme"
-                  >
-                    <Ionicons name="close" size={12} color={colors.onPrimary} />
-                  </Pressable>
-                </Pressable>
-              ) : (
-                <Pressable
-                  style={({ pressed }) => [finderStyles.themeAdd, pressed ? appStyles.pressDown : null]}
-                  onPress={beginThemeEdit}
-                  accessibilityLabel="Add a theme to bias results toward your song's subject"
-                >
-                  <Ionicons name="funnel-outline" size={11} color={colors.textMuted} />
-                  <Text style={finderStyles.themeAddText}>Add theme</Text>
-                </Pressable>
-              )}
-            </View>
+            {renderThemeLine()}
 
             <SegmentedControl<SegmentKey>
               options={[
@@ -460,42 +519,23 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
               onChange={handleSegmentChange}
             />
 
-            {/* Extended tools appear as a second chip row under the More tab. */}
-            {moreTab ? (
+            {/* Active extended tool: a compact bar that reopens the described list. */}
+            {moreTab && extendedMode && !showToolList ? (
               <Animated.View entering={FadeIn.duration(durations.fast)}>
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  keyboardShouldPersistTaps="handled"
-                  contentContainerStyle={finderStyles.toolRow}
+                <Pressable
+                  style={({ pressed }) => [finderStyles.toolBar, pressed ? appStyles.pressDown : null]}
+                  onPress={reopenToolList}
+                  accessibilityLabel={`${WORD_LOOKUP_MODES[extendedMode].label} — tap to change tool`}
                 >
-                  {EXTENDED_MODES.map((key) => {
-                    const active = extendedMode === key;
-                    return (
-                      <Pressable
-                        key={key}
-                        style={({ pressed }) => [
-                          finderStyles.toolChip,
-                          active ? finderStyles.toolChipActive : null,
-                          pressed ? appStyles.pressDown : null,
-                        ]}
-                        onPress={() => selectExtendedMode(key)}
-                        accessibilityRole="button"
-                        accessibilityState={{ selected: active }}
-                      >
-                        <Text style={[finderStyles.toolChipText, active ? finderStyles.toolChipTextActive : null]}>
-                          {WORD_LOOKUP_MODES[key].label}
-                        </Text>
-                      </Pressable>
-                    );
-                  })}
-                </ScrollView>
+                  <Text style={finderStyles.toolBarText}>{WORD_LOOKUP_MODES[extendedMode].label}</Text>
+                  <Ionicons name="chevron-down" size={13} color={colors.textSecondary} />
+                </Pressable>
               </Animated.View>
             ) : null}
 
             <View style={finderStyles.resultsArea}>
-              {moreTab && !extendedMode ? (
-                <Text style={finderStyles.stateText}>Pick a tool above.</Text>
+              {showToolList ? (
+                renderToolList()
               ) : lookup.status === "idle" ? (
                 <Text style={finderStyles.stateText}>Type a word to look it up.</Text>
               ) : lookup.status === "loading" ? (
@@ -509,11 +549,15 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
               ) : lookup.suggestions.length === 0 ? (
                 <Text style={finderStyles.stateText}>
                   {`No ${activeMode ? WORD_LOOKUP_MODES[activeMode].label.toLowerCase() : "matches"} found for “${query.trim()}”${
-                    themeActive ? " with this theme" : ""
+                    themes.length > 0 ? " with this theme" : ""
                   }.`}
                 </Text>
               ) : (
-                <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+                <ScrollView
+                  keyboardShouldPersistTaps="handled"
+                  keyboardDismissMode="on-drag"
+                  showsVerticalScrollIndicator={false}
+                >
                   {renderResults(lookup.suggestions)}
                 </ScrollView>
               )}
@@ -521,20 +565,20 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
 
             {/* Fixed-height hint row so showing/hiding it never moves the sheet. */}
             <View style={finderStyles.hintRow}>
-              {lookup.status === "results" && lookup.suggestions.length > 0 ? (
+              {!showToolList && lookup.status === "results" && lookup.suggestions.length > 0 ? (
                 <Text style={finderStyles.hint}>Tap a word to insert · hold for meaning</Text>
               ) : null}
             </View>
           </>
         )}
-      </RNAnimated.View>
+      </View>
     </BottomSheet>
   );
 }
 
 const finderStyles = StyleSheet.create({
   body: {
-    overflow: "hidden",
+    height: SHEET_BODY_HEIGHT,
   },
   searchRow: {
     flexDirection: "row",
@@ -553,11 +597,14 @@ const finderStyles = StyleSheet.create({
     paddingVertical: 10,
   },
   themeLine: {
-    height: 30,
+    height: 32,
+    justifyContent: "center",
+    marginBottom: spacing.sm,
+  },
+  themeScroll: {
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.sm,
-    marginBottom: spacing.sm,
   },
   themeAdd: {
     flexDirection: "row",
@@ -579,43 +626,84 @@ const finderStyles = StyleSheet.create({
     borderRadius: radii.round,
     paddingHorizontal: spacing.md,
     paddingVertical: 5,
-    maxWidth: "80%",
   },
   themePillText: {
-    flexShrink: 1,
     fontFamily: "PlusJakartaSans_600SemiBold",
     fontSize: 11,
     color: colors.onPrimary,
   },
+  themePlusBtn: {
+    width: 24,
+    height: 24,
+    borderRadius: radii.round,
+    backgroundColor: colors.surfaceHigh,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   themeInput: {
-    flex: 1,
+    minWidth: 90,
     fontFamily: "PlusJakartaSans_400Regular",
     fontSize: 13,
     color: colors.textPrimary,
     paddingVertical: 4,
   },
-  toolRow: {
-    flexDirection: "row",
-    gap: spacing.sm,
-    paddingTop: spacing.sm,
-    paddingBottom: 2,
+  themeAddBtn: {
+    backgroundColor: colors.primary,
+    borderRadius: radii.round,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 5,
   },
-  toolChip: {
+  themeAddBtnText: {
+    fontFamily: "PlusJakartaSans_600SemiBold",
+    fontSize: 11,
+    color: colors.onPrimary,
+  },
+  toolBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 5,
+    alignSelf: "flex-start",
     backgroundColor: colors.surfaceContainer,
     borderRadius: radii.round,
     paddingHorizontal: spacing.md,
     paddingVertical: 6,
+    marginTop: spacing.sm,
   },
-  toolChipActive: {
-    backgroundColor: colors.primary,
-  },
-  toolChipText: {
+  toolBarText: {
     fontFamily: "PlusJakartaSans_600SemiBold",
     fontSize: 12,
-    color: colors.textSecondary,
+    color: colors.textStrong,
   },
-  toolChipTextActive: {
-    color: colors.onPrimary,
+  toolGroup: {
+    marginBottom: spacing.md,
+  },
+  toolGroupTitle: {
+    fontFamily: "PlusJakartaSans_700Bold",
+    fontSize: 9,
+    letterSpacing: 0.8,
+    color: colors.textMuted,
+    marginBottom: spacing.xs,
+  },
+  toolRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    paddingVertical: 8,
+  },
+  toolRowText: {
+    flex: 1,
+    gap: 1,
+  },
+  toolRowLabel: {
+    fontFamily: "PlusJakartaSans_600SemiBold",
+    fontSize: 14,
+    color: colors.textPrimary,
+  },
+  toolRowDesc: {
+    fontFamily: "PlusJakartaSans_400Regular",
+    fontSize: 12,
+    color: colors.textSecondary,
   },
   resultsArea: {
     flex: 1,
