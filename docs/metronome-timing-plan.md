@@ -370,3 +370,152 @@ Key ground rules:
 NEXT: implement Phase <N> per the plan. Work with me and ask before any
 decision that changes UX.
 ```
+
+---
+---
+
+# PART 2 — Cue Alignment & Calibration (the perceived-trust layer)
+
+Device testing of Part 1 exposed the next layer: even with files trimmed to the
+audible downbeat, the *cues themselves* disagree (visual doesn't land on the
+beep, haptic always feels late), and route latency handling is scattered across
+four call sites with hardcoded gaps. This part is the systematic fix.
+
+## The timing model (single mental model for everything below)
+
+One truth: **the grid** (native engine's beat timeline). Every surface a human
+experiences arrives late by a route- and modality-dependent amount:
+
+| Surface | Latency vs grid | Character |
+|---|---|---|
+| Click via speaker/wired | ~20–110 ms | stable per device |
+| Click/guide via Bluetooth | ~150–350 ms | per headphone, per codec, per session |
+| Visual pulse (event-driven today) | ~30–80 ms | JITTERY (bridge→JS→render→display) |
+| Haptic (event-driven today) | ~30–100 ms | jittery + motor spin-up 20–50 ms |
+| Mic capture | +10–40 ms | on top of what the performer heard |
+
+Rules that fall out:
+1. **Event-driven cues can never align** — they're late by construction and
+   cannot fire early (visual/haptic must often LEAD the audible beat). Cues must
+   be *scheduled ahead* from the grid anchor with per-modality signed offsets.
+2. **The performer's reference modality decides the trim**: they play to what
+   they perceive. Priority when several cues are active: audible > haptic >
+   visual (humans sync worst to visual). A silent-click take must NOT apply
+   audible output latency (bug: it currently does).
+3. **Same-route outputs cancel** (guide + click both via BT stay mutually in
+   phase); cross-surface pairs (BT ears vs phone-speaker click vs screen) do not
+   and need the model.
+
+## Gap list (from device testing + matrix review)
+
+- G1. Visual pulse doesn't land on the beep (event-driven jitter + no lead).
+- G2. Haptic always feels late (same + motor spin-up, uncompensated).
+- G3. `outputLatencyMs` cue-delay plumbing exists in the engines but is fed a
+  hardcoded 0 — never wired to the live route.
+- G4. Silent-click takes (visual/haptic-only met) apply the WRONG trim domain
+  (audible output latency instead of cue latency).
+- G5. Uncalibrated BT route = silent misalignment; no prompt to calibrate.
+- G6. Calibration staleness — BT latency shifts per codec/connection session;
+  no re-check nudge.
+- G7. BT-microphone warning decided in the audit (§3 Phase 6.4) never built.
+- G8. Mid-take route change (BT dies → speaker) invalidates every latency; take
+  silently keeps recording with a broken grid reference.
+- G9. Count-in cue gate is a Date.now() comparison — jitter on the user's first
+  impression of trust.
+- G10. Route latency numbers live in 4+ places (trim math, cue delay, BT
+  monitoring compensation, calibration screen) with no single source of truth —
+  which is exactly how G4 happened.
+
+## Stage A — Latency model: one source of truth (S–M, JS-only)
+
+`src/services/latencyModel.ts`:
+
+```ts
+type RouteLatencyProfile = {
+  outputMs: number;         // audible path (OS-reported, bar-stripped, or BT ear-cal)
+  inputMs: number;          // mic path (OS-reported or platform default)
+  visualLeadMs: number;     // fire visual this much BEFORE the audible beat
+  hapticLeadMs: number;     // fire haptic this much BEFORE the audible beat
+  referenceModality: "audible" | "haptic" | "visual"; // what the trim honors
+  sources: { output: "os" | "calibration" | "default" | "unknown"; ... };
+};
+resolveRouteLatencyProfile(route, calibrations, activeOutputs): RouteLatencyProfile
+```
+
+- Merges: OS-reported route latency (incl. the click-loop bar-strip, which moves
+  here from the trim path), BT ear calibration per routeKey (takes precedence on
+  BT), platform/modality defaults (visual ≈ 50 ms, haptic ≈ iOS 35 / Android 60).
+- Encodes rule 2: `referenceModality` resolves from active outputs; trim uses
+  the reference's latency (fixes G4).
+- Migrate ALL consumers: trim math, `cueDelayMs`, BT monitoring compensation,
+  calibration screen display, future engine (fixes G3, G10).
+- Unknowns stay explicit (`sources.output === "unknown"`) so UI can warn instead
+  of silently using 0.
+
+## Stage B — Anchor-scheduled cues (M, native ×2 + JS)
+
+Replace the event→bridge→JS cue chain:
+
+1. **Haptics fire natively.** Engines accept `hapticLeadMs` and trigger the
+   vibrator/impact generator on natively-scheduled timers (uptime-targeted, no
+   bridge). Kills G2's jitter; the lead compensates spin-up + route latency.
+2. **Visual runs on a UI-thread clock.** Seed a Reanimated clock from
+   `getGridAnchor()` (built in Phase 4); the pulse animates frame-accurately
+   with `visualLeadMs` applied. Per-beat bridge events stop driving UI (G1).
+   Same pattern the audit's Step-3 playhead plan uses.
+3. Count-in cues ride the same scheduler; delete the `cueActivationAtRef`
+   Date.now gate (G9).
+4. Beat events remain for non-timing consumers (beat counter text), no longer
+   in the perception path.
+
+Needs a dev-client rebuild (both platforms, in lockstep as always).
+
+## Stage C — Calibration UX (S–M, JS-only)
+
+- **Uncalibrated BT prompt** (G5): recording screen detects BT output with no
+  saved calibration → banner → one-tap to the calibration flow.
+- **Staleness nudge** (G6): calibration older than ~30 days or first use in a
+  new connection session → quiet "re-check?" chip, never a blocker.
+- **BT-mic warning** (G7): input route is BT → pre-take warning that tight
+  overdubs need the built-in/wired mic.
+- **Mid-take route change** (G8): device-change listener during recording →
+  toast + mark the take (`recordingGrid.gridValidToMs` at the switch point);
+  never silently pretend the grid survived.
+
+## Stage D — Silent-click correctness (S, JS-only)
+
+- Trim reads `referenceModality` from the latency model (G4).
+- Document the engine's uptime-clock fallback when the click is disabled —
+  acceptable once cues are anchor-scheduled, since cues and grid then share the
+  same clock.
+
+## Stage E — Timed-take capture engine (L, native ×2) — unchanged from Part 1
+
+The file-exactness endgame, now sequenced AFTER A–D because device testing
+showed the perceived-trust problems sit above the capture layer. Scope, the
+foreground-only v1 rule, the pure-Kotlin AudioTimestamp decision (no
+Oboe/NDK), and the siteed fallback flag are as discussed; the latency model
+(Stage A) becomes an input to the engine, not a casualty of it. Quick-record
+stays on @siteed permanently (the split follows the requirement boundary:
+precision vs reliability; Android's yearly policy churn lives entirely on the
+background-recording side, which stays rented).
+
+## Order & rationale
+
+A → B → C → D are each independently shippable; A first because B and D consume
+it. E last. A/C/D are reload-only; B and E need rebuilds. After E lands and
+verifies, delete the Part-1 compensation stack (capture estimator, warm-start
+phase lock, route-latency trim corrections) — the engine makes them structurally
+unnecessary, and net deletion is the sign the architecture is right.
+
+## Acceptance criteria
+
+- Beep + visual + haptic on speaker AND on calibrated BT: all three land
+  together within human-imperceptible tolerance (≤ ~20 ms pairwise), steady —
+  no visible/feelable jitter (film at 240 fps for visual verification).
+- Silent-click take (haptic-only) records grid-true within ±25 ms.
+- Connecting an uncalibrated BT headphone before a take always produces a
+  prompt; a BT mic always produces a warning.
+- Route change mid-take is surfaced, never silent.
+- Stage E: audit §6 criteria (±5–10 ms file exactness), then compensation-stack
+  deletion with no regression.
