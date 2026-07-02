@@ -32,12 +32,9 @@ import {
  *  bridge delivery latency (~10-20 ms), and cutting into the downbeat transient is worse
  *  than keeping a few ms of pre-roll. */
 const HEAD_TRIM_SAFETY_EARLY_MS = 15;
-/** How far ahead of the downbeat to fire the guide's play() so its (unmeasurable ahead of
- *  time) start latency lands the guide near the "one". Only the FIRST guess — the actual
- *  phase is measured right after and corrected with a seek. */
+/** Fallback lead for the guide's play() when its start latency couldn't be measured.
+ *  The primary path measures the real latency with a muted warm-start instead. */
 const GUIDE_DOWNBEAT_LEAD_MS = 80;
-/** Below this the live click vs guide phase error is inaudible — don't bother seeking. */
-const GUIDE_PHASE_CORRECTION_THRESHOLD_MS = 30;
 
 export function useRecordingScreenModel() {
   const navigation = useNavigation();
@@ -140,6 +137,13 @@ export function useRecordingScreenModel() {
   const abandonedPlaceholderCleanupRef = useRef<() => void>(() => {});
   const metronome = useMetronome();
   const monitoringDelayTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Phase-locked guide start scheduled during the count-in (overdubs). The token
+  // invalidates an in-flight schedule when the guide is stopped/cancelled; the promise
+  // resolves with the guide's measured start epoch for the head-trim math.
+  const guideScheduleRef = useRef<{ token: number; promise: Promise<number | null> | null }>({
+    token: 0,
+    promise: null,
+  });
 
   const recording = useRecording(
     async (payload) => {
@@ -317,10 +321,13 @@ export function useRecordingScreenModel() {
   }
 
   async function stopGuideMix() {
+    guideScheduleRef.current.token += 1;
+    guideScheduleRef.current.promise = null;
     clearMonitoringDelayTimer();
     setGuideMonitoringLeadInMs(0);
     if (!recordingGuideMixUri) return;
     try {
+      guideMixPlayer.volume = 1;
       await guideMixPlayer.pause();
       await guideMixPlayer.seekTo(0);
     } catch (error) {
@@ -338,6 +345,82 @@ export function useRecordingScreenModel() {
     } catch (error) {
       console.warn("Guide mix start failed", error);
     }
+  }
+
+  async function waitPlainMs(ms: number) {
+    if (ms <= 0) return;
+    await new Promise<void>((resolve) => {
+      setTimeout(resolve, ms);
+    });
+  }
+
+  /** Epoch time the guide's audio started, anchored off its reported position. */
+  async function measureGuideAnchorEpochMs(timeoutMs: number): Promise<number | null> {
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+      const positionSec = guideMixPlayer.currentTime ?? 0;
+      if (guideMixPlayer.playing && !guideMixPlayer.isBuffering && positionSec > 0) {
+        return Date.now() - positionSec * 1000;
+      }
+      await waitPlainMs(16);
+    }
+    return null;
+  }
+
+  /**
+   * Phase-lock the guide to the live metronome grid without any mid-flight seek (device
+   * logs showed a corrective seek stalls playback 50–200 ms — worse than the error it
+   * fixed). Instead, during the count-in: warm-start the guide MUTED to measure this
+   * device's real play() latency, rewind, then fire the audible start pre-compensated by
+   * the measured latency so the guide's recorded clicks land on the grid. Resolves with
+   * the guide's measured start epoch (what the head-trim math needs), or null on failure.
+   */
+  function schedulePhaseLockedGuideStart(targetStartEpochMs: number): Promise<number | null> {
+    const token = ++guideScheduleRef.current.token;
+    const task = (async (): Promise<number | null> => {
+      try {
+        setGuideMonitoringLeadInMs(activeMonitoringCompensationMs);
+        guideMixPlayer.volume = 0;
+        await guideMixPlayer.seekTo(0);
+        const playCallAtMs = Date.now();
+        guideMixPlayer.play();
+        const warmAnchorEpochMs = await measureGuideAnchorEpochMs(1200);
+        if (guideScheduleRef.current.token !== token) return null;
+        const startLatencyMs =
+          warmAnchorEpochMs != null
+            ? Math.max(0, Math.min(600, warmAnchorEpochMs - playCallAtMs))
+            : GUIDE_DOWNBEAT_LEAD_MS;
+        await guideMixPlayer.pause();
+        await guideMixPlayer.seekTo(0);
+        if (guideScheduleRef.current.token !== token) return null;
+        console.log(`[timing] guide warm-start latency: ${Math.round(startLatencyMs)}ms`);
+
+        await waitPlainMs(targetStartEpochMs - startLatencyMs - Date.now());
+        if (guideScheduleRef.current.token !== token) return null;
+        guideMixPlayer.volume = 1;
+        guideMixPlayer.play();
+        const anchorEpochMs = await measureGuideAnchorEpochMs(1500);
+        if (guideScheduleRef.current.token !== token) return null;
+        if (anchorEpochMs != null) {
+          console.log(
+            `[timing] guide phase vs metronome grid: ${Math.round(
+              anchorEpochMs - targetStartEpochMs
+            )}ms (+ = guide late)`
+          );
+        }
+        return anchorEpochMs;
+      } catch (error) {
+        console.warn("Phase-locked guide start failed", error);
+        try {
+          guideMixPlayer.volume = 1;
+        } catch {
+          // Player may already be released during teardown.
+        }
+        return null;
+      }
+    })();
+    guideScheduleRef.current.promise = task;
+    return task;
   }
 
   /** Start the guide from t=0 and return the epoch time its audio actually started
@@ -378,6 +461,8 @@ export function useRecordingScreenModel() {
   }
 
   async function pauseGuideMix() {
+    guideScheduleRef.current.token += 1;
+    guideScheduleRef.current.promise = null;
     clearMonitoringDelayTimer();
     if (!recordingGuideMixUri) return;
     try {
@@ -806,62 +891,24 @@ export function useRecordingScreenModel() {
 
         let headMs = 0;
         if (recordingGuideMixUri) {
-          // Aim the guide's start at the downbeat as a first guess...
-          if (downbeatEpochMs != null) {
-            const aimWaitMs = downbeatEpochMs - Date.now() - GUIDE_DOWNBEAT_LEAD_MS;
-            if (aimWaitMs > 0) {
-              await waitForMonitoringCompensation(aimWaitMs);
-            }
+          // The guide start was phase-locked and scheduled during the count-in (measured
+          // play() latency, no seek). Await its measured start epoch for the trim math.
+          let guideStartEpochMs: number | null = null;
+          const scheduledGuideStart = guideScheduleRef.current.promise;
+          if (scheduledGuideStart) {
+            guideStartEpochMs = await scheduledGuideStart;
           }
-          let guideStartEpochMs = await startGuideMixFromBeginningAnchored();
-
-          // ...then MEASURE the guide's phase against the metronome grid and correct it
-          // with a seek, so the live click and the guide's recorded click actually land
-          // together (a start-latency guess alone can be off by 50–150 ms). Only possible
-          // when the master's own downbeat position is known — a master with unmeasured
-          // pre-roll (recorded before downbeat trimming existed) cannot be phase-locked.
-          const masterFirstDownbeatMs =
-            recordingOverdubClip?.recordingGrid?.firstDownbeatMs ?? null;
-          if (
-            guideStartEpochMs != null &&
-            downbeatEpochMs != null &&
-            masterFirstDownbeatMs != null
-          ) {
-            const targetStartEpochMs = downbeatEpochMs - masterFirstDownbeatMs;
-            const phaseErrorMs = guideStartEpochMs - targetStartEpochMs;
-            console.log(
-              `[timing] guide phase vs metronome grid: ${Math.round(phaseErrorMs)}ms ` +
-                `(+ = guide late)`
-            );
-            if (Math.abs(phaseErrorMs) > GUIDE_PHASE_CORRECTION_THRESHOLD_MS) {
-              try {
-                const currentPositionSec = guideMixPlayer.currentTime ?? 0;
-                await guideMixPlayer.seekTo(
-                  Math.max(0, currentPositionSec + phaseErrorMs / 1000)
-                );
-                // Let the seek settle, then re-anchor off the corrected position — the
-                // remeasured anchor is what the head-trim math must use.
-                await new Promise<void>((resolve) => {
-                  setTimeout(resolve, 120);
-                });
-                const remeasuredPositionSec = guideMixPlayer.currentTime ?? 0;
-                if (guideMixPlayer.playing && remeasuredPositionSec > 0) {
-                  guideStartEpochMs = Date.now() - remeasuredPositionSec * 1000;
-                  console.log(
-                    `[timing] guide phase corrected → ${Math.round(
-                      guideStartEpochMs - targetStartEpochMs
-                    )}ms`
-                  );
-                }
-              } catch (error) {
-                console.warn("Guide phase correction failed", error);
+          if (guideStartEpochMs == null) {
+            // Fallback (anchor unavailable / schedule invalidated): aim at the downbeat
+            // with the fixed lead and measure after the fact — alignment of the RECORDED
+            // stem stays exact either way; only live-click phase is coarser here.
+            if (downbeatEpochMs != null) {
+              const aimWaitMs = downbeatEpochMs - Date.now() - GUIDE_DOWNBEAT_LEAD_MS;
+              if (aimWaitMs > 0) {
+                await waitForMonitoringCompensation(aimWaitMs);
               }
             }
-          } else if (masterFirstDownbeatMs == null) {
-            console.log(
-              "[timing] master has no measured downbeat (recorded before trimming) — " +
-                "live click cannot be phase-locked to it"
-            );
+            guideStartEpochMs = await startGuideMixFromBeginningAnchored();
           }
 
           if (captureStartEpochMs != null && guideStartEpochMs != null) {
@@ -997,6 +1044,33 @@ export function useRecordingScreenModel() {
           manageAudioSession: false,
           cueDelayMs: activeMonitoringCompensationMs,
         });
+
+        // Overdub: use the count-in itself to phase-lock the guide — measure its play()
+        // latency muted, then schedule the audible start pre-compensated to land the
+        // guide's t=0 (its measured downbeat) exactly on the live metronome's downbeat.
+        if (recordingGuideMixUri) {
+          void (async () => {
+            await waitPlainMs(120); // let the engine's audio clock settle before anchoring
+            const anchor = await SongseedMetronomeModule?.getGridAnchor?.().catch(() => null);
+            if (!anchor?.isRunning || anchor.anchorEpochMs == null || anchor.msPerPulse == null) {
+              console.log("[timing] grid anchor unavailable — guide falls back to aim-at-completion");
+              return;
+            }
+            const grid = takeGridRef.current;
+            const countInPulses =
+              (grid?.countInBars ?? 0) * (anchor.pulsesPerBar ?? metronome.meterPreset.pulsesPerBar);
+            const downbeatEpochMs = anchor.anchorEpochMs + countInPulses * anchor.msPerPulse;
+            const masterFirstDownbeatMs =
+              recordingOverdubClip?.recordingGrid?.firstDownbeatMs ?? null;
+            if (masterFirstDownbeatMs == null) {
+              console.log(
+                "[timing] master has no measured downbeat (recorded before trimming) — " +
+                  "starting guide at the live downbeat; its internal pre-roll cannot be locked"
+              );
+            }
+            void schedulePhaseLockedGuideStart(downbeatEpochMs - (masterFirstDownbeatMs ?? 0));
+          })();
+        }
       } catch (error) {
         console.warn("Recording count-in start failed", error);
         countInPendingRef.current = false;
