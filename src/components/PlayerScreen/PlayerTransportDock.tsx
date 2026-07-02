@@ -1,6 +1,7 @@
 import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { haptic } from "../../design/haptics";
 
 type Props = {
   isPlaying: boolean;
@@ -46,7 +47,10 @@ function PlayerTransportDockInner({
                 speedActive ? styles.speedBadgeActive : null,
                 pressed ? styles.pressed : null,
               ]}
-              onPress={onSpeedPress}
+              onPress={() => {
+                haptic.tap();
+                onSpeedPress?.();
+              }}
             >
               <Text style={[styles.speedBadgeText, speedActive ? styles.speedBadgeTextActive : null]}>
                 {speedBadge}
@@ -60,7 +64,10 @@ function PlayerTransportDockInner({
             !canGoPrevious ? styles.buttonDisabled : null,
             pressed ? styles.pressed : null,
           ]}
-          onPress={onPrevious}
+          onPress={() => {
+            haptic.tap();
+            onPrevious();
+          }}
           disabled={!canGoPrevious}
         >
           <Ionicons name="play-skip-back" size={22} color={canGoPrevious ? "#111827" : "#b6bcc7"} />
@@ -72,7 +79,10 @@ function PlayerTransportDockInner({
             playDisabled ? styles.playButtonDisabled : null,
             pressed && !playDisabled ? styles.playPressed : null,
           ]}
-          onPress={onTogglePlay}
+          onPress={() => {
+            haptic.tap();
+            onTogglePlay();
+          }}
           disabled={playDisabled}
         >
           <Ionicons name={isPlaying ? "pause" : "play"} size={24} color={playDisabled ? "#8c837e" : "#111827"} />
@@ -84,7 +94,10 @@ function PlayerTransportDockInner({
             !canGoNext ? styles.buttonDisabled : null,
             pressed ? styles.pressed : null,
           ]}
-          onPress={onNext}
+          onPress={() => {
+            haptic.tap();
+            onNext();
+          }}
           disabled={!canGoNext}
         >
           <Ionicons name="play-skip-forward" size={22} color={canGoNext ? "#111827" : "#b6bcc7"} />
@@ -99,7 +112,10 @@ function PlayerTransportDockInner({
                 trailingDisabled ? styles.buttonDisabled : null,
                 pressed ? styles.pressed : null,
               ]}
-              onPress={onTrailingPress}
+              onPress={() => {
+                haptic.tap();
+                onTrailingPress?.();
+              }}
               disabled={trailingDisabled}
             >
               <Ionicons

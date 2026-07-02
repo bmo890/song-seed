@@ -4,6 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { Button } from "../../common/Button";
 import { styles } from "../styles";
 import { colors } from "../../../design/tokens";
+import { haptic } from "../../../design/haptics";
 import type { SetlistDisplayEntry } from "../hooks/useSetlistModel";
 
 export function SetlistDetailView({
@@ -47,6 +48,7 @@ export function SetlistDetailView({
     <DraggableFlatList
       data={entries}
       keyExtractor={(entry) => entry.id}
+      onDragBegin={haptic.grab}
       onDragEnd={({ data }) => onReorder(data.map((entry) => entry.id))}
       containerStyle={styles.flexFill}
       contentContainerStyle={styles.libraryScrollContent}

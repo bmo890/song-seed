@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import * as Haptics from "expo-haptics";
+import { haptic } from "../../design/haptics";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { styles } from "../../styles";
@@ -83,7 +84,7 @@ export function LyricsVersionsPanel({ projectIdea }: LyricsVersionsPanelProps) {
   }
 
   function startSelection(versionId: string) {
-    void Haptics.selectionAsync();
+    haptic.grab();
     setSelectedVersionIds([versionId]);
   }
 

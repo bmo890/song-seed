@@ -1,9 +1,11 @@
 import { Pressable, Text, View } from "react-native";
+import Animated, { FadeIn } from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
 import { styles } from "../../../styles";
 import { useCollectionScreen } from "../provider/CollectionScreenProvider";
 import { useStore } from "../../../state/useStore";
 import { buildPlayableQueueFromIdeas } from "../../../clipPresentation";
+import { durations } from "../../../design/motion";
 
 export function CollectionHeaderMenu() {
   const { screen, inlinePlayer, store } = useCollectionScreen();
@@ -28,7 +30,10 @@ export function CollectionHeaderMenu() {
         style={styles.ideasHeaderMenuBackdrop}
         onPress={() => screen.setHeaderMenuOpen(false)}
       />
-      <View style={[styles.ideasSortMenu, styles.ideasHeaderOverflowMenu]}>
+      <Animated.View
+        style={[styles.ideasSortMenu, styles.ideasHeaderOverflowMenu]}
+        entering={FadeIn.duration(durations.fast)}
+      >
         <Pressable
           style={({ pressed }) => [
             styles.ideasToggleRow,
@@ -81,7 +86,7 @@ export function CollectionHeaderMenu() {
           <Text style={styles.ideasSortMenuItemText}>View activity</Text>
           <Ionicons name="grid-outline" size={15} color="#334155" />
         </Pressable>
-      </View>
+      </Animated.View>
     </View>
   );
 }

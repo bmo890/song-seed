@@ -24,6 +24,7 @@ import { formatBpmLabel, formatKeyLabel, hasAnalysisResult, isTempoSteady } from
 import { playerScreenStyles as s } from "../styles";
 import type { CountInOption, PracticeTool } from "../hooks/usePlayerScreenUi";
 import type { ClipAnalysis, ClipSection, ClipSectionKind, PracticeMarker } from "../../../types";
+import { styles as appStyles } from "../../../styles";
 
 type PlayerPracticePanelProps = {
   expandedTool: PracticeTool | null;
@@ -1161,7 +1162,7 @@ export function PlayerPracticePanel({
                 <Text style={s.toolLoopText}>{practiceRangeLabel}</Text>
               </Pressable>
               <Pressable
-                style={({ pressed }) => [s.loopIconButton, pressed ? { opacity: 0.7 } : null]}
+                style={({ pressed }) => [s.loopIconButton, pressed ? appStyles.pressDown : null]}
                 onPress={onMoveLoopToPlayhead}
                 hitSlop={6}
                 accessibilityRole="button"

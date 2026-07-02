@@ -240,7 +240,7 @@ export function GlobalMediaDock({
             <Pressable
               style={({ pressed }) => [
                 styles.miniMediaDockCompactPlayBtn,
-                pressed ? { opacity: 0.82 } : null,
+                pressed ? styles.pressDownStrong : null,
               ]}
               onPress={(evt) => {
                 evt.stopPropagation();
@@ -337,7 +337,7 @@ export function GlobalMediaDock({
             <Pressable
               style={({ pressed }) => [
                 styles.miniMediaDockPlayBtn,
-                pressed ? { opacity: 0.82 } : null,
+                pressed ? styles.pressDownStrong : null,
               ]}
               onPress={(evt) => {
                 evt.stopPropagation();

@@ -4,6 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { BottomSheet } from "../../common/BottomSheet";
 import { fmtDuration } from "../../../utils";
 import { playerScreenStyles } from "../styles";
+import { styles as appStyles } from "../../../styles";
 
 type PlayerPinSheetsProps = {
   pinModalVisible: boolean;
@@ -66,7 +67,7 @@ export function PlayerPinSheets({
               style={({ pressed }) => [
                 playerScreenStyles.pinSheetButton,
                 playerScreenStyles.pinSheetButtonSecondary,
-                pressed ? { opacity: 0.7 } : null,
+                pressed ? appStyles.pressDown : null,
               ]}
               onPress={onCloseCreate}
             >
@@ -83,7 +84,7 @@ export function PlayerPinSheets({
               style={({ pressed }) => [
                 playerScreenStyles.pinSheetButton,
                 !newPinLabel.trim() ? playerScreenStyles.pinSheetButtonDisabled : null,
-                pressed ? { opacity: 0.7 } : null,
+                pressed ? appStyles.pressDown : null,
               ]}
               onPress={onSaveNewPin}
               disabled={!newPinLabel.trim()}
@@ -126,7 +127,7 @@ export function PlayerPinSheets({
               style={({ pressed }) => [
                 playerScreenStyles.pinSheetButton,
                 playerScreenStyles.pinSheetButtonDanger,
-                pressed ? { opacity: 0.7 } : null,
+                pressed ? appStyles.pressDown : null,
               ]}
               onPress={onDeletePin}
             >
@@ -137,7 +138,7 @@ export function PlayerPinSheets({
               style={({ pressed }) => [
                 playerScreenStyles.pinSheetButton,
                 !pinRenameValue.trim() ? playerScreenStyles.pinSheetButtonDisabled : null,
-                pressed ? { opacity: 0.7 } : null,
+                pressed ? appStyles.pressDown : null,
               ]}
               onPress={onRenamePin}
               disabled={!pinRenameValue.trim()}
