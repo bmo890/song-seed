@@ -16,6 +16,16 @@ export type NativeAudioRouteInfo = {
   type: string;
 };
 
+/** OS-reported latency of the active audio route. Fields are omitted when the platform
+ *  can't report them (Android reporting is OEM-variable) — callers must treat absence as
+ *  "unknown", never as zero. */
+export type NativeAudioRouteLatency = {
+  /** Output (playback) latency in ms, including Bluetooth codec buffering where the OS knows it. */
+  outputMs?: number;
+  /** Input (capture) latency in ms. */
+  inputMs?: number;
+};
+
 export type NativeMetronomeState = {
   isAvailable: boolean;
   isRunning: boolean;

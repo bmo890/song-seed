@@ -75,6 +75,22 @@ public class SongseedMetronomeModule: Module {
       ]
     }
 
+    AsyncFunction("getCurrentAudioRouteLatencyMs") { () -> [String: Any] in
+      // iOS reports route latency directly, including a Bluetooth codec-buffer estimate.
+      // Omit fields when the session reports 0/unknown so callers treat them as absent.
+      let session = AVAudioSession.sharedInstance()
+      var result: [String: Any] = [:]
+      let outputMs = session.outputLatency * 1000
+      if outputMs > 0 {
+        result["outputMs"] = outputMs
+      }
+      let inputMs = session.inputLatency * 1000
+      if inputMs > 0 {
+        result["inputMs"] = inputMs
+      }
+      return result
+    }
+
     AsyncFunction("start") { () -> [String: Any] in
       return self.engine.start(countInBars: 0)
     }

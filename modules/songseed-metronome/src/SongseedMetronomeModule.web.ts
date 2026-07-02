@@ -1,6 +1,7 @@
 import { NativeModule, registerWebModule } from "expo";
 
 import type {
+  NativeAudioRouteLatency,
   NativeMetronomeConfig,
   NativeMetronomeState,
   SongseedMetronomeModuleEvents,
@@ -46,6 +47,10 @@ class SongseedMetronomeModule extends NativeModule<SongseedMetronomeModuleEvents
 
   async getState(): Promise<NativeMetronomeState> {
     return this.state;
+  }
+
+  async getCurrentAudioRouteLatencyMs(): Promise<NativeAudioRouteLatency | null> {
+    return null;
   }
 
   async start(): Promise<NativeMetronomeState> {

@@ -146,6 +146,60 @@ class SongseedMetronomeEngine(
     return getState()
   }
 
+  /**
+   * Best-effort output latency (ms) of the active route via the hidden
+   * `AudioTrack#getLatency()` — the only Android API that folds in the A2DP sink delay on
+   * devices that report it. Hidden-API access can be denied (OEM/AOSP greylist), so this
+   * returns null on any failure and callers must treat null as "unknown", not zero.
+   * Reuses the live click track when running; otherwise probes with a throwaway track.
+   */
+  fun currentOutputLatencyMs(): Int? {
+    val existing = audioTrack
+    val track = existing ?: buildProbeTrack() ?: return null
+    return try {
+      val method = AudioTrack::class.java.getMethod("getLatency")
+      (method.invoke(track) as? Int)?.takeIf { it in 1..3000 }
+    } catch (_: Throwable) {
+      null
+    } finally {
+      if (existing == null) {
+        try {
+          track.release()
+        } catch (_: Throwable) {
+        }
+      }
+    }
+  }
+
+  private fun buildProbeTrack(): AudioTrack? {
+    return try {
+      val minBufferSize = AudioTrack.getMinBufferSize(
+        sampleRate,
+        AudioFormat.CHANNEL_OUT_MONO,
+        AudioFormat.ENCODING_PCM_16BIT
+      )
+      if (minBufferSize <= 0) {
+        return null
+      }
+      AudioTrack(
+        AudioAttributes.Builder()
+          .setUsage(AudioAttributes.USAGE_MEDIA)
+          .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+          .build(),
+        AudioFormat.Builder()
+          .setSampleRate(sampleRate)
+          .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
+          .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
+          .build(),
+        minBufferSize,
+        AudioTrack.MODE_STREAM,
+        AudioManager.AUDIO_SESSION_ID_GENERATE
+      )
+    } catch (_: Throwable) {
+      null
+    }
+  }
+
   fun getState(): Map<String, Any> {
     return mapOf(
       "isAvailable" to true,

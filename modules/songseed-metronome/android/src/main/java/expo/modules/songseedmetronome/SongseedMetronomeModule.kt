@@ -46,6 +46,14 @@ class SongseedMetronomeModule : Module() {
       getCurrentAudioOutputRoute(context)
     }
 
+    AsyncFunction("getCurrentAudioRouteLatencyMs") {
+      // Best-effort: Android has no public total-route-latency API. Omitted fields mean
+      // "unknown" — callers must not assume zero.
+      val result = mutableMapOf<String, Any>()
+      engine.currentOutputLatencyMs()?.let { result["outputMs"] = it }
+      result
+    }
+
     AsyncFunction("start") {
       engine.start(0)
     }
