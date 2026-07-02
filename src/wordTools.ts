@@ -283,8 +283,52 @@ async function fetchWordServiceJson(url: string, signal?: AbortSignal): Promise<
 const cache = new Map<string, WordSuggestion[]>();
 const CACHE_LIMIT = 200;
 
+function rememberInMemory(key: string, suggestions: WordSuggestion[]) {
+  if (cache.size >= CACHE_LIMIT) {
+    const oldest = cache.keys().next().value;
+    if (oldest !== undefined) cache.delete(oldest);
+  }
+  cache.set(key, suggestions);
+}
+
 export function clearWordLookupCache() {
   cache.clear();
+}
+
+/**
+ * Optional durable cache behind the in-memory one. The app installs a
+ * SQLite-backed store at startup (src/services/wordLookupCache.ts) so lookups
+ * survive restarts; lookups for a word never change, so nothing here expires.
+ * Injected rather than imported to keep this module free of native deps.
+ */
+export type WordLookupPersistentStore = {
+  get: (key: string) => Promise<string | null>;
+  set: (key: string, value: string) => void | Promise<void>;
+};
+
+let persistentStore: WordLookupPersistentStore | null = null;
+
+export function setWordLookupPersistentStore(store: WordLookupPersistentStore | null) {
+  persistentStore = store;
+}
+
+async function readPersistent<T>(key: string, parse: (raw: unknown) => T): Promise<T | null> {
+  if (!persistentStore) return null;
+  try {
+    const raw = await persistentStore.get(key);
+    if (raw === null) return null;
+    return parse(JSON.parse(raw));
+  } catch {
+    return null;
+  }
+}
+
+function writePersistent(key: string, value: unknown) {
+  try {
+    void persistentStore?.set(key, JSON.stringify(value));
+  } catch {
+    // Durable caching is best-effort; the lookup already succeeded.
+  }
 }
 
 export async function fetchWordSuggestions(
@@ -300,14 +344,17 @@ export async function fetchWordSuggestions(
   const cached = cache.get(cacheKey);
   if (cached) return cached;
 
+  const stored = await readPersistent(cacheKey, parseWordSuggestions);
+  if (stored !== null) {
+    rememberInMemory(cacheKey, stored);
+    return stored;
+  }
+
   const url = buildWordLookupUrl(mode, normalized, options);
   const suggestions = parseWordSuggestions(await fetchWordServiceJson(url, options?.signal));
 
-  if (cache.size >= CACHE_LIMIT) {
-    const oldest = cache.keys().next().value;
-    if (oldest !== undefined) cache.delete(oldest);
-  }
-  cache.set(cacheKey, suggestions);
+  rememberInMemory(cacheKey, suggestions);
+  writePersistent(cacheKey, suggestions);
   return suggestions;
 }
 
@@ -370,6 +417,12 @@ export async function fetchWordDefinitions(
   const cached = definitionCache.get(normalized);
   if (cached) return cached;
 
+  const storedDefs = await readPersistent(`def:${normalized}`, parseStoredDefinitions);
+  if (storedDefs !== null) {
+    rememberDefinition(normalized, storedDefs);
+    return storedDefs;
+  }
+
   const url = buildDefinitionLookupUrl(normalized, options?.baseUrl);
   const payload = await fetchWordServiceJson(url, options?.signal);
   const first = Array.isArray(payload) ? payload[0] : null;
@@ -377,10 +430,27 @@ export async function fetchWordDefinitions(
     first && typeof first === "object" && (first as { word?: unknown }).word === normalized;
   const defs = matchesWord ? parseWordDefinitions((first as { defs?: unknown }).defs) : [];
 
+  rememberDefinition(normalized, defs);
+  writePersistent(`def:${normalized}`, defs);
+  return defs;
+}
+
+function rememberDefinition(word: string, defs: WordDefinition[]) {
   if (definitionCache.size >= DEFINITION_CACHE_LIMIT) {
     const oldest = definitionCache.keys().next().value;
     if (oldest !== undefined) definitionCache.delete(oldest);
   }
-  definitionCache.set(normalized, defs);
-  return defs;
+  definitionCache.set(word, defs);
+}
+
+/** Validate definitions re-read from the durable cache (we wrote them, but be safe). */
+function parseStoredDefinitions(raw: unknown): WordDefinition[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.filter(
+    (entry): entry is WordDefinition =>
+      !!entry &&
+      typeof entry === "object" &&
+      typeof (entry as WordDefinition).partOfSpeech === "string" &&
+      typeof (entry as WordDefinition).text === "string"
+  );
 }

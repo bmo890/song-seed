@@ -2,12 +2,15 @@ import {
   applyPickedWord,
   buildDefinitionLookupUrl,
   buildWordLookupUrl,
+  clearWordLookupCache,
   extractWordRange,
+  fetchWordSuggestions,
   groupBySyllableCount,
   insertWordIntoText,
   parseWordSuggestions,
   partOfSpeechLabel,
   sanitizeThemeWords,
+  setWordLookupPersistentStore,
 } from "../wordTools";
 
 describe("extractWordRange", () => {
@@ -197,6 +200,59 @@ describe("groupBySyllableCount", () => {
       { word: "glove", score: 1, numSyllables: 1 },
     ]);
     expect(groups).toHaveLength(1);
+  });
+});
+
+describe("persistent cache layer", () => {
+  afterEach(() => {
+    setWordLookupPersistentStore(null);
+    clearWordLookupCache();
+    delete (globalThis as { fetch?: unknown }).fetch;
+  });
+
+  it("serves suggestions from the durable store without touching the network", async () => {
+    const stored = [{ word: "above", score: 10, numSyllables: 2 }];
+    setWordLookupPersistentStore({
+      get: async (key) => (key === "rhymes::love" ? JSON.stringify(stored) : null),
+      set: () => {},
+    });
+    // No fetch mock installed — a network attempt would throw.
+    const result = await fetchWordSuggestions("rhymes", "Love");
+    expect(result).toEqual([{ word: "above", score: 10, numSyllables: 2 }]);
+  });
+
+  it("writes fresh network results into the durable store", async () => {
+    const writes: Record<string, string> = {};
+    setWordLookupPersistentStore({
+      get: async () => null,
+      set: (key, value) => {
+        writes[key] = value;
+      },
+    });
+    (globalThis as { fetch?: unknown }).fetch = jest.fn(async () => ({
+      ok: true,
+      json: async () => [{ word: "dove", score: 5, numSyllables: 1 }],
+    }));
+
+    const result = await fetchWordSuggestions("rhymes", "love");
+    expect(result[0].word).toBe("dove");
+    expect(JSON.parse(writes["rhymes::love"])).toEqual([{ word: "dove", score: 5, numSyllables: 1 }]);
+  });
+
+  it("falls through to the network when the store read fails", async () => {
+    setWordLookupPersistentStore({
+      get: async () => {
+        throw new Error("disk unhappy");
+      },
+      set: () => {},
+    });
+    (globalThis as { fetch?: unknown }).fetch = jest.fn(async () => ({
+      ok: true,
+      json: async () => [{ word: "glove", score: 1 }],
+    }));
+
+    const result = await fetchWordSuggestions("rhymes", "love");
+    expect(result[0].word).toBe("glove");
   });
 });
 
