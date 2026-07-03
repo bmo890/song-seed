@@ -139,9 +139,12 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
     setHeadTrim({ pending: true, ms: 0 });
   }
 
-  /** Fix the head length (ms of pre-roll to cut at save). Ends the pending state. */
+  /** Fix the head length (ms of pre-roll to cut at save). Ends the pending state and
+   *  realigns the live tape to the musical start, so the on-screen waveform from here on
+   *  matches the trimmed file that will be saved. */
   function commitHeadTrim(ms: number) {
     const safeMs = Number.isFinite(ms) && ms > 0 && ms <= MAX_HEAD_TRIM_MS ? Math.round(ms) : 0;
+    resetLiveWaveform();
     setHeadTrim({ pending: false, ms: safeMs });
   }
 
@@ -440,7 +443,13 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
         },
       },
       onAudioStream: async (event: any) => {
-        appendAudioStream(event);
+        // Record-through: while the head is still pending (count-in / pre-roll), capture is
+        // rolling but this audio will be trimmed off at save. Don't draw it on the live
+        // tape — otherwise the tape shows a silent count-in lead that the saved (trimmed)
+        // file doesn't have. The tape is realigned to the musical start on commitHeadTrim.
+        if (!headTrimRef.current.pending) {
+          appendAudioStream(event);
+        }
         const nativeCaptureStart = (event as { captureStartTimeEpochMs?: unknown })
           .captureStartTimeEpochMs;
         if (
@@ -705,7 +714,14 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
       // look unrelated to the audio. Only use managedAudio's peaks if the recorder
       // produced no analysis. The analysis covers the UNTRIMMED capture, so drop the
       // segments that fell inside the trimmed head to keep the waveform aligned.
-      const headDropCount = headTrimmedMs > 0 ? Math.round(headTrimmedMs / ANALYSIS_SEGMENT_MS) : 0;
+      // Drop the analysis segments that fell inside the trimmed head, using the analysis's
+      // OWN segment duration (not the assumed constant) so the kept peaks line up exactly
+      // with the trimmed audio the clip references.
+      const analysisSegmentMs =
+        recordingData.analysisData?.segmentDurationMs && recordingData.analysisData.segmentDurationMs > 0
+          ? recordingData.analysisData.segmentDurationMs
+          : ANALYSIS_SEGMENT_MS;
+      const headDropCount = headTrimmedMs > 0 ? Math.round(headTrimmedMs / analysisSegmentMs) : 0;
       const dataPoints = (recordingData.analysisData?.dataPoints ?? []).slice(headDropCount);
       const levelsAsDb = dataPoints.map((p) =>
         Number.isFinite(p.dB) ? p.dB : p.amplitude > 0 ? 20 * Math.log10(p.amplitude) : -60

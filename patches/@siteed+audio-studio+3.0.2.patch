@@ -106,6 +106,68 @@ index 6f93aa4..e91c79b 100644
                  
                  // Clean up accumulated audio data
                  accumulatedAudioData?.close()
+diff --git a/node_modules/@siteed/audio-studio/build/cjs/useAudioRecorder.js b/node_modules/@siteed/audio-studio/build/cjs/useAudioRecorder.js
+index 1fee40c..4002b73 100644
+--- a/node_modules/@siteed/audio-studio/build/cjs/useAudioRecorder.js
++++ b/node_modules/@siteed/audio-studio/build/cjs/useAudioRecorder.js
+@@ -193,7 +193,7 @@ function useAudioRecorder({ logger, audioWorkletUrl, featuresExtratorUrl, } = {}
+         });
+     }, [dispatch]);
+     const handleAudioEvent = (0, react_1.useCallback)(async (eventData) => {
+-        const { fileUri, deltaSize, totalSize, lastEmittedSize, position, streamUuid, encoded, pcmFloat32, mimeType, buffer, compression, } = eventData;
++        const { fileUri, deltaSize, totalSize, lastEmittedSize, position, streamUuid, encoded, pcmFloat32, mimeType, buffer, compression, captureStartTimeEpochMs, captureStartSource, } = eventData;
+         logger?.debug(`[handleAudioEvent] Received audio event:`, {
+             fileUri,
+             deltaSize,
+@@ -237,6 +237,8 @@ function useAudioRecorder({ logger, audioWorkletUrl, featuresExtratorUrl, } = {}
+                         eventDataSize: deltaSize,
+                         totalSize,
+                         compression: compressionPayload,
++                        captureStartTimeEpochMs,
++                        captureStartSource,
+                     });
+                 }
+                 else {
+@@ -251,6 +253,8 @@ function useAudioRecorder({ logger, audioWorkletUrl, featuresExtratorUrl, } = {}
+                         eventDataSize: deltaSize,
+                         totalSize,
+                         compression: compressionPayload,
++                        captureStartTimeEpochMs,
++                        captureStartSource,
+                     });
+                 }
+             }
+diff --git a/node_modules/@siteed/audio-studio/build/esm/useAudioRecorder.js b/node_modules/@siteed/audio-studio/build/esm/useAudioRecorder.js
+index 14f363e..fac92f0 100644
+--- a/node_modules/@siteed/audio-studio/build/esm/useAudioRecorder.js
++++ b/node_modules/@siteed/audio-studio/build/esm/useAudioRecorder.js
+@@ -187,7 +187,7 @@ export function useAudioRecorder({ logger, audioWorkletUrl, featuresExtratorUrl,
+         });
+     }, [dispatch]);
+     const handleAudioEvent = useCallback(async (eventData) => {
+-        const { fileUri, deltaSize, totalSize, lastEmittedSize, position, streamUuid, encoded, pcmFloat32, mimeType, buffer, compression, } = eventData;
++        const { fileUri, deltaSize, totalSize, lastEmittedSize, position, streamUuid, encoded, pcmFloat32, mimeType, buffer, compression, captureStartTimeEpochMs, captureStartSource, } = eventData;
+         logger?.debug(`[handleAudioEvent] Received audio event:`, {
+             fileUri,
+             deltaSize,
+@@ -231,6 +231,8 @@ export function useAudioRecorder({ logger, audioWorkletUrl, featuresExtratorUrl,
+                         eventDataSize: deltaSize,
+                         totalSize,
+                         compression: compressionPayload,
++                        captureStartTimeEpochMs,
++                        captureStartSource,
+                     });
+                 }
+                 else {
+@@ -245,6 +247,8 @@ export function useAudioRecorder({ logger, audioWorkletUrl, featuresExtratorUrl,
+                         eventDataSize: deltaSize,
+                         totalSize,
+                         compression: compressionPayload,
++                        captureStartTimeEpochMs,
++                        captureStartSource,
+                     });
+                 }
+             }
 diff --git a/node_modules/@siteed/audio-studio/ios/AudioStreamManager.swift b/node_modules/@siteed/audio-studio/ios/AudioStreamManager.swift
 index deec895..f19aab6 100644
 --- a/node_modules/@siteed/audio-studio/ios/AudioStreamManager.swift
@@ -204,3 +266,64 @@ index df7fccc..136ab2b 100644
          if manager.recordingSettings?.streamFormat == "float32" {
              let sampleCount = data.count / 2
              var floatArray = [Float](repeating: 0, count: sampleCount)
+diff --git a/node_modules/@siteed/audio-studio/src/AudioStudio.types.ts b/node_modules/@siteed/audio-studio/src/AudioStudio.types.ts
+index 5c52d35..bcd518d 100644
+--- a/node_modules/@siteed/audio-studio/src/AudioStudio.types.ts
++++ b/node_modules/@siteed/audio-studio/src/AudioStudio.types.ts
+@@ -47,6 +47,10 @@ interface AudioDataEventBase {
+     eventDataSize: number
+     /** Total size of the recording so far in bytes */
+     totalSize: number
++    /** Epoch ms of the recording's first captured sample, measured natively (Song Seed
++     *  patch); undefined until the HAL reports a timestamp / on web. */
++    captureStartTimeEpochMs?: number
++    captureStartSource?: string
+     /** Information about compression if enabled, including the compressed data chunk */
+     compression?: CompressionInfo & {
+         /** Base64 (native) or Blob (web) encoded compressed data chunk */
+diff --git a/node_modules/@siteed/audio-studio/src/events.ts b/node_modules/@siteed/audio-studio/src/events.ts
+index bb2554b..d8c2a76 100644
+--- a/node_modules/@siteed/audio-studio/src/events.ts
++++ b/node_modules/@siteed/audio-studio/src/events.ts
+@@ -22,6 +22,10 @@ export interface AudioEventPayload {
+     totalSize: number
+     mimeType: string
+     streamUuid: string
++    /** Epoch ms of the recording's first captured sample, measured natively (Song Seed
++     *  patch). Undefined on the first buffers before the HAL reports a timestamp. */
++    captureStartTimeEpochMs?: number
++    captureStartSource?: string
+     compression?: {
+         data?: string | Blob // Base64 (native) or Float32Array (web) encoded compressed data chunk
+         position: number
+diff --git a/node_modules/@siteed/audio-studio/src/useAudioRecorder.tsx b/node_modules/@siteed/audio-studio/src/useAudioRecorder.tsx
+index 5414481..4244d6a 100644
+--- a/node_modules/@siteed/audio-studio/src/useAudioRecorder.tsx
++++ b/node_modules/@siteed/audio-studio/src/useAudioRecorder.tsx
+@@ -329,6 +329,8 @@ export function useAudioRecorder({
+                 mimeType,
+                 buffer,
+                 compression,
++                captureStartTimeEpochMs,
++                captureStartSource,
+             } = eventData
+             logger?.debug(`[handleAudioEvent] Received audio event:`, {
+                 fileUri,
+@@ -377,6 +379,8 @@ export function useAudioRecorder({
+                             eventDataSize: deltaSize,
+                             totalSize,
+                             compression: compressionPayload,
++                            captureStartTimeEpochMs,
++                            captureStartSource,
+                         })
+                     } else {
+                         if (!encoded) {
+@@ -390,6 +394,8 @@ export function useAudioRecorder({
+                             eventDataSize: deltaSize,
+                             totalSize,
+                             compression: compressionPayload,
++                            captureStartTimeEpochMs,
++                            captureStartSource,
+                         })
+                     }
+                 } else if (buffer) {
