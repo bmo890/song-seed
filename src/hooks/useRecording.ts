@@ -81,6 +81,10 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
     epochMs: null,
     samples: 0,
   });
+  // Exact capture start reported by the patched native recorder (projected from
+  // AudioRecord.getTimestamp / the first tap buffer's AVAudioTime). Preferred over the
+  // estimator; null on unpatched binaries.
+  const captureStartNativeRef = useRef<{ epochMs: number; source: string } | null>(null);
   const permissionRequestRef = useRef<Promise<boolean> | null>(null);
   const prepareInFlightRef = useRef(false);
   const startInFlightRef = useRef(false);
@@ -116,12 +120,18 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
 
   function resetCaptureStartEstimate() {
     captureStartEstimateRef.current = { epochMs: null, samples: 0 };
+    captureStartNativeRef.current = null;
   }
 
-  /** Best estimate of when capture began (epoch ms); falls back to the JS-side stamp
-   *  taken just before the native start call. Null when nothing is recording. */
+  /** When capture began (epoch ms): the native recorder's measured sample-0 time when
+   *  the patched binary reports one, else the duration-based estimate, else the JS-side
+   *  stamp taken just before the native start call. Null when nothing is recording. */
   function getCaptureStartEpochMs() {
-    return captureStartEstimateRef.current.epochMs ?? recordingStartedAtRef.current;
+    return (
+      captureStartNativeRef.current?.epochMs ??
+      captureStartEstimateRef.current.epochMs ??
+      recordingStartedAtRef.current
+    );
   }
 
   /** Mark the in-flight take as record-through: elapsed reads 0 until the head is known. */
@@ -431,6 +441,27 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
       },
       onAudioStream: async (event: any) => {
         appendAudioStream(event);
+        const nativeCaptureStart = (event as { captureStartTimeEpochMs?: unknown })
+          .captureStartTimeEpochMs;
+        if (
+          captureStartNativeRef.current === null &&
+          typeof nativeCaptureStart === "number" &&
+          Number.isFinite(nativeCaptureStart) &&
+          nativeCaptureStart > 0
+        ) {
+          const source =
+            typeof (event as { captureStartSource?: unknown }).captureStartSource === "string"
+              ? ((event as { captureStartSource?: string }).captureStartSource as string)
+              : "native";
+          captureStartNativeRef.current = { epochMs: nativeCaptureStart, source };
+          const estimated = captureStartEstimateRef.current.epochMs;
+          console.log(
+            `[timing] captureStart native=${Math.round(nativeCaptureStart)} (${source})` +
+              (estimated !== null
+                ? ` estimatorDelta=${Math.round(estimated - nativeCaptureStart)}ms`
+                : "")
+          );
+        }
         if (!event.fileUri || persistedSessionRef.current) return;
         persistedSessionRef.current = true;
         const recordingStartedAt = recordingStartedAtRef.current ?? Date.now();
