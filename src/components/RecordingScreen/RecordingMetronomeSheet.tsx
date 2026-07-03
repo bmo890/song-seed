@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import Slider from "@react-native-community/slider";
 import { BottomSheet } from "../common/BottomSheet";
@@ -58,7 +58,6 @@ type Props = {
   /** "Original take: 92 BPM · 4/4" when the target clip carries a saved recording grid
    *  (the metronome was preset to it on entry). Null when there's nothing to restore. */
   restoredGridLabel?: string | null;
-  onToggleEnabled: (value: boolean) => void;
   onTogglePreview: () => void;
   onNudgeBpm: (delta: number) => void;
   onSetBpmValue: (value: number) => void;
@@ -85,7 +84,6 @@ export function RecordingMetronomeSheet({
   hapticLevel,
   tapCount,
   restoredGridLabel,
-  onToggleEnabled,
   onTogglePreview,
   onNudgeBpm,
   onSetBpmValue,
@@ -113,16 +111,10 @@ export function RecordingMetronomeSheet({
       <View style={s.titleRow}>
         <View style={s.titleLead}>
           <Text style={s.title}>Metronome</Text>
+          {/* On/off lives on the metronome button itself now — this sheet only customizes. */}
           <Text style={s.titleSub}>{enabled ? "On — clicks while you record" : "Off — no click in the take"}</Text>
           {restoredGridLabel ? <Text style={s.titleGridNote}>{restoredGridLabel}</Text> : null}
         </View>
-        <Switch
-          value={enabled}
-          onValueChange={onToggleEnabled}
-          disabled={disabled || !isNativeAvailable}
-          trackColor={{ false: "#E8E4DF", true: "#B87D6B" }}
-          thumbColor="#ffffff"
-        />
       </View>
 
       {isNativeAvailable ? (

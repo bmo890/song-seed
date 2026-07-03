@@ -43,6 +43,19 @@ const GUIDE_DOWNBEAT_LEAD_MS = 80;
  *  ear calibration is older than this. */
 const CALIBRATION_STALE_AFTER_MS = 30 * 24 * 60 * 60 * 1000;
 
+// Guide-player resume latency measured by the most recent phase-locked start (a device
+// property, stable within an app session — logs show ~35–70 ms). Cached at module level
+// so a take WITHOUT a count-in can schedule a locked guide start with a much shorter
+// lead: the rehearsal that measures this needs time the count-in normally donates.
+let sessionGuideResumeLatencyMs: number | null = null;
+
+/** Lead time a phase-locked guide start needs from "now": one muted warm cycle always
+ *  runs (cold-start the player, measure, rewind); the second cycle that measures resume
+ *  latency is skipped when a cached measurement exists. */
+function guideLockLeadNeededMs() {
+  return sessionGuideResumeLatencyMs != null ? 1200 : 1800;
+}
+
 export type RecordingTimingWarning = {
   kind: "uncalibrated-bt" | "stale-calibration" | "bt-mic" | "route-changed";
   message: string;
@@ -458,8 +471,10 @@ export function useRecordingScreenModel() {
         // The REAL start is a resume-from-pause, which is far faster than the cold start
         // (device logs: cold 233–518ms vs resume ~35–70ms — scheduling with the cold
         // number fired the guide up to half a second EARLY, before the count-in ended).
-        // Measure the resume latency with a second muted cycle when there's time.
-        let startLatencyMs = Math.min(coldStartLatencyMs, 80);
+        // Measure the resume latency with a second muted cycle when there's time; when
+        // there isn't (no-count-in takes), a measurement cached from any earlier take
+        // this session beats the capped cold number.
+        let startLatencyMs = sessionGuideResumeLatencyMs ?? Math.min(coldStartLatencyMs, 80);
         if (targetStartEpochMs - Date.now() > 700) {
           const resumePlayCallAtMs = Date.now();
           guideMixPlayer.play();
@@ -467,6 +482,7 @@ export function useRecordingScreenModel() {
           if (guideScheduleRef.current.token !== token) return null;
           if (resumeAnchorEpochMs != null) {
             startLatencyMs = Math.max(0, Math.min(600, resumeAnchorEpochMs - resumePlayCallAtMs));
+            sessionGuideResumeLatencyMs = startLatencyMs;
           }
           await guideMixPlayer.pause();
           await guideMixPlayer.seekTo(0);
@@ -628,6 +644,44 @@ export function useRecordingScreenModel() {
       updateIdeas((prevIdeas) => prevIdeas.filter((idea) => idea.id !== recordingIdea.id));
     }
     clearRecordingContext();
+  }
+
+  /** Scrap the in-flight take and reset to Ready WITHOUT leaving the screen: the file is
+   *  discarded, but the session — settings, guide, metronome grid, one-shot count-in —
+   *  stays armed exactly as it was, so the next attempt is one tap away. */
+  async function redoTake() {
+    if (!isArmingRecording && !recording.isRecording && !recording.isPaused) {
+      return;
+    }
+    // The count-in completion effect consumes countInBars (one-shot); a redo should run
+    // the next attempt identically, so restore it from the take's grid snapshot.
+    const takeCountInBars = takeGridRef.current?.countInBars ?? 0;
+    if (isArmingRecording) {
+      await cancelPendingRecordingStart();
+    } else {
+      takeGridRef.current = null;
+      setMidTakeRouteChangeMs(null);
+      setOverdubReviewLocked(false);
+      autoStoppingOverdubRef.current = false;
+      clearMonitoringDelayTimer();
+      await stopGuideMix();
+      await stopRecordingMetronome();
+      await recording.discardRecording();
+    }
+    if (takeCountInBars > 0) {
+      metronome.setCountInBarsValue(takeCountInBars);
+    }
+  }
+
+  function confirmRedoTake() {
+    AppAlert.destructive(
+      "Redo take?",
+      "This take will be deleted and you'll be back at the start, ready to record with the same settings.",
+      () => {
+        void redoTake();
+      },
+      { confirmLabel: "Redo", cancelLabel: "Keep recording", icon: actionIcons.restore }
+    );
   }
 
   function confirmDiscardAndExit() {
@@ -930,9 +984,11 @@ export function useRecordingScreenModel() {
   ]);
 
   // Preset the metronome from the target clip's saved recording grid so overdubs and
-  // variations line up with the tempo/meter the original take was actually recorded
-  // against — regardless of what the global metronome was changed to since. Count-in
-  // stays the user's global preference. Runs once per target clip.
+  // variations line up with the take the original was actually recorded against —
+  // regardless of what the global metronome was changed to since. The WHOLE grid is
+  // mirrored: tempo, meter, count-in bars, and whether the click ran through the take,
+  // so opening an overdub session lands ready-to-record with the master's settings.
+  // Runs once per target clip; everything stays adjustable afterwards.
   const takeGridSourceClip = useMemo(
     () =>
       recordingOverdubClip ??
@@ -956,6 +1012,8 @@ export function useRecordingScreenModel() {
     restoredGridClipIdRef.current = takeGridSourceClip.id;
     metronome.setBpmValue(grid.bpm);
     metronome.setMeterIdValue(grid.meterId);
+    metronome.setCountInBarsValue(grid.countInBars);
+    setRecordingMetronomeEnabled(grid.clickThroughTake);
   }, [metronome, takeGridSourceClip]);
 
   useEffect(() => {
@@ -1341,10 +1399,6 @@ export function useRecordingScreenModel() {
         anchor?.msPerPulse != null
           ? anchor.msPerPulse * (anchor.pulsesPerBar ?? metronome.meterPreset.pulsesPerBar)
           : null;
-      const guideStartEpochMs = recordingGuideMixUri
-        ? await startGuideMixFromBeginningAnchored()
-        : null;
-      const captureStartEpochMs = recording.getCaptureStartEpochMs();
       const profile = await resolveCurrentRouteLatencyProfile({
         calibrations: bluetoothMonitoringCalibrations,
         activeOutputs: recordingGuideMixUri
@@ -1356,6 +1410,38 @@ export function useRecordingScreenModel() {
       if (profile) {
         console.log(`[timing] latency profile: ${formatLatencyProfileLog(profile)}`);
       }
+
+      // Guide + click with no count-in: still phase-lock them. The guide joins at the
+      // earliest bar line far enough out to run the muted rehearsal — effectively an
+      // implicit one-bar count-in with the click running (shorter when a resume-latency
+      // measurement is already cached from an earlier take this session).
+      let guideStartEpochMs: number | null = null;
+      if (recordingGuideMixUri) {
+        if (anchorEpochMs != null && barMs != null && barMs > 0) {
+          const masterFirstDownbeatMs =
+            recordingOverdubClip?.recordingGrid?.firstDownbeatMs ?? null;
+          const guideAdvanceMs = profile?.guideStartAdvanceMs ?? 0;
+          const barsAhead = Math.max(
+            1,
+            Math.ceil((Date.now() + guideLockLeadNeededMs() - anchorEpochMs) / barMs)
+          );
+          const targetEpochMs = anchorEpochMs + barsAhead * barMs;
+          console.log(
+            `[timing] no-count-in guide lock: joining at the bar line ` +
+              `${Math.round(targetEpochMs - Date.now())}ms out` +
+              (guideAdvanceMs > 0 ? ` (guide advanced ${Math.round(guideAdvanceMs)}ms)` : "")
+          );
+          guideStartEpochMs = await schedulePhaseLockedGuideStart(
+            targetEpochMs - (masterFirstDownbeatMs ?? 0) - guideAdvanceMs
+          );
+        }
+        if (guideStartEpochMs == null) {
+          // Anchor unavailable or the schedule was invalidated: unlocked measured start.
+          // The recorded stem still trims exactly; only live click↔guide phase is loose.
+          guideStartEpochMs = await startGuideMixFromBeginningAnchored();
+        }
+      }
+      const captureStartEpochMs = recording.getCaptureStartEpochMs();
 
       if (trimming) {
         // Musical start: the guide's measured t=0 for overdubs, else the engine's first
@@ -1569,6 +1655,7 @@ export function useRecordingScreenModel() {
     setLyricsAutoscrollMode,
     setLyricsAutoscrollSpeedMultiplier,
     confirmDiscardAndExit,
+    confirmRedoTake,
     handleQuickNameCancel,
     minimizeRecording,
     requestSaveRecording,
