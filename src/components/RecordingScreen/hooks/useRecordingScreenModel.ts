@@ -399,7 +399,12 @@ export function useRecordingScreenModel() {
       await guideMixPlayer.pause();
       await guideMixPlayer.seekTo(0);
     } catch (error) {
-      console.warn("Guide mix stop failed", error);
+      // Screen teardown can release the player before this stop runs; that race is
+      // harmless. Only surface real failures.
+      const message = error instanceof Error ? error.message : String(error);
+      if (!/released/i.test(message)) {
+        console.warn("Guide mix stop failed", error);
+      }
     }
   }
 
