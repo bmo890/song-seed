@@ -16,16 +16,16 @@ Date of handoff: 2026-07-03. Branch: `claude/metronome-consistency-audit-dqnvk8`
 - The app **works on device today**: recorded takes trim to the musical downbeat using a
   **JS estimator** for capture-start (±15–25 ms). Device logs show clean trims
   (e.g. `no-count-in head trim: 88ms (target=pulse0, captureStart=measured)`).
-- **The active bug:** a native patch that was supposed to replace that estimator with an
-  **exact** capture-start timestamp (±5 ms) is not reaching JS. Root cause is now
-  **confirmed** (see §6): our native patch emits the field correctly, but
-  `@siteed/audio-studio`'s **compiled JS layer drops it**, and Metro loads the compiled
-  build, not the source. The fix is a small addition to the existing patch. Until then the
-  estimator fallback keeps everything working — this is a **precision upgrade, not a
-  breakage**.
+- **The former active bug is FIXED in code (commit `673833f`), pending device verify.**
+  The native patch emitted `captureStartTimeEpochMs`, but `@siteed/audio-studio`'s
+  **compiled JS layer dropped it** (Metro loads `build/`, not `src/`). The patch now also
+  forwards the field through `build/cjs` + `build/esm` `useAudioRecorder.js`. Until this is
+  confirmed on device, the estimator fallback keeps everything working — this was a
+  **precision upgrade, not a breakage**. See §6 for the full write-up.
 - **What we're looking for on device:** the log line
   `[timing] captureStart native=… (audio-timestamp) estimatorDelta=…ms`.
-  It has never appeared yet. When it does, the native path is live.
+  It should now appear after a clean patch-apply + native rebuild (see §3.3 / §6). If it
+  still doesn't, the native half isn't compiled in — grep the `.kt` (§6 condition A).
 
 ---
 
@@ -154,7 +154,12 @@ Kotlin **and** Swift).
 
 ---
 
-## 6. THE ACTIVE BUG — native capture-start timestamp never reaches JS
+## 6. Native capture-start timestamp → JS  (FIXED in `673833f`, verify on device)
+
+> **Status:** the JS-layer forward is now applied (commit `673833f`). This section is kept
+> as the full diagnosis + the remaining verification. The waveform/count-in fix shipped in
+> the same commit — see the note at the end.
+
 
 ### What is supposed to happen (data flow)
 
@@ -176,13 +181,14 @@ Kotlin **and** Swift).
   - iOS: `ios/AudioStudioModule.swift:970` sets `resultDict["captureStartTimeEpochMs"]`
     from `AudioStreamManager.captureStartTimeEpochMs` (projected from the first tap
     buffer's `AVAudioTime` host time).
-- **Step 2 (siteed JS) DROPS THE FIELD — this is the bug.**
-  `@siteed/audio-studio/src/useAudioRecorder.tsx` → `handleAudioEvent()` destructures a
-  **fixed** set of fields (`fileUri, deltaSize, totalSize, lastEmittedSize, position,
-  streamUuid, encoded, pcmFloat32, mimeType, buffer, compression`) and **rebuilds a new
-  object** for `onAudioStreamRef.current?.({...})` (the float32 branch ~line 372 and the
-  encoded branch ~line 386). `captureStartTimeEpochMs` is not among them, so it's silently
-  discarded before our callback ever sees it.
+- **Step 2 (siteed JS) DROPPED THE FIELD — this was the bug, now patched.**
+  `handleAudioEvent()` rebuilds the `onAudioStream` event from a **fixed** field list and
+  didn't include `captureStartTimeEpochMs`. The patch now destructures and forwards
+  `captureStartTimeEpochMs` + `captureStartSource` in both the float32 and encoded branches
+  of both compiled builds (`build/cjs` + `build/esm` `useAudioRecorder.js`), plus `src/`
+  and the event types for consistency. Verify it's still present after any reinstall:
+  `grep -c captureStartTimeEpochMs node_modules/@siteed/audio-studio/build/esm/useAudioRecorder.js`
+  (expect `3`).
 - **CRITICAL: Metro bundles the COMPILED build, not `src/`.** `package.json` of the
   package: `main: ./build/cjs/index.js`, `module: ./build/esm/index.js` (no `react-native`/
   `source` field). So patching `src/useAudioRecorder.tsx` does **nothing at runtime** — the
@@ -208,32 +214,37 @@ Kotlin **and** Swift).
 
 Both A and B must be true. The estimator fallback is why takes still trim correctly today.
 
-### The fix (do this)
+### The fix (DONE in `673833f` — steps kept for verification/redo)
 
-1. Edit **both** `build/cjs/useAudioRecorder.js` and `build/esm/useAudioRecorder.js` in
-   `node_modules/@siteed/audio-studio/`:
-   - In `handleAudioEvent`, also pull `captureStartTimeEpochMs` and `captureStartSource`
-     off the incoming `eventData`.
-   - Add both to the object passed to `onAudioStreamRef.current?.({...})` in **both** the
-     `pcmFloat32` branch and the `encoded` branch.
-   (Optional hygiene: mirror the same change in `src/useAudioRecorder.tsx` so source and
-   build agree, but the build files are what matter at runtime.)
-2. Regenerate the patch so it captures native **and** the new build edits in one file:
+1. ✅ Both `build/cjs/useAudioRecorder.js` and `build/esm/useAudioRecorder.js` now
+   destructure `captureStartTimeEpochMs` + `captureStartSource` and forward them in the
+   `pcmFloat32` and `encoded` branches. `src/` + event types mirrored.
+2. ✅ Patch regenerated: `patches/@siteed+audio-studio+3.0.2.patch` now diffs 8 files
+   (2 native Kotlin/Swift-emit, 2 iOS, 2 build JS, 2 src/types).
+3. **To verify on device:** ensure the patch is applied on disk, then rebuild:
    ```
-   npx patch-package @siteed/audio-studio
+   npx patch-package        # apply patches/ to node_modules (if not already)
+   npm run android          # real native rebuild (Metro reload alone won't recompile .kt)
    ```
-   This overwrites `patches/@siteed+audio-studio+3.0.2.patch`. Verify the diff now includes
-   the `build/…/useAudioRecorder.js` hunks plus the existing native hunks.
-3. Confirm (A): grep the `.kt` on disk (above). If `0`, `npx patch-package` then rebuild.
-4. Rebuild native (Android) + let Metro reload the JS, record ONE take, watch for:
+   grep condition (A): `grep -c captureStartTimeEpochMs …/AudioRecorderManager.kt` → `1`.
+4. Record ONE take, watch for:
    ```
    [timing] captureStart native=<epoch> (audio-timestamp) estimatorDelta=<n>ms
    ```
-   - `source=audio-timestamp` (Android HAL) or `host-time` (iOS) = real measurement.
-   - `source=start-call` (Android) / `wall-clock` (iOS) = fallback fired (HAL didn't report
-     — acceptable but coarser).
-   - `estimatorDelta` within ~±20 ms means native and the old estimator agree (sanity pass).
-5. `tsc` + `jest`, commit, push to the branch (NOT main).
+   - `source=audio-timestamp` (Android HAL) / `host-time` (iOS) = real measurement.
+   - `source=start-call` / `wall-clock` = fallback fired (HAL silent — coarser but OK).
+   - `estimatorDelta` within ~±20 ms = native and the old estimator agree (sanity pass).
+
+### Also fixed in `673833f`: live waveform showed the count-in
+
+Capture rolls through the count-in (record-through), so the **live tape** was drawing the
+silent pre-roll that the saved file trims off — the on-screen waveform didn't match the
+trimmed audio. Fix: `useRecording.ts` suppresses live-tape appends while the head is
+`pending`, and realigns the tape to the musical start in `commitHeadTrim` (also resets it).
+The saved-waveform head-drop now uses the analysis's own `segmentDurationMs` (not an assumed
+constant) so kept peaks line up exactly with the trimmed audio. **Verify:** record a
+count-in take; during the count-in the live tape stays empty; after the downbeat it starts
+at the musical start; the saved clip's waveform matches its (trimmed) audio on playback.
 
 ---
 
