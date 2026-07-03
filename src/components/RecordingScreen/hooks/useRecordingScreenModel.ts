@@ -408,18 +408,6 @@ export function useRecordingScreenModel() {
     }
   }
 
-  async function startGuideMixFromBeginning() {
-    if (!recordingGuideMixUri) return;
-    try {
-      setGuideMonitoringLeadInMs(activeMonitoringCompensationMs);
-      await guideMixPlayer.seekTo(0);
-      guideMixPlayer.play();
-      await waitForGuideMixPlaybackStart();
-    } catch (error) {
-      console.warn("Guide mix start failed", error);
-    }
-  }
-
   async function waitPlainMs(ms: number) {
     if (ms <= 0) return;
     await new Promise<void>((resolve) => {
@@ -993,6 +981,9 @@ export function useRecordingScreenModel() {
       let started = false;
 
       if (mode === "resume") {
+        // Resume is the one place the compensation wait survives: a head trim can't fix
+        // alignment mid-file, so delaying the recorder by the ear latency remains the
+        // least-bad option for resumed BT takes.
         await resumeGuideMix();
         await waitForMonitoringCompensation(delayMs);
         await recording.resumeRecording();
@@ -1256,7 +1247,13 @@ export function useRecordingScreenModel() {
     }
 
     if (!wantsClickDuringTake) {
-      if (activeMonitoringCompensationMs > 0 && recordingGuideMixUri) {
+      if (recordingGuideMixUri) {
+        // Overdub without count-in: same record-through + measured-trim discipline as the
+        // count-in path. Capture rolls FIRST, the guide's actual audio start is measured
+        // off its playback position, and the head is cut so file t=0 lands on the guide's
+        // t=0. The recorder is never sleep-gated on the BT monitoring compensation
+        // anymore — that shifted the whole file by an EAR-delay (cue-domain) number, and
+        // left uncalibrated routes to a JS race.
         const prepared = await recording.prepareRecording();
         if (!prepared) {
           return;
@@ -1264,23 +1261,42 @@ export function useRecordingScreenModel() {
 
         setIsArmingRecording(true);
         try {
-          await startGuideMixFromBeginning();
-          await waitForMonitoringCompensation(activeMonitoringCompensationMs);
           const started = await recording.startPreparedRecording();
           if (!started) {
-            await stopGuideMix();
+            return;
           }
+          recording.armHeadTrim();
+          const guideStartEpochMs = await startGuideMixFromBeginningAnchored();
+          const captureStartEpochMs = recording.getCaptureStartEpochMs();
+          const profile = await resolveCurrentRouteLatencyProfile({
+            calibrations: bluetoothMonitoringCalibrations,
+            activeOutputs: { beep: true, visual: false, haptic: false },
+          }).catch(() => null);
+          if (profile) {
+            console.log(`[timing] latency profile: ${formatLatencyProfileLog(profile)}`);
+          }
+          // Unmeasurable → commit 0: keep the pre-roll instead of guessing a cut.
+          let headMs = 0;
+          if (guideStartEpochMs != null && captureStartEpochMs != null) {
+            headMs =
+              guideStartEpochMs -
+              captureStartEpochMs +
+              (profile?.recordingCorrectionMs ?? 0) -
+              HEAD_TRIM_SAFETY_EARLY_MS;
+          }
+          console.log(
+            `[timing] no-count-in overdub head trim: ${Math.round(headMs)}ms ` +
+              `(guideStart=${guideStartEpochMs != null ? "measured" : "MISSING"}, ` +
+              `captureStart=${captureStartEpochMs != null ? "measured" : "MISSING"})`
+          );
+          recording.commitHeadTrim(headMs);
         } finally {
           setIsArmingRecording(false);
         }
         return;
       }
 
-      const started = await recording.startRecording();
-      if (!started) {
-        return;
-      }
-      await startGuideMixFromBeginning();
+      await recording.startRecording();
       return;
     }
 
@@ -1293,22 +1309,92 @@ export function useRecordingScreenModel() {
 
     try {
       const alreadyPreviewing = metronome.isRunning && !metronome.isCountIn;
+
+      // Record-through, no count-in: capture starts BEFORE the click/guide so the musical
+      // start can be measured and trimmed (overdubs and fresh click starts) or stamped
+      // (record hit over a running preview). No sleep-gating of the recorder.
+      const started = await recording.startPreparedRecording();
+      if (!started) {
+        await stopRecordingMetronome();
+        return;
+      }
+
+      const trimming = Boolean(recordingGuideMixUri) || !alreadyPreviewing;
+      if (trimming) {
+        recording.armHeadTrim();
+      }
+
       if (!alreadyPreviewing) {
         await metronome.start({
           manageAudioSession: false,
           cueDelayMs: activeMonitoringCompensationMs,
         });
       }
-      await startGuideMixFromBeginning();
-      await waitForMonitoringCompensation(activeMonitoringCompensationMs);
-      const started = await recording.startPreparedRecording();
-      if (!started) {
-        await stopRecordingMetronome();
-        await stopGuideMix();
-        return;
+      await waitPlainMs(120); // let the engine's audio clock settle before anchoring
+
+      const anchor = await SongseedMetronomeModule?.getGridAnchor?.().catch(() => null);
+      const anchorEpochMs =
+        anchor?.isRunning && anchor.anchorEpochMs != null && anchor.msPerPulse != null
+          ? anchor.anchorEpochMs
+          : null;
+      const barMs =
+        anchor?.msPerPulse != null
+          ? anchor.msPerPulse * (anchor.pulsesPerBar ?? metronome.meterPreset.pulsesPerBar)
+          : null;
+      const guideStartEpochMs = recordingGuideMixUri
+        ? await startGuideMixFromBeginningAnchored()
+        : null;
+      const captureStartEpochMs = recording.getCaptureStartEpochMs();
+      const profile = await resolveCurrentRouteLatencyProfile({
+        calibrations: bluetoothMonitoringCalibrations,
+        activeOutputs: recordingGuideMixUri
+          ? { beep: true, visual: false, haptic: false }
+          : metronome.outputs,
+        clickLoopBarMs: barMs,
+      }).catch(() => null);
+      const correctionMs = profile?.recordingCorrectionMs ?? 0;
+      if (profile) {
+        console.log(`[timing] latency profile: ${formatLatencyProfileLog(profile)}`);
+      }
+
+      if (trimming) {
+        // Musical start: the guide's measured t=0 for overdubs, else the engine's first
+        // click (pulse 0 — a fresh start has no count-in pulses in front of it).
+        const musicalStartEpochMs = guideStartEpochMs ?? anchorEpochMs;
+        let headMs = 0;
+        if (captureStartEpochMs != null && musicalStartEpochMs != null) {
+          headMs =
+            musicalStartEpochMs - captureStartEpochMs + correctionMs - HEAD_TRIM_SAFETY_EARLY_MS;
+        }
+        console.log(
+          `[timing] no-count-in head trim: ${Math.round(headMs)}ms ` +
+            `(target=${guideStartEpochMs != null ? "guide" : "pulse0"}, ` +
+            `captureStart=${captureStartEpochMs != null ? "measured" : "MISSING"})`
+        );
+        recording.commitHeadTrim(headMs);
+      } else if (
+        captureStartEpochMs != null &&
+        anchorEpochMs != null &&
+        barMs != null &&
+        barMs > 0 &&
+        takeGridRef.current
+      ) {
+        // Record hit over a running preview: never chop the take, but stamp where the
+        // next bar line falls in the file so downstream beat grids stay honest.
+        const barsSinceAnchor = Math.max(
+          0,
+          Math.ceil((captureStartEpochMs - anchorEpochMs) / barMs)
+        );
+        const firstDownbeatMs = Math.max(
+          0,
+          Math.round(anchorEpochMs + barsSinceAnchor * barMs - captureStartEpochMs + correctionMs)
+        );
+        takeGridRef.current = { ...takeGridRef.current, firstDownbeatMs };
+        console.log(`[timing] preview take: first bar line stamped at ${firstDownbeatMs}ms in-file`);
       }
     } catch (error) {
       console.warn("Recording metronome start failed", error);
+      recording.abortHeadTrim();
       await stopGuideMix();
       await stopRecordingMetronome();
       await recording.cancelPreparedRecording();
