@@ -2,10 +2,30 @@
 
 **Purpose of this doc:** hand this project to a *local* Claude Code session (one that can
 run `adb logcat`, do native builds, and iterate on-device without round-tripping logs).
-It assumes **zero prior context**. Read it top to bottom once, then jump to
-**§6 (the active bug)** — that's the live task.
+It assumes **zero prior context**. Read it top to bottom once, then start with the
+**"START HERE" box** below.
 
 Date of handoff: 2026-07-03. Branch: `claude/metronome-consistency-audit-dqnvk8`.
+Handoff HEAD: `01d5378`.
+
+> ### ⇢ START HERE (first actions for the local session)
+> All code work through `01d5378` is committed + pushed; `tsc` + 235 Jest tests green.
+> **Nothing is broken** — the app works today on the JS estimator. Remaining work is
+> **device verification** of two just-landed fixes, then optional features.
+> 1. **Apply patches + real native rebuild** (the §3.3 gotcha bit us twice already):
+>    ```
+>    git pull
+>    npx patch-package          # MUST run before building, or Gradle compiles unpatched source
+>    npm run android            # real rebuild — a Metro "Bundled …ms" reload will NOT recompile .kt
+>    ```
+> 2. **Watch `adb logcat '*:S' ReactNativeJS:V | grep --line-buffered "\[timing\]"`** and
+>    record one take. The prize line is `[timing] captureStart native=… (audio-timestamp)
+>    estimatorDelta=…ms` — it has **never appeared yet**; when it does, the native
+>    precision path is finally live. If absent, run §6 condition (A) grep.
+> 3. **Record a count-in take** and confirm the live waveform no longer draws the count-in
+>    (see §6 "Also fixed").
+> Owner is the app's creator, on a Mac with a Samsung SM-S921U1 + AirPods Pro over USB.
+> **Never push to `main`** (§3.1).
 
 ---
 
@@ -22,6 +42,10 @@ Date of handoff: 2026-07-03. Branch: `claude/metronome-consistency-audit-dqnvk8`
   forwards the field through `build/cjs` + `build/esm` `useAudioRecorder.js`. Until this is
   confirmed on device, the estimator fallback keeps everything working — this was a
   **precision upgrade, not a breakage**. See §6 for the full write-up.
+- **Also just fixed (`673833f`): the live waveform drew the count-in.** Capture rolls
+  through the count-in, so the on-screen tape showed the silent pre-roll the saved file
+  trims off. Now suppressed while the head is pending + realigned to the downbeat; saved
+  head-drop uses the analysis's real segment size. Verify on device (§6 "Also fixed").
 - **What we're looking for on device:** the log line
   `[timing] captureStart native=… (audio-timestamp) estimatorDelta=…ms`.
   It should now appear after a clean patch-apply + native rebuild (see §3.3 / §6). If it
@@ -209,10 +233,14 @@ Kotlin **and** Swift).
   grep -c captureStartTimeEpochMs node_modules/@siteed/audio-studio/android/src/main/java/net/siteed/audiostudio/AudioRecorderManager.kt
   ```
   `1` = on disk; `0` = never applied → run `npx patch-package`, then rebuild.
-- **(B) JS layer forwards the field.** Requires the `build/*.js` edit above + a Metro
-  reload. This is currently **broken** (the field is dropped). **This is the fix to make.**
+- **(B) JS layer forwards the field.** Requires the `build/*.js` edit + a Metro reload.
+  **DONE in `673833f`** — verify with
+  `grep -c captureStartTimeEpochMs node_modules/@siteed/audio-studio/build/esm/useAudioRecorder.js`
+  (expect `3`). If it's `0`, patch-package didn't re-apply after a reinstall.
 
 Both A and B must be true. The estimator fallback is why takes still trim correctly today.
+As of `673833f`, **(B) is fixed; (A) is the one to confirm on device** (it needs the patch
+applied to disk before the Gradle build — see START HERE / §3.3).
 
 ### The fix (DONE in `673833f` — steps kept for verification/redo)
 
@@ -267,24 +295,33 @@ at the musical start; the saved clip's waveform matches its (trimmed) audio on p
 
 ## 8. Git state at handoff
 
-- **HEAD = `079961e`**, working tree **clean**, branch **pushed** and up to date with
-  origin. All Phase 1–6 + Stage A–E + the 4 UX features are safely on the branch.
-- There is a **dangling commit `db2299f`** ("Apply patch-package before native dev builds")
-  that is **NOT in HEAD history and NOT pushed.** It contained two small convenience edits
-  (add `npx patch-package` to `scripts/android-dev.sh`; prepend `patch-package &&` to the
-  `ios` npm script). Those edits are **not currently in the working tree.** They're
-  optional insurance against the §3.3 gotcha — **recommended to re-apply** (cheap, prevents
-  exactly the confusion that cost us this session), but the owner pushed back on the
-  original framing, so treat as optional and confirm before committing.
-- Recent commit trail for orientation:
-  `079961e` (4 UX features) · `0d03eb0` (Phase 6) · `da315f2` (teardown warning) ·
-  `c9b312d` (Phase 5 native patch) · `bc04b83` (BT drift) · `644138d` (pipeline split).
+- **HEAD = `01d5378`**, working tree **clean**, branch **pushed** and up to date with
+  origin. Everything is safely on the branch. **`main` is untouched — keep it that way.**
+- Recent commit trail (newest first):
+  `01d5378` (handoff doc update) · `673833f` (**JS-layer capture-start forward + count-in
+  waveform fix** — the latest real work) · `aabf8ca` (this handoff doc) ·
+  `079961e` (4 UX features: no-count-in lock, grid inheritance, metronome button, redo) ·
+  `0d03eb0` (Phase 6) · `da315f2` (teardown warning) · `c9b312d` (Phase 5 native patch) ·
+  `bc04b83` (BT drift) · `644138d` (pipeline split).
+- **Optional insurance not applied:** a `scripts/android-dev.sh` + `package.json` edit to
+  run `npx patch-package` automatically before each native build (closing the §3.3 gotcha)
+  was drafted but **not committed** (the owner pushed back on the original framing). It is
+  genuinely useful — recommend re-doing it (add `npx patch-package` before the Gradle line
+  in `scripts/android-dev.sh`; prepend `patch-package && ` to the `ios` npm script) once,
+  after confirming with the owner. Until then, remember to run `npx patch-package` by hand
+  before `npm run android` whenever patches change.
+- **Commit signing note:** the stop-hook may warn that a commit shows "Unverified" on
+  GitHub (missing GPG signature). Committer email is already `noreply@anthropic.com`; the
+  warning is about signing, which is a local-machine git config concern — harmless for this
+  branch. Don't rewrite pushed history to chase it.
 
 ---
 
 ## 9. Remaining / future work
 
-- **Finish §6** (the active task) — get the native timestamp flowing, verify on device.
+- **Verify §6 on device** (highest priority — code is done, needs a real rebuild + a take):
+  confirm the `captureStart native=` log appears and the count-in no longer shows on the
+  live tape. This is the immediate task; see START HERE.
 - **BT drift device verification** (parked "calibration tweak"). One fresh calibration to
   arm `osOutputAtCalibrationMs`, then disconnect/reconnect AirPods and record; expect a
   small nonzero `btDrift=…ms` in the `latency profile` log, proving the per-connection
@@ -311,24 +348,28 @@ at the musical start; the saved clip's waveform matches its (trimmed) audio on p
 
 Run on **speaker** and on **Bluetooth** where noted. Look for the `[timing]` lines.
 
-1. **Setup:** `npm run android` (real native rebuild after any patch change), adb logcat
-   filtered on `[timing]`.
+1. **Setup:** `npx patch-package` then `npm run android` (real native rebuild after any
+   patch change — patch FIRST, §3.3), adb logcat filtered on `[timing]`.
 2. **Native timestamp (§6):** any take → expect `captureStart native=… estimatorDelta=…`.
-3. **Solo takes:** count-in+click; no-count-in+click (`target=pulse0`); no metronome;
+   *This is the never-yet-seen line — the primary thing to confirm this session.*
+3. **Count-in waveform (§6, new):** record a count-in take → the live tape stays empty
+   during the count-in, then starts at the downbeat; the saved clip's waveform matches its
+   trimmed audio on playback (no silent lead).
+4. **Solo takes:** count-in+click; no-count-in+click (`target=pulse0`); no metronome;
    record-over-preview (`preview take: first bar line stamped …`, take not chopped). Every
    head-trim log should read `captureStart=measured`, never `MISSING`.
-4. **Inheritance:** open an overdub → metronome preloads master bpm/meter/count-in/click.
-5. **Overdubs (the owner's core case — must "sit together" live):**
+5. **Inheritance:** open an overdub → metronome preloads master bpm/meter/count-in/click.
+6. **Overdubs (the owner's core case — must "sit together" live):**
    - master+met / overdub+met **with** count-in → `guide phase vs metronome grid: <small>ms`.
    - master+met / overdub+met **without** count-in → `no-count-in guide lock: joining at
      the bar line …`; 2nd take in session locks faster (warm cache).
    - master+met / overdub **without** met → `no-count-in overdub head trim: … (guideStart=
      measured, captureStart=measured)`.
    After saving, the overdub's alignment offset should sit at/near 0 with no nudging.
-6. **Redo:** mid-take and mid-count-in → lands at Ready, settings + count-in re-armed.
-7. **Metronome button:** chip toggles on/off; customize button opens sheet (no Switch in
+7. **Redo:** mid-take and mid-count-in → lands at Ready, settings + count-in re-armed.
+8. **Metronome button:** chip toggles on/off; customize button opens sheet (no Switch in
    sheet); chip disabled mid-record.
-8. **BT drift:** fresh calibration → reconnect → record → `btDrift=…ms` nonzero small.
+9. **BT drift:** fresh calibration → reconnect → record → `btDrift=…ms` nonzero small.
 
 ---
 
@@ -337,8 +378,15 @@ Run on **speaker** and on **Bluetooth** where noted. Look for the `[timing]` lin
 - `docs/metronome-timing-plan.md` — phased plan + STATUS table (source of truth for scope).
 - `docs/metronome-timing-audit.md` — original findings F1–F15.
 - `src/services/latencyModel.ts` (+ `__tests__/latencyModel.test.ts`) — all latency math.
-- `src/hooks/useRecording.ts` — capture, head-trim state, `getCaptureStartEpochMs()`,
-  `onAudioStream` (native-timestamp read at ~444–456).
+- `src/hooks/useRecording.ts` — capture, head-trim state, `getCaptureStartEpochMs()`
+  (prefers native → estimator → start stamp), `onAudioStream` (native-timestamp read;
+  live-tape append suppressed while head is pending), `commitHeadTrim` (realigns the live
+  tape to the downbeat), `saveRecording` (head-drop uses analysis's real segment size).
+- `src/hooks/useLiveRecordingWaveform.ts` — the live recording tape (accumulator + 12 s
+  scrolling window); `reset()` is what `commitHeadTrim` calls to realign to the downbeat.
+- `node_modules/@siteed/audio-studio/build/{cjs,esm}/useAudioRecorder.js` — the patched
+  JS layer that now forwards `captureStartTimeEpochMs`. If a reinstall ever strips it,
+  `npx patch-package` re-applies from `patches/`.
 - `src/components/RecordingScreen/hooks/useRecordingScreenModel.ts` — the orchestration
   brain: count-in path, guide phase-lock (`schedulePhaseLockedGuideStart`,
   `sessionGuideResumeLatencyMs` cache), no-count-in paths, head-trim commit, grid
