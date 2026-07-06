@@ -38,6 +38,7 @@ import {
 import { getClipPlaybackDurationMs, getClipPlaybackUri } from "../clipPresentation";
 import { normalizeBluetoothMonitoringCalibrations } from "../bluetoothMonitoring";
 import {
+    assignNextOverdubStemColor,
     buildClipOverdubMixInputs,
     buildCombinedClipTitle,
     clampClipOverdubStemOffsetMs,
@@ -1191,6 +1192,7 @@ export const appActions = {
             waveformPeaks: payload.waveformPeaks,
             recordingGrid: payload.recordingGrid,
             createdAt: Date.now(),
+            color: assignNextOverdubStemColor(match.clip.overdub?.stems.length ?? 0),
         };
 
         const previousMixUri = match.clip.overdub?.renderedMixUri ?? null;
@@ -1309,6 +1311,17 @@ export const appActions = {
         }
         // Title only — the rendered mix is unaffected, so no re-render is scheduled.
         state.updateClipOverdubStem(ideaId, clipId, stemId, { title: nextTitle });
+    },
+
+    setClipOverdubStemColor: async (ideaId: string, clipId: string, stemId: string, color: string) => {
+        const state = useStore.getState();
+        const match = findWorkspaceIdeaClip(state.workspaces, ideaId, clipId);
+        const stem = match?.clip.overdub?.stems.find((candidate) => candidate.id === stemId) ?? null;
+        if (!match || !stem) {
+            throw new Error("Overdub stem not found.");
+        }
+        // Cosmetic only — the rendered mix is unaffected, so no re-render is scheduled.
+        state.updateClipOverdubStem(ideaId, clipId, stemId, { color });
     },
 
     toggleClipOverdubStemMute: async (ideaId: string, clipId: string, stemId: string) => {

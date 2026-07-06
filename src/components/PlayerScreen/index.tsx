@@ -138,8 +138,11 @@ export function PlayerScreen() {
     () =>
       data.overdubStemEntries.map((stem) => ({
         id: stem.id,
+        title: stem.title,
         offsetMs: stem.offsetMs,
         durationMs: stem.durationMs,
+        color: stem.color,
+        isMuted: stem.isMuted,
       })),
     [data.overdubStemEntries]
   );
@@ -474,6 +477,16 @@ export function PlayerScreen() {
       if (!playerIdea || !playerClip) return;
       void appActions.renameClipOverdubStem(playerIdea.id, playerClip.id, stemId, title).catch((error) => {
         const message = error instanceof Error ? error.message : "Could not rename the layer.";
+        AppAlert.info("Layer update failed", message);
+      });
+    },
+    [playerClip, playerIdea]
+  );
+  const handleChangeStemColor = useCallback(
+    (stemId: string, color: string) => {
+      if (!playerIdea || !playerClip) return;
+      void appActions.setClipOverdubStemColor(playerIdea.id, playerClip.id, stemId, color).catch((error) => {
+        const message = error instanceof Error ? error.message : "Could not update the layer colour.";
         AppAlert.info("Layer update failed", message);
       });
     },
@@ -859,6 +872,7 @@ export function PlayerScreen() {
               onAdjustStemGain={handleAdjustStemGain}
               onNudgeStem={handleNudgeStem}
               onRenameStem={handleRenameStem}
+              onChangeStemColor={handleChangeStemColor}
               onToggleStemMute={handleToggleStemMute}
               onToggleStemLowCut={handleToggleStemLowCut}
               onRemoveStem={handleRemoveStem}

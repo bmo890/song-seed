@@ -8,6 +8,7 @@ import {
 } from "../../../clipPresentation";
 import {
   getClipOverdubRootSettings,
+  getOverdubStemColor,
 } from "../../../overdub";
 import { useClipWaveform } from "../../../hooks/useClipWaveform";
 import { getLatestLyricsVersion, lyricsDocumentToText } from "../../../lyrics";
@@ -141,6 +142,7 @@ export function usePlayerScreenData({ playerDuration }: UsePlayerScreenDataArgs)
         offsetMs: stem.offsetMs,
         isMuted: stem.isMuted,
         tonePreset: stem.tonePreset,
+        color: getOverdubStemColor(stem, index),
       })),
     [playerClip?.overdub?.stems]
   );

@@ -36,6 +36,7 @@ type OverdubStemEntry = {
   offsetMs: number;
   isMuted: boolean;
   tonePreset: string;
+  color: string;
 };
 
 type PlayerSupportSectionsProps = {
@@ -64,6 +65,7 @@ type PlayerSupportSectionsProps = {
   onAdjustStemGain: (stemId: string, deltaDb: number) => void;
   onNudgeStem: (stemId: string, deltaMs: number) => void;
   onRenameStem: (stemId: string, title: string) => void;
+  onChangeStemColor: (stemId: string, color: string) => void;
   onToggleStemMute: (stemId: string) => void;
   onToggleStemLowCut: (stemId: string) => void;
   onRemoveStem: (stemId: string) => void;
@@ -136,6 +138,7 @@ export function PlayerSupportSections({
   onAdjustStemGain,
   onNudgeStem,
   onRenameStem,
+  onChangeStemColor,
   onToggleStemMute,
   onToggleStemLowCut,
   onRemoveStem,
@@ -581,6 +584,8 @@ export function PlayerSupportSections({
                   tonePreset={stem.tonePreset}
                   isMuted={stem.isMuted}
                   audioUri={stem.audioUri}
+                  color={stem.color}
+                  onChangeColor={(color) => onChangeStemColor(stem.id, color)}
                   isPreviewPlaying={activeLayerPreviewId === stem.id && !!layerPreviewStatus.playing}
                   previewProgressRatio={getLayerProgressRatio(stem.id)}
                   onTogglePreview={() => toggleLayerPreview(stem.id, stem.audioUri)}

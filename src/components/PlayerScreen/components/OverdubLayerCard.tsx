@@ -1,11 +1,14 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { StemAlignmentOverlay } from "./StemAlignmentOverlay";
 import { AppAlert } from "../../common/AppAlert";
 import { actionIcons } from "../../common/actionIcons";
+import { WarmModal } from "../../common/WarmModal";
+import { HueSlider } from "../../common/HueSlider";
 import { playerScreenStyles } from "../styles";
 import { fmtDuration } from "../../../utils";
+import { computeWorkspaceTheme, hexToHue, hueToAccentHex } from "../../../workspaceTheme";
 import {
   formatClipOverdubStemOffsetLabel,
   OVERDUB_GAIN_STEP_DB,
@@ -72,6 +75,10 @@ type Props = {
   isMuted: boolean;
   audioUri: string | null;
   waveformPeaks?: number[];
+  /** This layer's colour key — tints the card background and (in Align) its waveform,
+   *  so a stack of layers reads as distinct at a glance. Adjustable via the ⋯ menu. */
+  color: string;
+  onChangeColor: (color: string) => void;
   // Solo preview of just this layer.
   isPreviewPlaying: boolean;
   previewProgressRatio: number;
@@ -119,6 +126,8 @@ export function OverdubLayerCard({
   isMuted,
   audioUri,
   waveformPeaks,
+  color,
+  onChangeColor,
   isPreviewPlaying,
   previewProgressRatio,
   onTogglePreview,
@@ -142,10 +151,13 @@ export function OverdubLayerCard({
   const canAudition = !!audioUri && !!masterAudioUri;
   const canRestoreOriginal = offsetMs !== baselineOffsetMs;
   const summary = buildSummary(gainDb, tonePreset, offsetMs, isMuted);
+  const [colorPickerOpen, setColorPickerOpen] = useState(false);
+  const cardTint = computeWorkspaceTheme(color).tint;
 
   function openLayerMenu() {
     AppAlert.custom(title, undefined, [
       { label: "Rename layer", icon: actionIcons.rename, onPress: onRename },
+      { label: "Layer colour", icon: "color-palette-outline", onPress: () => setColorPickerOpen(true) },
       {
         label: expandedSection === "mix" ? "Hide levels" : "Adjust levels",
         icon: "options-outline",
@@ -162,7 +174,7 @@ export function OverdubLayerCard({
   }
 
   return (
-    <View style={playerScreenStyles.layerCard}>
+    <View style={[playerScreenStyles.layerCard, { backgroundColor: cardTint }]}>
       <View style={playerScreenStyles.layerCardHeader}>
         <Pressable style={playerScreenStyles.layerPlayButton} onPress={onTogglePreview}>
           <Ionicons
@@ -256,6 +268,7 @@ export function OverdubLayerCard({
             stemDurationMs={durationMs}
             stemFallbackPeaks={waveformPeaks}
             offsetMs={offsetMs}
+            stemColor={color}
             recordingGrid={masterRecordingGrid}
           />
           <View style={cardStyles.alignControls}>
@@ -323,7 +336,69 @@ export function OverdubLayerCard({
           </Text>
         </View>
       ) : null}
+
+      <LayerColorPickerModal
+        visible={colorPickerOpen}
+        title={title}
+        color={color}
+        onChangeColor={onChangeColor}
+        onClose={() => setColorPickerOpen(false)}
+      />
     </View>
+  );
+}
+
+/** Colour-only editor for a layer — the same HueSlider used for workspace/section
+ *  colours, so picking a layer's colour matches the rest of the app. */
+function LayerColorPickerModal({
+  visible,
+  title,
+  color,
+  onChangeColor,
+  onClose,
+}: {
+  visible: boolean;
+  title: string;
+  color: string;
+  onChangeColor: (color: string) => void;
+  onClose: () => void;
+}) {
+  const [hue, setHue] = useState(() => hexToHue(color));
+  const prevVisible = React.useRef(false);
+  useEffect(() => {
+    if (visible && !prevVisible.current) {
+      setHue(hexToHue(color));
+    }
+    prevVisible.current = visible;
+  }, [visible, color]);
+
+  const previewColor = hueToAccentHex(hue);
+
+  return (
+    <WarmModal visible={visible} onRequestClose={onClose} title="Layer colour">
+      <View style={cardStyles.colorPreviewRow}>
+        <View style={[cardStyles.colorPreviewSwatch, { backgroundColor: previewColor }]} />
+        <Text style={cardStyles.colorPreviewText} numberOfLines={1}>
+          {title}
+        </Text>
+      </View>
+      <HueSlider hue={hue} onChange={setHue} />
+      <View style={cardStyles.colorModalActions}>
+        <Pressable style={cardStyles.colorModalCancel} onPress={onClose} accessibilityRole="button">
+          <Text style={cardStyles.colorModalCancelText}>Cancel</Text>
+        </Pressable>
+        <Pressable
+          style={cardStyles.colorModalConfirm}
+          onPress={() => {
+            onChangeColor(previewColor);
+            onClose();
+          }}
+          accessibilityRole="button"
+        >
+          <Text style={cardStyles.colorModalConfirmText}>Save</Text>
+        </Pressable>
+      </View>
+    </WarmModal>
   );
 }
 
@@ -453,5 +528,49 @@ const cardStyles = StyleSheet.create({
   alignHint: {
     fontSize: 11,
     color: "#84736f",
+  },
+  colorPreviewRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginBottom: 4,
+  },
+  colorPreviewSwatch: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+  },
+  colorPreviewText: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#1b1c1a",
+  },
+  colorModalActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "flex-end",
+    gap: 10,
+    marginTop: 8,
+  },
+  colorModalCancel: {
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  colorModalCancelText: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#5a4b45",
+  },
+  colorModalConfirm: {
+    borderRadius: 999,
+    backgroundColor: "#824f3f",
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+  },
+  colorModalConfirmText: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#ffffff",
   },
 });
