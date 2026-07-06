@@ -1,3 +1,4 @@
+import { AppState } from "react-native";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { DataSlice, createDataSlice } from "./dataSlice";
@@ -225,74 +226,133 @@ export function sanitizePersistedState(state?: Partial<PersistedAppStore>): Pers
  * loss is detected. This is the real safety net — `partialize` alone
  * can't skip writes because zustand always calls setItem with the result.
  */
+// Passive persist writes are DEBOUNCED: zustand's persist middleware calls setItem on
+// every set(), and each write serializes the whole library (waveform peak arrays and
+// all) on the JS thread — with a real library that per-keystroke cost was the app-wide
+// "tap → stutter" lag. Coalescing to a trailing write keeps the durability story (SQLite
+// is the safety net; the crash window is under a second, and explicit flushes before
+// destructive operations still write through immediately via flushPersistedSnapshot,
+// which discards any pending passive write it supersedes).
+const PERSIST_WRITE_DEBOUNCE_MS = 800;
+
+let pendingPersistWrite: (() => unknown) | null = null;
+let pendingPersistWriteTimer: ReturnType<typeof setTimeout> | null = null;
+
+function schedulePendingPersistWrite(run: () => unknown) {
+    pendingPersistWrite = run;
+    if (pendingPersistWriteTimer) {
+        clearTimeout(pendingPersistWriteTimer);
+    }
+    pendingPersistWriteTimer = setTimeout(() => {
+        pendingPersistWriteTimer = null;
+        const write = pendingPersistWrite;
+        pendingPersistWrite = null;
+        write?.();
+    }, PERSIST_WRITE_DEBOUNCE_MS);
+}
+
+/** Run any coalesced passive write NOW (app going to background — don't sit on data). */
+function flushPendingPersistWrite() {
+    if (pendingPersistWriteTimer) {
+        clearTimeout(pendingPersistWriteTimer);
+        pendingPersistWriteTimer = null;
+    }
+    const write = pendingPersistWrite;
+    pendingPersistWrite = null;
+    write?.();
+}
+
+/** Drop the coalesced passive write — a direct full-state flush supersedes it. */
+function discardPendingPersistWrite() {
+    if (pendingPersistWriteTimer) {
+        clearTimeout(pendingPersistWriteTimer);
+        pendingPersistWriteTimer = null;
+    }
+    pendingPersistWrite = null;
+}
+
 function createGuardedStorage() {
     // SQLite is the authoritative backing store; it transparently imports any legacy
     // AsyncStorage blob on first read and falls back to AsyncStorage if SQLite fails.
     const baseStorage = createJSONStorage(() => sqliteStringStorage)!;
 
+    // Guard + serialize + write. Runs when the debounced write fires (with the LATEST
+    // value), so the corruption checks always inspect exactly what hits disk.
+    const runGuardedWrite = (name: string, value: any) => {
+        if (isPersistBlocked()) {
+            console.warn(
+                `[PersistGuard] BLOCKED write to "${name}" — persist is locked due to suspected data corruption.`
+            );
+            return; // Silently skip the write
+        }
+
+        // Inspect the idea count before writing
+        if (isHydrationComplete() && getLastPersistedIdeaCount() > 0) {
+            try {
+                const parsed = typeof value === "string" ? JSON.parse(value) : value;
+                const state = (parsed as { state?: PersistedAppStore })?.state;
+                if (state?.workspaces) {
+                    const lastCount = getLastPersistedIdeaCount();
+                    const newIdeaCount = state.workspaces.reduce(
+                        (sum: number, ws) => sum + (ws.ideas?.length ?? 0), 0
+                    );
+                    if (newIdeaCount === 0) {
+                        // A deliberate last-item delete is the only valid reason to
+                        // transition the persisted library from >0 ideas to 0 ideas.
+                        if (!consumeIntentionalEmptyStateWrite()) {
+                            setPersistBlocked(true);
+                            console.warn(
+                                `[PersistGuard] BLOCKED and LOCKED: attempted to write 0 ideas when last known count was ${lastCount}. ` +
+                                `All future writes blocked until app restart.`
+                            );
+                            return; // Block the write
+                        }
+                    } else {
+                        // Catastrophic partial loss: a large, proportionally significant
+                        // drop that wasn't authorized by a deliberate bulk delete. Thresholds
+                        // are conservative (both absolute and fractional) so ordinary editing
+                        // and small-library deletes never trip the lock.
+                        const lost = lastCount - newIdeaCount;
+                        if (
+                            lost >= GUARD_MIN_ABS_DROP &&
+                            lost / lastCount >= GUARD_MIN_DROP_FRACTION &&
+                            !consumeIntentionalEmptyStateWrite()
+                        ) {
+                            setPersistBlocked(true);
+                            console.warn(
+                                `[PersistGuard] BLOCKED and LOCKED: idea count dropped from ${lastCount} to ${newIdeaCount} (−${lost}) ` +
+                                `without an authorized bulk delete. All future writes blocked until app restart.`
+                            );
+                            return; // Block the write
+                        }
+                    }
+
+                    setLastPersistedIdeaCount(newIdeaCount);
+                }
+            } catch {
+                // If we can't parse it, let it through — better than blocking valid writes
+            }
+        }
+
+        return baseStorage.setItem(name, value as any);
+    };
+
     return {
         getItem: baseStorage.getItem.bind(baseStorage),
         removeItem: baseStorage.removeItem.bind(baseStorage),
         setItem: (name: string, value: any) => {
-            if (isPersistBlocked()) {
-                console.warn(
-                    `[PersistGuard] BLOCKED write to "${name}" — persist is locked due to suspected data corruption.`
-                );
-                return; // Silently skip the write
-            }
-
-            // Parse the value to check idea count before writing
-            if (isHydrationComplete() && getLastPersistedIdeaCount() > 0) {
-                try {
-                    const parsed = typeof value === "string" ? JSON.parse(value) : value;
-                    const state = (parsed as { state?: PersistedAppStore })?.state;
-                    if (state?.workspaces) {
-                        const lastCount = getLastPersistedIdeaCount();
-                        const newIdeaCount = state.workspaces.reduce(
-                            (sum: number, ws) => sum + (ws.ideas?.length ?? 0), 0
-                        );
-                        if (newIdeaCount === 0) {
-                            // A deliberate last-item delete is the only valid reason to
-                            // transition the persisted library from >0 ideas to 0 ideas.
-                            if (!consumeIntentionalEmptyStateWrite()) {
-                                setPersistBlocked(true);
-                                console.warn(
-                                    `[PersistGuard] BLOCKED and LOCKED: attempted to write 0 ideas when last known count was ${lastCount}. ` +
-                                    `All future writes blocked until app restart.`
-                                );
-                                return; // Block the write
-                            }
-                        } else {
-                            // Catastrophic partial loss: a large, proportionally significant
-                            // drop that wasn't authorized by a deliberate bulk delete. Thresholds
-                            // are conservative (both absolute and fractional) so ordinary editing
-                            // and small-library deletes never trip the lock.
-                            const lost = lastCount - newIdeaCount;
-                            if (
-                                lost >= GUARD_MIN_ABS_DROP &&
-                                lost / lastCount >= GUARD_MIN_DROP_FRACTION &&
-                                !consumeIntentionalEmptyStateWrite()
-                            ) {
-                                setPersistBlocked(true);
-                                console.warn(
-                                    `[PersistGuard] BLOCKED and LOCKED: idea count dropped from ${lastCount} to ${newIdeaCount} (−${lost}) ` +
-                                    `without an authorized bulk delete. All future writes blocked until app restart.`
-                                );
-                                return; // Block the write
-                            }
-                        }
-
-                        setLastPersistedIdeaCount(newIdeaCount);
-                    }
-                } catch {
-                    // If we can't parse it, let it through — better than blocking valid writes
-                }
-            }
-
-            return baseStorage.setItem(name, value as any);
+            schedulePendingPersistWrite(() => runGuardedWrite(name, value));
         },
     };
 }
+
+// Don't sit on a coalesced write while the app leaves the foreground — flush it so a
+// backgrounded/killed app keeps everything up to the last edit.
+AppState.addEventListener("change", (nextState) => {
+    if (nextState !== "active") {
+        flushPendingPersistWrite();
+    }
+});
 
 export const useStore = create<AppStore>()(
     persist(
@@ -361,5 +421,9 @@ useStore.subscribe((state) => setHapticsEnabled(state.hapticsEnabled));
  * to trash — closing the crash window between an in-memory delete and its file removal.
  */
 export async function flushPersistedSnapshot(): Promise<void> {
+    // The direct write below is built from the CURRENT state, so it supersedes any
+    // coalesced passive write still waiting on the debounce — drop it so a stale
+    // snapshot can't land after (and overwrite) this newer one.
+    discardPendingPersistWrite();
     await persistAppStoreSnapshot(useStore.getState());
 }

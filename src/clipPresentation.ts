@@ -46,9 +46,11 @@ export function getClipPlaybackDurationMs(clip: ClipVersion): number | undefined
 }
 
 export function getClipPlaybackWaveformPeaks(clip: ClipVersion): number[] | undefined {
-  return clip.overdub?.renderedMixWaveformPeaks?.length
-    ? clip.overdub.renderedMixWaveformPeaks
-    : clip.waveformPeaks;
+  // The clip's visual identity is the MASTER's waveform. Layers draw as their own lanes
+  // under the reel, so the wave itself must not reshuffle after every layer edit — the
+  // rendered-mix peaks are lightweight placeholders that made the reel jump to a new
+  // random-looking shape on each background render.
+  return clip.waveformPeaks?.length ? clip.waveformPeaks : clip.overdub?.renderedMixWaveformPeaks;
 }
 
 export function getClipPlaybackWaveformPeaksOrFallback(

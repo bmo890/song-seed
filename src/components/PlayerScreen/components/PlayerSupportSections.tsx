@@ -14,7 +14,6 @@ import { OVERDUB_GAIN_STEP_DB } from "../../../overdub";
 import { playerScreenStyles } from "../styles";
 import { AppAlert } from "../../common/AppAlert";
 import { actionIcons } from "../../common/actionIcons";
-import { QuickNameModal } from "../../modals/QuickNameModal";
 import { LayerControlButton, OverdubLayerCard, type OverdubLayerSection } from "./OverdubLayerCard";
 import { useOverdubAlignmentAudition } from "../hooks/useOverdubAlignmentAudition";
 
@@ -167,8 +166,6 @@ export function PlayerSupportSections({
   // target. Captured on open so a sitting's nudges can be undone without discarding a
   // previously-saved alignment. One at a time (accordion), so a single slot suffices.
   const alignBaselineRef = React.useRef<{ stemId: string; offsetMs: number } | null>(null);
-  // Rename flow: which layer's title is being edited (null = modal closed).
-  const [renamingStem, setRenamingStem] = useState<{ id: string; title: string } | null>(null);
 
   // In-place master+layer audition for the Align section — the nudge feedback loop.
   const audition = useOverdubAlignmentAudition();
@@ -586,6 +583,7 @@ export function PlayerSupportSections({
                   audioUri={stem.audioUri}
                   color={stem.color}
                   onChangeColor={(color) => onChangeStemColor(stem.id, color)}
+                  isRendering={isOverdubPreviewRendering}
                   isPreviewPlaying={activeLayerPreviewId === stem.id && !!layerPreviewStatus.playing}
                   previewProgressRatio={getLayerProgressRatio(stem.id)}
                   onTogglePreview={() => toggleLayerPreview(stem.id, stem.audioUri)}
@@ -594,7 +592,7 @@ export function PlayerSupportSections({
                     expandedStemSection?.stemId === stem.id ? expandedStemSection.section : null
                   }
                   onToggleSection={(section) => toggleStemSection(stem.id, section)}
-                  onRename={() => setRenamingStem({ id: stem.id, title: stem.title })}
+                  onRename={(nextTitle) => onRenameStem(stem.id, nextTitle)}
                   onAdjustGain={(deltaDb) => onAdjustStemGain(stem.id, deltaDb)}
                   onToggleLowCut={() => onToggleStemLowCut(stem.id)}
                   onRemove={() => removeStemSafely(stem.id)}
@@ -625,26 +623,6 @@ export function PlayerSupportSections({
           </ScrollView>
         </BottomSheet>
       ) : null}
-
-      <QuickNameModal
-        visible={renamingStem != null}
-        title="Rename layer"
-        draftValue={renamingStem?.title ?? ""}
-        placeholderValue="Layer name"
-        onChangeDraft={(value) =>
-          setRenamingStem((current) => (current ? { ...current, title: value } : current))
-        }
-        onCancel={() => setRenamingStem(null)}
-        onSave={() => {
-          const next = renamingStem?.title.trim();
-          if (renamingStem && next) {
-            onRenameStem(renamingStem.id, next);
-          }
-          setRenamingStem(null);
-        }}
-        helperText="Leave empty to keep the current name."
-        disableSaveWhenEmpty
-      />
     </View>
   );
 }

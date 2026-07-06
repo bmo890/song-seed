@@ -1195,31 +1195,19 @@ export const appActions = {
             color: assignNextOverdubStemColor(match.clip.overdub?.stems.length ?? 0),
         };
 
-        const previousMixUri = match.clip.overdub?.renderedMixUri ?? null;
-        const nextClip: ClipVersion = {
-            ...match.clip,
-            overdub: {
-                ...(cloneOverdubState(match.clip.overdub) ?? { stems: [] }),
-                stems: [...(match.clip.overdub?.stems ?? []), stem],
-            },
-        };
-        const nextMix = await buildImportedClipOverdubMix(nextClip, clipId);
-
+        // Attach the stem immediately and render the combined mix in the BACKGROUND.
+        // Rendering a full-length mix takes seconds (it decodes and re-encodes the whole
+        // master); awaiting it here made every layer save a silent multi-second wait.
+        // Until the background render swaps in, playback keeps the previous rendered mix
+        // (or the base take) — the render queue publishes the new mix and retires the old
+        // file when it finishes, with the sheet's "updating…" indicator active throughout.
         state.addClipOverdubStem(ideaId, clipId, stem);
-        if (nextMix) {
-            state.setClipOverdubRenderedMix(ideaId, clipId, {
-                renderedMixUri: nextMix.audioUri,
-                renderedMixDurationMs: nextMix.durationMs,
-                renderedMixWaveformPeaks: nextMix.waveformPeaks,
-                lastRenderedAt: Date.now(),
-            });
-        } else {
-            state.clearClipOverdubRenderedMix(ideaId, clipId);
-        }
         state.logIdeaActivity(ideaId, "updated", "recording", clipId);
-        if (previousMixUri && previousMixUri !== nextMix?.audioUri) {
-            deleteManagedAudioUrisAfterGrace([previousMixUri]);
-        }
+        void scheduleClipOverdubRerender(ideaId, clipId, { immediate: true, force: true }).catch(
+            (error) => {
+                console.warn("Background overdub mix render failed after layer save", error);
+            }
+        );
         return stem.id;
     },
 
