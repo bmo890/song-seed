@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
 import { activatePlaybackAudioSession } from "../../../services/audioSession";
+import { overdubGainDbToPlayerVolume } from "../../../overdub";
 
 /**
  * In-place audition for overdub alignment: plays the MASTER take and one RAW stem
@@ -23,11 +24,6 @@ export type AlignmentAuditionTarget = {
   stemGainDb: number;
 };
 
-/** dB → linear volume, clamped to the 0..1 range expo-audio accepts (boosts flatten to 1 —
- *  audition is for timing, not level judgement). */
-function dbToPlayerVolume(gainDb: number) {
-  return Math.max(0, Math.min(1, Math.pow(10, gainDb / 20)));
-}
 
 export function useOverdubAlignmentAudition() {
   const masterPlayer = useAudioPlayer(null, { updateInterval: 250 });
@@ -79,7 +75,7 @@ export function useOverdubAlignmentAudition() {
       return;
     }
 
-    stemPlayer.volume = dbToPlayerVolume(target.stemGainDb);
+    stemPlayer.volume = overdubGainDbToPlayerVolume(target.stemGainDb);
     masterPlayer.volume = 1;
 
     const masterStartMs = Math.max(0, target.offsetMs);

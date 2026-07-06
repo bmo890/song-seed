@@ -211,11 +211,13 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
             if (scheduler.token !== token) {
               return;
             }
-            if (!refreshed) {
-              scheduler.active = false;
-              return;
+            if (refreshed) {
+              anchor = refreshed;
             }
-            anchor = refreshed;
+            // A failed refresh (transient bridge hiccup) keeps the last anchor: the grid
+            // only moves on tempo/meter changes, so stale-by-a-bar beats handing the
+            // pulse to the event-driven fallback mid-take, whose different timing made
+            // the visual cue visibly change character. A real stop invalidates the token.
           }
           scheduleNext();
         })();
@@ -561,8 +563,17 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
     meterId: effectiveMeterId,
     meterPreset,
     countInBars: effectiveCountInBars,
-    currentBeatInBar: nativeState?.beatInBar ?? 1,
-    currentBar: nativeState?.barNumber ?? 1,
+    // Beat position derives from the SAME onBeat event stream that pulses the UI ring
+    // (beatCount), not the separate onStateChange snapshot — the two streams desync
+    // under load (recording), which pinned the "big" downbeat accent to random pulses.
+    currentBeatInBar:
+      beatCount > 0
+        ? ((beatCount - 1) % Math.max(1, meterPreset.pulsesPerBar)) + 1
+        : nativeState?.beatInBar ?? 1,
+    currentBar:
+      beatCount > 0
+        ? Math.floor((beatCount - 1) / Math.max(1, meterPreset.pulsesPerBar)) + 1
+        : nativeState?.barNumber ?? 1,
     countInCompletionToken,
     isNativeAvailable:
       nativeState?.isAvailable ?? SongseedMetronomeModule?.isAvailable?.() ?? false,

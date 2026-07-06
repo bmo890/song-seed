@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import Slider from "@react-native-community/slider";
 import { Ionicons } from "@expo/vector-icons";
 import { StemAlignmentOverlay } from "./StemAlignmentOverlay";
 import { AppAlert } from "../../common/AppAlert";
@@ -83,7 +84,11 @@ type Props = {
   isRendering?: boolean;
   // Solo preview of just this layer.
   isPreviewPlaying: boolean;
+  /** This layer is the loaded preview (playing OR paused mid-way) — keeps the scrub bar
+   *  up so pause → scrub → resume works like the main transport. */
+  isPreviewActive: boolean;
   previewProgressRatio: number;
+  onSeekPreview: (ratio: number) => void;
   onTogglePreview: () => void;
   onToggleMuted: () => void;
   // Accordion (owned by the sheet so one section is open across all layers).
@@ -132,7 +137,9 @@ export function OverdubLayerCard({
   onChangeColor,
   isRendering = false,
   isPreviewPlaying,
+  isPreviewActive,
   previewProgressRatio,
+  onSeekPreview,
   onTogglePreview,
   onToggleMuted,
   expandedSection,
@@ -214,17 +221,20 @@ export function OverdubLayerCard({
         </Pressable>
       </View>
 
-      {/* Slim progress lane while this layer solo-plays — the only time a bare waveform
-          would have meant anything. */}
-      {isPreviewPlaying ? (
-        <View style={cardStyles.soloProgressTrack}>
-          <View
-            style={[
-              cardStyles.soloProgressFill,
-              { width: `${Math.max(0, Math.min(100, previewProgressRatio * 100))}%` },
-            ]}
-          />
-        </View>
+      {/* Scrubbable preview transport while this layer is loaded (playing or paused) —
+          drag to jump around the layer instead of listening end-to-end. */}
+      {isPreviewActive ? (
+        <Slider
+          style={cardStyles.soloScrubber}
+          minimumValue={0}
+          maximumValue={1}
+          value={Math.max(0, Math.min(1, previewProgressRatio))}
+          onSlidingComplete={onSeekPreview}
+          minimumTrackTintColor="#824f3f"
+          maximumTrackTintColor="#e3d8cd"
+          thumbTintColor="#824f3f"
+          accessibilityLabel="Scrub this layer's preview"
+        />
       ) : null}
 
       <View style={cardStyles.modeRow}>
@@ -457,16 +467,10 @@ const cardStyles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  soloProgressTrack: {
-    height: 3,
-    borderRadius: 999,
-    backgroundColor: "#ece3da",
-    overflow: "hidden",
-  },
-  soloProgressFill: {
-    height: "100%",
-    borderRadius: 999,
-    backgroundColor: "#824f3f",
+  soloScrubber: {
+    width: "100%",
+    height: 26,
+    marginTop: -2,
   },
   modeRow: {
     flexDirection: "row",

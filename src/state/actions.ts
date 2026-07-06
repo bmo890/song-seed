@@ -314,6 +314,10 @@ async function publishClipOverdubMixRerender(
     if (!nextMix) {
         state.clearClipOverdubRenderedMix(ideaId, clipId);
         if (currentMixUri) {
+            // Persist the cleared reference BEFORE the file goes — an app death between
+            // the (debounced) persist and the deletion would otherwise leave the saved
+            // state pointing at a file that no longer exists (an unplayable clip).
+            await flushPersistedSnapshot().catch(() => {});
             deleteManagedAudioUrisAfterGrace([currentMixUri]);
         }
         return null;
@@ -327,6 +331,9 @@ async function publishClipOverdubMixRerender(
     });
 
     if (currentMixUri && currentMixUri !== nextMix.audioUri) {
+        // Same discipline as the deletion flows: the state that stops referencing the
+        // old mix file must be durable before that file is trashed.
+        await flushPersistedSnapshot().catch(() => {});
         deleteManagedAudioUrisAfterGrace([currentMixUri]);
     }
 

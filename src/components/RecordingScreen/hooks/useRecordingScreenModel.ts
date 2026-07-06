@@ -574,10 +574,15 @@ export function useRecordingScreenModel() {
         return anchorEpochMs;
       } catch (error) {
         console.warn("Phase-locked guide start failed", error);
-        try {
-          guideMixPlayer.volume = 1;
-        } catch {
-          // Player may already be released during teardown.
+        // Restore volume ONLY if this schedule still owns the player — a stale failure
+        // unmuting while a NEWER schedule runs its muted rehearsal would make that
+        // rehearsal audible (a ghost blast of the master during the count-in).
+        if (guideScheduleRef.current.token === token) {
+          try {
+            guideMixPlayer.volume = 1;
+          } catch {
+            // Player may already be released during teardown.
+          }
         }
         return null;
       }
@@ -1341,6 +1346,16 @@ export function useRecordingScreenModel() {
               console.log(
                 "[timing] master has no measured downbeat (recorded before trimming) — " +
                   "starting guide at the live downbeat; its internal pre-roll cannot be locked"
+              );
+            }
+            if (punchInMs === 0 && masterFirstDownbeatMs != null && masterFirstDownbeatMs > 0) {
+              // Untrimmed master (e.g. recorded over a running preview): the guide is
+              // deliberately started EARLY so its internal downbeat lands on the live
+              // one — its pre-roll plays DURING the count-in, which sounds like a
+              // "ghost count-in". Log it so on-device reports are diagnosable.
+              console.log(
+                `[timing] master pre-roll: guide enters ${Math.round(masterFirstDownbeatMs)}ms ` +
+                  "before the downbeat (master audio starts before its own first bar line)"
               );
             }
             // The guide rides the MEDIA PLAYER pipeline, which reaches the ear later
