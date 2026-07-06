@@ -133,6 +133,16 @@ export function PlayerScreen() {
         : section
     );
   }, [data.sections, sectionPreview]);
+  // Slim lanes under the reel marking where each un-flattened layer sits on the master.
+  const overdubLayerLanes = useMemo(
+    () =>
+      data.overdubStemEntries.map((stem) => ({
+        id: stem.id,
+        offsetMs: stem.offsetMs,
+        durationMs: stem.durationMs,
+      })),
+    [data.overdubStemEntries]
+  );
   const pauseFullPlayerAtVisiblePosition = useCallback(async () => {
     const durationMs = resolvedDisplayDuration || playerDuration;
     const visualProgress = timelineAudioProgress.value;
@@ -190,6 +200,10 @@ export function PlayerScreen() {
     setFullPlayerPlaybackRate: setPlaybackRate,
   });
   const effectivePlayerPosition = practicePitchTransport.effectivePositionMs;
+  // Ref mirror of the scrub position so callbacks (record-a-layer punch-in) can read it
+  // at call time without re-creating on every playback tick.
+  const playerPositionMsRef = React.useRef(0);
+  playerPositionMsRef.current = effectivePlayerPosition;
   const effectivePlayerDuration =
     practicePitchTransport.effectiveDurationMs || resolvedDisplayDuration;
   const effectivePlaybackRate = practicePitchTransport.effectivePlaybackRate;
@@ -399,31 +413,72 @@ export function PlayerScreen() {
   const handleAddOverdub = useCallback(async () => {
     if (!playerIdea || !playerClip) return;
     try {
-      await appActions.startClipOverdubRecording(playerIdea.id, playerClip.id);
+      // Record the layer from where the player sits: scrubbed to the chorus = punch in
+      // at the chorus (bar-snapped in the action). At the top = classic full layer.
+      await appActions.startClipOverdubRecording(playerIdea.id, playerClip.id, {
+        punchInMs: playerPositionMsRef.current,
+      });
       navigation.navigate("Recording" as never);
     } catch (error) {
       const message =
-        error instanceof Error ? error.message : "Could not start overdub recording.";
-      AppAlert.info("Overdub unavailable", message);
+        error instanceof Error ? error.message : "Could not start layer recording.";
+      AppAlert.info("Layer unavailable", message);
     }
   }, [navigation, playerClip, playerIdea]);
-  const handleSaveCombined = useCallback(async () => {
-    if (!playerIdea || !playerClip) return;
-    if (effectiveIsPlaying) {
-      await practicePitchTransport.pause();
-    }
-    try {
-      await appActions.saveCombinedClipAsNewClip(playerIdea.id, playerClip.id);
-      if (navigation.canGoBack()) {
-        navigation.goBack();
-        return;
+  const handleRecordLayerAt = useCallback(
+    async (atMs: number) => {
+      if (!playerIdea || !playerClip) return;
+      try {
+        // Punch in at a section start or pin (bar-snapped in the action).
+        await appActions.startClipOverdubRecording(playerIdea.id, playerClip.id, {
+          punchInMs: atMs,
+        });
+        navigation.navigate("Recording" as never);
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "Could not start layer recording.";
+        AppAlert.info("Layer unavailable", message);
       }
-      AppAlert.info("Combined clip saved", "The flattened mix was added as a new clip.");
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Could not save a combined clip.";
-      AppAlert.info("Save combined failed", message);
-    }
-  }, [effectiveIsPlaying, navigation, playerClip, playerIdea, practicePitchTransport]);
+    },
+    [navigation, playerClip, playerIdea]
+  );
+  const handleSaveAsOneClip = useCallback(
+    async (mode: "copy" | "replace") => {
+      if (!playerIdea || !playerClip) return;
+      if (effectiveIsPlaying) {
+        await practicePitchTransport.pause();
+      }
+      try {
+        await appActions.saveCombinedClipAsNewClip(playerIdea.id, playerClip.id, {
+          removeOriginalAfterExport: mode === "replace",
+        });
+        if (navigation.canGoBack()) {
+          navigation.goBack();
+          return;
+        }
+        AppAlert.info(
+          "Saved as one clip",
+          mode === "replace"
+            ? "The layers were flattened into this take."
+            : "A flattened copy was added as a new clip."
+        );
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Could not save a flattened clip.";
+        AppAlert.info("Save failed", message);
+      }
+    },
+    [effectiveIsPlaying, navigation, playerClip, playerIdea, practicePitchTransport]
+  );
+  const handleRenameStem = useCallback(
+    (stemId: string, title: string) => {
+      if (!playerIdea || !playerClip) return;
+      void appActions.renameClipOverdubStem(playerIdea.id, playerClip.id, stemId, title).catch((error) => {
+        const message = error instanceof Error ? error.message : "Could not rename the layer.";
+        AppAlert.info("Layer update failed", message);
+      });
+    },
+    [playerClip, playerIdea]
+  );
   const handleAdjustRootGain = useCallback(
     (deltaDb: number) => {
       if (!playerIdea || !playerClip) return;
@@ -445,7 +500,7 @@ export function PlayerScreen() {
     (stemId: string, deltaDb: number) => {
       if (!playerIdea || !playerClip) return;
       void appActions.adjustClipOverdubStemGain(playerIdea.id, playerClip.id, stemId, deltaDb).catch((error) => {
-        const message = error instanceof Error ? error.message : "Could not update the overdub gain.";
+        const message = error instanceof Error ? error.message : "Could not update the layer gain.";
         AppAlert.info("Layer update failed", message);
       });
     },
@@ -455,7 +510,7 @@ export function PlayerScreen() {
     (stemId: string, deltaMs: number) => {
       if (!playerIdea || !playerClip) return;
       void appActions.nudgeClipOverdubStem(playerIdea.id, playerClip.id, stemId, deltaMs).catch((error) => {
-        const message = error instanceof Error ? error.message : "Could not adjust the overdub timing.";
+        const message = error instanceof Error ? error.message : "Could not adjust the layer timing.";
         AppAlert.info("Layer update failed", message);
       });
     },
@@ -465,7 +520,7 @@ export function PlayerScreen() {
     (stemId: string) => {
       if (!playerIdea || !playerClip) return;
       void appActions.toggleClipOverdubStemMute(playerIdea.id, playerClip.id, stemId).catch((error) => {
-        const message = error instanceof Error ? error.message : "Could not update the overdub mute state.";
+        const message = error instanceof Error ? error.message : "Could not update the layer mute state.";
         AppAlert.info("Layer update failed", message);
       });
     },
@@ -475,7 +530,7 @@ export function PlayerScreen() {
     (stemId: string) => {
       if (!playerIdea || !playerClip) return;
       void appActions.toggleClipOverdubStemLowCut(playerIdea.id, playerClip.id, stemId).catch((error) => {
-        const message = error instanceof Error ? error.message : "Could not update the overdub tone.";
+        const message = error instanceof Error ? error.message : "Could not update the layer tone.";
         AppAlert.info("Layer update failed", message);
       });
     },
@@ -485,7 +540,7 @@ export function PlayerScreen() {
     (stemId: string) => {
       if (!playerIdea || !playerClip) return;
       void appActions.removeClipOverdubStem(playerIdea.id, playerClip.id, stemId).catch((error) => {
-        const message = error instanceof Error ? error.message : "Could not remove the overdub stem.";
+        const message = error instanceof Error ? error.message : "Could not remove the layer.";
         AppAlert.info("Layer update failed", message);
       });
     },
@@ -554,6 +609,7 @@ export function PlayerScreen() {
                   practiceLoopSelection={practiceLoopSelection}
                   practiceMarkers={ui.markersVisible ? previewedMarkers : EMPTY_MARKERS}
                   sections={ui.markersVisible ? previewedSections : EMPTY_SECTIONS}
+                  overdubLayerLanes={overdubLayerLanes}
                   draggingMarkerId={draggingMarkerId}
                   draggingMarkerX={draggingMarkerX}
                   onLoopRangeChange={handleLoopRangeChange}
@@ -775,6 +831,7 @@ export function PlayerScreen() {
               countInOption={ui.countInOption}
               onSelectCountIn={ui.setCountInOption}
               onRecordOverdub={handleAddOverdub}
+              onRecordLayerAt={handleRecordLayerAt}
             />
           ) : (
             <PlayerSupportSections
@@ -786,7 +843,6 @@ export function PlayerScreen() {
               lyricsExpanded={ui.lyricsExpanded}
               hasClipOverdubs={data.hasClipOverdubs}
               clipOverdubStemCount={data.clipOverdubStemCount}
-              clipPlaybackUsesRenderedMix={data.clipPlaybackUsesRenderedMix}
               isOverdubPreviewRendering={isMixUpdating}
               isMainPlaybackPlaying={effectiveIsPlaying}
               overdubRootSettings={data.overdubRootSettings}
@@ -796,12 +852,13 @@ export function PlayerScreen() {
               overdubRootWaveformPeaks={playerClip.waveformPeaks}
               overdubRootRecordingGrid={playerClip.recordingGrid ?? null}
               onAddOverdub={handleAddOverdub}
-              onSaveCombined={handleSaveCombined}
+              onSaveAsOneClip={handleSaveAsOneClip}
               onPauseMainPlayback={practicePitchTransport.pause}
               onAdjustRootGain={handleAdjustRootGain}
               onToggleRootLowCut={handleToggleRootLowCut}
               onAdjustStemGain={handleAdjustStemGain}
               onNudgeStem={handleNudgeStem}
+              onRenameStem={handleRenameStem}
               onToggleStemMute={handleToggleStemMute}
               onToggleStemLowCut={handleToggleStemLowCut}
               onRemoveStem={handleRemoveStem}

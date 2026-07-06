@@ -1,0 +1,329 @@
+diff --git a/node_modules/@siteed/audio-studio/android/src/main/java/net/siteed/audiostudio/AudioRecorderManager.kt b/node_modules/@siteed/audio-studio/android/src/main/java/net/siteed/audiostudio/AudioRecorderManager.kt
+index 6f93aa4..e91c79b 100644
+--- a/node_modules/@siteed/audio-studio/android/src/main/java/net/siteed/audiostudio/AudioRecorderManager.kt
++++ b/node_modules/@siteed/audio-studio/android/src/main/java/net/siteed/audiostudio/AudioRecorderManager.kt
+@@ -7,6 +7,7 @@ import android.content.Context
+ import android.media.AudioDeviceInfo
+ import android.media.AudioFormat
+ import android.media.AudioRecord
++import android.media.AudioTimestamp
+ import android.media.MediaRecorder
+ import android.os.Build
+ import android.os.Bundle
+@@ -87,6 +88,13 @@ class AudioRecorderManager(
+     private var audioFile: File? = null
+     private var recordingThread: Thread? = null
+     private var recordingStartTime: Long = 0
++    // Epoch ms of the recording's first captured frame, resolved lazily from
++    // AudioRecord.getTimestamp; falls back to the start-call wall clock when the HAL
++    // never reports a timestamp.
++    private var captureStartEpochMs: Long = 0
++    private var captureStartSource: String = "none"
++    private var captureTimestampAttempts = 0
++    private val MAX_CAPTURE_TIMESTAMP_ATTEMPTS = 20
+     private var totalRecordedTime: Long = 0
+     private var totalDataSize = 0
+     private var lastEmitTime = SystemClock.elapsedRealtime()
+@@ -956,6 +964,9 @@ class AudioRecorderManager(
+             isPaused.set(false)
+             _isRecording.set(true)
+             isFirstChunk = true
++            captureStartEpochMs = 0
++            captureStartSource = "none"
++            captureTimestampAttempts = 0
+ 
+             if (!isPaused.get()) {
+                 recordingStartTime = System.currentTimeMillis()
+@@ -1622,6 +1633,48 @@ class AudioRecorderManager(
+         }
+     }
+ 
++    /**
++     * Epoch ms of the recording's first captured frame. AudioRecord.getTimestamp reports a
++     * (framePosition, monotonic nanoTime) pair for the capture head; projecting back to
++     * frame 0 gives the wall time sample 0 entered the HAL — a measurement, not an
++     * estimate. The HAL may not report during the first buffers, so retry for a few
++     * emissions before falling back to the startRecording() wall clock.
++     */
++    private fun resolveCaptureStartEpochMs(): Long {
++        if (captureStartEpochMs > 0L) {
++            return captureStartEpochMs
++        }
++        val record = audioRecord
++        val canQueryTimestamp = record != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.N
++        if (canQueryTimestamp && captureTimestampAttempts < MAX_CAPTURE_TIMESTAMP_ATTEMPTS) {
++            captureTimestampAttempts++
++            try {
++                val timestamp = AudioTimestamp()
++                if (
++                    record!!.getTimestamp(timestamp, AudioTimestamp.TIMEBASE_MONOTONIC) == AudioRecord.SUCCESS &&
++                    timestamp.framePosition >= 0 &&
++                    recordingConfig.sampleRate > 0
++                ) {
++                    val captureStartNanos = timestamp.nanoTime -
++                        (timestamp.framePosition * 1_000_000_000L) / recordingConfig.sampleRate
++                    captureStartEpochMs =
++                        System.currentTimeMillis() - (System.nanoTime() - captureStartNanos) / 1_000_000L
++                    captureStartSource = "audio-timestamp"
++                    return captureStartEpochMs
++                }
++            } catch (e: Exception) {
++                LogUtils.e(CLASS_NAME, "AudioRecord.getTimestamp failed", e)
++                captureTimestampAttempts = MAX_CAPTURE_TIMESTAMP_ATTEMPTS
++            }
++        }
++        val timestampExhausted = !canQueryTimestamp || captureTimestampAttempts >= MAX_CAPTURE_TIMESTAMP_ATTEMPTS
++        if (timestampExhausted && recordingStartTime > 0) {
++            captureStartEpochMs = recordingStartTime
++            captureStartSource = "start-call"
++        }
++        return captureStartEpochMs
++    }
++
+     private fun emitAudioData(audioData: ByteArray, length: Int) {
+         val isFloat32Stream = recordingConfig.streamFormat == "float32"
+ 
+@@ -1711,6 +1764,12 @@ class AudioRecorderManager(
+             )
+         }
+ 
++        val captureStartMs = resolveCaptureStartEpochMs()
++        if (captureStartMs > 0L) {
++            baseBundle.putLong("captureStartTimeEpochMs", captureStartMs)
++            baseBundle.putString("captureStartSource", captureStartSource)
++        }
++
+         mainHandler.post {
+             try {
+                 eventSender.sendExpoEvent(Constants.AUDIO_EVENT_NAME, baseBundle)
+@@ -1768,6 +1827,9 @@ class AudioRecorderManager(
+                 lastEmittedSize = 0
+                 streamPosition = 0
+                 recordingStartTime = 0
++                captureStartEpochMs = 0
++                captureStartSource = "none"
++                captureTimestampAttempts = 0
+                 
+                 // Clean up accumulated audio data
+                 accumulatedAudioData?.close()
+diff --git a/node_modules/@siteed/audio-studio/build/cjs/useAudioRecorder.js b/node_modules/@siteed/audio-studio/build/cjs/useAudioRecorder.js
+index 1fee40c..4002b73 100644
+--- a/node_modules/@siteed/audio-studio/build/cjs/useAudioRecorder.js
++++ b/node_modules/@siteed/audio-studio/build/cjs/useAudioRecorder.js
+@@ -193,7 +193,7 @@ function useAudioRecorder({ logger, audioWorkletUrl, featuresExtratorUrl, } = {}
+         });
+     }, [dispatch]);
+     const handleAudioEvent = (0, react_1.useCallback)(async (eventData) => {
+-        const { fileUri, deltaSize, totalSize, lastEmittedSize, position, streamUuid, encoded, pcmFloat32, mimeType, buffer, compression, } = eventData;
++        const { fileUri, deltaSize, totalSize, lastEmittedSize, position, streamUuid, encoded, pcmFloat32, mimeType, buffer, compression, captureStartTimeEpochMs, captureStartSource, } = eventData;
+         logger?.debug(`[handleAudioEvent] Received audio event:`, {
+             fileUri,
+             deltaSize,
+@@ -237,6 +237,8 @@ function useAudioRecorder({ logger, audioWorkletUrl, featuresExtratorUrl, } = {}
+                         eventDataSize: deltaSize,
+                         totalSize,
+                         compression: compressionPayload,
++                        captureStartTimeEpochMs,
++                        captureStartSource,
+                     });
+                 }
+                 else {
+@@ -251,6 +253,8 @@ function useAudioRecorder({ logger, audioWorkletUrl, featuresExtratorUrl, } = {}
+                         eventDataSize: deltaSize,
+                         totalSize,
+                         compression: compressionPayload,
++                        captureStartTimeEpochMs,
++                        captureStartSource,
+                     });
+                 }
+             }
+diff --git a/node_modules/@siteed/audio-studio/build/esm/useAudioRecorder.js b/node_modules/@siteed/audio-studio/build/esm/useAudioRecorder.js
+index 14f363e..fac92f0 100644
+--- a/node_modules/@siteed/audio-studio/build/esm/useAudioRecorder.js
++++ b/node_modules/@siteed/audio-studio/build/esm/useAudioRecorder.js
+@@ -187,7 +187,7 @@ export function useAudioRecorder({ logger, audioWorkletUrl, featuresExtratorUrl,
+         });
+     }, [dispatch]);
+     const handleAudioEvent = useCallback(async (eventData) => {
+-        const { fileUri, deltaSize, totalSize, lastEmittedSize, position, streamUuid, encoded, pcmFloat32, mimeType, buffer, compression, } = eventData;
++        const { fileUri, deltaSize, totalSize, lastEmittedSize, position, streamUuid, encoded, pcmFloat32, mimeType, buffer, compression, captureStartTimeEpochMs, captureStartSource, } = eventData;
+         logger?.debug(`[handleAudioEvent] Received audio event:`, {
+             fileUri,
+             deltaSize,
+@@ -231,6 +231,8 @@ export function useAudioRecorder({ logger, audioWorkletUrl, featuresExtratorUrl,
+                         eventDataSize: deltaSize,
+                         totalSize,
+                         compression: compressionPayload,
++                        captureStartTimeEpochMs,
++                        captureStartSource,
+                     });
+                 }
+                 else {
+@@ -245,6 +247,8 @@ export function useAudioRecorder({ logger, audioWorkletUrl, featuresExtratorUrl,
+                         eventDataSize: deltaSize,
+                         totalSize,
+                         compression: compressionPayload,
++                        captureStartTimeEpochMs,
++                        captureStartSource,
+                     });
+                 }
+             }
+diff --git a/node_modules/@siteed/audio-studio/ios/AudioStreamManager.swift b/node_modules/@siteed/audio-studio/ios/AudioStreamManager.swift
+index deec895..f19aab6 100644
+--- a/node_modules/@siteed/audio-studio/ios/AudioStreamManager.swift
++++ b/node_modules/@siteed/audio-studio/ios/AudioStreamManager.swift
+@@ -65,6 +65,10 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
+     internal var lastEmittedCompressedSize: Int64 = 0
+     private var totalDataSize: Int64 = 0
+     private var lastBufferTime: AVAudioTime?
++    /// Epoch ms of the recording's first captured sample, projected from the first tap
++    /// buffer's AVAudioTime host timestamp. 0 until the first buffer arrives.
++    public private(set) var captureStartTimeEpochMs: Double = 0
++    public private(set) var captureStartSource: String = "none"
+     private var accumulatedData = Data()
+ 
+     // Data emission for onAudioAnalysis
+@@ -731,6 +735,23 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
+     ///   - customTapBlock: Optional custom tap block for specialized processing (like in fallback)
+     ///   - prepareEngine: Whether to call prepare() on the engine after installing the tap (default: true)
+     /// - Returns: The hardware input format that was used for the tap
++    /// Stamp the wall time of the recording's sample 0 from the first processed tap
++    /// buffer. AVAudioTime carries the host time of the buffer's first frame, so the
++    /// projection onto the epoch clock is a measurement, not an estimate.
++    private func noteCaptureStartIfNeeded(_ time: AVAudioTime) {
++        guard captureStartTimeEpochMs == 0 else { return }
++        let nowEpochMs = Date().timeIntervalSince1970 * 1000
++        if time.isHostTimeValid {
++            let bufferSeconds = AVAudioTime.seconds(forHostTime: time.hostTime)
++            let nowSeconds = AVAudioTime.seconds(forHostTime: mach_absolute_time())
++            captureStartTimeEpochMs = nowEpochMs - (nowSeconds - bufferSeconds) * 1000
++            captureStartSource = "host-time"
++        } else {
++            captureStartTimeEpochMs = nowEpochMs
++            captureStartSource = "wall-clock"
++        }
++    }
++
+     private func installTapWithHardwareFormat(
+         customTapBlock: ((AVAudioPCMBuffer, AVAudioTime) -> Void)? = nil,
+         prepareEngine: Bool = true
+@@ -755,6 +776,7 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
+             }
+             // Process audio buffer for streaming, analysis, and optional file writing
+             // Note: Audio streaming works regardless of primary output settings (consistent with Web/Android)
++            self.noteCaptureStartIfNeeded(time)
+             self.processAudioBuffer(buffer)
+             self.lastBufferTime = time
+         }
+@@ -859,6 +881,8 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
+         lastEmittedCompressedSize = 0
+         lastEmittedCompressedSizeAnalysis = 0
+         isPaused = false
++        captureStartTimeEpochMs = 0
++        captureStartSource = "none"
+ 
+         // Create recording file first (unless primary output is disabled)
+         if settings.output.primary.enabled {
+@@ -1908,6 +1932,8 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
+             accumulatedAnalysisData.removeAll()
+             recordingUUID = nil
+             totalDataSize = 0
++            captureStartTimeEpochMs = 0
++            captureStartSource = "none"
+ 
+             stopping = false
+             return result
+@@ -1974,6 +2000,8 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
+             self.accumulatedAnalysisData.removeAll()
+             self.recordingUUID = nil
+             self.totalDataSize = 0
++            self.captureStartTimeEpochMs = 0
++            self.captureStartSource = "none"
+             self.cachedWavFileSize = 0
+             self.cachedCompressedFileSize = 0
+             self.recordingFileURL = nil
+@@ -2136,6 +2164,7 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
+                 guard let self = self, self.isRecording else { return }
+                 
+                 // Process the buffer normally - processAudioBuffer handles all emission logic
++                self.noteCaptureStartIfNeeded(time)
+                 self.processAudioBuffer(buffer)
+                 self.lastBufferTime = time
+             }
+diff --git a/node_modules/@siteed/audio-studio/ios/AudioStudioModule.swift b/node_modules/@siteed/audio-studio/ios/AudioStudioModule.swift
+index df7fccc..136ab2b 100644
+--- a/node_modules/@siteed/audio-studio/ios/AudioStudioModule.swift
++++ b/node_modules/@siteed/audio-studio/ios/AudioStudioModule.swift
+@@ -966,6 +966,11 @@ public class AudioStudioModule: Module, AudioStreamManagerDelegate, AudioDeviceM
+             "streamUuid": manager.recordingUUID?.uuidString ?? UUID().uuidString
+         ]
+ 
++        if manager.captureStartTimeEpochMs > 0 {
++            resultDict["captureStartTimeEpochMs"] = manager.captureStartTimeEpochMs
++            resultDict["captureStartSource"] = manager.captureStartSource
++        }
++
+         if manager.recordingSettings?.streamFormat == "float32" {
+             let sampleCount = data.count / 2
+             var floatArray = [Float](repeating: 0, count: sampleCount)
+diff --git a/node_modules/@siteed/audio-studio/src/AudioStudio.types.ts b/node_modules/@siteed/audio-studio/src/AudioStudio.types.ts
+index 5c52d35..bcd518d 100644
+--- a/node_modules/@siteed/audio-studio/src/AudioStudio.types.ts
++++ b/node_modules/@siteed/audio-studio/src/AudioStudio.types.ts
+@@ -47,6 +47,10 @@ interface AudioDataEventBase {
+     eventDataSize: number
+     /** Total size of the recording so far in bytes */
+     totalSize: number
++    /** Epoch ms of the recording's first captured sample, measured natively (Song Seed
++     *  patch); undefined until the HAL reports a timestamp / on web. */
++    captureStartTimeEpochMs?: number
++    captureStartSource?: string
+     /** Information about compression if enabled, including the compressed data chunk */
+     compression?: CompressionInfo & {
+         /** Base64 (native) or Blob (web) encoded compressed data chunk */
+diff --git a/node_modules/@siteed/audio-studio/src/events.ts b/node_modules/@siteed/audio-studio/src/events.ts
+index bb2554b..d8c2a76 100644
+--- a/node_modules/@siteed/audio-studio/src/events.ts
++++ b/node_modules/@siteed/audio-studio/src/events.ts
+@@ -22,6 +22,10 @@ export interface AudioEventPayload {
+     totalSize: number
+     mimeType: string
+     streamUuid: string
++    /** Epoch ms of the recording's first captured sample, measured natively (Song Seed
++     *  patch). Undefined on the first buffers before the HAL reports a timestamp. */
++    captureStartTimeEpochMs?: number
++    captureStartSource?: string
+     compression?: {
+         data?: string | Blob // Base64 (native) or Float32Array (web) encoded compressed data chunk
+         position: number
+diff --git a/node_modules/@siteed/audio-studio/src/useAudioRecorder.tsx b/node_modules/@siteed/audio-studio/src/useAudioRecorder.tsx
+index 5414481..4244d6a 100644
+--- a/node_modules/@siteed/audio-studio/src/useAudioRecorder.tsx
++++ b/node_modules/@siteed/audio-studio/src/useAudioRecorder.tsx
+@@ -329,6 +329,8 @@ export function useAudioRecorder({
+                 mimeType,
+                 buffer,
+                 compression,
++                captureStartTimeEpochMs,
++                captureStartSource,
+             } = eventData
+             logger?.debug(`[handleAudioEvent] Received audio event:`, {
+                 fileUri,
+@@ -377,6 +379,8 @@ export function useAudioRecorder({
+                             eventDataSize: deltaSize,
+                             totalSize,
+                             compression: compressionPayload,
++                            captureStartTimeEpochMs,
++                            captureStartSource,
+                         })
+                     } else {
+                         if (!encoded) {
+@@ -390,6 +394,8 @@ export function useAudioRecorder({
+                             eventDataSize: deltaSize,
+                             totalSize,
+                             compression: compressionPayload,
++                            captureStartTimeEpochMs,
++                            captureStartSource,
+                         })
+                     }
+                 } else if (buffer) {

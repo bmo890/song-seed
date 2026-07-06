@@ -13,6 +13,8 @@ import { activateAndPlay, replacePlaybackSource } from "../../../services/transp
 import { OVERDUB_GAIN_STEP_DB } from "../../../overdub";
 import { playerScreenStyles } from "../styles";
 import { AppAlert } from "../../common/AppAlert";
+import { actionIcons } from "../../common/actionIcons";
+import { QuickNameModal } from "../../modals/QuickNameModal";
 import { LayerControlButton, OverdubLayerCard, type OverdubLayerSection } from "./OverdubLayerCard";
 import { useOverdubAlignmentAudition } from "../hooks/useOverdubAlignmentAudition";
 
@@ -45,7 +47,6 @@ type PlayerSupportSectionsProps = {
   lyricsExpanded: boolean;
   hasClipOverdubs: boolean;
   clipOverdubStemCount: number;
-  clipPlaybackUsesRenderedMix: boolean;
   isOverdubPreviewRendering: boolean;
   isMainPlaybackPlaying: boolean;
   overdubRootSettings: { gainDb: number; tonePreset: string } | null;
@@ -56,12 +57,13 @@ type PlayerSupportSectionsProps = {
   overdubRootWaveformPeaks?: number[];
   overdubRootRecordingGrid?: RecordingGrid | null;
   onAddOverdub: () => void;
-  onSaveCombined: () => void;
+  onSaveAsOneClip: (mode: "copy" | "replace") => void;
   onPauseMainPlayback: () => Promise<void>;
   onAdjustRootGain: (deltaDb: number) => void;
   onToggleRootLowCut: () => void;
   onAdjustStemGain: (stemId: string, deltaDb: number) => void;
   onNudgeStem: (stemId: string, deltaMs: number) => void;
+  onRenameStem: (stemId: string, title: string) => void;
   onToggleStemMute: (stemId: string) => void;
   onToggleStemLowCut: (stemId: string) => void;
   onRemoveStem: (stemId: string) => void;
@@ -118,7 +120,6 @@ export function PlayerSupportSections({
   lyricsExpanded,
   hasClipOverdubs,
   clipOverdubStemCount,
-  clipPlaybackUsesRenderedMix,
   isOverdubPreviewRendering,
   isMainPlaybackPlaying,
   overdubRootSettings,
@@ -128,12 +129,13 @@ export function PlayerSupportSections({
   overdubRootWaveformPeaks,
   overdubRootRecordingGrid,
   onAddOverdub,
-  onSaveCombined,
+  onSaveAsOneClip,
   onPauseMainPlayback,
   onAdjustRootGain,
   onToggleRootLowCut,
   onAdjustStemGain,
   onNudgeStem,
+  onRenameStem,
   onToggleStemMute,
   onToggleStemLowCut,
   onRemoveStem,
@@ -158,6 +160,12 @@ export function PlayerSupportSections({
     stemId: string;
     section: OverdubLayerSection;
   } | null>(null);
+  // The offset a layer had when its Align section was opened — the "Original" revert
+  // target. Captured on open so a sitting's nudges can be undone without discarding a
+  // previously-saved alignment. One at a time (accordion), so a single slot suffices.
+  const alignBaselineRef = React.useRef<{ stemId: string; offsetMs: number } | null>(null);
+  // Rename flow: which layer's title is being edited (null = modal closed).
+  const [renamingStem, setRenamingStem] = useState<{ id: string; title: string } | null>(null);
 
   // In-place master+layer audition for the Align section — the nudge feedback loop.
   const audition = useOverdubAlignmentAudition();
@@ -294,7 +302,7 @@ export function PlayerSupportSections({
     } catch (error) {
       pauseLayerPreviewSafely();
       setActiveLayerPreviewId(null);
-      const message = error instanceof Error ? error.message : "Could not play this overdub layer.";
+      const message = error instanceof Error ? error.message : "Could not play this layer.";
       console.warn("Layer preview failed", error);
       AppAlert.info("Layer preview failed", message);
     }
@@ -330,6 +338,12 @@ export function PlayerSupportSections({
     setExpandedStemSection(isClosing ? null : { stemId, section });
     if (!isClosing) {
       setRootMixExpanded(false);
+      // Snapshot the alignment baseline the moment Align opens, so "Original" reverts to
+      // where this layer sat before the user started nudging in this sitting.
+      if (section === "align") {
+        const stem = overdubStemEntries.find((candidate) => candidate.id === stemId);
+        alignBaselineRef.current = { stemId, offsetMs: stem?.offsetMs ?? 0 };
+      }
     }
   }
 
@@ -362,6 +376,34 @@ export function PlayerSupportSections({
   function closeLayersSheet() {
     audition.stop();
     setLayersSheetOpen(false);
+  }
+
+  // "Save as one clip" is a flatten/bounce — like a photo editor's Save: keep the layered
+  // take and make a flat copy, or flatten over this take (irreversible: the layers can't
+  // be re-edited after). The chooser IS the confirmation; each option spells the outcome.
+  function openSaveAsOneClip() {
+    AppAlert.custom("Save as one clip", "Combine every layer into a single audio clip.", [
+      {
+        label: "Save as a copy",
+        description: "Keep this layered take and add a new flattened clip.",
+        icon: actionIcons.copy,
+        onPress: () => {
+          closeLayersSheet();
+          onSaveAsOneClip("copy");
+        },
+      },
+      {
+        label: "Replace this take",
+        description: "Flatten over this take — the layers can't be edited afterward.",
+        icon: actionIcons.convert,
+        style: "destructive",
+        onPress: () => {
+          closeLayersSheet();
+          onSaveAsOneClip("replace");
+        },
+      },
+      { label: "Cancel", style: "cancel" },
+    ]);
   }
 
   const hasLyrics = hasProjectLyrics && latestLyricsUpdatedAt !== null;
@@ -448,38 +490,40 @@ export function PlayerSupportSections({
       {/* Layers (overdub mixer) */}
       {hasClipOverdubs ? (
         <BottomSheet visible={layersSheetOpen} onClose={closeLayersSheet}>
-          <Text style={chipStyles.sheetTitle}>Layers</Text>
-          <Text style={chipStyles.sheetMeta}>
-            {`${clipOverdubStemCount} ${clipOverdubStemCount === 1 ? "overdub" : "overdubs"}`}
-            {isOverdubPreviewRendering
-              ? " · updating mix…"
-              : clipPlaybackUsesRenderedMix
-              ? " · combined mix"
-              : " · mix not refreshed"}
-          </Text>
-          <ScrollView style={chipStyles.sheetScroll} showsVerticalScrollIndicator={false}>
-            <View style={playerScreenStyles.layerToolbar}>
+          <View style={chipStyles.layersHeaderRow}>
+            <View style={chipStyles.layersHeaderCopy}>
+              <Text style={chipStyles.sheetTitle}>Layers</Text>
+              <Text style={chipStyles.sheetMeta}>
+                {`${clipOverdubStemCount} ${clipOverdubStemCount === 1 ? "layer" : "layers"}`}
+                {isOverdubPreviewRendering ? " · updating…" : ""}
+              </Text>
+            </View>
+            <View style={chipStyles.layersHeaderActions}>
               <Pressable
-                style={playerScreenStyles.layerToolbarButton}
+                style={chipStyles.headerIconButton}
                 onPress={() => {
                   closeLayersSheet();
                   onAddOverdub();
                 }}
+                hitSlop={6}
+                accessibilityRole="button"
+                accessibilityLabel="Record a new layer"
               >
-                <Text style={playerScreenStyles.layerToolbarButtonText}>Add overdub</Text>
+                <Ionicons name="add" size={22} color="#824f3f" />
               </Pressable>
               <Pressable
-                style={playerScreenStyles.layerToolbarButton}
-                onPress={() => {
-                  closeLayersSheet();
-                  onSaveCombined();
-                }}
+                style={chipStyles.headerIconButton}
+                onPress={openSaveAsOneClip}
+                hitSlop={6}
+                accessibilityRole="button"
+                accessibilityLabel="Save as one clip"
               >
-                <Text style={playerScreenStyles.layerToolbarButtonText}>Save combined</Text>
+                <Ionicons name="ellipsis-horizontal" size={18} color="#84736f" />
               </Pressable>
             </View>
-
-            {/* Root mix: one quiet row; its controls disclose on tap like the layers'. */}
+          </View>
+          <ScrollView style={chipStyles.sheetScroll} showsVerticalScrollIndicator={false}>
+            {/* Base take: one quiet row; its controls disclose on tap like the layers'. */}
             {overdubRootSettings ? (
               <View style={playerScreenStyles.layerRootSection}>
                 <Pressable
@@ -489,9 +533,9 @@ export function PlayerSupportSections({
                     setExpandedStemSection(null);
                   }}
                   accessibilityRole="button"
-                  accessibilityLabel="Root mix settings"
+                  accessibilityLabel="Base take settings"
                 >
-                  <Text style={playerScreenStyles.layerRootTitle}>Root mix</Text>
+                  <Text style={playerScreenStyles.layerRootTitle}>Base take</Text>
                   <View style={chipStyles.rootMetaCluster}>
                     <Text style={playerScreenStyles.layerRootMeta}>
                       {`${overdubRootSettings.gainDb > 0 ? "+" : ""}${overdubRootSettings.gainDb} dB${
@@ -545,6 +589,7 @@ export function PlayerSupportSections({
                     expandedStemSection?.stemId === stem.id ? expandedStemSection.section : null
                   }
                   onToggleSection={(section) => toggleStemSection(stem.id, section)}
+                  onRename={() => setRenamingStem({ id: stem.id, title: stem.title })}
                   onAdjustGain={(deltaDb) => onAdjustStemGain(stem.id, deltaDb)}
                   onToggleLowCut={() => onToggleStemLowCut(stem.id)}
                   onRemove={() => removeStemSafely(stem.id)}
@@ -553,6 +598,20 @@ export function PlayerSupportSections({
                   masterWaveformPeaks={overdubRootWaveformPeaks}
                   masterRecordingGrid={overdubRootRecordingGrid}
                   onNudge={(deltaMs) => onNudgeStem(stem.id, deltaMs)}
+                  baselineOffsetMs={
+                    alignBaselineRef.current?.stemId === stem.id
+                      ? alignBaselineRef.current.offsetMs
+                      : stem.offsetMs
+                  }
+                  onRestoreOriginal={() => {
+                    const baseline =
+                      alignBaselineRef.current?.stemId === stem.id
+                        ? alignBaselineRef.current.offsetMs
+                        : stem.offsetMs;
+                    if (baseline !== stem.offsetMs) {
+                      onNudgeStem(stem.id, baseline - stem.offsetMs);
+                    }
+                  }}
                   isAuditioning={audition.auditioningStemId === stem.id}
                   onToggleAudition={() => toggleStemAudition(stem)}
                 />
@@ -561,6 +620,26 @@ export function PlayerSupportSections({
           </ScrollView>
         </BottomSheet>
       ) : null}
+
+      <QuickNameModal
+        visible={renamingStem != null}
+        title="Rename layer"
+        draftValue={renamingStem?.title ?? ""}
+        placeholderValue="Layer name"
+        onChangeDraft={(value) =>
+          setRenamingStem((current) => (current ? { ...current, title: value } : current))
+        }
+        onCancel={() => setRenamingStem(null)}
+        onSave={() => {
+          const next = renamingStem?.title.trim();
+          if (renamingStem && next) {
+            onRenameStem(renamingStem.id, next);
+          }
+          setRenamingStem(null);
+        }}
+        helperText="Leave empty to keep the current name."
+        disableSaveWhenEmpty
+      />
     </View>
   );
 }
@@ -610,6 +689,29 @@ const chipStyles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
+  },
+  layersHeaderRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: spacing.sm,
+  },
+  layersHeaderCopy: {
+    flex: 1,
+    minWidth: 0,
+  },
+  layersHeaderActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  headerIconButton: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.surfaceContainer,
   },
   sheetTitle: {
     fontFamily: "PlayfairDisplay_600SemiBold",

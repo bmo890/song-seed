@@ -116,7 +116,13 @@ export type DataSlice = {
     setWorkspaceListOrder: (value: WorkspaceListOrder) => void;
     markCollectionOpened: (collectionId: string) => void;
     setPreferredRecordingInputId: (id: string | null) => void;
-    setBluetoothMonitoringCalibration: (routeKey: string, routeLabel: string, offsetMs: number) => void;
+    setBluetoothMonitoringCalibration: (
+        routeKey: string,
+        routeLabel: string,
+        offsetMs: number,
+        clickOffsetMs?: number,
+        osOutputAtCalibrationMs?: number
+    ) => void;
     removeBluetoothMonitoringCalibration: (routeKey: string) => void;
     setClipOverdubPreviewRenderActive: (ideaId: string, clipId: string, active: boolean) => void;
     setMetronomeBpm: (value: number) => void;
@@ -546,6 +552,10 @@ function normalizeRecordingGrid(grid: RecordingGrid | undefined | null): Recordi
             typeof grid.firstDownbeatMs === "number" && Number.isFinite(grid.firstDownbeatMs)
                 ? Math.max(0, grid.firstDownbeatMs)
                 : null,
+        gridValidToMs:
+            typeof grid.gridValidToMs === "number" && Number.isFinite(grid.gridValidToMs)
+                ? Math.max(0, Math.round(grid.gridValidToMs))
+                : undefined,
         source: grid.source === "detected" || grid.source === "manual" ? grid.source : "metronome",
     };
 }
@@ -1192,12 +1202,19 @@ export const createDataSlice: StateCreator<
             };
         }),
     setPreferredRecordingInputId: (id) => set({ preferredRecordingInputId: id }),
-    setBluetoothMonitoringCalibration: (routeKey, routeLabel, offsetMs) =>
+    setBluetoothMonitoringCalibration: (routeKey, routeLabel, offsetMs, clickOffsetMs, osOutputAtCalibrationMs) =>
         set((state) => {
+            const previous = state.bluetoothMonitoringCalibrations.find(
+                (calibration) => calibration.routeKey === routeKey
+            );
             const nextCalibration = normalizeBluetoothMonitoringCalibration({
                 routeKey,
                 routeLabel,
                 offsetMs,
+                // Preserve existing companion measurements when only one number is
+                // being updated (e.g. the saved-list ±10 tweaks touch offsetMs alone).
+                clickOffsetMs: clickOffsetMs ?? previous?.clickOffsetMs,
+                osOutputAtCalibrationMs: osOutputAtCalibrationMs ?? previous?.osOutputAtCalibrationMs,
                 updatedAt: Date.now(),
             });
             return {

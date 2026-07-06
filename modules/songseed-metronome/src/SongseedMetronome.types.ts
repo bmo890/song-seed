@@ -9,6 +9,12 @@ export type NativeMetronomeConfig = {
   /** Output latency (ms) of the active route. Delays only the visual beat so it lands with
    *  the audible click (e.g. Bluetooth lag). Omit / 0 = immediate, no compensation. */
   outputLatencyMs?: number;
+  /** Native scheduled haptics (binaries with supportsScheduledCues): fired by the engine
+   *  itself — no bridge at fire time — offset by hapticOffsetMs relative to the beat
+   *  (signed: route latency − motor spin-up; negative fires EARLY). */
+  hapticEnabled?: boolean;
+  hapticStrength?: number;
+  hapticOffsetMs?: number;
 };
 
 export type NativeAudioRouteInfo = {

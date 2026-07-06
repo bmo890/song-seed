@@ -24,14 +24,23 @@ private data class MetronomeConfig(
   val clickVolume: Double = 0.5,
   /** Output latency (ms) of the active route. Delays only the visual beat so it lands
    *  with the audible click (e.g. Bluetooth lag). 0 = immediate / no compensation. */
-  val outputLatencyMs: Int = 0
+  val outputLatencyMs: Int = 0,
+  /** Native scheduled haptics: fired from the engine (no bridge at fire time), offset by
+   *  `hapticOffsetMs` relative to the render-domain beat so the buzz LANDS with the
+   *  audible click (signed: route latency − motor spin-up; may be negative). */
+  val hapticEnabled: Boolean = false,
+  val hapticStrength: Double = 0.6,
+  val hapticOffsetMs: Int = 0
 )
 
 class SongseedMetronomeEngine(
   private val onBeat: (Map<String, Any>) -> Unit,
   private val onStateChange: (Map<String, Any>) -> Unit,
   private val onCountInComplete: (Map<String, Any>) -> Unit,
-  private val onError: (String) -> Unit
+  private val onError: (String) -> Unit,
+  /** Fires the platform vibrator with a 0..1 strength — injected by the module (it owns
+   *  the Context). Called from the engine's handler thread at the scheduled time. */
+  private val triggerHaptic: (Double) -> Unit = {}
 ) {
   private val sampleRate = 44_100
   private val pollIntervalMs = 8L
@@ -174,6 +183,13 @@ class SongseedMetronomeEngine(
       releaseAudioTrack()
     }
 
+    // Pulse 0's haptic can't be scheduled from a previous beat — aim it at "now + offset"
+    // (audio starts near-immediately from the pre-written static buffer); pulses 1+
+    // self-correct off the audio clock via emitBeat.
+    if (config.hapticEnabled) {
+      scheduleHaptic(max(1L, config.hapticOffsetMs.toLong()))
+    }
+
     handler?.post(pollRunnable)
     val state = getState()
     onStateChange(state)
@@ -199,13 +215,24 @@ class SongseedMetronomeEngine(
       val method = AudioTrack::class.java.getMethod("getLatency")
       val rawLatencyMs = (method.invoke(track) as? Int) ?: return null
       // getLatency() folds the track's OWN buffer into the number. For the live
-      // MODE_STATIC click loop that buffer is a whole bar (2s+ at slow tempos) — strip
-      // it to recover the actual sink latency. The throwaway probe's MODE_STREAM buffer
-      // is a few ms and is a fair part of real playback latency, so it stays.
+      // MODE_STATIC click loop that buffer is a whole bar (2s+ at slow tempos); for the
+      // throwaway probe it's the MODE_STREAM min buffer (~80-100ms — device logs showed
+      // 209ms reported on a route whose real sink latency is 108ms). Strip whichever
+      // applies to recover the actual route latency.
       val bufferMs = if (existing != null) {
         (totalFrames.toDouble() / sampleRate.toDouble() * 1000.0).roundToInt()
       } else {
-        0
+        val minBufferBytes = AudioTrack.getMinBufferSize(
+          sampleRate,
+          AudioFormat.CHANNEL_OUT_MONO,
+          AudioFormat.ENCODING_PCM_16BIT
+        )
+        if (minBufferBytes > 0) {
+          // PCM16 mono → 2 bytes per frame.
+          ((minBufferBytes / 2).toDouble() / sampleRate.toDouble() * 1000.0).roundToInt()
+        } else {
+          0
+        }
       }
       (rawLatencyMs - bufferMs).takeIf { it in 1..600 }
     } catch (_: Throwable) {
@@ -369,10 +396,26 @@ class SongseedMetronomeEngine(
       onBeat(beatPayload)
     }
 
+    // Schedule the NEXT beat's haptic natively: one beat of lead means the signed offset
+    // (route latency − motor spin-up) can land the buzz exactly on the audible click, even
+    // when it must fire BEFORE the beat event — something a bridge-event chain can never do.
+    if (config.hapticEnabled) {
+      val intervalMs = beatIntervalMsForBpm(config.bpm)
+      scheduleHaptic(max(1L, (intervalMs + config.hapticOffsetMs).toLong()))
+    }
+
     // Snapshot state for *this* beat before flipping isCountIn off below, so the final count-in
     // beat (e.g. dot 4 of 4) still reports isCountIn=true and gets a chance to render before the
-    // UI transitions to "recording" on the next beat.
-    onStateChange(getState())
+    // UI transitions to "recording" on the next beat. The snapshot is emitted with the SAME
+    // output-latency delay as onBeat: beat numbers / count-in dots are driven off this state,
+    // and undelayed they run a full route latency AHEAD of the audible click (the "screen
+    // counts before I hear the beep" bug on Bluetooth).
+    val beatStateSnapshot = getState()
+    if (latency > 0L) {
+      handler?.postDelayed({ if (isRunning) onStateChange(beatStateSnapshot) }, latency)
+    } else {
+      onStateChange(beatStateSnapshot)
+    }
 
     if (isCountIn && countInPulsesRemaining > 0) {
       countInPulsesRemaining -= 1
@@ -385,6 +428,18 @@ class SongseedMetronomeEngine(
         )
       }
     }
+  }
+
+  private fun scheduleHaptic(delayMs: Long) {
+    val strength = config.hapticStrength.coerceIn(0.0, 1.0)
+    handler?.postDelayed({
+      if (isRunning && config.hapticEnabled) {
+        try {
+          triggerHaptic(strength)
+        } catch (_: Throwable) {
+        }
+      }
+    }, delayMs)
   }
 
   private fun countInBarsRemaining(): Int {
@@ -407,6 +462,11 @@ class SongseedMetronomeEngine(
       ?: config.clickVolume
     val outputLatencyMs = (rawConfig["outputLatencyMs"] as? Number)?.toInt()?.coerceIn(0, 1000)
       ?: config.outputLatencyMs
+    val hapticEnabled = rawConfig["hapticEnabled"] as? Boolean ?: config.hapticEnabled
+    val hapticStrength = (rawConfig["hapticStrength"] as? Number)?.toDouble()?.coerceIn(0.0, 1.0)
+      ?: config.hapticStrength
+    val hapticOffsetMs = (rawConfig["hapticOffsetMs"] as? Number)?.toInt()?.coerceIn(-200, 1000)
+      ?: config.hapticOffsetMs
 
     return MetronomeConfig(
       bpm = bpm,
@@ -416,7 +476,10 @@ class SongseedMetronomeEngine(
       accentPattern = accentPattern,
       clickEnabled = clickEnabled,
       clickVolume = clickVolume,
-      outputLatencyMs = outputLatencyMs
+      outputLatencyMs = outputLatencyMs,
+      hapticEnabled = hapticEnabled,
+      hapticStrength = hapticStrength,
+      hapticOffsetMs = hapticOffsetMs
     )
   }
 

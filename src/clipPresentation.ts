@@ -69,10 +69,6 @@ export function clipHasOverdubs(clip: ClipVersion): boolean {
   return getClipOverdubStemCount(clip) > 0;
 }
 
-export function clipUsesRenderedMix(clip: ClipVersion): boolean {
-  return Boolean(clip.overdub?.renderedMixUri);
-}
-
 export function hasClipPlaybackSource(clip: ClipVersion): boolean {
   return Boolean(getClipPlaybackUri(clip));
 }

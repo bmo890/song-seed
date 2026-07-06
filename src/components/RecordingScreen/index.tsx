@@ -10,6 +10,7 @@ import { RecordingBody } from "./RecordingBody";
 import { RecordingBottomDock } from "./RecordingBottomDock";
 import { RecordingSettingsModal } from "./RecordingSettingsModal";
 import { RecordingMetronomeSheet } from "./RecordingMetronomeSheet";
+import { RecordingTimingWarnings } from "./RecordingTimingWarnings";
 import { SaveDestinationPickerSheet } from "../modals/SaveDestinationPickerSheet";
 import { METRONOME_METER_PRESETS } from "../../metronome";
 import { useRecordingScreenModel } from "./hooks/useRecordingScreenModel";
@@ -35,6 +36,11 @@ export function RecordingScreen() {
           onBack={screen.confirmDiscardAndExit}
           onMinimize={screen.minimizeRecording}
           onOpenSettings={() => screen.setSettingsVisible(true)}
+        />
+
+        <RecordingTimingWarnings
+          warnings={screen.timingWarnings}
+          onCalibrate={screen.openBluetoothCalibration}
         />
 
         <RecordingBody
@@ -63,9 +69,16 @@ export function RecordingScreen() {
           countInCurrentBar={screen.metronome.currentBar}
           countInCurrentBeat={screen.metronome.currentBeatInBar}
           countInBeatsPerBar={screen.metronome.meterPreset.pulsesPerBar}
+          guideJoin={screen.guideJoinInfo}
           waveformData={screen.recording.liveWaveformData ?? screen.recording.analysisData}
           metronomeEnabled={screen.recordingMetronomeEnabled}
           metronomeSummary={metronomeSummary}
+          metronomeToggleDisabled={
+            screen.recordingControlsDisabled || !screen.metronome.isNativeAvailable
+          }
+          onToggleMetronome={() =>
+            screen.setMetronomeEnabledForTake(!screen.recordingMetronomeEnabled)
+          }
           onOpenMetronome={() => screen.setMetronomeSheetVisible(true)}
           onToggleLyricsExpanded={screen.setLyricsExpanded}
           onToggleLyricsAutoscroll={(enabled) =>
@@ -94,6 +107,7 @@ export function RecordingScreen() {
             onStart: screen.handleStartRecording,
             onRequestSave: screen.requestSaveRecording,
             onDiscard: screen.confirmDiscardAndExit,
+            onRedo: screen.confirmRedoTake,
           }}
         />
       </View>
@@ -160,7 +174,6 @@ export function RecordingScreen() {
           !screen.recording.isRecording &&
           !screen.recording.isPaused
         }
-        onToggleEnabled={screen.setMetronomeEnabledForTake}
         onTogglePreview={screen.toggleMetronomeSound}
         bpm={screen.metronome.bpm}
         meterId={screen.metronome.meterId}

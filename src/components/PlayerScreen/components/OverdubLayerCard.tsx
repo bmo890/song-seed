@@ -1,8 +1,9 @@
 import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { WaveformMiniPreview } from "../../common/WaveformMiniPreview";
 import { StemAlignmentOverlay } from "./StemAlignmentOverlay";
+import { AppAlert } from "../../common/AppAlert";
+import { actionIcons } from "../../common/actionIcons";
 import { playerScreenStyles } from "../styles";
 import { fmtDuration } from "../../../utils";
 import {
@@ -14,10 +15,12 @@ import {
 import type { RecordingGrid } from "../../../types";
 
 /**
- * One overdub layer, progressively disclosed: a compact header (preview, title, on/off)
- * with a one-line summary, and two quiet mode chips — Mix (gain/tone) and Align (overlay,
- * nudges, and the in-place master+layer audition). Only one section is open at a time
- * across all layers (accordion, owned by the sheet). Remove is demoted to a trash icon.
+ * One layer, at rest a single quiet row: solo-play · title/summary · mute · ⋯. Levels and
+ * Align are workspaces, not always-on controls — the ⋯ menu (Rename / Adjust / Align /
+ * Remove) discloses one at a time so a stack of layers stays scannable. The resting
+ * waveform is gone: it carried no information without the master under it (that context
+ * only exists in Align's superimposed overlay); a slim progress lane stands in while a
+ * layer solo-plays.
  */
 
 export type OverdubLayerSection = "mix" | "align";
@@ -63,13 +66,13 @@ export const LayerControlButton = React.memo(function LayerControlButton({
 type Props = {
   title: string;
   durationMs: number;
-  waveformPeaks?: number[];
   gainDb: number;
   offsetMs: number;
   tonePreset: string;
   isMuted: boolean;
   audioUri: string | null;
-  // Solo preview of just this layer (existing behavior).
+  waveformPeaks?: number[];
+  // Solo preview of just this layer.
   isPreviewPlaying: boolean;
   previewProgressRatio: number;
   onTogglePreview: () => void;
@@ -77,57 +80,86 @@ type Props = {
   // Accordion (owned by the sheet so one section is open across all layers).
   expandedSection: OverdubLayerSection | null;
   onToggleSection: (section: OverdubLayerSection) => void;
+  // Row actions (all behind the ⋯ menu except the mute toggle above).
+  onRename: () => void;
+  onRemove: () => void;
   // Mix section.
   onAdjustGain: (deltaDb: number) => void;
   onToggleLowCut: () => void;
-  onRemove: () => void;
   // Align section.
   masterAudioUri: string | null;
   masterDurationMs: number;
   masterWaveformPeaks?: number[];
   masterRecordingGrid?: RecordingGrid | null;
   onNudge: (deltaMs: number) => void;
+  /** The offset this layer had when the Align section was opened — "Original" reverts to
+   *  it, undoing this sitting's nudges without touching a previously-saved alignment. */
+  baselineOffsetMs: number;
+  onRestoreOriginal: () => void;
   isAuditioning: boolean;
   onToggleAudition: () => void;
 };
 
-/** Only say what's non-default; an untouched layer reads just "Overdub". */
+/** Only say what's non-default; an untouched layer shows just its title. */
 function buildSummary(gainDb: number, tonePreset: string, offsetMs: number, isMuted: boolean) {
   const parts: string[] = [];
   if (isMuted) parts.push("Muted");
   if (gainDb !== 0) parts.push(`${gainDb > 0 ? "+" : ""}${gainDb} dB`);
   if (tonePreset === "low-cut") parts.push("Low cut");
   if (offsetMs !== 0) parts.push(formatClipOverdubStemOffsetLabel(offsetMs));
-  return parts.length > 0 ? parts.join(" · ") : "Overdub";
+  return parts.length > 0 ? parts.join(" · ") : null;
 }
 
 export function OverdubLayerCard({
   title,
   durationMs,
-  waveformPeaks,
   gainDb,
   offsetMs,
   tonePreset,
   isMuted,
   audioUri,
+  waveformPeaks,
   isPreviewPlaying,
   previewProgressRatio,
   onTogglePreview,
   onToggleMuted,
   expandedSection,
   onToggleSection,
+  onRename,
+  onRemove,
   onAdjustGain,
   onToggleLowCut,
-  onRemove,
   masterAudioUri,
   masterDurationMs,
   masterWaveformPeaks,
   masterRecordingGrid,
   onNudge,
+  baselineOffsetMs,
+  onRestoreOriginal,
   isAuditioning,
   onToggleAudition,
 }: Props) {
   const canAudition = !!audioUri && !!masterAudioUri;
+  const canRestoreOriginal = offsetMs !== baselineOffsetMs;
+  const summary = buildSummary(gainDb, tonePreset, offsetMs, isMuted);
+
+  function openLayerMenu() {
+    AppAlert.custom(title, undefined, [
+      { label: "Rename layer", icon: actionIcons.rename, onPress: onRename },
+      {
+        label: expandedSection === "mix" ? "Hide levels" : "Adjust levels",
+        icon: "options-outline",
+        onPress: () => onToggleSection("mix"),
+      },
+      {
+        label: expandedSection === "align" ? "Hide alignment" : "Align timing",
+        icon: "git-compare-outline",
+        onPress: () => onToggleSection("align"),
+      },
+      { label: "Remove layer", style: "destructive", icon: actionIcons.delete, onPress: onRemove },
+      { label: "Cancel", style: "cancel" },
+    ]);
+  }
 
   return (
     <View style={playerScreenStyles.layerCard}>
@@ -147,9 +179,11 @@ export function OverdubLayerCard({
             </Text>
             <Text style={playerScreenStyles.layerCardDuration}>{fmtDuration(durationMs)}</Text>
           </View>
-          <Text style={playerScreenStyles.layerCardMeta} numberOfLines={1}>
-            {buildSummary(gainDb, tonePreset, offsetMs, isMuted)}
-          </Text>
+          {summary ? (
+            <Text style={playerScreenStyles.layerCardMeta} numberOfLines={1}>
+              {summary}
+            </Text>
+          ) : null}
         </View>
         <Pressable
           style={[
@@ -161,76 +195,33 @@ export function OverdubLayerCard({
           accessibilityState={{ checked: !isMuted }}
           accessibilityLabel={isMuted ? "Unmute this layer" : "Mute this layer"}
         />
+        <Pressable
+          style={cardStyles.menuButton}
+          onPress={openLayerMenu}
+          hitSlop={6}
+          accessibilityRole="button"
+          accessibilityLabel="Layer options"
+        >
+          <Ionicons name="ellipsis-horizontal" size={18} color="#84736f" />
+        </Pressable>
       </View>
 
-      {/* The plain strip doubles as the solo-preview progress view; the Align section
-          replaces it with the superimposed master+layer view, so hide it there. */}
-      {expandedSection !== "align" ? (
-        <View style={playerScreenStyles.layerWaveWrap}>
-          <WaveformMiniPreview peaks={waveformPeaks} bars={72} />
+      {/* Slim progress lane while this layer solo-plays — the only time a bare waveform
+          would have meant anything. */}
+      {isPreviewPlaying ? (
+        <View style={cardStyles.soloProgressTrack}>
           <View
-            pointerEvents="none"
             style={[
-              playerScreenStyles.layerWavePlayhead,
-              { left: `${Math.max(0, Math.min(100, previewProgressRatio * 100))}%` },
+              cardStyles.soloProgressFill,
+              { width: `${Math.max(0, Math.min(100, previewProgressRatio * 100))}%` },
             ]}
           />
         </View>
       ) : null}
 
-      <View style={cardStyles.modeRow}>
-        <Pressable
-          style={[cardStyles.modeChip, expandedSection === "mix" ? cardStyles.modeChipActive : null]}
-          onPress={() => onToggleSection("mix")}
-        >
-          <Ionicons
-            name="options-outline"
-            size={13}
-            color={expandedSection === "mix" ? "#ffffff" : "#5a4b45"}
-          />
-          <Text
-            style={[
-              cardStyles.modeChipText,
-              expandedSection === "mix" ? cardStyles.modeChipTextActive : null,
-            ]}
-          >
-            Mix
-          </Text>
-        </Pressable>
-        <Pressable
-          style={[
-            cardStyles.modeChip,
-            expandedSection === "align" ? cardStyles.modeChipActive : null,
-          ]}
-          onPress={() => onToggleSection("align")}
-        >
-          <Ionicons
-            name="git-compare-outline"
-            size={13}
-            color={expandedSection === "align" ? "#ffffff" : "#5a4b45"}
-          />
-          <Text
-            style={[
-              cardStyles.modeChipText,
-              expandedSection === "align" ? cardStyles.modeChipTextActive : null,
-            ]}
-          >
-            Align
-          </Text>
-        </Pressable>
-        <View style={cardStyles.modeSpacer} />
-        <Pressable
-          style={cardStyles.trashButton}
-          onPress={onRemove}
-          accessibilityRole="button"
-          accessibilityLabel="Remove this layer"
-        >
-          <Ionicons name="trash-outline" size={15} color="#a3564a" />
-        </Pressable>
-      </View>
-
       {expandedSection === "mix" ? (
         <View style={cardStyles.section}>
+          <PanelHeader label="Levels" onCollapse={() => onToggleSection("mix")} />
           <View style={playerScreenStyles.layerControls}>
             <LayerControlButton
               label={`-${OVERDUB_GAIN_STEP_DB} dB`}
@@ -256,6 +247,7 @@ export function OverdubLayerCard({
 
       {expandedSection === "align" ? (
         <View style={cardStyles.section}>
+          <PanelHeader label="Align" onCollapse={() => onToggleSection("align")} />
           <StemAlignmentOverlay
             masterAudioUri={masterAudioUri}
             masterDurationMs={masterDurationMs}
@@ -312,6 +304,19 @@ export function OverdubLayerCard({
                 onPress={() => onNudge(OVERDUB_STEM_NUDGE_STEP_LARGE_MS)}
               />
             </View>
+            <Pressable
+              style={[
+                cardStyles.originalButton,
+                !canRestoreOriginal ? cardStyles.originalButtonDisabled : null,
+              ]}
+              onPress={onRestoreOriginal}
+              disabled={!canRestoreOriginal}
+              accessibilityRole="button"
+              accessibilityLabel="Restore the original alignment"
+            >
+              <Ionicons name="refresh-outline" size={13} color="#5a4b45" />
+              <Text style={cardStyles.originalButtonText}>Original</Text>
+            </Pressable>
           </View>
           <Text style={cardStyles.alignHint}>
             ◀ pulls this layer earlier · nudge while playing to hear it move
@@ -322,46 +327,64 @@ export function OverdubLayerCard({
   );
 }
 
+function PanelHeader({ label, onCollapse }: { label: string; onCollapse: () => void }) {
+  return (
+    <View style={cardStyles.panelHeader}>
+      <Text style={cardStyles.panelTitle}>{label}</Text>
+      <Pressable
+        style={cardStyles.panelCollapse}
+        onPress={onCollapse}
+        hitSlop={8}
+        accessibilityRole="button"
+        accessibilityLabel={`Close ${label}`}
+      >
+        <Ionicons name="chevron-up" size={14} color="#a89994" />
+      </Pressable>
+    </View>
+  );
+}
+
 const cardStyles = StyleSheet.create({
-  modeRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    marginTop: 10,
-  },
-  modeChip: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-    borderRadius: 999,
-    backgroundColor: "#efeae4",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-  },
-  modeChipActive: {
-    backgroundColor: "#824f3f",
-  },
-  modeChipText: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: "#5a4b45",
-  },
-  modeChipTextActive: {
-    color: "#ffffff",
-  },
-  modeSpacer: {
-    flex: 1,
-  },
-  trashButton: {
+  menuButton: {
     width: 30,
     height: 30,
     borderRadius: 15,
     alignItems: "center",
     justifyContent: "center",
   },
+  soloProgressTrack: {
+    height: 3,
+    borderRadius: 999,
+    backgroundColor: "#ece3da",
+    overflow: "hidden",
+  },
+  soloProgressFill: {
+    height: "100%",
+    borderRadius: 999,
+    backgroundColor: "#824f3f",
+  },
   section: {
     marginTop: 10,
     gap: 10,
+  },
+  panelHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  panelTitle: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#6a5751",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  panelCollapse: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    alignItems: "center",
+    justifyContent: "center",
   },
   gainReadout: {
     minWidth: 52,
@@ -409,6 +432,23 @@ const cardStyles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
+  },
+  originalButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    borderRadius: 999,
+    backgroundColor: "#efeae4",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  originalButtonDisabled: {
+    opacity: 0.45,
+  },
+  originalButtonText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#5a4b45",
   },
   alignHint: {
     fontSize: 11,

@@ -35,7 +35,7 @@ import {
     deleteManagedAudioUris,
     filterUnreferencedManagedAudioUris,
 } from "../services/managedMedia";
-import { getClipPlaybackUri } from "../clipPresentation";
+import { getClipPlaybackDurationMs, getClipPlaybackUri } from "../clipPresentation";
 import { normalizeBluetoothMonitoringCalibrations } from "../bluetoothMonitoring";
 import {
     buildClipOverdubMixInputs,
@@ -44,6 +44,7 @@ import {
     clampOverdubGainDb,
     getClipOverdubRootSettings,
     getDefaultOverdubStemTitle,
+    snapPunchInMsToGrid,
     toggleLowCutTonePreset,
 } from "../overdub";
 import { ensurePreviewAudioDirectory, importAudioAsset, loadManagedAudioMetadata } from "../services/audioStorage";
@@ -784,6 +785,7 @@ function buildWorkspaceArchivalState(
         recordingParentClipId: recordingIdeaInWorkspace ? null : store.recordingParentClipId,
         recordingOverdubClipId: recordingIdeaInWorkspace ? null : store.recordingOverdubClipId,
         recordingGuideMixUri: recordingIdeaInWorkspace ? null : store.recordingGuideMixUri,
+        recordingPunchInMs: recordingIdeaInWorkspace ? null : store.recordingPunchInMs,
         quickNamingIdeaId: quickNamingIdeaInWorkspace ? null : store.quickNamingIdeaId,
         quickNameModalVisible: quickNamingIdeaInWorkspace ? false : store.quickNameModalVisible,
     };
@@ -1107,7 +1109,16 @@ export const appActions = {
         }));
     },
 
-    startClipOverdubRecording: async (ideaId: string, clipId: string) => {
+    startClipOverdubRecording: async (
+        ideaId: string,
+        clipId: string,
+        options?: {
+            /** Punch-in point on the master's timeline. Snapped to the master's bar grid
+             *  here (arm time) so the recording flow and the saved stem offset agree on
+             *  one number. Omit/0 = classic full-length layer. */
+            punchInMs?: number;
+        }
+    ) => {
         await scheduleClipOverdubRerender(ideaId, clipId, { immediate: true });
         const state = useStore.getState();
         const match = findWorkspaceIdeaClip(state.workspaces, ideaId, clipId);
@@ -1120,15 +1131,23 @@ export const appActions = {
             throw new Error("This clip does not have playable audio yet.");
         }
 
+        const punchInMs = snapPunchInMsToGrid(
+            options?.punchInMs ?? 0,
+            match.clip.recordingGrid ?? null,
+            getClipPlaybackDurationMs(match.clip) ?? match.clip.durationMs
+        );
+
         state.setRecordingIdeaId(ideaId);
         state.setRecordingParentClipId(null);
         state.setRecordingOverdubClipId(clipId);
         state.setRecordingGuideMixUri(guideMixUri);
+        state.setRecordingPunchInMs(punchInMs > 0 ? punchInMs : null);
 
         return {
             ideaId,
             clipId,
             guideMixUri,
+            punchInMs,
         };
     },
 
@@ -1144,6 +1163,9 @@ export const appActions = {
             durationMs?: number;
             waveformPeaks?: number[];
             recordingGrid?: RecordingGrid;
+            /** Where the stem sits on the master's timeline (punch-in point). Defaults
+             *  to 0 — a classic from-the-top layer. */
+            offsetMs?: number;
         },
         title?: string
     ) => {
@@ -1158,7 +1180,11 @@ export const appActions = {
             title: title?.trim() || getDefaultOverdubStemTitle(match.clip),
             audioUri: payload.audioUri,
             gainDb: 0,
-            offsetMs: 0,
+            offsetMs: clampClipOverdubStemOffsetMs(
+                payload.offsetMs ?? 0,
+                match.clip.durationMs,
+                payload.durationMs
+            ),
             tonePreset: "neutral",
             isMuted: false,
             durationMs: payload.durationMs,
@@ -1265,6 +1291,24 @@ export const appActions = {
             offsetMs: nextOffsetMs,
         });
         await scheduleClipOverdubRerender(ideaId, clipId, { force: true });
+    },
+
+    renameClipOverdubStem: async (ideaId: string, clipId: string, stemId: string, title: string) => {
+        const nextTitle = title.trim();
+        if (!nextTitle) {
+            return;
+        }
+        const state = useStore.getState();
+        const match = findWorkspaceIdeaClip(state.workspaces, ideaId, clipId);
+        const stem = match?.clip.overdub?.stems.find((candidate) => candidate.id === stemId) ?? null;
+        if (!match || !stem) {
+            throw new Error("Overdub stem not found.");
+        }
+        if (nextTitle === stem.title) {
+            return;
+        }
+        // Title only — the rendered mix is unaffected, so no re-render is scheduled.
+        state.updateClipOverdubStem(ideaId, clipId, stemId, { title: nextTitle });
     },
 
     toggleClipOverdubStemMute: async (ideaId: string, clipId: string, stemId: string) => {

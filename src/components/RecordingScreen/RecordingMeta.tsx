@@ -1,7 +1,9 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Pressable, StyleSheet, View, Text } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { styles } from "../../styles";
 import { fmtDuration } from "../../utils";
+import { haptic } from "../../design/haptics";
 import { AudioAnalysis } from "@siteed/audio-studio";
 import { LiveTapeVisualizer } from "../visualizers/LiveTapeVisualizer";
 import { MetronomeIcon } from "../common/MetronomeIcon";
@@ -23,11 +25,18 @@ type Props = {
     /** Whether the project has lyrics — drives the reel height: no-lyrics gets a
      * tall centered reel, collapsed-lyrics fills, expanded gets the slim monitor. */
     hasLyrics?: boolean;
-    /** Metronome status chip in the Ready row — quiet icon when off, tempo chip
-     * when on; opens the metronome sheet. */
+    /** Metronome control in the Ready row: the chip itself is the on/off toggle
+     * (quiet icon when off, tempo chip when on); the small companion button opens
+     * the settings sheet. */
     metronomeEnabled?: boolean;
     metronomeSummary?: string;
+    metronomeToggleDisabled?: boolean;
+    onToggleMetronome?: () => void;
     onOpenMetronome?: () => void;
+    /** No-count-in overdub: the master joins at the next bar line. Non-null while that
+     * wait is pending; drives a visible beat countdown so the implicit lead-in reads as
+     * intentional instead of a ghost count-in. */
+    guideJoin?: { joinAtEpochMs: number; beatMs: number } | null;
 };
 
 function buildCountInDots(beatsPerBar: number, currentBeat: number) {
@@ -50,9 +59,31 @@ export function RecordingMeta({
     hasLyrics = false,
     metronomeEnabled = false,
     metronomeSummary,
+    metronomeToggleDisabled = false,
+    onToggleMetronome,
     onOpenMetronome,
+    guideJoin = null,
 }: Props) {
     const safeElapsedMs = Number.isFinite(elapsedMs) ? Math.max(0, elapsedMs) : 0;
+
+    const [joinBeatsLeft, setJoinBeatsLeft] = useState<number | null>(null);
+    useEffect(() => {
+        if (!guideJoin) {
+            setJoinBeatsLeft(null);
+            return;
+        }
+        const tick = () => {
+            const beats = Math.ceil(
+                (guideJoin.joinAtEpochMs - Date.now()) / Math.max(1, guideJoin.beatMs)
+            );
+            setJoinBeatsLeft(Math.max(0, beats));
+        };
+        tick();
+        const interval = setInterval(tick, 100);
+        return () => clearInterval(interval);
+    }, [guideJoin]);
+    const joinLabel =
+        joinBeatsLeft == null ? null : joinBeatsLeft > 0 ? `Master joins in ${joinBeatsLeft}` : "Master joining…";
     const clampedCurrentBar =
         countInBars > 0 ? Math.max(1, Math.min(countInBars, countInCurrentBar)) : 1;
     const clampedCurrentBeat =
@@ -71,21 +102,38 @@ export function RecordingMeta({
     );
 
     const metronomeChip = onOpenMetronome ? (
-        <Pressable
-            style={({ pressed }) => [
-                metronomeEnabled ? metaStyles.metroChipOn : metaStyles.metroChipOff,
-                pressed ? styles.pressDown : null,
-            ]}
-            onPress={onOpenMetronome}
-            hitSlop={8}
-            accessibilityRole="button"
-            accessibilityLabel="Metronome"
-        >
-            <MetronomeIcon size={15} color={metronomeEnabled ? "#824f3f" : "#b6a79f"} />
-            {metronomeEnabled && metronomeSummary ? (
-                <Text style={metaStyles.metroChipText}>{metronomeSummary}</Text>
-            ) : null}
-        </Pressable>
+        <View style={metaStyles.metroGroup}>
+            <Pressable
+                style={({ pressed }) => [
+                    metronomeEnabled ? metaStyles.metroChipOn : metaStyles.metroChipOff,
+                    metronomeToggleDisabled ? metaStyles.metroChipDisabled : null,
+                    pressed ? styles.pressDown : null,
+                ]}
+                onPress={() => {
+                    haptic.tap();
+                    onToggleMetronome?.();
+                }}
+                disabled={metronomeToggleDisabled || !onToggleMetronome}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityState={{ selected: metronomeEnabled }}
+                accessibilityLabel={metronomeEnabled ? "Turn metronome off" : "Turn metronome on"}
+            >
+                <MetronomeIcon size={15} color={metronomeEnabled ? "#824f3f" : "#b6a79f"} />
+                {metronomeEnabled && metronomeSummary ? (
+                    <Text style={metaStyles.metroChipText}>{metronomeSummary}</Text>
+                ) : null}
+            </Pressable>
+            <Pressable
+                style={({ pressed }) => [metaStyles.metroCustomizeBtn, pressed ? styles.pressDown : null]}
+                onPress={onOpenMetronome}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel="Metronome settings"
+            >
+                <Ionicons name="options-outline" size={14} color="#84736f" />
+            </Pressable>
+        </View>
     ) : null;
 
     return (
@@ -102,6 +150,7 @@ export function RecordingMeta({
                         {statusDot}
                         <Text style={styles.recordingStatusText}>{statusLabel}</Text>
                     </View>
+                    {joinLabel ? <Text style={metaStyles.joinLabel}>{joinLabel}</Text> : null}
                     <View style={metaStyles.compactSpacer} />
                     {metronomeChip}
                 </View>
@@ -135,6 +184,7 @@ export function RecordingMeta({
                         <View style={metaStyles.statusLeft}>
                             {statusDot}
                             <Text style={styles.recordingStatusText}>{statusLabel}</Text>
+                            {joinLabel ? <Text style={metaStyles.joinLabel}>{joinLabel}</Text> : null}
                         </View>
                         {metronomeChip}
                     </View>
@@ -220,5 +270,27 @@ const metaStyles = StyleSheet.create({
         fontSize: 11,
         color: "#824f3f",
         fontVariant: ["tabular-nums"],
+    },
+    metroGroup: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 6,
+    },
+    metroChipDisabled: {
+        opacity: 0.5,
+    },
+    joinLabel: {
+        fontFamily: "PlusJakartaSans_600SemiBold",
+        fontSize: 12,
+        color: "#824f3f",
+        fontVariant: ["tabular-nums"],
+    },
+    metroCustomizeBtn: {
+        width: 26,
+        height: 26,
+        borderRadius: 13,
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: "#F4F1ED",
     },
 });

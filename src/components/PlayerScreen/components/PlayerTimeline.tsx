@@ -5,6 +5,7 @@ import { StyleSheet, View } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { AudioReel } from "../../common/AudioReel";
 import { MultiTimeRangeSelector } from "../../common/TimeRangeSelector";
+import { OverdubLayerLanes, type OverdubLayerLane } from "../../common/OverdubLayerLanes";
 import { PracticePinBadges } from "../PracticePinBadges";
 import { SectionLabelBadges } from "../SectionLabelBadges";
 import type { PracticeMarker, ClipSection } from "../../../types";
@@ -51,6 +52,9 @@ type Props = {
   practiceLoopSelection: Range[];
   practiceMarkers: PracticeMarker[];
   sections: ClipSection[];
+  /** Un-flattened overdub layers, drawn as slim lanes under the reel so their placement
+   *  on the master's timeline is visible at a glance. */
+  overdubLayerLanes?: OverdubLayerLane[];
   draggingMarkerId: SharedValue<string>;
   draggingMarkerX: SharedValue<number>;
   onLoopRangeChange: (start: number, end: number) => void;
@@ -203,6 +207,7 @@ function PlayerTimelineInner({
   practiceLoopSelection,
   practiceMarkers,
   sections,
+  overdubLayerLanes,
   draggingMarkerId,
   draggingMarkerX,
   onLoopRangeChange,
@@ -323,27 +328,31 @@ function PlayerTimelineInner({
           ) : null}
         </View>
       )}
-      renderBelowSurface={
-        mode === "practice"
-          ? ({ pixelsPerMs, timelineTranslateX, timelineScale }) => (
-              <>
-                {practiceLoopEnabled && previewRange ? (
-                  <LoopMoveHandle
-                    range={previewRange}
-                    durationMs={durationMs}
-                    pixelsPerMs={pixelsPerMs}
-                    timelineTranslateX={timelineTranslateX}
-                    timelineScale={timelineScale}
-                    sharedPreviewStartMs={sharedLoopPreviewStartMs}
-                    sharedPreviewEndMs={sharedLoopPreviewEndMs}
-                    onLoopRangeChange={onLoopRangeChange}
-                    onScrubStateChange={onScrubStateChange}
-                  />
-                ) : null}
-              </>
-            )
-          : undefined
-      }
+      renderBelowSurface={({ pixelsPerMs, timelineTranslateX, timelineScale }) => (
+        <>
+          {overdubLayerLanes && overdubLayerLanes.length > 0 ? (
+            <OverdubLayerLanes
+              lanes={overdubLayerLanes}
+              pixelsPerMs={pixelsPerMs}
+              timelineTranslateX={timelineTranslateX}
+              timelineScale={timelineScale}
+            />
+          ) : null}
+          {mode === "practice" && practiceLoopEnabled && previewRange ? (
+            <LoopMoveHandle
+              range={previewRange}
+              durationMs={durationMs}
+              pixelsPerMs={pixelsPerMs}
+              timelineTranslateX={timelineTranslateX}
+              timelineScale={timelineScale}
+              sharedPreviewStartMs={sharedLoopPreviewStartMs}
+              sharedPreviewEndMs={sharedLoopPreviewEndMs}
+              onLoopRangeChange={onLoopRangeChange}
+              onScrubStateChange={onScrubStateChange}
+            />
+          ) : null}
+        </>
+      )}
       onSeek={onSeek}
       onTogglePlay={onTogglePlay}
       onSeekToStart={() => onSeek(0)}

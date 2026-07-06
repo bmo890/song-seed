@@ -13,16 +13,21 @@ import { getClipPlaybackDurationMs, getClipPlaybackWaveformPeaks } from "../../.
 import { getLatestLyricsVersion, lyricsDocumentToText } from "../../../lyrics";
 import { useRecording } from "../../../hooks/useRecording";
 import { useMetronome } from "../../../hooks/useMetronome";
+import {
+  formatLatencyProfileLog,
+  resolveCurrentRouteLatencyProfile,
+} from "../../../services/latencyModel";
 import SongseedMetronomeModule from "../../../../modules/songseed-metronome";
 import { appActions } from "../../../state/actions";
 import { useStore } from "../../../state/useStore";
 import type { ClipVersion, RecordingGrid } from "../../../types";
-import { getDefaultOverdubStemTitle } from "../../../overdub";
+import { getDefaultOverdubStemTitle, getRecordingGridBarMs } from "../../../overdub";
 import { buildSaveDestinations, resolveSaveDestinationLabel, type SaveDestination } from "../../../collectionManagement";
 import { authorizeIntentionalEmptyStateWrite } from "../../../services/stateIntegrity";
 import {
   buildDefaultIdeaTitle,
   ensureUniqueCountedTitle,
+  fmtDuration,
   genChildClipTitle,
   genRootClipTitle,
   isDefaultIdeaTitle,
@@ -35,6 +40,28 @@ const HEAD_TRIM_SAFETY_EARLY_MS = 15;
 /** Fallback lead for the guide's play() when its start latency couldn't be measured.
  *  The primary path measures the real latency with a muted warm-start instead. */
 const GUIDE_DOWNBEAT_LEAD_MS = 80;
+/** BT latency drifts with codec renegotiation and firmware — nudge a re-check when the
+ *  ear calibration is older than this. */
+const CALIBRATION_STALE_AFTER_MS = 30 * 24 * 60 * 60 * 1000;
+
+// Guide-player resume latency measured by the most recent phase-locked start (a device
+// property, stable within an app session — logs show ~35–70 ms). Cached at module level
+// so a take WITHOUT a count-in can schedule a locked guide start with a much shorter
+// lead: the rehearsal that measures this needs time the count-in normally donates.
+let sessionGuideResumeLatencyMs: number | null = null;
+
+/** Lead time a phase-locked guide start needs from "now": one muted warm cycle always
+ *  runs (cold-start the player, measure, rewind); the second cycle that measures resume
+ *  latency is skipped when a cached measurement exists. */
+function guideLockLeadNeededMs() {
+  return sessionGuideResumeLatencyMs != null ? 1200 : 1800;
+}
+
+export type RecordingTimingWarning = {
+  kind: "uncalibrated-bt" | "stale-calibration" | "bt-mic" | "route-changed";
+  message: string;
+  showCalibrateAction: boolean;
+};
 
 export function useRecordingScreenModel() {
   const navigation = useNavigation();
@@ -43,6 +70,7 @@ export function useRecordingScreenModel() {
   const recordingParentClipId = useStore((s) => s.recordingParentClipId);
   const recordingOverdubClipId = useStore((s) => s.recordingOverdubClipId);
   const recordingGuideMixUri = useStore((s) => s.recordingGuideMixUri);
+  const recordingPunchInMs = useStore((s) => s.recordingPunchInMs);
   const recordingSaveRequestToken = useStore((s) => s.recordingSaveRequestToken);
   const workspaces = useStore((s) => s.workspaces);
   const activeWorkspaceId = useStore((s) => s.activeWorkspaceId);
@@ -69,10 +97,26 @@ export function useRecordingScreenModel() {
         : null,
     [recordingIdea, recordingOverdubClipId]
   );
+
+  // ── Punch-in (spot layers) ────────────────────────────────────────────────
+  // The punch point (bar-snapped at arm time; store holds the snapped value) is where
+  // the saved stem sits on the master's timeline. Lead-in policy: WITH a count-in the
+  // clicks are the lead-in and the master enters exactly at the punch on the downbeat;
+  // WITHOUT one, the guide monitors from one bar earlier so the performer hears the
+  // previous bar of the actual song as a grid-true lead-in (fixed fallback when the
+  // master has no tempo grid). 0 = classic full-length layer — every code path below
+  // reduces to the pre-punch behavior exactly.
+  const punchInMs = recordingGuideMixUri ? recordingPunchInMs ?? 0 : 0;
+  const punchLeadInMs =
+    punchInMs > 0
+      ? Math.min(punchInMs, getRecordingGridBarMs(recordingOverdubClip?.recordingGrid) ?? 1500)
+      : 0;
   const headerTitlePlaceholder =
     !recordingOverdubClip && !!recordingIdea && isDefaultIdeaTitle(recordingIdea.title, recordingIdea.createdAt);
   const headerEyebrow = recordingOverdubClip
-    ? "Overdub"
+    ? punchInMs > 0
+      ? `Layer · from ${fmtDuration(punchInMs)}`
+      : "Layer"
     : recordingIdea
       ? headerTitlePlaceholder
         ? "New recording"
@@ -108,7 +152,14 @@ export function useRecordingScreenModel() {
   const [isArmingRecording, setIsArmingRecording] = useState(false);
   const [currentRecordingInput, setCurrentRecordingInput] = useState<AudioDevice | null>(null);
   const [currentMonitoringOutput, setCurrentMonitoringOutput] = useState<{ name: string; type: string } | null>(null);
+  // Take position at which the audio route changed mid-take (null = it didn't). The grid
+  // is only trustworthy up to that point — surfaced as a warning and stamped on the grid.
+  const [midTakeRouteChangeMs, setMidTakeRouteChangeMs] = useState<number | null>(null);
   const [guideMonitoringLeadInMs, setGuideMonitoringLeadInMs] = useState(0);
+  /** While a no-count-in overdub waits for the master to join at the next bar line,
+   *  this drives the on-screen countdown — the "implicit count-in" was invisible and
+   *  read as a ghost bar imposed on the take. Null when no join is pending. */
+  const [guideJoinInfo, setGuideJoinInfo] = useState<{ joinAtEpochMs: number; beatMs: number } | null>(null);
   const [overdubReviewLocked, setOverdubReviewLocked] = useState(false);
   const [lyricsExpanded, setLyricsExpanded] = useState(false);
   const [lyricsAutoscrollMode, setLyricsAutoscrollMode] = useState<"off" | "follow" | "manual">("off");
@@ -161,10 +212,13 @@ export function useRecordingScreenModel() {
 
       const pendingOverdubSave = pendingOverdubSaveRef.current;
       if (pendingOverdubSave) {
+        // A punch take's file t=0 IS the punch point (head-trimmed to the guide's
+        // measured punch epoch), so the stem sits on the master at that offset.
+        const punchOffsetMs = useStore.getState().recordingPunchInMs ?? 0;
         await appActions.attachRecordedOverdubStem(
           pendingOverdubSave.ideaId,
           pendingOverdubSave.clipId,
-          { ...payload, recordingGrid: takeGrid },
+          { ...payload, recordingGrid: takeGrid, offsetMs: punchOffsetMs },
           pendingOverdubSave.title
         );
         return;
@@ -258,6 +312,58 @@ export function useRecordingScreenModel() {
   const recordingInputLabel = currentRecordingInput?.name?.trim() || null;
   const monitoringOutputLabel = currentMonitoringOutput?.name?.trim() || null;
 
+  // Honesty layer: surface every situation where timing can't be trusted BEFORE the user
+  // wastes a take on it, with a one-tap path to fix what's fixable.
+  const timingWarnings = useMemo<RecordingTimingWarning[]>(() => {
+    const warnings: RecordingTimingWarning[] = [];
+    const outputName = monitoringOutputLabel ?? "These headphones";
+
+    if (isBluetoothMonitoringOutput) {
+      if (!activeBluetoothCalibration) {
+        warnings.push({
+          kind: "uncalibrated-bt",
+          message: `${outputName} aren't calibrated — recorded takes may land off the beat.`,
+          showCalibrateAction: true,
+        });
+      } else if (Date.now() - activeBluetoothCalibration.updatedAt > CALIBRATION_STALE_AFTER_MS) {
+        warnings.push({
+          kind: "stale-calibration",
+          message: `${outputName} were calibrated over a month ago — a quick re-check keeps takes tight.`,
+          showCalibrateAction: true,
+        });
+      }
+    }
+
+    if (isBluetoothRecordingInput) {
+      warnings.push({
+        kind: "bt-mic",
+        message:
+          "Recording through a Bluetooth microphone — its delay can't be corrected. Use the phone or a wired mic for tight takes.",
+        showCalibrateAction: false,
+      });
+    }
+
+    if (midTakeRouteChangeMs != null) {
+      warnings.push({
+        kind: "route-changed",
+        message: `Audio route changed ${Math.round(midTakeRouteChangeMs / 1000)}s into the take — timing after that point may drift.`,
+        showCalibrateAction: false,
+      });
+    }
+
+    return warnings;
+  }, [
+    activeBluetoothCalibration,
+    isBluetoothMonitoringOutput,
+    isBluetoothRecordingInput,
+    midTakeRouteChangeMs,
+    monitoringOutputLabel,
+  ]);
+
+  function openBluetoothCalibration() {
+    navigation.navigate("BluetoothCalibration" as never);
+  }
+
   const fallbackClipTitle = () => buildDefaultIdeaTitle();
 
   const recordingPlaceholderTitle =
@@ -325,25 +431,19 @@ export function useRecordingScreenModel() {
     guideScheduleRef.current.promise = null;
     clearMonitoringDelayTimer();
     setGuideMonitoringLeadInMs(0);
+    setGuideJoinInfo(null);
     if (!recordingGuideMixUri) return;
     try {
       guideMixPlayer.volume = 1;
       await guideMixPlayer.pause();
       await guideMixPlayer.seekTo(0);
     } catch (error) {
-      console.warn("Guide mix stop failed", error);
-    }
-  }
-
-  async function startGuideMixFromBeginning() {
-    if (!recordingGuideMixUri) return;
-    try {
-      setGuideMonitoringLeadInMs(activeMonitoringCompensationMs);
-      await guideMixPlayer.seekTo(0);
-      guideMixPlayer.play();
-      await waitForGuideMixPlaybackStart();
-    } catch (error) {
-      console.warn("Guide mix start failed", error);
+      // Screen teardown can release the player before this stop runs; that race is
+      // harmless. Only surface real failures.
+      const message = error instanceof Error ? error.message : String(error);
+      if (!/released/i.test(message)) {
+        console.warn("Guide mix stop failed", error);
+      }
     }
   }
 
@@ -354,13 +454,19 @@ export function useRecordingScreenModel() {
     });
   }
 
-  /** Epoch time the guide's audio started, anchored off its reported position. */
-  async function measureGuideAnchorEpochMs(timeoutMs: number): Promise<number | null> {
+  /** Epoch time the guide's audio passed `basePositionMs`, anchored off its reported
+   *  position. Base 0 = classic "when did playback start"; a punch take passes the seek
+   *  position (the player idles AT the seek point, so only motion past it counts). */
+  async function measureGuideAnchorEpochMs(
+    timeoutMs: number,
+    basePositionMs = 0
+  ): Promise<number | null> {
+    const baseSec = basePositionMs / 1000;
     const deadline = Date.now() + timeoutMs;
     while (Date.now() < deadline) {
       const positionSec = guideMixPlayer.currentTime ?? 0;
-      if (guideMixPlayer.playing && !guideMixPlayer.isBuffering && positionSec > 0) {
-        return Date.now() - positionSec * 1000;
+      if (guideMixPlayer.playing && !guideMixPlayer.isBuffering && positionSec > baseSec + 0.005) {
+        return Date.now() - (positionSec - baseSec) * 1000;
       }
       await waitPlainMs(16);
     }
@@ -372,42 +478,99 @@ export function useRecordingScreenModel() {
    * logs showed a corrective seek stalls playback 50–200 ms — worse than the error it
    * fixed). Instead, during the count-in: warm-start the guide MUTED to measure this
    * device's real play() latency, rewind, then fire the audible start pre-compensated by
-   * the measured latency so the guide's recorded clicks land on the grid. Resolves with
-   * the guide's measured start epoch (what the head-trim math needs), or null on failure.
+   * the measured latency so the guide's recorded clicks land on the grid.
+   *
+   * `targetStartEpochMs` is when the guide's ANCHOR position should play. For a classic
+   * take both positions are 0 (byte-identical to the pre-punch behavior); a punch take
+   * seeks to `seekPositionMs` (punch minus the audible lead-in) and anchors trim math at
+   * `anchorPositionMs` (the punch point itself). Resolves with the measured epoch of the
+   * anchor position (what the head-trim math needs), or null on failure.
    */
-  function schedulePhaseLockedGuideStart(targetStartEpochMs: number): Promise<number | null> {
+  function schedulePhaseLockedGuideStart(
+    targetStartEpochMs: number,
+    opts?: { seekPositionMs?: number; anchorPositionMs?: number }
+  ): Promise<number | null> {
+    const seekPositionMs = Math.max(0, opts?.seekPositionMs ?? 0);
+    const anchorLeadMs = Math.max(0, (opts?.anchorPositionMs ?? seekPositionMs) - seekPositionMs);
     const token = ++guideScheduleRef.current.token;
     const task = (async (): Promise<number | null> => {
       try {
         setGuideMonitoringLeadInMs(activeMonitoringCompensationMs);
         guideMixPlayer.volume = 0;
-        await guideMixPlayer.seekTo(0);
-        const playCallAtMs = Date.now();
+        await guideMixPlayer.seekTo(seekPositionMs / 1000);
+        const coldPlayCallAtMs = Date.now();
         guideMixPlayer.play();
-        const warmAnchorEpochMs = await measureGuideAnchorEpochMs(1200);
+        const coldAnchorEpochMs = await measureGuideAnchorEpochMs(1200, seekPositionMs);
         if (guideScheduleRef.current.token !== token) return null;
-        const startLatencyMs =
-          warmAnchorEpochMs != null
-            ? Math.max(0, Math.min(600, warmAnchorEpochMs - playCallAtMs))
+        const coldStartLatencyMs =
+          coldAnchorEpochMs != null
+            ? Math.max(0, Math.min(600, coldAnchorEpochMs - coldPlayCallAtMs))
             : GUIDE_DOWNBEAT_LEAD_MS;
         await guideMixPlayer.pause();
-        await guideMixPlayer.seekTo(0);
+        await guideMixPlayer.seekTo(seekPositionMs / 1000);
         if (guideScheduleRef.current.token !== token) return null;
-        console.log(`[timing] guide warm-start latency: ${Math.round(startLatencyMs)}ms`);
 
-        await waitPlainMs(targetStartEpochMs - startLatencyMs - Date.now());
+        // The REAL start is a resume-from-pause, which is far faster than the cold start
+        // (device logs: cold 233–518ms vs resume ~35–70ms — scheduling with the cold
+        // number fired the guide up to half a second EARLY, before the count-in ended).
+        // Resume latency jitters shot-to-shot, so a single muted measurement inherits
+        // that jitter whole (device logs: a 157ms rehearsal against a ~136ms real start
+        // = an audible 21ms flam). Take up to three muted cycles while the count-in
+        // leaves time and use the median; when there's no time (no-count-in takes), a
+        // measurement cached from any earlier take this session beats the capped cold
+        // number.
+        let startLatencyMs = sessionGuideResumeLatencyMs ?? Math.min(coldStartLatencyMs, 80);
+        const audibleStartEpochMs = targetStartEpochMs - anchorLeadMs;
+        const resumeSamplesMs: number[] = [];
+        while (resumeSamplesMs.length < 3 && audibleStartEpochMs - Date.now() > 700) {
+          const resumePlayCallAtMs = Date.now();
+          guideMixPlayer.play();
+          const resumeAnchorEpochMs = await measureGuideAnchorEpochMs(800, seekPositionMs);
+          if (guideScheduleRef.current.token !== token) return null;
+          const sampleOk = resumeAnchorEpochMs != null;
+          if (sampleOk) {
+            resumeSamplesMs.push(Math.max(0, Math.min(600, resumeAnchorEpochMs - resumePlayCallAtMs)));
+          }
+          await guideMixPlayer.pause();
+          await guideMixPlayer.seekTo(seekPositionMs / 1000);
+          if (guideScheduleRef.current.token !== token) return null;
+          if (!sampleOk) break;
+        }
+        if (resumeSamplesMs.length > 0) {
+          const sorted = [...resumeSamplesMs].sort((a, b) => a - b);
+          startLatencyMs = sorted[Math.floor(sorted.length / 2)];
+          sessionGuideResumeLatencyMs = startLatencyMs;
+        }
+        console.log(
+          `[timing] guide start latency: cold=${Math.round(coldStartLatencyMs)}ms ` +
+            `resume=${Math.round(startLatencyMs)}ms` +
+            (resumeSamplesMs.length > 1
+              ? ` (median of ${resumeSamplesMs.map((v) => Math.round(v)).join("/")})`
+              : "")
+        );
+
+        await waitPlainMs(audibleStartEpochMs - startLatencyMs - Date.now());
         if (guideScheduleRef.current.token !== token) return null;
         guideMixPlayer.volume = 1;
         guideMixPlayer.play();
-        const anchorEpochMs = await measureGuideAnchorEpochMs(1500);
+        const seekAnchorEpochMs = await measureGuideAnchorEpochMs(1500, seekPositionMs);
         if (guideScheduleRef.current.token !== token) return null;
-        if (anchorEpochMs != null) {
-          console.log(
-            `[timing] guide phase vs metronome grid: ${Math.round(
-              anchorEpochMs - targetStartEpochMs
-            )}ms (+ = guide late)`
-          );
+        if (seekAnchorEpochMs == null) {
+          return null;
         }
+        // Project the measured start forward to the anchor position (= punch point; 0 for
+        // a classic take, where this is the identity).
+        const anchorEpochMs = seekAnchorEpochMs + anchorLeadMs;
+        const phaseErrorMs = anchorEpochMs - targetStartEpochMs;
+        // Close the loop: the miss IS the difference between the rehearsed latency and
+        // the real one, so fold it into the session cache — the next take this session
+        // schedules with the corrected number instead of repeating the same miss.
+        const correctedLatencyMs = Math.max(0, Math.min(600, startLatencyMs + phaseErrorMs));
+        sessionGuideResumeLatencyMs = correctedLatencyMs;
+        console.log(
+          `[timing] guide phase vs metronome grid: ${Math.round(phaseErrorMs)}ms ` +
+            `(+ = guide late, next-take latency ${Math.round(correctedLatencyMs)}ms)`
+        );
         return anchorEpochMs;
       } catch (error) {
         console.warn("Phase-locked guide start failed", error);
@@ -423,25 +586,25 @@ export function useRecordingScreenModel() {
     return task;
   }
 
-  /** Start the guide from t=0 and return the epoch time its audio actually started
-   *  (anchored off the player's reported position, same technique as the calibration
-   *  baseline fix). Null when the anchor couldn't be established. */
-  async function startGuideMixFromBeginningAnchored(): Promise<number | null> {
+  /** Start the guide (from t=0, or from a punch take's seek position) and return the
+   *  measured epoch of its ANCHOR position — playback start for a classic take, the
+   *  punch point for a punch take (anchored off the player's reported position, same
+   *  technique as the calibration baseline fix). Null when the anchor couldn't be
+   *  established. */
+  async function startGuideMixFromBeginningAnchored(opts?: {
+    seekPositionMs?: number;
+    anchorPositionMs?: number;
+  }): Promise<number | null> {
     if (!recordingGuideMixUri) return null;
+    const seekPositionMs = Math.max(0, opts?.seekPositionMs ?? 0);
+    const anchorLeadMs = Math.max(0, (opts?.anchorPositionMs ?? seekPositionMs) - seekPositionMs);
     try {
       setGuideMonitoringLeadInMs(activeMonitoringCompensationMs);
-      await guideMixPlayer.seekTo(0);
+      await guideMixPlayer.seekTo(seekPositionMs / 1000);
       guideMixPlayer.play();
-
-      const anchorDeadline = Date.now() + 1500;
-      while (Date.now() < anchorDeadline) {
-        const positionSec = guideMixPlayer.currentTime ?? 0;
-        if (guideMixPlayer.playing && !guideMixPlayer.isBuffering && positionSec > 0) {
-          return Date.now() - positionSec * 1000;
-        }
-        await new Promise<void>((resolve) => {
-          setTimeout(resolve, 16);
-        });
+      const seekAnchorEpochMs = await measureGuideAnchorEpochMs(1500, seekPositionMs);
+      if (seekAnchorEpochMs != null) {
+        return seekAnchorEpochMs + anchorLeadMs;
       }
     } catch (error) {
       console.warn("Guide mix anchored start failed", error);
@@ -520,6 +683,7 @@ export function useRecordingScreenModel() {
 
   async function cancelPendingRecordingStart() {
     takeGridRef.current = null;
+    setMidTakeRouteChangeMs(null);
     countInPendingRef.current = false;
     setIsArmingRecording(false);
     setOverdubReviewLocked(false);
@@ -545,6 +709,44 @@ export function useRecordingScreenModel() {
       updateIdeas((prevIdeas) => prevIdeas.filter((idea) => idea.id !== recordingIdea.id));
     }
     clearRecordingContext();
+  }
+
+  /** Scrap the in-flight take and reset to Ready WITHOUT leaving the screen: the file is
+   *  discarded, but the session — settings, guide, metronome grid, one-shot count-in —
+   *  stays armed exactly as it was, so the next attempt is one tap away. */
+  async function redoTake() {
+    if (!isArmingRecording && !recording.isRecording && !recording.isPaused) {
+      return;
+    }
+    // The count-in completion effect consumes countInBars (one-shot); a redo should run
+    // the next attempt identically, so restore it from the take's grid snapshot.
+    const takeCountInBars = takeGridRef.current?.countInBars ?? 0;
+    if (isArmingRecording) {
+      await cancelPendingRecordingStart();
+    } else {
+      takeGridRef.current = null;
+      setMidTakeRouteChangeMs(null);
+      setOverdubReviewLocked(false);
+      autoStoppingOverdubRef.current = false;
+      clearMonitoringDelayTimer();
+      await stopGuideMix();
+      await stopRecordingMetronome();
+      await recording.discardRecording();
+    }
+    if (takeCountInBars > 0) {
+      metronome.setCountInBarsValue(takeCountInBars);
+    }
+  }
+
+  function confirmRedoTake() {
+    AppAlert.destructive(
+      "Redo take?",
+      "This take will be deleted and you'll be back at the start, ready to record with the same settings.",
+      () => {
+        void redoTake();
+      },
+      { confirmLabel: "Redo", cancelLabel: "Keep recording", icon: actionIcons.restore }
+    );
   }
 
   function confirmDiscardAndExit() {
@@ -754,6 +956,14 @@ export function useRecordingScreenModel() {
     void requestSaveRecording();
   }, [recordingSaveRequestToken]);
 
+  // Latest take state for the device-change listener (it outlives renders).
+  const takeStateRef = useRef({ capturing: false, elapsedMs: 0 });
+  takeStateRef.current = {
+    capturing: recording.isRecording || recording.isPaused,
+    elapsedMs: recording.elapsedMs,
+  };
+  const lastMonitoringRouteKeyRef = useRef<string | null>(null);
+
   useEffect(() => {
     let cancelled = false;
 
@@ -764,6 +974,28 @@ export function useRecordingScreenModel() {
         if (!cancelled) {
           setCurrentRecordingInput(device ?? null);
           setCurrentMonitoringOutput(outputRoute ?? null);
+
+          // Mid-take route change (headphones died, BT reconnected…): every latency in
+          // the model just changed, so the grid reference is broken from here on. Stamp
+          // the take instead of silently pretending the grid survived.
+          const routeKey = buildBluetoothMonitoringRouteKey(outputRoute ?? null);
+          const previousRouteKey = lastMonitoringRouteKeyRef.current;
+          lastMonitoringRouteKeyRef.current = routeKey;
+          if (
+            previousRouteKey !== null &&
+            routeKey !== previousRouteKey &&
+            takeStateRef.current.capturing
+          ) {
+            const atMs = Math.max(0, Math.round(takeStateRef.current.elapsedMs));
+            console.warn(`[timing] audio route changed mid-take at ${atMs}ms — grid marked`);
+            setMidTakeRouteChangeMs((current) => current ?? atMs);
+            if (takeGridRef.current) {
+              takeGridRef.current = {
+                ...takeGridRef.current,
+                gridValidToMs: Math.min(takeGridRef.current.gridValidToMs ?? Infinity, atMs),
+              };
+            }
+          }
         }
       } catch {
         if (!cancelled) {
@@ -817,9 +1049,11 @@ export function useRecordingScreenModel() {
   ]);
 
   // Preset the metronome from the target clip's saved recording grid so overdubs and
-  // variations line up with the tempo/meter the original take was actually recorded
-  // against — regardless of what the global metronome was changed to since. Count-in
-  // stays the user's global preference. Runs once per target clip.
+  // variations line up with the take the original was actually recorded against —
+  // regardless of what the global metronome was changed to since. The WHOLE grid is
+  // mirrored: tempo, meter, count-in bars, and whether the click ran through the take,
+  // so opening an overdub session lands ready-to-record with the master's settings.
+  // Runs once per target clip; everything stays adjustable afterwards.
   const takeGridSourceClip = useMemo(
     () =>
       recordingOverdubClip ??
@@ -843,6 +1077,8 @@ export function useRecordingScreenModel() {
     restoredGridClipIdRef.current = takeGridSourceClip.id;
     metronome.setBpmValue(grid.bpm);
     metronome.setMeterIdValue(grid.meterId);
+    metronome.setCountInBarsValue(grid.countInBars);
+    setRecordingMetronomeEnabled(grid.clickThroughTake);
   }, [metronome, takeGridSourceClip]);
 
   useEffect(() => {
@@ -868,6 +1104,9 @@ export function useRecordingScreenModel() {
       let started = false;
 
       if (mode === "resume") {
+        // Resume is the one place the compensation wait survives: a head trim can't fix
+        // alignment mid-file, so delaying the recorder by the ear latency remains the
+        // least-bad option for resumed BT takes.
         await resumeGuideMix();
         await waitForMonitoringCompensation(delayMs);
         await recording.resumeRecording();
@@ -883,52 +1122,28 @@ export function useRecordingScreenModel() {
         const anchor = await SongseedMetronomeModule?.getGridAnchor?.().catch(() => null);
 
         // CRITICAL time-domain correction: the grid anchor and player positions live in
-        // the RENDER domain, but what the mic recorded is the AUDIBLE event — later by
-        // the route's output latency (150–250ms on Android speakers — half a beat at
-        // ~118 BPM) plus the mic path's input latency. Trim to the audible downbeat, not
-        // the render-domain one, or every take's clicks sit that far into the file. For
-        // calibrated BT routes the monitoring compensation already measures the output
-        // side by ear — take the larger of the two, never both.
-        const routeLatency = await SongseedMetronomeModule?.getCurrentAudioRouteLatencyMs?.().catch(
-          () => null
-        );
-        let outputLatencyMs =
-          typeof routeLatency?.outputMs === "number" && routeLatency.outputMs > 0
-            ? routeLatency.outputMs
-            : 0;
-        // Android's hidden AudioTrack#getLatency on the metronome's MODE_STATIC loop
-        // reports the track's entire one-bar buffer PLUS the real sink latency (device
-        // logs: 2142ms at 118 BPM = 2034ms bar + 108ms sink). Strip the bar when the
-        // value is clearly buffer-inflated; anything still implausible is unknown, and
-        // an unknown must be 0 — a wrong correction is worse than none.
+        // the RENDER domain, but the performer plays to what they PERCEIVE and the mic
+        // stamps that another input-latency later. The latency model owns all of it:
+        // route output latency (OS-reported, bar-stripped, or BT ear-calibration),
+        // input latency, and the reference modality — an overdub locks to the audible
+        // guide; a solo take locks to whichever met cue is active (audible > haptic >
+        // visual), so a silent-click take no longer gets an audible-domain correction.
         const barMs =
           anchor?.msPerPulse != null
             ? anchor.msPerPulse * (anchor.pulsesPerBar ?? metronome.meterPreset.pulsesPerBar)
             : null;
-        if (outputLatencyMs > 600 && barMs != null && outputLatencyMs > barMs) {
-          const strippedMs = outputLatencyMs - barMs;
-          console.log(
-            `[timing] output latency ${Math.round(outputLatencyMs)}ms includes the click ` +
-              `loop buffer — using ${Math.round(strippedMs)}ms`
-          );
-          outputLatencyMs = strippedMs;
+        const latencyProfile = await resolveCurrentRouteLatencyProfile({
+          calibrations: bluetoothMonitoringCalibrations,
+          activeOutputs: recordingGuideMixUri
+            ? { beep: true, visual: false, haptic: false }
+            : metronome.outputs,
+          clickLoopBarMs: barMs,
+        });
+        const audibleCorrectionMs = latencyProfile.recordingCorrectionMs;
+        console.log(`[timing] latency profile: ${formatLatencyProfileLog(latencyProfile)}`);
+        if (latencyProfile.sources.output === "unknown" && latencyProfile.referenceModality === "audible") {
+          console.log("[timing] OUTPUT LATENCY UNKNOWN — trim stays render-domain");
         }
-        if (!(outputLatencyMs > 0 && outputLatencyMs <= 600)) {
-          outputLatencyMs = 0;
-        }
-        const inputLatencyMs =
-          typeof routeLatency?.inputMs === "number" &&
-          routeLatency.inputMs > 0 &&
-          routeLatency.inputMs <= 600
-            ? routeLatency.inputMs
-            : 0;
-        const audibleCorrectionMs = Math.max(outputLatencyMs, delayMs) + inputLatencyMs;
-        console.log(
-          `[timing] route latency: out=${Math.round(outputLatencyMs)}ms in=${Math.round(
-            inputLatencyMs
-          )}ms → audible correction ${Math.round(audibleCorrectionMs)}ms` +
-            (outputLatencyMs === 0 ? " (OUTPUT LATENCY UNKNOWN — trim stays render-domain)" : "")
-        );
         const grid = takeGridRef.current;
         const countInPulses =
           (grid?.countInBars ?? 0) * (anchor?.pulsesPerBar ?? metronome.meterPreset.pulsesPerBar);
@@ -956,7 +1171,9 @@ export function useRecordingScreenModel() {
                 await waitForMonitoringCompensation(aimWaitMs);
               }
             }
-            guideStartEpochMs = await startGuideMixFromBeginningAnchored();
+            guideStartEpochMs = await startGuideMixFromBeginningAnchored(
+              punchInMs > 0 ? { seekPositionMs: punchInMs, anchorPositionMs: punchInMs } : undefined
+            );
           }
 
           if (captureStartEpochMs != null && guideStartEpochMs != null) {
@@ -1006,6 +1223,8 @@ export function useRecordingScreenModel() {
     metronome.countInCompletionToken,
     metronome.meterPreset.pulsesPerBar,
     metronome.setCountInBarsValue,
+    bluetoothMonitoringCalibrations,
+    metronome.outputs,
     recording,
     recordingGuideMixUri,
     recordingMetronomeEnabled,
@@ -1041,6 +1260,7 @@ export function useRecordingScreenModel() {
     }
 
     autoStoppingOverdubRef.current = false;
+    setMidTakeRouteChangeMs(null);
     setSettingsVisible(false);
     setMetronomeSheetVisible(false);
 
@@ -1117,13 +1337,38 @@ export function useRecordingScreenModel() {
             const downbeatEpochMs = anchor.anchorEpochMs + countInPulses * anchor.msPerPulse;
             const masterFirstDownbeatMs =
               recordingOverdubClip?.recordingGrid?.firstDownbeatMs ?? null;
-            if (masterFirstDownbeatMs == null) {
+            if (punchInMs === 0 && masterFirstDownbeatMs == null) {
               console.log(
                 "[timing] master has no measured downbeat (recorded before trimming) — " +
                   "starting guide at the live downbeat; its internal pre-roll cannot be locked"
               );
             }
-            void schedulePhaseLockedGuideStart(downbeatEpochMs - (masterFirstDownbeatMs ?? 0));
+            // The guide rides the MEDIA PLAYER pipeline, which reaches the ear later
+            // than the click pipeline (ExoPlayer buffering). Start it early by the
+            // measured difference so guide and click land together in the ear.
+            const profile = await resolveCurrentRouteLatencyProfile({
+              calibrations: bluetoothMonitoringCalibrations,
+              activeOutputs: { beep: true, visual: false, haptic: false },
+              clickLoopBarMs: anchor.msPerPulse * (anchor.pulsesPerBar ?? 4),
+            }).catch(() => null);
+            const guideAdvanceMs = profile?.guideStartAdvanceMs ?? 0;
+            if (guideAdvanceMs > 0) {
+              console.log(`[timing] guide start advanced ${Math.round(guideAdvanceMs)}ms (player vs click pipeline)`);
+            }
+            if (punchInMs > 0) {
+              // Punch take: the count-in clicks ARE the lead-in; the master enters
+              // exactly at the punch point on the downbeat. The punch is bar-snapped on
+              // the master's grid, so no firstDownbeat shift applies.
+              console.log(`[timing] punch-in: master enters at ${Math.round(punchInMs)}ms on the downbeat`);
+              void schedulePhaseLockedGuideStart(downbeatEpochMs - guideAdvanceMs, {
+                seekPositionMs: punchInMs,
+                anchorPositionMs: punchInMs,
+              });
+            } else {
+              void schedulePhaseLockedGuideStart(
+                downbeatEpochMs - (masterFirstDownbeatMs ?? 0) - guideAdvanceMs
+              );
+            }
           })();
         }
       } catch (error) {
@@ -1138,7 +1383,13 @@ export function useRecordingScreenModel() {
     }
 
     if (!wantsClickDuringTake) {
-      if (activeMonitoringCompensationMs > 0 && recordingGuideMixUri) {
+      if (recordingGuideMixUri) {
+        // Overdub without count-in: same record-through + measured-trim discipline as the
+        // count-in path. Capture rolls FIRST, the guide's actual audio start is measured
+        // off its playback position, and the head is cut so file t=0 lands on the guide's
+        // t=0. The recorder is never sleep-gated on the BT monitoring compensation
+        // anymore — that shifted the whole file by an EAR-delay (cue-domain) number, and
+        // left uncalibrated routes to a JS race.
         const prepared = await recording.prepareRecording();
         if (!prepared) {
           return;
@@ -1146,23 +1397,51 @@ export function useRecordingScreenModel() {
 
         setIsArmingRecording(true);
         try {
-          await startGuideMixFromBeginning();
-          await waitForMonitoringCompensation(activeMonitoringCompensationMs);
           const started = await recording.startPreparedRecording();
           if (!started) {
-            await stopGuideMix();
+            return;
           }
+          recording.armHeadTrim();
+          // Punch take: monitor from a bar before the punch (grid-true lead-in); the
+          // trim anchors at the punch point itself.
+          const guideStartEpochMs = await startGuideMixFromBeginningAnchored(
+            punchInMs > 0
+              ? {
+                  seekPositionMs: Math.max(0, punchInMs - punchLeadInMs),
+                  anchorPositionMs: punchInMs,
+                }
+              : undefined
+          );
+          const captureStartEpochMs = recording.getCaptureStartEpochMs();
+          const profile = await resolveCurrentRouteLatencyProfile({
+            calibrations: bluetoothMonitoringCalibrations,
+            activeOutputs: { beep: true, visual: false, haptic: false },
+          }).catch(() => null);
+          if (profile) {
+            console.log(`[timing] latency profile: ${formatLatencyProfileLog(profile)}`);
+          }
+          // Unmeasurable → commit 0: keep the pre-roll instead of guessing a cut.
+          let headMs = 0;
+          if (guideStartEpochMs != null && captureStartEpochMs != null) {
+            headMs =
+              guideStartEpochMs -
+              captureStartEpochMs +
+              (profile?.recordingCorrectionMs ?? 0) -
+              HEAD_TRIM_SAFETY_EARLY_MS;
+          }
+          console.log(
+            `[timing] no-count-in overdub head trim: ${Math.round(headMs)}ms ` +
+              `(guideStart=${guideStartEpochMs != null ? "measured" : "MISSING"}, ` +
+              `captureStart=${captureStartEpochMs != null ? "measured" : "MISSING"})`
+          );
+          recording.commitHeadTrim(headMs);
         } finally {
           setIsArmingRecording(false);
         }
         return;
       }
 
-      const started = await recording.startRecording();
-      if (!started) {
-        return;
-      }
-      await startGuideMixFromBeginning();
+      await recording.startRecording();
       return;
     }
 
@@ -1175,22 +1454,148 @@ export function useRecordingScreenModel() {
 
     try {
       const alreadyPreviewing = metronome.isRunning && !metronome.isCountIn;
+
+      // Record-through, no count-in: capture starts BEFORE the click/guide so the musical
+      // start can be measured and trimmed (overdubs and fresh click starts) or stamped
+      // (record hit over a running preview). No sleep-gating of the recorder.
+      const started = await recording.startPreparedRecording();
+      if (!started) {
+        await stopRecordingMetronome();
+        return;
+      }
+
+      const trimming = Boolean(recordingGuideMixUri) || !alreadyPreviewing;
+      if (trimming) {
+        recording.armHeadTrim();
+      }
+
       if (!alreadyPreviewing) {
         await metronome.start({
           manageAudioSession: false,
           cueDelayMs: activeMonitoringCompensationMs,
         });
       }
-      await startGuideMixFromBeginning();
-      await waitForMonitoringCompensation(activeMonitoringCompensationMs);
-      const started = await recording.startPreparedRecording();
-      if (!started) {
-        await stopRecordingMetronome();
-        await stopGuideMix();
-        return;
+      await waitPlainMs(120); // let the engine's audio clock settle before anchoring
+
+      const anchor = await SongseedMetronomeModule?.getGridAnchor?.().catch(() => null);
+      const anchorEpochMs =
+        anchor?.isRunning && anchor.anchorEpochMs != null && anchor.msPerPulse != null
+          ? anchor.anchorEpochMs
+          : null;
+      const barMs =
+        anchor?.msPerPulse != null
+          ? anchor.msPerPulse * (anchor.pulsesPerBar ?? metronome.meterPreset.pulsesPerBar)
+          : null;
+      const profile = await resolveCurrentRouteLatencyProfile({
+        calibrations: bluetoothMonitoringCalibrations,
+        activeOutputs: recordingGuideMixUri
+          ? { beep: true, visual: false, haptic: false }
+          : metronome.outputs,
+        clickLoopBarMs: barMs,
+      }).catch(() => null);
+      const correctionMs = profile?.recordingCorrectionMs ?? 0;
+      if (profile) {
+        console.log(`[timing] latency profile: ${formatLatencyProfileLog(profile)}`);
+      }
+
+      // Guide + click with no count-in: still phase-lock them. The guide joins at the
+      // earliest bar line far enough out to run the muted rehearsal — effectively an
+      // implicit one-bar count-in with the click running (shorter when a resume-latency
+      // measurement is already cached from an earlier take this session).
+      let guideStartEpochMs: number | null = null;
+      if (recordingGuideMixUri) {
+        if (anchorEpochMs != null && barMs != null && barMs > 0) {
+          const masterFirstDownbeatMs =
+            recordingOverdubClip?.recordingGrid?.firstDownbeatMs ?? null;
+          const guideAdvanceMs = profile?.guideStartAdvanceMs ?? 0;
+          // Punch take: the guide's audible entry is a bar BEFORE the punch (the lead-in),
+          // so the muted rehearsal window must clear that much earlier too.
+          const barsAhead = Math.max(
+            1,
+            Math.ceil((Date.now() + guideLockLeadNeededMs() + punchLeadInMs - anchorEpochMs) / barMs)
+          );
+          const targetEpochMs = anchorEpochMs + barsAhead * barMs;
+          console.log(
+            `[timing] no-count-in guide lock: joining at the bar line ` +
+              `${Math.round(targetEpochMs - Date.now())}ms out` +
+              (punchInMs > 0
+                ? ` (punch at ${Math.round(punchInMs)}ms, lead-in ${Math.round(punchLeadInMs)}ms)`
+                : "") +
+              (guideAdvanceMs > 0 ? ` (guide advanced ${Math.round(guideAdvanceMs)}ms)` : "")
+          );
+          // The countdown targets the join as the performer HEARS it, not as the app
+          // renders it — the click correction is the same delay their ears live behind.
+          // For a punch take the master becomes audible a lead-in bar before the punch.
+          setGuideJoinInfo({
+            joinAtEpochMs: targetEpochMs - punchLeadInMs + correctionMs,
+            beatMs: barMs / (anchor?.pulsesPerBar ?? metronome.meterPreset.pulsesPerBar),
+          });
+          guideStartEpochMs = await schedulePhaseLockedGuideStart(
+            punchInMs > 0
+              ? targetEpochMs - guideAdvanceMs
+              : targetEpochMs - (masterFirstDownbeatMs ?? 0) - guideAdvanceMs,
+            punchInMs > 0
+              ? {
+                  seekPositionMs: Math.max(0, punchInMs - punchLeadInMs),
+                  anchorPositionMs: punchInMs,
+                }
+              : undefined
+          );
+          setGuideJoinInfo(null);
+        }
+        if (guideStartEpochMs == null) {
+          // Anchor unavailable or the schedule was invalidated: unlocked measured start.
+          // The recorded stem still trims exactly; only live click↔guide phase is loose.
+          guideStartEpochMs = await startGuideMixFromBeginningAnchored(
+            punchInMs > 0
+              ? {
+                  seekPositionMs: Math.max(0, punchInMs - punchLeadInMs),
+                  anchorPositionMs: punchInMs,
+                }
+              : undefined
+          );
+        }
+      }
+      const captureStartEpochMs = recording.getCaptureStartEpochMs();
+
+      if (trimming) {
+        // Musical start: the guide's measured t=0 for overdubs, else the engine's first
+        // click (pulse 0 — a fresh start has no count-in pulses in front of it).
+        const musicalStartEpochMs = guideStartEpochMs ?? anchorEpochMs;
+        let headMs = 0;
+        if (captureStartEpochMs != null && musicalStartEpochMs != null) {
+          headMs =
+            musicalStartEpochMs - captureStartEpochMs + correctionMs - HEAD_TRIM_SAFETY_EARLY_MS;
+        }
+        console.log(
+          `[timing] no-count-in head trim: ${Math.round(headMs)}ms ` +
+            `(target=${guideStartEpochMs != null ? "guide" : "pulse0"}, ` +
+            `captureStart=${captureStartEpochMs != null ? "measured" : "MISSING"})`
+        );
+        recording.commitHeadTrim(headMs);
+      } else if (
+        captureStartEpochMs != null &&
+        anchorEpochMs != null &&
+        barMs != null &&
+        barMs > 0 &&
+        takeGridRef.current
+      ) {
+        // Record hit over a running preview: never chop the take, but stamp where the
+        // next bar line falls in the file so downstream beat grids stay honest.
+        const barsSinceAnchor = Math.max(
+          0,
+          Math.ceil((captureStartEpochMs - anchorEpochMs) / barMs)
+        );
+        const firstDownbeatMs = Math.max(
+          0,
+          Math.round(anchorEpochMs + barsSinceAnchor * barMs - captureStartEpochMs + correctionMs)
+        );
+        takeGridRef.current = { ...takeGridRef.current, firstDownbeatMs };
+        console.log(`[timing] preview take: first bar line stamped at ${firstDownbeatMs}ms in-file`);
       }
     } catch (error) {
       console.warn("Recording metronome start failed", error);
+      recording.abortHeadTrim();
       await stopGuideMix();
       await stopRecordingMetronome();
       await recording.cancelPreparedRecording();
@@ -1330,6 +1735,7 @@ export function useRecordingScreenModel() {
     overdubReviewLocked,
     guideMixIsPlaying: !!guideMixStatus.playing,
     guideMixPositionMs,
+    guideJoinInfo,
     guideMixDurationMs,
     guideMixWaveformPeaks,
     isBluetoothRecordingInput,
@@ -1337,6 +1743,8 @@ export function useRecordingScreenModel() {
     recordingInputLabel,
     monitoringOutputLabel,
     activeBluetoothCalibrationMs,
+    timingWarnings,
+    openBluetoothCalibration,
     lyricsExpanded,
     lyricsAutoscrollMode,
     lyricsAutoscrollSpeedMultiplier,
@@ -1363,6 +1771,7 @@ export function useRecordingScreenModel() {
     setLyricsAutoscrollMode,
     setLyricsAutoscrollSpeedMultiplier,
     confirmDiscardAndExit,
+    confirmRedoTake,
     handleQuickNameCancel,
     minimizeRecording,
     requestSaveRecording,

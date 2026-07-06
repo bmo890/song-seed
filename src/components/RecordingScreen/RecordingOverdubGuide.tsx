@@ -1,8 +1,20 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { Text, View } from "react-native";
-import { WaveformMiniPreview } from "../common/WaveformMiniPreview";
+import { AudioReel } from "../common/AudioReel";
+import { OverdubLayerLanes, type OverdubLayerLane } from "../common/OverdubLayerLanes";
+import { useTransportClock } from "../../hooks/useTransportClock";
+import { buildSectionBands } from "../../playerSections";
 import { fmtDuration } from "../../utils";
 import { styles } from "../../styles";
+import type { ClipSection, PracticeMarker } from "../../types";
+
+/**
+ * The master ("guide") while recording a layer: the same smooth scrolling reel as the
+ * player — section bands, pins, and existing layer lanes ride the waveform — with the
+ * playhead at the guide's REAL position (a punch take opens mid-song, exactly where the
+ * layer will sit). Read-only: seeking the guide mid-take would break the measured
+ * alignment, so the reel is display-only here.
+ */
 
 type RecordingOverdubGuideProps = {
   title: string;
@@ -10,7 +22,15 @@ type RecordingOverdubGuideProps = {
   positionMs: number;
   isPlaying: boolean;
   waveformPeaks?: number[];
+  sections?: ClipSection[];
+  practiceMarkers?: PracticeMarker[];
+  /** Already-recorded layers on this master, drawn as slim lanes under the reel. */
+  layerLanes?: OverdubLayerLane[];
 };
+
+const GUIDE_FOLLOW_WINDOW_MS = 20000;
+
+function noop() {}
 
 export function RecordingOverdubGuide({
   title,
@@ -18,9 +38,23 @@ export function RecordingOverdubGuide({
   positionMs,
   isPlaying,
   waveformPeaks,
+  sections,
+  practiceMarkers,
+  layerLanes,
 }: RecordingOverdubGuideProps) {
-  const progressRatio =
-    durationMs > 0 ? Math.max(0, Math.min(1, positionMs / durationMs)) : 0;
+  // Interpolates the 250ms-interval position updates on the UI thread — the tape glides
+  // instead of stepping.
+  const transportClock = useTransportClock({
+    positionMs,
+    durationMs,
+    isPlaying,
+    playbackRate: 1,
+  });
+
+  const sectionBands = useMemo(
+    () => buildSectionBands(sections ?? [], durationMs),
+    [sections, durationMs]
+  );
 
   return (
     <View style={styles.recordingGuideCard}>
@@ -39,14 +73,45 @@ export function RecordingOverdubGuide({
         </View>
       </View>
 
-      <View style={styles.recordingGuideWaveWrap}>
-        <WaveformMiniPreview peaks={waveformPeaks} bars={84} />
-        <View
-          pointerEvents="none"
-          style={[
-            styles.recordingGuidePlayhead,
-            { left: `${Math.max(0, Math.min(100, progressRatio * 100))}%` },
-          ]}
+      <View pointerEvents="none">
+        <AudioReel
+          waveformPeaks={waveformPeaks ?? []}
+          durationMs={durationMs}
+          currentTimeMs={0}
+          sharedCurrentTimeMs={transportClock.sharedCurrentTimeMs}
+          sharedDurationMs={transportClock.sharedDurationMs}
+          sharedTransportUpdateToken={transportClock.sharedUpdateToken}
+          isPlaying={isPlaying}
+          sharedIsPlaying={transportClock.sharedIsPlaying}
+          playbackRate={1}
+          sharedPlaybackRate={transportClock.sharedPlaybackRate}
+          chrome="light"
+          showTransportControls={false}
+          showExpandToggle={false}
+          showZoomControls={false}
+          showTimingRow={false}
+          defaultExpanded={false}
+          surfaceRadius={4}
+          timelineHorizontalPadding={0}
+          collapsedHeightOverride={84}
+          showMinimapMode="never"
+          initialZoomMultiple={durationMs > 0 ? durationMs / GUIDE_FOLLOW_WINDOW_MS : undefined}
+          sectionBands={sectionBands}
+          practiceMarkers={practiceMarkers}
+          renderBelowSurface={({ pixelsPerMs, timelineTranslateX, timelineScale }) =>
+            layerLanes && layerLanes.length > 0 ? (
+              <OverdubLayerLanes
+                lanes={layerLanes}
+                pixelsPerMs={pixelsPerMs}
+                timelineTranslateX={timelineTranslateX}
+                timelineScale={timelineScale}
+              />
+            ) : null
+          }
+          onSeek={noop}
+          onTogglePlay={noop}
+          onSeekToStart={noop}
+          onSeekToEnd={noop}
         />
       </View>
     </View>

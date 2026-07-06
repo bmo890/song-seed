@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { ensureWaveformSidecar } from "../../../services/waveformSidecar";
 import { formatClipOverdubStemOffsetLabel } from "../../../overdub";
+import { fmtDuration } from "../../../utils";
 import { getMetronomeMeterPreset } from "../../../metronome";
 import type { RecordingGrid } from "../../../types";
 
@@ -92,7 +93,13 @@ export function StemAlignmentOverlay({
   // Timeline t=0 is the master's start. The stem occupies [offsetMs, offsetMs + stemDur];
   // a negative offset drops the stem's head (mirrors the mixers' behavior).
   const fullTimelineMs = Math.max(masterDurationMs, offsetMs + stemDurationMs, 1);
-  const timelineMs = zoomed ? Math.min(ZOOM_WINDOW_MS, fullTimelineMs) : fullTimelineMs;
+  // The zoom window follows the LAYER, not the top of the song — a punched-in layer at
+  // 1:23 zooms to 1:23 (with a second of master context in front), so the nudge view
+  // always shows the layer against the master around it.
+  const zoomStartMs = zoomed
+    ? Math.max(0, Math.min(offsetMs - 1000, fullTimelineMs - ZOOM_WINDOW_MS))
+    : 0;
+  const timelineMs = zoomed ? Math.min(ZOOM_WINDOW_MS, fullTimelineMs - zoomStartMs) : fullTimelineMs;
 
   const bars = useMemo(() => {
     if (masterDurationMs <= 0 && stemDurationMs <= 0) {
@@ -101,14 +108,14 @@ export function StemAlignmentOverlay({
     const barDurationMs = timelineMs / DISPLAY_BARS;
 
     return Array.from({ length: DISPLAY_BARS }, (_, index) => {
-      const fromMs = index * barDurationMs;
+      const fromMs = zoomStartMs + index * barDurationMs;
       const toMs = fromMs + barDurationMs;
       return {
         master: samplePeakRange(masterPeaks, masterDurationMs, fromMs, toMs),
         stem: samplePeakRange(stemPeaks, stemDurationMs, fromMs - offsetMs, toMs - offsetMs),
       };
     });
-  }, [masterDurationMs, masterPeaks, offsetMs, stemDurationMs, stemPeaks, timelineMs]);
+  }, [masterDurationMs, masterPeaks, offsetMs, stemDurationMs, stemPeaks, timelineMs, zoomStartMs]);
 
   // Beat-grid ticks on the master's timeline: downbeats accented, other beats faint.
   // Density-limited — all beats when they fit, downbeats only when bars fit, then every
@@ -127,14 +134,15 @@ export function StemAlignmentOverlay({
     const barStep = drawEveryBeat ? 1 : Math.max(1, Math.ceil(totalBarsInView / MAX_GRID_TICKS));
 
     const ticks: { leftPx: number; isDownbeat: boolean }[] = [];
-    // Cover pickup space before the anchor too (beats extend backwards to timeline 0).
-    const firstBeatIndex = -Math.floor(anchorMs / beatMs);
+    const viewEndMs = zoomStartMs + timelineMs;
+    // Cover pickup space before the anchor too (beats extend backwards to the view start).
+    const firstBeatIndex = Math.floor((zoomStartMs - anchorMs) / beatMs);
     for (let beatIndex = firstBeatIndex; ; beatIndex += 1) {
       const timeMs = anchorMs + beatIndex * beatMs;
-      if (timeMs > timelineMs) {
+      if (timeMs > viewEndMs) {
         break;
       }
-      if (timeMs < 0) {
+      if (timeMs < zoomStartMs || timeMs < 0) {
         continue;
       }
       const isDownbeat = ((beatIndex % pulsesPerBar) + pulsesPerBar) % pulsesPerBar === 0;
@@ -147,13 +155,13 @@ export function StemAlignmentOverlay({
           continue;
         }
       }
-      ticks.push({ leftPx: (timeMs / timelineMs) * CONTENT_WIDTH, isDownbeat });
+      ticks.push({ leftPx: ((timeMs - zoomStartMs) / timelineMs) * CONTENT_WIDTH, isDownbeat });
       if (ticks.length > MAX_GRID_TICKS) {
         break;
       }
     }
     return ticks;
-  }, [recordingGrid, timelineMs]);
+  }, [recordingGrid, timelineMs, zoomStartMs]);
 
   if (!bars.length) {
     return null;
@@ -174,9 +182,15 @@ export function StemAlignmentOverlay({
           style={({ pressed }) => [styles.zoomChip, pressed ? styles.pressed : null]}
           onPress={() => setZoomed((current) => !current)}
           accessibilityRole="button"
-          accessibilityLabel={zoomed ? "Show the full clip" : "Zoom to the first seconds"}
+          accessibilityLabel={zoomed ? "Show the full clip" : "Zoom to this layer"}
         >
-          <Text style={styles.zoomChipText}>{zoomed ? `First ${ZOOM_WINDOW_MS / 1000}s` : "Full clip"}</Text>
+          <Text style={styles.zoomChipText}>
+            {zoomed
+              ? zoomStartMs > 0
+                ? `At ${fmtDuration(offsetMs)}`
+                : `First ${ZOOM_WINDOW_MS / 1000}s`
+              : "Full clip"}
+          </Text>
         </Pressable>
       </View>
       <View style={styles.stage}>

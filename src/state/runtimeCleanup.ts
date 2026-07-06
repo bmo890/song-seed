@@ -39,6 +39,7 @@ type RuntimeStoreState = {
     recordingParentClipId: string | null;
     recordingOverdubClipId: string | null;
     recordingGuideMixUri: string | null;
+    recordingPunchInMs: number | null;
     quickNamingIdeaId: string | null;
     quickNameModalVisible: boolean;
     quickNameDraft: string;
@@ -219,6 +220,11 @@ export function buildRuntimeCleanupPatch(
             (!!store.recordingOverdubClipId && removedClipIdSet.has(store.recordingOverdubClipId))
                 ? null
                 : store.recordingGuideMixUri,
+        recordingPunchInMs:
+            recordingIdeaRemoved ||
+            (!!store.recordingOverdubClipId && removedClipIdSet.has(store.recordingOverdubClipId))
+                ? null
+                : store.recordingPunchInMs,
         quickNamingIdeaId: quickNamingIdeaRemoved ? null : store.quickNamingIdeaId,
         quickNameModalVisible:
             quickNamingIdeaRemoved ? false : store.quickNameModalVisible,

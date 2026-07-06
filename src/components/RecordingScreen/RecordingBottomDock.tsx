@@ -21,6 +21,7 @@ type RecordingBottomDockProps = {
     onStart: () => Promise<void>;
     onRequestSave: () => void;
     onDiscard: () => void;
+    onRedo?: () => void;
   };
 };
 
@@ -35,6 +36,7 @@ export function RecordingBottomDock({ compact = false, metronome, recording }: R
         compact={compact}
         canSave={recording.isRecording || recording.isPaused}
         canDiscard={recording.isRecording || recording.isPaused}
+        canRedo={recording.isRecording || recording.isPaused || recording.isArming}
         beatToken={metronome.beatToken}
         isDownbeat={metronome.beatInBar === 1}
         beatActive={metronome.isCountIn || metronome.isRunning}
@@ -43,6 +45,7 @@ export function RecordingBottomDock({ compact = false, metronome, recording }: R
         onStart={recording.onStart}
         onRequestSave={recording.onRequestSave}
         onDiscard={recording.onDiscard}
+        onRedo={recording.onRedo}
       />
     </View>
   );

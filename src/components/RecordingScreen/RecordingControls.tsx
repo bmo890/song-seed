@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from "react";
-import { Animated, View, Pressable } from "react-native";
+import { Animated, View, Pressable, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { styles } from "../../styles";
 import { colors } from "../../design/tokens";
@@ -13,6 +13,8 @@ type Props = {
     compact?: boolean;
     canSave?: boolean;
     canDiscard?: boolean;
+    /** Redo scraps the take but keeps the session armed — enabled during count-in too. */
+    canRedo?: boolean;
     /** Per-beat counter — pulses a halo behind the record button (the visual metronome). */
     beatToken?: number;
     isDownbeat?: boolean;
@@ -22,6 +24,7 @@ type Props = {
     onStart: () => Promise<void>;
     onRequestSave: () => void;
     onDiscard: () => void;
+    onRedo?: () => void;
 };
 
 export function RecordingControls({
@@ -32,6 +35,7 @@ export function RecordingControls({
     compact = false,
     canSave = true,
     canDiscard = true,
+    canRedo = false,
     beatToken = 0,
     isDownbeat = false,
     beatActive = false,
@@ -40,6 +44,7 @@ export function RecordingControls({
     onStart,
     onRequestSave,
     onDiscard,
+    onRedo,
 }: Props) {
     const pulse = useRef(new Animated.Value(0)).current;
     const isDownbeatRef = useRef(isDownbeat);
@@ -69,7 +74,7 @@ export function RecordingControls({
 
     return (
         <View style={[styles.recordingControlsBar, compact ? styles.recordingControlsBarCompact : null]}>
-            <View style={styles.recordingControlsSaveColumn}>
+            <View style={[styles.recordingControlsSaveColumn, onRedo ? local.sideColumn : null]}>
                 <Pressable
                     style={[
                         styles.circleControlBtn,
@@ -90,6 +95,28 @@ export function RecordingControls({
                         color={!canDiscard || isArming ? colors.textMuted : "#B5483A"}
                     />
                 </Pressable>
+                {onRedo ? (
+                    <Pressable
+                        style={[
+                            styles.circleControlBtn,
+                            compact ? styles.circleControlBtnCompact : null,
+                            !canRedo ? styles.circleControlBtnDisabled : null,
+                        ]}
+                        onPress={() => {
+                            haptic.tap();
+                            onRedo();
+                        }}
+                        disabled={!canRedo}
+                        accessibilityRole="button"
+                        accessibilityLabel="Redo take"
+                    >
+                        <Ionicons
+                            name="refresh-outline"
+                            size={compact ? 18 : 22}
+                            color={!canRedo ? colors.textMuted : colors.textStrong}
+                        />
+                    </Pressable>
+                ) : null}
             </View>
 
             <View style={styles.recordBtnWrap}>
@@ -132,7 +159,7 @@ export function RecordingControls({
                 </Pressable>
             </View>
 
-            <View style={styles.recordingControlsSaveColumn}>
+            <View style={[styles.recordingControlsSaveColumn, onRedo ? local.sideColumn : null]}>
                 <Pressable
                     style={[
                         styles.circleControlBtn,
@@ -155,3 +182,15 @@ export function RecordingControls({
         </View>
     );
 }
+
+const local = StyleSheet.create({
+    // Both side columns share this width so the record button stays centered when the
+    // left one carries two buttons (discard + redo).
+    sideColumn: {
+        width: 100,
+        flexDirection: "row",
+        justifyContent: "center",
+        alignItems: "center",
+        gap: 10,
+    },
+});

@@ -1,5 +1,7 @@
-import type { ClipOverdubRootSettings, ClipVersion, SongIdea } from "./types";
+import type { ClipOverdubRootSettings, ClipVersion, RecordingGrid, SongIdea } from "./types";
 import type { NativeMixedRenderInput } from "../modules/songseed-pitch-shift";
+import { getMetronomeMeterPreset } from "./metronome";
+import { fmtDuration } from "./utils";
 
 export const OVERDUB_GAIN_MIN_DB = -24;
 export const OVERDUB_GAIN_MAX_DB = 12;
@@ -81,9 +83,53 @@ export function clampClipOverdubStemOffsetMs(
   return Math.max(minOffsetMs, Math.min(maxOffsetMs, Math.round(nextOffsetMs)));
 }
 
+/** Punch points closer to the top than this record as a classic from-the-start layer —
+ *  a sub-second punch is indistinguishable from "I just hit record". */
+const MIN_PUNCH_IN_MS = 1000;
+
+/** Bar length of a clip's tempo grid, or null when the clip has no usable grid. */
+export function getRecordingGridBarMs(grid: RecordingGrid | null | undefined): number | null {
+  if (!grid || !Number.isFinite(grid.bpm) || grid.bpm <= 0) {
+    return null;
+  }
+  const pulsesPerBar = Math.max(1, getMetronomeMeterPreset(grid.meterId).pulsesPerBar);
+  return (60000 / grid.bpm) * pulsesPerBar;
+}
+
+/**
+ * Snap a requested punch-in point to the master's bar grid so the layer starts in the
+ * pocket, not at a ragged scrub timestamp. Grid bars are anchored at the measured
+ * firstDownbeatMs — no grid (or no measured downbeat) means no snapping, only clamping.
+ * Returns 0 for punch points too close to the top (classic full-length layer).
+ */
+export function snapPunchInMsToGrid(
+  requestedMs: number,
+  grid: RecordingGrid | null | undefined,
+  masterDurationMs?: number
+): number {
+  if (!Number.isFinite(requestedMs) || requestedMs <= 0) {
+    return 0;
+  }
+  let snapped = Math.round(requestedMs);
+  const barMs = getRecordingGridBarMs(grid);
+  if (barMs != null && grid?.firstDownbeatMs != null) {
+    const barsFromAnchor = Math.round((snapped - grid.firstDownbeatMs) / barMs);
+    snapped = Math.round(grid.firstDownbeatMs + barsFromAnchor * barMs);
+  }
+  if (Number.isFinite(masterDurationMs) && masterDurationMs! > 0) {
+    // A punch at/past the end records over nothing — pull it back inside the master.
+    snapped = Math.min(snapped, Math.max(0, Math.round(masterDurationMs!) - MIN_PUNCH_IN_MS));
+  }
+  return snapped < MIN_PUNCH_IN_MS ? 0 : snapped;
+}
+
 export function formatClipOverdubStemOffsetLabel(offsetMs: number) {
   if (!Number.isFinite(offsetMs) || offsetMs === 0) {
     return "In place";
+  }
+  // Second-scale offsets are punch-in placements — read as a song position, not a nudge.
+  if (offsetMs >= MIN_PUNCH_IN_MS) {
+    return `at ${fmtDuration(offsetMs)}`;
   }
   return offsetMs > 0 ? `+${Math.round(offsetMs)} ms` : `${Math.round(offsetMs)} ms`;
 }

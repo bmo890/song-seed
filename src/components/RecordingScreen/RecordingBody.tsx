@@ -34,9 +34,12 @@ type RecordingBodyProps = {
   countInCurrentBar: number;
   countInCurrentBeat: number;
   countInBeatsPerBar: number;
+  guideJoin?: { joinAtEpochMs: number; beatMs: number } | null;
   waveformData?: Pick<AudioAnalysis, "dataPoints" | "segmentDurationMs">;
   metronomeEnabled: boolean;
   metronomeSummary: string;
+  metronomeToggleDisabled?: boolean;
+  onToggleMetronome?: () => void;
   onOpenMetronome: () => void;
   onToggleLyricsExpanded: (value: boolean) => void;
   onToggleLyricsAutoscroll: (enabled: boolean) => void;
@@ -71,9 +74,12 @@ export function RecordingBody({
   countInCurrentBar,
   countInCurrentBeat,
   countInBeatsPerBar,
+  guideJoin,
   waveformData,
   metronomeEnabled,
   metronomeSummary,
+  metronomeToggleDisabled,
+  onToggleMetronome,
   onOpenMetronome,
   onToggleLyricsExpanded,
   onToggleLyricsAutoscroll,
@@ -127,12 +133,19 @@ export function RecordingBody({
               positionMs={guideMixPositionMs}
               isPlaying={guideMixIsPlaying}
               waveformPeaks={guideMixWaveformPeaks}
+              sections={recordingOverdubClip.sections}
+              practiceMarkers={recordingOverdubClip.practiceMarkers}
+              layerLanes={(recordingOverdubClip.overdub?.stems ?? []).map((stem) => ({
+                id: stem.id,
+                offsetMs: stem.offsetMs,
+                durationMs: stem.durationMs ?? 0,
+              }))}
             />
           </>
         ) : null}
 
         <RecordingMeta
-          ideaTitle={recordingOverdubClip ? `Overdub on ${recordingOverdubClip.title}` : ""}
+          ideaTitle={recordingOverdubClip ? `Layer on ${recordingOverdubClip.title}` : ""}
           isRecording={isRecording}
           isPaused={isPaused}
           elapsedMs={elapsedMs}
@@ -141,12 +154,15 @@ export function RecordingBody({
           countInCurrentBar={countInCurrentBar}
           countInCurrentBeat={countInCurrentBeat}
           countInBeatsPerBar={countInBeatsPerBar}
+          guideJoin={guideJoin}
           waveformData={waveformData}
           compact={lyricsExpanded}
           fill={!lyricsExpanded}
           hasLyrics={hasProjectLyrics}
           metronomeEnabled={metronomeEnabled}
           metronomeSummary={metronomeSummary}
+          metronomeToggleDisabled={metronomeToggleDisabled}
+          onToggleMetronome={onToggleMetronome}
           onOpenMetronome={onOpenMetronome}
         />
 

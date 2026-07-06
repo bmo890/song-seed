@@ -92,6 +92,8 @@ type PlayerPracticePanelProps = {
 
   // Capture
   onRecordOverdub: () => void;
+  /** Record a layer punched in at a specific song position (section start / pin). */
+  onRecordLayerAt: (atMs: number) => void;
 };
 
 function Chip({
@@ -679,6 +681,7 @@ export function PlayerPracticePanel({
   countInOption,
   onSelectCountIn,
   onRecordOverdub,
+  onRecordLayerAt,
 }: PlayerPracticePanelProps) {
   const [settingsRowHeight, setSettingsRowHeight] = useState(64);
   // Type picker (for the + add button), the new-custom / edit detail modal, and which edge
@@ -938,6 +941,15 @@ export function PlayerPracticePanel({
                     </Text>
                   </Pressable>
                   <Pressable
+                    onPress={() => onRecordLayerAt(section.startMs)}
+                    hitSlop={6}
+                    style={s.sectionRowIcon}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Record a layer from ${section.label}`}
+                  >
+                    <Ionicons name="mic-outline" size={16} color={colors.primary} />
+                  </Pressable>
+                  <Pressable
                     onPress={() => setDetailModal({ mode: "edit", section })}
                     hitSlop={6}
                     style={s.sectionRowIcon}
@@ -1074,6 +1086,15 @@ export function PlayerPracticePanel({
                     <Text style={[s.sectionTimeChipText, isExpanded ? s.sectionTimeChipTextActive : null]}>
                       {fmtDuration(marker.atMs)}
                     </Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={() => onRecordLayerAt(marker.atMs)}
+                    hitSlop={6}
+                    style={s.sectionRowIcon}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Record a layer from ${marker.label || "this pin"}`}
+                  >
+                    <Ionicons name="mic-outline" size={16} color={colors.primary} />
                   </Pressable>
                   <Pressable
                     onPress={() => setPinEditModal(marker)}
@@ -1236,14 +1257,22 @@ export function PlayerPracticePanel({
         ) : null}
       </View>
 
+      {/* The label states the punch point up front: mid-song playhead = the layer records
+          from there (bar-snapped); at the top it's a classic full-length layer. */}
       <Pressable
         style={({ pressed }) => [s.recordLayerButton, pressed ? s.recordLayerButtonPressed : null]}
         onPress={onRecordOverdub}
         accessibilityRole="button"
-        accessibilityLabel="Record a new layer over this take"
+        accessibilityLabel={
+          playheadMs > 1000
+            ? `Record a layer from ${fmtDuration(playheadMs)}`
+            : "Record a new layer over this take"
+        }
       >
         <View style={s.recordLayerDot} />
-        <Text style={s.recordLayerText}>Record a layer</Text>
+        <Text style={s.recordLayerText}>
+          {playheadMs > 1000 ? `Record a layer from ${fmtDuration(playheadMs)}` : "Record a layer"}
+        </Text>
       </Pressable>
     </View>
   );

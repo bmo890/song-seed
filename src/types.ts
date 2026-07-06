@@ -124,7 +124,18 @@ export type CutUpSpark = {
 export type BluetoothMonitoringCalibration = {
   routeKey: string;
   routeLabel: string;
+  /** Ear-measured latency of the MEDIA PLAYER pipeline (guide/master playback path).
+   *  Historically the only measured number; ExoPlayer buffering makes it much larger
+   *  than the click path on many devices. */
   offsetMs: number;
+  /** Ear-measured latency of the METRONOME CLICK pipeline (raw audio track path).
+   *  Absent on calibrations saved before the two-pass flow — resolvers fall back. */
+  clickOffsetMs?: number;
+  /** OS-reported output latency at the moment this calibration was taken. BT sink
+   *  latency renegotiates per connection; storing the contemporaneous OS number lets
+   *  resolvers apply the ear-measured values as a BIAS on top of the CURRENT OS report,
+   *  so per-connection drift tracks automatically instead of staling the calibration. */
+  osOutputAtCalibrationMs?: number;
   updatedAt: number;
 };
 
@@ -295,6 +306,9 @@ export type RecordingGrid = {
    *  before downbeat measurement existed). Becomes 0 by construction once recordings are
    *  trimmed to the downbeat. */
   firstDownbeatMs: number | null;
+  /** Set when something invalidated the grid mid-take (audio route change, interruption):
+   *  the grid is trustworthy only up to this take position. Absent = valid throughout. */
+  gridValidToMs?: number;
   source: RecordingGridSource;
 };
 

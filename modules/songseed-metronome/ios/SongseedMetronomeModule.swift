@@ -26,6 +26,10 @@ public class SongseedMetronomeModule: Module {
       true
     }
 
+    Function("supportsScheduledCues") {
+      true
+    }
+
     AsyncFunction("configure") { (config: [String: Any]) -> [String: Any] in
       return self.engine.configure(config)
     }
