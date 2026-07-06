@@ -4,6 +4,7 @@ import type { AudioAnalysis } from "@siteed/audio-studio";
 import type { SongIdea } from "../../types";
 import { styles } from "../../styles";
 import { getLatestLyricsVersion } from "../../lyrics";
+import { getOverdubStemColor } from "../../overdub";
 import { RecordingMeta } from "./RecordingMeta";
 import { RecordingLyricsSection } from "./RecordingLyricsSection";
 import { RecordingOverdubGuide } from "./RecordingOverdubGuide";
@@ -135,10 +136,13 @@ export function RecordingBody({
               waveformPeaks={guideMixWaveformPeaks}
               sections={recordingOverdubClip.sections}
               practiceMarkers={recordingOverdubClip.practiceMarkers}
-              layerLanes={(recordingOverdubClip.overdub?.stems ?? []).map((stem) => ({
+              layerLanes={(recordingOverdubClip.overdub?.stems ?? []).map((stem, index) => ({
                 id: stem.id,
+                title: stem.title,
                 offsetMs: stem.offsetMs,
                 durationMs: stem.durationMs ?? 0,
+                color: getOverdubStemColor(stem, index),
+                isMuted: stem.isMuted,
               }))}
             />
           </>

@@ -33,6 +33,9 @@ type Props = {
   stemDurationMs: number;
   stemFallbackPeaks?: number[];
   offsetMs: number;
+  /** This layer's colour key — drives its waveform bars and legend swatch, so the
+   *  overlay reads as "this specific layer" rather than one generic terracotta stem. */
+  stemColor: string;
   /** The MASTER's beat grid. Ticks are drawn only when its downbeat anchor was actually
    *  measured (firstDownbeatMs != null) — never guessed onto the timeline. */
   recordingGrid?: RecordingGrid | null;
@@ -84,6 +87,7 @@ export function StemAlignmentOverlay({
   stemDurationMs,
   stemFallbackPeaks,
   offsetMs,
+  stemColor,
   recordingGrid,
 }: Props) {
   const [zoomed, setZoomed] = useState(true);
@@ -173,7 +177,7 @@ export function StemAlignmentOverlay({
         <Text style={styles.legend}>
           <Text style={styles.legendMaster}>▮ master</Text>
           {"   "}
-          <Text style={styles.legendStem}>▮ this layer</Text>
+          <Text style={{ color: stemColor }}>▮ this layer</Text>
           {"   "}
           {formatClipOverdubStemOffsetLabel(offsetMs)}
           {gridTicks.length > 0 && recordingGrid ? `   · ${recordingGrid.bpm} BPM grid` : ""}
@@ -214,7 +218,11 @@ export function StemAlignmentOverlay({
                   <View
                     style={[
                       styles.stemBar,
-                      { height: stemHeight, top: (VIEW_HEIGHT - stemHeight) / 2 },
+                      {
+                        height: stemHeight,
+                        top: (VIEW_HEIGHT - stemHeight) / 2,
+                        backgroundColor: stemColor,
+                      },
                     ]}
                   />
                 ) : null}
@@ -243,9 +251,6 @@ const styles = StyleSheet.create({
   },
   legendMaster: {
     color: "#b5a89f",
-  },
-  legendStem: {
-    color: "#824f3f",
   },
   zoomChip: {
     borderRadius: 4,
@@ -308,7 +313,6 @@ const styles = StyleSheet.create({
     position: "absolute",
     width: BAR_WIDTH,
     borderRadius: 2,
-    backgroundColor: "#b4675a",
     opacity: 0.9,
   },
 });
