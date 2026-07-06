@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { StemAlignmentOverlay } from "./StemAlignmentOverlay";
 import { AppAlert } from "../../common/AppAlert";
@@ -8,6 +8,7 @@ import { WarmModal } from "../../common/WarmModal";
 import { HueSlider } from "../../common/HueSlider";
 import { playerScreenStyles } from "../styles";
 import { fmtDuration } from "../../../utils";
+import { colors } from "../../../design/tokens";
 import { computeWorkspaceTheme, hexToHue, hueToAccentHex } from "../../../workspaceTheme";
 import {
   formatClipOverdubStemOffsetLabel,
@@ -18,12 +19,10 @@ import {
 import type { RecordingGrid } from "../../../types";
 
 /**
- * One layer, at rest a single quiet row: solo-play · title/summary · mute · ⋯. Levels and
- * Align are workspaces, not always-on controls — the ⋯ menu (Rename / Adjust / Align /
- * Remove) discloses one at a time so a stack of layers stays scannable. The resting
- * waveform is gone: it carried no information without the master under it (that context
- * only exists in Align's superimposed overlay); a slim progress lane stands in while a
- * layer solo-plays.
+ * One layer: a quiet resting row (solo-play · title/summary · mute · ⋯) with Levels and
+ * Timing as mode chips underneath — tap to disclose, tap again to collapse, one open at a
+ * time across the sheet (accordion). The ⋯ menu holds only the two one-shot actions: Edit
+ * (name + color together) and Remove.
  */
 
 export type OverdubLayerSection = "mix" | "align";
@@ -75,10 +74,13 @@ type Props = {
   isMuted: boolean;
   audioUri: string | null;
   waveformPeaks?: number[];
-  /** This layer's colour key — tints the card background and (in Align) its waveform,
-   *  so a stack of layers reads as distinct at a glance. Adjustable via the ⋯ menu. */
+  /** This layer's color key — tints the card background and (in Align) its waveform, so
+   *  a stack of layers reads as distinct at a glance. Adjustable via the ⋯ Edit action. */
   color: string;
   onChangeColor: (color: string) => void;
+  /** A background mix render is in flight for this clip — shown as a quiet spinner next
+   *  to this layer's title while its section is open (the layer the user is acting on). */
+  isRendering?: boolean;
   // Solo preview of just this layer.
   isPreviewPlaying: boolean;
   previewProgressRatio: number;
@@ -88,7 +90,7 @@ type Props = {
   expandedSection: OverdubLayerSection | null;
   onToggleSection: (section: OverdubLayerSection) => void;
   // Row actions (all behind the ⋯ menu except the mute toggle above).
-  onRename: () => void;
+  onRename: (title: string) => void;
   onRemove: () => void;
   // Mix section.
   onAdjustGain: (deltaDb: number) => void;
@@ -128,6 +130,7 @@ export function OverdubLayerCard({
   waveformPeaks,
   color,
   onChangeColor,
+  isRendering = false,
   isPreviewPlaying,
   previewProgressRatio,
   onTogglePreview,
@@ -151,24 +154,14 @@ export function OverdubLayerCard({
   const canAudition = !!audioUri && !!masterAudioUri;
   const canRestoreOriginal = offsetMs !== baselineOffsetMs;
   const summary = buildSummary(gainDb, tonePreset, offsetMs, isMuted);
-  const [colorPickerOpen, setColorPickerOpen] = useState(false);
+  const [editModalOpen, setEditModalOpen] = useState(false);
   const cardTint = computeWorkspaceTheme(color).tint;
+  const showSpinner = isRendering && expandedSection != null;
 
   function openLayerMenu() {
     AppAlert.custom(title, undefined, [
-      { label: "Rename layer", icon: actionIcons.rename, onPress: onRename },
-      { label: "Layer colour", icon: "color-palette-outline", onPress: () => setColorPickerOpen(true) },
-      {
-        label: expandedSection === "mix" ? "Hide levels" : "Adjust levels",
-        icon: "options-outline",
-        onPress: () => onToggleSection("mix"),
-      },
-      {
-        label: expandedSection === "align" ? "Hide alignment" : "Align timing",
-        icon: "git-compare-outline",
-        onPress: () => onToggleSection("align"),
-      },
-      { label: "Remove layer", style: "destructive", icon: actionIcons.delete, onPress: onRemove },
+      { label: "Edit", icon: actionIcons.edit, onPress: () => setEditModalOpen(true) },
+      { label: "Remove", style: "destructive", icon: actionIcons.delete, onPress: onRemove },
       { label: "Cancel", style: "cancel" },
     ]);
   }
@@ -189,6 +182,9 @@ export function OverdubLayerCard({
             <Text style={playerScreenStyles.layerCardTitle} numberOfLines={1}>
               {title}
             </Text>
+            {showSpinner ? (
+              <ActivityIndicator size="small" color="#824f3f" accessibilityLabel="Updating layer mix" />
+            ) : null}
             <Text style={playerScreenStyles.layerCardDuration}>{fmtDuration(durationMs)}</Text>
           </View>
           {summary ? (
@@ -231,9 +227,43 @@ export function OverdubLayerCard({
         </View>
       ) : null}
 
+      <View style={cardStyles.modeRow}>
+        <Pressable
+          style={[cardStyles.modeChip, expandedSection === "mix" ? cardStyles.modeChipActive : null]}
+          onPress={() => onToggleSection("mix")}
+          accessibilityRole="button"
+          accessibilityState={{ expanded: expandedSection === "mix" }}
+        >
+          <Ionicons
+            name="options-outline"
+            size={13}
+            color={expandedSection === "mix" ? "#ffffff" : "#5a4b45"}
+          />
+          <Text style={[cardStyles.modeChipText, expandedSection === "mix" ? cardStyles.modeChipTextActive : null]}>
+            Levels
+          </Text>
+        </Pressable>
+        <Pressable
+          style={[cardStyles.modeChip, expandedSection === "align" ? cardStyles.modeChipActive : null]}
+          onPress={() => onToggleSection("align")}
+          accessibilityRole="button"
+          accessibilityState={{ expanded: expandedSection === "align" }}
+        >
+          <Ionicons
+            name="git-compare-outline"
+            size={13}
+            color={expandedSection === "align" ? "#ffffff" : "#5a4b45"}
+          />
+          <Text
+            style={[cardStyles.modeChipText, expandedSection === "align" ? cardStyles.modeChipTextActive : null]}
+          >
+            Timing
+          </Text>
+        </Pressable>
+      </View>
+
       {expandedSection === "mix" ? (
         <View style={cardStyles.section}>
-          <PanelHeader label="Levels" onCollapse={() => onToggleSection("mix")} />
           <View style={playerScreenStyles.layerControls}>
             <LayerControlButton
               label={`-${OVERDUB_GAIN_STEP_DB} dB`}
@@ -259,7 +289,6 @@ export function OverdubLayerCard({
 
       {expandedSection === "align" ? (
         <View style={cardStyles.section}>
-          <PanelHeader label="Align" onCollapse={() => onToggleSection("align")} />
           <StemAlignmentOverlay
             masterAudioUri={masterAudioUri}
             masterDurationMs={masterDurationMs}
@@ -337,50 +366,66 @@ export function OverdubLayerCard({
         </View>
       ) : null}
 
-      <LayerColorPickerModal
-        visible={colorPickerOpen}
+      <EditLayerModal
+        visible={editModalOpen}
         title={title}
         color={color}
-        onChangeColor={onChangeColor}
-        onClose={() => setColorPickerOpen(false)}
+        onSave={(nextTitle, nextColor) => {
+          if (nextTitle.trim() && nextTitle.trim() !== title) {
+            onRename(nextTitle.trim());
+          }
+          if (nextColor !== color) {
+            onChangeColor(nextColor);
+          }
+        }}
+        onClose={() => setEditModalOpen(false)}
       />
     </View>
   );
 }
 
-/** Colour-only editor for a layer — the same HueSlider used for workspace/section
- *  colours, so picking a layer's colour matches the rest of the app. */
-function LayerColorPickerModal({
+/** Name + color editor for a layer, combined into one Edit action — the same HueSlider
+ *  used for workspace/section colors, so picking a layer's color matches the rest of the
+ *  app. Draft state resets from props each time the modal opens. */
+function EditLayerModal({
   visible,
   title,
   color,
-  onChangeColor,
+  onSave,
   onClose,
 }: {
   visible: boolean;
   title: string;
   color: string;
-  onChangeColor: (color: string) => void;
+  onSave: (title: string, color: string) => void;
   onClose: () => void;
 }) {
+  const [draftTitle, setDraftTitle] = useState(title);
   const [hue, setHue] = useState(() => hexToHue(color));
   const prevVisible = React.useRef(false);
   useEffect(() => {
     if (visible && !prevVisible.current) {
+      setDraftTitle(title);
       setHue(hexToHue(color));
     }
     prevVisible.current = visible;
-  }, [visible, color]);
+  }, [visible, title, color]);
 
   const previewColor = hueToAccentHex(hue);
+  const trimmed = draftTitle.trim();
 
   return (
-    <WarmModal visible={visible} onRequestClose={onClose} title="Layer colour">
+    <WarmModal visible={visible} onRequestClose={onClose} title="Edit layer">
       <View style={cardStyles.colorPreviewRow}>
         <View style={[cardStyles.colorPreviewSwatch, { backgroundColor: previewColor }]} />
-        <Text style={cardStyles.colorPreviewText} numberOfLines={1}>
-          {title}
-        </Text>
+        <TextInput
+          style={cardStyles.editNameInput}
+          value={draftTitle}
+          onChangeText={setDraftTitle}
+          placeholder="Layer name"
+          placeholderTextColor={colors.textMuted}
+          returnKeyType="done"
+        />
       </View>
       <HueSlider hue={hue} onChange={setHue} />
       <View style={cardStyles.colorModalActions}>
@@ -388,34 +433,19 @@ function LayerColorPickerModal({
           <Text style={cardStyles.colorModalCancelText}>Cancel</Text>
         </Pressable>
         <Pressable
-          style={cardStyles.colorModalConfirm}
+          style={[cardStyles.colorModalConfirm, !trimmed ? cardStyles.colorModalConfirmDisabled : null]}
           onPress={() => {
-            onChangeColor(previewColor);
+            if (!trimmed) return;
+            onSave(trimmed, previewColor);
             onClose();
           }}
+          disabled={!trimmed}
           accessibilityRole="button"
         >
           <Text style={cardStyles.colorModalConfirmText}>Save</Text>
         </Pressable>
       </View>
     </WarmModal>
-  );
-}
-
-function PanelHeader({ label, onCollapse }: { label: string; onCollapse: () => void }) {
-  return (
-    <View style={cardStyles.panelHeader}>
-      <Text style={cardStyles.panelTitle}>{label}</Text>
-      <Pressable
-        style={cardStyles.panelCollapse}
-        onPress={onCollapse}
-        hitSlop={8}
-        accessibilityRole="button"
-        accessibilityLabel={`Close ${label}`}
-      >
-        <Ionicons name="chevron-up" size={14} color="#a89994" />
-      </Pressable>
-    </View>
   );
 }
 
@@ -438,28 +468,35 @@ const cardStyles = StyleSheet.create({
     borderRadius: 999,
     backgroundColor: "#824f3f",
   },
+  modeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginTop: 10,
+  },
+  modeChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    borderRadius: 999,
+    backgroundColor: "#efeae4",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  modeChipActive: {
+    backgroundColor: "#824f3f",
+  },
+  modeChipText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#5a4b45",
+  },
+  modeChipTextActive: {
+    color: "#ffffff",
+  },
   section: {
     marginTop: 10,
     gap: 10,
-  },
-  panelHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  panelTitle: {
-    fontSize: 11,
-    fontWeight: "700",
-    color: "#6a5751",
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-  },
-  panelCollapse: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    alignItems: "center",
-    justifyContent: "center",
   },
   gainReadout: {
     minWidth: 52,
@@ -540,11 +577,12 @@ const cardStyles = StyleSheet.create({
     height: 28,
     borderRadius: 14,
   },
-  colorPreviewText: {
+  editNameInput: {
     flex: 1,
     fontSize: 15,
     fontWeight: "700",
     color: "#1b1c1a",
+    paddingVertical: 6,
   },
   colorModalActions: {
     flexDirection: "row",
@@ -567,6 +605,9 @@ const cardStyles = StyleSheet.create({
     backgroundColor: "#824f3f",
     paddingHorizontal: 18,
     paddingVertical: 10,
+  },
+  colorModalConfirmDisabled: {
+    opacity: 0.5,
   },
   colorModalConfirmText: {
     fontSize: 14,

@@ -33,7 +33,7 @@ type Props = {
   stemDurationMs: number;
   stemFallbackPeaks?: number[];
   offsetMs: number;
-  /** This layer's colour key — drives its waveform bars and legend swatch, so the
+  /** This layer's color key — drives its waveform bars and legend swatch, so the
    *  overlay reads as "this specific layer" rather than one generic terracotta stem. */
   stemColor: string;
   /** The MASTER's beat grid. Ticks are drawn only when its downbeat anchor was actually

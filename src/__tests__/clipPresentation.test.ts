@@ -24,10 +24,24 @@ describe("getClipPlaybackWaveformPeaksOrFallback", () => {
     );
   });
 
-  it("prefers persisted rendered-mix peaks for overdub playback", () => {
+  it("prefers the MASTER's peaks for layered clips — layers render as their own lanes, so the wave must stay stable across mix re-renders", () => {
+    const masterPeaks = [0.1, 0.5, 0.2];
+    const clip = buildClip({
+      waveformPeaks: masterPeaks,
+      overdub: {
+        stems: [],
+        renderedMixUri: "file:///mix.m4a",
+        renderedMixWaveformPeaks: [0.2, 0.8, 0.3],
+      },
+    });
+
+    expect(getClipPlaybackWaveformPeaksOrFallback(clip)).toBe(masterPeaks);
+  });
+
+  it("falls back to rendered-mix peaks only when the master has none", () => {
     const renderedMixWaveformPeaks = [0.2, 0.8, 0.3];
     const clip = buildClip({
-      waveformPeaks: [0.1],
+      waveformPeaks: undefined,
       overdub: {
         stems: [],
         renderedMixUri: "file:///mix.m4a",

@@ -486,7 +486,7 @@ export function PlayerScreen() {
     (stemId: string, color: string) => {
       if (!playerIdea || !playerClip) return;
       void appActions.setClipOverdubStemColor(playerIdea.id, playerClip.id, stemId, color).catch((error) => {
-        const message = error instanceof Error ? error.message : "Could not update the layer colour.";
+        const message = error instanceof Error ? error.message : "Could not update the layer color.";
         AppAlert.info("Layer update failed", message);
       });
     },
@@ -572,7 +572,10 @@ export function PlayerScreen() {
     practiceLoopRange.end > practiceLoopRange.start
       ? `${fmtDuration(practiceLoopRange.start)} → ${fmtDuration(practiceLoopRange.end)}`
       : "No loop";
-  const isTransportLocked = isMixUpdating;
+  // NOTE: the transport is deliberately NOT locked while a layer mix re-renders. The
+  // previous rendered mix stays loaded and playable; when the new render publishes, the
+  // lifecycle's source-sync hot-swaps it at the current position. Locking here made every
+  // 25ms nudge freeze playback for the length of a full-clip render.
 
   return (
     <SafeAreaView style={[styles.screen, playerScreenStyles.screen]}>
@@ -626,9 +629,9 @@ export function PlayerScreen() {
                   draggingMarkerId={draggingMarkerId}
                   draggingMarkerX={draggingMarkerX}
                   onLoopRangeChange={handleLoopRangeChange}
-                  onSeek={isTransportLocked ? () => {} : handleLoopAwareSeek}
-                  onTogglePlay={isTransportLocked ? () => {} : lifecycle.handleTogglePlayPress}
-                  onScrubStateChange={isTransportLocked ? () => {} : lifecycle.handleScrubStateChange}
+                  onSeek={handleLoopAwareSeek}
+                  onTogglePlay={lifecycle.handleTogglePlayPress}
+                  onScrubStateChange={lifecycle.handleScrubStateChange}
                   onRepositionMarker={handleRepositionMarker}
                   onRequestPinActions={handlePinActions}
                   onRequestAddPin={handleRequestAddPin}
@@ -636,16 +639,6 @@ export function PlayerScreen() {
                   practiceZoomMultiple={ui.practiceZoomMultiple}
                   onPracticeZoomMultipleChange={ui.setPracticeZoomMultiple}
                 />
-                {isTransportLocked ? (
-                  <View style={playerScreenStyles.mixUpdatingOverlay}>
-                    <View style={playerScreenStyles.mixUpdatingBadge}>
-                      <Text style={playerScreenStyles.mixUpdatingLabel}>Updating mix…</Text>
-                      <Text style={playerScreenStyles.mixUpdatingMeta}>
-                        Playback and scrubbing will resume when the latest layer render finishes.
-                      </Text>
-                    </View>
-                  </View>
-                ) : null}
                 {/* Expand/shrink floats in the reel's top-right corner, out of the toolbar. */}
                 <Pressable
                   style={({ pressed }) => [
@@ -769,7 +762,7 @@ export function PlayerScreen() {
         footer={
           <PlayerFooterSection
             mode={ui.mode}
-            playDisabled={isTransportLocked}
+            playDisabled={false}
             isPlaying={effectiveIsPlaying}
             hasPreviousTrack={hasPreviousTrack}
             hasNextTrack={hasNextTrack}
@@ -777,7 +770,7 @@ export function PlayerScreen() {
             repeatEnabled={ui.repeatEnabled}
             queueExpanded={ui.queueExpanded}
             onPreviousTrack={lifecycle.handlePreviousTrack}
-            onTogglePlay={isTransportLocked ? () => {} : lifecycle.handleTogglePlayPress}
+            onTogglePlay={lifecycle.handleTogglePlayPress}
             onNextTrack={lifecycle.handleNextTrack}
             onToggleRepeat={() => ui.setRepeatEnabled((value) => !value)}
             onToggleQueueExpanded={() => ui.setQueueExpanded((value) => !value)}
@@ -812,7 +805,7 @@ export function PlayerScreen() {
               practiceMarkers={data.practiceMarkers}
               playheadMs={effectivePlayerPosition}
               onAddPin={handleRequestAddPin}
-              onSeekPin={isTransportLocked ? () => {} : handleLoopAwareSeek}
+              onSeekPin={handleLoopAwareSeek}
               expandedPinId={expandedPinId}
               pinsDurationMs={effectivePlayerDuration}
               onTogglePinExpanded={togglePinExpanded}
@@ -824,7 +817,7 @@ export function PlayerScreen() {
               sectionsDurationMs={effectivePlayerDuration}
               editingSectionId={sectionsApi.editingSectionId}
               onAddSection={sectionsApi.handleAddSection}
-              onSeekSection={isTransportLocked ? () => {} : handleLoopAwareSeek}
+              onSeekSection={handleLoopAwareSeek}
               onToggleSectionEdit={sectionsApi.handleToggleEdit}
               onEditSection={sectionsApi.handleEditSection}
               onRepositionSectionEdge={sectionsApi.handleRepositionSectionEdge}

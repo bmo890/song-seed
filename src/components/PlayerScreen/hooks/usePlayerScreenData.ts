@@ -104,13 +104,19 @@ export function usePlayerScreenData({ playerDuration }: UsePlayerScreenDataArgs)
     () => (playerClip ? getClipPlaybackWaveformPeaksOrFallback(playerClip) : []),
     [playerClip]
   );
-  // Detail waveform (sidecar) for the playback audio, with the inline thumbnail as
-  // the fallback until it loads — keeps the player reel crisp at every zoom.
+  // Detail waveform (sidecar) with the inline thumbnail as the fallback until it loads —
+  // keeps the player reel crisp at every zoom. For layered clips the sidecar comes from
+  // the MASTER audio, not the rendered mix: the mix file is replaced on every layer edit,
+  // and re-deriving the wave from it made the reel visibly rearrange after each render.
+  const waveformAudioUri =
+    playerClip && clipHasOverdubs(playerClip)
+      ? playerClip.audioUri ?? playbackAudioUri
+      : playbackAudioUri;
   const clipWaveform = useClipWaveform({
-    audioUri: playbackAudioUri,
+    audioUri: waveformAudioUri,
     thumbnailPeaks: thumbnailWaveformPeaks,
     durationMs: displayDuration,
-    enabled: !!playbackAudioUri,
+    enabled: !!waveformAudioUri,
   });
   const waveformPeaks = clipWaveform.peaks;
   const practiceMarkers = useMemo(() => {
