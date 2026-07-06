@@ -318,43 +318,6 @@ export const playerScreenStyles = StyleSheet.create({
     textTransform: "uppercase",
     letterSpacing: 0.4,
   },
-  layerWaveWrap: {
-    position: "relative",
-    overflow: "hidden",
-    borderRadius: 8,
-  },
-  layerWavePlayhead: {
-    position: "absolute",
-    top: 2,
-    bottom: 2,
-    width: 2,
-    marginLeft: -1,
-    backgroundColor: "#824f3f",
-    opacity: 0.8,
-  },
-  layerCardControls: {
-    gap: 8,
-  },
-  layerToolbar: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    flexWrap: "wrap",
-  },
-  layerToolbarButton: {
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-    borderRadius: 10,
-    backgroundColor: "#ece7e1",
-  },
-  layerToolbarButtonText: {
-    fontSize: 12,
-    lineHeight: 16,
-    color: "#824f3f",
-    fontWeight: "600",
-    textTransform: "uppercase",
-    letterSpacing: 0.4,
-  },
   layerRootSection: {
     gap: 8,
     paddingVertical: 4,

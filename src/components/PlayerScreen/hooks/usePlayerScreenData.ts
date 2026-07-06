@@ -1,7 +1,6 @@
 import { useMemo } from "react";
 import {
   clipHasOverdubs,
-  clipUsesRenderedMix,
   getClipOverdubStemCount,
   getClipPlaybackDurationMs,
   getClipPlaybackUri,
@@ -128,7 +127,6 @@ export function usePlayerScreenData({ playerDuration }: UsePlayerScreenDataArgs)
   const clipNotesSummary = getNoteSummary(clipNotes);
   const clipOverdubStemCount = playerClip ? getClipOverdubStemCount(playerClip) : 0;
   const hasClipOverdubs = playerClip ? clipHasOverdubs(playerClip) : false;
-  const clipPlaybackUsesRenderedMix = playerClip ? clipUsesRenderedMix(playerClip) : false;
   const overdubRootSettings = playerClip ? getClipOverdubRootSettings(playerClip) : null;
   const overdubStemEntries = useMemo(
     () =>
@@ -173,7 +171,6 @@ export function usePlayerScreenData({ playerDuration }: UsePlayerScreenDataArgs)
     clipNotesSummary,
     hasClipOverdubs,
     clipOverdubStemCount,
-    clipPlaybackUsesRenderedMix,
     overdubRootSettings,
     overdubStemEntries,
     isOverdubPreviewRendering,

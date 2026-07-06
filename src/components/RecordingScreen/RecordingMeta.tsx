@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Pressable, StyleSheet, View, Text } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { styles } from "../../styles";
@@ -33,6 +33,10 @@ type Props = {
     metronomeToggleDisabled?: boolean;
     onToggleMetronome?: () => void;
     onOpenMetronome?: () => void;
+    /** No-count-in overdub: the master joins at the next bar line. Non-null while that
+     * wait is pending; drives a visible beat countdown so the implicit lead-in reads as
+     * intentional instead of a ghost count-in. */
+    guideJoin?: { joinAtEpochMs: number; beatMs: number } | null;
 };
 
 function buildCountInDots(beatsPerBar: number, currentBeat: number) {
@@ -58,8 +62,28 @@ export function RecordingMeta({
     metronomeToggleDisabled = false,
     onToggleMetronome,
     onOpenMetronome,
+    guideJoin = null,
 }: Props) {
     const safeElapsedMs = Number.isFinite(elapsedMs) ? Math.max(0, elapsedMs) : 0;
+
+    const [joinBeatsLeft, setJoinBeatsLeft] = useState<number | null>(null);
+    useEffect(() => {
+        if (!guideJoin) {
+            setJoinBeatsLeft(null);
+            return;
+        }
+        const tick = () => {
+            const beats = Math.ceil(
+                (guideJoin.joinAtEpochMs - Date.now()) / Math.max(1, guideJoin.beatMs)
+            );
+            setJoinBeatsLeft(Math.max(0, beats));
+        };
+        tick();
+        const interval = setInterval(tick, 100);
+        return () => clearInterval(interval);
+    }, [guideJoin]);
+    const joinLabel =
+        joinBeatsLeft == null ? null : joinBeatsLeft > 0 ? `Master joins in ${joinBeatsLeft}` : "Master joining…";
     const clampedCurrentBar =
         countInBars > 0 ? Math.max(1, Math.min(countInBars, countInCurrentBar)) : 1;
     const clampedCurrentBeat =
@@ -126,6 +150,7 @@ export function RecordingMeta({
                         {statusDot}
                         <Text style={styles.recordingStatusText}>{statusLabel}</Text>
                     </View>
+                    {joinLabel ? <Text style={metaStyles.joinLabel}>{joinLabel}</Text> : null}
                     <View style={metaStyles.compactSpacer} />
                     {metronomeChip}
                 </View>
@@ -159,6 +184,7 @@ export function RecordingMeta({
                         <View style={metaStyles.statusLeft}>
                             {statusDot}
                             <Text style={styles.recordingStatusText}>{statusLabel}</Text>
+                            {joinLabel ? <Text style={metaStyles.joinLabel}>{joinLabel}</Text> : null}
                         </View>
                         {metronomeChip}
                     </View>
@@ -252,6 +278,12 @@ const metaStyles = StyleSheet.create({
     },
     metroChipDisabled: {
         opacity: 0.5,
+    },
+    joinLabel: {
+        fontFamily: "PlusJakartaSans_600SemiBold",
+        fontSize: 12,
+        color: "#824f3f",
+        fontVariant: ["tabular-nums"],
     },
     metroCustomizeBtn: {
         width: 26,

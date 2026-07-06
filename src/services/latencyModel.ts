@@ -42,6 +42,9 @@ export type RouteLatencyProfile = {
   /** Per-connection BT drift applied to the ear calibration (current OS report minus the
    *  calibration-time OS report). 0 when unknown or not on BT. */
   btDriftMs: number;
+  /** True when drift was actually measurable (OS report present now AND stamped at
+   *  calibration time) — distinguishes a genuine 0 from "couldn't measure". */
+  btDriftKnown: boolean;
   /** Mic path: sound → capture buffer, ms. 0 when the platform can't say. */
   inputMs: number;
   /** Estimated latency of the visual pulse pipeline (bridge → render → display). */
@@ -134,6 +137,7 @@ export function resolveRouteLatencyProfile({
   let outputSource = sanitizedOutput.source;
   let guidePlayerOutputMs = sanitizedOutput.outputMs;
   let btDriftMs = 0;
+  let btDriftKnown = false;
   if (route && isBluetoothLikeAudioDevice(route)) {
     const routeKey = buildBluetoothMonitoringRouteKey(route);
     const calibration = getBluetoothMonitoringCalibrationForRoute(calibrations, routeKey);
@@ -148,6 +152,7 @@ export function resolveRouteLatencyProfile({
         calibration.osOutputAtCalibrationMs > 0
       ) {
         btDriftMs = sanitizedOutput.outputMs - calibration.osOutputAtCalibrationMs;
+        btDriftKnown = true;
       }
       const driftedPlayerMs = Math.max(0, Math.min(1000, calibration.offsetMs + btDriftMs));
       guidePlayerOutputMs = Math.max(guidePlayerOutputMs, driftedPlayerMs);
@@ -193,6 +198,7 @@ export function resolveRouteLatencyProfile({
     guidePlayerOutputMs,
     guideStartAdvanceMs: Math.max(0, guidePlayerOutputMs - outputMs),
     btDriftMs,
+    btDriftKnown,
     inputMs,
     visualLatencyMs: VISUAL_PIPELINE_LATENCY_MS,
     hapticLatencyMs: HAPTIC_PIPELINE_LATENCY_MS,
@@ -238,7 +244,9 @@ export function formatLatencyProfileLog(profile: RouteLatencyProfile) {
     `click=${Math.round(profile.outputMs)}ms(${profile.sources.output}) ` +
     `player=${Math.round(profile.guidePlayerOutputMs)}ms ` +
     `guideAdvance=${Math.round(profile.guideStartAdvanceMs)}ms ` +
-    (profile.btDriftMs !== 0 ? `btDrift=${Math.round(profile.btDriftMs)}ms ` : "") +
+    (profile.btDriftKnown || profile.btDriftMs !== 0
+      ? `btDrift=${Math.round(profile.btDriftMs)}ms `
+      : "") +
     `in=${Math.round(profile.inputMs)}ms(${profile.sources.input}) ` +
     `ref=${profile.referenceModality} → correction ${Math.round(profile.recordingCorrectionMs)}ms`
   );

@@ -10,6 +10,7 @@ import {
   Text,
   View,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { audioDeviceManager, type AudioDevice } from "@siteed/audio-studio";
 import { PageIntro } from "../common/PageIntro";
 import { AppAlert } from "../common/AppAlert";
@@ -123,6 +124,37 @@ function analyzeAudioPhaseTaps(taps: number[], totalBeats: number): PhaseAnalysi
   };
 }
 
+/** Cross-check the two ear passes against each other and the OS report. Both passes share
+ *  the same ears and tap reflexes, so their difference is purely the pipeline delta — a
+ *  gap beyond these bounds means one pass measured wrong, and a single bad pass silently
+ *  poisons every Bluetooth take until the user thinks to recalibrate (observed on device:
+ *  a 600ms music outlier against a real ~340ms started the master a quarter-second early
+ *  on every overdub). Warn, don't block: the numbers stay the user's call. */
+function buildResultWarning(
+  playerMs: number | null,
+  clickMs: number | null,
+  reportedMs: number | null
+): string | null {
+  if (playerMs == null || clickMs == null) {
+    return null;
+  }
+  const pipelineGapMs = playerMs - clickMs;
+  if (pipelineGapMs > 250 || pipelineGapMs < -80) {
+    return (
+      `The music pass came out ${Math.abs(Math.round(pipelineGapMs))} ms ` +
+      `${pipelineGapMs > 0 ? "above" : "below"} the click pass — that gap is unusual for one ` +
+      `set of headphones. One of the passes likely measured wrong; a retry is recommended before saving.`
+    );
+  }
+  if (reportedMs != null && Math.abs(playerMs - reportedMs) > 300) {
+    return (
+      `The music pass (${Math.round(playerMs)} ms) is far from the OS-reported route latency ` +
+      `(~${reportedMs} ms). That can be real, but a retry is recommended before saving.`
+    );
+  }
+  return null;
+}
+
 export function BluetoothCalibrationScreen() {
   const navigation = useNavigation();
   const calibrations = useStore((state) => state.bluetoothMonitoringCalibrations);
@@ -150,8 +182,15 @@ export function BluetoothCalibrationScreen() {
   const timersRef = useRef<number[]>([]);
   const progressIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const phaseStartAtRef = useRef<number | null>(null);
-  const tapTimesRef = useRef<number[]>([]);
+  /** Tap timestamps as epochs — converted to grid-relative residuals at analysis time,
+   *  so a late anchor refinement re-bases every tap instead of only the ones after it. */
+  const tapEpochsRef = useRef<number[]>([]);
+  /** Player-pass anchor candidates. A single position read can return a stale value and
+   *  shift the WHOLE measurement by a constant (a 600ms outlier against a real ~340ms
+   *  poisoned every BT take until recalibration) — the median of several reads can't. */
+  const anchorSamplesRef = useRef<number[]>([]);
   const playerOffsetDraftRef = useRef<number | null>(null);
+  const [resultWarning, setResultWarning] = useState<string | null>(null);
 
   const audioPlayer = useAudioPlayer(audioLoopUri ? { uri: audioLoopUri } : null, { updateInterval: 250 });
 
@@ -264,7 +303,8 @@ export function BluetoothCalibrationScreen() {
 
   function resetRunState(nextPhase: CalibrationPhase = "idle") {
     clearPhaseTimers();
-    tapTimesRef.current = [];
+    tapEpochsRef.current = [];
+    anchorSamplesRef.current = [];
     phaseStartAtRef.current = null;
     setPhase(nextPhase);
     setPhaseElapsedMs(0);
@@ -285,6 +325,7 @@ export function BluetoothCalibrationScreen() {
       return;
     }
     try {
+      anchorSamplesRef.current = [];
       await audioPlayer.seekTo(0);
       audioPlayer.play();
 
@@ -296,12 +337,24 @@ export function BluetoothCalibrationScreen() {
         const positionSec = audioPlayer.currentTime ?? 0;
         if (audioPlayer.playing && positionSec > 0) {
           phaseStartAtRef.current = Date.now() - positionSec * 1000;
-          return;
+          anchorSamplesRef.current.push(phaseStartAtRef.current);
+          break;
         }
         await new Promise<void>((resolve) => {
           setTimeout(resolve, 16);
         });
       }
+
+      // Keep re-deriving the anchor while the pass plays; the analysis uses the median.
+      [700, 1600, 2800].forEach((delayMs) => {
+        const sampleTimer = setTimeout(() => {
+          const positionSec = audioPlayer.currentTime ?? 0;
+          if (audioPlayer.playing && positionSec > 0) {
+            anchorSamplesRef.current.push(Date.now() - positionSec * 1000);
+          }
+        }, delayMs);
+        timersRef.current.push(sampleTimer as unknown as number);
+      });
     } catch {
       // Ignore calibration playback failures; analysis will likely fail and prompt retry.
     }
@@ -314,11 +367,15 @@ export function BluetoothCalibrationScreen() {
   }
 
   function completePlayerPass() {
-    const analysis = analyzeAudioPhaseTaps(tapTimesRef.current, CALIBRATION_BEAT_COUNT);
+    const anchorMs =
+      anchorSamplesRef.current.length > 0 ? median(anchorSamplesRef.current) : phaseStartAtRef.current;
+    const tapTimes =
+      anchorMs != null ? tapEpochsRef.current.map((epoch) => epoch - anchorMs) : [];
+    const analysis = analyzeAudioPhaseTaps(tapTimes, CALIBRATION_BEAT_COUNT);
     if (!analysis) {
       const analyzedTapCount = Math.max(
         0,
-        [...new Set(tapTimesRef.current.map((tap) => Math.round(tap / CALIBRATION_BEAT_INTERVAL_MS)))].length -
+        [...new Set(tapTimes.map((tap) => Math.round(tap / CALIBRATION_BEAT_INTERVAL_MS)))].length -
           IGNORED_LEAD_IN_BEATS
       );
       setPhaseFailure(analyzedTapCount);
@@ -344,7 +401,7 @@ export function BluetoothCalibrationScreen() {
     }
 
     clearPhaseTimers();
-    tapTimesRef.current = [];
+    tapEpochsRef.current = [];
     setPhase("click-running");
     setPhaseElapsedMs(0);
     setCountdownValue(3);
@@ -407,7 +464,9 @@ export function BluetoothCalibrationScreen() {
   }
 
   function completeClickPass() {
-    const analysis = analyzeAudioPhaseTaps(tapTimesRef.current, CALIBRATION_BEAT_COUNT);
+    const anchorMs = phaseStartAtRef.current;
+    const tapTimes = anchorMs != null ? tapEpochsRef.current.map((epoch) => epoch - anchorMs) : [];
+    const analysis = analyzeAudioPhaseTaps(tapTimes, CALIBRATION_BEAT_COUNT);
     if (!analysis) {
       setEstimatedClickOffsetMs(null);
       setLastAnalysisSummary((current) =>
@@ -416,7 +475,9 @@ export function BluetoothCalibrationScreen() {
       resetRunState("result");
       return;
     }
-    setEstimatedClickOffsetMs(normalizeBluetoothMonitoringOffsetMs(analysis.medianMs));
+    const clickMs = normalizeBluetoothMonitoringOffsetMs(analysis.medianMs);
+    setEstimatedClickOffsetMs(clickMs);
+    setResultWarning(buildResultWarning(playerOffsetDraftRef.current, clickMs, reportedLatencyMs));
     setLastAnalysisSummary(
       (current) =>
         `${current ?? ""} Click pass: ${analysis.tapCount} valid beats, spread ${Math.round(
@@ -440,9 +501,11 @@ export function BluetoothCalibrationScreen() {
     });
 
     clearPhaseTimers();
-    tapTimesRef.current = [];
+    tapEpochsRef.current = [];
+    anchorSamplesRef.current = [];
     playerOffsetDraftRef.current = null;
     setEstimatedClickOffsetMs(null);
+    setResultWarning(null);
     setPhase("player-running");
     setPhaseElapsedMs(0);
     setPhaseError(null);
@@ -488,7 +551,7 @@ export function BluetoothCalibrationScreen() {
     if (phaseStartAtRef.current == null) {
       return;
     }
-    tapTimesRef.current.push(Date.now() - phaseStartAtRef.current);
+    tapEpochsRef.current.push(Date.now());
   }
 
   function adjustDraftOffset(deltaMs: number) {
@@ -561,6 +624,7 @@ export function BluetoothCalibrationScreen() {
     playerOffsetDraftRef.current = null;
     setPhaseError(null);
     setLastAnalysisSummary(null);
+    setResultWarning(null);
     setBluetoothTargetRoute(null);
     resetRunState("idle");
   }
@@ -579,6 +643,7 @@ export function BluetoothCalibrationScreen() {
     setEstimatedOffsetMs(normalizeBluetoothMonitoringSavedOffsetMs(reportedLatencyMs));
     setEstimatedClickOffsetMs(normalizeBluetoothMonitoringSavedOffsetMs(reportedLatencyMs));
     setPhaseError(null);
+    setResultWarning(null);
     setLastAnalysisSummary(`Seeded from the OS-reported route latency (${reportedLatencyMs} ms).`);
     resetRunState("result");
   }
@@ -711,6 +776,12 @@ export function BluetoothCalibrationScreen() {
 
             {phase === "result" ? (
               <>
+                {resultWarning ? (
+                  <View style={screenStyles.warningCard}>
+                    <Ionicons name="alert-circle-outline" size={16} color="#824f3f" />
+                    <Text style={screenStyles.warningText}>{resultWarning}</Text>
+                  </View>
+                ) : null}
                 <Text style={screenStyles.phaseBeatLabel}>
                   {editableRouteLabel
                     ? `Music playback delay for ${editableRouteLabel}: ${estimatedOffsetMs ?? "—"} ms`
@@ -1010,6 +1081,21 @@ const screenStyles = StyleSheet.create({
   phaseError: {
     fontSize: 13,
     lineHeight: 18,
+    color: "#824f3f",
+  },
+  warningCard: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 8,
+    backgroundColor: "#F2E4DF",
+    borderRadius: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  warningText: {
+    flex: 1,
+    fontSize: 12,
+    lineHeight: 17,
     color: "#824f3f",
   },
   phaseSummary: {

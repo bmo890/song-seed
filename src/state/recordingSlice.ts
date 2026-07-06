@@ -9,6 +9,11 @@ export type RecordingSlice = {
     setRecordingOverdubClipId: (id: string | null) => void;
     recordingGuideMixUri: string | null;
     setRecordingGuideMixUri: (uri: string | null) => void;
+    /** Punch-in point for an overdub layer, ms on the MASTER's timeline (bar-snapped at
+     *  arm time). Null = classic full-length layer from the top. Becomes the saved
+     *  stem's offsetMs. */
+    recordingPunchInMs: number | null;
+    setRecordingPunchInMs: (ms: number | null) => void;
     recordingSaveRequestToken: number;
     requestRecordingSave: () => void;
     clearRecordingContext: () => void;
@@ -30,6 +35,8 @@ export const createRecordingSlice: StateCreator<RecordingSlice> = (set) => ({
     setRecordingOverdubClipId: (id) => set({ recordingOverdubClipId: id }),
     recordingGuideMixUri: null,
     setRecordingGuideMixUri: (uri) => set({ recordingGuideMixUri: uri }),
+    recordingPunchInMs: null,
+    setRecordingPunchInMs: (ms) => set({ recordingPunchInMs: ms }),
     recordingSaveRequestToken: 0,
     requestRecordingSave: () =>
         set((state) => ({
@@ -41,6 +48,7 @@ export const createRecordingSlice: StateCreator<RecordingSlice> = (set) => ({
             recordingParentClipId: null,
             recordingOverdubClipId: null,
             recordingGuideMixUri: null,
+            recordingPunchInMs: null,
         }),
 
     quickNameModalVisible: false,
