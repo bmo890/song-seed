@@ -234,21 +234,35 @@ export function sanitizePersistedState(state?: Partial<PersistedAppStore>): Pers
 // destructive operations still write through immediately via flushPersistedSnapshot,
 // which discards any pending passive write it supersedes).
 const PERSIST_WRITE_DEBOUNCE_MS = 800;
+// A continuous stream of writes (e.g. playback position ticking into the store every
+// ~100ms) would reset a pure trailing debounce forever — cap how long a pending write
+// can be postponed so passive persistence can't starve during playback.
+const PERSIST_WRITE_MAX_WAIT_MS = 4_000;
 
 let pendingPersistWrite: (() => unknown) | null = null;
 let pendingPersistWriteTimer: ReturnType<typeof setTimeout> | null = null;
+let pendingPersistWriteFirstScheduledAt: number | null = null;
 
 function schedulePendingPersistWrite(run: () => unknown) {
     pendingPersistWrite = run;
+    const now = Date.now();
+    if (pendingPersistWriteFirstScheduledAt == null) {
+        pendingPersistWriteFirstScheduledAt = now;
+    }
     if (pendingPersistWriteTimer) {
         clearTimeout(pendingPersistWriteTimer);
     }
+    const maxWaitRemainingMs = Math.max(
+        0,
+        pendingPersistWriteFirstScheduledAt + PERSIST_WRITE_MAX_WAIT_MS - now
+    );
     pendingPersistWriteTimer = setTimeout(() => {
         pendingPersistWriteTimer = null;
+        pendingPersistWriteFirstScheduledAt = null;
         const write = pendingPersistWrite;
         pendingPersistWrite = null;
         write?.();
-    }, PERSIST_WRITE_DEBOUNCE_MS);
+    }, Math.min(PERSIST_WRITE_DEBOUNCE_MS, maxWaitRemainingMs));
 }
 
 /** Run any coalesced passive write NOW (app going to background — don't sit on data). */
@@ -257,6 +271,7 @@ function flushPendingPersistWrite() {
         clearTimeout(pendingPersistWriteTimer);
         pendingPersistWriteTimer = null;
     }
+    pendingPersistWriteFirstScheduledAt = null;
     const write = pendingPersistWrite;
     pendingPersistWrite = null;
     write?.();
@@ -268,6 +283,7 @@ function discardPendingPersistWrite() {
         clearTimeout(pendingPersistWriteTimer);
         pendingPersistWriteTimer = null;
     }
+    pendingPersistWriteFirstScheduledAt = null;
     pendingPersistWrite = null;
 }
 
