@@ -1,4 +1,5 @@
 import { useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
+import * as FileSystem from "expo-file-system/legacy";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppState, Platform } from "react-native";
 import { ClipVersion, PlayerTarget } from "../types";
@@ -7,7 +8,71 @@ import {
   getClipPlaybackUri,
 } from "../clipPresentation";
 import { activateAndPlay, replacePlaybackSource } from "../services/transportPlayback";
+import { appActions } from "../state/actions";
 import { useStore } from "../state/useStore";
+
+/** Clips whose stale rendered mix is already being healed — don't double-schedule. */
+const mixSelfHealInFlight = new Set<string>();
+
+/**
+ * Resolve the URI the player should actually load, with loud diagnostics. A layered
+ * clip's rendered mix is a derived FILE that can go stale (e.g. the app died between a
+ * mix swap's file cleanup and the state persist) — a dangling reference makes that one
+ * clip silently unplayable. Log exactly what we chose and whether it exists on disk; a
+ * missing rendered mix SELF-HEALS: clear the stale reference (so playback resolves to
+ * the base take immediately) and queue a fresh background render so the layers return.
+ */
+async function resolvePlayableUriWithDiagnostics(
+  ideaId: string,
+  clip: ClipVersion
+): Promise<string | null> {
+  const mixUri = clip.overdub?.renderedMixUri ?? null;
+  const playbackUri = getClipPlaybackUri(clip);
+  if (!playbackUri) {
+    console.warn(
+      `[playback] clip ${clip.id} ("${clip.title}") has NO playable source ` +
+        `(renderedMixUri=${mixUri ?? "none"}, audioUri=${clip.audioUri ?? "none"})`
+    );
+    return null;
+  }
+
+  const usingMix = playbackUri === mixUri;
+  const info = await FileSystem.getInfoAsync(playbackUri).catch(() => null);
+  console.log(
+    `[playback] clip ${clip.id} ("${clip.title}") source=${usingMix ? "rendered-mix" : "base"} ` +
+      `exists=${info ? String(info.exists) : "unknown"}` +
+      `${info?.exists && "size" in info ? ` size=${info.size}` : ""} uri=${playbackUri}`
+  );
+
+  if (info && !info.exists && usingMix && clip.audioUri) {
+    console.warn(
+      `[playback] rendered mix file MISSING for clip ${clip.id} — playing the base take ` +
+        `and re-rendering the layer mix in the background (self-heal)`
+    );
+    if (!mixSelfHealInFlight.has(clip.id)) {
+      mixSelfHealInFlight.add(clip.id);
+      try {
+        // Drop the dangling reference first so every consumer resolves to the base take,
+        // then rebuild the mix from the (intact) base + stem files.
+        useStore.getState().clearClipOverdubRenderedMix(ideaId, clip.id);
+        void appActions
+          .rerenderClipOverdubMix(ideaId, clip.id)
+          .catch((error) => {
+            console.warn(`[playback] mix self-heal re-render failed for clip ${clip.id}`, error);
+          })
+          .finally(() => {
+            mixSelfHealInFlight.delete(clip.id);
+          });
+      } catch (error) {
+        mixSelfHealInFlight.delete(clip.id);
+        console.warn(`[playback] mix self-heal failed for clip ${clip.id}`, error);
+      }
+    }
+    return clip.audioUri;
+  }
+
+  return playbackUri;
+}
 
 type Args = {
   onBeforePlayNew?: () => Promise<void> | void;
@@ -234,7 +299,7 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
     metadata?: LockScreenMetadata,
     autoPlay = false
   ) => {
-    const playbackUri = getClipPlaybackUri(clip);
+    const playbackUri = await resolvePlayableUriWithDiagnostics(ideaId, clip);
     if (!playbackUri) return;
     const operationId = ++operationIdRef.current;
     lockScreenMetadataRef.current = metadata;
@@ -263,7 +328,10 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
       useStore.getState().clearPlayerQueue();
       setPlayerTarget(null);
       currentSourceUriRef.current = null;
-      console.warn("FULL open error", err);
+      console.warn(
+        `[playback] FULL open error for clip ${clip.id} ("${clip.title}") uri=${playbackUri}`,
+        err
+      );
     }
   }, [holdSourcePositionAt, isOperationActive, onBeforePlayNew, player, releaseSourcePositionHold, setPlayerPlaybackState]);
 
@@ -274,7 +342,7 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
     resumeAtMs = 0,
     shouldPlay = false
   ) => {
-    const playbackUri = getClipPlaybackUri(clip);
+    const playbackUri = await resolvePlayableUriWithDiagnostics(ideaId, clip);
     if (!playbackUri) return;
     if (currentSourceUriRef.current === playbackUri) return;
 
@@ -310,7 +378,10 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
       setPlayerTarget({ ideaId, clipId: clip.id });
     } catch (err) {
       releaseSourcePositionHold();
-      console.warn("FULL sync source error", err);
+      console.warn(
+        `[playback] FULL sync source error for clip ${clip.id} ("${clip.title}") uri=${playbackUri}`,
+        err
+      );
     }
   }, [holdSourcePositionAt, isOperationActive, player, releaseSourcePositionHold]);
 

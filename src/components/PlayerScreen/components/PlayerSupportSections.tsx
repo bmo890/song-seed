@@ -10,7 +10,7 @@ import { styles as appStyles } from "../../../styles";
 import { colors, radii, spacing, text as textTokens } from "../../../design/tokens";
 import { formatDate } from "../../../utils";
 import { activateAndPlay, replacePlaybackSource } from "../../../services/transportPlayback";
-import { OVERDUB_GAIN_STEP_DB } from "../../../overdub";
+import { OVERDUB_GAIN_STEP_DB, overdubGainDbToPlayerVolume } from "../../../overdub";
 import { playerScreenStyles } from "../styles";
 import { AppAlert } from "../../common/AppAlert";
 import { actionIcons } from "../../common/actionIcons";
@@ -274,7 +274,7 @@ export function PlayerSupportSections({
     previewSources.find((entry) => entry.id === activeLayerPreviewId)?.durationMs ??
     activeLayerPreviewDurationMs;
 
-  async function toggleLayerPreview(id: string, audioUri: string | null) {
+  async function toggleLayerPreview(id: string, audioUri: string | null, gainDb = 0) {
     if (!audioUri) return;
 
     try {
@@ -285,6 +285,10 @@ export function PlayerSupportSections({
 
       audition.stop();
       await onPauseMainPlayback();
+
+      // Solo preview honours the layer's own gain, so a level tweak is audible here too
+      // (low cut still only applies to the rendered mix — no live EQ on this player).
+      layerPreviewPlayer.volume = overdubGainDbToPlayerVolume(gainDb);
 
       if (activeLayerPreviewId === id) {
         await activateAndPlay(
@@ -311,6 +315,19 @@ export function PlayerSupportSections({
   function getLayerProgressRatio(id: string) {
     if (activeLayerPreviewId !== id || !activeLayerDurationMs) return 0;
     return activeLayerPreviewPositionMs / activeLayerDurationMs;
+  }
+
+  // Scrub the active solo preview — mirrors the main transport's tap-to-seek so a long
+  // layer doesn't have to be listened through end-to-end.
+  function seekLayerPreview(id: string, ratio: number) {
+    if (activeLayerPreviewId !== id || !activeLayerDurationMs) return;
+    const clamped = Math.max(0, Math.min(1, ratio));
+    try {
+      const result = layerPreviewPlayer.seekTo((clamped * activeLayerDurationMs) / 1000);
+      void Promise.resolve(result).catch(() => {});
+    } catch {
+      // Stale native handle during teardown — ignore.
+    }
   }
 
   function removeStemSafely(stemId: string) {
@@ -585,8 +602,10 @@ export function PlayerSupportSections({
                   onChangeColor={(color) => onChangeStemColor(stem.id, color)}
                   isRendering={isOverdubPreviewRendering}
                   isPreviewPlaying={activeLayerPreviewId === stem.id && !!layerPreviewStatus.playing}
+                  isPreviewActive={activeLayerPreviewId === stem.id}
                   previewProgressRatio={getLayerProgressRatio(stem.id)}
-                  onTogglePreview={() => toggleLayerPreview(stem.id, stem.audioUri)}
+                  onSeekPreview={(ratio) => seekLayerPreview(stem.id, ratio)}
+                  onTogglePreview={() => toggleLayerPreview(stem.id, stem.audioUri, stem.gainDb)}
                   onToggleMuted={() => onToggleStemMute(stem.id)}
                   expandedSection={
                     expandedStemSection?.stemId === stem.id ? expandedStemSection.section : null

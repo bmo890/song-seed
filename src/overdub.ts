@@ -165,6 +165,26 @@ export function formatClipOverdubStemOffsetLabel(offsetMs: number) {
   return offsetMs > 0 ? `+${Math.round(offsetMs)} ms` : `${Math.round(offsetMs)} ms`;
 }
 
+/**
+ * Headroom trim applied to EVERY input of an N-way mix, in dB. The native mixers SUM the
+ * sources with no attenuation, so a master plus several similarly-hot layers saturates
+ * and clips — heard on device as "booming"/overdrive once enough layers stack. Power-
+ * preserving 1/√N scaling (−10·log10(N) dB) keeps the mix's overall energy comparable
+ * to a single track while making the summed peaks fit: −3 dB at 2 inputs, −7.8 dB at 6.
+ */
+export function getMixHeadroomDb(inputCount: number): number {
+  if (!Number.isFinite(inputCount) || inputCount <= 1) {
+    return 0;
+  }
+  return -10 * Math.log10(inputCount);
+}
+
+/** dB → linear player volume, clamped to the 0..1 range expo-audio accepts (boosts
+ *  flatten to 1 — live previews are for timing/balance judgement, not level boosts). */
+export function overdubGainDbToPlayerVolume(gainDb: number): number {
+  return Math.max(0, Math.min(1, Math.pow(10, gainDb / 20)));
+}
+
 export function buildClipOverdubMixInputs(clip: ClipVersion): NativeMixedRenderInput[] {
   const rootAudioUri = clip.audioUri;
   if (!rootAudioUri) {
@@ -172,24 +192,22 @@ export function buildClipOverdubMixInputs(clip: ClipVersion): NativeMixedRenderI
   }
   const rootSettings = getClipOverdubRootSettings(clip);
   const rootDurationMs = clip.durationMs;
+  const activeStems = (clip.overdub?.stems ?? []).filter((stem) => stem.audioUri && !stem.isMuted);
+  const headroomDb = getMixHeadroomDb(1 + activeStems.length);
 
   const inputs: NativeMixedRenderInput[] = [
     {
       inputUri: rootAudioUri,
-      gainDb: rootSettings.gainDb,
+      gainDb: rootSettings.gainDb + headroomDb,
       offsetMs: 0,
       tonePreset: rootSettings.tonePreset,
     },
   ];
 
-  for (const stem of clip.overdub?.stems ?? []) {
-    if (!stem.audioUri || stem.isMuted) {
-      continue;
-    }
-
+  for (const stem of activeStems) {
     inputs.push({
-      inputUri: stem.audioUri,
-      gainDb: clampOverdubGainDb(stem.gainDb),
+      inputUri: stem.audioUri!,
+      gainDb: clampOverdubGainDb(stem.gainDb) + headroomDb,
       offsetMs: clampClipOverdubStemOffsetMs(stem.offsetMs, rootDurationMs, stem.durationMs),
       tonePreset: stem.tonePreset,
     });
