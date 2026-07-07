@@ -103,7 +103,10 @@ type ClipCardProps = {
   displayPrimary?: boolean;
 };
 
-export function ClipCard({
+// Memoized: entries come from memoized lineage rows and `context` keeps referential
+// stability (stable-handle callbacks + useMemo in ClipList/SongClipListContent), so a
+// song-screen render only re-renders the cards whose data actually changed.
+export const ClipCard = React.memo(function ClipCard({
   entry,
   context,
   displayOnly,
@@ -419,4 +422,4 @@ export function ClipCard({
       />
     </View>
   );
-}
+});

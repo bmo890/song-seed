@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { Animated } from "react-native";
 import { useStore } from "../../../state/useStore";
 import { type EvolutionListClipEntry, type TimelineClipEntry } from "../../../clipGraph";
@@ -68,8 +68,12 @@ export function useSongClipHighlights(
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clearRecentlyAdded, recentlyAddedItemIds, visibleClipIdsKey]);
 
-  return {
-    getHighlightValue: (clipId: string): Animated.Value | null =>
-      highlightMapRef.current[clipId] ?? null,
-  };
+  // Stable identity (reads the ref) so the clip-card context it feeds can be memoized —
+  // a fresh function here would invalidate every card's props on every render.
+  const getHighlightValue = useCallback(
+    (clipId: string): Animated.Value | null => highlightMapRef.current[clipId] ?? null,
+    []
+  );
+
+  return { getHighlightValue };
 }
