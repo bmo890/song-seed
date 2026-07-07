@@ -27,6 +27,9 @@ export type GlobalSearchResult = {
   ideaId?: string;
   noteId?: string;
   isPinned?: boolean;
+  /** For song/clip results: the title of the collection the idea lives in, used to
+   * label the "Open in …" affordance. */
+  containerName?: string;
 };
 
 type SearchField = {
@@ -203,6 +206,50 @@ export function getSearchMatchSourceLabel(source: GlobalSearchMatchSource) {
   }
 }
 
+// Coarse buckets for the quick-filter pills. Every granular match source folds into
+// one of four everyday categories, so the filter row stays short (≤4 pills) instead of
+// exposing the internal source taxonomy.
+export type SearchMatchFilter = "titles" | "lyrics" | "chords" | "notes";
+
+export const SEARCH_MATCH_FILTER_ORDER: SearchMatchFilter[] = [
+  "titles",
+  "lyrics",
+  "chords",
+  "notes",
+];
+
+export function getSearchMatchFilter(source: GlobalSearchMatchSource): SearchMatchFilter {
+  switch (source) {
+    case "lyrics":
+      return "lyrics";
+    case "chords":
+      return "chords";
+    case "notes":
+    case "clip-notes":
+    case "body":
+      return "notes";
+    case "title":
+    case "clip-title":
+    case "description":
+    default:
+      return "titles";
+  }
+}
+
+export function getSearchMatchFilterLabel(filter: SearchMatchFilter) {
+  switch (filter) {
+    case "lyrics":
+      return "Lyrics";
+    case "chords":
+      return "Chords";
+    case "notes":
+      return "Notes";
+    case "titles":
+    default:
+      return "Titles";
+  }
+}
+
 export function getSearchResultKindLabel(kind: GlobalSearchResultKind) {
   switch (kind) {
     case "song":
@@ -291,6 +338,7 @@ export function buildGlobalSearchResults(workspaces: Workspace[], notes: Note[],
         workspaceId: workspace.id,
         collectionId: idea.collectionId,
         ideaId: idea.id,
+        containerName: getCollectionById(workspace, idea.collectionId)?.title,
       });
     }
   }

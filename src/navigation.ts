@@ -8,7 +8,7 @@ export type CollectionDetailRouteParams = {
   focusIdeaId?: string;
   focusToken?: number;
   showBack?: boolean;
-  source?: "activity" | "detail";
+  source?: "activity" | "detail" | "search";
   /** Origin this collection was opened from (e.g. "Activity", "Revisit"). When
    * set, the collection is a contextual jump: back returns to that origin and
    * the back button is labelled with it. */

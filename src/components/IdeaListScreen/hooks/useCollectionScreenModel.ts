@@ -73,7 +73,7 @@ export function useCollectionScreenModel() {
   const focusIdeaId = route.params?.focusIdeaId as string | undefined;
   const focusToken = route.params?.focusToken as number | undefined;
   const showBack = route.params?.showBack === true;
-  const collectionSource = route.params?.source as "activity" | "detail" | undefined;
+  const collectionSource = route.params?.source as "activity" | "detail" | "search" | undefined;
   const backLabel = route.params?.backLabel as string | undefined;
   // A "contextual" open (view-in-collection from Activity/Revisit) carries a
   // source. Those are pushed as a fresh Home over the origin, so "back" should
@@ -96,23 +96,13 @@ export function useCollectionScreenModel() {
     }
   }, [navigation]);
 
-  // The header back button calls `onBack` (below), which pops the root directly.
-  // This listener covers the native swipe gesture and Android hardware back,
-  // which remove the screen without going through `onBack`. It must only fire on
-  // real BACK actions (GO_BACK/POP) — never a forward/lateral navigation that
-  // happens to unmount this screen (any NAVIGATE/REPLACE), or it would hijack it
-  // and bounce the user to the origin.
-  useEffect(() => {
-    if (!isContextualOpen) return;
-    const unsubscribe = (navigation as any).addListener("beforeRemove", (event: any) => {
-      if (originBackHandledRef.current) return;
-      const actionType = event?.data?.action?.type;
-      if (actionType !== "GO_BACK" && actionType !== "POP" && actionType !== "POP_TO_TOP") return;
-      event.preventDefault();
-      popBackToOrigin();
-    });
-    return unsubscribe;
-  }, [isContextualOpen, navigation, popBackToOrigin]);
+  // Contextual opens no longer hijack the back button — back always steps up the
+  // hierarchy (to Browse), same as a normal collection. The jump back to the origin
+  // (Search/Activity/Revisit) lives in a dismissible chip instead. Dismissing it
+  // clears the source/backLabel params so the chip stays gone for this screen.
+  const dismissContextualReturn = useCallback(() => {
+    (navigation as any).setParams({ source: undefined, backLabel: undefined });
+  }, [navigation]);
 
   const workspaces = useStore((s) => s.workspaces);
   const storeActiveWorkspaceId = useStore((s) => s.activeWorkspaceId);
@@ -521,13 +511,18 @@ export function useCollectionScreenModel() {
     activityMetricFilter,
     collectionSource,
     backLabel,
+    // The dismissible "‹ Back to {origin}" chip, shown only for a contextual open.
+    // Tapping it jumps back to where you came from; ✕ dismisses it. Back stays normal.
+    contextualReturn: isContextualOpen
+      ? {
+          label: backLabel ?? "results",
+          onReturn: popBackToOrigin,
+          onDismiss: dismissContextualReturn,
+        }
+      : null,
     onBack:
       showBack
         ? () => {
-            if (isContextualOpen) {
-              popBackToOrigin();
-              return;
-            }
             if (!goBackFromParentStack(navigation)) {
               openWorkspaceBrowseRoot(rootNavigation ?? navigation, activeWorkspace?.id);
             }

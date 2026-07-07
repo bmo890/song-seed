@@ -52,28 +52,14 @@ export function CollectionHeaderSection() {
   return (
     <View style={collStyles.navRow}>
       <Pressable
-        style={({ pressed }) => [
-          screen.showBack && screen.backLabel ? collStyles.navBackLabeled : collStyles.navBtn,
-          pressed ? styles.pressDown : null,
-        ]}
+        style={({ pressed }) => [collStyles.navBtn, pressed ? styles.pressDown : null]}
         onPress={screen.showBack ? screen.onBack : screen.openDrawer}
         hitSlop={8}
         accessibilityRole="button"
-        accessibilityLabel={
-          screen.showBack
-            ? screen.backLabel
-              ? `Back to ${screen.backLabel}`
-              : "Back"
-            : "Open menu"
-        }
+        accessibilityLabel={screen.showBack ? "Back" : "Open menu"}
       >
         {screen.showBack ? (
-          <>
-            <Ionicons name="chevron-back" size={20} color="#84736f" />
-            {screen.backLabel ? (
-              <Text style={collStyles.navBackLabelText}>{screen.backLabel}</Text>
-            ) : null}
-          </>
+          <Ionicons name="chevron-back" size={20} color="#84736f" />
         ) : (
           <Ionicons name="menu-outline" size={22} color="#84736f" />
         )}
@@ -104,6 +90,43 @@ export function CollectionHeaderSection() {
       ) : (
         <View style={styles.ideasHeaderMenuBtnPlaceholder} />
       )}
+    </View>
+  );
+}
+
+/**
+ * Dismissible "‹ Back to {origin}" chip for a contextual open (from Search,
+ * Activity, or Revisit). Tapping the chip jumps back to that origin; ✕ dismisses
+ * it. The system back button is left alone — it always steps up the hierarchy.
+ */
+export function CollectionContextReturnChip() {
+  const { screen } = useCollectionScreen();
+  const contextualReturn = screen.contextualReturn;
+  if (!contextualReturn) return null;
+
+  return (
+    <View style={collStyles.returnChipRow} pointerEvents="box-none">
+      <Pressable
+        style={({ pressed }) => [collStyles.returnChip, pressed ? styles.pressDown : null]}
+        onPress={contextualReturn.onReturn}
+        hitSlop={6}
+        accessibilityRole="button"
+        accessibilityLabel={`Back to ${contextualReturn.label}`}
+      >
+        <Ionicons name="arrow-back" size={13} color="#824f3f" />
+        <Text style={collStyles.returnChipText} numberOfLines={1}>
+          Back to {contextualReturn.label}
+        </Text>
+        <Pressable
+          onPress={contextualReturn.onDismiss}
+          hitSlop={10}
+          accessibilityRole="button"
+          accessibilityLabel="Dismiss"
+          style={({ pressed }) => [collStyles.returnChipClose, pressed ? styles.pressDown : null]}
+        >
+          <Ionicons name="close" size={13} color="#a89994" />
+        </Pressable>
+      </Pressable>
     </View>
   );
 }
@@ -199,21 +222,6 @@ const collStyles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  // Labelled back for a contextual open ("‹ Activity") — a quiet cue that back
-  // returns to where you came from, not into the workspace browse.
-  navBackLabeled: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 1,
-    height: 36,
-    paddingRight: 10,
-    marginLeft: -4,
-  },
-  navBackLabelText: {
-    fontFamily: "PlusJakartaSans_600SemiBold",
-    fontSize: 14,
-    color: "#84736f",
-  },
   navCompact: {
     flex: 1,
     flexDirection: "row",
@@ -221,6 +229,36 @@ const collStyles = StyleSheet.create({
     gap: 6,
     paddingHorizontal: 8,
     overflow: "hidden",
+  },
+  returnChipRow: {
+    flexDirection: "row",
+    paddingHorizontal: 14,
+    marginBottom: 8,
+  },
+  returnChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    alignSelf: "flex-start",
+    maxWidth: "100%",
+    backgroundColor: "#F4ECE9",
+    borderRadius: 999,
+    paddingLeft: 12,
+    paddingRight: 6,
+    paddingVertical: 6,
+  },
+  returnChipText: {
+    fontFamily: "PlusJakartaSans_600SemiBold",
+    fontSize: 12,
+    color: "#824f3f",
+    flexShrink: 1,
+  },
+  returnChipClose: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
   },
   navCompactTitle: {
     flex: 1,

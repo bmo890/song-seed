@@ -7,6 +7,7 @@ import { CollapsingHeaderOverlay } from "../../common/CollapsingHeaderOverlay";
 import { useCollectionScreen } from "../provider/CollectionScreenProvider";
 import {
   CollectionHeaderSection,
+  CollectionContextReturnChip,
   CollectionCollapsibleIdentity,
   CollectionSearchSection,
 } from "../sections/CollectionHeaderSection";
@@ -98,6 +99,9 @@ export function CollectionScreenContent() {
     <SafeAreaView style={[styles.screen, styles.screenIdeas]}>
       {/* Fixed nav row — compact identity fades in here as the block collapses */}
       <CollectionHeaderSection />
+
+      {/* Dismissible "‹ Back to Search/Activity/Revisit" chip for contextual opens */}
+      <CollectionContextReturnChip />
 
       {/* Stage: clips the identity block as it slides up under the nav. Bleeds out
           to the screen's true edges so the selection bar can render full width;

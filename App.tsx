@@ -561,9 +561,6 @@ function DrawerContent({ navigation, state }: DrawerContentComponentProps) {
           params: { collectionId, workspaceId: activeWorkspace?.id },
         });
       }}
-      onClose={() => {
-        closeDrawer();
-      }}
     />
   );
 }
