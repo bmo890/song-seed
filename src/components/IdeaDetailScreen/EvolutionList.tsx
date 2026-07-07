@@ -35,28 +35,6 @@ type EvolutionListProps = {
 
 type EvolutionContentRow = EvolutionListRow;
 
-const DAY_MS = 24 * 60 * 60 * 1000;
-
-function formatGroupFreshness(timestamp: number | null) {
-  if (timestamp == null) return "No clips yet";
-  const today = new Date();
-  const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
-  const target = new Date(timestamp);
-  const targetStart = new Date(target.getFullYear(), target.getMonth(), target.getDate()).getTime();
-  const days = Math.max(0, Math.floor((todayStart - targetStart) / DAY_MS));
-
-  if (days === 0) return "Updated today";
-  if (days === 1) return "Updated yesterday";
-  if (days < 7) return `Updated ${days} days ago`;
-  if (days < 14) return "Updated last week";
-  if (days < 31) {
-    const weeks = Math.max(2, Math.floor(days / 7));
-    return `Updated ${weeks} weeks ago`;
-  }
-  if (days < 62) return "Updated last month";
-  const months = Math.max(2, Math.floor(days / 30));
-  return `Updated ${months} months ago`;
-}
 
 function EvolutionMoreRow({
   lineageRootId,
@@ -125,6 +103,8 @@ function EvolutionGroupHeaderRow({
         }}
         onLongPress={() => onRename(row.groupId, row.name)}
         delayLongPress={300}
+        accessibilityRole="button"
+        accessibilityHint="Long press to rename this group"
       >
         <View style={styles.songDetailEvolutionGroupTitleRow}>
           <Ionicons
@@ -139,29 +119,11 @@ function EvolutionGroupHeaderRow({
             <Ionicons name="git-branch-outline" size={12} color="#a89994" />
             <Text style={styles.songDetailEvolutionGroupMeta}>{row.lineageCount}</Text>
           </View>
-          <Text style={styles.songDetailEvolutionGroupMeta}>
-            · {formatGroupFreshness(row.lastUpdatedAt)}
-          </Text>
         </View>
-      </Pressable>
-      <Pressable
-        style={({ pressed }) => [groupRenameBtn, pressed ? styles.pressDown : null]}
-        onPress={() => onRename(row.groupId, row.name)}
-        hitSlop={8}
-        accessibilityLabel="Rename group"
-      >
-        <Ionicons name="create-outline" size={15} color="#84736f" />
       </Pressable>
     </View>
   );
 }
-
-const groupRenameBtn = {
-  width: 34,
-  height: 34,
-  alignItems: "center" as const,
-  justifyContent: "center" as const,
-};
 
 export function EvolutionList({
   lineages,

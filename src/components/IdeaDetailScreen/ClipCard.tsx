@@ -338,11 +338,6 @@ export const ClipCard = React.memo(function ClipCard({
               isPrimary={clip.isPrimary}
               onSetPrimary={handleSetPrimary}
             />
-            <ClipCardReplyButton
-              visible={showReplyButton}
-              compact={compactDensity}
-              onPress={handleReply}
-            />
             {showLocateButton ? (
               <Pressable
                 style={({ pressed }) => [
@@ -372,10 +367,18 @@ export const ClipCard = React.memo(function ClipCard({
                   e.stopPropagation();
                   onViewLineageHistory(entry.lineageRootId);
                 }}
+                accessibilityRole="button"
+                accessibilityLabel="View version history for this thread"
               >
-                <Ionicons name="time-outline" size={14} color="#a89994" />
+                <Ionicons name="git-commit-outline" size={15} color="#a89994" />
               </Pressable>
             ) : null}
+            {/* Record-a-new-take (mic) stays farthest right — the primary forward action. */}
+            <ClipCardReplyButton
+              visible={showReplyButton}
+              compact={compactDensity}
+              onPress={handleReply}
+            />
           </>
         }
         bodyContent={

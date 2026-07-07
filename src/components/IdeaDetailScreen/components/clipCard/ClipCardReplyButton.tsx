@@ -26,8 +26,10 @@ export function ClipCardReplyButton({
         event.stopPropagation();
         await onPress();
       }}
+      accessibilityRole="button"
+      accessibilityLabel="Record a new take in this thread"
     >
-      <Ionicons name="return-up-forward-outline" size={14} color="#84736f" />
+      <Ionicons name="mic-outline" size={15} color="#84736f" />
     </Pressable>
   );
 }
