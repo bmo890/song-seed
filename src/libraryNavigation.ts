@@ -9,7 +9,14 @@ import {
 } from "./types";
 import { getCollectionAncestors, getCollectionById, getCollectionScopeIds } from "./utils";
 
-export type CollectionSearchMatchKind = "collection" | "subcollection" | "song" | "clip";
+export type CollectionSearchMatchKind =
+  | "collection"
+  | "subcollection"
+  | "song"
+  | "clip"
+  | "notes"
+  | "lyrics"
+  | "chords";
 
 export type CollectionSearchMatch = {
   kind: CollectionSearchMatchKind;
@@ -54,6 +61,25 @@ type SearchCandidate = CollectionSearchMatch & {
 
 function compareStringsAsc(a: string, b: string) {
   return a.localeCompare(b);
+}
+
+// Extract a compact one-line excerpt centered on the first occurrence of `needle`,
+// so match badges for longer content (notes, lyrics) show the relevant fragment
+// rather than the whole field. `needle` is already lowercased.
+function buildMatchExcerpt(text: string, needle: string) {
+  const source = text.replace(/\s+/g, " ").trim();
+  if (!source) return null;
+  if (!needle) return source.length > 80 ? `${source.slice(0, 80)}...` : source;
+
+  const matchIndex = source.toLowerCase().indexOf(needle);
+  if (matchIndex < 0) {
+    return source.length > 80 ? `${source.slice(0, 80)}...` : source;
+  }
+
+  const start = Math.max(0, matchIndex - 24);
+  const end = Math.min(source.length, matchIndex + needle.length + 48);
+  const excerpt = source.slice(start, end);
+  return `${start > 0 ? "..." : ""}${excerpt}${end < source.length ? "..." : ""}`;
 }
 
 function getTopLevelCollectionCount(workspace: Workspace) {
@@ -158,15 +184,71 @@ function getCollectionSearchCandidates(
         });
       }
 
+      // Notes on the idea itself — mirror the global search so a phrase jotted in
+      // an idea's notes surfaces its collection here too.
+      if (idea.notes.toLowerCase().includes(needle)) {
+        const excerpt = buildMatchExcerpt(idea.notes, needle);
+        if (excerpt) {
+          pushSearchCandidate(candidates, seen, {
+            kind: "notes",
+            label: excerpt,
+            context: idea.title,
+            score: 160,
+          });
+        }
+      }
+
       idea.clips.forEach((clip) => {
-        if (!clip.title.toLowerCase().includes(needle)) return;
-        pushSearchCandidate(candidates, seen, {
-          kind: "clip",
-          label: clip.title,
-          context,
-          score: 180,
-        });
+        if (clip.title.toLowerCase().includes(needle)) {
+          pushSearchCandidate(candidates, seen, {
+            kind: "clip",
+            label: clip.title,
+            context,
+            score: 180,
+          });
+        }
+
+        if (clip.notes.toLowerCase().includes(needle)) {
+          const excerpt = buildMatchExcerpt(clip.notes, needle);
+          if (excerpt) {
+            pushSearchCandidate(candidates, seen, {
+              kind: "notes",
+              label: excerpt,
+              context: clip.title.trim() || idea.title,
+              score: 150,
+            });
+          }
+        }
       });
+
+      // Lyrics + chords live only on song projects, matching the global search fields.
+      if (idea.kind === "project" && idea.lyrics?.versions?.length) {
+        for (const version of idea.lyrics.versions) {
+          for (const line of version.document.lines) {
+            if (line.text.toLowerCase().includes(needle)) {
+              const excerpt = buildMatchExcerpt(line.text, needle);
+              if (excerpt) {
+                pushSearchCandidate(candidates, seen, {
+                  kind: "lyrics",
+                  label: excerpt,
+                  context: idea.title,
+                  score: 140,
+                });
+              }
+            }
+
+            for (const chord of line.chords) {
+              if (!chord.chord.toLowerCase().includes(needle)) continue;
+              pushSearchCandidate(candidates, seen, {
+                kind: "chords",
+                label: chord.chord,
+                context: idea.title,
+                score: 130,
+              });
+            }
+          }
+        }
+      }
     });
 
   candidates.sort((a, b) => b.score - a.score || compareStringsAsc(a.label, b.label));

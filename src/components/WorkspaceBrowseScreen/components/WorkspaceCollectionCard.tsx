@@ -33,6 +33,9 @@ function getMatchLabel(kind: CollectionSearchMatchKind): string {
     case "collection": return "Collection:";
     case "subcollection": return "Inside:";
     case "song": return "Song:";
+    case "notes": return "Notes:";
+    case "lyrics": return "Lyrics:";
+    case "chords": return "Chord:";
     case "clip":
     default: return "Clip:";
   }

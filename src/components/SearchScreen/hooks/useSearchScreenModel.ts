@@ -1,18 +1,29 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigation } from "@react-navigation/native";
 import { useStore } from "../../../state/useStore";
+import { openCollectionFromContext } from "../../../navigation";
 import {
   buildGlobalSearchResults,
+  getSearchMatchFilter,
+  getSearchMatchFilterLabel,
   getSearchResultKindLabel,
   type GlobalSearchResult,
   type GlobalSearchResultKind,
+  type SearchMatchFilter,
   GLOBAL_SEARCH_KIND_ORDER,
+  SEARCH_MATCH_FILTER_ORDER,
 } from "../../../search";
 
 type SearchResultGroup = {
   kind: GlobalSearchResultKind;
   label: string;
   items: GlobalSearchResult[];
+};
+
+type SearchMatchFilterOption = {
+  key: SearchMatchFilter;
+  label: string;
+  count: number;
 };
 
 function navigateToRoute(navigation: any, routeName: string, params?: Record<string, unknown>) {
@@ -37,6 +48,7 @@ export function useSearchScreenModel() {
   const setActiveWorkspaceId = useStore((state) => state.setActiveWorkspaceId);
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
+  const [activeMatchFilter, setActiveMatchFilter] = useState<SearchMatchFilter | null>(null);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -51,14 +63,45 @@ export function useSearchScreenModel() {
     [debouncedSearchQuery, notes, workspaces]
   );
 
+  // Quick-filter options, derived from what's actually in the results — each pill
+  // carries its own count, and a filter never appears unless it has matches.
+  const matchFilters = useMemo<SearchMatchFilterOption[]>(() => {
+    const counts = new Map<SearchMatchFilter, number>();
+    for (const result of results) {
+      const filter = getSearchMatchFilter(result.matchSource);
+      counts.set(filter, (counts.get(filter) ?? 0) + 1);
+    }
+    return SEARCH_MATCH_FILTER_ORDER.filter((filter) => counts.has(filter)).map((filter) => ({
+      key: filter,
+      label: getSearchMatchFilterLabel(filter),
+      count: counts.get(filter) ?? 0,
+    }));
+  }, [results]);
+
+  // Drop the active filter whenever the query changes or the chosen bucket disappears,
+  // so a stale scope can never hide every result on a fresh search.
+  useEffect(() => {
+    if (activeMatchFilter && !matchFilters.some((option) => option.key === activeMatchFilter)) {
+      setActiveMatchFilter(null);
+    }
+  }, [activeMatchFilter, matchFilters]);
+
+  const filteredResults = useMemo(
+    () =>
+      activeMatchFilter
+        ? results.filter((result) => getSearchMatchFilter(result.matchSource) === activeMatchFilter)
+        : results,
+    [activeMatchFilter, results]
+  );
+
   const resultGroups = useMemo<SearchResultGroup[]>(
     () =>
       GLOBAL_SEARCH_KIND_ORDER.map((kind) => ({
         kind,
         label: getSearchResultKindLabel(kind),
-        items: results.filter((result) => result.kind === kind),
+        items: filteredResults.filter((result) => result.kind === kind),
       })).filter((group) => group.items.length > 0),
-    [results]
+    [filteredResults]
   );
 
   const openResult = (result: GlobalSearchResult) => {
@@ -81,7 +124,21 @@ export function useSearchScreenModel() {
         return;
       case "song":
       case "clip":
-        navigateToRoute(navigation, "IdeaDetail", { ideaId: result.ideaId });
+        // Open the idea's *home* — its collection, scrolled to and highlighting the
+        // card — rather than dropping straight into the item's detail page. Opened
+        // contextually so a "‹ Search" back button returns to these results intact.
+        if (result.collectionId) {
+          openCollectionFromContext(navigation, {
+            collectionId: result.collectionId,
+            workspaceId: result.workspaceId,
+            focusIdeaId: result.ideaId,
+            focusToken: Date.now(),
+            source: "search",
+            backLabel: "Search",
+          });
+        } else {
+          navigateToRoute(navigation, "IdeaDetail", { ideaId: result.ideaId });
+        }
         return;
       case "note":
         navigation.navigate("NotepadHome", { noteId: result.noteId, openToken: Date.now() });
@@ -92,6 +149,7 @@ export function useSearchScreenModel() {
   };
 
   const resultCount = results.length;
+  const filteredResultCount = filteredResults.length;
   const hasQuery = debouncedSearchQuery.trim().length > 0;
 
   return {
@@ -100,6 +158,10 @@ export function useSearchScreenModel() {
     debouncedSearchQuery,
     resultGroups,
     resultCount,
+    filteredResultCount,
+    matchFilters,
+    activeMatchFilter,
+    setActiveMatchFilter,
     hasQuery,
     openResult,
   };

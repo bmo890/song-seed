@@ -44,7 +44,6 @@ type Props = {
   onGoSettings: () => void;
   onGoNotepad: () => void;
   onOpenCollection: (collectionId: string) => void;
-  onClose: () => void;
 };
 
 function navIcon(level: HierarchyLevel) {
@@ -71,7 +70,6 @@ export function SideNav({
   onGoSettings,
   onGoNotepad,
   onOpenCollection,
-  onClose,
 }: Props) {
   const mostRecent = recentCollections[0] ?? null;
   const workspaceTheme = getWorkspaceTheme(workspaceColor);
@@ -79,14 +77,31 @@ export function SideNav({
   return (
     <SafeAreaView style={sideNavStyles.shell}>
 
-      {/* ── Close ─────────────────────────────────────────────────────── */}
+      {/* ── Brand + global search ─────────────────────────────────────── */}
+      {/* Left: app wordmark (placeholder until the real logo lands). Right: a
+          global search action — living up here (not under the workspace card)
+          signals it searches the whole library, not just this workspace. */}
       <View style={sideNavStyles.header}>
+        <View style={sideNavStyles.brand}>
+          <View style={sideNavStyles.brandMark} />
+          <Text style={sideNavStyles.brandName}>Song Seed</Text>
+        </View>
         <Pressable
-          style={({ pressed }) => [sideNavStyles.closeBtn, pressed ? styles.pressDown : null]}
-          onPress={onClose}
+          style={({ pressed }) => [
+            sideNavStyles.searchBtn,
+            currentRoute === "search" ? sideNavStyles.searchBtnActive : null,
+            pressed ? styles.pressDown : null,
+          ]}
+          onPress={onGoSearch}
           hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Search your library"
         >
-          <Ionicons name="close" size={20} color="#84736f" />
+          <Ionicons
+            name="search"
+            size={19}
+            color={currentRoute === "search" ? "#ffffff" : "#824f3f"}
+          />
         </Pressable>
       </View>
 
@@ -134,15 +149,6 @@ export function SideNav({
             </View>
           ) : null}
         </View>
-
-        {/* Search — workspace-scoped */}
-        <NavRow
-          icon="search-outline"
-          iconColor="#84736f"
-          label="Search"
-          active={currentRoute === "search"}
-          onPress={onGoSearch}
-        />
 
         {/* Most recent collection */}
         {mostRecent ? (
@@ -263,16 +269,40 @@ const sideNavStyles = StyleSheet.create({
   // Header
   header: {
     flexDirection: "row",
-    justifyContent: "flex-end",
+    alignItems: "center",
+    justifyContent: "space-between",
     paddingHorizontal: 16,
     paddingTop: 12,
-    paddingBottom: 4,
+    paddingBottom: 8,
   },
-  closeBtn: {
-    width: 36,
-    height: 36,
+  brand: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    flexShrink: 1,
+  },
+  // Placeholder mark — swap for the real logo asset when it lands.
+  brandMark: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    backgroundColor: "#B87D6B",
+  },
+  brandName: {
+    fontFamily: "PlayfairDisplay_600SemiBold",
+    fontSize: 18,
+    color: "#1b1c1a",
+  },
+  searchBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     alignItems: "center",
     justifyContent: "center",
+    backgroundColor: "#f2e7e2",
+  },
+  searchBtnActive: {
+    backgroundColor: "#B87D6B",
   },
 
   // Workspace block
