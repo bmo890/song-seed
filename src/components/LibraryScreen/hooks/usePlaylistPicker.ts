@@ -64,11 +64,6 @@ export function usePlaylistPicker({
   const [selectionMoreVisible, setSelectionMoreVisible] = useState(false);
   const [selectionDockHeight, setSelectionDockHeight] = useState(120);
 
-  const isSelected = (selection: PlaylistPickerSelection) =>
-    pickerState.selectedItems.some(
-      (item) => buildPickerSelectionKey(item) === buildPickerSelectionKey(selection)
-    );
-
   const toggleSelection = (selection: PlaylistPickerSelection) => {
     const key = buildPickerSelectionKey(selection);
     const hasSelection = pickerState.selectedItems.some(
@@ -120,6 +115,12 @@ export function usePlaylistPicker({
     () => new Set(pickerState.selectedItems.map((item) => buildPickerSelectionKey(item))),
     [pickerState.selectedItems]
   );
+  // O(1) membership per rendered row. The old implementation scanned the whole selection
+  // (rebuilding every key) for EVERY row on EVERY render — with a large collection open
+  // in the picker, each checkbox tap cost selection × rows key-builds, a visibly growing
+  // tap lag as the selection grew.
+  const isSelected = (selection: PlaylistPickerSelection) =>
+    selectedKeySet.has(buildPickerSelectionKey(selection));
   const allVisibleSelected =
     visibleSelections.length > 0 &&
     visibleSelections.every((selection) => selectedKeySet.has(buildPickerSelectionKey(selection)));
