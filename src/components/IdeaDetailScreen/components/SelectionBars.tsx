@@ -50,12 +50,31 @@ export function SelectionBars() {
     allSelectableSelected || (selectableClipIds.length === 0 && selectedClipIds.length > 0);
   const playableSelectedCount = selectedClips.filter((clip) => !!clip.audioUri).length;
   const singleSelectedClip = selectedClips.length === 1 ? selectedClips[0] ?? null : null;
-  const singleSelectedLineageRootId =
-    selectedIdea && singleSelectedClip ? getLineageRootId(selectedIdea.clips, singleSelectedClip.id) : null;
-  const singleSelectedAssignedGroupId =
-    singleSelectedLineageRootId && selectedIdea?.clipGroupAssignments
-      ? selectedIdea.clipGroupAssignments[singleSelectedLineageRootId] ?? null
+  // Groups are assigned per lineage ROOT, not per clip — collect the distinct roots of
+  // every selected clip so group assignment works for a multi-selection too (clips in
+  // the same thread collapse to one root).
+  const selectedLineageRootIds = useMemo(() => {
+    if (!selectedIdea) return [] as string[];
+    const roots = new Set<string>();
+    for (const clip of selectedClips) {
+      const rootId = getLineageRootId(selectedIdea.clips, clip.id);
+      if (rootId) roots.add(rootId);
+    }
+    return [...roots];
+  }, [selectedClips, selectedIdea]);
+  // A group is "checked" only when EVERY selected root already belongs to it.
+  const commonAssignedGroupId = useMemo(() => {
+    const assignments = selectedIdea?.clipGroupAssignments;
+    if (!assignments || selectedLineageRootIds.length === 0) return null;
+    const first = assignments[selectedLineageRootIds[0]] ?? null;
+    return first && selectedLineageRootIds.every((rootId) => (assignments[rootId] ?? null) === first)
+      ? first
       : null;
+  }, [selectedIdea?.clipGroupAssignments, selectedLineageRootIds]);
+  const anySelectedAssignedToGroup = useMemo(
+    () => selectedLineageRootIds.some((rootId) => !!selectedIdea?.clipGroupAssignments?.[rootId]),
+    [selectedIdea?.clipGroupAssignments, selectedLineageRootIds]
+  );
 
   function handlePlaySelected() {
     if (!selectedIdea) return;
@@ -188,13 +207,12 @@ export function SelectionBars() {
   }
 
   function handleCreateGroupAndAssign() {
-    if (!selectedIdea || !singleSelectedLineageRootId) return;
-    const groupId = useStore.getState().createClipGroup(selectedIdea.id);
+    if (!selectedIdea || selectedLineageRootIds.length === 0) return;
+    const store = useStore.getState();
+    const groupId = store.createClipGroup(selectedIdea.id);
     if (groupId) {
-      useStore.getState().assignLineageToClipGroup(
-        selectedIdea.id,
-        singleSelectedLineageRootId,
-        groupId
+      selectedLineageRootIds.forEach((rootId) =>
+        store.assignLineageToClipGroup(selectedIdea.id, rootId, groupId)
       );
     }
     setGroupSheetVisible(false);
@@ -202,10 +220,28 @@ export function SelectionBars() {
   }
 
   function handleAssignGroup(groupId: string | null) {
-    if (!selectedIdea || !singleSelectedLineageRootId) return;
-    useStore.getState().assignLineageToClipGroup(selectedIdea.id, singleSelectedLineageRootId, groupId);
+    if (!selectedIdea || selectedLineageRootIds.length === 0) return;
+    const store = useStore.getState();
+    selectedLineageRootIds.forEach((rootId) =>
+      store.assignLineageToClipGroup(selectedIdea.id, rootId, groupId)
+    );
     setGroupSheetVisible(false);
     setMoreVisible(false);
+  }
+
+  function handleMakePrimary() {
+    if (!selectedIdea || !singleSelectedClip || singleSelectedClip.isPrimary) return;
+    const clipId = singleSelectedClip.id;
+    setMoreVisible(false);
+    AppAlert.confirm(
+      "Make this the primary take?",
+      "The primary take is this song's best or most representative version — it's the one that plays and represents the song across your collection. Only one take can be primary.",
+      () => {
+        appActions.markBestClip(clipId);
+        useStore.getState().cancelClipSelection();
+      },
+      { confirmLabel: "Make primary", icon: "star-outline" }
+    );
   }
 
   function handleEditSingleClip() {
@@ -287,11 +323,14 @@ export function SelectionBars() {
             icon: "create-outline",
             onPress: handleEditSingleClip,
           },
+          // Tags live on the clip card itself for a single clip, so the dock offers
+          // Primary here instead (disabled when this take is already primary).
           {
-            key: "tags",
-            label: "Tags",
-            icon: "pricetag-outline",
-            onPress: () => setTagSheetVisible(true),
+            key: "primary",
+            label: "Primary",
+            icon: "star-outline",
+            onPress: handleMakePrimary,
+            disabled: !!singleSelectedClip?.isPrimary,
           },
           {
             key: "delete",
@@ -391,11 +430,12 @@ export function SelectionBars() {
           },
         ]
       : []),
-    ...(selectedClips.length === 1 && selectedIdea && singleSelectedLineageRootId
+    ...(selectedIdea && selectedLineageRootIds.length > 0
       ? [
           {
             key: "assign-group",
-            label: "Assign group",
+            label:
+              selectedLineageRootIds.length === 1 ? "Assign group" : "Assign group to selected",
             icon: "folder-open-outline" as const,
             onPress: () => setGroupSheetVisible(true),
           },
@@ -425,11 +465,15 @@ export function SelectionBars() {
 
       <SelectionActionSheet
         visible={groupSheetVisible}
-        title="Assign lineage group"
+        title={
+          selectedLineageRootIds.length > 1
+            ? `Assign group (${selectedLineageRootIds.length} threads)`
+            : "Assign lineage group"
+        }
         actions={[
           ...(selectedIdea?.clipGroups ?? []).map((group) => ({
             key: group.id,
-            label: `${singleSelectedAssignedGroupId === group.id ? "✓ " : ""}${group.name}`,
+            label: `${commonAssignedGroupId === group.id ? "✓ " : ""}${group.name}`,
             icon: "folder-outline" as const,
             onPress: () => handleAssignGroup(group.id),
           })),
@@ -439,11 +483,14 @@ export function SelectionBars() {
             icon: "add-circle-outline" as const,
             onPress: handleCreateGroupAndAssign,
           },
-          ...(singleSelectedAssignedGroupId
+          ...(anySelectedAssignedToGroup
             ? [
                 {
                   key: "remove-group",
-                  label: "Remove from group",
+                  label:
+                    selectedLineageRootIds.length > 1
+                      ? "Remove selected from group"
+                      : "Remove from group",
                   icon: "close-circle-outline" as const,
                   onPress: () => handleAssignGroup(null),
                 },

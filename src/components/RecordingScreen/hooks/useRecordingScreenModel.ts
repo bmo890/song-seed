@@ -24,6 +24,7 @@ import type { ClipVersion, RecordingGrid } from "../../../types";
 import { getDefaultOverdubStemTitle, getRecordingGridBarMs } from "../../../overdub";
 import { buildSaveDestinations, resolveSaveDestinationLabel, type SaveDestination } from "../../../collectionManagement";
 import { authorizeIntentionalEmptyStateWrite } from "../../../services/stateIntegrity";
+import { ensureWaveformSidecar } from "../../../services/waveformSidecar";
 import {
   buildDefaultIdeaTitle,
   ensureUniqueCountedTitle,
@@ -209,6 +210,11 @@ export function useRecordingScreenModel() {
                 : takeGridRef.current.firstDownbeatMs,
           }
         : undefined;
+
+      // Warm the detail-waveform sidecar in the background NOW, while the user is still
+      // on the save sheet — otherwise the first full-player open of this clip decodes
+      // the whole file on the spot, which is the visible "reel takes a moment to load".
+      void ensureWaveformSidecar(payload.audioUri, payload.durationMs).catch(() => {});
 
       const pendingOverdubSave = pendingOverdubSaveRef.current;
       if (pendingOverdubSave) {

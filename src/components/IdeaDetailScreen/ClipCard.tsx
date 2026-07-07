@@ -103,7 +103,10 @@ type ClipCardProps = {
   displayPrimary?: boolean;
 };
 
-export function ClipCard({
+// Memoized: entries come from memoized lineage rows and `context` keeps referential
+// stability (stable-handle callbacks + useMemo in ClipList/SongClipListContent), so a
+// song-screen render only re-renders the cards whose data actually changed.
+export const ClipCard = React.memo(function ClipCard({
   entry,
   context,
   displayOnly,
@@ -167,28 +170,40 @@ export function ClipCard({
   const isParentPickSource = parentPickSourceIdSet.has(clip.id);
   const isInvalidParentTarget = isParentPicking && parentPickInvalidTargetIdSet.has(clip.id);
   const isValidParentTarget = isParentPicking && !isInvalidParentTarget;
-  const tagBadges = (clip.tags ?? []).map((tagKey) => {
-    const color = getTagColor(tagKey, idea.customTags, globalCustomTags);
-    const label = getTagLabel(tagKey, idea.customTags, globalCustomTags);
-    return {
-      key: tagKey,
-      label,
-      backgroundColor: color.bg,
-      textColor: color.text,
-    };
-  });
+  // Memoized: cards re-render often (store selectors, parent renders during playback),
+  // and rebuilding tag colours + running the section-tag TITLE STRING MATCHER on every
+  // render of every card was pure waste — the collection list precomputes its card meta
+  // for the same reason.
+  const tagBadges = React.useMemo(
+    () =>
+      (clip.tags ?? []).map((tagKey) => {
+        const color = getTagColor(tagKey, idea.customTags, globalCustomTags);
+        const label = getTagLabel(tagKey, idea.customTags, globalCustomTags);
+        return {
+          key: tagKey,
+          label,
+          backgroundColor: color.bg,
+          textColor: color.text,
+        };
+      }),
+    [clip.tags, globalCustomTags, idea.customTags]
+  );
   const canEditTags =
     !displayOnly && !isEditMode && !isDraftProject && !isParentPicking && !clipSelectionMode;
   const visibleTagBadges = tagBadges;
   // The add affordance is always offered while editable (labeled "Tag" when the
   // clip has none yet), so tagging is discoverable whether or not tags exist.
   const showAddTagButton = canEditTags;
-  const tagSuggestions = canEditTags
-    ? suggestedSectionTagsForClip(clip.title, clip.tags ?? []).map((suggestion) => {
-        const color = getTagColor(suggestion.key, idea.customTags, globalCustomTags);
-        return { key: suggestion.key, label: suggestion.label, textColor: color.text };
-      })
-    : [];
+  const tagSuggestions = React.useMemo(
+    () =>
+      canEditTags
+        ? suggestedSectionTagsForClip(clip.title, clip.tags ?? []).map((suggestion) => {
+            const color = getTagColor(suggestion.key, idea.customTags, globalCustomTags);
+            return { key: suggestion.key, label: suggestion.label, textColor: color.text };
+          })
+        : [],
+    [canEditTags, clip.tags, clip.title, globalCustomTags, idea.customTags]
+  );
   const applyTag = (tagKey: string) => {
     haptic.tap();
     const current = clip.tags ?? [];
@@ -323,11 +338,6 @@ export function ClipCard({
               isPrimary={clip.isPrimary}
               onSetPrimary={handleSetPrimary}
             />
-            <ClipCardReplyButton
-              visible={showReplyButton}
-              compact={compactDensity}
-              onPress={handleReply}
-            />
             {showLocateButton ? (
               <Pressable
                 style={({ pressed }) => [
@@ -357,10 +367,18 @@ export function ClipCard({
                   e.stopPropagation();
                   onViewLineageHistory(entry.lineageRootId);
                 }}
+                accessibilityRole="button"
+                accessibilityLabel="View version history for this thread"
               >
-                <Ionicons name="time-outline" size={14} color="#a89994" />
+                <Ionicons name="git-commit-outline" size={15} color="#a89994" />
               </Pressable>
             ) : null}
+            {/* Record-a-new-take (mic) stays farthest right — the primary forward action. */}
+            <ClipCardReplyButton
+              visible={showReplyButton}
+              compact={compactDensity}
+              onPress={handleReply}
+            />
           </>
         }
         bodyContent={
@@ -407,4 +425,4 @@ export function ClipCard({
       />
     </View>
   );
-}
+});

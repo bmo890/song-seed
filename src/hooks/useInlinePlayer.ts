@@ -304,9 +304,11 @@ export function useInlinePlayer({ onBeforePlayNew }: Args = {}) {
       requestId = playRequestIdRef.current + 1;
       playRequestIdRef.current = requestId;
       pendingPlayTargetRef.current = { requestId, ideaId, clipId: clip.id };
-      if (onBeforePlayNew) await onBeforePlayNew();
-      clearInlineUiState();
 
+      // Optimistic UI FIRST: the card flips to "playing" on the same tick as the tap.
+      // Waiting for the other transport to pause before flipping (the old order) added a
+      // visible native-roundtrip delay between pressing play and any visual response.
+      clearInlineUiState();
       sourceSwitchHoldRef.current = {
         requestId,
         startedAtMs: Date.now(),
@@ -318,6 +320,11 @@ export function useInlinePlayer({ onBeforePlayNew }: Args = {}) {
       setInlineDurationOverrideMs(clip.durationMs ?? 0);
       setInlineTarget({ ideaId, clipId: clip.id });
       setInlinePlayingOverride(true);
+
+      if (onBeforePlayNew) await onBeforePlayNew();
+      if (playRequestIdRef.current !== requestId) {
+        return;
+      }
       await replacePlaybackSource(player, playbackUri, true, { seekToStart: false });
       if (playRequestIdRef.current !== requestId) {
         return;

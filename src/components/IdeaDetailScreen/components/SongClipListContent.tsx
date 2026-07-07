@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { styles } from "../styles";
@@ -104,18 +104,34 @@ export function SongClipListContent({
     focusClipInEvolution(primaryEntry.clip.id);
   };
 
-  // Timeline → Evolution jump.
-  const onLocateClip = (clipId: string) => {
-    focusClipInEvolution(clipId);
-  };
+  // The derived per-view contexts must keep referential stability (ClipCard is memo'd
+  // on them), so the added callbacks are stable wrappers over a latest-impl ref.
+  const latestRef = useRef({ focusClipInEvolution, openLineageHistory: actions.openLineageHistory });
+  latestRef.current = { focusClipInEvolution, openLineageHistory: actions.openLineageHistory };
 
-  const timelineClipCardContext: ClipCardContextProps = {
-    ...clipCardContext,
-    actions: {
-      ...clipCardContext.actions,
-      onLocateClip,
-    },
-  };
+  const timelineClipCardContext = useMemo<ClipCardContextProps>(
+    () => ({
+      ...clipCardContext,
+      actions: {
+        ...clipCardContext.actions,
+        // Timeline → Evolution jump.
+        onLocateClip: (clipId: string) => latestRef.current.focusClipInEvolution(clipId),
+      },
+    }),
+    [clipCardContext]
+  );
+
+  const evolutionClipCardContext = useMemo<ClipCardContextProps>(
+    () => ({
+      ...clipCardContext,
+      actions: {
+        ...clipCardContext.actions,
+        onViewLineageHistory: (rootClipId: string) =>
+          latestRef.current.openLineageHistory(rootClipId),
+      },
+    }),
+    [clipCardContext]
+  );
 
   const body =
     screen.clipViewMode === "timeline" ? (
@@ -138,13 +154,7 @@ export function SongClipListContent({
         summaryContent={summaryContent}
         footerSpacerHeight={footerSpacerHeight}
         primaryEntry={primaryEntry}
-        clipCardContext={{
-          ...clipCardContext,
-          actions: {
-            ...clipCardContext.actions,
-            onViewLineageHistory: actions.openLineageHistory,
-          },
-        }}
+        clipCardContext={evolutionClipCardContext}
         scrollY={screen.scrollY}
         contentPaddingTop={headerHeight}
         contentPaddingHorizontal={16}

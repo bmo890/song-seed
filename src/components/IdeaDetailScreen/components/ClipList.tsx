@@ -1,6 +1,7 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import { useStore } from "../../../state/useStore";
 import { useMiniPlayerContext } from "../../../hooks/FullPlayerProvider";
+import type { ClipVersion } from "../../../types";
 import { type ClipCardContextProps } from "../ClipCard";
 import { useSongClipEditing } from "../hooks/useSongClipEditing";
 import { useSongClipHighlights } from "../hooks/useSongClipHighlights";
@@ -68,51 +69,97 @@ export function ClipList() {
     clearEditing: editing.cancelEditing,
   });
 
-  if (!selectedIdea) return null;
+  // ── Referentially stable card context ─────────────────────────────────────
+  // ClipCard is React.memo'd; for that to bite, the context must only change identity
+  // when its DATA changes. Handler functions are pinned via the stable-handle pattern
+  // (stable wrappers that call the latest implementation through a ref), so the memo
+  // never goes stale and never busts on unrelated renders.
+  const latestHandlersRef = useRef({ editing, parentPicking, undo });
+  latestHandlersRef.current = { editing, parentPicking, undo };
+
+  const stableEditingHandlers = useMemo(
+    () => ({
+      onBeginEditing: (clip: ClipVersion) => latestHandlersRef.current.editing.beginEditingClip(clip),
+      onSaveEditing: (clipId: string) => latestHandlersRef.current.editing.saveEditingClip(clipId),
+      onCancelEditing: () => latestHandlersRef.current.editing.cancelEditing(),
+    }),
+    []
+  );
+
+  const stableActions = useMemo<ClipCardContextProps["actions"]>(
+    () => ({
+      onOpenActions: () => {},
+      longPressBehavior: "select",
+      onOpenNotesSheet: (clip: ClipVersion) => latestHandlersRef.current.editing.openNotesSheet(clip),
+      onPickParentTarget: (clipId: string) => {
+        const latest = latestHandlersRef.current;
+        latest.parentPicking.handlePickParentTarget(clipId, (nextUndo, message) => {
+          latest.undo.showUndo(message, nextUndo);
+        });
+      },
+      onOpenTagPicker: (clip: ClipVersion) => setTagPickerClipId(clip.id),
+    }),
+    []
+  );
+
+  const isParentPickingActive = !!parentPicking.parentPickState;
+  const effectiveEditMode = screen.isEditMode && !screen.isProject;
+  const clipCardContext = useMemo<ClipCardContextProps | null>(() => {
+    if (!selectedIdea) return null;
+    return {
+      mode: {
+        idea: selectedIdea,
+        displayPrimaryId,
+        // Songs edit via the sheet, so their clip cards never enter edit mode (no
+        // "set primary" buttons / tap-to-edit). Clips keep their in-place edit.
+        isEditMode: effectiveEditMode,
+        isDraftProject,
+        isParentPicking: isParentPickingActive,
+        parentPickSourceIdSet,
+        parentPickInvalidTargetIdSet,
+      },
+      editing: {
+        editingClipId: editing.editingClipId,
+        editingClipDraft: editing.editingClipDraft,
+        setEditingClipDraft: editing.setEditingClipDraft,
+        editingClipNotesDraft: editing.editingClipNotesDraft,
+        setEditingClipNotesDraft: editing.setEditingClipNotesDraft,
+        onBeginEditing: stableEditingHandlers.onBeginEditing,
+        onSaveEditing: stableEditingHandlers.onSaveEditing,
+        onCancelEditing: stableEditingHandlers.onCancelEditing,
+      },
+      actions: stableActions,
+      playback: {
+        globalCustomTags,
+        inlinePlayer,
+        getHighlightValue,
+      },
+    };
+  }, [
+    displayPrimaryId,
+    editing.editingClipDraft,
+    editing.editingClipId,
+    editing.editingClipNotesDraft,
+    editing.setEditingClipDraft,
+    editing.setEditingClipNotesDraft,
+    effectiveEditMode,
+    getHighlightValue,
+    globalCustomTags,
+    inlinePlayer,
+    isDraftProject,
+    isParentPickingActive,
+    parentPickInvalidTargetIdSet,
+    parentPickSourceIdSet,
+    selectedIdea,
+    stableActions,
+    stableEditingHandlers,
+  ]);
+
+  if (!selectedIdea || !clipCardContext) return null;
 
   const tagPickerClip = tagPickerClipId
     ? selectedIdea.clips.find((clip) => clip.id === tagPickerClipId) ?? null
     : null;
-
-  const clipCardContext: ClipCardContextProps = {
-    mode: {
-      idea: selectedIdea,
-      displayPrimaryId,
-      // Songs edit via the sheet, so their clip cards never enter edit mode (no
-      // "set primary" buttons / tap-to-edit). Clips keep their in-place edit.
-      isEditMode: screen.isEditMode && !screen.isProject,
-      isDraftProject,
-      isParentPicking: !!parentPicking.parentPickState,
-      parentPickSourceIdSet,
-      parentPickInvalidTargetIdSet,
-    },
-    editing: {
-      editingClipId: editing.editingClipId,
-      editingClipDraft: editing.editingClipDraft,
-      setEditingClipDraft: editing.setEditingClipDraft,
-      editingClipNotesDraft: editing.editingClipNotesDraft,
-      setEditingClipNotesDraft: editing.setEditingClipNotesDraft,
-      onBeginEditing: editing.beginEditingClip,
-      onSaveEditing: editing.saveEditingClip,
-      onCancelEditing: editing.cancelEditing,
-    },
-    actions: {
-      onOpenActions: () => {},
-      longPressBehavior: "select",
-      onOpenNotesSheet: editing.openNotesSheet,
-      onPickParentTarget: (clipId) => {
-        parentPicking.handlePickParentTarget(clipId, (nextUndo, message) => {
-          undo.showUndo(message, nextUndo);
-        });
-      },
-      onOpenTagPicker: (clip) => setTagPickerClipId(clip.id),
-    },
-    playback: {
-      globalCustomTags,
-      inlinePlayer,
-      getHighlightValue,
-    },
-  };
 
   return (
     <>

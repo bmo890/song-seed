@@ -9,7 +9,6 @@ import {
   resolvePlaylistIdea,
   sortWorkspacesWithPrimary,
 } from "../../../libraryNavigation";
-import { useBrowseRootBackHandler } from "../../../hooks/useBrowseRootBackHandler";
 import type { PlaylistDisplayItem, PlaylistPickerState } from "../types";
 
 function buildDefaultPlaylistTitle(count: number) {
@@ -17,7 +16,8 @@ function buildDefaultPlaylistTitle(count: number) {
 }
 
 export function useLibraryScreenModel() {
-  useBrowseRootBackHandler();
+  // NOTE: the browse-root back handler is registered by LibraryScreenContent (it must
+  // stay active on every tab, not just while the playlists model is mounted).
   const navigation = useNavigation<any>();
   const rootNavigation = navigation.getParent?.();
   const navigateRoot = (route: string, params?: object) =>
