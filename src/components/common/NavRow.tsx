@@ -85,22 +85,23 @@ const navRowStyles = StyleSheet.create({
     gap: 2,
   },
   eyebrow: {
+    fontFamily: "PlusJakartaSans_700Bold",
     fontSize: 10,
     lineHeight: 13,
     color: "#84736f",
-    fontWeight: "700",
     textTransform: "uppercase",
     letterSpacing: 0.5,
   },
   title: {
+    fontFamily: "PlusJakartaSans_500Medium",
     fontSize: 15,
+    lineHeight: 20,
     color: "#1b1c1a",
-    fontWeight: "500",
   },
   titleStrong: {
+    fontFamily: "PlusJakartaSans_600SemiBold",
     fontSize: 16,
     lineHeight: 20,
     color: "#1b1c1a",
-    fontWeight: "600",
   },
 });
