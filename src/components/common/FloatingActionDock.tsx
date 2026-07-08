@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { styles } from "../../styles";
 import { durations } from "../../design/motion";
 import { haptic } from "../../design/haptics";
+import { useStore } from "../../state/useStore";
 
 const FLOATING_ACTION_DOCK_BASE_BOTTOM = 12;
 const FLOATING_ACTION_DOCK_MIN_SAFE_AREA = 16;
@@ -52,7 +53,15 @@ export function FloatingActionDock({
 }: FloatingActionDockProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const insets = useSafeAreaInsets();
-  const bottomOffset = getFloatingActionDockBottomOffset(insets.bottom);
+  // Ride just above the global media dock when it's present (the dock already
+  // covers the bottom safe area, so DON'T add the safe-area base on top of it —
+  // that double-counts and floats the buttons too high). Otherwise use the normal
+  // safe-area offset.
+  const playerDockHeight = useStore((s) => s.playerDockHeight);
+  const bottomOffset =
+    playerDockHeight > 0
+      ? playerDockHeight + FLOATING_ACTION_DOCK_BASE_BOTTOM
+      : getFloatingActionDockBottomOffset(insets.bottom);
 
   return (
     <View pointerEvents="box-none" style={[styles.ideasFabWrap, { bottom: bottomOffset }, wrapStyle]}>

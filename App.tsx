@@ -35,6 +35,7 @@ import { ShareIntentModule, ShareIntentProvider, getScheme, getShareExtensionKey
 import { IdeaDetailScreen } from "./src/components/IdeaDetailScreen";
 import { IdeaListScreen } from "./src/components/IdeaListScreen";
 import { PlayerSheet } from "./src/components/PlayerSheet";
+import { PlayerSheetPositionProvider } from "./src/hooks/PlayerSheetPositionProvider";
 import { RecordingScreen } from "./src/components/RecordingScreen";
 import { WorkspaceListScreen } from "./src/components/WorkspaceListScreen";
 import { WorkspaceBrowseScreen } from "./src/components/WorkspaceBrowseScreen";
@@ -66,6 +67,7 @@ import {
   resolveStartupWorkspaceId,
 } from "./src/libraryNavigation";
 import type { CollectionDetailRouteParams } from "./src/navigation";
+import { openIdeaInCollection } from "./src/navigation";
 import { cleanupStaleShareTempFiles, purgeExpiredTrash } from "./src/services/managedMedia";
 import { readManifest } from "./src/services/manifestSync";
 import { appActions } from "./src/state/actions";
@@ -899,6 +901,7 @@ function AppContent() {
           <Stack.Screen name="ChordSheet" component={ChordSheetScreen} />
           <Stack.Screen name="ClipLineage" component={ClipLineageScreen} />
         </Stack.Navigator>
+        <PlayerSheetPositionProvider>
         <GlobalMediaDock
           activeRouteName={activeRouteName}
           hidden={isDrawerOpen}
@@ -913,7 +916,9 @@ function AppContent() {
           }}
           onOpenIdea={(ideaId) => {
             if (!navigationRef.isReady()) return;
-            navigationRef.navigate("IdeaDetail", { ideaId });
+            // The queue arrow jumps to the clip's home collection and highlights
+            // its card — the same "view in collection" treatment as Search.
+            openIdeaInCollection(navigationRef, ideaId);
           }}
         />
         <PlayerSheet
@@ -924,6 +929,7 @@ function AppContent() {
             (navigationRef.navigate as (route: string, params?: object) => void)(routeName, params);
           }}
         />
+        </PlayerSheetPositionProvider>
         <ImportProgressBanner />
         <DuplicateReviewSheet />
       </NavigationContainer>

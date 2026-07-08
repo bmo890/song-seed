@@ -1,7 +1,7 @@
 import React from "react";
-import { StyleSheet, View } from "react-native";
+import { View } from "react-native";
 import { TransportBar } from "../../common/TransportBar";
-import { colors } from "../../../design/tokens";
+import { useStore } from "../../../state/useStore";
 import { playerScreenStyles } from "../styles";
 
 type PlayerFooterSectionProps = {
@@ -10,7 +10,6 @@ type PlayerFooterSectionProps = {
   isPlaying: boolean;
   hasPreviousTrack: boolean;
   hasNextTrack: boolean;
-  queueEntryCount: number;
   repeatEnabled: boolean;
   queueExpanded: boolean;
   onPreviousTrack: () => void;
@@ -26,7 +25,6 @@ export function PlayerFooterSection({
   isPlaying,
   hasPreviousTrack,
   hasNextTrack,
-  queueEntryCount,
   repeatEnabled,
   queueExpanded,
   onPreviousTrack,
@@ -35,39 +33,34 @@ export function PlayerFooterSection({
   onToggleRepeat,
   onToggleQueueExpanded,
 }: PlayerFooterSectionProps) {
+  const queueIndex = useStore((s) => s.playerQueueIndex);
+  const queueLength = useStore((s) => s.playerQueue.length);
+  // Queue "n / n" beneath the list button — matches the mini dock. Only shown for
+  // a real multi-item queue and only in player mode (practice/play-along reuse the
+  // trailing slot for repeat).
+  const queueCaption =
+    mode === "player" && queueLength > 1
+      ? `${Math.min(queueIndex + 1, queueLength)}/${queueLength}`
+      : undefined;
+
+  // A single hairline (from the footer zone) is enough — no second bordered
+  // surface. Slim padding keeps the bar a touch bigger than the dock but tight.
   return (
     <View style={playerScreenStyles.footerStack}>
-      <View style={footerStyles.surface}>
-        <TransportBar
-          isPlaying={isPlaying}
-          playDisabled={playDisabled}
-          canGoPrevious={hasPreviousTrack}
-          canGoNext={hasNextTrack}
-          onPrevious={onPreviousTrack}
-          onTogglePlay={onTogglePlay}
-          onNext={onNextTrack}
-          trailingIcon={mode !== "player" ? "repeat" : queueEntryCount > 1 ? "list-outline" : undefined}
-          trailingActive={mode !== "player" ? repeatEnabled : queueExpanded}
-          trailingDisabled={mode !== "player" ? false : queueEntryCount <= 1}
-          onTrailingPress={
-            mode !== "player"
-              ? onToggleRepeat
-              : queueEntryCount > 1
-                ? onToggleQueueExpanded
-                : undefined
-          }
-        />
-      </View>
+      <TransportBar
+        isPlaying={isPlaying}
+        playDisabled={playDisabled}
+        canGoPrevious={hasPreviousTrack}
+        canGoNext={hasNextTrack}
+        onPrevious={onPreviousTrack}
+        onTogglePlay={onTogglePlay}
+        onNext={onNextTrack}
+        trailingIcon={mode !== "player" ? "repeat" : "list-outline"}
+        trailingActive={mode !== "player" ? repeatEnabled : queueExpanded}
+        trailingDisabled={false}
+        trailingCaption={queueCaption}
+        onTrailingPress={mode !== "player" ? onToggleRepeat : onToggleQueueExpanded}
+      />
     </View>
   );
 }
-
-const footerStyles = StyleSheet.create({
-  surface: {
-    backgroundColor: "#FDFBF7",
-    borderTopWidth: 1,
-    borderTopColor: colors.borderSubtle,
-    paddingHorizontal: 16,
-    paddingVertical: 6,
-  },
-});

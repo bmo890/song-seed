@@ -23,6 +23,13 @@ export type PlayerSlice = {
         shouldAutoplay?: boolean
     ) => void;
     clearPlayerQueue: () => void;
+    /** Append items to the end of the running queue (the "Add to queue" action). */
+    appendToPlayerQueue: (items: PlaybackQueueItem[]) => void;
+    /** Reorder the queue (drag). Keeps the currently-playing item selected by
+     *  re-finding it in the new order. */
+    reorderPlayerQueue: (orderedQueue: PlaybackQueueItem[]) => void;
+    /** Remove one item from the queue. Emptying it ends the session. */
+    removeFromPlayerQueue: (index: number) => void;
     advancePlayerQueue: (direction: "next" | "previous", shouldAutoplay?: boolean) => void;
     consumePlayerAutoplay: () => void;
     /** True while the full Player screen is opening or mounted. When false (minimized
@@ -114,6 +121,58 @@ export const createPlayerSlice: StateCreator<PlayerSlice> = (set) => ({
             playerPositionMs: 0,
             playerDurationMs: 0,
             playerIsPlaying: false,
+        }),
+    appendToPlayerQueue: (items) =>
+        set((state) => {
+            if (items.length === 0) return state;
+            return { playerQueue: [...state.playerQueue, ...items] };
+        }),
+    reorderPlayerQueue: (orderedQueue) =>
+        set((state) => {
+            if (orderedQueue.length !== state.playerQueue.length) return state;
+            const current = state.playerTarget;
+            let nextIndex = state.playerQueueIndex;
+            if (current) {
+                const found = orderedQueue.findIndex(
+                    (item) => item.ideaId === current.ideaId && item.clipId === current.clipId
+                );
+                if (found >= 0) nextIndex = found;
+            }
+            return { playerQueue: orderedQueue, playerQueueIndex: nextIndex };
+        }),
+    removeFromPlayerQueue: (index) =>
+        set((state) => {
+            if (index < 0 || index >= state.playerQueue.length) return state;
+            const nextQueue = state.playerQueue.filter((_, i) => i !== index);
+            // Emptying the queue ends the session outright (same shape as clear).
+            if (nextQueue.length === 0) {
+                return {
+                    playerQueue: [],
+                    playerQueueIndex: 0,
+                    playerTarget: null,
+                    playerShouldAutoplay: false,
+                    playerPositionMs: 0,
+                    playerDurationMs: 0,
+                    playerIsPlaying: false,
+                };
+            }
+            let nextIndex = state.playerQueueIndex;
+            let shouldAutoplay = state.playerShouldAutoplay;
+            if (index < state.playerQueueIndex) {
+                // Something above the playhead left — the current item shifts up one.
+                nextIndex = state.playerQueueIndex - 1;
+            } else if (index === state.playerQueueIndex) {
+                // Removed the item that was playing: the slot now holds the next
+                // track. Keep the index (clamped) and carry the play/pause state.
+                nextIndex = Math.min(state.playerQueueIndex, nextQueue.length - 1);
+                shouldAutoplay = state.playerIsPlaying;
+            }
+            return {
+                playerQueue: nextQueue,
+                playerQueueIndex: nextIndex,
+                playerTarget: nextQueue[nextIndex] ?? null,
+                playerShouldAutoplay: shouldAutoplay,
+            };
         }),
     advancePlayerQueue: (direction, shouldAutoplay = true) =>
         set((state) => {

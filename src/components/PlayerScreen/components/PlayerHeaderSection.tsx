@@ -1,28 +1,10 @@
-import React, { useRef } from "react";
-import { PanResponder, Pressable, StyleSheet, Text, View } from "react-native";
+import React from "react";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { GestureDetector, type PanGesture } from "react-native-gesture-handler";
 import { fmtDuration, formatDate } from "../../../utils";
 import { colors } from "../../../design/tokens";
 import { playerScreenStyles } from "../styles";
-
-/** Swipe-down-to-collapse, bound to the HEADER ONLY so it never contests the
- *  reel scrub, loop handles, sliders, or lyric scrolling below. */
-function useDismissGesture(onMinimize: () => void) {
-  const onMinimizeRef = useRef(onMinimize);
-  onMinimizeRef.current = onMinimize;
-
-  return useRef(
-    PanResponder.create({
-      onMoveShouldSetPanResponder: (_evt, gesture) =>
-        gesture.dy > 14 && Math.abs(gesture.dy) > Math.abs(gesture.dx) * 1.4,
-      onPanResponderRelease: (_evt, gesture) => {
-        if (gesture.dy > 48 || gesture.vy > 0.8) {
-          onMinimizeRef.current();
-        }
-      },
-    })
-  ).current;
-}
 
 type PlayerHeaderSectionProps = {
   clipTitle: string;
@@ -32,6 +14,9 @@ type PlayerHeaderSectionProps = {
   playerPosition: number;
   displayDuration: number;
   mode: "player" | "practice" | "playalong";
+  /** Finger-tracking drag-to-collapse — bound to the HEADER ONLY so it never
+   *  contests the reel scrub, loop handles, sliders, or lyric scrolling below. */
+  dragGesture: PanGesture;
   onMinimize: () => void;
   onOverflow: () => void;
 };
@@ -44,10 +29,10 @@ export function PlayerHeaderSection({
   playerPosition,
   displayDuration,
   mode,
+  dragGesture,
   onMinimize,
   onOverflow,
 }: PlayerHeaderSectionProps) {
-  const dismissGesture = useDismissGesture(onMinimize);
   const overflowButton = (label: string, icon: keyof typeof Ionicons.glyphMap, onPress: () => void, size = 18) => (
     <Pressable
       style={({ pressed }) => [
@@ -71,27 +56,30 @@ export function PlayerHeaderSection({
   // the vertical room.
   if (mode !== "player") {
     return (
-      <View style={playerScreenStyles.headerBlock} {...dismissGesture.panHandlers}>
-        <View style={grabberStyles.grabberRow}>
-          <View style={grabberStyles.grabber} />
+      <GestureDetector gesture={dragGesture}>
+        <View style={playerScreenStyles.headerBlock}>
+          <View style={grabberStyles.grabberRow}>
+            <View style={grabberStyles.grabber} />
+          </View>
+          <View style={playerScreenStyles.navRow}>
+            {overflowButton("Minimize player", "chevron-down", onMinimize, 22)}
+            <Text style={playerScreenStyles.navTitle} numberOfLines={1}>
+              {clipTitle}
+            </Text>
+            <View style={playerScreenStyles.navRowRight}>{overflowButton("More options", "ellipsis-horizontal", onOverflow)}</View>
+          </View>
         </View>
-        <View style={playerScreenStyles.navRow}>
-          {overflowButton("Minimize player", "chevron-down", onMinimize, 22)}
-          <Text style={playerScreenStyles.navTitle} numberOfLines={1}>
-            {clipTitle}
-          </Text>
-          <View style={playerScreenStyles.navRowRight}>{overflowButton("More options", "ellipsis-horizontal", onOverflow)}</View>
-        </View>
-      </View>
+      </GestureDetector>
     );
   }
 
   // Expanded (player / listening): full title + metadata.
   return (
-    <View style={playerScreenStyles.headerBlock} {...dismissGesture.panHandlers}>
-      <View style={grabberStyles.grabberRow}>
-        <View style={grabberStyles.grabber} />
-      </View>
+    <GestureDetector gesture={dragGesture}>
+      <View style={playerScreenStyles.headerBlock}>
+        <View style={grabberStyles.grabberRow}>
+          <View style={grabberStyles.grabber} />
+        </View>
       <View style={playerScreenStyles.navRow}>
         {overflowButton("Minimize player", "chevron-down", onMinimize, 22)}
 
@@ -124,7 +112,8 @@ export function PlayerHeaderSection({
           </Text>
         </View>
       </View>
-    </View>
+      </View>
+    </GestureDetector>
   );
 }
 

@@ -13,6 +13,7 @@ type IdeaSelectionBarProps = {
   selectableIdeaIds: string[];
   disabledIdeaIds?: string[];
   onPlaySelected: () => void;
+  onAddToQueue: () => void;
   onToggleHideSelected: () => void;
   hideActionLabel: "Hide" | "Unhide";
   hideActionDisabled?: boolean;
@@ -27,6 +28,7 @@ export function IdeaSelectionBar({
   selectableIdeaIds,
   disabledIdeaIds = [],
   onPlaySelected,
+  onAddToQueue,
   onToggleHideSelected,
   hideActionLabel,
   hideActionDisabled,
@@ -44,6 +46,9 @@ export function IdeaSelectionBar({
   const workspaces = useStore((s) => s.workspaces);
   const replaceListSelection = useStore((s) => s.replaceListSelection);
   const playlistCollectorActive = useStore((s) => !!s.playlistCollector);
+  // A running session turns the dock's primary action from "Play" into
+  // "Add to queue" — the way to grow the queue you already have going.
+  const sessionActive = useStore((s) => s.playerQueue.length > 0);
   const disabledIdeaIdSet = useMemo(() => new Set(disabledIdeaIds), [disabledIdeaIds]);
 
   const activeWorkspace = workspaces.find((workspace) => workspace.id === activeWorkspaceId);
@@ -103,6 +108,25 @@ export function IdeaSelectionBar({
     icon: "albums-outline",
     onPress: () => onCreateProjectFromSelection?.(),
   };
+
+  // Primary transport action — promoted from the overflow onto the dock. With a
+  // session already running it appends to that queue instead of starting anew.
+  const playOrQueueAction: SelectionAction = {
+    key: "play",
+    label: sessionActive
+      ? `Add to queue (${playbackQueue.length})`
+      : `Play (${playbackQueue.length})`,
+    icon: sessionActive ? "add-circle-outline" : "play",
+    onPress: sessionActive ? onAddToQueue : onPlaySelected,
+    disabled: playbackQueue.length === 0,
+  };
+
+  // Editing a single item moved off the dock into the overflow to make room for
+  // the transport action.
+  const editAction: SelectionAction | null =
+    canEditSelection && onEditSelected
+      ? { key: "edit", label: "Edit", icon: "create-outline", onPress: onEditSelected }
+      : null;
 
   // While a playlist-collecting session is active, adding the selection to that
   // playlist is THE primary intent — it leads the dock. Songs are added as song
@@ -218,40 +242,10 @@ export function IdeaSelectionBar({
       ];
     }
 
-    if (canEditSelection) {
-      return [
-        ...(canMakeSong ? [makeSongAction] : []),
-        {
-          key: "edit",
-          label: "Edit",
-          icon: "create-outline",
-          onPress: onEditSelected!,
-        },
-        {
-          key: "hide",
-          label: hideActionLabel,
-          icon: hideActionLabel === "Unhide" ? "eye-outline" : "eye-off-outline",
-          onPress: onToggleHideSelected,
-          disabled: hideActionDisabled,
-        },
-        {
-          key: "delete",
-          label: "Delete",
-          icon: "trash-outline",
-          tone: "danger",
-          onPress: confirmDeleteSelection,
-        },
-        {
-          key: "more",
-          label: "More",
-          icon: "ellipsis-horizontal",
-          onPress: () => setMoreVisible(true),
-        },
-      ];
-    }
-
+    // Transport (Play / Add to queue) leads the dock; Edit lives in More now.
     return [
       ...(canMakeSong ? [makeSongAction] : []),
+      playOrQueueAction,
       {
         key: "hide",
         label: hideActionLabel,
@@ -274,14 +268,13 @@ export function IdeaSelectionBar({
       },
     ];
   }, [
-    canEditSelection,
     canMakeSong,
     collectorAction,
     makeSongAction,
+    playOrQueueAction,
     confirmDeleteSelection,
     hideActionDisabled,
     hideActionLabel,
-    onEditSelected,
     onToggleHideSelected,
     playlistCollectorActive,
     selectedHiddenOnly,
@@ -290,14 +283,9 @@ export function IdeaSelectionBar({
   const sheetActions: SelectionAction[] = useMemo(() => {
     const actions: SelectionAction[] = [];
 
-    if (!selectedHiddenOnly) {
-      actions.push({
-        key: "play",
-        label: `Play selected (${playbackQueue.length})`,
-        icon: "play-outline",
-        onPress: onPlaySelected,
-        disabled: playbackQueue.length === 0,
-      });
+    // Edit a single item — moved off the dock to make room for the transport action.
+    if (editAction) {
+      actions.push(editAction);
     }
 
     if (!selectedHiddenOnly && shareableClips.length > 0) {
@@ -332,11 +320,10 @@ export function IdeaSelectionBar({
     return actions;
   }, [
     canDeselectAll,
+    editAction,
     handleShareSelected,
     isSharing,
     onCreateProjectFromSelection,
-    onPlaySelected,
-    playbackQueue.length,
     replaceListSelection,
     selectableIdeaIds,
     selectedClipIdeasCount,
@@ -345,17 +332,33 @@ export function IdeaSelectionBar({
     shareableClips.length,
   ]);
 
+  // Choosing an action is terminal: selection mode ends the moment it's tapped,
+  // for EVERY action (play, add-to-queue, hide, delete, edit, share, copy, move,
+  // make-song…). The one exception is "More", which just opens the overflow sheet
+  // and must keep the selection alive for the actions inside it. Wrapping here
+  // guarantees consistency no matter what each handler does internally.
+  const endsSelection = (action: SelectionAction): SelectionAction =>
+    action.key === "more"
+      ? action
+      : {
+          ...action,
+          onPress: () => {
+            action.onPress();
+            useStore.getState().cancelListSelection();
+          },
+        };
+
   return (
     <>
       <SelectionDock
-        actions={dockActions}
+        actions={dockActions.map(endsSelection)}
         onLayout={onDockLayout}
       />
 
       <SelectionActionSheet
         visible={moreVisible}
         title="Collection actions"
-        actions={sheetActions}
+        actions={sheetActions.map(endsSelection)}
         onClose={() => setMoreVisible(false)}
       />
     </>

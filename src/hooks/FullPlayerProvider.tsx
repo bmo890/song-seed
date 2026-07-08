@@ -7,7 +7,16 @@ import type { InlinePlayerControls, InlinePlayerSnapshot } from "../types";
 type FullPlayerValue = ReturnType<typeof useFullPlayer>;
 type MiniPlayerValue = ReturnType<typeof useInlinePlayer>;
 
+/** Just the transport *controls* — stable identities that never change on a
+ *  playback tick. Consumers that only drive playback (the mini dock) use this so
+ *  they don't re-render ~20×/sec, which would jank a concurrent drag/scroll. */
+type FullPlayerControls = Pick<
+  FullPlayerValue,
+  "openPlayer" | "syncPlayerSource" | "togglePlayer" | "playPlayer" | "pausePlayer" | "closePlayer"
+>;
+
 const FullPlayerContext = createContext<FullPlayerValue | null>(null);
+const FullPlayerControlsContext = createContext<FullPlayerControls | null>(null);
 const MiniPlayerControlsContext = createContext<InlinePlayerControls | null>(null);
 
 /**
@@ -103,6 +112,16 @@ export function FullPlayerProvider({ children }: { children: React.ReactNode }) 
     await stopMiniFirst();
     return rawDockRef.current!.playPlayer();
   }, [stopMiniFirst]);
+  // Pause + close don't coordinate with the miniplayer, but pin them too so the
+  // stable controls object below never changes identity on a playback tick.
+  const pausePlayer = useCallback<FullPlayerValue["pausePlayer"]>(
+    (...args) => rawDockRef.current!.pausePlayer(...args),
+    []
+  );
+  const closePlayer = useCallback<FullPlayerValue["closePlayer"]>(
+    (...args) => rawDockRef.current!.closePlayer(...args),
+    []
+  );
 
   // `dock` identity changes each render so live playback state (position,
   // isPlaying, waveform) still reaches the few live consumers (player screen +
@@ -114,8 +133,17 @@ export function FullPlayerProvider({ children }: { children: React.ReactNode }) 
       syncPlayerSource,
       togglePlayer,
       playPlayer,
+      pausePlayer,
+      closePlayer,
     }),
-    [rawDock, openPlayer, syncPlayerSource, togglePlayer, playPlayer]
+    [rawDock, openPlayer, syncPlayerSource, togglePlayer, playPlayer, pausePlayer, closePlayer]
+  );
+
+  // Stable controls object — identity never changes on a playback tick, so the
+  // mini dock (which only needs to drive transport) never re-renders at 20Hz.
+  const controls = useMemo<FullPlayerControls>(
+    () => ({ openPlayer, syncPlayerSource, togglePlayer, playPlayer, pausePlayer, closePlayer }),
+    [openPlayer, syncPlayerSource, togglePlayer, playPlayer, pausePlayer, closePlayer]
   );
 
   // Legacy close requests still originate from screens that do not need direct
@@ -176,9 +204,11 @@ export function FullPlayerProvider({ children }: { children: React.ReactNode }) 
 
   return (
     <FullPlayerContext.Provider value={dock}>
-      <MiniPlayerControlsContext.Provider value={miniControls}>
-        {children}
-      </MiniPlayerControlsContext.Provider>
+      <FullPlayerControlsContext.Provider value={controls}>
+        <MiniPlayerControlsContext.Provider value={miniControls}>
+          {children}
+        </MiniPlayerControlsContext.Provider>
+      </FullPlayerControlsContext.Provider>
     </FullPlayerContext.Provider>
   );
 }
@@ -187,6 +217,19 @@ export function useFullPlayerContext(): FullPlayerValue {
   const ctx = useContext(FullPlayerContext);
   if (!ctx) {
     throw new Error("useFullPlayerContext must be used within a FullPlayerProvider");
+  }
+  return ctx;
+}
+
+/**
+ * Transport controls only — a STABLE object that never changes on a playback
+ * tick. Use this (not useFullPlayerContext) anywhere that only needs to drive
+ * playback and must not re-render ~20×/sec (e.g. the mini dock).
+ */
+export function useFullPlayerControls(): FullPlayerControls {
+  const ctx = useContext(FullPlayerControlsContext);
+  if (!ctx) {
+    throw new Error("useFullPlayerControls must be used within a FullPlayerProvider");
   }
   return ctx;
 }

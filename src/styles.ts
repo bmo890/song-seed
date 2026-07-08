@@ -3568,8 +3568,8 @@ export const styles = StyleSheet.create({
   },
   transportFooterZone: {
     paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 16,
+    paddingTop: 6,
+    paddingBottom: 10,
     backgroundColor: "#FDFBF7",
     borderTopWidth: 1,
     borderTopColor: "#E8E4DF",
@@ -4604,109 +4604,128 @@ export const styles = StyleSheet.create({
     zIndex: 50,
   },
   // Playback surface — full-width, hairline top, warm paper
+  // Inverted scheme: a warm terracotta field with paper-colored type/icons, so
+  // the dock reads as one calm color block, clearly distinct from the paper page.
   miniMediaDockSurface: {
-    backgroundColor: "#FDFBF7",
-    borderTopWidth: 1,
-    borderTopColor: "#E8E4DF",
+    backgroundColor: "#8b4f3b",
     paddingHorizontal: 16,
-    paddingTop: 10,
+    // Flush at the very top — the progress track (first child) sits right on the
+    // surface's top edge with no gap. All vertical rhythm lives in the row below.
+    paddingTop: 0,
     paddingBottom: 6,
   },
-  // Recording tint variant
+  // Recording tint variant — keeps its own light red surface + hairline (the
+  // terracotta inversion is playback-only).
   miniMediaDockSurfaceRecording: {
     backgroundColor: "#fff7f7",
+    borderTopWidth: 1,
     borderTopColor: "#fecaca",
+    paddingTop: 10,
   },
-  // Inner content wrapper — dims as a unit for preview state
+  // Inner content wrapper — dims as a unit for preview state (recording dock)
   miniMediaDockContent: {
     gap: 4,
   },
-  // ✕ dismiss — small absolute button, top-right corner
-  // Row 1: [queue] title [expand] [✕] — inline buttons with real gaps so no
-  // control sits close enough to the title to be hit by accident.
-  miniMediaDockHeaderRow: {
+  // Hairline progress along the dock's top edge — display-only (scrubbing lives
+  // in the full player). Bleeds past the surface padding to run edge-to-edge.
+  // Deep terracotta track (a groove cut into the dock) + warm gold fill. Neither
+  // color matches the paper page above, so the fill reads as progress inside a
+  // bar instead of "the page bleeding into the dock" — the previous paper-on-paper
+  // fill was invisible against the page it sat flush against.
+  miniMediaDockProgressTrack: {
+    height: 3,
+    backgroundColor: "#6f3d2d",
+    marginHorizontal: -16,
+  },
+  miniMediaDockProgressFill: {
+    height: 3,
+    backgroundColor: "#E8B865",
+  },
+  // The single dock row: [ ✕ ] [ title/context …flex… ] [ ◀ ▶ ▶▶ ] [ ≡ / n·n ].
+  // ✕ anchors left, the title absorbs the slack, and the transport + queue
+  // clusters sit at the right. A touch of extra vertical room lets the title
+  // carry both the clip title and its context line when present.
+  miniMediaDockRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
+    gap: 8,
+    // Equal top/bottom so the transport cluster centers itself below the flush
+    // progress track — this is where the dock's extra height + centering live.
+    paddingTop: 10,
+    paddingBottom: 10,
   },
+  // Prev · play · next kept tight together so they read as one control.
+  miniMediaDockTransport: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 2,
+  },
+  // Queue button with its "n / n" position readout stacked beneath it.
+  miniMediaDockQueueCol: {
+    minWidth: 34,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 2,
+  },
+  // Translucent paper chip on the terracotta field; fills solid paper when active.
   miniMediaDockHeaderBtn: {
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: "#EAE5DF",
+    backgroundColor: "rgba(253,251,247,0.15)",
     alignItems: "center",
     justifyContent: "center",
   },
   miniMediaDockHeaderBtnActive: {
-    backgroundColor: "#B87D6B",
+    backgroundColor: "#FDFBF7",
+  },
+  // Small "n / n" queue-position readout under the queue button (only for a real
+  // multi-item queue). Tabular so it doesn't jitter as the position changes.
+  miniMediaDockQueueCount: {
+    fontFamily: "PlusJakartaSans_500Medium",
+    fontSize: 10,
+    lineHeight: 11,
+    color: "rgba(253,251,247,0.64)",
+    fontVariant: ["tabular-nums"],
   },
   miniMediaDockTitlePress: {
     flex: 1,
     minWidth: 0,
-    paddingVertical: 4,
+    paddingVertical: 3,
+    gap: 1,
   },
   miniMediaDockTitle: {
-    fontSize: 14,
-    lineHeight: 18,
-    fontWeight: "700",
-    color: "#1b1c1a",
+    fontFamily: "PlusJakartaSans_600SemiBold",
+    fontSize: 13,
+    lineHeight: 17,
+    color: "#FDFBF7",
   },
   miniMediaDockSubtitle: {
-    fontSize: 12,
-    fontWeight: "400",
-    color: "#84736f",
+    fontFamily: "PlusJakartaSans_400Regular",
+    fontSize: 11,
+    lineHeight: 14,
+    color: "rgba(253,251,247,0.64)",
   },
-  // Row 2: transport — centered ⏮  ▶/⏸  ⏭ (compact)
-  miniMediaDockTransportRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 16,
-    paddingVertical: 2,
-  },
-  // Filled terracotta circle — primary play/pause
+  // Cream circle with a terracotta glyph — the one inverted focal control.
   miniMediaDockPlayBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: radii.round,
-    backgroundColor: "#824f3f",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  // Bare skip buttons — no background
-  miniMediaDockSkipBtn: {
     width: 36,
     height: 36,
+    borderRadius: radii.round,
+    backgroundColor: "#FDFBF7",
     alignItems: "center",
     justifyContent: "center",
   },
-  // ─── Compact dock (shown while a selection toolbar is active) ───────────────
-  miniMediaDockCompact: {
-    backgroundColor: "#FDFBF7",
-    borderTopWidth: 1,
-    borderTopColor: "#E8E4DF",
-  },
-  miniMediaDockCompactTrack: {
-    height: 2,
-    backgroundColor: "#E2DAD3",
-  },
-  miniMediaDockCompactFill: {
-    height: 2,
-    backgroundColor: "#824f3f",
-  },
-  miniMediaDockCompactRow: {
-    flexDirection: "row",
+  // Bare skip button — no background
+  miniMediaDockSkipBtn: {
+    width: 30,
+    height: 30,
     alignItems: "center",
-    gap: 10,
-    paddingHorizontal: 16,
-    paddingTop: 7,
-    paddingBottom: 7,
+    justifyContent: "center",
   },
-  miniMediaDockCompactPlayBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: radii.round,
-    backgroundColor: "#824f3f",
+  // Quiet ✕ — bare, small, far left
+  miniMediaDockDismissBtn: {
+    width: 24,
+    height: 24,
     alignItems: "center",
     justifyContent: "center",
   },

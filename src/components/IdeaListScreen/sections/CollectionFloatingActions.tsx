@@ -18,6 +18,7 @@ import { useStore } from "../../../state/useStore";
 import { getDateBucket } from "../../../dateBuckets";
 import { getIdeaSortTimestamp } from "../../../ideaSort";
 import { buildPlayableQueueFromIdeas } from "../../../clipPresentation";
+import { haptic } from "../../../design/haptics";
 
 type CollectionUndoSnapshot = {
   workspaceId: string;
@@ -120,6 +121,13 @@ export function CollectionFloatingActions() {
     .filter((idea) => screen.hiddenIdeaIdsSet.has(idea.id))
     .map((idea) => idea.id);
   const selectedInteractiveIdeas = selectedIdeasInList.filter((idea) => !isIdeaEffectivelyHidden(idea));
+  // Play/queue order must match what's on screen (the sorted, day-grouped list),
+  // not raw storage order — "select all → play" should march down the list as
+  // shown. listEntries is exactly the rendered order.
+  const orderedSelectedInteractiveIdeas = screen.listEntries
+    .filter((entry): entry is Extract<(typeof screen.listEntries)[number], { type: "idea" }> => entry.type === "idea")
+    .map((entry) => entry.idea)
+    .filter((idea) => screen.selectedListIdeaIds.includes(idea.id) && !isIdeaEffectivelyHidden(idea));
   const selectedClipIdeasInList = selectedInteractiveIdeas.filter((idea) => idea.kind === "clip");
   const selectedProjectsInList = selectedIdeasInList.filter((idea) => idea.kind === "project");
   const selectedHiddenOnly =
@@ -334,7 +342,16 @@ export function CollectionFloatingActions() {
         selectedInteractiveIdeasCount={selectedInteractiveIdeas.length}
         onCreateProjectFromSelection={createProjectFromSelection}
         onPlaySelected={() => {
-          void playQueueInPlayer(buildPlayableQueueFromIdeas(selectedInteractiveIdeas));
+          void playQueueInPlayer(buildPlayableQueueFromIdeas(orderedSelectedInteractiveIdeas));
+          // A chosen action ends selection mode — it shouldn't linger after "Play".
+          useStore.getState().cancelListSelection();
+        }}
+        onAddToQueue={() => {
+          const additions = buildPlayableQueueFromIdeas(orderedSelectedInteractiveIdeas);
+          if (additions.length === 0) return;
+          useStore.getState().appendToPlayerQueue(additions);
+          useStore.getState().cancelListSelection();
+          haptic.success();
         }}
         onToggleHideSelected={() => {
           void toggleHiddenSelection();

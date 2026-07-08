@@ -2,6 +2,8 @@ import { Animated, Pressable, Text, View, type StyleProp, type ViewStyle } from 
 import type { ReactNode } from "react";
 import { Ionicons } from "@expo/vector-icons";
 import { styles } from "../../styles";
+import { colors } from "../../design/tokens";
+import { NowPlayingIndicator } from "./NowPlayingIndicator";
 
 /** Renders title text with optional search-needle highlighting */
 function HighlightedText({
@@ -43,8 +45,15 @@ export type IdeaCardProps = {
     isActive?: boolean;
     /** Inline audio is playing for this card */
     inlineActive?: boolean;
-    /** Show warm border when a clip is currently playing */
+    /** Show warm border + terracotta title + EQ indicator when this card's clip
+     *  is the active playback (inline preview OR the dock/full-player session). */
     nowPlaying?: boolean;
+    /** Whether that active playback is actually playing (EQ animates) vs paused
+     *  (EQ freezes to a pause glyph). */
+    nowPlayingIsPlaying?: boolean;
+    /** Songs (multi-take projects) get a small disc glyph before the title so
+     *  they read as "a song that opens to a page", distinct from a clip. */
+    isSong?: boolean;
     /** Drag-over inside target — scale up slightly */
     isInsideTarget?: boolean;
     /** Drag active inside — scale down slightly */
@@ -121,6 +130,8 @@ export function IdeaCard({
     isActive,
     inlineActive,
     nowPlaying,
+    nowPlayingIsPlaying,
+    isSong,
     isInsideTarget,
     isDragActiveInside,
     accentBorderColor,
@@ -189,17 +200,25 @@ export function IdeaCard({
                         />
                     </Pressable>
                     <Pressable
-                        style={styles.ideaDenseMain}
+                        style={[styles.ideaDenseMain, { flexDirection: "row", alignItems: "center" }]}
                         onPress={() => { void onPress(); }}
                         onLongPress={onLongPress}
                         delayLongPress={delayLongPress}
                     >
+                        {nowPlaying ? (
+                            <View style={{ marginRight: 6 }}>
+                                <NowPlayingIndicator playing={!!nowPlayingIsPlaying} color={colors.primary} size={12} />
+                            </View>
+                        ) : isSong ? (
+                            <Ionicons name="disc-outline" size={12} color={colors.textSecondary} style={{ marginRight: 6 }} />
+                        ) : null}
                         <HighlightedText
                             text={title}
                             needle={searchNeedle}
                             textStyle={[
                                 styles.ideaDenseTitle,
                                 titleSemiBold ? styles.ideaDenseTitleProject : null,
+                                nowPlaying ? { color: colors.primary } : null,
                             ]}
                             hitStyle={styles.ideasListCardTitleHighlight}
                             numberOfLines={1}
@@ -306,6 +325,13 @@ export function IdeaCard({
                             <View style={styles.ideasListCardTop}>
                                 <View style={styles.ideasListCardTopBlock}>
                                     <View style={styles.ideasListCardTitleRow}>
+                                        {nowPlaying ? (
+                                            <View style={{ marginRight: 7 }}>
+                                                <NowPlayingIndicator playing={!!nowPlayingIsPlaying} color={colors.primary} size={13} />
+                                            </View>
+                                        ) : isSong ? (
+                                            <Ionicons name="disc-outline" size={13} color={colors.textSecondary} style={{ marginRight: 7 }} />
+                                        ) : null}
                                         <HighlightedText
                                             text={title}
                                             needle={searchNeedle}
@@ -313,6 +339,7 @@ export function IdeaCard({
                                                 styles.ideasListCardTitle,
                                                 titleSemiBold ? styles.ideasListCardTitleProject : null,
                                                 compact ? styles.ideasListCardTitleCompact : null,
+                                                nowPlaying ? { color: colors.primary } : null,
                                             ]}
                                             hitStyle={styles.ideasListCardTitleHighlight}
                                             numberOfLines={compact ? 1 : undefined}

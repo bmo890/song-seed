@@ -1,8 +1,13 @@
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { StyleSheet, View } from "react-native";
-import Animated, { SlideInDown, SlideOutDown } from "react-native-reanimated";
+import Animated, {
+  runOnJS,
+  useAnimatedStyle,
+  withTiming,
+} from "react-native-reanimated";
 import { PlayerScreen, type PlayerSheetNavigation } from "./PlayerScreen";
 import { useStore } from "../state/useStore";
+import { usePlayerSheetPosition } from "../hooks/PlayerSheetPositionProvider";
 import { colors } from "../design/tokens";
 
 /** Root routes that legitimately open ON TOP of the player (trim, re-record,
@@ -19,6 +24,9 @@ const OBSCURING_ROUTES = new Set([
   "ShareImport",
 ]);
 
+const OPEN_DURATION = 300;
+const CLOSE_DURATION = 240;
+
 type PlayerSheetProps = {
   activeRouteName: string;
   isDrawerOpen: boolean;
@@ -28,39 +36,89 @@ type PlayerSheetProps = {
 };
 
 /**
- * The full player as a root-level SHEET — a sibling of the media dock, not a
- * route. It exists while `isPlayerScreenMounted` is true (set by every
- * "open player" flow via setPlayerQueueForScreen) and collapsing simply clears
- * that flag: there is no back stack, so closing always reveals exactly the
- * screen you were on, with the session continuing in the dock.
+ * The full player as a root-level SHEET — a sibling of the media dock.
+ *
+ * It is PRE-MOUNTED (docked off the bottom) the whole time a playback session is
+ * active, so a swipe-up reveals it instantly instead of waiting for this heavy
+ * tree to mount mid-drag. `isPlayerScreenMounted` now means "expanded" (the
+ * sheet is up and owns playback); presence in the tree is driven by whether
+ * there's an active queue. Vertical position is the shared `dragY` (0 = fully
+ * open, screenHeight = docked) — shared with the dock so drag-up (dock) and
+ * drag-down (header) move one value.
  */
 export function PlayerSheet({ activeRouteName, isDrawerOpen, navigateRoot }: PlayerSheetProps) {
-  const mounted = useStore((s) => s.isPlayerScreenMounted);
+  const expanded = useStore((s) => s.isPlayerScreenMounted);
+  const hasSession = useStore((s) => !!s.playerTarget && s.playerQueue.length > 0);
+  const present = expanded || hasSession;
   const obscured = OBSCURING_ROUTES.has(activeRouteName) || isDrawerOpen;
+  const isActive = expanded && !obscured;
+  const { dragY, dockedY, openedByDrag, inMotion, setInMotion } = usePlayerSheetPosition();
 
-  const sheetNavigation = useMemo<PlayerSheetNavigation>(
-    () => ({
-      goBack: () => useStore.getState().setPlayerScreenMounted(false),
+  // Expanding: slide up from wherever the sheet is (docked, or mid-drag). Skipped
+  // when a dock drag-up already drove dragY there (openedByDrag).
+  useEffect(() => {
+    if (!expanded) return;
+    if (openedByDrag.value) {
+      openedByDrag.value = false;
+      return;
+    }
+    setInMotion(true);
+    dragY.value = withTiming(0, { duration: OPEN_DURATION }, (finished) => {
+      if (finished) runOnJS(setInMotion)(false);
+    });
+  }, [dragY, expanded, openedByDrag, setInMotion]);
+
+  const sheetNavigation = useMemo<PlayerSheetNavigation>(() => {
+    // Plain JS callbacks so the withTiming worklet only ever calls runOnJS(these),
+    // never touches the store from the UI thread.
+    const collapse = () => useStore.getState().setPlayerScreenMounted(false);
+    const clearMotion = () => setInMotion(false);
+    return {
+      // Collapse animates the sheet down to docked, THEN clears the expanded
+      // flag. If the session is still alive it stays docked (dock reappears); if
+      // it was ended (audition/✕) the queue is already cleared, so clearing the
+      // flag unmounts. One smooth exit for chevron, hardware back, and drag.
+      goBack: () => {
+        setInMotion(true);
+        // Settle at the docked offset (behind the dock's top), not off the bottom,
+        // so the next swipe-up lifts straight out from there.
+        dragY.value = withTiming(dockedY.value, { duration: CLOSE_DURATION }, (finished) => {
+          if (finished) {
+            runOnJS(collapse)();
+            runOnJS(clearMotion)();
+          }
+        });
+      },
       canGoBack: () => true,
       navigate: (routeName, params) => navigateRoot(routeName, params),
-    }),
-    [navigateRoot]
-  );
+    };
+  }, [dragY, dockedY, navigateRoot, setInMotion]);
+
+  const translateStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: dragY.value }],
+  }));
 
   return (
-    <View style={StyleSheet.absoluteFill} pointerEvents={mounted && !obscured ? "auto" : "none"}>
-      {mounted ? (
+    // zIndex BELOW the media dock (50): the sheet rests behind the dock and lifts
+    // out from its top edge, so a swipe-up reveals it immediately. When fully
+    // expanded the dock is unmounted, so nothing sits over the player.
+    <View style={sheetStyles.host} pointerEvents={isActive ? "auto" : "none"}>
+      {present ? (
         <Animated.View
-          entering={SlideInDown.duration(260)}
-          exiting={SlideOutDown.duration(220)}
           style={[
             sheetStyles.sheet,
+            translateStyle,
             // Keep mounted but invisible while an editing route or the drawer
             // sits on top — state and audio survive; it reappears on return.
             obscured ? sheetStyles.sheetHidden : null,
           ]}
         >
-          <PlayerScreen navigation={sheetNavigation} isActive={!obscured} />
+          <PlayerScreen
+            navigation={sheetNavigation}
+            isActive={isActive}
+            dragY={dragY}
+            sheetInMotion={inMotion}
+          />
         </Animated.View>
       ) : null}
     </View>
@@ -68,6 +126,10 @@ export function PlayerSheet({ activeRouteName, isDrawerOpen, navigateRoot }: Pla
 }
 
 const sheetStyles = StyleSheet.create({
+  host: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 40,
+  },
   sheet: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: colors.page,

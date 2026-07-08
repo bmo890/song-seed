@@ -3,6 +3,7 @@ import { StyleSheet, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import Animated, {
   cancelAnimation,
+  Easing,
   useAnimatedStyle,
   useSharedValue,
   withDelay,
@@ -11,36 +12,48 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 
-const BAR_COUNT = 3;
-const PHASE_DELAYS_MS = [0, 140, 70];
+// One fixed cycle length shared by every bar, so the three run a single steady
+// rolling loop forever — no per-bar period differences to make them drift, and
+// no random keyframes. Each bar just oscillates between its own trough and peak,
+// evenly phase-staggered (0, ⅓, ⅔ of the cycle) so they never converge into a
+// unified jump. This is the exact loop they start on, repeated identically.
+const CYCLE_MS = 820;
+const BARS = [
+  { peak: 1.0, trough: 0.34, phase: 0 },
+  { peak: 0.72, trough: 0.3, phase: CYCLE_MS / 3 },
+  { peak: 0.9, trough: 0.42, phase: (CYCLE_MS * 2) / 3 },
+];
 
 function IndicatorBar({
   color,
   maxHeight,
-  delayMs,
+  peak,
+  trough,
+  phaseMs,
 }: {
   color: string;
   maxHeight: number;
-  delayMs: number;
+  peak: number;
+  trough: number;
+  phaseMs: number;
 }) {
-  const level = useSharedValue(0.5);
+  const level = useSharedValue(trough);
 
   useEffect(() => {
+    const half = CYCLE_MS / 2;
     level.value = withDelay(
-      delayMs,
+      phaseMs,
       withRepeat(
         withSequence(
-          withTiming(1, { duration: 260 }),
-          withTiming(0.3, { duration: 230 }),
-          withTiming(0.8, { duration: 210 }),
-          withTiming(0.45, { duration: 250 })
+          withTiming(peak, { duration: half, easing: Easing.inOut(Easing.sin) }),
+          withTiming(trough, { duration: half, easing: Easing.inOut(Easing.sin) })
         ),
         -1,
-        true
+        false
       )
     );
     return () => cancelAnimation(level);
-  }, [delayMs, level]);
+  }, [level, peak, trough, phaseMs]);
 
   const animatedStyle = useAnimatedStyle(() => ({
     height: Math.max(2, maxHeight * level.value),
@@ -74,8 +87,15 @@ export function NowPlayingIndicator({
 
   return (
     <View style={[indicatorStyles.wrap, { height: size, width: size + 2 }]}>
-      {Array.from({ length: BAR_COUNT }, (_, index) => (
-        <IndicatorBar key={index} color={color} maxHeight={size} delayMs={PHASE_DELAYS_MS[index]} />
+      {BARS.map((bar, index) => (
+        <IndicatorBar
+          key={index}
+          color={color}
+          maxHeight={size}
+          peak={bar.peak}
+          trough={bar.trough}
+          phaseMs={bar.phase}
+        />
       ))}
     </View>
   );

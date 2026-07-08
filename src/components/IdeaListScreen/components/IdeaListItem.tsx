@@ -163,6 +163,16 @@ export function IdeaListItem({
             s.inlineTarget.clipId === playClip.id &&
             s.inlineIsPlaying
     );
+    // This idea is the active dock / full-player session (any of its clips) —
+    // idea-level, so a song card lights up whichever take is playing.
+    const sessionActive = useStore((s) => s.playerTarget?.ideaId === item.id);
+    const sessionPlaying = useStore((s) => s.playerIsPlaying);
+    // "Now playing" (EQ indicator + terracotta title) is reserved for the durable
+    // dock / full-player session. A clip-card inline PREVIEW keeps its own plain
+    // presentation (its own play/pause button + scrubber) — it must not borrow the
+    // now-playing treatment.
+    const nowPlaying = sessionActive;
+    const nowPlayingIsPlaying = sessionActive && sessionPlaying;
 
     const isSelected = useStore((s) => s.selectedListIdeaIds.includes(item.id));
     const showSelectionIndicator = listSelectionMode;
@@ -333,7 +343,9 @@ export function IdeaListItem({
                             selected={isSelected}
                             inlineActive={inlineActive}
                             isInlinePlaying={isInlinePlaying}
-                            nowPlaying={inlineActive}
+                            nowPlaying={nowPlaying}
+                            nowPlayingIsPlaying={nowPlayingIsPlaying}
+                            isSong={item.kind === "project"}
                             accentBorderColor={item.kind === "project" ? workspaceAccent : null}
                             compact={compact}
                             denseRow={compact}
