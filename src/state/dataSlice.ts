@@ -237,6 +237,8 @@ export type DataSlice = {
     ) => void;
     reorderPlaylistItems: (playlistId: string, orderedItemIds: string[]) => void;
     removePlaylistItem: (playlistId: string, playlistItemId: string) => void;
+    renamePlaylist: (playlistId: string, title: string) => void;
+    deletePlaylist: (playlistId: string) => void;
     addSongbook: (title: string) => string;
     addItemsToSongbook: (songbookId: string, items: Array<Omit<SongbookItem, "id" | "addedAt">>) => void;
     reorderSongbookItems: (songbookId: string, orderedItemIds: string[]) => void;
@@ -2560,6 +2562,24 @@ export const createDataSlice: StateCreator<
                         items: playlist.items.filter((item) => item.id !== playlistItemId),
                     }
             ),
+        }));
+    },
+
+    renamePlaylist: (playlistId, title) => {
+        const nextTitle = title.trim();
+        if (!nextTitle) return;
+        set((state) => ({
+            playlists: state.playlists.map((playlist) =>
+                playlist.id !== playlistId
+                    ? playlist
+                    : { ...playlist, title: nextTitle, updatedAt: Date.now() }
+            ),
+        }));
+    },
+
+    deletePlaylist: (playlistId) => {
+        set((state) => ({
+            playlists: state.playlists.filter((playlist) => playlist.id !== playlistId),
         }));
     },
 

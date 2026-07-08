@@ -56,7 +56,9 @@ export function useSongScreenModel() {
   const playerDockHeight = useStore((s) => s.playerDockHeight);
   const floatingBaseBottom = getFloatingActionDockBottomOffset(insets.bottom);
   const songPageBaseBottomPadding = 24 + Math.max(insets.bottom, 16);
-  const clipListFooterSpacerHeight = getFloatingActionDockContentClearance(insets.bottom);
+  // playerDockHeight keeps the last clips scrollable above the global media dock.
+  const clipListFooterSpacerHeight =
+    getFloatingActionDockContentClearance(insets.bottom) + playerDockHeight;
   const clipSelectionFooterSpacerHeight = selectionDockHeight + 24 + Math.max(insets.bottom, 12) + playerDockHeight;
 
   useEffect(() => {

@@ -442,7 +442,12 @@ export function useCollectionScreenModel() {
   const bottomToolbarAllowance = 18;
   const activeDockHeight = listSelectionMode ? selectionDockHeight : floatingDockHeight;
   const activeDockClearance = listSelectionMode ? selectionDockBottom + selectionDockHeight : getFloatingActionDockScrollPastClearance(insets.bottom);
-  const listFooterSpacerHeight = activeDockClearance + (listSelectionMode ? activeDockHeight : 0) + bottomToolbarAllowance;
+  // playerDockHeight keeps the last rows scrollable above the global media dock
+  // (it already feeds selectionDockBottom, but normal-mode scrolling needs it too).
+  const listFooterSpacerHeight =
+    activeDockClearance +
+    (listSelectionMode ? activeDockHeight : playerDockHeight) +
+    bottomToolbarAllowance;
 
   return {
     navigation,

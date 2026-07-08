@@ -96,7 +96,6 @@ export function SongScreenProvider({ children }: { children: ReactNode }) {
         return;
       }
       useStore.getState().setPlayerQueueForScreen(queue, 0, true);
-      screen.navigation.navigate("Player" as never);
     }
 
     function startRecording(parentClipId: string | null) {

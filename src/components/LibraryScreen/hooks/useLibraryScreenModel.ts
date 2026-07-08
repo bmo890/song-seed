@@ -1,15 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useRoute } from "@react-navigation/native";
 import { useStore } from "../../../state/useStore";
-import type { Playlist } from "../../../types";
+import { AppAlert } from "../../common/AppAlert";
+import { findPlaylist } from "../../../libraryNavigation";
 import {
-  buildCollectionPathLabel,
-  findPlaylist,
-  resolvePlaylistClip,
-  resolvePlaylistIdea,
-  sortWorkspacesWithPrimary,
-} from "../../../libraryNavigation";
-import type { PlaylistDisplayItem, PlaylistPickerState } from "../types";
+  buildPlaylistQueue,
+  getPlaylistDurationMs,
+  resolvePlaylistTracks,
+  type PlaylistTrack,
+} from "../../../playlistPlayback";
 
 function buildDefaultPlaylistTitle(count: number) {
   return `Playlist ${count + 1}`;
@@ -19,183 +18,144 @@ export function useLibraryScreenModel() {
   // NOTE: the browse-root back handler is registered by LibraryScreenContent (it must
   // stay active on every tab, not just while the playlists model is mounted).
   const navigation = useNavigation<any>();
+  const route = useRoute<any>();
   const rootNavigation = navigation.getParent?.();
-  const navigateRoot = (route: string, params?: object) =>
-    (rootNavigation ?? navigation).navigate(route as never, params as never);
+  const navigateRoot = (routeName: string, params?: object) =>
+    (rootNavigation ?? navigation).navigate(routeName as never, params as never);
 
   const workspaces = useStore((state) => state.workspaces);
   const playlists = useStore((state) => state.playlists);
   const activeWorkspaceId = useStore((state) => state.activeWorkspaceId);
-  const primaryWorkspaceId = useStore((state) => state.primaryWorkspaceId);
-  const workspaceListOrder = useStore((state) => state.workspaceListOrder);
-  const workspaceLastOpenedAt = useStore((state) => state.workspaceLastOpenedAt);
+  const playerTarget = useStore((state) => state.playerTarget);
+  const playerIsPlaying = useStore((state) => state.playerIsPlaying);
   const addPlaylist = useStore((state) => state.addPlaylist);
-  const addItemsToPlaylist = useStore((state) => state.addItemsToPlaylist);
   const reorderPlaylistItems = useStore((state) => state.reorderPlaylistItems);
   const removePlaylistItem = useStore((state) => state.removePlaylistItem);
+  const renamePlaylistAction = useStore((state) => state.renamePlaylist);
+  const deletePlaylistAction = useStore((state) => state.deletePlaylist);
   const setActiveWorkspaceId = useStore((state) => state.setActiveWorkspaceId);
   const setSelectedIdeaId = useStore((state) => state.setSelectedIdeaId);
+  const startPlaylistCollecting = useStore((state) => state.startPlaylistCollecting);
 
   const [selectedPlaylistId, setSelectedPlaylistId] = useState<string | null>(null);
-  const [pickerState, setPickerState] = useState<PlaylistPickerState | null>(null);
   const [playlistModalOpen, setPlaylistModalOpen] = useState(false);
   const [playlistDraftTitle, setPlaylistDraftTitle] = useState("");
+  const [renameModalOpen, setRenameModalOpen] = useState(false);
+  const [renameDraftTitle, setRenameDraftTitle] = useState("");
+  const [editMode, setEditMode] = useState(false);
 
-  const activePlaylistId = pickerState?.playlistId ?? selectedPlaylistId;
-  const activePlaylist = findPlaylist(playlists, activePlaylistId);
+  const activePlaylist = findPlaylist(playlists, selectedPlaylistId);
   const sortedPlaylists = useMemo(
     () => playlists.slice().sort((a, b) => b.updatedAt - a.updatedAt || a.title.localeCompare(b.title)),
     [playlists]
   );
-  const pickerWorkspaceChoices = useMemo(
-    () =>
-      sortWorkspacesWithPrimary(
-        workspaces.filter((workspace) => !workspace.isArchived),
-        primaryWorkspaceId,
-        workspaceListOrder,
-        workspaceLastOpenedAt
-      ),
-    [primaryWorkspaceId, workspaceLastOpenedAt, workspaceListOrder, workspaces]
-  );
+
+  // Returning from a collecting session ("Done" on the collector banner) re-opens
+  // the playlist that started it. openToken forces the effect on repeat visits.
+  const openPlaylistId = route.params?.openPlaylistId as string | undefined;
+  const openToken = route.params?.openToken as number | undefined;
+  useEffect(() => {
+    if (!openPlaylistId || !openToken) return;
+    setSelectedPlaylistId(openPlaylistId);
+    (navigation as any).setParams({ openPlaylistId: undefined, openToken: undefined });
+  }, [navigation, openPlaylistId, openToken]);
 
   useEffect(() => {
-    if (selectedPlaylistId && !activePlaylist && !pickerState) {
+    if (selectedPlaylistId && !activePlaylist) {
       setSelectedPlaylistId(null);
     }
-    if (pickerState && !findPlaylist(playlists, pickerState.playlistId)) {
-      setPickerState(null);
+  }, [activePlaylist, selectedPlaylistId]);
+
+  // Leaving the detail page (or switching playlists) always exits edit mode.
+  useEffect(() => {
+    setEditMode(false);
+  }, [selectedPlaylistId]);
+
+  const playlistTracks = useMemo<PlaylistTrack[]>(
+    () => (activePlaylist ? resolvePlaylistTracks(workspaces, activePlaylist) : []),
+    [activePlaylist, workspaces]
+  );
+  const playlistDurationMs = useMemo(() => getPlaylistDurationMs(playlistTracks), [playlistTracks]);
+
+  // The track currently loaded in the player queue, for the now-playing row state.
+  const nowPlayingItemId = useMemo(() => {
+    if (!playerTarget) return null;
+    return (
+      playlistTracks.find(
+        (track) =>
+          track.queueItem?.ideaId === playerTarget.ideaId &&
+          track.queueItem?.clipId === playerTarget.clipId
+      )?.itemId ?? null
+    );
+  }, [playerTarget, playlistTracks]);
+
+  const playFromTrack = (startItemId?: string) => {
+    const { queue, startIndex } = buildPlaylistQueue(playlistTracks, startItemId);
+    if (queue.length === 0) {
+      AppAlert.info(
+        "Nothing to play",
+        "This playlist has no playable tracks yet. Add clips or songs first."
+      );
+      return;
     }
-  }, [activePlaylist, pickerState, playlists, selectedPlaylistId]);
+    const store = useStore.getState();
+    store.requestInlineStop();
+    store.setPlayerQueue(queue, startIndex, true);
+  };
 
-  const playlistDisplayItems = useMemo<PlaylistDisplayItem[]>(() => {
-    if (!activePlaylist) return [];
-
-    return activePlaylist.items.map((item) => {
-      if (item.kind === "song") {
-        const resolvedIdea = resolvePlaylistIdea(workspaces, item);
-        if (!resolvedIdea) {
-          return {
-            id: item.id,
-            kind: item.kind,
-            title: "Unavailable song",
-            subtitle: "This song no longer exists in the library.",
-            metaLabel: "SONG",
-            available: false,
-            workspaceId: null,
-            ideaId: null,
-          };
-        }
-
-        return {
-          id: item.id,
-          kind: item.kind,
-          title: resolvedIdea.idea.title,
-          subtitle: `${resolvedIdea.workspace.title} • ${buildCollectionPathLabel(
-            resolvedIdea.workspace,
-            item.collectionId
-          )}`,
-          metaLabel: "SONG",
-          available: true,
-          workspaceId: resolvedIdea.workspace.id,
-          ideaId: resolvedIdea.idea.id,
-        };
-      }
-
-      const resolvedClip = resolvePlaylistClip(workspaces, item);
-      if (resolvedClip) {
-        return {
-          id: item.id,
-          kind: item.kind,
-          title: resolvedClip.clip.title,
-          subtitle: `${resolvedClip.workspace.title} • ${buildCollectionPathLabel(
-            resolvedClip.workspace,
-            item.collectionId
-          )}`,
-          metaLabel: "CLIP",
-          available: true,
-          workspaceId: resolvedClip.workspace.id,
-          ideaId: resolvedClip.idea.id,
-        };
-      }
-
-      const resolvedIdea = resolvePlaylistIdea(workspaces, item);
-      if (resolvedIdea && resolvedIdea.idea.kind === "clip") {
-        return {
-          id: item.id,
-          kind: item.kind,
-          title: resolvedIdea.idea.title,
-          subtitle: `${resolvedIdea.workspace.title} • ${buildCollectionPathLabel(
-            resolvedIdea.workspace,
-            item.collectionId
-          )}`,
-          metaLabel: "CLIP",
-          available: true,
-          workspaceId: resolvedIdea.workspace.id,
-          ideaId: resolvedIdea.idea.id,
-        };
-      }
-
-      return {
-        id: item.id,
-        kind: item.kind,
-        title: "Unavailable clip",
-        subtitle: "This clip no longer exists in the library.",
-        metaLabel: "CLIP",
-        available: false,
-        workspaceId: null,
-        ideaId: null,
-      };
+  const startCollecting = () => {
+    if (!activePlaylist) return;
+    startPlaylistCollecting(activePlaylist.id);
+    navigation.navigate("WorkspaceStack", {
+      screen: "Browse",
+      params: activeWorkspaceId ? { workspaceId: activeWorkspaceId } : undefined,
     });
-  }, [activePlaylist, workspaces]);
+  };
 
-  const pageTitle = pickerState
-    ? "Add to Playlist"
-    : activePlaylist
-      ? activePlaylist.title
-      : "Library";
-  const pageSubtitle = pickerState
-    ? "Choose songs or clips, then return them to the playlist."
-    : activePlaylist
-      ? "Playlists are saved groups of songs and clips. They stay separate from the current queue."
-      : "Playlists are saved groups of songs and clips. They do not replace the queue used inside ideas and songs.";
+  const openTrackLocation = (track: PlaylistTrack) => {
+    if (!track.ideaId || !track.workspaceId) return;
+    if (activeWorkspaceId !== track.workspaceId) {
+      setActiveWorkspaceId(track.workspaceId);
+    }
+    setSelectedIdeaId(track.ideaId);
+    navigateRoot("IdeaDetail", { ideaId: track.ideaId });
+  };
 
-  const handleBackPress = () => {
-    if (pickerState?.songIdeaId) {
-      setPickerState((current) => (current ? { ...current, songIdeaId: null } : current));
-      return;
-    }
-    if (pickerState?.collectionId) {
-      setPickerState((current) => (current ? { ...current, collectionId: null } : current));
-      return;
-    }
-    if (pickerState?.workspaceId) {
-      setPickerState((current) => (current ? { ...current, workspaceId: null } : current));
-      return;
-    }
-    if (pickerState) {
-      setPickerState(null);
-      return;
-    }
-    setSelectedPlaylistId(null);
+  const confirmDeletePlaylist = () => {
+    if (!activePlaylist) return;
+    AppAlert.confirm(
+      "Delete playlist?",
+      `"${activePlaylist.title}" will be removed. The clips and songs inside it stay in your library.`,
+      () => {
+        deletePlaylistAction(activePlaylist.id);
+        setSelectedPlaylistId(null);
+      },
+      { confirmLabel: "Delete" }
+    );
   };
 
   return {
     activeWorkspaceId,
-    pageTitle,
-    pageSubtitle,
-    showBack: !!activePlaylist || !!pickerState,
+    pageTitle: activePlaylist ? "" : "Library",
+    showBack: !!activePlaylist,
     sortedPlaylists,
-    pickerWorkspaceChoices,
     activePlaylist,
-    playlistDisplayItems,
-    pickerState,
-    setPickerState,
+    playlistTracks,
+    playlistDurationMs,
+    nowPlayingItemId,
+    playerIsPlaying,
+    editMode,
+    setEditMode,
     playlistModalOpen,
     setPlaylistModalOpen,
     playlistDraftTitle,
     setPlaylistDraftTitle,
+    renameModalOpen,
+    setRenameModalOpen,
+    renameDraftTitle,
+    setRenameDraftTitle,
     defaultPlaylistTitle: buildDefaultPlaylistTitle(playlists.length),
-    handleBackPress,
+    handleBackPress: () => setSelectedPlaylistId(null),
     openPlaylist: (playlistId: string) => setSelectedPlaylistId(playlistId),
     openCreatePlaylist: () => {
       setPlaylistDraftTitle("");
@@ -209,29 +169,24 @@ export function useLibraryScreenModel() {
       setPlaylistDraftTitle("");
       setSelectedPlaylistId(playlistId);
     },
-    openPicker: () =>
-      setPickerState({
-        playlistId: activePlaylist!.id,
-        workspaceId: activeWorkspaceId ?? null,
-        collectionId: null,
-        songIdeaId: null,
-        selectedItems: [],
-      }),
-    openPlaylistItem: (item: PlaylistDisplayItem) => {
-      if (!item.available || !item.workspaceId || !item.ideaId) return;
-      if (activeWorkspaceId !== item.workspaceId) {
-        setActiveWorkspaceId(item.workspaceId);
-      }
-      setSelectedIdeaId(item.ideaId);
-      navigateRoot("IdeaDetail", { ideaId: item.ideaId });
+    openRenamePlaylist: () => {
+      if (!activePlaylist) return;
+      setRenameDraftTitle(activePlaylist.title);
+      setRenameModalOpen(true);
     },
+    renamePlaylist: () => {
+      if (!activePlaylist) return;
+      renamePlaylistAction(activePlaylist.id, renameDraftTitle);
+      setRenameModalOpen(false);
+      setRenameDraftTitle("");
+    },
+    confirmDeletePlaylist,
+    playFromTrack,
+    togglePlayback: () => useStore.getState().requestPlayerToggle(),
+    startCollecting,
+    openTrackLocation,
     removePlaylistItem: (playlistId: string, itemId: string) => removePlaylistItem(playlistId, itemId),
     reorderPlaylistItems: (playlistId: string, orderedItemIds: string[]) =>
       reorderPlaylistItems(playlistId, orderedItemIds),
-    confirmPicker: () => {
-      if (!activePlaylist || !pickerState) return;
-      addItemsToPlaylist(activePlaylist.id, pickerState.selectedItems);
-      setPickerState(null);
-    },
   };
 }

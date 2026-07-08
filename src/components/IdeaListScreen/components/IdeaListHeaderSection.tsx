@@ -1,12 +1,29 @@
 import { Pressable, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useNavigation } from "@react-navigation/native";
 import { styles } from "../../../styles";
 import { ClipboardBanner } from "../../ClipboardBanner";
 import { SongTargetPickerBanner } from "../../SongTargetPickerBanner";
+import { PlaylistCollectorBanner } from "../../PlaylistCollectorBanner";
 import { ClipClipboard } from "../../../types";
 import { useStore } from "../../../state/useStore";
 import { SearchField } from "../../common/SearchField";
 import { AppAlert } from "../../common/AppAlert";
+
+/** Walks up the navigator tree to reach a route registered on an ancestor
+ *  (e.g. the drawer's LibraryHome from inside the workspace stack). */
+function navigateToAncestorRoute(navigation: any, routeName: string, params?: Record<string, unknown>) {
+  let current = navigation;
+  while (current) {
+    const routeNames = current.getState?.()?.routeNames;
+    if (Array.isArray(routeNames) && routeNames.includes(routeName)) {
+      current.navigate(routeName, params);
+      return true;
+    }
+    current = current.getParent?.();
+  }
+  return false;
+}
 
 type IdeaListHeaderSectionProps = {
   searchQuery: string;
@@ -33,13 +50,36 @@ export function IdeaListHeaderSection({
   onPasteClipboard,
   onCancelClipboard,
 }: IdeaListHeaderSectionProps) {
+  const navigation = useNavigation<any>();
   const songTargetPicker = useStore((s) => s.songTargetPicker);
   const cancelSongTargetPicking = useStore((s) => s.cancelSongTargetPicking);
+  const playlistCollector = useStore((s) => s.playlistCollector);
+  const collectorPlaylistTitle = useStore((s) =>
+    s.playlistCollector
+      ? s.playlists.find((playlist) => playlist.id === s.playlistCollector!.playlistId)?.title ?? null
+      : null
+  );
 
   return (
     <>
       {songTargetPicker ? (
         <SongTargetPickerBanner count={songTargetPicker.noteIds.length} onCancel={cancelSongTargetPicking} />
+      ) : null}
+
+      {playlistCollector && collectorPlaylistTitle ? (
+        <PlaylistCollectorBanner
+          playlistTitle={collectorPlaylistTitle}
+          addedCount={playlistCollector.addedCount}
+          onDone={() => {
+            const playlistId = playlistCollector.playlistId;
+            useStore.getState().cancelPlaylistCollecting();
+            navigateToAncestorRoute(navigation, "LibraryHome", {
+              openPlaylistId: playlistId,
+              openToken: Date.now(),
+            });
+          }}
+          onCancel={() => useStore.getState().cancelPlaylistCollecting()}
+        />
       ) : null}
 
       <View style={styles.ideasSearchUtilityRow}>

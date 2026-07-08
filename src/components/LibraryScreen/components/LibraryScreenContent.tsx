@@ -12,7 +12,6 @@ import { useSongbookModel } from "../hooks/useSongbookModel";
 import { useSetlistModel } from "../hooks/useSetlistModel";
 import { PlaylistListView } from "../views/PlaylistListView";
 import { PlaylistDetailView } from "../views/PlaylistDetailView";
-import { PlaylistPickerView } from "../views/PlaylistPickerView";
 import { SongbookListView } from "../views/SongbookListView";
 import { SongbookDetailView } from "../views/SongbookDetailView";
 import { SongbookPickerView } from "../views/SongbookPickerView";
@@ -28,6 +27,14 @@ const SECTIONS: Array<{ key: Section; label: string }> = [
   { key: "setlists", label: "Setlists" },
 ];
 
+/** One-line job statement per tab — the tabs looked identical without them and
+ *  users couldn't tell listen/read/share apart. */
+const SECTION_HINTS: Record<Section, string> = {
+  playlists: "Listen — ordered queues of clips and songs, played back to back.",
+  songbook: "Read — collections of lyric and chord charts.",
+  setlists: "Share — song sets (takes + charts) ready to send to the band.",
+};
+
 /**
  * Each tab is its own component so ONLY the active tab's model hook runs. Previously all
  * three models (playlists + songbook + setlists) subscribed to the whole library and
@@ -41,6 +48,7 @@ export function LibraryScreenContent() {
   const tabs = (
     <View style={local.tabsWrap}>
       <SegmentedControl options={SECTIONS} value={section} onChange={setSection} />
+      <Text style={local.desc}>{SECTION_HINTS[section]}</Text>
     </View>
   );
 
@@ -65,38 +73,33 @@ function PlaylistsSection({ tabs }: { tabs: ReactNode }) {
       />
 
       {!model.showBack ? tabs : null}
-      {!model.showBack ? <Text style={local.desc}>{model.pageSubtitle}</Text> : null}
 
-      {!model.activePlaylist && !model.pickerState ? (
+      {!model.activePlaylist ? (
         <PlaylistListView
           playlists={model.sortedPlaylists}
           onCreatePlaylist={model.openCreatePlaylist}
           onOpenPlaylist={model.openPlaylist}
         />
-      ) : null}
-
-      {model.activePlaylist && !model.pickerState ? (
+      ) : (
         <PlaylistDetailView
           playlist={model.activePlaylist}
-          displayItems={model.playlistDisplayItems}
-          onAddItems={model.openPicker}
-          onOpenItem={model.openPlaylistItem}
+          tracks={model.playlistTracks}
+          durationMs={model.playlistDurationMs}
+          nowPlayingItemId={model.nowPlayingItemId}
+          isPlaying={model.playerIsPlaying}
+          editMode={model.editMode}
+          onToggleEditMode={() => model.setEditMode((prev: boolean) => !prev)}
+          onTogglePlayback={model.togglePlayback}
+          onPlayFromTrack={model.playFromTrack}
+          onAddItems={model.startCollecting}
+          onRename={model.openRenamePlaylist}
+          onDelete={model.confirmDeletePlaylist}
           onRemoveItem={(itemId) => model.removePlaylistItem(model.activePlaylist!.id, itemId)}
           onReorderItems={(orderedItemIds) =>
             model.reorderPlaylistItems(model.activePlaylist!.id, orderedItemIds)
           }
         />
-      ) : null}
-
-      {model.pickerState && model.activePlaylist ? (
-        <PlaylistPickerView
-          workspaces={model.pickerWorkspaceChoices}
-          pickerState={model.pickerState}
-          onChangePickerState={model.setPickerState}
-          onCancel={() => model.setPickerState(null)}
-          onConfirm={model.confirmPicker}
-        />
-      ) : null}
+      )}
 
       <QuickNameModal
         visible={model.playlistModalOpen}
@@ -111,6 +114,20 @@ function PlaylistsSection({ tabs }: { tabs: ReactNode }) {
         onSave={model.createPlaylist}
         helperText="Playlists are global and can hold songs or clips from any workspace."
         saveLabel="Create"
+      />
+
+      <QuickNameModal
+        visible={model.renameModalOpen}
+        title="Rename Playlist"
+        draftValue={model.renameDraftTitle}
+        placeholderValue={model.activePlaylist?.title ?? ""}
+        onChangeDraft={model.setRenameDraftTitle}
+        onCancel={() => {
+          model.setRenameModalOpen(false);
+          model.setRenameDraftTitle("");
+        }}
+        onSave={model.renamePlaylist}
+        saveLabel="Save"
       />
     </SafeAreaView>
   );

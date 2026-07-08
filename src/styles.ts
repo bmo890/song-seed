@@ -4622,21 +4622,28 @@ export const styles = StyleSheet.create({
     gap: 4,
   },
   // ✕ dismiss — small absolute button, top-right corner
-  miniMediaDockCloseBtn: {
-    position: "absolute",
-    top: 10,
-    right: 12,
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+  // Row 1: [queue] title [expand] [✕] — inline buttons with real gaps so no
+  // control sits close enough to the title to be hit by accident.
+  miniMediaDockHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  miniMediaDockHeaderBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     backgroundColor: "#EAE5DF",
     alignItems: "center",
     justifyContent: "center",
-    zIndex: 2,
   },
-  // Row 1: "Title · Project" — paddingRight clears the absolute ✕
-  miniMediaDockTitleRow: {
-    paddingRight: 32,
+  miniMediaDockHeaderBtnActive: {
+    backgroundColor: "#B87D6B",
+  },
+  miniMediaDockTitlePress: {
+    flex: 1,
+    minWidth: 0,
+    paddingVertical: 4,
   },
   miniMediaDockTitle: {
     fontSize: 14,

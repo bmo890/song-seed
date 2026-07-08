@@ -22,7 +22,6 @@ export function CollectionHeaderMenu() {
     if (queue.length === 0) return;
     await inlinePlayer.resetInlinePlayer();
     useStore.getState().setPlayerQueueForScreen(queue, 0, true);
-    screen.navigateRoot("Player");
   };
 
   return (

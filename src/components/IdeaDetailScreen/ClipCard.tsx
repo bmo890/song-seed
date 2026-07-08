@@ -231,7 +231,6 @@ export const ClipCard = React.memo(function ClipCard({
     if (!hasClipPlaybackSource(clip)) return;
     await inlinePlayer.resetInlinePlayer();
     setPlayerQueueForScreen([{ ideaId: idea.id, clipId: clip.id }], 0, true);
-    navigation.navigate("Player" as never);
   };
 
   const beginActions = () => {
