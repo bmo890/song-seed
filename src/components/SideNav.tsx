@@ -1,12 +1,30 @@
+import type { ComponentProps } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { getHierarchyIconColor, getHierarchyIconName, type HierarchyLevel } from "../hierarchy";
 import { styles } from "../styles";
 import { radii, shadows } from "../design/tokens";
 import { NavRow } from "./common/NavRow";
 import { WorkspaceAvatar } from "./common/WorkspaceAvatar";
 import { getWorkspaceTheme } from "../workspaceTheme";
+
+type IoniconName = ComponentProps<typeof Ionicons>["name"];
+
+// Sidenav-local icon set. Kept separate from the app-wide hierarchy icons so the
+// drawer can use warmer, more music-appropriate glyphs tinted with the earthy
+// workspace palette — without disturbing the icons used in idea lists/breadcrumbs.
+const NAV_ICONS: Record<
+  "revisit" | "activity" | "library" | "notepad" | "tuner" | "metronome" | "settings",
+  { icon: IoniconName; color: string }
+> = {
+  revisit: { icon: "time-outline", color: "#7A9E8E" }, // sage
+  activity: { icon: "analytics-outline", color: "#A89B6E" }, // ochre
+  library: { icon: "library-outline", color: "#7B8FAD" }, // slate
+  notepad: { icon: "journal-outline", color: "#8E7B9E" }, // plum
+  tuner: { icon: "speedometer-outline", color: "#6E8E7D" }, // forest
+  metronome: { icon: "pulse-outline", color: "#9E7B6E" }, // rust
+  settings: { icon: "settings-outline", color: "#84736f" }, // warm gray
+};
 
 type RecentCollectionLite = {
   id: string;
@@ -45,13 +63,6 @@ type Props = {
   onGoNotepad: () => void;
   onOpenCollection: (collectionId: string) => void;
 };
-
-function navIcon(level: HierarchyLevel) {
-  return {
-    icon: getHierarchyIconName(level),
-    color: getHierarchyIconColor(level),
-  };
-}
 
 export function SideNav({
   currentRoute,
@@ -136,53 +147,50 @@ export function SideNav({
             </Pressable>
           </View>
 
-          {/* Collections chip */}
+          {/* Collections — browse all collections in this workspace. A quiet,
+              plain row; the emphasis (white surface) goes to Recent below, which
+              gets pressed far more often. */}
           {workspaceTitle ? (
-            <View style={sideNavStyles.actionRow}>
+            <Pressable
+              style={({ pressed }) => [sideNavStyles.collectionsRow, pressed ? styles.pressDown : null]}
+              onPress={onGoWorkspace}
+            >
+              <Ionicons name="albums-outline" size={16} color="#84736f" />
+              <Text style={sideNavStyles.collectionsLabel}>Collections</Text>
+              <Ionicons name="chevron-forward" size={14} color="#a89994" />
+            </Pressable>
+          ) : null}
+
+          {/* Most recent collection — the primary quick-jump, so it carries the
+              white CTA surface + the workspace accent on its (single) folder. */}
+          {mostRecent ? (
+            <>
+              <View style={sideNavStyles.cardDivider} />
+              <Text style={[sideNavStyles.sectionLabel, sideNavStyles.recentLabelInCard]}>Recent</Text>
               <Pressable
-                style={({ pressed }) => [sideNavStyles.actionChip, pressed ? styles.pressDown : null]}
-                onPress={onGoWorkspace}
+                style={({ pressed }) => [
+                  sideNavStyles.recentItem,
+                  mostRecent.active ? { borderColor: workspaceTheme.accent } : null,
+                  pressed ? styles.pressDown : null,
+                ]}
+                onPress={() => onOpenCollection(mostRecent.id)}
               >
-                <Text style={sideNavStyles.actionChipLabel}>Collections</Text>
-                <Ionicons name="chevron-forward" size={13} color="#524440" />
+                <Ionicons name="folder-outline" size={16} color={workspaceTheme.accent} />
+                <View style={sideNavStyles.recentItemCopy}>
+                  <Text style={sideNavStyles.recentItemTitle} numberOfLines={1}>
+                    {mostRecent.title}
+                  </Text>
+                  {mostRecent.meta ? (
+                    <Text style={sideNavStyles.recentItemMeta} numberOfLines={1}>
+                      {mostRecent.meta}
+                    </Text>
+                  ) : null}
+                </View>
+                <Ionicons name="chevron-forward" size={14} color="#a89994" />
               </Pressable>
-            </View>
+            </>
           ) : null}
         </View>
-
-        {/* Most recent collection */}
-        {mostRecent ? (
-          <>
-            <View style={sideNavStyles.recentLabelRow}>
-              <Text style={sideNavStyles.sectionLabel}>Recent</Text>
-            </View>
-            <Pressable
-              style={({ pressed }) => [
-                sideNavStyles.recentItem,
-                mostRecent.active ? sideNavStyles.recentItemActive : null,
-                pressed ? styles.pressDown : null,
-              ]}
-              onPress={() => onOpenCollection(mostRecent.id)}
-            >
-              <Ionicons
-                name={navIcon(mostRecent.level).icon}
-                size={14}
-                color={navIcon(mostRecent.level).color}
-              />
-              <View style={sideNavStyles.recentItemCopy}>
-                <Text style={sideNavStyles.recentItemTitle} numberOfLines={1}>
-                  {mostRecent.title}
-                </Text>
-                {mostRecent.meta ? (
-                  <Text style={sideNavStyles.recentItemMeta} numberOfLines={1}>
-                    {mostRecent.meta}
-                  </Text>
-                ) : null}
-              </View>
-              <Ionicons name="chevron-forward" size={14} color="#c4b5b2" />
-            </Pressable>
-          </>
-        ) : null}
       </View>
 
       {/* ── Scrollable lower sections ──────────────────────────────────── */}
@@ -194,22 +202,22 @@ export function SideNav({
         <View style={sideNavStyles.divider} />
         <Text style={sideNavStyles.sectionLabel}>Explore</Text>
         <NavRow
-          icon={navIcon("revisit").icon}
-          iconColor={navIcon("revisit").color}
+          icon={NAV_ICONS.revisit.icon}
+          iconColor={NAV_ICONS.revisit.color}
           label="Revisit"
           active={currentRoute === "revisit"}
           onPress={onGoRevisit}
         />
         <NavRow
-          icon={navIcon("activity").icon}
-          iconColor={navIcon("activity").color}
+          icon={NAV_ICONS.activity.icon}
+          iconColor={NAV_ICONS.activity.color}
           label="Activity"
           active={currentRoute === "activity"}
           onPress={onGoActivity}
         />
         <NavRow
-          icon={navIcon("library").icon}
-          iconColor={navIcon("library").color}
+          icon={NAV_ICONS.library.icon}
+          iconColor={NAV_ICONS.library.color}
           label="Library"
           active={currentRoute === "library"}
           onPress={onGoLibrary}
@@ -219,22 +227,22 @@ export function SideNav({
         <View style={sideNavStyles.divider} />
         <Text style={sideNavStyles.sectionLabel}>Tools</Text>
         <NavRow
-          icon={navIcon("notepad").icon}
-          iconColor={navIcon("notepad").color}
+          icon={NAV_ICONS.notepad.icon}
+          iconColor={NAV_ICONS.notepad.color}
           label="Lyrics Pad"
           active={currentRoute === "notepad"}
           onPress={onGoNotepad}
         />
         <NavRow
-          icon={navIcon("tuner").icon}
-          iconColor={navIcon("tuner").color}
+          icon={NAV_ICONS.tuner.icon}
+          iconColor={NAV_ICONS.tuner.color}
           label="Tuner"
           active={currentRoute === "tuner"}
           onPress={onGoTuner}
         />
         <NavRow
-          icon={navIcon("metronome").icon}
-          iconColor={navIcon("metronome").color}
+          icon={NAV_ICONS.metronome.icon}
+          iconColor={NAV_ICONS.metronome.color}
           label="Metronome"
           active={currentRoute === "metronome"}
           onPress={onGoMetronome}
@@ -245,8 +253,8 @@ export function SideNav({
       <View style={sideNavStyles.footer}>
         <View style={sideNavStyles.footerDivider} />
         <NavRow
-          icon={navIcon("settings").icon}
-          iconColor={navIcon("settings").color}
+          icon={NAV_ICONS.settings.icon}
+          iconColor={NAV_ICONS.settings.color}
           label="Settings"
           active={currentRoute === "settings"}
           onPress={onGoSettings}
@@ -337,8 +345,8 @@ const sideNavStyles = StyleSheet.create({
   },
   workspaceName: {
     flex: 1,
+    fontFamily: "PlusJakartaSans_700Bold",
     fontSize: 20,
-    fontWeight: "700",
     color: "#1b1c1a",
     letterSpacing: 0.1,
   },
@@ -349,40 +357,44 @@ const sideNavStyles = StyleSheet.create({
     justifyContent: "center",
     borderRadius: 6,
   },
-  actionRow: {
-    flexDirection: "row",
-    gap: 8,
-  },
-  actionChip: {
+  collectionsRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 4,
-    backgroundColor: "#ffffff",
+    gap: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 9,
+    marginHorizontal: -4,
+    marginTop: 2,
     borderRadius: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
   },
-  actionChipLabel: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: "#524440",
+  collectionsLabel: {
+    flex: 1,
+    fontFamily: "PlusJakartaSans_500Medium",
+    fontSize: 14,
+    lineHeight: 18,
+    color: "#1b1c1a",
   },
 
-  // Recent
-  recentLabelRow: {
-    paddingHorizontal: 12,
-    paddingTop: 6,
+  // Recent (nested inside the workspace card, sitting on its tint)
+  cardDivider: {
+    height: 0.5,
+    backgroundColor: "rgba(28,28,25,0.08)",
+    marginTop: 4,
+    marginBottom: 2,
+  },
+  recentLabelInCard: {
+    marginLeft: 2,
   },
   recentItem: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 9,
+    backgroundColor: "#ffffff",
     borderRadius: 6,
-  },
-  recentItemActive: {
-    backgroundColor: "#efeeea",
+    borderWidth: 1,
+    borderColor: "transparent",
+    paddingHorizontal: 9,
+    paddingVertical: 9,
   },
   recentItemCopy: {
     flex: 1,
@@ -390,11 +402,13 @@ const sideNavStyles = StyleSheet.create({
     gap: 2,
   },
   recentItemTitle: {
+    fontFamily: "PlusJakartaSans_500Medium",
     fontSize: 14,
+    lineHeight: 18,
     color: "#1b1c1a",
-    fontWeight: "500",
   },
   recentItemMeta: {
+    fontFamily: "PlusJakartaSans_400Regular",
     fontSize: 11,
     color: "#84736f",
   },
@@ -406,8 +420,8 @@ const sideNavStyles = StyleSheet.create({
     gap: 2,
   },
   sectionLabel: {
+    fontFamily: "PlusJakartaSans_700Bold",
     fontSize: 10,
-    fontWeight: "700",
     color: "#84736f",
     letterSpacing: 0.8,
     textTransform: "uppercase",
