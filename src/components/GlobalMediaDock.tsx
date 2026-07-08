@@ -76,6 +76,29 @@ export function GlobalMediaDock({
   const hasPrevInQueue = playerQueueIndex > 0;
   const prevTapTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const openFullPlayer = () => {
+    useStore.getState().requestInlineStop();
+    onOpenPlayer();
+  };
+  // Swipe UP anywhere on the dock expands to the full player — the mirror of
+  // the player header's swipe-down. Vertical-only activation so the scrub bar's
+  // horizontal drags are never contested; taps pass through untouched. Declared
+  // BEFORE any early return so the hook order is stable across dock states.
+  const openFullPlayerRef = useRef(openFullPlayer);
+  openFullPlayerRef.current = openFullPlayer;
+  const expandGesture = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_evt, gesture) =>
+        gesture.dy < -14 && Math.abs(gesture.dy) > Math.abs(gesture.dx) * 1.4,
+      onPanResponderRelease: (_evt, gesture) => {
+        if (gesture.dy < -40 || gesture.vy < -0.8) {
+          haptic.tap();
+          openFullPlayerRef.current();
+        }
+      },
+    })
+  ).current;
+
   // Clear the stored dock height when the queue empties (dock disappears).
   const queueEmpty = playerQueue.length === 0;
   useEffect(() => {
@@ -289,27 +312,6 @@ export function GlobalMediaDock({
     );
   }
 
-  const openFullPlayer = () => {
-    useStore.getState().requestInlineStop();
-    onOpenPlayer();
-  };
-  // Swipe UP anywhere on the dock expands to the full player — the mirror of
-  // the player header's swipe-down. Vertical-only activation so the scrub bar's
-  // horizontal drags are never contested; taps pass through untouched.
-  const openFullPlayerRef = useRef(openFullPlayer);
-  openFullPlayerRef.current = openFullPlayer;
-  const expandGesture = useRef(
-    PanResponder.create({
-      onMoveShouldSetPanResponder: (_evt, gesture) =>
-        gesture.dy < -14 && Math.abs(gesture.dy) > Math.abs(gesture.dx) * 1.4,
-      onPanResponderRelease: (_evt, gesture) => {
-        if (gesture.dy < -40 || gesture.vy < -0.8) {
-          haptic.tap();
-          openFullPlayerRef.current();
-        }
-      },
-    })
-  ).current;
   // Skip the subtitle when it just repeats the title (standalone clip ideas
   // share their clip's name — "Take · Take" reads as a glitch).
   const dockSubtitle = isPreviewingClip
