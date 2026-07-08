@@ -16,16 +16,25 @@ export const MAX_IN_MEMORY_ARCHIVE_BYTES = 150 * 1024 * 1024;
 /** How long quarantined (deleted) audio is retained before it is permanently purged. */
 export const TRASH_RETENTION_MS = 14 * 24 * 60 * 60 * 1000;
 
+/** Every file-backed audio URI a clip references — master take, pre-edit source,
+ *  rendered overdub mix, and each overdub layer recording — unfiltered (managed or
+ *  not). Archive packing, media deletion, and storage accounting must all agree on
+ *  this list; extend it here when a new file-backed clip field is added. */
+export function collectClipAudioUris(clip: ClipVersion): string[] {
+    const uris: string[] = [];
+    if (clip.audioUri) uris.push(clip.audioUri);
+    if (clip.sourceAudioUri) uris.push(clip.sourceAudioUri);
+    if (clip.overdub?.renderedMixUri) uris.push(clip.overdub.renderedMixUri);
+    for (const stem of clip.overdub?.stems ?? []) {
+        if (stem.audioUri) uris.push(stem.audioUri);
+    }
+    return uris;
+}
+
 function collectManagedClipUris(clip: ClipVersion, target: Set<string>) {
-    const add = (uri: string | undefined) => {
+    for (const uri of collectClipAudioUris(clip)) {
         const path = toRelativeManagedPath(uri);
         if (path) target.add(resolveManagedUri(path));
-    };
-    add(clip.audioUri);
-    add(clip.sourceAudioUri);
-    add(clip.overdub?.renderedMixUri);
-    for (const stem of clip.overdub?.stems ?? []) {
-        add(stem.audioUri);
     }
 }
 

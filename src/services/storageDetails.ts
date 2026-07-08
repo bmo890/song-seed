@@ -3,6 +3,7 @@ import * as FileSystem from "expo-file-system/legacy";
 import type { PersistedAppStore } from "../state/useStore";
 import { STORE_NAME, STORE_VERSION } from "../state/useStore";
 import type { Workspace } from "../types";
+import { collectClipAudioUris } from "./managedMedia";
 import {
     SONG_SEED_AUDIO_DIR,
     SONG_SEED_ROOT,
@@ -120,8 +121,9 @@ async function measureUnmanagedAudioReferences(workspaces: Workspace[]): Promise
     for (const workspace of workspaces) {
         for (const idea of workspace.ideas) {
             for (const clip of idea.clips) {
-                for (const uri of [clip.audioUri, clip.sourceAudioUri]) {
-                    if (!uri || seenUris.has(uri) || uri.startsWith("blob:") || isManagedAudioUri(uri)) {
+                // All file-backed clip URIs (master, source, overdub stems, rendered mix).
+                for (const uri of collectClipAudioUris(clip)) {
+                    if (seenUris.has(uri) || uri.startsWith("blob:") || isManagedAudioUri(uri)) {
                         continue;
                     }
 

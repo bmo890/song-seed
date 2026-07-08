@@ -1,6 +1,7 @@
 import { adjectives, animals, uniqueNamesGenerator } from "unique-names-generator";
 import * as FileSystem from "expo-file-system/legacy";
 import { Collection, SongIdea, Workspace } from "./types";
+import { collectClipAudioUris } from "./services/managedMedia";
 
 const aestheticWords = [
   "echo", "chorus", "harmony", "static", "pulse", "midnight", "neon", "velvet",
@@ -344,21 +345,28 @@ export function metersToWaveformPeaks(meters: number[], bins = 150) {
   return peaks;
 }
 
+/** Sums every file-backed audio URI on a clip — master take, pre-edit source,
+ *  overdub layer recordings, and the rendered mix. */
+async function getClipMediaSizeBytes(clip: SongIdea["clips"][number]): Promise<number> {
+  let totalBytes = 0;
+  for (const uri of collectClipAudioUris(clip)) {
+    if (uri.startsWith("blob:")) continue;
+    try {
+      const info = await FileSystem.getInfoAsync(uri);
+      if (info.exists && info.size) {
+        totalBytes += info.size;
+      }
+    } catch (e) {
+      console.warn("Failed to get file size for", uri, e);
+    }
+  }
+  return totalBytes;
+}
+
 export async function getWorkspaceSizeBytes(workspace: Workspace): Promise<number> {
   let totalBytes = 0;
   for (const idea of workspace.ideas) {
-    for (const clip of idea.clips) {
-      if (clip.audioUri && !clip.audioUri.startsWith("blob:")) {
-        try {
-          const info = await FileSystem.getInfoAsync(clip.audioUri);
-          if (info.exists && info.size) {
-            totalBytes += info.size;
-          }
-        } catch (e) {
-          console.warn("Failed to get file size for", clip.audioUri, e);
-        }
-      }
-    }
+    totalBytes += await getIdeaSizeBytes(idea);
   }
   return totalBytes;
 }
@@ -366,16 +374,7 @@ export async function getWorkspaceSizeBytes(workspace: Workspace): Promise<numbe
 export async function getIdeaSizeBytes(idea: SongIdea): Promise<number> {
   let totalBytes = 0;
   for (const clip of idea.clips) {
-    if (clip.audioUri && !clip.audioUri.startsWith("blob:")) {
-      try {
-        const info = await FileSystem.getInfoAsync(clip.audioUri);
-        if (info.exists && info.size) {
-          totalBytes += info.size;
-        }
-      } catch (e) {
-        console.warn("Failed to get file size for", clip.audioUri, e);
-      }
-    }
+    totalBytes += await getClipMediaSizeBytes(clip);
   }
   return totalBytes;
 }

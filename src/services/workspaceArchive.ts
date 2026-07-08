@@ -1,7 +1,8 @@
 import * as FileSystem from "expo-file-system/legacy";
 import { strFromU8, strToU8, unzipSync } from "fflate";
-import type { Workspace, WorkspaceArchiveState } from "../types";
+import type { ClipVersion, Workspace, WorkspaceArchiveState } from "../types";
 import { normalizeWorkspaces } from "../state/dataSlice";
+import { collectClipAudioUris } from "./managedMedia";
 import {
     createZipArchive,
     getArchiveFileExtension,
@@ -15,7 +16,12 @@ import {
 } from "./storagePaths";
 import { rebaseWorkspacesManagedMedia } from "../state/rebaseManagedMedia";
 
-const WORKSPACE_ARCHIVE_SCHEMA_VERSION = 1;
+/** v1 packed only clip.audioUri/sourceAudioUri. v2 also packs overdub layer
+ *  recordings (stem audio) and rendered mixes, and strips their URIs from the
+ *  archived metadata. Restore is manifest-driven, so v1 packages restore
+ *  unchanged under v2 code (their overdub media was never packed or deleted —
+ *  the files are still loose on disk and still referenced). */
+const WORKSPACE_ARCHIVE_SCHEMA_VERSION = 2;
 
 type ArchiveableMediaFile = {
     archivePath: string;
@@ -147,8 +153,12 @@ async function collectWorkspaceMediaFiles(workspace: Workspace) {
 
     for (const idea of workspace.ideas) {
         for (const clip of idea.clips) {
-            for (const liveUri of [clip.audioUri, clip.sourceAudioUri]) {
-                if (!liveUri || seenUris.has(liveUri) || liveUri.startsWith("blob:")) {
+            // Every file-backed URI the clip references — master + source take,
+            // overdub layer recordings, and the rendered mix. Anything skipped
+            // here would survive on disk unpacked, silently voiding the archive's
+            // "complete copy" promise.
+            for (const liveUri of collectClipAudioUris(clip)) {
+                if (seenUris.has(liveUri) || liveUri.startsWith("blob:")) {
                     continue;
                 }
 
@@ -181,6 +191,33 @@ async function collectWorkspaceMediaFiles(workspace: Workspace) {
     };
 }
 
+/** Removes every file-backed URI (all packed into the archive zip) plus derived
+ *  waveform peaks from a clip. Non-file overdub metadata (titles, gains, offsets,
+ *  colors, grids) stays — the full snapshot lives in the zip's workspace.json and
+ *  replaces this on restore, so stripping here only affects the archived stub. */
+function stripClipMedia(clip: ClipVersion): ClipVersion {
+    return {
+        ...clip,
+        audioUri: undefined,
+        sourceAudioUri: undefined,
+        waveformPeaks: undefined,
+        ...(clip.overdub
+            ? {
+                  overdub: {
+                      ...clip.overdub,
+                      renderedMixUri: undefined,
+                      renderedMixWaveformPeaks: undefined,
+                      stems: clip.overdub.stems.map((stem) => ({
+                          ...stem,
+                          audioUri: undefined,
+                          waveformPeaks: undefined,
+                      })),
+                  },
+              }
+            : null),
+    };
+}
+
 function stripWorkspaceMedia(workspace: Workspace, archiveState: WorkspaceArchiveState): Workspace {
     return {
         ...workspace,
@@ -188,12 +225,7 @@ function stripWorkspaceMedia(workspace: Workspace, archiveState: WorkspaceArchiv
         archiveState,
         ideas: workspace.ideas.map((idea) => ({
             ...idea,
-            clips: idea.clips.map((clip) => ({
-                ...clip,
-                audioUri: undefined,
-                sourceAudioUri: undefined,
-                waveformPeaks: undefined,
-            })),
+            clips: idea.clips.map(stripClipMedia),
         })),
     };
 }

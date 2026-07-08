@@ -132,6 +132,18 @@ export function useLibraryExportFlow() {
     const workspace = workspaces.find((item) => item.id === workspaceId) ?? null;
     const shouldSelect = !selectedWorkspaceIds.includes(workspaceId);
 
+    // An archived workspace's clips have their audio URIs stripped (the audio
+    // lives compressed inside its archive package), so exporting one would
+    // silently produce songs with no audio — and no missing-file warning,
+    // because an undefined URI never reaches the missing-file check.
+    if (shouldSelect && workspace?.isArchived) {
+      AppAlert.info(
+        "Unarchive to export",
+        `"${workspace.title}" is archived, so its audio is stored compressed and would be missing from the export. Unarchive the workspace first to include it.`
+      );
+      return;
+    }
+
     setSelectedWorkspaceIds((current) =>
       shouldSelect ? [...current, workspaceId] : current.filter((id) => id !== workspaceId)
     );
@@ -150,6 +162,16 @@ export function useLibraryExportFlow() {
   };
 
   const toggleCollection = (workspace: Workspace, collectionId: string) => {
+    // Same guard as toggleWorkspace: collections inside an archived workspace
+    // have no live audio to export.
+    if (workspace.isArchived && !selectedWorkspaceIds.includes(workspace.id)) {
+      AppAlert.info(
+        "Unarchive to export",
+        `"${workspace.title}" is archived, so its audio is stored compressed and would be missing from the export. Unarchive the workspace first to include it.`
+      );
+      return;
+    }
+
     const scopeIds = Array.from(getCollectionScopeIds(workspace, collectionId));
 
     if (selectedWorkspaceIds.includes(workspace.id)) {
