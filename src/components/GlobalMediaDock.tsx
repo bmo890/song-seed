@@ -1,9 +1,11 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Ionicons } from "@expo/vector-icons";
 import { useSharedAudioRecorder } from "@siteed/audio-studio";
-import { Pressable, Text, View } from "react-native";
+import { PanResponder, Pressable, Text, View } from "react-native";
 import Animated, { FadeIn, FadeInDown, FadeOut } from "react-native-reanimated";
 import { MiniProgress } from "./MiniProgress";
+import { QueuePanel } from "./QueuePanel";
+import { TransportBar } from "./common/TransportBar";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRecordingDisplayElapsed } from "../hooks/useRecordingDisplayElapsed";
 import { useFullPlayerContext } from "../hooks/FullPlayerProvider";
@@ -14,8 +16,13 @@ import { haptic } from "../design/haptics";
 
 type GlobalMediaDockProps = {
   activeRouteName: string;
+  /** True while the side drawer is open — the drawer must sit above everything,
+   *  so the dock hides entirely rather than floating over it. */
+  hidden?: boolean;
   onOpenPlayer: () => void;
   onOpenRecording: () => void;
+  /** Navigate to a song/clip page — used by the queue panel's go-to-song action. */
+  onOpenIdea: (ideaId: string) => void;
 };
 
 type PlaybackDockState = {
@@ -30,10 +37,13 @@ type PlaybackDockState = {
 
 export function GlobalMediaDock({
   activeRouteName,
+  hidden = false,
   onOpenPlayer,
   onOpenRecording,
+  onOpenIdea,
 }: GlobalMediaDockProps) {
   const insets = useSafeAreaInsets();
+  const [queueOpen, setQueueOpen] = useState(false);
   const recorder = useSharedAudioRecorder();
   const recordingIdeaId = useStore((s) => s.recordingIdeaId);
   const workspaces = useStore((s) => s.workspaces);
@@ -42,7 +52,6 @@ export function GlobalMediaDock({
   const playerDurationMs = useStore((s) => s.playerDurationMs);
   const playerIsPlaying = useStore((s) => s.playerIsPlaying);
   const isPlayerScreenMounted = useStore((s) => s.isPlayerScreenMounted);
-  const playerDockPresentationHold = useStore((s) => s.playerDockPresentationHold);
   const inlineTarget = useStore((s) => s.inlineTarget);
   const inlineIsPlaying = useStore((s) => s.inlineIsPlaying);
   const recordingElapsedMs = useRecordingDisplayElapsed({
@@ -67,11 +76,40 @@ export function GlobalMediaDock({
   const hasPrevInQueue = playerQueueIndex > 0;
   const prevTapTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const openFullPlayer = () => {
+    useStore.getState().requestInlineStop();
+    onOpenPlayer();
+  };
+  // Swipe UP anywhere on the dock expands to the full player — the mirror of
+  // the player header's swipe-down. Vertical-only activation so the scrub bar's
+  // horizontal drags are never contested; taps pass through untouched. Declared
+  // BEFORE any early return so the hook order is stable across dock states.
+  const openFullPlayerRef = useRef(openFullPlayer);
+  openFullPlayerRef.current = openFullPlayer;
+  const expandGesture = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_evt, gesture) =>
+        gesture.dy < -14 && Math.abs(gesture.dy) > Math.abs(gesture.dx) * 1.4,
+      onPanResponderRelease: (_evt, gesture) => {
+        if (gesture.dy < -40 || gesture.vy < -0.8) {
+          haptic.tap();
+          openFullPlayerRef.current();
+        }
+      },
+    })
+  ).current;
+
   // Clear the stored dock height when the queue empties (dock disappears).
   const queueEmpty = playerQueue.length === 0;
   useEffect(() => {
     if (queueEmpty) useStore.getState().setPlayerDockHeight(0);
   }, [queueEmpty]);
+
+  // The queue panel is transient — never leave it open across a session end or
+  // while the dock is hidden behind the drawer.
+  useEffect(() => {
+    if (queueEmpty || hidden) setQueueOpen(false);
+  }, [hidden, queueEmpty]);
 
   const handleQueueNext = () => {
     if (!hasNextInQueue) return;
@@ -102,11 +140,9 @@ export function GlobalMediaDock({
   // The dock only represents the durable full-player queue/session. Clip-card
   // preview playback is separate and does not take over the dock UI.
   const activePlayback: PlaybackDockState | null = (() => {
-    // Clip-card opens suppress the dock before navigation. Maximizing the existing dock
-    // holds it through the Player fade so the underlying collection never flashes through.
-    const shouldShowPlaybackDock =
-      playerDockPresentationHold ||
-      (activeRouteName !== "Player" && !isPlayerScreenMounted);
+    // The dock yields whenever the PlayerSheet is up — they are the same
+    // session at two sizes, never shown together.
+    const shouldShowPlaybackDock = !isPlayerScreenMounted;
     if (playerTarget && playerQueue.length > 0 && shouldShowPlaybackDock) {
       const idea = allIdeas.find((item) => item.id === playerTarget.ideaId);
       const clip = idea?.clips.find((item) => item.id === playerTarget.clipId);
@@ -127,6 +163,9 @@ export function GlobalMediaDock({
 
   const activeSelectionDockHeight = useStore((s) => s.activeSelectionDockHeight);
   const safeBottomPadding = { paddingBottom: Math.max(insets.bottom, 14) };
+
+  // The drawer renders beneath root overlays, so the dock yields while it is open.
+  if (hidden) return null;
 
   // ─── Recording session dock ─────────────────────────────────────────────────
   if (activeRouteName !== "Recording" && hasRecordingSession && recordingIdea) {
@@ -273,114 +312,128 @@ export function GlobalMediaDock({
     );
   }
 
+  // Skip the subtitle when it just repeats the title (standalone clip ideas
+  // share their clip's name — "Take · Take" reads as a glitch).
+  const dockSubtitle = isPreviewingClip
+    ? "Preview playing"
+    : activePlayback.subtitle !== activePlayback.title
+      ? activePlayback.subtitle
+      : null;
+
   return (
-    // No `exiting` animation: when opening the full player the route flips to "Player"
-    // and this dock unmounts. A reanimated exit fade would linger ~150ms into the player's
-    // fade-in transition, briefly showing the dock over the opening player. Hiding instantly
-    // is also the natural behavior for the ✕-dismiss and queue-empty cases.
+    // No `exiting` animation: when the PlayerSheet expands this dock unmounts
+    // beneath it instantly — an exit fade would linger under the sheet's
+    // slide-up. Hiding instantly is also the natural behavior for the
+    // ✕-dismiss and queue-empty cases.
     <Animated.View
       style={styles.miniMediaDockWrap}
       entering={FadeInDown.duration(200)}
     >
-      <Pressable
-        style={[styles.miniMediaDockSurface, safeBottomPadding]}
-        onLayout={(e) => useStore.getState().setPlayerDockHeight(e.nativeEvent.layout.height)}
-        onPress={() => {
-          useStore.getState().requestInlineStop();
-          onOpenPlayer();
-        }}
-      >
-        {/* ✕ Dismiss — absolute top-right, outside content wrapper so it
-            stays fully visible even when content dims for preview state */}
-        <Pressable
-          style={styles.miniMediaDockCloseBtn}
-          onPress={(evt) => {
-            evt.stopPropagation();
-            haptic.tap();
+      {/* Queue extends upward from the dock — same surface, stays open while
+          skipping around. Rendered above the base dock inside the same
+          bottom-anchored wrap so extra height grows toward the top. */}
+      {queueOpen ? (
+        <QueuePanel
+          onEndSession={() => {
+            setQueueOpen(false);
             void fullPlayer.closePlayer();
             useStore.getState().clearPlayerQueue();
           }}
-          hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
-          accessibilityRole="button"
-          accessibilityLabel="Dismiss"
-        >
-          <Ionicons name="close" size={13} color="#6b5a55" />
-        </Pressable>
+          onOpenIdea={(ideaId) => {
+            // Close the panel so the song page is visible underneath the dock.
+            setQueueOpen(false);
+            onOpenIdea(ideaId);
+          }}
+        />
+      ) : null}
 
+      <View
+        style={[styles.miniMediaDockSurface, safeBottomPadding]}
+        // Height of the BASE dock only (queue panel excluded) — page bottom
+        // paddings key off this and must not jump when the queue opens.
+        onLayout={(e) => useStore.getState().setPlayerDockHeight(e.nativeEvent.layout.height)}
+        {...expandGesture.panHandlers}
+      >
         {/* Content wrapper dims as a unit during inline preview */}
         <View style={[styles.miniMediaDockContent, isPreviewingClip ? { opacity: 0.45 } : null]}>
 
-          {/* Row 1: bold title + muted subtitle on one line — padded to clear the ✕ */}
-          <View style={styles.miniMediaDockTitleRow}>
-            <Text style={styles.miniMediaDockTitle} numberOfLines={1}>
-              {activePlayback.title}
-              <Text style={styles.miniMediaDockSubtitle}>
-                {isPreviewingClip
-                  ? " · Preview playing"
-                  : ` · ${activePlayback.subtitle}`}
-              </Text>
-            </Text>
-          </View>
-
-          {/* Row 2: transport — centered ⏮  ●●  ⏭ */}
-          <View style={styles.miniMediaDockTransportRow}>
+          {/* Row 1: title · subtitle [expand] [✕] — every affordance is an
+              explicit button; nothing on this surface opens the player by
+              accident. Title (the biggest target) expands to the full player;
+              the queue toggle lives in the shared transport row below. */}
+          <View style={styles.miniMediaDockHeaderRow}>
             <Pressable
-              style={({ pressed }) => [
-                styles.miniMediaDockSkipBtn,
-                pressed ? styles.pressDownStrong : null,
-              ]}
-              onPress={(evt) => {
-                evt.stopPropagation();
+              style={styles.miniMediaDockTitlePress}
+              onPress={() => {
                 haptic.tap();
-                handleQueuePrev();
+                openFullPlayer();
               }}
               accessibilityRole="button"
-              accessibilityLabel="Restart, double-tap for previous"
+              accessibilityLabel="Open full player"
             >
-              <Ionicons name="play-skip-back" size={18} color="#6b5a55" />
+              <Text style={styles.miniMediaDockTitle} numberOfLines={1}>
+                {activePlayback.title}
+                {dockSubtitle ? (
+                  <Text style={styles.miniMediaDockSubtitle}> · {dockSubtitle}</Text>
+                ) : null}
+              </Text>
             </Pressable>
 
             <Pressable
               style={({ pressed }) => [
-                styles.miniMediaDockPlayBtn,
+                styles.miniMediaDockHeaderBtn,
                 pressed ? styles.pressDownStrong : null,
               ]}
-              onPress={(evt) => {
-                evt.stopPropagation();
-                    haptic.tap();
+              onPress={() => {
+                haptic.tap();
+                openFullPlayer();
+              }}
+              hitSlop={6}
+              accessibilityRole="button"
+              accessibilityLabel="Expand player"
+            >
+              <Ionicons name="chevron-up" size={14} color="#6b5a55" />
+            </Pressable>
+
+            <Pressable
+              style={({ pressed }) => [
+                styles.miniMediaDockHeaderBtn,
+                pressed ? styles.pressDownStrong : null,
+              ]}
+              onPress={() => {
+                haptic.tap();
+                void fullPlayer.closePlayer();
+                useStore.getState().clearPlayerQueue();
+              }}
+              hitSlop={6}
+              accessibilityRole="button"
+              accessibilityLabel="Dismiss"
+            >
+              <Ionicons name="close" size={14} color="#6b5a55" />
+            </Pressable>
+          </View>
+
+          {/* Row 2: the SHARED transport row — identical component to the full
+              player's control bar (prev/play/next + queue toggle). */}
+          <View style={styles.miniMediaDockTransportRow}>
+            <TransportBar
+              size="compact"
+              isPlaying={activePlayback.isPlaying}
+              canGoPrevious
+              canGoNext={hasNextInQueue}
+              onPrevious={handleQueuePrev}
+              onTogglePlay={() => {
                 if (activePlayback.isPlaying) {
                   void fullPlayer.pausePlayer();
                 } else {
                   void fullPlayer.playPlayer();
                 }
               }}
-              accessibilityRole="button"
-              accessibilityLabel={activePlayback.isPlaying ? "Pause" : "Play"}
-            >
-              <Ionicons
-                name={activePlayback.isPlaying ? "pause" : "play"}
-                size={20}
-                color="#FDFBF7"
-              />
-            </Pressable>
-
-            <Pressable
-              style={({ pressed }) => [
-                styles.miniMediaDockSkipBtn,
-                !hasNextInQueue ? { opacity: 0.3 } : null,
-                pressed && hasNextInQueue ? styles.pressDownStrong : null,
-              ]}
-              disabled={!hasNextInQueue}
-              onPress={(evt) => {
-                evt.stopPropagation();
-                haptic.tap();
-                handleQueueNext();
-              }}
-              accessibilityRole="button"
-              accessibilityLabel="Next"
-            >
-              <Ionicons name="play-skip-forward" size={18} color="#6b5a55" />
-            </Pressable>
+              onNext={handleQueueNext}
+              trailingIcon="list-outline"
+              trailingActive={queueOpen}
+              onTrailingPress={() => setQueueOpen((prev) => !prev)}
+            />
           </View>
 
           {/* Rows 3+4: times directly above scrub — MiniProgress renders both */}
@@ -394,7 +447,7 @@ export function GlobalMediaDock({
             }}
           />
         </View>
-      </Pressable>
+      </View>
     </Animated.View>
   );
 }

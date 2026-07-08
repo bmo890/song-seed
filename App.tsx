@@ -24,13 +24,17 @@ import {
 import * as Linking from "expo-linking";
 import { useEffect, useMemo, useState } from "react";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
-import { createDrawerNavigator, DrawerContentComponentProps } from "@react-navigation/drawer";
+import {
+  createDrawerNavigator,
+  getDrawerStatusFromState,
+  DrawerContentComponentProps,
+} from "@react-navigation/drawer";
 import { AudioRecorderProvider } from "@siteed/audio-studio";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { ShareIntentModule, ShareIntentProvider, getScheme, getShareExtensionKey } from "expo-share-intent";
 import { IdeaDetailScreen } from "./src/components/IdeaDetailScreen";
 import { IdeaListScreen } from "./src/components/IdeaListScreen";
-import { PlayerScreen } from "./src/components/PlayerScreen";
+import { PlayerSheet } from "./src/components/PlayerSheet";
 import { RecordingScreen } from "./src/components/RecordingScreen";
 import { WorkspaceListScreen } from "./src/components/WorkspaceListScreen";
 import { WorkspaceBrowseScreen } from "./src/components/WorkspaceBrowseScreen";
@@ -84,7 +88,7 @@ export type HomeDrawerParamList = {
   ActivityHome: undefined;
   TunerHome: undefined;
   MetronomeHome: undefined;
-  LibraryHome: undefined;
+  LibraryHome: { openPlaylistId?: string; openToken?: number } | undefined;
   SettingsHome: undefined;
   NotepadHome: { noteId?: string; openToken?: number } | undefined;
   WordLadderHome: { exerciseId?: string } | undefined;
@@ -102,7 +106,6 @@ export type RootStackParamList = {
   Activity: { workspaceId?: string; collectionId?: string } | undefined;
   Recording: undefined;
   BluetoothCalibration: undefined;
-  Player: undefined;
   ShareImport: undefined;
   Editor: { ideaId: string; clipId: string; audioUri?: string; durationMs?: number };
   Lyrics: { ideaId: string };
@@ -147,7 +150,6 @@ const ROOT_STACK_ROUTE_NAMES: Array<keyof RootStackParamList> = [
   "IdeaDetail",
   "Recording",
   "BluetoothCalibration",
-  "Player",
   "ShareImport",
   "Editor",
   "Lyrics",
@@ -255,7 +257,6 @@ function isValidRestorableRootRoute(route: any) {
     case "Home":
     case "Activity":
     case "Recording":
-    case "Player":
     case "BluetoothCalibration":
       return true;
     case "IdeaDetail":
@@ -419,9 +420,7 @@ function getActiveWorkspaceRouteContext(args: {
     args.deepestRouteName === "LyricsVersion" ||
     args.deepestRouteName === "ClipLineage"
       ? (args.deepestParams.ideaId as string | undefined) ?? args.selectedIdeaId
-      : args.deepestRouteName === "Player"
-        ? args.playerTarget?.ideaId ?? args.selectedIdeaId
-        : args.selectedIdeaId;
+      : args.selectedIdeaId;
   const routeIdea =
     routeIdeaId && activeWorkspace
       ? activeWorkspace.ideas.find((idea) => idea.id === routeIdeaId) ?? null
@@ -687,6 +686,7 @@ function AppContent() {
   });
 
   const [activeRouteName, setActiveRouteName] = useState<string>("Home");
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [lastCollectionContextId, setLastCollectionContextId] = useState<string | null>(null);
   const [initialNavigationState, setInitialNavigationState] = useState<InitialState | undefined>(undefined);
   const [navigationStateReady, setNavigationStateReady] = useState(false);
@@ -825,6 +825,15 @@ function AppContent() {
     const deepestRoute = getDeepestRoute(rootState);
     const nextRoute = deepestRoute.name;
     setActiveRouteName((prev) => (prev === nextRoute ? prev : nextRoute));
+
+    // The side drawer must sit above everything — including the media dock,
+    // which renders as a root overlay. Track drawer status so the dock can hide
+    // while the drawer is open.
+    const homeRoute: any = rootState.routes?.find?.((item: any) => item.name === "Home");
+    const drawerOpen =
+      homeRoute?.state?.type === "drawer" &&
+      getDrawerStatusFromState(homeRoute.state) === "open";
+    setIsDrawerOpen((prev) => (prev === drawerOpen ? prev : drawerOpen));
     if (nextRoute === "ShareImport") return;
 
     const routeContext = getActiveWorkspaceRouteContext({
@@ -879,12 +888,8 @@ function AppContent() {
           <Stack.Screen name="IdeaDetail" component={IdeaDetailScreen} />
           <Stack.Screen name="Recording" component={RecordingScreen} />
           <Stack.Screen name="BluetoothCalibration" component={BluetoothCalibrationScreen} />
-          <Stack.Screen
-            name="Player"
-            component={PlayerScreen}
-            // Now-playing surface rises from the dock (per docs/audio-architecture-plan.md).
-            options={{ animation: "slide_from_bottom", animationDuration: 260 }}
-          />
+          {/* The full player is NOT a route — it's the PlayerSheet overlay below,
+              a sibling of the media dock (per docs/audio-architecture-plan.md). */}
           <Stack.Screen name="ShareImport">
             {() => <ShareImportScreen fallbackCollectionId={lastCollectionContextId} />}
           </Stack.Screen>
@@ -896,16 +901,27 @@ function AppContent() {
         </Stack.Navigator>
         <GlobalMediaDock
           activeRouteName={activeRouteName}
+          hidden={isDrawerOpen}
           onOpenPlayer={() => {
-            if (!navigationRef.isReady()) return;
-            // Keep the existing dock in place until the Player's fade transition completes.
-            // Clip-card opens use a separate queue action and never create this hold.
-            useStore.getState().setPlayerDockPresentationHold(true);
-            navigationRef.navigate("Player");
+            // Expanding is a state change, not navigation: the PlayerSheet
+            // mounts over whatever screen is showing.
+            useStore.getState().setPlayerScreenMounted(true);
           }}
           onOpenRecording={() => {
             if (!navigationRef.isReady()) return;
             navigationRef.navigate("Recording");
+          }}
+          onOpenIdea={(ideaId) => {
+            if (!navigationRef.isReady()) return;
+            navigationRef.navigate("IdeaDetail", { ideaId });
+          }}
+        />
+        <PlayerSheet
+          activeRouteName={activeRouteName}
+          isDrawerOpen={isDrawerOpen}
+          navigateRoot={(routeName, params) => {
+            if (!navigationRef.isReady()) return;
+            (navigationRef.navigate as (route: string, params?: object) => void)(routeName, params);
           }}
         />
         <ImportProgressBanner />

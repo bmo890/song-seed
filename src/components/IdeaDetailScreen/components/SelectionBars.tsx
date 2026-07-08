@@ -90,7 +90,6 @@ export function SelectionBars() {
     }
     useStore.getState().requestInlineStop();
     useStore.getState().setPlayerQueueForScreen(queue, 0, true);
-    screen.navigation.navigate("Player" as never);
   }
 
   async function handleShareSelected() {

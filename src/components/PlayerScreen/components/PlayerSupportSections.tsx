@@ -4,7 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
 import type { LyricsLine, RecordingGrid } from "../../../types";
 import { PlayerLyricsPanel } from "../PlayerLyricsPanel";
-import { PlayerQueue } from "../PlayerQueue";
+import { QueuePanel } from "../../QueuePanel";
 import { BottomSheet } from "../../common/BottomSheet";
 import { styles as appStyles } from "../../../styles";
 import { colors, radii, spacing, text as textTokens } from "../../../design/tokens";
@@ -72,12 +72,12 @@ type PlayerSupportSectionsProps = {
   clipNotesSummary: string;
   notesExpanded: boolean;
   queueEntries: QueueEntry[];
-  currentClipId: string;
   queueExpanded: boolean;
   onToggleLyricsExpanded: (value: boolean) => void;
   onToggleNotesExpanded: (value: boolean) => void;
   onToggleQueueExpanded: (value: boolean) => void;
-  onSelectQueueEntry: (index: number) => void;
+  onQueueEndSession: () => void;
+  onQueueOpenIdea: (ideaId: string) => void;
 };
 
 /** A quiet pill in the utility row beneath the lyrics. Carries an optional
@@ -144,12 +144,12 @@ export function PlayerSupportSections({
   clipNotes,
   notesExpanded,
   queueEntries,
-  currentClipId,
   queueExpanded,
   onToggleLyricsExpanded,
   onToggleNotesExpanded,
   onToggleQueueExpanded,
-  onSelectQueueEntry,
+  onQueueEndSession,
+  onQueueOpenIdea,
 }: PlayerSupportSectionsProps) {
   const layerPreviewPlayer = useAudioPlayer(null, { updateInterval: 120 });
   const layerPreviewStatus = useAudioPlayerStatus(layerPreviewPlayer);
@@ -487,18 +487,16 @@ export function PlayerSupportSections({
         </ScrollView>
       </BottomSheet>
 
-      {/* Queue */}
+      {/* Queue — the SAME surface as the dock's queue panel (jump on tap,
+          go-to-song, End session), hosted in a bottom sheet here. */}
       {hasQueue ? (
         <BottomSheet visible={queueExpanded} onClose={() => onToggleQueueExpanded(false)}>
-          <Text style={chipStyles.sheetTitle}>Queue</Text>
-          <Text style={chipStyles.sheetMeta}>{queueEntries.length} clips lined up</Text>
-          <PlayerQueue
-            entries={queueEntries}
-            currentClipId={currentClipId}
-            compact
-            onSelect={(index) => {
-              onSelectQueueEntry(index);
+          <QueuePanel
+            framed={false}
+            onEndSession={onQueueEndSession}
+            onOpenIdea={(ideaId) => {
               onToggleQueueExpanded(false);
+              onQueueOpenIdea(ideaId);
             }}
           />
         </BottomSheet>

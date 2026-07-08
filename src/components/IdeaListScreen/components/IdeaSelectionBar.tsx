@@ -7,6 +7,7 @@ import { SelectionActionSheet } from "../../common/SelectionActionSheet";
 import { SelectionDock, type SelectionAction } from "../../common/SelectionDock";
 import type { SongIdea } from "../../../types";
 import { buildPlayableQueueFromIdeas, getPlayableClipForIdea } from "../../../clipPresentation";
+import { haptic } from "../../../design/haptics";
 
 type IdeaSelectionBarProps = {
   selectableIdeaIds: string[];
@@ -42,6 +43,7 @@ export function IdeaSelectionBar({
   const activeWorkspaceId = useStore((s) => s.activeWorkspaceId);
   const workspaces = useStore((s) => s.workspaces);
   const replaceListSelection = useStore((s) => s.replaceListSelection);
+  const playlistCollectorActive = useStore((s) => !!s.playlistCollector);
   const disabledIdeaIdSet = useMemo(() => new Set(disabledIdeaIds), [disabledIdeaIds]);
 
   const activeWorkspace = workspaces.find((workspace) => workspace.id === activeWorkspaceId);
@@ -102,6 +104,39 @@ export function IdeaSelectionBar({
     onPress: () => onCreateProjectFromSelection?.(),
   };
 
+  // While a playlist-collecting session is active, adding the selection to that
+  // playlist is THE primary intent — it leads the dock. Songs are added as song
+  // items (their playable clip resolves at play time); clip ideas pin their clip.
+  const addSelectionToPlaylist = () => {
+    const state = useStore.getState();
+    const collector = state.playlistCollector;
+    if (!collector || !activeWorkspace || interactiveSelectedIdeas.length === 0) return;
+
+    state.addItemsToPlaylist(
+      collector.playlistId,
+      interactiveSelectedIdeas.map((idea) => ({
+        kind: idea.kind === "project" ? ("song" as const) : ("clip" as const),
+        workspaceId: activeWorkspace.id,
+        collectionId: idea.collectionId,
+        ideaId: idea.id,
+        clipId: idea.kind === "project" ? null : getPlayableClipForIdea(idea)?.id ?? null,
+      }))
+    );
+    state.notePlaylistCollectorAdded(interactiveSelectedIdeas.length);
+    state.cancelListSelection();
+    haptic.success();
+  };
+  const collectorAction: SelectionAction = {
+    key: "add-to-playlist",
+    label:
+      interactiveSelectedIdeas.length > 1
+        ? `Add ${interactiveSelectedIdeas.length} to playlist`
+        : "Add to playlist",
+    icon: "musical-notes-outline",
+    onPress: addSelectionToPlaylist,
+    disabled: interactiveSelectedIdeas.length === 0,
+  };
+
   async function handleShareSelected() {
     if (shareableClips.length === 0 || isSharing) return;
 
@@ -144,6 +179,20 @@ export function IdeaSelectionBar({
   }
 
   const dockActions: SelectionAction[] = useMemo(() => {
+    // Collecting mode: the dock is about one thing — adding to the playlist.
+    // Everything else stays reachable through More.
+    if (playlistCollectorActive && !selectedHiddenOnly) {
+      return [
+        collectorAction,
+        {
+          key: "more",
+          label: "More",
+          icon: "ellipsis-horizontal",
+          onPress: () => setMoreVisible(true),
+        },
+      ];
+    }
+
     if (selectedHiddenOnly) {
       return [
         {
@@ -227,12 +276,14 @@ export function IdeaSelectionBar({
   }, [
     canEditSelection,
     canMakeSong,
+    collectorAction,
     makeSongAction,
     confirmDeleteSelection,
     hideActionDisabled,
     hideActionLabel,
     onEditSelected,
     onToggleHideSelected,
+    playlistCollectorActive,
     selectedHiddenOnly,
   ]);
 

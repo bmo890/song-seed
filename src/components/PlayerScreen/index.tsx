@@ -1,12 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Pressable, Text, View } from "react-native";
+import { BackHandler, Platform, Pressable, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar as ExpoStatusBar } from "expo-status-bar";
-import { useIsFocused, useNavigation } from "@react-navigation/native";
-import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useSharedValue } from "react-native-reanimated";
-import type { RootStackParamList } from "../../../App";
 import type { ClipSection, PracticeMarker } from "../../types";
 import { styles } from "../../styles";
 import { colors } from "../../design/tokens";
@@ -46,25 +43,23 @@ const PRACTICE_SPEED_MAX = 1.5;
 const EMPTY_MARKERS: PracticeMarker[] = [];
 const EMPTY_SECTIONS: ClipSection[] = [];
 
-export function PlayerScreen() {
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList, "Player">>();
-  const isFocused = useIsFocused();
+/** Minimal navigation surface the player needs, provided by PlayerSheet: the
+ *  player is a root-level sheet (not a route), so "goBack" means "collapse the
+ *  sheet" and "navigate" reaches the root navigator for Editor/Recording/etc. */
+export type PlayerSheetNavigation = {
+  goBack: () => void;
+  canGoBack: () => boolean;
+  navigate: (routeName: string, params?: object) => void;
+};
 
-  // Tell the root provider this screen owns queue loading/advancing while mounted;
-  // when unmounted (minimized to the dock) the provider takes over.
-  useEffect(() => {
-    useStore.getState().setPlayerScreenMounted(true);
-    const unsubscribeTransitionEnd = navigation.addListener("transitionEnd", (event) => {
-      if (event.data?.closing) return;
-      useStore.getState().setPlayerDockPresentationHold(false);
-    });
-
-    return () => {
-      unsubscribeTransitionEnd();
-      useStore.getState().setPlayerScreenMounted(false);
-      useStore.getState().setPlayerDockPresentationHold(false);
-    };
-  }, [navigation]);
+export function PlayerScreen({
+  navigation,
+  isActive,
+}: {
+  navigation: PlayerSheetNavigation;
+  isActive: boolean;
+}) {
+  const isFocused = isActive;
 
   const ui = usePlayerScreenUi();
   const draggingMarkerId = useSharedValue("");
@@ -399,6 +394,19 @@ export function PlayerScreen() {
     prepareTransportForClose: practicePitchTransport.prepareForPlayerClose,
   });
 
+  // As a sheet (not a route) there's nothing for the system back to pop —
+  // intercept Android hardware/gesture back and collapse instead.
+  const minimizePlayerRef = React.useRef(lifecycle.minimizePlayer);
+  minimizePlayerRef.current = lifecycle.minimizePlayer;
+  useEffect(() => {
+    if (Platform.OS !== "android" || !isActive) return;
+    const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
+      minimizePlayerRef.current();
+      return true;
+    });
+    return () => subscription.remove();
+  }, [isActive]);
+
   const handleLoopRangeChange = useCallback(
     (start: number, end: number) => setPracticeLoopRange({ start, end }),
     [setPracticeLoopRange]
@@ -590,7 +598,6 @@ export function PlayerScreen() {
             playerPosition={effectivePlayerPosition}
             displayDuration={effectivePlayerDuration}
             mode={ui.mode}
-            onBack={lifecycle.handleBack}
             onMinimize={lifecycle.minimizePlayer}
             onOverflow={lifecycle.handleOverflowMenu}
           />
@@ -873,12 +880,15 @@ export function PlayerScreen() {
               clipNotesSummary={data.clipNotesSummary}
               notesExpanded={ui.notesExpanded}
               queueEntries={data.queueEntries}
-              currentClipId={playerClip.id}
               queueExpanded={ui.queueExpanded}
               onToggleLyricsExpanded={ui.setLyricsExpanded}
               onToggleNotesExpanded={ui.setNotesExpanded}
               onToggleQueueExpanded={ui.setQueueExpanded}
-              onSelectQueueEntry={lifecycle.handleQueueSelect}
+              onQueueEndSession={lifecycle.stopSessionAndClose}
+              onQueueOpenIdea={(ideaId) => {
+                lifecycle.minimizePlayer();
+                navigation.navigate("IdeaDetail", { ideaId });
+              }}
             />
           )}
         </View>

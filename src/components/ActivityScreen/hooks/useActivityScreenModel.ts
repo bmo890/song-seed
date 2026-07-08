@@ -318,7 +318,6 @@ export function useActivityScreenModel() {
         0,
         true
       );
-      navigateRoot("Player");
       return;
     }
 

@@ -141,7 +141,6 @@ export function useRevisitScreenModel() {
       useStore
         .getState()
         .setPlayerQueueForScreen([{ ideaId: candidate.ideaId, clipId: candidate.primaryClip.id }], 0);
-      navigateRoot("Player");
       return;
     }
     navigateRoot("IdeaDetail", { ideaId: candidate.ideaId });

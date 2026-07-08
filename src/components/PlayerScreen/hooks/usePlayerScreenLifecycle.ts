@@ -259,6 +259,9 @@ export function usePlayerScreenLifecycle({
     void cancelScrub();
     void closePlayer();
     useStore.getState().clearPlayerQueue();
+    // A forced close (e.g. the playing clip was deleted elsewhere) also
+    // dismisses the sheet — there is nothing left to show.
+    useStore.getState().setPlayerScreenMounted(false);
   }, [
     cancelPendingPracticeSeek,
     cancelScrub,
@@ -266,12 +269,6 @@ export function usePlayerScreenLifecycle({
     playerCloseRequestToken,
     prepareTransportForClose,
   ]);
-
-  // On-screen Back button: just pop. The beforeRemove listener does the
-  // stop + clear-queue cleanup (same path as hardware/gesture back).
-  const handleBack = useCallback(() => {
-    navigation.goBack();
-  }, [navigation]);
 
   const handleScrubStateChange = useCallback(
     (scrubbing: boolean) => {
@@ -284,13 +281,7 @@ export function usePlayerScreenLifecycle({
     [beginScrub, endScrub]
   );
 
-  // Minimize: pop the Player screen WITHOUT stopping audio. The engine lives in
-  // FullPlayerProvider (above the navigator), so it keeps playing and the mini
-  // dock controls the same live transport — position is preserved automatically.
-  // The flag tells the beforeRemove listener below to skip the stop/clear cleanup.
-  const isMinimizingRef = useRef(false);
-  const minimizePlayer = useCallback(() => {
-    isMinimizingRef.current = true;
+  const popPlayerScreen = useCallback(() => {
     if (navigation.canGoBack()) {
       navigation.goBack();
     } else {
@@ -298,22 +289,31 @@ export function usePlayerScreenLifecycle({
     }
   }, [navigation]);
 
-  // Any exit that ISN'T a minimize (the on-screen Back button, the hardware/gesture
-  // back) should stop playback and clear the queue. beforeRemove fires for every
-  // pop of this screen; we run the cleanup unless the minimize flag is set.
-  useEffect(() => {
-    const unsubscribe = navigation.addListener("beforeRemove", () => {
-      if (isMinimizingRef.current) {
-        isMinimizingRef.current = false;
-        return; // minimized — keep playing in the dock
-      }
-      prepareTransportForClose();
-      cancelPendingPracticeSeek();
-      void closePlayer();
-      useStore.getState().clearPlayerQueue();
-    });
-    return unsubscribe;
-  }, [cancelPendingPracticeSeek, closePlayer, navigation, prepareTransportForClose]);
+  // Explicit stop-and-leave, for flows where the session is over (deleting the
+  // playing clip, or collapsing a finished single-clip audition).
+  const stopSessionAndClose = useCallback(() => {
+    prepareTransportForClose();
+    cancelPendingPracticeSeek();
+    void closePlayer();
+    useStore.getState().clearPlayerQueue();
+    popPlayerScreen();
+  }, [cancelPendingPracticeSeek, closePlayer, popPlayerScreen, prepareTransportForClose]);
+
+  // Collapsing the player reads intent from VISIBLE playback state (never from
+  // which button was pressed — the old Back/minimize split hid that):
+  //   · playing            → session persists in the dock, always
+  //   · paused, multi-item → session persists (your place in the set matters)
+  //   · paused, single clip → the audition is over; end quietly, no dock residue
+  // Covers the chevron, hardware back, and the future swipe-down identically.
+  const minimizePlayer = useCallback(() => {
+    const state = useStore.getState();
+    const isAudition = !state.playerIsPlaying && state.playerQueue.length <= 1;
+    if (isAudition) {
+      stopSessionAndClose();
+      return;
+    }
+    popPlayerScreen();
+  }, [popPlayerScreen, stopSessionAndClose]);
 
   const handleTogglePlayPress = useCallback(() => {
     void handleTransportToggle();
@@ -326,13 +326,6 @@ export function usePlayerScreenLifecycle({
   const handleNextTrack = useCallback(() => {
     useStore.getState().advancePlayerQueue("next", true);
   }, []);
-
-  const handleQueueSelect = useCallback(
-    (index: number) => {
-      useStore.getState().setPlayerQueue(playerQueue, index, true);
-    },
-    [playerQueue]
-  );
 
   const handleOverflowMenu = useCallback(() => {
     const hasOverdubs = !!playerClip && clipHasOverdubs(playerClip);
@@ -496,9 +489,9 @@ export function usePlayerScreenLifecycle({
               } else {
                 appActions.deleteClipFromIdea(playerIdea.id, clipId);
               }
-              // Close the player — it was pointed at the now-deleted clip. The
-              // beforeRemove listener stops audio and clears the queue.
-              navigation.goBack();
+              // Close the player — it was pointed at the now-deleted clip.
+              // Exits no longer stop audio implicitly, so clean up explicitly.
+              stopSessionAndClose();
             },
             { confirmLabel: emptiesIdea && isProject ? "Delete song" : "Delete", icon: "trash-outline" }
           );
@@ -506,16 +499,15 @@ export function usePlayerScreenLifecycle({
       },
       { label: "Cancel", style: "cancel" },
     ]);
-  }, [displayDuration, isPlayerPlaying, minimizePlayer, navigation, pausePlayer, playerClip, playerIdea]);
+  }, [displayDuration, isPlayerPlaying, navigation, pausePlayer, playerClip, playerIdea, stopSessionAndClose]);
 
   return {
-    handleBack,
     minimizePlayer,
+    stopSessionAndClose,
     handleScrubStateChange,
     handleTogglePlayPress,
     handlePreviousTrack,
     handleNextTrack,
-    handleQueueSelect,
     handleOverflowMenu,
   };
 }
