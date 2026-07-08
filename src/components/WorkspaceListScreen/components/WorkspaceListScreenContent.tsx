@@ -19,6 +19,7 @@ export function WorkspaceListScreenContent() {
   const songTargetPicker = useStore((s) => s.songTargetPicker);
   const cancelSongTargetPicking = useStore((s) => s.cancelSongTargetPicking);
   const insets = useSafeAreaInsets();
+  const playerDockHeight = useStore((s) => s.playerDockHeight);
   const navigation = useNavigation<any>();
   const [sortMenuOpen, setSortMenuOpen] = useState(false);
 
@@ -200,7 +201,7 @@ export function WorkspaceListScreenContent() {
       <Pressable
         style={({ pressed }) => [
           styles.fab,
-          { bottom: Math.max(32, insets.bottom + 16) },
+          { bottom: playerDockHeight > 0 ? playerDockHeight + 12 : Math.max(32, insets.bottom + 16) },
           pressed ? styles.pressDown : null,
         ]}
         onPress={() => {

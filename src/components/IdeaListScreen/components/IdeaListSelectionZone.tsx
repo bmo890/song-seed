@@ -10,6 +10,7 @@ type IdeaListSelectionZoneProps = {
   selectedInteractiveIdeasCount: number;
   onCreateProjectFromSelection: () => void;
   onPlaySelected: () => void;
+  onAddToQueue: () => void;
   onToggleHideSelected: () => void;
   onDeleteSelected: () => void;
   onEditSelected: () => void;
@@ -29,6 +30,7 @@ export function IdeaListSelectionZone({
   selectedInteractiveIdeasCount,
   onCreateProjectFromSelection,
   onPlaySelected,
+  onAddToQueue,
   onToggleHideSelected,
   onDeleteSelected,
   onEditSelected,
@@ -45,6 +47,7 @@ export function IdeaListSelectionZone({
           selectableIdeaIds={selectableIdeaIds}
           disabledIdeaIds={selectedHiddenIdeaIds}
           onPlaySelected={onPlaySelected}
+          onAddToQueue={onAddToQueue}
           onToggleHideSelected={onToggleHideSelected}
           hideActionLabel={selectedHiddenOnly ? "Unhide" : "Hide"}
           hideActionDisabled={

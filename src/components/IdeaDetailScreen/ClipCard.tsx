@@ -164,6 +164,15 @@ export const ClipCard = React.memo(function ClipCard({
       s.inlineTarget.clipId === clip.id &&
       s.inlineIsPlaying
   );
+  // This clip is the active dock / full-player session target.
+  const sessionActive = useStore(
+    (s) => s.playerTarget?.ideaId === idea.id && s.playerTarget.clipId === clip.id
+  );
+  const sessionPlaying = useStore((s) => s.playerIsPlaying);
+  // Now-playing treatment is reserved for the durable dock / full-player session.
+  // A clip-card inline preview keeps its own plain look (its play/pause + scrubber).
+  const nowPlaying = sessionActive;
+  const nowPlayingIsPlaying = sessionActive && sessionPlaying;
   const highlightValue = getHighlightValue(clip.id);
   const isPrimaryCandidate = displayPrimaryId === clip.id;
   const compactDensity = entry.kind === "evolution" ? entry.compactPreview : false;
@@ -309,7 +318,8 @@ export const ClipCard = React.memo(function ClipCard({
         selected={isSelected || isMoving || isParentPickSource}
         inlineActive={inlineActive}
         isInlinePlaying={isInlinePlaying}
-        nowPlaying={inlineActive}
+        nowPlaying={nowPlaying}
+        nowPlayingIsPlaying={nowPlayingIsPlaying}
         compact={compactDensity}
         highlightValue={highlightValue ?? null}
         cornerBadge={

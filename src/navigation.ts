@@ -1,3 +1,5 @@
+import { useStore } from "./state/useStore";
+
 export type CollectionDetailRouteParams = {
   collectionId: string;
   workspaceId?: string;
@@ -47,6 +49,29 @@ export function openCollectionAsBrowseRoot(navigation: any, params: CollectionDe
       params,
     },
   });
+}
+
+/**
+ * Jump to a clip/song's HOME — its collection, scrolled to and highlighting the
+ * card (the same treatment as "view in collection" from Search/Activity). Used
+ * by the queue's per-row arrow. Falls back to the idea's own detail page if it
+ * isn't filed in a collection.
+ */
+export function openIdeaInCollection(navigation: any, ideaId: string) {
+  const state = useStore.getState();
+  const workspace = state.workspaces.find((ws) => ws.ideas.some((idea) => idea.id === ideaId));
+  const idea = workspace?.ideas.find((candidate) => candidate.id === ideaId);
+  if (workspace && idea?.collectionId) {
+    openCollectionAsBrowseRoot(navigation, {
+      collectionId: idea.collectionId,
+      workspaceId: workspace.id,
+      focusIdeaId: ideaId,
+      focusToken: Date.now(),
+    });
+    return;
+  }
+  const rootNavigation = getRootNavigation(navigation);
+  (rootNavigation ?? navigation)?.navigate?.("IdeaDetail", { ideaId });
 }
 
 export function openCollectionFromContext(navigation: any, params: CollectionDetailRouteParams) {

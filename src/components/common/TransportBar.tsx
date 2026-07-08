@@ -19,6 +19,9 @@ type TransportBarProps = {
   trailingActive?: boolean;
   trailingDisabled?: boolean;
   onTrailingPress?: () => void;
+  /** Tiny readout under the trailing button (the queue's "n / n" position),
+   *  mirroring the mini dock. */
+  trailingCaption?: string;
   speedBadge?: string;
   speedActive?: boolean;
   onSpeedPress?: () => void;
@@ -43,6 +46,7 @@ function TransportBarInner({
   trailingActive = false,
   trailingDisabled = false,
   onTrailingPress,
+  trailingCaption,
   speedBadge,
   speedActive = false,
   onSpeedPress,
@@ -143,27 +147,32 @@ function TransportBarInner({
 
       <View style={slotStyle}>
         {trailingIcon ? (
-          <Pressable
-            style={({ pressed }) => [
-              compact ? styles.trailingButtonCompact : styles.trailingButton,
-              trailingActive ? styles.trailingButtonActive : null,
-              trailingDisabled ? styles.buttonDisabled : null,
-              pressed ? styles.pressed : null,
-            ]}
-            onPress={() => {
-              haptic.tap();
-              onTrailingPress?.();
-            }}
-            disabled={trailingDisabled}
-            accessibilityRole="button"
-            accessibilityLabel={trailingActive ? "Hide queue" : "Show queue"}
-          >
-            <Ionicons
-              name={trailingIcon}
-              size={compact ? 15 : 18}
-              color={trailingActive ? "#FDFBF7" : trailingDisabled ? "#c4b5b2" : "#6b5a55"}
-            />
-          </Pressable>
+          <View style={styles.trailingCol}>
+            <Pressable
+              style={({ pressed }) => [
+                compact ? styles.trailingButtonCompact : styles.trailingButton,
+                trailingActive ? styles.trailingButtonActive : null,
+                trailingDisabled ? styles.buttonDisabled : null,
+                pressed ? styles.pressed : null,
+              ]}
+              onPress={() => {
+                haptic.tap();
+                onTrailingPress?.();
+              }}
+              disabled={trailingDisabled}
+              accessibilityRole="button"
+              accessibilityLabel={trailingActive ? "Hide queue" : "Show queue"}
+            >
+              <Ionicons
+                name={trailingIcon}
+                size={compact ? 15 : 18}
+                color={trailingActive ? "#FDFBF7" : trailingDisabled ? "#c4b5b2" : "#6b5a55"}
+              />
+            </Pressable>
+            {trailingCaption ? (
+              <Text style={styles.trailingCaption}>{trailingCaption}</Text>
+            ) : null}
+          </View>
         ) : null}
       </View>
     </View>
@@ -261,6 +270,18 @@ const styles = StyleSheet.create({
   },
   trailingButtonActive: {
     backgroundColor: "#B87D6B",
+  },
+  trailingCol: {
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 2,
+  },
+  trailingCaption: {
+    fontFamily: "PlusJakartaSans_500Medium",
+    fontSize: 10,
+    lineHeight: 11,
+    color: "#84736f",
+    fontVariant: ["tabular-nums"],
   },
   buttonDisabled: {
     opacity: 0.45,

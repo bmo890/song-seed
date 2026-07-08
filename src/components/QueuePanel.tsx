@@ -1,4 +1,6 @@
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useState } from "react";
+import { Pressable, StyleSheet, Text, View } from "react-native";
+import DraggableFlatList from "react-native-draggable-flatlist";
 import { Ionicons } from "@expo/vector-icons";
 import { colors, radii, spacing, text as textTokens } from "../design/tokens";
 import { haptic } from "../design/haptics";
@@ -6,19 +8,31 @@ import { useStore } from "../state/useStore";
 import { fmtDuration } from "../utils";
 import { getClipPlaybackDurationMs } from "../clipPresentation";
 import { NowPlayingIndicator } from "./common/NowPlayingIndicator";
+import type { PlaybackQueueItem } from "../types";
+
+type QueueRow = {
+  key: string;
+  queueItem: PlaybackQueueItem;
+  index: number;
+  ideaId: string | null;
+  workspaceId: string | null;
+  title: string;
+  subtitle: string;
+  durationMs: number | null;
+  isCurrent: boolean;
+};
 
 /**
  * The playback queue as a panel that extends UP from the media dock (not a
  * modal sheet): it stays open while you skip around — the rehearsal flow — and
  * never blocks the transport controls beneath it. Tapping a row jumps playback
- * and keeps the panel open. Works identically for playlist and ad-hoc queues.
+ * and keeps the panel open. Edit mode reveals drag-to-reorder + remove, exactly
+ * like the playlist editor. Works identically for playlist and ad-hoc queues.
  */
 export function QueuePanel({
-  onEndSession,
   onOpenIdea,
   framed = true,
 }: {
-  onEndSession: () => void;
   /** Navigate to a song/clip's own page ("go to song") — the rehearsal jump from
    *  hearing a track to working on it. Provided by the host, which owns nav. */
   onOpenIdea: (ideaId: string) => void;
@@ -30,13 +44,16 @@ export function QueuePanel({
   const playerQueueIndex = useStore((s) => s.playerQueueIndex);
   const playerIsPlaying = useStore((s) => s.playerIsPlaying);
   const workspaces = useStore((s) => s.workspaces);
+  const [editMode, setEditMode] = useState(false);
 
-  const rows = playerQueue.map((item, index) => {
+  const rows: QueueRow[] = playerQueue.map((item, index) => {
     const workspace = workspaces.find((ws) => ws.ideas.some((candidate) => candidate.id === item.ideaId));
     const idea = workspace?.ideas.find((candidate) => candidate.id === item.ideaId);
     const clip = idea?.clips.find((candidate) => candidate.id === item.clipId);
     return {
-      key: `${item.ideaId}:${item.clipId}:${index}`,
+      // Value-keyed (not index-keyed) so a drag reorder doesn't reshuffle keys.
+      key: `${item.ideaId}:${item.clipId}`,
+      queueItem: item,
       index,
       ideaId: idea?.id ?? null,
       workspaceId: workspace?.id ?? null,
@@ -54,7 +71,7 @@ export function QueuePanel({
     haptic.tap();
   };
 
-  const goToSong = (row: (typeof rows)[number]) => {
+  const goToSong = (row: QueueRow) => {
     if (!row.ideaId || !row.workspaceId) return;
     const state = useStore.getState();
     if (state.activeWorkspaceId !== row.workspaceId) {
@@ -65,35 +82,94 @@ export function QueuePanel({
     onOpenIdea(row.ideaId);
   };
 
+  const removeAt = (index: number) => {
+    const before = useStore.getState().playerQueue.length;
+    useStore.getState().removeFromPlayerQueue(index);
+    haptic.light();
+    // Removing the last item ends the session — collapse the full player if it's
+    // open (the dock hides itself once the queue empties) and drop out of edit.
+    if (before <= 1) {
+      useStore.getState().requestPlayerClose();
+      setEditMode(false);
+    }
+  };
+
+  const onReorder = (data: QueueRow[]) => {
+    useStore.getState().reorderPlayerQueue(data.map((r) => r.queueItem));
+    haptic.tap();
+  };
+
   return (
     <View style={framed ? panelStyles.panel : null}>
       <View style={panelStyles.headerRow}>
         <Text style={panelStyles.title}>Queue</Text>
-        <Text style={panelStyles.counter}>
-          {Math.min(playerQueueIndex + 1, playerQueue.length)} of {playerQueue.length}
-        </Text>
+        <View style={panelStyles.headerRight}>
+          <Text style={panelStyles.counter}>
+            {Math.min(playerQueueIndex + 1, playerQueue.length)} of {playerQueue.length}
+          </Text>
+          {playerQueue.length > 0 ? (
+            <Pressable
+              style={({ pressed }) => [panelStyles.editBtn, pressed ? { opacity: 0.6 } : null]}
+              onPress={() => {
+                haptic.tap();
+                setEditMode((value) => !value);
+              }}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel={editMode ? "Done editing queue" : "Edit queue"}
+            >
+              <Text style={[panelStyles.editBtnText, editMode ? panelStyles.editBtnTextActive : null]}>
+                {editMode ? "Done" : "Edit"}
+              </Text>
+            </Pressable>
+          ) : null}
+        </View>
       </View>
 
-      <ScrollView style={panelStyles.list} showsVerticalScrollIndicator={false}>
-        {rows.map((row) => (
+      <DraggableFlatList
+        data={rows}
+        keyExtractor={(row) => row.key}
+        style={panelStyles.list}
+        contentContainerStyle={panelStyles.listContent}
+        showsVerticalScrollIndicator={false}
+        activationDistance={14}
+        onDragBegin={haptic.grab}
+        onDragEnd={({ data }) => onReorder(data)}
+        renderItem={({ item: row, drag, isActive }) => (
           <Pressable
-            key={row.key}
             style={({ pressed }) => [
               panelStyles.row,
               row.isCurrent ? panelStyles.rowCurrent : null,
-              pressed ? { opacity: 0.75 } : null,
+              isActive ? panelStyles.rowDragging : null,
+              pressed && !editMode ? { opacity: 0.75 } : null,
             ]}
-            onPress={() => jumpTo(row.index)}
+            onPress={() => {
+              if (editMode) return;
+              jumpTo(row.index);
+            }}
+            disabled={editMode}
             accessibilityRole="button"
             accessibilityLabel={`Play ${row.title}`}
           >
-            <View style={panelStyles.rowNum}>
-              {row.isCurrent ? (
-                <NowPlayingIndicator playing={playerIsPlaying} color={colors.primary} />
-              ) : (
-                <Text style={panelStyles.rowNumText}>{row.index + 1}</Text>
-              )}
-            </View>
+            {editMode ? (
+              <Pressable
+                style={({ pressed }) => [panelStyles.removeBtn, pressed ? { opacity: 0.6 } : null]}
+                onPress={() => removeAt(row.index)}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel={`Remove ${row.title} from queue`}
+              >
+                <Ionicons name="remove-circle-outline" size={19} color="#B4574A" />
+              </Pressable>
+            ) : (
+              <View style={panelStyles.rowNum}>
+                {row.isCurrent ? (
+                  <NowPlayingIndicator playing={playerIsPlaying} color={colors.primary} />
+                ) : (
+                  <Text style={panelStyles.rowNumText}>{row.index + 1}</Text>
+                )}
+              </View>
+            )}
             <View style={panelStyles.rowCopy}>
               <Text
                 style={[panelStyles.rowTitle, row.isCurrent ? panelStyles.rowTitleCurrent : null]}
@@ -110,7 +186,17 @@ export function QueuePanel({
             {row.durationMs != null ? (
               <Text style={panelStyles.rowDuration}>{fmtDuration(row.durationMs)}</Text>
             ) : null}
-            {row.ideaId ? (
+            {editMode ? (
+              <Pressable
+                style={({ pressed }) => [panelStyles.dragHandle, pressed ? { opacity: 0.6 } : null]}
+                onLongPress={drag}
+                delayLongPress={120}
+                accessibilityRole="button"
+                accessibilityLabel={`Reorder ${row.title}`}
+              >
+                <Ionicons name="reorder-three" size={18} color={colors.textSecondary} />
+              </Pressable>
+            ) : row.ideaId ? (
               <Pressable
                 style={({ pressed }) => [panelStyles.goToBtn, pressed ? { opacity: 0.6 } : null]}
                 onPress={(evt) => {
@@ -125,31 +211,27 @@ export function QueuePanel({
               </Pressable>
             ) : null}
           </Pressable>
-        ))}
-      </ScrollView>
-
-      <Pressable
-        style={({ pressed }) => [panelStyles.endBtn, pressed ? { opacity: 0.8 } : null]}
-        onPress={onEndSession}
-        accessibilityRole="button"
-        accessibilityLabel="End listening session"
-      >
-        <Ionicons name="stop-circle-outline" size={15} color={colors.textStrong} />
-        <Text style={panelStyles.endBtnLabel}>End session</Text>
-      </Pressable>
+        )}
+      />
     </View>
   );
 }
 
 const panelStyles = StyleSheet.create({
-  // Sits directly above the dock surface inside the same bottom-anchored wrap,
-  // so it visually extends the dock upward. Same paper, own top hairline.
+  // Sits directly above the dock surface inside the same bottom-anchored wrap, so
+  // it visually extends the dock upward. Stays light/paper, but a STRONG terracotta
+  // border on the top + sides (never the bottom — it meets the dock there) ties it
+  // to the terracotta control bar and frames it as one unit against the paper page.
   panel: {
-    backgroundColor: "#FDFBF7",
-    borderTopWidth: 1,
-    borderTopColor: colors.borderSubtle,
+    backgroundColor: colors.surfaceContainer,
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    borderColor: "#8b4f3b",
+    borderTopWidth: 1.5,
+    borderLeftWidth: 1.5,
+    borderRightWidth: 1.5,
     paddingHorizontal: 16,
-    paddingTop: 12,
+    paddingTop: 14,
     paddingBottom: 4,
   },
   headerRow: {
@@ -157,6 +239,11 @@ const panelStyles = StyleSheet.create({
     alignItems: "baseline",
     justifyContent: "space-between",
     paddingBottom: spacing.xs,
+  },
+  headerRight: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    gap: spacing.md,
   },
   title: {
     fontFamily: "PlayfairDisplay_600SemiBold",
@@ -168,8 +255,22 @@ const panelStyles = StyleSheet.create({
     color: colors.textMuted,
     fontVariant: ["tabular-nums"],
   },
+  editBtn: {
+    paddingVertical: 2,
+  },
+  editBtnText: {
+    fontFamily: "PlusJakartaSans_600SemiBold",
+    fontSize: 13,
+    color: colors.textSecondary,
+  },
+  editBtnTextActive: {
+    color: colors.primary,
+  },
   list: {
     maxHeight: 264,
+  },
+  listContent: {
+    paddingBottom: 6,
   },
   row: {
     flexDirection: "row",
@@ -180,7 +281,10 @@ const panelStyles = StyleSheet.create({
     borderRadius: radii.sm,
   },
   rowCurrent: {
-    backgroundColor: colors.surfaceContainer,
+    backgroundColor: colors.surface,
+  },
+  rowDragging: {
+    backgroundColor: colors.surfaceHigh,
   },
   rowNum: {
     width: 22,
@@ -190,6 +294,10 @@ const panelStyles = StyleSheet.create({
     ...textTokens.caption,
     color: colors.textMuted,
     fontVariant: ["tabular-nums"],
+  },
+  removeBtn: {
+    width: 22,
+    alignItems: "center",
   },
   rowCopy: {
     flex: 1,
@@ -222,20 +330,10 @@ const panelStyles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  endBtn: {
-    flexDirection: "row",
+  dragHandle: {
+    width: 30,
+    height: 30,
     alignItems: "center",
     justifyContent: "center",
-    gap: 6,
-    marginTop: 6,
-    marginBottom: 6,
-    paddingVertical: 9,
-    borderRadius: radii.md,
-    backgroundColor: colors.surfaceContainer,
-  },
-  endBtnLabel: {
-    ...textTokens.caption,
-    color: colors.textStrong,
-    fontFamily: "PlusJakartaSans_700Bold",
   },
 });

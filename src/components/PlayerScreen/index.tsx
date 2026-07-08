@@ -1,9 +1,10 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { BackHandler, Platform, Pressable, Text, View } from "react-native";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { BackHandler, Dimensions, Platform, Pressable, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar as ExpoStatusBar } from "expo-status-bar";
-import { useSharedValue } from "react-native-reanimated";
+import { Gesture } from "react-native-gesture-handler";
+import { Easing, runOnJS, useSharedValue, withTiming, type SharedValue } from "react-native-reanimated";
 import type { ClipSection, PracticeMarker } from "../../types";
 import { styles } from "../../styles";
 import { colors } from "../../design/tokens";
@@ -33,6 +34,7 @@ import { PlayAlongLyrics, PlayAlongSpeedControl } from "./components/PlayAlongLy
 import { PlayerPinSheets } from "./components/PlayerPinSheets";
 import { playerScreenStyles } from "./styles";
 import { getVisibleTimelineRange } from "./helpers";
+import { openIdeaInCollection } from "../../navigation";
 import { AppAlert } from "../common/AppAlert";
 
 const PRACTICE_SPEED_PRESETS = [0.5, 0.75, 1, 1.25, 1.5] as const;
@@ -42,6 +44,11 @@ const PRACTICE_SPEED_MAX = 1.5;
 // Stable empty arrays so hiding reel markers doesn't churn the memoized timeline.
 const EMPTY_MARKERS: PracticeMarker[] = [];
 const EMPTY_SECTIONS: ClipSection[] = [];
+
+// Release past a quarter of the way down (px) collapses the sheet; a deliberate
+// fast flick (px/s) collapses it from anywhere.
+const SHEET_DISMISS_DISTANCE = Dimensions.get("window").height * 0.25;
+const SHEET_DISMISS_VELOCITY = 1200;
 
 /** Minimal navigation surface the player needs, provided by PlayerSheet: the
  *  player is a root-level sheet (not a route), so "goBack" means "collapse the
@@ -55,9 +62,16 @@ export type PlayerSheetNavigation = {
 export function PlayerScreen({
   navigation,
   isActive,
+  dragY,
+  sheetInMotion,
 }: {
   navigation: PlayerSheetNavigation;
   isActive: boolean;
+  /** Sheet vertical offset owned by PlayerSheet (0 = open). The header drag
+   *  gesture writes to it so the whole sheet tracks the thumb. */
+  dragY: SharedValue<number>;
+  /** True while the sheet's open/close animation runs — freezes this subtree. */
+  sheetInMotion: boolean;
 }) {
   const isFocused = isActive;
 
@@ -407,6 +421,67 @@ export function PlayerScreen({
     return () => subscription.remove();
   }, [isActive]);
 
+  // Stable JS entry point for the gesture worklet (reads the live ref at call time).
+  const runMinimize = useCallback(() => minimizePlayerRef.current(), []);
+
+  // While the sheet is in motion the player's React subtree is FROZEN (see the
+  // cached-element return below): the audio status hook re-renders this screen
+  // at 20Hz during playback, and those commits visibly step/stutter against the
+  // smooth UI-thread translate. Freezing drops commits to zero for the duration
+  // of the gesture; shared-value-driven visuals (the reel) keep animating.
+  const [sheetDragActive, setSheetDragActive] = useState(false);
+  const dismissedInGesture = useSharedValue(false);
+  const frozenTreeRef = useRef<React.ReactElement | null>(null);
+  const cachedClipIdRef = useRef<string | null>(null);
+
+  // Header drag-to-dismiss: the whole sheet tracks the thumb via dragY. Released
+  // past a distance/velocity threshold it hands off to minimizePlayer (which
+  // animates the rest of the way + applies the audition rule); otherwise it
+  // springs back to fully open. Vertical + downward only, so it never contests
+  // horizontal scrub or upward flicks.
+  const dismissGesture = useRef(
+    Gesture.Pan()
+      .activeOffsetY(12)
+      .failOffsetY(-12)
+      .onStart(() => {
+        "worklet";
+        dismissedInGesture.value = false;
+        runOnJS(setSheetDragActive)(true);
+      })
+      .onUpdate((event) => {
+        "worklet";
+        dragY.value = Math.max(0, event.translationY);
+      })
+      .onEnd((event) => {
+        "worklet";
+        if (event.translationY > SHEET_DISMISS_DISTANCE || event.velocityY > SHEET_DISMISS_VELOCITY) {
+          // Stay frozen through the exit animation — the sheet unmounts anyway.
+          dismissedInGesture.value = true;
+          runOnJS(runMinimize)();
+        }
+      })
+      .onFinalize(() => {
+        "worklet";
+        if (dismissedInGesture.value) {
+          // The collapse animation (goBack → inMotion) owns the freeze from here.
+          // Clear the drag flag NOW: the sheet stays mounted while docked, so a
+          // lingering true would freeze the player forever (stale pause icon…).
+          runOnJS(setSheetDragActive)(false);
+          return;
+        }
+        // Plain decelerating slide back to open — no spring overshoot, which
+        // read as an unstable bounce. Stay frozen until it lands so the return
+        // animation doesn't stutter against playback commits.
+        dragY.value = withTiming(
+          0,
+          { duration: 220, easing: Easing.out(Easing.cubic) },
+          (finished) => {
+            if (finished) runOnJS(setSheetDragActive)(false);
+          }
+        );
+      })
+  ).current;
+
   const handleLoopRangeChange = useCallback(
     (start: number, end: number) => setPracticeLoopRange({ start, end }),
     [setPracticeLoopRange]
@@ -569,6 +644,11 @@ export function PlayerScreen({
   );
 
   if (!playerIdea || !playerClip) {
+    // The clip can vanish mid-collapse (an audition ends → queue clears while the
+    // sheet is still sliding off). Keep showing the last good frame instead of
+    // flashing "Loading" as it exits; fall back to the loader only on a genuine
+    // cold open with nothing cached yet.
+    if (frozenTreeRef.current) return frozenTreeRef.current;
     return (
       <SafeAreaView style={styles.screen}>
         <Text style={styles.subtitle}>Loading player…</Text>
@@ -585,7 +665,7 @@ export function PlayerScreen({
   // lifecycle's source-sync hot-swaps it at the current position. Locking here made every
   // 25ms nudge freeze playback for the length of a full-clip render.
 
-  return (
+  const renderedTree = (
     <SafeAreaView style={[styles.screen, playerScreenStyles.screen]}>
       <TransportLayout
         scrollable={ui.mode !== "playalong"}
@@ -598,6 +678,7 @@ export function PlayerScreen({
             playerPosition={effectivePlayerPosition}
             displayDuration={effectivePlayerDuration}
             mode={ui.mode}
+            dragGesture={dismissGesture}
             onMinimize={lifecycle.minimizePlayer}
             onOverflow={lifecycle.handleOverflowMenu}
           />
@@ -773,7 +854,6 @@ export function PlayerScreen({
             isPlaying={effectiveIsPlaying}
             hasPreviousTrack={hasPreviousTrack}
             hasNextTrack={hasNextTrack}
-            queueEntryCount={data.queueEntries.length}
             repeatEnabled={ui.repeatEnabled}
             queueExpanded={ui.queueExpanded}
             onPreviousTrack={lifecycle.handlePreviousTrack}
@@ -884,10 +964,11 @@ export function PlayerScreen({
               onToggleLyricsExpanded={ui.setLyricsExpanded}
               onToggleNotesExpanded={ui.setNotesExpanded}
               onToggleQueueExpanded={ui.setQueueExpanded}
-              onQueueEndSession={lifecycle.stopSessionAndClose}
               onQueueOpenIdea={(ideaId) => {
                 lifecycle.minimizePlayer();
-                navigation.navigate("IdeaDetail", { ideaId });
+                // Same "view in collection" jump as the dock queue: land on the
+                // clip's home collection with its card highlighted.
+                openIdeaInCollection(navigation, ideaId);
               }}
             />
           )}
@@ -920,4 +1001,21 @@ export function PlayerScreen({
       <ExpoStatusBar style="dark" />
     </SafeAreaView>
   );
+
+  // Freeze wall: return the exact element from the previous commit so React
+  // bails out of reconciling this (huge) subtree. It stays frozen while:
+  //   · the sheet is in motion (drag/animation) — so 20Hz playback commits
+  //     can't stutter the transform, AND
+  //   · the sheet is docked/inactive (pre-mounted below the fold) — so the
+  //     off-screen player costs nothing beyond running its hooks.
+  // It refreshes (renders live once) when the sheet is the active settled
+  // surface, on first render, or when the clip changes — the last keeps the
+  // docked snapshot current so expanding never reveals a stale track.
+  const settledActive = isActive && !sheetInMotion && !sheetDragActive;
+  const clipChanged = cachedClipIdRef.current !== playerClip.id;
+  if (settledActive || frozenTreeRef.current == null || clipChanged) {
+    frozenTreeRef.current = renderedTree;
+    cachedClipIdRef.current = playerClip.id;
+  }
+  return frozenTreeRef.current;
 }

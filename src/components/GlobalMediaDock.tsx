@@ -1,17 +1,17 @@
-import { useEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { Ionicons } from "@expo/vector-icons";
 import { useSharedAudioRecorder } from "@siteed/audio-studio";
-import { PanResponder, Pressable, Text, View } from "react-native";
-import Animated, { FadeIn, FadeInDown, FadeOut } from "react-native-reanimated";
-import { MiniProgress } from "./MiniProgress";
+import { Pressable, Text, View } from "react-native";
+import Animated, { FadeInDown, FadeOut, runOnJS, withTiming } from "react-native-reanimated";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { QueuePanel } from "./QueuePanel";
-import { TransportBar } from "./common/TransportBar";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRecordingDisplayElapsed } from "../hooks/useRecordingDisplayElapsed";
-import { useFullPlayerContext } from "../hooks/FullPlayerProvider";
+import { useFullPlayerControls } from "../hooks/FullPlayerProvider";
+import { usePlayerSheetPosition } from "../hooks/PlayerSheetPositionProvider";
 import { useStore } from "../state/useStore";
 import { styles } from "../styles";
-import { fmtDuration } from "../utils";
+import { fmtDuration, getCollectionById } from "../utils";
 import { haptic } from "../design/haptics";
 
 type GlobalMediaDockProps = {
@@ -31,9 +31,32 @@ type PlaybackDockState = {
   title: string;
   subtitle: string;
   isPlaying: boolean;
-  positionMs: number;
-  durationMs: number;
+  /** Clip's own duration — the progress leaf falls back to this until the live
+   *  transport duration arrives. */
+  fallbackDurationMs: number;
 };
+
+/**
+ * The live progress hairline, isolated so the ~20Hz position/duration ticks
+ * re-render ONLY this tiny leaf — never the dock shell (which does workspace
+ * lookups) or its swipe gesture. This is what keeps drags/scrolls/the drawer
+ * smooth while audio plays.
+ */
+const DockProgressTrack = memo(function DockProgressTrack({
+  fallbackDurationMs,
+}: {
+  fallbackDurationMs: number;
+}) {
+  const positionMs = useStore((s) => s.playerPositionMs);
+  const durationMs = useStore((s) => s.playerDurationMs);
+  const total = durationMs || fallbackDurationMs || 0;
+  const pct = total > 0 ? Math.max(0, Math.min(1, positionMs / total)) : 0;
+  return (
+    <View style={styles.miniMediaDockProgressTrack}>
+      <View style={[styles.miniMediaDockProgressFill, { width: `${pct * 100}%` }]} />
+    </View>
+  );
+});
 
 export function GlobalMediaDock({
   activeRouteName,
@@ -48,8 +71,11 @@ export function GlobalMediaDock({
   const recordingIdeaId = useStore((s) => s.recordingIdeaId);
   const workspaces = useStore((s) => s.workspaces);
   const playerTarget = useStore((s) => s.playerTarget);
-  const playerPositionMs = useStore((s) => s.playerPositionMs);
-  const playerDurationMs = useStore((s) => s.playerDurationMs);
+  // NOTE: position/duration are deliberately NOT subscribed here — they tick at
+  // ~20Hz during playback and would re-render the whole dock (including the
+  // workspace.find lookups below) every 50ms, janking any concurrent drag /
+  // scroll / drawer animation. The live progress bar is isolated into the
+  // DockProgressTrack leaf so only it re-renders on each tick.
   const playerIsPlaying = useStore((s) => s.playerIsPlaying);
   const isPlayerScreenMounted = useStore((s) => s.isPlayerScreenMounted);
   const inlineTarget = useStore((s) => s.inlineTarget);
@@ -69,34 +95,72 @@ export function GlobalMediaDock({
 
   const playerQueue = useStore((s) => s.playerQueue);
   const playerQueueIndex = useStore((s) => s.playerQueueIndex);
-  const fullPlayer = useFullPlayerContext();
+  const fullPlayer = useFullPlayerControls();
   const isPreviewingClip = !!inlineTarget && inlineIsPlaying && !!playerTarget && !playerIsPlaying;
 
   const hasNextInQueue = playerQueue.length > 0 && playerQueueIndex < playerQueue.length - 1;
-  const hasPrevInQueue = playerQueueIndex > 0;
-  const prevTapTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hasPrevInQueue = playerQueue.length > 0 && playerQueueIndex > 0;
+  // Show the "n / n" position readout only for a real multi-item queue. The queue
+  // button itself is ALWAYS enabled (even for a single item) — disabling it caused
+  // edge-case bugs, and opening a one-item queue to reorder/remove is valid.
+  const hasQueueCount = playerQueue.length > 1;
+
+  const { dragY, dockedY, openedByDrag, setInMotion, screenHeight } = usePlayerSheetPosition();
 
   const openFullPlayer = () => {
     useStore.getState().requestInlineStop();
     onOpenPlayer();
   };
-  // Swipe UP anywhere on the dock expands to the full player — the mirror of
-  // the player header's swipe-down. Vertical-only activation so the scrub bar's
-  // horizontal drags are never contested; taps pass through untouched. Declared
-  // BEFORE any early return so the hook order is stable across dock states.
-  const openFullPlayerRef = useRef(openFullPlayer);
-  openFullPlayerRef.current = openFullPlayer;
+
+  // The sheet is PRE-MOUNTED docked (PlayerSheet renders it whenever a session
+  // is active), so swipe-up just drives its position — no mount to wait for, the
+  // reveal is instant. These JS entry points are stable (they only touch the
+  // store getState + the stable setInMotion), so the once-created gesture can
+  // capture them directly — no mutating ref (which Reanimated rejects once the
+  // object has been serialized into a worklet). Freezing keeps the rise smooth.
+  const beginSwipeUp = useCallback(() => {
+    useStore.getState().requestInlineStop();
+    setInMotion(true);
+  }, [setInMotion]);
+  const finishSwipeUpOpen = useCallback(() => {
+    useStore.getState().setPlayerScreenMounted(true);
+    setInMotion(false);
+  }, [setInMotion]);
+  const endSwipeUpCancel = useCallback(() => setInMotion(false), [setInMotion]);
+
+  // Swipe UP on the dock pulls the pre-mounted player up, tracking the finger.
+  // Vertical-up only, so the scrub bar's horizontal drags and button taps are
+  // never contested. Declared before any early return so hook order is stable.
   const expandGesture = useRef(
-    PanResponder.create({
-      onMoveShouldSetPanResponder: (_evt, gesture) =>
-        gesture.dy < -14 && Math.abs(gesture.dy) > Math.abs(gesture.dx) * 1.4,
-      onPanResponderRelease: (_evt, gesture) => {
-        if (gesture.dy < -40 || gesture.vy < -0.8) {
-          haptic.tap();
-          openFullPlayerRef.current();
+    Gesture.Pan()
+      .activeOffsetY(-12)
+      .failOffsetY(12)
+      .onStart(() => {
+        "worklet";
+        runOnJS(beginSwipeUp)();
+      })
+      .onUpdate((event) => {
+        "worklet";
+        // Track from the docked offset (sheet top at the dock's top edge), so the
+        // sheet lifts out from behind the dock the instant the finger moves.
+        dragY.value = Math.min(dockedY.value, Math.max(0, dockedY.value + event.translationY));
+      })
+      .onEnd((event) => {
+        "worklet";
+        const opened = event.translationY < -screenHeight * 0.2 || event.velocityY < -900;
+        if (opened) {
+          // Tell the sheet the finger already positioned it, so its expand effect
+          // doesn't re-animate from the top.
+          openedByDrag.value = true;
+          dragY.value = withTiming(0, { duration: 220 }, (finished) => {
+            if (finished) runOnJS(finishSwipeUpOpen)();
+          });
+        } else {
+          dragY.value = withTiming(dockedY.value, { duration: 200 }, (finished) => {
+            if (finished) runOnJS(endSwipeUpCancel)();
+          });
         }
-      },
-    })
+      })
   ).current;
 
   // Clear the stored dock height when the queue empties (dock disappears).
@@ -117,44 +181,40 @@ export function GlobalMediaDock({
     useStore.getState().advancePlayerQueue("next", true);
   };
 
-  // Single tap restarts the current clip; double-tap jumps to the previous one
-  // (or just restarts if already the first clip in the queue).
   const handleQueuePrev = () => {
+    if (!hasPrevInQueue) return;
     useStore.getState().requestInlineStop();
-    if (prevTapTimeoutRef.current) {
-      clearTimeout(prevTapTimeoutRef.current);
-      prevTapTimeoutRef.current = null;
-      if (hasPrevInQueue) {
-        useStore.getState().advancePlayerQueue("previous", true);
-      } else {
-        void fullPlayer.seekTo(0);
-      }
-      return;
-    }
-    prevTapTimeoutRef.current = setTimeout(() => {
-      prevTapTimeoutRef.current = null;
-      void fullPlayer.seekTo(0);
-    }, 280);
+    useStore.getState().advancePlayerQueue("previous", true);
   };
 
   // The dock only represents the durable full-player queue/session. Clip-card
   // preview playback is separate and does not take over the dock UI.
   const activePlayback: PlaybackDockState | null = (() => {
-    // The dock yields whenever the PlayerSheet is up — they are the same
-    // session at two sizes, never shown together.
+    // The dock shows whenever the sheet is docked (not expanded). During a
+    // swipe-up drag "expanded" stays false until release, so the dock naturally
+    // stays mounted behind the rising sheet, keeping its gesture alive.
     const shouldShowPlaybackDock = !isPlayerScreenMounted;
     if (playerTarget && playerQueue.length > 0 && shouldShowPlaybackDock) {
-      const idea = allIdeas.find((item) => item.id === playerTarget.ideaId);
+      const workspace = workspaces.find((ws) =>
+        ws.ideas.some((item) => item.id === playerTarget.ideaId)
+      );
+      const idea = workspace?.ideas.find((item) => item.id === playerTarget.ideaId);
       const clip = idea?.clips.find((item) => item.id === playerTarget.clipId);
-      if (idea && clip) {
+      if (workspace && idea && clip) {
+        // Context line (the "artist" slot): song title when the clip belongs to
+        // a song project, then the collection — so standalone clips aren't bare.
+        const collectionTitle = getCollectionById(workspace, idea.collectionId)?.title;
+        const subtitle =
+          idea.kind === "project"
+            ? [idea.title, collectionTitle].filter(Boolean).join(" · ")
+            : collectionTitle ?? idea.title;
         return {
           ideaId: idea.id,
           clipId: clip.id,
           title: clip.title,
-          subtitle: idea.title,
+          subtitle,
           isPlaying: playerIsPlaying,
-          positionMs: playerPositionMs,
-          durationMs: playerDurationMs || clip.durationMs || 0,
+          fallbackDurationMs: clip.durationMs || 0,
         } satisfies PlaybackDockState;
       }
     }
@@ -256,37 +316,119 @@ export function GlobalMediaDock({
   // ─── Playback dock ──────────────────────────────────────────────────────────
   if (!activePlayback) return null;
 
-  // While a selection toolbar is on screen, slim the dock to a quiet strip
-  // that tucks tight above it: thin progress line + play/pause + title.
-  if (activeSelectionDockHeight > 0) {
-    const pct = activePlayback.durationMs > 0
-      ? Math.max(0, Math.min(1, activePlayback.positionMs / activePlayback.durationMs))
-      : 0;
-    return (
-      <Animated.View
-        style={[styles.miniMediaDockWrap, { bottom: activeSelectionDockHeight }]}
-        entering={FadeIn.duration(160)}
-      >
-        <Pressable
-          style={styles.miniMediaDockCompact}
-          onLayout={(e) => useStore.getState().setPlayerDockHeight(e.nativeEvent.layout.height)}
-          onPress={() => {
-            useStore.getState().requestInlineStop();
-            onOpenPlayer();
+  // Skip the subtitle when it just repeats the title (standalone clip ideas
+  // share their clip's name — "Take · Take" reads as a glitch).
+  const dockSubtitle = isPreviewingClip
+    ? "Preview playing"
+    : activePlayback.subtitle !== activePlayback.title
+      ? activePlayback.subtitle
+      : null;
+  // Lifted above an active selection toolbar; hugging the screen bottom otherwise.
+  const dockBottomOffset = activeSelectionDockHeight > 0 ? { bottom: activeSelectionDockHeight } : null;
+  // This wins over miniMediaDockSurface's own paddingBottom (later in the style
+  // array), so the stylesheet value has no effect here — bumping the dock's
+  // height/balance has to happen here, not there.
+  const dockBottomPadding = {
+    paddingBottom: activeSelectionDockHeight > 0 ? 10 : Math.max(insets.bottom, 14),
+  };
+
+  return (
+    // No `exiting` animation: when the PlayerSheet expands this dock unmounts
+    // beneath it instantly — an exit fade would linger under the sheet's
+    // slide-up. Hiding instantly is also the natural behavior for the
+    // ✕-dismiss and queue-empty cases.
+    <Animated.View
+      style={[styles.miniMediaDockWrap, dockBottomOffset]}
+      entering={FadeInDown.duration(200)}
+    >
+      {/* Queue extends upward from the dock — same surface, stays open while
+          skipping around. Rendered above the base dock inside the same
+          bottom-anchored wrap so extra height grows toward the top. */}
+      {queueOpen ? (
+        <QueuePanel
+          onOpenIdea={(ideaId) => {
+            // Close the panel so the song page is visible underneath the dock.
+            setQueueOpen(false);
+            onOpenIdea(ideaId);
           }}
-        >
-          <View style={styles.miniMediaDockCompactTrack}>
-            <View style={[styles.miniMediaDockCompactFill, { width: `${pct * 100}%` }]} />
-          </View>
-          <View style={styles.miniMediaDockCompactRow}>
+        />
+      ) : null}
+
+      <GestureDetector gesture={expandGesture}>
+      <View
+        style={[styles.miniMediaDockSurface, dockBottomPadding]}
+        // Height of the BASE dock only (queue panel excluded) — page bottom
+        // paddings key off this and must not jump when the queue opens.
+        onLayout={(e) => useStore.getState().setPlayerDockHeight(e.nativeEvent.layout.height)}
+      >
+        {/* Hairline progress along the dock's top edge — isolated leaf so the
+            20Hz position ticks don't re-render the dock shell. */}
+        <DockProgressTrack fallbackDurationMs={activePlayback.fallbackDurationMs} />
+
+        {/* One row: [ ✕ ] [ title·context …flex… ] [ ◀ ▶ ▶▶ ] [ ≡ + n/n ].
+            ✕ anchors far left, the title fills the slack, prev/play/next form a
+            tight transport cluster, and the queue button (with its position
+            readout beneath) closes the right. */}
+        <View style={styles.miniMediaDockRow}>
+          <Pressable
+            style={({ pressed }) => [styles.miniMediaDockDismissBtn, pressed ? styles.pressDownStrong : null]}
+            onPress={() => {
+              haptic.tap();
+              void fullPlayer.closePlayer();
+              useStore.getState().clearPlayerQueue();
+            }}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel="Dismiss"
+          >
+            <Ionicons name="close" size={15} color="rgba(253,251,247,0.6)" />
+          </Pressable>
+
+          <Pressable
+            style={[styles.miniMediaDockTitlePress, isPreviewingClip ? { opacity: 0.45 } : null]}
+            onPress={() => {
+              haptic.tap();
+              openFullPlayer();
+            }}
+            accessibilityRole="button"
+            accessibilityLabel="Open full player"
+          >
+            <Text style={styles.miniMediaDockTitle} numberOfLines={1}>
+              {activePlayback.title}
+            </Text>
+            {dockSubtitle ? (
+              <Text style={styles.miniMediaDockSubtitle} numberOfLines={1}>
+                {dockSubtitle}
+              </Text>
+            ) : null}
+          </Pressable>
+
+          <View style={styles.miniMediaDockTransport}>
             <Pressable
               style={({ pressed }) => [
-                styles.miniMediaDockCompactPlayBtn,
+                styles.miniMediaDockSkipBtn,
+                !hasPrevInQueue ? { opacity: 0.3 } : null,
+                pressed && hasPrevInQueue ? styles.pressDownStrong : null,
+              ]}
+              disabled={!hasPrevInQueue}
+              onPress={() => {
+                haptic.tap();
+                handleQueuePrev();
+              }}
+              hitSlop={4}
+              accessibilityRole="button"
+              accessibilityLabel="Previous"
+            >
+              <Ionicons name="play-skip-back" size={16} color="rgba(253,251,247,0.82)" />
+            </Pressable>
+
+            <Pressable
+              style={({ pressed }) => [
+                styles.miniMediaDockPlayBtn,
                 pressed ? styles.pressDownStrong : null,
               ]}
-              onPress={(evt) => {
-                evt.stopPropagation();
-                    haptic.tap();
+              onPress={() => {
+                haptic.tap();
                 if (activePlayback.isPlaying) {
                   void fullPlayer.pausePlayer();
                 } else {
@@ -298,156 +440,57 @@ export function GlobalMediaDock({
             >
               <Ionicons
                 name={activePlayback.isPlaying ? "pause" : "play"}
-                size={16}
-                color="#FDFBF7"
+                size={17}
+                color="#8b4f3b"
+                style={activePlayback.isPlaying ? null : { marginLeft: 2 }}
               />
             </Pressable>
-            <Text style={styles.miniMediaDockTitle} numberOfLines={1}>
-              {activePlayback.title}
-              <Text style={styles.miniMediaDockSubtitle}> · {activePlayback.subtitle}</Text>
-            </Text>
-          </View>
-        </Pressable>
-      </Animated.View>
-    );
-  }
 
-  // Skip the subtitle when it just repeats the title (standalone clip ideas
-  // share their clip's name — "Take · Take" reads as a glitch).
-  const dockSubtitle = isPreviewingClip
-    ? "Preview playing"
-    : activePlayback.subtitle !== activePlayback.title
-      ? activePlayback.subtitle
-      : null;
-
-  return (
-    // No `exiting` animation: when the PlayerSheet expands this dock unmounts
-    // beneath it instantly — an exit fade would linger under the sheet's
-    // slide-up. Hiding instantly is also the natural behavior for the
-    // ✕-dismiss and queue-empty cases.
-    <Animated.View
-      style={styles.miniMediaDockWrap}
-      entering={FadeInDown.duration(200)}
-    >
-      {/* Queue extends upward from the dock — same surface, stays open while
-          skipping around. Rendered above the base dock inside the same
-          bottom-anchored wrap so extra height grows toward the top. */}
-      {queueOpen ? (
-        <QueuePanel
-          onEndSession={() => {
-            setQueueOpen(false);
-            void fullPlayer.closePlayer();
-            useStore.getState().clearPlayerQueue();
-          }}
-          onOpenIdea={(ideaId) => {
-            // Close the panel so the song page is visible underneath the dock.
-            setQueueOpen(false);
-            onOpenIdea(ideaId);
-          }}
-        />
-      ) : null}
-
-      <View
-        style={[styles.miniMediaDockSurface, safeBottomPadding]}
-        // Height of the BASE dock only (queue panel excluded) — page bottom
-        // paddings key off this and must not jump when the queue opens.
-        onLayout={(e) => useStore.getState().setPlayerDockHeight(e.nativeEvent.layout.height)}
-        {...expandGesture.panHandlers}
-      >
-        {/* Content wrapper dims as a unit during inline preview */}
-        <View style={[styles.miniMediaDockContent, isPreviewingClip ? { opacity: 0.45 } : null]}>
-
-          {/* Row 1: title · subtitle [expand] [✕] — every affordance is an
-              explicit button; nothing on this surface opens the player by
-              accident. Title (the biggest target) expands to the full player;
-              the queue toggle lives in the shared transport row below. */}
-          <View style={styles.miniMediaDockHeaderRow}>
             <Pressable
-              style={styles.miniMediaDockTitlePress}
+              style={({ pressed }) => [
+                styles.miniMediaDockSkipBtn,
+                !hasNextInQueue ? { opacity: 0.3 } : null,
+                pressed && hasNextInQueue ? styles.pressDownStrong : null,
+              ]}
+              disabled={!hasNextInQueue}
               onPress={() => {
                 haptic.tap();
-                openFullPlayer();
+                handleQueueNext();
               }}
+              hitSlop={4}
               accessibilityRole="button"
-              accessibilityLabel="Open full player"
+              accessibilityLabel="Next"
             >
-              <Text style={styles.miniMediaDockTitle} numberOfLines={1}>
-                {activePlayback.title}
-                {dockSubtitle ? (
-                  <Text style={styles.miniMediaDockSubtitle}> · {dockSubtitle}</Text>
-                ) : null}
+              <Ionicons name="play-skip-forward" size={16} color="rgba(253,251,247,0.82)" />
+            </Pressable>
+          </View>
+
+          <View style={styles.miniMediaDockQueueCol}>
+            <Pressable
+              style={({ pressed }) => [
+                styles.miniMediaDockHeaderBtn,
+                queueOpen ? styles.miniMediaDockHeaderBtnActive : null,
+                pressed ? styles.pressDownStrong : null,
+              ]}
+              onPress={() => {
+                haptic.tap();
+                setQueueOpen((prev) => !prev);
+              }}
+              hitSlop={6}
+              accessibilityRole="button"
+              accessibilityLabel={queueOpen ? "Hide queue" : "Show queue"}
+            >
+              <Ionicons name="list" size={15} color={queueOpen ? "#8b4f3b" : "#FDFBF7"} />
+            </Pressable>
+            {hasQueueCount ? (
+              <Text style={styles.miniMediaDockQueueCount}>
+                {Math.min(playerQueueIndex + 1, playerQueue.length)}/{playerQueue.length}
               </Text>
-            </Pressable>
-
-            <Pressable
-              style={({ pressed }) => [
-                styles.miniMediaDockHeaderBtn,
-                pressed ? styles.pressDownStrong : null,
-              ]}
-              onPress={() => {
-                haptic.tap();
-                openFullPlayer();
-              }}
-              hitSlop={6}
-              accessibilityRole="button"
-              accessibilityLabel="Expand player"
-            >
-              <Ionicons name="chevron-up" size={14} color="#6b5a55" />
-            </Pressable>
-
-            <Pressable
-              style={({ pressed }) => [
-                styles.miniMediaDockHeaderBtn,
-                pressed ? styles.pressDownStrong : null,
-              ]}
-              onPress={() => {
-                haptic.tap();
-                void fullPlayer.closePlayer();
-                useStore.getState().clearPlayerQueue();
-              }}
-              hitSlop={6}
-              accessibilityRole="button"
-              accessibilityLabel="Dismiss"
-            >
-              <Ionicons name="close" size={14} color="#6b5a55" />
-            </Pressable>
+            ) : null}
           </View>
-
-          {/* Row 2: the SHARED transport row — identical component to the full
-              player's control bar (prev/play/next + queue toggle). */}
-          <View style={styles.miniMediaDockTransportRow}>
-            <TransportBar
-              size="compact"
-              isPlaying={activePlayback.isPlaying}
-              canGoPrevious
-              canGoNext={hasNextInQueue}
-              onPrevious={handleQueuePrev}
-              onTogglePlay={() => {
-                if (activePlayback.isPlaying) {
-                  void fullPlayer.pausePlayer();
-                } else {
-                  void fullPlayer.playPlayer();
-                }
-              }}
-              onNext={handleQueueNext}
-              trailingIcon="list-outline"
-              trailingActive={queueOpen}
-              onTrailingPress={() => setQueueOpen((prev) => !prev)}
-            />
-          </View>
-
-          {/* Rows 3+4: times directly above scrub — MiniProgress renders both */}
-          <MiniProgress
-            accentColor="#824f3f"
-            currentMs={activePlayback.positionMs}
-            durationMs={activePlayback.durationMs}
-            onSeek={(ms) => {
-              useStore.getState().requestInlineStop();
-              void fullPlayer.seekTo(ms);
-            }}
-          />
         </View>
       </View>
+      </GestureDetector>
     </Animated.View>
   );
 }

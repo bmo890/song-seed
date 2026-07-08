@@ -76,7 +76,6 @@ type PlayerSupportSectionsProps = {
   onToggleLyricsExpanded: (value: boolean) => void;
   onToggleNotesExpanded: (value: boolean) => void;
   onToggleQueueExpanded: (value: boolean) => void;
-  onQueueEndSession: () => void;
   onQueueOpenIdea: (ideaId: string) => void;
 };
 
@@ -148,7 +147,6 @@ export function PlayerSupportSections({
   onToggleLyricsExpanded,
   onToggleNotesExpanded,
   onToggleQueueExpanded,
-  onQueueEndSession,
   onQueueOpenIdea,
 }: PlayerSupportSectionsProps) {
   const layerPreviewPlayer = useAudioPlayer(null, { updateInterval: 120 });
@@ -424,7 +422,9 @@ export function PlayerSupportSections({
   }
 
   const hasLyrics = hasProjectLyrics && latestLyricsUpdatedAt !== null;
-  const hasQueue = queueEntries.length > 1;
+  // The queue sheet renders for ANY active queue (even a single item) so the
+  // always-present footer queue button is never a dead tap.
+  const hasQueue = queueEntries.length > 0;
   const hasNotes = clipNotes.trim().length > 0;
 
   return (
@@ -464,14 +464,8 @@ export function PlayerSupportSections({
             onPress={() => setLayersSheetOpen(true)}
           />
         ) : null}
-        {hasQueue ? (
-          <UtilityChip
-            icon="list-outline"
-            label="Queue"
-            count={queueEntries.length}
-            onPress={() => onToggleQueueExpanded(true)}
-          />
-        ) : null}
+        {/* No "Queue" chip here — the transport bar's list button (bottom control
+            bar) is the single entry point to the queue sheet. */}
       </View>
 
       {/* Notes — read-only here; editing lives on the song's Notes tab. */}
@@ -488,12 +482,11 @@ export function PlayerSupportSections({
       </BottomSheet>
 
       {/* Queue — the SAME surface as the dock's queue panel (jump on tap,
-          go-to-song, End session), hosted in a bottom sheet here. */}
+          go-to-song), hosted in a bottom sheet here. */}
       {hasQueue ? (
         <BottomSheet visible={queueExpanded} onClose={() => onToggleQueueExpanded(false)}>
           <QueuePanel
             framed={false}
-            onEndSession={onQueueEndSession}
             onOpenIdea={(ideaId) => {
               onToggleQueueExpanded(false);
               onQueueOpenIdea(ideaId);

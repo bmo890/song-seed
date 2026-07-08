@@ -33,6 +33,7 @@ const DEFAULT_HEADER_HEIGHT = 220;
 function WorkspaceBrowseInner() {
   const theme = useWorkspaceTheme();
   const insets = useSafeAreaInsets();
+  const playerDockHeight = useStore((s) => s.playerDockHeight);
   const navigation = useNavigation<any>();
   const collectionsModel = useWorkspaceCollectionsModel();
   const selectionModel = useWorkspaceCollectionSelection({
@@ -243,7 +244,7 @@ function WorkspaceBrowseInner() {
         <Pressable
           style={({ pressed }) => [
             browseStyles.fab,
-            { bottom: Math.max(32, insets.bottom + 16) },
+            { bottom: playerDockHeight > 0 ? playerDockHeight + 12 : Math.max(32, insets.bottom + 16) },
             pressed ? styles.pressDown : null,
           ]}
           onPress={importFlow.openAddCollectionFlow}

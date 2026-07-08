@@ -223,6 +223,13 @@ export function usePlayerScreenLifecycle({
 
   useEffect(() => {
     if (!finishedPlaybackToken || finishedPlaybackToken === handledFinishTokenRef.current) return;
+    // When the sheet is docked (pre-mounted but not the active surface) the root
+    // provider owns queue auto-advance — bail so we don't advance twice. Still
+    // consume the token so a later focus doesn't replay a stale finish.
+    if (!isFocused) {
+      handledFinishTokenRef.current = finishedPlaybackToken;
+      return;
+    }
     if (!playerClip?.id || finishedPlaybackClipId !== playerClip.id) return;
     // Consume this finish exactly once: each real end-of-clip carries a new token,
     // so this still fires per playthrough (incl. repeat), but unrelated dep changes
@@ -237,7 +244,7 @@ export function usePlayerScreenLifecycle({
     if (hasNextTrack) {
       useStore.getState().advancePlayerQueue("next", true);
     }
-  }, [finishedPlaybackClipId, finishedPlaybackToken, hasNextTrack, playerClip?.id, repeatEnabled, replayClip]);
+  }, [finishedPlaybackClipId, finishedPlaybackToken, hasNextTrack, isFocused, playerClip?.id, repeatEnabled, replayClip]);
 
   useEffect(() => {
     if (mode !== "practice" && speedPanelVisible) {
@@ -299,21 +306,14 @@ export function usePlayerScreenLifecycle({
     popPlayerScreen();
   }, [cancelPendingPracticeSeek, closePlayer, popPlayerScreen, prepareTransportForClose]);
 
-  // Collapsing the player reads intent from VISIBLE playback state (never from
-  // which button was pressed — the old Back/minimize split hid that):
-  //   · playing            → session persists in the dock, always
-  //   · paused, multi-item → session persists (your place in the set matters)
-  //   · paused, single clip → the audition is over; end quietly, no dock residue
-  // Covers the chevron, hardware back, and the future swipe-down identically.
+  // ONE session rule, zero cases: collapsing the player NEVER ends the session —
+  // playing, paused, finished, or not-yet-played, it persists in the dock with
+  // its position intact. Ending is always explicit: the dock's ✕. (An earlier
+  // "audition" heuristic silently closed paused single-clip sessions; it read
+  // as the player losing your place.)
   const minimizePlayer = useCallback(() => {
-    const state = useStore.getState();
-    const isAudition = !state.playerIsPlaying && state.playerQueue.length <= 1;
-    if (isAudition) {
-      stopSessionAndClose();
-      return;
-    }
     popPlayerScreen();
-  }, [popPlayerScreen, stopSessionAndClose]);
+  }, [popPlayerScreen]);
 
   const handleTogglePlayPress = useCallback(() => {
     void handleTransportToggle();
