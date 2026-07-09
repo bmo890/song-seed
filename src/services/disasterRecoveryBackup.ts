@@ -388,6 +388,21 @@ export async function buildDisasterRecoveryBackup(
             `(${(totalMediaMb / (hashMs / 1000 || 1)).toFixed(1)}MB/s)`
     );
 
+    if (missing.length > 0) {
+        // Surface exactly which library references have no file on disk. Critical entries
+        // (clip audio / overdub stems) are irreplaceable and mark the backup incomplete;
+        // non-critical ones (source imports, re-derivable mixes) are informational.
+        console.log(
+            `[backup] ${missing.length} referenced file(s) missing from storage:\n` +
+                missing
+                    .map(
+                        (entry) =>
+                            `  • ${entry.critical ? "CRITICAL " : ""}${entry.kind} ${entry.ref} → ${entry.path}`
+                    )
+                    .join("\n")
+        );
+    }
+
     const manifest: DrBackupManifest = {
         formatVersion: DR_BACKUP_FORMAT_VERSION,
         storeVersion: STORE_VERSION,
