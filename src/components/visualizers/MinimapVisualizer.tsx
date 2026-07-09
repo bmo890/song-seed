@@ -94,22 +94,22 @@ export function MinimapVisualizer({
 
     const palette = chrome === "light"
         ? {
-            backgroundColor: "#eef0f4",
-            waveColor: "#64748b",
-            playheadColor: "#d95b56",
-            windowFill: "rgba(59, 130, 246, 0.14)",
-            windowBorder: "rgba(59, 130, 246, 0.48)",
-            keepFill: "rgba(96, 165, 250, 0.28)",
-            removeFill: "rgba(239, 68, 68, 0.28)",
+            backgroundColor: "#EDE9E4",
+            waveColor: "#C7B9AF",
+            playheadColor: "#8b4f3b",
+            windowFill: "rgba(184, 125, 107, 0.16)",
+            windowBorder: "rgba(139, 79, 59, 0.55)",
+            keepFill: "rgba(184, 125, 107, 0.30)",
+            removeFill: "rgba(161, 92, 74, 0.30)",
         }
         : {
-            backgroundColor: "#1e293b",
-            waveColor: "#475569",
-            playheadColor: "#ef4444",
-            windowFill: "rgba(59, 130, 246, 0.2)",
-            windowBorder: "rgba(59, 130, 246, 0.5)",
-            keepFill: "rgba(96, 165, 250, 0.32)",
-            removeFill: "rgba(239, 68, 68, 0.4)",
+            backgroundColor: "#2B211D",
+            waveColor: "#7A655C",
+            playheadColor: "#E8B865",
+            windowFill: "rgba(232, 184, 101, 0.18)",
+            windowBorder: "rgba(232, 184, 101, 0.50)",
+            keepFill: "rgba(216, 154, 133, 0.32)",
+            removeFill: "rgba(200, 120, 100, 0.40)",
         };
 
     const rangeRects = useMemo(() => {
@@ -279,7 +279,7 @@ export function MinimapVisualizer({
                                     y={6}
                                     width={2}
                                     height={containerHeight - 12}
-                                    color="rgba(202, 138, 4, 0.9)"
+                                    color="rgba(139, 79, 59, 0.9)"
                                 />
                             ))}
                         </Canvas>

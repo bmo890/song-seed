@@ -24,8 +24,8 @@ const LOOP_MOVE_PILL_HEIGHT = 10;
 const LOOP_MOVE_HITBOX_WIDTH = 52;
 const LOOP_MOVE_HITBOX_HEIGHT = 24;
 const LOOP_MOVE_ROW_HEIGHT = 14;
-/** Looper accent — matches the blue loop region drawn on the reel. */
-const LOOP_ACCENT = "rgba(59, 130, 246, 0.95)";
+/** Looper accent — matches the terracotta loop region drawn on the reel. */
+const LOOP_ACCENT = "rgba(139, 79, 59, 0.95)";
 
 type TransportClock = {
   sharedCurrentTimeMs: SharedValue<number>;
@@ -270,7 +270,11 @@ function PlayerTimelineInner({
       collapsedHeightOverride={
         reelExpanded ? 250 : mode === "practice" ? 128 : mode === "playalong" ? 112 : 184
       }
-      zoomMultiple={mode === "practice" ? practiceZoomMultiple : 1}
+      // Practice mode is controlled (parent owns the zoom). The normal player runs
+      // UNCONTROLLED so the zoom buttons work and the duration-aware follow-window
+      // (initialZoomMultiple) applies — long songs open as a scrolling tape. Play-along
+      // stays pinned at 1x (whole clip, no zoom controls).
+      zoomMultiple={mode === "practice" ? practiceZoomMultiple : mode === "playalong" ? 1 : undefined}
       onZoomMultipleChange={mode === "practice" ? onPracticeZoomMultipleChange : undefined}
       showMinimapMode={mode === "practice" ? "auto" : "never"}
       freezeSelectedRangeWhenFullyVisible={mode === "practice" && practiceLoopEnabled}
