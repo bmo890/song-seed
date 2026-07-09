@@ -1,5 +1,12 @@
 # Incremental persistence plan (the ~1000-clip milestone)
 
+> **Status: IMPLEMENTED** (branch `claude/incremental-persistence`, not yet device-verified).
+> Pure sharding logic: `src/state/persistSharding.ts`. Storage adapter:
+> `src/state/shardedPersistStorage.ts`. DB glue (`readManyKv`, `commitShardedWrite`,
+> `listKvKeysWithPrefix`, `deleteKv`): `src/state/db/storage.ts`. Tests:
+> `persistSharding.test.ts` (pure) + `shardedPersistStorage.test.ts` (adapter). The
+> sections below are the design of record; a few names differ slightly in code.
+
 ## Why this exists
 
 The library persists as ONE JSON blob: every real edit stringifies the entire

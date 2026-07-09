@@ -1,6 +1,6 @@
 import { AppState } from "react-native";
 import { create } from "zustand";
-import { createJSONStorage, persist } from "zustand/middleware";
+import { persist } from "zustand/middleware";
 import { DataSlice, createDataSlice } from "./dataSlice";
 import { SelectionSlice, createSelectionSlice } from "./selectionSlice";
 import { RecordingSlice, createRecordingSlice } from "./recordingSlice";
@@ -29,7 +29,7 @@ import {
 } from "../libraryNavigation";
 import { startManifestSync } from "../services/manifestSync";
 import { rebaseWorkspacesManagedMedia } from "./rebaseManagedMedia";
-import { sqliteStringStorage } from "./db/storage";
+import { createShardedPersistStorage } from "./shardedPersistStorage";
 import { consumeIntentionalEmptyStateWrite } from "../services/stateIntegrity";
 import {
     clampMetronomeBpm,
@@ -288,43 +288,12 @@ function discardPendingPersistWrite() {
     pendingPersistWrite = null;
 }
 
-// How slow a library write may be before it's worth knowing about. Serialization +
-// SQLite time scales with library size; these logs are the early-warning system for
-// the next scale ceiling (the point where persistence needs to go incremental) —
-// so the wall is seen coming in the console instead of discovered by feel.
-const PERSIST_SLOW_WRITE_WARN_MS = 120;
-
-/** sqliteStringStorage with timing + size telemetry on the whole-library blob. */
-const instrumentedStringStorage: typeof sqliteStringStorage = {
-    ...sqliteStringStorage,
-    getItem: async (name: string) => {
-        const startedAt = Date.now();
-        const value = await sqliteStringStorage.getItem(name);
-        if (value != null) {
-            const ms = Date.now() - startedAt;
-            const kb = Math.round(value.length / 1024);
-            console.log(`[PersistTelemetry] hydrated "${name}": ${kb}KB in ${ms}ms`);
-        }
-        return value;
-    },
-    setItem: async (name: string, value: string) => {
-        const startedAt = Date.now();
-        await sqliteStringStorage.setItem(name, value);
-        const ms = Date.now() - startedAt;
-        if (ms >= PERSIST_SLOW_WRITE_WARN_MS) {
-            const kb = Math.round(value.length / 1024);
-            console.warn(
-                `[PersistTelemetry] slow library write: ${kb}KB in ${ms}ms — approaching the ` +
-                    `monolithic-persist ceiling (see incremental persistence plan)`
-            );
-        }
-    },
-};
-
 function createGuardedStorage() {
-    // SQLite is the authoritative backing store; it transparently imports any legacy
-    // AsyncStorage blob on first read and falls back to AsyncStorage if SQLite fails.
-    const baseStorage = createJSONStorage(() => instrumentedStringStorage)!;
+    // Sharded storage: the library persists as a small meta row + one row per workspace, so
+    // an edit rewrites only the workspaces it touched. It's the authoritative SQLite store
+    // (imports a legacy AsyncStorage/monolithic blob on first read, falls back to
+    // AsyncStorage on SQLite failure), and carries the persist timing telemetry.
+    const baseStorage = createShardedPersistStorage();
 
     // Guard + serialize + write. Runs when the debounced write fires (with the LATEST
     // value), so the corruption checks always inspect exactly what hits disk.
