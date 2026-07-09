@@ -344,6 +344,8 @@ export async function createZipArchive(
         data?: Uint8Array;
         fileUri?: string;
         checksum: number;
+        /** CRC computed while streaming, then patched into the already-written local header. */
+        deferredCrc?: boolean;
         size: number;
     }> = [];
 
@@ -364,37 +366,20 @@ export async function createZipArchive(
         }
 
         if (typeof entry.fileUri === "string") {
-            const file = new File(entry.fileUri);
             const info = await FileSystem.getInfoAsync(entry.fileUri);
             if (!info.exists) {
                 throw new Error(`Missing file: ${entry.archiveName}`);
             }
 
-            let checksum = entry.crc32;
-            let size = entry.sizeBytes;
-            if (checksum == null || size == null) {
-                const crc = new IncrementalCrc32();
-                size = 0;
-                let bytesSinceYield = 0;
-                const handle = file.open();
-                try {
-                    while (true) {
-                        throwIfBackupCancelled(options?.signal);
-                        const chunk = handle.readBytes(ZIP_STREAM_CHUNK_BYTES);
-                        if (chunk.length === 0) break;
-                        crc.update(chunk);
-                        size += chunk.length;
-                        bytesSinceYield += chunk.length;
-                            if (bytesSinceYield >= 2 * 1024 * 1024) {
-                            bytesSinceYield = 0;
-                            await yieldToBackupUi(options?.signal);
-                        }
-                    }
-                } finally {
-                    handle.close();
-                }
-                checksum = crc.digest();
-            } else if (info.size != null && info.size !== size) {
+            // No pre-read pass: size comes from the caller or the filesystem, and a missing
+            // CRC is computed WHILE the entry streams, then patched into its local header.
+            // The old resolve pass silently read every byte before packaging began, which
+            // left exports sitting at 0% for the entire first read of the library.
+            const size = entry.sizeBytes ?? (typeof info.size === "number" ? info.size : null);
+            if (size == null || !Number.isSafeInteger(size) || size < 0) {
+                throw new Error(`Could not determine file size for ${entry.archiveName}`);
+            }
+            if (entry.sizeBytes != null && typeof info.size === "number" && info.size !== size) {
                 throw new Error(`File changed while preparing archive: ${entry.archiveName}`);
             }
 
@@ -402,7 +387,8 @@ export async function createZipArchive(
                 archiveName: entry.archiveName,
                 filenameBytes: encodeUtf8(entry.archiveName),
                 fileUri: entry.fileUri,
-                checksum,
+                checksum: entry.crc32 ?? 0,
+                deferredCrc: entry.crc32 == null,
                 size,
             });
             continue;
@@ -484,7 +470,7 @@ export async function createZipArchive(
                                 phase: "packaging",
                                 completedBytes: completedSourceBytes,
                                 totalBytes: totalSourceBytes,
-                                message: "Packaging backup",
+                                message: "Packaging",
                             });
                             bytesSinceYield = 0;
                             await yieldToBackupUi(options?.signal);
@@ -496,7 +482,17 @@ export async function createZipArchive(
                 if (writtenForEntry !== entry.size) {
                     throw new Error(`File changed while packaging archive: ${entry.archiveName}`);
                 }
-                if (writtenCrc.digest() !== entry.checksum) {
+                if (entry.deferredCrc) {
+                    // Patch the streamed CRC into the local header written above (CRC field
+                    // lives at header offset 14); the central directory (built below from
+                    // entry.checksum) gets the same value. Offsets are tracked deterministically.
+                    entry.checksum = writtenCrc.digest();
+                    destinationHandle.offset = localOffset + 14;
+                    const crcBytes = new Uint8Array(4);
+                    new DataView(crcBytes.buffer).setUint32(0, entry.checksum, true);
+                    destinationHandle.writeBytes(crcBytes);
+                    destinationHandle.offset = localOffset + localHeader.length + entry.size;
+                } else if (writtenCrc.digest() !== entry.checksum) {
                     throw new Error(`File changed while packaging archive: ${entry.archiveName}`);
                 }
             } else if (entry.data) {
@@ -529,7 +525,7 @@ export async function createZipArchive(
         phase: "packaging",
         completedBytes: totalSourceBytes,
         totalBytes: totalSourceBytes,
-        message: "Backup packaged",
+        message: "Packaged",
     });
 }
 

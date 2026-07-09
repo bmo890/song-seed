@@ -187,6 +187,9 @@ export async function prepareLibraryExportArchive(args: ExportLibraryArgs): Prom
             if (info.exists) {
                 if (typeof info.size === "number" && info.size > 0) {
                     statedSourceBytes += info.size;
+                    // Known size lets the zip writer stream single-pass (CRC patched in
+                    // after streaming) with accurate progress totals from the first byte.
+                    return { ...entry, sizeBytes: info.size };
                 }
                 return entry;
             }
