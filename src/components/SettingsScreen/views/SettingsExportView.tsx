@@ -18,8 +18,8 @@ export function SettingsExportView({ flow, onCancel }: { flow: ExportFlow; onCan
       showsVerticalScrollIndicator={false}
     >
       <PageIntro
-        title="Export Library"
-        subtitle="Package selected workspaces or collections, then hand the archive to the native save or share flow."
+        title="Export Archive"
+        subtitle="Package selected workspaces or collections into a shareable archive, then choose where to save it."
       />
 
       <AccordionSection

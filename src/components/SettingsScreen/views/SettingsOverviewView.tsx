@@ -1,70 +1,17 @@
-import React from "react";
-import { ActivityIndicator, Alert, Pressable, ScrollView, Text, TextInput, View } from "react-native";
-import { colors } from "../../../design/tokens";
-import { Ionicons } from "@expo/vector-icons";
+import { ScrollView, Text, View } from "react-native";
 import { PageIntro } from "../../common/PageIntro";
 import { settingsScreenStyles, styles } from "../styles";
-import { FormatOptionRow } from "../components/SettingsShared";
-import type { useGlobalTagSettings } from "../hooks/useGlobalTagSettings";
+import { FormatOptionRow, LibraryActionCard, ToggleRow } from "../components/SettingsShared";
 import type { useLibraryBackupFlow } from "../hooks/useLibraryBackupFlow";
-import type { useStorageDiagnostics } from "../hooks/useStorageDiagnostics";
-import { getTagColor } from "../../IdeaDetailScreen/songClipControls";
 import { haptic } from "../../../design/haptics";
 
-type GlobalTagSettings = ReturnType<typeof useGlobalTagSettings>;
 type LibraryBackupFlow = ReturnType<typeof useLibraryBackupFlow>;
-type StorageDiagnostics = ReturnType<typeof useStorageDiagnostics>;
 
-const LIBRARY_TINT = "#F4EBE6";
-const LIBRARY_DEEP = "#8b4f3b";
-const LIBRARY_SUCCESS = "#3F9C82";
-
-/** Nocturne library-action card: tinted icon, title, live status, right accessory. */
-function LibraryActionCard({
-  icon,
-  title,
-  meta,
-  busy,
-  rightAccessory,
-  onPress,
-  disabled,
-}: {
-  icon: keyof typeof Ionicons.glyphMap;
-  title: string;
-  meta: string;
-  busy?: boolean;
-  rightAccessory?: React.ReactNode;
-  onPress: () => void;
-  disabled?: boolean;
-}) {
-  return (
-    <Pressable
-      style={({ pressed }) => [
-        settingsScreenStyles.libraryCard,
-        pressed && !disabled ? styles.pressDown : null,
-        disabled ? { opacity: 0.5 } : null,
-      ]}
-      onPress={onPress}
-      disabled={disabled}
-    >
-      <View style={settingsScreenStyles.libraryCardIcon}>
-        <Ionicons name={icon} size={20} color={LIBRARY_DEEP} />
-      </View>
-      <View style={settingsScreenStyles.libraryCardCopy}>
-        <Text style={settingsScreenStyles.libraryCardTitle}>{title}</Text>
-        <Text style={settingsScreenStyles.libraryCardMeta} numberOfLines={1}>
-          {meta}
-        </Text>
-      </View>
-      {busy ? (
-        <ActivityIndicator size="small" color={LIBRARY_DEEP} />
-      ) : (
-        rightAccessory ?? <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
-      )}
-    </Pressable>
-  );
-}
-
+/**
+ * Deliberately short: startup, feedback, and one doorway into the Library &
+ * Backups page. Anything screen-specific (Bluetooth calibration, tag management)
+ * lives on the screen it serves, not here.
+ */
 export function SettingsOverviewView({
   workspaceStartupPreference,
   setWorkspaceStartupPreference,
@@ -72,13 +19,7 @@ export function SettingsOverviewView({
   setHapticsEnabled,
   primaryWorkspaceTitle,
   backupFlow,
-  globalTags,
-  diagnostics,
-  bluetoothCalibrationCount,
-  onOpenStorageDetails,
-  onOpenBluetoothCalibration,
-  onBeginExportFlow,
-  onBeginImportFlow,
+  onOpenLibrary,
 }: {
   workspaceStartupPreference: "primary" | "last-used";
   setWorkspaceStartupPreference: (next: "primary" | "last-used") => void;
@@ -86,46 +27,45 @@ export function SettingsOverviewView({
   setHapticsEnabled: (next: boolean) => void;
   primaryWorkspaceTitle: string | null;
   backupFlow: LibraryBackupFlow;
-  globalTags: GlobalTagSettings;
-  diagnostics: StorageDiagnostics;
-  bluetoothCalibrationCount: number;
-  onOpenStorageDetails: () => void;
-  onOpenBluetoothCalibration: () => void;
-  onBeginExportFlow: () => void;
-  onBeginImportFlow: () => void;
+  onOpenLibrary: () => void;
 }) {
+  const libraryMeta = backupFlow.isBackingUp
+    ? backupFlow.backupProgressLabel ?? "Backing up…"
+    : backupFlow.isRestoring
+      ? backupFlow.restoreProgressLabel ?? "Restoring…"
+      : backupFlow.lastSuccessfulBackupFileName
+        ? `Last backup · ${backupFlow.lastSuccessfulBackupLabel}`
+        : "No backup saved yet";
+
   return (
     <ScrollView
       style={styles.flexFill}
       contentContainerStyle={settingsScreenStyles.scrollContent}
+      showsVerticalScrollIndicator={false}
     >
       <PageIntro
         title="Settings"
-        subtitle="Set where the app returns on launch, check how Song Seed stores your library on this device, or export a portable package when you need one."
+        subtitle="Choose where the app opens, tune feedback, and look after your library."
       />
 
       <View style={styles.settingsSection}>
         <View style={styles.settingsSectionHeaderRow}>
           <Text style={styles.settingsSectionLabel}>Startup</Text>
-          <Text style={styles.settingsSectionMeta}>
-            {workspaceStartupPreference === "primary" ? "Primary workspace" : "Last used workspace"}
-          </Text>
         </View>
-
         <View style={styles.settingsOptionStack}>
           <FormatOptionRow
-            title="Return to primary workspace"
+            title="Primary workspace"
             subtitle={
               primaryWorkspaceTitle
-                ? `Returns to ${primaryWorkspaceTitle} when the app opens.`
-                : "Falls back to your last used workspace until a primary workspace is set."
+                ? `Opens ${primaryWorkspaceTitle} when the app starts.`
+                : "Falls back to your last used workspace until a primary is set."
             }
             selected={workspaceStartupPreference === "primary"}
             onPress={() => setWorkspaceStartupPreference("primary")}
           />
           <FormatOptionRow
-            title="Return to last used workspace"
-            subtitle="Returns to the workspace you most recently opened or worked in."
+            title="Last used workspace"
+            subtitle="Opens the workspace you most recently worked in."
             selected={workspaceStartupPreference === "last-used"}
             onPress={() => setWorkspaceStartupPreference("last-used")}
           />
@@ -135,25 +75,18 @@ export function SettingsOverviewView({
       <View style={styles.settingsSection}>
         <View style={styles.settingsSectionHeaderRow}>
           <Text style={styles.settingsSectionLabel}>Feedback</Text>
-          <Text style={styles.settingsSectionMeta}>{hapticsEnabled ? "Haptics on" : "Haptics off"}</Text>
         </View>
-
         <View style={styles.settingsOptionStack}>
-          <FormatOptionRow
-            title="Haptics on"
+          <ToggleRow
+            title="Haptics"
             subtitle="Gentle taps confirm presses, saves, and state changes."
-            selected={hapticsEnabled}
+            value={hapticsEnabled}
             onPress={() => {
-              setHapticsEnabled(true);
+              const next = !hapticsEnabled;
+              setHapticsEnabled(next);
               // Fires after enabling, so switching haptics on is itself felt.
-              haptic.tap();
+              if (next) haptic.tap();
             }}
-          />
-          <FormatOptionRow
-            title="Haptics off"
-            subtitle="No vibration from interface interactions."
-            selected={!hapticsEnabled}
-            onPress={() => setHapticsEnabled(false)}
           />
         </View>
       </View>
@@ -162,223 +95,16 @@ export function SettingsOverviewView({
         <View style={styles.settingsSectionHeaderRow}>
           <Text style={styles.settingsSectionLabel}>Library</Text>
         </View>
-        <Text style={styles.settingsSectionHint}>
-          Keep a complete, verified copy of everything, or share part of your work. A running
-          backup or export can be minimized and monitored while you keep working.
-        </Text>
-
-        {backupFlow.lastSuccessfulBackupFileName ? (
-          <View style={settingsScreenStyles.backupFileNameRow}>
-            <Text style={settingsScreenStyles.backupFileName} numberOfLines={1} ellipsizeMode="middle">
-              {backupFlow.lastSuccessfulBackupFileName}
-            </Text>
-            <Pressable onPress={() => void backupFlow.copyLastBackupFileName()} hitSlop={8}>
-              <Ionicons name="copy-outline" size={16} color={colors.textSecondary} />
-            </Pressable>
-          </View>
-        ) : null}
-
         <View style={settingsScreenStyles.libraryCardStack}>
           <LibraryActionCard
-            icon="cloud-upload-outline"
-            title="Back up"
-            busy={backupFlow.isBackingUp}
-            meta={
-              backupFlow.isBackingUp
-                ? backupFlow.backupProgressLabel ?? "Backing up…"
-                : backupFlow.lastSuccessfulBackupFileName
-                  ? `Last backup · ${backupFlow.lastSuccessfulBackupLabel}`
-                  : "No backup saved yet — save a complete copy"
-            }
-            rightAccessory={
-              backupFlow.lastSuccessfulBackupFileName ? (
-                <View style={settingsScreenStyles.verifiedChip}>
-                  <Ionicons name="checkmark" size={13} color="#fff" />
-                  <Text style={settingsScreenStyles.verifiedChipText}>Verified</Text>
-                </View>
-              ) : undefined
-            }
-            onPress={backupFlow.handleBackupNow}
+            icon="archive-outline"
+            title="Library & Backups"
+            busy={backupFlow.isBackingUp || backupFlow.isRestoring}
+            meta={libraryMeta}
+            onPress={onOpenLibrary}
           />
-          <LibraryActionCard
-            icon="albums-outline"
-            title="Export"
-            meta="Share workspaces or collections"
-            onPress={onBeginExportFlow}
-          />
-          <LibraryActionCard
-            icon="cloud-download-outline"
-            title="Restore"
-            busy={backupFlow.isRestoring}
-            disabled={backupFlow.isBackingUp}
-            meta={
-              backupFlow.isRestoring
-                ? backupFlow.restoreProgressLabel ?? "Restoring…"
-                : "Replace this library from a backup file"
-            }
-            onPress={backupFlow.handleRestore}
-          />
-        </View>
-
-        <View style={styles.settingsOptionStack}>
-          {backupFlow.reminderOptions.map((option) => (
-            <FormatOptionRow
-              key={option.value}
-              title={option.title}
-              subtitle={option.subtitle}
-              selected={backupFlow.backupReminderFrequency === option.value}
-              onPress={() => backupFlow.setBackupReminderFrequency(option.value)}
-            />
-          ))}
         </View>
       </View>
-
-      <View style={styles.settingsSection}>
-        <View style={styles.settingsSectionHeaderRow}>
-          <Text style={styles.settingsSectionLabel}>Custom clip tags</Text>
-          <Text style={styles.settingsSectionMeta}>{globalTags.globalCustomClipTags.length}</Text>
-        </View>
-        <Text style={styles.settingsSectionHint}>
-          Global tags appear in the tag picker across all projects.
-        </Text>
-
-        {globalTags.globalCustomClipTags.length > 0 ? (
-          <View style={styles.tagPickerChipsWrap}>
-            {globalTags.globalCustomClipTags.map((tag) => {
-              const color = getTagColor(tag.key, [], globalTags.globalCustomClipTags);
-              return (
-                <View key={tag.key} style={settingsScreenStyles.tagRow}>
-                  <View
-                    style={[
-                      styles.clipCardTagBadge,
-                      settingsScreenStyles.tagBadge,
-                      { backgroundColor: color.bg },
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.clipCardTagBadgeText,
-                        settingsScreenStyles.tagBadgeText,
-                        { color: color.text },
-                      ]}
-                    >
-                      {tag.label}
-                    </Text>
-                  </View>
-                  <Pressable onPress={() => globalTags.removeTag(tag.key, tag.label)} hitSlop={6}>
-                    <Ionicons name="close-circle" size={16} color={colors.textMuted} />
-                  </Pressable>
-                </View>
-              );
-            })}
-          </View>
-        ) : null}
-
-        <View style={styles.tagPickerAddRow}>
-          <TextInput
-            style={styles.tagPickerAddInput}
-            placeholder="New tag name"
-            placeholderTextColor={colors.textMuted}
-            value={globalTags.newGlobalTagLabel}
-            onChangeText={globalTags.setNewGlobalTagLabel}
-            onSubmitEditing={globalTags.addTag}
-            returnKeyType="done"
-          />
-          <Pressable
-            style={({ pressed }) => [
-              styles.tagPickerAddBtn,
-              !globalTags.canAddTag ? styles.tagPickerAddBtnDisabled : null,
-              pressed ? styles.pressDown : null,
-            ]}
-            onPress={globalTags.addTag}
-            disabled={!globalTags.canAddTag}
-          >
-            <Ionicons
-              name="add"
-              size={16}
-              color={globalTags.canAddTag ? colors.textPrimary : colors.textMuted}
-            />
-          </Pressable>
-        </View>
-        <View style={styles.tagPickerColorRow}>
-          {globalTags.colorOptions.map((option) => (
-            <Pressable
-              key={option.bg}
-              style={[
-                styles.tagPickerColorSwatch,
-                { backgroundColor: option.bg },
-                globalTags.newGlobalTagColor === option.bg ? styles.tagPickerColorSwatchActive : null,
-              ]}
-              onPress={() => globalTags.setNewGlobalTagColor(option.bg)}
-            />
-          ))}
-        </View>
-      </View>
-
-      <Pressable
-        style={({ pressed }) => [styles.settingsActionCard, pressed ? styles.pressDown : null]}
-        onPress={onOpenBluetoothCalibration}
-      >
-        <View style={styles.settingsActionCardCopy}>
-          <Text style={styles.settingsActionCardTitle}>Bluetooth recording calibration</Text>
-          <Text style={styles.settingsActionCardMeta}>
-            {bluetoothCalibrationCount > 0
-              ? `${bluetoothCalibrationCount} saved calibration${bluetoothCalibrationCount === 1 ? "" : "s"} for Bluetooth monitoring during recording.`
-              : "Measure Bluetooth monitoring delay to improve metronome and guide timing while recording."}
-          </Text>
-        </View>
-        <Ionicons name="bluetooth" size={18} color={colors.textSecondary} />
-      </Pressable>
-
-      <Pressable
-        style={({ pressed }) => [styles.settingsActionCard, pressed ? styles.pressDown : null]}
-        onPress={onOpenStorageDetails}
-      >
-        <View style={styles.settingsActionCardCopy}>
-          <Text style={styles.settingsActionCardTitle}>Storage details</Text>
-          <Text style={styles.settingsActionCardMeta}>
-            See how much Song Seed storage your library, archives, and temporary exports use on this device.
-          </Text>
-        </View>
-        <Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />
-      </Pressable>
-
-      <Pressable
-        style={({ pressed }) => [styles.settingsActionCard, pressed ? styles.pressDown : null]}
-        onPress={onBeginImportFlow}
-      >
-        <View style={styles.settingsActionCardCopy}>
-          <Text style={styles.settingsActionCardTitle}>Import Song Seed Archive</Text>
-          <Text style={styles.settingsActionCardMeta}>
-            Merge a Song Seed Archive into this library as new workspaces.
-          </Text>
-        </View>
-        <Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />
-      </Pressable>
-
-      <Pressable
-        style={({ pressed }) => [
-          styles.settingsActionCard,
-          pressed ? styles.pressDown : null,
-          diagnostics.isRecovering ? settingsScreenStyles.actionCardDisabled : null,
-        ]}
-        onPress={diagnostics.runRecovery}
-        disabled={diagnostics.isRecovering}
-      >
-        <View style={styles.settingsActionCardCopy}>
-          <Text style={styles.settingsActionCardTitle}>Recover audio files</Text>
-          <Text style={styles.settingsActionCardMeta}>
-            {diagnostics.isRecovering
-              ? diagnostics.recoveryProgress
-              : "Scan for orphaned audio files on disk that are no longer linked to any clip, and restore them into a Recovered collection."}
-          </Text>
-        </View>
-        {diagnostics.isRecovering ? (
-          <ActivityIndicator size="small" color={colors.textSecondary} />
-        ) : (
-          <Ionicons name="refresh" size={18} color={colors.textSecondary} />
-        )}
-      </Pressable>
     </ScrollView>
   );
 }

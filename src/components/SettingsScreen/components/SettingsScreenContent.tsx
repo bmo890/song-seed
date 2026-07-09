@@ -1,5 +1,4 @@
 import { useMemo } from "react";
-import { useNavigation } from "@react-navigation/native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ScreenHeader } from "../../common/ScreenHeader";
 import { styles } from "../styles";
@@ -10,19 +9,17 @@ import { useLibraryBackupFlow } from "../hooks/useLibraryBackupFlow";
 import { useLibraryExportFlow } from "../hooks/useLibraryExportFlow";
 import { useLibraryImportFlow } from "../hooks/useLibraryImportFlow";
 import { useStorageDiagnostics } from "../hooks/useStorageDiagnostics";
-import { useGlobalTagSettings } from "../hooks/useGlobalTagSettings";
 import { SettingsExportView } from "../views/SettingsExportView";
 import { SettingsImportView } from "../views/SettingsImportView";
+import { SettingsLibraryView } from "../views/SettingsLibraryView";
 import { SettingsOverviewView } from "../views/SettingsOverviewView";
 import { SettingsStorageView } from "../views/SettingsStorageView";
 
 export function SettingsScreenContent() {
   useBrowseRootBackHandler();
-  const navigation = useNavigation();
 
   const workspaces = useStore((state) => state.workspaces);
   const primaryWorkspaceId = useStore((state) => state.primaryWorkspaceId);
-  const bluetoothMonitoringCalibrations = useStore((state) => state.bluetoothMonitoringCalibrations);
   const workspaceStartupPreference = useStore((state) => state.workspaceStartupPreference);
   const setWorkspaceStartupPreference = useStore((state) => state.setWorkspaceStartupPreference);
   const hapticsEnabled = useStore((state) => state.hapticsEnabled);
@@ -33,42 +30,51 @@ export function SettingsScreenContent() {
   const exportFlow = useLibraryExportFlow();
   const importFlow = useLibraryImportFlow();
   const diagnostics = useStorageDiagnostics({ active: screen.view === "storage" });
-  const globalTags = useGlobalTagSettings();
 
   const primaryWorkspaceTitle = useMemo(
     () => workspaces.find((workspace) => workspace.id === primaryWorkspaceId)?.title ?? null,
     [primaryWorkspaceId, workspaces]
   );
 
-  const handleBackPress =
-    screen.view === "export" || screen.view === "import"
-      ? screen.view === "export"
-        ? exportFlow.isExporting
-          ? undefined
-          : () => screen.setView("overview")
-        : importFlow.isImporting
-          ? undefined
-          : () => screen.setView("overview")
-      : screen.view === "storage"
-        ? diagnostics.isStorageLoading
-          ? undefined
-          : () => screen.setView("overview")
-        : undefined;
+  // Back is held while a subscreen owns an operation that shouldn't be abandoned
+  // mid-gesture (import runs inline; storage while scanning). Backup/export/restore run
+  // in the global process host and don't block navigation. The blocked case must be an
+  // explicit no-op — an undefined handler would fall through to navigation.goBack().
+  const backBlocked =
+    (screen.view === "import" && importFlow.isImporting) ||
+    (screen.view === "storage" && diagnostics.isStorageLoading);
+  const handleBackPress = screen.showSubscreen
+    ? backBlocked
+      ? () => {}
+      : () => screen.setView(screen.backView)
+    : undefined;
 
   return (
     <SafeAreaView style={styles.screen}>
+      {/* The serif title lives in each view's PageIntro; the header stays untitled. */}
       <ScreenHeader
-        title={screen.title}
+        title=""
         leftIcon={screen.showSubscreen ? "back" : "hamburger"}
         onLeftPress={handleBackPress}
       />
 
-      {screen.view === "export" ? (
+      {screen.view === "library" ? (
+        <SettingsLibraryView
+          backupFlow={backupFlow}
+          diagnostics={diagnostics}
+          onBeginExportFlow={() => screen.setView("export")}
+          onBeginImportFlow={() => screen.setView("import")}
+          onOpenStorageDetails={() => {
+            diagnostics.setShowAdvancedStorageDetails(false);
+            screen.setView("storage");
+          }}
+        />
+      ) : screen.view === "export" ? (
         <SettingsExportView
           flow={exportFlow}
           onCancel={() => {
             if (!exportFlow.isExporting) {
-              screen.setView("overview");
+              screen.setView("library");
             }
           }}
         />
@@ -77,7 +83,7 @@ export function SettingsScreenContent() {
           flow={importFlow}
           onCancel={() => {
             if (!importFlow.isImporting) {
-              screen.setView("overview");
+              screen.setView("library");
             }
           }}
         />
@@ -91,16 +97,7 @@ export function SettingsScreenContent() {
           setHapticsEnabled={setHapticsEnabled}
           primaryWorkspaceTitle={primaryWorkspaceTitle}
           backupFlow={backupFlow}
-          globalTags={globalTags}
-          diagnostics={diagnostics}
-          bluetoothCalibrationCount={bluetoothMonitoringCalibrations.length}
-          onOpenStorageDetails={() => {
-            diagnostics.setShowAdvancedStorageDetails(false);
-            screen.setView("storage");
-          }}
-          onOpenBluetoothCalibration={() => navigation.navigate("BluetoothCalibration" as never)}
-          onBeginExportFlow={() => screen.setView("export")}
-          onBeginImportFlow={() => screen.setView("import")}
+          onOpenLibrary={() => screen.setView("library")}
         />
       )}
     </SafeAreaView>
