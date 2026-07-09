@@ -319,8 +319,9 @@ export function useShareImportScreenModel({
       showDuplicateReview(
         duplicateResult,
         () => doImport(duplicateResult.uniqueAssets),
-        () => doImport(duplicateResult.allAssets)
-      );
+        () => doImport(duplicateResult.allAssets),
+        doImport
+        );
       return;
     }
 
@@ -484,8 +485,9 @@ export function useShareImportScreenModel({
       showDuplicateReview(
         duplicateResult,
         () => doImport(duplicateResult.uniqueAssets),
-        () => doImport(duplicateResult.allAssets)
-      );
+        () => doImport(duplicateResult.allAssets),
+        doImport
+        );
       return;
     }
 

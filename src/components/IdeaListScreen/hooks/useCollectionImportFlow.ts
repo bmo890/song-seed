@@ -176,8 +176,9 @@ export function useCollectionImportFlow({
       showDuplicateReview(
         duplicateResult,
         () => doImport(duplicateResult.uniqueAssets),
-        () => doImport(duplicateResult.allAssets)
-      );
+        () => doImport(duplicateResult.allAssets),
+        doImport
+        );
       return;
     }
 
@@ -305,8 +306,9 @@ export function useCollectionImportFlow({
       showDuplicateReview(
         duplicateResult,
         () => doImport(duplicateResult.uniqueAssets),
-        () => doImport(duplicateResult.allAssets)
-      );
+        () => doImport(duplicateResult.allAssets),
+        doImport
+        );
       return;
     }
 
