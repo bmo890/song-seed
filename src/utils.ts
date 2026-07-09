@@ -289,6 +289,12 @@ export function quantizeWaveformPeak(value: number) {
   return Math.round(value * 1000) / 1000;
 }
 
+/**
+ * A NEUTRAL placeholder waveform shown until a clip's real envelope is decoded. Deliberately
+ * calm and low — a gently varied thin band that reads as "waveform pending" rather than a
+ * fake song. (The previous version drew a sine-hump envelope, which looked like the same
+ * distinctive track on every clip.) Still lightly seeded so bars aren't a dead-flat line.
+ */
 export function buildStaticWaveform(seedInput: string, count = 150) {
   let seed = 0;
   for (let i = 0; i < seedInput.length; i++) {
@@ -299,8 +305,8 @@ export function buildStaticWaveform(seedInput: string, count = 150) {
   for (let i = 0; i < count; i++) {
     seed = (1664525 * seed + 1013904223) >>> 0;
     const n = seed / 4294967295;
-    const shape = 0.25 + 0.75 * Math.abs(Math.sin((i / count) * Math.PI * 2.3));
-    bars.push(quantizeWaveformPeak(Math.max(0.12, Math.min(1, (0.25 + n * 0.75) * shape))));
+    // A low, even band (~0.24–0.40) with subtle per-bar jitter — no envelope, no shape.
+    bars.push(quantizeWaveformPeak(0.24 + n * 0.16));
   }
   return bars;
 }
