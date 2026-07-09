@@ -21,7 +21,10 @@ import {
     isBackupOperationCancelled,
     type BackupOperationProgress,
 } from "../../../services/backupOperation";
-import { estimateDisasterRecoveryBackup } from "../../../services/disasterRecoveryBackup";
+import {
+    estimateDisasterRecoveryBackup,
+    type DrBackupMissingRecord,
+} from "../../../services/disasterRecoveryBackup";
 import {
     estimateLibraryOperationSeconds,
     formatDurationEstimate,
@@ -29,10 +32,53 @@ import {
 import { formatBytes } from "../../../utils";
 import { useStore } from "../../../state/useStore";
 import { useProcessStore } from "../../../state/useProcessStore";
-import type { BackupReminderFrequency } from "../../../types";
+import type { BackupReminderFrequency, Workspace } from "../../../types";
 import { haptic } from "../../../design/haptics";
 
 const REMINDER_OPTIONS: BackupReminderFrequency[] = ["off", "weekly", "monthly", "quarterly"];
+
+const MISSING_LIST_MAX = 6;
+
+/**
+ * Resolve the manifest's critical missing-file refs (`idea:<id>/clip:<id>[/stem:<id>]`,
+ * `workspace:<id>`) to song/clip names so the incomplete-backup alert can say WHICH
+ * recordings are gone, not just how many.
+ */
+function describeMissingRecordings(
+    missing: DrBackupMissingRecord[],
+    workspaces: Workspace[]
+): string[] {
+    const lines: string[] = [];
+    for (const entry of missing) {
+        if (!entry.critical) continue;
+
+        const workspaceMatch = entry.ref.match(/^workspace:(.+)$/);
+        if (workspaceMatch) {
+            const workspace = workspaces.find((item) => item.id === workspaceMatch[1]);
+            lines.push(`Archived workspace "${workspace?.title ?? workspaceMatch[1]}"`);
+            continue;
+        }
+
+        const clipMatch = entry.ref.match(/^idea:([^/]+)\/clip:([^/]+?)(?:\/stem:.+)?$/);
+        if (clipMatch) {
+            let resolved: string | null = null;
+            for (const workspace of workspaces) {
+                const idea = workspace.ideas.find((item) => item.id === clipMatch[1]);
+                if (!idea) continue;
+                const clip = idea.clips.find((item) => item.id === clipMatch[2]);
+                const clipLabel = clip?.title?.trim() ? ` · ${clip.title.trim()}` : "";
+                const stemLabel = entry.ref.includes("/stem:") ? " (overdub layer)" : "";
+                resolved = `"${idea.title}"${clipLabel}${stemLabel}`;
+                break;
+            }
+            lines.push(resolved ?? entry.path.split("/").pop() ?? entry.path);
+            continue;
+        }
+
+        lines.push(entry.path.split("/").pop() ?? entry.path);
+    }
+    return lines;
+}
 
 export function useLibraryBackupFlow() {
     const recorder = useSharedAudioRecorder();
@@ -188,11 +234,22 @@ export function useLibraryBackupFlow() {
             if (built.status === "incomplete") {
                 useProcessStore.getState().dismiss(processId);
                 const missingCritical = built.manifest.missing.filter((entry) => entry.critical);
+                const named = describeMissingRecordings(
+                    built.manifest.missing,
+                    useStore.getState().workspaces
+                );
+                const shown = named.slice(0, MISSING_LIST_MAX);
+                const overflow = named.length - shown.length;
+                const listBlock = shown.length
+                    ? `\n\n${shown.map((line) => `• ${line}`).join("\n")}${overflow > 0 ? `\n• …and ${overflow} more` : ""}\n\n`
+                    : " ";
                 AppAlert.info(
                     "Backup saved, but incomplete",
                     `Saved ${backupFileName}, but ${missingCritical.length} recording${missingCritical.length === 1 ? "" : "s"} ` +
-                        `could not be found and ${missingCritical.length === 1 ? "is" : "are"} missing from this backup. ` +
-                        `Your audio storage may be damaged — check it and back up again.`
+                        `could not be found and ${missingCritical.length === 1 ? "is" : "are"} missing from this backup:` +
+                        listBlock +
+                        `The audio for ${missingCritical.length === 1 ? "this item" : "these items"} is gone from storage. ` +
+                        `Run Settings → Storage → Check integrity to review, then back up again.`
                 );
                 return false;
             }
