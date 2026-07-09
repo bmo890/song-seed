@@ -1,9 +1,9 @@
 import { extractPreview } from "@siteed/audio-studio";
 import SongseedPitchShiftModule from "../../modules/songseed-pitch-shift";
-import { metersToWaveformPeaks } from "../utils";
+import { metersToWaveformPeaks, quantizeWaveformPeak } from "../utils";
 
 function clamp01(value: number) {
-  return Math.max(0, Math.min(1, value));
+  return quantizeWaveformPeak(Math.max(0, Math.min(1, value)));
 }
 
 function analysisToPeaks(
