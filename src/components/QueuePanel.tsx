@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { memo, useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import DraggableFlatList from "react-native-draggable-flatlist";
 import { Ionicons } from "@expo/vector-icons";
@@ -29,7 +29,7 @@ type QueueRow = {
  * and keeps the panel open. Edit mode reveals drag-to-reorder + remove, exactly
  * like the playlist editor. Works identically for playlist and ad-hoc queues.
  */
-export function QueuePanel({
+function QueuePanelInner({
   onOpenIdea,
   framed = true,
 }: {
@@ -46,23 +46,33 @@ export function QueuePanel({
   const workspaces = useStore((s) => s.workspaces);
   const [editMode, setEditMode] = useState(false);
 
-  const rows: QueueRow[] = playerQueue.map((item, index) => {
-    const workspace = workspaces.find((ws) => ws.ideas.some((candidate) => candidate.id === item.ideaId));
-    const idea = workspace?.ideas.find((candidate) => candidate.id === item.ideaId);
-    const clip = idea?.clips.find((candidate) => candidate.id === item.clipId);
-    return {
-      // Value-keyed (not index-keyed) so a drag reorder doesn't reshuffle keys.
-      key: `${item.ideaId}:${item.clipId}`,
-      queueItem: item,
-      index,
-      ideaId: idea?.id ?? null,
-      workspaceId: workspace?.id ?? null,
-      title: clip?.title || idea?.title || "Unknown clip",
-      subtitle: idea?.title ?? "",
-      durationMs: clip ? getClipPlaybackDurationMs(clip) ?? null : null,
-      isCurrent: index === playerQueueIndex,
-    };
-  });
+  // Memoized with an id-index: the naive per-row workspace scan was O(queue × library)
+  // and re-ran on EVERY render — noticeable once the library passed ~100 clips.
+  const rows: QueueRow[] = useMemo(() => {
+    const ideaIndex = new Map<string, { workspaceId: string; idea: (typeof workspaces)[number]["ideas"][number] }>();
+    for (const workspace of workspaces) {
+      for (const idea of workspace.ideas) {
+        ideaIndex.set(idea.id, { workspaceId: workspace.id, idea });
+      }
+    }
+    return playerQueue.map((item, index) => {
+      const entry = ideaIndex.get(item.ideaId) ?? null;
+      const idea = entry?.idea ?? null;
+      const clip = idea?.clips.find((candidate) => candidate.id === item.clipId) ?? null;
+      return {
+        // Value-keyed (not index-keyed) so a drag reorder doesn't reshuffle keys.
+        key: `${item.ideaId}:${item.clipId}`,
+        queueItem: item,
+        index,
+        ideaId: idea?.id ?? null,
+        workspaceId: entry?.workspaceId ?? null,
+        title: clip?.title || idea?.title || "Unknown clip",
+        subtitle: idea?.title ?? "",
+        durationMs: clip ? getClipPlaybackDurationMs(clip) ?? null : null,
+        isCurrent: index === playerQueueIndex,
+      };
+    });
+  }, [playerQueue, playerQueueIndex, workspaces]);
 
   const jumpTo = (index: number) => {
     const state = useStore.getState();
@@ -216,6 +226,11 @@ export function QueuePanel({
     </View>
   );
 }
+
+// Memoized: hosts re-render on playback ticks; the panel's own store subscriptions
+// (queue, index, isPlaying) are what should drive its updates — with stable props,
+// host renders no longer cascade into the row list at playback cadence.
+export const QueuePanel = memo(QueuePanelInner);
 
 const panelStyles = StyleSheet.create({
   // Sits directly above the dock surface inside the same bottom-anchored wrap, so

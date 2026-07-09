@@ -54,6 +54,7 @@ import {
     setLastPersistedIdeaCount,
     setPersistBlocked,
 } from "./persistRuntime";
+import { persistedSnapshotChanged } from "./persistChangeDetection";
 import {
     buildPersistedAppStoreSnapshot,
     persistAppStoreSnapshot,
@@ -357,6 +358,10 @@ function createGuardedStorage() {
         getItem: baseStorage.getItem.bind(baseStorage),
         removeItem: baseStorage.removeItem.bind(baseStorage),
         setItem: (name: string, value: any) => {
+            // Transient-only updates (playback position, selection…) leave every
+            // persisted field reference-identical — skip them entirely so playback
+            // never touches the serializer or SQLite.
+            if (!persistedSnapshotChanged(value)) return;
             schedulePendingPersistWrite(() => runGuardedWrite(name, value));
         },
     };

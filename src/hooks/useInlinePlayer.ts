@@ -1,4 +1,5 @@
-import { useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
+import { useAudioPlayer } from "expo-audio";
+import { useThrottledAudioPlayerStatus } from "./useThrottledAudioPlayerStatus";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ClipVersion, InlineTarget } from "../types";
 import { getClipPlaybackUri } from "../clipPresentation";
@@ -49,7 +50,10 @@ export function useInlinePlayer({ onBeforePlayNew }: Args = {}) {
 
   const playerOptions = useMemo(() => ({ updateInterval: 100, keepAudioSessionActive: true }), []);
   const player = useAudioPlayer(null, playerOptions);
-  const status = useAudioPlayerStatus(player);
+  // Throttled: state transitions (incl. playbackState, which gates source switches)
+  // commit immediately; pure position ticks at ~5Hz instead of 10Hz. The whole app
+  // re-renders under the root provider on these commits, so cadence matters.
+  const { status } = useThrottledAudioPlayerStatus(player, { positionIntervalMs: 200 });
   const rawInlinePosition = Math.round((status.currentTime ?? 0) * 1000);
   const rawInlineDuration = Math.round((status.duration ?? 0) * 1000);
   const inlinePosition = inlinePositionOverrideMs ?? rawInlinePosition;

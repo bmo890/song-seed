@@ -156,6 +156,11 @@ export function FullPlayerProvider({ children }: { children: React.ReactNode }) 
   useEffect(() => {
     if (closeToken === handledCloseTokenRef.current) return;
     handledCloseTokenRef.current = closeToken;
+    // While the full Player screen is mounted, ITS lifecycle handles this token
+    // (closePlayer + clearPlayerQueue + dismiss). Also acting here doubled every
+    // close into two racing engine operations — a canceled open could then leave
+    // the engine on the previous clip while the UI showed the new one.
+    if (useStore.getState().isPlayerScreenMounted) return;
     void dockRef.current.closePlayer();
     useStore.getState().clearPlayerQueue();
   }, [closeToken]);
@@ -167,25 +172,46 @@ export function FullPlayerProvider({ children }: { children: React.ReactNode }) 
   const isPlayerScreenMounted = useStore((s) => s.isPlayerScreenMounted);
   const queueTarget = useStore((s) => s.playerTarget);
 
-  // Load the queue's current target into the engine when it changes.
+  // Load the queue's current target into the engine when it changes. Keyed on the
+  // engine's op nonce too, so an ABORTED load (which changes no other dep) re-checks
+  // instead of leaving the engine on the previous clip. The in-flight/autoplay refs
+  // mirror the Player screen's own load effect.
+  const engineOpNonce = rawDock.engineOpNonce;
+  const dockOpenInFlightClipIdRef = useRef<string | null>(null);
+  const dockPendingAutoplayClipIdRef = useRef<string | null>(null);
   useEffect(() => {
     if (isPlayerScreenMounted || !queueTarget) return;
     const engine = rawDockRef.current;
     if (!engine) return;
     // Already on this clip (e.g. just minimized) — don't reload.
     if (engine.playerTarget?.clipId === queueTarget.clipId && engine.currentPlaybackSourceUri) {
+      dockOpenInFlightClipIdRef.current = null;
+      dockPendingAutoplayClipIdRef.current = null;
       return;
     }
+    if (dockOpenInFlightClipIdRef.current === queueTarget.clipId) return;
     const idea = useStore
       .getState()
       .workspaces.flatMap((w) => w.ideas)
       .find((i) => i.id === queueTarget.ideaId);
     const clip = idea?.clips.find((c) => c.id === queueTarget.clipId);
     if (!idea || !clip) return;
-    const shouldAutoplay = useStore.getState().playerShouldAutoplay;
-    useStore.getState().consumePlayerAutoplay();
-    void openPlayer(idea.id, clip, { title: clip.title, albumTitle: idea.title }, shouldAutoplay);
-  }, [isPlayerScreenMounted, queueTarget, openPlayer]);
+    dockOpenInFlightClipIdRef.current = clip.id;
+    let shouldAutoplay = useStore.getState().playerShouldAutoplay;
+    if (shouldAutoplay) {
+      useStore.getState().consumePlayerAutoplay();
+      dockPendingAutoplayClipIdRef.current = clip.id;
+    } else if (dockPendingAutoplayClipIdRef.current === clip.id) {
+      shouldAutoplay = true;
+    } else {
+      dockPendingAutoplayClipIdRef.current = null;
+    }
+    void openPlayer(idea.id, clip, { title: clip.title, albumTitle: idea.title }, shouldAutoplay).finally(() => {
+      if (dockOpenInFlightClipIdRef.current === clip.id) {
+        dockOpenInFlightClipIdRef.current = null;
+      }
+    });
+  }, [isPlayerScreenMounted, queueTarget, openPlayer, engineOpNonce]);
 
   // Auto-advance to the next clip when the current one finishes (mirrors the
   // Player screen's behavior: advance if there's a next track, else stay put).

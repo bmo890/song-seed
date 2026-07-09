@@ -16,6 +16,9 @@ type UsePlayerScreenLifecycleArgs = {
   currentPlaybackSourceUri: string | null;
   activeWorkspaceId: string | null;
   activePlayerTargetClipId?: string | null;
+  /** Bumps whenever an engine load operation settles (success, failure, OR abort).
+   *  Keys the load effect so an aborted open re-checks instead of dying silently. */
+  engineOpNonce: number;
   playerPosition: number;
   playerDuration: number;
   displayDuration: number;
@@ -60,6 +63,7 @@ export function usePlayerScreenLifecycle({
   currentPlaybackSourceUri,
   activeWorkspaceId,
   activePlayerTargetClipId,
+  engineOpNonce,
   playerPosition,
   playerDuration,
   displayDuration,
@@ -93,6 +97,8 @@ export function usePlayerScreenLifecycle({
   const handledFinishTokenRef = useRef(0);
   const hydratedWaveformClipIdsRef = useRef(new Set<string>());
   const sourceSyncInFlightUriRef = useRef<string | null>(null);
+  const openInFlightClipIdRef = useRef<string | null>(null);
+  const pendingAutoplayClipIdRef = useRef<string | null>(null);
   const latestPlaybackRef = useRef({
     positionMs: playerPosition,
     isPlaying: isPlayerPlaying,
@@ -110,17 +116,31 @@ export function usePlayerScreenLifecycle({
 
     const isSameTarget = activePlayerTargetClipId === playerClip.id;
     if (isSameTarget && currentPlaybackSourceUri) {
+      openInFlightClipIdRef.current = null;
+      pendingAutoplayClipIdRef.current = null;
       return;
     }
     if (isSameTarget && !currentPlaybackSourceUri && playbackAudioUri == null) {
       return;
     }
+    // One open per clip at a time — re-runs (including engineOpNonce settles from
+    // superseded operations) must not stack duplicate opens that cancel each other.
+    if (openInFlightClipIdRef.current === playerClip.id) return;
+    openInFlightClipIdRef.current = playerClip.id;
 
-    const shouldAutoplay = useStore.getState().playerShouldAutoplay;
+    // Autoplay is consumed from the store up front; carry it per-clip so a retry
+    // after an aborted open still autoplays instead of silently landing paused.
+    let shouldAutoplay = useStore.getState().playerShouldAutoplay;
     if (shouldAutoplay) {
       useStore.getState().consumePlayerAutoplay();
+      pendingAutoplayClipIdRef.current = playerClip.id;
+    } else if (pendingAutoplayClipIdRef.current === playerClip.id) {
+      shouldAutoplay = true;
+    } else {
+      pendingAutoplayClipIdRef.current = null;
     }
 
+    const clipId = playerClip.id;
     void openPlayer(
       playerIdea.id,
       playerClip,
@@ -129,10 +149,19 @@ export function usePlayerScreenLifecycle({
         albumTitle: playerIdea.title,
       },
       shouldAutoplay && !suppressAutoplayOnOpen
-    );
+    ).finally(() => {
+      if (openInFlightClipIdRef.current === clipId) {
+        openInFlightClipIdRef.current = null;
+      }
+    });
   }, [
     activePlayerTargetClipId,
     currentPlaybackSourceUri,
+    // Settle signal from the engine: an ABORTED open changes none of the other
+    // deps, so without this the effect never re-checks and the engine stays on
+    // the previous clip while the UI shows this one (play then plays the wrong
+    // audio). Each settle re-runs the reconciliation until engine == target.
+    engineOpNonce,
     isFocused,
     openPlayer,
     playbackAudioUri,
@@ -261,6 +290,10 @@ export function usePlayerScreenLifecycle({
   useEffect(() => {
     if (playerCloseRequestToken === handledCloseTokenRef.current) return;
     handledCloseTokenRef.current = playerCloseRequestToken;
+    // Exactly ONE owner per close: while the full player is (or is becoming) the
+    // active surface, this screen acts; while docked, the root provider acts.
+    // Both acting doubled every close into two racing engine operations.
+    if (!useStore.getState().isPlayerScreenMounted) return;
     prepareTransportForClose();
     cancelPendingPracticeSeek();
     void cancelScrub();
