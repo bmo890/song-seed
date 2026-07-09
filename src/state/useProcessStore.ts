@@ -49,8 +49,43 @@ const PROCESS_STEPS: Record<LibraryProcessKind, { label: string; phases: BackupO
     ],
 };
 
+/** Phases that stream every media byte — each is one full read pass over the library. */
+const BYTE_PHASES = new Set<BackupOperationPhase>(["hashing", "verifying", "packaging", "restoring"]);
+
 export type ProcessStepState = "done" | "active" | "upcoming";
 export type ProcessStep = { label: string; state: ProcessStepState };
+
+/**
+ * Fraction (0–1) complete across the WHOLE operation, not just the current phase — so an
+ * ETA derived from it spans every remaining pass (verify → package → save) instead of
+ * resetting to zero each time a phase starts. Models each byte-heavy step as one equal
+ * pass; non-byte steps before the passes read as 0 and after them as 1. null when there
+ * is no byte total yet (nothing to estimate from).
+ */
+export function getProcessOverallFraction(process: LibraryProcess): number | null {
+    const steps = PROCESS_STEPS[process.kind];
+    const byteStepIndices = steps
+        .map((step, index) => ({ step, index }))
+        .filter(({ step }) => step.phases.some((phase) => BYTE_PHASES.has(phase)))
+        .map(({ index }) => index);
+    const totalPasses = byteStepIndices.length;
+    if (totalPasses === 0) return null;
+
+    if (process.status === "success") return 1;
+
+    const activeIndex = steps.findIndex((step) => step.phases.includes(process.progress.phase));
+    if (activeIndex < 0) return 0;
+
+    const passPosition = byteStepIndices.indexOf(activeIndex);
+    if (passPosition < 0) {
+        // A non-byte step (prepare / inspect / save / commit): 0 before the passes, 1 after.
+        return activeIndex < byteStepIndices[0] ? 0 : 1;
+    }
+
+    const { completedBytes, totalBytes } = process.progress;
+    const within = totalBytes > 0 ? Math.min(1, Math.max(0, completedBytes / totalBytes)) : 0;
+    return (passPosition + within) / totalPasses;
+}
 
 /** Resolve the timeline steps + their state from a process's current phase/status. */
 export function getProcessSteps(process: LibraryProcess): ProcessStep[] {
@@ -63,13 +98,6 @@ export function getProcessSteps(process: LibraryProcess): ProcessStep[] {
         if (index === resolvedActive) return { label: step.label, state: "active" };
         return { label: step.label, state: "upcoming" };
     });
-}
-
-/** 0–100 for the current phase, or null when the phase has no byte total (indeterminate). */
-export function getProcessPercent(process: LibraryProcess): number | null {
-    const { completedBytes, totalBytes } = process.progress;
-    if (totalBytes <= 0) return null;
-    return Math.min(100, Math.max(0, Math.round((completedBytes / totalBytes) * 100)));
 }
 
 type StartArgs = {

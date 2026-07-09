@@ -8,7 +8,7 @@ import { formatBytes } from "../utils";
 import { haptic } from "../design/haptics";
 import { useStore } from "../state/useStore";
 import {
-    getProcessPercent,
+    getProcessOverallFraction,
     getProcessSteps,
     useProcessStore,
     type LibraryProcess,
@@ -48,21 +48,27 @@ function formatClock(totalSeconds: number) {
 }
 
 /**
- * Cumulative-average speed + ETA from the latest progress snapshot. Computed fresh on
- * every render — the second tick advances elapsed/ETA between progress commits.
+ * Data-processed + TOTAL time-left from the latest progress snapshot. Time left spans the
+ * whole operation (via the overall fraction), so it counts down across every remaining pass
+ * instead of resetting each phase. Computed fresh each render — the second tick advances it.
  */
 function computeLiveStats(process: LibraryProcess) {
     const { completedBytes, totalBytes } = process.progress;
     const elapsedSec = Math.max(0.001, (Date.now() - process.startedAt) / 1000);
     const hasBytes = totalBytes > 0;
-    const bytesPerSec = hasBytes ? completedBytes / elapsedSec : 0;
-    const remainingBytes = Math.max(0, totalBytes - completedBytes);
-    const etaSec = bytesPerSec > 0 ? Math.round(remainingBytes / bytesPerSec) : null;
+    const overall = getProcessOverallFraction(process);
+
+    let etaLabel = "—";
+    if (overall != null && overall >= 1) {
+        etaLabel = "almost done";
+    } else if (overall != null && overall > 0.02) {
+        const etaSec = Math.round((elapsedSec * (1 - overall)) / overall);
+        etaLabel = etaSec >= 60 ? `~${Math.ceil(etaSec / 60)} min` : `~${etaSec}s`;
+    }
+
     return {
-        hasBytes,
         dataLabel: hasBytes ? `${formatBytes(completedBytes)} / ${formatBytes(totalBytes)}` : "—",
-        speedLabel: hasBytes && bytesPerSec > 0 ? `${formatBytes(bytesPerSec)}/s` : "—",
-        etaLabel: etaSec != null ? (etaSec >= 60 ? `~${Math.ceil(etaSec / 60)} min` : `~${etaSec}s`) : "—",
+        etaLabel,
     };
 }
 
@@ -91,9 +97,7 @@ function Timeline({ process }: { process: LibraryProcess }) {
                                 { backgroundColor: step.state === "upcoming" ? "#E0D6CE" : accent },
                             ]}
                         />
-                    ) : (
-                        <View style={styles.timelineConnectorSpacer} />
-                    )}
+                    ) : null}
                     <View
                         style={[
                             styles.timelineNode,
@@ -149,7 +153,8 @@ function ProcessTakeover({
     const terminal = process.status !== "running";
     useSecondTick(!terminal);
     const stats = computeLiveStats(process);
-    const percent = getProcessPercent(process);
+    const overall = getProcessOverallFraction(process);
+    const percent = overall != null ? Math.round(overall * 100) : null;
     const accent = accentFor(process);
     const elapsedSec = (Date.now() - process.startedAt) / 1000;
 
@@ -185,17 +190,6 @@ function ProcessTakeover({
                         </Text>
                         <Text style={styles.sheetTitle}>{process.title}</Text>
                     </View>
-                    {!terminal ? (
-                        <Pressable
-                            style={({ pressed }) => [styles.headerBtn, pressed ? { opacity: 0.6 } : null]}
-                            onPress={onMinimize}
-                            hitSlop={8}
-                            accessibilityRole="button"
-                            accessibilityLabel="Minimize"
-                        >
-                            <Ionicons name="chevron-down" size={18} color={colors.textStrong} />
-                        </Pressable>
-                    ) : null}
                 </View>
 
                 {terminal ? (
@@ -242,9 +236,10 @@ function ProcessTakeover({
                             />
                         </View>
 
-                        <View style={styles.statGrid}>
+                        <View style={styles.statGridFull}>
                             <StatTile label="Data" value={stats.dataLabel} />
-                            <StatTile label="Speed" value={stats.speedLabel} />
+                        </View>
+                        <View style={styles.statGrid}>
                             <StatTile label="Time left" value={stats.etaLabel} />
                             <StatTile label="Elapsed" value={formatClock(elapsedSec)} />
                         </View>
@@ -290,7 +285,8 @@ function MonitorPill({
     onExpand: () => void;
     bottom: number;
 }) {
-    const percent = getProcessPercent(process);
+    const overall = getProcessOverallFraction(process);
+    const percent = overall != null ? Math.round(overall * 100) : null;
     const accent = accentFor(process);
     const terminal = process.status !== "running";
     const R = 13;
@@ -350,7 +346,7 @@ function MonitorPill({
 }
 
 /** Root-mounted host: renders the active library process as a full-screen takeover or a minimized pill. */
-export function LibraryProcessHost() {
+export function LibraryProcessHost({ drawerOpen = false }: { drawerOpen?: boolean }) {
     const process = useProcessStore((s) => s.process);
     const setMinimized = useProcessStore((s) => s.setMinimized);
     const requestCancel = useProcessStore((s) => s.requestCancel);
@@ -370,6 +366,10 @@ export function LibraryProcessHost() {
     if (!process) return null;
 
     if (process.minimized) {
+        // The pill lives above the navigator in paint order, so it would otherwise sit on top
+        // of the side menu. Hide it while the drawer is open (the takeover, being full-screen,
+        // blocks the drawer from opening in the first place, so it never needs this).
+        if (drawerOpen) return null;
         const base = playerDockHeight > 0 ? playerDockHeight + 8 : Math.max(insets.bottom, 14);
         return (
             <MonitorPill
@@ -410,7 +410,7 @@ const styles = StyleSheet.create({
         justifyContent: "space-between",
         marginBottom: 18,
     },
-    headerCopy: { flex: 1, minWidth: 0, paddingRight: 12 },
+    headerCopy: { flex: 1, minWidth: 0 },
     eyebrow: {
         fontFamily: "PlusJakartaSans_700Bold",
         fontSize: 10,
@@ -423,20 +423,11 @@ const styles = StyleSheet.create({
         color: colors.textPrimary,
         marginTop: 2,
     },
-    headerBtn: {
-        width: 32,
-        height: 32,
-        borderRadius: radii.round,
-        backgroundColor: colors.surface,
-        borderWidth: 1,
-        borderColor: colors.borderMuted,
-        alignItems: "center",
-        justifyContent: "center",
-    },
-    timelineRow: { flexDirection: "row", alignItems: "flex-start", marginBottom: 26, marginHorizontal: 2 },
+    timelineRow: { flexDirection: "row", alignItems: "flex-start", marginBottom: 26 },
     timelineStepWrap: { flex: 1, alignItems: "center" },
-    timelineConnector: { position: "absolute", top: 12, left: -50, right: 50, height: 2 },
-    timelineConnectorSpacer: { height: 2 },
+    // Anchored to node centers: right edge at this step's center, width one full step, so the
+    // segment reaches back to the previous step's center. Node (opaque, drawn after) caps it.
+    timelineConnector: { position: "absolute", top: 12, right: "50%", width: "100%", height: 2 },
     timelineNode: {
         width: 26,
         height: 26,
@@ -477,7 +468,8 @@ const styles = StyleSheet.create({
         marginBottom: 18,
     },
     progressFill: { height: "100%", borderRadius: 999 },
-    statGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 16 },
+    statGridFull: { marginBottom: 8 },
+    statGrid: { flexDirection: "row", gap: 8, marginBottom: 16 },
     statTile: {
         flexGrow: 1,
         flexBasis: "47%",

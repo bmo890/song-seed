@@ -933,7 +933,7 @@ function AppContent() {
         </PlayerSheetPositionProvider>
         <ImportProgressBanner hidden={isDrawerOpen} />
         <DuplicateReviewSheet />
-        <LibraryProcessHost />
+        <LibraryProcessHost drawerOpen={isDrawerOpen} />
       </NavigationContainer>
       <RestoreRestartGate />
       </FullPlayerProvider>

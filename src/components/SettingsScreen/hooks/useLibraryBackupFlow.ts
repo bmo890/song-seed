@@ -10,7 +10,10 @@ import {
 } from "../../../backupPreferences";
 import {
     BACKUP_SAVE_CANCELLED_MESSAGE,
-    runExactLibraryBackup,
+    buildExactLibraryBackup,
+    discardBuiltLibraryBackup,
+    saveBuiltLibraryBackup,
+    type BuiltExactBackup,
 } from "../../../services/libraryBackup";
 import { restoreFromDisasterRecoveryBackup } from "../../../services/disasterRecoveryRestore";
 import { detectPickedArchiveKind } from "../../../services/archiveKind";
@@ -119,16 +122,72 @@ export function useLibraryBackupFlow() {
             title: "Your library",
             onCancel: () => controller.abort(),
         });
-        try {
-            const result = await runExactLibraryBackup(useStore.getState(), {
-                signal: controller.signal,
-                onProgress: (progress) => useProcessStore.getState().update(progress),
-            });
-            const backupFileName = result.archiveTitle;
+        const operationOptions = {
+            signal: controller.signal,
+            onProgress: (progress: BackupOperationProgress) =>
+                useProcessStore.getState().update(progress),
+        };
 
-            if (result.status === "incomplete") {
+        // Save the already-built archive, retrying if the user backs out of the location
+        // picker — the expensive build is never repeated, and backing out prompts to save
+        // again or explicitly discard instead of silently losing the backup.
+        const attemptSave = async (
+            built: BuiltExactBackup
+        ): Promise<{ saved: true; saveConfirmed: boolean } | { saved: false }> => {
+            try {
+                const saved = await saveBuiltLibraryBackup(built, operationOptions);
+                return { saved: true, saveConfirmed: saved.saveConfirmed };
+            } catch (error) {
+                if (isBackupOperationCancelled(error)) {
+                    // Explicit Cancel — the built archive was already cleaned up by the save step.
+                    await discardBuiltLibraryBackup(built.archiveUri).catch(() => {});
+                    throw error;
+                }
+                if (error instanceof Error && error.message === BACKUP_SAVE_CANCELLED_MESSAGE) {
+                    return await new Promise((resolve) => {
+                        AppAlert.custom(
+                            "Save this backup?",
+                            `"${built.archiveTitle}" is built and ready, but hasn't been saved yet. ` +
+                                "Choose where to save it, or discard it.",
+                            [
+                                {
+                                    label: "Discard Backup",
+                                    style: "destructive",
+                                    onPress: () => {
+                                        void discardBuiltLibraryBackup(built.archiveUri)
+                                            .catch(() => {})
+                                            .finally(() => resolve({ saved: false }));
+                                    },
+                                },
+                                {
+                                    label: "Choose Location",
+                                    style: "default",
+                                    icon: "folder-outline",
+                                    onPress: () => {
+                                        void attemptSave(built).then(resolve);
+                                    },
+                                },
+                            ]
+                        );
+                    });
+                }
+                throw error;
+            }
+        };
+
+        try {
+            const built = await buildExactLibraryBackup(useStore.getState(), operationOptions);
+            const backupFileName = built.archiveTitle;
+
+            const outcome = await attemptSave(built);
+            if (!outcome.saved) {
                 useProcessStore.getState().dismiss(processId);
-                const missingCritical = result.manifest.missing.filter((entry) => entry.critical);
+                return false;
+            }
+
+            if (built.status === "incomplete") {
+                useProcessStore.getState().dismiss(processId);
+                const missingCritical = built.manifest.missing.filter((entry) => entry.critical);
                 AppAlert.info(
                     "Backup saved, but incomplete",
                     `Saved ${backupFileName}, but ${missingCritical.length} recording${missingCritical.length === 1 ? "" : "s"} ` +
@@ -160,7 +219,7 @@ export function useLibraryBackupFlow() {
                 );
             };
 
-            if (!result.saveConfirmed) {
+            if (!outcome.saveConfirmed) {
                 // We can't confirm the share-sheet save, so don't flash "done" — clear the
                 // process and let the confirm dialog record success if the user did save.
                 useProcessStore.getState().dismiss(processId);
@@ -184,10 +243,6 @@ export function useLibraryBackupFlow() {
             return true;
         } catch (error) {
             if (isBackupOperationCancelled(error)) {
-                useProcessStore.getState().dismiss(processId);
-                return false;
-            }
-            if (error instanceof Error && error.message === BACKUP_SAVE_CANCELLED_MESSAGE) {
                 useProcessStore.getState().dismiss(processId);
                 return false;
             }
