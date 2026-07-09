@@ -368,6 +368,28 @@ describe("restoreFromDisasterRecoveryBackup", () => {
         );
     });
 
+    it("salvage-restores an incomplete backup: drops the missing clip, restores the rest", async () => {
+        // Archive whose manifest records clip-1's audio as missing (files list empty),
+        // exactly like a backup taken while storage was damaged.
+        installArchive({ incomplete: true });
+
+        const result = await restoreFromDisasterRecoveryBackup(ARCHIVE_URI, {
+            allowIncomplete: true,
+        });
+
+        expect(result.status).toBe("incomplete");
+        expect(result.skipped).toEqual([
+            expect.objectContaining({ kind: "clip", ref: "idea:idea-1/clip:clip-1" }),
+        ]);
+
+        // The snapshot commits with the broken clip dropped; the song itself survives.
+        const persisted = JSON.parse(mockPersistRawSnapshot.mock.calls[0][1]);
+        const idea = persisted.state.workspaces[0].ideas[0];
+        expect(idea.id).toBe("idea-1");
+        expect(idea.clips).toEqual([]);
+        expect(mockRequireRestoreRestart).toHaveBeenCalled();
+    });
+
     it("merge mode keeps newer current items, restores backup-only items, and quarantines nothing", async () => {
         installArchive();
         const currentClipBytes = mockTextBytes("current-clip-audio");

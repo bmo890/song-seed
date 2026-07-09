@@ -19,9 +19,19 @@ const SAFE_MEDIA_PREFIXES = [AUDIO_PREFIX, ARCHIVE_PREFIX, PREVIEW_PREFIX] as co
 
 type UnknownRecord = Record<string, unknown>;
 
+export type SalvageSkippedItem = {
+    kind: "clip" | "overdub-stem" | "workspace";
+    /** Human-traceable reference, e.g. `idea:<id>/clip:<id>`. */
+    ref: string;
+    /** Display label assembled from titles where available. */
+    label: string;
+};
+
 export type PreparedDisasterRecoverySnapshot = {
     snapshot: PersistedAppStore;
     destinationPathBySourcePath: Map<string, string>;
+    /** Items dropped by a salvage restore because their audio is absent from the backup. */
+    skipped: SalvageSkippedItem[];
 };
 
 function isRecord(value: unknown): value is UnknownRecord {
@@ -233,15 +243,38 @@ function buildDestinationPath(sourcePath: string, restoreToken: string) {
     return `${prefix}restored-${restoreToken}/${sourcePath.slice(prefix.length)}`;
 }
 
+type SalvageContext = {
+    /** True when the backup can supply this uri's audio (safe path present in the manifest). */
+    hasDestination: (uri: string) => boolean;
+    onSkip: (item: SalvageSkippedItem) => void;
+};
+
 function rewriteOverdub(
     overdub: ClipOverdubState,
     requireDestination: (uri: string | undefined, label: string) => string | undefined,
-    optionalDestination: (uri: string | undefined) => string | undefined
-): ClipOverdubState {
+    optionalDestination: (uri: string | undefined) => string | undefined,
+    clipRef: string,
+    salvage?: SalvageContext
+): ClipOverdubState | undefined {
+    let stems = overdub.stems;
+    if (salvage) {
+        stems = stems.filter((stem) => {
+            if (!stem.audioUri || salvage.hasDestination(stem.audioUri)) return true;
+            salvage.onSkip({
+                kind: "overdub-stem",
+                ref: `${clipRef}/stem:${stem.id}`,
+                label: stem.title || `Layer ${stem.id}`,
+            });
+            return false;
+        });
+        // An overdub whose layers are all gone has nothing left to represent — the mix
+        // is derived from the stems.
+        if (stems.length === 0) return undefined;
+    }
     const renderedMixUri = optionalDestination(overdub.renderedMixUri);
     return {
         ...overdub,
-        stems: overdub.stems.map((stem) => ({
+        stems: stems.map((stem) => ({
             ...stem,
             audioUri: requireDestination(stem.audioUri, `overdub stem ${stem.id}`),
         })),
@@ -259,14 +292,16 @@ function rewriteOverdub(
 function rewriteClip(
     clip: ClipVersion,
     requireDestination: (uri: string | undefined, label: string) => string | undefined,
-    optionalDestination: (uri: string | undefined) => string | undefined
+    optionalDestination: (uri: string | undefined) => string | undefined,
+    clipRef: string,
+    salvage?: SalvageContext
 ): ClipVersion {
     return {
         ...clip,
         audioUri: requireDestination(clip.audioUri, `clip ${clip.id}`),
         sourceAudioUri: optionalDestination(clip.sourceAudioUri),
         overdub: clip.overdub
-            ? rewriteOverdub(clip.overdub, requireDestination, optionalDestination)
+            ? rewriteOverdub(clip.overdub, requireDestination, optionalDestination, clipRef, salvage)
             : undefined,
     };
 }
@@ -274,7 +309,15 @@ function rewriteClip(
 export function prepareDisasterRecoverySnapshot(
     value: unknown,
     manifest: DrBackupManifest,
-    restoreToken: string
+    restoreToken: string,
+    options?: {
+        /**
+         * Salvage an INCOMPLETE backup: instead of failing on audio the backup itself
+         * recorded as missing, drop the affected clips / overdub layers / archived
+         * workspaces and report them in `skipped`. Everything else restores normally.
+         */
+        salvage?: boolean;
+    }
 ): PreparedDisasterRecoverySnapshot {
     if (!RESTORE_TOKEN.test(restoreToken)) {
         throw new Error("Restore destination token is invalid.");
@@ -304,27 +347,79 @@ export function prepareDisasterRecoverySnapshot(
         return destinationPathBySourcePath.get(sourcePath);
     };
 
-    const workspaces: Workspace[] = snapshot.workspaces.map((workspace) => ({
-        ...workspace,
-        archiveState: workspace.archiveState
-            ? {
-                  ...workspace.archiveState,
-                  archiveUri: requireDestination(
-                      workspace.archiveState.archiveUri,
-                      `archived workspace ${workspace.id}`
-                  )!,
-              }
-            : undefined,
-        ideas: workspace.ideas.map((idea) => ({
-            ...idea,
-            clips: idea.clips.map((clip) =>
-                rewriteClip(clip, requireDestination, optionalDestination)
-            ),
-        })),
-    }));
+    const skipped: SalvageSkippedItem[] = [];
+    const salvage: SalvageContext | undefined = options?.salvage
+        ? {
+              hasDestination: (uri: string) => {
+                  try {
+                      return destinationPathBySourcePath.has(assertSafeBackupMediaPath(uri));
+                  } catch {
+                      return false;
+                  }
+              },
+              onSkip: (item) => skipped.push(item),
+          }
+        : undefined;
+
+    const workspaces: Workspace[] = [];
+    for (const workspace of snapshot.workspaces) {
+        if (
+            salvage &&
+            workspace.archiveState?.archiveUri &&
+            !salvage.hasDestination(workspace.archiveState.archiveUri)
+        ) {
+            // An archived workspace's ONLY audio lives inside its archive package; without
+            // it there is nothing to restore.
+            salvage.onSkip({
+                kind: "workspace",
+                ref: `workspace:${workspace.id}`,
+                label: workspace.title,
+            });
+            continue;
+        }
+
+        workspaces.push({
+            ...workspace,
+            archiveState: workspace.archiveState
+                ? {
+                      ...workspace.archiveState,
+                      archiveUri: requireDestination(
+                          workspace.archiveState.archiveUri,
+                          `archived workspace ${workspace.id}`
+                      )!,
+                  }
+                : undefined,
+            ideas: workspace.ideas.map((idea) => {
+                const hadPrimary = idea.clips.some((clip) => clip.isPrimary);
+                let clips = idea.clips.flatMap((clip) => {
+                    const clipRef = `idea:${idea.id}/clip:${clip.id}`;
+                    if (salvage && clip.audioUri && !salvage.hasDestination(clip.audioUri)) {
+                        salvage.onSkip({
+                            kind: "clip",
+                            ref: clipRef,
+                            label: `${idea.title}${clip.title ? ` · ${clip.title}` : ""}`,
+                        });
+                        return [];
+                    }
+                    return [
+                        rewriteClip(clip, requireDestination, optionalDestination, clipRef, salvage),
+                    ];
+                });
+                // If salvage dropped the primary take, promote the first surviving clip so
+                // the song is never left without a primary.
+                if (salvage && hadPrimary && clips.length > 0 && !clips.some((clip) => clip.isPrimary)) {
+                    clips = clips.map((clip, index) =>
+                        index === 0 ? { ...clip, isPrimary: true } : clip
+                    );
+                }
+                return { ...idea, clips };
+            }),
+        });
+    }
 
     return {
         snapshot: { ...snapshot, workspaces },
         destinationPathBySourcePath,
+        skipped,
     };
 }

@@ -15,7 +15,10 @@ import {
     saveBuiltLibraryBackup,
     type BuiltExactBackup,
 } from "../../../services/libraryBackup";
-import { restoreFromDisasterRecoveryBackup } from "../../../services/disasterRecoveryRestore";
+import {
+    DrRestoreIncompleteError,
+    restoreFromDisasterRecoveryBackup,
+} from "../../../services/disasterRecoveryRestore";
 import { detectPickedArchiveKind } from "../../../services/archiveKind";
 import {
     isBackupOperationCancelled,
@@ -316,7 +319,11 @@ export function useLibraryBackupFlow() {
         }
     };
 
-    const runRestore = async (archiveUri: string, mode: "replace" | "merge") => {
+    const runRestore = async (
+        archiveUri: string,
+        mode: "replace" | "merge",
+        allowIncomplete = false
+    ) => {
         if (recorder.isRecording || recorder.isPaused) {
             AppAlert.info(
                 "Finish recording first",
@@ -334,7 +341,7 @@ export function useLibraryBackupFlow() {
             onCancel: () => controller.abort(),
         });
         try {
-            await restoreFromDisasterRecoveryBackup(archiveUri, {
+            const result = await restoreFromDisasterRecoveryBackup(archiveUri, {
                 signal: controller.signal,
                 onProgress: (progress) => {
                     // The committing phase can't be cancelled — reflect that in the process.
@@ -347,11 +354,42 @@ export function useLibraryBackupFlow() {
                     mode === "merge"
                         ? buildPersistedAppStoreSnapshot(useStore.getState())
                         : undefined,
+                allowIncomplete,
             });
-            useProcessStore.getState().setStatus("success", "Restored. Restarting…");
+            useProcessStore.getState().setStatus(
+                "success",
+                result.skipped.length > 0
+                    ? `Restored without ${result.skipped.length} missing item${result.skipped.length === 1 ? "" : "s"}. Restarting…`
+                    : "Restored. Restarting…"
+            );
         } catch (error) {
             if (isBackupOperationCancelled(error)) {
                 useProcessStore.getState().dismiss(processId);
+                return;
+            }
+            if (error instanceof DrRestoreIncompleteError && !allowIncomplete) {
+                // The backup itself recorded missing recordings. In a disaster this file may
+                // be all the user has — offer to salvage everything else instead of a dead end.
+                useProcessStore.getState().dismiss(processId);
+                const count = error.missingCriticalCount;
+                AppAlert.custom(
+                    "Backup is incomplete",
+                    `This backup recorded ${count} recording${count === 1 ? "" : "s"} as missing when it was created — ` +
+                        `${count === 1 ? "it" : "they"} cannot be recovered from this file. ` +
+                        `You can still restore everything else it contains.`,
+                    [
+                        { label: "Cancel", style: "cancel" },
+                        {
+                            label: "Restore Anyway",
+                            style: "default",
+                            icon: "medkit-outline",
+                            description: `Restore the library without the ${count} missing recording${count === 1 ? "" : "s"}.`,
+                            onPress: () => {
+                                void runRestore(archiveUri, mode, true);
+                            },
+                        },
+                    ]
+                );
                 return;
             }
             const message =

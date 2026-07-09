@@ -15,6 +15,7 @@ import type { Workspace } from "../types";
 import {
     prepareDisasterRecoverySnapshot,
     validateDisasterRecoveryManifest,
+    type SalvageSkippedItem,
 } from "./disasterRecoveryValidation";
 import {
     ensureBackupDiskSpace,
@@ -64,6 +65,8 @@ export type DrRestoreResult = {
     counts: DrBackupManifest["counts"];
     /** Non-critical files the original backup recorded as missing (informational). */
     missing: DrBackupManifest["missing"];
+    /** Items dropped by a salvage restore (non-empty only when allowIncomplete was used). */
+    skipped: SalvageSkippedItem[];
     /** Restore commits to storage; the app must restart to hydrate the restored library. */
     needsRestart: true;
 };
@@ -80,12 +83,33 @@ export type DisasterRecoveryRestoreOptions = BackupOperationOptions & {
     mode?: DisasterRecoveryRestoreMode;
     /** Required for merge mode: the live library snapshot to merge the restored one into. */
     currentSnapshot?: PersistedAppStore;
+    /**
+     * Salvage: restore an INCOMPLETE backup (one that recorded missing critical
+     * recordings when it was created), dropping the affected items and restoring
+     * everything else. Only set after the user explicitly confirms.
+     */
+    allowIncomplete?: boolean;
 };
 
 export class DrRestoreError extends Error {
     constructor(message: string) {
         super(message);
         this.name = "DrRestoreError";
+    }
+}
+
+/**
+ * The backup itself recorded missing critical recordings. Callers can catch this and
+ * re-run with `allowIncomplete: true` (salvage) after the user explicitly opts in —
+ * in a real disaster an incomplete backup beats no restore at all.
+ */
+export class DrRestoreIncompleteError extends DrRestoreError {
+    readonly missingCriticalCount: number;
+
+    constructor(message: string, missingCriticalCount: number) {
+        super(message);
+        this.name = "DrRestoreIncompleteError";
+        this.missingCriticalCount = missingCriticalCount;
     }
 }
 
@@ -177,10 +201,13 @@ export async function restoreFromDisasterRecoveryBackup(
         throw new DrRestoreError(error instanceof Error ? error.message : "Backup manifest is invalid.");
     }
     const missingCritical = manifest.missing.filter((entry) => entry.critical);
-    if (missingCritical.length > 0 || manifest.status === "incomplete") {
-        throw new DrRestoreError(
+    const incomplete = missingCritical.length > 0 || manifest.status === "incomplete";
+    const salvage = incomplete && options?.allowIncomplete === true;
+    if (incomplete && !salvage) {
+        throw new DrRestoreIncompleteError(
             `This backup is incomplete and cannot safely restore the library. ${missingCritical.length} ` +
-                `critical recording${missingCritical.length === 1 ? " is" : "s are"} missing.`
+                `critical recording${missingCritical.length === 1 ? " is" : "s are"} missing.`,
+            missingCritical.length
         );
     }
 
@@ -227,9 +254,17 @@ export async function restoreFromDisasterRecoveryBackup(
     const restoreToken = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
     let prepared;
     try {
-        prepared = prepareDisasterRecoverySnapshot(snapshotValue, manifest, restoreToken);
+        prepared = prepareDisasterRecoverySnapshot(snapshotValue, manifest, restoreToken, {
+            salvage,
+        });
     } catch (error) {
         throw new DrRestoreError(error instanceof Error ? error.message : "Backup snapshot is invalid.");
+    }
+    if (salvage && prepared.skipped.length > 0) {
+        console.log(
+            `[restore] salvage: skipping ${prepared.skipped.length} item(s) whose audio the backup recorded as missing:\n` +
+                prepared.skipped.map((item) => `  • ${item.kind} ${item.ref} — ${item.label}`).join("\n")
+        );
     }
 
     const expectedEntries = new Set([
@@ -441,6 +476,7 @@ export async function restoreFromDisasterRecoveryBackup(
         status: manifest.status,
         counts: manifest.counts,
         missing: manifest.missing,
+        skipped: prepared.skipped,
         needsRestart: true,
     };
     requireRestoreRestart(result.counts, result.missing.length);

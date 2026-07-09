@@ -175,6 +175,62 @@ describe("prepareDisasterRecoverySnapshot", () => {
         ).toBe("songseed/preview-audio/restored-restore-123/clip-1-preview-123.m4a");
     });
 
+    it("salvage drops missing clips/stems, promotes a surviving primary, and reports skips", () => {
+        const missingAudio = "songseed/audio/gone.m4a";
+        const missingStem = "songseed/audio/gone-stem.m4a";
+        const value = snapshot();
+        const idea = value.workspaces[0].ideas[0];
+        // clip-1 (primary) keeps its audio but loses one of two stems; a second primary-less
+        // clip whose audio is gone gets dropped entirely.
+        idea.clips[0].overdub.stems.push({
+            id: "stem-2",
+            title: "Gone layer",
+            gainDb: 0,
+            offsetMs: 0,
+            tonePreset: "neutral",
+            isMuted: false,
+            createdAt: 0,
+            audioUri: missingStem,
+        });
+        idea.clips.push({
+            id: "clip-2",
+            title: "Lost take",
+            notes: "",
+            createdAt: 5,
+            isPrimary: false,
+            audioUri: missingAudio,
+        } as unknown as (typeof idea.clips)[number]);
+        // Make the LOST clip the primary to exercise promotion.
+        idea.clips[0].isPrimary = false;
+        idea.clips[1].isPrimary = true;
+
+        const prepared = prepareDisasterRecoverySnapshot(
+            value,
+            manifest({ counts: { workspaces: 1, collections: 1, ideas: 1, clips: 2 } }),
+            "restore-123",
+            { salvage: true }
+        );
+
+        const clips = prepared.snapshot.workspaces[0].ideas[0].clips;
+        expect(clips.map((c) => c.id)).toEqual(["clip-1"]);
+        // The dropped clip was primary → the survivor is promoted.
+        expect(clips[0].isPrimary).toBe(true);
+        // The missing stem is gone; the surviving stem remains.
+        expect(clips[0].overdub?.stems.map((s) => s.id)).toEqual(["stem-1"]);
+        expect(prepared.skipped).toEqual([
+            expect.objectContaining({ kind: "overdub-stem", ref: "idea:idea-1/clip:clip-1/stem:stem-2" }),
+            expect.objectContaining({ kind: "clip", ref: "idea:idea-1/clip:clip-2" }),
+        ]);
+    });
+
+    it("without salvage, missing critical audio still fails preparation", () => {
+        const value = snapshot();
+        value.workspaces[0].ideas[0].clips[0].audioUri = "songseed/audio/gone.m4a";
+        expect(() =>
+            prepareDisasterRecoverySnapshot(value, manifest(), "restore-123")
+        ).toThrow("missing critical audio");
+    });
+
     it("rejects a snapshot whose critical clip audio is absent from the manifest", () => {
         expect(() =>
             prepareDisasterRecoverySnapshot(
