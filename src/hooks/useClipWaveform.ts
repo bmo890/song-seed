@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { ensureWaveformSidecar } from "../services/waveformSidecar";
+import { InteractionManager } from "react-native";
+import { generateWaveformSidecar, readWaveformSidecar } from "../services/waveformSidecar";
 
 type Args = {
   audioUri?: string | null;
@@ -10,9 +11,11 @@ type Args = {
 };
 
 /**
- * Supplies the high-resolution detail waveform for a clip's reel. Lazily loads the
- * sidecar (generating + caching it on first access) and falls back to the inline
- * thumbnail until the detail is ready, so the reel never renders empty or blocky.
+ * Supplies the high-resolution detail waveform for a clip's reel. An already-cached
+ * sidecar is shown immediately; a missing one is GENERATED off the critical path
+ * (after interactions settle) so the multi-second native decode of a long file never
+ * blocks the player's own clip load — that contention was the "full player won't start
+ * on a long clip" stall. The low-res thumbnail shows meanwhile so the reel is never empty.
  */
 export function useClipWaveform({ audioUri, thumbnailPeaks, durationMs, enabled = true }: Args) {
   const [detail, setDetail] = useState<number[] | null>(null);
@@ -22,13 +25,30 @@ export function useClipWaveform({ audioUri, thumbnailPeaks, durationMs, enabled 
     if (!enabled || !audioUri) return;
 
     let cancelled = false;
+    let interaction: ReturnType<typeof InteractionManager.runAfterInteractions> | null = null;
+
     void (async () => {
-      const peaks = await ensureWaveformSidecar(audioUri, durationMs);
-      if (!cancelled && peaks && peaks.length) setDetail(peaks);
+      // Cheap: an existing sidecar is just a file read — show it right away.
+      const existing = await readWaveformSidecar(audioUri);
+      if (cancelled) return;
+      if (existing && existing.length) {
+        setDetail(existing);
+        return;
+      }
+
+      // Expensive: defer generation until the load/animation has settled so the decode
+      // (serialized app-wide in waveformAnalysis) doesn't fight the player for the codec.
+      interaction = InteractionManager.runAfterInteractions(() => {
+        void (async () => {
+          const peaks = await generateWaveformSidecar(audioUri, durationMs);
+          if (!cancelled && peaks && peaks.length) setDetail(peaks);
+        })();
+      });
     })();
 
     return () => {
       cancelled = true;
+      interaction?.cancel?.();
     };
   }, [audioUri, durationMs, enabled]);
 

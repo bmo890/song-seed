@@ -1,5 +1,5 @@
 import * as FileSystem from "expo-file-system/legacy";
-import { loadAudioDurationMs } from "./audioStorage";
+import { MAX_DETAILED_AUDIO_ANALYSIS_DURATION_MS, loadAudioDurationMs } from "./audioStorage";
 import { computeWaveformPeaks } from "./waveformAnalysis";
 import { waveformSidecarUri } from "./storagePaths";
 
@@ -73,6 +73,10 @@ export async function generateWaveformSidecar(
     const resolvedDurationMs =
       durationMs && durationMs > 0 ? durationMs : await loadAudioDurationMs(audioUri);
     if (!resolvedDurationMs || resolvedDurationMs <= 0) return null;
+    // Very long files (30 min+ voice memos/lessons) would decode for many seconds and
+    // contend with playback for little visual gain — the reel shows the inline thumbnail
+    // instead, matching the metadata path's cap.
+    if (resolvedDurationMs > MAX_DETAILED_AUDIO_ANALYSIS_DURATION_MS) return null;
     const peaks = await computeWaveformPeaks(audioUri, WAVEFORM_DETAIL_BINS, resolvedDurationMs);
     if (peaks.length) await writeWaveformSidecar(audioUri, peaks);
     return peaks.length ? peaks : null;
