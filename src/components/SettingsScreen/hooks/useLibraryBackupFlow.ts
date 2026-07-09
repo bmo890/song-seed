@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import * as Clipboard from "expo-clipboard";
 import * as DocumentPicker from "expo-document-picker";
 import { useSharedAudioRecorder } from "@siteed/audio-studio";
@@ -19,6 +19,7 @@ import {
     type BackupOperationProgress,
 } from "../../../services/backupOperation";
 import { useStore } from "../../../state/useStore";
+import { useProcessStore } from "../../../state/useProcessStore";
 import type { BackupReminderFrequency } from "../../../types";
 import { haptic } from "../../../design/haptics";
 
@@ -32,12 +33,14 @@ export function useLibraryBackupFlow() {
     const lastSuccessfulBackupFileName = useStore((state) => state.lastSuccessfulBackupFileName);
     const setLastSuccessfulBackupAt = useStore((state) => state.setLastSuccessfulBackupAt);
     const setLastSuccessfulBackupFileName = useStore((state) => state.setLastSuccessfulBackupFileName);
-    const [isBackingUp, setIsBackingUp] = useState(false);
-    const [isRestoring, setIsRestoring] = useState(false);
-    const [backupProgress, setBackupProgress] = useState<BackupOperationProgress | null>(null);
-    const [restoreProgress, setRestoreProgress] = useState<BackupOperationProgress | null>(null);
+    // The running operation lives in the global process store so it survives leaving
+    // Settings and shows in the minimizable process host; this screen just reflects it.
+    const activeProcess = useProcessStore((s) => s.process);
     const backupAbortRef = useRef<AbortController | null>(null);
     const restoreAbortRef = useRef<AbortController | null>(null);
+
+    const isBackingUp = activeProcess?.kind === "backup" && activeProcess.status === "running";
+    const isRestoring = activeProcess?.kind === "restore" && activeProcess.status === "running";
 
     useEffect(
         () => () => {
@@ -58,27 +61,29 @@ export function useLibraryBackupFlow() {
     );
 
     const handleBackupNow = async () => {
-        if (isBackingUp) {
+        if (useProcessStore.getState().process?.status === "running") {
             return false;
         }
 
         const controller = new AbortController();
         backupAbortRef.current = controller;
-        setIsBackingUp(true);
-        setBackupProgress({
-            phase: "preparing",
-            completedBytes: 0,
-            totalBytes: 0,
-            message: "Preparing library backup",
+        const processId = `backup-${Date.now()}`;
+        const store = useProcessStore.getState();
+        store.start({
+            id: processId,
+            kind: "backup",
+            title: "Your library",
+            onCancel: () => controller.abort(),
         });
         try {
             const result = await runExactLibraryBackup(useStore.getState(), {
                 signal: controller.signal,
-                onProgress: setBackupProgress,
+                onProgress: (progress) => useProcessStore.getState().update(progress),
             });
             const backupFileName = result.archiveTitle;
 
             if (result.status === "incomplete") {
+                useProcessStore.getState().dismiss(processId);
                 const missingCritical = result.manifest.missing.filter((entry) => entry.critical);
                 AppAlert.info(
                     "Backup saved, but incomplete",
@@ -93,6 +98,7 @@ export function useLibraryBackupFlow() {
                 haptic.success();
                 setLastSuccessfulBackupAt(Date.now());
                 setLastSuccessfulBackupFileName(backupFileName);
+                useProcessStore.getState().setStatus("success", `Saved ${backupFileName}`);
                 AppAlert.custom(
                     "Backup ready",
                     `Saved ${backupFileName} to the location you chose.`,
@@ -111,6 +117,9 @@ export function useLibraryBackupFlow() {
             };
 
             if (!result.saveConfirmed) {
+                // We can't confirm the share-sheet save, so don't flash "done" — clear the
+                // process and let the confirm dialog record success if the user did save.
+                useProcessStore.getState().dismiss(processId);
                 AppAlert.custom(
                     "Confirm backup saved",
                     "The system share sheet cannot tell Song Seed whether you completed Save to Files. " +
@@ -131,22 +140,23 @@ export function useLibraryBackupFlow() {
             return true;
         } catch (error) {
             if (isBackupOperationCancelled(error)) {
+                useProcessStore.getState().dismiss(processId);
                 return false;
             }
             if (error instanceof Error && error.message === BACKUP_SAVE_CANCELLED_MESSAGE) {
+                useProcessStore.getState().dismiss(processId);
                 return false;
             }
 
             const message =
                 error instanceof Error ? error.message : "The library backup could not be completed.";
+            useProcessStore.getState().setStatus("error", message);
             AppAlert.info("Backup failed", message);
             return false;
         } finally {
             if (backupAbortRef.current === controller) {
                 backupAbortRef.current = null;
             }
-            setIsBackingUp(false);
-            setBackupProgress(null);
         }
     };
 
@@ -160,32 +170,37 @@ export function useLibraryBackupFlow() {
         }
         const controller = new AbortController();
         restoreAbortRef.current = controller;
-        setIsRestoring(true);
-        setRestoreProgress({
-            phase: "inspecting",
-            completedBytes: 0,
-            totalBytes: 0,
-            message: "Inspecting backup",
+        const processId = `restore-${Date.now()}`;
+        useProcessStore.getState().start({
+            id: processId,
+            kind: "restore",
+            title: "From a backup",
+            onCancel: () => controller.abort(),
         });
         try {
             await restoreFromDisasterRecoveryBackup(archiveUri, {
                 signal: controller.signal,
-                onProgress: setRestoreProgress,
+                onProgress: (progress) => {
+                    // The committing phase can't be cancelled — reflect that in the process.
+                    if (progress.phase === "committing") useProcessStore.getState().setCanCancel(false);
+                    useProcessStore.getState().update(progress);
+                },
                 displacedWorkspaces: useStore.getState().workspaces,
             });
+            useProcessStore.getState().setStatus("success", "Restored. Restarting…");
         } catch (error) {
             if (isBackupOperationCancelled(error)) {
+                useProcessStore.getState().dismiss(processId);
                 return;
             }
             const message =
                 error instanceof Error ? error.message : "The backup could not be restored.";
+            useProcessStore.getState().setStatus("error", message);
             AppAlert.info("Restore failed", message);
         } finally {
             if (restoreAbortRef.current === controller) {
                 restoreAbortRef.current = null;
             }
-            setIsRestoring(false);
-            setRestoreProgress(null);
         }
     };
 
@@ -247,12 +262,12 @@ export function useLibraryBackupFlow() {
         lastSuccessfulBackupLabel: formatBackupTimestamp(lastSuccessfulBackupAt),
         reminderOptions,
         isBackingUp,
-        backupProgressLabel: formatOperationProgress(backupProgress),
+        backupProgressLabel: isBackingUp && activeProcess ? formatOperationProgress(activeProcess.progress) : null,
         handleBackupNow,
         cancelBackup: () => backupAbortRef.current?.abort(),
         isRestoring,
-        restoreProgressLabel: formatOperationProgress(restoreProgress),
-        canCancelRestore: isRestoring && restoreProgress?.phase !== "committing",
+        restoreProgressLabel: isRestoring && activeProcess ? formatOperationProgress(activeProcess.progress) : null,
+        canCancelRestore: isRestoring && !!activeProcess?.canCancel,
         handleRestore,
         cancelRestore: () => restoreAbortRef.current?.abort(),
         copyLastBackupFileName: async () => {

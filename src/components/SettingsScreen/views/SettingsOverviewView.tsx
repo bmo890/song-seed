@@ -1,3 +1,4 @@
+import React from "react";
 import { ActivityIndicator, Alert, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { colors } from "../../../design/tokens";
 import { Ionicons } from "@expo/vector-icons";
@@ -13,6 +14,56 @@ import { haptic } from "../../../design/haptics";
 type GlobalTagSettings = ReturnType<typeof useGlobalTagSettings>;
 type LibraryBackupFlow = ReturnType<typeof useLibraryBackupFlow>;
 type StorageDiagnostics = ReturnType<typeof useStorageDiagnostics>;
+
+const LIBRARY_TINT = "#F4EBE6";
+const LIBRARY_DEEP = "#8b4f3b";
+const LIBRARY_SUCCESS = "#3F9C82";
+
+/** Nocturne library-action card: tinted icon, title, live status, right accessory. */
+function LibraryActionCard({
+  icon,
+  title,
+  meta,
+  busy,
+  rightAccessory,
+  onPress,
+  disabled,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  title: string;
+  meta: string;
+  busy?: boolean;
+  rightAccessory?: React.ReactNode;
+  onPress: () => void;
+  disabled?: boolean;
+}) {
+  return (
+    <Pressable
+      style={({ pressed }) => [
+        settingsScreenStyles.libraryCard,
+        pressed && !disabled ? styles.pressDown : null,
+        disabled ? { opacity: 0.5 } : null,
+      ]}
+      onPress={onPress}
+      disabled={disabled}
+    >
+      <View style={settingsScreenStyles.libraryCardIcon}>
+        <Ionicons name={icon} size={20} color={LIBRARY_DEEP} />
+      </View>
+      <View style={settingsScreenStyles.libraryCardCopy}>
+        <Text style={settingsScreenStyles.libraryCardTitle}>{title}</Text>
+        <Text style={settingsScreenStyles.libraryCardMeta} numberOfLines={1}>
+          {meta}
+        </Text>
+      </View>
+      {busy ? (
+        <ActivityIndicator size="small" color={LIBRARY_DEEP} />
+      ) : (
+        rightAccessory ?? <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+      )}
+    </Pressable>
+  );
+}
 
 export function SettingsOverviewView({
   workspaceStartupPreference,
@@ -109,105 +160,65 @@ export function SettingsOverviewView({
 
       <View style={styles.settingsSection}>
         <View style={styles.settingsSectionHeaderRow}>
-          <Text style={styles.settingsSectionLabel}>Backups</Text>
-          <Text style={styles.settingsSectionMeta}>{backupFlow.lastSuccessfulBackupLabel}</Text>
+          <Text style={styles.settingsSectionLabel}>Library</Text>
         </View>
         <Text style={styles.settingsSectionHint}>
-          A backup is a complete, verified copy of your library — every recording, take, and detail — that can fully restore Song Seed on a new device or after reinstalling. Save it to Files, iCloud Drive, Google Drive, or another location you choose.
+          Keep a complete, verified copy of everything, or share part of your work. A running
+          backup or export can be minimized and monitored while you keep working.
         </Text>
 
-        <View style={settingsScreenStyles.backupSummaryBlock}>
-          <View style={settingsScreenStyles.backupSummaryRow}>
-            <Text style={styles.settingsSectionLabel}>Last backup</Text>
-            <Text style={styles.settingsSectionMeta}>{backupFlow.lastSuccessfulBackupLabel}</Text>
-          </View>
+        {backupFlow.lastSuccessfulBackupFileName ? (
           <View style={settingsScreenStyles.backupFileNameRow}>
-            <Text
-              style={settingsScreenStyles.backupFileName}
-              numberOfLines={1}
-              ellipsizeMode="middle"
-            >
-              {backupFlow.lastSuccessfulBackupFileName ?? "No backup saved yet"}
+            <Text style={settingsScreenStyles.backupFileName} numberOfLines={1} ellipsizeMode="middle">
+              {backupFlow.lastSuccessfulBackupFileName}
             </Text>
-            {backupFlow.lastSuccessfulBackupFileName ? (
-              <Pressable onPress={() => void backupFlow.copyLastBackupFileName()} hitSlop={8}>
-                <Ionicons name="copy-outline" size={16} color={colors.textSecondary} />
-              </Pressable>
-            ) : null}
+            <Pressable onPress={() => void backupFlow.copyLastBackupFileName()} hitSlop={8}>
+              <Ionicons name="copy-outline" size={16} color={colors.textSecondary} />
+            </Pressable>
           </View>
+        ) : null}
+
+        <View style={settingsScreenStyles.libraryCardStack}>
+          <LibraryActionCard
+            icon="cloud-upload-outline"
+            title="Back up"
+            busy={backupFlow.isBackingUp}
+            meta={
+              backupFlow.isBackingUp
+                ? backupFlow.backupProgressLabel ?? "Backing up…"
+                : backupFlow.lastSuccessfulBackupFileName
+                  ? `Last backup · ${backupFlow.lastSuccessfulBackupLabel}`
+                  : "No backup saved yet — save a complete copy"
+            }
+            rightAccessory={
+              backupFlow.lastSuccessfulBackupFileName ? (
+                <View style={settingsScreenStyles.verifiedChip}>
+                  <Ionicons name="checkmark" size={13} color="#fff" />
+                  <Text style={settingsScreenStyles.verifiedChipText}>Verified</Text>
+                </View>
+              ) : undefined
+            }
+            onPress={backupFlow.handleBackupNow}
+          />
+          <LibraryActionCard
+            icon="albums-outline"
+            title="Export"
+            meta="Share workspaces or collections"
+            onPress={onBeginExportFlow}
+          />
+          <LibraryActionCard
+            icon="cloud-download-outline"
+            title="Restore"
+            busy={backupFlow.isRestoring}
+            disabled={backupFlow.isBackingUp}
+            meta={
+              backupFlow.isRestoring
+                ? backupFlow.restoreProgressLabel ?? "Restoring…"
+                : "Replace this library from a backup file"
+            }
+            onPress={backupFlow.handleRestore}
+          />
         </View>
-
-        <Pressable
-          style={({ pressed }) => [
-            styles.settingsActionCard,
-            pressed ? styles.pressDown : null,
-            backupFlow.isBackingUp ? settingsScreenStyles.actionCardDisabled : null,
-          ]}
-          onPress={backupFlow.handleBackupNow}
-          disabled={backupFlow.isBackingUp}
-        >
-          <View style={styles.settingsActionCardCopy}>
-            <Text style={styles.settingsActionCardTitle}>Back Up Now</Text>
-            <Text style={styles.settingsActionCardMeta}>
-              {backupFlow.backupProgressLabel ??
-                "Build a complete, verified backup and choose where to save it."}
-            </Text>
-          </View>
-          {backupFlow.isBackingUp ? (
-            <ActivityIndicator size="small" color={colors.textSecondary} />
-          ) : (
-            <Ionicons name="cloud-upload-outline" size={18} color={colors.textSecondary} />
-          )}
-        </Pressable>
-        {backupFlow.isBackingUp ? (
-          <Pressable
-            style={({ pressed }) => [
-              settingsScreenStyles.backupCancelButton,
-              pressed ? styles.pressDown : null,
-            ]}
-            onPress={backupFlow.cancelBackup}
-          >
-            <Ionicons name="close-circle-outline" size={16} color={colors.textSecondary} />
-            <Text style={settingsScreenStyles.backupCancelText}>Cancel backup</Text>
-          </Pressable>
-        ) : null}
-
-        <Pressable
-          style={({ pressed }) => [
-            styles.settingsActionCard,
-            pressed ? styles.pressDown : null,
-            backupFlow.isRestoring || backupFlow.isBackingUp
-              ? settingsScreenStyles.actionCardDisabled
-              : null,
-          ]}
-          onPress={backupFlow.handleRestore}
-          disabled={backupFlow.isRestoring || backupFlow.isBackingUp}
-        >
-          <View style={styles.settingsActionCardCopy}>
-            <Text style={styles.settingsActionCardTitle}>Restore from Backup</Text>
-            <Text style={styles.settingsActionCardMeta}>
-              {backupFlow.restoreProgressLabel ??
-                "Replace this library with a verified backup file. Requires a restart."}
-            </Text>
-          </View>
-          {backupFlow.isRestoring ? (
-            <ActivityIndicator size="small" color={colors.textSecondary} />
-          ) : (
-            <Ionicons name="cloud-download-outline" size={18} color={colors.textSecondary} />
-          )}
-        </Pressable>
-        {backupFlow.canCancelRestore ? (
-          <Pressable
-            style={({ pressed }) => [
-              settingsScreenStyles.backupCancelButton,
-              pressed ? styles.pressDown : null,
-            ]}
-            onPress={backupFlow.cancelRestore}
-          >
-            <Ionicons name="close-circle-outline" size={16} color={colors.textSecondary} />
-            <Text style={settingsScreenStyles.backupCancelText}>Cancel restore</Text>
-          </Pressable>
-        ) : null}
 
         <View style={styles.settingsOptionStack}>
           {backupFlow.reminderOptions.map((option) => (
@@ -327,19 +338,6 @@ export function SettingsOverviewView({
           <Text style={styles.settingsActionCardTitle}>Storage details</Text>
           <Text style={styles.settingsActionCardMeta}>
             See how much Song Seed storage your library, archives, and temporary exports use on this device.
-          </Text>
-        </View>
-        <Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />
-      </Pressable>
-
-      <Pressable
-        style={({ pressed }) => [styles.settingsActionCard, pressed ? styles.pressDown : null]}
-        onPress={onBeginExportFlow}
-      >
-        <View style={styles.settingsActionCardCopy}>
-          <Text style={styles.settingsActionCardTitle}>Export Library</Text>
-          <Text style={styles.settingsActionCardMeta}>
-            Package workspaces or collections as a Song Seed Archive or a Standard ZIP.
           </Text>
         </View>
         <Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />
