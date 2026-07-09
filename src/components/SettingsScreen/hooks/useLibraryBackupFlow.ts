@@ -30,7 +30,7 @@ import {
     formatDurationEstimate,
 } from "../../../services/operationPacing";
 import { formatBytes } from "../../../utils";
-import { useStore } from "../../../state/useStore";
+import { buildPersistedAppStoreSnapshot, useStore } from "../../../state/useStore";
 import { useProcessStore } from "../../../state/useProcessStore";
 import type { BackupReminderFrequency, Workspace } from "../../../types";
 import { haptic } from "../../../design/haptics";
@@ -316,7 +316,7 @@ export function useLibraryBackupFlow() {
         }
     };
 
-    const runRestore = async (archiveUri: string) => {
+    const runRestore = async (archiveUri: string, mode: "replace" | "merge") => {
         if (recorder.isRecording || recorder.isPaused) {
             AppAlert.info(
                 "Finish recording first",
@@ -330,7 +330,7 @@ export function useLibraryBackupFlow() {
         useProcessStore.getState().start({
             id: processId,
             kind: "restore",
-            title: "From a backup",
+            title: mode === "merge" ? "Merging a backup" : "From a backup",
             onCancel: () => controller.abort(),
         });
         try {
@@ -342,6 +342,11 @@ export function useLibraryBackupFlow() {
                     useProcessStore.getState().update(progress);
                 },
                 displacedWorkspaces: useStore.getState().workspaces,
+                mode,
+                currentSnapshot:
+                    mode === "merge"
+                        ? buildPersistedAppStoreSnapshot(useStore.getState())
+                        : undefined,
             });
             useProcessStore.getState().setStatus("success", "Restored. Restarting…");
         } catch (error) {
@@ -406,14 +411,32 @@ export function useLibraryBackupFlow() {
                       estimateLibraryOperationSeconds("restore", asset.size)
                   )}.`
                 : "";
-        AppAlert.destructive(
+        AppAlert.custom(
             "Restore from backup?",
-            "This replaces your entire current library with the contents of this backup. Anything not in the backup will be lost, and the app will need to restart afterward." +
-                sizeLine,
-            () => {
-                void runRestore(asset.uri);
-            },
-            { confirmLabel: "Restore" }
+            `How should this backup be restored? The app restarts afterward.${sizeLine}`,
+            [
+                { label: "Cancel", style: "cancel" },
+                {
+                    label: "Keep Newer Items",
+                    style: "default",
+                    icon: "git-merge-outline",
+                    description:
+                        "Merge: bring back everything in the backup while keeping songs, clips, and edits made since it was saved.",
+                    onPress: () => {
+                        void runRestore(asset.uri, "merge");
+                    },
+                },
+                {
+                    label: "Replace Everything",
+                    style: "destructive",
+                    icon: "swap-horizontal-outline",
+                    description:
+                        "The backup becomes your entire library. Anything not in it is removed (recordings are kept in the trash for 14 days).",
+                    onPress: () => {
+                        void runRestore(asset.uri, "replace");
+                    },
+                },
+            ]
         );
     };
 

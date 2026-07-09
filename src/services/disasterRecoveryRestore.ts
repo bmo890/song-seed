@@ -36,6 +36,9 @@ import {
     markDisasterRecoveryRestoreCommitted,
 } from "./disasterRecoveryTemp";
 import { collectManagedLibraryFilePathsFromWorkspaces } from "./managedMedia";
+import { mergeRestoredLibrary } from "./libraryMergeRestore";
+import { toRelativeWorkspacesManagedMedia } from "../state/rebaseManagedMedia";
+import type { PersistedAppStore } from "../state/storeTypes";
 
 /**
  * Restore from a disaster-recovery archive produced by `buildDisasterRecoveryBackup`.
@@ -65,8 +68,18 @@ export type DrRestoreResult = {
     needsRestart: true;
 };
 
+export type DisasterRecoveryRestoreMode = "replace" | "merge";
+
 export type DisasterRecoveryRestoreOptions = BackupOperationOptions & {
     displacedWorkspaces?: Workspace[];
+    /**
+     * "replace" (default): the backup becomes the entire library and displaced current
+     * media is quarantined. "merge": keep-newer-items — the current library survives,
+     * backup-only items are restored into it, and NOTHING is displaced or quarantined.
+     */
+    mode?: DisasterRecoveryRestoreMode;
+    /** Required for merge mode: the live library snapshot to merge the restored one into. */
+    currentSnapshot?: PersistedAppStore;
 };
 
 export class DrRestoreError extends Error {
@@ -171,6 +184,21 @@ export async function restoreFromDisasterRecoveryBackup(
         );
     }
 
+    const mergeMode = options?.mode === "merge";
+    if (mergeMode) {
+        if (!options?.currentSnapshot) {
+            throw new DrRestoreError("Merge restore requires the current library snapshot.");
+        }
+        // A merged snapshot mixes current-shape data with the backup's, so it is committed
+        // at the CURRENT store version — which is only safe when the backup's data shape
+        // already matches. Older backups must migrate first via a full replace.
+        if (manifest.storeVersion !== STORE_VERSION) {
+            throw new DrRestoreError(
+                "This backup was made by an older app version and can't be merged. Use Replace Everything to restore it."
+            );
+        }
+    }
+
     let snapshotJson: string;
     try {
         snapshotJson = strFromU8(
@@ -255,7 +283,11 @@ export async function restoreFromDisasterRecoveryBackup(
         await beginDisasterRecoveryRestoreJournal(
             restoreToken,
             prepared.destinationPathBySourcePath.values(),
-            collectManagedLibraryFilePathsFromWorkspaces(options?.displacedWorkspaces ?? [])
+            // Merge keeps the current library, so nothing is displaced and nothing may be
+            // quarantined after commit.
+            mergeMode
+                ? []
+                : collectManagedLibraryFilePathsFromWorkspaces(options?.displacedWorkspaces ?? [])
         );
         journalStarted = true;
         reportBackupProgress(options, {
@@ -372,9 +404,18 @@ export async function restoreFromDisasterRecoveryBackup(
         });
         setPersistBlocked(true);
         persistenceLocked = true;
+        // Merge: fold the restored snapshot into the current library (current wins
+        // collisions; backup-only items return). Current media URIs are stored relative,
+        // matching the restored snapshot's style, so hydration rebases both uniformly.
+        const snapshotToCommit = mergeMode
+            ? mergeRestoredLibrary(prepared.snapshot, {
+                  ...options!.currentSnapshot!,
+                  workspaces: toRelativeWorkspacesManagedMedia(options!.currentSnapshot!.workspaces),
+              })
+            : prepared.snapshot;
         await persistRawSnapshot(
             STORE_NAME,
-            JSON.stringify({ state: prepared.snapshot, version: manifest.storeVersion })
+            JSON.stringify({ state: snapshotToCommit, version: manifest.storeVersion })
         );
     } catch (error) {
         if (persistenceLocked) {

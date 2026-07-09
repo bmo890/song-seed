@@ -34,19 +34,28 @@ async function ensureRestoreJournalDirectory() {
     }
 }
 
+// Must cover every prefix restores can write to (see SAFE_MEDIA_PREFIXES in
+// disasterRecoveryValidation.ts) — a restored file outside this list would escape
+// journal cleanup after an interrupted restore.
+const MANAGED_LIBRARY_PREFIXES = [
+    "songseed/audio/",
+    "songseed/workspace-archives/",
+    "songseed/preview-audio/",
+] as const;
+
 function isManagedLibraryPath(path: unknown): path is string {
     return (
         typeof path === "string" &&
-        (path.startsWith("songseed/audio/") ||
-            path.startsWith("songseed/workspace-archives/"))
+        MANAGED_LIBRARY_PREFIXES.some((prefix) => path.startsWith(prefix))
     );
 }
 
 function isRestoreDestination(path: unknown, restoreToken: string): path is string {
     return (
         typeof path === "string" &&
-        (path.startsWith(`songseed/audio/restored-${restoreToken}/`) ||
-            path.startsWith(`songseed/workspace-archives/restored-${restoreToken}/`))
+        MANAGED_LIBRARY_PREFIXES.some((prefix) =>
+            path.startsWith(`${prefix}restored-${restoreToken}/`)
+        )
     );
 }
 

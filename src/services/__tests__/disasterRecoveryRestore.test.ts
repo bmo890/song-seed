@@ -168,12 +168,14 @@ const ORIGINAL_MEDIA_URI = "file:///doc/songseed/audio/clip-1.m4a";
 const MEDIA_PATH = "songseed/audio/clip-1.m4a";
 const MEDIA_ENTRY = `media/${MEDIA_PATH}`;
 const MEDIA_BYTES = Uint8Array.from([1, 2, 3, 4, 5]);
+const PREVIEW_PATH = "songseed/preview-audio/clip-1-preview-123.m4a";
+const PREVIEW_BYTES = Uint8Array.from([9, 8, 7]);
 
 function sha256(value: string) {
     return createHash("sha256").update(value).digest("hex");
 }
 
-function snapshot() {
+function snapshot(options?: { previewMix?: boolean }) {
     return {
         workspaces: [
             {
@@ -208,6 +210,15 @@ function snapshot() {
                                 createdAt: 0,
                                 isPrimary: true,
                                 audioUri: MEDIA_PATH,
+                                ...(options?.previewMix
+                                    ? {
+                                          overdub: {
+                                              stems: [],
+                                              renderedMixUri: PREVIEW_PATH,
+                                              renderedMixDurationMs: 1000,
+                                          },
+                                      }
+                                    : null),
                             },
                         ],
                     },
@@ -225,14 +236,29 @@ function installArchive(options?: {
     unsafePath?: string;
     compressionLevel?: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
     corruptMediaSha?: boolean;
+    previewMix?: boolean;
 }) {
-    const snapshotJson = JSON.stringify(snapshot());
+    const snapshotJson = JSON.stringify(snapshot({ previewMix: options?.previewMix }));
     const mediaPath = options?.unsafePath ?? MEDIA_PATH;
     const mediaBase64 = Buffer.from(MEDIA_BYTES).toString("base64");
     const mediaSha = options?.corruptMediaSha
         ? sha256(`${mediaBase64}-tampered`)
         : sha256(mediaBase64);
     const incomplete = Boolean(options?.incomplete);
+    const files = incomplete
+        ? []
+        : [
+              { path: mediaPath, sha256: mediaSha, sizeBytes: MEDIA_BYTES.length },
+              ...(options?.previewMix
+                  ? [
+                        {
+                            path: PREVIEW_PATH,
+                            sha256: sha256(Buffer.from(PREVIEW_BYTES).toString("base64")),
+                            sizeBytes: PREVIEW_BYTES.length,
+                        },
+                    ]
+                  : []),
+          ];
     const manifest = {
         formatVersion: 1,
         storeVersion: 11,
@@ -240,9 +266,7 @@ function installArchive(options?: {
         status: incomplete ? "incomplete" : "complete",
         counts: { workspaces: 1, collections: 1, ideas: 1, clips: 1 },
         snapshotSha256: sha256(snapshotJson),
-        files: incomplete
-            ? []
-            : [{ path: mediaPath, sha256: mediaSha, sizeBytes: MEDIA_BYTES.length }],
+        files,
         missing: incomplete
             ? [
                   {
@@ -260,6 +284,9 @@ function installArchive(options?: {
     };
     if (!incomplete) {
         entries[`media/${mediaPath}`] = MEDIA_BYTES;
+        if (options?.previewMix) {
+            entries[`media/${PREVIEW_PATH}`] = PREVIEW_BYTES;
+        }
     }
     mockFiles.set(
         ARCHIVE_URI,
@@ -321,6 +348,109 @@ describe("restoreFromDisasterRecoveryBackup", () => {
         expect(mockPersistRawSnapshot).not.toHaveBeenCalled();
         expect(mockRequireRestoreRestart).not.toHaveBeenCalled();
         expect(Array.from(mockFiles.keys()).filter((uri) => uri.includes("restored-"))).toHaveLength(0);
+    });
+
+    it("restores a backup containing an overdub preview mix (regression: whole restore rejected)", async () => {
+        installArchive({ previewMix: true });
+
+        const result = await restoreFromDisasterRecoveryBackup(ARCHIVE_URI);
+
+        expect(result.status).toBe("complete");
+        const restoredPreviewUri = Array.from(mockFiles.keys()).find((uri) =>
+            uri.startsWith("file:///doc/songseed/preview-audio/restored-")
+        );
+        expect(restoredPreviewUri).toBeDefined();
+        expect(mockFiles.get(restoredPreviewUri!)).toEqual(PREVIEW_BYTES);
+
+        const persisted = JSON.parse(mockPersistRawSnapshot.mock.calls[0][1]);
+        expect(persisted.state.workspaces[0].ideas[0].clips[0].overdub.renderedMixUri).toMatch(
+            /^songseed\/preview-audio\/restored-/
+        );
+    });
+
+    it("merge mode keeps newer current items, restores backup-only items, and quarantines nothing", async () => {
+        installArchive();
+        const currentClipBytes = mockTextBytes("current-clip-audio");
+        const newClipBytes = mockTextBytes("new-clip-audio");
+        mockFiles.set(ORIGINAL_MEDIA_URI, currentClipBytes);
+        mockFiles.set("file:///doc/songseed/audio/clip-new.m4a", newClipBytes);
+
+        // Current library: clip-1 edited since the backup + a clip-2 created after it.
+        const currentSnapshot = snapshot();
+        const currentClips = currentSnapshot.workspaces[0].ideas[0].clips;
+        currentClips[0].title = "Edited after backup";
+        currentClips.push({
+            id: "clip-2",
+            title: "Recorded after backup",
+            notes: "",
+            createdAt: 10,
+            isPrimary: false,
+            audioUri: "songseed/audio/clip-new.m4a",
+        });
+
+        await restoreFromDisasterRecoveryBackup(ARCHIVE_URI, {
+            mode: "merge",
+            currentSnapshot: currentSnapshot as never,
+            displacedWorkspaces: currentSnapshot.workspaces as never,
+        });
+
+        const persisted = JSON.parse(mockPersistRawSnapshot.mock.calls[0][1]);
+        const mergedClips = persisted.state.workspaces[0].ideas[0].clips;
+        // Collision → current wins (edit survives, audio stays the live file, not restored-*).
+        expect(mergedClips.find((c: { id: string }) => c.id === "clip-1").title).toBe(
+            "Edited after backup"
+        );
+        expect(mergedClips.find((c: { id: string }) => c.id === "clip-1").audioUri).toBe(MEDIA_PATH);
+        // Item created after the backup survives the restore.
+        expect(mergedClips.find((c: { id: string }) => c.id === "clip-2").title).toBe(
+            "Recorded after backup"
+        );
+
+        // Nothing is displaced: post-hydration cleanup must quarantine NO current media.
+        await cleanupInterruptedDisasterRecoveryRestores(persisted.state.workspaces);
+        expect(mockFiles.get(ORIGINAL_MEDIA_URI)).toEqual(currentClipBytes);
+        expect(mockFiles.get("file:///doc/songseed/audio/clip-new.m4a")).toEqual(newClipBytes);
+        expect(
+            Array.from(mockFiles.keys()).some((uri) => uri.includes("/songseed/trash/"))
+        ).toBe(false);
+    });
+
+    it("merge mode refuses a backup from an older store version", async () => {
+        installArchive();
+        // The archive fixture is storeVersion 11 == current; fake an older backup by
+        // asking for merge against a bumped current STORE_VERSION via manifest override.
+        const currentSnapshot = snapshot();
+        const archiveBytes = mockFiles.get(ARCHIVE_URI)!;
+        const rezipped = (() => {
+            const entries: Record<string, Uint8Array> = {};
+            // Rebuild with storeVersion 10 (older than the app's 11).
+            const snapshotJson = JSON.stringify(snapshot());
+            const mediaBase64 = Buffer.from(MEDIA_BYTES).toString("base64");
+            const manifest = {
+                formatVersion: 1,
+                storeVersion: 10,
+                createdAt: "2026-06-23T10:00:00.000Z",
+                status: "complete",
+                counts: { workspaces: 1, collections: 1, ideas: 1, clips: 1 },
+                snapshotSha256: sha256(snapshotJson),
+                files: [{ path: MEDIA_PATH, sha256: sha256(mediaBase64), sizeBytes: MEDIA_BYTES.length }],
+                missing: [],
+            };
+            entries["snapshot.json"] = strToU8(snapshotJson);
+            entries["manifest.json"] = strToU8(JSON.stringify(manifest));
+            entries[MEDIA_ENTRY] = MEDIA_BYTES;
+            return Uint8Array.from(zipSync(entries, { level: 0 }));
+        })();
+        expect(archiveBytes).toBeDefined();
+        mockFiles.set(ARCHIVE_URI, rezipped);
+
+        await expect(
+            restoreFromDisasterRecoveryBackup(ARCHIVE_URI, {
+                mode: "merge",
+                currentSnapshot: currentSnapshot as never,
+            })
+        ).rejects.toThrow("older app version");
+        expect(mockPersistRawSnapshot).not.toHaveBeenCalled();
     });
 
     it("removes staged files and never commits when a restored file fails SHA-256 verification", async () => {

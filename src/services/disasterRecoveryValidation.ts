@@ -11,6 +11,11 @@ const SHA256_HEX = /^[a-f0-9]{64}$/i;
 const RESTORE_TOKEN = /^[a-zA-Z0-9-]+$/;
 const AUDIO_PREFIX = "songseed/audio/";
 const ARCHIVE_PREFIX = "songseed/workspace-archives/";
+// Overdub mix renders live here and are referenced by clips' renderedMixUri, so backups
+// legitimately contain them. Restore MUST accept every prefix the backup writer packs —
+// rejecting one hard-fails the whole restore (seen on-device with a preview mix).
+const PREVIEW_PREFIX = "songseed/preview-audio/";
+const SAFE_MEDIA_PREFIXES = [AUDIO_PREFIX, ARCHIVE_PREFIX, PREVIEW_PREFIX] as const;
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -44,7 +49,7 @@ export function assertSafeBackupMediaPath(value: unknown): string {
         path.includes("\\") ||
         path.includes("\0") ||
         path.split("/").some((segment) => segment === "" || segment === "." || segment === "..") ||
-        (!path.startsWith(AUDIO_PREFIX) && !path.startsWith(ARCHIVE_PREFIX))
+        !SAFE_MEDIA_PREFIXES.some((prefix) => path.startsWith(prefix))
     ) {
         throw new Error(`Backup media path is unsafe: ${path}`);
     }
@@ -218,10 +223,14 @@ function validateSnapshotShape(value: unknown, manifest: DrBackupManifest): Pers
 }
 
 function buildDestinationPath(sourcePath: string, restoreToken: string) {
-    if (sourcePath.startsWith(AUDIO_PREFIX)) {
-        return `${AUDIO_PREFIX}restored-${restoreToken}/${sourcePath.slice(AUDIO_PREFIX.length)}`;
+    // Exhaustive over the safe prefixes: each restored file lands in a token-scoped
+    // subfolder of ITS OWN directory. A fallthrough here would silently mangle paths
+    // for any prefix the validator accepts but this mapping forgot.
+    const prefix = SAFE_MEDIA_PREFIXES.find((candidate) => sourcePath.startsWith(candidate));
+    if (!prefix) {
+        throw new Error(`Backup media path is unsafe: ${sourcePath}`);
     }
-    return `${ARCHIVE_PREFIX}restored-${restoreToken}/${sourcePath.slice(ARCHIVE_PREFIX.length)}`;
+    return `${prefix}restored-${restoreToken}/${sourcePath.slice(prefix.length)}`;
 }
 
 function rewriteOverdub(

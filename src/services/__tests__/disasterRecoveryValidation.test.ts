@@ -94,6 +94,19 @@ describe("disaster recovery manifest validation", () => {
     it("rejects traversal and paths outside managed backup storage", () => {
         expect(() => assertSafeBackupMediaPath("songseed/audio/../state.json")).toThrow("unsafe");
         expect(() => assertSafeBackupMediaPath("other/audio.m4a")).toThrow("unsafe");
+        expect(() => assertSafeBackupMediaPath("songseed/trash/audio.m4a")).toThrow("unsafe");
+    });
+
+    it("accepts every prefix the backup writer packs (audio, archives, preview mixes)", () => {
+        // Regression: a backup containing an overdub preview mix (songseed/preview-audio/)
+        // hard-failed the ENTIRE restore because the validator only knew audio + archives.
+        expect(assertSafeBackupMediaPath("songseed/audio/clip.m4a")).toBe("songseed/audio/clip.m4a");
+        expect(assertSafeBackupMediaPath("songseed/workspace-archives/ws.zip")).toBe(
+            "songseed/workspace-archives/ws.zip"
+        );
+        expect(assertSafeBackupMediaPath("songseed/preview-audio/clip-1-preview.m4a")).toBe(
+            "songseed/preview-audio/clip-1-preview.m4a"
+        );
     });
 
     it("rejects backups from a newer store version", () => {
@@ -135,6 +148,31 @@ describe("prepareDisasterRecoverySnapshot", () => {
         expect(clip.overdub!.renderedMixUri).toBeUndefined();
         expect(clip.overdub!.renderedMixDurationMs).toBeUndefined();
         expect(clip.overdub!.renderedMixWaveformPeaks).toBeUndefined();
+    });
+
+    it("restores an overdub preview mix to a preview-audio destination", () => {
+        const previewPath = "songseed/preview-audio/clip-1-preview-123.m4a";
+        const withPreview = snapshot();
+        withPreview.workspaces[0].ideas[0].clips[0].overdub.renderedMixUri = previewPath;
+
+        const prepared = prepareDisasterRecoverySnapshot(
+            withPreview,
+            manifest({
+                files: [
+                    { path: CLIP_PATH, sha256: "b".repeat(64), sizeBytes: 12 },
+                    { path: STEM_PATH, sha256: "c".repeat(64), sizeBytes: 8 },
+                    { path: previewPath, sha256: "d".repeat(64), sizeBytes: 6 },
+                ],
+            }),
+            "restore-123"
+        );
+
+        expect(prepared.destinationPathBySourcePath.get(previewPath)).toBe(
+            `songseed/preview-audio/restored-restore-123/clip-1-preview-123.m4a`
+        );
+        expect(
+            prepared.snapshot.workspaces[0].ideas[0].clips[0].overdub?.renderedMixUri
+        ).toBe("songseed/preview-audio/restored-restore-123/clip-1-preview-123.m4a");
     });
 
     it("rejects a snapshot whose critical clip audio is absent from the manifest", () => {
