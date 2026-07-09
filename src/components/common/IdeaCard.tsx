@@ -199,11 +199,17 @@ export function IdeaCard({
                             style={inlineActive && isInlinePlaying ? undefined : { marginLeft: 2 }}
                         />
                     </Pressable>
+                    {/* The main pressable spans title AND the meta cluster: the meta
+                        (date/duration/badges) used to sit outside every pressable, so
+                        the right half of a dense row was a dead zone — especially bad
+                        in selection mode, where a tap "didn't register". Interactive
+                        trailing bits (bookmark) keep their own nested Pressables. */}
                     <Pressable
                         style={[styles.ideaDenseMain, { flexDirection: "row", alignItems: "center" }]}
                         onPress={() => { void onPress(); }}
                         onLongPress={onLongPress}
                         delayLongPress={delayLongPress}
+                        hitSlop={{ top: 4, bottom: 4 }}
                     >
                         {nowPlaying ? (
                             <View style={{ marginRight: 6 }}>
@@ -212,28 +218,30 @@ export function IdeaCard({
                         ) : isSong ? (
                             <Ionicons name="disc-outline" size={12} color={colors.textSecondary} style={{ marginRight: 6 }} />
                         ) : null}
-                        <HighlightedText
-                            text={title}
-                            needle={searchNeedle}
-                            textStyle={[
-                                styles.ideaDenseTitle,
-                                titleSemiBold ? styles.ideaDenseTitleProject : null,
-                                nowPlaying ? { color: colors.primary } : null,
-                            ]}
-                            hitStyle={styles.ideasListCardTitleHighlight}
-                            numberOfLines={1}
-                        />
-                    </Pressable>
-                    {inlineActive ? (
-                        leadAccessory ?? null
-                    ) : (
-                        <View style={styles.ideaDenseMeta}>
-                            {footerDate ? <Text style={styles.ideaDenseDate}>{footerDate}</Text> : null}
-                            {footerRightContent ?? null}
-                            <Text style={styles.ideaDenseDuration}>{durationLabel}</Text>
-                            {trailing ?? null}
+                        <View style={{ flex: 1, minWidth: 0 }}>
+                            <HighlightedText
+                                text={title}
+                                needle={searchNeedle}
+                                textStyle={[
+                                    styles.ideaDenseTitle,
+                                    titleSemiBold ? styles.ideaDenseTitleProject : null,
+                                    nowPlaying ? { color: colors.primary } : null,
+                                ]}
+                                hitStyle={styles.ideasListCardTitleHighlight}
+                                numberOfLines={1}
+                            />
                         </View>
-                    )}
+                        {inlineActive ? (
+                            leadAccessory ?? null
+                        ) : (
+                            <View style={styles.ideaDenseMeta}>
+                                {footerDate ? <Text style={styles.ideaDenseDate}>{footerDate}</Text> : null}
+                                {footerRightContent ?? null}
+                                <Text style={styles.ideaDenseDuration}>{durationLabel}</Text>
+                                {trailing ?? null}
+                            </View>
+                        )}
+                    </Pressable>
                 </View>
                 {inlineActive ? (
                     <View style={styles.ideaDenseScrubber}>{inlinePlayerContent ?? null}</View>

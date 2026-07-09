@@ -191,15 +191,11 @@ export function IdeaListContent(
             inlinePlayer={inlinePlayer}
             playIdeaFromList={playIdeaFromList}
             openIdeaFromList={openIdeaFromList}
-            onHideDay={
-              activeTimelineMetric && showDateDividers && entry.dayDividerLabel
-                ? () =>
-                    hideTimelineDay(
-                      activeTimelineMetric,
-                      entry.dayStartTs ?? getDateBucket(getIdeaSortTimestamp(entry.idea, ideasSort)).startTs
-                    )
-                : undefined
-            }
+            // Stable fn + primitives (the row builds its own closure) so React.memo
+            // holds — an inline arrow here re-rendered every mounted row per render.
+            hideTimelineDay={hideTimelineDay}
+            activeTimelineMetric={activeTimelineMetric}
+            dayStartTs={entry.dayStartTs ?? null}
             dayDividerLabel={entry.dayDividerLabel}
             searchNeedle={searchNeedle}
             notesMatched={!!searchMeta.notes}

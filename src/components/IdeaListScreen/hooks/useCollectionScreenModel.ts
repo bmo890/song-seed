@@ -272,10 +272,21 @@ export function useCollectionScreenModel() {
     [filteredIdeas, lyricsFilterMode, recordingIdeaId, searchMetaByIdeaId, selectedProjectStages]
   );
 
+  // Meta is cached BY IDEA IDENTITY (ideas update immutably, so an untouched idea
+  // keeps its object across store writes). Rebuilding fresh meta objects for every
+  // idea on any workspaces change broke the row memo for all mounted cards — e.g.
+  // during post-import waveform hydration, every per-clip write re-rendered the
+  // whole visible list and re-ran the lyric scans/timestamp formatting per idea.
+  const ideaMetaCacheRef = useRef(new WeakMap<object, IdeaListItemMeta>());
   const itemMetaByIdeaId = useMemo(() => {
     const map = new Map<string, IdeaListItemMeta>();
     for (const idea of listIdeas) {
-      map.set(idea.id, buildIdeaListItemMeta(idea));
+      let meta = ideaMetaCacheRef.current.get(idea);
+      if (!meta) {
+        meta = buildIdeaListItemMeta(idea);
+        ideaMetaCacheRef.current.set(idea, meta);
+      }
+      map.set(idea.id, meta);
     }
     return map;
   }, [listIdeas]);

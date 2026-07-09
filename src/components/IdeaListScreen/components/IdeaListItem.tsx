@@ -1,3 +1,4 @@
+import React from "react";
 import { Pressable, Text, View, Animated } from "react-native";
 import ReAnimated, { FadeIn } from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
@@ -5,7 +6,7 @@ import { styles } from "../../../styles";
 import { MiniProgress } from "../../MiniProgress";
 import { SongIdea, ClipVersion, InlinePlayerControls } from "../../../types";
 import { fmtDuration, formatClipDate } from "../../../utils";
-import { getDateBucketLabel } from "../../../dateBuckets";
+import { getDateBucket, getDateBucketLabel } from "../../../dateBuckets";
 import { useNavigation } from "@react-navigation/native";
 import { getIdeaCreatedAt, getIdeaUpdatedAt, type IdeaSortMetric } from "../../../ideaSort";
 import { getHierarchyIconName } from "../../../hierarchy";
@@ -101,7 +102,11 @@ type IdeaListItemProps = {
     inlinePlayer: InlinePlayerControls,
     playIdeaFromList: (ideaId: string, clip: ClipVersion) => Promise<void> | void,
     openIdeaFromList: (ideaId: string, clip: ClipVersion) => Promise<void> | void,
-    onHideDay?: () => void,
+    /** Stable fn + primitives (instead of a per-render closure) so the row's memo
+     *  holds; the hide-day closure is built inside the row. */
+    hideTimelineDay?: (metric: "created" | "updated", dayStartTs: number) => Promise<void> | void,
+    activeTimelineMetric: "created" | "updated" | null,
+    dayStartTs?: number | null,
     dayDividerLabel?: string | null,
     searchNeedle: string,
     notesMatched: boolean,
@@ -112,7 +117,7 @@ type IdeaListItemProps = {
     lyricsFilterMode: "all" | "with" | "without",
 };
 
-export function IdeaListItem({
+function IdeaListItemInner({
     item,
     itemMeta,
     rowLayoutsRef,
@@ -120,7 +125,9 @@ export function IdeaListItem({
     inlinePlayer,
     playIdeaFromList,
     openIdeaFromList,
-    onHideDay,
+    hideTimelineDay,
+    activeTimelineMetric,
+    dayStartTs,
     dayDividerLabel,
     searchNeedle,
     notesMatched,
@@ -178,6 +185,12 @@ export function IdeaListItem({
     const showSelectionIndicator = listSelectionMode;
     const compact = listDensity === "compact";
     const sortTs = sortMetric === "updated" ? getIdeaUpdatedAt(item) : getIdeaCreatedAt(item);
+    // Rebuilt from stable pieces here (not passed as a closure) so memo props stay flat.
+    // Grouped timeline entries always carry dayStartTs; the sortTs bucket is a fallback.
+    const onHideDay =
+        hideTimelineDay && activeTimelineMetric && showDateDividers && dayDividerLabel
+            ? () => void hideTimelineDay(activeTimelineMetric, dayStartTs ?? getDateBucket(sortTs).startTs)
+            : undefined;
     // Metadata only: one cohesive relative date. When the timeline is grouped it
     // dovetails with the section divider (never echoing it) instead of repeating
     // the day. The title is always the clip's own title — for unnamed clips that's
@@ -463,6 +476,16 @@ export function IdeaListItem({
         </View>
     );
 }
+
+/**
+ * Memoized: the collection screen re-renders on every selection toggle / store
+ * change, and re-rendering every mounted row (each with ~8 store subscriptions
+ * and a heavy card tree) made selection taps visibly lag on large libraries.
+ * All props are stable refs, stable callbacks, or primitives; per-row live state
+ * (selected, now-playing, inline preview) comes from the row's own store
+ * subscriptions, which re-render just that row.
+ */
+export const IdeaListItem = React.memo(IdeaListItemInner);
 
 /**
  * A folded day group: a labelled divider standing in for all of a day's items,

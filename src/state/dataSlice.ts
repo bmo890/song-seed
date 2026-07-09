@@ -261,6 +261,11 @@ export type DataSlice = {
 
 const DEFAULT_COLLECTION_TITLE = "Inbox";
 
+// Upper bound on the persisted activity history. Deep enough for a year-plus of
+// real use in the Activity views; without it the array grows with every
+// recording/import/edit and is re-serialized on every library persist.
+const MAX_ACTIVITY_EVENTS = 2000;
+
 function buildCollectionId(prefix = "col") {
     return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 }
@@ -2107,7 +2112,13 @@ export const createDataSlice: StateCreator<
         if (normalizedEvents.length === 0) return;
 
         set((state) => ({
-            activityEvents: [...normalizedEvents, ...state.activityEvents].sort((a, b) => b.at - a.at),
+            // Newest-first, CAPPED. This array is persisted (serialized on every
+            // library write) and held in memory forever — unbounded it grows with
+            // every recording/import/edit until it dominates both. The cap keeps a
+            // deep history for the Activity views while bounding the cost.
+            activityEvents: [...normalizedEvents, ...state.activityEvents]
+                .sort((a, b) => b.at - a.at)
+                .slice(0, MAX_ACTIVITY_EVENTS),
         }));
     },
 

@@ -593,11 +593,21 @@ export async function loadManagedAudioMetadata(
     durationHint?: number,
     options?: AudioMetadataLoadOptions
 ) {
+    // Lightweight (batch import) skips EVERYTHING native — including the duration
+    // probe, which costs a full AVPlayer/MediaPlayer item load per file (hundreds of
+    // ms each; the dominant cost of large imports). Background hydration derives the
+    // real duration + waveform afterwards, so the import itself is just the file copy.
+    if (options?.lightweight) {
+        return {
+            durationMs: durationHint && durationHint > 0 ? durationHint : undefined,
+            waveformPeaks: buildStaticWaveform(`${seed}-pending`, MANAGED_WAVEFORM_PEAK_COUNT),
+            usedDetailedAnalysis: false,
+        };
+    }
+
     const durationMs = durationHint && durationHint > 0 ? durationHint : await loadAudioDurationMs(audioUri);
 
-    // Batch imports intentionally skip detailed analysis so large imports do not
-    // queue enough native work to get the app killed before any state is committed.
-    if (options?.lightweight || (durationMs && durationMs > MAX_DETAILED_AUDIO_ANALYSIS_DURATION_MS)) {
+    if (durationMs && durationMs > MAX_DETAILED_AUDIO_ANALYSIS_DURATION_MS) {
         return {
             durationMs,
             waveformPeaks: buildStaticWaveform(`${seed}-${durationMs}`, MANAGED_WAVEFORM_PEAK_COUNT),
@@ -752,6 +762,11 @@ export async function importAudioAsset(
     }
 }
 
+// How many file imports run at once. Each import is I/O-bound (a file copy), so a
+// small pool overlaps the copies without flooding the filesystem bridge. Serial was
+// the other dominant cost of large imports (100 files = 100 round trips end-to-end).
+const IMPORT_CONCURRENCY = 4;
+
 export async function importAudioAssets(
     assets: ImportedAudioAsset[],
     buildTargetId: (asset: ImportedAudioAsset, index: number) => string,
@@ -760,29 +775,45 @@ export async function importAudioAssets(
         onImported?: (asset: ImportedManagedAudioAsset, index: number) => void;
     }
 ): Promise<{ imported: ImportedManagedAudioAsset[]; failed: AudioImportFailure[] }> {
-    const imported: ImportedManagedAudioAsset[] = [];
+    // Index-addressed slots keep the results in the caller's order (project-mode
+    // pairs clips with per-asset date metadata by index) even though completion
+    // order is arbitrary.
+    const importedSlots: (ImportedManagedAudioAsset | null)[] = new Array(assets.length).fill(null);
     const failed: AudioImportFailure[] = [];
+    let completed = 0;
+    let nextIndex = 0;
 
-    for (let index = 0; index < assets.length; index += 1) {
-        const asset = assets[index]!;
-        const targetId = buildTargetId(asset, index);
+    const runWorker = async () => {
+        while (nextIndex < assets.length) {
+            const index = nextIndex;
+            nextIndex += 1;
+            const asset = assets[index]!;
+            const targetId = buildTargetId(asset, index);
 
-        try {
-            const managed = await importAudioAsset(asset, targetId, options);
-            const importedAsset = {
-                ...asset,
-                ...managed,
-                targetId,
-            };
-            imported.push(importedAsset);
-            options?.onImported?.(importedAsset, index);
-        } catch (error) {
-            failed.push({ asset, error });
+            try {
+                const managed = await importAudioAsset(asset, targetId, options);
+                const importedAsset = {
+                    ...asset,
+                    ...managed,
+                    targetId,
+                };
+                importedSlots[index] = importedAsset;
+                options?.onImported?.(importedAsset, index);
+            } catch (error) {
+                failed.push({ asset, error });
+            }
+
+            completed += 1;
+            onProgress?.(completed, assets.length, failed.length);
         }
+    };
 
-        onProgress?.(index + 1, assets.length, failed.length);
-    }
+    const workerCount = Math.max(1, Math.min(IMPORT_CONCURRENCY, assets.length));
+    await Promise.all(Array.from({ length: workerCount }, () => runWorker()));
 
+    const imported = importedSlots.filter(
+        (slot): slot is ImportedManagedAudioAsset => slot !== null
+    );
     return { imported, failed };
 }
 
