@@ -37,12 +37,18 @@ type Props = {
     selectedRangeType?: "keep" | "remove";
     theme?: {
         waveColor?: string;
+        /** Terracotta fill for the played (behind-the-playhead) portion of the wave. */
+        wavePlayedColor?: string;
         rulerColor?: string;
         playheadColor?: string;
         backgroundColor?: string;
     };
     sharedTranslateX?: SharedValue<number>;
     sharedScale?: SharedValue<number>;
+    /** Live surface height (animated by AudioReel on expand/compact). When provided,
+     *  all vertical geometry is driven off this shared value via Skia transforms, so a
+     *  height animation never rebuilds paths or re-renders — it stays on the UI thread. */
+    sharedSurfaceHeight?: SharedValue<number>;
     sharedAudioProgress?: SharedValue<number>;
     sharedPauseHoldMs?: SharedValue<number>;
     sharedPauseHoldToken?: SharedValue<number>;
@@ -52,7 +58,8 @@ type Props = {
 };
 
 type PinMarkerOverlayProps = {
-    canvasHeight: number;
+    /** Live surface height; the pin insets a few px top/bottom from it. */
+    heightValue: SharedValue<number>;
     markers: Pick<PracticeMarker, "id" | "atMs">[];
     pixelsPerMs: number;
 };
@@ -60,7 +67,7 @@ type PinMarkerOverlayProps = {
 type LoopRangeOverlayProps = {
     durationMs: number;
     baseContentWidth: number;
-    canvasHeight: number;
+    heightValue: SharedValue<number>;
     scale: SharedValue<number>;
     translateX: SharedValue<number>;
     sharedStartMs: SharedValue<number>;
@@ -79,22 +86,29 @@ const HARD_FORWARD_SNAP_MS = 650;
 const BACKWARD_SNAP_MS = 80;
 const SCRUB_SETTLE_FRAMES = 16;
 const PAUSE_VISUAL_HOLD_MS = 220;
-const PREDICTOR_MAX_LEAD_MS = 80;
+// How far the frame-rate predictor may coast ahead of the last reported position
+// before it stops and waits. Position reports arrive ~every 50ms but the JS thread
+// often delivers them late/bursty while the player tree reconciles; if this cap is
+// tighter than that jitter the scroll advances then FREEZES at the cap until the next
+// report lands — the visible "move, pause, move" stutter. Local playback never
+// buffer-stalls, so a generous cap just lets the reel coast smoothly through report
+// gaps (a genuine stall still snaps back via HARD_FORWARD/BACKWARD_SNAP).
+const PREDICTOR_MAX_LEAD_MS = 300;
 
 function LoopRangeOverlay({
     durationMs,
     baseContentWidth,
-    canvasHeight,
+    heightValue,
     scale,
     translateX,
     sharedStartMs,
     sharedEndMs,
     rangeType,
 }: LoopRangeOverlayProps) {
-    // Looper sits above section bands, so give it a stronger blue that reads clearly even
-    // when it overlaps a tinted section (the section still shows through underneath).
-    const fillColor = rangeType === "keep" ? "rgba(59, 130, 246, 0.30)" : "rgba(239, 68, 68, 0.15)";
-    const lineColor = rangeType === "keep" ? "rgba(37, 99, 235, 0.95)" : "rgba(239, 68, 68, 0.8)";
+    // Looper sits above section bands. Terracotta for a keep loop, muted rust for a
+    // remove range — both read clearly over a tinted section underneath.
+    const fillColor = rangeType === "keep" ? "rgba(184, 125, 107, 0.28)" : "rgba(161, 92, 74, 0.16)";
+    const lineColor = rangeType === "keep" ? "rgba(139, 79, 59, 0.95)" : "rgba(161, 92, 74, 0.85)";
 
     const leftX = useDerivedValue(() => {
         if (durationMs <= 0) return 0;
@@ -112,15 +126,16 @@ function LoopRangeOverlay({
     const rightLineX = useDerivedValue(() => rightX.value - LOOP_HANDLE_WIDTH);
     const leftPillX = useDerivedValue(() => leftX.value - LOOP_PILL_WIDTH / 2 + 1);
     const rightPillX = useDerivedValue(() => rightX.value - LOOP_PILL_WIDTH / 2 - 1);
+    const pillY = useDerivedValue(() => heightValue.value / 2 - LOOP_PILL_HEIGHT / 2);
 
     return (
         <>
-            <Rect x={leftX} y={0} width={fillWidth} height={canvasHeight} color={fillColor} />
-            <Rect x={leftX} y={0} width={LOOP_HANDLE_WIDTH} height={canvasHeight} color={lineColor} />
-            <Rect x={rightLineX} y={0} width={LOOP_HANDLE_WIDTH} height={canvasHeight} color={lineColor} />
+            <Rect x={leftX} y={0} width={fillWidth} height={heightValue} color={fillColor} />
+            <Rect x={leftX} y={0} width={LOOP_HANDLE_WIDTH} height={heightValue} color={lineColor} />
+            <Rect x={rightLineX} y={0} width={LOOP_HANDLE_WIDTH} height={heightValue} color={lineColor} />
             <RoundedRect
                 x={leftPillX}
-                y={canvasHeight / 2 - LOOP_PILL_HEIGHT / 2}
+                y={pillY}
                 width={LOOP_PILL_WIDTH}
                 height={LOOP_PILL_HEIGHT}
                 r={LOOP_PILL_WIDTH / 2}
@@ -128,7 +143,7 @@ function LoopRangeOverlay({
             />
             <RoundedRect
                 x={rightPillX}
-                y={canvasHeight / 2 - LOOP_PILL_HEIGHT / 2}
+                y={pillY}
                 width={LOOP_PILL_WIDTH}
                 height={LOOP_PILL_HEIGHT}
                 r={LOOP_PILL_WIDTH / 2}
@@ -139,11 +154,11 @@ function LoopRangeOverlay({
 }
 
 function SectionBandOverlay({
-    canvasHeight,
+    heightValue,
     bands,
     pixelsPerMs,
 }: {
-    canvasHeight: number;
+    heightValue: SharedValue<number>;
     bands: SectionBand[];
     pixelsPerMs: number;
 }) {
@@ -155,7 +170,7 @@ function SectionBandOverlay({
                 if (width <= 0) return null;
                 return (
                     <Group key={band.id}>
-                        <Rect x={x} y={0} width={width} height={canvasHeight} color={band.color} />
+                        <Rect x={x} y={0} width={width} height={heightValue} color={band.color} />
                         <Rect x={x} y={0} width={width} height={2.5} color={band.railColor} />
                     </Group>
                 );
@@ -165,10 +180,11 @@ function SectionBandOverlay({
 }
 
 function PinMarkerOverlay({
-    canvasHeight,
+    heightValue,
     markers,
     pixelsPerMs,
 }: PinMarkerOverlayProps) {
+    const pinHeight = useDerivedValue(() => Math.max(0, heightValue.value - 6));
     return (
         <>
             {markers.map((marker) => (
@@ -177,8 +193,8 @@ function PinMarkerOverlay({
                     x={marker.atMs * pixelsPerMs}
                     y={3}
                     width={2.5}
-                    height={Math.max(0, canvasHeight - 6)}
-                    color="#B87D6B"
+                    height={pinHeight}
+                    color="#8b4f3b"
                 />
             ))}
         </>
@@ -226,11 +242,17 @@ export function PlaybackTapeVisualizer({
     sharedPauseHoldMs,
     sharedPauseHoldToken,
     sharedBaseScale,
+    sharedSurfaceHeight,
     onScrubStateChange,
     freezeSelectedRangeWhenFullyVisible = false,
 }: Props) {
     const [canvasWidth, setCanvasWidth] = useState(0);
-    const [canvasHeight, setCanvasHeight] = useState(0);
+    // Height is a shared value, never React state: expand/compact animates it on the UI
+    // thread and drives all vertical geometry through Skia transforms, so no path
+    // rebuild or re-render happens per frame. Falls back to onLayout when the parent
+    // doesn't supply an animated height.
+    const localSurfaceHeight = useSharedValue(0);
+    const heightSV = sharedSurfaceHeight || localSurfaceHeight;
 
     const baseChunkWidth = 3;
     const baseContentWidth = waveformPeaks.length * baseChunkWidth;
@@ -677,24 +699,33 @@ export function PlaybackTapeVisualizer({
     // Counter-scale stroke widths so lines don't get fat when zoomed
     const waveStrokeWidth = useDerivedValue(() => 2 / scale.value);
     const rulerStrokeWidth = useDerivedValue(() => 1.5 / scale.value);
-    const { wavePath, rulerPath, centerLinePath } = useMemo(() => {
+
+    // Vertical geometry lives in a normalized space (amplitude -1..1 around y=0) and is
+    // mapped to pixels by this transform. A height change is therefore a pure UI-thread
+    // transform — it never rebuilds the wave path or re-renders the component.
+    const waveVerticalTransform = useDerivedValue(() => {
+        const centerY = heightSV.value / 2;
+        const waveMaxHeight = Math.max(10, (centerY - WAVEFORM_EDGE_MARGIN_PX) * WAVEFORM_HEADROOM);
+        return [{ translateY: centerY }, { scaleY: waveMaxHeight }];
+    });
+    const baselineY = useDerivedValue(() => heightSV.value / 2 - 0.5);
+    // Reveals only the played (behind-the-playhead) portion, in content coordinates so
+    // the two-tone split lands exactly under the playhead at any zoom/scroll.
+    const playedClip = useDerivedValue(
+        () => Skia.XYWHRect(0, 0, audioProgress.value * baseContentWidth, 100000),
+        [baseContentWidth]
+    );
+
+    const { wavePath, rulerPath } = useMemo(() => {
         const wave = Skia.Path.Make();
         const ruler = Skia.Path.Make();
-        const centerLine = Skia.Path.Make();
 
-        const centerY = canvasHeight > 0 ? canvasHeight / 2 : 70;
-        const waveMaxHeight = Math.max(10, (centerY - WAVEFORM_EDGE_MARGIN_PX) * WAVEFORM_HEADROOM);
-
-        // waveformPeaks is ALREADY an array of absolute normalized amplitudes from 0 to 1
-        // (calculated meticulously by `metersToWaveformPeaks` using absolute dBFS).
-        // Do NOT normalize this against its own max! If we do, a completely silent
-        // room tone clip will mathematically expand to max volume blocks.
-        //
-        // We do, however, apply a fixed (clip-independent) display expansion: subtract
-        // a noise floor and stretch the remaining window to full height, so the
-        // compressed mid band reads with real dynamic range. This is constant across
-        // all clips, so silence stays silent — it never inflates room tone.
-
+        // waveformPeaks is ALREADY absolute normalized amplitudes (0..1) from
+        // `metersToWaveformPeaks` using absolute dBFS. Do NOT normalize against its own
+        // max, or a silent room-tone clip would expand to full-height blocks. We apply a
+        // fixed (clip-independent) display expansion so the compressed mid band reads with
+        // dynamic range, then emit the wave in NORMALIZED amplitude (-1..1); the pixel
+        // height + centering is applied by waveVerticalTransform.
         waveformPeaks.forEach((amp, i) => {
             const x = i * baseChunkWidth;
             const clamped = Math.max(0, Math.min(1, amp));
@@ -703,100 +734,96 @@ export function PlaybackTapeVisualizer({
                     ? 0
                     : (clamped - WAVEFORM_DISPLAY_FLOOR) / (1 - WAVEFORM_DISPLAY_FLOOR);
             const scaleFactor = Math.min(1, Math.max(WAVEFORM_DISPLAY_MIN, expanded * WAVEFORM_DISPLAY_GAIN));
-            const h = scaleFactor * waveMaxHeight;
-
-            wave.moveTo(x, centerY - h);
-            wave.lineTo(x, centerY + h);
+            wave.moveTo(x, -scaleFactor);
+            wave.lineTo(x, scaleFactor);
         });
 
-        // Add ruler ticks, thinning out when density is too high
+        // Quiet grid: sparse MAJOR ticks only, along the top edge. The interval is chosen
+        // so majors stay >= MIN_MAJOR_VISUAL_PX apart at the fitted (1x) scale — zooming in
+        // only spreads them further, so the old length/zoom-dependent picket fence is gone.
         const totalSeconds = durationMs / 1000 || 1;
-        const pixelsPerSecond = baseContentWidth / totalSeconds;
-        const MIN_TICK_PX = 4; // minimum pixels between ticks before we skip
-
-        // Choose a tick interval that keeps ticks at least MIN_TICK_PX apart
-        // Candidate intervals: 1s, 2s, 5s, 10s, 15s, 30s, 60s, 120s, 300s...
+        const pixelsPerSecondBase = baseContentWidth / totalSeconds;
+        const visualPxPerSecond = canvasWidth > 0 ? canvasWidth / totalSeconds : pixelsPerSecondBase;
+        const MIN_MAJOR_VISUAL_PX = 54;
         const intervals = [1, 2, 5, 10, 15, 30, 60, 120, 300, 600];
-        let tickInterval = 1;
+        let tickInterval = intervals[intervals.length - 1];
         for (const iv of intervals) {
-            if (iv * pixelsPerSecond >= MIN_TICK_PX) {
+            if (iv * visualPxPerSecond >= MIN_MAJOR_VISUAL_PX) {
                 tickInterval = iv;
                 break;
             }
-            tickInterval = iv;
         }
-        // Major tick every 5 tick-intervals (or every interval if already sparse)
-        const majorEvery = tickInterval >= 10 ? 1 : 5;
-
+        const TICK_HEIGHT = 7;
         for (let s = 0; s <= Math.ceil(totalSeconds); s += tickInterval) {
-            const x = s * pixelsPerSecond;
-            const isMajor = s % (tickInterval * majorEvery) === 0;
-
-            const tickHeight = isMajor ? 12 : 6;
+            const x = s * pixelsPerSecondBase;
             ruler.moveTo(x, 0);
-            ruler.lineTo(x, tickHeight);
-
-            if (canvasHeight > 0) {
-                ruler.moveTo(x, canvasHeight);
-                ruler.lineTo(x, canvasHeight - tickHeight);
-            }
+            ruler.lineTo(x, TICK_HEIGHT);
         }
 
-        centerLine.moveTo(0, centerY);
-        centerLine.lineTo(baseContentWidth, centerY);
-
-        return { wavePath: wave, rulerPath: ruler, centerLinePath: centerLine };
-    }, [waveformPeaks, baseChunkWidth, durationMs, canvasHeight, canvasWidth, baseContentWidth]);
+        return { wavePath: wave, rulerPath: ruler };
+    }, [waveformPeaks, baseChunkWidth, durationMs, canvasWidth, baseContentWidth]);
 
     const onLayout = (e: LayoutChangeEvent) => {
         const nextWidth = e.nativeEvent.layout.width;
-        const nextHeight = e.nativeEvent.layout.height;
         setCanvasWidth((prev) => (prev === nextWidth ? prev : nextWidth));
-        setCanvasHeight((prev) => (prev === nextHeight ? prev : nextHeight));
+        // Only used as a fallback when the parent doesn't drive an animated height.
+        if (!sharedSurfaceHeight) {
+            localSurfaceHeight.value = e.nativeEvent.layout.height;
+        }
     };
 
-    const waveColor = theme?.waveColor || "#64748b";
-    const rulerColor = theme?.rulerColor || "#9ca3af";
-    const playheadColor = theme?.playheadColor || "#ef4444";
+    const waveColor = theme?.waveColor || "#C7B9AF";
+    const wavePlayedColor = theme?.wavePlayedColor || "#B87D6B";
+    const rulerColor = theme?.rulerColor || "#D7C2BD";
+    const playheadColor = theme?.playheadColor || "#8b4f3b";
     const backgroundColor = theme?.backgroundColor || "transparent";
 
     return (
         <View style={[styles.container, { backgroundColor }]} onLayout={onLayout}>
             <GestureDetector gesture={pan}>
                 <View style={StyleSheet.absoluteFill}>
-                    {canvasWidth > 0 && canvasHeight > 0 && (
+                    {canvasWidth > 0 && (
                         <Canvas style={{ flex: 1 }}>
+                            {/* Faint center baseline — uniform, so it neither scrolls nor rebuilds. */}
+                            <Rect x={0} y={baselineY} width={canvasWidth} height={1} color={rulerColor} opacity={0.4} />
                             <Group transform={translateTransform}>
                                 <Group transform={scaleTransform}>
                                     {sectionBands && sectionBands.length > 0 ? (
                                         <SectionBandOverlay
-                                            canvasHeight={canvasHeight}
+                                            heightValue={heightSV}
                                             bands={sectionBands}
                                             pixelsPerMs={durationMs > 0 ? baseContentWidth / durationMs : 0}
                                         />
                                     ) : null}
                                     <Path
-                                        path={centerLinePath}
-                                        color={rulerColor}
-                                        style="stroke"
-                                        strokeWidth={1}
-                                        opacity={0.3}
-                                    />
-                                    <Path
                                         path={rulerPath}
                                         color={rulerColor}
                                         style="stroke"
                                         strokeWidth={rulerStrokeWidth}
+                                        opacity={0.7}
                                     />
-                                    <Path
-                                        path={wavePath}
-                                        color={waveColor}
-                                        style="stroke"
-                                        strokeWidth={waveStrokeWidth}
-                                    />
+                                    {/* Two-tone wave: muted ahead-of-playhead, terracotta played (clipped). */}
+                                    <Group transform={waveVerticalTransform}>
+                                        <Path
+                                            path={wavePath}
+                                            color={waveColor}
+                                            style="stroke"
+                                            strokeWidth={waveStrokeWidth}
+                                        />
+                                    </Group>
+                                    <Group clip={playedClip}>
+                                        <Group transform={waveVerticalTransform}>
+                                            <Path
+                                                path={wavePath}
+                                                color={wavePlayedColor}
+                                                style="stroke"
+                                                strokeWidth={waveStrokeWidth}
+                                            />
+                                        </Group>
+                                    </Group>
                                     {practiceMarkers && practiceMarkers.length > 0 ? (
                                         <PinMarkerOverlay
-                                            canvasHeight={canvasHeight}
+                                            heightValue={heightSV}
                                             markers={practiceMarkers}
                                             pixelsPerMs={durationMs > 0 ? baseContentWidth / durationMs : 0}
                                         />
@@ -807,7 +834,7 @@ export function PlaybackTapeVisualizer({
                                 <LoopRangeOverlay
                                     durationMs={durationMs}
                                     baseContentWidth={baseContentWidth}
-                                    canvasHeight={canvasHeight}
+                                    heightValue={heightSV}
                                     scale={scale}
                                     translateX={translateX}
                                     sharedStartMs={sharedSelectedRangeStartMs}
@@ -819,7 +846,7 @@ export function PlaybackTapeVisualizer({
                                 x={playheadRectX}
                                 y={0}
                                 width={4}
-                                height={canvasHeight}
+                                height={heightSV}
                                 color={playheadColor}
                             />
                         </Canvas>

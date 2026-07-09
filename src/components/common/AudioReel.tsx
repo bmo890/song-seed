@@ -173,7 +173,7 @@ export function AudioReel({
     showZoomControls = true,
     showTimingRow = true,
     defaultExpanded = false,
-    surfaceRadius = 24,
+    surfaceRadius = 8,
     timelineHorizontalPadding = TIMELINE_HORIZONTAL_PADDING,
     collapsedHeightOverride,
     expandedHeightOverride,
@@ -265,38 +265,42 @@ export function AudioReel({
             : showMinimapMode === "never"
                 ? false
                 : zoomMultiple > 1.01 && (!compact || isExpanded);
+    // Nocturne paper palette. Light = warm paper (the primary reel look); dark = a warm
+    // espresso variant for any dark host surface. Both use the terracotta two-tone wave.
     const palette = chrome === "light"
         ? {
-            surfaceColor: "#f1f2f6",
-            utilityBackgroundColor: "#ffffff",
-            utilityBorderColor: "#d8dde6",
-            utilityTextColor: "#0f172a",
-            utilityIconColor: "#475569",
-            waveColor: "#66758a",
-            rulerColor: "#9ba3af",
-            playheadColor: "#d95b56",
-            transportButtonColor: "#ffffff",
-            transportButtonBorderColor: "#d8dde6",
-            transportIconColor: "#111827",
-            playButtonColor: "#111827",
-            playIconColor: "#ffffff",
-            expandButtonColor: "#ffffff",
+            surfaceColor: "#F0EBE4",
+            utilityBackgroundColor: "#FFFFFF",
+            utilityBorderColor: "#E8E4DF",
+            utilityTextColor: "#524440",
+            utilityIconColor: "#524440",
+            waveColor: "#C7B9AF",
+            wavePlayedColor: "#B87D6B",
+            rulerColor: "#D7C2BD",
+            playheadColor: "#8b4f3b",
+            transportButtonColor: "#FFFFFF",
+            transportButtonBorderColor: "#E8E4DF",
+            transportIconColor: "#524440",
+            playButtonColor: "#B87D6B",
+            playIconColor: "#FFFFFF",
+            expandButtonColor: "#FDFBF7",
         }
         : {
-            surfaceColor: "#111827",
-            utilityBackgroundColor: "#1e293b",
-            utilityBorderColor: "#1e293b",
-            utilityTextColor: "#f8fafc",
-            utilityIconColor: "#f8fafc",
-            waveColor: "#64748b",
-            rulerColor: "#475569",
-            playheadColor: "#3b82f6",
-            transportButtonColor: "#1e293b",
-            transportButtonBorderColor: "#1e293b",
-            transportIconColor: "#f8fafc",
-            playButtonColor: "#10b981",
-            playIconColor: "#ffffff",
-            expandButtonColor: "rgba(0,0,0,0.5)",
+            surfaceColor: "#2B211D",
+            utilityBackgroundColor: "#3A2D28",
+            utilityBorderColor: "#4A3A34",
+            utilityTextColor: "#F5EDE7",
+            utilityIconColor: "#EADFD8",
+            waveColor: "#7A655C",
+            wavePlayedColor: "#D89A85",
+            rulerColor: "#5A473F",
+            playheadColor: "#E8B865",
+            transportButtonColor: "#3A2D28",
+            transportButtonBorderColor: "#4A3A34",
+            transportIconColor: "#F5EDE7",
+            playButtonColor: "#B87D6B",
+            playIconColor: "#FFFFFF",
+            expandButtonColor: "rgba(0,0,0,0.4)",
         };
 
     const handleInteractionStateChange = (scrubbing: boolean) => {
@@ -523,8 +527,10 @@ export function AudioReel({
                             sharedAudioProgress={sharedAudioProgress}
                             sharedPauseHoldMs={sharedPauseHoldMs}
                             sharedPauseHoldToken={sharedPauseHoldToken}
+                            sharedSurfaceHeight={visualizerHeight}
                             theme={{
                                 waveColor: palette.waveColor,
+                                wavePlayedColor: palette.wavePlayedColor,
                                 rulerColor: palette.rulerColor,
                                 playheadColor: palette.playheadColor,
                                 backgroundColor: "transparent",

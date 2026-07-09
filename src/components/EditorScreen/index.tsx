@@ -412,6 +412,7 @@ export function EditorScreen() {
                             durationMs={analysisData.durationMs}
                             currentTimeMs={playheadTimeMs}
                             resetKey={clipId}
+                            chrome="light"
                             sharedCurrentTimeMs={transportClock.sharedCurrentTimeMs}
                             sharedDurationMs={transportClock.sharedDurationMs}
                             sharedTransportUpdateToken={transportClock.sharedUpdateToken}
