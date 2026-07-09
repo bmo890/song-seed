@@ -1,6 +1,13 @@
 import * as DocumentPicker from "expo-document-picker";
 import * as FileSystem from "expo-file-system/legacy";
-import { strFromU8, unzipSync } from "fflate";
+import { File } from "expo-file-system";
+import { strFromU8 } from "fflate";
+import {
+    indexStoredZipArchive,
+    readStoredZipEntryBytes,
+    streamStoredZipEntry,
+    type StoredZipIndex,
+} from "./storedZipArchive";
 import { createLyricsVersion, lyricsTextToDocument } from "../lyrics";
 import { createEmptyProjectLyrics, createEmptyWorkspaceIdeasListState } from "../state/dataSlice";
 import type {
@@ -34,7 +41,12 @@ export type ParsedSongSeedArchive = {
     sourceUri: string;
     sourceName: string;
     manifest: ArchiveManifest;
-    zipEntries: Record<string, Uint8Array>;
+    /**
+     * Streaming index into the archive. Audio payloads are extracted entry-by-entry in
+     * bounded chunks — never the whole archive in memory (a multi-hundred-MB archive read
+     * as one buffer OOM'd Hermes on device).
+     */
+    archiveIndex: StoredZipIndex;
 };
 
 export type LibraryImportPreview = {
@@ -132,51 +144,6 @@ function readFullClipMetadata(clipManifest: ArchiveClipManifest) {
     };
 }
 
-function bytesToBase64(bytes: Uint8Array) {
-    const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-    let output = "";
-
-    for (let index = 0; index < bytes.length; index += 3) {
-        const a = bytes[index] ?? 0;
-        const b = bytes[index + 1] ?? 0;
-        const c = bytes[index + 2] ?? 0;
-        const chunk = (a << 16) | (b << 8) | c;
-
-        output += alphabet[(chunk >> 18) & 0x3f];
-        output += alphabet[(chunk >> 12) & 0x3f];
-        output += index + 1 < bytes.length ? alphabet[(chunk >> 6) & 0x3f] : "=";
-        output += index + 2 < bytes.length ? alphabet[chunk & 0x3f] : "=";
-    }
-
-    return output;
-}
-
-async function readFileBytes(fileUri: string) {
-    const base64 = await FileSystem.readAsStringAsync(fileUri, {
-        encoding: FileSystem.EncodingType.Base64,
-    });
-
-    const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-    const clean = base64.replace(/[^A-Za-z0-9+/=]/g, "");
-    let buffer = 0;
-    let bits = 0;
-    const output: number[] = [];
-
-    for (const char of clean) {
-        if (char === "=") break;
-        const index = alphabet.indexOf(char);
-        if (index < 0) continue;
-        buffer = (buffer << 6) | index;
-        bits += 6;
-        if (bits >= 8) {
-            bits -= 8;
-            output.push((buffer >> bits) & 0xff);
-        }
-    }
-
-    return Uint8Array.from(output);
-}
-
 async function ensureAudioDirectory() {
     if (!FileSystem.documentDirectory) {
         throw new Error("Document directory unavailable.");
@@ -188,12 +155,30 @@ async function ensureAudioDirectory() {
     }
 }
 
-async function writeManagedArchiveAudio(targetId: string, extension: string, bytes: Uint8Array) {
+/**
+ * Stream one archive audio entry straight to its managed destination in bounded chunks
+ * (native reads + native writes; the entry's ZIP CRC is verified in-stream). Returns null
+ * when the archive lacks the entry so callers can warn without aborting the import.
+ */
+async function extractManagedArchiveAudio(
+    parsed: ParsedSongSeedArchive,
+    archivePath: string,
+    targetId: string,
+    extension: string
+): Promise<string | null> {
+    const entry = parsed.archiveIndex.entries.get(archivePath);
+    if (!entry) return null;
+
     await ensureAudioDirectory();
     const destinationUri = `${SONG_SEED_AUDIO_DIR}/${targetId}.${extension}`;
-    await FileSystem.writeAsStringAsync(destinationUri, bytesToBase64(bytes), {
-        encoding: FileSystem.EncodingType.Base64,
-    });
+    const targetFile = new File(destinationUri);
+    targetFile.create({ intermediates: true, overwrite: true });
+    const handle = targetFile.open();
+    try {
+        await streamStoredZipEntry(parsed.archiveIndex, entry, (chunk) => handle.writeBytes(chunk));
+    } finally {
+        handle.close();
+    }
     return destinationUri;
 }
 
@@ -210,14 +195,14 @@ async function materializeArchiveClipOverdub(
 
     let renderedMixUri: string | undefined;
     if (overdubManifest.renderedMixPath) {
-        const entryBytes = parsed.zipEntries[overdubManifest.renderedMixPath];
-        if (entryBytes) {
-            renderedMixUri = await writeManagedArchiveAudio(
+        renderedMixUri =
+            (await extractManagedArchiveAudio(
+                parsed,
+                overdubManifest.renderedMixPath,
                 `${clipId}-mix`,
-                getPathExtension(overdubManifest.renderedMixPath),
-                entryBytes
-            );
-        } else {
+                getPathExtension(overdubManifest.renderedMixPath)
+            )) ?? undefined;
+        if (!renderedMixUri) {
             warnings.push(`Missing archived rendered overdub mix for ${clipLabel}.`);
         }
     }
@@ -227,14 +212,14 @@ async function materializeArchiveClipOverdub(
         const stemId = buildOverdubStemId();
         let audioUri: string | undefined;
         if (stemManifest.audioPath) {
-            const entryBytes = parsed.zipEntries[stemManifest.audioPath];
-            if (entryBytes) {
-                audioUri = await writeManagedArchiveAudio(
+            audioUri =
+                (await extractManagedArchiveAudio(
+                    parsed,
+                    stemManifest.audioPath,
                     `${clipId}-${stemId}`,
-                    getPathExtension(stemManifest.audioPath),
-                    entryBytes
-                );
-            } else {
+                    getPathExtension(stemManifest.audioPath)
+                )) ?? undefined;
+            if (!audioUri) {
                 warnings.push(`Missing archived overdub stem for ${clipLabel} / ${stemManifest.title}.`);
             }
         }
@@ -301,14 +286,17 @@ export async function readSongSeedArchive(
     sourceUri: string,
     sourceName = sourceUri.split("/").pop() ?? "Song Seed Archive.zip"
 ): Promise<ParsedSongSeedArchive> {
-    const zipBytes = await readFileBytes(sourceUri);
-    const zipEntries = unzipSync(zipBytes);
-    const manifestEntry = zipEntries["manifest.json"];
+    // Index the archive without loading payloads — Song Seed Archives are written by
+    // createZipArchive (stored, uncompressed), the same format the backup reader streams.
+    const archiveIndex = await indexStoredZipArchive(sourceUri);
+    const manifestEntry = archiveIndex.entries.get("manifest.json");
     if (!manifestEntry) {
         throw new Error("Archive is missing manifest.json.");
     }
 
-    const manifestJson = JSON.parse(strFromU8(manifestEntry));
+    const manifestJson = JSON.parse(
+        strFromU8(await readStoredZipEntryBytes(archiveIndex, manifestEntry))
+    );
     if (!isSongSeedArchiveManifest(manifestJson)) {
         throw new Error("This file is not a valid Song Seed Archive.");
     }
@@ -317,7 +305,7 @@ export async function readSongSeedArchive(
         sourceUri,
         sourceName,
         manifest: manifestJson,
-        zipEntries,
+        archiveIndex,
     };
 }
 
@@ -457,14 +445,14 @@ export async function materializeSongSeedArchiveMerge(
                     let audioUri: string | undefined;
 
                     if (clipManifest.audioPath) {
-                        const entryBytes = parsed.zipEntries[clipManifest.audioPath];
-                        if (entryBytes) {
-                            audioUri = await writeManagedArchiveAudio(
+                        audioUri =
+                            (await extractManagedArchiveAudio(
+                                parsed,
+                                clipManifest.audioPath,
                                 clipId,
-                                getPathExtension(clipManifest.audioPath),
-                                entryBytes
-                            );
-                        } else {
+                                getPathExtension(clipManifest.audioPath)
+                            )) ?? undefined;
+                        if (!audioUri) {
                             warnings.push(`Missing archived audio for ${songManifest.title} / ${clipManifest.title}.`);
                         }
                     }
@@ -564,14 +552,14 @@ export async function materializeSongSeedArchiveMerge(
 
                 let audioUri: string | undefined;
                 if (clipManifest.audioPath) {
-                    const entryBytes = parsed.zipEntries[clipManifest.audioPath];
-                    if (entryBytes) {
-                        audioUri = await writeManagedArchiveAudio(
+                    audioUri =
+                        (await extractManagedArchiveAudio(
+                            parsed,
+                            clipManifest.audioPath,
                             clipId,
-                            getPathExtension(clipManifest.audioPath),
-                            entryBytes
-                        );
-                    } else {
+                            getPathExtension(clipManifest.audioPath)
+                        )) ?? undefined;
+                    if (!audioUri) {
                         warnings.push(`Missing archived audio for ${clipManifest.title}.`);
                     }
                 }
