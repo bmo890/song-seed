@@ -28,9 +28,10 @@ jest.mock("expo-file-system/legacy", () => ({
         }
         return { exists: mockDirectories.has(uri), isDirectory: mockDirectories.has(uri) };
     }),
-    readAsStringAsync: jest.fn(async (uri: string) => {
+    readAsStringAsync: jest.fn(async (uri: string, options?: { encoding?: string }) => {
         const value = mockFiles.get(uri);
         if (value == null) throw new Error(`Missing mock file: ${uri}`);
+        if (options?.encoding === "base64") return Buffer.from(value).toString("base64");
         return mockBytesText(value);
     }),
     writeAsStringAsync: jest.fn(async (uri: string, value: string) => {
@@ -223,10 +224,14 @@ function installArchive(options?: {
     incomplete?: boolean;
     unsafePath?: string;
     compressionLevel?: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
+    corruptMediaSha?: boolean;
 }) {
     const snapshotJson = JSON.stringify(snapshot());
     const mediaPath = options?.unsafePath ?? MEDIA_PATH;
     const mediaBase64 = Buffer.from(MEDIA_BYTES).toString("base64");
+    const mediaSha = options?.corruptMediaSha
+        ? sha256(`${mediaBase64}-tampered`)
+        : sha256(mediaBase64);
     const incomplete = Boolean(options?.incomplete);
     const manifest = {
         formatVersion: 1,
@@ -237,7 +242,7 @@ function installArchive(options?: {
         snapshotSha256: sha256(snapshotJson),
         files: incomplete
             ? []
-            : [{ path: mediaPath, sha256: sha256(mediaBase64), sizeBytes: MEDIA_BYTES.length }],
+            : [{ path: mediaPath, sha256: mediaSha, sizeBytes: MEDIA_BYTES.length }],
         missing: incomplete
             ? [
                   {
@@ -316,6 +321,26 @@ describe("restoreFromDisasterRecoveryBackup", () => {
         expect(mockPersistRawSnapshot).not.toHaveBeenCalled();
         expect(mockRequireRestoreRestart).not.toHaveBeenCalled();
         expect(Array.from(mockFiles.keys()).filter((uri) => uri.includes("restored-"))).toHaveLength(0);
+    });
+
+    it("removes staged files and never commits when a restored file fails SHA-256 verification", async () => {
+        installArchive({ corruptMediaSha: true });
+        const oldBytes = mockTextBytes("existing-current-audio");
+        mockFiles.set(ORIGINAL_MEDIA_URI, oldBytes);
+
+        await expect(restoreFromDisasterRecoveryBackup(ARCHIVE_URI)).rejects.toThrow(
+            "failed its integrity check"
+        );
+
+        // The staged (unreferenced) file was cleaned up, metadata never committed, and
+        // the current library was left untouched.
+        const stagedUri = Array.from(mockFiles.keys()).find((uri) =>
+            uri.startsWith("file:///doc/songseed/audio/restored-")
+        );
+        expect(stagedUri).toBeUndefined();
+        expect(mockPersistRawSnapshot).not.toHaveBeenCalled();
+        expect(mockRequireRestoreRestart).not.toHaveBeenCalled();
+        expect(mockFiles.get(ORIGINAL_MEDIA_URI)).toEqual(oldBytes);
     });
 
     it("rejects unsafe media paths before writing", async () => {

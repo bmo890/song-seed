@@ -56,8 +56,20 @@ jest.mock("expo-file-system/legacy", () => ({
     deleteAsync: jest.fn(async (uri: string) => {
         mockFiles.delete(uri);
     }),
-    readAsStringAsync: jest.fn(async () => {
-        throw new Error("Backup hashing must not read a whole file as a string.");
+    EncodingType: { Base64: "base64", UTF8: "utf8" },
+    readAsStringAsync: jest.fn(async (uri: string, options?: { encoding?: string }) => {
+        const file = mockFiles.get(uri);
+        if (!file) throw new Error(`Missing mock file: ${uri}`);
+        // Memory-safety invariant: whole-file string reads are only allowed for files
+        // under the native-hash cap; larger files must use the streaming hash path.
+        const { NATIVE_BASE64_SHA256_MAX_BYTES } = require("../fileHashing");
+        if (file.length > NATIVE_BASE64_SHA256_MAX_BYTES) {
+            throw new Error("Backup hashing must not read an oversized file as a string.");
+        }
+        if (options?.encoding !== "base64") {
+            throw new Error("Backup hashing must read files as base64.");
+        }
+        return Buffer.from(file).toString("base64");
     }),
 }));
 

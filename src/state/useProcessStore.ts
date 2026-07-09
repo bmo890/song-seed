@@ -43,8 +43,8 @@ const PROCESS_STEPS: Record<LibraryProcessKind, { label: string; phases: BackupO
     ],
     restore: [
         { label: "Inspect", phases: ["inspecting"] },
-        { label: "Verify", phases: ["verifying", "hashing"] },
         { label: "Restore", phases: ["restoring"] },
+        { label: "Verify", phases: ["verifying", "hashing"] },
         { label: "Commit", phases: ["committing"] },
     ],
 };

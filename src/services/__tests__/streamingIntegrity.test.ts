@@ -56,4 +56,26 @@ describe("streaming integrity", () => {
         feedInChunks(bytes, [2, 1, 4], (chunk) => crc.update(chunk));
         expect(crc.digest()).toBe(0xcbf43926);
     });
+
+    // Reference byte-at-a-time CRC-32 to pin the slice-by-16 implementation against.
+    function referenceCrc32(bytes: Uint8Array) {
+        let crc = 0xffffffff;
+        for (let index = 0; index < bytes.length; index += 1) {
+            crc ^= bytes[index];
+            for (let bit = 0; bit < 8; bit += 1) {
+                crc = (crc & 1) === 1 ? 0xedb88320 ^ (crc >>> 1) : crc >>> 1;
+            }
+        }
+        return (crc ^ 0xffffffff) >>> 0;
+    }
+
+    it.each([0, 1, 15, 16, 17, 31, 32, 255, 256, 4096, 64 * 1024 + 13])(
+        "matches the reference CRC-32 for %i bytes across ragged chunk boundaries",
+        (size) => {
+            const bytes = fixture(size);
+            const crc = new IncrementalCrc32();
+            feedInChunks(bytes, [1, 15, 16, 17, 3, 254, 4096], (chunk) => crc.update(chunk));
+            expect(crc.digest()).toBe(referenceCrc32(bytes));
+        }
+    );
 });

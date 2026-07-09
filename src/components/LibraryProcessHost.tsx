@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef } from "react";
-import { Animated, Easing, Pressable, StyleSheet, Text, View } from "react-native";
+import { useEffect, useRef, useState } from "react";
+import { Animated, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Circle } from "react-native-svg";
 import { Ionicons } from "@expo/vector-icons";
@@ -31,22 +31,39 @@ function accentFor(process: LibraryProcess): string {
     return DEEP;
 }
 
-/** Cumulative-average speed + ETA from the latest progress snapshot. */
-function useLiveStats(process: LibraryProcess) {
-    return useMemo(() => {
-        const { completedBytes, totalBytes } = process.progress;
-        const elapsedSec = Math.max(0.001, (Date.now() - process.startedAt) / 1000);
-        const hasBytes = totalBytes > 0;
-        const bytesPerSec = hasBytes ? completedBytes / elapsedSec : 0;
-        const remainingBytes = Math.max(0, totalBytes - completedBytes);
-        const etaSec = bytesPerSec > 0 ? Math.round(remainingBytes / bytesPerSec) : null;
-        return {
-            hasBytes,
-            dataLabel: hasBytes ? `${formatBytes(completedBytes)} / ${formatBytes(totalBytes)}` : "—",
-            speedLabel: hasBytes && bytesPerSec > 0 ? `${formatBytes(bytesPerSec)}/s` : "—",
-            etaLabel: etaSec != null ? (etaSec >= 60 ? `~${Math.ceil(etaSec / 60)}m` : `~${etaSec}s`) : "—",
-        };
-    }, [process.progress, process.startedAt]);
+/** Re-render once a second so Elapsed / Time left keep moving between progress commits. */
+function useSecondTick(enabled: boolean) {
+    const [, setTick] = useState(0);
+    useEffect(() => {
+        if (!enabled) return;
+        const id = setInterval(() => setTick((value) => value + 1), 1000);
+        return () => clearInterval(id);
+    }, [enabled]);
+}
+
+function formatClock(totalSeconds: number) {
+    const seconds = Math.max(0, Math.round(totalSeconds));
+    const minutes = Math.floor(seconds / 60);
+    return `${minutes}:${String(seconds % 60).padStart(2, "0")}`;
+}
+
+/**
+ * Cumulative-average speed + ETA from the latest progress snapshot. Computed fresh on
+ * every render — the second tick advances elapsed/ETA between progress commits.
+ */
+function computeLiveStats(process: LibraryProcess) {
+    const { completedBytes, totalBytes } = process.progress;
+    const elapsedSec = Math.max(0.001, (Date.now() - process.startedAt) / 1000);
+    const hasBytes = totalBytes > 0;
+    const bytesPerSec = hasBytes ? completedBytes / elapsedSec : 0;
+    const remainingBytes = Math.max(0, totalBytes - completedBytes);
+    const etaSec = bytesPerSec > 0 ? Math.round(remainingBytes / bytesPerSec) : null;
+    return {
+        hasBytes,
+        dataLabel: hasBytes ? `${formatBytes(completedBytes)} / ${formatBytes(totalBytes)}` : "—",
+        speedLabel: hasBytes && bytesPerSec > 0 ? `${formatBytes(bytesPerSec)}/s` : "—",
+        etaLabel: etaSec != null ? (etaSec >= 60 ? `~${Math.ceil(etaSec / 60)} min` : `~${etaSec}s`) : "—",
+    };
 }
 
 function StatTile({ label, value }: { label: string; value: string }) {
@@ -111,7 +128,12 @@ function Timeline({ process }: { process: LibraryProcess }) {
     );
 }
 
-function ProcessSheet({
+/**
+ * Full-screen takeover for the running operation. Backup/export/restore contend for
+ * storage and the JS thread, so while one runs the takeover is the honest default —
+ * Minimize collapses it to the monitor pill for users who want to keep working.
+ */
+function ProcessTakeover({
     process,
     onMinimize,
     onCancel,
@@ -123,29 +145,35 @@ function ProcessSheet({
     onDismiss: () => void;
 }) {
     const insets = useSafeAreaInsets();
-    const slide = useRef(new Animated.Value(0)).current;
-    const stats = useLiveStats(process);
+    const reveal = useRef(new Animated.Value(0)).current;
+    const terminal = process.status !== "running";
+    useSecondTick(!terminal);
+    const stats = computeLiveStats(process);
     const percent = getProcessPercent(process);
     const accent = accentFor(process);
-    const terminal = process.status !== "running";
+    const elapsedSec = (Date.now() - process.startedAt) / 1000;
 
     useEffect(() => {
-        Animated.spring(slide, { toValue: 1, useNativeDriver: true, tension: 90, friction: 14 }).start();
-    }, [slide]);
+        Animated.spring(reveal, { toValue: 1, useNativeDriver: true, tension: 80, friction: 14 }).start();
+    }, [reveal]);
 
-    const translateY = slide.interpolate({ inputRange: [0, 1], outputRange: [400, 0] });
+    const translateY = reveal.interpolate({ inputRange: [0, 1], outputRange: [40, 0] });
 
     return (
-        <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
-            <Pressable style={styles.backdrop} onPress={terminal ? onDismiss : onMinimize} />
+        <View style={[StyleSheet.absoluteFill, styles.takeoverRoot]}>
             <Animated.View
                 style={[
-                    styles.sheet,
-                    { paddingBottom: 16 + insets.bottom, transform: [{ translateY }] },
+                    styles.takeoverBody,
+                    {
+                        paddingTop: insets.top + 18,
+                        paddingBottom: Math.max(insets.bottom, 14) + 6,
+                        opacity: reveal,
+                        transform: [{ translateY }],
+                    },
                 ]}
             >
                 <View style={styles.sheetHeaderRow}>
-                    <View>
+                    <View style={styles.headerCopy}>
                         <Text style={[styles.eyebrow, { color: accent }]}>
                             {terminal
                                 ? process.status === "success"
@@ -157,15 +185,17 @@ function ProcessSheet({
                         </Text>
                         <Text style={styles.sheetTitle}>{process.title}</Text>
                     </View>
-                    <Pressable
-                        style={({ pressed }) => [styles.headerBtn, pressed ? { opacity: 0.6 } : null]}
-                        onPress={terminal ? onDismiss : onMinimize}
-                        hitSlop={8}
-                        accessibilityRole="button"
-                        accessibilityLabel={terminal ? "Dismiss" : "Minimize"}
-                    >
-                        <Ionicons name={terminal ? "close" : "chevron-down"} size={18} color={colors.textStrong} />
-                    </Pressable>
+                    {!terminal ? (
+                        <Pressable
+                            style={({ pressed }) => [styles.headerBtn, pressed ? { opacity: 0.6 } : null]}
+                            onPress={onMinimize}
+                            hitSlop={8}
+                            accessibilityRole="button"
+                            accessibilityLabel="Minimize"
+                        >
+                            <Ionicons name="chevron-down" size={18} color={colors.textStrong} />
+                        </Pressable>
+                    ) : null}
                 </View>
 
                 {terminal ? (
@@ -173,7 +203,7 @@ function ProcessSheet({
                         <View style={[styles.terminalIcon, { backgroundColor: accent }]}>
                             <Ionicons
                                 name={process.status === "success" ? "checkmark" : "close"}
-                                size={26}
+                                size={30}
                                 color="#fff"
                             />
                         </View>
@@ -186,17 +216,22 @@ function ProcessSheet({
                         </Pressable>
                     </View>
                 ) : (
-                    <>
+                    <ScrollView
+                        style={styles.takeoverScroll}
+                        contentContainerStyle={styles.takeoverScrollContent}
+                        bounces={false}
+                    >
                         <Timeline process={process} />
 
-                        <View style={styles.progressHeadRow}>
+                        <View style={styles.bigPercentBlock}>
+                            <Text style={[styles.bigPercent, { color: DEEP }]}>
+                                {percent != null ? `${percent}%` : "…"}
+                            </Text>
                             <Text style={styles.progressMessage} numberOfLines={1}>
                                 {process.progress.message}
                             </Text>
-                            {percent != null ? (
-                                <Text style={[styles.progressPercent, { color: DEEP }]}>{percent}%</Text>
-                            ) : null}
                         </View>
+
                         <View style={styles.progressTrack}>
                             <View
                                 style={[
@@ -211,31 +246,36 @@ function ProcessSheet({
                             <StatTile label="Data" value={stats.dataLabel} />
                             <StatTile label="Speed" value={stats.speedLabel} />
                             <StatTile label="Time left" value={stats.etaLabel} />
-                            <StatTile
-                                label="Elapsed"
-                                value={`${Math.round((Date.now() - process.startedAt) / 1000)}s`}
-                            />
+                            <StatTile label="Elapsed" value={formatClock(elapsedSec)} />
                         </View>
 
-                        <View style={styles.actionRow}>
-                            <Pressable
-                                style={({ pressed }) => [styles.minimizeBtn, pressed ? { opacity: 0.7 } : null]}
-                                onPress={onMinimize}
-                            >
-                                <Ionicons name="chevron-down" size={16} color={colors.textStrong} />
-                                <Text style={styles.minimizeBtnText}>Minimize</Text>
-                            </Pressable>
-                            {process.canCancel ? (
-                                <Pressable
-                                    style={({ pressed }) => [styles.cancelBtn, pressed ? { opacity: 0.7 } : null]}
-                                    onPress={onCancel}
-                                >
-                                    <Text style={styles.cancelBtnText}>Cancel</Text>
-                                </Pressable>
-                            ) : null}
-                        </View>
-                    </>
+                        <Text style={styles.takeoverHint}>
+                            {process.canCancel
+                                ? "Minimize to keep using the app — the process keeps running and you can return to it from the pill."
+                                : "Finishing a step that can't be interrupted…"}
+                        </Text>
+                    </ScrollView>
                 )}
+
+                {!terminal ? (
+                    <View style={styles.actionRow}>
+                        <Pressable
+                            style={({ pressed }) => [styles.minimizeBtn, pressed ? { opacity: 0.7 } : null]}
+                            onPress={onMinimize}
+                        >
+                            <Ionicons name="chevron-down" size={16} color={colors.textStrong} />
+                            <Text style={styles.minimizeBtnText}>Minimize</Text>
+                        </Pressable>
+                        {process.canCancel ? (
+                            <Pressable
+                                style={({ pressed }) => [styles.cancelBtn, pressed ? { opacity: 0.7 } : null]}
+                                onPress={onCancel}
+                            >
+                                <Text style={styles.cancelBtnText}>Cancel</Text>
+                            </Pressable>
+                        ) : null}
+                    </View>
+                ) : null}
             </Animated.View>
         </View>
     );
@@ -258,6 +298,8 @@ function MonitorPill({
     const pct = percent ?? 0;
 
     return (
+        // box-none + a self-sized pill: taps outside the pill itself must pass through to
+        // the app (record button, drawer, tabs) — the pill only ever owns its own pixels.
         <View style={[styles.pillWrap, { bottom }]} pointerEvents="box-none">
             <Pressable
                 style={({ pressed }) => [styles.pill, pressed ? { opacity: 0.85 } : null]}
@@ -307,7 +349,7 @@ function MonitorPill({
     );
 }
 
-/** Root-mounted host: renders the active library process as a full sheet or a minimized pill. */
+/** Root-mounted host: renders the active library process as a full-screen takeover or a minimized pill. */
 export function LibraryProcessHost() {
     const process = useProcessStore((s) => s.process);
     const setMinimized = useProcessStore((s) => s.setMinimized);
@@ -342,7 +384,7 @@ export function LibraryProcessHost() {
     }
 
     return (
-        <ProcessSheet
+        <ProcessTakeover
             process={process}
             onMinimize={() => {
                 haptic.tap();
@@ -358,28 +400,17 @@ export function LibraryProcessHost() {
 }
 
 const styles = StyleSheet.create({
-    backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(30,26,24,0.28)" },
-    sheet: {
-        position: "absolute",
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: colors.surfaceContainer,
-        borderTopLeftRadius: 22,
-        borderTopRightRadius: 22,
-        borderTopWidth: 1.5,
-        borderLeftWidth: 1.5,
-        borderRightWidth: 1.5,
-        borderColor: DEEP,
-        paddingHorizontal: 18,
-        paddingTop: 16,
-    },
+    takeoverRoot: { backgroundColor: colors.page, zIndex: 60 },
+    takeoverBody: { flex: 1, paddingHorizontal: 20 },
+    takeoverScroll: { flex: 1 },
+    takeoverScrollContent: { paddingTop: 10, paddingBottom: 12 },
     sheetHeaderRow: {
         flexDirection: "row",
         alignItems: "flex-start",
         justifyContent: "space-between",
-        marginBottom: 14,
+        marginBottom: 18,
     },
+    headerCopy: { flex: 1, minWidth: 0, paddingRight: 12 },
     eyebrow: {
         fontFamily: "PlusJakartaSans_700Bold",
         fontSize: 10,
@@ -388,13 +419,13 @@ const styles = StyleSheet.create({
     },
     sheetTitle: {
         fontFamily: "PlayfairDisplay_600SemiBold",
-        fontSize: 19,
+        fontSize: 24,
         color: colors.textPrimary,
-        marginTop: 1,
+        marginTop: 2,
     },
     headerBtn: {
-        width: 30,
-        height: 30,
+        width: 32,
+        height: 32,
         borderRadius: radii.round,
         backgroundColor: colors.surface,
         borderWidth: 1,
@@ -402,7 +433,7 @@ const styles = StyleSheet.create({
         alignItems: "center",
         justifyContent: "center",
     },
-    timelineRow: { flexDirection: "row", alignItems: "flex-start", marginBottom: 16, marginHorizontal: 2 },
+    timelineRow: { flexDirection: "row", alignItems: "flex-start", marginBottom: 26, marginHorizontal: 2 },
     timelineStepWrap: { flex: 1, alignItems: "center" },
     timelineConnector: { position: "absolute", top: 12, left: -50, right: 50, height: 2 },
     timelineConnectorSpacer: { height: 2 },
@@ -425,40 +456,35 @@ const styles = StyleSheet.create({
         color: colors.textMuted,
         marginTop: 4,
     },
-    progressHeadRow: {
-        flexDirection: "row",
-        alignItems: "baseline",
-        justifyContent: "space-between",
-        marginBottom: 6,
+    bigPercentBlock: { alignItems: "center", marginBottom: 14 },
+    bigPercent: {
+        fontFamily: "PlayfairDisplay_600SemiBold",
+        fontSize: 52,
+        lineHeight: 60,
+        fontVariant: ["tabular-nums"],
     },
     progressMessage: {
         fontFamily: "PlusJakartaSans_600SemiBold",
-        fontSize: 12.5,
-        color: colors.textStrong,
-        flex: 1,
-        minWidth: 0,
-    },
-    progressPercent: {
-        fontFamily: "PlusJakartaSans_700Bold",
-        fontSize: 15,
-        fontVariant: ["tabular-nums"],
+        fontSize: 13,
+        color: colors.textSecondary,
+        marginTop: 2,
     },
     progressTrack: {
         height: 6,
         borderRadius: 999,
         backgroundColor: "#E3D9D0",
         overflow: "hidden",
-        marginBottom: 14,
+        marginBottom: 18,
     },
     progressFill: { height: "100%", borderRadius: 999 },
-    statGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 14 },
+    statGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 16 },
     statTile: {
         flexGrow: 1,
         flexBasis: "47%",
         backgroundColor: colors.surface,
         borderRadius: 10,
-        paddingVertical: 9,
-        paddingHorizontal: 11,
+        paddingVertical: 11,
+        paddingHorizontal: 12,
     },
     statLabel: {
         fontFamily: "PlusJakartaSans_600SemiBold",
@@ -469,15 +495,23 @@ const styles = StyleSheet.create({
     },
     statValue: {
         fontFamily: "PlusJakartaSans_600SemiBold",
-        fontSize: 14,
+        fontSize: 15,
         color: colors.textPrimary,
         fontVariant: ["tabular-nums"],
         marginTop: 1,
     },
-    actionRow: { flexDirection: "row", gap: 8 },
+    takeoverHint: {
+        fontFamily: "PlusJakartaSans_400Regular",
+        fontSize: 12,
+        lineHeight: 17,
+        color: colors.textMuted,
+        textAlign: "center",
+        paddingHorizontal: 18,
+    },
+    actionRow: { flexDirection: "row", gap: 8, paddingTop: 8 },
     minimizeBtn: {
         flex: 1,
-        height: 44,
+        height: 46,
         borderRadius: radii.lg,
         backgroundColor: colors.surfaceHigh,
         flexDirection: "row",
@@ -492,7 +526,7 @@ const styles = StyleSheet.create({
     },
     cancelBtn: {
         flex: 1,
-        height: 44,
+        height: 46,
         borderRadius: radii.lg,
         borderWidth: 1,
         borderColor: colors.borderMuted,
@@ -504,11 +538,11 @@ const styles = StyleSheet.create({
         fontSize: 14,
         color: colors.textSecondary,
     },
-    terminalBlock: { alignItems: "center", paddingTop: 4, paddingBottom: 8, gap: 12 },
+    terminalBlock: { flex: 1, alignItems: "center", justifyContent: "center", gap: 14, paddingBottom: 60 },
     terminalIcon: {
-        width: 54,
-        height: 54,
-        borderRadius: 27,
+        width: 64,
+        height: 64,
+        borderRadius: 32,
         alignItems: "center",
         justifyContent: "center",
     },
@@ -518,23 +552,26 @@ const styles = StyleSheet.create({
         color: colors.textSecondary,
         textAlign: "center",
         lineHeight: 20,
-        paddingHorizontal: 8,
+        paddingHorizontal: 20,
     },
     primaryBtn: {
         alignSelf: "stretch",
-        height: 46,
+        height: 48,
         borderRadius: radii.lg,
         backgroundColor: colors.primary,
         alignItems: "center",
         justifyContent: "center",
-        marginTop: 4,
+        marginTop: 6,
     },
     primaryBtnText: { fontFamily: "PlusJakartaSans_600SemiBold", fontSize: 15, color: colors.onPrimary },
-    pillWrap: { position: "absolute", left: 16, right: 16, zIndex: 55 },
+    // Self-sizing pill: the wrapper is box-none and the pill centers itself, so nothing
+    // outside the pill's own bounds intercepts touches.
+    pillWrap: { position: "absolute", left: 16, right: 16, zIndex: 55, alignItems: "center" },
     pill: {
         flexDirection: "row",
         alignItems: "center",
         gap: 10,
+        maxWidth: "100%",
         backgroundColor: colors.surface,
         borderWidth: 1,
         borderColor: colors.borderMuted,
@@ -555,7 +592,7 @@ const styles = StyleSheet.create({
         alignItems: "center",
         justifyContent: "center",
     },
-    pillCopy: { flex: 1, minWidth: 0 },
+    pillCopy: { flexShrink: 1, minWidth: 0 },
     pillTitle: {
         fontFamily: "PlusJakartaSans_600SemiBold",
         fontSize: 13,

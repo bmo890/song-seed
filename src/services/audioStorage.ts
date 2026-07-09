@@ -225,7 +225,7 @@ function crc32(bytes: Uint8Array) {
     return new IncrementalCrc32().update(bytes).digest();
 }
 
-const ZIP_STREAM_CHUNK_BYTES = 64 * 1024;
+const ZIP_STREAM_CHUNK_BYTES = 512 * 1024;
 const ZIP32_MAX_VALUE = 0xffffffff;
 const ZIP32_MAX_ENTRIES = 0xffff;
 

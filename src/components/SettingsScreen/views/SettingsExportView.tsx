@@ -212,6 +212,13 @@ export function SettingsExportView({ flow, onCancel }: { flow: ExportFlow; onCan
             {flow.selectedSummary.exportableIdeaCount} visible item
             {flow.selectedSummary.exportableIdeaCount === 1 ? "" : "s"} in scope.
           </Text>
+          {flow.generateEstimateLabel ? (
+            <Text style={styles.settingsSummaryMeta}>{flow.generateEstimateLabel}</Text>
+          ) : null}
+          <Text style={styles.settingsSectionHint}>
+            Packaging shows a full-screen progress view — minimize it to keep using the app and
+            return from the pill at the bottom.
+          </Text>
 
           <View style={styles.settingsActionRow}>
             <Button

@@ -231,25 +231,71 @@ export class IncrementalBase64Sha256 {
     }
 }
 
-const CRC32_TABLE = (() => {
-    const table = new Uint32Array(256);
+/**
+ * Slice-by-16 CRC-32 tables. Identical digests to the classic byte-at-a-time table
+ * loop, but processes 16 bytes per iteration — this runs over every backed-up,
+ * exported, and restored byte (often more than once), so its throughput bounds how
+ * long the JS thread is held between UI yields.
+ */
+const CRC32_TABLES = (() => {
+    const tables = new Uint32Array(16 * 256);
     for (let index = 0; index < 256; index += 1) {
         let value = index;
         for (let bit = 0; bit < 8; bit += 1) {
             value = (value & 1) === 1 ? 0xedb88320 ^ (value >>> 1) : value >>> 1;
         }
-        table[index] = value >>> 0;
+        tables[index] = value >>> 0;
     }
-    return table;
+    for (let slice = 1; slice < 16; slice += 1) {
+        for (let index = 0; index < 256; index += 1) {
+            const previous = tables[(slice - 1) * 256 + index];
+            tables[slice * 256 + index] =
+                (tables[previous & 0xff] ^ (previous >>> 8)) >>> 0;
+        }
+    }
+    return tables;
 })();
 
 export class IncrementalCrc32 {
     private value = 0xffffffff;
 
     update(bytes: Uint8Array) {
-        for (let index = 0; index < bytes.length; index += 1) {
-            this.value = CRC32_TABLE[(this.value ^ bytes[index]) & 0xff] ^ (this.value >>> 8);
+        const tables = CRC32_TABLES;
+        let crc = this.value;
+        let index = 0;
+        const blockEnd = bytes.length - 15;
+
+        while (index < blockEnd) {
+            crc ^=
+                bytes[index] |
+                (bytes[index + 1] << 8) |
+                (bytes[index + 2] << 16) |
+                (bytes[index + 3] << 24);
+            crc =
+                tables[15 * 256 + (crc & 0xff)] ^
+                tables[14 * 256 + ((crc >>> 8) & 0xff)] ^
+                tables[13 * 256 + ((crc >>> 16) & 0xff)] ^
+                tables[12 * 256 + (crc >>> 24)] ^
+                tables[11 * 256 + bytes[index + 4]] ^
+                tables[10 * 256 + bytes[index + 5]] ^
+                tables[9 * 256 + bytes[index + 6]] ^
+                tables[8 * 256 + bytes[index + 7]] ^
+                tables[7 * 256 + bytes[index + 8]] ^
+                tables[6 * 256 + bytes[index + 9]] ^
+                tables[5 * 256 + bytes[index + 10]] ^
+                tables[4 * 256 + bytes[index + 11]] ^
+                tables[3 * 256 + bytes[index + 12]] ^
+                tables[2 * 256 + bytes[index + 13]] ^
+                tables[1 * 256 + bytes[index + 14]] ^
+                tables[bytes[index + 15]];
+            index += 16;
         }
+        while (index < bytes.length) {
+            crc = tables[(crc ^ bytes[index]) & 0xff] ^ (crc >>> 8);
+            index += 1;
+        }
+
+        this.value = crc >>> 0;
         return this;
     }
 

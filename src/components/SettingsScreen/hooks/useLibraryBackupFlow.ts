@@ -18,6 +18,12 @@ import {
     isBackupOperationCancelled,
     type BackupOperationProgress,
 } from "../../../services/backupOperation";
+import { estimateDisasterRecoveryBackup } from "../../../services/disasterRecoveryBackup";
+import {
+    estimateLibraryOperationSeconds,
+    formatDurationEstimate,
+} from "../../../services/operationPacing";
+import { formatBytes } from "../../../utils";
 import { useStore } from "../../../state/useStore";
 import { useProcessStore } from "../../../state/useProcessStore";
 import type { BackupReminderFrequency } from "../../../types";
@@ -61,6 +67,44 @@ export function useLibraryBackupFlow() {
     );
 
     const handleBackupNow = async () => {
+        if (useProcessStore.getState().process?.status === "running") {
+            return false;
+        }
+
+        // Cheap size scan (no reads) so the user can decide with a real number in hand.
+        let estimateLine: string | null = null;
+        try {
+            const estimate = await estimateDisasterRecoveryBackup(useStore.getState());
+            if (estimate.fileCount > 0) {
+                const duration = formatDurationEstimate(
+                    estimateLibraryOperationSeconds("backup", estimate.totalBytes)
+                );
+                estimateLine = `${estimate.fileCount} recording${estimate.fileCount === 1 ? "" : "s"} · ${formatBytes(estimate.totalBytes)} · ${duration}`;
+            }
+        } catch {
+            // Estimation is best-effort; the backup itself re-checks everything.
+        }
+
+        return await new Promise<boolean>((resolve) => {
+            AppAlert.custom(
+                "Back up your library?",
+                `${estimateLine ? `${estimateLine}.\n\n` : ""}You can minimize the backup and keep using the app while it runs.`,
+                [
+                    { label: "Not Now", style: "cancel", onPress: () => resolve(false) },
+                    {
+                        label: "Back Up",
+                        style: "default",
+                        icon: "cloud-upload-outline",
+                        onPress: () => {
+                            void runBackup().then(resolve);
+                        },
+                    },
+                ]
+            );
+        });
+    };
+
+    const runBackup = async () => {
         if (useProcessStore.getState().process?.status === "running") {
             return false;
         }
@@ -244,9 +288,16 @@ export function useLibraryBackupFlow() {
             return;
         }
 
+        const sizeLine =
+            typeof asset.size === "number" && asset.size > 0
+                ? ` Restoring ${formatBytes(asset.size)} takes ${formatDurationEstimate(
+                      estimateLibraryOperationSeconds("restore", asset.size)
+                  )}.`
+                : "";
         AppAlert.destructive(
             "Restore from backup?",
-            "This replaces your entire current library with the contents of this backup. Anything not in the backup will be lost, and the app will need to restart afterward.",
+            "This replaces your entire current library with the contents of this backup. Anything not in the backup will be lost, and the app will need to restart afterward." +
+                sizeLine,
             () => {
                 void runRestore(asset.uri);
             },

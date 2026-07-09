@@ -10,7 +10,9 @@ import {
     yieldToBackupUi,
     type BackupOperationOptions,
 } from "./backupOperation";
-import { IncrementalBase64Sha256, IncrementalCrc32 } from "./streamingIntegrity";
+import { IncrementalCrc32 } from "./streamingIntegrity";
+import { sha256OfFileBase64 } from "./fileHashing";
+import { recordLibraryOperationThroughput } from "./operationPacing";
 import { toRelativeWorkspacesManagedMedia } from "../state/rebaseManagedMedia";
 import {
     buildPersistedAppStoreSnapshot,
@@ -39,7 +41,7 @@ const DR_TEMP_DIR = `${SONG_SEED_ROOT}/backup-tmp`;
 const SNAPSHOT_ENTRY = "snapshot.json";
 const MANIFEST_ENTRY = "manifest.json";
 const MEDIA_PREFIX = "media/";
-const BACKUP_STREAM_CHUNK_BYTES = 256 * 1024;
+const BACKUP_STREAM_CHUNK_BYTES = 512 * 1024;
 const BACKUP_UI_YIELD_BYTES = 2 * 1024 * 1024;
 const BACKUP_TEMP_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 
@@ -94,9 +96,12 @@ async function inspectFileIntegrity(
     progressOffsetBytes: number,
     progressTotalBytes: number
 ) {
+    // CRC-32 (needed up front for the ZIP entry header) streams native chunks through
+    // the slice-by-16 JS table; SHA-256 (the v1 manifest digest) is computed natively
+    // off the JS thread by sha256OfFileBase64. Together this replaces the pure-JS
+    // hash loop that ran at ~0.6MB/s and froze the UI for the whole pass.
     const file = new File(absUri);
     const handle = file.open();
-    const sha256 = new IncrementalBase64Sha256();
     const crc32 = new IncrementalCrc32();
     let sizeBytes = 0;
     let bytesSinceYield = 0;
@@ -106,7 +111,6 @@ async function inspectFileIntegrity(
             throwIfBackupCancelled(options?.signal);
             const chunk = handle.readBytes(BACKUP_STREAM_CHUNK_BYTES);
             if (chunk.length === 0) break;
-            sha256.update(chunk);
             crc32.update(chunk);
             sizeBytes += chunk.length;
             bytesSinceYield += chunk.length;
@@ -129,7 +133,8 @@ async function inspectFileIntegrity(
     if (sizeBytes !== expectedSizeBytes) {
         throw new Error("File changed while it was being backed up.");
     }
-    return { sha256: sha256.digestHex(), crc32: crc32.digest(), sizeBytes };
+    const sha256 = await sha256OfFileBase64(absUri, sizeBytes, options);
+    return { sha256, crc32: crc32.digest(), sizeBytes };
 }
 
 function pushManagedRef(
@@ -212,6 +217,30 @@ export function assertZip32ArchiveSize(entries: ZipArchiveEntry[]) {
     return projectedArchiveBytes;
 }
 
+export type DrBackupEstimate = { fileCount: number; totalBytes: number };
+
+/**
+ * Cheap pre-run estimate of what a backup will cover — file count + total bytes only,
+ * no hashing or reading. Feeds the "961 MB · about 2 minutes" confirmation copy.
+ */
+export async function estimateDisasterRecoveryBackup(state: AppStore): Promise<DrBackupEstimate> {
+    const snapshotAbs = buildPersistedAppStoreSnapshot(state);
+    const managedRefs = new Map<string, MediaRef>();
+    for (const ref of collectMediaRefs(snapshotAbs.workspaces)) {
+        if (!ref.relativePath) continue;
+        if (!managedRefs.has(ref.relativePath)) managedRefs.set(ref.relativePath, ref);
+    }
+    let fileCount = 0;
+    let totalBytes = 0;
+    for (const ref of managedRefs.values()) {
+        const info = await FileSystem.getInfoAsync(ref.absUri);
+        if (!info.exists || typeof info.size !== "number" || info.size < 0) continue;
+        fileCount += 1;
+        totalBytes += info.size;
+    }
+    return { fileCount, totalBytes };
+}
+
 /**
  * Build an exact backup archive into a temp location. Read-only with respect to the live
  * library — it only reads existing files and writes a new archive. The caller is
@@ -290,7 +319,7 @@ export async function buildDisasterRecoveryBackup(
     const totalMediaMb = totalMediaBytes / (1024 * 1024);
     console.log(
         `[backup] starting: ${readableRefs.length} files, ${totalMediaMb.toFixed(1)}MB media ` +
-            `(each file is read once to hash + once to package)`
+            `(native SHA-256 + sliced CRC-32, then a packaging pass)`
     );
     let hashedMediaBytes = 0;
     reportBackupProgress(opts, {
@@ -395,11 +424,13 @@ export async function buildDisasterRecoveryBackup(
     const packStartedAt = Date.now();
     await createZipArchive(archiveUri, entries, opts);
     const packMs = Date.now() - packStartedAt;
+    const totalMs = Date.now() - hashStartedAt;
     console.log(
         `[backup] packaging done: ${totalMediaMb.toFixed(1)}MB in ${(packMs / 1000).toFixed(1)}s ` +
             `(${(totalMediaMb / (packMs / 1000 || 1)).toFixed(1)}MB/s). ` +
-            `Backup total: ${((Date.now() - hashStartedAt) / 1000).toFixed(1)}s`
+            `Backup total: ${(totalMs / 1000).toFixed(1)}s`
     );
+    recordLibraryOperationThroughput("backup", totalMediaBytes, totalMs);
 
     return { archiveUri, archiveTitle, manifest };
 }

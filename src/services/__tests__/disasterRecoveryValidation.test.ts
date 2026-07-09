@@ -147,6 +147,63 @@ describe("prepareDisasterRecoverySnapshot", () => {
         ).toThrow("missing critical audio");
     });
 
+    it("preserves every persisted field through restore preparation (full-schema round trip)", () => {
+        // Everything the app persists must come back from a restore. The backup side is
+        // enforced by the PersistedAppStore return type of buildPersistedAppStoreSnapshot;
+        // this locks the restore side: preparation may rewrite media URIs but must never
+        // drop a field, known or newly added.
+        const fullSnapshot = {
+            ...snapshot(),
+            activityEvents: [{ id: "evt-1", kind: "clip-recorded", at: 123 }],
+            activeWorkspaceId: "ws-1",
+            primaryWorkspaceId: "ws-1",
+            primaryCollectionIdByWorkspace: { "ws-1": "collection-1" },
+            lastUsedWorkspaceId: "ws-1",
+            workspaceStartupPreference: "last-used",
+            workspaceListOrder: ["ws-1"],
+            workspaceLastOpenedAt: { "ws-1": 456 },
+            collectionLastOpenedAt: { "collection-1": 789 },
+            playlists: [{ id: "pl-1", title: "Playlist", clipRefs: [] }],
+            songbooks: [{ id: "sb-1", title: "Songbook", songIds: [] }],
+            setlists: [{ id: "sl-1", title: "Setlist", items: [] }],
+            preferredRecordingInputId: "mic-1",
+            bluetoothMonitoringCalibrations: { "device-1": { latencyMs: 120 } },
+            metronomeBpm: 96,
+            metronomeMeterId: "4-4",
+            metronomeOutputs: { beep: true, haptic: false },
+            metronomeBeepLevel: 0.8,
+            metronomeHapticLevel: 0.5,
+            metronomeCountInBars: 1,
+            globalCustomClipTags: ["voice-memo"],
+            backupReminderFrequency: "weekly",
+            hapticsEnabled: true,
+            lastSuccessfulBackupAt: 1720000000000,
+            lastSuccessfulBackupFileName: "Song Seed Backup.zip",
+            notes: [{ id: "note-1", text: "Lyric idea", createdAt: 0, updatedAt: 0 }],
+            wordLadders: [{ id: "wl-1", words: ["seed"] }],
+            cutUpSparks: [{ id: "cs-1", fragments: ["chorus"] }],
+            ideasFilter: "all",
+            ideasSort: "recent",
+            primaryFilter: "all",
+            primarySort: "recent",
+        };
+
+        const prepared = prepareDisasterRecoverySnapshot(fullSnapshot, manifest(), "restore-123");
+
+        for (const key of Object.keys(fullSnapshot)) {
+            expect(prepared.snapshot).toHaveProperty(key);
+            if (key !== "workspaces") {
+                expect((prepared.snapshot as Record<string, unknown>)[key]).toEqual(
+                    (fullSnapshot as Record<string, unknown>)[key]
+                );
+            }
+        }
+        // Workspaces survive too — only media URIs are rewritten to restore destinations.
+        const clip = prepared.snapshot.workspaces[0].ideas[0].clips[0];
+        expect(clip.id).toBe("clip-1");
+        expect(clip.audioUri).toMatch(/^songseed\/audio\/restored-/);
+    });
+
     it("rejects snapshot counts that do not match the manifest", () => {
         expect(() =>
             prepareDisasterRecoverySnapshot(

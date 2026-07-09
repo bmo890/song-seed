@@ -2,9 +2,16 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { AppAlert } from "../../common/AppAlert";
 import {
   estimateLibraryArchiveSizes,
+  estimateLibraryExportArchive,
   exportLibrary,
+  type LibraryExportEstimate,
   type LibraryExportFormat,
 } from "../../../services/libraryExport";
+import {
+  estimateLibraryOperationSeconds,
+  formatDurationEstimate,
+} from "../../../services/operationPacing";
+import { formatBytes } from "../../../utils";
 import { BACKUP_SAVE_CANCELLED_MESSAGE } from "../../../services/archiveSave";
 import type { BackupOperationProgress } from "../../../services/backupOperation";
 import { useStore } from "../../../state/useStore";
@@ -125,6 +132,54 @@ export function useLibraryExportFlow() {
     archiveOptions.includeHiddenItems,
     // eslint-disable-next-line react-hooks/exhaustive-deps
   ]);
+
+  // Pre-run size + duration estimate for the Generate step (both formats). Debounced and
+  // race-guarded like the archive-size estimate above; feeds "≈ 512 MB · about a minute".
+  const [generateEstimate, setGenerateEstimate] = useState<LibraryExportEstimate | null>(null);
+  const generateEstimateTokenRef = useRef(0);
+  useEffect(() => {
+    if (!format || !hasArchiveScope) {
+      setGenerateEstimate(null);
+      return;
+    }
+    const token = ++generateEstimateTokenRef.current;
+    const scope = {
+      workspaceIds: selectedWorkspaceIds,
+      collectionIds: selectedCollectionIds,
+      excludedCollectionIds,
+    };
+    const timer = setTimeout(() => {
+      const args =
+        format === "song-seed-archive"
+          ? ({ workspaces, notes, format, scope, options: archiveOptions } as const)
+          : ({ workspaces, notes, format, scope, options: standardOptions } as const);
+      void estimateLibraryExportArchive(args)
+        .then((estimate) => {
+          if (generateEstimateTokenRef.current === token) setGenerateEstimate(estimate);
+        })
+        .catch(() => {
+          if (generateEstimateTokenRef.current === token) setGenerateEstimate(null);
+        });
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [
+    format,
+    hasArchiveScope,
+    workspaces,
+    notes,
+    selectedWorkspaceIds,
+    selectedCollectionIds,
+    excludedCollectionIds,
+    archiveOptions,
+    standardOptions,
+  ]);
+
+  const generateEstimateLabel =
+    generateEstimate && generateEstimate.totalBytes > 0
+      ? `≈ ${formatBytes(generateEstimate.totalBytes)} · ${formatDurationEstimate(
+          estimateLibraryOperationSeconds("export", generateEstimate.totalBytes)
+        )}`
+      : null;
 
   const selectedSummary = useMemo(
     () =>
@@ -323,6 +378,7 @@ export function useLibraryExportFlow() {
     selectedSummary,
     archiveSizeEstimate,
     isEstimatingArchiveSize,
+    generateEstimateLabel,
     toggleWorkspace,
     toggleCollection,
     toggleArchiveOption,

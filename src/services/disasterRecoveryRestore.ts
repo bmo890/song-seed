@@ -23,7 +23,8 @@ import {
     throwIfBackupCancelled,
     type BackupOperationOptions,
 } from "./backupOperation";
-import { IncrementalBase64Sha256 } from "./streamingIntegrity";
+import { sha256OfFileBase64 } from "./fileHashing";
+import { recordLibraryOperationThroughput } from "./operationPacing";
 import {
     indexStoredZipArchive,
     readStoredZipEntryBytes,
@@ -39,10 +40,12 @@ import { collectManagedLibraryFilePathsFromWorkspaces } from "./managedMedia";
 /**
  * Restore from a disaster-recovery archive produced by `buildDisasterRecoveryBackup`.
  *
- * Safety model: EVERY file is streamed through CRC-32 and SHA-256 verification BEFORE
- * anything is written. Only once all checks pass are media files streamed to unique
- * destinations and the metadata snapshot committed. Metadata is committed LAST, and a
- * restore journal lets the next launch clean files left by a killed restore process.
+ * Safety model: the live library is NEVER touched until every check passes. Media files
+ * are streamed to unique staging destinations (each extraction CRC-32 verified against
+ * the ZIP directory), then every WRITTEN file is SHA-256 verified against the backup
+ * manifest — catching both archive corruption and write corruption — before the metadata
+ * snapshot is committed LAST. Any failure deletes the staged (still unreferenced) files,
+ * and a restore journal lets the next launch clean files left by a killed restore process.
  *
  * The snapshot stores relative media paths; it is committed to SQLite and rebased
  * to absolute URIs by `sanitizePersistedState` on the next hydration, so the caller must
@@ -237,56 +240,12 @@ export async function restoreFromDisasterRecoveryBackup(
     await ensureBackupDiskSpace(totalMediaBytes, "restore this backup");
     throwIfBackupCancelled(options?.signal);
 
-    // Verify every file before writing anything. The backup format hashes each file's
-    // base64 representation for compatibility with existing v1 backups; encoding and
-    // hashing are both incremental here.
-    let verifiedBytes = 0;
-    reportBackupProgress(options, {
-        phase: "verifying",
-        completedBytes: 0,
-        totalBytes: totalMediaBytes,
-        message: "Verifying backup recordings",
-    });
-    for (const record of manifest.files) {
-        throwIfBackupCancelled(options?.signal);
-        const entry = archiveIndex.entries.get(`${MEDIA_PREFIX}${record.path}`);
-        if (!entry) throw new DrRestoreError(`Backup media entry disappeared: ${record.path}`);
-        const sha = new IncrementalBase64Sha256();
-        try {
-            await streamStoredZipEntry(
-                archiveIndex,
-                entry,
-                (chunk) => {
-                    sha.update(chunk);
-                },
-                {
-                    ...options,
-                    phase: "verifying",
-                    progressOffsetBytes: verifiedBytes,
-                    progressTotalBytes: totalMediaBytes,
-                    progressMessage: "Verifying backup recordings",
-                }
-            );
-        } catch (error) {
-            throw new DrRestoreError(
-                error instanceof Error ? error.message : `Audio file is corrupt: ${record.path}`
-            );
-        }
-        if (sha.digestHex() !== record.sha256) {
-            throw new DrRestoreError(`Audio file failed its integrity check: ${record.path}`);
-        }
-        verifiedBytes += record.sizeBytes;
-        reportBackupProgress(options, {
-            phase: "verifying",
-            completedBytes: verifiedBytes,
-            totalBytes: totalMediaBytes,
-            message: "Verifying backup recordings",
-        });
-    }
-
     // Write every restored file to a unique managed destination. Existing live files are
     // never overwritten: if the process stops before metadata commits, the old library is
     // untouched and the partial restore consists only of harmless unreferenced files.
+    // Each extraction is CRC-32 verified in-stream; SHA-256 verification of the written
+    // files (natively, off the JS thread) happens below, before anything is committed.
+    const restoreStartedAt = Date.now();
     const ensuredDirs = new Set<string>();
     const writtenUris: string[] = [];
     let persistenceLocked = false;
@@ -362,6 +321,46 @@ export async function restoreFromDisasterRecoveryBackup(
             });
         }
 
+        // Verify every WRITTEN file against the backup manifest before committing anything.
+        // Native hashing (base64 read + SHA-256 digest) reproduces the v1 manifest format
+        // off the JS thread; a mismatch aborts the restore and deletes the staged files.
+        let verifiedBytes = 0;
+        reportBackupProgress(options, {
+            phase: "verifying",
+            completedBytes: 0,
+            totalBytes: totalMediaBytes,
+            message: "Verifying restored recordings",
+        });
+        for (const record of manifest.files) {
+            throwIfBackupCancelled(options?.signal);
+            const destinationPath = prepared.destinationPathBySourcePath.get(record.path);
+            if (!destinationPath) {
+                throw new DrRestoreError(`Backup restore destination is missing for ${record.path}`);
+            }
+            const targetUri = resolveManagedUri(destinationPath);
+            let sha: string;
+            try {
+                sha = await sha256OfFileBase64(targetUri, record.sizeBytes, options);
+            } catch (error) {
+                if (isBackupOperationCancelled(error)) throw error;
+                throw new DrRestoreError(
+                    error instanceof Error
+                        ? error.message
+                        : `Could not verify restored audio file: ${record.path}`
+                );
+            }
+            if (sha !== record.sha256) {
+                throw new DrRestoreError(`Audio file failed its integrity check: ${record.path}`);
+            }
+            verifiedBytes += record.sizeBytes;
+            reportBackupProgress(options, {
+                phase: "verifying",
+                completedBytes: verifiedBytes,
+                totalBytes: totalMediaBytes,
+                message: "Verifying restored recordings",
+            });
+        }
+
         // Stop new Zustand writes, wait behind any write already in flight, then commit the
         // restored metadata last. The serialized SQLite queue guarantees this snapshot wins.
         throwIfBackupCancelled(options?.signal);
@@ -396,6 +395,7 @@ export async function restoreFromDisasterRecoveryBackup(
     // Lock persistence so the still-loaded (pre-restore) in-memory store cannot write back
     // over the restored snapshot before the app reloads. Publish the blocking runtime state
     // before any best-effort journal bookkeeping so there is no interactive stale-state gap.
+    recordLibraryOperationThroughput("restore", totalMediaBytes, Date.now() - restoreStartedAt);
     const result: DrRestoreResult = {
         status: manifest.status,
         counts: manifest.counts,

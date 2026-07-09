@@ -25,6 +25,7 @@ import { SONG_SEED_SHARE_DIR } from "./storagePaths";
 import { cleanupShareTempFile } from "./managedMedia";
 import { saveArchiveToUserLocation } from "./archiveSave";
 import type { BackupOperationOptions } from "./backupOperation";
+import { recordLibraryOperationThroughput } from "./operationPacing";
 import {
     LIBRARY_EXPORT_SCHEMA_VERSION,
     SONG_SEED_ARCHIVE_FORMAT,
@@ -131,6 +132,35 @@ type ExportBuildContext = {
     exportedNotepadNotes: number;
 };
 
+export type LibraryExportEstimate = { fileCount: number; totalBytes: number };
+
+/**
+ * Cheap pre-run size estimate for the current selection — builds the entry list but
+ * only stats the files, no packaging. Feeds the "512 MB · about a minute" copy shown
+ * before generating an export.
+ */
+export async function estimateLibraryExportArchive(
+    args: ExportLibraryArgs
+): Promise<LibraryExportEstimate> {
+    const build = args.format === "song-seed-archive" ? buildSongSeedArchive(args) : buildStandardZip(args);
+    let fileCount = 0;
+    let totalBytes = 0;
+    for (const entry of build.entries) {
+        if (entry.fileUri) {
+            const info = await FileSystem.getInfoAsync(entry.fileUri);
+            if (info.exists && typeof info.size === "number" && info.size >= 0) {
+                fileCount += 1;
+                totalBytes += info.size;
+            }
+        } else if (typeof entry.data === "string") {
+            totalBytes += entry.data.length;
+        } else if (entry.data) {
+            totalBytes += entry.data.length;
+        }
+    }
+    return { fileCount, totalBytes };
+}
+
 export async function prepareLibraryExportArchive(args: ExportLibraryArgs): Promise<LibraryExportResult> {
     if (!FileSystem.documentDirectory) {
         throw new Error("Document directory unavailable.");
@@ -146,6 +176,7 @@ export async function prepareLibraryExportArchive(args: ExportLibraryArgs): Prom
     const archiveTitle = `${sanitizeArchiveSegment(archiveLabel)} ${buildTimestampSlug()}`;
     const archiveUri = `${SONG_SEED_SHARE_DIR}/${archiveTitle}.zip`;
 
+    let statedSourceBytes = 0;
     const validEntries = await Promise.all(
         build.entries.map(async (entry) => {
             if (!entry.fileUri) {
@@ -154,6 +185,9 @@ export async function prepareLibraryExportArchive(args: ExportLibraryArgs): Prom
 
             const info = await FileSystem.getInfoAsync(entry.fileUri);
             if (info.exists) {
+                if (typeof info.size === "number" && info.size > 0) {
+                    statedSourceBytes += info.size;
+                }
                 return entry;
             }
 
@@ -207,7 +241,9 @@ export async function prepareLibraryExportArchive(args: ExportLibraryArgs): Prom
         onProgress: args.onProgress,
         signal: args.signal,
     });
-    console.log(`[export] packaging done in ${((Date.now() - packStartedAt) / 1000).toFixed(1)}s`);
+    const packMs = Date.now() - packStartedAt;
+    console.log(`[export] packaging done in ${(packMs / 1000).toFixed(1)}s`);
+    recordLibraryOperationThroughput("export", statedSourceBytes, packMs);
 
     return {
         archiveUri,
