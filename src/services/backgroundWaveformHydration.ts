@@ -1,6 +1,7 @@
 import { InteractionManager } from "react-native";
 import { loadManagedAudioMetadata } from "./audioStorage";
 import { ensureWaveformSidecar } from "./waveformSidecar";
+import { waitForForegroundAudioIdle } from "./audioForegroundActivity";
 import { appActions } from "../state/actions";
 import { useStore } from "../state/useStore";
 
@@ -51,6 +52,10 @@ async function processQueue() {
         const job = queue.shift()!;
 
         try {
+            // Never decode/probe while the player is loading or playing — on Android that
+            // native work fights the foreground player for the codec and audio focus and
+            // freezes playback. Wait for the player to go idle first, then for animations.
+            await waitForForegroundAudioIdle();
             await waitForIdleInteractions();
 
             const { clip } = findClip(job);

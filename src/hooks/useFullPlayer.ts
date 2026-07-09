@@ -9,6 +9,7 @@ import {
   getClipPlaybackUri,
 } from "../clipPresentation";
 import { activateAndPlay, replacePlaybackSource } from "../services/transportPlayback";
+import { beginForegroundAudioLoad, endForegroundAudioLoad } from "../services/audioForegroundActivity";
 import { appActions } from "../state/actions";
 import { useStore } from "../state/useStore";
 
@@ -342,6 +343,8 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
     // in user-intent order (claiming after the async URI resolution let a slow early tap
     // cancel a fast later one mid-flight).
     const operationId = ++operationIdRef.current;
+    // Signal foreground load so background hydration stands clear of the codec.
+    beginForegroundAudioLoad();
     try {
       const playbackUri = await resolvePlayableUriWithDiagnostics(ideaId, clip);
       if (!playbackUri) return;
@@ -380,6 +383,7 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
         );
       }
     } finally {
+      endForegroundAudioLoad();
       // Only the owning open clears the in-flight marker (a superseding different-clip
       // open has already claimed it).
       if (openingClipIdRef.current === clip.id) {
@@ -401,6 +405,7 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
     shouldPlay = false
   ) => {
     const operationId = ++operationIdRef.current;
+    beginForegroundAudioLoad();
     try {
       const playbackUri = await resolvePlayableUriWithDiagnostics(ideaId, clip);
       if (!playbackUri) return;
@@ -443,6 +448,7 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
         );
       }
     } finally {
+      endForegroundAudioLoad();
       if (isMountedRef.current) setEngineOpNonce((n) => n + 1);
     }
   }, [holdSourcePositionAt, isOperationActive, player, releaseSourcePositionHold]);

@@ -87,9 +87,9 @@ const BACKWARD_SNAP_MS = 80;
 // Frames the reel keeps showing the scrub target after a seek is committed, before it
 // resumes following position reports. Covers the native seek latency (the source is still
 // repositioning) so a stale in-flight report can't flash the playhead to the old spot the
-// instant the lock releases. ~16 frames (≈260ms) was too short for larger files; ≈470ms
-// covers the common seek-and-settle window.
-const SCRUB_SETTLE_FRAMES = 28;
+// instant the lock releases. ~16 frames (≈260ms) was too short (stale flash); ≈470ms held
+// the playhead visibly still after a scrub. ≈330ms is the middle ground.
+const SCRUB_SETTLE_FRAMES = 20;
 const PAUSE_VISUAL_HOLD_MS = 220;
 // How far the frame-rate predictor may coast ahead of the last reported position
 // before it stops and waits. Position reports arrive ~every 50ms but the JS thread
