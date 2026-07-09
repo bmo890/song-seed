@@ -930,7 +930,7 @@ function AppContent() {
           }}
         />
         </PlayerSheetPositionProvider>
-        <ImportProgressBanner />
+        <ImportProgressBanner hidden={isDrawerOpen} />
         <DuplicateReviewSheet />
       </NavigationContainer>
       <RestoreRestartGate />

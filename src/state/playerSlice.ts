@@ -40,6 +40,10 @@ export type PlayerSlice = {
      *  SelectionDock and other bottom-anchored UI to avoid being covered. */
     playerDockHeight: number;
     setPlayerDockHeight: (height: number) => void;
+    /** Measured height of the import-progress bar (0 when not importing). Bottom-anchored
+     *  controls (FAB dock) add this so they sit above it rather than under it. */
+    importBannerHeight: number;
+    setImportBannerHeight: (height: number) => void;
     /** Keeps an existing dock visible while its full Player transition is opening. */
     playerDockPresentationHold: boolean;
     setPlayerDockPresentationHold: (hold: boolean) => void;
@@ -191,6 +195,9 @@ export const createPlayerSlice: StateCreator<PlayerSlice> = (set) => ({
     setPlayerScreenMounted: (mounted) => set({ isPlayerScreenMounted: mounted }),
     playerDockHeight: 0,
     setPlayerDockHeight: (height) => set({ playerDockHeight: height }),
+    importBannerHeight: 0,
+    setImportBannerHeight: (height) =>
+        set((state) => (state.importBannerHeight === height ? state : { importBannerHeight: height })),
     playerDockPresentationHold: false,
     setPlayerDockPresentationHold: (hold) => set({ playerDockPresentationHold: hold }),
     activeSelectionDockHeight: 0,
