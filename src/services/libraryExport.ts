@@ -24,6 +24,7 @@ import {
 import { SONG_SEED_SHARE_DIR } from "./storagePaths";
 import { cleanupShareTempFile } from "./managedMedia";
 import { saveArchiveToUserLocation } from "./archiveSave";
+import type { BackupOperationOptions } from "./backupOperation";
 import {
     LIBRARY_EXPORT_SCHEMA_VERSION,
     SONG_SEED_ARCHIVE_FORMAT,
@@ -62,8 +63,14 @@ export type StandardZipOptions = {
     includeHiddenItems: boolean;
 };
 
+/** Progress + cancellation shared by both export formats (mirrors backups). */
+type ExportProgressArgs = {
+    onProgress?: BackupOperationOptions["onProgress"];
+    signal?: AbortSignal;
+};
+
 export type ExportLibraryArgs =
-    | {
+    | ({
           workspaces: Workspace[];
           notes: Note[];
           format: "song-seed-archive";
@@ -73,15 +80,15 @@ export type ExportLibraryArgs =
           songbooks?: Songbook[];
           setlists?: Setlist[];
           archiveLabel?: string;
-      }
-    | {
+      } & ExportProgressArgs)
+    | ({
           workspaces: Workspace[];
           notes: Note[];
           format: "standard-zip";
           scope: LibraryExportScope;
           options: StandardZipOptions;
           archiveLabel?: string;
-      };
+      } & ExportProgressArgs);
 
 export type LibraryExportResult = {
     archiveUri: string;
@@ -193,7 +200,14 @@ export async function prepareLibraryExportArchive(args: ExportLibraryArgs): Prom
         throw new Error("Nothing to export for the current selection.");
     }
 
-    await createZipArchive(archiveUri, zipEntries);
+    const fileEntryCount = zipEntries.filter((entry) => !!entry.fileUri).length;
+    console.log(`[export] packaging ${fileEntryCount} file(s) into ${args.format} archive…`);
+    const packStartedAt = Date.now();
+    await createZipArchive(archiveUri, zipEntries, {
+        onProgress: args.onProgress,
+        signal: args.signal,
+    });
+    console.log(`[export] packaging done in ${((Date.now() - packStartedAt) / 1000).toFixed(1)}s`);
 
     return {
         archiveUri,

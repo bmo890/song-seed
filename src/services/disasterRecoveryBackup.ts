@@ -287,6 +287,11 @@ export async function buildDisasterRecoveryBackup(
     // Fail before an expensive checksum pass when the temporary archive cannot fit.
     await ensureBackupDiskSpace(totalMediaBytes, "create this backup");
     throwIfBackupCancelled(opts?.signal);
+    const totalMediaMb = totalMediaBytes / (1024 * 1024);
+    console.log(
+        `[backup] starting: ${readableRefs.length} files, ${totalMediaMb.toFixed(1)}MB media ` +
+            `(each file is read once to hash + once to package)`
+    );
     let hashedMediaBytes = 0;
     reportBackupProgress(opts, {
         phase: "hashing",
@@ -295,8 +300,10 @@ export async function buildDisasterRecoveryBackup(
         message: "Verifying recordings",
     });
 
+    const hashStartedAt = Date.now();
     for (const ref of readableRefs) {
         throwIfBackupCancelled(opts?.signal);
+        const fileStartedAt = Date.now();
         let integrity: Awaited<ReturnType<typeof inspectFileIntegrity>>;
         try {
             integrity = await inspectFileIntegrity(
@@ -306,6 +313,14 @@ export async function buildDisasterRecoveryBackup(
                 hashedMediaBytes,
                 totalMediaBytes
             );
+            const fileMs = Date.now() - fileStartedAt;
+            // Surface individual slow files (a big recording that dominates the pass).
+            if (fileMs > 800) {
+                console.log(
+                    `[backup] slow hash: ${(ref.sizeBytes / (1024 * 1024)).toFixed(1)}MB in ${fileMs}ms ` +
+                        `(${((ref.sizeBytes / (1024 * 1024)) / (fileMs / 1000)).toFixed(1)}MB/s) — ${ref.relativePath}`
+                );
+            }
         } catch (error) {
             if (opts?.signal?.aborted) throw error;
             missing.push({
@@ -337,6 +352,12 @@ export async function buildDisasterRecoveryBackup(
             message: "Verifying recordings",
         });
     }
+
+    const hashMs = Date.now() - hashStartedAt;
+    console.log(
+        `[backup] hashing (sha256+crc32) done: ${totalMediaMb.toFixed(1)}MB in ${(hashMs / 1000).toFixed(1)}s ` +
+            `(${(totalMediaMb / (hashMs / 1000 || 1)).toFixed(1)}MB/s)`
+    );
 
     const manifest: DrBackupManifest = {
         formatVersion: DR_BACKUP_FORMAT_VERSION,
@@ -371,7 +392,14 @@ export async function buildDisasterRecoveryBackup(
         totalBytes: totalMediaBytes,
         message: "Packaging backup",
     });
+    const packStartedAt = Date.now();
     await createZipArchive(archiveUri, entries, opts);
+    const packMs = Date.now() - packStartedAt;
+    console.log(
+        `[backup] packaging done: ${totalMediaMb.toFixed(1)}MB in ${(packMs / 1000).toFixed(1)}s ` +
+            `(${(totalMediaMb / (packMs / 1000 || 1)).toFixed(1)}MB/s). ` +
+            `Backup total: ${((Date.now() - hashStartedAt) / 1000).toFixed(1)}s`
+    );
 
     return { archiveUri, archiveTitle, manifest };
 }

@@ -6,6 +6,7 @@ import {
   type LibraryExportFormat,
 } from "../../../services/libraryExport";
 import { BACKUP_SAVE_CANCELLED_MESSAGE } from "../../../services/archiveSave";
+import type { BackupOperationProgress } from "../../../services/backupOperation";
 import { useStore } from "../../../state/useStore";
 import type { Workspace } from "../../../types";
 import { getCollectionScopeIds } from "../../../utils";
@@ -30,6 +31,13 @@ const DEFAULT_STANDARD_OPTIONS: StandardExportOptions = {
   includeHiddenItems: false,
 };
 
+function formatExportProgress(progress: BackupOperationProgress | null): string | null {
+  if (!progress) return null;
+  if (progress.totalBytes <= 0) return progress.message;
+  const percent = Math.min(100, Math.max(0, Math.round((progress.completedBytes / progress.totalBytes) * 100)));
+  return `${progress.message} · ${percent}%`;
+}
+
 export function useLibraryExportFlow() {
   const workspaces = useStore((state) => state.workspaces);
   const notes = useStore((state) => state.notes);
@@ -47,6 +55,7 @@ export function useLibraryExportFlow() {
   const [archiveOptions, setArchiveOptions] = useState(DEFAULT_ARCHIVE_OPTIONS);
   const [standardOptions, setStandardOptions] = useState(DEFAULT_STANDARD_OPTIONS);
   const [isExporting, setIsExporting] = useState(false);
+  const [exportProgress, setExportProgress] = useState<BackupOperationProgress | null>(null);
   const [archiveSizeEstimate, setArchiveSizeEstimate] = useState<
     { standardBytes: number; fullBytes: number } | null
   >(null);
@@ -220,6 +229,7 @@ export function useLibraryExportFlow() {
     }
 
     setIsExporting(true);
+    setExportProgress({ phase: "preparing", completedBytes: 0, totalBytes: 0, message: "Preparing export" });
     try {
       const scope = {
         workspaceIds: selectedWorkspaceIds,
@@ -236,6 +246,7 @@ export function useLibraryExportFlow() {
               format,
               scope,
               options: archiveOptions,
+              onProgress: setExportProgress,
               libraryPreferences: {
                 primaryWorkspaceId,
                 primaryCollectionIdByWorkspace: Object.fromEntries(
@@ -252,6 +263,7 @@ export function useLibraryExportFlow() {
               format,
               scope,
               options: standardOptions,
+              onProgress: setExportProgress,
             });
 
       const summary = `${result.exportedWorkspaces} workspace${result.exportedWorkspaces === 1 ? "" : "s"}, ${result.exportedCollections} collection${result.exportedCollections === 1 ? "" : "s"}, ${result.exportedSongs} song${result.exportedSongs === 1 ? "" : "s"}, ${result.exportedStandaloneClips} standalone clip${result.exportedStandaloneClips === 1 ? "" : "s"}, and ${result.exportedNotepadNotes} notepad note${result.exportedNotepadNotes === 1 ? "" : "s"}`;
@@ -276,6 +288,7 @@ export function useLibraryExportFlow() {
       AppAlert.info("Export failed", message);
     } finally {
       setIsExporting(false);
+      setExportProgress(null);
     }
   };
 
@@ -292,6 +305,7 @@ export function useLibraryExportFlow() {
     archiveOptions,
     standardOptions,
     isExporting,
+    exportProgressLabel: formatExportProgress(exportProgress),
     includeHiddenItems,
     selectedSummary,
     archiveSizeEstimate,

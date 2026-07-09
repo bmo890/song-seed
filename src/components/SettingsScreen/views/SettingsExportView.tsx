@@ -215,7 +215,11 @@ export function SettingsExportView({ flow, onCancel }: { flow: ExportFlow; onCan
 
           <View style={styles.settingsActionRow}>
             <Button
-              label={flow.isExporting ? "Preparing..." : "Generate Export"}
+              label={
+                flow.isExporting
+                  ? flow.exportProgressLabel ?? "Preparing…"
+                  : "Generate Export"
+              }
               onPress={() => {
                 void flow.handleExport();
               }}
