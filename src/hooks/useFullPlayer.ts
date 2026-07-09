@@ -107,6 +107,13 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
   // target at call time without depending on the state value.
   const playerTargetRef = useRef<PlayerTarget>(null);
   playerTargetRef.current = playerTarget;
+  // The clip currently being loaded, and whether it should play once loaded. Repeated
+  // opens of the SAME clip coalesce onto the in-flight load instead of restarting it —
+  // without this, mashing play during a slow load (big library) makes each press abort
+  // the previous load via a new operation id, so nothing ever finishes (a livelock that
+  // only clears after you stop pressing). A different clip still supersedes normally.
+  const openingClipIdRef = useRef<string | null>(null);
+  const autoplayWhenLoadedRef = useRef(false);
   const previousDidJustFinishRef = useRef(false);
   const lastPublishedPlaybackRef = useRef({
     at: 0,
@@ -315,9 +322,18 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
     metadata?: LockScreenMetadata,
     autoPlay = false
   ) => {
-    // Claim the operation BEFORE the first await so concurrent opens supersede each
-    // other in user-intent order (claiming after the async URI resolution let a slow
-    // early tap cancel a fast later one mid-flight).
+    // Already loading THIS clip: coalesce onto the in-flight load rather than aborting
+    // and restarting it (that's the mash-play-during-load livelock). Only ever upgrade
+    // to autoplay — a later plain open must not cancel an autoplay a play-press asked for.
+    if (openingClipIdRef.current === clip.id) {
+      if (autoPlay) autoplayWhenLoadedRef.current = true;
+      return;
+    }
+    openingClipIdRef.current = clip.id;
+    autoplayWhenLoadedRef.current = autoPlay;
+    // Claim the operation BEFORE the first await so a DIFFERENT clip supersedes this one
+    // in user-intent order (claiming after the async URI resolution let a slow early tap
+    // cancel a fast later one mid-flight).
     const operationId = ++operationIdRef.current;
     try {
       const playbackUri = await resolvePlayableUriWithDiagnostics(ideaId, clip);
@@ -333,7 +349,9 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
         await player.pause();
         if (!isOperationActive(operationId)) return;
 
-        await replacePlaybackSource(player, playbackUri, autoPlay);
+        // Read the autoplay intent as late as possible so a play-press that arrived
+        // during the (slow) load window is honored on this same load.
+        await replacePlaybackSource(player, playbackUri, autoplayWhenLoadedRef.current);
         if (!isOperationActive(operationId)) return;
         currentSourceUriRef.current = playbackUri;
         // Publish the active target only after the source has loaded. That keeps the UI and
@@ -355,6 +373,12 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
         );
       }
     } finally {
+      // Only the owning open clears the in-flight marker (a superseding different-clip
+      // open has already claimed it).
+      if (openingClipIdRef.current === clip.id) {
+        openingClipIdRef.current = null;
+        autoplayWhenLoadedRef.current = false;
+      }
       // Settle signal — aborted opens change no other state, and without this the
       // screen's load effect never re-runs and the engine stays on the OLD clip
       // while every store-driven surface shows the new one.
