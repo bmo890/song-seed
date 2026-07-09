@@ -90,7 +90,14 @@ type LockScreenMetadata = {
 // positions leak through and the playhead visibly "jumps back and around" before
 // landing. Convergence releases the gate early, so fast seeks pay nothing.
 const SOURCE_POSITION_GATE_MS = 2500;
-const SOURCE_POSITION_GATE_TOLERANCE_MS = 120;
+// How close the native clock must land to the seek target before the gate releases and
+// resumes showing the real position. Must be wide enough to count a normal landing as
+// "arrived" — m4a/AAC seeks snap to the nearest keyframe (often 150–300ms off the request),
+// and a resumed playhead moves further away each frame. Too tight (the old 120ms) meant a
+// keyframe-off or playing seek never converged, so the gate froze the display at the target
+// for the full timeout and then snapped — the "jumps away then returns" scrub glitch. A
+// backward/forward scrub's STALE pre-seek report is seconds away, so this still rejects it.
+const SOURCE_POSITION_GATE_TOLERANCE_MS = 320;
 
 export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
   const [playerTarget, setPlayerTarget] = useState<PlayerTarget>(null);
