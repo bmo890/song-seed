@@ -277,68 +277,36 @@ export async function archiveWorkspaceToDevice(workspace: Workspace): Promise<Wo
     const archiveInfo = await FileSystem.getInfoAsync(archiveUri);
     const packageSizeBytes =
         "size" in archiveInfo && typeof archiveInfo.size === "number" ? archiveInfo.size : 0;
+    const originalMetadataBytes = estimateJsonBytes(workspaceSnapshot);
+
+    // No disk-savings gate. Recordings are already compressed (m4a), so the stored
+    // package is necessarily about as large as the audio it holds — a "must free disk
+    // space" gate can never pass and blocked the feature entirely. Archiving's real
+    // value is tucking the workspace away without deleting anything and trimming its
+    // heavy metadata (waveform peaks, etc.) out of the ACTIVE persisted store, which
+    // `savingsBytes` now reports. True disk savings belong to a future "offload the
+    // package to Files/Drive" flow.
     const provisionalArchiveState: WorkspaceArchiveState = {
         schemaVersion: WORKSPACE_ARCHIVE_SCHEMA_VERSION,
         archivedAt: Date.now(),
         archiveUri,
         packageSizeBytes,
         originalAudioBytes,
-        originalMetadataBytes: estimateJsonBytes(workspaceSnapshot),
+        originalMetadataBytes,
         archivedMetadataBytes: 0,
         savingsBytes: 0,
         audioFileCount: mediaFiles.length,
         missingFileCount: missingFileUris.length,
     };
-    const archivedWorkspacePreview = stripWorkspaceMedia(workspaceSnapshot, provisionalArchiveState);
-    const archivedMetadataBytes = estimateJsonBytes(archivedWorkspacePreview);
-    const savingsBytes =
-        originalAudioBytes +
-        provisionalArchiveState.originalMetadataBytes -
-        (provisionalArchiveState.packageSizeBytes + archivedMetadataBytes);
-
-    if (savingsBytes <= 0) {
-        await FileSystem.deleteAsync(archiveUri, { idempotent: true });
-        throw new Error("Archiving would not reduce storage for this workspace.");
-    }
-
+    // The archived stub embeds this state, so measure the stub once with provisional
+    // numbers and finalize with the (few-bytes-different) real ones.
+    const archivedMetadataBytes = estimateJsonBytes(
+        stripWorkspaceMedia(workspaceSnapshot, provisionalArchiveState)
+    );
     const archiveState: WorkspaceArchiveState = {
         ...provisionalArchiveState,
         archivedMetadataBytes,
-        savingsBytes,
-    };
-    const archivedWorkspace = stripWorkspaceMedia(workspaceSnapshot, archiveState);
-    const exactArchivedMetadataBytes = estimateJsonBytes(archivedWorkspace);
-    const exactSavingsBytes =
-        originalAudioBytes +
-        provisionalArchiveState.originalMetadataBytes -
-        (provisionalArchiveState.packageSizeBytes + exactArchivedMetadataBytes);
-
-    if (exactSavingsBytes <= 0) {
-        await FileSystem.deleteAsync(archiveUri, { idempotent: true });
-        throw new Error("Archiving would not reduce storage for this workspace.");
-    }
-
-    let finalizedArchiveState: WorkspaceArchiveState = {
-        ...archiveState,
-        archivedMetadataBytes: exactArchivedMetadataBytes,
-        savingsBytes: exactSavingsBytes,
-    };
-    const finalizedArchivedWorkspace = stripWorkspaceMedia(workspaceSnapshot, finalizedArchiveState);
-    const finalArchivedMetadataBytes = estimateJsonBytes(finalizedArchivedWorkspace);
-    const finalSavingsBytes =
-        originalAudioBytes +
-        provisionalArchiveState.originalMetadataBytes -
-        (provisionalArchiveState.packageSizeBytes + finalArchivedMetadataBytes);
-
-    if (finalSavingsBytes <= 0) {
-        await FileSystem.deleteAsync(archiveUri, { idempotent: true });
-        throw new Error("Archiving would not reduce storage for this workspace.");
-    }
-
-    finalizedArchiveState = {
-        ...finalizedArchiveState,
-        archivedMetadataBytes: finalArchivedMetadataBytes,
-        savingsBytes: finalSavingsBytes,
+        savingsBytes: Math.max(0, originalMetadataBytes - archivedMetadataBytes),
     };
 
     const warnings =
@@ -349,8 +317,8 @@ export async function archiveWorkspaceToDevice(workspace: Workspace): Promise<Wo
             : [];
 
     return {
-        archivedWorkspace: stripWorkspaceMedia(workspaceSnapshot, finalizedArchiveState),
-        archiveState: finalizedArchiveState,
+        archivedWorkspace: stripWorkspaceMedia(workspaceSnapshot, archiveState),
+        archiveState,
         originalAudioUris: mediaFiles.map((file) => file.liveUri),
         warnings,
     };

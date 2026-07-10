@@ -45,12 +45,12 @@ export function useWorkspaceArchiveActions({
     try {
       const result = await appActions.archiveWorkspace(workspaceId);
       const summary = [
-        `Packed ${result.archiveState.audioFileCount} audio file${
+        `Packed ${result.archiveState.audioFileCount} recording${
           result.archiveState.audioFileCount === 1 ? "" : "s"
-        } into ${formatBytes(result.archiveState.packageSizeBytes)}.`,
-        `Saved ${formatBytes(
+        } into a single ${formatBytes(result.archiveState.packageSizeBytes)} package on this device.`,
+        `The workspace left your active list and your working library got ${formatBytes(
           result.archiveState.savingsBytes
-        )} on device while keeping the workspace structure and metadata live.`,
+        )} lighter. Restore it anytime.`,
       ];
       if (result.warnings.length > 0) {
         summary.push(result.warnings.join(" "));
@@ -209,7 +209,7 @@ export function useWorkspaceArchiveActions({
     if (workspace.isArchived) {
       AppAlert.confirm(
         `Unarchive ${workspace.title}?`,
-        "This restores the compressed audio and returns the workspace to the active list.",
+        "This unpacks the workspace's audio and returns it to your active list, exactly as it was.",
         () => {
           void runUnarchiveWorkspace(workspace.id);
         },
@@ -220,7 +220,7 @@ export function useWorkspaceArchiveActions({
 
     AppAlert.confirm(
       `Archive ${workspace.title}?`,
-      "This compresses the workspace audio, removes the workspace from the active list, and keeps it available to restore later.",
+      "Tucks this workspace away without deleting anything: its recordings move into a single package on this device, it leaves your active list, and your working library gets lighter. Restore it anytime.",
       () => {
         void runArchiveWorkspace(workspace.id);
       },

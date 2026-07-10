@@ -124,7 +124,9 @@ jest.mock("../audioStorage", () => ({
                 zipInput[entry.archiveName] = bytes;
             }
         }
-        mockFiles.set(archiveUri, zip(zipInput));
+        // Stored (uncompressed), matching the real createZipArchive — the streaming
+        // restore reader only accepts stored entries.
+        mockFiles.set(archiveUri, zip(zipInput, { level: 0 }));
     },
 }));
 
@@ -139,9 +141,8 @@ const STEM_B_URI = `${AUDIO_DIR}/stem-b.m4a`;
 const MIX_URI = `${AUDIO_DIR}/rendered-mix.m4a`;
 const ALL_MEDIA_URIS = [MASTER_URI, SOURCE_URI, STEM_A_URI, STEM_B_URI, MIX_URI];
 
-/** Highly compressible payloads so the zip is far smaller than the originals and
- *  the archive's savings guard passes. Each file gets distinct bytes so restore
- *  verification proves content round-tripped, not just existence. */
+/** Each file gets distinct bytes so restore verification proves content
+ *  round-tripped, not just existence. */
 function seedAudioFile(uri: string, fill: number, sizeBytes = 16 * 1024) {
     const bytes = new Uint8Array(sizeBytes).fill(fill);
     mockFiles.set(uri, bytes);
@@ -281,17 +282,23 @@ describe("archiveWorkspaceToDevice (v2)", () => {
         expect(result.archivedWorkspace.isArchived).toBe(true);
     });
 
+    it("archives despite the stored package being at least as large as the audio (no disk-savings gate)", async () => {
+        const result = await archiveWorkspaceToDevice(buildWorkspace());
+
+        // Stored package ≥ raw audio — the old "must reduce storage" gate made archiving
+        // impossible in production. savingsBytes now reports the live-library metadata trim.
+        expect(result.archiveState.packageSizeBytes).toBeGreaterThanOrEqual(
+            result.archiveState.originalAudioBytes
+        );
+        expect(result.archiveState.savingsBytes).toBeGreaterThanOrEqual(0);
+        expect(result.archiveState.savingsBytes).toBe(
+            result.archiveState.originalMetadataBytes - result.archiveState.archivedMetadataBytes
+        );
+    });
+
     it("round-trips: restore rewrites all five files byte-for-byte and revives overdub URIs", async () => {
         const originalBytes = new Map(ALL_MEDIA_URIS.map((uri) => [uri, mockFiles.get(uri)!]));
         const result = await archiveWorkspaceToDevice(buildWorkspace());
-
-        // Production packages are STORED (createZipArchive never compresses); the creation
-        // mock compresses only to satisfy the savings gate, so re-pack the same entries as
-        // stored before exercising the streaming restore reader.
-        mockFiles.set(
-            result.archiveState.archiveUri,
-            zipSync(unzipSync(mockFiles.get(result.archiveState.archiveUri)!), { level: 0 })
-        );
 
         // Simulate the post-archive cleanup that trashes the live originals.
         ALL_MEDIA_URIS.forEach((uri) => mockFiles.delete(uri));
