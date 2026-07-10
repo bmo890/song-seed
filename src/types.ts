@@ -121,6 +121,64 @@ export type CutUpSpark = {
   seenHelpSteps: CutUpStep[];
 };
 
+// ── Magpie Spark ─────────────────────────────────────────────────────────────
+/** A third Lyrics Spark exercise, after Jeff Tweedy's "stealing words from a
+ * book" prompt (How to Write One Song, 2020): open a real book to a random page,
+ * hum a melody, and pocket the words and phrases that sound good against it — then
+ * compile the collected fragments into a fresh lyric. Named "Magpie" for the bird
+ * that gathers what catches its eye. Lives in the global Lyrics Notebook alongside
+ * Notes, Word Ladders, and Cut-Ups; not attached to a song unless sent on. */
+export type MagpieStep = "page" | "build";
+
+/** The public-domain book a page is pulled from (Project Gutenberg). `textUrl`
+ * is a plain-text file we Range-fetch a page from. */
+export type MagpieBook = {
+  /** Project Gutenberg id as a string, or a "bundled-*" id for offline passages. */
+  id: string;
+  title: string;
+  author: string;
+  textUrl: string;
+};
+
+/** A word or phrase pocketed from a page. Carries provenance (which book) and the
+ * text as originally pocketed, so a later edit (e.g. a tense change) can show what
+ * it came from. */
+export type MagpieFragment = {
+  id: string;
+  /** Current text — may have been edited on the build step. */
+  text: string;
+  /** The text exactly as pocketed from the page; `text` differs once edited. */
+  originalText: string;
+  bookTitle: string;
+  bookAuthor: string;
+  order: number;
+  createdAt: number;
+};
+
+export type MagpieSpark = {
+  id: string;
+  type: "magpie";
+  title: string;
+  createdAt: number;
+  updatedAt: number;
+  /** Wizard position: pluck words from the page, then build a draft. */
+  step: MagpieStep;
+  /** The book the current page belongs to; null until the first page loads. */
+  book: MagpieBook | null;
+  /** The trimmed passage currently on screen (persisted so it survives reopen). */
+  pageText: string;
+  /** The growing pile — persists across new pages and new books. */
+  fragments: MagpieFragment[];
+  /** The compiled + edited draft, preserved alongside the fragments. */
+  draft: string;
+  /** Whether to draw from the whole Gutenberg library (true) or the curated pool
+   * (false). */
+  wholeLibrary: boolean;
+  savedLyricId?: string;
+  /** Steps whose help has already been opened — highlight on first visit. */
+  seenHelpSteps: MagpieStep[];
+};
+
 export type BluetoothMonitoringCalibration = {
   routeKey: string;
   routeLabel: string;

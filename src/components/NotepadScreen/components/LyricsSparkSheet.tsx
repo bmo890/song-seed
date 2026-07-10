@@ -9,9 +9,10 @@ type Props = {
   onClose: () => void;
   onNewWordLadder: () => void;
   onNewCutUp: () => void;
+  onNewMagpie: () => void;
 };
 
-export function LyricsSparkSheet({ visible, onClose, onNewWordLadder, onNewCutUp }: Props) {
+export function LyricsSparkSheet({ visible, onClose, onNewWordLadder, onNewCutUp, onNewMagpie }: Props) {
   return (
     <BottomSheet visible={visible} onClose={onClose}>
       <Text style={sheetStyles.title}>Lyrics Spark</Text>
@@ -43,6 +44,21 @@ export function LyricsSparkSheet({ visible, onClose, onNewWordLadder, onNewCutUp
           <Text style={sheetStyles.optionTitle}>Cut-Up</Text>
           <Text style={sheetStyles.optionBody}>
             Slice a stuck lyric into strips, shuffle them, and rebuild it into something new.
+          </Text>
+        </View>
+      </Pressable>
+
+      <Pressable
+        style={({ pressed }) => [sheetStyles.option, pressed ? appStyles.pressDown : null]}
+        onPress={onNewMagpie}
+      >
+        <View style={sheetStyles.iconWrap}>
+          <Ionicons name="book-outline" size={18} color={colors.primary} />
+        </View>
+        <View style={sheetStyles.optionCopy}>
+          <Text style={sheetStyles.optionTitle}>Magpie</Text>
+          <Text style={sheetStyles.optionBody}>
+            Open a real book to a random page and pocket the words that catch your ear.
           </Text>
         </View>
       </Pressable>

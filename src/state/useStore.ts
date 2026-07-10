@@ -46,6 +46,7 @@ import {
 import { normalizeBluetoothMonitoringCalibrations } from "../bluetoothMonitoring";
 import { sanitizeWordLadders } from "../wordLadder";
 import { sanitizeCutUpSparks } from "../cutUp";
+import { sanitizeMagpieSparks } from "../magpie";
 import {
     getLastPersistedIdeaCount,
     isHydrationComplete,
@@ -202,6 +203,7 @@ export function sanitizePersistedState(state?: Partial<PersistedAppStore>): Pers
         notes: Array.isArray(state?.notes) ? state.notes : [],
         wordLadders: sanitizeWordLadders(state?.wordLadders),
         cutUpSparks: sanitizeCutUpSparks(state?.cutUpSparks),
+        magpieSparks: sanitizeMagpieSparks(state?.magpieSparks),
         backupReminderFrequency: isBackupReminderFrequency(state?.backupReminderFrequency)
             ? state.backupReminderFrequency
             : DEFAULT_BACKUP_REMINDER_FREQUENCY,

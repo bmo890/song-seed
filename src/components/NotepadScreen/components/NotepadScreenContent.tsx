@@ -17,7 +17,8 @@ import { styles } from "../../../styles";
 import { colors, radii, spacing, text as textTokens } from "../../../design/tokens";
 import { exerciseSummary } from "../../../wordLadder";
 import { cutUpSummary } from "../../../cutUp";
-import type { Note, WordLadderExercise, CutUpSpark } from "../../../types";
+import { magpieSummary } from "../../../magpie";
+import type { Note, WordLadderExercise, CutUpSpark, MagpieSpark } from "../../../types";
 import {
   buildSearchPreviewSegments,
   deriveNotePreviewBody,
@@ -237,6 +238,55 @@ function CutUpListItem({
   );
 }
 
+type MagpieItemProps = {
+  spark: MagpieSpark;
+  selectionMode: boolean;
+  isSelected: boolean;
+  onPress: (spark: MagpieSpark) => void;
+  onBeginSelection: (sparkId: string) => void;
+  onToggleSelect: (sparkId: string) => void;
+};
+
+function MagpieListItem({
+  spark,
+  selectionMode,
+  isSelected,
+  onPress,
+  onBeginSelection,
+  onToggleSelect,
+}: MagpieItemProps) {
+  return (
+    <Pressable
+      style={({ pressed }) => [
+        noteStyles.card,
+        noteStyles.ladderCard,
+        isSelected ? noteStyles.cardSelected : null,
+        pressed ? styles.pressDown : null,
+      ]}
+      onPress={() => onPress(spark)}
+      onLongPress={() => (selectionMode ? onToggleSelect(spark.id) : onBeginSelection(spark.id))}
+      delayLongPress={250}
+    >
+      <View style={noteStyles.ladderIconWrap}>
+        <Ionicons name="book-outline" size={16} color={colors.primary} />
+      </View>
+      <View style={noteStyles.cardBody}>
+        <Text style={noteStyles.cardTitle} numberOfLines={1}>
+          {spark.title}
+        </Text>
+        <Text style={noteStyles.cardMeta}>MAGPIE  ·  {magpieSummary(spark)}</Text>
+      </View>
+      {selectionMode ? (
+        <View style={[noteStyles.selectIndicator, isSelected ? noteStyles.selectIndicatorChecked : null]}>
+          {isSelected ? <Ionicons name="checkmark" size={13} color={colors.onPrimary} /> : null}
+        </View>
+      ) : (
+        <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+      )}
+    </Pressable>
+  );
+}
+
 export function NotepadScreenContent() {
   const {
     sections,
@@ -248,9 +298,11 @@ export function NotepadScreenContent() {
     handleNewNote,
     handleNewWordLadder,
     handleNewCutUp,
+    handleNewMagpie,
     handleOpenNote,
     handleOpenLadder,
     handleOpenCutUp,
+    handleOpenMagpie,
     handleCloseNote,
     handleUpdateNote,
     handleTogglePin,
@@ -260,14 +312,17 @@ export function NotepadScreenContent() {
     selectedNoteIds,
     selectedLadderIds,
     selectedCutUpIds,
+    selectedMagpieIds,
     allSelected,
     allSelectedPinned,
     beginSelection,
     beginLadderSelection,
     beginCutUpSelection,
+    beginMagpieSelection,
     toggleSelectNote,
     toggleSelectLadder,
     toggleSelectCutUp,
+    toggleSelectMagpie,
     cancelSelection,
     selectAllVisible,
     handleDeleteSelected,
@@ -294,11 +349,13 @@ export function NotepadScreenContent() {
 
   const emptyBody = "Verses, hooks, and lines that don't have a song yet.";
   const countLabel = `${totalEntryCount} page${totalEntryCount === 1 ? "" : "s"} of lyrics and loose lines.`;
-  const selectedCount = selectedNoteIds.length + selectedLadderIds.length + selectedCutUpIds.length;
+  const selectedCount =
+    selectedNoteIds.length + selectedLadderIds.length + selectedCutUpIds.length + selectedMagpieIds.length;
   // Sparks support only Delete — the note-specific actions (Add to Song,
   // Pin, Duplicate, Share) don't apply, so a selection containing any spark
   // collapses the dock to just Delete.
-  const hasSparkSelection = selectedLadderIds.length > 0 || selectedCutUpIds.length > 0;
+  const hasSparkSelection =
+    selectedLadderIds.length > 0 || selectedCutUpIds.length > 0 || selectedMagpieIds.length > 0;
 
   function confirmDeleteSelected() {
     AppAlert.destructive(
@@ -466,7 +523,7 @@ export function NotepadScreenContent() {
                           onBeginSelection={beginLadderSelection}
                           onToggleSelect={toggleSelectLadder}
                         />
-                      ) : (
+                      ) : entry.kind === "cutup" ? (
                         <CutUpListItem
                           key={entry.spark.id}
                           spark={entry.spark}
@@ -475,6 +532,16 @@ export function NotepadScreenContent() {
                           onPress={handleOpenCutUp}
                           onBeginSelection={beginCutUpSelection}
                           onToggleSelect={toggleSelectCutUp}
+                        />
+                      ) : (
+                        <MagpieListItem
+                          key={entry.spark.id}
+                          spark={entry.spark}
+                          selectionMode={selectionMode}
+                          isSelected={selectedMagpieIds.includes(entry.spark.id)}
+                          onPress={handleOpenMagpie}
+                          onBeginSelection={beginMagpieSelection}
+                          onToggleSelect={toggleSelectMagpie}
                         />
                       )
                     )}
@@ -514,6 +581,10 @@ export function NotepadScreenContent() {
         onNewCutUp={() => {
           setSparkSheetVisible(false);
           handleNewCutUp();
+        }}
+        onNewMagpie={() => {
+          setSparkSheetVisible(false);
+          handleNewMagpie();
         }}
       />
     </SafeAreaView>

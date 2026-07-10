@@ -36,6 +36,7 @@ import {
     Note,
     WordLadderExercise,
     CutUpSpark,
+    MagpieSpark,
     BluetoothMonitoringCalibration,
     ClipOverdubState,
     ClipOverdubRootSettings,
@@ -44,6 +45,7 @@ import {
 } from "../types";
 import { createWordLadderExercise } from "../wordLadder";
 import { createCutUpSpark } from "../cutUp";
+import { createMagpieSpark } from "../magpie";
 import { sanitizeChordSheet } from "../chordSheet";
 import { genChildClipTitle, genRootClipTitle } from "../utils";
 import { buildClipGraph } from "../clipGraph";
@@ -145,6 +147,10 @@ export type DataSlice = {
     addCutUpSpark: (sourceText?: string) => string;
     updateCutUpSpark: (id: string, updates: Partial<Omit<CutUpSpark, "id" | "type" | "createdAt">>) => void;
     deleteCutUpSpark: (id: string) => void;
+    magpieSparks: MagpieSpark[];
+    addMagpieSpark: () => string;
+    updateMagpieSpark: (id: string, updates: Partial<Omit<MagpieSpark, "id" | "type" | "createdAt">>) => void;
+    deleteMagpieSpark: (id: string) => void;
     setBackupReminderFrequency: (value: BackupReminderFrequency) => void;
     setHapticsEnabled: (value: boolean) => void;
     setPromptForClipName: (value: boolean) => void;
@@ -1144,6 +1150,7 @@ export const createDataSlice: StateCreator<
     notes: [],
     wordLadders: [],
     cutUpSparks: [],
+    magpieSparks: [],
     backupReminderFrequency: "monthly",
     hapticsEnabled: true,
     promptForClipName: true,
@@ -1340,6 +1347,19 @@ export const createDataSlice: StateCreator<
         })),
     deleteCutUpSpark: (id) =>
         set((state) => ({ cutUpSparks: state.cutUpSparks.filter((spark) => spark.id !== id) })),
+    addMagpieSpark: () => {
+        const spark = createMagpieSpark();
+        set((state) => ({ magpieSparks: [spark, ...state.magpieSparks] }));
+        return spark.id;
+    },
+    updateMagpieSpark: (id, updates) =>
+        set((state) => ({
+            magpieSparks: state.magpieSparks.map((spark) =>
+                spark.id === id ? { ...spark, ...updates, updatedAt: Date.now() } : spark
+            ),
+        })),
+    deleteMagpieSpark: (id) =>
+        set((state) => ({ magpieSparks: state.magpieSparks.filter((spark) => spark.id !== id) })),
     setBackupReminderFrequency: (value) => set({ backupReminderFrequency: value }),
     setHapticsEnabled: (value) => set({ hapticsEnabled: value }),
     setPromptForClipName: (value) => set({ promptForClipName: value }),
