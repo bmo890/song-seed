@@ -23,6 +23,7 @@ import type { ChordPlacement, ChordSheet, LyricsDocument, LyricsLine, RecordingG
 import { buildLyricsTextFromNote } from "../notepad";
 import { buildDefaultIdeaTitle, ensureUniqueCountedTitle, ensureUniqueIdeaTitle } from "../utils";
 import { archiveWorkspaceToDevice, restoreWorkspaceFromDevice } from "../services/workspaceArchive";
+import { saveArchiveToUserLocation } from "../services/archiveSave";
 import type { ParsedSongSeedArchive } from "../services/libraryImport";
 import { materializeSongSeedArchiveMerge } from "../services/libraryImport";
 import { findOrphanedAudioFiles, enrichOrphanedClips, buildRecoveredIdeas, findWorkspaceArchives, restoreWorkspaceFromArchive, restoreFromManifest } from "../services/audioRecovery";
@@ -2677,7 +2678,7 @@ export const appActions = {
         return result;
     },
 
-    unarchiveWorkspace: async (workspaceId: string) => {
+    unarchiveWorkspace: async (workspaceId: string, pickedArchiveUri?: string) => {
         const state = useStore.getState();
         const workspace = state.workspaces.find((item) => item.id === workspaceId) ?? null;
         if (!workspace) {
@@ -2704,13 +2705,32 @@ export const appActions = {
             };
         }
 
-        await upsertPendingWorkspaceArchiveOperation({
-            kind: "unarchive-restore",
-            workspaceId,
-            archiveUri: workspace.archiveState.archiveUri,
-            createdAt: Date.now(),
-        });
-        const result = await restoreWorkspaceFromDevice(workspace);
+        const offloaded = Boolean(workspace.archiveState.offloadedAt);
+        if (offloaded && !pickedArchiveUri) {
+            throw new Error(
+                `The package for this workspace was moved to your storage${
+                    workspace.archiveState.offloadedFileName
+                        ? ` as "${workspace.archiveState.offloadedFileName}"`
+                        : ""
+                }. Pick that file to restore it.`
+            );
+        }
+
+        if (!offloaded) {
+            // Journal only for the local-package path: resume re-restores from the local
+            // file. An offloaded restore reads a user-picked cache file that won't exist
+            // on relaunch — the user simply retries; audio writes are idempotent.
+            await upsertPendingWorkspaceArchiveOperation({
+                kind: "unarchive-restore",
+                workspaceId,
+                archiveUri: workspace.archiveState.archiveUri,
+                createdAt: Date.now(),
+            });
+        }
+        const result = await restoreWorkspaceFromDevice(
+            workspace,
+            offloaded ? pickedArchiveUri : undefined
+        );
         useStore.setState((store) => ({
             workspaces: store.workspaces.map((item) =>
                 item.id === workspaceId ? result.restoredWorkspace : item
@@ -2718,15 +2738,75 @@ export const appActions = {
             activeWorkspaceId: store.activeWorkspaceId ?? workspaceId,
         }));
         await persistCurrentStoreSnapshot();
-        await upsertPendingWorkspaceArchiveOperation({
-            kind: "unarchive-cleanup",
-            workspaceId,
-            archiveUri: workspace.archiveState.archiveUri,
-            createdAt: Date.now(),
-        });
-        await deleteManagedArchiveUri(workspace.archiveState.archiveUri);
+        if (!offloaded) {
+            await upsertPendingWorkspaceArchiveOperation({
+                kind: "unarchive-cleanup",
+                workspaceId,
+                archiveUri: workspace.archiveState.archiveUri,
+                createdAt: Date.now(),
+            });
+            await deleteManagedArchiveUri(workspace.archiveState.archiveUri);
+        }
         await clearPendingWorkspaceArchiveOperation(workspaceId);
         return result;
+    },
+
+    /**
+     * Move an archived workspace's package to a user-chosen location (Files / Drive).
+     * Saves only — the caller confirms the save landed (the iOS share sheet can't
+     * report it) and then calls finalizeWorkspaceOffload to record it and free the
+     * local copy. Throws BACKUP_SAVE_CANCELLED_MESSAGE if the user backs out.
+     */
+    offloadArchivedWorkspace: async (workspaceId: string) => {
+        const state = useStore.getState();
+        const workspace = state.workspaces.find((item) => item.id === workspaceId) ?? null;
+        if (!workspace?.isArchived || !workspace.archiveState) {
+            throw new Error("Only an archived workspace's package can be moved.");
+        }
+        if (workspace.archiveState.offloadedAt) {
+            throw new Error("This workspace's package is already stored outside the app.");
+        }
+        const archiveUri = workspace.archiveState.archiveUri;
+        const fileName = archiveUri.split("/").pop() ?? `${workspace.title}.songseed-workspace.zip`;
+        const saved = await saveArchiveToUserLocation(archiveUri, fileName);
+        return { saveConfirmed: saved.saveConfirmed, fileName };
+    },
+
+    /** Record a confirmed offload in the store, persist it, then delete the local package. */
+    finalizeWorkspaceOffload: async (workspaceId: string, fileName: string) => {
+        const state = useStore.getState();
+        const workspace = state.workspaces.find((item) => item.id === workspaceId) ?? null;
+        if (!workspace?.isArchived || !workspace.archiveState) {
+            throw new Error("Only an archived workspace's package can be moved.");
+        }
+        const archiveUri = workspace.archiveState.archiveUri;
+
+        useStore.setState((store) => ({
+            workspaces: store.workspaces.map((item) =>
+                item.id === workspaceId && item.archiveState
+                    ? {
+                          ...item,
+                          archiveState: {
+                              ...item.archiveState,
+                              offloadedAt: Date.now(),
+                              offloadedFileName: fileName,
+                          },
+                      }
+                    : item
+            ),
+        }));
+        // Persist the offload marker BEFORE deleting: if we die in between, the journal
+        // finishes the delete on next launch (and only because the marker is persisted).
+        await persistCurrentStoreSnapshot();
+        await upsertPendingWorkspaceArchiveOperation({
+            kind: "offload-cleanup",
+            workspaceId,
+            archiveUri,
+            createdAt: Date.now(),
+        });
+        await deleteManagedArchiveUri(archiveUri);
+        await clearPendingWorkspaceArchiveOperation(workspaceId);
+        return { freedBytes: workspace.archiveState.packageSizeBytes };
     },
 
     recoverOrphanedAudio: async (

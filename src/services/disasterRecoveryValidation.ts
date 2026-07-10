@@ -363,8 +363,13 @@ export function prepareDisasterRecoverySnapshot(
 
     const workspaces: Workspace[] = [];
     for (const workspace of snapshot.workspaces) {
+        // An offloaded workspace's package deliberately lives OUTSIDE the backup (in the
+        // user's own storage) — its stub restores as-is and unarchiving asks for the file.
+        const offloaded = Boolean(workspace.archiveState?.offloadedAt);
+
         if (
             salvage &&
+            !offloaded &&
             workspace.archiveState?.archiveUri &&
             !salvage.hasDestination(workspace.archiveState.archiveUri)
         ) {
@@ -381,13 +386,15 @@ export function prepareDisasterRecoverySnapshot(
         workspaces.push({
             ...workspace,
             archiveState: workspace.archiveState
-                ? {
-                      ...workspace.archiveState,
-                      archiveUri: requireDestination(
-                          workspace.archiveState.archiveUri,
-                          `archived workspace ${workspace.id}`
-                      )!,
-                  }
+                ? offloaded
+                    ? workspace.archiveState
+                    : {
+                          ...workspace.archiveState,
+                          archiveUri: requireDestination(
+                              workspace.archiveState.archiveUri,
+                              `archived workspace ${workspace.id}`
+                          )!,
+                      }
                 : undefined,
             ideas: workspace.ideas.map((idea) => {
                 const hadPrimary = idea.clips.some((clip) => clip.isPrimary);

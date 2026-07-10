@@ -223,6 +223,49 @@ describe("prepareDisasterRecoverySnapshot", () => {
         ]);
     });
 
+    it("keeps an offloaded workspace stub even though its package is absent from the backup", () => {
+        const offloadedWorkspace = {
+            id: "ws-offloaded",
+            title: "Offloaded",
+            collections: [],
+            ideas: [],
+            isArchived: true,
+            archiveState: {
+                schemaVersion: 2,
+                archivedAt: 1,
+                archiveUri: "songseed/workspace-archives/gone.songseed-workspace.zip",
+                packageSizeBytes: 10,
+                originalAudioBytes: 10,
+                originalMetadataBytes: 1,
+                archivedMetadataBytes: 1,
+                savingsBytes: 0,
+                audioFileCount: 1,
+                missingFileCount: 0,
+                offloadedAt: 123,
+                offloadedFileName: "gone.songseed-workspace.zip",
+            },
+        };
+        const value = snapshot();
+        (value.workspaces as unknown[]).push(offloadedWorkspace);
+
+        for (const salvage of [false, true]) {
+            const prepared = prepareDisasterRecoverySnapshot(
+                value,
+                manifest({ counts: { workspaces: 2, collections: 1, ideas: 1, clips: 1 } }),
+                "restore-123",
+                { salvage }
+            );
+            const stub = prepared.snapshot.workspaces.find((ws) => ws.id === "ws-offloaded");
+            expect(stub).toBeDefined();
+            // The stub survives untouched — unarchiving asks the user for the file.
+            expect(stub!.archiveState?.archiveUri).toBe(
+                "songseed/workspace-archives/gone.songseed-workspace.zip"
+            );
+            expect(stub!.archiveState?.offloadedAt).toBe(123);
+            expect(prepared.skipped).toEqual([]);
+        }
+    });
+
     it("without salvage, missing critical audio still fails preparation", () => {
         const value = snapshot();
         value.workspaces[0].ideas[0].clips[0].audioUri = "songseed/audio/gone.m4a";

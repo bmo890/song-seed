@@ -152,8 +152,10 @@ function pushManagedRef(
 function collectMediaRefs(workspaces: Workspace[]): MediaRef[] {
     const refs: MediaRef[] = [];
     for (const workspace of workspaces) {
-        // Archived workspaces keep their only copy of audio inside the archive package.
-        if (workspace.archiveState?.archiveUri) {
+        // Archived workspaces keep their only copy of audio inside the archive package —
+        // unless it was offloaded to the user's own storage, in which case the file is
+        // deliberately not on this device and must not mark the backup incomplete.
+        if (workspace.archiveState?.archiveUri && !workspace.archiveState.offloadedAt) {
             pushManagedRef(
                 refs,
                 workspace.archiveState.archiveUri,

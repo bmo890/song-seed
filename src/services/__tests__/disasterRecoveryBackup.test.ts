@@ -192,6 +192,44 @@ describe("buildDisasterRecoveryBackup", () => {
         );
     });
 
+    it("keeps a backup complete when an archived workspace's package is offloaded", async () => {
+        const bytes = Uint8Array.from({ length: 2048 }, (_, index) => index & 0xff);
+        mockFiles.set(AUDIO_URI, bytes);
+        // An offloaded workspace: its package lives in the user's own storage (not on
+        // device, not in this backup) — that must NOT mark the backup incomplete.
+        mockSnapshot.workspaces.push({
+            id: "ws-offloaded",
+            title: "Offloaded",
+            collections: [],
+            ideas: [],
+            archiveState: {
+                schemaVersion: 2,
+                archivedAt: 1,
+                archiveUri: "file:///doc/songseed/workspace-archives/gone.songseed-workspace.zip",
+                packageSizeBytes: 10,
+                originalAudioBytes: 10,
+                originalMetadataBytes: 1,
+                archivedMetadataBytes: 1,
+                savingsBytes: 0,
+                audioFileCount: 1,
+                missingFileCount: 0,
+                offloadedAt: 123,
+                offloadedFileName: "gone.songseed-workspace.zip",
+            },
+        } as never);
+
+        try {
+            const result = await buildDisasterRecoveryBackup({} as never);
+            expect(result.manifest.status).toBe("complete");
+            expect(result.manifest.missing).toEqual([]);
+            expect(
+                result.manifest.files.some((file) => file.path.includes("workspace-archives"))
+            ).toBe(false);
+        } finally {
+            mockSnapshot.workspaces.pop();
+        }
+    });
+
     it("rejects low storage before creating a ZIP", async () => {
         mockFiles.set(AUDIO_URI, Uint8Array.from([1, 2, 3]));
         mockGetFreeDiskStorageAsync.mockResolvedValueOnce(1);

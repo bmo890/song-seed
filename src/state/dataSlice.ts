@@ -849,6 +849,12 @@ function normalizeWorkspaceArchiveState(archiveState: WorkspaceArchiveState | un
         savingsBytes: archiveState.savingsBytes,
         audioFileCount: archiveState.audioFileCount,
         missingFileCount: archiveState.missingFileCount,
+        ...(Number.isFinite(archiveState.offloadedAt)
+            ? { offloadedAt: archiveState.offloadedAt }
+            : null),
+        ...(typeof archiveState.offloadedFileName === "string" && archiveState.offloadedFileName
+            ? { offloadedFileName: archiveState.offloadedFileName }
+            : null),
     };
 }
 

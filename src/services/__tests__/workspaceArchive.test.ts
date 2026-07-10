@@ -319,6 +319,50 @@ describe("archiveWorkspaceToDevice (v2)", () => {
     });
 });
 
+describe("offloaded package restore (user-picked file)", () => {
+    it("restores from a picked package copy at a different uri", async () => {
+        const originalBytes = new Map(ALL_MEDIA_URIS.map((uri) => [uri, mockFiles.get(uri)!]));
+        const result = await archiveWorkspaceToDevice(buildWorkspace());
+
+        // Simulate offload: the package now lives only at a picked/cache location.
+        const pickedUri = "file:///cache/picked-package.zip";
+        mockFiles.set(pickedUri, mockFiles.get(result.archiveState.archiveUri)!);
+        mockFiles.delete(result.archiveState.archiveUri);
+        ALL_MEDIA_URIS.forEach((uri) => mockFiles.delete(uri));
+        const offloadedWorkspace = {
+            ...result.archivedWorkspace,
+            archiveState: {
+                ...result.archiveState,
+                offloadedAt: 123,
+                offloadedFileName: "picked-package.zip",
+            },
+        };
+
+        const restore = await restoreWorkspaceFromDevice(offloadedWorkspace, pickedUri);
+
+        expect(restore.restoredWorkspace.isArchived).toBe(false);
+        for (const uri of ALL_MEDIA_URIS) {
+            expect(Buffer.from(mockFiles.get(uri)!)).toEqual(Buffer.from(originalBytes.get(uri)!));
+        }
+    });
+
+    it("rejects a picked package belonging to a different workspace", async () => {
+        const result = await archiveWorkspaceToDevice(buildWorkspace());
+        const pickedUri = "file:///cache/picked-package.zip";
+        mockFiles.set(pickedUri, mockFiles.get(result.archiveState.archiveUri)!);
+
+        const otherWorkspace = {
+            ...result.archivedWorkspace,
+            id: "ws-other",
+            archiveState: { ...result.archiveState, offloadedAt: 123 },
+        };
+
+        await expect(restoreWorkspaceFromDevice(otherWorkspace, pickedUri)).rejects.toThrow(
+            "does not match this workspace"
+        );
+    });
+});
+
 describe("v1 package compatibility", () => {
     it("restores a v1 archive (masters only; overdub media never packed or stripped)", async () => {
         const workspace = buildWorkspace();

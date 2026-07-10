@@ -324,12 +324,21 @@ export async function archiveWorkspaceToDevice(workspace: Workspace): Promise<Wo
     };
 }
 
-export async function restoreWorkspaceFromDevice(workspace: Workspace): Promise<WorkspaceRestoreResult> {
+export async function restoreWorkspaceFromDevice(
+    workspace: Workspace,
+    /** Restore from a user-picked package (offloaded workspaces) instead of the local one. */
+    overrideArchiveUri?: string
+): Promise<WorkspaceRestoreResult> {
     if (!workspace.isArchived || !workspace.archiveState) {
-        throw new Error("This workspace does not have a compressed archive package to restore.");
+        throw new Error("This workspace does not have an archive package to restore.");
     }
 
-    const verification = await verifyArchiveFile(workspace.archiveState.archiveUri, workspace.id);
+    // verifyArchiveFile checks the package's manifest + snapshot workspace id, so a
+    // picked file that belongs to a different workspace is rejected before any write.
+    const verification = await verifyArchiveFile(
+        overrideArchiveUri ?? workspace.archiveState.archiveUri,
+        workspace.id
+    );
     const writtenFiles: ArchiveableMediaFile[] = [];
 
     try {
