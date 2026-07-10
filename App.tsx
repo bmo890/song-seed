@@ -57,6 +57,7 @@ import { TunerScreen } from "./src/components/TunerScreen";
 import { NotepadScreen } from "./src/components/NotepadScreen";
 import { WordLadderScreen } from "./src/components/WordLadderScreen";
 import { CutUpScreen } from "./src/components/CutUpScreen";
+import { MagpieScreen } from "./src/components/MagpieScreen";
 import { MetronomeScreen } from "./src/components/MetronomeScreen";
 import { ShareImportScreen } from "./src/components/ShareImportScreen";
 import { SearchScreen } from "./src/components/SearchScreen";
@@ -96,6 +97,7 @@ export type HomeDrawerParamList = {
   NotepadHome: { noteId?: string; openToken?: number } | undefined;
   WordLadderHome: { exerciseId?: string } | undefined;
   CutUpHome: { sparkId?: string } | undefined;
+  MagpieHome: { sparkId?: string } | undefined;
 };
 
 export type WorkspaceStackParamList = {
@@ -142,6 +144,7 @@ const HOME_DRAWER_ROUTE_NAMES: Array<keyof HomeDrawerParamList> = [
   "NotepadHome",
   "WordLadderHome",
   "CutUpHome",
+  "MagpieHome",
 ];
 const WORKSPACE_STACK_ROUTE_NAMES: Array<keyof WorkspaceStackParamList> = [
   "Browse",
@@ -488,7 +491,8 @@ function DrawerContent({ navigation, state }: DrawerContentComponentProps) {
             ? "settings"
             : deepestRouteName === "NotepadHome" ||
                 deepestRouteName === "WordLadderHome" ||
-                deepestRouteName === "CutUpHome"
+                deepestRouteName === "CutUpHome" ||
+                deepestRouteName === "MagpieHome"
               ? "notepad"
               : null;
 
@@ -616,6 +620,7 @@ function DrawerRoutes() {
       <Drawer.Screen name="NotepadHome" component={NotepadScreen} />
       <Drawer.Screen name="WordLadderHome" component={WordLadderScreen} />
       <Drawer.Screen name="CutUpHome" component={CutUpScreen} />
+      <Drawer.Screen name="MagpieHome" component={MagpieScreen} />
     </Drawer.Navigator>
   );
 }

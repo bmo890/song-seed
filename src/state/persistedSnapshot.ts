@@ -3,7 +3,7 @@ import { isPersistBlocked } from "./persistRuntime";
 import type { AppStore, PersistedAppStore } from "./storeTypes";
 
 export const STORE_NAME = "song-seed-store";
-export const STORE_VERSION = 11;
+export const STORE_VERSION = 12;
 
 export function buildPersistedAppStoreSnapshot(state: AppStore): PersistedAppStore {
     return {
@@ -37,6 +37,7 @@ export function buildPersistedAppStoreSnapshot(state: AppStore): PersistedAppSto
         notes: state.notes,
         wordLadders: state.wordLadders,
         cutUpSparks: state.cutUpSparks,
+        magpieSparks: state.magpieSparks,
         ideasFilter: state.ideasFilter,
         ideasSort: state.ideasSort,
         primaryFilter: state.primaryFilter,

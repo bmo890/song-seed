@@ -3,12 +3,13 @@ import { Share } from "react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { useStore } from "../../../state/useStore";
 import { buildShareTextFromNotes } from "../../../notepad";
-import type { Note, WordLadderExercise, CutUpSpark } from "../../../types";
+import type { Note, WordLadderExercise, CutUpSpark, MagpieSpark } from "../../../types";
 
 export type NotebookEntry =
   | { kind: "note"; updatedAt: number; isPinned: boolean; note: Note }
   | { kind: "ladder"; updatedAt: number; isPinned: false; exercise: WordLadderExercise }
-  | { kind: "cutup"; updatedAt: number; isPinned: false; spark: CutUpSpark };
+  | { kind: "cutup"; updatedAt: number; isPinned: false; spark: CutUpSpark }
+  | { kind: "magpie"; updatedAt: number; isPinned: false; spark: MagpieSpark };
 
 export function useNotepadScreenModel() {
   const route = useRoute<any>();
@@ -24,6 +25,9 @@ export function useNotepadScreenModel() {
   const cutUpSparks = useStore((s) => s.cutUpSparks);
   const addCutUpSpark = useStore((s) => s.addCutUpSpark);
   const deleteCutUpSpark = useStore((s) => s.deleteCutUpSpark);
+  const magpieSparks = useStore((s) => s.magpieSparks);
+  const addMagpieSpark = useStore((s) => s.addMagpieSpark);
+  const deleteMagpieSpark = useStore((s) => s.deleteMagpieSpark);
 
   const [activeNoteId, setActiveNoteId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -31,6 +35,7 @@ export function useNotepadScreenModel() {
   const [selectedNoteIds, setSelectedNoteIds] = useState<string[]>([]);
   const [selectedLadderIds, setSelectedLadderIds] = useState<string[]>([]);
   const [selectedCutUpIds, setSelectedCutUpIds] = useState<string[]>([]);
+  const [selectedMagpieIds, setSelectedMagpieIds] = useState<string[]>([]);
   const handledRouteOpenTokenRef = useRef<number | null>(null);
   const hasAutoOpenedRef = useRef(false);
 
@@ -71,6 +76,20 @@ export function useNotepadScreenModel() {
     });
   }, [cutUpSparks, searchQuery]);
 
+  const filteredMagpies = useMemo(() => {
+    const needle = searchQuery.trim().toLowerCase();
+    if (!needle) return magpieSparks;
+    return magpieSparks.filter((spark) => {
+      return (
+        spark.title.toLowerCase().includes(needle) ||
+        spark.draft.toLowerCase().includes(needle) ||
+        spark.fragments.some((f) => f.text.toLowerCase().includes(needle)) ||
+        (spark.book?.title.toLowerCase().includes(needle) ?? false) ||
+        (spark.book?.author.toLowerCase().includes(needle) ?? false)
+      );
+    });
+  }, [magpieSparks, searchQuery]);
+
   const entries: NotebookEntry[] = useMemo(() => {
     const noteEntries: NotebookEntry[] = filteredNotes.map((note) => ({
       kind: "note",
@@ -90,8 +109,14 @@ export function useNotepadScreenModel() {
       isPinned: false,
       spark,
     }));
-    return [...noteEntries, ...ladderEntries, ...cutUpEntries];
-  }, [filteredNotes, filteredLadders, filteredCutUps]);
+    const magpieEntries: NotebookEntry[] = filteredMagpies.map((spark) => ({
+      kind: "magpie",
+      updatedAt: spark.updatedAt,
+      isPinned: false,
+      spark,
+    }));
+    return [...noteEntries, ...ladderEntries, ...cutUpEntries, ...magpieEntries];
+  }, [filteredNotes, filteredLadders, filteredCutUps, filteredMagpies]);
 
   const sections = useMemo(() => {
     const startOfToday = new Date();
@@ -135,7 +160,8 @@ export function useNotepadScreenModel() {
   }, [entries]);
 
   const totalNoteCount = notes.length;
-  const totalEntryCount = notes.length + wordLadders.length + cutUpSparks.length;
+  const totalEntryCount =
+    notes.length + wordLadders.length + cutUpSparks.length + magpieSparks.length;
   const isSearching = searchQuery.trim().length > 0;
 
   const activeNote = useMemo(
@@ -172,6 +198,11 @@ export function useNotepadScreenModel() {
     const id = addCutUpSpark("");
     navigation.navigate("CutUpHome", { sparkId: id });
   }, [addCutUpSpark, navigation]);
+
+  const handleNewMagpie = useCallback(() => {
+    const id = addMagpieSpark();
+    navigation.navigate("MagpieHome", { sparkId: id });
+  }, [addMagpieSpark, navigation]);
 
   useEffect(() => {
     if (hasAutoOpenedRef.current) return;
@@ -217,6 +248,17 @@ export function useNotepadScreenModel() {
     [navigation, selectionMode] // eslint-disable-line react-hooks/exhaustive-deps
   );
 
+  const handleOpenMagpie = useCallback(
+    (spark: MagpieSpark) => {
+      if (selectionMode) {
+        toggleSelectMagpie(spark.id);
+        return;
+      }
+      navigation.navigate("MagpieHome", { sparkId: spark.id });
+    },
+    [navigation, selectionMode] // eslint-disable-line react-hooks/exhaustive-deps
+  );
+
   const handleCloseNote = useCallback(() => {
     if (activeNoteId) {
       const note = notes.find((n) => n.id === activeNoteId);
@@ -258,6 +300,7 @@ export function useNotepadScreenModel() {
     setSelectedNoteIds([noteId]);
     setSelectedLadderIds([]);
     setSelectedCutUpIds([]);
+    setSelectedMagpieIds([]);
   }, []);
 
   const beginLadderSelection = useCallback((ladderId: string) => {
@@ -265,6 +308,7 @@ export function useNotepadScreenModel() {
     setSelectedLadderIds([ladderId]);
     setSelectedNoteIds([]);
     setSelectedCutUpIds([]);
+    setSelectedMagpieIds([]);
   }, []);
 
   const beginCutUpSelection = useCallback((cutUpId: string) => {
@@ -272,6 +316,15 @@ export function useNotepadScreenModel() {
     setSelectedCutUpIds([cutUpId]);
     setSelectedNoteIds([]);
     setSelectedLadderIds([]);
+    setSelectedMagpieIds([]);
+  }, []);
+
+  const beginMagpieSelection = useCallback((magpieId: string) => {
+    setSelectionMode(true);
+    setSelectedMagpieIds([magpieId]);
+    setSelectedNoteIds([]);
+    setSelectedLadderIds([]);
+    setSelectedCutUpIds([]);
   }, []);
 
   const toggleSelectNote = useCallback((noteId: string) => {
@@ -292,6 +345,12 @@ export function useNotepadScreenModel() {
     );
   }, []);
 
+  const toggleSelectMagpie = useCallback((magpieId: string) => {
+    setSelectedMagpieIds((prev) =>
+      prev.includes(magpieId) ? prev.filter((id) => id !== magpieId) : [...prev, magpieId]
+    );
+  }, []);
+
   // Leave selection mode automatically once nothing is selected, regardless of
   // whether the last item deselected was a note or a spark.
   useEffect(() => {
@@ -299,24 +358,27 @@ export function useNotepadScreenModel() {
       selectionMode &&
       selectedNoteIds.length === 0 &&
       selectedLadderIds.length === 0 &&
-      selectedCutUpIds.length === 0
+      selectedCutUpIds.length === 0 &&
+      selectedMagpieIds.length === 0
     ) {
       setSelectionMode(false);
     }
-  }, [selectionMode, selectedNoteIds, selectedLadderIds, selectedCutUpIds]);
+  }, [selectionMode, selectedNoteIds, selectedLadderIds, selectedCutUpIds, selectedMagpieIds]);
 
   const cancelSelection = useCallback(() => {
     setSelectionMode(false);
     setSelectedNoteIds([]);
     setSelectedLadderIds([]);
     setSelectedCutUpIds([]);
+    setSelectedMagpieIds([]);
   }, []);
 
   const selectAllVisible = useCallback(() => {
     setSelectedNoteIds(filteredNotes.map((note) => note.id));
     setSelectedLadderIds(filteredLadders.map((exercise) => exercise.id));
     setSelectedCutUpIds(filteredCutUps.map((spark) => spark.id));
-  }, [filteredNotes, filteredLadders, filteredCutUps]);
+    setSelectedMagpieIds(filteredMagpies.map((spark) => spark.id));
+  }, [filteredNotes, filteredLadders, filteredCutUps, filteredMagpies]);
 
   const selectedNotes = useMemo(
     () => notes.filter((note) => selectedNoteIds.includes(note.id)),
@@ -324,18 +386,20 @@ export function useNotepadScreenModel() {
   );
 
   const allSelected =
-    filteredNotes.length + filteredLadders.length + filteredCutUps.length > 0 &&
+    filteredNotes.length + filteredLadders.length + filteredCutUps.length + filteredMagpies.length > 0 &&
     filteredNotes.every((note) => selectedNoteIds.includes(note.id)) &&
     filteredLadders.every((exercise) => selectedLadderIds.includes(exercise.id)) &&
-    filteredCutUps.every((spark) => selectedCutUpIds.includes(spark.id));
+    filteredCutUps.every((spark) => selectedCutUpIds.includes(spark.id)) &&
+    filteredMagpies.every((spark) => selectedMagpieIds.includes(spark.id));
   const allSelectedPinned = selectedNotes.length > 0 && selectedNotes.every((note) => note.isPinned);
 
   const handleDeleteSelected = useCallback(() => {
     selectedNoteIds.forEach((id) => deleteNote(id));
     selectedLadderIds.forEach((id) => deleteWordLadder(id));
     selectedCutUpIds.forEach((id) => deleteCutUpSpark(id));
+    selectedMagpieIds.forEach((id) => deleteMagpieSpark(id));
     cancelSelection();
-  }, [selectedNoteIds, selectedLadderIds, selectedCutUpIds, deleteNote, deleteWordLadder, deleteCutUpSpark, cancelSelection]);
+  }, [selectedNoteIds, selectedLadderIds, selectedCutUpIds, selectedMagpieIds, deleteNote, deleteWordLadder, deleteCutUpSpark, deleteMagpieSpark, cancelSelection]);
 
   const handleToggleSelectedPin = useCallback(() => {
     const nextPinned = !allSelectedPinned;
@@ -387,9 +451,11 @@ export function useNotepadScreenModel() {
     handleNewNote,
     handleNewWordLadder,
     handleNewCutUp,
+    handleNewMagpie,
     handleOpenNote,
     handleOpenLadder,
     handleOpenCutUp,
+    handleOpenMagpie,
     handleCloseNote,
     handleUpdateNote,
     handleTogglePin,
@@ -399,15 +465,18 @@ export function useNotepadScreenModel() {
     selectedNoteIds,
     selectedLadderIds,
     selectedCutUpIds,
+    selectedMagpieIds,
     selectedNotes,
     allSelected,
     allSelectedPinned,
     beginSelection,
     beginLadderSelection,
     beginCutUpSelection,
+    beginMagpieSelection,
     toggleSelectNote,
     toggleSelectLadder,
     toggleSelectCutUp,
+    toggleSelectMagpie,
     cancelSelection,
     selectAllVisible,
     handleDeleteSelected,

@@ -54,10 +54,9 @@ export function CutUpScreenContent() {
     );
   }
 
-  const includedCount = spark.chunks.filter((chunk) => chunk.included).length;
   const activeCount = spark.boardItems.filter((item) => !item.removed).length;
   const canLeaveSource = spark.sourceText.trim().length > 0;
-  const canLeaveChunk = includedCount > 0;
+  const canLeaveChunk = spark.sourceText.trim().length > 0;
   const canLeaveBoard = activeCount > 0;
   const hasDraft = spark.assembledDraftText.trim().length > 0;
 
@@ -132,7 +131,7 @@ export function CutUpScreenContent() {
                 nextLabel="Next: to the board"
                 onNext={() => model.goToStep("board")}
                 canNext={canLeaveChunk}
-                disabledHint={canLeaveChunk ? null : "Keep at least one chunk to continue."}
+                disabledHint={canLeaveChunk ? null : "Add some source text to cut."}
               />
             ) : null}
 

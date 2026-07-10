@@ -37,6 +37,7 @@ export type PersistedAppStore = Pick<
     | "notes"
     | "wordLadders"
     | "cutUpSparks"
+    | "magpieSparks"
     | "ideasFilter"
     | "ideasSort"
     | "primaryFilter"
