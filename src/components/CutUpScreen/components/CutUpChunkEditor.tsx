@@ -1,299 +1,242 @@
-import { useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { Ionicons } from "@expo/vector-icons";
 import { styles as appStyles } from "../../../styles";
 import { colors, radii, spacing, text as textTokens } from "../../../design/tokens";
-import { CHUNK_MODE_OPTIONS } from "../../../cutUp";
-import type { CutUpChunk, CutUpSpark } from "../../../types";
+import { haptic } from "../../../design/haptics";
+import { tokenizeWords, unitIndexByWord } from "../../../cutUp";
+import type { CutUpSpark } from "../../../types";
 import type { useCutUpScreenModel } from "../hooks/useCutUpScreenModel";
 
 type Model = ReturnType<typeof useCutUpScreenModel>;
 
+// Two warm tints alternate per unit so adjacent chunks read apart on the mat.
+const TINT_A = colors.surface;
+const TINT_B = "#F1E7D3";
+const BIND_TINT = "#E7C6AE";
+
+type Rect = { x: number; y: number; w: number; h: number };
+
 export function CutUpChunkEditor({ model, spark }: { model: Model; spark: CutUpSpark }) {
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const activeMode = spark.chunkMode;
-  const includedCount = spark.chunks.filter((chunk) => chunk.included).length;
-  const selected = selectedId ? spark.chunks.find((chunk) => chunk.id === selectedId) ?? null : null;
-  const selectedIndex = selected ? spark.chunks.findIndex((chunk) => chunk.id === selected.id) : -1;
-  const canMerge = selectedIndex >= 0 && selectedIndex < spark.chunks.length - 1;
+  const words = useMemo(() => tokenizeWords(spark.sourceText), [spark.sourceText]);
+  const seams = model.currentSeams;
+  const units = useMemo(() => unitIndexByWord(words, seams), [words, seams]);
+  const unitCount = words.length === 0 ? 0 : units[units.length - 1] + 1;
+
+  // Live "press-and-slide to bind" range (word indices); refs keep the gesture's
+  // callbacks off stale closures.
+  const [dragRange, setDragRange] = useState<[number, number] | null>(null);
+  const wordRects = useRef<Map<number, Rect>>(new Map());
+  const scrollY = useRef(0);
+  const dragRangeRef = useRef<[number, number] | null>(null);
+  const bindRef = useRef(model.bindWords);
+  bindRef.current = model.bindWords;
+  const wordCountRef = useRef(words.length);
+  wordCountRef.current = words.length;
+
+  const findWordAt = (x: number, y: number): number | null => {
+    const yy = y + scrollY.current;
+    let best: number | null = null;
+    let bestDist = Infinity;
+    for (const [i, r] of wordRects.current) {
+      if (x >= r.x && x <= r.x + r.w && yy >= r.y && yy <= r.y + r.h) return i;
+      // Fallback: on the same row, snap to the nearest word horizontally.
+      if (yy >= r.y && yy <= r.y + r.h) {
+        const dist = Math.min(Math.abs(x - r.x), Math.abs(x - (r.x + r.w)));
+        if (dist < bestDist) {
+          bestDist = dist;
+          best = i;
+        }
+      }
+    }
+    return best;
+  };
+
+  const pan = useMemo(
+    () =>
+      Gesture.Pan()
+        .activateAfterLongPress(180)
+        .runOnJS(true)
+        .onStart((e) => {
+          const w = findWordAt(e.x, e.y);
+          if (w == null) return;
+          dragRangeRef.current = [w, w];
+          setDragRange([w, w]);
+          haptic.grab();
+        })
+        .onUpdate((e) => {
+          const start = dragRangeRef.current?.[0];
+          if (start == null) return;
+          const w = findWordAt(e.x, e.y);
+          if (w == null) return;
+          const next: [number, number] = [start, w];
+          dragRangeRef.current = next;
+          setDragRange(next);
+        })
+        .onEnd(() => {
+          const r = dragRangeRef.current;
+          if (r && r[0] !== r[1]) {
+            bindRef.current(Math.min(r[0], r[1]), Math.max(r[0], r[1]), wordCountRef.current);
+            haptic.success();
+          }
+        })
+        .onFinalize(() => {
+          dragRangeRef.current = null;
+          setDragRange(null);
+        }),
+    [] // eslint-disable-line react-hooks/exhaustive-deps
+  );
+
+  const inDrag = (i: number) =>
+    dragRange != null && i >= Math.min(dragRange[0], dragRange[1]) && i <= Math.max(dragRange[0], dragRange[1]);
+
+  if (words.length === 0) {
+    return (
+      <View style={styles.body}>
+        <Text style={styles.empty}>No words yet — go back and add some source text.</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.body}>
-      <View style={styles.modeRow}>
-        <View style={styles.segment}>
-          {CHUNK_MODE_OPTIONS.map((option) => {
-            const active = activeMode === option.key;
-            return (
-              <Pressable
-                key={option.key}
-                style={[styles.segmentBtn, active ? styles.segmentBtnActive : null]}
-                onPress={() => model.setChunkMode(option.key)}
-              >
-                <Text style={[styles.segmentText, active ? styles.segmentTextActive : null]}>
-                  {option.label}
-                </Text>
-              </Pressable>
-            );
-          })}
-          {activeMode === "custom" ? (
-            <View style={[styles.segmentBtn, styles.segmentBtnActive]}>
-              <Text style={[styles.segmentText, styles.segmentTextActive]}>Custom</Text>
-            </View>
-          ) : null}
-        </View>
+      <View style={styles.headerRow}>
+        <Text style={styles.count}>
+          {unitCount} piece{unitCount === 1 ? "" : "s"}
+        </Text>
         <Pressable
-          style={({ pressed }) => [styles.recutBtn, pressed ? appStyles.pressDown : null]}
-          onPress={() => {
-            setSelectedId(null);
-            model.recut();
-          }}
+          style={({ pressed }) => [styles.resetBtn, pressed ? appStyles.pressDown : null]}
+          onPress={model.resetCuts}
           hitSlop={6}
         >
-          <Ionicons name="refresh-outline" size={15} color={colors.textSecondary} />
-          <Text style={styles.recutText}>Re-cut</Text>
+          <Ionicons name="sparkles-outline" size={14} color={colors.textSecondary} />
+          <Text style={styles.resetText}>Reset cuts</Text>
         </Pressable>
       </View>
 
       <Text style={styles.hint}>
-        Tap a chunk to keep or drop it · long-press to split or join · {includedCount} kept
+        Tap a <Ionicons name="cut" size={11} color={colors.primary} /> seam to cut or join · press and slide
+        across words to bind them
       </Text>
 
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.flow}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-      >
-        {spark.chunks.length === 0 ? (
-          <Text style={styles.empty}>No chunks yet — go back and add some source text.</Text>
-        ) : (
-          spark.chunks.map((chunk) => (
-            <ChunkPill
-              key={chunk.id}
-              chunk={chunk}
-              selected={chunk.id === selectedId}
-              onPress={() => model.toggleChunk(chunk.id)}
-              onLongPress={() => setSelectedId((cur) => (cur === chunk.id ? null : chunk.id))}
-            />
-          ))
-        )}
-      </ScrollView>
-
-      {selected ? (
-        <View style={styles.actionBar}>
-          <Text style={styles.actionLabel} numberOfLines={1}>
-            “{selected.text}”
-          </Text>
-          <View style={styles.actionBtns}>
-            <ActionButton
-              icon="cut-outline"
-              label="Split"
-              onPress={() => {
-                model.split(selected.id);
-                setSelectedId(null);
-              }}
-            />
-            <ActionButton
-              icon="git-merge-outline"
-              label="Join next"
-              disabled={!canMerge}
-              onPress={() => {
-                model.merge(selected.id);
-                setSelectedId(null);
-              }}
-            />
-            <ActionButton icon="close" label="Done" onPress={() => setSelectedId(null)} />
-          </View>
-        </View>
-      ) : null}
+      <View style={styles.matWrap}>
+        <GestureDetector gesture={pan}>
+          <ScrollView
+            style={styles.scroll}
+            contentContainerStyle={styles.mat}
+            showsVerticalScrollIndicator={false}
+            scrollEventThrottle={16}
+            onScroll={(e) => {
+              scrollY.current = e.nativeEvent.contentOffset.y;
+            }}
+          >
+            {words.map((word, i) => {
+              const tint = units[i] % 2 === 0 ? TINT_A : TINT_B;
+              const binding = inDrag(i);
+              return (
+                <View
+                  key={word.index}
+                  style={styles.cluster}
+                  onLayout={(e) => {
+                    const { x, y, width, height } = e.nativeEvent.layout;
+                    wordRects.current.set(i, { x, y, w: width, h: height });
+                  }}
+                >
+                  {i > 0 ? <Seam cut={seams.includes(i)} onPress={() => model.toggleSeamAt(i)} /> : null}
+                  <View style={[styles.word, { backgroundColor: binding ? BIND_TINT : tint }]}>
+                    <Text style={styles.wordText}>{word.text}</Text>
+                  </View>
+                </View>
+              );
+            })}
+          </ScrollView>
+        </GestureDetector>
+      </View>
     </View>
   );
 }
 
-function ChunkPill({
-  chunk,
-  selected,
-  onPress,
-  onLongPress,
-}: {
-  chunk: CutUpChunk;
-  selected: boolean;
-  onPress: () => void;
-  onLongPress: () => void;
-}) {
+function Seam({ cut, onPress }: { cut: boolean; onPress: () => void }) {
   return (
     <Pressable
-      style={({ pressed }) => [
-        styles.pill,
-        !chunk.included ? styles.pillExcluded : null,
-        selected ? styles.pillSelected : null,
-        pressed ? appStyles.pressDown : null,
-      ]}
       onPress={onPress}
-      onLongPress={onLongPress}
-      delayLongPress={250}
+      hitSlop={{ top: 10, bottom: 10, left: 3, right: 3 }}
+      style={[styles.seam, cut ? styles.seamCut : null]}
     >
-      <Text
-        style={[styles.pillText, !chunk.included ? styles.pillTextExcluded : null]}
-        numberOfLines={2}
-      >
-        {chunk.text}
-      </Text>
-    </Pressable>
-  );
-}
-
-function ActionButton({
-  icon,
-  label,
-  onPress,
-  disabled,
-}: {
-  icon: keyof typeof Ionicons.glyphMap;
-  label: string;
-  onPress: () => void;
-  disabled?: boolean;
-}) {
-  return (
-    <Pressable
-      style={({ pressed }) => [
-        styles.actionBtn,
-        disabled ? styles.actionBtnDisabled : null,
-        pressed && !disabled ? appStyles.pressDown : null,
-      ]}
-      onPress={onPress}
-      disabled={disabled}
-      hitSlop={4}
-    >
-      <Ionicons name={icon} size={15} color={disabled ? colors.textMuted : colors.primary} />
-      <Text style={[styles.actionBtnText, disabled ? styles.actionBtnTextDisabled : null]}>{label}</Text>
+      {cut ? (
+        <Ionicons name="cut" size={12} color={colors.primary} />
+      ) : (
+        <View style={styles.joinDot} />
+      )}
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
   body: { flex: 1 },
-  modeRow: {
+  headerRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    gap: spacing.sm,
-    marginBottom: spacing.sm,
+    marginBottom: spacing.xs,
   },
-  segment: {
-    flexDirection: "row",
-    backgroundColor: colors.surfaceHigh,
-    borderRadius: radii.round,
-    padding: 3,
-    flexShrink: 1,
-  },
-  segmentBtn: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: 6,
-    borderRadius: radii.round,
-  },
-  segmentBtnActive: {
-    backgroundColor: colors.surface,
-  },
-  segmentText: {
-    fontFamily: "PlusJakartaSans_600SemiBold",
-    fontSize: 12,
-    color: colors.textSecondary,
-  },
-  segmentTextActive: {
-    color: colors.textPrimary,
-  },
-  recutBtn: {
+  count: { ...textTokens.annotation },
+  resetBtn: {
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
     paddingHorizontal: spacing.sm,
     paddingVertical: 6,
+    borderRadius: radii.round,
+    backgroundColor: colors.surfaceHigh,
   },
-  recutText: {
-    fontFamily: "PlusJakartaSans_600SemiBold",
-    fontSize: 12,
-    color: colors.textSecondary,
-  },
-  hint: {
-    ...textTokens.supporting,
-    fontSize: 11,
-    marginBottom: spacing.sm,
+  resetText: { fontFamily: "PlusJakartaSans_600SemiBold", fontSize: 12, color: colors.textSecondary },
+  hint: { ...textTokens.supporting, fontSize: 11, marginBottom: spacing.sm },
+  matWrap: {
+    flex: 1,
+    backgroundColor: colors.surfaceContainer,
+    borderRadius: radii.lg,
+    overflow: "hidden",
   },
   scroll: { flex: 1 },
-  flow: {
+  mat: {
     flexDirection: "row",
     flexWrap: "wrap",
+    alignItems: "center",
     alignContent: "flex-start",
-    gap: spacing.xs,
-    paddingBottom: spacing.md,
+    padding: spacing.sm,
+  },
+  cluster: { flexDirection: "row", alignItems: "center" },
+  seam: {
+    minWidth: 12,
+    height: 30,
+    alignItems: "center",
+    justifyContent: "center",
+    marginHorizontal: 1,
+  },
+  seamCut: { minWidth: 20 },
+  joinDot: {
+    width: 3,
+    height: 3,
+    borderRadius: 2,
+    backgroundColor: colors.borderMuted,
+  },
+  word: {
+    borderRadius: radii.sm,
+    paddingHorizontal: 7,
+    paddingVertical: 7,
+    marginVertical: 3,
+  },
+  wordText: {
+    fontFamily: "PlayfairDisplay_400Regular",
+    fontSize: 17,
+    color: colors.textPrimary,
   },
   empty: {
     ...textTokens.supporting,
     fontSize: 13,
     textAlign: "center",
-    width: "100%",
     paddingVertical: spacing.xl,
-  },
-  pill: {
-    backgroundColor: colors.surface,
-    borderRadius: radii.sm,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 7,
-    maxWidth: "100%",
-  },
-  pillExcluded: {
-    backgroundColor: colors.surfaceContainer,
-    opacity: 0.55,
-  },
-  pillSelected: {
-    backgroundColor: colors.primary,
-  },
-  pillText: {
-    fontFamily: "PlusJakartaSans_600SemiBold",
-    fontSize: 13,
-    color: colors.textStrong,
-  },
-  pillTextExcluded: {
-    textDecorationLine: "line-through",
-    color: colors.textMuted,
-  },
-  actionBar: {
-    backgroundColor: colors.surfaceHigh,
-    borderRadius: radii.lg,
-    padding: spacing.sm,
-    marginTop: spacing.sm,
-    gap: spacing.xs,
-  },
-  actionLabel: {
-    fontFamily: "PlayfairDisplay_400Regular",
-    fontSize: 14,
-    color: colors.textSecondary,
-    paddingHorizontal: spacing.xs,
-  },
-  actionBtns: {
-    flexDirection: "row",
-    gap: spacing.xs,
-  },
-  actionBtn: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 4,
-    paddingVertical: 9,
-    borderRadius: radii.md,
-    backgroundColor: colors.surface,
-  },
-  actionBtnDisabled: {
-    opacity: 0.5,
-  },
-  actionBtnText: {
-    fontFamily: "PlusJakartaSans_700Bold",
-    fontSize: 12,
-    color: colors.primary,
-  },
-  actionBtnTextDisabled: {
-    color: colors.textMuted,
   },
 });

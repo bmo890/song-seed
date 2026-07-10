@@ -112,6 +112,10 @@ export type CutUpSpark = {
   sourceSongId?: string;
   sourceLyricVersionId?: string;
   chunkMode: CutUpChunkMode;
+  /** Cut seams for the seam-based Cut surface: seam `s` (1..words-1) sits before
+   * word `s` and, when present here, marks a chunk boundary. Undefined until the
+   * writer first enters the Cut step (seeded from the source's phrase breaks). */
+  cutSeams?: number[];
   chunks: CutUpChunk[];
   boardItems: CutUpBoardItem[];
   /** The rebuilt + edited draft; preserved alongside the chunks. */

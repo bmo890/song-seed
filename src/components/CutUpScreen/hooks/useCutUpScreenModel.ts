@@ -6,19 +6,28 @@ import { AppAlert } from "../../common/AppAlert";
 import { actionIcons } from "../../common/actionIcons";
 import {
   assembleDraftText,
+  bindWordRange,
+  buildBoardItems,
+  chunkTextsEqual,
+  composeDraftText,
+  type CutUpComposeFlavor,
   deriveCutUpTitle,
   duplicateBoardItem,
   generateChunks,
+  generateChunksFromSeams,
   mergeChunkWithNext,
   reconcileBoard,
   reorderBoard,
   resetBoardOrder,
+  seedCutSeams,
   setBoardItemRemoved,
   setBoardItemText,
   shuffleBoard,
   splitChunk,
   toggleBoardItemLock,
   toggleChunkIncluded,
+  toggleSeam,
+  tokenizeWords,
 } from "../../../cutUp";
 import type { CutUpChunkMode, CutUpStep, Note } from "../../../types";
 
@@ -56,15 +65,22 @@ export function useCutUpScreenModel() {
     (next: CutUpStep) => {
       if (!spark) return;
       if (next === "chunk") {
-        // First entry into chunking with no chunks yet: cut the source now.
-        if (spark.chunks.length === 0 && spark.sourceText.trim()) {
-          const mode = effectiveMode(spark.chunkMode);
-          apply({ step: next, chunkMode: mode, chunks: generateChunks(spark.sourceText, mode) });
+        // First entry into the Cut surface: seed the seams from phrase breaks.
+        if (spark.cutSeams === undefined && spark.sourceText.trim()) {
+          const words = tokenizeWords(spark.sourceText);
+          apply({ step: next, cutSeams: seedCutSeams(spark.sourceText, words) });
           return;
         }
         apply({ step: next });
       } else if (next === "board") {
-        apply({ step: next, boardItems: reconcileBoard(spark.chunks, spark.boardItems) });
+        // Turn the current cut into chunks; only rebuild the board when the cut
+        // actually changed, so revisiting keeps the writer's arrangement.
+        const fresh = generateChunksFromSeams(spark.sourceText, spark.cutSeams ?? []);
+        if (chunkTextsEqual(fresh, spark.chunks)) {
+          apply({ step: next, boardItems: reconcileBoard(spark.chunks, spark.boardItems) });
+        } else {
+          apply({ step: next, chunks: fresh, boardItems: buildBoardItems(fresh) });
+        }
       } else if (next === "draft") {
         const assembled = spark.assembledDraftText.trim()
           ? spark.assembledDraftText
@@ -88,8 +104,13 @@ export function useCutUpScreenModel() {
   // ── Source step ────────────────────────────────────────────────────────────
   const setSourceText = useCallback(
     (sourceText: string) => {
-      // Manual edits break the link to a source lyric page.
-      apply({ sourceText, title: deriveCutUpTitle(sourceText), sourceLyricId: undefined });
+      // Manual edits break the link to a source lyric page and re-seed the cut.
+      apply({
+        sourceText,
+        title: deriveCutUpTitle(sourceText),
+        sourceLyricId: undefined,
+        cutSeams: undefined,
+      });
     },
     [apply]
   );
@@ -100,12 +121,41 @@ export function useCutUpScreenModel() {
         sourceText: note.body,
         sourceLyricId: note.id,
         title: note.title.trim() ? note.title : deriveCutUpTitle(note.body),
+        cutSeams: undefined,
         chunks: [],
         boardItems: [],
       });
     },
     [apply]
   );
+
+  // ── Cut surface (seam editing) ─────────────────────────────────────────────
+  const currentSeams = spark
+    ? spark.cutSeams ?? seedCutSeams(spark.sourceText, tokenizeWords(spark.sourceText))
+    : [];
+
+  const toggleSeamAt = useCallback(
+    (seam: number) => {
+      if (!spark) return;
+      const seams = spark.cutSeams ?? seedCutSeams(spark.sourceText, tokenizeWords(spark.sourceText));
+      apply({ cutSeams: toggleSeam(seams, seam) });
+    },
+    [apply, spark]
+  );
+
+  const bindWords = useCallback(
+    (startWord: number, endWord: number, wordCount: number) => {
+      if (!spark) return;
+      const seams = spark.cutSeams ?? seedCutSeams(spark.sourceText, tokenizeWords(spark.sourceText));
+      apply({ cutSeams: bindWordRange(seams, startWord, endWord, wordCount) });
+    },
+    [apply, spark]
+  );
+
+  const resetCuts = useCallback(() => {
+    if (!spark) return;
+    apply({ cutSeams: seedCutSeams(spark.sourceText, tokenizeWords(spark.sourceText)) });
+  }, [apply, spark]);
 
   // ── Chunk step ─────────────────────────────────────────────────────────────
   // Structural changes (mode switch, re-cut, split, merge) mint new chunk ids, so
@@ -221,6 +271,14 @@ export function useCutUpScreenModel() {
     apply({ assembledDraftText: assembleDraftText(spark.chunks, spark.boardItems) });
   }, [apply, spark]);
 
+  const composeDraft = useCallback(
+    (flavor: CutUpComposeFlavor) => {
+      if (!spark) return;
+      apply({ assembledDraftText: composeDraftText(spark.chunks, spark.boardItems, flavor) });
+    },
+    [apply, spark]
+  );
+
   // ── Save / delete ──────────────────────────────────────────────────────────
   const saveAsLyrics = useCallback(() => {
     if (!spark) return;
@@ -326,6 +384,10 @@ export function useCutUpScreenModel() {
     markHelpSeen,
     setSourceText,
     pickSourceNote,
+    currentSeams,
+    toggleSeamAt,
+    bindWords,
+    resetCuts,
     setChunkMode,
     recut,
     toggleChunk,
@@ -341,6 +403,7 @@ export function useCutUpScreenModel() {
     editStripText,
     setDraft,
     rebuildDraftFromBoard,
+    composeDraft,
     saveAsLyrics,
     deleteSpark,
     goBack,

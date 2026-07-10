@@ -113,22 +113,23 @@ function ChunkHelp() {
     <>
       <Text style={helpStyles.title}>Cut</Text>
       <Text style={helpStyles.subtitle}>
-        Slice the lyric into moveable pieces. Phrases are a good start, or cut by line or single word. Tap a
-        piece to keep or drop it; long-press to split it smaller or join it to the next.
+        Cut the lyric into moveable pieces — right where you want. It starts cut into phrases; a scissor seam
+        sits between every word. Tap a seam to cut or join there, or press and slide across a few words to
+        bind them into one unit.
       </Text>
 
       <View style={helpStyles.diagram}>
         <CutDiagram />
         <View style={helpStyles.resultRow}>
           <Ionicons name="arrow-down" size={14} color={colors.textMuted} />
-          <Text style={helpStyles.resultText}>strips you can rearrange</Text>
+          <Text style={helpStyles.resultText}>pieces you can rearrange</Text>
         </View>
       </View>
 
       <View style={helpStyles.points}>
-        <HelpPoint icon="git-branch-outline" title="Pick a size" body="Phrase, line, or word." />
-        <HelpPoint icon="hand-left-outline" title="Keep or drop" body="Tap a piece to mute it — nothing's deleted." />
-        <HelpPoint icon="cut-outline" title="Split & join" body="Long-press to split a piece or merge the next." />
+        <HelpPoint icon="cut-outline" title="Tap a seam" body="Cut or join between any two words." />
+        <HelpPoint icon="resize-outline" title="Press & slide" body="Drag across words to bind them into one piece." />
+        <HelpPoint icon="sparkles-outline" title="Reset cuts" body="Snap back to the natural phrase breaks." />
       </View>
     </>
   );
@@ -182,8 +183,8 @@ function DraftHelp() {
       </View>
 
       <View style={helpStyles.points}>
-        <HelpPoint icon="create-outline" title="Make it yours" body="Add, edit, and cut freely." />
-        <HelpPoint icon="sync-outline" title="Rebuild" body="Re-pull the board order if you wander off." />
+        <HelpPoint icon="shuffle" title="Compose" body="Shuffle the pieces into varied-length fragment lines — short, mixed, or long." />
+        <HelpPoint icon="list-outline" title="Board order" body="Or rebuild plainly, one piece per line." />
         <HelpPoint icon="bookmark-outline" title="Save" body="Send the draft to your Lyrics Pad." />
       </View>
     </>

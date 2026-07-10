@@ -178,6 +178,121 @@ export function generateChunks(source: string, mode: CutUpChunkMode): CutUpChunk
   return sliceSource(source, mode).map(rawToChunk);
 }
 
+// ── Seam-based cutting (direct "mark up the text" surface) ───────────────────
+// The Cut step lets the writer cut where they want rather than picking a mode.
+// The source is tokenised into words; a "seam" sits before each word (seam `s`
+// separates word s-1 | s, for s in 1..N-1). A cut seam is a chunk boundary; a run
+// of words between cuts is one chunk. Tapping a seam toggles it (split ⇄ join);
+// sliding across words binds them into one unit.
+
+/** A word token with its character span in the source (offsets are reference
+ * only — chunk text is the words joined by single spaces). */
+export type CutWord = { index: number; text: string; start: number; end: number };
+
+/** Every whitespace-delimited token, punctuation kept attached to its word. */
+export function tokenizeWords(source: string): CutWord[] {
+  const out: CutWord[] = [];
+  const re = /\S+/g;
+  let match: RegExpExecArray | null;
+  while ((match = re.exec(source))) {
+    out.push({ index: out.length, text: match[0], start: match.index, end: match.index + match[0].length });
+  }
+  return out;
+}
+
+const SEAM_END_PUNCT = /[,;:.!?…”"’')\]]$/;
+const SEAM_DASH = /[—–]$/;
+/** After this many words with no natural break, force a seam so no unit is huge. */
+const SEAM_MAX_RUN = 6;
+
+/** Whether there's a natural break between two words: the left word ends a clause
+ * (punctuation or dash) or a line break sits between them. */
+function seamBreaksNaturally(source: string, prev: CutWord, cur: CutWord): boolean {
+  if (SEAM_END_PUNCT.test(prev.text) || SEAM_DASH.test(prev.text)) return true;
+  return source.slice(prev.end, cur.start).includes("\n");
+}
+
+/** Seeds cut seams at natural phrase boundaries (so the writer starts with
+ * phrases, not single words), capping over-long runs. */
+export function seedCutSeams(source: string, words: CutWord[]): number[] {
+  const cuts: number[] = [];
+  let runStart = 0;
+  for (let s = 1; s < words.length; s++) {
+    if (seamBreaksNaturally(source, words[s - 1], words[s]) || s - runStart >= SEAM_MAX_RUN) {
+      cuts.push(s);
+      runStart = s;
+    }
+  }
+  return cuts;
+}
+
+/** Toggles a seam between cut and joined. */
+export function toggleSeam(cutSeams: number[], seam: number): number[] {
+  const set = new Set(cutSeams);
+  if (set.has(seam)) set.delete(seam);
+  else set.add(seam);
+  return [...set].sort((a, b) => a - b);
+}
+
+/** Binds words [startWord..endWord] into a single unit: clears the seams inside
+ * the range and cuts at its edges. */
+export function bindWordRange(
+  cutSeams: number[],
+  startWord: number,
+  endWord: number,
+  wordCount: number
+): number[] {
+  const a = Math.min(startWord, endWord);
+  const b = Math.max(startWord, endWord);
+  const set = new Set(cutSeams);
+  for (let s = a + 1; s <= b; s++) set.delete(s);
+  if (a >= 1) set.add(a);
+  if (b + 1 <= wordCount - 1) set.add(b + 1);
+  return [...set].sort((x, y) => x - y);
+}
+
+/** The unit (chunk) index each word belongs to, for tinting units on the mat. */
+export function unitIndexByWord(words: CutWord[], cutSeams: number[]): number[] {
+  const cutSet = new Set(cutSeams);
+  const out: number[] = [];
+  let unit = 0;
+  for (let i = 0; i < words.length; i++) {
+    if (i > 0 && cutSet.has(i)) unit++;
+    out.push(unit);
+  }
+  return out;
+}
+
+/** Word-runs between cuts → chunk text spans. */
+function seamChunkSpans(words: CutWord[], cutSeams: number[]): RawChunk[] {
+  if (words.length === 0) return [];
+  const cutSet = new Set(cutSeams);
+  const spans: RawChunk[] = [];
+  let begin = 0;
+  for (let i = 1; i <= words.length; i++) {
+    if (i === words.length || cutSet.has(i)) {
+      const slice = words.slice(begin, i);
+      const text = slice.map((w) => w.text).join(" ");
+      spans.push({ text, start: slice[0].start, end: slice[slice.length - 1].end });
+      begin = i;
+    }
+  }
+  return spans;
+}
+
+/** Generates board-ready chunks from the source + the writer's cut seams. */
+export function generateChunksFromSeams(source: string, cutSeams: number[]): CutUpChunk[] {
+  const words = tokenizeWords(source);
+  return seamChunkSpans(words, cutSeams).map(rawToChunk);
+}
+
+/** Whether two chunk lists carry the same text in the same order — used to keep
+ * the board intact when the cut hasn't actually changed. */
+export function chunkTextsEqual(a: CutUpChunk[], b: CutUpChunk[]): boolean {
+  if (a.length !== b.length) return false;
+  return a.every((chunk, i) => chunk.text === b[i].text);
+}
+
 // ── Chunk editing (manual adjustments → custom mode) ─────────────────────────
 
 export function toggleChunkIncluded(chunks: CutUpChunk[], chunkId: string): CutUpChunk[] {
@@ -367,15 +482,60 @@ export function boardItemText(item: CutUpBoardItem, chunks: CutUpChunk[]): strin
   return chunks.find((chunk) => chunk.id === item.chunkId)?.text ?? "";
 }
 
-/** Assembles the active strips (in order) into a draft, one strip per line. */
-export function assembleDraftText(chunks: CutUpChunk[], boardItems: CutUpBoardItem[]): string {
+/** The active strips' text, in board order. */
+function orderedStripTexts(chunks: CutUpChunk[], boardItems: CutUpBoardItem[]): string[] {
   return boardItems
     .filter((item) => !item.removed)
     .slice()
     .sort((a, b) => a.order - b.order)
     .map((item) => boardItemText(item, chunks).trim())
-    .filter((text) => text.length > 0)
-    .join("\n");
+    .filter((text) => text.length > 0);
+}
+
+/** Assembles the active strips (in order) into a draft, one strip per line. */
+export function assembleDraftText(chunks: CutUpChunk[], boardItems: CutUpBoardItem[]): string {
+  return orderedStripTexts(chunks, boardItems).join("\n");
+}
+
+// ── Composing strips into fragment lines ─────────────────────────────────────
+// A shuffle that reorders is fine, but the payoff of cut-up is unexpected *lines*.
+// Composing groups the strips into varied-length lines so the draft reads as
+// verse fragments rather than one strip per line.
+
+export type CutUpComposeFlavor = "short" | "mixed" | "long";
+
+/** Line-length distributions (in strips per line) to draw from per flavor. */
+const COMPOSE_SIZES: Record<CutUpComposeFlavor, number[]> = {
+  short: [1, 1, 2, 2],
+  mixed: [1, 2, 2, 3, 3, 4],
+  long: [3, 3, 4, 4, 5],
+};
+
+/** Groups strip texts into lines of varied length per the flavor. */
+export function composeLines(strips: string[], flavor: CutUpComposeFlavor): string {
+  const sizes = COMPOSE_SIZES[flavor];
+  const lines: string[] = [];
+  let i = 0;
+  while (i < strips.length) {
+    let take = sizes[Math.floor(Math.random() * sizes.length)];
+    // Absorb a lonely last strip into the previous line rather than orphaning it.
+    if (strips.length - (i + take) === 1) take += 1;
+    lines.push(strips.slice(i, i + take).join(" "));
+    i += take;
+  }
+  return lines.join("\n");
+}
+
+/** Shuffles the strips into a fresh order, then composes them into fragment lines
+ * — the "surprise me" draft. Board order/locks are untouched; this only produces
+ * text for the draft. */
+export function composeDraftText(
+  chunks: CutUpChunk[],
+  boardItems: CutUpBoardItem[],
+  flavor: CutUpComposeFlavor
+): string {
+  const strips = shuffle(orderedStripTexts(chunks, boardItems));
+  return composeLines(strips, flavor);
 }
 
 // ── Factory + summaries ──────────────────────────────────────────────────────
@@ -492,6 +652,9 @@ export function sanitizeCutUpSpark(raw: unknown): CutUpSpark | null {
     sourceSongId: isString(obj.sourceSongId) ? obj.sourceSongId : undefined,
     sourceLyricVersionId: isString(obj.sourceLyricVersionId) ? obj.sourceLyricVersionId : undefined,
     chunkMode: sanitizeMode(obj.chunkMode),
+    cutSeams: Array.isArray(obj.cutSeams)
+      ? obj.cutSeams.filter((s): s is number => typeof s === "number" && s >= 1)
+      : undefined,
     chunks,
     boardItems: sanitizeBoardItems(obj.boardItems, chunks),
     assembledDraftText: isString(obj.assembledDraftText) ? obj.assembledDraftText : "",
