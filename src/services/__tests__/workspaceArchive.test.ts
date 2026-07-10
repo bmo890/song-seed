@@ -37,6 +37,73 @@ jest.mock("expo-file-system/legacy", () => ({
     }),
 }));
 
+// Modern expo-file-system File API used by the streaming archive reader.
+jest.mock("expo-file-system", () => {
+    class MockFile {
+        uri: string;
+
+        constructor(uri: string) {
+            this.uri = uri;
+        }
+
+        get exists() {
+            return mockFiles.has(this.uri);
+        }
+
+        get size() {
+            return mockFiles.get(this.uri)?.length ?? 0;
+        }
+
+        create(options?: { overwrite?: boolean }) {
+            if (mockFiles.has(this.uri) && !options?.overwrite) {
+                throw new Error(`File already exists: ${this.uri}`);
+            }
+            mockFiles.set(this.uri, new Uint8Array(0));
+        }
+
+        open() {
+            if (!mockFiles.has(this.uri)) {
+                throw new Error(`Missing mock file: ${this.uri}`);
+            }
+            const uri = this.uri;
+            let currentOffset: number | null = 0;
+            return {
+                readBytes: (length: number) => {
+                    if (currentOffset == null) throw new Error("Handle closed");
+                    const source = mockFiles.get(uri)!;
+                    const chunk = source.slice(currentOffset, currentOffset + length);
+                    currentOffset += chunk.length;
+                    return chunk;
+                },
+                writeBytes: (bytes: Uint8Array) => {
+                    if (currentOffset == null) throw new Error("Handle closed");
+                    const previous = mockFiles.get(uri)!;
+                    const nextLength = Math.max(previous.length, currentOffset + bytes.length);
+                    const next = new Uint8Array(nextLength);
+                    next.set(previous);
+                    next.set(bytes, currentOffset);
+                    currentOffset += bytes.length;
+                    mockFiles.set(uri, next);
+                },
+                close: () => {
+                    currentOffset = null;
+                },
+                get offset() {
+                    return currentOffset;
+                },
+                set offset(value: number | null) {
+                    currentOffset = value;
+                },
+                get size() {
+                    return currentOffset == null ? null : mockFiles.get(uri)!.length;
+                },
+            };
+        }
+    }
+
+    return { File: MockFile };
+});
+
 // Real zip serialization via fflate so verify/restore exercise actual packages.
 jest.mock("../audioStorage", () => ({
     sanitizeArchiveSegment: (segment: string) => segment.replace(/[^a-zA-Z0-9 _.-]/g, "_"),
@@ -218,6 +285,14 @@ describe("archiveWorkspaceToDevice (v2)", () => {
         const originalBytes = new Map(ALL_MEDIA_URIS.map((uri) => [uri, mockFiles.get(uri)!]));
         const result = await archiveWorkspaceToDevice(buildWorkspace());
 
+        // Production packages are STORED (createZipArchive never compresses); the creation
+        // mock compresses only to satisfy the savings gate, so re-pack the same entries as
+        // stored before exercising the streaming restore reader.
+        mockFiles.set(
+            result.archiveState.archiveUri,
+            zipSync(unzipSync(mockFiles.get(result.archiveState.archiveUri)!), { level: 0 })
+        );
+
         // Simulate the post-archive cleanup that trashes the live originals.
         ALL_MEDIA_URIS.forEach((uri) => mockFiles.delete(uri));
 
@@ -262,12 +337,16 @@ describe("v1 package compatibility", () => {
         const archiveUri = "file:///doc/songseed/workspace-archives/Archive Me-ws-1.songseed-workspace.zip";
         mockFiles.set(
             archiveUri,
-            zipSync({
-                "manifest.json": strToU8(JSON.stringify(v1Manifest)),
-                "workspace.json": strToU8(JSON.stringify(workspace)),
-                "audio/0001-master.m4a": masterBytes,
-                "audio/0002-master-source.m4a": mockFiles.get(SOURCE_URI)!,
-            })
+            // Stored, matching the real writer — the streaming reader rejects compression.
+            zipSync(
+                {
+                    "manifest.json": strToU8(JSON.stringify(v1Manifest)),
+                    "workspace.json": strToU8(JSON.stringify(workspace)),
+                    "audio/0001-master.m4a": masterBytes,
+                    "audio/0002-master-source.m4a": mockFiles.get(SOURCE_URI)!,
+                },
+                { level: 0 }
+            )
         );
 
         // v1 stubs stripped only the master/source URIs; overdub stayed referenced

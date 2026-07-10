@@ -312,6 +312,27 @@ export async function streamStoredZipEntry(
     return { sizeBytes: processed, crc32: entry.crc32 };
 }
 
+/**
+ * Stream one entry straight to a file on disk in bounded chunks (native reads +
+ * native writes; the entry's CRC is verified in-stream). Never holds more than a
+ * chunk in memory — use this for media payloads instead of readStoredZipEntryBytes.
+ */
+export async function extractStoredZipEntryToFile(
+    index: StoredZipIndex,
+    entry: StoredZipEntry,
+    targetUri: string,
+    options?: BackupOperationOptions
+) {
+    const targetFile = new File(targetUri);
+    targetFile.create({ intermediates: true, overwrite: true });
+    const handle = targetFile.open();
+    try {
+        await streamStoredZipEntry(index, entry, (chunk) => handle.writeBytes(chunk), options);
+    } finally {
+        handle.close();
+    }
+}
+
 export async function readStoredZipEntryBytes(
     index: StoredZipIndex,
     entry: StoredZipEntry,

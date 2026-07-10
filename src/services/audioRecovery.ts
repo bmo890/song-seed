@@ -1,10 +1,15 @@
 import * as FileSystem from "expo-file-system/legacy";
-import { strFromU8, unzipSync } from "fflate";
+import { strFromU8 } from "fflate";
 import {
     SONG_SEED_AUDIO_DIR,
     SONG_SEED_WORKSPACE_ARCHIVE_DIR,
     isSongSeedManagedUri,
 } from "./storagePaths";
+import {
+    extractStoredZipEntryToFile,
+    indexStoredZipArchive,
+    readStoredZipEntryBytes,
+} from "./storedZipArchive";
 import { readManifest, type ManifestData } from "./manifestSync";
 import { loadAudioDurationMs } from "./audioStorage";
 import { buildStaticWaveform } from "../utils";
@@ -48,66 +53,6 @@ export type FullRecoveryResult = {
     totalRestoredIdeas: number;
     warnings: string[];
 };
-
-/* ── Base64 helpers (matching workspaceArchive.ts) ──────────────── */
-
-function base64ToBytes(base64: string) {
-    const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-    const clean = base64.replace(/[^A-Za-z0-9+/=]/g, "");
-    let buffer = 0;
-    let bits = 0;
-    const output: number[] = [];
-
-    for (const char of clean) {
-        if (char === "=") break;
-        const index = alphabet.indexOf(char);
-        if (index < 0) continue;
-        buffer = (buffer << 6) | index;
-        bits += 6;
-        if (bits >= 8) {
-            bits -= 8;
-            output.push((buffer >> bits) & 0xff);
-        }
-    }
-
-    return Uint8Array.from(output);
-}
-
-function bytesToBase64(bytes: Uint8Array) {
-    const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-    let output = "";
-
-    for (let index = 0; index < bytes.length; index += 3) {
-        const a = bytes[index] ?? 0;
-        const b = bytes[index + 1] ?? 0;
-        const c = bytes[index + 2] ?? 0;
-        const chunk = (a << 16) | (b << 8) | c;
-
-        output += alphabet[(chunk >> 18) & 0x3f];
-        output += alphabet[(chunk >> 12) & 0x3f];
-        output += index + 1 < bytes.length ? alphabet[(chunk >> 6) & 0x3f] : "=";
-        output += index + 2 < bytes.length ? alphabet[chunk & 0x3f] : "=";
-    }
-
-    return output;
-}
-
-async function readFileBytes(fileUri: string) {
-    const base64 = await FileSystem.readAsStringAsync(fileUri, {
-        encoding: FileSystem.EncodingType.Base64,
-    });
-    return base64ToBytes(base64);
-}
-
-async function writeFileBytes(fileUri: string, bytes: Uint8Array) {
-    const parentDirectory = fileUri.slice(0, fileUri.lastIndexOf("/"));
-    if (parentDirectory) {
-        await FileSystem.makeDirectoryAsync(parentDirectory, { intermediates: true });
-    }
-    await FileSystem.writeAsStringAsync(fileUri, bytesToBase64(bytes), {
-        encoding: FileSystem.EncodingType.Base64,
-    });
-}
 
 function assertManagedRestoreUri(fileUri: string) {
     if (!isSongSeedManagedUri(fileUri)) {
@@ -194,12 +139,14 @@ export async function findWorkspaceArchives(): Promise<
 
         const archiveUri = `${SONG_SEED_WORKSPACE_ARCHIVE_DIR}/${filename}`;
         try {
-            const zipBytes = await readFileBytes(archiveUri);
-            const zipEntries = unzipSync(zipBytes);
-            const manifestEntry = zipEntries["manifest.json"];
+            // Index only — reads the manifest without loading any audio payloads.
+            const archiveIndex = await indexStoredZipArchive(archiveUri);
+            const manifestEntry = archiveIndex.entries.get("manifest.json");
             if (!manifestEntry) continue;
 
-            const manifest = JSON.parse(strFromU8(manifestEntry)) as ArchiveManifest;
+            const manifest = JSON.parse(
+                strFromU8(await readStoredZipEntryBytes(archiveIndex, manifestEntry))
+            ) as ArchiveManifest;
             archives.push({
                 archiveUri,
                 workspaceId: manifest.workspaceId,
@@ -223,18 +170,23 @@ export async function restoreWorkspaceFromArchive(
     archiveUri: string,
     onProgress?: (done: number, total: number) => void
 ): Promise<ArchiveRecoveryResult> {
-    const zipBytes = await readFileBytes(archiveUri);
-    const zipEntries = unzipSync(zipBytes);
+    // Streaming index: audio entries are extracted one at a time in bounded chunks —
+    // never the whole archive in memory (large workspaces OOM'd Hermes on device).
+    const archiveIndex = await indexStoredZipArchive(archiveUri);
 
-    const manifestEntry = zipEntries["manifest.json"];
-    const workspaceEntry = zipEntries["workspace.json"];
+    const manifestEntry = archiveIndex.entries.get("manifest.json");
+    const workspaceEntry = archiveIndex.entries.get("workspace.json");
 
     if (!manifestEntry || !workspaceEntry) {
         throw new Error("Archive is missing manifest.json or workspace.json.");
     }
 
-    const manifest = JSON.parse(strFromU8(manifestEntry)) as ArchiveManifest;
-    const workspace = JSON.parse(strFromU8(workspaceEntry)) as Workspace;
+    const manifest = JSON.parse(
+        strFromU8(await readStoredZipEntryBytes(archiveIndex, manifestEntry))
+    ) as ArchiveManifest;
+    const workspace = JSON.parse(
+        strFromU8(await readStoredZipEntryBytes(archiveIndex, workspaceEntry))
+    ) as Workspace;
 
     // Restore the workspace as non-archived (it's being fully restored)
     workspace.isArchived = false;
@@ -249,8 +201,8 @@ export async function restoreWorkspaceFromArchive(
         const audioFile = manifest.audioFiles[i];
         onProgress?.(i, totalFiles);
 
-        const entryBytes = zipEntries[audioFile.archivePath];
-        if (!entryBytes) {
+        const entry = archiveIndex.entries.get(audioFile.archivePath);
+        if (!entry) {
             warnings.push(`Missing archive entry: ${audioFile.archivePath}`);
             continue;
         }
@@ -271,7 +223,7 @@ export async function restoreWorkspaceFromArchive(
                 }
             }
 
-            await writeFileBytes(audioFile.liveUri, entryBytes);
+            await extractStoredZipEntryToFile(archiveIndex, entry, audioFile.liveUri);
             restoredAudioCount++;
         } catch (err) {
             const msg = err instanceof Error ? err.message : String(err);
