@@ -54,6 +54,7 @@ export function SettingsLibraryView({
             icon="cloud-upload-outline"
             title="Back up"
             busy={backupFlow.isBackingUp}
+            disabled={backupFlow.isRestoring}
             meta={
               backupFlow.isBackingUp
                 ? backupFlow.backupProgressLabel ?? "Backing up…"
@@ -75,7 +76,7 @@ export function SettingsLibraryView({
             icon="cloud-download-outline"
             title="Restore"
             busy={backupFlow.isRestoring}
-            disabled={backupFlow.isBackingUp}
+            disabled={backupFlow.isBackingUp || backupFlow.isRestoring}
             meta={
               backupFlow.isRestoring
                 ? backupFlow.restoreProgressLabel ?? "Restoring…"

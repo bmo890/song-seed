@@ -3,9 +3,9 @@ import * as FileSystem from "expo-file-system/legacy";
 import { File } from "expo-file-system";
 import { strFromU8 } from "fflate";
 import {
+    extractStoredZipEntryToFile,
     indexStoredZipArchive,
     readStoredZipEntryBytes,
-    streamStoredZipEntry,
     type StoredZipIndex,
 } from "./storedZipArchive";
 import { createLyricsVersion, lyricsTextToDocument } from "../lyrics";
@@ -156,9 +156,9 @@ async function ensureAudioDirectory() {
 }
 
 /**
- * Stream one archive audio entry straight to its managed destination in bounded chunks
- * (native reads + native writes; the entry's ZIP CRC is verified in-stream). Returns null
- * when the archive lacks the entry so callers can warn without aborting the import.
+ * Stream one archive audio entry straight to its managed destination (via the shared
+ * bounded-chunk extractor, which CRC-verifies the entry in-stream). Returns null when
+ * the archive lacks the entry so callers can warn without aborting the import.
  */
 async function extractManagedArchiveAudio(
     parsed: ParsedSongSeedArchive,
@@ -171,14 +171,7 @@ async function extractManagedArchiveAudio(
 
     await ensureAudioDirectory();
     const destinationUri = `${SONG_SEED_AUDIO_DIR}/${targetId}.${extension}`;
-    const targetFile = new File(destinationUri);
-    targetFile.create({ intermediates: true, overwrite: true });
-    const handle = targetFile.open();
-    try {
-        await streamStoredZipEntry(parsed.archiveIndex, entry, (chunk) => handle.writeBytes(chunk));
-    } finally {
-        handle.close();
-    }
+    await extractStoredZipEntryToFile(parsed.archiveIndex, entry, destinationUri);
     return destinationUri;
 }
 

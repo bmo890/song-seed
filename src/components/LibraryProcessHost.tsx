@@ -254,8 +254,8 @@ function ProcessTakeover({
 
                         <Text style={styles.takeoverHint}>
                             {process.canCancel
-                                ? "Minimize to keep using the app — the process keeps running and you can return to it from the pill."
-                                : "Finishing a step that can't be interrupted…"}
+                                ? "Minimize to keep using the app — return from the pill at the bottom."
+                                : "Finishing up — this step can't be interrupted."}
                         </Text>
                     </ScrollView>
                 )}

@@ -375,7 +375,12 @@ export async function createZipArchive(
             // CRC is computed WHILE the entry streams, then patched into its local header.
             // The old resolve pass silently read every byte before packaging began, which
             // left exports sitting at 0% for the entire first read of the library.
-            const size = entry.sizeBytes ?? (typeof info.size === "number" ? info.size : null);
+            // File.size is the fallback for providers whose getInfoAsync omits .size.
+            const statedSize =
+                typeof info.size === "number" ? info.size : new File(entry.fileUri).size;
+            const size =
+                entry.sizeBytes ??
+                (Number.isSafeInteger(statedSize) && statedSize >= 0 ? statedSize : null);
             if (size == null || !Number.isSafeInteger(size) || size < 0) {
                 throw new Error(`Could not determine file size for ${entry.archiveName}`);
             }

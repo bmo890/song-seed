@@ -1,5 +1,4 @@
 import * as FileSystem from "expo-file-system/legacy";
-import * as Crypto from "expo-crypto";
 import { File } from "expo-file-system";
 import { createZipArchive, buildTimestampSlug, type ZipArchiveEntry } from "./audioStorage";
 import { SONG_SEED_ROOT, toRelativeManagedPath } from "./storagePaths";
@@ -11,7 +10,7 @@ import {
     type BackupOperationOptions,
 } from "./backupOperation";
 import { IncrementalCrc32 } from "./streamingIntegrity";
-import { sha256OfFileBase64 } from "./fileHashing";
+import { sha256OfFileBase64, sha256OfString } from "./fileHashing";
 import { recordLibraryOperationThroughput } from "./operationPacing";
 import { toRelativeWorkspacesManagedMedia } from "../state/rebaseManagedMedia";
 import {
@@ -84,10 +83,6 @@ type MediaRef = {
     /** Human-readable reference for diagnostics (e.g. song / clip id). */
     ref: string;
 };
-
-async function sha256OfString(data: string): Promise<string> {
-    return Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, data);
-}
 
 async function inspectFileIntegrity(
     absUri: string,

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useMemo } from "react";
 import * as Clipboard from "expo-clipboard";
 import * as DocumentPicker from "expo-document-picker";
 import { useSharedAudioRecorder } from "@siteed/audio-studio";
@@ -34,7 +34,7 @@ import {
 } from "../../../services/operationPacing";
 import { formatBytes } from "../../../utils";
 import { buildPersistedAppStoreSnapshot, useStore } from "../../../state/useStore";
-import { useProcessStore } from "../../../state/useProcessStore";
+import { formatProcessProgress, useProcessStore } from "../../../state/useProcessStore";
 import type { BackupReminderFrequency, Workspace } from "../../../types";
 import { haptic } from "../../../design/haptics";
 
@@ -94,19 +94,12 @@ export function useLibraryBackupFlow() {
     // The running operation lives in the global process store so it survives leaving
     // Settings and shows in the minimizable process host; this screen just reflects it.
     const activeProcess = useProcessStore((s) => s.process);
-    const backupAbortRef = useRef<AbortController | null>(null);
-    const restoreAbortRef = useRef<AbortController | null>(null);
 
     const isBackingUp = activeProcess?.kind === "backup" && activeProcess.status === "running";
     const isRestoring = activeProcess?.kind === "restore" && activeProcess.status === "running";
 
-    useEffect(
-        () => () => {
-            backupAbortRef.current?.abort();
-            restoreAbortRef.current?.abort();
-        },
-        []
-    );
+    // Deliberately NO abort-on-unmount: the operation lives in the global process store
+    // and must survive this screen unmounting; cancellation is owned by the process host.
 
     const reminderOptions = useMemo(
         () =>
@@ -162,7 +155,6 @@ export function useLibraryBackupFlow() {
         }
 
         const controller = new AbortController();
-        backupAbortRef.current = controller;
         const processId = `backup-${Date.now()}`;
         const store = useProcessStore.getState();
         store.start({
@@ -249,10 +241,9 @@ export function useLibraryBackupFlow() {
                 AppAlert.info(
                     "Backup saved, but incomplete",
                     `Saved ${backupFileName}, but ${missingCritical.length} recording${missingCritical.length === 1 ? "" : "s"} ` +
-                        `could not be found and ${missingCritical.length === 1 ? "is" : "are"} missing from this backup:` +
+                        `${missingCritical.length === 1 ? "is" : "are"} missing from storage:` +
                         listBlock +
-                        `The audio for ${missingCritical.length === 1 ? "this item" : "these items"} is gone from storage. ` +
-                        `Run Settings → Storage → Check integrity to review, then back up again.`
+                        `Review in Library & Backups → Storage details, then back up again.`
                 );
                 return false;
             }
@@ -261,7 +252,9 @@ export function useLibraryBackupFlow() {
                 haptic.success();
                 setLastSuccessfulBackupAt(Date.now());
                 setLastSuccessfulBackupFileName(backupFileName);
-                useProcessStore.getState().setStatus("success", `Saved ${backupFileName}`);
+                // The alert is the single success surface — clear the process instead of
+                // stacking a terminal takeover behind the dialog.
+                useProcessStore.getState().dismiss(processId);
                 AppAlert.custom(
                     "Backup ready",
                     `Saved ${backupFileName} to the location you chose.`,
@@ -312,10 +305,6 @@ export function useLibraryBackupFlow() {
             useProcessStore.getState().setStatus("error", message);
             AppAlert.info("Backup failed", message);
             return false;
-        } finally {
-            if (backupAbortRef.current === controller) {
-                backupAbortRef.current = null;
-            }
         }
     };
 
@@ -331,8 +320,10 @@ export function useLibraryBackupFlow() {
             );
             return;
         }
+        if (useProcessStore.getState().process?.status === "running") {
+            return;
+        }
         const controller = new AbortController();
-        restoreAbortRef.current = controller;
         const processId = `restore-${Date.now()}`;
         useProcessStore.getState().start({
             id: processId,
@@ -396,15 +387,13 @@ export function useLibraryBackupFlow() {
                 error instanceof Error ? error.message : "The backup could not be restored.";
             useProcessStore.getState().setStatus("error", message);
             AppAlert.info("Restore failed", message);
-        } finally {
-            if (restoreAbortRef.current === controller) {
-                restoreAbortRef.current = null;
-            }
         }
     };
 
     const handleRestore = async () => {
-        if (isRestoring || isBackingUp) {
+        // Generic single-slot guard (like backup/export): a running EXPORT must also block
+        // a restore, or start() would clobber its process slot mid-operation.
+        if (useProcessStore.getState().process?.status === "running") {
             return;
         }
         if (recorder.isRecording || recorder.isPaused) {
@@ -438,7 +427,7 @@ export function useLibraryBackupFlow() {
         if ((await detectPickedArchiveKind(asset.uri)) === "song-seed-archive") {
             AppAlert.info(
                 "That's a shareable archive",
-                "This file is a Song Seed Archive (an export for sharing or merging), not a full backup. To bring it into your library, use Settings → Import Song Seed Archive."
+                "This file is a Song Seed Archive (an export for sharing), not a full backup. To bring it into your library, use Library & Backups → Import an archive."
             );
             return;
         }
@@ -486,14 +475,11 @@ export function useLibraryBackupFlow() {
         lastSuccessfulBackupLabel: formatBackupTimestamp(lastSuccessfulBackupAt),
         reminderOptions,
         isBackingUp,
-        backupProgressLabel: isBackingUp && activeProcess ? formatOperationProgress(activeProcess.progress) : null,
+        backupProgressLabel: isBackingUp && activeProcess ? formatProcessProgress(activeProcess.progress) : null,
         handleBackupNow,
-        cancelBackup: () => backupAbortRef.current?.abort(),
         isRestoring,
-        restoreProgressLabel: isRestoring && activeProcess ? formatOperationProgress(activeProcess.progress) : null,
-        canCancelRestore: isRestoring && !!activeProcess?.canCancel,
+        restoreProgressLabel: isRestoring && activeProcess ? formatProcessProgress(activeProcess.progress) : null,
         handleRestore,
-        cancelRestore: () => restoreAbortRef.current?.abort(),
         copyLastBackupFileName: async () => {
             if (!lastSuccessfulBackupFileName) {
                 return false;
@@ -504,14 +490,4 @@ export function useLibraryBackupFlow() {
             return true;
         },
     };
-}
-
-function formatOperationProgress(progress: BackupOperationProgress | null) {
-    if (!progress) return null;
-    if (progress.totalBytes <= 0) return progress.message;
-    const percent = Math.min(
-        100,
-        Math.max(0, Math.round((progress.completedBytes / progress.totalBytes) * 100))
-    );
-    return `${progress.message} · ${percent}%`;
 }

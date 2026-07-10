@@ -13,9 +13,9 @@ import {
 } from "../../../services/operationPacing";
 import { formatBytes } from "../../../utils";
 import { BACKUP_SAVE_CANCELLED_MESSAGE } from "../../../services/archiveSave";
-import type { BackupOperationProgress } from "../../../services/backupOperation";
+import { isBackupOperationCancelled } from "../../../services/backupOperation";
 import { useStore } from "../../../state/useStore";
-import { useProcessStore } from "../../../state/useProcessStore";
+import { formatProcessProgress, useProcessStore } from "../../../state/useProcessStore";
 import type { Workspace } from "../../../types";
 import { getCollectionScopeIds } from "../../../utils";
 import {
@@ -38,13 +38,6 @@ const DEFAULT_STANDARD_OPTIONS: StandardExportOptions = {
   includeLyricsAsText: true,
   includeHiddenItems: false,
 };
-
-function formatExportProgress(progress: BackupOperationProgress | null): string | null {
-  if (!progress) return null;
-  if (progress.totalBytes <= 0) return progress.message;
-  const percent = Math.min(100, Math.max(0, Math.round((progress.completedBytes / progress.totalBytes) * 100)));
-  return `${progress.message} · ${percent}%`;
-}
 
 export function useLibraryExportFlow() {
   const workspaces = useStore((state) => state.workspaces);
@@ -90,9 +83,12 @@ export function useLibraryExportFlow() {
     const token = ++estimateTokenRef.current;
     setIsEstimatingArchiveSize(true);
     const timer = setTimeout(() => {
+      // Library content read via getState() at run time: `workspaces`/`notes` references
+      // churn on every store write (background hydration commits for minutes), and each
+      // re-fire re-stats every included audio file. Selection/options drive re-estimates.
       void estimateLibraryArchiveSizes({
-        workspaces,
-        notes,
+        workspaces: useStore.getState().workspaces,
+        notes: useStore.getState().notes,
         format: "song-seed-archive",
         scope: {
           workspaceIds: selectedWorkspaceIds,
@@ -121,8 +117,6 @@ export function useLibraryExportFlow() {
   }, [
     format,
     hasArchiveScope,
-    workspaces,
-    notes,
     selectedWorkspaceIds,
     selectedCollectionIds,
     excludedCollectionIds,
@@ -149,10 +143,12 @@ export function useLibraryExportFlow() {
       excludedCollectionIds,
     };
     const timer = setTimeout(() => {
+      // getState() at run time for the same reason as the archive-size effect above.
+      const { workspaces: liveWorkspaces, notes: liveNotes } = useStore.getState();
       const args =
         format === "song-seed-archive"
-          ? ({ workspaces, notes, format, scope, options: archiveOptions } as const)
-          : ({ workspaces, notes, format, scope, options: standardOptions } as const);
+          ? ({ workspaces: liveWorkspaces, notes: liveNotes, format, scope, options: archiveOptions } as const)
+          : ({ workspaces: liveWorkspaces, notes: liveNotes, format, scope, options: standardOptions } as const);
       void estimateLibraryExportArchive(args)
         .then((estimate) => {
           if (generateEstimateTokenRef.current === token) setGenerateEstimate(estimate);
@@ -165,8 +161,6 @@ export function useLibraryExportFlow() {
   }, [
     format,
     hasArchiveScope,
-    workspaces,
-    notes,
     selectedWorkspaceIds,
     selectedCollectionIds,
     excludedCollectionIds,
@@ -289,12 +283,13 @@ export function useLibraryExportFlow() {
       return;
     }
     const processId = `export-${Date.now()}`;
+    const controller = new AbortController();
     const store = useProcessStore.getState();
     store.start({
       id: processId,
       kind: "export",
       title: format === "song-seed-archive" ? "Song Seed Archive" : "Standard ZIP",
-      canCancel: false,
+      onCancel: () => controller.abort(),
     });
     const onProgress = (progress: Parameters<typeof store.update>[0]) =>
       useProcessStore.getState().update(progress);
@@ -315,6 +310,7 @@ export function useLibraryExportFlow() {
               scope,
               options: archiveOptions,
               onProgress,
+              signal: controller.signal,
               libraryPreferences: {
                 primaryWorkspaceId,
                 primaryCollectionIdByWorkspace: Object.fromEntries(
@@ -332,8 +328,11 @@ export function useLibraryExportFlow() {
               scope,
               options: standardOptions,
               onProgress,
+              signal: controller.signal,
             });
-      useProcessStore.getState().setStatus("success", "Export ready");
+      // The alert is the single success surface — clear the process instead of stacking
+      // a terminal takeover behind the dialog.
+      useProcessStore.getState().dismiss(processId);
 
       const summary = `${result.exportedWorkspaces} workspace${result.exportedWorkspaces === 1 ? "" : "s"}, ${result.exportedCollections} collection${result.exportedCollections === 1 ? "" : "s"}, ${result.exportedSongs} song${result.exportedSongs === 1 ? "" : "s"}, ${result.exportedStandaloneClips} standalone clip${result.exportedStandaloneClips === 1 ? "" : "s"}, and ${result.exportedNotepadNotes} notepad note${result.exportedNotepadNotes === 1 ? "" : "s"}`;
 
@@ -348,8 +347,12 @@ export function useLibraryExportFlow() {
         AppAlert.info("Export ready", `${summary} were packaged and handed to the share sheet.`);
       }
     } catch (error) {
-      // A cancelled Android folder picker is a silent no-op, not a failure.
-      if (error instanceof Error && error.message === BACKUP_SAVE_CANCELLED_MESSAGE) {
+      // User cancellation (takeover Cancel or a backed-out Android folder picker) is a
+      // silent no-op, not a failure.
+      if (
+        isBackupOperationCancelled(error) ||
+        (error instanceof Error && error.message === BACKUP_SAVE_CANCELLED_MESSAGE)
+      ) {
         useProcessStore.getState().dismiss(processId);
         return;
       }
@@ -373,7 +376,7 @@ export function useLibraryExportFlow() {
     archiveOptions,
     standardOptions,
     isExporting,
-    exportProgressLabel: isExporting && activeProcess ? formatExportProgress(activeProcess.progress) : null,
+    exportProgressLabel: isExporting && activeProcess ? formatProcessProgress(activeProcess.progress) : null,
     includeHiddenItems,
     selectedSummary,
     archiveSizeEstimate,

@@ -7,28 +7,8 @@ export const settingsScreenStyles = StyleSheet.create({
   scrollContent: {
     paddingBottom: 40,
   },
-  tagRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-  },
-  tagBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-  },
-  tagBadgeText: {
-    fontSize: 12,
-  },
   actionCardDisabled: {
     opacity: 0.6,
-  },
-  backupSummaryBlock: {
-    marginTop: 12,
-    gap: 10,
-  },
-  backupSummaryRow: {
-    gap: 6,
   },
   backupFileNameRow: {
     flexDirection: "row",
@@ -42,19 +22,6 @@ export const settingsScreenStyles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
     color: colors.textStrong,
-  },
-  backupCancelButton: {
-    alignSelf: "flex-start",
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    paddingVertical: 6,
-    paddingHorizontal: 2,
-  },
-  backupCancelText: {
-    fontSize: 13,
-    lineHeight: 18,
-    color: colors.textSecondary,
   },
   libraryCardStack: {
     gap: 8,

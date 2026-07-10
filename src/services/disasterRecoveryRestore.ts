@@ -1,5 +1,4 @@
 import * as FileSystem from "expo-file-system/legacy";
-import * as Crypto from "expo-crypto";
 import { File } from "expo-file-system";
 import { strFromU8 } from "fflate";
 import { resolveManagedUri } from "./storagePaths";
@@ -24,7 +23,7 @@ import {
     throwIfBackupCancelled,
     type BackupOperationOptions,
 } from "./backupOperation";
-import { sha256OfFileBase64 } from "./fileHashing";
+import { sha256OfFileBase64, sha256OfString } from "./fileHashing";
 import { recordLibraryOperationThroughput } from "./operationPacing";
 import {
     indexStoredZipArchive,
@@ -111,10 +110,6 @@ export class DrRestoreIncompleteError extends DrRestoreError {
         this.name = "DrRestoreIncompleteError";
         this.missingCriticalCount = missingCriticalCount;
     }
-}
-
-async function sha256OfString(data: string): Promise<string> {
-    return Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, data);
 }
 
 function parentDirOf(uri: string): string {

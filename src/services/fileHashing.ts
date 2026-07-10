@@ -22,6 +22,12 @@ import {
  */
 export const NATIVE_BASE64_SHA256_MAX_BYTES = 64 * 1024 * 1024;
 
+/** Native SHA-256 (hex) of a string — used for the snapshot digest on BOTH the backup
+ *  and restore sides, so they provably hash the manifest the same way. */
+export async function sha256OfString(data: string): Promise<string> {
+    return Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, data);
+}
+
 const STREAM_CHUNK_BYTES = 512 * 1024;
 const YIELD_AFTER_BYTES = 2 * 1024 * 1024;
 

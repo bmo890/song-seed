@@ -100,6 +100,17 @@ export function getProcessSteps(process: LibraryProcess): ProcessStep[] {
     });
 }
 
+/** "message · N%" label for compact progress rows (cards, pills). */
+export function formatProcessProgress(progress: BackupOperationProgress | null): string | null {
+    if (!progress) return null;
+    if (progress.totalBytes <= 0) return progress.message;
+    const percent = Math.min(
+        100,
+        Math.max(0, Math.round((progress.completedBytes / progress.totalBytes) * 100))
+    );
+    return `${progress.message} · ${percent}%`;
+}
+
 type StartArgs = {
     id: string;
     kind: LibraryProcessKind;
@@ -128,6 +139,14 @@ const INITIAL_PROGRESS: BackupOperationProgress = {
     message: "Preparing",
 };
 
+/**
+ * Progress commits re-render every subscriber (the full takeover, the pill, the Settings
+ * cards). Native-speed streams report every 2MB (~10–25×/sec), so coalesce byte-only
+ * updates to ~4Hz; phase changes and completions always commit immediately.
+ */
+const PROGRESS_COMMIT_INTERVAL_MS = 250;
+let lastProgressCommitAt = 0;
+
 export const useProcessStore = create<ProcessStore>((set, get) => ({
     process: null,
     start: ({ id, kind, title, canCancel = true, onCancel }) =>
@@ -144,12 +163,18 @@ export const useProcessStore = create<ProcessStore>((set, get) => ({
                 onCancel,
             },
         }),
-    update: (progress) =>
-        set((state) =>
-            state.process && state.process.status === "running"
-                ? { process: { ...state.process, progress } }
-                : state
-        ),
+    update: (progress) => {
+        const current = get().process;
+        if (!current || current.status !== "running") return;
+        const now = Date.now();
+        const significant =
+            progress.phase !== current.progress.phase ||
+            progress.completedBytes >= progress.totalBytes ||
+            now - lastProgressCommitAt >= PROGRESS_COMMIT_INTERVAL_MS;
+        if (!significant) return;
+        lastProgressCommitAt = now;
+        set({ process: { ...current, progress } });
+    },
     setStatus: (status, resultMessage) =>
         set((state) =>
             state.process ? { process: { ...state.process, status, resultMessage, canCancel: false } } : state

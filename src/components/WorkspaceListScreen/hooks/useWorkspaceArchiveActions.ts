@@ -53,9 +53,10 @@ export function useWorkspaceArchiveActions({
         `Packed ${result.archiveState.audioFileCount} recording${
           result.archiveState.audioFileCount === 1 ? "" : "s"
         } into a single ${formatBytes(result.archiveState.packageSizeBytes)} package on this device.`,
-        `The workspace left your active list and your working library got ${formatBytes(
-          result.archiveState.savingsBytes
-        )} lighter. Restore it anytime.`,
+        // Only brag about the metadata trim when it's a number worth saying out loud.
+        result.archiveState.savingsBytes >= 64 * 1024
+          ? `Your working library got ${formatBytes(result.archiveState.savingsBytes)} lighter. Restore it anytime.`
+          : "Restore it anytime.",
       ];
       if (result.warnings.length > 0) {
         summary.push(result.warnings.join(" "));
@@ -198,6 +199,13 @@ export function useWorkspaceArchiveActions({
         try {
           if (action === "archive") {
             await appActions.archiveWorkspace(workspace.id);
+          } else if (workspace.archiveState?.offloadedAt) {
+            // Restoring an offloaded workspace needs its package file picked — a per-
+            // workspace interaction that doesn't fit a bulk pass.
+            failures.push(
+              `${workspace.title}: its package is in your storage — unarchive it on its own to pick the file.`
+            );
+            continue;
           } else {
             await appActions.unarchiveWorkspace(workspace.id);
           }

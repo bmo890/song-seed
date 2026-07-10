@@ -41,7 +41,7 @@ export function useLibraryImportFlow() {
             if ((await detectPickedArchiveKind(picked.uri)) === "song-seed-backup") {
                 AppAlert.info(
                     "That's a full backup",
-                    "This file is a full Song Seed backup, not a shareable archive. To restore it, go to Settings → Backups → Restore from Backup (that replaces your whole library with the backup)."
+                    "This file is a full Song Seed backup, not a shareable archive. Restore it from Library & Backups → Restore."
                 );
                 return false;
             }
