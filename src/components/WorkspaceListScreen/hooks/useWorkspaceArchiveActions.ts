@@ -1,8 +1,11 @@
 import { useMemo, useState } from "react";
+import * as DocumentPicker from "expo-document-picker";
 import { AppAlert } from "../../common/AppAlert";
 import { actionIcons } from "../../common/actionIcons";
 import { appActions } from "../../../state/actions";
+import { BACKUP_SAVE_CANCELLED_MESSAGE } from "../../../services/archiveSave";
 import { formatBytes } from "../../../utils";
+import { haptic } from "../../../design/haptics";
 import type { Workspace } from "../../../types";
 
 type Args = {
@@ -25,7 +28,7 @@ export function useWorkspaceArchiveActions({
   viewingArchived,
 }: Args) {
   const [busyWorkspaceId, setBusyWorkspaceId] = useState<string | null>(null);
-  const [busyAction, setBusyAction] = useState<"archive" | "restore" | null>(null);
+  const [busyAction, setBusyAction] = useState<"archive" | "restore" | "offload" | null>(null);
 
   const busyLabel = useMemo(
     () =>
@@ -33,7 +36,9 @@ export function useWorkspaceArchiveActions({
         ? "ARCHIVING"
         : busyAction === "restore"
           ? "RESTORING"
-          : null,
+          : busyAction === "offload"
+            ? "MOVING"
+            : null,
     [busyAction]
   );
 
@@ -45,12 +50,13 @@ export function useWorkspaceArchiveActions({
     try {
       const result = await appActions.archiveWorkspace(workspaceId);
       const summary = [
-        `Packed ${result.archiveState.audioFileCount} audio file${
+        `Packed ${result.archiveState.audioFileCount} recording${
           result.archiveState.audioFileCount === 1 ? "" : "s"
-        } into ${formatBytes(result.archiveState.packageSizeBytes)}.`,
-        `Saved ${formatBytes(
-          result.archiveState.savingsBytes
-        )} on device while keeping the workspace structure and metadata live.`,
+        } into a single ${formatBytes(result.archiveState.packageSizeBytes)} package on this device.`,
+        // Only brag about the metadata trim when it's a number worth saying out loud.
+        result.archiveState.savingsBytes >= 64 * 1024
+          ? `Your working library got ${formatBytes(result.archiveState.savingsBytes)} lighter. Restore it anytime.`
+          : "Restore it anytime.",
       ];
       if (result.warnings.length > 0) {
         summary.push(result.warnings.join(" "));
@@ -67,13 +73,13 @@ export function useWorkspaceArchiveActions({
     }
   }
 
-  async function runUnarchiveWorkspace(workspaceId: string) {
+  async function runUnarchiveWorkspace(workspaceId: string, pickedArchiveUri?: string) {
     setBusyWorkspaceId(workspaceId);
     setBusyAction("restore");
     closeModal();
 
     try {
-      const result = await appActions.unarchiveWorkspace(workspaceId);
+      const result = await appActions.unarchiveWorkspace(workspaceId, pickedArchiveUri);
       const summary = ["Workspace audio was restored and the workspace is active again."];
       if (result.warnings.length > 0) {
         summary.push(result.warnings.join(" "));
@@ -88,6 +94,89 @@ export function useWorkspaceArchiveActions({
       setBusyWorkspaceId(null);
       setBusyAction(null);
     }
+  }
+
+  /** Offloaded package: ask for the file back, then restore from it. */
+  async function pickAndRestoreOffloadedWorkspace(workspace: Workspace) {
+    let picked: DocumentPicker.DocumentPickerResult;
+    try {
+      picked = await DocumentPicker.getDocumentAsync({
+        type: ["application/zip", "application/x-zip-compressed", "*/*"],
+        multiple: false,
+        copyToCacheDirectory: true,
+      });
+    } catch {
+      AppAlert.info("Restore failed", "Could not open the file picker.");
+      return;
+    }
+    if (picked.canceled || picked.assets.length === 0) return;
+    await runUnarchiveWorkspace(workspace.id, picked.assets[0]!.uri);
+  }
+
+  async function runOffloadWorkspace(workspace: Workspace) {
+    setBusyWorkspaceId(workspace.id);
+    setBusyAction("offload");
+    closeModal();
+
+    try {
+      const saved = await appActions.offloadArchivedWorkspace(workspace.id);
+      const finalize = async () => {
+        try {
+          const result = await appActions.finalizeWorkspaceOffload(workspace.id, saved.fileName);
+          haptic.success();
+          AppAlert.info(
+            "Package moved",
+            `Freed ${formatBytes(result.freedBytes)} on this device. "${workspace.title}" stays in your archived list — restoring it will ask for "${saved.fileName}".`
+          );
+        } catch (error) {
+          AppAlert.info(
+            "Could not finish the move",
+            error instanceof Error ? error.message : "The local package was kept."
+          );
+        }
+      };
+
+      if (saved.saveConfirmed) {
+        await finalize();
+      } else {
+        // iOS share sheet can't report whether the save completed. The local package is
+        // the ONLY copy until the user explicitly confirms it landed.
+        AppAlert.custom(
+          "Confirm the package saved",
+          `Only confirm if "${saved.fileName}" now appears in Files, iCloud Drive, or the location you chose. The copy on this device is deleted after you confirm.`,
+          [
+            { label: "Not Saved", style: "cancel" },
+            { label: "It Saved — Free Up Space", style: "default", icon: "checkmark", onPress: () => void finalize() },
+          ]
+        );
+      }
+    } catch (error) {
+      if (!(error instanceof Error && error.message === BACKUP_SAVE_CANCELLED_MESSAGE)) {
+        AppAlert.info(
+          "Move failed",
+          error instanceof Error ? error.message : "Could not move this workspace's package."
+        );
+      }
+    } finally {
+      setBusyWorkspaceId(null);
+      setBusyAction(null);
+    }
+  }
+
+  function confirmOffloadWorkspace(workspace: Workspace) {
+    if (busyWorkspaceId) return;
+    if (!workspace.isArchived || !workspace.archiveState || workspace.archiveState.offloadedAt) {
+      return;
+    }
+
+    AppAlert.confirm(
+      `Move "${workspace.title}" package off this device?`,
+      `Saves the ${formatBytes(workspace.archiveState.packageSizeBytes)} package to Files, iCloud Drive, or another location you choose, then deletes the copy on this device — that's the real space saver. Keep the file safe: restoring this workspace will ask for it.`,
+      () => {
+        void runOffloadWorkspace(workspace);
+      },
+      { confirmLabel: "Choose Location", icon: actionIcons.archive }
+    );
   }
 
   async function runSelectionWorkspaceArchive(action: "archive" | "restore") {
@@ -110,6 +199,13 @@ export function useWorkspaceArchiveActions({
         try {
           if (action === "archive") {
             await appActions.archiveWorkspace(workspace.id);
+          } else if (workspace.archiveState?.offloadedAt) {
+            // Restoring an offloaded workspace needs its package file picked — a per-
+            // workspace interaction that doesn't fit a bulk pass.
+            failures.push(
+              `${workspace.title}: its package is in your storage — unarchive it on its own to pick the file.`
+            );
+            continue;
           } else {
             await appActions.unarchiveWorkspace(workspace.id);
           }
@@ -207,9 +303,24 @@ export function useWorkspaceArchiveActions({
     }
 
     if (workspace.isArchived) {
+      if (workspace.archiveState?.offloadedAt) {
+        AppAlert.confirm(
+          `Unarchive ${workspace.title}?`,
+          `This workspace's package was moved to your storage${
+            workspace.archiveState.offloadedFileName
+              ? ` as "${workspace.archiveState.offloadedFileName}"`
+              : ""
+          }. Pick that file to unpack it and return the workspace to your active list.`,
+          () => {
+            void pickAndRestoreOffloadedWorkspace(workspace);
+          },
+          { confirmLabel: "Pick Package File", icon: actionIcons.restore }
+        );
+        return;
+      }
       AppAlert.confirm(
         `Unarchive ${workspace.title}?`,
-        "This restores the compressed audio and returns the workspace to the active list.",
+        "This unpacks the workspace's audio and returns it to your active list, exactly as it was.",
         () => {
           void runUnarchiveWorkspace(workspace.id);
         },
@@ -220,7 +331,7 @@ export function useWorkspaceArchiveActions({
 
     AppAlert.confirm(
       `Archive ${workspace.title}?`,
-      "This compresses the workspace audio, removes the workspace from the active list, and keeps it available to restore later.",
+      "Tucks this workspace away without deleting anything: its recordings move into a single package on this device, it leaves your active list, and your working library gets lighter. Restore it anytime.",
       () => {
         void runArchiveWorkspace(workspace.id);
       },
@@ -251,6 +362,7 @@ export function useWorkspaceArchiveActions({
     confirmArchiveSelection,
     confirmDeleteSelection,
     confirmArchiveWorkspace,
+    confirmOffloadWorkspace,
     confirmDeleteWorkspace,
   };
 }

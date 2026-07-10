@@ -37,6 +37,73 @@ jest.mock("expo-file-system/legacy", () => ({
     }),
 }));
 
+// Modern expo-file-system File API used by the streaming archive reader.
+jest.mock("expo-file-system", () => {
+    class MockFile {
+        uri: string;
+
+        constructor(uri: string) {
+            this.uri = uri;
+        }
+
+        get exists() {
+            return mockFiles.has(this.uri);
+        }
+
+        get size() {
+            return mockFiles.get(this.uri)?.length ?? 0;
+        }
+
+        create(options?: { overwrite?: boolean }) {
+            if (mockFiles.has(this.uri) && !options?.overwrite) {
+                throw new Error(`File already exists: ${this.uri}`);
+            }
+            mockFiles.set(this.uri, new Uint8Array(0));
+        }
+
+        open() {
+            if (!mockFiles.has(this.uri)) {
+                throw new Error(`Missing mock file: ${this.uri}`);
+            }
+            const uri = this.uri;
+            let currentOffset: number | null = 0;
+            return {
+                readBytes: (length: number) => {
+                    if (currentOffset == null) throw new Error("Handle closed");
+                    const source = mockFiles.get(uri)!;
+                    const chunk = source.slice(currentOffset, currentOffset + length);
+                    currentOffset += chunk.length;
+                    return chunk;
+                },
+                writeBytes: (bytes: Uint8Array) => {
+                    if (currentOffset == null) throw new Error("Handle closed");
+                    const previous = mockFiles.get(uri)!;
+                    const nextLength = Math.max(previous.length, currentOffset + bytes.length);
+                    const next = new Uint8Array(nextLength);
+                    next.set(previous);
+                    next.set(bytes, currentOffset);
+                    currentOffset += bytes.length;
+                    mockFiles.set(uri, next);
+                },
+                close: () => {
+                    currentOffset = null;
+                },
+                get offset() {
+                    return currentOffset;
+                },
+                set offset(value: number | null) {
+                    currentOffset = value;
+                },
+                get size() {
+                    return currentOffset == null ? null : mockFiles.get(uri)!.length;
+                },
+            };
+        }
+    }
+
+    return { File: MockFile };
+});
+
 // Real zip serialization via fflate so verify/restore exercise actual packages.
 jest.mock("../audioStorage", () => ({
     sanitizeArchiveSegment: (segment: string) => segment.replace(/[^a-zA-Z0-9 _.-]/g, "_"),
@@ -57,7 +124,9 @@ jest.mock("../audioStorage", () => ({
                 zipInput[entry.archiveName] = bytes;
             }
         }
-        mockFiles.set(archiveUri, zip(zipInput));
+        // Stored (uncompressed), matching the real createZipArchive — the streaming
+        // restore reader only accepts stored entries.
+        mockFiles.set(archiveUri, zip(zipInput, { level: 0 }));
     },
 }));
 
@@ -72,9 +141,8 @@ const STEM_B_URI = `${AUDIO_DIR}/stem-b.m4a`;
 const MIX_URI = `${AUDIO_DIR}/rendered-mix.m4a`;
 const ALL_MEDIA_URIS = [MASTER_URI, SOURCE_URI, STEM_A_URI, STEM_B_URI, MIX_URI];
 
-/** Highly compressible payloads so the zip is far smaller than the originals and
- *  the archive's savings guard passes. Each file gets distinct bytes so restore
- *  verification proves content round-tripped, not just existence. */
+/** Each file gets distinct bytes so restore verification proves content
+ *  round-tripped, not just existence. */
 function seedAudioFile(uri: string, fill: number, sizeBytes = 16 * 1024) {
     const bytes = new Uint8Array(sizeBytes).fill(fill);
     mockFiles.set(uri, bytes);
@@ -214,6 +282,20 @@ describe("archiveWorkspaceToDevice (v2)", () => {
         expect(result.archivedWorkspace.isArchived).toBe(true);
     });
 
+    it("archives despite the stored package being at least as large as the audio (no disk-savings gate)", async () => {
+        const result = await archiveWorkspaceToDevice(buildWorkspace());
+
+        // Stored package ≥ raw audio — the old "must reduce storage" gate made archiving
+        // impossible in production. savingsBytes now reports the live-library metadata trim.
+        expect(result.archiveState.packageSizeBytes).toBeGreaterThanOrEqual(
+            result.archiveState.originalAudioBytes
+        );
+        expect(result.archiveState.savingsBytes).toBeGreaterThanOrEqual(0);
+        expect(result.archiveState.savingsBytes).toBe(
+            result.archiveState.originalMetadataBytes - result.archiveState.archivedMetadataBytes
+        );
+    });
+
     it("round-trips: restore rewrites all five files byte-for-byte and revives overdub URIs", async () => {
         const originalBytes = new Map(ALL_MEDIA_URIS.map((uri) => [uri, mockFiles.get(uri)!]));
         const result = await archiveWorkspaceToDevice(buildWorkspace());
@@ -234,6 +316,50 @@ describe("archiveWorkspaceToDevice (v2)", () => {
         expect(restoredClip.sourceAudioUri).toBe(SOURCE_URI);
         expect(restoredClip.overdub?.renderedMixUri).toBe(MIX_URI);
         expect(restoredClip.overdub?.stems.map((stem) => stem.audioUri)).toEqual([STEM_A_URI, STEM_B_URI]);
+    });
+});
+
+describe("offloaded package restore (user-picked file)", () => {
+    it("restores from a picked package copy at a different uri", async () => {
+        const originalBytes = new Map(ALL_MEDIA_URIS.map((uri) => [uri, mockFiles.get(uri)!]));
+        const result = await archiveWorkspaceToDevice(buildWorkspace());
+
+        // Simulate offload: the package now lives only at a picked/cache location.
+        const pickedUri = "file:///cache/picked-package.zip";
+        mockFiles.set(pickedUri, mockFiles.get(result.archiveState.archiveUri)!);
+        mockFiles.delete(result.archiveState.archiveUri);
+        ALL_MEDIA_URIS.forEach((uri) => mockFiles.delete(uri));
+        const offloadedWorkspace = {
+            ...result.archivedWorkspace,
+            archiveState: {
+                ...result.archiveState,
+                offloadedAt: 123,
+                offloadedFileName: "picked-package.zip",
+            },
+        };
+
+        const restore = await restoreWorkspaceFromDevice(offloadedWorkspace, pickedUri);
+
+        expect(restore.restoredWorkspace.isArchived).toBe(false);
+        for (const uri of ALL_MEDIA_URIS) {
+            expect(Buffer.from(mockFiles.get(uri)!)).toEqual(Buffer.from(originalBytes.get(uri)!));
+        }
+    });
+
+    it("rejects a picked package belonging to a different workspace", async () => {
+        const result = await archiveWorkspaceToDevice(buildWorkspace());
+        const pickedUri = "file:///cache/picked-package.zip";
+        mockFiles.set(pickedUri, mockFiles.get(result.archiveState.archiveUri)!);
+
+        const otherWorkspace = {
+            ...result.archivedWorkspace,
+            id: "ws-other",
+            archiveState: { ...result.archiveState, offloadedAt: 123 },
+        };
+
+        await expect(restoreWorkspaceFromDevice(otherWorkspace, pickedUri)).rejects.toThrow(
+            "does not match this workspace"
+        );
     });
 });
 
@@ -262,12 +388,16 @@ describe("v1 package compatibility", () => {
         const archiveUri = "file:///doc/songseed/workspace-archives/Archive Me-ws-1.songseed-workspace.zip";
         mockFiles.set(
             archiveUri,
-            zipSync({
-                "manifest.json": strToU8(JSON.stringify(v1Manifest)),
-                "workspace.json": strToU8(JSON.stringify(workspace)),
-                "audio/0001-master.m4a": masterBytes,
-                "audio/0002-master-source.m4a": mockFiles.get(SOURCE_URI)!,
-            })
+            // Stored, matching the real writer — the streaming reader rejects compression.
+            zipSync(
+                {
+                    "manifest.json": strToU8(JSON.stringify(v1Manifest)),
+                    "workspace.json": strToU8(JSON.stringify(workspace)),
+                    "audio/0001-master.m4a": masterBytes,
+                    "audio/0002-master-source.m4a": mockFiles.get(SOURCE_URI)!,
+                },
+                { level: 0 }
+            )
         );
 
         // v1 stubs stripped only the master/source URIs; overdub stayed referenced

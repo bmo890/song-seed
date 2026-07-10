@@ -1,4 +1,5 @@
-import { useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
+import { useAudioPlayer } from "expo-audio";
+import { useThrottledAudioPlayerStatus } from "./useThrottledAudioPlayerStatus";
 import * as FileSystem from "expo-file-system/legacy";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppState, Platform } from "react-native";
@@ -8,6 +9,7 @@ import {
   getClipPlaybackUri,
 } from "../clipPresentation";
 import { activateAndPlay, replacePlaybackSource } from "../services/transportPlayback";
+import { beginForegroundAudioLoad, endForegroundAudioLoad } from "../services/audioForegroundActivity";
 import { appActions } from "../state/actions";
 import { useStore } from "../state/useStore";
 
@@ -83,15 +85,43 @@ type LockScreenMetadata = {
   albumTitle?: string;
 };
 
-const SOURCE_POSITION_GATE_MS = 1000;
-const SOURCE_POSITION_GATE_TOLERANCE_MS = 120;
+// How long a reported position may be held at a gate target (source swap or seek)
+// before we give up waiting for the native clock to converge. Seeks inside long files
+// (30+ min) can take well over a second under load — a short gate lets stale pre-seek
+// positions leak through and the playhead visibly "jumps back and around" before
+// landing. Convergence releases the gate early, so fast seeks pay nothing.
+const SOURCE_POSITION_GATE_MS = 2500;
+// How close the native clock must land to the seek target before the gate releases and
+// resumes showing the real position. Must be wide enough to count a normal landing as
+// "arrived" — m4a/AAC seeks snap to the nearest keyframe (often 150–300ms off the request),
+// and a resumed playhead moves further away each frame. Too tight (the old 120ms) meant a
+// keyframe-off or playing seek never converged, so the gate froze the display at the target
+// for the full timeout and then snapped — the "jumps away then returns" scrub glitch. A
+// backward/forward scrub's STALE pre-seek report is seconds away, so this still rejects it.
+const SOURCE_POSITION_GATE_TOLERANCE_MS = 320;
 
 export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
   const [playerTarget, setPlayerTarget] = useState<PlayerTarget>(null);
   const [finishedPlaybackToken, setFinishedPlaybackToken] = useState(0);
   const [finishedPlaybackClipId, setFinishedPlaybackClipId] = useState<string | null>(null);
+  // Bumped whenever a load operation SETTLES (success, failure, or mid-flight abort).
+  // Screens key their load-reconciliation effects on this so an aborted open — which
+  // otherwise changes no React state — still triggers a re-check instead of leaving
+  // the engine silently pointed at the previous clip while the UI shows the new one.
+  const [engineOpNonce, setEngineOpNonce] = useState(0);
   const operationIdRef = useRef(0);
   const isMountedRef = useRef(true);
+  // Ref mirror so stable callbacks (togglePlayer) can read the engine's loaded
+  // target at call time without depending on the state value.
+  const playerTargetRef = useRef<PlayerTarget>(null);
+  playerTargetRef.current = playerTarget;
+  // The clip currently being loaded, and whether it should play once loaded. Repeated
+  // opens of the SAME clip coalesce onto the in-flight load instead of restarting it —
+  // without this, mashing play during a slow load (big library) makes each press abort
+  // the previous load via a new operation id, so nothing ever finishes (a livelock that
+  // only clears after you stop pressing). A different clip still supersedes normally.
+  const openingClipIdRef = useRef<string | null>(null);
+  const autoplayWhenLoadedRef = useRef(false);
   const previousDidJustFinishRef = useRef(false);
   const lastPublishedPlaybackRef = useRef({
     at: 0,
@@ -103,7 +133,10 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
 
   const playerOptions = useMemo(() => ({ updateInterval: 50 }), []);
   const player = useAudioPlayer(null, playerOptions);
-  const status = useAudioPlayerStatus(player);
+  // Throttled: transitions commit immediately; pure position ticks re-render at
+  // ~5Hz instead of the native 20Hz. Smooth playhead motion is the UI-thread
+  // transport clock's job — it only needs these periodic corrections.
+  const { status, statusRef } = useThrottledAudioPlayerStatus(player, { positionIntervalMs: 200 });
   const sourcePositionGateRef = useRef<{
     targetMs: number;
     until: number;
@@ -133,7 +166,6 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
   const playbackRate = status.playbackRate ?? 1;
   // Keep transport callbacks stable. PlayerScreen is always mounted, so function identity churn
   // here can retrigger effect chains and store updates on every render.
-  const statusRef = useRef(status);
   const playerPositionRef = useRef(playerPosition);
   const playerDurationRef = useRef(playerDuration);
   const lockScreenMetadataRef = useRef<LockScreenMetadata | undefined>(undefined);
@@ -156,10 +188,9 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
   }, []);
 
   useEffect(() => {
-    statusRef.current = status;
     playerPositionRef.current = playerPosition;
     playerDurationRef.current = playerDuration;
-  }, [playerDuration, playerPosition, status]);
+  }, [playerDuration, playerPosition]);
 
   useEffect(() => {
     const justFinishedNow = didPlayerJustFinish && !previousDidJustFinishRef.current;
@@ -299,39 +330,70 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
     metadata?: LockScreenMetadata,
     autoPlay = false
   ) => {
-    const playbackUri = await resolvePlayableUriWithDiagnostics(ideaId, clip);
-    if (!playbackUri) return;
+    // Already loading THIS clip: coalesce onto the in-flight load rather than aborting
+    // and restarting it (that's the mash-play-during-load livelock). Only ever upgrade
+    // to autoplay — a later plain open must not cancel an autoplay a play-press asked for.
+    if (openingClipIdRef.current === clip.id) {
+      if (autoPlay) autoplayWhenLoadedRef.current = true;
+      return;
+    }
+    openingClipIdRef.current = clip.id;
+    autoplayWhenLoadedRef.current = autoPlay;
+    // Claim the operation BEFORE the first await so a DIFFERENT clip supersedes this one
+    // in user-intent order (claiming after the async URI resolution let a slow early tap
+    // cancel a fast later one mid-flight).
     const operationId = ++operationIdRef.current;
-    lockScreenMetadataRef.current = metadata;
-
-    if (onBeforePlayNew) await onBeforePlayNew();
-    if (!isOperationActive(operationId)) return;
-
+    // Signal foreground load so background hydration stands clear of the codec.
+    beginForegroundAudioLoad();
     try {
-      holdSourcePositionAt(0);
-      await player.pause();
+      const playbackUri = await resolvePlayableUriWithDiagnostics(ideaId, clip);
+      if (!playbackUri) return;
+      if (!isOperationActive(operationId)) return;
+      lockScreenMetadataRef.current = metadata;
+
+      if (onBeforePlayNew) await onBeforePlayNew();
       if (!isOperationActive(operationId)) return;
 
-      await replacePlaybackSource(player, playbackUri, autoPlay);
-      if (!isOperationActive(operationId)) return;
-      currentSourceUriRef.current = playbackUri;
-      // Publish the active target only after the source has loaded. That keeps the UI and
-      // persisted player state from pointing at a clip that never actually became playable.
-      setPlayerTarget({ ideaId, clipId: clip.id });
-    } catch (err) {
-      releaseSourcePositionHold();
-      setPlayerPlaybackState({
-        positionMs: 0,
-        durationMs: 0,
-        isPlaying: false,
-      });
-      useStore.getState().clearPlayerQueue();
-      setPlayerTarget(null);
-      currentSourceUriRef.current = null;
-      console.warn(
-        `[playback] FULL open error for clip ${clip.id} ("${clip.title}") uri=${playbackUri}`,
-        err
-      );
+      try {
+        holdSourcePositionAt(0);
+        await player.pause();
+        if (!isOperationActive(operationId)) return;
+
+        // Read the autoplay intent as late as possible so a play-press that arrived
+        // during the (slow) load window is honored on this same load.
+        await replacePlaybackSource(player, playbackUri, autoplayWhenLoadedRef.current);
+        if (!isOperationActive(operationId)) return;
+        currentSourceUriRef.current = playbackUri;
+        // Publish the active target only after the source has loaded. That keeps the UI and
+        // persisted player state from pointing at a clip that never actually became playable.
+        setPlayerTarget({ ideaId, clipId: clip.id });
+      } catch (err) {
+        releaseSourcePositionHold();
+        setPlayerPlaybackState({
+          positionMs: 0,
+          durationMs: 0,
+          isPlaying: false,
+        });
+        useStore.getState().clearPlayerQueue();
+        setPlayerTarget(null);
+        currentSourceUriRef.current = null;
+        console.warn(
+          `[playback] FULL open error for clip ${clip.id} ("${clip.title}") uri=${playbackUri}`,
+          err
+        );
+      }
+    } finally {
+      endForegroundAudioLoad();
+      // Only the owning open clears the in-flight marker (a superseding different-clip
+      // open has already claimed it).
+      if (openingClipIdRef.current === clip.id) {
+        openingClipIdRef.current = null;
+        autoplayWhenLoadedRef.current = false;
+      }
+      // Settle signal — aborted opens change no other state, and without this the
+      // screen's load effect never re-runs and the engine stays on the OLD clip
+      // while every store-driven surface shows the new one.
+      if (isMountedRef.current) setEngineOpNonce((n) => n + 1);
     }
   }, [holdSourcePositionAt, isOperationActive, onBeforePlayNew, player, releaseSourcePositionHold, setPlayerPlaybackState]);
 
@@ -342,46 +404,52 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
     resumeAtMs = 0,
     shouldPlay = false
   ) => {
-    const playbackUri = await resolvePlayableUriWithDiagnostics(ideaId, clip);
-    if (!playbackUri) return;
-    if (currentSourceUriRef.current === playbackUri) return;
-
     const operationId = ++operationIdRef.current;
-    lockScreenMetadataRef.current = metadata;
-
+    beginForegroundAudioLoad();
     try {
-      const safeResumeAtMs = Math.max(0, Math.min(resumeAtMs, getClipPlaybackDurationMs(clip) ?? resumeAtMs));
-      holdSourcePositionAt(safeResumeAtMs);
-      await player.pause();
+      const playbackUri = await resolvePlayableUriWithDiagnostics(ideaId, clip);
+      if (!playbackUri) return;
+      if (currentSourceUriRef.current === playbackUri) return;
       if (!isOperationActive(operationId)) return;
+      lockScreenMetadataRef.current = metadata;
 
-      await replacePlaybackSource(player, playbackUri, false);
-      if (!isOperationActive(operationId)) return;
-
-      await player.seekTo(safeResumeAtMs / 1000);
-      if (!isOperationActive(operationId)) return;
-
-      if (shouldPlay) {
-        await activateAndPlay(
-          player,
-          {
-            duration: (getClipPlaybackDurationMs(clip) ?? 0) / 1000,
-            currentTime: safeResumeAtMs / 1000,
-          },
-          getClipPlaybackDurationMs(clip) ?? 0,
-          safeResumeAtMs
-        );
+      try {
+        const safeResumeAtMs = Math.max(0, Math.min(resumeAtMs, getClipPlaybackDurationMs(clip) ?? resumeAtMs));
+        holdSourcePositionAt(safeResumeAtMs);
+        await player.pause();
         if (!isOperationActive(operationId)) return;
-      }
 
-      currentSourceUriRef.current = playbackUri;
-      setPlayerTarget({ ideaId, clipId: clip.id });
-    } catch (err) {
-      releaseSourcePositionHold();
-      console.warn(
-        `[playback] FULL sync source error for clip ${clip.id} ("${clip.title}") uri=${playbackUri}`,
-        err
-      );
+        await replacePlaybackSource(player, playbackUri, false);
+        if (!isOperationActive(operationId)) return;
+
+        await player.seekTo(safeResumeAtMs / 1000);
+        if (!isOperationActive(operationId)) return;
+
+        if (shouldPlay) {
+          await activateAndPlay(
+            player,
+            {
+              duration: (getClipPlaybackDurationMs(clip) ?? 0) / 1000,
+              currentTime: safeResumeAtMs / 1000,
+            },
+            getClipPlaybackDurationMs(clip) ?? 0,
+            safeResumeAtMs
+          );
+          if (!isOperationActive(operationId)) return;
+        }
+
+        currentSourceUriRef.current = playbackUri;
+        setPlayerTarget({ ideaId, clipId: clip.id });
+      } catch (err) {
+        releaseSourcePositionHold();
+        console.warn(
+          `[playback] FULL sync source error for clip ${clip.id} ("${clip.title}") uri=${playbackUri}`,
+          err
+        );
+      }
+    } finally {
+      endForegroundAudioLoad();
+      if (isMountedRef.current) setEngineOpNonce((n) => n + 1);
     }
   }, [holdSourcePositionAt, isOperationActive, player, releaseSourcePositionHold]);
 
@@ -396,6 +464,28 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
     });
   }, [player]);
 
+  // The last line of defense against the "UI shows clip B, audio plays clip A" state:
+  // if the loaded source doesn't match the session's intended target (a canceled or
+  // silently-failed load left them desynced), don't play the stale audio — load the
+  // right clip (with autoplay) instead. Returns true when it took over the play.
+  const reconcileToStoreTargetBeforePlay = useCallback(async (): Promise<boolean> => {
+    const storeTarget = useStore.getState().playerTarget;
+    if (!storeTarget) return false;
+    const engineClipId = playerTargetRef.current?.clipId ?? null;
+    if (engineClipId === storeTarget.clipId && currentSourceUriRef.current) return false;
+    const idea = useStore
+      .getState()
+      .workspaces.flatMap((workspace) => workspace.ideas)
+      .find((candidate) => candidate.id === storeTarget.ideaId);
+    const clip = idea?.clips.find((candidate) => candidate.id === storeTarget.clipId);
+    if (!idea || !clip) return false;
+    console.warn(
+      `[playback] engine/target desync (engine=${engineClipId ?? "none"} target=${storeTarget.clipId}) — reloading before play`
+    );
+    await openPlayer(idea.id, clip, { title: clip.title, albumTitle: idea.title }, true);
+    return true;
+  }, [openPlayer]);
+
   const togglePlayer = useCallback(async () => {
     const latestStatus = statusRef.current;
     try {
@@ -403,6 +493,8 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
         await player.pause();
         return;
       }
+
+      if (await reconcileToStoreTargetBeforePlay()) return;
 
       await activateAndPlay(
         player,
@@ -418,7 +510,7 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
     } catch (err) {
       console.warn("FULL play error", err);
     }
-  }, [player]);
+  }, [player, reconcileToStoreTargetBeforePlay]);
 
   const pausePlayer = useCallback(async () => {
     try {
@@ -431,6 +523,8 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
   const playPlayer = useCallback(async () => {
     const latestStatus = statusRef.current;
     try {
+      if (await reconcileToStoreTargetBeforePlay()) return;
+
       await activateAndPlay(
         player,
         latestStatus,
@@ -445,16 +539,19 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
     } catch (err) {
       console.warn("FULL resume error", err);
     }
-  }, [player]);
+  }, [player, reconcileToStoreTargetBeforePlay]);
 
   const seekTo = useCallback(async (ms: number) => {
     const latestStatus = statusRef.current;
     const durationMs = playerDurationRef.current || Math.round((latestStatus.duration ?? 0) * 1000);
     const targetMs = Math.max(0, Math.min(ms, durationMs || ms));
+    // Hold the reported position AT the target until the native clock converges.
+    // Seeks inside long files land slowly; without the gate, stale pre-seek ticks
+    // keep flowing out and the playhead visibly jumps back before settling.
+    holdSourcePositionAt(targetMs);
     await player.seekTo(targetMs / 1000);
     playerPositionRef.current = targetMs;
-    releaseSourcePositionHold();
-  }, [player, releaseSourcePositionHold]);
+  }, [holdSourcePositionAt, player]);
 
   const seekBy = useCallback(async (delta: number) => {
     await seekTo(playerPositionRef.current + delta);
@@ -478,6 +575,7 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
     playbackRate,
     finishedPlaybackToken,
     finishedPlaybackClipId,
+    engineOpNonce,
     currentPlaybackSourceUri: currentSourceUriRef.current,
     syncPlayerSource,
     openPlayer,

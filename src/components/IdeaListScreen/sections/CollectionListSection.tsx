@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef } from "react";
-import { useAnimatedReaction, runOnJS } from "react-native-reanimated";
+import { useAnimatedReaction, useSharedValue, runOnJS } from "react-native-reanimated";
 import { IdeaListContent } from "../components/IdeaListContent";
 import { useCollectionScreen } from "../provider/CollectionScreenProvider";
 import type { ClipVersion } from "../../../types";
@@ -25,6 +25,9 @@ export function CollectionListSection({
     setTimelineDaysHidden,
   } = store;
   const ideasSortRef = useRef(ideasSort);
+  // Focus-jump retry bookkeeping: how many effect runs a pending focus token has
+  // waited for the model to re-derive the target collection's ideas.
+  const focusAttemptsRef = useRef<{ token: number | null; count: number }>({ token: null, count: 0 });
 
   useEffect(() => {
     ideasSortRef.current = ideasSort;
@@ -40,8 +43,20 @@ export function CollectionListSection({
   useEffect(() => {
     if (!screen.focusIdeaId || !screen.focusToken || screen.handledFocusTokenRef.current === screen.focusToken) return;
     if (!screen.ideas.some((idea) => idea.id === screen.focusIdeaId)) {
-      screen.handledFocusTokenRef.current = screen.focusToken;
-      (screen.navigation as any).setParams({ focusIdeaId: undefined, focusToken: undefined });
+      // The idea isn't in the CURRENTLY-derived collection. Right after a contextual
+      // jump (queue "go to song") the params can land a beat before the model has
+      // re-derived `ideas` for the new collection — consuming the token here killed
+      // the jump on large libraries (the recompute takes longer, so the stale first
+      // run always won). Leave the token pending; this effect re-runs as `ideas`
+      // settles. A bounded attempt count covers the genuinely-missing case.
+      const attempts = (focusAttemptsRef.current.token === screen.focusToken
+        ? focusAttemptsRef.current.count
+        : 0) + 1;
+      focusAttemptsRef.current = { token: screen.focusToken, count: attempts };
+      if (attempts >= 12) {
+        screen.handledFocusTokenRef.current = screen.focusToken;
+        (screen.navigation as any).setParams({ focusIdeaId: undefined, focusToken: undefined });
+      }
       return;
     }
 
@@ -50,6 +65,8 @@ export function CollectionListSection({
     );
 
     if (targetIndex === -1) {
+      // In the collection but not in the list: peel back whatever is concealing it —
+      // filters, a one-off hide, or a collapsed day — then let the re-run scroll.
       let changed = false;
       if (screen.searchQuery.length > 0) {
         screen.setSearchQuery("");
@@ -66,6 +83,23 @@ export function CollectionListSection({
       if (ideasFilter !== "all") {
         setIdeasFilter("all");
         changed = true;
+      }
+      if (!changed && screen.collectionId) {
+        const focusIdea = screen.ideas.find((idea) => idea.id === screen.focusIdeaId);
+        if (focusIdea && screen.hiddenIdeaIdsSet.has(focusIdea.id)) {
+          store.setIdeasHidden(screen.collectionId, [focusIdea.id], false);
+          changed = true;
+        } else if (focusIdea && screen.activeTimelineMetric) {
+          const dayTs = getDateBucket(getIdeaSortTimestamp(focusIdea, ideasSort)).startTs;
+          if (screen.hiddenDayKeySet.has(`${screen.activeTimelineMetric}:${dayTs}`)) {
+            setTimelineDaysHidden(
+              screen.collectionId,
+              [{ metric: screen.activeTimelineMetric, dayStartTs: dayTs }],
+              false
+            );
+            changed = true;
+          }
+        }
       }
       if (!changed) {
         screen.handledFocusTokenRef.current = screen.focusToken;
@@ -110,10 +144,15 @@ export function CollectionListSection({
     (screen.navigation as any).setParams({ focusIdeaId: undefined, focusToken: undefined });
   }, [
     ideasFilter,
+    ideasSort,
+    screen.activeTimelineMetric,
+    screen.collectionId,
     screen.focusIdeaId,
     screen.focusToken,
     screen.focusScrollTimerRef,
     screen.handledFocusTokenRef,
+    screen.hiddenDayKeySet,
+    screen.hiddenIdeaIdsSet,
     screen.ideas,
     screen.listEntries,
     screen.listRef,
@@ -127,44 +166,65 @@ export function CollectionListSection({
     screen.setSearchQuery,
     screen.setSelectedProjectStages,
     setIdeasFilter,
+    setTimelineDaysHidden,
+    store,
   ]);
 
-  const openIdeaFromList = async (ideaId: string, clip: ClipVersion) => {
+  // STABLE identities (values read through refs at call time): these flow into every
+  // list row, and the rows are memoized — an identity change here re-renders every
+  // mounted card on each screen render, which is exactly the per-tap lag this avoids.
+  const collectionIdRef = useRef(screen.collectionId);
+  collectionIdRef.current = screen.collectionId;
+  const listIdeasRef = useRef(screen.listIdeas);
+  listIdeasRef.current = screen.listIdeas;
+
+  const openIdeaFromList = useCallback(async (ideaId: string, clip: ClipVersion) => {
     await inlinePlayer.resetInlinePlayer();
     useStore.getState().setPlayerQueueForScreen([{ ideaId, clipId: clip.id }], 0);
-  };
+  }, [inlinePlayer]);
 
-  const playIdeaFromList = async (ideaId: string, clip: ClipVersion) => {
+  const playIdeaFromList = useCallback(async (ideaId: string, clip: ClipVersion) => {
     await inlinePlayer.toggleInlinePlayback(ideaId, clip);
-  };
+  }, [inlinePlayer]);
 
-  const maybeResetInlineForIdeaIds = async (ideaIds: string[]) => {
+  const maybeResetInlineForIdeaIds = useCallback(async (ideaIds: string[]) => {
     const activeIdeaId = useStore.getState().inlineTarget?.ideaId;
     if (!activeIdeaId || !ideaIds.includes(activeIdeaId)) return;
     await inlinePlayer.resetInlinePlayer();
-  };
+  }, [inlinePlayer]);
 
   // Expand a collapsed day group back into the list (atomic — the whole day).
-  const expandTimelineDay = (metric: "created" | "updated", dayStartTs: number) => {
-    if (!screen.collectionId) return;
-    setTimelineDaysHidden(screen.collectionId, [{ metric, dayStartTs }], false);
-  };
+  const expandTimelineDay = useCallback((metric: "created" | "updated", dayStartTs: number) => {
+    if (!collectionIdRef.current) return;
+    setTimelineDaysHidden(collectionIdRef.current, [{ metric, dayStartTs }], false);
+  }, [setTimelineDaysHidden]);
 
-  const hideTimelineDay = async (metric: "created" | "updated", dayStartTs: number) => {
-    if (!screen.collectionId) return;
-    const ideaIdsInDay = screen.listIdeas
-      .filter((idea) => getDateBucket(getIdeaSortTimestamp(idea, ideasSort)).startTs === dayStartTs)
+  const hideTimelineDay = useCallback(async (metric: "created" | "updated", dayStartTs: number) => {
+    if (!collectionIdRef.current) return;
+    const ideaIdsInDay = listIdeasRef.current
+      .filter((idea) => getDateBucket(getIdeaSortTimestamp(idea, ideasSortRef.current)).startTs === dayStartTs)
       .map((idea) => idea.id);
     await maybeResetInlineForIdeaIds(ideaIdsInDay);
-    setTimelineDaysHidden(screen.collectionId, [{ metric, dayStartTs }], true);
-  };
+    setTimelineDaysHidden(collectionIdRef.current, [{ metric, dayStartTs }], true);
+  }, [maybeResetInlineForIdeaIds, setTimelineDaysHidden]);
 
   // Tracks the absolute content-y of each FlatList cell (keyed by entry.key).
   // Populated by the CellRendererComponent's onLayout, which fires with the cell's
   // y relative to the FlatList content container — i.e., the true scroll-content offset.
   const itemCellLayoutsRef = useRef<Record<string, number>>({});
-  const listEntriesRef = useRef(screen.listEntries);
-  useEffect(() => { listEntriesRef.current = screen.listEntries; }, [screen.listEntries]);
+  // Entry keys + PRECOMPUTED labels: the sticky-chip resolver runs during scrolling,
+  // so it must not re-derive date buckets per entry per call — at 100+ entries that
+  // per-frame work made list swipes visibly stutter.
+  const stickyEntriesRef = useRef<{ key: string; label: string }[]>([]);
+  useEffect(() => {
+    stickyEntriesRef.current = screen.listEntries.map((entry) => ({
+      key: entry.key,
+      label:
+        entry.type === "collapsedDay"
+          ? entry.label
+          : getDateBucketLabel(getIdeaSortTimestamp(entry.idea, ideasSortRef.current)),
+    }));
+  }, [screen.listEntries, ideasSort]);
   const contentPaddingTopRef = useRef(contentPaddingTop);
   useEffect(() => { contentPaddingTopRef.current = contentPaddingTop; }, [contentPaddingTop]);
 
@@ -173,7 +233,7 @@ export function CollectionListSection({
   //   effectiveTop = contentPaddingTop + max(0, scrollY - collapsibleHeaderHeight)
   // Labels are sourced by finding the last entry whose cell top <= effectiveTop.
   const updateStickyLabel = useCallback((scrollYVal: number, colHVal: number) => {
-    const entries = listEntriesRef.current;
+    const entries = stickyEntriesRef.current;
     const paddingTop = contentPaddingTopRef.current;
     const effectiveTop = paddingTop + Math.max(0, scrollYVal - colHVal);
     let foundLabel: string | null = null;
@@ -181,10 +241,7 @@ export function CollectionListSection({
       const cellY = itemCellLayoutsRef.current[entry.key];
       if (cellY === undefined) continue;
       if (cellY > effectiveTop) break;
-      foundLabel =
-        entry.type === "collapsedDay"
-          ? entry.label
-          : getDateBucketLabel(getIdeaSortTimestamp(entry.idea, ideasSortRef.current));
+      foundLabel = entry.label;
     }
     if (foundLabel !== null) stickyDayStore.set(foundLabel);
   }, []);
@@ -196,12 +253,16 @@ export function CollectionListSection({
   // ("cannot add a new property"). See CollectionHeaderSection's "Locals only" note.
   const scrollYValue = screen.scrollY;
   const collapsibleHeaderHeight = screen.collapsibleHeaderHeight;
+  // Dispatch to JS at position granularity, not per frame: a 60Hz runOnJS stream
+  // during swipes competed with touch handling on large lists. The chip only needs
+  // to know when the top row has moved meaningfully.
+  const lastStickyDispatchY = useSharedValue(-10000);
   useAnimatedReaction(
     () => scrollYValue.value,
-    (scrollYVal, prev) => {
-      if (scrollYVal !== prev) {
-        runOnJS(updateStickyLabel)(scrollYVal, collapsibleHeaderHeight.value);
-      }
+    (scrollYVal) => {
+      if (Math.abs(scrollYVal - lastStickyDispatchY.value) < 16) return;
+      lastStickyDispatchY.value = scrollYVal;
+      runOnJS(updateStickyLabel)(scrollYVal, collapsibleHeaderHeight.value);
     }
   );
 

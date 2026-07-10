@@ -18,8 +18,8 @@ export function SettingsExportView({ flow, onCancel }: { flow: ExportFlow; onCan
       showsVerticalScrollIndicator={false}
     >
       <PageIntro
-        title="Export Library"
-        subtitle="Package selected workspaces or collections, then hand the archive to the native save or share flow."
+        title="Export Archive"
+        subtitle="Package selected workspaces or collections into a shareable archive, then choose where to save it."
       />
 
       <AccordionSection
@@ -212,10 +212,21 @@ export function SettingsExportView({ flow, onCancel }: { flow: ExportFlow; onCan
             {flow.selectedSummary.exportableIdeaCount} visible item
             {flow.selectedSummary.exportableIdeaCount === 1 ? "" : "s"} in scope.
           </Text>
+          {flow.generateEstimateLabel ? (
+            <Text style={styles.settingsSummaryMeta}>{flow.generateEstimateLabel}</Text>
+          ) : null}
+          <Text style={styles.settingsSectionHint}>
+            Packaging shows a full-screen progress view — minimize it to keep using the app and
+            return from the pill at the bottom.
+          </Text>
 
           <View style={styles.settingsActionRow}>
             <Button
-              label={flow.isExporting ? "Preparing..." : "Generate Export"}
+              label={
+                flow.isExporting
+                  ? flow.exportProgressLabel ?? "Preparing…"
+                  : "Generate Export"
+              }
               onPress={() => {
                 void flow.handleExport();
               }}

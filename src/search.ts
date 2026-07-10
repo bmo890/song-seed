@@ -38,6 +38,10 @@ type SearchField = {
   baseScore: number;
   snippetText?: string | null;
   snippetPrefix?: string | null;
+  /** Precomputed trim+lowercase of `text`. Matching lowercases every field of every
+   *  idea per (debounced) keystroke — at library scale that's megabytes of string
+   *  allocation per keypress unless the corpus is prepared once. */
+  lowerText?: string;
 };
 
 type SearchFieldMatch = {
@@ -80,11 +84,9 @@ function buildSnippet(text: string, needle: string, prefix?: string | null) {
   return prefix ? `${prefix}: ${summary}` : summary;
 }
 
-function getTextMatchScore(text: string, needle: string, baseScore: number) {
-  const source = text.trim();
-  if (!source) return null;
+function getLowerTextMatchScore(lowerSource: string, needle: string, baseScore: number) {
+  if (!lowerSource) return null;
 
-  const lowerSource = source.toLowerCase();
   const matchIndex = lowerSource.indexOf(needle);
   if (matchIndex < 0) return null;
 
@@ -101,7 +103,8 @@ function findBestFieldMatch(fields: SearchField[], needle: string): SearchFieldM
   let best: SearchFieldMatch | null = null;
 
   for (const field of fields) {
-    const score = getTextMatchScore(field.text, needle, field.baseScore);
+    const lowerSource = field.lowerText ?? field.text.trim().toLowerCase();
+    const score = getLowerTextMatchScore(lowerSource, needle, field.baseScore);
     if (score == null) continue;
 
     const next: SearchFieldMatch = {
@@ -137,50 +140,73 @@ function buildCollectionParentPath(workspace: Workspace, collectionId: string) {
   return `${workspace.title} • ${ancestors.map((item) => item.title).join(" / ")}`;
 }
 
+// Per-idea search corpus, cached BY IDEA IDENTITY. Ideas update immutably, so an
+// untouched idea keeps its object across store changes and its prepared fields
+// (including the lowercase copies used for matching) are built exactly once — not
+// re-allocated for the whole library on every debounced keystroke.
+const ideaSearchFieldsCache = new WeakMap<SongIdea, SearchField[]>();
+
+function prepared(field: SearchField): SearchField {
+  field.lowerText = field.text.trim().toLowerCase();
+  return field;
+}
+
 function buildIdeaSearchFields(idea: SongIdea): SearchField[] {
+  const cached = ideaSearchFieldsCache.get(idea);
+  if (cached) return cached;
+
   const fields: SearchField[] = [
-    { source: "title", text: idea.title, baseScore: 120 },
-    { source: "notes", text: idea.notes, baseScore: 90 },
+    prepared({ source: "title", text: idea.title, baseScore: 120 }),
+    prepared({ source: "notes", text: idea.notes, baseScore: 90 }),
   ];
 
   for (const clip of idea.clips) {
-    fields.push({
-      source: "clip-title",
-      text: clip.title,
-      baseScore: 84,
-      snippetText: clip.title,
-      snippetPrefix: "Clip",
-    });
-    fields.push({
-      source: "clip-notes",
-      text: clip.notes,
-      baseScore: 80,
-      snippetText: clip.notes,
-      snippetPrefix: clip.title.trim() || "Clip",
-    });
+    fields.push(
+      prepared({
+        source: "clip-title",
+        text: clip.title,
+        baseScore: 84,
+        snippetText: clip.title,
+        snippetPrefix: "Clip",
+      })
+    );
+    fields.push(
+      prepared({
+        source: "clip-notes",
+        text: clip.notes,
+        baseScore: 80,
+        snippetText: clip.notes,
+        snippetPrefix: clip.title.trim() || "Clip",
+      })
+    );
   }
 
   if (idea.kind === "project" && idea.lyrics?.versions?.length) {
     for (const version of idea.lyrics.versions) {
       for (const line of version.document.lines) {
-        fields.push({
-          source: "lyrics",
-          text: line.text,
-          baseScore: 76,
-        });
+        fields.push(
+          prepared({
+            source: "lyrics",
+            text: line.text,
+            baseScore: 76,
+          })
+        );
         for (const chord of line.chords) {
-          fields.push({
-            source: "chords",
-            text: chord.chord,
-            baseScore: 70,
-            snippetText: line.text || chord.chord,
-            snippetPrefix: "Chord",
-          });
+          fields.push(
+            prepared({
+              source: "chords",
+              text: chord.chord,
+              baseScore: 70,
+              snippetText: line.text || chord.chord,
+              snippetPrefix: "Chord",
+            })
+          );
         }
       }
     }
   }
 
+  ideaSearchFieldsCache.set(idea, fields);
   return fields;
 }
 

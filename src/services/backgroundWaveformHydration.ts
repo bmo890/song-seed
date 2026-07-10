@@ -1,5 +1,7 @@
+import { InteractionManager } from "react-native";
 import { loadManagedAudioMetadata } from "./audioStorage";
 import { ensureWaveformSidecar } from "./waveformSidecar";
+import { waitForForegroundAudioIdle } from "./audioForegroundActivity";
 import { appActions } from "../state/actions";
 import { useStore } from "../state/useStore";
 
@@ -23,6 +25,21 @@ function findClip(job: HydrationJob) {
     return { workspace, idea, clip };
 }
 
+// Pause between hydration jobs. The queue runs for a LONG time after a large
+// import (per clip: duration probe + native waveform decode + sidecar build +
+// store write). Back-to-back it owns the JS thread's bridge traffic for minutes
+// and every touch in the app feels delayed. Yielding between jobs keeps the app
+// responsive; the waveforms still land, just spread out.
+const INTER_JOB_YIELD_MS = 250;
+
+/** Wait for any running animations/gestures to finish, so hydration work never
+ *  competes with an active interaction (scroll, drag, navigation transition). */
+function waitForIdleInteractions(): Promise<void> {
+    return new Promise((resolve) => {
+        InteractionManager.runAfterInteractions(() => resolve());
+    });
+}
+
 async function processQueue() {
     if (isProcessing) return;
     if (scheduledProcess) {
@@ -35,6 +52,12 @@ async function processQueue() {
         const job = queue.shift()!;
 
         try {
+            // Never decode/probe while the player is loading or playing — on Android that
+            // native work fights the foreground player for the codec and audio focus and
+            // freezes playback. Wait for the player to go idle first, then for animations.
+            await waitForForegroundAudioIdle();
+            await waitForIdleInteractions();
+
             const { clip } = findClip(job);
             if (!clip?.audioUri || clip.audioUri !== job.audioUri) {
                 continue;
@@ -42,7 +65,10 @@ async function processQueue() {
 
             const metadata = await loadManagedAudioMetadata(
                 job.audioUri,
-                `${job.ideaId}-${job.clipId}`
+                `${job.ideaId}-${job.clipId}`,
+                // Skip the duration re-probe when the clip already knows it (a full
+                // AVPlayer item load per clip, twice per import, added up fast).
+                clip.durationMs && clip.durationMs > 0 ? clip.durationMs : undefined
             );
 
             // Only write back when the clip still exists and still points at the same audio file.
@@ -64,6 +90,10 @@ async function processQueue() {
             console.warn("Background waveform hydration failed", error);
         } finally {
             queuedClipIds.delete(job.clipId);
+        }
+
+        if (queue.length > 0) {
+            await new Promise((resolve) => setTimeout(resolve, INTER_JOB_YIELD_MS));
         }
     }
 

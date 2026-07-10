@@ -279,6 +279,22 @@ export const genIdea = () => {
   });
 };
 
+/**
+ * Round a 0..1 amplitude to 3 decimals before it enters persisted state. Peaks are
+ * the dominant weight of the library snapshot (256 per clip): full-precision doubles
+ * serialize at ~17 chars each, quantized at ~5 — roughly a 3-4x cut of every library
+ * save and boot parse. 1/1000 precision is far below what any on-screen bar can show.
+ */
+export function quantizeWaveformPeak(value: number) {
+  return Math.round(value * 1000) / 1000;
+}
+
+/**
+ * A NEUTRAL placeholder waveform shown until a clip's real envelope is decoded. Deliberately
+ * calm and low — a gently varied thin band that reads as "waveform pending" rather than a
+ * fake song. (The previous version drew a sine-hump envelope, which looked like the same
+ * distinctive track on every clip.) Still lightly seeded so bars aren't a dead-flat line.
+ */
 export function buildStaticWaveform(seedInput: string, count = 150) {
   let seed = 0;
   for (let i = 0; i < seedInput.length; i++) {
@@ -289,8 +305,8 @@ export function buildStaticWaveform(seedInput: string, count = 150) {
   for (let i = 0; i < count; i++) {
     seed = (1664525 * seed + 1013904223) >>> 0;
     const n = seed / 4294967295;
-    const shape = 0.25 + 0.75 * Math.abs(Math.sin((i / count) * Math.PI * 2.3));
-    bars.push(Math.max(0.12, Math.min(1, (0.25 + n * 0.75) * shape)));
+    // A low, even band (~0.24–0.40) with subtle per-bar jitter — no envelope, no shape.
+    bars.push(quantizeWaveformPeak(0.24 + n * 0.16));
   }
   return bars;
 }
@@ -302,7 +318,7 @@ export function metersToWaveformPeaks(meters: number[], bins = 150) {
   // old curve over-emphasized room tone, making quiet regions look much louder.
   const normalizeDb = (db: number) => {
     const clamped = Math.max(-60, Math.min(0, Number.isFinite(db) ? db : -60));
-    return Math.max(0.004, Math.min(1, Math.pow((clamped + 60) / 60, 1.15)));
+    return quantizeWaveformPeak(Math.max(0.004, Math.min(1, Math.pow((clamped + 60) / 60, 1.15))));
   };
 
   const peaks: number[] = [];

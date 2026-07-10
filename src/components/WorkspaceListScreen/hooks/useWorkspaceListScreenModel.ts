@@ -149,6 +149,24 @@ export function useWorkspaceListScreenModel() {
       },
     });
 
+    // The real space saver: move the archived package into the user's own storage
+    // and delete the on-device copy. Only offered while the package is still local.
+    if (
+      actionSheetWorkspace.isArchived &&
+      actionSheetWorkspace.archiveState &&
+      !actionSheetWorkspace.archiveState.offloadedAt
+    ) {
+      actions.push({
+        key: "offload",
+        label: "Move package to Files…",
+        icon: "cloud-upload-outline",
+        onPress: () => {
+          closeActionSheet();
+          archiveActions.confirmOffloadWorkspace(actionSheetWorkspace);
+        },
+      });
+    }
+
     actions.push({
       key: "delete",
       label: "Delete permanently",

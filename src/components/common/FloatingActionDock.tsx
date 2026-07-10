@@ -58,10 +58,12 @@ export function FloatingActionDock({
   // that double-counts and floats the buttons too high). Otherwise use the normal
   // safe-area offset.
   const playerDockHeight = useStore((s) => s.playerDockHeight);
+  // The import bar reserves height while a library import runs; float the FABs above it.
+  const importBannerHeight = useStore((s) => s.importBannerHeight);
   const bottomOffset =
-    playerDockHeight > 0
+    (playerDockHeight > 0
       ? playerDockHeight + FLOATING_ACTION_DOCK_BASE_BOTTOM
-      : getFloatingActionDockBottomOffset(insets.bottom);
+      : getFloatingActionDockBottomOffset(insets.bottom)) + importBannerHeight;
 
   return (
     <View pointerEvents="box-none" style={[styles.ideasFabWrap, { bottom: bottomOffset }, wrapStyle]}>

@@ -1,5 +1,4 @@
 import * as FileSystem from "expo-file-system/legacy";
-import * as Crypto from "expo-crypto";
 import { File } from "expo-file-system";
 import { createZipArchive, buildTimestampSlug, type ZipArchiveEntry } from "./audioStorage";
 import { SONG_SEED_ROOT, toRelativeManagedPath } from "./storagePaths";
@@ -10,7 +9,9 @@ import {
     yieldToBackupUi,
     type BackupOperationOptions,
 } from "./backupOperation";
-import { IncrementalBase64Sha256, IncrementalCrc32 } from "./streamingIntegrity";
+import { IncrementalCrc32 } from "./streamingIntegrity";
+import { sha256OfFileBase64, sha256OfString } from "./fileHashing";
+import { recordLibraryOperationThroughput } from "./operationPacing";
 import { toRelativeWorkspacesManagedMedia } from "../state/rebaseManagedMedia";
 import {
     buildPersistedAppStoreSnapshot,
@@ -39,7 +40,7 @@ const DR_TEMP_DIR = `${SONG_SEED_ROOT}/backup-tmp`;
 const SNAPSHOT_ENTRY = "snapshot.json";
 const MANIFEST_ENTRY = "manifest.json";
 const MEDIA_PREFIX = "media/";
-const BACKUP_STREAM_CHUNK_BYTES = 256 * 1024;
+const BACKUP_STREAM_CHUNK_BYTES = 512 * 1024;
 const BACKUP_UI_YIELD_BYTES = 2 * 1024 * 1024;
 const BACKUP_TEMP_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 
@@ -83,10 +84,6 @@ type MediaRef = {
     ref: string;
 };
 
-async function sha256OfString(data: string): Promise<string> {
-    return Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, data);
-}
-
 async function inspectFileIntegrity(
     absUri: string,
     expectedSizeBytes: number,
@@ -94,9 +91,12 @@ async function inspectFileIntegrity(
     progressOffsetBytes: number,
     progressTotalBytes: number
 ) {
+    // CRC-32 (needed up front for the ZIP entry header) streams native chunks through
+    // the slice-by-16 JS table; SHA-256 (the v1 manifest digest) is computed natively
+    // off the JS thread by sha256OfFileBase64. Together this replaces the pure-JS
+    // hash loop that ran at ~0.6MB/s and froze the UI for the whole pass.
     const file = new File(absUri);
     const handle = file.open();
-    const sha256 = new IncrementalBase64Sha256();
     const crc32 = new IncrementalCrc32();
     let sizeBytes = 0;
     let bytesSinceYield = 0;
@@ -106,7 +106,6 @@ async function inspectFileIntegrity(
             throwIfBackupCancelled(options?.signal);
             const chunk = handle.readBytes(BACKUP_STREAM_CHUNK_BYTES);
             if (chunk.length === 0) break;
-            sha256.update(chunk);
             crc32.update(chunk);
             sizeBytes += chunk.length;
             bytesSinceYield += chunk.length;
@@ -129,7 +128,8 @@ async function inspectFileIntegrity(
     if (sizeBytes !== expectedSizeBytes) {
         throw new Error("File changed while it was being backed up.");
     }
-    return { sha256: sha256.digestHex(), crc32: crc32.digest(), sizeBytes };
+    const sha256 = await sha256OfFileBase64(absUri, sizeBytes, options);
+    return { sha256, crc32: crc32.digest(), sizeBytes };
 }
 
 function pushManagedRef(
@@ -147,8 +147,10 @@ function pushManagedRef(
 function collectMediaRefs(workspaces: Workspace[]): MediaRef[] {
     const refs: MediaRef[] = [];
     for (const workspace of workspaces) {
-        // Archived workspaces keep their only copy of audio inside the archive package.
-        if (workspace.archiveState?.archiveUri) {
+        // Archived workspaces keep their only copy of audio inside the archive package —
+        // unless it was offloaded to the user's own storage, in which case the file is
+        // deliberately not on this device and must not mark the backup incomplete.
+        if (workspace.archiveState?.archiveUri && !workspace.archiveState.offloadedAt) {
             pushManagedRef(
                 refs,
                 workspace.archiveState.archiveUri,
@@ -210,6 +212,30 @@ export function assertZip32ArchiveSize(entries: ZipArchiveEntry[]) {
         );
     }
     return projectedArchiveBytes;
+}
+
+export type DrBackupEstimate = { fileCount: number; totalBytes: number };
+
+/**
+ * Cheap pre-run estimate of what a backup will cover — file count + total bytes only,
+ * no hashing or reading. Feeds the "961 MB · about 2 minutes" confirmation copy.
+ */
+export async function estimateDisasterRecoveryBackup(state: AppStore): Promise<DrBackupEstimate> {
+    const snapshotAbs = buildPersistedAppStoreSnapshot(state);
+    const managedRefs = new Map<string, MediaRef>();
+    for (const ref of collectMediaRefs(snapshotAbs.workspaces)) {
+        if (!ref.relativePath) continue;
+        if (!managedRefs.has(ref.relativePath)) managedRefs.set(ref.relativePath, ref);
+    }
+    let fileCount = 0;
+    let totalBytes = 0;
+    for (const ref of managedRefs.values()) {
+        const info = await FileSystem.getInfoAsync(ref.absUri);
+        if (!info.exists || typeof info.size !== "number" || info.size < 0) continue;
+        fileCount += 1;
+        totalBytes += info.size;
+    }
+    return { fileCount, totalBytes };
 }
 
 /**
@@ -287,6 +313,11 @@ export async function buildDisasterRecoveryBackup(
     // Fail before an expensive checksum pass when the temporary archive cannot fit.
     await ensureBackupDiskSpace(totalMediaBytes, "create this backup");
     throwIfBackupCancelled(opts?.signal);
+    const totalMediaMb = totalMediaBytes / (1024 * 1024);
+    console.log(
+        `[backup] starting: ${readableRefs.length} files, ${totalMediaMb.toFixed(1)}MB media ` +
+            `(native SHA-256 + sliced CRC-32, then a packaging pass)`
+    );
     let hashedMediaBytes = 0;
     reportBackupProgress(opts, {
         phase: "hashing",
@@ -295,8 +326,10 @@ export async function buildDisasterRecoveryBackup(
         message: "Verifying recordings",
     });
 
+    const hashStartedAt = Date.now();
     for (const ref of readableRefs) {
         throwIfBackupCancelled(opts?.signal);
+        const fileStartedAt = Date.now();
         let integrity: Awaited<ReturnType<typeof inspectFileIntegrity>>;
         try {
             integrity = await inspectFileIntegrity(
@@ -306,6 +339,14 @@ export async function buildDisasterRecoveryBackup(
                 hashedMediaBytes,
                 totalMediaBytes
             );
+            const fileMs = Date.now() - fileStartedAt;
+            // Surface individual slow files (a big recording that dominates the pass).
+            if (fileMs > 800) {
+                console.log(
+                    `[backup] slow hash: ${(ref.sizeBytes / (1024 * 1024)).toFixed(1)}MB in ${fileMs}ms ` +
+                        `(${((ref.sizeBytes / (1024 * 1024)) / (fileMs / 1000)).toFixed(1)}MB/s) — ${ref.relativePath}`
+                );
+            }
         } catch (error) {
             if (opts?.signal?.aborted) throw error;
             missing.push({
@@ -336,6 +377,27 @@ export async function buildDisasterRecoveryBackup(
             totalBytes: totalMediaBytes,
             message: "Verifying recordings",
         });
+    }
+
+    const hashMs = Date.now() - hashStartedAt;
+    console.log(
+        `[backup] hashing (sha256+crc32) done: ${totalMediaMb.toFixed(1)}MB in ${(hashMs / 1000).toFixed(1)}s ` +
+            `(${(totalMediaMb / (hashMs / 1000 || 1)).toFixed(1)}MB/s)`
+    );
+
+    if (missing.length > 0) {
+        // Surface exactly which library references have no file on disk. Critical entries
+        // (clip audio / overdub stems) are irreplaceable and mark the backup incomplete;
+        // non-critical ones (source imports, re-derivable mixes) are informational.
+        console.log(
+            `[backup] ${missing.length} referenced file(s) missing from storage:\n` +
+                missing
+                    .map(
+                        (entry) =>
+                            `  • ${entry.critical ? "CRITICAL " : ""}${entry.kind} ${entry.ref} → ${entry.path}`
+                    )
+                    .join("\n")
+        );
     }
 
     const manifest: DrBackupManifest = {
@@ -371,7 +433,16 @@ export async function buildDisasterRecoveryBackup(
         totalBytes: totalMediaBytes,
         message: "Packaging backup",
     });
+    const packStartedAt = Date.now();
     await createZipArchive(archiveUri, entries, opts);
+    const packMs = Date.now() - packStartedAt;
+    const totalMs = Date.now() - hashStartedAt;
+    console.log(
+        `[backup] packaging done: ${totalMediaMb.toFixed(1)}MB in ${(packMs / 1000).toFixed(1)}s ` +
+            `(${(totalMediaMb / (packMs / 1000 || 1)).toFixed(1)}MB/s). ` +
+            `Backup total: ${(totalMs / 1000).toFixed(1)}s`
+    );
+    recordLibraryOperationThroughput("backup", totalMediaBytes, totalMs);
 
     return { archiveUri, archiveTitle, manifest };
 }

@@ -48,6 +48,7 @@ import { ClipLineageScreen } from "./src/components/ClipLineageScreen";
 import { ActivityScreen } from "./src/components/ActivityScreen";
 import { GlobalMediaDock } from "./src/components/GlobalMediaDock";
 import { ImportProgressBanner } from "./src/components/ImportProgressBanner";
+import { LibraryProcessHost } from "./src/components/LibraryProcessHost";
 import { DuplicateReviewSheet } from "./src/components/DuplicateReviewSheet";
 import { LibraryScreen } from "./src/components/LibraryScreen";
 import { SettingsScreen } from "./src/components/SettingsScreen";
@@ -930,8 +931,9 @@ function AppContent() {
           }}
         />
         </PlayerSheetPositionProvider>
-        <ImportProgressBanner />
+        <ImportProgressBanner hidden={isDrawerOpen} />
         <DuplicateReviewSheet />
+        <LibraryProcessHost drawerOpen={isDrawerOpen} />
       </NavigationContainer>
       <RestoreRestartGate />
       </FullPlayerProvider>

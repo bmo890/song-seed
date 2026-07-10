@@ -176,8 +176,9 @@ export function useWorkspaceCollectionImportFlow({
       showDuplicateReview(
         duplicateResult,
         () => doImport(duplicateResult.uniqueAssets),
-        () => doImport(duplicateResult.allAssets)
-      );
+        () => doImport(duplicateResult.allAssets),
+        doImport
+        );
       return;
     }
 

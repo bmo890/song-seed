@@ -1,15 +1,63 @@
 import type { ComponentProps, ReactNode } from "react";
 import { colors } from "../../../design/tokens";
-import { Pressable, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import type { Collection, Workspace } from "../../../types";
-import { styles } from "../styles";
+import { settingsScreenStyles, styles } from "../styles";
 import {
   countCollectionIdeas,
   countWorkspaceIdeas,
   getCollectionSelectionState,
 } from "../helpers";
 import type { CollectionSelectionState } from "../types";
+
+export const LIBRARY_DEEP = "#8b4f3b";
+
+/** Nocturne library-action card: tinted icon circle, title, live status, right accessory. */
+export function LibraryActionCard({
+  icon,
+  title,
+  meta,
+  busy,
+  rightAccessory,
+  onPress,
+  disabled,
+}: {
+  icon: ComponentProps<typeof Ionicons>["name"];
+  title: string;
+  meta: string;
+  busy?: boolean;
+  rightAccessory?: ReactNode;
+  onPress: () => void;
+  disabled?: boolean;
+}) {
+  return (
+    <Pressable
+      style={({ pressed }) => [
+        settingsScreenStyles.libraryCard,
+        pressed && !disabled ? styles.pressDown : null,
+        disabled ? { opacity: 0.5 } : null,
+      ]}
+      onPress={onPress}
+      disabled={disabled}
+    >
+      <View style={settingsScreenStyles.libraryCardIcon}>
+        <Ionicons name={icon} size={20} color={LIBRARY_DEEP} />
+      </View>
+      <View style={settingsScreenStyles.libraryCardCopy}>
+        <Text style={settingsScreenStyles.libraryCardTitle}>{title}</Text>
+        <Text style={settingsScreenStyles.libraryCardMeta} numberOfLines={1}>
+          {meta}
+        </Text>
+      </View>
+      {busy ? (
+        <ActivityIndicator size="small" color={LIBRARY_DEEP} />
+      ) : (
+        rightAccessory ?? <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+      )}
+    </Pressable>
+  );
+}
 
 export function FormatOptionRow({
   title,

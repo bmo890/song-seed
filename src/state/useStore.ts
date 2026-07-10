@@ -1,6 +1,6 @@
 import { AppState } from "react-native";
 import { create } from "zustand";
-import { createJSONStorage, persist } from "zustand/middleware";
+import { persist } from "zustand/middleware";
 import { DataSlice, createDataSlice } from "./dataSlice";
 import { SelectionSlice, createSelectionSlice } from "./selectionSlice";
 import { RecordingSlice, createRecordingSlice } from "./recordingSlice";
@@ -29,7 +29,7 @@ import {
 } from "../libraryNavigation";
 import { startManifestSync } from "../services/manifestSync";
 import { rebaseWorkspacesManagedMedia } from "./rebaseManagedMedia";
-import { sqliteStringStorage } from "./db/storage";
+import { createShardedPersistStorage } from "./shardedPersistStorage";
 import { consumeIntentionalEmptyStateWrite } from "../services/stateIntegrity";
 import {
     clampMetronomeBpm,
@@ -54,6 +54,7 @@ import {
     setLastPersistedIdeaCount,
     setPersistBlocked,
 } from "./persistRuntime";
+import { persistedSnapshotChanged } from "./persistChangeDetection";
 import {
     buildPersistedAppStoreSnapshot,
     persistAppStoreSnapshot,
@@ -288,9 +289,11 @@ function discardPendingPersistWrite() {
 }
 
 function createGuardedStorage() {
-    // SQLite is the authoritative backing store; it transparently imports any legacy
-    // AsyncStorage blob on first read and falls back to AsyncStorage if SQLite fails.
-    const baseStorage = createJSONStorage(() => sqliteStringStorage)!;
+    // Sharded storage: the library persists as a small meta row + one row per workspace, so
+    // an edit rewrites only the workspaces it touched. It's the authoritative SQLite store
+    // (imports a legacy AsyncStorage/monolithic blob on first read, falls back to
+    // AsyncStorage on SQLite failure), and carries the persist timing telemetry.
+    const baseStorage = createShardedPersistStorage();
 
     // Guard + serialize + write. Runs when the debounced write fires (with the LATEST
     // value), so the corruption checks always inspect exactly what hits disk.
@@ -357,6 +360,10 @@ function createGuardedStorage() {
         getItem: baseStorage.getItem.bind(baseStorage),
         removeItem: baseStorage.removeItem.bind(baseStorage),
         setItem: (name: string, value: any) => {
+            // Transient-only updates (playback position, selection…) leave every
+            // persisted field reference-identical — skip them entirely so playback
+            // never touches the serializer or SQLite.
+            if (!persistedSnapshotChanged(value)) return;
             schedulePendingPersistWrite(() => runGuardedWrite(name, value));
         },
     };

@@ -225,7 +225,7 @@ function crc32(bytes: Uint8Array) {
     return new IncrementalCrc32().update(bytes).digest();
 }
 
-const ZIP_STREAM_CHUNK_BYTES = 64 * 1024;
+const ZIP_STREAM_CHUNK_BYTES = 512 * 1024;
 const ZIP32_MAX_VALUE = 0xffffffff;
 const ZIP32_MAX_ENTRIES = 0xffff;
 
@@ -344,6 +344,8 @@ export async function createZipArchive(
         data?: Uint8Array;
         fileUri?: string;
         checksum: number;
+        /** CRC computed while streaming, then patched into the already-written local header. */
+        deferredCrc?: boolean;
         size: number;
     }> = [];
 
@@ -364,37 +366,25 @@ export async function createZipArchive(
         }
 
         if (typeof entry.fileUri === "string") {
-            const file = new File(entry.fileUri);
             const info = await FileSystem.getInfoAsync(entry.fileUri);
             if (!info.exists) {
                 throw new Error(`Missing file: ${entry.archiveName}`);
             }
 
-            let checksum = entry.crc32;
-            let size = entry.sizeBytes;
-            if (checksum == null || size == null) {
-                const crc = new IncrementalCrc32();
-                size = 0;
-                let bytesSinceYield = 0;
-                const handle = file.open();
-                try {
-                    while (true) {
-                        throwIfBackupCancelled(options?.signal);
-                        const chunk = handle.readBytes(ZIP_STREAM_CHUNK_BYTES);
-                        if (chunk.length === 0) break;
-                        crc.update(chunk);
-                        size += chunk.length;
-                        bytesSinceYield += chunk.length;
-                            if (bytesSinceYield >= 2 * 1024 * 1024) {
-                            bytesSinceYield = 0;
-                            await yieldToBackupUi(options?.signal);
-                        }
-                    }
-                } finally {
-                    handle.close();
-                }
-                checksum = crc.digest();
-            } else if (info.size != null && info.size !== size) {
+            // No pre-read pass: size comes from the caller or the filesystem, and a missing
+            // CRC is computed WHILE the entry streams, then patched into its local header.
+            // The old resolve pass silently read every byte before packaging began, which
+            // left exports sitting at 0% for the entire first read of the library.
+            // File.size is the fallback for providers whose getInfoAsync omits .size.
+            const statedSize =
+                typeof info.size === "number" ? info.size : new File(entry.fileUri).size;
+            const size =
+                entry.sizeBytes ??
+                (Number.isSafeInteger(statedSize) && statedSize >= 0 ? statedSize : null);
+            if (size == null || !Number.isSafeInteger(size) || size < 0) {
+                throw new Error(`Could not determine file size for ${entry.archiveName}`);
+            }
+            if (entry.sizeBytes != null && typeof info.size === "number" && info.size !== size) {
                 throw new Error(`File changed while preparing archive: ${entry.archiveName}`);
             }
 
@@ -402,7 +392,8 @@ export async function createZipArchive(
                 archiveName: entry.archiveName,
                 filenameBytes: encodeUtf8(entry.archiveName),
                 fileUri: entry.fileUri,
-                checksum,
+                checksum: entry.crc32 ?? 0,
+                deferredCrc: entry.crc32 == null,
                 size,
             });
             continue;
@@ -484,7 +475,7 @@ export async function createZipArchive(
                                 phase: "packaging",
                                 completedBytes: completedSourceBytes,
                                 totalBytes: totalSourceBytes,
-                                message: "Packaging backup",
+                                message: "Packaging",
                             });
                             bytesSinceYield = 0;
                             await yieldToBackupUi(options?.signal);
@@ -496,7 +487,17 @@ export async function createZipArchive(
                 if (writtenForEntry !== entry.size) {
                     throw new Error(`File changed while packaging archive: ${entry.archiveName}`);
                 }
-                if (writtenCrc.digest() !== entry.checksum) {
+                if (entry.deferredCrc) {
+                    // Patch the streamed CRC into the local header written above (CRC field
+                    // lives at header offset 14); the central directory (built below from
+                    // entry.checksum) gets the same value. Offsets are tracked deterministically.
+                    entry.checksum = writtenCrc.digest();
+                    destinationHandle.offset = localOffset + 14;
+                    const crcBytes = new Uint8Array(4);
+                    new DataView(crcBytes.buffer).setUint32(0, entry.checksum, true);
+                    destinationHandle.writeBytes(crcBytes);
+                    destinationHandle.offset = localOffset + localHeader.length + entry.size;
+                } else if (writtenCrc.digest() !== entry.checksum) {
                     throw new Error(`File changed while packaging archive: ${entry.archiveName}`);
                 }
             } else if (entry.data) {
@@ -529,7 +530,7 @@ export async function createZipArchive(
         phase: "packaging",
         completedBytes: totalSourceBytes,
         totalBytes: totalSourceBytes,
-        message: "Backup packaged",
+        message: "Packaged",
     });
 }
 
@@ -593,11 +594,21 @@ export async function loadManagedAudioMetadata(
     durationHint?: number,
     options?: AudioMetadataLoadOptions
 ) {
+    // Lightweight (batch import) skips EVERYTHING native — including the duration
+    // probe, which costs a full AVPlayer/MediaPlayer item load per file (hundreds of
+    // ms each; the dominant cost of large imports). Background hydration derives the
+    // real duration + waveform afterwards, so the import itself is just the file copy.
+    if (options?.lightweight) {
+        return {
+            durationMs: durationHint && durationHint > 0 ? durationHint : undefined,
+            waveformPeaks: buildStaticWaveform(`${seed}-pending`, MANAGED_WAVEFORM_PEAK_COUNT),
+            usedDetailedAnalysis: false,
+        };
+    }
+
     const durationMs = durationHint && durationHint > 0 ? durationHint : await loadAudioDurationMs(audioUri);
 
-    // Batch imports intentionally skip detailed analysis so large imports do not
-    // queue enough native work to get the app killed before any state is committed.
-    if (options?.lightweight || (durationMs && durationMs > MAX_DETAILED_AUDIO_ANALYSIS_DURATION_MS)) {
+    if (durationMs && durationMs > MAX_DETAILED_AUDIO_ANALYSIS_DURATION_MS) {
         return {
             durationMs,
             waveformPeaks: buildStaticWaveform(`${seed}-${durationMs}`, MANAGED_WAVEFORM_PEAK_COUNT),
@@ -752,6 +763,11 @@ export async function importAudioAsset(
     }
 }
 
+// How many file imports run at once. Each import is I/O-bound (a file copy), so a
+// small pool overlaps the copies without flooding the filesystem bridge. Serial was
+// the other dominant cost of large imports (100 files = 100 round trips end-to-end).
+const IMPORT_CONCURRENCY = 4;
+
 export async function importAudioAssets(
     assets: ImportedAudioAsset[],
     buildTargetId: (asset: ImportedAudioAsset, index: number) => string,
@@ -760,29 +776,45 @@ export async function importAudioAssets(
         onImported?: (asset: ImportedManagedAudioAsset, index: number) => void;
     }
 ): Promise<{ imported: ImportedManagedAudioAsset[]; failed: AudioImportFailure[] }> {
-    const imported: ImportedManagedAudioAsset[] = [];
+    // Index-addressed slots keep the results in the caller's order (project-mode
+    // pairs clips with per-asset date metadata by index) even though completion
+    // order is arbitrary.
+    const importedSlots: (ImportedManagedAudioAsset | null)[] = new Array(assets.length).fill(null);
     const failed: AudioImportFailure[] = [];
+    let completed = 0;
+    let nextIndex = 0;
 
-    for (let index = 0; index < assets.length; index += 1) {
-        const asset = assets[index]!;
-        const targetId = buildTargetId(asset, index);
+    const runWorker = async () => {
+        while (nextIndex < assets.length) {
+            const index = nextIndex;
+            nextIndex += 1;
+            const asset = assets[index]!;
+            const targetId = buildTargetId(asset, index);
 
-        try {
-            const managed = await importAudioAsset(asset, targetId, options);
-            const importedAsset = {
-                ...asset,
-                ...managed,
-                targetId,
-            };
-            imported.push(importedAsset);
-            options?.onImported?.(importedAsset, index);
-        } catch (error) {
-            failed.push({ asset, error });
+            try {
+                const managed = await importAudioAsset(asset, targetId, options);
+                const importedAsset = {
+                    ...asset,
+                    ...managed,
+                    targetId,
+                };
+                importedSlots[index] = importedAsset;
+                options?.onImported?.(importedAsset, index);
+            } catch (error) {
+                failed.push({ asset, error });
+            }
+
+            completed += 1;
+            onProgress?.(completed, assets.length, failed.length);
         }
+    };
 
-        onProgress?.(index + 1, assets.length, failed.length);
-    }
+    const workerCount = Math.max(1, Math.min(IMPORT_CONCURRENCY, assets.length));
+    await Promise.all(Array.from({ length: workerCount }, () => runWorker()));
 
+    const imported = importedSlots.filter(
+        (slot): slot is ImportedManagedAudioAsset => slot !== null
+    );
     return { imported, failed };
 }
 

@@ -1,7 +1,6 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as FileSystem from "expo-file-system/legacy";
 import type { PersistedAppStore } from "../state/useStore";
-import { STORE_NAME, STORE_VERSION } from "../state/useStore";
+import { STORE_VERSION } from "../state/useStore";
 import type { Workspace } from "../types";
 import { collectClipAudioUris } from "./managedMedia";
 import {
@@ -97,15 +96,10 @@ async function getDirectoryUsage(directoryUri: string): Promise<DirectoryUsage> 
 }
 
 async function getPersistedMetadataBytes(snapshot: PersistedAppStore) {
-    try {
-        const rawPersistedStore = await AsyncStorage.getItem(STORE_NAME);
-        if (typeof rawPersistedStore === "string") {
-            return measureUtf8Bytes(rawPersistedStore);
-        }
-    } catch {
-        // Fall back to a local measurement if storage cannot be read directly.
-    }
-
+    // The persisted library is now sharded across SQLite rows (meta + per-workspace),
+    // so there's no single blob to measure — and the legacy AsyncStorage copy is stale.
+    // Measuring the live snapshot is an accurate stand-in for total persisted bytes
+    // (the sharded rows sum to the same content) and is layout-independent.
     return measureJsonBytes({
         state: snapshot,
         version: STORE_VERSION,

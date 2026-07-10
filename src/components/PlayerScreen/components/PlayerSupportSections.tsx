@@ -1,7 +1,8 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
+import { useAudioPlayer } from "expo-audio";
+import { useThrottledAudioPlayerStatus } from "../../../hooks/useThrottledAudioPlayerStatus";
 import type { LyricsLine, RecordingGrid } from "../../../types";
 import { PlayerLyricsPanel } from "../PlayerLyricsPanel";
 import { QueuePanel } from "../../QueuePanel";
@@ -150,7 +151,9 @@ export function PlayerSupportSections({
   onQueueOpenIdea,
 }: PlayerSupportSectionsProps) {
   const layerPreviewPlayer = useAudioPlayer(null, { updateInterval: 120 });
-  const layerPreviewStatus = useAudioPlayerStatus(layerPreviewPlayer);
+  const { status: layerPreviewStatus } = useThrottledAudioPlayerStatus(layerPreviewPlayer, {
+    positionIntervalMs: 200,
+  });
   const [activeLayerPreviewId, setActiveLayerPreviewId] = useState<string | null>(null);
   const [layersSheetOpen, setLayersSheetOpen] = useState(false);
   // Progressive disclosure: one section open at a time across the whole sheet (accordion),
@@ -427,6 +430,17 @@ export function PlayerSupportSections({
   const hasQueue = queueEntries.length > 0;
   const hasNotes = clipNotes.trim().length > 0;
 
+  // Stable identities so the memoized QueuePanel isn't re-rendered by this
+  // section's own playback-tick renders while the queue sheet is open.
+  const closeQueueSheet = useCallback(() => onToggleQueueExpanded(false), [onToggleQueueExpanded]);
+  const openIdeaFromQueue = useCallback(
+    (ideaId: string) => {
+      onToggleQueueExpanded(false);
+      onQueueOpenIdea(ideaId);
+    },
+    [onQueueOpenIdea, onToggleQueueExpanded]
+  );
+
   return (
     <View style={playerScreenStyles.supportStack}>
       {hasLyrics ? (
@@ -484,14 +498,8 @@ export function PlayerSupportSections({
       {/* Queue — the SAME surface as the dock's queue panel (jump on tap,
           go-to-song), hosted in a bottom sheet here. */}
       {hasQueue ? (
-        <BottomSheet visible={queueExpanded} onClose={() => onToggleQueueExpanded(false)}>
-          <QueuePanel
-            framed={false}
-            onOpenIdea={(ideaId) => {
-              onToggleQueueExpanded(false);
-              onQueueOpenIdea(ideaId);
-            }}
-          />
+        <BottomSheet visible={queueExpanded} onClose={closeQueueSheet}>
+          <QueuePanel framed={false} onOpenIdea={openIdeaFromQueue} />
         </BottomSheet>
       ) : null}
 

@@ -5,7 +5,8 @@ import { StatusBar as ExpoStatusBar } from "expo-status-bar";
 import { View, Text, ActivityIndicator, TouchableOpacity, Pressable, StyleSheet } from "react-native";
 import { StackActions, useIsFocused, useNavigation, useRoute } from "@react-navigation/native";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
-import { useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
+import { useAudioPlayer } from "expo-audio";
+import { useThrottledAudioPlayerStatus } from "../../hooks/useThrottledAudioPlayerStatus";
 import { MultiTimeRangeSelector } from "../common/TimeRangeSelector";
 import { AudioAnalysis } from "@siteed/audio-studio";
 import { styles } from "../../styles";
@@ -119,7 +120,10 @@ export function EditorScreen() {
     const playerSource = useMemo(() => (audioUri ? { uri: audioUri } : null), [audioUri]);
     const playerOptions = useMemo(() => ({ updateInterval: 33 }), []);
     const player = useAudioPlayer(playerSource, playerOptions);
-    const status = useAudioPlayerStatus(player);
+    // Throttled: the stock status hook re-rendered this whole screen 30×/sec during
+    // playback. Smooth reel motion comes from the shared transport clock, which only
+    // needs periodic position reports.
+    const { status } = useThrottledAudioPlayerStatus(player, { positionIntervalMs: 200 });
     const statusTimeMs = typeof status.currentTime === "number" ? Math.round(status.currentTime * 1000) : null;
     const transformState = useEditorTransformState();
     useEffect(() => {

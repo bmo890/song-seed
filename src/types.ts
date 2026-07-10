@@ -477,6 +477,11 @@ export type WorkspaceArchiveState = {
   savingsBytes: number;
   audioFileCount: number;
   missingFileCount: number;
+  /** Set when the package was moved off-device (Files/Drive) and the local copy deleted.
+   *  Restoring then prompts the user to pick the package file. */
+  offloadedAt?: number;
+  /** File name the package was saved under, shown when asking for it back. */
+  offloadedFileName?: string;
 };
 
 export type Collection = {

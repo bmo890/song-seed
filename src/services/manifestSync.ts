@@ -9,6 +9,7 @@
  */
 
 import * as FileSystem from "expo-file-system/legacy";
+import { createSnapshotChangeDetector } from "../state/persistChangeDetection";
 import {
     SONG_SEED_ROOT,
     SONG_SEED_MANIFEST_PATH,
@@ -262,9 +263,18 @@ export function startManifestSync(
     const initialSnapshot = buildSnapshot(store.getState());
     writeManifestToDisk(initialSnapshot);
 
+    // Only schedule when persisted CONTENT actually changed. The store also emits
+    // transient updates (playback position several times a second), and because the
+    // debounce is a pure trailing one, those ticks reset it forever — the manifest
+    // silently never updated during playback, exactly when a crash-safety net
+    // matters. Change-gating means a real edit followed by playback still flushes.
+    const snapshotChanged = createSnapshotChangeDetector();
+    snapshotChanged({ state: initialSnapshot });
+
     // Subscribe to future changes
     unsubscribe = store.subscribe((state) => {
         const snapshot = buildSnapshot(state);
+        if (!snapshotChanged({ state: snapshot })) return;
         scheduleWrite(snapshot);
     });
 }

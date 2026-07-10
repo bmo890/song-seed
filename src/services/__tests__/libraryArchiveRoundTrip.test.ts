@@ -37,6 +37,73 @@ jest.mock("expo-file-system/legacy", () => ({
     }),
 }));
 
+// Modern expo-file-system File API used by the streaming archive reader/writer.
+jest.mock("expo-file-system", () => {
+    class MockFile {
+        uri: string;
+
+        constructor(uri: string) {
+            this.uri = uri;
+        }
+
+        get exists() {
+            return mockFiles.has(this.uri);
+        }
+
+        get size() {
+            return mockFiles.get(this.uri)?.length ?? 0;
+        }
+
+        create(options?: { overwrite?: boolean }) {
+            if (mockFiles.has(this.uri) && !options?.overwrite) {
+                throw new Error(`File already exists: ${this.uri}`);
+            }
+            mockFiles.set(this.uri, new Uint8Array(0));
+        }
+
+        open() {
+            if (!mockFiles.has(this.uri)) {
+                throw new Error(`Missing mock file: ${this.uri}`);
+            }
+            const uri = this.uri;
+            let currentOffset: number | null = 0;
+            return {
+                readBytes: (length: number) => {
+                    if (currentOffset == null) throw new Error("Handle closed");
+                    const source = mockFiles.get(uri)!;
+                    const chunk = source.slice(currentOffset, currentOffset + length);
+                    currentOffset += chunk.length;
+                    return chunk;
+                },
+                writeBytes: (bytes: Uint8Array) => {
+                    if (currentOffset == null) throw new Error("Handle closed");
+                    const previous = mockFiles.get(uri)!;
+                    const nextLength = Math.max(previous.length, currentOffset + bytes.length);
+                    const next = new Uint8Array(nextLength);
+                    next.set(previous);
+                    next.set(bytes, currentOffset);
+                    currentOffset += bytes.length;
+                    mockFiles.set(uri, next);
+                },
+                close: () => {
+                    currentOffset = null;
+                },
+                get offset() {
+                    return currentOffset;
+                },
+                set offset(value: number | null) {
+                    currentOffset = value;
+                },
+                get size() {
+                    return currentOffset == null ? null : mockFiles.get(uri)!.length;
+                },
+            };
+        }
+    }
+
+    return { File: MockFile };
+});
+
 // Real zip build/read so the round-trip exercises actual serialization; the other helpers are
 // deterministic stand-ins. Factory is self-contained (jest hoists it above imports).
 jest.mock("../audioStorage", () => ({
@@ -61,7 +128,9 @@ jest.mock("../audioStorage", () => ({
                 zipInput[entry.archiveName] = bytes;
             }
         }
-        mockFiles.set(archiveUri, zip(zipInput));
+        // Stored (uncompressed), matching the real createZipArchive — the streaming
+        // import reader only accepts stored entries.
+        mockFiles.set(archiveUri, zip(zipInput, { level: 0 }));
     },
 }));
 

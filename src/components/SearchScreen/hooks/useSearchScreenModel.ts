@@ -18,7 +18,15 @@ type SearchResultGroup = {
   kind: GlobalSearchResultKind;
   label: string;
   items: GlobalSearchResult[];
+  /** How many additional matches were cut by the render cap (0 when complete). */
+  truncatedCount: number;
 };
+
+// Results render in a plain (unvirtualized) ScrollView, so a broad query against a
+// large library ("a" matching hundreds of clips) would mount hundreds of result rows
+// at once and visibly hang the search page. Deeper matches are reachable by typing a
+// more specific query — the group notes how many were cut.
+const MAX_RESULTS_PER_GROUP = 30;
 
 type SearchMatchFilterOption = {
   key: SearchMatchFilter;
@@ -96,11 +104,15 @@ export function useSearchScreenModel() {
 
   const resultGroups = useMemo<SearchResultGroup[]>(
     () =>
-      GLOBAL_SEARCH_KIND_ORDER.map((kind) => ({
-        kind,
-        label: getSearchResultKindLabel(kind),
-        items: filteredResults.filter((result) => result.kind === kind),
-      })).filter((group) => group.items.length > 0),
+      GLOBAL_SEARCH_KIND_ORDER.map((kind) => {
+        const allItems = filteredResults.filter((result) => result.kind === kind);
+        return {
+          kind,
+          label: getSearchResultKindLabel(kind),
+          items: allItems.slice(0, MAX_RESULTS_PER_GROUP),
+          truncatedCount: Math.max(0, allItems.length - MAX_RESULTS_PER_GROUP),
+        };
+      }).filter((group) => group.items.length > 0),
     [filteredResults]
   );
 

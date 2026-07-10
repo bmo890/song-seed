@@ -334,7 +334,9 @@ export function SearchScreenContent() {
               <View key={group.kind} style={searchScreenStyles.section}>
                 <View style={searchScreenStyles.sectionHeaderRow}>
                   <Text style={searchScreenStyles.sectionTitle}>{group.label}</Text>
-                  <Text style={searchScreenStyles.sectionCount}>{group.items.length}</Text>
+                  <Text style={searchScreenStyles.sectionCount}>
+                    {group.truncatedCount > 0 ? `${group.items.length}+` : group.items.length}
+                  </Text>
                 </View>
 
                 <View style={searchScreenStyles.sectionStack}>
@@ -348,6 +350,12 @@ export function SearchScreenContent() {
                     />
                   ))}
                 </View>
+                {group.truncatedCount > 0 ? (
+                  <Text style={searchScreenStyles.truncationNote}>
+                    {group.truncatedCount} more match{group.truncatedCount === 1 ? "" : "es"} — type a
+                    more specific search to narrow down
+                  </Text>
+                ) : null}
               </View>
             );
           })}
@@ -504,6 +512,12 @@ const searchScreenStyles = StyleSheet.create({
   },
   sectionStack: {
     gap: 10,
+  },
+  truncationNote: {
+    ...textTokens.caption,
+    color: "#a89994",
+    marginTop: 8,
+    paddingHorizontal: 2,
   },
   resultCard: {
     backgroundColor: "#ffffff",

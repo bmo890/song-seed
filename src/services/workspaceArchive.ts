@@ -1,6 +1,12 @@
 import * as FileSystem from "expo-file-system/legacy";
-import { strFromU8, strToU8, unzipSync } from "fflate";
+import { strFromU8, strToU8 } from "fflate";
 import type { ClipVersion, Workspace, WorkspaceArchiveState } from "../types";
+import {
+    extractStoredZipEntryToFile,
+    indexStoredZipArchive,
+    readStoredZipEntryBytes,
+    type StoredZipIndex,
+} from "./storedZipArchive";
 import { normalizeWorkspaces } from "../state/dataSlice";
 import { collectClipAudioUris } from "./managedMedia";
 import {
@@ -39,7 +45,8 @@ type WorkspaceArchivePackageManifest = {
 };
 
 type ArchiveVerificationResult = {
-    zipEntries: Record<string, Uint8Array>;
+    /** Streaming index into the archive; audio payloads are extracted on demand. */
+    archiveIndex: StoredZipIndex;
     manifest: WorkspaceArchivePackageManifest;
     workspaceSnapshot: Workspace;
     packageSizeBytes: number;
@@ -64,64 +71,6 @@ function cloneWorkspace(workspace: Workspace): Workspace {
 
 function estimateJsonBytes(value: unknown) {
     return strToU8(JSON.stringify(value)).length;
-}
-
-function base64ToBytes(base64: string) {
-    const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-    const clean = base64.replace(/[^A-Za-z0-9+/=]/g, "");
-    let buffer = 0;
-    let bits = 0;
-    const output: number[] = [];
-
-    for (const char of clean) {
-        if (char === "=") break;
-        const index = alphabet.indexOf(char);
-        if (index < 0) continue;
-        buffer = (buffer << 6) | index;
-        bits += 6;
-        if (bits >= 8) {
-            bits -= 8;
-            output.push((buffer >> bits) & 0xff);
-        }
-    }
-
-    return Uint8Array.from(output);
-}
-
-function bytesToBase64(bytes: Uint8Array) {
-    const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-    let output = "";
-
-    for (let index = 0; index < bytes.length; index += 3) {
-        const a = bytes[index] ?? 0;
-        const b = bytes[index + 1] ?? 0;
-        const c = bytes[index + 2] ?? 0;
-        const chunk = (a << 16) | (b << 8) | c;
-
-        output += alphabet[(chunk >> 18) & 0x3f];
-        output += alphabet[(chunk >> 12) & 0x3f];
-        output += index + 1 < bytes.length ? alphabet[(chunk >> 6) & 0x3f] : "=";
-        output += index + 2 < bytes.length ? alphabet[chunk & 0x3f] : "=";
-    }
-
-    return output;
-}
-
-async function readFileBytes(fileUri: string) {
-    const base64 = await FileSystem.readAsStringAsync(fileUri, {
-        encoding: FileSystem.EncodingType.Base64,
-    });
-    return base64ToBytes(base64);
-}
-
-async function writeFileBytes(fileUri: string, bytes: Uint8Array) {
-    const parentDirectory = fileUri.slice(0, fileUri.lastIndexOf("/"));
-    if (parentDirectory) {
-        await FileSystem.makeDirectoryAsync(parentDirectory, { intermediates: true });
-    }
-    await FileSystem.writeAsStringAsync(fileUri, bytesToBase64(bytes), {
-        encoding: FileSystem.EncodingType.Base64,
-    });
 }
 
 function assertManagedRestoreUri(fileUri: string) {
@@ -255,37 +204,44 @@ async function verifyArchiveFile(
         throw new Error("Archive package is missing.");
     }
 
-    const zipBytes = await readFileBytes(archiveUri);
-    const zipEntries = unzipSync(zipBytes);
-    const manifestEntry = zipEntries["manifest.json"];
-    const workspaceEntry = zipEntries["workspace.json"];
+    // Streaming index: entries are verified from the ZIP directory (name + size here;
+    // CRC checked in-stream when each file is extracted) without loading payloads —
+    // reading the whole package into memory OOM'd Hermes on large workspaces.
+    const archiveIndex = await indexStoredZipArchive(archiveUri);
+    const manifestEntry = archiveIndex.entries.get("manifest.json");
+    const workspaceEntry = archiveIndex.entries.get("workspace.json");
 
     if (!manifestEntry || !workspaceEntry) {
         throw new Error("Archive package is incomplete.");
     }
 
-    const manifest = JSON.parse(strFromU8(manifestEntry)) as WorkspaceArchivePackageManifest;
-    const workspaceSnapshot = JSON.parse(strFromU8(workspaceEntry)) as Workspace;
+    const manifest = JSON.parse(
+        strFromU8(await readStoredZipEntryBytes(archiveIndex, manifestEntry))
+    ) as WorkspaceArchivePackageManifest;
+    const workspaceSnapshot = JSON.parse(
+        strFromU8(await readStoredZipEntryBytes(archiveIndex, workspaceEntry))
+    ) as Workspace;
 
     if (manifest.workspaceId !== expectedWorkspaceId || workspaceSnapshot.id !== expectedWorkspaceId) {
         throw new Error("Archive package does not match this workspace.");
     }
 
     for (const audioFile of expectedAudioFiles ?? manifest.audioFiles) {
-        const entry = zipEntries[audioFile.archivePath];
+        const entry = archiveIndex.entries.get(audioFile.archivePath);
         if (!entry) {
             throw new Error(`Archive package is missing ${audioFile.archivePath}.`);
         }
-        if (entry.length !== audioFile.originalSizeBytes) {
+        if (entry.sizeBytes !== audioFile.originalSizeBytes) {
             throw new Error(`Archive package failed verification for ${audioFile.archivePath}.`);
         }
     }
 
     return {
-        zipEntries,
+        archiveIndex,
         manifest,
         workspaceSnapshot,
-        packageSizeBytes: typeof archiveInfo.size === "number" ? archiveInfo.size : zipBytes.length,
+        packageSizeBytes:
+            typeof archiveInfo.size === "number" ? archiveInfo.size : archiveIndex.archiveSizeBytes,
     };
 }
 
@@ -321,68 +277,36 @@ export async function archiveWorkspaceToDevice(workspace: Workspace): Promise<Wo
     const archiveInfo = await FileSystem.getInfoAsync(archiveUri);
     const packageSizeBytes =
         "size" in archiveInfo && typeof archiveInfo.size === "number" ? archiveInfo.size : 0;
+    const originalMetadataBytes = estimateJsonBytes(workspaceSnapshot);
+
+    // No disk-savings gate. Recordings are already compressed (m4a), so the stored
+    // package is necessarily about as large as the audio it holds — a "must free disk
+    // space" gate can never pass and blocked the feature entirely. Archiving's real
+    // value is tucking the workspace away without deleting anything and trimming its
+    // heavy metadata (waveform peaks, etc.) out of the ACTIVE persisted store, which
+    // `savingsBytes` now reports. True disk savings belong to a future "offload the
+    // package to Files/Drive" flow.
     const provisionalArchiveState: WorkspaceArchiveState = {
         schemaVersion: WORKSPACE_ARCHIVE_SCHEMA_VERSION,
         archivedAt: Date.now(),
         archiveUri,
         packageSizeBytes,
         originalAudioBytes,
-        originalMetadataBytes: estimateJsonBytes(workspaceSnapshot),
+        originalMetadataBytes,
         archivedMetadataBytes: 0,
         savingsBytes: 0,
         audioFileCount: mediaFiles.length,
         missingFileCount: missingFileUris.length,
     };
-    const archivedWorkspacePreview = stripWorkspaceMedia(workspaceSnapshot, provisionalArchiveState);
-    const archivedMetadataBytes = estimateJsonBytes(archivedWorkspacePreview);
-    const savingsBytes =
-        originalAudioBytes +
-        provisionalArchiveState.originalMetadataBytes -
-        (provisionalArchiveState.packageSizeBytes + archivedMetadataBytes);
-
-    if (savingsBytes <= 0) {
-        await FileSystem.deleteAsync(archiveUri, { idempotent: true });
-        throw new Error("Archiving would not reduce storage for this workspace.");
-    }
-
+    // The archived stub embeds this state, so measure the stub once with provisional
+    // numbers and finalize with the (few-bytes-different) real ones.
+    const archivedMetadataBytes = estimateJsonBytes(
+        stripWorkspaceMedia(workspaceSnapshot, provisionalArchiveState)
+    );
     const archiveState: WorkspaceArchiveState = {
         ...provisionalArchiveState,
         archivedMetadataBytes,
-        savingsBytes,
-    };
-    const archivedWorkspace = stripWorkspaceMedia(workspaceSnapshot, archiveState);
-    const exactArchivedMetadataBytes = estimateJsonBytes(archivedWorkspace);
-    const exactSavingsBytes =
-        originalAudioBytes +
-        provisionalArchiveState.originalMetadataBytes -
-        (provisionalArchiveState.packageSizeBytes + exactArchivedMetadataBytes);
-
-    if (exactSavingsBytes <= 0) {
-        await FileSystem.deleteAsync(archiveUri, { idempotent: true });
-        throw new Error("Archiving would not reduce storage for this workspace.");
-    }
-
-    let finalizedArchiveState: WorkspaceArchiveState = {
-        ...archiveState,
-        archivedMetadataBytes: exactArchivedMetadataBytes,
-        savingsBytes: exactSavingsBytes,
-    };
-    const finalizedArchivedWorkspace = stripWorkspaceMedia(workspaceSnapshot, finalizedArchiveState);
-    const finalArchivedMetadataBytes = estimateJsonBytes(finalizedArchivedWorkspace);
-    const finalSavingsBytes =
-        originalAudioBytes +
-        provisionalArchiveState.originalMetadataBytes -
-        (provisionalArchiveState.packageSizeBytes + finalArchivedMetadataBytes);
-
-    if (finalSavingsBytes <= 0) {
-        await FileSystem.deleteAsync(archiveUri, { idempotent: true });
-        throw new Error("Archiving would not reduce storage for this workspace.");
-    }
-
-    finalizedArchiveState = {
-        ...finalizedArchiveState,
-        archivedMetadataBytes: finalArchivedMetadataBytes,
-        savingsBytes: finalSavingsBytes,
+        savingsBytes: Math.max(0, originalMetadataBytes - archivedMetadataBytes),
     };
 
     const warnings =
@@ -393,31 +317,41 @@ export async function archiveWorkspaceToDevice(workspace: Workspace): Promise<Wo
             : [];
 
     return {
-        archivedWorkspace: stripWorkspaceMedia(workspaceSnapshot, finalizedArchiveState),
-        archiveState: finalizedArchiveState,
+        archivedWorkspace: stripWorkspaceMedia(workspaceSnapshot, archiveState),
+        archiveState,
         originalAudioUris: mediaFiles.map((file) => file.liveUri),
         warnings,
     };
 }
 
-export async function restoreWorkspaceFromDevice(workspace: Workspace): Promise<WorkspaceRestoreResult> {
+export async function restoreWorkspaceFromDevice(
+    workspace: Workspace,
+    /** Restore from a user-picked package (offloaded workspaces) instead of the local one. */
+    overrideArchiveUri?: string
+): Promise<WorkspaceRestoreResult> {
     if (!workspace.isArchived || !workspace.archiveState) {
-        throw new Error("This workspace does not have a compressed archive package to restore.");
+        throw new Error("This workspace does not have an archive package to restore.");
     }
 
-    const verification = await verifyArchiveFile(workspace.archiveState.archiveUri, workspace.id);
+    // verifyArchiveFile checks the package's manifest + snapshot workspace id, so a
+    // picked file that belongs to a different workspace is rejected before any write.
+    const verification = await verifyArchiveFile(
+        overrideArchiveUri ?? workspace.archiveState.archiveUri,
+        workspace.id
+    );
     const writtenFiles: ArchiveableMediaFile[] = [];
 
     try {
         for (const file of verification.manifest.audioFiles) {
-            const entryBytes = verification.zipEntries[file.archivePath];
-            if (!entryBytes) {
+            const entry = verification.archiveIndex.entries.get(file.archivePath);
+            if (!entry) {
                 throw new Error(`Archive package is missing ${file.archivePath}.`);
             }
             const targetUri = rebaseManagedUri(file.liveUri);
             assertManagedRestoreUri(targetUri);
 
-            await writeFileBytes(targetUri, entryBytes);
+            // Streams in bounded chunks and verifies the entry's CRC in-flight.
+            await extractStoredZipEntryToFile(verification.archiveIndex, entry, targetUri);
             const restoredInfo = await FileSystem.getInfoAsync(targetUri);
             if (!restoredInfo.exists) {
                 throw new Error(`Could not restore ${targetUri}.`);

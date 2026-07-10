@@ -40,6 +40,11 @@ type ActivityResultsListProps = {
   onViewInCollection: (item: ActivityItemResult) => void;
 };
 
+// Results render unvirtualized inside the Activity page's ScrollView. A heavy
+// day (e.g. a 100-file import) would mount every card at once and hang the page —
+// cap what mounts and say how much more the range holds.
+const MAX_RENDERED_RESULTS = 60;
+
 function renderItemResults({
   results,
   onItemLayout,
@@ -67,9 +72,12 @@ function renderItemResults({
     );
   }
 
+  const visibleResults = results.slice(0, MAX_RENDERED_RESULTS);
+  const truncatedCount = results.length - visibleResults.length;
+
   return (
     <View style={styles.activityResultsList}>
-      {results.map((result: ActivityItemResult, index: number) => {
+      {visibleResults.map((result: ActivityItemResult, index: number) => {
         const previousResult = index > 0 ? results[index - 1] : null;
 
         return (
@@ -95,6 +103,12 @@ function renderItemResults({
           />
         );
       })}
+      {truncatedCount > 0 ? (
+        <Text style={styles.activityResultEmptyText}>
+          {truncatedCount} more item{truncatedCount === 1 ? "" : "s"} in this period — narrow the
+          range or open the collection to see everything.
+        </Text>
+      ) : null}
     </View>
   );
 }

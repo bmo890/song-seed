@@ -1,9 +1,9 @@
 import { extractPreview } from "@siteed/audio-studio";
 import SongseedPitchShiftModule from "../../modules/songseed-pitch-shift";
-import { metersToWaveformPeaks } from "../utils";
+import { metersToWaveformPeaks, quantizeWaveformPeak } from "../utils";
 
 function clamp01(value: number) {
-  return Math.max(0, Math.min(1, value));
+  return quantizeWaveformPeak(Math.max(0, Math.min(1, value)));
 }
 
 function analysisToPeaks(
@@ -25,13 +25,38 @@ function analysisToPeaks(
   return metersToWaveformPeaks(levelsAsDb, numberOfPoints);
 }
 
+// Serialize native waveform decodes app-wide. On Android the decoder shares the
+// MediaCodec pool with the audio player, so running several at once — multiple reels
+// mounting during a fast scroll, or a reel decode racing a clip load — starves the
+// player and stalls playback (the full-player-won't-start-on-long-clips freeze). One at a
+// time keeps a codec free for playback; non-critical reels just wait their turn behind the
+// low-res thumbnail.
+let decodeQueue: Promise<unknown> = Promise.resolve();
+
+export function computeWaveformPeaks(
+  audioUri: string,
+  numberOfPoints: number,
+  durationMs: number
+): Promise<number[]> {
+  const run = decodeQueue.then(
+    () => computeWaveformPeaksUnserialized(audioUri, numberOfPoints, durationMs),
+    () => computeWaveformPeaksUnserialized(audioUri, numberOfPoints, durationMs)
+  );
+  // Keep the chain alive regardless of this decode's outcome.
+  decodeQueue = run.then(
+    () => undefined,
+    () => undefined
+  );
+  return run;
+}
+
 /**
  * Compute `numberOfPoints` peak values (0..1) for an audio file. Prefers the
  * in-house media3 / AVFoundation decoder; falls back to @siteed `extractPreview`
  * if it's unavailable or fails. `durationMs` must be > 0 (callers resolve it) so
  * the analysis window is bounded. Returns [] when no analysis could be produced.
  */
-export async function computeWaveformPeaks(
+async function computeWaveformPeaksUnserialized(
   audioUri: string,
   numberOfPoints: number,
   durationMs: number

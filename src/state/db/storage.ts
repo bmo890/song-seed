@@ -99,6 +99,134 @@ export const sqliteStringStorage = {
 };
 
 /**
+ * Batch-read several kv rows in a single query (for the sharded persist snapshot: meta +
+ * per-workspace rows). Falls back to per-key AsyncStorage reads if SQLite is unavailable.
+ * Populates the last-written cache so an immediately-following write can skip unchanged rows.
+ */
+export async function readManyKv(keys: string[]): Promise<Map<string, string>> {
+    const out = new Map<string, string>();
+    if (keys.length === 0) return out;
+
+    try {
+        const placeholders = keys.map(() => "?").join(",");
+        const rows = await getDb().getAllAsync<{ key: string; value: string }>(
+            `SELECT key, value FROM kv WHERE key IN (${placeholders})`,
+            ...keys
+        );
+        for (const row of rows) {
+            if (row?.key != null && row.value != null) {
+                out.set(row.key, row.value);
+                lastWritten.set(row.key, row.value);
+            }
+        }
+        return out;
+    } catch (err) {
+        console.warn("[sqliteStorage] readManyKv fell back to AsyncStorage:", err);
+        for (const key of keys) {
+            try {
+                const value = await AsyncStorage.getItem(key);
+                if (value != null) out.set(key, value);
+            } catch {
+                // Skip unreadable keys; a partial map still hydrates what it can.
+            }
+        }
+        return out;
+    }
+}
+
+/**
+ * Commit a sharded snapshot write atomically: all row writes + deletions in ONE SQLite
+ * transaction, so a crash can never leave the meta row's workspaceIds pointing at a
+ * workspace row that was never written. Rows whose value is byte-identical to the last
+ * write are skipped. On SQLite failure, degrades to best-effort per-key AsyncStorage
+ * (weaker atomicity, same fallback contract as the rest of this module).
+ */
+export async function commitShardedWrite(
+    writes: { key: string; value: string }[],
+    deletes: string[]
+): Promise<void> {
+    const pendingWrites = writes.filter((row) => lastWritten.get(row.key) !== row.value);
+    // DELETE is idempotent, so no need to dedupe deletes against the cache.
+    const pendingDeletes = deletes;
+    if (pendingWrites.length === 0 && pendingDeletes.length === 0) return;
+
+    await enqueueWrite(async () => {
+        try {
+            const db = getDb();
+            const now = Date.now();
+            await db.withTransactionAsync(async () => {
+                for (const row of pendingWrites) {
+                    await db.runAsync(
+                        "INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, ?)",
+                        row.key,
+                        row.value,
+                        now
+                    );
+                }
+                for (const key of pendingDeletes) {
+                    await db.runAsync("DELETE FROM kv WHERE key = ?", key);
+                }
+            });
+            for (const row of pendingWrites) lastWritten.set(row.key, row.value);
+            for (const key of pendingDeletes) lastWritten.delete(key);
+        } catch (err) {
+            // Do NOT update lastWritten on failure, so the next write retries SQLite.
+            console.warn("[sqliteStorage] commitShardedWrite fell back to AsyncStorage:", err);
+            for (const row of pendingWrites) {
+                try {
+                    await AsyncStorage.setItem(row.key, row.value);
+                } catch {
+                    // Both stores failed for this row — the in-memory store is still intact.
+                }
+            }
+            for (const key of pendingDeletes) {
+                try {
+                    await AsyncStorage.removeItem(key);
+                } catch {
+                    // ignore
+                }
+            }
+        }
+    });
+}
+
+/**
+ * List every kv key sharing a prefix (the per-workspace rows of the sharded snapshot).
+ * Used once per session to sweep orphaned workspace rows left by a restore or the
+ * legacy→sharded transition. Best-effort — a missed sweep only leaves unread rows.
+ */
+export async function listKvKeysWithPrefix(prefix: string): Promise<string[]> {
+    try {
+        // Store name is a fixed constant with no LIKE metacharacters, so a plain wildcard
+        // is safe here.
+        const rows = await getDb().getAllAsync<{ key: string }>(
+            "SELECT key FROM kv WHERE key LIKE ?",
+            `${prefix}%`
+        );
+        return rows.map((row) => row.key).filter((key): key is string => key != null);
+    } catch (err) {
+        console.warn("[sqliteStorage] listKvKeysWithPrefix failed:", err);
+        return [];
+    }
+}
+
+/** Delete a single kv row (used to retire the one-boot legacy-blob backup). Best-effort. */
+export async function deleteKv(key: string): Promise<void> {
+    await enqueueWrite(async () => {
+        lastWritten.delete(key);
+        try {
+            await getDb().runAsync("DELETE FROM kv WHERE key = ?", key);
+        } catch {
+            try {
+                await AsyncStorage.removeItem(key);
+            } catch {
+                // ignore
+            }
+        }
+    });
+}
+
+/**
  * Write a raw persisted snapshot string directly to the authoritative store, bypassing the
  * zustand pipeline. Used by disaster-recovery restore to commit a verified snapshot to the
  * exact location hydration reads from on next launch.

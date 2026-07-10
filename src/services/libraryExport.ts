@@ -24,6 +24,8 @@ import {
 import { SONG_SEED_SHARE_DIR } from "./storagePaths";
 import { cleanupShareTempFile } from "./managedMedia";
 import { saveArchiveToUserLocation } from "./archiveSave";
+import type { BackupOperationOptions } from "./backupOperation";
+import { recordLibraryOperationThroughput } from "./operationPacing";
 import {
     LIBRARY_EXPORT_SCHEMA_VERSION,
     SONG_SEED_ARCHIVE_FORMAT,
@@ -62,8 +64,14 @@ export type StandardZipOptions = {
     includeHiddenItems: boolean;
 };
 
+/** Progress + cancellation shared by both export formats (mirrors backups). */
+type ExportProgressArgs = {
+    onProgress?: BackupOperationOptions["onProgress"];
+    signal?: AbortSignal;
+};
+
 export type ExportLibraryArgs =
-    | {
+    | ({
           workspaces: Workspace[];
           notes: Note[];
           format: "song-seed-archive";
@@ -73,15 +81,15 @@ export type ExportLibraryArgs =
           songbooks?: Songbook[];
           setlists?: Setlist[];
           archiveLabel?: string;
-      }
-    | {
+      } & ExportProgressArgs)
+    | ({
           workspaces: Workspace[];
           notes: Note[];
           format: "standard-zip";
           scope: LibraryExportScope;
           options: StandardZipOptions;
           archiveLabel?: string;
-      };
+      } & ExportProgressArgs);
 
 export type LibraryExportResult = {
     archiveUri: string;
@@ -124,6 +132,35 @@ type ExportBuildContext = {
     exportedNotepadNotes: number;
 };
 
+export type LibraryExportEstimate = { fileCount: number; totalBytes: number };
+
+/**
+ * Cheap pre-run size estimate for the current selection — builds the entry list but
+ * only stats the files, no packaging. Feeds the "512 MB · about a minute" copy shown
+ * before generating an export.
+ */
+export async function estimateLibraryExportArchive(
+    args: ExportLibraryArgs
+): Promise<LibraryExportEstimate> {
+    const build = args.format === "song-seed-archive" ? buildSongSeedArchive(args) : buildStandardZip(args);
+    let fileCount = 0;
+    let totalBytes = 0;
+    for (const entry of build.entries) {
+        if (entry.fileUri) {
+            const info = await FileSystem.getInfoAsync(entry.fileUri);
+            if (info.exists && typeof info.size === "number" && info.size >= 0) {
+                fileCount += 1;
+                totalBytes += info.size;
+            }
+        } else if (typeof entry.data === "string") {
+            totalBytes += entry.data.length;
+        } else if (entry.data) {
+            totalBytes += entry.data.length;
+        }
+    }
+    return { fileCount, totalBytes };
+}
+
 export async function prepareLibraryExportArchive(args: ExportLibraryArgs): Promise<LibraryExportResult> {
     if (!FileSystem.documentDirectory) {
         throw new Error("Document directory unavailable.");
@@ -139,6 +176,7 @@ export async function prepareLibraryExportArchive(args: ExportLibraryArgs): Prom
     const archiveTitle = `${sanitizeArchiveSegment(archiveLabel)} ${buildTimestampSlug()}`;
     const archiveUri = `${SONG_SEED_SHARE_DIR}/${archiveTitle}.zip`;
 
+    let statedSourceBytes = 0;
     const validEntries = await Promise.all(
         build.entries.map(async (entry) => {
             if (!entry.fileUri) {
@@ -147,6 +185,12 @@ export async function prepareLibraryExportArchive(args: ExportLibraryArgs): Prom
 
             const info = await FileSystem.getInfoAsync(entry.fileUri);
             if (info.exists) {
+                if (typeof info.size === "number" && info.size > 0) {
+                    statedSourceBytes += info.size;
+                    // Known size lets the zip writer stream single-pass (CRC patched in
+                    // after streaming) with accurate progress totals from the first byte.
+                    return { ...entry, sizeBytes: info.size };
+                }
                 return entry;
             }
 
@@ -193,7 +237,16 @@ export async function prepareLibraryExportArchive(args: ExportLibraryArgs): Prom
         throw new Error("Nothing to export for the current selection.");
     }
 
-    await createZipArchive(archiveUri, zipEntries);
+    const fileEntryCount = zipEntries.filter((entry) => !!entry.fileUri).length;
+    console.log(`[export] packaging ${fileEntryCount} file(s) into ${args.format} archive…`);
+    const packStartedAt = Date.now();
+    await createZipArchive(archiveUri, zipEntries, {
+        onProgress: args.onProgress,
+        signal: args.signal,
+    });
+    const packMs = Date.now() - packStartedAt;
+    console.log(`[export] packaging done in ${(packMs / 1000).toFixed(1)}s`);
+    recordLibraryOperationThroughput("export", statedSourceBytes, packMs);
 
     return {
         archiveUri,

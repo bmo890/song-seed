@@ -26,6 +26,13 @@ type PendingWorkspaceArchiveOperation =
           workspaceId: string;
           archiveUri: string;
           createdAt: number;
+      }
+    | {
+          /** Package saved off-device + offload persisted; the local copy must be deleted. */
+          kind: "offload-cleanup";
+          workspaceId: string;
+          archiveUri: string;
+          createdAt: number;
       };
 
 async function readPendingWorkspaceArchiveOperations() {
@@ -97,6 +104,19 @@ export async function resumePendingWorkspaceArchiveOperations() {
                     .getState()
                     .workspaces.find((candidate) => candidate.id === operation.workspaceId);
                 if (!workspace || !workspace.isArchived) {
+                    await deleteManagedArchiveUri(operation.archiveUri);
+                }
+                await clearPendingWorkspaceArchiveOperation(operation.workspaceId);
+                continue;
+            }
+
+            if (operation.kind === "offload-cleanup") {
+                // Only delete the local package if the persisted store actually recorded
+                // the offload — otherwise the local copy is still the ONLY copy.
+                const workspace = useStore
+                    .getState()
+                    .workspaces.find((candidate) => candidate.id === operation.workspaceId);
+                if (workspace?.isArchived && workspace.archiveState?.offloadedAt) {
                     await deleteManagedArchiveUri(operation.archiveUri);
                 }
                 await clearPendingWorkspaceArchiveOperation(operation.workspaceId);
