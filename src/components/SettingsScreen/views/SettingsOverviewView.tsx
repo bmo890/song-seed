@@ -20,6 +20,8 @@ export function SettingsOverviewView({
   primaryWorkspaceTitle,
   backupFlow,
   onOpenLibrary,
+  onOpenRecording,
+  onOpenAbout,
 }: {
   workspaceStartupPreference: "primary" | "last-used";
   setWorkspaceStartupPreference: (next: "primary" | "last-used") => void;
@@ -28,6 +30,8 @@ export function SettingsOverviewView({
   primaryWorkspaceTitle: string | null;
   backupFlow: LibraryBackupFlow;
   onOpenLibrary: () => void;
+  onOpenRecording: () => void;
+  onOpenAbout: () => void;
 }) {
   const libraryMeta = backupFlow.isBackingUp
     ? backupFlow.backupProgressLabel ?? "Backing up…"
@@ -45,7 +49,7 @@ export function SettingsOverviewView({
     >
       <PageIntro
         title="Settings"
-        subtitle="Choose where the app opens, tune feedback, and look after your library."
+        subtitle="Where the app opens, feedback, recording defaults, and your library."
       />
 
       <View style={styles.settingsSection}>
@@ -93,6 +97,20 @@ export function SettingsOverviewView({
 
       <View style={styles.settingsSection}>
         <View style={styles.settingsSectionHeaderRow}>
+          <Text style={styles.settingsSectionLabel}>Recording</Text>
+        </View>
+        <View style={settingsScreenStyles.libraryCardStack}>
+          <LibraryActionCard
+            icon="mic-outline"
+            title="Recording defaults"
+            meta="Metronome, count-in, and naming for new takes"
+            onPress={onOpenRecording}
+          />
+        </View>
+      </View>
+
+      <View style={styles.settingsSection}>
+        <View style={styles.settingsSectionHeaderRow}>
           <Text style={styles.settingsSectionLabel}>Library</Text>
         </View>
         <View style={settingsScreenStyles.libraryCardStack}>
@@ -102,6 +120,20 @@ export function SettingsOverviewView({
             busy={backupFlow.isBackingUp || backupFlow.isRestoring}
             meta={libraryMeta}
             onPress={onOpenLibrary}
+          />
+        </View>
+      </View>
+
+      <View style={styles.settingsSection}>
+        <View style={styles.settingsSectionHeaderRow}>
+          <Text style={styles.settingsSectionLabel}>App</Text>
+        </View>
+        <View style={settingsScreenStyles.libraryCardStack}>
+          <LibraryActionCard
+            icon="information-circle-outline"
+            title="About"
+            meta="Version, feedback, and privacy"
+            onPress={onOpenAbout}
           />
         </View>
       </View>

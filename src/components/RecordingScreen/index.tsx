@@ -13,11 +13,61 @@ import { RecordingMetronomeSheet } from "./RecordingMetronomeSheet";
 import { RecordingTimingWarnings } from "./RecordingTimingWarnings";
 import { SaveDestinationPickerSheet } from "../modals/SaveDestinationPickerSheet";
 import { METRONOME_METER_PRESETS } from "../../metronome";
+import { useStore } from "../../state/useStore";
 import { useRecordingScreenModel } from "./hooks/useRecordingScreenModel";
 
 export function RecordingScreen() {
   const navigation = useNavigation();
   const screen = useRecordingScreenModel();
+  const promptForClipName = useStore((state) => state.promptForClipName);
+  // Finalizing a take (audio flush + waveform + persist) takes a real beat; drive the
+  // Save button's spinner/locked state so the tap has feedback and can't fire twice.
+  const [isSavingClip, setIsSavingClip] = React.useState(false);
+  // Set if an auto-name save fails: falls back to showing the modal so the take is never
+  // stranded on a hidden dialog. Cleared when a fresh naming session opens.
+  const [autoNameFailed, setAutoNameFailed] = React.useState(false);
+  const autoSaveTriedRef = React.useRef(false);
+
+  // Persist the take, then leave the recording screen back to where it came from.
+  // Shared by the naming modal's Save and the auto-name path below. Returns whether it saved.
+  const finishSave = React.useCallback(async () => {
+    if (isSavingClip) return false;
+    setIsSavingClip(true);
+    try {
+      const saved = await screen.saveQuickClipName();
+      if (!saved) return false;
+      if (navigation.canGoBack()) {
+        navigation.goBack();
+      } else {
+        navigation.navigate("Home" as never);
+      }
+      return true;
+    } finally {
+      setIsSavingClip(false);
+    }
+  }, [isSavingClip, navigation, screen]);
+
+  // "Name each recording" off: skip the naming modal and save under the suggested title.
+  // Overdubs always keep the modal (it doubles as their take review). The modal becoming
+  // visible means the save target is committed, so saveQuickClipName runs with fresh state
+  // and picks up the suggested name from an empty draft. Fires once per session; a failure
+  // reveals the modal instead of retrying blindly.
+  const isOverdubSession = !!screen.recordingOverdubClip;
+  const autoNameActive =
+    screen.quickNameModalVisible && !promptForClipName && !isOverdubSession && !autoNameFailed;
+  React.useEffect(() => {
+    if (!screen.quickNameModalVisible) {
+      autoSaveTriedRef.current = false;
+      if (autoNameFailed) setAutoNameFailed(false);
+      return;
+    }
+    if (autoNameActive && !isSavingClip && !autoSaveTriedRef.current) {
+      autoSaveTriedRef.current = true;
+      void finishSave().then((saved) => {
+        if (!saved) setAutoNameFailed(true);
+      });
+    }
+  }, [screen.quickNameModalVisible, autoNameActive, isSavingClip, finishSave, autoNameFailed]);
   const meterLabel =
     METRONOME_METER_PRESETS.find((p) => p.id === screen.metronome.meterId)?.label ?? "";
   const metronomeSummary = `${screen.metronome.bpm} · ${meterLabel}${
@@ -113,24 +163,15 @@ export function RecordingScreen() {
       </View>
 
       <QuickNameModal
-        visible={screen.quickNameModalVisible}
+        visible={screen.quickNameModalVisible && !autoNameActive}
         draftValue={screen.quickNameDraft}
         placeholderValue={screen.recordingPlaceholderTitle}
         onChangeDraft={screen.setQuickNameDraft}
         isPrimary={screen.isPrimaryDraft}
         onChangeIsPrimary={screen.recordingIdea?.kind === "project" ? screen.setIsPrimaryDraft : undefined}
         onCancel={screen.handleQuickNameCancel}
-        onSave={async () => {
-          const saved = await screen.saveQuickClipName();
-          if (!saved) {
-            return;
-          }
-          if (navigation.canGoBack()) {
-            navigation.goBack();
-            return;
-          }
-          navigation.navigate("Home" as never);
-        }}
+        saving={isSavingClip}
+        onSave={finishSave}
         destinationWorkspaceTitle={
           screen.canPickSaveDestination ? screen.effectiveDestinationWorkspaceTitle : undefined
         }

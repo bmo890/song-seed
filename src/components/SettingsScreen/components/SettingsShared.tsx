@@ -59,6 +59,90 @@ export function LibraryActionCard({
   );
 }
 
+/** Label + a compact row of pill chips — for picking one of a few short values. */
+export function SegmentedField<T extends string | number>({
+  title,
+  subtitle,
+  value,
+  options,
+  onChange,
+}: {
+  title: string;
+  subtitle?: string;
+  value: T;
+  options: { value: T; label: string }[];
+  onChange: (next: T) => void;
+}) {
+  return (
+    <View style={settingsScreenStyles.segmentedField}>
+      <View style={settingsScreenStyles.segmentedCopy}>
+        <Text style={settingsScreenStyles.segmentedTitle}>{title}</Text>
+        {subtitle ? <Text style={settingsScreenStyles.segmentedSubtitle}>{subtitle}</Text> : null}
+      </View>
+      <View style={settingsScreenStyles.segmentedRow}>
+        {options.map((option) => {
+          const active = option.value === value;
+          return (
+            <Pressable
+              key={String(option.value)}
+              style={({ pressed }) => [
+                settingsScreenStyles.segmentedChip,
+                active ? settingsScreenStyles.segmentedChipActive : null,
+                pressed ? styles.pressDown : null,
+              ]}
+              onPress={() => onChange(option.value)}
+            >
+              <Text
+                style={[
+                  settingsScreenStyles.segmentedChipText,
+                  active ? settingsScreenStyles.segmentedChipTextActive : null,
+                ]}
+              >
+                {option.label}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
+/** A labelled value (read-only or tappable) for the About page. */
+export function AboutLinkRow({
+  label,
+  value,
+  icon,
+  onPress,
+}: {
+  label: string;
+  value?: string;
+  icon?: ComponentProps<typeof Ionicons>["name"];
+  onPress?: () => void;
+}) {
+  const content = (
+    <>
+      <Text style={settingsScreenStyles.aboutRowLabel}>{label}</Text>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+        {value ? <Text style={settingsScreenStyles.aboutRowValue}>{value}</Text> : null}
+        {onPress ? <Ionicons name={icon ?? "chevron-forward"} size={18} color={colors.textMuted} /> : null}
+      </View>
+    </>
+  );
+
+  if (!onPress) {
+    return <View style={settingsScreenStyles.aboutRow}>{content}</View>;
+  }
+  return (
+    <Pressable
+      style={({ pressed }) => [settingsScreenStyles.aboutRow, pressed ? styles.pressDown : null]}
+      onPress={onPress}
+    >
+      {content}
+    </Pressable>
+  );
+}
+
 export function FormatOptionRow({
   title,
   subtitle,

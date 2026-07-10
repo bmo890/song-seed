@@ -9,10 +9,12 @@ import { useLibraryBackupFlow } from "../hooks/useLibraryBackupFlow";
 import { useLibraryExportFlow } from "../hooks/useLibraryExportFlow";
 import { useLibraryImportFlow } from "../hooks/useLibraryImportFlow";
 import { useStorageDiagnostics } from "../hooks/useStorageDiagnostics";
+import { SettingsAboutView } from "../views/SettingsAboutView";
 import { SettingsExportView } from "../views/SettingsExportView";
 import { SettingsImportView } from "../views/SettingsImportView";
 import { SettingsLibraryView } from "../views/SettingsLibraryView";
 import { SettingsOverviewView } from "../views/SettingsOverviewView";
+import { SettingsRecordingView } from "../views/SettingsRecordingView";
 import { SettingsStorageView } from "../views/SettingsStorageView";
 
 export function SettingsScreenContent() {
@@ -89,6 +91,10 @@ export function SettingsScreenContent() {
         />
       ) : screen.view === "storage" ? (
         <SettingsStorageView diagnostics={diagnostics} />
+      ) : screen.view === "recording" ? (
+        <SettingsRecordingView />
+      ) : screen.view === "about" ? (
+        <SettingsAboutView />
       ) : (
         <SettingsOverviewView
           workspaceStartupPreference={workspaceStartupPreference}
@@ -98,6 +104,8 @@ export function SettingsScreenContent() {
           primaryWorkspaceTitle={primaryWorkspaceTitle}
           backupFlow={backupFlow}
           onOpenLibrary={() => screen.setView("library")}
+          onOpenRecording={() => screen.setView("recording")}
+          onOpenAbout={() => screen.setView("about")}
         />
       )}
     </SafeAreaView>

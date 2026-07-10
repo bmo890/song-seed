@@ -206,6 +206,7 @@ export function sanitizePersistedState(state?: Partial<PersistedAppStore>): Pers
             ? state.backupReminderFrequency
             : DEFAULT_BACKUP_REMINDER_FREQUENCY,
         hapticsEnabled: state?.hapticsEnabled !== false,
+        promptForClipName: state?.promptForClipName !== false,
         lastSuccessfulBackupAt:
             typeof state?.lastSuccessfulBackupAt === "number" && Number.isFinite(state.lastSuccessfulBackupAt)
                 ? state.lastSuccessfulBackupAt

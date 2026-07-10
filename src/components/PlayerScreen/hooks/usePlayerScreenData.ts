@@ -41,9 +41,11 @@ export type PlayerOverdubStemEntry = {
 
 type UsePlayerScreenDataArgs = {
   playerDuration: number;
+  /** Active playback of this clip — holds off the sidecar decode so it can't stall the track. */
+  isPlaying?: boolean;
 };
 
-export function usePlayerScreenData({ playerDuration }: UsePlayerScreenDataArgs) {
+export function usePlayerScreenData({ playerDuration, isPlaying = false }: UsePlayerScreenDataArgs) {
   const playerTarget = useStore((s) => s.playerTarget);
   const playerQueue = useStore((s) => s.playerQueue);
   const playerQueueIndex = useStore((s) => s.playerQueueIndex);
@@ -117,6 +119,7 @@ export function usePlayerScreenData({ playerDuration }: UsePlayerScreenDataArgs)
     thumbnailPeaks: thumbnailWaveformPeaks,
     durationMs: displayDuration,
     enabled: !!waveformAudioUri,
+    deferGeneration: isPlaying,
   });
   const waveformPeaks = clipWaveform.peaks;
   const practiceMarkers = useMemo(() => {

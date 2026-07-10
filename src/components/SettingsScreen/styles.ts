@@ -1,5 +1,5 @@
 import { StyleSheet } from "react-native";
-import { colors } from "../../design/tokens";
+import { colors, radii } from "../../design/tokens";
 
 export { styles } from "../../styles";
 
@@ -19,6 +19,7 @@ export const settingsScreenStyles = StyleSheet.create({
   backupFileName: {
     flex: 1,
     minWidth: 0,
+    fontFamily: "PlusJakartaSans_500Medium",
     fontSize: 14,
     lineHeight: 20,
     color: colors.textStrong,
@@ -35,7 +36,7 @@ export const settingsScreenStyles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.borderSubtle,
-    borderRadius: 12,
+    borderRadius: radii.lg,
     paddingVertical: 12,
     paddingHorizontal: 12,
   },
@@ -59,8 +60,73 @@ export const settingsScreenStyles = StyleSheet.create({
   },
   libraryCardMeta: {
     fontFamily: "PlusJakartaSans_400Regular",
-    fontSize: 11.5,
+    fontSize: 12,
+    lineHeight: 16,
     color: colors.textSecondary,
+  },
+  segmentedField: {
+    gap: 8,
+  },
+  segmentedCopy: {
+    gap: 2,
+  },
+  segmentedTitle: {
+    fontFamily: "PlusJakartaSans_600SemiBold",
+    fontSize: 14,
+    lineHeight: 18,
+    color: colors.textPrimary,
+  },
+  segmentedSubtitle: {
+    fontFamily: "PlusJakartaSans_400Regular",
+    fontSize: 12,
+    lineHeight: 17,
+    color: colors.textSecondary,
+  },
+  segmentedRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  segmentedChip: {
+    minWidth: 52,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: radii.md,
+    backgroundColor: colors.surfaceContainer,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  segmentedChipActive: {
+    backgroundColor: colors.primary,
+  },
+  segmentedChipText: {
+    fontFamily: "PlusJakartaSans_600SemiBold",
+    fontSize: 13,
+    color: colors.textSecondary,
+  },
+  segmentedChipTextActive: {
+    color: colors.onPrimary,
+  },
+  aboutRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+    minHeight: 52,
+    paddingVertical: 6,
+  },
+  aboutRowLabel: {
+    fontFamily: "PlusJakartaSans_500Medium",
+    fontSize: 14,
+    lineHeight: 18,
+    color: colors.textPrimary,
+  },
+  aboutRowValue: {
+    fontFamily: "PlusJakartaSans_400Regular",
+    fontSize: 14,
+    lineHeight: 18,
+    color: colors.textSecondary,
+    fontVariant: ["tabular-nums"],
   },
   verifiedChip: {
     flexDirection: "row",

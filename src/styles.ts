@@ -3731,7 +3731,7 @@ export const styles = StyleSheet.create({
   settingsActionCard: {
     marginTop: 4,
     minHeight: 72,
-    borderRadius: 16,
+    borderRadius: radii.lg,
     borderWidth: 1,
     borderColor: "#E8E4DF",
     backgroundColor: "#ffffff",
@@ -3747,12 +3747,13 @@ export const styles = StyleSheet.create({
     gap: 4,
   },
   settingsActionCardTitle: {
+    fontFamily: "PlusJakartaSans_700Bold",
     fontSize: 15,
     lineHeight: 20,
     color: "#1b1c1a",
-    fontWeight: "700",
   },
   settingsActionCardMeta: {
+    fontFamily: "PlusJakartaSans_400Regular",
     fontSize: 13,
     lineHeight: 18,
     color: "#84736f",
@@ -3762,7 +3763,7 @@ export const styles = StyleSheet.create({
   },
   settingsAccordionShell: {
     gap: 0,
-    borderRadius: 16,
+    borderRadius: radii.lg,
     borderWidth: 1,
     borderColor: "#E8E4DF",
     backgroundColor: "#ffffff",
@@ -3792,12 +3793,13 @@ export const styles = StyleSheet.create({
     gap: 2,
   },
   settingsAccordionTitle: {
+    fontFamily: "PlusJakartaSans_700Bold",
     fontSize: 15,
     lineHeight: 20,
     color: "#1b1c1a",
-    fontWeight: "700",
   },
   settingsAccordionHint: {
+    fontFamily: "PlusJakartaSans_400Regular",
     fontSize: 12,
     lineHeight: 17,
     color: "#84736f",
@@ -3817,20 +3819,21 @@ export const styles = StyleSheet.create({
     gap: 10,
   },
   settingsSectionLabel: {
-    fontSize: 12,
+    fontFamily: "PlusJakartaSans_700Bold",
+    fontSize: 11,
     lineHeight: 16,
     color: "#84736f",
-    fontWeight: "700",
     textTransform: "uppercase",
-    letterSpacing: 0.3,
+    letterSpacing: 0.8,
   },
   settingsSectionMeta: {
+    fontFamily: "PlusJakartaSans_600SemiBold",
     fontSize: 12,
     lineHeight: 16,
     color: "#a89994",
-    fontWeight: "700",
   },
   settingsSectionHint: {
+    fontFamily: "PlusJakartaSans_400Regular",
     fontSize: 13,
     lineHeight: 18,
     color: "#84736f",
@@ -3840,7 +3843,7 @@ export const styles = StyleSheet.create({
   },
   settingsChoiceRow: {
     minHeight: 60,
-    borderRadius: 16,
+    borderRadius: radii.lg,
     borderWidth: 1,
     borderColor: "#E8E4DF",
     backgroundColor: "#ffffff",
@@ -3851,20 +3854,21 @@ export const styles = StyleSheet.create({
     gap: 10,
   },
   settingsChoiceRowSelected: {
-    borderColor: "#1b1c1a",
-    backgroundColor: "#FDFBF7",
+    borderColor: "#B87D6B",
+    backgroundColor: "#FDF5F2",
   },
   settingsChoiceCopy: {
     flex: 1,
     gap: 2,
   },
   settingsChoiceTitle: {
+    fontFamily: "PlusJakartaSans_600SemiBold",
     fontSize: 14,
     lineHeight: 18,
     color: "#1b1c1a",
-    fontWeight: "700",
   },
   settingsChoiceMeta: {
+    fontFamily: "PlusJakartaSans_400Regular",
     fontSize: 12,
     lineHeight: 17,
     color: "#84736f",
@@ -3877,7 +3881,7 @@ export const styles = StyleSheet.create({
   },
   settingsWorkspaceRow: {
     minHeight: 52,
-    borderRadius: 14,
+    borderRadius: radii.lg,
     borderWidth: 1,
     borderColor: "#E8E4DF",
     backgroundColor: "#ffffff",
@@ -3914,7 +3918,7 @@ export const styles = StyleSheet.create({
   },
   settingsScopeRow: {
     minHeight: 48,
-    borderRadius: 14,
+    borderRadius: radii.lg,
     borderWidth: 1,
     borderColor: "#E8E4DF",
     backgroundColor: "#ffffff",
@@ -3935,19 +3939,20 @@ export const styles = StyleSheet.create({
     gap: 2,
   },
   settingsScopeTitle: {
+    fontFamily: "PlusJakartaSans_600SemiBold",
     fontSize: 14,
     lineHeight: 18,
     color: "#1b1c1a",
-    fontWeight: "600",
   },
   settingsScopeMeta: {
+    fontFamily: "PlusJakartaSans_400Regular",
     fontSize: 12,
     lineHeight: 16,
     color: "#84736f",
   },
   settingsToggleRow: {
     minHeight: 58,
-    borderRadius: 16,
+    borderRadius: radii.lg,
     borderWidth: 1,
     borderColor: "#E8E4DF",
     backgroundColor: "#ffffff",
@@ -3967,7 +3972,7 @@ export const styles = StyleSheet.create({
     justifyContent: "center",
   },
   settingsTogglePillActive: {
-    backgroundColor: "#1b1c1a",
+    backgroundColor: "#B87D6B",
     alignItems: "flex-end",
   },
   settingsToggleThumb: {
@@ -3980,7 +3985,7 @@ export const styles = StyleSheet.create({
     backgroundColor: "#ffffff",
   },
   settingsSummaryPanel: {
-    borderRadius: 18,
+    borderRadius: radii.lg,
     borderWidth: 1,
     borderColor: "#E8E4DF",
     backgroundColor: "#ffffff",
@@ -3988,21 +3993,23 @@ export const styles = StyleSheet.create({
     gap: 12,
   },
   settingsSummaryTitle: {
+    fontFamily: "PlusJakartaSans_700Bold",
     fontSize: 15,
     lineHeight: 20,
     color: "#1b1c1a",
-    fontWeight: "700",
   },
   settingsSummaryMeta: {
+    fontFamily: "PlusJakartaSans_400Regular",
     fontSize: 13,
     lineHeight: 18,
     color: "#84736f",
   },
   settingsStoragePrimaryValue: {
+    fontFamily: "PlusJakartaSans_700Bold",
     fontSize: 28,
     lineHeight: 32,
     color: "#1b1c1a",
-    fontWeight: "700",
+    fontVariant: ["tabular-nums"],
   },
   settingsStorageMetricRow: {
     flexDirection: "row",
@@ -4015,21 +4022,24 @@ export const styles = StyleSheet.create({
     gap: 2,
   },
   settingsStorageMetricValue: {
+    fontFamily: "PlusJakartaSans_600SemiBold",
     fontSize: 14,
     lineHeight: 18,
     color: "#1b1c1a",
-    fontWeight: "700",
     textAlign: "right",
+    fontVariant: ["tabular-nums"],
   },
   settingsStoragePathRow: {
     gap: 4,
   },
   settingsStoragePathValue: {
+    fontFamily: "PlusJakartaSans_400Regular",
     fontSize: 12,
     lineHeight: 17,
     color: "#84736f",
   },
   settingsStorageNote: {
+    fontFamily: "PlusJakartaSans_400Regular",
     fontSize: 12,
     lineHeight: 17,
     color: "#84736f",
@@ -4050,6 +4060,7 @@ export const styles = StyleSheet.create({
   },
   settingsBusyText: {
     flex: 1,
+    fontFamily: "PlusJakartaSans_400Regular",
     fontSize: 12,
     lineHeight: 17,
     color: "#84736f",

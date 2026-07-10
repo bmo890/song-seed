@@ -31,6 +31,7 @@ export type PersistedAppStore = Pick<
     | "globalCustomClipTags"
     | "backupReminderFrequency"
     | "hapticsEnabled"
+    | "promptForClipName"
     | "lastSuccessfulBackupAt"
     | "lastSuccessfulBackupFileName"
     | "notes"

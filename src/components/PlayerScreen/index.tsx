@@ -111,6 +111,7 @@ export function PlayerScreen({
   } = fullPlayer;
   const data = usePlayerScreenData({
     playerDuration,
+    isPlaying: isPlayerPlaying,
   });
   const playerIdea = data.playerIdea;
   const playerClip = data.playerClip;

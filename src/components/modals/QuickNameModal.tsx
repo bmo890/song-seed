@@ -1,4 +1,4 @@
-import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { WarmModal } from "../common/WarmModal";
 import { genIdea } from "../../utils";
@@ -24,6 +24,8 @@ type Props = {
     disableSaveWhenEmpty?: boolean;
     saveDisabled?: boolean;
     cancelDisabled?: boolean;
+    /** Save is in flight: shows a spinner and locks both buttons against a double-tap. */
+    saving?: boolean;
     destinationWorkspaceTitle?: string;
     destinationCollectionLabel?: string;
     onPressDestination?: () => void;
@@ -48,11 +50,14 @@ export function QuickNameModal({
     disableSaveWhenEmpty = false,
     saveDisabled = false,
     cancelDisabled = false,
+    saving = false,
     destinationWorkspaceTitle,
     destinationCollectionLabel,
     onPressDestination,
 }: Props) {
-    const isSaveDisabled = saveDisabled || (disableSaveWhenEmpty && draftValue.trim().length === 0);
+    const isSaveDisabled =
+        saving || saveDisabled || (disableSaveWhenEmpty && draftValue.trim().length === 0);
+    const isCancelDisabled = saving || cancelDisabled;
 
     // Autocomplete: match the corpus against what's typed (prefix matches first),
     // hiding an exact match since there's nothing left to complete.
@@ -177,10 +182,10 @@ export function QuickNameModal({
                 <Pressable
                     style={({ pressed }) => [
                         qStyles.cancelBtn,
-                        cancelDisabled ? qStyles.btnDisabled : null,
-                        pressed && !cancelDisabled ? qStyles.pressDown : null,
+                        isCancelDisabled ? qStyles.btnDisabled : null,
+                        pressed && !isCancelDisabled ? qStyles.pressDown : null,
                     ]}
-                    disabled={cancelDisabled}
+                    disabled={isCancelDisabled}
                     onPress={onCancel}
                 >
                     <Text style={qStyles.cancelBtnText}>Cancel</Text>
@@ -194,7 +199,14 @@ export function QuickNameModal({
                     disabled={isSaveDisabled}
                     onPress={onSave}
                 >
-                    <Text style={qStyles.saveBtnText}>{saveLabel}</Text>
+                    {saving ? (
+                        <View style={qStyles.saveBtnBusy}>
+                            <ActivityIndicator size="small" color="#ffffff" />
+                            <Text style={qStyles.saveBtnText}>Saving…</Text>
+                        </View>
+                    ) : (
+                        <Text style={qStyles.saveBtnText}>{saveLabel}</Text>
+                    )}
                 </Pressable>
             </View>
         </WarmModal>
@@ -333,11 +345,17 @@ const qStyles = StyleSheet.create({
     },
     saveBtn: {
         height: 42,
+        minWidth: 92,
         paddingHorizontal: 20,
         borderRadius: 10,
         backgroundColor: "#B87D6B",
         alignItems: "center",
         justifyContent: "center",
+    },
+    saveBtnBusy: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 8,
     },
     saveBtnText: {
         fontFamily: "PlusJakartaSans_700Bold",

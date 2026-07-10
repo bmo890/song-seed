@@ -9,16 +9,22 @@ export function useSettingsScreenModel() {
   const title =
     view === "library"
       ? "Library & Backups"
-      : view === "export"
-        ? "Export Archive"
-        : view === "import"
-          ? "Import Archive"
-          : view === "storage"
-            ? "Storage details"
-            : "Settings";
+      : view === "recording"
+        ? "Recording"
+        : view === "about"
+          ? "About"
+          : view === "export"
+            ? "Export Archive"
+            : view === "import"
+              ? "Import Archive"
+              : view === "storage"
+                ? "Storage details"
+                : "Settings";
   const showSubscreen = view !== "overview";
-  // Export / import / storage are reached FROM the library page, so back returns there.
-  const backView: SettingsView = view === "library" ? "overview" : "library";
+  // Recording, About, and Library are reached straight from the overview, so they return
+  // there. Export / import / storage are reached FROM the library page, so back to library.
+  const backView: SettingsView =
+    view === "library" || view === "recording" || view === "about" ? "overview" : "library";
 
   return {
     view,
