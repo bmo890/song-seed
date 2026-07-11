@@ -144,7 +144,7 @@ jest.mock("../../state/db/storage", () => ({
 }));
 
 jest.mock("../../state/useStore", () => ({
-    STORE_NAME: "song-seed-store",
+    STORE_NAME: "songstead-store",
     STORE_VERSION: 11,
 }));
 
@@ -163,7 +163,7 @@ jest.mock("../disasterRecoveryBackup", () => ({
 import { restoreFromDisasterRecoveryBackup } from "../disasterRecoveryRestore";
 import { cleanupInterruptedDisasterRecoveryRestores } from "../disasterRecoveryTemp";
 
-const ARCHIVE_URI = "file:///picked/songseed-backup.zip";
+const ARCHIVE_URI = "file:///picked/songstead-backup.zip";
 const ORIGINAL_MEDIA_URI = "file:///doc/songseed/audio/clip-1.m4a";
 const MEDIA_PATH = "songseed/audio/clip-1.m4a";
 const MEDIA_ENTRY = `media/${MEDIA_PATH}`;

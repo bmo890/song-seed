@@ -184,7 +184,7 @@ export async function getStorageDetailsReport(snapshot: PersistedAppStore): Prom
 
     if (unmanagedAudioReferences.totalReferences > 0) {
         limitations.push(
-            `${unmanagedAudioReferences.totalReferences} audio reference${unmanagedAudioReferences.totalReferences === 1 ? " points" : "s point"} outside Song Seed's managed live-library storage and ${unmanagedAudioReferences.totalReferences === 1 ? "is" : "are"} excluded from the total library storage figure.`
+            `${unmanagedAudioReferences.totalReferences} audio reference${unmanagedAudioReferences.totalReferences === 1 ? " points" : "s point"} outside Songstead's managed live-library storage and ${unmanagedAudioReferences.totalReferences === 1 ? "is" : "are"} excluded from the total library storage figure.`
         );
     }
 
@@ -202,7 +202,7 @@ export async function getStorageDetailsReport(snapshot: PersistedAppStore): Prom
 
     return {
         generatedAt: Date.now(),
-        storageLabel: "Stored locally in Song Seed app storage on this device.",
+        storageLabel: "Stored locally in Songstead app storage on this device.",
         totalLibraryBytes,
         totalManagedBytes,
         activeWorkspaceCount: activeWorkspaces.length,

@@ -2,7 +2,7 @@ import { openDatabaseSync, type SQLiteDatabase } from "expo-sqlite";
 import * as FileSystem from "expo-file-system/legacy";
 
 /**
- * SQLite is the authoritative on-device persistence for Song Seed. The library snapshot
+ * SQLite is the authoritative on-device persistence for Songstead. The library snapshot
  * lives in `kv`; `media_inventory` mirrors every referenced audio path for the integrity
  * scanner; `app_meta` tracks the schema version; `migration_journal` is an audit trail.
  *

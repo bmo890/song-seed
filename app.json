@@ -1,9 +1,9 @@
 {
   "expo": {
-    "name": "song-seed",
-    "slug": "song-seed",
+    "name": "Songstead",
+    "slug": "songstead",
     "version": "1.0.0",
-    "scheme": "songseed",
+    "scheme": "songstead",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -11,19 +11,20 @@
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#FDFBF7"
     },
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
-        "NSMicrophoneUsageDescription": "Song Seed needs microphone access so you can record song ideas and voice memos."
+        "NSMicrophoneUsageDescription": "Songstead needs microphone access so you can record song ideas and voice memos.",
+        "ITSAppUsesNonExemptEncryption": false
       },
       "bundleIdentifier": "com.bmostudio.songseed"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#FDFBF7"
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
@@ -47,20 +48,20 @@
           "androidMultiIntentFilters": [
             "audio/*"
           ],
-          "iosShareExtensionName": "Song Seed Import"
+          "iosShareExtensionName": "Songstead Import"
         }
       ],
       [
         "expo-audio",
         {
-          "microphonePermission": "Song Seed needs microphone access so you can record song ideas and voice memos.",
+          "microphonePermission": "Songstead needs microphone access so you can record song ideas and voice memos.",
           "enableBackgroundRecording": true
         }
       ],
       [
         "@siteed/audio-studio",
         {
-          "microphonePermission": "Song Seed needs microphone access so you can record song ideas and voice memos.",
+          "microphonePermission": "Songstead needs microphone access so you can record song ideas and voice memos.",
           "enableBackgroundAudio": true,
           "enableNotifications": true,
           "enableDeviceDetection": true,
@@ -69,8 +70,8 @@
             "useProcessing": true
           },
           "iosConfig": {
-            "microphoneUsageDescription": "Song Seed needs microphone access so you can record song ideas and voice memos.",
-            "notificationUsageDescription": "Song Seed uses recording notifications so background recording can continue.",
+            "microphoneUsageDescription": "Songstead needs microphone access so you can record song ideas and voice memos.",
+            "notificationUsageDescription": "Songstead uses recording notifications so background recording can continue.",
             "allowBackgroundAudioControls": true
           }
         }

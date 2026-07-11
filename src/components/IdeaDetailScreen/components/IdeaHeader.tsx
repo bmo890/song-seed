@@ -14,6 +14,7 @@ import { COMPACT_TITLE_FADE_IN_END, COMPACT_TITLE_FADE_IN_START } from "../heade
 import { AppAlert } from "../../common/AppAlert";
 import { useStore } from "../../../state/useStore";
 import { haptic } from "../../../design/haptics";
+import { colors } from "../../../design/tokens";
 
 export function IdeaHeader() {
   const [headerMenuOpen, setHeaderMenuOpen] = useState(false);
@@ -222,7 +223,7 @@ export function IdeaHeader() {
                   <Text style={isSelectingClips ? styles.ideasSortMenuItemText : styles.songDetailDangerMenuText}>
                     {isProject ? "Delete song" : "Delete clip"}
                   </Text>
-                  <Ionicons name="trash-outline" size={15} color={isSelectingClips ? "#a89a96" : "#b91c1c"} />
+                  <Ionicons name="trash-outline" size={15} color={isSelectingClips ? "#a89a96" : colors.danger} />
                 </Pressable>
               </>
             ) : null}

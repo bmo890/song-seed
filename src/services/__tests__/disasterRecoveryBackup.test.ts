@@ -205,7 +205,7 @@ describe("buildDisasterRecoveryBackup", () => {
             archiveState: {
                 schemaVersion: 2,
                 archivedAt: 1,
-                archiveUri: "file:///doc/songseed/workspace-archives/gone.songseed-workspace.zip",
+                archiveUri: "file:///doc/songseed/workspace-archives/gone.songstead-workspace.zip",
                 packageSizeBytes: 10,
                 originalAudioBytes: 10,
                 originalMetadataBytes: 1,
@@ -214,7 +214,7 @@ describe("buildDisasterRecoveryBackup", () => {
                 audioFileCount: 1,
                 missingFileCount: 0,
                 offloadedAt: 123,
-                offloadedFileName: "gone.songseed-workspace.zip",
+                offloadedFileName: "gone.songstead-workspace.zip",
             },
         } as never);
 

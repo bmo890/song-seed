@@ -4,8 +4,8 @@ const isProduction = process.env.APP_VARIANT === 'production';
 
 module.exports = {
   ...baseConfig,
-  name: isProduction ? 'Song Seed' : 'Song Seed Dev',
-  scheme: isProduction ? 'songseed' : 'songseed-dev',
+  name: isProduction ? 'Songstead' : 'Songstead Dev',
+  scheme: isProduction ? 'songstead' : 'songstead-dev',
   ios: {
     ...baseConfig.ios,
     bundleIdentifier: isProduction

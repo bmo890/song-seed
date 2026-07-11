@@ -385,7 +385,7 @@ describe("v1 package compatibility", () => {
             ],
             missingFileUris: [],
         };
-        const archiveUri = "file:///doc/songseed/workspace-archives/Archive Me-ws-1.songseed-workspace.zip";
+        const archiveUri = "file:///doc/songseed/workspace-archives/Archive Me-ws-1.songstead-workspace.zip";
         mockFiles.set(
             archiveUri,
             // Stored, matching the real writer — the streaming reader rejects compression.

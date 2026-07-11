@@ -1,4 +1,4 @@
-# Song Seed Worktree Responsibilities
+# Songstead Worktree Responsibilities
 
 This project is split into three active worktrees. Changes should be routed to the correct worktree whenever possible.
 
@@ -92,7 +92,7 @@ Key rules:
 - Treat `Collection` and `Song` as the architecture templates for the rest of the app
 
 ### Core philosophy
-- Song Seed is a creative tool for musicians, not a dashboard.
+- Songstead is a creative tool for musicians, not a dashboard.
 - The UI should feel calm, minimal, predictable, and content-first.
 - Avoid flashy, dense, enterprise-style layouts.
 

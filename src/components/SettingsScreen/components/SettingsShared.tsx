@@ -433,7 +433,7 @@ export function SelectionMark({ state }: { state: CollectionSelectionState }) {
     state === "selected"
       ? colors.textPrimary
       : state === "excluded"
-        ? "#b91c1c"
+        ? colors.danger
         : state === "inherited"
           ? colors.textSecondary
           : colors.textMuted;

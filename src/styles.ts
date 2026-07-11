@@ -217,7 +217,7 @@ export const styles = StyleSheet.create({
   songDetailDangerMenuText: {
     flex: 1,
     fontSize: 13,
-    color: "#b91c1c",
+    color: colors.danger,
     fontFamily: "PlusJakartaSans_700Bold",
   },
   ideasSearchUtilityRow: {
@@ -371,7 +371,7 @@ export const styles = StyleSheet.create({
     fontWeight: "700",
   },
   ideasUtilityChipTextDanger: {
-    color: "#b91c1c",
+    color: colors.danger,
   },
   ideasUtilityChipTextPrimary: {
     color: "#ffffff",
@@ -3615,7 +3615,7 @@ export const styles = StyleSheet.create({
     backgroundColor: "#E8E4DF",
   },
   transportFooterButtonDanger: {
-    backgroundColor: "#b91c1c",
+    backgroundColor: colors.danger,
   },
   transportFooterButtonDisabled: {
     backgroundColor: "#D7C2BD",
@@ -4121,7 +4121,7 @@ export const styles = StyleSheet.create({
   },
   libraryPlaylistItemUnavailableText: {
     fontSize: 10,
-    color: "#b91c1c",
+    color: colors.danger,
     fontWeight: "700",
     letterSpacing: 0.3,
   },
@@ -4285,7 +4285,7 @@ export const styles = StyleSheet.create({
   },
   recordingInputError: {
     fontSize: 12,
-    color: "#b91c1c",
+    color: colors.danger,
     fontWeight: "600",
   },
   recordingBottomDock: {
@@ -5182,7 +5182,7 @@ export const styles = StyleSheet.create({
   },
   ideasSelectionActionDangerText: {
     fontSize: 12,
-    color: "#b91c1c",
+    color: colors.danger,
     fontWeight: "700",
   },
   dangerBtn: {
@@ -5201,7 +5201,7 @@ export const styles = StyleSheet.create({
     borderWidth: 0,
     backgroundColor: "#F4F1ED",
   },
-  dangerBtnText: { color: "#b91c1c", fontWeight: "700", fontSize: 14 },
+  dangerBtnText: { color: colors.danger, fontWeight: "700", fontSize: 14 },
   cardSelected: { borderColor: colors.primary, borderWidth: 1.5 },
   listCardSelected: {
     borderColor: colors.primary,
@@ -5961,7 +5961,7 @@ export const styles = StyleSheet.create({
     fontWeight: "600",
   },
   collectionActionsOptionTextDestructive: {
-    color: "#b91c1c",
+    color: colors.danger,
   },
   bottomSheetBackdrop: {
     flex: 1,

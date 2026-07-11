@@ -2,7 +2,7 @@ import { persistRawSnapshot } from "./db/storage";
 import { isPersistBlocked } from "./persistRuntime";
 import type { AppStore, PersistedAppStore } from "./storeTypes";
 
-export const STORE_NAME = "song-seed-store";
+export const STORE_NAME = "songstead-store";
 export const STORE_VERSION = 12;
 
 export function buildPersistedAppStoreSnapshot(state: AppStore): PersistedAppStore {

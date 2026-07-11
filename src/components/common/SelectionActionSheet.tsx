@@ -4,6 +4,7 @@ import { BottomSheet } from "./BottomSheet";
 import { styles } from "../../styles";
 import type { SelectionAction } from "./SelectionDock";
 import { haptic } from "../../design/haptics";
+import { colors } from "../../design/tokens";
 
 type SelectionActionSheetProps = {
   visible: boolean;
@@ -44,7 +45,7 @@ export function SelectionActionSheet({
                 <Ionicons
                   name={action.icon}
                   size={16}
-                  color={dangerous ? "#b91c1c" : "#334155"}
+                  color={dangerous ? colors.danger : "#334155"}
                 />
                 <Text
                   style={[
@@ -58,7 +59,7 @@ export function SelectionActionSheet({
               <Ionicons
                 name={dangerous ? "alert-circle-outline" : "chevron-forward"}
                 size={15}
-                color={dangerous ? "#b91c1c" : "#94a3b8"}
+                color={dangerous ? colors.danger : "#94a3b8"}
               />
             </Pressable>
           );

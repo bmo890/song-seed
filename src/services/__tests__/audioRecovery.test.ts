@@ -135,7 +135,7 @@ function installArchive(options?: { compressed?: boolean }) {
         ],
         isArchived: true,
     };
-    const archiveUri = `${ARCHIVE_DIR}/Recovered WS-ws-1.songseed-workspace.zip`;
+    const archiveUri = `${ARCHIVE_DIR}/Recovered WS-ws-1.songstead-workspace.zip`;
     mockFiles.set(
         archiveUri,
         zipSync(

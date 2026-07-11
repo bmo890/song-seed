@@ -75,7 +75,7 @@ function estimateJsonBytes(value: unknown) {
 
 function assertManagedRestoreUri(fileUri: string) {
     if (!isSongSeedManagedUri(fileUri)) {
-        throw new Error("Archive restore target is outside Song Seed managed storage.");
+        throw new Error("Archive restore target is outside Songstead managed storage.");
     }
 }
 
@@ -92,7 +92,7 @@ async function ensureWorkspaceArchiveDirectory() {
 
 function buildWorkspaceArchiveUri(workspace: Workspace) {
     const safeTitle = sanitizeArchiveSegment(workspace.title || "Workspace");
-    return `${SONG_SEED_WORKSPACE_ARCHIVE_DIR}/${safeTitle}-${workspace.id}.songseed-workspace.zip`;
+    return `${SONG_SEED_WORKSPACE_ARCHIVE_DIR}/${safeTitle}-${workspace.id}.songstead-workspace.zip`;
 }
 
 async function collectWorkspaceMediaFiles(workspace: Workspace) {

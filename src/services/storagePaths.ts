@@ -36,7 +36,7 @@ export function isManagedPreviewAudioUri(uri: string) {
 }
 
 /**
- * The container-independent portion of a managed Song Seed URI — everything from
+ * The container-independent portion of a managed Songstead URI — everything from
  * the managed `songseed/` root onward (e.g. `songseed/audio/<id>.m4a`). Returns null
  * when `uri` is not a managed path.
  *

@@ -31,10 +31,10 @@ export function SettingsExportView({ flow, onCancel }: { flow: ExportFlow; onCan
       >
         <View style={styles.settingsOptionStack}>
           <FormatOptionRow
-            title="Song Seed Archive"
-            subtitle="Preserves hierarchy and Song Seed metadata for backup or handoff."
-            selected={flow.format === "song-seed-archive"}
-            onPress={() => flow.setFormat("song-seed-archive")}
+            title="Songstead Archive"
+            subtitle="Preserves hierarchy and Songstead metadata for backup or handoff."
+            selected={flow.format === "songstead-archive"}
+            onPress={() => flow.setFormat("songstead-archive")}
           />
           <FormatOptionRow
             title="Standard ZIP"
@@ -122,7 +122,7 @@ export function SettingsExportView({ flow, onCancel }: { flow: ExportFlow; onCan
           <Text style={styles.settingsSectionHint}>Choose a format to reveal export options.</Text>
         ) : null}
 
-        {flow.format === "song-seed-archive" ? (
+        {flow.format === "songstead-archive" ? (
           <View style={styles.settingsOptionStack}>
             <ToggleRow
               title="Include full song history"
@@ -199,8 +199,8 @@ export function SettingsExportView({ flow, onCancel }: { flow: ExportFlow; onCan
       >
         <View style={styles.settingsSummaryPanel}>
           <Text style={styles.settingsSummaryTitle}>
-            {flow.format === "song-seed-archive"
-              ? "Song Seed Archive"
+            {flow.format === "songstead-archive"
+              ? "Songstead Archive"
               : flow.format === "standard-zip"
                 ? "Standard ZIP"
                 : "Choose a format"}

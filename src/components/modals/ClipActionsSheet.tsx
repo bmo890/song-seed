@@ -3,6 +3,7 @@ import { Pressable, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { styles } from "../../styles";
 import { BottomSheet, type BottomSheetRef } from "../common/BottomSheet";
+import { colors } from "../../design/tokens";
 
 export type ClipActionItem = {
   key: string;
@@ -32,7 +33,7 @@ function SheetActionRow({ label, icon, destructive = false, onPress }: ClipActio
       onPress={onPress}
     >
       <View style={styles.collectionActionsOptionLead}>
-        <Ionicons name={icon} size={16} color={destructive ? "#b91c1c" : "#524440"} />
+        <Ionicons name={icon} size={16} color={destructive ? colors.danger : "#524440"} />
         <Text
           style={[
             styles.collectionActionsOptionText,
@@ -45,7 +46,7 @@ function SheetActionRow({ label, icon, destructive = false, onPress }: ClipActio
       <Ionicons
         name={destructive ? "alert-circle-outline" : "chevron-forward"}
         size={15}
-        color={destructive ? "#b91c1c" : "#a89994"}
+        color={destructive ? colors.danger : "#a89994"}
       />
     </Pressable>
   );

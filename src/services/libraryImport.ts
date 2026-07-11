@@ -271,15 +271,15 @@ export async function pickSongSeedArchiveFile(): Promise<PickedLibraryArchiveFil
     const asset = result.assets[0]!;
     return {
         uri: asset.uri,
-        name: asset.name || "Song Seed Archive.zip",
+        name: asset.name || "Songstead Archive.zip",
     };
 }
 
 export async function readSongSeedArchive(
     sourceUri: string,
-    sourceName = sourceUri.split("/").pop() ?? "Song Seed Archive.zip"
+    sourceName = sourceUri.split("/").pop() ?? "Songstead Archive.zip"
 ): Promise<ParsedSongSeedArchive> {
-    // Index the archive without loading payloads — Song Seed Archives are written by
+    // Index the archive without loading payloads — Songstead Archives are written by
     // createZipArchive (stored, uncompressed), the same format the backup reader streams.
     const archiveIndex = await indexStoredZipArchive(sourceUri);
     const manifestEntry = archiveIndex.entries.get("manifest.json");
@@ -291,7 +291,7 @@ export async function readSongSeedArchive(
         strFromU8(await readStoredZipEntryBytes(archiveIndex, manifestEntry))
     );
     if (!isSongSeedArchiveManifest(manifestJson)) {
-        throw new Error("This file is not a valid Song Seed Archive.");
+        throw new Error("This file is not a valid Songstead Archive.");
     }
 
     return {

@@ -9,7 +9,7 @@ import {
     type PersistStorageValue,
 } from "../persistSharding";
 
-const STORE = "song-seed-store";
+const STORE = "songstead-store";
 
 // planShardedWrite/assemble only care about workspace identity + id; the rest of the
 // snapshot is opaque passthrough, so minimal fixtures cast to the real types are fine.

@@ -1,7 +1,7 @@
 import type { SongIdea, Workspace } from "../../types";
 
 /**
- * Round-trips a library through the human-readable Song Seed Archive: export → zip → read →
+ * Round-trips a library through the human-readable Songstead Archive: export → zip → read →
  * import → normalize. "full" fidelity must preserve every creative field; "standard" stays
  * lossy. Exercises the real exporter, reader and importer with an in-memory filesystem.
  */
@@ -304,7 +304,7 @@ async function exportThenImport(preserveAllMetadata: boolean) {
     const prepared = await prepareLibraryExportArchive({
         workspaces,
         notes: [],
-        format: "song-seed-archive",
+        format: "songstead-archive",
         scope: { workspaceIds: ["ws-1"], collectionIds: [] },
         options: {
             includeFullSongHistory: true,
@@ -324,7 +324,7 @@ async function exportThenImport(preserveAllMetadata: boolean) {
     return { parsed, workspace };
 }
 
-describe("Song Seed Archive round-trip — full fidelity", () => {
+describe("Songstead Archive round-trip — full fidelity", () => {
     it("declares full fidelity in the manifest", async () => {
         const { parsed } = await exportThenImport(true);
         expect(parsed.manifest.fidelity).toBe("full");
@@ -426,7 +426,7 @@ describe("Song Seed Archive round-trip — full fidelity", () => {
                     ],
                 },
             ],
-            format: "song-seed-archive",
+            format: "songstead-archive",
             scope: { workspaceIds: ["ws-1"], collectionIds: [] },
             options: {
                 includeFullSongHistory: true,
@@ -459,7 +459,7 @@ describe("Song Seed Archive round-trip — full fidelity", () => {
     });
 });
 
-describe("Song Seed Archive round-trip — standard (lossy)", () => {
+describe("Songstead Archive round-trip — standard (lossy)", () => {
     it("drops creative metadata and regenerates the waveform", async () => {
         const { parsed, workspace } = await exportThenImport(false);
         expect(parsed.manifest.fidelity).toBe("standard");

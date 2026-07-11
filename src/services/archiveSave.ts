@@ -42,7 +42,7 @@ export async function saveArchiveToUserLocation(
     if (Platform.OS === "android") {
         if (!isSongseedFileIOAvailable()) {
             throw new Error(
-                "This Android build is missing Song Seed's streaming file module. Rebuild the app before saving."
+                "This Android build is missing Songstead's streaming file module. Rebuild the app before saving."
             );
         }
         const permissions = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();

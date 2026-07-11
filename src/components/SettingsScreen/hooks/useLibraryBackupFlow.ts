@@ -278,7 +278,7 @@ export function useLibraryBackupFlow() {
                 useProcessStore.getState().dismiss(processId);
                 AppAlert.custom(
                     "Confirm backup saved",
-                    "The system share sheet cannot tell Song Seed whether you completed Save to Files. " +
+                    "The system share sheet cannot tell Songstead whether you completed Save to Files. " +
                         "Only confirm if the backup now appears in Files, iCloud Drive, or another location.",
                     [
                         { label: "Not Saved", style: "cancel" },
@@ -422,12 +422,12 @@ export function useLibraryBackupFlow() {
 
         const asset = picked.assets[0]!;
 
-        // A shareable Song Seed Archive is a different format and belongs in the Import flow.
+        // A shareable Songstead Archive is a different format and belongs in the Import flow.
         // Catch it before the destructive confirm so the user isn't told their backup is corrupt.
-        if ((await detectPickedArchiveKind(asset.uri)) === "song-seed-archive") {
+        if ((await detectPickedArchiveKind(asset.uri)) === "songstead-archive") {
             AppAlert.info(
                 "That's a shareable archive",
-                "This file is a Song Seed Archive (an export for sharing), not a full backup. To bring it into your library, use Library & Backups → Import an archive."
+                "This file is a Songstead Archive (an export for sharing), not a full backup. To bring it into your library, use Library & Backups → Import an archive."
             );
             return;
         }

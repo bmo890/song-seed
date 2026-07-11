@@ -29,7 +29,7 @@ export type RevisitStore = PersistedRevisitState & {
   setDailyRefresh: (value: boolean) => void;
 };
 
-const STORE_NAME = "song-seed-revisit-store";
+const STORE_NAME = "songstead-revisit-store";
 const STORE_VERSION = 3;
 
 function sanitizeStringArray(value: unknown) {

@@ -1,6 +1,7 @@
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import Constants from "expo-constants";
-import { ActivityIndicator, Alert, View } from "react-native";
+import * as SplashScreen from "expo-splash-screen";
+import { ActivityIndicator, View } from "react-native";
 import { useFonts } from "expo-font";
 import {
   PlayfairDisplay_400Regular,
@@ -121,12 +122,24 @@ export type RootStackParamList = {
 
 const navigationRef = createNavigationContainerRef<RootStackParamList>();
 import { useStore } from "./src/state/useStore";
+import { AppAlert } from "./src/components/common/AppAlert";
 import { AppDialogHost } from "./src/components/common/AppDialog";
+import { AppErrorBoundary } from "./src/components/common/AppErrorBoundary";
+import { installGlobalCrashHandler } from "./src/services/crashLog";
 import { RestoreRestartGate } from "./src/components/common/RestoreRestartGate";
 import { FullPlayerProvider } from "./src/hooks/FullPlayerProvider";
 
+// Hold the native splash until fonts + store hydration + navigation restore are ready, so
+// the app opens in one continuous motion instead of flashing a bare spinner. Hidden in
+// AppContent once every gate passes; the fade is a cosmetic polish.
+void SplashScreen.preventAutoHideAsync().catch(() => {});
+SplashScreen.setOptions({ fade: true, duration: 250 });
+
 // Durable Word Finder cache (SQLite) — registered once; touched lazily on first lookup.
 installWordLookupCache();
+
+// Record fatal JS errors to the on-device diagnostic log (Settings → About → share).
+installGlobalCrashHandler();
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const Drawer = createDrawerNavigator<HomeDrawerParamList>();
@@ -698,6 +711,16 @@ function AppContent() {
   const [lastCollectionContextId, setLastCollectionContextId] = useState<string | null>(null);
   const [initialNavigationState, setInitialNavigationState] = useState<InitialState | undefined>(undefined);
   const [navigationStateReady, setNavigationStateReady] = useState(false);
+
+  const appShellReady = fontsLoaded && navigationStateReady;
+  useEffect(() => {
+    // App already gates on store hydration before mounting AppContent, so once fonts and
+    // the restored navigation state are ready the first real screen can paint — hide the
+    // native splash exactly then, no spinner flash in between.
+    if (appShellReady) {
+      void SplashScreen.hideAsync().catch(() => {});
+    }
+  }, [appShellReady]);
   const workspaces = useStore((s) => s.workspaces);
   const activeWorkspaceId = useStore((s) => s.activeWorkspaceId);
   const primaryWorkspaceId = useStore((s) => s.primaryWorkspaceId);
@@ -706,7 +729,7 @@ function AppContent() {
   const primaryCollectionIdByWorkspace = useStore((s) => s.primaryCollectionIdByWorkspace);
   const selectedIdeaId = useStore((s) => s.selectedIdeaId);
   const playerTarget = useStore((s) => s.playerTarget);
-  const appScheme = getScheme() ?? Constants.expoConfig?.scheme ?? "songseed";
+  const appScheme = getScheme() ?? Constants.expoConfig?.scheme ?? "songstead";
   const shareExtensionKey = getShareExtensionKey();
   const packageName =
     Constants.expoConfig?.android?.package ?? Constants.expoConfig?.ios?.bundleIdentifier ?? null;
@@ -995,18 +1018,13 @@ export default function App() {
           ? manifest.workspaces.reduce((sum, ws) => sum + (ws.ideas?.length ?? 0), 0)
           : 0;
         if (manifestIdeaCount > 0) {
-          Alert.alert(
+          AppAlert.confirm(
             "Restore your library?",
-            `Song Seed opened with an empty library, but a backup with ${manifestIdeaCount} item${manifestIdeaCount === 1 ? "" : "s"} was found on this device. Restore it now?`,
-            [
-              { text: "Not now", style: "cancel" },
-              {
-                text: "Restore",
-                onPress: () => {
-                  void appActions.recoverOrphanedAudio();
-                },
-              },
-            ]
+            `Songstead opened with an empty library, but a backup with ${manifestIdeaCount} item${manifestIdeaCount === 1 ? "" : "s"} was found on this device. Restore it now?`,
+            () => {
+              void appActions.recoverOrphanedAudio();
+            },
+            { confirmLabel: "Restore", cancelLabel: "Not now", icon: "refresh-outline" }
           );
           return;
         }
@@ -1014,15 +1032,15 @@ export default function App() {
 
       const recordingRecovery = await recoverPendingRecordingSession();
       if (recordingRecovery.status === "recovered") {
-        Alert.alert(
+        AppAlert.info(
           "Recovered recording",
           `${recordingRecovery.title} was restored after the previous session ended unexpectedly.`
         );
         return;
       } else if (recordingRecovery.status === "failed") {
-        Alert.alert(
+        AppAlert.info(
           "Recording recovery failed",
-          "Song Seed found an unfinished recording from the previous session but could not restore it automatically."
+          "Songstead found an unfinished recording from the previous session but could not restore it automatically."
         );
         return;
       }
@@ -1039,22 +1057,26 @@ export default function App() {
       }
 
       markBackupReminderPromptShown();
-      Alert.alert(
+      AppAlert.custom(
         "Back up your library?",
         buildBackupReminderPromptMessage({
           backupReminderFrequency: state.backupReminderFrequency,
           lastSuccessfulBackupAt: state.lastSuccessfulBackupAt,
         }),
         [
-          { text: "Later", style: "cancel" },
+          { label: "Later", style: "cancel" },
           {
-            text: "Turn Off Reminders",
+            label: "Turn Off Reminders",
+            style: "default",
+            icon: "notifications-off-outline",
             onPress: () => {
               useStore.getState().setBackupReminderFrequency("off");
             },
           },
           {
-            text: "Open Backup Settings",
+            label: "Open Backup Settings",
+            style: "default",
+            icon: "settings-outline",
             onPress: () => {
               if (!navigationRef.isReady()) return;
               navigationRef.navigate("Home", { screen: "SettingsHome" });
@@ -1067,6 +1089,7 @@ export default function App() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
+      <AppErrorBoundary>
       <SafeAreaProvider>
         <AudioRecorderProvider>
           <AppDialogHost />
@@ -1088,6 +1111,7 @@ export default function App() {
           )}
         </AudioRecorderProvider>
       </SafeAreaProvider>
+      </AppErrorBoundary>
     </GestureHandlerRootView>
   );
 }

@@ -34,6 +34,10 @@ export const colors = {
   primary:   "#B87D6B",
   onPrimary: "#FFFFFF",
 
+  // Destructive — warm brick red (delete/remove actions, destructive dialog buttons)
+  danger:   "#A8443A",
+  onDanger: "#FFFFFF",
+
   // Technical lines (graph paper feel)
   borderSubtle: "#E8E4DF",
   borderMuted:  "#D7C2BD",

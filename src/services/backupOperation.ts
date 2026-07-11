@@ -83,7 +83,7 @@ export async function ensureBackupDiskSpace(requiredBytes: number, operationLabe
         const availableMb = Math.floor(availableBytes / (1024 * 1024));
         throw new Error(
             `Not enough free device storage to ${operationLabel}. ` +
-                `Song Seed needs about ${requiredMb} MB available, but only ${availableMb} MB is free.`
+                `Songstead needs about ${requiredMb} MB available, but only ${availableMb} MB is free.`
         );
     }
 }

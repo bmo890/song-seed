@@ -50,7 +50,7 @@ import type {
     SongSeedArchiveLibraryPreferences,
 } from "./libraryArchiveManifest";
 
-export type LibraryExportFormat = "song-seed-archive" | "standard-zip";
+export type LibraryExportFormat = "songstead-archive" | "standard-zip";
 
 export type LibraryExportScope = {
     workspaceIds: string[];
@@ -74,7 +74,7 @@ export type ExportLibraryArgs =
     | ({
           workspaces: Workspace[];
           notes: Note[];
-          format: "song-seed-archive";
+          format: "songstead-archive";
           scope: LibraryExportScope;
           options: SongSeedArchiveOptions;
           libraryPreferences?: SongSeedArchiveLibraryPreferences;
@@ -142,7 +142,7 @@ export type LibraryExportEstimate = { fileCount: number; totalBytes: number };
 export async function estimateLibraryExportArchive(
     args: ExportLibraryArgs
 ): Promise<LibraryExportEstimate> {
-    const build = args.format === "song-seed-archive" ? buildSongSeedArchive(args) : buildStandardZip(args);
+    const build = args.format === "songstead-archive" ? buildSongSeedArchive(args) : buildStandardZip(args);
     let fileCount = 0;
     let totalBytes = 0;
     for (const entry of build.entries) {
@@ -166,13 +166,13 @@ export async function prepareLibraryExportArchive(args: ExportLibraryArgs): Prom
         throw new Error("Document directory unavailable.");
     }
 
-    const build = args.format === "song-seed-archive" ? buildSongSeedArchive(args) : buildStandardZip(args);
+    const build = args.format === "songstead-archive" ? buildSongSeedArchive(args) : buildStandardZip(args);
 
     await ensureShareDirectory();
 
     const archiveLabel =
         args.archiveLabel ??
-        (args.format === "song-seed-archive" ? "Song Seed Archive" : "Song Seed Export");
+        (args.format === "songstead-archive" ? "Songstead Archive" : "Songstead Export");
     const archiveTitle = `${sanitizeArchiveSegment(archiveLabel)} ${buildTimestampSlug()}`;
     const archiveUri = `${SONG_SEED_SHARE_DIR}/${archiveTitle}.zip`;
 
@@ -303,7 +303,7 @@ function readableSummaryReplacer(key: string, value: unknown) {
  * an upper-ish estimate — the real archive is deflate-compressed — but good enough to decide.
  */
 export async function estimateLibraryArchiveSizes(
-    args: Extract<ExportLibraryArgs, { format: "song-seed-archive" }>
+    args: Extract<ExportLibraryArgs, { format: "songstead-archive" }>
 ): Promise<{ standardBytes: number; fullBytes: number }> {
     const encoder = new TextEncoder();
     const fileSizeCache = new Map<string, number>();
@@ -342,7 +342,7 @@ export async function estimateLibraryArchiveSizes(
     return { standardBytes: await measure(standard), fullBytes: await measure(full) };
 }
 
-function buildSongSeedArchive(args: Extract<ExportLibraryArgs, { format: "song-seed-archive" }>): ExportBuildContext {
+function buildSongSeedArchive(args: Extract<ExportLibraryArgs, { format: "songstead-archive" }>): ExportBuildContext {
     const context = createExportBuildContext();
     const selectedWorkspaces = getSelectedWorkspaces(args.workspaces, args.scope);
     const folderAllocator = createFolderAllocator();

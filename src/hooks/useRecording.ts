@@ -180,12 +180,12 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
     [recordingIdea, recordingOverdubClipId]
   );
   const recordingNotification = useMemo(() => {
-    const targetTitle = trimNotificationLabel(recordingIdea?.title, "Song Seed");
+    const targetTitle = trimNotificationLabel(recordingIdea?.title, "Songstead");
 
     if (!recordingIdea) {
       return {
         title: "Recording in progress",
-        text: "Song Seed is recording in the background.",
+        text: "Songstead is recording in the background.",
       };
     }
 
@@ -268,7 +268,7 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
     if (permission?.canAskAgain === false) {
       AppAlert.custom(
         "Microphone access needed",
-        "Song Seed does not currently have microphone access. Enable it in system settings to record.",
+        "Songstead does not currently have microphone access. Enable it in system settings to record.",
         [
           { label: "Cancel", style: "cancel" },
           {
@@ -282,7 +282,7 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
         ]
       );
     } else {
-      AppAlert.info("Microphone access needed", "Song Seed needs microphone access to start recording.");
+      AppAlert.info("Microphone access needed", "Songstead needs microphone access to start recording.");
     }
 
     return false;
@@ -290,8 +290,8 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
 
   function showNotificationPermissionAlert(blocked: boolean) {
     const message = blocked
-      ? "Song Seed cannot show the required active-recording notification. Enable notifications in system settings to record."
-      : "Android requires Song Seed to show an active notification while recording. Allow notifications to start recording.";
+      ? "Songstead cannot show the required active-recording notification. Enable notifications in system settings to record."
+      : "Android requires Songstead to show an active notification while recording. Allow notifications to start recording.";
 
     if (!blocked) {
       AppAlert.info("Notification access needed", message);
@@ -761,7 +761,7 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
         }
         AppAlert.info(
           "Recording kept for recovery",
-          "We couldn't attach this take to its project, so it's been saved safely. Reopen Song Seed to restore it."
+          "We couldn't attach this take to its project, so it's been saved safely. Reopen Songstead to restore it."
         );
         return false;
       }

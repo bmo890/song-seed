@@ -305,7 +305,7 @@ function PinDetailModal({
             accessibilityRole="button"
             accessibilityLabel="Delete pin"
           >
-            <Ionicons name="trash-outline" size={17} color="#A8443A" />
+            <Ionicons name="trash-outline" size={17} color={colors.danger} />
           </Pressable>
         ) : null}
         <View style={{ flex: 1 }} />
@@ -565,7 +565,7 @@ function SectionDetailModal({
             accessibilityRole="button"
             accessibilityLabel="Delete section"
           >
-            <Ionicons name="trash-outline" size={17} color="#A8443A" />
+            <Ionicons name="trash-outline" size={17} color={colors.danger} />
           </Pressable>
         ) : null}
         <View style={{ flex: 1 }} />

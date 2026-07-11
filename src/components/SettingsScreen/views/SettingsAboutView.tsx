@@ -3,21 +3,40 @@ import Constants from "expo-constants";
 import { PageIntro } from "../../common/PageIntro";
 import { settingsScreenStyles, styles } from "../styles";
 import { AboutLinkRow } from "../components/SettingsShared";
+import { AppAlert } from "../../common/AppAlert";
+import { getCrashLogUri } from "../../../services/crashLog";
+import { shareFileUri } from "../../../services/audioStorage";
 
 const FEEDBACK_EMAIL = "bmogerman@gmail.com";
 
 /**
  * Quiet closing page: the version to quote in a bug report, a way to reach out, and a
- * plain statement of where a Song Seed library actually lives.
+ * plain statement of where a Songstead library actually lives.
  */
 export function SettingsAboutView() {
   const version = Constants.expoConfig?.version ?? "—";
 
   const sendFeedback = () => {
-    const subject = encodeURIComponent(`Song Seed feedback (v${version})`);
+    const subject = encodeURIComponent(`Songstead feedback (v${version})`);
     void Linking.openURL(`mailto:${FEEDBACK_EMAIL}?subject=${subject}`).catch(() => {
       // No mail client configured — nothing to open; leave the user where they are.
     });
+  };
+
+  const shareDiagnosticLog = async () => {
+    const uri = await getCrashLogUri();
+    if (!uri) {
+      AppAlert.info(
+        "No diagnostics recorded",
+        "Songstead has not logged any crashes on this device. If you hit a problem, come back here afterward — the log will be waiting."
+      );
+      return;
+    }
+    try {
+      await shareFileUri(uri, "Songstead diagnostic log", "application/json");
+    } catch {
+      AppAlert.info("Could not share", "The diagnostic log could not be shared on this device.");
+    }
   };
 
   return (
@@ -43,6 +62,13 @@ export function SettingsAboutView() {
         </View>
         <View style={styles.settingsOptionStack}>
           <AboutLinkRow label="Send feedback" icon="mail-outline" onPress={sendFeedback} />
+          <AboutLinkRow
+            label="Share diagnostic log"
+            icon="pulse-outline"
+            onPress={() => {
+              void shareDiagnosticLog();
+            }}
+          />
         </View>
       </View>
 

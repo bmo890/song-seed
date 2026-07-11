@@ -1,6 +1,7 @@
 import { Modal, Pressable, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { styles } from "../../styles";
+import { colors } from "../../design/tokens";
 
 type Props = {
   visible: boolean;
@@ -33,7 +34,7 @@ function ActionRow({ icon, label, destructive = false, onPress }: ActionRowProps
         <Ionicons
           name={icon}
           size={16}
-          color={destructive ? "#b91c1c" : "#334155"}
+          color={destructive ? colors.danger : "#334155"}
         />
         <Text
           style={[
@@ -47,7 +48,7 @@ function ActionRow({ icon, label, destructive = false, onPress }: ActionRowProps
       <Ionicons
         name={destructive ? "alert-circle-outline" : "chevron-forward"}
         size={15}
-        color={destructive ? "#b91c1c" : "#94a3b8"}
+        color={destructive ? colors.danger : "#94a3b8"}
       />
     </Pressable>
   );

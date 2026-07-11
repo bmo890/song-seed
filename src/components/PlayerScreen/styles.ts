@@ -940,7 +940,7 @@ export const playerScreenStyles = StyleSheet.create({
   sectionDeleteText: {
     fontFamily: "PlusJakartaSans_600SemiBold",
     fontSize: 13,
-    color: "#A8443A",
+    color: colors.danger,
   },
   sectionEdgeHeader: {
     flexDirection: "row",

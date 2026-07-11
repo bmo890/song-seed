@@ -88,7 +88,6 @@ Logo/wordmark *design* (that's Phase 0.1 icon work — this phase only locks the
 
 ## Decision log
 
-- **2026-07-11 — Working candidate:** **"Songstead"** chosen as the leading rename direction (see Brand metaphor & voice above). Rationale: more distinctive/ownable than the two-common-words "Song Seed," and it upgrades the metaphor from capture-moment (seed) to the whole tended place (homestead), which matches the app's depth. **Not yet cleared** — must pass Step 1 before it's final.
-- **YYYY-MM-DD — Clearance search:** _(App Store: … / Play: … / USPTO Class 9 & 41: … → Clear | Rename | Ambiguous)_
-- **YYYY-MM-DD — Name decision:** _(kept "Song Seed" | renamed to "Songstead" | other "____"; rationale)_
-- **YYYY-MM-DD — Bundle ID decision:** _(kept com.bmostudio.songseed | changed to ____; rationale)_
+- **2026-07-11 — Working candidate:** **"Songstead"** chosen as the leading rename direction (see Brand metaphor & voice above). Rationale: more distinctive/ownable than the two-common-words "Song Seed," and it upgrades the metaphor from capture-moment (seed) to the whole tended place (homestead), which matches the app's depth.
+- **2026-07-11 — Name decision: FINAL — "Songstead."** Owner locked the name ("we are going with songstead 100%") and waived the clearance gate; Phase 0 proceeds against it. (A store/USPTO sanity search remains prudent before first submission, but no longer blocks work.)
+- **2026-07-11 — Bundle ID decision: keep `com.bmostudio.songseed`.** Per the recommendation above — invisible to users, zero churn, negligible risk; the brand lives in the display name. Can still be revisited any time before first store submission (Phase 5), never after.

@@ -18,7 +18,7 @@ export function SettingsImportView({
         <ScrollView style={styles.flexFill} contentContainerStyle={settingsScreenStyles.scrollContent}>
             <PageIntro
                 title="Import Archive"
-                subtitle="Merge a Song Seed Archive into this library. Imports arrive as new workspaces — nothing you have is touched, and same-name copies get a counted suffix."
+                subtitle="Merge a Songstead Archive into this library. Imports arrive as new workspaces — nothing you have is touched, and same-name copies get a counted suffix."
             />
 
             <Pressable
@@ -34,7 +34,7 @@ export function SettingsImportView({
                         {flow.preview ? "Choose a different archive" : "Choose archive"}
                     </Text>
                     <Text style={styles.settingsActionCardMeta}>
-                        Pick a Song Seed Archive (.zip) created with Export. Full backups are
+                        Pick a Songstead Archive (.zip) created with Export. Full backups are
                         restored from Library &amp; Backups instead.
                     </Text>
                 </View>

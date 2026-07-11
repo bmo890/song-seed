@@ -4,7 +4,7 @@ import { importRecordedAudioAsset } from "./audioStorage";
 import { useStore } from "../state/useStore";
 import { appActions } from "../state/actions";
 
-const PENDING_RECORDING_KEY = "song-seed-pending-recording";
+const PENDING_RECORDING_KEY = "songstead-pending-recording";
 
 type PendingRecordingSession = {
     fileUri: string;

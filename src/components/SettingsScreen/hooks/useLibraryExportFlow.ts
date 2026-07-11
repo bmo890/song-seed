@@ -64,7 +64,7 @@ export function useLibraryExportFlow() {
   const estimateTokenRef = useRef(0);
 
   const includeHiddenItems =
-    format === "song-seed-archive"
+    format === "songstead-archive"
       ? archiveOptions.includeHiddenItems
       : standardOptions.includeHiddenItems;
 
@@ -75,7 +75,7 @@ export function useLibraryExportFlow() {
   // and race-guarded because it stats every included audio file. preserveAllMetadata is excluded
   // from the deps on purpose — both sizes are computed together and the toggle shouldn't refetch.
   useEffect(() => {
-    if (format !== "song-seed-archive" || !hasArchiveScope) {
+    if (format !== "songstead-archive" || !hasArchiveScope) {
       setArchiveSizeEstimate(null);
       setIsEstimatingArchiveSize(false);
       return;
@@ -89,7 +89,7 @@ export function useLibraryExportFlow() {
       void estimateLibraryArchiveSizes({
         workspaces: useStore.getState().workspaces,
         notes: useStore.getState().notes,
-        format: "song-seed-archive",
+        format: "songstead-archive",
         scope: {
           workspaceIds: selectedWorkspaceIds,
           collectionIds: selectedCollectionIds,
@@ -146,7 +146,7 @@ export function useLibraryExportFlow() {
       // getState() at run time for the same reason as the archive-size effect above.
       const { workspaces: liveWorkspaces, notes: liveNotes } = useStore.getState();
       const args =
-        format === "song-seed-archive"
+        format === "songstead-archive"
           ? ({ workspaces: liveWorkspaces, notes: liveNotes, format, scope, options: archiveOptions } as const)
           : ({ workspaces: liveWorkspaces, notes: liveNotes, format, scope, options: standardOptions } as const);
       void estimateLibraryExportArchive(args)
@@ -269,7 +269,7 @@ export function useLibraryExportFlow() {
 
   const handleExport = async () => {
     if (!format) {
-      AppAlert.info("Choose a format", "Select Song Seed Archive or Standard ZIP before exporting.");
+      AppAlert.info("Choose a format", "Select Songstead Archive or Standard ZIP before exporting.");
       return;
     }
 
@@ -288,7 +288,7 @@ export function useLibraryExportFlow() {
     store.start({
       id: processId,
       kind: "export",
-      title: format === "song-seed-archive" ? "Song Seed Archive" : "Standard ZIP",
+      title: format === "songstead-archive" ? "Songstead Archive" : "Standard ZIP",
       onCancel: () => controller.abort(),
     });
     const onProgress = (progress: Parameters<typeof store.update>[0]) =>
@@ -300,7 +300,7 @@ export function useLibraryExportFlow() {
         excludedCollectionIds,
       };
       const result =
-        format === "song-seed-archive"
+        format === "songstead-archive"
           ? await exportLibrary({
               workspaces,
               notes,

@@ -233,7 +233,7 @@ describe("prepareDisasterRecoverySnapshot", () => {
             archiveState: {
                 schemaVersion: 2,
                 archivedAt: 1,
-                archiveUri: "songseed/workspace-archives/gone.songseed-workspace.zip",
+                archiveUri: "songseed/workspace-archives/gone.songstead-workspace.zip",
                 packageSizeBytes: 10,
                 originalAudioBytes: 10,
                 originalMetadataBytes: 1,
@@ -242,7 +242,7 @@ describe("prepareDisasterRecoverySnapshot", () => {
                 audioFileCount: 1,
                 missingFileCount: 0,
                 offloadedAt: 123,
-                offloadedFileName: "gone.songseed-workspace.zip",
+                offloadedFileName: "gone.songstead-workspace.zip",
             },
         };
         const value = snapshot();
@@ -259,7 +259,7 @@ describe("prepareDisasterRecoverySnapshot", () => {
             expect(stub).toBeDefined();
             // The stub survives untouched — unarchiving asks the user for the file.
             expect(stub!.archiveState?.archiveUri).toBe(
-                "songseed/workspace-archives/gone.songseed-workspace.zip"
+                "songseed/workspace-archives/gone.songstead-workspace.zip"
             );
             expect(stub!.archiveState?.offloadedAt).toBe(123);
             expect(prepared.skipped).toEqual([]);
@@ -315,7 +315,7 @@ describe("prepareDisasterRecoverySnapshot", () => {
             backupReminderFrequency: "weekly",
             hapticsEnabled: true,
             lastSuccessfulBackupAt: 1720000000000,
-            lastSuccessfulBackupFileName: "Song Seed Backup.zip",
+            lastSuccessfulBackupFileName: "Songstead Backup.zip",
             notes: [{ id: "note-1", text: "Lyric idea", createdAt: 0, updatedAt: 0 }],
             wordLadders: [{ id: "wl-1", words: ["seed"] }],
             cutUpSparks: [{ id: "cs-1", fragments: ["chorus"] }],

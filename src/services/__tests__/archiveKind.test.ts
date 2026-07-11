@@ -1,7 +1,7 @@
 import { zipSync } from "fflate";
 
 /**
- * detectPickedArchiveKind must tell the two Song Seed .zip formats apart so the import and
+ * detectPickedArchiveKind must tell the two Songstead .zip formats apart so the import and
  * restore flows can redirect a misplaced file. It reads only the manifest via the streaming
  * indexer, which expects STORED (uncompressed) entries — so the fixtures use level 0.
  */
@@ -56,11 +56,11 @@ beforeEach(() => {
     mockFiles.clear();
 });
 
-it("classifies a Song Seed Archive", async () => {
+it("classifies a Songstead Archive", async () => {
     mockFiles.set("file:///pick/archive.zip", storeZip({
-        "manifest.json": JSON.stringify({ format: "song-seed-archive", schemaVersion: 6, workspaces: [] }),
+        "manifest.json": JSON.stringify({ format: "songstead-archive", schemaVersion: 6, workspaces: [] }),
     }));
-    expect(await detectPickedArchiveKind("file:///pick/archive.zip")).toBe("song-seed-archive");
+    expect(await detectPickedArchiveKind("file:///pick/archive.zip")).toBe("songstead-archive");
 });
 
 it("classifies a disaster-recovery backup", async () => {
@@ -77,7 +77,7 @@ it("classifies a disaster-recovery backup", async () => {
             missing: [],
         }),
     }));
-    expect(await detectPickedArchiveKind("file:///pick/backup.zip")).toBe("song-seed-backup");
+    expect(await detectPickedArchiveKind("file:///pick/backup.zip")).toBe("songstead-backup");
 });
 
 it("reports an unrelated zip (no manifest) as unknown", async () => {

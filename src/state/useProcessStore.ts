@@ -15,7 +15,7 @@ export type LibraryProcessStatus = "running" | "success" | "error" | "cancelled"
 export type LibraryProcess = {
     id: string;
     kind: LibraryProcessKind;
-    /** Short subject shown under the eyebrow, e.g. "Your library" / "Song Seed Archive". */
+    /** Short subject shown under the eyebrow, e.g. "Your library" / "Songstead Archive". */
     title: string;
     status: LibraryProcessStatus;
     progress: BackupOperationProgress;

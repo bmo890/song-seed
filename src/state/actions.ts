@@ -2767,7 +2767,7 @@ export const appActions = {
             throw new Error("This workspace's package is already stored outside the app.");
         }
         const archiveUri = workspace.archiveState.archiveUri;
-        const fileName = archiveUri.split("/").pop() ?? `${workspace.title}.songseed-workspace.zip`;
+        const fileName = archiveUri.split("/").pop() ?? `${workspace.title}.songstead-workspace.zip`;
         const saved = await saveArchiveToUserLocation(archiveUri, fileName);
         return { saveConfirmed: saved.saveConfirmed, fileName };
     },

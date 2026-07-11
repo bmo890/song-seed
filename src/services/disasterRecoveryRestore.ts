@@ -164,7 +164,7 @@ export async function restoreFromDisasterRecoveryBackup(
     const snapshotEntry = archiveIndex.entries.get(SNAPSHOT_ENTRY);
     const manifestEntry = archiveIndex.entries.get(MANIFEST_ENTRY);
     if (!snapshotEntry || !manifestEntry) {
-        throw new DrRestoreError("Backup is missing its snapshot or manifest — not a Song Seed backup.");
+        throw new DrRestoreError("Backup is missing its snapshot or manifest — not a Songstead backup.");
     }
 
     let manifestJson: string;

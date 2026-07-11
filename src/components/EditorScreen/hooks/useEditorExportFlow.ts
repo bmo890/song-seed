@@ -27,7 +27,7 @@ type MinimalPlayer = {
 
 /**
  * Copy a freshly-rendered file (trim/splice/transform output, which the native libraries
- * write to the app's temp/files dir) into managed Song Seed storage, then remove the temp
+ * write to the app's temp/files dir) into managed Songstead storage, then remove the temp
  * source. Editor-created clips must reference managed audio so they are rebased on
  * reinstall/restore and included in disaster-recovery backups — otherwise they'd point at
  * an unmanaged (and on iOS, purgeable temporary) path.

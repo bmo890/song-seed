@@ -1,10 +1,10 @@
 {
-  "name": "song-seed",
+  "name": "songstead",
   "version": "1.0.0",
   "main": "index.ts",
   "scripts": {
     "start": "expo start",
-    "start:dev": "expo start --dev-client --scheme songseed-dev",
+    "start:dev": "expo start --dev-client --scheme songstead-dev",
     "android": "sh scripts/android-dev.sh",
     "android:uninstall": "adb uninstall com.bmostudio.songseed.dev",
     "android:clear-data": "adb shell pm clear com.bmostudio.songseed.dev",
@@ -39,6 +39,7 @@
     "expo-print": "~15.0.8",
     "expo-share-intent": "^5.1.1",
     "expo-sharing": "~14.0.8",
+    "expo-splash-screen": "~31.0.13",
     "expo-sqlite": "~16.0.10",
     "expo-status-bar": "~3.0.9",
     "expo-system-ui": "^6.0.9",

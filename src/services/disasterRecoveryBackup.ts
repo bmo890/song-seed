@@ -34,7 +34,7 @@ import type { Workspace } from "../types";
  */
 
 export const DR_BACKUP_FORMAT_VERSION = 1;
-export const DR_BACKUP_FILE_SUFFIX = "songseed-backup";
+export const DR_BACKUP_FILE_SUFFIX = "songstead-backup";
 
 const DR_TEMP_DIR = `${SONG_SEED_ROOT}/backup-tmp`;
 const SNAPSHOT_ENTRY = "snapshot.json";
@@ -425,7 +425,7 @@ export async function buildDisasterRecoveryBackup(
     if (!dirInfo.exists) {
         await FileSystem.makeDirectoryAsync(DR_TEMP_DIR, { intermediates: true });
     }
-    const archiveTitle = `Song Seed Backup ${buildTimestampSlug()}.${DR_BACKUP_FILE_SUFFIX}.zip`;
+    const archiveTitle = `Songstead Backup ${buildTimestampSlug()}.${DR_BACKUP_FILE_SUFFIX}.zip`;
     const archiveUri = `${DR_TEMP_DIR}/${archiveTitle}`;
     reportBackupProgress(opts, {
         phase: "packaging",

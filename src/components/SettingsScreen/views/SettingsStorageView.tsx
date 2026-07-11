@@ -19,7 +19,7 @@ export function SettingsStorageView({ diagnostics }: { diagnostics: StorageDiagn
     >
       <PageIntro
         title="Storage details"
-        subtitle="Song Seed keeps your live library in app-managed storage on this device. Recorded and imported audio is copied into Song Seed storage, while archived workspaces keep compressed packages until you restore them."
+        subtitle="Songstead keeps your live library in app-managed storage on this device. Recorded and imported audio is copied into Songstead storage, while archived workspaces keep compressed packages until you restore them."
       />
 
       <View style={styles.settingsSummaryPanel}>
@@ -127,7 +127,7 @@ export function SettingsStorageView({ diagnostics }: { diagnostics: StorageDiagn
               <StorageMetricRow
                 label="Archive storage used"
                 value={formatBytes(diagnostics.storageReport.archivePackages.bytes)}
-                detail={`${diagnostics.storageReport.archivePackages.fileCount} archive package${diagnostics.storageReport.archivePackages.fileCount === 1 ? "" : "s"} stored in Song Seed app storage.`}
+                detail={`${diagnostics.storageReport.archivePackages.fileCount} archive package${diagnostics.storageReport.archivePackages.fileCount === 1 ? "" : "s"} stored in Songstead app storage.`}
               />
               <StorageMetricRow
                 label="Archived workspace data"
@@ -149,7 +149,7 @@ export function SettingsStorageView({ diagnostics }: { diagnostics: StorageDiagn
                 detail={`${diagnostics.storageReport.temporaryExports.fileCount} file${diagnostics.storageReport.temporaryExports.fileCount === 1 ? "" : "s"} staged for exports or native sharing. This is shown separately from the library total.`}
               />
               <StorageMetricRow
-                label="All Song Seed managed storage"
+                label="All Songstead managed storage"
                 value={formatBytes(diagnostics.storageReport.totalManagedBytes)}
                 detail="Library storage plus temporary export/share files currently left on device."
               />
@@ -189,7 +189,7 @@ export function SettingsStorageView({ diagnostics }: { diagnostics: StorageDiagn
               <View style={styles.settingsSummaryPanel}>
                 <Text style={styles.settingsSummaryTitle}>Internal locations</Text>
                 <Text style={styles.settingsSummaryMeta}>
-                  Paths are shown here for support use only. Song Seed manages the live storage location automatically.
+                  Paths are shown here for support use only. Songstead manages the live storage location automatically.
                 </Text>
                 <StoragePathRow
                   label="App storage root"

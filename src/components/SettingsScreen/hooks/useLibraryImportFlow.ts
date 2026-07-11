@@ -37,11 +37,11 @@ export function useLibraryImportFlow() {
 
             // A full disaster-recovery backup is a different format and belongs in the Restore
             // flow. Detect it here and point the user to the right place instead of failing with
-            // a confusing "not a valid Song Seed Archive" error.
-            if ((await detectPickedArchiveKind(picked.uri)) === "song-seed-backup") {
+            // a confusing "not a valid Songstead Archive" error.
+            if ((await detectPickedArchiveKind(picked.uri)) === "songstead-backup") {
                 AppAlert.info(
                     "That's a full backup",
-                    "This file is a full Song Seed backup, not a shareable archive. Restore it from Library & Backups → Restore."
+                    "This file is a full Songstead backup, not a shareable archive. Restore it from Library & Backups → Restore."
                 );
                 return false;
             }
@@ -53,7 +53,7 @@ export function useLibraryImportFlow() {
             return true;
         } catch (error) {
             const message =
-                error instanceof Error ? error.message : "Could not read this Song Seed Archive.";
+                error instanceof Error ? error.message : "Could not read this Songstead Archive.";
             AppAlert.info("Import failed", message);
             return false;
         } finally {

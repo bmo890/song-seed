@@ -28,7 +28,7 @@ function configureBuildGradle(contents) {
         production {
             dimension 'environment'
             applicationId '${PRODUCTION_ID}'
-            manifestPlaceholders = [songSeedScheme: 'songseed']
+            manifestPlaceholders = [songSeedScheme: 'songstead']
         }
     }
 `;
@@ -57,10 +57,10 @@ function configureBuildGradle(contents) {
     "$1signingConfig signingConfigs.release"
   );
 
-  if (!next.includes("manifestPlaceholders = [songSeedScheme: 'songseed-dev']")) {
+  if (!next.includes("manifestPlaceholders = [songSeedScheme: 'songstead-dev']")) {
     next = next.replace(
       /(applicationId ['"]com\.bmostudio\.songseed\.dev['"])/,
-      "$1\n        manifestPlaceholders = [songSeedScheme: 'songseed-dev']"
+      "$1\n        manifestPlaceholders = [songSeedScheme: 'songstead-dev']"
     );
   }
 
@@ -80,6 +80,8 @@ function configureManifest(manifest) {
     for (const data of filter.data ?? []) {
       const scheme = data.$?.["android:scheme"];
       if (
+        scheme === "songstead" ||
+        scheme === "songstead-dev" ||
         scheme === "songseed" ||
         scheme === "songseed-dev" ||
         scheme === "${songSeedScheme}"

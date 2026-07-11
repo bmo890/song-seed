@@ -56,7 +56,7 @@ export type FullRecoveryResult = {
 
 function assertManagedRestoreUri(fileUri: string) {
     if (!isSongSeedManagedUri(fileUri)) {
-        throw new Error("Recovery restore target is outside Song Seed managed storage.");
+        throw new Error("Recovery restore target is outside Songstead managed storage.");
     }
 }
 
@@ -122,7 +122,7 @@ type ArchiveManifest = {
 };
 
 /**
- * Scan the workspace-archives directory for .songseed-workspace.zip files.
+ * Scan the workspace-archives directory for .songstead-workspace.zip files.
  * Returns metadata about each archive found without extracting them yet.
  */
 export async function findWorkspaceArchives(): Promise<
@@ -135,7 +135,7 @@ export async function findWorkspaceArchives(): Promise<
     const archives: { archiveUri: string; workspaceId: string; workspaceTitle: string; archivedAt: string }[] = [];
 
     for (const filename of files) {
-        if (!filename.endsWith(".songseed-workspace.zip")) continue;
+        if (!filename.endsWith(".songstead-workspace.zip")) continue;
 
         const archiveUri = `${SONG_SEED_WORKSPACE_ARCHIVE_DIR}/${filename}`;
         try {
@@ -162,7 +162,7 @@ export async function findWorkspaceArchives(): Promise<
 }
 
 /**
- * Restore a full workspace from a .songseed-workspace.zip archive.
+ * Restore a full workspace from a .songstead-workspace.zip archive.
  * Extracts all audio files back to their original URIs and returns the
  * complete Workspace object with all metadata intact.
  */

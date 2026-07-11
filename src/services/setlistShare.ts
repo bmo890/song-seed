@@ -2,7 +2,7 @@ import { buildSetlistArchive } from "../setlistExport";
 import { exportLibrary } from "./libraryExport";
 import type { Setlist, Workspace } from "../types";
 
-/** Exports a setlist as a playable Song Seed archive (selected clips + chosen
+/** Exports a setlist as a playable Songstead archive (selected clips + chosen
  * charts per song, ordered, no version history) and hands it to the OS share
  * sheet. Returns false if the setlist has nothing exportable. */
 export async function shareSetlist(setlist: Setlist, workspaces: Workspace[]): Promise<boolean> {
@@ -12,7 +12,7 @@ export async function shareSetlist(setlist: Setlist, workspaces: Workspace[]): P
   await exportLibrary({
     workspaces: built.workspaces,
     notes: [],
-    format: "song-seed-archive",
+    format: "songstead-archive",
     scope: built.scope,
     options: {
       includeFullSongHistory: true, // we already trimmed to the chosen clips

@@ -281,7 +281,7 @@ export function useWorkspaceArchiveActions({
       deletingAllActiveSelection
         ? `This will permanently delete ${selectedWorkspaces.length} workspace${
             selectedWorkspaces.length === 1 ? "" : "s"
-          }. Song Seed will create a fresh empty workspace so the app still has an active home context. This cannot be undone.`
+          }. Songstead will create a fresh empty workspace so the app still has an active home context. This cannot be undone.`
         : `This will permanently delete ${selectedWorkspaces.length} workspace${
             selectedWorkspaces.length === 1 ? "" : "s"
           }. This cannot be undone.`,
@@ -346,7 +346,7 @@ export function useWorkspaceArchiveActions({
     AppAlert.destructive(
       `Delete ${workspace.title}?`,
       deletingFinalActiveWorkspace
-        ? `This will permanently delete ${workspace.ideas.length} ideas. Song Seed will create a fresh empty workspace so the app still has an active home context. This cannot be undone.`
+        ? `This will permanently delete ${workspace.ideas.length} ideas. Songstead will create a fresh empty workspace so the app still has an active home context. This cannot be undone.`
         : `This will permanently delete ${workspace.ideas.length} ideas. This cannot be undone.`,
       () => {
         deleteWorkspace(workspace.id);

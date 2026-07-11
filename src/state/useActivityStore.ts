@@ -14,7 +14,7 @@ export type ActivityStore = PersistedActivityState & {
   resetSourceFilters: () => void;
 };
 
-const STORE_NAME = "song-seed-activity-store";
+const STORE_NAME = "songstead-activity-store";
 const STORE_VERSION = 1;
 
 function sanitizeStringArray(value: unknown) {
