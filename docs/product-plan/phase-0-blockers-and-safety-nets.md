@@ -63,15 +63,13 @@ Remove everything that would cause an outright store rejection or a catastrophic
 ### 0.7 EAS build configuration
 
 **Current:** no `eas.json`; builds are local (`scripts/android-dev.sh`, `expo run:*`). iOS store signing + the share extension (see below) make manual signing painful.
-**Target:** create `eas.json` with `development` (dev client, internal), `preview` (internal distribution), and `production` (store) profiles; production sets `autoIncrement: true` for build numbers. Set `APP_VARIANT=production` in the production profile's `env`. **Watch out:** the project uses committed bare directories + `patch-package` (postinstall — EAS runs it automatically) + a custom config plugin `plugins/withSongSeedAndroidVariants`. Because bare dirs are committed, EAS builds from them directly (no prebuild) — confirm the committed `android/`/`ios/` reflect production config, or gitignore the native dirs and go fully prebuild-driven (bigger change; discuss before doing).
+**Target:** create `eas.json` with `development` (dev client, internal), `preview` (internal distribution), and `production` (store) profiles; production sets `autoIncrement: true` for build numbers. Set `APP_VARIANT=production` in the production profile's `env`. **Correction to the original audit:** `android/` and `ios/` are **gitignored** — this project is **prebuild-driven (Continuous Native Generation)**, not committed-bare. EAS regenerates the native projects from `app.json` + `app.config.js` + the config plugin `plugins/withSongSeedAndroidVariants` on each build, and runs `patch-package` (postinstall) automatically. This is the cleaner setup and needs no special handling — just ensure all native config flows from the tracked JS config (it does). **Implication:** any hand-edit to a file under `android/`/`ios/` is a throwaway local artifact and will be overwritten on the next `expo prebuild` — the source of truth is always the tracked config.
 - The iOS **share extension** (`expo-share-intent`, name "Song Seed Import") needs its own provisioning; EAS handles multi-target credentials automatically — this is the main reason to prefer EAS over manual Xcode signing.
 **Acceptance:** `eas build --profile production --platform android` produces an installable `.aab`; iOS equivalent deferred to Phase 1 but the profile exists.
 
 ### 0.8 Production display-name regen
 
-**Current:** `android/app/src/main/res/values/strings.xml` says `<string name="app_name">song-seed</string>` — a stale artifact of a prebuild run without `APP_VARIANT=production`. `app.config.js` is correct.
-**Target:** regenerate or hand-fix so the production Android build's launcher label is **"Song Seed"**; verify the `withSongSeedAndroidVariants` plugin's dev/prod label handling (dev should presumably show "Song Seed Dev"). Check the iOS side (`CFBundleDisplayName` in `ios/songseed/Info.plist`) at the same time.
-**Acceptance:** installed production build shows "Song Seed" under the icon; dev build still distinguishable.
+**Resolved by the rename + CNG:** the stale `song-seed` label lived only in the gitignored generated `strings.xml`. Because the project is prebuild-driven, the launcher label comes from `app.config.js` `name` (now "Songstead" / "Songstead Dev") on the next `expo prebuild`. No tracked file needed changing beyond the config already updated in 0.0. **Acceptance:** after a production prebuild + build, the launcher shows **"Songstead"**; dev build shows "Songstead Dev". (Verify on device during Phase 1 / first production build.)
 
 ### 0.9 Hosted privacy policy
 
