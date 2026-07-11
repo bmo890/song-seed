@@ -71,12 +71,24 @@ Because `android/` and `ios/` are committed, either re-run `npx expo prebuild --
 - [ ] `npx tsc --noEmit` + `npx jest` green
 - [ ] Downstream docs updated: this plan's README, `docs/admin-checklist.md`, and the audit memory note if the name changed
 
+## Brand metaphor & voice (working candidate: "Songstead")
+
+The leading rename candidate is **Songstead**. Whoever builds the icon (Phase 0.1) and writes store/onboarding copy (Phases 4–5) should inherit this thinking:
+
+- **What it means:** the `-stead` suffix is Old English for *place / dwelling*, surviving mainly in **homestead** — a plot of land you settle, tend, and grow things on over time. "Songstead" = *a homestead for your songs*: warm, rooted, editorial, a little old-world.
+- **Why it fits the existing "seed" language — it extends it, doesn't replace it.** The metaphor is one arc: **seed → planted → grows on the stead you tend → season after season.** "Song Seed" named only the capture moment; the app's real depth is *tending* ideas over time (revisit, versions, practice loops, overdub layers, the archive/backup machinery). "Songstead" names the whole cultivated place — a truer promise for what the product does.
+- **The visual world already supports it.** The design system (`docs/design-system.md`, "Nocturne Paper / The Quiet Creative Archive") is warm paper + terracotta with an explicitly earthy workspace palette (sage, ochre, forest, rust, plum — soil-and-field colors). Keep any seedling/sprout motif — a seedling belongs *in* a stead — and broaden the vocabulary around it (tended plot, ground, growth, seasons) rather than starting over.
+- **Tagline directions:** "A homestead for your songs." · "Where ideas take root." · "Tend your songs."
+- **Voice guardrail (important, on-brand):** let the metaphor live in the **brand layer only** — name, tagline, icon. Keep **in-app UI labels literal**. No farm puns in the product (no "harvest"/"plow"/"crop" buttons). The design language prizes quiet restraint ("white space is structural"); cutesy agrarian labels would fight the editorial tone. The name carries the poetry so the interface doesn't have to.
+- **Caveats to weigh during clearance:** `-stead` is an unfamiliar suffix to modern ears, so some users won't parse it on first read — lean on the tagline early to seed the "homestead" association. Its upside is distinctiveness: a coined compound is a far stronger trademark/SEO position than two common words — but that is a hypothesis until Step 1's search confirms it.
+
 ## Out of scope
 
 Logo/wordmark *design* (that's Phase 0.1 icon work — this phase only locks the *name* so the designer has a target); renaming internal native modules or the Java namespace (explicitly excluded above).
 
 ## Decision log
 
+- **2026-07-11 — Working candidate:** **"Songstead"** chosen as the leading rename direction (see Brand metaphor & voice above). Rationale: more distinctive/ownable than the two-common-words "Song Seed," and it upgrades the metaphor from capture-moment (seed) to the whole tended place (homestead), which matches the app's depth. **Not yet cleared** — must pass Step 1 before it's final.
 - **YYYY-MM-DD — Clearance search:** _(App Store: … / Play: … / USPTO Class 9 & 41: … → Clear | Rename | Ambiguous)_
-- **YYYY-MM-DD — Name decision:** _(kept "Song Seed" | renamed to "____"; rationale)_
+- **YYYY-MM-DD — Name decision:** _(kept "Song Seed" | renamed to "Songstead" | other "____"; rationale)_
 - **YYYY-MM-DD — Bundle ID decision:** _(kept com.bmostudio.songseed | changed to ____; rationale)_
