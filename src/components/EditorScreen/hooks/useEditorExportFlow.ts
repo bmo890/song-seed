@@ -34,7 +34,10 @@ type MinimalPlayer = {
  */
 async function importRenderedFileToManaged(renderedUri: string) {
   const baseName = renderedUri.split("/").pop() || "edit.wav";
-  const imported = await importAudioAsset({ uri: renderedUri, name: baseName }, buildClipId());
+  const imported = await importAudioAsset({ uri: renderedUri, name: baseName }, buildClipId(), {
+    // The save spinner is on screen: decode now, even against dock playback.
+    decodeMode: "interactive",
+  });
   if (imported.audioUri !== renderedUri) {
     await FileSystem.deleteAsync(renderedUri, { idempotent: true }).catch(() => {});
   }

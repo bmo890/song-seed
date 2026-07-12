@@ -88,3 +88,15 @@ it("reports an unrelated zip (no manifest) as unknown", async () => {
 it("reports a missing or unreadable file as unknown without throwing", async () => {
     await expect(detectPickedArchiveKind("file:///pick/missing.zip")).resolves.toBe("unknown");
 });
+
+it("classifies a pre-rename (Song Seed era) archive as songstead-archive", async () => {
+    // Archives exported before the Songstead rename carry the old format id; they must
+    // keep importing forever — a user's own backups cannot expire with a rebrand.
+    mockFiles.set("file:///pick/legacy-archive.zip", storeZip({
+        "manifest.json": JSON.stringify({ format: "song-seed-archive", workspaces: [] }),
+    }));
+
+    await expect(detectPickedArchiveKind("file:///pick/legacy-archive.zip")).resolves.toBe(
+        "songstead-archive"
+    );
+});

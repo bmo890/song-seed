@@ -106,7 +106,7 @@ import { findWorkspaceArchives, restoreWorkspaceFromArchive } from "../audioReco
 const ARCHIVE_DIR = "file:///doc/songseed/workspace-archives";
 const MASTER_URI = "file:///doc/songseed/audio/master.m4a";
 
-function installArchive(options?: { compressed?: boolean }) {
+function installArchive(options?: { compressed?: boolean; legacySuffix?: boolean }) {
     const masterBytes = Uint8Array.from({ length: 48 * 1024 + 3 }, (_, index) => (index * 37) & 0xff);
     const manifest = {
         schemaVersion: 2,
@@ -135,7 +135,8 @@ function installArchive(options?: { compressed?: boolean }) {
         ],
         isArchived: true,
     };
-    const archiveUri = `${ARCHIVE_DIR}/Recovered WS-ws-1.songstead-workspace.zip`;
+    const suffix = options?.legacySuffix ? "songseed-workspace" : "songstead-workspace";
+    const archiveUri = `${ARCHIVE_DIR}/Recovered WS-ws-1.${suffix}.zip`;
     mockFiles.set(
         archiveUri,
         zipSync(
@@ -159,6 +160,13 @@ beforeEach(() => {
 });
 
 describe("archive-based audio recovery", () => {
+    it("finds a pre-rename (.songseed-workspace.zip) archive — legacy suffixes stay recoverable", async () => {
+        installArchive({ legacySuffix: true });
+        const archives = await findWorkspaceArchives();
+        expect(archives).toHaveLength(1);
+        expect(archives[0]?.workspaceId).toBe("ws-1");
+    });
+
     it("lists archives by reading only their manifests", async () => {
         installArchive();
 

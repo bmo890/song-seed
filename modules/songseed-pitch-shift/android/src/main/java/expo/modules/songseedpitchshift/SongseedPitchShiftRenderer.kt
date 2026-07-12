@@ -27,9 +27,13 @@ import java.nio.ByteOrder
 import java.util.UUID
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.math.max
 import kotlin.math.min
+
+/** Message marker for a decode preempted by cancelActiveWaveform — JS matches on it. */
+const val WAVEFORM_CANCELLED_MESSAGE = "WAVEFORM_CANCELLED"
 
 private const val RENDER_TIMEOUT_MINUTES = 10L
 private const val MIX_OFFSET_US = 1_000L
@@ -389,7 +393,24 @@ class SongseedPitchShiftRenderer(
 
   // --- Tier 3: waveform analysis via MediaExtractor + MediaCodec ------------------
 
+  // Epoch-token cancellation. JS owns a monotonic epoch; every decode request carries
+  // the epoch it was started under, and cancelActiveWaveform(epoch) aborts any decode
+  // whose token is OLDER. Passing the token in the request (rather than reading a
+  // native counter at entry) closes the dispatch race where a cancel lands between
+  // JS issuing the call and the native body starting — the decode still aborts,
+  // because its token predates the cancel. The decoder shares the MediaCodec pool
+  // with the audio player, so play-initiation preempts in-flight waveform work
+  // instead of letting it starve playback ("plays a second then pauses").
+  private val cancelledBelowEpoch = AtomicLong(0)
+
+  fun cancelActiveWaveform(epoch: Long) {
+    cancelledBelowEpoch.updateAndGet { current -> max(current, epoch) }
+  }
+
   fun computeWaveform(request: Map<String, Any?>): Map<String, Any> {
+    // Requests without an epoch are UNCANCELLABLE (interactive decodes the user is
+    // waiting on omit it; only background work opts in to preemption).
+    val requestEpoch = (request["epoch"] as? Number)?.toLong() ?: Long.MAX_VALUE
     val inputUri = request["inputUri"] as? String
       ?: throw IllegalArgumentException("Waveform analysis requires inputUri.")
     val numberOfPoints = max(1, (request["numberOfPoints"] as? Number)?.toInt() ?: 256)
@@ -430,6 +451,11 @@ class SongseedPitchShiftRenderer(
       val timeoutUs = 10_000L
 
       while (!sawOutputEos) {
+        if (requestEpoch < cancelledBelowEpoch.get()) {
+          // Preempted by play — abort without producing partial peaks (a truncated
+          // result must never be persisted as a sidecar; callers retry when idle).
+          throw IllegalStateException(WAVEFORM_CANCELLED_MESSAGE)
+        }
         if (!sawInputEos) {
           val inIndex = codec.dequeueInputBuffer(timeoutUs)
           if (inIndex >= 0) {

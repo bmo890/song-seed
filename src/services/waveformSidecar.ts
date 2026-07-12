@@ -1,6 +1,7 @@
 import * as FileSystem from "expo-file-system/legacy";
 import { MAX_DETAILED_AUDIO_ANALYSIS_DURATION_MS, loadAudioDurationMs } from "./audioStorage";
-import { computeWaveformPeaks } from "./waveformAnalysis";
+import { isForegroundAudioBusy } from "./audioForegroundActivity";
+import { computeWaveformPeaks, type WaveformDecodeMode } from "./waveformAnalysis";
 import { waveformSidecarUri } from "./storagePaths";
 
 /**
@@ -64,12 +65,21 @@ export async function deleteWaveformSidecar(audioUri: string): Promise<void> {
 }
 
 /** Decode the audio once (downsampled, memory-safe) into the detail waveform and
- *  persist it next to the audio. Returns the peaks, or null on failure. */
+ *  persist it next to the audio. Returns the peaks, or null on failure/skip —
+ *  background-mode callers treat null as "retry when idle". */
 export async function generateWaveformSidecar(
   audioUri: string,
-  durationMs?: number
+  durationMs?: number,
+  options?: { mode?: WaveformDecodeMode }
 ): Promise<number[] | null> {
+  const mode = options?.mode ?? "background";
   try {
+    // The duration probe spins up a second native player — background work must not
+    // run it against active playback (the decode itself is gated inside the decode
+    // queue, but this probe isn't).
+    if (mode === "background" && !(durationMs && durationMs > 0) && isForegroundAudioBusy()) {
+      return null;
+    }
     const resolvedDurationMs =
       durationMs && durationMs > 0 ? durationMs : await loadAudioDurationMs(audioUri);
     if (!resolvedDurationMs || resolvedDurationMs <= 0) return null;
@@ -77,7 +87,7 @@ export async function generateWaveformSidecar(
     // contend with playback for little visual gain — the reel shows the inline thumbnail
     // instead, matching the metadata path's cap.
     if (resolvedDurationMs > MAX_DETAILED_AUDIO_ANALYSIS_DURATION_MS) return null;
-    const peaks = await computeWaveformPeaks(audioUri, WAVEFORM_DETAIL_BINS, resolvedDurationMs);
+    const peaks = await computeWaveformPeaks(audioUri, WAVEFORM_DETAIL_BINS, resolvedDurationMs, { mode });
     if (peaks.length) await writeWaveformSidecar(audioUri, peaks);
     return peaks.length ? peaks : null;
   } catch (error) {
@@ -89,9 +99,10 @@ export async function generateWaveformSidecar(
 /** Read the detail waveform, generating + caching it on first access. */
 export async function ensureWaveformSidecar(
   audioUri: string,
-  durationMs?: number
+  durationMs?: number,
+  options?: { mode?: WaveformDecodeMode }
 ): Promise<number[] | null> {
   const existing = await readWaveformSidecar(audioUri);
   if (existing) return existing;
-  return generateWaveformSidecar(audioUri, durationMs);
+  return generateWaveformSidecar(audioUri, durationMs, options);
 }

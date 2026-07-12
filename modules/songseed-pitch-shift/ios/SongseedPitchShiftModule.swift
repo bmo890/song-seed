@@ -80,6 +80,12 @@ public class SongseedPitchShiftModule: Module {
       return try self.renderer.computeWaveform(request)
     }
 
+    // Preempt in-flight/queued waveform decodes carrying an epoch older than `epoch`.
+    // Called by JS when playback starts so the decoder stays clear of the player.
+    Function("cancelActiveWaveform") { (epoch: Double) in
+      self.renderer.cancelActiveWaveform(epoch)
+    }
+
     OnDestroy {
       _ = self.engine.unload()
     }

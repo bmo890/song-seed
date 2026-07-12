@@ -3,7 +3,7 @@ import * as FileSystem from "expo-file-system/legacy";
 import { File } from "expo-file-system";
 import { createAudioPlayer } from "expo-audio";
 import { Platform, Share } from "react-native";
-import { computeWaveformPeaks } from "./waveformAnalysis";
+import { computeWaveformPeaks, computeWaveformWithNativeDuration, type WaveformDecodeMode } from "./waveformAnalysis";
 import { buildDefaultIdeaTitle, buildStaticWaveform } from "../utils";
 import { SONG_SEED_AUDIO_DIR, SONG_SEED_PREVIEW_AUDIO_DIR, SONG_SEED_SHARE_DIR } from "./storagePaths";
 import { cleanupShareTempFile } from "./managedMedia";
@@ -39,6 +39,11 @@ export type ImportedManagedAudioAsset = ImportedAudioAsset &
 
 type AudioMetadataLoadOptions = {
     lightweight?: boolean;
+    /** "interactive" when the user is actively waiting on this metadata (editor
+     *  save/export, player-open hydration): the decode then runs immediately and
+     *  cannot be preempted by playback. Defaults to "background" (idle-gated,
+     *  cancellable; callers must treat placeholder results as retryable). */
+    decodeMode?: WaveformDecodeMode;
 };
 
 export type AudioImportFailure = {
@@ -606,7 +611,7 @@ export async function loadManagedAudioMetadata(
         };
     }
 
-    const durationMs = durationHint && durationHint > 0 ? durationHint : await loadAudioDurationMs(audioUri);
+    let durationMs = durationHint && durationHint > 0 ? durationHint : await loadAudioDurationMs(audioUri);
 
     if (durationMs && durationMs > MAX_DETAILED_AUDIO_ANALYSIS_DURATION_MS) {
         return {
@@ -617,13 +622,37 @@ export async function loadManagedAudioMetadata(
     }
 
     try {
-        const peaks = await computeWaveformPeaks(audioUri, MANAGED_WAVEFORM_PEAK_COUNT, durationMs ?? 0);
-        if (peaks.length) {
-            return {
-                durationMs,
-                waveformPeaks: peaks,
-                usedDetailedAnalysis: true,
-            };
+        if (durationMs && durationMs > 0) {
+            const peaks = await computeWaveformPeaks(audioUri, MANAGED_WAVEFORM_PEAK_COUNT, durationMs, {
+                mode: options?.decodeMode,
+            });
+            if (peaks.length) {
+                return {
+                    durationMs,
+                    waveformPeaks: peaks,
+                    usedDetailedAnalysis: true,
+                };
+            }
+        } else {
+            // The expo-audio duration probe failed (it silently times out after 5s on a
+            // busy device). The native decoder reads the duration from the container for
+            // free while decoding — without this path, a clip whose one probe attempt
+            // failed stayed at "0:00" until it was played.
+            const nativeResult = await computeWaveformWithNativeDuration(
+                audioUri,
+                MANAGED_WAVEFORM_PEAK_COUNT,
+                { mode: options?.decodeMode }
+            );
+            if (nativeResult.durationMs && nativeResult.durationMs > 0) {
+                durationMs = nativeResult.durationMs;
+                if (nativeResult.peaks.length && durationMs <= MAX_DETAILED_AUDIO_ANALYSIS_DURATION_MS) {
+                    return {
+                        durationMs,
+                        waveformPeaks: nativeResult.peaks,
+                        usedDetailedAnalysis: true,
+                    };
+                }
+            }
         }
     } catch {
         // fall through to the deterministic placeholder below

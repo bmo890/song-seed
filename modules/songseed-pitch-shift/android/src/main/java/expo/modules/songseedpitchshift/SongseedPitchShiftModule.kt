@@ -89,6 +89,12 @@ class SongseedPitchShiftModule : Module() {
       renderer.computeWaveform(request)
     }
 
+    // Preempt in-flight/queued waveform decodes carrying an epoch older than `epoch`.
+    // Called by JS when playback starts so the decoder frees the MediaCodec pool.
+    Function("cancelActiveWaveform") { epoch: Double ->
+      renderer.cancelActiveWaveform(epoch.toLong())
+    }
+
     OnDestroy {
       engine.unload()
     }

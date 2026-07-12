@@ -30,6 +30,8 @@ import type {
  *    modes; the only difference is the extra metadata JSON.
  */
 export const SONG_SEED_ARCHIVE_FORMAT = "songstead-archive";
+/** Format id written by builds before the Songstead rename; still accepted on import. */
+export const LEGACY_SONG_SEED_ARCHIVE_FORMAT = "song-seed-archive";
 
 /** Bumped whenever the manifest shape changes. Import stays backward compatible with older versions. */
 export const LIBRARY_EXPORT_SCHEMA_VERSION = 6;

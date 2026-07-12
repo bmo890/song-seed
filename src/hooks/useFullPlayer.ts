@@ -202,6 +202,17 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
   }, [didPlayerJustFinish, playerTarget?.clipId]);
 
   useEffect(() => {
+    // While a DIFFERENT clip is loading, the engine's status still describes the
+    // previous clip (a paused source emits no fresh ticks, and pause/replace land
+    // several awaits into openPlayer). Publishing it would stomp the zeroed state
+    // openPlayer just wrote for the incoming clip — stand down until the load
+    // settles; the finally block's engineOpNonce keeps screens reconciled.
+    if (
+      openingClipIdRef.current !== null &&
+      openingClipIdRef.current !== playerTargetRef.current?.clipId
+    ) {
+      return;
+    }
     const now = Date.now();
     const lastPublished = lastPublishedPlaybackRef.current;
     const shouldPublish =
@@ -319,6 +330,7 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
       durationMs: 0,
       isPlaying: false,
     });
+    lastPublishedPlaybackRef.current = { at: Date.now(), positionMs: 0, durationMs: 0, isPlaying: false };
     setPlayerTarget(null);
     currentSourceUriRef.current = null;
     releaseSourcePositionHold();
@@ -343,11 +355,34 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
     // in user-intent order (claiming after the async URI resolution let a slow early tap
     // cancel a fast later one mid-flight).
     const operationId = ++operationIdRef.current;
+    // Zero the visible position BEFORE the first await. The old clip's position lives on
+    // in the native player and the throttled status cache (a paused player emits no new
+    // ticks), so every render between now and the source swap would otherwise show the
+    // PREVIOUS clip's playhead on the new clip. Gate + refs + store all go to 0 up front.
+    if (playerTargetRef.current?.clipId !== clip.id) {
+      holdSourcePositionAt(0);
+      const zeroed = {
+        positionMs: 0,
+        durationMs: getClipPlaybackDurationMs(clip) ?? 0,
+        isPlaying: false,
+      };
+      setPlayerPlaybackState(zeroed);
+      // Keep the throttled publisher's cache in step with the direct write, so its
+      // next run doesn't see a phantom delta and republish stale engine status.
+      lastPublishedPlaybackRef.current = { at: Date.now(), ...zeroed };
+    }
     // Signal foreground load so background hydration stands clear of the codec.
     beginForegroundAudioLoad();
     try {
       const playbackUri = await resolvePlayableUriWithDiagnostics(ideaId, clip);
-      if (!playbackUri) return;
+      if (!playbackUri) {
+        // Load never started: the zeroed state above described a clip that won't
+        // arrive. Release the hold so the publisher (which resumes after finally)
+        // can restore the engine's real status, and let engineOpNonce reconcile
+        // the screens.
+        releaseSourcePositionHold();
+        return;
+      }
       if (!isOperationActive(operationId)) return;
       lockScreenMetadataRef.current = metadata;
 
@@ -374,6 +409,7 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
           durationMs: 0,
           isPlaying: false,
         });
+        lastPublishedPlaybackRef.current = { at: Date.now(), positionMs: 0, durationMs: 0, isPlaying: false };
         useStore.getState().clearPlayerQueue();
         setPlayerTarget(null);
         currentSourceUriRef.current = null;

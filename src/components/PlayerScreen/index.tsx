@@ -212,7 +212,16 @@ export function PlayerScreen({
     seekFullPlayerTo: seekTo,
     setFullPlayerPlaybackRate: setPlaybackRate,
   });
-  const effectivePlayerPosition = practicePitchTransport.effectivePositionMs;
+  // Stale-position invariant: until the engine's loaded target matches the on-screen
+  // clip (the source swap hasn't completed — or failed silently), whatever position the
+  // full player reports belongs to the PREVIOUS clip. Show the new clip at 0:00 rather
+  // than adopting it. Practice mode is exempt: it owns its own native transport whose
+  // position is per-clip by construction.
+  const engineMatchesScreenClip = activePlayerTarget?.clipId === playerClip?.id;
+  const effectivePlayerPosition =
+    practicePitchTransport.isOwningNativeTransport || engineMatchesScreenClip
+      ? practicePitchTransport.effectivePositionMs
+      : 0;
   // Ref mirror of the scrub position so callbacks (record-a-layer punch-in) can read it
   // at call time without re-creating on every playback tick.
   const playerPositionMsRef = React.useRef(0);

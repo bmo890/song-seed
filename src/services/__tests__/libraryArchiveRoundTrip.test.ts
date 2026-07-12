@@ -142,6 +142,7 @@ jest.mock("../../../modules/songseed-file-io", () => ({
 
 jest.mock("expo-document-picker", () => ({ getDocumentAsync: jest.fn() }));
 
+import { strFromU8, strToU8, unzipSync, zipSync } from "fflate";
 import { prepareLibraryExportArchive } from "../libraryExport";
 import { materializeSongSeedArchiveMerge, readSongSeedArchive } from "../libraryImport";
 import { normalizeWorkspaces } from "../../state/dataSlice";
@@ -323,6 +324,44 @@ async function exportThenImport(preserveAllMetadata: boolean) {
     const [workspace] = normalizeWorkspaces(merge.importedWorkspaces);
     return { parsed, workspace };
 }
+
+describe("pre-rename (Song Seed era) archive acceptance", () => {
+    it("imports an archive whose manifest carries the legacy song-seed-archive format id", async () => {
+        const { workspaces } = buildLibrary();
+        const prepared = await prepareLibraryExportArchive({
+            workspaces,
+            notes: [],
+            format: "songstead-archive",
+            scope: { workspaceIds: ["ws-1"], collectionIds: [] },
+            options: {
+                includeFullSongHistory: true,
+                includeNotes: true,
+                includeLyrics: true,
+                includeHiddenItems: true,
+                preserveAllMetadata: true,
+            },
+            libraryPreferences: {
+                primaryWorkspaceId: "ws-1",
+                primaryCollectionIdByWorkspace: { "ws-1": "col-1" },
+            },
+        });
+
+        // Rewrite the manifest to the pre-rename format id — byte-identical to what a
+        // build before the Songstead rename exported. It must import forever.
+        const zipBytes = mockFiles.get(prepared.archiveUri)!;
+        const entries = unzipSync(zipBytes);
+        const manifest = JSON.parse(strFromU8(entries["manifest.json"]));
+        manifest.format = "song-seed-archive";
+        entries["manifest.json"] = strToU8(JSON.stringify(manifest));
+        const legacyUri = "file:///doc/legacy-era-archive.zip";
+        mockFiles.set(legacyUri, zipSync(entries, { level: 0 }));
+
+        const parsed = await readSongSeedArchive(legacyUri, "legacy-era-archive.zip");
+        const merge = await materializeSongSeedArchiveMerge(parsed, [], null);
+        expect(merge.importedWorkspaces).toHaveLength(1);
+        expect(merge.importedWorkspaces[0]?.title).toBe(workspaces[0]?.title);
+    });
+});
 
 describe("Songstead Archive round-trip — full fidelity", () => {
     it("declares full fidelity in the manifest", async () => {

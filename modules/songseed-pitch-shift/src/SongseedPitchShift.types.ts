@@ -80,6 +80,9 @@ export type NativeWaveformRequest = {
   numberOfPoints: number;
   startTimeMs?: number;
   endTimeMs?: number;
+  /** Cancellation token: decodes with an epoch older than a cancelActiveWaveform(epoch)
+   *  call abort with "WAVEFORM_CANCELLED". Omit for uncancellable requests. */
+  epoch?: number;
 };
 
 export type NativeWaveformResult = {

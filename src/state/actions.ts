@@ -1384,7 +1384,9 @@ export const appActions = {
                 name: playbackUri.split("/").pop() ?? `${clipId}-mix.m4a`,
                 mimeType: "audio/mp4",
             },
-            `${clipId}-flattened-${Date.now()}`
+            `${clipId}-flattened-${Date.now()}`,
+            // User-blocking flow (editor's "save combined and continue").
+            { decodeMode: "interactive" }
         );
 
         const now = Date.now();

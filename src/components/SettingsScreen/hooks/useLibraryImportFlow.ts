@@ -10,6 +10,8 @@ import {
 import { detectPickedArchiveKind } from "../../../services/archiveKind";
 import { appActions } from "../../../state/actions";
 import { haptic } from "../../../design/haptics";
+import { enqueueMissingDurationBackfill } from "../../../services/backgroundWaveformHydration";
+import { useStore } from "../../../state/useStore";
 
 export function useLibraryImportFlow() {
     const [parsedArchive, setParsedArchive] = useState<ParsedSongSeedArchive | null>(null);
@@ -69,6 +71,9 @@ export function useLibraryImportFlow() {
         setIsImporting(true);
         try {
             const result = await appActions.importLibraryArchiveIntoLibrary(parsedArchive);
+            // Archive manifests can carry missing durations (exported before hydration
+            // finished); backfill them now instead of leaving cards at "0:00".
+            enqueueMissingDurationBackfill(useStore.getState().workspaces);
             if (result.warnings.length === 0) haptic.success();
             AppAlert.info(
                 result.warnings.length > 0 ? "Import finished with warnings" : "Import complete",

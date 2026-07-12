@@ -1,5 +1,6 @@
 import { extractPreview } from "@siteed/audio-studio";
 import SongseedPitchShiftModule from "../../modules/songseed-pitch-shift";
+import { isForegroundAudioBusy, waitForForegroundAudioIdle } from "./audioForegroundActivity";
 import { metersToWaveformPeaks, quantizeWaveformPeak } from "../utils";
 
 function clamp01(value: number) {
@@ -33,15 +34,122 @@ function analysisToPeaks(
 // low-res thumbnail.
 let decodeQueue: Promise<unknown> = Promise.resolve();
 
+// Cancellation epoch — the single source of truth for preemption, shared with the
+// native decoder. Every BACKGROUND decode carries the epoch it started under into
+// its native request; play-initiation bumps the epoch and forwards it to native,
+// which aborts any decode holding an older token (including one whose native body
+// hadn't started when the cancel landed — the token travels with the request, so
+// there is no check-then-dispatch race). Queued background decodes are NOT flushed:
+// they re-gate on foreground idleness when their turn comes, so idle-time work
+// still happens instead of being discarded by a long-past play press.
+let cancelEpoch = 1;
+
+const WAVEFORM_CANCELLED = "WAVEFORM_CANCELLED";
+
+function isWaveformCancellation(error: unknown): boolean {
+  return error instanceof Error && error.message.includes(WAVEFORM_CANCELLED);
+}
+
+/**
+ * Decode scheduling mode.
+ *  - "background": derived-data work (hydration queue, idle sidecar generation).
+ *    Waits for foreground playback to go idle before starting, and is flushed or
+ *    aborted when playback begins. Callers MUST treat an empty result as
+ *    "skipped — retry later", never as a final answer to persist.
+ *  - "interactive": the user is waiting on this decode (editor save/export, the
+ *    stem-alignment overlay, player-open hydration). Serialized with everything
+ *    else but never idle-gated and never flushed/aborted by play — decoding
+ *    alongside playback is the deliberate trade these flows make.
+ */
+export type WaveformDecodeMode = "background" | "interactive";
+
+/** Mode of the decode currently inside the native decoder (null when none). Lets
+ *  cancelActiveWaveformDecode abort background work without killing a decode the
+ *  user is actively waiting on. */
+let activeDecodeMode: WaveformDecodeMode | null = null;
+
+/**
+ * Preempt BACKGROUND waveform decoding because foreground playback is starting.
+ * Aborts an in-flight background decode (if the build supports it); background
+ * decodes still queued simply wait for playback to go idle before running.
+ * Cancelled decodes return empty and retry when idle — nothing partial is ever
+ * persisted. Interactive decodes are left alone: the user asked for them.
+ */
+export function cancelActiveWaveformDecode(): void {
+  cancelEpoch += 1;
+  if (activeDecodeMode !== "background") return;
+  try {
+    SongseedPitchShiftModule?.cancelActiveWaveform?.(cancelEpoch);
+  } catch {
+    // Best-effort: an older native build without the cancel hook just finishes its decode.
+  }
+}
+
+type DecodeOptions = { mode?: WaveformDecodeMode };
+
 export function computeWaveformPeaks(
   audioUri: string,
   numberOfPoints: number,
-  durationMs: number
+  durationMs: number,
+  options?: DecodeOptions
 ): Promise<number[]> {
-  const run = decodeQueue.then(
-    () => computeWaveformPeaksUnserialized(audioUri, numberOfPoints, durationMs),
-    () => computeWaveformPeaksUnserialized(audioUri, numberOfPoints, durationMs)
+  return enqueueDecode(
+    (epoch) => computeWaveformPeaksUnserialized(audioUri, numberOfPoints, durationMs, epoch),
+    [],
+    options?.mode ?? "background"
   );
+}
+
+/**
+ * Like computeWaveformPeaks, but lets the NATIVE decoder supply the duration when the
+ * caller doesn't know it (the decoder reads it from the container for free). Used by
+ * metadata hydration so a clip whose expo-audio duration probe timed out still gets a
+ * real duration instead of staying "0:00" forever.
+ */
+export function computeWaveformWithNativeDuration(
+  audioUri: string,
+  numberOfPoints: number,
+  options?: DecodeOptions
+): Promise<{ peaks: number[]; durationMs?: number }> {
+  return enqueueDecode(
+    (epoch) => computeWaveformWithNativeDurationUnserialized(audioUri, numberOfPoints, epoch),
+    { peaks: [] },
+    options?.mode ?? "background"
+  );
+}
+
+/** Epoch passed for decodes that must never be preempted (native treats a missing
+ *  request epoch the same way; this is the explicit spelling for interactive work). */
+const UNCANCELLABLE_EPOCH = undefined;
+
+function enqueueDecode<T>(
+  task: (epoch: number | undefined) => Promise<T>,
+  emptyResult: T,
+  mode: WaveformDecodeMode
+): Promise<T> {
+  const gatedTask = async (): Promise<T> => {
+    let epoch: number | undefined = UNCANCELLABLE_EPOCH;
+    if (mode === "background") {
+      // Gate at START, not enqueue: never begin a background decode while the
+      // foreground player is loading or playing (the enqueue-time state can be
+      // minutes stale by the time the queue reaches this job). If the idle wait
+      // capped out while playback continues, skip — callers treat empty as
+      // "retry later", which beats contending with the player.
+      await waitForForegroundAudioIdle();
+      if (isForegroundAudioBusy()) return emptyResult;
+      // Snapshot the epoch NOW (post-wait): only a play press AFTER this decode
+      // starts should abort it. The token rides in the native request, so a cancel
+      // landing during dispatch still catches it.
+      epoch = cancelEpoch;
+    }
+    activeDecodeMode = mode;
+    try {
+      return await task(epoch);
+    } finally {
+      activeDecodeMode = null;
+    }
+  };
+  const run = decodeQueue.then(gatedTask, gatedTask);
   // Keep the chain alive regardless of this decode's outcome.
   decodeQueue = run.then(
     () => undefined,
@@ -59,7 +167,8 @@ export function computeWaveformPeaks(
 async function computeWaveformPeaksUnserialized(
   audioUri: string,
   numberOfPoints: number,
-  durationMs: number
+  durationMs: number,
+  epoch?: number
 ): Promise<number[]> {
   if (!durationMs || durationMs <= 0) return [];
 
@@ -71,6 +180,7 @@ async function computeWaveformPeaksUnserialized(
         numberOfPoints,
         startTimeMs: 0,
         endTimeMs: durationMs,
+        epoch,
       });
       if (result?.peaks?.length) {
         console.log("[waveform] decoder=native", { rawPoints: result.peaks.length, requested: numberOfPoints });
@@ -78,6 +188,12 @@ async function computeWaveformPeaksUnserialized(
       }
       console.warn("[waveform] native computeWaveform returned no points; falling back to @siteed");
     } catch (error) {
+      if (isWaveformCancellation(error)) {
+        // Preempted by play — return empty WITHOUT falling back to the @siteed
+        // decoder (which would recreate the very contention the cancel cleared).
+        console.log("[waveform] decode cancelled by playback");
+        return [];
+      }
       console.warn("[waveform] native computeWaveform failed; falling back to @siteed", error);
     }
   } else {
@@ -100,5 +216,45 @@ async function computeWaveformPeaksUnserialized(
   } catch (error) {
     console.warn("[waveform] extractPreview fallback failed", error);
     return [];
+  }
+}
+
+/** Native-decoder path that also reports the container duration (endTimeMs 0 = whole
+ *  file; the decoder reads the real duration from the container). No @siteed fallback:
+ *  this is a metadata-repair path and the fallback decoder can't supply a duration —
+ *  callers treat an empty result as "retry later". */
+async function computeWaveformWithNativeDurationUnserialized(
+  audioUri: string,
+  numberOfPoints: number,
+  epoch?: number
+): Promise<{ peaks: number[]; durationMs?: number }> {
+  const native = SongseedPitchShiftModule;
+  if (!native?.computeWaveform) {
+    return { peaks: [] };
+  }
+
+  try {
+    const result = await native.computeWaveform({
+      inputUri: audioUri,
+      numberOfPoints,
+      startTimeMs: 0,
+      endTimeMs: 0,
+      epoch,
+    });
+    const nativeDurationMs =
+      typeof result?.durationMs === "number" && result.durationMs > 0
+        ? Math.round(result.durationMs)
+        : undefined;
+    return {
+      peaks: result?.peaks?.length ? result.peaks.map(clamp01) : [],
+      durationMs: nativeDurationMs,
+    };
+  } catch (error) {
+    if (isWaveformCancellation(error)) {
+      console.log("[waveform] duration-probe decode cancelled by playback");
+      return { peaks: [] };
+    }
+    console.warn("[waveform] native duration-probe decode failed", error);
+    return { peaks: [] };
   }
 }

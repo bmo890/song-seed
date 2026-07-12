@@ -25,6 +25,7 @@ import { SONG_SEED_AUDIO_DIR } from "./storagePaths";
 import { MANAGED_WAVEFORM_PEAK_COUNT } from "./audioStorage";
 import { buildStaticWaveform, ensureUniqueCountedTitle } from "../utils";
 import {
+    LEGACY_SONG_SEED_ARCHIVE_FORMAT,
     SONG_SEED_ARCHIVE_FORMAT,
     type ArchiveClipManifest,
     type ArchiveClipOverdubManifest,
@@ -254,7 +255,13 @@ async function materializeArchiveClipOverdub(
 function isSongSeedArchiveManifest(value: unknown): value is ArchiveManifest {
     if (!value || typeof value !== "object") return false;
     const candidate = value as Partial<ArchiveManifest>;
-    return candidate.format === SONG_SEED_ARCHIVE_FORMAT && Array.isArray(candidate.workspaces);
+    // Accept the pre-rename format id too — archives exported before the Songstead
+    // rename carry "song-seed-archive" and must keep importing forever.
+    const format = candidate.format as string | undefined;
+    return (
+        (format === SONG_SEED_ARCHIVE_FORMAT || format === LEGACY_SONG_SEED_ARCHIVE_FORMAT) &&
+        Array.isArray(candidate.workspaces)
+    );
 }
 
 export async function pickSongSeedArchiveFile(): Promise<PickedLibraryArchiveFile | null> {

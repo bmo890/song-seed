@@ -35,6 +35,10 @@ declare class SongseedPitchShiftModule extends NativeModule<SongseedPitchShiftMo
   // feature-detect (`if (mod.renderTrim)`) and fall back to @siteed otherwise.
   renderTrim?(request: NativeTrimRequest): Promise<NativeTrimResult>;
   computeWaveform?(request: NativeWaveformRequest): Promise<NativeWaveformResult>;
+  /** Preempt in-flight/queued computeWaveform calls whose request `epoch` is older
+   *  than `epoch` (they reject with "WAVEFORM_CANCELLED"). Synchronous native
+   *  Function; feature-detect before calling. */
+  cancelActiveWaveform?(epoch: number): void;
 }
 
 export default requireOptionalNativeModule<SongseedPitchShiftModule>("SongseedPitchShift");

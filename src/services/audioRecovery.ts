@@ -135,7 +135,8 @@ export async function findWorkspaceArchives(): Promise<
     const archives: { archiveUri: string; workspaceId: string; workspaceTitle: string; archivedAt: string }[] = [];
 
     for (const filename of files) {
-        if (!filename.endsWith(".songstead-workspace.zip")) continue;
+        // Pre-rename archives end in ".songseed-workspace.zip" — keep them recoverable.
+        if (!filename.endsWith(".songstead-workspace.zip") && !filename.endsWith(".songseed-workspace.zip")) continue;
 
         const archiveUri = `${SONG_SEED_WORKSPACE_ARCHIVE_DIR}/${filename}`;
         try {

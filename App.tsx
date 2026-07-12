@@ -81,6 +81,7 @@ import {
   shouldPromptForBackupReminder,
 } from "./src/services/backupStatus";
 import { resumePendingWorkspaceArchiveOperations } from "./src/services/workspaceArchiveRecovery";
+import { enqueueMissingDurationBackfill } from "./src/services/backgroundWaveformHydration";
 import { recoverPendingRecordingSession } from "./src/services/recordingRecovery";
 import { cleanupStaleDisasterRecoveryBackupFiles } from "./src/services/disasterRecoveryBackup";
 import { cleanupInterruptedDisasterRecoveryRestores } from "./src/services/disasterRecoveryTemp";
@@ -1004,6 +1005,12 @@ export default function App() {
       // Permanently purge quarantined (deleted) audio past its retention window.
       await purgeExpiredTrash();
       await resumePendingWorkspaceArchiveOperations();
+
+      // Backfill clip durations the import-time hydration queue never finished (it's
+      // in-memory and single-shot: app restarts, probe timeouts, and archive restores
+      // all leave clips stuck at "0:00" until played). Queued work is paced and
+      // yields to foreground audio, so this is safe to fire on every launch.
+      enqueueMissingDurationBackfill(useStore.getState().workspaces);
 
       // Recovery mode: if the library hydrated empty but the shadow manifest still holds
       // data, surface a restore prompt instead of silently presenting an empty, writable

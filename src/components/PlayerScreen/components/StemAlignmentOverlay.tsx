@@ -64,7 +64,9 @@ function useDetailPeaks(audioUri: string | null, fallbackPeaks?: number[]) {
     if (!audioUri) {
       return;
     }
-    void ensureWaveformSidecar(audioUri)
+    // Interactive: the align-by-ear flow decodes WHILE auditioning — that trade is
+    // the overlay's whole point, so it must not be idle-gated or preempted by play.
+    void ensureWaveformSidecar(audioUri, undefined, { mode: "interactive" })
       .then((peaks) => {
         if (!cancelled && peaks?.length) {
           setDetailPeaks(peaks);

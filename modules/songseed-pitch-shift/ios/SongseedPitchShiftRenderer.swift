@@ -349,7 +349,32 @@ final class SongseedPitchShiftRenderer {
 
   // MARK: - Tier 3: waveform analysis via AVAssetReader
 
+  /// Epoch-token cancellation (mirrors the Android renderer): JS owns a monotonic
+  /// epoch, each decode request carries the epoch it started under, and
+  /// cancelActiveWaveform(epoch) aborts decodes with an OLDER token — including one
+  /// whose native body hadn't started when the cancel landed (dispatch race). The
+  /// error message is matched by JS; a cancelled decode must never persist partial peaks.
+  static let waveformCancelledMessage = "WAVEFORM_CANCELLED"
+
+  private let waveformCancelLock = NSLock()
+  private var cancelledBelowEpoch: Double = 0
+
+  private func currentCancelledBelowEpoch() -> Double {
+    waveformCancelLock.lock()
+    defer { waveformCancelLock.unlock() }
+    return cancelledBelowEpoch
+  }
+
+  func cancelActiveWaveform(_ epoch: Double) {
+    waveformCancelLock.lock()
+    cancelledBelowEpoch = max(cancelledBelowEpoch, epoch)
+    waveformCancelLock.unlock()
+  }
+
   func computeWaveform(_ request: [String: Any]) throws -> [String: Any] {
+    // Requests without an epoch are UNCANCELLABLE (interactive decodes the user is
+    // waiting on omit it; only background work opts in to preemption).
+    let requestEpoch = (request["epoch"] as? Double) ?? .greatestFiniteMagnitude
     guard let inputUri = request["inputUri"] as? String else {
       throw NSError(domain: "SongseedPitchShift", code: 27, userInfo: [NSLocalizedDescriptionKey: "Waveform analysis requires inputUri."])
     }
@@ -380,6 +405,15 @@ final class SongseedPitchShiftRenderer {
     var sampleCounts = [Int](repeating: 0, count: numberOfPoints)
 
     while reader.status == .reading, let sampleBuffer = output.copyNextSampleBuffer() {
+      if requestEpoch < currentCancelledBelowEpoch() {
+        CMSampleBufferInvalidate(sampleBuffer)
+        reader.cancelReading()
+        throw NSError(
+          domain: "SongseedPitchShift",
+          code: 30,
+          userInfo: [NSLocalizedDescriptionKey: Self.waveformCancelledMessage]
+        )
+      }
       let ptsSec = CMTimeGetSeconds(CMSampleBufferGetPresentationTimeStamp(sampleBuffer))
       guard let blockBuffer = CMSampleBufferGetDataBuffer(sampleBuffer) else {
         CMSampleBufferInvalidate(sampleBuffer)

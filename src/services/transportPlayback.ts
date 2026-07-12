@@ -1,4 +1,5 @@
 import { activatePlaybackAudioSession } from "./audioSession";
+import { cancelActiveWaveformDecode } from "./waveformAnalysis";
 
 type TransportPlaybackStatus = {
     duration?: number;
@@ -46,6 +47,11 @@ export async function activateAndPlay(
     const { durationMs, positionMs } = readPlaybackTimingMs(status, durationOverrideMs, positionOverrideMs);
     const shouldRestartFromEnd = isPlaybackNearEnd(positionMs, durationMs);
 
+    // Playback is starting: synchronously preempt any background waveform decode
+    // BEFORE the engine round-trips — an in-flight decode on the shared codec pool
+    // is what made fresh clips "play a second then pause". Centralized here so every
+    // play entry point (full player, inline players, region previews) is covered.
+    cancelActiveWaveformDecode();
     await activatePlaybackAudioSession();
     if (shouldRestartFromEnd) {
         await player.seekTo(0);
@@ -64,6 +70,9 @@ export async function replacePlaybackSource(
 ) {
     const seekToStart = options.seekToStart ?? true;
 
+    // Same preemption as activateAndPlay: a source swap is an acute engine-load
+    // window and must not share the codec with a background decode.
+    cancelActiveWaveformDecode();
     await activatePlaybackAudioSession();
     await player.replace({ uri: audioUri });
     if (seekToStart) {

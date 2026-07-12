@@ -1,4 +1,8 @@
 import { strFromU8 } from "fflate";
+import {
+    LEGACY_SONG_SEED_ARCHIVE_FORMAT,
+    SONG_SEED_ARCHIVE_FORMAT,
+} from "./libraryArchiveManifest";
 import { indexStoredZipArchive, readStoredZipEntryBytes } from "./storedZipArchive";
 
 /**
@@ -44,7 +48,12 @@ export async function detectPickedArchiveKind(fileUri: string): Promise<PickedAr
         }
 
         if (isRecord(manifest)) {
-            if (manifest.format === "songstead-archive" && Array.isArray(manifest.workspaces)) {
+            if (
+                (manifest.format === SONG_SEED_ARCHIVE_FORMAT ||
+                    manifest.format === LEGACY_SONG_SEED_ARCHIVE_FORMAT) &&
+                Array.isArray(manifest.workspaces)
+            ) {
+                // Pre-rename archives carry the legacy id — same format, same flow.
                 return "songstead-archive";
             }
             // Disaster-recovery backup: formatVersion + snapshot checksum + file list, paired

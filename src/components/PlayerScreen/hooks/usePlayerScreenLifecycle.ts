@@ -226,19 +226,35 @@ export function usePlayerScreenLifecycle({
     if (hydratedWaveformClipIdsRef.current.has(playerClip.id)) return;
 
     hydratedWaveformClipIdsRef.current.add(playerClip.id);
+    const clipId = playerClip.id;
 
     void loadManagedAudioMetadata(
       playerClip.audioUri,
       `${playerIdea.id}-${playerClip.id}`,
-      playerClip.durationMs
+      playerClip.durationMs,
+      // The user just opened this clip: decode now, even mid-autoplay.
+      { decodeMode: "interactive" }
     )
       .then((metadata) => {
-        appActions.hydrateClipAudioMetadata(activeWorkspaceId, playerIdea.id, playerClip.id, {
+        // Never overwrite the clip's stored peaks with a deterministic placeholder —
+        // a skipped/failed decode returns one, and the 256-length result would pass
+        // the "already hydrated" guard above forever. Un-claim so a later open retries.
+        if (!metadata.usedDetailedAnalysis) {
+          hydratedWaveformClipIdsRef.current.delete(clipId);
+          if (metadata.durationMs && metadata.durationMs > 0) {
+            appActions.hydrateClipAudioMetadata(activeWorkspaceId, playerIdea.id, clipId, {
+              durationMs: metadata.durationMs,
+            });
+          }
+          return;
+        }
+        appActions.hydrateClipAudioMetadata(activeWorkspaceId, playerIdea.id, clipId, {
           durationMs: metadata.durationMs,
           waveformPeaks: metadata.waveformPeaks,
         });
       })
       .catch((error) => {
+        hydratedWaveformClipIdsRef.current.delete(clipId);
         console.warn("Player waveform hydration failed", error);
       });
   }, [

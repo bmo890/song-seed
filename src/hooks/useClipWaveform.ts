@@ -1,6 +1,14 @@
 import { useEffect, useState } from "react";
 import { InteractionManager } from "react-native";
+import { cancelActiveWaveformDecode } from "../services/waveformAnalysis";
 import { generateWaveformSidecar, readWaveformSidecar } from "../services/waveformSidecar";
+
+/** Pause dwell before generating a missing sidecar. Opening the player lands paused
+ *  and most listeners tap play within a beat; a play press preempts an in-flight
+ *  decode (cancelActiveWaveformDecode), but skipping the decode's startup cost —
+ *  and covering builds whose native module predates the cancel hook — is cheaper
+ *  still. Short: the thumbnail bridges the wait. */
+const GENERATION_PAUSE_DWELL_MS = 600;
 
 type Args = {
   audioUri?: string | null;
@@ -51,22 +59,41 @@ export function useClipWaveform({
   }, [audioUri, enabled]);
 
   // Expensive: generate a missing sidecar off the critical path — deferred until
-  // interactions settle AND playback is idle, so the native decode never fights the
-  // player for the codec. `detail` already set (cached or freshly generated) → skip.
+  // interactions settle, a short pause dwell elapses, AND playback is idle, so the
+  // native decode never fights the player for the codec. `detail` already set
+  // (cached or freshly generated) → skip.
   useEffect(() => {
     if (!enabled || !audioUri || deferGeneration || detail) return;
 
     let cancelled = false;
+    let decodeInFlight = false;
+    let dwellTimer: ReturnType<typeof setTimeout> | null = null;
     const interaction = InteractionManager.runAfterInteractions(() => {
-      void (async () => {
-        const peaks = await generateWaveformSidecar(audioUri, durationMs);
-        if (!cancelled && peaks && peaks.length) setDetail(peaks);
-      })();
+      dwellTimer = setTimeout(() => {
+        if (cancelled) return;
+        decodeInFlight = true;
+        void (async () => {
+          const peaks = await generateWaveformSidecar(audioUri, durationMs);
+          // Clear BEFORE setDetail: success re-runs this effect (detail is a dep),
+          // and the outgoing cleanup must not globally cancel other surfaces' work
+          // over a decode that already finished.
+          decodeInFlight = false;
+          if (!cancelled && peaks && peaks.length) setDetail(peaks);
+        })();
+      }, GENERATION_PAUSE_DWELL_MS);
     });
 
     return () => {
       cancelled = true;
       interaction?.cancel?.();
+      if (dwellTimer) clearTimeout(dwellTimer);
+      if (decodeInFlight) {
+        // Playback starting (deferGeneration flip) or leaving the surface: the decode
+        // this effect launched is still inside the native decoder — abort it so it
+        // can't starve the player. It returns empty, persists nothing, and this effect
+        // regenerates it on the next idle pass.
+        cancelActiveWaveformDecode();
+      }
     };
   }, [audioUri, durationMs, enabled, deferGeneration, detail]);
 
