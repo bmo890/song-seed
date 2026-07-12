@@ -94,7 +94,7 @@ const listStyles = StyleSheet.create({
   createIcon: {
     width: 34,
     height: 34,
-    borderRadius: 17,
+    borderRadius: radii.round,
     backgroundColor: colors.primary,
     alignItems: "center",
     justifyContent: "center",

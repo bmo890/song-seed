@@ -1,5 +1,5 @@
 import { StyleSheet } from "react-native";
-import { colors } from "../../design/tokens";
+import { colors, radii } from "../../design/tokens";
 
 export const styles = StyleSheet.create({
   screen: {
@@ -191,7 +191,7 @@ export const styles = StyleSheet.create({
     right: 24,
     width: 52,
     height: 52,
-    borderRadius: 26,
+    borderRadius: radii.round,
     backgroundColor: "#B87D6B",
     alignItems: "center",
     justifyContent: "center",

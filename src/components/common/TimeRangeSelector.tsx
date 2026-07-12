@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { View, StyleSheet, LayoutChangeEvent } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { haptic } from "../../design/haptics";
+import { radii } from "../../design/tokens";
 import Animated, {
     useSharedValue,
     useAnimatedStyle,
@@ -390,7 +391,7 @@ function TimeRegionNode({
                             left: 0,
                             justifyContent: "center",
                             alignItems: "center",
-                            borderRadius: 18,
+                            borderRadius: radii.xl,
                         },
                         trackStyle,
                     ]}

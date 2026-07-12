@@ -1,5 +1,5 @@
 import { StyleSheet } from "react-native";
-import { spacing, text as textTokens } from "../../design/tokens";
+import { spacing, text as textTokens, radii } from "../../design/tokens";
 import { styles as base } from "../../styles";
 
 // Design system palette
@@ -45,13 +45,13 @@ export const styles = {
       position: "absolute",
       width: 100,
       height: 100,
-      borderRadius: 50,
+      borderRadius: radii.round,
       backgroundColor: "rgba(130, 79, 63, 0.18)",
     },
     pulseCore: {
       width: 72,
       height: 72,
-      borderRadius: 36,
+      borderRadius: radii.round,
       alignItems: "center",
       justifyContent: "center",
       backgroundColor: SURFACE_LO,

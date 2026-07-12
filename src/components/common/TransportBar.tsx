@@ -201,7 +201,7 @@ const styles = StyleSheet.create({
   sideButton: {
     width: 44,
     height: 44,
-    borderRadius: 22,
+    borderRadius: radii.round,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -214,7 +214,7 @@ const styles = StyleSheet.create({
   playButton: {
     width: 56,
     height: 56,
-    borderRadius: 28,
+    borderRadius: radii.round,
     backgroundColor: "#824f3f",
     alignItems: "center",
     justifyContent: "center",
@@ -255,7 +255,7 @@ const styles = StyleSheet.create({
   trailingButton: {
     width: 36,
     height: 36,
-    borderRadius: 18,
+    borderRadius: radii.round,
     backgroundColor: colors.surfaceContainer,
     alignItems: "center",
     justifyContent: "center",
@@ -263,7 +263,7 @@ const styles = StyleSheet.create({
   trailingButtonCompact: {
     width: 28,
     height: 28,
-    borderRadius: 14,
+    borderRadius: radii.round,
     backgroundColor: "#EAE5DF",
     alignItems: "center",
     justifyContent: "center",

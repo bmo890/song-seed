@@ -2,6 +2,7 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 
 import { Ionicons } from "@expo/vector-icons";
 import { WarmModal } from "../common/WarmModal";
 import { genIdea } from "../../utils";
+import { radii } from "../../design/tokens";
 
 type Props = {
     visible: boolean;
@@ -221,7 +222,7 @@ const qStyles = StyleSheet.create({
         borderWidth: 1,
         borderColor: "rgba(215,194,189,0.6)",
         backgroundColor: "#FFFFFF",
-        borderRadius: 10,
+        borderRadius: radii.lg,
         paddingLeft: 14,
         paddingRight: 72,
         paddingVertical: 10,
@@ -249,7 +250,7 @@ const qStyles = StyleSheet.create({
     inputIconBtn: {
         width: 26,
         height: 26,
-        borderRadius: 13,
+        borderRadius: radii.round,
         backgroundColor: "#F4F1ED",
         alignItems: "center",
         justifyContent: "center",
@@ -262,7 +263,7 @@ const qStyles = StyleSheet.create({
     },
     suggestChip: {
         backgroundColor: "#F4F1ED",
-        borderRadius: 14,
+        borderRadius: radii.xl,
         paddingHorizontal: 12,
         paddingVertical: 7,
     },
@@ -294,7 +295,7 @@ const qStyles = StyleSheet.create({
         borderWidth: 1,
         borderColor: "rgba(215,194,189,0.6)",
         backgroundColor: "#FFFFFF",
-        borderRadius: 10,
+        borderRadius: radii.lg,
         paddingHorizontal: 13,
         paddingVertical: 11,
     },
@@ -332,7 +333,7 @@ const qStyles = StyleSheet.create({
     cancelBtn: {
         height: 42,
         paddingHorizontal: 18,
-        borderRadius: 10,
+        borderRadius: radii.lg,
         borderWidth: 1,
         borderColor: "rgba(215,194,189,0.6)",
         alignItems: "center",
@@ -347,7 +348,7 @@ const qStyles = StyleSheet.create({
         height: 42,
         minWidth: 92,
         paddingHorizontal: 20,
-        borderRadius: 10,
+        borderRadius: radii.lg,
         backgroundColor: "#B87D6B",
         alignItems: "center",
         justifyContent: "center",

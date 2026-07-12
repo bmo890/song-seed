@@ -2,6 +2,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Collection } from "../../../types";
 import { styles } from "../../../styles";
+import { radii } from "../../../design/tokens";
 
 type IdeaListNestedCollectionsSectionProps = {
   childCollections: Collection[];
@@ -89,7 +90,7 @@ const nestedCollectionStyles = StyleSheet.create({
   },
   toggleRow: {
     minHeight: 42,
-    borderRadius: 10,
+    borderRadius: radii.lg,
     borderWidth: 1,
     borderColor: "rgba(215,194,189,0.3)",
     backgroundColor: "#FDFBF7",

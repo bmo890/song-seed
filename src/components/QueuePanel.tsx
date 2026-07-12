@@ -341,7 +341,7 @@ const panelStyles = StyleSheet.create({
   goToBtn: {
     width: 26,
     height: 26,
-    borderRadius: 13,
+    borderRadius: radii.round,
     alignItems: "center",
     justifyContent: "center",
   },

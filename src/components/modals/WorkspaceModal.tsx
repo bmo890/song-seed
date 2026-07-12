@@ -6,6 +6,7 @@ import { WorkspaceAvatar } from "../common/WorkspaceAvatar";
 import { WarmModal } from "../common/WarmModal";
 import { HueSlider } from "../common/HueSlider";
 import { hueToAccentHex, hexToHue, DEFAULT_WORKSPACE_COLOR } from "../../workspaceTheme";
+import { radii } from "../../design/tokens";
 
 type Props = {
   visible: boolean;
@@ -207,7 +208,7 @@ const wsStyles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(215,194,189,0.6)",
     backgroundColor: "#FFFFFF",
-    borderRadius: 10,
+    borderRadius: radii.lg,
     paddingLeft: 14,
     paddingRight: 72,
     paddingVertical: 10,
@@ -228,7 +229,7 @@ const wsStyles = StyleSheet.create({
   inputIconBtn: {
     width: 26,
     height: 26,
-    borderRadius: 13,
+    borderRadius: radii.round,
     backgroundColor: "#F4F1ED",
     alignItems: "center",
     justifyContent: "center",
@@ -251,7 +252,7 @@ const wsStyles = StyleSheet.create({
   cancelBtn: {
     height: 42,
     paddingHorizontal: 18,
-    borderRadius: 10,
+    borderRadius: radii.lg,
     borderWidth: 1,
     borderColor: "rgba(215,194,189,0.6)",
     alignItems: "center",
@@ -265,7 +266,7 @@ const wsStyles = StyleSheet.create({
   saveBtn: {
     height: 42,
     paddingHorizontal: 20,
-    borderRadius: 10,
+    borderRadius: radii.lg,
     backgroundColor: "#B87D6B",
     alignItems: "center",
     justifyContent: "center",

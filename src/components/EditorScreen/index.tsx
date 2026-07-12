@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { colors } from "../../design/tokens";
+import { colors, radii } from "../../design/tokens";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { View, Text, ActivityIndicator, TouchableOpacity, Pressable, StyleSheet } from "react-native";
 import { StackActions, useIsFocused, useNavigation, useRoute } from "@react-navigation/native";
@@ -79,7 +79,7 @@ const editorLocalStyles = StyleSheet.create({
     overdubGateIconRing: {
         width: 56,
         height: 56,
-        borderRadius: 28,
+        borderRadius: radii.round,
         alignItems: "center",
         justifyContent: "center",
         backgroundColor: "#FDF5F2",

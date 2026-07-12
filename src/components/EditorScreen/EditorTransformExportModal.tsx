@@ -1,5 +1,5 @@
 import React from "react";
-import { colors } from "../../design/tokens";
+import { colors, radii } from "../../design/tokens";
 import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { Button } from "../common/Button";
@@ -115,7 +115,7 @@ const transformModalStyles = StyleSheet.create({
   summaryCard: {
     borderWidth: 1,
     borderColor: colors.borderSubtle,
-    borderRadius: 14,
+    borderRadius: radii.xl,
     backgroundColor: colors.surface,
     padding: 14,
     gap: 10,

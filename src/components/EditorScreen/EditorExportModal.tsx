@@ -1,5 +1,5 @@
 import React from "react";
-import { colors } from "../../design/tokens";
+import { colors, radii } from "../../design/tokens";
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Feather, Ionicons } from "@expo/vector-icons";
 import { Button } from "../common/Button";
@@ -229,7 +229,7 @@ const exportModalStyles = StyleSheet.create({
     flex: 1,
     borderWidth: 1,
     borderColor: colors.borderSubtle,
-    borderRadius: 10,
+    borderRadius: radii.lg,
     paddingVertical: 10,
     alignItems: "center",
     backgroundColor: colors.surface,
@@ -255,7 +255,7 @@ const exportModalStyles = StyleSheet.create({
   extractCard: {
     borderWidth: 1,
     borderColor: colors.borderSubtle,
-    borderRadius: 14,
+    borderRadius: radii.xl,
     padding: 14,
     backgroundColor: colors.surface,
   },

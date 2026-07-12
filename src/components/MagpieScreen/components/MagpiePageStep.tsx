@@ -434,7 +434,7 @@ const styles = StyleSheet.create({
   page: {
     flex: 1,
     backgroundColor: PAGE_BG,
-    borderRadius: 14,
+    borderRadius: radii.xl,
     paddingTop: spacing.md,
     marginTop: spacing.sm,
     ...shadows.card,

@@ -26,6 +26,7 @@ import { useWorkspaceCollectionImportFlow } from "../hooks/useWorkspaceCollectio
 import { WorkspaceCollectionList } from "./WorkspaceCollectionList";
 import { WorkspaceAvatar } from "../../common/WorkspaceAvatar";
 import { styles } from "../../../styles";
+import { radii } from "../../../design/tokens";
 
 const DEFAULT_HEADER_HEIGHT = 220;
 
@@ -452,7 +453,7 @@ const browseStyles = StyleSheet.create({
     right: 24,
     width: 52,
     height: 52,
-    borderRadius: 26,
+    borderRadius: radii.round,
     backgroundColor: "#B87D6B",
     alignItems: "center",
     justifyContent: "center",

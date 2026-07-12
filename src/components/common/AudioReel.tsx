@@ -8,6 +8,7 @@ import { PlaybackTapeVisualizer } from "../visualizers/PlaybackTapeVisualizer";
 import { MinimapVisualizer } from "../visualizers/MinimapVisualizer";
 import type { SectionBand } from "../../playerSections";
 import { fmt } from "../../utils";
+import { radii } from "../../design/tokens";
 
 const TIMELINE_HORIZONTAL_PADDING = 20;
 const AnimatedView = Reanimated.createAnimatedComponent(View);
@@ -698,7 +699,7 @@ const audioReelStyles = StyleSheet.create({
         right: 5,
         width: 32,
         height: 32,
-        borderRadius: 16,
+        borderRadius: radii.round,
         justifyContent: "center",
         alignItems: "center",
         zIndex: 50,
@@ -800,7 +801,7 @@ const audioReelStyles = StyleSheet.create({
     zoomButton: {
         width: 32,
         height: 32,
-        borderRadius: 16,
+        borderRadius: radii.round,
         justifyContent: "center",
         alignItems: "center",
         borderWidth: 1,
@@ -808,7 +809,7 @@ const audioReelStyles = StyleSheet.create({
     zoomButtonCompact: {
         width: 28,
         height: 28,
-        borderRadius: 14,
+        borderRadius: radii.round,
     },
     zoomReadout: {
         flexDirection: "row",
@@ -851,7 +852,7 @@ const audioReelStyles = StyleSheet.create({
     },
     transportButton: {
         padding: 12,
-        borderRadius: 24,
+        borderRadius: radii.round,
         justifyContent: "center",
         alignItems: "center",
         borderWidth: 1,
@@ -863,13 +864,13 @@ const audioReelStyles = StyleSheet.create({
     playButton: {
         height: 48,
         width: 80,
-        borderRadius: 24,
+        borderRadius: radii.round,
         justifyContent: "center",
         alignItems: "center",
     },
     playButtonCompact: {
         height: 42,
         width: 68,
-        borderRadius: 21,
+        borderRadius: radii.round,
     },
 });

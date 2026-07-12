@@ -178,7 +178,7 @@ export const playerScreenStyles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingTop: 12,
     paddingBottom: 10,
-    borderRadius: 18,
+    borderRadius: radii.xl,
     borderWidth: 1,
     borderColor: "#e3e6eb",
     backgroundColor: "rgba(246,247,249,0.98)",
@@ -237,7 +237,7 @@ export const playerScreenStyles = StyleSheet.create({
   layerPlayButton: {
     width: 34,
     height: 34,
-    borderRadius: 17,
+    borderRadius: radii.round,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "#efeeea",
@@ -340,7 +340,7 @@ export const playerScreenStyles = StyleSheet.create({
   layerControlButton: {
     paddingHorizontal: 9,
     paddingVertical: 6,
-    borderRadius: 10,
+    borderRadius: radii.lg,
     backgroundColor: "#efeeea",
   },
   layerControlButtonActive: {
@@ -407,7 +407,7 @@ export const playerScreenStyles = StyleSheet.create({
   loopActionButton: {
     width: 36,
     height: 36,
-    borderRadius: 18,
+    borderRadius: radii.round,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "#eceef2",
@@ -437,7 +437,7 @@ export const playerScreenStyles = StyleSheet.create({
     height: 36,
     minWidth: 132,
     paddingHorizontal: 10,
-    borderRadius: 18,
+    borderRadius: radii.round,
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
@@ -459,7 +459,7 @@ export const playerScreenStyles = StyleSheet.create({
   toggleShell: {
     width: 52,
     height: 36,
-    borderRadius: 18,
+    borderRadius: radii.round,
     backgroundColor: "#e5e7eb",
     padding: 3,
     justifyContent: "center",
@@ -536,7 +536,7 @@ export const playerScreenStyles = StyleSheet.create({
   pitchStepButton: {
     width: 34,
     height: 34,
-    borderRadius: 17,
+    borderRadius: radii.round,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "#eceef2",
@@ -1393,7 +1393,7 @@ export const playerScreenStyles = StyleSheet.create({
   switchKnob: {
     width: 22,
     height: 22,
-    borderRadius: 11,
+    borderRadius: radii.round,
     backgroundColor: colors.surface,
     ...shadows.control,
   },
@@ -1524,7 +1524,7 @@ export const playerScreenStyles = StyleSheet.create({
   pinSheetInput: {
     paddingHorizontal: 14,
     paddingVertical: 12,
-    borderRadius: 10,
+    borderRadius: radii.lg,
     backgroundColor: "#f3f4f6",
     fontSize: 15,
     color: "#111827",
@@ -1539,7 +1539,7 @@ export const playerScreenStyles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 16,
     paddingVertical: 13,
-    borderRadius: 10,
+    borderRadius: radii.lg,
     alignItems: "center",
     backgroundColor: "#ca8a04",
   },

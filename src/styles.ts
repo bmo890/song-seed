@@ -311,7 +311,7 @@ export const styles = StyleSheet.create({
   ideasUtilityLeadIndicator: {
     width: 26,
     height: 26,
-    borderRadius: 13,
+    borderRadius: radii.round,
     borderWidth: 1,
     borderColor: "rgba(215,194,189,0.5)",
     backgroundColor: "#FDFBF7",
@@ -413,7 +413,7 @@ export const styles = StyleSheet.create({
     justifyContent: "center",
   },
   ideasSortMenu: {
-    borderRadius: 16,
+    borderRadius: radii.xl,
     borderWidth: 1,
     borderColor: "rgba(180,150,140,0.45)",
     backgroundColor: "#FDFBF7",
@@ -468,7 +468,7 @@ export const styles = StyleSheet.create({
     },
   ideasDropdownSectionToggle: {
     minHeight: 34,
-    borderRadius: 10,
+    borderRadius: radii.lg,
     paddingHorizontal: 8,
     paddingVertical: 6,
     flexDirection: "row",
@@ -866,7 +866,7 @@ export const styles = StyleSheet.create({
   },
   songDetailMetaTab: {
     minHeight: 28,
-    borderRadius: 14,
+    borderRadius: radii.xl,
     paddingHorizontal: 10,
     paddingVertical: 4,
     backgroundColor: "#F4F1ED",
@@ -1753,7 +1753,7 @@ export const styles = StyleSheet.create({
   songDetailPrimaryStripPlay: {
     width: 30,
     height: 30,
-    borderRadius: 15,
+    borderRadius: radii.round,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "#824f3f",
@@ -1778,7 +1778,7 @@ export const styles = StyleSheet.create({
   songDetailPrimaryStripLocate: {
     width: 34,
     height: 34,
-    borderRadius: 17,
+    borderRadius: radii.round,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -1863,7 +1863,7 @@ export const styles = StyleSheet.create({
     gap: 0,
   },
   songDetailVersionCardCompact: {
-    borderRadius: 10,
+    borderRadius: radii.lg,
     paddingVertical: 5,
     paddingHorizontal: 9,
   },
@@ -2841,7 +2841,7 @@ export const styles = StyleSheet.create({
   workspaceBrowseChildChevron: {
     width: 26,
     height: 26,
-    borderRadius: 13,
+    borderRadius: radii.round,
     borderWidth: 1,
     borderColor: "#D7C2BD",
     backgroundColor: "#ffffff",
@@ -2881,7 +2881,7 @@ export const styles = StyleSheet.create({
   activityRangeBanner: {
     marginBottom: 10,
     minHeight: 36,
-    borderRadius: 18,
+    borderRadius: radii.xl,
     borderWidth: 1,
     borderColor: "#E8E4DF",
     backgroundColor: "#ffffff",
@@ -2922,7 +2922,7 @@ export const styles = StyleSheet.create({
   },
   activityWorkspaceFilterTrigger: {
     minHeight: 36,
-    borderRadius: 18,
+    borderRadius: radii.xl,
     borderWidth: 1,
     borderColor: "#E8E4DF",
     backgroundColor: "#ffffff",
@@ -2942,7 +2942,7 @@ export const styles = StyleSheet.create({
     marginTop: 8,
     borderWidth: 1,
     borderColor: "#E8E4DF",
-    borderRadius: 14,
+    borderRadius: radii.xl,
     backgroundColor: "#ffffff",
     overflow: "hidden",
     shadowColor: "#1b1c1a",
@@ -3014,7 +3014,7 @@ export const styles = StyleSheet.create({
   },
   activitySegmentBtn: {
     minHeight: 34,
-    borderRadius: 17,
+    borderRadius: radii.xl,
     borderWidth: 1,
     borderColor: "#E8E4DF",
     backgroundColor: "#ffffff",
@@ -3178,7 +3178,7 @@ export const styles = StyleSheet.create({
   activityMonthSummaryCard: {
     borderWidth: 1,
     borderColor: "#E8E4DF",
-    borderRadius: 14,
+    borderRadius: radii.xl,
     backgroundColor: "#ffffff",
     paddingHorizontal: 12,
     paddingVertical: 10,
@@ -3567,7 +3567,7 @@ export const styles = StyleSheet.create({
   },
   transportFooterCard: {
     backgroundColor: "#fff",
-    borderRadius: 16,
+    borderRadius: radii.xl,
     borderWidth: 1,
     borderColor: "#E8E4DF",
     padding: 14,
@@ -4063,7 +4063,7 @@ export const styles = StyleSheet.create({
     marginBottom: 2,
   },
   libraryPlaylistItemRow: {
-    borderRadius: 18,
+    borderRadius: radii.xl,
     borderWidth: 1,
     borderColor: "#E8E4DF",
     backgroundColor: "#ffffff",
@@ -4136,7 +4136,7 @@ export const styles = StyleSheet.create({
   },
   libraryPickerItemRow: {
     minHeight: 58,
-    borderRadius: 16,
+    borderRadius: radii.xl,
     borderWidth: 1,
     borderColor: "#E8E4DF",
     backgroundColor: "#ffffff",
@@ -4411,7 +4411,7 @@ export const styles = StyleSheet.create({
   },
   ideasNowPlayingCard: {
     minHeight: 56,
-    borderRadius: 14,
+    borderRadius: radii.xl,
     borderWidth: 1,
     borderColor: "#E8E4DF",
     backgroundColor: "#ffffff",
@@ -4528,7 +4528,7 @@ export const styles = StyleSheet.create({
   },
   globalInlineDockCard: {
     minHeight: 58,
-    borderRadius: 14,
+    borderRadius: radii.xl,
     borderWidth: 1,
     borderColor: "#E8E4DF",
     backgroundColor: "#ffffff",
@@ -4672,7 +4672,7 @@ export const styles = StyleSheet.create({
   miniMediaDockHeaderBtn: {
     width: 28,
     height: 28,
-    borderRadius: 14,
+    borderRadius: radii.round,
     backgroundColor: "rgba(253,251,247,0.15)",
     alignItems: "center",
     justifyContent: "center",
@@ -4892,7 +4892,7 @@ export const styles = StyleSheet.create({
     marginTop: 4,
     marginBottom: 8,
     padding: 10,
-    borderRadius: 10,
+    borderRadius: radii.lg,
     borderWidth: 1,
     borderColor: "#E8E4DF",
     backgroundColor: "#fff",
@@ -5095,7 +5095,7 @@ export const styles = StyleSheet.create({
     left: 16,
     right: 16,
     bottom: 16,
-    borderRadius: 24,
+    borderRadius: radii.xl,
     borderWidth: 1,
     borderColor: "#E8E4DF",
     backgroundColor: "#ffffff",
@@ -5203,7 +5203,7 @@ export const styles = StyleSheet.create({
   cardHighlightOverlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: "#dcfce7",
-    borderRadius: 16,
+    borderRadius: radii.xl,
   },
   clipRowWrap: {
     flexDirection: "row",
@@ -5258,7 +5258,7 @@ export const styles = StyleSheet.create({
     minHeight: 60,
   },
   ideasListCardCompact: {
-    borderRadius: 10,
+    borderRadius: radii.lg,
     paddingVertical: 5,
     paddingHorizontal: 9,
     minHeight: 0,
@@ -5338,7 +5338,7 @@ export const styles = StyleSheet.create({
     zIndex: 2,
     width: 20,
     height: 20,
-    borderRadius: 10,
+    borderRadius: radii.round,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "rgba(255,255,255,0.9)",
@@ -5771,7 +5771,7 @@ export const styles = StyleSheet.create({
     borderStyle: "dashed",
     borderColor: "#16a34a",
     borderWidth: 1,
-    borderRadius: 22,
+    borderRadius: radii.round,
     backgroundColor: "#f5fff7",
     paddingVertical: 8,
     paddingHorizontal: 12,
@@ -5791,7 +5791,7 @@ export const styles = StyleSheet.create({
   primaryPickStarWrap: {
     width: 22,
     height: 22,
-    borderRadius: 11,
+    borderRadius: radii.round,
     borderWidth: 1,
     borderColor: "#1b1c1a",
     alignItems: "center",
@@ -5837,7 +5837,7 @@ export const styles = StyleSheet.create({
   inlinePlayerWrap: {
     borderWidth: 1,
     borderColor: "#E8E4DF",
-    borderRadius: 10,
+    borderRadius: radii.lg,
     paddingHorizontal: 8,
     paddingTop: 6,
     paddingBottom: 2,
@@ -5912,7 +5912,7 @@ export const styles = StyleSheet.create({
   },
   collectionActionsOption: {
     minHeight: 44,
-    borderRadius: 14,
+    borderRadius: radii.xl,
     borderWidth: 1,
     borderColor: "#E8E4DF",
     backgroundColor: "#ffffff",

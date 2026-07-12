@@ -7,6 +7,7 @@ import { haptic } from "../../design/haptics";
 import { AudioAnalysis } from "@siteed/audio-studio";
 import { LiveTapeVisualizer } from "../visualizers/LiveTapeVisualizer";
 import { MetronomeIcon } from "../common/MetronomeIcon";
+import { radii } from "../../design/tokens";
 
 type Props = {
     ideaTitle: string;
@@ -260,7 +261,7 @@ const metaStyles = StyleSheet.create({
     metroChipOff: {
         width: 30,
         height: 30,
-        borderRadius: 15,
+        borderRadius: radii.round,
         alignItems: "center",
         justifyContent: "center",
         backgroundColor: "#F4F1ED",
@@ -288,7 +289,7 @@ const metaStyles = StyleSheet.create({
     metroCustomizeBtn: {
         width: 26,
         height: 26,
-        borderRadius: 13,
+        borderRadius: radii.round,
         alignItems: "center",
         justifyContent: "center",
         backgroundColor: "#F4F1ED",

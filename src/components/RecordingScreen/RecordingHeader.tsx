@@ -1,7 +1,7 @@
 import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { colors } from "../../design/tokens";
+import { colors, radii } from "../../design/tokens";
 
 type RecordingHeaderProps = {
   eyebrow: string | null;
@@ -118,7 +118,7 @@ const localStyles = StyleSheet.create({
   actionBtn: {
     width: 34,
     height: 34,
-    borderRadius: 17,
+    borderRadius: radii.round,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: colors.surfaceContainer,

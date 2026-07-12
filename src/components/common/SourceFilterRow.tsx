@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, Switch, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { styles as baseStyles } from "../../styles";
 import { WorkspaceAvatar } from "./WorkspaceAvatar";
+import { radii } from "../../design/tokens";
 
 /** A workspace or collection the user can include/exclude from a feed's sources.
  * Shared by Revisit and Activity so the two pages read as the same control. */
@@ -140,7 +141,7 @@ export function SourceFilterRow({
 const styles = StyleSheet.create({
   row: {
     backgroundColor: "#F8F4EE",
-    borderRadius: 14,
+    borderRadius: radii.xl,
     paddingVertical: 12,
     paddingHorizontal: 14,
     gap: 10,

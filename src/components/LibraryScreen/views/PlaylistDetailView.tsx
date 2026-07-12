@@ -320,7 +320,7 @@ const detailStyles = StyleSheet.create({
   playBtn: {
     width: 52,
     height: 52,
-    borderRadius: 26,
+    borderRadius: radii.round,
     backgroundColor: colors.primary,
     alignItems: "center",
     justifyContent: "center",
@@ -334,7 +334,7 @@ const detailStyles = StyleSheet.create({
   quietBtn: {
     width: 38,
     height: 38,
-    borderRadius: 19,
+    borderRadius: radii.round,
     backgroundColor: colors.surfaceContainer,
     alignItems: "center",
     justifyContent: "center",

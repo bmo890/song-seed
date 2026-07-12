@@ -709,7 +709,7 @@ const chipStyles = StyleSheet.create({
   headerIconButton: {
     width: 34,
     height: 34,
-    borderRadius: 17,
+    borderRadius: radii.round,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: colors.surfaceContainer,

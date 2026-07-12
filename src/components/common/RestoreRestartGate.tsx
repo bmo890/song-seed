@@ -136,7 +136,7 @@ const styles = StyleSheet.create({
         height: 48,
         alignItems: "center",
         justifyContent: "center",
-        borderRadius: 24,
+        borderRadius: radii.round,
         backgroundColor: colors.surfaceContainer,
     },
     title: {

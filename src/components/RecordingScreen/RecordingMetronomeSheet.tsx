@@ -4,6 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 import Slider from "@react-native-community/slider";
 import { BottomSheet } from "../common/BottomSheet";
 import { haptic } from "../../design/haptics";
+import { radii } from "../../design/tokens";
 import {
   MAX_METRONOME_BPM,
   MAX_METRONOME_LEVEL,
@@ -415,7 +416,7 @@ const s = StyleSheet.create({
   step: {
     width: 26,
     height: 26,
-    borderRadius: 13,
+    borderRadius: radii.round,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "#F4F1ED",
@@ -463,7 +464,7 @@ const s = StyleSheet.create({
   iconTile: {
     width: 34,
     height: 34,
-    borderRadius: 10,
+    borderRadius: radii.lg,
     backgroundColor: "#F2E4DF",
     alignItems: "center",
     justifyContent: "center",
@@ -510,7 +511,7 @@ const s = StyleSheet.create({
   segmentGroup: {
     flexDirection: "row",
     backgroundColor: "#F4F1ED",
-    borderRadius: 10,
+    borderRadius: radii.lg,
     padding: 3,
     gap: 3,
     marginBottom: 6,
@@ -562,7 +563,7 @@ const s = StyleSheet.create({
   cue: {
     flex: 1,
     paddingVertical: 14,
-    borderRadius: 14,
+    borderRadius: radii.xl,
     backgroundColor: "#F4F1ED",
     alignItems: "center",
     justifyContent: "center",

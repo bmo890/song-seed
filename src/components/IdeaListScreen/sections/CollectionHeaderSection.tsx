@@ -11,6 +11,7 @@ import { styles } from "../../../styles";
 import { useCollectionScreen } from "../provider/CollectionScreenProvider";
 import { appActions } from "../../../state/actions";
 import { useStore } from "../../../state/useStore";
+import { radii } from "../../../design/tokens";
 
 function formatLastEdited(ts: number): string {
   const days = Math.floor((Date.now() - ts) / 86400000);
@@ -256,7 +257,7 @@ const collStyles = StyleSheet.create({
   returnChipClose: {
     width: 20,
     height: 20,
-    borderRadius: 10,
+    borderRadius: radii.round,
     alignItems: "center",
     justifyContent: "center",
   },

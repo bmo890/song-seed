@@ -9,7 +9,7 @@ import { WarmModal } from "../../common/WarmModal";
 import { HueSlider } from "../../common/HueSlider";
 import { playerScreenStyles } from "../styles";
 import { fmtDuration } from "../../../utils";
-import { colors } from "../../../design/tokens";
+import { colors, radii } from "../../../design/tokens";
 import { computeWorkspaceTheme, hexToHue, hueToAccentHex } from "../../../workspaceTheme";
 import {
   formatClipOverdubStemOffsetLabel,
@@ -463,7 +463,7 @@ const cardStyles = StyleSheet.create({
   menuButton: {
     width: 30,
     height: 30,
-    borderRadius: 15,
+    borderRadius: radii.round,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -579,7 +579,7 @@ const cardStyles = StyleSheet.create({
   colorPreviewSwatch: {
     width: 28,
     height: 28,
-    borderRadius: 14,
+    borderRadius: radii.round,
   },
   editNameInput: {
     flex: 1,

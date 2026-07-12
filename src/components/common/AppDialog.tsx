@@ -5,6 +5,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { haptic } from "../../design/haptics";
 import { popIn } from "../../design/motion";
 import { dialogStore, type DialogButton, type DialogConfig } from "./dialogStore";
+import { radii } from "../../design/tokens";
 
 /**
  * Styled in-app dialog that replaces native Alert.alert.
@@ -148,7 +149,7 @@ const s = StyleSheet.create({
   card: {
     width: "100%",
     backgroundColor: "#FDFBF7",
-    borderRadius: 14,
+    borderRadius: radii.xl,
     overflow: "hidden",
     shadowColor: "#3D3732",
     shadowOpacity: 0.1,
@@ -226,7 +227,7 @@ const s = StyleSheet.create({
   richIconWrap: {
     width: 38,
     height: 38,
-    borderRadius: 19,
+    borderRadius: radii.round,
     backgroundColor: "#F4F1ED",
     alignItems: "center",
     justifyContent: "center",

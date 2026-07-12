@@ -135,7 +135,7 @@ function SectionHeader({ label, count }: { label: string; count: number }) {
             >
                 {label}
             </Text>
-            <View style={{ backgroundColor: colors.surfaceContainer, borderRadius: 10, paddingHorizontal: 6, paddingVertical: 1 }}>
+            <View style={{ backgroundColor: colors.surfaceContainer, borderRadius: radii.lg, paddingHorizontal: 6, paddingVertical: 1 }}>
                 <Text style={{ fontFamily: "PlusJakartaSans_600SemiBold", fontSize: 11, color: colors.textSecondary }}>
                     {count}
                 </Text>
