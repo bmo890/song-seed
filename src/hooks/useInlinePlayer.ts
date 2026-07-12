@@ -5,6 +5,7 @@ import { ClipVersion, InlineTarget } from "../types";
 import { getClipPlaybackUri } from "../clipPresentation";
 import { activateAndPlay, replacePlaybackSource } from "../services/transportPlayback";
 import { useStore } from "../state/useStore";
+import { appActions } from "../state/actions";
 
 type Args = {
   onBeforePlayNew?: () => Promise<void> | void;
@@ -213,6 +214,35 @@ export function useInlinePlayer({ onBeforePlayNew }: Args = {}) {
   useEffect(() => {
     setStoreInlineTarget(inlineTarget);
   }, [inlineTarget, setStoreInlineTarget]);
+
+  // Bank the duration the engine loaded, back onto the clip — so previewing a
+  // freshly-imported clip (whose stored durationMs is still missing) fills its
+  // "0:00" card instead of discarding the number. Once per target; only when the
+  // source has settled and a real duration is available.
+  const durationWrittenTargetRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!inlineTarget) {
+      durationWrittenTargetRef.current = null;
+      return;
+    }
+    if (sourceSwitchToken !== null || !status.isLoaded || rawInlineDuration <= 0) return;
+    const key = `${inlineTarget.ideaId}:${inlineTarget.clipId}`;
+    if (durationWrittenTargetRef.current === key) return;
+
+    const state = useStore.getState();
+    for (const workspace of state.workspaces) {
+      const idea = workspace.ideas.find((candidate) => candidate.id === inlineTarget.ideaId);
+      const clip = idea?.clips.find((candidate) => candidate.id === inlineTarget.clipId);
+      if (!clip) continue;
+      durationWrittenTargetRef.current = key; // handled — don't rescan this target
+      if (!clip.durationMs || clip.durationMs <= 0) {
+        appActions.hydrateClipAudioMetadata(workspace.id, inlineTarget.ideaId, inlineTarget.clipId, {
+          durationMs: rawInlineDuration,
+        });
+      }
+      break;
+    }
+  }, [inlineTarget, sourceSwitchToken, status.isLoaded, rawInlineDuration]);
 
   useEffect(() => {
     setInlinePlaybackState({

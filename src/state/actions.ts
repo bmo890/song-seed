@@ -20,6 +20,7 @@ import { createLyricsVersion, lyricsTextToDocument } from "../lyrics";
 import { cloneChordSheet } from "../chordSheet";
 import { buildChordDisplay, clampChordIndex, recordChordInPalette, type ChordParts } from "../chords";
 import type { ChordPlacement, ChordSheet, LyricsDocument, LyricsLine, RecordingGrid } from "../types";
+import { applyClipMetadataBatch, type ClipMetadataEntry } from "./clipMetadataBatch";
 import { buildLyricsTextFromNote } from "../notepad";
 import { buildDefaultIdeaTitle, ensureUniqueCountedTitle, ensureUniqueIdeaTitle } from "../utils";
 import { archiveWorkspaceToDevice, restoreWorkspaceFromDevice } from "../services/workspaceArchive";
@@ -944,6 +945,100 @@ export const appActions = {
         return { ideaId, clipId };
     },
 
+    /**
+     * Batch import of individual clips into a collection in ONE store mutation.
+     * Each imported clip used to be added via its own importClipToCollection call —
+     * with a 200-clip import that was ~600 set()s (idea + activity + recently-added
+     * per clip), each re-serializing the whole workspace shard and re-rendering the
+     * list, which storms persist and freezes the UI. This collapses a chunk of imports
+     * to a single idea mutation + one activity write + one recently-added mark.
+     *
+     * Returns {ideaId, clipId} in PAYLOAD order so callers can pair background
+     * hydration by index. Prepends the batch reversed so on-screen order (newest
+     * first) matches the old one-at-a-time behavior for same-timestamp ties.
+     */
+    importClipsToCollection: (
+        collectionId: string,
+        payloads: Array<{
+            title: string;
+            audioUri: string;
+            durationMs?: number;
+            waveformPeaks?: number[];
+            createdAt?: number;
+            importedAt?: number;
+            sourceCreatedAt?: number;
+        }>
+    ): Array<{ ideaId: string; clipId: string }> => {
+        if (payloads.length === 0) return [];
+        const state = useStore.getState();
+        const targetWorkspace = state.workspaces.find((workspace) =>
+            workspace.collections.some((collection) => collection.id === collectionId)
+        );
+        if (!targetWorkspace) {
+            throw new Error("Target collection not found.");
+        }
+
+        const created = payloads.map((payload) => {
+            const ideaId = buildIdeaId();
+            const clipId = buildClipId();
+            const importedAt = payload.importedAt ?? Date.now();
+            const createdAt = payload.createdAt ?? importedAt;
+            const idea: SongIdea = {
+                id: ideaId,
+                title: payload.title,
+                notes: "",
+                status: "clip",
+                completionPct: 0,
+                kind: "clip",
+                collectionId,
+                createdAt,
+                importedAt,
+                sourceCreatedAt: payload.sourceCreatedAt,
+                lastActivityAt: importedAt,
+                clips: [
+                    {
+                        id: clipId,
+                        title: payload.title,
+                        notes: "",
+                        createdAt,
+                        importedAt,
+                        sourceCreatedAt: payload.sourceCreatedAt,
+                        isPrimary: true,
+                        audioUri: payload.audioUri,
+                        durationMs: payload.durationMs,
+                        waveformPeaks: payload.waveformPeaks,
+                    },
+                ],
+            };
+            return { idea, ideaId, clipId };
+        });
+
+        // Reversed so the last-imported clip lands first (matches the old prepend loop).
+        const newIdeasNewestFirst = created.map((entry) => entry.idea).reverse();
+        useStore.setState((store) => ({
+            workspaces: store.workspaces.map((workspace) =>
+                workspace.id === targetWorkspace.id
+                    ? { ...workspace, ideas: [...newIdeasNewestFirst, ...workspace.ideas] }
+                    : workspace
+            ),
+        }));
+        state.logActivityEvents(
+            created.map((entry) => ({
+                at: entry.idea.createdAt,
+                workspaceId: targetWorkspace.id,
+                collectionId,
+                ideaId: entry.ideaId,
+                ideaKind: "clip" as const,
+                ideaTitle: entry.idea.title,
+                clipId: entry.clipId,
+                metric: "created" as const,
+                source: "import" as const,
+            }))
+        );
+        state.markRecentlyAdded(created.map((entry) => entry.ideaId));
+        return created.map((entry) => ({ ideaId: entry.ideaId, clipId: entry.clipId }));
+    },
+
     importProjectToCollection: (
         collectionId: string,
         payload: {
@@ -1116,6 +1211,26 @@ export const appActions = {
                 };
             }),
         }));
+    },
+
+    /**
+     * Batched metadata hydration — apply many clips' duration/peaks in ONE store
+     * mutation. Background hydration used to write per clip (200 full-workspace
+     * re-serializations on a large import); this collapses a flush to one write.
+     *
+     * Reference-identity is load-bearing: planShardedWrite detects dirty shards by
+     * object identity, so a workspace/idea/clip with no entry MUST be returned
+     * unchanged, or every shard would re-serialize and a multi-workspace library
+     * would regress. Entries are indexed into nested maps and only touched objects
+     * are rebuilt.
+     */
+    hydrateClipsAudioMetadata: (entries: ClipMetadataEntry[]) => {
+        useStore.setState((store) => {
+            const next = applyClipMetadataBatch(store.workspaces, entries);
+            // Reference-identity short-circuit: nothing relevant → don't touch the store
+            // (avoids a needless notify + persist).
+            return next === store.workspaces ? {} : { workspaces: next };
+        });
     },
 
     startClipOverdubRecording: async (

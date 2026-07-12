@@ -12,6 +12,7 @@ import {
   type ImportedAudioAsset,
 } from "../../../services/audioStorage";
 import { enqueueBackgroundWaveformHydration } from "../../../services/backgroundWaveformHydration";
+import { createClipImportBatcher } from "../../../services/clipImportBatcher";
 import { useImportStore } from "../../../state/useImportStore";
 import {
   getAllClips,
@@ -158,6 +159,12 @@ export function useShareImportScreenModel({
       const nextTitles: string[] = [];
 
       void (async () => {
+        // Declared outside the try so the catch can flush any buffered chunk. Unused by
+        // the single-file early-return branch below (flush on an empty buffer is a no-op).
+        const clipBatcher = createClipImportBatcher({
+          collectionId: destination.collectionId,
+          workspaceId: destination.workspaceId,
+        });
         try {
           const importedAt = Date.now();
 
@@ -227,27 +234,19 @@ export function useShareImportScreenModel({
                         nextTitles
                       );
                       nextTitles.push(title);
-                      const importedResult = appActions.importClipToCollection(
-                        destination.collectionId,
-                        {
-                          title,
-                          audioUri: asset.audioUri,
-                          durationMs: asset.durationMs,
-                          waveformPeaks: asset.waveformPeaks,
-                          createdAt: importedDate!.createdAt,
-                          importedAt: importedDate!.importedAt,
-                          sourceCreatedAt: importedDate!.sourceCreatedAt,
-                        }
-                      );
-                      enqueueBackgroundWaveformHydration({
-                        workspaceId: destination.workspaceId,
-                        ideaId: importedResult.ideaId,
-                        clipId: importedResult.clipId,
+                      clipBatcher.add({
+                        title,
                         audioUri: asset.audioUri,
+                        durationMs: asset.durationMs,
+                        waveformPeaks: asset.waveformPeaks,
+                        createdAt: importedDate!.createdAt,
+                        importedAt: importedDate!.importedAt,
+                        sourceCreatedAt: importedDate!.sourceCreatedAt,
                       });
                     },
             }
           );
+          clipBatcher.flush();
 
           if (imported.length === 0) {
             useImportStore.getState().updateJob(jobId, { status: "error" });
@@ -306,6 +305,7 @@ export function useShareImportScreenModel({
           });
         } catch (error) {
           console.warn("Share import error", error);
+          clipBatcher.flush();
           useImportStore.getState().updateJob(jobId, { status: "error" });
         } finally {
           setTimeout(() => useImportStore.getState().removeJob(jobId), 2500);
@@ -414,6 +414,7 @@ export function useShareImportScreenModel({
       const nextTitles: string[] = [];
 
       void (async () => {
+        const batcher = createClipImportBatcher({ collectionId, workspaceId: workspaceSnapshot.id });
         try {
           const importedAt = Date.now();
           const { imported, failed } = await importAudioAssets(
@@ -439,7 +440,7 @@ export function useShareImportScreenModel({
                   nextTitles
                 );
                 nextTitles.push(clipTitle);
-                const importedResult = appActions.importClipToCollection(collectionId, {
+                batcher.add({
                   title: clipTitle,
                   audioUri: asset.audioUri,
                   durationMs: asset.durationMs,
@@ -448,15 +449,10 @@ export function useShareImportScreenModel({
                   importedAt: importedDate!.importedAt,
                   sourceCreatedAt: importedDate!.sourceCreatedAt,
                 });
-                enqueueBackgroundWaveformHydration({
-                  workspaceId: workspaceSnapshot.id,
-                  ideaId: importedResult.ideaId,
-                  clipId: importedResult.clipId,
-                  audioUri: asset.audioUri,
-                });
               },
             }
           );
+          batcher.flush();
 
           if (imported.length === 0) {
             deleteCollection(collectionId);
@@ -471,6 +467,7 @@ export function useShareImportScreenModel({
           });
         } catch (error) {
           console.warn("Share import new collection error", error);
+          batcher.flush();
           deleteCollection(collectionId);
           useImportStore.getState().updateJob(jobId, { status: "error" });
         } finally {

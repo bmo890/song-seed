@@ -10,6 +10,7 @@ import {
 import { useImportStore } from "../../../state/useImportStore";
 import { appActions } from "../../../state/actions";
 import { enqueueBackgroundWaveformHydration } from "../../../services/backgroundWaveformHydration";
+import { createClipImportBatcher } from "../../../services/clipImportBatcher";
 import { ensureUniqueCountedTitle } from "../../../utils";
 import { checkImportDuplicates, getAllClips, showDuplicateReview } from "../../../services/importDuplicates";
 import {
@@ -123,6 +124,9 @@ export function useCollectionImportFlow({
       useImportStore.getState().startJob({ id: jobId, label, total: assets.length });
 
       void (async () => {
+        // Buffer imports and commit in chunks — one store mutation per chunk instead
+        // of one per clip (the persist write-storm on a large import).
+        const batcher = createClipImportBatcher({ collectionId, workspaceId: activeWorkspaceId });
         try {
           const importedAt = Date.now();
           const { imported, failed } = await importAudioAssets(
@@ -137,7 +141,7 @@ export function useCollectionImportFlow({
                 const [importedDate] = buildImportedAssetDateMetadata([asset], datePreference, importedAt);
                 const title = ensureUniqueCountedTitle(buildImportedTitle(asset.name), nextTitles);
                 nextTitles.push(title);
-                const importedResult = appActions.importClipToCollection(collectionId, {
+                batcher.add({
                   title,
                   audioUri: asset.audioUri,
                   durationMs: asset.durationMs,
@@ -146,17 +150,10 @@ export function useCollectionImportFlow({
                   importedAt: importedDate!.importedAt,
                   sourceCreatedAt: importedDate!.sourceCreatedAt,
                 });
-                if (activeWorkspaceId) {
-                  enqueueBackgroundWaveformHydration({
-                    workspaceId: activeWorkspaceId,
-                    ideaId: importedResult.ideaId,
-                    clipId: importedResult.clipId,
-                    audioUri: asset.audioUri,
-                  });
-                }
               },
             }
           );
+          batcher.flush();
 
           useImportStore.getState().updateJob(jobId, {
             current: imported.length,
@@ -164,6 +161,7 @@ export function useCollectionImportFlow({
             status: failed.length === imported.length + failed.length ? "error" : "done",
           });
         } catch (error) {
+          batcher.flush();
           console.warn("Import audio error", error);
           useImportStore.getState().updateJob(jobId, { status: "error" });
         } finally {

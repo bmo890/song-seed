@@ -63,6 +63,33 @@ type JobOutcome =
      *  (no attempt consumed; waiting out music is not a failure). */
     | "busy";
 
+// Buffer hydration writes and flush in batches. Each write re-serializes the whole
+// workspace shard; on a large import that was ~200 individual full-workspace writes on
+// the persist tail. Coalescing to one batched store mutation per ~dozen clips keeps the
+// tail off the persist ceiling. Reference-identity is preserved by hydrateClipsAudioMetadata.
+type HydrationWrite = {
+    workspaceId: string;
+    ideaId: string;
+    clipId: string;
+    durationMs?: number;
+    waveformPeaks?: number[];
+};
+const pendingHydrationWrites: HydrationWrite[] = [];
+const HYDRATION_WRITE_FLUSH_SIZE = 12;
+
+function bufferHydrationWrite(entry: HydrationWrite) {
+    pendingHydrationWrites.push(entry);
+    if (pendingHydrationWrites.length >= HYDRATION_WRITE_FLUSH_SIZE) {
+        flushHydrationWrites();
+    }
+}
+
+function flushHydrationWrites() {
+    if (pendingHydrationWrites.length === 0) return;
+    const batch = pendingHydrationWrites.splice(0, pendingHydrationWrites.length);
+    appActions.hydrateClipsAudioMetadata(batch);
+}
+
 async function hydrateJob(job: HydrationJob): Promise<JobOutcome> {
     // Never decode/probe while the player is loading or playing — on Android that
     // native work fights the foreground player for the codec and audio focus and
@@ -103,7 +130,10 @@ async function hydrateJob(job: HydrationJob): Promise<JobOutcome> {
     // skipped/preempted decode would otherwise become the clip's waveform forever
     // (the duration check below can't catch it, and no other path repairs peaks).
     if (metadata.usedDetailedAnalysis && knownDurationMs) {
-        appActions.hydrateClipAudioMetadata(job.workspaceId, job.ideaId, job.clipId, {
+        bufferHydrationWrite({
+            workspaceId: job.workspaceId,
+            ideaId: job.ideaId,
+            clipId: job.clipId,
             durationMs: knownDurationMs,
             waveformPeaks: metadata.waveformPeaks,
         });
@@ -126,7 +156,10 @@ async function hydrateJob(job: HydrationJob): Promise<JobOutcome> {
     // Landed the duration but not real peaks (probe fine, decode skipped/failed):
     // bank the duration — the card stops reading 0:00 — and retry for the peaks.
     if (knownDurationMs && (!clip.durationMs || clip.durationMs <= 0)) {
-        appActions.hydrateClipAudioMetadata(job.workspaceId, job.ideaId, job.clipId, {
+        bufferHydrationWrite({
+            workspaceId: job.workspaceId,
+            ideaId: job.ideaId,
+            clipId: job.clipId,
             durationMs: knownDurationMs,
         });
     }
@@ -200,6 +233,11 @@ async function processQueue() {
         // (slow file, busy device) time to clear. Claim stays held.
         queue.push({ ...job, attempt });
     }
+
+    // Commit any durations/peaks buffered this pass — whether the queue drained or
+    // broke out busy — so banked durations land promptly instead of waiting for the
+    // next pass's flush.
+    flushHydrationWrites();
 
     isProcessing = false;
     if (queue.length > 0) {

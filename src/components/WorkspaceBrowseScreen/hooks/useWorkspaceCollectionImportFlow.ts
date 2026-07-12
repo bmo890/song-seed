@@ -8,7 +8,7 @@ import {
   pickAudioFiles,
   type ImportedAudioAsset,
 } from "../../../services/audioStorage";
-import { enqueueBackgroundWaveformHydration } from "../../../services/backgroundWaveformHydration";
+import { createClipImportBatcher } from "../../../services/clipImportBatcher";
 import { useImportStore } from "../../../state/useImportStore";
 import { getAllClips, checkImportDuplicates, showDuplicateReview } from "../../../services/importDuplicates";
 import { openCollectionInBrowse } from "../../../navigation";
@@ -113,6 +113,7 @@ export function useWorkspaceCollectionImportFlow({
       const nextTitles: string[] = [];
 
       void (async () => {
+        const batcher = createClipImportBatcher({ collectionId, workspaceId: workspaceIdSnapshot });
         try {
           const importedAt = Date.now();
           const { imported, failed } = await importAudioAssets(
@@ -131,7 +132,7 @@ export function useWorkspaceCollectionImportFlow({
                 );
                 const clipTitle = ensureUniqueCountedTitle(buildImportedTitle(asset.name), nextTitles);
                 nextTitles.push(clipTitle);
-                const importedResult = appActions.importClipToCollection(collectionId, {
+                batcher.add({
                   title: clipTitle,
                   audioUri: asset.audioUri,
                   durationMs: asset.durationMs,
@@ -140,15 +141,10 @@ export function useWorkspaceCollectionImportFlow({
                   importedAt: importedDate!.importedAt,
                   sourceCreatedAt: importedDate!.sourceCreatedAt,
                 });
-                enqueueBackgroundWaveformHydration({
-                  workspaceId: workspaceIdSnapshot,
-                  ideaId: importedResult.ideaId,
-                  clipId: importedResult.clipId,
-                  audioUri: asset.audioUri,
-                });
               },
             }
           );
+          batcher.flush();
 
           if (imported.length === 0) {
             deleteCollection(collectionId);
@@ -163,6 +159,7 @@ export function useWorkspaceCollectionImportFlow({
           });
         } catch (error) {
           console.warn("Collection import error", error);
+          batcher.flush();
           deleteCollection(collectionId);
           useImportStore.getState().updateJob(jobId, { status: "error" });
         } finally {
