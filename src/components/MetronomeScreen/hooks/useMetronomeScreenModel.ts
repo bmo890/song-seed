@@ -12,13 +12,15 @@ export function useMetronomeScreenModel() {
     () => Object.values(metronome.outputs).filter(Boolean).length,
     [metronome.outputs]
   );
+  // Deliberately loud: the halo is the page's visual beat, so it flashes at
+  // 0.55 opacity and grows well past the core instead of a faint shimmer.
   const pulseScale = pulseAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: [0.9, 1.18],
+    outputRange: [0.4, 1.35],
   });
   const pulseOpacity = pulseAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: [0.26, 0],
+    outputRange: [0, 0.55],
   });
 
   useEffect(() => {

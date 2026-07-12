@@ -52,7 +52,7 @@ export function RecordingControls({
 
     useEffect(() => {
         if (!beatActive || beatToken === 0) return;
-        const peak = isDownbeatRef.current ? 1 : 0.55;
+        const peak = isDownbeatRef.current ? 1 : 0.6;
         pulse.stopAnimation();
         Animated.sequence([
             Animated.timing(pulse, { toValue: peak, duration: 60, useNativeDriver: true }),
@@ -67,9 +67,11 @@ export function RecordingControls({
         }
     }, [beatActive, pulse]);
 
+    // Loud on purpose — this halo IS the visual metronome while recording, so it
+    // flares well past the button (downbeats peak harder via `peak` above).
     const haloStyle = {
-        opacity: pulse.interpolate({ inputRange: [0, 1], outputRange: [0, 0.45] }),
-        transform: [{ scale: pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.45] }) }],
+        opacity: pulse.interpolate({ inputRange: [0, 1], outputRange: [0, 0.7] }),
+        transform: [{ scale: pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.9] }) }],
     };
 
     return (

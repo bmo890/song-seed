@@ -1,6 +1,7 @@
 import React from "react";
 import { View } from "react-native";
 import { styles } from "../../styles";
+import { MetronomeBeatBar } from "../common/metronome/MetronomeBeatBar";
 import { RecordingControls } from "./RecordingControls";
 
 type RecordingBottomDockProps = {
@@ -8,6 +9,7 @@ type RecordingBottomDockProps = {
   metronome: {
     beatToken: number;
     beatInBar: number;
+    pulsesPerBar: number;
     isCountIn: boolean;
     isRunning: boolean;
   };
@@ -26,8 +28,25 @@ type RecordingBottomDockProps = {
 };
 
 export function RecordingBottomDock({ compact = false, metronome, recording }: RecordingBottomDockProps) {
+  const beatActive = metronome.isCountIn || metronome.isRunning;
+
   return (
     <View style={[styles.recordingBottomDock, compact ? styles.recordingBottomDockCompact : null]}>
+      {/* The visual metronome: bar-position dots above the transport, same
+          component as the standalone Metronome page. Rendered only while the
+          click is actually beating (count-in or take), so the dock stays quiet
+          otherwise. */}
+      {beatActive ? (
+        <View style={{ marginBottom: compact ? 4 : 8 }}>
+          <MetronomeBeatBar
+            beatsPerBar={metronome.pulsesPerBar}
+            currentBeat={metronome.beatInBar}
+            pulseToken={metronome.beatToken}
+            active={beatActive}
+            variant="compact"
+          />
+        </View>
+      ) : null}
       <RecordingControls
         isRecording={recording.isRecording}
         isPaused={recording.isPaused}
@@ -39,7 +58,7 @@ export function RecordingBottomDock({ compact = false, metronome, recording }: R
         canRedo={recording.isRecording || recording.isPaused || recording.isArming}
         beatToken={metronome.beatToken}
         isDownbeat={metronome.beatInBar === 1}
-        beatActive={metronome.isCountIn || metronome.isRunning}
+        beatActive={beatActive}
         onPause={recording.onPause}
         onResume={recording.onResume}
         onStart={recording.onStart}

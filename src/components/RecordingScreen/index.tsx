@@ -143,6 +143,7 @@ export function RecordingScreen() {
           metronome={{
             beatToken: screen.metronome.beatCount,
             beatInBar: screen.metronome.currentBeatInBar,
+            pulsesPerBar: screen.metronome.meterPreset.pulsesPerBar,
             isCountIn: screen.metronome.isCountIn,
             isRunning: screen.metronome.isRunning,
           }}
