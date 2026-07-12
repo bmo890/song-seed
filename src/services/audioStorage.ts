@@ -3,7 +3,7 @@ import * as FileSystem from "expo-file-system/legacy";
 import { File } from "expo-file-system";
 import { createAudioPlayer } from "expo-audio";
 import { Platform, Share } from "react-native";
-import { computeWaveformPeaks, computeWaveformWithNativeDuration, type WaveformDecodeMode } from "./waveformAnalysis";
+import { computeWaveformPeaks, computeWaveformWithNativeDuration, getNativeAudioDurationMs, type WaveformDecodeMode } from "./waveformAnalysis";
 import { buildDefaultIdeaTitle, buildStaticWaveform } from "../utils";
 import { SONG_SEED_AUDIO_DIR, SONG_SEED_PREVIEW_AUDIO_DIR, SONG_SEED_SHARE_DIR } from "./storagePaths";
 import { cleanupShareTempFile } from "./managedMedia";
@@ -17,6 +17,18 @@ import { IncrementalCrc32 } from "./streamingIntegrity";
 
 export const MAX_DETAILED_AUDIO_ANALYSIS_DURATION_MS = 30 * 60 * 1000;
 export const MANAGED_WAVEFORM_PEAK_COUNT = 256;
+
+/**
+ * Placeholder waveform resolution for freshly imported clips. Deliberately BELOW
+ * MANAGED_WAVEFORM_PEAK_COUNT: the app treats a full-resolution waveform (length >=
+ * MANAGED_WAVEFORM_PEAK_COUNT) as "already analyzed" — both the player-open repair
+ * (usePlayerScreenLifecycle) and the launch backfill (backgroundWaveformHydration)
+ * key off that. A full-resolution PLACEHOLDER would masquerade as a real waveform and,
+ * if the app is killed before background analysis lands, permanently starve the clip of
+ * its real waveform. A sub-resolution placeholder still renders an envelope on the card
+ * (the reel/minimap downsample any length) while staying detectable as "needs analysis".
+ */
+export const IMPORT_PLACEHOLDER_WAVEFORM_PEAK_COUNT = 128;
 
 export type ImportedAudioAsset = {
     uri: string;
@@ -599,14 +611,24 @@ export async function loadManagedAudioMetadata(
     durationHint?: number,
     options?: AudioMetadataLoadOptions
 ) {
-    // Lightweight (batch import) skips EVERYTHING native — including the duration
-    // probe, which costs a full AVPlayer/MediaPlayer item load per file (hundreds of
-    // ms each; the dominant cost of large imports). Background hydration derives the
-    // real duration + waveform afterwards, so the import itself is just the file copy.
+    // Lightweight (batch import) skips the expensive waveform DECODE, but still fills
+    // the duration via a cheap native container-metadata probe (no PCM decode, no
+    // AVPlayer/MediaPlayer item load — ~ms per file). It reads the same KEY_DURATION /
+    // AVAsset.duration the background decoder later reports, so the clip's length is
+    // correct the moment its card appears and never shifts when the waveform lands.
+    // Falls back to undefined when the native method is absent (older build / web):
+    // background hydration then derives the duration afterward, exactly as before.
     if (options?.lightweight) {
+        const probedDurationMs =
+            durationHint && durationHint > 0
+                ? durationHint
+                : await getNativeAudioDurationMs(audioUri);
         return {
-            durationMs: durationHint && durationHint > 0 ? durationHint : undefined,
-            waveformPeaks: buildStaticWaveform(`${seed}-pending`, MANAGED_WAVEFORM_PEAK_COUNT),
+            durationMs: probedDurationMs && probedDurationMs > 0 ? probedDurationMs : undefined,
+            // Sub-resolution placeholder: a real duration on the card, but a waveform the
+            // "hydrated?" checks (player-open repair + launch backfill) still recognize as
+            // pending — so a restart mid-import can't strand the clip on a fake waveform.
+            waveformPeaks: buildStaticWaveform(`${seed}-pending`, IMPORT_PLACEHOLDER_WAVEFORM_PEAK_COUNT),
             usedDetailedAnalysis: false,
         };
     }

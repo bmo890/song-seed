@@ -50,7 +50,7 @@ import {
     snapPunchInMsToGrid,
     toggleLowCutTonePreset,
 } from "../overdub";
-import { ensurePreviewAudioDirectory, importAudioAsset, loadManagedAudioMetadata } from "../services/audioStorage";
+import { ensurePreviewAudioDirectory, importAudioAsset, loadManagedAudioMetadata, MANAGED_WAVEFORM_PEAK_COUNT } from "../services/audioStorage";
 import { renderMixedFile } from "../services/pitchShift";
 import {
     clearPendingWorkspaceArchiveOperation,
@@ -1182,9 +1182,14 @@ export const appActions = {
         workspaceId: string,
         ideaId: string,
         clipId: string,
-        payload: { durationMs?: number; waveformPeaks?: number[] }
+        payload: { durationMs?: number; waveformPeaks?: number[]; detailedWaveformUnavailable?: boolean }
     ) => {
-        if (!payload.durationMs && !payload.waveformPeaks?.length) return;
+        if (
+            !payload.durationMs &&
+            !payload.waveformPeaks?.length &&
+            payload.detailedWaveformUnavailable === undefined
+        )
+            return;
 
         useStore.setState((store) => ({
             workspaces: store.workspaces.map((workspace) => {
@@ -1204,6 +1209,14 @@ export const appActions = {
                                           ...clip,
                                           durationMs: payload.durationMs ?? clip.durationMs,
                                           waveformPeaks: payload.waveformPeaks?.length ? payload.waveformPeaks : clip.waveformPeaks,
+                                          // Only REAL (full-resolution) peaks landing means analysis succeeded —
+                                          // clear any prior "gave up" mark. A sub-resolution placeholder write
+                                          // (e.g. the exhaustion best-effort envelope) must NOT clear it; honor
+                                          // the caller's explicit flag instead.
+                                          detailedWaveformUnavailable:
+                                              (payload.waveformPeaks?.length ?? 0) >= MANAGED_WAVEFORM_PEAK_COUNT
+                                                  ? false
+                                                  : payload.detailedWaveformUnavailable ?? clip.detailedWaveformUnavailable,
                                       }
                             ),
                         };

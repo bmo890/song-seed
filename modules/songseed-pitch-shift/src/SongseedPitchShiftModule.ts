@@ -1,6 +1,8 @@
 import { NativeModule, requireOptionalNativeModule } from "expo";
 
 import type {
+  NativeAudioDurationRequest,
+  NativeAudioDurationResult,
   NativePitchShiftCapabilities,
   NativePitchShiftLoadRequest,
   NativeMixedRenderRequest,
@@ -35,6 +37,9 @@ declare class SongseedPitchShiftModule extends NativeModule<SongseedPitchShiftMo
   // feature-detect (`if (mod.renderTrim)`) and fall back to @siteed otherwise.
   renderTrim?(request: NativeTrimRequest): Promise<NativeTrimResult>;
   computeWaveform?(request: NativeWaveformRequest): Promise<NativeWaveformResult>;
+  /** Cheap duration probe: reads container metadata only (no PCM decode). Optional —
+   *  feature-detect before calling; absent on builds predating this native method. */
+  getAudioDurationMs?(request: NativeAudioDurationRequest): Promise<NativeAudioDurationResult>;
   /** Preempt in-flight/queued computeWaveform calls whose request `epoch` is older
    *  than `epoch` (they reject with "WAVEFORM_CANCELLED"). Synchronous native
    *  Function; feature-detect before calling. */

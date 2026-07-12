@@ -258,3 +258,31 @@ async function computeWaveformWithNativeDurationUnserialized(
     return { peaks: [] };
   }
 }
+
+/**
+ * Cheap native duration probe: reads the container's declared duration via a
+ * metadata-only native call (Android MediaExtractor KEY_DURATION, iOS
+ * AVURLAsset.duration) — NO PCM decode and NO AVPlayer/MediaPlayer item load. Costs
+ * ~milliseconds per file, so bulk import can fill every clip's length up front.
+ *
+ * Deliberately NOT routed through the decode serializer: a metadata read touches
+ * neither the MediaCodec pool nor audio focus, so it's safe to run concurrently with
+ * playback and decodes and must not queue behind slow waveform work.
+ *
+ * Returns undefined when the native method is absent (older build / web) or the probe
+ * fails — callers then leave the duration for background hydration, exactly as before
+ * this method existed.
+ */
+export async function getNativeAudioDurationMs(audioUri: string): Promise<number | undefined> {
+  const native = SongseedPitchShiftModule;
+  if (!native?.getAudioDurationMs) return undefined;
+  try {
+    const result = await native.getAudioDurationMs({ inputUri: audioUri });
+    return typeof result?.durationMs === "number" && result.durationMs > 0
+      ? Math.round(result.durationMs)
+      : undefined;
+  } catch (error) {
+    console.warn("[waveform] native duration probe failed", error);
+    return undefined;
+  }
+}

@@ -90,6 +90,16 @@ export type NativeWaveformResult = {
   durationMs: number;
 };
 
+/** Cheap container-metadata duration probe: reads the declared duration WITHOUT
+ *  decoding (Android MediaExtractor KEY_DURATION, iOS AVURLAsset.duration). */
+export type NativeAudioDurationRequest = {
+  inputUri: string;
+};
+
+export type NativeAudioDurationResult = {
+  durationMs: number;
+};
+
 export type SongseedPitchShiftModuleEvents = {
   onStateChange: (params: NativePitchShiftPlaybackState) => void;
   onPlaybackEnded: (params: NativePitchShiftPlaybackState) => void;

@@ -463,4 +463,23 @@ final class SongseedPitchShiftRenderer {
 
     return ["peaks": peaks, "durationMs": durationMs]
   }
+
+  // Cheap duration probe: read AVURLAsset's declared duration WITHOUT decoding a
+  // single sample. computeWaveform runs a full AVAssetReader pass; this reads only the
+  // container's duration (the same value the decoder later reports), so import can fill
+  // every clip's length up front and the displayed length never shifts when the
+  // background waveform lands.
+  func getAudioDurationMs(_ request: [String: Any]) throws -> [String: Any] {
+    guard let inputUri = request["inputUri"] as? String else {
+      throw NSError(domain: "SongseedPitchShift", code: 31, userInfo: [NSLocalizedDescriptionKey: "Duration probe requires inputUri."])
+    }
+    let inputURL = URL(string: inputUri) ?? URL(fileURLWithPath: inputUri)
+    let asset = AVURLAsset(url: inputURL)
+    guard asset.tracks(withMediaType: .audio).first != nil else {
+      throw NSError(domain: "SongseedPitchShift", code: 32, userInfo: [NSLocalizedDescriptionKey: "No audio track found."])
+    }
+    let seconds = CMTimeGetSeconds(asset.duration)
+    let durationMs = seconds.isFinite && seconds > 0 ? seconds * 1000.0 : 0
+    return ["durationMs": durationMs]
+  }
 }

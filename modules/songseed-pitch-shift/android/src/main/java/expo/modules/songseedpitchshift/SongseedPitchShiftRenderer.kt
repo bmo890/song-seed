@@ -521,4 +521,27 @@ class SongseedPitchShiftRenderer(
       try { extractor.release() } catch (_: Throwable) {}
     }
   }
+
+  // Cheap duration probe: read the container's declared duration WITHOUT decoding a
+  // single sample. MediaExtractor parses only the track headers (KEY_DURATION), so
+  // this costs ~milliseconds per file — unlike computeWaveform (a full MediaCodec
+  // decode pass) or an ExoPlayer/MediaPlayer item load. Import calls it to fill every
+  // clip's length up front; it reads the SAME KEY_DURATION the decoder later reports,
+  // so the displayed length never shifts when the background waveform lands.
+  fun getAudioDurationMs(request: Map<String, Any?>): Map<String, Any> {
+    val inputUri = request["inputUri"] as? String
+      ?: throw IllegalArgumentException("Duration probe requires inputUri.")
+    val extractor = MediaExtractor()
+    try {
+      extractor.setDataSource(appContext, parseInputUri(inputUri), null)
+      val trackIndex = (0 until extractor.trackCount).firstOrNull { index ->
+        extractor.getTrackFormat(index).getString(MediaFormat.KEY_MIME)?.startsWith("audio/") == true
+      } ?: throw IllegalStateException("No audio track found.")
+      val format = extractor.getTrackFormat(trackIndex)
+      val durationUs = if (format.containsKey(MediaFormat.KEY_DURATION)) format.getLong(MediaFormat.KEY_DURATION) else 0L
+      return mapOf("durationMs" to durationUs / 1000L)
+    } finally {
+      try { extractor.release() } catch (_: Throwable) {}
+    }
+  }
 }

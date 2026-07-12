@@ -1,9 +1,14 @@
 import { InteractionManager } from "react-native";
-import { loadManagedAudioMetadata } from "./audioStorage";
+import {
+    IMPORT_PLACEHOLDER_WAVEFORM_PEAK_COUNT,
+    loadManagedAudioMetadata,
+    MANAGED_WAVEFORM_PEAK_COUNT,
+} from "./audioStorage";
 import { ensureWaveformSidecar } from "./waveformSidecar";
 import { isForegroundAudioBusy, waitForForegroundAudioIdle } from "./audioForegroundActivity";
 import { appActions } from "../state/actions";
 import { useStore } from "../state/useStore";
+import { buildStaticWaveform } from "../utils";
 import type { Workspace } from "../types";
 
 type HydrationJob = {
@@ -29,7 +34,7 @@ const HYDRATION_START_DELAY_MS = 1500;
 const BUSY_BACKOFF_MS = 15000;
 
 /** Genuine failures (not busy-waits) retry this many times before giving up until
- *  the next app launch (enqueueMissingDurationBackfill re-enqueues then). */
+ *  the next app launch (enqueueMissingMetadataBackfill re-enqueues then). */
 const MAX_HYDRATION_ATTEMPTS = 3;
 
 function findClip(job: HydrationJob) {
@@ -205,26 +210,35 @@ async function processQueue() {
 
         const attempt = (job.attempt ?? 0) + 1;
         if (attempt >= MAX_HYDRATION_ATTEMPTS) {
-            // Give up until next launch. Restore the old best-effort baseline for
-            // clips with NO peaks at all (archive restores) so their cards at least
-            // show an envelope; never touch peaks that already exist.
+            // Background analysis has given up: mark the clip so the launch backfill stops
+            // re-enqueuing it every session. This CONVERGES the terminal cases — a file past
+            // the detailed cap (MAX_DETAILED_AUDIO_ANALYSIS_DURATION_MS) or one whose
+            // container gives a duration but won't decode — which would otherwise loop
+            // forever. We mark ANY clip that isn't fully hydrated (mirroring the backfill's
+            // own "hasDuration && hasRealWaveform" test) so a clip carrying a full-resolution
+            // PLACEHOLDER (archive restore / non-lightweight fallback both mint 256-length
+            // placeholders) is caught too. We do NOT stamp a full-resolution placeholder over
+            // an existing sub-resolution one: the clip keeps a sub-resolution waveform, so an
+            // interactive player-open decode can still heal a transient failure (real peaks
+            // landing clears the flag). A clip with NO peaks at all gets a best-effort
+            // sub-resolution envelope so its card isn't blank.
             exhaustedClipIds.add(job.clipId);
             queuedClipIds.delete(job.clipId);
             const { clip } = findClip(job);
-            if (clip && clip.audioUri === job.audioUri && !(clip.waveformPeaks?.length)) {
-                try {
-                    const metadata = await loadManagedAudioMetadata(
-                        job.audioUri,
-                        `${job.ideaId}-${job.clipId}`,
-                        clip.durationMs && clip.durationMs > 0 ? clip.durationMs : undefined,
-                        { lightweight: true }
-                    );
+            if (clip && clip.audioUri === job.audioUri) {
+                const hasDuration = clip.durationMs != null && clip.durationMs > 0;
+                const hasRealWaveform =
+                    (clip.waveformPeaks?.length ?? 0) >= MANAGED_WAVEFORM_PEAK_COUNT;
+                if (!(hasDuration && hasRealWaveform)) {
                     appActions.hydrateClipAudioMetadata(job.workspaceId, job.ideaId, job.clipId, {
-                        durationMs: clip.durationMs,
-                        waveformPeaks: metadata.waveformPeaks,
+                        waveformPeaks: clip.waveformPeaks?.length
+                            ? undefined
+                            : buildStaticWaveform(
+                                  `${job.ideaId}-${job.clipId}`,
+                                  IMPORT_PLACEHOLDER_WAVEFORM_PEAK_COUNT
+                              ),
+                        detailedWaveformUnavailable: true,
                     });
-                } catch {
-                    // Best-effort only.
                 }
             }
             continue;
@@ -269,21 +283,33 @@ export function enqueueBackgroundWaveformHydration(job: HydrationJob) {
 }
 
 /**
- * Backfill scan: enqueue hydration for every clip that has audio but no known
- * duration. The import-time queue is in-memory and single-shot — an app restart,
- * a timed-out probe past its retries, or an archive restore (which never enqueues)
- * would otherwise leave clips stuck at "0:00" until they're played. Called after
- * store hydration on every launch and after archive imports; already-queued,
- * already-hydrated, and this-session-exhausted clips are skipped, so repeat calls
- * are cheap.
+ * Backfill scan: enqueue hydration for every clip that still needs it — no known
+ * duration OR only a sub-resolution placeholder waveform. The import-time queue is
+ * in-memory and single-shot, so an app restart, a timed-out probe past its retries,
+ * or an archive restore (which never enqueues) would otherwise leave clips stuck at
+ * "0:00" or on a placeholder waveform until they're played. Called after store
+ * hydration on every launch and after archive imports; already-queued, fully-hydrated,
+ * and this-session-exhausted clips are skipped, so repeat calls are cheap.
+ *
+ * The waveform check is load-bearing: imported clips now carry a real duration (native
+ * probe) but a sub-resolution placeholder, so a duration-only skip would strand them on
+ * the placeholder forever if the in-memory queue was lost to a restart. A full-resolution
+ * waveform (>= MANAGED_WAVEFORM_PEAK_COUNT) is the same "hydrated" signal the player-open
+ * repair uses.
  */
-export function enqueueMissingDurationBackfill(workspaces: Workspace[]): number {
+export function enqueueMissingMetadataBackfill(workspaces: Workspace[]): number {
     let enqueued = 0;
     for (const workspace of workspaces) {
         for (const idea of workspace.ideas) {
             for (const clip of idea.clips) {
                 if (!clip.audioUri) continue;
-                if (clip.durationMs && clip.durationMs > 0) continue;
+                // Background analysis already gave up on this clip — don't re-enqueue it
+                // every launch. An interactive player-open decode remains its heal path.
+                if (clip.detailedWaveformUnavailable) continue;
+                const hasDuration = clip.durationMs != null && clip.durationMs > 0;
+                const hasRealWaveform =
+                    (clip.waveformPeaks?.length ?? 0) >= MANAGED_WAVEFORM_PEAK_COUNT;
+                if (hasDuration && hasRealWaveform) continue;
                 if (queuedClipIds.has(clip.id) || exhaustedClipIds.has(clip.id)) continue;
                 enqueueBackgroundWaveformHydration({
                     workspaceId: workspace.id,

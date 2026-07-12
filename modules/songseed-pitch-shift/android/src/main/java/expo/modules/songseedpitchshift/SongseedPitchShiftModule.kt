@@ -89,6 +89,12 @@ class SongseedPitchShiftModule : Module() {
       renderer.computeWaveform(request)
     }
 
+    // Cheap container-metadata duration probe (no decode). Import uses it to fill
+    // every clip's length at import time; feature-detected in JS.
+    AsyncFunction("getAudioDurationMs") { request: Map<String, Any?> ->
+      renderer.getAudioDurationMs(request)
+    }
+
     // Preempt in-flight/queued waveform decodes carrying an epoch older than `epoch`.
     // Called by JS when playback starts so the decoder frees the MediaCodec pool.
     Function("cancelActiveWaveform") { epoch: Double ->

@@ -81,7 +81,7 @@ import {
   shouldPromptForBackupReminder,
 } from "./src/services/backupStatus";
 import { resumePendingWorkspaceArchiveOperations } from "./src/services/workspaceArchiveRecovery";
-import { enqueueMissingDurationBackfill } from "./src/services/backgroundWaveformHydration";
+import { enqueueMissingMetadataBackfill } from "./src/services/backgroundWaveformHydration";
 import { recoverPendingRecordingSession } from "./src/services/recordingRecovery";
 import { cleanupStaleDisasterRecoveryBackupFiles } from "./src/services/disasterRecoveryBackup";
 import { cleanupInterruptedDisasterRecoveryRestores } from "./src/services/disasterRecoveryTemp";
@@ -1025,7 +1025,7 @@ export default function App() {
       // in-memory and single-shot: app restarts, probe timeouts, and archive restores
       // all leave clips stuck at "0:00" until played). Queued work is paced and
       // yields to foreground audio, so this is safe to fire on every launch.
-      enqueueMissingDurationBackfill(useStore.getState().workspaces);
+      enqueueMissingMetadataBackfill(useStore.getState().workspaces);
 
       // Anchor the store-review timing rule on the very first launch.
       useStore.getState().markFirstLaunch();

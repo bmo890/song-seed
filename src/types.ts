@@ -427,6 +427,12 @@ export type ClipVersion = {
   sourceAudioUri?: string;
   durationMs?: number;
   waveformPeaks?: number[];
+  /** Set once background analysis has given up on this clip (a file past the detailed
+   *  cap, or one whose container gives a duration but won't decode). Signals the launch
+   *  backfill to stop re-enqueuing it forever; the clip keeps its sub-resolution
+   *  placeholder so an interactive player-open decode can still heal a transient failure.
+   *  Cleared whenever real (full-resolution) peaks land. */
+  detailedWaveformUnavailable?: boolean;
   editRegions?: EditRegion[];
   tags?: string[];
   isBookmarked?: boolean;
