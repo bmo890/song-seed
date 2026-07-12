@@ -244,7 +244,7 @@ export const styles = StyleSheet.create({
     flexShrink: 1,
     fontSize: 12,
     color: "#524440",
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
   },
   ideasToolbar: {
     marginBottom: 10,
@@ -280,7 +280,7 @@ export const styles = StyleSheet.create({
   ideasFilterChipText: {
     fontSize: 12,
     color: "#84736f",
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
   },
   ideasFilterChipTextActive: {
     color: "#ffffff",
@@ -368,7 +368,7 @@ export const styles = StyleSheet.create({
   ideasUtilityChipText: {
     fontSize: 12,
     color: "#84736f",
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
   },
   ideasUtilityChipTextDanger: {
     color: colors.danger,
@@ -458,16 +458,14 @@ export const styles = StyleSheet.create({
   },
   ideasSortMenuItemText: {
     flex: 1,
-    fontFamily: "PlusJakartaSans_500Medium",
+    fontFamily: "PlusJakartaSans_600SemiBold",
     fontSize: 13,
     color: "#524440",
-    fontWeight: "600",
-  },
+    },
   ideasSortMenuItemTextActive: {
-    fontFamily: "PlusJakartaSans_600SemiBold",
+    fontFamily: "PlusJakartaSans_700Bold",
     color: "#1C1C19",
-    fontWeight: "700",
-  },
+    },
   ideasDropdownSectionToggle: {
     minHeight: 34,
     borderRadius: 10,
@@ -478,10 +476,9 @@ export const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   ideasDropdownSectionToggleText: {
-    fontFamily: "PlusJakartaSans_600SemiBold",
+    fontFamily: "PlusJakartaSans_700Bold",
     fontSize: 11,
     color: "#84736f",
-    fontWeight: "700",
     textTransform: "uppercase",
     letterSpacing: 0.8,
   },
@@ -491,11 +488,10 @@ export const styles = StyleSheet.create({
     gap: 6,
   },
   ideasDropdownSectionMetaText: {
-    fontFamily: "PlusJakartaSans_500Medium",
+    fontFamily: "PlusJakartaSans_600SemiBold",
     fontSize: 12,
     color: "#84736f",
-    fontWeight: "600",
-  },
+    },
   ideasDropdownSectionStack: {
     gap: 8,
   },
@@ -524,7 +520,7 @@ export const styles = StyleSheet.create({
   ideasStageChipText: {
     fontSize: 12,
     color: "#84736f",
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
   },
   ideasStageChipTextActive: {
     color: "#ffffff",
@@ -591,19 +587,17 @@ export const styles = StyleSheet.create({
     borderColor: "#B87D6B",
   },
   ideasSortDirectionChipText: {
-    fontFamily: "PlusJakartaSans_600SemiBold",
+    fontFamily: "PlusJakartaSans_700Bold",
     fontSize: 12,
     color: "#84736f",
-    fontWeight: "700",
-  },
+    },
   ideasSortDirectionChipTextActive: {
     color: "#ffffff",
   },
   ideasDropdownSectionTitle: {
-    fontFamily: "PlusJakartaSans_600SemiBold",
+    fontFamily: "PlusJakartaSans_700Bold",
     fontSize: 11,
     color: "#84736f",
-    fontWeight: "700",
     textTransform: "uppercase",
     letterSpacing: 0.8,
     paddingHorizontal: 4,
@@ -664,12 +658,12 @@ export const styles = StyleSheet.create({
   sideNavLabel: {
     fontSize: 20,
     color: "#1b1c1a",
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
   },
   breadcrumbText: {
     fontSize: 11,
     color: "#84736f",
-    fontWeight: "600",
+    fontFamily: "PlusJakartaSans_600SemiBold",
     marginBottom: 4,
     letterSpacing: 0.2,
   },
@@ -687,7 +681,7 @@ export const styles = StyleSheet.create({
   contextPillText: {
     fontSize: 10,
     color: "#84736f",
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
     letterSpacing: 0.2,
   },
   sideNavToggle: {
@@ -721,10 +715,10 @@ export const styles = StyleSheet.create({
   },
   backLinkText: {
     fontSize: 13,
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
     color: "#84736f",
   },
-  title: { fontSize: 22, fontWeight: "700", color: "#1b1c1a" },
+  title: { fontSize: 22, fontFamily: "PlusJakartaSans_700Bold", color: "#1b1c1a" },
   pageTitleCompact: { fontSize: 20, fontFamily: "PlayfairDisplay_600SemiBold", color: colors.textPrimary },
   titleInlineWrap: {
     marginHorizontal: 8,
@@ -747,7 +741,7 @@ export const styles = StyleSheet.create({
     textAlignVertical: "top",
   },
   titleInlineInputPlaceholder: {
-    fontWeight: "500",
+    fontFamily: "PlusJakartaSans_500Medium",
   },
   titleInlineBtns: {
     position: "absolute",
@@ -1385,7 +1379,7 @@ export const styles = StyleSheet.create({
   playerLyricsTitle: {
     fontSize: 16,
     lineHeight: 20,
-    fontWeight: "600",
+    fontFamily: "PlusJakartaSans_600SemiBold",
     color: "#1b1c1a",
   },
   playerLyricsMeta: {
@@ -1395,7 +1389,7 @@ export const styles = StyleSheet.create({
   playerLyricsSyncMeta: {
     fontSize: 11,
     color: "#B87D6B",
-    fontWeight: "600",
+    fontFamily: "PlusJakartaSans_600SemiBold",
   },
   playerLyricsToggleBtn: {
     width: 34,
@@ -1435,7 +1429,7 @@ export const styles = StyleSheet.create({
   recordingLyricsTitle: {
     fontSize: 18,
     lineHeight: 22,
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
     color: "#1b1c1a",
   },
   // Expanded: same look as collapsed, just a touch smaller.
@@ -1450,7 +1444,7 @@ export const styles = StyleSheet.create({
   recordingLyricsSyncMeta: {
     fontSize: 12,
     color: "#B87D6B",
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
   },
   recordingLyricsAutoscrollBtn: {
     alignSelf: "flex-start",
@@ -1522,7 +1516,7 @@ export const styles = StyleSheet.create({
   },
   recordingLyricsSpeedBtnText: {
     fontSize: 13,
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
     color: "#84736f",
     fontVariant: ["tabular-nums"],
   },
@@ -1549,7 +1543,7 @@ export const styles = StyleSheet.create({
   },
   recordingLyricsSpeedRowText: {
     fontSize: 13,
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
     color: "#84736f",
     fontVariant: ["tabular-nums"],
   },
@@ -1570,7 +1564,7 @@ export const styles = StyleSheet.create({
     fontSize: 20,
     lineHeight: 36,
     color: "#1b1c1a",
-    fontWeight: "400",
+    fontFamily: "PlusJakartaSans_400Regular",
   },
   playerUtilityBtn: {
     minHeight: 32,
@@ -1587,7 +1581,7 @@ export const styles = StyleSheet.create({
   playerUtilityBtnText: {
     color: "#fff",
     fontSize: 12,
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
   },
   playerUtilityBtnTextSecondary: {
     color: "#fff",
@@ -1636,7 +1630,7 @@ export const styles = StyleSheet.create({
   progressMeta: {
     fontSize: 12,
     color: "#84736f",
-    fontWeight: "600",
+    fontFamily: "PlusJakartaSans_600SemiBold",
   },
   threadRowWrap: {
     flexDirection: "row",
@@ -1667,7 +1661,7 @@ export const styles = StyleSheet.create({
   threadToggleText: {
     fontSize: 10,
     color: "#84736f",
-    fontWeight: "600",
+    fontFamily: "PlusJakartaSans_600SemiBold",
   },
   primaryBtn: {
     backgroundColor: colors.primary,
@@ -2079,8 +2073,7 @@ export const styles = StyleSheet.create({
   tagPickerChipText: {
     fontFamily: "PlusJakartaSans_700Bold",
     fontSize: 12,
-    fontWeight: "700",
-  },
+    },
   tagPickerCustomDot: {
     width: 6,
     height: 6,
@@ -2389,7 +2382,7 @@ export const styles = StyleSheet.create({
     fontSize: 11,
     lineHeight: 14,
     color: "#B87D6B",
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
     textTransform: "uppercase",
     letterSpacing: 0.4,
   },
@@ -2416,7 +2409,7 @@ export const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 18,
     color: "#B87D6B",
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
   },
   recordingGuideCard: {
     backgroundColor: "#FFFFFF",
@@ -2440,7 +2433,7 @@ export const styles = StyleSheet.create({
     fontSize: 11,
     lineHeight: 14,
     color: "#84736f",
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
     textTransform: "uppercase",
     letterSpacing: 0.4,
   },
@@ -2448,7 +2441,7 @@ export const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: 20,
     color: "#1b1c1a",
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
   },
   recordingGuideTiming: {
     alignItems: "flex-end",
@@ -2458,7 +2451,7 @@ export const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 16,
     color: "#1b1c1a",
-    fontWeight: "600",
+    fontFamily: "PlusJakartaSans_600SemiBold",
     fontVariant: ["tabular-nums"],
   },
   recordingGuideState: {
@@ -2489,11 +2482,11 @@ export const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 18,
     color: "#84736f",
-    fontWeight: "600",
+    fontFamily: "PlusJakartaSans_600SemiBold",
   },
   recordingTimer: {
     fontSize: 44,
-    fontWeight: "800",
+    fontFamily: "PlusJakartaSans_700Bold",
     color: "#1b1c1a",
     letterSpacing: -1.1,
     marginTop: 0,
@@ -2509,7 +2502,7 @@ export const styles = StyleSheet.create({
   recordingCountInTitle: {
     fontSize: 32,
     lineHeight: 36,
-    fontWeight: "800",
+    fontFamily: "PlusJakartaSans_700Bold",
     color: "#1b1c1a",
     letterSpacing: -0.8,
   },
@@ -2559,7 +2552,7 @@ export const styles = StyleSheet.create({
   recordingStatusText: {
     fontSize: 15,
     color: "#84736f",
-    fontWeight: "500",
+    fontFamily: "PlusJakartaSans_500Medium",
   },
   liveWaveWrap: {
     marginTop: 0,
@@ -2620,7 +2613,7 @@ export const styles = StyleSheet.create({
   },
   recordingOutputLabel: {
     fontSize: 11,
-    fontWeight: "600",
+    fontFamily: "PlusJakartaSans_600SemiBold",
     color: "#84736f",
     textTransform: "uppercase",
     letterSpacing: 0.5,
@@ -2631,7 +2624,7 @@ export const styles = StyleSheet.create({
   },
   recordingOutputAuto: {
     fontSize: 11,
-    fontWeight: "600",
+    fontFamily: "PlusJakartaSans_600SemiBold",
     color: "#a89994",
   },
   circleControlBtn: {
@@ -2724,7 +2717,7 @@ export const styles = StyleSheet.create({
   ideasHeaderSelectBtnText: {
     fontSize: 12,
     color: "#524440",
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
   },
   ideasHeaderActions: {
     flexDirection: "row",
@@ -2780,7 +2773,7 @@ export const styles = StyleSheet.create({
   workspaceBrowseSectionTitle: {
     fontSize: 11,
     color: "#84736f",
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
     textTransform: "uppercase",
     letterSpacing: 0.3,
     paddingHorizontal: 4,
@@ -2811,16 +2804,16 @@ export const styles = StyleSheet.create({
   workspaceBrowseMatchText: {
     fontSize: 12,
     color: "#84736f",
-    fontWeight: "600",
+    fontFamily: "PlusJakartaSans_600SemiBold",
     flexShrink: 1,
   },
   workspaceBrowseMatchContext: {
     color: "#84736f",
-    fontWeight: "500",
+    fontFamily: "PlusJakartaSans_500Medium",
   },
   workspaceBrowseMatchHighlight: {
     color: "#1b1c1a",
-    fontWeight: "800",
+    fontFamily: "PlusJakartaSans_700Bold",
   },
   workspaceBrowseChildList: {
     gap: 8,
@@ -2869,11 +2862,11 @@ export const styles = StyleSheet.create({
   collectionBreadcrumbText: {
     fontSize: 12,
     color: "#84736f",
-    fontWeight: "600",
+    fontFamily: "PlusJakartaSans_600SemiBold",
   },
   collectionBreadcrumbTextActive: {
     color: "#524440",
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
   },
   collectionInlineActionBtn: {
     width: 28,
@@ -2908,7 +2901,7 @@ export const styles = StyleSheet.create({
     flex: 1,
     fontSize: 12,
     color: "#84736f",
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
   },
   activityRangeBannerClear: {
     width: 24,
@@ -2943,7 +2936,7 @@ export const styles = StyleSheet.create({
     flex: 1,
     fontSize: 12,
     color: "#524440",
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
   },
   activityWorkspaceFilterMenu: {
     marginTop: 8,
@@ -2969,11 +2962,11 @@ export const styles = StyleSheet.create({
   activityWorkspaceFilterOptionText: {
     fontSize: 13,
     color: "#524440",
-    fontWeight: "600",
+    fontFamily: "PlusJakartaSans_600SemiBold",
   },
   activityWorkspaceFilterOptionTextActive: {
     color: "#1b1c1a",
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
   },
   activityChipScroll: {
     gap: 8,
@@ -2996,7 +2989,7 @@ export const styles = StyleSheet.create({
   activityFilterChipText: {
     fontSize: 12,
     color: "#524440",
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
   },
   activityFilterChipTextActive: {
     color: "#ffffff",
@@ -3036,7 +3029,7 @@ export const styles = StyleSheet.create({
   activitySegmentText: {
     fontSize: 12,
     color: "#524440",
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
   },
   activitySegmentTextActive: {
     color: "#ffffff",
@@ -3057,7 +3050,7 @@ export const styles = StyleSheet.create({
   activityTodayBtnText: {
     fontSize: 12,
     color: "#1b1c1a",
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
   },
   activityYearBtn: {
     width: 30,
@@ -3070,7 +3063,7 @@ export const styles = StyleSheet.create({
   activityYearText: {
     fontSize: 14,
     color: "#1b1c1a",
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
     minWidth: 44,
     textAlign: "center",
   },
@@ -3084,7 +3077,7 @@ export const styles = StyleSheet.create({
   activitySummaryText: {
     fontSize: 12,
     color: "#84736f",
-    fontWeight: "600",
+    fontFamily: "PlusJakartaSans_600SemiBold",
   },
   activitySummaryBlock: {
     flex: 1,
@@ -3093,7 +3086,7 @@ export const styles = StyleSheet.create({
   activityHintText: {
     fontSize: 11,
     color: "#84736f",
-    fontWeight: "600",
+    fontFamily: "PlusJakartaSans_600SemiBold",
   },
   activityLegendRow: {
     flexDirection: "row",
@@ -3103,7 +3096,7 @@ export const styles = StyleSheet.create({
   activityLegendLabel: {
     fontSize: 10,
     color: "#84736f",
-    fontWeight: "600",
+    fontFamily: "PlusJakartaSans_600SemiBold",
   },
   activityLegendSwatch: {
     width: 12,
@@ -3139,7 +3132,7 @@ export const styles = StyleSheet.create({
   activityHeatmapEyebrow: {
     fontSize: 10,
     color: "#84736f",
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
     textTransform: "uppercase",
     letterSpacing: 0.5,
   },
@@ -3147,18 +3140,18 @@ export const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 20,
     color: "#1b1c1a",
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
   },
   activityHeatmapScopeLabel: {
     fontSize: 12,
     lineHeight: 18,
     color: "#84736f",
-    fontWeight: "600",
+    fontFamily: "PlusJakartaSans_600SemiBold",
   },
   activityHeatmapHeaderHint: {
     fontSize: 11,
     color: "#84736f",
-    fontWeight: "600",
+    fontFamily: "PlusJakartaSans_600SemiBold",
   },
   activityMonthRow: {
     position: "relative",
@@ -3177,7 +3170,7 @@ export const styles = StyleSheet.create({
     position: "relative",
     fontSize: 10,
     color: "#84736f",
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
   },
   activityMonthLabelActive: {
     color: "#824f3f",
@@ -3203,12 +3196,12 @@ export const styles = StyleSheet.create({
   activityMonthSummaryTitle: {
     fontSize: 13,
     color: "#524440",
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
   },
   activityMonthSummaryMeta: {
     fontSize: 12,
     color: "#84736f",
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
   },
   activityGridRow: {
     flexDirection: "row",
@@ -3264,7 +3257,7 @@ export const styles = StyleSheet.create({
   activityResultsSummaryText: {
     fontSize: 11,
     color: "#84736f",
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
     textTransform: "uppercase",
     letterSpacing: 0.4,
   },
@@ -3282,13 +3275,13 @@ export const styles = StyleSheet.create({
   activityResultEmptyTitle: {
     fontSize: 14,
     color: "#1b1c1a",
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
   },
   activityResultEmptyText: {
     fontSize: 12,
     lineHeight: 18,
     color: "#84736f",
-    fontWeight: "600",
+    fontFamily: "PlusJakartaSans_600SemiBold",
   },
   activityRangeWorkspaceGroupList: {
     gap: 12,
@@ -3311,12 +3304,12 @@ export const styles = StyleSheet.create({
   activityRangeCollectionTitle: {
     fontSize: 14,
     color: "#1b1c1a",
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
   },
   activityRangeCollectionMeta: {
     fontSize: 11,
     color: "#84736f",
-    fontWeight: "600",
+    fontFamily: "PlusJakartaSans_600SemiBold",
   },
   activityRangeCollectionActions: {
     flexDirection: "row",
@@ -3327,7 +3320,7 @@ export const styles = StyleSheet.create({
   activityRangeCollectionCount: {
     fontSize: 11,
     color: "#84736f",
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
   },
   activityDayModalCard: {
     gap: 10,
@@ -3346,7 +3339,7 @@ export const styles = StyleSheet.create({
   activityDayWorkspaceTitle: {
     fontSize: 10,
     color: "#84736f",
-    fontWeight: "800",
+    fontFamily: "PlusJakartaSans_700Bold",
     letterSpacing: 0.5,
     textTransform: "uppercase",
     paddingHorizontal: 2,
@@ -3379,17 +3372,17 @@ export const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 18,
     color: "#1b1c1a",
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
   },
   activityDayEntryMetric: {
     fontSize: 11,
     color: "#4a3f3b",
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
   },
   activityDayEntryMeta: {
     fontSize: 11,
     color: "#84736f",
-    fontWeight: "600",
+    fontFamily: "PlusJakartaSans_600SemiBold",
   },
   activityDayModalActions: {
     flexDirection: "row",
@@ -3440,11 +3433,11 @@ export const styles = StyleSheet.create({
   collectionMoveOptionTitle: {
     fontSize: 13,
     color: "#524440",
-    fontWeight: "600",
+    fontFamily: "PlusJakartaSans_600SemiBold",
   },
   collectionMoveOptionTitleSelected: {
     color: "#1b1c1a",
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
   },
   collectionMoveOptionSubtitle: {
     fontSize: 11,
@@ -3472,10 +3465,9 @@ export const styles = StyleSheet.create({
     backgroundColor: "rgba(215,194,189,0.35)",
   },
   ideasDayDividerText: {
-    fontFamily: "PlusJakartaSans_600SemiBold",
+    fontFamily: "PlusJakartaSans_700Bold",
     fontSize: 11,
     color: "#84736f",
-    fontWeight: "700",
     letterSpacing: 0.6,
   },
   // Count pill on a collapsed-day marker, e.g. "23 hidden".
@@ -3507,10 +3499,9 @@ export const styles = StyleSheet.create({
     paddingVertical: 2,
   },
   ideasStickyDayChipText: {
-    fontFamily: "PlusJakartaSans_600SemiBold",
+    fontFamily: "PlusJakartaSans_700Bold",
     fontSize: 10,
     color: "#84736f",
-    fontWeight: "700",
     letterSpacing: 0.6,
   },
   cardFlex: { flex: 1 },
@@ -3587,14 +3578,14 @@ export const styles = StyleSheet.create({
   },
   transportFooterEyebrow: {
     fontSize: 11,
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
     letterSpacing: 0.4,
     textTransform: "uppercase",
     color: "#84736f",
   },
   transportFooterTitle: {
     fontSize: 15,
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
     color: "#1b1c1a",
   },
   transportFooterRow: {
@@ -3623,7 +3614,7 @@ export const styles = StyleSheet.create({
   transportFooterButtonText: {
     color: "#fff",
     fontSize: 13,
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
   },
   transportFooterButtonTextSecondary: {
     color: "#1b1c1a",
@@ -3636,7 +3627,6 @@ export const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 12,
     lineHeight: 14,
-    fontWeight: "700",
     textAlign: "center",
     textAlignVertical: "center",
   },
@@ -3691,7 +3681,7 @@ export const styles = StyleSheet.create({
   miniProgressTime: {
     fontSize: 12,
     color: "#84736f",
-    fontWeight: "600",
+    fontFamily: "PlusJakartaSans_600SemiBold",
   },
   miniProgressTrackHitbox: {
     justifyContent: "center",
@@ -4110,7 +4100,7 @@ export const styles = StyleSheet.create({
   libraryPlaylistItemTypeText: {
     fontSize: 10,
     color: "#84736f",
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
     letterSpacing: 0.3,
   },
   libraryPlaylistItemUnavailablePill: {
@@ -4122,7 +4112,7 @@ export const styles = StyleSheet.create({
   libraryPlaylistItemUnavailableText: {
     fontSize: 10,
     color: colors.danger,
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
     letterSpacing: 0.3,
   },
   libraryPlaylistItemActions: {
@@ -4139,7 +4129,7 @@ export const styles = StyleSheet.create({
   libraryPickerBackText: {
     fontSize: 13,
     color: "#84736f",
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
   },
   libraryPickerSection: {
     gap: 8,
@@ -4225,14 +4215,14 @@ export const styles = StyleSheet.create({
   },
   recordingInputTitle: {
     fontSize: 13,
-    fontWeight: "600",
+    fontFamily: "PlusJakartaSans_600SemiBold",
     color: "#84736f",
     textTransform: "uppercase",
     letterSpacing: 0.5,
   },
   recordingInputActiveLabel: {
     fontSize: 17,
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
     color: "#1b1c1a",
   },
   recordingInputRefreshBtn: {
@@ -4269,7 +4259,7 @@ export const styles = StyleSheet.create({
   recordingInputOptionText: {
     flex: 1,
     fontSize: 14,
-    fontWeight: "600",
+    fontFamily: "PlusJakartaSans_600SemiBold",
     color: "#524440",
   },
   recordingInputOptionTextActive: {
@@ -4281,12 +4271,12 @@ export const styles = StyleSheet.create({
   recordingInputDisabledNote: {
     fontSize: 12,
     color: "#84736f",
-    fontWeight: "600",
+    fontFamily: "PlusJakartaSans_600SemiBold",
   },
   recordingInputError: {
     fontSize: 12,
     color: colors.danger,
-    fontWeight: "600",
+    fontFamily: "PlusJakartaSans_600SemiBold",
   },
   recordingBottomDock: {
     paddingHorizontal: 26,
@@ -4371,7 +4361,7 @@ export const styles = StyleSheet.create({
     fontSize: 10,
     lineHeight: 12,
     color: "#524440",
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
     textAlign: "center",
   },
   statusChipBtn: {
@@ -4447,12 +4437,12 @@ export const styles = StyleSheet.create({
   ideasNowPlayingTitle: {
     fontSize: 12,
     color: "#1b1c1a",
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
   },
   ideasNowPlayingSubtitle: {
     fontSize: 11,
     color: "#84736f",
-    fontWeight: "600",
+    fontFamily: "PlusJakartaSans_600SemiBold",
   },
   ideasNowPlayingBtn: {
     width: 30,
@@ -4484,7 +4474,7 @@ export const styles = StyleSheet.create({
     fontSize: 10,
     lineHeight: 12,
     color: "#84736f",
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
     fontVariant: ["tabular-nums"],
     minWidth: 34,
     textAlign: "center",
@@ -4513,7 +4503,7 @@ export const styles = StyleSheet.create({
     flex: 1,
     color: "#ffffff",
     fontSize: 12,
-    fontWeight: "600",
+    fontFamily: "PlusJakartaSans_600SemiBold",
   },
   ideasUndoBtn: {
     minHeight: 28,
@@ -4528,7 +4518,7 @@ export const styles = StyleSheet.create({
   ideasUndoBtnText: {
     color: "#ffffff",
     fontSize: 12,
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
   },
   globalInlineDockWrap: {
     position: "absolute",
@@ -4565,13 +4555,13 @@ export const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 15,
     color: "#1b1c1a",
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
   },
   globalInlineDockSubtitle: {
     fontSize: 11,
     lineHeight: 14,
     color: "#84736f",
-    fontWeight: "600",
+    fontFamily: "PlusJakartaSans_600SemiBold",
   },
   globalInlineDockCloseBtn: {
     width: 26,
@@ -4603,7 +4593,7 @@ export const styles = StyleSheet.create({
     fontSize: 10,
     lineHeight: 12,
     color: "#84736f",
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
     fontVariant: ["tabular-nums"],
   },
   // ─── Global Media Dock ──────────────────────────────────────────────────────
@@ -4764,14 +4754,14 @@ export const styles = StyleSheet.create({
     fontSize: 11,
     lineHeight: 14,
     color: "#991b1b",
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
     letterSpacing: 0.2,
     textTransform: "uppercase",
   },
   miniMediaDockRecordingTitle: {
     fontSize: 15,
     lineHeight: 19,
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
     color: "#1b1c1a",
   },
   miniMediaDockRecordingMeta: {
@@ -4809,7 +4799,7 @@ export const styles = StyleSheet.create({
     fontSize: 18,
     lineHeight: 22,
     color: "#991b1b",
-    fontWeight: "800",
+    fontFamily: "PlusJakartaSans_700Bold",
     fontVariant: ["tabular-nums"],
     letterSpacing: -0.3,
   },
@@ -4817,7 +4807,7 @@ export const styles = StyleSheet.create({
     fontSize: 11,
     lineHeight: 14,
     color: "#7f1d1d",
-    fontWeight: "600",
+    fontFamily: "PlusJakartaSans_600SemiBold",
   },
   ideasFabMenu: {
     gap: 10,
@@ -4843,7 +4833,7 @@ export const styles = StyleSheet.create({
   ideasFabMenuItemText: {
     fontSize: 13,
     color: "#1b1c1a",
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
   },
   ideasFabRow: {
     flexDirection: "row",
@@ -4944,7 +4934,7 @@ export const styles = StyleSheet.create({
   },
   selectionTopBarCount: {
     fontSize: 14,
-    fontWeight: "600",
+    fontFamily: "PlusJakartaSans_600SemiBold",
     color: "#1b1c1a",
   },
   // Bordered "All" chip — sits right after the count
@@ -4957,7 +4947,7 @@ export const styles = StyleSheet.create({
   },
   selectionTopBarChipText: {
     fontSize: 12,
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
     color: "#824f3f",
   },
   selectionTopBarCancelBtn: {
@@ -4968,7 +4958,7 @@ export const styles = StyleSheet.create({
   },
   selectionTopBarCancelBtnText: {
     fontSize: 12,
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
     color: "#FDFBF7",
   },
   // ─── Selection toolbar (icon-only bottom action bar) ─────────────────────────
@@ -5126,7 +5116,7 @@ export const styles = StyleSheet.create({
   ideasSelectionCount: {
     fontSize: 14,
     color: "#1b1c1a",
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
   },
   ideasSelectionHeaderActions: {
     flexDirection: "row",
@@ -5145,7 +5135,7 @@ export const styles = StyleSheet.create({
   ideasSelectionHeaderBtnText: {
     fontSize: 11,
     color: "#84736f",
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
   },
   ideasSelectionActions: {
     gap: 8,
@@ -5166,7 +5156,7 @@ export const styles = StyleSheet.create({
   ideasSelectionActionText: {
     fontSize: 12,
     color: "#1b1c1a",
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
   },
   ideasSelectionActionDanger: {
     flexDirection: "row",
@@ -5183,7 +5173,7 @@ export const styles = StyleSheet.create({
   ideasSelectionActionDangerText: {
     fontSize: 12,
     color: colors.danger,
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
   },
   dangerBtn: {
     borderWidth: 1,
@@ -5201,7 +5191,7 @@ export const styles = StyleSheet.create({
     borderWidth: 0,
     backgroundColor: "#F4F1ED",
   },
-  dangerBtnText: { color: colors.danger, fontWeight: "700", fontSize: 14 },
+  dangerBtnText: { color: colors.danger, fontFamily: "PlusJakartaSans_700Bold", fontSize: 14 },
   cardSelected: { borderColor: colors.primary, borderWidth: 1.5 },
   listCardSelected: {
     borderColor: colors.primary,
@@ -5367,11 +5357,10 @@ export const styles = StyleSheet.create({
     borderColor: "rgba(215,194,189,0.5)",
   },
   ideasUnhideAllPillText: {
-    fontFamily: "PlusJakartaSans_500Medium",
+    fontFamily: "PlusJakartaSans_600SemiBold",
     fontSize: 11,
     color: "#84736f",
-    fontWeight: "600",
-  },
+    },
   // Active (peeking) state of the "N hidden" toggle chip.
   ideasUnhideAllPillActive: {
     backgroundColor: "#F2E4DF",
@@ -5394,12 +5383,11 @@ export const styles = StyleSheet.create({
     justifyContent: "center",
   },
   ideasHiddenDayTitle: {
-    fontFamily: "PlusJakartaSans_600SemiBold",
+    fontFamily: "PlusJakartaSans_700Bold",
     fontSize: 12,
     lineHeight: 15,
     color: "#524440",
-    fontWeight: "700",
-  },
+    },
   ideasListCardHighlightOverlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: "rgba(184,125,107,0.22)",
@@ -5507,11 +5495,10 @@ export const styles = StyleSheet.create({
     justifyContent: "center",
   },
   ideasListLeadDurationText: {
-    fontFamily: "PlusJakartaSans_500Medium",
+    fontFamily: "PlusJakartaSans_600SemiBold",
     fontSize: 12,
     lineHeight: 14,
     color: "#84736f",
-    fontWeight: "600",
     textAlign: "center",
     fontVariant: ["tabular-nums"],
   },
@@ -5584,7 +5571,7 @@ export const styles = StyleSheet.create({
   ideasListCardTitleHighlight: {
     backgroundColor: "#fde68a",
     color: "#1C1C19",
-    fontWeight: "800",
+    fontFamily: "PlusJakartaSans_700Bold",
   },
   ideasSearchTagRow: {
     flexDirection: "row",
@@ -5601,23 +5588,20 @@ export const styles = StyleSheet.create({
     paddingVertical: 2,
   },
   ideasSearchTagText: {
-    fontFamily: "PlusJakartaSans_600SemiBold",
+    fontFamily: "PlusJakartaSans_700Bold",
     fontSize: 10,
     color: "#84736f",
-    fontWeight: "700",
-  },
+    },
   ideasListCardMeta: {
-    fontFamily: "PlusJakartaSans_500Medium",
+    fontFamily: "PlusJakartaSans_600SemiBold",
     fontSize: 12,
     color: "#84736f",
-    fontWeight: "600",
-  },
+    },
   ideasListCreatedAtText: {
-    fontFamily: "PlusJakartaSans_400Regular",
+    fontFamily: "PlusJakartaSans_500Medium",
     fontSize: 10,
     lineHeight: 12,
     color: "#84736f",
-    fontWeight: "500",
     fontVariant: ["tabular-nums"],
   },
   ideasListExpandedMetaStack: {
@@ -5661,11 +5645,10 @@ export const styles = StyleSheet.create({
     justifyContent: "center",
   },
   ideasListMetaDurationText: {
-    fontFamily: "PlusJakartaSans_500Medium",
+    fontFamily: "PlusJakartaSans_600SemiBold",
     fontSize: 13,
     lineHeight: 14,
     color: "#524440",
-    fontWeight: "600",
     fontVariant: ["tabular-nums"],
   },
   ideasListMetaDurationTextCompact: {
@@ -5673,19 +5656,17 @@ export const styles = StyleSheet.create({
     lineHeight: 13,
   },
   ideasListMetaText: {
-    fontFamily: "PlusJakartaSans_400Regular",
+    fontFamily: "PlusJakartaSans_600SemiBold",
     fontSize: 11,
     lineHeight: 13,
     color: "#84736f",
-    fontWeight: "600",
     fontVariant: ["tabular-nums"],
   },
   ideasListCompactProgressText: {
-    fontFamily: "PlusJakartaSans_500Medium",
+    fontFamily: "PlusJakartaSans_700Bold",
     fontSize: 11,
     lineHeight: 13,
     color: "#84736f",
-    fontWeight: "700",
     fontVariant: ["tabular-nums"],
   },
   ideasListMetaRightCol: {
@@ -5708,11 +5689,10 @@ export const styles = StyleSheet.create({
     minHeight: 12,
   },
   ideasListMetaSizeText: {
-    fontFamily: "PlusJakartaSans_400Regular",
+    fontFamily: "PlusJakartaSans_600SemiBold",
     fontSize: 11,
     lineHeight: 14,
     color: "#84736f",
-    fontWeight: "600",
     textAlign: "right",
     fontVariant: ["tabular-nums"],
   },
@@ -5724,11 +5704,10 @@ export const styles = StyleSheet.create({
     minHeight: 28,
   },
   ideasListDateSizeText: {
-    fontFamily: "PlusJakartaSans_400Regular",
+    fontFamily: "PlusJakartaSans_500Medium",
     fontSize: 10,
     lineHeight: 13,
     color: "#84736f",
-    fontWeight: "500",
     textAlign: "right",
     fontVariant: ["tabular-nums"],
   },
@@ -5737,12 +5716,11 @@ export const styles = StyleSheet.create({
     lineHeight: 12,
   },
   ideasListMetaSeparator: {
-    fontFamily: "PlusJakartaSans_400Regular",
+    fontFamily: "PlusJakartaSans_700Bold",
     fontSize: 10,
     lineHeight: 12,
     color: "#B8A8A3",
-    fontWeight: "700",
-  },
+    },
   ideasListStatusBadgeText: {
     fontSize: 9,
     lineHeight: 10,
@@ -5752,11 +5730,10 @@ export const styles = StyleSheet.create({
     textAlign: "center",
   },
   ideasListProgressText: {
-    fontFamily: "PlusJakartaSans_400Regular",
+    fontFamily: "PlusJakartaSans_600SemiBold",
     fontSize: 10,
     lineHeight: 12,
     color: "#84736f",
-    fontWeight: "600",
     textAlign: "right",
     fontVariant: ["tabular-nums"],
   },
@@ -5853,7 +5830,7 @@ export const styles = StyleSheet.create({
   inlinePlayBtnText: {
     fontSize: 12,
     color: "#1b1c1a",
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
     marginLeft: 1,
   },
 
@@ -5924,7 +5901,7 @@ export const styles = StyleSheet.create({
     fontSize: 18,
     lineHeight: 22,
     color: "#1b1c1a",
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
     marginBottom: 8,
   },
   collectionActionsModalCard: {
@@ -5958,7 +5935,7 @@ export const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 18,
     color: "#1b1c1a",
-    fontWeight: "600",
+    fontFamily: "PlusJakartaSans_600SemiBold",
   },
   collectionActionsOptionTextDestructive: {
     color: colors.danger,
@@ -6026,7 +6003,7 @@ export const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 22,
     color: "#1b1c1a",
-    fontWeight: "600",
+    fontFamily: "PlusJakartaSans_600SemiBold",
   },
 
   // -- ClipNotesSheet --

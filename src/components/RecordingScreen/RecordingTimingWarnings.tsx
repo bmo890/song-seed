@@ -80,7 +80,7 @@ const s = StyleSheet.create({
   },
   actionText: {
     fontSize: 12,
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
     color: "#ffffff",
   },
   pressed: {

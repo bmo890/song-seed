@@ -8,7 +8,6 @@ import ReAnimated, {
   useSharedValue,
 } from "react-native-reanimated";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
-import { StatusBar as ExpoStatusBar } from "expo-status-bar";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { useStore } from "../../../state/useStore";
@@ -331,7 +330,6 @@ function WorkspaceBrowseInner() {
         onClose={() => selectionModel.setSelectionMoreVisible(false)}
       />
 
-      <ExpoStatusBar style="dark" />
     </SafeAreaView>
   );
 }

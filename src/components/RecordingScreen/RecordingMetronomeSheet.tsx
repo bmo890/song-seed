@@ -357,7 +357,7 @@ const s = StyleSheet.create({
   titleGridNote: {
     fontSize: 11,
     color: "#824f3f",
-    fontWeight: "600",
+    fontFamily: "PlusJakartaSans_600SemiBold",
     marginTop: 2,
   },
   listenBtn: {
@@ -377,7 +377,7 @@ const s = StyleSheet.create({
   listenBtnText: {
     color: "#824f3f",
     fontSize: 13,
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
   },
   listenBtnTextActive: {
     color: "#FFFFFF",
@@ -390,7 +390,7 @@ const s = StyleSheet.create({
   },
   label: {
     fontSize: 11,
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
     letterSpacing: 0.6,
     textTransform: "uppercase",
     color: "#84736f",
@@ -422,7 +422,7 @@ const s = StyleSheet.create({
   },
   bpm: {
     fontSize: 17,
-    fontWeight: "800",
+    fontFamily: "PlusJakartaSans_700Bold",
     color: "#B87D6B",
     fontVariant: ["tabular-nums"],
   },
@@ -440,7 +440,7 @@ const s = StyleSheet.create({
   },
   tapText: {
     fontSize: 13,
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
     color: "#B87D6B",
   },
   tapTextActive: {
@@ -473,7 +473,7 @@ const s = StyleSheet.create({
   },
   featureTitle: {
     fontSize: 14,
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
     color: "#1b1c1a",
   },
   featureSub: {
@@ -489,7 +489,7 @@ const s = StyleSheet.create({
   },
   quietLabel: {
     fontSize: 14,
-    fontWeight: "600",
+    fontFamily: "PlusJakartaSans_600SemiBold",
     color: "#1b1c1a",
   },
   valuePill: {
@@ -503,7 +503,7 @@ const s = StyleSheet.create({
   },
   valueText: {
     fontSize: 13,
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
     color: "#524440",
     fontVariant: ["tabular-nums"],
   },
@@ -527,7 +527,7 @@ const s = StyleSheet.create({
   },
   segmentText: {
     fontSize: 13,
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
     color: "#84736f",
   },
   segmentTextActive: {
@@ -549,7 +549,7 @@ const s = StyleSheet.create({
   },
   chipText: {
     fontSize: 13,
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
     color: "#84736f",
   },
   chipTextActive: {
@@ -573,7 +573,7 @@ const s = StyleSheet.create({
   },
   cueLabel: {
     fontSize: 12,
-    fontWeight: "600",
+    fontFamily: "PlusJakartaSans_600SemiBold",
     color: "#84736f",
   },
   cueLabelActive: {

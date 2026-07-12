@@ -541,7 +541,7 @@ const searchScreenStyles = StyleSheet.create({
   },
   resultTitle: {
     ...textTokens.body,
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
     color: "#1b1c1a",
     flex: 1,
   },
@@ -570,7 +570,7 @@ const searchScreenStyles = StyleSheet.create({
     lineHeight: 21,
   },
   snippetHighlight: {
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
     color: "#824f3f",
   },
   openInRow: {

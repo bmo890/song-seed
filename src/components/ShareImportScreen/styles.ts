@@ -81,7 +81,7 @@ export const styles = StyleSheet.create({
   newCollectionTitle: {
     ...textTokens.body,
     color: colors.textPrimary,
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
   },
   newCollectionMeta: {
     ...textTokens.supporting,

@@ -1,6 +1,5 @@
 import { Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { StatusBar as ExpoStatusBar } from "expo-status-bar";
 import { clipLineageStyles, styles } from "../styles";
 import { fmtDuration, formatDate } from "../../../utils";
 import { ClipActionsSheet } from "../../modals/ClipActionsSheet";
@@ -118,7 +117,6 @@ export function ClipLineageScreenContent() {
         onClose={() => model.setTagPickerClipId(null)}
       />
 
-      <ExpoStatusBar style="dark" />
     </SafeAreaView>
   );
 }

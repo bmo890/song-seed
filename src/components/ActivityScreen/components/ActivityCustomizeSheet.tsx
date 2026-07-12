@@ -89,7 +89,7 @@ const styles = StyleSheet.create({
   },
   sectionLabel: {
     fontSize: 11,
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
     letterSpacing: 0.6,
     textTransform: "uppercase",
     color: "#84736f",
@@ -109,7 +109,7 @@ const styles = StyleSheet.create({
   },
   resetText: {
     fontSize: 12,
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
     color: "#1b1c1a",
   },
   list: {

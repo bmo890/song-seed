@@ -143,11 +143,10 @@ const nestedCollectionStyles = StyleSheet.create({
   },
   itemTitle: {
     flex: 1,
-    fontFamily: "PlusJakartaSans_400Regular",
+    fontFamily: "PlusJakartaSans_600SemiBold",
     fontSize: 14,
     color: "#1C1C19",
-    fontWeight: "600",
-  },
+    },
   chevronBtn: {
     width: 24,
     height: 24,

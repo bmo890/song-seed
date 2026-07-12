@@ -184,10 +184,13 @@ const styles = StyleSheet.create({
     backgroundColor: chordChartColors.chordActive,
   },
   text: {
+    // Deliberate exception to the "no bare fontWeight" rule: chord tokens render in the
+    // platform monospace font (column alignment), which is a system font and synthesizes
+    // bold correctly.
     fontFamily: MONO_FONT,
+    fontWeight: "700",
     fontSize: CHORD_FONT_SIZE,
     lineHeight: CHORD_FONT_SIZE + 4,
     color: chordChartColors.chordText,
-    fontWeight: "700",
   },
 });

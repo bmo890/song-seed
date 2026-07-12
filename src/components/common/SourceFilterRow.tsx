@@ -195,7 +195,7 @@ const styles = StyleSheet.create({
   },
   primaryTagText: {
     fontSize: 9.5,
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
     letterSpacing: 0.3,
     textTransform: "uppercase",
     color: "#824f3f",
@@ -216,12 +216,12 @@ const styles = StyleSheet.create({
   collectionName: {
     flexShrink: 1,
     fontSize: 13,
-    fontWeight: "600",
+    fontFamily: "PlusJakartaSans_600SemiBold",
     color: "#4a3f3b",
   },
   collectionNameOff: {
     color: "#b3a49c",
-    fontWeight: "500",
+    fontFamily: "PlusJakartaSans_500Medium",
   },
   collectionCount: {
     marginLeft: "auto",

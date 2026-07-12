@@ -1,6 +1,5 @@
 import { ScrollView, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { StatusBar as ExpoStatusBar } from "expo-status-bar";
 import { ScreenHeader } from "../../common/ScreenHeader";
 import { styles } from "../styles";
 import { useMetronomeScreenModel } from "../hooks/useMetronomeScreenModel";
@@ -57,7 +56,6 @@ export function MetronomeScreenContent() {
         />
       </ScrollView>
 
-      <ExpoStatusBar style="dark" />
     </SafeAreaView>
   );
 }

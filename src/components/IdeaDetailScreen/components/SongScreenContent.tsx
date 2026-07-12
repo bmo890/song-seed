@@ -1,6 +1,5 @@
 import { Text } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { StatusBar as ExpoStatusBar } from "expo-status-bar";
 import { ScreenHeader } from "../../common/ScreenHeader";
 import { FloatingActionDock } from "../../common/FloatingActionDock";
 import { SongHeaderSection } from "../sections/SongHeaderSection";
@@ -94,7 +93,6 @@ export function SongScreenContent() {
           onCancel={() => editFlow.handleCancel()}
         />
       ) : null}
-      <ExpoStatusBar style="dark" />
     </SafeAreaView>
   );
 }

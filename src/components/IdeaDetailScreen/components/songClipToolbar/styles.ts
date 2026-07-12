@@ -92,8 +92,7 @@ export const songClipToolbarStyles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 14,
     color: "#84736f",
-    fontWeight: "600",
-  },
+    },
   viewToggleTextActive: {
     color: "#1C1C19",
   },

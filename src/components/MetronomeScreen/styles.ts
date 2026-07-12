@@ -67,13 +67,13 @@ export const styles = {
     bpmValue: {
       fontSize: 72,
       lineHeight: 76,
-      fontWeight: "700",
+      fontFamily: "PlusJakartaSans_700Bold",
       color: INK,
       letterSpacing: -2,
     },
     bpmLabel: {
       fontSize: 11,
-      fontWeight: "600",
+      fontFamily: "PlusJakartaSans_600SemiBold",
       color: INK_MUTED,
       letterSpacing: 0.8,
       textTransform: "uppercase",
@@ -98,7 +98,7 @@ export const styles = {
     },
     primaryActionText: {
       fontSize: 15,
-      fontWeight: "700",
+      fontFamily: "PlusJakartaSans_700Bold",
       color: "#ffffff",
       letterSpacing: 0.2,
     },
@@ -109,7 +109,7 @@ export const styles = {
     // Small status line below button
     statusLabel: {
       fontSize: 11,
-      fontWeight: "600",
+      fontFamily: "PlusJakartaSans_600SemiBold",
       color: INK_MUTED,
       letterSpacing: 0.6,
       textTransform: "uppercase",
@@ -130,14 +130,14 @@ export const styles = {
     },
     sectionTitle: {
       fontSize: 11,
-      fontWeight: "700",
+      fontFamily: "PlusJakartaSans_700Bold",
       color: INK_MID,
       letterSpacing: 0.8,
       textTransform: "uppercase",
     },
     sectionMeta: {
       fontSize: 11,
-      fontWeight: "600",
+      fontFamily: "PlusJakartaSans_600SemiBold",
       color: INK_MUTED,
       letterSpacing: 0.4,
     },
@@ -158,7 +158,7 @@ export const styles = {
     },
     stepButtonText: {
       fontSize: 15,
-      fontWeight: "700",
+      fontFamily: "PlusJakartaSans_700Bold",
       color: INK,
     },
 
@@ -171,7 +171,7 @@ export const styles = {
     },
     sliderLabel: {
       fontSize: 11,
-      fontWeight: "600",
+      fontFamily: "PlusJakartaSans_600SemiBold",
       color: INK_MUTED,
       letterSpacing: 0.4,
     },
@@ -195,7 +195,7 @@ export const styles = {
     },
     tapButtonText: {
       fontSize: 15,
-      fontWeight: "700",
+      fontFamily: "PlusJakartaSans_700Bold",
       color: INK,
     },
     tapResetButton: {
@@ -209,12 +209,12 @@ export const styles = {
     },
     tapResetButtonText: {
       fontSize: 14,
-      fontWeight: "600",
+      fontFamily: "PlusJakartaSans_600SemiBold",
       color: INK_MID,
     },
     tapCountLabel: {
       fontSize: 11,
-      fontWeight: "600",
+      fontFamily: "PlusJakartaSans_600SemiBold",
       color: INK_MUTED,
       letterSpacing: 0.4,
       textTransform: "uppercase",
@@ -241,7 +241,7 @@ export const styles = {
     },
     outputToggleText: {
       fontSize: 14,
-      fontWeight: "600",
+      fontFamily: "PlusJakartaSans_600SemiBold",
       color: INK_MID,
     },
     outputToggleTextActive: {
@@ -260,12 +260,12 @@ export const styles = {
     },
     levelTitle: {
       fontSize: 13,
-      fontWeight: "600",
+      fontFamily: "PlusJakartaSans_600SemiBold",
       color: INK_MID,
     },
     levelMeta: {
       fontSize: 11,
-      fontWeight: "600",
+      fontFamily: "PlusJakartaSans_600SemiBold",
       color: INK_MUTED,
       letterSpacing: 0.4,
     },

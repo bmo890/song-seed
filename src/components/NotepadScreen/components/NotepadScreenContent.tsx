@@ -748,7 +748,7 @@ const noteStyles = StyleSheet.create({
   matchText: {
     backgroundColor: "#f0d4cc",
     color: "#5c2d1e",
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
   },
   ladderCard: {
     alignItems: "center",

@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { colors } from "../../design/tokens";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { StatusBar as ExpoStatusBar } from "expo-status-bar";
 import { View, Text, ActivityIndicator, TouchableOpacity, Pressable, StyleSheet } from "react-native";
 import { StackActions, useIsFocused, useNavigation, useRoute } from "@react-navigation/native";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
@@ -71,6 +70,39 @@ const editorLocalStyles = StyleSheet.create({
         fontFamily: "PlusJakartaSans_600SemiBold",
         fontSize: 13,
         color: colors.primary,
+    },
+    overdubGate: {
+        gap: 20,
+        paddingTop: 40,
+        paddingHorizontal: 10,
+    },
+    overdubGateIconRing: {
+        width: 56,
+        height: 56,
+        borderRadius: 28,
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: "#FDF5F2",
+        borderWidth: 1,
+        borderColor: colors.borderMuted,
+    },
+    overdubGateTitle: {
+        fontFamily: "PlayfairDisplay_600SemiBold",
+        fontSize: 24,
+        lineHeight: 30,
+        color: colors.textPrimary,
+    },
+    overdubGateBody: {
+        fontFamily: "PlusJakartaSans_400Regular",
+        fontSize: 15,
+        lineHeight: 24,
+        color: colors.textStrong,
+    },
+    loadingText: {
+        marginTop: 12,
+        fontFamily: "PlusJakartaSans_400Regular",
+        fontSize: 13,
+        color: colors.textSecondary,
     },
 });
 
@@ -377,12 +409,15 @@ export function EditorScreen() {
                 scrollable
             >
                 {sourceClipHasOverdubs ? (
-                    <View style={{ gap: 18, paddingTop: 32, paddingHorizontal: 6 }}>
+                    <View style={editorLocalStyles.overdubGate}>
+                        <View style={editorLocalStyles.overdubGateIconRing}>
+                            <Ionicons name="layers-outline" size={26} color={colors.primary} />
+                        </View>
                         <View style={{ gap: 8 }}>
-                            <Text style={{ fontSize: 24, lineHeight: 30, fontWeight: "700", color: "#1b1c1a" }}>
+                            <Text style={editorLocalStyles.overdubGateTitle}>
                                 Save a combined clip first
                             </Text>
-                            <Text style={{ fontSize: 15, lineHeight: 24, color: "#524440" }}>
+                            <Text style={editorLocalStyles.overdubGateBody}>
                                 This take has overdub layers attached. Timing edits on the root clip would break the
                                 alignment. Save the combined mix as a new clip, then edit that flattened result.
                             </Text>
@@ -399,7 +434,7 @@ export function EditorScreen() {
                 ) : isLoading ? (
                     <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
                         <ActivityIndicator size="large" color={colors.primary} />
-                        <Text style={{ marginTop: 10, color: colors.textSecondary }}>Analyzing audio...</Text>
+                        <Text style={editorLocalStyles.loadingText}>Analyzing audio…</Text>
                     </View>
                 ) : analysisData ? (
                     <>
@@ -520,7 +555,6 @@ export function EditorScreen() {
                 )}
             </TransportLayout>
 
-            <ExpoStatusBar style="dark" />
 
             <EditorExportProgressModal visible={exportFlow.isExporting} />
 

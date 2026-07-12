@@ -127,7 +127,7 @@ const cardStyles = StyleSheet.create({
   },
   actionLabel: {
     fontSize: 11,
-    fontWeight: "600",
+    fontFamily: "PlusJakartaSans_600SemiBold",
     color: "#84736f",
   },
   viewBtn: {
@@ -137,7 +137,7 @@ const cardStyles = StyleSheet.create({
   },
   viewBtnText: {
     fontSize: 12,
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
     color: "#824f3f",
   },
 });

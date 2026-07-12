@@ -240,7 +240,7 @@ const exportModalStyles = StyleSheet.create({
   },
   segmentText: {
     color: colors.textSecondary,
-    fontWeight: "600",
+    fontFamily: "PlusJakartaSans_600SemiBold",
   },
   segmentTextActive: {
     color: colors.primary,
@@ -267,12 +267,12 @@ const exportModalStyles = StyleSheet.create({
   },
   extractCardTitle: {
     fontSize: 15,
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
     color: colors.textPrimary,
   },
   extractCardDuration: {
     fontSize: 13,
-    fontWeight: "600",
+    fontFamily: "PlusJakartaSans_600SemiBold",
     color: colors.textSecondary,
   },
   extractPreviewRow: {

@@ -260,7 +260,7 @@ const styles = StyleSheet.create({
   },
   zoomChipText: {
     fontSize: 11,
-    fontWeight: "600",
+    fontFamily: "PlusJakartaSans_600SemiBold",
     color: "#5a4b45",
   },
   pressed: {

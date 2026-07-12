@@ -1006,7 +1006,7 @@ const screenStyles = StyleSheet.create({
     fontSize: 17,
     lineHeight: 22,
     color: "#1b1c1a",
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
   },
   routeMeta: {
     fontSize: 13,
@@ -1024,7 +1024,7 @@ const screenStyles = StyleSheet.create({
     fontSize: 17,
     lineHeight: 22,
     color: "#1b1c1a",
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
   },
   phaseText: {
     fontSize: 13,
@@ -1035,7 +1035,7 @@ const screenStyles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 16,
     color: "#6d5b55",
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
     textTransform: "uppercase",
     letterSpacing: 0.4,
   },
@@ -1052,7 +1052,7 @@ const screenStyles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 16,
     color: "#6d5b55",
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
   },
   progressTrack: {
     height: 10,
@@ -1076,7 +1076,7 @@ const screenStyles = StyleSheet.create({
     fontSize: 20,
     lineHeight: 24,
     color: "#1b1c1a",
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
   },
   phaseError: {
     fontSize: 13,
@@ -1135,7 +1135,7 @@ const screenStyles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 18,
     color: "#ffffff",
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
   },
   secondaryButton: {
     minHeight: 44,
@@ -1149,7 +1149,7 @@ const screenStyles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 18,
     color: "#1b1c1a",
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
   },
   buttonDisabled: {
     opacity: 0.5,
@@ -1171,7 +1171,7 @@ const screenStyles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 20,
     color: "#1b1c1a",
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
   },
   savedMeta: {
     fontSize: 13,
@@ -1196,7 +1196,7 @@ const screenStyles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 18,
     color: "#1b1c1a",
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
   },
   removeButton: {
     paddingHorizontal: 10,
@@ -1206,6 +1206,6 @@ const screenStyles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 18,
     color: "#824f3f",
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
   },
 });

@@ -739,7 +739,7 @@ const audioReelStyles = StyleSheet.create({
         borderWidth: 1,
     },
     timingText: {
-        fontWeight: "600",
+        fontFamily: "PlusJakartaSans_600SemiBold",
         fontSize: 13,
         fontVariant: ["tabular-nums"],
     },
@@ -827,7 +827,7 @@ const audioReelStyles = StyleSheet.create({
         minWidth: 68,
     },
     zoomReadoutText: {
-        fontWeight: "600",
+        fontFamily: "PlusJakartaSans_600SemiBold",
         fontSize: 13,
         fontVariant: ["tabular-nums"],
     },

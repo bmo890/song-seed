@@ -492,7 +492,7 @@ const cardStyles = StyleSheet.create({
   },
   modeChipText: {
     fontSize: 12,
-    fontWeight: "600",
+    fontFamily: "PlusJakartaSans_600SemiBold",
     color: "#5a4b45",
   },
   modeChipTextActive: {
@@ -509,7 +509,7 @@ const cardStyles = StyleSheet.create({
   },
   gainReadoutText: {
     fontSize: 13,
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
     color: "#1b1c1a",
   },
   alignControls: {
@@ -538,7 +538,7 @@ const cardStyles = StyleSheet.create({
   },
   auditionButtonText: {
     fontSize: 13,
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
     color: "#824f3f",
   },
   auditionButtonTextActive: {
@@ -563,7 +563,7 @@ const cardStyles = StyleSheet.create({
   },
   originalButtonText: {
     fontSize: 12,
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
     color: "#5a4b45",
   },
   alignHint: {
@@ -584,7 +584,7 @@ const cardStyles = StyleSheet.create({
   editNameInput: {
     flex: 1,
     fontSize: 15,
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
     color: "#1b1c1a",
     paddingVertical: 6,
   },
@@ -601,7 +601,7 @@ const cardStyles = StyleSheet.create({
   },
   colorModalCancelText: {
     fontSize: 14,
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
     color: "#5a4b45",
   },
   colorModalConfirm: {
@@ -615,7 +615,7 @@ const cardStyles = StyleSheet.create({
   },
   colorModalConfirmText: {
     fontSize: 14,
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
     color: "#ffffff",
   },
 });

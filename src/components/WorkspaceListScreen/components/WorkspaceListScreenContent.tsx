@@ -1,6 +1,5 @@
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
-import { StatusBar as ExpoStatusBar } from "expo-status-bar";
 import { Ionicons } from "@expo/vector-icons";
 import { useState } from "react";
 import { useNavigation } from "@react-navigation/native";
@@ -239,7 +238,6 @@ export function WorkspaceListScreenContent() {
         onDelete={() => {}}
       />
 
-      <ExpoStatusBar style="dark" />
     </SafeAreaView>
   );
 }

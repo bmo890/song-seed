@@ -1,7 +1,6 @@
 import { useRef, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { StatusBar as ExpoStatusBar } from "expo-status-bar";
 import { Ionicons } from "@expo/vector-icons";
 import { ScreenHeader } from "../../common/ScreenHeader";
 import { styles as appStyles } from "../../../styles";
@@ -167,7 +166,6 @@ export function ChordSheetScreenContent() {
         onClose={() => setFullViewOpen(false)}
       />
 
-      <ExpoStatusBar style="dark" />
     </SafeAreaView>
   );
 }

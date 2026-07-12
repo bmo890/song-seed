@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { StatusBar as ExpoStatusBar } from "expo-status-bar";
 import { Ionicons } from "@expo/vector-icons";
 import { ScreenHeader } from "../common/ScreenHeader";
 import { styles } from "../../styles";
@@ -143,7 +142,6 @@ export function RevisitScreen() {
         setDailyRefresh={screen.setDailyRefresh}
       />
 
-      <ExpoStatusBar style="dark" />
     </SafeAreaView>
   );
 }

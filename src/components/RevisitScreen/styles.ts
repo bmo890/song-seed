@@ -34,7 +34,7 @@ export const revisitStyles = {
     },
     utilityButtonText: {
       fontSize: 12,
-      fontWeight: "700",
+      fontFamily: "PlusJakartaSans_700Bold",
       color: INK,
     },
 
@@ -48,7 +48,7 @@ export const revisitStyles = {
     },
     hiddenResetText: {
       fontSize: 12,
-      fontWeight: "700",
+      fontFamily: "PlusJakartaSans_700Bold",
       color: TERRACOTTA,
     },
 
@@ -75,7 +75,7 @@ export const revisitStyles = {
     },
     sectionActionText: {
       fontSize: 12,
-      fontWeight: "700",
+      fontFamily: "PlusJakartaSans_700Bold",
       color: INK,
     },
 
@@ -136,7 +136,7 @@ export const revisitStyles = {
     },
     sectionGoText: {
       fontSize: 13,
-      fontWeight: "700",
+      fontFamily: "PlusJakartaSans_700Bold",
       color: TERRACOTTA,
     },
     sectionEmptyLine: {
@@ -185,7 +185,7 @@ export const revisitStyles = {
     // ── Customize sheet extras ────────────────────────────────────────────
     sheetSectionLabel: {
       fontSize: 11,
-      fontWeight: "700",
+      fontFamily: "PlusJakartaSans_700Bold",
       letterSpacing: 0.6,
       textTransform: "uppercase",
       color: MUTED,
@@ -217,7 +217,7 @@ export const revisitStyles = {
     toggleRowText: {
       fontSize: 15,
       color: INK,
-      fontWeight: "600",
+      fontFamily: "PlusJakartaSans_600SemiBold",
     },
     toggleRowDesc: {
       fontSize: 12,
@@ -242,7 +242,7 @@ export const revisitStyles = {
     },
     snapshotWindowText: {
       fontSize: 12,
-      fontWeight: "700",
+      fontFamily: "PlusJakartaSans_700Bold",
       color: TERRACOTTA,
     },
     snapshotList: {

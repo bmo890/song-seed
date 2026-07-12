@@ -1,7 +1,6 @@
 import React from "react";
 import { View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { StatusBar as ExpoStatusBar } from "expo-status-bar";
 import { useNavigation } from "@react-navigation/native";
 import { styles } from "../../styles";
 import { QuickNameModal } from "../modals/QuickNameModal";
@@ -234,7 +233,6 @@ export function RecordingScreen() {
         onChangeHapticLevel={screen.metronome.setHapticLevelValue}
       />
 
-      <ExpoStatusBar style="dark" />
     </SafeAreaView>
   );
 }

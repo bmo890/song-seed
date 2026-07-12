@@ -128,12 +128,12 @@ const transformModalStyles = StyleSheet.create({
   },
   summaryLabel: {
     fontSize: 13,
-    fontWeight: "600",
+    fontFamily: "PlusJakartaSans_600SemiBold",
     color: colors.textSecondary,
   },
   summaryValue: {
     fontSize: 13,
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
     color: colors.textPrimary,
   },
   checkboxRow: {

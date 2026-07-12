@@ -1,6 +1,7 @@
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import Constants from "expo-constants";
 import * as SplashScreen from "expo-splash-screen";
+import { StatusBar } from "expo-status-bar";
 import { ActivityIndicator, View } from "react-native";
 import { useFonts } from "expo-font";
 import {
@@ -1090,6 +1091,9 @@ export default function App() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <AppErrorBoundary>
+      {/* The whole app is light-on-paper; one root status bar replaces the
+          per-screen instances (only ~half the screens had one). */}
+      <StatusBar style="dark" />
       <SafeAreaProvider>
         <AudioRecorderProvider>
           <AppDialogHost />

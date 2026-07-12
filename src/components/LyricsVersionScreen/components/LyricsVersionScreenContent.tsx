@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { KeyboardAvoidingView, Pressable, StyleSheet, Text } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
-import { StatusBar as ExpoStatusBar } from "expo-status-bar";
 import { useNavigation } from "@react-navigation/native";
 import { colors, radii } from "../../../design/tokens";
 import { styles } from "../styles";
@@ -154,7 +153,6 @@ export function LyricsVersionScreenContent() {
         }}
       />
 
-      <ExpoStatusBar style="dark" />
     </SafeAreaView>
   );
 }

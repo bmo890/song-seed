@@ -1,6 +1,5 @@
 import { Linking, ScrollView, Text } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { StatusBar as ExpoStatusBar } from "expo-status-bar";
 import { ScreenHeader } from "../../common/ScreenHeader";
 import { useBrowseRootBackHandler } from "../../../hooks/useBrowseRootBackHandler";
 import { useTunerScreenModel } from "../hooks/useTunerScreenModel";
@@ -40,7 +39,6 @@ export function TunerScreenContent() {
         ) : null}
       </ScrollView>
 
-      <ExpoStatusBar style="dark" />
     </SafeAreaView>
   );
 }

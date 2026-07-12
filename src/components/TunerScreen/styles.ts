@@ -101,7 +101,7 @@ export const styles = {
     },
     markerText: {
       fontSize: 22,
-      fontWeight: "300",
+      fontFamily: "PlusJakartaSans_400Regular",
       color: DIVIDER,
     },
 
@@ -124,7 +124,7 @@ export const styles = {
     noteText: {
       fontSize: 90,
       lineHeight: 104,
-      fontWeight: "700",
+      fontFamily: "PlusJakartaSans_700Bold",
       color: INK,
       letterSpacing: -3,
     },
@@ -133,14 +133,14 @@ export const styles = {
       marginLeft: 4,
       fontSize: 44,
       lineHeight: 48,
-      fontWeight: "400",
+      fontFamily: "PlusJakartaSans_400Regular",
       color: INK_MID,
     },
     hzInlineValue: {
       marginTop: spacing.md,
       fontSize: 11,
       lineHeight: 14,
-      fontWeight: "600",
+      fontFamily: "PlusJakartaSans_600SemiBold",
       color: INK_MUTED,
       letterSpacing: 0.8,
       textTransform: "uppercase",
@@ -164,7 +164,7 @@ export const styles = {
     detuneChipValue: {
       fontSize: 18,
       lineHeight: 22,
-      fontWeight: "600",
+      fontFamily: "PlusJakartaSans_600SemiBold",
     },
     detuneChipValueNear: { color: "#c07840" },
     detuneChipValueFar:  { color: "#a04545" },
@@ -189,7 +189,7 @@ export const styles = {
     },
     statusLabel: {
       fontSize: 11,
-      fontWeight: "600",
+      fontFamily: "PlusJakartaSans_600SemiBold",
       color: INK_MUTED,
       letterSpacing: 0.8,
       textTransform: "uppercase",
@@ -209,7 +209,7 @@ export const styles = {
     errorText: {
       ...textTokens.supporting,
       color: "#a04545",
-      fontWeight: "600",
+      fontFamily: "PlusJakartaSans_600SemiBold",
       textAlign: "center",
       maxWidth: 300,
     },

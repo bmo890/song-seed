@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { StatusBar as ExpoStatusBar } from "expo-status-bar";
 import { ScreenHeader } from "../../common/ScreenHeader";
 import { CollapsingHeaderOverlay } from "../../common/CollapsingHeaderOverlay";
 import { useCollectionScreen } from "../provider/CollectionScreenProvider";
@@ -143,7 +142,6 @@ export function CollectionScreenContent() {
       <CollectionModals />
       <CollectionFloatingActions />
       <CollectionHeaderMenu />
-      <ExpoStatusBar style="dark" />
     </SafeAreaView>
   );
 }

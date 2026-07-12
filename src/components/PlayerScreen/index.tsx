@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { BackHandler, Dimensions, Platform, Pressable, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { StatusBar as ExpoStatusBar } from "expo-status-bar";
 import { Gesture } from "react-native-gesture-handler";
 import { Easing, runOnJS, useSharedValue, withTiming, type SharedValue } from "react-native-reanimated";
 import type { ClipSection, PracticeMarker } from "../../types";
@@ -1001,7 +1000,6 @@ export function PlayerScreen({
         onDeletePin={handleDeletePin}
       />
 
-      <ExpoStatusBar style="dark" />
     </SafeAreaView>
   );
 

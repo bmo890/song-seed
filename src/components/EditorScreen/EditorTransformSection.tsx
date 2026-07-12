@@ -147,7 +147,7 @@ const editorTransformStyles = StyleSheet.create({
   },
   label: {
     fontSize: 14,
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
     color: colors.textPrimary,
   },
   meta: {
@@ -169,7 +169,7 @@ const editorTransformStyles = StyleSheet.create({
   },
   resetButtonText: {
     fontSize: 12,
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
     color: colors.textStrong,
   },
   resetButtonTextDisabled: {
@@ -183,7 +183,7 @@ const editorTransformStyles = StyleSheet.create({
   },
   rowLabel: {
     fontSize: 13,
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
     color: colors.textStrong,
     paddingTop: 8,
     minWidth: 48,
@@ -220,7 +220,7 @@ const editorTransformStyles = StyleSheet.create({
   },
   valueText: {
     fontSize: 13,
-    fontWeight: "700",
+    fontFamily: "PlusJakartaSans_700Bold",
     color: colors.textPrimary,
   },
   summaryText: {

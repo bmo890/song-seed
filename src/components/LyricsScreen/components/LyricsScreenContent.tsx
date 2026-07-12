@@ -1,6 +1,5 @@
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { StatusBar as ExpoStatusBar } from "expo-status-bar";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { styles } from "../styles";
@@ -53,7 +52,6 @@ export function LyricsScreenContent() {
         <LyricsVersionsPanel projectIdea={projectIdea} />
       </ScrollView>
 
-      <ExpoStatusBar style="dark" />
     </SafeAreaView>
   );
 }
