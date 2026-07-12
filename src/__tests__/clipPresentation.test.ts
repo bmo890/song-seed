@@ -1,5 +1,6 @@
 import {
   getClipPlaybackWaveformPeaksOrFallback,
+  getClipReelWaveformPeaks,
 } from "../clipPresentation";
 import type { ClipVersion } from "../types";
 
@@ -59,5 +60,28 @@ describe("getClipPlaybackWaveformPeaksOrFallback", () => {
       getClipPlaybackWaveformPeaksOrFallback(clip, 32)
     );
     expect(getClipPlaybackWaveformPeaksOrFallback(clip, 32)).toHaveLength(32);
+  });
+});
+
+describe("getClipReelWaveformPeaks", () => {
+  it("uses a real full-resolution waveform as-is", () => {
+    const realPeaks = Array.from({ length: 256 }, (_, i) => (i % 10) / 10);
+    const clip = buildClip({ waveformPeaks: realPeaks });
+    expect(getClipReelWaveformPeaks(clip)).toBe(realPeaks);
+  });
+
+  it("replaces a sub-resolution placeholder with a DENSE synthetic so the reel isn't sparse at zoom", () => {
+    const placeholder = Array.from({ length: 128 }, () => 0.3);
+    const clip = buildClip({ waveformPeaks: placeholder });
+    const reel = getClipReelWaveformPeaks(clip, 1024);
+    expect(reel).not.toBe(placeholder);
+    expect(reel).toHaveLength(1024);
+    // Deterministic (seeded by clip id + duration) so the reel doesn't reshuffle per render.
+    expect(getClipReelWaveformPeaks(clip, 1024)).toEqual(reel);
+  });
+
+  it("builds a dense synthetic for a clip with no peaks", () => {
+    const clip = buildClip({ waveformPeaks: undefined });
+    expect(getClipReelWaveformPeaks(clip, 1024)).toHaveLength(1024);
   });
 });

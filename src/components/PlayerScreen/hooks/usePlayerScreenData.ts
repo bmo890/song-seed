@@ -4,7 +4,7 @@ import {
   getClipOverdubStemCount,
   getClipPlaybackDurationMs,
   getClipPlaybackUri,
-  getClipPlaybackWaveformPeaksOrFallback,
+  getClipReelWaveformPeaks,
 } from "../../../clipPresentation";
 import {
   getClipOverdubRootSettings,
@@ -103,7 +103,7 @@ export function usePlayerScreenData({ playerDuration, isPlaying = false }: UsePl
   const playbackAudioUri = playerClip ? getClipPlaybackUri(playerClip) ?? null : null;
   const displayDuration = playerDuration || (playerClip ? getClipPlaybackDurationMs(playerClip) : 0) || 0;
   const thumbnailWaveformPeaks = useMemo(
-    () => (playerClip ? getClipPlaybackWaveformPeaksOrFallback(playerClip) : []),
+    () => (playerClip ? getClipReelWaveformPeaks(playerClip) : []),
     [playerClip]
   );
   // Detail waveform (sidecar) with the inline thumbnail as the fallback until it loads —
