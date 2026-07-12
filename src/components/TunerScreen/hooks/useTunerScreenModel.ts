@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useIsFocused } from "@react-navigation/native";
 import { ExpoAudioStreamModule } from "@siteed/audio-studio";
 import type { EmitterSubscription } from "react-native";
+import { haptic } from "../../../design/haptics";
 import {
   buildTunerReading,
   getTunerMeterPercent,
@@ -45,6 +46,8 @@ const DISPLAY_SMOOTHING_ALPHA = 0.10;
 const DISPLAY_FAST_ALPHA = 0.22;
 const IN_TUNE_GUIDE_CENTS = 5;
 const IN_TUNE_HOLD_MS = 480;
+/** After leaving in-tune, wait this long before the lock haptic can fire again. */
+const IN_TUNE_HAPTIC_REARM_MS = 300;
 const IN_TUNE_EXIT_CENTS = 10;
 const MIN_DISPLAY_DELTA_HZ = 0.04;
 const CANDIDATE_SAMPLE_WINDOW = 5;
@@ -201,6 +204,8 @@ export function useTunerScreenModel() {
   const displayCentsRef = useRef<number | null>(null);
   const activeCentsWindowRef = useRef<number[]>([]);
   const lastInTuneTsRef = useRef(0);
+  const wasInTuneRef = useRef(false);
+  const leftInTuneTsRef = useRef(0);
 
   const [frequency, setFrequency] = useState<number | null>(null);
   const [isListening, setIsListening] = useState(false);
@@ -650,6 +655,24 @@ export function useTunerScreenModel() {
 
   const showFlatDetune = Boolean(reading && reading.centsOff < -IN_TUNE_GUIDE_CENTS);
   const showSharpDetune = Boolean(reading && reading.centsOff > IN_TUNE_GUIDE_CENTS);
+
+  // In-tune buzz: one success pulse when the needle locks green — the canonical
+  // tuner delight. Fires on the TRANSITION only and re-arms after the tone has
+  // left in_tune for a beat, so a note held on the line doesn't machine-gun and
+  // wobble across the boundary doesn't re-fire (docs/haptics-vocabulary.md).
+  useEffect(() => {
+    if (effectiveTone === "in_tune") {
+      if (!wasInTuneRef.current && Date.now() - leftInTuneTsRef.current > IN_TUNE_HAPTIC_REARM_MS) {
+        haptic.success();
+      }
+      wasInTuneRef.current = true;
+    } else {
+      if (wasInTuneRef.current) {
+        leftInTuneTsRef.current = Date.now();
+      }
+      wasInTuneRef.current = false;
+    }
+  }, [effectiveTone]);
 
   return {
     isListening,

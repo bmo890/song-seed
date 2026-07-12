@@ -9,6 +9,7 @@ import { MinimapVisualizer } from "../visualizers/MinimapVisualizer";
 import type { SectionBand } from "../../playerSections";
 import { fmt } from "../../utils";
 import { radii } from "../../design/tokens";
+import { haptic } from "../../design/haptics";
 
 const TIMELINE_HORIZONTAL_PADDING = 20;
 const AnimatedView = Reanimated.createAnimatedComponent(View);
@@ -304,7 +305,14 @@ export function AudioReel({
             expandButtonColor: "rgba(0,0,0,0.4)",
         };
 
+    const scrubbingRef = React.useRef(false);
     const handleInteractionStateChange = (scrubbing: boolean) => {
+        // Grab/release ticks on the transition only — the reel is the app's most
+        // tactile surface and deserves physical detents (per docs/haptics-vocabulary.md).
+        if (scrubbing !== scrubbingRef.current) {
+            scrubbingRef.current = scrubbing;
+            haptic.tap();
+        }
         onScrubStateChange?.(scrubbing);
     };
 
@@ -331,6 +339,7 @@ export function AudioReel({
     }, [overscaleFactor, timelineScale]);
 
     const handleZoom = React.useCallback((direction: "in" | "out") => {
+        haptic.light();
         const currentIndex = ZOOM_LEVELS.findIndex((level) => level >= zoomMultiple - 0.001);
         const baseIndex = currentIndex >= 0 ? currentIndex : nearestZoomIndex;
         const nextZoom =

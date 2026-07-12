@@ -17,6 +17,7 @@ import {
   SECTION_QUICK_ADD,
 } from "../../../playerSections";
 import type { SectionCustomInput } from "../hooks/usePlayerSections";
+import { AnimatedCollapse } from "../../common/AnimatedCollapse";
 import { WarmModal } from "../../common/WarmModal";
 import { HueSlider } from "../../common/HueSlider";
 import { hexToHue, hueToAccentHex } from "../../../workspaceTheme";
@@ -147,7 +148,10 @@ function AccordionRow({
     <View style={s.toolCard}>
       <Pressable
         style={({ pressed }) => [s.toolHeader, pressed ? s.toolHeaderPressed : null]}
-        onPress={() => onToggle(tool)}
+        onPress={() => {
+          haptic.tap();
+          onToggle(tool);
+        }}
         accessibilityRole="button"
         accessibilityState={{ expanded }}
         accessibilityLabel={`${label}: ${value}`}
@@ -167,7 +171,9 @@ function AccordionRow({
           <Ionicons name={expanded ? "chevron-up" : "chevron-down"} size={16} color={colors.textMuted} />
         </View>
       </Pressable>
-      {expanded ? <View style={s.toolBody}>{children}</View> : null}
+      <AnimatedCollapse visible={expanded} style={s.toolBody}>
+        {children}
+      </AnimatedCollapse>
     </View>
   );
 }

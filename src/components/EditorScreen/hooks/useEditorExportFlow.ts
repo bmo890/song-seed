@@ -10,6 +10,8 @@ import { renderPitchShiftedFile } from "../../../services/pitchShift";
 import { useStore } from "../../../state/useStore";
 import type { ClipVersion, EditRegion, SongIdea } from "../../../types";
 import { genClipTitle } from "../../../utils";
+import { haptic } from "../../../design/haptics";
+import { toast } from "../../common/toastStore";
 import {
   buildClipId,
   buildFallbackClipTitle,
@@ -275,6 +277,12 @@ export function useEditorExportFlow({
   const finishExport = (highlightIds: string[]) => {
     if (highlightIds.length > 0) {
       markRecentlyAdded(highlightIds);
+      // Quiet completion: the editor pops away — the toast confirms the save landed.
+      haptic.success();
+      toast(
+        highlightIds.length === 1 ? "Clip saved" : `${highlightIds.length} clips saved`,
+        "checkmark-circle-outline"
+      );
     }
     setExportModalVisible(false);
     resetPreviewScrubSession();

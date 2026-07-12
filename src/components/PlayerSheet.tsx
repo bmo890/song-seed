@@ -9,6 +9,7 @@ import { PlayerScreen, type PlayerSheetNavigation } from "./PlayerScreen";
 import { useStore } from "../state/useStore";
 import { usePlayerSheetPosition } from "../hooks/PlayerSheetPositionProvider";
 import { colors } from "../design/tokens";
+import { haptic } from "../design/haptics";
 
 /** Root routes that legitimately open ON TOP of the player (trim, re-record,
  *  lyric/chord editing…). The sheet hides beneath them but stays mounted, so
@@ -64,7 +65,12 @@ export function PlayerSheet({ activeRouteName, isDrawerOpen, navigateRoot }: Pla
     }
     setInMotion(true);
     dragY.value = withTiming(0, { duration: OPEN_DURATION }, (finished) => {
-      if (finished) runOnJS(setInMotion)(false);
+      if (finished) {
+        // The sheet just landed fully expanded — the app's signature gesture gets
+        // a physical full stop (docs/haptics-vocabulary.md: grab = settle).
+        runOnJS(haptic.grab)();
+        runOnJS(setInMotion)(false);
+      }
     });
   }, [dragY, expanded, openedByDrag, setInMotion]);
 
@@ -84,6 +90,7 @@ export function PlayerSheet({ activeRouteName, isDrawerOpen, navigateRoot }: Pla
         // so the next swipe-up lifts straight out from there.
         dragY.value = withTiming(dockedY.value, { duration: CLOSE_DURATION }, (finished) => {
           if (finished) {
+            runOnJS(haptic.grab)();
             runOnJS(collapse)();
             runOnJS(clearMotion)();
           }

@@ -33,6 +33,7 @@ import { EditorSelectionList } from "./EditorSelectionList";
 import { EditorExportProgressModal } from "./EditorExportProgressModal";
 import { EditorExportModal } from "./EditorExportModal";
 import { AppAlert } from "../common/AppAlert";
+import { haptic } from "../../design/haptics";
 import { useEditorExportFlow } from "./hooks/useEditorExportFlow";
 import { useEditorTransformState } from "./hooks/useEditorTransformState";
 import { useEditorPreviewTransport } from "./hooks/useEditorPreviewTransport";
@@ -509,13 +510,19 @@ export function EditorScreen() {
                                     intent={editMode}
                                     regionCount={editMode === "keep" ? keepRegions.length : removeRegions.length}
                                     removedMs={removeRegions.reduce((sum, r) => sum + (r.end - r.start), 0)}
-                                    onSelectIntent={setIntent}
+                                    onSelectIntent={(intent) => {
+                                        haptic.tap();
+                                        setIntent(intent);
+                                    }}
                                 />
 
                                 <View style={editorLocalStyles.regionsHead}>
                                     <Text style={editorLocalStyles.regionsLabel}>Regions</Text>
                                     <Pressable
-                                        onPress={addRange}
+                                        onPress={() => {
+                                            haptic.light();
+                                            addRange();
+                                        }}
                                         hitSlop={6}
                                         style={({ pressed }) => (pressed ? styles.pressDown : null)}
                                     >
@@ -532,7 +539,10 @@ export function EditorScreen() {
                                     onSeekRangeEnd={(range) => {
                                         void transportScrub.seekAndSettle(range.end);
                                     }}
-                                    onRemoveRange={removeRange}
+                                    onRemoveRange={(rangeId) => {
+                                        haptic.tap();
+                                        removeRange(rangeId);
+                                    }}
                                 />
 
                                 <View style={{ height: 24 }} />

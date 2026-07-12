@@ -19,6 +19,7 @@ import { getLatestLyricsVersion, lyricsDocumentToText } from "../../../lyrics";
 import { serializeChordChartText } from "../../../chords";
 import { haptic } from "../../../design/haptics";
 import { useEditHistory } from "../../../hooks/useEditHistory";
+import { toast } from "../../common/toastStore";
 type LyricsVersionRoute = RootStackParamList["LyricsVersion"];
 
 /** Quiet, humanized "edited" line for the version subtitle — "Edited today",
@@ -159,7 +160,7 @@ export function useLyricsVersionScreenModel() {
       !isEditMode && hasChords ? serializeChordChartText(versionLines) : isEditMode ? draftText : sourceText;
     Clipboard.setString(textToCopy);
     haptic.tap();
-    AppAlert.info("Copied", hasChords && !isEditMode ? "Chord chart copied to your clipboard." : "Lyrics text copied to your clipboard.");
+    toast(hasChords && !isEditMode ? "Chord chart copied" : "Lyrics copied", "copy-outline");
   };
 
   const revertDraft = () => {

@@ -18,6 +18,8 @@ import {
   OVERDUB_STEM_NUDGE_STEP_SMALL_MS,
 } from "../../../overdub";
 import type { RecordingGrid } from "../../../types";
+import { AnimatedCollapse } from "../../common/AnimatedCollapse";
+import { haptic } from "../../../design/haptics";
 
 /**
  * One layer: a quiet resting row (solo-play · title/summary · mute · ⋯) with Levels and
@@ -240,7 +242,10 @@ export function OverdubLayerCard({
       <View style={cardStyles.modeRow}>
         <Pressable
           style={[cardStyles.modeChip, expandedSection === "mix" ? cardStyles.modeChipActive : null]}
-          onPress={() => onToggleSection("mix")}
+          onPress={() => {
+            haptic.tap();
+            onToggleSection("mix");
+          }}
           accessibilityRole="button"
           accessibilityState={{ expanded: expandedSection === "mix" }}
         >
@@ -255,7 +260,10 @@ export function OverdubLayerCard({
         </Pressable>
         <Pressable
           style={[cardStyles.modeChip, expandedSection === "align" ? cardStyles.modeChipActive : null]}
-          onPress={() => onToggleSection("align")}
+          onPress={() => {
+            haptic.tap();
+            onToggleSection("align");
+          }}
           accessibilityRole="button"
           accessibilityState={{ expanded: expandedSection === "align" }}
         >
@@ -272,7 +280,7 @@ export function OverdubLayerCard({
         </Pressable>
       </View>
 
-      {expandedSection === "mix" ? (
+      <AnimatedCollapse visible={expandedSection === "mix"}>
         <View style={cardStyles.section}>
           <View style={playerScreenStyles.layerControls}>
             <LayerControlButton
@@ -295,9 +303,9 @@ export function OverdubLayerCard({
             />
           </View>
         </View>
-      ) : null}
+      </AnimatedCollapse>
 
-      {expandedSection === "align" ? (
+      <AnimatedCollapse visible={expandedSection === "align"}>
         <View style={cardStyles.section}>
           <StemAlignmentOverlay
             masterAudioUri={masterAudioUri}
@@ -374,7 +382,7 @@ export function OverdubLayerCard({
             ◀ pulls this layer earlier · nudge while playing to hear it move
           </Text>
         </View>
-      ) : null}
+      </AnimatedCollapse>
 
       <EditLayerModal
         visible={editModalOpen}

@@ -2,6 +2,7 @@ import React from "react";
 import { colors } from "../../design/tokens";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { haptic } from "../../design/haptics";
 import {
   formatPitchShiftLabel,
   PITCH_SHIFT_MAX_SEMITONES,
@@ -53,7 +54,10 @@ export function EditorTransformSection({
             editorTransformStyles.resetButton,
             !transformsActive ? editorTransformStyles.resetButtonDisabled : null,
           ]}
-          onPress={onResetTransforms}
+          onPress={() => {
+            haptic.tap();
+            onResetTransforms();
+          }}
           disabled={!transformsActive}
         >
           <Text
@@ -75,7 +79,11 @@ export function EditorTransformSection({
               editorTransformStyles.stepButton,
               !canDecreaseSpeed ? editorTransformStyles.stepButtonDisabled : null,
             ]}
-            onPress={() => canDecreaseSpeed && onAdjustPlaybackRate(playbackRate - PLAYBACK_RATE_STEP)}
+            onPress={() => {
+              if (!canDecreaseSpeed) return;
+              haptic.light();
+              onAdjustPlaybackRate(playbackRate - PLAYBACK_RATE_STEP);
+            }}
             disabled={!canDecreaseSpeed}
           >
             <Ionicons name="remove" size={16} color={canDecreaseSpeed ? colors.textStrong : colors.textMuted} />
@@ -88,7 +96,11 @@ export function EditorTransformSection({
               editorTransformStyles.stepButton,
               !canIncreaseSpeed ? editorTransformStyles.stepButtonDisabled : null,
             ]}
-            onPress={() => canIncreaseSpeed && onAdjustPlaybackRate(playbackRate + PLAYBACK_RATE_STEP)}
+            onPress={() => {
+              if (!canIncreaseSpeed) return;
+              haptic.light();
+              onAdjustPlaybackRate(playbackRate + PLAYBACK_RATE_STEP);
+            }}
             disabled={!canIncreaseSpeed}
           >
             <Ionicons name="add" size={16} color={canIncreaseSpeed ? colors.textStrong : colors.textMuted} />
@@ -104,7 +116,11 @@ export function EditorTransformSection({
               editorTransformStyles.stepButton,
               !canDecreasePitch ? editorTransformStyles.stepButtonDisabled : null,
             ]}
-            onPress={() => canDecreasePitch && onAdjustPitchShift(pitchShiftSemitones - 1)}
+            onPress={() => {
+              if (!canDecreasePitch) return;
+              haptic.light();
+              onAdjustPitchShift(pitchShiftSemitones - 1);
+            }}
             disabled={!canDecreasePitch}
           >
             <Ionicons name="remove" size={16} color={canDecreasePitch ? colors.textStrong : colors.textMuted} />
@@ -119,7 +135,11 @@ export function EditorTransformSection({
               editorTransformStyles.stepButton,
               !canIncreasePitch ? editorTransformStyles.stepButtonDisabled : null,
             ]}
-            onPress={() => canIncreasePitch && onAdjustPitchShift(pitchShiftSemitones + 1)}
+            onPress={() => {
+              if (!canIncreasePitch) return;
+              haptic.light();
+              onAdjustPitchShift(pitchShiftSemitones + 1);
+            }}
             disabled={!canIncreasePitch}
           >
             <Ionicons name="add" size={16} color={canIncreasePitch ? colors.textStrong : colors.textMuted} />

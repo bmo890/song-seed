@@ -127,6 +127,7 @@ import { useStore } from "./src/state/useStore";
 import { AppAlert } from "./src/components/common/AppAlert";
 import { AppDialogHost } from "./src/components/common/AppDialog";
 import { AppErrorBoundary } from "./src/components/common/AppErrorBoundary";
+import { ToastHost } from "./src/components/common/ToastHost";
 import { installGlobalCrashHandler } from "./src/services/crashLog";
 import { RestoreRestartGate } from "./src/components/common/RestoreRestartGate";
 import { FullPlayerProvider } from "./src/hooks/FullPlayerProvider";
@@ -964,6 +965,9 @@ function AppContent() {
         <ImportProgressBanner hidden={isDrawerOpen} />
         <DuplicateReviewSheet />
         <LibraryProcessHost drawerOpen={isDrawerOpen} />
+        {/* Quiet confirmations — above the dock, below AppDialogHost (which mounts
+            at the root, outside the navigator). */}
+        <ToastHost />
       </NavigationContainer>
       <RestoreRestartGate />
       </FullPlayerProvider>

@@ -37,6 +37,7 @@ import { buildPersistedAppStoreSnapshot, useStore } from "../../../state/useStor
 import { formatProcessProgress, useProcessStore } from "../../../state/useProcessStore";
 import type { BackupReminderFrequency, Workspace } from "../../../types";
 import { haptic } from "../../../design/haptics";
+import { toast } from "../../common/toastStore";
 
 const REMINDER_OPTIONS: BackupReminderFrequency[] = ["off", "weekly", "monthly", "quarterly"];
 
@@ -486,7 +487,7 @@ export function useLibraryBackupFlow() {
             }
 
             await Clipboard.setStringAsync(lastSuccessfulBackupFileName);
-            AppAlert.info("Copied", "Backup file name copied to clipboard.");
+            toast("Backup file name copied", "copy-outline");
             return true;
         },
     };

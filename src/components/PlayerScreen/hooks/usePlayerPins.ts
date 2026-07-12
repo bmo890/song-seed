@@ -1,6 +1,9 @@
 import { useCallback, useState } from "react";
 import type { PracticeMarker } from "../../../types";
 import { useStore } from "../../../state/useStore";
+import { haptic } from "../../../design/haptics";
+import { toast } from "../../common/toastStore";
+import { fmtDuration } from "../../../utils";
 
 type UsePlayerPinsArgs = {
   playerIdeaId: string | null | undefined;
@@ -37,6 +40,8 @@ export function usePlayerPins({
       };
 
       useStore.getState().addClipPracticeMarker(playerIdeaId, playerClipId, newMarker);
+      haptic.light();
+      toast(`Pin added at ${fmtDuration(playerPosition)}`, "pin-outline");
       setNewPinLabel("");
       setPinModalVisible(false);
     },

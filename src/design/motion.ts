@@ -42,3 +42,29 @@ export const popIn = () => {
     },
   };
 };
+
+/**
+ * Accordion body entrance: fade + a 6px settle from above. Pair with
+ * `collapseOut`; consumed via `common/AnimatedCollapse`.
+ */
+export const collapseIn = () => {
+  "worklet";
+  return {
+    initialValues: { opacity: 0, transform: [{ translateY: -6 }] },
+    animations: {
+      opacity: withTiming(1, { duration: durations.base }),
+      transform: [{ translateY: withTiming(0, { duration: durations.base }) }],
+    },
+  };
+};
+
+/** Accordion body exit: quick fade (no motion — content above/below reflows). */
+export const collapseOut = () => {
+  "worklet";
+  return {
+    initialValues: { opacity: 1 },
+    animations: {
+      opacity: withTiming(0, { duration: durations.fast }),
+    },
+  };
+};

@@ -20,6 +20,7 @@ import { IdeaCard } from "../../common/IdeaCard";
 import { AppAlert } from "../../common/AppAlert";
 import { useWorkspaceTheme } from "../../../context/WorkspaceThemeContext";
 import { haptic } from "../../../design/haptics";
+import { toast } from "../../common/toastStore";
 
 function IdeaListInlineProgress({
     inlinePlayer,
@@ -216,9 +217,10 @@ function IdeaListItemInner({
             `Add ${count} page${count === 1 ? "" : "s"} of lyrics to "${item.title}" as new lyrics version${count === 1 ? "" : "s"}?`,
             () => {
                 const result = appActions.completeSongTargetPicking(item.id);
-                AppAlert.info(
-                    "Added to song",
-                    `${result.count} page${result.count === 1 ? "" : "s"} added to "${result.songTitle}" as new lyrics.`
+                haptic.success();
+                toast(
+                    `${result.count} page${result.count === 1 ? "" : "s"} added to "${result.songTitle}"`,
+                    "musical-notes-outline"
                 );
             },
             { confirmLabel: "Add" }
