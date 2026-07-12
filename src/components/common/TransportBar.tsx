@@ -215,7 +215,7 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: radii.round,
-    backgroundColor: "#824f3f",
+    backgroundColor: colors.primaryDeep,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -223,7 +223,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: radii.round,
-    backgroundColor: "#824f3f",
+    backgroundColor: colors.primaryDeep,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -242,12 +242,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   speedBadgeActive: {
-    backgroundColor: "#824f3f",
+    backgroundColor: colors.primaryDeep,
   },
   speedBadgeText: {
     fontSize: 11,
     fontFamily: "PlusJakartaSans_700Bold",
-    color: "#824f3f",
+    color: colors.primaryDeep,
   },
   speedBadgeTextActive: {
     color: "#FDFBF7",

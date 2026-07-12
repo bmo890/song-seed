@@ -10,6 +10,7 @@ import {
 } from "../../../metronome";
 import { styles } from "../styles";
 import { haptic } from "../../../design/haptics";
+import { colors } from "../../../design/tokens";
 
 type IconName = ComponentProps<typeof Ionicons>["name"];
 
@@ -78,9 +79,9 @@ export function MetronomeOutputsSection({
             minimumValue={MIN_METRONOME_LEVEL}
             maximumValue={MAX_METRONOME_LEVEL}
             step={1}
-            minimumTrackTintColor="#824f3f"
+            minimumTrackTintColor={colors.primaryDeep}
             maximumTrackTintColor="#d7c2bd"
-            thumbTintColor="#824f3f"
+            thumbTintColor={colors.primaryDeep}
             value={beepLevel}
             onValueChange={onChangeBeepLevel}
           />
@@ -102,9 +103,9 @@ export function MetronomeOutputsSection({
             minimumValue={MIN_METRONOME_LEVEL}
             maximumValue={MAX_METRONOME_LEVEL}
             step={1}
-            minimumTrackTintColor="#824f3f"
+            minimumTrackTintColor={colors.primaryDeep}
             maximumTrackTintColor="#d7c2bd"
-            thumbTintColor="#824f3f"
+            thumbTintColor={colors.primaryDeep}
             value={hapticLevel}
             onValueChange={onChangeHapticLevel}
           />

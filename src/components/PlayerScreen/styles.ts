@@ -260,8 +260,8 @@ export const playerScreenStyles = StyleSheet.create({
     marginTop: 2,
   },
   layerEnabledDotActive: {
-    backgroundColor: "#824f3f",
-    borderColor: "#824f3f",
+    backgroundColor: colors.primaryDeep,
+    borderColor: colors.primaryDeep,
   },
   layerCardTitleRow: {
     flexDirection: "row",
@@ -362,7 +362,7 @@ export const playerScreenStyles = StyleSheet.create({
     letterSpacing: 0.35,
   },
   layerControlButtonTextActive: {
-    color: "#824f3f",
+    color: colors.primaryDeep,
   },
   layerControlButtonTextDestructive: {
     color: "#a04b41",

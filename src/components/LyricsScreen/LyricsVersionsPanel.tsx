@@ -460,7 +460,7 @@ const panelStyles = StyleSheet.create({
     fontVariant: ["tabular-nums"],
   },
   vnumTextCur: {
-    color: "#824f3f",
+    color: colors.primaryDeep,
   },
   cardBody: {
     flex: 1,
@@ -480,7 +480,7 @@ const panelStyles = StyleSheet.create({
     fontFamily: "PlusJakartaSans_700Bold",
     fontSize: 9,
     letterSpacing: 0.6,
-    color: "#824f3f",
+    color: colors.primaryDeep,
     backgroundColor: "#F2E4DF",
     paddingHorizontal: 8,
     paddingVertical: 3,

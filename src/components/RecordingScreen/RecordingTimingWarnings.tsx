@@ -2,6 +2,7 @@ import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import type { RecordingTimingWarning } from "./hooks/useRecordingScreenModel";
+import { colors } from "../../design/tokens";
 
 /**
  * Quiet timing-honesty banners for the recording screen: uncalibrated/stale Bluetooth
@@ -26,7 +27,7 @@ export function RecordingTimingWarnings({
           <Ionicons
             name={warning.kind === "bt-mic" ? "mic-off-outline" : "timer-outline"}
             size={14}
-            color="#824f3f"
+            color={colors.primaryDeep}
             style={s.icon}
           />
           <Text style={s.message} numberOfLines={3}>
@@ -74,7 +75,7 @@ const s = StyleSheet.create({
   },
   action: {
     borderRadius: 999,
-    backgroundColor: "#824f3f",
+    backgroundColor: colors.primaryDeep,
     paddingHorizontal: 12,
     paddingVertical: 6,
   },

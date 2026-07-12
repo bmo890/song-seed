@@ -3,7 +3,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { styles } from "../styles";
-import { radii, shadows } from "../design/tokens";
+import { radii, shadows, colors } from "../design/tokens";
 import { NavRow } from "./common/NavRow";
 import { WorkspaceAvatar } from "./common/WorkspaceAvatar";
 import { getWorkspaceTheme } from "../workspaceTheme";
@@ -111,7 +111,7 @@ export function SideNav({
           <Ionicons
             name="search"
             size={19}
-            color={currentRoute === "search" ? "#ffffff" : "#824f3f"}
+            color={currentRoute === "search" ? "#ffffff" : colors.primaryDeep}
           />
         </Pressable>
       </View>

@@ -525,7 +525,7 @@ export function PlayerSupportSections({
                 accessibilityRole="button"
                 accessibilityLabel="Record a new layer"
               >
-                <Ionicons name="add" size={22} color="#824f3f" />
+                <Ionicons name="add" size={22} color={colors.primaryDeep} />
               </Pressable>
               <Pressable
                 style={chipStyles.headerIconButton}

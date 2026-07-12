@@ -4,6 +4,7 @@ import { InlineIdeaCard } from "../../common/InlineIdeaCard";
 import { styles } from "../styles";
 import type { ActivityItemResult } from "../helpers";
 import { getDateBucket } from "../../../dateBuckets";
+import { colors } from "../../../design/tokens";
 
 type ActivityResultCardProps = {
   result: ActivityItemResult;
@@ -62,7 +63,7 @@ export function ActivityResultCard({
         }}
         hitSlop={6}
       >
-        <Ionicons name="folder-outline" size={12} color="#824f3f" />
+        <Ionicons name="folder-outline" size={12} color={colors.primaryDeep} />
         <Text style={cardStyles.viewBtnText}>View in collection</Text>
       </Pressable>
     </View>
@@ -138,6 +139,6 @@ const cardStyles = StyleSheet.create({
   viewBtnText: {
     fontSize: 12,
     fontFamily: "PlusJakartaSans_700Bold",
-    color: "#824f3f",
+    color: colors.primaryDeep,
   },
 });

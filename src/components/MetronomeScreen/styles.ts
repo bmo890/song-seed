@@ -1,12 +1,12 @@
 import { StyleSheet } from "react-native";
-import { spacing, text as textTokens, radii } from "../../design/tokens";
+import { spacing, text as textTokens, radii, colors } from "../../design/tokens";
 import { styles as base } from "../../styles";
 
 // Design system palette
 const PAPER      = "#fbf9f5";
 const SURFACE    = "#efeeea";
 const SURFACE_LO = "#e4deda";
-const TERRACOTTA = "#824f3f";
+const TERRACOTTA = colors.primaryDeep;
 const INK        = "#1b1c1a";
 const INK_MID    = "#524440";
 const INK_MUTED  = "#84736f";

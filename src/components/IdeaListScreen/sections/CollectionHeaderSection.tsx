@@ -11,7 +11,7 @@ import { styles } from "../../../styles";
 import { useCollectionScreen } from "../provider/CollectionScreenProvider";
 import { appActions } from "../../../state/actions";
 import { useStore } from "../../../state/useStore";
-import { radii } from "../../../design/tokens";
+import { radii, colors } from "../../../design/tokens";
 
 function formatLastEdited(ts: number): string {
   const days = Math.floor((Date.now() - ts) / 86400000);
@@ -114,7 +114,7 @@ export function CollectionContextReturnChip() {
         accessibilityRole="button"
         accessibilityLabel={`Back to ${contextualReturn.label}`}
       >
-        <Ionicons name="arrow-back" size={13} color="#824f3f" />
+        <Ionicons name="arrow-back" size={13} color={colors.primaryDeep} />
         <Text style={collStyles.returnChipText} numberOfLines={1}>
           Back to {contextualReturn.label}
         </Text>
@@ -251,7 +251,7 @@ const collStyles = StyleSheet.create({
   returnChipText: {
     fontFamily: "PlusJakartaSans_600SemiBold",
     fontSize: 12,
-    color: "#824f3f",
+    color: colors.primaryDeep,
     flexShrink: 1,
   },
   returnChipClose: {

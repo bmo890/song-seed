@@ -3,6 +3,7 @@ import { Pressable, Text, View } from "react-native";
 import { styles } from "../styles";
 import { MAX_METRONOME_BPM, MIN_METRONOME_BPM } from "../../../metronome";
 import { haptic } from "../../../design/haptics";
+import { colors } from "../../../design/tokens";
 
 const BPM_STEPS = [
   { label: "−5", delta: -5 },
@@ -39,9 +40,9 @@ export function MetronomeTempoSection({ bpm, onNudge, onChangeValue }: Props) {
         minimumValue={MIN_METRONOME_BPM}
         maximumValue={MAX_METRONOME_BPM}
         step={1}
-        minimumTrackTintColor="#824f3f"
+        minimumTrackTintColor={colors.primaryDeep}
         maximumTrackTintColor="#d7c2bd"
-        thumbTintColor="#824f3f"
+        thumbTintColor={colors.primaryDeep}
         value={bpm}
         onValueChange={onChangeValue}
       />

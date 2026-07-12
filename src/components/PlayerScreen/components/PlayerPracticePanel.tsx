@@ -325,7 +325,7 @@ function PinDetailModal({
 }
 
 /** The reel's playhead colour — used to tint the I-beam "set to playhead" icon. */
-const PLAYHEAD_COLOR = "#d95b56";
+const PLAYHEAD_COLOR = colors.playhead;
 
 /** A Logic-style I-beam playhead cursor (vertical stem with top/bottom caps). */
 function PlayheadCursorIcon({ color }: { color: string }) {

@@ -280,7 +280,7 @@ function PlayerLyricsPanelInner({
                     <Ionicons
                       name={isScrolling ? "pause" : "play"}
                       size={16}
-                      color={isScrolling ? "#824f3f" : "#84736f"}
+                      color={isScrolling ? colors.primaryDeep : "#84736f"}
                     />
                   </Pressable>
 
@@ -314,7 +314,7 @@ function PlayerLyricsPanelInner({
                 hitSlop={6}
                 accessibilityLabel="Adjust lyric size"
               >
-                <Ionicons name="text" size={16} color={zoomOpen ? "#824f3f" : "#84736f"} />
+                <Ionicons name="text" size={16} color={zoomOpen ? colors.primaryDeep : "#84736f"} />
               </Pressable>
             </View>
           ) : null}

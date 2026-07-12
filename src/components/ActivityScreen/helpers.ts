@@ -6,6 +6,7 @@ import {
   startOfActivityDay,
 } from "../../activity";
 import { IdeaStatus, SongIdea, Workspace } from "../../types";
+import { colors } from "../../design/tokens";
 
 export const CELL_SIZE = 15;
 export const CELL_GAP = 4;
@@ -26,7 +27,7 @@ export function getActivityCellBackground(count: number, maxCount: number, inYea
 
   const ratio = count / maxCount;
   if (ratio >= 0.8) return "#5c2d1e";
-  if (ratio >= 0.55) return "#824f3f";
+  if (ratio >= 0.55) return colors.primaryDeep;
   if (ratio >= 0.3) return "#b07060";
   return "#c9968a";
 }

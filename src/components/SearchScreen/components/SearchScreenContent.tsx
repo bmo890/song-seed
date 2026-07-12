@@ -558,7 +558,7 @@ const searchScreenStyles = StyleSheet.create({
   },
   matchChipText: {
     ...textTokens.caption,
-    color: "#824f3f",
+    color: colors.primaryDeep,
   },
   resultContext: {
     ...textTokens.supporting,
@@ -571,7 +571,7 @@ const searchScreenStyles = StyleSheet.create({
   },
   snippetHighlight: {
     fontFamily: "PlusJakartaSans_700Bold",
-    color: "#824f3f",
+    color: colors.primaryDeep,
   },
   openInRow: {
     flexDirection: "row",

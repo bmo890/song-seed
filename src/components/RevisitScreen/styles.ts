@@ -1,11 +1,11 @@
 import { StyleSheet } from "react-native";
 import { styles as base } from "../../styles";
-import { radii } from "../../design/tokens";
+import { radii, colors } from "../../design/tokens";
 
 const PAPER = "#fbf9f5";
 const SURFACE = "#efeeea";
 const SURFACE_LO = "#e4deda";
-const TERRACOTTA = "#824f3f";
+const TERRACOTTA = colors.primaryDeep;
 const INK = "#1b1c1a";
 const INK_LO = "#4a3f3b";
 const MUTED = "#84736f";

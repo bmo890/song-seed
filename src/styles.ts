@@ -1521,7 +1521,7 @@ export const styles = StyleSheet.create({
     fontVariant: ["tabular-nums"],
   },
   recordingLyricsSpeedBtnTextActive: {
-    color: "#824f3f",
+    color: colors.primaryDeep,
   },
   // Flat numeric speed row — revealed only by the speed button, closes itself
   // the moment a number is picked or a take starts.
@@ -1756,7 +1756,7 @@ export const styles = StyleSheet.create({
     borderRadius: radii.round,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#824f3f",
+    backgroundColor: colors.primaryDeep,
   },
   songDetailPrimaryStripCopy: {
     flex: 1,
@@ -3164,7 +3164,7 @@ export const styles = StyleSheet.create({
   },
   activityMonthPressableActive: {
     borderBottomWidth: 1,
-    borderBottomColor: "#824f3f",
+    borderBottomColor: colors.primaryDeep,
   },
   activityMonthLabel: {
     position: "relative",
@@ -3173,7 +3173,7 @@ export const styles = StyleSheet.create({
     fontFamily: "PlusJakartaSans_700Bold",
   },
   activityMonthLabelActive: {
-    color: "#824f3f",
+    color: colors.primaryDeep,
   },
   activityMonthSummaryCard: {
     borderWidth: 1,
@@ -3240,7 +3240,7 @@ export const styles = StyleSheet.create({
     borderRadius: 2,
   },
   activityDayCellRangeSelected: {
-    borderColor: "#824f3f",
+    borderColor: colors.primaryDeep,
     borderWidth: 1.25,
     padding: 1.5,
   },
@@ -3480,7 +3480,7 @@ export const styles = StyleSheet.create({
   ideasCollapsedDayCountText: {
     fontFamily: "PlusJakartaSans_600SemiBold",
     fontSize: 10,
-    color: "#824f3f",
+    color: colors.primaryDeep,
     letterSpacing: 0.4,
   },
   ideasStickyDayWrap: {
@@ -4322,7 +4322,7 @@ export const styles = StyleSheet.create({
   statusStem: { backgroundColor: "#EDD9C4" },
   statusStemText: { color: "#7A4E2D" },
   statusSong: { backgroundColor: "#F2E4DF" },
-  statusSongText: { color: "#824f3f" },
+  statusSongText: { color: colors.primaryDeep },
   statusClip: { backgroundColor: "#F4F1ED" },
   statusClipText: { color: "#84736f" },
   // Dense stage marker (collection compact rows): a small colored dot + short
@@ -4943,18 +4943,18 @@ export const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: 6,
     borderWidth: 1.5,
-    borderColor: "#824f3f",
+    borderColor: colors.primaryDeep,
   },
   selectionTopBarChipText: {
     fontSize: 12,
     fontFamily: "PlusJakartaSans_700Bold",
-    color: "#824f3f",
+    color: colors.primaryDeep,
   },
   selectionTopBarCancelBtn: {
     paddingHorizontal: 12,
     paddingVertical: 5,
     borderRadius: 6,
-    backgroundColor: "#824f3f",
+    backgroundColor: colors.primaryDeep,
   },
   selectionTopBarCancelBtnText: {
     fontSize: 12,
@@ -5367,7 +5367,7 @@ export const styles = StyleSheet.create({
     borderColor: "rgba(184,125,107,0.5)",
   },
   ideasUnhideAllPillTextActive: {
-    color: "#824f3f",
+    color: colors.primaryDeep,
   },
   // Per-row restore (eye) button shown while peeking at hidden items.
   ideaDenseRestoreBtn: {

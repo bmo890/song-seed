@@ -1,5 +1,5 @@
 import { StyleSheet } from "react-native";
-import { spacing, text as textTokens } from "../../design/tokens";
+import { spacing, text as textTokens, colors } from "../../design/tokens";
 import { styles as base } from "../../styles";
 
 const ARC_STAGE_WIDTH = 300;
@@ -15,7 +15,7 @@ const ARC_SIDE_LABEL_TOP = ARC_TRACK_TOP + ARC_SEMI_HEIGHT - 16;
 // Design system palette
 const PAPER      = "#fbf9f5"; // surface
 const SURFACE    = "#efeeea"; // surface-container
-const TERRACOTTA = "#824f3f"; // primary accent
+const TERRACOTTA = colors.primaryDeep; // primary accent
 const INK        = "#1b1c1a"; // on-surface (warm charcoal, not pure black)
 const INK_MID    = "#524440"; // on-surface-variant
 const INK_MUTED  = "#84736f"; // outline

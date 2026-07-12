@@ -4,7 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 import Slider from "@react-native-community/slider";
 import { BottomSheet } from "../common/BottomSheet";
 import { haptic } from "../../design/haptics";
-import { radii } from "../../design/tokens";
+import { radii, colors } from "../../design/tokens";
 import {
   MAX_METRONOME_BPM,
   MAX_METRONOME_LEVEL,
@@ -133,7 +133,7 @@ export function RecordingMetronomeSheet({
           <Ionicons
             name={previewPlaying ? "stop" : "play"}
             size={14}
-            color={previewPlaying ? "#FFFFFF" : "#824f3f"}
+            color={previewPlaying ? "#FFFFFF" : colors.primaryDeep}
           />
           <Text style={[s.listenBtnText, previewPlaying ? s.listenBtnTextActive : null]}>
             {previewPlaying ? "Stop preview" : "Listen"}
@@ -203,7 +203,7 @@ export function RecordingMetronomeSheet({
           >
             <View style={s.featureLead}>
               <View style={s.iconTile}>
-                <Ionicons name="timer-outline" size={18} color="#824f3f" />
+                <Ionicons name="timer-outline" size={18} color={colors.primaryDeep} />
               </View>
               <View style={s.featureCopy}>
                 <Text style={s.featureTitle}>Count-in</Text>
@@ -284,7 +284,7 @@ export function RecordingMetronomeSheet({
                   accessibilityState={{ selected: active }}
                   accessibilityLabel={cue.label}
                 >
-                  <Ionicons name={cue.icon} size={20} color={active ? "#824f3f" : "#a89994"} />
+                  <Ionicons name={cue.icon} size={20} color={active ? colors.primaryDeep : "#a89994"} />
                   <Text style={[s.cueLabel, active ? s.cueLabelActive : null]}>{cue.label}</Text>
                 </Pressable>
               );
@@ -357,7 +357,7 @@ const s = StyleSheet.create({
   },
   titleGridNote: {
     fontSize: 11,
-    color: "#824f3f",
+    color: colors.primaryDeep,
     fontFamily: "PlusJakartaSans_600SemiBold",
     marginTop: 2,
   },
@@ -376,7 +376,7 @@ const s = StyleSheet.create({
     backgroundColor: "#B87D6B",
   },
   listenBtnText: {
-    color: "#824f3f",
+    color: colors.primaryDeep,
     fontSize: 13,
     fontFamily: "PlusJakartaSans_700Bold",
   },
@@ -578,7 +578,7 @@ const s = StyleSheet.create({
     color: "#84736f",
   },
   cueLabelActive: {
-    color: "#824f3f",
+    color: colors.primaryDeep,
   },
   subControl: {
     flexDirection: "row",

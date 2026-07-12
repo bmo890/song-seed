@@ -6,6 +6,7 @@ import { styles } from "../../../styles";
 import type { RevisitTag } from "../../../revisit";
 import { revisitStyles } from "../styles";
 import { SourceFilterRow, type SourceFilterOption } from "../../common/SourceFilterRow";
+import { colors } from "../../../design/tokens";
 
 type WorkspaceGroup = {
   workspace: SourceFilterOption;
@@ -172,7 +173,7 @@ export function RevisitCustomizeSheet({
             ]}
             onPress={restoreHiddenCandidates}
           >
-            <Ionicons name="refresh-outline" size={16} color="#824f3f" />
+            <Ionicons name="refresh-outline" size={16} color={colors.primaryDeep} />
             <Text style={revisitStyles.hiddenResetText}>Restore hidden ({hiddenCount})</Text>
           </Pressable>
         ) : null}

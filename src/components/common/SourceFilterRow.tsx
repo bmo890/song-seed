@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, Switch, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { styles as baseStyles } from "../../styles";
 import { WorkspaceAvatar } from "./WorkspaceAvatar";
-import { radii } from "../../design/tokens";
+import { radii, colors } from "../../design/tokens";
 
 /** A workspace or collection the user can include/exclude from a feed's sources.
  * Shared by Revisit and Activity so the two pages read as the same control. */
@@ -36,7 +36,7 @@ function getCollectionLabel(option: SourceFilterOption) {
 function PrimaryTag() {
   return (
     <View style={styles.primaryTag}>
-      <Ionicons name="star" size={9} color="#824f3f" />
+      <Ionicons name="star" size={9} color={colors.primaryDeep} />
       <Text style={styles.primaryTagText}>Primary</Text>
     </View>
   );
@@ -116,7 +116,7 @@ export function SourceFilterRow({
                   <Ionicons
                     name={included ? "checkmark-circle" : "ellipse-outline"}
                     size={17}
-                    color={included ? "#824f3f" : "#c3b6ae"}
+                    color={included ? colors.primaryDeep : "#c3b6ae"}
                   />
                   <Text
                     style={[styles.collectionName, included ? null : styles.collectionNameOff]}
@@ -199,7 +199,7 @@ const styles = StyleSheet.create({
     fontFamily: "PlusJakartaSans_700Bold",
     letterSpacing: 0.3,
     textTransform: "uppercase",
-    color: "#824f3f",
+    color: colors.primaryDeep,
   },
   // Collections as a quiet indented sub-list under a hairline, not chips.
   collections: {

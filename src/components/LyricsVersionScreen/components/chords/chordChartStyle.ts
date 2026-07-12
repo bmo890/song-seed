@@ -16,7 +16,7 @@ export const MEASURE_SAMPLE = "0".repeat(40);
 export const chordChartColors = {
   chord: colors.primary,
   // Deeper terracotta accent used while a chord is being dragged.
-  chordActive: "#824f3f",
+  chordActive: colors.primaryDeep,
   chordText: colors.onPrimary,
   lyric: "#1b1c1a",
   faint: colors.borderMuted,

@@ -7,7 +7,7 @@ import { haptic } from "../../design/haptics";
 import { AudioAnalysis } from "@siteed/audio-studio";
 import { LiveTapeVisualizer } from "../visualizers/LiveTapeVisualizer";
 import { MetronomeIcon } from "../common/MetronomeIcon";
-import { radii } from "../../design/tokens";
+import { radii, colors } from "../../design/tokens";
 
 type Props = {
     ideaTitle: string;
@@ -120,7 +120,7 @@ export function RecordingMeta({
                 accessibilityState={{ selected: metronomeEnabled }}
                 accessibilityLabel={metronomeEnabled ? "Turn metronome off" : "Turn metronome on"}
             >
-                <MetronomeIcon size={15} color={metronomeEnabled ? "#824f3f" : "#b6a79f"} />
+                <MetronomeIcon size={15} color={metronomeEnabled ? colors.primaryDeep : "#b6a79f"} />
                 {metronomeEnabled && metronomeSummary ? (
                     <Text style={metaStyles.metroChipText}>{metronomeSummary}</Text>
                 ) : null}
@@ -269,7 +269,7 @@ const metaStyles = StyleSheet.create({
     metroChipText: {
         fontFamily: "PlusJakartaSans_700Bold",
         fontSize: 11,
-        color: "#824f3f",
+        color: colors.primaryDeep,
         fontVariant: ["tabular-nums"],
     },
     metroGroup: {
@@ -283,7 +283,7 @@ const metaStyles = StyleSheet.create({
     joinLabel: {
         fontFamily: "PlusJakartaSans_600SemiBold",
         fontSize: 12,
-        color: "#824f3f",
+        color: colors.primaryDeep,
         fontVariant: ["tabular-nums"],
     },
     metroCustomizeBtn: {

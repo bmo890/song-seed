@@ -25,6 +25,7 @@ import {
 } from "../../services/audioSession";
 import { sanitizeOsOutputLatencyMs } from "../../services/latencyModel";
 import SongseedMetronomeModule from "../../../modules/songseed-metronome";
+import { colors } from "../../design/tokens";
 import {
   MAX_BLUETOOTH_MONITORING_AUTO_OFFSET_MS,
   MAX_BLUETOOTH_MONITORING_MANUAL_OFFSET_MS,
@@ -742,7 +743,7 @@ export function BluetoothCalibrationScreen() {
 
             {isPreparingAudio ? (
               <View style={screenStyles.loadingRow}>
-                <ActivityIndicator size="small" color="#824f3f" />
+                <ActivityIndicator size="small" color={colors.primaryDeep} />
                 <Text style={screenStyles.loadingText}>Preparing calibration click…</Text>
               </View>
             ) : null}
@@ -778,7 +779,7 @@ export function BluetoothCalibrationScreen() {
               <>
                 {resultWarning ? (
                   <View style={screenStyles.warningCard}>
-                    <Ionicons name="alert-circle-outline" size={16} color="#824f3f" />
+                    <Ionicons name="alert-circle-outline" size={16} color={colors.primaryDeep} />
                     <Text style={screenStyles.warningText}>{resultWarning}</Text>
                   </View>
                 ) : null}
@@ -1063,7 +1064,7 @@ const screenStyles = StyleSheet.create({
   progressFill: {
     height: "100%",
     borderRadius: 999,
-    backgroundColor: "#824f3f",
+    backgroundColor: colors.primaryDeep,
   },
   tapSurface: {
     minHeight: 140,
@@ -1081,7 +1082,7 @@ const screenStyles = StyleSheet.create({
   phaseError: {
     fontSize: 13,
     lineHeight: 18,
-    color: "#824f3f",
+    color: colors.primaryDeep,
   },
   warningCard: {
     flexDirection: "row",
@@ -1096,7 +1097,7 @@ const screenStyles = StyleSheet.create({
     flex: 1,
     fontSize: 12,
     lineHeight: 17,
-    color: "#824f3f",
+    color: colors.primaryDeep,
   },
   phaseSummary: {
     fontSize: 12,
@@ -1125,7 +1126,7 @@ const screenStyles = StyleSheet.create({
   primaryButton: {
     minHeight: 44,
     borderRadius: 4,
-    backgroundColor: "#824f3f",
+    backgroundColor: colors.primaryDeep,
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 16,
@@ -1205,7 +1206,7 @@ const screenStyles = StyleSheet.create({
   removeButtonText: {
     fontSize: 13,
     lineHeight: 18,
-    color: "#824f3f",
+    color: colors.primaryDeep,
     fontFamily: "PlusJakartaSans_700Bold",
   },
 });

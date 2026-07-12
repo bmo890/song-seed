@@ -33,6 +33,12 @@ export const colors = {
   // Primary — Nocturne terracotta
   primary:   "#B87D6B",
   onPrimary: "#FFFFFF",
+  // Deep terracotta — text-safe companion to primary (small accent text, icons,
+  // filled controls that need contrast on paper). The app's original accent.
+  primaryDeep: "#824F3F",
+
+  // Playhead / live-position indicator (transport lines, scrub cursors)
+  playhead: "#D95B56",
 
   // Destructive — warm brick red (delete/remove actions, destructive dialog buttons)
   danger:   "#A8443A",

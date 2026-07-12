@@ -180,7 +180,7 @@ export function OverdubLayerCard({
           <Ionicons
             name={isPreviewPlaying ? "pause" : "play"}
             size={16}
-            color="#824f3f"
+            color={colors.primaryDeep}
             style={isPreviewPlaying ? undefined : playerScreenStyles.layerPlayButtonIcon}
           />
         </Pressable>
@@ -190,7 +190,7 @@ export function OverdubLayerCard({
               {title}
             </Text>
             {showSpinner ? (
-              <ActivityIndicator size="small" color="#824f3f" accessibilityLabel="Updating layer mix" />
+              <ActivityIndicator size="small" color={colors.primaryDeep} accessibilityLabel="Updating layer mix" />
             ) : null}
             <Text style={playerScreenStyles.layerCardDuration}>{fmtDuration(durationMs)}</Text>
           </View>
@@ -230,9 +230,9 @@ export function OverdubLayerCard({
           maximumValue={1}
           value={Math.max(0, Math.min(1, previewProgressRatio))}
           onSlidingComplete={onSeekPreview}
-          minimumTrackTintColor="#824f3f"
+          minimumTrackTintColor={colors.primaryDeep}
           maximumTrackTintColor="#e3d8cd"
-          thumbTintColor="#824f3f"
+          thumbTintColor={colors.primaryDeep}
           accessibilityLabel="Scrub this layer's preview"
         />
       ) : null}
@@ -327,7 +327,7 @@ export function OverdubLayerCard({
               <Ionicons
                 name={isAuditioning ? "stop" : "play"}
                 size={14}
-                color={isAuditioning ? "#ffffff" : "#824f3f"}
+                color={isAuditioning ? "#ffffff" : colors.primaryDeep}
               />
               <Text
                 style={[
@@ -488,7 +488,7 @@ const cardStyles = StyleSheet.create({
     paddingVertical: 6,
   },
   modeChipActive: {
-    backgroundColor: "#824f3f",
+    backgroundColor: colors.primaryDeep,
   },
   modeChipText: {
     fontSize: 12,
@@ -530,8 +530,8 @@ const cardStyles = StyleSheet.create({
     paddingVertical: 8,
   },
   auditionButtonActive: {
-    backgroundColor: "#824f3f",
-    borderColor: "#824f3f",
+    backgroundColor: colors.primaryDeep,
+    borderColor: colors.primaryDeep,
   },
   auditionButtonDisabled: {
     opacity: 0.45,
@@ -539,7 +539,7 @@ const cardStyles = StyleSheet.create({
   auditionButtonText: {
     fontSize: 13,
     fontFamily: "PlusJakartaSans_700Bold",
-    color: "#824f3f",
+    color: colors.primaryDeep,
   },
   auditionButtonTextActive: {
     color: "#ffffff",
@@ -606,7 +606,7 @@ const cardStyles = StyleSheet.create({
   },
   colorModalConfirm: {
     borderRadius: 999,
-    backgroundColor: "#824f3f",
+    backgroundColor: colors.primaryDeep,
     paddingHorizontal: 18,
     paddingVertical: 10,
   },

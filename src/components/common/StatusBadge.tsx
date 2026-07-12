@@ -1,6 +1,7 @@
 import { Text, View, StyleProp, TextStyle, ViewStyle } from "react-native";
 import { styles } from "../../styles";
 import { IdeaStatus } from "../../types";
+import { colors } from "../../design/tokens";
 
 type Props = {
     status: IdeaStatus;
@@ -15,7 +16,7 @@ const DENSE_COLORS: Record<string, string> = {
     seed: "#a89994",
     sprout: "#7A6340",
     stem: "#7A4E2D",
-    song: "#824f3f",
+    song: colors.primaryDeep,
     clip: "#84736f",
 };
 
