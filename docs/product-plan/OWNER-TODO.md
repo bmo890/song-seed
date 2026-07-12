@@ -1,40 +1,16 @@
 # Owner TODO — account-bound launch steps & device verification
 
-## 0. Device verification checklist (Phases 0–2 + playback fixes)
+## 0. Device verification
 
-Everything below shipped code-complete with tests/typecheck green, but only a real device can confirm feel and native behavior. **First: rebuild the dev client (`npm run android`)** — the waveform-cancel hook is native code; a JS reload will not pick it up.
+The full, consolidated "does it work on a phone" pass — everything since Phase 0,
+prioritized by stakes — lives in its own doc:
 
-**Playback fixes (commit f7eacc5c) — the critical ones:**
-- [ ] Import a fresh song → open full player → tap play within ~2s. Must play through, no play-then-pause. (Also try tapping play *mid*-waveform-generation: open, wait 1s, play.)
-- [ ] Imported clip cards: durations fill in shortly after import (no 0:00 stragglers); kill + relaunch the app with a 0:00 clip present → it self-heals via the launch backfill.
-- [ ] Stale playhead: play clip A, pause mid-track (or background the app), open clip B → playhead shows 0:00 immediately, never A's position. Also check the mini dock during the switch.
-- [ ] Editor save while the dock is playing another clip → save completes promptly (no long hang), saved clip gets a REAL waveform thumbnail.
-- [ ] Overdub stem-alignment overlay while auditioning → detailed (not blocky) waveforms in the zoom view.
-- [ ] Restore/import a PRE-RENAME backup or archive (old "Song Seed" export) → imports fine.
-- [ ] General nav feel after rebuild — if lag persists in this build, report it; no code regression was found, so next step is on-device profiling.
+**→ [device-verification-checklist.md](device-verification-checklist.md)**
 
-**Phase 3 interaction polish (haptics/animation — device-only, needs a physical device, not emulator):**
-- [ ] Haptics feel right and aren't buzzy: editor (region add/remove, intent switch, speed/pitch steppers), AudioReel scrub grab/release + zoom detents, tuner in-tune lock buzz (should fire once on locking green, not machine-gun), PlayerSheet expand/collapse settle. All gated by the Settings haptics toggle — confirm turning it OFF silences everything new.
-- [ ] Toasts: trigger "clip saved" (editor export), "copied" (lyrics/chords, backup name), "added to song" — pill appears above the dock, auto-dismisses, doesn't cover dialogs. VoiceOver/TalkBack announces it.
-- [ ] AnimatedCollapse: overdub Levels/Timing sections and practice-panel tool disclosure settle in (fade + slight slide) instead of popping; 60fps on a mid-tier Android.
-- [ ] Any intensity/timing that feels off → tell me the surface; every value is a single named constant.
+Start there after rebuilding the dev client (`npm run android`). The rest of THIS
+file is the account/credential work only you can do.
 
-**Phase 4 first-run & help (verify on a FRESH install — clear app data or reinstall):**
-- [ ] Fresh install → splash → welcome (2-3 panes, skippable) → lands in an auto-created "My Songs" workspace with recording one tap away.
-- [ ] Kill + relaunch → welcome does NOT reappear. Replay it from Settings → About → "Replay intro".
-- [ ] Upgrade path (existing library): confirm the welcome does NOT show for you (you already have data) after this build lands.
-- [ ] Empty states read well: open Library tabs, Search (before typing + no results), Revisit, Activity, an empty collection, the overdub section — each teaches what it's for.
-- [ ] **Help-sheet accuracy (I need your eyes here):** open the help (?) on Recording, Full player/practice, Overdubs, and the Trim editor — confirm every claim about how the feature works is actually true. I drafted from the code, but you know the real behavior.
-- [ ] Review prompt: won't fire for a while by design (10th saved clip + 5 days) — just confirm nothing prompts prematurely.
-
-**Phase 2 visual pass (fonts/radii/colors changed on ~50 files — pixels need eyes):**
-- [ ] Scroll through: Metronome, Tuner, Bluetooth calibration, Recording (incl. metronome sheet), overdub layer cards, Editor (both export dialogs), Search, Activity, Share-import. Everything should render in the app fonts (no OS-font stragglers) with consistent corner radii.
-- [ ] Metronome page rebuild: one screen no scrolling on your device; beat bar reads clearly; pulse/halo intensity feels right at high + low BPM (all values are single constants if anything needs dialing).
-- [ ] Recording screen: compact beat bar above the transport during count-in and while recording; record-button halo punch (downbeats hit harder).
-- [ ] New app icon/splash on the launcher + cold start (one continuous motion, no white flash, paper-toned splash).
-- [ ] Songstead label under the icon (dev build shows "Songstead Dev").
-- [ ] Force a crash in dev (temporary `throw` in a screen) → branded "Something went wrong" screen → Restart recovers → Settings → About → "Share diagnostic log" has the entry.
-
+---
 
 Things only the account owner can do. None of these block Phases 2–4 (code work continues without them), but **items 1 and 3 gate Phase 1 (iOS) and Phase 5 (store submission)** — knock them out when convenient, the earlier the better since some have approval lead time.
 
