@@ -339,13 +339,16 @@ export function AudioReel({
     }, [overscaleFactor, timelineScale]);
 
     const handleZoom = React.useCallback((direction: "in" | "out") => {
-        haptic.light();
         const currentIndex = ZOOM_LEVELS.findIndex((level) => level >= zoomMultiple - 0.001);
         const baseIndex = currentIndex >= 0 ? currentIndex : nearestZoomIndex;
         const nextZoom =
             direction === "out"
                 ? ZOOM_LEVELS[Math.max(0, baseIndex - 1)] ?? MIN_ZOOM
                 : ZOOM_LEVELS[Math.min(ZOOM_LEVELS.length - 1, baseIndex + 1)] ?? MAX_ZOOM;
+
+        // No detent past the limit: no haptic, no state churn on a no-op zoom tap.
+        if (nextZoom === zoomMultiple) return;
+        haptic.light();
 
         if (onZoomMultipleChange) {
             onZoomMultipleChange(nextZoom);

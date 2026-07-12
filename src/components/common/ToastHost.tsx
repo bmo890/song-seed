@@ -29,8 +29,12 @@ export function ToastHost() {
         hideTimer.current = null;
       }
       if (!toast) {
+        // Guard on `finished`: setValue(0) on a replacement interrupts this and fires the
+        // callback with finished:false — clearing then would drop the incoming toast.
         Animated.timing(anim, { toValue: 0, duration: durations.fast, useNativeDriver: true }).start(
-          () => setActive(null)
+          ({ finished }) => {
+            if (finished) setActive(null);
+          }
         );
         return;
       }
@@ -40,7 +44,13 @@ export function ToastHost() {
       Animated.timing(anim, { toValue: 1, duration: durations.base, useNativeDriver: true }).start();
       hideTimer.current = setTimeout(() => {
         Animated.timing(anim, { toValue: 0, duration: durations.gentle, useNativeDriver: true }).start(
-          () => setActive(null)
+          ({ finished }) => {
+            if (!finished) return;
+            setActive(null);
+            // Clear the module-level current toast so a later re-subscribe (e.g. host
+            // remount) doesn't replay this stale one on its initial subscribe() call.
+            toastStore.clear();
+          }
         );
       }, toast.durationMs ?? DEFAULT_DURATION_MS);
     });

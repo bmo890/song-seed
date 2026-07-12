@@ -34,6 +34,11 @@ export const toastStore = {
     _toast = null;
     _listener?.(null);
   },
+  /** Drop the current toast WITHOUT notifying — the host calls this once its own
+   *  auto-hide animation has finished, so a later re-subscribe can't replay a stale one. */
+  clear() {
+    _toast = null;
+  },
   subscribe(listener: Listener) {
     _listener = listener;
     listener(_toast);

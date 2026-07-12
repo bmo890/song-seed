@@ -420,7 +420,10 @@ export function PlayerScreen({
     handleTransportToggle: handleTransportToggleWithDisplaySync,
     setSpeedPanelVisible,
     prepareTransportForClose: practicePitchTransport.prepareForPlayerClose,
-    onShowHelp: setHelpTopic,
+    // Defer a frame so the overflow AppDialog Modal finishes dismissing before the
+    // HelpSheet Modal presents — avoids the iOS present-while-dismissing race that
+    // can swallow the first tap.
+    onShowHelp: (topic) => requestAnimationFrame(() => setHelpTopic(topic)),
   });
 
   // As a sheet (not a route) there's nothing for the system back to pop —

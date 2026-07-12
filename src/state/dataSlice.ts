@@ -164,9 +164,6 @@ export type DataSlice = {
     setHasSeenWelcome: (value: boolean) => void;
     markFirstLaunch: () => void;
     setReviewPromptShownAt: (timestamp: number) => void;
-    /** First-run: create a starter "My Songs" workspace + "Ideas" collection, set both
-     *  primary. No-ops if any workspace already exists (idempotent, safe to call on launch). */
-    seedStarterLibrary: () => void;
     setLastSuccessfulBackupAt: (timestamp: number | null) => void;
     setLastSuccessfulBackupFileName: (fileName: string | null) => void;
     addWorkspace: (title: string, description?: string, avatarKey?: number) => void;
@@ -410,12 +407,24 @@ export function resolvePrimaryCollectionIdByWorkspace(
     return next;
 }
 
-export const createInitialWorkspace = (): Workspace => ({
-    id: `ws-${Date.now()}`,
-    title: "Main",
-    collections: [],
-    ideas: [],
-});
+/**
+ * The starter/fallback workspace. This is the SINGLE source of the first-run library:
+ * it's both the store's initial slice state AND the substitution sanitizePersistedState
+ * makes when no workspaces are present (fresh install, or corrupt/empty hydration). A
+ * fresh user therefore always lands on "My Songs" with an "Ideas" collection, so the
+ * record button has a destination on the first tap. Safe to reference createCollection:
+ * every call site runs after module consts initialize (runtime helpers or the create()
+ * initializer), never during the const's own definition.
+ */
+export const createInitialWorkspace = (): Workspace => {
+    const id = `ws-${Date.now()}`;
+    return {
+        id,
+        title: "My Songs",
+        collections: [createCollection(id, "Ideas", null)],
+        ideas: [],
+    };
+};
 
 export const createEmptyProjectLyrics = (): ProjectLyrics => ({
     versions: [],
@@ -1385,29 +1394,6 @@ export const createDataSlice: StateCreator<
         set({ firstLaunchAt: Date.now() });
     },
     setReviewPromptShownAt: (timestamp) => set({ reviewPromptShownAt: timestamp }),
-    seedStarterLibrary: () => {
-        if (get().workspaces.length > 0) return;
-        const now = Date.now();
-        const workspaceId = `ws-${now}`;
-        const collection = createCollection(workspaceId, "Ideas", null);
-        const workspace = {
-            id: workspaceId,
-            title: "My Songs",
-            color: WORKSPACE_COLORS[0],
-            avatarKey: now,
-            collections: [collection],
-            ideas: [],
-        };
-        set((state) => ({
-            workspaces: [workspace, ...state.workspaces],
-            primaryWorkspaceId: workspaceId,
-            activeWorkspaceId: workspaceId,
-            primaryCollectionIdByWorkspace: {
-                ...state.primaryCollectionIdByWorkspace,
-                [workspaceId]: collection.id,
-            },
-        }));
-    },
     setLastSuccessfulBackupAt: (timestamp) => set({ lastSuccessfulBackupAt: timestamp }),
     setLastSuccessfulBackupFileName: (fileName) => set({ lastSuccessfulBackupFileName: fileName }),
 

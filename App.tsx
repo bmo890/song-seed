@@ -82,7 +82,6 @@ import {
 } from "./src/services/backupStatus";
 import { resumePendingWorkspaceArchiveOperations } from "./src/services/workspaceArchiveRecovery";
 import { enqueueMissingDurationBackfill } from "./src/services/backgroundWaveformHydration";
-import { shouldSeedStarterLibrary } from "./src/firstRun";
 import { recoverPendingRecordingSession } from "./src/services/recordingRecovery";
 import { cleanupStaleDisasterRecoveryBackupFiles } from "./src/services/disasterRecoveryBackup";
 import { cleanupInterruptedDisasterRecoveryRestores } from "./src/services/disasterRecoveryTemp";
@@ -1045,6 +1044,10 @@ export default function App() {
           ? manifest.workspaces.reduce((sum, ws) => sum + (ws.ideas?.length ?? 0), 0)
           : 0;
         if (manifestIdeaCount > 0) {
+          // A device holding a recoverable library is not a first launch: suppress the
+          // first-run intro so WelcomeFlow never renders over the data-loss recovery
+          // prompt (recoverOrphanedAudio doesn't touch hasSeenWelcome, so this sticks).
+          useStore.getState().setHasSeenWelcome(true);
           AppAlert.confirm(
             "Restore your library?",
             `Songstead opened with an empty library, but a backup with ${manifestIdeaCount} item${manifestIdeaCount === 1 ? "" : "s"} was found on this device. Restore it now?`,
@@ -1055,13 +1058,9 @@ export default function App() {
           );
           return;
         }
-
-        // Genuinely fresh install (no live data, no recoverable backup): seed a
-        // starter workspace so the record button is one tap from first launch.
-        // seedStarterLibrary self-guards on workspaces.length === 0.
-        if (shouldSeedStarterLibrary(hydratedState.workspaces.length, manifestIdeaCount)) {
-          useStore.getState().seedStarterLibrary();
-        }
+        // Fresh install with no recoverable backup: the starter "My Songs"/"Ideas"
+        // library is already in place (createInitialWorkspace is the store's initial
+        // state + the sanitize fallback), so there's nothing to seed here.
       }
 
       const recordingRecovery = await recoverPendingRecordingSession();

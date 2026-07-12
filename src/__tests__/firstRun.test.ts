@@ -3,26 +3,10 @@ import {
     REVIEW_MIN_SAVED_CLIPS,
     REVIEW_REASK_COOLDOWN_DAYS,
     shouldRequestReview,
-    shouldSeedStarterLibrary,
 } from "../firstRun";
 
 const DAY = 24 * 60 * 60 * 1000;
 const NOW = 1_800_000_000_000;
-
-describe("shouldSeedStarterLibrary", () => {
-    it("seeds only when there are no workspaces AND no recoverable backup", () => {
-        expect(shouldSeedStarterLibrary(0, 0)).toBe(true);
-    });
-
-    it("does NOT seed when a backup with items exists (offer restore instead)", () => {
-        expect(shouldSeedStarterLibrary(0, 12)).toBe(false);
-    });
-
-    it("does NOT seed when a workspace already exists (even if empty)", () => {
-        expect(shouldSeedStarterLibrary(1, 0)).toBe(false);
-        expect(shouldSeedStarterLibrary(3, 5)).toBe(false);
-    });
-});
 
 describe("shouldRequestReview", () => {
     const base = {

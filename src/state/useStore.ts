@@ -209,12 +209,13 @@ export function sanitizePersistedState(state?: Partial<PersistedAppStore>): Pers
             : DEFAULT_BACKUP_REMINDER_FREQUENCY,
         hapticsEnabled: state?.hapticsEnabled !== false,
         promptForClipName: state?.promptForClipName !== false,
-        // Default true for existing users (data present at hydration) so an upgrade never
-        // re-shows the intro; a genuinely fresh install (no persisted workspaces) → false.
+        // Default true whenever ANY persisted state exists — this sanitize only runs via
+        // zustand's migrate/merge, which fire only when getItem returned non-null (a
+        // genuinely fresh install returns null and never reaches here, keeping the initial
+        // `false`). Inferring from workspace COUNT was wrong: a degraded hydration with
+        // empty/missing workspace shards would re-show the intro to a returning user.
         hasSeenWelcome:
-            typeof state?.hasSeenWelcome === "boolean"
-                ? state.hasSeenWelcome
-                : (state?.workspaces?.length ?? 0) > 0,
+            typeof state?.hasSeenWelcome === "boolean" ? state.hasSeenWelcome : state != null,
         firstLaunchAt:
             typeof state?.firstLaunchAt === "number" && Number.isFinite(state.firstLaunchAt)
                 ? state.firstLaunchAt

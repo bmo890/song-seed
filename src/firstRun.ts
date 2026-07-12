@@ -7,13 +7,6 @@
 /** Milliseconds in a day, for the review-prompt maturity window. */
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-/** Only seed a starter workspace on a genuinely fresh install: no live workspaces
- *  AND no recoverable backup (a manifest with items means "offer restore instead").
- *  Seeding over a recoverable backup would bury the user's real library. */
-export function shouldSeedStarterLibrary(workspaceCount: number, manifestIdeaCount: number): boolean {
-    return workspaceCount === 0 && manifestIdeaCount === 0;
-}
-
 export type ReviewPromptInputs = {
     /** Total saved clips across the library. */
     savedClipCount: number;
