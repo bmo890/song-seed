@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import * as Reanimated from "react-native-reanimated";
 import { useSharedValue, withTiming, SharedValue, useAnimatedStyle, runOnJS } from "react-native-reanimated";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
-import { Feather } from "@expo/vector-icons";
+import { Feather, Ionicons } from "@expo/vector-icons";
 import { PlaybackTapeVisualizer } from "../visualizers/PlaybackTapeVisualizer";
 import { MinimapVisualizer } from "../visualizers/MinimapVisualizer";
 import type { SectionBand } from "../../playerSections";
@@ -358,6 +358,17 @@ export function AudioReel({
         setUncontrolledZoomMultiple(nextZoom);
     }, [nearestZoomIndex, onZoomMultipleChange, zoomMultiple]);
 
+    // Reset to 1x — the whole clip fits the reel. No-op (and no haptic) when already there.
+    const handleZoomToFit = React.useCallback(() => {
+        if (zoomMultiple <= MIN_ZOOM) return;
+        haptic.light();
+        if (onZoomMultipleChange) {
+            onZoomMultipleChange(MIN_ZOOM);
+            return;
+        }
+        setUncontrolledZoomMultiple(MIN_ZOOM);
+    }, [onZoomMultipleChange, zoomMultiple]);
+
     // RNGH taps (not TouchableOpacity) for the on-reel overlay zoom, so the press wins over
     // the waveform's pan/scrub gesture underneath it instead of being swallowed.
     const zoomOutTap = React.useMemo(
@@ -367,6 +378,10 @@ export function AudioReel({
     const zoomInTap = React.useMemo(
         () => Gesture.Tap().onEnd(() => { runOnJS(handleZoom)("in"); }),
         [handleZoom]
+    );
+    const zoomFitTap = React.useMemo(
+        () => Gesture.Tap().onEnd(() => { runOnJS(handleZoomToFit)(); }),
+        [handleZoomToFit]
     );
 
     // The overlay zoom collapses to a single magnifier puck; tapping expands the full
@@ -577,6 +592,19 @@ export function AudioReel({
                             style={audioReelStyles.zoomOverlayPill}
                             onTouchStart={scheduleZoomCollapse}
                         >
+                            {/* Fit to whole clip (1x). A viewfinder frame, not an arrow —
+                                so it never reads as the reel-size or sheet minimize. */}
+                            <GestureDetector gesture={zoomFitTap}>
+                                <View style={audioReelStyles.zoomOverlayButton}>
+                                    <Ionicons
+                                        name="scan-outline"
+                                        size={15}
+                                        color="#524440"
+                                        style={{ opacity: zoomMultiple > MIN_ZOOM ? 1 : 0.3 }}
+                                    />
+                                </View>
+                            </GestureDetector>
+                            <View style={audioReelStyles.zoomOverlayDivider} />
                             <GestureDetector gesture={zoomOutTap}>
                                 <View style={audioReelStyles.zoomOverlayButton}>
                                     <Feather
@@ -779,6 +807,12 @@ const audioReelStyles = StyleSheet.create({
         height: 24,
         alignItems: "center",
         justifyContent: "center",
+    },
+    zoomOverlayDivider: {
+        width: 0.5,
+        height: 16,
+        backgroundColor: "#D7C2BD",
+        marginHorizontal: 1,
     },
     zoomPuck: {
         width: 30,

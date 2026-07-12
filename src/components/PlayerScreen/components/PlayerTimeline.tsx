@@ -184,11 +184,11 @@ function LoopMoveHandle({
   );
 }
 
-// Target on-screen window for the default player zoom: the reel opens showing
-// roughly this much time, so a long song starts as the scrolling "tape" (playhead
-// rides center, waveform moves) while short clips stay at 1x (whole clip fits).
-// AudioReel snaps duration/window to its nearest zoom step.
-const PLAYER_FOLLOW_WINDOW_MS = 27000;
+// Standard opening zoom for the player reel. A fixed level (not derived from
+// duration) so every song opens the same way — 8x reads best for waveform detail
+// and gives the reel its rolling "tape" motion during playback. Users zoom out to
+// 1x (whole clip) with the fit button, or step with −/+.
+const DEFAULT_PLAYER_ZOOM = 8;
 
 function PlayerTimelineInner({
   mode,
@@ -242,7 +242,7 @@ function PlayerTimelineInner({
       waveformPeaks={waveformPeaks}
       durationMs={durationMs}
       resetKey={resetKey}
-      initialZoomMultiple={durationMs > 0 ? durationMs / PLAYER_FOLLOW_WINDOW_MS : undefined}
+      initialZoomMultiple={DEFAULT_PLAYER_ZOOM}
       currentTimeMs={0}
       sharedCurrentTimeMs={transportClock.sharedCurrentTimeMs}
       sharedDurationMs={transportClock.sharedDurationMs}
