@@ -4,6 +4,7 @@ import Animated from "react-native-reanimated";
 import { StyleSheet, View } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { AudioReel } from "../../common/AudioReel";
+import { openingZoomForDuration } from "../playerZoom";
 import { MultiTimeRangeSelector } from "../../common/TimeRangeSelector";
 import { OverdubLayerLanes, type OverdubLayerLane } from "../../common/OverdubLayerLanes";
 import { PracticePinBadges } from "../PracticePinBadges";
@@ -184,11 +185,6 @@ function LoopMoveHandle({
   );
 }
 
-// Standard opening zoom for the player reel. A fixed level (not derived from
-// duration) so every song opens the same way — 8x reads best for waveform detail
-// and gives the reel its rolling "tape" motion during playback. Users zoom out to
-// 1x (whole clip) with the fit button, or step with −/+.
-const DEFAULT_PLAYER_ZOOM = 8;
 
 function PlayerTimelineInner({
   mode,
@@ -242,7 +238,7 @@ function PlayerTimelineInner({
       waveformPeaks={waveformPeaks}
       durationMs={durationMs}
       resetKey={resetKey}
-      initialZoomMultiple={DEFAULT_PLAYER_ZOOM}
+      initialZoomMultiple={openingZoomForDuration(durationMs)}
       currentTimeMs={0}
       sharedCurrentTimeMs={transportClock.sharedCurrentTimeMs}
       sharedDurationMs={transportClock.sharedDurationMs}
