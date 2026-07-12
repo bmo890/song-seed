@@ -40,6 +40,8 @@ import { useEditorPreviewTransport } from "./hooks/useEditorPreviewTransport";
 import { EditorTransformSection } from "./EditorTransformSection";
 import { EditorTransformExportModal } from "./EditorTransformExportModal";
 import { clipHasOverdubs } from "../../clipPresentation";
+import { HelpSheet } from "../common/HelpSheet";
+import { EDITOR_HELP } from "../common/helpContent";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Editor">;
 
@@ -118,6 +120,7 @@ export function EditorScreen() {
     const [isLoading, setIsLoading] = useState(false);
     const [isFlatteningOverdub, setIsFlatteningOverdub] = useState(false);
     const [editorMode, setEditorMode] = useState<"trim" | "transform">("trim");
+    const [helpVisible, setHelpVisible] = useState(false);
 
     const updateIdeas = useStore((s) => s.updateIdeas);
     const setSelectedIdeaId = useStore((s) => s.setSelectedIdeaId);
@@ -392,6 +395,7 @@ export function EditorScreen() {
                             void previewTransport.pause();
                             navigation.goBack();
                         }}
+                        onHelp={() => setHelpVisible(true)}
                     />
                 }
                 footer={
@@ -565,6 +569,13 @@ export function EditorScreen() {
                 )}
             </TransportLayout>
 
+            <HelpSheet
+                visible={helpVisible}
+                onClose={() => setHelpVisible(false)}
+                title={EDITOR_HELP.title}
+                intro={EDITOR_HELP.intro}
+                items={EDITOR_HELP.items}
+            />
 
             <EditorExportProgressModal visible={exportFlow.isExporting} />
 

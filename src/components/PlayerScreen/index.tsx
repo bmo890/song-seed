@@ -29,6 +29,8 @@ import { PlayerHeaderSection } from "./components/PlayerHeaderSection";
 import { PlayerFooterSection } from "./components/PlayerFooterSection";
 import { PlayerPracticePanel } from "./components/PlayerPracticePanel";
 import { PlayerSupportSections } from "./components/PlayerSupportSections";
+import { HelpSheet } from "../common/HelpSheet";
+import { OVERDUB_HELP, PRACTICE_HELP } from "../common/helpContent";
 import { PlayAlongLyrics, PlayAlongSpeedControl } from "./components/PlayAlongLyrics";
 import { PlayerPinSheets } from "./components/PlayerPinSheets";
 import { playerScreenStyles } from "./styles";
@@ -87,6 +89,7 @@ export function PlayerScreen({
     startMs?: number;
     endMs?: number;
   } | null>(null);
+  const [helpTopic, setHelpTopic] = useState<"practice" | "overdub" | null>(null);
 
   const fullPlayer = useFullPlayerContext();
   const {
@@ -417,6 +420,7 @@ export function PlayerScreen({
     handleTransportToggle: handleTransportToggleWithDisplaySync,
     setSpeedPanelVisible,
     prepareTransportForClose: practicePitchTransport.prepareForPlayerClose,
+    onShowHelp: setHelpTopic,
   });
 
   // As a sheet (not a route) there's nothing for the system back to pop —
@@ -1009,6 +1013,13 @@ export function PlayerScreen({
         onDeletePin={handleDeletePin}
       />
 
+      <HelpSheet
+        visible={helpTopic !== null}
+        onClose={() => setHelpTopic(null)}
+        title={(helpTopic === "overdub" ? OVERDUB_HELP : PRACTICE_HELP).title}
+        intro={(helpTopic === "overdub" ? OVERDUB_HELP : PRACTICE_HELP).intro}
+        items={(helpTopic === "overdub" ? OVERDUB_HELP : PRACTICE_HELP).items}
+      />
     </SafeAreaView>
   );
 

@@ -52,6 +52,8 @@ type UsePlayerScreenLifecycleArgs = {
   handleTransportToggle: () => Promise<void>;
   setSpeedPanelVisible: (visible: boolean) => void;
   prepareTransportForClose: () => void;
+  /** Opens a help sheet from the overflow menu. */
+  onShowHelp: (topic: "practice" | "overdub") => void;
 };
 
 export function usePlayerScreenLifecycle({
@@ -91,6 +93,7 @@ export function usePlayerScreenLifecycle({
   handleTransportToggle,
   setSpeedPanelVisible,
   prepareTransportForClose,
+  onShowHelp,
 }: UsePlayerScreenLifecycleArgs) {
   const handledToggleTokenRef = useRef(playerToggleRequestToken);
   const handledCloseTokenRef = useRef(playerCloseRequestToken);
@@ -484,6 +487,22 @@ export function usePlayerScreenLifecycle({
               },
             },
           ]),
+      {
+        label: "How practice works",
+        style: "default" as const,
+        icon: "help-circle-outline" as const,
+        onPress: () => onShowHelp("practice"),
+      },
+      ...(hasOverdubs
+        ? [
+            {
+              label: "How overdubs work",
+              style: "default" as const,
+              icon: "help-circle-outline" as const,
+              onPress: () => onShowHelp("overdub"),
+            },
+          ]
+        : []),
       {
         label: "Share audio",
         style: "default",

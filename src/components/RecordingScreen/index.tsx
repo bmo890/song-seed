@@ -14,6 +14,8 @@ import { SaveDestinationPickerSheet } from "../modals/SaveDestinationPickerSheet
 import { METRONOME_METER_PRESETS } from "../../metronome";
 import { useStore } from "../../state/useStore";
 import { useRecordingScreenModel } from "./hooks/useRecordingScreenModel";
+import { HelpSheet } from "../common/HelpSheet";
+import { RECORDING_HELP } from "../common/helpContent";
 
 export function RecordingScreen() {
   const navigation = useNavigation();
@@ -25,6 +27,7 @@ export function RecordingScreen() {
   // Set if an auto-name save fails: falls back to showing the modal so the take is never
   // stranded on a hidden dialog. Cleared when a fresh naming session opens.
   const [autoNameFailed, setAutoNameFailed] = React.useState(false);
+  const [helpVisible, setHelpVisible] = React.useState(false);
   const autoSaveTriedRef = React.useRef(false);
 
   // Persist the take, then leave the recording screen back to where it came from.
@@ -85,6 +88,7 @@ export function RecordingScreen() {
           onBack={screen.confirmDiscardAndExit}
           onMinimize={screen.minimizeRecording}
           onOpenSettings={() => screen.setSettingsVisible(true)}
+          onHelp={() => setHelpVisible(true)}
         />
 
         <RecordingTimingWarnings
@@ -234,6 +238,13 @@ export function RecordingScreen() {
         onChangeHapticLevel={screen.metronome.setHapticLevelValue}
       />
 
+      <HelpSheet
+        visible={helpVisible}
+        onClose={() => setHelpVisible(false)}
+        title={RECORDING_HELP.title}
+        intro={RECORDING_HELP.intro}
+        items={RECORDING_HELP.items}
+      />
     </SafeAreaView>
   );
 }

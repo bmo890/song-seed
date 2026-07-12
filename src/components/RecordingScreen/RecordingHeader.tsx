@@ -14,6 +14,7 @@ type RecordingHeaderProps = {
   onBack: () => void;
   onMinimize: () => void;
   onOpenSettings: () => void;
+  onHelp: () => void;
 };
 
 export function RecordingHeader({
@@ -25,6 +26,7 @@ export function RecordingHeader({
   onBack,
   onMinimize,
   onOpenSettings,
+  onHelp,
 }: RecordingHeaderProps) {
   return (
     <View style={[localStyles.zone, collapsed ? localStyles.zoneCollapsed : null]}>
@@ -38,6 +40,15 @@ export function RecordingHeader({
         </Pressable>
 
         <View style={localStyles.actionRow}>
+          <Pressable
+            style={({ pressed }) => [localStyles.actionBtn, pressed ? localStyles.pressDown : null]}
+            onPress={onHelp}
+            accessibilityRole="button"
+            accessibilityLabel="Recording help"
+          >
+            <Ionicons name="help-circle-outline" size={18} color={colors.textStrong} />
+          </Pressable>
+
           <Pressable
             style={({ pressed }) => [localStyles.actionBtn, pressed ? localStyles.pressDown : null]}
             onPress={onMinimize}

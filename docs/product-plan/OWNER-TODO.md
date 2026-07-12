@@ -13,6 +13,20 @@ Everything below shipped code-complete with tests/typecheck green, but only a re
 - [ ] Restore/import a PRE-RENAME backup or archive (old "Song Seed" export) → imports fine.
 - [ ] General nav feel after rebuild — if lag persists in this build, report it; no code regression was found, so next step is on-device profiling.
 
+**Phase 3 interaction polish (haptics/animation — device-only, needs a physical device, not emulator):**
+- [ ] Haptics feel right and aren't buzzy: editor (region add/remove, intent switch, speed/pitch steppers), AudioReel scrub grab/release + zoom detents, tuner in-tune lock buzz (should fire once on locking green, not machine-gun), PlayerSheet expand/collapse settle. All gated by the Settings haptics toggle — confirm turning it OFF silences everything new.
+- [ ] Toasts: trigger "clip saved" (editor export), "copied" (lyrics/chords, backup name), "added to song" — pill appears above the dock, auto-dismisses, doesn't cover dialogs. VoiceOver/TalkBack announces it.
+- [ ] AnimatedCollapse: overdub Levels/Timing sections and practice-panel tool disclosure settle in (fade + slight slide) instead of popping; 60fps on a mid-tier Android.
+- [ ] Any intensity/timing that feels off → tell me the surface; every value is a single named constant.
+
+**Phase 4 first-run & help (verify on a FRESH install — clear app data or reinstall):**
+- [ ] Fresh install → splash → welcome (2-3 panes, skippable) → lands in an auto-created "My Songs" workspace with recording one tap away.
+- [ ] Kill + relaunch → welcome does NOT reappear. Replay it from Settings → About → "Replay intro".
+- [ ] Upgrade path (existing library): confirm the welcome does NOT show for you (you already have data) after this build lands.
+- [ ] Empty states read well: open Library tabs, Search (before typing + no results), Revisit, Activity, an empty collection, the overdub section — each teaches what it's for.
+- [ ] **Help-sheet accuracy (I need your eyes here):** open the help (?) on Recording, Full player/practice, Overdubs, and the Trim editor — confirm every claim about how the feature works is actually true. I drafted from the code, but you know the real behavior.
+- [ ] Review prompt: won't fire for a while by design (10th saved clip + 5 days) — just confirm nothing prompts prematurely.
+
 **Phase 2 visual pass (fonts/radii/colors changed on ~50 files — pixels need eyes):**
 - [ ] Scroll through: Metronome, Tuner, Bluetooth calibration, Recording (incl. metronome sheet), overdub layer cards, Editor (both export dialogs), Search, Activity, Share-import. Everything should render in the app fonts (no OS-font stragglers) with consistent corner radii.
 - [ ] Metronome page rebuild: one screen no scrolling on your device; beat bar reads clearly; pulse/halo intensity feels right at high + low BPM (all values are single constants if anything needs dialing).
