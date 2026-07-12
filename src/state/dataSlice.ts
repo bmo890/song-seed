@@ -105,6 +105,13 @@ export type DataSlice = {
     hapticsEnabled: boolean;
     /** When true, saving a recording asks for a name; when false it auto-names from the suggestion. */
     promptForClipName: boolean;
+    /** First-run: false until the welcome intro has been shown once. Defaults true for
+     *  existing users (data present at hydration) so an upgrade never re-shows it. */
+    hasSeenWelcome: boolean;
+    /** Epoch of the very first launch — anchors the store-review timing rule. */
+    firstLaunchAt: number | null;
+    /** Epoch the store-review prompt was last requested (never re-ask too soon). */
+    reviewPromptShownAt: number | null;
     lastSuccessfulBackupAt: number | null;
     lastSuccessfulBackupFileName: string | null;
     metronomeBpm: number;
@@ -154,6 +161,12 @@ export type DataSlice = {
     setBackupReminderFrequency: (value: BackupReminderFrequency) => void;
     setHapticsEnabled: (value: boolean) => void;
     setPromptForClipName: (value: boolean) => void;
+    setHasSeenWelcome: (value: boolean) => void;
+    markFirstLaunch: () => void;
+    setReviewPromptShownAt: (timestamp: number) => void;
+    /** First-run: create a starter "My Songs" workspace + "Ideas" collection, set both
+     *  primary. No-ops if any workspace already exists (idempotent, safe to call on launch). */
+    seedStarterLibrary: () => void;
     setLastSuccessfulBackupAt: (timestamp: number | null) => void;
     setLastSuccessfulBackupFileName: (fileName: string | null) => void;
     addWorkspace: (title: string, description?: string, avatarKey?: number) => void;
@@ -1154,6 +1167,9 @@ export const createDataSlice: StateCreator<
     backupReminderFrequency: "monthly",
     hapticsEnabled: true,
     promptForClipName: true,
+    hasSeenWelcome: false,
+    firstLaunchAt: null,
+    reviewPromptShownAt: null,
     lastSuccessfulBackupAt: null,
     lastSuccessfulBackupFileName: null,
 
@@ -1363,6 +1379,35 @@ export const createDataSlice: StateCreator<
     setBackupReminderFrequency: (value) => set({ backupReminderFrequency: value }),
     setHapticsEnabled: (value) => set({ hapticsEnabled: value }),
     setPromptForClipName: (value) => set({ promptForClipName: value }),
+    setHasSeenWelcome: (value) => set({ hasSeenWelcome: value }),
+    markFirstLaunch: () => {
+        if (get().firstLaunchAt != null) return;
+        set({ firstLaunchAt: Date.now() });
+    },
+    setReviewPromptShownAt: (timestamp) => set({ reviewPromptShownAt: timestamp }),
+    seedStarterLibrary: () => {
+        if (get().workspaces.length > 0) return;
+        const now = Date.now();
+        const workspaceId = `ws-${now}`;
+        const collection = createCollection(workspaceId, "Ideas", null);
+        const workspace = {
+            id: workspaceId,
+            title: "My Songs",
+            color: WORKSPACE_COLORS[0],
+            avatarKey: now,
+            collections: [collection],
+            ideas: [],
+        };
+        set((state) => ({
+            workspaces: [workspace, ...state.workspaces],
+            primaryWorkspaceId: workspaceId,
+            activeWorkspaceId: workspaceId,
+            primaryCollectionIdByWorkspace: {
+                ...state.primaryCollectionIdByWorkspace,
+                [workspaceId]: collection.id,
+            },
+        }));
+    },
     setLastSuccessfulBackupAt: (timestamp) => set({ lastSuccessfulBackupAt: timestamp }),
     setLastSuccessfulBackupFileName: (fileName) => set({ lastSuccessfulBackupFileName: fileName }),
 

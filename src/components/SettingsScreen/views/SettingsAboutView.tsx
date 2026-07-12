@@ -6,6 +6,8 @@ import { AboutLinkRow } from "../components/SettingsShared";
 import { AppAlert } from "../../common/AppAlert";
 import { getCrashLogUri } from "../../../services/crashLog";
 import { shareFileUri } from "../../../services/audioStorage";
+import { useStore } from "../../../state/useStore";
+import { haptic } from "../../../design/haptics";
 
 const FEEDBACK_EMAIL = "bmogerman@gmail.com";
 
@@ -67,6 +69,15 @@ export function SettingsAboutView() {
             icon="pulse-outline"
             onPress={() => {
               void shareDiagnosticLog();
+            }}
+          />
+          <AboutLinkRow
+            label="Replay intro"
+            icon="sparkles-outline"
+            onPress={() => {
+              haptic.tap();
+              // Flipping the flag surfaces the full-screen WelcomeGate immediately.
+              useStore.getState().setHasSeenWelcome(false);
             }}
           />
         </View>

@@ -82,6 +82,7 @@ import {
 } from "./src/services/backupStatus";
 import { resumePendingWorkspaceArchiveOperations } from "./src/services/workspaceArchiveRecovery";
 import { enqueueMissingDurationBackfill } from "./src/services/backgroundWaveformHydration";
+import { shouldSeedStarterLibrary } from "./src/firstRun";
 import { recoverPendingRecordingSession } from "./src/services/recordingRecovery";
 import { cleanupStaleDisasterRecoveryBackupFiles } from "./src/services/disasterRecoveryBackup";
 import { cleanupInterruptedDisasterRecoveryRestores } from "./src/services/disasterRecoveryTemp";
@@ -128,6 +129,7 @@ import { AppAlert } from "./src/components/common/AppAlert";
 import { AppDialogHost } from "./src/components/common/AppDialog";
 import { AppErrorBoundary } from "./src/components/common/AppErrorBoundary";
 import { ToastHost } from "./src/components/common/ToastHost";
+import { WelcomeFlow } from "./src/components/common/WelcomeFlow";
 import { installGlobalCrashHandler } from "./src/services/crashLog";
 import { RestoreRestartGate } from "./src/components/common/RestoreRestartGate";
 import { FullPlayerProvider } from "./src/hooks/FullPlayerProvider";
@@ -698,6 +700,15 @@ function getDeepestRoute(state: any): { name: string; params?: Record<string, un
 
 
 
+/** Renders the first-run intro over the app until it's been seen once. Separate
+ *  component so only it re-renders on the hasSeenWelcome flip, not all of AppContent. */
+function WelcomeGate() {
+  const hasSeenWelcome = useStore((s) => s.hasSeenWelcome);
+  const setHasSeenWelcome = useStore((s) => s.setHasSeenWelcome);
+  if (hasSeenWelcome) return null;
+  return <WelcomeFlow onDone={() => setHasSeenWelcome(true)} />;
+}
+
 function AppContent() {
   const [fontsLoaded] = useFonts({
     PlayfairDisplay_400Regular,
@@ -970,6 +981,7 @@ function AppContent() {
         <ToastHost />
       </NavigationContainer>
       <RestoreRestartGate />
+      <WelcomeGate />
       </FullPlayerProvider>
       )}
     </ShareIntentProvider>
@@ -1016,6 +1028,9 @@ export default function App() {
       // yields to foreground audio, so this is safe to fire on every launch.
       enqueueMissingDurationBackfill(useStore.getState().workspaces);
 
+      // Anchor the store-review timing rule on the very first launch.
+      useStore.getState().markFirstLaunch();
+
       // Recovery mode: if the library hydrated empty but the shadow manifest still holds
       // data, surface a restore prompt instead of silently presenting an empty, writable
       // library (the catastrophic-loss scenario). The persist + manifest guards keep the
@@ -1039,6 +1054,13 @@ export default function App() {
             { confirmLabel: "Restore", cancelLabel: "Not now", icon: "refresh-outline" }
           );
           return;
+        }
+
+        // Genuinely fresh install (no live data, no recoverable backup): seed a
+        // starter workspace so the record button is one tap from first launch.
+        // seedStarterLibrary self-guards on workspaces.length === 0.
+        if (shouldSeedStarterLibrary(hydratedState.workspaces.length, manifestIdeaCount)) {
+          useStore.getState().seedStarterLibrary();
         }
       }
 

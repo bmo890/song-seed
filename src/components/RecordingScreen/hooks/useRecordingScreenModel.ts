@@ -25,6 +25,7 @@ import { getDefaultOverdubStemTitle, getRecordingGridBarMs } from "../../../over
 import { buildSaveDestinations, resolveSaveDestinationLabel, type SaveDestination } from "../../../collectionManagement";
 import { authorizeIntentionalEmptyStateWrite } from "../../../services/stateIntegrity";
 import { ensureWaveformSidecar } from "../../../services/waveformSidecar";
+import { maybeRequestReviewAfterSave } from "../../../services/reviewPrompt";
 import {
   buildDefaultIdeaTitle,
   ensureUniqueCountedTitle,
@@ -867,6 +868,7 @@ export function useRecordingScreenModel() {
       setOverdubReviewLocked(false);
       setSaveDestinationOverride(null);
       clearRecordingContext();
+      void maybeRequestReviewAfterSave();
       return true;
     }
 
@@ -957,6 +959,7 @@ export function useRecordingScreenModel() {
     setOverdubReviewLocked(false);
     setSaveDestinationOverride(null);
     clearRecordingContext();
+    void maybeRequestReviewAfterSave();
     return true;
   }
 

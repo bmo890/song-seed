@@ -8,6 +8,7 @@ import { IdeaListItem, CollapsedDayRow } from "./IdeaListItem";
 import { CollectionListModel, IdeaListEntry, IdeaListItemMeta } from "../types";
 import { getIdeaSortTimestamp, type IdeaSortMetric } from "../../../ideaSort";
 import { getDateBucket } from "../../../dateBuckets";
+import { EmptyState } from "../../common/EmptyState";
 
 const AnimatedFlatList = ReAnimated.FlatList as unknown as typeof FlatList;
 
@@ -129,9 +130,20 @@ export function IdeaListContent(
       ListFooterComponent={<View style={{ height: listFooterSpacerHeight }} />}
       ListEmptyComponent={
         listEntries.length === 0 ? (
-          <Text style={styles.emptyText}>
-            {searchNeedle ? "No matching songs or clips." : "No songs or clips yet. Add your first one."}
-          </Text>
+          searchNeedle ? (
+            <EmptyState
+              icon="search-outline"
+              title="No matches here"
+              body="Nothing in this collection matches your search. Try fewer or different words."
+              compact
+            />
+          ) : (
+            <EmptyState
+              icon="mic-outline"
+              title="Nothing here yet"
+              body="Tap record and hum the idea — your first take lands right here."
+            />
+          )
         ) : null
       }
       onViewableItemsChanged={onViewableItemsChanged}

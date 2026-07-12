@@ -209,6 +209,20 @@ export function sanitizePersistedState(state?: Partial<PersistedAppStore>): Pers
             : DEFAULT_BACKUP_REMINDER_FREQUENCY,
         hapticsEnabled: state?.hapticsEnabled !== false,
         promptForClipName: state?.promptForClipName !== false,
+        // Default true for existing users (data present at hydration) so an upgrade never
+        // re-shows the intro; a genuinely fresh install (no persisted workspaces) → false.
+        hasSeenWelcome:
+            typeof state?.hasSeenWelcome === "boolean"
+                ? state.hasSeenWelcome
+                : (state?.workspaces?.length ?? 0) > 0,
+        firstLaunchAt:
+            typeof state?.firstLaunchAt === "number" && Number.isFinite(state.firstLaunchAt)
+                ? state.firstLaunchAt
+                : null,
+        reviewPromptShownAt:
+            typeof state?.reviewPromptShownAt === "number" && Number.isFinite(state.reviewPromptShownAt)
+                ? state.reviewPromptShownAt
+                : null,
         lastSuccessfulBackupAt:
             typeof state?.lastSuccessfulBackupAt === "number" && Number.isFinite(state.lastSuccessfulBackupAt)
                 ? state.lastSuccessfulBackupAt
