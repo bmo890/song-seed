@@ -1,4 +1,26 @@
-# Owner TODO — account-bound launch steps
+# Owner TODO — account-bound launch steps & device verification
+
+## 0. Device verification checklist (Phases 0–2 + playback fixes)
+
+Everything below shipped code-complete with tests/typecheck green, but only a real device can confirm feel and native behavior. **First: rebuild the dev client (`npm run android`)** — the waveform-cancel hook is native code; a JS reload will not pick it up.
+
+**Playback fixes (commit f7eacc5c) — the critical ones:**
+- [ ] Import a fresh song → open full player → tap play within ~2s. Must play through, no play-then-pause. (Also try tapping play *mid*-waveform-generation: open, wait 1s, play.)
+- [ ] Imported clip cards: durations fill in shortly after import (no 0:00 stragglers); kill + relaunch the app with a 0:00 clip present → it self-heals via the launch backfill.
+- [ ] Stale playhead: play clip A, pause mid-track (or background the app), open clip B → playhead shows 0:00 immediately, never A's position. Also check the mini dock during the switch.
+- [ ] Editor save while the dock is playing another clip → save completes promptly (no long hang), saved clip gets a REAL waveform thumbnail.
+- [ ] Overdub stem-alignment overlay while auditioning → detailed (not blocky) waveforms in the zoom view.
+- [ ] Restore/import a PRE-RENAME backup or archive (old "Song Seed" export) → imports fine.
+- [ ] General nav feel after rebuild — if lag persists in this build, report it; no code regression was found, so next step is on-device profiling.
+
+**Phase 2 visual pass (fonts/radii/colors changed on ~50 files — pixels need eyes):**
+- [ ] Scroll through: Metronome, Tuner, Bluetooth calibration, Recording (incl. metronome sheet), overdub layer cards, Editor (both export dialogs), Search, Activity, Share-import. Everything should render in the app fonts (no OS-font stragglers) with consistent corner radii.
+- [ ] Metronome page rebuild: one screen no scrolling on your device; beat bar reads clearly; pulse/halo intensity feels right at high + low BPM (all values are single constants if anything needs dialing).
+- [ ] Recording screen: compact beat bar above the transport during count-in and while recording; record-button halo punch (downbeats hit harder).
+- [ ] New app icon/splash on the launcher + cold start (one continuous motion, no white flash, paper-toned splash).
+- [ ] Songstead label under the icon (dev build shows "Songstead Dev").
+- [ ] Force a crash in dev (temporary `throw` in a screen) → branded "Something went wrong" screen → Restart recovers → Settings → About → "Share diagnostic log" has the entry.
+
 
 Things only the account owner can do. None of these block Phases 2–4 (code work continues without them), but **items 1 and 3 gate Phase 1 (iOS) and Phase 5 (store submission)** — knock them out when convenient, the earlier the better since some have approval lead time.
 
