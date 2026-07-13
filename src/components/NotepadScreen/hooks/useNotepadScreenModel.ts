@@ -3,6 +3,9 @@ import { Share } from "react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { useStore } from "../../../state/useStore";
 import { buildShareTextFromNotes } from "../../../notepad";
+import { canSaveWordSpark } from "../../../proGating";
+import { hasProAccess } from "../../../entitlements";
+import { openProUpsell } from "../../common/proUpsell";
 import type { Note, WordLadderExercise, CutUpSpark, MagpieSpark } from "../../../types";
 
 export type NotebookEntry =
@@ -190,19 +193,32 @@ export function useNotepadScreenModel() {
   }, [addNote]);
 
   const handleNewWordLadder = useCallback(() => {
+    // Free users keep a limited number of sparks PER TOOL; existing ones stay fully editable.
+    if (!canSaveWordSpark(wordLadders.length, hasProAccess("word-sparks-unlimited"))) {
+      openProUpsell("word-sparks-unlimited");
+      return;
+    }
     const id = addWordLadder("", "");
     navigation.navigate("WordLadderHome", { exerciseId: id });
-  }, [addWordLadder, navigation]);
+  }, [addWordLadder, navigation, wordLadders.length]);
 
   const handleNewCutUp = useCallback(() => {
+    if (!canSaveWordSpark(cutUpSparks.length, hasProAccess("word-sparks-unlimited"))) {
+      openProUpsell("word-sparks-unlimited");
+      return;
+    }
     const id = addCutUpSpark("");
     navigation.navigate("CutUpHome", { sparkId: id });
-  }, [addCutUpSpark, navigation]);
+  }, [addCutUpSpark, navigation, cutUpSparks.length]);
 
   const handleNewMagpie = useCallback(() => {
+    if (!canSaveWordSpark(magpieSparks.length, hasProAccess("word-sparks-unlimited"))) {
+      openProUpsell("word-sparks-unlimited");
+      return;
+    }
     const id = addMagpieSpark();
     navigation.navigate("MagpieHome", { sparkId: id });
-  }, [addMagpieSpark, navigation]);
+  }, [addMagpieSpark, navigation, magpieSparks.length]);
 
   useEffect(() => {
     if (hasAutoOpenedRef.current) return;

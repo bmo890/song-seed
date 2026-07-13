@@ -37,6 +37,10 @@ import { playerScreenStyles } from "./styles";
 import { getVisibleTimelineRange } from "./helpers";
 import { openIdeaInCollection } from "../../navigation";
 import { AppAlert } from "../common/AppAlert";
+import { getClipOverdubStemCount } from "../../clipPresentation";
+import { canAddOverdubLayer } from "../../proGating";
+import { hasProAccess } from "../../entitlements";
+import { openProUpsell } from "../common/proUpsell";
 
 const PRACTICE_SPEED_PRESETS = [0.5, 0.75, 1, 1.25, 1.5] as const;
 const PRACTICE_SPEED_MIN = 0.5;
@@ -516,6 +520,12 @@ export function PlayerScreen({
   }, [handleAddPin]);
   const handleAddOverdub = useCallback(async () => {
     if (!playerIdea || !playerClip) return;
+    // First overdub layer is free; stacking more is Pro. Existing multi-layer clips stay
+    // fully playable/editable — only ADDING a new layer past the free one is gated.
+    if (!canAddOverdubLayer(getClipOverdubStemCount(playerClip), hasProAccess("overdub-layers"))) {
+      openProUpsell("overdub-layers");
+      return;
+    }
     try {
       // Record the layer from where the player sits: scrubbed to the chorus = punch in
       // at the chorus (bar-snapped in the action). At the top = classic full layer.
@@ -532,6 +542,10 @@ export function PlayerScreen({
   const handleRecordLayerAt = useCallback(
     async (atMs: number) => {
       if (!playerIdea || !playerClip) return;
+      if (!canAddOverdubLayer(getClipOverdubStemCount(playerClip), hasProAccess("overdub-layers"))) {
+        openProUpsell("overdub-layers");
+        return;
+      }
       try {
         // Punch in at a section start or pin (bar-snapped in the action).
         await appActions.startClipOverdubRecording(playerIdea.id, playerClip.id, {
