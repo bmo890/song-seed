@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useRef } from "react";
 import { AppAlert } from "../../common/AppAlert";
 import { actionIcons } from "../../common/actionIcons";
-import { clipHasOverdubs, getClipPlaybackUri } from "../../../clipPresentation";
+import { clipHasOverdubs, getClipOverdubStemCount, getClipPlaybackUri } from "../../../clipPresentation";
+import { canAddOverdubLayer } from "../../../proGating";
+import { hasProAccess } from "../../../entitlements";
+import { openProUpsell } from "../../common/proUpsell";
 import { MANAGED_WAVEFORM_PEAK_COUNT, loadManagedAudioMetadata, shareAudioFile } from "../../../services/audioStorage";
 import { appActions } from "../../../state/actions";
 import { useStore } from "../../../state/useStore";
@@ -415,6 +418,12 @@ export function usePlayerScreenLifecycle({
         icon: actionIcons.record,
         onPress: async () => {
           if (!playerIdea || !playerClip) return;
+          // Same overdub-layers gate as the reel's add-layer buttons (this is a third entry
+          // point to the identical action). First layer free; a second+ opens the upsell.
+          if (!canAddOverdubLayer(getClipOverdubStemCount(playerClip), hasProAccess("overdub-layers"))) {
+            openProUpsell("overdub-layers");
+            return;
+          }
           if (isPlayerPlaying) {
             await pausePlayer();
           }

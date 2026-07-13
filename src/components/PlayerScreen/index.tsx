@@ -802,7 +802,9 @@ export function PlayerScreen({
                     presets={PRACTICE_SPEED_PRESETS}
                     min={PRACTICE_SPEED_MIN}
                     max={PRACTICE_SPEED_MAX}
-                    onSelect={handleSpeedTap}
+                    onSelect={(value) => {
+                      if (guardPracticeTool("speed")) handleSpeedTap(value);
+                    }}
                   />
                   <Pressable
                     style={({ pressed }) => [
