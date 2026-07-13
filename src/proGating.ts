@@ -35,3 +35,23 @@ export function canSaveWordSpark(savedCount: number, isPro: boolean): boolean {
 export function remainingFreeSparks(savedCount: number): number {
     return Math.max(0, FREE_SAVED_SPARKS_PER_TOOL - savedCount);
 }
+
+/** The individual tools inside the practice suite (all gated under the "practice-suite" key). */
+export type PracticeTool = "loop" | "pins" | "speed" | "pitch" | "analysis";
+
+/**
+ * Which practice tools are Pro. The whole suite is Pro today, but this is the SINGLE knob:
+ * flip any entry to `false` to make that one tool free — every practice gate reads this map,
+ * so no call site changes. (Keep the "practice-suite" entitlement key for all of them.)
+ */
+export const PRACTICE_TOOL_IS_PRO: Record<PracticeTool, boolean> = {
+    loop: true,
+    pins: true,
+    speed: true,
+    pitch: true,
+    analysis: true,
+};
+
+export function isPracticeToolPro(tool: PracticeTool): boolean {
+    return PRACTICE_TOOL_IS_PRO[tool];
+}

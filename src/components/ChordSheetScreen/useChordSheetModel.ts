@@ -20,6 +20,7 @@ import {
 } from "../../chordSheet";
 import { getLatestLyricsVersion } from "../../lyrics";
 import { shareChordSheetPdf } from "../../services/chordChartPdf";
+import { ensurePro } from "../common/proUpsell";
 import type { ChordSheet, SongIdea } from "../../types";
 
 // index === null adds a chord to the bar; a number edits the chord at that index.
@@ -380,6 +381,7 @@ export function useChordSheetModel(ideaIdOverride?: string) {
 
   const exportPdf = async () => {
     if (!projectIdea) return;
+    if (!ensurePro("pdf-export")) return;
     try {
       const ok = await shareChordSheetPdf({ title: projectIdea.title, subtitle, sheet });
       if (!ok) AppAlert.info("Nothing to export", "Add a section with some chords first.");

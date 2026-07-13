@@ -2,6 +2,7 @@ import { Share } from "react-native";
 import { serializeChordChartText, serializeChordPro } from "../../../../chords";
 import { shareChordChartPdf } from "../../../../services/chordChartPdf";
 import { AppAlert } from "../../../common/AppAlert";
+import { ensurePro } from "../../../common/proUpsell";
 import { formatDate } from "../../../../utils";
 import type { LyricsVersion } from "../../../../types";
 
@@ -12,6 +13,7 @@ export function useChordExport(songTitle: string, version: LyricsVersion | null 
   const subtitle = version ? `${songTitle} · ${formatDate(version.updatedAt)}` : songTitle;
 
   const exportPdf = async () => {
+    if (!ensurePro("pdf-export")) return;
     try {
       const ok = await shareChordChartPdf({ title: songTitle, subtitle, lines });
       if (!ok) AppAlert.info("Nothing to export", "Add some lyrics first.");

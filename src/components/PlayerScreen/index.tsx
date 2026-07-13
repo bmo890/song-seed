@@ -38,9 +38,9 @@ import { getVisibleTimelineRange } from "./helpers";
 import { openIdeaInCollection } from "../../navigation";
 import { AppAlert } from "../common/AppAlert";
 import { getClipOverdubStemCount } from "../../clipPresentation";
-import { canAddOverdubLayer } from "../../proGating";
+import { canAddOverdubLayer, isPracticeToolPro, type PracticeTool } from "../../proGating";
 import { hasProAccess } from "../../entitlements";
-import { openProUpsell } from "../common/proUpsell";
+import { ensurePro, openProUpsell } from "../common/proUpsell";
 
 const PRACTICE_SPEED_PRESETS = [0.5, 0.75, 1, 1.25, 1.5] as const;
 const PRACTICE_SPEED_MIN = 0.5;
@@ -560,6 +560,14 @@ export function PlayerScreen({
     },
     [navigation, playerClip, playerIdea]
   );
+  // Practice tools are Pro (per-tool configurable via PRACTICE_TOOL_IS_PRO — flip one entry
+  // to make that tool free, no call-site change). Returns true if the tap may proceed;
+  // otherwise opens the upsell. Opening practice mode and viewing existing pins/sections/
+  // analysis stays FREE — only USING a gated tool is gated.
+  const guardPracticeTool = useCallback((tool: PracticeTool): boolean => {
+    if (isPracticeToolPro(tool) && !ensurePro("practice-suite")) return false;
+    return true;
+  }, []);
   const handleSaveAsOneClip = useCallback(
     async (mode: "copy" | "replace") => {
       if (!playerIdea || !playerClip) return;
@@ -914,16 +922,24 @@ export function PlayerScreen({
               analysis={data.analysis}
               isAnalyzing={clipAnalysis.isAnalyzing}
               analysisError={clipAnalysis.error}
-              onDetectAnalysis={clipAnalysis.runAnalysis}
+              onDetectAnalysis={() => {
+                if (guardPracticeTool("analysis")) clipAnalysis.runAnalysis();
+              }}
               practiceLoopEnabled={practiceLoopEnabled}
               practiceRangeLabel={practiceRangeLabel}
               onSeekLoopStart={() => handleLoopAwareSeek(practiceLoopRange.start)}
               onMoveLoopToPlayhead={movePracticeLoopToPlayhead}
-              onLoopSection={handleLoopSection}
-              onTogglePracticeLoop={handlePracticeLoopToggle}
+              onLoopSection={(section) => {
+                if (guardPracticeTool("loop")) handleLoopSection(section);
+              }}
+              onTogglePracticeLoop={() => {
+                if (guardPracticeTool("loop")) handlePracticeLoopToggle();
+              }}
               practiceMarkers={data.practiceMarkers}
               playheadMs={effectivePlayerPosition}
-              onAddPin={handleRequestAddPin}
+              onAddPin={() => {
+                if (guardPracticeTool("pins")) handleRequestAddPin();
+              }}
               onSeekPin={handleLoopAwareSeek}
               expandedPinId={expandedPinId}
               pinsDurationMs={effectivePlayerDuration}
@@ -946,13 +962,23 @@ export function PlayerScreen({
               speedPresets={PRACTICE_SPEED_PRESETS}
               speedMin={PRACTICE_SPEED_MIN}
               speedMax={PRACTICE_SPEED_MAX}
-              onSpeedTap={handleSpeedTap}
-              onSpeedSlideStart={handleSpeedSlideStart}
-              onSpeedSliding={handleSpeedSliding}
-              onSpeedSlideEnd={handleSpeedSlideEnd}
+              onSpeedTap={(value) => {
+                if (guardPracticeTool("speed")) handleSpeedTap(value);
+              }}
+              onSpeedSlideStart={() => {
+                if (guardPracticeTool("speed")) handleSpeedSlideStart();
+              }}
+              onSpeedSliding={(value) => {
+                if (guardPracticeTool("speed")) handleSpeedSliding(value);
+              }}
+              onSpeedSlideEnd={(value) => {
+                if (guardPracticeTool("speed")) handleSpeedSlideEnd(value);
+              }}
               pitchShiftSemitones={ui.pitchShiftSemitones}
               supportsPitchShift={practicePitchTransport.isPitchShiftAvailable}
-              onAdjustPitchShift={ui.setPitchShiftSemitones}
+              onAdjustPitchShift={(value) => {
+                if (guardPracticeTool("pitch")) ui.setPitchShiftSemitones(value);
+              }}
               countInOption={ui.countInOption}
               onSelectCountIn={ui.setCountInOption}
               onRecordOverdub={handleAddOverdub}

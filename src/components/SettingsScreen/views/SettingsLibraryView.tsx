@@ -2,6 +2,7 @@ import { Pressable, ScrollView, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../../../design/tokens";
 import { PageIntro } from "../../common/PageIntro";
+import { ensurePro } from "../../common/proUpsell";
 import { settingsScreenStyles, styles } from "../styles";
 import { FormatOptionRow, LibraryActionCard } from "../components/SettingsShared";
 import type { useLibraryBackupFlow } from "../hooks/useLibraryBackupFlow";
@@ -113,7 +114,12 @@ export function SettingsLibraryView({
               title={option.title}
               subtitle={option.subtitle}
               selected={backupFlow.backupReminderFrequency === option.value}
-              onPress={() => backupFlow.setBackupReminderFrequency(option.value)}
+              onPress={() => {
+                // Manual backup stays free; scheduling an automatic reminder is Pro.
+                // Turning the reminder OFF is always free.
+                if (option.value !== "off" && !ensurePro("auto-backup")) return;
+                backupFlow.setBackupReminderFrequency(option.value);
+              }}
             />
           ))}
         </View>

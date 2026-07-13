@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import * as DocumentPicker from "expo-document-picker";
 import { AppAlert } from "../../common/AppAlert";
 import { actionIcons } from "../../common/actionIcons";
+import { ensurePro } from "../../common/proUpsell";
 import { appActions } from "../../../state/actions";
 import { BACKUP_SAVE_CANCELLED_MESSAGE } from "../../../services/archiveSave";
 import { formatBytes } from "../../../utils";
@@ -168,6 +169,7 @@ export function useWorkspaceArchiveActions({
     if (!workspace.isArchived || !workspace.archiveState || workspace.archiveState.offloadedAt) {
       return;
     }
+    if (!ensurePro("archive-offload")) return;
 
     AppAlert.confirm(
       `Move "${workspace.title}" package off this device?`,
