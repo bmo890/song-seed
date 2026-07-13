@@ -84,4 +84,27 @@ Porting `songseed-file-io` to iOS (deliberate non-goal); iPad optimization; visu
 
 ## Changelog (fill in as you fix things)
 
-- _(record every iOS-specific fix here so the knowledge isn't lost)_
+- **2026-07-13 — First iOS build compiles (simulator).** The app had never been
+  built on iOS; fixed three things to get a clean `xcodebuild` (Debug, iphonesimulator):
+  1. **Stale `@siteed` package reference** — the prebuilt `ios/` referenced the audio
+     library's old name `@siteed/expo-audio-studio`; it's since been renamed to
+     `@siteed/audio-studio`, so the Pods project pointed at 18 Swift files that no
+     longer existed there. Fixed by `expo prebuild --clean -p ios` (regenerates the
+     whole native project from config; `ios/` is gitignored so nothing was lost). The
+     regen also renamed the workspace/scheme to `SongsteadDev` (dev variant of the
+     renamed app) and recreated the share extension as `SongsteadImport`.
+  2. **Pitch-shift podspec source glob was wrong** — `modules/songseed-pitch-shift/ios/SongseedPitchShift.podspec`
+     had `s.source_files = 'ios/**/*.{…}'`, but the podspec already lives *in* `ios/`,
+     so it looked for a non-existent `ios/ios/` and matched **zero** Swift files → the
+     module never built → downstream `no such module 'SongseedPitchShift'`. Fixed the
+     glob to `'**/*.{…}'` and added `DEFINES_MODULE => YES` (matching the working
+     `songseed-metronome` podspec). This bug was invisible until now because iOS was
+     never built. (This is a real source fix, committed.)
+  3. Set `ios.supportsTablet: false` (Phase 1.6 recommendation — keep un-QA'd iPad
+     layouts out of App Review scope for v1).
+  - **Result:** `** BUILD SUCCEEDED **` — AudioStudio pod, both custom Swift modules
+    (metronome + pitch-shift, including the new `getAudioDurationMs`), and the app all
+    compile; `SongsteadDev.app` produced. NOT yet run on a device (needs the owner's
+    iPhone + Apple account for on-device signing); simulator can't validate audio.
+  - **To run on your iPhone:** plug it in + trust the Mac, then `npx expo run:ios --device`
+    (dev variant). Xcode will ask for your Apple Developer team for signing.

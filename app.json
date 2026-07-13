@@ -14,7 +14,7 @@
       "backgroundColor": "#FDFBF7"
     },
     "ios": {
-      "supportsTablet": true,
+      "supportsTablet": false,
       "infoPlist": {
         "NSMicrophoneUsageDescription": "Songstead needs microphone access so you can record song ideas and voice memos.",
         "ITSAppUsesNonExemptEncryption": false

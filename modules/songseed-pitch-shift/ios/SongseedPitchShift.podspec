@@ -11,6 +11,14 @@ Pod::Spec.new do |s|
 
   s.dependency 'ExpoModulesCore'
 
-  s.source_files = 'ios/**/*.{h,m,mm,swift}'
+  # Swift/Objective-C compatibility — required so `import SongseedPitchShift` resolves.
+  s.pod_target_xcconfig = {
+    'DEFINES_MODULE' => 'YES',
+  }
+
+  # The podspec already lives in ios/, so the sources are siblings — an 'ios/**'
+  # prefix looked for a non-existent ios/ios/ and matched nothing (the module never
+  # built on iOS because iOS was never built).
+  s.source_files = '**/*.{h,m,mm,swift}'
   s.swift_version = '5.4'
 end
