@@ -1,9 +1,13 @@
-import { ScrollView, Text, View } from "react-native";
+import { Linking, Platform, ScrollView, Text, View } from "react-native";
 import { PageIntro } from "../../common/PageIntro";
 import { settingsScreenStyles, styles } from "../styles";
 import { FormatOptionRow, LibraryActionCard, ToggleRow } from "../components/SettingsShared";
 import type { useLibraryBackupFlow } from "../hooks/useLibraryBackupFlow";
 import { haptic } from "../../../design/haptics";
+import { useIsPro } from "../../../entitlements";
+import { openProUpsell } from "../../common/proUpsell";
+import { restorePurchases } from "../../../services/billing";
+import { AppAlert } from "../../common/AppAlert";
 
 type LibraryBackupFlow = ReturnType<typeof useLibraryBackupFlow>;
 
@@ -33,6 +37,7 @@ export function SettingsOverviewView({
   onOpenRecording: () => void;
   onOpenAbout: () => void;
 }) {
+  const isPro = useIsPro();
   const libraryMeta = backupFlow.isBackingUp
     ? backupFlow.backupProgressLabel ?? "Backing up…"
     : backupFlow.isRestoring
@@ -51,6 +56,52 @@ export function SettingsOverviewView({
         title="Settings"
         subtitle="Where the app opens, feedback, recording defaults, and your library."
       />
+
+      <View style={styles.settingsSection}>
+        <View style={styles.settingsSectionHeaderRow}>
+          <Text style={styles.settingsSectionLabel}>Songstead Pro</Text>
+        </View>
+        <View style={styles.settingsOptionStack}>
+          {isPro ? (
+            <FormatOptionRow
+              title="Songstead Pro · Active"
+              subtitle="Manage or cancel your subscription in the store."
+              selected={false}
+              onPress={() => {
+                haptic.tap();
+                const url =
+                  Platform.OS === "ios"
+                    ? "https://apps.apple.com/account/subscriptions"
+                    : "https://play.google.com/store/account/subscriptions";
+                void Linking.openURL(url).catch(() => {});
+              }}
+            />
+          ) : (
+            <FormatOptionRow
+              title="Upgrade to Pro"
+              subtitle="Practice tools, unlimited overdub layers, word sparks, and more."
+              selected={false}
+              onPress={() => {
+                haptic.tap();
+                openProUpsell();
+              }}
+            />
+          )}
+          <FormatOptionRow
+            title="Restore purchases"
+            subtitle="Already have Pro? Restore it here."
+            selected={false}
+            onPress={() => {
+              haptic.tap();
+              void restorePurchases().then((result) => {
+                if (!result.ok) {
+                  AppAlert.info("Restore purchases", "There are no purchases to restore yet.");
+                }
+              });
+            }}
+          />
+        </View>
+      </View>
 
       <View style={styles.settingsSection}>
         <View style={styles.settingsSectionHeaderRow}>
