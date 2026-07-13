@@ -301,13 +301,15 @@ export function useLibraryBackupFlow() {
                 return false;
             }
 
-            // Keep the raw error in the diagnostic log; show the user friendly copy — a
-            // low-storage or native-codec failure otherwise surfaced as a cryptic string.
+            // Keep the raw error in the diagnostic log. Our own guards (e.g.
+            // ensureBackupDiskSpace) already throw clear, specific messages — including the
+            // exact free-space figures — so show the message as-is; only the cryptic
+            // low-level out-of-space string gets rewritten to friendly copy.
             console.warn("[backup] failed", error);
             const raw = error instanceof Error ? error.message : "";
-            const message = /no space|enospc|not enough space|disk full|insufficient storage/i.test(raw)
+            const message = /enospc|no space left on device/i.test(raw)
                 ? "Your device is low on storage. Free up some space, then try the backup again."
-                : "The library backup could not be completed. Please try again.";
+                : raw || "The library backup could not be completed. Please try again.";
             useProcessStore.getState().setStatus("error", message);
             AppAlert.info("Backup failed", message);
             return false;
