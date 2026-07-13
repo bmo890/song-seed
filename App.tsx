@@ -128,6 +128,7 @@ import { AppAlert } from "./src/components/common/AppAlert";
 import { AppDialogHost } from "./src/components/common/AppDialog";
 import { AppErrorBoundary } from "./src/components/common/AppErrorBoundary";
 import { ToastHost } from "./src/components/common/ToastHost";
+import { ProUpsellHost } from "./src/components/common/ProUpsellSheet";
 import { WelcomeFlow } from "./src/components/common/WelcomeFlow";
 import { installGlobalCrashHandler } from "./src/services/crashLog";
 import { RestoreRestartGate } from "./src/components/common/RestoreRestartGate";
@@ -1129,6 +1130,7 @@ export default function App() {
       <SafeAreaProvider>
         <AudioRecorderProvider>
           <AppDialogHost />
+          <ProUpsellHost />
           {!hasHydrated ? (
             // Hold the app shell until persist rehydrates so no screen can mount against the
             // default store and accidentally serialize an empty snapshot back to AsyncStorage.
