@@ -24,6 +24,7 @@ import {
 import { SONG_SEED_SHARE_DIR } from "./storagePaths";
 import { cleanupShareTempFile } from "./managedMedia";
 import { saveArchiveToUserLocation } from "./archiveSave";
+import { ensureBackupDiskSpace } from "./backupOperation";
 import type { BackupOperationOptions } from "./backupOperation";
 import { recordLibraryOperationThroughput } from "./operationPacing";
 import {
@@ -238,6 +239,9 @@ export async function prepareLibraryExportArchive(args: ExportLibraryArgs): Prom
     }
 
     const fileEntryCount = zipEntries.filter((entry) => !!entry.fileUri).length;
+    // Fail early with a friendly storage message instead of a raw native write error
+    // partway through packaging (mirrors the disaster-recovery backup guard).
+    await ensureBackupDiskSpace(statedSourceBytes, "export your library");
     console.log(`[export] packaging ${fileEntryCount} file(s) into ${args.format} archive…`);
     const packStartedAt = Date.now();
     await createZipArchive(archiveUri, zipEntries, {

@@ -660,7 +660,6 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
 
   async function saveRecording() {
     let managedAudioUriToCleanup: string | null = null;
-    let recorderTempUriToCleanup: string | null = null;
     let trimTempUriToCleanup: string | null = null;
     try {
       expectedStopReasonRef.current = true;
@@ -706,7 +705,6 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
       const clipId = `clip-${Date.now()}`;
       const managedAudio = await importRecordedAudioAsset(sourceAudioUri, clipId);
       managedAudioUriToCleanup = managedAudio.audioUri;
-      recorderTempUriToCleanup = recordingData.fileUri;
 
       // Prefer the capture-time analysis (real RMS/peak per ~75ms segment of the
       // actual take) over a post-hoc re-decode — the re-decode path can fall back
@@ -771,7 +769,6 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
         // The managed import succeeded, so the recorder temp output is now redundant and should
         // be removed instead of silently accumulating across saves.
         await FileSystem.deleteAsync(recordingData.fileUri, { idempotent: true }).catch(() => {});
-        recorderTempUriToCleanup = null;
       }
       if (trimTempUriToCleanup && trimTempUriToCleanup !== managedAudio.audioUri) {
         await FileSystem.deleteAsync(trimTempUriToCleanup, { idempotent: true }).catch(() => {});
@@ -781,16 +778,23 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
       return true;
     } catch {
       expectedStopReasonRef.current = false;
+      // Roll back the PARTIAL artifacts (the managed copy and the intermediate trim temp),
+      // but PRESERVE the recorder temp file AND the pending-session marker — together they
+      // are the recoverable take that recoverPendingRecordingSession restores on next
+      // launch. Deleting the recorder temp here (as this used to) turned the marker into a
+      // dangling pointer and lost the take whenever a step AFTER the managed import failed
+      // (sidecar/attach) or on a disk-full save. clearPendingRecordingSession is NOT called,
+      // so the marker survives.
       if (managedAudioUriToCleanup) {
         await deleteManagedAudioUris([managedAudioUriToCleanup]).catch(() => {});
-      }
-      if (recorderTempUriToCleanup) {
-        await FileSystem.deleteAsync(recorderTempUriToCleanup, { idempotent: true }).catch(() => {});
       }
       if (trimTempUriToCleanup) {
         await FileSystem.deleteAsync(trimTempUriToCleanup, { idempotent: true }).catch(() => {});
       }
-      AppAlert.info("Recording failed", "Could not save recording.");
+      AppAlert.info(
+        "Recording kept for recovery",
+        "We couldn't finish saving this take (your device may be low on storage), so it's been kept safely. Reopen Songstead to restore it."
+      );
       return false;
     } finally {
       await releaseRecordingAudioSession().catch((error) => {

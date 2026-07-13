@@ -21,6 +21,8 @@ jest.mock("expo-file-system/legacy", () => ({
         if (mockFiles.has(uri)) return { exists: true, size: mockFiles.get(uri)!.length };
         return { exists: mockDirectories.has(uri), isDirectory: mockDirectories.has(uri) };
     }),
+    // Ample free space so the archive's ensureBackupDiskSpace pre-check passes.
+    getFreeDiskStorageAsync: jest.fn(async () => 8 * 1024 * 1024 * 1024),
     readAsStringAsync: jest.fn(async (uri: string) => {
         const value = mockFiles.get(uri);
         if (!value) throw new Error(`Missing mock file: ${uri}`);
@@ -131,6 +133,7 @@ jest.mock("../audioStorage", () => ({
 }));
 
 import { strToU8, unzipSync, zipSync } from "fflate";
+import * as FileSystemLegacy from "expo-file-system/legacy";
 import { archiveWorkspaceToDevice, restoreWorkspaceFromDevice } from "../workspaceArchive";
 
 const AUDIO_DIR = "file:///doc/songseed/audio";
@@ -293,6 +296,13 @@ describe("archiveWorkspaceToDevice (v2)", () => {
         expect(result.archiveState.savingsBytes).toBeGreaterThanOrEqual(0);
         expect(result.archiveState.savingsBytes).toBe(
             result.archiveState.originalMetadataBytes - result.archiveState.archivedMetadataBytes
+        );
+    });
+
+    it("fails early with a friendly storage message when the device is nearly full", async () => {
+        (FileSystemLegacy.getFreeDiskStorageAsync as jest.Mock).mockResolvedValueOnce(1024);
+        await expect(archiveWorkspaceToDevice(buildWorkspace())).rejects.toThrow(
+            /Not enough free device storage/
         );
     });
 

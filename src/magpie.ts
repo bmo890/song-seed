@@ -33,13 +33,24 @@ export class MagpieFetchError extends Error {
   }
 }
 
-/** Wraps fetch so a thrown network error (no connection) becomes an "offline"
- * MagpieFetchError rather than a raw TypeError. */
+/** A connection that opens but never responds (one-bar mobile, an unresponsive
+ * gutenberg.org/gutendex.com, a captive portal) would otherwise leave the reader
+ * spinning forever — RN's OkHttp default read timeout is infinite. Bound every
+ * request the same way wordTools does. */
+const REQUEST_TIMEOUT_MS = 8000;
+
+/** Wraps fetch so a thrown network error (no connection) OR a hung request that
+ * times out becomes an "offline" MagpieFetchError rather than a raw TypeError or a
+ * permanent stall — the reader's ErrorState + retry then handle it. */
 async function safeFetch(url: string, init?: RequestInit): Promise<Response> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
   try {
-    return await fetch(url, init);
+    return await fetch(url, { ...init, signal: controller.signal });
   } catch {
     throw new MagpieFetchError("offline", "No connection to the shelf.");
+  } finally {
+    clearTimeout(timeout);
   }
 }
 

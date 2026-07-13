@@ -21,6 +21,7 @@ import {
     rebaseManagedUri,
 } from "./storagePaths";
 import { rebaseWorkspacesManagedMedia } from "../state/rebaseManagedMedia";
+import { ensureBackupDiskSpace } from "./backupOperation";
 
 /** v1 packed only clip.audioUri/sourceAudioUri. v2 also packs overdub layer
  *  recordings (stem audio) and rendered mixes, and strips their URIs from the
@@ -273,6 +274,9 @@ export async function archiveWorkspaceToDevice(workspace: Workspace): Promise<Wo
         })),
     ];
 
+    // Fail early with a friendly storage message instead of a raw native write error
+    // partway through packaging (mirrors the disaster-recovery backup guard).
+    await ensureBackupDiskSpace(originalAudioBytes, "archive this workspace");
     await createZipArchive(archiveUri, archiveEntries);
     const archiveInfo = await FileSystem.getInfoAsync(archiveUri);
     const packageSizeBytes =

@@ -30,11 +30,13 @@ export function TunerScreenContent() {
             onPress={() => {
               if (model.permissionBlocked) {
                 void Linking.openSettings();
+              } else {
+                void model.retry();
               }
             }}
           >
             {model.errorMessage}
-            {model.permissionBlocked ? " Tap to open settings." : ""}
+            {model.permissionBlocked ? " Tap to open settings." : " Tap to try again."}
           </Text>
         ) : null}
       </ScrollView>

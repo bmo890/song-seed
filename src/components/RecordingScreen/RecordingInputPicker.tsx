@@ -149,7 +149,9 @@ export function RecordingInputPicker({ disabled, preferredInputId, onChangePrefe
                 <Text style={styles.recordingInputDisabledNote}>Pause or stop recording to change the input device.</Text>
             ) : null}
 
-            {error ? <Text style={styles.recordingInputError}>{error.message}</Text> : null}
+            {error ? (
+                <Text style={styles.recordingInputError}>Couldn&apos;t list audio inputs — using the default mic.</Text>
+            ) : null}
         </View>
     );
 }

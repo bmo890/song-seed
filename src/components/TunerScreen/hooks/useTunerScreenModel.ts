@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useIsFocused } from "@react-navigation/native";
 import { ExpoAudioStreamModule } from "@siteed/audio-studio";
-import type { EmitterSubscription } from "react-native";
+import { AppState, type EmitterSubscription } from "react-native";
 import { haptic } from "../../../design/haptics";
 import {
   buildTunerReading,
@@ -635,6 +635,19 @@ export function useTunerScreenModel() {
     }
   }, [isFocused]);
 
+  // Returning from system Settings (e.g. after enabling the mic there) doesn't re-fire
+  // navigation focus, so the screen would otherwise stay stuck on the permission error and
+  // never start listening. Re-attempt on foreground; startListening re-requests permission
+  // and no-ops when already listening.
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", (state) => {
+      if (state === "active" && isFocusedRef.current && !isListeningRef.current) {
+        void startListening();
+      }
+    });
+    return () => subscription.remove();
+  }, []);
+
   const centsOff = reading?.centsOff ?? 0;
   const indicatorPosition = getArcIndicatorPosition(centsOff);
   const rawDetuneTone = reading ? getDetuneTone(Math.abs(centsOff)) : "idle";
@@ -680,6 +693,9 @@ export function useTunerScreenModel() {
     signalActive,
     errorMessage,
     permissionBlocked,
+    // Retry affordance for the re-askable denial (canAskAgain): tapping the error
+    // re-runs the permission request rather than dead-ending.
+    retry: startListening,
     indicatorPosition,
     meterTone: signalActive && !reading ? "active" : effectiveTone,
     showFlatDetune,

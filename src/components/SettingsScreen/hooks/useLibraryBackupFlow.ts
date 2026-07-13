@@ -301,8 +301,13 @@ export function useLibraryBackupFlow() {
                 return false;
             }
 
-            const message =
-                error instanceof Error ? error.message : "The library backup could not be completed.";
+            // Keep the raw error in the diagnostic log; show the user friendly copy — a
+            // low-storage or native-codec failure otherwise surfaced as a cryptic string.
+            console.warn("[backup] failed", error);
+            const raw = error instanceof Error ? error.message : "";
+            const message = /no space|enospc|not enough space|disk full|insufficient storage/i.test(raw)
+                ? "Your device is low on storage. Free up some space, then try the backup again."
+                : "The library backup could not be completed. Please try again.";
             useProcessStore.getState().setStatus("error", message);
             AppAlert.info("Backup failed", message);
             return false;

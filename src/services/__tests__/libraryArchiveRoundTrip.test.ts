@@ -24,6 +24,8 @@ jest.mock("expo-file-system/legacy", () => ({
         if (mockFiles.has(uri)) return { exists: true, size: mockFiles.get(uri)!.length };
         return { exists: mockDirectories.has(uri), isDirectory: mockDirectories.has(uri) };
     }),
+    // Ample free space so the export's ensureBackupDiskSpace pre-check passes.
+    getFreeDiskStorageAsync: jest.fn(async () => 8 * 1024 * 1024 * 1024),
     readAsStringAsync: jest.fn(async (uri: string) => {
         const value = mockFiles.get(uri);
         if (!value) throw new Error(`Missing mock file: ${uri}`);
