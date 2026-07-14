@@ -35,9 +35,12 @@ feel. Those stay HUMAN on device (see CHECKLIST.md designations).
 | 15-song-status | New Song sheet: SONG chip→75%, SEED→0%; save at SONG; status renders in list; delete | ✅ self-cleaning |
 | 16-global-search | create song → drawer global Search → query returns it → delete | ✅ self-cleaning |
 
-**Full-suite status: 10/10 flows pass (~6 min on iPhone 17 sim).** Flow 01 clearState wipes
+**Full-suite status: 16/16 flows pass (~11 min on iPhone 17 sim).** Flow 01 clearState wipes
 state first, so a full run is deterministic and self-cleaning. Run it with:
 `maestro test .maestro/flows/` (Metro on 8081 + the dev-client build installed).
+Latest per-flow times (16/16 in 10m 43s): 01 (13s) · 02 (47s) · 03 (23s) · 04 (24s) ·
+05 (48s) · 06 (1m5s) · 07 (25s) · 08 (27s) · 09 (22s) · 10 (1m6s) · 11 (25s) · 12 (51s) ·
+13 (41s) · 14 (35s) · 15 (48s) · 16 (1m23s).
 
 ## Reusable subflows (`.maestro/subflows/`)
 
