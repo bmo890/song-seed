@@ -29,8 +29,9 @@ feel. Those stay HUMAN on device (see CHECKLIST.md designations).
 | 09-settings-navigation | Settings overview + Recording-defaults & Library-&-Backups sub-views open + back | ✅ |
 | 10-collection-search | create song → matching filter shows → non-matching hides → clear restores → delete | ✅ self-cleaning |
 
-**Full-suite status: 8/8 flows pass (~6 min on iPhone 17 sim).** Flow 01 clearState wipes
-state first, so a full run is deterministic and self-cleaning.
+**Full-suite status: 10/10 flows pass (~6 min on iPhone 17 sim).** Flow 01 clearState wipes
+state first, so a full run is deterministic and self-cleaning. Run it with:
+`maestro test .maestro/flows/` (Metro on 8081 + the dev-client build installed).
 
 ## Reusable subflows (`.maestro/subflows/`)
 
@@ -127,4 +128,15 @@ elements present; "action works" = the interaction produced the expected state c
 - ℹ️ Lesson: the search field keeps keyboard focus, which blocks a subsequent long-press
   from registering as a selection gesture — a `hideKeyboard` is required first. (On the
   custom song-title input `hideKeyboard` fails, but on the standard SearchField it works.)
+
+### 2026-07-14 — hardening: full suite 10/10
+
+- ⚠️ Caught by the full-suite run: flow 08 (Lyrics Pad) passed standalone but FAILED in the
+  suite. Root cause: the pad's landing state is data-dependent — no notes → opens straight
+  into the editor (no "New Page"); notes present → opens the index. Standalone testing had
+  leftover notes, so it always saw the index; the suite runs after clearState (no notes).
+  Fixed by making the "New Page" tap guarded and keying editor-readiness off "Word finder".
+  **Takeaway: always validate a flow inside the full suite (post-clearState), not just
+  standalone — state-dependent landing screens are the main flakiness source.**
+- ✅ **Full suite now 10/10 green in 5m 54s.**
 
