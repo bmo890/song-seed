@@ -271,6 +271,7 @@ export function SearchScreenContent() {
       </View>
 
       <SearchField
+        testID="global-search"
         value={model.searchQuery}
         placeholder="Search everything"
         onChangeText={model.setSearchQuery}

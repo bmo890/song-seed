@@ -33,6 +33,7 @@ feel. Those stay HUMAN on device (see CHECKLIST.md designations).
 | 13-word-tools | Lyrics Spark sheet → Word Ladder, Cut-Up, Magpie each open + render + back | ✅ |
 | 14-settings-library-views | Settings→Library→ Export / Import / Storage-details views open + back | ✅ |
 | 15-song-status | New Song sheet: SONG chip→75%, SEED→0%; save at SONG; status renders in list; delete | ✅ self-cleaning |
+| 16-global-search | create song → drawer global Search → query returns it → delete | ✅ self-cleaning |
 
 **Full-suite status: 10/10 flows pass (~6 min on iPhone 17 sim).** Flow 01 clearState wipes
 state first, so a full run is deterministic and self-cleaning. Run it with:
@@ -189,4 +190,26 @@ elements present; "action works" = the interaction produced the expected state c
   *actions* inside these views (share sheet, document picker).
 - ℹ️ These cards live in the SHARE & MOVE section below the fold; `scrollUntilVisible` (by
   testID, direction DOWN) is needed — `tapOn: {id}` does not auto-scroll reliably.
+
+### 2026-07-14 — batch 10 (song status + global search)
+
+- ✅ **Song status/progress** — SONG chip → Completion 75%, SEED → 0%; a song saved at SONG
+  status shows that status on its list card. Self-cleaning.
+- ✅ **Global search** — a created song is found via the drawer's library-wide Search; result
+  renders. Distinct from in-collection search (flow 10). Added `global-search` testID.
+
+## Coverage snapshot (16 automated flows)
+
+Green & automated: first-run, drawer nav (×2 flows), paywall, recording-screen UI, full song
+lifecycle, all drawer destinations, tuner, lyrics-pad, settings nav + deeper library views,
+in-collection search, global search, metronome, collection CRUD, word tools (×3), song status.
+Roughly **50+ discrete interactions** across the highest-traffic paths, all self-cleaning and
+green in the full suite.
+
+**Still HUMAN / blocked (need a real clip or device):** anything under the audio player,
+waveform editor, overdub, and clip-level actions — the Simulator has no mic, so there's no
+clip to drive them. A `__DEV__` "seed a demo clip" helper would unlock this whole area for
+automation (flagged as the highest-leverage next investment). Also HUMAN: real recording
+capture, Bluetooth, call interruption, lock-screen/background audio, the system share sheet &
+document picker (export/import/restore actions), haptics feel, and Magpie's live book fetch.
 

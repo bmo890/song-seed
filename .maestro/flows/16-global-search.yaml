@@ -1,0 +1,70 @@
+# Global (library-wide) search returns results. Create a findable song, open the
+# drawer's global Search, type a query, and confirm the song shows in results.
+# Then relaunch and delete the song to stay self-cleaning. Exercises the global
+# search index/field and result rendering — distinct from in-collection search (10).
+appId: com.bmostudio.songseed.dev
+---
+- runFlow: ../subflows/open-library.yaml
+- tapOn: ".*Ideas.*"
+- extendedWaitUntil:
+    visible:
+      id: "fab-create"
+    timeout: 15000
+- runFlow: ../subflows/dismiss-logbox.yaml
+- waitForAnimationToEnd
+# Create "Maestro Global Find".
+- tapOn:
+    id: "fab-create"
+- waitForAnimationToEnd
+- tapOn:
+    id: "fab-menu-song"
+- extendedWaitUntil:
+    visible: "New Song"
+    timeout: 10000
+- tapOn:
+    id: "song-title-input"
+- eraseText: 40
+- inputText: "Maestro Global Find"
+- tapOn: "PROGRESS"
+- tapOn: "Save"
+- tapOn:
+    id: "song-header-back"
+- extendedWaitUntil:
+    visible: ".*Maestro Global Find.*"
+    timeout: 10000
+# Open the global Search from the drawer and query for it.
+- tapOn:
+    id: "header-menu"
+- waitForAnimationToEnd
+- tapOn: "Search your library"
+- extendedWaitUntil:
+    visible:
+      id: "global-search"
+    timeout: 10000
+- tapOn:
+    id: "global-search"
+- inputText: "Global Find"
+- extendedWaitUntil:
+    visible: ".*Maestro Global Find.*"
+    timeout: 8000
+# Clean up: relaunch, reopen the collection, delete the song.
+- runFlow: ../subflows/open-library.yaml
+- tapOn: ".*Ideas.*"
+- extendedWaitUntil:
+    visible:
+      id: "fab-record"
+    timeout: 15000
+- runFlow: ../subflows/dismiss-logbox.yaml
+- longPressOn: ".*Maestro Global Find.*"
+- extendedWaitUntil:
+    visible: ".*Delete"
+    timeout: 5000
+- tapOn: ".*Delete"
+- extendedWaitUntil:
+    visible: ".*Delete selected items.*"
+    timeout: 5000
+- tapOn:
+    id: "dialog-btn-delete"
+- extendedWaitUntil:
+    visible: ".*Deleted 1 item.*"
+    timeout: 5000
