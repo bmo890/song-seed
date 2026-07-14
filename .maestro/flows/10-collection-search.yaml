@@ -1,0 +1,73 @@
+# In-collection search filtering. Creates a findable song, then: a matching query
+# keeps it visible, a non-matching query filters it out, clearing restores it.
+# Cleans up (deletes the song) so it's self-contained. Exercises the collection
+# search field + live list filtering — a common feature that silently breaks when
+# the filter predicate or the list data source changes.
+appId: com.bmostudio.songseed.dev
+---
+- runFlow: ../subflows/open-library.yaml
+- tapOn: ".*Ideas.*"
+- extendedWaitUntil:
+    visible:
+      id: "fab-create"
+    timeout: 15000
+- runFlow: ../subflows/dismiss-logbox.yaml
+- waitForAnimationToEnd
+# Create a song titled "Maestro Search Target".
+- tapOn:
+    id: "fab-create"
+- waitForAnimationToEnd
+- tapOn:
+    id: "fab-menu-song"
+- extendedWaitUntil:
+    visible: "New Song"
+    timeout: 10000
+- tapOn:
+    id: "song-title-input"
+- eraseText: 40
+- inputText: "Maestro Search Target"
+- tapOn: "PROGRESS"
+- tapOn: "Save"
+- tapOn:
+    id: "song-header-back"
+- extendedWaitUntil:
+    visible: ".*Maestro Search Target.*"
+    timeout: 10000
+# Matching query keeps it visible.
+- tapOn:
+    id: "collection-search"
+- inputText: "Search Target"
+- extendedWaitUntil:
+    visible: ".*Maestro Search Target.*"
+    timeout: 8000
+# Non-matching query filters it out.
+- tapOn:
+    id: "collection-search"
+- eraseText: 30
+- inputText: "zzznomatchqq"
+- extendedWaitUntil:
+    notVisible: ".*Maestro Search Target.*"
+    timeout: 8000
+# Clearing the query restores it.
+- tapOn:
+    id: "collection-search"
+- eraseText: 30
+- extendedWaitUntil:
+    visible: ".*Maestro Search Target.*"
+    timeout: 8000
+# Cleanup: delete the song. Dismiss the search keyboard first, else the long-press
+# doesn't register as a selection gesture.
+- hideKeyboard
+- longPressOn: ".*Maestro Search Target.*"
+- extendedWaitUntil:
+    visible: ".*Delete"
+    timeout: 5000
+- tapOn: ".*Delete"
+- extendedWaitUntil:
+    visible: ".*Delete selected items.*"
+    timeout: 5000
+- tapOn:
+    id: "dialog-btn-delete"
+- extendedWaitUntil:
+    visible: ".*Deleted 1 item.*"
+    timeout: 5000

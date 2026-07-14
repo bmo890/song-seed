@@ -9,6 +9,7 @@ type SearchFieldProps = {
   onChangeText: (value: string) => void;
   onFocus?: () => void;
   containerStyle?: StyleProp<ViewStyle>;
+  testID?: string;
 };
 
 export function SearchField({
@@ -17,11 +18,13 @@ export function SearchField({
   onChangeText,
   onFocus,
   containerStyle,
+  testID,
 }: SearchFieldProps) {
   return (
     <View style={[searchFieldStyles.wrap, containerStyle]}>
       <Ionicons name="search" size={16} color={colors.textSecondary} />
       <TextInput
+        testID={testID}
         style={searchFieldStyles.input}
         placeholder={placeholder}
         placeholderTextColor={colors.textMuted}

@@ -84,6 +84,7 @@ export function IdeaListHeaderSection({
 
       <View style={styles.ideasSearchUtilityRow}>
         <SearchField
+          testID="collection-search"
           value={searchQuery}
           placeholder="Search titles, notes, lyrics..."
           containerStyle={{ flex: 1, minWidth: 0 }}

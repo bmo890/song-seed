@@ -27,6 +27,7 @@ feel. Those stay HUMAN on device (see CHECKLIST.md designations).
 | 07-tuner | Tuner opens, mic permission handled, listening UI renders | 🟡 (pitch detection HUMAN) |
 | 08-lyrics-pad | notes index → New Page → type → autosave shows in preview → reopen → clear | ✅ self-cleaning |
 | 09-settings-navigation | Settings overview + Recording-defaults & Library-&-Backups sub-views open + back | ✅ |
+| 10-collection-search | create song → matching filter shows → non-matching hides → clear restores → delete | ✅ self-cleaning |
 
 **Full-suite status: 8/8 flows pass (~6 min on iPhone 17 sim).** Flow 01 clearState wipes
 state first, so a full run is deterministic and self-cleaning.
@@ -116,4 +117,14 @@ elements present; "action works" = the interaction produced the expected state c
 - ⏭️ Not yet encoded here (visible in the overview, worth follow-up flows): Startup radio
   (Primary vs Last-used workspace), Haptics toggle, Restore purchases, and the deeper Library
   views (Export "Parts of your work"/"Whole library", Import, Storage/health).
+
+### 2026-07-14 — batch 6 (in-collection search)
+
+- ✅ **Matching query** keeps the matching song visible.
+- ✅ **Non-matching query** filters the list down to nothing (song hidden).
+- ✅ **Clearing** the query restores the full list.
+- ✅ Added `collection-search` testID to the SearchField (forwarded testID prop).
+- ℹ️ Lesson: the search field keeps keyboard focus, which blocks a subsequent long-press
+  from registering as a selection gesture — a `hideKeyboard` is required first. (On the
+  custom song-title input `hideKeyboard` fails, but on the standard SearchField it works.)
 
