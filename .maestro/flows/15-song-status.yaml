@@ -1,0 +1,64 @@
+# Song status / progress editing. In the New Song sheet, the SEED/SPROUT/STEM/SONG
+# chips drive the completion %: SONG→75%, SEED→0%. Verify that binding, then save a
+# song at SONG status, confirm it lands, and delete it. Self-cleaning. Exercises the
+# StatusChipRow ↔ completion coupling and that saved status renders in the list.
+appId: com.bmostudio.songseed.dev
+---
+- runFlow: ../subflows/open-library.yaml
+- tapOn: ".*Ideas.*"
+- extendedWaitUntil:
+    visible:
+      id: "fab-create"
+    timeout: 15000
+- runFlow: ../subflows/dismiss-logbox.yaml
+- waitForAnimationToEnd
+- tapOn:
+    id: "fab-create"
+- waitForAnimationToEnd
+- tapOn:
+    id: "fab-menu-song"
+- extendedWaitUntil:
+    visible: "New Song"
+    timeout: 10000
+# Fresh draft starts at 0%.
+- assertVisible: ".*Completion: 0%.*"
+# SONG chip drives completion to 75%.
+- tapOn: "SONG"
+- extendedWaitUntil:
+    visible: ".*Completion: 75%.*"
+    timeout: 5000
+# SEED chip drops it back to 0%.
+- tapOn: "SEED"
+- extendedWaitUntil:
+    visible: ".*Completion: 0%.*"
+    timeout: 5000
+# Name it, set to SONG, and save.
+- tapOn:
+    id: "song-title-input"
+- eraseText: 40
+- inputText: "Maestro Status Song"
+- tapOn: "SONG"
+- tapOn: "Save"
+- extendedWaitUntil:
+    visible: "Maestro Status Song"
+    timeout: 10000
+# Back to the list; the card shows SONG status.
+- tapOn:
+    id: "song-header-back"
+- extendedWaitUntil:
+    visible: ".*Maestro Status Song.*SONG.*"
+    timeout: 10000
+# Clean up.
+- longPressOn: ".*Maestro Status Song.*"
+- extendedWaitUntil:
+    visible: ".*Delete"
+    timeout: 5000
+- tapOn: ".*Delete"
+- extendedWaitUntil:
+    visible: ".*Delete selected items.*"
+    timeout: 5000
+- tapOn:
+    id: "dialog-btn-delete"
+- extendedWaitUntil:
+    visible: ".*Deleted 1 item.*"
+    timeout: 5000

@@ -32,6 +32,7 @@ feel. Those stay HUMAN on device (see CHECKLIST.md designations).
 | 12-collection-crud | browse → add collection → auto-open → back → select → delete → confirm gone | ✅ self-cleaning |
 | 13-word-tools | Lyrics Spark sheet → Word Ladder, Cut-Up, Magpie each open + render + back | ✅ |
 | 14-settings-library-views | Settings→Library→ Export / Import / Storage-details views open + back | ✅ |
+| 15-song-status | New Song sheet: SONG chip→75%, SEED→0%; save at SONG; status renders in list; delete | ✅ self-cleaning |
 
 **Full-suite status: 10/10 flows pass (~6 min on iPhone 17 sim).** Flow 01 clearState wipes
 state first, so a full run is deterministic and self-cleaning. Run it with:
