@@ -9,12 +9,14 @@ type SurfaceCardProps = {
   selected?: boolean;
   onPress?: () => void;
   onLongPress?: () => void;
+  testID?: string;
 };
 
-export function SurfaceCard({ children, style, selected, onPress, onLongPress }: SurfaceCardProps) {
+export function SurfaceCard({ children, style, selected, onPress, onLongPress, testID }: SurfaceCardProps) {
   if (onPress || onLongPress) {
     return (
       <Pressable
+        testID={testID}
         style={({ pressed }) => [
           surfaceCardStyles.card,
           selected ? surfaceCardStyles.cardSelected : null,

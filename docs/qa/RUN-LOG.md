@@ -28,6 +28,8 @@ feel. Those stay HUMAN on device (see CHECKLIST.md designations).
 | 08-lyrics-pad | notes index → New Page → type → autosave shows in preview → reopen → clear | ✅ self-cleaning |
 | 09-settings-navigation | Settings overview + Recording-defaults & Library-&-Backups sub-views open + back | ✅ |
 | 10-collection-search | create song → matching filter shows → non-matching hides → clear restores → delete | ✅ self-cleaning |
+| 11-metronome | standalone metronome: BPM ±, meter 4/4↔3/4, start/stop toggle | 🟡 (click audio HUMAN) |
+| 12-collection-crud | browse → add collection → auto-open → back → select → delete → confirm gone | ✅ self-cleaning |
 
 **Full-suite status: 10/10 flows pass (~6 min on iPhone 17 sim).** Flow 01 clearState wipes
 state first, so a full run is deterministic and self-cleaning. Run it with:
@@ -139,4 +141,22 @@ elements present; "action works" = the interaction produced the expected state c
   **Takeaway: always validate a flow inside the full suite (post-clearState), not just
   standalone — state-dependent landing screens are the main flakiness source.**
 - ✅ **Full suite now 10/10 green in 5m 54s.**
+
+### 2026-07-14 — batch 7 (Metronome + Collection CRUD)
+
+- ✅ **Metronome (standalone)** — BPM raise/lower (92↔93), meter 4/4↔3/4, start↔stop toggle.
+  The audible click is HUMAN; all control state changes are verified. Passed first try
+  thanks to good accessibility labels on every control.
+- ✅ **Collection create** — browse "New collection" FAB → QuickNameModal → Create. The new
+  collection auto-opens (lands inside the empty collection).
+- ✅ **Collection delete** — back to browse → long-press card (by testID) enters
+  collection-select mode → Delete → confirm → gone. Self-cleaning.
+- ℹ️ testIDs added: `workspace-add-collection` (browse FAB), `quickname-input` /
+  `quickname-save` / `quickname-cancel` (the shared QuickNameModal, used by many create/rename
+  dialogs), and `collection-card-<title>` via a new `testID` prop on SurfaceCard.
+- ℹ️ Lesson: Maestro long-pressing a *text node* fires as a tap (opens the item); long-press
+  the **Pressable element by testID** to reliably trigger selection mode. Also: creating a
+  collection auto-navigates into it, so deletion has to route back to the browse screen.
+- ⏭️ Not yet covered: collection **rename / move / copy** (same actions surface, straightforward
+  follow-ups), and nested sub-collections.
 

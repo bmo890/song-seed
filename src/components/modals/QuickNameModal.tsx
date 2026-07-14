@@ -81,6 +81,7 @@ export function QuickNameModal({
             {/* ── Name input with sparkle + clear ── */}
             <View style={qStyles.inputWrap}>
                 <TextInput
+                    testID="quickname-input"
                     style={qStyles.input}
                     value={draftValue}
                     onChangeText={onChangeDraft}
@@ -181,6 +182,9 @@ export function QuickNameModal({
 
             <View style={qStyles.btnRow}>
                 <Pressable
+                    testID="quickname-cancel"
+                    accessibilityRole="button"
+                    accessibilityLabel="Cancel"
                     style={({ pressed }) => [
                         qStyles.cancelBtn,
                         isCancelDisabled ? qStyles.btnDisabled : null,
@@ -192,6 +196,9 @@ export function QuickNameModal({
                     <Text style={qStyles.cancelBtnText}>Cancel</Text>
                 </Pressable>
                 <Pressable
+                    testID="quickname-save"
+                    accessibilityRole="button"
+                    accessibilityLabel={saveLabel}
                     style={({ pressed }) => [
                         qStyles.saveBtn,
                         isSaveDisabled ? qStyles.btnDisabled : null,

@@ -244,6 +244,9 @@ function WorkspaceBrowseInner() {
       {/* FAB */}
       {!selectionModel.selectionMode ? (
         <Pressable
+          testID="workspace-add-collection"
+          accessibilityRole="button"
+          accessibilityLabel="New collection"
           style={({ pressed }) => [
             browseStyles.fab,
             { bottom: playerDockHeight > 0 ? playerDockHeight + 12 : Math.max(32, insets.bottom + 16) },

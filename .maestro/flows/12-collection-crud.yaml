@@ -1,0 +1,58 @@
+# Collection CRUD at the workspace-browse level. Create a collection via the add
+# FAB + New Collection modal (which auto-opens the new empty collection), confirm
+# it opened, then return to browse, long-press its card to enter collection-select
+# mode, and Delete → confirm it's gone. Self-cleaning. Exercises the browse screen,
+# QuickNameModal, createCollection + auto-open, collection selection, and deletion.
+appId: com.bmostudio.songseed.dev
+---
+- runFlow: ../subflows/open-library.yaml
+- tapOn:
+    id: "header-menu"
+- waitForAnimationToEnd
+- tapOn: ".*Collections,.*"
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: ".*ACTIVE COLLECTIONS.*"
+    timeout: 10000
+- runFlow: ../subflows/dismiss-logbox.yaml
+# Create a collection — this drops us inside the new (empty) collection.
+- tapOn:
+    id: "workspace-add-collection"
+- extendedWaitUntil:
+    visible: "New Collection"
+    timeout: 10000
+- tapOn:
+    id: "quickname-input"
+- inputText: "Maestro Collection"
+- tapOn:
+    id: "quickname-save"
+- extendedWaitUntil:
+    visible: ".*Maestro Collection.*"
+    timeout: 10000
+- assertVisible:
+    id: "fab-record"
+# Back to browse to delete it.
+- tapOn:
+    id: "header-menu"
+- waitForAnimationToEnd
+- tapOn: ".*Collections,.*"
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: ".*ACTIVE COLLECTIONS.*"
+    timeout: 10000
+# Long-press the card (by testID → hits the Pressable, not a text child) to select,
+# then Delete → confirm.
+- longPressOn:
+    id: "collection-card-maestro-collection"
+- extendedWaitUntil:
+    visible: ".*Delete"
+    timeout: 5000
+- tapOn: ".*Delete"
+- extendedWaitUntil:
+    visible: ".*Delete.*collection.*|.*Delete selected.*|.*Delete.*Maestro.*"
+    timeout: 5000
+- tapOn:
+    id: "dialog-btn-delete"
+- extendedWaitUntil:
+    notVisible: ".*Maestro Collection.*"
+    timeout: 8000

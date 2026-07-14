@@ -1,0 +1,44 @@
+# Standalone Metronome controls: BPM up/down, meter change, and start/stop toggle.
+# Audible click is HUMAN (Sim audio), but every control's state change is checked.
+# BPM assertions assume the default 92 (true after flow 01's clearState / in-suite).
+appId: com.bmostudio.songseed.dev
+---
+- runFlow: ../subflows/open-library.yaml
+- tapOn:
+    id: "header-menu"
+- waitForAnimationToEnd
+- tapOn:
+    id: "nav-row-metronome"
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: ".*Metronome.*"
+    timeout: 10000
+- assertVisible: ".*92 BPM.*"
+# BPM up then down.
+- tapOn: "Raise the tempo by one BPM"
+- extendedWaitUntil:
+    visible: ".*93 BPM.*"
+    timeout: 5000
+- tapOn: "Slow the tempo by one BPM"
+- extendedWaitUntil:
+    visible: ".*92 BPM.*"
+    timeout: 5000
+# Meter change 4/4 → 3/4 → back.
+- assertVisible: "4/4"
+- tapOn: "3/4 time"
+- extendedWaitUntil:
+    visible: "3/4"
+    timeout: 5000
+- tapOn: "4/4 time"
+- extendedWaitUntil:
+    visible: "4/4"
+    timeout: 5000
+# Start then stop the metronome (state toggle; the click itself is HUMAN).
+- tapOn: "Start the metronome"
+- extendedWaitUntil:
+    visible: "Stop the metronome"
+    timeout: 5000
+- tapOn: "Stop the metronome"
+- extendedWaitUntil:
+    visible: "Start the metronome"
+    timeout: 5000

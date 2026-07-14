@@ -80,7 +80,12 @@ export function WorkspaceCollectionCard({
   ].filter(Boolean).join("  ·  ");
 
   return (
-    <SurfaceCard onPress={onPress} onLongPress={onLongPress} selected={isSelected}>
+    <SurfaceCard
+      testID={`collection-card-${collection.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "")}`}
+      onPress={onPress}
+      onLongPress={onLongPress}
+      selected={isSelected}
+    >
       {/* Title row */}
       <View style={cardStyles.cardTop}>
         {selectionMode ? (
