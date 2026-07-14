@@ -1,0 +1,72 @@
+# Drawer navigation: each drawer destination opens and renders. Relaunches between
+# destinations so every drawer-open starts from the known-good Ideas screen (the
+# hamburger has no testID yet, so we coordinate-tap it only from that screen).
+# Selector note: RN rows expose composite labels (", Lyrics Pad") — use .*X.* regexes.
+appId: com.bmostudio.songseed.dev
+---
+- launchApp:
+    stopApp: true
+- extendedWaitUntil:
+    visible: ".*Ideas.*"
+    timeout: 60000
+- runFlow:
+    when:
+      visible: ".*Open debugger.*"
+    commands:
+      - tapOn:
+          point: 92%,93%
+- tapOn:
+    point: 8%,10%
+- extendedWaitUntil:
+    visible: ".*Lyrics Pad.*"
+    timeout: 5000
+- waitForAnimationToEnd
+- tapOn: ".*Lyrics Pad.*"
+- extendedWaitUntil:
+    visible: ".*([Ll]yrics|[Nn]ote).*"
+    timeout: 10000
+
+- launchApp:
+    stopApp: true
+- extendedWaitUntil:
+    visible: ".*Ideas.*"
+    timeout: 60000
+- runFlow:
+    when:
+      visible: ".*Open debugger.*"
+    commands:
+      - tapOn:
+          point: 92%,93%
+- tapOn:
+    point: 8%,10%
+- extendedWaitUntil:
+    visible: ".*Metronome.*"
+    timeout: 5000
+- waitForAnimationToEnd
+- tapOn: ".*Metronome.*"
+- extendedWaitUntil:
+    visible: ".*([Bb]pm|BPM|[Tt]empo).*"
+    timeout: 10000
+
+- launchApp:
+    stopApp: true
+- extendedWaitUntil:
+    visible: ".*Ideas.*"
+    timeout: 60000
+- runFlow:
+    when:
+      visible: ".*Open debugger.*"
+    commands:
+      - tapOn:
+          point: 92%,93%
+- tapOn:
+    point: 8%,10%
+- extendedWaitUntil:
+    visible: ".*Settings.*"
+    timeout: 5000
+- waitForAnimationToEnd
+- tapOn: ".*Settings.*"
+- extendedWaitUntil:
+    visible: ".*Songstead Pro.*"
+    timeout: 10000
+- assertVisible: ".*Startup.*"

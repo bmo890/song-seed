@@ -1,0 +1,24 @@
+# First run: cleared state → Metro bundle → Welcome panes → seeded starter library.
+# Requires: Metro running (npx expo start --dev-client --port 8081) and the dev build installed.
+# NOTE: Maestro matches ACCESSIBILITY labels (e.g. the Skip button is "Skip the intro"),
+# which on RN can differ from the visual text. Use `maestro hierarchy` when adding selectors.
+appId: com.bmostudio.songseed.dev
+---
+- launchApp:
+    clearState: true
+# clearState keeps the dev client's remembered Metro URL, so the app boots straight
+# into the JS bundle. First bundle build can take a while on a cold Metro.
+- extendedWaitUntil:
+    visible: "Catch the spark"
+    timeout: 90000
+# Walk the panes forward: pane 1 → 2 → 3.
+- tapOn: "Next"
+- tapOn: "Next"
+- assertNotVisible: "Catch the spark"
+# Finish the intro from the last pane (its CTA is Skip-labeled or a final button —
+# use the skip affordance, which exists on every pane).
+- tapOn: ".*Skip.*"
+# Seeded starter library must exist: the "Ideas" collection is visible.
+- extendedWaitUntil:
+    visible: ".*Ideas.*"
+    timeout: 20000

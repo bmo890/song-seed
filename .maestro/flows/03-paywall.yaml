@@ -1,0 +1,49 @@
+# Paywall: Settings → Upgrade to Pro opens the ProUpsellSheet; CTA shows the
+# pre-billing preview notice; restore gives the friendly nothing-to-restore message.
+appId: com.bmostudio.songseed.dev
+---
+- launchApp:
+    stopApp: true
+- extendedWaitUntil:
+    visible: ".*Ideas.*"
+    timeout: 60000
+- runFlow:
+    when:
+      visible: ".*Open debugger.*"
+    commands:
+      - tapOn:
+          point: 92%,93%
+- tapOn:
+    point: 8%,10%
+- extendedWaitUntil:
+    visible: ".*Settings.*"
+    timeout: 5000
+- waitForAnimationToEnd
+- tapOn: ".*Settings.*"
+- extendedWaitUntil:
+    visible: ".*Upgrade to Pro.*"
+    timeout: 10000
+- tapOn: ".*Upgrade to Pro.*"
+- extendedWaitUntil:
+    visible: ".*Grow every idea.*"
+    timeout: 10000
+- assertVisible: ".*Practice suite.*"
+- assertVisible: ".*Start free trial.*"
+- waitForAnimationToEnd
+- tapOn: ".*Start free trial.*"
+# Billing stub → INLINE preview notice inside the sheet (not a dialog — a dialog can't
+# present over the sheet's own Modal on iOS; see ProUpsellSheet).
+- extendedWaitUntil:
+    visible: ".*preview of the upgrade.*"
+    timeout: 10000
+# Restore link → inline nothing-to-restore notice.
+- tapOn: "Restore"
+- extendedWaitUntil:
+    visible: ".*no purchases to restore.*"
+    timeout: 10000
+# Dismiss the sheet via the backdrop; land back on Settings.
+- tapOn:
+    point: 50%,6%
+- extendedWaitUntil:
+    visible: ".*Songstead Pro.*"
+    timeout: 10000

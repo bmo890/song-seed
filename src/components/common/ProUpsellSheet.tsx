@@ -2,7 +2,6 @@ import { useState } from "react";
 import { Dimensions, Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { BottomSheet } from "./BottomSheet";
-import { AppAlert } from "./AppAlert";
 import { closeProUpsell, useProUpsellState } from "./proUpsell";
 import { colors, radii } from "../../design/tokens";
 import { haptic } from "../../design/haptics";
@@ -37,16 +36,18 @@ const PLANS: PlanCard[] = [
 
 function ProUpsellSheetBody({ onClose }: { onClose: () => void }) {
     const [selected, setSelected] = useState<ProPlan>("annual");
+    // Feedback is rendered INLINE, not via AppAlert: this sheet is a Modal, AppDialog is
+    // also a Modal, and iOS won't present a dialog over an already-open Modal — so an alert
+    // here would silently no-op (a dead-end tap). Inline copy also reads better than a
+    // dialog stacked on the sheet.
+    const [notice, setNotice] = useState<string | null>(null);
     const maxScroll = Math.round(Dimensions.get("window").height * 0.5);
 
     async function handlePurchase() {
         haptic.tap();
         const result = await purchasePro(selected);
         if (!result.ok) {
-            AppAlert.info(
-                "Songstead Pro",
-                "Purchasing isn't available in this build yet — this is a preview of the upgrade."
-            );
+            setNotice("Purchasing isn't available in this build yet — this is a preview of the upgrade.");
         } else {
             onClose();
         }
@@ -55,7 +56,7 @@ function ProUpsellSheetBody({ onClose }: { onClose: () => void }) {
     async function handleRestore() {
         const result = await restorePurchases();
         if (!result.ok) {
-            AppAlert.info("Restore purchases", "There are no purchases to restore yet.");
+            setNotice("There are no purchases to restore yet.");
         } else {
             onClose();
         }
@@ -115,6 +116,7 @@ function ProUpsellSheetBody({ onClose }: { onClose: () => void }) {
             </ScrollView>
 
             <View style={styles.footer}>
+                {notice ? <Text style={styles.notice}>{notice}</Text> : null}
                 <Pressable onPress={handlePurchase} style={({ pressed }) => [styles.cta, pressed && styles.ctaPressed]}>
                     <Text style={styles.ctaLabel}>{ctaLabel}</Text>
                 </Pressable>
@@ -261,6 +263,13 @@ const styles = StyleSheet.create({
     footer: {
         marginTop: 18,
         gap: 12,
+    },
+    notice: {
+        fontFamily: "PlusJakartaSans_400Regular",
+        fontSize: 12,
+        lineHeight: 16,
+        color: colors.textSecondary,
+        textAlign: "center",
     },
     cta: {
         backgroundColor: colors.primaryDeep,
