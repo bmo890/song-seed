@@ -1,0 +1,40 @@
+# Lyrics Pad note editing + autosave. The pad opens on its notes index; "New Page"
+# opens the page editor. We type a line, go back to the index, and confirm the note
+# preview shows the typed text (proves autosave), then reopen and clear it so the
+# flow leaves an empty page behind (no accumulation). Exercises the notepad index,
+# page editor text input, autosave, and the editor→index back path.
+appId: com.bmostudio.songseed.dev
+---
+- runFlow: ../subflows/open-library.yaml
+- tapOn:
+    id: "header-menu"
+- waitForAnimationToEnd
+- tapOn:
+    id: "nav-row-lyrics-pad"
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: ".*Lyrics Pad.*"
+    timeout: 10000
+# Open the page editor.
+- tapOn: ".*New Page.*"
+- extendedWaitUntil:
+    visible: ".*Start writing.*"
+    timeout: 10000
+# Type a line, dismiss the keyboard by tapping the date header.
+- tapOn: ".*Start writing.*"
+- inputText: "Maestro lyric line"
+- tapOn: ".*JUL 2026.*"
+- assertVisible: ".*Maestro lyric line.*"
+# Back to the index; the note preview should show the autosaved text.
+- tapOn: ".*Lyrics Pad"
+- extendedWaitUntil:
+    visible: ".*Maestro lyric line.*"
+    timeout: 10000
+# Reopen the note and clear it (leave an empty page).
+- tapOn: ".*Maestro lyric line.*"
+- extendedWaitUntil:
+    visible: ".*Maestro lyric line.*"
+    timeout: 10000
+- tapOn: ".*Maestro lyric line.*"
+- eraseText: 40
+- tapOn: ".*JUL 2026.*"

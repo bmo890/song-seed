@@ -24,6 +24,11 @@ feel. Those stay HUMAN on device (see CHECKLIST.md designations).
 | 04-recording-screen | record FAB → recorder UI, metronome toggle, settings sheet, back | 🟡 (mic capture HUMAN) |
 | 05-song-lifecycle | create song → name → save → detail → back → list → select → delete → confirm gone | ✅ self-cleaning |
 | 06-drawer-destinations | Revisit, Activity, Library (listening hub), global Search each open + render | ✅ |
+| 07-tuner | Tuner opens, mic permission handled, listening UI renders | 🟡 (pitch detection HUMAN) |
+| 08-lyrics-pad | notes index → New Page → type → autosave shows in preview → reopen → clear | ✅ self-cleaning |
+
+**Full-suite status: 8/8 flows pass (~6 min on iPhone 17 sim).** Flow 01 clearState wipes
+state first, so a full run is deterministic and self-cleaning.
 
 ## Reusable subflows (`.maestro/subflows/`)
 
@@ -83,5 +88,15 @@ elements present; "action works" = the interaction produced the expected state c
   and tapping the wrong row. testIDs make each destination unambiguous.
 - ℹ️ Two default-titled residual seeds ("8:56 PM Jul 14th", "8:58 PM…") remain from earlier
   failed iterations — harmless (the suite starts from flow 01's clearState, which wipes
-  them), but noted.
+  them), but noted. (Confirmed wiped by the 8/8 full-suite run.)
+
+### 2026-07-14 — batch 4 (tools: Tuner + Lyrics Pad) + full-suite run
+
+- ✅ **Tuner** opens from the drawer, handles the mic-permission alert if raised, and shows
+  the listening UI ("LISTENING", "Hold the phone near your instrument…"). Pitch detection
+  itself needs a real mic → HUMAN on device.
+- ✅ **Lyrics Pad** — index → New Page opens the editor; typed text autosaves and appears as
+  the note preview back on the index; reopen + clear leaves an empty page (no residue).
+- ✅ **Full suite 8/8 green in 6m 3s.** Individual times: 01 (12s), 02 (1m11s), 03 (31s),
+  04 (24s), 05 (55s), 06 (1m40s), 07 (32s), 08 (38s).
 

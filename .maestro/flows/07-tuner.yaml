@@ -1,0 +1,30 @@
+# Tuner screen opens and enters its listening state. The mic permission dialog is
+# handled if it appears (fresh install); pitch DETECTION itself is HUMAN-only — the
+# Simulator has no real mic, so the note readout stays "--". This covers screen
+# open, permission handling, and that the listening UI renders without crashing.
+appId: com.bmostudio.songseed.dev
+---
+- runFlow: ../subflows/open-library.yaml
+- tapOn:
+    id: "header-menu"
+- waitForAnimationToEnd
+- tapOn:
+    id: "nav-row-tuner"
+- waitForAnimationToEnd
+# First launch may raise the iOS mic-permission alert — grant it if present.
+- runFlow:
+    when:
+      visible: ".*Allow.*"
+    commands:
+      - tapOn: ".*Allow.*"
+- runFlow:
+    when:
+      visible: "OK"
+    commands:
+      - tapOn: "OK"
+# Listening UI is up.
+- extendedWaitUntil:
+    visible: ".*Tuner.*"
+    timeout: 10000
+- assertVisible: ".*LISTENING.*"
+- assertVisible: ".*Hold the phone near your instrument.*"
