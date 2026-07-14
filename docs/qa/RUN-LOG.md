@@ -37,12 +37,12 @@ feel. Those stay HUMAN on device (see CHECKLIST.md designations).
 | 17-workspace-crud | drawer → switcher → create workspace → actions → delete permanently → gone | ✅ self-cleaning |
 | 18-hide-unhide | create song → Hide (disappears + "Show all" pill) → reveal → delete | ✅ self-cleaning |
 
-**Full-suite status: 16/16 flows pass (~11 min on iPhone 17 sim).** Flow 01 clearState wipes
-state first, so a full run is deterministic and self-cleaning. Run it with:
+**Full-suite status: 18/18 flows pass (~12.5 min on iPhone 17 sim).** Flow 01 clearState
+wipes state first, so a full run is deterministic and self-cleaning. Run it with:
 `maestro test .maestro/flows/` (Metro on 8081 + the dev-client build installed).
-Latest per-flow times (16/16 in 10m 43s): 01 (13s) · 02 (47s) · 03 (23s) · 04 (24s) ·
-05 (48s) · 06 (1m5s) · 07 (25s) · 08 (27s) · 09 (22s) · 10 (1m6s) · 11 (25s) · 12 (51s) ·
-13 (41s) · 14 (35s) · 15 (48s) · 16 (1m23s).
+Latest full run: **18/18 in 12m 29s** (01 13s · 02 48s · 03 22s · 04 24s · 05 48s · 06 1m6s ·
+07 24s · 08 35s · 09 23s · 10 1m6s · 11 25s · 12 51s · 13 41s · 14 35s · 15 50s · 16 1m26s ·
+17 37s · 18 55s).
 
 ## Reusable subflows (`.maestro/subflows/`)
 
@@ -217,7 +217,7 @@ elements present; "action works" = the interaction produced the expected state c
   polluted active-workspace breaks the next flow's `open-library` (expects My Songs / Ideas).
   In-suite this is fine (flow 01 clearState resets), but standalone re-runs need a reset first.
 
-## Coverage snapshot (17 automated flows)
+## Coverage snapshot (18 automated flows)
 
 Green & automated: first-run, drawer nav (×2 flows), paywall, recording-screen UI, full song
 lifecycle, all drawer destinations, tuner, lyrics-pad, settings nav + deeper library views,
