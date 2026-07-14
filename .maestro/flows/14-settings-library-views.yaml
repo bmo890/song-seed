@@ -1,0 +1,64 @@
+# Deeper Settings/Library views open and back out: Export an archive, Import an
+# archive, Storage details. These are complex screens where a crash would be bad,
+# so opening + rendering each is high-value. Deliberately does NOT tap Back up /
+# Restore (those kick off real file operations / system sheets). The Export/Import/
+# Storage cards live in the SHARE & MOVE section below the fold — scroll to each.
+appId: com.bmostudio.songseed.dev
+---
+- runFlow: ../subflows/open-library.yaml
+- tapOn:
+    id: "header-menu"
+- waitForAnimationToEnd
+- tapOn:
+    id: "nav-row-settings"
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: ".*STARTUP.*"
+    timeout: 10000
+- tapOn:
+    id: "settings-card-library-backups"
+- extendedWaitUntil:
+    visible: ".*SAFETY COPY.*"
+    timeout: 10000
+# --- Export an archive ---
+- scrollUntilVisible:
+    element:
+      id: "settings-card-export-an-archive"
+    direction: DOWN
+- tapOn:
+    id: "settings-card-export-an-archive"
+- extendedWaitUntil:
+    visible: ".*Parts of your work.*|.*Whole library.*|.*Export.*"
+    timeout: 10000
+- tapOn: "Back"
+- extendedWaitUntil:
+    visible: ".*SAFETY COPY.*"
+    timeout: 10000
+# --- Import an archive ---
+- scrollUntilVisible:
+    element:
+      id: "settings-card-import-an-archive"
+    direction: DOWN
+- tapOn:
+    id: "settings-card-import-an-archive"
+- extendedWaitUntil:
+    visible: ".*archive.*|.*Import.*|.*Merge.*"
+    timeout: 10000
+- tapOn: "Back"
+- extendedWaitUntil:
+    visible: ".*SAFETY COPY.*"
+    timeout: 10000
+# --- Storage details ---
+- scrollUntilVisible:
+    element:
+      id: "settings-card-storage-details"
+    direction: DOWN
+- tapOn:
+    id: "settings-card-storage-details"
+- extendedWaitUntil:
+    visible: ".*storage.*|.*Managed audio.*|.*Library data.*"
+    timeout: 10000
+- tapOn: "Back"
+- extendedWaitUntil:
+    visible: ".*SAFETY COPY.*"
+    timeout: 10000

@@ -31,6 +31,7 @@ feel. Those stay HUMAN on device (see CHECKLIST.md designations).
 | 11-metronome | standalone metronome: BPM ±, meter 4/4↔3/4, start/stop toggle | 🟡 (click audio HUMAN) |
 | 12-collection-crud | browse → add collection → auto-open → back → select → delete → confirm gone | ✅ self-cleaning |
 | 13-word-tools | Lyrics Spark sheet → Word Ladder, Cut-Up, Magpie each open + render + back | ✅ |
+| 14-settings-library-views | Settings→Library→ Export / Import / Storage-details views open + back | ✅ |
 
 **Full-suite status: 10/10 flows pass (~6 min on iPhone 17 sim).** Flow 01 clearState wipes
 state first, so a full run is deterministic and self-cleaning. Run it with:
@@ -176,4 +177,15 @@ elements present; "action works" = the interaction produced the expected state c
   closes the spark sheet, so it's re-opened between tools.
 - ⏭️ Deeper per-tool interactions (Word Ladder pairing/shuffle, Cut-Up cut+compose, Magpie
   word-pocketing) are follow-ups; several touch the Pro word-sparks gate.
+
+### 2026-07-14 — batch 9 (deeper Settings/Library views)
+
+- ✅ **Export an archive** view opens + renders + backs out.
+- ✅ **Import an archive** view opens + renders + backs out.
+- ✅ **Storage details** view opens + renders + backs out.
+- ⚠️ Deliberately does NOT tap **Back up** / **Restore** — those start real file operations
+  and system share/document sheets (HUMAN territory). Same for the actual export/import
+  *actions* inside these views (share sheet, document picker).
+- ℹ️ These cards live in the SHARE & MOVE section below the fold; `scrollUntilVisible` (by
+  testID, direction DOWN) is needed — `tapOn: {id}` does not auto-scroll reliably.
 
