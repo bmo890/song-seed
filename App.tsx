@@ -625,6 +625,9 @@ function DrawerRoutes() {
       screenOptions={{ headerShown: false }}
       drawerContent={(props) => <DrawerContent {...props} />}
       initialRouteName={startupWorkspaceId ? "WorkspaceStack" : "Workspaces"}
+      // Back returns to the drawer route you were actually on before, not always
+      // the first route — so back walks the logical path and never strands you.
+      backBehavior="history"
     >
       <Drawer.Screen name="Workspaces" component={WorkspaceListScreen} />
       <Drawer.Screen name="WorkspaceStack" component={WorkspaceRoutes} />

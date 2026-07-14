@@ -36,6 +36,7 @@ feel. Those stay HUMAN on device (see CHECKLIST.md designations).
 | 16-global-search | create song → drawer global Search → query returns it → delete | ✅ self-cleaning |
 | 17-workspace-crud | drawer → switcher → create workspace → actions → delete permanently → gone | ✅ self-cleaning |
 | 18-hide-unhide | create song → Hide (disappears + "Show all" pill) → reveal → delete | ✅ self-cleaning |
+| 19-back-navigation | pushed screens (Recording, song detail) back → collection; repeated back stays stable | ✅ (iOS half; Android hardware-back = MANUAL) |
 
 **Full-suite status: 18/18 flows pass (~12.5 min on iPhone 17 sim).** Flow 01 clearState
 wipes state first, so a full run is deterministic and self-cleaning. Run it with:
@@ -63,6 +64,28 @@ sheet), `dialog-btn-<label-slug>` (every AppDialog button — e.g. `dialog-btn-d
 | # | Bug | Where | Fix |
 |---|---|---|---|
 | 1 | Paywall "Start free trial" / "Restore" were dead-end taps on iOS (AppAlert Modal can't present over the sheet Modal) | ProUpsellSheet | Render notice inline (commit c17ddf2) |
+| 2 | **Android back closed the app** from tool screens (Settings, Tuner, Metronome, Library, Activity, Browse, Revisit) — `useBrowseRootBackHandler` called `BackHandler.exitApp()` on hardware back, pre-empting normal back-to-home | useBrowseRootBackHandler.ts | Removed all `exitApp()`; back now delegates to RN/OS (returns to previous screen, or backgrounds app at the true root — never closes). Drawer `backBehavior="history"`. Pure resolver unit-tested (`browseRootBackAction.test.ts`) |
+
+## Back-button behavior — MANUAL Android verification (on device)
+
+The exit-on-back bug and its fix are **Android-hardware-back specific** (the handler is
+Android-gated; iOS has no hardware back). The iOS half is regression-guarded by flow 19.
+On an **Android device/emulator**, verify (each must be TRUE):
+
+- [ ] Open drawer → **Settings**, press hardware/gesture **back** → returns to the previous
+      screen (Browse). Does **NOT** close the app.
+- [ ] Same for **Tuner, Metronome, Library, Activity, Revisit** (each reached via the drawer):
+      back returns to the previous screen, never closes the app.
+- [ ] From a tool screen with the **drawer open**, back → closes the drawer (stays on screen).
+- [ ] With a selection active on **Browse** (collections selected), back → clears the selection
+      (doesn't leave the screen).
+- [ ] On **Revisit** with an "Around This Time" snapshot open, back → closes the snapshot.
+- [ ] "View in collection" from Activity/Search/Revisit → back out → returns to the origin
+      screen (not a hard close).
+- [ ] At the **genuine home** (Browse, drawer closed, nothing to go back to), back → app moves
+      to the **background** (still in Recents, resumes where you left off) — it is NOT destroyed.
+- [ ] Rapidly pressing back through a deep path (collection → song → editor/lyrics → back → …)
+      never skips screens, never loops, never exits early.
 
 ## Individual checks verified (beyond the committed flow files)
 
@@ -217,7 +240,7 @@ elements present; "action works" = the interaction produced the expected state c
   polluted active-workspace breaks the next flow's `open-library` (expects My Songs / Ideas).
   In-suite this is fine (flow 01 clearState resets), but standalone re-runs need a reset first.
 
-## Coverage snapshot (18 automated flows)
+## Coverage snapshot (19 automated flows)
 
 Green & automated: first-run, drawer nav (×2 flows), paywall, recording-screen UI, full song
 lifecycle, all drawer destinations, tuner, lyrics-pad, settings nav + deeper library views,

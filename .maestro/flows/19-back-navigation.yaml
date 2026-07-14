@@ -1,0 +1,76 @@
+# Back never strands you. Pushed root-stack screens (Recording, song detail) must
+# always return to the collection you came from — never a dead-end, never a close.
+# This is the iOS-observable half of the "back must not close the app" fix; the
+# Android hardware-back half is a MANUAL device check (see docs/qa/CHECKLIST.md
+# and RUN-LOG.md — the fix removed all BackHandler.exitApp() calls).
+appId: com.bmostudio.songseed.dev
+---
+- runFlow: ../subflows/open-library.yaml
+- tapOn: ".*Ideas.*"
+- extendedWaitUntil:
+    visible:
+      id: "fab-record"
+    timeout: 15000
+- runFlow: ../subflows/dismiss-logbox.yaml
+# Collection → Recording → back → collection (not stranded).
+- tapOn:
+    id: "fab-record"
+- extendedWaitUntil:
+    visible: ".*NEW RECORDING.*"
+    timeout: 10000
+- tapOn: ".*Back.*"
+- extendedWaitUntil:
+    visible:
+      id: "fab-record"
+    timeout: 10000
+# Collection → create song → detail → back → collection (not stranded).
+- tapOn:
+    id: "fab-create"
+- waitForAnimationToEnd
+- tapOn:
+    id: "fab-menu-song"
+- extendedWaitUntil:
+    visible: "New Song"
+    timeout: 10000
+- tapOn:
+    id: "song-title-input"
+- eraseText: 40
+- inputText: "Maestro Back Test"
+- tapOn: "PROGRESS"
+- tapOn: "Save"
+- extendedWaitUntil:
+    visible:
+      id: "song-header-back"
+    timeout: 10000
+- tapOn:
+    id: "song-header-back"
+- extendedWaitUntil:
+    visible:
+      id: "fab-record"
+    timeout: 10000
+# Reopen it and back out again — repeated back must stay stable (no loop, no exit).
+- tapOn: ".*Maestro Back Test.*"
+- extendedWaitUntil:
+    visible:
+      id: "song-header-back"
+    timeout: 10000
+- tapOn:
+    id: "song-header-back"
+- extendedWaitUntil:
+    visible:
+      id: "fab-record"
+    timeout: 10000
+# Clean up.
+- longPressOn: ".*Maestro Back Test.*"
+- extendedWaitUntil:
+    visible: ".*Delete"
+    timeout: 5000
+- tapOn: ".*Delete"
+- extendedWaitUntil:
+    visible: ".*Delete selected items.*"
+    timeout: 5000
+- tapOn:
+    id: "dialog-btn-delete"
+- extendedWaitUntil:
+    visible: ".*Deleted 1 item.*"
+    timeout: 5000
