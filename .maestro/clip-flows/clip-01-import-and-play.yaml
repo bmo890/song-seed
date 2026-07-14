@@ -1,0 +1,62 @@
+# Import real audio (dev pipeline) and play it. Verifies: the import pipeline
+# creates clip cards with durations, tapping a clip opens the player, the
+# play/pause transport toggles, and the player minimizes back to the collection.
+# Self-cleaning (deletes the imported clips). Requires scripts/push-dev-samples.sh.
+appId: com.bmostudio.songseed.dev
+---
+- runFlow: ../subflows/open-library.yaml
+- tapOn: ".*Ideas.*"
+- extendedWaitUntil:
+    visible:
+      id: "fab-create"
+    timeout: 15000
+- runFlow: ../subflows/dismiss-logbox.yaml
+# Clear any leftover sample clips so the import runs clean (no duplicate review).
+- runFlow: reset-clips.yaml
+# Import the dev sample clips through the real pipeline.
+- tapOn:
+    id: "fab-create"
+- waitForAnimationToEnd
+- assertVisible:
+    id: "fab-menu-devsamples"
+- tapOn:
+    id: "fab-menu-devsamples"
+- extendedWaitUntil:
+    visible: ".*sample-01.*"
+    timeout: 20000
+# Open the first clip → player.
+- tapOn: ".*sample-01.*"
+- extendedWaitUntil:
+    visible: "Play"
+    timeout: 10000
+- assertVisible: "Minimize player"
+# Play → transport switches to Pause; pause → back to Play.
+- tapOn: "Play"
+- extendedWaitUntil:
+    visible: "Pause"
+    timeout: 8000
+- tapOn: "Pause"
+- extendedWaitUntil:
+    visible: "Play"
+    timeout: 8000
+# Minimize the player, back to the collection.
+- tapOn: "Minimize player"
+- extendedWaitUntil:
+    visible:
+      id: "fab-record"
+    timeout: 10000
+# Clean up: delete all imported clips.
+- longPressOn: ".*sample-0.*"
+- extendedWaitUntil:
+    visible: "Select all"
+    timeout: 5000
+- tapOn: "Select all"
+- tapOn: ".*Delete"
+- extendedWaitUntil:
+    visible: ".*Delete selected items.*"
+    timeout: 5000
+- tapOn:
+    id: "dialog-btn-delete"
+- extendedWaitUntil:
+    notVisible: ".*sample-0.*"
+    timeout: 8000

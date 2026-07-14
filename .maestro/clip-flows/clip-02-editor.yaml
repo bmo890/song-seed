@@ -1,0 +1,71 @@
+# Open the waveform editor on a real clip and make an edit. Verifies: the editor
+# mounts on an imported clip, "Add at playhead" creates a region (the empty state
+# clears), and Back returns without crashing. Self-cleaning. Requires
+# scripts/push-dev-samples.sh.
+appId: com.bmostudio.songseed.dev
+---
+- runFlow: ../subflows/open-library.yaml
+- tapOn: ".*Ideas.*"
+- extendedWaitUntil:
+    visible:
+      id: "fab-create"
+    timeout: 15000
+- runFlow: ../subflows/dismiss-logbox.yaml
+# Clear any leftover sample clips so the import runs clean (no duplicate review).
+- runFlow: reset-clips.yaml
+- tapOn:
+    id: "fab-create"
+- waitForAnimationToEnd
+- tapOn:
+    id: "fab-menu-devsamples"
+- extendedWaitUntil:
+    visible: ".*sample-01.*"
+    timeout: 20000
+# Open the clip → player → More options → Edit clip → editor.
+- tapOn: ".*sample-01.*"
+- extendedWaitUntil:
+    visible: "More options"
+    timeout: 10000
+- tapOn: "More options"
+- extendedWaitUntil:
+    visible: "Edit clip"
+    timeout: 5000
+- tapOn: "Edit clip"
+- extendedWaitUntil:
+    visible: ".*Audio Editor.*"
+    timeout: 10000
+- assertVisible: ".*No regions yet.*"
+# Make an edit: add a region at the playhead — the empty state should clear.
+- tapOn: ".*Add at playhead.*"
+- extendedWaitUntil:
+    notVisible: ".*No regions yet.*"
+    timeout: 8000
+- assertVisible: ".*REGIONS.*"
+# Leave the editor.
+- tapOn: "Back"
+- waitForAnimationToEnd
+# Return to the collection (minimize the player if it's showing) and clean up.
+- runFlow:
+    when:
+      visible: "Minimize player"
+    commands:
+      - tapOn: "Minimize player"
+      - waitForAnimationToEnd
+- extendedWaitUntil:
+    visible:
+      id: "fab-record"
+    timeout: 10000
+- longPressOn: ".*sample-0.*"
+- extendedWaitUntil:
+    visible: "Select all"
+    timeout: 5000
+- tapOn: "Select all"
+- tapOn: ".*Delete"
+- extendedWaitUntil:
+    visible: ".*Delete selected items.*"
+    timeout: 5000
+- tapOn:
+    id: "dialog-btn-delete"
+- extendedWaitUntil:
+    notVisible: ".*sample-0.*"
+    timeout: 8000

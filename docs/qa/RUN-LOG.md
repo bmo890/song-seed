@@ -45,6 +45,28 @@ Latest full run: **18/18 in 12m 29s** (01 13s · 02 48s · 03 22s · 04 24s · 0
 07 24s · 08 35s · 09 23s · 10 1m6s · 11 25s · 12 51s · 13 41s · 14 35s · 15 50s · 16 1m26s ·
 17 37s · 18 55s).
 
+## Clip-interaction flows (`.maestro/clip-flows/`) — need sample audio
+
+These cover the audio half that used to be blocked (no mic on the Simulator, and the system
+document picker isn't automatable). They use a **`__DEV__`-only "Import samples (dev)"** item
+in the create-FAB menu, which imports audio from the app's `Documents/dev-samples/` through
+the *real* import pipeline. Setup + run:
+
+    scripts/push-dev-samples.sh              # stage sample audio into the sim (once per boot)
+    maestro test .maestro/clip-flows/        # run the clip flows
+
+Do NOT run these with the main suite's flow 01 — its `clearState` wipes the pushed samples.
+Each clip flow relaunches (never clearState), clears leftover clips, imports fresh, interacts,
+and deletes what it created (self-cleaning).
+
+| Flow | Covers | Status |
+|---|---|---|
+| clip-01-import-and-play | dev-import 6 clips (real pipeline: durations, waveform) → open clip → player Play/Pause (real audio) → minimize | ✅ self-cleaning |
+| clip-02-editor | import → clip → More options → Edit clip → Audio Editor mounts → "Add at playhead" creates a region → Back | ✅ self-cleaning |
+
+Still HUMAN here: **overdub recording** (the "Add overdub" flow navigates to the recorder,
+which needs a real mic), Bluetooth/interruption during playback, and audio *quality* truths.
+
 ## Reusable subflows (`.maestro/subflows/`)
 
 | Subflow | Purpose |

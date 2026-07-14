@@ -1,0 +1,23 @@
+# Reusable: clear any leftover sample clips from the current collection so a
+# following dev-sample import runs clean (no duplicate-review path). No-op when
+# the collection is already empty. Assumes the collection screen is showing.
+appId: com.bmostudio.songseed.dev
+---
+- runFlow:
+    when:
+      visible: ".*sample-0.*"
+    commands:
+      - longPressOn: ".*sample-0.*"
+      - extendedWaitUntil:
+          visible: "Select all"
+          timeout: 5000
+      - tapOn: "Select all"
+      - tapOn: ".*Delete"
+      - extendedWaitUntil:
+          visible: ".*Delete selected items.*"
+          timeout: 5000
+      - tapOn:
+          id: "dialog-btn-delete"
+      - extendedWaitUntil:
+          notVisible: ".*sample-0.*"
+          timeout: 8000
