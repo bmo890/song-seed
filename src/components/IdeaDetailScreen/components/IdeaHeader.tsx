@@ -55,6 +55,9 @@ export function IdeaHeader() {
       {/* Nav row: chevron back | (spacer or compact title) | ellipsis/edit actions */}
       <View style={styles.songDetailNavRow}>
         <Pressable
+          testID="song-header-back"
+          accessibilityRole="button"
+          accessibilityLabel="Back"
           style={({ pressed }) => [
             {
               minHeight: 36,

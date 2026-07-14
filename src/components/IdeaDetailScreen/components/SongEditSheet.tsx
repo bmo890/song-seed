@@ -43,6 +43,7 @@ export function SongEditSheet({
 
       <Text style={styles.label}>Title</Text>
       <TitleInput
+        testID="song-title-input"
         value={title}
         onChangeText={onChangeTitle}
         placeholder="Song title"

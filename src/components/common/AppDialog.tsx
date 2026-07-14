@@ -65,6 +65,9 @@ export function AppDialogHost() {
                   <View key={btn.label} style={s.buttonRowCell}>
                     {i > 0 && <View style={s.dividerV} />}
                     <Pressable
+                      testID={dialogBtnTestID(btn.label)}
+                      accessibilityRole="button"
+                      accessibilityLabel={btn.label}
                       style={({ pressed }) => [s.compactBtn, pressed ? s.pressed : null]}
                       onPress={() => handleButton(btn.onPress)}
                     >
@@ -94,6 +97,9 @@ export function AppDialogHost() {
                 <View key={btn.label}>
                   <View style={s.dividerH} />
                   <Pressable
+                    testID={dialogBtnTestID(btn.label)}
+                    accessibilityRole="button"
+                    accessibilityLabel={btn.label}
                     style={({ pressed }) => [s.stackBtn, pressed ? s.pressed : null]}
                     onPress={() => handleButton(btn.onPress)}
                   >
@@ -115,7 +121,13 @@ export function AppDialogHost() {
 function RichRow({ btn, onPress }: { btn: DialogButton; onPress: () => void }) {
   const destructive = btn.style === "destructive";
   return (
-    <Pressable style={({ pressed }) => [s.richRow, pressed ? s.pressed : null]} onPress={onPress}>
+    <Pressable
+      testID={dialogBtnTestID(btn.label)}
+      accessibilityRole="button"
+      accessibilityLabel={btn.label}
+      style={({ pressed }) => [s.richRow, pressed ? s.pressed : null]}
+      onPress={onPress}
+    >
       {btn.icon ? (
         <View style={[s.richIconWrap, destructive ? s.richIconWrapDanger : null]}>
           <Ionicons name={btn.icon} size={19} color={destructive ? "#a83232" : "#524440"} />
@@ -133,6 +145,13 @@ function btnTextStyle(style?: string) {
   if (style === "destructive") return s.btnTextDestructive;
   if (style === "cancel") return s.btnTextCancel;
   return s.btnTextDefault;
+}
+
+/** Stable, predictable testID for a dialog button, derived from its label —
+ * e.g. "Delete" → "dialog-btn-delete". Lets UI tests target a specific dialog
+ * action even when several buttons share the same visible word. */
+function dialogBtnTestID(label: string) {
+  return `dialog-btn-${label.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "")}`;
 }
 
 const s = StyleSheet.create({

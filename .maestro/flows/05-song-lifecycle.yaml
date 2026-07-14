@@ -1,0 +1,63 @@
+# Full song lifecycle in one self-cleaning flow: create → name → save → verify on
+# the detail page → back to collection → verify in list → long-press to select →
+# Delete → confirm → verify it's gone. Leaves no residue, so it's safe to re-run.
+# Exercises: create menu, addIdea, draft edit sheet, title input, save, detail
+# render, detail→collection back, list render, selection mode, destructive confirm.
+appId: com.bmostudio.songseed.dev
+---
+- runFlow: ../subflows/open-library.yaml
+- tapOn: ".*Ideas.*"
+- extendedWaitUntil:
+    visible:
+      id: "fab-create"
+    timeout: 15000
+- runFlow: ../subflows/dismiss-logbox.yaml
+- waitForAnimationToEnd
+- tapOn:
+    id: "fab-create"
+- waitForAnimationToEnd
+- tapOn:
+    id: "fab-menu-song"
+# Draft "New Song" sheet.
+- extendedWaitUntil:
+    visible: "New Song"
+    timeout: 10000
+- tapOn:
+    id: "song-title-input"
+- eraseText: 40
+- inputText: "Maestro Lifecycle Song"
+- tapOn: "PROGRESS"
+- tapOn: "Save"
+# Titled song's detail page.
+- extendedWaitUntil:
+    visible: "Maestro Lifecycle Song"
+    timeout: 10000
+# Back to the collection; the song appears in the list.
+- tapOn:
+    id: "song-header-back"
+- extendedWaitUntil:
+    visible:
+      id: "fab-record"
+    timeout: 10000
+- assertVisible: ".*Maestro Lifecycle Song.*"
+# Long-press to enter selection mode, then Delete → confirm.
+- longPressOn: ".*Maestro Lifecycle Song.*"
+# Selection bar's delete action has a composite ", Delete" a11y label (regex
+# full-matches it). The confirm dialog's button shares that text, so target it
+# by its stable testID instead (see dialogBtnTestID in AppDialog).
+- extendedWaitUntil:
+    visible: ".*Delete"
+    timeout: 5000
+- tapOn: ".*Delete"
+- extendedWaitUntil:
+    visible: ".*Delete selected items.*"
+    timeout: 5000
+- tapOn:
+    id: "dialog-btn-delete"
+# Undo toast confirms the delete, and the song is gone from the list.
+- extendedWaitUntil:
+    visible: ".*Deleted 1 item.*"
+    timeout: 5000
+- extendedWaitUntil:
+    notVisible: ".*Maestro Lifecycle Song.*"
+    timeout: 8000
