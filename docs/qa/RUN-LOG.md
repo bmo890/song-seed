@@ -23,6 +23,7 @@ feel. Those stay HUMAN on device (see CHECKLIST.md designations).
 | 03-paywall | Settings → Upgrade to Pro → sheet, CTA notice, restore | ✅ |
 | 04-recording-screen | record FAB → recorder UI, metronome toggle, settings sheet, back | 🟡 (mic capture HUMAN) |
 | 05-song-lifecycle | create song → name → save → detail → back → list → select → delete → confirm gone | ✅ self-cleaning |
+| 06-drawer-destinations | Revisit, Activity, Library (listening hub), global Search each open + render | ✅ |
 
 ## Reusable subflows (`.maestro/subflows/`)
 
@@ -67,4 +68,20 @@ elements present; "action works" = the interaction produced the expected state c
   warnings and silently eats bottom-anchored FAB taps — every flow now dismisses it right
   before FAB interaction. Worth investigating *why* the app logs boot warnings (would help
   both dev ergonomics and test reliability).
+
+### 2026-07-14 — batch 3 (drawer navigation)
+
+- ✅ **Revisit** opens and renders (drawer → Revisit).
+- ✅ **Activity** opens and renders — heatmap + "A year of your creative activity…".
+- ✅ **Library** (listening hub: Playlists / Setlists / Songbook) opens and renders. Note:
+  this is NOT the workspace collection list — "Library" in the drawer is the playback hub.
+- ✅ **Global Search** opens from the drawer's search button; "Search looks inside" helper
+  renders.
+- (Lyrics Pad, Metronome, Settings already covered by flow 02.)
+- ℹ️ Added `nav-row-<label>` testIDs to every drawer row. Needed because Maestro text
+  matching is **case-insensitive**, so `.*Library` was also matching "Search your library"
+  and tapping the wrong row. testIDs make each destination unambiguous.
+- ℹ️ Two default-titled residual seeds ("8:56 PM Jul 14th", "8:58 PM…") remain from earlier
+  failed iterations — harmless (the suite starts from flow 01's clearState, which wipes
+  them), but noted.
 

@@ -1,0 +1,53 @@
+# Every drawer destination opens and renders. Relaunch per destination so each
+# leg is independent (a crash on one doesn't cascade). Covers the EXPLORE and
+# TOOLS nav that flow 02 didn't: Revisit, Activity, Library, Search. (Tuner has
+# its own flow because it touches mic permission.) Catches nav-wiring regressions
+# — the most common breakage after a navigation refactor. Uses the nav-row-<label>
+# testIDs so a case-insensitive text match can't hit "Search your library" instead.
+appId: com.bmostudio.songseed.dev
+---
+# --- Revisit ---
+- runFlow: ../subflows/open-library.yaml
+- tapOn:
+    id: "header-menu"
+- waitForAnimationToEnd
+- tapOn:
+    id: "nav-row-revisit"
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: ".*Revisit.*"
+    timeout: 10000
+# --- Activity ---
+- runFlow: ../subflows/open-library.yaml
+- tapOn:
+    id: "header-menu"
+- waitForAnimationToEnd
+- tapOn:
+    id: "nav-row-activity"
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: ".*creative activity.*"
+    timeout: 10000
+# --- Library ---
+- runFlow: ../subflows/open-library.yaml
+- tapOn:
+    id: "header-menu"
+- waitForAnimationToEnd
+# "Library" is the listening hub (Playlists / Setlists / Songbook), not the
+# workspace collection list.
+- tapOn:
+    id: "nav-row-library"
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: ".*Setlists.*"
+    timeout: 10000
+# --- Search (header search button, not a nav row) ---
+- runFlow: ../subflows/open-library.yaml
+- tapOn:
+    id: "header-menu"
+- waitForAnimationToEnd
+- tapOn: "Search your library"
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: ".*Search looks inside.*"
+    timeout: 10000

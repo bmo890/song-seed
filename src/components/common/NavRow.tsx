@@ -28,6 +28,8 @@ export function NavRow({
 }: NavRowProps) {
   return (
     <Pressable
+      testID={`nav-row-${label.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "")}`}
+      accessibilityRole="button"
       style={({ pressed }) => [
         navRowStyles.row,
         active ? navRowStyles.rowActive : null,
