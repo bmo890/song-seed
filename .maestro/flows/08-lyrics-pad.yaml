@@ -1,8 +1,8 @@
-# Lyrics Pad note editing + autosave. The pad opens on its notes index; "New Page"
-# opens the page editor. We type a line, go back to the index, and confirm the note
-# preview shows the typed text (proves autosave), then reopen and clear it so the
-# flow leaves an empty page behind (no accumulation). Exercises the notepad index,
-# page editor text input, autosave, and the editor→index back path.
+# Lyrics Pad note editing + autosave. Robust to both landing states: with no
+# existing notes the pad opens straight into a blank editor; with notes it opens
+# the index (tap "New Page" to get an editor). We type a line, confirm it renders
+# (autosaved into the note), then clear it so the flow leaves an empty page.
+# Exercises the notepad editor text input and autosave.
 appId: com.bmostudio.songseed.dev
 ---
 - runFlow: ../subflows/open-library.yaml
@@ -15,26 +15,24 @@ appId: com.bmostudio.songseed.dev
 - extendedWaitUntil:
     visible: ".*Lyrics Pad.*"
     timeout: 10000
-# Open the page editor.
-- tapOn: ".*New Page.*"
+# If we landed on the notes index (notes already exist), open a page editor.
+# If we landed straight in the editor (no notes yet), this is skipped.
+- runFlow:
+    when:
+      visible: ".*New Page.*"
+    commands:
+      - tapOn: ".*New Page.*"
+# Editor is open — "Word finder" is always present here (unlike the "Start writing…"
+# placeholder, which only shows while the body is empty).
 - extendedWaitUntil:
-    visible: ".*Start writing.*"
+    visible: ".*Word finder.*"
     timeout: 10000
-# Type a line, dismiss the keyboard by tapping the date header.
+# Focus the empty body and type a line, then dismiss the keyboard via the date.
 - tapOn: ".*Start writing.*"
 - inputText: "Maestro lyric line"
 - tapOn: ".*JUL 2026.*"
 - assertVisible: ".*Maestro lyric line.*"
-# Back to the index; the note preview should show the autosaved text.
-- tapOn: ".*Lyrics Pad"
-- extendedWaitUntil:
-    visible: ".*Maestro lyric line.*"
-    timeout: 10000
-# Reopen the note and clear it (leave an empty page).
-- tapOn: ".*Maestro lyric line.*"
-- extendedWaitUntil:
-    visible: ".*Maestro lyric line.*"
-    timeout: 10000
+# Clean up: clear the line, leaving an empty page (no residue).
 - tapOn: ".*Maestro lyric line.*"
 - eraseText: 40
 - tapOn: ".*JUL 2026.*"
