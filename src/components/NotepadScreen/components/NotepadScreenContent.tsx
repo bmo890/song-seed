@@ -426,6 +426,9 @@ export function NotepadScreenContent() {
           rightElement={
             <View style={listStyles.headerActions}>
               <Pressable
+                testID="lyrics-spark-open"
+                accessibilityRole="button"
+                accessibilityLabel="Lyrics Spark"
                 style={({ pressed }) => [listStyles.newBtn, pressed ? styles.pressDown : null]}
                 onPress={() => setSparkSheetVisible(true)}
                 hitSlop={4}

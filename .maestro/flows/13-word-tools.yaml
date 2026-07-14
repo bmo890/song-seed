@@ -1,0 +1,80 @@
+# Word tools (Lyrics Sparks). Reaches the Lyrics Pad index (creating a note first
+# if the pad opened straight into the editor), opens the Lyrics Spark sheet, and
+# verifies it offers all three tools. Then opens each tool to confirm it navigates
+# and renders, backing out each time (returning to a tool closes the sheet, so it's
+# re-opened between tools). Catches crashes in the spark entry and the tool screens.
+# Note: leaves a "spark seed" note behind (wiped by flow 01's clearState in-suite).
+appId: com.bmostudio.songseed.dev
+---
+- runFlow: ../subflows/open-library.yaml
+- tapOn:
+    id: "header-menu"
+- waitForAnimationToEnd
+- tapOn:
+    id: "nav-row-lyrics-pad"
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: ".*Lyrics Pad.*"
+    timeout: 10000
+# If the pad opened straight into the editor (no notes yet), create a note and go
+# back to the index so the Lyrics Spark button is available.
+- runFlow:
+    when:
+      visible: "Word finder"
+    commands:
+      - tapOn: ".*Start writing.*"
+      - inputText: "spark seed"
+      - tapOn: ".*JUL 2026.*"
+      - tapOn: ".*Lyrics Pad"
+- extendedWaitUntil:
+    visible:
+      id: "lyrics-spark-open"
+    timeout: 10000
+# --- Word Ladder ---
+- tapOn:
+    id: "lyrics-spark-open"
+- extendedWaitUntil:
+    visible: "Lyrics Spark"
+    timeout: 5000
+- assertVisible: ".*Word Ladder.*"
+- assertVisible: ".*Cut-Up.*"
+- assertVisible: ".*Magpie.*"
+- tapOn: ".*Word Ladder.*"
+- extendedWaitUntil:
+    visible: ".*JOB / ROLE.*"
+    timeout: 10000
+- tapOn: "Back"
+- extendedWaitUntil:
+    visible:
+      id: "lyrics-spark-open"
+    timeout: 10000
+# --- Cut-Up ---
+- tapOn:
+    id: "lyrics-spark-open"
+- extendedWaitUntil:
+    visible: "Lyrics Spark"
+    timeout: 5000
+- tapOn: ".*Cut-Up.*"
+- extendedWaitUntil:
+    visible: ".*YOUR STARTING LYRIC.*"
+    timeout: 10000
+- tapOn: "Back"
+- extendedWaitUntil:
+    visible:
+      id: "lyrics-spark-open"
+    timeout: 10000
+# --- Magpie (opens a real book — needs a network fetch; verify the screen appears) ---
+- tapOn:
+    id: "lyrics-spark-open"
+- extendedWaitUntil:
+    visible: "Lyrics Spark"
+    timeout: 5000
+- tapOn: ".*Magpie.*"
+- extendedWaitUntil:
+    visible: ".*Magpie.*|.*Finding a book.*|.*New book.*|.*needs a connection.*"
+    timeout: 15000
+- tapOn: "Back"
+- extendedWaitUntil:
+    visible:
+      id: "lyrics-spark-open"
+    timeout: 10000

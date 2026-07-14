@@ -30,6 +30,7 @@ feel. Those stay HUMAN on device (see CHECKLIST.md designations).
 | 10-collection-search | create song → matching filter shows → non-matching hides → clear restores → delete | ✅ self-cleaning |
 | 11-metronome | standalone metronome: BPM ±, meter 4/4↔3/4, start/stop toggle | 🟡 (click audio HUMAN) |
 | 12-collection-crud | browse → add collection → auto-open → back → select → delete → confirm gone | ✅ self-cleaning |
+| 13-word-tools | Lyrics Spark sheet → Word Ladder, Cut-Up, Magpie each open + render + back | ✅ |
 
 **Full-suite status: 10/10 flows pass (~6 min on iPhone 17 sim).** Flow 01 clearState wipes
 state first, so a full run is deterministic and self-cleaning. Run it with:
@@ -159,4 +160,20 @@ elements present; "action works" = the interaction produced the expected state c
   collection auto-navigates into it, so deletion has to route back to the browse screen.
 - ⏭️ Not yet covered: collection **rename / move / copy** (same actions surface, straightforward
   follow-ups), and nested sub-collections.
+
+### 2026-07-14 — batch 8 (word tools / Lyrics Sparks)
+
+- ✅ **Lyrics Spark sheet** opens from the Lyrics Pad index (sparkles button) and offers all
+  three tools.
+- ✅ **Word Ladder** opens and renders (JOB/ROLE · VERBS · ROOM/PLACE · NOUNS columns).
+- ✅ **Cut-Up** opens and renders ("YOUR STARTING LYRIC" source step).
+- ✅ **Magpie** opens and renders (book-fetch screen). Note: Magpie fetches a real book over
+  the network — the fetch/curation is best verified HUMAN; this confirms the screen mounts.
+- ℹ️ Added `lyrics-spark-open` testID to the sparkles button. The spark button lives on the
+  Lyrics Pad *index*, which only appears once ≥1 note exists — so the flow creates a note
+  first when the pad opens straight into the editor.
+- ℹ️ Each tool screen has a plain "Back" button (exact match works); returning from a tool
+  closes the spark sheet, so it's re-opened between tools.
+- ⏭️ Deeper per-tool interactions (Word Ladder pairing/shuffle, Cut-Up cut+compose, Magpie
+  word-pocketing) are follow-ups; several touch the Pro word-sparks gate.
 
