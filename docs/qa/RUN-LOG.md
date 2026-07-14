@@ -35,6 +35,7 @@ feel. Those stay HUMAN on device (see CHECKLIST.md designations).
 | 15-song-status | New Song sheet: SONG chip→75%, SEED→0%; save at SONG; status renders in list; delete | ✅ self-cleaning |
 | 16-global-search | create song → drawer global Search → query returns it → delete | ✅ self-cleaning |
 | 17-workspace-crud | drawer → switcher → create workspace → actions → delete permanently → gone | ✅ self-cleaning |
+| 18-hide-unhide | create song → Hide (disappears + "Show all" pill) → reveal → delete | ✅ self-cleaning |
 
 **Full-suite status: 16/16 flows pass (~11 min on iPhone 17 sim).** Flow 01 clearState wipes
 state first, so a full run is deterministic and self-cleaning. Run it with:

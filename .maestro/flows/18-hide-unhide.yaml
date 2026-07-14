@@ -1,0 +1,64 @@
+# Hide / reveal items. Create a song, hide it via selection mode (it disappears
+# from the default list and a "Show all (N)" pill appears), reveal it again, then
+# delete it. Self-cleaning. Exercises the hide state + the reveal-hidden filter.
+appId: com.bmostudio.songseed.dev
+---
+- runFlow: ../subflows/open-library.yaml
+- tapOn: ".*Ideas.*"
+- extendedWaitUntil:
+    visible:
+      id: "fab-create"
+    timeout: 15000
+- runFlow: ../subflows/dismiss-logbox.yaml
+- waitForAnimationToEnd
+# Create "Maestro Hide Song".
+- tapOn:
+    id: "fab-create"
+- waitForAnimationToEnd
+- tapOn:
+    id: "fab-menu-song"
+- extendedWaitUntil:
+    visible: "New Song"
+    timeout: 10000
+- tapOn:
+    id: "song-title-input"
+- eraseText: 40
+- inputText: "Maestro Hide Song"
+- tapOn: "PROGRESS"
+- tapOn: "Save"
+- tapOn:
+    id: "song-header-back"
+- extendedWaitUntil:
+    visible: ".*Maestro Hide Song.*"
+    timeout: 10000
+# Select and Hide it.
+- longPressOn: ".*Maestro Hide Song.*"
+- extendedWaitUntil:
+    visible: ".*Hide"
+    timeout: 5000
+- tapOn: ".*Hide"
+# It's gone from the default list; a "Show all" pill reveals hidden items.
+- extendedWaitUntil:
+    notVisible: ".*Maestro Hide Song.*"
+    timeout: 8000
+- extendedWaitUntil:
+    visible: ".*Show all.*"
+    timeout: 8000
+- tapOn: ".*Show all.*"
+- extendedWaitUntil:
+    visible: ".*Maestro Hide Song.*"
+    timeout: 8000
+# Clean up: delete it.
+- longPressOn: ".*Maestro Hide Song.*"
+- extendedWaitUntil:
+    visible: ".*Delete"
+    timeout: 5000
+- tapOn: ".*Delete"
+- extendedWaitUntil:
+    visible: ".*Delete selected items.*"
+    timeout: 5000
+- tapOn:
+    id: "dialog-btn-delete"
+- extendedWaitUntil:
+    visible: ".*Deleted 1 item.*"
+    timeout: 5000
