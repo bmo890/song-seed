@@ -53,6 +53,7 @@ export function CollectionHeaderSection() {
   return (
     <View style={collStyles.navRow}>
       <Pressable
+        testID={screen.showBack ? "header-back" : "header-menu"}
         style={({ pressed }) => [collStyles.navBtn, pressed ? styles.pressDown : null]}
         onPress={screen.showBack ? screen.onBack : screen.openDrawer}
         hitSlop={8}

@@ -1,0 +1,63 @@
+# Recording screen: opens from the collection FAB, renders its controls, the metronome
+# toggles, and Back returns to the collection. Actual mic capture is HUMAN (Sim has no
+# real mic) — this covers screen-open + control UI + navigation, which catches the common
+# "recording screen crashes / controls missing / back is broken" regressions.
+appId: com.bmostudio.songseed.dev
+---
+- launchApp:
+    stopApp: true
+# The backup-reminder dialog can appear on launch once the library has unsaved content —
+# dismiss it so it doesn't block the flow.
+- runFlow:
+    when:
+      visible: ".*Back up your library.*"
+    commands:
+      - tapOn: "Later"
+- extendedWaitUntil:
+    visible: ".*Ideas.*"
+    timeout: 60000
+- runFlow:
+    when:
+      visible: ".*Open debugger.*"
+    commands:
+      - tapOn:
+          point: 92%,93%
+# Open the "Ideas" collection, then the record FAB.
+- tapOn: ".*Ideas.*"
+- extendedWaitUntil:
+    visible:
+      id: "fab-record"
+    timeout: 15000
+- tapOn:
+    id: "fab-record"
+- waitForAnimationToEnd
+# Recording screen is up and ready.
+- assertVisible: ".*NEW RECORDING.*"
+- assertVisible: ".*Ready.*"
+- assertVisible: "Discard recording"
+# Metronome toggles on and off (a capture aid — no audio needed to verify the toggle).
+- tapOn: "Turn metronome on"
+- extendedWaitUntil:
+    visible: "Turn metronome off"
+    timeout: 5000
+- tapOn: "Turn metronome off"
+- extendedWaitUntil:
+    visible: "Turn metronome on"
+    timeout: 5000
+# Metronome settings sheet opens; verify its content, then swipe it down to dismiss.
+- tapOn: "Metronome settings"
+- extendedWaitUntil:
+    visible: ".*TEMPO.*"
+    timeout: 5000
+- tapOn:
+    point: 50%,22%
+- extendedWaitUntil:
+    notVisible: ".*TEMPO.*"
+    timeout: 5000
+# Leave the recorder via Back → returns to the collection (FAB visible again).
+# (The header Back label is composite ", Back" — match with a regex.)
+- tapOn: ".*Back.*"
+- extendedWaitUntil:
+    visible:
+      id: "fab-record"
+    timeout: 10000

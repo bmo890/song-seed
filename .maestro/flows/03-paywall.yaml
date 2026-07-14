@@ -4,6 +4,11 @@ appId: com.bmostudio.songseed.dev
 ---
 - launchApp:
     stopApp: true
+- runFlow:
+    when:
+      visible: ".*Back up your library.*"
+    commands:
+      - tapOn: "Later"
 - extendedWaitUntil:
     visible: ".*Ideas.*"
     timeout: 60000
@@ -14,7 +19,7 @@ appId: com.bmostudio.songseed.dev
       - tapOn:
           point: 92%,93%
 - tapOn:
-    point: 8%,10%
+    id: "header-menu"
 - extendedWaitUntil:
     visible: ".*Settings.*"
     timeout: 5000

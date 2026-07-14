@@ -76,6 +76,8 @@ export function FloatingActionDock({
           {menuItems.map((item) => (
             <Pressable
               key={item.key}
+              testID={`fab-menu-${item.key}`}
+              accessibilityLabel={item.label}
               style={({ pressed }) => [styles.ideasFabMenuItem, pressed ? styles.pressDown : null]}
               onPress={() => {
                 haptic.tap();
@@ -97,6 +99,8 @@ export function FloatingActionDock({
         }}
       >
         <Pressable
+          testID="fab-create"
+          accessibilityLabel={menuOpen ? "Close create menu" : "Create"}
           style={({ pressed }) => [styles.ideasCreateFab, pressed ? styles.pressDownStrong : null]}
           onPress={() => {
             haptic.tap();
@@ -107,6 +111,8 @@ export function FloatingActionDock({
         </Pressable>
 
         <Pressable
+          testID="fab-record"
+          accessibilityLabel="Record"
           style={({ pressed }) => [styles.ideasRecordFab, pressed ? styles.pressDownStrong : null]}
           onPress={() => {
             haptic.grab();

@@ -107,6 +107,8 @@ function WorkspaceBrowseInner() {
       {/* Fixed nav row — compact workspace identity fades in here as the block collapses */}
       <View style={browseStyles.navRow}>
         <Pressable
+          testID="header-menu"
+          accessibilityLabel="Open menu"
           style={({ pressed }) => [browseStyles.navBtn, pressed ? styles.pressDown : null]}
           onPress={openDrawer}
           hitSlop={8}
