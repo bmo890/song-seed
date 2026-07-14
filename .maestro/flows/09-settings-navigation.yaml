@@ -1,0 +1,42 @@
+# Settings overview renders and its sub-views open + back out. Covers the Settings
+# hub and two representative detail views (Recording defaults, Library & Backups) —
+# the ones most likely to break after a Settings IA refactor. Uses settings-card-*
+# testIDs because the cards' composite a11y labels make Maestro mis-target the tap.
+appId: com.bmostudio.songseed.dev
+---
+- runFlow: ../subflows/open-library.yaml
+- tapOn:
+    id: "header-menu"
+- waitForAnimationToEnd
+- tapOn:
+    id: "nav-row-settings"
+- waitForAnimationToEnd
+# Overview renders with its section groups.
+- extendedWaitUntil:
+    visible: ".*STARTUP.*"
+    timeout: 10000
+- assertVisible: ".*RECORDING.*"
+- assertVisible: ".*LIBRARY.*"
+- assertVisible: ".*SONGSTEAD PRO.*"
+# --- Recording defaults sub-view ---
+- tapOn:
+    id: "settings-card-recording-defaults"
+- extendedWaitUntil:
+    visible: ".*METRONOME.*"
+    timeout: 10000
+- assertVisible: ".*Count-in.*"
+- tapOn: "Back"
+- extendedWaitUntil:
+    visible: ".*STARTUP.*"
+    timeout: 10000
+# --- Library & Backups sub-view ---
+- tapOn:
+    id: "settings-card-library-backups"
+- extendedWaitUntil:
+    visible: ".*SAFETY COPY.*"
+    timeout: 10000
+- assertVisible: ".*BACKUP REMINDER.*"
+- tapOn: "Back"
+- extendedWaitUntil:
+    visible: ".*STARTUP.*"
+    timeout: 10000

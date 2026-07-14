@@ -26,6 +26,7 @@ feel. Those stay HUMAN on device (see CHECKLIST.md designations).
 | 06-drawer-destinations | Revisit, Activity, Library (listening hub), global Search each open + render | ✅ |
 | 07-tuner | Tuner opens, mic permission handled, listening UI renders | 🟡 (pitch detection HUMAN) |
 | 08-lyrics-pad | notes index → New Page → type → autosave shows in preview → reopen → clear | ✅ self-cleaning |
+| 09-settings-navigation | Settings overview + Recording-defaults & Library-&-Backups sub-views open + back | ✅ |
 
 **Full-suite status: 8/8 flows pass (~6 min on iPhone 17 sim).** Flow 01 clearState wipes
 state first, so a full run is deterministic and self-cleaning.
@@ -99,4 +100,20 @@ elements present; "action works" = the interaction produced the expected state c
   the note preview back on the index; reopen + clear leaves an empty page (no residue).
 - ✅ **Full suite 8/8 green in 6m 3s.** Individual times: 01 (12s), 02 (1m11s), 03 (31s),
   04 (24s), 05 (55s), 06 (1m40s), 07 (32s), 08 (38s).
+
+### 2026-07-14 — batch 5 (Settings navigation)
+
+- ✅ **Settings overview** renders with all section groups (STARTUP, RECORDING, LIBRARY,
+  SONGSTEAD PRO, FEEDBACK, APP).
+- ✅ **Recording defaults** sub-view opens (METRONOME / Count-in / Name-each-recording) and
+  backs out.
+- ✅ **Library & Backups** sub-view opens (SAFETY COPY / BACKUP REMINDER / SHARE & MOVE) and
+  backs out.
+- ℹ️ Added `settings-card-<title>` testIDs to LibraryActionCard. Needed because the cards'
+  composite a11y label (title + description) made Maestro tap a spot that didn't register as
+  a row press — a coordinate tap on the row navigated fine, confirming it's a selector issue,
+  **not** a navigation bug in the app.
+- ⏭️ Not yet encoded here (visible in the overview, worth follow-up flows): Startup radio
+  (Primary vs Last-used workspace), Haptics toggle, Restore purchases, and the deeper Library
+  views (Export "Parts of your work"/"Whole library", Import, Storage/health).
 

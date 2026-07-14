@@ -33,6 +33,8 @@ export function LibraryActionCard({
 }) {
   return (
     <Pressable
+      testID={`settings-card-${title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "")}`}
+      accessibilityRole="button"
       style={({ pressed }) => [
         settingsScreenStyles.libraryCard,
         pressed && !disabled ? styles.pressDown : null,
