@@ -4,6 +4,7 @@ import {
   buildImportedTitle,
   importAudioAsset,
   importAudioAssets,
+  listDevSampleAudioAssets,
   pickAudioFiles,
   type ImportedAudioAsset,
 } from "../../../services/audioStorage";
@@ -183,6 +184,21 @@ export function useCollectionImportFlow({
     doImport(duplicateResult.allAssets);
   }
 
+  // __DEV__ only: import the audio files in Documents/dev-samples/ as individual
+  // clips through the real pipeline (no OS picker). Powers automated clip tests.
+  const openDevSampleImport = async () => {
+    if (!__DEV__ || !collectionId) return;
+    const assets = await listDevSampleAudioAssets();
+    if (assets.length === 0) {
+      AppAlert.info(
+        "No dev samples",
+        "Push audio files to the app's Documents/dev-samples/ folder first."
+      );
+      return;
+    }
+    importAssetsAsIndividualClips(assets, "import");
+  };
+
   const saveImportedAudio = async () => {
     if (importAssets.length === 0 || !importMode) return;
 
@@ -332,6 +348,7 @@ export function useCollectionImportFlow({
     setImportDatePreference,
     resetImportModal,
     openImportAudioFlow,
+    openDevSampleImport,
     saveImportedAudio,
   };
 }

@@ -5,6 +5,7 @@ type ActionButtonsProps = {
   onAddProject: () => void;
   onQuickRecord: () => void;
   onImportAudio: () => void;
+  onImportDevSamples?: () => void;
   onDockLayout?: (height: number) => void;
 };
 
@@ -12,6 +13,7 @@ export function ActionButtons({
   onAddProject,
   onQuickRecord,
   onImportAudio,
+  onImportDevSamples,
   onDockLayout,
 }: ActionButtonsProps) {
   return (
@@ -31,6 +33,18 @@ export function ActionButtons({
           icon: "download-outline",
           onPress: onImportAudio,
         },
+        // Dev-only: import the Documents/dev-samples/ audio through the real
+        // pipeline so automated tests can create clips without the OS picker.
+        ...(__DEV__ && onImportDevSamples
+          ? [
+              {
+                key: "devsamples",
+                label: "Import samples (dev)",
+                icon: "flask-outline" as const,
+                onPress: onImportDevSamples,
+              },
+            ]
+          : []),
       ]}
     />
   );

@@ -776,6 +776,37 @@ export async function pickAudioFiles(options?: { multiple?: boolean }): Promise<
     );
 }
 
+/**
+ * __DEV__ ONLY. The iOS Simulator can't reach the system document picker, so
+ * automated import tests read audio from `Documents/dev-samples/` instead (push
+ * files there with `xcrun simctl get_app_container`). Returns them as import
+ * assets so the real import pipeline can run unchanged, minus the OS picker.
+ * Always returns [] in production builds.
+ */
+export async function listDevSampleAudioAssets(): Promise<ImportedAudioAsset[]> {
+    if (!__DEV__ || !FileSystem.documentDirectory) return [];
+    const dir = `${FileSystem.documentDirectory}dev-samples`;
+    try {
+        const info = await FileSystem.getInfoAsync(dir);
+        if (!("exists" in info) || !info.exists) return [];
+        const names = await FileSystem.readDirectoryAsync(dir);
+        const audio = names
+            .filter((name) => /\.(m4a|mp3|wav|aac|caf|aiff?)$/i.test(name))
+            .sort();
+        return Promise.all(
+            audio.map((name) =>
+                enrichImportedAudioAsset(
+                    { uri: `${dir}/${name}`, name, mimeType: "audio/x-m4a" },
+                    { sourceHint: "file-modification-time" }
+                )
+            )
+        );
+    } catch (error) {
+        console.warn("listDevSampleAudioAssets failed", error);
+        return [];
+    }
+}
+
 export async function importAudioAsset(
     asset: ImportedAudioAsset,
     targetId: string,

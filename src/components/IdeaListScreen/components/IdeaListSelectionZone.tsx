@@ -17,6 +17,7 @@ type IdeaListSelectionZoneProps = {
   onAddProject: () => void;
   onQuickRecord: () => void;
   onImportAudio: () => void;
+  onImportDevSamples?: () => void;
   onFloatingDockLayout: (height: number) => void;
   onSelectionDockLayout: (height: number) => void;
 };
@@ -37,6 +38,7 @@ export function IdeaListSelectionZone({
   onAddProject,
   onQuickRecord,
   onImportAudio,
+  onImportDevSamples,
   onFloatingDockLayout,
   onSelectionDockLayout,
 }: IdeaListSelectionZoneProps) {
@@ -66,6 +68,7 @@ export function IdeaListSelectionZone({
           onAddProject={onAddProject}
           onQuickRecord={onQuickRecord}
           onImportAudio={onImportAudio}
+          onImportDevSamples={onImportDevSamples}
           onDockLayout={onFloatingDockLayout}
         />
       )}
