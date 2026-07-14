@@ -139,6 +139,9 @@ export function SideNav({
               {workspaceTitle ?? "No workspace"}
             </Text>
             <Pressable
+              testID="workspace-switch"
+              accessibilityRole="button"
+              accessibilityLabel="Switch workspace"
               style={({ pressed }) => [sideNavStyles.switchBtn, pressed ? styles.pressDown : null]}
               onPress={onGoHome}
               hitSlop={10}

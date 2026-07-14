@@ -1,0 +1,45 @@
+# Workspace management: open the workspace picker, create a workspace, confirm it
+# lists, then delete it via its action sheet. Self-cleaning. Exercises the picker,
+# WorkspaceModal, workspace creation, and the per-workspace action sheet.
+appId: com.bmostudio.songseed.dev
+---
+- runFlow: ../subflows/open-library.yaml
+- tapOn:
+    id: "header-menu"
+- waitForAnimationToEnd
+- tapOn:
+    id: "workspace-switch"
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: ".*Your Workspaces.*"
+    timeout: 10000
+# Create a workspace.
+- tapOn:
+    id: "workspace-add"
+- extendedWaitUntil:
+    visible: "New Workspace"
+    timeout: 10000
+- tapOn:
+    id: "workspace-name-input"
+- inputText: "Maestro Workspace"
+- tapOn: "Save"
+- extendedWaitUntil:
+    visible: ".*Maestro Workspace.*"
+    timeout: 10000
+# Delete it via the card's ellipsis (title-based testID) → action sheet → Delete
+# → confirm dialog.
+- tapOn:
+    id: "workspace-actions-maestro-workspace"
+- extendedWaitUntil:
+    visible: ".*Delete.*"
+    timeout: 5000
+- tapOn: ".*Delete.*"
+# Confirm dialog is titled "Delete <name>?" with a "Delete permanently" button.
+- extendedWaitUntil:
+    visible: ".*Delete Maestro Workspace.*"
+    timeout: 5000
+- tapOn:
+    id: "dialog-btn-delete-permanently"
+- extendedWaitUntil:
+    notVisible: ".*Maestro Workspace.*"
+    timeout: 8000

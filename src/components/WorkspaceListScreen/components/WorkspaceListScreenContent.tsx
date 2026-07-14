@@ -198,6 +198,9 @@ export function WorkspaceListScreenContent() {
 
       {/* ── FAB ────────────────────────────────────────────────────────────── */}
       <Pressable
+        testID="workspace-add"
+        accessibilityRole="button"
+        accessibilityLabel="New workspace"
         style={({ pressed }) => [
           styles.fab,
           { bottom: playerDockHeight > 0 ? playerDockHeight + 12 : Math.max(32, insets.bottom + 16) },

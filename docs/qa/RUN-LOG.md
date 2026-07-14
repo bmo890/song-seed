@@ -34,6 +34,7 @@ feel. Those stay HUMAN on device (see CHECKLIST.md designations).
 | 14-settings-library-views | Settings→Library→ Export / Import / Storage-details views open + back | ✅ |
 | 15-song-status | New Song sheet: SONG chip→75%, SEED→0%; save at SONG; status renders in list; delete | ✅ self-cleaning |
 | 16-global-search | create song → drawer global Search → query returns it → delete | ✅ self-cleaning |
+| 17-workspace-crud | drawer → switcher → create workspace → actions → delete permanently → gone | ✅ self-cleaning |
 
 **Full-suite status: 16/16 flows pass (~11 min on iPhone 17 sim).** Flow 01 clearState wipes
 state first, so a full run is deterministic and self-cleaning. Run it with:
@@ -201,7 +202,21 @@ elements present; "action works" = the interaction produced the expected state c
 - ✅ **Global search** — a created song is found via the drawer's library-wide Search; result
   renders. Distinct from in-collection search (flow 10). Added `global-search` testID.
 
-## Coverage snapshot (16 automated flows)
+### 2026-07-14 — batch 11 (workspace management)
+
+- ✅ **Workspace picker** opens from the drawer's switch button ("Your Workspaces").
+- ✅ **Create workspace** — WorkspaceModal → name → Save → new workspace lists.
+- ✅ **Delete workspace** — card ellipsis → action sheet Delete → "Delete <name>?" →
+  "Delete permanently" → gone. Self-cleaning.
+- ℹ️ testIDs added: `workspace-switch` (drawer), `workspace-add` (picker FAB),
+  `workspace-name-input` (WorkspaceModal), `workspace-actions-<title>` (per-card ellipsis —
+  title-based so multiple cards don't collide). The confirm button `dialog-btn-delete-permanently`
+  came free from the earlier AppDialog testID helper.
+- ℹ️ Lesson: creating/switching a workspace changes the app's landing collection, so a
+  polluted active-workspace breaks the next flow's `open-library` (expects My Songs / Ideas).
+  In-suite this is fine (flow 01 clearState resets), but standalone re-runs need a reset first.
+
+## Coverage snapshot (17 automated flows)
 
 Green & automated: first-run, drawer nav (×2 flows), paywall, recording-screen UI, full song
 lifecycle, all drawer destinations, tuner, lyrics-pad, settings nav + deeper library views,

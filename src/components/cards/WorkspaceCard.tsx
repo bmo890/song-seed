@@ -69,6 +69,9 @@ export function WorkspaceCard({
             </Text>
           ) : (
             <Pressable
+              testID={`workspace-actions-${workspace.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "")}`}
+              accessibilityRole="button"
+              accessibilityLabel="Workspace options"
               style={cardStyles.actionsBtn}
               onPress={onOpenActions}
               hitSlop={8}
@@ -124,6 +127,9 @@ export function WorkspaceCard({
             </Text>
           ) : (
             <Pressable
+              testID={`workspace-actions-${workspace.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "")}`}
+              accessibilityRole="button"
+              accessibilityLabel="Workspace options"
               style={cardStyles.actionsBtn}
               onPress={onOpenActions}
               hitSlop={8}

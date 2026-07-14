@@ -95,6 +95,7 @@ export function WorkspaceModal({
       {/* ── Name input ──────────────────────────────────────────────────── */}
       <View style={wsStyles.inputWrap}>
         <TextInput
+          testID="workspace-name-input"
           style={wsStyles.input}
           value={name}
           onChangeText={setName}
