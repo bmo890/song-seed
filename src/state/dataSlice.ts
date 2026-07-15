@@ -310,6 +310,31 @@ const buildSongbookItemId = () => genId("songbook-item");
 const buildSetlistId = () => genId("setlist");
 const buildSetlistEntryId = () => genId("setlist-entry");
 
+/** Apply `update` to the entity with `id`, leaving every other element untouched.
+ *  Shared by the playlist/songbook/setlist CRUD below. */
+function updateEntityList<T extends { id: string }>(
+    entities: T[],
+    id: string,
+    update: (entity: T) => T
+): T[] {
+    return entities.map((entity) => (entity.id === id ? update(entity) : entity));
+}
+
+/** Reorder `current` to match `orderedIds`: unknown ids are dropped, and any items
+ *  the caller omitted are appended in their original order — a partial or stale
+ *  reorder can never lose an item. */
+function reorderByIds<T extends { id: string }>(current: T[], orderedIds: string[]): T[] {
+    const byId = new Map(current.map((item) => [item.id, item]));
+    const next = orderedIds
+        .map((id) => byId.get(id) ?? null)
+        .filter((item): item is T => !!item);
+    const seen = new Set(next.map((item) => item.id));
+    current.forEach((item) => {
+        if (!seen.has(item.id)) next.push(item);
+    });
+    return next;
+}
+
 function countTotalIdeas(workspaces: Workspace[]) {
     return workspaces.reduce((sum, workspace) => sum + workspace.ideas.length, 0);
 }
@@ -2555,76 +2580,52 @@ export const createDataSlice: StateCreator<
         set((state) => {
             const now = Date.now();
             return {
-                playlists: state.playlists.map((playlist) =>
-                    playlist.id !== playlistId
-                        ? playlist
-                        : {
-                            ...playlist,
-                            updatedAt: now,
-                            items: [
-                                ...playlist.items,
-                                ...items.map((item, index) => ({
-                                    ...item,
-                                    id: `${buildPlaylistItemId()}-${index}`,
-                                    addedAt: now + index,
-                                })),
-                            ],
-                        }
-                ),
+                playlists: updateEntityList(state.playlists, playlistId, (playlist) => ({
+                    ...playlist,
+                    updatedAt: now,
+                    items: [
+                        ...playlist.items,
+                        ...items.map((item, index) => ({
+                            ...item,
+                            id: `${buildPlaylistItemId()}-${index}`,
+                            addedAt: now + index,
+                        })),
+                    ],
+                })),
             };
         });
     },
 
     reorderPlaylistItems: (playlistId, orderedItemIds) => {
         set((state) => ({
-            playlists: state.playlists.map((playlist) => {
-                if (playlist.id !== playlistId) return playlist;
-                const itemMap = new Map(playlist.items.map((item) => [item.id, item]));
-                const nextItems = orderedItemIds
-                    .map((itemId) => itemMap.get(itemId) ?? null)
-                    .filter((item): item is PlaylistItem => !!item);
-
-                if (nextItems.length !== playlist.items.length) {
-                    const seenIds = new Set(nextItems.map((item) => item.id));
-                    playlist.items.forEach((item) => {
-                        if (!seenIds.has(item.id)) {
-                            nextItems.push(item);
-                        }
-                    });
-                }
-
-                return {
-                    ...playlist,
-                    updatedAt: Date.now(),
-                    items: nextItems,
-                };
-            }),
+            playlists: updateEntityList(state.playlists, playlistId, (playlist) => ({
+                ...playlist,
+                updatedAt: Date.now(),
+                items: reorderByIds(playlist.items, orderedItemIds),
+            })),
         }));
     },
 
     removePlaylistItem: (playlistId, playlistItemId) => {
         set((state) => ({
-            playlists: state.playlists.map((playlist) =>
-                playlist.id !== playlistId
-                    ? playlist
-                    : {
-                        ...playlist,
-                        updatedAt: Date.now(),
-                        items: playlist.items.filter((item) => item.id !== playlistItemId),
-                    }
-            ),
+            playlists: updateEntityList(state.playlists, playlistId, (playlist) => ({
+                ...playlist,
+                updatedAt: Date.now(),
+                items: playlist.items.filter((item) => item.id !== playlistItemId),
+            })),
         }));
     },
 
+    // Unlike songbook/setlist rename, a blank playlist rename is a full no-op.
     renamePlaylist: (playlistId, title) => {
         const nextTitle = title.trim();
         if (!nextTitle) return;
         set((state) => ({
-            playlists: state.playlists.map((playlist) =>
-                playlist.id !== playlistId
-                    ? playlist
-                    : { ...playlist, title: nextTitle, updatedAt: Date.now() }
-            ),
+            playlists: updateEntityList(state.playlists, playlistId, (playlist) => ({
+                ...playlist,
+                title: nextTitle,
+                updatedAt: Date.now(),
+            })),
         }));
     },
 
@@ -2651,64 +2652,49 @@ export const createDataSlice: StateCreator<
         set((state) => {
             const now = Date.now();
             return {
-                songbooks: state.songbooks.map((songbook) =>
-                    songbook.id !== songbookId
-                        ? songbook
-                        : {
-                            ...songbook,
-                            updatedAt: now,
-                            items: [
-                                ...songbook.items,
-                                ...items.map((item, index) => ({
-                                    ...item,
-                                    id: `${buildSongbookItemId()}-${index}`,
-                                    addedAt: now + index,
-                                })),
-                            ],
-                        }
-                ),
+                songbooks: updateEntityList(state.songbooks, songbookId, (songbook) => ({
+                    ...songbook,
+                    updatedAt: now,
+                    items: [
+                        ...songbook.items,
+                        ...items.map((item, index) => ({
+                            ...item,
+                            id: `${buildSongbookItemId()}-${index}`,
+                            addedAt: now + index,
+                        })),
+                    ],
+                })),
             };
         });
     },
 
     reorderSongbookItems: (songbookId, orderedItemIds) => {
         set((state) => ({
-            songbooks: state.songbooks.map((songbook) => {
-                if (songbook.id !== songbookId) return songbook;
-                const itemMap = new Map(songbook.items.map((item) => [item.id, item]));
-                const nextItems = orderedItemIds
-                    .map((itemId) => itemMap.get(itemId) ?? null)
-                    .filter((item): item is SongbookItem => !!item);
-                const seenIds = new Set(nextItems.map((item) => item.id));
-                songbook.items.forEach((item) => {
-                    if (!seenIds.has(item.id)) nextItems.push(item);
-                });
-                return { ...songbook, updatedAt: Date.now(), items: nextItems };
-            }),
+            songbooks: updateEntityList(state.songbooks, songbookId, (songbook) => ({
+                ...songbook,
+                updatedAt: Date.now(),
+                items: reorderByIds(songbook.items, orderedItemIds),
+            })),
         }));
     },
 
     removeSongbookItem: (songbookId, songbookItemId) => {
         set((state) => ({
-            songbooks: state.songbooks.map((songbook) =>
-                songbook.id !== songbookId
-                    ? songbook
-                    : {
-                        ...songbook,
-                        updatedAt: Date.now(),
-                        items: songbook.items.filter((item) => item.id !== songbookItemId),
-                    }
-            ),
+            songbooks: updateEntityList(state.songbooks, songbookId, (songbook) => ({
+                ...songbook,
+                updatedAt: Date.now(),
+                items: songbook.items.filter((item) => item.id !== songbookItemId),
+            })),
         }));
     },
 
     renameSongbook: (songbookId, title) => {
         set((state) => ({
-            songbooks: state.songbooks.map((songbook) =>
-                songbook.id !== songbookId
-                    ? songbook
-                    : { ...songbook, updatedAt: Date.now(), title: title.trim() || songbook.title }
-            ),
+            songbooks: updateEntityList(state.songbooks, songbookId, (songbook) => ({
+                ...songbook,
+                updatedAt: Date.now(),
+                title: title.trim() || songbook.title,
+            })),
         }));
     },
 
@@ -2731,72 +2717,53 @@ export const createDataSlice: StateCreator<
     addSetlistEntry: (setlistId, entry) => {
         const now = Date.now();
         set((state) => ({
-            setlists: state.setlists.map((setlist) =>
-                setlist.id !== setlistId
-                    ? setlist
-                    : {
-                        ...setlist,
-                        updatedAt: now,
-                        entries: [...setlist.entries, { ...entry, id: buildSetlistEntryId(), addedAt: now }],
-                    }
-            ),
+            setlists: updateEntityList(state.setlists, setlistId, (setlist) => ({
+                ...setlist,
+                updatedAt: now,
+                entries: [...setlist.entries, { ...entry, id: buildSetlistEntryId(), addedAt: now }],
+            })),
         }));
     },
 
     updateSetlistEntry: (setlistId, entryId, patch) => {
         set((state) => ({
-            setlists: state.setlists.map((setlist) =>
-                setlist.id !== setlistId
-                    ? setlist
-                    : {
-                        ...setlist,
-                        updatedAt: Date.now(),
-                        entries: setlist.entries.map((entry) =>
-                            entry.id === entryId ? { ...entry, ...patch } : entry
-                        ),
-                    }
-            ),
+            setlists: updateEntityList(state.setlists, setlistId, (setlist) => ({
+                ...setlist,
+                updatedAt: Date.now(),
+                entries: setlist.entries.map((entry) =>
+                    entry.id === entryId ? { ...entry, ...patch } : entry
+                ),
+            })),
         }));
     },
 
     removeSetlistEntry: (setlistId, entryId) => {
         set((state) => ({
-            setlists: state.setlists.map((setlist) =>
-                setlist.id !== setlistId
-                    ? setlist
-                    : {
-                        ...setlist,
-                        updatedAt: Date.now(),
-                        entries: setlist.entries.filter((entry) => entry.id !== entryId),
-                    }
-            ),
+            setlists: updateEntityList(state.setlists, setlistId, (setlist) => ({
+                ...setlist,
+                updatedAt: Date.now(),
+                entries: setlist.entries.filter((entry) => entry.id !== entryId),
+            })),
         }));
     },
 
     reorderSetlistEntries: (setlistId, orderedEntryIds) => {
         set((state) => ({
-            setlists: state.setlists.map((setlist) => {
-                if (setlist.id !== setlistId) return setlist;
-                const map = new Map(setlist.entries.map((entry) => [entry.id, entry]));
-                const next = orderedEntryIds
-                    .map((id) => map.get(id) ?? null)
-                    .filter((entry): entry is SetlistEntry => !!entry);
-                const seen = new Set(next.map((entry) => entry.id));
-                setlist.entries.forEach((entry) => {
-                    if (!seen.has(entry.id)) next.push(entry);
-                });
-                return { ...setlist, updatedAt: Date.now(), entries: next };
-            }),
+            setlists: updateEntityList(state.setlists, setlistId, (setlist) => ({
+                ...setlist,
+                updatedAt: Date.now(),
+                entries: reorderByIds(setlist.entries, orderedEntryIds),
+            })),
         }));
     },
 
     renameSetlist: (setlistId, title) => {
         set((state) => ({
-            setlists: state.setlists.map((setlist) =>
-                setlist.id !== setlistId
-                    ? setlist
-                    : { ...setlist, updatedAt: Date.now(), title: title.trim() || setlist.title }
-            ),
+            setlists: updateEntityList(state.setlists, setlistId, (setlist) => ({
+                ...setlist,
+                updatedAt: Date.now(),
+                title: title.trim() || setlist.title,
+            })),
         }));
     },
 
