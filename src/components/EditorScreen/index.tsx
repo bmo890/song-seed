@@ -460,6 +460,7 @@ export function EditorScreen() {
                             waveformPeaks={clipWaveform.peaks}
                             waveformPending={waveformPending}
                             waveformAnalyzing={clipWaveform.isGenerating}
+                            waveformResolving={clipWaveform.isResolvingDetail}
                             durationMs={analysisData.durationMs}
                             currentTimeMs={playheadTimeMs}
                             resetKey={clipId}

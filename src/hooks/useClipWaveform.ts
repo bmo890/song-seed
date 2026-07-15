@@ -1,7 +1,11 @@
 import { useEffect, useState } from "react";
 import { InteractionManager } from "react-native";
 import { cancelActiveWaveformDecode } from "../services/waveformAnalysis";
-import { generateWaveformSidecar, readWaveformSidecar } from "../services/waveformSidecar";
+import {
+  generateWaveformSidecar,
+  peekWaveformSidecar,
+  readWaveformSidecar,
+} from "../services/waveformSidecar";
 
 /** Pause dwell before generating a missing sidecar. Opening the player lands paused
  *  and most listeners tap play within a beat; a play press preempts an in-flight
@@ -44,7 +48,16 @@ export function useClipWaveform({
   // used to show the PREVIOUS clip's high-res wave before snapping to the new
   // one. Matching the tag against the current audioUri at render time makes a
   // stale sidecar invisible in the same frame the clip changes.
-  const [detail, setDetail] = useState<{ uri: string; peaks: number[] } | null>(null);
+  // Seeded from the in-memory sidecar cache so a clip whose sidecar is already known
+  // (opened before this session, or analyzed by background hydration) renders at full
+  // resolution on its FIRST frame — no read, no upgrade-in-front-of-the-user.
+  const [detail, setDetail] = useState<{ uri: string; peaks: number[] } | null>(() => {
+    const cached = audioUri ? peekWaveformSidecar(audioUri) : null;
+    return cached ? { uri: audioUri!, peaks: cached } : null;
+  });
+  /** A cold sidecar read is in flight for the current uri. Surfaces use this to avoid
+   *  painting a low-res stand-in that would visibly sharpen a moment later. */
+  const [isResolvingDetail, setIsResolvingDetail] = useState(false);
   // True only while the native decode is actually inside the decoder — not while
   // waiting out the dwell, and not while deferred by playback. Surfaces use it to
   // caption real work ("Analyzing waveform…") without ever claiming work that is
@@ -55,13 +68,29 @@ export function useClipWaveform({
   // Cheap: load any already-cached sidecar right away (just a file read). Reset when
   // the source changes so a stale wave never lingers onto the next clip.
   useEffect(() => {
-    setDetail((prev) => (prev && prev.uri === audioUri ? prev : null));
-    if (!enabled || !audioUri) return;
+    if (!enabled || !audioUri) {
+      setDetail((prev) => (prev && prev.uri === audioUri ? prev : null));
+      setIsResolvingDetail(false);
+      return;
+    }
 
+    const cached = peekWaveformSidecar(audioUri);
+    if (cached) {
+      setDetail({ uri: audioUri, peaks: cached });
+      setIsResolvingDetail(false);
+      return;
+    }
+
+    setDetail((prev) => (prev && prev.uri === audioUri ? prev : null));
+    setIsResolvingDetail(true);
     let cancelled = false;
     void (async () => {
       const existing = await readWaveformSidecar(audioUri);
-      if (!cancelled && existing && existing.length) setDetail({ uri: audioUri, peaks: existing });
+      if (cancelled) return;
+      if (existing && existing.length) setDetail({ uri: audioUri, peaks: existing });
+      // Resolved either way — a MISSING sidecar must clear this too, or a surface
+      // waiting on it would hold its placeholder until generation finishes.
+      setIsResolvingDetail(false);
     })();
 
     return () => {
@@ -116,5 +145,6 @@ export function useClipWaveform({
     peaks: detailPeaks ?? thumbnail,
     isDetail: !!detailPeaks,
     isGenerating,
+    isResolvingDetail,
   };
 }

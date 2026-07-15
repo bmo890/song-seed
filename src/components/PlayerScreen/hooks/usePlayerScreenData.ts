@@ -127,6 +127,7 @@ export function usePlayerScreenData({ playerDuration, isPlaying = false }: UsePl
   // high-res sidecar loaded, which only ever exists for a really-analyzed clip — so it
   // also clears pending the moment the reel has a true shape to draw.
   const waveformPending = playerClip ? isClipWaveformPending(playerClip) && !clipWaveform.isDetail : false;
+  const waveformResolving = clipWaveform.isResolvingDetail;
   const practiceMarkers = useMemo(() => {
     if (playerClip?.practiceMarkers && playerClip.practiceMarkers.length > 0) {
       return playerClip.practiceMarkers;
@@ -180,6 +181,7 @@ export function usePlayerScreenData({ playerDuration, isPlaying = false }: UsePl
     playbackAudioUri,
     waveformPeaks,
     waveformPending,
+    waveformResolving,
     displayDuration,
     practiceMarkers,
     sections,

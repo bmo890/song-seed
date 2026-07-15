@@ -36,12 +36,50 @@ function decode(raw: string): number[] | null {
   }
 }
 
+/**
+ * In-memory cache of decoded sidecars, keyed by audio uri.
+ *
+ * Reading one costs two async FS round-trips plus a 2048-number JSON parse — and
+ * that lands on a JS thread already busy opening the player, so the reel's first
+ * frames render from the low-res thumbnail and then visibly upgrade. Sidecars are
+ * immutable for a given audio file (a new take is a new uri), so caching is safe;
+ * invalidated explicitly on write/delete.
+ *
+ * Bounded: a few hundred KB at the cap, and entries are plain number[].
+ */
+const sidecarCache = new Map<string, number[]>();
+const SIDECAR_CACHE_LIMIT = 24;
+
+function cacheSidecar(audioUri: string, peaks: number[]) {
+  // Cheap LRU: re-inserting moves the key to the end of Map iteration order, so the
+  // oldest untouched entry is always the first one out.
+  sidecarCache.delete(audioUri);
+  sidecarCache.set(audioUri, peaks);
+  if (sidecarCache.size > SIDECAR_CACHE_LIMIT) {
+    const oldest = sidecarCache.keys().next();
+    if (!oldest.done) sidecarCache.delete(oldest.value);
+  }
+}
+
+/** Cached sidecar for `audioUri`, or null. Synchronous — lets a surface render the
+ *  real waveform on its FIRST frame instead of upgrading into it a beat later. */
+export function peekWaveformSidecar(audioUri: string): number[] | null {
+  const cached = sidecarCache.get(audioUri);
+  if (!cached) return null;
+  cacheSidecar(audioUri, cached); // touch for LRU
+  return cached;
+}
+
 export async function readWaveformSidecar(audioUri: string): Promise<number[] | null> {
+  const cached = peekWaveformSidecar(audioUri);
+  if (cached) return cached;
   try {
     const path = waveformSidecarUri(audioUri);
     const info = await FileSystem.getInfoAsync(path);
     if (!info.exists) return null;
-    return decode(await FileSystem.readAsStringAsync(path));
+    const peaks = decode(await FileSystem.readAsStringAsync(path));
+    if (peaks) cacheSidecar(audioUri, peaks);
+    return peaks;
   } catch {
     return null;
   }
@@ -51,12 +89,17 @@ export async function writeWaveformSidecar(audioUri: string, peaks: number[]): P
   if (!peaks.length) return;
   try {
     await FileSystem.writeAsStringAsync(waveformSidecarUri(audioUri), encode(peaks));
+    // Warm the cache with what we just wrote: background hydration pre-builds
+    // sidecars, so a clip analyzed this session opens at full resolution on its
+    // first frame — no disk read at all.
+    cacheSidecar(audioUri, peaks);
   } catch (error) {
     console.warn("[waveform] sidecar write failed", error);
   }
 }
 
 export async function deleteWaveformSidecar(audioUri: string): Promise<void> {
+  sidecarCache.delete(audioUri);
   try {
     await FileSystem.deleteAsync(waveformSidecarUri(audioUri), { idempotent: true });
   } catch {

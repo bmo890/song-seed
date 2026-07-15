@@ -110,6 +110,14 @@ type Props = {
      *  False while pending-but-deferred (playback is using the codec), so the caption
      *  never claims work that is standing down. */
     waveformAnalyzing?: boolean;
+    /**
+     * The high-resolution source is still loading (a cold sidecar read, ~one frame
+     * when cached, a few otherwise). While true AND the peaks on hand are too coarse
+     * for the current zoom, the reel holds the pending line rather than painting a
+     * stretched stand-in that visibly sharpens a beat later. Resolves either way — a
+     * missing sidecar falls back to the coarse wave rather than waiting forever.
+     */
+    waveformResolving?: boolean;
     durationMs: number;
     currentTimeMs: number;
     sharedCurrentTimeMs?: SharedValue<number>;
@@ -166,6 +174,7 @@ export function AudioReel({
     waveformPeaks,
     waveformPending = false,
     waveformAnalyzing = false,
+    waveformResolving = false,
     durationMs,
     currentTimeMs,
     sharedCurrentTimeMs,
@@ -254,60 +263,6 @@ export function AudioReel({
         height: visualizerHeight.value,
     }));
 
-    // Cross-fade the wave against the pending line. An instant swap from placeholder to
-    // real peaks is a hard visual pop that reads as a glitch; fading the real shape in
-    // reads as it ARRIVING. Snap (no animation) on the first commit and on clip changes
-    // so an already-analyzed clip never fades in from nothing on open.
-    const waveOpacity = useSharedValue(waveformPending ? 0 : 1);
-    const didMountWaveOpacityRef = React.useRef(false);
-    React.useEffect(() => {
-        const target = waveformPending ? 0 : 1;
-        if (!didMountWaveOpacityRef.current) {
-            didMountWaveOpacityRef.current = true;
-            waveOpacity.value = target;
-            return;
-        }
-        waveOpacity.value = withTiming(target, { duration: durations.slow });
-    }, [waveformPending, waveOpacity]);
-    React.useEffect(() => {
-        // New clip in the reel: adopt its state immediately rather than fading between
-        // two different clips' waveforms.
-        waveOpacity.value = waveformPending ? 0 : 1;
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [resetKey]);
-    const waveLayerStyle = useAnimatedStyle(() => ({ opacity: waveOpacity.value }));
-    // Breathing on the pending dashes — one 0→1 progress value drives BOTH the fade
-    // and a vertical swell, so the line reads as alive from across the room without
-    // ever growing enough amplitude to be mistaken for the audio's actual shape.
-    // Runs only while pending, so the repeat loop isn't spinning under an opaque wave.
-    const pendingPulse = useSharedValue(1);
-    React.useEffect(() => {
-        if (!waveformPending) {
-            cancelAnimation(pendingPulse);
-            pendingPulse.value = 1;
-            return;
-        }
-        pendingPulse.value = withRepeat(
-            withSequence(
-                withTiming(0, { duration: 800 }),
-                withTiming(1, { duration: 800 })
-            ),
-            -1,
-            false
-        );
-        return () => cancelAnimation(pendingPulse);
-    }, [pendingPulse, waveformPending]);
-    const pendingPulseStyle = useAnimatedStyle(() => ({
-        opacity: 0.4 + pendingPulse.value * 0.6,
-        transform: [{ scaleY: 1 + pendingPulse.value * 1.2 }],
-    }));
-    // The pending line's opacity is the exact inverse, so the two genuinely cross-fade.
-    // It stays MOUNTED at opacity 0 rather than being conditionally rendered: unmounting
-    // on the pending flip would pop it out instantly while the wave was still fading in —
-    // a hole in the middle of the transition, which is the pop this whole treatment exists
-    // to avoid.
-    const pendingLayerStyle = useAnimatedStyle(() => ({ opacity: 1 - waveOpacity.value }));
-
     const zoomText = `${zoomMultiple.toFixed(zoomMultiple % 1 === 0 ? 0 : 1)}x`;
     const nearestZoomIndex = React.useMemo(() => {
         let bestIndex = 0;
@@ -346,6 +301,72 @@ export function AudioReel({
         const requestedBarCount = Math.max(48, Math.round(visibleBarCapacity * zoomMultiple));
         return Math.max(1, requestedBarCount / targetPeakCount);
     }, [mainCanvasWidth, targetPeakCount, zoomMultiple]);
+    // Hold the wave back while the picture on hand would be a lie OR a visibly-wrong
+    // stand-in:
+    //  - pending: peaks are synthetic; there is no real shape yet.
+    //  - resolving + coarse: the real high-res source is milliseconds away, and the
+    //    thumbnail we're holding can't fill this zoom — the reel would stretch it
+    //    (sparse, spread-out bars) and then snap to the true density in front of the
+    //    user. Waiting a frame or two shows the correct picture the FIRST time.
+    // A coarse source with nothing better coming (sidecar missing → resolving clears)
+    // still renders: an approximate wave beats an indefinite placeholder.
+    const sourceTooCoarseForZoom = overscaleFactor > 1.25;
+    const waveHidden = waveformPending || (waveformResolving && sourceTooCoarseForZoom);
+
+    // Cross-fade the wave against the pending line. An instant swap from placeholder to
+    // real peaks is a hard visual pop that reads as a glitch; fading the real shape in
+    // reads as it ARRIVING. Snap (no animation) on the first commit and on clip changes
+    // so an already-analyzed clip never fades in from nothing on open.
+    const waveOpacity = useSharedValue(waveHidden ? 0 : 1);
+    const didMountWaveOpacityRef = React.useRef(false);
+    React.useEffect(() => {
+        const target = waveHidden ? 0 : 1;
+        if (!didMountWaveOpacityRef.current) {
+            didMountWaveOpacityRef.current = true;
+            waveOpacity.value = target;
+            return;
+        }
+        waveOpacity.value = withTiming(target, { duration: durations.slow });
+    }, [waveHidden, waveOpacity]);
+    React.useEffect(() => {
+        // New clip in the reel: adopt its state immediately rather than fading between
+        // two different clips' waveforms.
+        waveOpacity.value = waveHidden ? 0 : 1;
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [resetKey]);
+    const waveLayerStyle = useAnimatedStyle(() => ({ opacity: waveOpacity.value }));
+    // Breathing on the pending dashes — one 0→1 progress value drives BOTH the fade
+    // and a vertical swell, so the line reads as alive from across the room without
+    // ever growing enough amplitude to be mistaken for the audio's actual shape.
+    // Runs only while pending, so the repeat loop isn't spinning under an opaque wave.
+    const pendingPulse = useSharedValue(1);
+    React.useEffect(() => {
+        if (!waveformPending) {
+            cancelAnimation(pendingPulse);
+            pendingPulse.value = 1;
+            return;
+        }
+        pendingPulse.value = withRepeat(
+            withSequence(
+                withTiming(0, { duration: 800 }),
+                withTiming(1, { duration: 800 })
+            ),
+            -1,
+            false
+        );
+        return () => cancelAnimation(pendingPulse);
+    }, [pendingPulse, waveformPending]);
+    const pendingPulseStyle = useAnimatedStyle(() => ({
+        opacity: 0.4 + pendingPulse.value * 0.6,
+        transform: [{ scaleY: 1 + pendingPulse.value * 1.2 }],
+    }));
+    // The pending line's opacity is the exact inverse, so the two genuinely cross-fade.
+    // It stays MOUNTED at opacity 0 rather than being conditionally rendered: unmounting
+    // on the pending flip would pop it out instantly while the wave was still fading in —
+    // a hole in the middle of the transition, which is the pop this whole treatment exists
+    // to avoid.
+    const pendingLayerStyle = useAnimatedStyle(() => ({ opacity: 1 - waveOpacity.value }));
+
     const pixelsPerMs = durationMs > 0 ? (displayWaveformPeaks.length * 3) / durationMs : 0;
     const showMinimap =
         showMinimapMode === "always"

@@ -44,6 +44,8 @@ type Props = {
   waveformPending?: boolean;
   /** A decode is in flight right now — show the "Analyzing waveform…" caption. */
   waveformAnalyzing?: boolean;
+  /** The high-res source is still loading — hold back a too-coarse stand-in. */
+  waveformResolving?: boolean;
   durationMs: number;
   resetKey?: string | number | null;
   isPlayerPlaying: boolean;
@@ -196,6 +198,7 @@ function PlayerTimelineInner({
   waveformPeaks,
   waveformPending,
   waveformAnalyzing,
+  waveformResolving,
   durationMs,
   resetKey,
   isPlayerPlaying,
@@ -244,6 +247,7 @@ function PlayerTimelineInner({
       waveformPeaks={waveformPeaks}
       waveformPending={waveformPending}
       waveformAnalyzing={waveformAnalyzing}
+      waveformResolving={waveformResolving}
       durationMs={durationMs}
       resetKey={resetKey}
       initialZoomMultiple={openingZoomForDuration(durationMs)}
