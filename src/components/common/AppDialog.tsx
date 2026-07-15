@@ -5,7 +5,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { haptic } from "../../design/haptics";
 import { popIn } from "../../design/motion";
 import { dialogStore, type DialogButton, type DialogConfig } from "./dialogStore";
-import { radii } from "../../design/tokens";
+import { colors, radii } from "../../design/tokens";
 
 /**
  * Styled in-app dialog that replaces native Alert.alert.
@@ -44,7 +44,7 @@ export function AppDialogHost() {
   const sideBySide = !isRich && config.buttons.length === 2;
 
   const iconColor = (style?: string) =>
-    style === "destructive" ? "#a83232" : style === "cancel" ? "#84736f" : "#524440";
+    style === "destructive" ? "#a83232" : style === "cancel" ? colors.textSecondary : colors.textStrong;
 
   return (
     <Modal visible transparent animationType="fade" onRequestClose={hasCancel ? dismiss : undefined}>
@@ -130,7 +130,7 @@ function RichRow({ btn, onPress }: { btn: DialogButton; onPress: () => void }) {
     >
       {btn.icon ? (
         <View style={[s.richIconWrap, destructive ? s.richIconWrapDanger : null]}>
-          <Ionicons name={btn.icon} size={19} color={destructive ? "#a83232" : "#524440"} />
+          <Ionicons name={btn.icon} size={19} color={destructive ? "#a83232" : colors.textStrong} />
         </View>
       ) : null}
       <View style={s.richTextCol}>
@@ -167,7 +167,7 @@ const s = StyleSheet.create({
   },
   card: {
     width: "100%",
-    backgroundColor: "#FDFBF7",
+    backgroundColor: colors.page,
     borderRadius: radii.xl,
     overflow: "hidden",
     shadowColor: "#3D3732",
@@ -189,23 +189,23 @@ const s = StyleSheet.create({
     fontFamily: "PlusJakartaSans_600SemiBold",
     fontSize: 16,
     lineHeight: 22,
-    color: "#1b1c1a",
+    color: colors.textPrimary,
     textAlign: "center",
   },
   message: {
     fontFamily: "PlusJakartaSans_400Regular",
     fontSize: 13,
     lineHeight: 19,
-    color: "#524440",
+    color: colors.textStrong,
     textAlign: "center",
   },
   dividerH: {
     height: StyleSheet.hairlineWidth,
-    backgroundColor: "#E8E4DF",
+    backgroundColor: colors.borderSubtle,
   },
   dividerV: {
     width: StyleSheet.hairlineWidth,
-    backgroundColor: "#E8E4DF",
+    backgroundColor: colors.borderSubtle,
   },
   // Side-by-side
   buttonRow: {
@@ -247,7 +247,7 @@ const s = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: radii.round,
-    backgroundColor: "#F4F1ED",
+    backgroundColor: colors.surfaceContainer,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -262,7 +262,7 @@ const s = StyleSheet.create({
     fontFamily: "PlusJakartaSans_700Bold",
     fontSize: 15,
     lineHeight: 19,
-    color: "#1b1c1a",
+    color: colors.textPrimary,
   },
   richLabelDanger: {
     color: "#a83232",
@@ -271,18 +271,18 @@ const s = StyleSheet.create({
     fontFamily: "PlusJakartaSans_400Regular",
     fontSize: 12.5,
     lineHeight: 17,
-    color: "#84736f",
+    color: colors.textSecondary,
   },
   pressed: {
-    backgroundColor: "#F4F1ED",
+    backgroundColor: colors.surfaceContainer,
   },
   btnText: {
     fontFamily: "PlusJakartaSans_600SemiBold",
     fontSize: 15,
     lineHeight: 20,
   },
-  btnTextDefault: { color: "#1b1c1a" },
-  btnTextCancel: { color: "#84736f" },
+  btnTextDefault: { color: colors.textPrimary },
+  btnTextCancel: { color: colors.textSecondary },
   btnTextDestructive: {
     color: "#a83232",
     fontFamily: "PlusJakartaSans_700Bold",

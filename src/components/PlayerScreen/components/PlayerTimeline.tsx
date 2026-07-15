@@ -12,6 +12,7 @@ import { SectionLabelBadges } from "../SectionLabelBadges";
 import type { PracticeMarker, ClipSection } from "../../../types";
 import { buildSectionBands } from "../../../playerSections";
 import { haptic } from "../../../design/haptics";
+import { colors } from "../../../design/tokens";
 
 type Range = {
   id: string;
@@ -89,7 +90,7 @@ function DragIndicatorLine({
     top: 0,
     bottom: 0,
     width: 2,
-    backgroundColor: "#B87D6B",
+    backgroundColor: colors.primary,
     opacity: draggingMarkerId.value !== "" ? 1 : 0,
   }));
 

@@ -6,9 +6,9 @@ const PAPER = "#fbf9f5";
 const SURFACE = "#efeeea";
 const SURFACE_LO = "#e4deda";
 const TERRACOTTA = colors.primaryDeep;
-const INK = "#1b1c1a";
+const INK = colors.textPrimary;
 const INK_LO = "#4a3f3b";
-const MUTED = "#84736f";
+const MUTED = colors.textSecondary;
 
 export const revisitStyles = {
   screen: { ...base.screen, backgroundColor: PAPER },

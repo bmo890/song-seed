@@ -2,7 +2,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Collection } from "../../../types";
 import { styles } from "../../../styles";
-import { radii } from "../../../design/tokens";
+import { colors, radii } from "../../../design/tokens";
 
 type IdeaListNestedCollectionsSectionProps = {
   childCollections: Collection[];
@@ -40,7 +40,7 @@ export function IdeaListNestedCollectionsSection({
         <Ionicons
           name={expanded ? "chevron-up" : "chevron-down"}
           size={15}
-          color="#84736f"
+          color={colors.textSecondary}
         />
       </Pressable>
 
@@ -59,7 +59,7 @@ export function IdeaListNestedCollectionsSection({
                 <Ionicons
                   name="folder-outline"
                   size={14}
-                  color="#84736f"
+                  color={colors.textSecondary}
                 />
                 <Text style={nestedCollectionStyles.itemTitle} numberOfLines={1}>
                   {collection.title}
@@ -93,7 +93,7 @@ const nestedCollectionStyles = StyleSheet.create({
     borderRadius: radii.lg,
     borderWidth: 1,
     borderColor: "rgba(215,194,189,0.3)",
-    backgroundColor: "#FDFBF7",
+    backgroundColor: colors.page,
     paddingHorizontal: 16,
     paddingVertical: 10,
     flexDirection: "row",
@@ -103,7 +103,7 @@ const nestedCollectionStyles = StyleSheet.create({
   },
   toggleRowOpen: {
     borderColor: "rgba(215,194,189,0.5)",
-    backgroundColor: "#FFFFFF",
+    backgroundColor: colors.surface,
   },
   toggleCopy: {
     flex: 1,
@@ -117,7 +117,7 @@ const nestedCollectionStyles = StyleSheet.create({
   toggleMeta: {
     fontFamily: "PlusJakartaSans_400Regular",
     fontSize: 13,
-    color: "#84736f",
+    color: colors.textSecondary,
   },
   list: {
     gap: 8,
@@ -128,7 +128,7 @@ const nestedCollectionStyles = StyleSheet.create({
     borderRadius: 8,
     borderWidth: 1,
     borderColor: "rgba(215,194,189,0.3)",
-    backgroundColor: "#FFFFFF",
+    backgroundColor: colors.surface,
     paddingHorizontal: 12,
     flexDirection: "row",
     alignItems: "center",

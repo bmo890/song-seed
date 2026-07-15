@@ -9,6 +9,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { styles } from "../../../styles";
+import { colors } from "../../../design/tokens";
 
 type ClipTagPresentation = {
   key: string;
@@ -66,11 +67,11 @@ export function ClipTagBadges({
           {showAddButton ? (
             tags.length === 0 ? (
               <View style={localStyles.addTagIcon}>
-                <Ionicons name="pricetag-outline" size={15} color="#a89994" />
+                <Ionicons name="pricetag-outline" size={15} color={colors.textMuted} />
               </View>
             ) : (
               <View style={styles.clipCardAddTagBtn}>
-                <Ionicons name="add" size={11} color="#84736f" />
+                <Ionicons name="add" size={11} color={colors.textSecondary} />
               </View>
             )
           ) : null}

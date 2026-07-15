@@ -52,7 +52,7 @@ const surfaceCardStyles = StyleSheet.create({
   },
   cardSelected: {
     backgroundColor: "#FDF5F2",
-    borderColor: "#B87D6B",
+    borderColor: colors.primary,
     borderWidth: 2,
   },
 });

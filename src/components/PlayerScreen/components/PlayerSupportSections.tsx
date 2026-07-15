@@ -534,7 +534,7 @@ export function PlayerSupportSections({
                 accessibilityRole="button"
                 accessibilityLabel="Save as one clip"
               >
-                <Ionicons name="ellipsis-horizontal" size={18} color="#84736f" />
+                <Ionicons name="ellipsis-horizontal" size={18} color={colors.textSecondary} />
               </Pressable>
             </View>
           </View>
@@ -561,7 +561,7 @@ export function PlayerSupportSections({
                     <Ionicons
                       name={rootMixExpanded ? "chevron-up" : "chevron-down"}
                       size={13}
-                      color="#a89994"
+                      color={colors.textMuted}
                     />
                   </View>
                 </Pressable>

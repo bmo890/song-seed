@@ -49,7 +49,7 @@ export function ActivityResultCard({
     <View style={cardStyles.footer}>
       {result.activityLabel ? (
         <View style={cardStyles.action}>
-          <Ionicons name={activityIcon} size={12} color="#84736f" />
+          <Ionicons name={activityIcon} size={12} color={colors.textSecondary} />
           <Text style={cardStyles.actionLabel}>{result.activityLabel}</Text>
         </View>
       ) : (
@@ -129,7 +129,7 @@ const cardStyles = StyleSheet.create({
   actionLabel: {
     fontSize: 11,
     fontFamily: "PlusJakartaSans_600SemiBold",
-    color: "#84736f",
+    color: colors.textSecondary,
   },
   viewBtn: {
     flexDirection: "row",

@@ -26,7 +26,7 @@ import { useWorkspaceCollectionImportFlow } from "../hooks/useWorkspaceCollectio
 import { WorkspaceCollectionList } from "./WorkspaceCollectionList";
 import { WorkspaceAvatar } from "../../common/WorkspaceAvatar";
 import { styles } from "../../../styles";
-import { radii } from "../../../design/tokens";
+import { colors, radii } from "../../../design/tokens";
 
 const DEFAULT_HEADER_HEIGHT = 220;
 
@@ -113,7 +113,7 @@ function WorkspaceBrowseInner() {
           onPress={openDrawer}
           hitSlop={8}
         >
-          <Ionicons name="menu-outline" size={22} color="#84736f" />
+          <Ionicons name="menu-outline" size={22} color={colors.textSecondary} />
         </Pressable>
 
         <ReAnimated.View style={[browseStyles.navCompact, compactTitleStyle]} pointerEvents="none">
@@ -254,7 +254,7 @@ function WorkspaceBrowseInner() {
           ]}
           onPress={importFlow.openAddCollectionFlow}
         >
-          <Ionicons name="add" size={26} color="#ffffff" />
+          <Ionicons name="add" size={26} color={colors.surface} />
         </Pressable>
       ) : null}
 
@@ -368,7 +368,7 @@ const browseStyles = StyleSheet.create({
   emptyMsg: {
     fontFamily: "PlusJakartaSans_400Regular",
     fontSize: 14,
-    color: "#84736f",
+    color: colors.textSecondary,
     padding: 24,
   },
 
@@ -446,7 +446,7 @@ const browseStyles = StyleSheet.create({
     fontFamily: "PlusJakartaSans_600SemiBold",
     fontSize: 10,
     lineHeight: 14,
-    color: "#84736f",
+    color: colors.textSecondary,
     letterSpacing: 0.8,
     textTransform: "uppercase",
   },
@@ -459,7 +459,7 @@ const browseStyles = StyleSheet.create({
     width: 52,
     height: 52,
     borderRadius: radii.round,
-    backgroundColor: "#B87D6B",
+    backgroundColor: colors.primary,
     alignItems: "center",
     justifyContent: "center",
     shadowColor: "#3D3732",

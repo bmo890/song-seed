@@ -3,6 +3,7 @@ import { StyleSheet, Text, View } from "react-native";
 import Animated, { useAnimatedStyle, SharedValue } from "react-native-reanimated";
 import type { ClipSection } from "../../types";
 import { getSectionColor } from "../../playerSections";
+import { colors } from "../../design/tokens";
 
 type Props = {
   sections: ClipSection[];
@@ -90,6 +91,6 @@ const badgeStyles = StyleSheet.create({
   text: {
     fontFamily: "PlusJakartaSans_600SemiBold",
     fontSize: 9.5,
-    color: "#FFFFFF",
+    color: colors.surface,
   },
 });

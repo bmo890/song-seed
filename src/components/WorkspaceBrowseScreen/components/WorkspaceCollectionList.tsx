@@ -2,6 +2,7 @@ import { StyleSheet, Text, View } from "react-native";
 import { SurfaceCard } from "../../common/SurfaceCard";
 import type { WorkspaceCollectionBrowseEntry } from "../../../libraryNavigation";
 import { WorkspaceCollectionCard } from "./WorkspaceCollectionCard";
+import { colors } from "../../../design/tokens";
 
 export function WorkspaceCollectionList({
   collectionEntries,
@@ -67,7 +68,7 @@ const listStyles = StyleSheet.create({
   emptyMeta: {
     fontFamily: "PlusJakartaSans_400Regular",
     fontSize: 13,
-    color: "#84736f",
+    color: colors.textSecondary,
     marginTop: 4,
   },
 });

@@ -6,6 +6,7 @@ import type { SongIdea } from "../../../types";
 import type { RevisitCandidate, RevisitSection, RevisitSectionKey } from "../../../revisit";
 import { revisitStyles } from "../styles";
 import { RevisitCandidateCard } from "./RevisitCandidateCard";
+import { colors } from "../../../design/tokens";
 
 // A daily feature: one idea per section, two at most.
 const MAX_ITEMS_PER_SECTION = 2;
@@ -55,7 +56,7 @@ export function RevisitSectionBlock({
       <View style={revisitStyles.sectionHeader}>
         <View style={revisitStyles.sectionHeaderCol}>
           <View style={revisitStyles.sectionTitleRow}>
-            <Ionicons name={SECTION_ICONS[section.key]} size={16} color="#B87D6B" />
+            <Ionicons name={SECTION_ICONS[section.key]} size={16} color={colors.primary} />
             <Text style={revisitStyles.sectionTitleSerif}>{section.title}</Text>
           </View>
           <Text style={revisitStyles.sectionSubShort}>{section.subtitle}</Text>

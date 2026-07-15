@@ -59,7 +59,7 @@ export function ScreenHeader({
                     onPress={handleLeftPress}
                 >
                     {effectiveLeftIcon === "hamburger" ? (
-                        <Ionicons name="menu-outline" size={22} color="#524440" />
+                        <Ionicons name="menu-outline" size={22} color={colors.textStrong} />
                     ) : (
                         <Text style={headerStyles.backBtnText}>Back</Text>
                     )}

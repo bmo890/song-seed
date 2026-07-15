@@ -23,7 +23,7 @@ const NAV_ICONS: Record<
   notepad: { icon: "journal-outline", color: "#8E7B9E" }, // plum
   tuner: { icon: "speedometer-outline", color: "#6E8E7D" }, // forest
   metronome: { icon: "pulse-outline", color: "#9E7B6E" }, // rust
-  settings: { icon: "settings-outline", color: "#84736f" }, // warm gray
+  settings: { icon: "settings-outline", color: colors.textSecondary }, // warm gray
 };
 
 type RecentCollectionLite = {
@@ -111,7 +111,7 @@ export function SideNav({
           <Ionicons
             name="search"
             size={19}
-            color={currentRoute === "search" ? "#ffffff" : colors.primaryDeep}
+            color={currentRoute === "search" ? colors.surface : colors.primaryDeep}
           />
         </Pressable>
       </View>
@@ -146,7 +146,7 @@ export function SideNav({
               onPress={onGoHome}
               hitSlop={10}
             >
-              <Ionicons name="swap-horizontal-outline" size={18} color="#84736f" />
+              <Ionicons name="swap-horizontal-outline" size={18} color={colors.textSecondary} />
             </Pressable>
           </View>
 
@@ -158,9 +158,9 @@ export function SideNav({
               style={({ pressed }) => [sideNavStyles.collectionsRow, pressed ? styles.pressDown : null]}
               onPress={onGoWorkspace}
             >
-              <Ionicons name="albums-outline" size={16} color="#84736f" />
+              <Ionicons name="albums-outline" size={16} color={colors.textSecondary} />
               <Text style={sideNavStyles.collectionsLabel}>Collections</Text>
-              <Ionicons name="chevron-forward" size={14} color="#a89994" />
+              <Ionicons name="chevron-forward" size={14} color={colors.textMuted} />
             </Pressable>
           ) : null}
 
@@ -189,7 +189,7 @@ export function SideNav({
                     </Text>
                   ) : null}
                 </View>
-                <Ionicons name="chevron-forward" size={14} color="#a89994" />
+                <Ionicons name="chevron-forward" size={14} color={colors.textMuted} />
               </Pressable>
             </>
           ) : null}
@@ -297,12 +297,12 @@ const sideNavStyles = StyleSheet.create({
     width: 22,
     height: 22,
     borderRadius: 6,
-    backgroundColor: "#B87D6B",
+    backgroundColor: colors.primary,
   },
   brandName: {
     fontFamily: "PlayfairDisplay_600SemiBold",
     fontSize: 18,
-    color: "#1b1c1a",
+    color: colors.textPrimary,
   },
   searchBtn: {
     width: 40,
@@ -313,7 +313,7 @@ const sideNavStyles = StyleSheet.create({
     backgroundColor: "#f2e7e2",
   },
   searchBtnActive: {
-    backgroundColor: "#B87D6B",
+    backgroundColor: colors.primary,
   },
 
   // Workspace block
@@ -339,7 +339,7 @@ const sideNavStyles = StyleSheet.create({
     width: 7,
     height: 7,
     borderRadius: 4,
-    backgroundColor: "#B87D6B",
+    backgroundColor: colors.primary,
   },
   workspaceNameRow: {
     flexDirection: "row",
@@ -350,7 +350,7 @@ const sideNavStyles = StyleSheet.create({
     flex: 1,
     fontFamily: "PlusJakartaSans_700Bold",
     fontSize: 20,
-    color: "#1b1c1a",
+    color: colors.textPrimary,
     letterSpacing: 0.1,
   },
   switchBtn: {
@@ -375,7 +375,7 @@ const sideNavStyles = StyleSheet.create({
     fontFamily: "PlusJakartaSans_500Medium",
     fontSize: 14,
     lineHeight: 18,
-    color: "#1b1c1a",
+    color: colors.textPrimary,
   },
 
   // Recent (nested inside the workspace card, sitting on its tint)
@@ -392,7 +392,7 @@ const sideNavStyles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    backgroundColor: "#ffffff",
+    backgroundColor: colors.surface,
     borderRadius: 6,
     borderWidth: 1,
     borderColor: "transparent",
@@ -408,12 +408,12 @@ const sideNavStyles = StyleSheet.create({
     fontFamily: "PlusJakartaSans_500Medium",
     fontSize: 14,
     lineHeight: 18,
-    color: "#1b1c1a",
+    color: colors.textPrimary,
   },
   recentItemMeta: {
     fontFamily: "PlusJakartaSans_400Regular",
     fontSize: 11,
-    color: "#84736f",
+    color: colors.textSecondary,
   },
 
   // Scrollable sections
@@ -425,13 +425,13 @@ const sideNavStyles = StyleSheet.create({
   sectionLabel: {
     fontFamily: "PlusJakartaSans_700Bold",
     fontSize: 10,
-    color: "#84736f",
+    color: colors.textSecondary,
     letterSpacing: 0.8,
     textTransform: "uppercase",
   },
   divider: {
     height: 0.5,
-    backgroundColor: "#d7c2bd",
+    backgroundColor: colors.borderMuted,
     opacity: 0.5,
     marginVertical: 8,
     marginHorizontal: 12,
@@ -444,7 +444,7 @@ const sideNavStyles = StyleSheet.create({
   },
   footerDivider: {
     height: 0.5,
-    backgroundColor: "#d7c2bd",
+    backgroundColor: colors.borderMuted,
     opacity: 0.5,
     marginBottom: 6,
     marginHorizontal: 12,

@@ -19,6 +19,7 @@ import { ClipTagBadges } from "../common/clip/ClipTagBadges";
 import { IdeaCard } from "../common/IdeaCard";
 import type { GestureResponderEvent } from "react-native";
 import { haptic } from "../../design/haptics";
+import { colors } from "../../design/tokens";
 
 export type ClipCardEntry = TimelineClipEntry | EvolutionListClipEntry;
 
@@ -314,7 +315,7 @@ export const ClipCard = React.memo(function ClipCard({
 
       <IdeaCard
         containerStyle={[{ flex: 1 }, parentPickContainerStyle ?? null]}
-        accentBorderColor={displayPrimary || isPrimaryCandidate ? "#B87D6B" : undefined}
+        accentBorderColor={displayPrimary || isPrimaryCandidate ? colors.primary : undefined}
         selected={isSelected || isMoving || isParentPickSource}
         inlineActive={inlineActive}
         isInlinePlaying={isInlinePlaying}
@@ -323,7 +324,7 @@ export const ClipCard = React.memo(function ClipCard({
         compact={compactDensity}
         highlightValue={highlightValue ?? null}
         cornerBadge={
-          clip.isBookmarked ? <Ionicons name="bookmark" size={15} color="#B87D6B" /> : undefined
+          clip.isBookmarked ? <Ionicons name="bookmark" size={15} color={colors.primary} /> : undefined
         }
         canPlay={hasClipPlaybackSource(clip)}
         durationLabel={durationLabel}
@@ -360,7 +361,7 @@ export const ClipCard = React.memo(function ClipCard({
                 accessibilityRole="button"
                 accessibilityLabel="Find in Evolution view"
               >
-                <Ionicons name="git-branch-outline" size={14} color="#a89994" />
+                <Ionicons name="git-branch-outline" size={14} color={colors.textMuted} />
               </Pressable>
             ) : null}
             {entry.kind === "evolution" &&
@@ -379,7 +380,7 @@ export const ClipCard = React.memo(function ClipCard({
                 accessibilityRole="button"
                 accessibilityLabel="View version history for this thread"
               >
-                <Ionicons name="git-commit-outline" size={15} color="#a89994" />
+                <Ionicons name="git-commit-outline" size={15} color={colors.textMuted} />
               </Pressable>
             ) : null}
             {/* Record-a-new-take (mic) stays farthest right — the primary forward action. */}

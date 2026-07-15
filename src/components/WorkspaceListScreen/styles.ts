@@ -74,21 +74,21 @@ export const styles = StyleSheet.create({
     borderRadius: 999,
   },
   sortPillActive: {
-    backgroundColor: "#EDE9E4",
+    backgroundColor: colors.surfaceHigh,
   },
   sortPillText: {
     fontFamily: "PlusJakartaSans_500Medium",
     fontSize: 12,
-    color: "#84736f",
+    color: colors.textSecondary,
   },
   sortPillTextActive: {
-    color: "#1b1c1a",
+    color: colors.textPrimary,
   },
   sortMenu: {
     position: "absolute",
     right: 0,
     top: 4,
-    backgroundColor: "#ffffff",
+    backgroundColor: colors.surface,
     borderRadius: 6,
     padding: 8,
     minWidth: 180,
@@ -104,7 +104,7 @@ export const styles = StyleSheet.create({
   orderMenuTitle: {
     fontFamily: "PlusJakartaSans_600SemiBold",
     fontSize: 10,
-    color: "#84736f",
+    color: colors.textSecondary,
     letterSpacing: 0.8,
     textTransform: "uppercase",
     paddingHorizontal: 10,
@@ -121,7 +121,7 @@ export const styles = StyleSheet.create({
     gap: 10,
   },
   orderMenuItemActive: {
-    backgroundColor: "#EDE9E4",
+    backgroundColor: colors.surfaceHigh,
   },
   orderMenuItemLead: {
     flexDirection: "row",
@@ -134,10 +134,10 @@ export const styles = StyleSheet.create({
     flex: 1,
     fontFamily: "PlusJakartaSans_500Medium",
     fontSize: 13,
-    color: "#524440",
+    color: colors.textStrong,
   },
   orderMenuItemTextActive: {
-    color: "#1b1c1a",
+    color: colors.textPrimary,
     fontFamily: "PlusJakartaSans_600SemiBold",
   },
 
@@ -149,7 +149,7 @@ export const styles = StyleSheet.create({
     marginTop: 32,
     fontFamily: "PlusJakartaSans_400Regular",
     fontSize: 14,
-    color: "#84736f",
+    color: colors.textSecondary,
     textAlign: "center",
   },
 
@@ -170,7 +170,7 @@ export const styles = StyleSheet.create({
     fontFamily: "PlayfairDisplay_400Regular",
     fontSize: 30,
     lineHeight: 36,
-    color: "#84736F",
+    color: colors.textSecondary,
   },
   archivedDivider: {
     flex: 1,
@@ -192,7 +192,7 @@ export const styles = StyleSheet.create({
     width: 52,
     height: 52,
     borderRadius: radii.round,
-    backgroundColor: "#B87D6B",
+    backgroundColor: colors.primary,
     alignItems: "center",
     justifyContent: "center",
     shadowColor: "#000000",

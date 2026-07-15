@@ -6,7 +6,7 @@ import { WorkspaceAvatar } from "../common/WorkspaceAvatar";
 import { WarmModal } from "../common/WarmModal";
 import { HueSlider } from "../common/HueSlider";
 import { hueToAccentHex, hexToHue, DEFAULT_WORKSPACE_COLOR } from "../../workspaceTheme";
-import { radii } from "../../design/tokens";
+import { colors, radii } from "../../design/tokens";
 
 type Props = {
   visible: boolean;
@@ -84,7 +84,7 @@ export function WorkspaceModal({
             onPress={() => setAvatarKey(Date.now())}
             hitSlop={6}
           >
-            <Ionicons name="refresh-outline" size={13} color="#84736f" />
+            <Ionicons name="refresh-outline" size={13} color={colors.textSecondary} />
           </Pressable>
         </View>
       </View>
@@ -195,9 +195,9 @@ const wsStyles = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: "#F4F1ED",
+    backgroundColor: colors.surfaceContainer,
     borderWidth: 1.5,
-    borderColor: "#FDFBF7",
+    borderColor: colors.page,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -208,7 +208,7 @@ const wsStyles = StyleSheet.create({
   input: {
     borderWidth: 1,
     borderColor: "rgba(215,194,189,0.6)",
-    backgroundColor: "#FFFFFF",
+    backgroundColor: colors.surface,
     borderRadius: radii.lg,
     paddingLeft: 14,
     paddingRight: 72,
@@ -231,7 +231,7 @@ const wsStyles = StyleSheet.create({
     width: 26,
     height: 26,
     borderRadius: radii.round,
-    backgroundColor: "#F4F1ED",
+    backgroundColor: colors.surfaceContainer,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -262,20 +262,20 @@ const wsStyles = StyleSheet.create({
   cancelBtnText: {
     fontFamily: "PlusJakartaSans_600SemiBold",
     fontSize: 13,
-    color: "#84736f",
+    color: colors.textSecondary,
   },
   saveBtn: {
     height: 42,
     paddingHorizontal: 20,
     borderRadius: radii.lg,
-    backgroundColor: "#B87D6B",
+    backgroundColor: colors.primary,
     alignItems: "center",
     justifyContent: "center",
   },
   saveBtnText: {
     fontFamily: "PlusJakartaSans_700Bold",
     fontSize: 13,
-    color: "#ffffff",
+    color: colors.surface,
   },
   dangerRow: {
     flexDirection: "row",
@@ -295,7 +295,7 @@ const wsStyles = StyleSheet.create({
   dangerBtnText: {
     fontFamily: "PlusJakartaSans_500Medium",
     fontSize: 12,
-    color: "#84736f",
+    color: colors.textSecondary,
   },
   deleteBtn: {
     height: 36,

@@ -1,7 +1,7 @@
 import { KeyboardAvoidingView, Modal, ScrollView, StyleSheet, Text, View } from "react-native";
 import Animated from "react-native-reanimated";
 import { popIn } from "../../design/motion";
-import { radii } from "../../design/tokens";
+import { colors, radii } from "../../design/tokens";
 
 type Props = {
   visible: boolean;
@@ -52,7 +52,7 @@ export const warmModalStyles = StyleSheet.create({
     paddingHorizontal: 24,
   },
   card: {
-    backgroundColor: "#FDFBF7",
+    backgroundColor: colors.page,
     borderRadius: radii.xl,
     borderWidth: 1,
     borderColor: "rgba(215,194,189,0.35)",

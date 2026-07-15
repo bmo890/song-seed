@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import { PanResponder, StyleSheet, View } from "react-native";
 import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
 import { hslToHex } from "../../workspaceTheme";
+import { colors } from "../../design/tokens";
 
 // Gradient stops across the full hue spectrum at the same muted S/L as accent colours
 const STOPS = Array.from({ length: 13 }, (_, i) => ({
@@ -108,7 +109,7 @@ const sliderStyles = StyleSheet.create({
     width: THUMB_SIZE,
     height: THUMB_SIZE,
     borderRadius: THUMB_SIZE / 2,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: colors.surface,
     borderWidth: 3,
     shadowColor: "#3D3732",
     shadowOpacity: 0.2,

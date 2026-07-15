@@ -1,4 +1,5 @@
 import type { CustomTagDefinition } from "../../types";
+import { colors } from "../../design/tokens";
 
 export type TagColor = { bg: string; text: string };
 
@@ -27,7 +28,7 @@ const CUSTOM_TAG_PALETTE: TagColor[] = [
   { bg: "#DAE4F0", text: "#3D5A7A" },
   { bg: "#E8DFF0", text: "#614A7A" },
   { bg: "#D6E8E2", text: "#35706A" },
-  { bg: "#EDE9E4", text: "#6B5E56" },
+  { bg: colors.surfaceHigh, text: "#6B5E56" },
 ];
 
 export const CUSTOM_TAG_COLOR_OPTIONS = CUSTOM_TAG_PALETTE;
@@ -51,13 +52,13 @@ export function getTagColor(
   const projectTag = projectCustomTags?.find((t) => t.key === key);
   if (projectTag) {
     const palette = CUSTOM_TAG_PALETTE.find((p) => p.bg === projectTag.color);
-    return palette ?? { bg: projectTag.color, text: "#524440" };
+    return palette ?? { bg: projectTag.color, text: colors.textStrong };
   }
 
   const globalTag = globalCustomTags?.find((t) => t.key === key);
   if (globalTag) {
     const palette = CUSTOM_TAG_PALETTE.find((p) => p.bg === globalTag.color);
-    return palette ?? { bg: globalTag.color, text: "#524440" };
+    return palette ?? { bg: globalTag.color, text: colors.textStrong };
   }
 
   return CUSTOM_TAG_PALETTE[hashString(key) % CUSTOM_TAG_PALETTE.length];

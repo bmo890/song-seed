@@ -499,7 +499,7 @@ const searchScreenStyles = StyleSheet.create({
   },
   sectionTitle: {
     ...textTokens.sectionTitle,
-    color: "#1b1c1a",
+    color: colors.textPrimary,
     letterSpacing: 0.5,
   },
   sectionCount: {
@@ -516,12 +516,12 @@ const searchScreenStyles = StyleSheet.create({
   },
   truncationNote: {
     ...textTokens.caption,
-    color: "#a89994",
+    color: colors.textMuted,
     marginTop: 8,
     paddingHorizontal: 2,
   },
   resultCard: {
-    backgroundColor: "#ffffff",
+    backgroundColor: colors.surface,
     borderRadius: 6,
     paddingHorizontal: 14,
     paddingVertical: 14,
@@ -543,7 +543,7 @@ const searchScreenStyles = StyleSheet.create({
   resultTitle: {
     ...textTokens.body,
     fontFamily: "PlusJakartaSans_700Bold",
-    color: "#1b1c1a",
+    color: colors.textPrimary,
     flex: 1,
   },
   resultMetaRow: {
@@ -567,7 +567,7 @@ const searchScreenStyles = StyleSheet.create({
   },
   resultSnippet: {
     ...textTokens.body,
-    color: "#524440",
+    color: colors.textStrong,
     lineHeight: 21,
   },
   snippetHighlight: {

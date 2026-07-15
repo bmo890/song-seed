@@ -1,6 +1,7 @@
 import { Pressable, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { clipLineageStyles } from "../styles";
+import { colors } from "../../../design/tokens";
 
 type SortDirection = "asc" | "desc";
 
@@ -25,7 +26,7 @@ export function ClipLineageSortToggle({
         <Ionicons
           name={direction === "asc" ? "arrow-up" : "arrow-down"}
           size={11}
-          color="#84736f"
+          color={colors.textSecondary}
         />
         <Text style={clipLineageStyles.sortDirectionText}>
           {direction === "asc" ? "Oldest first" : "Newest first"}

@@ -82,7 +82,7 @@ const s = StyleSheet.create({
   actionText: {
     fontSize: 12,
     fontFamily: "PlusJakartaSans_700Bold",
-    color: "#ffffff",
+    color: colors.surface,
   },
   pressed: {
     opacity: 0.8,

@@ -13,11 +13,11 @@ type Props = {
 };
 
 const DENSE_COLORS: Record<string, string> = {
-    seed: "#a89994",
+    seed: colors.textMuted,
     sprout: "#7A6340",
     stem: "#7A4E2D",
     song: colors.primaryDeep,
-    clip: "#84736f",
+    clip: colors.textSecondary,
 };
 
 const DENSE_LABELS: Record<string, string> = {

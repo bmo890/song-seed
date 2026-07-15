@@ -3,6 +3,7 @@ import Animated, { FadeIn } from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
 import { MiniProgress } from "../../../MiniProgress";
 import { styles } from "../../styles";
+import { colors } from "../../../../design/tokens";
 
 type ClipCardInlinePlayerProps = {
   currentMs: number;
@@ -40,7 +41,7 @@ export function ClipCardInlinePlayer({
           onClose();
         }}
       >
-        <Ionicons name="close" size={13} color="#84736f" />
+        <Ionicons name="close" size={13} color={colors.textSecondary} />
       </Pressable>
     </Animated.View>
   );

@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { styles } from "../../styles";
 import { useStore } from "../../state/useStore";
 import { haptic } from "../../design/haptics";
+import { colors } from "../../design/tokens";
 
 export type SelectionActionTone = "default" | "danger";
 
@@ -69,7 +70,7 @@ export function SelectionDock({ actions, onLayout }: SelectionDockProps) {
                     ? "#c4b8b4"
                     : dangerous
                     ? "#a83232"
-                    : "#524440"
+                    : colors.textStrong
                 }
               />
               <Text

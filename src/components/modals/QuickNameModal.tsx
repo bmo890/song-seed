@@ -2,7 +2,7 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 
 import { Ionicons } from "@expo/vector-icons";
 import { WarmModal } from "../common/WarmModal";
 import { genIdea } from "../../utils";
-import { radii } from "../../design/tokens";
+import { colors, radii } from "../../design/tokens";
 
 type Props = {
     visible: boolean;
@@ -152,7 +152,7 @@ export function QuickNameModal({
                         ]}
                         onPress={onPressDestination}
                     >
-                        <Ionicons name="folder-outline" size={18} color="#B87D6B" />
+                        <Ionicons name="folder-outline" size={18} color={colors.primary} />
                         <View style={qStyles.destinationCopy}>
                             {destinationWorkspaceTitle ? (
                                 <Text style={qStyles.destinationWorkspace}>{destinationWorkspaceTitle}</Text>
@@ -161,7 +161,7 @@ export function QuickNameModal({
                                 {destinationCollectionLabel ?? "Choose a collection"}
                             </Text>
                         </View>
-                        <Ionicons name="chevron-forward" size={18} color="#a89994" />
+                        <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
                     </Pressable>
                 </>
             ) : null}
@@ -174,7 +174,7 @@ export function QuickNameModal({
                     <Ionicons
                         name={isPrimary ? "checkbox" : "square-outline"}
                         size={20}
-                        color={isPrimary ? "#B87D6B" : "#D7C2BD"}
+                        color={isPrimary ? colors.primary : colors.borderMuted}
                     />
                     <Text style={qStyles.checkLabel}>Make primary clip</Text>
                 </Pressable>
@@ -209,7 +209,7 @@ export function QuickNameModal({
                 >
                     {saving ? (
                         <View style={qStyles.saveBtnBusy}>
-                            <ActivityIndicator size="small" color="#ffffff" />
+                            <ActivityIndicator size="small" color={colors.surface} />
                             <Text style={qStyles.saveBtnText}>Saving…</Text>
                         </View>
                     ) : (
@@ -228,7 +228,7 @@ const qStyles = StyleSheet.create({
     input: {
         borderWidth: 1,
         borderColor: "rgba(215,194,189,0.6)",
-        backgroundColor: "#FFFFFF",
+        backgroundColor: colors.surface,
         borderRadius: radii.lg,
         paddingLeft: 14,
         paddingRight: 72,
@@ -258,7 +258,7 @@ const qStyles = StyleSheet.create({
         width: 26,
         height: 26,
         borderRadius: radii.round,
-        backgroundColor: "#F4F1ED",
+        backgroundColor: colors.surfaceContainer,
         alignItems: "center",
         justifyContent: "center",
     },
@@ -269,7 +269,7 @@ const qStyles = StyleSheet.create({
         marginTop: 10,
     },
     suggestChip: {
-        backgroundColor: "#F4F1ED",
+        backgroundColor: colors.surfaceContainer,
         borderRadius: radii.xl,
         paddingHorizontal: 12,
         paddingVertical: 7,
@@ -277,19 +277,19 @@ const qStyles = StyleSheet.create({
     suggestChipText: {
         fontFamily: "PlusJakartaSans_600SemiBold",
         fontSize: 13,
-        color: "#524440",
+        color: colors.textStrong,
     },
     helperText: {
         fontFamily: "PlusJakartaSans_400Regular",
         fontSize: 12,
         lineHeight: 18,
-        color: "#84736f",
+        color: colors.textSecondary,
         marginTop: 8,
     },
     destinationLabel: {
         fontFamily: "PlusJakartaSans_600SemiBold",
         fontSize: 11,
-        color: "#84736f",
+        color: colors.textSecondary,
         textTransform: "uppercase",
         letterSpacing: 0.5,
         marginTop: 14,
@@ -301,7 +301,7 @@ const qStyles = StyleSheet.create({
         gap: 11,
         borderWidth: 1,
         borderColor: "rgba(215,194,189,0.6)",
-        backgroundColor: "#FFFFFF",
+        backgroundColor: colors.surface,
         borderRadius: radii.lg,
         paddingHorizontal: 13,
         paddingVertical: 11,
@@ -313,12 +313,12 @@ const qStyles = StyleSheet.create({
     destinationWorkspace: {
         fontFamily: "PlusJakartaSans_400Regular",
         fontSize: 11,
-        color: "#a89994",
+        color: colors.textMuted,
     },
     destinationCollection: {
         fontFamily: "PlusJakartaSans_500Medium",
         fontSize: 14,
-        color: "#1b1c1a",
+        color: colors.textPrimary,
     },
     checkRow: {
         flexDirection: "row",
@@ -329,7 +329,7 @@ const qStyles = StyleSheet.create({
     checkLabel: {
         fontFamily: "PlusJakartaSans_500Medium",
         fontSize: 14,
-        color: "#524440",
+        color: colors.textStrong,
     },
     btnRow: {
         flexDirection: "row",
@@ -349,14 +349,14 @@ const qStyles = StyleSheet.create({
     cancelBtnText: {
         fontFamily: "PlusJakartaSans_600SemiBold",
         fontSize: 13,
-        color: "#84736f",
+        color: colors.textSecondary,
     },
     saveBtn: {
         height: 42,
         minWidth: 92,
         paddingHorizontal: 20,
         borderRadius: radii.lg,
-        backgroundColor: "#B87D6B",
+        backgroundColor: colors.primary,
         alignItems: "center",
         justifyContent: "center",
     },
@@ -368,7 +368,7 @@ const qStyles = StyleSheet.create({
     saveBtnText: {
         fontFamily: "PlusJakartaSans_700Bold",
         fontSize: 13,
-        color: "#ffffff",
+        color: colors.surface,
     },
     btnDisabled: {
         opacity: 0.45,

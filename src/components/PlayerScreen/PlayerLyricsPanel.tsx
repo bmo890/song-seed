@@ -254,7 +254,7 @@ function PlayerLyricsPanelInner({
               hitSlop={6}
               accessibilityLabel={chordsOn ? "Hide chords" : "Show chords"}
             >
-              <MaterialCommunityIcons name={chordsOn ? "music" : "music-off"} size={16} color="#84736f" />
+              <MaterialCommunityIcons name={chordsOn ? "music" : "music-off"} size={16} color={colors.textSecondary} />
             </Pressable>
           ) : null}
 
@@ -280,7 +280,7 @@ function PlayerLyricsPanelInner({
                     <Ionicons
                       name={isScrolling ? "pause" : "play"}
                       size={16}
-                      color={isScrolling ? colors.primaryDeep : "#84736f"}
+                      color={isScrolling ? colors.primaryDeep : colors.textSecondary}
                     />
                   </Pressable>
 
@@ -314,7 +314,7 @@ function PlayerLyricsPanelInner({
                 hitSlop={6}
                 accessibilityLabel="Adjust lyric size"
               >
-                <Ionicons name="text" size={16} color={zoomOpen ? colors.primaryDeep : "#84736f"} />
+                <Ionicons name="text" size={16} color={zoomOpen ? colors.primaryDeep : colors.textSecondary} />
               </Pressable>
             </View>
           ) : null}
@@ -324,7 +324,7 @@ function PlayerLyricsPanelInner({
             onPress={handleToggle}
             hitSlop={6}
           >
-            <Ionicons name={isExpanded ? "chevron-up" : "chevron-down"} size={18} color="#524440" />
+            <Ionicons name={isExpanded ? "chevron-up" : "chevron-down"} size={18} color={colors.textStrong} />
           </Pressable>
         </View>
 

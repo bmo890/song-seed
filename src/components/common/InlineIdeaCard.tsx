@@ -8,6 +8,7 @@ import { styles } from "../../styles";
 import type { IdeaStatus } from "../../types";
 import { fmtDuration } from "../../utils";
 import { useStore } from "../../state/useStore";
+import { colors } from "../../design/tokens";
 
 /** MiniProgress bound to the live inline-player position, shown in the footer
  * slot while a card is the active inline target. */
@@ -125,7 +126,7 @@ export function InlineIdeaCard({
 
   return (
     <IdeaCard
-      accentBorderColor={isProject ? "#B87D6B" : null}
+      accentBorderColor={isProject ? colors.primary : null}
       canPlay={canPlay}
       isInlinePlaying={isPlaying}
       inlineActive={isActive}
@@ -140,7 +141,7 @@ export function InlineIdeaCard({
               onStopPlay();
             }}
           >
-            <Ionicons name="stop-circle-outline" size={14} color="#84736f" />
+            <Ionicons name="stop-circle-outline" size={14} color={colors.textSecondary} />
           </Pressable>
         ) : null
       }

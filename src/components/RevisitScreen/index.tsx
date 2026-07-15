@@ -10,6 +10,7 @@ import { revisitStyles } from "./styles";
 import { RevisitAroundSnapshotView } from "./components/RevisitAroundSnapshotView";
 import { RevisitSectionBlock } from "./components/RevisitSectionBlock";
 import { RevisitCustomizeSheet } from "./components/RevisitCustomizeSheet";
+import { colors } from "../../design/tokens";
 
 // Maps a section to its "What to surface" tag so the Customize toggles hide it.
 const SECTION_TAG: Record<string, string> = {
@@ -53,7 +54,7 @@ export function RevisitScreen() {
               hitSlop={6}
               accessibilityLabel="Customize Revisit"
             >
-              <Ionicons name="options-outline" size={18} color="#84736f" />
+              <Ionicons name="options-outline" size={18} color={colors.textSecondary} />
             </Pressable>
           )
         }

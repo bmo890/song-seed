@@ -4,6 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { styles } from "./styles";
 import { appActions } from "../../state/actions";
 import { SongNotesEditor } from "./components/SongNotesEditor";
+import { colors } from "../../design/tokens";
 
 type IdeaNotesProps = {
     isEditMode: boolean;
@@ -51,7 +52,7 @@ export function IdeaNotes({
                         style={[styles.songNotesTabEmpty, cardStyle]}
                         onPress={() => setIsEditingNotes(true)}
                     >
-                        <Ionicons name="document-text-outline" size={32} color="#a89994" />
+                        <Ionicons name="document-text-outline" size={32} color={colors.textMuted} />
                         <Text style={styles.songNotesTabEmptyTitle}>No notes yet</Text>
                         <Text style={styles.songNotesTabEmptySubtitle}>Tap to start writing</Text>
                     </Pressable>
@@ -72,12 +73,12 @@ export function IdeaNotes({
                 >
                     <View style={styles.songDetailMiniCardHeader}>
                         <View style={styles.songDetailMiniCardTitleWrap}>
-                            <Ionicons name="create-outline" size={14} color="#84736f" />
+                            <Ionicons name="create-outline" size={14} color={colors.textSecondary} />
                             <Text style={styles.songDetailMiniCardTitle}>Notes</Text>
                         </View>
                         <View style={styles.songDetailMiniCardActionWrap}>
                             <Text style={styles.songDetailMiniCardActionText}>Edit</Text>
-                            <Ionicons name="chevron-forward" size={14} color="#a89994" />
+                            <Ionicons name="chevron-forward" size={14} color={colors.textMuted} />
                         </View>
                     </View>
                     <Text style={styles.songNotesTabBody}>{notes.trim()}</Text>
@@ -105,13 +106,13 @@ export function IdeaNotes({
                 >
                     <View style={styles.songDetailSummaryLinkHeader}>
                         <View style={styles.songDetailSummaryLinkLead}>
-                            <Ionicons name="create-outline" size={14} color="#84736f" />
+                            <Ionicons name="create-outline" size={14} color={colors.textSecondary} />
                             <Text style={styles.songDetailSummaryLinkTitle}>Notes</Text>
                         </View>
                         <View style={styles.songDetailSummaryLinkMetaWrap}>
                             <Text style={styles.songDetailSummaryLinkMetaText}>{actionLabel}</Text>
                             {!isEditMode ? (
-                                <Ionicons name="chevron-forward" size={14} color="#a89994" />
+                                <Ionicons name="chevron-forward" size={14} color={colors.textMuted} />
                             ) : null}
                         </View>
                     </View>
@@ -139,13 +140,13 @@ export function IdeaNotes({
             >
                 <View style={styles.songDetailMiniCardHeader}>
                     <View style={styles.songDetailMiniCardTitleWrap}>
-                        <Ionicons name="create-outline" size={14} color="#84736f" />
+                        <Ionicons name="create-outline" size={14} color={colors.textSecondary} />
                         <Text style={styles.songDetailMiniCardTitle}>Notes</Text>
                     </View>
                     <View style={styles.songDetailMiniCardActionWrap}>
                         <Text style={styles.songDetailMiniCardActionText}>{actionLabel}</Text>
                         {!isEditMode ? (
-                            <Ionicons name="chevron-forward" size={14} color="#a89994" />
+                            <Ionicons name="chevron-forward" size={14} color={colors.textMuted} />
                         ) : null}
                     </View>
                 </View>

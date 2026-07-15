@@ -119,7 +119,7 @@ function TransportBarInner({
         <Ionicons
           name={isPlaying ? "pause" : "play"}
           size={playIconSize}
-          color="#FDFBF7"
+          color={colors.page}
           style={isPlaying ? null : styles.playIconNudge}
         />
       </Pressable>
@@ -166,7 +166,7 @@ function TransportBarInner({
               <Ionicons
                 name={trailingIcon}
                 size={compact ? 15 : 18}
-                color={trailingActive ? "#FDFBF7" : trailingDisabled ? "#c4b5b2" : "#6b5a55"}
+                color={trailingActive ? colors.page : trailingDisabled ? "#c4b5b2" : "#6b5a55"}
               />
             </Pressable>
             {trailingCaption ? (
@@ -250,7 +250,7 @@ const styles = StyleSheet.create({
     color: colors.primaryDeep,
   },
   speedBadgeTextActive: {
-    color: "#FDFBF7",
+    color: colors.page,
   },
   trailingButton: {
     width: 36,
@@ -269,7 +269,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   trailingButtonActive: {
-    backgroundColor: "#B87D6B",
+    backgroundColor: colors.primary,
   },
   trailingCol: {
     alignItems: "center",
@@ -280,7 +280,7 @@ const styles = StyleSheet.create({
     fontFamily: "PlusJakartaSans_500Medium",
     fontSize: 10,
     lineHeight: 11,
-    color: "#84736f",
+    color: colors.textSecondary,
     fontVariant: ["tabular-nums"],
   },
   buttonDisabled: {

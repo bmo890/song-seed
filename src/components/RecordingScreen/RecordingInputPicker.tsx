@@ -3,6 +3,7 @@ import { ActivityIndicator, Pressable, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useAudioDevices } from "@siteed/audio-studio";
 import { styles } from "../../styles";
+import { colors } from "../../design/tokens";
 
 type Props = {
     disabled: boolean;
@@ -102,9 +103,9 @@ export function RecordingInputPicker({ disabled, preferredInputId, onChangePrefe
                     disabled={loading || isApplying}
                 >
                     {loading || isApplying ? (
-                        <ActivityIndicator size="small" color="#524440" />
+                        <ActivityIndicator size="small" color={colors.textStrong} />
                     ) : (
-                        <Ionicons name="refresh" size={16} color="#524440" />
+                        <Ionicons name="refresh" size={16} color={colors.textStrong} />
                     )}
                 </Pressable>
             </View>
@@ -127,7 +128,7 @@ export function RecordingInputPicker({ disabled, preferredInputId, onChangePrefe
                             <Ionicons
                                 name={iconForType(device.type)}
                                 size={18}
-                                color={isActive ? "#FFFFFF" : "#524440"}
+                                color={isActive ? colors.surface : colors.textStrong}
                             />
                             <Text
                                 style={[
@@ -138,7 +139,7 @@ export function RecordingInputPicker({ disabled, preferredInputId, onChangePrefe
                                 {formatDeviceLabel(device)}
                             </Text>
                             {isActive ? (
-                                <Ionicons name="checkmark" size={16} color="#FFFFFF" style={styles.recordingInputOptionCheck} />
+                                <Ionicons name="checkmark" size={16} color={colors.surface} style={styles.recordingInputOptionCheck} />
                             ) : null}
                         </Pressable>
                     );

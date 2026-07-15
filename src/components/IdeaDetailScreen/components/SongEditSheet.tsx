@@ -79,9 +79,9 @@ export function SongEditSheet({
           onChangeCompletion(value);
           onChangeStatus(value >= 75 ? "song" : value >= 50 ? "stem" : value >= 25 ? "sprout" : "seed");
         }}
-        minimumTrackTintColor="#B87D6B"
-        maximumTrackTintColor="#D7C2BD"
-        thumbTintColor="#B87D6B"
+        minimumTrackTintColor={colors.primary}
+        maximumTrackTintColor={colors.borderMuted}
+        thumbTintColor={colors.primary}
       />
 
       <View style={styles.footer}>

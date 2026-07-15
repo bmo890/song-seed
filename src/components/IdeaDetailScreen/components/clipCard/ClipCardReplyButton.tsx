@@ -1,6 +1,7 @@
 import { Pressable } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { styles } from "../../styles";
+import { colors } from "../../../../design/tokens";
 
 type ClipCardReplyButtonProps = {
   visible: boolean;
@@ -29,7 +30,7 @@ export function ClipCardReplyButton({
       accessibilityRole="button"
       accessibilityLabel="Record a new take in this thread"
     >
-      <Ionicons name="mic-outline" size={15} color="#84736f" />
+      <Ionicons name="mic-outline" size={15} color={colors.textSecondary} />
     </Pressable>
   );
 }

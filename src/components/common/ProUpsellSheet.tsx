@@ -284,7 +284,7 @@ const styles = StyleSheet.create({
         fontFamily: "PlusJakartaSans_700Bold",
         fontSize: 15,
         letterSpacing: 0.3,
-        color: "#FFFFFF",
+        color: colors.surface,
     },
     footerLinks: {
         flexDirection: "row",

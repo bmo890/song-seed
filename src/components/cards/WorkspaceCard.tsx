@@ -5,6 +5,7 @@ import { Workspace } from "../../types";
 import { SurfaceCard } from "../common/SurfaceCard";
 import { WorkspaceAvatar } from "../common/WorkspaceAvatar";
 import { useStore } from "../../state/useStore";
+import { colors } from "../../design/tokens";
 
 type Props = {
   workspace: Workspace;
@@ -76,7 +77,7 @@ export function WorkspaceCard({
               onPress={onOpenActions}
               hitSlop={8}
             >
-              <Ionicons name="ellipsis-vertical" size={14} color="#D7C2BD" />
+              <Ionicons name="ellipsis-vertical" size={14} color={colors.borderMuted} />
             </Pressable>
           )}
         </View>
@@ -115,7 +116,7 @@ export function WorkspaceCard({
           />
           {isPrimary ? (
             <View style={cardStyles.primaryBadge}>
-              <Ionicons name="star" size={10} color="#B87D6B" />
+              <Ionicons name="star" size={10} color={colors.primary} />
               <Text style={cardStyles.primaryLabel}>Primary</Text>
             </View>
           ) : null}
@@ -134,7 +135,7 @@ export function WorkspaceCard({
               onPress={onOpenActions}
               hitSlop={8}
             >
-              <Ionicons name="ellipsis-vertical" size={16} color="#D7C2BD" />
+              <Ionicons name="ellipsis-vertical" size={16} color={colors.borderMuted} />
             </Pressable>
           )}
         </View>
@@ -181,7 +182,7 @@ const cardStyles = StyleSheet.create({
     borderRadius: 8,
     padding: 32,
     gap: 0,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: colors.surface,
     shadowColor: "#3D3732",
     shadowOpacity: 0.03,
     shadowOffset: { width: 0, height: 4 },
@@ -206,7 +207,7 @@ const cardStyles = StyleSheet.create({
   primaryLabel: {
     fontFamily: "PlusJakartaSans_600SemiBold",
     fontSize: 7,
-    color: "#B87D6B",
+    color: colors.primary,
     letterSpacing: 0.5,
     textTransform: "uppercase",
     opacity: 0.85,
@@ -230,12 +231,12 @@ const cardStyles = StyleSheet.create({
     fontFamily: "PlusJakartaSans_400Regular",
     fontSize: 12,
     lineHeight: 16,
-    color: "#a89994",
+    color: colors.textMuted,
   },
   description: {
     fontFamily: "PlusJakartaSans_400Regular",
     fontSize: 14,
-    color: "#524440",
+    color: colors.textStrong,
     lineHeight: 23,
     marginTop: 2,
   },
@@ -310,6 +311,6 @@ const cardStyles = StyleSheet.create({
   },
   archivedMetaDot: {
     fontSize: 12,
-    color: "#D7C2BD",
+    color: colors.borderMuted,
   },
 });

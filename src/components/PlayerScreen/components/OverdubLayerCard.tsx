@@ -219,7 +219,7 @@ export function OverdubLayerCard({
           accessibilityRole="button"
           accessibilityLabel="Layer options"
         >
-          <Ionicons name="ellipsis-horizontal" size={18} color="#84736f" />
+          <Ionicons name="ellipsis-horizontal" size={18} color={colors.textSecondary} />
         </Pressable>
       </View>
 
@@ -252,7 +252,7 @@ export function OverdubLayerCard({
           <Ionicons
             name="options-outline"
             size={13}
-            color={expandedSection === "mix" ? "#ffffff" : "#5a4b45"}
+            color={expandedSection === "mix" ? colors.surface : "#5a4b45"}
           />
           <Text style={[cardStyles.modeChipText, expandedSection === "mix" ? cardStyles.modeChipTextActive : null]}>
             Levels
@@ -270,7 +270,7 @@ export function OverdubLayerCard({
           <Ionicons
             name="git-compare-outline"
             size={13}
-            color={expandedSection === "align" ? "#ffffff" : "#5a4b45"}
+            color={expandedSection === "align" ? colors.surface : "#5a4b45"}
           />
           <Text
             style={[cardStyles.modeChipText, expandedSection === "align" ? cardStyles.modeChipTextActive : null]}
@@ -335,7 +335,7 @@ export function OverdubLayerCard({
               <Ionicons
                 name={isAuditioning ? "stop" : "play"}
                 size={14}
-                color={isAuditioning ? "#ffffff" : colors.primaryDeep}
+                color={isAuditioning ? colors.surface : colors.primaryDeep}
               />
               <Text
                 style={[
@@ -504,7 +504,7 @@ const cardStyles = StyleSheet.create({
     color: "#5a4b45",
   },
   modeChipTextActive: {
-    color: "#ffffff",
+    color: colors.surface,
   },
   section: {
     marginTop: 10,
@@ -518,7 +518,7 @@ const cardStyles = StyleSheet.create({
   gainReadoutText: {
     fontSize: 13,
     fontFamily: "PlusJakartaSans_700Bold",
-    color: "#1b1c1a",
+    color: colors.textPrimary,
   },
   alignControls: {
     flexDirection: "row",
@@ -550,7 +550,7 @@ const cardStyles = StyleSheet.create({
     color: colors.primaryDeep,
   },
   auditionButtonTextActive: {
-    color: "#ffffff",
+    color: colors.surface,
   },
   nudgeCluster: {
     flexDirection: "row",
@@ -576,7 +576,7 @@ const cardStyles = StyleSheet.create({
   },
   alignHint: {
     fontSize: 11,
-    color: "#84736f",
+    color: colors.textSecondary,
   },
   colorPreviewRow: {
     flexDirection: "row",
@@ -593,7 +593,7 @@ const cardStyles = StyleSheet.create({
     flex: 1,
     fontSize: 15,
     fontFamily: "PlusJakartaSans_700Bold",
-    color: "#1b1c1a",
+    color: colors.textPrimary,
     paddingVertical: 6,
   },
   colorModalActions: {
@@ -624,6 +624,6 @@ const cardStyles = StyleSheet.create({
   colorModalConfirmText: {
     fontSize: 14,
     fontFamily: "PlusJakartaSans_700Bold",
-    color: "#ffffff",
+    color: colors.surface,
   },
 });

@@ -16,10 +16,10 @@ const ARC_SIDE_LABEL_TOP = ARC_TRACK_TOP + ARC_SEMI_HEIGHT - 16;
 const PAPER      = "#fbf9f5"; // surface
 const SURFACE    = "#efeeea"; // surface-container
 const TERRACOTTA = colors.primaryDeep; // primary accent
-const INK        = "#1b1c1a"; // on-surface (warm charcoal, not pure black)
-const INK_MID    = "#524440"; // on-surface-variant
-const INK_MUTED  = "#84736f"; // outline
-const DIVIDER    = "#d7c2bd"; // outline-variant
+const INK        = colors.textPrimary; // on-surface (warm charcoal, not pure black)
+const INK_MID    = colors.textStrong; // on-surface-variant
+const INK_MUTED  = colors.textSecondary; // outline
+const DIVIDER    = colors.borderMuted; // outline-variant
 
 export const styles = {
   ...StyleSheet.create({

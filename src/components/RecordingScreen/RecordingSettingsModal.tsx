@@ -4,6 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { styles } from "../../styles";
 import { BottomSheet } from "../common/BottomSheet";
 import { RecordingInputPicker } from "./RecordingInputPicker";
+import { colors } from "../../design/tokens";
 
 type RecordingSettingsModalProps = {
   visible: boolean;
@@ -44,7 +45,7 @@ export function RecordingSettingsModal({
       />
 
       <View style={styles.recordingOutputRow}>
-        <Ionicons name={outputIcon} size={18} color="#84736f" />
+        <Ionicons name={outputIcon} size={18} color={colors.textSecondary} />
         <View style={styles.recordingOutputCopy}>
           <Text style={styles.recordingOutputLabel}>Output</Text>
           <Text style={styles.recordingOutputValue} numberOfLines={1}>

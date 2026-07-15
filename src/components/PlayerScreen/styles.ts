@@ -273,7 +273,7 @@ export const playerScreenStyles = StyleSheet.create({
     minWidth: 0,
     fontSize: 15,
     lineHeight: 19,
-    color: "#1b1c1a",
+    color: colors.textPrimary,
     fontFamily: "PlusJakartaSans_700Bold",
   },
   layerCardDuration: {
@@ -472,7 +472,7 @@ export const playerScreenStyles = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: "#ffffff",
+    backgroundColor: colors.surface,
     shadowColor: "#64748b",
     shadowOpacity: 0.12,
     shadowRadius: 6,
@@ -501,7 +501,7 @@ export const playerScreenStyles = StyleSheet.create({
     backgroundColor: "#eceef2",
   },
   optionChipActive: {
-    backgroundColor: "#ffffff",
+    backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: "#d8dde6",
     shadowColor: "#94a3b8",
@@ -549,7 +549,7 @@ export const playerScreenStyles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 7,
     borderRadius: 12,
-    backgroundColor: "#ffffff",
+    backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: "#d8dde6",
     flexDirection: "row",
@@ -1557,7 +1557,7 @@ export const playerScreenStyles = StyleSheet.create({
   pinSheetButtonText: {
     fontSize: 15,
     fontFamily: "PlusJakartaSans_600SemiBold",
-    color: "#ffffff",
+    color: colors.surface,
   },
   pinSheetButtonSecondaryText: {
     color: "#374151",

@@ -3,6 +3,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { BottomSheet } from "../../common/BottomSheet";
 import { styles as baseStyles } from "../../../styles";
 import { SourceFilterRow, type SourceFilterOption } from "../../common/SourceFilterRow";
+import { colors } from "../../../design/tokens";
 
 type WorkspaceGroup = {
   workspace: SourceFilterOption;
@@ -78,7 +79,7 @@ const styles = StyleSheet.create({
   title: {
     fontFamily: "PlayfairDisplay_600SemiBold",
     fontSize: 19,
-    color: "#1b1c1a",
+    color: colors.textPrimary,
   },
   header: {
     flexDirection: "row",
@@ -92,7 +93,7 @@ const styles = StyleSheet.create({
     fontFamily: "PlusJakartaSans_700Bold",
     letterSpacing: 0.6,
     textTransform: "uppercase",
-    color: "#84736f",
+    color: colors.textSecondary,
   },
   sectionDesc: {
     marginTop: -6,
@@ -110,7 +111,7 @@ const styles = StyleSheet.create({
   resetText: {
     fontSize: 12,
     fontFamily: "PlusJakartaSans_700Bold",
-    color: "#1b1c1a",
+    color: colors.textPrimary,
   },
   list: {
     gap: 10,

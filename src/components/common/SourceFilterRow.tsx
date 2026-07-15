@@ -88,7 +88,7 @@ export function SourceFilterRow({
               {metaText}
             </Text>
             {hasCollections ? (
-              <Ionicons name={expanded ? "chevron-up" : "chevron-down"} size={13} color="#a89994" />
+              <Ionicons name={expanded ? "chevron-up" : "chevron-down"} size={13} color={colors.textMuted} />
             ) : null}
           </View>
         </Pressable>
@@ -96,8 +96,8 @@ export function SourceFilterRow({
         <Switch
           value={option.included}
           onValueChange={onToggleWorkspace}
-          trackColor={{ false: "#E3DCD4", true: "#B87D6B" }}
-          thumbColor="#ffffff"
+          trackColor={{ false: "#E3DCD4", true: colors.primary }}
+          thumbColor={colors.surface}
         />
       </View>
 
@@ -171,7 +171,7 @@ const styles = StyleSheet.create({
     flexShrink: 1,
     fontFamily: "PlusJakartaSans_600SemiBold",
     fontSize: 15,
-    color: "#1b1c1a",
+    color: colors.textPrimary,
   },
   metaRow: {
     flexDirection: "row",
@@ -181,7 +181,7 @@ const styles = StyleSheet.create({
   meta: {
     flexShrink: 1,
     fontSize: 12,
-    color: "#84736f",
+    color: colors.textSecondary,
   },
   // Primary marker — star + label in the app's terracotta, shared by workspace
   // and collection rows.
@@ -227,7 +227,7 @@ const styles = StyleSheet.create({
   collectionCount: {
     marginLeft: "auto",
     fontSize: 12,
-    color: "#a89994",
+    color: colors.textMuted,
     fontVariant: ["tabular-nums"],
   },
   hint: {
@@ -236,6 +236,6 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: "#EBE3D8",
     fontSize: 12,
-    color: "#a89994",
+    color: colors.textMuted,
   },
 });

@@ -18,7 +18,7 @@ export const chordChartColors = {
   // Deeper terracotta accent used while a chord is being dragged.
   chordActive: colors.primaryDeep,
   chordText: colors.onPrimary,
-  lyric: "#1b1c1a",
+  lyric: colors.textPrimary,
   faint: colors.borderMuted,
   addHint: colors.textMuted,
 };

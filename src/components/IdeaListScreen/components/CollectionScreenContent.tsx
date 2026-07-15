@@ -21,6 +21,7 @@ import { goBackFromParentStack, openCollectionInBrowse } from "../../../navigati
 import { SelectionTopBar } from "../../common/SelectionTopBar";
 import { useStore } from "../../../state/useStore";
 import { useStickyDayLabel, useStickyDayChipVisible } from "../stickyDayStore";
+import { colors } from "../../../design/tokens";
 
 // Reasonable first-paint estimate for the header height; corrected on measure.
 const DEFAULT_HEADER_HEIGHT = 230;
@@ -95,7 +96,7 @@ export function CollectionScreenContent() {
           <Text
             onPress={goToLibrary}
             accessibilityRole="button"
-            style={{ fontSize: 15, fontWeight: "600", color: "#824f3f" }}
+            style={{ fontSize: 15, fontWeight: "600", color: colors.primaryDeep }}
           >
             Go to your library
           </Text>
@@ -126,7 +127,7 @@ export function CollectionScreenContent() {
           onHeaderHeight={setHeaderHeight}
           collapsible={<CollectionCollapsibleIdentity />}
           pinned={
-            <View style={{ backgroundColor: "#FDFBF7" }} pointerEvents="box-none">
+            <View style={{ backgroundColor: colors.page }} pointerEvents="box-none">
               <View style={{ paddingHorizontal: 14 }}>
                 <CollectionSearchSection />
                 <CollectionFilterSection />

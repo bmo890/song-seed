@@ -1006,7 +1006,7 @@ const screenStyles = StyleSheet.create({
   routeTitle: {
     fontSize: 17,
     lineHeight: 22,
-    color: "#1b1c1a",
+    color: colors.textPrimary,
     fontFamily: "PlusJakartaSans_700Bold",
   },
   routeMeta: {
@@ -1024,7 +1024,7 @@ const screenStyles = StyleSheet.create({
   phaseTitle: {
     fontSize: 17,
     lineHeight: 22,
-    color: "#1b1c1a",
+    color: colors.textPrimary,
     fontFamily: "PlusJakartaSans_700Bold",
   },
   phaseText: {
@@ -1058,7 +1058,7 @@ const screenStyles = StyleSheet.create({
   progressTrack: {
     height: 10,
     borderRadius: 999,
-    backgroundColor: "#d7c2bd",
+    backgroundColor: colors.borderMuted,
     overflow: "hidden",
   },
   progressFill: {
@@ -1076,7 +1076,7 @@ const screenStyles = StyleSheet.create({
   tapSurfaceLabel: {
     fontSize: 20,
     lineHeight: 24,
-    color: "#1b1c1a",
+    color: colors.textPrimary,
     fontFamily: "PlusJakartaSans_700Bold",
   },
   phaseError: {
@@ -1135,7 +1135,7 @@ const screenStyles = StyleSheet.create({
   primaryButtonText: {
     fontSize: 14,
     lineHeight: 18,
-    color: "#ffffff",
+    color: colors.surface,
     fontFamily: "PlusJakartaSans_700Bold",
   },
   secondaryButton: {
@@ -1149,7 +1149,7 @@ const screenStyles = StyleSheet.create({
   secondaryButtonText: {
     fontSize: 14,
     lineHeight: 18,
-    color: "#1b1c1a",
+    color: colors.textPrimary,
     fontFamily: "PlusJakartaSans_700Bold",
   },
   buttonDisabled: {
@@ -1171,7 +1171,7 @@ const screenStyles = StyleSheet.create({
   savedTitle: {
     fontSize: 15,
     lineHeight: 20,
-    color: "#1b1c1a",
+    color: colors.textPrimary,
     fontFamily: "PlusJakartaSans_700Bold",
   },
   savedMeta: {
@@ -1196,7 +1196,7 @@ const screenStyles = StyleSheet.create({
   savedAdjustButtonText: {
     fontSize: 13,
     lineHeight: 18,
-    color: "#1b1c1a",
+    color: colors.textPrimary,
     fontFamily: "PlusJakartaSans_700Bold",
   },
   removeButton: {

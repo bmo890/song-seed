@@ -13,6 +13,7 @@ import {
 import { GestureDetector, Gesture } from "react-native-gesture-handler";
 import type { PracticeMarker } from "../../types";
 import type { SectionBand } from "../../playerSections";
+import { colors } from "../../design/tokens";
 
 type Props = {
     waveformPeaks: number[];
@@ -778,8 +779,8 @@ export function PlaybackTapeVisualizer({
     };
 
     const waveColor = theme?.waveColor || "#C7B9AF";
-    const wavePlayedColor = theme?.wavePlayedColor || "#B87D6B";
-    const rulerColor = theme?.rulerColor || "#D7C2BD";
+    const wavePlayedColor = theme?.wavePlayedColor || colors.primary;
+    const rulerColor = theme?.rulerColor || colors.borderMuted;
     const playheadColor = theme?.playheadColor || "#8b4f3b";
     const backgroundColor = theme?.backgroundColor || "transparent";
 

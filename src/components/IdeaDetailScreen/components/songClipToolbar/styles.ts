@@ -1,4 +1,5 @@
 import { StyleSheet } from "react-native";
+import { colors } from "../../../../design/tokens";
 
 export const songClipToolbarStyles = StyleSheet.create({
   headerStack: {
@@ -32,7 +33,7 @@ export const songClipToolbarStyles = StyleSheet.create({
   filterClearText: {
     fontFamily: "PlusJakartaSans_600SemiBold",
     fontSize: 11,
-    color: "#B87D6B",
+    color: colors.primary,
   },
   customTagDot: {
     width: 6,
@@ -57,13 +58,13 @@ export const songClipToolbarStyles = StyleSheet.create({
     fontFamily: "PlusJakartaSans_600SemiBold",
     fontSize: 12,
     lineHeight: 14,
-    color: "#84736f",
+    color: colors.textSecondary,
   },
   viewTriggerDot: {
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: "#B87D6B",
+    backgroundColor: colors.primary,
   },
   viewToggle: {
     flexDirection: "row",
@@ -81,7 +82,7 @@ export const songClipToolbarStyles = StyleSheet.create({
     justifyContent: "center",
   },
   viewToggleOptionActive: {
-    backgroundColor: "#ffffff",
+    backgroundColor: colors.surface,
     shadowColor: "#3D3732",
     shadowOpacity: 0.05,
     shadowRadius: 2,
@@ -91,7 +92,7 @@ export const songClipToolbarStyles = StyleSheet.create({
     fontFamily: "PlusJakartaSans_600SemiBold",
     fontSize: 12,
     lineHeight: 14,
-    color: "#84736f",
+    color: colors.textSecondary,
     },
   viewToggleTextActive: {
     color: "#1C1C19",

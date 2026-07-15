@@ -16,6 +16,7 @@ import { type SongTimelineSortDirection, type SongTimelineSortMetric } from "../
 import { SongClipCard } from "./components/SongClipCard";
 import { SongClipListShell } from "./components/SongClipListShell";
 import { haptic } from "../../design/haptics";
+import { colors } from "../../design/tokens";
 
 type EvolutionListProps = {
   lineages: ClipLineage[];
@@ -68,7 +69,7 @@ function EvolutionMoreRow({
         <Ionicons
           name={expanded ? "chevron-up" : "chevron-down"}
           size={11}
-          color="#84736f"
+          color={colors.textSecondary}
         />
         <Text style={styles.songDetailEvolutionExpandText}>
           {expanded
@@ -110,13 +111,13 @@ function EvolutionGroupHeaderRow({
           <Ionicons
             name={row.collapsed ? "chevron-forward" : "chevron-down"}
             size={13}
-            color="#84736f"
+            color={colors.textSecondary}
           />
           <Text style={styles.songDetailEvolutionGroupTitle}>{row.name}</Text>
         </View>
         <View style={styles.songDetailEvolutionGroupMetaRow}>
           <View style={styles.songDetailEvolutionGroupCount}>
-            <Ionicons name="git-branch-outline" size={12} color="#a89994" />
+            <Ionicons name="git-branch-outline" size={12} color={colors.textMuted} />
             <Text style={styles.songDetailEvolutionGroupMeta}>{row.lineageCount}</Text>
           </View>
         </View>

@@ -2,6 +2,7 @@ import React, { useMemo, useState } from "react";
 import { View, StyleSheet, LayoutChangeEvent } from "react-native";
 import { Canvas, Path, Skia } from "@shopify/react-native-skia";
 import { DataPoint } from "@siteed/audio-studio";
+import { colors } from "../../design/tokens";
 
 type Props = {
     dataPoints: DataPoint[];
@@ -95,8 +96,8 @@ export function LiveTapeVisualizer({
         setCanvasHeight((prev) => (prev === nextHeight ? prev : nextHeight));
     };
 
-    const waveColor = theme?.waveColor || "#a89994";
-    const rulerColor = theme?.rulerColor || "#D7C2BD";
+    const waveColor = theme?.waveColor || colors.textMuted;
+    const rulerColor = theme?.rulerColor || colors.borderMuted;
     const playheadColor = theme?.playheadColor || "#B5483A";
     const backgroundColor = theme?.backgroundColor || "transparent";
 

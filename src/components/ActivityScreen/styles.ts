@@ -1,6 +1,6 @@
 import { StyleSheet } from "react-native";
 import { styles as base } from "../../styles";
-import { radii } from "../../design/tokens";
+import { colors, radii } from "../../design/tokens";
 
 const PAPER = "#fbf9f5";
 
@@ -19,7 +19,7 @@ export const styles = {
     intro: {
       fontSize: 13,
       lineHeight: 18,
-      color: "#84736f",
+      color: colors.textSecondary,
       paddingTop: 2,
     },
   }),

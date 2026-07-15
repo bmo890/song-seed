@@ -14,6 +14,7 @@ import { SongClipListHeader } from "./songClipToolbar/SongClipListHeader";
 import { CollapsingHeaderOverlay } from "../../common/CollapsingHeaderOverlay";
 import { SongCollapsibleHeader } from "./SongCollapsibleHeader";
 import { SelectionTopBar } from "../../common/SelectionTopBar";
+import { colors } from "../../../design/tokens";
 
 type SongClipListContentProps = {
   filteredLineages: ClipLineage[];
@@ -181,7 +182,7 @@ export function SongClipListContent({
           </View>
         }
         pinned={
-          <View style={{ backgroundColor: "#FDFBF7" }} pointerEvents="box-none">
+          <View style={{ backgroundColor: colors.page }} pointerEvents="box-none">
             <SongClipListHeader visibleIdeaCount={visibleIdeaCount} />
             <SongClipSelectionTopBar />
             {screen.clipViewMode === "evolution" &&
@@ -235,7 +236,7 @@ function CollapseAllPill({ onPress }: { onPress: () => void }) {
         ]}
         onPress={onPress}
       >
-        <Ionicons name="chevron-collapse-outline" size={13} color="#84736f" />
+        <Ionicons name="chevron-collapse-outline" size={13} color={colors.textSecondary} />
         <Text style={styles.songDetailEvolutionCollapseAllText}>Collapse all</Text>
       </Pressable>
     </View>

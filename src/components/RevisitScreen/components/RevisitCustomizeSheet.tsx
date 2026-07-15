@@ -94,7 +94,7 @@ export function RevisitCustomizeSheet({
         {TAG_OPTIONS.map(({ tag, label, desc, icon }) => (
           <View key={tag} style={revisitStyles.toggleRow}>
             <View style={revisitStyles.toggleIconWrap}>
-              <Ionicons name={icon} size={16} color="#B87D6B" />
+              <Ionicons name={icon} size={16} color={colors.primary} />
             </View>
             <View style={revisitStyles.toggleRowTextCol}>
               <Text style={revisitStyles.toggleRowText}>{label}</Text>
@@ -103,8 +103,8 @@ export function RevisitCustomizeSheet({
             <Switch
               value={tagPrefs[tag] !== false}
               onValueChange={(next) => setTagEnabled(tag, next)}
-              trackColor={{ false: "#E3DCD4", true: "#B87D6B" }}
-              thumbColor="#ffffff"
+              trackColor={{ false: "#E3DCD4", true: colors.primary }}
+              thumbColor={colors.surface}
             />
           </View>
         ))}
@@ -115,7 +115,7 @@ export function RevisitCustomizeSheet({
         </Text>
         <View style={revisitStyles.toggleRow}>
           <View style={revisitStyles.toggleIconWrap}>
-            <Ionicons name="refresh-outline" size={16} color="#B87D6B" />
+            <Ionicons name="refresh-outline" size={16} color={colors.primary} />
           </View>
           <View style={revisitStyles.toggleRowTextCol}>
             <Text style={revisitStyles.toggleRowText}>New set each day</Text>
@@ -127,8 +127,8 @@ export function RevisitCustomizeSheet({
           <Switch
             value={dailyRefresh}
             onValueChange={setDailyRefresh}
-            trackColor={{ false: "#E3DCD4", true: "#B87D6B" }}
-            thumbColor="#ffffff"
+            trackColor={{ false: "#E3DCD4", true: colors.primary }}
+            thumbColor={colors.surface}
           />
         </View>
 

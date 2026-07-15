@@ -3,6 +3,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { BottomSheet } from "../common/BottomSheet";
 import type { SaveDestination } from "../../collectionManagement";
+import { colors } from "../../design/tokens";
 
 type Props = {
   visible: boolean;
@@ -59,7 +60,7 @@ export function SaveDestinationPickerSheet({
                     <Ionicons
                       name="folder"
                       size={18}
-                      color={isSelected ? "#FFFFFF" : "#524440"}
+                      color={isSelected ? colors.surface : colors.textStrong}
                     />
                     <Text
                       style={[localStyles.optionText, isSelected ? localStyles.optionTextSelected : null]}
@@ -68,7 +69,7 @@ export function SaveDestinationPickerSheet({
                       {destination.pathLabel ?? destination.label}
                     </Text>
                     {isSelected ? (
-                      <Ionicons name="checkmark" size={16} color="#FFFFFF" />
+                      <Ionicons name="checkmark" size={16} color={colors.surface} />
                     ) : null}
                   </Pressable>
                 );
@@ -85,7 +86,7 @@ const localStyles = StyleSheet.create({
   title: {
     fontFamily: "PlayfairDisplay_600SemiBold",
     fontSize: 19,
-    color: "#1b1c1a",
+    color: colors.textPrimary,
     marginBottom: 14,
   },
   scroll: {
@@ -97,7 +98,7 @@ const localStyles = StyleSheet.create({
   sectionLabel: {
     fontSize: 11,
     fontFamily: "PlusJakartaSans_700Bold",
-    color: "#a89994",
+    color: colors.textMuted,
     textTransform: "uppercase",
     letterSpacing: 0.6,
     marginBottom: 8,
@@ -112,10 +113,10 @@ const localStyles = StyleSheet.create({
     borderRadius: 4,
     paddingHorizontal: 13,
     paddingVertical: 11,
-    backgroundColor: "#F4F1ED",
+    backgroundColor: colors.surfaceContainer,
   },
   optionSelected: {
-    backgroundColor: "#B87D6B",
+    backgroundColor: colors.primary,
   },
   pressed: {
     opacity: 0.8,
@@ -123,10 +124,10 @@ const localStyles = StyleSheet.create({
   optionText: {
     flex: 1,
     fontSize: 14,
-    color: "#1b1c1a",
+    color: colors.textPrimary,
   },
   optionTextSelected: {
-    color: "#FFFFFF",
+    color: colors.surface,
     fontFamily: "PlusJakartaSans_600SemiBold",
   },
 });

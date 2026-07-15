@@ -2,6 +2,7 @@ import type { ComponentProps, ReactNode } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { styles } from "../../styles";
+import { colors } from "../../design/tokens";
 
 type NavRowProps = {
   icon: ComponentProps<typeof Ionicons>["name"];
@@ -90,7 +91,7 @@ const navRowStyles = StyleSheet.create({
     fontFamily: "PlusJakartaSans_700Bold",
     fontSize: 10,
     lineHeight: 13,
-    color: "#84736f",
+    color: colors.textSecondary,
     textTransform: "uppercase",
     letterSpacing: 0.5,
   },
@@ -98,12 +99,12 @@ const navRowStyles = StyleSheet.create({
     fontFamily: "PlusJakartaSans_500Medium",
     fontSize: 15,
     lineHeight: 20,
-    color: "#1b1c1a",
+    color: colors.textPrimary,
   },
   titleStrong: {
     fontFamily: "PlusJakartaSans_600SemiBold",
     fontSize: 16,
     lineHeight: 20,
-    color: "#1b1c1a",
+    color: colors.textPrimary,
   },
 });

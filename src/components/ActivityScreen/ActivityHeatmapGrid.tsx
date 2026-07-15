@@ -6,6 +6,7 @@ import { startOfActivityDay } from "../../activity";
 import { styles } from "../../styles";
 import { CELL_SIZE, CELL_STRIDE, getActivityCellBackground } from "./helpers";
 import { haptic } from "../../design/haptics";
+import { colors } from "../../design/tokens";
 
 type ActivityHeatmapGridProps = {
   year: number;
@@ -109,7 +110,7 @@ export function ActivityHeatmapGrid({
             style={({ pressed }) => [styles.activityYearBtn, pressed ? styles.pressDown : null]}
             onPress={() => onChangeYear(year - 1)}
           >
-            <Ionicons name="chevron-back" size={14} color="#1b1c1a" />
+            <Ionicons name="chevron-back" size={14} color={colors.textPrimary} />
           </Pressable>
           <Text style={styles.activityYearText}>{year}</Text>
           <Pressable
@@ -120,7 +121,7 @@ export function ActivityHeatmapGrid({
             <Ionicons
               name="chevron-forward"
               size={14}
-              color={year >= currentYear ? "#d7c2bd" : "#1b1c1a"}
+              color={year >= currentYear ? colors.borderMuted : colors.textPrimary}
             />
           </Pressable>
         </View>

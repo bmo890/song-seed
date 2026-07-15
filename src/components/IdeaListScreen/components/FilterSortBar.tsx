@@ -6,6 +6,7 @@ import { useStore } from "../../../state/useStore";
 import { getIdeaSortState, getIdeaSortValue, IdeaSortMetric } from "../../../ideaSort";
 import { getHierarchyIconName } from "../../../hierarchy";
 import { FilterSortControls } from "../../common/FilterSortControls";
+import { colors } from "../../../design/tokens";
 
 type ProjectStage = "seed" | "sprout" | "stem" | "song";
 type LyricsFilterMode = "all" | "with" | "without";
@@ -291,7 +292,7 @@ export function FilterSortBar({
                     setIdeasSort(getIdeaSortValue(activeSortMetric, "asc"));
                   }}
                 >
-                  <Ionicons name="arrow-up" size={14} color={activeSortDirection === "asc" ? "#ffffff" : "#475569"} />
+                  <Ionicons name="arrow-up" size={14} color={activeSortDirection === "asc" ? colors.surface : "#475569"} />
                   <Text
                     style={[
                       styles.ideasSortDirectionChipText,
@@ -311,7 +312,7 @@ export function FilterSortBar({
                     setIdeasSort(getIdeaSortValue(activeSortMetric, "desc"));
                   }}
                 >
-                  <Ionicons name="arrow-down" size={14} color={activeSortDirection === "desc" ? "#ffffff" : "#475569"} />
+                  <Ionicons name="arrow-down" size={14} color={activeSortDirection === "desc" ? colors.surface : "#475569"} />
                   <Text
                     style={[
                       styles.ideasSortDirectionChipText,

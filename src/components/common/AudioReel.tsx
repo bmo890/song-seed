@@ -17,7 +17,7 @@ import { PlaybackTapeVisualizer } from "../visualizers/PlaybackTapeVisualizer";
 import { MinimapVisualizer } from "../visualizers/MinimapVisualizer";
 import type { SectionBand } from "../../playerSections";
 import { fmt } from "../../utils";
-import { radii } from "../../design/tokens";
+import { colors, radii } from "../../design/tokens";
 import { durations } from "../../design/motion";
 import { haptic } from "../../design/haptics";
 
@@ -379,20 +379,20 @@ export function AudioReel({
     const palette = chrome === "light"
         ? {
             surfaceColor: "#F0EBE4",
-            utilityBackgroundColor: "#FFFFFF",
-            utilityBorderColor: "#E8E4DF",
-            utilityTextColor: "#524440",
-            utilityIconColor: "#524440",
+            utilityBackgroundColor: colors.surface,
+            utilityBorderColor: colors.borderSubtle,
+            utilityTextColor: colors.textStrong,
+            utilityIconColor: colors.textStrong,
             waveColor: "#C7B9AF",
-            wavePlayedColor: "#B87D6B",
-            rulerColor: "#D7C2BD",
+            wavePlayedColor: colors.primary,
+            rulerColor: colors.borderMuted,
             playheadColor: "#8b4f3b",
-            transportButtonColor: "#FFFFFF",
-            transportButtonBorderColor: "#E8E4DF",
-            transportIconColor: "#524440",
-            playButtonColor: "#B87D6B",
-            playIconColor: "#FFFFFF",
-            expandButtonColor: "#FDFBF7",
+            transportButtonColor: colors.surface,
+            transportButtonBorderColor: colors.borderSubtle,
+            transportIconColor: colors.textStrong,
+            playButtonColor: colors.primary,
+            playIconColor: colors.surface,
+            expandButtonColor: colors.page,
         }
         : {
             surfaceColor: "#2B211D",
@@ -407,8 +407,8 @@ export function AudioReel({
             transportButtonColor: "#3A2D28",
             transportButtonBorderColor: "#4A3A34",
             transportIconColor: "#F5EDE7",
-            playButtonColor: "#B87D6B",
-            playIconColor: "#FFFFFF",
+            playButtonColor: colors.primary,
+            playIconColor: colors.surface,
             expandButtonColor: "rgba(0,0,0,0.4)",
         };
 
@@ -781,7 +781,7 @@ export function AudioReel({
                                     <Ionicons
                                         name="scan-outline"
                                         size={15}
-                                        color="#524440"
+                                        color={colors.textStrong}
                                         style={{ opacity: zoomMultiple > MIN_ZOOM ? 1 : 0.3 }}
                                     />
                                 </View>
@@ -792,7 +792,7 @@ export function AudioReel({
                                     <Feather
                                         name="zoom-out"
                                         size={15}
-                                        color="#524440"
+                                        color={colors.textStrong}
                                         style={{ opacity: zoomMultiple > MIN_ZOOM ? 1 : 0.3 }}
                                     />
                                 </View>
@@ -803,7 +803,7 @@ export function AudioReel({
                                     <Feather
                                         name="zoom-in"
                                         size={15}
-                                        color="#524440"
+                                        color={colors.textStrong}
                                         style={{ opacity: zoomMultiple < MAX_ZOOM ? 1 : 0.3 }}
                                     />
                                 </View>
@@ -817,7 +817,7 @@ export function AudioReel({
                         >
                             <GestureDetector gesture={zoomExpandTap}>
                                 <View style={audioReelStyles.zoomPuck}>
-                                    <Feather name="search" size={15} color="#524440" />
+                                    <Feather name="search" size={15} color={colors.textStrong} />
                                 </View>
                             </GestureDetector>
                         </AnimatedView>
@@ -1011,7 +1011,7 @@ const audioReelStyles = StyleSheet.create({
         paddingVertical: 2,
         borderRadius: 999,
         borderWidth: 0.5,
-        borderColor: "#D7C2BD",
+        borderColor: colors.borderMuted,
         backgroundColor: "rgba(253,251,247,0.96)",
     },
     zoomOverlayButton: {
@@ -1023,7 +1023,7 @@ const audioReelStyles = StyleSheet.create({
     zoomOverlayDivider: {
         width: 0.5,
         height: 16,
-        backgroundColor: "#D7C2BD",
+        backgroundColor: colors.borderMuted,
         marginHorizontal: 1,
     },
     zoomPuck: {
@@ -1031,7 +1031,7 @@ const audioReelStyles = StyleSheet.create({
         height: 30,
         borderRadius: 999,
         borderWidth: 0.5,
-        borderColor: "#D7C2BD",
+        borderColor: colors.borderMuted,
         backgroundColor: "rgba(253,251,247,0.96)",
         alignItems: "center",
         justifyContent: "center",
@@ -1039,7 +1039,7 @@ const audioReelStyles = StyleSheet.create({
     zoomOverlayText: {
         fontFamily: "PlusJakartaSans_600SemiBold",
         fontSize: 11,
-        color: "#524440",
+        color: colors.textStrong,
         minWidth: 22,
         textAlign: "center",
         fontVariant: ["tabular-nums"],

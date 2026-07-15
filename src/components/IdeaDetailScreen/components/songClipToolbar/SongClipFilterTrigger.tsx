@@ -1,6 +1,7 @@
 import { Pressable } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { styles } from "../../styles";
+import { colors } from "../../../../design/tokens";
 
 type SongClipFilterTriggerProps = {
   active: boolean;
@@ -26,7 +27,7 @@ export function SongClipFilterTrigger({ active, open, onPress }: SongClipFilterT
       <Ionicons
         name={active ? "funnel" : "funnel-outline"}
         size={15}
-        color={active ? "#B87D6B" : "#84736f"}
+        color={active ? colors.primary : colors.textSecondary}
       />
     </Pressable>
   );

@@ -4,6 +4,7 @@ import { styles } from "../../styles";
 import { TitleInput } from "../common/TitleInput";
 import { Button } from "../common/Button";
 import { BottomSheet, type BottomSheetRef } from "../common/BottomSheet";
+import { colors } from "../../design/tokens";
 
 type ClipNotesSheetProps = {
   visible: boolean;
@@ -62,7 +63,7 @@ export function ClipNotesSheet({
           style={styles.clipNotesSheetTextInput}
           multiline
           placeholder="Add notes about this clip..."
-          placeholderTextColor="#a89994"
+          placeholderTextColor={colors.textMuted}
           value={notesDraft}
           onChangeText={onChangeNotes}
           autoFocus={!notesDraft}

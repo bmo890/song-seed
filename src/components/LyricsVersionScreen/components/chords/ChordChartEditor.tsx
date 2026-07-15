@@ -107,7 +107,7 @@ const chartStyles = StyleSheet.create({
   chartCardEdit: {
     backgroundColor: "#fff",
     borderWidth: 2,
-    borderColor: "#a89994",
+    borderColor: colors.textMuted,
     borderStyle: "dashed",
     borderRadius: 4,
     overflow: "hidden",

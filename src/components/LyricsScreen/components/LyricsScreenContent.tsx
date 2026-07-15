@@ -24,7 +24,7 @@ export function LyricsScreenContent() {
         leftIcon="back"
         rightElement={
           <View style={styles.contextPill}>
-            <Ionicons name="book-outline" size={12} color="#84736f" />
+            <Ionicons name="book-outline" size={12} color={colors.textSecondary} />
             <Text style={styles.contextPillText}>{versionCount} {versionCount === 1 ? "PAGE" : "PAGES"}</Text>
           </View>
         }

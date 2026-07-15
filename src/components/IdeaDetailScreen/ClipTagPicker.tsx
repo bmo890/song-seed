@@ -12,6 +12,7 @@ import {
   getTagColor,
   type TagColor,
 } from "./songClipControls";
+import { colors } from "../../design/tokens";
 
 const randomTagColor = () =>
   CUSTOM_TAG_COLOR_OPTIONS[Math.floor(Math.random() * CUSTOM_TAG_COLOR_OPTIONS.length)].bg;
@@ -177,7 +178,7 @@ export function ClipTagEditorFields({
         <TextInput
           style={styles.tagPickerAddInput}
           placeholder="Tag name"
-          placeholderTextColor="#a89994"
+          placeholderTextColor={colors.textMuted}
           value={newTagLabel}
           onChangeText={setNewTagLabel}
           onSubmitEditing={addCustomTag}
@@ -192,7 +193,7 @@ export function ClipTagEditorFields({
           onPress={addCustomTag}
           disabled={!newTagLabel.trim()}
         >
-          <Ionicons name="add" size={16} color={newTagLabel.trim() ? "#1b1c1a" : "#a89994"} />
+          <Ionicons name="add" size={16} color={newTagLabel.trim() ? colors.textPrimary : colors.textMuted} />
         </Pressable>
       </View>
       <View style={styles.tagPickerColorRow}>

@@ -5,6 +5,7 @@ import { formatClipOverdubStemOffsetLabel } from "../../../overdub";
 import { fmtDuration } from "../../../utils";
 import { getMetronomeMeterPreset } from "../../../metronome";
 import type { RecordingGrid } from "../../../types";
+import { colors } from "../../../design/tokens";
 
 /**
  * Superimposed master + stem waveforms on one shared time axis, with the stem shifted by
@@ -249,7 +250,7 @@ const styles = StyleSheet.create({
   },
   legend: {
     fontSize: 11,
-    color: "#84736f",
+    color: colors.textSecondary,
   },
   legendMaster: {
     color: "#b5a89f",

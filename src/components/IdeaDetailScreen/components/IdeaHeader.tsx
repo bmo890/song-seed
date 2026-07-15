@@ -69,7 +69,7 @@ export function IdeaHeader() {
           ]}
           onPress={actions.handleBackToIdeas}
         >
-          <Ionicons name="chevron-back" size={24} color="#524440" />
+          <Ionicons name="chevron-back" size={24} color={colors.textStrong} />
         </Pressable>
 
         {/* Center: empty spacer in default mode; compact title fades in on scroll */}
@@ -119,7 +119,7 @@ export function IdeaHeader() {
             style={({ pressed }) => [styles.ideasHeaderMenuBtn, pressed ? styles.pressDown : null]}
             onPress={() => setHeaderMenuOpen((prev) => !prev)}
           >
-            <Ionicons name="ellipsis-horizontal" size={16} color="#524440" />
+            <Ionicons name="ellipsis-horizontal" size={16} color={colors.textStrong} />
           </Pressable>
         )}
       </View>
@@ -160,7 +160,7 @@ export function IdeaHeader() {
               <Text style={styles.ideasSortMenuItemText}>
                 {isProject ? "Edit song" : "Edit clip"}
               </Text>
-              <Ionicons name="create-outline" size={15} color="#524440" />
+              <Ionicons name="create-outline" size={15} color={colors.textStrong} />
             </Pressable>
             {isProject ? (
               <>
@@ -179,7 +179,7 @@ export function IdeaHeader() {
                   }}
                 >
                   <Text style={styles.ideasSortMenuItemText}>Play all</Text>
-                  <Ionicons name="play-outline" size={15} color="#524440" />
+                  <Ionicons name="play-outline" size={15} color={colors.textStrong} />
                 </Pressable>
               </>
             ) : (
@@ -194,7 +194,7 @@ export function IdeaHeader() {
                   }}
                 >
                   <Text style={styles.ideasSortMenuItemText}>Make song</Text>
-                  <Ionicons name="albums-outline" size={15} color="#524440" />
+                  <Ionicons name="albums-outline" size={15} color={colors.textStrong} />
                 </Pressable>
               </>
             )}

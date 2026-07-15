@@ -33,7 +33,7 @@ function SheetActionRow({ label, icon, destructive = false, onPress }: ClipActio
       onPress={onPress}
     >
       <View style={styles.collectionActionsOptionLead}>
-        <Ionicons name={icon} size={16} color={destructive ? colors.danger : "#524440"} />
+        <Ionicons name={icon} size={16} color={destructive ? colors.danger : colors.textStrong} />
         <Text
           style={[
             styles.collectionActionsOptionText,
@@ -46,7 +46,7 @@ function SheetActionRow({ label, icon, destructive = false, onPress }: ClipActio
       <Ionicons
         name={destructive ? "alert-circle-outline" : "chevron-forward"}
         size={15}
-        color={destructive ? colors.danger : "#a89994"}
+        color={destructive ? colors.danger : colors.textMuted}
       />
     </Pressable>
   );
@@ -80,7 +80,7 @@ export function ClipActionsSheet({
           onPress={() => sheetRef.current?.close()}
         >
           <View style={styles.collectionActionsOptionLead}>
-            <Ionicons name="close-outline" size={16} color="#524440" />
+            <Ionicons name="close-outline" size={16} color={colors.textStrong} />
             <Text style={styles.collectionActionsOptionText}>Cancel</Text>
           </View>
         </Pressable>

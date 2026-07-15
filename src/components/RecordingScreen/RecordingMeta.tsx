@@ -132,7 +132,7 @@ export function RecordingMeta({
                 accessibilityRole="button"
                 accessibilityLabel="Metronome settings"
             >
-                <Ionicons name="options-outline" size={14} color="#84736f" />
+                <Ionicons name="options-outline" size={14} color={colors.textSecondary} />
             </Pressable>
         </View>
     ) : null;
@@ -208,8 +208,8 @@ export function RecordingMeta({
                         currentTimeMs={safeElapsedMs}
                         intervalMs={waveformData.segmentDurationMs || 50}
                         theme={{
-                            waveColor: "#a89994",
-                            rulerColor: "#D7C2BD",
+                            waveColor: colors.textMuted,
+                            rulerColor: colors.borderMuted,
                             playheadColor: "#B5483A",
                         }}
                     />
@@ -264,7 +264,7 @@ const metaStyles = StyleSheet.create({
         borderRadius: radii.round,
         alignItems: "center",
         justifyContent: "center",
-        backgroundColor: "#F4F1ED",
+        backgroundColor: colors.surfaceContainer,
     },
     metroChipText: {
         fontFamily: "PlusJakartaSans_700Bold",
@@ -292,6 +292,6 @@ const metaStyles = StyleSheet.create({
         borderRadius: radii.round,
         alignItems: "center",
         justifyContent: "center",
-        backgroundColor: "#F4F1ED",
+        backgroundColor: colors.surfaceContainer,
     },
 });

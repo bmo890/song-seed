@@ -95,7 +95,7 @@ export function MinimapVisualizer({
 
     const palette = chrome === "light"
         ? {
-            backgroundColor: "#EDE9E4",
+            backgroundColor: colors.surfaceHigh,
             waveColor: "#C7B9AF",
             playheadColor: "#8b4f3b",
             windowFill: "rgba(184, 125, 107, 0.16)",

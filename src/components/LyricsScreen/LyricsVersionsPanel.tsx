@@ -280,7 +280,7 @@ export function LyricsVersionsPanel({ projectIdea }: LyricsVersionsPanelProps) {
                         }}
                         accessibilityLabel={isExpanded ? "Collapse" : "Expand"}
                       >
-                        <Ionicons name={isExpanded ? "chevron-up" : "chevron-down"} size={15} color="#84736f" />
+                        <Ionicons name={isExpanded ? "chevron-up" : "chevron-down"} size={15} color={colors.textSecondary} />
                       </Pressable>
                     </View>
 
@@ -504,7 +504,7 @@ const panelStyles = StyleSheet.create({
   meta: {
     fontFamily: "PlusJakartaSans_400Regular",
     fontSize: 12,
-    color: "#a89994",
+    color: colors.textMuted,
     fontVariant: ["tabular-nums"],
   },
   metaDot: {

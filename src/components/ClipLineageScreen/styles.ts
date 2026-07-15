@@ -1,4 +1,5 @@
 import { StyleSheet } from "react-native";
+import { colors } from "../../design/tokens";
 
 export { styles } from "../IdeaDetailScreen/styles";
 
@@ -23,12 +24,12 @@ export const clipLineageStyles = StyleSheet.create({
   headerTitle: {
     fontFamily: "PlayfairDisplay_600SemiBold",
     fontSize: 17,
-    color: "#1b1c1a",
+    color: colors.textPrimary,
   },
   headerSubtitle: {
     fontFamily: "PlusJakartaSans_400Regular",
     fontSize: 12,
-    color: "#a89994",
+    color: colors.textMuted,
     marginTop: 1,
   },
   sortToggleRow: {
@@ -53,6 +54,6 @@ export const clipLineageStyles = StyleSheet.create({
   sortDirectionText: {
     fontFamily: "PlusJakartaSans_600SemiBold",
     fontSize: 11,
-    color: "#84736f",
+    color: colors.textSecondary,
   },
 });

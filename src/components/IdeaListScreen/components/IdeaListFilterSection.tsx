@@ -2,6 +2,7 @@ import { Pressable, Text } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { styles } from "../../../styles";
 import { FilterSortBar } from "./FilterSortBar";
+import { colors } from "../../../design/tokens";
 
 type ProjectStage = "seed" | "sprout" | "stem" | "song";
 type LyricsFilterMode = "all" | "with" | "without";
@@ -43,7 +44,7 @@ export function IdeaListFilterSection({
             accessibilityRole="button"
             accessibilityLabel={`Show all hidden items, ${hiddenItemsCount} hidden`}
           >
-            <Ionicons name="eye-outline" size={12} color="#84736f" />
+            <Ionicons name="eye-outline" size={12} color={colors.textSecondary} />
             <Text style={styles.ideasUnhideAllPillText}>
               {`Show all (${hiddenItemsCount})`}
             </Text>

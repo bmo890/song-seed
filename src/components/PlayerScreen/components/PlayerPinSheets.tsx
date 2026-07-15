@@ -5,6 +5,7 @@ import { BottomSheet } from "../../common/BottomSheet";
 import { fmtDuration } from "../../../utils";
 import { playerScreenStyles } from "../styles";
 import { styles as appStyles } from "../../../styles";
+import { colors } from "../../../design/tokens";
 
 type PlayerPinSheetsProps = {
   pinModalVisible: boolean;
@@ -131,7 +132,7 @@ export function PlayerPinSheets({
               ]}
               onPress={onDeletePin}
             >
-              <Ionicons name="trash-outline" size={15} color="#ffffff" style={{ marginRight: 4 }} />
+              <Ionicons name="trash-outline" size={15} color={colors.surface} style={{ marginRight: 4 }} />
               <Text style={playerScreenStyles.pinSheetButtonText}>Delete</Text>
             </Pressable>
             <Pressable

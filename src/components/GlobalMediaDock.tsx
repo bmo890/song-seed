@@ -300,7 +300,7 @@ export function GlobalMediaDock({
                   accessibilityRole="button"
                   accessibilityLabel="Save recording"
                 >
-                  <Ionicons name="square" size={16} color="#ffffff" />
+                  <Ionicons name="square" size={16} color={colors.surface} />
                 </Pressable>
               </View>
             </View>
@@ -490,7 +490,7 @@ export function GlobalMediaDock({
               accessibilityRole="button"
               accessibilityLabel={queueOpen ? "Hide queue" : "Show queue"}
             >
-              <Ionicons name="list" size={15} color={queueOpen ? "#8b4f3b" : "#FDFBF7"} />
+              <Ionicons name="list" size={15} color={queueOpen ? "#8b4f3b" : colors.page} />
             </Pressable>
             {hasQueueCount ? (
               <Text style={styles.miniMediaDockQueueCount}>

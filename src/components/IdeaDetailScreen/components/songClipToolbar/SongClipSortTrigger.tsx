@@ -1,6 +1,7 @@
 import { Pressable, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { styles } from "../../styles";
+import { colors } from "../../../../design/tokens";
 
 type SongClipSortTriggerProps = {
   direction: "asc" | "desc";
@@ -23,12 +24,12 @@ export function SongClipSortTrigger({ direction, onPress }: SongClipSortTriggerP
         <Ionicons
           name="arrow-up"
           size={11}
-          color={direction === "asc" ? "#524440" : "#c4b5b0"}
+          color={direction === "asc" ? colors.textStrong : "#c4b5b0"}
         />
         <Ionicons
           name="arrow-down"
           size={11}
-          color={direction === "desc" ? "#524440" : "#c4b5b0"}
+          color={direction === "desc" ? colors.textStrong : "#c4b5b0"}
         />
       </View>
     </Pressable>

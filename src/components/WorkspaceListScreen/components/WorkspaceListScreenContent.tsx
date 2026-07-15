@@ -12,6 +12,7 @@ import { SongTargetPickerBanner } from "../../SongTargetPickerBanner";
 import { SelectionActionSheet } from "../../common/SelectionActionSheet";
 import { WorkspaceList } from "./WorkspaceList";
 import { AppAlert } from "../../common/AppAlert";
+import { colors } from "../../../design/tokens";
 
 export function WorkspaceListScreenContent() {
   const model = useWorkspaceListScreenModel();
@@ -76,7 +77,7 @@ export function WorkspaceListScreenContent() {
             onPress={openDrawer}
             hitSlop={8}
           >
-            <Ionicons name="menu-outline" size={22} color="#84736f" />
+            <Ionicons name="menu-outline" size={22} color={colors.textSecondary} />
           </Pressable>
           <Text style={styles.eyebrow}>Creative Overview</Text>
           <Text style={styles.pageTitle}>Your Workspaces</Text>
@@ -103,7 +104,7 @@ export function WorkspaceListScreenContent() {
               <Ionicons
                 name="swap-vertical-outline"
                 size={13}
-                color={sortActive ? "#1b1c1a" : "#84736f"}
+                color={sortActive ? colors.textPrimary : colors.textSecondary}
               />
               <Text
                 style={[
@@ -138,7 +139,7 @@ export function WorkspaceListScreenContent() {
                           <Ionicons
                             name={option.icon as any}
                             size={14}
-                            color={active ? "#1b1c1a" : "#84736f"}
+                            color={active ? colors.textPrimary : colors.textSecondary}
                           />
                           <Text
                             style={[
@@ -150,7 +151,7 @@ export function WorkspaceListScreenContent() {
                           </Text>
                         </View>
                         {active ? (
-                          <Ionicons name="checkmark" size={14} color="#B87D6B" />
+                          <Ionicons name="checkmark" size={14} color={colors.primary} />
                         ) : null}
                       </Pressable>
                     );
@@ -211,7 +212,7 @@ export function WorkspaceListScreenContent() {
           model.modal.setModalOpen(true);
         }}
       >
-        <Ionicons name="add" size={26} color="#ffffff" />
+        <Ionicons name="add" size={26} color={colors.surface} />
       </Pressable>
 
       {/* ── Workspace action sheet (ellipsis) ──────────────────────────────── */}

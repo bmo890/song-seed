@@ -12,6 +12,7 @@ import type { ClipGroup, CustomTagDefinition } from "../../../../types";
 import { songClipToolbarStyles } from "./styles";
 import Animated, { FadeIn } from "react-native-reanimated";
 import { durations } from "../../../../design/motion";
+import { colors } from "../../../../design/tokens";
 
 type SongClipFilterMenuProps = {
   clipViewMode: "timeline" | "evolution";
@@ -73,7 +74,7 @@ export function SongClipFilterMenu({
       {/* Header row */}
       <View style={styles.ideasDropdownSectionToggle}>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
-          <Ionicons name="pricetag-outline" size={12} color="#a89994" />
+          <Ionicons name="pricetag-outline" size={12} color={colors.textMuted} />
           <Text style={styles.ideasDropdownSectionToggleText}>Tags</Text>
         </View>
         {hasActiveFilters ? (
@@ -127,8 +128,8 @@ export function SongClipFilterMenu({
           }
 
           // "Untagged" — same badge shape, neutral warm color
-          const untaggedBg = "#EDE9E4";
-          const untaggedText = "#84736f";
+          const untaggedBg = colors.surfaceHigh;
+          const untaggedText = colors.textSecondary;
           return (
             <Pressable
               key={option.key}
@@ -153,7 +154,7 @@ export function SongClipFilterMenu({
       <View style={styles.ideasDropdownDivider} />
       <View style={styles.ideasDropdownSectionToggle}>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
-          <Ionicons name="bookmark-outline" size={12} color="#a89994" />
+          <Ionicons name="bookmark-outline" size={12} color={colors.textMuted} />
           <Text style={styles.ideasDropdownSectionToggleText}>Saved clips</Text>
         </View>
       </View>
@@ -182,7 +183,7 @@ export function SongClipFilterMenu({
           <View style={styles.ideasDropdownDivider} />
           <View style={styles.ideasDropdownSectionToggle}>
             <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
-              <Ionicons name="folder-open-outline" size={12} color="#a89994" />
+              <Ionicons name="folder-open-outline" size={12} color={colors.textMuted} />
               <Text style={styles.ideasDropdownSectionToggleText}>Groups</Text>
             </View>
           </View>

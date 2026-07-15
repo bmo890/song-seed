@@ -9,6 +9,7 @@ import { ActivityRangeResults } from "../ActivityRangeResults";
 import { ActivityCustomizeSheet } from "./ActivityCustomizeSheet";
 import { useBrowseRootBackHandler } from "../../../hooks/useBrowseRootBackHandler";
 import { useActivityScreenModel } from "../hooks/useActivityScreenModel";
+import { colors } from "../../../design/tokens";
 
 export function ActivityScreenContent() {
   useBrowseRootBackHandler();
@@ -28,7 +29,7 @@ export function ActivityScreenContent() {
               hitSlop={6}
               accessibilityLabel="Customize Activity"
             >
-              <Ionicons name="options-outline" size={18} color="#84736f" />
+              <Ionicons name="options-outline" size={18} color={colors.textSecondary} />
             </Pressable>
           )
         }
