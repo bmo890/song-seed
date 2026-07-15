@@ -215,7 +215,13 @@ function createWorkspaceStackDrawerRoute(
   screen: keyof WorkspaceStackParamList = "Browse",
   params?: WorkspaceStackParamList[keyof WorkspaceStackParamList]
 ): any {
-  const routes = WORKSPACE_STACK_ROUTE_NAMES.map((routeName) =>
+  // Build a VALID stack: only the routes from the bottom (Browse) up to and
+  // including the target, with index at the top. Including every route name
+  // unconditionally (with index below the last) produces a malformed stack whose
+  // top is a param-less CollectionDetail — which renders the "collection could not
+  // be found" dead-end when we only meant to open Browse.
+  const targetIndex = Math.max(0, WORKSPACE_STACK_ROUTE_NAMES.indexOf(screen));
+  const routes = WORKSPACE_STACK_ROUTE_NAMES.slice(0, targetIndex + 1).map((routeName) =>
     routeName === screen && params !== undefined ? { name: routeName, params } : { name: routeName }
   );
 
@@ -223,7 +229,7 @@ function createWorkspaceStackDrawerRoute(
     name: "WorkspaceStack" as const,
     state: {
       type: "stack" as const,
-      index: Math.max(0, WORKSPACE_STACK_ROUTE_NAMES.indexOf(screen)),
+      index: routes.length - 1,
       routeNames: WORKSPACE_STACK_ROUTE_NAMES,
       routes,
     },
@@ -256,7 +262,11 @@ function normalizeWorkspaceStackRoute(route: any): any {
   const currentRouteName = WORKSPACE_STACK_ROUTE_NAMES.includes(currentRoute?.name)
     ? currentRoute.name
     : "Browse";
-  const normalizedRoutes = WORKSPACE_STACK_ROUTE_NAMES.map((routeName) => {
+  // Only keep the routes up to the focused one (see createWorkspaceStackDrawerRoute):
+  // padding the stack with a trailing param-less CollectionDetail strands the app on
+  // the "collection could not be found" dead-end.
+  const targetIndex = Math.max(0, WORKSPACE_STACK_ROUTE_NAMES.indexOf(currentRouteName));
+  const normalizedRoutes = WORKSPACE_STACK_ROUTE_NAMES.slice(0, targetIndex + 1).map((routeName) => {
     const existingRoute = state.routes.find((candidate: any) => candidate?.name === routeName);
     return existingRoute ? { ...existingRoute } : { name: routeName };
   });
@@ -269,7 +279,7 @@ function normalizeWorkspaceStackRoute(route: any): any {
       type: "stack",
       routeNames: WORKSPACE_STACK_ROUTE_NAMES,
       routes: normalizedRoutes,
-      index: Math.max(0, WORKSPACE_STACK_ROUTE_NAMES.indexOf(currentRouteName)),
+      index: normalizedRoutes.length - 1,
     },
   };
 }
@@ -661,9 +671,16 @@ function buildStartupNavigationState(args: {
   primaryCollectionIdByWorkspace: Record<string, string | null>;
 }): InitialState | undefined {
   const startupWorkspace = args.workspaces.find((workspace) => workspace.id === args.startupWorkspaceId) ?? null;
-  const startupCollectionId =
+  const rawStartupCollectionId =
     startupWorkspace && !startupWorkspace.isArchived
       ? args.primaryCollectionIdByWorkspace[startupWorkspace.id] ?? null
+      : null;
+  // The stored primary-collection id can point at a since-deleted collection.
+  // Only open it if it still exists, otherwise fall back to Browse.
+  const startupCollectionId =
+    rawStartupCollectionId != null &&
+    startupWorkspace?.collections.some((collection) => collection.id === rawStartupCollectionId)
+      ? rawStartupCollectionId
       : null;
 
   const homeRoute = startupCollectionId

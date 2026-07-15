@@ -71,25 +71,35 @@ export function CollectionScreenContent() {
     selectableListIdeaIds.every((id) => selectedListIdeaIds.includes(id));
 
   if (!screen.activeWorkspace || !screen.collectionId || !screen.currentCollection) {
+    // The screen model redirects to Browse when the collection is gone; this is a
+    // brief fallback for that frame. Keep it escapable either way — the left icon
+    // works (back, or open the drawer), plus a direct "Go to your library" button —
+    // so the user is never stranded here.
+    const goToLibrary = () => {
+      if (!goBackFromParentStack(screen.navigation)) {
+        screen.navigateRoot("Home", {
+          screen: "WorkspaceStack",
+          params: { screen: "Browse" },
+        });
+      }
+    };
     return (
       <SafeAreaView style={styles.screen}>
         <ScreenHeader
           title="Collection"
           leftIcon={screen.showBack ? "back" : "hamburger"}
-          onLeftPress={
-            screen.showBack
-              ? () => {
-                  if (!goBackFromParentStack(screen.navigation)) {
-                    screen.navigateRoot("Home", {
-                      screen: "WorkspaceStack",
-                      params: { screen: "Browse" },
-                    });
-                  }
-                }
-              : undefined
-          }
+          onLeftPress={screen.showBack ? goToLibrary : screen.openDrawer}
         />
-        <Text style={styles.subtitle}>This collection could not be found.</Text>
+        <View style={{ flex: 1, alignItems: "center", justifyContent: "center", gap: 10, padding: 24 }}>
+          <Text style={styles.subtitle}>This collection isn’t here anymore.</Text>
+          <Text
+            onPress={goToLibrary}
+            accessibilityRole="button"
+            style={{ fontSize: 15, fontWeight: "600", color: "#824f3f" }}
+          >
+            Go to your library
+          </Text>
+        </View>
       </SafeAreaView>
     );
   }
