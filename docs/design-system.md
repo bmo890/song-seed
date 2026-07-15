@@ -128,7 +128,6 @@ Recommended core components:
 - `ListCard`
 - `ActionSheet`
 - `StatusChip`
-- `WaveformMiniPreview`
 
 Reuse these patterns before creating new component styles.
 

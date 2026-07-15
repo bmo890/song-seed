@@ -42,8 +42,7 @@ export type SavedExactBackup = {
  * export (Export Library flow / `libraryExport.ts`), which is for sharing songs with others.
  *
  * Building (the expensive hash + package passes) is deliberately split from saving so a
- * back-out of the location picker can retry the save without rebuilding. Callers that don't
- * need retry can use `runExactLibraryBackup`.
+ * back-out of the location picker can retry the save without rebuilding.
  */
 export async function buildExactLibraryBackup(
     state: AppStore,

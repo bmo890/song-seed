@@ -46,14 +46,6 @@ export type ManifestRecoveryResult = {
     manifestTimestamp: string;
 };
 
-export type FullRecoveryResult = {
-    restoredFromManifest: ManifestRecoveryResult | null;
-    restoredFromArchives: ArchiveRecoveryResult[];
-    orphanedClipCount: number;
-    totalRestoredIdeas: number;
-    warnings: string[];
-};
-
 function assertManagedRestoreUri(fileUri: string) {
     if (!isSongSeedManagedUri(fileUri)) {
         throw new Error("Recovery restore target is outside Songstead managed storage.");
