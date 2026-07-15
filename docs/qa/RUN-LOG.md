@@ -66,6 +66,7 @@ and deletes what it created (self-cleaning).
 | clip-03-rename-notes | import → select → More → Edit → rename clip + add notes → new title renders | ✅ self-cleaning |
 | clip-04-editor-extract | import → editor → add region → "Extract 1 clip" → Extract → new short clip created | ✅ self-cleaning |
 | clip-05-player-controls | player markers toggle (Hide↔Show) + waveform Expand↔Shrink | ✅ self-cleaning |
+| clip-06-song-project | import as ONE song (idea + N clips) via "Import as song (dev)" → song detail opens | ✅ self-cleaning |
 
 (`reset-clips.yaml` is a guarded-clear helper referenced by the flows; it runs as a harmless
 no-op if invoked directly.)

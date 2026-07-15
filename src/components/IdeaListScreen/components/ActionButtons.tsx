@@ -6,6 +6,7 @@ type ActionButtonsProps = {
   onQuickRecord: () => void;
   onImportAudio: () => void;
   onImportDevSamples?: () => void;
+  onImportDevSong?: () => void;
   onDockLayout?: (height: number) => void;
 };
 
@@ -14,6 +15,7 @@ export function ActionButtons({
   onQuickRecord,
   onImportAudio,
   onImportDevSamples,
+  onImportDevSong,
   onDockLayout,
 }: ActionButtonsProps) {
   return (
@@ -42,6 +44,16 @@ export function ActionButtons({
                 label: "Import samples (dev)",
                 icon: "flask-outline" as const,
                 onPress: onImportDevSamples,
+              },
+            ]
+          : []),
+        ...(__DEV__ && onImportDevSong
+          ? [
+              {
+                key: "devsong",
+                label: "Import as song (dev)",
+                icon: "flask-outline" as const,
+                onPress: onImportDevSong,
               },
             ]
           : []),

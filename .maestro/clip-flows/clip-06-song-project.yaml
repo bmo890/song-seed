@@ -1,0 +1,53 @@
+# Song-project import: import the samples as ONE song (an idea holding multiple
+# clips), confirm the single song card appears, open it, and confirm the song
+# detail renders. A different data shape from individual-clip import. Self-cleaning.
+# Requires scripts/push-dev-samples.sh.
+appId: com.bmostudio.songseed.dev
+---
+- runFlow: ../subflows/open-library.yaml
+- tapOn: ".*Ideas.*"
+- extendedWaitUntil:
+    visible:
+      id: "fab-record"
+    timeout: 15000
+- runFlow: reset-clips.yaml
+- runFlow: ../subflows/dismiss-logbox.yaml
+# Import the samples as one song project.
+- tapOn:
+    id: "fab-create"
+- waitForAnimationToEnd
+- assertVisible:
+    id: "fab-menu-devsong"
+- tapOn:
+    id: "fab-menu-devsong"
+- extendedWaitUntil:
+    visible: ".*Maestro Dev Song.*"
+    timeout: 20000
+# Open the song → detail page with its clips.
+- tapOn: ".*Maestro Dev Song.*"
+- extendedWaitUntil:
+    visible:
+      id: "song-header-back"
+    timeout: 10000
+- assertVisible: ".*Maestro Dev Song.*"
+# Back to the collection and clean up (Select all clears the song + any residue).
+- tapOn:
+    id: "song-header-back"
+- extendedWaitUntil:
+    visible:
+      id: "fab-record"
+    timeout: 10000
+- longPressOn: ".*Maestro Dev Song.*"
+- extendedWaitUntil:
+    visible: "Select all"
+    timeout: 5000
+- tapOn: "Select all"
+- tapOn: ".*Delete"
+- extendedWaitUntil:
+    visible: ".*Delete selected items.*"
+    timeout: 5000
+- tapOn:
+    id: "dialog-btn-delete"
+- extendedWaitUntil:
+    notVisible: ".*Maestro Dev Song.*"
+    timeout: 8000

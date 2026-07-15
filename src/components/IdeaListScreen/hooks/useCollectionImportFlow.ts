@@ -199,6 +199,62 @@ export function useCollectionImportFlow({
     importAssetsAsIndividualClips(assets, "import");
   };
 
+  // __DEV__ only: import the dev samples as ONE song project (multiple clips in a
+  // single idea) — the song-project import mode, minus the OS picker. Mirrors the
+  // song-project branch of saveImportedAudio.
+  const openDevSampleImportAsSong = async () => {
+    if (!__DEV__ || !collectionId) return;
+    const assets = await listDevSampleAudioAssets();
+    if (assets.length === 0) {
+      AppAlert.info(
+        "No dev samples",
+        "Push audio files to the app's Documents/dev-samples/ folder first."
+      );
+      return;
+    }
+    const jobId = `import-${Date.now()}`;
+    useImportStore.getState().startJob({ id: jobId, label: "Maestro Dev Song", total: assets.length });
+    try {
+      const importedAt = Date.now();
+      const importedDates = buildImportedAssetDateMetadata(assets, "import", importedAt);
+      const ideaDateMetadata = buildImportedIdeaDateMetadata(importedDates);
+      const imported = await importAudioAssets(
+        assets,
+        (_asset, index) => `audio-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 9)}`,
+        (current, _total, failedCount) => {
+          useImportStore.getState().updateJob(jobId, { current, failed: failedCount });
+        },
+        { lightweight: true }
+      );
+      const projectClipTitles: string[] = [];
+      appActions.importProjectToCollection(collectionId, {
+        title: "Maestro Dev Song",
+        createdAt: ideaDateMetadata.createdAt,
+        importedAt: ideaDateMetadata.importedAt,
+        sourceCreatedAt: ideaDateMetadata.sourceCreatedAt,
+        clips: imported.imported.map((asset, index) => ({
+          title: (() => {
+            const nextTitle = ensureUniqueCountedTitle(buildImportedTitle(asset.name), projectClipTitles);
+            projectClipTitles.push(nextTitle);
+            return nextTitle;
+          })(),
+          audioUri: asset.audioUri,
+          durationMs: asset.durationMs,
+          waveformPeaks: asset.waveformPeaks,
+          createdAt: importedDates[index]!.createdAt,
+          importedAt: importedDates[index]!.importedAt,
+          sourceCreatedAt: importedDates[index]!.sourceCreatedAt,
+        })),
+      });
+      useImportStore.getState().updateJob(jobId, { current: imported.imported.length, status: "done" });
+    } catch (error) {
+      console.warn("Dev song import error", error);
+      useImportStore.getState().updateJob(jobId, { status: "error" });
+    } finally {
+      setTimeout(() => useImportStore.getState().removeJob(jobId), 2500);
+    }
+  };
+
   const saveImportedAudio = async () => {
     if (importAssets.length === 0 || !importMode) return;
 
@@ -349,6 +405,7 @@ export function useCollectionImportFlow({
     resetImportModal,
     openImportAudioFlow,
     openDevSampleImport,
+    openDevSampleImportAsSong,
     saveImportedAudio,
   };
 }

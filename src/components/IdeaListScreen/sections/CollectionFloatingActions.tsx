@@ -381,6 +381,9 @@ export function CollectionFloatingActions() {
         onImportDevSamples={() => {
           void importFlow.openDevSampleImport();
         }}
+        onImportDevSong={() => {
+          void importFlow.openDevSampleImportAsSong();
+        }}
         onFloatingDockLayout={(height) => {
           screen.setFloatingDockHeight((prev) => (Math.abs(prev - height) < 1 ? prev : height));
         }}
