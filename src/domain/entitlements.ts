@@ -27,6 +27,15 @@ export type ProFeature =
 
 let isProState = false;
 
+/**
+ * Dev-only override to exercise BOTH the free and the gated UX without real billing and
+ * without flipping ALL_FEATURES_FREE. `null` = follow the real entitlement; `true`/`false`
+ * force the effective state. A no-op in production builds. Nothing imports the setter —
+ * it is invoked from the JS debugger console by the QA flows (docs/qa/flows/
+ * lyrics-words.md LYR-22, LYR-60), so do NOT remove it as dead code.
+ */
+let devProOverride: boolean | null = null;
+
 const listeners = new Set<() => void>();
 
 function notify() {
@@ -47,22 +56,39 @@ export const proEntitlement = {
     },
 };
 
+/**
+ * Force the effective Pro state in development so gated UX can be tested against the still-true
+ * ALL_FEATURES_FREE flag. `null` restores normal behavior. No effect in production.
+ */
+export function setDevProOverride(value: boolean | null) {
+    if (!__DEV__) return;
+    if (value === devProOverride) return;
+    devProOverride = value;
+    notify();
+}
+
+export function getDevProOverride(): boolean | null {
+    return __DEV__ ? devProOverride : null;
+}
+
 /** Whether the user is a paying Pro SUBSCRIBER (drives "you're Pro" surfaces / upsell visibility). */
 function isProSubscriber(): boolean {
+    if (__DEV__ && devProOverride !== null) return devProOverride;
     return isProState;
 }
 
 /** Imperative check: whether the user may USE `feature`. All features are free for now. */
 export function hasProAccess(_feature?: ProFeature): boolean {
+    if (__DEV__ && devProOverride !== null) return devProOverride;
     return ALL_FEATURES_FREE || isProState;
 }
 
-/** Reactive subscriber flag — re-renders when the entitlement changes. */
+/** Reactive subscriber flag — re-renders when entitlement OR the dev override changes. */
 export function useIsPro(): boolean {
     return useSyncExternalStore(proEntitlement.subscribe, isProSubscriber);
 }
 
-/** Reactive feature check; re-renders when the entitlement changes. */
+/** Reactive feature check; re-renders when entitlement OR the dev override changes. */
 export function useHasProAccess(feature?: ProFeature): boolean {
     return useSyncExternalStore(proEntitlement.subscribe, () => hasProAccess(feature));
 }
