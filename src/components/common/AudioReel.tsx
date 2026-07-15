@@ -20,6 +20,7 @@ import { fmt } from "../../utils";
 import { colors, radii } from "../../design/tokens";
 import { durations } from "../../design/motion";
 import { haptic } from "../../design/haptics";
+import { audioReelStyles } from "./AudioReel.styles";
 
 const TIMELINE_HORIZONTAL_PADDING = 20;
 const AnimatedView = Reanimated.createAnimatedComponent(View);
@@ -49,6 +50,68 @@ function snapToZoomLevel(value: number | undefined | null): number {
         }
     }
     return nearest;
+}
+
+// Nocturne paper palette. Light = warm paper (the primary reel look); dark = a warm
+// espresso variant for any dark host surface. Both use the terracotta two-tone wave.
+type ReelPalette = {
+    surfaceColor: string;
+    utilityBackgroundColor: string;
+    utilityBorderColor: string;
+    utilityTextColor: string;
+    utilityIconColor: string;
+    waveColor: string;
+    wavePlayedColor: string;
+    rulerColor: string;
+    playheadColor: string;
+    transportButtonColor: string;
+    transportButtonBorderColor: string;
+    transportIconColor: string;
+    playButtonColor: string;
+    playIconColor: string;
+    expandButtonColor: string;
+};
+const LIGHT_REEL_PALETTE: ReelPalette = {
+    surfaceColor: "#F0EBE4",
+    utilityBackgroundColor: colors.surface,
+    utilityBorderColor: colors.borderSubtle,
+    utilityTextColor: colors.textStrong,
+    utilityIconColor: colors.textStrong,
+    waveColor: "#C7B9AF",
+    wavePlayedColor: colors.primary,
+    rulerColor: colors.borderMuted,
+    playheadColor: "#8b4f3b",
+    transportButtonColor: colors.surface,
+    transportButtonBorderColor: colors.borderSubtle,
+    transportIconColor: colors.textStrong,
+    playButtonColor: colors.primary,
+    playIconColor: colors.surface,
+    expandButtonColor: colors.page,
+};
+const DARK_REEL_PALETTE: ReelPalette = {
+    surfaceColor: "#2B211D",
+    utilityBackgroundColor: "#3A2D28",
+    utilityBorderColor: "#4A3A34",
+    utilityTextColor: "#F5EDE7",
+    utilityIconColor: "#EADFD8",
+    waveColor: "#7A655C",
+    wavePlayedColor: "#D89A85",
+    rulerColor: "#5A473F",
+    playheadColor: "#E8B865",
+    transportButtonColor: "#3A2D28",
+    transportButtonBorderColor: "#4A3A34",
+    transportIconColor: "#F5EDE7",
+    playButtonColor: colors.primary,
+    playIconColor: colors.surface,
+    expandButtonColor: "rgba(0,0,0,0.4)",
+};
+
+/** How many display bars the canvas asks for at this zoom: capacity (floored at 48
+ *  bars, 96 when the canvas is unmeasured) times the zoom multiple. */
+function requestedBarCountFor(mainCanvasWidth: number, zoomMultiple: number) {
+    const visibleBarCapacity =
+        mainCanvasWidth > 0 ? Math.max(48, Math.round(mainCanvasWidth / DISPLAY_BAR_PITCH_PX)) : 96;
+    return Math.round(visibleBarCapacity * zoomMultiple);
 }
 
 function downsampleWaveformPeaks(peaks: number[], targetCount: number) {
@@ -282,10 +345,10 @@ export function AudioReel({
         if (mainCanvasWidth <= 0) {
             return Math.min(waveformPeaks.length, 96);
         }
-
-        const visibleBarCapacity = Math.max(48, Math.round(mainCanvasWidth / DISPLAY_BAR_PITCH_PX));
-        const requestedBarCount = Math.round(visibleBarCapacity * zoomMultiple);
-        return Math.max(48, Math.min(waveformPeaks.length, requestedBarCount));
+        return Math.max(
+            48,
+            Math.min(waveformPeaks.length, requestedBarCountFor(mainCanvasWidth, zoomMultiple))
+        );
     }, [mainCanvasWidth, waveformPeaks.length, zoomMultiple]);
     const displayWaveformPeaks = React.useMemo(
         () => downsampleWaveformPeaks(waveformPeaks, targetPeakCount),
@@ -295,10 +358,7 @@ export function AudioReel({
         if (targetPeakCount <= 0) {
             return 1;
         }
-        const visibleBarCapacity = mainCanvasWidth > 0
-            ? Math.max(48, Math.round(mainCanvasWidth / DISPLAY_BAR_PITCH_PX))
-            : 96;
-        const requestedBarCount = Math.max(48, Math.round(visibleBarCapacity * zoomMultiple));
+        const requestedBarCount = Math.max(48, requestedBarCountFor(mainCanvasWidth, zoomMultiple));
         return Math.max(1, requestedBarCount / targetPeakCount);
     }, [mainCanvasWidth, targetPeakCount, zoomMultiple]);
     // Hold the wave back while the picture on hand would be a lie OR a visibly-wrong
@@ -374,43 +434,7 @@ export function AudioReel({
             : showMinimapMode === "never"
                 ? false
                 : zoomMultiple > 1.01 && (!compact || isExpanded);
-    // Nocturne paper palette. Light = warm paper (the primary reel look); dark = a warm
-    // espresso variant for any dark host surface. Both use the terracotta two-tone wave.
-    const palette = chrome === "light"
-        ? {
-            surfaceColor: "#F0EBE4",
-            utilityBackgroundColor: colors.surface,
-            utilityBorderColor: colors.borderSubtle,
-            utilityTextColor: colors.textStrong,
-            utilityIconColor: colors.textStrong,
-            waveColor: "#C7B9AF",
-            wavePlayedColor: colors.primary,
-            rulerColor: colors.borderMuted,
-            playheadColor: "#8b4f3b",
-            transportButtonColor: colors.surface,
-            transportButtonBorderColor: colors.borderSubtle,
-            transportIconColor: colors.textStrong,
-            playButtonColor: colors.primary,
-            playIconColor: colors.surface,
-            expandButtonColor: colors.page,
-        }
-        : {
-            surfaceColor: "#2B211D",
-            utilityBackgroundColor: "#3A2D28",
-            utilityBorderColor: "#4A3A34",
-            utilityTextColor: "#F5EDE7",
-            utilityIconColor: "#EADFD8",
-            waveColor: "#7A655C",
-            wavePlayedColor: "#D89A85",
-            rulerColor: "#5A473F",
-            playheadColor: "#E8B865",
-            transportButtonColor: "#3A2D28",
-            transportButtonBorderColor: "#4A3A34",
-            transportIconColor: "#F5EDE7",
-            playButtonColor: colors.primary,
-            playIconColor: colors.surface,
-            expandButtonColor: "rgba(0,0,0,0.4)",
-        };
+    const palette = chrome === "light" ? LIGHT_REEL_PALETTE : DARK_REEL_PALETTE;
 
     const scrubbingRef = React.useRef(false);
     const handleInteractionStateChange = (scrubbing: boolean) => {
@@ -910,225 +934,3 @@ export function AudioReel({
     );
 }
 
-const audioReelStyles = StyleSheet.create({
-    surface: {
-        overflow: "hidden",
-        position: "relative",
-    },
-    expandButton: {
-        position: "absolute",
-        top: 5,
-        right: 5,
-        width: 32,
-        height: 32,
-        borderRadius: radii.round,
-        justifyContent: "center",
-        alignItems: "center",
-        zIndex: 50,
-        borderWidth: 1,
-    },
-    visualizerLayer: {
-        ...StyleSheet.absoluteFillObject,
-        zIndex: 1,
-    },
-    /** Sits UNDER the wave layer (which fades in over it) and never takes touches —
-     *  scrub/seek belong to the visualizer even while the picture is pending. */
-    pendingLayer: {
-        ...StyleSheet.absoluteFillObject,
-        justifyContent: "center",
-        zIndex: 0,
-    },
-    /** A broken centre line: unmistakably "nothing here yet" — no amplitude anywhere to
-     *  misread as the shape of the audio. The row's own opacity stays 1; the pulse owns
-     *  fading (baking a second multiplier in here is what made it barely-there). */
-    pendingDashRow: {
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "space-between",
-    },
-    pendingDash: {
-        width: 4,
-        height: 2.5,
-        borderRadius: radii.xs,
-    },
-    /** Floated below the centre line rather than stacked with it, so the dashes stay
-     *  exactly where the wave's baseline lands — clear of the swelling pulse. */
-    pendingCaption: {
-        position: "absolute",
-        alignSelf: "center",
-        top: "60%",
-        fontFamily: "PlusJakartaSans_600SemiBold",
-        fontSize: 12.5,
-        letterSpacing: 0.2,
-    },
-    overlayLayer: {
-        zIndex: 2,
-    },
-    utilityRow: {
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "space-between",
-        gap: 12,
-        paddingHorizontal: 20,
-        marginBottom: 10,
-    },
-    utilityLeft: {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 8,
-        flexWrap: "wrap",
-        flex: 1,
-    },
-    timingRow: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        alignItems: "center",
-        marginBottom: 10,
-    },
-    timingPill: {
-        paddingHorizontal: 12,
-        paddingVertical: 5,
-        borderRadius: 999,
-        borderWidth: 1,
-    },
-    timingText: {
-        fontFamily: "PlusJakartaSans_600SemiBold",
-        fontSize: 13,
-        fontVariant: ["tabular-nums"],
-    },
-    timingTextCompact: {
-        fontSize: 12,
-    },
-    zoomOverlay: {
-        position: "absolute",
-        right: 6,
-    },
-    zoomOverlayPill: {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 1,
-        paddingHorizontal: 3,
-        paddingVertical: 2,
-        borderRadius: 999,
-        borderWidth: 0.5,
-        borderColor: colors.borderMuted,
-        backgroundColor: "rgba(253,251,247,0.96)",
-    },
-    zoomOverlayButton: {
-        width: 24,
-        height: 24,
-        alignItems: "center",
-        justifyContent: "center",
-    },
-    zoomOverlayDivider: {
-        width: 0.5,
-        height: 16,
-        backgroundColor: colors.borderMuted,
-        marginHorizontal: 1,
-    },
-    zoomPuck: {
-        width: 30,
-        height: 30,
-        borderRadius: 999,
-        borderWidth: 0.5,
-        borderColor: colors.borderMuted,
-        backgroundColor: "rgba(253,251,247,0.96)",
-        alignItems: "center",
-        justifyContent: "center",
-    },
-    zoomOverlayText: {
-        fontFamily: "PlusJakartaSans_600SemiBold",
-        fontSize: 11,
-        color: colors.textStrong,
-        minWidth: 22,
-        textAlign: "center",
-        fontVariant: ["tabular-nums"],
-    },
-    zoomRow: {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 8,
-        paddingHorizontal: 20,
-        marginTop: 12,
-    },
-    zoomRowTop: {
-        justifyContent: "flex-end",
-        paddingHorizontal: 0,
-        marginTop: 0,
-    },
-    zoomButton: {
-        width: 32,
-        height: 32,
-        borderRadius: radii.round,
-        justifyContent: "center",
-        alignItems: "center",
-        borderWidth: 1,
-    },
-    zoomButtonCompact: {
-        width: 28,
-        height: 28,
-        borderRadius: radii.round,
-    },
-    zoomReadout: {
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "center",
-        borderRadius: 8,
-        paddingHorizontal: 10,
-        minWidth: 76,
-        height: 32,
-        borderWidth: 1,
-    },
-    zoomReadoutCompact: {
-        height: 28,
-        borderRadius: 7,
-        paddingHorizontal: 7,
-        minWidth: 68,
-    },
-    zoomReadoutText: {
-        fontFamily: "PlusJakartaSans_600SemiBold",
-        fontSize: 13,
-        fontVariant: ["tabular-nums"],
-    },
-    zoomReadoutTextCompact: {
-        fontSize: 12,
-    },
-    minimapWrap: {
-        marginTop: 12,
-        paddingHorizontal: 20,
-    },
-    transportRow: {
-        flexDirection: "row",
-        justifyContent: "center",
-        alignItems: "center",
-        marginTop: 16,
-        gap: 16,
-    },
-    transportRowCompact: {
-        marginTop: 12,
-        gap: 12,
-    },
-    transportButton: {
-        padding: 12,
-        borderRadius: radii.round,
-        justifyContent: "center",
-        alignItems: "center",
-        borderWidth: 1,
-    },
-    transportButtonCompact: {
-        padding: 10,
-        borderRadius: 20,
-    },
-    playButton: {
-        height: 48,
-        width: 80,
-        borderRadius: radii.round,
-        justifyContent: "center",
-        alignItems: "center",
-    },
-    playButtonCompact: {
-        height: 42,
-        width: 68,
-        borderRadius: radii.round,
-    },
-});
