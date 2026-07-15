@@ -63,6 +63,8 @@ and deletes what it created (self-cleaning).
 |---|---|---|
 | clip-01-import-and-play | dev-import 6 clips (real pipeline: durations, waveform) → open clip → player Play/Pause (real audio) → minimize | ✅ self-cleaning |
 | clip-02-editor | import → clip → More options → Edit clip → Audio Editor mounts → "Add at playhead" creates a region → Back | ✅ self-cleaning |
+| clip-03-rename-notes | import → select → More → Edit → rename clip + add notes → new title renders | ✅ self-cleaning |
+| clip-04-editor-extract | import → editor → add region → "Extract 1 clip" → Extract → new short clip created | ✅ self-cleaning |
 
 Still HUMAN here: **overdub recording** (the "Add overdub" flow navigates to the recorder,
 which needs a real mic), Bluetooth/interruption during playback, and audio *quality* truths.

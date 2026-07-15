@@ -1,0 +1,64 @@
+# Edit clip metadata: rename a clip and add notes via the selection "Edit" sheet
+# (ClipNotesSheet), and confirm the new title renders on the card. Self-cleaning.
+# Requires scripts/push-dev-samples.sh.
+appId: com.bmostudio.songseed.dev
+---
+- runFlow: ../subflows/open-library.yaml
+- tapOn: ".*Ideas.*"
+- extendedWaitUntil:
+    visible:
+      id: "fab-record"
+    timeout: 15000
+- runFlow: reset-clips.yaml
+- runFlow: ../subflows/dismiss-logbox.yaml
+- tapOn:
+    id: "fab-create"
+- waitForAnimationToEnd
+- tapOn:
+    id: "fab-menu-devsamples"
+- extendedWaitUntil:
+    visible: ".*sample-01.*"
+    timeout: 20000
+# Select the clip → More → Edit → the notes/title sheet.
+- longPressOn: ".*sample-01.*"
+- extendedWaitUntil:
+    visible: ".*More"
+    timeout: 5000
+- tapOn: ".*More"
+- extendedWaitUntil:
+    visible: ".*Edit,.*"
+    timeout: 5000
+- tapOn: ".*Edit,.*"
+- extendedWaitUntil:
+    visible:
+      id: "clip-title-input"
+    timeout: 10000
+# Rename + add notes.
+- tapOn:
+    id: "clip-title-input"
+- eraseText: 40
+- inputText: "Renamed Clip"
+- tapOn:
+    id: "clip-notes-input"
+- inputText: "maestro notes line"
+# Sheet is keyboardAvoiding — Save stays reachable above the keyboard.
+- tapOn: "Save"
+# The renamed clip shows on the card.
+- extendedWaitUntil:
+    visible: ".*Renamed Clip.*"
+    timeout: 10000
+# Clean up: delete all clips (samples 02-06 still match the reset pattern).
+- longPressOn: ".*sample-0.*"
+- extendedWaitUntil:
+    visible: "Select all"
+    timeout: 5000
+- tapOn: "Select all"
+- tapOn: ".*Delete"
+- extendedWaitUntil:
+    visible: ".*Delete selected items.*"
+    timeout: 5000
+- tapOn:
+    id: "dialog-btn-delete"
+- extendedWaitUntil:
+    notVisible: ".*Renamed Clip.*"
+    timeout: 8000

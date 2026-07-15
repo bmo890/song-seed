@@ -1,0 +1,74 @@
+# Editor extract: mark a region and extract it into a new clip, confirming the
+# extracted (short) clip is created. Exercises the editor's real output path
+# (region → Extract 1 clip → Extract confirm), not just mounting. Self-cleaning.
+# Requires scripts/push-dev-samples.sh.
+appId: com.bmostudio.songseed.dev
+---
+- runFlow: ../subflows/open-library.yaml
+- tapOn: ".*Ideas.*"
+- extendedWaitUntil:
+    visible:
+      id: "fab-record"
+    timeout: 15000
+- runFlow: reset-clips.yaml
+- runFlow: ../subflows/dismiss-logbox.yaml
+- tapOn:
+    id: "fab-create"
+- waitForAnimationToEnd
+- tapOn:
+    id: "fab-menu-devsamples"
+- extendedWaitUntil:
+    visible: ".*sample-01.*"
+    timeout: 20000
+# Open the editor on the clip.
+- tapOn: ".*sample-01.*"
+- extendedWaitUntil:
+    visible: "More options"
+    timeout: 10000
+- tapOn: "More options"
+- extendedWaitUntil:
+    visible: "Edit clip"
+    timeout: 5000
+- tapOn: "Edit clip"
+- extendedWaitUntil:
+    visible: ".*Add at playhead.*"
+    timeout: 10000
+# Mark a region and extract it into a new clip.
+- tapOn: ".*Add at playhead.*"
+- extendedWaitUntil:
+    visible: ".*Extract 1 clip.*"
+    timeout: 8000
+- tapOn: ".*Extract 1 clip.*"
+- extendedWaitUntil:
+    visible: "Extract"
+    timeout: 8000
+- tapOn: "Extract"
+# Back on the player — the short extracted clip (~4-5s) now exists.
+- extendedWaitUntil:
+    visible: ".*00:0[45].*"
+    timeout: 10000
+- runFlow:
+    when:
+      visible: "Minimize player"
+    commands:
+      - tapOn: "Minimize player"
+      - waitForAnimationToEnd
+- extendedWaitUntil:
+    visible:
+      id: "fab-record"
+    timeout: 10000
+# Clean up.
+- longPressOn: ".*sample-0.*"
+- extendedWaitUntil:
+    visible: "Select all"
+    timeout: 5000
+- tapOn: "Select all"
+- tapOn: ".*Delete"
+- extendedWaitUntil:
+    visible: ".*Delete selected items.*"
+    timeout: 5000
+- tapOn:
+    id: "dialog-btn-delete"
+- extendedWaitUntil:
+    notVisible: ".*sample-0.*"
+    timeout: 8000

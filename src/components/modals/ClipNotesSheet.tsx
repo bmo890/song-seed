@@ -47,6 +47,7 @@ export function ClipNotesSheet({
         showsVerticalScrollIndicator={false}
       >
         <TitleInput
+          testID="clip-title-input"
           value={titleDraft}
           onChangeText={onChangeTitle}
           placeholder="Clip title"
@@ -57,6 +58,7 @@ export function ClipNotesSheet({
         ) : null}
 
         <TextInput
+          testID="clip-notes-input"
           style={styles.clipNotesSheetTextInput}
           multiline
           placeholder="Add notes about this clip..."
