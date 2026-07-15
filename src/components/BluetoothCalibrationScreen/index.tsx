@@ -6,7 +6,6 @@ import {
   Pressable,
   SafeAreaView,
   ScrollView,
-  StyleSheet,
   Text,
   View,
 } from "react-native";
@@ -35,17 +34,19 @@ import {
   normalizeBluetoothMonitoringOffsetMs,
   normalizeBluetoothMonitoringSavedOffsetMs,
 } from "../../bluetoothMonitoring";
+import {
+  CALIBRATION_BEAT_INTERVAL_MS,
+  CALIBRATION_BPM,
+  IGNORED_LEAD_IN_BEATS,
+  analyzeAudioPhaseTaps,
+  buildResultWarning,
+  median,
+} from "./calibrationAnalysis";
+import { screenStyles } from "./styles";
 
-const CALIBRATION_BPM = 90;
-const CALIBRATION_BEAT_INTERVAL_MS = Math.round(60000 / CALIBRATION_BPM);
 const CALIBRATION_BEAT_COUNT = 12;
-const AUDIO_MIN_VALID_BEAT_TAPS = 7;
-const IGNORED_LEAD_IN_BEATS = 2;
-const AUDIO_TAP_OUTLIER_WINDOW_MS = MAX_BLUETOOTH_MONITORING_AUTO_OFFSET_MS;
-const AUDIO_MAX_ALLOWED_MAD_MS = 130;
 const START_DELAY_MS = 1500;
 const COUNTDOWN_STEP_MS = 500;
-const TAP_DEDUPE_WINDOW_MS = 120;
 const OFFSET_TWEAK_SMALL_MS = 10;
 const OFFSET_TWEAK_LARGE_MS = 25;
 
@@ -56,104 +57,36 @@ type CalibrationPhase = "idle" | "player-running" | "click-running" | "result";
 
 type RouteInfo = Pick<AudioDevice, "name" | "type">;
 
-type PhaseAnalysis = {
-  medianMs: number;
-  madMs: number;
-  tapCount: number;
-};
-
-function median(values: number[]) {
-  if (values.length === 0) {
-    return 0;
-  }
-  const sorted = [...values].sort((a, b) => a - b);
-  const mid = Math.floor(sorted.length / 2);
-  return sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
-}
-
-function medianAbsoluteDeviation(values: number[], center: number) {
-  return median(values.map((value) => Math.abs(value - center)));
-}
-
-function analyzeAudioPhaseTaps(taps: number[], totalBeats: number): PhaseAnalysis | null {
-  const sortedTaps = [...taps].sort((a, b) => a - b);
-  const dedupedTaps: number[] = [];
-  sortedTaps.forEach((tapTime) => {
-    const previousTap = dedupedTaps[dedupedTaps.length - 1];
-    if (previousTap != null && tapTime - previousTap < TAP_DEDUPE_WINDOW_MS) {
-      return;
-    }
-    dedupedTaps.push(tapTime);
-  });
-
-  const residualByBeat = new Map<number, number>();
-
-  dedupedTaps.forEach((tapTime) => {
-    const beatIndex = Math.floor(tapTime / CALIBRATION_BEAT_INTERVAL_MS);
-    if (beatIndex < 0 || beatIndex >= totalBeats || beatIndex < IGNORED_LEAD_IN_BEATS) {
-      return;
-    }
-
-    const expectedTime = beatIndex * CALIBRATION_BEAT_INTERVAL_MS;
-    const residual = tapTime - expectedTime;
-    if (Math.abs(residual) > AUDIO_TAP_OUTLIER_WINDOW_MS) {
-      return;
-    }
-
-    // First tap per beat wins. Keeping the closest-to-zero tap (the old rule) biased the
-    // median LOW whenever a beat window caught a stray second tap.
-    if (!residualByBeat.has(beatIndex)) {
-      residualByBeat.set(beatIndex, residual);
-    }
-  });
-
-  const residuals = Array.from(residualByBeat.values());
-  if (residuals.length < AUDIO_MIN_VALID_BEAT_TAPS) {
-    return null;
-  }
-
-  const center = median(residuals);
-  const mad = medianAbsoluteDeviation(residuals, center);
-  if (mad > AUDIO_MAX_ALLOWED_MAD_MS) {
-    return null;
-  }
-
-  return {
-    medianMs: center,
-    madMs: mad,
-    tapCount: residuals.length,
-  };
-}
-
-/** Cross-check the two ear passes against each other and the OS report. Both passes share
- *  the same ears and tap reflexes, so their difference is purely the pipeline delta — a
- *  gap beyond these bounds means one pass measured wrong, and a single bad pass silently
- *  poisons every Bluetooth take until the user thinks to recalibrate (observed on device:
- *  a 600ms music outlier against a real ~340ms started the master a quarter-second early
- *  on every overdub). Warn, don't block: the numbers stay the user's call. */
-function buildResultWarning(
-  playerMs: number | null,
-  clickMs: number | null,
-  reportedMs: number | null
-): string | null {
-  if (playerMs == null || clickMs == null) {
-    return null;
-  }
-  const pipelineGapMs = playerMs - clickMs;
-  if (pipelineGapMs > 250 || pipelineGapMs < -80) {
-    return (
-      `The music pass came out ${Math.abs(Math.round(pipelineGapMs))} ms ` +
-      `${pipelineGapMs > 0 ? "above" : "below"} the click pass — that gap is unusual for one ` +
-      `set of headphones. One of the passes likely measured wrong; a retry is recommended before saving.`
-    );
-  }
-  if (reportedMs != null && Math.abs(playerMs - reportedMs) > 300) {
-    return (
-      `The music pass (${Math.round(playerMs)} ms) is far from the OS-reported route latency ` +
-      `(~${reportedMs} ms). That can be real, but a retry is recommended before saving.`
-    );
-  }
-  return null;
+/** The ±10/±25 ms fine-tune row shown under each measured delay in the result phase. */
+function OffsetTweakRow({
+  disabled = false,
+  onAdjust,
+}: {
+  disabled?: boolean;
+  onAdjust: (deltaMs: number) => void;
+}) {
+  return (
+    <View style={screenStyles.tweakRow}>
+      {[-OFFSET_TWEAK_LARGE_MS, -OFFSET_TWEAK_SMALL_MS, OFFSET_TWEAK_SMALL_MS, OFFSET_TWEAK_LARGE_MS].map(
+        (deltaMs) => (
+          <Pressable
+            key={deltaMs}
+            style={({ pressed }) => [
+              screenStyles.secondaryButton,
+              disabled ? screenStyles.buttonDisabled : null,
+              pressed ? globalStyles.pressDown : null,
+            ]}
+            disabled={disabled}
+            onPress={() => onAdjust(deltaMs)}
+          >
+            <Text style={screenStyles.secondaryButtonText}>
+              {`${deltaMs > 0 ? "+" : "-"}${Math.abs(deltaMs)} ms`}
+            </Text>
+          </Pressable>
+        )
+      )}
+    </View>
+  );
 }
 
 export function BluetoothCalibrationScreen() {
@@ -792,52 +725,7 @@ export function BluetoothCalibrationScreen() {
                   Auto measurement caps at {MAX_BLUETOOTH_MONITORING_AUTO_OFFSET_MS} ms. Manual tuning can reach{" "}
                   {MAX_BLUETOOTH_MONITORING_MANUAL_OFFSET_MS} ms.
                 </Text>
-                <View style={screenStyles.tweakRow}>
-                  <Pressable
-                    style={({ pressed }) => [
-                      screenStyles.secondaryButton,
-                      estimatedOffsetMs == null ? screenStyles.buttonDisabled : null,
-                      pressed ? globalStyles.pressDown : null,
-                    ]}
-                    disabled={estimatedOffsetMs == null}
-                    onPress={() => adjustDraftOffset(-OFFSET_TWEAK_LARGE_MS)}
-                  >
-                    <Text style={screenStyles.secondaryButtonText}>-25 ms</Text>
-                  </Pressable>
-                  <Pressable
-                    style={({ pressed }) => [
-                      screenStyles.secondaryButton,
-                      estimatedOffsetMs == null ? screenStyles.buttonDisabled : null,
-                      pressed ? globalStyles.pressDown : null,
-                    ]}
-                    disabled={estimatedOffsetMs == null}
-                    onPress={() => adjustDraftOffset(-OFFSET_TWEAK_SMALL_MS)}
-                  >
-                    <Text style={screenStyles.secondaryButtonText}>-10 ms</Text>
-                  </Pressable>
-                  <Pressable
-                    style={({ pressed }) => [
-                      screenStyles.secondaryButton,
-                      estimatedOffsetMs == null ? screenStyles.buttonDisabled : null,
-                      pressed ? globalStyles.pressDown : null,
-                    ]}
-                    disabled={estimatedOffsetMs == null}
-                    onPress={() => adjustDraftOffset(OFFSET_TWEAK_SMALL_MS)}
-                  >
-                    <Text style={screenStyles.secondaryButtonText}>+10 ms</Text>
-                  </Pressable>
-                  <Pressable
-                    style={({ pressed }) => [
-                      screenStyles.secondaryButton,
-                      estimatedOffsetMs == null ? screenStyles.buttonDisabled : null,
-                      pressed ? globalStyles.pressDown : null,
-                    ]}
-                    disabled={estimatedOffsetMs == null}
-                    onPress={() => adjustDraftOffset(OFFSET_TWEAK_LARGE_MS)}
-                  >
-                    <Text style={screenStyles.secondaryButtonText}>+25 ms</Text>
-                  </Pressable>
-                </View>
+                <OffsetTweakRow disabled={estimatedOffsetMs == null} onAdjust={adjustDraftOffset} />
 
                 <Text style={screenStyles.phaseBeatLabel}>
                   {`Metronome click delay: ${estimatedClickOffsetMs ?? "not measured"}${
@@ -845,44 +733,7 @@ export function BluetoothCalibrationScreen() {
                   }`}
                 </Text>
                 {estimatedClickOffsetMs != null ? (
-                  <View style={screenStyles.tweakRow}>
-                    <Pressable
-                      style={({ pressed }) => [
-                        screenStyles.secondaryButton,
-                        pressed ? globalStyles.pressDown : null,
-                      ]}
-                      onPress={() => adjustClickDraftOffset(-OFFSET_TWEAK_LARGE_MS)}
-                    >
-                      <Text style={screenStyles.secondaryButtonText}>-25 ms</Text>
-                    </Pressable>
-                    <Pressable
-                      style={({ pressed }) => [
-                        screenStyles.secondaryButton,
-                        pressed ? globalStyles.pressDown : null,
-                      ]}
-                      onPress={() => adjustClickDraftOffset(-OFFSET_TWEAK_SMALL_MS)}
-                    >
-                      <Text style={screenStyles.secondaryButtonText}>-10 ms</Text>
-                    </Pressable>
-                    <Pressable
-                      style={({ pressed }) => [
-                        screenStyles.secondaryButton,
-                        pressed ? globalStyles.pressDown : null,
-                      ]}
-                      onPress={() => adjustClickDraftOffset(OFFSET_TWEAK_SMALL_MS)}
-                    >
-                      <Text style={screenStyles.secondaryButtonText}>+10 ms</Text>
-                    </Pressable>
-                    <Pressable
-                      style={({ pressed }) => [
-                        screenStyles.secondaryButton,
-                        pressed ? globalStyles.pressDown : null,
-                      ]}
-                      onPress={() => adjustClickDraftOffset(OFFSET_TWEAK_LARGE_MS)}
-                    >
-                      <Text style={screenStyles.secondaryButtonText}>+25 ms</Text>
-                    </Pressable>
-                  </View>
+                  <OffsetTweakRow onAdjust={adjustClickDraftOffset} />
                 ) : null}
 
                 <View style={screenStyles.actionRow}>
@@ -986,227 +837,3 @@ export function BluetoothCalibrationScreen() {
     </SafeAreaView>
   );
 }
-
-const screenStyles = StyleSheet.create({
-  scrollContent: {
-    paddingHorizontal: 24,
-    paddingBottom: 36,
-    gap: 18,
-  },
-  section: {
-    gap: 10,
-  },
-  routeCard: {
-    backgroundColor: "#efeeea",
-    borderRadius: 6,
-    paddingHorizontal: 14,
-    paddingVertical: 14,
-    gap: 4,
-  },
-  routeTitle: {
-    fontSize: 17,
-    lineHeight: 22,
-    color: colors.textPrimary,
-    fontFamily: "PlusJakartaSans_700Bold",
-  },
-  routeMeta: {
-    fontSize: 13,
-    lineHeight: 18,
-    color: "#5a4b45",
-  },
-  phaseCard: {
-    backgroundColor: "#efeeea",
-    borderRadius: 6,
-    paddingHorizontal: 14,
-    paddingVertical: 14,
-    gap: 12,
-  },
-  phaseTitle: {
-    fontSize: 17,
-    lineHeight: 22,
-    color: colors.textPrimary,
-    fontFamily: "PlusJakartaSans_700Bold",
-  },
-  phaseText: {
-    fontSize: 13,
-    lineHeight: 18,
-    color: "#5a4b45",
-  },
-  phaseBeatLabel: {
-    fontSize: 12,
-    lineHeight: 16,
-    color: "#6d5b55",
-    fontFamily: "PlusJakartaSans_700Bold",
-    textTransform: "uppercase",
-    letterSpacing: 0.4,
-  },
-  progressBlock: {
-    gap: 8,
-  },
-  progressHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 12,
-  },
-  progressPercent: {
-    fontSize: 12,
-    lineHeight: 16,
-    color: "#6d5b55",
-    fontFamily: "PlusJakartaSans_700Bold",
-  },
-  progressTrack: {
-    height: 10,
-    borderRadius: 999,
-    backgroundColor: colors.borderMuted,
-    overflow: "hidden",
-  },
-  progressFill: {
-    height: "100%",
-    borderRadius: 999,
-    backgroundColor: colors.primaryDeep,
-  },
-  tapSurface: {
-    minHeight: 140,
-    borderRadius: 6,
-    backgroundColor: "#fffdf9",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  tapSurfaceLabel: {
-    fontSize: 20,
-    lineHeight: 24,
-    color: colors.textPrimary,
-    fontFamily: "PlusJakartaSans_700Bold",
-  },
-  phaseError: {
-    fontSize: 13,
-    lineHeight: 18,
-    color: colors.primaryDeep,
-  },
-  warningCard: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 8,
-    backgroundColor: "#F2E4DF",
-    borderRadius: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-  },
-  warningText: {
-    flex: 1,
-    fontSize: 12,
-    lineHeight: 17,
-    color: colors.primaryDeep,
-  },
-  phaseSummary: {
-    fontSize: 12,
-    lineHeight: 17,
-    color: "#6d5b55",
-  },
-  loadingRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  loadingText: {
-    fontSize: 13,
-    lineHeight: 18,
-    color: "#5a4b45",
-  },
-  actionRow: {
-    flexDirection: "row",
-    gap: 10,
-  },
-  tweakRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 10,
-  },
-  primaryButton: {
-    minHeight: 44,
-    borderRadius: 4,
-    backgroundColor: colors.primaryDeep,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 16,
-    flex: 1,
-  },
-  primaryButtonText: {
-    fontSize: 14,
-    lineHeight: 18,
-    color: colors.surface,
-    fontFamily: "PlusJakartaSans_700Bold",
-  },
-  secondaryButton: {
-    minHeight: 44,
-    borderRadius: 4,
-    backgroundColor: "#e6e2dd",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 16,
-  },
-  secondaryButtonText: {
-    fontSize: 14,
-    lineHeight: 18,
-    color: colors.textPrimary,
-    fontFamily: "PlusJakartaSans_700Bold",
-  },
-  buttonDisabled: {
-    opacity: 0.5,
-  },
-  savedList: {
-    gap: 8,
-  },
-  savedRow: {
-    backgroundColor: "#efeeea",
-    borderRadius: 6,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    gap: 12,
-  },
-  savedCopy: {
-    gap: 2,
-  },
-  savedTitle: {
-    fontSize: 15,
-    lineHeight: 20,
-    color: colors.textPrimary,
-    fontFamily: "PlusJakartaSans_700Bold",
-  },
-  savedMeta: {
-    fontSize: 13,
-    lineHeight: 18,
-    color: "#5a4b45",
-  },
-  savedActionCluster: {
-    flexDirection: "row",
-    alignItems: "center",
-    flexWrap: "wrap",
-    gap: 8,
-  },
-  savedAdjustButton: {
-    minHeight: 36,
-    borderRadius: 4,
-    backgroundColor: "#e6e2dd",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 12,
-  },
-  savedAdjustButtonText: {
-    fontSize: 13,
-    lineHeight: 18,
-    color: colors.textPrimary,
-    fontFamily: "PlusJakartaSans_700Bold",
-  },
-  removeButton: {
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-  },
-  removeButtonText: {
-    fontSize: 13,
-    lineHeight: 18,
-    color: colors.primaryDeep,
-    fontFamily: "PlusJakartaSans_700Bold",
-  },
-});

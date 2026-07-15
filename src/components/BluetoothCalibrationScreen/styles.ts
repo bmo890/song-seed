@@ -1,0 +1,226 @@
+import { StyleSheet } from "react-native";
+import { colors } from "../../design/tokens";
+
+export const screenStyles = StyleSheet.create({
+  scrollContent: {
+    paddingHorizontal: 24,
+    paddingBottom: 36,
+    gap: 18,
+  },
+  section: {
+    gap: 10,
+  },
+  routeCard: {
+    backgroundColor: "#efeeea",
+    borderRadius: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    gap: 4,
+  },
+  routeTitle: {
+    fontSize: 17,
+    lineHeight: 22,
+    color: colors.textPrimary,
+    fontFamily: "PlusJakartaSans_700Bold",
+  },
+  routeMeta: {
+    fontSize: 13,
+    lineHeight: 18,
+    color: "#5a4b45",
+  },
+  phaseCard: {
+    backgroundColor: "#efeeea",
+    borderRadius: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    gap: 12,
+  },
+  phaseTitle: {
+    fontSize: 17,
+    lineHeight: 22,
+    color: colors.textPrimary,
+    fontFamily: "PlusJakartaSans_700Bold",
+  },
+  phaseText: {
+    fontSize: 13,
+    lineHeight: 18,
+    color: "#5a4b45",
+  },
+  phaseBeatLabel: {
+    fontSize: 12,
+    lineHeight: 16,
+    color: "#6d5b55",
+    fontFamily: "PlusJakartaSans_700Bold",
+    textTransform: "uppercase",
+    letterSpacing: 0.4,
+  },
+  progressBlock: {
+    gap: 8,
+  },
+  progressHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  progressPercent: {
+    fontSize: 12,
+    lineHeight: 16,
+    color: "#6d5b55",
+    fontFamily: "PlusJakartaSans_700Bold",
+  },
+  progressTrack: {
+    height: 10,
+    borderRadius: 999,
+    backgroundColor: colors.borderMuted,
+    overflow: "hidden",
+  },
+  progressFill: {
+    height: "100%",
+    borderRadius: 999,
+    backgroundColor: colors.primaryDeep,
+  },
+  tapSurface: {
+    minHeight: 140,
+    borderRadius: 6,
+    backgroundColor: "#fffdf9",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  tapSurfaceLabel: {
+    fontSize: 20,
+    lineHeight: 24,
+    color: colors.textPrimary,
+    fontFamily: "PlusJakartaSans_700Bold",
+  },
+  phaseError: {
+    fontSize: 13,
+    lineHeight: 18,
+    color: colors.primaryDeep,
+  },
+  warningCard: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 8,
+    backgroundColor: "#F2E4DF",
+    borderRadius: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  warningText: {
+    flex: 1,
+    fontSize: 12,
+    lineHeight: 17,
+    color: colors.primaryDeep,
+  },
+  phaseSummary: {
+    fontSize: 12,
+    lineHeight: 17,
+    color: "#6d5b55",
+  },
+  loadingRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  loadingText: {
+    fontSize: 13,
+    lineHeight: 18,
+    color: "#5a4b45",
+  },
+  actionRow: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  tweakRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+  },
+  primaryButton: {
+    minHeight: 44,
+    borderRadius: 4,
+    backgroundColor: colors.primaryDeep,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 16,
+    flex: 1,
+  },
+  primaryButtonText: {
+    fontSize: 14,
+    lineHeight: 18,
+    color: colors.surface,
+    fontFamily: "PlusJakartaSans_700Bold",
+  },
+  secondaryButton: {
+    minHeight: 44,
+    borderRadius: 4,
+    backgroundColor: "#e6e2dd",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 16,
+  },
+  secondaryButtonText: {
+    fontSize: 14,
+    lineHeight: 18,
+    color: colors.textPrimary,
+    fontFamily: "PlusJakartaSans_700Bold",
+  },
+  buttonDisabled: {
+    opacity: 0.5,
+  },
+  savedList: {
+    gap: 8,
+  },
+  savedRow: {
+    backgroundColor: "#efeeea",
+    borderRadius: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    gap: 12,
+  },
+  savedCopy: {
+    gap: 2,
+  },
+  savedTitle: {
+    fontSize: 15,
+    lineHeight: 20,
+    color: colors.textPrimary,
+    fontFamily: "PlusJakartaSans_700Bold",
+  },
+  savedMeta: {
+    fontSize: 13,
+    lineHeight: 18,
+    color: "#5a4b45",
+  },
+  savedActionCluster: {
+    flexDirection: "row",
+    alignItems: "center",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  savedAdjustButton: {
+    minHeight: 36,
+    borderRadius: 4,
+    backgroundColor: "#e6e2dd",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 12,
+  },
+  savedAdjustButtonText: {
+    fontSize: 13,
+    lineHeight: 18,
+    color: colors.textPrimary,
+    fontFamily: "PlusJakartaSans_700Bold",
+  },
+  removeButton: {
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  removeButtonText: {
+    fontSize: 13,
+    lineHeight: 18,
+    color: colors.primaryDeep,
+    fontFamily: "PlusJakartaSans_700Bold",
+  },
+});
