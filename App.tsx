@@ -70,7 +70,11 @@ import {
   getRecentCollectionsForWorkspace,
   resolveStartupWorkspaceId,
 } from "./src/libraryNavigation";
-import type { CollectionDetailRouteParams } from "./src/navigation";
+import type {
+  HomeDrawerParamList,
+  RootStackParamList,
+  WorkspaceStackParamList,
+} from "./src/navigation";
 import { openIdeaInCollection } from "./src/navigation";
 import { cleanupStaleShareTempFiles, purgeExpiredTrash } from "./src/services/managedMedia";
 import { readManifest } from "./src/services/manifestSync";
@@ -83,48 +87,9 @@ import {
 import { resumePendingWorkspaceArchiveOperations } from "./src/services/workspaceArchiveRecovery";
 import { enqueueMissingMetadataBackfill } from "./src/services/backgroundWaveformHydration";
 import { recoverPendingRecordingSession } from "./src/services/recordingRecovery";
-import type { SettingsView } from "./src/components/SettingsScreen/types";
 import { cleanupStaleDisasterRecoveryBackupFiles } from "./src/services/disasterRecoveryBackup";
 import { cleanupInterruptedDisasterRecoveryRestores } from "./src/services/disasterRecoveryTemp";
 
-
-export type HomeDrawerParamList = {
-  Workspaces: undefined;
-  WorkspaceStack: NavigatorScreenParams<WorkspaceStackParamList> | undefined;
-  SearchHome: undefined;
-  RevisitHome: undefined;
-  ActivityHome: undefined;
-  TunerHome: undefined;
-  MetronomeHome: undefined;
-  LibraryHome: { openPlaylistId?: string; openToken?: number } | undefined;
-  // openToken forces re-application when navigating to the SAME view twice in a row
-  // (e.g. the backup reminder always deep-links to "library" — without a changing
-  // token, a second dismiss+reopen wouldn't re-trigger the route-params effect).
-  SettingsHome: { initialView?: SettingsView; openToken?: number } | undefined;
-  NotepadHome: { noteId?: string; openToken?: number } | undefined;
-  WordLadderHome: { exerciseId?: string } | undefined;
-  CutUpHome: { sparkId?: string } | undefined;
-  MagpieHome: { sparkId?: string } | undefined;
-};
-
-export type WorkspaceStackParamList = {
-  Browse: { workspaceId?: string } | undefined;
-  CollectionDetail: CollectionDetailRouteParams | undefined;
-};
-
-export type RootStackParamList = {
-  Home: NavigatorScreenParams<HomeDrawerParamList> | undefined;
-  IdeaDetail: { ideaId?: string; startInEdit?: boolean } | undefined;
-  Activity: { workspaceId?: string; collectionId?: string } | undefined;
-  Recording: undefined;
-  BluetoothCalibration: undefined;
-  ShareImport: undefined;
-  Editor: { ideaId: string; clipId: string; audioUri?: string; durationMs?: number };
-  Lyrics: { ideaId: string };
-  LyricsVersion: { ideaId: string; versionId?: string; startInEdit?: boolean; forceNewVersion?: boolean; createDraft?: boolean };
-  ChordSheet: { ideaId: string };
-  ClipLineage: { ideaId: string; rootClipId: string };
-};
 
 const navigationRef = createNavigationContainerRef<RootStackParamList>();
 import { useStore } from "./src/state/useStore";

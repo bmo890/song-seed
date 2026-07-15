@@ -1,4 +1,6 @@
+import type { NavigatorScreenParams } from "@react-navigation/native";
 import { useStore } from "./state/useStore";
+import type { SettingsView } from "./components/SettingsScreen/types";
 
 export type CollectionDetailRouteParams = {
   collectionId: string;
@@ -15,6 +17,44 @@ export type CollectionDetailRouteParams = {
    * set, the collection is a contextual jump: back returns to that origin and
    * the back button is labelled with it. */
   backLabel?: string;
+};
+
+export type HomeDrawerParamList = {
+  Workspaces: undefined;
+  WorkspaceStack: NavigatorScreenParams<WorkspaceStackParamList> | undefined;
+  SearchHome: undefined;
+  RevisitHome: undefined;
+  ActivityHome: undefined;
+  TunerHome: undefined;
+  MetronomeHome: undefined;
+  LibraryHome: { openPlaylistId?: string; openToken?: number } | undefined;
+  // openToken forces re-application when navigating to the SAME view twice in a row
+  // (e.g. the backup reminder always deep-links to "library" — without a changing
+  // token, a second dismiss+reopen wouldn't re-trigger the route-params effect).
+  SettingsHome: { initialView?: SettingsView; openToken?: number } | undefined;
+  NotepadHome: { noteId?: string; openToken?: number } | undefined;
+  WordLadderHome: { exerciseId?: string } | undefined;
+  CutUpHome: { sparkId?: string } | undefined;
+  MagpieHome: { sparkId?: string } | undefined;
+};
+
+export type WorkspaceStackParamList = {
+  Browse: { workspaceId?: string } | undefined;
+  CollectionDetail: CollectionDetailRouteParams | undefined;
+};
+
+export type RootStackParamList = {
+  Home: NavigatorScreenParams<HomeDrawerParamList> | undefined;
+  IdeaDetail: { ideaId?: string; startInEdit?: boolean } | undefined;
+  Activity: { workspaceId?: string; collectionId?: string } | undefined;
+  Recording: undefined;
+  BluetoothCalibration: undefined;
+  ShareImport: undefined;
+  Editor: { ideaId: string; clipId: string; audioUri?: string; durationMs?: number };
+  Lyrics: { ideaId: string };
+  LyricsVersion: { ideaId: string; versionId?: string; startInEdit?: boolean; forceNewVersion?: boolean; createDraft?: boolean };
+  ChordSheet: { ideaId: string };
+  ClipLineage: { ideaId: string; rootClipId: string };
 };
 
 export function getRootNavigation(navigation: any) {

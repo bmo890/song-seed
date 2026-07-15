@@ -11,7 +11,7 @@ import { AppAlert } from "../../common/AppAlert";
 import { actionIcons } from "../../common/actionIcons";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import type { RootStackParamList } from "../../../../App";
+import type { RootStackParamList } from "../../../navigation";
 import { styles } from "../styles";
 import { useStore } from "../../../state/useStore";
 import { appActions } from "../../../state/actions";

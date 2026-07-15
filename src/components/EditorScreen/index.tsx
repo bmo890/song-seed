@@ -9,7 +9,7 @@ import { useThrottledAudioPlayerStatus } from "../../hooks/useThrottledAudioPlay
 import { MultiTimeRangeSelector } from "../common/TimeRangeSelector";
 import { AudioAnalysis } from "@siteed/audio-studio";
 import { styles } from "../../styles";
-import { RootStackParamList } from "../../../App";
+import { RootStackParamList } from "../../navigation";
 import { Ionicons } from "@expo/vector-icons";
 import { useStore } from "../../state/useStore";
 import { appActions } from "../../state/actions";

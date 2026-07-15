@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Animated, BackHandler } from "react-native";
 import { useIsFocused, useNavigation, useRoute } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import type { RootStackParamList } from "../../../../App";
+import type { RootStackParamList } from "../../../navigation";
 import { useStore } from "../../../state/useStore";
 import { useMiniPlayerContext } from "../../../hooks/FullPlayerProvider";
 import { buildClipLineages, type ClipLineage, type TimelineClipEntry } from "../../../clipGraph";
