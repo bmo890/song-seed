@@ -62,17 +62,20 @@ function cacheSidecar(audioUri: string, peaks: number[]) {
 }
 
 /** Cached sidecar for `audioUri`, or null. Synchronous — lets a surface render the
- *  real waveform on its FIRST frame instead of upgrading into it a beat later. */
+ *  real waveform on its FIRST frame instead of upgrading into it a beat later.
+ *
+ *  PURE by contract: callers read this during render, so it must not touch LRU order
+ *  (or anything else). `readWaveformSidecar` does the touching. */
 export function peekWaveformSidecar(audioUri: string): number[] | null {
-  const cached = sidecarCache.get(audioUri);
-  if (!cached) return null;
-  cacheSidecar(audioUri, cached); // touch for LRU
-  return cached;
+  return sidecarCache.get(audioUri) ?? null;
 }
 
 export async function readWaveformSidecar(audioUri: string): Promise<number[] | null> {
-  const cached = peekWaveformSidecar(audioUri);
-  if (cached) return cached;
+  const cached = sidecarCache.get(audioUri);
+  if (cached) {
+    cacheSidecar(audioUri, cached); // touch for LRU
+    return cached;
+  }
   try {
     const path = waveformSidecarUri(audioUri);
     const info = await FileSystem.getInfoAsync(path);

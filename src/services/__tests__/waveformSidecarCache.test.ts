@@ -81,13 +81,24 @@ describe("waveform sidecar cache", () => {
         expect(peekWaveformSidecar("file:///e.m4a")).toBeNull();
     });
 
-    it("evicts the oldest entry past the cap, and a touch keeps an entry alive (LRU)", async () => {
+    it("peek is PURE — it must not reorder LRU, because surfaces call it during render", async () => {
+        await writeWaveformSidecar("file:///oldest.m4a", [0.5]);
+        for (let i = 0; i < 23; i += 1) {
+            await writeWaveformSidecar(`file:///pad-${i}.m4a`, [0.5]);
+        }
+        // Peeking the oldest entry must NOT save it from eviction; only a read touches.
+        peekWaveformSidecar("file:///oldest.m4a");
+        await writeWaveformSidecar("file:///overflow.m4a", [0.5]);
+        expect(peekWaveformSidecar("file:///oldest.m4a")).toBeNull();
+    });
+
+    it("evicts the oldest entry past the cap, and a read keeps an entry alive (LRU)", async () => {
         await writeWaveformSidecar("file:///keep.m4a", [0.5]);
         for (let i = 0; i < 23; i += 1) {
             await writeWaveformSidecar(`file:///pad-${i}.m4a`, [0.5]);
         }
-        // At the 24-entry cap with "keep" as the oldest — touch it so it isn't next out.
-        expect(peekWaveformSidecar("file:///keep.m4a")).not.toBeNull();
+        // At the 24-entry cap with "keep" as the oldest — read it so it isn't next out.
+        expect(await readWaveformSidecar("file:///keep.m4a")).not.toBeNull();
         await writeWaveformSidecar("file:///overflow.m4a", [0.5]);
 
         expect(peekWaveformSidecar("file:///keep.m4a")).not.toBeNull();

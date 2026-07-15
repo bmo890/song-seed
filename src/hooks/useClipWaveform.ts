@@ -36,6 +36,49 @@ type Args = {
  * native decode of a long file never blocks the player's clip load or fights the
  * codec mid-track. The low-res thumbnail shows meanwhile so the reel is never empty.
  */
+export type ClipWaveformSource = {
+  /** What the reel should draw right now. */
+  peaks: number[];
+  /** Those peaks are the high-resolution sidecar (not the inline thumbnail). */
+  isDetail: boolean;
+  /** A cold sidecar read is still outstanding — detail is milliseconds away, so a
+   *  surface can hold back a stand-in it knows is too coarse. */
+  isResolvingDetail: boolean;
+};
+
+/**
+ * Which waveform does this clip have RIGHT NOW — pure, so the first-frame contract is
+ * testable without a renderer.
+ *
+ * Every input is read during render. That is the whole point: this bug has been
+ * introduced twice by computing "is detail coming?" in an effect, which runs AFTER
+ * paint — so frame one claimed nothing was coming, the reel painted the stretched
+ * low-res stand-in, and the guard meant to prevent that never fired.
+ */
+export function resolveClipWaveformSource(args: {
+  audioUri?: string | null;
+  enabled: boolean;
+  /** Synchronous in-memory sidecar hit, if any. */
+  cachedPeaks?: number[] | null;
+  /** Sidecar loaded by a previous read, tagged with the uri it came from. A mismatch
+   *  is ignored so a clip switch never shows the PREVIOUS clip's wave for a frame. */
+  detail?: { uri: string; peaks: number[] } | null;
+  /** The uri whose read has finished — hit OR miss. A miss must clear resolving too,
+   *  or a surface waiting on it would hold its placeholder until generation finishes. */
+  resolvedUri?: string | null;
+  thumbnailPeaks?: number[] | null;
+}): ClipWaveformSource {
+  const { audioUri, enabled, cachedPeaks, detail, resolvedUri, thumbnailPeaks } = args;
+  const taggedDetail = detail && detail.uri === audioUri ? detail.peaks : null;
+  const detailPeaks = taggedDetail ?? (enabled && audioUri ? cachedPeaks ?? null : null);
+  const thumbnail = thumbnailPeaks && thumbnailPeaks.length ? thumbnailPeaks : [];
+  return {
+    peaks: detailPeaks ?? thumbnail,
+    isDetail: !!detailPeaks,
+    isResolvingDetail: !!enabled && !!audioUri && !detailPeaks && resolvedUri !== audioUri,
+  };
+}
+
 export function useClipWaveform({
   audioUri,
   thumbnailPeaks,
@@ -43,60 +86,57 @@ export function useClipWaveform({
   enabled = true,
   deferGeneration = false,
 }: Args) {
-  // Tagged with the uri it was decoded FROM. The effect below resets state one
-  // frame late (effects run post-render), so on a clip switch the first frame
-  // used to show the PREVIOUS clip's high-res wave before snapping to the new
-  // one. Matching the tag against the current audioUri at render time makes a
-  // stale sidecar invisible in the same frame the clip changes.
-  // Seeded from the in-memory sidecar cache so a clip whose sidecar is already known
-  // (opened before this session, or analyzed by background hydration) renders at full
-  // resolution on its FIRST frame — no read, no upgrade-in-front-of-the-user.
-  const [detail, setDetail] = useState<{ uri: string; peaks: number[] } | null>(() => {
-    const cached = audioUri ? peekWaveformSidecar(audioUri) : null;
-    return cached ? { uri: audioUri!, peaks: cached } : null;
-  });
-  /** A cold sidecar read is in flight for the current uri. Surfaces use this to avoid
-   *  painting a low-res stand-in that would visibly sharpen a moment later. */
-  const [isResolvingDetail, setIsResolvingDetail] = useState(false);
+  // EVERYTHING about "which waveform do we have right now" is derived DURING RENDER,
+  // never set from an effect. Effects run after paint, so any state they own is wrong
+  // on the frame that matters — the first one the user sees. That is precisely how the
+  // low-res flash survived an earlier attempt at this fix.
+  //
+  // Tagged with the uri it came FROM, so a stale sidecar is invisible in the same frame
+  // the clip changes rather than one frame later.
+  const [detail, setDetail] = useState<{ uri: string; peaks: number[] } | null>(null);
+  /** The uri whose sidecar read has FINISHED (hit or miss). Lets `isResolvingDetail`
+   *  be derived rather than toggled from an effect. */
+  const [resolvedUri, setResolvedUri] = useState<string | null>(null);
   // True only while the native decode is actually inside the decoder — not while
   // waiting out the dwell, and not while deferred by playback. Surfaces use it to
   // caption real work ("Analyzing waveform…") without ever claiming work that is
   // standing down.
   const [isGenerating, setIsGenerating] = useState(false);
-  const detailPeaks = detail && detail.uri === audioUri ? detail.peaks : null;
 
-  // Cheap: load any already-cached sidecar right away (just a file read). Reset when
-  // the source changes so a stale wave never lingers onto the next clip.
+  // The cache is consulted at RENDER time, so a clip whose sidecar is already known
+  // (opened before this session, or just analyzed by background hydration) paints at
+  // full resolution on its first frame — no read, no upgrade in front of the user.
+  const cachedPeaks = enabled && audioUri ? peekWaveformSidecar(audioUri) : null;
+  const source = resolveClipWaveformSource({
+    audioUri,
+    enabled,
+    cachedPeaks,
+    detail,
+    resolvedUri,
+    thumbnailPeaks,
+  });
+  const detailPeaks = source.isDetail ? source.peaks : null;
+  const isResolvingDetail = source.isResolvingDetail;
+
+  // Cold read only — a cache hit is already served at render time above, so this
+  // never runs for a known clip.
   useEffect(() => {
-    if (!enabled || !audioUri) {
-      setDetail((prev) => (prev && prev.uri === audioUri ? prev : null));
-      setIsResolvingDetail(false);
-      return;
-    }
+    if (!enabled || !audioUri || cachedPeaks) return;
 
-    const cached = peekWaveformSidecar(audioUri);
-    if (cached) {
-      setDetail({ uri: audioUri, peaks: cached });
-      setIsResolvingDetail(false);
-      return;
-    }
-
-    setDetail((prev) => (prev && prev.uri === audioUri ? prev : null));
-    setIsResolvingDetail(true);
     let cancelled = false;
     void (async () => {
       const existing = await readWaveformSidecar(audioUri);
       if (cancelled) return;
       if (existing && existing.length) setDetail({ uri: audioUri, peaks: existing });
-      // Resolved either way — a MISSING sidecar must clear this too, or a surface
-      // waiting on it would hold its placeholder until generation finishes.
-      setIsResolvingDetail(false);
+      // Mark resolved either way — a MISSING sidecar must clear this too, or a
+      // surface waiting on it would hold its placeholder until generation finishes.
+      setResolvedUri(audioUri);
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [audioUri, enabled]);
+  }, [audioUri, cachedPeaks, enabled]);
 
   // Expensive: generate a missing sidecar off the critical path — deferred until
   // interactions settle, a short pause dwell elapses, AND playback is idle, so the
@@ -140,11 +180,17 @@ export function useClipWaveform({
     };
   }, [audioUri, durationMs, enabled, deferGeneration, detailPeaks]);
 
-  const thumbnail = thumbnailPeaks && thumbnailPeaks.length ? thumbnailPeaks : [];
   return {
-    peaks: detailPeaks ?? thumbnail,
-    isDetail: !!detailPeaks,
+    peaks: source.peaks,
+    isDetail: source.isDetail,
     isGenerating,
     isResolvingDetail,
   };
 }
+
+// NOTE ON THE PATTERN, because this bug has now been introduced twice: anything the
+// FIRST rendered frame depends on must be derived in render (or a useState lazy
+// initializer), never assigned by an effect. `isResolvingDetail` was previously
+// useState(false) + set true in an effect — so frame one always claimed "nothing is
+// coming", the reel painted the coarse stand-in, and the guard meant to prevent
+// exactly that never fired.
