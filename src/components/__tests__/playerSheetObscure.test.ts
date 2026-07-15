@@ -5,7 +5,10 @@
 // the first attempted fix, and it looked worse). Hiding the docked sheet is the fix,
 // and these pin the branches that make it safe.
 
-import { shouldObscurePlayerSheet } from "../playerSheetVisibility";
+import {
+    shouldLiftDockAboveSelectionBar,
+    shouldObscurePlayerSheet,
+} from "../playerSheetVisibility";
 
 const base = {
     activeRouteName: "Home",
@@ -51,5 +54,29 @@ describe("shouldObscurePlayerSheet", () => {
 
     it("the drawer hides it", () => {
         expect(shouldObscurePlayerSheet({ ...base, isDrawerOpen: true, expanded: true })).toBe(true);
+    });
+});
+
+// The media dock lifts above a selection toolbar so both are visible. But it must drop
+// back the moment the sheet starts rising: the sheet covers the toolbar itself, and a
+// lifted dock would hang mid-screen with sheet visible below it — a terracotta band
+// painted straight across the player's reel.
+describe("shouldLiftDockAboveSelectionBar", () => {
+    const docked = { selectionDockHeight: 120, sheetInMotion: false, sheetExpanded: false };
+
+    it("no toolbar: the dock hugs the bottom", () => {
+        expect(shouldLiftDockAboveSelectionBar({ ...docked, selectionDockHeight: 0 })).toBe(false);
+    });
+
+    it("toolbar up, sheet docked: LIFT — both stay visible", () => {
+        expect(shouldLiftDockAboveSelectionBar(docked)).toBe(true);
+    });
+
+    it("sheet rising: do NOT lift — otherwise the dock cuts the rising reel in half", () => {
+        expect(shouldLiftDockAboveSelectionBar({ ...docked, sheetInMotion: true })).toBe(false);
+    });
+
+    it("sheet expanded: do NOT lift", () => {
+        expect(shouldLiftDockAboveSelectionBar({ ...docked, sheetExpanded: true })).toBe(false);
     });
 });

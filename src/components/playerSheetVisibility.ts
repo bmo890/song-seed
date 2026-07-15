@@ -29,6 +29,25 @@ export const OBSCURING_ROUTES = new Set([
  * below the dock. Since a docked sheet is invisible by design, hiding it costs nothing
  * and reveals the toolbar.
  */
+/**
+ * Should the media dock lift off the screen bottom to sit above a selection toolbar?
+ *
+ * Only while the sheet is DOCKED. Once the sheet is rising it covers the toolbar
+ * itself, and a lifted dock would hang in the middle of the screen with sheet visible
+ * below it — a band painted across the player's reel. Dropping it back to the bottom
+ * also restores the geometry the drag assumes: the sheet's docked top sits exactly at
+ * the dock's top edge, so it emerges from behind the dock rather than below it.
+ */
+export function shouldLiftDockAboveSelectionBar(opts: {
+  selectionDockHeight: number;
+  /** The sheet is animating or being dragged (true from the drag's START). */
+  sheetInMotion: boolean;
+  sheetExpanded: boolean;
+}): boolean {
+  if (opts.selectionDockHeight <= 0) return false;
+  return !opts.sheetInMotion && !opts.sheetExpanded;
+}
+
 export function shouldObscurePlayerSheet(opts: {
   activeRouteName: string;
   isDrawerOpen: boolean;

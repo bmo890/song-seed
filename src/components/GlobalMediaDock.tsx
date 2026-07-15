@@ -9,6 +9,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRecordingDisplayElapsed } from "../hooks/useRecordingDisplayElapsed";
 import { useFullPlayerControls } from "../hooks/FullPlayerProvider";
 import { usePlayerSheetPosition } from "../hooks/PlayerSheetPositionProvider";
+import { shouldLiftDockAboveSelectionBar } from "./playerSheetVisibility";
 import { useStore } from "../state/useStore";
 import { styles } from "../styles";
 import { colors } from "../design/tokens";
@@ -106,7 +107,7 @@ export function GlobalMediaDock({
   // edge-case bugs, and opening a one-item queue to reorder/remove is valid.
   const hasQueueCount = playerQueue.length > 1;
 
-  const { dragY, dockedY, openedByDrag, setInMotion, screenHeight } = usePlayerSheetPosition();
+  const { dragY, dockedY, openedByDrag, setInMotion, screenHeight, inMotion } = usePlayerSheetPosition();
 
   const openFullPlayer = () => {
     useStore.getState().requestInlineStop();
@@ -324,13 +325,21 @@ export function GlobalMediaDock({
     : activePlayback.subtitle !== activePlayback.title
       ? activePlayback.subtitle
       : null;
-  // Lifted above an active selection toolbar; hugging the screen bottom otherwise.
-  const dockBottomOffset = activeSelectionDockHeight > 0 ? { bottom: activeSelectionDockHeight } : null;
+  // Lifted above an active selection toolbar; hugging the screen bottom otherwise —
+  // but ONLY while the sheet is docked. Once the sheet is rising it covers the toolbar
+  // itself, and a lifted dock would hang mid-screen with sheet visible below it,
+  // painting a band across the player's reel.
+  const liftAboveSelectionBar = shouldLiftDockAboveSelectionBar({
+    selectionDockHeight: activeSelectionDockHeight,
+    sheetInMotion: inMotion,
+    sheetExpanded: isPlayerScreenMounted,
+  });
+  const dockBottomOffset = liftAboveSelectionBar ? { bottom: activeSelectionDockHeight } : null;
   // This wins over miniMediaDockSurface's own paddingBottom (later in the style
   // array), so the stylesheet value has no effect here — bumping the dock's
   // height/balance has to happen here, not there.
   const dockBottomPadding = {
-    paddingBottom: activeSelectionDockHeight > 0 ? 10 : Math.max(insets.bottom, 14),
+    paddingBottom: liftAboveSelectionBar ? 10 : Math.max(insets.bottom, 14),
   };
 
   return (
