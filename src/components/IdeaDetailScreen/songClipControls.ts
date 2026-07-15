@@ -1,4 +1,3 @@
-import type { SongTimelineSortMetric } from "../../clipGraph";
 import type { CustomTagDefinition } from "../../types";
 
 export type TagColor = { bg: string; text: string };
@@ -13,7 +12,6 @@ export const SONG_CLIP_TAG_OPTIONS = [
   { key: "interlude",  label: "Interlude",  bg: "#D6E8E2", text: "#35706A" },
 ] as const;
 
-export type SongClipBuiltInTag = (typeof SONG_CLIP_TAG_OPTIONS)[number]["key"];
 
 /** Empty array = "all clips". Otherwise shows clips that have at least one of the listed tags
  *  (use "untagged" in the array to include clips with no tags). */
@@ -103,19 +101,6 @@ export function suggestedSectionTagsForClip(
     : matched;
 }
 
-export function getSongTimelineSortMetricIcon(metric: SongTimelineSortMetric) {
-  switch (metric) {
-    case "created":
-      return "calendar-outline";
-    case "title":
-      return "text-outline";
-    case "length":
-      return "time-outline";
-    default:
-      return "options-outline";
-  }
-}
-
 export function getSongClipTagFilterSummary(
   tagFilter: SongClipTagFilter,
   projectCustomTags?: CustomTagDefinition[],
@@ -128,8 +113,4 @@ export function getSongClipTagFilterSummary(
     return getTagLabel(key, projectCustomTags, globalCustomTags);
   }
   return `${tagFilter.length} tags`;
-}
-
-export function getSongMainTakeFilterSummary(mainTakesOnly: boolean) {
-  return mainTakesOnly ? "Main takes only" : "All takes";
 }

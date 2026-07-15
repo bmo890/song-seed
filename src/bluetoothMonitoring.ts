@@ -5,7 +5,6 @@ import type { BluetoothMonitoringCalibration } from "./types";
 // so very late taps do not become ambiguous with the next beat.
 export const MAX_BLUETOOTH_MONITORING_AUTO_OFFSET_MS = 640;
 export const MAX_BLUETOOTH_MONITORING_MANUAL_OFFSET_MS = 700;
-export const MAX_BLUETOOTH_MONITORING_OFFSET_MS = MAX_BLUETOOTH_MONITORING_AUTO_OFFSET_MS;
 const MONITORING_OFFSET_ROUNDING_MS = 10;
 
 export function clampBluetoothMonitoringOffsetMs(

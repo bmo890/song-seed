@@ -77,10 +77,6 @@ export async function getCrashLogUri(): Promise<string | null> {
     return (await hasCrashLog()) ? CRASH_LOG_FILE : null;
 }
 
-export async function clearCrashLog(): Promise<void> {
-    await FileSystem.deleteAsync(CRASH_LOG_FILE, { idempotent: true }).catch(() => {});
-}
-
 type ErrorUtilsLike = {
     getGlobalHandler?: () => ((error: unknown, isFatal?: boolean) => void) | undefined;
     setGlobalHandler?: (handler: (error: unknown, isFatal?: boolean) => void) => void;

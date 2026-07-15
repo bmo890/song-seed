@@ -28,17 +28,6 @@ export type PlayerQueueEntry = {
   subtitle: string;
 };
 
-export type PlayerOverdubStemEntry = {
-  id: string;
-  title: string;
-  meta: string;
-  audioUri: string | null;
-  durationMs: number;
-  waveformPeaks?: number[];
-  gainDb: number;
-  isMuted: boolean;
-  tonePreset: string;
-};
 
 type UsePlayerScreenDataArgs = {
   playerDuration: number;

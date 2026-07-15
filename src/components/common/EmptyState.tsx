@@ -1,4 +1,3 @@
-import { type ReactNode } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors, radii, spacing } from "../../design/tokens";
@@ -47,11 +46,6 @@ export function EmptyState({
       ) : null}
     </View>
   );
-}
-
-/** Bare inline variant (icon + one line) for the smallest slots. */
-export function EmptyStateHint({ children }: { children: ReactNode }) {
-  return <Text style={s.hint}>{children}</Text>;
 }
 
 const s = StyleSheet.create({
@@ -105,14 +99,5 @@ const s = StyleSheet.create({
     fontFamily: "PlusJakartaSans_700Bold",
     fontSize: 14,
     color: colors.onPrimary,
-  },
-  hint: {
-    fontFamily: "PlusJakartaSans_400Regular",
-    fontSize: 13,
-    lineHeight: 20,
-    color: colors.textSecondary,
-    textAlign: "center",
-    paddingHorizontal: 24,
-    paddingVertical: 28,
   },
 });

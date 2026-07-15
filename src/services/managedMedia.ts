@@ -261,28 +261,3 @@ export async function cleanupStaleShareTempFiles(maxAgeMs = SHARE_TEMP_FILE_MAX_
         console.warn("[ManagedMedia] Failed to sweep share temp files", error);
     }
 }
-
-export async function ensureArchiveSizeWithinSafetyLimit(
-    fileUris: Iterable<string>,
-    label: string
-) {
-    let totalBytes = 0;
-
-    for (const fileUri of fileUris) {
-        const info = await FileSystem.getInfoAsync(fileUri);
-        if (!info.exists) {
-            continue;
-        }
-        if (typeof info.size === "number") {
-            totalBytes += info.size;
-        }
-    }
-
-    // Expo's legacy FS writes base64 strings, so large archives can spike memory well above
-    // the final file size. Hard-fail before that point rather than crashing the app.
-    if (totalBytes > MAX_IN_MEMORY_ARCHIVE_BYTES) {
-        throw new Error(
-            `${label} is too large to package safely on this device right now. Try a smaller export/share selection.`
-        );
-    }
-}

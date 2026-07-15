@@ -118,16 +118,6 @@ export function createAudioSessionOwner(scope: string) {
     return ownerId;
 }
 
-export function getAudioSessionDebugState() {
-    return {
-        appliedRole: appliedAudioSessionRole,
-        owners: Array.from(activeAudioSessionOwners.entries()).map(([ownerId, role]) => ({
-            ownerId,
-            role,
-        })),
-    };
-}
-
 export async function releaseAudioSessionOwner(ownerId: string, force = false) {
     await enqueueAudioSessionUpdate(async () => {
         const removed = activeAudioSessionOwners.delete(ownerId);

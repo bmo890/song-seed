@@ -201,22 +201,6 @@ function buildDailyCandidateWindow(
   return shuffleCandidatesDaily(candidateWindow, sectionKey, rotationKey).slice(0, visibleCount);
 }
 
-function formatRelativeAge(days: number) {
-  if (days <= 0) return "today";
-  if (days === 1) return "1 day ago";
-  if (days < 14) return `${days} days ago`;
-  if (days < 60) {
-    const weeks = Math.max(2, Math.round(days / 7));
-    return `${weeks} weeks ago`;
-  }
-  if (days < 365) {
-    const months = Math.max(2, Math.round(days / 30));
-    return `${months} months ago`;
-  }
-  const years = Math.max(1, Math.round(days / 365));
-  return `${years} year${years === 1 ? "" : "s"} ago`;
-}
-
 function formatDormancyDuration(days: number) {
   if (days <= 1) return "1 day";
   if (days < 14) return `${days} days`;
@@ -230,11 +214,6 @@ function formatDormancyDuration(days: number) {
   }
   const years = Math.max(1, Math.round(days / 365));
   return `${years} year${years === 1 ? "" : "s"}`;
-}
-
-export function formatLastTouchedLabel(updatedAt: number, now = Date.now()) {
-  const ageDays = Math.max(0, Math.floor((now - updatedAt) / DAY_MS));
-  return `Last touched ${formatRelativeAge(ageDays)}`;
 }
 
 function formatSeasonLabel(ts: number) {

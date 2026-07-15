@@ -291,17 +291,3 @@ export async function forceManifestWrite(state: PersistedAppStore): Promise<void
     pendingState = null;
     await writeManifestToDisk(state);
 }
-
-/**
- * Stop the manifest sync subscription.
- */
-export function stopManifestSync(): void {
-    if (unsubscribe) {
-        unsubscribe();
-        unsubscribe = null;
-    }
-    if (debounceTimer) {
-        clearTimeout(debounceTimer);
-        debounceTimer = null;
-    }
-}

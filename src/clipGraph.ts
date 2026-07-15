@@ -178,17 +178,6 @@ export function getLineageRootId(clips: ClipVersion[], clipId: string): string |
   return lineage?.root.id ?? null;
 }
 
-export function buildTimelineEntries(
-  clips: ClipVersion[],
-  options: {
-    metric?: SongTimelineSortMetric;
-    direction?: SongTimelineSortDirection;
-    mainTakesOnly?: boolean;
-  } = {}
-): TimelineClipEntry[] {
-  return buildTimelineEntriesFromLineages(buildClipLineages(clips), options);
-}
-
 export function buildTimelineEntriesFromLineages(
   lineages: ClipLineage[],
   options: {
@@ -222,17 +211,6 @@ export function buildTimelineEntriesFromLineages(
     });
 }
 
-export function buildTimelineListRows(
-  clips: ClipVersion[],
-  options: {
-    metric?: SongTimelineSortMetric;
-    direction?: SongTimelineSortDirection;
-    mainTakesOnly?: boolean;
-  } = {}
-): TimelineListRow[] {
-  return buildTimelineListRowsFromLineages(buildClipLineages(clips), options);
-}
-
 export function buildTimelineListRowsFromLineages(
   lineages: ClipLineage[],
   options: {
@@ -261,22 +239,6 @@ export function buildTimelineListRowsFromLineages(
   });
 
   return rows;
-}
-
-export function buildEvolutionListRows(
-  clips: ClipVersion[],
-  expandedLineageIds: Record<string, boolean>,
-  direction: SongTimelineSortDirection = "desc",
-  groups: ClipGroup[] = [],
-  groupAssignments: Record<string, string> = {}
-): EvolutionListRow[] {
-  return buildEvolutionListRowsFromLineages(
-    buildClipLineages(clips),
-    expandedLineageIds,
-    direction,
-    groups,
-    groupAssignments
-  );
 }
 
 export function buildEvolutionListRowsFromLineages(

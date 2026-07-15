@@ -1,8 +1,6 @@
 import type { IdeaSortMetric } from "../../ideaSort";
 import type {
-  ClipClipboard,
   ClipVersion,
-  Collection,
   IdeaSort,
   IdeasTimelineMetric,
   InlinePlayerControls,
@@ -11,7 +9,6 @@ import type {
 import type { MutableRefObject, ReactNode } from "react";
 import type { Animated } from "react-native";
 import type { SharedValue } from "react-native-reanimated";
-import type { ImportedAudioAsset } from "../../services/audioStorage";
 
 export type IdeaListEntry =
   | {
@@ -44,28 +41,6 @@ export type IdeaListItemMeta = {
   projectProgressPct: number | null;
 };
 
-export type CollectionHeaderModel = {
-  showBack: boolean;
-  headerMenuOpen: boolean;
-  title: string;
-  workspaceTitle: string;
-  breadcrumbs: string[];
-  currentCollection: Collection;
-  ideasHeaderMeta: string;
-  searchQuery: string;
-  hasActivityRangeFilter: boolean;
-  activityLabel?: string;
-  collectionId: string;
-  clipClipboard: ClipClipboard | null;
-  duplicateWarningText: string;
-  onToggleHeaderMenu: () => void;
-  onSearchQueryChange: (value: string) => void;
-  onClearActivityRange: () => void;
-  onPasteClipboard: () => void;
-  onCancelClipboard: () => void;
-  onBack?: () => void;
-};
-
 export type CollectionListModel = {
   listRef?: MutableRefObject<any>;
   listEntries: IdeaListEntry[];
@@ -95,21 +70,4 @@ export type CollectionListModel = {
   collapseScrollY?: SharedValue<number>;
   /** Top inset reserving space for the absolute collapsing header overlay. */
   contentPaddingTop?: number;
-};
-
-export type CollectionImportModel = {
-  importModalOpen: boolean;
-  importAssets: ImportedAudioAsset[];
-  importMode: "single-clip" | "song-project" | null;
-  importDatePreference: "import" | "source";
-  importDraft: string;
-  globalCustomTags?: never;
-  openImportAudioFlow: () => Promise<void>;
-  resetImportModal: () => void;
-  saveImportedAudio: () => Promise<void>;
-  setImportDraft: (value: string) => void;
-  setImportModalOpen: (open: boolean) => void;
-  setImportAssets: (assets: ImportedAudioAsset[]) => void;
-  setImportMode: (mode: "single-clip" | "song-project" | null) => void;
-  setImportDatePreference: (preference: "import" | "source") => void;
 };

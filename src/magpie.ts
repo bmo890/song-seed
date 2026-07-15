@@ -187,26 +187,6 @@ export type MagpieToken = {
 // (spaces, punctuation, quotes, em-dashes) is a non-word separator.
 const WORD_RE = /[\p{L}\p{N}]+(?:['’\-][\p{L}\p{N}]+)*/gu;
 
-/** Splits a page into an alternating stream of word and separator tokens. */
-export function tokenizePage(text: string): MagpieToken[] {
-  const tokens: MagpieToken[] = [];
-  let lastEnd = 0;
-  let wordIndex = 0;
-  let match: RegExpExecArray | null;
-  WORD_RE.lastIndex = 0;
-  while ((match = WORD_RE.exec(text))) {
-    if (match.index > lastEnd) {
-      tokens.push({ index: tokens.length, text: text.slice(lastEnd, match.index), wordIndex: -1 });
-    }
-    tokens.push({ index: tokens.length, text: match[0], wordIndex: wordIndex++ });
-    lastEnd = match.index + match[0].length;
-  }
-  if (lastEnd < text.length) {
-    tokens.push({ index: tokens.length, text: text.slice(lastEnd), wordIndex: -1 });
-  }
-  return tokens;
-}
-
 /** A reflowed paragraph for rendering: its own token slice plus the word indices
  * it contains (so a screen can cheaply memoise per-paragraph). */
 export type MagpieParagraph = { key: string; tokens: MagpieToken[]; wordIndices: number[] };

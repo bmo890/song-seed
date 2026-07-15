@@ -77,23 +77,6 @@ export const fmt = (ms = 0) => {
   return `${sign}${String(mins).padStart(2, "0")}:${secStr}.${tenthsStr}`;
 };
 
-export const fmtTenths = (ms = 0) => {
-  const isNegative = ms < 0;
-  ms = Math.abs(ms);
-  const hrs = Math.floor(ms / 3600000);
-  const mins = Math.floor((ms % 3600000) / 60000);
-  const secs = Math.floor((ms % 60000) / 1000);
-  const tenths = Math.floor((ms % 1000) / 100);
-
-  const sign = isNegative ? "-" : "";
-  const secStr = String(secs).padStart(2, "0");
-
-  if (hrs > 0) {
-    return `${sign}${hrs}:${String(mins).padStart(2, "0")}:${secStr}`;
-  }
-  return `${sign}${String(mins).padStart(2, "0")}:${secStr}.${tenths}`;
-};
-
 export const fmtDuration = (ms = 0) => {
   const isNegative = ms < 0;
   ms = Math.abs(ms);
@@ -162,12 +145,6 @@ export const genClipTitle = (idea: string, v: number) => `${idea} v${v}`;
 /** Strips a trailing " vN" version suffix, e.g. "Chorus Hook v3" → "Chorus Hook". */
 export function getBaseClipTitle(title: string): string {
   return title.replace(/\s+v\d+$/, "").trim();
-}
-
-/** Extracts the trailing version number from a title, e.g. "Chorus Hook v3" → 3. Returns null if none. */
-export function extractClipVersionNumber(title: string): number | null {
-  const match = title.match(/\s+v(\d+)$/);
-  return match ? parseInt(match[1], 10) : null;
 }
 
 /** How many parent hops from clipId to the lineage root (0 = root itself). */
@@ -379,14 +356,6 @@ async function getClipMediaSizeBytes(clip: SongIdea["clips"][number]): Promise<n
   return totalBytes;
 }
 
-export async function getWorkspaceSizeBytes(workspace: Workspace): Promise<number> {
-  let totalBytes = 0;
-  for (const idea of workspace.ideas) {
-    totalBytes += await getIdeaSizeBytes(idea);
-  }
-  return totalBytes;
-}
-
 export async function getIdeaSizeBytes(idea: SongIdea): Promise<number> {
   let totalBytes = 0;
   for (const clip of idea.clips) {
@@ -431,10 +400,6 @@ export function getCollectionAncestors(workspace: Workspace, collectionId: strin
   return ancestors;
 }
 
-export function getCollectionDepth(workspace: Workspace, collectionId: string) {
-  return getCollectionAncestors(workspace, collectionId).length;
-}
-
 export function getCollectionDescendantIds(workspace: Workspace, collectionId: string) {
   const ids = new Set<string>();
   const walk = (targetId: string) => {
@@ -447,11 +412,6 @@ export function getCollectionDescendantIds(workspace: Workspace, collectionId: s
   };
   walk(collectionId);
   return ids;
-}
-
-export function getCollectionIdeaCount(workspace: Workspace, collectionId: string) {
-  const scopeIds = getCollectionScopeIds(workspace, collectionId);
-  return workspace.ideas.filter((idea) => scopeIds.has(idea.collectionId)).length;
 }
 
 export async function getCollectionSizeBytes(workspace: Workspace, collectionId: string): Promise<number> {

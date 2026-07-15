@@ -95,10 +95,6 @@ export function getMetronomeAndroidVibrationDuration(level: MetronomeHapticLevel
   return Math.round(Math.min(targetDuration, safeMaxDuration));
 }
 
-export function formatMetronomeLevel(level: number) {
-  return `${clampMetronomeLevel(level)}%`;
-}
-
 export function isMetronomeMeterId(value: unknown): value is MetronomeMeterId {
   return METRONOME_METER_PRESETS.some((preset) => preset.id === value);
 }
@@ -112,10 +108,6 @@ export function getMetronomeMeterPreset(meterId: MetronomeMeterId) {
 
 export function getMetronomeBeatIntervalMs(bpm: number) {
   return 60000 / clampMetronomeBpm(bpm);
-}
-
-export function getMetronomeLoopBeatCountForMeter(meterId: MetronomeMeterId) {
-  return getMetronomeMeterPreset(meterId).pulsesPerBar;
 }
 
 export function clampMetronomeCountInBars(value: number) {
@@ -158,8 +150,4 @@ export function deriveTapTempoBpm(tapTimes: number[]) {
     consistentIntervals.reduce((sum, interval) => sum + interval, 0) / consistentIntervals.length;
 
   return clampMetronomeBpm(60000 / averageInterval);
-}
-
-export function formatMetronomeIntervalLabel(intervalMs: number) {
-  return `${Math.round(intervalMs)} ms per beat`;
 }

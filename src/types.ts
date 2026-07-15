@@ -486,8 +486,6 @@ export type SongIdea = {
 export type PlaybackQueueItem = { ideaId: string; clipId: string };
 export type PlayerTarget = PlaybackQueueItem | null;
 export type InlineTarget = { ideaId: string; clipId: string } | null;
-export type TransportScreenKind = "recording" | "player" | "editor";
-export type TransportInteractionZone = "header" | "surface" | "footer" | "floating";
 export type LyricsAutoscrollMode = "off" | "follow" | "manual";
 export type LyricsAutoscrollState = {
   mode: LyricsAutoscrollMode;
@@ -647,15 +645,6 @@ export type Setlist = {
   entries: SetlistEntry[];
 };
 
-export type PlayerState = {
-  target: PlayerTarget;
-  isPlaying: boolean;
-  isLoaded: boolean;
-  isLooping: boolean;
-  position: number;
-  duration: number;
-};
-
 export type InlinePlayerSnapshot = {
   inlineTarget: InlineTarget;
   inlinePosition: number;
@@ -672,8 +661,6 @@ export type InlinePlayerControls = {
   seekInline: (ms: number) => Promise<void>;
   resetInlinePlayer: () => Promise<void>;
 };
-
-export type InlinePlayer = InlinePlayerSnapshot & InlinePlayerControls;
 
 export type IdeasFilter = "all" | "clips" | "projects" | "bookmarked";
 export type IdeaSort =

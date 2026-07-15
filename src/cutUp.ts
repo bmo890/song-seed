@@ -24,11 +24,6 @@ export const CHUNK_MODE_OPTIONS: Array<{ key: Exclude<CutUpChunkMode, "custom">;
   { key: "word", label: "Word" },
 ];
 
-export function chunkModeLabel(mode: CutUpChunkMode): string {
-  if (mode === "custom") return "Custom";
-  return CHUNK_MODE_OPTIONS.find((option) => option.key === mode)?.label ?? "Phrase";
-}
-
 // ── Slicing the source into raw spans ────────────────────────────────────────
 
 type RawChunk = { text: string; start: number; end: number };

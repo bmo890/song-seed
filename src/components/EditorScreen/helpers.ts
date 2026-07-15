@@ -1,6 +1,6 @@
 import type { AudioAnalysis } from "@siteed/audio-studio";
 import type { ClipVersion, EditRegion } from "../../types";
-import { buildDefaultIdeaTitle, metersToWaveformPeaks } from "../../utils";
+import { buildDefaultIdeaTitle } from "../../utils";
 
 export const MIN_REGION_DURATION_MS = 1000;
 export const NEW_REGION_FRACTION_OF_DURATION = 8;
@@ -27,13 +27,6 @@ export function buildClipId() {
 
 export function getInitialRegionDurationMs(durationMs: number) {
   return Math.max(MIN_REGION_DURATION_MS, Math.floor(durationMs / NEW_REGION_FRACTION_OF_DURATION));
-}
-
-export function buildWaveformPeaks(analysis: AudioAnalysis) {
-  const levelsAsDb = analysis.dataPoints.map((point) =>
-    Number.isFinite(point.dB) ? point.dB : point.amplitude > 0 ? 20 * Math.log10(point.amplitude) : -60
-  );
-  return metersToWaveformPeaks(levelsAsDb, 96);
 }
 
 export function cloneEditRegions(editRegions?: EditRegion[]) {

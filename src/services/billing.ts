@@ -20,14 +20,6 @@ export type ProPlan = "monthly" | "annual" | "lifetime";
 
 export type BillingResult = { ok: true } | { ok: false; reason: "unavailable" | "cancelled" | "error" };
 
-export function isBillingAvailable(): boolean {
-    return false;
-}
-
-export async function initBilling(): Promise<void> {
-    // no-op until react-native-purchases is added and keyed
-}
-
 export async function purchasePro(_plan: ProPlan): Promise<BillingResult> {
     // Real impl: Purchases.purchasePackage(...) then proEntitlement.set(true) on success.
     void proEntitlement;

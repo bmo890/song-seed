@@ -65,5 +65,3 @@ export const actionIcons = {
   openSettings: "settings-outline",
   folder: "folder-outline",
 } satisfies Record<string, IoniconName>;
-
-export type ActionIconKey = keyof typeof actionIcons;

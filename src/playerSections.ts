@@ -58,20 +58,6 @@ export const SECTION_QUICK_ADD: ClipSectionKind[] = [
   "outro",
 ];
 
-/** Swatch palette offered when creating a custom section. */
-export const SECTION_CUSTOM_COLORS: string[] = [
-  "#C8463A",
-  "#D6743F",
-  "#C98A3C",
-  "#3F9C82",
-  "#5775A6",
-  "#9B6FB2",
-  "#B0568A",
-  "#6F7E8C",
-  "#3D8C5F",
-  "#B23B6F",
-];
-
 export function getSectionPreset(kind: ClipSectionKind): SectionPreset {
   return PRESETS[kind] ?? PRESETS.custom;
 }
@@ -105,11 +91,6 @@ export function sortClipSections(sections: ClipSection[]): ClipSection[] {
 /** True when the label is still the preset's default (i.e. the user hasn't renamed it). */
 export function isDefaultSectionLabel(section: ClipSection): boolean {
   return section.label.trim() === getSectionPreset(section.kind).label;
-}
-
-/** Length of a section from its explicit bounds. */
-export function getSectionDurationMs(section: ClipSection): number {
-  return Math.max(0, section.endMs - section.startMs);
 }
 
 /**

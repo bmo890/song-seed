@@ -23,7 +23,6 @@
     "@react-navigation/drawer": "^7.8.1",
     "@react-navigation/native": "^7.1.28",
     "@react-navigation/native-stack": "^7.13.0",
-    "@react-navigation/stack": "^7.7.2",
     "@shopify/react-native-skia": "^2.4.21",
     "@siteed/audio-studio": "^3.0.2",
     "@types/jest": "29.5.14",

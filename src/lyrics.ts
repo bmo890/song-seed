@@ -70,8 +70,3 @@ export function getLyricsPreview(idea?: SongIdea | null) {
   return firstNonEmpty?.text ?? "";
 }
 
-export function getLyricsVersionPreview(version?: LyricsVersion | null) {
-  const lines = version?.document.lines ?? [];
-  const firstNonEmpty = lines.find((line) => line.text.trim().length > 0);
-  return firstNonEmpty?.text ?? "";
-}

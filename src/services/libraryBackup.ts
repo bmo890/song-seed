@@ -6,7 +6,6 @@ import {
 import type { AppStore } from "../state/useStore";
 import {
     isBackupOperationCancelled,
-    throwIfBackupCancelled,
     type BackupOperationOptions,
 } from "./backupOperation";
 import { BACKUP_SAVE_CANCELLED_MESSAGE, saveArchiveToUserLocation } from "./archiveSave";
@@ -87,21 +86,4 @@ export async function saveBuiltLibraryBackup(
 /** Delete a built-but-unsaved archive (the user chose to discard it). */
 export async function discardBuiltLibraryBackup(archiveUri: string) {
     await cleanupShareTempFile(archiveUri);
-}
-
-/** Build then immediately save (no retry). Kept for callers that don't need the split flow. */
-export async function runExactLibraryBackup(
-    state: AppStore,
-    options?: BackupOperationOptions
-): Promise<ManualExactBackupResult> {
-    const built = await buildExactLibraryBackup(state, options);
-    throwIfBackupCancelled(options?.signal);
-    const saved = await saveBuiltLibraryBackup(built, options);
-    return {
-        archiveTitle: built.archiveTitle,
-        status: built.status,
-        manifest: built.manifest,
-        savedDirectoryUri: saved.savedDirectoryUri,
-        saveConfirmed: saved.saveConfirmed,
-    };
 }

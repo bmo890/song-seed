@@ -2,7 +2,6 @@ import { getIdeaUpdatedAt } from "./ideaSort";
 import {
   Collection,
   Playlist,
-  SongIdea,
   Workspace,
   WorkspaceListOrder,
   WorkspaceStartupPreference,
@@ -31,13 +30,6 @@ export type WorkspaceCollectionBrowseEntry = {
   lastWorkedAt: number;
   matchScore: number;
   matches: CollectionSearchMatch[];
-};
-
-export type RecentWorkspaceCollection = {
-  collection: Collection;
-  level: "collection";
-  pathLabel: string | null;
-  recentAt: number;
 };
 
 export const DEFAULT_WORKSPACE_STARTUP_PREFERENCE: WorkspaceStartupPreference = "last-used";
@@ -80,10 +72,6 @@ function buildMatchExcerpt(text: string, needle: string) {
   const end = Math.min(source.length, matchIndex + needle.length + 48);
   const excerpt = source.slice(start, end);
   return `${start > 0 ? "..." : ""}${excerpt}${end < source.length ? "..." : ""}`;
-}
-
-function getTopLevelCollectionCount(workspace: Workspace) {
-  return workspace.collections.filter((collection) => !collection.parentCollectionId).length;
 }
 
 function getRelativeCollectionPathLabel(workspace: Workspace, rootCollectionId: string, collectionId: string) {
@@ -476,13 +464,6 @@ export function buildWorkspaceBrowseEntries(
   });
 }
 
-export function getWorkspaceSummaryMeta(workspace: Workspace, workspaceLastOpenedAt: Record<string, number>) {
-  return {
-    topLevelCollectionCount: getTopLevelCollectionCount(workspace),
-    lastWorkedAt: getWorkspaceLastWorkedAt(workspace, workspaceLastOpenedAt[workspace.id]),
-  };
-}
-
 export function findPlaylist(playlists: Playlist[], playlistId: string | null) {
   return playlistId ? playlists.find((playlist) => playlist.id === playlistId) ?? null : null;
 }
@@ -504,8 +485,4 @@ export function resolvePlaylistClip(
   const clip = resolvedIdea.idea.clips.find((candidate) => candidate.id === item.clipId) ?? null;
   if (!clip) return null;
   return { ...resolvedIdea, clip };
-}
-
-export function getIdeaPrimaryClip(idea: SongIdea) {
-  return idea.clips.find((clip) => clip.isPrimary) ?? idea.clips[0] ?? null;
 }

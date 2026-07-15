@@ -84,10 +84,6 @@ export const EXTENDED_WORD_MODE_GROUPS: { title: string; modes: WordLookupMode[]
   { title: "Imagery", modes: ["describe", "kinds", "parts"] },
 ];
 
-export function isQuickWordMode(mode: WordLookupMode): boolean {
-  return WORD_LOOKUP_MODE_ORDER.includes(mode);
-}
-
 /**
  * Normalize a free-typed theme ("love, leaving  town") into Datamuse topic
  * words — the API accepts at most five.
