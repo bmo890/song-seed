@@ -1,7 +1,7 @@
 import React from "react";
 import { Pressable, StyleSheet, Text } from "react-native";
-import { colors, radii } from "../../design/tokens";
-import { styles as appStyles } from "../../styles";
+import { colors, radii } from "../../../design/tokens";
+import { styles as appStyles } from "../../../styles";
 
 type EditorFooterSectionProps = {
   editorMode: "trim" | "transform";

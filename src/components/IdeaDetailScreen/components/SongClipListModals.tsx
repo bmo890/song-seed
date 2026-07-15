@@ -1,7 +1,7 @@
 import { fmtDuration, formatDate } from "../../../utils";
 import { type CustomTagDefinition, type SongIdea } from "../../../types";
 import { ClipNotesSheet } from "../../modals/ClipNotesSheet";
-import { ClipTagPicker } from "../ClipTagPicker";
+import { ClipTagPicker } from "./ClipTagPicker";
 
 type SongClipListModalsProps = {
   selectedIdea: SongIdea;

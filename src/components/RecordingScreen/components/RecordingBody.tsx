@@ -1,10 +1,10 @@
 import React from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import type { AudioAnalysis } from "@siteed/audio-studio";
-import type { SongIdea } from "../../types";
-import { styles } from "../../styles";
-import { getLatestLyricsVersion } from "../../domain/lyrics";
-import { getOverdubStemColor } from "../../domain/overdub";
+import type { SongIdea } from "../../../types";
+import { styles } from "../../../styles";
+import { getLatestLyricsVersion } from "../../../domain/lyrics";
+import { getOverdubStemColor } from "../../../domain/overdub";
 import { RecordingMeta } from "./RecordingMeta";
 import { RecordingLyricsSection } from "./RecordingLyricsSection";
 import { RecordingOverdubGuide } from "./RecordingOverdubGuide";

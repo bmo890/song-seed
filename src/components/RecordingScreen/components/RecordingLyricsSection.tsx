@@ -1,7 +1,7 @@
 import React from "react";
-import { PlayerLyricsPanel } from "../PlayerScreen/PlayerLyricsPanel";
-import { formatDate } from "../../utils";
-import type { LyricsLine } from "../../types";
+import { PlayerLyricsPanel } from "../../PlayerScreen/PlayerLyricsPanel";
+import { formatDate } from "../../../utils";
+import type { LyricsLine } from "../../../types";
 
 type RecordingLyricsSectionProps = {
   text: string;

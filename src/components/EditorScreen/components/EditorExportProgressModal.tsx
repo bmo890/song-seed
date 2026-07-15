@@ -1,6 +1,6 @@
 import React from "react";
 import { ActivityIndicator, Modal, StyleSheet, Text, View } from "react-native";
-import { colors, radii, spacing } from "../../design/tokens";
+import { colors, radii, spacing } from "../../../design/tokens";
 
 type EditorExportProgressModalProps = {
   visible: boolean;

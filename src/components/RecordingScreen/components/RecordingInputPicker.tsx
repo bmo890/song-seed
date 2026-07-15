@@ -2,8 +2,8 @@ import React, { useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, Pressable, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useAudioDevices } from "@siteed/audio-studio";
-import { styles } from "../../styles";
-import { colors } from "../../design/tokens";
+import { styles } from "../../../styles";
+import { colors } from "../../../design/tokens";
 
 type Props = {
     disabled: boolean;

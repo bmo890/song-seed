@@ -1,7 +1,7 @@
 import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { colors, radii } from "../../design/tokens";
+import { colors, radii } from "../../../design/tokens";
 
 type RecordingHeaderProps = {
   eyebrow: string | null;

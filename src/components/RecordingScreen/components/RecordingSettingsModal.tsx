@@ -1,10 +1,10 @@
 import React from "react";
 import { Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { styles } from "../../styles";
-import { BottomSheet } from "../common/BottomSheet";
+import { styles } from "../../../styles";
+import { BottomSheet } from "../../common/BottomSheet";
 import { RecordingInputPicker } from "./RecordingInputPicker";
-import { colors } from "../../design/tokens";
+import { colors } from "../../../design/tokens";
 
 type RecordingSettingsModalProps = {
   visible: boolean;

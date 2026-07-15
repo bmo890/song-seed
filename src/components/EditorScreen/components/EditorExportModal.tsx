@@ -1,12 +1,12 @@
 import React from "react";
-import { colors, radii } from "../../design/tokens";
+import { colors, radii } from "../../../design/tokens";
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Feather, Ionicons } from "@expo/vector-icons";
-import { Button } from "../common/Button";
-import { MiniProgress } from "../MiniProgress";
-import { TitleInput } from "../common/TitleInput";
-import { styles } from "../../styles";
-import { EditableSelection, formatSelectionDuration } from "./helpers";
+import { Button } from "../../common/Button";
+import { MiniProgress } from "../../MiniProgress";
+import { TitleInput } from "../../common/TitleInput";
+import { styles } from "../../../styles";
+import { EditableSelection, formatSelectionDuration } from "../helpers";
 
 type EditorExportModalProps = {
   visible: boolean;

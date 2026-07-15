@@ -1,13 +1,13 @@
 import React from "react";
-import { colors } from "../../design/tokens";
+import { colors } from "../../../design/tokens";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { haptic } from "../../design/haptics";
+import { haptic } from "../../../design/haptics";
 import {
   formatPitchShiftLabel,
   PITCH_SHIFT_MAX_SEMITONES,
   PITCH_SHIFT_MIN_SEMITONES,
-} from "../../domain/pitchShift";
+} from "../../../domain/pitchShift";
 
 const MIN_PLAYBACK_RATE = 0.5;
 const MAX_PLAYBACK_RATE = 2.0;

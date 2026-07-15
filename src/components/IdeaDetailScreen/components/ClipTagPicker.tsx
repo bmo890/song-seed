@@ -1,18 +1,18 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { Pressable, Text, TextInput, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { styles } from "./styles";
-import { useStore } from "../../state/useStore";
-import type { ClipVersion, CustomTagDefinition, SongIdea } from "../../types";
-import { BottomSheet } from "../common/BottomSheet";
-import { haptic } from "../../design/haptics";
+import { styles } from "../styles";
+import { useStore } from "../../../state/useStore";
+import type { ClipVersion, CustomTagDefinition, SongIdea } from "../../../types";
+import { BottomSheet } from "../../common/BottomSheet";
+import { haptic } from "../../../design/haptics";
 import {
   SONG_CLIP_TAG_OPTIONS,
   CUSTOM_TAG_COLOR_OPTIONS,
   getTagColor,
   type TagColor,
-} from "./songClipControls";
-import { colors } from "../../design/tokens";
+} from "../songClipControls";
+import { colors } from "../../../design/tokens";
 
 const randomTagColor = () =>
   CUSTOM_TAG_COLOR_OPTIONS[Math.floor(Math.random() * CUSTOM_TAG_COLOR_OPTIONS.length)].bg;

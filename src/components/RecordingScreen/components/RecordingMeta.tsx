@@ -1,13 +1,13 @@
 import React, { useEffect, useState } from "react";
 import { Pressable, StyleSheet, View, Text } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { styles } from "../../styles";
-import { fmtDuration } from "../../utils";
-import { haptic } from "../../design/haptics";
+import { styles } from "../../../styles";
+import { fmtDuration } from "../../../utils";
+import { haptic } from "../../../design/haptics";
 import { AudioAnalysis } from "@siteed/audio-studio";
-import { LiveTapeVisualizer } from "../visualizers/LiveTapeVisualizer";
-import { MetronomeIcon } from "../common/MetronomeIcon";
-import { radii, colors } from "../../design/tokens";
+import { LiveTapeVisualizer } from "../../visualizers/LiveTapeVisualizer";
+import { MetronomeIcon } from "../../common/MetronomeIcon";
+import { radii, colors } from "../../../design/tokens";
 
 type Props = {
     ideaTitle: string;

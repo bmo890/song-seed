@@ -1,7 +1,7 @@
 import React from "react";
 import { View } from "react-native";
-import { styles } from "../../styles";
-import { MetronomeBeatBar } from "../common/metronome/MetronomeBeatBar";
+import { styles } from "../../../styles";
+import { MetronomeBeatBar } from "../../common/metronome/MetronomeBeatBar";
 import { RecordingControls } from "./RecordingControls";
 
 type RecordingBottomDockProps = {

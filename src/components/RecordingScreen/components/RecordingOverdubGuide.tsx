@@ -1,12 +1,12 @@
 import React, { useMemo } from "react";
 import { Text, View } from "react-native";
-import { AudioReel } from "../common/AudioReel";
-import { OverdubLayerLanes, type OverdubLayerLane } from "../common/OverdubLayerLanes";
-import { useTransportClock } from "../../hooks/useTransportClock";
-import { buildSectionBands } from "../../domain/playerSections";
-import { fmtDuration } from "../../utils";
-import { styles } from "../../styles";
-import type { ClipSection, PracticeMarker } from "../../types";
+import { AudioReel } from "../../common/AudioReel";
+import { OverdubLayerLanes, type OverdubLayerLane } from "../../common/OverdubLayerLanes";
+import { useTransportClock } from "../../../hooks/useTransportClock";
+import { buildSectionBands } from "../../../domain/playerSections";
+import { fmtDuration } from "../../../utils";
+import { styles } from "../../../styles";
+import type { ClipSection, PracticeMarker } from "../../../types";
 
 /**
  * The master ("guide") while recording a layer: the same smooth scrolling reel as the

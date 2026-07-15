@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from "react";
 import { Pressable, StyleProp, Text, View, ViewStyle } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { styles } from "./styles";
-import { appActions } from "../../state/actions";
-import { SongNotesEditor } from "./components/SongNotesEditor";
-import { colors } from "../../design/tokens";
+import { styles } from "../styles";
+import { appActions } from "../../../state/actions";
+import { SongNotesEditor } from "./SongNotesEditor";
+import { colors } from "../../../design/tokens";
 
 type IdeaNotesProps = {
     isEditMode: boolean;

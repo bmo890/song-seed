@@ -1,9 +1,9 @@
 import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Feather } from "@expo/vector-icons";
-import { fmt, fmtDuration } from "../../utils";
-import { colors, radii } from "../../design/tokens";
-import { CUT_COLOR, KEEP_COLOR, type EditableSelection } from "./helpers";
+import { fmt, fmtDuration } from "../../../utils";
+import { colors, radii } from "../../../design/tokens";
+import { CUT_COLOR, KEEP_COLOR, type EditableSelection } from "../helpers";
 
 type EditorSelectionListProps = {
   selectedRanges: EditableSelection[];

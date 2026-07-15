@@ -1,9 +1,9 @@
 import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { colors, radii } from "../../design/tokens";
-import { styles as appStyles } from "../../styles";
-import { CUT_COLOR, KEEP_COLOR, formatSelectionDuration } from "./helpers";
+import { colors, radii } from "../../../design/tokens";
+import { styles as appStyles } from "../../../styles";
+import { CUT_COLOR, KEEP_COLOR, formatSelectionDuration } from "../helpers";
 
 type EditorTrimIntentProps = {
   intent: "keep" | "remove";

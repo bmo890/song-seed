@@ -1,17 +1,17 @@
 import React, { ReactNode, useMemo } from "react";
 import { Text, View } from "react-native";
 import { type SharedValue } from "react-native-reanimated";
-import { styles } from "./styles";
+import { styles } from "../styles";
 import {
   buildTimelineListRowsFromLineages,
   type ClipLineage,
   type TimelineClipEntry,
   type TimelineListRow,
-} from "../../domain/clipGraph";
+} from "../../../domain/clipGraph";
 import { type ClipCardContextProps } from "./ClipCard";
-import { SongClipCard } from "./components/SongClipCard";
-import { SongClipListShell } from "./components/SongClipListShell";
-import { useSongScreen } from "./provider/SongScreenProvider";
+import { SongClipCard } from "./SongClipCard";
+import { SongClipListShell } from "./SongClipListShell";
+import { useSongScreen } from "../provider/SongScreenProvider";
 
 type TimelineListProps = {
   lineages: ClipLineage[];

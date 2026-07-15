@@ -2,21 +2,21 @@ import React, { ReactNode, useMemo, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { type SharedValue } from "react-native-reanimated";
-import { useStore } from "../../state/useStore";
-import { QuickNameModal } from "../modals/QuickNameModal";
-import { styles } from "./styles";
+import { useStore } from "../../../state/useStore";
+import { QuickNameModal } from "../../modals/QuickNameModal";
+import { styles } from "../styles";
 import {
   buildEvolutionListRowsFromLineages,
   type ClipLineage,
   type EvolutionListRow,
   type TimelineClipEntry,
-} from "../../domain/clipGraph";
+} from "../../../domain/clipGraph";
 import { type ClipCardContextProps } from "./ClipCard";
-import { type SongTimelineSortDirection, type SongTimelineSortMetric } from "../../domain/clipGraph";
-import { SongClipCard } from "./components/SongClipCard";
-import { SongClipListShell } from "./components/SongClipListShell";
-import { haptic } from "../../design/haptics";
-import { colors } from "../../design/tokens";
+import { type SongTimelineSortDirection, type SongTimelineSortMetric } from "../../../domain/clipGraph";
+import { SongClipCard } from "./SongClipCard";
+import { SongClipListShell } from "./SongClipListShell";
+import { haptic } from "../../../design/haptics";
+import { colors } from "../../../design/tokens";
 
 type EvolutionListProps = {
   lineages: ClipLineage[];

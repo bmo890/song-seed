@@ -2,7 +2,7 @@ import React, { useMemo, useRef, useState } from "react";
 import { useStore } from "../../../state/useStore";
 import { useMiniPlayerContext } from "../../../hooks/FullPlayerProvider";
 import type { ClipVersion } from "../../../types";
-import { type ClipCardContextProps } from "../ClipCard";
+import { type ClipCardContextProps } from "./ClipCard";
 import { useSongClipEditing } from "../hooks/useSongClipEditing";
 import { useSongClipHighlights } from "../hooks/useSongClipHighlights";
 import { useSongClipListData } from "../hooks/useSongClipListData";

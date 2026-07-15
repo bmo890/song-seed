@@ -1,9 +1,9 @@
 import React from "react";
 import { Text } from "react-native";
-import { ScreenHeader } from "../common/ScreenHeader";
-import { HelpButton } from "../common/HelpButton";
-import { styles } from "../../styles";
-import type { ClipVersion } from "../../types";
+import { ScreenHeader } from "../../common/ScreenHeader";
+import { HelpButton } from "../../common/HelpButton";
+import { styles } from "../../../styles";
+import type { ClipVersion } from "../../../types";
 
 type EditorHeaderSectionProps = {
   sourceClip: ClipVersion | null;

@@ -9,7 +9,7 @@ import { SONG_SEED_AUDIO_DIR } from "../../../services/storagePaths";
 import { SelectionActionSheet } from "../../common/SelectionActionSheet";
 import { SelectionDock, type SelectionAction } from "../../common/SelectionDock";
 import { ClipNotesSheet } from "../../modals/ClipNotesSheet";
-import { ClipTagPicker } from "../ClipTagPicker";
+import { ClipTagPicker } from "./ClipTagPicker";
 import { fmtDuration, formatDate } from "../../../utils";
 import { getLineageRootId } from "../../../domain/clipGraph";
 import {

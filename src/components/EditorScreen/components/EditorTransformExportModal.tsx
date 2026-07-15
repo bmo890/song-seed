@@ -1,11 +1,11 @@
 import React from "react";
-import { colors, radii } from "../../design/tokens";
+import { colors, radii } from "../../../design/tokens";
 import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
 import { Feather } from "@expo/vector-icons";
-import { Button } from "../common/Button";
-import { TitleInput } from "../common/TitleInput";
-import { styles } from "../../styles";
-import { formatPitchShiftLabel } from "../../domain/pitchShift";
+import { Button } from "../../common/Button";
+import { TitleInput } from "../../common/TitleInput";
+import { styles } from "../../../styles";
+import { formatPitchShiftLabel } from "../../../domain/pitchShift";
 
 type EditorTransformExportModalProps = {
   visible: boolean;

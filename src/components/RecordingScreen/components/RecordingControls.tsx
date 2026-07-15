@@ -1,9 +1,9 @@
 import React, { useEffect, useRef } from "react";
 import { Animated, View, Pressable, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { styles } from "../../styles";
-import { colors } from "../../design/tokens";
-import { haptic } from "../../design/haptics";
+import { styles } from "../../../styles";
+import { colors } from "../../../design/tokens";
+import { haptic } from "../../../design/haptics";
 
 type Props = {
     isRecording: boolean;

@@ -5,7 +5,7 @@ import { fmtDuration, formatDate } from "../../../utils";
 import { ClipActionsSheet } from "../../modals/ClipActionsSheet";
 import { ClipNotesSheet } from "../../modals/ClipNotesSheet";
 import { AppAlert } from "../../common/AppAlert";
-import { ClipTagPicker } from "../../IdeaDetailScreen/ClipTagPicker";
+import { ClipTagPicker } from "../../IdeaDetailScreen/components/ClipTagPicker";
 import { useClipLineageScreenModel } from "../hooks/useClipLineageScreenModel";
 import { ClipLineageHeader } from "./ClipLineageHeader";
 import { ClipLineageSortToggle } from "./ClipLineageSortToggle";

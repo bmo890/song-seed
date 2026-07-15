@@ -14,7 +14,7 @@ import {
   type LineageRenamePromptInfo,
 } from "../../../domain/clipLineageRenamePrompt";
 import { type ClipVersion } from "../../../types";
-import { type ClipCardContextProps } from "../../IdeaDetailScreen/ClipCard";
+import { type ClipCardContextProps } from "../../IdeaDetailScreen/components/ClipCard";
 
 type ClipLineageRoute = RootStackParamList["ClipLineage"];
 type SortDirection = "asc" | "desc";

@@ -1,4 +1,4 @@
-import { ClipCard, type ClipCardContextProps, type ClipCardEntry } from "../ClipCard";
+import { ClipCard, type ClipCardContextProps, type ClipCardEntry } from "./ClipCard";
 
 type SongClipCardProps = {
   entry: ClipCardEntry;

@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { BottomSheet } from "../common/BottomSheet";
-import { colors, radii } from "../../design/tokens";
+import { BottomSheet } from "../../common/BottomSheet";
+import { colors, radii } from "../../../design/tokens";
 import {
   BeepLevelControl,
   CueTiles,
@@ -10,13 +10,13 @@ import {
   MeterChips,
   TempoBlock,
   ms,
-} from "../common/metronome/MetronomeBlocks";
+} from "../../common/metronome/MetronomeBlocks";
 import {
   METRONOME_METER_PRESETS,
   type MetronomeMeterId,
   type MetronomeOutputKey,
   type MetronomeOutputs,
-} from "../../domain/metronome";
+} from "../../../domain/metronome";
 
 const COUNT_IN_OPTIONS = [0, 1, 2, 4];
 

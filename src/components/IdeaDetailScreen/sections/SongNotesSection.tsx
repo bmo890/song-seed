@@ -1,6 +1,6 @@
 import { View } from "react-native";
 import { styles } from "../styles";
-import { IdeaNotes } from "../IdeaNotes";
+import { IdeaNotes } from "../components/IdeaNotes";
 import { useSongScreen } from "../provider/SongScreenProvider";
 import { CollapsingTabStage } from "../components/CollapsingTabStage";
 
