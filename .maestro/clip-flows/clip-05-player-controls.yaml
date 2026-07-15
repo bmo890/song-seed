@@ -1,0 +1,63 @@
+# Player UI controls (ungated): the markers toggle and the waveform expand/collapse
+# both flip state and back. Self-cleaning. Requires scripts/push-dev-samples.sh.
+# (Speed / loop live behind the Pro-gated practice suite and are covered elsewhere.)
+appId: com.bmostudio.songseed.dev
+---
+- runFlow: ../subflows/open-library.yaml
+- tapOn: ".*Ideas.*"
+- extendedWaitUntil:
+    visible:
+      id: "fab-record"
+    timeout: 15000
+- runFlow: reset-clips.yaml
+- runFlow: ../subflows/dismiss-logbox.yaml
+- tapOn:
+    id: "fab-create"
+- waitForAnimationToEnd
+- tapOn:
+    id: "fab-menu-devsamples"
+- extendedWaitUntil:
+    visible: ".*sample-01.*"
+    timeout: 20000
+- tapOn: ".*sample-01.*"
+- extendedWaitUntil:
+    visible: "More options"
+    timeout: 10000
+# Markers toggle Hide → Show → Hide.
+- tapOn: "Hide markers"
+- extendedWaitUntil:
+    visible: "Show markers"
+    timeout: 5000
+- tapOn: "Show markers"
+- extendedWaitUntil:
+    visible: "Hide markers"
+    timeout: 5000
+# Waveform expand → shrink → expand.
+- tapOn: "Expand waveform"
+- extendedWaitUntil:
+    visible: "Shrink waveform"
+    timeout: 5000
+- tapOn: "Shrink waveform"
+- extendedWaitUntil:
+    visible: "Expand waveform"
+    timeout: 5000
+# Back to the collection and clean up.
+- tapOn: "Minimize player"
+- extendedWaitUntil:
+    visible:
+      id: "fab-record"
+    timeout: 10000
+- longPressOn: ".*sample-0.*"
+- extendedWaitUntil:
+    visible: "Select all"
+    timeout: 5000
+- tapOn: "Select all"
+- tapOn: ".*Delete"
+- extendedWaitUntil:
+    visible: ".*Delete selected items.*"
+    timeout: 5000
+- tapOn:
+    id: "dialog-btn-delete"
+- extendedWaitUntil:
+    notVisible: ".*sample-0.*"
+    timeout: 8000
