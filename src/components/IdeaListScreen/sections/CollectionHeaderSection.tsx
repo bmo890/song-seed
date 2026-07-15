@@ -84,6 +84,9 @@ export function CollectionHeaderSection() {
 
       {!screen.listSelectionMode ? (
         <Pressable
+          testID="collection-overflow"
+          accessibilityRole="button"
+          accessibilityLabel="Collection options"
           style={({ pressed }) => [styles.ideasHeaderMenuBtn, pressed ? styles.pressDown : null]}
           onPress={() => screen.setHeaderMenuOpen((prev) => !prev)}
         >

@@ -1,0 +1,58 @@
+# Whole-collection queue playback. Import several clips, then "Play all" from the
+# collection ⋯ menu — the player opens and plays the queue back-to-back. Verifies
+# the queue builds and starts, then stops. Self-cleaning. Requires push-dev-samples.
+appId: com.bmostudio.songseed.dev
+---
+- runFlow: ../subflows/open-library.yaml
+- tapOn: ".*Ideas.*"
+- extendedWaitUntil:
+    visible:
+      id: "fab-record"
+    timeout: 15000
+- runFlow: reset-clips.yaml
+- runFlow: ../subflows/dismiss-logbox.yaml
+- tapOn:
+    id: "fab-create"
+- waitForAnimationToEnd
+- tapOn:
+    id: "fab-menu-devsamples"
+- extendedWaitUntil:
+    visible: ".*6 seeds.*"
+    timeout: 20000
+# Collection ⋯ → Play all.
+- tapOn:
+    id: "collection-overflow"
+- extendedWaitUntil:
+    visible: ".*Play all.*"
+    timeout: 5000
+- tapOn: ".*Play all.*"
+# The queue player opens and auto-plays (transport shows Pause).
+- extendedWaitUntil:
+    visible: "Pause"
+    timeout: 10000
+- assertVisible: "Minimize player"
+# Stop and minimize.
+- tapOn: "Pause"
+- extendedWaitUntil:
+    visible: "Play"
+    timeout: 8000
+- tapOn: "Minimize player"
+- extendedWaitUntil:
+    visible:
+      id: "fab-record"
+    timeout: 10000
+# Clean up.
+- longPressOn: ".*sample-0.*"
+- extendedWaitUntil:
+    visible: "Select all"
+    timeout: 5000
+- tapOn: "Select all"
+- tapOn: ".*Delete"
+- extendedWaitUntil:
+    visible: ".*Delete selected items.*"
+    timeout: 5000
+- tapOn:
+    id: "dialog-btn-delete"
+- extendedWaitUntil:
+    notVisible: ".*sample-0.*"
+    timeout: 8000

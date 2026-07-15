@@ -1,0 +1,58 @@
+# Duplicate-import review. Import the samples, then import them AGAIN — the app
+# detects the duplicates and shows the "ALREADY IN YOUR LIBRARY" review. Choosing
+# "Skip" must add nothing (count stays 6, not 12). Self-cleaning. Requires
+# scripts/push-dev-samples.sh.
+appId: com.bmostudio.songseed.dev
+---
+- runFlow: ../subflows/open-library.yaml
+- tapOn: ".*Ideas.*"
+- extendedWaitUntil:
+    visible:
+      id: "fab-record"
+    timeout: 15000
+- runFlow: reset-clips.yaml
+- runFlow: ../subflows/dismiss-logbox.yaml
+# First import: 6 clips.
+- tapOn:
+    id: "fab-create"
+- waitForAnimationToEnd
+- tapOn:
+    id: "fab-menu-devsamples"
+- extendedWaitUntil:
+    visible: ".*6 seeds.*"
+    timeout: 20000
+# Second import of the same files → duplicate review.
+- runFlow: ../subflows/dismiss-logbox.yaml
+- tapOn:
+    id: "fab-create"
+- waitForAnimationToEnd
+- tapOn:
+    id: "fab-menu-devsamples"
+- extendedWaitUntil:
+    visible: ".*ALREADY IN YOUR LIBRARY.*"
+    timeout: 10000
+- assertVisible: ".*Import all.*"
+- assertVisible: "Skip"
+# Skip the duplicates — nothing new should be added.
+- tapOn: "Skip"
+- extendedWaitUntil:
+    visible:
+      id: "fab-record"
+    timeout: 10000
+# Still 6 seeds (dedup worked — not 12).
+- assertVisible: ".*6 seeds.*"
+# Clean up.
+- longPressOn: ".*sample-0.*"
+- extendedWaitUntil:
+    visible: "Select all"
+    timeout: 5000
+- tapOn: "Select all"
+- tapOn: ".*Delete"
+- extendedWaitUntil:
+    visible: ".*Delete selected items.*"
+    timeout: 5000
+- tapOn:
+    id: "dialog-btn-delete"
+- extendedWaitUntil:
+    notVisible: ".*sample-0.*"
+    timeout: 8000
