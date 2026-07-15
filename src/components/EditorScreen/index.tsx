@@ -39,7 +39,7 @@ import { useEditorTransformState } from "./hooks/useEditorTransformState";
 import { useEditorPreviewTransport } from "./hooks/useEditorPreviewTransport";
 import { EditorTransformSection } from "./EditorTransformSection";
 import { EditorTransformExportModal } from "./EditorTransformExportModal";
-import { clipHasOverdubs } from "../../clipPresentation";
+import { clipHasOverdubs, isClipWaveformPending } from "../../clipPresentation";
 import { HelpSheet } from "../common/HelpSheet";
 import { EDITOR_HELP } from "../common/helpContent";
 
@@ -152,6 +152,11 @@ export function EditorScreen() {
         durationMs: durationHintMs,
         enabled: isFocused,
     });
+
+    // Synthetic peaks until background analysis lands — the reel draws its honest
+    // pending line rather than a fake wave. The sidecar loading (isDetail) means real
+    // peaks are on screen, which clears pending regardless of the clip's stored state.
+    const waveformPending = sourceClip ? isClipWaveformPending(sourceClip) && !clipWaveform.isDetail : false;
 
     const playerSource = useMemo(() => (audioUri ? { uri: audioUri } : null), [audioUri]);
     const playerOptions = useMemo(() => ({ updateInterval: 33 }), []);
@@ -453,6 +458,8 @@ export function EditorScreen() {
 
                         <AudioReel
                             waveformPeaks={clipWaveform.peaks}
+                            waveformPending={waveformPending}
+                            waveformAnalyzing={clipWaveform.isGenerating}
                             durationMs={analysisData.durationMs}
                             currentTimeMs={playheadTimeMs}
                             resetKey={clipId}

@@ -740,6 +740,8 @@ export function PlayerScreen({
                   mode={ui.mode}
                   reelExpanded={ui.reelExpanded}
                   waveformPeaks={data.waveformPeaks}
+                  waveformPending={data.waveformPending}
+                  waveformAnalyzing={lifecycle.isAnalyzingWaveform}
                   durationMs={effectivePlayerDuration}
                   resetKey={playerClip.id}
                   isPlayerPlaying={effectiveIsPlaying}

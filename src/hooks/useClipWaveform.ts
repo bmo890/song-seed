@@ -40,6 +40,11 @@ export function useClipWaveform({
   deferGeneration = false,
 }: Args) {
   const [detail, setDetail] = useState<number[] | null>(null);
+  // True only while the native decode is actually inside the decoder — not while
+  // waiting out the dwell, and not while deferred by playback. Surfaces use it to
+  // caption real work ("Analyzing waveform…") without ever claiming work that is
+  // standing down.
+  const [isGenerating, setIsGenerating] = useState(false);
 
   // Cheap: load any already-cached sidecar right away (just a file read). Reset when
   // the source changes so a stale wave never lingers onto the next clip.
@@ -72,12 +77,14 @@ export function useClipWaveform({
       dwellTimer = setTimeout(() => {
         if (cancelled) return;
         decodeInFlight = true;
+        setIsGenerating(true);
         void (async () => {
           const peaks = await generateWaveformSidecar(audioUri, durationMs);
           // Clear BEFORE setDetail: success re-runs this effect (detail is a dep),
           // and the outgoing cleanup must not globally cancel other surfaces' work
           // over a decode that already finished.
           decodeInFlight = false;
+          setIsGenerating(false);
           if (!cancelled && peaks && peaks.length) setDetail(peaks);
         })();
       }, GENERATION_PAUSE_DWELL_MS);
@@ -87,6 +94,7 @@ export function useClipWaveform({
       cancelled = true;
       interaction?.cancel?.();
       if (dwellTimer) clearTimeout(dwellTimer);
+      if (decodeInFlight) setIsGenerating(false);
       if (decodeInFlight) {
         // Playback starting (deferGeneration flip) or leaving the surface: the decode
         // this effect launched is still inside the native decoder — abort it so it
@@ -101,5 +109,6 @@ export function useClipWaveform({
   return {
     peaks: detail ?? thumbnail,
     isDetail: !!detail,
+    isGenerating,
   };
 }

@@ -93,6 +93,30 @@ export function getClipReelWaveformPeaks(
   return buildStaticWaveform(`${clip.id}-${getClipPlaybackDurationMs(clip) ?? 0}`, placeholderPeakCount);
 }
 
+/**
+ * Is this clip's waveform still a PLACEHOLDER — i.e. the peaks any renderer gets back
+ * are synthetic, not the shape of the audio?
+ *
+ * Surfaces use this to draw an honest "not analyzed yet" treatment instead of a
+ * convincing fake. A fake wave that later morphs into the real one is read as a bug
+ * (the app appears to contradict itself); a visibly-pending state that resolves is
+ * read as the app finishing a job.
+ *
+ * A clip past the detailed-analysis cap (detailedWaveformUnavailable, with peaks
+ * present) is NOT pending — its stylized wave is permanent and never mutates, so it
+ * never triggers the contradiction. Reporting it as pending would strand the caption
+ * "analyzing" forever on a clip nothing will ever analyze.
+ */
+export function isClipWaveformPending(clip: ClipVersion): boolean {
+  const storedPeaks = getClipPlaybackWaveformPeaks(clip);
+  const hasRealPeaks = (storedPeaks?.length ?? 0) >= REAL_WAVEFORM_MIN_PEAK_COUNT;
+  if (hasRealPeaks) return false;
+  // Terminal: analysis will never produce a real wave for this clip. Its synthetic
+  // wave is the final answer, so present it as settled rather than pending.
+  if (clip.detailedWaveformUnavailable && storedPeaks?.length) return false;
+  return true;
+}
+
 export function getClipOverdubStemCount(clip: ClipVersion): number {
   return clip.overdub?.stems.length ?? 0;
 }

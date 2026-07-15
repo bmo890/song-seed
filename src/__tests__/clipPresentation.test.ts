@@ -1,6 +1,7 @@
 import {
   getClipPlaybackWaveformPeaksOrFallback,
   getClipReelWaveformPeaks,
+  isClipWaveformPending,
 } from "../clipPresentation";
 import type { ClipVersion } from "../types";
 
@@ -83,5 +84,51 @@ describe("getClipReelWaveformPeaks", () => {
   it("builds a dense synthetic for a clip with no peaks", () => {
     const clip = buildClip({ waveformPeaks: undefined });
     expect(getClipReelWaveformPeaks(clip, 1024)).toHaveLength(1024);
+  });
+});
+
+// Decides whether a reel draws an honest "not analyzed yet" line or a real wave.
+// Getting this wrong is user-visible in both directions: a false negative shows a
+// convincing fake that later morphs (reads as a bug — the whole reason this exists);
+// a false positive strands "Analyzing…" forever on a clip nothing will analyze.
+describe("isClipWaveformPending", () => {
+  const realPeaks = Array.from({ length: 256 }, () => 0.5);
+  const placeholderPeaks = Array.from({ length: 128 }, () => 0.5);
+
+  it("real full-resolution peaks are not pending", () => {
+    expect(isClipWaveformPending(buildClip({ waveformPeaks: realPeaks }))).toBe(false);
+  });
+
+  it("a fresh import's sub-resolution placeholder IS pending", () => {
+    expect(isClipWaveformPending(buildClip({ waveformPeaks: placeholderPeaks }))).toBe(true);
+  });
+
+  it("no peaks at all is pending", () => {
+    expect(isClipWaveformPending(buildClip({ waveformPeaks: undefined }))).toBe(true);
+  });
+
+  it("a clip analysis gave up on is NOT pending — its stylized wave is permanent, so presenting it as in-progress would strand the caption forever", () => {
+    expect(
+      isClipWaveformPending(
+        buildClip({ waveformPeaks: placeholderPeaks, detailedWaveformUnavailable: true })
+      )
+    ).toBe(false);
+  });
+
+  it("gave-up but with NO peaks is still pending — there is nothing to show, and the player-open decode can still heal it", () => {
+    expect(
+      isClipWaveformPending(buildClip({ waveformPeaks: undefined, detailedWaveformUnavailable: true }))
+    ).toBe(true);
+  });
+
+  it("uses the MASTER's peaks for layered clips, mirroring what the reel actually draws", () => {
+    const clip = buildClip({
+      waveformPeaks: undefined,
+      overdub: {
+        stems: [],
+        renderedMixWaveformPeaks: realPeaks,
+      } as unknown as ClipVersion["overdub"],
+    });
+    expect(isClipWaveformPending(clip)).toBe(false);
   });
 });

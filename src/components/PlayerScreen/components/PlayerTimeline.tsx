@@ -40,6 +40,10 @@ type Props = {
   mode: "player" | "practice" | "playalong";
   reelExpanded: boolean;
   waveformPeaks: number[];
+  /** Peaks are a synthetic placeholder — draw the pending line instead of a fake wave. */
+  waveformPending?: boolean;
+  /** A decode is in flight right now — show the "Analyzing waveform…" caption. */
+  waveformAnalyzing?: boolean;
   durationMs: number;
   resetKey?: string | number | null;
   isPlayerPlaying: boolean;
@@ -190,6 +194,8 @@ function PlayerTimelineInner({
   mode,
   reelExpanded,
   waveformPeaks,
+  waveformPending,
+  waveformAnalyzing,
   durationMs,
   resetKey,
   isPlayerPlaying,
@@ -236,6 +242,8 @@ function PlayerTimelineInner({
   return (
     <AudioReel
       waveformPeaks={waveformPeaks}
+      waveformPending={waveformPending}
+      waveformAnalyzing={waveformAnalyzing}
       durationMs={durationMs}
       resetKey={resetKey}
       initialZoomMultiple={openingZoomForDuration(durationMs)}

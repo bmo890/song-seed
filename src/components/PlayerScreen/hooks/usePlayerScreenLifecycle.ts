@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { AppAlert } from "../../common/AppAlert";
 import { actionIcons } from "../../common/actionIcons";
 import { clipHasOverdubs, getClipOverdubStemCount, getClipPlaybackUri } from "../../../clipPresentation";
@@ -103,6 +103,11 @@ export function usePlayerScreenLifecycle({
   const handledCloseTokenRef = useRef(playerCloseRequestToken);
   const handledFinishTokenRef = useRef(0);
   const hydratedWaveformClipIdsRef = useRef(new Set<string>());
+  // Clip whose waveform decode is in flight RIGHT NOW — drives the reel's "Analyzing
+  // waveform…" caption. Reported rather than inferred from (pending && !playing): the
+  // decode also stands down between retries and while waiting out the idle gate, and
+  // the caption must never claim work that isn't happening.
+  const [analyzingWaveformClipId, setAnalyzingWaveformClipId] = useState<string | null>(null);
   const sourceSyncInFlightUriRef = useRef<string | null>(null);
   const openInFlightClipIdRef = useRef<string | null>(null);
   const pendingAutoplayClipIdRef = useRef<string | null>(null);
@@ -255,6 +260,7 @@ export function usePlayerScreenLifecycle({
         hydratedWaveformClipIdsRef.current.delete(clipId);
         return;
       }
+      setAnalyzingWaveformClipId(clipId);
       return loadManagedAudioMetadata(
         audioUri,
         `${ideaId}-${clipId}`,
@@ -287,6 +293,10 @@ export function usePlayerScreenLifecycle({
       .catch((error) => {
         hydratedWaveformClipIdsRef.current.delete(clipId);
         console.warn("Player waveform hydration failed", error);
+      })
+      .finally(() => {
+        // Clear only our own claim: a newer clip's decode may have started since.
+        setAnalyzingWaveformClipId((current) => (current === clipId ? null : current));
       });
   }, [
     activeWorkspaceId,
@@ -609,6 +619,8 @@ export function usePlayerScreenLifecycle({
   }, [displayDuration, isPlayerPlaying, navigation, pausePlayer, playerClip, playerIdea, stopSessionAndClose]);
 
   return {
+    /** True while THIS clip's waveform decode is actually in flight. */
+    isAnalyzingWaveform: !!playerClip && analyzingWaveformClipId === playerClip.id,
     minimizePlayer,
     stopSessionAndClose,
     handleScrubStateChange,

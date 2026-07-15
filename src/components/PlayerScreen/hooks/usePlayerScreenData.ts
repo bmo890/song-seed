@@ -5,6 +5,7 @@ import {
   getClipPlaybackDurationMs,
   getClipPlaybackUri,
   getClipReelWaveformPeaks,
+  isClipWaveformPending,
 } from "../../../clipPresentation";
 import {
   getClipOverdubRootSettings,
@@ -122,6 +123,10 @@ export function usePlayerScreenData({ playerDuration, isPlaying = false }: UsePl
     deferGeneration: isPlaying,
   });
   const waveformPeaks = clipWaveform.peaks;
+  // The reel's peaks are synthetic until background analysis lands. `isDetail` means the
+  // high-res sidecar loaded, which only ever exists for a really-analyzed clip — so it
+  // also clears pending the moment the reel has a true shape to draw.
+  const waveformPending = playerClip ? isClipWaveformPending(playerClip) && !clipWaveform.isDetail : false;
   const practiceMarkers = useMemo(() => {
     if (playerClip?.practiceMarkers && playerClip.practiceMarkers.length > 0) {
       return playerClip.practiceMarkers;
@@ -174,6 +179,7 @@ export function usePlayerScreenData({ playerDuration, isPlaying = false }: UsePl
     playerCollection,
     playbackAudioUri,
     waveformPeaks,
+    waveformPending,
     displayDuration,
     practiceMarkers,
     sections,

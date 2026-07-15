@@ -9,10 +9,14 @@ import { MinimapVisualizer } from "../visualizers/MinimapVisualizer";
 import type { SectionBand } from "../../playerSections";
 import { fmt } from "../../utils";
 import { radii } from "../../design/tokens";
+import { durations } from "../../design/motion";
 import { haptic } from "../../design/haptics";
 
 const TIMELINE_HORIZONTAL_PADDING = 20;
 const AnimatedView = Reanimated.createAnimatedComponent(View);
+/** Stable keys for the pending line's dashes (count is cosmetic; space-between spreads
+ *  them across whatever width the reel has). */
+const PENDING_DASHES = Array.from({ length: 56 }, (_, index) => `pending-dash-${index}`);
 // Geometric steps — each press ~doubles the zoom so every tap feels equally
 // meaningful (linear steps make the high end feel like nothing). 16x is the useful
 // ceiling for a ~2048-point sidecar at the reel's bar density; beyond it a long
@@ -84,6 +88,19 @@ type ReelChrome = "dark" | "light";
 
 type Props = {
     waveformPeaks: number[];
+    /**
+     * The peaks are a synthetic placeholder, not the shape of this audio (a fresh
+     * import whose background analysis hasn't landed). The reel then draws an honest
+     * pending line instead of a convincing fake wave: a fake that later morphs into
+     * the real shape reads as the app contradicting itself, i.e. as a bug.
+     * Everything else (scrub, seek, playback, zoom) stays fully live — the audio is
+     * ready; only its picture isn't.
+     */
+    waveformPending?: boolean;
+    /** A decode is running RIGHT NOW for this clip — drives the "Analyzing…" caption.
+     *  False while pending-but-deferred (playback is using the codec), so the caption
+     *  never claims work that is standing down. */
+    waveformAnalyzing?: boolean;
     durationMs: number;
     currentTimeMs: number;
     sharedCurrentTimeMs?: SharedValue<number>;
@@ -138,6 +155,8 @@ type Props = {
 
 export function AudioReel({
     waveformPeaks,
+    waveformPending = false,
+    waveformAnalyzing = false,
     durationMs,
     currentTimeMs,
     sharedCurrentTimeMs,
@@ -221,6 +240,35 @@ export function AudioReel({
     const animatedHeightStyle = useAnimatedStyle(() => ({
         height: visualizerHeight.value,
     }));
+
+    // Cross-fade the wave against the pending line. An instant swap from placeholder to
+    // real peaks is a hard visual pop that reads as a glitch; fading the real shape in
+    // reads as it ARRIVING. Snap (no animation) on the first commit and on clip changes
+    // so an already-analyzed clip never fades in from nothing on open.
+    const waveOpacity = useSharedValue(waveformPending ? 0 : 1);
+    const didMountWaveOpacityRef = React.useRef(false);
+    React.useEffect(() => {
+        const target = waveformPending ? 0 : 1;
+        if (!didMountWaveOpacityRef.current) {
+            didMountWaveOpacityRef.current = true;
+            waveOpacity.value = target;
+            return;
+        }
+        waveOpacity.value = withTiming(target, { duration: durations.slow });
+    }, [waveformPending, waveOpacity]);
+    React.useEffect(() => {
+        // New clip in the reel: adopt its state immediately rather than fading between
+        // two different clips' waveforms.
+        waveOpacity.value = waveformPending ? 0 : 1;
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [resetKey]);
+    const waveLayerStyle = useAnimatedStyle(() => ({ opacity: waveOpacity.value }));
+    // The pending line's opacity is the exact inverse, so the two genuinely cross-fade.
+    // It stays MOUNTED at opacity 0 rather than being conditionally rendered: unmounting
+    // on the pending flip would pop it out instantly while the wave was still fading in —
+    // a hole in the middle of the transition, which is the pop this whole treatment exists
+    // to avoid.
+    const pendingLayerStyle = useAnimatedStyle(() => ({ opacity: 1 - waveOpacity.value }));
 
     const zoomText = `${zoomMultiple.toFixed(zoomMultiple % 1 === 0 ? 0 : 1)}x`;
     const nearestZoomIndex = React.useMemo(() => {
@@ -527,7 +575,34 @@ export function AudioReel({
                     }}
                     style={{ flex: 1, marginHorizontal: timelineHorizontalPadding, position: "relative" }}
                 >
-                    <View style={audioReelStyles.visualizerLayer}>
+                    {/* Pending: an honest, obviously-unfinished line instead of a fake wave.
+                        Sits in the wave's place and cross-fades out as the real peaks fade
+                        in (see waveLayerStyle), so analysis completing reads as the app
+                        finishing a job rather than correcting a mistake. */}
+                    <AnimatedView
+                        style={[audioReelStyles.pendingLayer, pendingLayerStyle]}
+                        pointerEvents="none"
+                    >
+                        {/* Dashes are individual Views, not a dashed border: RN's
+                            borderStyle:"dashed" renders SOLID on iOS. They sit on the exact
+                            centre line the visualizer draws its baseline on, so the wave
+                            resolves around them instead of the picture jumping. */}
+                        <View style={audioReelStyles.pendingDashRow}>
+                            {PENDING_DASHES.map((key) => (
+                                <View
+                                    key={key}
+                                    style={[audioReelStyles.pendingDash, { backgroundColor: palette.waveColor }]}
+                                />
+                            ))}
+                        </View>
+                        {waveformPending && waveformAnalyzing ? (
+                            <Text style={[audioReelStyles.pendingCaption, { color: palette.rulerColor }]}>
+                                Analyzing waveform…
+                            </Text>
+                        ) : null}
+                    </AnimatedView>
+
+                    <AnimatedView style={[audioReelStyles.visualizerLayer, waveLayerStyle]}>
                         <PlaybackTapeVisualizer
                             waveformPeaks={displayWaveformPeaks}
                             durationMs={durationMs}
@@ -564,7 +639,7 @@ export function AudioReel({
                                 backgroundColor: "transparent",
                             }}
                         />
-                    </View>
+                    </AnimatedView>
 
                     {renderOverlay ? (
                         <View style={[StyleSheet.absoluteFill, audioReelStyles.overlayLayer]} pointerEvents="box-none">
@@ -748,6 +823,37 @@ const audioReelStyles = StyleSheet.create({
     visualizerLayer: {
         ...StyleSheet.absoluteFillObject,
         zIndex: 1,
+    },
+    /** Sits UNDER the wave layer (which fades in over it) and never takes touches —
+     *  scrub/seek belong to the visualizer even while the picture is pending. */
+    pendingLayer: {
+        ...StyleSheet.absoluteFillObject,
+        justifyContent: "center",
+        zIndex: 0,
+    },
+    /** A broken centre line: unmistakably "nothing here yet" — no amplitude anywhere to
+     *  misread as the shape of the audio. */
+    pendingDashRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+        opacity: 0.35,
+    },
+    pendingDash: {
+        width: 3,
+        height: 1.5,
+        borderRadius: radii.xs,
+    },
+    /** Floated just below the centre line rather than stacked with it, so the dashes stay
+     *  exactly where the wave's baseline lands. */
+    pendingCaption: {
+        position: "absolute",
+        alignSelf: "center",
+        top: "58%",
+        fontFamily: "PlusJakartaSans_500Medium",
+        fontSize: 11,
+        letterSpacing: 0.3,
+        opacity: 0.9,
     },
     overlayLayer: {
         zIndex: 2,
