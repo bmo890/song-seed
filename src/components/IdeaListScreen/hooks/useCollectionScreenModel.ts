@@ -8,7 +8,7 @@ import { fmtDuration, getCollectionAncestors } from "../../../utils";
 import { getDateBucket, getDateBucketLabel } from "../../../dateBuckets";
 import { compareIdeas, getIdeaCreatedAt, getIdeaSortState, getIdeaSortTimestamp, getIdeaUpdatedAt, usesIdeaTimelineDividers } from "../../../ideaSort";
 import { getRootNavigation, goBackFromParentStack, openWorkspaceBrowseRoot } from "../../../navigation";
-import { getFloatingActionDockBottomOffset, getFloatingActionDockScrollPastClearance } from "../../common/FloatingActionDock";
+import { getFloatingActionDockBottomOffset, getFloatingActionDockContentClearance } from "../../common/FloatingActionDock";
 import { getPlayableClipForIdea } from "../../../clipPresentation";
 import type { IdeaListEntry, IdeaListItemMeta } from "../types";
 import { stickyDayStore } from "../stickyDayStore";
@@ -446,19 +446,27 @@ export function useCollectionScreenModel() {
     return `You are copying ${itemNames.length} item${itemNames.length > 1 ? "s" : ""} (${displayNames}${remainder}) into the same collection they already belong to. This will create duplicates. Continue?`;
   })();
 
-  const floatingBaseBottom = getFloatingActionDockBottomOffset(insets.bottom);
-  const floatingStripBottom = floatingBaseBottom + 70;
   const playerDockHeight = useStore((s) => s.playerDockHeight);
+  const importBannerHeight = useStore((s) => s.importBannerHeight);
+  const floatingBaseBottom = getFloatingActionDockBottomOffset(insets.bottom, {
+    playerDockHeight,
+    importBannerHeight,
+  });
+  const floatingStripBottom = floatingBaseBottom + 70;
   const selectionDockBottom = 12 + Math.max(insets.bottom, 12) + playerDockHeight;
   const bottomToolbarAllowance = 18;
   const activeDockHeight = listSelectionMode ? selectionDockHeight : floatingDockHeight;
-  const activeDockClearance = listSelectionMode ? selectionDockBottom + selectionDockHeight : getFloatingActionDockScrollPastClearance(insets.bottom);
-  // playerDockHeight keeps the last rows scrollable above the global media dock
-  // (it already feeds selectionDockBottom, but normal-mode scrolling needs it too).
-  const listFooterSpacerHeight =
-    activeDockClearance +
-    (listSelectionMode ? activeDockHeight : playerDockHeight) +
-    bottomToolbarAllowance;
+  // The footer only has to lift the last row clear of whatever floats over the list's
+  // bottom edge — nothing more. Both branches derive from the MEASURED dock heights, so
+  // the space tracks what's actually on screen (media dock, import bar, selection bar)
+  // instead of reserving for the worst case at all times.
+  //
+  // This used to add a flat 152px "scroll past" pad in normal mode, and to count
+  // selectionDockHeight twice in selection mode (once via the clearance, once via
+  // activeDockHeight) — together ~300px of dead scroll below the last clip.
+  const listFooterSpacerHeight = listSelectionMode
+    ? selectionDockBottom + selectionDockHeight + bottomToolbarAllowance
+    : getFloatingActionDockContentClearance(insets.bottom, { playerDockHeight, importBannerHeight });
 
   return {
     navigation,

@@ -40,6 +40,14 @@ export const colors = {
   // Playhead / live-position indicator (transport lines, scrub cursors)
   playhead: "#D95B56",
 
+  // Record / live-capture affordance — the record button and "recording now" dots.
+  // Red is worth keeping (it's the one universal transport convention, and the app's
+  // terracotta is too close to it to substitute without confusion), but it has to be
+  // OUR red: warm brick, paper-friendly. Distinct from `danger` because recording is
+  // not destructive, and from `playhead` which marks position rather than capture.
+  record:   "#C0453B",
+  onRecord: "#FFFFFF",
+
   // Destructive — warm brick red (delete/remove actions, destructive dialog buttons)
   danger:   "#A8443A",
   onDanger: "#FFFFFF",

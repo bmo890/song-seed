@@ -54,11 +54,14 @@ export function useSongScreenModel() {
   const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const playerDockHeight = useStore((s) => s.playerDockHeight);
-  const floatingBaseBottom = getFloatingActionDockBottomOffset(insets.bottom);
+  const importBannerHeight = useStore((s) => s.importBannerHeight);
+  const dockLayout = { playerDockHeight, importBannerHeight };
+  const floatingBaseBottom = getFloatingActionDockBottomOffset(insets.bottom, dockLayout);
   const songPageBaseBottomPadding = 24 + Math.max(insets.bottom, 16);
-  // playerDockHeight keeps the last clips scrollable above the global media dock.
-  const clipListFooterSpacerHeight =
-    getFloatingActionDockContentClearance(insets.bottom) + playerDockHeight;
+  // Just enough to scroll the last clip clear of the record button. The clearance already
+  // accounts for the media dock and import bar (the dock rides above them), so adding
+  // playerDockHeight again here double-counted it.
+  const clipListFooterSpacerHeight = getFloatingActionDockContentClearance(insets.bottom, dockLayout);
   const clipSelectionFooterSpacerHeight = selectionDockHeight + 24 + Math.max(insets.bottom, 12) + playerDockHeight;
 
   useEffect(() => {
