@@ -9,7 +9,7 @@ import { shareFileUri } from "../../../services/audioStorage";
 import { useStore } from "../../../state/useStore";
 import { haptic } from "../../../design/haptics";
 
-const FEEDBACK_EMAIL = "bmogerman@gmail.com";
+const FEEDBACK_EMAIL = "bmostudio.dev@gmail.com";
 
 /**
  * Quiet closing page: the version to quote in a bug report, a way to reach out, and a

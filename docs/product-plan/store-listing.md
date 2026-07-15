@@ -92,7 +92,7 @@ space; rotate in later based on Search Ads / console analytics.
 - **Privacy policy:** `<GitHub Pages URL — see OWNER-TODO>` (content: docs/privacy-policy.md)
 - **Support URL:** same site, or a simple page with the support email.
 - **Marketing URL** (optional): a landing page if/when one exists; leave blank for v1.
-- **Support email:** bmogerman@gmail.com
+- **Support email:** bmostudio.dev@gmail.com
 
 ---
 

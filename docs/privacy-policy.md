@@ -42,4 +42,4 @@ If this policy changes, the updated version will be posted at this address with 
 
 ## Contact
 
-Questions or concerns: **bmogerman@gmail.com**
+Questions or concerns: **bmostudio.dev@gmail.com**

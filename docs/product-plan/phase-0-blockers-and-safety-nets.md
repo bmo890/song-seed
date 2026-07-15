@@ -74,7 +74,7 @@ Remove everything that would cause an outright store rejection or a catastrophic
 ### 0.9 Hosted privacy policy
 
 **Current:** none. Both stores require a URL at submission. The app's story is maximally simple: all user content stays on device; backups go only where the user sends them; no accounts, no analytics (unless 0.4-A chosen → disclose crash data); network calls = Datamuse word lookups + Gutenberg book text, both anonymous.
-**Target:** a one-page policy hosted at a stable URL (GitHub Pages in this repo is fine — e.g. `docs/` publishing or a `gh-pages` branch). Content sections: what's stored (locally), what's transmitted (word-lookup queries, book fetches, optionally crash reports), what's collected (nothing / crash diagnostics), contact email (bmogerman@gmail.com), effective date. Mirror the wording already shipped in Settings → About → Privacy (`src/components/SettingsScreen/views/SettingsAboutView.tsx`) so in-app and hosted text agree, and add a "Privacy policy" link row there pointing at the URL.
+**Target:** a one-page policy hosted at a stable URL (GitHub Pages in this repo is fine — e.g. `docs/` publishing or a `gh-pages` branch). Content sections: what's stored (locally), what's transmitted (word-lookup queries, book fetches, optionally crash reports), what's collected (nothing / crash diagnostics), contact email (bmostudio.dev@gmail.com), effective date. Mirror the wording already shipped in Settings → About → Privacy (`src/components/SettingsScreen/views/SettingsAboutView.tsx`) so in-app and hosted text agree, and add a "Privacy policy" link row there pointing at the URL.
 **Acceptance:** URL is live, linked from Settings About, and recorded in this file for Phase 5.
 
 ### 0.10 `colors.danger` design token

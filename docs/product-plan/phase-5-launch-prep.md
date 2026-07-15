@@ -23,7 +23,7 @@ Write once, adapt per store:
 - **Description:** lead with capture speed, then organization (workspaces/collections), practice tools (loop/slow/pitch), overdub layers, lyric tools, and close with the trust story: *"Your music never leaves your device. No account. No cloud. Backups you control."* — for this audience that's a differentiator, not boilerplate.
 - **Keywords (iOS 100-char field):** songwriting, voice memo, song ideas, riff, demo recorder, practice, looper, lyric, chord.
 - **Category:** Music. **Age rating:** 4+/Everyone (questionnaires: no UGC sharing, no web content — Magpie's book text is curated public domain; answer "no" to unrestricted web access).
-- Support URL (can be the GitHub Pages site from Phase 0.9), marketing URL optional, contact email bmogerman@gmail.com.
+- Support URL (can be the GitHub Pages site from Phase 0.9), marketing URL optional, contact email bmostudio.dev@gmail.com.
 
 ### 5.2 Screenshots & preview
 
