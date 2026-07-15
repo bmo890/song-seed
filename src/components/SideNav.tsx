@@ -6,7 +6,7 @@ import { styles } from "../styles";
 import { radii, shadows, colors } from "../design/tokens";
 import { NavRow } from "./common/NavRow";
 import { WorkspaceAvatar } from "./common/WorkspaceAvatar";
-import { getWorkspaceTheme } from "../workspaceTheme";
+import { getWorkspaceTheme } from "../domain/workspaceTheme";
 
 type IoniconName = ComponentProps<typeof Ionicons>["name"];
 

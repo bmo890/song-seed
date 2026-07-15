@@ -10,9 +10,9 @@ import {
   type ClipLineage,
   type EvolutionListRow,
   type TimelineClipEntry,
-} from "../../clipGraph";
+} from "../../domain/clipGraph";
 import { type ClipCardContextProps } from "./ClipCard";
-import { type SongTimelineSortDirection, type SongTimelineSortMetric } from "../../clipGraph";
+import { type SongTimelineSortDirection, type SongTimelineSortMetric } from "../../domain/clipGraph";
 import { SongClipCard } from "./components/SongClipCard";
 import { SongClipListShell } from "./components/SongClipListShell";
 import { haptic } from "../../design/haptics";

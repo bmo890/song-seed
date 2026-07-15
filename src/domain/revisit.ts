@@ -1,7 +1,7 @@
 import { getActivityEventsWithHistory, startOfActivityDay } from "./activity";
 import { getIdeaCreatedAt, getIdeaUpdatedAt } from "./ideaSort";
-import type { ActivityEvent, ClipVersion, SongIdea, Workspace } from "./types";
-import { getCollectionAncestors, getCollectionById, getCollectionScopeIds } from "./utils";
+import type { ActivityEvent, ClipVersion, SongIdea, Workspace } from "../types";
+import { getCollectionAncestors, getCollectionById, getCollectionScopeIds } from "../utils";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const AROUND_THIS_TIME_WINDOW_DAYS = 30;

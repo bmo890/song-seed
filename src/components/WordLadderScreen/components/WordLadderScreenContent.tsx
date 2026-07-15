@@ -27,7 +27,7 @@ import {
   getColumnAPlaceholder,
   getColumnBPlaceholder,
   pairingSeedWords,
-} from "../../../wordLadder";
+} from "../../../domain/wordLadder";
 import type { WordLadderStep } from "../../../types";
 
 const KRAFT_BG = "#F2E9DC";

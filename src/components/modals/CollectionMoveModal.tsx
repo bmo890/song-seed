@@ -2,7 +2,7 @@ import { Modal, Pressable, ScrollView, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { styles } from "../../styles";
 import { Button } from "../common/Button";
-import type { CollectionMoveDestination } from "../../collectionManagement";
+import type { CollectionMoveDestination } from "../../domain/collectionManagement";
 
 type Props = {
   visible: boolean;

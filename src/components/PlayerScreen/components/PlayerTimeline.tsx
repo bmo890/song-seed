@@ -10,7 +10,7 @@ import { OverdubLayerLanes, type OverdubLayerLane } from "../../common/OverdubLa
 import { PracticePinBadges } from "../PracticePinBadges";
 import { SectionLabelBadges } from "../SectionLabelBadges";
 import type { PracticeMarker, ClipSection } from "../../../types";
-import { buildSectionBands } from "../../../playerSections";
+import { buildSectionBands } from "../../../domain/playerSections";
 import { haptic } from "../../../design/haptics";
 import { colors } from "../../../design/tokens";
 

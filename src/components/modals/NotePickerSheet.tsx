@@ -4,7 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { BottomSheet } from "../common/BottomSheet";
 import { styles } from "../../styles";
 import { colors, radii, spacing, text as textTokens } from "../../design/tokens";
-import { deriveNotePreviewBody, deriveNotePreviewTitle } from "../../notepad";
+import { deriveNotePreviewBody, deriveNotePreviewTitle } from "../../domain/notepad";
 import type { Note } from "../../types";
 
 type Props = {

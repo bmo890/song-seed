@@ -7,7 +7,7 @@ import {
   type TimelineClipEntry,
   type SongTimelineSortDirection,
   type SongTimelineSortMetric,
-} from "../../../clipGraph";
+} from "../../../domain/clipGraph";
 import { type SongIdea } from "../../../types";
 import { type SongClipTagFilter } from "../songClipControls";
 import type { SongClipGroupFilter } from "../songClipControls";

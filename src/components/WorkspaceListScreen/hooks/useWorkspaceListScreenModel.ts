@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useStore } from "../../../state/useStore";
-import { getWorkspaceListOrderState, sortWorkspacesWithPrimary } from "../../../libraryNavigation";
+import { getWorkspaceListOrderState, sortWorkspacesWithPrimary } from "../../../domain/libraryNavigation";
 import type { WorkspaceListOrder } from "../../../types";
 import { useWorkspaceArchiveActions } from "./useWorkspaceArchiveActions";
 import type { SelectionAction } from "../../common/SelectionDock";

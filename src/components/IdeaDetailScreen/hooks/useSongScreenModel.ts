@@ -5,7 +5,7 @@ import { useSharedValue } from "react-native-reanimated";
 import { useStore } from "../../../state/useStore";
 import { getFloatingActionDockBottomOffset, getFloatingActionDockContentClearance } from "../../common/FloatingActionDock";
 import type { IdeaStatus } from "../../../types";
-import type { SongTimelineSortDirection, SongTimelineSortMetric } from "../../../clipGraph";
+import type { SongTimelineSortDirection, SongTimelineSortMetric } from "../../../domain/clipGraph";
 import type { SongClipGroupFilter, SongClipTagFilter } from "../songClipControls";
 
 export function useSongScreenModel() {

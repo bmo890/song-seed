@@ -1,6 +1,6 @@
 import { View } from "react-native";
 import { styles } from "../../styles";
-import type { EvolutionListClipEntry } from "../../../../clipGraph";
+import type { EvolutionListClipEntry } from "../../../../domain/clipGraph";
 
 type ClipCardEvolutionGuideProps = {
   entry: EvolutionListClipEntry | null;

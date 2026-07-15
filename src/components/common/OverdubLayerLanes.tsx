@@ -1,7 +1,7 @@
 import React from "react";
 import { StyleSheet, Text, View } from "react-native";
 import Animated, { SharedValue, useAnimatedStyle } from "react-native-reanimated";
-import { withAlpha } from "../../overdub";
+import { withAlpha } from "../../domain/overdub";
 
 /**
  * Slim lanes under an audio reel marking where each (un-flattened) overdub layer sits on

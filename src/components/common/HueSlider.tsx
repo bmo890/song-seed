@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import { PanResponder, StyleSheet, View } from "react-native";
 import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
-import { hslToHex } from "../../workspaceTheme";
+import { hslToHex } from "../../domain/workspaceTheme";
 import { colors } from "../../design/tokens";
 
 // Gradient stops across the full hue spectrum at the same muted S/L as accent colours

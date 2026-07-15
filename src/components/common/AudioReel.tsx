@@ -15,7 +15,7 @@ import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { Feather, Ionicons } from "@expo/vector-icons";
 import { PlaybackTapeVisualizer } from "../visualizers/PlaybackTapeVisualizer";
 import { MinimapVisualizer } from "../visualizers/MinimapVisualizer";
-import type { SectionBand } from "../../playerSections";
+import type { SectionBand } from "../../domain/playerSections";
 import { fmt } from "../../utils";
 import { colors, radii } from "../../design/tokens";
 import { durations } from "../../design/motion";

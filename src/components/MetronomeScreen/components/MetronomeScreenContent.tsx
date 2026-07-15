@@ -4,7 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { ScreenHeader } from "../../common/ScreenHeader";
 import { haptic } from "../../../design/haptics";
 import { colors } from "../../../design/tokens";
-import { METRONOME_METER_PRESETS } from "../../../metronome";
+import { METRONOME_METER_PRESETS } from "../../../domain/metronome";
 import {
   BeepLevelControl,
   CueTiles,

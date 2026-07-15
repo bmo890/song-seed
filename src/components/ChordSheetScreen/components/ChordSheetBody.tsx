@@ -5,7 +5,7 @@ import Slider from "@react-native-community/slider";
 import { Ionicons } from "@expo/vector-icons";
 import { styles as appStyles } from "../../../styles";
 import { colors, radii, spacing, text as textTokens } from "../../../design/tokens";
-import { SECTION_PRESETS } from "../../../chordSheet";
+import { SECTION_PRESETS } from "../../../domain/chordSheet";
 import type { ChordSheet } from "../../../types";
 import { ChordPickerSheet } from "../../LyricsVersionScreen/components/chords/ChordPickerSheet";
 import { SelectionActionSheet } from "../../common/SelectionActionSheet";

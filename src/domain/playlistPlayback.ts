@@ -8,7 +8,7 @@ import {
   resolvePlaylistClip,
   resolvePlaylistIdea,
 } from "./libraryNavigation";
-import type { PlaybackQueueItem, Playlist, Workspace } from "./types";
+import type { PlaybackQueueItem, Playlist, Workspace } from "../types";
 
 /** One playlist row resolved against the live library — everything the playlist
  *  player page needs: display copy, availability, duration, the queue entry to

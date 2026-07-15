@@ -5,8 +5,8 @@ import {
   Workspace,
   WorkspaceListOrder,
   WorkspaceStartupPreference,
-} from "./types";
-import { getCollectionAncestors, getCollectionById, getCollectionScopeIds } from "./utils";
+} from "../types";
+import { getCollectionAncestors, getCollectionById, getCollectionScopeIds } from "../utils";
 
 export type CollectionSearchMatchKind =
   | "collection"

@@ -1,5 +1,5 @@
 import { QuickNameModal } from "../../modals/QuickNameModal";
-import { buildImportHelperText } from "../../../importDates";
+import { buildImportHelperText } from "../../../domain/importDates";
 import { buildImportedTitle } from "../../../services/audioStorage";
 import { ensureUniqueCountedTitle } from "../../../utils";
 import { useSongScreen } from "../provider/SongScreenProvider";

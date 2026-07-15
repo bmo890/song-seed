@@ -1,4 +1,4 @@
-import { buildSetlistArchive, trimIdeaForSetlistEntry } from "../setlistExport";
+import { buildSetlistArchive, trimIdeaForSetlistEntry } from "../domain/setlistExport";
 import type { ClipVersion, Setlist, SongIdea, Workspace } from "../types";
 
 function clip(id: string, over: Partial<ClipVersion> = {}): ClipVersion {

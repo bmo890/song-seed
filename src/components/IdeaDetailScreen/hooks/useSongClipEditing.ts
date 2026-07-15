@@ -2,11 +2,11 @@ import { useMemo, useState } from "react";
 import {
   buildLineageTitle,
   buildLineageTitlePlan,
-} from "../../../clipLineageTitles";
+} from "../../../domain/clipLineageTitles";
 import {
   showLineageRenamePrompt,
   type LineageRenamePromptInfo,
-} from "../../../clipLineageRenamePrompt";
+} from "../../../domain/clipLineageRenamePrompt";
 import { useStore } from "../../../state/useStore";
 import { type ClipVersion, type SongIdea } from "../../../types";
 

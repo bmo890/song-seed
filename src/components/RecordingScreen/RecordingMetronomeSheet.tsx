@@ -16,7 +16,7 @@ import {
   type MetronomeMeterId,
   type MetronomeOutputKey,
   type MetronomeOutputs,
-} from "../../metronome";
+} from "../../domain/metronome";
 
 const COUNT_IN_OPTIONS = [0, 1, 2, 4];
 

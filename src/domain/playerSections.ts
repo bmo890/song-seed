@@ -1,4 +1,4 @@
-import type { ClipSection, ClipSectionKind } from "./types";
+import type { ClipSection, ClipSectionKind } from "../types";
 
 export type SectionPreset = {
   kind: ClipSectionKind;

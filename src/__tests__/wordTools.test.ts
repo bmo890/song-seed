@@ -12,7 +12,7 @@ import {
   partOfSpeechLabel,
   sanitizeThemeWords,
   setWordLookupPersistentStore,
-} from "../wordTools";
+} from "../domain/wordTools";
 
 describe("extractWordRange", () => {
   const text = "Dancing in the moonlight, don't stop";

@@ -1,5 +1,5 @@
 import type { AudioDevice } from "@siteed/audio-studio";
-import type { BluetoothMonitoringCalibration } from "./types";
+import type { BluetoothMonitoringCalibration } from "../types";
 
 // Keep this just under one full beat at the calibration tempo (90 BPM = 667 ms)
 // so very late taps do not become ambiguous with the next beat.

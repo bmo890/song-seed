@@ -7,7 +7,7 @@ import { ClipVersion, PlayerTarget } from "../types";
 import {
   getClipPlaybackDurationMs,
   getClipPlaybackUri,
-} from "../clipPresentation";
+} from "../domain/clipPresentation";
 import { activateAndPlay, replacePlaybackSource } from "../services/transportPlayback";
 import { beginForegroundAudioLoad, endForegroundAudioLoad } from "../services/audioForegroundActivity";
 import { appActions } from "../state/actions";

@@ -1,6 +1,6 @@
 import { QuickNameModal } from "../../modals/QuickNameModal";
 import type { ImportedAudioAsset } from "../../../services/audioStorage";
-import type { ImportDatePreference } from "../../../importDates";
+import type { ImportDatePreference } from "../../../domain/importDates";
 import type { CollectionDestination } from "../types";
 
 type Props = {

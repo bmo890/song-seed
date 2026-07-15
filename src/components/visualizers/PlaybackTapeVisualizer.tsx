@@ -12,7 +12,7 @@ import {
 } from "react-native-reanimated";
 import { GestureDetector, Gesture } from "react-native-gesture-handler";
 import type { PracticeMarker } from "../../types";
-import type { SectionBand } from "../../playerSections";
+import type { SectionBand } from "../../domain/playerSections";
 import { colors } from "../../design/tokens";
 
 type Props = {

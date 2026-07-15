@@ -1,5 +1,5 @@
-import { useStore } from "./state/useStore";
-import { AppAlert } from "./components/common/AppAlert";
+import { useStore } from "../state/useStore";
+import { AppAlert } from "../components/common/AppAlert";
 import type { LineageRenameTarget } from "./clipLineageTitles";
 
 export type LineageRenamePromptInfo = {

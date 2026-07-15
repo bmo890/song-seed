@@ -14,7 +14,7 @@ import {
   shufflePairings,
   toggleLock,
   updateWordText,
-} from "../../../wordLadder";
+} from "../../../domain/wordLadder";
 import type { WordLadderStep, WordLadderWord } from "../../../types";
 
 export function useWordLadderScreenModel() {

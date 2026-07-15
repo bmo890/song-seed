@@ -11,7 +11,7 @@ import { styles as appStyles } from "../../../styles";
 import { colors, radii, spacing, text as textTokens } from "../../../design/tokens";
 import { formatDate } from "../../../utils";
 import { activateAndPlay, replacePlaybackSource } from "../../../services/transportPlayback";
-import { OVERDUB_GAIN_STEP_DB, overdubGainDbToPlayerVolume } from "../../../overdub";
+import { OVERDUB_GAIN_STEP_DB, overdubGainDbToPlayerVolume } from "../../../domain/overdub";
 import { playerScreenStyles } from "../styles";
 import { AppAlert } from "../../common/AppAlert";
 import { actionIcons } from "../../common/actionIcons";

@@ -5,7 +5,7 @@ import { genIdea } from "../../utils";
 import { WorkspaceAvatar } from "../common/WorkspaceAvatar";
 import { WarmModal } from "../common/WarmModal";
 import { HueSlider } from "../common/HueSlider";
-import { hueToAccentHex, hexToHue, DEFAULT_WORKSPACE_COLOR } from "../../workspaceTheme";
+import { hueToAccentHex, hexToHue, DEFAULT_WORKSPACE_COLOR } from "../../domain/workspaceTheme";
 import { colors, radii } from "../../design/tokens";
 
 type Props = {

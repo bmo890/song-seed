@@ -5,7 +5,7 @@ import { Feather } from "@expo/vector-icons";
 import { Button } from "../common/Button";
 import { TitleInput } from "../common/TitleInput";
 import { styles } from "../../styles";
-import { formatPitchShiftLabel } from "../../pitchShift";
+import { formatPitchShiftLabel } from "../../domain/pitchShift";
 
 type EditorTransformExportModalProps = {
   visible: boolean;

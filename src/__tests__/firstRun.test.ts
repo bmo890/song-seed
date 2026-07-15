@@ -3,7 +3,7 @@ import {
     REVIEW_MIN_SAVED_CLIPS,
     REVIEW_REASK_COOLDOWN_DAYS,
     shouldRequestReview,
-} from "../firstRun";
+} from "../domain/firstRun";
 
 const DAY = 24 * 60 * 60 * 1000;
 const NOW = 1_800_000_000_000;

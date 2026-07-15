@@ -2,7 +2,7 @@ import React from "react";
 import { StyleSheet, Text, View } from "react-native";
 import Animated, { useAnimatedStyle, SharedValue } from "react-native-reanimated";
 import type { ClipSection } from "../../types";
-import { getSectionColor } from "../../playerSections";
+import { getSectionColor } from "../../domain/playerSections";
 import { colors } from "../../design/tokens";
 
 type Props = {

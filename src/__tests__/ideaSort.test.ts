@@ -1,4 +1,4 @@
-import { getIdeaCreatedAt } from "../ideaSort";
+import { getIdeaCreatedAt } from "../domain/ideaSort";
 import type { ClipVersion, SongIdea } from "../types";
 
 const TODAY = Date.UTC(2026, 5, 26); // Jun 26 2026

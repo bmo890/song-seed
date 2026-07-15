@@ -6,7 +6,7 @@ import { shareAudioClips } from "../../../services/audioStorage";
 import { SelectionActionSheet } from "../../common/SelectionActionSheet";
 import { SelectionDock, type SelectionAction } from "../../common/SelectionDock";
 import type { SongIdea } from "../../../types";
-import { buildPlayableQueueFromIdeas, getPlayableClipForIdea } from "../../../clipPresentation";
+import { buildPlayableQueueFromIdeas, getPlayableClipForIdea } from "../../../domain/clipPresentation";
 import { haptic } from "../../../design/haptics";
 
 type IdeaSelectionBarProps = {

@@ -1,4 +1,4 @@
-import type { ClipAnalysis, MusicalMode } from "./types";
+import type { ClipAnalysis, MusicalMode } from "../types";
 
 // Pure key/tempo analysis core — no native dependency, so it's unit-testable and safe to
 // import anywhere. The native file decode + feature extraction lives in clipAnalysisRunner.

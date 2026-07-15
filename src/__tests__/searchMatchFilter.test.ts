@@ -3,7 +3,7 @@ import {
   getSearchMatchFilterLabel,
   SEARCH_MATCH_FILTER_ORDER,
   type GlobalSearchMatchSource,
-} from "../search";
+} from "../domain/search";
 
 describe("getSearchMatchFilter", () => {
   const cases: Array<[GlobalSearchMatchSource, string]> = [

@@ -10,7 +10,7 @@ import { SelectionActionSheet } from "../../common/SelectionActionSheet";
 import { NowPlayingIndicator } from "../../common/NowPlayingIndicator";
 import { useStore } from "../../../state/useStore";
 import type { Playlist } from "../../../types";
-import type { PlaylistTrack } from "../../../playlistPlayback";
+import type { PlaylistTrack } from "../../../domain/playlistPlayback";
 
 function formatTotalDuration(ms: number | null) {
   if (ms == null) return null;

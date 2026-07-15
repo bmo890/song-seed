@@ -1,6 +1,6 @@
 import { getIdeaCreatedAt, getIdeaUpdatedAt } from "./ideaSort";
-import { getCollectionById, getCollectionScopeIds } from "./utils";
-import type { ActivityEvent, ActivityMetric, ActivitySource, SongIdea, Workspace } from "./types";
+import { getCollectionById, getCollectionScopeIds } from "../utils";
+import type { ActivityEvent, ActivityMetric, ActivitySource, SongIdea, Workspace } from "../types";
 
 export type ActivityMetricFilter = ActivityMetric | "both";
 

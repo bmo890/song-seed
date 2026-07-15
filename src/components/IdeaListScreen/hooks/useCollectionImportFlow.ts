@@ -19,7 +19,7 @@ import {
   buildImportedIdeaDateMetadata,
   promptForImportDatePreference,
   type ImportDatePreference,
-} from "../../../importDates";
+} from "../../../domain/importDates";
 
 type CollectionImportFlowParams = {
   activeWorkspaceId: string | null;

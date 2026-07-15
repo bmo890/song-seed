@@ -1,4 +1,4 @@
-import { buildSetlistArchive } from "../setlistExport";
+import { buildSetlistArchive } from "../domain/setlistExport";
 import { exportLibrary } from "./libraryExport";
 import type { Setlist, Workspace } from "../types";
 

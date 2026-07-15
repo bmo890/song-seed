@@ -1,4 +1,4 @@
-import { ClipGroup, ClipVersion } from "./types";
+import { ClipGroup, ClipVersion } from "../types";
 import { getDateBucket } from "./dateBuckets";
 
 export type SongTimelineSortMetric = "created" | "title" | "length";

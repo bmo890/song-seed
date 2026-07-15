@@ -2,7 +2,7 @@ import React, { useMemo } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { BottomSheet } from "../common/BottomSheet";
-import type { SaveDestination } from "../../collectionManagement";
+import type { SaveDestination } from "../../domain/collectionManagement";
 import { colors } from "../../design/tokens";
 
 type Props = {

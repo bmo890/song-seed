@@ -1,5 +1,5 @@
 import { useEffect, useMemo } from "react";
-import { clampPitchShiftSemitones } from "../../../pitchShift";
+import { clampPitchShiftSemitones } from "../../../domain/pitchShift";
 import {
   useNativePitchTransport,
   type NativeTransportSource,

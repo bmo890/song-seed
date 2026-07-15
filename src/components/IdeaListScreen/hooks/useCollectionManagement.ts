@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { AppAlert } from "../../common/AppAlert";
 import { appActions } from "../../../state/actions";
 import type { Collection, Workspace } from "../../../types";
-import { buildCollectionMoveDestinations, getCollectionDeleteScope } from "../../../collectionManagement";
+import { buildCollectionMoveDestinations, getCollectionDeleteScope } from "../../../domain/collectionManagement";
 
 type CollectionManagementParams = {
   workspaces: Workspace[];

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
 import { activatePlaybackAudioSession } from "../../../services/audioSession";
-import { overdubGainDbToPlayerVolume } from "../../../overdub";
+import { overdubGainDbToPlayerVolume } from "../../../domain/overdub";
 
 /**
  * In-place audition for overdub alignment: plays the MASTER take and one RAW stem

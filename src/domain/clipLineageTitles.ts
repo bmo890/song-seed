@@ -1,6 +1,6 @@
 import { findLineageForClip, type ClipLineage } from "./clipGraph";
-import type { ClipVersion } from "./types";
-import { getBaseClipTitle } from "./utils";
+import type { ClipVersion } from "../types";
+import { getBaseClipTitle } from "../utils";
 
 export type LineageRenameTarget = {
   clip: ClipVersion;

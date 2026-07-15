@@ -69,7 +69,7 @@ import { getCollectionAncestors, getCollectionById } from "./src/utils";
 import {
   getRecentCollectionsForWorkspace,
   resolveStartupWorkspaceId,
-} from "./src/libraryNavigation";
+} from "./src/domain/libraryNavigation";
 import type {
   HomeDrawerParamList,
   RootStackParamList,

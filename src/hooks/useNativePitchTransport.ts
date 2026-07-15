@@ -13,7 +13,7 @@ import {
   buildUnavailablePitchShiftCapabilities,
   clampPitchShiftSemitones,
   type PitchShiftCapabilities,
-} from "../pitchShift";
+} from "../domain/pitchShift";
 
 /** Tagged, greppable diagnostics for the native pitch/speed engine. Event-driven
  * only (never called from render) so it doesn't spam. Filter logs by "[pitch]". */

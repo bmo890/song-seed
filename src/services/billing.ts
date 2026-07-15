@@ -1,4 +1,4 @@
-import { proEntitlement } from "../entitlements";
+import { proEntitlement } from "../domain/entitlements";
 
 /**
  * Billing integration point (RevenueCat) — STUB.

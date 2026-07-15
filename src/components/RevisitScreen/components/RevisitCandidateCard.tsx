@@ -1,7 +1,7 @@
 import React from "react";
 import { InlineIdeaCard } from "../../common/InlineIdeaCard";
 import type { SongIdea } from "../../../types";
-import type { RevisitCandidate } from "../../../revisit";
+import type { RevisitCandidate } from "../../../domain/revisit";
 
 type RevisitCandidateCardProps = {
   candidate: RevisitCandidate;

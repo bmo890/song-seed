@@ -1,4 +1,4 @@
-import { buildPlaylistQueue, getPlaylistDurationMs, resolvePlaylistTracks } from "../playlistPlayback";
+import { buildPlaylistQueue, getPlaylistDurationMs, resolvePlaylistTracks } from "../domain/playlistPlayback";
 import type { ClipVersion, Playlist, SongIdea, Workspace } from "../types";
 
 function clip(id: string, over: Partial<ClipVersion> = {}): ClipVersion {

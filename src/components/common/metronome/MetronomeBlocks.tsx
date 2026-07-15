@@ -13,7 +13,7 @@ import {
   type MetronomeMeterId,
   type MetronomeOutputKey,
   type MetronomeOutputs,
-} from "../../../metronome";
+} from "../../../domain/metronome";
 
 /**
  * Shared metronome control blocks — the single source for the tempo stepper/tap/

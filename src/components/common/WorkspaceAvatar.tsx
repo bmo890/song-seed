@@ -1,6 +1,6 @@
 import { View } from "react-native";
 import Svg, { Circle, Ellipse, Polygon, Rect, Defs, RadialGradient, Stop, G } from "react-native-svg";
-import { getWorkspaceTheme } from "../../workspaceTheme";
+import { getWorkspaceTheme } from "../../domain/workspaceTheme";
 
 type Props = {
   color?: string;

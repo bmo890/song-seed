@@ -4,7 +4,7 @@ import { settingsScreenStyles, styles } from "../styles";
 import { FormatOptionRow, LibraryActionCard, ToggleRow } from "../components/SettingsShared";
 import type { useLibraryBackupFlow } from "../hooks/useLibraryBackupFlow";
 import { haptic } from "../../../design/haptics";
-import { useIsPro } from "../../../entitlements";
+import { useIsPro } from "../../../domain/entitlements";
 import { openProUpsell } from "../../common/proUpsell";
 import { restorePurchases } from "../../../services/billing";
 import { AppAlert } from "../../common/AppAlert";

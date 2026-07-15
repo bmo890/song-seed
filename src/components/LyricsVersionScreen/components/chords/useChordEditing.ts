@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { appActions } from "../../../../state/actions";
-import type { ChordParts } from "../../../../chords";
+import type { ChordParts } from "../../../../domain/chords";
 import type { ChordPlacement, SongChordPaletteItem } from "../../../../types";
 
 function partsFromPaletteItem(item: SongChordPaletteItem): ChordParts {

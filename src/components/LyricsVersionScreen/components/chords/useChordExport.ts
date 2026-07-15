@@ -1,5 +1,5 @@
 import { Share } from "react-native";
-import { serializeChordChartText, serializeChordPro } from "../../../../chords";
+import { serializeChordChartText, serializeChordPro } from "../../../../domain/chords";
 import { shareChordChartPdf } from "../../../../services/chordChartPdf";
 import { AppAlert } from "../../../common/AppAlert";
 import { ensurePro } from "../../../common/proUpsell";

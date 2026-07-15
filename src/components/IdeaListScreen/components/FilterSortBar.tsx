@@ -3,8 +3,8 @@ import { Pressable, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { styles } from "../../../styles";
 import { useStore } from "../../../state/useStore";
-import { getIdeaSortState, getIdeaSortValue, IdeaSortMetric } from "../../../ideaSort";
-import { getHierarchyIconName } from "../../../hierarchy";
+import { getIdeaSortState, getIdeaSortValue, IdeaSortMetric } from "../../../domain/ideaSort";
+import { getHierarchyIconName } from "../../../domain/hierarchy";
 import { FilterSortControls } from "../../common/FilterSortControls";
 import { colors } from "../../../design/tokens";
 

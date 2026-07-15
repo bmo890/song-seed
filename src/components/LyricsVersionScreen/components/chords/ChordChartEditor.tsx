@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { styles as appStyles } from "../../../../styles";
 import { colors, radii, spacing } from "../../../../design/tokens";
-import { sortedPalette } from "../../../../chords";
+import { sortedPalette } from "../../../../domain/chords";
 import type { LyricsVersion, SongChordPaletteItem } from "../../../../types";
 import { styles as screenStyles } from "../../styles";
 import { ChordChart } from "./ChordChart";

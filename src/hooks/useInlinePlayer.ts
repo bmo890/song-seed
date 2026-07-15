@@ -2,7 +2,7 @@ import { useAudioPlayer } from "expo-audio";
 import { useThrottledAudioPlayerStatus } from "./useThrottledAudioPlayerStatus";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ClipVersion, InlineTarget } from "../types";
-import { getClipPlaybackUri } from "../clipPresentation";
+import { getClipPlaybackUri } from "../domain/clipPresentation";
 import { activateAndPlay, replacePlaybackSource } from "../services/transportPlayback";
 import { useStore } from "../state/useStore";
 import { appActions } from "../state/actions";

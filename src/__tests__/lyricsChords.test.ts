@@ -1,4 +1,4 @@
-import { lyricsTextToDocument } from "../lyrics";
+import { lyricsTextToDocument } from "../domain/lyrics";
 import type { LyricsDocument } from "../types";
 
 describe("lyricsTextToDocument chord preservation", () => {

@@ -12,7 +12,7 @@ import { colors, radii, spacing } from "../../../design/tokens";
 import { styles } from "../styles";
 import { HelpSheet, type HelpItem } from "../../common/HelpSheet";
 import { WordFinderSheet } from "../../common/WordFinderSheet";
-import { applyPickedWord, extractWordRange } from "../../../wordTools";
+import { applyPickedWord, extractWordRange } from "../../../domain/wordTools";
 
 type LyricsVersionEditorProps = {
   draftText: string;

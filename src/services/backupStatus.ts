@@ -1,4 +1,4 @@
-import { getBackupReminderWindowLabel, isBackupOverdue } from "../backupPreferences";
+import { getBackupReminderWindowLabel, isBackupOverdue } from "../domain/backupPreferences";
 import type { BackupReminderFrequency, Workspace } from "../types";
 
 let hasShownBackupReminderThisSession = false;

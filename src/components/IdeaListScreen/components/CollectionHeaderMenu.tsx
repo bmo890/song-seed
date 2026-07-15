@@ -4,7 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { styles } from "../../../styles";
 import { useCollectionScreen } from "../provider/CollectionScreenProvider";
 import { useStore } from "../../../state/useStore";
-import { buildPlayableQueueFromIdeas } from "../../../clipPresentation";
+import { buildPlayableQueueFromIdeas } from "../../../domain/clipPresentation";
 import { durations } from "../../../design/motion";
 import { haptic } from "../../../design/haptics";
 

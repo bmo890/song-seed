@@ -31,7 +31,7 @@ import {
   type WordDefinition,
   type WordLookupMode,
   type WordSuggestion,
-} from "../../wordTools";
+} from "../../domain/wordTools";
 
 const LOOKUP_DEBOUNCE_MS = 400;
 /** Chips shown per syllable group / flat list before "+ n more". */

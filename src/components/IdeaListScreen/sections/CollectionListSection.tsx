@@ -5,8 +5,8 @@ import { useCollectionScreen } from "../provider/CollectionScreenProvider";
 import type { ClipVersion } from "../../../types";
 import type { IdeaListEntry } from "../types";
 import type { ReactNode } from "react";
-import { getDateBucket, getDateBucketLabel } from "../../../dateBuckets";
-import { getIdeaSortTimestamp } from "../../../ideaSort";
+import { getDateBucket, getDateBucketLabel } from "../../../domain/dateBuckets";
+import { getIdeaSortTimestamp } from "../../../domain/ideaSort";
 import { useStore } from "../../../state/useStore";
 import { stickyDayStore } from "../stickyDayStore";
 

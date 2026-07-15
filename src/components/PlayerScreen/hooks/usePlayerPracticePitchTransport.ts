@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useStore } from "../../../state/useStore";
-import { clampPitchShiftSemitones } from "../../../pitchShift";
+import { clampPitchShiftSemitones } from "../../../domain/pitchShift";
 import {
   useNativePitchTransport,
   type NativeTransportSource,

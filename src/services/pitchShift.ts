@@ -9,7 +9,7 @@ import {
   buildUnavailablePitchShiftCapabilities,
   clampPitchShiftSemitones,
   type PitchShiftCapabilities,
-} from "../pitchShift";
+} from "../domain/pitchShift";
 
 function normalizeCapabilities(
   capabilities: NativePitchShiftCapabilities | null | undefined

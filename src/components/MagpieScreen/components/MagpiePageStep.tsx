@@ -10,7 +10,7 @@ import {
   type MagpieToken,
   selectionToPhrases,
   tokenizePageIntoParagraphs,
-} from "../../../magpie";
+} from "../../../domain/magpie";
 import type { MagpieSpark } from "../../../types";
 import type { useMagpieScreenModel } from "../hooks/useMagpieScreenModel";
 

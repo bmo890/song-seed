@@ -10,7 +10,7 @@ import {
   QUALITY_OPTIONS,
   buildChordDisplay,
   type ChordParts,
-} from "../../../../chords";
+} from "../../../../domain/chords";
 import type { ChordAccidental, ChordRoot, SongChordPaletteItem } from "../../../../types";
 
 type Props = {

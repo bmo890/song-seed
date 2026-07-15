@@ -6,7 +6,7 @@ import { ScreenHeader } from "../../common/ScreenHeader";
 import { SearchField } from "../../common/SearchField";
 import { colors, radii, spacing, text as textTokens } from "../../../design/tokens";
 import { styles } from "../../../styles";
-import { getSearchMatchSourceLabel, type GlobalSearchResult } from "../../../search";
+import { getSearchMatchSourceLabel, type GlobalSearchResult } from "../../../domain/search";
 import { useSearchScreenModel } from "../hooks/useSearchScreenModel";
 
 // The "index" of the archive — what a query actually reaches into. Doubles as the

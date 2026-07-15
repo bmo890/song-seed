@@ -10,18 +10,18 @@ import {
   filterActivityEvents,
   getActivityEventsWithHistory,
   startOfActivityDay,
-} from "../../../activity";
+} from "../../../domain/activity";
 import { getCollectionById, getCollectionScopeIds, getCollectionAncestors } from "../../../utils";
-import { buildCollectionPathLabel } from "../../../libraryNavigation";
+import { buildCollectionPathLabel } from "../../../domain/libraryNavigation";
 import { useActivityStore } from "../../../state/useActivityStore";
 import {
   buildActivityItemResults,
   formatSelectedRangeLabel,
   getActivityCellBackground,
 } from "../helpers";
-import { getDateBucketLabel } from "../../../dateBuckets";
+import { getDateBucketLabel } from "../../../domain/dateBuckets";
 import { openCollectionFromContext } from "../../../navigation";
-import { getPlayableClipForIdea } from "../../../clipPresentation";
+import { getPlayableClipForIdea } from "../../../domain/clipPresentation";
 
 type ActivityItemRef = { workspaceId: string; ideaId: string; ideaKind: "song" | "clip" };
 type ActivityCollectionRef = ActivityItemRef & { collectionId: string };

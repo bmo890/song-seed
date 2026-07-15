@@ -5,7 +5,7 @@ import { AppAlert } from "../../common/AppAlert";
 import { styles as appStyles } from "../../../styles";
 import { colors, radii, spacing, text as textTokens } from "../../../design/tokens";
 import { haptic } from "../../../design/haptics";
-import type { CutUpComposeFlavor } from "../../../cutUp";
+import type { CutUpComposeFlavor } from "../../../domain/cutUp";
 import type { CutUpSpark } from "../../../types";
 import type { useCutUpScreenModel } from "../hooks/useCutUpScreenModel";
 

@@ -8,7 +8,7 @@ import {
     readStoredZipEntryBytes,
     type StoredZipIndex,
 } from "./storedZipArchive";
-import { createLyricsVersion, lyricsTextToDocument } from "../lyrics";
+import { createLyricsVersion, lyricsTextToDocument } from "../domain/lyrics";
 import { createEmptyProjectLyrics, createEmptyWorkspaceIdeasListState } from "../state/dataSlice";
 import type {
     BluetoothMonitoringCalibration,
@@ -31,7 +31,7 @@ import {
     type ArchiveClipOverdubManifest,
     type ArchiveManifest,
 } from "./libraryArchiveManifest";
-import { normalizeBluetoothMonitoringCalibrations } from "../bluetoothMonitoring";
+import { normalizeBluetoothMonitoringCalibrations } from "../domain/bluetoothMonitoring";
 
 export type PickedLibraryArchiveFile = {
     uri: string;

@@ -3,7 +3,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { WarmModal } from "../../common/WarmModal";
 import { styles as appStyles } from "../../../styles";
 import { colors, radii, spacing } from "../../../design/tokens";
-import { MAX_CHORDS_PER_BAR } from "../../../chordSheet";
+import { MAX_CHORDS_PER_BAR } from "../../../domain/chordSheet";
 
 const BARLINE = "#BCA59B";
 

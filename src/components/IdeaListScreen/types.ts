@@ -1,4 +1,4 @@
-import type { IdeaSortMetric } from "../../ideaSort";
+import type { IdeaSortMetric } from "../../domain/ideaSort";
 import type {
   ClipVersion,
   IdeaSort,

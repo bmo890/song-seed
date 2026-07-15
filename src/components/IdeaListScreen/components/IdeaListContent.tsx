@@ -6,8 +6,8 @@ import { styles } from "../../../styles";
 import { IdeaSort, InlinePlayerControls } from "../../../types";
 import { IdeaListItem, CollapsedDayRow } from "./IdeaListItem";
 import { CollectionListModel, IdeaListEntry, IdeaListItemMeta } from "../types";
-import { getIdeaSortTimestamp, type IdeaSortMetric } from "../../../ideaSort";
-import { getDateBucket } from "../../../dateBuckets";
+import { getIdeaSortTimestamp, type IdeaSortMetric } from "../../../domain/ideaSort";
+import { getDateBucket } from "../../../domain/dateBuckets";
 import { EmptyState } from "../../common/EmptyState";
 
 const AnimatedFlatList = ReAnimated.FlatList as unknown as typeof FlatList;

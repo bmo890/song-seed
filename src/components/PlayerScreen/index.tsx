@@ -37,9 +37,9 @@ import { playerScreenStyles } from "./styles";
 import { getVisibleTimelineRange } from "./helpers";
 import { openIdeaInCollection } from "../../navigation";
 import { AppAlert } from "../common/AppAlert";
-import { getClipOverdubStemCount } from "../../clipPresentation";
-import { canAddOverdubLayer, isPracticeToolPro, type PracticeTool } from "../../proGating";
-import { hasProAccess } from "../../entitlements";
+import { getClipOverdubStemCount } from "../../domain/clipPresentation";
+import { canAddOverdubLayer, isPracticeToolPro, type PracticeTool } from "../../domain/proGating";
+import { hasProAccess } from "../../domain/entitlements";
 import { ensurePro, openProUpsell } from "../common/proUpsell";
 
 const PRACTICE_SPEED_PRESETS = [0.5, 0.75, 1, 1.25, 1.5] as const;

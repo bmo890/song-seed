@@ -1,5 +1,5 @@
 import { extractAudioAnalysis } from "@siteed/audio-studio";
-import type { ClipAnalysis } from "./types";
+import type { ClipAnalysis } from "../types";
 import { analyzeFromDataPoints, type ChromaPoint } from "./clipAnalysis";
 
 /**

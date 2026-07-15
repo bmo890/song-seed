@@ -15,15 +15,15 @@ import { LyricsSparkSheet } from "./LyricsSparkSheet";
 import { useNotepadScreenModel, type NotebookEntry } from "../hooks/useNotepadScreenModel";
 import { styles } from "../../../styles";
 import { colors, radii, spacing, text as textTokens } from "../../../design/tokens";
-import { exerciseSummary } from "../../../wordLadder";
-import { cutUpSummary } from "../../../cutUp";
-import { magpieSummary } from "../../../magpie";
+import { exerciseSummary } from "../../../domain/wordLadder";
+import { cutUpSummary } from "../../../domain/cutUp";
+import { magpieSummary } from "../../../domain/magpie";
 import type { Note, WordLadderExercise, CutUpSpark, MagpieSpark } from "../../../types";
 import {
   buildSearchPreviewSegments,
   deriveNotePreviewBody,
   deriveNotePreviewTitle,
-} from "../../../notepad";
+} from "../../../domain/notepad";
 
 function formatRelativeDate(ts: number) {
   const now = Date.now();

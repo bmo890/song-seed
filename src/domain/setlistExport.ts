@@ -1,4 +1,4 @@
-import type { Collection, Setlist, SetlistEntry, SongIdea, Workspace } from "./types";
+import type { Collection, Setlist, SetlistEntry, SongIdea, Workspace } from "../types";
 
 /** A song trimmed for a setlist share: only the chosen clips (lineage stripped)
  * and the chosen charts. Keeps real audioUris so the archive bundles them. */

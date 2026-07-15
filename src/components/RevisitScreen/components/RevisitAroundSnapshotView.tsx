@@ -3,7 +3,7 @@ import { Pressable, Text, View } from "react-native";
 import { PageIntro } from "../../common/PageIntro";
 import { styles } from "../../../styles";
 import type { SongIdea } from "../../../types";
-import type { RevisitAroundSnapshot, RevisitCandidate } from "../../../revisit";
+import type { RevisitAroundSnapshot, RevisitCandidate } from "../../../domain/revisit";
 import { revisitStyles } from "../styles";
 import { RevisitCandidateCard } from "./RevisitCandidateCard";
 

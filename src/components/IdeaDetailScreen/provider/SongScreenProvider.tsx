@@ -1,6 +1,6 @@
 import { createContext, useContext, useMemo, type ReactNode } from "react";
 import { AppAlert } from "../../common/AppAlert";
-import { hasClipPlaybackSource } from "../../../clipPresentation";
+import { hasClipPlaybackSource } from "../../../domain/clipPresentation";
 import { useStore } from "../../../state/useStore";
 import { appActions } from "../../../state/actions";
 import { useSongEditFlow } from "../hooks/useSongEditFlow";

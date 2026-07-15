@@ -5,7 +5,7 @@ import {
   getWorkspaceTheme,
   WORKSPACE_THEME_MAP,
   type WorkspaceTheme,
-} from "../workspaceTheme";
+} from "../domain/workspaceTheme";
 
 const WorkspaceThemeContext = createContext<WorkspaceTheme>(
   WORKSPACE_THEME_MAP[DEFAULT_WORKSPACE_COLOR]

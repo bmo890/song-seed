@@ -4,7 +4,7 @@ import type {
   ChordRoot,
   LyricsLine,
   SongChordPaletteItem,
-} from "./types";
+} from "../types";
 
 export const CHORD_ROOTS: ChordRoot[] = ["A", "B", "C", "D", "E", "F", "G"];
 

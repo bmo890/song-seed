@@ -1,4 +1,4 @@
-import { aggregateTempo, detectKeyFromChroma } from "../clipAnalysis";
+import { aggregateTempo, detectKeyFromChroma } from "../domain/clipAnalysis";
 
 // Krumhansl major/minor profiles (mirror of the analyzer's internal constants) used to
 // synthesise an unambiguous chromagram for a given key.

@@ -1,4 +1,4 @@
-import { IdeaSort, SongIdea } from "./types";
+import { IdeaSort, SongIdea } from "../types";
 
 export type IdeaSortMetric = "created" | "updated" | "title" | "length" | "progress";
 export type IdeaSortDirection = "asc" | "desc";

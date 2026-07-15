@@ -1,4 +1,4 @@
-import type { MagpieBook, MagpieFragment, MagpieSpark, MagpieStep } from "./types";
+import type { MagpieBook, MagpieFragment, MagpieSpark, MagpieStep } from "../types";
 import { randomCuratedBook } from "./magpieBooks";
 
 function randomId(prefix: string) {

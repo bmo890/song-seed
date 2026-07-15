@@ -3,7 +3,7 @@ import { Text, View } from "react-native";
 import { AudioReel } from "../common/AudioReel";
 import { OverdubLayerLanes, type OverdubLayerLane } from "../common/OverdubLayerLanes";
 import { useTransportClock } from "../../hooks/useTransportClock";
-import { buildSectionBands } from "../../playerSections";
+import { buildSectionBands } from "../../domain/playerSections";
 import { fmtDuration } from "../../utils";
 import { styles } from "../../styles";
 import type { ClipSection, PracticeMarker } from "../../types";

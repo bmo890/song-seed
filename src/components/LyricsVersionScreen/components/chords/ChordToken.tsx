@@ -1,7 +1,7 @@
 import { useLayoutEffect, useRef, useState } from "react";
 import { Animated, PanResponder, StyleSheet, Text, View } from "react-native";
 import type { ChordPlacement } from "../../../../types";
-import { clampChordIndex } from "../../../../chords";
+import { clampChordIndex } from "../../../../domain/chords";
 import { CHORD_FONT_SIZE, MONO_FONT, chordChartColors } from "./chordChartStyle";
 import { haptic } from "../../../../design/haptics";
 

@@ -26,7 +26,7 @@ import {
   buildImportedIdeaDateMetadata,
   promptForImportDatePreference,
   type ImportDatePreference,
-} from "../../../importDates";
+} from "../../../domain/importDates";
 import { useResolvedShareAssets } from "./useResolvedShareAssets";
 import { useShareImportDestinations } from "./useShareImportDestinations";
 import type { CollectionDestination, ShareImportScreenProps } from "../types";

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef } from "react";
 import { Animated } from "react-native";
 import { useStore } from "../../../state/useStore";
-import { type EvolutionListClipEntry, type TimelineClipEntry } from "../../../clipGraph";
+import { type EvolutionListClipEntry, type TimelineClipEntry } from "../../../domain/clipGraph";
 
 export function useSongClipHighlights(
   visibleClipEntries: Array<TimelineClipEntry | EvolutionListClipEntry>

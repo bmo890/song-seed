@@ -5,7 +5,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { styles as appStyles } from "../../../styles";
 import { colors, radii, spacing, text as textTokens } from "../../../design/tokens";
 import { haptic } from "../../../design/haptics";
-import { boardItemText } from "../../../cutUp";
+import { boardItemText } from "../../../domain/cutUp";
 import type { CutUpBoardItem, CutUpChunk, CutUpSpark } from "../../../types";
 import type { useCutUpScreenModel } from "../hooks/useCutUpScreenModel";
 

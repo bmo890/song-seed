@@ -10,13 +10,13 @@ import { HueSlider } from "../../common/HueSlider";
 import { playerScreenStyles } from "../styles";
 import { fmtDuration } from "../../../utils";
 import { colors, radii } from "../../../design/tokens";
-import { computeWorkspaceTheme, hexToHue, hueToAccentHex } from "../../../workspaceTheme";
+import { computeWorkspaceTheme, hexToHue, hueToAccentHex } from "../../../domain/workspaceTheme";
 import {
   formatClipOverdubStemOffsetLabel,
   OVERDUB_GAIN_STEP_DB,
   OVERDUB_STEM_NUDGE_STEP_LARGE_MS,
   OVERDUB_STEM_NUDGE_STEP_SMALL_MS,
-} from "../../../overdub";
+} from "../../../domain/overdub";
 import type { RecordingGrid } from "../../../types";
 import { AnimatedCollapse } from "../../common/AnimatedCollapse";
 import { haptic } from "../../../design/haptics";

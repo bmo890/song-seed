@@ -1,7 +1,7 @@
 import * as FileSystem from "expo-file-system/legacy";
-import { getLatestLyricsText } from "../lyrics";
-import { getClipPlaybackUri } from "../clipPresentation";
-import { deriveNotePreviewTitle } from "../notepad";
+import { getLatestLyricsText } from "../domain/lyrics";
+import { getClipPlaybackUri } from "../domain/clipPresentation";
+import { deriveNotePreviewTitle } from "../domain/notepad";
 import type {
     BluetoothMonitoringCalibration,
     ClipVersion,

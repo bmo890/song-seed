@@ -6,7 +6,7 @@ import {
   isChordSheetEmpty,
   sanitizeChordSheet,
   serializeChordSheetText,
-} from "../chordSheet";
+} from "../domain/chordSheet";
 import type { ChordSheet } from "../types";
 
 function sampleSheet(): ChordSheet {

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { appActions } from "../../../state/actions";
-import { buildCollectionMoveDestinations } from "../../../collectionManagement";
+import { buildCollectionMoveDestinations } from "../../../domain/collectionManagement";
 import { ensureUniqueCountedTitle } from "../../../utils";
 import {
   buildImportedTitle,
@@ -17,7 +17,7 @@ import {
   buildImportedAssetDateMetadata,
   promptForImportDatePreference,
   type ImportDatePreference,
-} from "../../../importDates";
+} from "../../../domain/importDates";
 
 function buildDefaultCollectionTitle(count: number) {
   return `Collection ${count + 1}`;

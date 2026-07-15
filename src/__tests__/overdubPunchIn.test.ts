@@ -1,4 +1,4 @@
-import { getRecordingGridBarMs, snapPunchInMsToGrid } from "../overdub";
+import { getRecordingGridBarMs, snapPunchInMsToGrid } from "../domain/overdub";
 import type { RecordingGrid } from "../types";
 
 // 120 BPM 4/4 → 500ms beats, 2000ms bars; grid anchored at a measured 250ms downbeat.

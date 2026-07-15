@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { AppAlert } from "../../../components/common/AppAlert";
+import { AppAlert } from "../../common/AppAlert";
 import { EditableSelection, getInitialRegionDurationMs, MIN_REGION_DURATION_MS } from "../helpers";
 
 type UseEditorSelectionStateArgs = {

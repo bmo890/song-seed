@@ -8,7 +8,7 @@ import { EvolutionList } from "../EvolutionList";
 import { TimelineList } from "../TimelineList";
 import { PrimaryTakeStrip } from "../PrimaryTakeStrip";
 import { useSongScreen } from "../provider/SongScreenProvider";
-import { type ClipLineage, type TimelineClipEntry } from "../../../clipGraph";
+import { type ClipLineage, type TimelineClipEntry } from "../../../domain/clipGraph";
 import { SongClipListSummary } from "./SongClipListSummary";
 import { SongClipListHeader } from "./songClipToolbar/SongClipListHeader";
 import { CollapsingHeaderOverlay } from "../../common/CollapsingHeaderOverlay";

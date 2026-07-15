@@ -11,11 +11,11 @@ import { SelectionDock, type SelectionAction } from "../../common/SelectionDock"
 import { ClipNotesSheet } from "../../modals/ClipNotesSheet";
 import { ClipTagPicker } from "../ClipTagPicker";
 import { fmtDuration, formatDate } from "../../../utils";
-import { getLineageRootId } from "../../../clipGraph";
+import { getLineageRootId } from "../../../domain/clipGraph";
 import {
   buildLineageTitlePlan,
-} from "../../../clipLineageTitles";
-import { showLineageRenamePrompt } from "../../../clipLineageRenamePrompt";
+} from "../../../domain/clipLineageTitles";
+import { showLineageRenamePrompt } from "../../../domain/clipLineageRenamePrompt";
 import { useSongScreen } from "../provider/SongScreenProvider";
 
 export function SelectionBars() {

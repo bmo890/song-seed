@@ -6,13 +6,13 @@ import {
   formatPitchShiftLabel,
   PITCH_SHIFT_MAX_SEMITONES,
   PITCH_SHIFT_MIN_SEMITONES,
-} from "../../../pitchShift";
+} from "../../../domain/pitchShift";
 import { fmtDuration } from "../../../utils";
 import { colors } from "../../../design/tokens";
-import { getCustomSectionOptions, getSectionColor } from "../../../playerSections";
+import { getCustomSectionOptions, getSectionColor } from "../../../domain/playerSections";
 import type { SectionCustomInput } from "../hooks/usePlayerSections";
-import { hueToAccentHex } from "../../../workspaceTheme";
-import { formatBpmLabel, formatKeyLabel, hasAnalysisResult, isTempoSteady } from "../../../clipAnalysis";
+import { hueToAccentHex } from "../../../domain/workspaceTheme";
+import { formatBpmLabel, formatKeyLabel, hasAnalysisResult, isTempoSteady } from "../../../domain/clipAnalysis";
 import { playerScreenStyles as s } from "../styles";
 import type { CountInOption, PracticeTool } from "../hooks/usePlayerScreenUi";
 import type { ClipAnalysis, ClipSection, ClipSectionKind, PracticeMarker } from "../../../types";

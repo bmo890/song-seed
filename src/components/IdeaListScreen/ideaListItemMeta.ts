@@ -1,6 +1,6 @@
 import { fmtDuration } from "../../utils";
-import { getIdeaCreatedAt, getIdeaUpdatedAt } from "../../ideaSort";
-import { getPlayableClipForIdea } from "../../clipPresentation";
+import { getIdeaCreatedAt, getIdeaUpdatedAt } from "../../domain/ideaSort";
+import { getPlayableClipForIdea } from "../../domain/clipPresentation";
 import type { SongIdea } from "../../types";
 import type { IdeaListItemMeta } from "./types";
 

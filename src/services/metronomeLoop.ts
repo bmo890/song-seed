@@ -1,5 +1,5 @@
 import * as FileSystem from "expo-file-system/legacy";
-import { clampMetronomeBpm, getMetronomeBeatIntervalMs, METRONOME_LOOP_BEAT_COUNT } from "../metronome";
+import { clampMetronomeBpm, getMetronomeBeatIntervalMs, METRONOME_LOOP_BEAT_COUNT } from "../domain/metronome";
 
 const SAMPLE_RATE = 44100;
 const CHANNEL_COUNT = 1;

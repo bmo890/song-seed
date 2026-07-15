@@ -3,7 +3,7 @@ import { Pressable, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { styles } from "../../../styles";
 import type { SongIdea } from "../../../types";
-import type { RevisitCandidate, RevisitSection, RevisitSectionKey } from "../../../revisit";
+import type { RevisitCandidate, RevisitSection, RevisitSectionKey } from "../../../domain/revisit";
 import { revisitStyles } from "../styles";
 import { RevisitCandidateCard } from "./RevisitCandidateCard";
 import { colors } from "../../../design/tokens";

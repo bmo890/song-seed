@@ -1,4 +1,4 @@
-import type { BackupReminderFrequency } from "./types";
+import type { BackupReminderFrequency } from "../types";
 
 export const DEFAULT_BACKUP_REMINDER_FREQUENCY: BackupReminderFrequency = "monthly";
 

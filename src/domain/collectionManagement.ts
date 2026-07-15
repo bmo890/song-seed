@@ -1,5 +1,5 @@
-import { Collection, Workspace } from "./types";
-import { getCollectionAncestors, getCollectionDescendantIds } from "./utils";
+import { Collection, Workspace } from "../types";
+import { getCollectionAncestors, getCollectionDescendantIds } from "../utils";
 import { getCollectionLastWorkedAt } from "./libraryNavigation";
 
 export type CollectionMoveDestination = {

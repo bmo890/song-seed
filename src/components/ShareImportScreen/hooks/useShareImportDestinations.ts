@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { buildCollectionPathLabel } from "../../../libraryNavigation";
+import { buildCollectionPathLabel } from "../../../domain/libraryNavigation";
 import { getCollectionById } from "../../../utils";
 import type { Workspace } from "../../../types";
 import type { CollectionDestination } from "../types";

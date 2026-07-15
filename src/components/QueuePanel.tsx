@@ -6,7 +6,7 @@ import { colors, radii, spacing, text as textTokens } from "../design/tokens";
 import { haptic } from "../design/haptics";
 import { useStore } from "../state/useStore";
 import { fmtDuration } from "../utils";
-import { getClipPlaybackDurationMs } from "../clipPresentation";
+import { getClipPlaybackDurationMs } from "../domain/clipPresentation";
 import { NowPlayingIndicator } from "./common/NowPlayingIndicator";
 import type { PlaybackQueueItem } from "../types";
 

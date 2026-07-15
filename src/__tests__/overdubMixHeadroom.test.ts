@@ -1,4 +1,4 @@
-import { buildClipOverdubMixInputs, getMixHeadroomDb } from "../overdub";
+import { buildClipOverdubMixInputs, getMixHeadroomDb } from "../domain/overdub";
 import type { ClipVersion } from "../types";
 
 function buildLayeredClip(stemCount: number, stemGainDb = 0): ClipVersion {

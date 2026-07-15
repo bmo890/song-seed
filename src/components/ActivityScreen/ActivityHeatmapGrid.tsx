@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { ScrollView, Text, View, Pressable } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { SurfaceCard } from "../common/SurfaceCard";
-import { startOfActivityDay } from "../../activity";
+import { startOfActivityDay } from "../../domain/activity";
 import { styles } from "../../styles";
 import { CELL_SIZE, CELL_STRIDE, getActivityCellBackground } from "./helpers";
 import { haptic } from "../../design/haptics";

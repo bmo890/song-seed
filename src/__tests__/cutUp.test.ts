@@ -12,7 +12,7 @@ import {
   shuffleBoard,
   splitChunk,
   toggleChunkIncluded,
-} from "../cutUp";
+} from "../domain/cutUp";
 import type { CutUpBoardItem } from "../types";
 
 const SOURCE = "the doctor waits, by the window\nlistening to the rain";

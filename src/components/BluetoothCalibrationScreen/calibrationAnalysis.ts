@@ -1,4 +1,4 @@
-import { MAX_BLUETOOTH_MONITORING_AUTO_OFFSET_MS } from "../../bluetoothMonitoring";
+import { MAX_BLUETOOTH_MONITORING_AUTO_OFFSET_MS } from "../../domain/bluetoothMonitoring";
 
 export const CALIBRATION_BPM = 90;
 export const CALIBRATION_BEAT_INTERVAL_MS = Math.round(60000 / CALIBRATION_BPM);

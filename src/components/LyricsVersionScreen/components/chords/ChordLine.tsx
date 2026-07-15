@@ -1,7 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import type { GestureResponderEvent } from "react-native";
 import type { ChordPlacement, LyricsLine } from "../../../../types";
-import { clampChordIndex } from "../../../../chords";
+import { clampChordIndex } from "../../../../domain/chords";
 import { ChordToken } from "./ChordToken";
 import {
   CHORD_ROW_HEIGHT,

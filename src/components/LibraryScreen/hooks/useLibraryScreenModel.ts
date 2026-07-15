@@ -2,13 +2,13 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { useStore } from "../../../state/useStore";
 import { AppAlert } from "../../common/AppAlert";
-import { findPlaylist } from "../../../libraryNavigation";
+import { findPlaylist } from "../../../domain/libraryNavigation";
 import {
   buildPlaylistQueue,
   getPlaylistDurationMs,
   resolvePlaylistTracks,
   type PlaylistTrack,
-} from "../../../playlistPlayback";
+} from "../../../domain/playlistPlayback";
 
 function buildDefaultPlaylistTitle(count: number) {
   return `Playlist ${count + 1}`;

@@ -1,6 +1,6 @@
-import { getCollectionAncestors, getCollectionById } from "./utils";
+import { getCollectionAncestors, getCollectionById } from "../utils";
 import { deriveNotePreviewBody, deriveNotePreviewTitle } from "./notepad";
-import type { Note, SongIdea, Workspace } from "./types";
+import type { Note, SongIdea, Workspace } from "../types";
 
 export type GlobalSearchResultKind = "song" | "clip" | "note" | "collection" | "workspace";
 export type GlobalSearchMatchSource =

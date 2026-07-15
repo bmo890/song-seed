@@ -7,7 +7,7 @@ import {
   serializeChordChartText,
   serializeChordPro,
   sortedPalette,
-} from "../chords";
+} from "../domain/chords";
 import type { ChordPlacement, LyricsLine, SongChordPaletteItem } from "../types";
 
 describe("buildChordDisplay", () => {

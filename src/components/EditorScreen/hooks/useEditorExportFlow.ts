@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import * as FileSystem from "expo-file-system/legacy";
-import { AppAlert } from "../../../components/common/AppAlert";
+import { AppAlert } from "../../common/AppAlert";
 import { StackActions } from "@react-navigation/native";
 import { type AudioAnalysis } from "@siteed/audio-studio";
 import { trimAudioRanges } from "../../../services/audioTrim";

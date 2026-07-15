@@ -2,7 +2,7 @@ import { ScrollView } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ScreenHeader } from "../../common/ScreenHeader";
 import { PageIntro } from "../../common/PageIntro";
-import { buildCollectionPathLabel } from "../../../libraryNavigation";
+import { buildCollectionPathLabel } from "../../../domain/libraryNavigation";
 import { useShareImportScreenModel } from "../hooks/useShareImportScreenModel";
 import { styles } from "../styles";
 import type { ShareImportScreenProps } from "../types";

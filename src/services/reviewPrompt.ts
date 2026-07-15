@@ -1,5 +1,5 @@
 import { useStore } from "../state/useStore";
-import { shouldRequestReview } from "../firstRun";
+import { shouldRequestReview } from "../domain/firstRun";
 
 /**
  * Store-review prompt, fired after a positive moment (a saved clip). The decision

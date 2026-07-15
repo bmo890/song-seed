@@ -4,7 +4,7 @@ import {
     canAddOverdubLayer,
     canSaveWordSpark,
     remainingFreeSparks,
-} from "../proGating";
+} from "../domain/proGating";
 
 describe("canAddOverdubLayer", () => {
     it("lets a free user add the first layer but not a second", () => {

@@ -12,7 +12,7 @@ import {
   type SearchMatchFilter,
   GLOBAL_SEARCH_KIND_ORDER,
   SEARCH_MATCH_FILTER_ORDER,
-} from "../../../search";
+} from "../../../domain/search";
 
 type SearchResultGroup = {
   kind: GlobalSearchResultKind;

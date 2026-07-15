@@ -11,7 +11,7 @@ import { RecordingSettingsModal } from "./RecordingSettingsModal";
 import { RecordingMetronomeSheet } from "./RecordingMetronomeSheet";
 import { RecordingTimingWarnings } from "./RecordingTimingWarnings";
 import { SaveDestinationPickerSheet } from "../modals/SaveDestinationPickerSheet";
-import { METRONOME_METER_PRESETS } from "../../metronome";
+import { METRONOME_METER_PRESETS } from "../../domain/metronome";
 import { useStore } from "../../state/useStore";
 import { useRecordingScreenModel } from "./hooks/useRecordingScreenModel";
 import { HelpSheet } from "../common/HelpSheet";

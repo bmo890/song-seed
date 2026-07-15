@@ -6,10 +6,10 @@ import { styles } from "../../../styles";
 import { MiniProgress } from "../../MiniProgress";
 import { SongIdea, ClipVersion, InlinePlayerControls } from "../../../types";
 import { formatClipDate } from "../../../utils";
-import { getDateBucket, getDateBucketLabel } from "../../../dateBuckets";
+import { getDateBucket, getDateBucketLabel } from "../../../domain/dateBuckets";
 import { useNavigation } from "@react-navigation/native";
-import { getIdeaCreatedAt, getIdeaUpdatedAt, type IdeaSortMetric } from "../../../ideaSort";
-import { getHierarchyIconName } from "../../../hierarchy";
+import { getIdeaCreatedAt, getIdeaUpdatedAt, type IdeaSortMetric } from "../../../domain/ideaSort";
+import { getHierarchyIconName } from "../../../domain/hierarchy";
 import { buildIdeaListItemMeta } from "../ideaListItemMeta";
 import type { IdeaListItemMeta } from "../types";
 

@@ -5,7 +5,7 @@ import {
   MIN_SECTION_LENGTH_MS,
   normalizeSections,
   resolveSectionEdit,
-} from "../playerSections";
+} from "../domain/playerSections";
 
 const DURATION = 60000;
 

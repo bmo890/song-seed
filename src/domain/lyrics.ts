@@ -1,4 +1,4 @@
-import { LyricsDocument, LyricsLine, LyricsVersion, SongIdea } from "./types";
+import { LyricsDocument, LyricsLine, LyricsVersion, SongIdea } from "../types";
 import { clampChordIndex } from "./chords";
 
 function buildLyricsLineId() {

@@ -1,4 +1,4 @@
-import type { MagpieBook } from "./types";
+import type { MagpieBook } from "../types";
 
 /** The curated pool Magpie draws from by default — public-domain works from
  * Project Gutenberg, chosen for rich, varied prose and poetry across eras rather

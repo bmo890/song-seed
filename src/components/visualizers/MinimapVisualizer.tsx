@@ -4,7 +4,7 @@ import { Canvas, Path, Rect as SkiaRect, Skia } from "@shopify/react-native-skia
 import Animated, { useAnimatedStyle, SharedValue, useDerivedValue, runOnJS, useSharedValue } from "react-native-reanimated";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import type { PracticeMarker } from "../../types";
-import type { SectionBand } from "../../playerSections";
+import type { SectionBand } from "../../domain/playerSections";
 import { colors } from "../../design/tokens";
 
 type Props = {

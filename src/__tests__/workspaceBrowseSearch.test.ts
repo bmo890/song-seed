@@ -1,4 +1,4 @@
-import { buildWorkspaceBrowseEntries } from "../libraryNavigation";
+import { buildWorkspaceBrowseEntries } from "../domain/libraryNavigation";
 import type { ClipVersion, Collection, SongIdea, Workspace } from "../types";
 
 function clip(id: string, over: Partial<ClipVersion> = {}): ClipVersion {

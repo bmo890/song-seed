@@ -1,5 +1,5 @@
 import { StateCreator } from "zustand";
-import { WORKSPACE_COLORS } from "../workspaceTheme";
+import { WORKSPACE_COLORS } from "../domain/workspaceTheme";
 import {
     Workspace,
     Collection,
@@ -43,12 +43,12 @@ import {
     ClipOverdubStem,
     RecordingGrid,
 } from "../types";
-import { createWordLadderExercise } from "../wordLadder";
-import { createCutUpSpark } from "../cutUp";
-import { createMagpieSpark } from "../magpie";
-import { sanitizeChordSheet } from "../chordSheet";
+import { createWordLadderExercise } from "../domain/wordLadder";
+import { createCutUpSpark } from "../domain/cutUp";
+import { createMagpieSpark } from "../domain/magpie";
+import { sanitizeChordSheet } from "../domain/chordSheet";
 import { genChildClipTitle, genId, genRootClipTitle } from "../utils";
-import { buildClipGraph } from "../clipGraph";
+import { buildClipGraph } from "../domain/clipGraph";
 import type { SelectionSlice } from "./selectionSlice";
 import type { RecordingSlice } from "./recordingSlice";
 import type { PlayerSlice } from "./playerSlice";
@@ -76,11 +76,11 @@ import {
     isMetronomeMeterId,
     type MetronomeMeterId,
     type MetronomeOutputs,
-} from "../metronome";
+} from "../domain/metronome";
 import {
     normalizeBluetoothMonitoringCalibration,
     normalizeBluetoothMonitoringCalibrations,
-} from "../bluetoothMonitoring";
+} from "../domain/bluetoothMonitoring";
 
 export type DataSlice = {
     workspaces: Workspace[];

@@ -8,9 +8,9 @@ import {
   buildBluetoothMonitoringRouteKey,
   getBluetoothMonitoringCalibrationForRoute,
   isBluetoothLikeAudioDevice,
-} from "../../../bluetoothMonitoring";
-import { getClipPlaybackDurationMs, getClipPlaybackWaveformPeaks } from "../../../clipPresentation";
-import { getLatestLyricsVersion, lyricsDocumentToText } from "../../../lyrics";
+} from "../../../domain/bluetoothMonitoring";
+import { getClipPlaybackDurationMs, getClipPlaybackWaveformPeaks } from "../../../domain/clipPresentation";
+import { getLatestLyricsVersion, lyricsDocumentToText } from "../../../domain/lyrics";
 import { useRecording } from "../../../hooks/useRecording";
 import { useMetronome } from "../../../hooks/useMetronome";
 import {
@@ -21,8 +21,8 @@ import SongseedMetronomeModule from "../../../../modules/songseed-metronome";
 import { appActions } from "../../../state/actions";
 import { useStore } from "../../../state/useStore";
 import type { ClipVersion, RecordingGrid } from "../../../types";
-import { getDefaultOverdubStemTitle, getRecordingGridBarMs } from "../../../overdub";
-import { buildSaveDestinations, resolveSaveDestinationLabel, type SaveDestination } from "../../../collectionManagement";
+import { getDefaultOverdubStemTitle, getRecordingGridBarMs } from "../../../domain/overdub";
+import { buildSaveDestinations, resolveSaveDestinationLabel, type SaveDestination } from "../../../domain/collectionManagement";
 import { authorizeIntentionalEmptyStateWrite } from "../../../services/stateIntegrity";
 import { ensureWaveformSidecar } from "../../../services/waveformSidecar";
 import { maybeRequestReviewAfterSave } from "../../../services/reviewPrompt";

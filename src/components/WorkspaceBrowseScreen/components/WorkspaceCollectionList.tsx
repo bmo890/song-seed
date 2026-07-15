@@ -1,6 +1,6 @@
 import { StyleSheet, Text, View } from "react-native";
 import { SurfaceCard } from "../../common/SurfaceCard";
-import type { WorkspaceCollectionBrowseEntry } from "../../../libraryNavigation";
+import type { WorkspaceCollectionBrowseEntry } from "../../../domain/libraryNavigation";
 import { WorkspaceCollectionCard } from "./WorkspaceCollectionCard";
 import { colors } from "../../../design/tokens";
 

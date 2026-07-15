@@ -1,4 +1,4 @@
-import type { MetronomeMeterId } from "./metronome";
+import type { MetronomeMeterId } from "./domain/metronome";
 
 export type IdeaStatus = "seed" | "sprout" | "stem" | "song" | "clip";
 

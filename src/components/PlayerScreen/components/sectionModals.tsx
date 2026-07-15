@@ -9,11 +9,11 @@ import {
   getSectionPreset,
   MIN_SECTION_LENGTH_MS,
   SECTION_QUICK_ADD,
-} from "../../../playerSections";
+} from "../../../domain/playerSections";
 import type { SectionCustomInput } from "../hooks/usePlayerSections";
 import { WarmModal } from "../../common/WarmModal";
 import { HueSlider } from "../../common/HueSlider";
-import { hexToHue, hueToAccentHex } from "../../../workspaceTheme";
+import { hexToHue, hueToAccentHex } from "../../../domain/workspaceTheme";
 import { playerScreenStyles as s } from "../styles";
 import type { ClipSection, ClipSectionKind } from "../../../types";
 import { haptic } from "../../../design/haptics";

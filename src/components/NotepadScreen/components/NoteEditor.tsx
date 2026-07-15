@@ -18,7 +18,7 @@ import { colors, radii, spacing, text as textTokens } from "../../../design/toke
 import type { Note } from "../../../types";
 import { AppAlert } from "../../common/AppAlert";
 import { WordFinderSheet } from "../../common/WordFinderSheet";
-import { applyPickedWord, extractWordRange } from "../../../wordTools";
+import { applyPickedWord, extractWordRange } from "../../../domain/wordTools";
 import { useEditHistory } from "../../../hooks/useEditHistory";
 
 type Props = {

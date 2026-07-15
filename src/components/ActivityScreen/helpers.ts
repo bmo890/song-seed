@@ -4,7 +4,7 @@ import {
   formatActivityDayLabel,
   getActivityCollectionPath,
   startOfActivityDay,
-} from "../../activity";
+} from "../../domain/activity";
 import { IdeaStatus, SongIdea, Workspace } from "../../types";
 import { colors } from "../../design/tokens";
 

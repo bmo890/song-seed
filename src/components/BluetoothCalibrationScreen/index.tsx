@@ -33,7 +33,7 @@ import {
   isBluetoothLikeAudioDevice,
   normalizeBluetoothMonitoringOffsetMs,
   normalizeBluetoothMonitoringSavedOffsetMs,
-} from "../../bluetoothMonitoring";
+} from "../../domain/bluetoothMonitoring";
 import {
   CALIBRATION_BEAT_INTERVAL_MS,
   CALIBRATION_BPM,

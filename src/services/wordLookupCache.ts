@@ -1,5 +1,5 @@
 import { getDb } from "../state/db/database";
-import { setWordLookupPersistentStore } from "../wordTools";
+import { setWordLookupPersistentStore } from "../domain/wordTools";
 
 /**
  * Durable Word Finder cache: every Datamuse response (suggestions and

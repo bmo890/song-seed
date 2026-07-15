@@ -5,14 +5,14 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { RootStackParamList } from "../../../navigation";
 import { useStore } from "../../../state/useStore";
 import { useMiniPlayerContext } from "../../../hooks/FullPlayerProvider";
-import { buildClipLineages, type ClipLineage, type TimelineClipEntry } from "../../../clipGraph";
+import { buildClipLineages, type ClipLineage, type TimelineClipEntry } from "../../../domain/clipGraph";
 import {
   buildLineageTitlePlan,
-} from "../../../clipLineageTitles";
+} from "../../../domain/clipLineageTitles";
 import {
   showLineageRenamePrompt,
   type LineageRenamePromptInfo,
-} from "../../../clipLineageRenamePrompt";
+} from "../../../domain/clipLineageRenamePrompt";
 import { type ClipVersion } from "../../../types";
 import { type ClipCardContextProps } from "../../IdeaDetailScreen/ClipCard";
 

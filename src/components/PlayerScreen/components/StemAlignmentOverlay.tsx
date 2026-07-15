@@ -1,9 +1,9 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { ensureWaveformSidecar } from "../../../services/waveformSidecar";
-import { formatClipOverdubStemOffsetLabel } from "../../../overdub";
+import { formatClipOverdubStemOffsetLabel } from "../../../domain/overdub";
 import { fmtDuration } from "../../../utils";
-import { getMetronomeMeterPreset } from "../../../metronome";
+import { getMetronomeMeterPreset } from "../../../domain/metronome";
 import type { RecordingGrid } from "../../../types";
 import { colors } from "../../../design/tokens";
 

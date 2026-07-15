@@ -1,7 +1,7 @@
 import * as Print from "expo-print";
 import * as Sharing from "expo-sharing";
-import { buildChordChartHtml } from "../chords";
-import { buildChordSheetHtml, isChordSheetEmpty } from "../chordSheet";
+import { buildChordChartHtml } from "../domain/chords";
+import { buildChordSheetHtml, isChordSheetEmpty } from "../domain/chordSheet";
 import type { ChordSheet, LyricsLine } from "../types";
 
 async function sharePdfFromHtml(html: string, dialogTitle: string): Promise<void> {

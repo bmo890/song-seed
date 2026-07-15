@@ -16,17 +16,17 @@ import {
     resolvePrimaryWorkspaceId,
 } from "./dataSlice";
 import type { ActivityEvent } from "../types";
-import { isIdeaSort } from "../ideaSort";
+import { isIdeaSort } from "../domain/ideaSort";
 import {
     DEFAULT_BACKUP_REMINDER_FREQUENCY,
     isBackupReminderFrequency,
-} from "../backupPreferences";
+} from "../domain/backupPreferences";
 import {
     DEFAULT_WORKSPACE_LIST_ORDER,
     DEFAULT_WORKSPACE_STARTUP_PREFERENCE,
     isWorkspaceListOrder,
     isWorkspaceStartupPreference,
-} from "../libraryNavigation";
+} from "../domain/libraryNavigation";
 import { startManifestSync } from "../services/manifestSync";
 import { rebaseWorkspacesManagedMedia } from "./rebaseManagedMedia";
 import { createShardedPersistStorage } from "./shardedPersistStorage";
@@ -42,11 +42,11 @@ import {
     DEFAULT_METRONOME_METER_ID,
     DEFAULT_METRONOME_OUTPUTS,
     isMetronomeMeterId,
-} from "../metronome";
-import { normalizeBluetoothMonitoringCalibrations } from "../bluetoothMonitoring";
-import { sanitizeWordLadders } from "../wordLadder";
-import { sanitizeCutUpSparks } from "../cutUp";
-import { sanitizeMagpieSparks } from "../magpie";
+} from "../domain/metronome";
+import { normalizeBluetoothMonitoringCalibrations } from "../domain/bluetoothMonitoring";
+import { sanitizeWordLadders } from "../domain/wordLadder";
+import { sanitizeCutUpSparks } from "../domain/cutUp";
+import { sanitizeMagpieSparks } from "../domain/magpie";
 import {
     getLastPersistedIdeaCount,
     isHydrationComplete,

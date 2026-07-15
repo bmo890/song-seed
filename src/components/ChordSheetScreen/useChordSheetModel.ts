@@ -5,7 +5,7 @@ import { useStore } from "../../state/useStore";
 import { appActions } from "../../state/actions";
 import { AppAlert } from "../common/AppAlert";
 import { formatDate } from "../../utils";
-import { buildChordDisplay, parseChordDisplay, sortedPalette, type ChordParts } from "../../chords";
+import { buildChordDisplay, parseChordDisplay, sortedPalette, type ChordParts } from "../../domain/chords";
 import {
   buildChordSheetFromLyrics,
   createChordSheet,
@@ -17,8 +17,8 @@ import {
   splitMeasureChords,
   MAX_CHORDS_PER_BAR,
   SECTION_PRESETS,
-} from "../../chordSheet";
-import { getLatestLyricsVersion } from "../../lyrics";
+} from "../../domain/chordSheet";
+import { getLatestLyricsVersion } from "../../domain/lyrics";
 import { shareChordSheetPdf } from "../../services/chordChartPdf";
 import { ensurePro } from "../common/proUpsell";
 import type { ChordSheet, SongIdea } from "../../types";

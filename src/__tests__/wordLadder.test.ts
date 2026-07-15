@@ -10,7 +10,7 @@ import {
   sanitizeWordLadders,
   shufflePairings,
   toggleLock,
-} from "../wordLadder";
+} from "../domain/wordLadder";
 import type { WordLadderExercise } from "../types";
 
 describe("createWordLadderExercise", () => {

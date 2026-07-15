@@ -15,9 +15,9 @@ import { authorizeIntentionalEmptyStateWrite } from "../../../services/stateInte
 import { buildDefaultIdeaTitle, ensureUniqueIdeaTitle, getBaseClipTitle } from "../../../utils";
 import type { ActivityEvent, IdeasHiddenDay, IdeasListState, Playlist, SongIdea, Workspace } from "../../../types";
 import { useStore } from "../../../state/useStore";
-import { getDateBucket } from "../../../dateBuckets";
-import { getIdeaSortTimestamp } from "../../../ideaSort";
-import { buildPlayableQueueFromIdeas } from "../../../clipPresentation";
+import { getDateBucket } from "../../../domain/dateBuckets";
+import { getIdeaSortTimestamp } from "../../../domain/ideaSort";
+import { buildPlayableQueueFromIdeas } from "../../../domain/clipPresentation";
 import { haptic } from "../../../design/haptics";
 
 type CollectionUndoSnapshot = {

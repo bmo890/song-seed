@@ -3,7 +3,7 @@ import { Pressable, ScrollView, Switch, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { BottomSheet } from "../../common/BottomSheet";
 import { styles } from "../../../styles";
-import type { RevisitTag } from "../../../revisit";
+import type { RevisitTag } from "../../../domain/revisit";
 import { revisitStyles } from "../styles";
 import { SourceFilterRow, type SourceFilterOption } from "../../common/SourceFilterRow";
 import { colors } from "../../../design/tokens";

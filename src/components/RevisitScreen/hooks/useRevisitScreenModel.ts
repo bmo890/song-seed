@@ -8,7 +8,7 @@ import { useMiniPlayerContext } from "../../../hooks/FullPlayerProvider";
 import {
   buildRevisitModel,
   type RevisitCandidate,
-} from "../../../revisit";
+} from "../../../domain/revisit";
 import { openCollectionFromContext } from "../../../navigation";
 
 const TWO_WEEKS_MS = 14 * 24 * 60 * 60 * 1000;

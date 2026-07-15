@@ -1,4 +1,4 @@
-import type { Note } from "./types";
+import type { Note } from "../types";
 
 export function deriveNotePreviewTitle(note: Note) {
   if (note.title.trim()) return note.title.trim();

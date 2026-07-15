@@ -1,7 +1,7 @@
-import type { ClipOverdubRootSettings, ClipOverdubStem, ClipVersion, RecordingGrid, SongIdea } from "./types";
-import type { NativeMixedRenderInput } from "../modules/songseed-pitch-shift";
+import type { ClipOverdubRootSettings, ClipOverdubStem, ClipVersion, RecordingGrid, SongIdea } from "../types";
+import type { NativeMixedRenderInput } from "../../modules/songseed-pitch-shift";
 import { getMetronomeMeterPreset } from "./metronome";
-import { fmtDuration } from "./utils";
+import { fmtDuration } from "../utils";
 import { hueToAccentHex } from "./workspaceTheme";
 
 export const OVERDUB_GAIN_MIN_DB = -24;

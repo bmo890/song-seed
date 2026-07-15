@@ -39,7 +39,7 @@ import { useEditorTransformState } from "./hooks/useEditorTransformState";
 import { useEditorPreviewTransport } from "./hooks/useEditorPreviewTransport";
 import { EditorTransformSection } from "./EditorTransformSection";
 import { EditorTransformExportModal } from "./EditorTransformExportModal";
-import { clipHasOverdubs, isClipWaveformPending } from "../../clipPresentation";
+import { clipHasOverdubs, isClipWaveformPending } from "../../domain/clipPresentation";
 import { HelpSheet } from "../common/HelpSheet";
 import { EDITOR_HELP } from "../common/helpContent";
 

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { clampPitchShiftSemitones } from "../../../pitchShift";
+import { clampPitchShiftSemitones } from "../../../domain/pitchShift";
 
 export type PlayerMode = "player" | "practice" | "playalong";
 export type CountInOption = "off" | "1b" | "2b";

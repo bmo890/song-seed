@@ -28,7 +28,7 @@ jest.mock("../importDuplicates", () => ({
     checkImportDuplicates: (...args: unknown[]) => mockCheckImportDuplicates(...args),
     getAllClips: () => [],
 }));
-jest.mock("../../importDates", () => ({
+jest.mock("../../domain/importDates", () => ({
     buildImportedAssetDateMetadata: (assets: unknown[]) =>
         (assets as []).map(() => ({ createdAt: 1, importedAt: 1, sourceCreatedAt: 1 })),
 }));

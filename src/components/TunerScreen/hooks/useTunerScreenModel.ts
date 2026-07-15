@@ -8,7 +8,7 @@ import {
   getTunerMeterPercent,
   normalizePitchAgainstHistory,
   summarizePitchSamples,
-} from "../../../tuner";
+} from "../../../domain/tuner";
 
 type PitchyConfig = {
   bufferSize?: number;

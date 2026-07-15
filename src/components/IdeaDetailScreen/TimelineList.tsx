@@ -7,7 +7,7 @@ import {
   type ClipLineage,
   type TimelineClipEntry,
   type TimelineListRow,
-} from "../../clipGraph";
+} from "../../domain/clipGraph";
 import { type ClipCardContextProps } from "./ClipCard";
 import { SongClipCard } from "./components/SongClipCard";
 import { SongClipListShell } from "./components/SongClipListShell";

@@ -7,7 +7,7 @@ import {
     formatBackupTimestamp,
     getBackupReminderDescription,
     getBackupReminderLabel,
-} from "../../../backupPreferences";
+} from "../../../domain/backupPreferences";
 import {
     BACKUP_SAVE_CANCELLED_MESSAGE,
     buildExactLibraryBackup,

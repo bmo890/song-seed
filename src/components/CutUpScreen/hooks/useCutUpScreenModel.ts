@@ -28,7 +28,7 @@ import {
   toggleChunkIncluded,
   toggleSeam,
   tokenizeWords,
-} from "../../../cutUp";
+} from "../../../domain/cutUp";
 import type { CutUpChunkMode, CutUpStep, Note } from "../../../types";
 
 export function useCutUpScreenModel() {

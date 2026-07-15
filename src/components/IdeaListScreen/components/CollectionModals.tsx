@@ -3,7 +3,7 @@ import { CollectionActionsModal } from "../../modals/CollectionActionsModal";
 import { CollectionMoveModal } from "../../modals/CollectionMoveModal";
 import { QuickNameModal } from "../../modals/QuickNameModal";
 import { useCollectionScreen } from "../provider/CollectionScreenProvider";
-import { buildImportHelperText } from "../../../importDates";
+import { buildImportHelperText } from "../../../domain/importDates";
 import { buildImportedTitle } from "../../../services/audioStorage";
 import { ensureUniqueCountedTitle, fmtDuration, formatDate } from "../../../utils";
 

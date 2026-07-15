@@ -1,5 +1,5 @@
 import { FlatList } from "react-native";
-import type { TimelineClipEntry } from "../../../clipGraph";
+import type { TimelineClipEntry } from "../../../domain/clipGraph";
 import type { ClipCardContextProps } from "../../IdeaDetailScreen/ClipCard";
 import { LineageClipCard } from "../../IdeaDetailScreen/components/LineageClipCard";
 import { styles } from "../styles";

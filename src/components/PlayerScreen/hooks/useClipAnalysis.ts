@@ -1,7 +1,7 @@
 import { useCallback, useState } from "react";
 import type { ClipAnalysis } from "../../../types";
 import { useStore } from "../../../state/useStore";
-import { analyzeClipAudio } from "../../../clipAnalysisRunner";
+import { analyzeClipAudio } from "../../../domain/clipAnalysisRunner";
 
 type UseClipAnalysisArgs = {
   playerIdeaId: string | null | undefined;

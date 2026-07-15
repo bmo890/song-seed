@@ -1,5 +1,5 @@
-import type { ClipVersion, SongIdea } from "./types";
-import { buildStaticWaveform } from "./utils";
+import type { ClipVersion, SongIdea } from "../types";
+import { buildStaticWaveform } from "../utils";
 
 type PlayableClipOptions = {
   preferPrimaryProjectClip?: boolean;

@@ -16,7 +16,7 @@ import {
   removeFragment as removeFragmentOp,
   reorderFragments,
   splitFragment as splitFragmentOp,
-} from "../../../magpie";
+} from "../../../domain/magpie";
 import type { MagpieBook, MagpieStep } from "../../../types";
 
 type LoadStatus = { loading: boolean; error: MagpieFetchErrorKind | null };

@@ -5,7 +5,7 @@ import {
 } from "./audioStorage";
 import { createClipImportBatcher } from "./clipImportBatcher";
 import { checkImportDuplicates, getAllClips } from "./importDuplicates";
-import { buildImportedAssetDateMetadata } from "../importDates";
+import { buildImportedAssetDateMetadata } from "../domain/importDates";
 import { useImportStore } from "../state/useImportStore";
 import { useStore } from "../state/useStore";
 import { ensureUniqueCountedTitle } from "../utils";

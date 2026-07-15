@@ -2,9 +2,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Share } from "react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { useStore } from "../../../state/useStore";
-import { buildShareTextFromNotes } from "../../../notepad";
-import { canSaveWordSpark } from "../../../proGating";
-import { hasProAccess } from "../../../entitlements";
+import { buildShareTextFromNotes } from "../../../domain/notepad";
+import { canSaveWordSpark } from "../../../domain/proGating";
+import { hasProAccess } from "../../../domain/entitlements";
 import { openProUpsell } from "../../common/proUpsell";
 import type { Note, WordLadderExercise, CutUpSpark, MagpieSpark } from "../../../types";
 

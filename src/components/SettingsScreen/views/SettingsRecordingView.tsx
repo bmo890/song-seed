@@ -7,7 +7,7 @@ import { haptic } from "../../../design/haptics";
 import {
   METRONOME_COUNT_IN_BAR_OPTIONS,
   METRONOME_METER_PRESETS,
-} from "../../../metronome";
+} from "../../../domain/metronome";
 
 /**
  * Defaults applied to every new take. The metronome values are the same ones the

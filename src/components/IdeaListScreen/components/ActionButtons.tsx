@@ -1,4 +1,4 @@
-import { getHierarchyIconName } from "../../../hierarchy";
+import { getHierarchyIconName } from "../../../domain/hierarchy";
 import { FloatingActionDock } from "../../common/FloatingActionDock";
 
 type ActionButtonsProps = {

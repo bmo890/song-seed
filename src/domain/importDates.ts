@@ -1,5 +1,5 @@
-import type { ImportedAudioAsset } from "./services/audioStorage";
-import { AppAlert } from "./components/common/AppAlert";
+import type { ImportedAudioAsset } from "../services/audioStorage";
+import { AppAlert } from "../components/common/AppAlert";
 
 export type ImportDatePreference = "source" | "import";
 

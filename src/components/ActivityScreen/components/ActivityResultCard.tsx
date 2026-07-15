@@ -3,7 +3,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { InlineIdeaCard } from "../../common/InlineIdeaCard";
 import { styles } from "../styles";
 import type { ActivityItemResult } from "../helpers";
-import { getDateBucket } from "../../../dateBuckets";
+import { getDateBucket } from "../../../domain/dateBuckets";
 import { colors } from "../../../design/tokens";
 
 type ActivityResultCardProps = {

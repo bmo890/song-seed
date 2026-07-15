@@ -31,7 +31,7 @@ import {
   type MetronomeOutputKey,
   type MetronomeOutputs,
   shouldResetTapTempo,
-} from "../metronome";
+} from "../domain/metronome";
 import { ensureMetronomeLoopFile } from "../services/metronomeLoop";
 import { resolveCurrentRouteLatencyProfile } from "../services/latencyModel";
 import SongseedMetronomeModule from "../../modules/songseed-metronome";

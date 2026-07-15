@@ -4,7 +4,7 @@ import type {
   ChordSheetSection,
   LyricsLine,
   LyricsVersion,
-} from "./types";
+} from "../types";
 
 function randomId(prefix: string) {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;

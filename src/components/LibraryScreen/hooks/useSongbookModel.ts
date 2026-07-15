@@ -3,8 +3,8 @@ import { Share } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { useStore } from "../../../state/useStore";
 import { AppAlert } from "../../common/AppAlert";
-import { serializeChordChartText } from "../../../chords";
-import { serializeChordSheetText } from "../../../chordSheet";
+import { serializeChordChartText } from "../../../domain/chords";
+import { serializeChordSheetText } from "../../../domain/chordSheet";
 import type { SongbookItemKind, SongIdea, Workspace } from "../../../types";
 
 export type SongbookChartChoice = { kind: SongbookItemKind; versionId?: string };

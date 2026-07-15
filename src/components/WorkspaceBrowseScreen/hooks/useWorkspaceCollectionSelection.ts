@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { AppAlert } from "../../common/AppAlert";
 import type { Collection, Workspace } from "../../../types";
 import { appActions } from "../../../state/actions";
-import { buildCollectionMoveDestinations, getCollectionDeleteScope } from "../../../collectionManagement";
+import { buildCollectionMoveDestinations, getCollectionDeleteScope } from "../../../domain/collectionManagement";
 import type { SelectionAction } from "../../common/SelectionDock";
 
 function collapseSelectedCollectionIds(

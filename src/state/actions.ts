@@ -16,12 +16,12 @@ import {
 } from "../types";
 import { useStore } from "./useStore";
 import { createEmptyProjectLyrics, createEmptyWorkspaceIdeasListState, normalizeWorkspaces } from "./dataSlice";
-import { createLyricsVersion, lyricsTextToDocument } from "../lyrics";
-import { cloneChordSheet } from "../chordSheet";
-import { buildChordDisplay, clampChordIndex, recordChordInPalette, type ChordParts } from "../chords";
+import { createLyricsVersion, lyricsTextToDocument } from "../domain/lyrics";
+import { cloneChordSheet } from "../domain/chordSheet";
+import { buildChordDisplay, clampChordIndex, recordChordInPalette, type ChordParts } from "../domain/chords";
 import type { ChordPlacement, ChordSheet, LyricsDocument, LyricsLine, RecordingGrid } from "../types";
 import { applyClipMetadataBatch, type ClipMetadataEntry } from "./clipMetadataBatch";
-import { buildLyricsTextFromNote } from "../notepad";
+import { buildLyricsTextFromNote } from "../domain/notepad";
 import { buildDefaultIdeaTitle, ensureUniqueCountedTitle, ensureUniqueIdeaTitle, genId } from "../utils";
 import { archiveWorkspaceToDevice, restoreWorkspaceFromDevice } from "../services/workspaceArchive";
 import { saveArchiveToUserLocation } from "../services/archiveSave";
@@ -37,8 +37,8 @@ import {
     deleteManagedAudioUris,
     filterUnreferencedManagedAudioUris,
 } from "../services/managedMedia";
-import { getClipPlaybackDurationMs, getClipPlaybackUri } from "../clipPresentation";
-import { normalizeBluetoothMonitoringCalibrations } from "../bluetoothMonitoring";
+import { getClipPlaybackDurationMs, getClipPlaybackUri } from "../domain/clipPresentation";
+import { normalizeBluetoothMonitoringCalibrations } from "../domain/bluetoothMonitoring";
 import {
     assignNextOverdubStemColor,
     buildClipOverdubMixInputs,
@@ -49,7 +49,7 @@ import {
     getDefaultOverdubStemTitle,
     snapPunchInMsToGrid,
     toggleLowCutTonePreset,
-} from "../overdub";
+} from "../domain/overdub";
 import { ensurePreviewAudioDirectory, importAudioAsset, loadManagedAudioMetadata, MANAGED_WAVEFORM_PEAK_COUNT } from "../services/audioStorage";
 import { renderMixedFile } from "../services/pitchShift";
 import {

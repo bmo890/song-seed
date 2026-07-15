@@ -1,7 +1,7 @@
 import { Pressable, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { styles } from "./styles";
-import { type TimelineClipEntry } from "../../clipGraph";
+import { type TimelineClipEntry } from "../../domain/clipGraph";
 import { useSongScreen } from "./provider/SongScreenProvider";
 import { colors } from "../../design/tokens";
 

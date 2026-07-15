@@ -5,7 +5,7 @@ import Animated, {
   type SharedValue,
 } from "react-native-reanimated";
 import { styles } from "../styles";
-import { type TimelineClipEntry } from "../../../clipGraph";
+import { type TimelineClipEntry } from "../../../domain/clipGraph";
 
 type ShellRow<T> =
   | { kind: "summary-section" }

@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { clampPitchShiftSemitones } from "../../../pitchShift";
+import { clampPitchShiftSemitones } from "../../../domain/pitchShift";
 
 const MIN_PLAYBACK_RATE = 0.5;
 const MAX_PLAYBACK_RATE = 2.0;

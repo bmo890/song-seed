@@ -3,7 +3,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { NavRow } from "../../common/NavRow";
 import { SurfaceCard } from "../../common/SurfaceCard";
 import { colors } from "../../../design/tokens";
-import { getHierarchyIconColor, getHierarchyIconName } from "../../../hierarchy";
+import { getHierarchyIconColor, getHierarchyIconName } from "../../../domain/hierarchy";
 import type { CollectionDestination } from "../types";
 import { styles } from "../styles";
 

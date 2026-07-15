@@ -1,4 +1,4 @@
-import { assignNextOverdubStemColor, getOverdubStemColor, withAlpha } from "../overdub";
+import { assignNextOverdubStemColor, getOverdubStemColor, withAlpha } from "../domain/overdub";
 
 describe("assignNextOverdubStemColor", () => {
   it("returns a hex colour for any existing stem count", () => {

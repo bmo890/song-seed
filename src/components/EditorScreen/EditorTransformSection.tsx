@@ -7,7 +7,7 @@ import {
   formatPitchShiftLabel,
   PITCH_SHIFT_MAX_SEMITONES,
   PITCH_SHIFT_MIN_SEMITONES,
-} from "../../pitchShift";
+} from "../../domain/pitchShift";
 
 const MIN_PLAYBACK_RATE = 0.5;
 const MAX_PLAYBACK_RATE = 2.0;

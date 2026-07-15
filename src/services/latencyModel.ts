@@ -4,9 +4,9 @@ import {
   getBluetoothMonitoringCalibrationForRoute,
   buildBluetoothMonitoringRouteKey,
   isBluetoothLikeAudioDevice,
-} from "../bluetoothMonitoring";
+} from "../domain/bluetoothMonitoring";
 import type { BluetoothMonitoringCalibration, RecordingGridSource } from "../types";
-import type { MetronomeOutputs } from "../metronome";
+import type { MetronomeOutputs } from "../domain/metronome";
 
 /**
  * SINGLE SOURCE OF TRUTH for every latency number in the metronome/recording system.

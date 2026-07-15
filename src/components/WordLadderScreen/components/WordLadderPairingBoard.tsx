@@ -2,7 +2,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { styles as appStyles } from "../../../styles";
 import { colors, radii, shadows, spacing, text as textTokens } from "../../../design/tokens";
-import { COLUMN_A_LABEL, COLUMN_B_LABEL, getUnpairedWords } from "../../../wordLadder";
+import { COLUMN_A_LABEL, COLUMN_B_LABEL, getUnpairedWords } from "../../../domain/wordLadder";
 import type { WordLadderExercise } from "../../../types";
 
 type Props = {

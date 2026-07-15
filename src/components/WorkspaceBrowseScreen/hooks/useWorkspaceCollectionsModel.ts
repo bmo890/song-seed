@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { useStore } from "../../../state/useStore";
-import { buildWorkspaceBrowseEntries } from "../../../libraryNavigation";
+import { buildWorkspaceBrowseEntries } from "../../../domain/libraryNavigation";
 import { getCollectionSizeBytes } from "../../../utils";
 import { openCollectionInBrowse } from "../../../navigation";
 

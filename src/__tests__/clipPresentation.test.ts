@@ -2,7 +2,7 @@ import {
   getClipPlaybackWaveformPeaksOrFallback,
   getClipReelWaveformPeaks,
   isClipWaveformPending,
-} from "../clipPresentation";
+} from "../domain/clipPresentation";
 import type { ClipVersion } from "../types";
 
 function buildClip(overrides: Partial<ClipVersion> = {}): ClipVersion {

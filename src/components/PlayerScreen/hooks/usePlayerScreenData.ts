@@ -6,14 +6,14 @@ import {
   getClipPlaybackUri,
   getClipReelWaveformPeaks,
   isClipWaveformPending,
-} from "../../../clipPresentation";
+} from "../../../domain/clipPresentation";
 import {
   getClipOverdubRootSettings,
   getOverdubStemColor,
-} from "../../../overdub";
+} from "../../../domain/overdub";
 import { useClipWaveform } from "../../../hooks/useClipWaveform";
-import { getLatestLyricsVersion, lyricsDocumentToText } from "../../../lyrics";
-import { normalizeSections } from "../../../playerSections";
+import { getLatestLyricsVersion, lyricsDocumentToText } from "../../../domain/lyrics";
+import { normalizeSections } from "../../../domain/playerSections";
 import { useStore } from "../../../state/useStore";
 import type { SongIdea } from "../../../types";
 import { getCollectionById } from "../../../utils";

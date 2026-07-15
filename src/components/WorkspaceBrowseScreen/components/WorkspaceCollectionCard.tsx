@@ -1,7 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { SurfaceCard } from "../../common/SurfaceCard";
-import type { CollectionSearchMatchKind } from "../../../libraryNavigation";
+import type { CollectionSearchMatchKind } from "../../../domain/libraryNavigation";
 import type { Collection } from "../../../types";
 import { formatLastEdited } from "../../../utils";
 
