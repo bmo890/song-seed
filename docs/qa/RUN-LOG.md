@@ -71,6 +71,7 @@ and deletes what it created (self-cleaning).
 | clip-08-play-all | collection ⋯ → "Play all" → queue player auto-plays back-to-back → stop | ✅ self-cleaning |
 | clip-09-editor-cut | editor → add region → Cut mode → Save trimmed clip → Save Splice → shorter clip | ✅ self-cleaning |
 | clip-10-copy-paste | copy a clip → "Copy ready" → new collection → "Paste to collection" → confirm → clip in dest | ✅ self-cleaning |
+| clip-11-move | Move a clip to another collection → clip lands in dest AND is removed from source | ✅ self-cleaning |
 
 (`reset-clips.yaml` is a guarded-clear helper referenced by the flows; it runs as a harmless
 no-op if invoked directly.)

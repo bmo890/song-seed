@@ -1,0 +1,139 @@
+# Move a clip to another collection (clipboard cut). Unlike Copy, Move REMOVES the
+# clip from the source: after pasting into "Maestro Dest", sample-01 is gone from
+# Ideas while the others remain. Creates + deletes the throwaway collection, so it's
+# self-cleaning. Requires scripts/push-dev-samples.sh.
+appId: com.bmostudio.songseed.dev
+---
+- launchApp:
+    stopApp: true
+- runFlow:
+    when:
+      visible: ".*Back up your library.*"
+    commands:
+      - tapOn: "Later"
+- runFlow: ../subflows/dismiss-logbox.yaml
+# Create the destination collection.
+- tapOn:
+    id: "header-menu"
+- waitForAnimationToEnd
+- tapOn: ".*Collections,.*"
+- extendedWaitUntil:
+    visible: ".*ACTIVE COLLECTIONS.*"
+    timeout: 10000
+- runFlow: ../subflows/dismiss-logbox.yaml
+- tapOn:
+    id: "workspace-add-collection"
+- extendedWaitUntil:
+    visible: "New Collection"
+    timeout: 10000
+- tapOn:
+    id: "quickname-input"
+- inputText: "Maestro Dest"
+- tapOn:
+    id: "quickname-save"
+- extendedWaitUntil:
+    visible:
+      id: "fab-record"
+    timeout: 10000
+# Ideas → import → Move a clip to the clipboard.
+- tapOn:
+    id: "header-menu"
+- waitForAnimationToEnd
+- tapOn: ".*Collections,.*"
+- extendedWaitUntil:
+    visible: ".*ACTIVE COLLECTIONS.*"
+    timeout: 10000
+- tapOn:
+    id: "collection-card-ideas"
+- extendedWaitUntil:
+    visible:
+      id: "fab-record"
+    timeout: 10000
+- runFlow: reset-clips.yaml
+- runFlow: ../subflows/dismiss-logbox.yaml
+- tapOn:
+    id: "fab-create"
+- waitForAnimationToEnd
+- tapOn:
+    id: "fab-menu-devsamples"
+- extendedWaitUntil:
+    visible: ".*sample-01.*"
+    timeout: 20000
+- longPressOn: ".*sample-01.*"
+- extendedWaitUntil:
+    visible: ".*More"
+    timeout: 5000
+- tapOn: ".*More"
+- extendedWaitUntil:
+    visible: ".*Move,.*"
+    timeout: 5000
+- tapOn: ".*Move,.*"
+- extendedWaitUntil:
+    visible: ".*Move ready.*"
+    timeout: 5000
+- tapOn: "OK"
+# Paste into Maestro Dest.
+- tapOn:
+    id: "header-menu"
+- waitForAnimationToEnd
+- tapOn: ".*Collections,.*"
+- extendedWaitUntil:
+    visible: ".*ACTIVE COLLECTIONS.*"
+    timeout: 10000
+- tapOn:
+    id: "collection-card-maestro-dest"
+- extendedWaitUntil:
+    visible:
+      id: "fab-record"
+    timeout: 10000
+- runFlow: ../subflows/dismiss-logbox.yaml
+- extendedWaitUntil:
+    visible: ".*Paste to collection.*"
+    timeout: 10000
+- tapOn: ".*Paste to collection.*"
+- extendedWaitUntil:
+    visible: ".*items here.*"
+    timeout: 5000
+- tapOn: "Yes"
+- extendedWaitUntil:
+    visible: ".*sample-01.*"
+    timeout: 10000
+# Back to Ideas — sample-01 was MOVED out (gone), the others remain.
+- tapOn:
+    id: "header-menu"
+- waitForAnimationToEnd
+- tapOn: ".*Collections,.*"
+- extendedWaitUntil:
+    visible: ".*ACTIVE COLLECTIONS.*"
+    timeout: 10000
+- tapOn:
+    id: "collection-card-ideas"
+- extendedWaitUntil:
+    visible:
+      id: "fab-record"
+    timeout: 10000
+- assertVisible: ".*sample-02.*"
+- assertNotVisible: ".*sample-01.*"
+# Clean up: clear Ideas, then delete the Maestro Dest collection (with the moved clip).
+- runFlow: reset-clips.yaml
+- tapOn:
+    id: "header-menu"
+- waitForAnimationToEnd
+- tapOn: ".*Collections,.*"
+- extendedWaitUntil:
+    visible: ".*ACTIVE COLLECTIONS.*"
+    timeout: 10000
+- longPressOn:
+    id: "collection-card-maestro-dest"
+- extendedWaitUntil:
+    visible: ".*Delete"
+    timeout: 5000
+- tapOn: ".*Delete"
+- extendedWaitUntil:
+    visible: ".*Delete.*collection.*|.*Delete selected.*|.*Delete.*Maestro.*"
+    timeout: 5000
+- tapOn:
+    id: "dialog-btn-delete"
+- extendedWaitUntil:
+    notVisible: ".*Maestro Dest.*"
+    timeout: 8000
