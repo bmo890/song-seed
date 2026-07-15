@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useIsFocused } from "@react-navigation/native";
 import {
   BackHandler,
   KeyboardAvoidingView,
@@ -80,13 +81,20 @@ export function NoteEditor({ note, onBack, onUpdate, onTogglePin, onDelete }: Pr
   }, [note.id]);
 
   // ── Android hardware back ─────────────────────────────────────────────────
+  // Focus-scoped: drawer screens stay MOUNTED when the user switches pages, so
+  // without the isFocused gate this editor kept swallowing hardware back presses
+  // from the Metronome/Tuner/etc. while sitting invisible on the Notepad — every
+  // back "worked" here off-screen instead of navigating, reading as an endless
+  // loop back into the lyrics pad.
+  const isFocused = useIsFocused();
   useEffect(() => {
+    if (!isFocused) return;
     const sub = BackHandler.addEventListener("hardwareBackPress", () => {
       onBack();
       return true;
     });
     return () => sub.remove();
-  }, [onBack]);
+  }, [isFocused, onBack]);
 
   // ── Keyboard-on-selection ─────────────────────────────────────────────────
   const focusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);

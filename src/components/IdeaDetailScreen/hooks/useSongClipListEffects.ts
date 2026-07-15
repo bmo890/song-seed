@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { BackHandler } from "react-native";
+import { useIsFocused } from "@react-navigation/native";
 
 type UseSongClipListEffectsArgs = {
   inlineTarget: { ideaId: string; clipId: string } | null;
@@ -19,13 +20,17 @@ export function useSongClipListEffects({
   clearEditing,
 }: UseSongClipListEffectsArgs) {
   const inlineResetRef = useRef(resetInlinePlayer);
+  // Focus-scoped: this screen stays mounted under anything pushed above it
+  // (Recording, Editor…). Without the gate, back on THOSE screens silently
+  // stopped the inline preview here instead of popping them.
+  const isFocused = useIsFocused();
 
   useEffect(() => {
     inlineResetRef.current = resetInlinePlayer;
   }, [resetInlinePlayer]);
 
   useEffect(() => {
-    if (!inlineTarget) return;
+    if (!inlineTarget || !isFocused) return;
 
     const handler = BackHandler.addEventListener("hardwareBackPress", () => {
       void inlineResetRef.current();
@@ -33,7 +38,7 @@ export function useSongClipListEffects({
     });
 
     return () => handler.remove();
-  }, [inlineTarget]);
+  }, [inlineTarget, isFocused]);
 
   useEffect(() => {
     if (isParentPicking && clipViewMode !== "evolution") {

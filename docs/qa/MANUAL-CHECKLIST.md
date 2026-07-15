@@ -50,10 +50,17 @@ See `docs/qa/RUN-LOG.md` for the automation status of each.
 
 > This was a real bug (fixed). Verify carefully, especially on Android.
 
-- Android ☐ — From **Settings** (reached via drawer), press hardware/gesture back → returns to
-  the previous screen. Does **NOT** close the app. **[ANDROID]** (fix: no more `exitApp()`)
-- Android ☐ — Same from **Tuner, Metronome, Library, Activity, Revisit** — back returns, never
-  closes the app. **[ANDROID]**
+- Android ☐ — From **Settings** (reached via drawer), press hardware/gesture back → lands on the
+  **open collection** (hub-and-spoke: drawer pages are destinations, back always returns to the
+  hub, not your visit trail). Does **NOT** close the app. **[ANDROID]** (fix: no more `exitApp()`)
+- Android ☐ — Same from **Tuner, Metronome, Library, Activity, Revisit** — one back press lands
+  on the collection, never closes the app. **[ANDROID]**
+- Android ☐ — **Loop regression:** write a note in the lyrics pad → switch to Metronome (drawer) →
+  press back → lands on the **collection** (not bounced back into the lyrics pad); repeated back
+  presses reach home then background the app — no ping-pong. **[ANDROID]** (fix: initialRoute +
+  focus-scoped NoteEditor back handler)
+- Android ☐ — With a note editor open in the lyrics pad, back closes the editor (to the pad's
+  list); next back lands on the collection. **[ANDROID]**
 - Android ☐ — With the **drawer open**, back closes the drawer (stays on screen). **[ANDROID]**
 - Android ☐ — On **Browse** with collections selected, back clears the selection. **[ANDROID]**
 - Android ☐ — On **Revisit** with an "Around This Time" snapshot open, back closes the snapshot. **[ANDROID]**

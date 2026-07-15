@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Animated, BackHandler } from "react-native";
-import { useNavigation, useRoute } from "@react-navigation/native";
+import { useIsFocused, useNavigation, useRoute } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { RootStackParamList } from "../../../../App";
 import { useStore } from "../../../state/useStore";
@@ -74,14 +74,17 @@ export function useClipLineageScreenModel() {
     inlineResetRef.current = inlinePlayer.resetInlinePlayer;
   }, [inlinePlayer.resetInlinePlayer]);
 
+  // Focus-scoped: without the gate, back on a screen pushed above this one
+  // silently stopped the inline preview here instead of popping that screen.
+  const isFocused = useIsFocused();
   useEffect(() => {
-    if (!inlineTarget) return;
+    if (!inlineTarget || !isFocused) return;
     const handler = BackHandler.addEventListener("hardwareBackPress", () => {
       void inlineResetRef.current();
       return true;
     });
     return () => handler.remove();
-  }, [inlineTarget]);
+  }, [inlineTarget, isFocused]);
 
   useEffect(
     () => () => {
