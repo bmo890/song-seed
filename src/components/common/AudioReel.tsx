@@ -276,8 +276,10 @@ export function AudioReel({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [resetKey]);
     const waveLayerStyle = useAnimatedStyle(() => ({ opacity: waveOpacity.value }));
-    // Gentle breathing on the pending dashes — running only while pending so the
-    // repeat loop isn't animating underneath a fully-opaque wave forever.
+    // Breathing on the pending dashes — one 0→1 progress value drives BOTH the fade
+    // and a vertical swell, so the line reads as alive from across the room without
+    // ever growing enough amplitude to be mistaken for the audio's actual shape.
+    // Runs only while pending, so the repeat loop isn't spinning under an opaque wave.
     const pendingPulse = useSharedValue(1);
     React.useEffect(() => {
         if (!waveformPending) {
@@ -287,15 +289,18 @@ export function AudioReel({
         }
         pendingPulse.value = withRepeat(
             withSequence(
-                withTiming(0.45, { duration: 900 }),
-                withTiming(1, { duration: 900 })
+                withTiming(0, { duration: 800 }),
+                withTiming(1, { duration: 800 })
             ),
             -1,
             false
         );
         return () => cancelAnimation(pendingPulse);
     }, [pendingPulse, waveformPending]);
-    const pendingPulseStyle = useAnimatedStyle(() => ({ opacity: pendingPulse.value }));
+    const pendingPulseStyle = useAnimatedStyle(() => ({
+        opacity: 0.4 + pendingPulse.value * 0.6,
+        transform: [{ scaleY: 1 + pendingPulse.value * 1.2 }],
+    }));
     // The pending line's opacity is the exact inverse, so the two genuinely cross-fade.
     // It stays MOUNTED at opacity 0 rather than being conditionally rendered: unmounting
     // on the pending flip would pop it out instantly while the wave was still fading in —
@@ -665,7 +670,15 @@ export function AudioReel({
                             reads as broken. The words stay honest: "Analyzing…" only while
                             a decode is genuinely in flight; deferred-by-playback says so. */}
                         {waveformPending ? (
-                            <Text style={[audioReelStyles.pendingCaption, { color: palette.rulerColor }]}>
+                            <Text
+                                style={[
+                                    audioReelStyles.pendingCaption,
+                                    // The reel's TEXT colour, not rulerColor — that's a
+                                    // hairline tint (#D7C2BD on a #F0EBE4 surface ≈ 1.4:1)
+                                    // and rendered the caption all but invisible.
+                                    { color: palette.utilityTextColor },
+                                ]}
+                            >
                                 {waveformAnalyzing
                                     ? "Analyzing waveform…"
                                     : isPlaying
@@ -905,28 +918,27 @@ const audioReelStyles = StyleSheet.create({
         zIndex: 0,
     },
     /** A broken centre line: unmistakably "nothing here yet" — no amplitude anywhere to
-     *  misread as the shape of the audio. */
+     *  misread as the shape of the audio. The row's own opacity stays 1; the pulse owns
+     *  fading (baking a second multiplier in here is what made it barely-there). */
     pendingDashRow: {
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "space-between",
-        opacity: 0.35,
     },
     pendingDash: {
-        width: 3,
-        height: 1.5,
+        width: 4,
+        height: 2.5,
         borderRadius: radii.xs,
     },
-    /** Floated just below the centre line rather than stacked with it, so the dashes stay
-     *  exactly where the wave's baseline lands. */
+    /** Floated below the centre line rather than stacked with it, so the dashes stay
+     *  exactly where the wave's baseline lands — clear of the swelling pulse. */
     pendingCaption: {
         position: "absolute",
         alignSelf: "center",
-        top: "58%",
-        fontFamily: "PlusJakartaSans_500Medium",
-        fontSize: 11,
-        letterSpacing: 0.3,
-        opacity: 0.9,
+        top: "60%",
+        fontFamily: "PlusJakartaSans_600SemiBold",
+        fontSize: 12.5,
+        letterSpacing: 0.2,
     },
     overlayLayer: {
         zIndex: 2,
