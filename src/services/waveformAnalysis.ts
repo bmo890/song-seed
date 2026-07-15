@@ -85,6 +85,13 @@ export function cancelActiveWaveformDecode(): void {
   }
 }
 
+/** Current cancellation epoch. Callers that need to classify an empty decode result
+ *  can snapshot this before the decode and compare after: a bump in between means a
+ *  play press preempted the work (retry when idle), not that the decode failed. */
+export function getWaveformCancelEpoch(): number {
+  return cancelEpoch;
+}
+
 type DecodeOptions = { mode?: WaveformDecodeMode };
 
 export function computeWaveformPeaks(

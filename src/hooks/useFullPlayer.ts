@@ -225,6 +225,17 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
       return;
     }
 
+    // Diagnostic: an unexplained playing→paused flip (no user pause, no clip end)
+    // is the signature of native-side interference — codec starvation from a decode,
+    // audio-focus loss, an interruption. Keep it visible so field reports of "it
+    // paused by itself" can be correlated against the surrounding [waveform]/
+    // [hydration] log lines.
+    if (lastPublished.isPlaying && !isPlayerPlaying && !didPlayerJustFinish) {
+      console.log(
+        `[playback] playing→paused at ${playerPosition}ms (not end-of-clip — user pause or native interruption)`
+      );
+    }
+
     setPlayerPlaybackState({
       positionMs: playerPosition,
       durationMs: playerDuration,
@@ -236,7 +247,7 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
       durationMs: playerDuration,
       isPlaying: isPlayerPlaying,
     };
-  }, [isPlayerPlaying, playerDuration, playerPosition, setPlayerPlaybackState]);
+  }, [didPlayerJustFinish, isPlayerPlaying, playerDuration, playerPosition, setPlayerPlaybackState]);
 
   const activateLockScreenControls = useCallback((metadata?: LockScreenMetadata) => {
     try {

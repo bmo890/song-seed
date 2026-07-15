@@ -13,6 +13,7 @@ jest.mock("../audioStorage", () => ({
     loadManagedAudioMetadata: jest.fn(),
 }));
 jest.mock("../waveformSidecar", () => ({ ensureWaveformSidecar: jest.fn() }));
+jest.mock("../waveformAnalysis", () => ({ getWaveformCancelEpoch: () => 1 }));
 jest.mock("../audioForegroundActivity", () => ({
     isForegroundAudioBusy: () => false,
     waitForForegroundAudioIdle: () => Promise.resolve(),
@@ -92,8 +93,11 @@ describe("enqueueMissingMetadataBackfill — re-enqueues placeholder-waveform cl
                 { id: "c-no-duration", audioUri: "file:///nd.m4a", durationMs: undefined, waveformPeaks: peaks(256) },
                 // duration but no waveform at all (archive restore) → ENQUEUE
                 { id: "c-no-waveform", audioUri: "file:///nw.m4a", durationMs: 1000, waveformPeaks: undefined },
-                // background analysis gave up (past detail cap / undecodable) → SKIP,
-                // even though its waveform is only a sub-resolution placeholder.
+                // background analysis gave up in a PRIOR session → still ENQUEUE: the
+                // mark can be stamped wrongly (playback preempting the decode used to
+                // burn the bounded attempts), and the launch backfill is the only
+                // unattended heal path. A genuinely undecodable file just re-exhausts
+                // (bounded per launch); a file past the detail cap short-circuits.
                 {
                     id: "c-gave-up",
                     audioUri: "file:///gu.m4a",
@@ -106,6 +110,6 @@ describe("enqueueMissingMetadataBackfill — re-enqueues placeholder-waveform cl
             ]),
         ]);
 
-        expect(enqueued).toBe(3);
+        expect(enqueued).toBe(4);
     });
 });

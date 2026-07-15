@@ -5,6 +5,7 @@ import {
     MANAGED_WAVEFORM_PEAK_COUNT,
 } from "./audioStorage";
 import { ensureWaveformSidecar } from "./waveformSidecar";
+import { getWaveformCancelEpoch } from "./waveformAnalysis";
 import { isForegroundAudioBusy, waitForForegroundAudioIdle } from "./audioForegroundActivity";
 import { appActions } from "../state/actions";
 import { useStore } from "../state/useStore";
@@ -109,6 +110,15 @@ async function hydrateJob(job: HydrationJob): Promise<JobOutcome> {
         return "done";
     }
 
+    // Snapshot the cancel epoch: a bump during this job means a play press preempted
+    // the decode (or skipped it at the idle gate). That outcome returns the same
+    // placeholder as a genuine decode failure, so without this marker it would be
+    // misclassified as "retry" and consume one of the clip's bounded attempts —
+    // three play presses during a big import then stamped clips
+    // detailedWaveformUnavailable PERMANENTLY, and background hydration never
+    // touched them again (the "waveforms only load when I open the player" bug).
+    const epochAtStart = getWaveformCancelEpoch();
+
     const metadata = await loadManagedAudioMetadata(
         job.audioUri,
         `${job.ideaId}-${job.clipId}`,
@@ -168,6 +178,17 @@ async function hydrateJob(job: HydrationJob): Promise<JobOutcome> {
             durationMs: knownDurationMs,
         });
     }
+
+    // Playback interfered — the decode was skipped at its idle gate, cancelled
+    // mid-flight by a play press (epoch bump), or the player is busy right now.
+    // Waiting out playback is NOT a failure: stand down (no attempt consumed) and
+    // let the queue's busy backoff retry when listening stops.
+    if (isForegroundAudioBusy() || getWaveformCancelEpoch() !== epochAtStart) {
+        console.log(
+            `[hydration] clip ${job.clipId}: decode preempted by playback — standing down (no attempt consumed)`
+        );
+        return "busy";
+    }
     return "retry";
 }
 
@@ -210,8 +231,12 @@ async function processQueue() {
 
         const attempt = (job.attempt ?? 0) + 1;
         if (attempt >= MAX_HYDRATION_ATTEMPTS) {
-            // Background analysis has given up: mark the clip so the launch backfill stops
-            // re-enqueuing it every session. This CONVERGES the terminal cases — a file past
+            console.warn(
+                `[hydration] clip ${job.clipId}: giving up after ${attempt} genuine failures — marking detailedWaveformUnavailable`
+            );
+            // Background analysis has given up for THIS session (exhaustedClipIds caps
+            // in-session retries; the launch backfill retries fresh next launch, since a
+            // mark can be stamped in error). This CONVERGES the terminal cases — a file past
             // the detailed cap (MAX_DETAILED_AUDIO_ANALYSIS_DURATION_MS) or one whose
             // container gives a duration but won't decode — which would otherwise loop
             // forever. We mark ANY clip that isn't fully hydrated (mirroring the backfill's
@@ -303,9 +328,13 @@ export function enqueueMissingMetadataBackfill(workspaces: Workspace[]): number 
         for (const idea of workspace.ideas) {
             for (const clip of idea.clips) {
                 if (!clip.audioUri) continue;
-                // Background analysis already gave up on this clip — don't re-enqueue it
-                // every launch. An interactive player-open decode remains its heal path.
-                if (clip.detailedWaveformUnavailable) continue;
+                // A prior detailedWaveformUnavailable mark does NOT skip the clip here:
+                // the mark can be stamped wrongly (a session where playback repeatedly
+                // preempted the decode used to burn all attempts), and a launch retry is
+                // the only unattended heal path. The cost is bounded and small — a file
+                // past the detailed-analysis cap short-circuits without decoding, and a
+                // genuinely undecodable file pays MAX_HYDRATION_ATTEMPTS quick failures
+                // per launch (exhaustedClipIds still caps it within a session).
                 const hasDuration = clip.durationMs != null && clip.durationMs > 0;
                 const hasRealWaveform =
                     (clip.waveformPeaks?.length ?? 0) >= MANAGED_WAVEFORM_PEAK_COUNT;

@@ -6,6 +6,7 @@ import { canAddOverdubLayer } from "../../../proGating";
 import { hasProAccess } from "../../../entitlements";
 import { openProUpsell } from "../../common/proUpsell";
 import { MANAGED_WAVEFORM_PEAK_COUNT, loadManagedAudioMetadata, shareAudioFile } from "../../../services/audioStorage";
+import { isForegroundAudioBusy, waitForForegroundAudioIdle } from "../../../services/audioForegroundActivity";
 import { appActions } from "../../../state/actions";
 import { useStore } from "../../../state/useStore";
 import type { ClipVersion } from "../../../types";
@@ -230,18 +231,42 @@ export function usePlayerScreenLifecycle({
     if (!activeWorkspaceId || !playerIdea || !playerClip?.audioUri) return;
     if ((playerClip.waveformPeaks?.length ?? 0) >= MANAGED_WAVEFORM_PEAK_COUNT) return;
     if (hydratedWaveformClipIdsRef.current.has(playerClip.id)) return;
+    // NEVER decode while the player is loading or playing. The native decode shares
+    // the Android MediaCodec pool with the player — running it mid-track starves the
+    // codec and stalls playback ("plays a second then pauses"; same mechanism
+    // useClipWaveform defers for). The old "interactive, even mid-autoplay" mode
+    // paused every freshly imported clip the moment its waveform decode kicked in.
+    // Re-checks on engineOpNonce (load settled → decode a paused open now) and on
+    // isPlayerPlaying (pause/finish → catch the idle window).
+    if (isPlayerPlaying || isForegroundAudioBusy()) return;
 
     hydratedWaveformClipIdsRef.current.add(playerClip.id);
     const clipId = playerClip.id;
+    const audioUri = playerClip.audioUri;
+    const durationMs = playerClip.durationMs;
+    const ideaId = playerIdea.id;
 
-    void loadManagedAudioMetadata(
-      playerClip.audioUri,
-      `${playerIdea.id}-${playerClip.id}`,
-      playerClip.durationMs,
-      // The user just opened this clip: decode now, even mid-autoplay.
-      { decodeMode: "interactive" }
-    )
+    void (async () => {
+      // Wait out any playback that started in the render→effect gap BEFORE entering
+      // the serialized decode queue (waiting inside it would block interactive
+      // decodes — editor opens, stem overlay — behind a background job).
+      await waitForForegroundAudioIdle();
+      if (isForegroundAudioBusy()) {
+        hydratedWaveformClipIdsRef.current.delete(clipId);
+        return;
+      }
+      return loadManagedAudioMetadata(
+        audioUri,
+        `${ideaId}-${clipId}`,
+        durationMs,
+        // Background mode: idle-gated and preempted by a play press (returns a
+        // placeholder → un-claimed below → retried on the next idle window), so a
+        // play that lands mid-decode is never stalled by an uncancellable decode.
+        { decodeMode: "background" }
+      );
+    })()
       .then((metadata) => {
+        if (!metadata) return;
         // Never overwrite the clip's stored peaks with a deterministic placeholder —
         // a skipped/failed decode returns one, and the 256-length result would pass
         // the "already hydrated" guard above forever. Un-claim so a later open retries.
@@ -265,6 +290,11 @@ export function usePlayerScreenLifecycle({
       });
   }, [
     activeWorkspaceId,
+    // Settle/idle signals: engineOpNonce re-runs this after an open completes (a
+    // paused open is briefly "busy" behind beginForegroundAudioLoad while this
+    // effect first fires); isPlayerPlaying re-runs it when playback pauses/ends.
+    engineOpNonce,
+    isPlayerPlaying,
     playerClip?.audioUri,
     playerClip?.durationMs,
     playerClip?.id,
