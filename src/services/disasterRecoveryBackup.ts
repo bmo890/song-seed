@@ -1,6 +1,7 @@
 import * as FileSystem from "expo-file-system/legacy";
 import { File } from "expo-file-system";
-import { createZipArchive, buildTimestampSlug, type ZipArchiveEntry } from "./audioStorage";
+import { buildTimestampSlug } from "./audioStorage";
+import { createZipArchive, type ZipArchiveEntry } from "./zipArchive";
 import { SONG_SEED_ROOT, toRelativeManagedPath } from "./storagePaths";
 import {
     ensureBackupDiskSpace,

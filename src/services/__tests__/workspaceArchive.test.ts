@@ -106,10 +106,13 @@ jest.mock("expo-file-system", () => {
     return { File: MockFile };
 });
 
-// Real zip serialization via fflate so verify/restore exercise actual packages.
 jest.mock("../audioStorage", () => ({
     sanitizeArchiveSegment: (segment: string) => segment.replace(/[^a-zA-Z0-9 _.-]/g, "_"),
     getArchiveFileExtension: (uri: string) => uri.split(".").pop() || "m4a",
+}));
+
+// Real zip serialization via fflate so verify/restore exercise actual packages.
+jest.mock("../zipArchive", () => ({
     createZipArchive: async (
         archiveUri: string,
         entries: Array<{ archiveName: string; data?: string; fileUri?: string; directory?: boolean }>

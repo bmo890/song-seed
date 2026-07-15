@@ -98,7 +98,7 @@ jest.mock("../../../modules/songseed-file-io", () => ({
     deleteContentUri: jest.fn(),
 }));
 
-import { createZipArchive } from "../audioStorage";
+import { createZipArchive } from "../zipArchive";
 import { indexStoredZipArchive, readStoredZipEntryBytes } from "../storedZipArchive";
 import type { BackupOperationProgress } from "../backupOperation";
 

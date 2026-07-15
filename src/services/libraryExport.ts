@@ -15,12 +15,11 @@ import type {
 import { getCollectionScopeIds } from "../utils";
 import {
     buildTimestampSlug,
-    createZipArchive,
     ensureShareDirectory,
     getArchiveFileExtension,
     sanitizeArchiveSegment,
-    type ZipArchiveEntry,
 } from "./audioStorage";
+import { createZipArchive, type ZipArchiveEntry } from "./zipArchive";
 import { SONG_SEED_SHARE_DIR } from "./storagePaths";
 import { cleanupShareTempFile } from "./managedMedia";
 import { saveArchiveToUserLocation } from "./archiveSave";

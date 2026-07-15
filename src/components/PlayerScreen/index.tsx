@@ -595,93 +595,45 @@ export function PlayerScreen({
     },
     [effectiveIsPlaying, navigation, playerClip, playerIdea, practicePitchTransport]
   );
-  const handleRenameStem = useCallback(
-    (stemId: string, title: string) => {
-      if (!playerIdea || !playerClip) return;
-      void appActions.renameClipOverdubStem(playerIdea.id, playerClip.id, stemId, title).catch((error) => {
-        const message = error instanceof Error ? error.message : "Could not rename the layer.";
-        AppAlert.info("Layer update failed", message);
-      });
-    },
-    [playerClip, playerIdea]
-  );
-  const handleChangeStemColor = useCallback(
-    (stemId: string, color: string) => {
-      if (!playerIdea || !playerClip) return;
-      void appActions.setClipOverdubStemColor(playerIdea.id, playerClip.id, stemId, color).catch((error) => {
-        const message = error instanceof Error ? error.message : "Could not update the layer color.";
-        AppAlert.info("Layer update failed", message);
-      });
-    },
-    [playerClip, playerIdea]
-  );
-  const handleAdjustRootGain = useCallback(
-    (deltaDb: number) => {
-      if (!playerIdea || !playerClip) return;
-      void appActions.adjustClipOverdubRootGain(playerIdea.id, playerClip.id, deltaDb).catch((error) => {
-        const message = error instanceof Error ? error.message : "Could not update the root mix gain.";
-        AppAlert.info("Layer update failed", message);
-      });
-    },
-    [playerClip, playerIdea]
-  );
-  const handleToggleRootLowCut = useCallback(() => {
-    if (!playerIdea || !playerClip) return;
-    void appActions.toggleClipOverdubRootLowCut(playerIdea.id, playerClip.id).catch((error) => {
-      const message = error instanceof Error ? error.message : "Could not update the root mix tone.";
-      AppAlert.info("Layer update failed", message);
-    });
+  // Every layer-mix control shares one shape: guard on a loaded clip, fire the action
+  // with (ideaId, clipId, ...args), and surface failures as a "Layer update failed"
+  // alert — preferring the action's own error message over the control-specific fallback.
+  const layerHandlers = useMemo(() => {
+    const wrap =
+      <A extends unknown[]>(
+        action: (ideaId: string, clipId: string, ...args: A) => Promise<unknown>,
+        fallbackMessage: string
+      ) =>
+      (...args: A) => {
+        if (!playerIdea || !playerClip) return;
+        void action(playerIdea.id, playerClip.id, ...args).catch((error) => {
+          const message = error instanceof Error ? error.message : fallbackMessage;
+          AppAlert.info("Layer update failed", message);
+        });
+      };
+    return {
+      renameStem: wrap(appActions.renameClipOverdubStem, "Could not rename the layer."),
+      changeStemColor: wrap(appActions.setClipOverdubStemColor, "Could not update the layer color."),
+      adjustRootGain: wrap(appActions.adjustClipOverdubRootGain, "Could not update the root mix gain."),
+      toggleRootLowCut: wrap(appActions.toggleClipOverdubRootLowCut, "Could not update the root mix tone."),
+      adjustStemGain: wrap(appActions.adjustClipOverdubStemGain, "Could not update the layer gain."),
+      nudgeStem: wrap(appActions.nudgeClipOverdubStem, "Could not adjust the layer timing."),
+      toggleStemMute: wrap(appActions.toggleClipOverdubStemMute, "Could not update the layer mute state."),
+      toggleStemLowCut: wrap(appActions.toggleClipOverdubStemLowCut, "Could not update the layer tone."),
+      removeStem: wrap(appActions.removeClipOverdubStem, "Could not remove the layer."),
+    };
   }, [playerClip, playerIdea]);
-  const handleAdjustStemGain = useCallback(
-    (stemId: string, deltaDb: number) => {
-      if (!playerIdea || !playerClip) return;
-      void appActions.adjustClipOverdubStemGain(playerIdea.id, playerClip.id, stemId, deltaDb).catch((error) => {
-        const message = error instanceof Error ? error.message : "Could not update the layer gain.";
-        AppAlert.info("Layer update failed", message);
-      });
-    },
-    [playerClip, playerIdea]
-  );
-  const handleNudgeStem = useCallback(
-    (stemId: string, deltaMs: number) => {
-      if (!playerIdea || !playerClip) return;
-      void appActions.nudgeClipOverdubStem(playerIdea.id, playerClip.id, stemId, deltaMs).catch((error) => {
-        const message = error instanceof Error ? error.message : "Could not adjust the layer timing.";
-        AppAlert.info("Layer update failed", message);
-      });
-    },
-    [playerClip, playerIdea]
-  );
-  const handleToggleStemMute = useCallback(
-    (stemId: string) => {
-      if (!playerIdea || !playerClip) return;
-      void appActions.toggleClipOverdubStemMute(playerIdea.id, playerClip.id, stemId).catch((error) => {
-        const message = error instanceof Error ? error.message : "Could not update the layer mute state.";
-        AppAlert.info("Layer update failed", message);
-      });
-    },
-    [playerClip, playerIdea]
-  );
-  const handleToggleStemLowCut = useCallback(
-    (stemId: string) => {
-      if (!playerIdea || !playerClip) return;
-      void appActions.toggleClipOverdubStemLowCut(playerIdea.id, playerClip.id, stemId).catch((error) => {
-        const message = error instanceof Error ? error.message : "Could not update the layer tone.";
-        AppAlert.info("Layer update failed", message);
-      });
-    },
-    [playerClip, playerIdea]
-  );
-  const handleRemoveStem = useCallback(
-    (stemId: string) => {
-      if (!playerIdea || !playerClip) return;
-      void appActions.removeClipOverdubStem(playerIdea.id, playerClip.id, stemId).catch((error) => {
-        const message = error instanceof Error ? error.message : "Could not remove the layer.";
-        AppAlert.info("Layer update failed", message);
-      });
-    },
-    [playerClip, playerIdea]
-  );
+  const {
+    renameStem: handleRenameStem,
+    changeStemColor: handleChangeStemColor,
+    adjustRootGain: handleAdjustRootGain,
+    toggleRootLowCut: handleToggleRootLowCut,
+    adjustStemGain: handleAdjustStemGain,
+    nudgeStem: handleNudgeStem,
+    toggleStemMute: handleToggleStemMute,
+    toggleStemLowCut: handleToggleStemLowCut,
+    removeStem: handleRemoveStem,
+  } = layerHandlers;
 
   if (!playerIdea || !playerClip) {
     // The clip can vanish mid-collapse (an audition ends → queue clears while the

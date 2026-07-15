@@ -10,11 +10,10 @@ import {
 import { normalizeWorkspaces } from "../state/dataSlice";
 import { collectClipAudioUris } from "./managedMedia";
 import {
-    createZipArchive,
     getArchiveFileExtension,
     sanitizeArchiveSegment,
-    type ZipArchiveEntry,
 } from "./audioStorage";
+import { createZipArchive, type ZipArchiveEntry } from "./zipArchive";
 import {
     SONG_SEED_WORKSPACE_ARCHIVE_DIR,
     isSongSeedManagedUri,

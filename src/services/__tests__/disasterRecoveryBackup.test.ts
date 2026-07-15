@@ -112,6 +112,9 @@ jest.mock("expo-crypto", () => ({
 
 jest.mock("../audioStorage", () => ({
     buildTimestampSlug: () => "20260623-1200",
+}));
+
+jest.mock("../zipArchive", () => ({
     createZipArchive: (...args: [string, unknown[], unknown?]) => mockCreateZipArchive(...args),
 }));
 

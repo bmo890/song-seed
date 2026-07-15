@@ -106,14 +106,17 @@ jest.mock("expo-file-system", () => {
     return { File: MockFile };
 });
 
-// Real zip build/read so the round-trip exercises actual serialization; the other helpers are
-// deterministic stand-ins. Factory is self-contained (jest hoists it above imports).
 jest.mock("../audioStorage", () => ({
     MANAGED_WAVEFORM_PEAK_COUNT: 256,
     buildTimestampSlug: () => "20260101-0000",
     sanitizeArchiveSegment: (segment: string) => segment.replace(/[^a-zA-Z0-9 _.-]/g, "_"),
     getArchiveFileExtension: (uri: string) => uri.split(".").pop() || "m4a",
     ensureShareDirectory: async () => {},
+}));
+
+// Real zip build/read so the round-trip exercises actual serialization; the other helpers are
+// deterministic stand-ins. Factory is self-contained (jest hoists it above imports).
+jest.mock("../zipArchive", () => ({
     createZipArchive: async (
         archiveUri: string,
         entries: Array<{ archiveName: string; data?: string; fileUri?: string; directory?: boolean }>
