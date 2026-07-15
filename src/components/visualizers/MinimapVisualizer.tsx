@@ -5,6 +5,7 @@ import Animated, { useAnimatedStyle, SharedValue, useDerivedValue, runOnJS, useS
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import type { PracticeMarker } from "../../types";
 import type { SectionBand } from "../../playerSections";
+import { colors } from "../../design/tokens";
 
 type Props = {
     waveformPeaks: number[];
@@ -315,11 +316,13 @@ const styles = StyleSheet.create({
         position: "relative",
     },
     playhead: {
+        // Callers override this with the theme's playhead colour; the token keeps the
+        // fallback on-brand instead of a stock red.
         position: "absolute",
         top: 0,
         bottom: 0,
         width: 1,
-        backgroundColor: "#ef4444",
+        backgroundColor: colors.playhead,
     },
     windowOverlay: {
         position: "absolute",

@@ -47,10 +47,17 @@ export const colors = {
   // not destructive, and from `playhead` which marks position rather than capture.
   record:   "#C0453B",
   onRecord: "#FFFFFF",
+  /** Blush behind record-state chrome (the recording dock's surface, its pause pill).
+   *  Warm — the old #fff1f2/#fff7f7 were cold pinks that fought the paper. */
+  recordSurface: "#FCF2F0",
+  /** Hairline for record-state chrome — the warm companion to the old #fecaca. */
+  recordBorder:  "#EBD3CE",
 
   // Destructive — warm brick red (delete/remove actions, destructive dialog buttons)
   danger:   "#A8443A",
   onDanger: "#FFFFFF",
+  /** Blush behind destructive chrome (danger buttons, "unavailable" pills). */
+  dangerSurface: "#FBEFEC",
 
   // Technical lines (graph paper feel)
   borderSubtle: "#E8E4DF",

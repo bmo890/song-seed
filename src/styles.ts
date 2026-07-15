@@ -4105,7 +4105,7 @@ export const styles = StyleSheet.create({
   },
   libraryPlaylistItemUnavailablePill: {
     borderRadius: 999,
-    backgroundColor: "#fef2f2",
+    backgroundColor: colors.dangerSurface,
     paddingHorizontal: 8,
     paddingVertical: 4,
   },
@@ -4618,9 +4618,9 @@ export const styles = StyleSheet.create({
   // Recording tint variant — keeps its own light red surface + hairline (the
   // terracotta inversion is playback-only).
   miniMediaDockSurfaceRecording: {
-    backgroundColor: "#fff7f7",
+    backgroundColor: colors.recordSurface,
     borderTopWidth: 1,
-    borderTopColor: "#fecaca",
+    borderTopColor: colors.recordBorder,
     paddingTop: 10,
   },
   // Inner content wrapper — dims as a unit for preview state (recording dock)
@@ -4745,7 +4745,7 @@ export const styles = StyleSheet.create({
     width: 7,
     height: 7,
     borderRadius: 3.5,
-    backgroundColor: "#dc2626",
+    backgroundColor: colors.record,
   },
   miniMediaDockRecordingDotPaused: {
     backgroundColor: "#a89994",
@@ -4753,7 +4753,7 @@ export const styles = StyleSheet.create({
   miniMediaDockRecordingBadgeText: {
     fontSize: 11,
     lineHeight: 14,
-    color: "#991b1b",
+    color: colors.record,
     fontFamily: "PlusJakartaSans_700Bold",
     letterSpacing: 0.2,
     textTransform: "uppercase",
@@ -4767,7 +4767,7 @@ export const styles = StyleSheet.create({
   miniMediaDockRecordingMeta: {
     fontSize: 12,
     lineHeight: 16,
-    color: "#7f1d1d",
+    color: colors.record,
   },
   // Recording transport: pause + stop
   miniMediaDockRecordingActions: {
@@ -4781,14 +4781,14 @@ export const styles = StyleSheet.create({
     height: 40,
     borderRadius: radii.round,
     borderWidth: 1,
-    borderColor: "#fecaca",
-    backgroundColor: "#fff1f2",
+    borderColor: colors.recordBorder,
+    backgroundColor: colors.recordSurface,
     alignItems: "center",
     justifyContent: "center",
   },
   miniMediaDockRecordingStopBtn: {
-    borderColor: "#d92d20",
-    backgroundColor: "#d92d20",
+    borderColor: colors.record,
+    backgroundColor: colors.record,
   },
   miniMediaDockRecordingFooter: {
     flexDirection: "row",
@@ -4798,7 +4798,7 @@ export const styles = StyleSheet.create({
   miniMediaDockRecordingTime: {
     fontSize: 18,
     lineHeight: 22,
-    color: "#991b1b",
+    color: colors.record,
     fontFamily: "PlusJakartaSans_700Bold",
     fontVariant: ["tabular-nums"],
     letterSpacing: -0.3,
@@ -4806,7 +4806,7 @@ export const styles = StyleSheet.create({
   miniMediaDockHintText: {
     fontSize: 11,
     lineHeight: 14,
-    color: "#7f1d1d",
+    color: colors.record,
     fontFamily: "PlusJakartaSans_600SemiBold",
   },
   ideasFabMenu: {
@@ -5168,9 +5168,9 @@ export const styles = StyleSheet.create({
     borderRadius: radii.round,
     paddingHorizontal: 12,
     paddingVertical: 6,
-    backgroundColor: "#fef2f2",
+    backgroundColor: colors.dangerSurface,
     borderWidth: 1,
-    borderColor: "#fecaca",
+    borderColor: colors.borderMuted,
   },
   ideasSelectionActionDangerText: {
     fontSize: 12,
@@ -5179,8 +5179,8 @@ export const styles = StyleSheet.create({
   },
   dangerBtn: {
     borderWidth: 1,
-    borderColor: "#ef4444",
-    backgroundColor: "#fee2e2",
+    borderColor: colors.danger,
+    backgroundColor: colors.dangerSurface,
     borderRadius: 8,
     minHeight: 34,
     paddingHorizontal: 12,
@@ -5875,7 +5875,7 @@ export const styles = StyleSheet.create({
     top: -62,
     width: 2,
     height: 66,
-    backgroundColor: "#ef4444",
+    backgroundColor: colors.playhead,
     marginLeft: -1,
   },
 
@@ -5925,8 +5925,8 @@ export const styles = StyleSheet.create({
     gap: 10,
   },
   collectionActionsOptionDestructive: {
-    borderColor: "#fecaca",
-    backgroundColor: "#fff5f5",
+    borderColor: colors.borderMuted,
+    backgroundColor: colors.dangerSurface,
   },
   collectionActionsOptionLead: {
     flexDirection: "row",

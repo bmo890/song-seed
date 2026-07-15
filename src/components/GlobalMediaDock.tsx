@@ -11,6 +11,7 @@ import { useFullPlayerControls } from "../hooks/FullPlayerProvider";
 import { usePlayerSheetPosition } from "../hooks/PlayerSheetPositionProvider";
 import { useStore } from "../state/useStore";
 import { styles } from "../styles";
+import { colors } from "../design/tokens";
 import { fmtDuration, getCollectionById } from "../utils";
 import { haptic } from "../design/haptics";
 
@@ -279,7 +280,7 @@ export function GlobalMediaDock({
                   <Ionicons
                     name={recorder.isPaused ? "mic" : "pause"}
                     size={18}
-                    color="#7f1d1d"
+                    color={colors.record}
                   />
                 </Pressable>
 

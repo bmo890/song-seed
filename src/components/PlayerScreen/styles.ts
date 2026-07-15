@@ -1547,7 +1547,7 @@ export const playerScreenStyles = StyleSheet.create({
     backgroundColor: "#f3f4f6",
   },
   pinSheetButtonDanger: {
-    backgroundColor: "#dc2626",
+    backgroundColor: colors.danger,
     flexDirection: "row",
     justifyContent: "center",
   },
