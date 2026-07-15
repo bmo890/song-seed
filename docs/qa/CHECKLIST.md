@@ -8,6 +8,12 @@ with systematic, repeatable coverage — especially after code changes.
 Read this order: skim the section files for your area, then check each flow. Every flow row
 has an **Expected result** (what MUST happen) and an **automation designation**.
 
+> **Just want to test on your phone?** Use [`MANUAL-CHECKLIST.md`](MANUAL-CHECKLIST.md) — a
+> concise, tick-the-box iOS + Android walkthrough of everything the automated suites cover
+> plus every human-only check. This master index is the exhaustive reference; the manual
+> checklist is the practical run-through. Automation status lives in
+> [`RUN-LOG.md`](RUN-LOG.md).
+
 ## Automation designations
 
 | Tag | Meaning | Who runs it |

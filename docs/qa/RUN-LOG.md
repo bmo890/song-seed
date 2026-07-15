@@ -5,6 +5,10 @@ Simulator** (iPhone 17), so you can see coverage at a glance. This is the "what 
 actually driven and confirmed" log — distinct from `CHECKLIST.md` (the full inventory of
 what *should* be tested) and the `flows/*.md` section files.
 
+👉 **For hands-on device testing, use [`MANUAL-CHECKLIST.md`](MANUAL-CHECKLIST.md)** — a
+tick-the-box, iOS + Android walkthrough that mirrors every automated flow (tagged **[AUTO]**)
+and adds every **[HUMAN]**-only check (mic, Bluetooth, interruptions, system sheets, haptics).
+
 Legend: ✅ automated + passing · 🟡 partially automated (UI verified, sensory truth is HUMAN)
 · 🔒 blocked (needs seed data / device) · ▶️ encoded flow file.
 
