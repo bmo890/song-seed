@@ -1,0 +1,140 @@
+# Copy a clip to another collection via the clipboard/paste model. Copy puts the
+# clip on a clipboard ("Copy ready"); navigating to a second collection surfaces a
+# "Paste items here" affordance that completes the copy. Verifies cross-collection
+# organization. Creates + deletes a throwaway "Maestro Dest" collection, so it's
+# self-cleaning. Requires scripts/push-dev-samples.sh.
+appId: com.bmostudio.songseed.dev
+---
+- launchApp:
+    stopApp: true
+- runFlow:
+    when:
+      visible: ".*Back up your library.*"
+    commands:
+      - tapOn: "Later"
+- runFlow: ../subflows/dismiss-logbox.yaml
+# Create the destination collection.
+- tapOn:
+    id: "header-menu"
+- waitForAnimationToEnd
+- tapOn: ".*Collections,.*"
+- extendedWaitUntil:
+    visible: ".*ACTIVE COLLECTIONS.*"
+    timeout: 10000
+- runFlow: ../subflows/dismiss-logbox.yaml
+- tapOn:
+    id: "workspace-add-collection"
+- extendedWaitUntil:
+    visible: "New Collection"
+    timeout: 10000
+- tapOn:
+    id: "quickname-input"
+- inputText: "Maestro Dest"
+- tapOn:
+    id: "quickname-save"
+- extendedWaitUntil:
+    visible:
+      id: "fab-record"
+    timeout: 10000
+# Go to Ideas (via browse), import, and copy a clip to the clipboard.
+- tapOn:
+    id: "header-menu"
+- waitForAnimationToEnd
+- tapOn: ".*Collections,.*"
+- extendedWaitUntil:
+    visible: ".*ACTIVE COLLECTIONS.*"
+    timeout: 10000
+- tapOn:
+    id: "collection-card-ideas"
+- extendedWaitUntil:
+    visible:
+      id: "fab-record"
+    timeout: 10000
+- runFlow: reset-clips.yaml
+- runFlow: ../subflows/dismiss-logbox.yaml
+- tapOn:
+    id: "fab-create"
+- waitForAnimationToEnd
+- tapOn:
+    id: "fab-menu-devsamples"
+- extendedWaitUntil:
+    visible: ".*sample-01.*"
+    timeout: 20000
+- longPressOn: ".*sample-01.*"
+- extendedWaitUntil:
+    visible: ".*More"
+    timeout: 5000
+- tapOn: ".*More"
+- extendedWaitUntil:
+    visible: ".*Copy,.*"
+    timeout: 5000
+- tapOn: ".*Copy,.*"
+- extendedWaitUntil:
+    visible: ".*Copy ready.*"
+    timeout: 5000
+- tapOn: "OK"
+# Navigate to Maestro Dest and paste.
+- tapOn:
+    id: "header-menu"
+- waitForAnimationToEnd
+- tapOn: ".*Collections,.*"
+- extendedWaitUntil:
+    visible: ".*ACTIVE COLLECTIONS.*"
+    timeout: 10000
+- tapOn:
+    id: "collection-card-maestro-dest"
+- extendedWaitUntil:
+    visible:
+      id: "fab-record"
+    timeout: 10000
+- runFlow: ../subflows/dismiss-logbox.yaml
+- extendedWaitUntil:
+    visible: ".*Paste to collection.*"
+    timeout: 10000
+- tapOn: ".*Paste to collection.*"
+# Confirm the paste.
+- extendedWaitUntil:
+    visible: ".*Copy items here.*"
+    timeout: 5000
+- tapOn: "Yes"
+# The copied clip now appears in Maestro Dest.
+- extendedWaitUntil:
+    visible: ".*sample-01.*"
+    timeout: 10000
+# Clean up: clear Ideas clips, then delete the Maestro Dest collection (with its copy).
+- tapOn:
+    id: "header-menu"
+- waitForAnimationToEnd
+- tapOn: ".*Collections,.*"
+- extendedWaitUntil:
+    visible: ".*ACTIVE COLLECTIONS.*"
+    timeout: 10000
+- tapOn:
+    id: "collection-card-ideas"
+- extendedWaitUntil:
+    visible:
+      id: "fab-record"
+    timeout: 10000
+- runFlow: reset-clips.yaml
+# Delete the Maestro Dest collection from browse.
+- tapOn:
+    id: "header-menu"
+- waitForAnimationToEnd
+- tapOn: ".*Collections,.*"
+- extendedWaitUntil:
+    visible: ".*ACTIVE COLLECTIONS.*"
+    timeout: 10000
+- longPressOn:
+    id: "collection-card-maestro-dest"
+- extendedWaitUntil:
+    visible: ".*Delete"
+    timeout: 5000
+- tapOn: ".*Delete"
+- extendedWaitUntil:
+    visible: ".*Delete.*collection.*|.*Delete selected.*|.*Delete.*Maestro.*"
+    timeout: 5000
+- tapOn:
+    id: "dialog-btn-delete"
+- extendedWaitUntil:
+    notVisible: ".*Maestro Dest.*"
+    timeout: 8000

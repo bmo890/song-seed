@@ -69,12 +69,19 @@ and deletes what it created (self-cleaning).
 | clip-06-song-project | import as ONE song (idea + N clips) via "Import as song (dev)" → song detail opens | ✅ self-cleaning |
 | clip-07-duplicate-review | re-import same files → "ALREADY IN YOUR LIBRARY" review → Skip → count stays 6 (dedup) | ✅ self-cleaning |
 | clip-08-play-all | collection ⋯ → "Play all" → queue player auto-plays back-to-back → stop | ✅ self-cleaning |
+| clip-09-editor-cut | editor → add region → Cut mode → Save trimmed clip → Save Splice → shorter clip | ✅ self-cleaning |
+| clip-10-copy-paste | copy a clip → "Copy ready" → new collection → "Paste to collection" → confirm → clip in dest | ✅ self-cleaning |
 
 (`reset-clips.yaml` is a guarded-clear helper referenced by the flows; it runs as a harmless
 no-op if invoked directly.)
 
 Still HUMAN here: **overdub recording** (the "Add overdub" flow navigates to the recorder,
 which needs a real mic), Bluetooth/interruption during playback, and audio *quality* truths.
+
+⚠️ **Observation (worth a look):** deleting a workspace's *last/only* collection leaves the
+collection screen on a "This collection could not be found." dead-end (seen when all
+collections were removed). Consider redirecting to the browse screen / empty state instead,
+and/or preventing deletion of the final collection. Not yet ticketed.
 
 ## Reusable subflows (`.maestro/subflows/`)
 
