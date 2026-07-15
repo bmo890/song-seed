@@ -278,12 +278,14 @@ elements present; "action works" = the interaction produced the expected state c
   polluted active-workspace breaks the next flow's `open-library` (expects My Songs / Ideas).
   In-suite this is fine (flow 01 clearState resets), but standalone re-runs need a reset first.
 
-## Coverage snapshot (19 main flows + 6 clip flows = 25 automated)
+## Coverage snapshot (19 main flows + 10 clip flows = 29 automated)
 
 Main suite (`.maestro/flows/`, 18/18 + back-nav) and clip suite (`.maestro/clip-flows/`,
-6 tests) are both fully green. The clip suite unlocked the audio half — import (individual +
-song-project), player transport with real audio, waveform editor (mount, add region,
-extract), clip rename/notes, and player marker/waveform controls.
+**10 tests, full-run 10/10 green in ~10 min**) are both fully green and self-cleaning. The clip
+suite covers the audio half: import (individual + song-project + duplicate-review dedup),
+player transport with real audio + queue "Play all", the waveform editor (mount, add region,
+Extract, Cut/trim), clip rename/notes, player marker/waveform controls, and copy→paste across
+collections.
 
 Green & automated: first-run, drawer nav (×2 flows), paywall, recording-screen UI, full song
 lifecycle, all drawer destinations, tuner, lyrics-pad, settings nav + deeper library views,
