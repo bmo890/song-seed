@@ -3,6 +3,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { SurfaceCard } from "../../common/SurfaceCard";
 import type { CollectionSearchMatchKind } from "../../../libraryNavigation";
 import type { Collection } from "../../../types";
+import { formatLastEdited } from "../../../utils";
 
 type WorkspaceCollectionCardProps = {
   entry: {
@@ -18,15 +19,6 @@ type WorkspaceCollectionCardProps = {
   onPress: () => void;
   onLongPress: () => void;
 };
-
-function formatLastEdited(ts: number): string {
-  const days = Math.floor((Date.now() - ts) / 86400000);
-  if (days === 0) return "Edited today";
-  if (days === 1) return "Edited yesterday";
-  if (days < 7) return `Edited ${days} days ago`;
-  if (days < 14) return "Edited last week";
-  return `Edited ${new Date(ts).toLocaleDateString("en-US", { month: "short", day: "numeric" })}`;
-}
 
 function getMatchLabel(kind: CollectionSearchMatchKind): string {
   switch (kind) {

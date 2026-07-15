@@ -12,15 +12,7 @@ import { useCollectionScreen } from "../provider/CollectionScreenProvider";
 import { appActions } from "../../../state/actions";
 import { useStore } from "../../../state/useStore";
 import { radii, colors } from "../../../design/tokens";
-
-function formatLastEdited(ts: number): string {
-  const days = Math.floor((Date.now() - ts) / 86400000);
-  if (days === 0) return "Edited today";
-  if (days === 1) return "Edited yesterday";
-  if (days < 7) return `Edited ${days} days ago`;
-  if (days < 14) return "Edited last week";
-  return `Edited ${new Date(ts).toLocaleDateString("en-US", { month: "short", day: "numeric" })}`;
-}
+import { formatLastEdited } from "../../../utils";
 
 /**
  * Fixed nav row: back/hamburger, compact workspace identity (fades in as the

@@ -22,7 +22,7 @@ import { buildChordDisplay, clampChordIndex, recordChordInPalette, type ChordPar
 import type { ChordPlacement, ChordSheet, LyricsDocument, LyricsLine, RecordingGrid } from "../types";
 import { applyClipMetadataBatch, type ClipMetadataEntry } from "./clipMetadataBatch";
 import { buildLyricsTextFromNote } from "../notepad";
-import { buildDefaultIdeaTitle, ensureUniqueCountedTitle, ensureUniqueIdeaTitle } from "../utils";
+import { buildDefaultIdeaTitle, ensureUniqueCountedTitle, ensureUniqueIdeaTitle, genId } from "../utils";
 import { archiveWorkspaceToDevice, restoreWorkspaceFromDevice } from "../services/workspaceArchive";
 import { saveArchiveToUserLocation } from "../services/archiveSave";
 import type { ParsedSongSeedArchive } from "../services/libraryImport";
@@ -60,37 +60,13 @@ import { authorizeIntentionalEmptyStateWrite } from "../services/stateIntegrity"
 import { relocateActivityEvents, relocatePlaylists } from "./relocationMetadata";
 import { SONG_SEED_PREVIEW_AUDIO_DIR } from "../services/storagePaths";
 
-function buildEntityId(prefix: string) {
-    return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-}
-
-function buildIdeaId() {
-    return buildEntityId("idea");
-}
-
-function buildClipId() {
-    return buildEntityId("clip");
-}
-
-function buildCollectionId() {
-    return buildEntityId("col");
-}
-
-function buildLyricsVersionId() {
-    return buildEntityId("lyrics-version");
-}
-
-function buildLyricsLineId() {
-    return buildEntityId("line");
-}
-
-function buildChordPlacementId() {
-    return buildEntityId("chord");
-}
-
-function buildChordPaletteId() {
-    return buildEntityId("palette-chord");
-}
+const buildIdeaId = () => genId("idea");
+const buildClipId = () => genId("clip");
+const buildCollectionId = () => genId("col");
+const buildLyricsVersionId = () => genId("lyrics-version");
+const buildLyricsLineId = () => genId("line");
+const buildChordPlacementId = () => genId("chord");
+const buildChordPaletteId = () => genId("palette-chord");
 
 /** Applies `updater` to a single lyric line within a single version of a project
  * idea, bumping the version's updatedAt. Returns the idea unchanged if anything
@@ -173,6 +149,17 @@ function findWorkspaceIdeaClip(
         return { workspace, idea, clip };
     }
     return null;
+}
+
+/** Shared preamble of every overdub-stem action: resolve the target stem or throw. */
+function resolveOverdubStem(ideaId: string, clipId: string, stemId: string) {
+    const state = useStore.getState();
+    const match = findWorkspaceIdeaClip(state.workspaces, ideaId, clipId);
+    const stem = match?.clip.overdub?.stems.find((candidate) => candidate.id === stemId) ?? null;
+    if (!match || !stem) {
+        throw new Error("Overdub stem not found.");
+    }
+    return { state, match, stem };
 }
 
 type ImportedOverdubMix = {
@@ -1380,12 +1367,7 @@ export const appActions = {
     },
 
     adjustClipOverdubStemGain: async (ideaId: string, clipId: string, stemId: string, deltaDb: number) => {
-        const state = useStore.getState();
-        const match = findWorkspaceIdeaClip(state.workspaces, ideaId, clipId);
-        const stem = match?.clip.overdub?.stems.find((candidate) => candidate.id === stemId) ?? null;
-        if (!match || !stem) {
-            throw new Error("Overdub stem not found.");
-        }
+        const { state, match, stem } = resolveOverdubStem(ideaId, clipId, stemId);
 
         const nextGainDb = clampOverdubGainDb(stem.gainDb + deltaDb);
         if (nextGainDb === stem.gainDb) {
@@ -1398,12 +1380,7 @@ export const appActions = {
     },
 
     nudgeClipOverdubStem: async (ideaId: string, clipId: string, stemId: string, deltaMs: number) => {
-        const state = useStore.getState();
-        const match = findWorkspaceIdeaClip(state.workspaces, ideaId, clipId);
-        const stem = match?.clip.overdub?.stems.find((candidate) => candidate.id === stemId) ?? null;
-        if (!match || !stem) {
-            throw new Error("Overdub stem not found.");
-        }
+        const { state, match, stem } = resolveOverdubStem(ideaId, clipId, stemId);
 
         const nextOffsetMs = clampClipOverdubStemOffsetMs(
             stem.offsetMs + deltaMs,
@@ -1424,12 +1401,7 @@ export const appActions = {
         if (!nextTitle) {
             return;
         }
-        const state = useStore.getState();
-        const match = findWorkspaceIdeaClip(state.workspaces, ideaId, clipId);
-        const stem = match?.clip.overdub?.stems.find((candidate) => candidate.id === stemId) ?? null;
-        if (!match || !stem) {
-            throw new Error("Overdub stem not found.");
-        }
+        const { state, stem } = resolveOverdubStem(ideaId, clipId, stemId);
         if (nextTitle === stem.title) {
             return;
         }
@@ -1438,35 +1410,20 @@ export const appActions = {
     },
 
     setClipOverdubStemColor: async (ideaId: string, clipId: string, stemId: string, color: string) => {
-        const state = useStore.getState();
-        const match = findWorkspaceIdeaClip(state.workspaces, ideaId, clipId);
-        const stem = match?.clip.overdub?.stems.find((candidate) => candidate.id === stemId) ?? null;
-        if (!match || !stem) {
-            throw new Error("Overdub stem not found.");
-        }
+        const { state } = resolveOverdubStem(ideaId, clipId, stemId);
         // Cosmetic only — the rendered mix is unaffected, so no re-render is scheduled.
         state.updateClipOverdubStem(ideaId, clipId, stemId, { color });
     },
 
     toggleClipOverdubStemMute: async (ideaId: string, clipId: string, stemId: string) => {
-        const state = useStore.getState();
-        const match = findWorkspaceIdeaClip(state.workspaces, ideaId, clipId);
-        const stem = match?.clip.overdub?.stems.find((candidate) => candidate.id === stemId) ?? null;
-        if (!match || !stem) {
-            throw new Error("Overdub stem not found.");
-        }
+        const { state, stem } = resolveOverdubStem(ideaId, clipId, stemId);
 
         state.updateClipOverdubStem(ideaId, clipId, stemId, { isMuted: !stem.isMuted });
         await scheduleClipOverdubRerender(ideaId, clipId, { force: true });
     },
 
     toggleClipOverdubStemLowCut: async (ideaId: string, clipId: string, stemId: string) => {
-        const state = useStore.getState();
-        const match = findWorkspaceIdeaClip(state.workspaces, ideaId, clipId);
-        const stem = match?.clip.overdub?.stems.find((candidate) => candidate.id === stemId) ?? null;
-        if (!match || !stem) {
-            throw new Error("Overdub stem not found.");
-        }
+        const { state, stem } = resolveOverdubStem(ideaId, clipId, stemId);
 
         state.updateClipOverdubStem(ideaId, clipId, stemId, {
             tonePreset: toggleLowCutTonePreset(stem.tonePreset),
@@ -1475,12 +1432,7 @@ export const appActions = {
     },
 
     removeClipOverdubStem: async (ideaId: string, clipId: string, stemId: string) => {
-        const state = useStore.getState();
-        const match = findWorkspaceIdeaClip(state.workspaces, ideaId, clipId);
-        const stem = match?.clip.overdub?.stems.find((candidate) => candidate.id === stemId) ?? null;
-        if (!match || !stem) {
-            throw new Error("Overdub stem not found.");
-        }
+        const { state, stem } = resolveOverdubStem(ideaId, clipId, stemId);
 
         state.removeClipOverdubStem(ideaId, clipId, stemId);
         if (stem.audioUri) {
@@ -3067,7 +3019,7 @@ export const appActions = {
             if (activeWs) {
                 let recoveredCollection = activeWs.collections.find((c) => c.title === "Recovered");
                 if (!recoveredCollection) {
-                    const collectionId = buildEntityId("collection");
+                    const collectionId = genId("collection");
                     const now = Date.now();
                     recoveredCollection = {
                         id: collectionId,

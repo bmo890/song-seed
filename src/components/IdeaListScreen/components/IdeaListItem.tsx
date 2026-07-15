@@ -5,12 +5,12 @@ import { Ionicons } from "@expo/vector-icons";
 import { styles } from "../../../styles";
 import { MiniProgress } from "../../MiniProgress";
 import { SongIdea, ClipVersion, InlinePlayerControls } from "../../../types";
-import { fmtDuration, formatClipDate } from "../../../utils";
+import { formatClipDate } from "../../../utils";
 import { getDateBucket, getDateBucketLabel } from "../../../dateBuckets";
 import { useNavigation } from "@react-navigation/native";
 import { getIdeaCreatedAt, getIdeaUpdatedAt, type IdeaSortMetric } from "../../../ideaSort";
 import { getHierarchyIconName } from "../../../hierarchy";
-import { getPlayableClipForIdea } from "../../../clipPresentation";
+import { buildIdeaListItemMeta } from "../ideaListItemMeta";
 import type { IdeaListItemMeta } from "../types";
 
 import { useStore } from "../../../state/useStore";
@@ -54,46 +54,6 @@ function IdeaListInlineProgress({
         </ReAnimated.View>
     );
 }
-
-const formatIdeaTimestamp = (timestamp: number) => {
-    const dateValue = new Date(timestamp);
-    const date = dateValue.toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-    });
-    const time = dateValue.toLocaleTimeString("en-US", {
-        hour: "numeric",
-        minute: "2-digit",
-    });
-    return `${date} • ${time}`;
-};
-
-const buildFallbackIdeaListItemMeta = (idea: SongIdea): IdeaListItemMeta => {
-    const primaryClip = idea.clips.find((clip) => clip.isPrimary) ?? null;
-    const playClip = getPlayableClipForIdea(idea) ?? null;
-    const hasProjectLyrics =
-        idea.kind === "project" &&
-        (idea.lyrics?.versions ?? []).some((version) =>
-            version.document.lines.some((line) => line.text.trim().length > 0 || line.chords.length > 0)
-        );
-    const hasProjectClipCount = idea.kind === "project" && idea.clips.length > 0;
-    const projectProgressPct =
-        idea.kind === "project" ? Math.max(0, Math.min(100, Math.round(idea.completionPct))) : null;
-
-    return {
-        playClip,
-        clipDurationLabel: playClip?.durationMs ? fmtDuration(playClip.durationMs) : "0:00",
-        projectPrimaryDurationLabel: primaryClip?.durationMs ? fmtDuration(primaryClip.durationMs) : "0:00",
-        projectClipCount: idea.kind === "project" ? idea.clips.length : 0,
-        hasProjectLyrics,
-        hasProjectClipCount,
-        hasExpandedProjectIndicators: idea.kind === "project" && (hasProjectLyrics || hasProjectClipCount),
-        createdAtLabel: formatIdeaTimestamp(getIdeaCreatedAt(idea)),
-        updatedAtLabel: formatIdeaTimestamp(getIdeaUpdatedAt(idea)),
-        projectProgressPct,
-    };
-};
 
 type IdeaListItemProps = {
     item: SongIdea;
@@ -148,7 +108,7 @@ function IdeaListItemInner({
     const navigateRoot = (route: string, params?: object) =>
         (rootNavigation ?? navigation).navigate(route as never, params as never);
 
-    const fallbackMeta = itemMeta ?? buildFallbackIdeaListItemMeta(item);
+    const fallbackMeta = itemMeta ?? buildIdeaListItemMeta(item);
     const {
         playClip,
         clipDurationLabel,

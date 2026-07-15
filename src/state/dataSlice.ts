@@ -47,7 +47,7 @@ import { createWordLadderExercise } from "../wordLadder";
 import { createCutUpSpark } from "../cutUp";
 import { createMagpieSpark } from "../magpie";
 import { sanitizeChordSheet } from "../chordSheet";
-import { genChildClipTitle, genRootClipTitle } from "../utils";
+import { genChildClipTitle, genId, genRootClipTitle } from "../utils";
 import { buildClipGraph } from "../clipGraph";
 import type { SelectionSlice } from "./selectionSlice";
 import type { RecordingSlice } from "./recordingSlice";
@@ -285,9 +285,7 @@ const DEFAULT_COLLECTION_TITLE = "Inbox";
 // recording/import/edit and is re-serialized on every library persist.
 const MAX_ACTIVITY_EVENTS = 2000;
 
-function buildCollectionId(prefix = "col") {
-    return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-}
+const buildCollectionId = () => genId("col");
 
 function normalizeClipOverdubRootSettings(root?: ClipOverdubRootSettings | null): ClipOverdubRootSettings {
     const tonePreset =
@@ -304,33 +302,13 @@ function normalizeClipOverdubRootSettings(root?: ClipOverdubRootSettings | null)
     };
 }
 
-function buildActivityEventId() {
-    return `activity-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-}
-
-function buildPlaylistId() {
-    return `playlist-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-}
-
-function buildPlaylistItemId() {
-    return `playlist-item-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-}
-
-function buildSongbookId() {
-    return `songbook-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-}
-
-function buildSongbookItemId() {
-    return `songbook-item-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-}
-
-function buildSetlistId() {
-    return `setlist-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-}
-
-function buildSetlistEntryId() {
-    return `setlist-entry-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-}
+const buildActivityEventId = () => genId("activity");
+const buildPlaylistId = () => genId("playlist");
+const buildPlaylistItemId = () => genId("playlist-item");
+const buildSongbookId = () => genId("songbook");
+const buildSongbookItemId = () => genId("songbook-item");
+const buildSetlistId = () => genId("setlist");
+const buildSetlistEntryId = () => genId("setlist-entry");
 
 function countTotalIdeas(workspaces: Workspace[]) {
     return workspaces.reduce((sum, workspace) => sum + workspace.ideas.length, 0);

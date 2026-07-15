@@ -244,6 +244,21 @@ export function ensureUniqueCountedTitle(baseTitle: string, existingTitles: stri
   return candidate;
 }
 
+/** Relative "Edited …" label for collection cards/headers. */
+export function formatLastEdited(ts: number): string {
+  const days = Math.floor((Date.now() - ts) / 86400000);
+  if (days === 0) return "Edited today";
+  if (days === 1) return "Edited yesterday";
+  if (days < 7) return `Edited ${days} days ago`;
+  if (days < 14) return "Edited last week";
+  return `Edited ${new Date(ts).toLocaleDateString("en-US", { month: "short", day: "numeric" })}`;
+}
+
+/** Unique-enough id for locally created entities: `<prefix>-<epoch-ms>-<7 base36 chars>`. */
+export function genId(prefix: string) {
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+}
+
 export const genIdea = () => {
   const dictionaries =
     Math.random() > 0.55 ? [adjectives, aestheticWords, animals] : [adjectives, aestheticWords];
