@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Platform } from "react-native";
 import { AppAlert } from "../../common/AppAlert";
 import { actionIcons } from "../../common/actionIcons";
 import { clipHasOverdubs, getClipOverdubStemCount, getClipPlaybackUri } from "../../../clipPresentation";
@@ -236,14 +237,16 @@ export function usePlayerScreenLifecycle({
     if (!activeWorkspaceId || !playerIdea || !playerClip?.audioUri) return;
     if ((playerClip.waveformPeaks?.length ?? 0) >= MANAGED_WAVEFORM_PEAK_COUNT) return;
     if (hydratedWaveformClipIdsRef.current.has(playerClip.id)) return;
-    // NEVER decode while the player is loading or playing. The native decode shares
-    // the Android MediaCodec pool with the player — running it mid-track starves the
-    // codec and stalls playback ("plays a second then pauses"; same mechanism
-    // useClipWaveform defers for). The old "interactive, even mid-autoplay" mode
-    // paused every freshly imported clip the moment its waveform decode kicked in.
-    // Re-checks on engineOpNonce (load settled → decode a paused open now) and on
-    // isPlayerPlaying (pause/finish → catch the idle window).
-    if (isPlayerPlaying || isForegroundAudioBusy()) return;
+    // Decoding alongside playback is platform-forked:
+    //  - ANDROID: never. The decoder shares the MediaCodec pool with the player and
+    //    starves it mid-track ("plays a second then pauses"). Defer to the idle
+    //    windows — re-checks on engineOpNonce (load settled) and isPlayerPlaying
+    //    (pause/finish).
+    //  - iOS: safe. AVAssetReader decoding doesn't contend with AVAudioPlayer, so
+    //    the open clip analyzes IMMEDIATELY, even mid-autoplay — the user watches
+    //    the waveform arrive a second into listening instead of waiting for a pause.
+    const canDecodeDuringPlayback = Platform.OS === "ios";
+    if (!canDecodeDuringPlayback && (isPlayerPlaying || isForegroundAudioBusy())) return;
 
     hydratedWaveformClipIdsRef.current.add(playerClip.id);
     const clipId = playerClip.id;
@@ -252,23 +255,32 @@ export function usePlayerScreenLifecycle({
     const ideaId = playerIdea.id;
 
     void (async () => {
-      // Wait out any playback that started in the render→effect gap BEFORE entering
-      // the serialized decode queue (waiting inside it would block interactive
-      // decodes — editor opens, stem overlay — behind a background job).
-      await waitForForegroundAudioIdle();
-      if (isForegroundAudioBusy()) {
-        hydratedWaveformClipIdsRef.current.delete(clipId);
-        return;
+      if (!canDecodeDuringPlayback) {
+        // Confirm the idle window is real (the render→effect gap can race a play
+        // press), but BAIL if playback outlasts a short wait instead of holding the
+        // claim through a long one. The old uncapped wait (45s) sat here silently —
+        // claim held, caption off, retries blocked — while the user played; pausing
+        // then took seconds-to-tens more before anything visibly happened. Now a
+        // play press makes this return quickly, and the effect's isPlayerPlaying
+        // re-run relaunches the decode the moment playback stops.
+        await waitForForegroundAudioIdle({ maxWaitMs: 1500 });
+        if (isForegroundAudioBusy()) {
+          hydratedWaveformClipIdsRef.current.delete(clipId);
+          return;
+        }
       }
       setAnalyzingWaveformClipId(clipId);
       return loadManagedAudioMetadata(
         audioUri,
         `${ideaId}-${clipId}`,
         durationMs,
-        // Background mode: idle-gated and preempted by a play press (returns a
-        // placeholder → un-claimed below → retried on the next idle window), so a
-        // play that lands mid-decode is never stalled by an uncancellable decode.
-        { decodeMode: "background" }
+        // Android: background mode — idle-gated and preempted by a play press
+        // (returns a placeholder → un-claimed below → retried on the next idle
+        // window), so a play that lands mid-decode never stalls behind an
+        // uncancellable decode. iOS: interactive — runs to completion alongside
+        // playback; a play press must NOT cancel it (that was the "press play and
+        // the waveform never arrives" hole).
+        { decodeMode: canDecodeDuringPlayback ? "interactive" : "background" }
       );
     })()
       .then((metadata) => {

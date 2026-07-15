@@ -39,23 +39,29 @@ export function useClipWaveform({
   enabled = true,
   deferGeneration = false,
 }: Args) {
-  const [detail, setDetail] = useState<number[] | null>(null);
+  // Tagged with the uri it was decoded FROM. The effect below resets state one
+  // frame late (effects run post-render), so on a clip switch the first frame
+  // used to show the PREVIOUS clip's high-res wave before snapping to the new
+  // one. Matching the tag against the current audioUri at render time makes a
+  // stale sidecar invisible in the same frame the clip changes.
+  const [detail, setDetail] = useState<{ uri: string; peaks: number[] } | null>(null);
   // True only while the native decode is actually inside the decoder — not while
   // waiting out the dwell, and not while deferred by playback. Surfaces use it to
   // caption real work ("Analyzing waveform…") without ever claiming work that is
   // standing down.
   const [isGenerating, setIsGenerating] = useState(false);
+  const detailPeaks = detail && detail.uri === audioUri ? detail.peaks : null;
 
   // Cheap: load any already-cached sidecar right away (just a file read). Reset when
   // the source changes so a stale wave never lingers onto the next clip.
   useEffect(() => {
-    setDetail(null);
+    setDetail((prev) => (prev && prev.uri === audioUri ? prev : null));
     if (!enabled || !audioUri) return;
 
     let cancelled = false;
     void (async () => {
       const existing = await readWaveformSidecar(audioUri);
-      if (!cancelled && existing && existing.length) setDetail(existing);
+      if (!cancelled && existing && existing.length) setDetail({ uri: audioUri, peaks: existing });
     })();
 
     return () => {
@@ -68,7 +74,7 @@ export function useClipWaveform({
   // native decode never fights the player for the codec. `detail` already set
   // (cached or freshly generated) → skip.
   useEffect(() => {
-    if (!enabled || !audioUri || deferGeneration || detail) return;
+    if (!enabled || !audioUri || deferGeneration || detailPeaks) return;
 
     let cancelled = false;
     let decodeInFlight = false;
@@ -85,7 +91,7 @@ export function useClipWaveform({
           // over a decode that already finished.
           decodeInFlight = false;
           setIsGenerating(false);
-          if (!cancelled && peaks && peaks.length) setDetail(peaks);
+          if (!cancelled && peaks && peaks.length) setDetail({ uri: audioUri, peaks });
         })();
       }, GENERATION_PAUSE_DWELL_MS);
     });
@@ -103,12 +109,12 @@ export function useClipWaveform({
         cancelActiveWaveformDecode();
       }
     };
-  }, [audioUri, durationMs, enabled, deferGeneration, detail]);
+  }, [audioUri, durationMs, enabled, deferGeneration, detailPeaks]);
 
   const thumbnail = thumbnailPeaks && thumbnailPeaks.length ? thumbnailPeaks : [];
   return {
-    peaks: detail ?? thumbnail,
-    isDetail: !!detail,
+    peaks: detailPeaks ?? thumbnail,
+    isDetail: !!detailPeaks,
     isGenerating,
   };
 }

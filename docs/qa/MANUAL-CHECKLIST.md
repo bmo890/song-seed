@@ -32,6 +32,11 @@ See `docs/qa/RUN-LOG.md` for the automation status of each.
 - iOS ☐  Android ☐ — Next through the panes, and "Skip the intro" both work. **[AUTO: 01]**
 - iOS ☐  Android ☐ — Last pane "Your recordings belong here": "Choose audio files" opens the OS file picker; cancelling returns to the pane intact. **[HUMAN]**
 - iOS ☐  Android ☐ — Pick several audio files → inline "Importing X of N…" progress; done state shows the count; clips land in an "Imported" collection with durations, waveforms fill in on their own. **[HUMAN]**
+- iOS ☐  Android ☐ — **Selection bar vs. media dock:** with a session in the media dock (playing OR paused), long-press a clip → the selection top bar AND the bottom action bar (Make song / Play / Hide / Delete / More) are both fully visible — no paper-colored strip of the docked player sheet covering the actions. Cancel selection → dock drops back down. **[HUMAN]** (fix: docked sheet follows the dock above the selection bar)
+- iOS ☐  Android ☐ — **Reel, clip switch:** with a paused session, open clip A in full player, collapse, open clip B → B's waveform appears directly; A's waveform is never shown on B, no reshape/"scrunch" after appearing. **[HUMAN]**
+- iOS ☐ — **Reel, fresh import + play:** open a freshly imported clip ("Analyzing waveform…" + pulsing line), press play immediately → waveform arrives ~1–2s later WHILE playing (iOS analyzes alongside playback). **[HUMAN]**
+- Android ☐ — Same flow on Android: while playing, caption reads "Waveform finishes after playback" (pulsing line stays); pause → "Analyzing…" returns and the waveform lands within a couple of seconds. **[ANDROID]**
+- iOS ☐  Android ☐ — Opening any analyzed clip: waveform appears at its zoom level immediately — no stretched sparse bars squeezing together, no flash of a wrong wave. (The haptic on open is the sheet landing, by design.) **[HUMAN]**
 - iOS ☐  Android ☐ — Tap Start while an import is still running → import finishes in the background (global progress pill), all clips present in "Imported". **[HUMAN]**
 - iOS ☐  Android ☐ — Replay the intro (Settings → About) and import the same files again → duplicates are skipped and reported ("already in your library"), no doubles created. **[HUMAN]**
 - iOS ☐  Android ☐ — After onboarding you land on a seeded library (My Songs → Ideas). **[AUTO: 01]**

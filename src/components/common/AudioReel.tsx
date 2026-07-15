@@ -1,7 +1,16 @@
 import React, { ReactNode, useState } from "react";
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import * as Reanimated from "react-native-reanimated";
-import { useSharedValue, withTiming, SharedValue, useAnimatedStyle, runOnJS } from "react-native-reanimated";
+import {
+  cancelAnimation,
+  runOnJS,
+  SharedValue,
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withSequence,
+  withTiming,
+} from "react-native-reanimated";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { Feather, Ionicons } from "@expo/vector-icons";
 import { PlaybackTapeVisualizer } from "../visualizers/PlaybackTapeVisualizer";
@@ -221,14 +230,18 @@ export function AudioReel({
     // Re-apply the duration-aware default zoom when the source changes (new clip),
     // unless the caller controls zoom. Manual zoom within a clip is preserved — this
     // only fires on an actual resetKey change, not on every render.
-    const lastZoomResetKeyRef = React.useRef(resetKey);
-    React.useEffect(() => {
-        if (lastZoomResetKeyRef.current === resetKey) return;
-        lastZoomResetKeyRef.current = resetKey;
+    //
+    // Applied DURING RENDER (React's adjust-state-in-render pattern), not in an
+    // effect: an effect runs post-paint, so the new clip's first visible frame
+    // carried the OLD clip's zoom and then visibly snapped. Adjusting in render
+    // re-renders before anything is painted — the clip appears at its zoom.
+    const [lastZoomResetKey, setLastZoomResetKey] = useState<typeof resetKey>(resetKey);
+    if (lastZoomResetKey !== resetKey) {
+        setLastZoomResetKey(resetKey);
         if (controlledZoomMultiple == null) {
             setUncontrolledZoomMultiple(snapToZoomLevel(initialZoomMultiple));
         }
-    }, [resetKey, initialZoomMultiple, controlledZoomMultiple]);
+    }
 
     const collapsedHeight = collapsedHeightOverride ?? (compact ? 120 : 160);
     const expandedHeight = expandedHeightOverride ?? (compact ? 220 : 320);
@@ -263,6 +276,26 @@ export function AudioReel({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [resetKey]);
     const waveLayerStyle = useAnimatedStyle(() => ({ opacity: waveOpacity.value }));
+    // Gentle breathing on the pending dashes — running only while pending so the
+    // repeat loop isn't animating underneath a fully-opaque wave forever.
+    const pendingPulse = useSharedValue(1);
+    React.useEffect(() => {
+        if (!waveformPending) {
+            cancelAnimation(pendingPulse);
+            pendingPulse.value = 1;
+            return;
+        }
+        pendingPulse.value = withRepeat(
+            withSequence(
+                withTiming(0.45, { duration: 900 }),
+                withTiming(1, { duration: 900 })
+            ),
+            -1,
+            false
+        );
+        return () => cancelAnimation(pendingPulse);
+    }, [pendingPulse, waveformPending]);
+    const pendingPulseStyle = useAnimatedStyle(() => ({ opacity: pendingPulse.value }));
     // The pending line's opacity is the exact inverse, so the two genuinely cross-fade.
     // It stays MOUNTED at opacity 0 rather than being conditionally rendered: unmounting
     // on the pending flip would pop it out instantly while the wave was still fading in —
@@ -382,9 +415,40 @@ export function AudioReel({
         }
     };
 
+    // Overscale bridges a peaks source that's coarser than the zoom wants: the wave is
+    // stretched horizontally until enough resolution exists. HOW it changes matters:
+    //
+    //  - USER zoom on the same data → animate (bars redistributing feels continuous).
+    //  - The DATA changing under a fixed zoom (thumbnail → detail sidecar landing, a
+    //    new clip) → SNAP + soft fade-in. Animating this was the "scrunch": open a
+    //    clip, see sparse stretched bars, then watch them squeeze to the right
+    //    density. Data upgrades should appear resolved, not morph.
+    const prevOverscaleSourceRef = React.useRef<{
+        resetKey: typeof resetKey;
+        peaksLength: number;
+    } | null>(null);
     React.useEffect(() => {
-        timelineScale.value = withTiming(overscaleFactor, { duration: 180 });
-    }, [overscaleFactor, timelineScale]);
+        const prev = prevOverscaleSourceRef.current;
+        // First commit counts as a source change: the scale must START resolved, not
+        // animate from 1 to the stretched value while the reel is first visible.
+        const sourceChanged =
+            !prev || prev.resetKey !== resetKey || prev.peaksLength !== waveformPeaks.length;
+        prevOverscaleSourceRef.current = { resetKey, peaksLength: waveformPeaks.length };
+
+        if (!sourceChanged) {
+            timelineScale.value = withTiming(overscaleFactor, { duration: 180 });
+            return;
+        }
+        timelineScale.value = overscaleFactor;
+        // Soft fade so the resolved wave ARRIVES instead of popping. Skip while the
+        // pending cross-fade owns the opacity (it's already animating 0→1), and skip
+        // clip changes/first mount (the whole reel context is new; a fade adds lag).
+        if (!waveformPending && prev && prev.resetKey === resetKey && waveOpacity.value === 1) {
+            waveOpacity.value = 0.35;
+            waveOpacity.value = withTiming(1, { duration: durations.base });
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [overscaleFactor, resetKey, timelineScale, waveformPeaks.length]);
 
     const handleZoom = React.useCallback((direction: "in" | "out") => {
         const currentIndex = ZOOM_LEVELS.findIndex((level) => level >= zoomMultiple - 0.001);
@@ -586,18 +650,27 @@ export function AudioReel({
                         {/* Dashes are individual Views, not a dashed border: RN's
                             borderStyle:"dashed" renders SOLID on iOS. They sit on the exact
                             centre line the visualizer draws its baseline on, so the wave
-                            resolves around them instead of the picture jumping. */}
-                        <View style={audioReelStyles.pendingDashRow}>
+                            resolves around them instead of the picture jumping. The row
+                            breathes (slow opacity pulse) while pending, so the line reads
+                            as work-in-progress rather than a dead render. */}
+                        <AnimatedView style={[audioReelStyles.pendingDashRow, pendingPulseStyle]}>
                             {PENDING_DASHES.map((key) => (
                                 <View
                                     key={key}
                                     style={[audioReelStyles.pendingDash, { backgroundColor: palette.waveColor }]}
                                 />
                             ))}
-                        </View>
-                        {waveformPending && waveformAnalyzing ? (
+                        </AnimatedView>
+                        {/* Always captioned while pending — a bare line with no explanation
+                            reads as broken. The words stay honest: "Analyzing…" only while
+                            a decode is genuinely in flight; deferred-by-playback says so. */}
+                        {waveformPending ? (
                             <Text style={[audioReelStyles.pendingCaption, { color: palette.rulerColor }]}>
-                                Analyzing waveform…
+                                {waveformAnalyzing
+                                    ? "Analyzing waveform…"
+                                    : isPlaying
+                                        ? "Waveform finishes after playback"
+                                        : "Waveform coming up…"}
                             </Text>
                         ) : null}
                     </AnimatedView>
