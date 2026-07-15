@@ -39,22 +39,19 @@ export function PlayerSheetPositionProvider({ children }: { children: React.Reac
   // Keep the docked resting offset one dock-height off the bottom, so a swipe-up
   // lifts the sheet straight out from behind the dock's top edge.
   //
-  // The selection toolbar's height matters too: when a selection bar is up, the
-  // dock lifts itself above it (GlobalMediaDock reads the same value) — the docked
-  // sheet must follow, or the paper-colored sliver of sheet that normally hides
-  // exactly behind the dock is left exposed where the dock used to be, covering
-  // the selection actions (root overlays paint over navigator content regardless
-  // of zIndex). If the sheet is RESTING at the docked offset when it changes,
-  // move it in the same frame; a sheet that's expanded or mid-drag keeps its
-  // position and only the resting target updates.
+  // Deliberately does NOT account for a selection toolbar lifting the dock. Moving a
+  // full-height sheet up doesn't shorten it — its body still covers the toolbar, and
+  // its header pokes out below the dock (tried; looked worse). The docked sheet is
+  // hidden outright while a toolbar is up instead — see shouldObscurePlayerSheet. If
+  // the sheet is RESTING at the docked offset when the dock height changes, move it in
+  // the same frame; an expanded or mid-drag sheet only retargets.
   const playerDockHeight = useStore((s) => s.playerDockHeight);
-  const activeSelectionDockHeight = useStore((s) => s.activeSelectionDockHeight);
   useEffect(() => {
-    const next = Math.max(0, SCREEN_HEIGHT - playerDockHeight - activeSelectionDockHeight);
+    const next = Math.max(0, SCREEN_HEIGHT - playerDockHeight);
     const wasResting = dragY.value === dockedY.value;
     dockedY.value = next;
     if (wasResting) dragY.value = next;
-  }, [dockedY, dragY, playerDockHeight, activeSelectionDockHeight]);
+  }, [dockedY, dragY, playerDockHeight]);
 
   const value = useMemo<PlayerSheetPosition>(
     () => ({ dragY, dockedY, openedByDrag, inMotion, setInMotion, screenHeight: SCREEN_HEIGHT }),

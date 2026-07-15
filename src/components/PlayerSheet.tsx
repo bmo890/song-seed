@@ -10,20 +10,7 @@ import { useStore } from "../state/useStore";
 import { usePlayerSheetPosition } from "../hooks/PlayerSheetPositionProvider";
 import { colors } from "../design/tokens";
 import { haptic } from "../design/haptics";
-
-/** Root routes that legitimately open ON TOP of the player (trim, re-record,
- *  lyric/chord editing…). The sheet hides beneath them but stays mounted, so
- *  audio and player state survive the round-trip and it reappears on back. */
-const OBSCURING_ROUTES = new Set([
-  "Editor",
-  "Recording",
-  "BluetoothCalibration",
-  "Lyrics",
-  "LyricsVersion",
-  "ChordSheet",
-  "ClipLineage",
-  "ShareImport",
-]);
+import { shouldObscurePlayerSheet } from "./playerSheetVisibility";
 
 const OPEN_DURATION = 300;
 const CLOSE_DURATION = 240;
@@ -51,9 +38,24 @@ export function PlayerSheet({ activeRouteName, isDrawerOpen, navigateRoot }: Pla
   const expanded = useStore((s) => s.isPlayerScreenMounted);
   const hasSession = useStore((s) => !!s.playerTarget && s.playerQueue.length > 0);
   const present = expanded || hasSession;
-  const obscured = OBSCURING_ROUTES.has(activeRouteName) || isDrawerOpen;
-  const isActive = expanded && !obscured;
   const { dragY, dockedY, openedByDrag, inMotion, setInMotion } = usePlayerSheetPosition();
+
+  // A selection toolbar lifts the media dock off the screen bottom to sit above it.
+  // The DOCKED sheet cannot follow: it's a full-height view whose top hides behind the
+  // dock: moving it up doesn't shorten it, so its body still covers the toolbar (and
+  // its own header pokes out below the dock). Since a docked sheet is 100% invisible by
+  // design, hide it outright while a toolbar is up — nothing is lost, and the toolbar
+  // is revealed. `inMotion` (set at drag START, unlike `expanded` which only flips when
+  // the drag ENDS) keeps the swipe-up from the dock fully visible.
+  const selectionBarActive = useStore((s) => s.activeSelectionDockHeight > 0);
+  const obscured = shouldObscurePlayerSheet({
+    activeRouteName,
+    isDrawerOpen,
+    selectionBarActive,
+    expanded,
+    inMotion,
+  });
+  const isActive = expanded && !obscured;
 
   // Expanding: slide up from wherever the sheet is (docked, or mid-drag). Skipped
   // when a dock drag-up already drove dragY there (openedByDrag).
