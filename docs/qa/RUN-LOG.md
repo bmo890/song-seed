@@ -108,6 +108,7 @@ sheet), `dialog-btn-<label-slug>` (every AppDialog button — e.g. `dialog-btn-d
 |---|---|---|---|
 | 1 | Paywall "Start free trial" / "Restore" were dead-end taps on iOS (AppAlert Modal can't present over the sheet Modal) | ProUpsellSheet | Render notice inline (commit c17ddf2) |
 | 2 | **Android back closed the app** from tool screens (Settings, Tuner, Metronome, Library, Activity, Browse, Revisit) — `useBrowseRootBackHandler` called `BackHandler.exitApp()` on hardware back, pre-empting normal back-to-home | useBrowseRootBackHandler.ts | Removed all `exitApp()`; back now delegates to RN/OS (returns to previous screen, or backgrounds app at the true root — never closes). Drawer `backBehavior="history"`. Pure resolver unit-tested (`browseRootBackAction.test.ts`) |
+| 3 | **"This collection could not be found" dead-end** — deleting a workspace's last/primary collection stranded the app on an unescapable error screen on relaunch | App.tsx (`createWorkspaceStackDrawerRoute` / `normalizeWorkspaceStackRoute`) | The WorkspaceStack was built by mapping BOTH route names into the routes array, so opening Browse produced a malformed stack topped by a param-less CollectionDetail. Fixed to build a valid stack (only up to the focused route); validate the primary collection exists at startup; made the fallback escapable ("Go to your library"). Verified on sim (commit 8062b7a) |
 
 ## Back-button behavior — MANUAL Android verification (on device)
 
