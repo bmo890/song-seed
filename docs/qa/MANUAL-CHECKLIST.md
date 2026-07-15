@@ -30,6 +30,10 @@ See `docs/qa/RUN-LOG.md` for the automation status of each.
 
 - iOS ☐  Android ☐ — Fresh install shows the welcome flow ("Catch the spark"). **[AUTO: 01]**
 - iOS ☐  Android ☐ — Next through the panes, and "Skip the intro" both work. **[AUTO: 01]**
+- iOS ☐  Android ☐ — Last pane "Your recordings belong here": "Choose audio files" opens the OS file picker; cancelling returns to the pane intact. **[HUMAN]**
+- iOS ☐  Android ☐ — Pick several audio files → inline "Importing X of N…" progress; done state shows the count; clips land in an "Imported" collection with durations, waveforms fill in on their own. **[HUMAN]**
+- iOS ☐  Android ☐ — Tap Start while an import is still running → import finishes in the background (global progress pill), all clips present in "Imported". **[HUMAN]**
+- iOS ☐  Android ☐ — Replay the intro (Settings → About) and import the same files again → duplicates are skipped and reported ("already in your library"), no doubles created. **[HUMAN]**
 - iOS ☐  Android ☐ — After onboarding you land on a seeded library (My Songs → Ideas). **[AUTO: 01]**
 - iOS ☐  Android ☐ — Re-open the app later → goes straight to the library (no welcome again). **[HUMAN]**
 
