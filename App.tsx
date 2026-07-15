@@ -83,6 +83,7 @@ import {
 import { resumePendingWorkspaceArchiveOperations } from "./src/services/workspaceArchiveRecovery";
 import { enqueueMissingMetadataBackfill } from "./src/services/backgroundWaveformHydration";
 import { recoverPendingRecordingSession } from "./src/services/recordingRecovery";
+import type { SettingsView } from "./src/components/SettingsScreen/types";
 import { cleanupStaleDisasterRecoveryBackupFiles } from "./src/services/disasterRecoveryBackup";
 import { cleanupInterruptedDisasterRecoveryRestores } from "./src/services/disasterRecoveryTemp";
 
@@ -96,7 +97,10 @@ export type HomeDrawerParamList = {
   TunerHome: undefined;
   MetronomeHome: undefined;
   LibraryHome: { openPlaylistId?: string; openToken?: number } | undefined;
-  SettingsHome: undefined;
+  // openToken forces re-application when navigating to the SAME view twice in a row
+  // (e.g. the backup reminder always deep-links to "library" — without a changing
+  // token, a second dismiss+reopen wouldn't re-trigger the route-params effect).
+  SettingsHome: { initialView?: SettingsView; openToken?: number } | undefined;
   NotepadHome: { noteId?: string; openToken?: number } | undefined;
   WordLadderHome: { exerciseId?: string } | undefined;
   CutUpHome: { sparkId?: string } | undefined;
@@ -1114,6 +1118,12 @@ export default function App() {
       }
 
       markBackupReminderPromptShown();
+      // Descriptions turn these into RICH rows (icon in a tinted circle + bold label +
+      // subtitle) instead of plain centered buttons — every row then shares the same
+      // left-aligned layout regardless of icon/label length, which plain centering
+      // doesn't (a row with no icon centers differently than one with icon+long label).
+      // "Later" stays a plain button below a divider, matching the app's other
+      // rich-dialogs (see promptForImportDatePreference): options first, dismiss last.
       AppAlert.custom(
         "Back up your library?",
         buildBackupReminderPromptMessage({
@@ -1121,9 +1131,9 @@ export default function App() {
           lastSuccessfulBackupAt: state.lastSuccessfulBackupAt,
         }),
         [
-          { label: "Later", style: "cancel" },
           {
             label: "Turn Off Reminders",
+            description: "Stop asking about backups",
             style: "default",
             icon: "notifications-off-outline",
             onPress: () => {
@@ -1131,14 +1141,23 @@ export default function App() {
             },
           },
           {
-            label: "Open Backup Settings",
+            label: "Backup Settings",
+            // Not "Open Settings" — that phrase is reserved elsewhere for the OS
+            // settings app (mic/notification permissions); this stays in-app.
+            description: "Change reminders, or back up now",
             style: "default",
             icon: "settings-outline",
             onPress: () => {
               if (!navigationRef.isReady()) return;
-              navigationRef.navigate("Home", { screen: "SettingsHome" });
+              // Deep-links straight to Library & Backups (not just the Settings
+              // overview) so the button does exactly what its subtitle promises.
+              navigationRef.navigate("Home", {
+                screen: "SettingsHome",
+                params: { initialView: "library", openToken: Date.now() },
+              });
             },
           },
+          { label: "Later", style: "cancel" },
         ]
       );
     })();
