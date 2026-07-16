@@ -37,7 +37,10 @@ const STALE_PITCH_MS = 700;
 const PITCH_MIN_HZ = 40;
 const PITCH_MAX_HZ = 1500;
 const PITCHY_BUFFER_SIZE = 2048;
-const PITCHY_MIN_VOLUME_DB = -46;
+// Measurement mode disables iOS input AGC, so raw mic levels run low — a decaying
+// pluck falls below -46 dBFS mid-note. Candidate stability filtering (spread gate)
+// already rejects noise-derived pitches, so the native volume gate can sit lower.
+const PITCHY_MIN_VOLUME_DB = -60;
 const INITIAL_LOCK_EVENT_COUNT = 2;
 const SWITCH_LOCK_EVENT_COUNT = 3;
 const INITIAL_LOCK_MS = 70;
