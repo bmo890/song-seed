@@ -20,6 +20,12 @@ export type NativeMetronomeConfig = {
 export type NativeAudioRouteInfo = {
   name: string;
   type: string;
+  /** Bluetooth link profile when type is "bluetooth": "a2dp" (high-quality output-only),
+   *  "hfp" (bidirectional phone-call profile — active when the device's mic is in use),
+   *  or "le". Omitted on non-Bluetooth routes and on binaries that predate the field.
+   *  HFP and A2DP have very different latencies, so calibrations must not be shared
+   *  between them. */
+  profile?: string;
 };
 
 /** OS-reported latency of the active audio route. Fields are omitted when the platform

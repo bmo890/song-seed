@@ -66,3 +66,7 @@
 | REC-62 | Entry stops in-app playback | Play a clip in full player → start any recording entry | Player closes/stops before recording screen opens; no playback bleeding into the take | AUTO | iOS+Android | P2 |
 | REC-63 | Instant save (tiny take) | Record → save within <1s → Save | No crash; either saves a tiny clip or fails with the recovery alert — never a silent stall | AUTO | iOS+Android | P3 |
 | REC-64 | Help sheet | Header ? → open → close | Recording help sheet opens with content and closes back to unchanged screen state | AUTO | iOS+Android | P3 |
+| REC-65 | BT mic confirm dialog | Input picker → tap a Bluetooth input | "Use Bluetooth microphone?" confirm (quality + timing caveats); Cancel keeps prior input; confirm applies + inline "Bluetooth mic active…" note under picker | HUMAN | iOS+Android | P2 |
+| REC-66 | Android input binding | Android: select USB/wired mic → record | Take audibly captures the CHOSEN mic (not the built-in) — regression guard for the setPreferredDevice patch | HUMAN | Android | P1 |
+| REC-67 | HFP calibration separation | Calibrate BT headphones (A2DP) → select their mic (HFP) → open recording | HFP session does NOT apply the A2DP offset: banner shows uncalibrated state ("mic active" route), not the saved ms | HUMAN | iOS+Android | P2 |
+| REC-68 | Settings devices section | Settings → Recording | "Devices" section: Bluetooth calibration card (saved-count meta) opens BluetoothCalibration screen; hint points to the recording-screen mic picker | AUTO | iOS+Android | P3 |

@@ -153,7 +153,11 @@ export function useRecordingScreenModel() {
   const [recordingMetronomeEnabled, setRecordingMetronomeEnabled] = useState(false);
   const [isArmingRecording, setIsArmingRecording] = useState(false);
   const [currentRecordingInput, setCurrentRecordingInput] = useState<AudioDevice | null>(null);
-  const [currentMonitoringOutput, setCurrentMonitoringOutput] = useState<{ name: string; type: string } | null>(null);
+  const [currentMonitoringOutput, setCurrentMonitoringOutput] = useState<{
+    name: string;
+    type: string;
+    profile?: string | null;
+  } | null>(null);
   // Take position at which the audio route changed mid-take (null = it didn't). The grid
   // is only trustworthy up to that point — surfaced as a warning and stamped on the grid.
   const [midTakeRouteChangeMs, setMidTakeRouteChangeMs] = useState<number | null>(null);
