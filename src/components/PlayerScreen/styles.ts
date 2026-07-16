@@ -21,16 +21,7 @@ export const playerScreenStyles = StyleSheet.create({
     alignItems: "center",
     gap: 8,
   },
-  overflowButton: {
-    width: 40,
-    height: 40,
-    borderRadius: radii.round,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 0.5,
-    borderColor: colors.borderSubtle,
-    backgroundColor: colors.surface,
-  },
+  // Generic "pressed" dim, borrowed by several reel-toolbar controls below.
   overflowButtonPressed: {
     opacity: 0.7,
   },

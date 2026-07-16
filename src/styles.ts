@@ -2731,16 +2731,6 @@ export const styles = StyleSheet.create({
     width: 32,
     height: 32,
   },
-  ideasHeaderMenuBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: radii.round,
-    borderWidth: 1,
-    borderColor: "rgba(215,194,189,0.5)",
-    backgroundColor: "#F4F1ED",
-    alignItems: "center",
-    justifyContent: "center",
-  },
   ideasHeaderMenuLayer: {
     ...StyleSheet.absoluteFillObject,
     zIndex: 40,

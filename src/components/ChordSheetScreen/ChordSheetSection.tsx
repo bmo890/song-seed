@@ -1,6 +1,7 @@
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { styles as appStyles } from "../../styles";
+import { IconButton } from "../common/IconButton";
 import { colors, spacing, text as textTokens } from "../../design/tokens";
 import { useScrollIntoViewOnFocus } from "./components/chartScroll";
 import type { ChordSheetMeasure, ChordSheetSection as Section } from "../../types";
@@ -71,15 +72,14 @@ export function ChordSheetSection({
             placeholderTextColor={colors.textMuted}
             multiline
           />
-          <Pressable
+          <IconButton
+            icon="ellipsis-horizontal"
+            tone="muted"
+            size={16}
             onPress={onOpenMenu}
             onLongPress={onOpenMenu}
-            delayLongPress={300}
-            hitSlop={8}
-            style={({ pressed }) => (pressed ? appStyles.pressDown : null)}
-          >
-            <Ionicons name="ellipsis-horizontal" size={16} color={colors.textMuted} />
-          </Pressable>
+            accessibilityLabel="Section options"
+          />
         </View>
       ) : (
         <View style={styles.headerRow}>
