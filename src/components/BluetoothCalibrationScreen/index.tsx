@@ -34,6 +34,7 @@ import {
   isBluetoothLikeAudioDevice,
   normalizeBluetoothMonitoringOffsetMs,
   normalizeBluetoothMonitoringSavedOffsetMs,
+  type AudioRouteLike,
 } from "../../bluetoothMonitoring";
 
 const CALIBRATION_BPM = 90;
@@ -54,7 +55,7 @@ const OFFSET_TWEAK_LARGE_MS = 25;
  *  two pipelines differ by hundreds of ms — one number cannot serve both. */
 type CalibrationPhase = "idle" | "player-running" | "click-running" | "result";
 
-type RouteInfo = Pick<AudioDevice, "name" | "type">;
+type RouteInfo = AudioRouteLike;
 
 type PhaseAnalysis = {
   medianMs: number;

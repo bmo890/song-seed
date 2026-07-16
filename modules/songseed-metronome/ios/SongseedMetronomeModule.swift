@@ -53,9 +53,17 @@ public class SongseedMetronomeModule: Module {
       }
 
       let type: String
+      var profile: String? = nil
       switch output.portType {
-      case .bluetoothHFP, .bluetoothA2DP, .bluetoothLE:
+      case .bluetoothHFP:
         type = "bluetooth"
+        profile = "hfp"
+      case .bluetoothA2DP:
+        type = "bluetooth"
+        profile = "a2dp"
+      case .bluetoothLE:
+        type = "bluetooth"
+        profile = "le"
       case .headphones:
         type = "wired_headphones"
       case .headsetMic:
@@ -81,10 +89,14 @@ public class SongseedMetronomeModule: Module {
         }
       }() : output.portName
 
-      return [
+      var result = [
         "name": name,
         "type": type,
       ]
+      if let profile = profile {
+        result["profile"] = profile
+      }
+      return result
     }
 
     AsyncFunction("getCurrentAudioRouteLatencyMs") { () -> [String: Any] in
