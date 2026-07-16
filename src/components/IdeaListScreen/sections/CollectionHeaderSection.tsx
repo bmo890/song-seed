@@ -7,6 +7,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { IdeaListHeaderSection } from "../components/IdeaListHeaderSection";
 import { WorkspaceAvatar } from "../../common/WorkspaceAvatar";
+import { IconButton } from "../../common/IconButton";
 import { styles } from "../../../styles";
 import { useCollectionScreen } from "../provider/CollectionScreenProvider";
 import { appActions } from "../../../state/actions";
@@ -83,15 +84,14 @@ export function CollectionHeaderSection() {
       </ReAnimated.View>
 
       {!screen.listSelectionMode ? (
-        <Pressable
+        <IconButton
           testID="collection-overflow"
-          accessibilityRole="button"
-          accessibilityLabel="Collection options"
-          style={({ pressed }) => [styles.ideasHeaderMenuBtn, pressed ? styles.pressDown : null]}
+          icon="ellipsis-horizontal"
+          tone="muted"
+          size={20}
           onPress={() => screen.setHeaderMenuOpen((prev) => !prev)}
-        >
-          <Ionicons name="ellipsis-horizontal" size={16} color="#84736f" />
-        </Pressable>
+          accessibilityLabel="Collection options"
+        />
       ) : (
         <View style={styles.ideasHeaderMenuBtnPlaceholder} />
       )}
