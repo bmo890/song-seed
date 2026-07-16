@@ -107,6 +107,21 @@ describe("resolveRouteLatencyProfile", () => {
     expect(profile.guideStartAdvanceMs).toBe(0);
   });
 
+  it("an HFP (mic-active) session never consumes the A2DP calibration", () => {
+    // Same headphones, but the phone-call profile is active because their mic is in use:
+    // the A2DP ear numbers are wrong for this link, so the profile must fall back to the
+    // OS report and flag the guide path as uncalibrated rather than apply them.
+    const profile = resolveRouteLatencyProfile({
+      route: { ...BT_BUDS, profile: "hfp" },
+      osLatency: { outputMs: 120 },
+      calibrations: [btCalibration(500, 200)],
+      activeOutputs: ALL_CUES,
+    });
+    expect(profile.outputMs).toBe(120);
+    expect(profile.sources.output).toBe("os");
+    expect(profile.guidePlayerOutputMs).toBe(120);
+  });
+
   it("ignores calibrations on non-BT routes", () => {
     const profile = resolveRouteLatencyProfile({
       route: SPEAKER,

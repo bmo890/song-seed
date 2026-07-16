@@ -121,8 +121,13 @@ class SongseedMetronomeModule : Module() {
     val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager ?: return null
     val outputs = audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS)
 
+    // Both the A2DP and SCO entries of one headset can be listed at once; when the SCO
+    // link is up (Bluetooth mic in use) that is the route audio actually takes.
+    @Suppress("DEPRECATION")
+    val scoActive = audioManager.isBluetoothScoOn
     val preferredOutput =
-      outputs.firstOrNull { it.type == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP || it.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO }
+      (if (scoActive) outputs.firstOrNull { it.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO } else null)
+        ?: outputs.firstOrNull { it.type == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP || it.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO }
         ?: outputs.firstOrNull { it.type == AudioDeviceInfo.TYPE_WIRED_HEADPHONES || it.type == AudioDeviceInfo.TYPE_WIRED_HEADSET }
         ?: outputs.firstOrNull { it.type == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER }
         ?: outputs.firstOrNull()
@@ -137,6 +142,14 @@ class SongseedMetronomeModule : Module() {
       else -> "unknown"
     }
 
+    // SCO (the phone-call profile used when a Bluetooth mic is active) and A2DP have very
+    // different latencies on the same headphones; callers key calibrations on this.
+    val profile = when (preferredOutput.type) {
+      AudioDeviceInfo.TYPE_BLUETOOTH_SCO -> "hfp"
+      AudioDeviceInfo.TYPE_BLUETOOTH_A2DP -> "a2dp"
+      else -> null
+    }
+
     val name = preferredOutput.productName?.toString()?.takeIf { it.isNotBlank() }
       ?: when (type) {
         "bluetooth" -> "Bluetooth audio"
@@ -146,9 +159,13 @@ class SongseedMetronomeModule : Module() {
         else -> "Audio output"
       }
 
-    return mapOf(
+    val result = mutableMapOf(
       "name" to name,
       "type" to type
     )
+    if (profile != null) {
+      result["profile"] = profile
+    }
+    return result
   }
 }

@@ -395,6 +395,10 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
 
   function buildRecordingConfig(): RecordingConfig {
     return {
+      // Session-level selection (applyPreferredInput) covers iOS; Android's recorder only
+      // honors the choice when the id rides the config into the native AudioRecord
+      // (patched: AudioRecord.setPreferredDevice).
+      deviceId: preferredInputId ?? undefined,
       sampleRate: 44100 as SampleRate,
       channels: 1 as const,
       interval: LIVE_STREAM_INTERVAL_MS,
