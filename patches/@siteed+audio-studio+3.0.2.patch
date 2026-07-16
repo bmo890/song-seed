@@ -1,5 +1,5 @@
 diff --git a/node_modules/@siteed/audio-studio/android/src/main/java/net/siteed/audiostudio/AudioRecorderManager.kt b/node_modules/@siteed/audio-studio/android/src/main/java/net/siteed/audiostudio/AudioRecorderManager.kt
-index 6f93aa4..e91c79b 100644
+index 6f93aa4..ac90d2f 100644
 --- a/node_modules/@siteed/audio-studio/android/src/main/java/net/siteed/audiostudio/AudioRecorderManager.kt
 +++ b/node_modules/@siteed/audio-studio/android/src/main/java/net/siteed/audiostudio/AudioRecorderManager.kt
 @@ -7,6 +7,7 @@ import android.content.Context
@@ -24,7 +24,54 @@ index 6f93aa4..e91c79b 100644
      private var totalRecordedTime: Long = 0
      private var totalDataSize = 0
      private var lastEmitTime = SystemClock.elapsedRealtime()
-@@ -956,6 +964,9 @@ class AudioRecorderManager(
+@@ -854,6 +862,8 @@ class AudioRecorderManager(
+                     )
+                     return false
+                 }
++
++                applyPreferredInputDevice()
+             }
+             return true
+ 
+@@ -876,6 +886,37 @@ class AudioRecorderManager(
+         }
+     }
+ 
++    /**
++     * Songseed patch: bind the JS-selected input (RecordingConfig.deviceId) to this
++     * AudioRecord. Upstream only routes via AudioManager.setCommunicationDevice / SCO,
++     * which AudioSource.MIC does not reliably follow for wired or USB devices — without
++     * this binding the input picker's choice is cosmetic on Android.
++     */
++    private fun applyPreferredInputDevice() {
++        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return
++        val record = audioRecord ?: return
++        try {
++            val preferredId = selectedDeviceId?.toIntOrNull()
++            if (preferredId == null) {
++                record.setPreferredDevice(null)
++                return
++            }
++            val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
++            val device = audioManager
++                ?.getDevices(AudioManager.GET_DEVICES_INPUTS)
++                ?.firstOrNull { it.id == preferredId }
++            if (device != null) {
++                val accepted = record.setPreferredDevice(device)
++                LogUtils.d(CLASS_NAME, "Bound preferred input device $preferredId (${device.productName}): $accepted")
++            } else {
++                record.setPreferredDevice(null)
++                LogUtils.d(CLASS_NAME, "Preferred input device $preferredId not found; using default routing")
++            }
++        } catch (e: Exception) {
++            LogUtils.e(CLASS_NAME, "Failed to bind preferred input device", e)
++        }
++    }
++
+     private fun initializeRecordingResources(fileExtension: String, promise: Promise): Boolean {
+         try {
+             streamUuid = java.util.UUID.randomUUID().toString()
+@@ -956,6 +997,9 @@ class AudioRecorderManager(
              isPaused.set(false)
              _isRecording.set(true)
              isFirstChunk = true
@@ -34,7 +81,7 @@ index 6f93aa4..e91c79b 100644
  
              if (!isPaused.get()) {
                  recordingStartTime = System.currentTimeMillis()
-@@ -1622,6 +1633,48 @@ class AudioRecorderManager(
+@@ -1622,6 +1666,48 @@ class AudioRecorderManager(
          }
      }
  
@@ -83,7 +130,7 @@ index 6f93aa4..e91c79b 100644
      private fun emitAudioData(audioData: ByteArray, length: Int) {
          val isFloat32Stream = recordingConfig.streamFormat == "float32"
  
-@@ -1711,6 +1764,12 @@ class AudioRecorderManager(
+@@ -1711,6 +1797,12 @@ class AudioRecorderManager(
              )
          }
  
@@ -96,7 +143,7 @@ index 6f93aa4..e91c79b 100644
          mainHandler.post {
              try {
                  eventSender.sendExpoEvent(Constants.AUDIO_EVENT_NAME, baseBundle)
-@@ -1768,6 +1827,9 @@ class AudioRecorderManager(
+@@ -1768,6 +1860,9 @@ class AudioRecorderManager(
                  lastEmittedSize = 0
                  streamPosition = 0
                  recordingStartTime = 0
