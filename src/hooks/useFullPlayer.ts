@@ -430,6 +430,31 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
     return unsubscribe;
   }, [activateLockScreenControls]);
 
+  // Recording is a third claimant of the OS media-control surface: while a
+  // recording runs, siteed owns the headset play/pause gestures (its own
+  // MediaSession on Android; on iOS it re-targets the shared remote command
+  // center, wiping ours). Mirror the inline handoff — mark our claim stale on
+  // record start, re-claim for the loaded session when the recording ends.
+  useEffect(() => {
+    let lastRecordingActive = Boolean(useStore.getState().recordingIdeaId);
+    const unsubscribe = useStore.subscribe((state) => {
+      const recordingActive = Boolean(state.recordingIdeaId);
+      if (recordingActive === lastRecordingActive) return;
+      lastRecordingActive = recordingActive;
+
+      if (recordingActive) {
+        isLockScreenActiveRef.current = false;
+        return;
+      }
+
+      if (state.playerTarget && appStateRef.current === "active") {
+        activateLockScreenControls(lockScreenMetadataRef.current);
+      }
+    });
+
+    return unsubscribe;
+  }, [activateLockScreenControls]);
+
   const isOperationActive = useCallback(
     (operationId: number) => isMountedRef.current && operationIdRef.current === operationId,
     []

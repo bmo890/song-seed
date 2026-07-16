@@ -119,6 +119,10 @@ See `docs/qa/RUN-LOG.md` for the automation status of each.
 - iOS ☐  Android ☐ — Record with the metronome audible in the take vs not (bleed check). **[HUMAN]**
 - iOS ☐  Android ☐ — Incoming **phone call / alarm** during recording is handled gracefully. **[HUMAN]**
 - iOS ☐  Android ☐ — Recording with a **Bluetooth** mic/headset. **[HUMAN]**
+- Android ☐ — **Recording notification:** one line — red dot, "Recording…", ticking m:ss timer. While paused the timer freezes at the recorded time (not hidden/reset); the Pause/Resume action flips with state. **[ANDROID]**
+- iOS ☐  Android ☐ — **Bluetooth tap during recording** pauses the recording; tap again resumes. It must NEVER start music playback into the live mic — even with a paused playback card up. **[HUMAN]**
+- iOS ☐ — While recording, the lock screen shows a Now Playing card ("Recording…"); headset play/pause controls the recording. **[HUMAN]**
+- iOS ☐  Android ☐ — After a recording ends, lock screen / headset controls return to the playback session (the paused card re-appears if a session is loaded). **[HUMAN]**
 
 ## 7. Clips — import & organize
 
@@ -144,7 +148,13 @@ See `docs/qa/RUN-LOG.md` for the automation status of each.
 - iOS ☐  Android ☐ — Collection ⋯ → **Play all** plays the queue back-to-back; next clip
   auto-advances. **[AUTO: clip-08]** (start) / **[HUMAN]** (auto-advance between clips)
 - iOS ☐  Android ☐ — Minimize player → the mini media dock shows and keeps playing. **[AUTO: clip-01]** (minimize) / **[HUMAN]** (dock playback)
-- iOS ☐  Android ☐ — Lock screen / notification transport controls (play/pause) work. **[HUMAN]**
+- iOS ☐  Android ☐ — **Lock screen / media card look:** terracotta card (Android tints from the artwork), seed-mark artwork tile, lines read clip title / song title / collection. Artist line is the song (or collection), never "SongSeed". **[HUMAN]**
+- iOS ☐  Android ☐ — Media card buttons are **previous / play-pause / next** (no ±10s seek buttons); prev/next move through the queue. At the queue end, next is inert (iOS: grayed out; Android: hidden — known OEM behaviour). **[HUMAN]**
+- iOS ☐  Android ☐ — **Previous follows the 3-second rule:** more than 3s into a clip → restarts it; tapped again within 3s → previous queue item; nothing before it → restarts. **[HUMAN]**
+- iOS ☐  Android ☐ — The card's scrubber drags and seeks within the clip. **[HUMAN]**
+- iOS ☐  Android ☐ — **Card persistence:** pausing (from the card or in-app) does NOT remove the card, and scrubbing doesn't blink it. It only disappears when the session is closed. **[HUMAN]** (fix: session no longer torn down on pause)
+- iOS ☐  Android ☐ — Play an inline clip preview while a session is paused → the card switches to the preview, then returns to the paused session when the preview ends. **[HUMAN]**
+- iOS ☐  Android ☐ — **Bluetooth headset gestures:** single tap toggles play/pause; double-tap → next; triple-tap → previous (same 3s rule). **[HUMAN]**
 - iOS ☐  Android ☐ — Playback continues in the background; interruption (call) pauses cleanly. **[HUMAN]**
 - iOS ☐  Android ☐ — Route audio to **Bluetooth** speaker/headphones. **[HUMAN]**
 

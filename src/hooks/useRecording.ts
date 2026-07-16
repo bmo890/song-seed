@@ -47,11 +47,6 @@ const MIN_HEAD_TRIM_MS = 24;
 /** Ignore absurd trim values (a count-in head is at most a few bars). */
 const MAX_HEAD_TRIM_MS = 30_000;
 
-function trimNotificationLabel(label: string | null | undefined, fallback: string) {
-  const value = label?.trim();
-  return value && value.length > 0 ? value : fallback;
-}
-
 function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : String(error);
 }
@@ -92,8 +87,6 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
   const workspaces = useStore((s) => s.workspaces);
   const activeWorkspaceId = useStore((s) => s.activeWorkspaceId);
   const recordingIdeaId = useStore((s) => s.recordingIdeaId);
-  const recordingParentClipId = useStore((s) => s.recordingParentClipId);
-  const recordingOverdubClipId = useStore((s) => s.recordingOverdubClipId);
   const setPreferredRecordingInputId = useStore((s) => s.setPreferredRecordingInputId);
   const displayElapsedMs = useRecordingDisplayElapsed({
     durationMs: recorder.durationMs,
@@ -166,59 +159,8 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
         ?.ideas.find((idea) => idea.id === recordingIdeaId) ?? null,
     [activeWorkspaceId, recordingIdeaId, workspaces]
   );
-  const recordingParentClip = useMemo(
-    () =>
-      recordingParentClipId && recordingIdea
-        ? recordingIdea.clips.find((clip) => clip.id === recordingParentClipId) ?? null
-        : null,
-    [recordingIdea, recordingParentClipId]
-  );
-  const recordingOverdubClip = useMemo(
-    () =>
-      recordingOverdubClipId && recordingIdea
-        ? recordingIdea.clips.find((clip) => clip.id === recordingOverdubClipId) ?? null
-        : null,
-    [recordingIdea, recordingOverdubClipId]
-  );
-  const recordingNotification = useMemo(() => {
-    const targetTitle = trimNotificationLabel(recordingIdea?.title, "Songstead");
-
-    if (!recordingIdea) {
-      return {
-        title: "Recording in progress",
-        text: "Songstead is recording in the background.",
-      };
-    }
-
-    if (recordingIdea.kind === "project") {
-      if (recordingOverdubClip) {
-        return {
-          title: "Recording overdub",
-          text: `Recording into ${trimNotificationLabel(recordingOverdubClip.title, targetTitle)}.`,
-        };
-      }
-
-      if (recordingParentClip) {
-        return {
-          title: `Recording variation`,
-          text: `Recording into ${targetTitle} from ${trimNotificationLabel(
-            recordingParentClip.title,
-            "current take"
-          )}.`,
-        };
-      }
-
-      return {
-        title: `Recording take`,
-        text: `Recording into ${targetTitle}.`,
-      };
-    }
-
-    return {
-      title: "Recording clip",
-      text: `Recording ${targetTitle}.`,
-    };
-  }, [recordingIdea, recordingOverdubClip, recordingParentClip]);
+  // Single-line card by design: "● Recording… • 0:42". One fixed title.
+  const recordingNotificationTitle = "Recording…";
   const [lastInterruptionReason, setLastInterruptionReason] =
     useState<RecordingInterruptionEvent["reason"] | null>(null);
   const [interruptionToken, setInterruptionToken] = useState(0);
@@ -408,26 +350,22 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
       bufferDurationSeconds: __DEV__ ? 0.25 : 0.15,
       keepAwake: true,
       showNotification: true,
-      showWaveformInNotification: true,
+      // Deliberately no waveform: the recording card stays a quiet two-line
+      // notification (context title + destination) with the record-red accent.
+      showWaveformInNotification: false,
       notification: {
-        title: recordingNotification.title,
-        text: recordingNotification.text,
+        title: recordingNotificationTitle,
         android: {
-          channelId: "songseed-recording",
+          // v2: channel importance changed LOW -> DEFAULT for Android 16 Live
+          // Updates eligibility; channels are immutable once created, so the id
+          // must change for existing installs to pick it up.
+          channelId: "songseed-recording-v2",
           channelName: "Recording",
           channelDescription: "Background recording status and controls",
           notificationId: 4101,
           priority: "high" as const,
           accentColor: colors.record,
           showPauseResumeActions: true,
-          waveform: {
-            color: colors.record,
-            opacity: 0.9,
-            strokeWidth: 1.5,
-            style: "stroke" as const,
-            mirror: true,
-            height: 44,
-          },
         },
         ios: {
           categoryIdentifier: "songseed-recording",
