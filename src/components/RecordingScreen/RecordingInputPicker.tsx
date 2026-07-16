@@ -3,6 +3,7 @@ import { ActivityIndicator, Pressable, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useAudioDevices } from "@siteed/audio-studio";
 import { styles } from "../../styles";
+import { AppAlert } from "../common/AppAlert";
 
 type Props = {
     disabled: boolean;
@@ -75,8 +76,7 @@ export function RecordingInputPicker({ disabled, preferredInputId, onChangePrefe
         onChangePreferredInputId(null);
     }, [availableDevices, loading, onChangePreferredInputId, preferredInputId]);
 
-    async function handleSelectDevice(deviceId: string) {
-        if (disabled || isApplying) return;
+    async function applySelectedDevice(deviceId: string) {
         setIsApplying(true);
         onChangePreferredInputId(deviceId);
         try {
@@ -84,6 +84,26 @@ export function RecordingInputPicker({ disabled, preferredInputId, onChangePrefe
         } finally {
             setIsApplying(false);
         }
+    }
+
+    function handleSelectDevice(device: { id: string; type: string }) {
+        if (disabled || isApplying) return;
+        if (device.id === activeSelectionId) return;
+        // Bluetooth mics ride the phone-call (HFP) link: the same headphones' playback
+        // drops to that quality too, and the mic's delay is variable — no calibration can
+        // correct it. Make the trade-off explicit before switching.
+        if (device.type === "bluetooth") {
+            AppAlert.confirm(
+                "Use Bluetooth microphone?",
+                "While a Bluetooth mic is active, playback in those headphones drops to phone-call quality, and the mic's delay can't be corrected — overdubs may land off the beat.",
+                () => {
+                    void applySelectedDevice(device.id);
+                },
+                { confirmLabel: "Use Bluetooth Mic" }
+            );
+            return;
+        }
+        void applySelectedDevice(device.id);
     }
 
     return (
@@ -121,7 +141,7 @@ export function RecordingInputPicker({ disabled, preferredInputId, onChangePrefe
                                 disabled ? styles.recordingInputOptionDisabled : null,
                                 pressed && !disabled ? styles.pressDown : null,
                             ]}
-                            onPress={() => handleSelectDevice(device.id)}
+                            onPress={() => handleSelectDevice(device)}
                             disabled={disabled || isApplying}
                         >
                             <Ionicons
@@ -144,6 +164,12 @@ export function RecordingInputPicker({ disabled, preferredInputId, onChangePrefe
                     );
                 })}
             </View>
+
+            {activeDevice?.type === "bluetooth" ? (
+                <Text style={styles.recordingInputDisabledNote}>
+                    Bluetooth mic active — headphone playback is reduced to phone-call quality and overdub timing can drift.
+                </Text>
+            ) : null}
 
             {disabled ? (
                 <Text style={styles.recordingInputDisabledNote}>Pause or stop recording to change the input device.</Text>
