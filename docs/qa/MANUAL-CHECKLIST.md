@@ -119,6 +119,18 @@ See `docs/qa/RUN-LOG.md` for the automation status of each.
 - iOS ☐  Android ☐ — Record with the metronome audible in the take vs not (bleed check). **[HUMAN]**
 - iOS ☐  Android ☐ — Incoming **phone call / alarm** during recording is handled gracefully. **[HUMAN]**
 - iOS ☐  Android ☐ — Recording with a **Bluetooth** mic/headset. **[HUMAN]**
+- iOS ☐  Android ☐ — Input picker: tapping a **Bluetooth input** asks "Use Bluetooth microphone?"
+  (quality + timing caveats); Cancel keeps the prior input; confirm applies it and an inline
+  "Bluetooth mic active…" note stays under the picker. (REC-65) **[HUMAN]**
+- Android ☐ — Select a **USB or wired mic** in the input picker → record → the take audibly
+  captured the CHOSEN mic, not the built-in one (regression guard for the
+  setPreferredDevice patch). (REC-66) **[ANDROID]**
+- iOS ☐  Android ☐ — Calibrate BT headphones normally (A2DP), then select **their mic** (HFP)
+  and reopen recording → the saved offset is NOT applied: banner shows the uncalibrated
+  state for the "(mic active)" route, not the saved ms. (REC-67) **[HUMAN]**
+- iOS ☐  Android ☐ — Settings → Recording shows a **Devices** section: Bluetooth calibration
+  card (saved-count meta) opens the calibration screen; hint points to the recording-screen
+  mic picker. (REC-68) **[AUTO-able, currently human]**
 
 ## 7. Clips — import & organize
 
