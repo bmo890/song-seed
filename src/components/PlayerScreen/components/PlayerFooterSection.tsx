@@ -17,6 +17,8 @@ type PlayerFooterSectionProps = {
   onNextTrack: () => void;
   onToggleRepeat: () => void;
   onToggleQueueExpanded: () => void;
+  /** Ends the whole playback session (matches the mini dock's ✕). */
+  onClose: () => void;
 };
 
 export function PlayerFooterSection({
@@ -32,6 +34,7 @@ export function PlayerFooterSection({
   onNextTrack,
   onToggleRepeat,
   onToggleQueueExpanded,
+  onClose,
 }: PlayerFooterSectionProps) {
   const queueIndex = useStore((s) => s.playerQueueIndex);
   const queueLength = useStore((s) => s.playerQueue.length);
@@ -50,6 +53,7 @@ export function PlayerFooterSection({
       <TransportBar
         isPlaying={isPlaying}
         playDisabled={playDisabled}
+        onClose={onClose}
         canGoPrevious={hasPreviousTrack}
         canGoNext={hasNextTrack}
         onPrevious={onPreviousTrack}

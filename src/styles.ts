@@ -4723,13 +4723,6 @@ export const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  // Quiet ✕ — bare, small, far left
-  miniMediaDockDismissBtn: {
-    width: 24,
-    height: 24,
-    alignItems: "center",
-    justifyContent: "center",
-  },
   // Recording dock row: copy block
   miniMediaDockRecordingCopy: {
     flex: 1,
@@ -5479,16 +5472,6 @@ export const styles = StyleSheet.create({
     flexShrink: 0,
     alignSelf: "stretch",
     paddingVertical: 2,
-  },
-  ideasInlineCloseBtn: {
-    width: 26,
-    height: 26,
-    borderRadius: radii.round,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#F4F1ED",
-    borderWidth: 1,
-    borderColor: "rgba(215,194,189,0.5)",
   },
   ideasListLeadDurationSlot: {
     width: "100%",

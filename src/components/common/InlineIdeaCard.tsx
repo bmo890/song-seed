@@ -2,6 +2,7 @@ import React from "react";
 import { Pressable, View, type StyleProp, type ViewStyle } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { IdeaCard } from "./IdeaCard";
+import { CloseButton } from "./CloseButton";
 import { MiniProgress } from "../MiniProgress";
 import { StatusBadge } from "./StatusBadge";
 import { styles } from "../../styles";
@@ -133,15 +134,7 @@ export function InlineIdeaCard({
       onPressLead={onTogglePlay}
       leadAccessory={
         isActive ? (
-          <Pressable
-            style={({ pressed }) => [styles.ideasInlineCloseBtn, pressed ? styles.pressDown : null]}
-            onPress={(event) => {
-              event.stopPropagation();
-              onStopPlay();
-            }}
-          >
-            <Ionicons name="stop-circle-outline" size={14} color="#84736f" />
-          </Pressable>
+          <CloseButton size="sm" tone="onLight" accessibilityLabel="Stop preview" onPress={onStopPlay} />
         ) : null
       }
       onPress={onOpen}
