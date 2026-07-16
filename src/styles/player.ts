@@ -464,13 +464,6 @@ export const playerStyles = {
     alignItems: "center",
     justifyContent: "center",
   },
-  // Quiet ✕ — bare, small, far left
-  miniMediaDockDismissBtn: {
-    width: 24,
-    height: 24,
-    alignItems: "center",
-    justifyContent: "center",
-  },
   // Recording dock row: copy block
   miniMediaDockRecordingCopy: {
     flex: 1,

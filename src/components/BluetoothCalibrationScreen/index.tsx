@@ -33,6 +33,7 @@ import {
   isBluetoothLikeAudioDevice,
   normalizeBluetoothMonitoringOffsetMs,
   normalizeBluetoothMonitoringSavedOffsetMs,
+  type AudioRouteLike,
 } from "../../domain/bluetoothMonitoring";
 import {
   CALIBRATION_BEAT_INTERVAL_MS,
@@ -55,7 +56,7 @@ const OFFSET_TWEAK_LARGE_MS = 25;
  *  two pipelines differ by hundreds of ms — one number cannot serve both. */
 type CalibrationPhase = "idle" | "player-running" | "click-running" | "result";
 
-type RouteInfo = Pick<AudioDevice, "name" | "type">;
+type RouteInfo = AudioRouteLike;
 
 /** The ±10/±25 ms fine-tune row shown under each measured delay in the result phase. */
 function OffsetTweakRow({

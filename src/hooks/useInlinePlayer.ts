@@ -4,6 +4,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { ClipVersion, InlineTarget } from "../types";
 import { getClipPlaybackUri } from "../domain/clipPresentation";
 import { activateAndPlay, replacePlaybackSource } from "../services/transportPlayback";
+import { getLockScreenArtworkUrl } from "../services/lockScreenArtwork";
+import { buildClipLockScreenMetadata } from "../services/lockScreenMetadata";
 import { useStore } from "../state/useStore";
 import { appActions } from "../state/actions";
 
@@ -364,12 +366,24 @@ export function useInlinePlayer({ onBeforePlayNew }: Args = {}) {
         return;
       }
       void callPlayerSafely(
-        () =>
+        () => {
+          const idea = useStore
+            .getState()
+            .workspaces.flatMap((workspace) => workspace.ideas)
+            .find((candidate) => candidate.id === ideaId);
           player.setActiveForLockScreen(
             true,
-            { title: clip.title || "Clip", artist: "SongSeed" },
-            { showSeekBackward: true, showSeekForward: true }
-          ),
+            {
+              ...(idea
+                ? buildClipLockScreenMetadata(idea, clip)
+                : { title: clip.title || "Clip", artist: "Songstead" }),
+              artworkUrl: getLockScreenArtworkUrl(),
+            },
+            // Previews have no queue, and the native scrubber covers seeking:
+            // the card carries play/pause only.
+            { showSeekBackward: false, showSeekForward: false }
+          );
+        },
         "lock screen"
       );
     } catch (err) {

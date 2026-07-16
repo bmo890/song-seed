@@ -1,7 +1,7 @@
-import { Pressable, View } from "react-native";
+import { View } from "react-native";
 import Animated, { FadeIn } from "react-native-reanimated";
-import { Ionicons } from "@expo/vector-icons";
 import { MiniProgress } from "../../../MiniProgress";
+import { CloseButton } from "../../../common/CloseButton";
 import { styles } from "../../styles";
 import { colors } from "../../../../design/tokens";
 
@@ -34,15 +34,7 @@ export function ClipCardInlinePlayer({
           onSeekCancel={onSeekCancel}
         />
       </View>
-      <Pressable
-        style={styles.ideasInlineCloseBtn}
-        onPress={(event) => {
-          event.stopPropagation();
-          onClose();
-        }}
-      >
-        <Ionicons name="close" size={13} color={colors.textSecondary} />
-      </Pressable>
+      <CloseButton size="sm" tone="onLight" accessibilityLabel="Stop preview" onPress={onClose} />
     </Animated.View>
   );
 }

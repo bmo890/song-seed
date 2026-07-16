@@ -1,7 +1,7 @@
 import React from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import { StyleSheet, Text, View } from "react-native";
 import { GestureDetector, type PanGesture } from "react-native-gesture-handler";
+import { IconButton } from "../../common/IconButton";
 import { fmtDuration, formatDate } from "../../../utils";
 import { colors } from "../../../design/tokens";
 import { playerScreenStyles } from "../styles";
@@ -33,23 +33,28 @@ export function PlayerHeaderSection({
   onMinimize,
   onOverflow,
 }: PlayerHeaderSectionProps) {
-  const overflowButton = (label: string, icon: keyof typeof Ionicons.glyphMap, onPress: () => void, size = 18) => (
-    <Pressable
-      style={({ pressed }) => [
-        playerScreenStyles.overflowButton,
-        pressed ? playerScreenStyles.overflowButtonPressed : null,
-      ]}
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityLabel={label}
-    >
-      <Ionicons name={icon} size={size} color={colors.textStrong} />
-    </Pressable>
-  );
-
   // The player is a now-playing sheet, not a destination: its single exit is
   // the collapse chevron (top-left, where the sheet "goes down"), which never
-  // stops audio — playback continues in the mini dock.
+  // stops audio — playback continues in the mini dock. It leads in deep
+  // terracotta; the overflow ⋯ opposite stays a quiet warm-gray. Both are bare
+  // glyphs on the surface — no matching circles to confuse them.
+  const collapseButton = (
+    <IconButton
+      icon="chevron-down"
+      tone="accent"
+      onPress={onMinimize}
+      accessibilityLabel="Minimize player"
+    />
+  );
+  const overflowMenuButton = (
+    <IconButton
+      icon="ellipsis-horizontal"
+      tone="muted"
+      size={20}
+      onPress={onOverflow}
+      accessibilityLabel="More options"
+    />
+  );
 
   // Collapsed (practice / play-along): title tucks into the nav row, metadata
   // hidden, so the reel sits near the top and the lyrics / practice console get
@@ -62,11 +67,11 @@ export function PlayerHeaderSection({
             <View style={grabberStyles.grabber} />
           </View>
           <View style={playerScreenStyles.navRow}>
-            {overflowButton("Minimize player", "chevron-down", onMinimize, 22)}
+            {collapseButton}
             <Text style={playerScreenStyles.navTitle} numberOfLines={1}>
               {clipTitle}
             </Text>
-            <View style={playerScreenStyles.navRowRight}>{overflowButton("More options", "ellipsis-horizontal", onOverflow)}</View>
+            <View style={playerScreenStyles.navRowRight}>{overflowMenuButton}</View>
           </View>
         </View>
       </GestureDetector>
@@ -81,10 +86,10 @@ export function PlayerHeaderSection({
           <View style={grabberStyles.grabber} />
         </View>
       <View style={playerScreenStyles.navRow}>
-        {overflowButton("Minimize player", "chevron-down", onMinimize, 22)}
+        {collapseButton}
 
         <View style={playerScreenStyles.navRowRight}>
-          {overflowButton("More options", "ellipsis-horizontal", onOverflow)}
+          {overflowMenuButton}
         </View>
       </View>
 

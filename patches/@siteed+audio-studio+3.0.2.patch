@@ -1,5 +1,402 @@
+diff --git a/node_modules/@siteed/audio-studio/android/src/main/java/net/siteed/audiostudio/AudioNotificationsManager.kt b/node_modules/@siteed/audio-studio/android/src/main/java/net/siteed/audiostudio/AudioNotificationsManager.kt
+index 12d30a2..a350156 100644
+--- a/node_modules/@siteed/audio-studio/android/src/main/java/net/siteed/audiostudio/AudioNotificationsManager.kt
++++ b/node_modules/@siteed/audio-studio/android/src/main/java/net/siteed/audiostudio/AudioNotificationsManager.kt
+@@ -7,6 +7,8 @@ import android.app.PendingIntent
+ import android.content.Context
+ import android.content.Intent
+ import android.graphics.Color
++import android.media.session.MediaSession
++import android.media.session.PlaybackState
+ import android.os.Build
+ import android.os.Handler
+ import android.os.Looper
+@@ -63,6 +65,109 @@ class AudioNotificationManager private constructor(context: Context) {
+         recordingConfig = config
+         createNotificationChannel()
+         initializeNotification()
++        startMediaSession()
++    }
++
++    // Bluetooth/wired headset media buttons route to the most recently active
++    // MediaSession. Holding one for the duration of the recording means a
++    // headset play/pause gesture pauses/resumes the RECORDING — and cannot fall
++    // through to a background playback session and start audio into the mic.
++    private var mediaSession: MediaSession? = null
++
++    private fun startMediaSession() {
++        val context = contextRef.get() ?: return
++        try {
++            if (mediaSession == null) {
++                mediaSession = MediaSession(context, "AudioStudioRecording").apply {
++                    setCallback(object : MediaSession.Callback() {
++                        override fun onPause() {
++                            handleMediaSessionAction(RecordingActionReceiver.ACTION_PAUSE_RECORDING)
++                        }
++
++                        override fun onPlay() {
++                            handleMediaSessionAction(RecordingActionReceiver.ACTION_RESUME_RECORDING)
++                        }
++                    })
++                }
++            }
++            mediaSession?.isActive = true
++            updateMediaSessionState(isPausedState = false)
++        } catch (e: Exception) {
++            Log.e(CLASS_NAME, "Failed to start recording media session", e)
++        }
++    }
++
++    private fun updateMediaSessionState(isPausedState: Boolean) {
++        val state = PlaybackState.Builder()
++            .setActions(
++                PlaybackState.ACTION_PLAY or
++                    PlaybackState.ACTION_PAUSE or
++                    PlaybackState.ACTION_PLAY_PAUSE
++            )
++            .setState(
++                if (isPausedState) PlaybackState.STATE_PAUSED else PlaybackState.STATE_PLAYING,
++                PlaybackState.PLAYBACK_POSITION_UNKNOWN,
++                if (isPausedState) 0f else 1f
++            )
++            .build()
++        mediaSession?.setPlaybackState(state)
++    }
++
++    private fun releaseMediaSession() {
++        try {
++            mediaSession?.isActive = false
++            mediaSession?.release()
++        } catch (e: Exception) {
++            Log.e(CLASS_NAME, "Failed to release recording media session", e)
++        }
++        mediaSession = null
++    }
++
++    // Same code path as the notification action buttons (RecordingActionReceiver):
++    // pause/resume through AudioRecorderManager so state, notification, and JS
++    // events stay consistent regardless of which surface triggered it.
++    private fun handleMediaSessionAction(action: String) {
++        val manager = AudioRecorderManager.getInstance() ?: return
++        val promise = object : expo.modules.kotlin.Promise {
++            override fun resolve(value: Any?) {}
++            override fun reject(code: String, message: String?, cause: Throwable?) {
++                Log.e(CLASS_NAME, "Media session $action failed: $message", cause)
++            }
++        }
++        when (action) {
++            RecordingActionReceiver.ACTION_PAUSE_RECORDING -> manager.pauseRecording(promise)
++            RecordingActionReceiver.ACTION_RESUME_RECORDING -> manager.resumeRecording(promise)
++        }
++    }
++
++    // Android 16 "Live Updates": request promotion so the recording card joins
++    // the lock screen's live section, with a short status-bar chip. Both APIs
++    // are invoked reflectively so this compiles under any compileSdk and
++    // silently no-ops on devices/OS builds that lack them.
++    private fun applyLiveUpdatePromotion(notification: Notification): Notification {
++        if (Build.VERSION.SDK_INT < 36) return notification
++        val context = contextRef.get() ?: return notification
++        return try {
++            val builder = Notification.Builder.recoverBuilder(context, notification)
++            try {
++                builder.javaClass
++                    .getMethod("setShortCriticalText", String::class.java)
++                    .invoke(builder, if (isPaused.get()) "PAUSED" else "REC")
++            } catch (e: Exception) {
++                // API unavailable on this OS build
++            }
++            try {
++                builder.javaClass
++                    .getMethod("setRequestPromotedOngoing", Boolean::class.javaPrimitiveType)
++                    .invoke(builder, true)
++            } catch (e: Exception) {
++                // pre-QPR Android 16: no explicit request API
++            }
++            builder.build()
++        } catch (e: Exception) {
++            Log.w(CLASS_NAME, "Live update promotion failed", e)
++            notification
++        }
+     }
+ 
+     private fun createNotificationChannel() {
+@@ -70,7 +175,10 @@ class AudioNotificationManager private constructor(context: Context) {
+             val channel = NotificationChannel(
+                 recordingConfig.notification.channelId,
+                 recordingConfig.notification.channelName,
+-                NotificationManager.IMPORTANCE_LOW
++                // DEFAULT (not LOW): Android 16 will not promote low-importance
++                // channels to Live Updates. The channel stays silent regardless
++                // (no sound/vibration below).
++                NotificationManager.IMPORTANCE_DEFAULT
+             ).apply {
+                 description = recordingConfig.notification.channelDescription
+                 enableLights(false)
+@@ -84,19 +192,28 @@ class AudioNotificationManager private constructor(context: Context) {
+         }
+     }
+ 
++    // The custom RemoteViews layout exists to host the live waveform. Without the
++    // waveform it degrades badly (collapsed blank area, clipped text), so when the
++    // waveform is disabled the notification uses Songstead's minimal one-line
++    // layout instead (custom only because system templates strip the dot's
++    // color span on several OEM skins).
++    private fun usesCustomLayout(): Boolean = recordingConfig.showWaveformInNotification
++
+     private fun initializeNotification() {
+         val context = contextRef.get() ?: return
+         try {
+-            remoteViews = RemoteViews(context.packageName, R.layout.notification_recording)
+-            remoteViews.apply {
+-                setTextViewText(R.id.notification_title, recordingConfig.notification?.title)
+-                setTextViewText(R.id.notification_text, recordingConfig.notification?.text)
+-                setTextViewText(R.id.notification_duration, formatDuration(0))
+-                setViewVisibility(
+-                    R.id.notification_waveform,
+-                    if (recordingConfig.showWaveformInNotification &&
+-                        recordingConfig.notification?.waveform != null) View.VISIBLE else View.GONE
+-                )
++            if (usesCustomLayout()) {
++                remoteViews = RemoteViews(context.packageName, R.layout.notification_recording)
++                remoteViews.apply {
++                    setTextViewText(R.id.notification_title, recordingConfig.notification?.title)
++                    setTextViewText(R.id.notification_text, recordingConfig.notification?.text)
++                    setTextViewText(R.id.notification_duration, formatDuration(0))
++                    setViewVisibility(
++                        R.id.notification_waveform,
++                        if (recordingConfig.showWaveformInNotification &&
++                            recordingConfig.notification?.waveform != null) View.VISIBLE else View.GONE
++                    )
++                }
+             }
+ 
+             buildNotification(context)
+@@ -127,18 +244,75 @@ class AudioNotificationManager private constructor(context: Context) {
+             .setCategory(NotificationCompat.CATEGORY_SERVICE)
+             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+             .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
+-            .setCustomContentView(remoteViews)
+-            .setCustomBigContentView(remoteViews)
+-            .setStyle(NotificationCompat.DecoratedCustomViewStyle())
+             // Prevent repeated alerts and vibrations
+             .setOnlyAlertOnce(true)  // Only alert on first notification
+             .setVibrate(null)        // Disable vibration
+             .setDefaults(0)          // Clear all default notification behaviors
+             .setLocalOnly(true)      // Prevent notification from appearing on wearable devices
+ 
++        if (usesCustomLayout()) {
++            notificationBuilder
++                .setCustomContentView(remoteViews)
++                .setCustomBigContentView(remoteViews)
++                .setStyle(NotificationCompat.DecoratedCustomViewStyle())
++        } else {
++            // Songstead's one-line card: red dot + "Recording…" + ticking timer.
++            // The custom view exists for the reliably-red dot (templates strip
++            // color spans on several OEM skins). Trade-off, verified via dumpsys:
++            // Android 16 declines Live Updates promotion for custom-view
++            // notifications — the promotion request below stays attached anyway
++            // in case a future OS build accepts it.
++            notificationBuilder
++                .setContentTitle(recordingConfig.notification?.title)
++                .setCustomContentView(buildSimpleContentView(context))
++                .setStyle(NotificationCompat.DecoratedCustomViewStyle())
++            parseAccentColor()?.let { notificationBuilder.setColor(it) }
++        }
++
+         addNotificationActions(context)
+     }
+ 
++    private fun parseAccentColor(): Int? {
++        val accent = recordingConfig.notification?.accentColor ?: return null
++        return try {
++            Color.parseColor(accent)
++        } catch (e: IllegalArgumentException) {
++            Log.w(CLASS_NAME, "Invalid accentColor: $accent")
++            null
++        }
++    }
++
++    private fun currentRecordingElapsedMs(): Long {
++        if (recordingStartTime == 0L) return 0L
++        return if (isPaused.get()) {
++            lastPauseTime - recordingStartTime - pausedDuration
++        } else {
++            System.currentTimeMillis() - recordingStartTime - pausedDuration
++        }.coerceAtLeast(0L)
++    }
++
++    // Chronometer state for the one-line card: ticking while recording; while
++    // paused it stops with the base rebased to the frozen elapsed time, so the
++    // card shows the recorded duration standing still.
++    private fun applyChronometer(views: RemoteViews, viewId: Int) {
++        views.setChronometer(
++            viewId,
++            SystemClock.elapsedRealtime() - currentRecordingElapsedMs(),
++            null,
++            !isPaused.get()
++        )
++    }
++
++    // The one-line card: record-colored dot, title, live timer. Rebuilt on
++    // every state change; no per-second update loop needed.
++    private fun buildSimpleContentView(context: Context): RemoteViews {
++        val views = RemoteViews(context.packageName, R.layout.songstead_notification_simple)
++        views.setTextViewText(R.id.songstead_notification_title, recordingConfig.notification?.title)
++        parseAccentColor()?.let { views.setTextColor(R.id.songstead_notification_dot, it) }
++        applyChronometer(views, R.id.songstead_notification_chronometer)
++        return views
++    }
++
+     private fun addNotificationActions(context: Context) {
+         // Clear existing actions first
+         notificationBuilder.clearActions()
+@@ -211,10 +385,16 @@ class AudioNotificationManager private constructor(context: Context) {
+             addNotificationActions(context)
+ 
+             // Update the notification
+-            val updatedNotification = notificationBuilder
+-                .setCustomContentView(remoteViews)
+-                .setCustomBigContentView(remoteViews)
+-                .build()
++            if (usesCustomLayout()) {
++                notificationBuilder
++                    .setCustomContentView(remoteViews)
++                    .setCustomBigContentView(remoteViews)
++            } else {
++                // Rebuild the card so the chronometer reflects the current
++                // paused/elapsed state.
++                notificationBuilder.setCustomContentView(buildSimpleContentView(context))
++            }
++            val updatedNotification = applyLiveUpdatePromotion(notificationBuilder.build())
+ 
+             notificationManager.notify(recordingConfig.notification.notificationId, updatedNotification)
+         } catch (e: Exception) {
+@@ -227,7 +407,9 @@ class AudioNotificationManager private constructor(context: Context) {
+         pausedDuration = 0
+         isPaused.set(false)
+         updateNotificationActions() // Update actions when starting
+-        if (!isUpdating.getAndSet(true)) {
++        // The one-line card is static apart from its self-ticking chronometer;
++        // only the custom waveform layout needs the per-second update loop.
++        if (usesCustomLayout() && !isUpdating.getAndSet(true)) {
+             scheduleUpdate()
+         }
+     }
+@@ -243,6 +425,7 @@ class AudioNotificationManager private constructor(context: Context) {
+ 
+     fun updateNotification(audioData: FloatArray? = null) {
+         val context = contextRef.get() ?: return
++        if (!usesCustomLayout()) return
+ 
+         try {
+             val currentTime = SystemClock.elapsedRealtime()
+@@ -318,11 +501,13 @@ class AudioNotificationManager private constructor(context: Context) {
+             // Update the notification with disabled alerts
+             notificationManager.notify(
+                 recordingConfig.notification.notificationId,
+-                notificationBuilder
+-                    .setOnlyAlertOnce(true)
+-                    .setVibrate(null)
+-                    .setDefaults(0)
+-                    .build()
++                applyLiveUpdatePromotion(
++                    notificationBuilder
++                        .setOnlyAlertOnce(true)
++                        .setVibrate(null)
++                        .setDefaults(0)
++                        .build()
++                )
+             )
+ 
+             lastSuccessfulUpdate = currentTime
+@@ -355,13 +540,15 @@ class AudioNotificationManager private constructor(context: Context) {
+ 
+             notificationManager.notify(
+                 recordingConfig.notification.notificationId,
+-                notificationBuilder
+-                    .setCustomContentView(remoteViews)
+-                    .setCustomBigContentView(remoteViews)
+-                    .setOnlyAlertOnce(true)
+-                    .setVibrate(null)
+-                    .setDefaults(0)
+-                    .build()
++                applyLiveUpdatePromotion(
++                    notificationBuilder
++                        .setCustomContentView(remoteViews)
++                        .setCustomBigContentView(remoteViews)
++                        .setOnlyAlertOnce(true)
++                        .setVibrate(null)
++                        .setDefaults(0)
++                        .build()
++                )
+             )
+         } catch (e: Exception) {
+             LogUtils.e(CLASS_NAME, "Error updating waveform", e)
+@@ -372,15 +559,18 @@ class AudioNotificationManager private constructor(context: Context) {
+         try {
+             val context = contextRef.get() ?: return
+ 
+-            // Force a RemoteViews refresh
+-            remoteViews = RemoteViews(context.packageName, R.layout.notification_recording)
++            // Force a RemoteViews refresh (waveform layout only; the one-line
++            // card is rebuilt inside buildNotification)
++            if (usesCustomLayout()) {
++                remoteViews = RemoteViews(context.packageName, R.layout.notification_recording)
++            }
+             lastRemoteViewsUpdate = SystemClock.elapsedRealtime()
+ 
+             buildNotification(context)
+ 
+             notificationManager.notify(
+                 recordingConfig.notification.notificationId,
+-                notificationBuilder.build()
++                applyLiveUpdatePromotion(notificationBuilder.build())
+             )
+ 
+             consecutiveUpdateFailures = 0
+@@ -390,12 +580,23 @@ class AudioNotificationManager private constructor(context: Context) {
+         }
+     }
+ 
+-    fun getNotification(): Notification = notificationBuilder.build()
++    fun getNotification(): Notification = applyLiveUpdatePromotion(notificationBuilder.build())
++
++    // Used by AudioRecordingService.startForegroundWithNotification to prefer
++    // the real recording notification over a minimal fallback.
++    fun hasInitializedNotification(): Boolean {
++        return ::recordingConfig.isInitialized && ::notificationBuilder.isInitialized
++    }
++
++    fun getNotificationId(): Int {
++        return recordingConfig.notification.notificationId
++    }
+ 
+     fun pauseUpdates() {
+         isPaused.set(true)
+         lastPauseTime = System.currentTimeMillis()
+         updateNotificationActions() // Update actions when pausing
++        updateMediaSessionState(isPausedState = true)
+     }
+ 
+     fun resumeUpdates() {
+@@ -403,12 +604,14 @@ class AudioNotificationManager private constructor(context: Context) {
+         isPaused.set(false)
+         updateNotificationActions() // Update actions when resuming
+         scheduleUpdate()
++        updateMediaSessionState(isPausedState = false)
+     }
+ 
+     fun stopUpdates() {
+         isUpdating.set(false)
+         mainHandler.removeCallbacksAndMessages(null)
+         notificationManager.cancel(recordingConfig.notification.notificationId)
++        releaseMediaSession()
+         cleanup()
+     }
+ 
 diff --git a/node_modules/@siteed/audio-studio/android/src/main/java/net/siteed/audiostudio/AudioRecorderManager.kt b/node_modules/@siteed/audio-studio/android/src/main/java/net/siteed/audiostudio/AudioRecorderManager.kt
-index 6f93aa4..e91c79b 100644
+index 6f93aa4..ac90d2f 100644
 --- a/node_modules/@siteed/audio-studio/android/src/main/java/net/siteed/audiostudio/AudioRecorderManager.kt
 +++ b/node_modules/@siteed/audio-studio/android/src/main/java/net/siteed/audiostudio/AudioRecorderManager.kt
 @@ -7,6 +7,7 @@ import android.content.Context
@@ -24,7 +421,54 @@ index 6f93aa4..e91c79b 100644
      private var totalRecordedTime: Long = 0
      private var totalDataSize = 0
      private var lastEmitTime = SystemClock.elapsedRealtime()
-@@ -956,6 +964,9 @@ class AudioRecorderManager(
+@@ -854,6 +862,8 @@ class AudioRecorderManager(
+                     )
+                     return false
+                 }
++
++                applyPreferredInputDevice()
+             }
+             return true
+ 
+@@ -876,6 +886,37 @@ class AudioRecorderManager(
+         }
+     }
+ 
++    /**
++     * Songseed patch: bind the JS-selected input (RecordingConfig.deviceId) to this
++     * AudioRecord. Upstream only routes via AudioManager.setCommunicationDevice / SCO,
++     * which AudioSource.MIC does not reliably follow for wired or USB devices — without
++     * this binding the input picker's choice is cosmetic on Android.
++     */
++    private fun applyPreferredInputDevice() {
++        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return
++        val record = audioRecord ?: return
++        try {
++            val preferredId = selectedDeviceId?.toIntOrNull()
++            if (preferredId == null) {
++                record.setPreferredDevice(null)
++                return
++            }
++            val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
++            val device = audioManager
++                ?.getDevices(AudioManager.GET_DEVICES_INPUTS)
++                ?.firstOrNull { it.id == preferredId }
++            if (device != null) {
++                val accepted = record.setPreferredDevice(device)
++                LogUtils.d(CLASS_NAME, "Bound preferred input device $preferredId (${device.productName}): $accepted")
++            } else {
++                record.setPreferredDevice(null)
++                LogUtils.d(CLASS_NAME, "Preferred input device $preferredId not found; using default routing")
++            }
++        } catch (e: Exception) {
++            LogUtils.e(CLASS_NAME, "Failed to bind preferred input device", e)
++        }
++    }
++
+     private fun initializeRecordingResources(fileExtension: String, promise: Promise): Boolean {
+         try {
+             streamUuid = java.util.UUID.randomUUID().toString()
+@@ -956,6 +997,9 @@ class AudioRecorderManager(
              isPaused.set(false)
              _isRecording.set(true)
              isFirstChunk = true
@@ -34,7 +478,7 @@ index 6f93aa4..e91c79b 100644
  
              if (!isPaused.get()) {
                  recordingStartTime = System.currentTimeMillis()
-@@ -1622,6 +1633,48 @@ class AudioRecorderManager(
+@@ -1622,6 +1666,48 @@ class AudioRecorderManager(
          }
      }
  
@@ -83,7 +527,7 @@ index 6f93aa4..e91c79b 100644
      private fun emitAudioData(audioData: ByteArray, length: Int) {
          val isFloat32Stream = recordingConfig.streamFormat == "float32"
  
-@@ -1711,6 +1764,12 @@ class AudioRecorderManager(
+@@ -1711,6 +1797,12 @@ class AudioRecorderManager(
              )
          }
  
@@ -96,7 +540,7 @@ index 6f93aa4..e91c79b 100644
          mainHandler.post {
              try {
                  eventSender.sendExpoEvent(Constants.AUDIO_EVENT_NAME, baseBundle)
-@@ -1768,6 +1827,9 @@ class AudioRecorderManager(
+@@ -1768,6 +1860,9 @@ class AudioRecorderManager(
                  lastEmittedSize = 0
                  streamPosition = 0
                  recordingStartTime = 0
@@ -106,6 +550,102 @@ index 6f93aa4..e91c79b 100644
                  
                  // Clean up accumulated audio data
                  accumulatedAudioData?.close()
+diff --git a/node_modules/@siteed/audio-studio/android/src/main/java/net/siteed/audiostudio/AudioRecordingService.kt b/node_modules/@siteed/audio-studio/android/src/main/java/net/siteed/audiostudio/AudioRecordingService.kt
+index a6c1d5a..d93783b 100644
+--- a/node_modules/@siteed/audio-studio/android/src/main/java/net/siteed/audiostudio/AudioRecordingService.kt
++++ b/node_modules/@siteed/audio-studio/android/src/main/java/net/siteed/audiostudio/AudioRecordingService.kt
+@@ -39,6 +39,15 @@ class AudioRecordingService : Service() {
+ 
+     private fun startForegroundWithNotification() {
+         try {
++            if (notificationManager.hasInitializedNotification()) {
++                startForeground(
++                    notificationManager.getNotificationId(),
++                    notificationManager.getNotification()
++                )
++                Log.d(Constants.TAG, "Started foreground service with recording notification")
++                return
++            }
++
+             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                 // Create a minimal notification channel if needed
+                 val channel = NotificationChannel(
+diff --git a/node_modules/@siteed/audio-studio/android/src/main/res/layout/songstead_notification_simple.xml b/node_modules/@siteed/audio-studio/android/src/main/res/layout/songstead_notification_simple.xml
+new file mode 100644
+index 0000000..082c5a2
+--- /dev/null
++++ b/node_modules/@siteed/audio-studio/android/src/main/res/layout/songstead_notification_simple.xml
+@@ -0,0 +1,46 @@
++<?xml version="1.0" encoding="utf-8"?>
++<!-- Songstead's one-line recording card: red dot, "Recording…", live timer.
++     Transparent background — the OEM card shows through; a custom view is used
++     only because system templates strip the dot's color span on some skins. -->
++<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
++    android:layout_width="match_parent"
++    android:layout_height="wrap_content"
++    android:gravity="center_vertical"
++    android:orientation="horizontal"
++    android:paddingTop="10dp"
++    android:paddingBottom="10dp">
++
++    <TextView
++        android:id="@+id/songstead_notification_dot"
++        android:layout_width="wrap_content"
++        android:layout_height="wrap_content"
++        android:layout_marginEnd="8dp"
++        android:text="●"
++        android:textSize="12sp" />
++
++    <TextView
++        android:id="@+id/songstead_notification_title"
++        android:layout_width="wrap_content"
++        android:layout_height="wrap_content"
++        android:ellipsize="end"
++        android:maxLines="1"
++        android:textColor="@color/songstead_notification_title"
++        android:textSize="14sp"
++        android:textStyle="bold" />
++
++    <TextView
++        android:layout_width="wrap_content"
++        android:layout_height="wrap_content"
++        android:layout_marginLeft="7dp"
++        android:layout_marginRight="7dp"
++        android:text="•"
++        android:textColor="@color/songstead_notification_muted"
++        android:textSize="13sp" />
++
++    <Chronometer
++        android:id="@+id/songstead_notification_chronometer"
++        android:layout_width="wrap_content"
++        android:layout_height="wrap_content"
++        android:textColor="@color/songstead_notification_muted"
++        android:textSize="13sp" />
++</LinearLayout>
+diff --git a/node_modules/@siteed/audio-studio/android/src/main/res/values-night/songstead_notification_colors.xml b/node_modules/@siteed/audio-studio/android/src/main/res/values-night/songstead_notification_colors.xml
+new file mode 100644
+index 0000000..550bbff
+--- /dev/null
++++ b/node_modules/@siteed/audio-studio/android/src/main/res/values-night/songstead_notification_colors.xml
+@@ -0,0 +1,6 @@
++<?xml version="1.0" encoding="utf-8"?>
++<!-- Songstead recording-card text colors (dark shade). -->
++<resources>
++    <color name="songstead_notification_title">#EDE9E4</color>
++    <color name="songstead_notification_muted">#A89994</color>
++</resources>
+diff --git a/node_modules/@siteed/audio-studio/android/src/main/res/values/songstead_notification_colors.xml b/node_modules/@siteed/audio-studio/android/src/main/res/values/songstead_notification_colors.xml
+new file mode 100644
+index 0000000..370e32f
+--- /dev/null
++++ b/node_modules/@siteed/audio-studio/android/src/main/res/values/songstead_notification_colors.xml
+@@ -0,0 +1,6 @@
++<?xml version="1.0" encoding="utf-8"?>
++<!-- Songstead recording-card text colors (light). Night variants in values-night. -->
++<resources>
++    <color name="songstead_notification_title">#524440</color>
++    <color name="songstead_notification_muted">#84736F</color>
++</resources>
 diff --git a/node_modules/@siteed/audio-studio/build/cjs/useAudioRecorder.js b/node_modules/@siteed/audio-studio/build/cjs/useAudioRecorder.js
 index 1fee40c..4002b73 100644
 --- a/node_modules/@siteed/audio-studio/build/cjs/useAudioRecorder.js
@@ -169,7 +709,7 @@ index 14f363e..fac92f0 100644
                  }
              }
 diff --git a/node_modules/@siteed/audio-studio/ios/AudioStreamManager.swift b/node_modules/@siteed/audio-studio/ios/AudioStreamManager.swift
-index deec895..f19aab6 100644
+index deec895..192b989 100644
 --- a/node_modules/@siteed/audio-studio/ios/AudioStreamManager.swift
 +++ b/node_modules/@siteed/audio-studio/ios/AudioStreamManager.swift
 @@ -65,6 +65,10 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
@@ -183,6 +723,15 @@ index deec895..f19aab6 100644
      private var accumulatedData = Data()
  
      // Data emission for onAudioAnalysis
+@@ -310,7 +314,7 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
+         
+         // Set media title and artist
+         nowPlayingInfo[MPMediaItemPropertyTitle] = recordingSettings?.notification?.title ?? "Recording in Progress"
+-        nowPlayingInfo[MPMediaItemPropertyArtist] = "Audio Stream"
++        nowPlayingInfo[MPMediaItemPropertyArtist] = recordingSettings?.notification?.text ?? "Songstead"
+         
+         // Set playback state
+         nowPlayingInfo[MPNowPlayingInfoPropertyPlaybackRate] = isPaused ? 0.0 : 1.0
 @@ -731,6 +735,23 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
      ///   - customTapBlock: Optional custom tap block for specialized processing (like in fallback)
      ///   - prepareEngine: Whether to call prepare() on the engine after installing the tap (default: true)
@@ -230,7 +779,7 @@ index deec895..f19aab6 100644
              totalDataSize = 0
 +            captureStartTimeEpochMs = 0
 +            captureStartSource = "none"
- 
+             
              stopping = false
              return result
 @@ -1974,6 +2000,8 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {

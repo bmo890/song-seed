@@ -1,7 +1,8 @@
 import { ScrollView, Text, View } from "react-native";
+import { useNavigation } from "@react-navigation/native";
 import { PageIntro } from "../../common/PageIntro";
 import { settingsScreenStyles, styles } from "../styles";
-import { SegmentedField, ToggleRow } from "../components/SettingsShared";
+import { LibraryActionCard, SegmentedField, ToggleRow } from "../components/SettingsShared";
 import { useStore } from "../../../state/useStore";
 import { haptic } from "../../../design/haptics";
 import {
@@ -15,6 +16,8 @@ import {
  * everywhere (each take stays adjustable in the moment).
  */
 export function SettingsRecordingView() {
+  const navigation = useNavigation();
+  const bluetoothCalibrations = useStore((s) => s.bluetoothMonitoringCalibrations);
   const promptForClipName = useStore((s) => s.promptForClipName);
   const setPromptForClipName = useStore((s) => s.setPromptForClipName);
   const meterId = useStore((s) => s.metronomeMeterId);
@@ -51,6 +54,33 @@ export function SettingsRecordingView() {
               setPromptForClipName(!promptForClipName);
             }}
           />
+        </View>
+      </View>
+
+      <View style={styles.settingsSection}>
+        <View style={styles.settingsSectionHeaderRow}>
+          <Text style={styles.settingsSectionLabel}>Devices</Text>
+        </View>
+        <View style={styles.settingsOptionStack}>
+          <LibraryActionCard
+            icon="bluetooth"
+            title="Bluetooth calibration"
+            meta={
+              bluetoothCalibrations.length === 0
+                ? "Measure wireless headphone delay so takes land on the beat."
+                : `${bluetoothCalibrations.length} saved calibration${
+                    bluetoothCalibrations.length === 1 ? "" : "s"
+                  }.`
+            }
+            onPress={() => {
+              haptic.tap();
+              navigation.navigate("BluetoothCalibration" as never);
+            }}
+          />
+          <Text style={styles.settingsSectionHint}>
+            The microphone for each take is chosen on the recording screen — open the … menu
+            there to switch between the built-in mic, a headset, or a USB microphone.
+          </Text>
         </View>
       </View>
 

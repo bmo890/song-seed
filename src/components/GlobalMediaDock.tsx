@@ -5,6 +5,7 @@ import { Pressable, Text, View } from "react-native";
 import Animated, { FadeInDown, FadeOut, runOnJS, withTiming } from "react-native-reanimated";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { QueuePanel } from "./QueuePanel";
+import { CloseButton } from "./common/CloseButton";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRecordingDisplayElapsed } from "../hooks/useRecordingDisplayElapsed";
 import { useFullPlayerControls } from "../hooks/FullPlayerProvider";
@@ -380,19 +381,15 @@ export function GlobalMediaDock({
             tight transport cluster, and the queue button (with its position
             readout beneath) closes the right. */}
         <View style={styles.miniMediaDockRow}>
-          <Pressable
-            style={({ pressed }) => [styles.miniMediaDockDismissBtn, pressed ? styles.pressDownStrong : null]}
+          <CloseButton
+            size="md"
+            tone="onDark"
+            accessibilityLabel="Dismiss"
             onPress={() => {
-              haptic.tap();
               void fullPlayer.closePlayer();
               useStore.getState().clearPlayerQueue();
             }}
-            hitSlop={8}
-            accessibilityRole="button"
-            accessibilityLabel="Dismiss"
-          >
-            <Ionicons name="close" size={15} color="rgba(253,251,247,0.6)" />
-          </Pressable>
+          />
 
           <Pressable
             style={[styles.miniMediaDockTitlePress, isPreviewingClip ? { opacity: 0.45 } : null]}

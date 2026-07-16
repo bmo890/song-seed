@@ -29,7 +29,13 @@ export function normalizeBluetoothMonitoringSavedOffsetMs(value: number) {
   return normalizeBluetoothMonitoringOffsetMs(value, MAX_BLUETOOTH_MONITORING_MANUAL_OFFSET_MS);
 }
 
-export function isBluetoothLikeAudioDevice(device: Pick<AudioDevice, "name" | "type"> | null | undefined) {
+/** A route as reported by either the audio-studio device manager or the native
+ *  songseed-metronome module. `profile` is only present on Bluetooth routes reported by
+ *  newer native binaries: "hfp" while the headset's mic is in use (phone-call profile),
+ *  "a2dp"/"le" otherwise. */
+export type AudioRouteLike = Pick<AudioDevice, "name" | "type"> & { profile?: string | null };
+
+export function isBluetoothLikeAudioDevice(device: AudioRouteLike | null | undefined) {
   if (!device) {
     return false;
   }
@@ -42,13 +48,20 @@ export function isBluetoothLikeAudioDevice(device: Pick<AudioDevice, "name" | "t
 }
 
 export function buildBluetoothMonitoringRouteKey(
-  device: Pick<AudioDevice, "name" | "type"> | null | undefined
+  device: AudioRouteLike | null | undefined
 ) {
   if (!device) {
     return null;
   }
 
-  const normalizedType = (device.type || "unknown").trim().toLowerCase().replace(/[^a-z0-9]+/g, "-");
+  let normalizedType = (device.type || "unknown").trim().toLowerCase().replace(/[^a-z0-9]+/g, "-");
+  // HFP (the phone-call profile active while a Bluetooth mic is in use) has a completely
+  // different latency than the same headphones on A2DP — a calibration taken on one must
+  // never be applied to the other. A2DP/LE keep the legacy un-suffixed key so existing
+  // saved calibrations stay valid.
+  if (normalizedType === "bluetooth" && device.profile === "hfp") {
+    normalizedType = "bluetooth-hfp";
+  }
   const normalizedName = (device.name || "")
     .trim()
     .toLowerCase()
@@ -63,20 +76,21 @@ export function buildBluetoothMonitoringRouteKey(
 }
 
 export function buildBluetoothMonitoringRouteLabel(
-  device: Pick<AudioDevice, "name" | "type"> | null | undefined
+  device: AudioRouteLike | null | undefined
 ) {
   if (!device) {
     return "Unknown Bluetooth route";
   }
 
+  const hfpSuffix = device.type === "bluetooth" && device.profile === "hfp" ? " (mic active)" : "";
   const trimmedName = device.name.trim();
   if (trimmedName.length > 0) {
-    return trimmedName;
+    return `${trimmedName}${hfpSuffix}`;
   }
 
   switch (device.type) {
     case "bluetooth":
-      return "Bluetooth audio";
+      return `Bluetooth audio${hfpSuffix}`;
     case "wired_headset":
     case "wired_headphones":
       return "Wired headphones";

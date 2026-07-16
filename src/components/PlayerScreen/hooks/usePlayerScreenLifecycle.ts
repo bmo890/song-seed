@@ -8,6 +8,7 @@ import { hasProAccess } from "../../../domain/entitlements";
 import { openProUpsell } from "../../common/proUpsell";
 import { MANAGED_WAVEFORM_PEAK_COUNT, loadManagedAudioMetadata, shareAudioFile } from "../../../services/audioStorage";
 import { isForegroundAudioBusy, waitForForegroundAudioIdle } from "../../../services/audioForegroundActivity";
+import { buildClipLockScreenMetadata } from "../../../services/lockScreenMetadata";
 import { appActions } from "../../../state/actions";
 import { useStore } from "../../../state/useStore";
 import type { ClipVersion } from "../../../types";
@@ -39,17 +40,17 @@ type UsePlayerScreenLifecycleArgs = {
   mode: "player" | "practice" | "playalong";
   suppressAutoplayOnOpen?: boolean;
   speedPanelVisible: boolean;
-  openPlayer: (ideaId: string, clip: any, metadata?: { title?: string; albumTitle?: string }, autoplay?: boolean) => Promise<void>;
+  openPlayer: (ideaId: string, clip: any, metadata?: { title?: string; artist?: string; albumTitle?: string }, autoplay?: boolean) => Promise<void>;
   syncPlayerSource: (
     ideaId: string,
     clip: any,
-    metadata?: { title?: string; albumTitle?: string },
+    metadata?: { title?: string; artist?: string; albumTitle?: string },
     resumeAtMs?: number,
     shouldPlay?: boolean
   ) => Promise<void>;
   closePlayer: () => Promise<void>;
   pausePlayer: () => Promise<void>;
-  updateLockScreenMetadata: (metadata: { title?: string; albumTitle?: string }) => void;
+  updateLockScreenMetadata: (metadata: { title?: string; artist?: string; albumTitle?: string }) => void;
   beginScrub: () => Promise<void>;
   endScrub: () => Promise<void>;
   cancelScrub: () => Promise<void>;
@@ -157,10 +158,7 @@ export function usePlayerScreenLifecycle({
     void openPlayer(
       playerIdea.id,
       playerClip,
-      {
-        title: playerClip.title,
-        albumTitle: playerIdea.title,
-      },
+      buildClipLockScreenMetadata(playerIdea, playerClip),
       shouldAutoplay && !suppressAutoplayOnOpen
     ).finally(() => {
       if (openInFlightClipIdRef.current === clipId) {
@@ -196,10 +194,7 @@ export function usePlayerScreenLifecycle({
     void syncPlayerSource(
       playerIdea.id,
       playerClip,
-      {
-        title: playerClip.title,
-        albumTitle: playerIdea.title,
-      },
+      buildClipLockScreenMetadata(playerIdea, playerClip),
       playbackSnapshot.positionMs,
       playbackSnapshot.isPlaying
     ).finally(() => {
@@ -219,10 +214,7 @@ export function usePlayerScreenLifecycle({
 
   useEffect(() => {
     if (!playerIdea || !playerClip) return;
-    updateLockScreenMetadata({
-      title: playerClip.title,
-      albumTitle: playerIdea.title,
-    });
+    updateLockScreenMetadata(buildClipLockScreenMetadata(playerIdea, playerClip));
   }, [playerClip?.title, playerIdea?.title, updateLockScreenMetadata]);
 
   useEffect(() => {

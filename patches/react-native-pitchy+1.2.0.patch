@@ -2,7 +2,10 @@ diff --git a/node_modules/react-native-pitchy/android/CMakeLists.txt b/node_modu
 index 4af295f..e08847a 100644
 --- a/node_modules/react-native-pitchy/android/CMakeLists.txt
 +++ b/node_modules/react-native-pitchy/android/CMakeLists.txt
-@@ -12,3 +12,10 @@ add_library(react-native-pitchy            SHARED
+@@ -9,6 +9,13 @@ add_library(react-native-pitchy            SHARED
+             cpp-adapter.cpp
+ )
+ 
 +# NDK r27 does not enable flexible page sizes by default. Align LOAD segments
 +# for Android devices that use 16 KB memory pages.
 +target_link_options(react-native-pitchy PRIVATE
@@ -13,3 +16,101 @@ index 4af295f..e08847a 100644
  # Specifies a path to native header files.
  include_directories(
              ../cpp
+diff --git a/node_modules/react-native-pitchy/android/cpp-adapter.cpp b/node_modules/react-native-pitchy/android/cpp-adapter.cpp
+index 8af86ff..a24ea5c 100644
+--- a/node_modules/react-native-pitchy/android/cpp-adapter.cpp
++++ b/node_modules/react-native-pitchy/android/cpp-adapter.cpp
+@@ -13,7 +13,13 @@ Java_com_pitchy_PitchyModuleImpl_nativeAutoCorrelate(JNIEnv *env, jobject thiz,
+     // Convert jshortArray to std::vector<double>
+     jshort *buf = env->GetShortArrayElements(buffer, 0);
+     jsize size = env->GetArrayLength(buffer);
+-    std::vector<double> vec(buf, buf + size);
++    // Normalize 16-bit PCM to ±1.0 so the minVolume dBFS gate (and the 0.2 edge-trim
++    // threshold in autoCorrelate) behave the same as iOS float buffers. Raw shorts
++    // made the volume gate a no-op on Android.
++    std::vector<double> vec(size);
++    for (jsize i = 0; i < size; ++i) {
++        vec[i] = buf[i] / 32768.0;
++    }
+     env->ReleaseShortArrayElements(buffer, buf, 0);
+ 
+     // Call pitchy::autoCorrelate
+diff --git a/node_modules/react-native-pitchy/ios/Pitchy.mm b/node_modules/react-native-pitchy/ios/Pitchy.mm
+index be6062a..f9499c1 100644
+--- a/node_modules/react-native-pitchy/ios/Pitchy.mm
++++ b/node_modules/react-native-pitchy/ios/Pitchy.mm
+@@ -33,23 +33,40 @@ - (void)stopObserving {
+     // Required for RCTEventEmitter
+ }
+ 
++// Other audio modules (recording, playback) reconfigure the shared AVAudioSession
++// after this module first initializes, which silently degrades tuner input. Re-assert
++// the measurement-mode session on every start, not just first configure.
++- (BOOL)applyAudioSession {
++    AVAudioSession *session = [AVAudioSession sharedInstance];
++    NSError *error = nil;
++    [session setCategory:AVAudioSessionCategoryPlayAndRecord
++                    mode:AVAudioSessionModeMeasurement
++                 options:AVAudioSessionCategoryOptionDefaultToSpeaker
++                   error:&error];
++    if (error) {
++        RCTLogError(@"Error setting AVAudioSession category: %@", error);
++        return NO;
++    }
++
++    [session setActive:YES error:&error];
++    if (error) {
++        RCTLogError(@"Error activating AVAudioSession: %@", error);
++        return NO;
++    }
++
++    // Measurement mode disables input AGC, so make sure the hardware gain is
++    // wide open on devices that expose it.
++    if (session.isInputGainSettable) {
++        [session setInputGain:1.0 error:nil];
++    }
++
++    return YES;
++}
++
+ RCT_EXPORT_METHOD(configure:(NSDictionary *)config) {
+     if (!isInitialized) {
+         @try {
+-            AVAudioSession *session = [AVAudioSession sharedInstance];
+-            NSError *error = nil;
+-            [session setCategory:AVAudioSessionCategoryPlayAndRecord
+-                            mode:AVAudioSessionModeMeasurement
+-                         options:AVAudioSessionCategoryOptionDefaultToSpeaker
+-                           error:&error];
+-            if (error) {
+-                RCTLogError(@"Error setting AVAudioSession category: %@", error);
+-                return;
+-            }
+-
+-            [session setActive:YES error:&error];
+-            if (error) {
+-                RCTLogError(@"Error activating AVAudioSession: %@", error);
++            if (![self applyAudioSession]) {
+                 return;
+             }
+ 
+@@ -89,6 +106,8 @@ - (void)stopObserving {
+     }
+ 
+     @try {
++        [self applyAudioSession];
++
+         NSError *error = nil;
+         [audioEngine startAndReturnError:&error];
+         if (error) {
+@@ -119,7 +138,9 @@ - (void)detectPitch:(AVAudioPCMBuffer *)buffer {
+     float *channelData = buffer.floatChannelData[0];
+     std::vector<double> buf(channelData, channelData + buffer.frameLength);
+ 
+-    double detectedPitch = pitchy::autoCorrelate(buf, sampleRate, minVolume);
++    // Session reconfiguration can change the hardware sample rate after configure
++    // cached it; trust the buffer's own format so pitches don't come out scaled.
++    double detectedPitch = pitchy::autoCorrelate(buf, buffer.format.sampleRate, minVolume);
+ 
+     if (hasListeners) {
+         [self sendEventWithName:@"onPitchDetected" body:@{@"pitch": @(detectedPitch)}];

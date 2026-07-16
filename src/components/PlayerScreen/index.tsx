@@ -858,6 +858,7 @@ export function PlayerScreen({
             onNextTrack={lifecycle.handleNextTrack}
             onToggleRepeat={() => ui.setRepeatEnabled((value) => !value)}
             onToggleQueueExpanded={() => ui.setQueueExpanded((value) => !value)}
+            onClose={lifecycle.stopSessionAndClose}
           />
         }
       >

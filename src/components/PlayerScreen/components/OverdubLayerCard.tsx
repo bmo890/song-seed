@@ -7,6 +7,7 @@ import { AppAlert } from "../../common/AppAlert";
 import { actionIcons } from "../../common/actionIcons";
 import { WarmModal } from "../../common/WarmModal";
 import { HueSlider } from "../../common/HueSlider";
+import { IconButton } from "../../common/IconButton";
 import { playerScreenStyles } from "../styles";
 import { fmtDuration } from "../../../utils";
 import { colors, radii } from "../../../design/tokens";
@@ -212,15 +213,13 @@ export function OverdubLayerCard({
           accessibilityState={{ checked: !isMuted }}
           accessibilityLabel={isMuted ? "Unmute this layer" : "Mute this layer"}
         />
-        <Pressable
-          style={cardStyles.menuButton}
+        <IconButton
+          icon="ellipsis-horizontal"
+          tone="muted"
+          size={18}
           onPress={openLayerMenu}
-          hitSlop={6}
-          accessibilityRole="button"
           accessibilityLabel="Layer options"
-        >
-          <Ionicons name="ellipsis-horizontal" size={18} color={colors.textSecondary} />
-        </Pressable>
+        />
       </View>
 
       {/* Scrubbable preview transport while this layer is loaded (playing or paused) —
@@ -468,13 +467,6 @@ function EditLayerModal({
 }
 
 const cardStyles = StyleSheet.create({
-  menuButton: {
-    width: 30,
-    height: 30,
-    borderRadius: radii.round,
-    alignItems: "center",
-    justifyContent: "center",
-  },
   soloScrubber: {
     width: "100%",
     height: 26,

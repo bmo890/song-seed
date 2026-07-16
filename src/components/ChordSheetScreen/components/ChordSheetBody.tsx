@@ -8,6 +8,7 @@ import { colors, radii, spacing, text as textTokens } from "../../../design/toke
 import { SECTION_PRESETS } from "../../../domain/chordSheet";
 import type { ChordSheet } from "../../../types";
 import { ChordPickerSheet } from "../../LyricsVersionScreen/components/chords/ChordPickerSheet";
+import { IconButton } from "../../common/IconButton";
 import { SelectionActionSheet } from "../../common/SelectionActionSheet";
 import type { SelectionAction } from "../../common/SelectionDock";
 import { QuickNameModal } from "../../modals/QuickNameModal";
@@ -401,9 +402,13 @@ function ChordTextBlock({
       <View style={styles.textBlockHeader}>
         <Ionicons name="document-text-outline" size={13} color={colors.textMuted} />
         <View style={appStyles.flexFill} />
-        <Pressable onPress={onOpenMenu} hitSlop={8}>
-          <Ionicons name="ellipsis-horizontal" size={16} color={colors.textMuted} />
-        </Pressable>
+        <IconButton
+          icon="ellipsis-horizontal"
+          tone="muted"
+          size={16}
+          onPress={onOpenMenu}
+          accessibilityLabel="Text block options"
+        />
       </View>
       <TextInput
         ref={field.ref}

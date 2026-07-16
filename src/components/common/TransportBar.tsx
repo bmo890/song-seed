@@ -1,6 +1,7 @@
 import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { CloseButton } from "./CloseButton";
 import { haptic } from "../../design/haptics";
 import { colors, radii } from "../../design/tokens";
 
@@ -15,6 +16,9 @@ type TransportBarProps = {
   /** "full" = the player sheet's footer; "compact" = the mini dock. Same layout
    *  and language, scaled. */
   size?: "full" | "compact";
+  /** When provided, a ✕ close button fills the leading slot (mirroring the mini
+   *  dock's far-left ✕) — ends the whole session, not just collapse. */
+  onClose?: () => void;
   trailingIcon?: keyof typeof Ionicons.glyphMap;
   trailingActive?: boolean;
   trailingDisabled?: boolean;
@@ -42,6 +46,7 @@ function TransportBarInner({
   onTogglePlay,
   onNext,
   size = "full",
+  onClose,
   trailingIcon,
   trailingActive = false,
   trailingDisabled = false,
@@ -60,7 +65,14 @@ function TransportBarInner({
   return (
     <View style={styles.row}>
       <View style={slotStyle}>
-        {speedBadge ? (
+        {onClose ? (
+          <CloseButton
+            size={compact ? "sm" : "lg"}
+            tone="onLight"
+            onPress={onClose}
+            accessibilityLabel="Close player"
+          />
+        ) : speedBadge ? (
           <Pressable
             style={({ pressed }) => [
               styles.speedBadge,

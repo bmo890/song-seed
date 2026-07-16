@@ -4,6 +4,7 @@ import { styles as globalStyles } from "../../styles";
 import { Workspace } from "../../types";
 import { SurfaceCard } from "../common/SurfaceCard";
 import { WorkspaceAvatar } from "../common/WorkspaceAvatar";
+import { IconButton } from "../common/IconButton";
 import { useStore } from "../../state/useStore";
 import { colors } from "../../design/tokens";
 
@@ -69,16 +70,14 @@ export function WorkspaceCard({
               {busyLabel ?? "WORKING"}
             </Text>
           ) : (
-            <Pressable
+            <IconButton
               testID={`workspace-actions-${workspace.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "")}`}
-              accessibilityRole="button"
-              accessibilityLabel="Workspace options"
-              style={cardStyles.actionsBtn}
+              icon="ellipsis-vertical"
+              tone="muted"
+              size={16}
               onPress={onOpenActions}
-              hitSlop={8}
-            >
-              <Ionicons name="ellipsis-vertical" size={14} color={colors.borderMuted} />
-            </Pressable>
+              accessibilityLabel="Workspace options"
+            />
           )}
         </View>
 
@@ -127,16 +126,14 @@ export function WorkspaceCard({
               {busyLabel ?? "WORKING"}
             </Text>
           ) : (
-            <Pressable
+            <IconButton
               testID={`workspace-actions-${workspace.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "")}`}
-              accessibilityRole="button"
-              accessibilityLabel="Workspace options"
-              style={cardStyles.actionsBtn}
+              icon="ellipsis-vertical"
+              tone="muted"
+              size={18}
               onPress={onOpenActions}
-              hitSlop={8}
-            >
-              <Ionicons name="ellipsis-vertical" size={16} color={colors.borderMuted} />
-            </Pressable>
+              accessibilityLabel="Workspace options"
+            />
           )}
         </View>
       </View>
@@ -214,9 +211,6 @@ const cardStyles = StyleSheet.create({
   },
   avatarRowRight: {
     alignItems: "flex-end",
-  },
-  actionsBtn: {
-    padding: 4,
   },
   nameBlock: {
     gap: 6,

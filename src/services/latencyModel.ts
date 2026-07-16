@@ -106,8 +106,9 @@ export function sanitizeOsOutputLatencyMs(
 }
 
 export type ResolveRouteLatencyProfileArgs = {
-  /** The active monitoring output route ({name, type}), null when unknown. */
-  route: { name: string; type: string } | null;
+  /** The active monitoring output route ({name, type, profile?}), null when unknown.
+   *  `profile` ("hfp"/"a2dp"/"le") keys Bluetooth calibrations per link profile. */
+  route: { name: string; type: string; profile?: string | null } | null;
   /** Raw OS-reported latency (getCurrentAudioRouteLatencyMs result), null when absent. */
   osLatency: { outputMs?: number; inputMs?: number } | null;
   /** Saved BT ear-calibrations. */

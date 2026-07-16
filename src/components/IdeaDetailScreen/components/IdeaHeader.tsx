@@ -9,6 +9,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { styles } from "../styles";
 import { appActions } from "../../../state/actions";
 import { TitleInput } from "../../common/TitleInput";
+import { IconButton } from "../../common/IconButton";
 import { useSongScreen } from "../provider/SongScreenProvider";
 import { COMPACT_TITLE_FADE_IN_END, COMPACT_TITLE_FADE_IN_START } from "../headerCollapse";
 import { AppAlert } from "../../common/AppAlert";
@@ -115,12 +116,13 @@ export function IdeaHeader() {
             </Pressable>
           </View>
         ) : (
-          <Pressable
-            style={({ pressed }) => [styles.ideasHeaderMenuBtn, pressed ? styles.pressDown : null]}
+          <IconButton
+            icon="ellipsis-horizontal"
+            tone="muted"
+            size={20}
             onPress={() => setHeaderMenuOpen((prev) => !prev)}
-          >
-            <Ionicons name="ellipsis-horizontal" size={16} color={colors.textStrong} />
-          </Pressable>
+            accessibilityLabel="More options"
+          />
         )}
       </View>
 

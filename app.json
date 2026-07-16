@@ -31,7 +31,8 @@
       "permissions": [
         "RECORD_AUDIO",
         "android.permission.RECORD_AUDIO",
-        "android.permission.MODIFY_AUDIO_SETTINGS"
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.POST_PROMOTED_NOTIFICATIONS"
       ],
       "package": "com.bmostudio.songseed"
     },

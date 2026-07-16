@@ -17,6 +17,7 @@ import { useStore } from "../../../state/useStore";
 import { appActions } from "../../../state/actions";
 import { StatusBadge } from "../../common/StatusBadge";
 import { IdeaCard } from "../../common/IdeaCard";
+import { CloseButton } from "../../common/CloseButton";
 import { AppAlert } from "../../common/AppAlert";
 import { useWorkspaceTheme } from "../../../context/WorkspaceThemeContext";
 import { haptic } from "../../../design/haptics";
@@ -346,15 +347,14 @@ function IdeaListItemInner({
                                 beginSelection();
                             }}
                             leadAccessory={inlineActive ? (
-                                <Pressable
-                                    style={({ pressed }) => [styles.ideasInlineCloseBtn, pressed ? styles.pressDown : null]}
-                                    onPress={(evt) => {
-                                        evt.stopPropagation();
+                                <CloseButton
+                                    size="sm"
+                                    tone="onLight"
+                                    accessibilityLabel="Stop preview"
+                                    onPress={() => {
                                         void inlinePlayer.resetInlinePlayer();
                                     }}
-                                >
-                                    <Ionicons name="stop-circle-outline" size={14} color="#84736f" />
-                                </Pressable>
+                                />
                             ) : null}
                             onPress={async () => {
                                 if (songTargetPicker) {

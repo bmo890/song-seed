@@ -420,16 +420,6 @@ export const ideasStyles = {
     width: 32,
     height: 32,
   },
-  ideasHeaderMenuBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: radii.round,
-    borderWidth: 1,
-    borderColor: "rgba(215,194,189,0.5)",
-    backgroundColor: "#F4F1ED",
-    alignItems: "center",
-    justifyContent: "center",
-  },
   ideasHeaderMenuLayer: {
     ...StyleSheet.absoluteFillObject,
     zIndex: 40,
@@ -873,16 +863,6 @@ export const ideasStyles = {
     flexShrink: 0,
     alignSelf: "stretch",
     paddingVertical: 2,
-  },
-  ideasInlineCloseBtn: {
-    width: 26,
-    height: 26,
-    borderRadius: radii.round,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#F4F1ED",
-    borderWidth: 1,
-    borderColor: "rgba(215,194,189,0.5)",
   },
   ideasSearchTagRow: {
     flexDirection: "row",
