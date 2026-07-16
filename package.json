@@ -28,6 +28,7 @@
     "@siteed/audio-studio": "^3.0.2",
     "@types/jest": "29.5.14",
     "expo": "~54.0.33",
+    "expo-asset": "~12.0.13",
     "expo-audio": "^1.1.1",
     "expo-clipboard": "~8.0.8",
     "expo-crypto": "~15.0.9",
@@ -69,5 +70,14 @@
     "babel-preset-expo": "^54.0.10",
     "typescript": "~5.9.2"
   },
-  "private": true
+  "private": true,
+  "expo": {
+    "autolinking": {
+      "android": {
+        "buildFromSource": [
+          "expo-audio"
+        ]
+      }
+    }
+  }
 }

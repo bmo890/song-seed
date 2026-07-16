@@ -9,6 +9,7 @@ import {
   getClipPlaybackUri,
 } from "../clipPresentation";
 import { activateAndPlay, replacePlaybackSource } from "../services/transportPlayback";
+import { getLockScreenArtworkUrl, prefetchLockScreenArtwork } from "../services/lockScreenArtwork";
 import { beginForegroundAudioLoad, endForegroundAudioLoad } from "../services/audioForegroundActivity";
 import { appActions } from "../state/actions";
 import { useStore } from "../state/useStore";
@@ -82,7 +83,31 @@ type Args = {
 
 type LockScreenMetadata = {
   title?: string;
+  artist?: string;
   albumTitle?: string;
+};
+
+// Lock-screen "previous" follows the universal media convention (Spotify, Apple
+// Music, media3's default): pressing it past this position restarts the clip;
+// pressing it within the threshold goes to the previous queue item. 3000ms is
+// media3's own maxSeekToPreviousPositionMs default.
+const LOCK_SCREEN_PREVIOUS_RESTART_MS = 3000;
+
+// Lock-screen button config derives from the live queue: next is grayed out at
+// the end of the queue (or with no queue), previous stays tappable because it
+// always at least restarts the clip.
+const buildLockScreenOptions = () => {
+  const { playerQueue, playerQueueIndex } = useStore.getState();
+  return {
+    // The native scrubber handles in-clip seeking; the button slots go to
+    // queue navigation instead (mirrors the mini player's prev/next).
+    showSeekBackward: false,
+    showSeekForward: false,
+    showPreviousTrack: true,
+    showNextTrack: true,
+    nextTrackEnabled: playerQueueIndex < playerQueue.length - 1,
+    previousTrackEnabled: true,
+  };
 };
 
 // How long a reported position may be held at a gate target (source swap or seek)
@@ -249,18 +274,72 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
     };
   }, [didPlayerJustFinish, isPlayerPlaying, playerDuration, playerPosition, setPlayerPlaybackState]);
 
+  // Resolve the bundled artwork before the first activation so the lock screen
+  // never appears artless while the asset is still being materialized.
+  useEffect(() => {
+    prefetchLockScreenArtwork();
+  }, []);
+
+  // Lock-screen prev/next drive the queue exactly like the mini player's buttons
+  // (GlobalMediaDock): stop any inline preview, then move the queue index.
+  // Previous follows the standard restart-then-previous convention (see
+  // LOCK_SCREEN_PREVIOUS_RESTART_MS); next is a guarded no-op at the queue end
+  // (the button is also grayed out natively via nextTrackEnabled).
+  useEffect(() => {
+    const subscription = player.addListener("lockScreenCommand", ({ command }) => {
+      const { playerQueue, playerQueueIndex } = useStore.getState();
+
+      if (command === "previousTrack") {
+        const hasPrevious = playerQueue.length > 0 && playerQueueIndex > 0;
+        const positionMs = player.currentTime * 1000;
+        if (!hasPrevious || positionMs > LOCK_SCREEN_PREVIOUS_RESTART_MS) {
+          player.seekTo(0);
+          return;
+        }
+        useStore.getState().requestInlineStop();
+        useStore.getState().advancePlayerQueue("previous", true);
+        return;
+      }
+
+      if (playerQueueIndex + 1 >= playerQueue.length) return;
+      useStore.getState().requestInlineStop();
+      useStore.getState().advancePlayerQueue("next", true);
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, [player]);
+
+  // Keep the native next-button enabled state in step with the queue: gray it
+  // out on the last item, light it back up when something is queued behind it.
+  useEffect(() => {
+    let lastNextEnabled: boolean | null = null;
+    const unsubscribe = useStore.subscribe((state) => {
+      const nextEnabled = state.playerQueueIndex < state.playerQueue.length - 1;
+      if (nextEnabled === lastNextEnabled) return;
+      lastNextEnabled = nextEnabled;
+      if (!isLockScreenActiveRef.current) return;
+      try {
+        player.updateLockScreenOptions(buildLockScreenOptions());
+      } catch {
+        // ignore released player cleanup races
+      }
+    });
+
+    return unsubscribe;
+  }, [player]);
+
   const activateLockScreenControls = useCallback((metadata?: LockScreenMetadata) => {
     try {
       player.setActiveForLockScreen(
         true,
         {
           ...metadata,
-          artist: "SongSeed",
+          artist: metadata?.artist ?? "Songstead",
+          artworkUrl: getLockScreenArtworkUrl(),
         },
-        {
-          showSeekBackward: true,
-          showSeekForward: true,
-        }
+        buildLockScreenOptions()
       );
       isLockScreenActiveRef.current = true;
     } catch (error) {
@@ -312,15 +391,44 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
     };
   }, [clearLockScreenControls, setPlayerPlaybackState]);
 
+  // The media session persists across pauses (standard media behavior: a paused
+  // card stays up, with pause reflected natively). It is only torn down when the
+  // playback session truly ends — closePlayer and unmount. Skipping re-activation
+  // while already active avoids the native session rebuild that made the card
+  // blink on every pause/play and scrub. (History: clear-on-pause came from
+  // b7949d0 as an implicit handoff with the inline preview player; the handoff
+  // is now explicit — see the inline-claim effect below.)
   useEffect(() => {
-    if (isPlayerPlaying) {
-      if (appStateRef.current === "active") {
+    if (!isPlayerPlaying) return;
+    if (isLockScreenActiveRef.current) return;
+    if (appStateRef.current !== "active") return;
+    activateLockScreenControls(lockScreenMetadataRef.current);
+  }, [activateLockScreenControls, isPlayerPlaying]);
+
+  // Explicit handoff with the inline preview player (it claims the lock screen
+  // for background audio during previews — f63302c). When inline claims, our
+  // native slot is gone regardless of what our ref says; when inline releases,
+  // re-claim on behalf of the still-loaded full-player session so the card
+  // survives previews instead of vanishing with them.
+  useEffect(() => {
+    let lastInlineTarget = useStore.getState().inlineTarget;
+    const unsubscribe = useStore.subscribe((state) => {
+      const previous = lastInlineTarget;
+      lastInlineTarget = state.inlineTarget;
+
+      if (!previous && state.inlineTarget) {
+        isLockScreenActiveRef.current = false;
+        return;
+      }
+
+      if (previous && !state.inlineTarget && state.playerTarget) {
+        if (appStateRef.current !== "active") return;
         activateLockScreenControls(lockScreenMetadataRef.current);
       }
-      return;
-    }
-    clearLockScreenControls();
-  }, [activateLockScreenControls, clearLockScreenControls, isPlayerPlaying]);
+    });
+
+    return unsubscribe;
+  }, [activateLockScreenControls]);
 
   const isOperationActive = useCallback(
     (operationId: number) => isMountedRef.current && operationIdRef.current === operationId,
@@ -507,7 +615,8 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
     }
     player.updateLockScreenMetadata({
       ...metadata,
-      artist: "SongSeed",
+      artist: metadata?.artist ?? "Songstead",
+      artworkUrl: getLockScreenArtworkUrl(),
     });
   }, [player]);
 

@@ -2,6 +2,7 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useR
 import { useFullPlayer } from "./useFullPlayer";
 import { useInlinePlayer } from "./useInlinePlayer";
 import { useStore } from "../state/useStore";
+import { buildClipLockScreenMetadata } from "../services/lockScreenMetadata";
 import type { InlinePlayerControls, InlinePlayerSnapshot } from "../types";
 
 type FullPlayerValue = ReturnType<typeof useFullPlayer>;
@@ -206,7 +207,7 @@ export function FullPlayerProvider({ children }: { children: React.ReactNode }) 
     } else {
       dockPendingAutoplayClipIdRef.current = null;
     }
-    void openPlayer(idea.id, clip, { title: clip.title, albumTitle: idea.title }, shouldAutoplay).finally(() => {
+    void openPlayer(idea.id, clip, buildClipLockScreenMetadata(idea, clip), shouldAutoplay).finally(() => {
       if (dockOpenInFlightClipIdRef.current === clip.id) {
         dockOpenInFlightClipIdRef.current = null;
       }

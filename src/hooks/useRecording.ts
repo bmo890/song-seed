@@ -23,6 +23,7 @@ import {
   persistPendingRecordingSession,
 } from "../services/recordingRecovery";
 import { trimAudioRanges } from "../services/audioTrim";
+import { colors } from "../design/tokens";
 import { useRecordingDisplayElapsed } from "./useRecordingDisplayElapsed";
 import { useLiveRecordingWaveform } from "./useLiveRecordingWaveform";
 import { useStore } from "../state/useStore";
@@ -417,10 +418,10 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
           channelDescription: "Background recording status and controls",
           notificationId: 4101,
           priority: "high" as const,
-          accentColor: "#d81f28",
+          accentColor: colors.record,
           showPauseResumeActions: true,
           waveform: {
-            color: "#d81f28",
+            color: colors.record,
             opacity: 0.9,
             strokeWidth: 1.5,
             style: "stroke" as const,
