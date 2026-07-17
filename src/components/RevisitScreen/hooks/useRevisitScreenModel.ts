@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AppAlert } from "../../common/AppAlert";
-import { actionIcons } from "../../common/actionIcons";
 import { useIsFocused, useNavigation } from "@react-navigation/native";
 import { useStore } from "../../../state/useStore";
 import { useRevisitStore } from "../../../state/useRevisitStore";
@@ -189,12 +188,6 @@ export function useRevisitScreenModel() {
   function openCandidateMenu(candidate: RevisitCandidate) {
     AppAlert.custom(candidate.title, undefined, [
       {
-        label: "View in Collection",
-        style: "default",
-        icon: actionIcons.folder,
-        onPress: () => viewCandidateInCollection(candidate),
-      },
-      {
         label: "Hide",
         style: "destructive",
         icon: "eye-off-outline",
@@ -260,6 +253,7 @@ export function useRevisitScreenModel() {
     },
     onOpenCandidate: openCandidate,
     onOpenCandidateMenu: openCandidateMenu,
+    onViewCandidateInCollection: viewCandidateInCollection,
     openAroundSnapshot: () => setIsAroundSnapshotOpen(true),
     closeAroundSnapshot: () => setIsAroundSnapshotOpen(false),
     openAroundSnapshotInActivity,

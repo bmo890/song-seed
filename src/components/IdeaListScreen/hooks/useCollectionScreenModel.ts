@@ -344,23 +344,49 @@ export function useCollectionScreenModel() {
     stickyDayStore.setTopLabel(firstLabel);
   }, [ideasSort, listEntries, showDateDividers]);
 
+  // ── "View in collection" highlight flash ──────────────────────────────────
+  // Allocate an Animated.Value for every visible row DURING RENDER, so each
+  // card's (absolutely-positioned, opacity-0) highlight overlay is bound to a
+  // stable value from its first mount. The effect below then animates that same
+  // value natively — no re-render needed for the flash to play.
+  //
+  // Why not create the value lazily inside the effect (the old approach)?
+  // IdeaListItem is React.memo'd and reads its highlight value from a ref during
+  // its own render; a ref mutation in an effect schedules no re-render, so an
+  // already-mounted row stayed bound to `null` and the flash never appeared —
+  // it only survived for rows that happened to mount fresh mid-scroll. Mirrors
+  // useSongClipHighlights on the song page, which had this exact fix.
+  const visibleListIds = useMemo(() => new Set(listIdeas.map((idea) => idea.id)), [listIdeas]);
+  for (const id of visibleListIds) {
+    if (!highlightMapRef.current[id]) {
+      highlightMapRef.current[id] = new Animated.Value(0);
+    }
+  }
+  for (const id of Object.keys(highlightMapRef.current)) {
+    if (!visibleListIds.has(id) && !animatingHighlightIdsRef.current.has(id)) {
+      delete highlightMapRef.current[id];
+    }
+  }
+
   useEffect(() => {
-    const visibleIds = new Set(listIdeas.map((idea) => idea.id));
-    const idsToAnimate = recentlyAddedItemIds.filter((id) => visibleIds.has(id) && !animatingHighlightIdsRef.current.has(id));
+    const idsToAnimate = recentlyAddedItemIds.filter(
+      (id) => visibleListIds.has(id) && !animatingHighlightIdsRef.current.has(id)
+    );
     idsToAnimate.forEach((id) => {
+      const animatedValue = highlightMapRef.current[id];
+      if (!animatedValue) return;
       animatingHighlightIdsRef.current.add(id);
-      const animatedValue = new Animated.Value(0);
-      highlightMapRef.current[id] = animatedValue;
+      animatedValue.setValue(0);
       Animated.sequence([
         Animated.timing(animatedValue, { toValue: 0.9, duration: 180, useNativeDriver: true }),
         Animated.timing(animatedValue, { toValue: 0, duration: 900, useNativeDriver: true }),
       ]).start(() => {
-        delete highlightMapRef.current[id];
+        animatedValue.setValue(0);
         animatingHighlightIdsRef.current.delete(id);
         clearRecentlyAdded([id]);
       });
     });
-  }, [clearRecentlyAdded, listIdeas, recentlyAddedItemIds]);
+  }, [clearRecentlyAdded, visibleListIds, recentlyAddedItemIds]);
 
   const collectionAncestors = useMemo(
     () => (activeWorkspace && currentCollection ? getCollectionAncestors(activeWorkspace, currentCollection.id) : []),

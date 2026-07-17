@@ -74,6 +74,7 @@ export function RevisitScreen() {
             onSeekCancel={screen.onSeekInlineCancel}
             onOpen={screen.onOpenCandidate}
             onOpenMenu={screen.onOpenCandidateMenu}
+            onViewInCollection={screen.onViewCandidateInCollection}
             onOpenInActivity={screen.openAroundSnapshotInActivity}
           />
         ) : (
@@ -115,6 +116,7 @@ export function RevisitScreen() {
                     onSeekCancel={screen.onSeekInlineCancel}
                     onOpen={screen.onOpenCandidate}
                     onOpenMenu={screen.onOpenCandidateMenu}
+                    onViewInCollection={screen.onViewCandidateInCollection}
                     onOpenSection={section.key === "around" ? screen.openAroundSnapshot : undefined}
                   />
                 </React.Fragment>

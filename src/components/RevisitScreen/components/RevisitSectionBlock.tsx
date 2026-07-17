@@ -32,6 +32,7 @@ type RevisitSectionBlockProps = {
   onSeekCancel: () => void;
   onOpen: (candidate: RevisitCandidate) => void;
   onOpenMenu: (candidate: RevisitCandidate) => void;
+  onViewInCollection: (candidate: RevisitCandidate) => void;
   onOpenSection?: () => void;
 };
 
@@ -47,6 +48,7 @@ export function RevisitSectionBlock({
   onSeekCancel,
   onOpen,
   onOpenMenu,
+  onViewInCollection,
   onOpenSection,
 }: RevisitSectionBlockProps) {
   const items = section.items.slice(0, MAX_ITEMS_PER_SECTION);
@@ -88,6 +90,7 @@ export function RevisitSectionBlock({
             onSeek={onSeek}
             onSeekCancel={onSeekCancel}
             onOpenMenu={() => onOpenMenu(candidate)}
+            onViewInCollection={() => onViewInCollection(candidate)}
           />
         ))}
       </View>

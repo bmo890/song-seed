@@ -56,15 +56,16 @@ export function ActivityResultCard({
         <View />
       )}
       <Pressable
-        style={({ pressed }) => [cardStyles.viewBtn, pressed ? styles.pressDown : null]}
+        style={({ pressed }) => [cardStyles.viewBtn, pressed ? { opacity: 0.6 } : null]}
         onPress={(event) => {
           event.stopPropagation();
           onViewInCollection();
         }}
-        hitSlop={6}
+        hitSlop={8}
+        accessibilityRole="button"
+        accessibilityLabel={`View ${result.ideaTitle} in collection`}
       >
-        <Ionicons name="folder-outline" size={12} color={colors.primaryDeep} />
-        <Text style={cardStyles.viewBtnText}>View in collection</Text>
+        <Ionicons name="open-outline" size={15} color={colors.textMuted} />
       </Pressable>
     </View>
   );
@@ -132,13 +133,7 @@ const cardStyles = StyleSheet.create({
     color: colors.textSecondary,
   },
   viewBtn: {
-    flexDirection: "row",
     alignItems: "center",
-    gap: 4,
-  },
-  viewBtnText: {
-    fontSize: 12,
-    fontFamily: "PlusJakartaSans_700Bold",
-    color: colors.primaryDeep,
+    justifyContent: "center",
   },
 });

@@ -19,6 +19,7 @@ type RevisitAroundSnapshotViewProps = {
   onSeekCancel: () => void;
   onOpen: (candidate: RevisitCandidate) => void;
   onOpenMenu: (candidate: RevisitCandidate) => void;
+  onViewInCollection: (candidate: RevisitCandidate) => void;
   onOpenInActivity: () => void;
 };
 
@@ -34,6 +35,7 @@ export function RevisitAroundSnapshotView({
   onSeekCancel,
   onOpen,
   onOpenMenu,
+  onViewInCollection,
   onOpenInActivity,
 }: RevisitAroundSnapshotViewProps) {
   return (
@@ -82,6 +84,7 @@ export function RevisitAroundSnapshotView({
             onSeek={onSeek}
             onSeekCancel={onSeekCancel}
             onOpenMenu={() => onOpenMenu(candidate)}
+            onViewInCollection={() => onViewInCollection(candidate)}
           />
         ))
       )}
