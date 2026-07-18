@@ -633,6 +633,9 @@ export type SetlistEntry = {
   lyricVersionIds: string[];
   /** Whether to include the song's standalone chord chart. */
   includeChordSheet: boolean;
+  /** Whether to include the song's notes in the packaged folder. Optional for
+   *  backward compatibility with persisted entries; absent = false. */
+  includeSongNotes?: boolean;
   addedAt: number;
 };
 

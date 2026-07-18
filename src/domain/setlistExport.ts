@@ -34,6 +34,8 @@ export function trimIdeaForSetlistEntry(
     clips: trimmedClips,
     lyrics: versions.length > 0 ? { versions } : undefined,
     chordSheet: entry.includeChordSheet ? idea.chordSheet : undefined,
+    // Song notes travel only when the packer chose them.
+    notes: entry.includeSongNotes ? idea.notes : "",
     // Lineage groupings reference the full clip set; drop them from the share.
     clipGroups: undefined,
     clipGroupAssignments: undefined,
@@ -44,6 +46,10 @@ export type SetlistArchiveInput = {
   workspaces: Workspace[];
   scope: { workspaceIds: string[]; collectionIds: string[] };
   songCount: number;
+  /** The setlist entity itself, remapped onto the synthetic workspace, so the
+   *  archive manifest carries it and the receiver gets a real Setlist — not
+   *  just loose songs. */
+  setlist: Setlist;
 };
 
 /** Builds a synthetic, ordered, trimmed workspace from a setlist that can be fed
@@ -64,10 +70,22 @@ export function buildSetlistArchive(setlist: Setlist, workspaces: Workspace[]): 
   const collectionId = `setlist-col-${base}-${suffix}`;
 
   const ideas: SongIdea[] = [];
+  const remappedEntries: SetlistEntry[] = [];
   setlist.entries.forEach((entry, index) => {
     const idea = findIdea(entry.ideaId);
-    if (!idea || idea.kind !== "project") return;
-    ideas.push(trimIdeaForSetlistEntry(idea, entry, collectionId, base + index));
+    // Raw clip ideas are legal setlist songs too ("just a clip, technically").
+    if (!idea) return;
+    const trimmed = trimIdeaForSetlistEntry(idea, entry, collectionId, base + index);
+    ideas.push(trimmed);
+    remappedEntries.push({
+      ...entry,
+      workspaceId,
+      // Only reference what actually shipped: the trim may have swapped in a
+      // fallback clip or dropped stale lyric versions.
+      clipIds: trimmed.clips.map((clip) => clip.id),
+      lyricVersionIds: (trimmed.lyrics?.versions ?? []).map((version) => version.id),
+      includeChordSheet: entry.includeChordSheet && !!trimmed.chordSheet,
+    });
   });
 
   if (ideas.length === 0) return null;
@@ -94,5 +112,12 @@ export function buildSetlistArchive(setlist: Setlist, workspaces: Workspace[]): 
     workspaces: [workspace],
     scope: { workspaceIds: [workspaceId], collectionIds: [collectionId] },
     songCount: ideas.length,
+    setlist: {
+      id: `setlist-${base}-${suffix}`,
+      title: setlist.title,
+      createdAt: base,
+      updatedAt: base,
+      entries: remappedEntries,
+    },
   };
 }

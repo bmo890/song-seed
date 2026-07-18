@@ -269,7 +269,9 @@ export type DataSlice = {
     updateSetlistEntry: (
         setlistId: string,
         entryId: string,
-        patch: Partial<Pick<SetlistEntry, "clipIds" | "lyricVersionIds" | "includeChordSheet">>
+        patch: Partial<
+            Pick<SetlistEntry, "clipIds" | "lyricVersionIds" | "includeChordSheet" | "includeSongNotes">
+        >
     ) => void;
     removeSetlistEntry: (setlistId: string, entryId: string) => void;
     reorderSetlistEntries: (setlistId: string, orderedEntryIds: string[]) => void;
@@ -1036,6 +1038,7 @@ function normalizeSetlistEntries(entries: SetlistEntry[] | undefined) {
                 ? entry.lyricVersionIds.filter((v) => typeof v === "string")
                 : [],
             includeChordSheet: entry.includeChordSheet === true,
+            includeSongNotes: entry.includeSongNotes === true,
             addedAt: entry.addedAt,
         }));
 }
