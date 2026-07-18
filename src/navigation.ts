@@ -115,6 +115,13 @@ export function openIdeaInCollection(navigation: any, ideaId: string) {
   (rootNavigation ?? navigation)?.navigate?.("IdeaDetail", { ideaId });
 }
 
+/** Jump to the Shelf page (drawer) from anywhere — e.g. the set-aside toast's
+ *  "View shelf" tap-through. */
+export function openShelf(navigation: any) {
+  const rootNavigation = getRootNavigation(navigation);
+  (rootNavigation ?? navigation)?.navigate?.("Home", { screen: "ShelfHome" });
+}
+
 export function openCollectionFromContext(navigation: any, params: CollectionDetailRouteParams) {
   const rootNavigation = getRootNavigation(navigation);
   const contextualParams = {

@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useNavigation } from "@react-navigation/native";
 import { AppAlert } from "../../common/AppAlert";
 import { useStore } from "../../../state/useStore";
 import { appActions } from "../../../state/actions";
@@ -9,6 +10,7 @@ import type { SongIdea } from "../../../types";
 import { buildPlayableQueueFromIdeas, getPlayableClipForIdea } from "../../../domain/clipPresentation";
 import { haptic } from "../../../design/haptics";
 import { useShelfStore } from "../../../state/useShelfStore";
+import { openShelf } from "../../../navigation";
 import { toast } from "../../common/toastStore";
 
 type IdeaSelectionBarProps = {
@@ -42,6 +44,7 @@ export function IdeaSelectionBar({
 }: IdeaSelectionBarProps) {
   const [isSharing, setIsSharing] = useState(false);
   const [moreVisible, setMoreVisible] = useState(false);
+  const navigation = useNavigation<any>();
 
   const selectedListIdeaIds = useStore((s) => s.selectedListIdeaIds);
   const activeWorkspaceId = useStore((s) => s.activeWorkspaceId);
@@ -201,7 +204,8 @@ export function IdeaSelectionBar({
       interactiveSelectedIdeas.length > 1
         ? `${interactiveSelectedIdeas.length} items on the shelf for 7 days`
         : "On the shelf for 7 days",
-      "file-tray-outline"
+      "file-tray-outline",
+      { action: { label: "View shelf", onPress: () => openShelf(navigation) } }
     );
     haptic.success();
     setMoreVisible(false);

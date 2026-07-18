@@ -12,6 +12,7 @@ import { buildClipLockScreenMetadata } from "../../../services/lockScreenMetadat
 import { appActions } from "../../../state/actions";
 import { useStore } from "../../../state/useStore";
 import { useShelfStore } from "../../../state/useShelfStore";
+import { openShelf } from "../../../navigation";
 import { toast } from "../../common/toastStore";
 import { haptic } from "../../../design/haptics";
 import type { ClipVersion } from "../../../types";
@@ -584,7 +585,17 @@ export function usePlayerScreenLifecycle({
           if (!playerIdea) return;
           useShelfStore.getState().setAside([{ kind: "idea", id: playerIdea.id }]);
           haptic.success();
-          toast("On the shelf for 7 days", "file-tray-outline");
+          toast("On the shelf for 7 days", "file-tray-outline", {
+            action: {
+              label: "View shelf",
+              onPress: () => {
+                // The full player floats above everything — tuck it into the
+                // dock before jumping, like the queue's "go to song".
+                minimizePlayer();
+                openShelf(navigation);
+              },
+            },
+          });
         },
       },
       {

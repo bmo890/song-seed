@@ -11,7 +11,7 @@ import {
   buildRevisitModel,
   type RevisitCandidate,
 } from "../../../domain/revisit";
-import { openCollectionFromContext } from "../../../navigation";
+import { openCollectionFromContext, openShelf } from "../../../navigation";
 
 const TWO_WEEKS_MS = 14 * 24 * 60 * 60 * 1000;
 const ONE_MONTH_MS = 30 * 24 * 60 * 60 * 1000;
@@ -198,7 +198,9 @@ export function useRevisitScreenModel() {
         onPress: () => {
           useShelfStore.getState().setAside([{ kind: "idea", id: candidate.ideaId }]);
           haptic.success();
-          toast("On the shelf for 7 days", "file-tray-outline");
+          toast("On the shelf for 7 days", "file-tray-outline", {
+            action: { label: "View shelf", onPress: () => openShelf(navigation) },
+          });
         },
       },
       {

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { AccessibilityInfo, Animated, StyleSheet, Text, View } from "react-native";
+import { AccessibilityInfo, Animated, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { colors, radii, shadows } from "../../design/tokens";
@@ -7,6 +7,8 @@ import { durations } from "../../design/motion";
 import { toastStore, type ToastConfig } from "./toastStore";
 
 const DEFAULT_DURATION_MS = 2000;
+/** With a tap-through action, linger long enough to actually hit it. */
+const ACTION_DURATION_MS = 4000;
 /** Clearance above the media dock (which floats at the bottom edge). */
 const DOCK_CLEARANCE = 92;
 
@@ -52,7 +54,7 @@ export function ToastHost() {
             toastStore.clear();
           }
         );
-      }, toast.durationMs ?? DEFAULT_DURATION_MS);
+      }, toast.durationMs ?? (toast.action ? ACTION_DURATION_MS : DEFAULT_DURATION_MS));
     });
     return () => {
       unsubscribe();
@@ -62,8 +64,13 @@ export function ToastHost() {
 
   if (!active) return null;
 
+  // "box-none" (not "none") when an action is present: the pill must be
+  // tappable while the empty space around it stays tap-through.
   return (
-    <View pointerEvents="none" style={[s.wrap, { bottom: insets.bottom + DOCK_CLEARANCE }]}>
+    <View
+      pointerEvents={active.action ? "box-none" : "none"}
+      style={[s.wrap, { bottom: insets.bottom + DOCK_CLEARANCE }]}
+    >
       <Animated.View
         style={[
           s.pill,
@@ -82,6 +89,20 @@ export function ToastHost() {
         <Text style={s.text} numberOfLines={2}>
           {active.message}
         </Text>
+        {active.action ? (
+          <Pressable
+            onPress={() => {
+              const { onPress } = active.action!;
+              toastStore.dismiss();
+              onPress();
+            }}
+            hitSlop={10}
+            accessibilityRole="button"
+            style={({ pressed }) => [s.actionBtn, pressed ? { opacity: 0.6 } : null]}
+          >
+            <Text style={s.actionText}>{active.action.label}</Text>
+          </Pressable>
+        ) : null}
       </Animated.View>
     </View>
   );
@@ -111,5 +132,17 @@ const s = StyleSheet.create({
     fontFamily: "PlusJakartaSans_500Medium",
     fontSize: 13,
     color: colors.textStrong,
+    flexShrink: 1,
+  },
+  actionBtn: {
+    borderLeftWidth: 1,
+    borderLeftColor: colors.borderSubtle,
+    paddingLeft: 10,
+    marginLeft: 2,
+  },
+  actionText: {
+    fontFamily: "PlusJakartaSans_700Bold",
+    fontSize: 13,
+    color: colors.primaryDeep,
   },
 });

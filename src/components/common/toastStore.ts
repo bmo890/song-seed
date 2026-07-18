@@ -10,11 +10,18 @@ import type { IoniconName } from "./actionIcons";
  * confirmations are ephemeral; if two race, the newest is the one that matters).
  */
 
+export type ToastAction = {
+  label: string;
+  onPress: () => void;
+};
+
 export type ToastConfig = {
   message: string;
   icon?: IoniconName;
-  /** Auto-dismiss delay. Default 2000ms. */
+  /** Auto-dismiss delay. Default 2000ms (4000ms when an action is present). */
   durationMs?: number;
+  /** Optional tap-through ("View shelf") — pressing it also dismisses the toast. */
+  action?: ToastAction;
 };
 
 type ActiveToast = ToastConfig & { id: number };
@@ -49,6 +56,10 @@ export const toastStore = {
 };
 
 /** Convenience: `toast("Saved", "checkmark-outline")`. */
-export function toast(message: string, icon?: IoniconName, durationMs?: number) {
-  toastStore.show({ message, icon, durationMs });
+export function toast(
+  message: string,
+  icon?: IoniconName,
+  opts?: { durationMs?: number; action?: ToastAction }
+) {
+  toastStore.show({ message, icon, ...opts });
 }

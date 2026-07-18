@@ -24,7 +24,7 @@ import { useShelfStore } from "../../../state/useShelfStore";
 import { toast } from "../../common/toastStore";
 import { haptic } from "../../../design/haptics";
 import { getDateBucketLabel } from "../../../domain/dateBuckets";
-import { openCollectionFromContext } from "../../../navigation";
+import { openCollectionFromContext, openShelf } from "../../../navigation";
 import { getPlayableClipForIdea } from "../../../domain/clipPresentation";
 
 type ActivityItemRef = { workspaceId: string; ideaId: string; ideaKind: "song" | "clip" };
@@ -495,7 +495,9 @@ export function useActivityScreenModel() {
           onPress: () => {
             useShelfStore.getState().setAside([{ kind: "idea", id: item.ideaId }]);
             haptic.success();
-            toast("On the shelf for 7 days", "file-tray-outline");
+            toast("On the shelf for 7 days", "file-tray-outline", {
+              action: { label: "View shelf", onPress: () => openShelf(navigation) },
+            });
           },
         },
         {
