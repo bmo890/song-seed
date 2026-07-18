@@ -11,6 +11,7 @@ import {
   type SongbookSong,
 } from "../../../domain/songbookGrouping";
 import { useMiniPlayerContext } from "../../../hooks/FullPlayerProvider";
+import { shareSongbookFile } from "../../../services/songbookShare";
 import type { SongIdea, Workspace } from "../../../types";
 
 function findIdea(workspaces: Workspace[], ideaId: string): { workspace: Workspace; idea: SongIdea } | null {
@@ -171,6 +172,16 @@ export function useSongbookModel() {
         screen: "Browse",
         params: undefined,
       });
+    },
+    /** Share as an importable .zip archive — the receiver gets a real songbook. */
+    shareSongbookFile: async () => {
+      if (!activeSongbook) return;
+      try {
+        const ok = await shareSongbookFile(activeSongbook, workspaces);
+        if (!ok) AppAlert.info("Nothing to share", "Add some charts with content first.");
+      } catch {
+        AppAlert.info("Share failed", "Couldn't build the songbook file. Please try again.");
+      }
     },
     shareSongbook: () => {
       if (!activeSongbook) return;

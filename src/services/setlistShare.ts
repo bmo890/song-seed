@@ -14,6 +14,9 @@ export async function shareSetlist(setlist: Setlist, workspaces: Workspace[]): P
     notes: [],
     format: "songstead-archive",
     scope: built.scope,
+    // The setlist entity itself (remapped onto the synthetic workspace) — the
+    // receiver imports a real Setlist, not just loose songs.
+    setlists: [built.setlist],
     options: {
       includeFullSongHistory: true, // we already trimmed to the chosen clips
       includeNotes: false,

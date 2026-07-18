@@ -1,5 +1,7 @@
-import { ScrollView } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
+import { colors, radii, spacing, text as textTokens } from "../../../design/tokens";
 import { ScreenHeader } from "../../common/ScreenHeader";
 import { PageIntro } from "../../common/PageIntro";
 import { buildCollectionPathLabel } from "../../../domain/libraryNavigation";
@@ -17,6 +19,55 @@ export function ShareImportScreenContent({
   const model = useShareImportScreenModel({ fallbackCollectionId });
   const currentCollection = model.currentCollection;
   const currentCollectionWorkspace = model.currentCollectionWorkspace;
+
+  // An incoming .songstead/.zip archive (a shared songbook, setlist, or library
+  // export) takes over the screen — it's a different flow from audio files.
+  if (model.sharedArchive) {
+    return (
+      <SafeAreaView style={styles.screen}>
+        <ScreenHeader title="Import from Share" leftIcon="back" onLeftPress={model.closeScreen} />
+        <PageIntro
+          title="Someone sent you music"
+          subtitle="A Songstead file — a shared songbook, setlist, or library export. Imports land as their own Library entry, kept apart from your collections."
+        />
+        <View style={archiveStyles.card}>
+          <View style={archiveStyles.fileRow}>
+            <View style={archiveStyles.fileIcon}>
+              <Ionicons name="albums-outline" size={20} color={colors.primaryDeep} />
+            </View>
+            <Text style={archiveStyles.fileName} numberOfLines={1}>
+              {model.sharedArchive.name ?? "Songstead archive"}
+            </Text>
+          </View>
+          <View style={archiveStyles.actions}>
+            <Pressable
+              style={({ pressed }) => [
+                archiveStyles.importBtn,
+                model.isImportingArchive ? { opacity: 0.6 } : null,
+                pressed ? { opacity: 0.85 } : null,
+              ]}
+              onPress={() => void model.importSharedArchive()}
+              disabled={model.isImportingArchive}
+              accessibilityRole="button"
+              accessibilityLabel="Import this file"
+            >
+              <Text style={archiveStyles.importLabel}>
+                {model.isImportingArchive ? "Importing…" : "Import"}
+              </Text>
+            </Pressable>
+            <Pressable
+              style={({ pressed }) => [archiveStyles.ghostBtn, pressed ? { opacity: 0.7 } : null]}
+              onPress={model.closeScreen}
+              accessibilityRole="button"
+              accessibilityLabel="Not now"
+            >
+              <Text style={archiveStyles.ghostLabel}>Not now</Text>
+            </Pressable>
+          </View>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.screen}>
@@ -141,3 +192,65 @@ export function ShareImportScreenContent({
     </SafeAreaView>
   );
 }
+
+const archiveStyles = StyleSheet.create({
+  card: {
+    marginHorizontal: 16,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+    borderRadius: radii.lg,
+    padding: spacing.lg,
+    gap: spacing.md,
+  },
+  fileRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+  },
+  fileIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: radii.md,
+    backgroundColor: "#FDF5F2",
+    borderWidth: 1,
+    borderColor: "#EBD3CE",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  fileName: {
+    ...textTokens.body,
+    fontFamily: "PlusJakartaSans_700Bold",
+    flex: 1,
+    minWidth: 0,
+  },
+  actions: {
+    flexDirection: "row",
+    gap: spacing.sm,
+  },
+  importBtn: {
+    flex: 1,
+    backgroundColor: colors.primary,
+    borderRadius: radii.round,
+    paddingVertical: 12,
+    alignItems: "center",
+  },
+  importLabel: {
+    fontFamily: "PlusJakartaSans_700Bold",
+    fontSize: 13,
+    color: colors.onPrimary,
+  },
+  ghostBtn: {
+    borderWidth: 1,
+    borderColor: colors.borderMuted,
+    borderRadius: radii.round,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    alignItems: "center",
+  },
+  ghostLabel: {
+    fontFamily: "PlusJakartaSans_600SemiBold",
+    fontSize: 13,
+    color: colors.textStrong,
+  },
+});

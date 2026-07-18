@@ -170,6 +170,7 @@ function SongbookSection({ tabs }: { tabs: ReactNode }) {
           onReorderSongs={songbook.reorderSongs}
           onRemoveSong={songbook.removeSong}
           onRename={songbook.openRename}
+          onShareFile={songbook.shareSongbookFile}
           onShareText={songbook.shareSongbook}
           onDelete={songbook.deleteActiveSongbook}
         />

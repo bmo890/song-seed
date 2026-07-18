@@ -44,7 +44,10 @@
             "NSExtensionActivationSupportsFileWithMaxCount": 20
           },
           "androidIntentFilters": [
-            "audio/*"
+            "audio/*",
+            "application/zip",
+            "application/x-zip-compressed",
+            "application/octet-stream"
           ],
           "androidMultiIntentFilters": [
             "audio/*"

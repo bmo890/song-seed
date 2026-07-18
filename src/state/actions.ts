@@ -3119,6 +3119,10 @@ export const appActions = {
             importedNotes: merge.importedNotes.length,
             warnings: merge.warnings,
             importedWorkspaceTitles: merge.importedWorkspaces.map((workspace) => workspace.title),
+            // Deep-link targets for "Open" after an import that carried library
+            // collections (a shared songbook/setlist archive).
+            importedSongbookIds: merge.importedSongbooks.map((songbook) => songbook.id),
+            importedSetlistIds: merge.importedSetlists.map((setlist) => setlist.id),
         };
     },
 };

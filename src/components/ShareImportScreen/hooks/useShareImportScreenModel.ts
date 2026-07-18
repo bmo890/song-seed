@@ -28,6 +28,11 @@ import {
   type ImportDatePreference,
 } from "../../../domain/importDates";
 import { useResolvedShareAssets } from "./useResolvedShareAssets";
+import { findSharedArchiveFile } from "../../../services/shareImport";
+import { detectPickedArchiveKind } from "../../../services/archiveKind";
+import { readSongSeedArchive } from "../../../services/libraryImport";
+import { toast } from "../../common/toastStore";
+import { haptic } from "../../../design/haptics";
 import { useShareImportDestinations } from "./useShareImportDestinations";
 import type { CollectionDestination, ShareImportScreenProps } from "../types";
 
@@ -91,6 +96,59 @@ export function useShareImportScreenModel({
   const [projectTitleDraft, setProjectTitleDraft] = useState("");
   const [pendingCollectionDestination, setPendingCollectionDestination] =
     useState<CollectionDestination | null>(null);
+
+  // ── Incoming Songstead archive (a shared songbook / setlist / export) ─────
+  const sharedArchive = findSharedArchiveFile(shareIntent.files);
+  const [isImportingArchive, setIsImportingArchive] = useState(false);
+
+  async function importSharedArchive() {
+    if (!sharedArchive || isImportingArchive) return;
+    setIsImportingArchive(true);
+    try {
+      if ((await detectPickedArchiveKind(sharedArchive.uri)) === "songstead-backup") {
+        AppAlert.info(
+          "That's a full backup",
+          "This file is a full Songstead backup, not a shareable archive. Restore it from Library & Backups → Restore."
+        );
+        return;
+      }
+      const parsed = await readSongSeedArchive(sharedArchive.uri, sharedArchive.name ?? undefined);
+      const result = await appActions.importLibraryArchiveIntoLibrary(parsed);
+      haptic.success();
+
+      // A shared songbook/setlist lands as a real Library entity — jump there.
+      const openKind = result.importedSongbookIds[0]
+        ? ("songbook" as const)
+        : result.importedSetlistIds[0]
+          ? ("setlist" as const)
+          : null;
+      const openId = result.importedSongbookIds[0] ?? result.importedSetlistIds[0] ?? null;
+
+      resetShareIntent();
+      if (openKind && openId) {
+        toast(
+          openKind === "songbook" ? "Songbook imported" : "Setlist imported",
+          openKind === "songbook" ? "book-outline" : "albums-outline"
+        );
+        (navigation as any).navigate("Home", {
+          screen: "LibraryHome",
+          params: { openCollectionKind: openKind, openCollectionId: openId, openToken: Date.now() },
+        });
+      } else {
+        AppAlert.info(
+          "Import complete",
+          `${result.importedWorkspaces} workspace${result.importedWorkspaces === 1 ? "" : "s"} and ${result.importedIdeas} item${result.importedIdeas === 1 ? "" : "s"} were imported into your library.`
+        );
+        (navigation as any).navigate("Home");
+      }
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Could not read this Songstead Archive.";
+      AppAlert.info("Import failed", message);
+    } finally {
+      setIsImportingArchive(false);
+    }
+  }
 
   function closeScreen() {
     resetShareIntent();
@@ -493,6 +551,9 @@ export function useShareImportScreenModel({
 
   return {
     hasShareIntent,
+    sharedArchive,
+    isImportingArchive,
+    importSharedArchive,
     shareAssets,
     importedAssets,
     previewNames,
