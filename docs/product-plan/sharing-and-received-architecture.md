@@ -121,6 +121,12 @@ Register a real `.songstead` extension with an iOS UTI declaration + Android int
 ### R2 — transfer service integration (pairs with the web branch)
 Universal links + deferred deep link; transferId dedupe; sender display names; mixed-item transfers as single packages.
 
+**Sent links (the outbox).** Creating a link stores a local record so it's never lost:
+
+- Store: small persisted satellite (`useSentLinksStore`, shelf pattern), keyed by `transferId`: `{transferId, shareUrl, title, shareKind, entityId?, createdAt, expiresAt, itemCount}`. Local-only in v1; in R3 the server's "my transfers" becomes the source of truth and this becomes its cache (gaining revoke) — a merge, not a migration, because the key is already `transferId`.
+- **Two homes**: (1) an on-entity link chip in setlist/songbook/collection detail views — "Link active · 12 days left · Copy", dated (a link is a SNAPSHOT; if the entity changed since, the gesture is "New link") — powered by the `entityId` back-reference; (2) a central "Sent links" list living as a secondary section/tab on the Received surface (received = inbox, sent = outbox, one "transfers" neighborhood).
+- **Self-cleaning by design**: entries mirror server expiry — countdown shown, expired entries grey out and auto-prune after a grace window. Like the Shelf, it structurally cannot become a graveyard.
+
 ### R3 — accounts (driven by Pro)
 Verified senders; "from you" packages auto-offer the library route; sender grouping in Received.
 
