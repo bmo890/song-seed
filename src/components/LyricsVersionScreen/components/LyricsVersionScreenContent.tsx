@@ -41,7 +41,8 @@ export function LyricsVersionScreenContent() {
   }
   const { exportPdf, exportText } = useChordExport(
     model.projectIdea?.title ?? "",
-    model.resolvedVersion
+    model.resolvedVersion,
+    model.projectIdea?.id
   );
 
   const resolvedVersionId = model.resolvedVersion?.id;
@@ -122,6 +123,7 @@ export function LyricsVersionScreenContent() {
             lines={lines}
             hasChords={hasChords}
             canChart={canChart}
+            transposeIdeaId={model.projectIdea.id}
             onEdit={model.beginEdit}
             onChords={() => setChordEditMode(true)}
             onLayout={model.setPreviewViewportHeight}

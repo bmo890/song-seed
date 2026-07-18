@@ -8,12 +8,17 @@ import type { LyricsLine } from "../../../types";
 import { ChordChart } from "./chords/ChordChart";
 import { ChordZoomBar } from "./chords/ChordZoomBar";
 import { LyricsChordsToggle } from "../../common/LyricsChordsToggle";
+import { TransposeChip } from "../../common/TransposeChip";
+import { useChartPrefsStore } from "../../../state/useChartPrefsStore";
+import { clampTransposeOffset, transposeLyricsLines } from "../../../domain/transpose";
 
 type LyricsVersionPreviewProps = {
   sourceText: string;
   lines: LyricsLine[];
   hasChords: boolean;
   canChart: boolean;
+  /** Enables the per-song display transpose on the chord view. */
+  transposeIdeaId?: string;
   onEdit: () => void;
   onChords: () => void;
   onLayout: (height: number) => void;
@@ -27,6 +32,7 @@ export function LyricsVersionPreview({
   lines,
   hasChords,
   canChart,
+  transposeIdeaId,
   onEdit,
   onChords,
   onLayout,
@@ -37,6 +43,13 @@ export function LyricsVersionPreview({
   const [zoom, setZoom] = useState(1);
   const [viewMode, setViewMode] = useState<"lyrics" | "chords">(hasChords ? "chords" : "lyrics");
   const chordView = viewMode === "chords";
+
+  // Non-destructive display transpose for the chord view (per song, persisted).
+  const transposeByIdeaId = useChartPrefsStore((s) => s.transposeByIdeaId);
+  const transpose = transposeIdeaId
+    ? clampTransposeOffset(transposeByIdeaId[transposeIdeaId] ?? 0)
+    : 0;
+  const displayLines = transposeLyricsLines(lines, transpose);
 
   return (
     <View style={[styles.lyricsVersionScreenBody, chordView ? styles.lyricsVersionBodyFlush : null]}>
@@ -67,7 +80,18 @@ export function LyricsVersionPreview({
         >
           {chordView ? (
             <>
-              <ChordChart lines={lines} editable={false} zoom={zoom} />
+              {transposeIdeaId ? (
+                <View style={controls.transposeRow}>
+                  <TransposeChip
+                    offset={transpose}
+                    onNudge={(delta) =>
+                      useChartPrefsStore.getState().nudgeTranspose(transposeIdeaId, delta)
+                    }
+                    onReset={() => useChartPrefsStore.getState().resetTranspose(transposeIdeaId)}
+                  />
+                </View>
+              ) : null}
+              <ChordChart lines={displayLines} editable={false} zoom={zoom} />
               <ChordZoomBar zoom={zoom} onChange={setZoom} />
             </>
           ) : (
@@ -97,6 +121,12 @@ const controls = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     marginBottom: spacing.sm,
+  },
+  transposeRow: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.sm,
   },
   editIconBtn: {
     width: 40,

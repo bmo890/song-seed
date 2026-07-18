@@ -10,8 +10,19 @@ import { useChordSheetModel } from "../useChordSheetModel";
 import { ChordSheetBody, ChordSheetFullView } from "./ChordSheetBody";
 import { ChartSelectionDock } from "./ChartSelectionDock";
 import { ChartScrollProvider, useChartKeyboardScroller } from "./chartScroll";
+import { TransposeChip } from "../../common/TransposeChip";
+import { useChartPrefsStore } from "../../../state/useChartPrefsStore";
+import { clampTransposeOffset, transposeChordSheet } from "../../../domain/transpose";
 
 const KRAFT_BG = "#F2E9DC";
+
+const transposeRowStyles = StyleSheet.create({
+  row: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    paddingBottom: 10,
+  },
+});
 
 export function ChordSheetScreenContent() {
   const model = useChordSheetModel();
@@ -23,6 +34,7 @@ export function ChordSheetScreenContent() {
   });
   const [exportVisible, setExportVisible] = useState(false);
   const [fullViewOpen, setFullViewOpen] = useState(false);
+  const transposeByIdeaId = useChartPrefsStore((s) => s.transposeByIdeaId);
 
   if (!model.projectIdea) {
     return (
@@ -38,6 +50,12 @@ export function ChordSheetScreenContent() {
 
   const { sheet, isEditing } = model;
   const isEmpty = sheet.sections.length === 0;
+
+  // Non-destructive display transpose (per song, persisted). Editing always
+  // shows — and edits — the written key.
+  const ideaId = model.projectIdea.id;
+  const transpose = clampTransposeOffset(transposeByIdeaId[ideaId] ?? 0);
+  const displaySheet = transposeChordSheet(sheet, transpose);
 
   return (
     <SafeAreaView style={[styles.shell, { backgroundColor: KRAFT_BG }]} edges={["top", "bottom"]}>
@@ -140,7 +158,16 @@ export function ChordSheetScreenContent() {
         scrollEventThrottle={16}
       >
         <ChartScrollProvider value={scrollToInput}>
-          <ChordSheetBody model={model} />
+          {!isEmpty && !isEditing ? (
+            <View style={transposeRowStyles.row}>
+              <TransposeChip
+                offset={transpose}
+                onNudge={(delta) => useChartPrefsStore.getState().nudgeTranspose(ideaId, delta)}
+                onReset={() => useChartPrefsStore.getState().resetTranspose(ideaId)}
+              />
+            </View>
+          ) : null}
+          <ChordSheetBody model={model} displaySheet={displaySheet} />
         </ChartScrollProvider>
       </ScrollView>
 
@@ -162,7 +189,7 @@ export function ChordSheetScreenContent() {
       <ChordSheetFullView
         visible={fullViewOpen}
         title={model.projectIdea.title}
-        sheet={sheet}
+        sheet={displaySheet}
         onClose={() => setFullViewOpen(false)}
       />
 

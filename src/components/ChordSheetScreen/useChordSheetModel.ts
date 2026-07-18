@@ -19,6 +19,8 @@ import {
   SECTION_PRESETS,
 } from "../../domain/chordSheet";
 import { getLatestLyricsVersion } from "../../domain/lyrics";
+import { transposeChordSheet } from "../../domain/transpose";
+import { useChartPrefsStore } from "../../state/useChartPrefsStore";
 import { shareChordSheetPdf } from "../../services/chordChartPdf";
 import { ensurePro } from "../common/proUpsell";
 import type { ChordSheet, SongIdea } from "../../types";
@@ -379,11 +381,18 @@ export function useChordSheetModel(ideaIdOverride?: string) {
 
   const subtitle = projectIdea ? `${projectIdea.title} · ${formatDate(sheet.updatedAt)}` : "";
 
+  // Exports honor the active display transpose — a shifted chart prints shifted.
+  const sheetForExport = () => {
+    if (!projectIdea) return sheet;
+    const offset = useChartPrefsStore.getState().transposeByIdeaId[projectIdea.id] ?? 0;
+    return transposeChordSheet(sheet, offset);
+  };
+
   const exportPdf = async () => {
     if (!projectIdea) return;
     if (!ensurePro("pdf-export")) return;
     try {
-      const ok = await shareChordSheetPdf({ title: projectIdea.title, subtitle, sheet });
+      const ok = await shareChordSheetPdf({ title: projectIdea.title, subtitle, sheet: sheetForExport() });
       if (!ok) AppAlert.info("Nothing to export", "Add a section with some chords first.");
     } catch {
       AppAlert.info("Export failed", "Couldn't create the PDF. Please try again.");
@@ -392,7 +401,7 @@ export function useChordSheetModel(ideaIdOverride?: string) {
 
   const exportText = () => {
     if (!projectIdea) return;
-    const text = serializeChordSheetText(sheet);
+    const text = serializeChordSheetText(sheetForExport());
     if (!text.trim()) {
       AppAlert.info("Nothing to share", "Add a section with some chords first.");
       return;

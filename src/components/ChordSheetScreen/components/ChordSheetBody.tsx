@@ -24,8 +24,17 @@ type MenuTarget = { id: string; label: string; index: number; count: number; kin
 /** The chord-sheet content shared by the standalone screen and the song "Chart"
  * tab: add-section + build controls, the section staves with bar selection, and
  * the chord picker. The host supplies the scroll container, header, and export. */
-export function ChordSheetBody({ model }: { model: ReturnType<typeof useChordSheetModel> }) {
-  const { sheet, isEditing } = model;
+export function ChordSheetBody({
+  model,
+  displaySheet,
+}: {
+  model: ReturnType<typeof useChordSheetModel>;
+  /** Read-mode display override (e.g. the transposed sheet). Editing always
+   *  shows the written key — edits target real measures, not transposed copies. */
+  displaySheet?: ChordSheet;
+}) {
+  const { isEditing } = model;
+  const sheet = !isEditing && displaySheet ? displaySheet : model.sheet;
   const isEmpty = sheet.sections.length === 0;
 
   const [addSheetOpen, setAddSheetOpen] = useState(false);

@@ -163,12 +163,18 @@ function SongbookSection({ tabs }: { tabs: ReactNode }) {
         />
       ) : songbook.activeSongbook ? (
         <SongbookDetailView
-          items={songbook.displayItems}
-          onAddCharts={songbook.openPicker}
-          onShare={songbook.shareSongbook}
-          onOpenItem={(item) => item.onOpen?.()}
-          onRemoveItem={songbook.removeItem}
-          onDeleteSongbook={songbook.deleteActiveSongbook}
+          songbook={songbook.activeSongbook}
+          songs={songbook.songs}
+          nowPlayingIdeaId={songbook.nowPlayingIdeaId}
+          isPlaying={songbook.isPlayerPlaying}
+          onOpenReader={songbook.openReader}
+          onPlaySong={songbook.playSongAudio}
+          onAddSongs={songbook.openPicker}
+          onReorderSongs={songbook.reorderSongs}
+          onRemoveSong={songbook.removeSong}
+          onRename={songbook.openRename}
+          onShareText={songbook.shareSongbook}
+          onDelete={songbook.deleteActiveSongbook}
         />
       ) : (
         <SongbookListView
@@ -191,6 +197,20 @@ function SongbookSection({ tabs }: { tabs: ReactNode }) {
         onSave={songbook.createSongbook}
         helperText="Songbooks collect lyric and chord charts from any workspace."
         saveLabel="Create"
+      />
+
+      <QuickNameModal
+        visible={songbook.renameModalOpen}
+        title="Rename Songbook"
+        draftValue={songbook.draftTitle}
+        placeholderValue={songbook.activeSongbook?.title ?? ""}
+        onChangeDraft={songbook.setDraftTitle}
+        onCancel={() => {
+          songbook.setRenameModalOpen(false);
+          songbook.setDraftTitle("");
+        }}
+        onSave={songbook.renameActiveSongbook}
+        saveLabel="Save"
       />
     </SafeAreaView>
   );

@@ -5,6 +5,12 @@ import { useStore } from "../../../state/useStore";
 import { AppAlert } from "../../common/AppAlert";
 import { serializeChordChartText } from "../../../domain/chords";
 import { serializeChordSheetText } from "../../../domain/chordSheet";
+import {
+  flattenGroupedOrder,
+  groupSongbookItems,
+  type SongbookSong,
+} from "../../../domain/songbookGrouping";
+import { useMiniPlayerContext } from "../../../hooks/FullPlayerProvider";
 import type { SongbookItemKind, SongIdea, Workspace } from "../../../types";
 
 export type SongbookChartChoice = { kind: SongbookItemKind; versionId?: string };
@@ -14,15 +20,6 @@ type PickerState = {
   workspaceId: string | null;
   ideaId: string | null;
   selected: SongbookChartChoice[];
-};
-
-export type SongbookDisplayItem = {
-  id: string;
-  title: string;
-  subtitle: string;
-  metaLabel: string;
-  available: boolean;
-  onOpen: (() => void) | null;
 };
 
 function choiceKey(choice: SongbookChartChoice) {
@@ -49,11 +46,13 @@ export function useSongbookModel() {
   const addItemsToSongbook = useStore((s) => s.addItemsToSongbook);
   const removeSongbookItem = useStore((s) => s.removeSongbookItem);
   const reorderSongbookItems = useStore((s) => s.reorderSongbookItems);
+  const renameSongbook = useStore((s) => s.renameSongbook);
   const deleteSongbook = useStore((s) => s.deleteSongbook);
 
   const [selectedSongbookId, setSelectedSongbookId] = useState<string | null>(null);
   const [pickerState, setPickerState] = useState<PickerState | null>(null);
   const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [renameModalOpen, setRenameModalOpen] = useState(false);
   const [draftTitle, setDraftTitle] = useState("");
 
   const sortedSongbooks = useMemo(
@@ -73,45 +72,15 @@ export function useSongbookModel() {
     }
   }, [pickerState, selectedSongbookId, songbooks]);
 
-  const displayItems = useMemo<SongbookDisplayItem[]>(() => {
-    if (!activeSongbook) return [];
-    return activeSongbook.items.map((item) => {
-      const resolved = findIdea(workspaces, item.ideaId);
-      if (!resolved) {
-        return {
-          id: item.id,
-          title: "Unavailable chart",
-          subtitle: "Its song no longer exists in the library.",
-          metaLabel: item.kind === "lyricChart" ? "LYRICS" : "CHORDS",
-          available: false,
-          onOpen: null,
-        };
-      }
-      const { workspace, idea } = resolved;
-      if (item.kind === "lyricChart") {
-        const versionIndex = idea.lyrics?.versions.findIndex((v) => v.id === item.versionId) ?? -1;
-        return {
-          id: item.id,
-          title: idea.title,
-          subtitle: `${workspace.title} • ${versionIndex >= 0 ? `Version ${versionIndex + 1}` : "Lyrics"}`,
-          metaLabel: "LYRICS",
-          available: versionIndex >= 0,
-          onOpen:
-            versionIndex >= 0
-              ? () => navigateRoot("LyricsVersion", { ideaId: idea.id, versionId: item.versionId })
-              : null,
-        };
-      }
-      return {
-        id: item.id,
-        title: idea.title,
-        subtitle: `${workspace.title} • Chord chart`,
-        metaLabel: "CHORDS",
-        available: true,
-        onOpen: () => navigateRoot("ChordSheet", { ideaId: idea.id }),
-      };
-    });
-  }, [activeSongbook, workspaces]); // eslint-disable-line react-hooks/exhaustive-deps
+  // One row per song — the "book of my songs" — grouped from the flat items.
+  const songs = useMemo<SongbookSong[]>(
+    () => (activeSongbook ? groupSongbookItems(activeSongbook, workspaces) : []),
+    [activeSongbook, workspaces]
+  );
+
+  const inlinePlayer = useMiniPlayerContext();
+  const playerTarget = useStore((s) => s.playerTarget);
+  const isPlayerPlaying = useStore((s) => s.playerIsPlaying);
 
   // ── Picker data ──────────────────────────────────────────────────────────
   const pickerWorkspaces = useMemo(
@@ -165,10 +134,56 @@ export function useSongbookModel() {
     setSelectedSongbookId(null);
   };
 
+  // The song whose reference audio is loaded in the dock (row highlight).
+  const nowPlayingIdeaId = playerTarget?.ideaId ?? null;
+
   return {
     sortedSongbooks,
     activeSongbook,
-    displayItems,
+    songs,
+    nowPlayingIdeaId,
+    isPlayerPlaying,
+
+    /** Open the full-screen reader, optionally at a specific song. */
+    openReader: (startIdeaId?: string) => {
+      if (!activeSongbook) return;
+      navigateRoot("SongbookReader", { songbookId: activeSongbook.id, startIdeaId });
+    },
+
+    /** Play a song's reference audio in the dock without leaving the page. */
+    playSongAudio: (song: SongbookSong) => {
+      if (!song.playableClip) return;
+      void inlinePlayer.resetInlinePlayer();
+      const store = useStore.getState();
+      if (nowPlayingIdeaId === song.ideaId) {
+        store.requestPlayerToggle();
+        return;
+      }
+      store.setPlayerQueue([{ ideaId: song.ideaId, clipId: song.playableClip.id }], 0, true);
+    },
+
+    /** Remove a whole song (all its charts) from the book, after confirming. */
+    removeSong: (song: SongbookSong) => {
+      if (!activeSongbook) return;
+      AppAlert.destructive(
+        "Remove from this book?",
+        `"${song.title}" and its ${song.charts.length === 1 ? "chart" : "charts"} leave the book. The song itself stays in your library.`,
+        () => {
+          for (const chart of song.charts) removeSongbookItem(activeSongbook.id, chart.itemId);
+        },
+        { confirmLabel: "Remove" }
+      );
+    },
+
+    /** Persist a drag-reorder of song rows back onto the flat item list. */
+    reorderSongs: (orderedIdeaIds: string[]) => {
+      if (!activeSongbook) return;
+      const byIdeaId = new Map(songs.map((song) => [song.ideaId, song]));
+      const ordered = orderedIdeaIds
+        .map((ideaId) => byIdeaId.get(ideaId))
+        .filter((song): song is SongbookSong => !!song);
+      reorderSongbookItems(activeSongbook.id, flattenGroupedOrder(ordered));
+    },
     pickerState,
     pickerWorkspaces,
     pickerCharts,
@@ -191,6 +206,20 @@ export function useSongbookModel() {
       setCreateModalOpen(false);
       setDraftTitle("");
       setSelectedSongbookId(id);
+    },
+    renameModalOpen,
+    setRenameModalOpen,
+    openRename: () => {
+      if (!activeSongbook) return;
+      setDraftTitle(activeSongbook.title);
+      setRenameModalOpen(true);
+    },
+    renameActiveSongbook: () => {
+      if (!activeSongbook) return;
+      const title = draftTitle.trim();
+      if (title) renameSongbook(activeSongbook.id, title);
+      setRenameModalOpen(false);
+      setDraftTitle("");
     },
     openPicker: () => {
       if (!activeSongbook) return;
@@ -248,9 +277,6 @@ export function useSongbookModel() {
       }
       void Share.share({ title: activeSongbook.title, message: text });
     },
-    removeItem: (itemId: string) => activeSongbook && removeSongbookItem(activeSongbook.id, itemId),
-    reorderItems: (orderedIds: string[]) =>
-      activeSongbook && reorderSongbookItems(activeSongbook.id, orderedIds),
     deleteActiveSongbook: () => {
       if (!activeSongbook) return;
       deleteSongbook(activeSongbook.id);
