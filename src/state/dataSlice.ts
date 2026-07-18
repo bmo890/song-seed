@@ -2655,18 +2655,33 @@ export const createDataSlice: StateCreator<
         set((state) => {
             const now = Date.now();
             return {
-                songbooks: updateEntityList(state.songbooks, songbookId, (songbook) => ({
-                    ...songbook,
-                    updatedAt: now,
-                    items: [
-                        ...songbook.items,
-                        ...items.map((item, index) => ({
-                            ...item,
-                            id: `${buildSongbookItemId()}-${index}`,
-                            addedAt: now + index,
-                        })),
-                    ],
-                })),
+                songbooks: updateEntityList(state.songbooks, songbookId, (songbook) => {
+                    // The same chart (idea + kind + version) can arrive twice — a
+                    // repeat "Add to songbook" or collector pass — and would then
+                    // duplicate in shares. Keep the first copy.
+                    const seen = new Set(
+                        songbook.items.map((item) => `${item.ideaId}:${item.kind}:${item.versionId ?? ""}`)
+                    );
+                    const fresh = items.filter((item) => {
+                        const key = `${item.ideaId}:${item.kind}:${item.versionId ?? ""}`;
+                        if (seen.has(key)) return false;
+                        seen.add(key);
+                        return true;
+                    });
+                    if (fresh.length === 0) return songbook;
+                    return {
+                        ...songbook,
+                        updatedAt: now,
+                        items: [
+                            ...songbook.items,
+                            ...fresh.map((item, index) => ({
+                                ...item,
+                                id: `${buildSongbookItemId()}-${index}`,
+                                addedAt: now + index,
+                            })),
+                        ],
+                    };
+                }),
             };
         });
     },

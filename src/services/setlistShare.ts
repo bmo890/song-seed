@@ -19,7 +19,9 @@ export async function shareSetlist(setlist: Setlist, workspaces: Workspace[]): P
     setlists: [built.setlist],
     options: {
       includeFullSongHistory: true, // we already trimmed to the chosen clips
-      includeNotes: false,
+      // The trim already zeroes notes for entries that didn't pack them, so
+      // this only carries the notes the packer explicitly chose.
+      includeNotes: true,
       includeLyrics: true,
       includeHiddenItems: true,
       preserveAllMetadata: true, // keep lyric versions + chords + chord sheet

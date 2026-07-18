@@ -158,6 +158,18 @@ describe("songbooks", () => {
         store.getState().deleteSongbook(id);
         expect(store.getState().songbooks).toEqual([]);
     });
+
+    it("skips duplicate charts (same idea + kind + version) on repeat adds", () => {
+        const store = makeStore();
+        const id = store.getState().addSongbook("Book");
+        const chart = { kind: "lyricChart", workspaceId: "ws", ideaId: "idea-1", versionId: "v1" } as never;
+        store.getState().addItemsToSongbook(id, [chart]);
+        store.getState().addItemsToSongbook(id, [chart]); // repeat add — no dupe
+        store.getState().addItemsToSongbook(id, [
+            { kind: "lyricChart", workspaceId: "ws", ideaId: "idea-1", versionId: "v2" } as never, // different version — new
+        ]);
+        expect(store.getState().songbooks[0]!.items).toHaveLength(2);
+    });
 });
 
 describe("setlists", () => {

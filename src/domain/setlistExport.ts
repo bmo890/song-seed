@@ -75,7 +75,11 @@ export function buildSetlistArchive(setlist: Setlist, workspaces: Workspace[]): 
     const idea = findIdea(entry.ideaId);
     // Raw clip ideas are legal setlist songs too ("just a clip, technically").
     if (!idea) return;
-    const trimmed = trimIdeaForSetlistEntry(idea, entry, collectionId, base + index);
+    let trimmed = trimIdeaForSetlistEntry(idea, entry, collectionId, base + index);
+    // Raw clip ideas must ship as PROJECT ideas: the archive exporter routes
+    // clip-kind ideas into standaloneClips, whose import path doesn't register
+    // id remaps — the setlist entry would silently drop on the receiving end.
+    if (trimmed.kind === "clip") trimmed = { ...trimmed, kind: "project" };
     ideas.push(trimmed);
     remappedEntries.push({
       ...entry,

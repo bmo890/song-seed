@@ -28,6 +28,7 @@ import {
   type ImportDatePreference,
 } from "../../../domain/importDates";
 import { useResolvedShareAssets } from "./useResolvedShareAssets";
+import * as FileSystem from "expo-file-system/legacy";
 import { findSharedArchiveFile } from "../../../services/shareImport";
 import { detectPickedArchiveKind } from "../../../services/archiveKind";
 import { readSongSeedArchive } from "../../../services/libraryImport";
@@ -112,7 +113,15 @@ export function useShareImportScreenModel({
         );
         return;
       }
-      const parsed = await readSongSeedArchive(sharedArchive.uri, sharedArchive.name ?? undefined);
+      // The zip reader works on file:// paths; Android share intents can hand
+      // us a content:// URI — copy it into cache first.
+      let archiveUri = sharedArchive.uri;
+      if (archiveUri.startsWith("content://")) {
+        const cached = `${FileSystem.cacheDirectory}shared-archive-${Date.now()}.zip`;
+        await FileSystem.copyAsync({ from: archiveUri, to: cached });
+        archiveUri = cached;
+      }
+      const parsed = await readSongSeedArchive(archiveUri, sharedArchive.name ?? undefined);
       const result = await appActions.importLibraryArchiveIntoLibrary(parsed);
       haptic.success();
 

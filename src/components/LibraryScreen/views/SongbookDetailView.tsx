@@ -10,7 +10,7 @@ import { haptic } from "../../../design/haptics";
 import { fmtDuration } from "../../../utils";
 import { getClipPlaybackDurationMs } from "../../../domain/clipPresentation";
 import type { Songbook } from "../../../types";
-import type { SongbookSong } from "../../../domain/songbookGrouping";
+import { availableViewsForSong, type SongbookSong } from "../../../domain/songbookGrouping";
 
 type SongbookDetailViewProps = {
   songbook: Songbook;
@@ -49,7 +49,12 @@ export function SongbookDetailView({
   const [editMode, setEditMode] = useState(false);
   const [menuVisible, setMenuVisible] = useState(false);
 
-  const readableCount = songs.filter((song) => song.available).length;
+  // "Readable" = the reader can actually show something for it (a live chart),
+  // not merely that the song still exists — keeps the row and the reader in
+  // agreement about what opens.
+  const isReadable = (song: SongbookSong) =>
+    song.available && availableViewsForSong(song).length > 0;
+  const readableCount = songs.filter(isReadable).length;
   const chordCount = songs.filter((song) => song.hasChordChart).length;
   const metaParts = [
     `${songs.length} ${songs.length === 1 ? "song" : "songs"}`,
@@ -205,14 +210,14 @@ export function SongbookDetailView({
                   pressed && !editMode && song.available ? styles.pressDown : null,
                 ]}
                 onPress={() => {
-                  if (editMode || !song.available) return;
+                  if (editMode || !isReadable(song)) return;
                   haptic.tap();
                   onOpenReader(song.ideaId);
                 }}
-                disabled={editMode || !song.available}
+                disabled={editMode || !isReadable(song)}
                 accessibilityRole="button"
                 accessibilityLabel={
-                  song.available ? `Open ${song.title} in the book` : `${song.title} (unavailable)`
+                  isReadable(song) ? `Open ${song.title} in the book` : `${song.title} (unavailable)`
                 }
               >
                 <Text

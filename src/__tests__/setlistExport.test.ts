@@ -163,7 +163,10 @@ describe("buildSetlistArchive", () => {
     };
     const built = buildSetlistArchive(setlist, ws)!;
     expect(built.songCount).toBe(1);
-    expect(built.workspaces[0].ideas[0].kind).toBe("clip");
+    // Ships as a project so the archive's importer registers id remaps and the
+    // receiver's setlist entry survives (clip-kind ideas route to standalone
+    // clips, which never enter the id maps).
+    expect(built.workspaces[0].ideas[0].kind).toBe("project");
   });
 
   it("returns null when no entries resolve", () => {
