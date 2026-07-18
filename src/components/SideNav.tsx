@@ -17,11 +17,12 @@ type IoniconName = ComponentProps<typeof Ionicons>["name"];
 // drawer can use warmer, more music-appropriate glyphs tinted with the earthy
 // workspace palette — without disturbing the icons used in idea lists/breadcrumbs.
 const NAV_ICONS: Record<
-  "revisit" | "shelf" | "activity" | "library" | "notepad" | "tuner" | "metronome" | "settings",
+  "revisit" | "shelf" | "received" | "activity" | "library" | "notepad" | "tuner" | "metronome" | "settings",
   { icon: IoniconName; color: string }
 > = {
   revisit: { icon: "time-outline", color: "#7A9E8E" }, // sage
   shelf: { icon: "file-tray-outline", color: "#B87D6B" }, // terracotta
+  received: { icon: "mail-open-outline", color: "#7B8FAD" }, // slate
   activity: { icon: "analytics-outline", color: "#A89B6E" }, // ochre
   library: { icon: "library-outline", color: "#7B8FAD" }, // slate
   notepad: { icon: "journal-outline", color: "#8E7B9E" }, // plum
@@ -45,6 +46,7 @@ type Props = {
     | "search"
     | "revisit"
     | "shelf"
+    | "received"
     | "activity"
     | "tuner"
     | "metronome"
@@ -61,6 +63,7 @@ type Props = {
   onGoSearch: () => void;
   onGoRevisit: () => void;
   onGoShelf: () => void;
+  onGoReceived: () => void;
   onGoActivity: () => void;
   onGoTuner: () => void;
   onGoMetronome: () => void;
@@ -81,6 +84,7 @@ export function SideNav({
   onGoSearch,
   onGoRevisit,
   onGoShelf,
+  onGoReceived,
   onGoActivity,
   onGoTuner,
   onGoMetronome,
@@ -257,6 +261,13 @@ export function SideNav({
           label="Library"
           active={currentRoute === "library"}
           onPress={onGoLibrary}
+        />
+        <NavRow
+          icon={NAV_ICONS.received.icon}
+          iconColor={NAV_ICONS.received.color}
+          label="Received"
+          active={currentRoute === "received"}
+          onPress={onGoReceived}
         />
 
         {/* Tools */}

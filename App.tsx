@@ -49,6 +49,7 @@ import { ChordSheetScreen } from "./src/components/ChordSheetScreen";
 import { ClipLineageScreen } from "./src/components/ClipLineageScreen";
 import { SongbookReaderScreen } from "./src/components/SongbookReaderScreen";
 import { SetlistSongScreen } from "./src/components/SetlistSongScreen";
+import { ReceivedScreen } from "./src/components/ReceivedScreen";
 import { ActivityScreen } from "./src/components/ActivityScreen";
 import { GlobalMediaDock } from "./src/components/GlobalMediaDock";
 import { ImportProgressBanner } from "./src/components/ImportProgressBanner";
@@ -127,6 +128,7 @@ const HOME_DRAWER_ROUTE_NAMES: Array<keyof HomeDrawerParamList> = [
   "SearchHome",
   "RevisitHome",
   "ShelfHome",
+  "ReceivedHome",
   "ActivityHome",
   "TunerHome",
   "MetronomeHome",
@@ -493,6 +495,8 @@ function DrawerContent({ navigation, state }: DrawerContentComponentProps) {
         ? "revisit"
       : deepestRouteName === "ShelfHome"
         ? "shelf"
+      : deepestRouteName === "ReceivedHome"
+        ? "received"
       : deepestRouteName === "Activity" || deepestRouteName === "ActivityHome"
         ? "activity"
       : deepestRouteName === "TunerHome"
@@ -549,6 +553,10 @@ function DrawerContent({ navigation, state }: DrawerContentComponentProps) {
       onGoShelf={() => {
         closeDrawer();
         navigation.navigate("ShelfHome");
+      }}
+      onGoReceived={() => {
+        closeDrawer();
+        navigation.navigate("ReceivedHome");
       }}
       onGoSearch={() => {
         closeDrawer();
@@ -637,6 +645,7 @@ function DrawerRoutes() {
       <Drawer.Screen name="SearchHome" component={SearchScreen} />
       <Drawer.Screen name="RevisitHome" component={RevisitScreen} />
       <Drawer.Screen name="ShelfHome" component={ShelfScreen} />
+      <Drawer.Screen name="ReceivedHome" component={ReceivedScreen} />
       <Drawer.Screen name="ActivityHome" component={ActivityScreen} />
       <Drawer.Screen name="TunerHome" component={TunerScreen} />
       <Drawer.Screen name="MetronomeHome" component={MetronomeScreen} />

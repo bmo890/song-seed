@@ -169,6 +169,8 @@ export type DataSlice = {
     addWorkspace: (title: string, description?: string, avatarKey?: number) => void;
     updateWorkspace: (id: string, updates: { title?: string; description?: string; color?: string; avatarKey?: number }) => void;
     deleteWorkspace: (id: string) => void;
+    /** Flip a received package into a personal workspace ("Move to my workspaces"). */
+    adoptReceivedWorkspace: (id: string) => void;
     archiveWorkspace: (id: string, isArchived: boolean) => void;
     addCollection: (workspaceId: string, title: string, parentCollectionId?: string | null, description?: string) => string;
     updateCollection: (workspaceId: string, collectionId: string, updates: { title?: string }) => void;
@@ -2204,6 +2206,18 @@ export const createDataSlice: StateCreator<
     updateWorkspace: (id, updates) => {
         set((state) => ({
             workspaces: state.workspaces.map((ws) => (ws.id === id ? { ...ws, ...updates } : ws)),
+        }));
+    },
+
+    adoptReceivedWorkspace: (id) => {
+        // "Move to my workspaces": the package becomes a plain personal
+        // workspace — origin and provenance drop away, nothing else changes.
+        set((state) => ({
+            workspaces: state.workspaces.map((ws) =>
+                ws.id === id && ws.origin === "received"
+                    ? { ...ws, origin: undefined, received: undefined }
+                    : ws
+            ),
         }));
     },
 

@@ -148,11 +148,9 @@ export function useShareImportScreenModel({
           params: { openCollectionKind: openKind, openCollectionId: openId, openToken: Date.now() },
         });
       } else {
-        AppAlert.info(
-          "Import complete",
-          `${result.importedWorkspaces} workspace${result.importedWorkspaces === 1 ? "" : "s"} and ${result.importedIdeas} item${result.importedIdeas === 1 ? "" : "s"} were imported into your library.`
-        );
-        (navigation as any).navigate("Home");
+        // Everything else landed as a Received package — go look at it.
+        toast("Package received", "mail-open-outline");
+        (navigation as any).navigate("Home", { screen: "ReceivedHome" });
       }
     } catch (error) {
       const message =

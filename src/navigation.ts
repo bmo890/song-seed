@@ -25,6 +25,7 @@ export type HomeDrawerParamList = {
   SearchHome: undefined;
   RevisitHome: undefined;
   ShelfHome: undefined;
+  ReceivedHome: undefined;
   ActivityHome: undefined;
   TunerHome: undefined;
   MetronomeHome: undefined;
