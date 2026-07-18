@@ -3,6 +3,9 @@ import { AppAlert } from "../../common/AppAlert";
 import { useIsFocused, useNavigation } from "@react-navigation/native";
 import { useStore } from "../../../state/useStore";
 import { useRevisitStore } from "../../../state/useRevisitStore";
+import { useShelfStore } from "../../../state/useShelfStore";
+import { toast } from "../../common/toastStore";
+import { haptic } from "../../../design/haptics";
 import { useMiniPlayerContext } from "../../../hooks/FullPlayerProvider";
 import {
   buildRevisitModel,
@@ -187,6 +190,17 @@ export function useRevisitScreenModel() {
 
   function openCandidateMenu(candidate: RevisitCandidate) {
     AppAlert.custom(candidate.title, undefined, [
+      {
+        label: "Set aside",
+        style: "default",
+        icon: "file-tray-outline",
+        description: "Keep it on the Shelf for 7 days.",
+        onPress: () => {
+          useShelfStore.getState().setAside([{ kind: "idea", id: candidate.ideaId }]);
+          haptic.success();
+          toast("On the shelf for 7 days", "file-tray-outline");
+        },
+      },
       {
         label: "Hide",
         style: "destructive",

@@ -55,6 +55,7 @@ import { DuplicateReviewSheet } from "./src/components/DuplicateReviewSheet";
 import { LibraryScreen } from "./src/components/LibraryScreen";
 import { SettingsScreen } from "./src/components/SettingsScreen";
 import { RevisitScreen } from "./src/components/RevisitScreen";
+import { ShelfScreen } from "./src/components/ShelfScreen";
 import { TunerScreen } from "./src/components/TunerScreen";
 import { NotepadScreen } from "./src/components/NotepadScreen";
 import { WordLadderScreen } from "./src/components/WordLadderScreen";
@@ -123,6 +124,7 @@ const HOME_DRAWER_ROUTE_NAMES: Array<keyof HomeDrawerParamList> = [
   "WorkspaceStack",
   "SearchHome",
   "RevisitHome",
+  "ShelfHome",
   "ActivityHome",
   "TunerHome",
   "MetronomeHome",
@@ -476,6 +478,8 @@ function DrawerContent({ navigation, state }: DrawerContentComponentProps) {
         ? "search"
       : deepestRouteName === "RevisitHome"
         ? "revisit"
+      : deepestRouteName === "ShelfHome"
+        ? "shelf"
       : deepestRouteName === "Activity" || deepestRouteName === "ActivityHome"
         ? "activity"
       : deepestRouteName === "TunerHome"
@@ -528,6 +532,10 @@ function DrawerContent({ navigation, state }: DrawerContentComponentProps) {
       onGoRevisit={() => {
         closeDrawer();
         navigation.navigate("RevisitHome");
+      }}
+      onGoShelf={() => {
+        closeDrawer();
+        navigation.navigate("ShelfHome");
       }}
       onGoSearch={() => {
         closeDrawer();
@@ -615,6 +623,7 @@ function DrawerRoutes() {
       <Drawer.Screen name="WorkspaceStack" component={WorkspaceRoutes} />
       <Drawer.Screen name="SearchHome" component={SearchScreen} />
       <Drawer.Screen name="RevisitHome" component={RevisitScreen} />
+      <Drawer.Screen name="ShelfHome" component={ShelfScreen} />
       <Drawer.Screen name="ActivityHome" component={ActivityScreen} />
       <Drawer.Screen name="TunerHome" component={TunerScreen} />
       <Drawer.Screen name="MetronomeHome" component={MetronomeScreen} />

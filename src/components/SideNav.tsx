@@ -1,4 +1,4 @@
-import type { ComponentProps } from "react";
+import { useMemo, type ComponentProps } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -7,6 +7,9 @@ import { radii, shadows, colors } from "../design/tokens";
 import { NavRow } from "./common/NavRow";
 import { WorkspaceAvatar } from "./common/WorkspaceAvatar";
 import { getWorkspaceTheme } from "../domain/workspaceTheme";
+import { useShelfStore } from "../state/useShelfStore";
+import { useStore } from "../state/useStore";
+import { shelfNeedsDecision } from "../domain/shelf";
 
 type IoniconName = ComponentProps<typeof Ionicons>["name"];
 
@@ -14,10 +17,11 @@ type IoniconName = ComponentProps<typeof Ionicons>["name"];
 // drawer can use warmer, more music-appropriate glyphs tinted with the earthy
 // workspace palette — without disturbing the icons used in idea lists/breadcrumbs.
 const NAV_ICONS: Record<
-  "revisit" | "activity" | "library" | "notepad" | "tuner" | "metronome" | "settings",
+  "revisit" | "shelf" | "activity" | "library" | "notepad" | "tuner" | "metronome" | "settings",
   { icon: IoniconName; color: string }
 > = {
   revisit: { icon: "time-outline", color: "#7A9E8E" }, // sage
+  shelf: { icon: "file-tray-outline", color: "#B87D6B" }, // terracotta
   activity: { icon: "analytics-outline", color: "#A89B6E" }, // ochre
   library: { icon: "library-outline", color: "#7B8FAD" }, // slate
   notepad: { icon: "journal-outline", color: "#8E7B9E" }, // plum
@@ -40,6 +44,7 @@ type Props = {
     | "browse"
     | "search"
     | "revisit"
+    | "shelf"
     | "activity"
     | "tuner"
     | "metronome"
@@ -55,6 +60,7 @@ type Props = {
   onGoWorkspace: () => void;  // Collections for current workspace
   onGoSearch: () => void;
   onGoRevisit: () => void;
+  onGoShelf: () => void;
   onGoActivity: () => void;
   onGoTuner: () => void;
   onGoMetronome: () => void;
@@ -74,6 +80,7 @@ export function SideNav({
   onGoWorkspace,
   onGoSearch,
   onGoRevisit,
+  onGoShelf,
   onGoActivity,
   onGoTuner,
   onGoMetronome,
@@ -84,6 +91,24 @@ export function SideNav({
 }: Props) {
   const mostRecent = recentCollections[0] ?? null;
   const workspaceTheme = getWorkspaceTheme(workspaceColor);
+
+  // The Shelf's one honest signal: a small dot only while a stay is in its
+  // final stretch and a keep-or-leave decision is waiting. Finite and
+  // clearable — most days it's absent. Entries whose idea was deleted from the
+  // library are excluded: the Shelf screen can't show them, so counting them
+  // would light a dot the user has no way to clear.
+  const shelfEntries = useShelfStore((state) => state.entries);
+  const shelfWorkspaces = useStore((state) => state.workspaces);
+  const shelfHasDecision = useMemo(() => {
+    const existingIdeaIds = new Set<string>();
+    for (const workspace of shelfWorkspaces) {
+      for (const idea of workspace.ideas) existingIdeaIds.add(idea.id);
+    }
+    return shelfNeedsDecision(
+      shelfEntries.filter((entry) => existingIdeaIds.has(entry.id)),
+      Date.now()
+    );
+  }, [shelfEntries, shelfWorkspaces]);
 
   return (
     <SafeAreaView style={sideNavStyles.shell}>
@@ -210,6 +235,14 @@ export function SideNav({
           label="Revisit"
           active={currentRoute === "revisit"}
           onPress={onGoRevisit}
+        />
+        <NavRow
+          icon={NAV_ICONS.shelf.icon}
+          iconColor={NAV_ICONS.shelf.color}
+          label="Shelf"
+          active={currentRoute === "shelf"}
+          onPress={onGoShelf}
+          accessory={shelfHasDecision ? <View style={sideNavStyles.shelfDecisionDot} /> : undefined}
         />
         <NavRow
           icon={NAV_ICONS.activity.icon}
@@ -421,6 +454,13 @@ const sideNavStyles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingBottom: 8,
     gap: 2,
+  },
+  // Shelf keep-or-leave signal — appears only while a decision is waiting.
+  shelfDecisionDot: {
+    width: 7,
+    height: 7,
+    borderRadius: radii.round,
+    backgroundColor: colors.primary,
   },
   sectionLabel: {
     fontFamily: "PlusJakartaSans_700Bold",

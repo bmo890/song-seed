@@ -24,6 +24,7 @@ export type HomeDrawerParamList = {
   WorkspaceStack: NavigatorScreenParams<WorkspaceStackParamList> | undefined;
   SearchHome: undefined;
   RevisitHome: undefined;
+  ShelfHome: undefined;
   ActivityHome: undefined;
   TunerHome: undefined;
   MetronomeHome: undefined;

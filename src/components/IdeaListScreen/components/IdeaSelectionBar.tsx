@@ -8,6 +8,8 @@ import { SelectionDock, type SelectionAction } from "../../common/SelectionDock"
 import type { SongIdea } from "../../../types";
 import { buildPlayableQueueFromIdeas, getPlayableClipForIdea } from "../../../domain/clipPresentation";
 import { haptic } from "../../../design/haptics";
+import { useShelfStore } from "../../../state/useShelfStore";
+import { toast } from "../../common/toastStore";
 
 type IdeaSelectionBarProps = {
   selectableIdeaIds: string[];
@@ -188,6 +190,24 @@ export function IdeaSelectionBar({
     );
   }
 
+  // One tap, no prompt — the shelf holds pointers, so nothing moves in the
+  // library; already-shelved items just get a fresh 7-day stay.
+  function handleSetAsideSelection() {
+    if (interactiveSelectedIdeas.length === 0) return;
+    useShelfStore
+      .getState()
+      .setAside(interactiveSelectedIdeas.map((idea) => ({ kind: "idea" as const, id: idea.id })));
+    toast(
+      interactiveSelectedIdeas.length > 1
+        ? `${interactiveSelectedIdeas.length} items on the shelf for 7 days`
+        : "On the shelf for 7 days",
+      "file-tray-outline"
+    );
+    haptic.success();
+    setMoreVisible(false);
+    useStore.getState().cancelListSelection();
+  }
+
   function confirmDeleteSelection() {
     const projectNames = selectedProjects.map((project) => project.title).slice(0, 4);
     const projectList =
@@ -313,6 +333,16 @@ export function IdeaSelectionBar({
         icon: "arrow-forward-outline",
         onPress: () => handleClipboardAction("move"),
       });
+      actions.push({
+        key: "set-aside",
+        label:
+          interactiveSelectedIdeas.length > 1
+            ? `Set aside (${interactiveSelectedIdeas.length})`
+            : "Set aside",
+        icon: "file-tray-outline",
+        onPress: handleSetAsideSelection,
+        disabled: interactiveSelectedIdeas.length === 0,
+      });
     }
 
     // "Make song" lives on the dock now (see makeSongAction).
@@ -322,6 +352,7 @@ export function IdeaSelectionBar({
     canDeselectAll,
     editAction,
     handleShareSelected,
+    interactiveSelectedIdeas,
     isSharing,
     onCreateProjectFromSelection,
     replaceListSelection,
