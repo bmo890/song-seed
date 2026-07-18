@@ -1,7 +1,14 @@
 import { useMemo, useState } from "react";
+import { useNavigation } from "@react-navigation/native";
 import { useStore } from "../../../state/useStore";
 import { AppAlert } from "../../common/AppAlert";
 import { shareSetlist } from "../../../services/setlistShare";
+import {
+  buildSetlistQueue,
+  getSetlistDurationMs,
+  resolveSetlistEntries,
+  type ResolvedSetlistEntry,
+} from "../../../domain/setlistPlayback";
 import type { SongIdea, Workspace } from "../../../types";
 
 type BuilderState = {
@@ -12,14 +19,7 @@ type BuilderState = {
   clipIds: string[];
   lyricVersionIds: string[];
   includeChordSheet: boolean;
-};
-
-export type SetlistDisplayEntry = {
-  id: string;
-  title: string;
-  subtitle: string;
-  summary: string;
-  available: boolean;
+  includeSongNotes: boolean;
 };
 
 function findIdea(workspaces: Workspace[], ideaId: string): { workspace: Workspace; idea: SongIdea } | null {
@@ -35,6 +35,11 @@ function toggle(list: string[], id: string): string[] {
 }
 
 export function useSetlistModel() {
+  const navigation = useNavigation<any>();
+  const rootNavigation = navigation.getParent?.();
+  const navigateRoot = (route: string, params?: object) =>
+    (rootNavigation ?? navigation).navigate(route as never, params as never);
+
   const workspaces = useStore((s) => s.workspaces);
   const setlists = useStore((s) => s.setlists);
   const addSetlist = useStore((s) => s.addSetlist);
@@ -42,11 +47,15 @@ export function useSetlistModel() {
   const updateSetlistEntry = useStore((s) => s.updateSetlistEntry);
   const removeSetlistEntry = useStore((s) => s.removeSetlistEntry);
   const reorderSetlistEntries = useStore((s) => s.reorderSetlistEntries);
+  const renameSetlist = useStore((s) => s.renameSetlist);
   const deleteSetlist = useStore((s) => s.deleteSetlist);
+  const playerTarget = useStore((s) => s.playerTarget);
+  const isPlayerPlaying = useStore((s) => s.playerIsPlaying);
 
   const [selectedSetlistId, setSelectedSetlistId] = useState<string | null>(null);
   const [builder, setBuilder] = useState<BuilderState | null>(null);
   const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [renameModalOpen, setRenameModalOpen] = useState(false);
   const [draftTitle, setDraftTitle] = useState("");
 
   const sortedSetlists = useMemo(
@@ -57,30 +66,30 @@ export function useSetlistModel() {
   const activeSetlistId = builder?.setlistId ?? selectedSetlistId;
   const activeSetlist = setlists.find((sl) => sl.id === activeSetlistId) ?? null;
 
-  const displayEntries = useMemo<SetlistDisplayEntry[]>(() => {
-    if (!activeSetlist) return [];
-    return activeSetlist.entries.map((entry) => {
-      const resolved = findIdea(workspaces, entry.ideaId);
-      const chartCount = entry.lyricVersionIds.length + (entry.includeChordSheet ? 1 : 0);
-      const summary = `${entry.clipIds.length} clip${entry.clipIds.length === 1 ? "" : "s"} · ${chartCount} chart${chartCount === 1 ? "" : "s"}`;
-      return {
-        id: entry.id,
-        title: resolved?.idea.title ?? "Unavailable song",
-        subtitle: resolved ? resolved.workspace.title : "Its song no longer exists.",
-        summary,
-        available: !!resolved,
-      };
-    });
-  }, [activeSetlist, workspaces]);
-
-  const pickerWorkspaces = useMemo(
-    () =>
-      workspaces
-        .filter((w) => !w.isArchived)
-        .map((w) => ({ id: w.id, title: w.title, songs: w.ideas.filter((i) => i.kind === "project") }))
-        .filter((w) => w.songs.length > 0),
-    [workspaces]
+  // Each entry resolved as a packaged song folder against the live library.
+  const resolvedEntries = useMemo<ResolvedSetlistEntry[]>(
+    () => (activeSetlist ? resolveSetlistEntries(workspaces, activeSetlist) : []),
+    [activeSetlist, workspaces]
   );
+
+  const setDurationMs = useMemo(() => getSetlistDurationMs(resolvedEntries), [resolvedEntries]);
+
+  // Which entry holds the clip currently loaded in the dock/player.
+  const nowPlayingEntryId = useMemo(() => {
+    if (!playerTarget) return null;
+    for (const entry of resolvedEntries) {
+      if (entry.parts.some((part) => part.clipId === playerTarget.clipId && entry.idea?.id === playerTarget.ideaId)) {
+        return entry.entryId;
+      }
+    }
+    return null;
+  }, [playerTarget, resolvedEntries]);
+
+  function playFromEntry(entryId?: string) {
+    const { queue, startIndex } = buildSetlistQueue(resolvedEntries, entryId);
+    if (queue.length === 0) return;
+    useStore.getState().setPlayerQueue(queue, startIndex, true);
+  }
 
   const builderSong = useMemo(() => {
     if (!builder?.ideaId) return null;
@@ -89,9 +98,18 @@ export function useSetlistModel() {
     const { idea } = resolved;
     return {
       title: idea.title,
-      clips: idea.clips.map((c) => ({ id: c.id, title: c.title, isPrimary: c.isPrimary })),
+      clips: idea.clips.map((c) => ({
+        id: c.id,
+        title: c.title,
+        isPrimary: c.isPrimary,
+        durationMs: c.durationMs ?? null,
+        sectionCount: c.sections?.length ?? 0,
+        pinCount: c.practiceMarkers?.length ?? 0,
+      })),
       versions: (idea.lyrics?.versions ?? []).map((v, i) => ({ id: v.id, label: `Version ${i + 1}` })),
       hasChordSheet: !!idea.chordSheet && idea.chordSheet.sections.length > 0,
+      hasNotes: idea.notes.trim().length > 0,
+      notesPreview: idea.notes.trim().slice(0, 64),
     };
   }, [builder?.ideaId, workspaces]);
 
@@ -110,13 +128,25 @@ export function useSetlistModel() {
   return {
     sortedSetlists,
     activeSetlist,
-    displayEntries,
+    resolvedEntries,
+    setDurationMs,
+    nowPlayingEntryId,
+    isPlayerPlaying,
     builder,
     builderSong,
-    pickerWorkspaces,
+    pickerWorkspaces: useMemo(
+      () =>
+        workspaces
+          .filter((w) => !w.isArchived)
+          .map((w) => ({ id: w.id, title: w.title, songs: w.ideas.filter((i) => i.kind === "project") }))
+          .filter((w) => w.songs.length > 0),
+      [workspaces]
+    ),
     showBack: !!activeSetlist || !!builder,
     createModalOpen,
     setCreateModalOpen,
+    renameModalOpen,
+    setRenameModalOpen,
     draftTitle,
     setDraftTitle,
     defaultTitle: `Setlist ${setlists.length + 1}`,
@@ -132,6 +162,30 @@ export function useSetlistModel() {
       setDraftTitle("");
       setSelectedSetlistId(id);
     },
+    openRename: () => {
+      if (!activeSetlist) return;
+      setDraftTitle(activeSetlist.title);
+      setRenameModalOpen(true);
+    },
+    renameActiveSetlist: () => {
+      if (!activeSetlist) return;
+      const title = draftTitle.trim();
+      if (title) renameSetlist(activeSetlist.id, title);
+      setRenameModalOpen(false);
+      setDraftTitle("");
+    },
+
+    /** Play the whole set (or from one entry) into the dock. */
+    playAll: () => playFromEntry(),
+    playFromEntry,
+
+    /** Open an entry's packaged song folder. */
+    openEntryFolder: (entryId: string) => {
+      if (!activeSetlist) return;
+      navigateRoot("SetlistSong", { setlistId: activeSetlist.id, entryId });
+    },
+
+    // ── Package builder ─────────────────────────────────────────────────────
     openBuilder: () => {
       if (!activeSetlist) return;
       setBuilder({
@@ -142,6 +196,7 @@ export function useSetlistModel() {
         clipIds: [],
         lyricVersionIds: [],
         includeChordSheet: false,
+        includeSongNotes: false,
       });
     },
     builderSelectSong: (workspaceId: string, ideaId: string) => {
@@ -158,6 +213,7 @@ export function useSetlistModel() {
               clipIds: primary ? [primary.id] : [],
               lyricVersionIds: latestVersion ? [latestVersion.id] : [],
               includeChordSheet: !!idea?.chordSheet && idea.chordSheet.sections.length > 0,
+              includeSongNotes: false,
             }
           : cur
       );
@@ -168,6 +224,27 @@ export function useSetlistModel() {
       setBuilder((cur) => (cur ? { ...cur, lyricVersionIds: toggle(cur.lyricVersionIds, versionId) } : cur)),
     builderToggleChordSheet: () =>
       setBuilder((cur) => (cur ? { ...cur, includeChordSheet: !cur.includeChordSheet } : cur)),
+    builderToggleSongNotes: () =>
+      setBuilder((cur) => (cur ? { ...cur, includeSongNotes: !cur.includeSongNotes } : cur)),
+    /** "Everything" — pack every take, the latest lyric version, chart, notes. */
+    builderSelectEverything: () => {
+      if (!builder?.ideaId) return;
+      const resolved = findIdea(workspaces, builder.ideaId);
+      const idea = resolved?.idea;
+      if (!idea) return;
+      const latestVersion = idea.lyrics?.versions[idea.lyrics.versions.length - 1];
+      setBuilder((cur) =>
+        cur
+          ? {
+              ...cur,
+              clipIds: idea.clips.map((c) => c.id),
+              lyricVersionIds: latestVersion ? [latestVersion.id] : [],
+              includeChordSheet: !!idea.chordSheet && idea.chordSheet.sections.length > 0,
+              includeSongNotes: idea.notes.trim().length > 0,
+            }
+          : cur
+      );
+    },
     confirmBuilder: () => {
       if (!builder || !builder.ideaId || !builder.workspaceId) return;
       const payload = {
@@ -176,6 +253,7 @@ export function useSetlistModel() {
         clipIds: builder.clipIds,
         lyricVersionIds: builder.lyricVersionIds,
         includeChordSheet: builder.includeChordSheet,
+        includeSongNotes: builder.includeSongNotes,
       };
       if (builder.editingEntryId) {
         updateSetlistEntry(builder.setlistId, builder.editingEntryId, payload);
@@ -196,6 +274,7 @@ export function useSetlistModel() {
         clipIds: entry.clipIds,
         lyricVersionIds: entry.lyricVersionIds,
         includeChordSheet: entry.includeChordSheet,
+        includeSongNotes: !!entry.includeSongNotes,
       });
     },
     removeEntry: (entryId: string) => activeSetlist && removeSetlistEntry(activeSetlist.id, entryId),

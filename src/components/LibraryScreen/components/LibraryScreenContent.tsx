@@ -244,21 +244,32 @@ function SetlistsSection({ tabs }: { tabs: ReactNode }) {
           clipIds={setlist.builder.clipIds}
           lyricVersionIds={setlist.builder.lyricVersionIds}
           includeChordSheet={setlist.builder.includeChordSheet}
+          includeSongNotes={setlist.builder.includeSongNotes}
           onSelectSong={setlist.builderSelectSong}
           onToggleClip={setlist.builderToggleClip}
           onToggleVersion={setlist.builderToggleVersion}
           onToggleChordSheet={setlist.builderToggleChordSheet}
+          onToggleSongNotes={setlist.builderToggleSongNotes}
+          onSelectEverything={setlist.builderSelectEverything}
           onConfirm={setlist.confirmBuilder}
         />
       ) : setlist.activeSetlist ? (
         <SetlistDetailView
-          entries={setlist.displayEntries}
-          onAddSong={setlist.openBuilder}
-          onShare={setlist.shareActiveSetlist}
+          setlist={setlist.activeSetlist}
+          entries={setlist.resolvedEntries}
+          setDurationMs={setlist.setDurationMs}
+          nowPlayingEntryId={setlist.nowPlayingEntryId}
+          isPlaying={setlist.isPlayerPlaying}
+          onPlayAll={setlist.playAll}
+          onPlayEntry={setlist.playFromEntry}
+          onOpenEntry={setlist.openEntryFolder}
           onEditEntry={setlist.editEntry}
+          onAddSong={setlist.openBuilder}
           onReorder={setlist.reorderEntries}
           onRemoveEntry={setlist.removeEntry}
-          onDeleteSetlist={setlist.deleteActiveSetlist}
+          onRename={setlist.openRename}
+          onShare={setlist.shareActiveSetlist}
+          onDelete={setlist.deleteActiveSetlist}
         />
       ) : (
         <SetlistListView
@@ -281,6 +292,20 @@ function SetlistsSection({ tabs }: { tabs: ReactNode }) {
         onSave={setlist.createSetlist}
         helperText="Setlists hold an ordered set of songs (clips + charts) to share with your band."
         saveLabel="Create"
+      />
+
+      <QuickNameModal
+        visible={setlist.renameModalOpen}
+        title="Rename Setlist"
+        draftValue={setlist.draftTitle}
+        placeholderValue={setlist.activeSetlist?.title ?? ""}
+        onChangeDraft={setlist.setDraftTitle}
+        onCancel={() => {
+          setlist.setRenameModalOpen(false);
+          setlist.setDraftTitle("");
+        }}
+        onSave={setlist.renameActiveSetlist}
+        saveLabel="Save"
       />
     </SafeAreaView>
   );

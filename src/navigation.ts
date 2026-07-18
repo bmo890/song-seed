@@ -57,6 +57,7 @@ export type RootStackParamList = {
   ChordSheet: { ideaId: string };
   ClipLineage: { ideaId: string; rootClipId: string };
   SongbookReader: { songbookId: string; startIdeaId?: string };
+  SetlistSong: { setlistId: string; entryId: string };
 };
 
 export function getRootNavigation(navigation: any) {

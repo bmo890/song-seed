@@ -48,6 +48,7 @@ import { LyricsVersionScreen } from "./src/components/LyricsVersionScreen";
 import { ChordSheetScreen } from "./src/components/ChordSheetScreen";
 import { ClipLineageScreen } from "./src/components/ClipLineageScreen";
 import { SongbookReaderScreen } from "./src/components/SongbookReaderScreen";
+import { SetlistSongScreen } from "./src/components/SetlistSongScreen";
 import { ActivityScreen } from "./src/components/ActivityScreen";
 import { GlobalMediaDock } from "./src/components/GlobalMediaDock";
 import { ImportProgressBanner } from "./src/components/ImportProgressBanner";
@@ -153,6 +154,7 @@ const ROOT_STACK_ROUTE_NAMES: Array<keyof RootStackParamList> = [
   "ChordSheet",
   "ClipLineage",
   "SongbookReader",
+  "SetlistSong",
 ];
 
 function createHomeRoute(
@@ -288,6 +290,13 @@ function isValidRestorableRootRoute(route: any) {
       );
     case "SongbookReader":
       return typeof route.params?.songbookId === "string" && route.params.songbookId.length > 0;
+    case "SetlistSong":
+      return (
+        typeof route.params?.setlistId === "string" &&
+        route.params.setlistId.length > 0 &&
+        typeof route.params?.entryId === "string" &&
+        route.params.entryId.length > 0
+      );
     default:
       return false;
   }
@@ -949,6 +958,7 @@ function AppContent() {
           <Stack.Screen name="ChordSheet" component={ChordSheetScreen} />
           <Stack.Screen name="ClipLineage" component={ClipLineageScreen} />
           <Stack.Screen name="SongbookReader" component={SongbookReaderScreen} />
+          <Stack.Screen name="SetlistSong" component={SetlistSongScreen} />
         </Stack.Navigator>
         <PlayerSheetPositionProvider>
         <GlobalMediaDock
