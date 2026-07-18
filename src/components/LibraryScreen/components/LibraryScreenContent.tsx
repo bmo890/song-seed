@@ -1,4 +1,5 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
+import { useRoute } from "@react-navigation/native";
 import { StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ScreenHeader } from "../../common/ScreenHeader";
@@ -14,7 +15,6 @@ import { PlaylistListView } from "../views/PlaylistListView";
 import { PlaylistDetailView } from "../views/PlaylistDetailView";
 import { SongbookListView } from "../views/SongbookListView";
 import { SongbookDetailView } from "../views/SongbookDetailView";
-import { SongbookPickerView } from "../views/SongbookPickerView";
 import { SetlistListView } from "../views/SetlistListView";
 import { SetlistDetailView } from "../views/SetlistDetailView";
 import { SetlistEntryBuilderView } from "../views/SetlistEntryBuilderView";
@@ -44,6 +44,16 @@ const SECTION_HINTS: Record<Section, string> = {
 export function LibraryScreenContent() {
   useBrowseRootBackHandler();
   const [section, setSection] = useState<Section>("playlists");
+
+  // Collector returns and import deep-links land with openCollectionKind — jump
+  // to that tab; the mounted section's model then claims openCollectionId.
+  const route = useRoute<any>();
+  const openCollectionKind = route.params?.openCollectionKind as string | undefined;
+  useEffect(() => {
+    if (openCollectionKind === "songbook") setSection("songbook");
+    else if (openCollectionKind === "setlist") setSection("setlists");
+    else if (openCollectionKind === "playlist") setSection("playlists");
+  }, [openCollectionKind, route.params?.openToken]);
 
   const tabs = (
     <View style={local.tabsWrap}>
@@ -136,9 +146,7 @@ function PlaylistsSection({ tabs }: { tabs: ReactNode }) {
 function SongbookSection({ tabs }: { tabs: ReactNode }) {
   const songbook = useSongbookModel();
 
-  const headerTitle = songbook.pickerState
-    ? "Add Charts"
-    : songbook.activeSongbook?.title ?? "Library";
+  const headerTitle = songbook.activeSongbook?.title ?? "Library";
 
   return (
     <SafeAreaView style={styles.screen}>
@@ -150,18 +158,7 @@ function SongbookSection({ tabs }: { tabs: ReactNode }) {
 
       {!songbook.showBack ? tabs : null}
 
-      {songbook.pickerState ? (
-        <SongbookPickerView
-          ideaId={songbook.pickerState.ideaId}
-          songTitle={songbook.pickerSongTitle}
-          workspaces={songbook.pickerWorkspaces}
-          charts={songbook.pickerCharts}
-          selectedKeys={songbook.selectedKeys}
-          onSelectSong={songbook.pickerSelectSong}
-          onToggle={songbook.pickerToggle}
-          onConfirm={songbook.confirmPicker}
-        />
-      ) : songbook.activeSongbook ? (
+      {songbook.activeSongbook ? (
         <SongbookDetailView
           songbook={songbook.activeSongbook}
           songs={songbook.songs}
@@ -169,7 +166,7 @@ function SongbookSection({ tabs }: { tabs: ReactNode }) {
           isPlaying={songbook.isPlayerPlaying}
           onOpenReader={songbook.openReader}
           onPlaySong={songbook.playSongAudio}
-          onAddSongs={songbook.openPicker}
+          onAddSongs={songbook.startCollecting}
           onReorderSongs={songbook.reorderSongs}
           onRemoveSong={songbook.removeSong}
           onRename={songbook.openRename}
@@ -246,6 +243,7 @@ function SetlistsSection({ tabs }: { tabs: ReactNode }) {
           includeChordSheet={setlist.builder.includeChordSheet}
           includeSongNotes={setlist.builder.includeSongNotes}
           onSelectSong={setlist.builderSelectSong}
+          onBrowseCollections={setlist.startCollecting}
           onToggleClip={setlist.builderToggleClip}
           onToggleVersion={setlist.builderToggleVersion}
           onToggleChordSheet={setlist.builderToggleChordSheet}

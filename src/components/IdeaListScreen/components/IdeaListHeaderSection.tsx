@@ -4,7 +4,7 @@ import { useNavigation } from "@react-navigation/native";
 import { styles } from "../../../styles";
 import { ClipboardBanner } from "../../ClipboardBanner";
 import { SongTargetPickerBanner } from "../../SongTargetPickerBanner";
-import { PlaylistCollectorBanner } from "../../PlaylistCollectorBanner";
+import { LibraryCollectorBanner } from "../../LibraryCollectorBanner";
 import { ClipClipboard } from "../../../types";
 import { useStore } from "../../../state/useStore";
 import { SearchField } from "../../common/SearchField";
@@ -53,12 +53,7 @@ export function IdeaListHeaderSection({
   const navigation = useNavigation<any>();
   const songTargetPicker = useStore((s) => s.songTargetPicker);
   const cancelSongTargetPicking = useStore((s) => s.cancelSongTargetPicking);
-  const playlistCollector = useStore((s) => s.playlistCollector);
-  const collectorPlaylistTitle = useStore((s) =>
-    s.playlistCollector
-      ? s.playlists.find((playlist) => playlist.id === s.playlistCollector!.playlistId)?.title ?? null
-      : null
-  );
+  const libraryCollector = useStore((s) => s.libraryCollector);
 
   return (
     <>
@@ -66,19 +61,21 @@ export function IdeaListHeaderSection({
         <SongTargetPickerBanner count={songTargetPicker.noteIds.length} onCancel={cancelSongTargetPicking} />
       ) : null}
 
-      {playlistCollector && collectorPlaylistTitle ? (
-        <PlaylistCollectorBanner
-          playlistTitle={collectorPlaylistTitle}
-          addedCount={playlistCollector.addedCount}
+      {libraryCollector ? (
+        <LibraryCollectorBanner
+          kind={libraryCollector.kind}
+          targetTitle={libraryCollector.targetTitle}
+          addedCount={libraryCollector.addedCount}
           onDone={() => {
-            const playlistId = playlistCollector.playlistId;
-            useStore.getState().cancelPlaylistCollecting();
+            const { kind, targetId } = libraryCollector;
+            useStore.getState().cancelLibraryCollecting();
             navigateToAncestorRoute(navigation, "LibraryHome", {
-              openPlaylistId: playlistId,
+              openCollectionKind: kind,
+              openCollectionId: targetId,
               openToken: Date.now(),
             });
           }}
-          onCancel={() => useStore.getState().cancelPlaylistCollecting()}
+          onCancel={() => useStore.getState().cancelLibraryCollecting()}
         />
       ) : null}
 

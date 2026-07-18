@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Share } from "react-native";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useRoute } from "@react-navigation/native";
 import { useStore } from "../../../state/useStore";
 import { AppAlert } from "../../common/AppAlert";
 import { serializeChordChartText } from "../../../domain/chords";
@@ -11,20 +11,7 @@ import {
   type SongbookSong,
 } from "../../../domain/songbookGrouping";
 import { useMiniPlayerContext } from "../../../hooks/FullPlayerProvider";
-import type { SongbookItemKind, SongIdea, Workspace } from "../../../types";
-
-export type SongbookChartChoice = { kind: SongbookItemKind; versionId?: string };
-
-type PickerState = {
-  songbookId: string;
-  workspaceId: string | null;
-  ideaId: string | null;
-  selected: SongbookChartChoice[];
-};
-
-function choiceKey(choice: SongbookChartChoice) {
-  return `${choice.kind}:${choice.versionId ?? ""}`;
-}
+import type { SongIdea, Workspace } from "../../../types";
 
 function findIdea(workspaces: Workspace[], ideaId: string): { workspace: Workspace; idea: SongIdea } | null {
   for (const workspace of workspaces) {
@@ -50,7 +37,6 @@ export function useSongbookModel() {
   const deleteSongbook = useStore((s) => s.deleteSongbook);
 
   const [selectedSongbookId, setSelectedSongbookId] = useState<string | null>(null);
-  const [pickerState, setPickerState] = useState<PickerState | null>(null);
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [renameModalOpen, setRenameModalOpen] = useState(false);
   const [draftTitle, setDraftTitle] = useState("");
@@ -60,17 +46,29 @@ export function useSongbookModel() {
     [songbooks]
   );
 
-  const activeSongbookId = pickerState?.songbookId ?? selectedSongbookId;
-  const activeSongbook = songbooks.find((sb) => sb.id === activeSongbookId) ?? null;
+  const activeSongbook = songbooks.find((sb) => sb.id === selectedSongbookId) ?? null;
 
   useEffect(() => {
     if (selectedSongbookId && !songbooks.some((sb) => sb.id === selectedSongbookId)) {
       setSelectedSongbookId(null);
     }
-    if (pickerState && !songbooks.some((sb) => sb.id === pickerState.songbookId)) {
-      setPickerState(null);
-    }
-  }, [pickerState, selectedSongbookId, songbooks]);
+  }, [selectedSongbookId, songbooks]);
+
+  // Collector-return / import deep-link: open the named songbook.
+  const route = useRoute<any>();
+  const openCollectionKind = route.params?.openCollectionKind as string | undefined;
+  const openCollectionId = route.params?.openCollectionId as string | undefined;
+  const openToken = route.params?.openToken as number | undefined;
+  useEffect(() => {
+    if (openCollectionKind !== "songbook" || !openCollectionId || !openToken) return;
+    setSelectedSongbookId(openCollectionId);
+    (navigation as any).setParams({
+      openCollectionKind: undefined,
+      openCollectionId: undefined,
+      openToken: undefined,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openCollectionKind, openCollectionId, openToken]);
 
   // One row per song — the "book of my songs" — grouped from the flat items.
   const songs = useMemo<SongbookSong[]>(
@@ -81,58 +79,6 @@ export function useSongbookModel() {
   const inlinePlayer = useMiniPlayerContext();
   const playerTarget = useStore((s) => s.playerTarget);
   const isPlayerPlaying = useStore((s) => s.playerIsPlaying);
-
-  // ── Picker data ──────────────────────────────────────────────────────────
-  const pickerWorkspaces = useMemo(
-    () =>
-      workspaces
-        .filter((w) => !w.isArchived)
-        .map((w) => ({
-          id: w.id,
-          title: w.title,
-          songs: w.ideas.filter((idea) => idea.kind === "project"),
-        }))
-        .filter((w) => w.songs.length > 0),
-    [workspaces]
-  );
-
-  const pickerCharts = useMemo(() => {
-    if (!pickerState?.ideaId) return [];
-    const resolved = findIdea(workspaces, pickerState.ideaId);
-    if (!resolved) return [];
-    const { idea } = resolved;
-    const versions = idea.lyrics?.versions ?? [];
-    const charts: Array<{ key: string; label: string; choice: SongbookChartChoice }> = versions.map(
-      (version, index) => ({
-        key: `lyricChart:${version.id}`,
-        label: `Version ${index + 1} — lyrics`,
-        choice: { kind: "lyricChart", versionId: version.id },
-      })
-    );
-    charts.push({ key: "chordChart:", label: "Chord chart", choice: { kind: "chordChart" } });
-    return charts;
-  }, [pickerState?.ideaId, workspaces]);
-
-  const pickerSongTitle = pickerState?.ideaId
-    ? findIdea(workspaces, pickerState.ideaId)?.idea.title ?? null
-    : null;
-
-  const selectedKeys = useMemo(
-    () => new Set((pickerState?.selected ?? []).map(choiceKey)),
-    [pickerState?.selected]
-  );
-
-  const handleBack = () => {
-    if (pickerState?.ideaId) {
-      setPickerState((cur) => (cur ? { ...cur, ideaId: null, workspaceId: null, selected: [] } : cur));
-      return;
-    }
-    if (pickerState) {
-      setPickerState(null);
-      return;
-    }
-    setSelectedSongbookId(null);
-  };
 
   // The song whose reference audio is loaded in the dock (row highlight).
   const nowPlayingIdeaId = playerTarget?.ideaId ?? null;
@@ -184,18 +130,13 @@ export function useSongbookModel() {
         .filter((song): song is SongbookSong => !!song);
       reorderSongbookItems(activeSongbook.id, flattenGroupedOrder(ordered));
     },
-    pickerState,
-    pickerWorkspaces,
-    pickerCharts,
-    pickerSongTitle,
-    selectedKeys,
-    showBack: !!activeSongbook || !!pickerState,
+    showBack: !!activeSongbook,
+    handleBack: () => setSelectedSongbookId(null),
     createModalOpen,
     setCreateModalOpen,
     draftTitle,
     setDraftTitle,
     defaultTitle: `Songbook ${songbooks.length + 1}`,
-    handleBack,
     openSongbook: (id: string) => setSelectedSongbookId(id),
     openCreate: () => {
       setDraftTitle("");
@@ -221,39 +162,15 @@ export function useSongbookModel() {
       setRenameModalOpen(false);
       setDraftTitle("");
     },
-    openPicker: () => {
+    /** "Add songs" — a collecting session out in the real collections: browse,
+     *  preview, multi-select; the dock's action adds each song's default charts. */
+    startCollecting: () => {
       if (!activeSongbook) return;
-      setPickerState({ songbookId: activeSongbook.id, workspaceId: null, ideaId: null, selected: [] });
-    },
-    pickerSelectSong: (workspaceId: string, ideaId: string) =>
-      setPickerState((cur) => (cur ? { ...cur, workspaceId, ideaId, selected: [] } : cur)),
-    pickerToggle: (choice: SongbookChartChoice) =>
-      setPickerState((cur) => {
-        if (!cur) return cur;
-        const key = choiceKey(choice);
-        const exists = cur.selected.some((c) => choiceKey(c) === key);
-        return {
-          ...cur,
-          selected: exists ? cur.selected.filter((c) => choiceKey(c) !== key) : [...cur.selected, choice],
-        };
-      }),
-    confirmPicker: () => {
-      if (!pickerState || !pickerState.ideaId || !pickerState.workspaceId) return;
-      const { songbookId, ideaId, workspaceId, selected } = pickerState;
-      if (selected.length === 0) {
-        setPickerState(null);
-        return;
-      }
-      addItemsToSongbook(
-        songbookId,
-        selected.map((choice) => ({
-          kind: choice.kind,
-          workspaceId,
-          ideaId,
-          versionId: choice.versionId,
-        }))
-      );
-      setPickerState(null);
+      useStore.getState().startLibraryCollecting("songbook", activeSongbook.id, activeSongbook.title);
+      navigation.navigate("WorkspaceStack", {
+        screen: "Browse",
+        params: undefined,
+      });
     },
     shareSongbook: () => {
       if (!activeSongbook) return;

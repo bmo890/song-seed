@@ -10,12 +10,30 @@ type Props = {
   onExportPdf: () => void;
   onExportText: () => void;
   onCopy?: () => void;
+  /** Files this chart into a songbook (the Library's book of finished songs). */
+  onAddToSongbook?: () => void;
 };
 
-export function ChordExportSheet({ visible, onClose, onExportPdf, onExportText, onCopy }: Props) {
+export function ChordExportSheet({
+  visible,
+  onClose,
+  onExportPdf,
+  onExportText,
+  onCopy,
+  onAddToSongbook,
+}: Props) {
   return (
     <BottomSheet visible={visible} onClose={onClose}>
       <Text style={sheetStyles.title}>Export chords</Text>
+
+      {onAddToSongbook ? (
+        <Option
+          icon="book-outline"
+          title="Add to songbook"
+          body="File this chart in a book of your finished songs."
+          onPress={onAddToSongbook}
+        />
+      ) : null}
 
       <Option
         icon="document-outline"

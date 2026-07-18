@@ -23,14 +23,24 @@ export type SelectionSlice = {
     startSongTargetPicking: (noteIds: string[]) => void;
     cancelSongTargetPicking: () => void;
 
-    /** Active "add to playlist" collecting session. Set from a playlist's Add
-     *  action, then the user browses the real app: collection screens show a
-     *  collector banner and the selection dock gains an "Add to playlist"
-     *  action. `addedCount` feeds the banner's running tally. Session-only. */
-    playlistCollector: { playlistId: string; addedCount: number } | null;
-    startPlaylistCollecting: (playlistId: string) => void;
-    notePlaylistCollectorAdded: (count: number) => void;
-    cancelPlaylistCollecting: () => void;
+    /** Active "add to a library collection" collecting session — playlist,
+     *  songbook, or setlist. Set from that collection's Add action, then the
+     *  user browses the real app: collection screens show a collector banner
+     *  and the selection dock gains a kind-aware add action. `addedCount`
+     *  feeds the banner's running tally. Session-only. */
+    libraryCollector: {
+        kind: "playlist" | "songbook" | "setlist";
+        targetId: string;
+        targetTitle: string;
+        addedCount: number;
+    } | null;
+    startLibraryCollecting: (
+        kind: "playlist" | "songbook" | "setlist",
+        targetId: string,
+        targetTitle: string
+    ) => void;
+    noteLibraryCollectorAdded: (count: number) => void;
+    cancelLibraryCollecting: () => void;
 
     clipClipboard: ClipClipboard | null;
     startClipboardFromList: (mode: "copy" | "move") => void;
@@ -87,21 +97,21 @@ export const createSelectionSlice: StateCreator<
     startSongTargetPicking: (noteIds) => set({ songTargetPicker: { noteIds } }),
     cancelSongTargetPicking: () => set({ songTargetPicker: null }),
 
-    playlistCollector: null,
-    startPlaylistCollecting: (playlistId) =>
-        set({ playlistCollector: { playlistId, addedCount: 0 } }),
-    notePlaylistCollectorAdded: (count) =>
+    libraryCollector: null,
+    startLibraryCollecting: (kind, targetId, targetTitle) =>
+        set({ libraryCollector: { kind, targetId, targetTitle, addedCount: 0 } }),
+    noteLibraryCollectorAdded: (count) =>
         set((state) =>
-            state.playlistCollector
+            state.libraryCollector
                 ? {
-                      playlistCollector: {
-                          ...state.playlistCollector,
-                          addedCount: state.playlistCollector.addedCount + count,
+                      libraryCollector: {
+                          ...state.libraryCollector,
+                          addedCount: state.libraryCollector.addedCount + count,
                       },
                   }
                 : state
         ),
-    cancelPlaylistCollecting: () => set({ playlistCollector: null }),
+    cancelLibraryCollecting: () => set({ libraryCollector: null }),
 
     clipClipboard: null,
     startClipboardFromList: (mode) => {

@@ -28,7 +28,14 @@ export type HomeDrawerParamList = {
   ActivityHome: undefined;
   TunerHome: undefined;
   MetronomeHome: undefined;
-  LibraryHome: { openPlaylistId?: string; openToken?: number } | undefined;
+  LibraryHome:
+    | {
+        /** Collector-return / import deep link: which tab + entity to open. */
+        openCollectionKind?: "playlist" | "songbook" | "setlist";
+        openCollectionId?: string;
+        openToken?: number;
+      }
+    | undefined;
   // openToken forces re-application when navigating to the SAME view twice in a row
   // (e.g. the backup reminder always deep-links to "library" — without a changing
   // token, a second dismiss+reopen wouldn't re-trigger the route-params effect).

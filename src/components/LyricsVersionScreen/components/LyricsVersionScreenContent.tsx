@@ -12,6 +12,7 @@ import { LyricsVersionPreview } from "./LyricsVersionPreview";
 import { LyricsVersionUnavailableState } from "./LyricsVersionUnavailableState";
 import { ChordChartEditor } from "./chords/ChordChartEditor";
 import { ChordExportSheet } from "./chords/ChordExportSheet";
+import { SongbookChooserSheet } from "../../common/SongbookChooserSheet";
 import { useChordExport } from "./chords/useChordExport";
 
 export function LyricsVersionScreenContent() {
@@ -20,6 +21,7 @@ export function LyricsVersionScreenContent() {
   const model = useLyricsVersionScreenModel();
   const [chordEditMode, setChordEditMode] = useState(false);
   const [exportVisible, setExportVisible] = useState(false);
+  const [songbookChooserVisible, setSongbookChooserVisible] = useState(false);
 
   // "Back" steps up exactly one level: an edit mode returns to the version view;
   // the version view returns to the song. (cancelEdit confirms if there are
@@ -153,7 +155,25 @@ export function LyricsVersionScreenContent() {
           setExportVisible(false);
           model.copyText();
         }}
+        onAddToSongbook={
+          model.resolvedVersion
+            ? () => {
+                setExportVisible(false);
+                setSongbookChooserVisible(true);
+              }
+            : undefined
+        }
       />
+
+      {model.projectIdea && model.resolvedVersion ? (
+        <SongbookChooserSheet
+          visible={songbookChooserVisible}
+          onClose={() => setSongbookChooserVisible(false)}
+          items={[{ kind: "lyricChart", versionId: model.resolvedVersion.id }]}
+          ideaId={model.projectIdea.id}
+          ideaTitle={model.projectIdea.title}
+        />
+      ) : null}
 
     </SafeAreaView>
   );

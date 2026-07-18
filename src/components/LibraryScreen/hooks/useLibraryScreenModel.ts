@@ -35,7 +35,7 @@ export function useLibraryScreenModel() {
   const deletePlaylistAction = useStore((state) => state.deletePlaylist);
   const setActiveWorkspaceId = useStore((state) => state.setActiveWorkspaceId);
   const setSelectedIdeaId = useStore((state) => state.setSelectedIdeaId);
-  const startPlaylistCollecting = useStore((state) => state.startPlaylistCollecting);
+  const startLibraryCollecting = useStore((state) => state.startLibraryCollecting);
 
   const [selectedPlaylistId, setSelectedPlaylistId] = useState<string | null>(null);
   const [playlistModalOpen, setPlaylistModalOpen] = useState(false);
@@ -52,13 +52,20 @@ export function useLibraryScreenModel() {
 
   // Returning from a collecting session ("Done" on the collector banner) re-opens
   // the playlist that started it. openToken forces the effect on repeat visits.
-  const openPlaylistId = route.params?.openPlaylistId as string | undefined;
+  // (Songbook/setlist returns are handled by LibraryScreenContent's section
+  // routing; this effect only claims playlist returns.)
+  const openCollectionKind = route.params?.openCollectionKind as string | undefined;
+  const openCollectionId = route.params?.openCollectionId as string | undefined;
   const openToken = route.params?.openToken as number | undefined;
   useEffect(() => {
-    if (!openPlaylistId || !openToken) return;
-    setSelectedPlaylistId(openPlaylistId);
-    (navigation as any).setParams({ openPlaylistId: undefined, openToken: undefined });
-  }, [navigation, openPlaylistId, openToken]);
+    if (openCollectionKind !== "playlist" || !openCollectionId || !openToken) return;
+    setSelectedPlaylistId(openCollectionId);
+    (navigation as any).setParams({
+      openCollectionKind: undefined,
+      openCollectionId: undefined,
+      openToken: undefined,
+    });
+  }, [navigation, openCollectionKind, openCollectionId, openToken]);
 
   useEffect(() => {
     if (selectedPlaylistId && !activePlaylist) {
@@ -105,7 +112,7 @@ export function useLibraryScreenModel() {
 
   const startCollecting = () => {
     if (!activePlaylist) return;
-    startPlaylistCollecting(activePlaylist.id);
+    startLibraryCollecting("playlist", activePlaylist.id, activePlaylist.title);
     navigation.navigate("WorkspaceStack", {
       screen: "Browse",
       params: activeWorkspaceId ? { workspaceId: activeWorkspaceId } : undefined,

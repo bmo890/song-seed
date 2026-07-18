@@ -11,6 +11,7 @@ import { ChordSheetBody, ChordSheetFullView } from "./ChordSheetBody";
 import { ChartSelectionDock } from "./ChartSelectionDock";
 import { ChartScrollProvider, useChartKeyboardScroller } from "./chartScroll";
 import { TransposeChip } from "../../common/TransposeChip";
+import { SongbookChooserSheet } from "../../common/SongbookChooserSheet";
 import { useChartPrefsStore } from "../../../state/useChartPrefsStore";
 import { clampTransposeOffset, transposeChordSheet } from "../../../domain/transpose";
 
@@ -34,6 +35,7 @@ export function ChordSheetScreenContent() {
   });
   const [exportVisible, setExportVisible] = useState(false);
   const [fullViewOpen, setFullViewOpen] = useState(false);
+  const [songbookChooserVisible, setSongbookChooserVisible] = useState(false);
   const transposeByIdeaId = useChartPrefsStore((s) => s.transposeByIdeaId);
 
   if (!model.projectIdea) {
@@ -184,6 +186,22 @@ export function ChordSheetScreenContent() {
           setExportVisible(false);
           model.exportText();
         }}
+        onAddToSongbook={
+          !isEmpty
+            ? () => {
+                setExportVisible(false);
+                setSongbookChooserVisible(true);
+              }
+            : undefined
+        }
+      />
+
+      <SongbookChooserSheet
+        visible={songbookChooserVisible}
+        onClose={() => setSongbookChooserVisible(false)}
+        items={[{ kind: "chordChart" }]}
+        ideaId={ideaId}
+        ideaTitle={model.projectIdea.title}
       />
 
       <ChordSheetFullView

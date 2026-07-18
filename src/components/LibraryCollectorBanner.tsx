@@ -3,24 +3,31 @@ import { Ionicons } from "@expo/vector-icons";
 import { colors, radii, spacing, text as textTokens } from "../design/tokens";
 
 type Props = {
-  playlistTitle: string;
+  kind: "playlist" | "songbook" | "setlist";
+  targetTitle: string;
   addedCount: number;
   onDone: () => void;
   onCancel: () => void;
 };
 
+const KIND_ICONS = {
+  playlist: "musical-notes",
+  songbook: "book",
+  setlist: "albums",
+} as const;
+
 /** Persistent "collecting" indicator shown while the user browses the app adding
- * items to a playlist. Same solid-terracotta mode language as the song-target
- * picker banner: you're in a mode, and the two exits are explicit — Done returns
- * to the playlist, ✕ ends collecting in place. */
-export function PlaylistCollectorBanner({ playlistTitle, addedCount, onDone, onCancel }: Props) {
+ * items to a playlist, songbook, or setlist. Same solid-terracotta mode language
+ * as the song-target picker banner: you're in a mode, and the two exits are
+ * explicit — Done returns to the collection, ✕ ends collecting in place. */
+export function LibraryCollectorBanner({ kind, targetTitle, addedCount, onDone, onCancel }: Props) {
   return (
     <View style={bannerStyles.bar}>
       <View style={bannerStyles.iconWrap}>
-        <Ionicons name="musical-notes" size={13} color={colors.onPrimary} />
+        <Ionicons name={KIND_ICONS[kind]} size={13} color={colors.onPrimary} />
       </View>
       <Text style={bannerStyles.text} numberOfLines={1}>
-        Adding to {playlistTitle}
+        Adding to {targetTitle}
       </Text>
       {addedCount > 0 ? (
         <View style={bannerStyles.countBadge}>
@@ -32,7 +39,7 @@ export function PlaylistCollectorBanner({ playlistTitle, addedCount, onDone, onC
         onPress={onDone}
         hitSlop={8}
         accessibilityRole="button"
-        accessibilityLabel={`Done — back to ${playlistTitle}`}
+        accessibilityLabel={`Done — back to ${targetTitle}`}
       >
         <Text style={bannerStyles.doneText}>Done</Text>
       </Pressable>
@@ -41,7 +48,7 @@ export function PlaylistCollectorBanner({ playlistTitle, addedCount, onDone, onC
         onPress={onCancel}
         hitSlop={10}
         accessibilityRole="button"
-        accessibilityLabel="Stop adding to playlist"
+        accessibilityLabel="Stop adding"
       >
         <Ionicons name="close" size={15} color={colors.onPrimary} />
       </Pressable>

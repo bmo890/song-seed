@@ -79,6 +79,7 @@ export function SetlistEntryBuilderView({
   includeChordSheet,
   includeSongNotes,
   onSelectSong,
+  onBrowseCollections,
   onToggleClip,
   onToggleVersion,
   onToggleChordSheet,
@@ -95,6 +96,7 @@ export function SetlistEntryBuilderView({
   includeChordSheet: boolean;
   includeSongNotes: boolean;
   onSelectSong: (workspaceId: string, ideaId: string) => void;
+  onBrowseCollections?: () => void;
   onToggleClip: (clipId: string) => void;
   onToggleVersion: (versionId: string) => void;
   onToggleChordSheet: () => void;
@@ -111,6 +113,24 @@ export function SetlistEntryBuilderView({
       >
         <Text style={styles.cardMeta}>Pick a song to pack into the set.</Text>
         <View style={styles.listContent}>
+          {onBrowseCollections ? (
+            <Pressable
+              style={({ pressed }) => [styles.card, pressed ? styles.pressDown : null]}
+              onPress={onBrowseCollections}
+              accessibilityRole="button"
+              accessibilityLabel="Browse your collections instead"
+            >
+              <View style={styles.cardTop}>
+                <View style={styles.cardTitleRow}>
+                  <Ionicons name="albums-outline" size={16} color={colors.primaryDeep} />
+                  <Text style={[styles.cardTitle, { color: colors.primaryDeep }]} numberOfLines={1}>
+                    Browse collections instead
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+              </View>
+            </Pressable>
+          ) : null}
           {workspaces.map((workspace) => (
             <View key={workspace.id}>
               <Text style={[styles.cardMeta, { marginTop: 12, marginBottom: 4 }]}>{workspace.title}</Text>

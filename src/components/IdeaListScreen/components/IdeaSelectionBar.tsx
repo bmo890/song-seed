@@ -8,6 +8,7 @@ import { SelectionActionSheet } from "../../common/SelectionActionSheet";
 import { SelectionDock, type SelectionAction } from "../../common/SelectionDock";
 import type { SongIdea } from "../../../types";
 import { buildPlayableQueueFromIdeas, getPlayableClipForIdea } from "../../../domain/clipPresentation";
+import { buildDefaultSongbookItemsForIdea } from "../../../domain/songbookGrouping";
 import { haptic } from "../../../design/haptics";
 import { useShelfStore } from "../../../state/useShelfStore";
 import { openShelf } from "../../../navigation";
@@ -50,7 +51,7 @@ export function IdeaSelectionBar({
   const activeWorkspaceId = useStore((s) => s.activeWorkspaceId);
   const workspaces = useStore((s) => s.workspaces);
   const replaceListSelection = useStore((s) => s.replaceListSelection);
-  const playlistCollectorActive = useStore((s) => !!s.playlistCollector);
+  const libraryCollectorActive = useStore((s) => !!s.libraryCollector);
   // A running session turns the dock's primary action from "Play" into
   // "Add to queue" — the way to grow the queue you already have going.
   const sessionActive = useStore((s) => s.playerQueue.length > 0);
@@ -133,36 +134,87 @@ export function IdeaSelectionBar({
       ? { key: "edit", label: "Edit", icon: "create-outline", onPress: onEditSelected }
       : null;
 
-  // While a playlist-collecting session is active, adding the selection to that
-  // playlist is THE primary intent — it leads the dock. Songs are added as song
-  // items (their playable clip resolves at play time); clip ideas pin their clip.
-  const addSelectionToPlaylist = () => {
+  // While a library-collecting session is active (playlist / songbook /
+  // setlist), adding the selection to that target is THE primary intent — it
+  // leads the dock. Playlists: songs as song items, clips pin their clip.
+  // Songbooks: each song's default charts. Setlists: a default-packed entry
+  // per idea (primary clip + latest lyrics + chord chart).
+  const addSelectionToCollector = () => {
     const state = useStore.getState();
-    const collector = state.playlistCollector;
+    const collector = state.libraryCollector;
     if (!collector || !activeWorkspace || interactiveSelectedIdeas.length === 0) return;
 
-    state.addItemsToPlaylist(
-      collector.playlistId,
-      interactiveSelectedIdeas.map((idea) => ({
-        kind: idea.kind === "project" ? ("song" as const) : ("clip" as const),
-        workspaceId: activeWorkspace.id,
-        collectionId: idea.collectionId,
-        ideaId: idea.id,
-        clipId: idea.kind === "project" ? null : getPlayableClipForIdea(idea)?.id ?? null,
-      }))
-    );
-    state.notePlaylistCollectorAdded(interactiveSelectedIdeas.length);
+    let added = 0;
+    if (collector.kind === "playlist") {
+      state.addItemsToPlaylist(
+        collector.targetId,
+        interactiveSelectedIdeas.map((idea) => ({
+          kind: idea.kind === "project" ? ("song" as const) : ("clip" as const),
+          workspaceId: activeWorkspace.id,
+          collectionId: idea.collectionId,
+          ideaId: idea.id,
+          clipId: idea.kind === "project" ? null : getPlayableClipForIdea(idea)?.id ?? null,
+        }))
+      );
+      added = interactiveSelectedIdeas.length;
+    } else if (collector.kind === "songbook") {
+      for (const idea of interactiveSelectedIdeas) {
+        const defaults = buildDefaultSongbookItemsForIdea(idea);
+        if (defaults.length === 0) continue;
+        state.addItemsToSongbook(
+          collector.targetId,
+          defaults.map((choice) => ({
+            kind: choice.kind,
+            workspaceId: activeWorkspace.id,
+            ideaId: idea.id,
+            versionId: choice.versionId,
+          }))
+        );
+        added += 1;
+      }
+      if (added === 0) {
+        AppAlert.info(
+          "No charts to add",
+          "None of the selected songs have lyrics or a chord chart yet."
+        );
+        return;
+      }
+    } else {
+      for (const idea of interactiveSelectedIdeas) {
+        const primary = getPlayableClipForIdea(idea);
+        const latestVersion = idea.lyrics?.versions[idea.lyrics.versions.length - 1];
+        state.addSetlistEntry(collector.targetId, {
+          workspaceId: activeWorkspace.id,
+          ideaId: idea.id,
+          clipIds: primary ? [primary.id] : [],
+          lyricVersionIds: latestVersion ? [latestVersion.id] : [],
+          includeChordSheet: !!idea.chordSheet && idea.chordSheet.sections.length > 0,
+          includeSongNotes: false,
+        });
+        added += 1;
+      }
+    }
+
+    state.noteLibraryCollectorAdded(added);
     state.cancelListSelection();
     haptic.success();
   };
+  const collectorKind = useStore((s) => s.libraryCollector?.kind ?? null);
+  const collectorNoun =
+    collectorKind === "songbook" ? "book" : collectorKind === "setlist" ? "set" : "playlist";
   const collectorAction: SelectionAction = {
-    key: "add-to-playlist",
+    key: "add-to-collector",
     label:
       interactiveSelectedIdeas.length > 1
-        ? `Add ${interactiveSelectedIdeas.length} to playlist`
-        : "Add to playlist",
-    icon: "musical-notes-outline",
-    onPress: addSelectionToPlaylist,
+        ? `Add ${interactiveSelectedIdeas.length} to ${collectorNoun}`
+        : `Add to ${collectorNoun}`,
+    icon:
+      collectorKind === "songbook"
+        ? "book-outline"
+        : collectorKind === "setlist"
+          ? "albums-outline"
+          : "musical-notes-outline",
+    onPress: addSelectionToCollector,
     disabled: interactiveSelectedIdeas.length === 0,
   };
 
@@ -229,7 +281,7 @@ export function IdeaSelectionBar({
   const dockActions: SelectionAction[] = useMemo(() => {
     // Collecting mode: the dock is about one thing — adding to the playlist.
     // Everything else stays reachable through More.
-    if (playlistCollectorActive && !selectedHiddenOnly) {
+    if (libraryCollectorActive && !selectedHiddenOnly) {
       return [
         collectorAction,
         {
@@ -300,7 +352,7 @@ export function IdeaSelectionBar({
     hideActionDisabled,
     hideActionLabel,
     onToggleHideSelected,
-    playlistCollectorActive,
+    libraryCollectorActive,
     selectedHiddenOnly,
   ]);
 

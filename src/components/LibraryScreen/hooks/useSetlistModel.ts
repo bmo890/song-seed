@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { useNavigation } from "@react-navigation/native";
+import { useEffect, useMemo, useState } from "react";
+import { useNavigation, useRoute } from "@react-navigation/native";
 import { useStore } from "../../../state/useStore";
 import { AppAlert } from "../../common/AppAlert";
 import { shareSetlist } from "../../../services/setlistShare";
@@ -65,6 +65,23 @@ export function useSetlistModel() {
 
   const activeSetlistId = builder?.setlistId ?? selectedSetlistId;
   const activeSetlist = setlists.find((sl) => sl.id === activeSetlistId) ?? null;
+
+  // Collector-return / import deep-link: open the named setlist.
+  const route = useRoute<any>();
+  const openCollectionKind = route.params?.openCollectionKind as string | undefined;
+  const openCollectionId = route.params?.openCollectionId as string | undefined;
+  const openToken = route.params?.openToken as number | undefined;
+  useEffect(() => {
+    if (openCollectionKind !== "setlist" || !openCollectionId || !openToken) return;
+    setSelectedSetlistId(openCollectionId);
+    setBuilder(null);
+    (navigation as any).setParams({
+      openCollectionKind: undefined,
+      openCollectionId: undefined,
+      openToken: undefined,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openCollectionKind, openCollectionId, openToken]);
 
   // Each entry resolved as a packaged song folder against the live library.
   const resolvedEntries = useMemo<ResolvedSetlistEntry[]>(
@@ -178,6 +195,14 @@ export function useSetlistModel() {
     /** Play the whole set (or from one entry) into the dock. */
     playAll: () => playFromEntry(),
     playFromEntry,
+
+    /** Multi-select from the real collections: default-packed entries per song. */
+    startCollecting: () => {
+      if (!activeSetlist) return;
+      useStore.getState().startLibraryCollecting("setlist", activeSetlist.id, activeSetlist.title);
+      setBuilder(null);
+      navigation.navigate("WorkspaceStack", { screen: "Browse", params: undefined });
+    },
 
     /** Open an entry's packaged song folder. */
     openEntryFolder: (entryId: string) => {
