@@ -11,6 +11,9 @@ import { isForegroundAudioBusy, waitForForegroundAudioIdle } from "../../../serv
 import { buildClipLockScreenMetadata } from "../../../services/lockScreenMetadata";
 import { appActions } from "../../../state/actions";
 import { useStore } from "../../../state/useStore";
+import { useShelfStore } from "../../../state/useShelfStore";
+import { toast } from "../../common/toastStore";
+import { haptic } from "../../../design/haptics";
 import type { ClipVersion } from "../../../types";
 
 type UsePlayerScreenLifecycleArgs = {
@@ -571,6 +574,17 @@ export function usePlayerScreenLifecycle({
             const message = error instanceof Error ? error.message : "Could not share this audio file.";
             AppAlert.info("Share failed", message);
           }
+        },
+      },
+      {
+        label: "Set aside",
+        style: "default",
+        icon: "file-tray-outline",
+        onPress: () => {
+          if (!playerIdea) return;
+          useShelfStore.getState().setAside([{ kind: "idea", id: playerIdea.id }]);
+          haptic.success();
+          toast("On the shelf for 7 days", "file-tray-outline");
         },
       },
       {

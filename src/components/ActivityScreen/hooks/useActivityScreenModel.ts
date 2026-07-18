@@ -18,7 +18,11 @@ import {
   buildActivityItemResults,
   formatSelectedRangeLabel,
   getActivityCellBackground,
+  type ActivityItemResult,
 } from "../helpers";
+import { useShelfStore } from "../../../state/useShelfStore";
+import { toast } from "../../common/toastStore";
+import { haptic } from "../../../design/haptics";
 import { getDateBucketLabel } from "../../../domain/dateBuckets";
 import { openCollectionFromContext } from "../../../navigation";
 import { getPlayableClipForIdea } from "../../../domain/clipPresentation";
@@ -480,6 +484,25 @@ export function useActivityScreenModel() {
     },
     onViewInCollection: (item: ActivityCollectionRef) => {
       void viewItemInCollection(item);
+    },
+    onOpenItemMenu: (item: ActivityItemResult) => {
+      AppAlert.custom(item.ideaTitle, undefined, [
+        {
+          label: "Set aside",
+          style: "default",
+          icon: "file-tray-outline",
+          description: "Keep it on the Shelf for 7 days.",
+          onPress: () => {
+            useShelfStore.getState().setAside([{ kind: "idea", id: item.ideaId }]);
+            haptic.success();
+            toast("On the shelf for 7 days", "file-tray-outline");
+          },
+        },
+        {
+          label: "Cancel",
+          style: "cancel",
+        },
+      ]);
     },
   };
 }

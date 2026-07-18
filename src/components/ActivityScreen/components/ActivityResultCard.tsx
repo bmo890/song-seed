@@ -24,6 +24,7 @@ type ActivityResultCardProps = {
   };
   onOpenItem: () => void;
   onViewInCollection: () => void;
+  onOpenMenu: () => void;
 };
 
 export function ActivityResultCard({
@@ -34,6 +35,7 @@ export function ActivityResultCard({
   playback,
   onOpenItem,
   onViewInCollection,
+  onOpenMenu,
 }: ActivityResultCardProps) {
   const isSong = result.ideaKind === "song";
   const canPlay = playback.canPlayItem(result);
@@ -103,6 +105,7 @@ export function ActivityResultCard({
         isPlaying={playback.isItemPlaying(result)}
         footerContent={footerContent}
         onOpen={onOpenItem}
+        onOpenMenu={onOpenMenu}
         onTogglePlay={() => playback.onTogglePlayItem(result)}
         onStopPlay={playback.onStopPlayItem}
         onSeekStart={playback.onSeekInlineStart}

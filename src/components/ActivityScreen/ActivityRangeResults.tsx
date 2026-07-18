@@ -21,6 +21,7 @@ type ActivityRangeResultsProps = {
   onSeekInlineCancel: () => void;
   onOpenItem: (item: ActivityItemResult) => void;
   onViewInCollection: (item: ActivityItemResult) => void;
+  onOpenItemMenu: (item: ActivityItemResult) => void;
 };
 
 type ActivityResultsListProps = {
@@ -38,6 +39,7 @@ type ActivityResultsListProps = {
   onSeekInlineCancel: () => void;
   onOpenItem: (item: ActivityItemResult) => void;
   onViewInCollection: (item: ActivityItemResult) => void;
+  onOpenItemMenu: (item: ActivityItemResult) => void;
 };
 
 // Results render unvirtualized inside the Activity page's ScrollView. A heavy
@@ -60,6 +62,7 @@ function renderItemResults({
   onSeekInlineCancel,
   onOpenItem,
   onViewInCollection,
+  onOpenItemMenu,
 }: ActivityResultsListProps) {
   if (results.length === 0) {
     return (
@@ -100,6 +103,7 @@ function renderItemResults({
             }}
             onOpenItem={() => onOpenItem(result)}
             onViewInCollection={() => onViewInCollection(result)}
+            onOpenMenu={() => onOpenItemMenu(result)}
           />
         );
       })}
@@ -130,6 +134,7 @@ export function ActivityRangeResults({
   onSeekInlineCancel,
   onOpenItem,
   onViewInCollection,
+  onOpenItemMenu,
 }: ActivityRangeResultsProps) {
   return (
     <View
@@ -157,7 +162,8 @@ export function ActivityRangeResults({
         onSeekInlineStart,
         onSeekInlineCancel,
         onOpenItem,
-        onViewInCollection
+        onViewInCollection,
+        onOpenItemMenu
       })}
     </View>
   );

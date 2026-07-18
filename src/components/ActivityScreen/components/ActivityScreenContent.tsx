@@ -100,6 +100,7 @@ export function ActivityScreenContent() {
           onSeekInlineCancel={model.onSeekInlineCancel}
           onOpenItem={model.onOpenItem}
           onViewInCollection={model.onViewInCollection}
+          onOpenItemMenu={model.onOpenItemMenu}
         />
       </ScrollView>
 
