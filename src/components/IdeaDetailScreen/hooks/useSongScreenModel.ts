@@ -24,8 +24,17 @@ export function useSongScreenModel() {
     (rootNavigation ?? navigation).navigate(routeName as never, params as never);
 
   const selectedIdea = useMemo(() => {
+    // Active workspace first (the overwhelmingly common case), then ALL
+    // workspaces — the song page is a resolution surface, and ideas opened
+    // from a Received package live outside the active workspace.
     const ws = workspaces.find((w) => w.id === activeWorkspaceId);
-    return ws?.ideas.find((i) => i.id === selectedIdeaId);
+    const inActive = ws?.ideas.find((i) => i.id === selectedIdeaId);
+    if (inActive) return inActive;
+    for (const candidate of workspaces) {
+      const idea = candidate.ideas.find((i) => i.id === selectedIdeaId);
+      if (idea) return idea;
+    }
+    return undefined;
   }, [workspaces, activeWorkspaceId, selectedIdeaId]);
   const songClips = useMemo(() => selectedIdea?.clips ?? [], [selectedIdea?.clips]);
   const songClipTitles = useMemo(() => songClips.map((clip) => clip.title), [songClips]);

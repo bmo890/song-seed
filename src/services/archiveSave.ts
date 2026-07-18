@@ -53,7 +53,12 @@ export async function saveArchiveToUserLocation(
         const targetUri = await FileSystem.StorageAccessFramework.createFileAsync(
             permissions.directoryUri,
             archiveTitle,
-            "application/zip"
+            // Octet-stream for .songstead files: Android providers append the
+            // mime's canonical extension, which would turn "Name.songstead"
+            // into "Name.songstead.zip" under application/zip.
+            archiveTitle.toLowerCase().endsWith(".songstead")
+                ? "application/octet-stream"
+                : "application/zip"
         );
         try {
             await copyLocalFileToContentUri(archiveUri, targetUri, {

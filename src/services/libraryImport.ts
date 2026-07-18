@@ -619,6 +619,10 @@ export async function materializeSongSeedArchiveMerge(
             isArchived: false,
             collections,
             ideas,
+            // Round-trip received provenance (device migration keeps packages
+            // as packages). The ShareImport path overrides this downstream.
+            origin: workspaceManifest.origin,
+            received: workspaceManifest.received,
         });
 
         if (!localPrimaryWorkspaceId && importedPrimaryWorkspaceSourceId === workspaceManifest.id) {

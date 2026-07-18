@@ -54,10 +54,18 @@ export function usePlayerScreenData({ playerDuration, isPlaying = false }: UsePl
   );
   const ideas = activeWorkspace?.ideas ?? EMPTY_IDEAS;
 
-  const playerIdea = useMemo(
-    () => (playerTarget ? ideas.find((idea) => idea.id === playerTarget.ideaId) ?? null : null),
-    [ideas, playerTarget]
-  );
+  const playerIdea = useMemo(() => {
+    if (!playerTarget) return null;
+    // Active workspace first, then ALL workspaces — the player is a resolution
+    // surface (queues can span workspaces; Received-package clips play here).
+    const inActive = ideas.find((idea) => idea.id === playerTarget.ideaId) ?? null;
+    if (inActive) return inActive;
+    for (const workspace of workspaces) {
+      const idea = workspace.ideas.find((candidate) => candidate.id === playerTarget.ideaId);
+      if (idea) return idea;
+    }
+    return null;
+  }, [ideas, playerTarget, workspaces]);
   const playerClip = useMemo(
     () => (playerIdea && playerTarget ? playerIdea.clips.find((clip) => clip.id === playerTarget.clipId) ?? null : null),
     [playerIdea, playerTarget]

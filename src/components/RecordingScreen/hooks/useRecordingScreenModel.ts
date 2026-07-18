@@ -23,6 +23,7 @@ import { useStore } from "../../../state/useStore";
 import type { ClipVersion, RecordingGrid } from "../../../types";
 import { getDefaultOverdubStemTitle, getRecordingGridBarMs } from "../../../domain/overdub";
 import { buildSaveDestinations, resolveSaveDestinationLabel, type SaveDestination } from "../../../domain/collectionManagement";
+import { personalWorkspaces } from "../../../domain/workspaceVisibility";
 import { authorizeIntentionalEmptyStateWrite } from "../../../services/stateIntegrity";
 import { ensureWaveformSidecar } from "../../../services/waveformSidecar";
 import { maybeRequestReviewAfterSave } from "../../../services/reviewPrompt";
@@ -134,7 +135,9 @@ export function useRecordingScreenModel() {
   const canPickSaveDestination =
     !!recordingIdea && recordingIdea.kind === "clip" && !recordingOverdubClip && !recordingParentClipId;
   const saveDestinations = useMemo(
-    () => (canPickSaveDestination ? buildSaveDestinations(workspaces, activeWorkspaceId) : []),
+    // Creation surface: recordings may only target the user's OWN workspaces —
+    // a received package must never be offered as a save destination.
+    () => (canPickSaveDestination ? buildSaveDestinations(personalWorkspaces(workspaces), activeWorkspaceId) : []),
     [canPickSaveDestination, workspaces, activeWorkspaceId]
   );
   const defaultDestinationLabel = recordingIdea

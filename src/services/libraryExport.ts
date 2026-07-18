@@ -445,7 +445,12 @@ function buildSongSeedArchive(args: Extract<ExportLibraryArgs, { format: "songst
             folderPath: workspaceFolderPath,
             collections: [],
             ...(preserveAllMetadata
-                ? { color: workspace.color, avatarKey: workspace.avatarKey }
+                ? {
+                      color: workspace.color,
+                      avatarKey: workspace.avatarKey,
+                      origin: workspace.origin,
+                      received: workspace.received,
+                  }
                 : null),
         };
 

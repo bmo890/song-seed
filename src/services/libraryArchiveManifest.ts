@@ -10,6 +10,7 @@ import type {
     LyricsVersion,
     PracticeMarker,
     RecordingGrid,
+    ReceivedMeta,
     Setlist,
     ShareKind,
     Songbook,
@@ -166,6 +167,10 @@ export type ArchiveWorkspaceManifest = {
     // ── Full-fidelity only ──
     color?: string;
     avatarKey?: number;
+    /** Received-package provenance survives a full export/import round trip
+     *  (device migration must not silently convert received work to personal). */
+    origin?: "personal" | "received" | "shared";
+    received?: ReceivedMeta;
 };
 
 export type ArchiveNotepadNoteManifest = {
