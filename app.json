@@ -17,7 +17,34 @@
       "supportsTablet": false,
       "infoPlist": {
         "NSMicrophoneUsageDescription": "Songstead needs microphone access so you can record song ideas and voice memos.",
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "UTExportedTypeDeclarations": [
+          {
+            "UTTypeIdentifier": "com.bmostudio.songseed.archive",
+            "UTTypeDescription": "Songstead Archive",
+            "UTTypeConformsTo": [
+              "com.pkware.zip-archive",
+              "public.data"
+            ],
+            "UTTypeTagSpecification": {
+              "public.filename-extension": [
+                "songstead"
+              ],
+              "public.mime-type": [
+                "application/zip"
+              ]
+            }
+          }
+        ],
+        "CFBundleDocumentTypes": [
+          {
+            "CFBundleTypeName": "Songstead Archive",
+            "LSHandlerRank": "Owner",
+            "LSItemContentTypes": [
+              "com.bmostudio.songseed.archive"
+            ]
+          }
+        ]
       },
       "bundleIdentifier": "com.bmostudio.songseed"
     },

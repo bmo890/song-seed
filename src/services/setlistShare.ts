@@ -17,6 +17,14 @@ export async function shareSetlist(setlist: Setlist, workspaces: Workspace[]): P
     // The setlist entity itself (remapped onto the synthetic workspace) — the
     // receiver imports a real Setlist, not just loose songs.
     setlists: [built.setlist],
+    share: {
+      kind: "setlist",
+      title: setlist.title,
+      sender: { name: null, userId: null },
+      transferId: null,
+      createdAt: Date.now(),
+    },
+    archiveExtension: "songstead",
     options: {
       includeFullSongHistory: true, // we already trimmed to the chosen clips
       // The trim already zeroes notes for entries that didn't pack them, so

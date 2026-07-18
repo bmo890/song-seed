@@ -11,6 +11,7 @@ import type {
     PracticeMarker,
     RecordingGrid,
     Setlist,
+    ShareKind,
     Songbook,
     SongChordPaletteItem,
 } from "../types";
@@ -202,4 +203,17 @@ export type ArchiveManifest = {
     /** Global songbooks/setlists (full fidelity); references remapped on import. */
     songbooks?: Songbook[];
     setlists?: Setlist[];
+    /** What this archive declares itself to be — stamped by the SHARE flows at
+     *  export and trusted over any inference on the receiving side. Absent on
+     *  older archives and on full library exports made before this field. */
+    share?: ArchiveShareDeclaration;
+};
+
+export type ArchiveShareDeclaration = {
+    kind: ShareKind;
+    title: string;
+    sender: { name: string | null; userId: string | null };
+    transferId: string | null;
+    createdAt: number;
+    appVersion?: string;
 };

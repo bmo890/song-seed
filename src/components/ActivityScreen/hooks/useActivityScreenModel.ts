@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { AppAlert } from "../../common/AppAlert";
 import { useIsFocused, useNavigation, useRoute } from "@react-navigation/native";
 import { useStore } from "../../../state/useStore";
+import { personalWorkspaces } from "../../../domain/workspaceVisibility";
 import { useMiniPlayerContext } from "../../../hooks/FullPlayerProvider";
 import {
   buildActivityCountsByDay,
@@ -55,7 +56,9 @@ export function useActivityScreenModel() {
     typeof routeRangeStartTs === "number" &&
     typeof routeRangeEndTs === "number";
 
-  const workspaces = useStore((state) => state.workspaces);
+  const allWorkspaces = useStore((state) => state.workspaces);
+  // Activity reflects your own work; received packages don't appear here.
+  const workspaces = useMemo(() => personalWorkspaces(allWorkspaces), [allWorkspaces]);
   const primaryWorkspaceId = useStore((state) => state.primaryWorkspaceId);
   const primaryCollectionIdByWorkspace = useStore((state) => state.primaryCollectionIdByWorkspace);
   const activityEvents = useStore((state) => state.activityEvents);

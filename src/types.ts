@@ -561,6 +561,29 @@ export type Collection = {
   ideasListState: IdeasListState;
 };
 
+/** What a shared Songstead file declares itself to be — stamped at export in
+ *  the archive manifest's `share` block, trusted over any inference. */
+export type ShareKind =
+  | "setlist"
+  | "songbook"
+  | "collection"
+  | "workspace"
+  | "clips"
+  | "library";
+
+/** Provenance for a received package (a workspace with origin "received"). */
+export type ReceivedMeta = {
+  /** Sender-typed display name (v1 trust level — like an email "From" line). */
+  senderName: string | null;
+  /** Reserved: filled once accounts exist; enables verified senders. */
+  senderUserId: string | null;
+  /** Transfer-service id; dedupe key so re-opening a link can't duplicate. */
+  transferId: string | null;
+  receivedAt: number;
+  shareKind: ShareKind;
+  shareTitle: string;
+};
+
 export type Workspace = {
   id: string;
   title: string;
@@ -572,6 +595,12 @@ export type Workspace = {
   collections: Collection[];
   ideas: SongIdea[];
   ideasListState?: WorkspaceIdeasListState;
+  /** Absent = "personal" (the user's own creative work). "received" = a
+   *  snapshot someone sent (a package; never shown among personal workspaces).
+   *  "shared" is reserved for future co-owned synced workspaces. */
+  origin?: "personal" | "received" | "shared";
+  /** Present when origin is "received". */
+  received?: ReceivedMeta;
 };
 
 export type WorkspaceStartupPreference = "primary" | "last-used";

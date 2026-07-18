@@ -3066,7 +3066,15 @@ export const appActions = {
         return { recoveredCount, restoredFromManifest: false, archivedWorkspacesRestored, orphanedClipsRecovered, warnings };
     },
 
-    importLibraryArchiveIntoLibrary: async (parsedArchive: ParsedSongSeedArchive) => {
+    importLibraryArchiveIntoLibrary: async (
+        parsedArchive: ParsedSongSeedArchive,
+        opts?: {
+            /** "received" = the archive came FROM someone (share intent / link):
+             *  imported workspaces become Received packages instead of joining
+             *  the user's own workspace list. Settings imports omit this. */
+            origin?: "received";
+        }
+    ) => {
         const store = useStore.getState();
         const merge = await materializeSongSeedArchiveMerge(
             parsedArchive,
@@ -3074,12 +3082,33 @@ export const appActions = {
             store.primaryWorkspaceId
         );
 
-        const nextWorkspaces = normalizeWorkspaces([...store.workspaces, ...merge.importedWorkspaces]);
+        const share = parsedArchive.manifest.share;
+        const importedWorkspaces =
+            opts?.origin === "received"
+                ? merge.importedWorkspaces.map((workspace) => ({
+                      ...workspace,
+                      origin: "received" as const,
+                      received: {
+                          senderName: share?.sender?.name ?? null,
+                          senderUserId: share?.sender?.userId ?? null,
+                          transferId: share?.transferId ?? null,
+                          receivedAt: Date.now(),
+                          shareKind: share?.kind ?? "library",
+                          shareTitle: share?.title ?? workspace.title,
+                      },
+                  }))
+                : merge.importedWorkspaces;
+
+        const nextWorkspaces = normalizeWorkspaces([...store.workspaces, ...importedWorkspaces]);
         const nextPrimaryCollectionIdByWorkspace = {
             ...store.primaryCollectionIdByWorkspace,
             ...merge.suggestedPrimaryCollectionIdByWorkspace,
         };
-        const nextPrimaryWorkspaceId = store.primaryWorkspaceId ?? merge.suggestedPrimaryWorkspaceId;
+        // A received package must never become the user's primary workspace
+        // (a first-run user receiving a link would otherwise "live" in it).
+        const nextPrimaryWorkspaceId =
+            store.primaryWorkspaceId ??
+            (opts?.origin === "received" ? null : merge.suggestedPrimaryWorkspaceId);
         const nextNotes = [...merge.importedNotes, ...store.notes];
         const nextBluetoothMonitoringCalibrations = normalizeBluetoothMonitoringCalibrations([
             ...store.bluetoothMonitoringCalibrations,

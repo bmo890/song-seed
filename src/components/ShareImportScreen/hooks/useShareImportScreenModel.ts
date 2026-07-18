@@ -122,7 +122,11 @@ export function useShareImportScreenModel({
         archiveUri = cached;
       }
       const parsed = await readSongSeedArchive(archiveUri, sharedArchive.name ?? undefined);
-      const result = await appActions.importLibraryArchiveIntoLibrary(parsed);
+      // Shared-to-us archives land as Received packages, never as personal
+      // workspaces — the Received page is their home.
+      const result = await appActions.importLibraryArchiveIntoLibrary(parsed, {
+        origin: "received",
+      });
       haptic.success();
 
       // A shared songbook/setlist lands as a real Library entity — jump there.

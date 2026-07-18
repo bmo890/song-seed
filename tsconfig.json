@@ -5,6 +5,7 @@
   },
   "exclude": [
     "dist",
-    ".expo"
+    ".expo",
+    "server"
   ]
 }

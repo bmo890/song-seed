@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigation } from "@react-navigation/native";
 import { useStore } from "../../../state/useStore";
+import { personalWorkspaces } from "../../../domain/workspaceVisibility";
 import { openCollectionFromContext } from "../../../navigation";
 import {
   buildGlobalSearchResults,
@@ -51,7 +52,9 @@ function navigateToRoute(navigation: any, routeName: string, params?: Record<str
 
 export function useSearchScreenModel() {
   const navigation = useNavigation<any>();
-  const workspaces = useStore((state) => state.workspaces);
+  const allWorkspaces = useStore((state) => state.workspaces);
+  // Search covers YOUR library; received packages are excluded by design.
+  const workspaces = useMemo(() => personalWorkspaces(allWorkspaces), [allWorkspaces]);
   const notes = useStore((state) => state.notes);
   const setActiveWorkspaceId = useStore((state) => state.setActiveWorkspaceId);
   const [searchQuery, setSearchQuery] = useState("");

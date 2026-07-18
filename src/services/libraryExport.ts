@@ -36,6 +36,7 @@ import {
     type ArchiveSongManifest,
     type ArchiveWorkspaceManifest,
     type ArchiveCollectionManifest,
+    type ArchiveShareDeclaration,
 } from "./libraryArchiveManifest";
 
 // The archive manifest shape and the two option/preference types live in
@@ -80,7 +81,13 @@ export type ExportLibraryArgs =
           libraryPreferences?: SongSeedArchiveLibraryPreferences;
           songbooks?: Songbook[];
           setlists?: Setlist[];
+          /** Declares what this archive IS (setlist/songbook/collection/…) —
+           *  the receiving side trusts this over inference. */
+          share?: ArchiveShareDeclaration;
           archiveLabel?: string;
+          /** File extension for the saved archive. Shares use "songstead" for
+           *  branded identity; defaults to "zip". Internals are zip either way. */
+          archiveExtension?: "zip" | "songstead";
       } & ExportProgressArgs)
     | ({
           workspaces: Workspace[];
@@ -94,6 +101,7 @@ export type ExportLibraryArgs =
 export type LibraryExportResult = {
     archiveUri: string;
     archiveTitle: string;
+    archiveExtension: "zip" | "songstead";
     warningMessages: string[];
     exportedWorkspaces: number;
     exportedCollections: number;
@@ -174,7 +182,11 @@ export async function prepareLibraryExportArchive(args: ExportLibraryArgs): Prom
         args.archiveLabel ??
         (args.format === "songstead-archive" ? "Songstead Archive" : "Songstead Export");
     const archiveTitle = `${sanitizeArchiveSegment(archiveLabel)} ${buildTimestampSlug()}`;
-    const archiveUri = `${SONG_SEED_SHARE_DIR}/${archiveTitle}.zip`;
+    const archiveExtension =
+        args.format === "songstead-archive" && args.archiveExtension === "songstead"
+            ? "songstead"
+            : "zip";
+    const archiveUri = `${SONG_SEED_SHARE_DIR}/${archiveTitle}.${archiveExtension}`;
 
     let statedSourceBytes = 0;
     const validEntries = await Promise.all(
@@ -254,6 +266,7 @@ export async function prepareLibraryExportArchive(args: ExportLibraryArgs): Prom
     return {
         archiveUri,
         archiveTitle,
+        archiveExtension,
         warningMessages: build.warnings,
         exportedWorkspaces: build.exportedWorkspaces,
         exportedCollections: build.exportedCollections,
@@ -270,7 +283,10 @@ export async function exportLibrary(args: ExportLibraryArgs): Promise<LibraryExp
         // Save through the same crash-safe path as backups: an Android folder copy we await
         // (no Intent-share race) or the iOS share sheet. Only after the save returns do we
         // delete the temporary archive in `finally`.
-        const saved = await saveArchiveToUserLocation(prepared.archiveUri, `${prepared.archiveTitle}.zip`);
+        const saved = await saveArchiveToUserLocation(
+            prepared.archiveUri,
+            `${prepared.archiveTitle}.${prepared.archiveExtension}`
+        );
         return {
             ...prepared,
             savedDirectoryUri: saved.savedDirectoryUri,
@@ -380,6 +396,9 @@ function buildSongSeedArchive(args: Extract<ExportLibraryArgs, { format: "songst
     if (preserveAllMetadata) {
         if (args.songbooks?.length) manifest.songbooks = args.songbooks;
         if (args.setlists?.length) manifest.setlists = args.setlists;
+    }
+    if (args.format === "songstead-archive" && args.share) {
+        manifest.share = args.share;
     }
 
     if (args.options.includeNotes && args.notes.length > 0) {

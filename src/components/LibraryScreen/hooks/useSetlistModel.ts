@@ -3,6 +3,7 @@ import { useNavigation, useRoute } from "@react-navigation/native";
 import { useStore } from "../../../state/useStore";
 import { AppAlert } from "../../common/AppAlert";
 import { shareSetlist } from "../../../services/setlistShare";
+import { personalWorkspaces } from "../../../domain/workspaceVisibility";
 import {
   buildSetlistQueue,
   getSetlistDurationMs,
@@ -153,7 +154,7 @@ export function useSetlistModel() {
     builderSong,
     pickerWorkspaces: useMemo(
       () =>
-        workspaces
+        personalWorkspaces(workspaces)
           .filter((w) => !w.isArchived)
           .map((w) => ({ id: w.id, title: w.title, songs: w.ideas.filter((i) => i.kind === "project") }))
           .filter((w) => w.songs.length > 0),

@@ -1132,6 +1132,12 @@ export function normalizeWorkspaces(workspaces: Workspace[]) {
         const color = typeof workspace.color === "string" && workspace.color.length > 0
             ? workspace.color
             : WORKSPACE_COLORS[index % WORKSPACE_COLORS.length];
+        // Origin sanitation: unknown values fall back to personal (absent);
+        // received metadata only survives alongside a received origin.
+        const origin =
+            workspace.origin === "received" || workspace.origin === "shared"
+                ? workspace.origin
+                : undefined;
         return {
             ...workspace,
             color,
@@ -1139,6 +1145,11 @@ export function normalizeWorkspaces(workspaces: Workspace[]) {
             archiveState: normalizedArchiveState,
             collections: normalizedCollections,
             ideas: archivedIdeas,
+            origin,
+            received:
+                origin === "received" && workspace.received && typeof workspace.received === "object"
+                    ? workspace.received
+                    : undefined,
         };
     });
 }

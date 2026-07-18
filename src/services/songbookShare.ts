@@ -15,6 +15,14 @@ export async function shareSongbookFile(songbook: Songbook, workspaces: Workspac
     format: "songstead-archive",
     scope: built.scope,
     songbooks: [built.songbook],
+    share: {
+      kind: "songbook",
+      title: songbook.title,
+      sender: { name: null, userId: null },
+      transferId: null,
+      createdAt: Date.now(),
+    },
+    archiveExtension: "songstead",
     options: {
       includeFullSongHistory: true, // already trimmed to the referenced charts
       includeNotes: false,

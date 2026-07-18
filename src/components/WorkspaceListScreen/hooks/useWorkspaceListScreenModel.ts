@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { useStore } from "../../../state/useStore";
+import { personalWorkspaces } from "../../../domain/workspaceVisibility";
 import { getWorkspaceListOrderState, sortWorkspacesWithPrimary } from "../../../domain/libraryNavigation";
 import type { WorkspaceListOrder } from "../../../types";
 import { useWorkspaceArchiveActions } from "./useWorkspaceArchiveActions";
@@ -14,7 +15,9 @@ function defaultWorkspaceTitle() {
 }
 
 export function useWorkspaceListScreenModel() {
-  const workspaces = useStore((s) => s.workspaces);
+  const allWorkspaces = useStore((s) => s.workspaces);
+  // Discovery surface: personal spaces only (received packages live on the Received page).
+  const workspaces = useMemo(() => personalWorkspaces(allWorkspaces), [allWorkspaces]);
   const primaryWorkspaceId = useStore((s) => s.primaryWorkspaceId);
   const setPrimaryWorkspaceId = useStore((s) => s.setPrimaryWorkspaceId);
   const workspaceListOrder = useStore((s) => s.workspaceListOrder);

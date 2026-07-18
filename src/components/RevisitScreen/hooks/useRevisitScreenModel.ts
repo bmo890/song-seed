@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { AppAlert } from "../../common/AppAlert";
 import { useIsFocused, useNavigation } from "@react-navigation/native";
 import { useStore } from "../../../state/useStore";
+import { personalWorkspaces } from "../../../domain/workspaceVisibility";
 import { useRevisitStore } from "../../../state/useRevisitStore";
 import { useShelfStore } from "../../../state/useShelfStore";
 import { toast } from "../../common/toastStore";
@@ -24,7 +25,10 @@ export function useRevisitScreenModel() {
     (rootNavigation ?? navigation).navigate(routeName as never, params as never);
 
   const now = useMemo(() => Date.now(), []);
-  const workspaces = useStore((state) => state.workspaces);
+  const allWorkspaces = useStore((state) => state.workspaces);
+  // Revisit resurfaces YOUR old work — a bandmate's demo must never appear as
+  // "your forgotten idea", so received packages are excluded.
+  const workspaces = useMemo(() => personalWorkspaces(allWorkspaces), [allWorkspaces]);
   const primaryWorkspaceId = useStore((state) => state.primaryWorkspaceId);
   const primaryCollectionIdByWorkspace = useStore((state) => state.primaryCollectionIdByWorkspace);
   const activityEvents = useStore((state) => state.activityEvents);
