@@ -237,6 +237,38 @@ See `docs/qa/RUN-LOG.md` for the automation status of each.
 - iOS ☐  Android ☐ — Haptics fire on the right actions (record, save, delete, state changes). **[HUMAN]**
 - iOS ☐  Android ☐ — Accessibility: font scaling / VoiceOver-TalkBack basic pass. **[HUMAN]**
 
+## 16. Songnook Send — transfer links  (service is LIVE at send.songnook.app)
+
+Sending (app → link):
+- iOS ☐  Android ☐ — Setlist detail → menu → **Get a link**: progress toast → "Link copied"
+  toast with a Share tap-through; link is on the clipboard. **[HUMAN — network]**
+- iOS ☐  Android ☐ — Songbook detail → menu → **Get a link**: same flow. **[HUMAN]**
+- iOS ☐  Android ☐ — Clip selection bar → **Get link** with 1 and with 3 clips selected;
+  receiver page lists each clip as its own numbered row. **[HUMAN]**
+- iOS ☐  Android ☐ — After creating a link, the entity header shows the **"Link active ·
+  N days left · Copy"** chip; Copy puts the URL on the clipboard. **[HUMAN]**
+- iOS ☐  Android ☐ — Airplane mode → Get a link fails with the friendly "Couldn't create
+  link" dialog (no crash, no half-created chip). **[HUMAN]**
+- iOS ☐  Android ☐ — Empty setlist → Get a link shows "Nothing to share". **[HUMAN]**
+
+Receiving (link → phone/desktop):
+- Desktop ☐ — Open a sent link in a desktop browser: letterpress page, sender name, note,
+  tracklist rows, Download works and file plays. **[HUMAN]**
+- iOS ☐  Android ☐ — Open a sent link in the phone browser (app NOT handling links yet):
+  install-funnel page renders; **plain downloads work**. **[HUMAN]**
+- iOS ☐  Android ☐ — Download the `.songstead` file from the link and open it with the app
+  (share sheet → Songstead): lands as a **Received package**, deduped on second import
+  (same transferId → no duplicate). **[HUMAN]**
+- Desktop ☐ — send.songnook.app sender page: drag-drop an audio file → link; dropping a
+  video/PDF is rejected client-side AND a curl attempt returns 415. **[HUMAN]**
+- ☐ — Expiry: after 7 days the link shows the "isn't available" page (spot-check an old link). **[HUMAN]**
+
+Universal links (BLOCKED until Apple Team ID + Android fingerprints + native rebuild):
+- iOS ☐  Android ☐ — Tapping a send.songnook.app/t/… link with the app installed opens the
+  app directly (no browser). **[HUMAN — needs entitlements build]**
+- Android ☐ — Fresh install via the funnel's Play link carries the transfer in (Install
+  Referrer). iOS ☐ — clipboard-token flow offers the parcel on first launch. **[HUMAN — needs store]**
+
 ---
 
 ### Notes column
