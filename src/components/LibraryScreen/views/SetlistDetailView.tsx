@@ -4,6 +4,7 @@ import DraggableFlatList, { type RenderItemParams } from "react-native-draggable
 import { Ionicons } from "@expo/vector-icons";
 import { styles } from "../styles";
 import { SelectionActionSheet } from "../../common/SelectionActionSheet";
+import { SentLinkChip } from "../../common/SentLinkChip";
 import { NowPlayingIndicator } from "../../common/NowPlayingIndicator";
 import { colors, radii, spacing, text as textTokens } from "../../../design/tokens";
 import { haptic } from "../../../design/haptics";
@@ -26,6 +27,7 @@ type SetlistDetailViewProps = {
   onRemoveEntry: (entryId: string) => void;
   onRename: () => void;
   onShare: () => void;
+  onGetLink?: () => void;
   onDelete: () => void;
 };
 
@@ -47,6 +49,7 @@ export function SetlistDetailView({
   onRemoveEntry,
   onRename,
   onShare,
+  onGetLink,
   onDelete,
 }: SetlistDetailViewProps) {
   const [editMode, setEditMode] = useState(false);
@@ -65,6 +68,10 @@ export function SetlistDetailView({
         {setlist.title}
       </Text>
       <Text style={setStyles.meta}>{metaParts.join("  ·  ")}</Text>
+
+      <View style={setStyles.linkChipRow}>
+        <SentLinkChip entityId={setlist.id} />
+      </View>
 
       <View style={setStyles.actionRow}>
         <Pressable
@@ -294,6 +301,16 @@ export function SetlistDetailView({
             icon: "share-outline",
             onPress: onShare,
           },
+          ...(onGetLink
+            ? [
+                {
+                  key: "get-link",
+                  label: "Get a link",
+                  icon: "link-outline" as const,
+                  onPress: onGetLink,
+                },
+              ]
+            : []),
           {
             key: "delete",
             label: "Delete set",
@@ -328,6 +345,9 @@ const setStyles = StyleSheet.create({
     color: colors.textSecondary,
     marginTop: 6,
     fontVariant: ["tabular-nums"],
+  },
+  linkChipRow: {
+    marginTop: 12,
   },
   actionRow: {
     flexDirection: "row",

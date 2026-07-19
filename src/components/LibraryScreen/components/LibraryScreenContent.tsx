@@ -8,6 +8,12 @@ import { QuickNameModal } from "../../modals/QuickNameModal";
 import { colors, spacing } from "../../../design/tokens";
 import { styles } from "../styles";
 import { useBrowseRootBackHandler } from "../../../hooks/useBrowseRootBackHandler";
+import { isSendServiceConfigured } from "../../../config/sendService";
+
+// "Get a link" needs a real transfer endpoint. Show it in dev (so it's testable
+// against a local `wrangler dev`) or once a non-localhost service is configured —
+// never in a shipped build that would point at localhost and fail.
+const SHOW_GET_LINK = __DEV__ || isSendServiceConfigured();
 import { useLibraryScreenModel } from "../hooks/useLibraryScreenModel";
 import { useSongbookModel } from "../hooks/useSongbookModel";
 import { useSetlistModel } from "../hooks/useSetlistModel";
@@ -171,6 +177,7 @@ function SongbookSection({ tabs }: { tabs: ReactNode }) {
           onRemoveSong={songbook.removeSong}
           onRename={songbook.openRename}
           onShareFile={songbook.shareSongbookFile}
+          onGetLink={SHOW_GET_LINK ? songbook.getLinkForActiveSongbook : undefined}
           onShareText={songbook.shareSongbook}
           onDelete={songbook.deleteActiveSongbook}
         />
@@ -268,6 +275,7 @@ function SetlistsSection({ tabs }: { tabs: ReactNode }) {
           onRemoveEntry={setlist.removeEntry}
           onRename={setlist.openRename}
           onShare={setlist.shareActiveSetlist}
+          onGetLink={SHOW_GET_LINK ? setlist.getLinkForActiveSetlist : undefined}
           onDelete={setlist.deleteActiveSetlist}
         />
       ) : (

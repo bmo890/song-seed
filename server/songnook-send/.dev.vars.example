@@ -1,0 +1,10 @@
+# Copy to `.dev.vars` (gitignored) for local `wrangler dev`, and set the real
+# values in production with `wrangler secret put <NAME>`.
+#
+# These are the ONLY secrets in the whole service. They never appear in source,
+# in wrangler.toml, in the mobile app, or in any browser JS. The web page and the
+# app only ever receive short-lived *presigned* URLs minted from these server-side.
+
+# R2 S3 API token (Cloudflare dashboard → R2 → Manage API tokens).
+R2_ACCESS_KEY_ID=your-r2-access-key-id
+R2_SECRET_ACCESS_KEY=your-r2-secret-access-key

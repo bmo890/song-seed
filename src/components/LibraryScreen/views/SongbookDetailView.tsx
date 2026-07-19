@@ -4,6 +4,7 @@ import DraggableFlatList, { type RenderItemParams } from "react-native-draggable
 import { Ionicons } from "@expo/vector-icons";
 import { styles } from "../styles";
 import { SelectionActionSheet } from "../../common/SelectionActionSheet";
+import { SentLinkChip } from "../../common/SentLinkChip";
 import { NowPlayingIndicator } from "../../common/NowPlayingIndicator";
 import { colors, radii, spacing, text as textTokens } from "../../../design/tokens";
 import { haptic } from "../../../design/haptics";
@@ -24,6 +25,7 @@ type SongbookDetailViewProps = {
   onRemoveSong: (song: SongbookSong) => void;
   onRename: () => void;
   onShareFile?: () => void;
+  onGetLink?: () => void;
   onShareText: () => void;
   onDelete: () => void;
 };
@@ -43,6 +45,7 @@ export function SongbookDetailView({
   onRemoveSong,
   onRename,
   onShareFile,
+  onGetLink,
   onShareText,
   onDelete,
 }: SongbookDetailViewProps) {
@@ -68,6 +71,10 @@ export function SongbookDetailView({
         {songbook.title}
       </Text>
       <Text style={bookStyles.meta}>{metaParts.join("  ·  ")}</Text>
+
+      <View style={bookStyles.linkChipRow}>
+        <SentLinkChip entityId={songbook.id} />
+      </View>
 
       <View style={bookStyles.actionRow}>
         <Pressable
@@ -289,6 +296,16 @@ export function SongbookDetailView({
                 },
               ]
             : []),
+          ...(onGetLink
+            ? [
+                {
+                  key: "get-link",
+                  label: "Get a link",
+                  icon: "link-outline" as const,
+                  onPress: onGetLink,
+                },
+              ]
+            : []),
           {
             key: "share-text",
             label: "Share as text",
@@ -329,6 +346,9 @@ const bookStyles = StyleSheet.create({
     color: colors.textSecondary,
     marginTop: 6,
     fontVariant: ["tabular-nums"],
+  },
+  linkChipRow: {
+    marginTop: 12,
   },
   actionRow: {
     flexDirection: "row",

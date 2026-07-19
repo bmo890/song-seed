@@ -1,0 +1,59 @@
+name = "songnook-send"
+main = "src/index.ts"
+compatibility_date = "2026-07-01"
+compatibility_flags = ["nodejs_compat"]
+
+# The service lives ONLY on the branded custom domain (no workers.dev).
+routes = [{ pattern = "send.songnook.app", custom_domain = true }]
+workers_dev = false
+
+# ── Public, non-secret config (safe to commit) ───────────────────────────────
+[vars]
+# Canonical public origin. The mobile app and web page embed only this — it is
+# NOT a secret. Universal-link association files (.well-known) target this host.
+PUBLIC_ORIGIN = "https://send.songnook.app"
+# v1 limits (see docs/product-plan/transfer-service-brief.md §9, settled).
+MAX_TRANSFER_BYTES = "1073741824"   # 1 GB per transfer
+MAX_ITEM_BYTES = "536870912"        # 512 MB per file
+EXPIRY_DAYS = "7"
+# Anti-abuse: browser origins allowed to call the write API (the app sends no
+# Origin and is allowed; PUBLIC_ORIGIN + localhost are always trusted).
+ALLOWED_WEB_ORIGINS = ""
+# Per-IP write rate limits (fixed 1-hour window).
+RATE_CREATE_PER_HOUR = "30"
+RATE_ITEMS_PER_HOUR = "300"
+# Store links for the mobile-without-app install funnel.
+IOS_APP_STORE_URL = "https://apps.apple.com/app/songnook/id0000000000"
+ANDROID_PACKAGE = "com.bmostudio.songseed"
+# R2 account + bucket used to mint presigned URLs (bucket name is not a secret).
+R2_ACCOUNT_ID = "350834456909bc6ec117efad478be829"
+R2_BUCKET = "songnook-send"
+
+# ── R2 binding: proxied ranged downloads use this (no credentials involved) ──
+[[r2_buckets]]
+binding = "BUCKET"
+bucket_name = "songnook-send"
+preview_bucket_name = "songnook-send-preview"
+
+# ── D1 binding: transfer + item metadata ────────────────────────────────────
+[[d1_databases]]
+binding = "DB"
+database_name = "songnook_send"
+database_id = "6c31073c-ee89-4d9d-b88c-3f307000935d"
+migrations_dir = "migrations"
+
+# ── KV binding: per-IP rate limiting (create + upload). ──────────────────────
+# Create with `wrangler kv namespace create RATE` and paste the id below.
+# If absent, rate limiting fails open (dev) — bind it before going public.
+[[kv_namespaces]]
+binding = "RATE"
+id = "89a03d6d2b0a42a5bc9112c87f5ff7dc"
+
+# ── Nightly expiry sweep ─────────────────────────────────────────────────────
+[triggers]
+crons = ["0 3 * * *"]
+
+# ── SECRETS (never committed — set via `wrangler secret put <NAME>`): ─────────
+#   R2_ACCESS_KEY_ID       — R2 S3 API access key (for minting presigned PUT URLs)
+#   R2_SECRET_ACCESS_KEY   — R2 S3 API secret
+# Locally these live in `.dev.vars` (gitignored). See .dev.vars.example.

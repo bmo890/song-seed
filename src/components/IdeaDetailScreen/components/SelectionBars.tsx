@@ -5,6 +5,9 @@ import * as FileSystem from "expo-file-system/legacy";
 import { useStore } from "../../../state/useStore";
 import { appActions } from "../../../state/actions";
 import { shareAudioClips, buildTimestampSlug } from "../../../services/audioStorage";
+import { createClipsShareLink } from "../../../services/clipShareLink";
+import { presentShareLink } from "../../../services/shareLinkFlow";
+import { isSendServiceConfigured } from "../../../config/sendService";
 import { SONG_SEED_AUDIO_DIR } from "../../../services/storagePaths";
 import { SelectionActionSheet } from "../../common/SelectionActionSheet";
 import { SelectionDock, type SelectionAction } from "../../common/SelectionDock";
@@ -104,6 +107,19 @@ export function SelectionBars() {
     } catch (error) {
       const message = error instanceof Error ? error.message : "Could not share the selected clips.";
       AppAlert.info("Share failed", message);
+    } finally {
+      setIsSharing(false);
+    }
+  }
+
+  async function handleGetLinkSelected() {
+    if (shareableClips.length === 0 || isSharing) return;
+    setIsSharing(true);
+    try {
+      const label = selectedIdea ? `${selectedIdea.title} Clips` : "Songstead Clips";
+      await presentShareLink(() => createClipsShareLink(shareableClips, label), {
+        emptyMessage: "Select at least one clip with audio first.",
+      });
     } finally {
       setIsSharing(false);
     }
@@ -394,6 +410,17 @@ export function SelectionBars() {
       onPress: () => { void handleShareSelected(); },
       disabled: isSharing || shareableClips.length === 0,
     },
+    ...(__DEV__ || isSendServiceConfigured()
+      ? [
+          {
+            key: "get-link",
+            label: "Get link",
+            icon: "link-outline" as const,
+            onPress: () => { void handleGetLinkSelected(); },
+            disabled: isSharing || shareableClips.length === 0,
+          },
+        ]
+      : []),
     {
       key: "set-parent",
       label: "Set parent",

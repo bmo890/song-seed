@@ -141,7 +141,7 @@ function getExpoSharingModule(): ExpoSharingModule | null {
     }
 }
 
-function getAudioShareMimeType(audioUri: string) {
+export function getAudioShareMimeType(audioUri: string) {
     const lower = audioUri.toLowerCase();
     if (lower.endsWith(".wav")) return "audio/wav";
     if (lower.endsWith(".mp3")) return "audio/mpeg";

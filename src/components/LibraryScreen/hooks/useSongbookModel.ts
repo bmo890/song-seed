@@ -11,7 +11,8 @@ import {
   type SongbookSong,
 } from "../../../domain/songbookGrouping";
 import { useMiniPlayerContext } from "../../../hooks/FullPlayerProvider";
-import { shareSongbookFile } from "../../../services/songbookShare";
+import { createSongbookShareLink, shareSongbookFile } from "../../../services/songbookShare";
+import { presentShareLink } from "../../../services/shareLinkFlow";
 import type { SongIdea, Workspace } from "../../../types";
 
 function findIdea(workspaces: Workspace[], ideaId: string): { workspace: Workspace; idea: SongIdea } | null {
@@ -182,6 +183,13 @@ export function useSongbookModel() {
       } catch {
         AppAlert.info("Share failed", "Couldn't build the songbook file. Please try again.");
       }
+    },
+    /** Upload the songbook to Songstead Send and copy a shareable link. */
+    getLinkForActiveSongbook: async () => {
+      if (!activeSongbook) return;
+      await presentShareLink(() => createSongbookShareLink(activeSongbook, workspaces), {
+        emptyMessage: "Add some charts with content first.",
+      });
     },
     shareSongbook: () => {
       if (!activeSongbook) return;

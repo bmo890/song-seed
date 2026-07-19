@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { useStore } from "../../../state/useStore";
 import { AppAlert } from "../../common/AppAlert";
-import { shareSetlist } from "../../../services/setlistShare";
+import { createSetlistShareLink, shareSetlist } from "../../../services/setlistShare";
+import { presentShareLink } from "../../../services/shareLinkFlow";
 import { personalWorkspaces } from "../../../domain/workspaceVisibility";
 import {
   buildSetlistQueue,
@@ -319,6 +320,12 @@ export function useSetlistModel() {
       } catch {
         AppAlert.info("Share failed", "Couldn't build the setlist file. Please try again.");
       }
+    },
+    getLinkForActiveSetlist: async () => {
+      if (!activeSetlist) return;
+      await presentShareLink(() => createSetlistShareLink(activeSetlist, workspaces), {
+        emptyMessage: "Add at least one song to the setlist first.",
+      });
     },
   };
 }

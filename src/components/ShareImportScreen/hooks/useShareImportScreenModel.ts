@@ -5,6 +5,7 @@ import { useShareIntentContext } from "expo-share-intent";
 import { useStore } from "../../../state/useStore";
 import { appActions } from "../../../state/actions";
 import { openCollectionAsBrowseRoot } from "../../../navigation";
+import { resolveImportedEntityRoute } from "../../../domain/receiveRouting";
 import {
   buildImportedTitle,
   importAudioAsset,
@@ -129,13 +130,14 @@ export function useShareImportScreenModel({
       });
       haptic.success();
 
-      // A shared songbook/setlist lands as a real Library entity — jump there.
-      const openKind = result.importedSongbookIds[0]
-        ? ("songbook" as const)
-        : result.importedSetlistIds[0]
-          ? ("setlist" as const)
-          : null;
-      const openId = result.importedSongbookIds[0] ?? result.importedSetlistIds[0] ?? null;
+      // The manifest's declared kind is the authority — see resolveImportedEntityRoute.
+      const route = resolveImportedEntityRoute({
+        shareKind: parsed.manifest.share?.kind,
+        importedSongbookIds: result.importedSongbookIds,
+        importedSetlistIds: result.importedSetlistIds,
+      });
+      const openKind = route?.kind ?? null;
+      const openId = route?.id ?? null;
 
       resetShareIntent();
       if (openKind && openId) {

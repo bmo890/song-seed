@@ -3,6 +3,7 @@ import { AppAlert } from "../../common/AppAlert";
 import { appActions } from "../../../state/actions";
 import type { Collection, Workspace } from "../../../types";
 import { buildCollectionMoveDestinations, getCollectionDeleteScope } from "../../../domain/collectionManagement";
+import { personalWorkspaces } from "../../../domain/workspaceVisibility";
 
 type CollectionManagementParams = {
   workspaces: Workspace[];
@@ -45,7 +46,13 @@ export function useCollectionManagement({
     [activeWorkspace?.collections, managedCollection]
   );
   const moveDestinations = useMemo(
-    () => buildCollectionMoveDestinations(workspaces, managedCollection, activeWorkspaceId),
+    // Exclude received packages — they're never a move target.
+    () =>
+      buildCollectionMoveDestinations(
+        personalWorkspaces(workspaces),
+        managedCollection,
+        activeWorkspaceId
+      ),
     [activeWorkspaceId, managedCollection, workspaces]
   );
 

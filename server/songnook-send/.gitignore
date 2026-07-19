@@ -1,0 +1,11 @@
+# Local Worker secrets — NEVER commit. Real R2 credentials live here locally.
+.dev.vars
+.dev.vars.local
+
+# Wrangler local state (local D1/R2 emulation, build cache)
+.wrangler/
+dist/
+
+node_modules/
+*.log
+.DS_Store

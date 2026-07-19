@@ -3,6 +3,7 @@ import { AppAlert } from "../../common/AppAlert";
 import type { Collection, Workspace } from "../../../types";
 import { appActions } from "../../../state/actions";
 import { buildCollectionMoveDestinations, getCollectionDeleteScope } from "../../../domain/collectionManagement";
+import { personalWorkspaces } from "../../../domain/workspaceVisibility";
 import type { SelectionAction } from "../../common/SelectionDock";
 
 function collapseSelectedCollectionIds(
@@ -95,7 +96,14 @@ export function useWorkspaceCollectionSelection({
     activeWorkspace?.collections.find((collection) => collection.id === managedCollectionId) ?? null;
   const destinationAnchorCollection = managedCollection ?? selectedCollections[0] ?? null;
   const moveDestinations = useMemo(
-    () => buildCollectionMoveDestinations(workspaces, destinationAnchorCollection, activeWorkspaceId),
+    // Received packages are never a move target — you can't file your own
+    // collection into someone else's shared bundle.
+    () =>
+      buildCollectionMoveDestinations(
+        personalWorkspaces(workspaces),
+        destinationAnchorCollection,
+        activeWorkspaceId
+      ),
     [activeWorkspaceId, destinationAnchorCollection, workspaces]
   );
   const allSelectableSelected =
