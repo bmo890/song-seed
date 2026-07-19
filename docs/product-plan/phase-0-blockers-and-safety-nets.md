@@ -10,7 +10,7 @@ Remove everything that would cause an outright store rejection or a catastrophic
 
 - The app has **no error boundary and no crash reporting**. Any render exception = permanent white screen. Because the app holds users' recordings, a white screen *feels like* data loss even though the persistence layer (SQLite snapshot + shadow manifest in `src/services/manifestSync.ts`) means a restart fully recovers.
 - The app has a styled dialog system (`src/components/common/AppAlert.ts` → `AppDialog.tsx`, host mounted in `App.tsx` as `<AppDialogHost />` **above** the hydration gate, so it is available at all times). Its own doc comment bans raw `Alert.alert` — yet `App.tsx` itself contains the only four remaining raw calls, and they are the highest-stakes dialogs in the app.
-- Build variants: `app.config.js` overlays `app.json`; `APP_VARIANT=production` selects the name "Song Seed", scheme `songseed`, bundle id `com.bmostudio.songseed`. Dev variant appends `.dev`. The bare `android/` and `ios/` directories are committed, so config changes require regenerating native projects (`npx expo prebuild`) or hand-editing both places.
+- Build variants: `app.config.js` overlays `app.json`; `APP_VARIANT=production` selects the name "SongNook", scheme `songnook`, bundle id `com.bmostudio.songnook`. Dev variant appends `.dev`. The bare `android/` and `ios/` directories are committed, so config changes require regenerating native projects (`npx expo prebuild`) or hand-editing both places.
 
 ## Work items
 
@@ -35,7 +35,7 @@ Remove everything that would cause an outright store rejection or a catastrophic
 
 **Current:** zero error boundaries; no `componentDidCatch` anywhere in `src/` or `App.tsx`.
 **Target:** a class component `AppErrorBoundary` (new file `src/components/common/AppErrorBoundary.tsx`) wrapping everything inside `GestureHandlerRootView` in `App.tsx`. On catch:
-- Render a full-screen, on-brand fallback (paper background, PlayfairDisplay headline): title like "Something went wrong", body copy that **explicitly reassures**: "Your recordings and library are safe on this device." One terracotta button: "Restart Song Seed" — remount the tree by bumping a `key` on the child (setState in the boundary), which re-runs hydration safely.
+- Render a full-screen, on-brand fallback (paper background, PlayfairDisplay headline): title like "Something went wrong", body copy that **explicitly reassures**: "Your recordings and library are safe on this device." One terracotta button: "Restart SongNook" — remount the tree by bumping a `key` on the child (setState in the boundary), which re-runs hydration safely.
 - Log `error` + `componentStack` via the crash capture from item 0.4.
 - Use design tokens directly (the boundary must not depend on anything that could itself be broken — keep imports minimal: React, RN primitives, tokens).
 **Acceptance:** temporarily throw inside a screen render in dev → styled fallback appears, restart button recovers the app with library intact, error is captured. Add a jest render test for the boundary itself.
@@ -58,18 +58,18 @@ Remove everything that would cause an outright store rejection or a catastrophic
 
 **Current:** `app.json` → `expo.ios.infoPlist` has only `NSMicrophoneUsageDescription`.
 **Target:** add `"ITSAppUsesNonExemptEncryption": false` (the app uses only exempt HTTPS). Without it every TestFlight build stalls on a manual compliance question.
-**Acceptance:** key present in generated `ios/songseed/Info.plist` after prebuild.
+**Acceptance:** key present in generated `ios/songnook/Info.plist` after prebuild.
 
 ### 0.7 EAS build configuration
 
 **Current:** no `eas.json`; builds are local (`scripts/android-dev.sh`, `expo run:*`). iOS store signing + the share extension (see below) make manual signing painful.
-**Target:** create `eas.json` with `development` (dev client, internal), `preview` (internal distribution), and `production` (store) profiles; production sets `autoIncrement: true` for build numbers. Set `APP_VARIANT=production` in the production profile's `env`. **Correction to the original audit:** `android/` and `ios/` are **gitignored** — this project is **prebuild-driven (Continuous Native Generation)**, not committed-bare. EAS regenerates the native projects from `app.json` + `app.config.js` + the config plugin `plugins/withSongSeedAndroidVariants` on each build, and runs `patch-package` (postinstall) automatically. This is the cleaner setup and needs no special handling — just ensure all native config flows from the tracked JS config (it does). **Implication:** any hand-edit to a file under `android/`/`ios/` is a throwaway local artifact and will be overwritten on the next `expo prebuild` — the source of truth is always the tracked config.
-- The iOS **share extension** (`expo-share-intent`, name "Song Seed Import") needs its own provisioning; EAS handles multi-target credentials automatically — this is the main reason to prefer EAS over manual Xcode signing.
+**Target:** create `eas.json` with `development` (dev client, internal), `preview` (internal distribution), and `production` (store) profiles; production sets `autoIncrement: true` for build numbers. Set `APP_VARIANT=production` in the production profile's `env`. **Correction to the original audit:** `android/` and `ios/` are **gitignored** — this project is **prebuild-driven (Continuous Native Generation)**, not committed-bare. EAS regenerates the native projects from `app.json` + `app.config.js` + the config plugin `plugins/withSongNookAndroidVariants` on each build, and runs `patch-package` (postinstall) automatically. This is the cleaner setup and needs no special handling — just ensure all native config flows from the tracked JS config (it does). **Implication:** any hand-edit to a file under `android/`/`ios/` is a throwaway local artifact and will be overwritten on the next `expo prebuild` — the source of truth is always the tracked config.
+- The iOS **share extension** (`expo-share-intent`, name "SongNook Import") needs its own provisioning; EAS handles multi-target credentials automatically — this is the main reason to prefer EAS over manual Xcode signing.
 **Acceptance:** `eas build --profile production --platform android` produces an installable `.aab`; iOS equivalent deferred to Phase 1 but the profile exists.
 
 ### 0.8 Production display-name regen
 
-**Resolved by the rename + CNG:** the stale `song-seed` label lived only in the gitignored generated `strings.xml`. Because the project is prebuild-driven, the launcher label comes from `app.config.js` `name` (now "Songstead" / "Songstead Dev") on the next `expo prebuild`. No tracked file needed changing beyond the config already updated in 0.0. **Acceptance:** after a production prebuild + build, the launcher shows **"Songstead"**; dev build shows "Songstead Dev". (Verify on device during Phase 1 / first production build.)
+**Resolved by the rename + CNG:** the stale `song-nook` label lived only in the gitignored generated `strings.xml`. Because the project is prebuild-driven, the launcher label comes from `app.config.js` `name` (now "SongNook" / "SongNook Dev") on the next `expo prebuild`. No tracked file needed changing beyond the config already updated in 0.0. **Acceptance:** after a production prebuild + build, the launcher shows **"SongNook"**; dev build shows "SongNook Dev". (Verify on device during Phase 1 / first production build.)
 
 ### 0.9 Hosted privacy policy
 
@@ -89,7 +89,7 @@ Remove everything that would cause an outright store rejection or a catastrophic
 - [ ] Cold start on device: splash → app, no white flash, no spinner flash
 - [ ] Forced crash shows branded fallback; restart recovers with library intact; crash visible in capture channel
 - [ ] `grep -rn "Alert.alert" src App.tsx` → only the AppAlert/AppDialog internals
-- [ ] Production `.aab` builds via EAS; launcher shows "Song Seed" with real icon
+- [ ] Production `.aab` builds via EAS; launcher shows "SongNook" with real icon
 - [ ] Privacy policy URL live and linked in Settings
 
 ## Out of scope

@@ -11,9 +11,9 @@
 import * as FileSystem from "expo-file-system/legacy";
 import { createSnapshotChangeDetector } from "../state/persistChangeDetection";
 import {
-    SONG_SEED_ROOT,
-    SONG_SEED_MANIFEST_PATH,
-    SONG_SEED_MANIFEST_TMP_PATH,
+    SONG_NOOK_ROOT,
+    SONG_NOOK_MANIFEST_PATH,
+    SONG_NOOK_MANIFEST_TMP_PATH,
 } from "./storagePaths";
 import type { PersistedAppStore } from "../state/useStore";
 import {
@@ -52,8 +52,8 @@ export async function readManifest(): Promise<ManifestData | null> {
     // Try the primary manifest first, then fall back to the backup
     // (backup exists if the app crashed mid-write)
     const candidates = [
-        SONG_SEED_MANIFEST_PATH,
-        `${SONG_SEED_ROOT}/manifest.backup.json`,
+        SONG_NOOK_MANIFEST_PATH,
+        `${SONG_NOOK_ROOT}/manifest.backup.json`,
     ];
 
     for (const path of candidates) {
@@ -107,9 +107,9 @@ async function writeManifestToDisk(state: PersistedAppStore): Promise<void> {
         if (isPersistBlocked()) return;
 
         // Ensure root directory exists
-        const rootInfo = await FileSystem.getInfoAsync(SONG_SEED_ROOT);
+        const rootInfo = await FileSystem.getInfoAsync(SONG_NOOK_ROOT);
         if (!rootInfo.exists) {
-            await FileSystem.makeDirectoryAsync(SONG_SEED_ROOT, { intermediates: true });
+            await FileSystem.makeDirectoryAsync(SONG_NOOK_ROOT, { intermediates: true });
         }
 
         // ── CRITICAL GUARD ──
@@ -176,25 +176,25 @@ async function writeManifestToDisk(state: PersistedAppStore): Promise<void> {
 
         // Write strategy: write to tmp, then swap.
         // We keep a backup (manifest.backup.json) to survive crashes.
-        const backupPath = `${SONG_SEED_ROOT}/manifest.backup.json`;
+        const backupPath = `${SONG_NOOK_ROOT}/manifest.backup.json`;
 
-        await FileSystem.writeAsStringAsync(SONG_SEED_MANIFEST_TMP_PATH, json);
+        await FileSystem.writeAsStringAsync(SONG_NOOK_MANIFEST_TMP_PATH, json);
 
         // If a manifest already exists, back it up BEFORE deleting
-        const existingInfo = await FileSystem.getInfoAsync(SONG_SEED_MANIFEST_PATH);
+        const existingInfo = await FileSystem.getInfoAsync(SONG_NOOK_MANIFEST_PATH);
         if (existingInfo.exists) {
             // Copy current manifest to backup (survives crashes during the swap)
             await FileSystem.copyAsync({
-                from: SONG_SEED_MANIFEST_PATH,
+                from: SONG_NOOK_MANIFEST_PATH,
                 to: backupPath,
             });
-            await FileSystem.deleteAsync(SONG_SEED_MANIFEST_PATH, { idempotent: true });
+            await FileSystem.deleteAsync(SONG_NOOK_MANIFEST_PATH, { idempotent: true });
         }
 
         // Move tmp to final location
         await FileSystem.moveAsync({
-            from: SONG_SEED_MANIFEST_TMP_PATH,
-            to: SONG_SEED_MANIFEST_PATH,
+            from: SONG_NOOK_MANIFEST_TMP_PATH,
+            to: SONG_NOOK_MANIFEST_PATH,
         });
 
         // Clean up backup after successful write

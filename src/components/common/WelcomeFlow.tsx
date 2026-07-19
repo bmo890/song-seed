@@ -21,7 +21,7 @@ import {
 } from "../../services/welcomeImport";
 
 /**
- * First-run (and replayable) intro. Four swipeable panes in Songstead's voice —
+ * First-run (and replayable) intro. Four swipeable panes in SongNook's voice —
  * capture → grow → practice → bring your recordings — over the paper background.
  * Skippable from any pane; the final pane's CTA dismisses. Rendered as a
  * full-screen gate above the app so the seeded workspace is already waiting
@@ -42,7 +42,7 @@ const PANES: Pane[] = [
     icon: "mic-outline",
     eyebrow: "Capture",
     title: "Catch the spark",
-    body: "Hum it, strum it, sing it — Songstead records the idea before it slips away.",
+    body: "Hum it, strum it, sing it — SongNook records the idea before it slips away.",
   },
   {
     icon: "leaf-outline",
@@ -242,7 +242,7 @@ export function WelcomeFlow({ onDone }: { onDone: () => void }) {
           onPress={handleNext}
           style={({ pressed }) => [s.cta, pressed ? s.ctaPressed : null]}
           accessibilityRole="button"
-          accessibilityLabel={isLast ? "Start using Songstead" : "Next"}
+          accessibilityLabel={isLast ? "Start using SongNook" : "Next"}
         >
           <Text style={s.ctaText}>{isLast ? "Start" : "Next"}</Text>
         </Pressable>

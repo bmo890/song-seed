@@ -3,7 +3,7 @@
 # it opened, then return to browse, long-press its card to enter collection-select
 # mode, and Delete → confirm it's gone. Self-cleaning. Exercises the browse screen,
 # QuickNameModal, createCollection + auto-open, collection selection, and deletion.
-appId: com.bmostudio.songseed.dev
+appId: com.bmostudio.songnook.dev
 ---
 - runFlow: ../subflows/open-library.yaml
 - tapOn:

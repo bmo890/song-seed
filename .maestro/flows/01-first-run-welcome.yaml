@@ -2,7 +2,7 @@
 # Requires: Metro running (npx expo start --dev-client --port 8081) and the dev build installed.
 # NOTE: Maestro matches ACCESSIBILITY labels (e.g. the Skip button is "Skip the intro"),
 # which on RN can differ from the visual text. Use `maestro hierarchy` when adding selectors.
-appId: com.bmostudio.songseed.dev
+appId: com.bmostudio.songnook.dev
 ---
 - launchApp:
     clearState: true

@@ -1,7 +1,7 @@
 import * as FileSystem from "expo-file-system/legacy";
 import type { Workspace } from "../types";
 import {
-    SONG_SEED_ROOT,
+    SONG_NOOK_ROOT,
     resolveManagedUri,
     toRelativeManagedPath,
 } from "./storagePaths";
@@ -10,7 +10,7 @@ import {
     quarantineManagedPaths,
 } from "./managedMedia";
 
-const RESTORE_JOURNAL_DIR = `${SONG_SEED_ROOT}/restore-journals`;
+const RESTORE_JOURNAL_DIR = `${SONG_NOOK_ROOT}/restore-journals`;
 const RESTORE_TOKEN = /^[a-zA-Z0-9-]+$/;
 const RESTORE_JOURNAL_SCHEMA_VERSION = 2;
 
@@ -38,9 +38,9 @@ async function ensureRestoreJournalDirectory() {
 // disasterRecoveryValidation.ts) — a restored file outside this list would escape
 // journal cleanup after an interrupted restore.
 const MANAGED_LIBRARY_PREFIXES = [
-    "songseed/audio/",
-    "songseed/workspace-archives/",
-    "songseed/preview-audio/",
+    "songnook/audio/",
+    "songnook/workspace-archives/",
+    "songnook/preview-audio/",
 ] as const;
 
 function isManagedLibraryPath(path: unknown): path is string {
@@ -132,8 +132,8 @@ async function cleanupRestoreTokenDirectories(restoreToken: string, preserveAny:
     if (preserveAny) return;
     await Promise.all(
         [
-            `songseed/audio/restored-${restoreToken}`,
-            `songseed/workspace-archives/restored-${restoreToken}`,
+            `songnook/audio/restored-${restoreToken}`,
+            `songnook/workspace-archives/restored-${restoreToken}`,
         ].map((path) =>
             FileSystem.deleteAsync(resolveManagedUri(path), { idempotent: true }).catch(() => {})
         )
@@ -195,8 +195,8 @@ export async function cleanupInterruptedDisasterRecoveryRestores(workspaces: Wor
 
             const tokenIsReferenced = Array.from(referencedPaths).some(
                 (path) =>
-                    path.startsWith(`songseed/audio/restored-${restoreToken}/`) ||
-                    path.startsWith(`songseed/workspace-archives/restored-${restoreToken}/`)
+                    path.startsWith(`songnook/audio/restored-${restoreToken}/`) ||
+                    path.startsWith(`songnook/workspace-archives/restored-${restoreToken}/`)
             );
             const committed = journal?.phase === "committed" || tokenIsReferenced;
 

@@ -1,5 +1,5 @@
 /**
- * Where an imported Songstead archive should land the user.
+ * Where an imported SongNook archive should land the user.
  *
  * The manifest's declared `share.kind` is the authority (sharing architecture
  * §3a): a full library export that happens to contain setlists must NOT

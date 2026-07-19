@@ -2,7 +2,7 @@
 # creates clip cards with durations, tapping a clip opens the player, the
 # play/pause transport toggles, and the player minimizes back to the collection.
 # Self-cleaning (deletes the imported clips). Requires scripts/push-dev-samples.sh.
-appId: com.bmostudio.songseed.dev
+appId: com.bmostudio.songnook.dev
 ---
 - runFlow: ../subflows/open-library.yaml
 - tapOn: ".*Ideas.*"

@@ -3,7 +3,7 @@
  *
  * Contract highlights (brief §3–§5):
  *  - transferId is returned at CREATE, before any upload (the app stamps it into
- *    the .songstead manifest, then uploads).
+ *    the .songnook manifest, then uploads).
  *  - Nothing is fetchable until finalize.
  *  - Metadata works with no cookies / no Origin.
  *  - Files are opaque: we store bytes + name + mime, never inspect content.
@@ -114,7 +114,7 @@ api.post("/transfers/:id/items", async (c) => {
   const size = Number(body.size);
   if (!Number.isFinite(size) || size <= 0) return errorResponse(400, "invalid size");
 
-  // Content allowlist: audio + .songstead only, checked on extension AND mime.
+  // Content allowlist: audio + .songnook only, checked on extension AND mime.
   const allowed = checkUploadAllowed(fileName, mimeType);
   if (!allowed.ok) return errorResponse(415, allowed.reason ?? "file type not accepted");
 
@@ -191,14 +191,14 @@ api.post("/transfers/:id/finalize", async (c) => {
       await setItemSize(c.env, item.item_id, head.size);
     }
 
-    // A .songstead file must be a real zip (blocks arbitrary bytes renamed to
-    // .songstead). Cannot inspect INSIDE the zip — that's the opaque residual.
+    // A .songnook file must be a real zip (blocks arbitrary bytes renamed to
+    // .songnook). Cannot inspect INSIDE the zip — that's the opaque residual.
     if (requiresZipMagic(item.file_name)) {
       const obj = await c.env.BUCKET.get(item.r2_key, { range: { offset: 0, length: 4 } });
       const head4 = obj ? new Uint8Array(await obj.arrayBuffer()) : new Uint8Array();
       if (!looksLikeZip(head4)) {
         await deleteDraftAndObjects(c.env, transferId, items);
-        return errorResponse(415, `not a valid songstead file: ${item.file_name}`);
+        return errorResponse(415, `not a valid songnook file: ${item.file_name}`);
       }
     }
   }

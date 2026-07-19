@@ -8,7 +8,7 @@ function clip(id: string, overrides: Record<string, unknown> = {}) {
         notes: "",
         createdAt: 0,
         isPrimary: false,
-        audioUri: `songseed/audio/${id}.m4a`,
+        audioUri: `songnook/audio/${id}.m4a`,
         ...overrides,
     };
 }

@@ -4,7 +4,7 @@ _Copy everything below the line into the agent working on the app front end._
 
 ---
 
-You are continuing front-end work in the Songstead/Songnook app repo (`song-seed`,
+You are continuing front-end work in the SongNook/Songnook app repo (`song-nook`,
 branch **`feat/songnook-send`** — work on top of it). The "Songnook Send" transfer
 feature (WeTransfer-style share links) is **already built end-to-end and the backend
 is LIVE in production**. Your job is the remaining front-end polish and integration —
@@ -15,7 +15,7 @@ do NOT rebuild what exists.
 **Backend (live at `https://send.songnook.app`, code in `server/songnook-send/`,
 Cloudflare Worker + R2 + D1 + KV):** create → presigned upload → finalize →
 metadata → ranged download; branded sender/recipient web pages; content allowlist
-(audio + `.songstead` only, 415 otherwise); finalize-time size/zip verification;
+(audio + `.songnook` only, 415 otherwise); finalize-time size/zip verification;
 per-IP rate limits; 7-day expiry sweep. Wire contract (do not change unilaterally):
 `docs/product-plan/transfer-service-brief.md`. Only secrets are two R2 keys in
 Worker secrets — **never put any credential in app code**.
@@ -59,15 +59,15 @@ rebuild + real IDs. Don't burn time on it.
 ## Front-end work that REMAINS (your scope)
 
 1. **Receive-flow UI for a tapped link (pre-universal-link path).** Today a phone
-   user downloads the `.songstead` from the web page and opens it via the share
+   user downloads the `.songnook` from the web page and opens it via the share
    sheet. Add the in-app landing: a route/screen that, given a transfer URL or id,
    fetches `GET /api/transfers/:id` (no auth; see contract §3), shows the parcel
    (title, sender, note, items), downloads items with progress, and hands archives
-   to the existing import pipeline (`readSongSeedArchive` →
+   to the existing import pipeline (`readSongNookArchive` →
    `importLibraryArchiveIntoLibrary(parsed, { origin: "received" })` — see
    `useShareImportScreenModel.ts` for the pattern) deduped by `transferId`. Wire the
    deep-link route (`App.tsx` `linking` config — only `home`/`share-import` exist
-   today) so `songstead://` and later universal links can target it.
+   today) so `songnook://` and later universal links can target it.
 2. **Sent-links list in Settings** ("Settings → Sharing" per
    `docs/product-plan/sharing-and-received-architecture.md` R2): humble list from
    `useSentLinksStore` — title, kind, days left, copy, forget. Expired entries grey
@@ -85,9 +85,9 @@ rebuild + real IDs. Don't burn time on it.
 
 ## Constraints & gotchas
 
-- **Do not rename** `com.bmostudio.songseed`, `songseed` storage keys, or the
-  `.songstead` file extension (rebrand sweep is a separate task; server allowlist
-  expects `.songstead`).
+- **Do not rename** `com.bmostudio.songnook`, `songnook` storage keys, or the
+  `.songnook` file extension (rebrand sweep is a separate task; server allowlist
+  expects `.songnook`).
 - Sender name is currently always `null` (receiver sees "Someone") — a stored
   profile name is an OPEN product decision; don't invent one without asking.
 - Settings-import stays `origin: personal` (open decision — leave as is).
@@ -115,7 +115,7 @@ app base-URL config + universal-link app config (`associatedDomains` + Android
    (also placeholder). Get from the EAS credentials for the release keystore.
 3. **A native rebuild (EAS) + device install** — the only way to activate what's
    already configured but inert in JS: `associatedDomains`, the Android `/t/*`
-   intent filter, the `.songstead` iOS UTI, and the zip share-intent filters.
+   intent filter, the `.songnook` iOS UTI, and the zip share-intent filters.
    Nothing native-dependent (universal links, branded file type, share-intent
    receive) can be device-verified before this.
 4. **Real App Store numeric ID** — needs an App Store Connect record; replaces the
@@ -135,7 +135,7 @@ app base-URL config + universal-link app config (`associatedDomains` + Android
 8. Device-test the JS-only work already merged on this branch: the Library
    redesign, Received R1, and the send flow against prod — "Get a link" on a
    setlist/songbook → link created + copied → open the link in another device's
-   browser → download the `.songstead` → Settings→import → it lands in Received.
+   browser → download the `.songnook` → Settings→import → it lands in Received.
    (Universal-link auto-open is the one part that must wait for items 1–3.)
 
 ### Not owner work — remaining FRONT-END scope (the agent's, §"REMAINS" above)

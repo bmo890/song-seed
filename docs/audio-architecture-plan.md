@@ -1,6 +1,6 @@
 # Audio Architecture — Roadmap (Plan A done · B & scrubbing pending)
 
-This document tracks the staged refactor of Song Seed's audio playback system.
+This document tracks the staged refactor of SongNook's audio playback system.
 It exists because playback bugs (player not persisting on minimize, laggy/imprecise
 scrubbing, "insecure"-feeling waveform) trace back to **architecture**, not to
 isolated bugs.
@@ -390,7 +390,7 @@ it.
 ## 📋 Copy-paste continuation prompt (for a fresh session)
 
 ```
-We're continuing the Song Seed audio architecture refactor. Read
+We're continuing the SongNook audio architecture refactor. Read
 docs/audio-architecture-plan.md for full context first.
 
 STATUS: Plan A (lift the full player to a root FullPlayerProvider) is implemented and

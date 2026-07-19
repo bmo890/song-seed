@@ -1,5 +1,5 @@
 import { Platform } from "react-native";
-import SongseedMetronomeModule from "../../modules/songseed-metronome";
+import SongNookMetronomeModule from "../../modules/songnook-metronome";
 import {
   getBluetoothMonitoringCalibrationForRoute,
   buildBluetoothMonitoringRouteKey,
@@ -225,9 +225,9 @@ export async function resolveCurrentRouteLatencyProfile(args: {
   clickLoopBarMs?: number | null;
 }): Promise<RouteLatencyProfile> {
   const [route, osLatency] = await Promise.all([
-    SongseedMetronomeModule?.getCurrentAudioOutputRoute?.().catch(() => null) ??
+    SongNookMetronomeModule?.getCurrentAudioOutputRoute?.().catch(() => null) ??
       Promise.resolve(null),
-    SongseedMetronomeModule?.getCurrentAudioRouteLatencyMs?.().catch(() => null) ??
+    SongNookMetronomeModule?.getCurrentAudioRouteLatencyMs?.().catch(() => null) ??
       Promise.resolve(null),
   ]);
 

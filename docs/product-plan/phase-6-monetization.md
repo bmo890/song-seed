@@ -1,4 +1,4 @@
-# Phase 6 — Monetization (Song Seed Pro)
+# Phase 6 — Monetization (SongNook Pro)
 
 **Effort:** ~2 weeks · **Timing:** 2–4 weeks **after** launch — ship v1.0 fully free, accumulate reviews and a usage baseline first. Launching a paywall and a new app simultaneously doubles first-impression risk. · **Dependencies:** launched app; Apple/Google merchant agreements signed (do the paperwork during the wait — it has lead time)
 
@@ -47,7 +47,7 @@ Every gate shows the **same upsell sheet** (6.4) — no bespoke paywalls per fea
 
 ### 6.4 Paywall screen
 
-One `ProUpsellSheet` (bottom sheet, full-height): PlayfairDisplay headline ("Grow every idea"), feature list with icons (the six Pro rows), price cards (annual highlighted, monthly, lifetime), trial copy, restore-purchases link, terms/privacy links (required by Apple), close affordance (Apple rejects paywalls that trap). Style: paper/terracotta, SurfaceCard price cards, no dark patterns (no fake countdowns/preselected trials-into-annual tricks). Entry points: every gate + a "Song Seed Pro" row in Settings.
+One `ProUpsellSheet` (bottom sheet, full-height): PlayfairDisplay headline ("Grow every idea"), feature list with icons (the six Pro rows), price cards (annual highlighted, monthly, lifetime), trial copy, restore-purchases link, terms/privacy links (required by Apple), close affordance (Apple rejects paywalls that trap). Style: paper/terracotta, SurfaceCard price cards, no dark patterns (no fake countdowns/preselected trials-into-annual tricks). Entry points: every gate + a "SongNook Pro" row in Settings.
 
 ### 6.5 Pro state surfaces
 

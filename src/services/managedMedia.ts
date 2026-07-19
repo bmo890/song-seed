@@ -2,10 +2,10 @@ import * as FileSystem from "expo-file-system/legacy";
 import type { ClipVersion, SongIdea, Workspace } from "../types";
 import {
     isManagedPreviewAudioUri,
-    SONG_SEED_SHARE_DIR,
-    SONG_SEED_TRASH_DIR,
+    SONG_NOOK_SHARE_DIR,
+    SONG_NOOK_TRASH_DIR,
     isManagedAudioUri,
-    isSongSeedManagedUri,
+    isSongNookManagedUri,
     resolveManagedUri,
     toRelativeManagedPath,
     waveformSidecarUri,
@@ -110,7 +110,7 @@ export function filterUnreferencedManagedAudioUris(
 
 /** Permanently remove a managed file. For transient artifacts (share temp files) only. */
 async function hardDeleteFileIfManaged(uri: string) {
-    if (!isSongSeedManagedUri(uri)) {
+    if (!isSongNookManagedUri(uri)) {
         return;
     }
 
@@ -124,9 +124,9 @@ async function hardDeleteFileIfManaged(uri: string) {
 let trashDirEnsured = false;
 async function ensureTrashDir() {
     if (trashDirEnsured) return;
-    const info = await FileSystem.getInfoAsync(SONG_SEED_TRASH_DIR);
+    const info = await FileSystem.getInfoAsync(SONG_NOOK_TRASH_DIR);
     if (!info.exists) {
-        await FileSystem.makeDirectoryAsync(SONG_SEED_TRASH_DIR, { intermediates: true });
+        await FileSystem.makeDirectoryAsync(SONG_NOOK_TRASH_DIR, { intermediates: true });
     }
     trashDirEnsured = true;
 }
@@ -138,7 +138,7 @@ async function ensureTrashDir() {
  * TRASH_RETENTION_MS by `purgeExpiredTrash`.
  */
 async function trashFileIfManaged(uri: string): Promise<boolean> {
-    if (!isSongSeedManagedUri(uri)) {
+    if (!isSongNookManagedUri(uri)) {
         return false;
     }
     try {
@@ -146,7 +146,7 @@ async function trashFileIfManaged(uri: string): Promise<boolean> {
         if (!info.exists) return true;
         await ensureTrashDir();
         const basename = uri.split("/").pop() || "audio";
-        const trashUri = `${SONG_SEED_TRASH_DIR}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}-${basename}`;
+        const trashUri = `${SONG_NOOK_TRASH_DIR}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}-${basename}`;
         await FileSystem.moveAsync({ from: uri, to: trashUri });
         return true;
     } catch (error) {
@@ -191,14 +191,14 @@ export async function cleanupShareTempFile(fileUri: string) {
  */
 export async function purgeExpiredTrash(maxAgeMs = TRASH_RETENTION_MS) {
     try {
-        const trashInfo = await FileSystem.getInfoAsync(SONG_SEED_TRASH_DIR);
+        const trashInfo = await FileSystem.getInfoAsync(SONG_NOOK_TRASH_DIR);
         if (!trashInfo.exists) return;
 
         const now = Date.now();
-        const filenames = await FileSystem.readDirectoryAsync(SONG_SEED_TRASH_DIR);
+        const filenames = await FileSystem.readDirectoryAsync(SONG_NOOK_TRASH_DIR);
         await Promise.all(
             filenames.map(async (filename) => {
-                const uri = `${SONG_SEED_TRASH_DIR}/${filename}`;
+                const uri = `${SONG_NOOK_TRASH_DIR}/${filename}`;
                 try {
                     // Filenames are prefixed with the trash timestamp; prefer it, fall back to mtime.
                     const stampMatch = /^(\d{10,})-/.exec(filename);
@@ -229,16 +229,16 @@ export async function purgeExpiredTrash(maxAgeMs = TRASH_RETENTION_MS) {
 
 export async function cleanupStaleShareTempFiles(maxAgeMs = SHARE_TEMP_FILE_MAX_AGE_MS) {
     try {
-        const shareDirInfo = await FileSystem.getInfoAsync(SONG_SEED_SHARE_DIR);
+        const shareDirInfo = await FileSystem.getInfoAsync(SONG_NOOK_SHARE_DIR);
         if (!shareDirInfo.exists) {
             return;
         }
 
         const now = Date.now();
-        const filenames = await FileSystem.readDirectoryAsync(SONG_SEED_SHARE_DIR);
+        const filenames = await FileSystem.readDirectoryAsync(SONG_NOOK_SHARE_DIR);
         await Promise.all(
             filenames.map(async (filename) => {
-                const uri = `${SONG_SEED_SHARE_DIR}/${filename}`;
+                const uri = `${SONG_NOOK_SHARE_DIR}/${filename}`;
                 try {
                     const info = await FileSystem.getInfoAsync(uri);
                     if (!info.exists) return;

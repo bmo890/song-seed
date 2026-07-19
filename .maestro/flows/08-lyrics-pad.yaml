@@ -3,7 +3,7 @@
 # the index (tap "New Page" to get an editor). We type a line, confirm it renders
 # (autosaved into the note), then clear it so the flow leaves an empty page.
 # Exercises the notepad editor text input and autosave.
-appId: com.bmostudio.songseed.dev
+appId: com.bmostudio.songnook.dev
 ---
 - runFlow: ../subflows/open-library.yaml
 - tapOn:

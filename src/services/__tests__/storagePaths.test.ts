@@ -1,8 +1,8 @@
-// Use a document directory whose own path contains the substring "songseed" — exactly the
-// real-world Android case (package `com.anonymous.songseed`). This is what surfaced the
-// accreting-path corruption bug; a base without "songseed" hid it.
+// Use a document directory whose own path contains the substring "songnook" — exactly the
+// real-world Android case (package `com.anonymous.songnook`). This is what surfaced the
+// accreting-path corruption bug; a base without "songnook" hid it.
 jest.mock("expo-file-system/legacy", () => ({
-    documentDirectory: "file:///data/user/0/com.anonymous.songseed/files/",
+    documentDirectory: "file:///data/user/0/com.anonymous.songnook/files/",
 }));
 
 import {
@@ -12,14 +12,14 @@ import {
     repairManagedPathCorruption,
 } from "../storagePaths";
 
-const BASE = "file:///data/user/0/com.anonymous.songseed/files/";
-const STALE = "file:///var/mobile/Containers/Data/Application/OLD-UUID/Documents/songseed/audio/clip-1.m4a";
-const CURRENT = `${BASE}songseed/audio/clip-1.m4a`;
+const BASE = "file:///data/user/0/com.anonymous.songnook/files/";
+const STALE = "file:///var/mobile/Containers/Data/Application/OLD-UUID/Documents/songnook/audio/clip-1.m4a";
+const CURRENT = `${BASE}songnook/audio/clip-1.m4a`;
 
 describe("managed path helpers", () => {
     it("extracts the container-independent relative path", () => {
-        expect(toRelativeManagedPath(STALE)).toBe("songseed/audio/clip-1.m4a");
-        expect(toRelativeManagedPath(CURRENT)).toBe("songseed/audio/clip-1.m4a");
+        expect(toRelativeManagedPath(STALE)).toBe("songnook/audio/clip-1.m4a");
+        expect(toRelativeManagedPath(CURRENT)).toBe("songnook/audio/clip-1.m4a");
     });
 
     it("returns null for non-managed and empty URIs", () => {
@@ -28,15 +28,15 @@ describe("managed path helpers", () => {
         expect(toRelativeManagedPath(null)).toBeNull();
     });
 
-    it("does not mistake the 'songseed' in the container/package name for the managed root", () => {
-        // The first literal "songseed/" in CURRENT is inside `com.anonymous.songseed/`.
-        // A bare indexOf would have returned "songseed/files/songseed/audio/clip-1.m4a".
-        expect(toRelativeManagedPath(CURRENT)).toBe("songseed/audio/clip-1.m4a");
+    it("does not mistake the 'songnook' in the container/package name for the managed root", () => {
+        // The first literal "songnook/" in CURRENT is inside `com.anonymous.songnook/`.
+        // A bare indexOf would have returned "songnook/files/songnook/audio/clip-1.m4a".
+        expect(toRelativeManagedPath(CURRENT)).toBe("songnook/audio/clip-1.m4a");
     });
 
     it("resolves a relative managed path against the live document directory", () => {
-        expect(resolveManagedUri("songseed/audio/clip-1.m4a")).toBe(CURRENT);
-        expect(resolveManagedUri("/songseed/audio/clip-1.m4a")).toBe(CURRENT);
+        expect(resolveManagedUri("songnook/audio/clip-1.m4a")).toBe(CURRENT);
+        expect(resolveManagedUri("/songnook/audio/clip-1.m4a")).toBe(CURRENT);
     });
 
     it("rebases a stale absolute managed URI onto the live container", () => {
@@ -50,25 +50,25 @@ describe("managed path helpers", () => {
         expect(rebaseManagedUri(null)).toBeNull();
     });
 
-    describe("songseed/files/ corruption repair", () => {
-        const corruptManaged = `${BASE}songseed/files/songseed/files/songseed/audio/clip-1.m4a`;
-        const corruptNonManaged = `${BASE}songseed/files/songseed/files/recording_42.wav`;
+    describe("songnook/files/ corruption repair", () => {
+        const corruptManaged = `${BASE}songnook/files/songnook/files/songnook/audio/clip-1.m4a`;
+        const corruptNonManaged = `${BASE}songnook/files/songnook/files/recording_42.wav`;
 
-        it("collapses accreted songseed/files/ segments for managed audio", () => {
-            expect(repairManagedPathCorruption(corruptManaged)).toBe(`${BASE}songseed/audio/clip-1.m4a`);
+        it("collapses accreted songnook/files/ segments for managed audio", () => {
+            expect(repairManagedPathCorruption(corruptManaged)).toBe(`${BASE}songnook/audio/clip-1.m4a`);
         });
 
         it("recovers the original non-managed path (file lived in the docs root)", () => {
             expect(repairManagedPathCorruption(corruptNonManaged)).toBe(`${BASE}recording_42.wav`);
         });
 
-        it("never touches the 'songseed' inside the package name", () => {
+        it("never touches the 'songnook' inside the package name", () => {
             expect(repairManagedPathCorruption(CURRENT)).toBe(CURRENT);
             expect(repairManagedPathCorruption(`${BASE}recording_42.wav`)).toBe(`${BASE}recording_42.wav`);
         });
 
         it("rebaseManagedUri heals corrupted managed and non-managed paths", () => {
-            expect(rebaseManagedUri(corruptManaged)).toBe(`${BASE}songseed/audio/clip-1.m4a`);
+            expect(rebaseManagedUri(corruptManaged)).toBe(`${BASE}songnook/audio/clip-1.m4a`);
             expect(rebaseManagedUri(corruptNonManaged)).toBe(`${BASE}recording_42.wav`);
         });
 

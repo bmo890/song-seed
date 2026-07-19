@@ -4,7 +4,7 @@ import { createAudioPlayer } from "expo-audio";
 import { Platform, Share } from "react-native";
 import { computeWaveformPeaks, computeWaveformWithNativeDuration, getNativeAudioDurationMs, type WaveformDecodeMode } from "./waveformAnalysis";
 import { buildDefaultIdeaTitle, buildStaticWaveform } from "../utils";
-import { SONG_SEED_AUDIO_DIR, SONG_SEED_PREVIEW_AUDIO_DIR, SONG_SEED_SHARE_DIR } from "./storagePaths";
+import { SONG_NOOK_AUDIO_DIR, SONG_NOOK_PREVIEW_AUDIO_DIR, SONG_NOOK_SHARE_DIR } from "./storagePaths";
 import { cleanupShareTempFile } from "./managedMedia";
 import { createZipArchive, type ZipArchiveEntry } from "./zipArchive";
 
@@ -180,9 +180,9 @@ export async function ensureShareDirectory() {
         throw new Error("Document directory unavailable.");
     }
 
-    const info = await FileSystem.getInfoAsync(SONG_SEED_SHARE_DIR);
+    const info = await FileSystem.getInfoAsync(SONG_NOOK_SHARE_DIR);
     if (!info.exists) {
-        await FileSystem.makeDirectoryAsync(SONG_SEED_SHARE_DIR, { intermediates: true });
+        await FileSystem.makeDirectoryAsync(SONG_NOOK_SHARE_DIR, { intermediates: true });
     }
 }
 
@@ -392,9 +392,9 @@ async function ensureAudioDirectory() {
         throw new Error("Document directory unavailable.");
     }
 
-    const info = await FileSystem.getInfoAsync(SONG_SEED_AUDIO_DIR);
+    const info = await FileSystem.getInfoAsync(SONG_NOOK_AUDIO_DIR);
     if (!info.exists) {
-        await FileSystem.makeDirectoryAsync(SONG_SEED_AUDIO_DIR, { intermediates: true });
+        await FileSystem.makeDirectoryAsync(SONG_NOOK_AUDIO_DIR, { intermediates: true });
     }
 }
 
@@ -403,9 +403,9 @@ export async function ensurePreviewAudioDirectory() {
         throw new Error("Document directory unavailable.");
     }
 
-    const info = await FileSystem.getInfoAsync(SONG_SEED_PREVIEW_AUDIO_DIR);
+    const info = await FileSystem.getInfoAsync(SONG_NOOK_PREVIEW_AUDIO_DIR);
     if (!info.exists) {
-        await FileSystem.makeDirectoryAsync(SONG_SEED_PREVIEW_AUDIO_DIR, { intermediates: true });
+        await FileSystem.makeDirectoryAsync(SONG_NOOK_PREVIEW_AUDIO_DIR, { intermediates: true });
     }
 }
 
@@ -481,7 +481,7 @@ export async function importAudioAsset(
     await ensureAudioDirectory();
 
     const extension = getFileExtension(asset.name, asset.mimeType);
-    const destinationUri = `${SONG_SEED_AUDIO_DIR}/${targetId}.${extension}`;
+    const destinationUri = `${SONG_NOOK_AUDIO_DIR}/${targetId}.${extension}`;
     const copiedToManagedStorage = asset.uri !== destinationUri;
 
     try {
@@ -588,7 +588,7 @@ export async function shareAudioFile(audioUri: string, title: string) {
 
     const extension = getArchiveFileExtension(audioUri);
     const baseName = sanitizeArchiveSegment(title || "Clip");
-    const shareUri = `${SONG_SEED_SHARE_DIR}/${baseName} ${buildTimestampSlug()}-${Math.random().toString(36).slice(2, 7)}.${extension}`;
+    const shareUri = `${SONG_NOOK_SHARE_DIR}/${baseName} ${buildTimestampSlug()}-${Math.random().toString(36).slice(2, 7)}.${extension}`;
 
     try {
         await FileSystem.copyAsync({ from: audioUri, to: shareUri });
@@ -598,7 +598,7 @@ export async function shareAudioFile(audioUri: string, title: string) {
     }
 }
 
-export async function shareAudioClips(clips: ShareableAudioClip[], bundleLabel = "SongSeed Clips") {
+export async function shareAudioClips(clips: ShareableAudioClip[], bundleLabel = "SongNook Clips") {
     if (clips.length === 0) {
         throw new Error("No audio clips selected to share.");
     }
@@ -632,7 +632,7 @@ export async function shareAudioClips(clips: ShareableAudioClip[], bundleLabel =
     });
 
     const archiveTitle = `${sanitizeArchiveSegment(bundleLabel)} ${buildTimestampSlug()}`;
-    const archiveUri = `${SONG_SEED_SHARE_DIR}/${archiveTitle}.zip`;
+    const archiveUri = `${SONG_NOOK_SHARE_DIR}/${archiveTitle}.zip`;
 
     try {
         await createZipArchive(archiveUri, archiveEntries);

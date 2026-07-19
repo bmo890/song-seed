@@ -29,7 +29,7 @@ const mocked = {
   getState: useSentLinksStore.getState as jest.Mock,
 };
 
-const fakeArgs = { format: "songstead-archive" } as unknown as libraryExport.ExportLibraryArgs;
+const fakeArgs = { format: "songnook-archive" } as unknown as libraryExport.ExportLibraryArgs;
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -39,9 +39,9 @@ beforeEach(() => {
     expiresAt: "2026-08-01T00:00:00.000Z",
   });
   mocked.prepare.mockResolvedValue({
-    archiveUri: "file:///share/Set.songstead",
+    archiveUri: "file:///share/Set.songnook",
     archiveTitle: "Set",
-    archiveExtension: "songstead",
+    archiveExtension: "songnook",
   });
   mocked.fileSize.mockResolvedValue(4242);
   mocked.registerAndUploadFile.mockResolvedValue("i_1");
@@ -79,13 +79,13 @@ describe("createShareLink", () => {
     expect(prepareOrder).toBeLessThan(uploadOrder);
     expect(uploadOrder).toBeLessThan(finalizeOrder);
 
-    // Uploads the prepared archive as an opaque .songstead file.
+    // Uploads the prepared archive as an opaque .songnook file.
     expect(mocked.registerAndUploadFile).toHaveBeenCalledWith(
       "t_ABC",
       "ut_SECRET",
       {
-        fileUri: "file:///share/Set.songstead",
-        fileName: "Set.songstead",
+        fileUri: "file:///share/Set.songnook",
+        fileName: "Set.songnook",
         mimeType: "application/octet-stream",
         size: 4242,
       }

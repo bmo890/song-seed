@@ -4,7 +4,7 @@
 # and renders, backing out each time (returning to a tool closes the sheet, so it's
 # re-opened between tools). Catches crashes in the spark entry and the tool screens.
 # Note: leaves a "spark seed" note behind (wiped by flow 01's clearState in-suite).
-appId: com.bmostudio.songseed.dev
+appId: com.bmostudio.songnook.dev
 ---
 - runFlow: ../subflows/open-library.yaml
 - tapOn:

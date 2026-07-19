@@ -29,7 +29,7 @@ export type PersistStorageValue = {
 };
 
 /** Marks a meta row as the sharded format (absent on legacy monolithic blobs). */
-export const SHARD_MARKER = "__songseedShardedV1";
+export const SHARD_MARKER = "__songnookShardedV1";
 
 type ShardedMeta = {
     [SHARD_MARKER]: true;

@@ -21,14 +21,14 @@
 | SHELL-17 | Destructive dialog styling | Trigger any delete confirm | Warm-paper card, red destructive label/icon, cancel present; warning haptic fires | PARTIAL | iOS+Android | P1 |
 | SHELL-18 | Dialog dismiss rules | Open confirm w/ cancel → tap scrim; open info dialog w/o cancel → tap scrim | Scrim tap (and Android back) dismisses only when a cancel button exists | AUTO | iOS+Android | P2 |
 | SHELL-19 | Dialog button layouts | Trigger 2-button, 3-button, and rich (description) dialogs | 2 plain = side-by-side; 1 or 3+ stack; rich rows show icon+label+description | AUTO | iOS+Android | P3 |
-| SHELL-20 | Paywall open from Settings | Settings → Songstead Pro upsell row | Bottom sheet: "Grow every idea", 6 feature rows, 3 plan cards, Annual preselected w/ "Best value" tag | AUTO | iOS+Android | P1 |
+| SHELL-20 | Paywall open from Settings | Settings → SongNook Pro upsell row | Bottom sheet: "Grow every idea", 6 feature rows, 3 plan cards, Annual preselected w/ "Best value" tag | AUTO | iOS+Android | P1 |
 | SHELL-21 | Paywall plan select | Tap Monthly → tap Lifetime → tap Annual | Selection highlight moves; CTA reads "Get Lifetime" for lifetime, else "Start free trial" | AUTO | iOS+Android | P2 |
 | SHELL-22 | Paywall CTA (billing stub) | Select any plan → tap CTA | Info alert: purchasing not available, "preview of the upgrade"; sheet stays open after dismissing alert | AUTO | iOS+Android | P1 |
 | SHELL-23 | Paywall restore (stub) | Paywall → tap Restore | "There are no purchases to restore yet" alert; sheet stays open | AUTO | iOS+Android | P2 |
 | SHELL-24 | Paywall Terms/Privacy links | Paywall → tap Terms; tap Privacy | External browser opens the hosted terms/privacy pages; returning to app keeps sheet open | AUTO-A | iOS+Android | P3 |
 | SHELL-25 | Paywall dismiss gestures | Open paywall → drag sheet down; reopen → tap backdrop | Both dismiss the sheet; underlying screen untouched; reopening shows fresh default (Annual) selection | AUTO | iOS+Android | P2 |
 | SHELL-26 | Settings Restore purchases row | Settings → Pro section → Restore purchases | Result alert shown (stub: nothing to restore); no crash, no entitlement change | AUTO | iOS+Android | P2 |
-| SHELL-27 | Dev Pro override | Dev build: enable entitlement override → revisit Settings + a gated feature | Settings shows "Songstead Pro · Active"; gated features proceed without paywall | AUTO | iOS+Android | P2 |
+| SHELL-27 | Dev Pro override | Dev build: enable entitlement override → revisit Settings + a gated feature | Settings shows "SongNook Pro · Active"; gated features proceed without paywall | AUTO | iOS+Android | P2 |
 | SHELL-28 | Tuner open + grant mic | Drawer → Tuner → grant mic permission | Listening state; dial shows "--" idle; helper text visible; no error | AUTO | iOS+Android | P1 |
 | SHELL-29 | Tuner deny (re-askable) | Fresh permission → deny at prompt | Inline error "needs microphone access… Tap to try again"; tap re-prompts | AUTO-A | iOS+Android | P2 |
 | SHELL-30 | Tuner permanently denied | Deny in system settings → open Tuner → tap error → enable mic in Settings → return to app | Error says "disabled in system settings. Tap to open settings"; tap opens OS settings; on foreground return tuner auto-starts listening | HUMAN | iOS+Android | P2 |
@@ -47,9 +47,9 @@
 | SHELL-43 | Remove saved calibration | With a saved calibration → tap remove | Confirm dialog "Remove/Keep" naming the route; Remove deletes entry, Keep does nothing | HUMAN | iOS+Android | P3 |
 | SHELL-44 | Interrupt calibration | Mid-pass → press back / disconnect headphones | Pass aborts cleanly, no stuck audio, screen recovers to idle with error or reset state | HUMAN | iOS+Android | P3 |
 | SHELL-45 | Store-review prompt | ≥10 saved clips, ≥5 days post-install, no ask in 120d → save a clip | OS review dialog may appear once; never re-asks within cooldown; save flow never blocked if API missing | HUMAN | iOS+Android | P3 |
-| SHELL-46 | Deep link scheme | With app cold and warm: open songstead://home | App opens/foregrounds to Home; no crash; nav state sane afterwards | AUTO-A | iOS+Android | P2 |
-| SHELL-47 | Invalid deep link | Open songstead://nonexistent-path | App opens normally (fallback nav), no crash, no blank screen | AUTO-A | iOS+Android | P3 |
-| SHELL-48 | Share-intent redirect | Share an audio file from another app to Songstead | App routes to ShareImport screen (not Home); after import/cancel, reset returns to Home | HUMAN | iOS+Android | P1 |
+| SHELL-46 | Deep link scheme | With app cold and warm: open songnook://home | App opens/foregrounds to Home; no crash; nav state sane afterwards | AUTO-A | iOS+Android | P2 |
+| SHELL-47 | Invalid deep link | Open songnook://nonexistent-path | App opens normally (fallback nav), no crash, no blank screen | AUTO-A | iOS+Android | P3 |
+| SHELL-48 | Share-intent redirect | Share an audio file from another app to SongNook | App routes to ShareImport screen (not Home); after import/cancel, reset returns to Home | HUMAN | iOS+Android | P1 |
 | SHELL-49 | Help sheet basics | Open a Help button (e.g. Recording help) → read → drag down / tap backdrop | Sheet lists icon+label+description items matching real behavior; both dismiss gestures work | AUTO | iOS+Android | P3 |
 | SHELL-50 | Empty state teaching | Open a surface with no content (fresh collection/search no results) | EmptyState: muted icon, title, body, optional action button that works — never a blank void | AUTO | iOS+Android | P3 |
 | SHELL-51 | Dev menu access | Dev build: shake device / adb dev menu | Dev menu opens; entitlement override + debug tools reachable; not present in release builds | HUMAN | iOS+Android | P3 |

@@ -1,5 +1,5 @@
 import { extractPreview } from "@siteed/audio-studio";
-import SongseedPitchShiftModule from "../../modules/songseed-pitch-shift";
+import SongNookPitchShiftModule from "../../modules/songnook-pitch-shift";
 import { isForegroundAudioBusy, waitForForegroundAudioIdle } from "./audioForegroundActivity";
 import { metersToWaveformPeaks, quantizeWaveformPeak } from "../utils";
 
@@ -79,7 +79,7 @@ export function cancelActiveWaveformDecode(): void {
   cancelEpoch += 1;
   if (activeDecodeMode !== "background") return;
   try {
-    SongseedPitchShiftModule?.cancelActiveWaveform?.(cancelEpoch);
+    SongNookPitchShiftModule?.cancelActiveWaveform?.(cancelEpoch);
   } catch {
     // Best-effort: an older native build without the cancel hook just finishes its decode.
   }
@@ -179,7 +179,7 @@ async function computeWaveformPeaksUnserialized(
 ): Promise<number[]> {
   if (!durationMs || durationMs <= 0) return [];
 
-  const native = SongseedPitchShiftModule;
+  const native = SongNookPitchShiftModule;
   if (native?.computeWaveform) {
     try {
       const result = await native.computeWaveform({
@@ -235,7 +235,7 @@ async function computeWaveformWithNativeDurationUnserialized(
   numberOfPoints: number,
   epoch?: number
 ): Promise<{ peaks: number[]; durationMs?: number }> {
-  const native = SongseedPitchShiftModule;
+  const native = SongNookPitchShiftModule;
   if (!native?.computeWaveform) {
     return { peaks: [] };
   }
@@ -281,7 +281,7 @@ async function computeWaveformWithNativeDurationUnserialized(
  * this method existed.
  */
 export async function getNativeAudioDurationMs(audioUri: string): Promise<number | undefined> {
-  const native = SongseedPitchShiftModule;
+  const native = SongNookPitchShiftModule;
   if (!native?.getAudioDurationMs) return undefined;
   try {
     const result = await native.getAudioDurationMs({ inputUri: audioUri });

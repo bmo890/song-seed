@@ -2,7 +2,7 @@
 # toggles, and Back returns to the collection. Actual mic capture is HUMAN (Sim has no
 # real mic) — this covers screen-open + control UI + navigation, which catches the common
 # "recording screen crashes / controls missing / back is broken" regressions.
-appId: com.bmostudio.songseed.dev
+appId: com.bmostudio.songnook.dev
 ---
 - launchApp:
     stopApp: true

@@ -10,8 +10,8 @@ import { purchasePro, restorePurchases, type ProPlan } from "../../services/bill
 // TODO(owner): confirm these once the privacy policy is hosted (OWNER-TODO §3) and a terms
 // page exists. Apple requires functional Terms + Privacy links on a live paywall; the sheet
 // is never shown to real users until billing lands, so placeholders are fine until then.
-const PRIVACY_URL = "https://bmo890.github.io/song-seed/privacy-policy";
-const TERMS_URL = "https://bmo890.github.io/song-seed/terms";
+const PRIVACY_URL = "https://bmo890.github.io/song-nook/privacy-policy";
+const TERMS_URL = "https://bmo890.github.io/song-nook/terms";
 
 type FeatureRow = { icon: keyof typeof Ionicons.glyphMap; title: string; blurb: string };
 
@@ -71,7 +71,7 @@ function ProUpsellSheetBody({ onClose }: { onClose: () => void }) {
                 showsVerticalScrollIndicator={false}
                 contentContainerStyle={styles.scrollContent}
             >
-                <Text style={styles.eyebrow}>SONGSTEAD PRO</Text>
+                <Text style={styles.eyebrow}>SONGNOOK PRO</Text>
                 <Text style={styles.headline}>Grow every idea</Text>
                 <Text style={styles.subhead}>
                     Capturing is always free. Pro unlocks the tools that turn a scrap into a song.

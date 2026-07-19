@@ -1,7 +1,7 @@
 import { createHash } from "crypto";
 
 const mockFiles = new Map<string, Uint8Array>();
-const mockDirectories = new Set<string>(["file:///doc/", "file:///doc/songseed"]);
+const mockDirectories = new Set<string>(["file:///doc/", "file:///doc/songnook"]);
 const mockCreateZipArchive = jest.fn<Promise<void>, [string, unknown[], unknown?]>(async () => {});
 const mockGetFreeDiskStorageAsync = jest.fn(async () => 10 * 1024 * 1024 * 1024);
 
@@ -29,7 +29,7 @@ const mockSnapshot = {
                             notes: "",
                             createdAt: 0,
                             isPrimary: true,
-                            audioUri: "file:///doc/songseed/audio/clip-1.m4a",
+                            audioUri: "file:///doc/songnook/audio/clip-1.m4a",
                         },
                     ],
                 },
@@ -129,7 +129,7 @@ import {
     estimateStoredZipArchiveBytes,
 } from "../disasterRecoveryBackup";
 
-const AUDIO_URI = "file:///doc/songseed/audio/clip-1.m4a";
+const AUDIO_URI = "file:///doc/songnook/audio/clip-1.m4a";
 
 beforeEach(() => {
     mockFiles.clear();
@@ -142,7 +142,7 @@ describe("buildDisasterRecoveryBackup", () => {
     it("counts headers and metadata when enforcing the ZIP32 archive limit", () => {
         const archiveBytes = estimateStoredZipArchiveBytes([
             {
-                archiveName: "media/songseed/audio/almost-four-gigabytes.m4a",
+                archiveName: "media/songnook/audio/almost-four-gigabytes.m4a",
                 fileUri: AUDIO_URI,
                 sizeBytes: 0xffffffff - 32,
                 crc32: 0,
@@ -155,7 +155,7 @@ describe("buildDisasterRecoveryBackup", () => {
         expect(() =>
             assertZip32ArchiveSize([
                 {
-                    archiveName: "media/songseed/audio/almost-four-gigabytes.m4a",
+                    archiveName: "media/songnook/audio/almost-four-gigabytes.m4a",
                     fileUri: AUDIO_URI,
                     sizeBytes: 0xffffffff - 32,
                     crc32: 0,
@@ -175,7 +175,7 @@ describe("buildDisasterRecoveryBackup", () => {
         expect(result.manifest.status).toBe("complete");
         expect(result.manifest.files).toEqual([
             expect.objectContaining({
-                path: "songseed/audio/clip-1.m4a",
+                path: "songnook/audio/clip-1.m4a",
                 sizeBytes: bytes.length,
                 sha256: createHash("sha256")
                     .update(Buffer.from(bytes).toString("base64"))
@@ -186,7 +186,7 @@ describe("buildDisasterRecoveryBackup", () => {
         expect(entries).toEqual(
             expect.arrayContaining([
                 expect.objectContaining({
-                    archiveName: "media/songseed/audio/clip-1.m4a",
+                    archiveName: "media/songnook/audio/clip-1.m4a",
                     fileUri: AUDIO_URI,
                     sizeBytes: bytes.length,
                     crc32: expect.any(Number),
@@ -208,7 +208,7 @@ describe("buildDisasterRecoveryBackup", () => {
             archiveState: {
                 schemaVersion: 2,
                 archivedAt: 1,
-                archiveUri: "file:///doc/songseed/workspace-archives/gone.songstead-workspace.zip",
+                archiveUri: "file:///doc/songnook/workspace-archives/gone.songnook-workspace.zip",
                 packageSizeBytes: 10,
                 originalAudioBytes: 10,
                 originalMetadataBytes: 1,
@@ -217,7 +217,7 @@ describe("buildDisasterRecoveryBackup", () => {
                 audioFileCount: 1,
                 missingFileCount: 0,
                 offloadedAt: 123,
-                offloadedFileName: "gone.songstead-workspace.zip",
+                offloadedFileName: "gone.songnook-workspace.zip",
             },
         } as never);
 

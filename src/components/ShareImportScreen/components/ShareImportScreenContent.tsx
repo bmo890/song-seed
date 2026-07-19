@@ -20,7 +20,7 @@ export function ShareImportScreenContent({
   const currentCollection = model.currentCollection;
   const currentCollectionWorkspace = model.currentCollectionWorkspace;
 
-  // An incoming .songstead/.zip archive (a shared songbook, setlist, or library
+  // An incoming .songnook/.zip archive (a shared songbook, setlist, or library
   // export) takes over the screen — it's a different flow from audio files.
   if (model.sharedArchive) {
     return (
@@ -28,7 +28,7 @@ export function ShareImportScreenContent({
         <ScreenHeader title="Import from Share" leftIcon="back" onLeftPress={model.closeScreen} />
         <PageIntro
           title="Someone sent you music"
-          subtitle="A Songstead file — a shared songbook, setlist, or library export. Imports land as their own Library entry, kept apart from your collections."
+          subtitle="A SongNook file — a shared songbook, setlist, or library export. Imports land as their own Library entry, kept apart from your collections."
         />
         <View style={archiveStyles.card}>
           <View style={archiveStyles.fileRow}>
@@ -36,7 +36,7 @@ export function ShareImportScreenContent({
               <Ionicons name="albums-outline" size={20} color={colors.primaryDeep} />
             </View>
             <Text style={archiveStyles.fileName} numberOfLines={1}>
-              {model.sharedArchive.name ?? "Songstead archive"}
+              {model.sharedArchive.name ?? "SongNook archive"}
             </Text>
           </View>
           <View style={archiveStyles.actions}>

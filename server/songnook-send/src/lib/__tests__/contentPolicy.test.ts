@@ -9,10 +9,10 @@ test("accepts audio by extension + mime", () => {
   assert.equal(checkUploadAllowed("rough.mp3", "application/octet-stream").ok, true);
 });
 
-test("accepts .songstead with archive mime only", () => {
-  assert.equal(checkUploadAllowed("Set.songstead", "application/octet-stream").ok, true);
-  assert.equal(checkUploadAllowed("Set.songstead", "application/zip").ok, true);
-  assert.equal(checkUploadAllowed("Set.songstead", "video/mp4").ok, false);
+test("accepts .songnook with archive mime only", () => {
+  assert.equal(checkUploadAllowed("Set.songnook", "application/octet-stream").ok, true);
+  assert.equal(checkUploadAllowed("Set.songnook", "application/zip").ok, true);
+  assert.equal(checkUploadAllowed("Set.songnook", "video/mp4").ok, false);
 });
 
 test("rejects video, office docs, executables, bare zips", () => {
@@ -34,7 +34,7 @@ test("a video renamed with an audio mime is caught by extension", () => {
 });
 
 test("zip magic + requiresZipMagic", () => {
-  assert.equal(requiresZipMagic("Set.songstead"), true);
+  assert.equal(requiresZipMagic("Set.songnook"), true);
   assert.equal(requiresZipMagic("bass.m4a"), false);
   assert.equal(looksLikeZip(new Uint8Array([0x50, 0x4b, 0x03, 0x04, 0x00])), true);
   assert.equal(looksLikeZip(new Uint8Array([0x00, 0x01, 0x02, 0x03])), false);

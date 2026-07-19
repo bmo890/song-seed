@@ -5,8 +5,8 @@ jest.mock("expo-file-system/legacy", () => ({
 import { rebaseWorkspacesManagedMedia, toRelativeWorkspacesManagedMedia } from "../rebaseManagedMedia";
 import type { Workspace } from "../../types";
 
-const OLD = "file:///old/Documents/songseed/audio";
-const NEW = "file:///doc/songseed/audio";
+const OLD = "file:///old/Documents/songnook/audio";
+const NEW = "file:///doc/songnook/audio";
 
 function libraryWith(audioBase: string): Workspace[] {
     return [
@@ -99,13 +99,13 @@ describe("archived workspace package path", () => {
     it("heals the archive package URI onto the live container", () => {
         const healed = rebaseWorkspacesManagedMedia([archivedWorkspace(OLD)]);
         expect(healed[0].archiveState!.archiveUri).toBe(
-            "file:///doc/songseed/workspace-archives/ws-arch.zip"
+            "file:///doc/songnook/workspace-archives/ws-arch.zip"
         );
     });
 
     it("relativizes the archive package URI for backup", () => {
         const rel = toRelativeWorkspacesManagedMedia([archivedWorkspace(NEW)]);
-        expect(rel[0].archiveState!.archiveUri).toBe("songseed/workspace-archives/ws-arch.zip");
+        expect(rel[0].archiveState!.archiveUri).toBe("songnook/workspace-archives/ws-arch.zip");
     });
 });
 
@@ -113,9 +113,9 @@ describe("toRelativeWorkspacesManagedMedia", () => {
     it("rewrites managed audio references to container-independent relative paths", () => {
         const relativized = toRelativeWorkspacesManagedMedia(libraryWith(NEW));
         const clip = relativized[0].ideas[0].clips[0];
-        expect(clip.audioUri).toBe("songseed/audio/clip-1.m4a");
-        expect(clip.overdub!.stems[0].audioUri).toBe("songseed/audio/stem-1.m4a");
-        expect(clip.overdub!.renderedMixUri).toBe("songseed/audio/mix-1.m4a");
+        expect(clip.audioUri).toBe("songnook/audio/clip-1.m4a");
+        expect(clip.overdub!.stems[0].audioUri).toBe("songnook/audio/stem-1.m4a");
+        expect(clip.overdub!.renderedMixUri).toBe("songnook/audio/mix-1.m4a");
     });
 
     it("hydrates canonical relative backup paths against the live container", () => {

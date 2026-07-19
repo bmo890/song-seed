@@ -21,7 +21,7 @@ export type ChartPrefsStore = PersistedChartPrefsState & {
   resetTranspose: (ideaId: string) => void;
 };
 
-const STORE_NAME = "songstead-chart-prefs";
+const STORE_NAME = "songnook-chart-prefs";
 const STORE_VERSION = 1;
 
 function sanitizeOffsets(value: unknown): Record<string, number> {

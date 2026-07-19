@@ -3,7 +3,7 @@ export type ArchiveExportOptions = {
   includeNotes: boolean;
   includeLyrics: boolean;
   includeHiddenItems: boolean;
-  /** Preserve all Songstead metadata (markers, sections, tags, groups, analysis, waveforms…). */
+  /** Preserve all SongNook metadata (markers, sections, tags, groups, analysis, waveforms…). */
   preserveAllMetadata: boolean;
 };
 

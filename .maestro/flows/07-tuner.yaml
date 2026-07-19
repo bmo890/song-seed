@@ -2,7 +2,7 @@
 # handled if it appears (fresh install); pitch DETECTION itself is HUMAN-only — the
 # Simulator has no real mic, so the note readout stays "--". This covers screen
 # open, permission handling, and that the listening UI renders without crashing.
-appId: com.bmostudio.songseed.dev
+appId: com.bmostudio.songnook.dev
 ---
 - runFlow: ../subflows/open-library.yaml
 - tapOn:

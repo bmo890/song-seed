@@ -184,7 +184,7 @@ elements present; "action works" = the interaction produced the expected state c
 ### 2026-07-14 — batch 5 (Settings navigation)
 
 - ✅ **Settings overview** renders with all section groups (STARTUP, RECORDING, LIBRARY,
-  SONGSTEAD PRO, FEEDBACK, APP).
+  SONGNOOK PRO, FEEDBACK, APP).
 - ✅ **Recording defaults** sub-view opens (METRONOME / Count-in / Name-each-recording) and
   backs out.
 - ✅ **Library & Backups** sub-view opens (SAFETY COPY / BACKUP REMINDER / SHARE & MOVE) and

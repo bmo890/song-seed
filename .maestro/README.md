@@ -16,7 +16,7 @@ code changes to catch UI/navigation/interaction regressions before they reach a 
 ## Prerequisites
 
 1. A booted iOS simulator **or** Android emulator with the **dev-client** build installed.
-2. **Metro running**: `npx expo start --dev-client --scheme songstead-dev --port 8081`
+2. **Metro running**: `npx expo start --dev-client --scheme songnook-dev --port 8081`
    (the dev client loads its JS bundle from Metro; a JS-only change just needs an app
    relaunch, not a rebuild).
 3. `maestro` on PATH (`brew install mobile-dev-inc/tap/maestro`).

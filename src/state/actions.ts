@@ -25,8 +25,8 @@ import { buildLyricsTextFromNote } from "../domain/notepad";
 import { buildDefaultIdeaTitle, ensureUniqueCountedTitle, ensureUniqueIdeaTitle, genId } from "../utils";
 import { archiveWorkspaceToDevice, restoreWorkspaceFromDevice } from "../services/workspaceArchive";
 import { saveArchiveToUserLocation } from "../services/archiveSave";
-import type { ParsedSongSeedArchive } from "../services/libraryImport";
-import { materializeSongSeedArchiveMerge } from "../services/libraryImport";
+import type { ParsedSongNookArchive } from "../services/libraryImport";
+import { materializeSongNookArchiveMerge } from "../services/libraryImport";
 import { findOrphanedAudioFiles, enrichOrphanedClips, buildRecoveredIdeas, findWorkspaceArchives, restoreWorkspaceFromArchive, restoreFromManifest } from "../services/audioRecovery";
 import { forceManifestWrite } from "../services/manifestSync";
 import { buildPersistedAppStoreSnapshot, flushPersistedSnapshot } from "./useStore";
@@ -58,7 +58,7 @@ import {
 } from "../services/workspaceArchiveRecovery";
 import { authorizeIntentionalEmptyStateWrite } from "../services/stateIntegrity";
 import { relocateActivityEvents, relocatePlaylists } from "./relocationMetadata";
-import { SONG_SEED_PREVIEW_AUDIO_DIR } from "../services/storagePaths";
+import { SONG_NOOK_PREVIEW_AUDIO_DIR } from "../services/storagePaths";
 
 const buildIdeaId = () => genId("idea");
 const buildClipId = () => genId("clip");
@@ -246,7 +246,7 @@ async function buildImportedClipOverdubMix(
     });
 
     const extension = rendered.outputUri.match(/\.([a-zA-Z0-9]+)(?:\?|$)/)?.[1]?.toLowerCase() ?? "m4a";
-    const previewUri = `${SONG_SEED_PREVIEW_AUDIO_DIR}/${clipId}-preview-${Date.now()}-${Math.random()
+    const previewUri = `${SONG_NOOK_PREVIEW_AUDIO_DIR}/${clipId}-preview-${Date.now()}-${Math.random()
         .toString(36)
         .slice(2, 8)}.${extension}`;
 
@@ -2849,7 +2849,7 @@ export const appActions = {
             throw new Error("This workspace's package is already stored outside the app.");
         }
         const archiveUri = workspace.archiveState.archiveUri;
-        const fileName = archiveUri.split("/").pop() ?? `${workspace.title}.songstead-workspace.zip`;
+        const fileName = archiveUri.split("/").pop() ?? `${workspace.title}.songnook-workspace.zip`;
         const saved = await saveArchiveToUserLocation(archiveUri, fileName);
         return { saveConfirmed: saved.saveConfirmed, fileName };
     },
@@ -3067,7 +3067,7 @@ export const appActions = {
     },
 
     importLibraryArchiveIntoLibrary: async (
-        parsedArchive: ParsedSongSeedArchive,
+        parsedArchive: ParsedSongNookArchive,
         opts?: {
             /** "received" = the archive came FROM someone (share intent / link):
              *  imported workspaces become Received packages instead of joining
@@ -3081,7 +3081,7 @@ export const appActions = {
         }
     ) => {
         const store = useStore.getState();
-        const merge = await materializeSongSeedArchiveMerge(
+        const merge = await materializeSongNookArchiveMerge(
             parsedArchive,
             store.workspaces,
             store.primaryWorkspaceId

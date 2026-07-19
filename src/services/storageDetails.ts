@@ -4,10 +4,10 @@ import { STORE_VERSION } from "../state/useStore";
 import type { Workspace } from "../types";
 import { collectClipAudioUris } from "./managedMedia";
 import {
-    SONG_SEED_AUDIO_DIR,
-    SONG_SEED_ROOT,
-    SONG_SEED_SHARE_DIR,
-    SONG_SEED_WORKSPACE_ARCHIVE_DIR,
+    SONG_NOOK_AUDIO_DIR,
+    SONG_NOOK_ROOT,
+    SONG_NOOK_SHARE_DIR,
+    SONG_NOOK_WORKSPACE_ARCHIVE_DIR,
     isManagedAudioUri,
 } from "./storagePaths";
 
@@ -157,9 +157,9 @@ export async function getStorageDetailsReport(snapshot: PersistedAppStore): Prom
         metadataBytes,
         unmanagedAudioReferences,
     ] = await Promise.all([
-        getDirectoryUsage(SONG_SEED_AUDIO_DIR),
-        getDirectoryUsage(SONG_SEED_WORKSPACE_ARCHIVE_DIR),
-        getDirectoryUsage(SONG_SEED_SHARE_DIR),
+        getDirectoryUsage(SONG_NOOK_AUDIO_DIR),
+        getDirectoryUsage(SONG_NOOK_WORKSPACE_ARCHIVE_DIR),
+        getDirectoryUsage(SONG_NOOK_SHARE_DIR),
         getPersistedMetadataBytes(snapshot),
         measureUnmanagedAudioReferences(activeWorkspaces),
     ]);
@@ -184,7 +184,7 @@ export async function getStorageDetailsReport(snapshot: PersistedAppStore): Prom
 
     if (unmanagedAudioReferences.totalReferences > 0) {
         limitations.push(
-            `${unmanagedAudioReferences.totalReferences} audio reference${unmanagedAudioReferences.totalReferences === 1 ? " points" : "s point"} outside Songstead's managed live-library storage and ${unmanagedAudioReferences.totalReferences === 1 ? "is" : "are"} excluded from the total library storage figure.`
+            `${unmanagedAudioReferences.totalReferences} audio reference${unmanagedAudioReferences.totalReferences === 1 ? " points" : "s point"} outside SongNook's managed live-library storage and ${unmanagedAudioReferences.totalReferences === 1 ? "is" : "are"} excluded from the total library storage figure.`
         );
     }
 
@@ -202,7 +202,7 @@ export async function getStorageDetailsReport(snapshot: PersistedAppStore): Prom
 
     return {
         generatedAt: Date.now(),
-        storageLabel: "Stored locally in Songstead app storage on this device.",
+        storageLabel: "Stored locally in SongNook app storage on this device.",
         totalLibraryBytes,
         totalManagedBytes,
         activeWorkspaceCount: activeWorkspaces.length,
@@ -219,10 +219,10 @@ export async function getStorageDetailsReport(snapshot: PersistedAppStore): Prom
         unmanagedAudioReferences,
         limitations,
         advanced: {
-            appStorageRootUri: SONG_SEED_ROOT,
-            audioDirectoryUri: SONG_SEED_AUDIO_DIR,
-            archiveDirectoryUri: SONG_SEED_WORKSPACE_ARCHIVE_DIR,
-            shareDirectoryUri: SONG_SEED_SHARE_DIR,
+            appStorageRootUri: SONG_NOOK_ROOT,
+            audioDirectoryUri: SONG_NOOK_AUDIO_DIR,
+            archiveDirectoryUri: SONG_NOOK_WORKSPACE_ARCHIVE_DIR,
+            shareDirectoryUri: SONG_NOOK_SHARE_DIR,
         },
     };
 }

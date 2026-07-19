@@ -19,7 +19,7 @@ what remains is the intrinsic floor: one edit = one full-library write.
 
 `[PersistTelemetry]` logs (added 2026-07) are the tripwire:
 
-- boot: `hydrated "song-seed-store": <KB> in <ms>` — logged every launch
+- boot: `hydrated "song-nook-store": <KB> in <ms>` — logged every launch
 - writes: warns when a library write exceeds 120ms
 
 **Trigger for executing this plan: sustained write warnings during normal
@@ -31,9 +31,9 @@ sits under the data-loss-hardening stack and must not be done casually.
 Per-workspace rows instead of one blob:
 
 ```
-kv:  song-seed-store          → { version, meta: everything EXCEPT workspaces,
+kv:  song-nook-store          → { version, meta: everything EXCEPT workspaces,
                                   workspaceIds: [id…] }         (small, ~KBs)
-kv:  song-seed-workspace:<id> → one workspace's full subtree     (medium)
+kv:  song-nook-workspace:<id> → one workspace's full subtree     (medium)
 ```
 
 - **Write path**: the change detector already knows which top-level fields
@@ -49,7 +49,7 @@ kv:  song-seed-workspace:<id> → one workspace's full subtree     (medium)
   wrapped in ONE SQLite transaction so a crash can't persist half an edit.
 - **Migration**: on first boot with the new STORE_VERSION, read the legacy
   blob, split it into rows inside a transaction, keep the legacy blob as
-  `song-seed-store:legacy-backup` until the next successful boot.
+  `song-nook-store:legacy-backup` until the next successful boot.
 - **Backup/restore + manifest**: `buildPersistedAppStoreSnapshot` stays the
   in-memory contract — archives, manifest, and restore are UNCHANGED (they
   operate on the assembled snapshot, not on storage layout).

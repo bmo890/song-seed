@@ -376,7 +376,7 @@ export function useInlinePlayer({ onBeforePlayNew }: Args = {}) {
             {
               ...(idea
                 ? buildClipLockScreenMetadata(idea, clip)
-                : { title: clip.title || "Clip", artist: "Songstead" }),
+                : { title: clip.title || "Clip", artist: "SongNook" }),
               artworkUrl: getLockScreenArtworkUrl(),
             },
             // Previews have no queue, and the native scrubber covers seeking:

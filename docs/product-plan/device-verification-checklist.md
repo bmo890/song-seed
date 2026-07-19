@@ -1,4 +1,4 @@
-# Songstead — device verification checklist
+# SongNook — device verification checklist
 
 Everything to check on a real device, covering all work since Phase 0. Ordered by
 stakes: data/playback first (a bug here is worst), polish last. Account steps
@@ -46,8 +46,8 @@ The bug you flagged as critical. Native code, so the rebuild matters most here.
 ## 5. 🔴 Backups & legacy compatibility (rename + f7eacc5c)
 
 - [ ] Full backup → save to Files/Drive → wipe (or reinstall) → restore. Round-trips losslessly.
-- [ ] **Import a PRE-RENAME backup/archive** (any "Song Seed"-era export you have) → still imports (legacy `song-seed-archive` format + `.songseed-workspace.zip` are still accepted).
-- [ ] Export → the file carries the Songstead name; re-import it.
+- [ ] **Import a PRE-RENAME backup/archive** (any "SongNook"-era export you have) → still imports (legacy `song-nook-archive` format + `.songnook-workspace.zip` are still accepted).
+- [ ] Export → the file carries the SongNook name; re-import it.
 
 ## 6. 🔴 First-run & the welcome flow (Phase 4 + review fix)
 
@@ -100,7 +100,7 @@ Pixels can't be unit-tested; a scroll-through is the real check.
 
 - [ ] Real **app icon** on the launcher (not the grey Expo placeholder) — both a home screen and the app switcher.
 - [ ] Cold start: splash → app in **one continuous motion** on the paper background, no white flash, no spinner flash.
-- [ ] Launcher label reads **"Songstead"** (dev build: "Songstead Dev").
+- [ ] Launcher label reads **"SongNook"** (dev build: "SongNook Dev").
 - [ ] Force a crash in dev (temporarily `throw` in a screen render) → a branded **"Something went wrong"** screen with a Restart button that recovers the app with your library intact.
 - [ ] After that crash: Settings → About → **"Share diagnostic log"** has an entry to share.
 - [ ] The 4 formerly-native alerts (empty-library restore, recovered/failed recording, backup reminder) render as **styled** in-app dialogs, not OS popups. (Backup reminder is the easiest to trigger.)

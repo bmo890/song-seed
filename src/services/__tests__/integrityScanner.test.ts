@@ -68,7 +68,7 @@ describe("scanLibraryIntegrity", () => {
     beforeEach(() => {
         mockFiles.clear();
         mockDirectories.clear();
-        mockDirectories.add("file:///doc/songseed/audio");
+        mockDirectories.add("file:///doc/songnook/audio");
     });
 
     it("reports no issues for a clean library", async () => {
@@ -138,9 +138,9 @@ describe("scanLibraryIntegrity", () => {
     });
 
     it("handles nested restored media by full URI instead of basename", async () => {
-        const restoredDirectory = "file:///doc/songseed/audio/restored-token";
+        const restoredDirectory = "file:///doc/songnook/audio/restored-token";
         const restoredUri = `${restoredDirectory}/clip.m4a`;
-        const orphanWithSameName = "file:///doc/songseed/audio/clip.m4a";
+        const orphanWithSameName = "file:///doc/songnook/audio/clip.m4a";
         mockDirectories.add(restoredDirectory);
         mockFiles.add(restoredUri);
         mockFiles.add(orphanWithSameName);

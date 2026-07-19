@@ -2,7 +2,7 @@
 # detects the duplicates and shows the "ALREADY IN YOUR LIBRARY" review. Choosing
 # "Skip" must add nothing (count stays 6, not 12). Self-cleaning. Requires
 # scripts/push-dev-samples.sh.
-appId: com.bmostudio.songseed.dev
+appId: com.bmostudio.songnook.dev
 ---
 - runFlow: ../subflows/open-library.yaml
 - tapOn: ".*Ideas.*"

@@ -1,12 +1,12 @@
 /**
- * Songstead Send — transport client.
+ * SongNook Send — transport client.
  *
  * Low-level HTTP against the transfer service: create → register item (presigned
  * upload) → upload → finalize. No secrets here; the service mints the presigned
  * URLs and the app only echoes them back with the file body.
  *
  * Contract (docs/product-plan/transfer-service-brief.md §4): transferId comes
- * back at CREATE, before any upload, so a caller can stamp it into a .songstead
+ * back at CREATE, before any upload, so a caller can stamp it into a .songnook
  * file's manifest before uploading. Nothing is fetchable until finalize.
  */
 import * as FileSystem from "expo-file-system/legacy";

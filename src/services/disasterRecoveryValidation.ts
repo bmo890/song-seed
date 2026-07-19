@@ -9,12 +9,12 @@ import type {
 
 const SHA256_HEX = /^[a-f0-9]{64}$/i;
 const RESTORE_TOKEN = /^[a-zA-Z0-9-]+$/;
-const AUDIO_PREFIX = "songseed/audio/";
-const ARCHIVE_PREFIX = "songseed/workspace-archives/";
+const AUDIO_PREFIX = "songnook/audio/";
+const ARCHIVE_PREFIX = "songnook/workspace-archives/";
 // Overdub mix renders live here and are referenced by clips' renderedMixUri, so backups
 // legitimately contain them. Restore MUST accept every prefix the backup writer packs —
 // rejecting one hard-fails the whole restore (seen on-device with a preview mix).
-const PREVIEW_PREFIX = "songseed/preview-audio/";
+const PREVIEW_PREFIX = "songnook/preview-audio/";
 const SAFE_MEDIA_PREFIXES = [AUDIO_PREFIX, ARCHIVE_PREFIX, PREVIEW_PREFIX] as const;
 
 type UnknownRecord = Record<string, unknown>;

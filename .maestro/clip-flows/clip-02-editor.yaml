@@ -2,7 +2,7 @@
 # mounts on an imported clip, "Add at playhead" creates a region (the empty state
 # clears), and Back returns without crashing. Self-cleaning. Requires
 # scripts/push-dev-samples.sh.
-appId: com.bmostudio.songseed.dev
+appId: com.bmostudio.songnook.dev
 ---
 - runFlow: ../subflows/open-library.yaml
 - tapOn: ".*Ideas.*"

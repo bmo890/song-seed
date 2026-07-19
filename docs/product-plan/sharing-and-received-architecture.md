@@ -92,19 +92,19 @@ share?: {
 Receiver decision tree (extension is a hint; the manifest is the authority):
 
 1. Extension/mime says "maybe ours" → open the zip.
-2. No manifest → not a Songstead file → loose-files package (or audio self-import flow).
+2. No manifest → not a SongNook file → loose-files package (or audio self-import flow).
 3. Backup format (`detectPickedArchiveKind`) → redirect to Restore (exists).
 4. `share.kind` present → the truth; present accordingly. A self-sent collection can never masquerade as a setlist.
 5. No `share` block (older archives) → today's inference as fallback.
 
-### 3b. The `.songstead` file identity
+### 3b. The `.songnook` file identity
 
-Register a real `.songstead` extension with an iOS UTI declaration + Android intent filter (same native rebuild as the pending zip mime filters). Branding ("this is a Songstead file" in Messages) + deterministic share-intent routing instead of "any zip might be ours". Exports keep zip internals; only the identity changes.
+Register a real `.songnook` extension with an iOS UTI declaration + Android intent filter (same native rebuild as the pending zip mime filters). Branding ("this is a SongNook file" in Messages) + deterministic share-intent routing instead of "any zip might be ours". Exports keep zip internals; only the identity changes.
 
 ### 3c. Links & identity
 
 - Transfer links are **universal/app links**; install-then-open preserves transfer context (**deferred deep link**) so a first-run user lands directly on the received package — the onboarding funnel.
-- The transfer's server manifest lists items (a transfer can mix `.songstead` files and raw audio); each item is typed by the tree above; the whole transfer is still ONE package.
+- The transfer's server manifest lists items (a transfer can mix `.songnook` files and raw audio); each item is typed by the tree above; the whole transfer is still ONE package.
 - **Identity now vs. later**: v1 = sender-typed display name on the web page (friendly-sharing trust level, like an email From line). The `userId` slot is reserved from day one; accounts (needed for Pro anyway) later fill it → verified senders, sender grouping, exact self-send detection. No schema change at that point.
 
 ## 4. Roadmap
@@ -115,7 +115,7 @@ Register a real `.songstead` extension with an iOS UTI declaration + Android int
 3. **Received drawer page**: package list w/ provenance ("From Ben · Tuesday · 4 items"), package view rendered by existing collection/idea machinery, adopt/add-to-library actions, delete package.
 4. Reroute receiving flows into packages: archive imports (share-intent + Settings) create received-flagged workspaces instead of personal ones; setlist/songbook imports keep creating Library entities but their backing songs land in the package.
 5. Manifest `share` block stamped by all export flows; receiver switch on it.
-6. `.songstead` UTI/extension + zip mimes in one native rebuild.
+6. `.songnook` UTI/extension + zip mimes in one native rebuild.
 7. Mockup-first, as usual: Received page, package views (clip/collection/workspace presentations), first-run link landing.
 
 ### R2 — transfer service integration (pairs with the web branch)

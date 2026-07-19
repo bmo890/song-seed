@@ -22,7 +22,7 @@ architectural fix looks like. No code changes accompany this audit.
 
 | Piece | Where | Clock/timeline |
 |---|---|---|
-| Native metronome engine | `modules/songseed-metronome` (Swift `SongseedMetronomeEngine.swift`, Kotlin `SongseedMetronomeEngine.kt`) | iOS: `AVAudioPlayerNode` sample position (or `ProcessInfo.systemUptime` when click disabled). Android: `AudioTrack.playbackHeadPosition` (or `SystemClock.elapsedRealtime`). |
+| Native metronome engine | `modules/songnook-metronome` (Swift `SongNookMetronomeEngine.swift`, Kotlin `SongNookMetronomeEngine.kt`) | iOS: `AVAudioPlayerNode` sample position (or `ProcessInfo.systemUptime` when click disabled). Android: `AudioTrack.playbackHeadPosition` (or `SystemClock.elapsedRealtime`). |
 | Recorder | `@siteed/audio-studio` via `src/hooks/useRecording.ts` | Its own capture pipeline; JS only sees `Date.now()` and status callbacks. |
 | Guide mix (overdub playback) | `expo-audio` player in `useRecordingScreenModel.ts` | Its own playback pipeline; JS polls `playing`/`isBuffering`. |
 | Orchestration | `src/components/RecordingScreen/hooks/useRecordingScreenModel.ts` | React effects, `await` chains, `setTimeout`. |
@@ -57,8 +57,8 @@ measures where the downbeat actually fell inside the recorded file, and
 nothing stores it.
 
 **F2. `onCountInComplete` fires on the *last count-in click*, not the downbeat.**
-In both engines (`SongseedMetronomeEngine.swift:267`,
-`SongseedMetronomeEngine.kt:274`), `countInPulsesRemaining` hits zero while
+In both engines (`SongNookMetronomeEngine.swift:267`,
+`SongNookMetronomeEngine.kt:274`), `countInPulsesRemaining` hits zero while
 emitting the final count-in beat, so the completion event fires one full beat
 interval *before* the musical "one". The JS chain in F1 then races that beat:
 at 60 BPM it starts recording ~1 s early (capturing the count-in tail at a
@@ -99,7 +99,7 @@ still be unrecoverable after the session ends.
 
 **F5. Any config change restarts the metronome and resets its phase.**
 `configure()` on a running engine is a full restart — beat position resets to
-pulse 0, the click buffer rebuilds (`SongseedMetronomeEngine.swift:63-78`,
+pulse 0, the click buffer rebuilds (`SongNookMetronomeEngine.swift:63-78`,
 `.kt:65-86`). The JS side debounces config syncs by 280 ms
 (`useMetronome.ts:210-232`) and re-syncs on *any* of bpm / meter / beep level /
 beep toggle. So nudging the click volume mid-take audibly restarts the click
@@ -210,7 +210,7 @@ recordingGrid?: {
   overdub / re-record / practice on that clip — the global metronome store
   stays the *default*, the clip grid wins when present.
 - Included in the share/archive format (the library archive already round-trips
-  clip metadata) so your friend's Song Seed shows the same grid.
+  clip metadata) so your friend's SongNook shows the same grid.
 - For plain audio-file sharing outside the app, Phase 2's "t=0 == downbeat"
   guarantee is what makes "they set the same BPM and it just works" true, since
   bare m4a can't carry the metadata reliably.
@@ -288,7 +288,7 @@ Overdubs additionally need output→input latency handled:
 ### Phase 4 (optional, DAW-grade): one native audio graph
 
 The end-state that removes the whole class of problems: grow
-`songseed-metronome` into a `songseed-recording-engine` that owns **click +
+`songnook-metronome` into a `songnook-recording-engine` that owns **click +
 guide playback + capture in a single native graph** (iOS: one `AVAudioEngine`
 with player nodes + input tap; Android: Oboe/AAudio duplex stream, or
 AudioTrack+AudioRecord sharing `AudioTimestamp`s). One graph = one sample

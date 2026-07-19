@@ -1,7 +1,7 @@
 # Reusable: cold-launch the app and land on the library root with the "Ideas"
 # starter collection visible. Dismisses the backup-reminder dialog and the dev
 # LogBox banner (both are stateful and would otherwise block later steps).
-appId: com.bmostudio.songseed.dev
+appId: com.bmostudio.songnook.dev
 ---
 - launchApp:
     stopApp: true

@@ -1,9 +1,0 @@
-{
-  "platforms": ["apple", "android", "web"],
-  "apple": {
-    "modules": ["SongseedMetronomeModule"]
-  },
-  "android": {
-    "modules": ["expo.modules.songseedmetronome.SongseedMetronomeModule"]
-  }
-}

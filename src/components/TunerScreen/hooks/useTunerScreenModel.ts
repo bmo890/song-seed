@@ -324,7 +324,7 @@ export function useTunerScreenModel() {
     setErrorMessage(
       permission?.canAskAgain === false
         ? "Microphone access is disabled in system settings."
-        : "Songstead needs microphone access to tune."
+        : "SongNook needs microphone access to tune."
     );
     return false;
   }

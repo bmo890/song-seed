@@ -1,5 +1,5 @@
 import { trimAudio } from "@siteed/audio-studio";
-import SongseedPitchShiftModule, { type NativeTrimRange } from "../../modules/songseed-pitch-shift";
+import SongNookPitchShiftModule, { type NativeTrimRange } from "../../modules/songnook-pitch-shift";
 
 type TrimArgs =
   | { fileUri: string; mode: "single"; startTimeMs: number; endTimeMs: number; outputFileName?: string }
@@ -36,7 +36,7 @@ function complementRanges(removeRanges: NativeTrimRange[], durationMs: number): 
  * `{ uri }` to match the @siteed shape so call sites stay unchanged.
  */
 export async function trimAudioRanges(args: TrimArgs): Promise<{ uri: string }> {
-  const native = SongseedPitchShiftModule;
+  const native = SongNookPitchShiftModule;
   const keepRanges =
     args.mode === "single"
       ? [{ startTimeMs: args.startTimeMs, endTimeMs: args.endTimeMs }]

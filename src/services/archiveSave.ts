@@ -10,8 +10,8 @@ import {
 import {
     copyLocalFileToContentUri,
     deleteContentUri,
-    isSongseedFileIOAvailable,
-} from "../../modules/songseed-file-io";
+    isSongNookFileIOAvailable,
+} from "../../modules/songnook-file-io";
 
 export const BACKUP_SAVE_CANCELLED_MESSAGE = "Backup save was cancelled.";
 
@@ -40,9 +40,9 @@ export async function saveArchiveToUserLocation(
 ): Promise<SavedArchiveLocation> {
     throwIfBackupCancelled(options?.signal);
     if (Platform.OS === "android") {
-        if (!isSongseedFileIOAvailable()) {
+        if (!isSongNookFileIOAvailable()) {
             throw new Error(
-                "This Android build is missing Songstead's streaming file module. Rebuild the app before saving."
+                "This Android build is missing SongNook's streaming file module. Rebuild the app before saving."
             );
         }
         const permissions = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
@@ -53,10 +53,10 @@ export async function saveArchiveToUserLocation(
         const targetUri = await FileSystem.StorageAccessFramework.createFileAsync(
             permissions.directoryUri,
             archiveTitle,
-            // Octet-stream for .songstead files: Android providers append the
-            // mime's canonical extension, which would turn "Name.songstead"
-            // into "Name.songstead.zip" under application/zip.
-            archiveTitle.toLowerCase().endsWith(".songstead")
+            // Octet-stream for .songnook files: Android providers append the
+            // mime's canonical extension, which would turn "Name.songnook"
+            // into "Name.songnook.zip" under application/zip.
+            archiveTitle.toLowerCase().endsWith(".songnook")
                 ? "application/octet-stream"
                 : "application/zip"
         );

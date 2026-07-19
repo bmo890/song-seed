@@ -3,7 +3,7 @@
 # "Paste items here" affordance that completes the copy. Verifies cross-collection
 # organization. Creates + deletes a throwaway "Maestro Dest" collection, so it's
 # self-cleaning. Requires scripts/push-dev-samples.sh.
-appId: com.bmostudio.songseed.dev
+appId: com.bmostudio.songnook.dev
 ---
 - launchApp:
     stopApp: true

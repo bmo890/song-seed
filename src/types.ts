@@ -561,7 +561,7 @@ export type Collection = {
   ideasListState: IdeasListState;
 };
 
-/** What a shared Songstead file declares itself to be — stamped at export in
+/** What a shared SongNook file declares itself to be — stamped at export in
  *  the archive manifest's `share` block, trusted over any inference. */
 export type ShareKind =
   | "setlist"

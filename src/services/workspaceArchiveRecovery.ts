@@ -3,9 +3,9 @@ import { buildPersistedAppStoreSnapshot, useStore } from "../state/useStore";
 import { forceManifestWrite } from "./manifestSync";
 import { deleteManagedArchiveUri, deleteManagedAudioUris } from "./managedMedia";
 import { restoreWorkspaceFromDevice } from "./workspaceArchive";
-import { SONG_SEED_ROOT } from "./storagePaths";
+import { SONG_NOOK_ROOT } from "./storagePaths";
 
-const WORKSPACE_ARCHIVE_RECOVERY_PATH = `${SONG_SEED_ROOT}/workspace-archive-ops.json`;
+const WORKSPACE_ARCHIVE_RECOVERY_PATH = `${SONG_NOOK_ROOT}/workspace-archive-ops.json`;
 
 type PendingWorkspaceArchiveOperation =
     | {
@@ -52,9 +52,9 @@ async function readPendingWorkspaceArchiveOperations() {
 async function writePendingWorkspaceArchiveOperations(
     operations: PendingWorkspaceArchiveOperation[]
 ) {
-    const rootInfo = await FileSystem.getInfoAsync(SONG_SEED_ROOT);
+    const rootInfo = await FileSystem.getInfoAsync(SONG_NOOK_ROOT);
     if (!rootInfo.exists) {
-        await FileSystem.makeDirectoryAsync(SONG_SEED_ROOT, { intermediates: true });
+        await FileSystem.makeDirectoryAsync(SONG_NOOK_ROOT, { intermediates: true });
     }
 
     if (operations.length === 0) {

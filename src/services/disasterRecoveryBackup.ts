@@ -2,7 +2,7 @@ import * as FileSystem from "expo-file-system/legacy";
 import { File } from "expo-file-system";
 import { buildTimestampSlug } from "./audioStorage";
 import { createZipArchive, type ZipArchiveEntry } from "./zipArchive";
-import { SONG_SEED_ROOT, toRelativeManagedPath } from "./storagePaths";
+import { SONG_NOOK_ROOT, toRelativeManagedPath } from "./storagePaths";
 import {
     ensureBackupDiskSpace,
     reportBackupProgress,
@@ -35,9 +35,9 @@ import type { Workspace } from "../types";
  */
 
 export const DR_BACKUP_FORMAT_VERSION = 1;
-export const DR_BACKUP_FILE_SUFFIX = "songstead-backup";
+export const DR_BACKUP_FILE_SUFFIX = "songnook-backup";
 
-const DR_TEMP_DIR = `${SONG_SEED_ROOT}/backup-tmp`;
+const DR_TEMP_DIR = `${SONG_NOOK_ROOT}/backup-tmp`;
 const SNAPSHOT_ENTRY = "snapshot.json";
 const MANIFEST_ENTRY = "manifest.json";
 const MEDIA_PREFIX = "media/";
@@ -75,7 +75,7 @@ export type DrBackupResult = {
 };
 
 type MediaRef = {
-    /** Container-independent path, e.g. `songseed/audio/<id>.m4a`. */
+    /** Container-independent path, e.g. `songnook/audio/<id>.m4a`. */
     relativePath: string | null;
     absUri: string;
     kind: DrMediaKind;
@@ -426,7 +426,7 @@ export async function buildDisasterRecoveryBackup(
     if (!dirInfo.exists) {
         await FileSystem.makeDirectoryAsync(DR_TEMP_DIR, { intermediates: true });
     }
-    const archiveTitle = `Songstead Backup ${buildTimestampSlug()}.${DR_BACKUP_FILE_SUFFIX}.zip`;
+    const archiveTitle = `SongNook Backup ${buildTimestampSlug()}.${DR_BACKUP_FILE_SUFFIX}.zip`;
     const archiveUri = `${DR_TEMP_DIR}/${archiveTitle}`;
     reportBackupProgress(opts, {
         phase: "packaging",

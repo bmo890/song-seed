@@ -3,7 +3,7 @@
 # Cleans up (deletes the song) so it's self-contained. Exercises the collection
 # search field + live list filtering — a common feature that silently breaks when
 # the filter predicate or the list data source changes.
-appId: com.bmostudio.songseed.dev
+appId: com.bmostudio.songnook.dev
 ---
 - runFlow: ../subflows/open-library.yaml
 - tapOn: ".*Ideas.*"

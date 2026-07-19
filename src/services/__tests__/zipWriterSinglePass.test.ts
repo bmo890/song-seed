@@ -6,7 +6,7 @@
  */
 
 const mockFiles = new Map<string, Uint8Array>();
-const mockDirectories = new Set<string>(["file:///doc/", "file:///doc/songseed"]);
+const mockDirectories = new Set<string>(["file:///doc/", "file:///doc/songnook"]);
 
 jest.mock("expo-file-system/legacy", () => ({
     documentDirectory: "file:///doc/",
@@ -92,8 +92,8 @@ jest.mock("expo-file-system", () => {
 jest.mock("expo-audio", () => ({ createAudioPlayer: jest.fn() }));
 jest.mock("expo-document-picker", () => ({ getDocumentAsync: jest.fn() }));
 jest.mock("../waveformAnalysis", () => ({ computeWaveformPeaks: jest.fn() }));
-jest.mock("../../../modules/songseed-file-io", () => ({
-    isSongseedFileIOAvailable: () => false,
+jest.mock("../../../modules/songnook-file-io", () => ({
+    isSongNookFileIOAvailable: () => false,
     copyLocalFileToContentUri: jest.fn(),
     deleteContentUri: jest.fn(),
 }));
@@ -102,7 +102,7 @@ import { createZipArchive } from "../zipArchive";
 import { indexStoredZipArchive, readStoredZipEntryBytes } from "../storedZipArchive";
 import type { BackupOperationProgress } from "../backupOperation";
 
-const ARCHIVE_URI = "file:///doc/songseed/share/test-archive.zip";
+const ARCHIVE_URI = "file:///doc/songnook/share/test-archive.zip";
 
 function fixture(size: number, seed: number) {
     return Uint8Array.from({ length: size }, (_, index) => (index * seed + 7) & 0xff);
@@ -112,22 +112,22 @@ beforeEach(() => {
     mockFiles.clear();
     mockDirectories.clear();
     mockDirectories.add("file:///doc/");
-    mockDirectories.add("file:///doc/songseed");
+    mockDirectories.add("file:///doc/songnook");
 });
 
 describe("createZipArchive single-pass (deferred CRC)", () => {
     it("writes a valid archive for file entries without precomputed CRCs", async () => {
         const audioA = fixture(300 * 1024 + 13, 31); // spans multiple stream chunks
         const audioB = fixture(5 * 1024 + 1, 101);
-        mockFiles.set("file:///doc/songseed/audio/a.m4a", audioA);
-        mockFiles.set("file:///doc/songseed/audio/b.m4a", audioB);
+        mockFiles.set("file:///doc/songnook/audio/a.m4a", audioA);
+        mockFiles.set("file:///doc/songnook/audio/b.m4a", audioB);
 
         await createZipArchive(ARCHIVE_URI, [
             { archiveName: "manifest.json", data: '{"ok":true}' },
             // Export-style entries: size known, CRC NOT precomputed.
-            { archiveName: "audio/a.m4a", fileUri: "file:///doc/songseed/audio/a.m4a", sizeBytes: audioA.length },
+            { archiveName: "audio/a.m4a", fileUri: "file:///doc/songnook/audio/a.m4a", sizeBytes: audioA.length },
             // Neither size nor CRC provided — writer stats the file itself.
-            { archiveName: "audio/b.m4a", fileUri: "file:///doc/songseed/audio/b.m4a" },
+            { archiveName: "audio/b.m4a", fileUri: "file:///doc/songnook/audio/b.m4a" },
         ]);
 
         // The strict stored-zip reader validates the end record and every entry, and
@@ -148,12 +148,12 @@ describe("createZipArchive single-pass (deferred CRC)", () => {
 
     it("reports packaging progress from the first streamed bytes (no silent pre-read)", async () => {
         const audio = fixture(5 * 1024 * 1024, 17); // > yield threshold so progress fires mid-write
-        mockFiles.set("file:///doc/songseed/audio/big.m4a", audio);
+        mockFiles.set("file:///doc/songnook/audio/big.m4a", audio);
 
         const events: BackupOperationProgress[] = [];
         await createZipArchive(
             ARCHIVE_URI,
-            [{ archiveName: "audio/big.m4a", fileUri: "file:///doc/songseed/audio/big.m4a", sizeBytes: audio.length }],
+            [{ archiveName: "audio/big.m4a", fileUri: "file:///doc/songnook/audio/big.m4a", sizeBytes: audio.length }],
             { onProgress: (progress) => events.push(progress) }
         );
 
@@ -168,13 +168,13 @@ describe("createZipArchive single-pass (deferred CRC)", () => {
 
     it("still verifies precomputed CRCs (backup path unchanged)", async () => {
         const audio = fixture(64 * 1024, 13);
-        mockFiles.set("file:///doc/songseed/audio/c.m4a", audio);
+        mockFiles.set("file:///doc/songnook/audio/c.m4a", audio);
 
         await expect(
             createZipArchive(ARCHIVE_URI, [
                 {
                     archiveName: "audio/c.m4a",
-                    fileUri: "file:///doc/songseed/audio/c.m4a",
+                    fileUri: "file:///doc/songnook/audio/c.m4a",
                     sizeBytes: audio.length,
                     crc32: 0xdeadbeef, // wrong on purpose
                 },

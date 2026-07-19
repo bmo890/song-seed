@@ -2,7 +2,7 @@
 # clips), confirm the single song card appears, open it, and confirm the song
 # detail renders. A different data shape from individual-clip import. Self-cleaning.
 # Requires scripts/push-dev-samples.sh.
-appId: com.bmostudio.songseed.dev
+appId: com.bmostudio.songnook.dev
 ---
 - runFlow: ../subflows/open-library.yaml
 - tapOn: ".*Ideas.*"

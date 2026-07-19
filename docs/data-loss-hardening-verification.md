@@ -31,7 +31,7 @@ filesystem are involved.
 ## 4. Seamless SQLite migration (existing users)
 1. Install the previous build (AsyncStorage blob), create data.
 2. Upgrade to the new build in place (see §6).
-3. **Assert:** all data appears; `songseed.db` now exists under the app's `SQLite/` dir; the old
+3. **Assert:** all data appears; `songnook.db` now exists under the app's `SQLite/` dir; the old
    AsyncStorage blob is retained (fallback).
 
 ## 5. iOS relative-path healing
@@ -47,7 +47,7 @@ filesystem are involved.
    erase data" promise — it cannot be assumed, only observed.)
 
 ## 7. Trash-on-delete
-1. Delete a clip/idea. Inspect `…/songseed/trash/` (Settings → Storage → advanced shows paths).
+1. Delete a clip/idea. Inspect `…/songnook/trash/` (Settings → Storage → advanced shows paths).
 2. **Assert:** the audio file is in `trash/`, not gone. It is purged automatically after 14 days.
 
 ## 8. Crash-during-delete (best effort)
@@ -63,7 +63,7 @@ filesystem are involved.
 
 ## 10. Integrity scanner
 1. Settings → Storage → **Check integrity** on a healthy library → "passed".
-2. Seed a problem (e.g. an orphan file in `songseed/audio/`) → re-run → it is reported, and
+2. Seed a problem (e.g. an orphan file in `songnook/audio/`) → re-run → it is reported, and
    overdub stems/mixes are NOT misreported as orphans.
 
 ## 11. Recovery-mode prompt

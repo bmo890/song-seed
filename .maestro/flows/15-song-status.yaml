@@ -2,7 +2,7 @@
 # chips drive the completion %: SONG→75%, SEED→0%. Verify that binding, then save a
 # song at SONG status, confirm it lands, and delete it. Self-cleaning. Exercises the
 # StatusChipRow ↔ completion coupling and that saved status renders in the list.
-appId: com.bmostudio.songseed.dev
+appId: com.bmostudio.songnook.dev
 ---
 - runFlow: ../subflows/open-library.yaml
 - tapOn: ".*Ideas.*"

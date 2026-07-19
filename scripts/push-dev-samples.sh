@@ -8,7 +8,7 @@ set -euo pipefail
 UDID="${1:-booted}"
 SRC="${2:-/Users/benmogerman/Desktop/Voice Recorder (old)}"
 COUNT="${3:-6}"
-BUNDLE="com.bmostudio.songseed.dev"
+BUNDLE="com.bmostudio.songnook.dev"
 
 DATA="$(xcrun simctl get_app_container "$UDID" "$BUNDLE" data)"
 DEST="$DATA/Documents/dev-samples"

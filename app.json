@@ -1,9 +1,9 @@
 {
   "expo": {
-    "name": "Songstead",
-    "slug": "songstead",
+    "name": "SongNook",
+    "slug": "songnook",
     "version": "1.0.0",
-    "scheme": "songstead",
+    "scheme": "songnook",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -16,19 +16,19 @@
     "ios": {
       "supportsTablet": false,
       "infoPlist": {
-        "NSMicrophoneUsageDescription": "Songstead needs microphone access so you can record song ideas and voice memos.",
+        "NSMicrophoneUsageDescription": "SongNook needs microphone access so you can record song ideas and voice memos.",
         "ITSAppUsesNonExemptEncryption": false,
         "UTExportedTypeDeclarations": [
           {
-            "UTTypeIdentifier": "com.bmostudio.songseed.archive",
-            "UTTypeDescription": "Songstead Archive",
+            "UTTypeIdentifier": "com.bmostudio.songnook.archive",
+            "UTTypeDescription": "SongNook Archive",
             "UTTypeConformsTo": [
               "com.pkware.zip-archive",
               "public.data"
             ],
             "UTTypeTagSpecification": {
               "public.filename-extension": [
-                "songstead"
+                "songnook"
               ],
               "public.mime-type": [
                 "application/zip"
@@ -38,15 +38,15 @@
         ],
         "CFBundleDocumentTypes": [
           {
-            "CFBundleTypeName": "Songstead Archive",
+            "CFBundleTypeName": "SongNook Archive",
             "LSHandlerRank": "Owner",
             "LSItemContentTypes": [
-              "com.bmostudio.songseed.archive"
+              "com.bmostudio.songnook.archive"
             ]
           }
         ]
       },
-      "bundleIdentifier": "com.bmostudio.songseed",
+      "bundleIdentifier": "com.bmostudio.songnook",
       "associatedDomains": ["applinks:send.songnook.app"]
     },
     "android": {
@@ -70,7 +70,7 @@
         "android.permission.MODIFY_AUDIO_SETTINGS",
         "android.permission.POST_PROMOTED_NOTIFICATIONS"
       ],
-      "package": "com.bmostudio.songseed"
+      "package": "com.bmostudio.songnook"
     },
     "plugins": [
       [
@@ -88,20 +88,20 @@
           "androidMultiIntentFilters": [
             "audio/*"
           ],
-          "iosShareExtensionName": "Songstead Import"
+          "iosShareExtensionName": "SongNook Import"
         }
       ],
       [
         "expo-audio",
         {
-          "microphonePermission": "Songstead needs microphone access so you can record song ideas and voice memos.",
+          "microphonePermission": "SongNook needs microphone access so you can record song ideas and voice memos.",
           "enableBackgroundRecording": true
         }
       ],
       [
         "@siteed/audio-studio",
         {
-          "microphonePermission": "Songstead needs microphone access so you can record song ideas and voice memos.",
+          "microphonePermission": "SongNook needs microphone access so you can record song ideas and voice memos.",
           "enableBackgroundAudio": true,
           "enableNotifications": true,
           "enableDeviceDetection": true,
@@ -110,13 +110,13 @@
             "useProcessing": true
           },
           "iosConfig": {
-            "microphoneUsageDescription": "Songstead needs microphone access so you can record song ideas and voice memos.",
-            "notificationUsageDescription": "Songstead uses recording notifications so background recording can continue.",
+            "microphoneUsageDescription": "SongNook needs microphone access so you can record song ideas and voice memos.",
+            "notificationUsageDescription": "SongNook uses recording notifications so background recording can continue.",
             "allowBackgroundAudioControls": true
           }
         }
       ],
-      "./plugins/withSongSeedAndroidVariants",
+      "./plugins/withSongNookAndroidVariants",
       "expo-font",
       "expo-sqlite"
     ],

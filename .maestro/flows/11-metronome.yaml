@@ -1,7 +1,7 @@
 # Standalone Metronome controls: BPM up/down, meter change, and start/stop toggle.
 # Audible click is HUMAN (Sim audio), but every control's state change is checked.
 # BPM assertions assume the default 92 (true after flow 01's clearState / in-suite).
-appId: com.bmostudio.songseed.dev
+appId: com.bmostudio.songnook.dev
 ---
 - runFlow: ../subflows/open-library.yaml
 - tapOn:

@@ -14,7 +14,7 @@ import {
   TransferGoneError,
   type TransferPayload,
 } from "../../services/receiveTransfer";
-import { readSongSeedArchive } from "../../services/libraryImport";
+import { readSongNookArchive } from "../../services/libraryImport";
 import { enrichImportedAudioAsset, importAudioAssets } from "../../services/audioStorage";
 import { createClipImportBatcher } from "../../services/clipImportBatcher";
 import { enqueueMissingMetadataBackfill } from "../../services/backgroundWaveformHydration";
@@ -118,7 +118,7 @@ export function TransferReceiveScreen() {
         );
 
         if (isArchiveItem(item)) {
-          const parsed = await readSongSeedArchive(localUri, item.fileName);
+          const parsed = await readSongNookArchive(localUri, item.fileName);
           const result = await appActions.importLibraryArchiveIntoLibrary(parsed, {
             origin: "received",
             receivedOverrides: {
@@ -351,10 +351,10 @@ export function TransferReceiveScreen() {
               onPress={() => void save(transfer)}
               disabled={saving || done}
               accessibilityRole="button"
-              accessibilityLabel="Save to Songstead"
+              accessibilityLabel="Save to SongNook"
             >
               <Text style={parcelStyles.primaryLabel}>
-                {done ? "Saved" : saving ? "Saving…" : "Save to Songstead"}
+                {done ? "Saved" : saving ? "Saving…" : "Save to SongNook"}
               </Text>
             </Pressable>
             <Text style={parcelStyles.footnote}>

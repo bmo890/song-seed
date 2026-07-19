@@ -45,9 +45,9 @@ export function ShareImportIncomingSection({
       ) : (
         <Text style={styles.helperText}>
           {isResolvingShareAssets
-            ? "Preparing the shared audio so Songstead can import it."
+            ? "Preparing the shared audio so SongNook can import it."
             : unsupportedOnly
-              ? "Songstead can import shared audio files, but the current share payload does not contain supported audio."
+              ? "SongNook can import shared audio files, but the current share payload does not contain supported audio."
               : "Nothing is waiting to be imported right now."}
         </Text>
       )}

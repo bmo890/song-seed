@@ -109,7 +109,7 @@ function validateEndRecord(
         throw new StoredZipError("Multi-part ZIP backups are not supported.");
     }
     if (totalEntries === ZIP32_MAX_ENTRIES || declaredCentralOffset === ZIP32_MAX_VALUE) {
-        throw new StoredZipError("ZIP64 backups are not supported by this Songstead version.");
+        throw new StoredZipError("ZIP64 backups are not supported by this SongNook version.");
     }
     if (totalEntries !== localEntryCount) {
         throw new StoredZipError("Backup ZIP entry count does not match its directory.");
@@ -123,7 +123,7 @@ function validateEndRecord(
 }
 
 /**
- * Indexes the local headers without loading media payloads. Songstead backups use the
+ * Indexes the local headers without loading media payloads. SongNook backups use the
  * stored (uncompressed) ZIP method so each entry can later be verified and copied in
  * bounded chunks.
  */
@@ -166,7 +166,7 @@ export async function indexStoredZipArchive(
                 break;
             }
             if (signature === ZIP64_END_SIGNATURE) {
-                throw new StoredZipError("ZIP64 backups are not supported by this Songstead version.");
+                throw new StoredZipError("ZIP64 backups are not supported by this SongNook version.");
             }
             if (signature !== LOCAL_FILE_HEADER_SIGNATURE) {
                 throw new StoredZipError("Backup contains an invalid ZIP entry header.");
@@ -193,11 +193,11 @@ export async function indexStoredZipArchive(
                 throw new StoredZipError("Encrypted ZIP entries are not supported.");
             }
             if ((flags & 0x0008) !== 0) {
-                throw new StoredZipError("ZIP data descriptors are not supported in Songstead backups.");
+                throw new StoredZipError("ZIP data descriptors are not supported in SongNook backups.");
             }
             if (method !== 0 || compressedSize !== uncompressedSize) {
                 throw new StoredZipError(
-                    "This backup uses compression that Songstead cannot restore safely."
+                    "This backup uses compression that SongNook cannot restore safely."
                 );
             }
             if (compressedSize === ZIP32_MAX_VALUE || uncompressedSize === ZIP32_MAX_VALUE) {

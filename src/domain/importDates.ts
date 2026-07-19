@@ -120,9 +120,9 @@ export async function promptForImportDatePreference(
 
   const message =
     summary.totalCount === 1
-      ? `Original file date: ${summary.previewLabel}\nChoose which date Songstead should use for chronology.`
+      ? `Original file date: ${summary.previewLabel}\nChoose which date SongNook should use for chronology.`
       : summary.availableCount === summary.totalCount
-        ? `Earliest original file date: ${summary.previewLabel}\nChoose which date Songstead should use for chronology.`
+        ? `Earliest original file date: ${summary.previewLabel}\nChoose which date SongNook should use for chronology.`
         : `Original file dates are available for ${summary.availableCount} of ${summary.totalCount} files.\nEarliest original file date: ${summary.previewLabel}\nFiles without one will use import date.`;
 
   return new Promise((resolve) => {

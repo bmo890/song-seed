@@ -8,7 +8,7 @@ import { shareAudioClips, buildTimestampSlug } from "../../../services/audioStor
 import { createClipsShareLink } from "../../../services/clipShareLink";
 import { presentShareLink } from "../../../services/shareLinkFlow";
 import { isSendServiceConfigured } from "../../../config/sendService";
-import { SONG_SEED_AUDIO_DIR } from "../../../services/storagePaths";
+import { SONG_NOOK_AUDIO_DIR } from "../../../services/storagePaths";
 import { SelectionActionSheet } from "../../common/SelectionActionSheet";
 import { SelectionDock, type SelectionAction } from "../../common/SelectionDock";
 import { ClipNotesSheet } from "../../modals/ClipNotesSheet";
@@ -102,7 +102,7 @@ export function SelectionBars() {
       setIsSharing(true);
       await shareAudioClips(
         shareableClips,
-        selectedIdea ? `${selectedIdea.title} Clips` : "SongSeed Clips"
+        selectedIdea ? `${selectedIdea.title} Clips` : "SongNook Clips"
       );
     } catch (error) {
       const message = error instanceof Error ? error.message : "Could not share the selected clips.";
@@ -116,7 +116,7 @@ export function SelectionBars() {
     if (shareableClips.length === 0 || isSharing) return;
     setIsSharing(true);
     try {
-      const label = selectedIdea ? `${selectedIdea.title} Clips` : "Songstead Clips";
+      const label = selectedIdea ? `${selectedIdea.title} Clips` : "SongNook Clips";
       await presentShareLink(() => createClipsShareLink(shareableClips, label), {
         emptyMessage: "Select at least one clip with audio first.",
       });
@@ -159,7 +159,7 @@ export function SelectionBars() {
               try {
                 const originalUri = clip.audioUri;
                 const extension = originalUri.split(".").pop() || "m4a";
-                newAudioUri = `${SONG_SEED_AUDIO_DIR}/${newClipId}.${extension}`;
+                newAudioUri = `${SONG_NOOK_AUDIO_DIR}/${newClipId}.${extension}`;
                 await FileSystem.copyAsync({ from: originalUri, to: newAudioUri });
               } catch (error) {
                 console.error("[branch] audio copy failed:", error);

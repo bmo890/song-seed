@@ -2,9 +2,9 @@
  * What may be uploaded. Enforced SERVER-SIDE because every client is untrusted —
  * the desktop page is public HTML/JS and the raw API is reachable by anyone.
  *
- * Only audio and the branded `.songstead` archive are allowed. Everything else
+ * Only audio and the branded `.songnook` archive are allowed. Everything else
  * (video, office docs, pdf, executables, bare zips) is rejected. Note the
- * inherent limit: `.songstead` is an opaque ZIP we must not unpack, so a
+ * inherent limit: `.songnook` is an opaque ZIP we must not unpack, so a
  * determined abuser can still smuggle bytes inside one — access control + rate
  * limits + expiry contain that; content-typing alone cannot.
  */
@@ -23,9 +23,9 @@ const AUDIO_EXTS = new Set([
   "caf",
 ]);
 
-const SONGSTEAD_EXT = "songstead";
+const SONGNOOK_EXT = "songnook";
 
-// Mime allowed to accompany a `.songstead` file (its internals are a zip).
+// Mime allowed to accompany a `.songnook` file (its internals are a zip).
 const ARCHIVE_MIMES = new Set(["application/octet-stream", "application/zip"]);
 
 export function extensionOf(fileName: string): string {
@@ -46,9 +46,9 @@ export function checkUploadAllowed(fileName: string, mimeType: string): UploadCh
   const ext = extensionOf(fileName);
   const mime = (mimeType || "").toLowerCase();
 
-  if (ext === SONGSTEAD_EXT) {
+  if (ext === SONGNOOK_EXT) {
     if (ARCHIVE_MIMES.has(mime)) return { ok: true };
-    return { ok: false, reason: "songstead files must be application/octet-stream or application/zip" };
+    return { ok: false, reason: "songnook files must be application/octet-stream or application/zip" };
   }
 
   if (AUDIO_EXTS.has(ext)) {
@@ -58,12 +58,12 @@ export function checkUploadAllowed(fileName: string, mimeType: string): UploadCh
     return { ok: false, reason: `mime "${mime}" is not audio` };
   }
 
-  return { ok: false, reason: `file type ".${ext || "?"}" is not accepted (audio or .songstead only)` };
+  return { ok: false, reason: `file type ".${ext || "?"}" is not accepted (audio or .songnook only)` };
 }
 
 // ── Finalize-time magic-byte check ───────────────────────────────────────────
-// ZIP local-file-header signature "PK\x03\x04". A `.songstead` file must be a
-// real zip; this rejects arbitrary bytes renamed to .songstead. (It cannot see
+// ZIP local-file-header signature "PK\x03\x04". A `.songnook` file must be a
+// real zip; this rejects arbitrary bytes renamed to .songnook. (It cannot see
 // INSIDE the zip — that's the opaque-file residual.)
 const ZIP_MAGIC = [0x50, 0x4b, 0x03, 0x04];
 
@@ -74,5 +74,5 @@ export function looksLikeZip(head: Uint8Array): boolean {
 
 /** Whether an item's stored bytes should be magic-checked, and against what. */
 export function requiresZipMagic(fileName: string): boolean {
-  return extensionOf(fileName) === SONGSTEAD_EXT;
+  return extensionOf(fileName) === SONGNOOK_EXT;
 }

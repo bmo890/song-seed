@@ -44,7 +44,7 @@ Options, in preference order:
   `MPRemoteCommandCenter`/`MPNowPlayingInfoCenter` (iOS) and
   `MediaSessionCompat` + `MediaStyle` notification via a foreground service
   (Android). The app already patches native deps (see `patches/`), and already
-  ships custom Kotlin (`SongseedPitchShiftRenderer.kt` uses media3) — media3's
+  ships custom Kotlin (`SongNookPitchShiftRenderer.kt` uses media3) — media3's
   `MediaSessionService` is the natural Android fit.
 - JS bridge surface needed (either way):
   - `updateNowPlaying({ title, artist, durationMs, positionMs, isPlaying })` —

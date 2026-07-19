@@ -43,14 +43,14 @@ function isSharedAudioFile(file: ShareIntentFile) {
   return extension ? AUDIO_FILE_EXTENSIONS.has(extension) : false;
 }
 
-const ARCHIVE_FILE_EXTENSIONS = new Set(["zip", "songstead"]);
+const ARCHIVE_FILE_EXTENSIONS = new Set(["zip", "songnook"]);
 const ARCHIVE_MIME_TYPES = new Set([
   "application/zip",
   "application/x-zip-compressed",
   "application/octet-stream",
 ]);
 
-/** First shared file that looks like a Songstead archive (a shared songbook,
+/** First shared file that looks like a SongNook archive (a shared songbook,
  *  setlist, or library export). Octet-stream only counts with a zip-ish
  *  extension so arbitrary binaries don't hijack the audio flow. */
 export function findSharedArchiveFile(

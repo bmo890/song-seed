@@ -1,7 +1,7 @@
 # Reusable: clear any leftover sample clips from the current collection so a
 # following dev-sample import runs clean (no duplicate-review path). No-op when
 # the collection is already empty. Assumes the collection screen is showing.
-appId: com.bmostudio.songseed.dev
+appId: com.bmostudio.songnook.dev
 ---
 - runFlow:
     when:

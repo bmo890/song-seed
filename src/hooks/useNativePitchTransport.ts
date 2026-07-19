@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import SongseedPitchShiftModule, {
+import SongNookPitchShiftModule, {
   type NativePitchShiftCapabilities,
   type NativePitchShiftPlaybackState,
-} from "../../modules/songseed-pitch-shift";
+} from "../../modules/songnook-pitch-shift";
 import {
   activatePlaybackAudioSession,
   createAudioSessionOwner,
@@ -86,7 +86,7 @@ type UseNativePitchTransportArgs = {
 };
 
 /**
- * Shared native pitch/speed transport engine. Owns the SongseedPitchShift native
+ * Shared native pitch/speed transport engine. Owns the SongNookPitchShift native
  * module lifecycle — capabilities + listeners, audio-session ownership, load /
  * rate / pitch sync, hand-back to the source, and error fallback — and exposes a
  * source-agnostic transport. The player (practice) and the editor (preview) wrap
@@ -155,32 +155,32 @@ export function useNativePitchTransport({
   const reconcileQueuedRef = useRef(false);
 
   useEffect(() => {
-    if (!SongseedPitchShiftModule) {
+    if (!SongNookPitchShiftModule) {
       return;
     }
     pitchLog(`[${ownerLabel}] subscribing to native pitch engine`);
     let cancelled = false;
-    void SongseedPitchShiftModule.getCapabilities()
+    void SongNookPitchShiftModule.getCapabilities()
       .then((value) => {
         pitchLog(`[${ownerLabel}] capabilities`, value);
         if (!cancelled) setCapabilities(normalizeNativePitchCapabilities(value));
       })
       .catch((error) => console.warn("[pitch] capabilities lookup failed", error));
-    void SongseedPitchShiftModule.getPlaybackState()
+    void SongNookPitchShiftModule.getPlaybackState()
       .then((value) => {
         if (!cancelled) setNativeState(value);
       })
       .catch(() => {});
 
-    const stateSub = SongseedPitchShiftModule.addListener("onStateChange", (value) => {
+    const stateSub = SongNookPitchShiftModule.addListener("onStateChange", (value) => {
       setNativeState(value);
     });
-    const endSub = SongseedPitchShiftModule.addListener("onPlaybackEnded", (value) => {
+    const endSub = SongNookPitchShiftModule.addListener("onPlaybackEnded", (value) => {
       pitchLog(`[${ownerLabel}] onPlaybackEnded`, { key: loadedKeyRef.current, atMs: value.currentTimeMs });
       setNativeState(value);
       onEndedRef.current?.(loadedKeyRef.current);
     });
-    const errorSub = SongseedPitchShiftModule.addListener("onError", ({ message }) => {
+    const errorSub = SongNookPitchShiftModule.addListener("onError", ({ message }) => {
       console.error(`[pitch] [${ownerLabel}] native engine error`, message);
       setNativeTransportDisabled(true);
     });
@@ -226,7 +226,7 @@ export function useNativePitchTransport({
       const src = sourceRef.current;
       const hasNativeSession = loadedKeyRef.current || nativeStateRef.current.isLoaded;
 
-      if (!SongseedPitchShiftModule) {
+      if (!SongNookPitchShiftModule) {
         if (ownsAudioSessionRef.current) await releaseAudioSessionOwnership();
         shouldResumeOnReleaseRef.current = true;
         return;
@@ -244,7 +244,7 @@ export function useNativePitchTransport({
         wasPlaying: snapshot.isPlaying,
       });
       loadedKeyRef.current = null;
-      const state = await SongseedPitchShiftModule.unload();
+      const state = await SongNookPitchShiftModule.unload();
       setNativeState(state);
       await releaseAudioSessionOwnership();
       await src.seekTo(snapshot.currentTimeMs);
@@ -275,7 +275,7 @@ export function useNativePitchTransport({
   // inside `runExclusive`, and reads `desiredRef` (not closure) so a coalesced
   // run applies the freshest value rather than a stale step from mid-drag.
   const reconcileNative = useCallback(async () => {
-    const nativeModule = SongseedPitchShiftModule;
+    const nativeModule = SongNookPitchShiftModule;
     if (!nativeModule) return;
     const d = desiredRef.current;
     const src = sourceRef.current;
@@ -331,7 +331,7 @@ export function useNativePitchTransport({
   // queued, further requests fold into it (it reads the latest target when it
   // runs); the flag clears at run start so changes mid-run queue a trailing pass.
   const requestReconcile = useCallback(() => {
-    if (!SongseedPitchShiftModule) return;
+    if (!SongNookPitchShiftModule) return;
     if (reconcileQueuedRef.current) return;
     reconcileQueuedRef.current = true;
     void runExclusive(async () => {
@@ -363,7 +363,7 @@ export function useNativePitchTransport({
 
   useEffect(() => {
     return () => {
-      const nativeModule = SongseedPitchShiftModule;
+      const nativeModule = SongNookPitchShiftModule;
       if (!nativeModule) return;
       void runExclusive(() => nativeModule.unload()).catch(() => {});
       void releaseAudioSessionOwnership().catch(() => {});
@@ -388,7 +388,7 @@ export function useNativePitchTransport({
           });
 
           if (
-            SongseedPitchShiftModule &&
+            SongNookPitchShiftModule &&
             shouldOwnNativeTransport &&
             !isNativeTransportActive &&
             src.audioUri &&
@@ -401,7 +401,7 @@ export function useNativePitchTransport({
             });
             await ensureAudioSessionOwnership();
             if (src.isPlaying) await src.pause();
-            const state = await SongseedPitchShiftModule.loadForPractice({
+            const state = await SongNookPitchShiftModule.loadForPractice({
               sourceUri: src.audioUri,
               startPositionMs: atEnd ? 0 : src.positionMs,
               autoplay: true,
@@ -413,12 +413,12 @@ export function useNativePitchTransport({
             return;
           }
 
-          if (isNativeTransportActive && SongseedPitchShiftModule) {
+          if (isNativeTransportActive && SongNookPitchShiftModule) {
             if (atEnd) {
-              const seekState = await SongseedPitchShiftModule.seekTo(0);
+              const seekState = await SongNookPitchShiftModule.seekTo(0);
               setNativeState(seekState);
             }
-            const state = await SongseedPitchShiftModule.play();
+            const state = await SongNookPitchShiftModule.play();
             setNativeState(state);
             return;
           }
@@ -448,8 +448,8 @@ export function useNativePitchTransport({
     () =>
       runExclusive(async () => {
         try {
-          if (isNativeTransportActive && SongseedPitchShiftModule) {
-            const state = await SongseedPitchShiftModule.pause();
+          if (isNativeTransportActive && SongNookPitchShiftModule) {
+            const state = await SongNookPitchShiftModule.pause();
             setNativeState(state);
             return;
           }
@@ -468,8 +468,8 @@ export function useNativePitchTransport({
     (positionMs: number) =>
       runExclusive(async () => {
         try {
-          if (isNativeTransportActive && SongseedPitchShiftModule) {
-            const state = await SongseedPitchShiftModule.seekTo(positionMs);
+          if (isNativeTransportActive && SongNookPitchShiftModule) {
+            const state = await SongNookPitchShiftModule.seekTo(positionMs);
             setNativeState(state);
             return;
           }
@@ -488,8 +488,8 @@ export function useNativePitchTransport({
     (rate: number) =>
       runExclusive(async () => {
         try {
-          if (isNativeTransportActive && SongseedPitchShiftModule) {
-            const state = await SongseedPitchShiftModule.setPlaybackRate(rate);
+          if (isNativeTransportActive && SongNookPitchShiftModule) {
+            const state = await SongNookPitchShiftModule.setPlaybackRate(rate);
             setNativeState(state);
           }
           sourceRef.current.setPlaybackRate(rate);

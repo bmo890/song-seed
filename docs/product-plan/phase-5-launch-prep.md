@@ -8,7 +8,7 @@ Everything between "the app is done" and "the app is live": store listings, scre
 
 ## Background you need
 
-- **Identifiers:** Android package `com.bmostudio.songseed` (dev variant `.dev`), iOS bundle `com.bmostudio.songseed` + the share-extension target ("Song Seed Import"). Version `1.0.0`, Android `versionCode 1` (in `android/app/build.gradle`); EAS `autoIncrement` from Phase 0.7 manages increments going forward.
+- **Identifiers:** Android package `com.bmostudio.songnook` (dev variant `.dev`), iOS bundle `com.bmostudio.songnook` + the share-extension target ("SongNook Import"). Version `1.0.0`, Android `versionCode 1` (in `android/app/build.gradle`); EAS `autoIncrement` from Phase 0.7 manages increments going forward.
 - **Privacy posture:** no accounts, no user data leaves the device except (a) Datamuse word-lookup queries, (b) Gutenberg public-book fetches, (c) crash reports **if** Phase 0.4 chose Sentry. Privacy policy URL from Phase 0.9.
 - **Permissions the reviewer will see:** microphone (recording — usage string already set), Android `MODIFY_AUDIO_SETTINGS`, notifications (Android recording foreground-service notification via the siteed plugin), background audio/processing modes on iOS.
 - The app is **free with no IAP at v1.0** (monetization is Phase 6, post-launch) — this simplifies both reviews substantially.
@@ -18,7 +18,7 @@ Everything between "the app is done" and "the app is live": store listings, scre
 ### 5.1 Store listings
 
 Write once, adapt per store:
-- **Name:** "Song Seed" (verify availability; App Store names are unique — have fallbacks like "Song Seed — Idea Recorder").
+- **Name:** "SongNook" (verify availability; App Store names are unique — have fallbacks like "SongNook — Idea Recorder").
 - **Subtitle (iOS, 30 chars) / short description (Play, 80):** the capture promise, e.g. "Catch song ideas instantly".
 - **Description:** lead with capture speed, then organization (workspaces/collections), practice tools (loop/slow/pitch), overdub layers, lyric tools, and close with the trust story: *"Your music never leaves your device. No account. No cloud. Backups you control."* — for this audience that's a differentiator, not boilerplate.
 - **Keywords (iOS 100-char field):** songwriting, voice memo, song ideas, riff, demo recorder, practice, looper, lyric, chord.

@@ -4,7 +4,7 @@
  */
 
 const mockFiles = new Map<string, Uint8Array>();
-const mockDirectories = new Set<string>(["file:///doc/", "file:///doc/songseed"]);
+const mockDirectories = new Set<string>(["file:///doc/", "file:///doc/songnook"]);
 
 jest.mock("expo-file-system/legacy", () => ({
     documentDirectory: "file:///doc/",
@@ -103,8 +103,8 @@ jest.mock("../../state/useStore", () => ({
 import { strToU8, zipSync } from "fflate";
 import { findWorkspaceArchives, restoreWorkspaceFromArchive } from "../audioRecovery";
 
-const ARCHIVE_DIR = "file:///doc/songseed/workspace-archives";
-const MASTER_URI = "file:///doc/songseed/audio/master.m4a";
+const ARCHIVE_DIR = "file:///doc/songnook/workspace-archives";
+const MASTER_URI = "file:///doc/songnook/audio/master.m4a";
 
 function installArchive(options?: { compressed?: boolean; legacySuffix?: boolean }) {
     const masterBytes = Uint8Array.from({ length: 48 * 1024 + 3 }, (_, index) => (index * 37) & 0xff);
@@ -135,7 +135,7 @@ function installArchive(options?: { compressed?: boolean; legacySuffix?: boolean
         ],
         isArchived: true,
     };
-    const suffix = options?.legacySuffix ? "songseed-workspace" : "songstead-workspace";
+    const suffix = options?.legacySuffix ? "songnook-workspace" : "songnook-workspace";
     const archiveUri = `${ARCHIVE_DIR}/Recovered WS-ws-1.${suffix}.zip`;
     mockFiles.set(
         archiveUri,
@@ -155,12 +155,12 @@ beforeEach(() => {
     mockFiles.clear();
     mockDirectories.clear();
     mockDirectories.add("file:///doc/");
-    mockDirectories.add("file:///doc/songseed");
+    mockDirectories.add("file:///doc/songnook");
     mockDirectories.add(ARCHIVE_DIR);
 });
 
 describe("archive-based audio recovery", () => {
-    it("finds a pre-rename (.songseed-workspace.zip) archive — legacy suffixes stay recoverable", async () => {
+    it("finds a pre-rename (.songnook-workspace.zip) archive — legacy suffixes stay recoverable", async () => {
         installArchive({ legacySuffix: true });
         const archives = await findWorkspaceArchives();
         expect(archives).toHaveLength(1);

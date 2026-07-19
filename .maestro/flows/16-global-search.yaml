@@ -2,7 +2,7 @@
 # drawer's global Search, type a query, and confirm the song shows in results.
 # Then relaunch and delete the song to stay self-cleaning. Exercises the global
 # search index/field and result rendering — distinct from in-collection search (10).
-appId: com.bmostudio.songseed.dev
+appId: com.bmostudio.songnook.dev
 ---
 - runFlow: ../subflows/open-library.yaml
 - tapOn: ".*Ideas.*"

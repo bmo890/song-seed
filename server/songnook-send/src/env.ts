@@ -72,7 +72,7 @@ export function loadConfig(env: Env): Config {
     expiryMs: expiryDays * 24 * 60 * 60 * 1000,
     draftExpiryMs: (Number(env.DRAFT_EXPIRY_HOURS) || 24) * 60 * 60 * 1000,
     iosAppStoreUrl: env.IOS_APP_STORE_URL || "",
-    androidPackage: env.ANDROID_PACKAGE || "com.bmostudio.songseed",
+    androidPackage: env.ANDROID_PACKAGE || "com.bmostudio.songnook",
     r2AccountId: env.R2_ACCOUNT_ID || "",
     r2Bucket: env.R2_BUCKET || "songnook-send",
     abuseEmail: env.ABUSE_CONTACT_EMAIL || "abuse@songnook.app",

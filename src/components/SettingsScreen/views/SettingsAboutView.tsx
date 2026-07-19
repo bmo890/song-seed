@@ -13,13 +13,13 @@ const FEEDBACK_EMAIL = "bmostudio.dev@gmail.com";
 
 /**
  * Quiet closing page: the version to quote in a bug report, a way to reach out, and a
- * plain statement of where a Songstead library actually lives.
+ * plain statement of where a SongNook library actually lives.
  */
 export function SettingsAboutView() {
   const version = Constants.expoConfig?.version ?? "—";
 
   const sendFeedback = () => {
-    const subject = encodeURIComponent(`Songstead feedback (v${version})`);
+    const subject = encodeURIComponent(`SongNook feedback (v${version})`);
     void Linking.openURL(`mailto:${FEEDBACK_EMAIL}?subject=${subject}`).catch(() => {
       // No mail client configured — nothing to open; leave the user where they are.
     });
@@ -30,12 +30,12 @@ export function SettingsAboutView() {
     if (!uri) {
       AppAlert.info(
         "No diagnostics recorded",
-        "Songstead has not logged any crashes on this device. If you hit a problem, come back here afterward — the log will be waiting."
+        "SongNook has not logged any crashes on this device. If you hit a problem, come back here afterward — the log will be waiting."
       );
       return;
     }
     try {
-      await shareFileUri(uri, "Songstead diagnostic log", "application/json");
+      await shareFileUri(uri, "SongNook diagnostic log", "application/json");
     } catch {
       AppAlert.info("Could not share", "The diagnostic log could not be shared on this device.");
     }

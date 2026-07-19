@@ -1,7 +1,7 @@
 # Edit clip metadata: rename a clip and add notes via the selection "Edit" sheet
 # (ClipNotesSheet), and confirm the new title renders on the card. Self-cleaning.
 # Requires scripts/push-dev-samples.sh.
-appId: com.bmostudio.songseed.dev
+appId: com.bmostudio.songnook.dev
 ---
 - runFlow: ../subflows/open-library.yaml
 - tapOn: ".*Ideas.*"

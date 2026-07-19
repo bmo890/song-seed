@@ -170,7 +170,7 @@ export function buildWarningSummary(warnings: string[]) {
 }
 
 export function getFormatSummary(format: LibraryExportFormat) {
-  return format === "songstead-archive" ? "Songstead Archive" : "Standard ZIP";
+  return format === "songnook-archive" ? "SongNook Archive" : "Standard ZIP";
 }
 
 export function getOptionsSummary(
@@ -183,7 +183,7 @@ export function getOptionsSummary(
   }
 
   const options =
-    format === "songstead-archive"
+    format === "songnook-archive"
       ? [
           archiveOptions.includeFullSongHistory ? "history" : null,
           archiveOptions.includeNotes ? "notes" : null,

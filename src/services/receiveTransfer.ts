@@ -67,7 +67,7 @@ function extensionOf(fileName: string): string {
 function isSupportedTransferItem(fileName: string, mimeType: string): boolean {
   const ext = extensionOf(fileName);
   const mime = mimeType.toLowerCase();
-  if (ext === "songstead") return mime === "application/octet-stream" || mime === "application/zip";
+  if (ext === "songnook") return mime === "application/octet-stream" || mime === "application/zip";
   if (AUDIO_EXTS.has(ext)) return mime.startsWith("audio/") || mime === "application/octet-stream";
   return false;
 }
@@ -165,7 +165,7 @@ export function parseTransferUrl(input: string | null | undefined): string | nul
       const match = /^\/t\/(t_[A-Za-z0-9]{16,80})(?:\/)?$/.exec(url.pathname);
       return match?.[1] ?? null;
     }
-    if (url.protocol === "songstead:" && url.hostname === "t") {
+    if (url.protocol === "songnook:" && url.hostname === "t") {
       const id = url.pathname.replace(/^\//, "");
       return TRANSFER_ID_PATTERN.test(id) ? id : null;
     }
@@ -200,10 +200,10 @@ export async function fetchTransfer(transferId: string): Promise<TransferPayload
   return validateTransferPayload(raw, transferId);
 }
 
-/** A Songstead archive item (vs. a loose audio/other file). */
+/** A SongNook archive item (vs. a loose audio/other file). */
 export function isArchiveItem(item: TransferItemPayload): boolean {
   const name = item.fileName.toLowerCase();
-  return name.endsWith(".songstead") || name.endsWith(".zip");
+  return name.endsWith(".songnook") || name.endsWith(".zip");
 }
 
 const RECEIVE_CACHE_DIR = `${FileSystem.cacheDirectory}songnook-receive`;

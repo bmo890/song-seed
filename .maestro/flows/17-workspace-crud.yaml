@@ -1,7 +1,7 @@
 # Workspace management: open the workspace picker, create a workspace, confirm it
 # lists, then delete it via its action sheet. Self-cleaning. Exercises the picker,
 # WorkspaceModal, workspace creation, and the per-workspace action sheet.
-appId: com.bmostudio.songseed.dev
+appId: com.bmostudio.songnook.dev
 ---
 - runFlow: ../subflows/open-library.yaml
 - tapOn:

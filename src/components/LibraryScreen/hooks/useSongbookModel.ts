@@ -184,7 +184,7 @@ export function useSongbookModel() {
         AppAlert.info("Share failed", "Couldn't build the songbook file. Please try again.");
       }
     },
-    /** Upload the songbook to Songstead Send and copy a shareable link. */
+    /** Upload the songbook to SongNook Send and copy a shareable link. */
     getLinkForActiveSongbook: async () => {
       if (!activeSongbook) return;
       await presentShareLink(() => createSongbookShareLink(activeSongbook, workspaces), {

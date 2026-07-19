@@ -8,7 +8,7 @@ function clip(id: string, over: Partial<ClipVersion> = {}): ClipVersion {
     notes: "",
     createdAt: 1,
     isPrimary: false,
-    audioUri: `file:///doc/songseed/audio/${id}.m4a`,
+    audioUri: `file:///doc/songnook/audio/${id}.m4a`,
     durationMs: 60_000,
     ...over,
   } as ClipVersion;

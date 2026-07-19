@@ -1,7 +1,7 @@
 # Whole-collection queue playback. Import several clips, then "Play all" from the
 # collection ⋯ menu — the player opens and plays the queue back-to-back. Verifies
 # the queue builds and starts, then stops. Self-cleaning. Requires push-dev-samples.
-appId: com.bmostudio.songseed.dev
+appId: com.bmostudio.songnook.dev
 ---
 - runFlow: ../subflows/open-library.yaml
 - tapOn: ".*Ideas.*"

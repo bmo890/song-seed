@@ -1,4 +1,4 @@
-# Songstead Worktree Responsibilities
+# SongNook Worktree Responsibilities
 
 This project is split into three active worktrees. Changes should be routed to the correct worktree whenever possible.
 
@@ -77,11 +77,11 @@ Rule of thumb:
 
 ## UI Consistency Rules
 
-These rules are short, strict enforcement rules. Use [docs/design-system.md](/Users/benmogerman/Projects/song-seed/docs/design-system.md) for the fuller rationale and patterns.
+These rules are short, strict enforcement rules. Use [docs/design-system.md](/Users/benmogerman/Projects/song-nook/docs/design-system.md) for the fuller rationale and patterns.
 
 ## Code Architecture Rules
 
-Use [docs/code-architecture.md](/Users/benmogerman/Projects/song-seed/docs/code-architecture.md) when refactoring or creating screen structure.
+Use [docs/code-architecture.md](/Users/benmogerman/Projects/song-nook/docs/code-architecture.md) when refactoring or creating screen structure.
 
 Key rules:
 - Keep screen entry files thin
@@ -92,7 +92,7 @@ Key rules:
 - Treat `Collection` and `Song` as the architecture templates for the rest of the app
 
 ### Core philosophy
-- Songstead is a creative tool for musicians, not a dashboard.
+- SongNook is a creative tool for musicians, not a dashboard.
 - The UI should feel calm, minimal, predictable, and content-first.
 - Avoid flashy, dense, enterprise-style layouts.
 

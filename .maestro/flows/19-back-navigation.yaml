@@ -3,7 +3,7 @@
 # This is the iOS-observable half of the "back must not close the app" fix; the
 # Android hardware-back half is a MANUAL device check (see docs/qa/CHECKLIST.md
 # and RUN-LOG.md — the fix removed all BackHandler.exitApp() calls).
-appId: com.bmostudio.songseed.dev
+appId: com.bmostudio.songnook.dev
 ---
 - runFlow: ../subflows/open-library.yaml
 - tapOn: ".*Ideas.*"

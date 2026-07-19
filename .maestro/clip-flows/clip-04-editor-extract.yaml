@@ -2,7 +2,7 @@
 # extracted (short) clip is created. Exercises the editor's real output path
 # (region → Extract 1 clip → Extract confirm), not just mounting. Self-cleaning.
 # Requires scripts/push-dev-samples.sh.
-appId: com.bmostudio.songseed.dev
+appId: com.bmostudio.songnook.dev
 ---
 - runFlow: ../subflows/open-library.yaml
 - tapOn: ".*Ideas.*"

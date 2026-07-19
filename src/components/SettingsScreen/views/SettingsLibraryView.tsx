@@ -145,7 +145,7 @@ export function SettingsLibraryView({
           <LibraryActionCard
             icon="download-outline"
             title="Import an archive"
-            meta="Merge a Songstead Archive into this library"
+            meta="Merge a SongNook Archive into this library"
             onPress={onBeginImportFlow}
           />
         </View>

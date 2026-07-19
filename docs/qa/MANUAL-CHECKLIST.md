@@ -1,4 +1,4 @@
-# Songstead — Manual QA Checklist
+# SongNook — Manual QA Checklist
 
 A sit-down-with-your-phone checklist. Walk it top to bottom on a **real iOS device** and a
 **real Android device** before each release. Tick both boxes per item.
@@ -160,7 +160,7 @@ See `docs/qa/RUN-LOG.md` for the automation status of each.
 - iOS ☐  Android ☐ — Collection ⋯ → **Play all** plays the queue back-to-back; next clip
   auto-advances. **[AUTO: clip-08]** (start) / **[HUMAN]** (auto-advance between clips)
 - iOS ☐  Android ☐ — Minimize player → the mini media dock shows and keeps playing. **[AUTO: clip-01]** (minimize) / **[HUMAN]** (dock playback)
-- iOS ☐  Android ☐ — **Lock screen / media card look:** terracotta card (Android tints from the artwork), seed-mark artwork tile, lines read clip title / song title / collection. Artist line is the song (or collection), never "SongSeed". **[HUMAN]**
+- iOS ☐  Android ☐ — **Lock screen / media card look:** terracotta card (Android tints from the artwork), seed-mark artwork tile, lines read clip title / song title / collection. Artist line is the song (or collection), never "SongNook". **[HUMAN]**
 - iOS ☐  Android ☐ — Media card buttons are **previous / play-pause / next** (no ±10s seek buttons); prev/next move through the queue. At the queue end, next is inert (iOS: grayed out; Android: hidden — known OEM behaviour). **[HUMAN]**
 - iOS ☐  Android ☐ — **Previous follows the 3-second rule:** more than 3s into a clip → restarts it; tapped again within 3s → previous queue item; nothing before it → restarts. **[HUMAN]**
 - iOS ☐  Android ☐ — The card's scrubber drags and seeks within the clip. **[HUMAN]**
@@ -256,8 +256,8 @@ Receiving (link → phone/desktop):
   tracklist rows, Download works and file plays. **[HUMAN]**
 - iOS ☐  Android ☐ — Open a sent link in the phone browser (app NOT handling links yet):
   install-funnel page renders; **plain downloads work**. **[HUMAN]**
-- iOS ☐  Android ☐ — Download the `.songstead` file from the link and open it with the app
-  (share sheet → Songstead): lands as a **Received package**, deduped on second import
+- iOS ☐  Android ☐ — Download the `.songnook` file from the link and open it with the app
+  (share sheet → SongNook): lands as a **Received package**, deduped on second import
   (same transferId → no duplicate). **[HUMAN]**
 - Desktop ☐ — send.songnook.app sender page: drag-drop an audio file → link; dropping a
   video/PDF is rejected client-side AND a curl attempt returns 415. **[HUMAN]**

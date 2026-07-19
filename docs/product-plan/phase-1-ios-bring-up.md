@@ -4,17 +4,17 @@
 
 ## Purpose
 
-Song Seed has **never been built or run on iOS**. All development and testing to date happened on Android. The codebase was written with iOS in mind — platform forks exist and read correctly — but every one of them is unverified speculation until this phase. The goal: a TestFlight build where every core flow works on a real iPhone.
+SongNook has **never been built or run on iOS**. All development and testing to date happened on Android. The codebase was written with iOS in mind — platform forks exist and read correctly — but every one of them is unverified speculation until this phase. The goal: a TestFlight build where every core flow works on a real iPhone.
 
 ## Background you need
 
 - **Recording** uses `@siteed/audio-studio` v3.0.2. The repo patches it (`patches/@siteed+audio-studio+3.0.2.patch`, 25 hunks) but **every hunk touches Android Kotlin** — iOS runs the stock library, completely unexercised.
 - **Three custom Expo native modules** in `modules/`:
-  - `songseed-metronome` — has iOS Swift (`SongseedMetronomeEngine.swift`, module + podspec). Drives count-in and practice click via `src/hooks/useMetronome.ts`.
-  - `songseed-pitch-shift` — has iOS Swift (renderer + practice engine + podspec). Drives pitch/speed practice playback (`src/hooks/useNativePitchTransport.ts`) **and** waveform decoding (`computeWaveform` called from `src/services/waveformAnalysis.ts`, with `@siteed extractPreview` as automatic fallback — so a broken decoder degrades to slower waveforms, not crashes).
-  - `songseed-file-io` — **Android-only by design** (`expo-module.config.json` declares `platforms: ["android"]`). It streams backups to Android SAF content URIs. iOS intentionally takes a different path: `src/services/archiveSave.ts` forks on `Platform.OS === "android"`; the non-Android path shares/exports via the system share sheet. **Do not try to port this module to iOS.**
+  - `songnook-metronome` — has iOS Swift (`SongNookMetronomeEngine.swift`, module + podspec). Drives count-in and practice click via `src/hooks/useMetronome.ts`.
+  - `songnook-pitch-shift` — has iOS Swift (renderer + practice engine + podspec). Drives pitch/speed practice playback (`src/hooks/useNativePitchTransport.ts`) **and** waveform decoding (`computeWaveform` called from `src/services/waveformAnalysis.ts`, with `@siteed extractPreview` as automatic fallback — so a broken decoder degrades to slower waveforms, not crashes).
+  - `songnook-file-io` — **Android-only by design** (`expo-module.config.json` declares `platforms: ["android"]`). It streams backups to Android SAF content URIs. iOS intentionally takes a different path: `src/services/archiveSave.ts` forks on `Platform.OS === "android"`; the non-Android path shares/exports via the system share sheet. **Do not try to port this module to iOS.**
 - **Patches beyond siteed:** `expo-file-system` (Android Kotlin — irrelevant to iOS), `react-native-pitchy` (Android CMake — irrelevant), and `xcode+3.0.1.patch` (patches the Node `xcode` lib used at **prebuild time** — evidence someone already hit iOS build friction once; expect prebuild to need attention).
-- **Share extension:** `expo-share-intent` config in `app.json` creates an iOS share extension target ("Song Seed Import", max 20 files, audio). Separate bundle ID + App Group + provisioning profile. EAS (Phase 0.7) manages the credentials.
+- **Share extension:** `expo-share-intent` config in `app.json` creates an iOS share extension target ("SongNook Import", max 20 files, audio). Separate bundle ID + App Group + provisioning profile. EAS (Phase 0.7) manages the credentials.
 - **Audio session config** is centralized in `src/services/audioSession.ts` — three roles (playback/recording/metronome) with queued, priority-arbitrated `setAudioModeAsync` calls. `playsInSilentMode: true` everywhere (correct for a music app). Background audio + processing modes are enabled via the siteed plugin config in `app.json`.
 - Known iOS-aware code (verify each): `src/services/latencyModel.ts` (iOS haptic latency constant 35ms vs 60), `src/hooks/useRecording.ts` (notification permission is Android-only — iOS returns true), `src/hooks/useFullPlayer.ts` (Android foreground-service error swallow), `src/hooks/useMetronome.ts` (iOS uses expo-haptics tiers instead of `Vibration.vibrate` durations), `src/services/audioStorage.ts` (share path), `src/hooks/useBrowseRootBackHandler.ts` (Android back button — iOS no-op).
 
@@ -55,7 +55,7 @@ The heart of the app, entirely stock-library on iOS. Test matrix:
 
 ### 1.5 Share extension & file flows
 
-- From Voice Memos / Files: Share → "Song Seed Import" appears, multi-file audio import lands in the in-app import flow with progress banner and duplicate review.
+- From Voice Memos / Files: Share → "SongNook Import" appears, multi-file audio import lands in the in-app import flow with progress banner and duplicate review.
 - Backup round trip: Settings → export a full backup → save to Files/iCloud via the share path → delete + reinstall app (or clear state) → restore from that file. **This is the data-safety story; it must round-trip losslessly.** Merge-restore and salvage-restore paths too if time allows (tests cover logic; this validates iOS file plumbing).
 - Workspace archive + offload to Files, then re-import.
 - Document/audio import via the in-app picker (`expo-document-picker`).
@@ -80,7 +80,7 @@ Upload via EAS Submit; distribute to internal testers; confirm the build passes 
 
 ## Out of scope
 
-Porting `songseed-file-io` to iOS (deliberate non-goal); iPad optimization; visual polish (Phases 2–3).
+Porting `songnook-file-io` to iOS (deliberate non-goal); iPad optimization; visual polish (Phases 2–3).
 
 ## Changelog (fill in as you fix things)
 
@@ -91,20 +91,20 @@ Porting `songseed-file-io` to iOS (deliberate non-goal); iPad optimization; visu
      `@siteed/audio-studio`, so the Pods project pointed at 18 Swift files that no
      longer existed there. Fixed by `expo prebuild --clean -p ios` (regenerates the
      whole native project from config; `ios/` is gitignored so nothing was lost). The
-     regen also renamed the workspace/scheme to `SongsteadDev` (dev variant of the
-     renamed app) and recreated the share extension as `SongsteadImport`.
-  2. **Pitch-shift podspec source glob was wrong** — `modules/songseed-pitch-shift/ios/SongseedPitchShift.podspec`
+     regen also renamed the workspace/scheme to `SongNookDev` (dev variant of the
+     renamed app) and recreated the share extension as `SongNookImport`.
+  2. **Pitch-shift podspec source glob was wrong** — `modules/songnook-pitch-shift/ios/SongNookPitchShift.podspec`
      had `s.source_files = 'ios/**/*.{…}'`, but the podspec already lives *in* `ios/`,
      so it looked for a non-existent `ios/ios/` and matched **zero** Swift files → the
-     module never built → downstream `no such module 'SongseedPitchShift'`. Fixed the
+     module never built → downstream `no such module 'SongNookPitchShift'`. Fixed the
      glob to `'**/*.{…}'` and added `DEFINES_MODULE => YES` (matching the working
-     `songseed-metronome` podspec). This bug was invisible until now because iOS was
+     `songnook-metronome` podspec). This bug was invisible until now because iOS was
      never built. (This is a real source fix, committed.)
   3. Set `ios.supportsTablet: false` (Phase 1.6 recommendation — keep un-QA'd iPad
      layouts out of App Review scope for v1).
   - **Result:** `** BUILD SUCCEEDED **` — AudioStudio pod, both custom Swift modules
     (metronome + pitch-shift, including the new `getAudioDurationMs`), and the app all
-    compile; `SongsteadDev.app` produced. NOT yet run on a device (needs the owner's
+    compile; `SongNookDev.app` produced. NOT yet run on a device (needs the owner's
     iPhone + Apple account for on-device signing); simulator can't validate audio.
   - **To run on your iPhone:** plug it in + trust the Mac, then `npx expo run:ios --device`
     (dev variant). Xcode will ask for your Apple Developer team for signing.

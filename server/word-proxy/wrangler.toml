@@ -1,4 +1,4 @@
-name = "songseed-word-proxy"
+name = "songnook-word-proxy"
 main = "worker.js"
 compatibility_date = "2026-07-01"
 

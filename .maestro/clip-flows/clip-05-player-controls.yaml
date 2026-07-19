@@ -1,7 +1,7 @@
 # Player UI controls (ungated): the markers toggle and the waveform expand/collapse
 # both flip state and back. Self-cleaning. Requires scripts/push-dev-samples.sh.
 # (Speed / loop live behind the Pro-gated practice suite and are covered elsewhere.)
-appId: com.bmostudio.songseed.dev
+appId: com.bmostudio.songnook.dev
 ---
 - runFlow: ../subflows/open-library.yaml
 - tapOn: ".*Ideas.*"

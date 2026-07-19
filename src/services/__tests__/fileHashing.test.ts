@@ -51,7 +51,7 @@ jest.mock("expo-crypto", () => ({
 
 import { sha256OfFileBase64 } from "../fileHashing";
 
-const URI = "file:///doc/songseed/audio/clip.m4a";
+const URI = "file:///doc/songnook/audio/clip.m4a";
 
 function expectedV1Digest(bytes: Uint8Array) {
     return createHash("sha256").update(Buffer.from(bytes).toString("base64")).digest("hex");

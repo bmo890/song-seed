@@ -1,7 +1,7 @@
 import { zipSync } from "fflate";
 
 /**
- * detectPickedArchiveKind must tell the two Songstead .zip formats apart so the import and
+ * detectPickedArchiveKind must tell the two SongNook .zip formats apart so the import and
  * restore flows can redirect a misplaced file. It reads only the manifest via the streaming
  * indexer, which expects STORED (uncompressed) entries — so the fixtures use level 0.
  */
@@ -56,11 +56,11 @@ beforeEach(() => {
     mockFiles.clear();
 });
 
-it("classifies a Songstead Archive", async () => {
+it("classifies a SongNook Archive", async () => {
     mockFiles.set("file:///pick/archive.zip", storeZip({
-        "manifest.json": JSON.stringify({ format: "songstead-archive", schemaVersion: 6, workspaces: [] }),
+        "manifest.json": JSON.stringify({ format: "songnook-archive", schemaVersion: 6, workspaces: [] }),
     }));
-    expect(await detectPickedArchiveKind("file:///pick/archive.zip")).toBe("songstead-archive");
+    expect(await detectPickedArchiveKind("file:///pick/archive.zip")).toBe("songnook-archive");
 });
 
 it("classifies a disaster-recovery backup", async () => {
@@ -77,7 +77,7 @@ it("classifies a disaster-recovery backup", async () => {
             missing: [],
         }),
     }));
-    expect(await detectPickedArchiveKind("file:///pick/backup.zip")).toBe("songstead-backup");
+    expect(await detectPickedArchiveKind("file:///pick/backup.zip")).toBe("songnook-backup");
 });
 
 it("reports an unrelated zip (no manifest) as unknown", async () => {
@@ -89,14 +89,14 @@ it("reports a missing or unreadable file as unknown without throwing", async () 
     await expect(detectPickedArchiveKind("file:///pick/missing.zip")).resolves.toBe("unknown");
 });
 
-it("classifies a pre-rename (Song Seed era) archive as songstead-archive", async () => {
-    // Archives exported before the Songstead rename carry the old format id; they must
+it("classifies a pre-rename (SongNook era) archive as songnook-archive", async () => {
+    // Archives exported before the SongNook rename carry the old format id; they must
     // keep importing forever — a user's own backups cannot expire with a rebrand.
     mockFiles.set("file:///pick/legacy-archive.zip", storeZip({
-        "manifest.json": JSON.stringify({ format: "song-seed-archive", workspaces: [] }),
+        "manifest.json": JSON.stringify({ format: "song-nook-archive", workspaces: [] }),
     }));
 
     await expect(detectPickedArchiveKind("file:///pick/legacy-archive.zip")).resolves.toBe(
-        "songstead-archive"
+        "songnook-archive"
     );
 });

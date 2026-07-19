@@ -139,7 +139,7 @@ index 12d30a2..a350156 100644
  
 +    // The custom RemoteViews layout exists to host the live waveform. Without the
 +    // waveform it degrades badly (collapsed blank area, clipped text), so when the
-+    // waveform is disabled the notification uses Songstead's minimal one-line
++    // waveform is disabled the notification uses SongNook's minimal one-line
 +    // layout instead (custom only because system templates strip the dot's
 +    // color span on several OEM skins).
 +    private fun usesCustomLayout(): Boolean = recordingConfig.showWaveformInNotification
@@ -191,7 +191,7 @@ index 12d30a2..a350156 100644
 +                .setCustomBigContentView(remoteViews)
 +                .setStyle(NotificationCompat.DecoratedCustomViewStyle())
 +        } else {
-+            // Songstead's one-line card: red dot + "Recording…" + ticking timer.
++            // SongNook's one-line card: red dot + "Recording…" + ticking timer.
 +            // The custom view exists for the reliably-red dot (templates strip
 +            // color spans on several OEM skins). Trade-off, verified via dumpsys:
 +            // Android 16 declines Live Updates promotion for custom-view
@@ -241,10 +241,10 @@ index 12d30a2..a350156 100644
 +    // The one-line card: record-colored dot, title, live timer. Rebuilt on
 +    // every state change; no per-second update loop needed.
 +    private fun buildSimpleContentView(context: Context): RemoteViews {
-+        val views = RemoteViews(context.packageName, R.layout.songstead_notification_simple)
-+        views.setTextViewText(R.id.songstead_notification_title, recordingConfig.notification?.title)
-+        parseAccentColor()?.let { views.setTextColor(R.id.songstead_notification_dot, it) }
-+        applyChronometer(views, R.id.songstead_notification_chronometer)
++        val views = RemoteViews(context.packageName, R.layout.songnook_notification_simple)
++        views.setTextViewText(R.id.songnook_notification_title, recordingConfig.notification?.title)
++        parseAccentColor()?.let { views.setTextColor(R.id.songnook_notification_dot, it) }
++        applyChronometer(views, R.id.songnook_notification_chronometer)
 +        return views
 +    }
 +
@@ -435,7 +435,7 @@ index 6f93aa4..ac90d2f 100644
      }
  
 +    /**
-+     * Songseed patch: bind the JS-selected input (RecordingConfig.deviceId) to this
++     * SongNook patch: bind the JS-selected input (RecordingConfig.deviceId) to this
 +     * AudioRecord. Upstream only routes via AudioManager.setCommunicationDevice / SCO,
 +     * which AudioSource.MIC does not reliably follow for wired or USB devices — without
 +     * this binding the input picker's choice is cosmetic on Android.
@@ -570,14 +570,14 @@ index a6c1d5a..d93783b 100644
              if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                  // Create a minimal notification channel if needed
                  val channel = NotificationChannel(
-diff --git a/node_modules/@siteed/audio-studio/android/src/main/res/layout/songstead_notification_simple.xml b/node_modules/@siteed/audio-studio/android/src/main/res/layout/songstead_notification_simple.xml
+diff --git a/node_modules/@siteed/audio-studio/android/src/main/res/layout/songnook_notification_simple.xml b/node_modules/@siteed/audio-studio/android/src/main/res/layout/songnook_notification_simple.xml
 new file mode 100644
 index 0000000..082c5a2
 --- /dev/null
-+++ b/node_modules/@siteed/audio-studio/android/src/main/res/layout/songstead_notification_simple.xml
++++ b/node_modules/@siteed/audio-studio/android/src/main/res/layout/songnook_notification_simple.xml
 @@ -0,0 +1,46 @@
 +<?xml version="1.0" encoding="utf-8"?>
-+<!-- Songstead's one-line recording card: red dot, "Recording…", live timer.
++<!-- SongNook's one-line recording card: red dot, "Recording…", live timer.
 +     Transparent background — the OEM card shows through; a custom view is used
 +     only because system templates strip the dot's color span on some skins. -->
 +<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
@@ -589,7 +589,7 @@ index 0000000..082c5a2
 +    android:paddingBottom="10dp">
 +
 +    <TextView
-+        android:id="@+id/songstead_notification_dot"
++        android:id="@+id/songnook_notification_dot"
 +        android:layout_width="wrap_content"
 +        android:layout_height="wrap_content"
 +        android:layout_marginEnd="8dp"
@@ -597,12 +597,12 @@ index 0000000..082c5a2
 +        android:textSize="12sp" />
 +
 +    <TextView
-+        android:id="@+id/songstead_notification_title"
++        android:id="@+id/songnook_notification_title"
 +        android:layout_width="wrap_content"
 +        android:layout_height="wrap_content"
 +        android:ellipsize="end"
 +        android:maxLines="1"
-+        android:textColor="@color/songstead_notification_title"
++        android:textColor="@color/songnook_notification_title"
 +        android:textSize="14sp"
 +        android:textStyle="bold" />
 +
@@ -612,39 +612,39 @@ index 0000000..082c5a2
 +        android:layout_marginLeft="7dp"
 +        android:layout_marginRight="7dp"
 +        android:text="•"
-+        android:textColor="@color/songstead_notification_muted"
++        android:textColor="@color/songnook_notification_muted"
 +        android:textSize="13sp" />
 +
 +    <Chronometer
-+        android:id="@+id/songstead_notification_chronometer"
++        android:id="@+id/songnook_notification_chronometer"
 +        android:layout_width="wrap_content"
 +        android:layout_height="wrap_content"
-+        android:textColor="@color/songstead_notification_muted"
++        android:textColor="@color/songnook_notification_muted"
 +        android:textSize="13sp" />
 +</LinearLayout>
-diff --git a/node_modules/@siteed/audio-studio/android/src/main/res/values-night/songstead_notification_colors.xml b/node_modules/@siteed/audio-studio/android/src/main/res/values-night/songstead_notification_colors.xml
+diff --git a/node_modules/@siteed/audio-studio/android/src/main/res/values-night/songnook_notification_colors.xml b/node_modules/@siteed/audio-studio/android/src/main/res/values-night/songnook_notification_colors.xml
 new file mode 100644
 index 0000000..550bbff
 --- /dev/null
-+++ b/node_modules/@siteed/audio-studio/android/src/main/res/values-night/songstead_notification_colors.xml
++++ b/node_modules/@siteed/audio-studio/android/src/main/res/values-night/songnook_notification_colors.xml
 @@ -0,0 +1,6 @@
 +<?xml version="1.0" encoding="utf-8"?>
-+<!-- Songstead recording-card text colors (dark shade). -->
++<!-- SongNook recording-card text colors (dark shade). -->
 +<resources>
-+    <color name="songstead_notification_title">#EDE9E4</color>
-+    <color name="songstead_notification_muted">#A89994</color>
++    <color name="songnook_notification_title">#EDE9E4</color>
++    <color name="songnook_notification_muted">#A89994</color>
 +</resources>
-diff --git a/node_modules/@siteed/audio-studio/android/src/main/res/values/songstead_notification_colors.xml b/node_modules/@siteed/audio-studio/android/src/main/res/values/songstead_notification_colors.xml
+diff --git a/node_modules/@siteed/audio-studio/android/src/main/res/values/songnook_notification_colors.xml b/node_modules/@siteed/audio-studio/android/src/main/res/values/songnook_notification_colors.xml
 new file mode 100644
 index 0000000..370e32f
 --- /dev/null
-+++ b/node_modules/@siteed/audio-studio/android/src/main/res/values/songstead_notification_colors.xml
++++ b/node_modules/@siteed/audio-studio/android/src/main/res/values/songnook_notification_colors.xml
 @@ -0,0 +1,6 @@
 +<?xml version="1.0" encoding="utf-8"?>
-+<!-- Songstead recording-card text colors (light). Night variants in values-night. -->
++<!-- SongNook recording-card text colors (light). Night variants in values-night. -->
 +<resources>
-+    <color name="songstead_notification_title">#524440</color>
-+    <color name="songstead_notification_muted">#84736F</color>
++    <color name="songnook_notification_title">#524440</color>
++    <color name="songnook_notification_muted">#84736F</color>
 +</resources>
 diff --git a/node_modules/@siteed/audio-studio/build/cjs/useAudioRecorder.js b/node_modules/@siteed/audio-studio/build/cjs/useAudioRecorder.js
 index 1fee40c..4002b73 100644
@@ -728,7 +728,7 @@ index deec895..192b989 100644
          // Set media title and artist
          nowPlayingInfo[MPMediaItemPropertyTitle] = recordingSettings?.notification?.title ?? "Recording in Progress"
 -        nowPlayingInfo[MPMediaItemPropertyArtist] = "Audio Stream"
-+        nowPlayingInfo[MPMediaItemPropertyArtist] = recordingSettings?.notification?.text ?? "Songstead"
++        nowPlayingInfo[MPMediaItemPropertyArtist] = recordingSettings?.notification?.text ?? "SongNook"
          
          // Set playback state
          nowPlayingInfo[MPNowPlayingInfoPropertyPlaybackRate] = isPaused ? 0.0 : 1.0
@@ -823,7 +823,7 @@ index 5c52d35..bcd518d 100644
      eventDataSize: number
      /** Total size of the recording so far in bytes */
      totalSize: number
-+    /** Epoch ms of the recording's first captured sample, measured natively (Song Seed
++    /** Epoch ms of the recording's first captured sample, measured natively (SongNook
 +     *  patch); undefined until the HAL reports a timestamp / on web. */
 +    captureStartTimeEpochMs?: number
 +    captureStartSource?: string
@@ -838,7 +838,7 @@ index bb2554b..d8c2a76 100644
      totalSize: number
      mimeType: string
      streamUuid: string
-+    /** Epoch ms of the recording's first captured sample, measured natively (Song Seed
++    /** Epoch ms of the recording's first captured sample, measured natively (SongNook
 +     *  patch). Undefined on the first buffers before the HAL reports a timestamp. */
 +    captureStartTimeEpochMs?: number
 +    captureStartSource?: string

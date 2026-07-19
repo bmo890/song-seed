@@ -18,7 +18,7 @@ import { parseTransferUrl } from "./receiveTransfer";
 import { useStore } from "../state/useStore";
 import { useSentLinksStore } from "../state/useSentLinksStore";
 
-const CHECKED_FLAG_KEY = "songstead-send-clipboard-checked";
+const CHECKED_FLAG_KEY = "songnook-send-clipboard-checked";
 
 /** Returns a transferId worth offering to open, or null. Runs at most once per
  *  install; filters out transfers we already have and links this device itself

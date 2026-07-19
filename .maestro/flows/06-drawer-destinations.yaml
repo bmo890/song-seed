@@ -4,7 +4,7 @@
 # its own flow because it touches mic permission.) Catches nav-wiring regressions
 # — the most common breakage after a navigation refactor. Uses the nav-row-<label>
 # testIDs so a case-insensitive text match can't hit "Search your library" instead.
-appId: com.bmostudio.songseed.dev
+appId: com.bmostudio.songnook.dev
 ---
 # --- Revisit ---
 - runFlow: ../subflows/open-library.yaml

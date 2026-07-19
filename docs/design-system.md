@@ -1,6 +1,6 @@
-# Song Seed Design System
+# SongNook Design System
 
-This document defines the design philosophy, interaction model, and reusable UI patterns used throughout Song Seed.
+This document defines the design philosophy, interaction model, and reusable UI patterns used throughout SongNook.
 
 ## Design Principles
 

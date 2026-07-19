@@ -15,8 +15,8 @@ import {
 } from "./audioStorage";
 import { createZipArchive, type ZipArchiveEntry } from "./zipArchive";
 import {
-    SONG_SEED_WORKSPACE_ARCHIVE_DIR,
-    isSongSeedManagedUri,
+    SONG_NOOK_WORKSPACE_ARCHIVE_DIR,
+    isSongNookManagedUri,
     rebaseManagedUri,
 } from "./storagePaths";
 import { rebaseWorkspacesManagedMedia } from "../state/rebaseManagedMedia";
@@ -74,8 +74,8 @@ function estimateJsonBytes(value: unknown) {
 }
 
 function assertManagedRestoreUri(fileUri: string) {
-    if (!isSongSeedManagedUri(fileUri)) {
-        throw new Error("Archive restore target is outside Songstead managed storage.");
+    if (!isSongNookManagedUri(fileUri)) {
+        throw new Error("Archive restore target is outside SongNook managed storage.");
     }
 }
 
@@ -84,15 +84,15 @@ async function ensureWorkspaceArchiveDirectory() {
         throw new Error("Document directory unavailable.");
     }
 
-    const info = await FileSystem.getInfoAsync(SONG_SEED_WORKSPACE_ARCHIVE_DIR);
+    const info = await FileSystem.getInfoAsync(SONG_NOOK_WORKSPACE_ARCHIVE_DIR);
     if (!info.exists) {
-        await FileSystem.makeDirectoryAsync(SONG_SEED_WORKSPACE_ARCHIVE_DIR, { intermediates: true });
+        await FileSystem.makeDirectoryAsync(SONG_NOOK_WORKSPACE_ARCHIVE_DIR, { intermediates: true });
     }
 }
 
 function buildWorkspaceArchiveUri(workspace: Workspace) {
     const safeTitle = sanitizeArchiveSegment(workspace.title || "Workspace");
-    return `${SONG_SEED_WORKSPACE_ARCHIVE_DIR}/${safeTitle}-${workspace.id}.songstead-workspace.zip`;
+    return `${SONG_NOOK_WORKSPACE_ARCHIVE_DIR}/${safeTitle}-${workspace.id}.songnook-workspace.zip`;
 }
 
 async function collectWorkspaceMediaFiles(workspace: Workspace) {

@@ -211,7 +211,7 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
     if (permission?.canAskAgain === false) {
       AppAlert.custom(
         "Microphone access needed",
-        "Songstead does not currently have microphone access. Enable it in system settings to record.",
+        "SongNook does not currently have microphone access. Enable it in system settings to record.",
         [
           { label: "Cancel", style: "cancel" },
           {
@@ -225,7 +225,7 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
         ]
       );
     } else {
-      AppAlert.info("Microphone access needed", "Songstead needs microphone access to start recording.");
+      AppAlert.info("Microphone access needed", "SongNook needs microphone access to start recording.");
     }
 
     return false;
@@ -233,8 +233,8 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
 
   function showNotificationPermissionAlert(blocked: boolean) {
     const message = blocked
-      ? "Songstead cannot show the required active-recording notification. Enable notifications in system settings to record."
-      : "Android requires Songstead to show an active notification while recording. Allow notifications to start recording.";
+      ? "SongNook cannot show the required active-recording notification. Enable notifications in system settings to record."
+      : "Android requires SongNook to show an active notification while recording. Allow notifications to start recording.";
 
     if (!blocked) {
       AppAlert.info("Notification access needed", message);
@@ -363,7 +363,7 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
           // v2: channel importance changed LOW -> DEFAULT for Android 16 Live
           // Updates eligibility; channels are immutable once created, so the id
           // must change for existing installs to pick it up.
-          channelId: "songseed-recording-v2",
+          channelId: "songnook-recording-v2",
           channelName: "Recording",
           channelDescription: "Background recording status and controls",
           notificationId: 4101,
@@ -372,7 +372,7 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
           showPauseResumeActions: true,
         },
         ios: {
-          categoryIdentifier: "songseed-recording",
+          categoryIdentifier: "songnook-recording",
         },
       },
       android: {
@@ -702,7 +702,7 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
         }
         AppAlert.info(
           "Recording kept for recovery",
-          "We couldn't attach this take to its project, so it's been saved safely. Reopen Songstead to restore it."
+          "We couldn't attach this take to its project, so it's been saved safely. Reopen SongNook to restore it."
         );
         return false;
       }
@@ -736,7 +736,7 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
       }
       AppAlert.info(
         "Recording kept for recovery",
-        "We couldn't finish saving this take (your device may be low on storage), so it's been kept safely. Reopen Songstead to restore it."
+        "We couldn't finish saving this take (your device may be low on storage), so it's been kept safely. Reopen SongNook to restore it."
       );
       return false;
     } finally {

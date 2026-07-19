@@ -17,7 +17,7 @@ import {
   formatLatencyProfileLog,
   resolveCurrentRouteLatencyProfile,
 } from "../../../services/latencyModel";
-import SongseedMetronomeModule from "../../../../modules/songseed-metronome";
+import SongNookMetronomeModule from "../../../../modules/songnook-metronome";
 import { appActions } from "../../../state/actions";
 import { useStore } from "../../../state/useStore";
 import type { ClipVersion, RecordingGrid } from "../../../types";
@@ -991,7 +991,7 @@ export function useRecordingScreenModel() {
     async function refreshCurrentRecordingInput() {
       try {
         const device = await audioDeviceManager.getCurrentDevice();
-        const outputRoute = await SongseedMetronomeModule?.getCurrentAudioOutputRoute?.();
+        const outputRoute = await SongNookMetronomeModule?.getCurrentAudioOutputRoute?.();
         if (!cancelled) {
           setCurrentRecordingInput(device ?? null);
           setCurrentMonitoringOutput(outputRoute ?? null);
@@ -1140,7 +1140,7 @@ export function useRecordingScreenModel() {
         // epoch computed from the grid anchor is (correctly) in the near future.
         started = recording.isRecording;
         const captureStartEpochMs = recording.getCaptureStartEpochMs();
-        const anchor = await SongseedMetronomeModule?.getGridAnchor?.().catch(() => null);
+        const anchor = await SongNookMetronomeModule?.getGridAnchor?.().catch(() => null);
 
         // CRITICAL time-domain correction: the grid anchor and player positions live in
         // the RENDER domain, but the performer plays to what they PERCEIVE and the mic
@@ -1347,7 +1347,7 @@ export function useRecordingScreenModel() {
         if (recordingGuideMixUri) {
           void (async () => {
             await waitPlainMs(120); // let the engine's audio clock settle before anchoring
-            const anchor = await SongseedMetronomeModule?.getGridAnchor?.().catch(() => null);
+            const anchor = await SongNookMetronomeModule?.getGridAnchor?.().catch(() => null);
             if (!anchor?.isRunning || anchor.anchorEpochMs == null || anchor.msPerPulse == null) {
               console.log("[timing] grid anchor unavailable — guide falls back to aim-at-completion");
               return;
@@ -1508,7 +1508,7 @@ export function useRecordingScreenModel() {
       }
       await waitPlainMs(120); // let the engine's audio clock settle before anchoring
 
-      const anchor = await SongseedMetronomeModule?.getGridAnchor?.().catch(() => null);
+      const anchor = await SongNookMetronomeModule?.getGridAnchor?.().catch(() => null);
       const anchorEpochMs =
         anchor?.isRunning && anchor.anchorEpochMs != null && anchor.msPerPulse != null
           ? anchor.anchorEpochMs

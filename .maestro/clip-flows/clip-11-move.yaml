@@ -2,7 +2,7 @@
 # clip from the source: after pasting into "Maestro Dest", sample-01 is gone from
 # Ideas while the others remain. Creates + deletes the throwaway collection, so it's
 # self-cleaning. Requires scripts/push-dev-samples.sh.
-appId: com.bmostudio.songseed.dev
+appId: com.bmostudio.songnook.dev
 ---
 - launchApp:
     stopApp: true

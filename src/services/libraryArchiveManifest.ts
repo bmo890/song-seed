@@ -18,7 +18,7 @@ import type {
 } from "../types";
 
 /**
- * Single source of truth for the Songstead Archive (`manifest.json`) shape, shared by the
+ * Single source of truth for the SongNook Archive (`manifest.json`) shape, shared by the
  * exporter (libraryExport.ts) and importer (libraryImport.ts) so the two halves of the
  * round-trip can never drift. This is the human-readable share/handoff format — distinct from
  * the exact disaster-recovery backup (disasterRecoveryBackup.ts).
@@ -31,25 +31,25 @@ import type {
  *    archive can be reconstructed without metadata loss. The audio payload is identical in both
  *    modes; the only difference is the extra metadata JSON.
  */
-export const SONG_SEED_ARCHIVE_FORMAT = "songstead-archive";
-/** Format id written by builds before the Songstead rename; still accepted on import. */
-export const LEGACY_SONG_SEED_ARCHIVE_FORMAT = "song-seed-archive";
+export const SONG_NOOK_ARCHIVE_FORMAT = "songnook-archive";
+/** Format id written by builds before the SongNook rename; still accepted on import. */
+export const LEGACY_SONG_NOOK_ARCHIVE_FORMAT = "song-nook-archive";
 
 /** Bumped whenever the manifest shape changes. Import stays backward compatible with older versions. */
 export const LIBRARY_EXPORT_SCHEMA_VERSION = 6;
 
 export type ArchiveFidelity = "standard" | "full";
 
-export type SongSeedArchiveOptions = {
+export type SongNookArchiveOptions = {
     includeFullSongHistory: boolean;
     includeNotes: boolean;
     includeLyrics: boolean;
     includeHiddenItems: boolean;
-    /** Preserve every Songstead metadata field (full fidelity). When false the archive is lossy. */
+    /** Preserve every SongNook metadata field (full fidelity). When false the archive is lossy. */
     preserveAllMetadata: boolean;
 };
 
-export type SongSeedArchiveLibraryPreferences = {
+export type SongNookArchiveLibraryPreferences = {
     primaryWorkspaceId: string | null;
     primaryCollectionIdByWorkspace: Record<string, string>;
     bluetoothMonitoringCalibrations?: BluetoothMonitoringCalibration[];
@@ -183,13 +183,13 @@ export type ArchiveNotepadNoteManifest = {
 };
 
 export type ArchiveManifest = {
-    format: typeof SONG_SEED_ARCHIVE_FORMAT;
+    format: typeof SONG_NOOK_ARCHIVE_FORMAT;
     schemaVersion: number;
     /** Absent on pre-v6 archives — treat as "standard". */
     fidelity?: ArchiveFidelity;
     exportedAt: string;
-    options?: SongSeedArchiveOptions;
-    libraryPreferences?: SongSeedArchiveLibraryPreferences;
+    options?: SongNookArchiveOptions;
+    libraryPreferences?: SongNookArchiveLibraryPreferences;
     scope: {
         workspaceIds: string[];
         collectionIds: string[];

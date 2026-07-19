@@ -3,7 +3,7 @@
 # Delete → confirm → verify it's gone. Leaves no residue, so it's safe to re-run.
 # Exercises: create menu, addIdea, draft edit sheet, title input, save, detail
 # render, detail→collection back, list render, selection mode, destructive confirm.
-appId: com.bmostudio.songseed.dev
+appId: com.bmostudio.songnook.dev
 ---
 - runFlow: ../subflows/open-library.yaml
 - tapOn: ".*Ideas.*"

@@ -22,7 +22,7 @@ App-side model: [`../../docs/product-plan/sharing-and-received-architecture.md`]
 
 1. Files are **opaque** — never unpacked/interpreted server-side.
 2. `transferId` is returned at **create**, before any upload (the app stamps it into the
-   `.songstead` file's internal manifest, then uploads). The create response also includes
+   `.songnook` file's internal manifest, then uploads). The create response also includes
    an `uploadToken`; only that token can register items or finalize the draft.
 3. Nothing is fetchable until **finalize**. Links unguessable, HTTPS-only, `noindex`, expiring.
 4. Metadata + download endpoints work with **no cookies and no `Origin`** (native access).
@@ -54,8 +54,8 @@ public `PUBLIC_ORIGIN`. Downloads use the Worker's R2 **binding** (no credential
 
 Every client is untrusted (the desktop page is public HTML; the raw API is reachable by anyone), so all of this is **server-enforced**:
 
-- **Content allowlist** (`lib/contentPolicy.ts`) at item registration — audio + `.songstead` only, checked on **both** extension and mime → `415`. Blocks video/office/pdf/exe/bare-zip. The desktop page also filters client-side (UX only).
-- **Finalize verification** — every item must actually exist in R2; real bytes must not exceed the declared size or the per-file cap; `.songstead` files must start with the ZIP magic. Offenders are deleted and finalize fails. Nothing is fetchable until this passes.
+- **Content allowlist** (`lib/contentPolicy.ts`) at item registration — audio + `.songnook` only, checked on **both** extension and mime → `415`. Blocks video/office/pdf/exe/bare-zip. The desktop page also filters client-side (UX only).
+- **Finalize verification** — every item must actually exist in R2; real bytes must not exceed the declared size or the per-file cap; `.songnook` files must start with the ZIP magic. Offenders are deleted and finalize fails. Nothing is fetchable until this passes.
 - **Draft mutation token** — the public link id is not enough to add items or finalize;
   the create caller gets a separate `uploadToken` for those draft-only operations.
 - **Origin allowlist** (`lib/guard.ts`) on create/upload — browser calls must come from `ALLOWED_WEB_ORIGINS` (blocks other sites' JS). The native app sends no Origin → allowed.
@@ -63,7 +63,7 @@ Every client is untrusted (the desktop page is public HTML; the raw API is reach
 - **Caps** — 1 GB/transfer, 512 MB/file, 200 items, 7-day finalized-transfer expiry,
   24-hour unfinished-draft sweep.
 
-**Inherent residual:** `.songstead` is an opaque ZIP we must not unpack, so a determined abuser can smuggle bytes inside one (an `.xlsx` is also a ZIP). Content-typing can't close that — rate limits, expiry, and the launch-hardening below do.
+**Inherent residual:** `.songnook` is an opaque ZIP we must not unpack, so a determined abuser can smuggle bytes inside one (an `.xlsx` is also a ZIP). Content-typing can't close that — rate limits, expiry, and the launch-hardening below do.
 
 **Launch hardening (not yet built — needs your setup + client work):**
 - **Cloudflare Turnstile** on the web create endpoint (invisible; blocks bots; sitekey is public, secret verifies server-side — no client secret).

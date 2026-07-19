@@ -33,7 +33,7 @@ export type ShelfStore = PersistedShelfState & {
   sweep: (now?: number) => void;
 };
 
-const STORE_NAME = "songstead-shelf-store";
+const STORE_NAME = "songnook-shelf-store";
 const STORE_VERSION = 1;
 
 function isShelfRefKind(value: unknown): value is ShelfEntry["kind"] {

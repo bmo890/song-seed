@@ -1,10 +1,10 @@
-import SongseedPitchShiftModule, {
+import SongNookPitchShiftModule, {
   type NativeMixedRenderRequest,
   type NativeMixedRenderResult,
   type NativePitchShiftCapabilities,
   type NativePitchShiftRenderRequest,
   type NativePitchShiftRenderResult,
-} from "../../modules/songseed-pitch-shift";
+} from "../../modules/songnook-pitch-shift";
 import {
   buildUnavailablePitchShiftCapabilities,
   clampPitchShiftSemitones,
@@ -29,16 +29,16 @@ function normalizeCapabilities(
 }
 
 export function isPitchShiftAvailable() {
-  return SongseedPitchShiftModule?.isAvailable?.() ?? false;
+  return SongNookPitchShiftModule?.isAvailable?.() ?? false;
 }
 
 export async function getPitchShiftCapabilities(): Promise<PitchShiftCapabilities> {
-  if (!SongseedPitchShiftModule) {
+  if (!SongNookPitchShiftModule) {
     return buildUnavailablePitchShiftCapabilities();
   }
 
   try {
-    return normalizeCapabilities(await SongseedPitchShiftModule.getCapabilities());
+    return normalizeCapabilities(await SongNookPitchShiftModule.getCapabilities());
   } catch (error) {
     console.warn("Pitch shift capabilities lookup failed", error);
     return buildUnavailablePitchShiftCapabilities();
@@ -51,7 +51,7 @@ export async function renderPitchShiftedFile(
     playbackRate?: number;
   }
 ): Promise<NativePitchShiftRenderResult> {
-  if (!SongseedPitchShiftModule) {
+  if (!SongNookPitchShiftModule) {
     throw new Error("Pitch shift module unavailable.");
   }
 
@@ -60,7 +60,7 @@ export async function renderPitchShiftedFile(
     throw new Error("Pitch shift file rendering is not available yet.");
   }
 
-  return SongseedPitchShiftModule.renderPitchShiftedFile({
+  return SongNookPitchShiftModule.renderPitchShiftedFile({
     ...request,
     semitones: clampPitchShiftSemitones(request.semitones),
     playbackRate: request.playbackRate ?? 1,
@@ -70,7 +70,7 @@ export async function renderPitchShiftedFile(
 export async function renderMixedFile(
   request: NativeMixedRenderRequest
 ): Promise<NativeMixedRenderResult> {
-  if (!SongseedPitchShiftModule) {
+  if (!SongNookPitchShiftModule) {
     throw new Error("Pitch shift module unavailable.");
   }
 
@@ -83,5 +83,5 @@ export async function renderMixedFile(
     throw new Error("Mixed audio rendering requires at least one input.");
   }
 
-  return SongseedPitchShiftModule.renderMixedFile(request);
+  return SongNookPitchShiftModule.renderMixedFile(request);
 }

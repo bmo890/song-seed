@@ -2,7 +2,7 @@
 # hub and two representative detail views (Recording defaults, Library & Backups) —
 # the ones most likely to break after a Settings IA refactor. Uses settings-card-*
 # testIDs because the cards' composite a11y labels make Maestro mis-target the tap.
-appId: com.bmostudio.songseed.dev
+appId: com.bmostudio.songnook.dev
 ---
 - runFlow: ../subflows/open-library.yaml
 - tapOn:
@@ -17,7 +17,7 @@ appId: com.bmostudio.songseed.dev
     timeout: 10000
 - assertVisible: ".*RECORDING.*"
 - assertVisible: ".*LIBRARY.*"
-- assertVisible: ".*SONGSTEAD PRO.*"
+- assertVisible: ".*SONGNOOK PRO.*"
 # --- Recording defaults sub-view ---
 - tapOn:
     id: "settings-card-recording-defaults"

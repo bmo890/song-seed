@@ -140,7 +140,7 @@ latency, and seeds from the OS-reported route latency.
    compute `trueAudioStart = Date.now() - currentTime*1000` and build the
    expected-beat grid from that. Everything downstream (residuals, median,
    MAD) is unchanged.
-2. **F15 (native, both platforms):** extend `songseed-metronome` with
+2. **F15 (native, both platforms):** extend `songnook-metronome` with
    `getCurrentAudioRouteLatencyMs(): { outputMs: number | null }`:
    - iOS: `AVAudioSession.sharedInstance().outputLatency * 1000`.
    - Android: derive from `AudioTrack.getTimestamp()` drift vs
@@ -193,7 +193,7 @@ nudging is smooth (no mix re-render during preview).
 
 **Goal:** the metronome engine becomes a stable, queryable grid instead of an
 event firehose that resets on any touch. All changes land in both
-`SongseedMetronomeEngine.swift` and `.kt` together.
+`SongNookMetronomeEngine.swift` and `.kt` together.
 
 1. **Split `configure()`** into live params (clickVolume → `player.volume` /
    `track.setVolume`, no restart) and structural params (bpm, meter, accent
@@ -307,7 +307,7 @@ Monitoring still *feels* right on calibrated BT headphones.
 
 ---
 
-## Phase 7 — Optional: unified `songseed-recording-engine` (L)
+## Phase 7 — Optional: unified `songnook-recording-engine` (L)
 
 Consolidate click + guide + capture into one native graph (iOS: one
 `AVAudioEngine` with input tap; Android: Oboe/AAudio duplex). One graph = one

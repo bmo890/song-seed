@@ -1,4 +1,4 @@
-# Song Seed — Metronome/Recording Timing: Handoff Brief
+# SongNook — Metronome/Recording Timing: Handoff Brief
 
 **Purpose of this doc:** hand this project to a *local* Claude Code session (one that can
 run `adb logcat`, do native builds, and iterate on-device without round-tripping logs).
@@ -55,7 +55,7 @@ Handoff HEAD: `01d5378`.
 
 ## 2. The project & the goal
 
-Song Seed (`bmo890/song-seed`) is a React Native / Expo music-sketching app (NOT a full
+SongNook (`bmo890/song-nook`) is a React Native / Expo music-sketching app (NOT a full
 DAW). The owner wants a **trustworthy, consistent metronome + recording timing system**:
 count-in that isn't a gamble, overdubs that line up with the master by construction, and
 tempo metadata saved with clips so a take is shareable at the same BPM. "Trustworthy
@@ -394,7 +394,7 @@ Run on **speaker** and on **Bluetooth** where noted. Look for the `[timing]` lin
 - `src/components/RecordingScreen/{RecordingControls,RecordingMeta,RecordingMetronomeSheet,
   RecordingBottomDock,RecordingBody,index}.tsx` — the UI (redo button, metronome
   toggle/customize split).
-- `modules/songseed-metronome/{ios,android}` — native engine: `getGridAnchor()`,
+- `modules/songnook-metronome/{ios,android}` — native engine: `getGridAnchor()`,
   scheduled cues, `currentOutputLatencyMs()`, `supportsScheduledCues()`.
 - `patches/@siteed+audio-studio+3.0.2.patch` — the native capture-timestamp patch
   (**to be extended with the build/*.js forward — §6**).

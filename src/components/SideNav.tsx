@@ -124,7 +124,7 @@ export function SideNav({
       <View style={sideNavStyles.header}>
         <View style={sideNavStyles.brand}>
           <View style={sideNavStyles.brandMark} />
-          <Text style={sideNavStyles.brandName}>Songstead</Text>
+          <Text style={sideNavStyles.brandName}>SongNook</Text>
         </View>
         <Pressable
           style={({ pressed }) => [

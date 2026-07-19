@@ -1,6 +1,6 @@
 import * as FileSystem from "expo-file-system/legacy";
 import type { Playlist, SongIdea, Workspace } from "../types";
-import { SONG_SEED_AUDIO_DIR } from "./storagePaths";
+import { SONG_NOOK_AUDIO_DIR } from "./storagePaths";
 import {
     collectManagedAudioUrisFromWorkspaces,
     listFilesRecursively,
@@ -148,7 +148,7 @@ async function checkFiles(workspaces: Workspace[], issues: IntegrityIssue[]) {
     // Orphan files: compare canonical full URIs recursively. Restores intentionally place
     // media in token-scoped subdirectories, and basenames are not globally unique.
     try {
-        const files = await listFilesRecursively(SONG_SEED_AUDIO_DIR);
+        const files = await listFilesRecursively(SONG_NOOK_AUDIO_DIR);
         for (const fileUri of files) {
             if (!referenced.has(fileUri)) {
                 issues.push({ type: "orphan-file", path: fileUri });

@@ -144,7 +144,7 @@ jest.mock("../../state/db/storage", () => ({
 }));
 
 jest.mock("../../state/useStore", () => ({
-    STORE_NAME: "songstead-store",
+    STORE_NAME: "songnook-store",
     STORE_VERSION: 11,
 }));
 
@@ -163,12 +163,12 @@ jest.mock("../disasterRecoveryBackup", () => ({
 import { restoreFromDisasterRecoveryBackup } from "../disasterRecoveryRestore";
 import { cleanupInterruptedDisasterRecoveryRestores } from "../disasterRecoveryTemp";
 
-const ARCHIVE_URI = "file:///picked/songstead-backup.zip";
-const ORIGINAL_MEDIA_URI = "file:///doc/songseed/audio/clip-1.m4a";
-const MEDIA_PATH = "songseed/audio/clip-1.m4a";
+const ARCHIVE_URI = "file:///picked/songnook-backup.zip";
+const ORIGINAL_MEDIA_URI = "file:///doc/songnook/audio/clip-1.m4a";
+const MEDIA_PATH = "songnook/audio/clip-1.m4a";
 const MEDIA_ENTRY = `media/${MEDIA_PATH}`;
 const MEDIA_BYTES = Uint8Array.from([1, 2, 3, 4, 5]);
-const PREVIEW_PATH = "songseed/preview-audio/clip-1-preview-123.m4a";
+const PREVIEW_PATH = "songnook/preview-audio/clip-1-preview-123.m4a";
 const PREVIEW_BYTES = Uint8Array.from([9, 8, 7]);
 
 function sha256(value: string) {
@@ -319,7 +319,7 @@ describe("restoreFromDisasterRecoveryBackup", () => {
         expect(result.status).toBe("complete");
         expect(mockFiles.get(ORIGINAL_MEDIA_URI)).toEqual(oldBytes);
         const restoredUri = Array.from(mockFiles.keys()).find((uri) =>
-            uri.startsWith("file:///doc/songseed/audio/restored-")
+            uri.startsWith("file:///doc/songnook/audio/restored-")
         );
         expect(restoredUri).toBeDefined();
         expect(mockFiles.get(restoredUri!)).toEqual(MEDIA_BYTES);
@@ -327,7 +327,7 @@ describe("restoreFromDisasterRecoveryBackup", () => {
         const persisted = JSON.parse(mockPersistRawSnapshot.mock.calls[0][1]);
         expect(persisted.version).toBe(11);
         expect(persisted.state.workspaces[0].ideas[0].clips[0].audioUri).toMatch(
-            /^songseed\/audio\/restored-/
+            /^songnook\/audio\/restored-/
         );
         expect(mockSetPersistBlocked).toHaveBeenCalledWith(true);
         expect(mockRequireRestoreRestart).toHaveBeenCalledWith(
@@ -357,14 +357,14 @@ describe("restoreFromDisasterRecoveryBackup", () => {
 
         expect(result.status).toBe("complete");
         const restoredPreviewUri = Array.from(mockFiles.keys()).find((uri) =>
-            uri.startsWith("file:///doc/songseed/preview-audio/restored-")
+            uri.startsWith("file:///doc/songnook/preview-audio/restored-")
         );
         expect(restoredPreviewUri).toBeDefined();
         expect(mockFiles.get(restoredPreviewUri!)).toEqual(PREVIEW_BYTES);
 
         const persisted = JSON.parse(mockPersistRawSnapshot.mock.calls[0][1]);
         expect(persisted.state.workspaces[0].ideas[0].clips[0].overdub.renderedMixUri).toMatch(
-            /^songseed\/preview-audio\/restored-/
+            /^songnook\/preview-audio\/restored-/
         );
     });
 
@@ -395,7 +395,7 @@ describe("restoreFromDisasterRecoveryBackup", () => {
         const currentClipBytes = mockTextBytes("current-clip-audio");
         const newClipBytes = mockTextBytes("new-clip-audio");
         mockFiles.set(ORIGINAL_MEDIA_URI, currentClipBytes);
-        mockFiles.set("file:///doc/songseed/audio/clip-new.m4a", newClipBytes);
+        mockFiles.set("file:///doc/songnook/audio/clip-new.m4a", newClipBytes);
 
         // Current library: clip-1 edited since the backup + a clip-2 created after it.
         const currentSnapshot = snapshot();
@@ -407,7 +407,7 @@ describe("restoreFromDisasterRecoveryBackup", () => {
             notes: "",
             createdAt: 10,
             isPrimary: false,
-            audioUri: "songseed/audio/clip-new.m4a",
+            audioUri: "songnook/audio/clip-new.m4a",
         });
 
         await restoreFromDisasterRecoveryBackup(ARCHIVE_URI, {
@@ -431,9 +431,9 @@ describe("restoreFromDisasterRecoveryBackup", () => {
         // Nothing is displaced: post-hydration cleanup must quarantine NO current media.
         await cleanupInterruptedDisasterRecoveryRestores(persisted.state.workspaces);
         expect(mockFiles.get(ORIGINAL_MEDIA_URI)).toEqual(currentClipBytes);
-        expect(mockFiles.get("file:///doc/songseed/audio/clip-new.m4a")).toEqual(newClipBytes);
+        expect(mockFiles.get("file:///doc/songnook/audio/clip-new.m4a")).toEqual(newClipBytes);
         expect(
-            Array.from(mockFiles.keys()).some((uri) => uri.includes("/songseed/trash/"))
+            Array.from(mockFiles.keys()).some((uri) => uri.includes("/songnook/trash/"))
         ).toBe(false);
     });
 
@@ -487,7 +487,7 @@ describe("restoreFromDisasterRecoveryBackup", () => {
         // The staged (unreferenced) file was cleaned up, metadata never committed, and
         // the current library was left untouched.
         const stagedUri = Array.from(mockFiles.keys()).find((uri) =>
-            uri.startsWith("file:///doc/songseed/audio/restored-")
+            uri.startsWith("file:///doc/songnook/audio/restored-")
         );
         expect(stagedUri).toBeUndefined();
         expect(mockPersistRawSnapshot).not.toHaveBeenCalled();
@@ -496,7 +496,7 @@ describe("restoreFromDisasterRecoveryBackup", () => {
     });
 
     it("rejects unsafe media paths before writing", async () => {
-        installArchive({ unsafePath: "songseed/audio/../../SQLite/songseed.db" });
+        installArchive({ unsafePath: "songnook/audio/../../SQLite/songnook.db" });
 
         await expect(restoreFromDisasterRecoveryBackup(ARCHIVE_URI)).rejects.toThrow("unsafe");
         expect(mockPersistRawSnapshot).not.toHaveBeenCalled();
@@ -588,7 +588,7 @@ describe("restoreFromDisasterRecoveryBackup", () => {
         expect(mockFiles.has(ORIGINAL_MEDIA_URI)).toBe(false);
         expect(
             Array.from(mockFiles.entries()).some(
-                ([uri, bytes]) => uri.includes("/songseed/trash/") && bytes === oldBytes
+                ([uri, bytes]) => uri.includes("/songnook/trash/") && bytes === oldBytes
             )
         ).toBe(true);
         expect(
@@ -606,7 +606,7 @@ describe("restoreFromDisasterRecoveryBackup", () => {
         });
         const persisted = JSON.parse(mockPersistRawSnapshot.mock.calls[0][1]);
         const restoredUri = Array.from(mockFiles.keys()).find((uri) =>
-            uri.startsWith("file:///doc/songseed/audio/restored-")
+            uri.startsWith("file:///doc/songnook/audio/restored-")
         )!;
         mockFiles.delete(restoredUri);
 

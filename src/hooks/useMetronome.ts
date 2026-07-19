@@ -34,8 +34,8 @@ import {
 } from "../domain/metronome";
 import { ensureMetronomeLoopFile } from "../services/metronomeLoop";
 import { resolveCurrentRouteLatencyProfile } from "../services/latencyModel";
-import SongseedMetronomeModule from "../../modules/songseed-metronome";
-import type { BeatEventPayload, NativeMetronomeState } from "../../modules/songseed-metronome";
+import SongNookMetronomeModule from "../../modules/songnook-metronome";
+import type { BeatEventPayload, NativeMetronomeState } from "../../modules/songnook-metronome";
 import { useStore } from "../state/useStore";
 
 type UseMetronomeArgs = {
@@ -51,7 +51,7 @@ type MetronomeStartOptions = {
 const METRONOME_AUDIO_SESSION_OWNER_ID = "metronome";
 
 export function useMetronome({ initialBpm = DEFAULT_METRONOME_BPM, initialOutputs }: UseMetronomeArgs = {}) {
-  if (SongseedMetronomeModule) {
+  if (SongNookMetronomeModule) {
     return useNativeMetronomeImpl({ initialBpm, initialOutputs });
   }
 
@@ -89,7 +89,7 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
   const cueActivationAtRef = useRef<number>(0);
   // Binaries whose engines schedule haptics natively (no bridge at fire time). On older
   // binaries the JS event-driven fallback below keeps working.
-  const nativeCuesSupported = !!SongseedMetronomeModule?.supportsScheduledCues?.();
+  const nativeCuesSupported = !!SongNookMetronomeModule?.supportsScheduledCues?.();
 
   // Live-route cue timing (latency model output), refreshed at every start. outputMs
   // delays visual/haptic beat EVENTS on the engine (matters on Bluetooth); the signed
@@ -110,7 +110,7 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
   const refreshRouteLatencyForCues = useCallback(async () => {
     try {
       const inputs = cueLatencyInputsRef.current;
-      const route = (await SongseedMetronomeModule?.getCurrentAudioOutputRoute?.().catch(() => null)) ?? null;
+      const route = (await SongNookMetronomeModule?.getCurrentAudioOutputRoute?.().catch(() => null)) ?? null;
       const profile = await resolveCurrentRouteLatencyProfile({
         calibrations: inputs.calibrations,
         activeOutputs: inputs.outputs,
@@ -156,7 +156,7 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
   }, []);
 
   const startVisualScheduler = useCallback(async () => {
-    if (!SongseedMetronomeModule?.getGridAnchor) {
+    if (!SongNookMetronomeModule?.getGridAnchor) {
       return;
     }
     const scheduler = visualSchedulerRef.current;
@@ -164,7 +164,7 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
     const token = scheduler.token;
 
     const fetchAnchor = async () => {
-      const next = await SongseedMetronomeModule!.getGridAnchor!().catch(() => null);
+      const next = await SongNookMetronomeModule!.getGridAnchor!().catch(() => null);
       if (!next?.isRunning || next.anchorEpochMs == null || next.msPerPulse == null) {
         return null;
       }
@@ -334,12 +334,12 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
   }, []);
 
   const syncNativeConfig = useCallback(async () => {
-    if (!SongseedMetronomeModule) {
+    if (!SongNookMetronomeModule) {
       return null;
     }
     setIsPreparing(true);
     try {
-      return await SongseedMetronomeModule.configure({
+      return await SongNookMetronomeModule.configure({
         bpm,
         meterId: meterId,
         pulsesPerBar: meterPreset.pulsesPerBar,
@@ -364,10 +364,10 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
   // (no restart, no phase reset), so a mid-take level tweak never breaks the grid. On
   // binaries that predate setClickVolume the debounced configure below still carries it.
   useEffect(() => {
-    if (!SongseedMetronomeModule?.setClickVolume) {
+    if (!SongNookMetronomeModule?.setClickVolume) {
       return;
     }
-    void SongseedMetronomeModule.setClickVolume(getMetronomeBeepVolume(beepLevel))
+    void SongNookMetronomeModule.setClickVolume(getMetronomeBeepVolume(beepLevel))
       .then((state) => {
         setNativeState(state);
       })
@@ -382,7 +382,7 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
   // dependencies, so changing it alone never re-triggered a sync.
   const configSyncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
-    if (!SongseedMetronomeModule) {
+    if (!SongNookMetronomeModule) {
       return;
     }
     if (configSyncTimerRef.current) {
@@ -405,33 +405,33 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
   }, [syncNativeConfig]);
 
   useEffect(() => {
-    if (!SongseedMetronomeModule) {
+    if (!SongNookMetronomeModule) {
       return;
     }
-    void SongseedMetronomeModule.getState().then((state) => {
+    void SongNookMetronomeModule.getState().then((state) => {
       setNativeState(state);
     });
   }, []);
 
-  useEventListener(SongseedMetronomeModule!, "onStateChange", (state) => {
+  useEventListener(SongNookMetronomeModule!, "onStateChange", (state) => {
     setNativeState(state);
   });
 
-  useEventListener(SongseedMetronomeModule!, "onBeat", (event: BeatEventPayload) => {
+  useEventListener(SongNookMetronomeModule!, "onBeat", (event: BeatEventPayload) => {
     setBeatCount(event.absolutePulse + 1);
     triggerBeatCue();
   });
 
-  useEventListener(SongseedMetronomeModule!, "onCountInComplete", () => {
+  useEventListener(SongNookMetronomeModule!, "onCountInComplete", () => {
     setCountInCompletionToken((current) => current + 1);
   });
 
-  useEventListener(SongseedMetronomeModule!, "onError", ({ message }) => {
+  useEventListener(SongNookMetronomeModule!, "onError", ({ message }) => {
     console.warn("Native metronome error", message);
   });
 
   const start = useCallback(async (options: MetronomeStartOptions = {}) => {
-    if (!SongseedMetronomeModule) return;
+    if (!SongNookMetronomeModule) return;
     try {
       cueActivationAtRef.current = Date.now() + Math.max(0, options.cueDelayMs ?? 0);
       if (options.manageAudioSession ?? true) {
@@ -443,7 +443,7 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
         setNativeState(nextState);
       }
       setBeatCount(0);
-      const state = await SongseedMetronomeModule.start();
+      const state = await SongNookMetronomeModule.start();
       setNativeState(state);
       void startVisualScheduler();
     } catch (error) {
@@ -454,7 +454,7 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
 
   const startCountIn = useCallback(
     async (bars = effectiveCountInBars, options: MetronomeStartOptions = {}) => {
-      if (!SongseedMetronomeModule) return;
+      if (!SongNookMetronomeModule) return;
       try {
         cueActivationAtRef.current = Date.now() + Math.max(0, options.cueDelayMs ?? 0);
         if (options.manageAudioSession ?? true) {
@@ -466,7 +466,7 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
           setNativeState(nextState);
         }
         setBeatCount(0);
-        const state = await SongseedMetronomeModule.startCountIn(bars);
+        const state = await SongNookMetronomeModule.startCountIn(bars);
         setNativeState(state);
         void startVisualScheduler();
       } catch (error) {
@@ -478,11 +478,11 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
   );
 
   const stop = useCallback(async () => {
-    if (!SongseedMetronomeModule) return;
+    if (!SongNookMetronomeModule) return;
     try {
       stopVisualScheduler();
       cueActivationAtRef.current = 0;
-      const state = await SongseedMetronomeModule.stop();
+      const state = await SongNookMetronomeModule.stop();
       setNativeState(state);
       setBeatCount(0);
     } finally {
@@ -576,7 +576,7 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
         : nativeState?.barNumber ?? 1,
     countInCompletionToken,
     isNativeAvailable:
-      nativeState?.isAvailable ?? SongseedMetronomeModule?.isAvailable?.() ?? false,
+      nativeState?.isAvailable ?? SongNookMetronomeModule?.isAvailable?.() ?? false,
     start,
     startCountIn,
     stop,

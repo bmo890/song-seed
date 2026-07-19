@@ -32,7 +32,7 @@ import { createShardedPersistStorage } from "../shardedPersistStorage";
 import { SHARD_MARKER, workspaceRowKey } from "../persistSharding";
 import { commitShardedWrite } from "../db/storage";
 
-const STORE = "songstead-store";
+const STORE = "songnook-store";
 const ws = (id: string, label = id): Workspace => ({ id, label } as unknown as Workspace);
 const value = (workspaces: Workspace[], extra: Record<string, unknown> = {}) => ({
     state: { workspaces, activeWorkspaceId: workspaces[0]?.id ?? null, ...extra } as any,

@@ -1,7 +1,7 @@
-# Songstead — store listing copy & submission answers
+# SongNook — store listing copy & submission answers
 
 Ready-to-paste metadata for the App Store and Play Store, plus the privacy
-questionnaire answers. Written in Songstead's voice; the privacy story is the
+questionnaire answers. Written in SongNook's voice; the privacy story is the
 strongest differentiator, so it leads. **Verify the two flagged items** (crash
 capture, third-party calls) against the final build before submitting — see the
 privacy section.
@@ -12,7 +12,7 @@ Character limits noted are current-as-of-2026; confirm in the console at submiss
 
 ## Names & taglines
 
-- **App name (both stores):** `Songstead`
+- **App name (both stores):** `SongNook`
 - **App Store subtitle** (30 chars): `Catch song ideas, grow them` (27)
   - Alt: `Your songwriting sketchbook` (27)
 - **Play short description** (80 chars):
@@ -22,13 +22,13 @@ Character limits noted are current-as-of-2026; confirm in the console at submiss
 
 ## Promotional text (App Store, 170 chars — updatable without review)
 
-`Every song starts as a hum in the car or a riff at 2am. Songstead catches it before it's gone — then helps you shape it. Everything stays on your device.` (154)
+`Every song starts as a hum in the car or a riff at 2am. SongNook catches it before it's gone — then helps you shape it. Everything stays on your device.` (154)
 
 ---
 
 ## Description (App Store + Play — same body)
 
-> Songstead is a songwriting sketchbook for the ideas that arrive when you least
+> SongNook is a songwriting sketchbook for the ideas that arrive when you least
 > expect them. Hum a melody, strum a riff, or sing a line — capture it in a tap,
 > before it slips away. Then grow it into a song, at your own pace.
 >
@@ -68,7 +68,7 @@ Character limits noted are current-as-of-2026; confirm in the console at submiss
 
 Final (99): `songwriting,voice memo,song idea,riff,demo,recorder,practice,looper,lyrics,chords,melody,rhyme,tuner`
 
-Notes: the app *name* ("Songstead") and *category* are indexed separately — don't
+Notes: the app *name* ("SongNook") and *category* are indexed separately — don't
 spend keyword chars on them. "metronome" and "audio editor" are strong but cut for
 space; rotate in later based on Search Ads / console analytics.
 
@@ -98,7 +98,7 @@ space; rotate in later based on Search Ads / console analytics.
 
 ## Privacy questionnaire — App Store "nutrition label" & Play "Data safety"
 
-Songstead's answer is the short one: **Data Not Collected.** Two things to confirm
+SongNook's answer is the short one: **Data Not Collected.** Two things to confirm
 against the shipped build before you commit to that:
 
 1. **Crash capture is LOCAL-ONLY** (the `crashLog` service writes to the device;
@@ -137,7 +137,7 @@ in-progress audio recording when the app is backgrounded or the screen locks."
 
 ## What's New — v1.0.0
 
-`Welcome to Songstead. Catch your song ideas the moment they strike, grow them with lyrics, chords, and overdub layers, and practice until they're real — all on your device. This is our first release; tell us what you'd love to see next.`
+`Welcome to SongNook. Catch your song ideas the moment they strike, grow them with lyrics, chords, and overdub layers, and practice until they're real — all on your device. This is our first release; tell us what you'd love to see next.`
 
 ---
 
@@ -165,7 +165,7 @@ so skip tablet). Keep the Figma/script in `docs/store-assets/` so they regenerat
 
 - [ ] Privacy policy URL live and pasted into both consoles + Settings → About.
 - [ ] Confirm crash capture is still local-only → "Data Not Collected" holds.
-- [ ] App name "Songstead" available in App Store Connect (unique-name requirement).
+- [ ] App name "SongNook" available in App Store Connect (unique-name requirement).
 - [ ] Screenshots captured at required sizes with captions.
 - [ ] Keywords pasted (the 99-char line above).
 - [ ] Age rating questionnaire completed per the answers above.

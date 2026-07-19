@@ -2,10 +2,10 @@ import { useMemo, useState } from "react";
 import { AppAlert } from "../../common/AppAlert";
 import {
     buildLibraryImportPreview,
-    pickSongSeedArchiveFile,
-    readSongSeedArchive,
+    pickSongNookArchiveFile,
+    readSongNookArchive,
     type LibraryImportPreview,
-    type ParsedSongSeedArchive,
+    type ParsedSongNookArchive,
 } from "../../../services/libraryImport";
 import { detectPickedArchiveKind } from "../../../services/archiveKind";
 import { appActions } from "../../../state/actions";
@@ -14,7 +14,7 @@ import { enqueueMissingMetadataBackfill } from "../../../services/backgroundWave
 import { useStore } from "../../../state/useStore";
 
 export function useLibraryImportFlow() {
-    const [parsedArchive, setParsedArchive] = useState<ParsedSongSeedArchive | null>(null);
+    const [parsedArchive, setParsedArchive] = useState<ParsedSongNookArchive | null>(null);
     const [preview, setPreview] = useState<LibraryImportPreview | null>(null);
     const [isPicking, setIsPicking] = useState(false);
     const [isImporting, setIsImporting] = useState(false);
@@ -32,30 +32,30 @@ export function useLibraryImportFlow() {
 
         setIsPicking(true);
         try {
-            const picked = await pickSongSeedArchiveFile();
+            const picked = await pickSongNookArchiveFile();
             if (!picked) {
                 return false;
             }
 
             // A full disaster-recovery backup is a different format and belongs in the Restore
             // flow. Detect it here and point the user to the right place instead of failing with
-            // a confusing "not a valid Songstead Archive" error.
-            if ((await detectPickedArchiveKind(picked.uri)) === "songstead-backup") {
+            // a confusing "not a valid SongNook Archive" error.
+            if ((await detectPickedArchiveKind(picked.uri)) === "songnook-backup") {
                 AppAlert.info(
                     "That's a full backup",
-                    "This file is a full Songstead backup, not a shareable archive. Restore it from Library & Backups → Restore."
+                    "This file is a full SongNook backup, not a shareable archive. Restore it from Library & Backups → Restore."
                 );
                 return false;
             }
 
-            const parsed = await readSongSeedArchive(picked.uri, picked.name);
+            const parsed = await readSongNookArchive(picked.uri, picked.name);
             const nextPreview = buildLibraryImportPreview(parsed);
             setParsedArchive(parsed);
             setPreview(nextPreview);
             return true;
         } catch (error) {
             const message =
-                error instanceof Error ? error.message : "Could not read this Songstead Archive.";
+                error instanceof Error ? error.message : "Could not read this SongNook Archive.";
             AppAlert.info("Import failed", message);
             return false;
         } finally {

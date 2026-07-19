@@ -63,7 +63,7 @@ export function SongClipboardBanner() {
         if (includesProjectsFromList) {
           AppAlert.confirm(
             `${clipClipboard.mode === "move" ? "Move primary clips here?" : "Copy primary clips here?"}`,
-            `Songs can't be placed inside another song. For now, SongSeed will ${clipClipboard.mode} only the primary clip from each selected song into this song.`,
+            `Songs can't be placed inside another song. For now, SongNook will ${clipClipboard.mode} only the primary clip from each selected song into this song.`,
             () => appActions.pasteClipboardToProject(selectedIdea.id),
             { confirmLabel: "Continue" }
           );

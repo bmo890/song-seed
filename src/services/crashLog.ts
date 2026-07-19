@@ -3,7 +3,7 @@ import * as FileSystem from "expo-file-system/legacy";
 /**
  * On-device crash capture (no telemetry).
  *
- * Songstead ships without a crash-reporting SDK to keep the "nothing leaves this
+ * SongNook ships without a crash-reporting SDK to keep the "nothing leaves this
  * device" privacy story intact. Instead, fatal JS errors and ErrorBoundary catches
  * are appended to a local diagnostic log the user can share from Settings → About
  * when reporting a bug. Release builds strip console.log, so this file is the only

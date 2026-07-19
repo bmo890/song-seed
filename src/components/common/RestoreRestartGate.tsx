@@ -87,7 +87,7 @@ export function RestoreRestartGate() {
                             </Text>
                             <Pressable
                                 accessibilityRole="button"
-                                accessibilityLabel="Restart Songstead"
+                                accessibilityLabel="Restart SongNook"
                                 style={({ pressed }) => [
                                     styles.restartButton,
                                     pressed ? styles.restartButtonPressed : null,
@@ -98,13 +98,13 @@ export function RestoreRestartGate() {
                                 }}
                             >
                                 <Ionicons name="refresh" size={17} color={colors.onPrimary} />
-                                <Text style={styles.restartButtonText}>Restart Songstead</Text>
+                                <Text style={styles.restartButtonText}>Restart SongNook</Text>
                             </Pressable>
                         </>
                     ) : (
                         <View style={styles.restartingRow}>
                             <ActivityIndicator color={colors.primary} />
-                            <Text style={styles.restartingText}>Restarting Songstead...</Text>
+                            <Text style={styles.restartingText}>Restarting SongNook...</Text>
                         </View>
                     )}
                 </View>

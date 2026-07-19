@@ -39,7 +39,7 @@ export function markRestoreReloadFailed(error: unknown) {
     publish({
         ...state,
         reloadStatus: "failed",
-        reloadError: error instanceof Error ? error.message : "Songstead could not restart automatically.",
+        reloadError: error instanceof Error ? error.message : "SongNook could not restart automatically.",
     });
 }
 

@@ -61,12 +61,12 @@ export function SettingsOverviewView({
 
       <View style={styles.settingsSection}>
         <View style={styles.settingsSectionHeaderRow}>
-          <Text style={styles.settingsSectionLabel}>Songstead Pro</Text>
+          <Text style={styles.settingsSectionLabel}>SongNook Pro</Text>
         </View>
         <View style={styles.settingsOptionStack}>
           {isPro ? (
             <FormatOptionRow
-              title="Songstead Pro · Active"
+              title="SongNook Pro · Active"
               subtitle="Manage or cancel your subscription in the store."
               selected={false}
               onPress={() => {

@@ -270,7 +270,7 @@ export function ReceivedScreen() {
             <Ionicons name="mail-open-outline" size={26} color={colors.textMuted} />
             <Text style={receivedStyles.emptyTitle}>Nothing received yet</Text>
             <Text style={receivedStyles.emptyBody}>
-              When someone shares a Songstead file with you — a setlist, a songbook, a few
+              When someone shares a SongNook file with you — a setlist, a songbook, a few
               songs — it lands here as its own package.
             </Text>
           </View>

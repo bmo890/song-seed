@@ -9,7 +9,7 @@ const BYTE_RATE = SAMPLE_RATE * CHANNEL_COUNT * BYTES_PER_SAMPLE;
 const BLOCK_ALIGN = CHANNEL_COUNT * BYTES_PER_SAMPLE;
 const CLICK_DURATION_MS = 34;
 const ATTACK_MS = 3;
-const METRONOME_DIR = `${FileSystem.cacheDirectory ?? FileSystem.documentDirectory ?? ""}songseed/metronome`;
+const METRONOME_DIR = `${FileSystem.cacheDirectory ?? FileSystem.documentDirectory ?? ""}songnook/metronome`;
 
 function clampSample(value: number) {
   return Math.max(-1, Math.min(1, value));

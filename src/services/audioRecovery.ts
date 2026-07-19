@@ -1,9 +1,9 @@
 import * as FileSystem from "expo-file-system/legacy";
 import { strFromU8 } from "fflate";
 import {
-    SONG_SEED_AUDIO_DIR,
-    SONG_SEED_WORKSPACE_ARCHIVE_DIR,
-    isSongSeedManagedUri,
+    SONG_NOOK_AUDIO_DIR,
+    SONG_NOOK_WORKSPACE_ARCHIVE_DIR,
+    isSongNookManagedUri,
 } from "./storagePaths";
 import {
     extractStoredZipEntryToFile,
@@ -47,8 +47,8 @@ export type ManifestRecoveryResult = {
 };
 
 function assertManagedRestoreUri(fileUri: string) {
-    if (!isSongSeedManagedUri(fileUri)) {
-        throw new Error("Recovery restore target is outside Songstead managed storage.");
+    if (!isSongNookManagedUri(fileUri)) {
+        throw new Error("Recovery restore target is outside SongNook managed storage.");
     }
 }
 
@@ -114,23 +114,23 @@ type ArchiveManifest = {
 };
 
 /**
- * Scan the workspace-archives directory for .songstead-workspace.zip files.
+ * Scan the workspace-archives directory for .songnook-workspace.zip files.
  * Returns metadata about each archive found without extracting them yet.
  */
 export async function findWorkspaceArchives(): Promise<
     { archiveUri: string; workspaceId: string; workspaceTitle: string; archivedAt: string }[]
 > {
-    const dirInfo = await FileSystem.getInfoAsync(SONG_SEED_WORKSPACE_ARCHIVE_DIR);
+    const dirInfo = await FileSystem.getInfoAsync(SONG_NOOK_WORKSPACE_ARCHIVE_DIR);
     if (!dirInfo.exists) return [];
 
-    const files = await FileSystem.readDirectoryAsync(SONG_SEED_WORKSPACE_ARCHIVE_DIR);
+    const files = await FileSystem.readDirectoryAsync(SONG_NOOK_WORKSPACE_ARCHIVE_DIR);
     const archives: { archiveUri: string; workspaceId: string; workspaceTitle: string; archivedAt: string }[] = [];
 
     for (const filename of files) {
-        // Pre-rename archives end in ".songseed-workspace.zip" — keep them recoverable.
-        if (!filename.endsWith(".songstead-workspace.zip") && !filename.endsWith(".songseed-workspace.zip")) continue;
+        // Pre-rename archives end in ".songnook-workspace.zip" — keep them recoverable.
+        if (!filename.endsWith(".songnook-workspace.zip") && !filename.endsWith(".songnook-workspace.zip")) continue;
 
-        const archiveUri = `${SONG_SEED_WORKSPACE_ARCHIVE_DIR}/${filename}`;
+        const archiveUri = `${SONG_NOOK_WORKSPACE_ARCHIVE_DIR}/${filename}`;
         try {
             // Index only — reads the manifest without loading any audio payloads.
             const archiveIndex = await indexStoredZipArchive(archiveUri);
@@ -155,7 +155,7 @@ export async function findWorkspaceArchives(): Promise<
 }
 
 /**
- * Restore a full workspace from a .songstead-workspace.zip archive.
+ * Restore a full workspace from a .songnook-workspace.zip archive.
  * Extracts all audio files back to their original URIs and returns the
  * complete Workspace object with all metadata intact.
  */
@@ -251,7 +251,7 @@ export async function restoreWorkspaceFromArchive(
 export async function findOrphanedAudioFiles(
     workspaces: Workspace[]
 ): Promise<RecoveredClip[]> {
-    const files = await listFilesRecursively(SONG_SEED_AUDIO_DIR);
+    const files = await listFilesRecursively(SONG_NOOK_AUDIO_DIR);
     if (files.length === 0) return [];
 
     const knownUris = collectManagedAudioUrisFromWorkspaces(workspaces);

@@ -12,7 +12,7 @@ import type { Env } from "../env";
 export const wellKnown = new Hono<{ Bindings: Env }>();
 
 const APP_PATHS = ["/t/*"];
-const BUNDLE_IDS = ["com.bmostudio.songseed", "com.bmostudio.songseed.dev"];
+const BUNDLE_IDS = ["com.bmostudio.songnook", "com.bmostudio.songnook.dev"];
 
 wellKnown.get("/apple-app-site-association", (c) => {
   const teamId = c.env.APPLE_TEAM_ID || "REPLACE_WITH_APPLE_TEAM_ID";

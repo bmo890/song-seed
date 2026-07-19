@@ -1,4 +1,4 @@
-# Songstead QA Checklist — master index
+# SongNook QA Checklist — master index
 
 **430 interaction flows** mapped from the codebase (not guessed), covering every screen
 and its combinations, empty states, error paths, cancel paths, destructive-action confirms,

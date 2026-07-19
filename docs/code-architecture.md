@@ -1,6 +1,6 @@
 # Code Architecture Principles
 
-This document defines the preferred frontend architecture for Song Seed.
+This document defines the preferred frontend architecture for SongNook.
 
 It exists to keep the codebase:
 - readable to a first-time contributor

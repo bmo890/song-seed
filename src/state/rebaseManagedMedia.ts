@@ -94,7 +94,7 @@ export function rebaseWorkspacesManagedMedia(workspaces: Workspace[]): Workspace
 
 /**
  * Rewrites managed audio URIs to their container-independent relative form
- * (e.g. `songseed/audio/<id>.m4a`) for storage in a backup snapshot, so the snapshot
+ * (e.g. `songnook/audio/<id>.m4a`) for storage in a backup snapshot, so the snapshot
  * is portable across installs/devices. Non-managed URIs are left untouched.
  */
 export function toRelativeWorkspacesManagedMedia(workspaces: Workspace[]): Workspace[] {

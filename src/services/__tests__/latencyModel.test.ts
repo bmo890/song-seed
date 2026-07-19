@@ -1,4 +1,4 @@
-jest.mock("../../../modules/songseed-metronome", () => ({
+jest.mock("../../../modules/songnook-metronome", () => ({
   __esModule: true,
   default: null,
 }));

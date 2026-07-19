@@ -17,7 +17,7 @@ private link — no account, nothing to install on the other end.</p>
   <div id="drop" class="drop" role="button" tabindex="0" aria-label="Choose files to send">
     <strong>Drop your music here</strong>
     <span>or click to choose — audio &amp; Songnook files, up to 1 GB</span>
-    <input id="picker" type="file" multiple hidden accept=".songstead,audio/*">
+    <input id="picker" type="file" multiple hidden accept=".songnook,audio/*">
   </div>
   <ul id="items" class="tracklist" style="margin-top:8px"></ul>
 
@@ -69,7 +69,7 @@ const SENDER_JS = `
   function allowed(f){
     var name=(f.name||'').toLowerCase();
     var ext=name.indexOf('.')>=0?name.split('.').pop():'';
-    if(ext==='songstead') return true;
+    if(ext==='songnook') return true;
     if(AUDIO_EXT.indexOf(ext)>=0) return true;
     return (f.type||'').indexOf('audio/')===0;
   }

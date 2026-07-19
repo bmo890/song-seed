@@ -22,7 +22,7 @@ export function buildSetlistExportArgs(
   return {
     workspaces: built.workspaces,
     notes: [],
-    format: "songstead-archive",
+    format: "songnook-archive",
     scope: built.scope,
     // The setlist entity itself (remapped onto the synthetic workspace) — the
     // receiver imports a real Setlist, not just loose songs.
@@ -34,7 +34,7 @@ export function buildSetlistExportArgs(
       transferId: overrides?.transferId ?? null,
       createdAt: Date.now(),
     },
-    archiveExtension: "songstead",
+    archiveExtension: "songnook",
     options: {
       includeFullSongHistory: true, // we already trimmed to the chosen clips
       // The trim already zeroes notes for entries that didn't pack them, so
@@ -48,7 +48,7 @@ export function buildSetlistExportArgs(
   };
 }
 
-/** Exports a setlist as a playable Songstead archive and hands it to the OS share
+/** Exports a setlist as a playable SongNook archive and hands it to the OS share
  * sheet. Returns false if the setlist has nothing exportable. */
 export async function shareSetlist(setlist: Setlist, workspaces: Workspace[]): Promise<boolean> {
   const args = buildSetlistExportArgs(setlist, workspaces);
@@ -57,7 +57,7 @@ export async function shareSetlist(setlist: Setlist, workspaces: Workspace[]): P
   return true;
 }
 
-/** Uploads a setlist to Songstead Send and returns the hosted share link record.
+/** Uploads a setlist to SongNook Send and returns the hosted share link record.
  *  Throws EmptyShareError if nothing is exportable, SendTransferError on network. */
 export function createSetlistShareLink(
   setlist: Setlist,

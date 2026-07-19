@@ -32,7 +32,7 @@ import { useResolvedShareAssets } from "./useResolvedShareAssets";
 import * as FileSystem from "expo-file-system/legacy";
 import { findSharedArchiveFile } from "../../../services/shareImport";
 import { detectPickedArchiveKind } from "../../../services/archiveKind";
-import { readSongSeedArchive } from "../../../services/libraryImport";
+import { readSongNookArchive } from "../../../services/libraryImport";
 import { toast } from "../../common/toastStore";
 import { haptic } from "../../../design/haptics";
 import { useShareImportDestinations } from "./useShareImportDestinations";
@@ -99,7 +99,7 @@ export function useShareImportScreenModel({
   const [pendingCollectionDestination, setPendingCollectionDestination] =
     useState<CollectionDestination | null>(null);
 
-  // ── Incoming Songstead archive (a shared songbook / setlist / export) ─────
+  // ── Incoming SongNook archive (a shared songbook / setlist / export) ─────
   const sharedArchive = findSharedArchiveFile(shareIntent.files);
   const [isImportingArchive, setIsImportingArchive] = useState(false);
 
@@ -107,10 +107,10 @@ export function useShareImportScreenModel({
     if (!sharedArchive || isImportingArchive) return;
     setIsImportingArchive(true);
     try {
-      if ((await detectPickedArchiveKind(sharedArchive.uri)) === "songstead-backup") {
+      if ((await detectPickedArchiveKind(sharedArchive.uri)) === "songnook-backup") {
         AppAlert.info(
           "That's a full backup",
-          "This file is a full Songstead backup, not a shareable archive. Restore it from Library & Backups → Restore."
+          "This file is a full SongNook backup, not a shareable archive. Restore it from Library & Backups → Restore."
         );
         return;
       }
@@ -122,7 +122,7 @@ export function useShareImportScreenModel({
         await FileSystem.copyAsync({ from: archiveUri, to: cached });
         archiveUri = cached;
       }
-      const parsed = await readSongSeedArchive(archiveUri, sharedArchive.name ?? undefined);
+      const parsed = await readSongNookArchive(archiveUri, sharedArchive.name ?? undefined);
       // Shared-to-us archives land as Received packages, never as personal
       // workspaces — the Received page is their home.
       const result = await appActions.importLibraryArchiveIntoLibrary(parsed, {
@@ -156,7 +156,7 @@ export function useShareImportScreenModel({
       }
     } catch (error) {
       const message =
-        error instanceof Error ? error.message : "Could not read this Songstead Archive.";
+        error instanceof Error ? error.message : "Could not read this SongNook Archive.";
       AppAlert.info("Import failed", message);
     } finally {
       setIsImportingArchive(false);

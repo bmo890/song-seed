@@ -769,7 +769,7 @@ function AppContent() {
   const primaryCollectionIdByWorkspace = useStore((s) => s.primaryCollectionIdByWorkspace);
   const selectedIdeaId = useStore((s) => s.selectedIdeaId);
   const playerTarget = useStore((s) => s.playerTarget);
-  const appScheme = getScheme() ?? Constants.expoConfig?.scheme ?? "songstead";
+  const appScheme = getScheme() ?? Constants.expoConfig?.scheme ?? "songnook";
   const shareExtensionKey = getShareExtensionKey();
   const packageName =
     Constants.expoConfig?.android?.package ?? Constants.expoConfig?.ios?.bundleIdentifier ?? null;
@@ -808,7 +808,7 @@ function AppContent() {
         screens: {
           Home: "home",
           ShareImport: "share-import",
-          // Songnook Send links: songstead://t/<id> and (once entitlements are
+          // Songnook Send links: songnook://t/<id> and (once entitlements are
           // live) https://send.songnook.app/t/<id> both land here.
           TransferReceive: "t/:transferId",
         },
@@ -1084,7 +1084,7 @@ export default function App() {
           useStore.getState().setHasSeenWelcome(true);
           AppAlert.confirm(
             "Restore your library?",
-            `Songstead opened with an empty library, but a backup with ${manifestIdeaCount} item${manifestIdeaCount === 1 ? "" : "s"} was found on this device. Restore it now?`,
+            `SongNook opened with an empty library, but a backup with ${manifestIdeaCount} item${manifestIdeaCount === 1 ? "" : "s"} was found on this device. Restore it now?`,
             () => {
               void appActions.recoverOrphanedAudio();
             },
@@ -1107,7 +1107,7 @@ export default function App() {
       } else if (recordingRecovery.status === "failed") {
         AppAlert.info(
           "Recording recovery failed",
-          "Songstead found an unfinished recording from the previous session but could not restore it automatically."
+          "SongNook found an unfinished recording from the previous session but could not restore it automatically."
         );
         return;
       }

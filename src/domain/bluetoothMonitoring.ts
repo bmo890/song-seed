@@ -30,7 +30,7 @@ export function normalizeBluetoothMonitoringSavedOffsetMs(value: number) {
 }
 
 /** A route as reported by either the audio-studio device manager or the native
- *  songseed-metronome module. `profile` is only present on Bluetooth routes reported by
+ *  songnook-metronome module. `profile` is only present on Bluetooth routes reported by
  *  newer native binaries: "hfp" while the headset's mic is in use (phone-call profile),
  *  "a2dp"/"le" otherwise. */
 export type AudioRouteLike = Pick<AudioDevice, "name" | "type"> & { profile?: string | null };

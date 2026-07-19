@@ -5,8 +5,8 @@ import {
 } from "../disasterRecoveryValidation";
 import type { DrBackupManifest } from "../disasterRecoveryBackup";
 
-const CLIP_PATH = "songseed/audio/clip-1.m4a";
-const STEM_PATH = "songseed/audio/stem-1.m4a";
+const CLIP_PATH = "songnook/audio/clip-1.m4a";
+const STEM_PATH = "songnook/audio/stem-1.m4a";
 
 function manifest(overrides: Partial<DrBackupManifest> = {}): DrBackupManifest {
     return {
@@ -60,7 +60,7 @@ function snapshot() {
                                 createdAt: 0,
                                 isPrimary: true,
                                 audioUri: CLIP_PATH,
-                                sourceAudioUri: "songseed/audio/missing-source.wav",
+                                sourceAudioUri: "songnook/audio/missing-source.wav",
                                 overdub: {
                                     stems: [
                                         {
@@ -74,7 +74,7 @@ function snapshot() {
                                             audioUri: STEM_PATH,
                                         },
                                     ],
-                                    renderedMixUri: "songseed/audio/missing-mix.m4a",
+                                    renderedMixUri: "songnook/audio/missing-mix.m4a",
                                     renderedMixDurationMs: 1000,
                                     renderedMixWaveformPeaks: [0.5],
                                 },
@@ -92,20 +92,20 @@ function snapshot() {
 
 describe("disaster recovery manifest validation", () => {
     it("rejects traversal and paths outside managed backup storage", () => {
-        expect(() => assertSafeBackupMediaPath("songseed/audio/../state.json")).toThrow("unsafe");
+        expect(() => assertSafeBackupMediaPath("songnook/audio/../state.json")).toThrow("unsafe");
         expect(() => assertSafeBackupMediaPath("other/audio.m4a")).toThrow("unsafe");
-        expect(() => assertSafeBackupMediaPath("songseed/trash/audio.m4a")).toThrow("unsafe");
+        expect(() => assertSafeBackupMediaPath("songnook/trash/audio.m4a")).toThrow("unsafe");
     });
 
     it("accepts every prefix the backup writer packs (audio, archives, preview mixes)", () => {
-        // Regression: a backup containing an overdub preview mix (songseed/preview-audio/)
+        // Regression: a backup containing an overdub preview mix (songnook/preview-audio/)
         // hard-failed the ENTIRE restore because the validator only knew audio + archives.
-        expect(assertSafeBackupMediaPath("songseed/audio/clip.m4a")).toBe("songseed/audio/clip.m4a");
-        expect(assertSafeBackupMediaPath("songseed/workspace-archives/ws.zip")).toBe(
-            "songseed/workspace-archives/ws.zip"
+        expect(assertSafeBackupMediaPath("songnook/audio/clip.m4a")).toBe("songnook/audio/clip.m4a");
+        expect(assertSafeBackupMediaPath("songnook/workspace-archives/ws.zip")).toBe(
+            "songnook/workspace-archives/ws.zip"
         );
-        expect(assertSafeBackupMediaPath("songseed/preview-audio/clip-1-preview.m4a")).toBe(
-            "songseed/preview-audio/clip-1-preview.m4a"
+        expect(assertSafeBackupMediaPath("songnook/preview-audio/clip-1-preview.m4a")).toBe(
+            "songnook/preview-audio/clip-1-preview.m4a"
         );
     });
 
@@ -121,7 +121,7 @@ describe("disaster recovery manifest validation", () => {
                 manifest({
                     missing: [
                         {
-                            path: "songseed/audio/missing.m4a",
+                            path: "songnook/audio/missing.m4a",
                             kind: "clip-audio",
                             critical: true,
                             ref: "idea:i/clip:c",
@@ -140,9 +140,9 @@ describe("prepareDisasterRecoverySnapshot", () => {
         const prepared = prepareDisasterRecoverySnapshot(snapshot(), manifest(), "restore-123");
         const clip = prepared.snapshot.workspaces[0].ideas[0].clips[0];
 
-        expect(clip.audioUri).toBe("songseed/audio/restored-restore-123/clip-1.m4a");
+        expect(clip.audioUri).toBe("songnook/audio/restored-restore-123/clip-1.m4a");
         expect(clip.overdub!.stems[0].audioUri).toBe(
-            "songseed/audio/restored-restore-123/stem-1.m4a"
+            "songnook/audio/restored-restore-123/stem-1.m4a"
         );
         expect(clip.sourceAudioUri).toBeUndefined();
         expect(clip.overdub!.renderedMixUri).toBeUndefined();
@@ -151,7 +151,7 @@ describe("prepareDisasterRecoverySnapshot", () => {
     });
 
     it("restores an overdub preview mix to a preview-audio destination", () => {
-        const previewPath = "songseed/preview-audio/clip-1-preview-123.m4a";
+        const previewPath = "songnook/preview-audio/clip-1-preview-123.m4a";
         const withPreview = snapshot();
         withPreview.workspaces[0].ideas[0].clips[0].overdub.renderedMixUri = previewPath;
 
@@ -168,16 +168,16 @@ describe("prepareDisasterRecoverySnapshot", () => {
         );
 
         expect(prepared.destinationPathBySourcePath.get(previewPath)).toBe(
-            `songseed/preview-audio/restored-restore-123/clip-1-preview-123.m4a`
+            `songnook/preview-audio/restored-restore-123/clip-1-preview-123.m4a`
         );
         expect(
             prepared.snapshot.workspaces[0].ideas[0].clips[0].overdub?.renderedMixUri
-        ).toBe("songseed/preview-audio/restored-restore-123/clip-1-preview-123.m4a");
+        ).toBe("songnook/preview-audio/restored-restore-123/clip-1-preview-123.m4a");
     });
 
     it("salvage drops missing clips/stems, promotes a surviving primary, and reports skips", () => {
-        const missingAudio = "songseed/audio/gone.m4a";
-        const missingStem = "songseed/audio/gone-stem.m4a";
+        const missingAudio = "songnook/audio/gone.m4a";
+        const missingStem = "songnook/audio/gone-stem.m4a";
         const value = snapshot();
         const idea = value.workspaces[0].ideas[0];
         // clip-1 (primary) keeps its audio but loses one of two stems; a second primary-less
@@ -233,7 +233,7 @@ describe("prepareDisasterRecoverySnapshot", () => {
             archiveState: {
                 schemaVersion: 2,
                 archivedAt: 1,
-                archiveUri: "songseed/workspace-archives/gone.songstead-workspace.zip",
+                archiveUri: "songnook/workspace-archives/gone.songnook-workspace.zip",
                 packageSizeBytes: 10,
                 originalAudioBytes: 10,
                 originalMetadataBytes: 1,
@@ -242,7 +242,7 @@ describe("prepareDisasterRecoverySnapshot", () => {
                 audioFileCount: 1,
                 missingFileCount: 0,
                 offloadedAt: 123,
-                offloadedFileName: "gone.songstead-workspace.zip",
+                offloadedFileName: "gone.songnook-workspace.zip",
             },
         };
         const value = snapshot();
@@ -259,7 +259,7 @@ describe("prepareDisasterRecoverySnapshot", () => {
             expect(stub).toBeDefined();
             // The stub survives untouched — unarchiving asks the user for the file.
             expect(stub!.archiveState?.archiveUri).toBe(
-                "songseed/workspace-archives/gone.songstead-workspace.zip"
+                "songnook/workspace-archives/gone.songnook-workspace.zip"
             );
             expect(stub!.archiveState?.offloadedAt).toBe(123);
             expect(prepared.skipped).toEqual([]);
@@ -268,7 +268,7 @@ describe("prepareDisasterRecoverySnapshot", () => {
 
     it("without salvage, missing critical audio still fails preparation", () => {
         const value = snapshot();
-        value.workspaces[0].ideas[0].clips[0].audioUri = "songseed/audio/gone.m4a";
+        value.workspaces[0].ideas[0].clips[0].audioUri = "songnook/audio/gone.m4a";
         expect(() =>
             prepareDisasterRecoverySnapshot(value, manifest(), "restore-123")
         ).toThrow("missing critical audio");
@@ -315,7 +315,7 @@ describe("prepareDisasterRecoverySnapshot", () => {
             backupReminderFrequency: "weekly",
             hapticsEnabled: true,
             lastSuccessfulBackupAt: 1720000000000,
-            lastSuccessfulBackupFileName: "Songstead Backup.zip",
+            lastSuccessfulBackupFileName: "SongNook Backup.zip",
             notes: [{ id: "note-1", text: "Lyric idea", createdAt: 0, updatedAt: 0 }],
             wordLadders: [{ id: "wl-1", words: ["seed"] }],
             cutUpSparks: [{ id: "cs-1", fragments: ["chorus"] }],
@@ -338,7 +338,7 @@ describe("prepareDisasterRecoverySnapshot", () => {
         // Workspaces survive too — only media URIs are rewritten to restore destinations.
         const clip = prepared.snapshot.workspaces[0].ideas[0].clips[0];
         expect(clip.id).toBe("clip-1");
-        expect(clip.audioUri).toMatch(/^songseed\/audio\/restored-/);
+        expect(clip.audioUri).toMatch(/^songnook\/audio\/restored-/);
     });
 
     it("rejects snapshot counts that do not match the manifest", () => {

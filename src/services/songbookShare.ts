@@ -18,7 +18,7 @@ export function buildSongbookExportArgs(
   return {
     workspaces: built.workspaces,
     notes: [],
-    format: "songstead-archive",
+    format: "songnook-archive",
     scope: built.scope,
     songbooks: [built.songbook],
     share: {
@@ -28,7 +28,7 @@ export function buildSongbookExportArgs(
       transferId: overrides?.transferId ?? null,
       createdAt: Date.now(),
     },
-    archiveExtension: "songstead",
+    archiveExtension: "songnook",
     options: {
       includeFullSongHistory: true, // already trimmed to the referenced charts
       includeNotes: false,
@@ -40,7 +40,7 @@ export function buildSongbookExportArgs(
   };
 }
 
-/** Exports a songbook as a charts-only Songstead archive and hands it to the OS
+/** Exports a songbook as a charts-only SongNook archive and hands it to the OS
  *  share sheet. The receiver imports a real Songbook. Returns false when the book
  *  has no resolvable charts. */
 export async function shareSongbookFile(songbook: Songbook, workspaces: Workspace[]): Promise<boolean> {
@@ -50,7 +50,7 @@ export async function shareSongbookFile(songbook: Songbook, workspaces: Workspac
   return true;
 }
 
-/** Uploads a songbook to Songstead Send and returns the hosted share link record.
+/** Uploads a songbook to SongNook Send and returns the hosted share link record.
  *  Throws EmptyShareError if nothing is exportable, SendTransferError on network. */
 export function createSongbookShareLink(
   songbook: Songbook,

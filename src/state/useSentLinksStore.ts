@@ -29,7 +29,7 @@ export type SentLinksStore = PersistedSentLinksState & {
   linkForEntity: (entityId: string, now?: number) => SentLink | undefined;
 };
 
-const STORE_NAME = "songstead-sent-links-store";
+const STORE_NAME = "songnook-sent-links-store";
 const STORE_VERSION = 1;
 
 export const useSentLinksStore = create<SentLinksStore>()(

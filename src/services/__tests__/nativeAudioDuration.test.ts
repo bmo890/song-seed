@@ -4,7 +4,7 @@
 // same object via its own import and attaches/removes `getAudioDurationMs` to simulate
 // builds with and without the native method. (The factory can't close over an outer
 // const — imports are hoisted above it, so the const would be in the TDZ.)
-jest.mock("../../../modules/songseed-pitch-shift", () => ({
+jest.mock("../../../modules/songnook-pitch-shift", () => ({
     __esModule: true,
     default: {},
 }));
@@ -14,11 +14,11 @@ jest.mock("../audioForegroundActivity", () => ({
     waitForForegroundAudioIdle: () => Promise.resolve(),
 }));
 
-import SongseedPitchShiftModule from "../../../modules/songseed-pitch-shift";
+import SongNookPitchShiftModule from "../../../modules/songnook-pitch-shift";
 import { getNativeAudioDurationMs } from "../waveformAnalysis";
 
 // Same object the wrapper captured — mutating it toggles the native method's presence.
-const nativeMock = SongseedPitchShiftModule as unknown as { getAudioDurationMs?: jest.Mock };
+const nativeMock = SongNookPitchShiftModule as unknown as { getAudioDurationMs?: jest.Mock };
 
 describe("getNativeAudioDurationMs — graceful degradation contract", () => {
     let warnSpy: jest.SpyInstance;

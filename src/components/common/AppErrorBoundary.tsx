@@ -66,7 +66,7 @@ export class AppErrorBoundary extends React.Component<
                             textAlign: "center",
                         }}
                     >
-                        Songstead hit an unexpected error. Your recordings and library are safe on
+                        SongNook hit an unexpected error. Your recordings and library are safe on
                         this device — restarting will bring everything back.
                     </Text>
                     <Pressable
@@ -87,7 +87,7 @@ export class AppErrorBoundary extends React.Component<
                                 color: colors.onPrimary,
                             }}
                         >
-                            Restart Songstead
+                            Restart SongNook
                         </Text>
                     </Pressable>
                     <Text

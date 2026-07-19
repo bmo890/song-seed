@@ -20,7 +20,7 @@ import {
     sanitizeArchiveSegment,
 } from "./audioStorage";
 import { createZipArchive, type ZipArchiveEntry } from "./zipArchive";
-import { SONG_SEED_SHARE_DIR } from "./storagePaths";
+import { SONG_NOOK_SHARE_DIR } from "./storagePaths";
 import { cleanupShareTempFile } from "./managedMedia";
 import { saveArchiveToUserLocation } from "./archiveSave";
 import { ensureBackupDiskSpace } from "./backupOperation";
@@ -28,7 +28,7 @@ import type { BackupOperationOptions } from "./backupOperation";
 import { recordLibraryOperationThroughput } from "./operationPacing";
 import {
     LIBRARY_EXPORT_SCHEMA_VERSION,
-    SONG_SEED_ARCHIVE_FORMAT,
+    SONG_NOOK_ARCHIVE_FORMAT,
     type ArchiveClipManifest,
     type ArchiveClipOverdubManifest,
     type ArchiveClipOverdubStemManifest,
@@ -43,15 +43,15 @@ import {
 // libraryArchiveManifest.ts so the importer and exporter share one definition. Re-exported here
 // for existing importers that reach for them through libraryExport.
 export type {
-    SongSeedArchiveOptions,
-    SongSeedArchiveLibraryPreferences,
+    SongNookArchiveOptions,
+    SongNookArchiveLibraryPreferences,
 } from "./libraryArchiveManifest";
 import type {
-    SongSeedArchiveOptions,
-    SongSeedArchiveLibraryPreferences,
+    SongNookArchiveOptions,
+    SongNookArchiveLibraryPreferences,
 } from "./libraryArchiveManifest";
 
-export type LibraryExportFormat = "songstead-archive" | "standard-zip";
+export type LibraryExportFormat = "songnook-archive" | "standard-zip";
 
 export type LibraryExportScope = {
     workspaceIds: string[];
@@ -75,19 +75,19 @@ export type ExportLibraryArgs =
     | ({
           workspaces: Workspace[];
           notes: Note[];
-          format: "songstead-archive";
+          format: "songnook-archive";
           scope: LibraryExportScope;
-          options: SongSeedArchiveOptions;
-          libraryPreferences?: SongSeedArchiveLibraryPreferences;
+          options: SongNookArchiveOptions;
+          libraryPreferences?: SongNookArchiveLibraryPreferences;
           songbooks?: Songbook[];
           setlists?: Setlist[];
           /** Declares what this archive IS (setlist/songbook/collection/…) —
            *  the receiving side trusts this over inference. */
           share?: ArchiveShareDeclaration;
           archiveLabel?: string;
-          /** File extension for the saved archive. Shares use "songstead" for
+          /** File extension for the saved archive. Shares use "songnook" for
            *  branded identity; defaults to "zip". Internals are zip either way. */
-          archiveExtension?: "zip" | "songstead";
+          archiveExtension?: "zip" | "songnook";
       } & ExportProgressArgs)
     | ({
           workspaces: Workspace[];
@@ -101,7 +101,7 @@ export type ExportLibraryArgs =
 export type LibraryExportResult = {
     archiveUri: string;
     archiveTitle: string;
-    archiveExtension: "zip" | "songstead";
+    archiveExtension: "zip" | "songnook";
     warningMessages: string[];
     exportedWorkspaces: number;
     exportedCollections: number;
@@ -150,7 +150,7 @@ export type LibraryExportEstimate = { fileCount: number; totalBytes: number };
 export async function estimateLibraryExportArchive(
     args: ExportLibraryArgs
 ): Promise<LibraryExportEstimate> {
-    const build = args.format === "songstead-archive" ? buildSongSeedArchive(args) : buildStandardZip(args);
+    const build = args.format === "songnook-archive" ? buildSongNookArchive(args) : buildStandardZip(args);
     let fileCount = 0;
     let totalBytes = 0;
     for (const entry of build.entries) {
@@ -174,19 +174,19 @@ export async function prepareLibraryExportArchive(args: ExportLibraryArgs): Prom
         throw new Error("Document directory unavailable.");
     }
 
-    const build = args.format === "songstead-archive" ? buildSongSeedArchive(args) : buildStandardZip(args);
+    const build = args.format === "songnook-archive" ? buildSongNookArchive(args) : buildStandardZip(args);
 
     await ensureShareDirectory();
 
     const archiveLabel =
         args.archiveLabel ??
-        (args.format === "songstead-archive" ? "Songstead Archive" : "Songstead Export");
+        (args.format === "songnook-archive" ? "SongNook Archive" : "SongNook Export");
     const archiveTitle = `${sanitizeArchiveSegment(archiveLabel)} ${buildTimestampSlug()}`;
     const archiveExtension =
-        args.format === "songstead-archive" && args.archiveExtension === "songstead"
-            ? "songstead"
+        args.format === "songnook-archive" && args.archiveExtension === "songnook"
+            ? "songnook"
             : "zip";
-    const archiveUri = `${SONG_SEED_SHARE_DIR}/${archiveTitle}.${archiveExtension}`;
+    const archiveUri = `${SONG_NOOK_SHARE_DIR}/${archiveTitle}.${archiveExtension}`;
 
     let statedSourceBytes = 0;
     const validEntries = await Promise.all(
@@ -322,7 +322,7 @@ function readableSummaryReplacer(key: string, value: unknown) {
  * an upper-ish estimate — the real archive is deflate-compressed — but good enough to decide.
  */
 export async function estimateLibraryArchiveSizes(
-    args: Extract<ExportLibraryArgs, { format: "songstead-archive" }>
+    args: Extract<ExportLibraryArgs, { format: "songnook-archive" }>
 ): Promise<{ standardBytes: number; fullBytes: number }> {
     const encoder = new TextEncoder();
     const fileSizeCache = new Map<string, number>();
@@ -350,25 +350,25 @@ export async function estimateLibraryArchiveSizes(
         return total;
     };
 
-    const standard = buildSongSeedArchive({
+    const standard = buildSongNookArchive({
         ...args,
         options: { ...args.options, preserveAllMetadata: false },
     });
-    const full = buildSongSeedArchive({
+    const full = buildSongNookArchive({
         ...args,
         options: { ...args.options, preserveAllMetadata: true },
     });
     return { standardBytes: await measure(standard), fullBytes: await measure(full) };
 }
 
-function buildSongSeedArchive(args: Extract<ExportLibraryArgs, { format: "songstead-archive" }>): ExportBuildContext {
+function buildSongNookArchive(args: Extract<ExportLibraryArgs, { format: "songnook-archive" }>): ExportBuildContext {
     const context = createExportBuildContext();
     const selectedWorkspaces = getSelectedWorkspaces(args.workspaces, args.scope);
     const folderAllocator = createFolderAllocator();
     const collectionFolderPaths = new Map<string, string>();
     const preserveAllMetadata = args.options.preserveAllMetadata;
     const manifest: ArchiveManifest = {
-        format: SONG_SEED_ARCHIVE_FORMAT,
+        format: SONG_NOOK_ARCHIVE_FORMAT,
         schemaVersion: LIBRARY_EXPORT_SCHEMA_VERSION,
         fidelity: preserveAllMetadata ? "full" : "standard",
         exportedAt: new Date().toISOString(),
@@ -397,7 +397,7 @@ function buildSongSeedArchive(args: Extract<ExportLibraryArgs, { format: "songst
         if (args.songbooks?.length) manifest.songbooks = args.songbooks;
         if (args.setlists?.length) manifest.setlists = args.setlists;
     }
-    if (args.format === "songstead-archive" && args.share) {
+    if (args.format === "songnook-archive" && args.share) {
         manifest.share = args.share;
     }
 
@@ -664,7 +664,7 @@ function applyFullSongMetadata(manifest: ArchiveSongManifest, idea: SongIdea): v
 function buildArchiveSongManifest(
     idea: SongIdea,
     songFolderPath: string,
-    options: SongSeedArchiveOptions,
+    options: SongNookArchiveOptions,
     context: ExportBuildContext
 ): ArchiveSongManifest {
     const clipAllocator = createFolderAllocator();
@@ -754,7 +754,7 @@ function buildArchiveStandaloneClip(
     idea: SongIdea,
     collectionFolderPath: string,
     itemAllocator: FolderAllocator,
-    options: SongSeedArchiveOptions,
+    options: SongNookArchiveOptions,
     context: ExportBuildContext
 ): ArchiveClipManifest {
     const primaryClip = getPrimaryClip(idea);
@@ -861,8 +861,8 @@ function exportStandardClip(
 
 function buildExportedLibraryPreferences(
     selectedWorkspaces: Array<{ workspace: Workspace; selectedCollectionIds: Set<string> }>,
-    libraryPreferences?: SongSeedArchiveLibraryPreferences
-): SongSeedArchiveLibraryPreferences {
+    libraryPreferences?: SongNookArchiveLibraryPreferences
+): SongNookArchiveLibraryPreferences {
     if (!libraryPreferences) {
         return {
             primaryWorkspaceId: null,

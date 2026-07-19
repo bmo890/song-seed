@@ -1,7 +1,7 @@
 # Reusable: dismiss the dev-build LogBox "Open debugger to view warnings" banner
 # if present. Call this right before any bottom-anchored tap (FABs, pinned rows) —
 # the banner reappears whenever a new warning logs and silently eats those taps.
-appId: com.bmostudio.songseed.dev
+appId: com.bmostudio.songnook.dev
 ---
 - runFlow:
     when:

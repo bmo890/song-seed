@@ -38,7 +38,7 @@ describe("parseTransferUrl", () => {
   it("accepts raw ids, trusted https links, and app-scheme links", () => {
     expect(parseTransferUrl(transferId)).toBe(transferId);
     expect(parseTransferUrl(`https://send.songnook.app/t/${transferId}`)).toBe(transferId);
-    expect(parseTransferUrl(`songstead://t/${transferId}`)).toBe(transferId);
+    expect(parseTransferUrl(`songnook://t/${transferId}`)).toBe(transferId);
   });
 
   it("rejects lookalike hosts", () => {

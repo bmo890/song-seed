@@ -1,5 +1,5 @@
 /**
- * Word-lookup proxy — Song Seed's first (and only) backend piece.
+ * Word-lookup proxy — SongNook's first (and only) backend piece.
  *
  * Datamuse requires an app-level API key starting Jan 1 2027. That key must not
  * ship inside the app bundle, so this thin Cloudflare Worker fronts the API:
@@ -10,7 +10,7 @@
  * not need to be deployed at all. To cut over: `wrangler deploy`, set the
  * DATAMUSE_KEY secret, and point WORD_SERVICE_BASE_URL (src/wordTools.ts) here.
  *
- * Deliberately unauthenticated for now — Song Seed has no accounts. When Pro
+ * Deliberately unauthenticated for now — SongNook has no accounts. When Pro
  * entitlements become server-verifiable, gate here (see the marked block below).
  */
 

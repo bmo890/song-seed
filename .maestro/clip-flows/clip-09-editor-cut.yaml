@@ -1,7 +1,7 @@
 # Editor Cut/trim: mark a region, switch to Cut mode (removes the region), and
 # save the trimmed clip. Distinct from Extract (which keeps a region) — Cut removes
 # it. Verifies the trim produces a shorter clip. Self-cleaning. Requires push-dev-samples.
-appId: com.bmostudio.songseed.dev
+appId: com.bmostudio.songnook.dev
 ---
 - runFlow: ../subflows/open-library.yaml
 - tapOn: ".*Ideas.*"

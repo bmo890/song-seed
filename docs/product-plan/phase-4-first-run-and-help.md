@@ -4,7 +4,7 @@
 
 ## Purpose
 
-A brand-new user currently opens Song Seed to a bare list screen reading **"No active workspaces. Tap + to create one."** — that is the entire welcome. The app's model (workspaces → collections → ideas → clips, plus takes/overdubs/practice tools) is concept-heavy, and the first five minutes decide the store review. This phase builds the shortest path from install → first recording, plus contextual help for the flows that have none.
+A brand-new user currently opens SongNook to a bare list screen reading **"No active workspaces. Tap + to create one."** — that is the entire welcome. The app's model (workspaces → collections → ideas → clips, plus takes/overdubs/practice tools) is concept-heavy, and the first five minutes decide the store review. This phase builds the shortest path from install → first recording, plus contextual help for the flows that have none.
 
 ## Background you need
 

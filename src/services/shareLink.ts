@@ -1,11 +1,11 @@
 /**
- * "Get a link" — turns any Songstead archive into a hosted transfer link.
+ * "Get a link" — turns any SongNook archive into a hosted transfer link.
  *
  * Flow (brief §4–§5):
  *   1. create transfer   → transferId (BEFORE the archive is built)
  *   2. build the archive with share.transferId = transferId → the manifest is
  *      stamped at write time, so no zip rewriting is ever needed
- *   3. register + upload the single .songstead file (presigned PUT)
+ *   3. register + upload the single .songnook file (presigned PUT)
  *   4. finalize          → shareUrl
  *   5. record the link in the local outbox (useSentLinksStore)
  *
@@ -66,11 +66,11 @@ export async function createShareLink(input: CreateShareLinkInput): Promise<Sent
   const fileName = `${prepared.archiveTitle}.${prepared.archiveExtension}`;
   const size = await fileSize(prepared.archiveUri);
 
-  // 3. Upload the single .songstead file. Opaque to the server.
+  // 3. Upload the single .songnook file. Opaque to the server.
   await registerAndUploadFile(transfer.transferId, transfer.uploadToken, {
     fileUri: prepared.archiveUri,
     fileName,
-    // Octet-stream, not application/zip: keeps the .songstead identity and
+    // Octet-stream, not application/zip: keeps the .songnook identity and
     // matches how the archive is saved to disk elsewhere.
     mimeType: "application/octet-stream",
     size,

@@ -3,7 +3,7 @@
 # so opening + rendering each is high-value. Deliberately does NOT tap Back up /
 # Restore (those kick off real file operations / system sheets). The Export/Import/
 # Storage cards live in the SHARE & MOVE section below the fold — scroll to each.
-appId: com.bmostudio.songseed.dev
+appId: com.bmostudio.songnook.dev
 ---
 - runFlow: ../subflows/open-library.yaml
 - tapOn:

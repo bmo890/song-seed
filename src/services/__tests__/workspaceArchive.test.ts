@@ -12,7 +12,7 @@ jest.mock("@react-native-async-storage/async-storage", () =>
 );
 
 const mockFiles = new Map<string, Uint8Array>();
-const mockDirectories = new Set<string>(["file:///doc/", "file:///doc/songseed"]);
+const mockDirectories = new Set<string>(["file:///doc/", "file:///doc/songnook"]);
 
 jest.mock("expo-file-system/legacy", () => ({
     documentDirectory: "file:///doc/",
@@ -139,7 +139,7 @@ import { strToU8, unzipSync, zipSync } from "fflate";
 import * as FileSystemLegacy from "expo-file-system/legacy";
 import { archiveWorkspaceToDevice, restoreWorkspaceFromDevice } from "../workspaceArchive";
 
-const AUDIO_DIR = "file:///doc/songseed/audio";
+const AUDIO_DIR = "file:///doc/songnook/audio";
 const MASTER_URI = `${AUDIO_DIR}/master.m4a`;
 const SOURCE_URI = `${AUDIO_DIR}/master-source.m4a`;
 const STEM_A_URI = `${AUDIO_DIR}/stem-a.m4a`;
@@ -238,7 +238,7 @@ beforeEach(() => {
     mockFiles.clear();
     mockDirectories.clear();
     mockDirectories.add("file:///doc/");
-    mockDirectories.add("file:///doc/songseed");
+    mockDirectories.add("file:///doc/songnook");
     ALL_MEDIA_URIS.forEach((uri, index) => seedAudioFile(uri, index + 1));
 });
 
@@ -398,7 +398,7 @@ describe("v1 package compatibility", () => {
             ],
             missingFileUris: [],
         };
-        const archiveUri = "file:///doc/songseed/workspace-archives/Archive Me-ws-1.songstead-workspace.zip";
+        const archiveUri = "file:///doc/songnook/workspace-archives/Archive Me-ws-1.songnook-workspace.zip";
         mockFiles.set(
             archiveUri,
             // Stored, matching the real writer — the streaming reader rejects compression.

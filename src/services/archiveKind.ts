@@ -1,15 +1,15 @@
 import { strFromU8 } from "fflate";
 import {
-    LEGACY_SONG_SEED_ARCHIVE_FORMAT,
-    SONG_SEED_ARCHIVE_FORMAT,
+    LEGACY_SONG_NOOK_ARCHIVE_FORMAT,
+    SONG_NOOK_ARCHIVE_FORMAT,
 } from "./libraryArchiveManifest";
 import { indexStoredZipArchive, readStoredZipEntryBytes } from "./storedZipArchive";
 
 /**
- * Songstead writes two unrelated ZIP files that both end in `.zip`:
- *  - "songstead-archive": the human-readable Export Library / Import Songstead Archive format
+ * SongNook writes two unrelated ZIP files that both end in `.zip`:
+ *  - "songnook-archive": the human-readable Export Library / Import SongNook Archive format
  *    (merge-friendly, remapped IDs, optional full-fidelity metadata).
- *  - "songstead-backup":  the exact, checksummed disaster-recovery Back Up / Restore format
+ *  - "songnook-backup":  the exact, checksummed disaster-recovery Back Up / Restore format
  *    (snapshot.json + per-file SHA-256 + media/, replaces the whole library on restore).
  *
  * They are NOT interchangeable, and feeding one into the other flow used to fail with a
@@ -17,7 +17,7 @@ import { indexStoredZipArchive, readStoredZipEntryBytes } from "./storedZipArchi
  * redirect them to the correct menu instead. Platform-agnostic: works the same on iOS and
  * Android (both go through the document picker + this reader).
  */
-export type PickedArchiveKind = "songstead-archive" | "songstead-backup" | "unknown";
+export type PickedArchiveKind = "songnook-archive" | "songnook-backup" | "unknown";
 
 const MANIFEST_ENTRY = "manifest.json";
 const DR_SNAPSHOT_ENTRY = "snapshot.json";
@@ -49,12 +49,12 @@ export async function detectPickedArchiveKind(fileUri: string): Promise<PickedAr
 
         if (isRecord(manifest)) {
             if (
-                (manifest.format === SONG_SEED_ARCHIVE_FORMAT ||
-                    manifest.format === LEGACY_SONG_SEED_ARCHIVE_FORMAT) &&
+                (manifest.format === SONG_NOOK_ARCHIVE_FORMAT ||
+                    manifest.format === LEGACY_SONG_NOOK_ARCHIVE_FORMAT) &&
                 Array.isArray(manifest.workspaces)
             ) {
                 // Pre-rename archives carry the legacy id — same format, same flow.
-                return "songstead-archive";
+                return "songnook-archive";
             }
             // Disaster-recovery backup: formatVersion + snapshot checksum + file list, paired
             // with the snapshot.json entry. See disasterRecoveryBackup.ts (DrBackupManifest).
@@ -64,7 +64,7 @@ export async function detectPickedArchiveKind(fileUri: string): Promise<PickedAr
                 Array.isArray(manifest.files) &&
                 index.entries.has(DR_SNAPSHOT_ENTRY)
             ) {
-                return "songstead-backup";
+                return "songnook-backup";
             }
         }
         return "unknown";

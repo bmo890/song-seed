@@ -1,11 +1,11 @@
-# Song Seed — MVP Launch Product Plan
+# SongNook — MVP Launch Product Plan
 
 **Created:** 2026-07-11 · **Source:** full codebase audit (typecheck clean, 359/359 tests green at time of writing)
-**Goal:** take Song Seed from a feature-complete Android dev build to a shipped, premium-feeling app on both the App Store and Play Store.
+**Goal:** take SongNook from a feature-complete Android dev build to a shipped, premium-feeling app on both the App Store and Play Store.
 
 ## What this app is (read this first if you're new)
 
-Song Seed is a **local-first songwriting capture app** for React Native / Expo SDK 54 (React 19, RN 0.81, New Architecture enabled). Musicians record ideas, organize them into workspaces → collections → ideas → clips, grow them with lyrics/chords/practice tools/overdub layers, and back everything up to files they control. There are **no accounts and no backend** — the only network calls are word lookups (Datamuse) and public-domain book text (Gutenberg) for the lyric-spark tools.
+SongNook is a **local-first songwriting capture app** for React Native / Expo SDK 54 (React 19, RN 0.81, New Architecture enabled). Musicians record ideas, organize them into workspaces → collections → ideas → clips, grow them with lyrics/chords/practice tools/overdub layers, and back everything up to files they control. There are **no accounts and no backend** — the only network calls are word lookups (Datamuse) and public-domain book text (Gutenberg) for the lyric-spark tools.
 
 Key architecture facts every phase touches:
 
@@ -16,7 +16,7 @@ Key architecture facts every phase touches:
 | Dialogs | `src/components/common/AppAlert.ts` + `AppDialog.tsx` | Styled in-app dialog system. **Raw `Alert.alert` is banned** per the doc comment in AppAlert. |
 | Recording | `@siteed/audio-studio` (patched — Android only, see `patches/`) via `src/hooks/useRecording.ts` | Background recording enabled; recording-session crash recovery in `src/services/recordingRecovery.ts`. |
 | Playback | `expo-audio` via `src/hooks/useFullPlayer.ts` + `useInlinePlayer.ts`; global mini-player `GlobalMediaDock.tsx`; full player is the `PlayerSheet.tsx` overlay (NOT a route) | Audio session roles arbitrated in `src/services/audioSession.ts`. |
-| Custom native modules | `modules/songseed-metronome`, `modules/songseed-pitch-shift` (both have Android + iOS Swift), `modules/songseed-file-io` (**Android-only by design** — SAF streaming; iOS uses share-sheet path in `src/services/archiveSave.ts`) | Waveforms decode through pitch-shift module's `computeWaveform` with `@siteed` `extractPreview` fallback (`src/services/waveformAnalysis.ts`). |
+| Custom native modules | `modules/songnook-metronome`, `modules/songnook-pitch-shift` (both have Android + iOS Swift), `modules/songnook-file-io` (**Android-only by design** — SAF streaming; iOS uses share-sheet path in `src/services/archiveSave.ts`) | Waveforms decode through pitch-shift module's `computeWaveform` with `@siteed` `extractPreview` fallback (`src/services/waveformAnalysis.ts`). |
 | Backups | `src/services/libraryBackup.ts`, `libraryExport.ts`, `libraryImport.ts`, `libraryMergeRestore.ts`, disaster-recovery services | This is the app's data-safety story. Treat with extreme care; extensive tests exist in `src/services/__tests__/`. |
 | Monetization seam | `src/entitlements.ts` (`ALL_FEATURES_FREE = true` stub) + `src/components/common/ProGate.tsx` (built, unused) | Feature keys `"cloud-backup" | "auto-backup"` already typed. |
 

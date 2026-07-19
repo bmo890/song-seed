@@ -1,7 +1,7 @@
 import type { SongIdea, Workspace } from "../../types";
 
 /**
- * Round-trips a library through the human-readable Songstead Archive: export → zip → read →
+ * Round-trips a library through the human-readable SongNook Archive: export → zip → read →
  * import → normalize. "full" fidelity must preserve every creative field; "standard" stays
  * lossy. Exercises the real exporter, reader and importer with an in-memory filesystem.
  */
@@ -11,7 +11,7 @@ jest.mock("@react-native-async-storage/async-storage", () =>
 );
 
 const mockFiles = new Map<string, Uint8Array>();
-const mockDirectories = new Set<string>(["file:///doc/", "file:///doc/songseed"]);
+const mockDirectories = new Set<string>(["file:///doc/", "file:///doc/songnook"]);
 
 function utf8(value: string) {
     return Uint8Array.from(Buffer.from(value, "utf8"));
@@ -139,8 +139,8 @@ jest.mock("../zipArchive", () => ({
     },
 }));
 
-jest.mock("../../../modules/songseed-file-io", () => ({
-    isSongseedFileIOAvailable: () => false,
+jest.mock("../../../modules/songnook-file-io", () => ({
+    isSongNookFileIOAvailable: () => false,
     copyLocalFileToContentUri: jest.fn(),
     deleteContentUri: jest.fn(),
 }));
@@ -149,13 +149,13 @@ jest.mock("expo-document-picker", () => ({ getDocumentAsync: jest.fn() }));
 
 import { strFromU8, strToU8, unzipSync, zipSync } from "fflate";
 import { prepareLibraryExportArchive } from "../libraryExport";
-import { materializeSongSeedArchiveMerge, readSongSeedArchive } from "../libraryImport";
+import { materializeSongNookArchiveMerge, readSongNookArchive } from "../libraryImport";
 import { normalizeWorkspaces } from "../../state/dataSlice";
 
 const REAL_PEAKS = [0.11, 0.22, 0.33, 0.44, 0.55];
-const ROOT_CLIP_AUDIO = "file:///doc/songseed/audio/root.m4a";
-const CHILD_CLIP_AUDIO = "file:///doc/songseed/audio/child.m4a";
-const STANDALONE_AUDIO = "file:///doc/songseed/audio/standalone.m4a";
+const ROOT_CLIP_AUDIO = "file:///doc/songnook/audio/root.m4a";
+const CHILD_CLIP_AUDIO = "file:///doc/songnook/audio/child.m4a";
+const STANDALONE_AUDIO = "file:///doc/songnook/audio/standalone.m4a";
 
 function buildLibrary(): { workspaces: Workspace[]; idea: SongIdea } {
     const idea: SongIdea = {
@@ -299,7 +299,7 @@ beforeEach(() => {
     mockFiles.clear();
     mockDirectories.clear();
     mockDirectories.add("file:///doc/");
-    mockDirectories.add("file:///doc/songseed");
+    mockDirectories.add("file:///doc/songnook");
     mockFiles.set(ROOT_CLIP_AUDIO, utf8("root-audio-bytes"));
     mockFiles.set(CHILD_CLIP_AUDIO, utf8("child-audio-bytes"));
     mockFiles.set(STANDALONE_AUDIO, utf8("standalone-audio-bytes"));
@@ -310,7 +310,7 @@ async function exportThenImport(preserveAllMetadata: boolean) {
     const prepared = await prepareLibraryExportArchive({
         workspaces,
         notes: [],
-        format: "songstead-archive",
+        format: "songnook-archive",
         scope: { workspaceIds: ["ws-1"], collectionIds: [] },
         options: {
             includeFullSongHistory: true,
@@ -324,19 +324,19 @@ async function exportThenImport(preserveAllMetadata: boolean) {
             primaryCollectionIdByWorkspace: { "ws-1": "col-1" },
         },
     });
-    const parsed = await readSongSeedArchive(prepared.archiveUri, "archive.zip");
-    const merge = await materializeSongSeedArchiveMerge(parsed, [], null);
+    const parsed = await readSongNookArchive(prepared.archiveUri, "archive.zip");
+    const merge = await materializeSongNookArchiveMerge(parsed, [], null);
     const [workspace] = normalizeWorkspaces(merge.importedWorkspaces);
     return { parsed, workspace };
 }
 
-describe("pre-rename (Song Seed era) archive acceptance", () => {
-    it("imports an archive whose manifest carries the legacy song-seed-archive format id", async () => {
+describe("pre-rename (SongNook era) archive acceptance", () => {
+    it("imports an archive whose manifest carries the legacy song-nook-archive format id", async () => {
         const { workspaces } = buildLibrary();
         const prepared = await prepareLibraryExportArchive({
             workspaces,
             notes: [],
-            format: "songstead-archive",
+            format: "songnook-archive",
             scope: { workspaceIds: ["ws-1"], collectionIds: [] },
             options: {
                 includeFullSongHistory: true,
@@ -352,23 +352,23 @@ describe("pre-rename (Song Seed era) archive acceptance", () => {
         });
 
         // Rewrite the manifest to the pre-rename format id — byte-identical to what a
-        // build before the Songstead rename exported. It must import forever.
+        // build before the SongNook rename exported. It must import forever.
         const zipBytes = mockFiles.get(prepared.archiveUri)!;
         const entries = unzipSync(zipBytes);
         const manifest = JSON.parse(strFromU8(entries["manifest.json"]));
-        manifest.format = "song-seed-archive";
+        manifest.format = "song-nook-archive";
         entries["manifest.json"] = strToU8(JSON.stringify(manifest));
         const legacyUri = "file:///doc/legacy-era-archive.zip";
         mockFiles.set(legacyUri, zipSync(entries, { level: 0 }));
 
-        const parsed = await readSongSeedArchive(legacyUri, "legacy-era-archive.zip");
-        const merge = await materializeSongSeedArchiveMerge(parsed, [], null);
+        const parsed = await readSongNookArchive(legacyUri, "legacy-era-archive.zip");
+        const merge = await materializeSongNookArchiveMerge(parsed, [], null);
         expect(merge.importedWorkspaces).toHaveLength(1);
         expect(merge.importedWorkspaces[0]?.title).toBe(workspaces[0]?.title);
     });
 });
 
-describe("Songstead Archive round-trip — full fidelity", () => {
+describe("SongNook Archive round-trip — full fidelity", () => {
     it("declares full fidelity in the manifest", async () => {
         const { parsed } = await exportThenImport(true);
         expect(parsed.manifest.fidelity).toBe("full");
@@ -470,7 +470,7 @@ describe("Songstead Archive round-trip — full fidelity", () => {
                     ],
                 },
             ],
-            format: "songstead-archive",
+            format: "songnook-archive",
             scope: { workspaceIds: ["ws-1"], collectionIds: [] },
             options: {
                 includeFullSongHistory: true,
@@ -481,8 +481,8 @@ describe("Songstead Archive round-trip — full fidelity", () => {
             },
             libraryPreferences: { primaryWorkspaceId: "ws-1", primaryCollectionIdByWorkspace: { "ws-1": "col-1" } },
         });
-        const parsed = await readSongSeedArchive(prepared.archiveUri, "archive.zip");
-        const merge = await materializeSongSeedArchiveMerge(parsed, [], null);
+        const parsed = await readSongNookArchive(prepared.archiveUri, "archive.zip");
+        const merge = await materializeSongNookArchiveMerge(parsed, [], null);
 
         const project = merge.importedWorkspaces.flatMap((w) => w.ideas).find((i) => i.kind === "project")!;
         const rootClipId = project.clips.find((c) => c.title === "Root take")!.id;
@@ -503,7 +503,7 @@ describe("Songstead Archive round-trip — full fidelity", () => {
     });
 });
 
-describe("Songstead Archive round-trip — standard (lossy)", () => {
+describe("SongNook Archive round-trip — standard (lossy)", () => {
     it("drops creative metadata and regenerates the waveform", async () => {
         const { parsed, workspace } = await exportThenImport(false);
         expect(parsed.manifest.fidelity).toBe("standard");

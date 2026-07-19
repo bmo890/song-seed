@@ -336,7 +336,7 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
         true,
         {
           ...metadata,
-          artist: metadata?.artist ?? "Songstead",
+          artist: metadata?.artist ?? "SongNook",
           artworkUrl: getLockScreenArtworkUrl(),
         },
         buildLockScreenOptions()
@@ -640,7 +640,7 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
     }
     player.updateLockScreenMetadata({
       ...metadata,
-      artist: metadata?.artist ?? "Songstead",
+      artist: metadata?.artist ?? "SongNook",
       artworkUrl: getLockScreenArtworkUrl(),
     });
   }, [player]);

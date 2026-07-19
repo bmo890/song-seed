@@ -23,7 +23,7 @@ import {
   releaseAudioSessionOwner,
 } from "../../services/audioSession";
 import { sanitizeOsOutputLatencyMs } from "../../services/latencyModel";
-import SongseedMetronomeModule from "../../../modules/songseed-metronome";
+import SongNookMetronomeModule from "../../../modules/songnook-metronome";
 import { colors } from "../../design/tokens";
 import {
   MAX_BLUETOOTH_MONITORING_AUTO_OFFSET_MS,
@@ -154,10 +154,10 @@ export function BluetoothCalibrationScreen() {
     async function refreshCurrentDevice() {
       try {
         const device = await audioDeviceManager.getCurrentDevice();
-        const outputRoute = await SongseedMetronomeModule?.getCurrentAudioOutputRoute?.();
+        const outputRoute = await SongNookMetronomeModule?.getCurrentAudioOutputRoute?.();
         // OS-reported route latency (iOS reliable incl. BT codec buffer; Android best-effort).
         // Used to seed the estimate so the tap pass verifies instead of measuring from zero.
-        const routeLatency = await SongseedMetronomeModule?.getCurrentAudioRouteLatencyMs?.().catch(() => null);
+        const routeLatency = await SongNookMetronomeModule?.getCurrentAudioRouteLatencyMs?.().catch(() => null);
         if (!cancelled) {
           setCurrentDevice(device ?? null);
           setCurrentOutputRoute(outputRoute ?? null);
@@ -329,7 +329,7 @@ export function BluetoothCalibrationScreen() {
   }
 
   async function startClickPass() {
-    if (!SongseedMetronomeModule?.isAvailable?.()) {
+    if (!SongNookMetronomeModule?.isAvailable?.()) {
       setEstimatedClickOffsetMs(null);
       resetRunState("result");
       return;
@@ -351,7 +351,7 @@ export function BluetoothCalibrationScreen() {
       void (async () => {
         try {
           setCountdownValue(null);
-          await SongseedMetronomeModule!.configure({
+          await SongNookMetronomeModule!.configure({
             bpm: CALIBRATION_BPM,
             meterId: "4/4",
             pulsesPerBar: 4,
@@ -361,16 +361,16 @@ export function BluetoothCalibrationScreen() {
             clickVolume: 0.6,
             outputLatencyMs: 0,
           });
-          await SongseedMetronomeModule!.start();
+          await SongNookMetronomeModule!.start();
 
           // Anchor taps to the engine's render-domain grid: tap-time − grid-time IS the
           // click pipeline's ear latency, which is exactly what this pass measures.
           await new Promise<void>((resolve) => {
             setTimeout(resolve, 150);
           });
-          const anchor = await SongseedMetronomeModule!.getGridAnchor?.().catch(() => null);
+          const anchor = await SongNookMetronomeModule!.getGridAnchor?.().catch(() => null);
           if (!anchor?.isRunning || anchor.anchorEpochMs == null) {
-            void SongseedMetronomeModule!.stop().catch(() => {});
+            void SongNookMetronomeModule!.stop().catch(() => {});
             setEstimatedClickOffsetMs(null);
             setLastAnalysisSummary("Click pass unavailable on this build — saved music delay only.");
             resetRunState("result");
@@ -383,12 +383,12 @@ export function BluetoothCalibrationScreen() {
           }, 33);
 
           const finishTimer = setTimeout(() => {
-            void SongseedMetronomeModule!.stop().catch(() => {});
+            void SongNookMetronomeModule!.stop().catch(() => {});
             completeClickPass();
           }, CALIBRATION_BEAT_COUNT * CALIBRATION_BEAT_INTERVAL_MS + 300);
           timersRef.current.push(finishTimer as unknown as number);
         } catch {
-          void SongseedMetronomeModule?.stop().catch(() => {});
+          void SongNookMetronomeModule?.stop().catch(() => {});
           setEstimatedClickOffsetMs(null);
           setLastAnalysisSummary("Click pass failed to start — saved music delay only.");
           resetRunState("result");
@@ -553,7 +553,7 @@ export function BluetoothCalibrationScreen() {
   }
 
   function resetCalibrationRun() {
-    void SongseedMetronomeModule?.stop().catch(() => {});
+    void SongNookMetronomeModule?.stop().catch(() => {});
     setEstimatedOffsetMs(null);
     setEstimatedClickOffsetMs(null);
     playerOffsetDraftRef.current = null;

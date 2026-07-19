@@ -64,7 +64,7 @@ export function useLibraryExportFlow() {
   const estimateTokenRef = useRef(0);
 
   const includeHiddenItems =
-    format === "songstead-archive"
+    format === "songnook-archive"
       ? archiveOptions.includeHiddenItems
       : standardOptions.includeHiddenItems;
 
@@ -75,7 +75,7 @@ export function useLibraryExportFlow() {
   // and race-guarded because it stats every included audio file. preserveAllMetadata is excluded
   // from the deps on purpose — both sizes are computed together and the toggle shouldn't refetch.
   useEffect(() => {
-    if (format !== "songstead-archive" || !hasArchiveScope) {
+    if (format !== "songnook-archive" || !hasArchiveScope) {
       setArchiveSizeEstimate(null);
       setIsEstimatingArchiveSize(false);
       return;
@@ -89,7 +89,7 @@ export function useLibraryExportFlow() {
       void estimateLibraryArchiveSizes({
         workspaces: useStore.getState().workspaces,
         notes: useStore.getState().notes,
-        format: "songstead-archive",
+        format: "songnook-archive",
         scope: {
           workspaceIds: selectedWorkspaceIds,
           collectionIds: selectedCollectionIds,
@@ -146,7 +146,7 @@ export function useLibraryExportFlow() {
       // getState() at run time for the same reason as the archive-size effect above.
       const { workspaces: liveWorkspaces, notes: liveNotes } = useStore.getState();
       const args =
-        format === "songstead-archive"
+        format === "songnook-archive"
           ? ({ workspaces: liveWorkspaces, notes: liveNotes, format, scope, options: archiveOptions } as const)
           : ({ workspaces: liveWorkspaces, notes: liveNotes, format, scope, options: standardOptions } as const);
       void estimateLibraryExportArchive(args)
@@ -269,7 +269,7 @@ export function useLibraryExportFlow() {
 
   const handleExport = async () => {
     if (!format) {
-      AppAlert.info("Choose a format", "Select Songstead Archive or Standard ZIP before exporting.");
+      AppAlert.info("Choose a format", "Select SongNook Archive or Standard ZIP before exporting.");
       return;
     }
 
@@ -288,7 +288,7 @@ export function useLibraryExportFlow() {
     store.start({
       id: processId,
       kind: "export",
-      title: format === "songstead-archive" ? "Songstead Archive" : "Standard ZIP",
+      title: format === "songnook-archive" ? "SongNook Archive" : "Standard ZIP",
       onCancel: () => controller.abort(),
     });
     const onProgress = (progress: Parameters<typeof store.update>[0]) =>
@@ -300,7 +300,7 @@ export function useLibraryExportFlow() {
         excludedCollectionIds,
       };
       const result =
-        format === "songstead-archive"
+        format === "songnook-archive"
           ? await exportLibrary({
               workspaces,
               notes,

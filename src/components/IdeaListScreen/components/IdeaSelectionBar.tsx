@@ -225,7 +225,7 @@ export function IdeaSelectionBar({
       setIsSharing(true);
       await shareAudioClips(
         shareableClips,
-        activeWorkspace?.title ? `${activeWorkspace.title} Selection` : "SongSeed Selection"
+        activeWorkspace?.title ? `${activeWorkspace.title} Selection` : "SongNook Selection"
       );
     } catch (error) {
       const message = error instanceof Error ? error.message : "Could not share the selected items.";

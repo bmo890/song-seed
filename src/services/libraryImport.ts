@@ -21,12 +21,12 @@ import type {
     SongIdea,
     Workspace,
 } from "../types";
-import { SONG_SEED_AUDIO_DIR } from "./storagePaths";
+import { SONG_NOOK_AUDIO_DIR } from "./storagePaths";
 import { MANAGED_WAVEFORM_PEAK_COUNT } from "./audioStorage";
 import { buildStaticWaveform, ensureUniqueCountedTitle } from "../utils";
 import {
-    LEGACY_SONG_SEED_ARCHIVE_FORMAT,
-    SONG_SEED_ARCHIVE_FORMAT,
+    LEGACY_SONG_NOOK_ARCHIVE_FORMAT,
+    SONG_NOOK_ARCHIVE_FORMAT,
     type ArchiveClipManifest,
     type ArchiveClipOverdubManifest,
     type ArchiveManifest,
@@ -38,7 +38,7 @@ export type PickedLibraryArchiveFile = {
     name: string;
 };
 
-export type ParsedSongSeedArchive = {
+export type ParsedSongNookArchive = {
     sourceUri: string;
     sourceName: string;
     manifest: ArchiveManifest;
@@ -63,7 +63,7 @@ export type LibraryImportPreview = {
     primaryWorkspaceTitle: string | null;
 };
 
-export type MaterializedSongSeedArchiveMerge = {
+export type MaterializedSongNookArchiveMerge = {
     importedWorkspaces: Workspace[];
     importedNotes: Note[];
     importedSongbooks: Songbook[];
@@ -150,9 +150,9 @@ async function ensureAudioDirectory() {
         throw new Error("Document directory unavailable.");
     }
 
-    const info = await FileSystem.getInfoAsync(SONG_SEED_AUDIO_DIR);
+    const info = await FileSystem.getInfoAsync(SONG_NOOK_AUDIO_DIR);
     if (!info.exists) {
-        await FileSystem.makeDirectoryAsync(SONG_SEED_AUDIO_DIR, { intermediates: true });
+        await FileSystem.makeDirectoryAsync(SONG_NOOK_AUDIO_DIR, { intermediates: true });
     }
 }
 
@@ -162,7 +162,7 @@ async function ensureAudioDirectory() {
  * the archive lacks the entry so callers can warn without aborting the import.
  */
 async function extractManagedArchiveAudio(
-    parsed: ParsedSongSeedArchive,
+    parsed: ParsedSongNookArchive,
     archivePath: string,
     targetId: string,
     extension: string
@@ -171,14 +171,14 @@ async function extractManagedArchiveAudio(
     if (!entry) return null;
 
     await ensureAudioDirectory();
-    const destinationUri = `${SONG_SEED_AUDIO_DIR}/${targetId}.${extension}`;
+    const destinationUri = `${SONG_NOOK_AUDIO_DIR}/${targetId}.${extension}`;
     await extractStoredZipEntryToFile(parsed.archiveIndex, entry, destinationUri);
     return destinationUri;
 }
 
 async function materializeArchiveClipOverdub(
     overdubManifest: ArchiveClipOverdubManifest | undefined,
-    parsed: ParsedSongSeedArchive,
+    parsed: ParsedSongNookArchive,
     clipId: string,
     warnings: string[],
     clipLabel: string
@@ -252,19 +252,19 @@ async function materializeArchiveClipOverdub(
     };
 }
 
-function isSongSeedArchiveManifest(value: unknown): value is ArchiveManifest {
+function isSongNookArchiveManifest(value: unknown): value is ArchiveManifest {
     if (!value || typeof value !== "object") return false;
     const candidate = value as Partial<ArchiveManifest>;
-    // Accept the pre-rename format id too — archives exported before the Songstead
-    // rename carry "song-seed-archive" and must keep importing forever.
+    // Accept the pre-rename format id too — archives exported before the SongNook
+    // rename carry "song-nook-archive" and must keep importing forever.
     const format = candidate.format as string | undefined;
     return (
-        (format === SONG_SEED_ARCHIVE_FORMAT || format === LEGACY_SONG_SEED_ARCHIVE_FORMAT) &&
+        (format === SONG_NOOK_ARCHIVE_FORMAT || format === LEGACY_SONG_NOOK_ARCHIVE_FORMAT) &&
         Array.isArray(candidate.workspaces)
     );
 }
 
-export async function pickSongSeedArchiveFile(): Promise<PickedLibraryArchiveFile | null> {
+export async function pickSongNookArchiveFile(): Promise<PickedLibraryArchiveFile | null> {
     const result = await DocumentPicker.getDocumentAsync({
         type: ["application/zip", "application/x-zip-compressed", "*/*"],
         multiple: false,
@@ -278,15 +278,15 @@ export async function pickSongSeedArchiveFile(): Promise<PickedLibraryArchiveFil
     const asset = result.assets[0]!;
     return {
         uri: asset.uri,
-        name: asset.name || "Songstead Archive.zip",
+        name: asset.name || "SongNook Archive.zip",
     };
 }
 
-export async function readSongSeedArchive(
+export async function readSongNookArchive(
     sourceUri: string,
-    sourceName = sourceUri.split("/").pop() ?? "Songstead Archive.zip"
-): Promise<ParsedSongSeedArchive> {
-    // Index the archive without loading payloads — Songstead Archives are written by
+    sourceName = sourceUri.split("/").pop() ?? "SongNook Archive.zip"
+): Promise<ParsedSongNookArchive> {
+    // Index the archive without loading payloads — SongNook Archives are written by
     // createZipArchive (stored, uncompressed), the same format the backup reader streams.
     const archiveIndex = await indexStoredZipArchive(sourceUri);
     const manifestEntry = archiveIndex.entries.get("manifest.json");
@@ -297,8 +297,8 @@ export async function readSongSeedArchive(
     const manifestJson = JSON.parse(
         strFromU8(await readStoredZipEntryBytes(archiveIndex, manifestEntry))
     );
-    if (!isSongSeedArchiveManifest(manifestJson)) {
-        throw new Error("This file is not a valid Songstead Archive.");
+    if (!isSongNookArchiveManifest(manifestJson)) {
+        throw new Error("This file is not a valid SongNook Archive.");
     }
 
     return {
@@ -309,7 +309,7 @@ export async function readSongSeedArchive(
     };
 }
 
-export function buildLibraryImportPreview(parsed: ParsedSongSeedArchive): LibraryImportPreview {
+export function buildLibraryImportPreview(parsed: ParsedSongNookArchive): LibraryImportPreview {
     const primaryWorkspaceTitle =
         parsed.manifest.libraryPreferences?.primaryWorkspaceId
             ? parsed.manifest.workspaces.find(
@@ -332,11 +332,11 @@ export function buildLibraryImportPreview(parsed: ParsedSongSeedArchive): Librar
     };
 }
 
-export async function materializeSongSeedArchiveMerge(
-    parsed: ParsedSongSeedArchive,
+export async function materializeSongNookArchiveMerge(
+    parsed: ParsedSongNookArchive,
     existingWorkspaces: Workspace[],
     localPrimaryWorkspaceId: string | null
-): Promise<MaterializedSongSeedArchiveMerge> {
+): Promise<MaterializedSongNookArchiveMerge> {
     const warnings = [...(parsed.manifest.warnings ?? [])];
     const importedWorkspaces: Workspace[] = [];
     const importedNotes: Note[] = [];
