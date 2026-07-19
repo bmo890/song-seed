@@ -1,6 +1,6 @@
 /**
  * Recipient page (`/t/:id`). SSR, content-negotiated:
- *  - Desktop → download view (title, sender, item list, per-item downloads).
+ *  - Desktop → download view (title, sender, tracklist, per-item downloads).
  *  - Mobile WITHOUT the app → branded install funnel (this is an onboarding surface).
  *  - Mobile WITH the app never reaches here — the universal link opens the app at the OS.
  *
@@ -11,12 +11,30 @@
  */
 import type { Config } from "../env";
 import type { TransferPayload } from "../lib/serialize";
-import { escapeHtml, formatBytes, page } from "./shell";
+import { escapeHtml, formatBytes, page, waveformStrip } from "./shell";
 
 export interface Platform {
   isMobile: boolean;
   isIOS: boolean;
   isAndroid: boolean;
+}
+
+function expiresLabel(expiresAtIso: string): string {
+  const days = Math.max(0, Math.ceil((Date.parse(expiresAtIso) - Date.now()) / 86400000));
+  if (days <= 0) return "expiring today";
+  return days === 1 ? "1 day left" : `${days} days left`;
+}
+
+function tracklist(t: TransferPayload): string {
+  return t.items
+    .map(
+      (it) => `<li>
+        <span class="trk-name">${escapeHtml(it.fileName)}</span>
+        <span class="trk-size">${formatBytes(it.size)}</span>
+        <a class="trk-dl" href="${escapeHtml(it.downloadUrl)}">Download</a>
+      </li>`
+    )
+    .join("");
 }
 
 export function renderRecipientPage(
@@ -25,46 +43,35 @@ export function renderRecipientPage(
   plat: Platform
 ): string {
   const senderName = t.sender.name || "Someone";
-  const title = t.title || "Shared music";
-
-  const itemsHtml = t.items
-    .map(
-      (it) => `<li>
-        <span class="name">${escapeHtml(it.fileName)}</span>
-        <span class="muted">${formatBytes(it.size)}
-          &nbsp;<a class="btn btn-secondary" style="padding:6px 14px" href="${escapeHtml(
-            it.downloadUrl
-          )}">Download</a></span>
-      </li>`
-    )
-    .join("");
+  const title = t.title || "some music";
 
   if (plat.isMobile && (plat.isIOS || plat.isAndroid)) {
-    return renderMobileFunnel(cfg, t, plat, senderName, title, itemsHtml);
+    return renderMobileFunnel(cfg, t, plat, senderName, title);
   }
-  return renderDesktop(t, senderName, title, itemsHtml);
+  return renderDesktop(t, senderName, title);
 }
 
-function renderDesktop(
-  t: TransferPayload,
-  senderName: string,
-  title: string,
-  itemsHtml: string
-): string {
-  const msg = t.message
-    ? `<p class="sub">“${escapeHtml(t.message)}”</p>`
+function renderDesktop(t: TransferPayload, senderName: string, title: string): string {
+  const note = t.message
+    ? `<p class="note rise d2">“${escapeHtml(t.message)}”</p>`
     : "";
   const body = `
-<h1>${escapeHtml(senderName)} sent you ${escapeHtml(title)}.</h1>
-${msg}
-<div class="card">
-  <ul class="items">${itemsHtml}</ul>
-</div>
-<div class="card">
-  <p class="muted" style="margin:0">Songnook files open best in the Songnook app —
-  open this link on your phone to load them straight into your library.</p>
-</div>`;
-  return page({ title: `${senderName} · ${title}`, body, noindex: true });
+<p class="eyebrow rise d1">A parcel from ${escapeHtml(senderName)}</p>
+<h1 class="rise d1">${escapeHtml(senderName)} sent you <em>${escapeHtml(title)}</em>.</h1>
+${note}
+<div class="rise d2">${waveformStrip()}</div>
+
+<section class="panel rise d3">
+  <p class="meta-line"><b>${t.items.length} ${t.items.length === 1 ? "piece" : "pieces"}</b>
+    <span>·</span> <span>${expiresLabel(t.expiresAt)}</span></p>
+  <ul class="tracklist">${tracklist(t)}</ul>
+</section>
+
+<section class="panel rise d4">
+  <p style="margin:0;color:var(--ink-soft);font-size:14.5px">Songnook files open best in the
+  Songnook app — open this same link on your phone and it lands straight in your library.</p>
+</section>`;
+  return page({ title: `${senderName} · ${title} — Songnook Send`, body, noindex: true });
 }
 
 function renderMobileFunnel(
@@ -72,8 +79,7 @@ function renderMobileFunnel(
   t: TransferPayload,
   plat: Platform,
   senderName: string,
-  title: string,
-  itemsHtml: string
+  title: string
 ): string {
   const transferUrl = `${cfg.publicOrigin}/t/${t.transferId}`;
 
@@ -83,28 +89,34 @@ function renderMobileFunnel(
   )}&referrer=${encodeURIComponent("transferId=" + t.transferId)}`;
   const storeUrl = plat.isAndroid ? androidStore : cfg.iosAppStoreUrl;
 
-  const msg = t.message ? `<p class="sub">“${escapeHtml(t.message)}”</p>` : "";
+  const note = t.message ? `<p class="note rise d2">“${escapeHtml(t.message)}”</p>` : "";
 
   const body = `
-<h1>${escapeHtml(senderName)} sent you music.</h1>
-${msg}
-<div class="card">
-  <p style="margin:0 0 14px"><strong>${escapeHtml(title)}</strong> · ${t.items.length} item${
-    t.items.length === 1 ? "" : "s"
-  }</p>
-  <a id="get" class="btn" style="width:100%" href="${escapeHtml(storeUrl)}">Get Songnook</a>
-  <div id="ios-notice" class="notice" hidden>Link copied. After installing, open Songnook — it’ll pick up right where you left off.</div>
-</div>
-<div class="card">
-  <p class="muted" style="margin:0 0 8px">Or download the files directly:</p>
-  <ul class="items">${itemsHtml}</ul>
-</div>`;
+<p class="eyebrow rise d1">A parcel for you</p>
+<h1 class="rise d1">${escapeHtml(senderName)} sent you <em>music</em>.</h1>
+${note}
+<div class="rise d2">${waveformStrip(26)}</div>
+
+<section class="panel rise d3">
+  <p class="meta-line"><b>${escapeHtml(title)}</b> <span>·</span>
+    <span>${t.items.length} ${t.items.length === 1 ? "piece" : "pieces"}</span> <span>·</span>
+    <span>${expiresLabel(t.expiresAt)}</span></p>
+  <a id="get" class="btn btn-block" href="${escapeHtml(storeUrl)}">Get Songnook — it opens there</a>
+  <div id="ios-notice" class="notice" hidden>Link copied. After installing, open Songnook —
+    your parcel will be waiting.</div>
+</section>
+
+<section class="panel rise d4">
+  <p style="margin:0 0 10px;color:var(--ink-faint);font-size:11px;letter-spacing:.2em;text-transform:uppercase;font-weight:700">
+    Or take the files directly</p>
+  <ul class="tracklist">${tracklist(t)}</ul>
+</section>`;
 
   const script = plat.isIOS
     ? `
 (function(){
   var get=document.getElementById('get');
-  get.addEventListener('click', function(e){
+  get.addEventListener('click', function(){
     // iOS deferred deep link (v1): copy the transfer URL with a visible notice;
     // the app checks the pasteboard on first launch.
     try{ navigator.clipboard && navigator.clipboard.writeText(${JSON.stringify(transferUrl)}); }catch(_){}
@@ -113,7 +125,12 @@ ${msg}
 })();`
     : "";
 
-  return page({ title: `${senderName} sent you music`, body, bodyScript: script, noindex: true });
+  return page({
+    title: `${senderName} sent you music — Songnook Send`,
+    body,
+    bodyScript: script,
+    noindex: true,
+  });
 }
 
 export function detectPlatform(userAgent: string): Platform {

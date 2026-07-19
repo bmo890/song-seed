@@ -46,7 +46,8 @@
           }
         ]
       },
-      "bundleIdentifier": "com.bmostudio.songseed"
+      "bundleIdentifier": "com.bmostudio.songseed",
+      "associatedDomains": ["applinks:send.songnook.app"]
     },
     "android": {
       "adaptiveIcon": {
@@ -55,6 +56,14 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [{ "scheme": "https", "host": "send.songnook.app", "pathPrefix": "/t/" }],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ],
       "permissions": [
         "RECORD_AUDIO",
         "android.permission.RECORD_AUDIO",

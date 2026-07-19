@@ -3,38 +3,43 @@
  * finalize → share link. Client JS holds NO secrets: it only calls the public
  * API and PUTs to the short-lived presigned URLs the API returns.
  */
-import { page } from "./shell";
+import { page, waveformStrip } from "./shell";
 
 export function renderSenderPage(): string {
   const body = `
-<h1>Send music, get a link.</h1>
-<p class="sub">Drop files, add your name, and share one clean link — no account, no app needed to receive.</p>
+<p class="eyebrow rise d1">Send a parcel of sound</p>
+<h1 class="rise d1">Pass a song along, <em>beautifully</em>.</h1>
+<p class="sub rise d2">Drop in your sketches, stems, or a Songnook file. You'll get one clean,
+private link — no account, nothing to install on the other end.</p>
+<div class="rise d2">${waveformStrip()}</div>
 
-<div class="card">
-  <div id="drop" class="drop">
-    <strong>Drop files here</strong><br>
-    <span class="muted">or click to choose — audio files and Songnook files only</span>
+<section class="panel rise d3">
+  <div id="drop" class="drop" role="button" tabindex="0" aria-label="Choose files to send">
+    <strong>Drop your music here</strong>
+    <span>or click to choose — audio &amp; Songnook files, up to 1 GB</span>
     <input id="picker" type="file" multiple hidden accept=".songstead,audio/*">
   </div>
-  <ul id="items" class="items"></ul>
+  <ul id="items" class="tracklist" style="margin-top:8px"></ul>
 
-  <div class="field" style="margin-top:18px"><label for="sender">Your name</label>
-    <input id="sender" placeholder="e.g. Ben" maxlength="80"></div>
-  <div class="field"><label for="title">Title (optional)</label>
-    <input id="title" placeholder="e.g. Spring Show stems" maxlength="200"></div>
-  <div class="field"><label for="message">Message (optional)</label>
-    <textarea id="message" rows="2" maxlength="1000" placeholder="Learn track 2 first"></textarea></div>
+  <div style="margin-top:26px">
+    <div class="field"><label for="sender">From</label>
+      <input id="sender" placeholder="Your name, as the receiver knows it" maxlength="80"></div>
+    <div class="field"><label for="title">Title</label>
+      <input id="title" placeholder="Spring Show stems" maxlength="200"></div>
+    <div class="field"><label for="message">A note, if you like</label>
+      <textarea id="message" rows="2" maxlength="1000" placeholder="Learn track two first…"></textarea></div>
+  </div>
 
-  <button id="send" class="btn" disabled>Get a link</button>
+  <button id="send" class="btn btn-block" disabled>Seal &amp; get the link</button>
   <div id="progress" class="progress" hidden><i></i></div>
   <div id="result" hidden>
-    <div class="notice">Link ready — it expires in a few days.</div>
-    <div class="link-out"><code id="url"></code>
-      <button id="copy" class="btn btn-secondary" style="padding:8px 14px">Copy</button></div>
+    <div class="notice">Sealed. Your link is ready — it quietly expires in 7 days.</div>
+    <div class="linkbox"><code id="url"></code>
+      <button id="copy" class="copybtn">Copy</button></div>
   </div>
-</div>`;
+</section>`;
 
-  return page({ title: "Songnook Send", body, bodyScript: SENDER_JS, noindex: true });
+  return page({ title: "Songnook Send — pass a song along", body, bodyScript: SENDER_JS, noindex: true });
 }
 
 // Runs in the browser. No secrets — talks only to the same-origin API.
@@ -50,13 +55,14 @@ const SENDER_JS = `
     return (n/Math.pow(1024,i)).toFixed(i?1:0)+' '+u[i];}
   function render(){
     list.innerHTML = files.map(function(f,idx){
-      return '<li><span class="name">'+f.name.replace(/[<>&]/g,'')+'</span>'+
-        '<span class="muted">'+fmt(f.size)+' <a href="#" data-i="'+idx+'" class="rm">remove</a></span></li>';
+      return '<li><span class="trk-name">'+f.name.replace(/[<>&]/g,'')+'</span>'+
+        '<span class="trk-size">'+fmt(f.size)+'</span>'+
+        '<button class="trk-x" data-i="'+idx+'" aria-label="Remove">✕</button></li>';
     }).join('');
     sendBtn.disabled = files.length===0;
   }
   list.addEventListener('click', function(e){
-    var t=e.target; if(t.classList.contains('rm')){e.preventDefault();
+    var t=e.target; if(t.classList.contains('trk-x')){e.preventDefault();
       files.splice(+t.getAttribute('data-i'),1); render();}
   });
   var AUDIO_EXT = ['m4a','mp3','wav','aac','flac','ogg','oga','aif','aiff','caf'];
@@ -78,6 +84,7 @@ const SENDER_JS = `
   }
 
   drop.addEventListener('click', function(){picker.click();});
+  drop.addEventListener('keydown', function(e){ if(e.key==='Enter'||e.key===' '){e.preventDefault();picker.click();} });
   picker.addEventListener('change', function(){add(picker.files); picker.value='';});
   ['dragover','dragenter'].forEach(function(ev){drop.addEventListener(ev,function(e){
     e.preventDefault(); drop.classList.add('over');});});
@@ -89,7 +96,7 @@ const SENDER_JS = `
   function setProgress(p){document.getElementById('progress').hidden=false; bar.style.width=Math.round(p*100)+'%';}
 
   sendBtn.addEventListener('click', async function(){
-    sendBtn.disabled=true; sendBtn.textContent='Uploading…';
+    sendBtn.disabled=true; sendBtn.textContent='Sealing…';
     try{
       var create = await fetch('/api/transfers',{method:'POST',headers:{'content-type':'application/json'},
         body:JSON.stringify({
@@ -117,8 +124,9 @@ const SENDER_JS = `
       document.getElementById('url').textContent = done.shareUrl;
       document.getElementById('result').hidden=false;
       sendBtn.hidden=true;
+      document.getElementById('progress').hidden=true;
     }catch(err){
-      sendBtn.disabled=false; sendBtn.textContent='Get a link';
+      sendBtn.disabled=false; sendBtn.textContent='Seal & get the link';
       alert('Sorry — '+err.message);
     }
   });
