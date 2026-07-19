@@ -50,6 +50,7 @@ import { ClipLineageScreen } from "./src/components/ClipLineageScreen";
 import { SongbookReaderScreen } from "./src/components/SongbookReaderScreen";
 import { SetlistSongScreen } from "./src/components/SetlistSongScreen";
 import { ReceivedScreen } from "./src/components/ReceivedScreen";
+import { TransferReceiveScreen } from "./src/components/TransferReceiveScreen";
 import { ActivityScreen } from "./src/components/ActivityScreen";
 import { GlobalMediaDock } from "./src/components/GlobalMediaDock";
 import { ImportProgressBanner } from "./src/components/ImportProgressBanner";
@@ -157,6 +158,7 @@ const ROOT_STACK_ROUTE_NAMES: Array<keyof RootStackParamList> = [
   "ClipLineage",
   "SongbookReader",
   "SetlistSong",
+  "TransferReceive",
 ];
 
 function createHomeRoute(
@@ -798,12 +800,16 @@ function AppContent() {
         `${appScheme}://`,
         ...(packageName ? [`${packageName}://`] : []),
         prefix,
+        "https://send.songnook.app",
       ],
       config: {
         initialRouteName: "Home",
         screens: {
           Home: "home",
           ShareImport: "share-import",
+          // Songnook Send links: songstead://t/<id> and (once entitlements are
+          // live) https://send.songnook.app/t/<id> both land here.
+          TransferReceive: "t/:transferId",
         },
       },
       getStateFromPath(path, config) {
@@ -968,6 +974,7 @@ function AppContent() {
           <Stack.Screen name="ClipLineage" component={ClipLineageScreen} />
           <Stack.Screen name="SongbookReader" component={SongbookReaderScreen} />
           <Stack.Screen name="SetlistSong" component={SetlistSongScreen} />
+          <Stack.Screen name="TransferReceive" component={TransferReceiveScreen} />
         </Stack.Navigator>
         <PlayerSheetPositionProvider>
         <GlobalMediaDock

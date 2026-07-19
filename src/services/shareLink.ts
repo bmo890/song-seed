@@ -67,7 +67,7 @@ export async function createShareLink(input: CreateShareLinkInput): Promise<Sent
   const size = await fileSize(prepared.archiveUri);
 
   // 3. Upload the single .songstead file. Opaque to the server.
-  await registerAndUploadFile(transfer.transferId, {
+  await registerAndUploadFile(transfer.transferId, transfer.uploadToken, {
     fileUri: prepared.archiveUri,
     fileName,
     // Octet-stream, not application/zip: keeps the .songstead identity and
@@ -77,7 +77,7 @@ export async function createShareLink(input: CreateShareLinkInput): Promise<Sent
   });
 
   // 4. Finalize — only now is the link live.
-  const { shareUrl } = await finalizeTransfer(transfer.transferId);
+  const { shareUrl } = await finalizeTransfer(transfer.transferId, transfer.uploadToken);
 
   // 5. Record in the local outbox.
   const record: SentLink = {
@@ -123,7 +123,7 @@ export async function createFilesShareLink(input: {
 
   for (const file of input.files) {
     const size = await fileSize(file.fileUri);
-    await registerAndUploadFile(transfer.transferId, {
+    await registerAndUploadFile(transfer.transferId, transfer.uploadToken, {
       fileUri: file.fileUri,
       fileName: file.fileName,
       mimeType: file.mimeType,
@@ -131,7 +131,7 @@ export async function createFilesShareLink(input: {
     });
   }
 
-  const { shareUrl } = await finalizeTransfer(transfer.transferId);
+  const { shareUrl } = await finalizeTransfer(transfer.transferId, transfer.uploadToken);
 
   const record: SentLink = {
     transferId: transfer.transferId,

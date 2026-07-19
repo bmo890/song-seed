@@ -66,6 +66,7 @@ export type RootStackParamList = {
   ClipLineage: { ideaId: string; rootClipId: string };
   SongbookReader: { songbookId: string; startIdeaId?: string };
   SetlistSong: { setlistId: string; entryId: string };
+  TransferReceive: { transferId: string };
 };
 
 export function getRootNavigation(navigation: any) {

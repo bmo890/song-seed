@@ -34,3 +34,7 @@ export function newTransferId(): string {
 export function newItemId(): string {
   return `i_${randomBase62(8)}`;
 }
+
+export function newUploadToken(): string {
+  return `ut_${randomBase62(16)}`;
+}

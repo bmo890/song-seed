@@ -3,10 +3,12 @@
  * Runs nightly via cron (see wrangler.toml [triggers]).
  */
 import type { Env } from "../env";
+import { loadConfig } from "../env";
 import { deleteTransfer, getItems, listExpired } from "./db";
 
 export async function sweepExpired(env: Env, now: number): Promise<{ transfers: number; objects: number }> {
-  const expired = await listExpired(env, now);
+  const cfg = loadConfig(env);
+  const expired = await listExpired(env, now, now - cfg.draftExpiryMs);
   let objects = 0;
 
   for (const t of expired) {

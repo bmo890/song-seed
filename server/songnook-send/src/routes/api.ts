@@ -13,18 +13,22 @@ import type { Env } from "../env";
 import { loadConfig } from "../env";
 import {
   bumpTransferSize,
+  deleteTransfer,
   finalizeTransfer,
   getItems,
   getTransfer,
   insertItem,
   insertTransfer,
+  setItemSize,
+  setTransferSize,
 } from "../lib/db";
 import { errorResponse, jsonResponse, transferUsable } from "../lib/http";
-import { newItemId, newTransferId } from "../lib/ids";
+import { newItemId, newTransferId, newUploadToken } from "../lib/ids";
 import { presignUpload } from "../lib/r2presign";
 import { toTransferPayload } from "../lib/serialize";
 import { checkUploadAllowed, looksLikeZip, requiresZipMagic } from "../lib/contentPolicy";
 import { clientIp, underRateLimit, webOriginAllowed } from "../lib/guard";
+import { hashUploadToken, uploadTokenValid } from "../lib/uploadToken";
 
 export const api = new Hono<{ Bindings: Env }>();
 
@@ -34,6 +38,24 @@ const MAX_NAME_LEN = 260;
 function clampText(v: unknown, max: number): string {
   if (typeof v !== "string") return "";
   return v.slice(0, max).trim();
+}
+
+function bodyRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
+async function deleteDraftAndObjects(
+  env: Env,
+  transferId: string,
+  items: Awaited<ReturnType<typeof getItems>>
+): Promise<void> {
+  const keys = items.map((item) => item.r2_key);
+  if (keys.length > 0) {
+    await env.BUCKET.delete(keys);
+  }
+  await deleteTransfer(env, transferId);
 }
 
 // ── 1. Create ───────────────────────────────────────────────────────────────
@@ -48,6 +70,7 @@ api.post("/transfers", async (c) => {
   const now = Date.now();
 
   const transferId = newTransferId();
+  const uploadToken = newUploadToken();
   const expiresAt = now + cfg.expiryMs;
 
   await insertTransfer(c.env, {
@@ -60,9 +83,13 @@ api.post("/transfers", async (c) => {
     size_total: 0,
     created_at: now,
     expires_at: expiresAt,
+    upload_token_hash: await hashUploadToken(uploadToken),
   });
 
-  return jsonResponse({ transferId, expiresAt: new Date(expiresAt).toISOString() }, { status: 201 });
+  return jsonResponse(
+    { transferId, uploadToken, expiresAt: new Date(expiresAt).toISOString() },
+    { status: 201 }
+  );
 });
 
 // ── 2. Register an item → presigned upload URL ──────────────────────────────
@@ -78,11 +105,14 @@ api.post("/transfers/:id/items", async (c) => {
   if (!transfer) return errorResponse(404, "transfer not found");
   if (transfer.status !== "draft") return errorResponse(409, "transfer already finalized");
 
-  const body = await c.req.json().catch(() => ({}));
+  const body = bodyRecord(await c.req.json().catch(() => ({})));
+  if (!(await uploadTokenValid(c, transfer, body))) {
+    return errorResponse(401, "upload token required");
+  }
   const fileName = clampText(body.fileName, MAX_NAME_LEN) || "file";
   const mimeType = clampText(body.mimeType, 120) || "application/octet-stream";
   const size = Number(body.size);
-  if (!Number.isFinite(size) || size < 0) return errorResponse(400, "invalid size");
+  if (!Number.isFinite(size) || size <= 0) return errorResponse(400, "invalid size");
 
   // Content allowlist: audio + .songstead only, checked on extension AND mime.
   const allowed = checkUploadAllowed(fileName, mimeType);
@@ -127,6 +157,10 @@ api.post("/transfers/:id/finalize", async (c) => {
   const transferId = c.req.param("id");
   const transfer = await getTransfer(c.env, transferId);
   if (!transfer) return errorResponse(404, "transfer not found");
+  const body = bodyRecord(await c.req.json().catch(() => ({})));
+  if (!(await uploadTokenValid(c, transfer, body))) {
+    return errorResponse(401, "upload token required");
+  }
   if (transfer.status === "finalized") {
     return jsonResponse({ shareUrl: `${cfg.publicOrigin}/t/${transferId}` });
   }
@@ -139,17 +173,23 @@ api.post("/transfers/:id/finalize", async (c) => {
   let actualTotal = 0;
   for (const item of items) {
     const head = await c.env.BUCKET.head(item.r2_key);
-    if (!head) return errorResponse(409, `item not uploaded: ${item.file_name}`);
+    if (!head) {
+      await deleteDraftAndObjects(c.env, transferId, items);
+      return errorResponse(409, `item not uploaded: ${item.file_name}`);
+    }
 
-    if (head.size > cfg.maxItemBytes) {
-      await c.env.BUCKET.delete(item.r2_key);
+    if (head.size <= 0 || head.size > cfg.maxItemBytes) {
+      await deleteDraftAndObjects(c.env, transferId, items);
       return errorResponse(413, `file exceeds per-file size cap: ${item.file_name}`);
     }
     if (item.size > 0 && head.size > item.size) {
-      await c.env.BUCKET.delete(item.r2_key);
+      await deleteDraftAndObjects(c.env, transferId, items);
       return errorResponse(413, `upload larger than declared: ${item.file_name}`);
     }
     actualTotal += head.size;
+    if (head.size !== item.size) {
+      await setItemSize(c.env, item.item_id, head.size);
+    }
 
     // A .songstead file must be a real zip (blocks arbitrary bytes renamed to
     // .songstead). Cannot inspect INSIDE the zip — that's the opaque residual.
@@ -157,15 +197,19 @@ api.post("/transfers/:id/finalize", async (c) => {
       const obj = await c.env.BUCKET.get(item.r2_key, { range: { offset: 0, length: 4 } });
       const head4 = obj ? new Uint8Array(await obj.arrayBuffer()) : new Uint8Array();
       if (!looksLikeZip(head4)) {
-        await c.env.BUCKET.delete(item.r2_key);
+        await deleteDraftAndObjects(c.env, transferId, items);
         return errorResponse(415, `not a valid songstead file: ${item.file_name}`);
       }
     }
   }
   if (actualTotal > cfg.maxTransferBytes) {
+    await deleteDraftAndObjects(c.env, transferId, items);
     return errorResponse(413, "transfer exceeds size cap");
   }
 
+  if (actualTotal !== transfer.size_total) {
+    await setTransferSize(c.env, transferId, actualTotal);
+  }
   await finalizeTransfer(c.env, transferId);
   return jsonResponse({ shareUrl: `${cfg.publicOrigin}/t/${transferId}` });
 });

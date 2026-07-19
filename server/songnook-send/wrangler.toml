@@ -16,6 +16,9 @@ PUBLIC_ORIGIN = "https://send.songnook.app"
 MAX_TRANSFER_BYTES = "1073741824"   # 1 GB per transfer
 MAX_ITEM_BYTES = "536870912"        # 512 MB per file
 EXPIRY_DAYS = "7"
+# Unfinished drafts are not useful to recipients and are the main storage-abuse
+# window, so sweep them sooner than finalized transfers.
+DRAFT_EXPIRY_HOURS = "24"
 # Anti-abuse: browser origins allowed to call the write API (the app sends no
 # Origin and is allowed; PUBLIC_ORIGIN + localhost are always trusted).
 ALLOWED_WEB_ORIGINS = ""

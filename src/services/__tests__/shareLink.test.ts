@@ -35,6 +35,7 @@ beforeEach(() => {
   jest.clearAllMocks();
   mocked.createTransfer.mockResolvedValue({
     transferId: "t_ABC",
+    uploadToken: "ut_SECRET",
     expiresAt: "2026-08-01T00:00:00.000Z",
   });
   mocked.prepare.mockResolvedValue({
@@ -79,12 +80,16 @@ describe("createShareLink", () => {
     expect(uploadOrder).toBeLessThan(finalizeOrder);
 
     // Uploads the prepared archive as an opaque .songstead file.
-    expect(mocked.registerAndUploadFile).toHaveBeenCalledWith("t_ABC", {
-      fileUri: "file:///share/Set.songstead",
-      fileName: "Set.songstead",
-      mimeType: "application/octet-stream",
-      size: 4242,
-    });
+    expect(mocked.registerAndUploadFile).toHaveBeenCalledWith(
+      "t_ABC",
+      "ut_SECRET",
+      {
+        fileUri: "file:///share/Set.songstead",
+        fileName: "Set.songstead",
+        mimeType: "application/octet-stream",
+        size: 4242,
+      }
+    );
 
     // Records the finished link.
     expect(recordLink).toHaveBeenCalledTimes(1);

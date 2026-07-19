@@ -13,6 +13,7 @@ export interface TransferRow {
   size_total: number;
   created_at: number;
   expires_at: number;
+  upload_token_hash: string | null;
 }
 
 export interface ItemRow {
@@ -30,8 +31,8 @@ export interface ItemRow {
 export async function insertTransfer(env: Env, t: TransferRow): Promise<void> {
   await env.DB.prepare(
     `INSERT INTO transfers
-      (transfer_id, title, sender_name, sender_user_id, message, status, size_total, created_at, expires_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      (transfer_id, title, sender_name, sender_user_id, message, status, size_total, created_at, expires_at, upload_token_hash)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   )
     .bind(
       t.transfer_id,
@@ -42,7 +43,8 @@ export async function insertTransfer(env: Env, t: TransferRow): Promise<void> {
       t.status,
       t.size_total,
       t.created_at,
-      t.expires_at
+      t.expires_at,
+      t.upload_token_hash
     )
     .run();
 }
@@ -94,6 +96,18 @@ export async function bumpTransferSize(env: Env, transferId: string, addBytes: n
     .run();
 }
 
+export async function setTransferSize(env: Env, transferId: string, sizeBytes: number): Promise<void> {
+  await env.DB.prepare(`UPDATE transfers SET size_total = ? WHERE transfer_id = ?`)
+    .bind(sizeBytes, transferId)
+    .run();
+}
+
+export async function setItemSize(env: Env, itemId: string, sizeBytes: number): Promise<void> {
+  await env.DB.prepare(`UPDATE items SET size = ? WHERE item_id = ?`)
+    .bind(sizeBytes, itemId)
+    .run();
+}
+
 export async function finalizeTransfer(env: Env, transferId: string): Promise<void> {
   await env.DB.prepare(`UPDATE transfers SET status = 'finalized' WHERE transfer_id = ?`)
     .bind(transferId)
@@ -106,10 +120,19 @@ export async function incrementDownload(env: Env, itemId: string): Promise<void>
     .run();
 }
 
-/** Rows whose expiry has passed — for the sweep. */
-export async function listExpired(env: Env, now: number, limit = 500): Promise<TransferRow[]> {
-  const res = await env.DB.prepare(`SELECT * FROM transfers WHERE expires_at < ? LIMIT ?`)
-    .bind(now, limit)
+/** Rows whose expiry has passed, plus old unfinished drafts — for the sweep. */
+export async function listExpired(
+  env: Env,
+  now: number,
+  staleDraftBefore: number,
+  limit = 500
+): Promise<TransferRow[]> {
+  const res = await env.DB.prepare(
+    `SELECT * FROM transfers
+     WHERE expires_at < ? OR (status = 'draft' AND created_at < ?)
+     LIMIT ?`
+  )
+    .bind(now, staleDraftBefore, limit)
     .all<TransferRow>();
   return res.results ?? [];
 }

@@ -41,6 +41,7 @@ import {
     ClipOverdubState,
     ClipOverdubRootSettings,
     ClipOverdubStem,
+    ReceivedMeta,
     RecordingGrid,
 } from "../types";
 import { createWordLadderExercise } from "../domain/wordLadder";
@@ -171,6 +172,12 @@ export type DataSlice = {
     deleteWorkspace: (id: string) => void;
     /** Flip a received package into a personal workspace ("Move to my workspaces"). */
     adoptReceivedWorkspace: (id: string) => void;
+    /** Create an empty received package (one "Files" collection) for a loose-files
+     *  parcel; the caller imports the downloaded audio into it. */
+    addReceivedFilesPackage: (
+        title: string,
+        received: ReceivedMeta
+    ) => { workspaceId: string; collectionId: string };
     archiveWorkspace: (id: string, isArchived: boolean) => void;
     addCollection: (workspaceId: string, title: string, parentCollectionId?: string | null, description?: string) => string;
     updateCollection: (workspaceId: string, collectionId: string, updates: { title?: string }) => void;
@@ -2207,6 +2214,30 @@ export const createDataSlice: StateCreator<
         set((state) => ({
             workspaces: state.workspaces.map((ws) => (ws.id === id ? { ...ws, ...updates } : ws)),
         }));
+    },
+
+    addReceivedFilesPackage: (title, received) => {
+        // A loose-files parcel from Songnook Send: a received package holding
+        // one "Files" collection that the caller then imports audio into. Never
+        // touches the primary workspace (received packages can't become home).
+        const workspaceId = genId("ws");
+        const now = Date.now();
+        const collection = createCollection(workspaceId, "Files", null);
+        set((state) => ({
+            workspaces: [
+                {
+                    id: workspaceId,
+                    title,
+                    color: WORKSPACE_COLORS[now % WORKSPACE_COLORS.length],
+                    collections: [collection],
+                    ideas: [],
+                    origin: "received" as const,
+                    received,
+                },
+                ...state.workspaces,
+            ],
+        }));
+        return { workspaceId, collectionId: collection.id };
     },
 
     adoptReceivedWorkspace: (id) => {

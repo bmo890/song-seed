@@ -5,4 +5,5 @@ module.exports = {
   // Ignore nested git worktrees (e.g. .claude/worktrees/*) so their package.json copies
   // don't trigger Haste module-name collisions.
   modulePathIgnorePatterns: ["<rootDir>/.claude/worktrees/"],
+  testPathIgnorePatterns: ["<rootDir>/server/songnook-send/"],
 };

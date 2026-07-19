@@ -12,7 +12,7 @@ import { toTransferPayload } from "./lib/serialize";
 import { sweepExpired } from "./lib/sweep";
 import { detectPlatform, renderRecipientPage } from "./pages/recipient";
 import { renderSenderPage } from "./pages/sender";
-import { escapeHtml, page } from "./pages/shell";
+import { escapeHtml, htmlPage, page } from "./pages/shell";
 import { api } from "./routes/api";
 import { download } from "./routes/download";
 import { wellKnown } from "./routes/wellknown";
@@ -25,7 +25,7 @@ app.options("*", () =>
     headers: {
       "access-control-allow-origin": "*",
       "access-control-allow-methods": "GET, POST, OPTIONS",
-      "access-control-allow-headers": "content-type",
+      "access-control-allow-headers": "content-type, x-upload-token, authorization",
     },
   })
 );
@@ -40,7 +40,7 @@ app.route("/.well-known", wellKnown);
 app.route("/t", download);
 
 // ── Web sender page ──────────────────────────────────────────────────────────
-app.get("/", (c) => c.html(renderSenderPage()));
+app.get("/", () => htmlPage(renderSenderPage()));
 
 // ── Recipient page (/t/:id) — content-negotiated ─────────────────────────────
 app.get("/t/:id", async (c) => {
@@ -48,7 +48,7 @@ app.get("/t/:id", async (c) => {
   const transferId = c.req.param("id");
   const transfer = await getTransfer(c.env, transferId);
   if (!transfer || !transferUsable(transfer.status, transfer.expires_at, Date.now())) {
-    return c.html(
+    return htmlPage(
       page({
         title: "Link unavailable",
         body: `<h1>This link isn’t available.</h1><p class="sub">It may have expired or been removed. Ask the sender for a fresh link.</p>`,
@@ -60,7 +60,7 @@ app.get("/t/:id", async (c) => {
   const items = await getItems(c.env, transferId);
   const payload = toTransferPayload(cfg, transfer, items);
   const plat = detectPlatform(c.req.header("user-agent") || "");
-  return c.html(renderRecipientPage(cfg, payload, plat));
+  return htmlPage(renderRecipientPage(cfg, payload, plat));
 });
 
 // ── Abuse report funnel ──────────────────────────────────────────────────────
@@ -71,7 +71,7 @@ app.get("/report/:id", (c) => {
   const body = escapeHtml(
     `If this transfer contains abusive or infringing content, email ${cfg.abuseEmail} with the link and a brief description. We remove reported transfers promptly.`
   );
-  return c.html(
+  return htmlPage(
     page({
       title: "Report a transfer",
       body: `<h1>Report a transfer</h1><p class="sub">${body}</p>

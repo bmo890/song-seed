@@ -21,6 +21,7 @@ export class SendTransferError extends Error {
 
 export interface CreatedTransfer {
   transferId: string;
+  uploadToken: string;
   expiresAt: string; // ISO
 }
 
@@ -67,9 +68,11 @@ export function createTransfer(input: {
 /** 2+3. Register a file and stream it straight to the presigned URL. */
 export async function registerAndUploadFile(
   transferId: string,
+  uploadToken: string,
   file: { fileUri: string; fileName: string; mimeType: string; size: number }
 ): Promise<string> {
   const item = await postJson<RegisteredItem>(`/api/transfers/${transferId}/items`, {
+    uploadToken,
     fileName: file.fileName,
     mimeType: file.mimeType,
     size: file.size,
@@ -93,8 +96,13 @@ export async function registerAndUploadFile(
 }
 
 /** 4. Finalize — nothing is fetchable until this returns. */
-export function finalizeTransfer(transferId: string): Promise<{ shareUrl: string }> {
-  return postJson<{ shareUrl: string }>(`/api/transfers/${transferId}/finalize`);
+export function finalizeTransfer(
+  transferId: string,
+  uploadToken: string
+): Promise<{ shareUrl: string }> {
+  return postJson<{ shareUrl: string }>(`/api/transfers/${transferId}/finalize`, {
+    uploadToken,
+  });
 }
 
 /** Convenience: size of a local file for item registration. */

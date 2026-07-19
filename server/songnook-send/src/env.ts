@@ -14,6 +14,8 @@ export interface Env {
   MAX_TRANSFER_BYTES: string;
   MAX_ITEM_BYTES: string;
   EXPIRY_DAYS: string;
+  /** Drafts with unfinished uploads are swept sooner than finalized links. */
+  DRAFT_EXPIRY_HOURS?: string;
   IOS_APP_STORE_URL: string;
   ANDROID_PACKAGE: string;
   R2_ACCOUNT_ID: string;
@@ -41,6 +43,7 @@ export interface Config {
   maxTransferBytes: number;
   maxItemBytes: number;
   expiryMs: number;
+  draftExpiryMs: number;
   iosAppStoreUrl: string;
   androidPackage: string;
   r2AccountId: string;
@@ -67,6 +70,7 @@ export function loadConfig(env: Env): Config {
     maxTransferBytes: Number(env.MAX_TRANSFER_BYTES) || 1024 * 1024 * 1024,
     maxItemBytes: Number(env.MAX_ITEM_BYTES) || 512 * 1024 * 1024,
     expiryMs: expiryDays * 24 * 60 * 60 * 1000,
+    draftExpiryMs: (Number(env.DRAFT_EXPIRY_HOURS) || 24) * 60 * 60 * 1000,
     iosAppStoreUrl: env.IOS_APP_STORE_URL || "",
     androidPackage: env.ANDROID_PACKAGE || "com.bmostudio.songseed",
     r2AccountId: env.R2_ACCOUNT_ID || "",

@@ -14,7 +14,7 @@ export function jsonResponse(data: unknown, init: ResponseInit = {}): Response {
       "x-robots-tag": NOINDEX,
       "access-control-allow-origin": "*",
       "access-control-allow-methods": "GET, POST, OPTIONS",
-      "access-control-allow-headers": "content-type",
+      "access-control-allow-headers": "content-type, x-upload-token, authorization",
       ...(init.headers ?? {}),
     },
   });

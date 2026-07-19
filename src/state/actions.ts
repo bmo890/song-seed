@@ -3073,6 +3073,11 @@ export const appActions = {
              *  imported workspaces become Received packages instead of joining
              *  the user's own workspace list. Settings imports omit this. */
             origin?: "received";
+            /** Outer-transfer provenance (Songnook Send link receive). Fills in
+             *  whatever the archive's own manifest didn't carry — e.g. an
+             *  archive uploaded by a web sender was never stamped with the
+             *  transferId, but the link's id must still dedupe. */
+            receivedOverrides?: { transferId?: string | null; senderName?: string | null };
         }
     ) => {
         const store = useStore.getState();
@@ -3089,9 +3094,9 @@ export const appActions = {
                       ...workspace,
                       origin: "received" as const,
                       received: {
-                          senderName: share?.sender?.name ?? null,
+                          senderName: opts?.receivedOverrides?.senderName ?? share?.sender?.name ?? null,
                           senderUserId: share?.sender?.userId ?? null,
-                          transferId: share?.transferId ?? null,
+                          transferId: opts?.receivedOverrides?.transferId ?? share?.transferId ?? null,
                           receivedAt: Date.now(),
                           shareKind: share?.kind ?? "library",
                           shareTitle: share?.title ?? workspace.title,
@@ -3152,6 +3157,7 @@ export const appActions = {
             // collections (a shared songbook/setlist archive).
             importedSongbookIds: merge.importedSongbooks.map((songbook) => songbook.id),
             importedSetlistIds: merge.importedSetlists.map((setlist) => setlist.id),
+            importedWorkspaceIds: merge.importedWorkspaceIds,
         };
     },
 };

@@ -22,7 +22,8 @@ App-side model: [`../../docs/product-plan/sharing-and-received-architecture.md`]
 
 1. Files are **opaque** — never unpacked/interpreted server-side.
 2. `transferId` is returned at **create**, before any upload (the app stamps it into the
-   `.songstead` file's internal manifest, then uploads).
+   `.songstead` file's internal manifest, then uploads). The create response also includes
+   an `uploadToken`; only that token can register items or finalize the draft.
 3. Nothing is fetchable until **finalize**. Links unguessable, HTTPS-only, `noindex`, expiring.
 4. Metadata + download endpoints work with **no cookies and no `Origin`** (native access).
 5. `sender.userId` is present in every payload, always `null` in v1.
@@ -31,9 +32,9 @@ App-side model: [`../../docs/product-plan/sharing-and-received-architecture.md`]
 
 | Method | Path | Purpose |
 |---|---|---|
-| POST | `/api/transfers` | create → `{transferId, expiresAt}` (id before upload) |
-| POST | `/api/transfers/:id/items` | register file → `{itemId, uploadUrl}` (presigned PUT) |
-| POST | `/api/transfers/:id/finalize` | → `{shareUrl}` (nothing fetchable until now) |
+| POST | `/api/transfers` | create → `{transferId, uploadToken, expiresAt}` (id before upload) |
+| POST | `/api/transfers/:id/items` | register file with `uploadToken` → `{itemId, uploadUrl}` (presigned PUT) |
+| POST | `/api/transfers/:id/finalize` | finalize with `uploadToken` → `{shareUrl}` (nothing fetchable until now) |
 | GET | `/api/transfers/:id` | metadata JSON (cookie/Origin-free, finalized+unexpired only) |
 | GET | `/t/:id/dl/:itemId` | ranged download (resume; `noindex`; counts) |
 | GET | `/t/:id` | recipient page (desktop / mobile-no-app funnel) |
@@ -55,9 +56,12 @@ Every client is untrusted (the desktop page is public HTML; the raw API is reach
 
 - **Content allowlist** (`lib/contentPolicy.ts`) at item registration — audio + `.songstead` only, checked on **both** extension and mime → `415`. Blocks video/office/pdf/exe/bare-zip. The desktop page also filters client-side (UX only).
 - **Finalize verification** — every item must actually exist in R2; real bytes must not exceed the declared size or the per-file cap; `.songstead` files must start with the ZIP magic. Offenders are deleted and finalize fails. Nothing is fetchable until this passes.
+- **Draft mutation token** — the public link id is not enough to add items or finalize;
+  the create caller gets a separate `uploadToken` for those draft-only operations.
 - **Origin allowlist** (`lib/guard.ts`) on create/upload — browser calls must come from `ALLOWED_WEB_ORIGINS` (blocks other sites' JS). The native app sends no Origin → allowed.
 - **Per-IP rate limiting** (KV fixed window) on create/upload — `RATE_CREATE_PER_HOUR` (30) / `RATE_ITEMS_PER_HOUR` (300). Fails open if `RATE` KV is unbound (dev); **bind it before going public**.
-- **Caps** — 1 GB/transfer, 512 MB/file, 200 items, 7-day expiry.
+- **Caps** — 1 GB/transfer, 512 MB/file, 200 items, 7-day finalized-transfer expiry,
+  24-hour unfinished-draft sweep.
 
 **Inherent residual:** `.songstead` is an opaque ZIP we must not unpack, so a determined abuser can smuggle bytes inside one (an `.xlsx` is also a ZIP). Content-typing can't close that — rate limits, expiry, and the launch-hardening below do.
 
@@ -74,6 +78,7 @@ cp .dev.vars.example .dev.vars            # fill in R2 S3 API token (local only)
 npx wrangler d1 create songnook_send
 npx wrangler r2 bucket create songnook-send
 npx wrangler kv namespace create RATE   # paste id into wrangler.toml (rate limiting)
+npx wrangler r2 bucket cors set songnook-send --file r2-cors.json --force
 npm run db:migrate:local
 npm run dev
 ```
@@ -87,6 +92,7 @@ Tests: `node --test --experimental-strip-types src/lib/__tests__/contentPolicy.t
 | Domain | `send.songnook.app` |
 | Per-transfer cap | **1 GB** |
 | Expiry | **7 days**, then swept |
+| Draft cleanup | **24 hours**, then swept if still unfinalized |
 | Zip-all | **not in v1** |
 | iOS deferred deep link | **clipboard-token** (funnel copies URL w/ notice; app reads pasteboard on first launch) |
 | Android deferred deep link | Play Install Referrer carries `transferId` |

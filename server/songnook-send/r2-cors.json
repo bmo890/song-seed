@@ -1,0 +1,17 @@
+{
+  "rules": [
+    {
+      "allowed": {
+        "origins": [
+          "https://send.songnook.app",
+          "http://localhost:8799",
+          "http://127.0.0.1:8799"
+        ],
+        "methods": ["PUT", "HEAD"],
+        "headers": ["content-type"]
+      },
+      "exposeHeaders": ["etag"],
+      "maxAgeSeconds": 3600
+    }
+  ]
+}

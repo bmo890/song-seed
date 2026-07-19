@@ -222,3 +222,28 @@ ${opts.bodyScript ? `<script>${opts.bodyScript}</script>` : ""}
 </body>
 </html>`;
 }
+
+export function htmlPage(body: string, status = 200): Response {
+  return new Response(body, {
+    status,
+    headers: {
+      "content-type": "text/html; charset=utf-8",
+      "cache-control": "no-store",
+      "x-content-type-options": "nosniff",
+      "referrer-policy": "no-referrer",
+      "x-frame-options": "DENY",
+      "content-security-policy": [
+        "default-src 'self'",
+        "base-uri 'none'",
+        "object-src 'none'",
+        "frame-ancestors 'none'",
+        "img-src 'self' data:",
+        "font-src https://fonts.gstatic.com",
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+        "script-src 'self' 'unsafe-inline'",
+        "connect-src 'self' https://*.r2.cloudflarestorage.com",
+        "form-action 'none'",
+      ].join("; "),
+    },
+  });
+}

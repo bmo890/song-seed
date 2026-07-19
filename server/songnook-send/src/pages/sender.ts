@@ -110,7 +110,12 @@ const SENDER_JS = `
         var f=files[i];
         var reg = await fetch('/api/transfers/'+t.transferId+'/items',{method:'POST',
           headers:{'content-type':'application/json'},
-          body:JSON.stringify({fileName:f.name,mimeType:f.type||'application/octet-stream',size:f.size})});
+          body:JSON.stringify({
+            uploadToken:t.uploadToken,
+            fileName:f.name,
+            mimeType:f.type||'application/octet-stream',
+            size:f.size
+          })});
         if(!reg.ok) throw new Error('register failed: '+(await reg.text()));
         var slot = await reg.json();
         var put = await fetch(slot.uploadUrl,{method:slot.method||'PUT',headers:slot.headers||{},body:f});
@@ -118,7 +123,9 @@ const SENDER_JS = `
         setProgress((i+1)/files.length);
       }
 
-      var fin = await fetch('/api/transfers/'+t.transferId+'/finalize',{method:'POST'});
+      var fin = await fetch('/api/transfers/'+t.transferId+'/finalize',{method:'POST',
+        headers:{'content-type':'application/json'},
+        body:JSON.stringify({uploadToken:t.uploadToken})});
       if(!fin.ok) throw new Error('finalize failed');
       var done = await fin.json();
       document.getElementById('url').textContent = done.shareUrl;
