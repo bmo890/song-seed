@@ -94,6 +94,7 @@ import { enqueueMissingMetadataBackfill } from "./src/services/backgroundWavefor
 import { recoverPendingRecordingSession } from "./src/services/recordingRecovery";
 import { cleanupStaleDisasterRecoveryBackupFiles } from "./src/services/disasterRecoveryBackup";
 import { cleanupInterruptedDisasterRecoveryRestores } from "./src/services/disasterRecoveryTemp";
+import { checkClipboardForTransfer } from "./src/services/clipboardTransferCheck";
 
 
 const navigationRef = createNavigationContainerRef<RootStackParamList>();
@@ -1107,6 +1108,28 @@ export default function App() {
         AppAlert.info(
           "Recording recovery failed",
           "Songstead found an unfinished recording from the previous session but could not restore it automatically."
+        );
+        return;
+      }
+
+      // Songnook Send deferred deep link (iOS v1): a link left on the
+      // pasteboard by the pre-install web page gets a user-visible offer —
+      // never a silent open. Takes precedence over the backup nag.
+      const pendingTransferId = await checkClipboardForTransfer();
+      if (
+        pendingTransferId &&
+        navigationRef.isReady() &&
+        navigationRef.getCurrentRoute()?.name !== "TransferReceive"
+      ) {
+        AppAlert.confirm(
+          "Open the parcel?",
+          "There's a Songnook Send link on your clipboard — someone sent you music.",
+          () => {
+            if (navigationRef.isReady()) {
+              navigationRef.navigate("TransferReceive", { transferId: pendingTransferId });
+            }
+          },
+          { confirmLabel: "Open", icon: "mail-open-outline" }
         );
         return;
       }

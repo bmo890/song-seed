@@ -31,6 +31,8 @@ export function useSettingsScreenModel() {
       ? "Library & Backups"
       : view === "recording"
         ? "Recording"
+        : view === "sharing"
+          ? "Sharing"
         : view === "about"
           ? "About"
           : view === "export"
@@ -44,7 +46,9 @@ export function useSettingsScreenModel() {
   // Recording, About, and Library are reached straight from the overview, so they return
   // there. Export / import / storage are reached FROM the library page, so back to library.
   const backView: SettingsView =
-    view === "library" || view === "recording" || view === "about" ? "overview" : "library";
+    view === "library" || view === "recording" || view === "sharing" || view === "about"
+      ? "overview"
+      : "library";
 
   return {
     view,

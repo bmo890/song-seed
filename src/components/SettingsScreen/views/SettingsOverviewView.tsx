@@ -25,6 +25,7 @@ export function SettingsOverviewView({
   backupFlow,
   onOpenLibrary,
   onOpenRecording,
+  onOpenSharing,
   onOpenAbout,
 }: {
   workspaceStartupPreference: "primary" | "last-used";
@@ -35,6 +36,7 @@ export function SettingsOverviewView({
   backupFlow: LibraryBackupFlow;
   onOpenLibrary: () => void;
   onOpenRecording: () => void;
+  onOpenSharing: () => void;
   onOpenAbout: () => void;
 }) {
   const isPro = useIsPro();
@@ -171,6 +173,20 @@ export function SettingsOverviewView({
             busy={backupFlow.isBackingUp || backupFlow.isRestoring}
             meta={libraryMeta}
             onPress={onOpenLibrary}
+          />
+        </View>
+      </View>
+
+      <View style={styles.settingsSection}>
+        <View style={styles.settingsSectionHeaderRow}>
+          <Text style={styles.settingsSectionLabel}>Sharing</Text>
+        </View>
+        <View style={settingsScreenStyles.libraryCardStack}>
+          <LibraryActionCard
+            icon="link-outline"
+            title="Sent links"
+            meta="Links you've shared with Songnook Send"
+            onPress={onOpenSharing}
           />
         </View>
       </View>

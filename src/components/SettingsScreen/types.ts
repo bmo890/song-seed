@@ -15,7 +15,7 @@ export type StandardExportOptions = {
 
 export type CollectionSelectionState = "unselected" | "selected" | "inherited" | "excluded";
 export type ExportSectionKey = "format" | "scope" | "options" | "generate";
-export type SettingsView = "overview" | "library" | "recording" | "about" | "export" | "import" | "storage";
+export type SettingsView = "overview" | "library" | "recording" | "sharing" | "about" | "export" | "import" | "storage";
 
 export type SettingsSelectionSummary = {
   selectedWorkspaceCount: number;

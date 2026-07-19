@@ -14,6 +14,7 @@ import { SettingsExportView } from "../views/SettingsExportView";
 import { SettingsImportView } from "../views/SettingsImportView";
 import { SettingsLibraryView } from "../views/SettingsLibraryView";
 import { SettingsOverviewView } from "../views/SettingsOverviewView";
+import { SettingsSharingView } from "../views/SettingsSharingView";
 import { SettingsRecordingView } from "../views/SettingsRecordingView";
 import { SettingsStorageView } from "../views/SettingsStorageView";
 
@@ -93,6 +94,8 @@ export function SettingsScreenContent() {
         <SettingsStorageView diagnostics={diagnostics} />
       ) : screen.view === "recording" ? (
         <SettingsRecordingView />
+      ) : screen.view === "sharing" ? (
+        <SettingsSharingView />
       ) : screen.view === "about" ? (
         <SettingsAboutView />
       ) : (
@@ -105,6 +108,7 @@ export function SettingsScreenContent() {
           backupFlow={backupFlow}
           onOpenLibrary={() => screen.setView("library")}
           onOpenRecording={() => screen.setView("recording")}
+          onOpenSharing={() => screen.setView("sharing")}
           onOpenAbout={() => screen.setView("about")}
         />
       )}
