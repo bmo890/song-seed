@@ -8,6 +8,7 @@ import { Button } from "../../common/Button";
 import { SelectionTopBar } from "../../common/SelectionTopBar";
 import { SelectionDock, type SelectionAction } from "../../common/SelectionDock";
 import { SelectionActionSheet } from "../../common/SelectionActionSheet";
+import { DockAddBadgeIcon } from "../../common/dockIcons";
 import { AppAlert } from "../../common/AppAlert";
 import { NoteEditor } from "./NoteEditor";
 import { NewLyricsPadItemSheet } from "./NewLyricsPadItemSheet";
@@ -387,8 +388,11 @@ export function NotepadScreenContent() {
     : [
         {
           key: "add-to-song",
-          label: "Add to Song",
+          label: "Song",
           icon: "albums-outline",
+          renderIcon: ({ color, size, disabled }) => (
+            <DockAddBadgeIcon base="albums-outline" color={color} size={size} disabled={disabled} />
+          ),
           onPress: handleStartAddToSong,
         },
         {

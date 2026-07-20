@@ -6,6 +6,7 @@ import { appActions } from "../../../state/actions";
 import { shareAudioClips } from "../../../services/audioStorage";
 import { SelectionActionSheet } from "../../common/SelectionActionSheet";
 import { SelectionDock, type SelectionAction } from "../../common/SelectionDock";
+import { DockAddBadgeIcon, DockMergeBoxIcon } from "../../common/dockIcons";
 import type { SongIdea } from "../../../types";
 import { buildPlayableQueueFromIdeas, getPlayableClipForIdea } from "../../../domain/clipPresentation";
 import { buildDefaultSongbookItemsForIdea } from "../../../domain/songbookGrouping";
@@ -114,6 +115,7 @@ export function IdeaSelectionBar({
     // lives in the top bar ("N selected"), so the button label stays a clean word.
     label: "Sketch",
     icon: "albums-outline",
+    renderIcon: ({ color, size }) => <DockMergeBoxIcon color={color} size={size} />,
     onPress: () => onCreateProjectFromSelection?.(),
   };
 
@@ -121,8 +123,16 @@ export function IdeaSelectionBar({
   // session already running it appends to that queue instead of starting anew.
   const playOrQueueAction: SelectionAction = {
     key: "play",
-    label: sessionActive ? "Add to queue" : "Play",
+    // Idle → "Play"; a session already running → "Queue" (add to what's playing).
+    // The Queue glyph is the play triangle carrying a "+", so the two read as one
+    // family — Play, then Play-plus.
+    label: sessionActive ? "Queue" : "Play",
     icon: sessionActive ? "add-circle-outline" : "play",
+    renderIcon: sessionActive
+      ? ({ color, size, disabled }) => (
+          <DockAddBadgeIcon base="play" color={color} size={size} disabled={disabled} />
+        )
+      : undefined,
     onPress: sessionActive ? onAddToQueue : onPlaySelected,
     disabled: playbackQueue.length === 0,
   };
@@ -200,17 +210,22 @@ export function IdeaSelectionBar({
     haptic.success();
   };
   const collectorKind = useStore((s) => s.libraryCollector?.kind ?? null);
+  // One-word destination noun; the collector banner above already says "Adding to <title>".
   const collectorNoun =
-    collectorKind === "songbook" ? "book" : collectorKind === "setlist" ? "set" : "playlist";
+    collectorKind === "songbook" ? "Book" : collectorKind === "setlist" ? "Set" : "Playlist";
+  const collectorIcon: SelectionAction["icon"] =
+    collectorKind === "songbook"
+      ? "book-outline"
+      : collectorKind === "setlist"
+        ? "albums-outline"
+        : "musical-notes-outline";
   const collectorAction: SelectionAction = {
     key: "add-to-collector",
-    label: `Add to ${collectorNoun}`,
-    icon:
-      collectorKind === "songbook"
-        ? "book-outline"
-        : collectorKind === "setlist"
-          ? "albums-outline"
-          : "musical-notes-outline",
+    label: collectorNoun,
+    icon: collectorIcon,
+    renderIcon: ({ color, size, disabled }) => (
+      <DockAddBadgeIcon base={collectorIcon} color={color} size={size} disabled={disabled} />
+    ),
     onPress: addSelectionToCollector,
     disabled: interactiveSelectedIdeas.length === 0,
   };

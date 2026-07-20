@@ -205,7 +205,7 @@ export function useWorkspaceCollectionSelection({
     },
     {
       key: "set-primary",
-      label: "Set Primary",
+      label: "Primary",
       icon: "star-outline",
       disabled: !singleSelectedCollection || singleSelectedCollection.id === primaryCollectionId,
       onPress: () => {

@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, type ReactNode } from "react";
 import { Pressable, Text, View } from "react-native";
 import Animated, { SlideInDown, SlideOutDown } from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
@@ -14,6 +14,9 @@ export type SelectionAction = {
   key: string;
   label: string;
   icon: keyof typeof Ionicons.glyphMap;
+  /** Composite glyph override for the dock (the plain `icon` stays the fallback,
+   *  e.g. when the same action is listed in the overflow sheet). */
+  renderIcon?: (props: { color: string; size: number; disabled: boolean }) => ReactNode;
   onPress: () => void;
   tone?: SelectionActionTone;
   disabled?: boolean;
@@ -62,17 +65,16 @@ export function SelectionDock({ actions, onLayout }: SelectionDockProps) {
                 action.onPress();
               }}
             >
-              <Ionicons
-                name={action.icon}
-                size={20}
-                color={
-                  action.disabled
-                    ? "#c4b8b4"
-                    : dangerous
-                    ? "#a83232"
-                    : colors.textStrong
-                }
-              />
+              {(() => {
+                const iconColor = action.disabled
+                  ? "#c4b8b4"
+                  : dangerous
+                  ? "#a83232"
+                  : colors.textStrong;
+                return action.renderIcon
+                  ? action.renderIcon({ color: iconColor, size: 20, disabled: !!action.disabled })
+                  : <Ionicons name={action.icon} size={20} color={iconColor} />;
+              })()}
               <Text
                 style={[
                   styles.selectionToolbarActionLabel,
