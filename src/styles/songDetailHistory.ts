@@ -209,9 +209,6 @@ export const songDetailHistoryStyles = {
     lineHeight: 17,
     color: "#84736f",
   },
-  songDetailVersionInlinePlayerWrap: {
-    marginTop: 3,
-  },
   songDetailEvolutionGuideWrap: {
     position: "relative",
     width: 42,

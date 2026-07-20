@@ -1,9 +1,7 @@
 import React from "react";
 import { Pressable, Text, View, Animated } from "react-native";
-import ReAnimated, { FadeIn } from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
 import { styles } from "../../../styles";
-import { MiniProgress } from "../../MiniProgress";
 import { SongIdea, ClipVersion, InlinePlayerControls } from "../../../types";
 import { formatClipDate } from "../../../utils";
 import { getDateBucket, getDateBucketLabel } from "../../../domain/dateBuckets";
@@ -17,44 +15,11 @@ import { useStore } from "../../../state/useStore";
 import { appActions } from "../../../state/actions";
 import { StatusBadge } from "../../common/StatusBadge";
 import { IdeaCard } from "../../common/IdeaCard";
-import { CloseButton } from "../../common/CloseButton";
+import { ClipInlinePlayer } from "../../common/ClipInlinePlayer";
 import { AppAlert } from "../../common/AppAlert";
 import { useWorkspaceTheme } from "../../../context/WorkspaceThemeContext";
 import { haptic } from "../../../design/haptics";
 import { toast } from "../../common/toastStore";
-
-function IdeaListInlineProgress({
-    inlinePlayer,
-    fallbackDurationMs,
-}: {
-    inlinePlayer: InlinePlayerControls;
-    fallbackDurationMs: number;
-}) {
-    const inlinePosition = useStore((s) => s.inlinePositionMs);
-    const inlineDuration = useStore((s) => s.inlineDurationMs);
-
-    return (
-        // entering only: exiting animations inside recycled list rows misbehave.
-        <ReAnimated.View entering={FadeIn.duration(160)}>
-            <MiniProgress
-                currentMs={inlinePosition}
-                durationMs={inlineDuration || fallbackDurationMs}
-                showTopDivider
-                extraBottomMargin={8}
-                captureWholeLane
-                onSeek={(ms) => {
-                    void inlinePlayer.endInlineScrub(ms);
-                }}
-                onSeekStart={() => {
-                    void inlinePlayer.beginInlineScrub();
-                }}
-                onSeekCancel={() => {
-                    void inlinePlayer.cancelInlineScrub();
-                }}
-            />
-        </ReAnimated.View>
-    );
-}
 
 type IdeaListItemProps = {
     item: SongIdea;
@@ -346,16 +311,6 @@ function IdeaListItemInner({
                                 if (listSelectionMode || songTargetPicker) return;
                                 beginSelection();
                             }}
-                            leadAccessory={inlineActive ? (
-                                <CloseButton
-                                    size="sm"
-                                    tone="onLight"
-                                    accessibilityLabel="Stop preview"
-                                    onPress={() => {
-                                        void inlinePlayer.resetInlinePlayer();
-                                    }}
-                                />
-                            ) : null}
                             onPress={async () => {
                                 if (songTargetPicker) {
                                     if (item.kind === "project") confirmPickAsSongTarget();
@@ -426,9 +381,20 @@ function IdeaListItemInner({
                                         : null
                             }
                             inlinePlayerContent={
-                                <IdeaListInlineProgress
-                                    inlinePlayer={inlinePlayer}
+                                <ClipInlinePlayer
                                     fallbackDurationMs={playClip?.durationMs || 0}
+                                    onSeek={(ms) => {
+                                        void inlinePlayer.endInlineScrub(ms);
+                                    }}
+                                    onSeekStart={() => {
+                                        void inlinePlayer.beginInlineScrub();
+                                    }}
+                                    onSeekCancel={() => {
+                                        void inlinePlayer.cancelInlineScrub();
+                                    }}
+                                    onClose={() => {
+                                        void inlinePlayer.resetInlinePlayer();
+                                    }}
                                 />
                             }
                         />

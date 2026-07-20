@@ -1,45 +1,13 @@
 import React from "react";
 import { View, type StyleProp, type ViewStyle } from "react-native";
 import { IdeaCard } from "./IdeaCard";
-import { CloseButton } from "./CloseButton";
+import { ClipInlinePlayer } from "./ClipInlinePlayer";
 import { IconButton } from "./IconButton";
-import { MiniProgress } from "../MiniProgress";
 import { StatusBadge } from "./StatusBadge";
 import { styles } from "../../styles";
 import type { IdeaStatus } from "../../types";
 import { fmtDuration } from "../../utils";
-import { useStore } from "../../state/useStore";
 import { colors } from "../../design/tokens";
-
-/** MiniProgress bound to the live inline-player position, shown in the footer
- * slot while a card is the active inline target. */
-function InlineProgress({
-  durationMs,
-  onSeek,
-  onSeekStart,
-  onSeekCancel,
-}: {
-  durationMs: number;
-  onSeek: (ms: number) => void;
-  onSeekStart: () => void;
-  onSeekCancel: () => void;
-}) {
-  const inlinePositionMs = useStore((s) => s.inlinePositionMs);
-  const inlineDurationMs = useStore((s) => s.inlineDurationMs);
-
-  return (
-    <MiniProgress
-      currentMs={inlinePositionMs}
-      durationMs={inlineDurationMs || durationMs || 0}
-      showTopDivider
-      extraBottomMargin={2}
-      captureWholeLane
-      onSeek={onSeek}
-      onSeekStart={onSeekStart}
-      onSeekCancel={onSeekCancel}
-    />
-  );
-}
 
 export type InlineIdeaCardProps = {
   title: string;
@@ -130,11 +98,6 @@ export function InlineIdeaCard({
       inlineActive={isActive}
       durationLabel={durationLabel}
       onPressLead={onTogglePlay}
-      leadAccessory={
-        isActive ? (
-          <CloseButton size="sm" tone="onLight" accessibilityLabel="Stop preview" onPress={onStopPlay} />
-        ) : null
-      }
       onPress={onOpen}
       onLongPress={onOpenMenu ?? onOpen}
       title={title}
@@ -144,11 +107,12 @@ export function InlineIdeaCard({
       footerContent={footerContent}
       containerStyle={containerStyle}
       inlinePlayerContent={
-        <InlineProgress
-          durationMs={durationMs}
+        <ClipInlinePlayer
+          fallbackDurationMs={durationMs}
           onSeek={onSeek}
           onSeekStart={onSeekStart}
           onSeekCancel={onSeekCancel}
+          onClose={onStopPlay}
         />
       }
     />

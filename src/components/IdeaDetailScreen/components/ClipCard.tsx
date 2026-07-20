@@ -11,7 +11,7 @@ import { type SongIdea, type ClipVersion, type CustomTagDefinition, type InlineP
 import { getTagColor, getTagLabel, suggestedSectionTagsForClip } from "../songClipControls";
 import { ClipCardEditForm } from "./clipCard/ClipCardEditForm";
 import { ClipCardEvolutionGuide } from "./clipCard/ClipCardEvolutionGuide";
-import { ClipCardInlinePlayer } from "./clipCard/ClipCardInlinePlayer";
+import { ClipInlinePlayer } from "../../common/ClipInlinePlayer";
 import { ClipCardPrimaryIndicator } from "./clipCard/ClipCardPrimaryIndicator";
 import { ClipCardReplyButton } from "./clipCard/ClipCardReplyButton";
 import { ClipNotesPreview } from "../../common/clip/ClipNotesPreview";
@@ -23,20 +23,16 @@ import { colors } from "../../../design/tokens";
 
 export type ClipCardEntry = TimelineClipEntry | EvolutionListClipEntry;
 
-function ClipCardInlinePlayerFromStore({
+function ClipInlinePlayerFromStore({
   inlinePlayer,
   fallbackDurationMs,
 }: {
   inlinePlayer: InlinePlayerControls;
   fallbackDurationMs: number;
 }) {
-  const inlinePosition = useStore((s) => s.inlinePositionMs);
-  const inlineDuration = useStore((s) => s.inlineDurationMs);
-
   return (
-    <ClipCardInlinePlayer
-      currentMs={inlinePosition}
-      durationMs={inlineDuration || fallbackDurationMs}
+    <ClipInlinePlayer
+      fallbackDurationMs={fallbackDurationMs}
       onSeek={(ms) => {
         void inlinePlayer.endInlineScrub(ms);
       }}
@@ -426,7 +422,7 @@ export const ClipCard = React.memo(function ClipCard({
         }
         inlinePlayerContent={
           inlineActive && !displayOnly ? (
-            <ClipCardInlinePlayerFromStore
+            <ClipInlinePlayerFromStore
               inlinePlayer={inlinePlayer}
               fallbackDurationMs={playbackDurationMs || 0}
             />
