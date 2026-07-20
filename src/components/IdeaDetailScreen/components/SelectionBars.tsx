@@ -364,7 +364,7 @@ export function SelectionBars() {
       : [
           {
             key: "play",
-            label: `Play (${playableSelectedCount})`,
+            label: "Play",
             icon: "play-outline",
             onPress: handlePlaySelected,
             disabled: playableSelectedCount === 0,

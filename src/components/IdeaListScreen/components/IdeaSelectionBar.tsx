@@ -110,7 +110,9 @@ export function IdeaSelectionBar({
     !!onCreateProjectFromSelection;
   const makeSongAction: SelectionAction = {
     key: "make-song",
-    label: selectedClipIdeasCount > 1 ? `Make song (${selectedClipIdeasCount})` : "Make song",
+    // "Sketch" (verb + noun) — gather the selected takes into a sketch. The count
+    // lives in the top bar ("N selected"), so the button label stays a clean word.
+    label: "Sketch",
     icon: "albums-outline",
     onPress: () => onCreateProjectFromSelection?.(),
   };
@@ -119,9 +121,7 @@ export function IdeaSelectionBar({
   // session already running it appends to that queue instead of starting anew.
   const playOrQueueAction: SelectionAction = {
     key: "play",
-    label: sessionActive
-      ? `Add to queue (${playbackQueue.length})`
-      : `Play (${playbackQueue.length})`,
+    label: sessionActive ? "Add to queue" : "Play",
     icon: sessionActive ? "add-circle-outline" : "play",
     onPress: sessionActive ? onAddToQueue : onPlaySelected,
     disabled: playbackQueue.length === 0,
@@ -204,10 +204,7 @@ export function IdeaSelectionBar({
     collectorKind === "songbook" ? "book" : collectorKind === "setlist" ? "set" : "playlist";
   const collectorAction: SelectionAction = {
     key: "add-to-collector",
-    label:
-      interactiveSelectedIdeas.length > 1
-        ? `Add ${interactiveSelectedIdeas.length} to ${collectorNoun}`
-        : `Add to ${collectorNoun}`,
+    label: `Add to ${collectorNoun}`,
     icon:
       collectorKind === "songbook"
         ? "book-outline"

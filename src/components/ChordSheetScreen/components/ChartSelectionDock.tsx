@@ -20,8 +20,8 @@ export function ChartSelectionDock({
   const noun = count === 1 ? "bar" : "bars";
 
   const dockActions: SelectionAction[] = [
-    { key: "add-before", label: "Add before", icon: "arrow-back-outline", onPress: model.addBarBeforeSelection },
-    { key: "add-after", label: "Add after", icon: "arrow-forward-outline", onPress: model.addBarAfterSelection },
+    { key: "add-before", label: "Before", icon: "arrow-back-outline", onPress: model.addBarBeforeSelection },
+    { key: "add-after", label: "After", icon: "arrow-forward-outline", onPress: model.addBarAfterSelection },
     { key: "clear", label: "Clear", icon: "backspace-outline", onPress: model.clearSelectedBars },
     { key: "delete", label: "Delete", icon: "trash-outline", tone: "danger", onPress: model.deleteSelectedBars },
     { key: "more", label: "More", icon: "ellipsis-horizontal", onPress: () => setMoreOpen(true) },
