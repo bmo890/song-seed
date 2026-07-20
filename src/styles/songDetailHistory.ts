@@ -211,13 +211,6 @@ export const songDetailHistoryStyles = {
   },
   songDetailVersionInlinePlayerWrap: {
     marginTop: 3,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  songDetailVersionInlinePlayerProgress: {
-    flex: 1,
-    minWidth: 0,
   },
   songDetailEvolutionGuideWrap: {
     position: "relative",

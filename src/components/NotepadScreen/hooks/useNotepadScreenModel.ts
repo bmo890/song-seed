@@ -40,7 +40,16 @@ export function useNotepadScreenModel() {
   const [selectedCutUpIds, setSelectedCutUpIds] = useState<string[]>([]);
   const [selectedMagpieIds, setSelectedMagpieIds] = useState<string[]>([]);
   const handledRouteOpenTokenRef = useRef<number | null>(null);
-  const hasAutoOpenedRef = useRef(false);
+  // The tab the user has explicitly chosen, or null to let the default derive
+  // from content (below). Sparks live on their own tab, apart from Lyrics.
+  const [pickedTab, setPickedTab] = useState<"lyrics" | "sparks" | null>(null);
+  const setActiveTab = setPickedTab;
+  const sparkCount = wordLadders.length + cutUpSparks.length + magpieSparks.length;
+  // Land on whichever tab actually has content on entry: Sparks only when there
+  // are sparks and no lyrics, otherwise Lyrics. Derived in render (not an effect)
+  // so the very first frame is already on the right tab.
+  const activeTab: "lyrics" | "sparks" =
+    pickedTab ?? (notes.length === 0 && sparkCount > 0 ? "sparks" : "lyrics");
 
   const filteredNotes = useMemo(() => {
     const needle = searchQuery.trim().toLowerCase();
@@ -93,13 +102,20 @@ export function useNotepadScreenModel() {
     });
   }, [magpieSparks, searchQuery]);
 
-  const entries: NotebookEntry[] = useMemo(() => {
-    const noteEntries: NotebookEntry[] = filteredNotes.map((note) => ({
-      kind: "note",
-      updatedAt: note.updatedAt,
-      isPinned: note.isPinned,
-      note,
-    }));
+  // Lyrics (notes) and Sparks each get their own tab, so their entries are built
+  // as separate lists; the active tab decides which set the list renders.
+  const lyricEntries = useMemo<NotebookEntry[]>(
+    () =>
+      filteredNotes.map((note) => ({
+        kind: "note",
+        updatedAt: note.updatedAt,
+        isPinned: note.isPinned,
+        note,
+      })),
+    [filteredNotes]
+  );
+
+  const sparkEntries = useMemo<NotebookEntry[]>(() => {
     const ladderEntries: NotebookEntry[] = filteredLadders.map((exercise) => ({
       kind: "ladder",
       updatedAt: exercise.updatedAt,
@@ -118,8 +134,10 @@ export function useNotepadScreenModel() {
       isPinned: false,
       spark,
     }));
-    return [...noteEntries, ...ladderEntries, ...cutUpEntries, ...magpieEntries];
-  }, [filteredNotes, filteredLadders, filteredCutUps, filteredMagpies]);
+    return [...ladderEntries, ...cutUpEntries, ...magpieEntries];
+  }, [filteredLadders, filteredCutUps, filteredMagpies]);
+
+  const activeEntries = activeTab === "sparks" ? sparkEntries : lyricEntries;
 
   const sections = useMemo(() => {
     const startOfToday = new Date();
@@ -134,7 +152,7 @@ export function useNotepadScreenModel() {
     const thisWeek: NotebookEntry[] = [];
     const earlier: NotebookEntry[] = [];
 
-    for (const entry of entries) {
+    for (const entry of activeEntries) {
       if (entry.isPinned) {
         pinned.push(entry);
         continue;
@@ -160,12 +178,18 @@ export function useNotepadScreenModel() {
     ];
 
     return buckets.filter((bucket) => bucket.entries.length > 0);
-  }, [entries]);
+  }, [activeEntries]);
 
   const totalNoteCount = notes.length;
   const totalEntryCount =
     notes.length + wordLadders.length + cutUpSparks.length + magpieSparks.length;
   const isSearching = searchQuery.trim().length > 0;
+
+  // If the user explicitly opened the Sparks tab and then deletes the last spark,
+  // fall back to Lyrics (the segmented control also hides itself at zero sparks).
+  useEffect(() => {
+    if (pickedTab === "sparks" && sparkCount === 0) setActiveTab("lyrics");
+  }, [pickedTab, sparkCount, setActiveTab]);
 
   const activeNote = useMemo(
     () => (activeNoteId ? notes.find((n) => n.id === activeNoteId) ?? null : null),
@@ -219,17 +243,6 @@ export function useNotepadScreenModel() {
     const id = addMagpieSpark();
     navigation.navigate("MagpieHome", { sparkId: id });
   }, [addMagpieSpark, navigation, magpieSparks.length]);
-
-  useEffect(() => {
-    if (hasAutoOpenedRef.current) return;
-    if (totalEntryCount !== 0) {
-      hasAutoOpenedRef.current = true;
-      return;
-    }
-    if (activeNoteId !== null) return;
-    hasAutoOpenedRef.current = true;
-    handleNewNote();
-  }, [totalEntryCount, activeNoteId, handleNewNote]);
 
   const handleOpenNote = useCallback(
     (note: Note) => {
@@ -389,12 +402,21 @@ export function useNotepadScreenModel() {
     setSelectedMagpieIds([]);
   }, []);
 
+  // Selection spans only the visible tab, so "select all" fills that tab's items
+  // and clears the other tab's.
   const selectAllVisible = useCallback(() => {
-    setSelectedNoteIds(filteredNotes.map((note) => note.id));
-    setSelectedLadderIds(filteredLadders.map((exercise) => exercise.id));
-    setSelectedCutUpIds(filteredCutUps.map((spark) => spark.id));
-    setSelectedMagpieIds(filteredMagpies.map((spark) => spark.id));
-  }, [filteredNotes, filteredLadders, filteredCutUps, filteredMagpies]);
+    if (activeTab === "sparks") {
+      setSelectedNoteIds([]);
+      setSelectedLadderIds(filteredLadders.map((exercise) => exercise.id));
+      setSelectedCutUpIds(filteredCutUps.map((spark) => spark.id));
+      setSelectedMagpieIds(filteredMagpies.map((spark) => spark.id));
+    } else {
+      setSelectedNoteIds(filteredNotes.map((note) => note.id));
+      setSelectedLadderIds([]);
+      setSelectedCutUpIds([]);
+      setSelectedMagpieIds([]);
+    }
+  }, [activeTab, filteredNotes, filteredLadders, filteredCutUps, filteredMagpies]);
 
   const selectedNotes = useMemo(
     () => notes.filter((note) => selectedNoteIds.includes(note.id)),
@@ -402,11 +424,12 @@ export function useNotepadScreenModel() {
   );
 
   const allSelected =
-    filteredNotes.length + filteredLadders.length + filteredCutUps.length + filteredMagpies.length > 0 &&
-    filteredNotes.every((note) => selectedNoteIds.includes(note.id)) &&
-    filteredLadders.every((exercise) => selectedLadderIds.includes(exercise.id)) &&
-    filteredCutUps.every((spark) => selectedCutUpIds.includes(spark.id)) &&
-    filteredMagpies.every((spark) => selectedMagpieIds.includes(spark.id));
+    activeTab === "sparks"
+      ? filteredLadders.length + filteredCutUps.length + filteredMagpies.length > 0 &&
+        filteredLadders.every((exercise) => selectedLadderIds.includes(exercise.id)) &&
+        filteredCutUps.every((spark) => selectedCutUpIds.includes(spark.id)) &&
+        filteredMagpies.every((spark) => selectedMagpieIds.includes(spark.id))
+      : filteredNotes.length > 0 && filteredNotes.every((note) => selectedNoteIds.includes(note.id));
   const allSelectedPinned = selectedNotes.length > 0 && selectedNotes.every((note) => note.isPinned);
 
   const handleDeleteSelected = useCallback(() => {
@@ -460,6 +483,9 @@ export function useNotepadScreenModel() {
     sections,
     totalNoteCount,
     totalEntryCount,
+    sparkCount,
+    activeTab,
+    setActiveTab,
     isSearching,
     searchQuery,
     setSearchQuery,

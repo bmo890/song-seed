@@ -73,11 +73,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  // Faint warm chip on paper — matches the clip-card inline close it replaces.
+  // Soft warm chip on any paper/white surface — borderless so it reads as a
+  // gentle, unobtrusive control rather than an outlined button. Every paper-side
+  // close (clip cards, inline cards, the full player's control bar) shares it, so
+  // they all match; only the diameter changes.
   onLight: {
     backgroundColor: colors.surfaceContainer,
-    borderWidth: 1,
-    borderColor: "rgba(215,194,189,0.5)",
   },
   // Translucent paper chip on the terracotta dock — same language as the dock's
   // queue button, so the ✕ reads as a real control rather than a bare glyph.

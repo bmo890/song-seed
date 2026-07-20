@@ -240,6 +240,27 @@ export const playerStyles = {
     paddingTop: 4,
     paddingBottom: 12,
   },
+  // Track + trailing accessory (e.g. an inline close button) share one row so the
+  // accessory centers on the track line rather than the whole labeled block.
+  miniProgressTrackRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  miniProgressTrackHitboxFlex: {
+    flex: 1,
+  },
+  // Inline (flanking) time labels: fixed min-width + tabular figures so the track
+  // start/end don't jitter as the elapsed digits change.
+  miniProgressTimeFlankStart: {
+    minWidth: 30,
+    fontVariant: ["tabular-nums"],
+  },
+  miniProgressTimeFlankEnd: {
+    minWidth: 30,
+    textAlign: "right",
+    fontVariant: ["tabular-nums"],
+  },
   miniProgressTrack: {
     height: 4,
     borderRadius: 999,

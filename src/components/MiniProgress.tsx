@@ -1,5 +1,5 @@
 import { LayoutChangeEvent, PanResponder, Text, View } from "react-native";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { styles } from "../styles";
 import { fmtDuration } from "../utils";
 
@@ -14,6 +14,16 @@ type Props = {
   captureWholeLane?: boolean;
   /** Hide the built-in current/duration labels (e.g. when the host renders its own). */
   hideTimes?: boolean;
+  /** Compact inline usage (clip cards): centers the track inside a symmetric
+   *  touch target and tightens the bottom margin, so a `trailingAccessory` lines
+   *  up on the track line rather than sitting low. Time labels are unaffected. */
+  compact?: boolean;
+  /** Optional control rendered to the right of the track, on the SAME row, so it
+   *  vertically centers on the track line (the time labels stay above). */
+  trailingAccessory?: ReactNode;
+  /** Render the elapsed/total labels inline on one row, flanking the track
+   *  (elapsed · track · total · accessory), instead of stacked above it. */
+  flankTimes?: boolean;
   /** Override the fill + scrub-dot color. Defaults to the global track fill (#111827). */
   accentColor?: string;
 };
@@ -30,6 +40,9 @@ export function MiniProgress({
   extraBottomMargin = 0,
   captureWholeLane = false,
   hideTimes = false,
+  compact = false,
+  trailingAccessory,
+  flankTimes = false,
   accentColor,
 }: Props) {
   const safeDuration = durationMs || 1;
@@ -116,45 +129,80 @@ export function MiniProgress({
 
   const responderHandlers = onSeek ? panResponder.panHandlers : {};
 
+  // The track shares a row with siblings (times and/or an accessory) whenever it
+  // flanks its labels or carries a trailing control — it flexes to fill the rest.
+  const inRow = flankTimes || trailingAccessory != null;
+
+  const trackHitbox = (
+    <View
+      ref={trackRef}
+      onLayout={handleTrackLayout}
+      style={[
+        styles.miniProgressTrackHitbox,
+        { paddingHorizontal: EDGE_GRAB_INSET },
+        // Symmetric vertical padding keeps the same 20px touch height as the
+        // default (4 + 12) but centers the track within it, so a trailing
+        // accessory on this row lines up on the track line.
+        compact ? { paddingTop: 8, paddingBottom: 8 } : null,
+        captureWholeLane ? { minHeight: 24, justifyContent: "center" } : null,
+        inRow ? styles.miniProgressTrackHitboxFlex : null,
+      ]}
+      {...(!captureWholeLane ? responderHandlers : {})}
+    >
+      <View style={styles.miniProgressTrack}>
+        <View
+          style={[
+            styles.miniProgressFill,
+            { width: `${clamped * 100}%` },
+            accentColor ? { backgroundColor: accentColor } : null,
+          ]}
+        />
+        <View
+          style={[
+            styles.miniProgressDot,
+            { left: `${clamped * 100}%` },
+            accentColor ? { backgroundColor: accentColor } : null,
+          ]}
+        />
+      </View>
+    </View>
+  );
+
   return (
     <View
-      style={[styles.miniProgressWrap, extraBottomMargin ? { paddingBottom: extraBottomMargin } : null]}
+      style={[
+        styles.miniProgressWrap,
+        compact ? { marginBottom: 0 } : null,
+        extraBottomMargin ? { paddingBottom: extraBottomMargin } : null,
+      ]}
       {...(captureWholeLane ? responderHandlers : {})}
     >
       {showTopDivider ? <View style={styles.miniProgressTopDivider} /> : null}
-      {hideTimes ? null : (
+      {hideTimes || flankTimes ? null : (
         <View style={styles.miniProgressTimes}>
           <Text style={styles.miniProgressTime}>{fmtDuration(displayMs)}</Text>
           <Text style={styles.miniProgressTime}>{fmtDuration(durationMs || 0)}</Text>
         </View>
       )}
-      <View
-        ref={trackRef}
-        onLayout={handleTrackLayout}
-        style={[
-          styles.miniProgressTrackHitbox,
-          { paddingHorizontal: EDGE_GRAB_INSET },
-          captureWholeLane ? { minHeight: 24, justifyContent: "center" } : null,
-        ]}
-        {...(!captureWholeLane ? responderHandlers : {})}
-      >
-        <View style={styles.miniProgressTrack}>
-          <View
-            style={[
-              styles.miniProgressFill,
-              { width: `${clamped * 100}%` },
-              accentColor ? { backgroundColor: accentColor } : null,
-            ]}
-          />
-          <View
-            style={[
-              styles.miniProgressDot,
-              { left: `${clamped * 100}%` },
-              accentColor ? { backgroundColor: accentColor } : null,
-            ]}
-          />
+      {flankTimes ? (
+        <View style={styles.miniProgressTrackRow}>
+          <Text style={[styles.miniProgressTime, styles.miniProgressTimeFlankStart]}>
+            {fmtDuration(displayMs)}
+          </Text>
+          {trackHitbox}
+          <Text style={[styles.miniProgressTime, styles.miniProgressTimeFlankEnd]}>
+            {fmtDuration(durationMs || 0)}
+          </Text>
+          {trailingAccessory ?? null}
         </View>
-      </View>
+      ) : trailingAccessory ? (
+        <View style={styles.miniProgressTrackRow}>
+          {trackHitbox}
+          {trailingAccessory}
+        </View>
+      ) : (
+        trackHitbox
+      )}
     </View>
   );
 }

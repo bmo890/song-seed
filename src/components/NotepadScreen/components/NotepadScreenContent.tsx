@@ -291,6 +291,9 @@ export function NotepadScreenContent() {
   const {
     sections,
     totalEntryCount,
+    sparkCount,
+    activeTab,
+    setActiveTab,
     isSearching,
     searchQuery,
     setSearchQuery,
@@ -459,9 +462,44 @@ export function NotepadScreenContent() {
       ) : (
         <>
           {!selectionMode ? <Text style={listStyles.countLabel}>{countLabel}</Text> : null}
+
+          {!selectionMode && sparkCount > 0 ? (
+            <View style={listStyles.segmented}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityState={{ selected: activeTab === "lyrics" }}
+                style={[listStyles.segment, activeTab === "lyrics" ? listStyles.segmentActive : null]}
+                onPress={() => setActiveTab("lyrics")}
+              >
+                <Text
+                  style={[listStyles.segmentLabel, activeTab === "lyrics" ? listStyles.segmentLabelActive : null]}
+                >
+                  Lyrics
+                </Text>
+              </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityState={{ selected: activeTab === "sparks" }}
+                style={[listStyles.segment, activeTab === "sparks" ? listStyles.segmentActive : null]}
+                onPress={() => setActiveTab("sparks")}
+              >
+                <Text
+                  style={[listStyles.segmentLabel, activeTab === "sparks" ? listStyles.segmentLabelActive : null]}
+                >
+                  Sparks
+                </Text>
+                <View style={listStyles.segmentBadge}>
+                  <Text style={listStyles.segmentBadgeText}>{sparkCount}</Text>
+                </View>
+              </Pressable>
+            </View>
+          ) : null}
+
           <SearchField
             value={searchQuery}
-            placeholder="Search notes"
+            placeholder={
+              sparkCount > 0 ? (activeTab === "sparks" ? "Search sparks" : "Search lyrics") : "Search notes"
+            }
             onChangeText={setSearchQuery}
             containerStyle={listStyles.searchField}
           />
@@ -477,12 +515,28 @@ export function NotepadScreenContent() {
             </View>
           ) : null}
 
-          {isSearching && sections.length === 0 ? (
+          {sections.length === 0 && isSearching ? (
             <View style={listStyles.emptyState}>
               <Ionicons name="search-outline" size={26} color={colors.textMuted} />
               <Text style={listStyles.emptyTitle}>No matches</Text>
               <Text style={listStyles.emptyBody}>
                 Try a different word — search looks through every page's title and body.
+              </Text>
+            </View>
+          ) : sections.length === 0 ? (
+            <View style={listStyles.emptyState}>
+              <Ionicons
+                name={activeTab === "sparks" ? "sparkles-outline" : "document-text-outline"}
+                size={26}
+                color={colors.textMuted}
+              />
+              <Text style={listStyles.emptyTitle}>
+                {activeTab === "sparks" ? "No sparks yet" : "No lyrics yet"}
+              </Text>
+              <Text style={listStyles.emptyBody}>
+                {activeTab === "sparks"
+                  ? "Tap the sparkles to start a Word Ladder, Cut-Up, or Magpie."
+                  : "Tap + to write a page, or the sparkles to pull a spark."}
               </Text>
             </View>
           ) : (
@@ -612,6 +666,47 @@ const listStyles = StyleSheet.create({
   },
   searchField: {
     marginBottom: spacing.lg,
+  },
+  segmented: {
+    flexDirection: "row",
+    backgroundColor: colors.surfaceContainer,
+    borderRadius: radii.md,
+    padding: 3,
+    marginBottom: spacing.lg,
+  },
+  segment: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    paddingVertical: 7,
+    borderRadius: radii.sm,
+  },
+  segmentActive: {
+    backgroundColor: colors.surface,
+  },
+  segmentLabel: {
+    fontFamily: "PlusJakartaSans_600SemiBold",
+    fontSize: 13.5,
+    color: colors.textSecondary,
+  },
+  segmentLabelActive: {
+    color: colors.textPrimary,
+  },
+  segmentBadge: {
+    minWidth: 18,
+    height: 18,
+    paddingHorizontal: 5,
+    borderRadius: radii.round,
+    backgroundColor: colors.surfaceHigh,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  segmentBadgeText: {
+    fontFamily: "PlusJakartaSans_700Bold",
+    fontSize: 11,
+    color: colors.textStrong,
   },
   selectionBarWrap: {
     marginBottom: spacing.md,
