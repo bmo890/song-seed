@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { UserTextInput } from "../../../i18n";
 import DraggableFlatList, { type RenderItemParams } from "react-native-draggable-flatlist";
 import { Ionicons } from "@expo/vector-icons";
 import { styles as appStyles } from "../../../styles";
@@ -132,7 +133,7 @@ function StripRow({
       </Pressable>
 
       {isEditing ? (
-        <TextInput
+        <UserTextInput
           ref={inputRef}
           style={styles.stripInput}
           value={text}

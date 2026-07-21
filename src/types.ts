@@ -223,6 +223,8 @@ export type ChordPlacement = {
   chord: string;
   /** Character index in the lyric line this chord is anchored above. */
   at: number;
+  /** Grapheme-cluster anchor used by Unicode lyrics; `at` remains for old backups. */
+  graphemeAt?: number;
   /** Structured parts (optional; absent on legacy chords typed as free text). */
   root?: ChordRoot;
   accidental?: ChordAccidental;
@@ -289,10 +291,14 @@ export type LyricsDocument = {
   lines: LyricsLine[];
 };
 
+export type ContentDirection = "auto" | "ltr" | "rtl";
+
 export type LyricsVersion = {
   id: string;
   createdAt: number;
   updatedAt: number;
+  /** Direction of the authored lyric document, independent of the app UI language. */
+  textDirection?: ContentDirection;
   document: LyricsDocument;
 };
 

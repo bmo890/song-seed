@@ -12,6 +12,7 @@ import { CutUpBoard } from "./CutUpBoard";
 import { CutUpDraftEditor } from "./CutUpDraftEditor";
 import { CutUpHelpSheet } from "./CutUpHelpSheet";
 import type { CutUpStep } from "../../../types";
+import { EnglishOnlyNotice } from "../../common/EnglishOnlyNotice";
 
 const KRAFT_BG = "#F2E9DC";
 
@@ -82,6 +83,7 @@ export function CutUpScreenContent() {
         />
 
         <StepProgress step={model.step} />
+        <EnglishOnlyNotice />
 
         <HelpButton
           label={STEPS.find((s) => s.key === model.step)?.label ?? "Help"}

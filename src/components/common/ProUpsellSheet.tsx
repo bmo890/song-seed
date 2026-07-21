@@ -72,7 +72,7 @@ function ProUpsellSheetBody({ onClose }: { onClose: () => void }) {
                 contentContainerStyle={styles.scrollContent}
             >
                 <Text style={styles.eyebrow}>SONGNOOK PRO</Text>
-                <Text style={styles.headline}>Grow every idea</Text>
+                <Text style={styles.headline}>Shape every idea</Text>
                 <Text style={styles.subhead}>
                     Capturing is always free. Pro unlocks the tools that turn a scrap into a song.
                 </Text>

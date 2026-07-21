@@ -1,13 +1,15 @@
 import { Linking, Platform, ScrollView, Text, View } from "react-native";
 import { PageIntro } from "../../common/PageIntro";
 import { settingsScreenStyles, styles } from "../styles";
-import { FormatOptionRow, LibraryActionCard, ToggleRow } from "../components/SettingsShared";
+import { FormatOptionRow, LibraryActionCard, SegmentedField, ToggleRow } from "../components/SettingsShared";
 import type { useLibraryBackupFlow } from "../hooks/useLibraryBackupFlow";
 import { haptic } from "../../../design/haptics";
 import { useIsPro } from "../../../domain/entitlements";
 import { openProUpsell } from "../../common/proUpsell";
 import { restorePurchases } from "../../../services/billing";
 import { AppAlert } from "../../common/AppAlert";
+import { useTranslation } from "react-i18next";
+import { useLocale } from "../../../i18n";
 
 type LibraryBackupFlow = ReturnType<typeof useLibraryBackupFlow>;
 
@@ -39,14 +41,16 @@ export function SettingsOverviewView({
   onOpenSharing: () => void;
   onOpenAbout: () => void;
 }) {
+  const { t } = useTranslation();
+  const { language, setLanguage } = useLocale();
   const isPro = useIsPro();
   const libraryMeta = backupFlow.isBackingUp
-    ? backupFlow.backupProgressLabel ?? "Backing up…"
+    ? backupFlow.backupProgressLabel ?? t("settings.backingUp")
     : backupFlow.isRestoring
-      ? backupFlow.restoreProgressLabel ?? "Restoring…"
+      ? backupFlow.restoreProgressLabel ?? t("settings.restoring")
       : backupFlow.lastSuccessfulBackupFileName
-        ? `Last backup · ${backupFlow.lastSuccessfulBackupLabel}`
-        : "No backup saved yet";
+        ? t("settings.lastBackup", { date: backupFlow.lastSuccessfulBackupLabel })
+        : t("settings.noBackup");
 
   return (
     <ScrollView
@@ -55,8 +59,8 @@ export function SettingsOverviewView({
       showsVerticalScrollIndicator={false}
     >
       <PageIntro
-        title="Settings"
-        subtitle="Where the app opens, feedback, recording defaults, and your library."
+        title={t("settings.title")}
+        subtitle={t("settings.subtitle")}
       />
 
       <View style={styles.settingsSection}>
@@ -66,8 +70,8 @@ export function SettingsOverviewView({
         <View style={styles.settingsOptionStack}>
           {isPro ? (
             <FormatOptionRow
-              title="SongNook Pro · Active"
-              subtitle="Manage or cancel your subscription in the store."
+              title={t("settings.proActive")}
+              subtitle={t("settings.proActiveHint")}
               selected={false}
               onPress={() => {
                 haptic.tap();
@@ -80,8 +84,8 @@ export function SettingsOverviewView({
             />
           ) : (
             <FormatOptionRow
-              title="Upgrade to Pro"
-              subtitle="Practice tools, unlimited overdub layers, word sparks, and more."
+              title={t("settings.upgradePro")}
+              subtitle={t("settings.upgradeProHint")}
               selected={false}
               onPress={() => {
                 haptic.tap();
@@ -90,14 +94,14 @@ export function SettingsOverviewView({
             />
           )}
           <FormatOptionRow
-            title="Restore purchases"
-            subtitle="Already have Pro? Restore it here."
+            title={t("settings.restorePurchases")}
+            subtitle={t("settings.restorePurchasesHint")}
             selected={false}
             onPress={() => {
               haptic.tap();
               void restorePurchases().then((result) => {
                 if (!result.ok) {
-                  AppAlert.info("Restore purchases", "There are no purchases to restore yet.");
+                  AppAlert.info(t("settings.restorePurchases"), t("settings.nothingToRestore"));
                 }
               });
             }}
@@ -107,22 +111,22 @@ export function SettingsOverviewView({
 
       <View style={styles.settingsSection}>
         <View style={styles.settingsSectionHeaderRow}>
-          <Text style={styles.settingsSectionLabel}>Startup</Text>
+          <Text style={styles.settingsSectionLabel}>{t("settings.startup")}</Text>
         </View>
         <View style={styles.settingsOptionStack}>
           <FormatOptionRow
-            title="Primary workspace"
+            title={t("settings.primaryWorkspace")}
             subtitle={
               primaryWorkspaceTitle
-                ? `Opens ${primaryWorkspaceTitle} when the app starts.`
-                : "Falls back to your last used workspace until a primary is set."
+                ? t("settings.primaryWorkspaceHint", { name: primaryWorkspaceTitle })
+                : t("settings.primaryWorkspaceFallback")
             }
             selected={workspaceStartupPreference === "primary"}
             onPress={() => setWorkspaceStartupPreference("primary")}
           />
           <FormatOptionRow
-            title="Last used workspace"
-            subtitle="Opens the workspace you most recently worked in."
+            title={t("settings.lastWorkspace")}
+            subtitle={t("settings.lastWorkspaceHint")}
             selected={workspaceStartupPreference === "last-used"}
             onPress={() => setWorkspaceStartupPreference("last-used")}
           />
@@ -131,12 +135,12 @@ export function SettingsOverviewView({
 
       <View style={styles.settingsSection}>
         <View style={styles.settingsSectionHeaderRow}>
-          <Text style={styles.settingsSectionLabel}>Feedback</Text>
+          <Text style={styles.settingsSectionLabel}>{t("settings.feedback")}</Text>
         </View>
         <View style={styles.settingsOptionStack}>
           <ToggleRow
-            title="Haptics"
-            subtitle="Gentle taps confirm presses, saves, and state changes."
+            title={t("settings.haptics")}
+            subtitle={t("settings.hapticsHint")}
             value={hapticsEnabled}
             onPress={() => {
               const next = !hapticsEnabled;
@@ -150,13 +154,13 @@ export function SettingsOverviewView({
 
       <View style={styles.settingsSection}>
         <View style={styles.settingsSectionHeaderRow}>
-          <Text style={styles.settingsSectionLabel}>Recording</Text>
+          <Text style={styles.settingsSectionLabel}>{t("settings.recording")}</Text>
         </View>
         <View style={settingsScreenStyles.libraryCardStack}>
           <LibraryActionCard
             icon="mic-outline"
-            title="Recording defaults"
-            meta="Metronome, count-in, and naming for new takes"
+            title={t("settings.recordingDefaults")}
+            meta={t("settings.recordingDefaultsMeta")}
             onPress={onOpenRecording}
           />
         </View>
@@ -164,12 +168,12 @@ export function SettingsOverviewView({
 
       <View style={styles.settingsSection}>
         <View style={styles.settingsSectionHeaderRow}>
-          <Text style={styles.settingsSectionLabel}>Library</Text>
+          <Text style={styles.settingsSectionLabel}>{t("settings.library")}</Text>
         </View>
         <View style={settingsScreenStyles.libraryCardStack}>
           <LibraryActionCard
             icon="archive-outline"
-            title="Library & Backups"
+            title={t("settings.libraryBackups")}
             busy={backupFlow.isBackingUp || backupFlow.isRestoring}
             meta={libraryMeta}
             onPress={onOpenLibrary}
@@ -179,13 +183,13 @@ export function SettingsOverviewView({
 
       <View style={styles.settingsSection}>
         <View style={styles.settingsSectionHeaderRow}>
-          <Text style={styles.settingsSectionLabel}>Sharing</Text>
+          <Text style={styles.settingsSectionLabel}>{t("settings.sharing")}</Text>
         </View>
         <View style={settingsScreenStyles.libraryCardStack}>
           <LibraryActionCard
             icon="link-outline"
-            title="Sent links"
-            meta="Links you've shared with Songnook Send"
+            title={t("settings.sentLinks")}
+            meta={t("settings.sentLinksMeta")}
             onPress={onOpenSharing}
           />
         </View>
@@ -193,13 +197,29 @@ export function SettingsOverviewView({
 
       <View style={styles.settingsSection}>
         <View style={styles.settingsSectionHeaderRow}>
-          <Text style={styles.settingsSectionLabel}>App</Text>
+          <Text style={styles.settingsSectionLabel}>{t("settings.app")}</Text>
+        </View>
+        <View style={styles.settingsOptionStack}>
+          <SegmentedField
+            title={t("settings.language")}
+            subtitle={t("settings.languageHint")}
+            value={language}
+            options={[
+              { value: "en", label: t("settings.english") },
+              { value: "he", label: t("settings.hebrew") },
+            ]}
+            onChange={(next) => {
+              void setLanguage(next).catch(() => {
+                AppAlert.info(t("settings.restartFailedTitle"), t("settings.restartFailedBody"));
+              });
+            }}
+          />
         </View>
         <View style={settingsScreenStyles.libraryCardStack}>
           <LibraryActionCard
             icon="information-circle-outline"
-            title="About"
-            meta="Version, feedback, and privacy"
+            title={t("settings.about")}
+            meta={t("settings.aboutMeta")}
             onPress={onOpenAbout}
           />
         </View>

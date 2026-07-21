@@ -4,6 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { styles as baseStyles } from "../../styles";
 import { WorkspaceAvatar } from "./WorkspaceAvatar";
 import { radii, colors } from "../../design/tokens";
+import { useTranslation } from "react-i18next";
 
 /** A workspace or collection the user can include/exclude from a feed's sources.
  * Shared by Revisit and Activity so the two pages read as the same control. */
@@ -34,10 +35,11 @@ function getCollectionLabel(option: SourceFilterOption) {
 }
 
 function PrimaryTag() {
+  const { t } = useTranslation();
   return (
     <View style={styles.primaryTag}>
       <Ionicons name="star" size={9} color={colors.primaryDeep} />
-      <Text style={styles.primaryTagText}>Primary</Text>
+      <Text style={styles.primaryTagText}>{t("common.primary")}</Text>
     </View>
   );
 }
@@ -50,15 +52,16 @@ export function SourceFilterRow({
   onToggleExpand,
   onToggleCollection,
 }: SourceFilterRowProps) {
+  const { t } = useTranslation();
   const hasCollections = collections.length > 0;
   const excludedCollectionsCount = collections.filter((item) => !item.included).length;
 
   const metaText =
-    `${option.count} ${option.count === 1 ? "idea" : "ideas"}` +
+    t("common.ideaCount", { count: option.count }) +
     (hasCollections
-      ? ` · ${collections.length} ${collections.length === 1 ? "collection" : "collections"}`
+      ? ` · ${t("common.collectionCount", { count: collections.length })}`
       : "") +
-    (excludedCollectionsCount > 0 ? ` · ${excludedCollectionsCount} hidden` : "");
+    (excludedCollectionsCount > 0 ? ` · ${t("common.hiddenCount", { count: excludedCollectionsCount })}` : "");
 
   return (
     <View style={[styles.row, option.included ? null : styles.rowExcluded]}>
@@ -131,7 +134,7 @@ export function SourceFilterRow({
             })}
           </View>
         ) : (
-          <Text style={styles.hint}>Turn this workspace on to choose collections.</Text>
+          <Text style={styles.hint}>{t("common.enableWorkspaceHint")}</Text>
         )
       ) : null}
     </View>

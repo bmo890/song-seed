@@ -7,6 +7,9 @@ import { WorkspaceAvatar } from "../common/WorkspaceAvatar";
 import { IconButton } from "../common/IconButton";
 import { useStore } from "../../state/useStore";
 import { colors } from "../../design/tokens";
+import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
+import { UserText } from "../../i18n";
 
 type Props = {
   workspace: Workspace;
@@ -19,16 +22,16 @@ type Props = {
   onOpenActions: () => void;
 };
 
-function formatLastWorked(ts: number | undefined): string | null {
+function formatLastWorked(ts: number | undefined, t: TFunction): string | null {
   if (!ts) return null;
   const diff = Date.now() - ts;
   const days = Math.floor(diff / 86400000);
-  if (days === 0) return "Last worked: Today";
-  if (days === 1) return "Last worked: Yesterday";
-  if (days < 7) return `Last worked: ${days} days ago`;
-  if (days < 14) return "Last worked: Last week";
-  if (days < 30) return `Last worked: ${Math.floor(days / 7)} weeks ago`;
-  return `Last worked: ${Math.floor(days / 30)} months ago`;
+  if (days === 0) return t("workspaceCard.lastWorkedToday");
+  if (days === 1) return t("workspaceCard.lastWorkedYesterday");
+  if (days < 7) return t("workspaceCard.lastWorkedDays", { count: days });
+  if (days < 14) return t("workspaceCard.lastWorkedLastWeek");
+  if (days < 30) return t("workspaceCard.lastWorkedWeeks", { count: Math.floor(days / 7) });
+  return t("workspaceCard.lastWorkedMonths", { count: Math.floor(days / 30) });
 }
 
 export function WorkspaceCard({
@@ -41,8 +44,9 @@ export function WorkspaceCard({
   onPress,
   onOpenActions,
 }: Props) {
+  const { t } = useTranslation();
   const workspaceLastOpenedAt = useStore((s) => s.workspaceLastOpenedAt);
-  const lastWorkedLabel = formatLastWorked(workspaceLastOpenedAt[workspace.id]);
+  const lastWorkedLabel = formatLastWorked(workspaceLastOpenedAt[workspace.id], t);
 
   const topLevelCollectionCount = workspace.collections.filter(
     (c) => !c.parentCollectionId
@@ -62,12 +66,12 @@ export function WorkspaceCard({
       >
         {/* Title row */}
         <View style={cardStyles.archivedTitleRow}>
-          <Text style={cardStyles.archivedTitle} numberOfLines={1}>
+          <UserText style={cardStyles.archivedTitle} numberOfLines={1}>
             {workspace.title}
-          </Text>
+          </UserText>
           {isBusy ? (
             <Text style={[globalStyles.badge, globalStyles.badgeArchived]}>
-              {busyLabel ?? "WORKING"}
+              {busyLabel ?? t("workspaceCard.working")}
             </Text>
           ) : (
             <IconButton
@@ -76,7 +80,7 @@ export function WorkspaceCard({
               tone="muted"
               size={16}
               onPress={onOpenActions}
-              accessibilityLabel="Workspace options"
+              accessibilityLabel={t("workspaceCard.options")}
             />
           )}
         </View>
@@ -84,11 +88,11 @@ export function WorkspaceCard({
         {/* Meta row */}
         <View style={cardStyles.archivedMetaRow}>
           <Text style={cardStyles.archivedMeta}>
-            {topLevelCollectionCount} {topLevelCollectionCount === 1 ? "Collection" : "Collections"}
+            {t("common.collectionCount", { count: topLevelCollectionCount })}
           </Text>
           <Text style={cardStyles.archivedMetaDot}>·</Text>
           <Text style={cardStyles.archivedMeta}>
-            {seedCount} {seedCount === 1 ? "Seed" : "Seeds"}
+            {t("common.ideaCount", { count: seedCount })}
           </Text>
         </View>
       </Pressable>
@@ -116,14 +120,14 @@ export function WorkspaceCard({
           {isPrimary ? (
             <View style={cardStyles.primaryBadge}>
               <Ionicons name="star" size={10} color={colors.primary} />
-              <Text style={cardStyles.primaryLabel}>Primary</Text>
+              <Text style={cardStyles.primaryLabel}>{t("workspaceCard.primary")}</Text>
             </View>
           ) : null}
         </View>
         <View style={cardStyles.avatarRowRight}>
           {isBusy ? (
             <Text style={[globalStyles.badge, globalStyles.badgeArchived]}>
-              {busyLabel ?? "WORKING"}
+              {busyLabel ?? t("workspaceCard.working")}
             </Text>
           ) : (
             <IconButton
@@ -132,7 +136,7 @@ export function WorkspaceCard({
               tone="muted"
               size={18}
               onPress={onOpenActions}
-              accessibilityLabel="Workspace options"
+              accessibilityLabel={t("workspaceCard.options")}
             />
           )}
         </View>
@@ -140,30 +144,30 @@ export function WorkspaceCard({
 
       {/* Name + last worked + description */}
       <View style={cardStyles.nameBlock}>
-        <Text style={cardStyles.title} numberOfLines={2}>
+        <UserText style={cardStyles.title} numberOfLines={2}>
           {workspace.title}
-        </Text>
+        </UserText>
 
         {lastWorkedLabel ? (
           <Text style={cardStyles.lastWorked}>{lastWorkedLabel}</Text>
         ) : null}
 
         {workspace.description ? (
-          <Text style={cardStyles.description} numberOfLines={3}>
+          <UserText style={cardStyles.description} numberOfLines={3}>
             {workspace.description}
-          </Text>
+          </UserText>
         ) : null}
       </View>
 
       {/* Stats */}
       <View style={cardStyles.statsRow}>
         <View style={cardStyles.statCol}>
-          <Text style={cardStyles.statLabel}>Collections</Text>
+          <Text style={cardStyles.statLabel}>{t("workspaceCard.collections")}</Text>
           <Text style={cardStyles.statValue}>{topLevelCollectionCount}</Text>
         </View>
         <View style={cardStyles.statDivider} />
         <View style={cardStyles.statCol}>
-          <Text style={cardStyles.statLabel}>Seeds</Text>
+          <Text style={cardStyles.statLabel}>{t("workspaceCard.ideas")}</Text>
           <Text style={cardStyles.statValue}>{seedCount}</Text>
         </View>
       </View>

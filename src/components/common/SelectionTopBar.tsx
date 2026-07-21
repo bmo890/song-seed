@@ -1,5 +1,6 @@
 import { Pressable, Text, View } from "react-native";
 import Animated, { FadeInDown, FadeOut } from "react-native-reanimated";
+import { useTranslation } from "react-i18next";
 import { styles } from "../../styles";
 
 type Props = {
@@ -15,13 +16,14 @@ type Props = {
 /** Bar rendered at the bottom of the header block (top of the timeline) during
  *  selection mode — count, bordered "All" chip, and Cancel. */
 export function SelectionTopBar({ count, allSelected, onSelectAll, onCancel }: Props) {
+  const { t } = useTranslation();
   return (
     <Animated.View
       style={styles.selectionTopBar}
       entering={FadeInDown.duration(180)}
       exiting={FadeOut.duration(120)}
     >
-      <Text style={styles.selectionTopBarCount}>{count} selected</Text>
+      <Text style={styles.selectionTopBarCount}>{t("common.selected", { count })}</Text>
 
       {onSelectAll ? (
         <Pressable
@@ -33,9 +35,9 @@ export function SelectionTopBar({ count, allSelected, onSelectAll, onCancel }: P
           onPress={onSelectAll}
           disabled={allSelected}
           accessibilityRole="button"
-          accessibilityLabel="Select all"
+          accessibilityLabel={t("common.selectAll")}
         >
-          <Text style={styles.selectionTopBarChipText}>All</Text>
+          <Text style={styles.selectionTopBarChipText}>{t("common.all")}</Text>
         </Pressable>
       ) : null}
 
@@ -48,9 +50,9 @@ export function SelectionTopBar({ count, allSelected, onSelectAll, onCancel }: P
         ]}
         onPress={onCancel}
         accessibilityRole="button"
-        accessibilityLabel="Cancel selection"
+        accessibilityLabel={t("common.cancelSelection")}
       >
-        <Text style={styles.selectionTopBarCancelBtnText}>Cancel</Text>
+        <Text style={styles.selectionTopBarCancelBtnText}>{t("common.cancel")}</Text>
       </Pressable>
     </Animated.View>
   );

@@ -7,6 +7,7 @@ import { getIdeaSortState, getIdeaSortValue, IdeaSortMetric } from "../../../dom
 import { getHierarchyIconName } from "../../../domain/hierarchy";
 import { FilterSortControls } from "../../common/FilterSortControls";
 import { colors } from "../../../design/tokens";
+import { useTranslation } from "react-i18next";
 
 type ProjectStage = "seed" | "sprout" | "stem" | "song";
 type LyricsFilterMode = "all" | "with" | "without";
@@ -89,30 +90,31 @@ export function FilterSortBar({
   onLyricsFilterModeChange,
   rightSlot,
 }: FilterSortBarProps) {
+  const { t } = useTranslation();
   const ideasFilter = useStore((s) => s.ideasFilter);
   const ideasSort = useStore((s) => s.ideasSort);
   const setIdeasFilter = useStore((s) => s.setIdeasFilter);
   const setIdeasSort = useStore((s) => s.setIdeasSort);
   const { metric: activeSortMetric, direction: activeSortDirection } = getIdeaSortState(ideasSort);
   const sortMetricOptions: Array<{ key: IdeaSortMetric; label: string; icon: string }> = [
-    { key: "created", label: "Created", icon: "calendar-outline" },
-    { key: "updated", label: "Updated", icon: "refresh-outline" },
-    { key: "title", label: "Title", icon: "text-outline" },
-    { key: "length", label: "Length", icon: "time-outline" },
-    { key: "progress", label: "Progress", icon: "pie-chart-outline" },
+    { key: "created", label: t("filters.created"), icon: "calendar-outline" },
+    { key: "updated", label: t("filters.updated"), icon: "refresh-outline" },
+    { key: "title", label: t("filters.title"), icon: "text-outline" },
+    { key: "length", label: t("filters.length"), icon: "time-outline" },
+    { key: "progress", label: t("filters.progress"), icon: "pie-chart-outline" },
   ];
 
   const filterOptions = [
-    { key: "all" as const, label: "All", icon: "layers-outline" },
-    { key: "clips" as const, label: "Clips", icon: getHierarchyIconName("clip") },
-    { key: "projects" as const, label: "Songs", icon: getHierarchyIconName("song") },
-    { key: "bookmarked" as const, label: "Bookmarked", icon: "bookmark" },
+    { key: "all" as const, label: t("filters.all"), icon: "layers-outline" },
+    { key: "clips" as const, label: t("filters.clips"), icon: getHierarchyIconName("clip") },
+    { key: "projects" as const, label: t("filters.songs"), icon: getHierarchyIconName("song") },
+    { key: "bookmarked" as const, label: t("filters.bookmarked"), icon: "bookmark" },
   ];
   const stageOptions = [
-    { key: "seed" as const, label: "Seed" },
-    { key: "sprout" as const, label: "Sprout" },
-    { key: "stem" as const, label: "Stem" },
-    { key: "song" as const, label: "Song" },
+    { key: "seed" as const, label: t("stages.seed") },
+    { key: "sprout" as const, label: t("stages.sprout") },
+    { key: "stem" as const, label: t("stages.stem") },
+    { key: "song" as const, label: t("stages.song") },
   ];
   const showProjectFilters = ideasFilter !== "clips" && ideasFilter !== "bookmarked";
   const hasActiveFilters =
@@ -124,13 +126,13 @@ export function FilterSortBar({
     onLyricsFilterModeChange("all");
   };
   const stageSummary = (() => {
-    if (selectedProjectStages.length === 0) return "All";
+    if (selectedProjectStages.length === 0) return t("filters.all");
     if (selectedProjectStages.length <= 2) {
       return selectedProjectStages
-        .map((stage) => stage.charAt(0).toUpperCase() + stage.slice(1))
+        .map((stage) => t(`stages.${stage}`))
         .join(", ");
     }
-    return `${selectedProjectStages.length} selected`;
+    return t("filters.selected", { count: selectedProjectStages.length });
   })();
 
   return (
@@ -142,7 +144,7 @@ export function FilterSortBar({
         renderMenu: ({ close }) => (
           <>
           <View style={styles.ideasDropdownSectionStack}>
-            <Text style={styles.ideasDropdownSectionToggleText}>Type</Text>
+            <Text style={styles.ideasDropdownSectionToggleText}>{t("filters.type")}</Text>
             {filterOptions.map((option) => {
               const active = option.key === ideasFilter;
               return (
@@ -184,7 +186,7 @@ export function FilterSortBar({
               <View style={styles.ideasDropdownDivider} />
               <View style={styles.ideasDropdownSectionStack}>
                 <View style={styles.ideasDropdownSectionToggle}>
-                  <Text style={styles.ideasDropdownSectionToggleText}>Stage</Text>
+                  <Text style={styles.ideasDropdownSectionToggleText}>{t("filters.stage")}</Text>
                   <View style={styles.ideasDropdownSectionMeta}>
                     <Text style={styles.ideasDropdownSectionMetaText}>{stageSummary}</Text>
                   </View>
@@ -204,7 +206,7 @@ export function FilterSortBar({
                         selectedProjectStages.length === 0 ? styles.ideasStageChipTextActive : null,
                       ]}
                     >
-                      All
+                      {t("filters.all")}
                     </Text>
                   </Pressable>
 
@@ -237,12 +239,12 @@ export function FilterSortBar({
 
               <View style={styles.ideasDropdownDivider} />
               <View style={styles.ideasDropdownSectionStack}>
-                <Text style={styles.ideasDropdownSectionToggleText}>Lyrics</Text>
+                <Text style={styles.ideasDropdownSectionToggleText}>{t("filters.lyrics")}</Text>
                 <View style={styles.ideasStageChipsWrap}>
                   {([
-                    { key: "all", label: "All" },
-                    { key: "with", label: "With" },
-                    { key: "without", label: "Without" },
+                    { key: "all", label: t("filters.all") },
+                    { key: "with", label: t("filters.with") },
+                    { key: "without", label: t("filters.without") },
                   ] as const).map((option) => {
                     const active = lyricsFilterMode === option.key;
                     return (
@@ -280,7 +282,7 @@ export function FilterSortBar({
         renderMenu: ({ close }) => (
           <>
             <View style={styles.ideasSortDirectionRow}>
-              <Text style={styles.ideasDropdownSectionToggleText}>Direction</Text>
+              <Text style={styles.ideasDropdownSectionToggleText}>{t("filters.direction")}</Text>
               <View style={styles.ideasSortDirectionControls}>
                 <Pressable
                   style={({ pressed }) => [
@@ -299,7 +301,7 @@ export function FilterSortBar({
                       activeSortDirection === "asc" ? styles.ideasSortDirectionChipTextActive : null,
                     ]}
                   >
-                    Asc
+                    {t("filters.ascending")}
                   </Text>
                 </Pressable>
                 <Pressable
@@ -319,7 +321,7 @@ export function FilterSortBar({
                       activeSortDirection === "desc" ? styles.ideasSortDirectionChipTextActive : null,
                     ]}
                   >
-                    Desc
+                    {t("filters.descending")}
                   </Text>
                 </Pressable>
               </View>

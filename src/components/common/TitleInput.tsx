@@ -1,8 +1,9 @@
 import { Ionicons } from "@expo/vector-icons";
 import React, { useEffect, useState } from "react";
-import { Pressable, StyleProp, TextInput, TextInputProps, View, ViewStyle } from "react-native";
+import { Pressable, StyleProp, TextInputProps, View, ViewStyle } from "react-native";
 import { styles } from "../../styles";
 import { genIdea } from "../../utils";
+import { UserTextInput } from "../../i18n";
 
 export const DEFAULT_TITLE_MAX_LENGTH = 80;
 const DEFAULT_TITLE_MAX_LINES = 2;
@@ -52,7 +53,7 @@ export function TitleInput({
 
     return (
         <View style={[styles.titleInlineWrap, containerStyle]}>
-            <TextInput
+            <UserTextInput
                 style={[
                     styles.titleInlineInput,
                     !value ? styles.titleInlineInputPlaceholder : null,

@@ -7,6 +7,7 @@ import type { RevisitTag } from "../../../domain/revisit";
 import { revisitStyles } from "../styles";
 import { SourceFilterRow, type SourceFilterOption } from "../../common/SourceFilterRow";
 import { colors } from "../../../design/tokens";
+import { useTranslation } from "react-i18next";
 
 type WorkspaceGroup = {
   workspace: SourceFilterOption;
@@ -15,32 +16,32 @@ type WorkspaceGroup = {
 
 const TAG_OPTIONS: {
   tag: RevisitTag;
-  label: string;
-  desc: string;
+  labelKey: string;
+  descKey: string;
   icon: React.ComponentProps<typeof Ionicons>["name"];
 }[] = [
   {
     tag: "unfinished",
-    label: "Unfinished",
-    desc: "Ideas you actively worked on, then left untouched for a while.",
+    labelKey: "revisit.unfinished",
+    descKey: "revisit.unfinishedDesc",
     icon: "hourglass-outline",
   },
   {
     tag: "seed",
-    label: "Loose seeds",
-    desc: "Raw clips you recorded once and never came back to develop.",
+    labelKey: "revisit.rawIdeas",
+    descKey: "revisit.rawIdeasDesc",
     icon: "leaf-outline",
   },
   {
     tag: "vault",
-    label: "Deep cuts",
-    desc: "Older, more developed work shuffled back into view at random.",
+    labelKey: "revisit.deepCuts",
+    descKey: "revisit.deepCutsDesc",
     icon: "albums-outline",
   },
   {
     tag: "anniversary",
-    label: "Around this time",
-    desc: "Ideas made around this date in previous years.",
+    labelKey: "revisit.around",
+    descKey: "revisit.aroundDesc",
     icon: "calendar-outline",
   },
 ];
@@ -82,23 +83,24 @@ export function RevisitCustomizeSheet({
   dailyRefresh,
   setDailyRefresh,
 }: RevisitCustomizeSheetProps) {
+  const { t } = useTranslation();
   return (
     <BottomSheet visible={visible} onClose={onClose}>
-      <Text style={revisitStyles.sheetTitle}>Customize Revisit</Text>
+      <Text style={revisitStyles.sheetTitle}>{t("revisit.customize")}</Text>
       <Text style={revisitStyles.cardTagDetail}>
-        Older ideas resurface here so good work doesn't get lost.
+        {t("revisit.intro")}
       </Text>
 
       <ScrollView style={{ maxHeight: 460 }} showsVerticalScrollIndicator={false}>
-        <Text style={revisitStyles.sheetSectionLabel}>What to surface</Text>
-        {TAG_OPTIONS.map(({ tag, label, desc, icon }) => (
+        <Text style={revisitStyles.sheetSectionLabel}>{t("revisit.whatToSurface")}</Text>
+        {TAG_OPTIONS.map(({ tag, labelKey, descKey, icon }) => (
           <View key={tag} style={revisitStyles.toggleRow}>
             <View style={revisitStyles.toggleIconWrap}>
               <Ionicons name={icon} size={16} color={colors.primary} />
             </View>
             <View style={revisitStyles.toggleRowTextCol}>
-              <Text style={revisitStyles.toggleRowText}>{label}</Text>
-              <Text style={revisitStyles.toggleRowDesc}>{desc}</Text>
+              <Text style={revisitStyles.toggleRowText}>{t(labelKey)}</Text>
+              <Text style={revisitStyles.toggleRowDesc}>{t(descKey)}</Text>
             </View>
             <Switch
               value={tagPrefs[tag] !== false}
@@ -109,19 +111,18 @@ export function RevisitCustomizeSheet({
           </View>
         ))}
 
-        <Text style={revisitStyles.sheetSectionLabel}>Refresh</Text>
+        <Text style={revisitStyles.sheetSectionLabel}>{t("revisit.refresh")}</Text>
         <Text style={revisitStyles.sheetSectionDesc}>
-          How often Revisit reshuffles the daily set.
+          {t("revisit.refreshDesc")}
         </Text>
         <View style={revisitStyles.toggleRow}>
           <View style={revisitStyles.toggleIconWrap}>
             <Ionicons name="refresh-outline" size={16} color={colors.primary} />
           </View>
           <View style={revisitStyles.toggleRowTextCol}>
-            <Text style={revisitStyles.toggleRowText}>New set each day</Text>
+            <Text style={revisitStyles.toggleRowText}>{t("revisit.daily")}</Text>
             <Text style={revisitStyles.toggleRowDesc}>
-              A fresh selection every day. Turn this off to keep today's set on screen until you add
-              or change work.
+              {t("revisit.dailyDesc")}
             </Text>
           </View>
           <Switch
@@ -133,18 +134,18 @@ export function RevisitCustomizeSheet({
         </View>
 
         <View style={revisitStyles.sheetHeader}>
-          <Text style={revisitStyles.sheetSectionLabel}>Sources</Text>
+          <Text style={revisitStyles.sheetSectionLabel}>{t("revisit.sources")}</Text>
           {hasSourceOverrides ? (
             <Pressable
               style={({ pressed }) => [revisitStyles.utilityButton, pressed ? styles.pressDown : null]}
               onPress={resetSourceFilters}
             >
-              <Text style={revisitStyles.utilityButtonText}>Reset</Text>
+              <Text style={revisitStyles.utilityButtonText}>{t("revisit.reset")}</Text>
             </Pressable>
           ) : null}
         </View>
         <Text style={revisitStyles.sheetSectionDesc}>
-          Which workspaces and collections Revisit can draw from.
+          {t("revisit.sourcesDesc")}
         </Text>
         <View style={revisitStyles.sheetList}>
           {groups.map(({ workspace, collections }) => (
@@ -174,7 +175,7 @@ export function RevisitCustomizeSheet({
             onPress={restoreHiddenCandidates}
           >
             <Ionicons name="refresh-outline" size={16} color={colors.primaryDeep} />
-            <Text style={revisitStyles.hiddenResetText}>Restore hidden ({hiddenCount})</Text>
+            <Text style={revisitStyles.hiddenResetText}>{t("revisit.restoreHidden", { count: hiddenCount })}</Text>
           </Pressable>
         ) : null}
       </ScrollView>

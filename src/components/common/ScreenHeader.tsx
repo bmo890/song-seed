@@ -3,6 +3,7 @@ import { useNavigation } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { styles } from "../../styles";
 import { colors, radii, text as textTokens } from "../../design/tokens";
+import { useTranslation } from "react-i18next";
 
 type Props = {
     title: string;
@@ -17,6 +18,7 @@ export function ScreenHeader({
     onLeftPress,
     rightElement,
 }: Props) {
+    const { t } = useTranslation();
     const navigation = useNavigation();
 
     function getDrawerNavigation() {
@@ -61,7 +63,7 @@ export function ScreenHeader({
                     {effectiveLeftIcon === "hamburger" ? (
                         <Ionicons name="menu-outline" size={22} color={colors.textStrong} />
                     ) : (
-                        <Text style={headerStyles.backBtnText}>Back</Text>
+                        <Text style={headerStyles.backBtnText}>{t("common.back")}</Text>
                     )}
                 </Pressable>
             ) : (

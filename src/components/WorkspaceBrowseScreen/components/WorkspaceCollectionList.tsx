@@ -3,6 +3,7 @@ import { SurfaceCard } from "../../common/SurfaceCard";
 import type { WorkspaceCollectionBrowseEntry } from "../../../domain/libraryNavigation";
 import { WorkspaceCollectionCard } from "./WorkspaceCollectionCard";
 import { colors } from "../../../design/tokens";
+import { useTranslation } from "react-i18next";
 
 export function WorkspaceCollectionList({
   collectionEntries,
@@ -21,6 +22,7 @@ export function WorkspaceCollectionList({
   onPressCollection: (collectionId: string) => void;
   onLongPressCollection: (collectionId: string) => void;
 }) {
+  const { t } = useTranslation();
   return (
     <View style={listStyles.list}>
       {collectionEntries.map((entry) => {
@@ -43,12 +45,12 @@ export function WorkspaceCollectionList({
       {collectionEntries.length === 0 ? (
         <SurfaceCard>
           <Text style={listStyles.emptyTitle}>
-            {searchQuery.trim().length > 0 ? "No matching collections" : "No collections yet"}
+            {t(searchQuery.trim().length > 0 ? "workspaceBrowse.noMatches" : "workspaceBrowse.noCollections")}
           </Text>
           <Text style={listStyles.emptyMeta}>
             {searchQuery.trim().length > 0
-              ? "Try a different search."
-              : "Create a collection to start organising seeds in this workspace."}
+              ? t("workspaceBrowse.trySearch")
+              : t("workspaceBrowse.createHint")}
           </Text>
         </SurfaceCard>
       ) : null}

@@ -4,6 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { styles } from "../../styles";
 import { colors } from "../../design/tokens";
 import { NowPlayingIndicator } from "./NowPlayingIndicator";
+import { UserText } from "../../i18n";
 
 /** Renders title text with optional search-needle highlighting */
 function HighlightedText({
@@ -20,21 +21,21 @@ function HighlightedText({
     numberOfLines?: number;
 }) {
     if (!needle) {
-        return <Text style={textStyle} numberOfLines={numberOfLines}>{text}</Text>;
+        return <UserText value={text} style={textStyle} numberOfLines={numberOfLines}>{text}</UserText>;
     }
     const lower = text.toLowerCase();
     const lowerNeedle = needle.toLowerCase();
     const start = lower.indexOf(lowerNeedle);
     if (start === -1 || lowerNeedle.length === 0) {
-        return <Text style={textStyle} numberOfLines={numberOfLines}>{text}</Text>;
+        return <UserText value={text} style={textStyle} numberOfLines={numberOfLines}>{text}</UserText>;
     }
     const end = start + needle.length;
     return (
-        <Text style={textStyle} numberOfLines={numberOfLines}>
+        <UserText value={text} style={textStyle} numberOfLines={numberOfLines}>
             {text.slice(0, start)}
             <Text style={hitStyle}>{text.slice(start, end)}</Text>
             {text.slice(end)}
-        </Text>
+        </UserText>
     );
 }
 

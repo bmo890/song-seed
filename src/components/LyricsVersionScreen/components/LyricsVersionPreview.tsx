@@ -11,9 +11,11 @@ import { LyricsChordsToggle } from "../../common/LyricsChordsToggle";
 import { TransposeChip } from "../../common/TransposeChip";
 import { useChartPrefsStore } from "../../../state/useChartPrefsStore";
 import { clampTransposeOffset, transposeLyricsLines } from "../../../domain/transpose";
+import { UserText, type ContentDirection } from "../../../i18n";
 
 type LyricsVersionPreviewProps = {
   sourceText: string;
+  textDirection: ContentDirection;
   lines: LyricsLine[];
   hasChords: boolean;
   canChart: boolean;
@@ -29,6 +31,7 @@ type LyricsVersionPreviewProps = {
 
 export function LyricsVersionPreview({
   sourceText,
+  textDirection,
   lines,
   hasChords,
   canChart,
@@ -104,7 +107,9 @@ export function LyricsVersionPreview({
                 onScroll={(event) => onScroll(event.nativeEvent.contentOffset.y)}
                 scrollEventThrottle={16}
               >
-                <Text style={styles.lyricsPreviewText}>{sourceText || "No lyrics in this version."}</Text>
+                <UserText value={sourceText} direction={textDirection} style={styles.lyricsPreviewText}>
+                  {sourceText || "No lyrics in this version."}
+                </UserText>
               </ScrollView>
               {scrollIndicator}
             </>

@@ -67,7 +67,7 @@ function wordChunks(source: string): RawChunk[] {
   return out;
 }
 
-const BOUNDARY_PUNCT = new Set([",", ";", ":", "—", "–"]);
+const BOUNDARY_PUNCT = new Set([",", ";", ":", ".", "!", "?", "…", "׃", "—", "–"]);
 
 /** Splits one line into phrase spans, preferring punctuation boundaries (commas,
  * semicolons, colons, dashes) and keeping the punctuation with the phrase it

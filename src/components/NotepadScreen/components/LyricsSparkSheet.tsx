@@ -3,6 +3,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { BottomSheet } from "../../common/BottomSheet";
 import { styles as appStyles } from "../../../styles";
 import { colors, radii, spacing, text as textTokens } from "../../../design/tokens";
+import { EnglishOnlyNotice } from "../../common/EnglishOnlyNotice";
 
 type Props = {
   visible: boolean;
@@ -17,6 +18,7 @@ export function LyricsSparkSheet({ visible, onClose, onNewWordLadder, onNewCutUp
     <BottomSheet visible={visible} onClose={onClose}>
       <Text style={sheetStyles.title}>Lyrics Spark</Text>
       <Text style={sheetStyles.subtitle}>Short exercises to knock loose a line you wouldn't write on purpose.</Text>
+      <EnglishOnlyNotice />
 
       <Pressable
         style={({ pressed }) => [sheetStyles.option, pressed ? appStyles.pressDown : null]}

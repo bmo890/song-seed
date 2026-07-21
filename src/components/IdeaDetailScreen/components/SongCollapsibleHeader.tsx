@@ -3,12 +3,14 @@ import { Pressable, Text, View } from "react-native";
 import { styles } from "../styles";
 import { useSongScreen } from "../provider/SongScreenProvider";
 import { haptic } from "../../../design/haptics";
+import { useTranslation } from "react-i18next";
+import { UserText } from "../../../i18n";
 
 const SONG_TABS = [
-  { key: "takes", label: "Takes" },
-  { key: "lyrics", label: "Lyrics" },
-  { key: "chart", label: "Chart" },
-  { key: "notes", label: "Notes" },
+  { key: "takes", labelKey: "screens.takes" },
+  { key: "lyrics", labelKey: "screens.lyrics" },
+  { key: "chart", labelKey: "screens.chart" },
+  { key: "notes", labelKey: "screens.notes" },
 ] as const;
 
 function statusBadgeStyle(status: string) {
@@ -36,12 +38,13 @@ type SongCollapsibleHeaderProps = {
  * and clips away on scroll.
  */
 export function SongCollapsibleHeader({ extra }: SongCollapsibleHeaderProps) {
+  const { t } = useTranslation();
   const { screen } = useSongScreen();
   const selectedIdea = screen.selectedIdea;
   if (!selectedIdea) return null;
 
   const isProject = selectedIdea.kind === "project";
-  const titleLabel = isProject ? "Song" : "Clip";
+  const titleLabel = t(isProject ? "screens.song" : "screens.clip");
   // In edit mode the title is edited in the fixed nav header, so the collapsible
   // title block + tabs are suppressed here to avoid a duplicate title.
   // Songs edit via a sheet, so their title + tabs stay visible while editing.
@@ -56,15 +59,15 @@ export function SongCollapsibleHeader({ extra }: SongCollapsibleHeaderProps) {
       {showTitle ? (
         <View style={styles.songDetailTitleBlock} pointerEvents="none">
           <Text style={styles.songDetailTypeEyebrow}>{titleLabel}</Text>
-          <Text style={styles.songDetailPageTitleLarge}>{selectedIdea.title}</Text>
+          <UserText style={styles.songDetailPageTitleLarge}>{selectedIdea.title}</UserText>
           {isProject ? (
             <View style={styles.songDetailProgressStrip}>
-              <Text style={styles.songDetailProgressStripLabel}>Progress</Text>
+              <Text style={styles.songDetailProgressStripLabel}>{t("filters.progress")}</Text>
               <Text style={styles.songDetailProgressStripPercent}>
                 {selectedIdea.completionPct}%
               </Text>
               <Text style={statusBadgeStyle(selectedIdea.status)}>
-                {selectedIdea.status === "song" ? "SONG" : selectedIdea.status.toUpperCase()}
+                {t(`stages.${selectedIdea.status}`)}
               </Text>
             </View>
           ) : null}
@@ -95,7 +98,7 @@ export function SongCollapsibleHeader({ extra }: SongCollapsibleHeaderProps) {
                     active ? styles.songDetailSongTabTextActive : null,
                   ]}
                 >
-                  {tab.label}
+                  {t(tab.labelKey)}
                 </Text>
               </Pressable>
             );

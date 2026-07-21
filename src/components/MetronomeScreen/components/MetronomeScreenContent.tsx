@@ -16,6 +16,7 @@ import {
 import { MetronomeBeatBar } from "../../common/metronome/MetronomeBeatBar";
 import { styles as s } from "../styles";
 import { useMetronomeScreenModel } from "../hooks/useMetronomeScreenModel";
+import { useTranslation } from "react-i18next";
 
 /**
  * Standalone metronome — the in-recorder sheet's control vocabulary on a full
@@ -24,6 +25,7 @@ import { useMetronomeScreenModel } from "../hooks/useMetronomeScreenModel";
  * the sheet never needed: Start/Stop and a big visual beat.
  */
 export function MetronomeScreenContent() {
+  const { t } = useTranslation();
   const model = useMetronomeScreenModel();
   const isRunning = model.isRunning;
   const beatBarActive = isRunning && model.outputs.visual;
@@ -37,7 +39,7 @@ export function MetronomeScreenContent() {
 
   return (
     <SafeAreaView style={s.screen}>
-      <ScreenHeader title="Metronome" leftIcon="hamburger" />
+      <ScreenHeader title={t("screens.metronome")} leftIcon="hamburger" />
 
       <ScrollView
         showsVerticalScrollIndicator={false}

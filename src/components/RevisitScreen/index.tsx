@@ -11,6 +11,8 @@ import { RevisitAroundSnapshotView } from "./components/RevisitAroundSnapshotVie
 import { RevisitSectionBlock } from "./components/RevisitSectionBlock";
 import { RevisitCustomizeSheet } from "./components/RevisitCustomizeSheet";
 import { colors } from "../../design/tokens";
+import { useTranslation } from "react-i18next";
+import { useLocale } from "../../i18n";
 
 // Maps a section to its "What to surface" tag so the Customize toggles hide it.
 const SECTION_TAG: Record<string, string> = {
@@ -21,6 +23,8 @@ const SECTION_TAG: Record<string, string> = {
 };
 
 export function RevisitScreen() {
+  const { t } = useTranslation();
+  const { formatLocale } = useLocale();
   const screen = useRevisitScreenModel();
   const [customizeOpen, setCustomizeOpen] = useState(false);
 
@@ -28,7 +32,7 @@ export function RevisitScreen() {
     onBack: screen.isAroundSnapshotOpen ? screen.closeAroundSnapshot : undefined,
   });
 
-  const dateLabel = new Date(screen.now).toLocaleDateString(undefined, {
+  const dateLabel = new Date(screen.now).toLocaleDateString(formatLocale, {
     month: "short",
     day: "numeric",
   });
@@ -43,7 +47,7 @@ export function RevisitScreen() {
   return (
     <SafeAreaView style={revisitStyles.screen}>
       <ScreenHeader
-        title={screen.isAroundSnapshotOpen ? "Around This Time" : "Revisit"}
+        title={t(screen.isAroundSnapshotOpen ? "revisit.aroundTitle" : "revisit.title")}
         leftIcon={screen.isAroundSnapshotOpen ? "back" : "hamburger"}
         onLeftPress={screen.isAroundSnapshotOpen ? screen.closeAroundSnapshot : undefined}
         rightElement={
@@ -52,7 +56,7 @@ export function RevisitScreen() {
               style={({ pressed }) => [revisitStyles.headerHelpBtn, pressed ? styles.pressDown : null]}
               onPress={() => setCustomizeOpen(true)}
               hitSlop={6}
-              accessibilityLabel="Customize Revisit"
+              accessibilityLabel={t("revisit.customize")}
             >
               <Ionicons name="options-outline" size={18} color={colors.textSecondary} />
             </Pressable>
@@ -82,23 +86,22 @@ export function RevisitScreen() {
             <View style={revisitStyles.pageHeader}>
               <View style={revisitStyles.todayRow}>
                 <Text style={revisitStyles.todayEyebrow}>
-                  {screen.dailyRefresh ? `Today · ${dateLabel}` : "To revisit"}
+                  {screen.dailyRefresh ? t("revisit.today", { date: dateLabel }) : t("revisit.toRevisit")}
                 </Text>
                 {shownCount > 0 ? (
                   <Text style={revisitStyles.todayCount}>
-                    {shownCount} {shownCount === 1 ? "idea" : "ideas"}
+                    {t("revisit.ideaCount", { count: shownCount })}
                   </Text>
                 ) : null}
               </View>
               <Text style={revisitStyles.pageDescription}>
-                A daily set of older ideas that newer work has buried: things you left unfinished,
-                loose seeds, deep cuts, and work from past years.
+                {t("revisit.description")}
               </Text>
             </View>
 
             {populatedSections.length === 0 ? (
               <Text style={[revisitStyles.sectionEmptyLine, { paddingTop: 16 }]}>
-                Nothing to revisit yet — as newer work stacks up, older ideas will resurface here.
+                {t("revisit.empty")}
               </Text>
             ) : (
               populatedSections.map((section, index) => (

@@ -69,7 +69,7 @@ export function useChordEditing(ideaId: string, versionId: string | undefined) {
   };
 
   const openEdit = (lineId: string, chord: ChordPlacement) => {
-    setTarget({ mode: "edit", lineId, at: chord.at, chordId: chord.id, initial: partsFromChord(chord) });
+    setTarget({ mode: "edit", lineId, at: chord.graphemeAt ?? chord.at, chordId: chord.id, initial: partsFromChord(chord) });
   };
 
   const close = () => setTarget(null);

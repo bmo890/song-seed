@@ -5,7 +5,6 @@ import {
   Pressable,
   ScrollView,
   Text,
-  TextInput,
   View,
 } from "react-native";
 import Animated, { FadeIn } from "react-native-reanimated";
@@ -23,6 +22,7 @@ import {
   fetchWordSuggestions,
   getCachedWordSuggestions,
   groupBySyllableCount,
+  isEnglishLookupWord,
   partOfSpeechLabel,
   sanitizeThemeWords,
   WORD_LOOKUP_MODE_ORDER,
@@ -32,6 +32,8 @@ import {
   type WordLookupMode,
   type WordSuggestion,
 } from "../../domain/wordTools";
+import { UserTextInput } from "../../i18n";
+import { useTranslation } from "react-i18next";
 
 const LOOKUP_DEBOUNCE_MS = 400;
 /** Chips shown per syllable group / flat list before "+ n more". */
@@ -55,6 +57,7 @@ type WordFinderSheetProps = {
 type LookupState =
   | { status: "idle" }
   | { status: "loading" }
+  | { status: "unsupported" }
   | { status: "results"; suggestions: WordSuggestion[] }
   | { status: "offline" }
   | { status: "error" };
@@ -76,6 +79,7 @@ type PreviewState = {
  * definition; inserting or exploring are explicit buttons inside it.
  */
 export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: WordFinderSheetProps) {
+  const { t } = useTranslation();
   const [query, setQuery] = useState(initialWord);
   const [quickMode, setQuickMode] = useState<WordLookupMode>("rhymes");
   const [moreTab, setMoreTab] = useState(false);
@@ -116,6 +120,10 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
     const trimmed = query.trim();
     if (!trimmed || !activeMode) {
       setLookup({ status: "idle" });
+      return;
+    }
+    if (!isEnglishLookupWord(trimmed)) {
+      setLookup({ status: "unsupported" });
       return;
     }
 
@@ -270,7 +278,7 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
           ))}
           {themeEditing ? (
             <>
-              <TextInput
+              <UserTextInput
                 style={finderStyles.themeInput}
                 value={themeDraft}
                 onChangeText={setThemeDraft}
@@ -497,7 +505,7 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
               ) : (
                 <Ionicons name="search" size={15} color={colors.textMuted} />
               )}
-              <TextInput
+              <UserTextInput
                 style={finderStyles.searchInput}
                 value={query}
                 onChangeText={setQuery}
@@ -549,6 +557,11 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
                 <View style={finderStyles.stateCenter}>
                   <ActivityIndicator size="small" color={colors.textMuted} />
                 </View>
+              ) : lookup.status === "unsupported" ? (
+                <View style={finderStyles.stateCenter}>
+                  <Text style={finderStyles.stateText}>{t("lyrics.wordFinderEnglishOnly")}</Text>
+                  <Text style={finderStyles.hint}>{t("common.englishOnly")}</Text>
+                </View>
               ) : lookup.status === "offline" ? (
                 <Text style={finderStyles.stateText}>You're offline — word lookup needs a connection.</Text>
               ) : lookup.status === "error" ? (
@@ -582,4 +595,3 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
     </BottomSheet>
   );
 }
-

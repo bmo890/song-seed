@@ -6,6 +6,7 @@ import { shelfStyles } from "../styles";
 import { colors } from "../../../design/tokens";
 import { stayCountdownLabel, daysLeft } from "../../../domain/shelf";
 import type { ShelfRow } from "../hooks/useShelfScreenModel";
+import { useTranslation } from "react-i18next";
 
 type ShelfItemCardProps = {
   row: ShelfRow;
@@ -41,6 +42,7 @@ export function ShelfItemCard({
   onViewInCollection,
   containerStyle,
 }: ShelfItemCardProps) {
+  const { t } = useTranslation();
   const soon = daysLeft(row.entry, now) <= 2;
 
   // Source collection on the left, the quiet countdown + the standardized
@@ -70,7 +72,7 @@ export function ShelfItemCard({
           }}
           hitSlop={8}
           accessibilityRole="button"
-          accessibilityLabel={`View ${row.idea.title} in collection`}
+          accessibilityLabel={t("shelf.viewInCollection", { title: row.idea.title })}
         >
           <Ionicons name="open-outline" size={15} color={colors.textMuted} />
         </Pressable>

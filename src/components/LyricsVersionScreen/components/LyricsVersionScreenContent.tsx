@@ -95,6 +95,8 @@ export function LyricsVersionScreenContent() {
         {model.isEditMode ? (
           <LyricsVersionEditor
             draftText={model.draftText}
+            textDirection={model.textDirection}
+            onTextDirectionChange={model.setTextDirection}
             canSave={model.canSave}
             showSaveAsNew={!!model.resolvedVersion && model.isLatestSource && !model.editSavesAsNew}
             canUndo={model.canUndoDraft}
@@ -122,6 +124,7 @@ export function LyricsVersionScreenContent() {
         ) : (
           <LyricsVersionPreview
             sourceText={model.sourceText}
+            textDirection={model.textDirection}
             lines={lines}
             hasChords={hasChords}
             canChart={canChart}

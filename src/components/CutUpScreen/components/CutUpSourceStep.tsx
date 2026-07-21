@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { UserTextInput } from "../../../i18n";
 import { Ionicons } from "@expo/vector-icons";
 import { NotePickerSheet } from "../../modals/NotePickerSheet";
 import { styles as appStyles } from "../../../styles";
@@ -34,7 +35,7 @@ export function CutUpSourceStep({ model, spark }: { model: Model; spark: CutUpSp
       ) : null}
 
       <View style={styles.card}>
-        <TextInput
+        <UserTextInput
           style={styles.input}
           value={spark.sourceText}
           onChangeText={model.setSourceText}

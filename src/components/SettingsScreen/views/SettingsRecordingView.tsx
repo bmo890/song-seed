@@ -9,6 +9,7 @@ import {
   METRONOME_COUNT_IN_BAR_OPTIONS,
   METRONOME_METER_PRESETS,
 } from "../../../domain/metronome";
+import { useTranslation } from "react-i18next";
 
 /**
  * Defaults applied to every new take. The metronome values are the same ones the
@@ -16,6 +17,7 @@ import {
  * everywhere (each take stays adjustable in the moment).
  */
 export function SettingsRecordingView() {
+  const { t } = useTranslation();
   const navigation = useNavigation();
   const bluetoothCalibrations = useStore((s) => s.bluetoothMonitoringCalibrations);
   const promptForClipName = useStore((s) => s.promptForClipName);
@@ -27,7 +29,7 @@ export function SettingsRecordingView() {
   const outputs = useStore((s) => s.metronomeOutputs);
   const setMetronomeOutputEnabled = useStore((s) => s.setMetronomeOutputEnabled);
 
-  const countInLabel = (bars: number) => (bars === 0 ? "Off" : bars === 1 ? "1 bar" : `${bars} bars`);
+  const countInLabel = (bars: number) => bars === 0 ? t("settingsRecording.off") : t("settingsRecording.bars", { count: bars });
 
   return (
     <ScrollView
@@ -36,18 +38,18 @@ export function SettingsRecordingView() {
       showsVerticalScrollIndicator={false}
     >
       <PageIntro
-        title="Recording"
-        subtitle="Defaults for new takes — how the metronome starts and how recordings are named."
+        title={t("settings.recording")}
+        subtitle={t("settingsRecording.subtitle")}
       />
 
       <View style={styles.settingsSection}>
         <View style={styles.settingsSectionHeaderRow}>
-          <Text style={styles.settingsSectionLabel}>Saving</Text>
+          <Text style={styles.settingsSectionLabel}>{t("settingsRecording.saving")}</Text>
         </View>
         <View style={styles.settingsOptionStack}>
           <ToggleRow
-            title="Name each recording"
-            subtitle="Ask for a title after every take. Off saves with the suggested name."
+            title={t("settingsRecording.nameEach")}
+            subtitle={t("settingsRecording.nameEachHint")}
             value={promptForClipName}
             onPress={() => {
               haptic.tap();
@@ -59,18 +61,16 @@ export function SettingsRecordingView() {
 
       <View style={styles.settingsSection}>
         <View style={styles.settingsSectionHeaderRow}>
-          <Text style={styles.settingsSectionLabel}>Devices</Text>
+          <Text style={styles.settingsSectionLabel}>{t("settingsRecording.devices")}</Text>
         </View>
         <View style={styles.settingsOptionStack}>
           <LibraryActionCard
             icon="bluetooth"
-            title="Bluetooth calibration"
+            title={t("settingsRecording.bluetooth")}
             meta={
               bluetoothCalibrations.length === 0
-                ? "Measure wireless headphone delay so takes land on the beat."
-                : `${bluetoothCalibrations.length} saved calibration${
-                    bluetoothCalibrations.length === 1 ? "" : "s"
-                  }.`
+                ? t("settingsRecording.bluetoothHint")
+                : t("settingsRecording.calibrations", { count: bluetoothCalibrations.length })
             }
             onPress={() => {
               haptic.tap();
@@ -78,20 +78,19 @@ export function SettingsRecordingView() {
             }}
           />
           <Text style={styles.settingsSectionHint}>
-            The microphone for each take is chosen on the recording screen — open the … menu
-            there to switch between the built-in mic, a headset, or a USB microphone.
+            {t("settingsRecording.microphoneHint")}
           </Text>
         </View>
       </View>
 
       <View style={styles.settingsSection}>
         <View style={styles.settingsSectionHeaderRow}>
-          <Text style={styles.settingsSectionLabel}>Metronome</Text>
+          <Text style={styles.settingsSectionLabel}>{t("navigation.metronome")}</Text>
         </View>
         <View style={styles.settingsOptionStack}>
           <SegmentedField
-            title="Count-in"
-            subtitle="Bars to count before recording starts."
+            title={t("settingsRecording.countIn")}
+            subtitle={t("settingsRecording.countInHint")}
             value={countInBars}
             options={METRONOME_COUNT_IN_BAR_OPTIONS.map((bars) => ({
               value: bars,
@@ -103,7 +102,7 @@ export function SettingsRecordingView() {
             }}
           />
           <SegmentedField
-            title="Time signature"
+            title={t("settingsRecording.timeSignature")}
             value={meterId}
             options={METRONOME_METER_PRESETS.map((preset) => ({
               value: preset.id,
@@ -115,8 +114,8 @@ export function SettingsRecordingView() {
             }}
           />
           <ToggleRow
-            title="Click sound"
-            subtitle="Play an audible click on each beat."
+            title={t("settingsRecording.clickSound")}
+            subtitle={t("settingsRecording.clickSoundHint")}
             value={outputs.beep}
             onPress={() => {
               haptic.tap();
@@ -124,8 +123,8 @@ export function SettingsRecordingView() {
             }}
           />
           <ToggleRow
-            title="Haptic pulse"
-            subtitle="Feel each beat as a tap while recording."
+            title={t("settingsRecording.hapticPulse")}
+            subtitle={t("settingsRecording.hapticPulseHint")}
             value={outputs.haptic}
             onPress={() => {
               haptic.tap();

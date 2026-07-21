@@ -8,8 +8,11 @@ import { ScreenHeader } from "../../common/ScreenHeader";
 import { LyricsVersionsPanel } from "../LyricsVersionsPanel";
 import { useLyricsScreenModel } from "../hooks/useLyricsScreenModel";
 import { LyricsUnavailableState } from "./LyricsUnavailableState";
+import { useTranslation } from "react-i18next";
+import { UserText } from "../../../i18n";
 
 export function LyricsScreenContent() {
+  const { t } = useTranslation();
   const { projectIdea, versionCount } = useLyricsScreenModel();
   const navigation = useNavigation<any>();
 
@@ -20,17 +23,17 @@ export function LyricsScreenContent() {
   return (
     <SafeAreaView style={styles.screen}>
       <ScreenHeader
-        title="Lyrics"
+        title={t("screens.lyrics")}
         leftIcon="back"
         rightElement={
           <View style={styles.contextPill}>
             <Ionicons name="book-outline" size={12} color={colors.textSecondary} />
-            <Text style={styles.contextPillText}>{versionCount} {versionCount === 1 ? "PAGE" : "PAGES"}</Text>
+            <Text style={styles.contextPillText}>{t("screens.page", { count: versionCount })}</Text>
           </View>
         }
       />
 
-      <Text style={styles.subtitle}>{projectIdea.title}</Text>
+      <UserText value={projectIdea.title} style={styles.subtitle}>{projectIdea.title}</UserText>
 
       <ScrollView contentContainerStyle={styles.lyricsScreenContent}>
         <Pressable
@@ -41,9 +44,9 @@ export function LyricsScreenContent() {
             <Ionicons name="grid-outline" size={18} color={colors.primary} />
           </View>
           <View style={chordSheetLink.copy}>
-            <Text style={chordSheetLink.title}>Chord Chart</Text>
+            <Text style={chordSheetLink.title}>{t("screens.chordChart")}</Text>
             <Text style={chordSheetLink.meta}>
-              {hasChordSheet ? "Block chart of chords by section" : "Lay out chords in bars — intro, verse, chorus"}
+              {t(hasChordSheet ? "screens.chordChartExisting" : "screens.chordChartEmpty")}
             </Text>
           </View>
           <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />

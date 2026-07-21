@@ -8,6 +8,7 @@ import { getCrashLogUri } from "../../../services/crashLog";
 import { shareFileUri } from "../../../services/audioStorage";
 import { useStore } from "../../../state/useStore";
 import { haptic } from "../../../design/haptics";
+import { useTranslation } from "react-i18next";
 
 const FEEDBACK_EMAIL = "bmostudio.dev@gmail.com";
 
@@ -16,6 +17,7 @@ const FEEDBACK_EMAIL = "bmostudio.dev@gmail.com";
  * plain statement of where a SongNook library actually lives.
  */
 export function SettingsAboutView() {
+  const { t } = useTranslation();
   const version = Constants.expoConfig?.version ?? "—";
 
   const sendFeedback = () => {
@@ -29,15 +31,15 @@ export function SettingsAboutView() {
     const uri = await getCrashLogUri();
     if (!uri) {
       AppAlert.info(
-        "No diagnostics recorded",
-        "SongNook has not logged any crashes on this device. If you hit a problem, come back here afterward — the log will be waiting."
+        t("settingsAbout.noDiagnostics"),
+        t("settingsAbout.noDiagnosticsBody")
       );
       return;
     }
     try {
       await shareFileUri(uri, "SongNook diagnostic log", "application/json");
     } catch {
-      AppAlert.info("Could not share", "The diagnostic log could not be shared on this device.");
+      AppAlert.info(t("settingsAbout.couldNotShare"), t("settingsAbout.couldNotShareBody"));
     }
   };
 
@@ -47,32 +49,32 @@ export function SettingsAboutView() {
       contentContainerStyle={settingsScreenStyles.scrollContent}
       showsVerticalScrollIndicator={false}
     >
-      <PageIntro title="About" subtitle="Version, a way to reach us, and where your work lives." />
+      <PageIntro title={t("settings.about")} subtitle={t("settingsAbout.subtitle")} />
 
       <View style={styles.settingsSection}>
         <View style={styles.settingsSectionHeaderRow}>
-          <Text style={styles.settingsSectionLabel}>App</Text>
+          <Text style={styles.settingsSectionLabel}>{t("settings.app")}</Text>
         </View>
         <View style={styles.settingsOptionStack}>
-          <AboutLinkRow label="Version" value={version} />
+          <AboutLinkRow label={t("settingsAbout.version")} value={version} />
         </View>
       </View>
 
       <View style={styles.settingsSection}>
         <View style={styles.settingsSectionHeaderRow}>
-          <Text style={styles.settingsSectionLabel}>Feedback</Text>
+          <Text style={styles.settingsSectionLabel}>{t("settings.feedback")}</Text>
         </View>
         <View style={styles.settingsOptionStack}>
-          <AboutLinkRow label="Send feedback" icon="mail-outline" onPress={sendFeedback} />
+          <AboutLinkRow label={t("settingsAbout.sendFeedback")} icon="mail-outline" onPress={sendFeedback} />
           <AboutLinkRow
-            label="Share diagnostic log"
+            label={t("settingsAbout.shareDiagnostics")}
             icon="pulse-outline"
             onPress={() => {
               void shareDiagnosticLog();
             }}
           />
           <AboutLinkRow
-            label="Replay intro"
+            label={t("settingsAbout.replayIntro")}
             icon="sparkles-outline"
             onPress={() => {
               haptic.tap();
@@ -85,11 +87,10 @@ export function SettingsAboutView() {
 
       <View style={styles.settingsSection}>
         <View style={styles.settingsSectionHeaderRow}>
-          <Text style={styles.settingsSectionLabel}>Privacy</Text>
+          <Text style={styles.settingsSectionLabel}>{t("settingsAbout.privacy")}</Text>
         </View>
         <Text style={styles.settingsSectionHint}>
-          Your library stays on this device. Backups and archives are saved only where you send
-          them — Files, iCloud, or Drive. Nothing is uploaded automatically.
+          {t("settingsAbout.privacyBody")}
         </Text>
       </View>
     </ScrollView>

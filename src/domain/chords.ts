@@ -5,6 +5,39 @@ import type {
   LyricsLine,
   SongChordPaletteItem,
 } from "../types";
+import GraphemeSplitter from "grapheme-splitter";
+
+const graphemeSplitter = new GraphemeSplitter();
+
+export function splitGraphemes(text: string): string[] {
+  return graphemeSplitter.splitGraphemes(text ?? "");
+}
+
+export function graphemeCount(text: string): number {
+  return splitGraphemes(text).length;
+}
+
+export function graphemeIndexToStringIndex(text: string, index: number): number {
+  return splitGraphemes(text).slice(0, clampChordIndex(index, graphemeCount(text))).join("").length;
+}
+
+export function stringIndexToGraphemeIndex(text: string, index: number): number {
+  const target = clampChordIndex(index, text.length);
+  let stringIndex = 0;
+  const units = splitGraphemes(text);
+  for (let graphemeIndex = 0; graphemeIndex < units.length; graphemeIndex += 1) {
+    if (stringIndex >= target) return graphemeIndex;
+    stringIndex += units[graphemeIndex].length;
+  }
+  return units.length;
+}
+
+export function chordGraphemeAnchor(chord: ChordPlacement, text: string): number {
+  return clampChordIndex(
+    Number.isFinite(chord.graphemeAt) ? chord.graphemeAt! : stringIndexToGraphemeIndex(text, chord.at),
+    graphemeCount(text)
+  );
+}
 
 export const CHORD_ROOTS: ChordRoot[] = ["A", "B", "C", "D", "E", "F", "G"];
 
@@ -159,12 +192,12 @@ export function serializeChordPro(lines: LyricsLine[]): string {
   return lines
     .map((line) => {
       const text = line.text ?? "";
-      const chords = [...(line.chords ?? [])].sort((a, b) => a.at - b.at);
+      const chords = [...(line.chords ?? [])].sort((a, b) => chordGraphemeAnchor(a, text) - chordGraphemeAnchor(b, text));
       if (chords.length === 0) return text;
       let result = "";
       let cursor = 0;
       for (const chord of chords) {
-        const at = clampChordIndex(chord.at, text.length);
+        const at = graphemeIndexToStringIndex(text, chordGraphemeAnchor(chord, text));
         if (at > cursor) {
           result += text.slice(cursor, at);
           cursor = at;
@@ -181,11 +214,11 @@ export function serializeChordPro(lines: LyricsLine[]): string {
  * Returns "" when the line has no chords. */
 export function buildChordRowLine(line: LyricsLine): string {
   const text = line.text ?? "";
-  const chords = [...(line.chords ?? [])].sort((a, b) => a.at - b.at);
+  const chords = [...(line.chords ?? [])].sort((a, b) => chordGraphemeAnchor(a, text) - chordGraphemeAnchor(b, text));
   if (chords.length === 0) return "";
   let row = "";
   for (const chord of chords) {
-    const at = clampChordIndex(chord.at, text.length);
+    const at = chordGraphemeAnchor(chord, text);
     if (row.length < at) row += " ".repeat(at - row.length);
     // If two chords collide, leave a single space between them.
     if (row.length > at) row += " ";

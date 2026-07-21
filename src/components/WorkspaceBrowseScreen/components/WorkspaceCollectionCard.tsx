@@ -4,6 +4,8 @@ import { SurfaceCard } from "../../common/SurfaceCard";
 import type { CollectionSearchMatchKind } from "../../../domain/libraryNavigation";
 import type { Collection } from "../../../types";
 import { formatLastEdited } from "../../../utils";
+import { UserText } from "../../../i18n";
+import { useTranslation } from "react-i18next";
 
 type WorkspaceCollectionCardProps = {
   entry: {
@@ -61,12 +63,13 @@ export function WorkspaceCollectionCard({
   onPress,
   onLongPress,
 }: WorkspaceCollectionCardProps) {
+  const { t } = useTranslation();
   const { collection, itemCount, childCollectionCount, matches } = entry;
 
   const metaParts = [
-    `${itemCount} ${itemCount === 1 ? "seed" : "seeds"}`,
+    t("brand.ideaCount", { count: itemCount }),
     childCollectionCount > 0
-      ? `${childCollectionCount} ${childCollectionCount === 1 ? "sub-collection" : "sub-collections"}`
+      ? t("workspaceBrowse.subcollection", { count: childCollectionCount })
       : null,
     formatLastEdited(collection.updatedAt),
   ].filter(Boolean).join("  ·  ");
@@ -86,14 +89,14 @@ export function WorkspaceCollectionCard({
           </View>
         ) : null}
 
-        <Text style={cardStyles.title} numberOfLines={1}>
+        <UserText value={collection.title} style={cardStyles.title} numberOfLines={1}>
           <HighlightedText value={collection.title} query={searchQuery} />
-        </Text>
+        </UserText>
 
         {isPrimary ? (
           <View style={cardStyles.primaryBadge}>
             <Ionicons name="star" size={10} color="#B87D6B" />
-            <Text style={cardStyles.primaryLabel}>Primary</Text>
+            <Text style={cardStyles.primaryLabel}>{t("workspaceBrowse.primary")}</Text>
           </View>
         ) : null}
       </View>
@@ -103,9 +106,9 @@ export function WorkspaceCollectionCard({
 
       {/* Description */}
       {collection.description ? (
-        <Text style={cardStyles.description} numberOfLines={2}>
+        <UserText value={collection.description} style={cardStyles.description} numberOfLines={2}>
           {collection.description}
-        </Text>
+        </UserText>
       ) : null}
 
       {/* Search match badges */}
@@ -209,4 +212,3 @@ const cardStyles = StyleSheet.create({
     color: "#84736f",
   },
 });
-

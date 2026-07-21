@@ -16,6 +16,7 @@ import { toast } from "../common/toastStore";
 import { haptic } from "../../design/haptics";
 import { colors, radii, spacing, text as textTokens } from "../../design/tokens";
 import type { ShareKind, SongIdea, Workspace } from "../../types";
+import { useTranslation } from "react-i18next";
 
 const KIND_LABELS: Record<ShareKind, string> = {
   setlist: "Setlist",
@@ -56,6 +57,7 @@ function formatReceivedLine(pkg: Workspace): string {
  * are the exits. Nothing here ever mixes into personal workspaces on its own.
  */
 export function ReceivedScreen() {
+  const { t } = useTranslation();
   const navigation = useNavigation<any>();
   const isFocused = useIsFocused();
   useBrowseRootBackHandler();
@@ -222,7 +224,7 @@ export function ReceivedScreen() {
   // ── Package list ──────────────────────────────────────────────────────────
   return (
     <SafeAreaView style={receivedStyles.screen}>
-      <ScreenHeader title="Received" leftIcon="hamburger" />
+      <ScreenHeader title={t("screens.received")} leftIcon="hamburger" />
 
       <ScrollView
         showsVerticalScrollIndicator={false}

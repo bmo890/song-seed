@@ -5,7 +5,7 @@ import type {
   TextInputScrollEventData,
   TextInputSelectionChangeEventData,
 } from "react-native";
-import { Pressable, StyleSheet, TextInput, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { styles as appStyles } from "../../../styles";
 import { colors, radii, spacing } from "../../../design/tokens";
@@ -13,9 +13,13 @@ import { styles } from "../styles";
 import { HelpSheet, type HelpItem } from "../../common/HelpSheet";
 import { WordFinderSheet } from "../../common/WordFinderSheet";
 import { applyPickedWord, extractWordRange } from "../../../domain/wordTools";
+import { UserTextInput, type ContentDirection } from "../../../i18n";
+import { useTranslation } from "react-i18next";
 
 type LyricsVersionEditorProps = {
   draftText: string;
+  textDirection: ContentDirection;
+  onTextDirectionChange: (next: ContentDirection) => void;
   canSave: boolean;
   showSaveAsNew: boolean;
   canUndo: boolean;
@@ -33,6 +37,8 @@ type LyricsVersionEditorProps = {
 
 export function LyricsVersionEditor({
   draftText,
+  textDirection,
+  onTextDirectionChange,
   canSave,
   showSaveAsNew,
   canUndo,
@@ -47,7 +53,9 @@ export function LyricsVersionEditor({
   onScroll,
   scrollIndicator,
 }: LyricsVersionEditorProps) {
+  const { t } = useTranslation();
   const [helpVisible, setHelpVisible] = useState(false);
+  const [directionMenuVisible, setDirectionMenuVisible] = useState(false);
   const [wordFinderVisible, setWordFinderVisible] = useState(false);
   const [wordFinderSeed, setWordFinderSeed] = useState("");
   // Tracked in a ref: selection moves on every keystroke and shouldn't re-render.
@@ -154,6 +162,14 @@ export function LyricsVersionEditor({
           </Pressable>
           <Pressable
             style={({ pressed }) => [editorControls.iconBtn, pressed ? appStyles.pressDown : null]}
+            onPress={() => setDirectionMenuVisible((visible) => !visible)}
+            hitSlop={6}
+            accessibilityLabel={t("lyrics.textDirection")}
+          >
+            <Ionicons name="ellipsis-horizontal" size={18} color={colors.textSecondary} />
+          </Pressable>
+          <Pressable
+            style={({ pressed }) => [editorControls.iconBtn, pressed ? appStyles.pressDown : null]}
             onPress={() => setHelpVisible(true)}
             hitSlop={6}
             accessibilityLabel="Help"
@@ -175,16 +191,37 @@ export function LyricsVersionEditor({
           <Ionicons name="checkmark" size={20} color={canSave ? colors.onPrimary : colors.textMuted} />
         </Pressable>
       </View>
+      {directionMenuVisible ? (
+        <View style={editorControls.directionMenu}>
+          <Text style={editorControls.directionLabel}>{t("lyrics.textDirection")}</Text>
+          {(["auto", "ltr", "rtl"] as ContentDirection[]).map((option) => (
+            <Pressable
+              key={option}
+              style={[editorControls.directionOption, option === textDirection ? editorControls.directionOptionActive : null]}
+              onPress={() => {
+                onTextDirectionChange(option);
+                setDirectionMenuVisible(false);
+              }}
+            >
+              <Text style={editorControls.directionOptionText}>
+                {t(option === "auto" ? "lyrics.directionAuto" : option === "ltr" ? "lyrics.directionLtr" : "lyrics.directionRtl")}
+              </Text>
+              {option === textDirection ? <Ionicons name="checkmark" size={16} color={colors.primary} /> : null}
+            </Pressable>
+          ))}
+        </View>
+      ) : null}
       <View style={[styles.lyricsVersionDocumentFill, styles.lyricsVersionDocumentFillEdit]}>
         <View style={[styles.lyricsVersionDocumentContent, styles.lyricsVersionDocumentContentEdit]}>
           <View
             style={styles.lyricsScrollableWrap}
             onLayout={(event) => onLayout(event.nativeEvent.layout.height)}
           >
-            <TextInput
+            <UserTextInput
               style={[styles.lyricsInput, styles.lyricsInputFill, styles.lyricsEditFieldActive]}
+              direction={textDirection}
               multiline
-              placeholder="Write your lyrics here"
+              placeholder={t("lyrics.writeHere")}
               value={draftText}
               onChangeText={onChangeText}
               onSelectionChange={handleSelectionChange}
@@ -249,5 +286,33 @@ const editorControls = StyleSheet.create({
   },
   saveBtnDisabled: {
     backgroundColor: colors.surfaceHigh,
+  },
+  directionMenu: {
+    alignSelf: "flex-start",
+    minWidth: 220,
+    marginBottom: spacing.sm,
+    padding: spacing.sm,
+    borderRadius: radii.md,
+    backgroundColor: colors.surfaceHigh,
+  },
+  directionLabel: {
+    color: colors.textMuted,
+    fontSize: 12,
+    marginBottom: spacing.xs,
+  },
+  directionOption: {
+    minHeight: 38,
+    paddingHorizontal: spacing.sm,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  directionOptionActive: {
+    backgroundColor: colors.surface,
+    borderRadius: radii.sm,
+  },
+  directionOptionText: {
+    color: colors.textStrong,
+    fontSize: 14,
   },
 });

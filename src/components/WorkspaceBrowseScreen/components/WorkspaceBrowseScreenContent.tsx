@@ -27,10 +27,13 @@ import { WorkspaceCollectionList } from "./WorkspaceCollectionList";
 import { WorkspaceAvatar } from "../../common/WorkspaceAvatar";
 import { styles } from "../../../styles";
 import { colors, radii } from "../../../design/tokens";
+import { useTranslation } from "react-i18next";
+import { UserText } from "../../../i18n";
 
 const DEFAULT_HEADER_HEIGHT = 220;
 
 function WorkspaceBrowseInner() {
+  const { t } = useTranslation();
   const theme = useWorkspaceTheme();
   const insets = useSafeAreaInsets();
   const playerDockHeight = useStore((s) => s.playerDockHeight);
@@ -95,7 +98,7 @@ function WorkspaceBrowseInner() {
   if (!collectionsModel.activeWorkspace) {
     return (
       <SafeAreaView style={[browseStyles.screen, { backgroundColor: theme.bg }]}>
-        <Text style={browseStyles.emptyMsg}>Choose a workspace to browse its collections.</Text>
+        <Text style={browseStyles.emptyMsg}>{t("workspaceBrowse.chooseWorkspace")}</Text>
       </SafeAreaView>
     );
   }
@@ -108,7 +111,7 @@ function WorkspaceBrowseInner() {
       <View style={browseStyles.navRow}>
         <Pressable
           testID="header-menu"
-          accessibilityLabel="Open menu"
+          accessibilityLabel={t("workspaceBrowse.openMenu")}
           style={({ pressed }) => [browseStyles.navBtn, pressed ? styles.pressDown : null]}
           onPress={openDrawer}
           hitSlop={8}
@@ -123,9 +126,9 @@ function WorkspaceBrowseInner() {
             avatarKey={collectionsModel.activeWorkspace.avatarKey}
             size={18}
           />
-          <Text style={browseStyles.navCompactTitle} numberOfLines={1}>
+          <UserText value={collectionsModel.activeWorkspace.title} style={browseStyles.navCompactTitle} numberOfLines={1}>
             {collectionsModel.activeWorkspace.title}
-          </Text>
+          </UserText>
         </ReAnimated.View>
 
         {/* Right spacer to balance the hamburger and keep compact title centred */}
@@ -153,7 +156,7 @@ function WorkspaceBrowseInner() {
           {!selectionModel.selectionMode ? (
             <View style={browseStyles.sectionRow}>
               <Text style={browseStyles.sectionLabel}>
-                Active Collections ({collectionCount})
+                {t("workspaceBrowse.activeCollections", { count: collectionCount })}
               </Text>
             </View>
           ) : (
@@ -191,7 +194,7 @@ function WorkspaceBrowseInner() {
           onHeaderHeight={setHeaderHeight}
           collapsible={
             <View style={[browseStyles.identityBlock, { backgroundColor: theme.bg }]}>
-              <Text style={browseStyles.eyebrow}>Current Workspace</Text>
+              <Text style={browseStyles.eyebrow}>{t("workspaceBrowse.currentWorkspace")}</Text>
               <View style={browseStyles.titleRow}>
                 <WorkspaceAvatar
                   name={collectionsModel.activeWorkspace.title}
@@ -199,9 +202,9 @@ function WorkspaceBrowseInner() {
                   avatarKey={collectionsModel.activeWorkspace.avatarKey}
                   size={40}
                 />
-                <Text style={browseStyles.pageTitle} numberOfLines={2}>
+                <UserText value={collectionsModel.activeWorkspace.title} style={browseStyles.pageTitle} numberOfLines={2}>
                   {collectionsModel.activeWorkspace.title}
-                </Text>
+                </UserText>
               </View>
             </View>
           }
@@ -210,7 +213,7 @@ function WorkspaceBrowseInner() {
               <View style={browseStyles.searchWrapper}>
                 <SearchField
                   value={collectionsModel.searchQuery}
-                  placeholder="Search collections, seeds, or clips..."
+                  placeholder={t("workspaceBrowse.searchPlaceholder")}
                   onChangeText={collectionsModel.setSearchQuery}
                 />
               </View>
@@ -246,7 +249,7 @@ function WorkspaceBrowseInner() {
         <Pressable
           testID="workspace-add-collection"
           accessibilityRole="button"
-          accessibilityLabel="New collection"
+          accessibilityLabel={t("workspaceBrowse.newCollection")}
           style={({ pressed }) => [
             browseStyles.fab,
             { bottom: playerDockHeight > 0 ? playerDockHeight + 12 : Math.max(32, insets.bottom + 16) },
@@ -261,7 +264,7 @@ function WorkspaceBrowseInner() {
       {/* Modals */}
       <QuickNameModal
         visible={importFlow.modalOpen}
-        title="New Collection"
+        title={t("workspaceBrowse.newCollectionTitle")}
         draftValue={importFlow.draftTitle}
         placeholderValue={importFlow.defaultCollectionTitle}
         onChangeDraft={importFlow.setDraftTitle}
@@ -273,25 +276,25 @@ function WorkspaceBrowseInner() {
           importFlow.setDraftDescription("");
         }}
         onSave={importFlow.createCollection}
-        helperText="Collections hold seeds and clips."
-        saveLabel="Create"
+        helperText={t("workspaceBrowse.collectionsHint")}
+        saveLabel={t("workspaceBrowse.create")}
       />
 
       <QuickNameModal
         visible={importFlow.importCollectionModalOpen}
-        title="New Collection from Import"
+        title={t("workspaceBrowse.newCollectionFromImport")}
         draftValue={importFlow.importCollectionDraft}
         placeholderValue={importFlow.defaultImportedTitle}
         onChangeDraft={importFlow.setImportCollectionDraft}
         onCancel={importFlow.resetImportCollectionModal}
         onSave={importFlow.saveImportedCollection}
         helperText={importFlow.importHelperText}
-        saveLabel="Create"
+        saveLabel={t("workspaceBrowse.create")}
       />
 
       <QuickNameModal
         visible={selectionModel.collectionRenameModalOpen}
-        title="Edit collection"
+        title={t("workspaceBrowse.editCollection")}
         draftValue={selectionModel.collectionDraft}
         placeholderValue={selectionModel.managedCollection?.title ?? "Collection"}
         onChangeDraft={selectionModel.setCollectionDraft}

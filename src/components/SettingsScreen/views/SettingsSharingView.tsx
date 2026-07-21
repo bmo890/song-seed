@@ -11,6 +11,9 @@ import { toast } from "../../common/toastStore";
 import { haptic } from "../../../design/haptics";
 import { colors, radii, text as textTokens } from "../../../design/tokens";
 import type { ShareKind } from "../../../types";
+import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
+import { UserText } from "../../../i18n";
 
 const KIND_ICONS: Record<ShareKind, React.ComponentProps<typeof Ionicons>["name"]> = {
   setlist: "albums-outline",
@@ -21,10 +24,10 @@ const KIND_ICONS: Record<ShareKind, React.ComponentProps<typeof Ionicons>["name"
   library: "library-outline",
 };
 
-function statusLabel(link: SentLink, now: number): string {
-  if (isSentLinkExpired(link, now)) return "Expired";
+function statusLabel(link: SentLink, now: number, t: TFunction): string {
+  if (isSentLinkExpired(link, now)) return t("sharing.expired");
   const days = Math.max(1, Math.ceil((link.expiresAt - now) / 86400000));
-  return `${days} ${days === 1 ? "day" : "days"} left`;
+  return t("sharing.daysLeft", { count: days });
 }
 
 /**
@@ -34,6 +37,7 @@ function statusLabel(link: SentLink, now: number): string {
  * self-cleaning: expired entries grey out, then prune after a grace window.
  */
 export function SettingsSharingView() {
+  const { t } = useTranslation();
   const links = useSentLinksStore((s) => s.links);
   const forgetLink = useSentLinksStore((s) => s.forgetLink);
 
@@ -48,15 +52,15 @@ export function SettingsSharingView() {
   const copy = async (link: SentLink) => {
     await Clipboard.setStringAsync(link.shareUrl);
     haptic.light();
-    toast("Link copied", "link-outline");
+    toast(t("sharing.linkCopied"), "link-outline");
   };
 
   const confirmForget = (link: SentLink) => {
     AppAlert.confirm(
-      "Forget this link?",
-      "It only disappears from this list — the link itself keeps working until it expires on its own.",
+      t("sharing.forgetTitle"),
+      t("sharing.forgetBody"),
       () => forgetLink(link.transferId),
-      { confirmLabel: "Forget" }
+      { confirmLabel: t("sharing.forget") }
     );
   };
 
@@ -67,8 +71,8 @@ export function SettingsSharingView() {
       showsVerticalScrollIndicator={false}
     >
       <PageIntro
-        title="Sharing"
-        subtitle="Links you've sent with Songnook Send. Each lives for a limited time, then quietly expires — nothing here needs tending."
+        title={t("sharing.title")}
+        subtitle={t("sharing.subtitle")}
       />
 
       <View style={sharingStyles.list}>
@@ -84,15 +88,14 @@ export function SettingsSharingView() {
                 />
               </View>
               <View style={sharingStyles.main}>
-                <Text
+                <UserText
                   style={[sharingStyles.title, expired ? sharingStyles.titleExpired : null]}
                   numberOfLines={1}
                 >
                   {link.title}
-                </Text>
+                </UserText>
                 <Text style={sharingStyles.meta} numberOfLines={1}>
-                  {statusLabel(link, now)} · {link.itemCount}{" "}
-                  {link.itemCount === 1 ? "item" : "items"}
+                  {statusLabel(link, now, t)} · {t("sharing.itemCount", { count: link.itemCount })}
                 </Text>
               </View>
               {!expired ? (
@@ -100,7 +103,7 @@ export function SettingsSharingView() {
                   onPress={() => void copy(link)}
                   hitSlop={8}
                   accessibilityRole="button"
-                  accessibilityLabel={`Copy link for ${link.title}`}
+                  accessibilityLabel={t("sharing.copyA11y", { title: link.title })}
                   style={({ pressed }) => [sharingStyles.actionBtn, pressed ? { opacity: 0.6 } : null]}
                 >
                   <Ionicons name="copy-outline" size={15} color={colors.textStrong} />
@@ -110,7 +113,7 @@ export function SettingsSharingView() {
                 onPress={() => confirmForget(link)}
                 hitSlop={8}
                 accessibilityRole="button"
-                accessibilityLabel={`Forget link for ${link.title}`}
+                accessibilityLabel={t("sharing.forgetA11y", { title: link.title })}
                 style={({ pressed }) => [sharingStyles.actionBtn, pressed ? { opacity: 0.6 } : null]}
               >
                 <Ionicons name="close" size={15} color={colors.textMuted} />
@@ -123,10 +126,9 @@ export function SettingsSharingView() {
       {sorted.length === 0 ? (
         <View style={sharingStyles.emptyWrap}>
           <Ionicons name="link-outline" size={24} color={colors.textMuted} />
-          <Text style={sharingStyles.emptyTitle}>No links yet</Text>
+          <Text style={sharingStyles.emptyTitle}>{t("sharing.emptyTitle")}</Text>
           <Text style={sharingStyles.emptyBody}>
-            Choose "Get a link" when sharing a setlist, songbook, or clips — the link lands
-            here so you can copy it again later.
+            {t("sharing.emptyBody")}
           </Text>
         </View>
       ) : null}

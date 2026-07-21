@@ -2,6 +2,8 @@ import { Text, View, StyleProp, TextStyle, ViewStyle } from "react-native";
 import { styles } from "../../styles";
 import { IdeaStatus } from "../../types";
 import { colors } from "../../design/tokens";
+import { useTranslation } from "react-i18next";
+import { useLocale } from "../../i18n";
 
 type Props = {
     status: IdeaStatus;
@@ -21,21 +23,24 @@ const DENSE_COLORS: Record<string, string> = {
 };
 
 const DENSE_LABELS: Record<string, string> = {
-    seed: "SEED",
-    sprout: "SPRT",
-    stem: "STEM",
+    seed: "IDEA",
+    sprout: "START",
+    stem: "SHAPE",
     song: "SONG",
     clip: "CLIP",
 };
 
 export function StatusBadge({ status, pct, dense, style }: Props) {
+    const { t } = useTranslation();
+    const { language } = useLocale();
+    const translatedStatus = t(`stages.${status}`);
     if (dense) {
         const color = DENSE_COLORS[status] ?? DENSE_COLORS.clip;
         return (
             <View style={styles.statusDenseWrap}>
                 <View style={[styles.statusDenseDot, { backgroundColor: color }]} />
                 <Text style={[styles.statusDenseLabel, { color }]}>
-                    {DENSE_LABELS[status] ?? status.toUpperCase()}
+                    {language === "en" ? DENSE_LABELS[status] ?? status.toUpperCase() : translatedStatus}
                 </Text>
             </View>
         );
@@ -43,7 +48,7 @@ export function StatusBadge({ status, pct, dense, style }: Props) {
 
     let viewStyle: StyleProp<ViewStyle>;
     let textStyle: StyleProp<TextStyle>;
-    let label = pct != null ? `${status.toUpperCase()} ${pct}%` : status.toUpperCase();
+    let label = pct != null ? `${translatedStatus} ${pct}%` : translatedStatus;
 
     switch (status) {
         case "seed":
@@ -61,7 +66,7 @@ export function StatusBadge({ status, pct, dense, style }: Props) {
         case "song":
             viewStyle = styles.statusSong;
             textStyle = styles.statusSongText;
-            label = "SONG";
+            label = translatedStatus;
             break;
         default:
             viewStyle = styles.statusClip;

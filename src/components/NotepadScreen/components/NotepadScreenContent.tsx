@@ -20,6 +20,8 @@ import { exerciseSummary } from "../../../domain/wordLadder";
 import { cutUpSummary } from "../../../domain/cutUp";
 import { magpieSummary } from "../../../domain/magpie";
 import type { Note, WordLadderExercise, CutUpSpark, MagpieSpark } from "../../../types";
+import { useTranslation } from "react-i18next";
+import { UserText } from "../../../i18n";
 import {
   buildSearchPreviewSegments,
   deriveNotePreviewBody,
@@ -88,30 +90,30 @@ function NoteListItem({
     >
       <View style={noteStyles.cardBody}>
         {titleSegments ? (
-          <Text style={noteStyles.cardTitle} numberOfLines={1}>
+          <UserText value={title} style={noteStyles.cardTitle} numberOfLines={1}>
             {titleSegments.map((seg, i) => (
               <Text key={i} style={seg.kind === "match" ? noteStyles.matchText : undefined}>
                 {seg.value}
               </Text>
             ))}
-          </Text>
+          </UserText>
         ) : (
-          <Text style={noteStyles.cardTitle} numberOfLines={1}>
+          <UserText value={title} style={noteStyles.cardTitle} numberOfLines={1}>
             {title}
-          </Text>
+          </UserText>
         )}
         {bodySegments ? (
-          <Text style={noteStyles.cardPreview} numberOfLines={2}>
+          <UserText value={note.body} style={noteStyles.cardPreview} numberOfLines={2}>
             {bodySegments.map((seg, i) => (
               <Text key={i} style={seg.kind === "match" ? noteStyles.matchText : undefined}>
                 {seg.value}
               </Text>
             ))}
-          </Text>
+          </UserText>
         ) : fallbackPreview ? (
-          <Text style={noteStyles.cardPreview} numberOfLines={2}>
+          <UserText value={fallbackPreview} style={noteStyles.cardPreview} numberOfLines={2}>
             {fallbackPreview}
-          </Text>
+          </UserText>
         ) : (
           <Text style={noteStyles.cardPreviewEmpty}>Empty note</Text>
         )}
@@ -174,9 +176,9 @@ function WordLadderListItem({
         <Ionicons name="shuffle-outline" size={16} color={colors.primary} />
       </View>
       <View style={noteStyles.cardBody}>
-        <Text style={noteStyles.cardTitle} numberOfLines={1}>
+        <UserText value={exercise.title} style={noteStyles.cardTitle} numberOfLines={1}>
           {exercise.title}
-        </Text>
+        </UserText>
         <Text style={noteStyles.cardMeta}>WORD LADDER  ·  {exerciseSummary(exercise)}</Text>
       </View>
       {selectionMode ? (
@@ -223,9 +225,9 @@ function CutUpListItem({
         <Ionicons name="cut-outline" size={16} color={colors.primary} />
       </View>
       <View style={noteStyles.cardBody}>
-        <Text style={noteStyles.cardTitle} numberOfLines={1}>
+        <UserText value={spark.title} style={noteStyles.cardTitle} numberOfLines={1}>
           {spark.title}
-        </Text>
+        </UserText>
         <Text style={noteStyles.cardMeta}>CUT-UP  ·  {cutUpSummary(spark)}</Text>
       </View>
       {selectionMode ? (
@@ -272,9 +274,9 @@ function MagpieListItem({
         <Ionicons name="book-outline" size={16} color={colors.primary} />
       </View>
       <View style={noteStyles.cardBody}>
-        <Text style={noteStyles.cardTitle} numberOfLines={1}>
+        <UserText value={spark.title} style={noteStyles.cardTitle} numberOfLines={1}>
           {spark.title}
-        </Text>
+        </UserText>
         <Text style={noteStyles.cardMeta}>MAGPIE  ·  {magpieSummary(spark)}</Text>
       </View>
       {selectionMode ? (
@@ -289,6 +291,7 @@ function MagpieListItem({
 }
 
 export function NotepadScreenContent() {
+  const { t } = useTranslation();
   const {
     sections,
     totalEntryCount,
@@ -429,7 +432,7 @@ export function NotepadScreenContent() {
     <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
       {!selectionMode ? (
         <ScreenHeader
-          title="Lyrics Pad"
+          title={t("screens.lyricsPad")}
           rightElement={
             <View style={listStyles.headerActions}>
               <Pressable

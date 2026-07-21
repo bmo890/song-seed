@@ -122,7 +122,11 @@ export function groupBySyllableCount(suggestions: WordSuggestion[]): SyllableGro
 }
 
 /** Characters that count as part of a lyric word (apostrophes for contractions, hyphens). */
-const WORD_CHAR = /[A-Za-z0-9'’-]/;
+const WORD_CHAR = /[\p{L}\p{N}'’\-־׳״]/u;
+
+export function isEnglishLookupWord(word: string): boolean {
+  return /[A-Za-z]/.test(word) && !/[\u0590-\u05FF\u0600-\u08FF]/.test(word);
+}
 
 export type WordRange = { word: string; start: number; end: number };
 
@@ -152,7 +156,7 @@ export function extractWordRange(text: string, start: number, end: number): Word
   }
 
   const word = text.slice(from, to).trim();
-  if (!word || !/[A-Za-z]/.test(word)) return null;
+  if (!word || !/\p{L}/u.test(word)) return null;
   return { word, start: from, end: to };
 }
 

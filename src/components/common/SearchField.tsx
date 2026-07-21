@@ -1,7 +1,8 @@
-import { Pressable, StyleSheet, TextInput, View, type StyleProp, type ViewStyle } from "react-native";
+import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { styles } from "../../styles";
 import { colors, radii, spacing, text } from "../../design/tokens";
+import { UserTextInput } from "../../i18n";
 
 type SearchFieldProps = {
   value: string;
@@ -23,7 +24,7 @@ export function SearchField({
   return (
     <View style={[searchFieldStyles.wrap, containerStyle]}>
       <Ionicons name="search" size={16} color={colors.textSecondary} />
-      <TextInput
+      <UserTextInput
         testID={testID}
         style={searchFieldStyles.input}
         placeholder={placeholder}

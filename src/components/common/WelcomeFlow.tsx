@@ -19,6 +19,7 @@ import {
   WELCOME_IMPORT_COLLECTION_TITLE,
   type WelcomeImportProgress,
 } from "../../services/welcomeImport";
+import { useTranslation } from "react-i18next";
 
 /**
  * First-run (and replayable) intro. Four swipeable panes in SongNook's voice —
@@ -45,10 +46,10 @@ const PANES: Pane[] = [
     body: "Hum it, strum it, sing it — SongNook records the idea before it slips away.",
   },
   {
-    icon: "leaf-outline",
-    eyebrow: "Grow",
-    title: "Tend every idea",
-    body: "Takes, lyrics, chords, versions — each seed of a song lives in one place, ready when you return.",
+    icon: "color-wand-outline",
+    eyebrow: "Develop",
+    title: "Shape every idea",
+    body: "Takes, lyrics, chords, and versions stay together — ready whenever you return.",
   },
   {
     icon: "repeat-outline",
@@ -60,6 +61,7 @@ const PANES: Pane[] = [
 
 /** The interactive "bring your recordings" pane — last pane of the intro. */
 function ImportPane({ width }: { width: number }) {
+  const { t } = useTranslation();
   const [progress, setProgress] = useState<WelcomeImportProgress | null>(null);
   const [picking, setPicking] = useState(false);
   const busy = picking || progress?.phase === "importing";
@@ -87,12 +89,12 @@ function ImportPane({ width }: { width: number }) {
     progress?.phase === "done"
       ? [
           progress.imported > 0
-            ? `${progress.imported} recording${progress.imported === 1 ? "" : "s"} added`
+            ? t("welcome.recordingsAdded", { count: progress.imported })
             : null,
           progress.skippedDuplicates > 0
-            ? `${progress.skippedDuplicates} already in your library`
+            ? t("welcome.alreadyInLibrary", { count: progress.skippedDuplicates })
             : null,
-          progress.failed > 0 ? `${progress.failed} couldn’t be read` : null,
+          progress.failed > 0 ? t("welcome.filesUnreadable", { count: progress.failed }) : null,
         ]
           .filter(Boolean)
           .join(" · ")
@@ -103,27 +105,26 @@ function ImportPane({ width }: { width: number }) {
       <View style={s.iconRing}>
         <Ionicons name="albums-outline" size={40} color={colors.primary} />
       </View>
-      <Text style={s.eyebrow}>Bring it with you</Text>
-      <Text style={s.title}>Your recordings belong here</Text>
+      <Text style={s.eyebrow}>{t("welcome.importEyebrow")}</Text>
+      <Text style={s.title}>{t("welcome.importTitle")}</Text>
       <Text style={s.body}>
-        Got a phone full of voice memos? Bring them in now — they’ll settle into an
-        “{WELCOME_IMPORT_COLLECTION_TITLE}” collection, ready to grow.
+        {t("welcome.importBody", { collection: WELCOME_IMPORT_COLLECTION_TITLE })}
       </Text>
 
       {progress?.phase === "done" ? (
         <View style={s.importDone}>
           <Ionicons name="checkmark-circle" size={20} color={colors.primary} />
-          <Text style={s.importDoneText}>{doneSummary || "All set"}</Text>
+          <Text style={s.importDoneText}>{doneSummary || t("welcome.allSet")}</Text>
         </View>
       ) : null}
       {progress?.phase === "done" && progress.imported > 0 ? (
         <Text style={s.importCaption}>
-          Find them in “{WELCOME_IMPORT_COLLECTION_TITLE}” — waveforms fill in on their own.
+          {t("welcome.importedCaption", { collection: WELCOME_IMPORT_COLLECTION_TITLE })}
         </Text>
       ) : null}
       {progress?.phase === "error" ? (
         <Text style={s.importErrorText}>
-          That didn’t work — try again, or import anytime from the + button.
+          {t("welcome.importError")}
         </Text>
       ) : null}
 
@@ -136,21 +137,21 @@ function ImportPane({ width }: { width: number }) {
           busy ? s.importButtonBusy : null,
         ]}
         accessibilityRole="button"
-        accessibilityLabel="Choose audio files to import"
+        accessibilityLabel={t("welcome.chooseFilesA11y")}
         testID="welcome-import-files"
       >
         {progress?.phase === "importing" ? (
           <>
             <ActivityIndicator size="small" color={colors.primary} />
             <Text style={s.importButtonText}>
-              Importing {Math.min(progress.current + 1, progress.total)} of {progress.total}…
+              {t("welcome.importing", { current: Math.min(progress.current + 1, progress.total), total: progress.total })}
             </Text>
           </>
         ) : (
           <>
             <Ionicons name="folder-open-outline" size={18} color={colors.primary} />
             <Text style={s.importButtonText}>
-              {progress?.phase === "done" ? "Import more files" : "Choose audio files"}
+              {t(progress?.phase === "done" ? "welcome.importMore" : "welcome.chooseFiles")}
             </Text>
           </>
         )}
@@ -158,19 +159,25 @@ function ImportPane({ width }: { width: number }) {
 
       <Text style={s.importCaption}>
         {progress?.phase === "importing"
-          ? "You can tap Start — the import keeps going on its own."
-          : "Or skip this — importing is always one tap away from the + button."}
+          ? t("welcome.importingHint")
+          : t("welcome.skipImportHint")}
       </Text>
     </View>
   );
 }
 
 export function WelcomeFlow({ onDone }: { onDone: () => void }) {
+  const { t } = useTranslation();
   const scrollRef = useRef<ScrollView>(null);
   const [index, setIndex] = useState(0);
   const [width, setWidth] = useState(Dimensions.get("window").width);
   // The three story panes plus the interactive import pane.
-  const paneCount = PANES.length + 1;
+  const panes = [
+    { ...PANES[0], eyebrow: t("welcome.captureEyebrow"), title: t("welcome.captureTitle"), body: t("welcome.captureBody") },
+    { ...PANES[1], eyebrow: t("welcome.growEyebrow"), title: t("welcome.growTitle"), body: t("welcome.growBody") },
+    { ...PANES[2], eyebrow: t("welcome.practiceEyebrow"), title: t("welcome.practiceTitle"), body: t("welcome.practiceBody") },
+  ];
+  const paneCount = panes.length + 1;
   const isLast = index === paneCount - 1;
 
   const goTo = (next: number) => {
@@ -205,9 +212,9 @@ export function WelcomeFlow({ onDone }: { onDone: () => void }) {
           }}
           hitSlop={12}
           accessibilityRole="button"
-          accessibilityLabel="Skip the intro"
+          accessibilityLabel={t("welcome.skipA11y")}
         >
-          <Text style={s.skip}>Skip</Text>
+          <Text style={s.skip}>{t("welcome.skip")}</Text>
         </Pressable>
       </View>
 
@@ -219,7 +226,7 @@ export function WelcomeFlow({ onDone }: { onDone: () => void }) {
         onMomentumScrollEnd={handleScroll}
         style={s.pager}
       >
-        {PANES.map((pane) => (
+        {panes.map((pane) => (
           <View key={pane.title} style={[s.pane, { width }]}>
             <View style={s.iconRing}>
               <Ionicons name={pane.icon} size={40} color={colors.primary} />
@@ -242,9 +249,9 @@ export function WelcomeFlow({ onDone }: { onDone: () => void }) {
           onPress={handleNext}
           style={({ pressed }) => [s.cta, pressed ? s.ctaPressed : null]}
           accessibilityRole="button"
-          accessibilityLabel={isLast ? "Start using SongNook" : "Next"}
+          accessibilityLabel={isLast ? t("welcome.startA11y") : t("welcome.next")}
         >
-          <Text style={s.ctaText}>{isLast ? "Start" : "Next"}</Text>
+          <Text style={s.ctaText}>{isLast ? t("welcome.start") : t("welcome.next")}</Text>
         </Pressable>
       </View>
     </SafeAreaView>

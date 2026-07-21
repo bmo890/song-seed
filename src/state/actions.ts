@@ -18,8 +18,8 @@ import { useStore } from "./useStore";
 import { createEmptyProjectLyrics, createEmptyWorkspaceIdeasListState, normalizeWorkspaces } from "./dataSlice";
 import { createLyricsVersion, lyricsTextToDocument } from "../domain/lyrics";
 import { cloneChordSheet } from "../domain/chordSheet";
-import { buildChordDisplay, clampChordIndex, recordChordInPalette, type ChordParts } from "../domain/chords";
-import type { ChordPlacement, ChordSheet, LyricsDocument, LyricsLine, RecordingGrid } from "../types";
+import { buildChordDisplay, clampChordIndex, graphemeCount, graphemeIndexToStringIndex, recordChordInPalette, type ChordParts } from "../domain/chords";
+import type { ChordPlacement, ChordSheet, ContentDirection, LyricsDocument, LyricsLine, RecordingGrid } from "../types";
 import { applyClipMetadataBatch, type ClipMetadataEntry } from "./clipMetadataBatch";
 import { buildLyricsTextFromNote } from "../domain/notepad";
 import { buildDefaultIdeaTitle, ensureUniqueCountedTitle, ensureUniqueIdeaTitle, genId } from "../utils";
@@ -1650,7 +1650,7 @@ export const appActions = {
         }
     },
 
-    saveProjectLyrics: (projectId: string, text: string) => {
+    saveProjectLyrics: (projectId: string, text: string, textDirection: ContentDirection = "auto") => {
         const state = useStore.getState();
         state.updateIdeas((prev) =>
             prev.map((idea) => {
@@ -1663,13 +1663,14 @@ export const appActions = {
                 if (!latestVersion) {
                     return {
                         ...idea,
-                        lyrics: { versions: [createLyricsVersion(nextDocument)] },
+                        lyrics: { versions: [createLyricsVersion(nextDocument, textDirection)] },
                     };
                 }
 
                 const nextVersion = {
                     ...latestVersion,
                     updatedAt: Date.now(),
+                    textDirection,
                     document: nextDocument,
                 };
 
@@ -1684,7 +1685,7 @@ export const appActions = {
         state.logIdeaActivity(projectId, "updated", "lyrics-save");
     },
 
-    saveProjectLyricsAsNewVersion: (projectId: string, text: string, baseDocument?: LyricsDocument) => {
+    saveProjectLyricsAsNewVersion: (projectId: string, text: string, baseDocument?: LyricsDocument, textDirection: ContentDirection = "auto") => {
         const state = useStore.getState();
         state.updateIdeas((prev) =>
             prev.map((idea) => {
@@ -1699,7 +1700,7 @@ export const appActions = {
                 return {
                     ...idea,
                     lyrics: {
-                        versions: [...versions, createLyricsVersion(nextDocument)],
+                        versions: [...versions, createLyricsVersion(nextDocument, textDirection)],
                     },
                 };
             })
@@ -1725,12 +1726,14 @@ export const appActions = {
 
                 let placement: ChordPlacement | null = null;
                 const withChord = updateLyricsLineInVersion(idea, versionId, lineId, (line) => {
-                    const at = clampChordIndex(input.at, line.text.length);
+                    const graphemeAt = clampChordIndex(input.at, graphemeCount(line.text));
+                    const at = graphemeIndexToStringIndex(line.text, graphemeAt);
                     const existing = input.id ? line.chords.find((chord) => chord.id === input.id) : undefined;
                     placement = {
                         id: input.id ?? buildChordPlacementId(),
                         chord: display,
                         at,
+                        graphemeAt,
                         root: input.root,
                         accidental: input.accidental,
                         quality: input.quality,
@@ -1773,7 +1776,12 @@ export const appActions = {
                     ...line,
                     chords: line.chords.map((chord) =>
                         chord.id === chordId
-                            ? { ...chord, at: clampChordIndex(at, line.text.length), updatedAt: now }
+                            ? {
+                                ...chord,
+                                graphemeAt: clampChordIndex(at, graphemeCount(line.text)),
+                                at: graphemeIndexToStringIndex(line.text, at),
+                                updatedAt: now,
+                              }
                             : chord
                     ),
                 }));

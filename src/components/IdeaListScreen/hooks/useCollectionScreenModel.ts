@@ -13,8 +13,10 @@ import { buildIdeaListItemMeta, projectHasLyrics } from "../ideaListItemMeta";
 import type { IdeaListEntry, IdeaListItemMeta } from "../types";
 import { stickyDayStore } from "../stickyDayStore";
 import type { SongIdea } from "../../../types";
+import { useTranslation } from "react-i18next";
 
 export function useCollectionScreenModel() {
+  const { t } = useTranslation();
   const navigation = useNavigation();
   const isFocused = useIsFocused();
   const route = useRoute<any>();
@@ -413,8 +415,8 @@ export function useCollectionScreenModel() {
   const hasActivityRangeFilter = typeof activityRangeStartTs === "number" && typeof activityRangeEndTs === "number";
   const visibleIdeasCount = listIdeas.filter((idea) => !hiddenIdeaIdsSet.has(idea.id)).length;
   const ideasHeaderMeta = [
-    `${visibleIdeasCount} idea${visibleIdeasCount === 1 ? "" : "s"}`,
-    hasActivityRangeFilter ? "activity slice" : null,
+    t("common.ideaCount", { count: visibleIdeasCount }),
+    hasActivityRangeFilter ? t("common.activitySlice") : null,
   ].filter(Boolean).join("  •  ");
 
   const duplicateWarningText = (() => {

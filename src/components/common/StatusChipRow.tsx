@@ -3,6 +3,7 @@ import { Pressable, Text, View } from "react-native";
 import { styles } from "../../styles";
 import { haptic } from "../../design/haptics";
 import { IdeaStatus } from "../../types";
+import { useTranslation } from "react-i18next";
 
 type StatusChipValue = "all" | IdeaStatus;
 
@@ -22,10 +23,6 @@ function getChipStyles(value: StatusChipValue) {
     return { viewStyle: null, textStyle: null };
 }
 
-function getLabel(value: StatusChipValue) {
-    return value === "song" ? "SONG" : value.toUpperCase();
-}
-
 export function StatusChipRow<T extends StatusChipValue>({
     items,
     activeValue,
@@ -33,6 +30,7 @@ export function StatusChipRow<T extends StatusChipValue>({
     stretch = false,
     disabled = false,
 }: Props<T>) {
+    const { t } = useTranslation();
     return (
         <View style={styles.statusRowSpaced}>
             {items.map((item) => {
@@ -62,7 +60,7 @@ export function StatusChipRow<T extends StatusChipValue>({
                             adjustsFontSizeToFit
                             minimumFontScale={0.85}
                         >
-                            {getLabel(item)}
+                            {item === "all" ? t("common.all") : t(`stages.${item}`)}
                         </Text>
                     </Pressable>
                 );

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { UserTextInput } from "../../../i18n";
 import DraggableFlatList, { type RenderItemParams } from "react-native-draggable-flatlist";
 import { Ionicons } from "@expo/vector-icons";
 import { styles as appStyles } from "../../../styles";
@@ -55,7 +56,7 @@ export function WordLadderColumnEditor({
       </View>
 
       <View style={editorStyles.addRow}>
-        <TextInput
+        <UserTextInput
           style={editorStyles.addInput}
           value={draft}
           onChangeText={setDraft}
@@ -130,7 +131,7 @@ function WordChip({
       style={[editorStyles.chipRow, { backgroundColor: chipBg }, isActive ? editorStyles.chipRowActive : null]}
     >
       {isEditing ? (
-        <TextInput
+        <UserTextInput
           ref={inputRef}
           style={editorStyles.chipInput}
           value={word.text}

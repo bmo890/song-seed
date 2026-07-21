@@ -14,6 +14,7 @@ import { appActions } from "../../../state/actions";
 import { useStore } from "../../../state/useStore";
 import { radii, colors } from "../../../design/tokens";
 import { formatLastEdited } from "../../../utils";
+import { UserText } from "../../../i18n";
 
 /**
  * Fixed nav row: back/hamburger, compact workspace identity (fades in as the
@@ -140,11 +141,9 @@ export function CollectionCollapsibleIdentity() {
   if (!collection) return null;
 
   const eyebrowText = screen.breadcrumbs.join("  ›  ");
-  const seedMeta = screen.ideasHeaderMeta.replace(/\bideas?\b/g, (m) =>
-    m === "idea" ? "seed" : "seeds"
-  );
+  const ideaMeta = screen.ideasHeaderMeta;
   const lastEditedMeta = formatLastEdited(collection.updatedAt);
-  const metaLine = [seedMeta, lastEditedMeta].filter(Boolean).join("  ·  ");
+  const metaLine = [ideaMeta, lastEditedMeta].filter(Boolean).join("  ·  ");
 
   return (
     // Non-interactive: drags on the title fall through to the list beneath.
@@ -162,14 +161,14 @@ export function CollectionCollapsibleIdentity() {
           <Text style={collStyles.eyebrow} numberOfLines={1}>{eyebrowText}</Text>
         </View>
       ) : null}
-      <Text style={collStyles.collectionTitle} numberOfLines={2}>
+      <UserText value={collection.title} style={collStyles.collectionTitle} numberOfLines={2}>
         {collection.title}
-      </Text>
+      </UserText>
       <Text style={collStyles.meta}>{metaLine}</Text>
       {collection.description ? (
-        <Text style={collStyles.description} numberOfLines={2}>
+        <UserText value={collection.description} style={collStyles.description} numberOfLines={2}>
           {collection.description}
-        </Text>
+        </UserText>
       ) : null}
     </View>
   );

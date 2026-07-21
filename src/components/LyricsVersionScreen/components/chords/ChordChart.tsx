@@ -3,6 +3,7 @@ import { ScrollView, StyleSheet, Text, View } from "react-native";
 import type { ChordPlacement, LyricsLine } from "../../../../types";
 import { ChordLine } from "./ChordLine";
 import { LYRIC_FONT_SIZE, MEASURE_SAMPLE, MONO_FONT, chordChartColors } from "./chordChartStyle";
+import { chordGraphemeAnchor, graphemeCount } from "../../../../domain/chords";
 
 type LinesProps = {
   lines: LyricsLine[];
@@ -28,8 +29,8 @@ export function ChordChartLines({ lines, editable, zoom = 1, onAddAt, onEditChor
   const scaledCharWidth = charWidth * zoom;
 
   const longestUnit = lines.reduce((max, line) => {
-    const textUnits = line.text.length;
-    const chordUnits = line.chords.reduce((m, chord) => Math.max(m, chord.at + chord.chord.length + 1), 0);
+    const textUnits = graphemeCount(line.text);
+    const chordUnits = line.chords.reduce((m, chord) => Math.max(m, chordGraphemeAnchor(chord, line.text) + chord.chord.length + 1), 0);
     return Math.max(max, textUnits, chordUnits);
   }, 0);
   // Extra character-widths of slack so the longest lyric line never clips, and so

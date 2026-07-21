@@ -8,6 +8,7 @@ import {
   getCachedWordSuggestions,
   groupBySyllableCount,
   insertWordIntoText,
+  isEnglishLookupWord,
   parseWordSuggestions,
   partOfSpeechLabel,
   sanitizeThemeWords,
@@ -45,6 +46,12 @@ describe("extractWordRange", () => {
 
   it("clamps out-of-range positions", () => {
     expect(extractWordRange("hey", 10, 10)?.word).toBe("hey");
+  });
+
+  it("detects a Hebrew cursor word without sending it to the English lookup", () => {
+    expect(extractWordRange("שיר חדש", 2, 2)).toEqual({ word: "שיר", start: 0, end: 3 });
+    expect(isEnglishLookupWord("שיר")).toBe(false);
+    expect(isEnglishLookupWord("moonlight")).toBe(true);
   });
 });
 

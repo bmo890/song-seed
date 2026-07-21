@@ -1,4 +1,5 @@
 import { StateCreator } from "zustand";
+import { stringIndexToGraphemeIndex } from "../domain/chords";
 import { WORKSPACE_COLORS } from "../domain/workspaceTheme";
 import {
     Workspace,
@@ -507,11 +508,20 @@ function normalizeChordPlacement(chord: ChordPlacement | undefined, lineIndex: n
 }
 
 function normalizeLyricsLine(line: LyricsLine | undefined, lineIndex: number): LyricsLine {
+    const text = line?.text ?? "";
     return {
         id: line?.id || `line-${lineIndex + 1}`,
-        text: line?.text ?? "",
+        text,
         chords: Array.isArray(line?.chords)
-            ? line!.chords.map((chord, chordIndex) => normalizeChordPlacement(chord, lineIndex, chordIndex))
+            ? line!.chords.map((chord, chordIndex) => {
+                const normalized = normalizeChordPlacement(chord, lineIndex, chordIndex);
+                return {
+                    ...normalized,
+                    graphemeAt: Number.isFinite(chord?.graphemeAt)
+                        ? chord!.graphemeAt
+                        : stringIndexToGraphemeIndex(text, normalized.at),
+                };
+            })
             : [],
     };
 }
@@ -523,6 +533,10 @@ function normalizeLyricsVersion(version: LyricsVersion | undefined, versionIndex
         id: version?.id || `lyrics-version-${versionIndex + 1}`,
         createdAt,
         updatedAt: typeof version?.updatedAt === "number" ? version.updatedAt : createdAt,
+        textDirection:
+            version?.textDirection === "ltr" || version?.textDirection === "rtl"
+                ? version.textDirection
+                : "auto",
         document: {
             lines: Array.isArray(version?.document?.lines)
                 ? version!.document.lines.map((line, lineIndex) => normalizeLyricsLine(line, lineIndex))

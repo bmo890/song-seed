@@ -9,8 +9,10 @@ import { ShelfItemCard } from "./components/ShelfItemCard";
 import { ShelfDecisionCard } from "./components/ShelfDecisionCard";
 import { ShelfDepartedRow } from "./components/ShelfDepartedRow";
 import { shelfStyles } from "./styles";
+import { useTranslation } from "react-i18next";
 
 export function ShelfScreen() {
+  const { t } = useTranslation();
   const screen = useShelfScreenModel();
 
   useBrowseRootBackHandler();
@@ -18,13 +20,13 @@ export function ShelfScreen() {
   function openRowMenu(row: ShelfRow) {
     AppAlert.custom(row.idea.title, undefined, [
       {
-        label: "View in collection",
+        label: t("shelf.viewInCollectionShort"),
         style: "default",
         icon: "open-outline",
         onPress: () => screen.viewRowInCollection(row),
       },
       {
-        label: "Keep 7 more days",
+        label: t("shelf.keepSeven"),
         style: "default",
         icon: "time-outline",
         onPress: () => screen.keepRowLonger(row),
@@ -32,13 +34,13 @@ export function ShelfScreen() {
       // No `description` here: AppDialog renders described buttons ABOVE plain
       // ones, which would promote this removal action to the top of the menu.
       {
-        label: "Leave the shelf",
+        label: t("shelf.leave"),
         style: "default",
         icon: "exit-outline",
         onPress: () => screen.letRowLeave(row),
       },
       {
-        label: "Cancel",
+        label: t("common.cancel"),
         style: "cancel",
       },
     ]);
@@ -61,15 +63,14 @@ export function ShelfScreen() {
 
   return (
     <SafeAreaView style={shelfStyles.screen}>
-      <ScreenHeader title="Shelf" leftIcon="hamburger" />
+      <ScreenHeader title={t("screens.shelf")} leftIcon="hamburger" />
 
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={shelfStyles.scrollContent}
       >
         <Text style={shelfStyles.pageDescription}>
-          Things you set aside to come back to soon. Each stays a week — keep it longer
-          anytime, or let it leave the shelf. Nothing here ever leaves its collection.
+          {t("screens.shelfIntro")}
         </Text>
 
         {screen.decidingRows.length > 0 ? (
@@ -90,7 +91,7 @@ export function ShelfScreen() {
         {screen.restingRows.length > 0 ? (
           <>
             <Text style={shelfStyles.sectionLabel}>
-              On the shelf{" "}
+              {t("shelf.onShelf")}{" "}
               <Text style={shelfStyles.sectionLabelCount}>· {screen.restingRows.length}</Text>
             </Text>
             <View style={shelfStyles.feedList}>
@@ -108,15 +109,13 @@ export function ShelfScreen() {
 
         {isEmpty ? (
           <Text style={shelfStyles.emptyLine}>
-            Nothing set aside right now. Select ideas in a collection and choose
-            “Set aside” to keep them close for a while — they’ll wait here, then
-            quietly step back when you’re done with them.
+            {t("shelf.emptyBody")}
           </Text>
         ) : null}
 
         {screen.departedRows.length > 0 ? (
           <>
-            <Text style={shelfStyles.sectionLabel}>Recently left the shelf</Text>
+            <Text style={shelfStyles.sectionLabel}>{t("shelf.recentlyLeft")}</Text>
             <View style={shelfStyles.feedList}>
               {screen.departedRows.map((rowData) => (
                 <ShelfDepartedRow
@@ -128,8 +127,7 @@ export function ShelfScreen() {
               ))}
             </View>
             <Text style={shelfStyles.departedCaption}>
-              These went back to everyday library life — safe in their collections,
-              nothing deleted. Oldest rolls off.
+              {t("shelf.departedCaption")}
             </Text>
           </>
         ) : null}

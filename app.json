@@ -8,6 +8,9 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
+    "extra": {
+      "supportsRTL": true
+    },
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
@@ -73,6 +76,15 @@
       "package": "com.bmostudio.songnook"
     },
     "plugins": [
+      [
+        "expo-localization",
+        {
+          "supportedLocales": {
+            "ios": ["en", "he"],
+            "android": ["en", "he"]
+          }
+        }
+      ],
       [
         "expo-share-intent",
         {

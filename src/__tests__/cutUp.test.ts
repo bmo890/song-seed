@@ -37,6 +37,11 @@ describe("generateChunks", () => {
     expect(chunks.map((c) => c.text)).toEqual(["hold", "on,", "tight"]);
   });
 
+  it("phrase mode recognizes Hebrew sentence punctuation", () => {
+    const chunks = generateChunks("שורה ראשונה׃ שורה שנייה, וסיום", "phrase");
+    expect(chunks.map((chunk) => chunk.text)).toEqual(["שורה ראשונה׃", "שורה שנייה,", "וסיום"]);
+  });
+
   it("phrase mode breaks a long comma-less line into word groups", () => {
     const long = "one two three four five six seven eight nine ten";
     const chunks = generateChunks(long, "phrase");

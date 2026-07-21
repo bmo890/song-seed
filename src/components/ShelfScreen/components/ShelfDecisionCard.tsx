@@ -6,6 +6,7 @@ import { shelfStyles } from "../styles";
 import { colors } from "../../../design/tokens";
 import { leavingLabel } from "../../../domain/shelf";
 import type { ShelfRow } from "../hooks/useShelfScreenModel";
+import { useTranslation } from "react-i18next";
 
 type ShelfDecisionCardProps = {
   row: ShelfRow;
@@ -45,6 +46,7 @@ export function ShelfDecisionCard({
   onKeep,
   onLeave,
 }: ShelfDecisionCardProps) {
+  const { t } = useTranslation();
   return (
     <View style={shelfStyles.decisionCard}>
       <View style={shelfStyles.decisionEyebrowRow}>
@@ -74,17 +76,17 @@ export function ShelfDecisionCard({
           style={({ pressed }) => [shelfStyles.decisionKeepBtn, pressed ? { opacity: 0.85 } : null]}
           onPress={onKeep}
           accessibilityRole="button"
-          accessibilityLabel={`Keep ${row.idea.title} on the shelf 7 more days`}
+          accessibilityLabel={t("shelf.keepA11y", { title: row.idea.title })}
         >
-          <Text style={shelfStyles.decisionKeepText}>Keep 7 more days</Text>
+          <Text style={shelfStyles.decisionKeepText}>{t("shelf.keepSeven")}</Text>
         </Pressable>
         <Pressable
           style={({ pressed }) => [shelfStyles.decisionLeaveBtn, pressed ? { opacity: 0.7 } : null]}
           onPress={onLeave}
           accessibilityRole="button"
-          accessibilityLabel={`Let ${row.idea.title} leave the shelf`}
+          accessibilityLabel={t("shelf.leaveA11y", { title: row.idea.title })}
         >
-          <Text style={shelfStyles.decisionLeaveText}>Leave the shelf</Text>
+          <Text style={shelfStyles.decisionLeaveText}>{t("shelf.leave")}</Text>
         </Pressable>
       </View>
     </View>

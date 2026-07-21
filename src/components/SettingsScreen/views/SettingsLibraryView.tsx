@@ -7,6 +7,7 @@ import { settingsScreenStyles, styles } from "../styles";
 import { FormatOptionRow, LibraryActionCard } from "../components/SettingsShared";
 import type { useLibraryBackupFlow } from "../hooks/useLibraryBackupFlow";
 import type { useStorageDiagnostics } from "../hooks/useStorageDiagnostics";
+import { useTranslation } from "react-i18next";
 
 type LibraryBackupFlow = ReturnType<typeof useLibraryBackupFlow>;
 type StorageDiagnostics = ReturnType<typeof useStorageDiagnostics>;
@@ -29,6 +30,7 @@ export function SettingsLibraryView({
   onBeginImportFlow: () => void;
   onOpenStorageDetails: () => void;
 }) {
+  const { t } = useTranslation();
   return (
     <ScrollView
       style={styles.flexFill}
@@ -36,38 +38,37 @@ export function SettingsLibraryView({
       showsVerticalScrollIndicator={false}
     >
       <PageIntro
-        title="Library & Backups"
-        subtitle="A backup is a complete safety copy of this library. An archive shares chosen workspaces or collections with another library."
+        title={t("settingsLibrary.title")}
+        subtitle={t("settingsLibrary.subtitle")}
       />
 
       <View style={styles.settingsSection}>
         <View style={styles.settingsSectionHeaderRow}>
-          <Text style={styles.settingsSectionLabel}>Safety copy</Text>
-          <Text style={styles.settingsSectionMeta}>Whole library</Text>
+          <Text style={styles.settingsSectionLabel}>{t("settingsLibrary.safetyCopy")}</Text>
+          <Text style={styles.settingsSectionMeta}>{t("settingsLibrary.wholeLibrary")}</Text>
         </View>
         <Text style={styles.settingsSectionHint}>
-          Every recording, take, and detail — verified, and restorable on any device. Runs in a
-          progress view you can minimize while you keep working.
+          {t("settingsLibrary.safetyHint")}
         </Text>
 
         <View style={settingsScreenStyles.libraryCardStack}>
           <LibraryActionCard
             icon="cloud-upload-outline"
-            title="Back up"
+            title={t("settingsLibrary.backUp")}
             busy={backupFlow.isBackingUp}
             disabled={backupFlow.isRestoring}
             meta={
               backupFlow.isBackingUp
-                ? backupFlow.backupProgressLabel ?? "Backing up…"
+                ? backupFlow.backupProgressLabel ?? t("settings.backingUp")
                 : backupFlow.lastSuccessfulBackupFileName
                   ? `Last backup · ${backupFlow.lastSuccessfulBackupLabel}`
-                  : "No backup saved yet — save a complete copy"
+                  : t("settingsLibrary.noBackup")
             }
             rightAccessory={
               backupFlow.lastSuccessfulBackupFileName && !backupFlow.isBackingUp ? (
                 <View style={settingsScreenStyles.verifiedChip}>
                   <Ionicons name="checkmark" size={13} color="#fff" />
-                  <Text style={settingsScreenStyles.verifiedChipText}>Verified</Text>
+                  <Text style={settingsScreenStyles.verifiedChipText}>{t("settingsLibrary.verified")}</Text>
                 </View>
               ) : undefined
             }
@@ -75,13 +76,13 @@ export function SettingsLibraryView({
           />
           <LibraryActionCard
             icon="cloud-download-outline"
-            title="Restore"
+            title={t("settingsLibrary.restore")}
             busy={backupFlow.isRestoring}
             disabled={backupFlow.isBackingUp || backupFlow.isRestoring}
             meta={
               backupFlow.isRestoring
-                ? backupFlow.restoreProgressLabel ?? "Restoring…"
-                : "Bring this library back from a backup file"
+                ? backupFlow.restoreProgressLabel ?? t("settings.restoring")
+                : t("settingsLibrary.restoreHint")
             }
             onPress={backupFlow.handleRestore}
           />
@@ -105,7 +106,7 @@ export function SettingsLibraryView({
 
       <View style={styles.settingsSection}>
         <View style={styles.settingsSectionHeaderRow}>
-          <Text style={styles.settingsSectionLabel}>Backup reminder</Text>
+          <Text style={styles.settingsSectionLabel}>{t("settingsLibrary.backupReminder")}</Text>
         </View>
         <View style={styles.settingsOptionStack}>
           {backupFlow.reminderOptions.map((option) => (
@@ -127,25 +128,24 @@ export function SettingsLibraryView({
 
       <View style={styles.settingsSection}>
         <View style={styles.settingsSectionHeaderRow}>
-          <Text style={styles.settingsSectionLabel}>Share & move</Text>
-          <Text style={styles.settingsSectionMeta}>Parts of your work</Text>
+          <Text style={styles.settingsSectionLabel}>{t("settingsLibrary.shareMove")}</Text>
+          <Text style={styles.settingsSectionMeta}>{t("settingsLibrary.partsOfWork")}</Text>
         </View>
         <Text style={styles.settingsSectionHint}>
-          Archives carry chosen workspaces or collections between libraries — share them, or
-          merge one into this library.
+          {t("settingsLibrary.archivesHint")}
         </Text>
 
         <View style={settingsScreenStyles.libraryCardStack}>
           <LibraryActionCard
             icon="share-outline"
-            title="Export an archive"
-            meta="Package workspaces or collections to share"
+            title={t("settingsLibrary.exportArchive")}
+            meta={t("settingsLibrary.exportArchiveHint")}
             onPress={onBeginExportFlow}
           />
           <LibraryActionCard
             icon="download-outline"
-            title="Import an archive"
-            meta="Merge a SongNook Archive into this library"
+            title={t("settingsLibrary.importArchive")}
+            meta={t("settingsLibrary.importArchiveHint")}
             onPress={onBeginImportFlow}
           />
         </View>
@@ -153,26 +153,26 @@ export function SettingsLibraryView({
 
       <View style={styles.settingsSection}>
         <View style={styles.settingsSectionHeaderRow}>
-          <Text style={styles.settingsSectionLabel}>Maintenance</Text>
+          <Text style={styles.settingsSectionLabel}>{t("settingsLibrary.maintenance")}</Text>
         </View>
 
         <View style={settingsScreenStyles.libraryCardStack}>
           <LibraryActionCard
             icon="medkit-outline"
-            title="Recover audio files"
+            title={t("settingsLibrary.recoverAudio")}
             busy={diagnostics.isRecovering}
             meta={
               diagnostics.isRecovering
-                ? diagnostics.recoveryProgress ?? "Scanning…"
-                : "Restore orphaned recordings into a Recovered collection"
+                ? diagnostics.recoveryProgress ?? t("settingsLibrary.scanning")
+                : t("settingsLibrary.recoverAudioHint")
             }
             onPress={diagnostics.runRecovery}
             disabled={diagnostics.isRecovering}
           />
           <LibraryActionCard
             icon="server-outline"
-            title="Storage details"
-            meta="Space used on this device, integrity check"
+            title={t("settingsLibrary.storageDetails")}
+            meta={t("settingsLibrary.storageDetailsHint")}
             onPress={onOpenStorageDetails}
           />
         </View>
@@ -180,4 +180,3 @@ export function SettingsLibraryView({
     </ScrollView>
   );
 }
-

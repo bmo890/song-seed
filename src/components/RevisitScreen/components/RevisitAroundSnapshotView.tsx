@@ -6,6 +6,7 @@ import type { SongIdea } from "../../../types";
 import type { RevisitAroundSnapshot, RevisitCandidate } from "../../../domain/revisit";
 import { revisitStyles } from "../styles";
 import { RevisitCandidateCard } from "./RevisitCandidateCard";
+import { useTranslation } from "react-i18next";
 
 type RevisitAroundSnapshotViewProps = {
   snapshot: RevisitAroundSnapshot;
@@ -38,6 +39,7 @@ export function RevisitAroundSnapshotView({
   onViewInCollection,
   onOpenInActivity,
 }: RevisitAroundSnapshotViewProps) {
+  const { t } = useTranslation();
   return (
     <View style={revisitStyles.snapshotList}>
       <PageIntro
@@ -55,17 +57,17 @@ export function RevisitAroundSnapshotView({
             ]}
             onPress={onOpenInActivity}
           >
-            <Text style={revisitStyles.sectionActionText}>Open in Activity</Text>
+            <Text style={revisitStyles.sectionActionText}>{t("revisit.openActivity")}</Text>
           </Pressable>
         </View>
         <Text style={styles.settingsSectionMeta}>
-          {snapshot.items.length} item{snapshot.items.length === 1 ? "" : "s"}
+          {t("revisit.itemCount", { count: snapshot.items.length })}
         </Text>
       </View>
 
       {snapshot.items.length === 0 ? (
         <View style={[styles.card, revisitStyles.emptyStateCard]}>
-          <Text style={styles.cardTitle}>Nothing seasonal right now</Text>
+          <Text style={styles.cardTitle}>{t("revisit.nothingSeasonal")}</Text>
         </View>
       ) : (
         snapshot.items.map(({ candidate, reason }) => (

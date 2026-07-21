@@ -1,7 +1,7 @@
 import { useLayoutEffect, useRef, useState } from "react";
 import { Animated, PanResponder, StyleSheet, Text, View } from "react-native";
 import type { ChordPlacement } from "../../../../types";
-import { clampChordIndex } from "../../../../domain/chords";
+import { chordGraphemeAnchor, clampChordIndex } from "../../../../domain/chords";
 import { CHORD_FONT_SIZE, MONO_FONT, chordChartColors } from "./chordChartStyle";
 import { haptic } from "../../../../design/haptics";
 
@@ -41,7 +41,7 @@ export function ChordToken({
   onDragStateChange,
 }: Props) {
   const chordTextStyle = { fontSize: CHORD_FONT_SIZE * zoom, lineHeight: (CHORD_FONT_SIZE + 4) * zoom };
-  const base = clampChordIndex(chord.at, lineLength);
+  const base = clampChordIndex(chord.graphemeAt ?? chord.at, lineLength);
   const baseLeft = base * charWidth;
   const restX = baseLeft - GRAB;
 

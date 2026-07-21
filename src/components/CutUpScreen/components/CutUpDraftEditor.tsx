@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { UserTextInput } from "../../../i18n";
 import { Ionicons } from "@expo/vector-icons";
 import { AppAlert } from "../../common/AppAlert";
 import { styles as appStyles } from "../../../styles";
@@ -92,7 +93,7 @@ export function CutUpDraftEditor({
       )}
 
       <View style={styles.card}>
-        <TextInput
+        <UserTextInput
           style={styles.input}
           value={spark.assembledDraftText}
           onChangeText={model.setDraft}

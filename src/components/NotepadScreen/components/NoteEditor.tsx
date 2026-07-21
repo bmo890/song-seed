@@ -11,6 +11,7 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { UserTextInput } from "../../../i18n";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { styles } from "../../../styles";
@@ -224,7 +225,7 @@ export function NoteEditor({ note, onBack, onUpdate, onTogglePin, onDelete }: Pr
           contentContainerStyle={editorStyles.scrollContent}
           keyboardShouldPersistTaps="handled"
         >
-          <TextInput
+          <UserTextInput
             style={editorStyles.title}
             value={note.title}
             onChangeText={(text) => {
@@ -242,7 +243,7 @@ export function NoteEditor({ note, onBack, onUpdate, onTogglePin, onDelete }: Pr
           <Text style={editorStyles.metaText}>{formatTimestamp(note.updatedAt)}</Text>
           <View style={editorStyles.divider} />
 
-          <TextInput
+          <UserTextInput
             ref={bodyRef}
             style={editorStyles.body}
             value={note.body}

@@ -10,8 +10,10 @@ import { ActivityCustomizeSheet } from "./ActivityCustomizeSheet";
 import { useBrowseRootBackHandler } from "../../../hooks/useBrowseRootBackHandler";
 import { useActivityScreenModel } from "../hooks/useActivityScreenModel";
 import { colors } from "../../../design/tokens";
+import { useTranslation } from "react-i18next";
 
 export function ActivityScreenContent() {
+  const { t } = useTranslation();
   useBrowseRootBackHandler();
   const model = useActivityScreenModel();
   const [customizeOpen, setCustomizeOpen] = useState(false);
@@ -19,7 +21,7 @@ export function ActivityScreenContent() {
   return (
     <SafeAreaView style={styles.screen}>
       <ScreenHeader
-        title="Activity"
+        title={t("screens.activity")}
         leftIcon="hamburger"
         rightElement={
           model.isCollectionScoped ? undefined : (
@@ -61,7 +63,7 @@ export function ActivityScreenContent() {
         onScroll={model.onHeaderScroll}
       >
         <Text style={styles.intro}>
-          A year of your creative activity at a glance. Tap any day to see what you made.
+          {t("screens.activityIntro")}
         </Text>
 
         <View>

@@ -5,14 +5,16 @@ import { useBrowseRootBackHandler } from "../../../hooks/useBrowseRootBackHandle
 import { useTunerScreenModel } from "../hooks/useTunerScreenModel";
 import { styles } from "../styles";
 import { TunerDial } from "./TunerDial";
+import { useTranslation } from "react-i18next";
 
 export function TunerScreenContent() {
+  const { t } = useTranslation();
   useBrowseRootBackHandler();
   const model = useTunerScreenModel();
 
   return (
     <SafeAreaView style={styles.screen}>
-      <ScreenHeader title="Tuner" leftIcon="hamburger" />
+      <ScreenHeader title={t("screens.tuner")} leftIcon="hamburger" />
 
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -21,7 +23,7 @@ export function TunerScreenContent() {
         <TunerDial model={model} />
 
         <Text style={styles.helperText}>
-          Hold the phone near your instrument and let one string ring at a time.
+          {t("screens.tunerHint")}
         </Text>
 
         {model.errorMessage ? (

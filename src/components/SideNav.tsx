@@ -10,6 +10,9 @@ import { getWorkspaceTheme } from "../domain/workspaceTheme";
 import { useShelfStore } from "../state/useShelfStore";
 import { useStore } from "../state/useStore";
 import { shelfNeedsDecision } from "../domain/shelf";
+import { useTranslation } from "react-i18next";
+import { useLocale } from "../i18n";
+import { UserText } from "../i18n";
 
 type IoniconName = ComponentProps<typeof Ionicons>["name"];
 
@@ -93,6 +96,8 @@ export function SideNav({
   onGoNotepad,
   onOpenCollection,
 }: Props) {
+  const { t } = useTranslation();
+  const { direction } = useLocale();
   const mostRecent = recentCollections[0] ?? null;
   const workspaceTheme = getWorkspaceTheme(workspaceColor);
 
@@ -135,7 +140,7 @@ export function SideNav({
           onPress={onGoSearch}
           hitSlop={8}
           accessibilityRole="button"
-          accessibilityLabel="Search your library"
+          accessibilityLabel={t("navigation.searchLibrary")}
         >
           <Ionicons
             name="search"
@@ -153,7 +158,7 @@ export function SideNav({
           {/* Label row with dot */}
           <View style={sideNavStyles.workspaceLabelRow}>
             <View style={sideNavStyles.contextDot} />
-            <Text style={sideNavStyles.sectionLabel}>Workspace</Text>
+            <Text style={sideNavStyles.sectionLabel}>{t("navigation.workspace")}</Text>
           </View>
 
           {/* Workspace name + swap icon inline */}
@@ -164,13 +169,13 @@ export function SideNav({
               avatarKey={workspaceAvatarKey}
               size={32}
             />
-            <Text style={sideNavStyles.workspaceName} numberOfLines={1}>
-              {workspaceTitle ?? "No workspace"}
-            </Text>
+            <UserText value={workspaceTitle ?? ""} style={sideNavStyles.workspaceName} numberOfLines={1}>
+              {workspaceTitle ?? t("navigation.noWorkspace")}
+            </UserText>
             <Pressable
               testID="workspace-switch"
               accessibilityRole="button"
-              accessibilityLabel="Switch workspace"
+              accessibilityLabel={t("navigation.switchWorkspace")}
               style={({ pressed }) => [sideNavStyles.switchBtn, pressed ? styles.pressDown : null]}
               onPress={onGoHome}
               hitSlop={10}
@@ -188,8 +193,8 @@ export function SideNav({
               onPress={onGoWorkspace}
             >
               <Ionicons name="albums-outline" size={16} color={colors.textSecondary} />
-              <Text style={sideNavStyles.collectionsLabel}>Collections</Text>
-              <Ionicons name="chevron-forward" size={14} color={colors.textMuted} />
+              <Text style={sideNavStyles.collectionsLabel}>{t("navigation.collections")}</Text>
+              <Ionicons name={direction === "rtl" ? "chevron-back" : "chevron-forward"} size={14} color={colors.textMuted} />
             </Pressable>
           ) : null}
 
@@ -198,7 +203,7 @@ export function SideNav({
           {mostRecent ? (
             <>
               <View style={sideNavStyles.cardDivider} />
-              <Text style={[sideNavStyles.sectionLabel, sideNavStyles.recentLabelInCard]}>Recent</Text>
+              <Text style={[sideNavStyles.sectionLabel, sideNavStyles.recentLabelInCard]}>{t("navigation.recent")}</Text>
               <Pressable
                 style={({ pressed }) => [
                   sideNavStyles.recentItem,
@@ -209,16 +214,16 @@ export function SideNav({
               >
                 <Ionicons name="folder-outline" size={16} color={workspaceTheme.accent} />
                 <View style={sideNavStyles.recentItemCopy}>
-                  <Text style={sideNavStyles.recentItemTitle} numberOfLines={1}>
+                  <UserText value={mostRecent.title} style={sideNavStyles.recentItemTitle} numberOfLines={1}>
                     {mostRecent.title}
-                  </Text>
+                  </UserText>
                   {mostRecent.meta ? (
                     <Text style={sideNavStyles.recentItemMeta} numberOfLines={1}>
                       {mostRecent.meta}
                     </Text>
                   ) : null}
                 </View>
-                <Ionicons name="chevron-forward" size={14} color={colors.textMuted} />
+                <Ionicons name={direction === "rtl" ? "chevron-back" : "chevron-forward"} size={14} color={colors.textMuted} />
               </Pressable>
             </>
           ) : null}
@@ -232,18 +237,18 @@ export function SideNav({
       >
         {/* Explore */}
         <View style={sideNavStyles.divider} />
-        <Text style={sideNavStyles.sectionLabel}>Explore</Text>
+        <Text style={sideNavStyles.sectionLabel}>{t("navigation.explore")}</Text>
         <NavRow
           icon={NAV_ICONS.revisit.icon}
           iconColor={NAV_ICONS.revisit.color}
-          label="Revisit"
+          label={t("navigation.revisit")}
           active={currentRoute === "revisit"}
           onPress={onGoRevisit}
         />
         <NavRow
           icon={NAV_ICONS.shelf.icon}
           iconColor={NAV_ICONS.shelf.color}
-          label="Shelf"
+          label={t("navigation.shelf")}
           active={currentRoute === "shelf"}
           onPress={onGoShelf}
           accessory={shelfHasDecision ? <View style={sideNavStyles.shelfDecisionDot} /> : undefined}
@@ -251,46 +256,46 @@ export function SideNav({
         <NavRow
           icon={NAV_ICONS.activity.icon}
           iconColor={NAV_ICONS.activity.color}
-          label="Activity"
+          label={t("navigation.activity")}
           active={currentRoute === "activity"}
           onPress={onGoActivity}
         />
         <NavRow
           icon={NAV_ICONS.library.icon}
           iconColor={NAV_ICONS.library.color}
-          label="Library"
+          label={t("navigation.library")}
           active={currentRoute === "library"}
           onPress={onGoLibrary}
         />
         <NavRow
           icon={NAV_ICONS.received.icon}
           iconColor={NAV_ICONS.received.color}
-          label="Received"
+          label={t("navigation.received")}
           active={currentRoute === "received"}
           onPress={onGoReceived}
         />
 
         {/* Tools */}
         <View style={sideNavStyles.divider} />
-        <Text style={sideNavStyles.sectionLabel}>Tools</Text>
+        <Text style={sideNavStyles.sectionLabel}>{t("navigation.tools")}</Text>
         <NavRow
           icon={NAV_ICONS.notepad.icon}
           iconColor={NAV_ICONS.notepad.color}
-          label="Lyrics Pad"
+          label={t("navigation.lyricsPad")}
           active={currentRoute === "notepad"}
           onPress={onGoNotepad}
         />
         <NavRow
           icon={NAV_ICONS.tuner.icon}
           iconColor={NAV_ICONS.tuner.color}
-          label="Tuner"
+          label={t("navigation.tuner")}
           active={currentRoute === "tuner"}
           onPress={onGoTuner}
         />
         <NavRow
           icon={NAV_ICONS.metronome.icon}
           iconColor={NAV_ICONS.metronome.color}
-          label="Metronome"
+          label={t("navigation.metronome")}
           active={currentRoute === "metronome"}
           onPress={onGoMetronome}
         />
@@ -302,7 +307,7 @@ export function SideNav({
         <NavRow
           icon={NAV_ICONS.settings.icon}
           iconColor={NAV_ICONS.settings.color}
-          label="Settings"
+          label={t("navigation.settings")}
           active={currentRoute === "settings"}
           onPress={onGoSettings}
         />
@@ -316,8 +321,8 @@ const sideNavStyles = StyleSheet.create({
   shell: {
     flex: 1,
     backgroundColor: "#fbf9f5",
-    borderTopRightRadius: radii.drawer,
-    borderBottomRightRadius: radii.drawer,
+    borderTopEndRadius: radii.drawer,
+    borderBottomEndRadius: radii.drawer,
     ...shadows.drawer,
   },
 
@@ -430,7 +435,7 @@ const sideNavStyles = StyleSheet.create({
     marginBottom: 2,
   },
   recentLabelInCard: {
-    marginLeft: 2,
+    marginStart: 2,
   },
   recentItem: {
     flexDirection: "row",

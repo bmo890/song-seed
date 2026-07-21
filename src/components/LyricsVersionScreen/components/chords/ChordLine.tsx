@@ -1,7 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import type { GestureResponderEvent } from "react-native";
 import type { ChordPlacement, LyricsLine } from "../../../../types";
-import { clampChordIndex } from "../../../../domain/chords";
+import { clampChordIndex, graphemeCount } from "../../../../domain/chords";
 import { ChordToken } from "./ChordToken";
 import {
   CHORD_ROW_HEIGHT,
@@ -36,7 +36,7 @@ export function ChordLine({
 }: Props) {
   const chords = line.chords ?? [];
   const showChordRow = editable || chords.length > 0;
-  const lineLength = line.text.length;
+  const lineLength = graphemeCount(line.text);
 
   function handleTapToAdd(event: GestureResponderEvent) {
     if (!editable || !onAddAt) return;

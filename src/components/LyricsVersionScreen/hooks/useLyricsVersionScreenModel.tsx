@@ -20,20 +20,25 @@ import { serializeChordChartText } from "../../../domain/chords";
 import { haptic } from "../../../design/haptics";
 import { useEditHistory } from "../../../hooks/useEditHistory";
 import { toast } from "../../common/toastStore";
+import type { ContentDirection } from "../../../types";
+import { useTranslation } from "react-i18next";
+import { useLocale } from "../../../i18n";
 type LyricsVersionRoute = RootStackParamList["LyricsVersion"];
 
 /** Quiet, humanized "edited" line for the version subtitle — "Edited today",
  * "Edited 3 days ago", "Edited Jun 28" — rather than a raw timestamp. */
-function formatVersionEdited(ts: number): string {
+function formatVersionEdited(ts: number, locale: string, t: (key: string, options?: any) => string): string {
   const days = Math.floor((Date.now() - ts) / 86400000);
-  if (days <= 0) return "Edited today";
-  if (days === 1) return "Edited yesterday";
-  if (days < 7) return `Edited ${days} days ago`;
-  if (days < 14) return "Edited last week";
-  return `Edited ${new Date(ts).toLocaleDateString("en-US", { month: "short", day: "numeric" })}`;
+  if (days <= 0) return t("lyrics.editedToday");
+  if (days === 1) return t("lyrics.editedYesterday");
+  if (days < 7) return t("lyrics.editedDaysAgo", { count: days });
+  if (days < 14) return t("lyrics.editedLastWeek");
+  return t("lyrics.editedDate", { date: new Date(ts).toLocaleDateString(locale, { month: "short", day: "numeric" }) });
 }
 
 export function useLyricsVersionScreenModel() {
+  const { t } = useTranslation();
+  const { formatLocale } = useLocale();
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const insets = useSafeAreaInsets();
@@ -70,6 +75,9 @@ export function useLyricsVersionScreenModel() {
 
   const [draftText, setDraftText] = useState(sourceText);
   const [baselineText, setBaselineText] = useState(sourceText);
+  const sourceDirection: ContentDirection = resolvedVersion?.textDirection ?? "auto";
+  const [textDirection, setTextDirection] = useState<ContentDirection>(sourceDirection);
+  const [baselineDirection, setBaselineDirection] = useState<ContentDirection>(sourceDirection);
   const [isEditMode, setIsEditMode] = useState(startInEdit || createDraft || !resolvedVersion);
   const [editSavesAsNew, setEditSavesAsNew] = useState(
     forceNewVersion || createDraft || !isLatestSource
@@ -95,17 +103,19 @@ export function useLyricsVersionScreenModel() {
   useEffect(() => {
     setDraftText(sourceText);
     setBaselineText(sourceText);
+    setTextDirection(sourceDirection);
+    setBaselineDirection(sourceDirection);
     setIsEditMode(startInEdit || createDraft || !resolvedVersion);
     setEditSavesAsNew(forceNewVersion || createDraft || !isLatestSource);
     resetDraftHistory(sourceText);
-  }, [createDraft, forceNewVersion, isLatestSource, resetDraftHistory, resolvedVersion?.id, sourceText, startInEdit]);
+  }, [createDraft, forceNewVersion, isLatestSource, resetDraftHistory, resolvedVersion?.id, sourceDirection, sourceText, startInEdit]);
 
-  const hasUnsavedChanges = isEditMode && draftText !== baselineText;
+  const hasUnsavedChanges = isEditMode && (draftText !== baselineText || textDirection !== baselineDirection);
   const canSave = hasUnsavedChanges && (draftText.trim().length > 0 || versions.length > 0);
   const displayedVersionNumber =
     !resolvedVersion || editSavesAsNew ? versions.length + 1 : sourceVersionNumber ?? versions.length + 1;
-  const versionLabel = `Version ${displayedVersionNumber}`;
-  const versionMeta = !resolvedVersion ? "Unsaved draft" : formatVersionEdited(resolvedVersion.updatedAt);
+  const versionLabel = t("lyrics.version", { number: displayedVersionNumber });
+  const versionMeta = !resolvedVersion ? t("lyrics.unsavedDraft") : formatVersionEdited(resolvedVersion.updatedAt, formatLocale, t);
 
   useEffect(() => {
     const unsubscribe = navigation.addListener("beforeRemove", (event: any) => {
@@ -134,9 +144,9 @@ export function useLyricsVersionScreenModel() {
     haptic.tap();
     if (shouldSaveAsNew) {
       // Base the new version on the version being edited so its chords copy forward.
-      appActions.saveProjectLyricsAsNewVersion(projectIdea.id, draftText, resolvedVersion?.document);
+      appActions.saveProjectLyricsAsNewVersion(projectIdea.id, draftText, resolvedVersion?.document, textDirection);
     } else {
-      appActions.saveProjectLyrics(projectIdea.id, draftText);
+      appActions.saveProjectLyrics(projectIdea.id, draftText, textDirection);
     }
     // Land on the saved version's full view (not back at the song). Either path
     // makes the saved version the latest, so clear the params that force edit mode
@@ -166,6 +176,8 @@ export function useLyricsVersionScreenModel() {
   const revertDraft = () => {
     setDraftText(sourceText);
     setBaselineText(sourceText);
+    setTextDirection(sourceDirection);
+    setBaselineDirection(sourceDirection);
     if (!resolvedVersion) {
       setDraftText("");
       setBaselineText("");
@@ -237,6 +249,8 @@ export function useLyricsVersionScreenModel() {
     isLatestSource,
     resolvedVersion,
     draftText,
+    textDirection,
+    setTextDirection,
     setDraftText,
     handleDraftTextChange,
     canUndoDraft: draftHistory.canUndo,

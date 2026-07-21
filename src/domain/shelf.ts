@@ -1,3 +1,5 @@
+import { i18n } from "../i18n/instance";
+
 /**
  * The Shelf — a temporary place to set things aside and be quietly reminded of
  * them soon. Every shelved item is a POINTER ({kind, id}); the item itself
@@ -80,9 +82,9 @@ export function daysLeft(entry: ShelfEntry, now: number): number {
 /** Quiet footer countdown: "6 days left" / "1 day left" / "leaving today". */
 export function stayCountdownLabel(entry: ShelfEntry, now: number): string {
   const days = daysLeft(entry, now);
-  if (days <= 0) return "leaving today";
-  if (days === 1) return "1 day left";
-  return `${days} days left`;
+  if (days <= 0) return i18n.t("shelf.leavingTodayLower");
+  if (days === 1) return i18n.t("shelf.oneDayLeft");
+  return i18n.t("shelf.daysLeft", { count: days });
 }
 
 /** Calendar days between two timestamps' local midnights — "today"/"tomorrow"
@@ -99,16 +101,16 @@ function calendarDaysUntil(ts: number, now: number): number {
 /** Decision-card eyebrow: "Leaving shelf today" / "… tomorrow" / "… in N days". */
 export function leavingLabel(entry: ShelfEntry, now: number): string {
   const days = calendarDaysUntil(entry.expiresAt, now);
-  if (days <= 0) return "Leaving shelf today";
-  if (days === 1) return "Leaving shelf tomorrow";
-  return `Leaving shelf in ${days} days`;
+  if (days <= 0) return i18n.t("shelf.leavingToday");
+  if (days === 1) return i18n.t("shelf.leavingTomorrow");
+  return i18n.t("shelf.leavingDays", { count: days });
 }
 
 /** "2d ago" for the departed buffer. */
 export function departedAgoLabel(departure: ShelfDeparture, now: number): string {
   const days = Math.max(0, Math.floor((now - departure.leftAt) / DAY_MS));
-  if (days === 0) return "today";
-  return `${days}d ago`;
+  if (days === 0) return i18n.t("shelf.today");
+  return i18n.t("shelf.daysAgo", { count: days });
 }
 
 /**

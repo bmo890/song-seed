@@ -10,6 +10,7 @@ import { MagpiePageStep } from "./MagpiePageStep";
 import { MagpieBuildStep } from "./MagpieBuildStep";
 import { MagpieHelpSheet } from "./MagpieHelpSheet";
 import type { MagpieStep } from "../../../types";
+import { EnglishOnlyNotice } from "../../common/EnglishOnlyNotice";
 
 const KRAFT_BG = "#F2E9DC";
 
@@ -74,6 +75,7 @@ export function MagpieScreenContent() {
         />
 
         <StepProgress step={model.step} />
+        <EnglishOnlyNotice magpie />
 
         <HelpButton
           label={STEPS.find((s) => s.key === model.step)?.label ?? "Help"}

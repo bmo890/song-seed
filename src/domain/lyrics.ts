@@ -1,5 +1,5 @@
-import { LyricsDocument, LyricsLine, LyricsVersion, SongIdea } from "../types";
-import { clampChordIndex } from "./chords";
+import { ContentDirection, LyricsDocument, LyricsLine, LyricsVersion, SongIdea } from "../types";
+import { chordGraphemeAnchor, graphemeCount, graphemeIndexToStringIndex } from "./chords";
 
 function buildLyricsLineId() {
   return `lyrics-line-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -32,7 +32,10 @@ export function lyricsTextToDocument(text: string, previousDocument?: LyricsDocu
     const preserveChords =
       previousLine?.text === lineText
         ? previousChords
-        : previousChords.map((chord) => ({ ...chord, at: clampChordIndex(chord.at, lineText.length) }));
+        : previousChords.map((chord) => {
+            const graphemeAt = Math.min(chordGraphemeAnchor(chord, previousLine?.text ?? ""), graphemeCount(lineText));
+            return { ...chord, graphemeAt, at: graphemeIndexToStringIndex(lineText, graphemeAt) };
+          });
 
     return {
       id: previousLine?.id ?? buildLyricsLineId(),
@@ -44,12 +47,13 @@ export function lyricsTextToDocument(text: string, previousDocument?: LyricsDocu
   return { lines };
 }
 
-export function createLyricsVersion(document: LyricsDocument): LyricsVersion {
+export function createLyricsVersion(document: LyricsDocument, textDirection: ContentDirection = "auto"): LyricsVersion {
   const now = Date.now();
   return {
     id: buildLyricsVersionId(),
     createdAt: now,
     updatedAt: now,
+    textDirection,
     document,
   };
 }
@@ -69,4 +73,3 @@ export function getLyricsPreview(idea?: SongIdea | null) {
   const firstNonEmpty = lines.find((line) => line.text.trim().length > 0);
   return firstNonEmpty?.text ?? "";
 }
-

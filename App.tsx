@@ -16,6 +16,17 @@ import {
   PlusJakartaSans_700Bold,
 } from "@expo-google-fonts/plus-jakarta-sans";
 import {
+  Heebo_400Regular,
+  Heebo_500Medium,
+  Heebo_600SemiBold,
+  Heebo_700Bold,
+} from "@expo-google-fonts/heebo";
+import {
+  FrankRuhlLibre_400Regular,
+  FrankRuhlLibre_600SemiBold,
+  FrankRuhlLibre_700Bold,
+} from "@expo-google-fonts/frank-ruhl-libre";
+import {
   type InitialState,
   NavigationContainer,
   createNavigationContainerRef,
@@ -108,6 +119,7 @@ import { WelcomeFlow } from "./src/components/common/WelcomeFlow";
 import { installGlobalCrashHandler } from "./src/services/crashLog";
 import { RestoreRestartGate } from "./src/components/common/RestoreRestartGate";
 import { FullPlayerProvider } from "./src/hooks/FullPlayerProvider";
+import { LocaleProvider, useLocale, useLocaleBootstrap } from "./src/i18n";
 
 // Hold the native splash until fonts + store hydration + navigation restore are ready, so
 // the app opens in one continuous motion instead of flashing a bare spinner. Hidden in
@@ -736,14 +748,36 @@ function WelcomeGate() {
 }
 
 function AppContent() {
+  const { direction } = useLocale();
   const [fontsLoaded] = useFonts({
-    PlayfairDisplay_400Regular,
-    PlayfairDisplay_600SemiBold,
-    PlayfairDisplay_700Bold,
-    PlusJakartaSans_400Regular,
-    PlusJakartaSans_500Medium,
-    PlusJakartaSans_600SemiBold,
-    PlusJakartaSans_700Bold,
+    PlayfairDisplay_400Regular: direction === "rtl" ? FrankRuhlLibre_400Regular : PlayfairDisplay_400Regular,
+    PlayfairDisplay_600SemiBold: direction === "rtl" ? FrankRuhlLibre_600SemiBold : PlayfairDisplay_600SemiBold,
+    PlayfairDisplay_700Bold: direction === "rtl" ? FrankRuhlLibre_700Bold : PlayfairDisplay_700Bold,
+    PlusJakartaSans_400Regular: direction === "rtl" ? Heebo_400Regular : PlusJakartaSans_400Regular,
+    PlusJakartaSans_500Medium: direction === "rtl" ? Heebo_500Medium : PlusJakartaSans_500Medium,
+    PlusJakartaSans_600SemiBold: direction === "rtl" ? Heebo_600SemiBold : PlusJakartaSans_600SemiBold,
+    PlusJakartaSans_700Bold: direction === "rtl" ? Heebo_700Bold : PlusJakartaSans_700Bold,
+    SongNookLatinSansRegular: PlusJakartaSans_400Regular,
+    SongNookLatinSansMedium: PlusJakartaSans_500Medium,
+    SongNookLatinSansSemiBold: PlusJakartaSans_600SemiBold,
+    SongNookLatinSansBold: PlusJakartaSans_700Bold,
+    SongNookLatinSerifRegular: PlayfairDisplay_400Regular,
+    SongNookLatinSerifSemiBold: PlayfairDisplay_600SemiBold,
+    SongNookLatinSerifBold: PlayfairDisplay_700Bold,
+    SongNookHebrewSansRegular: Heebo_400Regular,
+    SongNookHebrewSansMedium: Heebo_500Medium,
+    SongNookHebrewSansSemiBold: Heebo_600SemiBold,
+    SongNookHebrewSansBold: Heebo_700Bold,
+    SongNookHebrewSerifRegular: FrankRuhlLibre_400Regular,
+    SongNookHebrewSerifSemiBold: FrankRuhlLibre_600SemiBold,
+    SongNookHebrewSerifBold: FrankRuhlLibre_700Bold,
+    Heebo_400Regular,
+    Heebo_500Medium,
+    Heebo_600SemiBold,
+    Heebo_700Bold,
+    FrankRuhlLibre_400Regular,
+    FrankRuhlLibre_600SemiBold,
+    FrankRuhlLibre_700Bold,
   });
 
   const [activeRouteName, setActiveRouteName] = useState<string>("Home");
@@ -952,6 +986,7 @@ function AppContent() {
       <FullPlayerProvider>
       <NavigationContainer
         ref={navigationRef}
+        direction={direction}
         linking={linking}
         initialState={initialNavigationState}
         onReady={syncNavigationState}
@@ -1022,6 +1057,7 @@ function AppContent() {
 }
 
 export default function App() {
+  const locale = useLocaleBootstrap();
   const [hasHydrated, setHasHydrated] = useState(() => useStore.persist.hasHydrated());
 
   useEffect(() => {
@@ -1191,8 +1227,19 @@ export default function App() {
     })();
   }, [hasHydrated]);
 
+  if (!locale.language) {
+    return (
+      <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "#FDFBF7" }}>
+        <ActivityIndicator color="#B87D6B" />
+      </View>
+    );
+  }
+
+  const direction = locale.language === "he" ? "rtl" : "ltr";
+
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
+    <LocaleProvider language={locale.language}>
+    <GestureHandlerRootView style={{ flex: 1, direction }}>
       <AppErrorBoundary>
       {/* The whole app is light-on-paper; one root status bar replaces the
           per-screen instances (only ~half the screens had one). */}
@@ -1221,5 +1268,6 @@ export default function App() {
       </SafeAreaProvider>
       </AppErrorBoundary>
     </GestureHandlerRootView>
+    </LocaleProvider>
   );
 }

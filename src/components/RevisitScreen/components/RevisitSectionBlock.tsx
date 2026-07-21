@@ -7,6 +7,14 @@ import type { RevisitCandidate, RevisitSection, RevisitSectionKey } from "../../
 import { revisitStyles } from "../styles";
 import { RevisitCandidateCard } from "./RevisitCandidateCard";
 import { colors } from "../../../design/tokens";
+import { useTranslation } from "react-i18next";
+
+const SECTION_COPY = {
+  pickup: { title: "revisit.unfinished", subtitle: "revisit.unfinishedSubtitle" },
+  forgotten: { title: "revisit.rawIdeas", subtitle: "revisit.rawIdeasSubtitle" },
+  vault: { title: "revisit.deepCuts", subtitle: "revisit.deepCutsSubtitle" },
+  around: { title: "revisit.around", subtitle: "revisit.aroundSubtitle" },
+} as const;
 
 // A daily feature: one idea per section, two at most.
 const MAX_ITEMS_PER_SECTION = 2;
@@ -51,7 +59,9 @@ export function RevisitSectionBlock({
   onViewInCollection,
   onOpenSection,
 }: RevisitSectionBlockProps) {
+  const { t } = useTranslation();
   const items = section.items.slice(0, MAX_ITEMS_PER_SECTION);
+  const copy = SECTION_COPY[section.key];
 
   return (
     <View style={revisitStyles.sectionWrap}>
@@ -59,9 +69,9 @@ export function RevisitSectionBlock({
         <View style={revisitStyles.sectionHeaderCol}>
           <View style={revisitStyles.sectionTitleRow}>
             <Ionicons name={SECTION_ICONS[section.key]} size={16} color={colors.primary} />
-            <Text style={revisitStyles.sectionTitleSerif}>{section.title}</Text>
+            <Text style={revisitStyles.sectionTitleSerif}>{t(copy.title)}</Text>
           </View>
-          <Text style={revisitStyles.sectionSubShort}>{section.subtitle}</Text>
+          <Text style={revisitStyles.sectionSubShort}>{t(copy.subtitle)}</Text>
         </View>
         {section.actionLabel && onOpenSection ? (
           <Pressable
@@ -69,7 +79,7 @@ export function RevisitSectionBlock({
             onPress={onOpenSection}
             hitSlop={6}
           >
-            <Text style={revisitStyles.sectionGoText}>{section.actionLabel} ›</Text>
+            <Text style={revisitStyles.sectionGoText}>{t("revisit.seeSnapshot")} ›</Text>
           </Pressable>
         ) : null}
       </View>

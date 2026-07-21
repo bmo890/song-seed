@@ -4,6 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { CloseButton } from "./CloseButton";
 import { haptic } from "../../design/haptics";
 import { colors, radii } from "../../design/tokens";
+import { useTranslation } from "react-i18next";
 
 type TransportBarProps = {
   isPlaying: boolean;
@@ -56,6 +57,7 @@ function TransportBarInner({
   speedActive = false,
   onSpeedPress,
 }: TransportBarProps) {
+  const { t } = useTranslation();
   const compact = size === "compact";
   const skipIconSize = compact ? 18 : 22;
   const playIconSize = compact ? 20 : 24;
@@ -70,7 +72,7 @@ function TransportBarInner({
             size={compact ? "sm" : "lg"}
             tone="onLight"
             onPress={onClose}
-            accessibilityLabel="Close player"
+            accessibilityLabel={t("common.closePlayer")}
           />
         ) : speedBadge ? (
           <Pressable
@@ -84,7 +86,7 @@ function TransportBarInner({
               onSpeedPress?.();
             }}
             accessibilityRole="button"
-            accessibilityLabel={`Playback speed ${speedBadge}`}
+            accessibilityLabel={t("common.playbackSpeed", { speed: speedBadge })}
           >
             <Text style={[styles.speedBadgeText, speedActive ? styles.speedBadgeTextActive : null]}>
               {speedBadge}
@@ -105,7 +107,7 @@ function TransportBarInner({
         }}
         disabled={!canGoPrevious}
         accessibilityRole="button"
-        accessibilityLabel="Previous"
+        accessibilityLabel={t("common.previous")}
       >
         <Ionicons
           name="play-skip-back"
@@ -126,7 +128,7 @@ function TransportBarInner({
         }}
         disabled={playDisabled}
         accessibilityRole="button"
-        accessibilityLabel={isPlaying ? "Pause" : "Play"}
+        accessibilityLabel={t(isPlaying ? "common.pause" : "common.play")}
       >
         <Ionicons
           name={isPlaying ? "pause" : "play"}
@@ -148,7 +150,7 @@ function TransportBarInner({
         }}
         disabled={!canGoNext}
         accessibilityRole="button"
-        accessibilityLabel="Next"
+        accessibilityLabel={t("common.next")}
       >
         <Ionicons
           name="play-skip-forward"
@@ -173,7 +175,7 @@ function TransportBarInner({
               }}
               disabled={trailingDisabled}
               accessibilityRole="button"
-              accessibilityLabel={trailingActive ? "Hide queue" : "Show queue"}
+              accessibilityLabel={t(trailingActive ? "common.hideQueue" : "common.showQueue")}
             >
               <Ionicons
                 name={trailingIcon}

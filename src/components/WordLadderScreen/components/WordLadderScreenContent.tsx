@@ -29,6 +29,8 @@ import {
   pairingSeedWords,
 } from "../../../domain/wordLadder";
 import type { WordLadderStep } from "../../../types";
+import { EnglishOnlyNotice } from "../../common/EnglishOnlyNotice";
+import { UserTextInput } from "../../../i18n";
 
 const KRAFT_BG = "#F2E9DC";
 
@@ -152,6 +154,7 @@ export function WordLadderScreenContent() {
       />
 
       <StepProgress step={model.step} />
+      <EnglishOnlyNotice />
 
       <HelpButton
         label={STEPS.find((s) => s.key === model.step)?.label ?? "Help"}
@@ -332,7 +335,7 @@ export function WordLadderScreenContent() {
           ) : null}
 
           <View style={contentStyles.poemCard}>
-            <TextInput
+            <UserTextInput
               style={contentStyles.poemInput}
               value={exercise.draft}
               onChangeText={model.setDraft}
@@ -401,7 +404,7 @@ export function WordLadderScreenContent() {
           )}
 
           <View style={contentStyles.poemCard}>
-            <TextInput
+            <UserTextInput
               style={contentStyles.poemInput}
               value={exercise.revision}
               onChangeText={model.setRevision}
@@ -540,7 +543,7 @@ function SetupSeedField({
   return (
     <View style={contentStyles.seedHeader}>
       <Text style={contentStyles.seedLabel}>{label}</Text>
-      <TextInput
+      <UserTextInput
         style={contentStyles.seedInput}
         value={value}
         onChangeText={onChange}
@@ -576,4 +579,3 @@ function FrozenSeedBanner({ roleSeed, placeSeed }: { roleSeed: string; placeSeed
     </View>
   );
 }
-

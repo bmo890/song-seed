@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { UserTextInput } from "../../../i18n";
 import DraggableFlatList, { type RenderItemParams } from "react-native-draggable-flatlist";
 import { Ionicons } from "@expo/vector-icons";
 import { AppAlert } from "../../common/AppAlert";
@@ -69,7 +70,7 @@ export function MagpieBuildStep({ model, spark }: { model: Model; spark: MagpieS
       </View>
 
       <View style={styles.draftCard}>
-        <TextInput
+        <UserTextInput
           style={styles.draftInput}
           value={spark.draft}
           onChangeText={model.setDraft}
@@ -115,7 +116,7 @@ function FragmentRow({
 
       <View style={styles.rowTextWrap}>
         {isEditing ? (
-          <TextInput
+          <UserTextInput
             ref={inputRef}
             style={styles.rowInput}
             value={fragment.text}

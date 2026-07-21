@@ -2,6 +2,8 @@ import {
   buildChordChartHtml,
   buildChordDisplay,
   clampChordIndex,
+  graphemeCount,
+  graphemeIndexToStringIndex,
   paletteKey,
   recordChordInPalette,
   serializeChordChartText,
@@ -55,6 +57,22 @@ describe("clampChordIndex", () => {
 
   it("handles non-finite input", () => {
     expect(clampChordIndex(NaN, 10)).toBe(0);
+  });
+});
+
+describe("Unicode chord anchors", () => {
+  it("counts user-perceived characters instead of UTF-16 code units", () => {
+    expect(graphemeCount("שָׁלוֹם 🎵")).toBe(6);
+    expect(graphemeIndexToStringIndex("שָׁלוֹם", 1)).toBe(3);
+  });
+
+  it("serializes a grapheme anchor without splitting Hebrew marks", () => {
+    const lines: LyricsLine[] = [{
+      id: "hebrew",
+      text: "שָׁלוֹם",
+      chords: [{ id: "c", chord: "Am", at: 0, graphemeAt: 1 }],
+    }];
+    expect(serializeChordPro(lines)).toBe("שָׁ[Am]לוֹם");
   });
 });
 
