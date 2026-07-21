@@ -17,6 +17,8 @@ import { haptic } from "../../design/haptics";
 import { colors, radii, spacing, text as textTokens } from "../../design/tokens";
 import type { ShareKind, SongIdea, Workspace } from "../../types";
 import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
+import { useLocale } from "../../i18n";
 
 const KIND_LABELS: Record<ShareKind, string> = {
   setlist: "Setlist",
@@ -36,17 +38,17 @@ const KIND_ICONS: Record<ShareKind, React.ComponentProps<typeof Ionicons>["name"
   library: "library-outline",
 };
 
-function formatReceivedLine(pkg: Workspace): string {
+function formatReceivedLine(pkg: Workspace, t: TFunction, locale: string): string {
   const meta = pkg.received;
   const parts: string[] = [];
-  if (meta?.senderName) parts.push(`From ${meta.senderName}`);
+  if (meta?.senderName) parts.push(t("received.from", { name: meta.senderName }));
   if (meta?.receivedAt) {
     parts.push(
-      new Date(meta.receivedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })
+      new Date(meta.receivedAt).toLocaleDateString(locale, { month: "short", day: "numeric" })
     );
   }
   const count = pkg.ideas.length;
-  parts.push(`${count} ${count === 1 ? "item" : "items"}`);
+  parts.push(t("received.items", { count }));
   return parts.join(" · ");
 }
 
@@ -58,6 +60,7 @@ function formatReceivedLine(pkg: Workspace): string {
  */
 export function ReceivedScreen() {
   const { t } = useTranslation();
+  const { formatLocale } = useLocale();
   const navigation = useNavigation<any>();
   const isFocused = useIsFocused();
   useBrowseRootBackHandler();
@@ -104,28 +107,28 @@ export function ReceivedScreen() {
 
   function confirmAdopt(pkg: Workspace) {
     AppAlert.confirm(
-      "Move to my workspaces?",
-      `"${pkg.title}" becomes one of your own workspaces — it will appear alongside them everywhere.`,
+      t("received.adoptTitle"),
+      t("received.adoptBody", { title: pkg.title }),
       () => {
         adoptReceivedWorkspace(pkg.id);
         haptic.success();
-        toast("Moved to your workspaces", "checkmark-outline");
+        toast(t("received.adopted"), "checkmark-outline");
         setSelectedPackageId(null);
       },
-      { confirmLabel: "Move" }
+      { confirmLabel: t("received.move") }
     );
   }
 
   function confirmDelete(pkg: Workspace) {
     AppAlert.destructive(
-      "Delete this package?",
-      `"${pkg.title}" and its ${pkg.ideas.length === 1 ? "item" : "items"} will be removed. Audio moves to Trash.`,
+      t("received.deleteTitle"),
+      t("received.deleteBody", { title: pkg.title, items: t("received.items", { count: pkg.ideas.length }) }),
       () => {
         deleteWorkspace(pkg.id);
         haptic.success();
         setSelectedPackageId(null);
       },
-      { confirmLabel: "Delete" }
+      { confirmLabel: t("common.delete") }
     );
   }
 
@@ -135,7 +138,7 @@ export function ReceivedScreen() {
     return (
       <SafeAreaView style={receivedStyles.screen}>
         <ScreenHeader
-          title="Received"
+          title={t("screens.received")}
           leftIcon="back"
           onLeftPress={() => setSelectedPackageId(null)}
           rightElement={
@@ -143,7 +146,7 @@ export function ReceivedScreen() {
               style={({ pressed }) => [receivedStyles.headerBtn, pressed ? { opacity: 0.7 } : null]}
               onPress={() => setMenuVisible(true)}
               hitSlop={6}
-              accessibilityLabel="Package options"
+              accessibilityLabel={t("received.packageOptions")}
             >
               <Ionicons name="ellipsis-horizontal" size={16} color={colors.textStrong} />
             </Pressable>
@@ -157,12 +160,12 @@ export function ReceivedScreen() {
           <View style={receivedStyles.detailHeader}>
             <View style={receivedStyles.kindChip}>
               <Ionicons name={KIND_ICONS[kind]} size={11} color={colors.primaryDeep} />
-              <Text style={receivedStyles.kindChipText}>{KIND_LABELS[kind]}</Text>
+              <Text style={receivedStyles.kindChipText}>{t(`received.${kind}`)}</Text>
             </View>
             <Text style={receivedStyles.detailTitle} numberOfLines={2}>
               {selectedPackage.received?.shareTitle ?? selectedPackage.title}
             </Text>
-            <Text style={receivedStyles.detailMeta}>{formatReceivedLine(selectedPackage)}</Text>
+            <Text style={receivedStyles.detailMeta}>{formatReceivedLine(selectedPackage, t, formatLocale)}</Text>
           </View>
 
           <View style={receivedStyles.list}>
@@ -192,25 +195,25 @@ export function ReceivedScreen() {
               );
             })}
             {selectedPackage.ideas.length === 0 ? (
-              <Text style={receivedStyles.emptyLine}>This package holds no playable items.</Text>
+              <Text style={receivedStyles.emptyLine}>{t("received.noPlayable")}</Text>
             ) : null}
           </View>
         </ScrollView>
 
         <SelectionActionSheet
           visible={menuVisible}
-          title="Package options"
+          title={t("received.packageOptions")}
           onClose={() => setMenuVisible(false)}
           actions={[
             {
               key: "adopt",
-              label: "Move to my workspaces",
+              label: t("received.moveWorkspaces"),
               icon: "arrow-forward-outline",
               onPress: () => confirmAdopt(selectedPackage),
             },
             {
               key: "delete",
-              label: "Delete package",
+              label: t("received.deletePackage"),
               icon: "trash-outline",
               tone: "danger",
               onPress: () => confirmDelete(selectedPackage),
@@ -230,11 +233,7 @@ export function ReceivedScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={receivedStyles.scrollContent}
       >
-        <Text style={receivedStyles.pageDescription}>
-          Things people sent you — setlists, songbooks, songs — kept apart from your own
-          work. Open a package to listen and learn; move it into your workspaces only if
-          you want to build on it.
-        </Text>
+        <Text style={receivedStyles.pageDescription}>{t("received.intro")}</Text>
 
         <View style={receivedStyles.list}>
           {packages.map((pkg) => {
@@ -248,7 +247,7 @@ export function ReceivedScreen() {
                   setSelectedPackageId(pkg.id);
                 }}
                 accessibilityRole="button"
-                accessibilityLabel={`Open package ${pkg.received?.shareTitle ?? pkg.title}`}
+                accessibilityLabel={t("received.openPackage", { title: pkg.received?.shareTitle ?? pkg.title })}
               >
                 <View style={receivedStyles.packageIcon}>
                   <Ionicons name={KIND_ICONS[kind]} size={18} color={colors.primaryDeep} />
@@ -258,7 +257,7 @@ export function ReceivedScreen() {
                     {pkg.received?.shareTitle ?? pkg.title}
                   </Text>
                   <Text style={receivedStyles.packageMeta} numberOfLines={1}>
-                    {KIND_LABELS[kind]} · {formatReceivedLine(pkg)}
+                    {t(`received.${kind}`)} · {formatReceivedLine(pkg, t, formatLocale)}
                   </Text>
                 </View>
                 <Ionicons name="chevron-forward" size={14} color={colors.textMuted} />
@@ -270,11 +269,8 @@ export function ReceivedScreen() {
         {packages.length === 0 ? (
           <View style={receivedStyles.emptyWrap}>
             <Ionicons name="mail-open-outline" size={26} color={colors.textMuted} />
-            <Text style={receivedStyles.emptyTitle}>Nothing received yet</Text>
-            <Text style={receivedStyles.emptyBody}>
-              When someone shares a SongNook file with you — a setlist, a songbook, a few
-              songs — it lands here as its own package.
-            </Text>
+            <Text style={receivedStyles.emptyTitle}>{t("received.empty")}</Text>
+            <Text style={receivedStyles.emptyBody}>{t("received.emptyBody")}</Text>
           </View>
         ) : null}
       </ScrollView>
