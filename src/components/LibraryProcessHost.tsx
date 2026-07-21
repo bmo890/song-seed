@@ -13,17 +13,12 @@ import {
     useProcessStore,
     type LibraryProcess,
 } from "../state/useProcessStore";
+import { useTranslation } from "react-i18next";
 
 const DEEP = "#8b4f3b";
 const SUCCESS = "#3F9C82";
 const ERROR = "#B4574A";
 const TERMINAL_AUTO_DISMISS_MS = 4000;
-
-const EYEBROW: Record<LibraryProcess["kind"], string> = {
-    backup: "Backing up",
-    export: "Exporting",
-    restore: "Restoring",
-};
 
 function accentFor(process: LibraryProcess): string {
     if (process.status === "success") return SUCCESS;
@@ -156,6 +151,7 @@ function ProcessTakeover({
     onCancel: () => void;
     onDismiss: () => void;
 }) {
+    const { t } = useTranslation();
     const insets = useSafeAreaInsets();
     const reveal = useRef(new Animated.Value(0)).current;
     const terminal = process.status !== "running";
@@ -190,11 +186,11 @@ function ProcessTakeover({
                         <Text style={[styles.eyebrow, { color: accent }]}>
                             {terminal
                                 ? process.status === "success"
-                                    ? "Done"
+                                    ? t("libraryProcess.done")
                                     : process.status === "error"
-                                      ? "Couldn't finish"
-                                      : "Cancelled"
-                                : EYEBROW[process.kind]}
+                                      ? t("libraryProcess.failed")
+                                      : t("libraryProcess.cancelled")
+                                : t(`libraryProcess.${process.kind}`)}
                         </Text>
                         <Text style={styles.sheetTitle}>{process.title}</Text>
                     </View>
@@ -211,10 +207,10 @@ function ProcessTakeover({
                         </View>
                         <Text style={styles.terminalMessage}>
                             {process.resultMessage ??
-                                (process.status === "success" ? "Finished." : "Something went wrong.")}
+                                (process.status === "success" ? t("libraryProcess.finished") : t("libraryProcess.error"))}
                         </Text>
                         <Pressable style={styles.primaryBtn} onPress={onDismiss}>
-                            <Text style={styles.primaryBtnText}>Done</Text>
+                            <Text style={styles.primaryBtnText}>{t("libraryProcess.done")}</Text>
                         </Pressable>
                     </View>
                 ) : (
@@ -245,17 +241,17 @@ function ProcessTakeover({
                         </View>
 
                         <View style={styles.statGridFull}>
-                            <StatTile label="Data" value={stats.dataLabel} />
+                            <StatTile label={t("libraryProcess.data")} value={stats.dataLabel} />
                         </View>
                         <View style={styles.statGrid}>
-                            <StatTile label="Time left" value={stats.etaLabel} />
-                            <StatTile label="Elapsed" value={formatClock(elapsedSec)} />
+                            <StatTile label={t("libraryProcess.timeLeft")} value={stats.etaLabel} />
+                            <StatTile label={t("libraryProcess.elapsed")} value={formatClock(elapsedSec)} />
                         </View>
 
                         <Text style={styles.takeoverHint}>
                             {process.canCancel
-                                ? "Minimize to keep using the app — return from the pill at the bottom."
-                                : "Finishing up — this step can't be interrupted."}
+                                ? t("libraryProcess.canMinimize")
+                                : t("libraryProcess.finishing")}
                         </Text>
                     </ScrollView>
                 )}
@@ -267,14 +263,14 @@ function ProcessTakeover({
                             onPress={onMinimize}
                         >
                             <Ionicons name="chevron-down" size={16} color={colors.textStrong} />
-                            <Text style={styles.minimizeBtnText}>Minimize</Text>
+                            <Text style={styles.minimizeBtnText}>{t("libraryProcess.minimize")}</Text>
                         </Pressable>
                         {process.canCancel ? (
                             <Pressable
                                 style={({ pressed }) => [styles.cancelBtn, pressed ? { opacity: 0.7 } : null]}
                                 onPress={onCancel}
                             >
-                                <Text style={styles.cancelBtnText}>Cancel</Text>
+                                <Text style={styles.cancelBtnText}>{t("libraryProcess.cancel")}</Text>
                             </Pressable>
                         ) : null}
                     </View>
@@ -293,6 +289,7 @@ function MonitorPill({
     onExpand: () => void;
     bottom: number;
 }) {
+    const { t } = useTranslation();
     const overall = getProcessOverallFraction(process);
     const percent = overall != null ? Math.round(overall * 100) : null;
     const accent = accentFor(process);
@@ -309,7 +306,7 @@ function MonitorPill({
                 style={({ pressed }) => [styles.pill, pressed ? { opacity: 0.85 } : null]}
                 onPress={onExpand}
                 accessibilityRole="button"
-                accessibilityLabel={`${EYEBROW[process.kind]}, tap to expand`}
+                accessibilityLabel={`${t(`libraryProcess.${process.kind}`)}. ${t("common.expand")}`}
             >
                 <View style={styles.pillRing}>
                     {terminal ? (
@@ -340,11 +337,11 @@ function MonitorPill({
                 </View>
                 <View style={styles.pillCopy}>
                     <Text style={styles.pillTitle} numberOfLines={1}>
-                        {EYEBROW[process.kind]}
+                        {t(`libraryProcess.${process.kind}`)}
                         {percent != null && !terminal ? ` · ${percent}%` : ""}
                     </Text>
                     <Text style={styles.pillSubtitle} numberOfLines={1}>
-                        {terminal ? process.resultMessage ?? "Done" : process.progress.message}
+                        {terminal ? process.resultMessage ?? t("libraryProcess.done") : process.progress.message}
                     </Text>
                 </View>
                 <Ionicons name="chevron-up" size={16} color={colors.textStrong} />

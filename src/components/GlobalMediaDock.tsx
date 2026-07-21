@@ -16,6 +16,8 @@ import { styles } from "../styles";
 import { colors } from "../design/tokens";
 import { fmtDuration, getCollectionById } from "../utils";
 import { haptic } from "../design/haptics";
+import { useTranslation } from "react-i18next";
+import { UserText } from "../i18n";
 
 type GlobalMediaDockProps = {
   activeRouteName: string;
@@ -68,6 +70,7 @@ export function GlobalMediaDock({
   onOpenRecording,
   onOpenIdea,
 }: GlobalMediaDockProps) {
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const [queueOpen, setQueueOpen] = useState(false);
   const recorder = useSharedAudioRecorder();
@@ -277,7 +280,7 @@ export function GlobalMediaDock({
                     }
                   }}
                   accessibilityRole="button"
-                  accessibilityLabel={recorder.isPaused ? "Resume recording" : "Pause recording"}
+                  accessibilityLabel={t(recorder.isPaused ? "mediaDock.resumeRecording" : "mediaDock.pauseRecording")}
                 >
                   <Ionicons
                     name={recorder.isPaused ? "mic" : "pause"}
@@ -299,7 +302,7 @@ export function GlobalMediaDock({
                     onOpenRecording();
                   }}
                   accessibilityRole="button"
-                  accessibilityLabel="Save recording"
+                  accessibilityLabel={t("mediaDock.saveRecording")}
                 >
                   <Ionicons name="square" size={16} color={colors.surface} />
                 </Pressable>
@@ -308,7 +311,7 @@ export function GlobalMediaDock({
 
             <View style={styles.miniMediaDockRecordingFooter}>
               <Text style={styles.miniMediaDockRecordingTime}>{fmtDuration(recordingElapsedMs)}</Text>
-              <Text style={styles.miniMediaDockHintText}>Tap to reopen controls</Text>
+              <Text style={styles.miniMediaDockHintText}>{t("mediaDock.reopenControls")}</Text>
             </View>
           </View>
         </Pressable>
@@ -322,7 +325,7 @@ export function GlobalMediaDock({
   // Skip the subtitle when it just repeats the title (standalone clip ideas
   // share their clip's name — "Take · Take" reads as a glitch).
   const dockSubtitle = isPreviewingClip
-    ? "Preview playing"
+    ? t("mediaDock.previewPlaying")
     : activePlayback.subtitle !== activePlayback.title
       ? activePlayback.subtitle
       : null;
@@ -384,7 +387,7 @@ export function GlobalMediaDock({
           <CloseButton
             size="md"
             tone="onDark"
-            accessibilityLabel="Dismiss"
+            accessibilityLabel={t("mediaDock.dismiss")}
             onPress={() => {
               void fullPlayer.closePlayer();
               useStore.getState().clearPlayerQueue();
@@ -398,15 +401,15 @@ export function GlobalMediaDock({
               openFullPlayer();
             }}
             accessibilityRole="button"
-            accessibilityLabel="Open full player"
+            accessibilityLabel={t("mediaDock.openPlayer")}
           >
-            <Text style={styles.miniMediaDockTitle} numberOfLines={1}>
+            <UserText style={styles.miniMediaDockTitle} numberOfLines={1}>
               {activePlayback.title}
-            </Text>
+            </UserText>
             {dockSubtitle ? (
-              <Text style={styles.miniMediaDockSubtitle} numberOfLines={1}>
+              <UserText style={styles.miniMediaDockSubtitle} numberOfLines={1}>
                 {dockSubtitle}
-              </Text>
+              </UserText>
             ) : null}
           </Pressable>
 
@@ -424,7 +427,7 @@ export function GlobalMediaDock({
               }}
               hitSlop={4}
               accessibilityRole="button"
-              accessibilityLabel="Previous"
+              accessibilityLabel={t("common.previous")}
             >
               <Ionicons name="play-skip-back" size={16} color="rgba(253,251,247,0.82)" />
             </Pressable>
@@ -443,7 +446,7 @@ export function GlobalMediaDock({
                 }
               }}
               accessibilityRole="button"
-              accessibilityLabel={activePlayback.isPlaying ? "Pause" : "Play"}
+              accessibilityLabel={t(activePlayback.isPlaying ? "common.pause" : "common.play")}
             >
               <Ionicons
                 name={activePlayback.isPlaying ? "pause" : "play"}
@@ -466,7 +469,7 @@ export function GlobalMediaDock({
               }}
               hitSlop={4}
               accessibilityRole="button"
-              accessibilityLabel="Next"
+              accessibilityLabel={t("common.next")}
             >
               <Ionicons name="play-skip-forward" size={16} color="rgba(253,251,247,0.82)" />
             </Pressable>
@@ -485,7 +488,7 @@ export function GlobalMediaDock({
               }}
               hitSlop={6}
               accessibilityRole="button"
-              accessibilityLabel={queueOpen ? "Hide queue" : "Show queue"}
+              accessibilityLabel={t(queueOpen ? "common.hideQueue" : "common.showQueue")}
             >
               <Ionicons name="list" size={15} color={queueOpen ? "#8b4f3b" : colors.page} />
             </Pressable>

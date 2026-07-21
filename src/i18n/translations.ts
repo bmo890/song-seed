@@ -34,8 +34,10 @@ export const resources = {
         hideQueue: "Hide queue",
         activitySlice: "activity slice",
         help: "Help",
+        expand: "Expand",
         create: "Create",
         closeCreateMenu: "Close create menu",
+        playItem: "Play {{title}}", removeFromQueue: "Remove {{title}} from queue", reorderItem: "Reorder {{title}}", goToItem: "Go to {{title}}",
         record: "Record",
         selectionActions: "Selection actions",
         lyrics: "Lyrics",
@@ -1002,6 +1004,9 @@ export const resources = {
         noun: "noun", verb: "verb", adjective: "adjective", adverb: "adverb", other: "other", rhymes: "Rhymes", rhymesDesc: "Perfect rhymes.", near: "Near", nearDesc: "Near rhymes — close but not exact.", similar: "Similar", similarDesc: "Words with a similar meaning.", related: "Related", relatedDesc: "Words the theme brings to mind.", homophones: "Homophones", homophonesDesc: "Same sound, different word — course, coarse.", consonance: "Consonance", consonanceDesc: "Same consonant bones — sample, simple.", soundsLike: "Sounds like", soundsLikeDesc: "Close in sound, loose on spelling.", opposite: "Opposites", oppositeDesc: "Antonyms — for contrast lines.", synonyms: "Synonyms", synonymsDesc: "Strict synonyms only.", describe: "Describing words", describeDesc: "Adjectives for it — ocean: deep, vast.", kinds: "Kinds of it", kindsDesc: "More specific — bird: sparrow, heron.", parts: "Parts of it", partsDesc: "What it contains — car: dashboard."
       },
       transferReceive: { receivedFiles: "Received files", receivedClip: "Received clip", importFailed_one: "Couldn’t import one file.", importFailed_other: "Couldn’t import {{count}} files.", noAudio: "No audio files could be imported.", nothingImported: "Nothing in this transfer could be imported.", saveFailed: "Something went wrong while saving this transfer.", songbookSaved: "Songbook saved", setlistSaved: "Setlist saved", savedReceived: "Saved to Received", opening: "Opening the parcel…", expired: "This link has expired", expiredBody: "Transfers live for a limited time. Ask the sender for a fresh link.", alreadySaved: "Already saved", alreadySavedBody: "This transfer is in your library.", openReceived: "Open Received", openFailed: "Couldn’t open the transfer", tryAgain: "Try again", from: "From {{name}}", someone: "someone", itemCount_one: "one item", itemCount_other: "{{count}} items", expires: "expires in {{count}}d", parcel: "A parcel for you", sentMusic: "Someone sent you music", downloading: "Downloading… {{percent}}%", save: "Save to SongNook", saved: "Saved", saving: "Saving…", footnote: "Lands in Received, kept apart from your own work — move it into your workspaces whenever you like.", header: "SongNook Send" },
+      setlistSong: { setlist: "Setlist", missing: "This song is no longer in the set.", partCount_one: "one part", partCount_other: "{{count}} parts", lyrics: "lyrics", chords: "chords", notes: "notes", songPosition: "Song {{current}} of {{total}}", practice: "Practice {{title}}", openLyrics: "Open the lyrics chart", openChords: "Open the chord chart", parts: "Parts", sectionCount_one: "one section", sectionCount_other: "{{count}} sections", pinCount_one: "one pin", pinCount_other: "{{count}} pins", notesTitle: "Notes" },
+      mediaDock: { queue: "Queue", position: "{{current}} of {{total}}", editQueue: "Edit queue", doneEditing: "Done editing queue", edit: "Edit", done: "Done", resumeRecording: "Resume recording", pauseRecording: "Pause recording", saveRecording: "Save recording", reopenControls: "Tap to reopen controls", previewPlaying: "Preview playing", dismiss: "Dismiss", openPlayer: "Open full player" },
+      libraryProcess: { backup: "Backing up", export: "Exporting", restore: "Restoring", done: "Done", failed: "Couldn’t finish", cancelled: "Cancelled", finished: "Finished.", error: "Something went wrong.", data: "Data", timeLeft: "Time left", elapsed: "Elapsed", canMinimize: "Minimize to keep using the app — return from the pill at the bottom.", finishing: "Finishing up — this step can’t be interrupted.", minimize: "Minimize", cancel: "Cancel" },
       notepad: {
         newTitle: "New in the Lyrics Pad",
         newPage: "New page",
@@ -1127,8 +1132,10 @@ export const resources = {
         hideQueue: "הסתרת התור",
         activitySlice: "טווח פעילות",
         help: "עזרה",
+        expand: "הרחבה",
         create: "יצירה",
         closeCreateMenu: "סגירת תפריט היצירה",
+        playItem: "ניגון {{title}}", removeFromQueue: "הסרת {{title}} מהתור", reorderItem: "שינוי המיקום של {{title}}", goToItem: "מעבר אל {{title}}",
         record: "הקלטה",
         selectionActions: "פעולות על הבחירה",
         lyrics: "מילים",
@@ -2130,6 +2137,9 @@ export const resources = {
         noun: "שם עצם", verb: "פועל", adjective: "שם תואר", adverb: "תואר הפועל", other: "אחר", rhymes: "חרוזים", rhymesDesc: "חרוזים מלאים.", near: "כמעט", nearDesc: "חרוזים קרובים — דומים אך לא זהים.", similar: "דומות", similarDesc: "מילים בעלות משמעות דומה.", related: "קשורות", relatedDesc: "מילים שהנושא מעלה בדמיון.", homophones: "מילים שוות־צליל", homophonesDesc: "אותו צליל, מילה אחרת.", consonance: "עיצורים דומים", consonanceDesc: "שלד עיצורים דומה.", soundsLike: "נשמע כמו", soundsLikeDesc: "צליל קרוב, כתיב חופשי.", opposite: "הפכים", oppositeDesc: "מילים מנוגדות לשורות של ניגוד.", synonyms: "מילים נרדפות", synonymsDesc: "מילים נרדפות מדויקות בלבד.", describe: "מילים מתארות", describeDesc: "שמות תואר עבור המילה.", kinds: "סוגים", kindsDesc: "דוגמאות ספציפיות יותר.", parts: "חלקים", partsDesc: "מה הדבר מכיל."
       },
       transferReceive: { receivedFiles: "קבצים שהתקבלו", receivedClip: "קטע שהתקבל", importFailed_one: "לא ניתן לייבא קובץ אחד.", importFailed_two: "לא ניתן לייבא שני קבצים.", importFailed_other: "לא ניתן לייבא {{count}} קבצים.", noAudio: "לא ניתן לייבא קובצי שמע.", nothingImported: "לא ניתן לייבא דבר מההעברה הזו.", saveFailed: "משהו השתבש בשמירת ההעברה.", songbookSaved: "ספר השירים נשמר", setlistSaved: "רשימת השירים נשמרה", savedReceived: "נשמר ב׳התקבלו׳", opening: "פותח את החבילה…", expired: "תוקף הקישור פג", expiredBody: "העברות זמינות לזמן מוגבל. בקשו מהשולח קישור חדש.", alreadySaved: "כבר נשמר", alreadySavedBody: "ההעברה הזו נמצאת בספרייה שלך.", openReceived: "פתיחת ׳התקבלו׳", openFailed: "לא ניתן לפתוח את ההעברה", tryAgain: "ניסיון חוזר", from: "מאת {{name}}", someone: "מישהו", itemCount_one: "פריט אחד", itemCount_two: "שני פריטים", itemCount_other: "{{count}} פריטים", expires: "תוקף פג בעוד {{count}} ימים", parcel: "חבילה עבורך", sentMusic: "מישהו שלח לך מוזיקה", downloading: "מוריד… {{percent}}%", save: "שמירה ב־SongNook", saved: "נשמר", saving: "שומר…", footnote: "התוכן מגיע אל ׳התקבלו׳ ונשמר בנפרד מהעבודה שלך — אפשר להעביר אותו למרחבי העבודה בכל עת.", header: "SongNook Send" },
+      setlistSong: { setlist: "סטליסט", missing: "השיר הזה כבר אינו נמצא בסט.", partCount_one: "חלק אחד", partCount_two: "שני חלקים", partCount_other: "{{count}} חלקים", lyrics: "מילים", chords: "אקורדים", notes: "הערות", songPosition: "שיר {{current}} מתוך {{total}}", practice: "תרגול {{title}}", openLyrics: "פתיחת תרשים המילים", openChords: "פתיחת תרשים האקורדים", parts: "חלקים", sectionCount_one: "חלק אחד", sectionCount_two: "שני חלקים", sectionCount_other: "{{count}} חלקים", pinCount_one: "סימון אחד", pinCount_two: "שני סימונים", pinCount_other: "{{count}} סימונים", notesTitle: "הערות" },
+      mediaDock: { queue: "תור", position: "{{current}} מתוך {{total}}", editQueue: "עריכת התור", doneEditing: "סיום עריכת התור", edit: "עריכה", done: "סיום", resumeRecording: "המשך הקלטה", pauseRecording: "השהיית הקלטה", saveRecording: "שמירת הקלטה", reopenControls: "לחצו כדי לפתוח שוב את הפקדים", previewPlaying: "תצוגה מקדימה מתנגנת", dismiss: "סגירה", openPlayer: "פתיחת הנגן המלא" },
+      libraryProcess: { backup: "מגבה", export: "מייצא", restore: "משחזר", done: "הושלם", failed: "לא ניתן להשלים", cancelled: "בוטל", finished: "הפעולה הושלמה.", error: "משהו השתבש.", data: "נתונים", timeLeft: "זמן שנותר", elapsed: "זמן שחלף", canMinimize: "אפשר למזער ולהמשיך להשתמש ביישום — חזרו מהתג שבתחתית.", finishing: "מסיים — לא ניתן להפסיק את השלב הזה.", minimize: "מזעור", cancel: "ביטול" },
       notepad: {
         newTitle: "חדש בפנקס המילים",
         newPage: "עמוד חדש",

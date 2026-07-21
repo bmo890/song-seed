@@ -14,6 +14,8 @@ import {
 import { colors, radii, spacing, text as textTokens } from "../../design/tokens";
 import { haptic } from "../../design/haptics";
 import { fmtDuration } from "../../utils";
+import { useTranslation } from "react-i18next";
+import { UserText } from "../../i18n";
 
 /**
  * A setlist entry's SONG FOLDER — the packaged, stripped-down song page: the
@@ -22,6 +24,7 @@ import { fmtDuration } from "../../utils";
  * bandmate who received this set sees exactly this page.
  */
 export function SetlistSongScreen() {
+  const { t } = useTranslation();
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const setlistId = route.params?.setlistId as string | undefined;
@@ -48,10 +51,10 @@ export function SetlistSongScreen() {
   if (!setlist || !entry) {
     return (
       <SafeAreaView style={folderStyles.screen}>
-        <ScreenHeader title="Setlist" leftIcon="back" />
+        <ScreenHeader title={t("setlistSong.setlist")} leftIcon="back" />
         <View style={folderStyles.missingWrap}>
           <Ionicons name="albums-outline" size={26} color={colors.textMuted} />
-          <Text style={folderStyles.missingText}>This song is no longer in the set.</Text>
+          <Text style={folderStyles.missingText}>{t("setlistSong.missing")}</Text>
         </View>
       </SafeAreaView>
     );
@@ -64,10 +67,10 @@ export function SetlistSongScreen() {
   const showNotes = entry.includeSongNotes && entry.songNotes.trim().length > 0;
 
   const metaParts = [
-    `${entry.parts.length} ${entry.parts.length === 1 ? "part" : "parts"}`,
-    ...(hasLyrics ? ["lyrics"] : []),
-    ...(hasChords ? ["chords"] : []),
-    ...(showNotes ? ["notes"] : []),
+    t("setlistSong.partCount", { count: entry.parts.length }),
+    ...(hasLyrics ? [t("setlistSong.lyrics")] : []),
+    ...(hasChords ? [t("setlistSong.chords")] : []),
+    ...(showNotes ? [t("setlistSong.notes")] : []),
   ];
 
   // Playing from the folder queues THIS entry's parts and expands the full
@@ -88,11 +91,11 @@ export function SetlistSongScreen() {
       >
         <View style={folderStyles.header}>
           <Text style={folderStyles.eyebrow}>
-            Song {entryIndex + 1} of {entries.length}
+            {t("setlistSong.songPosition", { current: entryIndex + 1, total: entries.length })}
           </Text>
-          <Text style={folderStyles.title} numberOfLines={2}>
+          <UserText style={folderStyles.title} numberOfLines={2}>
             {entry.title}
-          </Text>
+          </UserText>
           <Text style={folderStyles.meta}>{metaParts.join(" · ")}</Text>
 
           <View style={folderStyles.actionRow}>
@@ -108,7 +111,7 @@ export function SetlistSongScreen() {
               }}
               disabled={!entry.available}
               accessibilityRole="button"
-              accessibilityLabel={`Practice ${entry.title}`}
+              accessibilityLabel={t("setlistSong.practice", { title: entry.title })}
             >
               <Ionicons name="play" size={22} color={colors.onPrimary} style={{ marginLeft: 3 }} />
             </Pressable>
@@ -123,10 +126,10 @@ export function SetlistSongScreen() {
                   })
                 }
                 accessibilityRole="button"
-                accessibilityLabel="Open the lyrics chart"
+                accessibilityLabel={t("setlistSong.openLyrics")}
               >
                 <Ionicons name="document-text-outline" size={14} color={colors.textStrong} />
-                <Text style={folderStyles.chartBtnLabel}>Lyrics</Text>
+                <Text style={folderStyles.chartBtnLabel}>{t("screens.lyrics")}</Text>
               </Pressable>
             ) : null}
 
@@ -135,25 +138,25 @@ export function SetlistSongScreen() {
                 style={({ pressed }) => [folderStyles.chartBtn, pressed ? { opacity: 0.7 } : null]}
                 onPress={() => navigation.navigate("ChordSheet", { ideaId: idea.id })}
                 accessibilityRole="button"
-                accessibilityLabel="Open the chord chart"
+                accessibilityLabel={t("setlistSong.openChords")}
               >
                 <Ionicons name="grid-outline" size={14} color={colors.textStrong} />
-                <Text style={folderStyles.chartBtnLabel}>Chords</Text>
+                <Text style={folderStyles.chartBtnLabel}>{t("common.chords")}</Text>
               </Pressable>
             ) : null}
           </View>
         </View>
 
-        <Text style={folderStyles.sectionLabel}>Parts</Text>
+        <Text style={folderStyles.sectionLabel}>{t("setlistSong.parts")}</Text>
         <View style={folderStyles.list}>
           {entry.parts.map((part) => {
             const isNowPlaying =
               playerTarget?.clipId === part.clipId && playerTarget?.ideaId === idea?.id;
             const chips = [
               part.sectionCount > 0
-                ? `${part.sectionCount} section${part.sectionCount === 1 ? "" : "s"}`
+                ? t("setlistSong.sectionCount", { count: part.sectionCount })
                 : null,
-              part.pinCount > 0 ? `${part.pinCount} pin${part.pinCount === 1 ? "" : "s"}` : null,
+              part.pinCount > 0 ? t("setlistSong.pinCount", { count: part.pinCount }) : null,
             ].filter((chip): chip is string => !!chip);
 
             return (
@@ -171,7 +174,7 @@ export function SetlistSongScreen() {
                 }}
                 disabled={!part.available}
                 accessibilityRole="button"
-                accessibilityLabel={`Practice ${part.title}`}
+                accessibilityLabel={t("setlistSong.practice", { title: part.title })}
               >
                 <View style={folderStyles.partLead}>
                   {isNowPlaying ? (
@@ -186,12 +189,12 @@ export function SetlistSongScreen() {
                   )}
                 </View>
                 <View style={folderStyles.partMain}>
-                  <Text
+                  <UserText
                     style={[folderStyles.partTitle, isNowPlaying ? folderStyles.partTitleActive : null]}
                     numberOfLines={1}
                   >
                     {part.title}
-                  </Text>
+                  </UserText>
                   {chips.length > 0 ? (
                     <View style={folderStyles.partChipRow}>
                       {chips.map((chip) => (
@@ -212,9 +215,9 @@ export function SetlistSongScreen() {
 
         {showNotes ? (
           <>
-            <Text style={folderStyles.sectionLabel}>Notes</Text>
+            <Text style={folderStyles.sectionLabel}>{t("setlistSong.notesTitle")}</Text>
             <View style={folderStyles.notesCard}>
-              <Text style={folderStyles.notesText}>{entry.songNotes}</Text>
+              <UserText style={folderStyles.notesText}>{entry.songNotes}</UserText>
             </View>
           </>
         ) : null}

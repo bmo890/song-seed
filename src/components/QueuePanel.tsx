@@ -9,6 +9,8 @@ import { fmtDuration } from "../utils";
 import { getClipPlaybackDurationMs } from "../domain/clipPresentation";
 import { NowPlayingIndicator } from "./common/NowPlayingIndicator";
 import type { PlaybackQueueItem } from "../types";
+import { useTranslation } from "react-i18next";
+import { UserText } from "../i18n";
 
 type QueueRow = {
   key: string;
@@ -40,6 +42,7 @@ function QueuePanelInner({
    *  that provide their own container (the full player's bottom sheet). */
   framed?: boolean;
 }) {
+  const { t } = useTranslation();
   const playerQueue = useStore((s) => s.playerQueue);
   const playerQueueIndex = useStore((s) => s.playerQueueIndex);
   const playerIsPlaying = useStore((s) => s.playerIsPlaying);
@@ -112,10 +115,10 @@ function QueuePanelInner({
   return (
     <View style={framed ? panelStyles.panel : null}>
       <View style={panelStyles.headerRow}>
-        <Text style={panelStyles.title}>Queue</Text>
+        <Text style={panelStyles.title}>{t("mediaDock.queue")}</Text>
         <View style={panelStyles.headerRight}>
           <Text style={panelStyles.counter}>
-            {Math.min(playerQueueIndex + 1, playerQueue.length)} of {playerQueue.length}
+            {t("mediaDock.position", { current: Math.min(playerQueueIndex + 1, playerQueue.length), total: playerQueue.length })}
           </Text>
           {playerQueue.length > 0 ? (
             <Pressable
@@ -126,10 +129,10 @@ function QueuePanelInner({
               }}
               hitSlop={8}
               accessibilityRole="button"
-              accessibilityLabel={editMode ? "Done editing queue" : "Edit queue"}
+              accessibilityLabel={t(editMode ? "mediaDock.doneEditing" : "mediaDock.editQueue")}
             >
               <Text style={[panelStyles.editBtnText, editMode ? panelStyles.editBtnTextActive : null]}>
-                {editMode ? "Done" : "Edit"}
+                {t(editMode ? "mediaDock.done" : "mediaDock.edit")}
               </Text>
             </Pressable>
           ) : null}
@@ -159,7 +162,7 @@ function QueuePanelInner({
             }}
             disabled={editMode}
             accessibilityRole="button"
-            accessibilityLabel={`Play ${row.title}`}
+            accessibilityLabel={t("common.playItem", { title: row.title })}
           >
             {editMode ? (
               <Pressable
@@ -167,7 +170,7 @@ function QueuePanelInner({
                 onPress={() => removeAt(row.index)}
                 hitSlop={8}
                 accessibilityRole="button"
-                accessibilityLabel={`Remove ${row.title} from queue`}
+                accessibilityLabel={t("common.removeFromQueue", { title: row.title })}
               >
                 <Ionicons name="remove-circle-outline" size={19} color="#B4574A" />
               </Pressable>
@@ -181,16 +184,16 @@ function QueuePanelInner({
               </View>
             )}
             <View style={panelStyles.rowCopy}>
-              <Text
+              <UserText
                 style={[panelStyles.rowTitle, row.isCurrent ? panelStyles.rowTitleCurrent : null]}
                 numberOfLines={1}
               >
                 {row.title}
-              </Text>
+              </UserText>
               {row.subtitle && row.subtitle !== row.title ? (
-                <Text style={panelStyles.rowSubtitle} numberOfLines={1}>
+                <UserText style={panelStyles.rowSubtitle} numberOfLines={1}>
                   {row.subtitle}
-                </Text>
+                </UserText>
               ) : null}
             </View>
             {row.durationMs != null ? (
@@ -202,7 +205,7 @@ function QueuePanelInner({
                 onLongPress={drag}
                 delayLongPress={120}
                 accessibilityRole="button"
-                accessibilityLabel={`Reorder ${row.title}`}
+                accessibilityLabel={t("common.reorderItem", { title: row.title })}
               >
                 <Ionicons name="reorder-three" size={18} color={colors.textSecondary} />
               </Pressable>
@@ -215,7 +218,7 @@ function QueuePanelInner({
                 }}
                 hitSlop={8}
                 accessibilityRole="button"
-                accessibilityLabel={`Go to ${row.subtitle || row.title}`}
+                accessibilityLabel={t("common.goToItem", { title: row.subtitle || row.title })}
               >
                 <Ionicons name="open-outline" size={15} color={colors.textMuted} />
               </Pressable>
