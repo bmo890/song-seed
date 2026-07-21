@@ -4,7 +4,7 @@ import { UserTextInput } from "../../../i18n";
 import { Ionicons } from "@expo/vector-icons";
 import { AppAlert } from "../../common/AppAlert";
 import { styles as appStyles } from "../../../styles";
-import { colors, radii, spacing, text as textTokens } from "../../../design/tokens";
+import { colors, radii, shadows, spacing, text as textTokens } from "../../../design/tokens";
 import { haptic } from "../../../design/haptics";
 import type { CutUpComposeFlavor } from "../../../domain/cutUp";
 import type { CutUpSpark } from "../../../types";
@@ -12,6 +12,8 @@ import type { useCutUpScreenModel } from "../hooks/useCutUpScreenModel";
 import { useTranslation } from "react-i18next";
 
 type Model = ReturnType<typeof useCutUpScreenModel>;
+
+const PAGE_BG = "#FBF6EC";
 
 export function CutUpDraftEditor({
   model,
@@ -144,31 +146,32 @@ const styles = StyleSheet.create({
     padding: 3,
   },
   flavor: { paddingHorizontal: spacing.md, paddingVertical: 5, borderRadius: radii.round },
-  flavorActive: { backgroundColor: colors.surface },
+  flavorActive: { backgroundColor: colors.primaryDeep },
   flavorText: { fontFamily: "PlusJakartaSans_600SemiBold", fontSize: 12, color: colors.textSecondary },
-  flavorTextActive: { color: colors.textPrimary },
+  flavorTextActive: { color: colors.onPrimary },
   composeBtn: {
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 5,
-    backgroundColor: colors.primary,
+    backgroundColor: colors.primaryDeep,
     borderRadius: radii.round,
     paddingVertical: 9,
   },
   composeText: { fontFamily: "PlusJakartaSans_700Bold", fontSize: 13, color: colors.onPrimary },
   card: {
     flex: 1,
-    backgroundColor: colors.surface,
-    borderRadius: radii.lg,
-    padding: spacing.md,
+    backgroundColor: PAGE_BG,
+    borderRadius: radii.xl,
+    padding: spacing.lg,
+    ...shadows.card,
   },
   input: {
     flex: 1,
     fontFamily: "PlayfairDisplay_400Regular",
     fontSize: 18,
     lineHeight: 28,
-    color: colors.textPrimary,
+    color: colors.textStrong,
   },
 });

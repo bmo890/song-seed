@@ -1,6 +1,8 @@
 import { StyleSheet } from "react-native";
 import { colors, radii, shadows, spacing, text as textTokens } from "../../../design/tokens";
 
+const PAGE_BG = "#FBF6EC";
+
 export const contentStyles = StyleSheet.create({
   shell: {
     flex: 1,
@@ -9,6 +11,16 @@ export const contentStyles = StyleSheet.create({
   keyboardView: {
     flex: 1,
   },
+  header: { flexDirection: "row", alignItems: "center", gap: spacing.xs, paddingTop: spacing.sm, paddingBottom: spacing.sm },
+  headerTitle: { flex: 1, fontFamily: "PlayfairDisplay_600SemiBold", fontSize: 20, color: colors.textPrimary },
+  iconBtn: { width: 34, height: 34, borderRadius: radii.round, alignItems: "center", justifyContent: "center" },
+  rail: { marginBottom: spacing.lg, gap: spacing.xs },
+  railLabels: { flexDirection: "row", justifyContent: "space-between" },
+  railLabel: { fontFamily: "PlusJakartaSans_600SemiBold", fontSize: 11.5, color: colors.textMuted },
+  railLabelDone: { color: colors.textSecondary },
+  railLabelCurrent: { fontFamily: "PlusJakartaSans_700Bold", color: colors.primaryDeep },
+  railTrack: { height: 3, borderRadius: 3, backgroundColor: colors.borderMuted, overflow: "hidden" },
+  railFill: { height: 3, borderRadius: 3, backgroundColor: colors.primaryDeep },
   deleteBtn: {
     width: 36,
     height: 36,
@@ -203,9 +215,10 @@ export const contentStyles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: spacing.xs,
-    backgroundColor: colors.primary,
+    backgroundColor: colors.primaryDeep,
     borderRadius: radii.round,
     paddingVertical: 14,
+    paddingHorizontal: spacing.lg,
   },
   nextBtnGrow: {
     flex: 1,
@@ -312,9 +325,9 @@ export const contentStyles = StyleSheet.create({
   },
   poemCard: {
     flex: 1,
-    backgroundColor: colors.surface,
-    borderRadius: radii.lg,
-    padding: spacing.md,
+    backgroundColor: PAGE_BG,
+    borderRadius: radii.xl,
+    padding: spacing.lg,
     ...shadows.card,
   },
   poemInput: {
@@ -322,6 +335,6 @@ export const contentStyles = StyleSheet.create({
     fontFamily: "PlayfairDisplay_400Regular",
     fontSize: 18,
     lineHeight: 28,
-    color: colors.textPrimary,
+    color: colors.textStrong,
   },
 });
