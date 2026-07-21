@@ -28,6 +28,7 @@ import { useRecordingDisplayElapsed } from "./useRecordingDisplayElapsed";
 import { useLiveRecordingWaveform } from "./useLiveRecordingWaveform";
 import { useStore } from "../state/useStore";
 import { deleteManagedAudioUris } from "../services/managedMedia";
+import { useTranslation } from "react-i18next";
 
 type OnRecorded = (
   payload: {
@@ -57,6 +58,7 @@ function isNotificationPermissionError(error: unknown) {
 }
 
 export function useRecording(onRecorded: OnRecorded, preferredInputId: string | null) {
+  const { t } = useTranslation();
   const recorder = useSharedAudioRecorder();
   const audioSessionOwnerIdRef = useRef(createAudioSessionOwner("recording"));
   const persistedSessionRef = useRef(false);
@@ -210,12 +212,12 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
 
     if (permission?.canAskAgain === false) {
       AppAlert.custom(
-        "Microphone access needed",
-        "SongNook does not currently have microphone access. Enable it in system settings to record.",
+        t("recordingErrors.micTitle"),
+        t("recordingErrors.micBlocked"),
         [
-          { label: "Cancel", style: "cancel" },
+          { label: t("recordingErrors.cancel"), style: "cancel" },
           {
-            label: "Open Settings",
+            label: t("recordingErrors.openSettings"),
             style: "default",
             icon: "settings-outline",
             onPress: () => {
@@ -225,7 +227,7 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
         ]
       );
     } else {
-      AppAlert.info("Microphone access needed", "SongNook needs microphone access to start recording.");
+      AppAlert.info(t("recordingErrors.micTitle"), t("recordingErrors.micNeeded"));
     }
 
     return false;
@@ -233,18 +235,18 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
 
   function showNotificationPermissionAlert(blocked: boolean) {
     const message = blocked
-      ? "SongNook cannot show the required active-recording notification. Enable notifications in system settings to record."
-      : "Android requires SongNook to show an active notification while recording. Allow notifications to start recording.";
+      ? t("recordingErrors.notificationBlocked")
+      : t("recordingErrors.notificationNeeded");
 
     if (!blocked) {
-      AppAlert.info("Notification access needed", message);
+      AppAlert.info(t("recordingErrors.notificationTitle"), message);
       return;
     }
 
-    AppAlert.custom("Notification access needed", message, [
-      { label: "Cancel", style: "cancel" },
+    AppAlert.custom(t("recordingErrors.notificationTitle"), message, [
+      { label: t("recordingErrors.cancel"), style: "cancel" },
       {
-        label: "Open Settings",
+        label: t("recordingErrors.openSettings"),
         style: "default",
         icon: "settings-outline",
         onPress: () => {
@@ -303,7 +305,7 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
       showNotificationPermissionAlert(true);
       return;
     }
-    AppAlert.info("Recording failed", fallback);
+    AppAlert.info(t("recordingErrors.failed"), fallback);
   }
 
   async function rollbackFailedRecordingStart(
@@ -465,7 +467,7 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
         console.warn("Recording audio session release after prepare failure failed", error);
       });
       console.warn("Recording prepare failed", err);
-      showRecordingFailure(err, "Could not prepare recording.");
+      showRecordingFailure(err, t("recordingErrors.prepareFailed"));
       return false;
     } finally {
       prepareInFlightRef.current = false;
@@ -515,7 +517,7 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
     } catch (err) {
       await rollbackFailedRecordingStart(nativeStartAttempted, audioSessionClaimed);
       console.warn("Recording start failed", err);
-      showRecordingFailure(err, "Could not start recording.");
+      showRecordingFailure(err, t("recordingErrors.startFailed"));
       return false;
     } finally {
       startInFlightRef.current = false;
@@ -554,7 +556,7 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
     } catch (err) {
       await rollbackFailedRecordingStart(nativeStartAttempted, audioSessionClaimed);
       console.warn("Prepared recording start failed", err);
-      showRecordingFailure(err, "Could not start recording.");
+      showRecordingFailure(err, t("recordingErrors.startFailed"));
       return false;
     } finally {
       startInFlightRef.current = false;
@@ -585,7 +587,7 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
     try {
       await recorder.pauseRecording();
     } catch {
-      AppAlert.info("Pause failed", "Could not pause recording.");
+      AppAlert.info(t("recordingErrors.pauseFailed"), t("recordingErrors.pauseFailedBody"));
     }
   }
 
@@ -597,7 +599,7 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
       await claimRecordingAudioSession();
       await recorder.resumeRecording();
     } catch {
-      AppAlert.info("Resume failed", "Could not continue recording.");
+      AppAlert.info(t("recordingErrors.resumeFailed"), t("recordingErrors.resumeFailedBody"));
     }
   }
 
@@ -611,7 +613,7 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
       recordingStartedAtRef.current = null;
       resetLiveWaveform();
       if (!recordingData || !recordingData.fileUri) {
-        AppAlert.info("Recording failed", "No audio file was generated.");
+        AppAlert.info(t("recordingErrors.failed"), t("recordingErrors.noFile"));
         return false;
       }
 
