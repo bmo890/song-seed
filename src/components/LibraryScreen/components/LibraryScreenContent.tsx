@@ -28,20 +28,6 @@ import { useTranslation } from "react-i18next";
 
 type Section = "playlists" | "songbook" | "setlists";
 
-const SECTIONS: Array<{ key: Section; label: string }> = [
-  { key: "playlists", label: "Playlists" },
-  { key: "songbook", label: "Songbook" },
-  { key: "setlists", label: "Setlists" },
-];
-
-/** One-line job statement per tab — the tabs looked identical without them and
- *  users couldn't tell listen/read/share apart. */
-const SECTION_HINTS: Record<Section, string> = {
-  playlists: "Listen — ordered queues of clips and songs, played back to back.",
-  songbook: "Read — collections of lyric and chord charts.",
-  setlists: "Share — song sets (takes + charts) ready to send to the band.",
-};
-
 /**
  * Each tab is its own component so ONLY the active tab's model hook runs. Previously all
  * three models (playlists + songbook + setlists) subscribed to the whole library and

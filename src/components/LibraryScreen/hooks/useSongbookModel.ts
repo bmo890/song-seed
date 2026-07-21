@@ -14,6 +14,7 @@ import { useMiniPlayerContext } from "../../../hooks/FullPlayerProvider";
 import { createSongbookShareLink, shareSongbookFile } from "../../../services/songbookShare";
 import { presentShareLink } from "../../../services/shareLinkFlow";
 import type { SongIdea, Workspace } from "../../../types";
+import { useTranslation } from "react-i18next";
 
 function findIdea(workspaces: Workspace[], ideaId: string): { workspace: Workspace; idea: SongIdea } | null {
   for (const workspace of workspaces) {
@@ -24,6 +25,7 @@ function findIdea(workspaces: Workspace[], ideaId: string): { workspace: Workspa
 }
 
 export function useSongbookModel() {
+  const { t } = useTranslation();
   const navigation = useNavigation<any>();
   const rootNavigation = navigation.getParent?.();
   const navigateRoot = (route: string, params?: object) =>
@@ -114,12 +116,12 @@ export function useSongbookModel() {
     removeSong: (song: SongbookSong) => {
       if (!activeSongbook) return;
       AppAlert.destructive(
-        "Remove from this book?",
-        `"${song.title}" and its ${song.charts.length === 1 ? "chart" : "charts"} leave the book. The song itself stays in your library.`,
+        t("library.removeBookTitle"),
+        t("library.removeBookBody", { title: song.title }),
         () => {
           for (const chart of song.charts) removeSongbookItem(activeSongbook.id, chart.itemId);
         },
-        { confirmLabel: "Remove" }
+        { confirmLabel: t("library.remove") }
       );
     },
 
@@ -179,16 +181,16 @@ export function useSongbookModel() {
       if (!activeSongbook) return;
       try {
         const ok = await shareSongbookFile(activeSongbook, workspaces);
-        if (!ok) AppAlert.info("Nothing to share", "Add some charts with content first.");
+        if (!ok) AppAlert.info(t("library.nothingShare"), t("library.addChartsFirst"));
       } catch {
-        AppAlert.info("Share failed", "Couldn't build the songbook file. Please try again.");
+        AppAlert.info(t("songDetail.shareFailed"), t("library.songbookShareFailed"));
       }
     },
     /** Upload the songbook to SongNook Send and copy a shareable link. */
     getLinkForActiveSongbook: async () => {
       if (!activeSongbook) return;
       await presentShareLink(() => createSongbookShareLink(activeSongbook, workspaces), {
-        emptyMessage: "Add some charts with content first.",
+        emptyMessage: t("library.addChartsFirst"),
       });
     },
     shareSongbook: () => {
@@ -208,7 +210,7 @@ export function useSongbookModel() {
       }
       const text = blocks.join("\n\n\n").trim();
       if (!text) {
-        AppAlert.info("Nothing to share", "Add some charts with content first.");
+        AppAlert.info(t("library.nothingShare"), t("library.addChartsFirst"));
         return;
       }
       void Share.share({ title: activeSongbook.title, message: text });

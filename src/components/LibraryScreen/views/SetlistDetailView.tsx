@@ -11,6 +11,8 @@ import { haptic } from "../../../design/haptics";
 import { fmtDuration } from "../../../utils";
 import type { Setlist } from "../../../types";
 import type { ResolvedSetlistEntry } from "../../../domain/setlistPlayback";
+import { useTranslation } from "react-i18next";
+import { UserText } from "../../../i18n";
 
 type SetlistDetailViewProps = {
   setlist: Setlist;
@@ -52,21 +54,22 @@ export function SetlistDetailView({
   onGetLink,
   onDelete,
 }: SetlistDetailViewProps) {
+  const { t } = useTranslation();
   const [editMode, setEditMode] = useState(false);
   const [menuVisible, setMenuVisible] = useState(false);
 
   const playableCount = entries.filter((entry) => entry.available).length;
   const metaParts = [
-    `${entries.length} ${entries.length === 1 ? "song" : "songs"}`,
+    t("library.songs", { count: entries.length }),
     ...(setDurationMs != null ? [fmtDuration(setDurationMs)] : []),
   ];
 
   const header = (
     <View style={setStyles.header}>
-      <Text style={setStyles.eyebrow}>Setlist</Text>
-      <Text style={setStyles.title} numberOfLines={2}>
+      <Text style={setStyles.eyebrow}>{t("library.setlists")}</Text>
+      <UserText value={setlist.title} style={setStyles.title} numberOfLines={2}>
         {setlist.title}
-      </Text>
+      </UserText>
       <Text style={setStyles.meta}>{metaParts.join("  ·  ")}</Text>
 
       <View style={setStyles.linkChipRow}>
@@ -86,7 +89,7 @@ export function SetlistDetailView({
           }}
           disabled={playableCount === 0}
           accessibilityRole="button"
-          accessibilityLabel="Play the whole set"
+          accessibilityLabel={t("library.playSet")}
         >
           <Ionicons name="play" size={22} color={colors.onPrimary} style={{ marginLeft: 3 }} />
         </Pressable>
@@ -95,7 +98,7 @@ export function SetlistDetailView({
           style={({ pressed }) => [setStyles.quietBtn, pressed ? styles.pressDown : null]}
           onPress={onAddSong}
           accessibilityRole="button"
-          accessibilityLabel="Add a song to this set"
+          accessibilityLabel={t("library.addSetSong")}
         >
           <Ionicons name="add" size={19} color={colors.textStrong} />
         </Pressable>
@@ -108,7 +111,7 @@ export function SetlistDetailView({
           ]}
           onPress={() => setEditMode((current) => !current)}
           accessibilityRole="button"
-          accessibilityLabel={editMode ? "Done editing" : "Edit set"}
+          accessibilityLabel={editMode ? t("library.doneEditing") : t("library.editSet")}
         >
           <Ionicons
             name={editMode ? "checkmark" : "pencil"}
@@ -123,16 +126,14 @@ export function SetlistDetailView({
           style={({ pressed }) => [setStyles.quietBtn, pressed ? styles.pressDown : null]}
           onPress={() => setMenuVisible(true)}
           accessibilityRole="button"
-          accessibilityLabel="Setlist options"
+          accessibilityLabel={t("library.setlistOptions")}
         >
           <Ionicons name="ellipsis-horizontal" size={16} color={colors.textStrong} />
         </Pressable>
       </View>
 
       {editMode ? (
-        <Text style={setStyles.editHint}>
-          Drag the handle to reorder · tap a row to repack it · − removes
-        </Text>
+        <Text style={setStyles.editHint}>{t("library.setEditHint")}</Text>
       ) : null}
     </View>
   );
@@ -150,17 +151,14 @@ export function SetlistDetailView({
         ListEmptyComponent={
           <View style={setStyles.emptyWrap}>
             <Ionicons name="albums-outline" size={26} color={colors.textMuted} />
-            <Text style={setStyles.emptyTitle}>No songs in this set</Text>
-            <Text style={setStyles.emptyBody}>
-              Each song you add is a packed folder — the takes, charts, and notes a bandmate
-              needs to learn it.
-            </Text>
+            <Text style={setStyles.emptyTitle}>{t("library.setEmpty")}</Text>
+            <Text style={setStyles.emptyBody}>{t("library.setEmptyBody")}</Text>
             <Pressable
               style={({ pressed }) => [setStyles.emptyAddBtn, pressed ? styles.pressDown : null]}
               onPress={onAddSong}
             >
               <Ionicons name="add" size={15} color={colors.onPrimary} />
-              <Text style={setStyles.emptyAddLabel}>Add a song</Text>
+              <Text style={setStyles.emptyAddLabel}>{t("library.addSongShort")}</Text>
             </Pressable>
           </View>
         }
@@ -183,7 +181,7 @@ export function SetlistDetailView({
                   onPress={() => onRemoveEntry(entry.entryId)}
                   hitSlop={8}
                   accessibilityRole="button"
-                  accessibilityLabel={`Remove ${entry.title} from the set`}
+                  accessibilityLabel={t("library.removeSetSong", { title: entry.title })}
                 >
                   <Ionicons name="remove-circle-outline" size={19} color="#B4574A" />
                 </Pressable>
@@ -200,7 +198,7 @@ export function SetlistDetailView({
                   }}
                   disabled={!entry.available}
                   accessibilityRole="button"
-                  accessibilityLabel={`Play ${entry.title}`}
+                  accessibilityLabel={t("library.playTitle", { title: entry.title })}
                 >
                   {isNowPlaying ? (
                     <NowPlayingIndicator playing={isPlaying} color={colors.primary} size={12} />
@@ -225,10 +223,10 @@ export function SetlistDetailView({
                 }}
                 accessibilityRole="button"
                 accessibilityLabel={
-                  editMode ? `Repack ${entry.title}` : `Open ${entry.title}'s folder`
+                  editMode ? t("library.repackTitle", { title: entry.title }) : t("library.openFolder", { title: entry.title })
                 }
               >
-                <Text
+                <UserText value={entry.title}
                   style={[
                     setStyles.entryTitle,
                     isNowPlaying ? setStyles.entryTitleActive : null,
@@ -237,25 +235,25 @@ export function SetlistDetailView({
                   numberOfLines={1}
                 >
                   {entry.title}
-                </Text>
+                </UserText>
                 <View style={setStyles.chipRow}>
                   {entry.available ? (
                     <>
                       {partCount > 1 ? (
                         <Text style={setStyles.partCount}>
-                          {partCount} parts
+                          {t("library.parts", { count: partCount })}
                         </Text>
                       ) : null}
                       {entry.lyricVersionIds.length > 0 ? (
-                        <Text style={setStyles.chartChip}>Lyrics</Text>
+                        <Text style={setStyles.chartChip}>{t("common.lyrics")}</Text>
                       ) : null}
-                      {entry.hasChordChart ? <Text style={setStyles.chartChip}>Chords</Text> : null}
+                      {entry.hasChordChart ? <Text style={setStyles.chartChip}>{t("common.chords")}</Text> : null}
                       {entry.includeSongNotes && entry.songNotes ? (
-                        <Text style={setStyles.chartChip}>Notes</Text>
+                        <Text style={setStyles.chartChip}>{t("songDetail.notes")}</Text>
                       ) : null}
                     </>
                   ) : (
-                    <Text style={setStyles.missingText}>No longer in the library</Text>
+                    <Text style={setStyles.missingText}>{t("library.missing")}</Text>
                   )}
                 </View>
               </Pressable>
@@ -272,7 +270,7 @@ export function SetlistDetailView({
                   onLongPress={drag}
                   delayLongPress={120}
                   accessibilityRole="button"
-                  accessibilityLabel={`Reorder ${entry.title}`}
+                  accessibilityLabel={t("library.reorderTitle", { title: entry.title })}
                 >
                   <Ionicons name="reorder-three" size={18} color={colors.textSecondary} />
                 </Pressable>
@@ -286,18 +284,18 @@ export function SetlistDetailView({
 
       <SelectionActionSheet
         visible={menuVisible}
-        title="Setlist options"
+        title={t("library.setlistOptions")}
         onClose={() => setMenuVisible(false)}
         actions={[
           {
             key: "rename",
-            label: "Rename set",
+            label: t("library.renameSet"),
             icon: "pencil-outline",
             onPress: onRename,
           },
           {
             key: "share",
-            label: "Share set",
+            label: t("library.shareSet"),
             icon: "share-outline",
             onPress: onShare,
           },
@@ -305,7 +303,7 @@ export function SetlistDetailView({
             ? [
                 {
                   key: "get-link",
-                  label: "Get a link",
+                  label: t("library.getLink"),
                   icon: "link-outline" as const,
                   onPress: onGetLink,
                 },
@@ -313,7 +311,7 @@ export function SetlistDetailView({
             : []),
           {
             key: "delete",
-            label: "Delete set",
+            label: t("library.deleteSet"),
             icon: "trash-outline",
             tone: "danger",
             onPress: onDelete,

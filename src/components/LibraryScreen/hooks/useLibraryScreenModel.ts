@@ -9,12 +9,14 @@ import {
   resolvePlaylistTracks,
   type PlaylistTrack,
 } from "../../../domain/playlistPlayback";
+import { useTranslation } from "react-i18next";
 
 function buildDefaultPlaylistTitle(count: number) {
   return `Playlist ${count + 1}`;
 }
 
 export function useLibraryScreenModel() {
+  const { t } = useTranslation();
   // NOTE: the browse-root back handler is registered by LibraryScreenContent (it must
   // stay active on every tab, not just while the playlists model is mounted).
   const navigation = useNavigation<any>();
@@ -100,8 +102,8 @@ export function useLibraryScreenModel() {
     const { queue, startIndex } = buildPlaylistQueue(playlistTracks, startItemId);
     if (queue.length === 0) {
       AppAlert.info(
-        "Nothing to play",
-        "This playlist has no playable tracks yet. Add clips or songs first."
+        t("library.nothingPlay"),
+        t("library.playlistNoAudio")
       );
       return;
     }
@@ -131,19 +133,19 @@ export function useLibraryScreenModel() {
   const confirmDeletePlaylist = () => {
     if (!activePlaylist) return;
     AppAlert.confirm(
-      "Delete playlist?",
-      `"${activePlaylist.title}" will be removed. The clips and songs inside it stay in your library.`,
+      t("library.deletePlaylistTitle"),
+      t("library.deletePlaylistBody", { title: activePlaylist.title }),
       () => {
         deletePlaylistAction(activePlaylist.id);
         setSelectedPlaylistId(null);
       },
-      { confirmLabel: "Delete" }
+      { confirmLabel: t("common.delete") }
     );
   };
 
   return {
     activeWorkspaceId,
-    pageTitle: activePlaylist ? "" : "Library",
+    pageTitle: activePlaylist ? "" : t("library.title"),
     showBack: !!activePlaylist,
     sortedPlaylists,
     activePlaylist,

@@ -4,6 +4,8 @@ import { Button } from "../../common/Button";
 import { styles } from "../styles";
 import { colors, radii, spacing, text as textTokens } from "../../../design/tokens";
 import { fmtDuration } from "../../../utils";
+import { useTranslation } from "react-i18next";
+import { UserText } from "../../../i18n";
 
 type PickerWorkspace = { id: string; title: string; songs: Array<{ id: string; title: string }> };
 type BuilderSong = {
@@ -104,6 +106,7 @@ export function SetlistEntryBuilderView({
   onSelectEverything: () => void;
   onConfirm: () => void;
 }) {
+  const { t } = useTranslation();
   if (!ideaId || !song) {
     return (
       <ScrollView
@@ -111,20 +114,20 @@ export function SetlistEntryBuilderView({
         contentContainerStyle={styles.libraryScrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.cardMeta}>Pick a song to pack into the set.</Text>
+        <Text style={styles.cardMeta}>{t("library.pickSong")}</Text>
         <View style={styles.listContent}>
           {onBrowseCollections ? (
             <Pressable
               style={({ pressed }) => [styles.card, pressed ? styles.pressDown : null]}
               onPress={onBrowseCollections}
               accessibilityRole="button"
-              accessibilityLabel="Browse your collections instead"
+              accessibilityLabel={t("library.browseCollections")}
             >
               <View style={styles.cardTop}>
                 <View style={styles.cardTitleRow}>
                   <Ionicons name="albums-outline" size={16} color={colors.primaryDeep} />
                   <Text style={[styles.cardTitle, { color: colors.primaryDeep }]} numberOfLines={1}>
-                    Browse collections instead
+                    {t("library.browseInstead")}
                   </Text>
                 </View>
                 <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
@@ -143,9 +146,9 @@ export function SetlistEntryBuilderView({
                   <View style={styles.cardTop}>
                     <View style={styles.cardTitleRow}>
                       <Ionicons name="musical-notes-outline" size={16} color={colors.textPrimary} />
-                      <Text style={styles.cardTitle} numberOfLines={1}>
+                      <UserText value={s.title} style={styles.cardTitle} numberOfLines={1}>
                         {s.title}
-                      </Text>
+                      </UserText>
                     </View>
                     <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
                   </View>
@@ -155,7 +158,7 @@ export function SetlistEntryBuilderView({
           ))}
           {workspaces.length === 0 ? (
             <View style={styles.card}>
-              <Text style={styles.cardMeta}>No songs available.</Text>
+              <Text style={styles.cardMeta}>{t("library.noSongs")}</Text>
             </View>
           ) : null}
         </View>
@@ -175,36 +178,36 @@ export function SetlistEntryBuilderView({
         showsVerticalScrollIndicator={false}
       >
         <View style={builderStyles.titleRow}>
-          <Text style={[styles.cardTitle, { flex: 1 }]} numberOfLines={1}>
+          <UserText value={song.title} style={[styles.cardTitle, { flex: 1 }]} numberOfLines={1}>
             {song.title}
-          </Text>
+          </UserText>
           <Pressable
             style={({ pressed }) => [builderStyles.everythingBtn, pressed ? styles.pressDown : null]}
             onPress={onSelectEverything}
             accessibilityRole="button"
-            accessibilityLabel="Include everything from this song"
+            accessibilityLabel={t("library.includeEverything")}
           >
-            <Text style={builderStyles.everythingLabel}>Everything</Text>
+            <Text style={builderStyles.everythingLabel}>{t("library.everything")}</Text>
           </Pressable>
         </View>
 
-        <Text style={builderStyles.sectionLabel}>Takes &amp; parts</Text>
+        <Text style={builderStyles.sectionLabel}>{t("library.takesParts")}</Text>
         {song.clips.length === 0 ? (
-          <Text style={styles.cardMeta}>No clips recorded for this song.</Text>
+          <Text style={styles.cardMeta}>{t("library.noClips")}</Text>
         ) : (
           <View style={styles.listContent}>
             {song.clips.map((clip) => {
               const extras = [
                 clip.sectionCount > 0
-                  ? `${clip.sectionCount} section${clip.sectionCount === 1 ? "" : "s"}`
+                  ? t("library.sections", { count: clip.sectionCount })
                   : null,
-                clip.pinCount > 0 ? `${clip.pinCount} pin${clip.pinCount === 1 ? "" : "s"}` : null,
+                clip.pinCount > 0 ? t("library.pins", { count: clip.pinCount }) : null,
                 clip.durationMs != null ? fmtDuration(clip.durationMs) : null,
               ].filter(Boolean);
               return (
                 <CheckRow
                   key={clip.id}
-                  label={clip.isPrimary ? `${clip.title}  (main)` : clip.title}
+                  label={clip.isPrimary ? `${clip.title}  (${t("library.main")})` : clip.title}
                   detail={extras.length > 0 ? extras.join(" · ") : null}
                   checked={clipIds.includes(clip.id)}
                   onPress={() => onToggleClip(clip.id)}
@@ -214,45 +217,44 @@ export function SetlistEntryBuilderView({
           </View>
         )}
 
-        <Text style={builderStyles.sectionLabel}>Charts &amp; notes</Text>
+        <Text style={builderStyles.sectionLabel}>{t("library.chartsNotes")}</Text>
         <View style={styles.listContent}>
           {song.versions.map((version) => (
             <CheckRow
               key={version.id}
-              label={`${version.label} — lyrics`}
+              label={t("library.versionLyrics", { label: version.label })}
               checked={lyricVersionIds.includes(version.id)}
               onPress={() => onToggleVersion(version.id)}
             />
           ))}
           {song.hasChordSheet ? (
-            <CheckRow label="Chord chart" checked={includeChordSheet} onPress={onToggleChordSheet} />
+            <CheckRow label={t("library.chordChart")} checked={includeChordSheet} onPress={onToggleChordSheet} />
           ) : null}
           {song.hasNotes ? (
             <CheckRow
-              label="Song notes"
+              label={t("library.songNotes")}
               detail={song.notesPreview ? `"${song.notesPreview}…"` : null}
               checked={includeSongNotes}
               onPress={onToggleSongNotes}
             />
           ) : null}
           {song.versions.length === 0 && !song.hasChordSheet && !song.hasNotes ? (
-            <Text style={styles.cardMeta}>No charts on this song yet.</Text>
+            <Text style={styles.cardMeta}>{t("library.noCharts")}</Text>
           ) : null}
         </View>
 
         <Text style={builderStyles.footnote}>
-          A chosen take brings its reel with it — sections, pins, and take notes come along.
-          Version history stays home.
+          {t("library.packFootnote")}
         </Text>
       </ScrollView>
       <View style={styles.inputRow}>
         <Button
           label={
             isEditing
-              ? "Save"
+              ? t("common.save")
               : partCount > 0 || extraCount > 0
-                ? `Add to setlist · ${partCount} ${partCount === 1 ? "part" : "parts"}${extraCount > 0 ? `, ${extraCount} extras` : ""}`
-                : "Add"
+                ? t("library.addSummary", { parts: t("library.parts", { count: partCount }), extras: extraCount > 0 ? t("library.extras", { count: extraCount }) : "" })
+                : t("songDetail.add")
           }
           onPress={onConfirm}
         />

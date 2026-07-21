@@ -12,24 +12,26 @@ import { useStore } from "../../../state/useStore";
 import type { Playlist } from "../../../types";
 import type { PlaylistTrack } from "../../../domain/playlistPlayback";
 import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
+import { useLocale } from "../../../i18n";
 
-function formatTotalDuration(ms: number | null) {
+function formatTotalDuration(ms: number | null, t: TFunction) {
   if (ms == null) return null;
   const minutes = Math.round(ms / 60000);
-  if (minutes < 1) return "<1 min";
-  if (minutes < 60) return `${minutes} min`;
+  if (minutes < 1) return t("library.lessMinute");
+  if (minutes < 60) return t("library.minutes", { count: minutes });
   const hours = Math.floor(minutes / 60);
   const rest = minutes % 60;
-  return rest > 0 ? `${hours} hr ${rest} min` : `${hours} hr`;
+  return rest > 0 ? t("library.hoursMinutes", { hours, minutes: rest }) : t("library.hours", { count: hours });
 }
 
-function formatUpdatedAt(timestamp: number) {
+function formatUpdatedAt(timestamp: number, t: TFunction, locale: string) {
   const ageHours = Math.max(0, Math.floor((Date.now() - timestamp) / 3600000));
-  if (ageHours < 1) return "updated just now";
-  if (ageHours < 24) return `updated ${ageHours}h ago`;
+  if (ageHours < 1) return t("library.updatedNow");
+  if (ageHours < 24) return t("library.updatedHours", { count: ageHours });
   const ageDays = Math.floor(ageHours / 24);
-  if (ageDays < 7) return `updated ${ageDays}d ago`;
-  return `updated ${new Date(timestamp).toLocaleDateString("en-US", { month: "short", day: "numeric" })}`;
+  if (ageDays < 7) return t("library.updatedDays", { count: ageDays });
+  return t("library.updatedDate", { date: new Date(timestamp).toLocaleDateString(locale, { month: "short", day: "numeric" }) });
 }
 
 /**
@@ -69,6 +71,7 @@ export function PlaylistDetailView({
   onReorderItems: (orderedItemIds: string[]) => void;
 }) {
   const { t } = useTranslation();
+  const { formatLocale } = useLocale();
   const [menuVisible, setMenuVisible] = useState(false);
   // Keep the last tracks scrollable above the media dock once playback starts.
   const playerDockHeight = useStore((s) => s.playerDockHeight);
@@ -76,9 +79,9 @@ export function PlaylistDetailView({
   const playableCount = tracks.filter((track) => track.available).length;
 
   const metaParts = [
-    `${tracks.length} ${tracks.length === 1 ? "track" : "tracks"}`,
-    formatTotalDuration(durationMs),
-    formatUpdatedAt(playlist.updatedAt),
+    t("library.tracks", { count: tracks.length }),
+    formatTotalDuration(durationMs, t),
+    formatUpdatedAt(playlist.updatedAt, t, formatLocale),
   ].filter(Boolean);
 
   const header = (

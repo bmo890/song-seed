@@ -12,6 +12,8 @@ import { fmtDuration } from "../../../utils";
 import { getClipPlaybackDurationMs } from "../../../domain/clipPresentation";
 import type { Songbook } from "../../../types";
 import { availableViewsForSong, type SongbookSong } from "../../../domain/songbookGrouping";
+import { useTranslation } from "react-i18next";
+import { UserText } from "../../../i18n";
 
 type SongbookDetailViewProps = {
   songbook: Songbook;
@@ -49,6 +51,7 @@ export function SongbookDetailView({
   onShareText,
   onDelete,
 }: SongbookDetailViewProps) {
+  const { t } = useTranslation();
   const [editMode, setEditMode] = useState(false);
   const [menuVisible, setMenuVisible] = useState(false);
 
@@ -60,16 +63,16 @@ export function SongbookDetailView({
   const readableCount = songs.filter(isReadable).length;
   const chordCount = songs.filter((song) => song.hasChordChart).length;
   const metaParts = [
-    `${songs.length} ${songs.length === 1 ? "song" : "songs"}`,
-    ...(chordCount > 0 ? [`${chordCount} with chords`] : []),
+    t("library.songs", { count: songs.length }),
+    ...(chordCount > 0 ? [t("library.withChords", { count: chordCount })] : []),
   ];
 
   const header = (
     <View style={bookStyles.header}>
-      <Text style={bookStyles.eyebrow}>Songbook</Text>
-      <Text style={bookStyles.title} numberOfLines={2}>
+      <Text style={bookStyles.eyebrow}>{t("library.songbook")}</Text>
+      <UserText value={songbook.title} style={bookStyles.title} numberOfLines={2}>
         {songbook.title}
-      </Text>
+      </UserText>
       <Text style={bookStyles.meta}>{metaParts.join("  ·  ")}</Text>
 
       <View style={bookStyles.linkChipRow}>
@@ -89,7 +92,7 @@ export function SongbookDetailView({
           }}
           disabled={readableCount === 0}
           accessibilityRole="button"
-          accessibilityLabel="Open the book"
+          accessibilityLabel={t("library.openBook")}
         >
           <Ionicons name="book-outline" size={21} color={colors.onPrimary} />
         </Pressable>
@@ -98,7 +101,7 @@ export function SongbookDetailView({
           style={({ pressed }) => [bookStyles.quietBtn, pressed ? styles.pressDown : null]}
           onPress={onAddSongs}
           accessibilityRole="button"
-          accessibilityLabel="Add songs to this book"
+          accessibilityLabel={t("library.addBookSongs")}
         >
           <Ionicons name="add" size={19} color={colors.textStrong} />
         </Pressable>
@@ -111,7 +114,7 @@ export function SongbookDetailView({
           ]}
           onPress={() => setEditMode((current) => !current)}
           accessibilityRole="button"
-          accessibilityLabel={editMode ? "Done editing" : "Edit book"}
+          accessibilityLabel={editMode ? t("library.doneEditing") : t("library.editBook")}
         >
           <Ionicons
             name={editMode ? "checkmark" : "pencil"}
@@ -126,14 +129,14 @@ export function SongbookDetailView({
           style={({ pressed }) => [bookStyles.quietBtn, pressed ? styles.pressDown : null]}
           onPress={() => setMenuVisible(true)}
           accessibilityRole="button"
-          accessibilityLabel="Songbook options"
+          accessibilityLabel={t("library.songbookOptions")}
         >
           <Ionicons name="ellipsis-horizontal" size={16} color={colors.textStrong} />
         </Pressable>
       </View>
 
       {editMode ? (
-        <Text style={bookStyles.editHint}>Drag the handle to reorder · tap − to remove</Text>
+        <Text style={bookStyles.editHint}>{t("library.reorderHint")}</Text>
       ) : null}
     </View>
   );
@@ -151,16 +154,14 @@ export function SongbookDetailView({
         ListEmptyComponent={
           <View style={bookStyles.emptyWrap}>
             <Ionicons name="book-outline" size={26} color={colors.textMuted} />
-            <Text style={bookStyles.emptyTitle}>Nothing in this book yet</Text>
-            <Text style={bookStyles.emptyBody}>
-              Add finished songs — their final lyrics and chords live here, read like a book.
-            </Text>
+            <Text style={bookStyles.emptyTitle}>{t("library.bookEmpty")}</Text>
+            <Text style={bookStyles.emptyBody}>{t("library.bookEmptyBody")}</Text>
             <Pressable
               style={({ pressed }) => [bookStyles.emptyAddBtn, pressed ? styles.pressDown : null]}
               onPress={onAddSongs}
             >
               <Ionicons name="add" size={15} color={colors.onPrimary} />
-              <Text style={bookStyles.emptyAddLabel}>Add songs</Text>
+              <Text style={bookStyles.emptyAddLabel}>{t("library.addSongs")}</Text>
             </Pressable>
           </View>
         }
@@ -178,7 +179,7 @@ export function SongbookDetailView({
                   onPress={() => onRemoveSong(song)}
                   hitSlop={8}
                   accessibilityRole="button"
-                  accessibilityLabel={`Remove ${song.title} from the book`}
+                  accessibilityLabel={t("library.removeBookSong", { title: song.title })}
                 >
                   <Ionicons name="remove-circle-outline" size={19} color="#B4574A" />
                 </Pressable>
@@ -196,7 +197,7 @@ export function SongbookDetailView({
                   }}
                   disabled={!song.playableClip}
                   accessibilityRole="button"
-                  accessibilityLabel={`Play ${song.title}`}
+                  accessibilityLabel={t("library.playTitle", { title: song.title })}
                 >
                   {isNowPlaying ? (
                     <NowPlayingIndicator playing={isPlaying} color={colors.primary} size={12} />
@@ -224,10 +225,10 @@ export function SongbookDetailView({
                 disabled={editMode || !isReadable(song)}
                 accessibilityRole="button"
                 accessibilityLabel={
-                  isReadable(song) ? `Open ${song.title} in the book` : `${song.title} (unavailable)`
+                  isReadable(song) ? t("library.openBookTitle", { title: song.title }) : t("library.unavailableTitle", { title: song.title })
                 }
               >
-                <Text
+                <UserText value={song.title}
                   style={[
                     bookStyles.rowTitle,
                     isNowPlaying ? bookStyles.rowTitleActive : null,
@@ -236,19 +237,19 @@ export function SongbookDetailView({
                   numberOfLines={1}
                 >
                   {song.title}
-                </Text>
+                </UserText>
                 <View style={bookStyles.chipRow}>
                   {song.available ? (
                     <>
                       <Text style={[bookStyles.kindChip, song.hasLyricChart ? bookStyles.kindChipOn : null]}>
-                        Lyrics
+                        {t("common.lyrics")}
                       </Text>
                       <Text style={[bookStyles.kindChip, song.hasChordChart ? bookStyles.kindChipOn : null]}>
-                        Chords
+                        {t("common.chords")}
                       </Text>
                     </>
                   ) : (
-                    <Text style={bookStyles.missingText}>No longer in the library</Text>
+                    <Text style={bookStyles.missingText}>{t("library.missing")}</Text>
                   )}
                 </View>
               </Pressable>
@@ -263,7 +264,7 @@ export function SongbookDetailView({
                   onLongPress={drag}
                   delayLongPress={120}
                   accessibilityRole="button"
-                  accessibilityLabel={`Reorder ${song.title}`}
+                  accessibilityLabel={t("library.reorderTitle", { title: song.title })}
                 >
                   <Ionicons name="reorder-three" size={18} color={colors.textSecondary} />
                 </Pressable>
@@ -277,12 +278,12 @@ export function SongbookDetailView({
 
       <SelectionActionSheet
         visible={menuVisible}
-        title="Songbook options"
+        title={t("library.songbookOptions")}
         onClose={() => setMenuVisible(false)}
         actions={[
           {
             key: "rename",
-            label: "Rename book",
+            label: t("library.renameBook"),
             icon: "pencil-outline",
             onPress: onRename,
           },
@@ -290,7 +291,7 @@ export function SongbookDetailView({
             ? [
                 {
                   key: "share-file",
-                  label: "Share as file",
+                  label: t("library.shareFile"),
                   icon: "share-outline" as const,
                   onPress: onShareFile,
                 },
@@ -300,7 +301,7 @@ export function SongbookDetailView({
             ? [
                 {
                   key: "get-link",
-                  label: "Get a link",
+                  label: t("library.getLink"),
                   icon: "link-outline" as const,
                   onPress: onGetLink,
                 },
@@ -308,13 +309,13 @@ export function SongbookDetailView({
             : []),
           {
             key: "share-text",
-            label: "Share as text",
+            label: t("library.shareText"),
             icon: "document-text-outline",
             onPress: onShareText,
           },
           {
             key: "delete",
-            label: "Delete book",
+            label: t("library.deleteBook"),
             icon: "trash-outline",
             tone: "danger",
             onPress: onDelete,

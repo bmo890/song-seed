@@ -12,6 +12,7 @@ import {
   type ResolvedSetlistEntry,
 } from "../../../domain/setlistPlayback";
 import type { SongIdea, Workspace } from "../../../types";
+import { useTranslation } from "react-i18next";
 
 type BuilderState = {
   setlistId: string;
@@ -37,6 +38,7 @@ function toggle(list: string[], id: string): string[] {
 }
 
 export function useSetlistModel() {
+  const { t } = useTranslation();
   const navigation = useNavigation<any>();
   const rootNavigation = navigation.getParent?.();
   const navigateRoot = (route: string, params?: object) =>
@@ -316,15 +318,15 @@ export function useSetlistModel() {
       if (!activeSetlist) return;
       try {
         const ok = await shareSetlist(activeSetlist, workspaces);
-        if (!ok) AppAlert.info("Nothing to share", "Add at least one song to the setlist first.");
+        if (!ok) AppAlert.info(t("library.nothingShare"), t("library.addSetSongFirst"));
       } catch {
-        AppAlert.info("Share failed", "Couldn't build the setlist file. Please try again.");
+        AppAlert.info(t("songDetail.shareFailed"), t("library.setlistShareFailed"));
       }
     },
     getLinkForActiveSetlist: async () => {
       if (!activeSetlist) return;
       await presentShareLink(() => createSetlistShareLink(activeSetlist, workspaces), {
-        emptyMessage: "Add at least one song to the setlist first.",
+        emptyMessage: t("library.addSetSongFirst"),
       });
     },
   };
