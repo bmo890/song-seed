@@ -8,8 +8,10 @@ import {
   type IntegrityReport,
 } from "../../../services/integrityScanner";
 import { appActions } from "../../../state/actions";
+import { useTranslation } from "react-i18next";
 
 export function useStorageDiagnostics({ active }: { active: boolean }) {
+  const { t } = useTranslation();
   const [storageReport, setStorageReport] = useState<StorageDetailsReport | null>(null);
   const [storageError, setStorageError] = useState<string | null>(null);
   const [isStorageLoading, setIsStorageLoading] = useState(false);
@@ -31,7 +33,7 @@ export function useStorageDiagnostics({ active }: { active: boolean }) {
       setStorageError(
         error instanceof Error
           ? error.message
-          : "Storage details could not be loaded right now."
+          : t("settingsStorage.loadFailed")
       );
     } finally {
       setIsStorageLoading(false);
@@ -46,33 +48,33 @@ export function useStorageDiagnostics({ active }: { active: boolean }) {
   const runRecovery = async () => {
     if (isRecovering) return;
     setIsRecovering(true);
-    setRecoveryProgress("Scanning for orphaned audio files...");
+    setRecoveryProgress(t("settingsStorage.scanningOrphans"));
     try {
       const result = await appActions.recoverOrphanedAudio((phase) => {
         setRecoveryProgress(phase);
       });
       if (result.restoredFromManifest) {
-        AppAlert.info("Recovery complete", `Restored ${result.recoveredCount} ideas from manifest backup.`);
+        AppAlert.info(t("settingsStorage.recoveryComplete"), t("settingsStorage.manifestRestored", { count: result.recoveredCount }));
       } else if (result.archivedWorkspacesRestored === 0 && result.orphanedClipsRecovered === 0) {
         AppAlert.info(
-          "No recoverable data",
-          "All audio files on disk are already linked to clips in your library. No manifest backup or workspace archives were found."
+          t("settingsStorage.noRecoverable"),
+          t("settingsStorage.noRecoverableBody")
         );
       } else {
         const parts: string[] = [];
         if (result.archivedWorkspacesRestored > 0) {
-          parts.push(`${result.archivedWorkspacesRestored} workspace${result.archivedWorkspacesRestored === 1 ? "" : "s"} restored from archives`);
+          parts.push(t("settingsStorage.recoveredWorkspaces", { count: result.archivedWorkspacesRestored }));
         }
         if (result.orphanedClipsRecovered > 0) {
-          parts.push(`${result.orphanedClipsRecovered} orphaned clip${result.orphanedClipsRecovered === 1 ? "" : "s"} recovered`);
+          parts.push(t("settingsStorage.recoveredClips", { count: result.orphanedClipsRecovered }));
         }
         if (result.warnings.length > 0) {
-          parts.push(`${result.warnings.length} warning${result.warnings.length === 1 ? "" : "s"}`);
+          parts.push(t("settingsStorage.warningsCount", { count: result.warnings.length }));
         }
-        AppAlert.info("Recovery complete", parts.join(". ") + ".");
+        AppAlert.info(t("settingsStorage.recoveryComplete"), parts.join(". ") + ".");
       }
     } catch (error) {
-      AppAlert.info("Recovery failed", "An error occurred while scanning for orphaned audio files.");
+      AppAlert.info(t("settingsStorage.recoveryFailed"), t("settingsStorage.recoveryFailedBody"));
       console.warn("Recovery error:", error);
     } finally {
       setIsRecovering(false);
@@ -88,11 +90,11 @@ export function useStorageDiagnostics({ active }: { active: boolean }) {
       const report = await scanLibraryIntegrity(state.workspaces, state.playlists);
       setIntegrityReport(report);
       AppAlert.info(
-        report.ok ? "Integrity check passed" : "Integrity issues found",
+        report.ok ? t("settingsStorage.integrityPassed") : t("settingsStorage.integrityIssues"),
         summarizeIntegrityReport(report)
       );
     } catch (error) {
-      AppAlert.info("Integrity check failed", "An error occurred while scanning the library.");
+      AppAlert.info(t("settingsStorage.integrityFailed"), t("settingsStorage.integrityFailedBody"));
       console.warn("Integrity scan error:", error);
     } finally {
       setIsScanning(false);
