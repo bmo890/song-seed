@@ -1,4 +1,5 @@
 import { Pressable, Text, View } from "react-native";
+import { useTranslation } from "react-i18next";
 import { styles } from "../../../styles";
 import { IdeaListSelectionZone } from "../components/IdeaListSelectionZone";
 import { useCollectionScreen } from "../provider/CollectionScreenProvider";
@@ -106,6 +107,7 @@ function deleteManagedAudioUrisIfStillUnreferenced(candidateUris: string[]) {
 }
 
 export function CollectionFloatingActions() {
+  const { t } = useTranslation();
   const { screen, importFlow, selection, editModal, inlinePlayer, store } = useCollectionScreen();
 
   const isIdeaHiddenByDay = (idea: SongIdea) =>
@@ -402,7 +404,7 @@ export function CollectionFloatingActions() {
               style={({ pressed }) => [styles.ideasUndoBtn, pressed ? styles.pressDown : null]}
               onPress={selection.triggerUndo}
             >
-              <Text style={styles.ideasUndoBtnText}>Undo</Text>
+              <Text style={styles.ideasUndoBtnText}>{t("collectionActions.undo")}</Text>
             </Pressable>
           </View>
         </View>

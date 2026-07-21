@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { AppAlert } from "../../common/AppAlert";
 import {
   buildImportedTitle,
@@ -38,6 +39,7 @@ export function useCollectionImportFlow({
   collectionIdeaTitles,
   currentCollectionTitle,
 }: CollectionImportFlowParams) {
+  const { t } = useTranslation();
   const [importModalOpen, setImportModalOpen] = useState(false);
   const [importAssets, setImportAssets] = useState<ImportedAudioAsset[]>([]);
   const [importMode, setImportMode] = useState<"single-clip" | "song-project" | null>(null);
@@ -54,7 +56,7 @@ export function useCollectionImportFlow({
 
   const openImportAudioFlow = async () => {
     if (!collectionId) {
-      AppAlert.info("Choose a collection", "Open a collection before importing audio.");
+      AppAlert.info(t("collectionImport.chooseCollection"), t("collectionImport.chooseCollectionBody"));
       return;
     }
 
@@ -73,12 +75,12 @@ export function useCollectionImportFlow({
     }
 
     AppAlert.custom(
-      "Import audio",
-      `Choose how to add ${assets.length} files into ${currentCollectionTitle}.`,
+      t("collectionImport.title"),
+      t("collectionImport.chooseBody", { count: assets.length, title: currentCollectionTitle }),
       [
         {
-          label: "Individual clips",
-          description: "Each file becomes its own clip",
+          label: t("common.individualClips"),
+          description: t("common.individualClipsDesc"),
           icon: "musical-notes-outline",
           style: "default",
           onPress: () => {
@@ -90,8 +92,8 @@ export function useCollectionImportFlow({
           },
         },
         {
-          label: "Song project",
-          description: "Combine all files into one song",
+          label: t("common.songProject"),
+          description: t("common.songProjectDesc"),
           icon: "albums-outline",
           style: "default",
           onPress: () => {
@@ -106,7 +108,7 @@ export function useCollectionImportFlow({
             })();
           },
         },
-        { label: "Cancel", style: "cancel" },
+        { label: t("common.cancel"), style: "cancel" },
       ]
     );
   };

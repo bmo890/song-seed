@@ -2,8 +2,10 @@ import { ClipboardBanner } from "../../ClipboardBanner";
 import { AppAlert } from "../../common/AppAlert";
 import { appActions } from "../../../state/actions";
 import { useSongScreen } from "../provider/SongScreenProvider";
+import { useTranslation } from "react-i18next";
 
 export function SongClipboardBanner() {
+  const { t } = useTranslation();
   const { screen, store } = useSongScreen();
   const { clipClipboard, cancelClipboard } = store;
   const selectedIdea = screen.selectedIdea;
@@ -32,16 +34,16 @@ export function SongClipboardBanner() {
     const displayNames = itemNames.slice(0, 5).map((name) => `"${name}"`).join(", ");
     const remainder =
       itemNames.length > 5
-        ? ` and ${itemNames.length - 5} other${itemNames.length - 5 > 1 ? "s" : ""}`
+        ? t("songClipboard.otherCount", { count: itemNames.length - 5 })
         : "";
-    return `You are copying ${itemNames.length} clip${itemNames.length !== 1 ? "s" : ""} (${displayNames}${remainder}) into the same song they already belong to. This will create duplicates. Continue?`;
+    return t("songClipboard.duplicateBody", { count: itemNames.length, names: displayNames, remainder });
   })();
 
   return (
     <ClipboardBanner
       count={clipClipboard.clipIds.length}
       mode={clipClipboard.mode}
-      actionLabel="Paste clips here"
+      actionLabel={t("songClipboard.pasteHere")}
       onAction={() => {
         const includesProjectsFromList =
           clipClipboard.from === "list" &&
@@ -50,31 +52,31 @@ export function SongClipboardBanner() {
         if (clipClipboard.sourceIdeaId === selectedIdea.id) {
           if (clipClipboard.mode === "move") {
             AppAlert.info(
-              "Cannot move here",
-              "You cannot move clips into the same song they are already in. To duplicate them, cancel and use Copy instead."
+              t("songClipboard.cannotMove"),
+              t("songClipboard.cannotMoveBody")
             );
             return;
           }
 
-          AppAlert.confirm("Duplicate clips?", duplicateWarningText, () => appActions.pasteClipboardToProject(selectedIdea.id), { confirmLabel: "Duplicate" });
+          AppAlert.confirm(t("songClipboard.duplicateTitle"), duplicateWarningText, () => appActions.pasteClipboardToProject(selectedIdea.id), { confirmLabel: t("songClipboard.duplicate") });
           return;
         }
 
         if (includesProjectsFromList) {
           AppAlert.confirm(
-            `${clipClipboard.mode === "move" ? "Move primary clips here?" : "Copy primary clips here?"}`,
-            `Songs can't be placed inside another song. For now, SongNook will ${clipClipboard.mode} only the primary clip from each selected song into this song.`,
+            clipClipboard.mode === "move" ? t("songClipboard.movePrimaryTitle") : t("songClipboard.copyPrimaryTitle"),
+            t("songClipboard.primaryBody", { mode: clipClipboard.mode === "move" ? t("songClipboard.moveVerb") : t("songClipboard.copyVerb") }),
             () => appActions.pasteClipboardToProject(selectedIdea.id),
-            { confirmLabel: "Continue" }
+            { confirmLabel: t("common.continue") }
           );
           return;
         }
 
         AppAlert.confirm(
-          `${clipClipboard.mode === "move" ? "Move" : "Copy"} clips here?`,
-          `Are you sure you want to ${clipClipboard.mode} these clips into this song?`,
+          clipClipboard.mode === "move" ? t("songClipboard.moveTitle") : t("songClipboard.copyTitle"),
+          t("songClipboard.confirmBody", { mode: clipClipboard.mode === "move" ? t("songClipboard.moveVerb") : t("songClipboard.copyVerb") }),
           () => appActions.pasteClipboardToProject(selectedIdea.id),
-          { confirmLabel: "Yes" }
+          { confirmLabel: t("songClipboard.yes") }
         );
       }}
       onCancel={cancelClipboard}

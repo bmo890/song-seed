@@ -2,6 +2,7 @@ import { adjectives, animals, uniqueNamesGenerator } from "unique-names-generato
 import * as FileSystem from "expo-file-system/legacy";
 import { Collection, SongIdea, Workspace } from "./types";
 import { collectClipAudioUris } from "./services/managedMedia";
+import { i18n } from "./i18n/instance";
 
 const aestheticWords = [
   "echo", "chorus", "harmony", "static", "pulse", "midnight", "neon", "velvet",
@@ -120,21 +121,21 @@ export const formatClipDate = (ts: number, sectionLabel?: string): string => {
   let label: string;
   if (dayDiff <= 0) {
     const mins = Math.floor(Math.max(0, now - ts) / 60_000);
-    if (mins < 1) label = "Just now";
-    else if (mins < 60) label = `${mins}m ago`;
-    else label = `${Math.floor(mins / 60)}h ago`;
+    if (mins < 1) label = i18n.t("time.justNow");
+    else if (mins < 60) label = i18n.t("time.minutesAgo", { count: mins });
+    else label = i18n.t("time.hoursAgo", { count: Math.floor(mins / 60) });
   } else if (dayDiff === 1) {
-    label = "Yesterday";
+    label = i18n.t("time.yesterday");
   } else if (dayDiff < 7) {
-    label = date.toLocaleDateString("en-US", { weekday: "short" });
+    label = date.toLocaleDateString(i18n.language === "he" ? "he-IL" : "en-US", { weekday: "short" });
   } else {
-    const month = date.toLocaleDateString("en-US", { month: "short" });
+    const month = date.toLocaleDateString(i18n.language === "he" ? "he-IL" : "en-US", { month: "short" });
     const sameYear = date.getFullYear() === new Date(now).getFullYear();
     label = sameYear ? `${month} ${date.getDate()}` : `${month} ${date.getDate()} ${date.getFullYear()}`;
   }
 
   if (sectionLabel && label === sectionLabel) {
-    return date.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+    return date.toLocaleTimeString(i18n.language === "he" ? "he-IL" : "en-US", { hour: "numeric", minute: "2-digit" });
   }
   return label;
 };

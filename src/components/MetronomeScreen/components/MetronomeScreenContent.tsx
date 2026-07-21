@@ -66,7 +66,7 @@ export function MetronomeScreenContent() {
           </View>
 
           <Text style={s.bpmValue}>{model.bpm}</Text>
-          <Text style={s.bpmUnit}>BPM</Text>
+          <Text style={s.bpmUnit}>{t("metronome.bpm")}</Text>
 
           <MetronomeBeatBar
             beatsPerBar={model.meterPreset.pulsesPerBar}

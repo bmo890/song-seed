@@ -6,6 +6,7 @@ import { closeProUpsell, useProUpsellState } from "./proUpsell";
 import { colors, radii } from "../../design/tokens";
 import { haptic } from "../../design/haptics";
 import { purchasePro, restorePurchases, type ProPlan } from "../../services/billing";
+import { useTranslation } from "react-i18next";
 
 // TODO(owner): confirm these once the privacy policy is hosted (OWNER-TODO §3) and a terms
 // page exists. Apple requires functional Terms + Privacy links on a live paywall; the sheet
@@ -15,26 +16,11 @@ const TERMS_URL = "https://bmo890.github.io/song-nook/terms";
 
 type FeatureRow = { icon: keyof typeof Ionicons.glyphMap; title: string; blurb: string };
 
-const FEATURES: FeatureRow[] = [
-    { icon: "infinite-outline", title: "Practice suite", blurb: "Loop, slow down, and pitch-shift to learn any part." },
-    { icon: "layers-outline", title: "Unlimited overdub layers", blurb: "Stack takes into a full arrangement." },
-    { icon: "sparkles-outline", title: "Unlimited word sparks", blurb: "Keep every rhyme, cut-up, and stolen line." },
-    { icon: "cloud-upload-outline", title: "Auto-backup", blurb: "Your library saved automatically." },
-    { icon: "file-tray-full-outline", title: "Archive offload", blurb: "Move finished workspaces off-device to Files." },
-    { icon: "document-text-outline", title: "PDF export", blurb: "Print chord charts and setlists." },
-];
-
-type PlanCard = { plan: ProPlan; label: string; price: string; sub: string; tag?: string };
-
-// Placeholder prices — the real, localized prices come from the store (RevenueCat offerings)
-// at runtime once billing lands; these are only ever seen in the pre-launch preview.
-const PLANS: PlanCard[] = [
-    { plan: "annual", label: "Annual", price: "$27.99 / yr", sub: "7-day free trial · about $2.33/mo", tag: "Best value" },
-    { plan: "monthly", label: "Monthly", price: "$3.99 / mo", sub: "7-day free trial" },
-    { plan: "lifetime", label: "Lifetime", price: "$69.99", sub: "Pay once — yours forever" },
-];
+const FEATURE_ICONS: FeatureRow["icon"][] = ["infinite-outline", "layers-outline", "sparkles-outline", "cloud-upload-outline", "file-tray-full-outline", "document-text-outline"];
+const PLAN_IDS: ProPlan[] = ["annual", "monthly", "lifetime"];
 
 function ProUpsellSheetBody({ onClose }: { onClose: () => void }) {
+    const { t } = useTranslation();
     const [selected, setSelected] = useState<ProPlan>("annual");
     // Feedback is rendered INLINE, not via AppAlert: this sheet is a Modal, AppDialog is
     // also a Modal, and iOS won't present a dialog over an already-open Modal — so an alert
@@ -47,7 +33,7 @@ function ProUpsellSheetBody({ onClose }: { onClose: () => void }) {
         haptic.tap();
         const result = await purchasePro(selected);
         if (!result.ok) {
-            setNotice("Purchasing isn't available in this build yet — this is a preview of the upgrade.");
+            setNotice(t("pro.purchaseUnavailable"));
         } else {
             onClose();
         }
@@ -56,13 +42,14 @@ function ProUpsellSheetBody({ onClose }: { onClose: () => void }) {
     async function handleRestore() {
         const result = await restorePurchases();
         if (!result.ok) {
-            setNotice("There are no purchases to restore yet.");
+            setNotice(t("pro.noRestores"));
         } else {
             onClose();
         }
     }
 
-    const ctaLabel = selected === "lifetime" ? "Get Lifetime" : "Start free trial";
+    const ctaLabel = selected === "lifetime" ? t("pro.getLifetime") : t("pro.startTrial");
+    const features: FeatureRow[] = FEATURE_ICONS.map((icon, index) => ({ icon, title: t(`pro.features.${index}.title`), blurb: t(`pro.features.${index}.blurb`) }));
 
     return (
         <View style={styles.container}>
@@ -72,13 +59,13 @@ function ProUpsellSheetBody({ onClose }: { onClose: () => void }) {
                 contentContainerStyle={styles.scrollContent}
             >
                 <Text style={styles.eyebrow}>SONGNOOK PRO</Text>
-                <Text style={styles.headline}>Shape every idea</Text>
+                <Text style={styles.headline}>{t("pro.headline")}</Text>
                 <Text style={styles.subhead}>
-                    Capturing is always free. Pro unlocks the tools that turn a scrap into a song.
+                    {t("pro.subhead")}
                 </Text>
 
                 <View style={styles.features}>
-                    {FEATURES.map((f) => (
+                    {features.map((f) => (
                         <View key={f.title} style={styles.featureRow}>
                             <View style={styles.featureIcon}>
                                 <Ionicons name={f.icon} size={18} color={colors.primaryDeep} />
@@ -92,7 +79,8 @@ function ProUpsellSheetBody({ onClose }: { onClose: () => void }) {
                 </View>
 
                 <View style={styles.plans}>
-                    {PLANS.map((p) => {
+                    {PLAN_IDS.map((plan) => {
+                        const p = { plan, label: t(`pro.plans.${plan}.label`), price: t(`pro.plans.${plan}.price`), sub: t(`pro.plans.${plan}.sub`), tag: plan === "annual" ? t("pro.plans.annual.tag") : undefined };
                         const isSelected = p.plan === selected;
                         return (
                             <Pressable
@@ -122,15 +110,15 @@ function ProUpsellSheetBody({ onClose }: { onClose: () => void }) {
                 </Pressable>
                 <View style={styles.footerLinks}>
                     <Pressable onPress={handleRestore} hitSlop={8}>
-                        <Text style={styles.link}>Restore</Text>
+                        <Text style={styles.link}>{t("pro.restore")}</Text>
                     </Pressable>
                     <Text style={styles.linkDot}>·</Text>
                     <Pressable onPress={() => void Linking.openURL(TERMS_URL).catch(() => {})} hitSlop={8}>
-                        <Text style={styles.link}>Terms</Text>
+                        <Text style={styles.link}>{t("pro.terms")}</Text>
                     </Pressable>
                     <Text style={styles.linkDot}>·</Text>
                     <Pressable onPress={() => void Linking.openURL(PRIVACY_URL).catch(() => {})} hitSlop={8}>
-                        <Text style={styles.link}>Privacy</Text>
+                        <Text style={styles.link}>{t("pro.privacy")}</Text>
                     </Pressable>
                 </View>
             </View>

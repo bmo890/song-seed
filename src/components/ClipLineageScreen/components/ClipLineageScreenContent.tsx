@@ -1,4 +1,5 @@
 import { Text, View } from "react-native";
+import { useTranslation } from "react-i18next";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { clipLineageStyles, styles } from "../styles";
 import { fmtDuration, formatDate } from "../../../utils";
@@ -12,13 +13,14 @@ import { ClipLineageSortToggle } from "./ClipLineageSortToggle";
 import { ClipLineageList } from "./ClipLineageList";
 
 export function ClipLineageScreenContent() {
+  const { t } = useTranslation();
   const model = useClipLineageScreenModel();
 
   if (!model.idea || !model.lineage || !model.clipCardContext) {
     return (
       <SafeAreaView style={[styles.screen, styles.screenProjectDetail]}>
         <View style={clipLineageStyles.emptyState}>
-          <Text style={styles.emptyText}>Lineage not found.</Text>
+          <Text style={styles.emptyText}>{t("clipLineage.notFound")}</Text>
         </View>
       </SafeAreaView>
     );
@@ -28,7 +30,7 @@ export function ClipLineageScreenContent() {
     <SafeAreaView style={[styles.screen, styles.screenProjectDetail]}>
       <ClipLineageHeader
         title={model.lineageTitle}
-        subtitle={`${model.clipCount} ${model.clipCount === 1 ? "take" : "takes"} · ${model.idea.title}`}
+        subtitle={`${t("brand.take", { count: model.clipCount })} · ${model.idea.title}`}
         onBack={model.goBack}
       />
       <ClipLineageSortToggle direction={model.direction} onToggle={model.toggleDirection} />
@@ -40,7 +42,7 @@ export function ClipLineageScreenContent() {
 
       <ClipActionsSheet
         visible={!!model.actionsClip}
-        title={model.actionsClip?.title ?? "Clip actions"}
+        title={model.actionsClip?.title ?? t("clipLineage.actions")}
         subtitle={
           model.actionsClip
             ? `${model.actionsClip.durationMs ? fmtDuration(model.actionsClip.durationMs) : "0:00"} · ${formatDate(model.actionsClip.createdAt)}`
@@ -52,7 +54,7 @@ export function ClipLineageScreenContent() {
             ? [
                 {
                   key: "record-variation",
-                  label: "Record variation",
+                  label: t("clipLineage.recordVariation"),
                   icon: "mic-outline" as const,
                   onPress: () => {
                     void model.openRecordingVariation(model.actionsClip!);
@@ -60,7 +62,7 @@ export function ClipLineageScreenContent() {
                 },
                 {
                   key: "rename",
-                  label: "Rename",
+                  label: t("clipLineage.rename"),
                   icon: "pencil-outline" as const,
                   onPress: () => {
                     model.setActionsClipId(null);
@@ -69,7 +71,7 @@ export function ClipLineageScreenContent() {
                 },
                 {
                   key: "add-notes",
-                  label: model.actionsClip.notes?.trim() ? "Edit notes" : "Add notes",
+                  label: model.actionsClip.notes?.trim() ? t("clipLineage.editNotes") : t("clipLineage.addNotes"),
                   icon: "document-text-outline" as const,
                   onPress: () => {
                     model.setActionsClipId(null);
@@ -80,12 +82,12 @@ export function ClipLineageScreenContent() {
                 },
                 {
                   key: "delete",
-                  label: "Delete",
+                  label: t("common.delete"),
                   icon: "trash-outline" as const,
                   destructive: true,
                   onPress: () => {
                     model.setActionsClipId(null);
-                    AppAlert.destructive("Delete clip?", "This cannot be undone.", () => {
+                    AppAlert.destructive(t("clipLineage.deleteClip"), t("clipLineage.cannotUndo"), () => {
                       model.deleteClip(model.actionsClip!.id);
                     });
                   },

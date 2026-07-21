@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useNavigation } from "@react-navigation/native";
 import { AppAlert } from "../../common/AppAlert";
 import { useStore } from "../../../state/useStore";
@@ -44,6 +45,7 @@ export function IdeaSelectionBar({
   selectedClipIdeasCount,
   onDockLayout,
 }: IdeaSelectionBarProps) {
+  const { t } = useTranslation();
   const [isSharing, setIsSharing] = useState(false);
   const [moreVisible, setMoreVisible] = useState(false);
   const navigation = useNavigation<any>();
@@ -113,7 +115,7 @@ export function IdeaSelectionBar({
     key: "make-song",
     // "Sketch" (verb + noun) — gather the selected takes into a sketch. The count
     // lives in the top bar ("N selected"), so the button label stays a clean word.
-    label: "Sketch",
+    label: t("brand.sketch"),
     icon: "albums-outline",
     renderIcon: ({ color, size }) => <DockMergeBoxIcon color={color} size={size} />,
     onPress: () => onCreateProjectFromSelection?.(),
@@ -126,7 +128,7 @@ export function IdeaSelectionBar({
     // Idle → "Play"; a session already running → "Queue" (add to what's playing).
     // The Queue glyph is the play triangle carrying a "+", so the two read as one
     // family — Play, then Play-plus.
-    label: sessionActive ? "Queue" : "Play",
+    label: sessionActive ? t("selection.queue") : t("common.play"),
     icon: sessionActive ? "add-circle-outline" : "play",
     renderIcon: sessionActive
       ? ({ color, size, disabled }) => (
@@ -141,7 +143,7 @@ export function IdeaSelectionBar({
   // the transport action.
   const editAction: SelectionAction | null =
     canEditSelection && onEditSelected
-      ? { key: "edit", label: "Edit", icon: "create-outline", onPress: onEditSelected }
+      ? { key: "edit", label: t("selection.edit"), icon: "create-outline", onPress: onEditSelected }
       : null;
 
   // While a library-collecting session is active (playlist / songbook /
@@ -184,8 +186,8 @@ export function IdeaSelectionBar({
       }
       if (added === 0) {
         AppAlert.info(
-          "No charts to add",
-          "None of the selected songs have lyrics or a chord chart yet."
+          t("selection.noCharts"),
+          t("selection.noChartsBody")
         );
         return;
       }
@@ -212,7 +214,7 @@ export function IdeaSelectionBar({
   const collectorKind = useStore((s) => s.libraryCollector?.kind ?? null);
   // One-word destination noun; the collector banner above already says "Adding to <title>".
   const collectorNoun =
-    collectorKind === "songbook" ? "Book" : collectorKind === "setlist" ? "Set" : "Playlist";
+    collectorKind === "songbook" ? t("selection.book") : collectorKind === "setlist" ? t("selection.set") : t("selection.playlist");
   const collectorIcon: SelectionAction["icon"] =
     collectorKind === "songbook"
       ? "book-outline"
@@ -237,11 +239,11 @@ export function IdeaSelectionBar({
       setIsSharing(true);
       await shareAudioClips(
         shareableClips,
-        activeWorkspace?.title ? `${activeWorkspace.title} Selection` : "SongNook Selection"
+        activeWorkspace?.title ? t("selection.workspaceSelection", { title: activeWorkspace.title }) : t("selection.defaultSelection")
       );
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Could not share the selected items.";
-      AppAlert.info("Share failed", message);
+      const message = error instanceof Error ? error.message : t("selection.shareFailedBody");
+      AppAlert.info(t("selection.shareFailed"), message);
     } finally {
       setIsSharing(false);
     }
@@ -250,10 +252,10 @@ export function IdeaSelectionBar({
   function handleClipboardAction(mode: "copy" | "move") {
     appActions.startClipboardFromList(mode);
     AppAlert.info(
-      mode === "copy" ? "Copy ready" : "Move ready",
+      mode === "copy" ? t("common.copyReady", { count: selectedIdeas.length }) : t("common.moveReady", { count: selectedIdeas.length }),
       mode === "copy"
-        ? "Tap \"Paste items here\" in this or another collection to finish copying these items."
-        : "Open the destination collection and tap \"Paste items here\" to finish moving these items."
+        ? t("selection.copyReadyBody")
+        : t("selection.moveReadyBody")
     );
   }
 
@@ -266,10 +268,10 @@ export function IdeaSelectionBar({
       .setAside(interactiveSelectedIdeas.map((idea) => ({ kind: "idea" as const, id: idea.id })));
     toast(
       interactiveSelectedIdeas.length > 1
-        ? `${interactiveSelectedIdeas.length} items on the shelf for 7 days`
-        : "On the shelf for 7 days",
+        ? t("selection.shelfCount", { count: interactiveSelectedIdeas.length })
+        : t("selection.shelfOne"),
       "file-tray-outline",
-      { action: { label: "View shelf", onPress: () => openShelf(navigation) } }
+      { action: { label: t("selection.viewShelf"), onPress: () => openShelf(navigation) } }
     );
     haptic.success();
     setMoreVisible(false);
@@ -280,14 +282,14 @@ export function IdeaSelectionBar({
     const projectNames = selectedProjects.map((project) => project.title).slice(0, 4);
     const projectList =
       projectNames.length > 0
-        ? `\n\nSongs: ${projectNames.join(", ")}${selectedProjects.length > 4 ? "…" : ""}`
+        ? `\n\n${t("selection.songs")}: ${projectNames.join(", ")}${selectedProjects.length > 4 ? "…" : ""}`
         : "";
     const message =
       selectedProjects.length > 0
-        ? `This will delete ${selectedProjects.length} song${selectedProjects.length === 1 ? "" : "s"} and all contained clips, plus ${selectedClipIdeas.length} standalone clip${selectedClipIdeas.length === 1 ? "" : "s"}.${projectList}`
-        : `Are you sure you want to delete ${selectedClipIdeas.length} selected clip${selectedClipIdeas.length === 1 ? "" : "s"}?`;
+        ? `${t("selection.deleteSongs", { count: selectedProjects.length })} ${t("selection.deleteClips", { count: selectedClipIdeas.length })}.${projectList}`
+        : t("selection.deleteSelectedClips", { count: selectedClipIdeas.length });
 
-    AppAlert.destructive("Delete selected items?", message, onDeleteSelected, { confirmLabel: "Delete" });
+    AppAlert.destructive(t("selection.deleteSelected"), message, onDeleteSelected, { confirmLabel: t("common.delete") });
   }
 
   const dockActions: SelectionAction[] = useMemo(() => {
@@ -298,7 +300,7 @@ export function IdeaSelectionBar({
         collectorAction,
         {
           key: "more",
-          label: "More",
+          label: t("common.moreOptions"),
           icon: "ellipsis-horizontal",
           onPress: () => setMoreVisible(true),
         },
@@ -316,14 +318,14 @@ export function IdeaSelectionBar({
         },
         {
           key: "delete",
-          label: "Delete",
+          label: t("common.delete"),
           icon: "trash-outline",
           tone: "danger",
           onPress: confirmDeleteSelection,
         },
         {
           key: "more",
-          label: "More",
+          label: t("common.moreOptions"),
           icon: "ellipsis-horizontal",
           onPress: () => setMoreVisible(true),
         },
@@ -343,14 +345,14 @@ export function IdeaSelectionBar({
       },
       {
         key: "delete",
-        label: "Delete",
+        label: t("common.delete"),
         icon: "trash-outline",
         tone: "danger",
         onPress: confirmDeleteSelection,
       },
       {
         key: "more",
-        label: "More",
+        label: t("common.moreOptions"),
         icon: "ellipsis-horizontal",
         onPress: () => setMoreVisible(true),
       },
@@ -379,7 +381,7 @@ export function IdeaSelectionBar({
     if (!selectedHiddenOnly && shareableClips.length > 0) {
       actions.push({
         key: "share",
-        label: isSharing ? "Sharing..." : `Share (${shareableClips.length})`,
+        label: isSharing ? t("selection.sharing") : t("selection.shareCount", { count: shareableClips.length }),
         icon: "share-social-outline",
         onPress: () => {
           void handleShareSelected();
@@ -456,7 +458,7 @@ export function IdeaSelectionBar({
 
       <SelectionActionSheet
         visible={moreVisible}
-        title="Collection actions"
+        title={t("selection.collectionActions")}
         actions={sheetActions.map(endsSelection)}
         onClose={() => setMoreVisible(false)}
       />

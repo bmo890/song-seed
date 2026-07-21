@@ -2,6 +2,7 @@ import React from "react";
 import { Alert, Pressable, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
+import { useTranslation } from "react-i18next";
 import { styles } from "../styles";
 import { useStore } from "../../../state/useStore";
 import { getClipOverdubStemCount, getClipPlaybackDurationMs, hasClipPlaybackSource } from "../../../domain/clipPresentation";
@@ -109,6 +110,7 @@ export const ClipCard = React.memo(function ClipCard({
   displayOnly,
   displayPrimary,
 }: ClipCardProps) {
+  const { t } = useTranslation();
   const {
     mode: {
       idea,
@@ -221,7 +223,7 @@ export const ClipCard = React.memo(function ClipCard({
   const durationLabel = playbackDurationMs ? fmtDuration(playbackDurationMs) : "0:00";
   const createdAtLabel =
     overdubStemCount > 0
-      ? `${formatClipDate(clip.createdAt)} • ${overdubStemCount} ${overdubStemCount === 1 ? "layer" : "layers"}`
+      ? `${formatClipDate(clip.createdAt)} • ${t("navigation.layerCount", { count: overdubStemCount })}`
       : formatClipDate(clip.createdAt);
   const canToggleInlinePlayback = !clipSelectionMode && !isDraftProject && !isParentPicking;
   const canShowTrailingAction =
@@ -355,7 +357,7 @@ export const ClipCard = React.memo(function ClipCard({
                   onLocateClip?.(clip.id);
                 }}
                 accessibilityRole="button"
-                accessibilityLabel="Find in Evolution view"
+                accessibilityLabel={t("clipLineage.findEvolution")}
               >
                 <Ionicons name="git-branch-outline" size={14} color={colors.textMuted} />
               </Pressable>
@@ -374,7 +376,7 @@ export const ClipCard = React.memo(function ClipCard({
                   onViewLineageHistory(entry.lineageRootId);
                 }}
                 accessibilityRole="button"
-                accessibilityLabel="View version history for this thread"
+                accessibilityLabel={t("clipLineage.viewHistory")}
               >
                 <Ionicons name="git-commit-outline" size={15} color={colors.textMuted} />
               </Pressable>

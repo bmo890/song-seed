@@ -9,20 +9,21 @@ import { AppAlert } from "../components/common/AppAlert";
 import { toast, toastStore } from "../components/common/toastStore";
 import { EmptyShareError, SendTransferError } from "./shareLink";
 import type { SentLink } from "../domain/sentLinks";
+import { i18n } from "../i18n/instance";
 
 export async function presentShareLink(
   create: () => Promise<SentLink>,
   copy: { emptyMessage: string }
 ): Promise<SentLink | null> {
   // Long duration — replaced by the success/error path below.
-  toast("Creating link…", "cloud-upload-outline", { durationMs: 60_000 });
+  toast(i18n.t("shareLink.creating"), "cloud-upload-outline", { durationMs: 60_000 });
   try {
     const record = await create();
     await Clipboard.setStringAsync(record.shareUrl).catch(() => {});
-    toast("Link copied — expires soon", "checkmark-outline", {
+    toast(i18n.t("shareLink.copied"), "checkmark-outline", {
       durationMs: 4000,
       action: {
-        label: "Share",
+        label: i18n.t("shareLink.share"),
         onPress: () => {
           void Share.share({ message: record.shareUrl }).catch(() => {});
         },
@@ -32,11 +33,11 @@ export async function presentShareLink(
   } catch (err) {
     toastStore.dismiss();
     if (err instanceof EmptyShareError) {
-      AppAlert.info("Nothing to share", copy.emptyMessage);
+      AppAlert.info(i18n.t("shareLink.emptyTitle"), copy.emptyMessage);
     } else if (err instanceof SendTransferError) {
-      AppAlert.info("Couldn't create link", err.message);
+      AppAlert.info(i18n.t("shareLink.failureTitle"), err.message);
     } else {
-      AppAlert.info("Couldn't create link", "Please try again.");
+      AppAlert.info(i18n.t("shareLink.failureTitle"), i18n.t("shareLink.retry"));
     }
     return null;
   }

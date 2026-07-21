@@ -334,7 +334,7 @@ function WorkspaceBrowseInner() {
 
       <SelectionActionSheet
         visible={selectionModel.selectionMoreVisible}
-        title="Collection actions"
+        title={t("selection.collectionActions")}
         actions={selectionModel.selectionSheetActions}
         onClose={() => selectionModel.setSelectionMoreVisible(false)}
       />
