@@ -12,8 +12,10 @@ import { appActions } from "../../../state/actions";
 import { haptic } from "../../../design/haptics";
 import { enqueueMissingMetadataBackfill } from "../../../services/backgroundWaveformHydration";
 import { useStore } from "../../../state/useStore";
+import { useTranslation } from "react-i18next";
 
 export function useLibraryImportFlow() {
+    const { t } = useTranslation();
     const [parsedArchive, setParsedArchive] = useState<ParsedSongNookArchive | null>(null);
     const [preview, setPreview] = useState<LibraryImportPreview | null>(null);
     const [isPicking, setIsPicking] = useState(false);
@@ -42,8 +44,8 @@ export function useLibraryImportFlow() {
             // a confusing "not a valid SongNook Archive" error.
             if ((await detectPickedArchiveKind(picked.uri)) === "songnook-backup") {
                 AppAlert.info(
-                    "That's a full backup",
-                    "This file is a full SongNook backup, not a shareable archive. Restore it from Library & Backups → Restore."
+                    t("settingsImport.fullBackupTitle"),
+                    t("settingsImport.fullBackupBody")
                 );
                 return false;
             }
@@ -55,8 +57,8 @@ export function useLibraryImportFlow() {
             return true;
         } catch (error) {
             const message =
-                error instanceof Error ? error.message : "Could not read this SongNook Archive.";
-            AppAlert.info("Import failed", message);
+                error instanceof Error ? error.message : t("settingsImport.readFailed");
+            AppAlert.info(t("settingsImport.importFailed"), message);
             return false;
         } finally {
             setIsPicking(false);
@@ -76,18 +78,18 @@ export function useLibraryImportFlow() {
             enqueueMissingMetadataBackfill(useStore.getState().workspaces);
             if (result.warnings.length === 0) haptic.success();
             AppAlert.info(
-                result.warnings.length > 0 ? "Import finished with warnings" : "Import complete",
+                result.warnings.length > 0 ? t("settingsImport.warningsTitle") : t("settingsImport.complete"),
                 result.warnings.length > 0
                     ? result.warnings.slice(0, 6).join("\n")
-                    : `${result.importedWorkspaces} workspace${result.importedWorkspaces === 1 ? "" : "s"}, ${result.importedIdeas} item${result.importedIdeas === 1 ? "" : "s"}, and ${result.importedNotes} notepad note${result.importedNotes === 1 ? "" : "s"} were imported into your library.`
+                    : t("settingsImport.completeBody", { workspaces: result.importedWorkspaces, items: result.importedIdeas, notes: result.importedNotes })
             );
             setParsedArchive(null);
             setPreview(null);
             return true;
         } catch (error) {
             const message =
-                error instanceof Error ? error.message : "The archive could not be imported.";
-            AppAlert.info("Import failed", message);
+                error instanceof Error ? error.message : t("settingsImport.archiveFailed");
+            AppAlert.info(t("settingsImport.importFailed"), message);
             return false;
         } finally {
             setIsImporting(false);
