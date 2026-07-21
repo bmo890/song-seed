@@ -1,9 +1,8 @@
-import { useMemo, useRef, useState } from "react";
+import { useMemo } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { Ionicons } from "@expo/vector-icons";
 import { styles as appStyles } from "../../../styles";
-import { colors, radii, spacing, text as textTokens } from "../../../design/tokens";
+import { colors, radii, shadows, spacing, text as textTokens } from "../../../design/tokens";
 import { haptic } from "../../../design/haptics";
 import { tokenizeWords, unitIndexByWord } from "../../../domain/cutUp";
 import type { CutUpSpark } from "../../../types";
@@ -12,86 +11,31 @@ import { useTranslation } from "react-i18next";
 
 type Model = ReturnType<typeof useCutUpScreenModel>;
 
-// Two warm tints alternate per unit so adjacent chunks read apart on the mat.
-const TINT_A = colors.surface;
-const TINT_B = "#F1E7D3";
-const BIND_TINT = "#E7C6AE";
+const PAGE_BG = "#FBF6EC";
+// Two warm strip tints alternate per piece so neighbours read apart.
+const STRIP_A = "#FFFDF7";
+const STRIP_B = "#F1E7D3";
 
-type Rect = { x: number; y: number; w: number; h: number };
-
+/**
+ * The Cut step — one gesture, plainly. The lyric is laid out as connected
+ * "strips" (a piece = a run of words sharing a tint and rounded ends). Between
+ * every two words is a seam you tap: a joined seam is a faint divider (tap to
+ * snip), a cut seam is a visible gap with scissors (tap to mend). The old
+ * long-press-and-slide "bind" gesture is gone — every grouping is reachable by
+ * choosing where to cut.
+ */
 export function CutUpChunkEditor({ model, spark }: { model: Model; spark: CutUpSpark }) {
   const { t } = useTranslation();
   const words = useMemo(() => tokenizeWords(spark.sourceText), [spark.sourceText]);
   const seams = model.currentSeams;
+  const seamSet = useMemo(() => new Set(seams), [seams]);
   const units = useMemo(() => unitIndexByWord(words, seams), [words, seams]);
   const unitCount = words.length === 0 ? 0 : units[units.length - 1] + 1;
 
-  // Live "press-and-slide to bind" range (word indices); refs keep the gesture's
-  // callbacks off stale closures.
-  const [dragRange, setDragRange] = useState<[number, number] | null>(null);
-  const wordRects = useRef<Map<number, Rect>>(new Map());
-  const scrollY = useRef(0);
-  const dragRangeRef = useRef<[number, number] | null>(null);
-  const bindRef = useRef(model.bindWords);
-  bindRef.current = model.bindWords;
-  const wordCountRef = useRef(words.length);
-  wordCountRef.current = words.length;
-
-  const findWordAt = (x: number, y: number): number | null => {
-    const yy = y + scrollY.current;
-    let best: number | null = null;
-    let bestDist = Infinity;
-    for (const [i, r] of wordRects.current) {
-      if (x >= r.x && x <= r.x + r.w && yy >= r.y && yy <= r.y + r.h) return i;
-      // Fallback: on the same row, snap to the nearest word horizontally.
-      if (yy >= r.y && yy <= r.y + r.h) {
-        const dist = Math.min(Math.abs(x - r.x), Math.abs(x - (r.x + r.w)));
-        if (dist < bestDist) {
-          bestDist = dist;
-          best = i;
-        }
-      }
-    }
-    return best;
+  const toggle = (seam: number) => {
+    haptic.light();
+    model.toggleSeamAt(seam);
   };
-
-  const pan = useMemo(
-    () =>
-      Gesture.Pan()
-        .activateAfterLongPress(180)
-        .runOnJS(true)
-        .onStart((e) => {
-          const w = findWordAt(e.x, e.y);
-          if (w == null) return;
-          dragRangeRef.current = [w, w];
-          setDragRange([w, w]);
-          haptic.grab();
-        })
-        .onUpdate((e) => {
-          const start = dragRangeRef.current?.[0];
-          if (start == null) return;
-          const w = findWordAt(e.x, e.y);
-          if (w == null) return;
-          const next: [number, number] = [start, w];
-          dragRangeRef.current = next;
-          setDragRange(next);
-        })
-        .onEnd(() => {
-          const r = dragRangeRef.current;
-          if (r && r[0] !== r[1]) {
-            bindRef.current(Math.min(r[0], r[1]), Math.max(r[0], r[1]), wordCountRef.current);
-            haptic.success();
-          }
-        })
-        .onFinalize(() => {
-          dragRangeRef.current = null;
-          setDragRange(null);
-        }),
-    [] // eslint-disable-line react-hooks/exhaustive-deps
-  );
-
-  const inDrag = (i: number) =>
-    dragRange != null && i >= Math.min(dragRange[0], dragRange[1]) && i <= Math.max(dragRange[0], dragRange[1]);
 
   if (words.length === 0) {
     return (
@@ -104,12 +48,13 @@ export function CutUpChunkEditor({ model, spark }: { model: Model; spark: CutUpS
   return (
     <View style={styles.body}>
       <View style={styles.headerRow}>
-        <Text style={styles.count}>
-          {t("cutUp.pieces", { count: unitCount })}
-        </Text>
+        <Text style={styles.count}>{t("cutUp.pieces", { count: unitCount })}</Text>
         <Pressable
           style={({ pressed }) => [styles.resetBtn, pressed ? appStyles.pressDown : null]}
-          onPress={model.resetCuts}
+          onPress={() => {
+            haptic.light();
+            model.resetCuts();
+          }}
           hitSlop={6}
         >
           <Ionicons name="sparkles-outline" size={14} color={colors.textSecondary} />
@@ -117,42 +62,39 @@ export function CutUpChunkEditor({ model, spark }: { model: Model; spark: CutUpS
         </Pressable>
       </View>
 
-      <Text style={styles.hint}>
-        {t("cutUp.cutHint")}
-      </Text>
+      <Text style={styles.hint}>{t("cutUp.cutHint")}</Text>
 
-      <View style={styles.matWrap}>
-        <GestureDetector gesture={pan}>
-          <ScrollView
-            style={styles.scroll}
-            contentContainerStyle={styles.mat}
-            showsVerticalScrollIndicator={false}
-            scrollEventThrottle={16}
-            onScroll={(e) => {
-              scrollY.current = e.nativeEvent.contentOffset.y;
-            }}
-          >
-            {words.map((word, i) => {
-              const tint = units[i] % 2 === 0 ? TINT_A : TINT_B;
-              const binding = inDrag(i);
-              return (
+      <View style={styles.page}>
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={styles.mat}
+          showsVerticalScrollIndicator={false}
+        >
+          {words.map((word, i) => {
+            const cutBefore = i > 0 && seamSet.has(i);
+            const cutAfter = seamSet.has(i + 1);
+            const firstOfPiece = i === 0 || cutBefore;
+            const lastOfPiece = i === words.length - 1 || cutAfter;
+            const tint = units[i] % 2 === 0 ? STRIP_A : STRIP_B;
+            return (
+              <View key={word.index} style={styles.cluster}>
+                {i > 0 ? (
+                  <Seam cut={cutBefore} onPress={() => toggle(i)} />
+                ) : null}
                 <View
-                  key={word.index}
-                  style={styles.cluster}
-                  onLayout={(e) => {
-                    const { x, y, width, height } = e.nativeEvent.layout;
-                    wordRects.current.set(i, { x, y, w: width, h: height });
-                  }}
+                  style={[
+                    styles.word,
+                    { backgroundColor: tint },
+                    firstOfPiece ? styles.wordFirst : styles.wordInnerLeft,
+                    lastOfPiece ? styles.wordLast : styles.wordInnerRight,
+                  ]}
                 >
-                  {i > 0 ? <Seam cut={seams.includes(i)} onPress={() => model.toggleSeamAt(i)} /> : null}
-                  <View style={[styles.word, { backgroundColor: binding ? BIND_TINT : tint }]}>
-                    <Text style={styles.wordText}>{word.text}</Text>
-                  </View>
+                  <Text style={styles.wordText}>{word.text}</Text>
                 </View>
-              );
-            })}
-          </ScrollView>
-        </GestureDetector>
+              </View>
+            );
+          })}
+        </ScrollView>
       </View>
     </View>
   );
@@ -162,13 +104,16 @@ function Seam({ cut, onPress }: { cut: boolean; onPress: () => void }) {
   return (
     <Pressable
       onPress={onPress}
-      hitSlop={{ top: 10, bottom: 10, left: 3, right: 3 }}
-      style={[styles.seam, cut ? styles.seamCut : null]}
+      hitSlop={{ top: 12, bottom: 12, left: 6, right: 6 }}
+      style={[styles.seam, cut ? styles.seamCut : styles.seamJoin]}
+      accessibilityRole="button"
     >
       {cut ? (
-        <Ionicons name="cut" size={12} color={colors.primary} />
+        <View style={styles.seamCutMark}>
+          <Ionicons name="cut" size={11} color={colors.primaryDeep} />
+        </View>
       ) : (
-        <View style={styles.joinDot} />
+        <View style={styles.joinLine} />
       )}
     </Pressable>
   );
@@ -176,12 +121,7 @@ function Seam({ cut, onPress }: { cut: boolean; onPress: () => void }) {
 
 const styles = StyleSheet.create({
   body: { flex: 1 },
-  headerRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: spacing.xs,
-  },
+  headerRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: spacing.xs },
   count: { ...textTokens.annotation },
   resetBtn: {
     flexDirection: "row",
@@ -193,51 +133,34 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceHigh,
   },
   resetText: { fontFamily: "PlusJakartaSans_600SemiBold", fontSize: 12, color: colors.textSecondary },
-  hint: { ...textTokens.supporting, fontSize: 11, marginBottom: spacing.sm },
-  matWrap: {
-    flex: 1,
-    backgroundColor: colors.surfaceContainer,
-    borderRadius: radii.lg,
-    overflow: "hidden",
-  },
+  hint: { ...textTokens.supporting, fontSize: 11.5, marginBottom: spacing.sm },
+  page: { flex: 1, backgroundColor: PAGE_BG, borderRadius: radii.xl, ...shadows.card, overflow: "hidden" },
   scroll: { flex: 1 },
-  mat: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    alignItems: "center",
-    alignContent: "flex-start",
-    padding: spacing.sm,
-  },
+  mat: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", alignContent: "flex-start", padding: spacing.md },
   cluster: { flexDirection: "row", alignItems: "center" },
-  seam: {
-    minWidth: 12,
-    height: 30,
+
+  // seams
+  seam: { height: 34, alignItems: "center", justifyContent: "center" },
+  seamJoin: { width: 9 },
+  seamCut: { width: 20 },
+  joinLine: { width: 1, height: 18, backgroundColor: colors.borderMuted, borderRadius: 1 },
+  seamCutMark: {
+    width: 18,
+    height: 18,
+    borderRadius: radii.round,
+    backgroundColor: colors.surface,
     alignItems: "center",
     justifyContent: "center",
-    marginHorizontal: 1,
+    ...shadows.control,
   },
-  seamCut: { minWidth: 20 },
-  joinDot: {
-    width: 3,
-    height: 3,
-    borderRadius: 2,
-    backgroundColor: colors.borderMuted,
-  },
-  word: {
-    borderRadius: radii.sm,
-    paddingHorizontal: 7,
-    paddingVertical: 7,
-    marginVertical: 3,
-  },
-  wordText: {
-    fontFamily: "PlayfairDisplay_400Regular",
-    fontSize: 17,
-    color: colors.textPrimary,
-  },
-  empty: {
-    ...textTokens.supporting,
-    fontSize: 13,
-    textAlign: "center",
-    paddingVertical: spacing.xl,
-  },
+
+  // words (as connected strips)
+  word: { paddingVertical: 7, paddingHorizontal: 3, marginVertical: 3 },
+  wordText: { fontFamily: "PlayfairDisplay_400Regular", fontSize: 17, color: colors.textPrimary },
+  wordFirst: { borderTopLeftRadius: radii.md, borderBottomLeftRadius: radii.md, paddingLeft: 8 },
+  wordLast: { borderTopRightRadius: radii.md, borderBottomRightRadius: radii.md, paddingRight: 8 },
+  wordInnerLeft: {},
+  wordInnerRight: {},
+
+  empty: { ...textTokens.supporting, fontSize: 13, textAlign: "center", paddingVertical: spacing.xl },
 });

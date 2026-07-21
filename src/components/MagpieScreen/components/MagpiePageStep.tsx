@@ -477,6 +477,7 @@ function SourceSheet({
   const book = spark.book;
   return (
     <BottomSheet visible={visible} onClose={onClose}>
+      <ScrollView style={styles.sheetScroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
       <View style={styles.bookInfo}>
         <BookThumbnail book={book} />
         <View style={styles.bookMeta}>
@@ -576,6 +577,7 @@ function SourceSheet({
         <Ionicons name="trash-outline" size={15} color={colors.danger} />
         <Text style={styles.deleteText}>{t("magpie.deleteTitle")}</Text>
       </Pressable>
+      </ScrollView>
     </BottomSheet>
   );
 }
@@ -895,6 +897,7 @@ const styles = StyleSheet.create({
   buildBtnText: { fontFamily: "PlusJakartaSans_700Bold", fontSize: 14, color: colors.onPrimary },
 
   // sheets — shared
+  sheetScroll: { maxHeight: 540 },
   sheetLabel: { fontFamily: "PlusJakartaSans_700Bold", fontSize: 10, letterSpacing: 1, textTransform: "uppercase", color: colors.textMuted, marginBottom: spacing.md },
   sheetDivider: { height: StyleSheet.hairlineWidth, backgroundColor: colors.borderMuted, marginVertical: spacing.lg },
 
