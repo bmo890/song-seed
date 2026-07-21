@@ -38,6 +38,8 @@ import { formatProcessProgress, useProcessStore } from "../../../state/useProces
 import type { BackupReminderFrequency, Workspace } from "../../../types";
 import { haptic } from "../../../design/haptics";
 import { toast } from "../../common/toastStore";
+import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 
 const REMINDER_OPTIONS: BackupReminderFrequency[] = ["off", "weekly", "monthly", "quarterly"];
 
@@ -50,7 +52,8 @@ const MISSING_LIST_MAX = 6;
  */
 function describeMissingRecordings(
     missing: DrBackupMissingRecord[],
-    workspaces: Workspace[]
+    workspaces: Workspace[],
+    t: TFunction
 ): string[] {
     const lines: string[] = [];
     for (const entry of missing) {
@@ -59,7 +62,7 @@ function describeMissingRecordings(
         const workspaceMatch = entry.ref.match(/^workspace:(.+)$/);
         if (workspaceMatch) {
             const workspace = workspaces.find((item) => item.id === workspaceMatch[1]);
-            lines.push(`Archived workspace "${workspace?.title ?? workspaceMatch[1]}"`);
+            lines.push(t("settingsBackup.archivedWorkspace", { title: workspace?.title ?? workspaceMatch[1] }));
             continue;
         }
 
@@ -71,7 +74,7 @@ function describeMissingRecordings(
                 if (!idea) continue;
                 const clip = idea.clips.find((item) => item.id === clipMatch[2]);
                 const clipLabel = clip?.title?.trim() ? ` · ${clip.title.trim()}` : "";
-                const stemLabel = entry.ref.includes("/stem:") ? " (overdub layer)" : "";
+                const stemLabel = entry.ref.includes("/stem:") ? t("settingsBackup.overdubLayer") : "";
                 resolved = `"${idea.title}"${clipLabel}${stemLabel}`;
                 break;
             }
@@ -85,6 +88,7 @@ function describeMissingRecordings(
 }
 
 export function useLibraryBackupFlow() {
+    const { t } = useTranslation();
     const recorder = useSharedAudioRecorder();
     const backupReminderFrequency = useStore((state) => state.backupReminderFrequency);
     const setBackupReminderFrequency = useStore((state) => state.setBackupReminderFrequency);
@@ -125,7 +129,7 @@ export function useLibraryBackupFlow() {
                 const duration = formatDurationEstimate(
                     estimateLibraryOperationSeconds("backup", estimate.totalBytes)
                 );
-                estimateLine = `${estimate.fileCount} recording${estimate.fileCount === 1 ? "" : "s"} · ${formatBytes(estimate.totalBytes)} · ${duration}`;
+                estimateLine = t("settingsBackup.estimate", { count: estimate.fileCount, size: formatBytes(estimate.totalBytes), duration });
             }
         } catch {
             // Estimation is best-effort; the backup itself re-checks everything.
@@ -133,12 +137,12 @@ export function useLibraryBackupFlow() {
 
         return await new Promise<boolean>((resolve) => {
             AppAlert.custom(
-                "Back up your library?",
-                `${estimateLine ? `${estimateLine}.\n\n` : ""}You can minimize the backup and keep using the app while it runs.`,
+                t("settingsBackup.confirmTitle"),
+                t("settingsBackup.confirmBody", { estimate: estimateLine ? `${estimateLine}.\n\n` : "" }),
                 [
-                    { label: "Not Now", style: "cancel", onPress: () => resolve(false) },
+                    { label: t("settingsBackup.notNow"), style: "cancel", onPress: () => resolve(false) },
                     {
-                        label: "Back Up",
+                        label: t("settingsBackup.backUp"),
                         style: "default",
                         icon: "cloud-upload-outline",
                         onPress: () => {
@@ -161,7 +165,7 @@ export function useLibraryBackupFlow() {
         store.start({
             id: processId,
             kind: "backup",
-            title: "Your library",
+            title: t("settingsBackup.yourLibrary"),
             onCancel: () => controller.abort(),
         });
         const operationOptions = {
@@ -188,12 +192,11 @@ export function useLibraryBackupFlow() {
                 if (error instanceof Error && error.message === BACKUP_SAVE_CANCELLED_MESSAGE) {
                     return await new Promise((resolve) => {
                         AppAlert.custom(
-                            "Save this backup?",
-                            `"${built.archiveTitle}" is built and ready, but hasn't been saved yet. ` +
-                                "Choose where to save it, or discard it.",
+                            t("settingsBackup.saveTitle"),
+                            t("settingsBackup.saveBody", { title: built.archiveTitle }),
                             [
                                 {
-                                    label: "Discard Backup",
+                                    label: t("settingsBackup.discard"),
                                     style: "destructive",
                                     onPress: () => {
                                         void discardBuiltLibraryBackup(built.archiveUri)
@@ -202,7 +205,7 @@ export function useLibraryBackupFlow() {
                                     },
                                 },
                                 {
-                                    label: "Choose Location",
+                                    label: t("settingsBackup.chooseLocation"),
                                     style: "default",
                                     icon: "folder-outline",
                                     onPress: () => {
@@ -232,19 +235,17 @@ export function useLibraryBackupFlow() {
                 const missingCritical = built.manifest.missing.filter((entry) => entry.critical);
                 const named = describeMissingRecordings(
                     built.manifest.missing,
-                    useStore.getState().workspaces
+                    useStore.getState().workspaces,
+                    t
                 );
                 const shown = named.slice(0, MISSING_LIST_MAX);
                 const overflow = named.length - shown.length;
                 const listBlock = shown.length
-                    ? `\n\n${shown.map((line) => `• ${line}`).join("\n")}${overflow > 0 ? `\n• …and ${overflow} more` : ""}\n\n`
+                    ? `\n\n${shown.map((line) => `• ${line}`).join("\n")}${overflow > 0 ? `\n• ${t("settingsBackup.moreMissing", { count: overflow })}` : ""}\n\n`
                     : " ";
                 AppAlert.info(
-                    "Backup saved, but incomplete",
-                    `Saved ${backupFileName}, but ${missingCritical.length} recording${missingCritical.length === 1 ? "" : "s"} ` +
-                        `${missingCritical.length === 1 ? "is" : "are"} missing from storage:` +
-                        listBlock +
-                        `Review in Library & Backups → Storage details, then back up again.`
+                    t("settingsBackup.incompleteTitle"),
+                    t("settingsBackup.incompleteBody", { name: backupFileName, count: missingCritical.length, list: listBlock })
                 );
                 return false;
             }
@@ -257,18 +258,18 @@ export function useLibraryBackupFlow() {
                 // stacking a terminal takeover behind the dialog.
                 useProcessStore.getState().dismiss(processId);
                 AppAlert.custom(
-                    "Backup ready",
-                    `Saved ${backupFileName} to the location you chose.`,
+                    t("settingsBackup.ready"),
+                    t("settingsBackup.readyBody", { name: backupFileName }),
                     [
                         {
-                            label: "Copy Name",
+                            label: t("settingsBackup.copyName"),
                             style: "default",
                             icon: "copy-outline",
                             onPress: () => {
                                 void Clipboard.setStringAsync(backupFileName);
                             },
                         },
-                        { label: "OK", style: "default" },
+                        { label: t("common.done"), style: "default" },
                     ]
                 );
             };
@@ -278,13 +279,12 @@ export function useLibraryBackupFlow() {
                 // process and let the confirm dialog record success if the user did save.
                 useProcessStore.getState().dismiss(processId);
                 AppAlert.custom(
-                    "Confirm backup saved",
-                    "The system share sheet cannot tell SongNook whether you completed Save to Files. " +
-                        "Only confirm if the backup now appears in Files, iCloud Drive, or another location.",
+                    t("settingsBackup.confirmSaved"),
+                    t("settingsBackup.confirmSavedBody"),
                     [
-                        { label: "Not Saved", style: "cancel" },
+                        { label: t("settingsBackup.notSaved"), style: "cancel" },
                         {
-                            label: "I Saved It",
+                            label: t("settingsBackup.savedIt"),
                             style: "default",
                             onPress: recordSuccessfulBackup,
                         },
@@ -308,10 +308,10 @@ export function useLibraryBackupFlow() {
             console.warn("[backup] failed", error);
             const raw = error instanceof Error ? error.message : "";
             const message = /enospc|no space left on device/i.test(raw)
-                ? "Your device is low on storage. Free up some space, then try the backup again."
-                : raw || "The library backup could not be completed. Please try again.";
+                ? t("settingsBackup.lowStorage")
+                : raw || t("settingsBackup.failedBody");
             useProcessStore.getState().setStatus("error", message);
-            AppAlert.info("Backup failed", message);
+            AppAlert.info(t("settingsBackup.failed"), message);
             return false;
         }
     };
@@ -323,8 +323,8 @@ export function useLibraryBackupFlow() {
     ) => {
         if (recorder.isRecording || recorder.isPaused) {
             AppAlert.info(
-                "Finish recording first",
-                "Save or discard the active recording before replacing the library from a backup."
+                t("settingsBackup.finishRecording"),
+                t("settingsBackup.finishRecordingBody")
             );
             return;
         }
@@ -336,7 +336,7 @@ export function useLibraryBackupFlow() {
         useProcessStore.getState().start({
             id: processId,
             kind: "restore",
-            title: mode === "merge" ? "Merging a backup" : "From a backup",
+            title: mode === "merge" ? t("settingsBackup.merging") : t("settingsBackup.fromBackup"),
             onCancel: () => controller.abort(),
         });
         try {
@@ -358,8 +358,8 @@ export function useLibraryBackupFlow() {
             useProcessStore.getState().setStatus(
                 "success",
                 result.skipped.length > 0
-                    ? `Restored without ${result.skipped.length} missing item${result.skipped.length === 1 ? "" : "s"}. Restarting…`
-                    : "Restored. Restarting…"
+                    ? t("settingsBackup.restoredMissing", { count: result.skipped.length })
+                    : t("settingsBackup.restored")
             );
         } catch (error) {
             if (isBackupOperationCancelled(error)) {
@@ -372,17 +372,15 @@ export function useLibraryBackupFlow() {
                 useProcessStore.getState().dismiss(processId);
                 const count = error.missingCriticalCount;
                 AppAlert.custom(
-                    "Backup is incomplete",
-                    `This backup recorded ${count} recording${count === 1 ? "" : "s"} as missing when it was created — ` +
-                        `${count === 1 ? "it" : "they"} cannot be recovered from this file. ` +
-                        `You can still restore everything else it contains.`,
+                    t("settingsBackup.incompleteRestore"),
+                    t("settingsBackup.incompleteRestoreBody", { count }),
                     [
-                        { label: "Cancel", style: "cancel" },
+                        { label: t("common.cancel"), style: "cancel" },
                         {
-                            label: "Restore Anyway",
+                            label: t("settingsBackup.restoreAnyway"),
                             style: "default",
                             icon: "medkit-outline",
-                            description: `Restore the library without the ${count} missing recording${count === 1 ? "" : "s"}.`,
+                            description: t("settingsBackup.restoreAnywayDesc", { count }),
                             onPress: () => {
                                 void runRestore(archiveUri, mode, true);
                             },
@@ -392,9 +390,9 @@ export function useLibraryBackupFlow() {
                 return;
             }
             const message =
-                error instanceof Error ? error.message : "The backup could not be restored.";
+                error instanceof Error ? error.message : t("settingsBackup.restoreFailedBody");
             useProcessStore.getState().setStatus("error", message);
-            AppAlert.info("Restore failed", message);
+            AppAlert.info(t("settingsBackup.restoreFailed"), message);
         }
     };
 
@@ -406,8 +404,8 @@ export function useLibraryBackupFlow() {
         }
         if (recorder.isRecording || recorder.isPaused) {
             AppAlert.info(
-                "Finish recording first",
-                "Save or discard the active recording before replacing the library from a backup."
+                t("settingsBackup.finishRecording"),
+                t("settingsBackup.finishRecordingBody")
             );
             return;
         }
@@ -420,7 +418,7 @@ export function useLibraryBackupFlow() {
                 copyToCacheDirectory: true,
             });
         } catch {
-            AppAlert.info("Restore failed", "Could not open the file picker.");
+            AppAlert.info(t("settingsBackup.restoreFailed"), t("settingsBackup.pickerFailed"));
             return;
         }
 
@@ -434,39 +432,35 @@ export function useLibraryBackupFlow() {
         // Catch it before the destructive confirm so the user isn't told their backup is corrupt.
         if ((await detectPickedArchiveKind(asset.uri)) === "songnook-archive") {
             AppAlert.info(
-                "That's a shareable archive",
-                "This file is a SongNook Archive (an export for sharing), not a full backup. To bring it into your library, use Library & Backups → Import an archive."
+                t("settingsBackup.shareArchiveTitle"),
+                t("settingsBackup.shareArchiveBody")
             );
             return;
         }
 
         const sizeLine =
             typeof asset.size === "number" && asset.size > 0
-                ? ` Restoring ${formatBytes(asset.size)} takes ${formatDurationEstimate(
-                      estimateLibraryOperationSeconds("restore", asset.size)
-                  )}.`
+                ? t("settingsBackup.restoreSize", { size: formatBytes(asset.size), duration: formatDurationEstimate(estimateLibraryOperationSeconds("restore", asset.size)) })
                 : "";
         AppAlert.custom(
-            "Restore from backup?",
-            `How should this backup be restored? The app restarts afterward.${sizeLine}`,
+            t("settingsBackup.restoreTitle"),
+            t("settingsBackup.restoreBody", { size: sizeLine }),
             [
-                { label: "Cancel", style: "cancel" },
+                { label: t("common.cancel"), style: "cancel" },
                 {
-                    label: "Keep Newer Items",
+                    label: t("settingsBackup.keepNewer"),
                     style: "default",
                     icon: "git-merge-outline",
-                    description:
-                        "Merge: bring back everything in the backup while keeping songs, clips, and edits made since it was saved.",
+                    description: t("settingsBackup.keepNewerDesc"),
                     onPress: () => {
                         void runRestore(asset.uri, "merge");
                     },
                 },
                 {
-                    label: "Replace Everything",
+                    label: t("settingsBackup.replaceEverything"),
                     style: "destructive",
                     icon: "swap-horizontal-outline",
-                    description:
-                        "The backup becomes your entire library. Anything not in it is removed (recordings are kept in the trash for 14 days).",
+                    description: t("settingsBackup.replaceDesc"),
                     onPress: () => {
                         void runRestore(asset.uri, "replace");
                     },
@@ -494,7 +488,7 @@ export function useLibraryBackupFlow() {
             }
 
             await Clipboard.setStringAsync(lastSuccessfulBackupFileName);
-            toast("Backup file name copied", "copy-outline");
+            toast(t("settingsBackup.copied"), "copy-outline");
             return true;
         },
     };
