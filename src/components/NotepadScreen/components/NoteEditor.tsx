@@ -21,6 +21,7 @@ import { AppAlert } from "../../common/AppAlert";
 import { WordFinderSheet } from "../../common/WordFinderSheet";
 import { applyPickedWord, extractWordRange } from "../../../domain/wordTools";
 import { useEditHistory } from "../../../hooks/useEditHistory";
+import { useTranslation } from "react-i18next";
 
 type Props = {
   note: Note;
@@ -42,6 +43,7 @@ function formatTimestamp(ts: number) {
 }
 
 export function NoteEditor({ note, onBack, onUpdate, onTogglePin, onDelete }: Props) {
+  const { t } = useTranslation();
   const bodyRef = useRef<TextInput>(null);
 
   // ── Undo / redo ───────────────────────────────────────────────────────────
@@ -156,7 +158,7 @@ export function NoteEditor({ note, onBack, onUpdate, onTogglePin, onDelete }: Pr
             onPress={onBack}
           >
             <Ionicons name="chevron-back" size={20} color={colors.textStrong} />
-            <Text style={editorStyles.backLabel}>Lyrics Pad</Text>
+            <Text style={editorStyles.backLabel}>{t("screens.lyricsPad")}</Text>
           </Pressable>
 
           {/* Right-side actions */}
@@ -193,7 +195,7 @@ export function NoteEditor({ note, onBack, onUpdate, onTogglePin, onDelete }: Pr
             <Pressable
               style={({ pressed }) => [editorStyles.iconBtn, pressed ? styles.pressDown : null]}
               onPress={openWordFinder}
-              accessibilityLabel="Word finder"
+              accessibilityLabel={t("lyrics.wordFinder")}
             >
               <Ionicons name="book-outline" size={20} color={colors.textSecondary} />
             </Pressable>
@@ -232,7 +234,7 @@ export function NoteEditor({ note, onBack, onUpdate, onTogglePin, onDelete }: Pr
               onUpdate({ title: text });
               scheduleHistoryPush();
             }}
-            placeholder="Title"
+            placeholder={t("notepad.titlePlaceholder")}
             placeholderTextColor={colors.textMuted}
             multiline={false}
             returnKeyType="next"
@@ -252,7 +254,7 @@ export function NoteEditor({ note, onBack, onUpdate, onTogglePin, onDelete }: Pr
               scheduleHistoryPush();
             }}
             onSelectionChange={handleSelectionChange}
-            placeholder="Start writing…"
+            placeholder={t("notepad.writePlaceholder")}
             placeholderTextColor={colors.textMuted}
             multiline
             textAlignVertical="top"

@@ -28,14 +28,14 @@ import {
   deriveNotePreviewTitle,
 } from "../../../domain/notepad";
 
-function formatRelativeDate(ts: number) {
+function formatRelativeDate(ts: number, t: ReturnType<typeof useTranslation>["t"]) {
   const now = Date.now();
   const diffMs = now - ts;
   const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
 
-  if (diffDays === 0) return "Today";
-  if (diffDays === 1) return "Yesterday";
-  if (diffDays < 7) return `${diffDays}d ago`;
+  if (diffDays === 0) return t("notepad.today");
+  if (diffDays === 1) return t("notepad.yesterday");
+  if (diffDays < 7) return t("notepad.daysAgo", { count: diffDays });
 
   return new Date(ts).toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
@@ -63,6 +63,7 @@ function NoteListItem({
   onBeginSelection,
   onToggleSelect,
 }: NoteItemProps) {
+  const { t } = useTranslation();
   const title = deriveNotePreviewTitle(note);
   const fallbackPreview = deriveNotePreviewBody(note);
   const trimmedQuery = searchQuery.trim();
@@ -115,10 +116,10 @@ function NoteListItem({
             {fallbackPreview}
           </UserText>
         ) : (
-          <Text style={noteStyles.cardPreviewEmpty}>Empty note</Text>
+          <Text style={noteStyles.cardPreviewEmpty}>{t("notepad.emptyNote")}</Text>
         )}
         {showTimestamp ? (
-          <Text style={noteStyles.cardMeta}>{formatRelativeDate(note.updatedAt).toUpperCase()}</Text>
+          <Text style={noteStyles.cardMeta}>{formatRelativeDate(note.updatedAt, t).toUpperCase()}</Text>
         ) : null}
       </View>
 
@@ -160,6 +161,7 @@ function WordLadderListItem({
   onBeginSelection,
   onToggleSelect,
 }: WordLadderItemProps) {
+  const { t } = useTranslation();
   return (
     <Pressable
       style={({ pressed }) => [
@@ -179,7 +181,7 @@ function WordLadderListItem({
         <UserText value={exercise.title} style={noteStyles.cardTitle} numberOfLines={1}>
           {exercise.title}
         </UserText>
-        <Text style={noteStyles.cardMeta}>WORD LADDER  ·  {exerciseSummary(exercise)}</Text>
+        <Text style={noteStyles.cardMeta}>{t("notepad.wordLadderMeta", { summary: exerciseSummary(exercise) })}</Text>
       </View>
       {selectionMode ? (
         <View style={[noteStyles.selectIndicator, isSelected ? noteStyles.selectIndicatorChecked : null]}>
@@ -209,6 +211,7 @@ function CutUpListItem({
   onBeginSelection,
   onToggleSelect,
 }: CutUpItemProps) {
+  const { t } = useTranslation();
   return (
     <Pressable
       style={({ pressed }) => [
@@ -228,7 +231,7 @@ function CutUpListItem({
         <UserText value={spark.title} style={noteStyles.cardTitle} numberOfLines={1}>
           {spark.title}
         </UserText>
-        <Text style={noteStyles.cardMeta}>CUT-UP  ·  {cutUpSummary(spark)}</Text>
+        <Text style={noteStyles.cardMeta}>{t("notepad.cutUpMeta", { summary: cutUpSummary(spark) })}</Text>
       </View>
       {selectionMode ? (
         <View style={[noteStyles.selectIndicator, isSelected ? noteStyles.selectIndicatorChecked : null]}>
@@ -258,6 +261,7 @@ function MagpieListItem({
   onBeginSelection,
   onToggleSelect,
 }: MagpieItemProps) {
+  const { t } = useTranslation();
   return (
     <Pressable
       style={({ pressed }) => [
@@ -277,7 +281,7 @@ function MagpieListItem({
         <UserText value={spark.title} style={noteStyles.cardTitle} numberOfLines={1}>
           {spark.title}
         </UserText>
-        <Text style={noteStyles.cardMeta}>MAGPIE  ·  {magpieSummary(spark)}</Text>
+        <Text style={noteStyles.cardMeta}>{t("notepad.magpieMeta", { summary: magpieSummary(spark) })}</Text>
       </View>
       {selectionMode ? (
         <View style={[noteStyles.selectIndicator, isSelected ? noteStyles.selectIndicatorChecked : null]}>
@@ -354,8 +358,8 @@ export function NotepadScreenContent() {
     );
   }
 
-  const emptyBody = "Verses, hooks, and lines that don't have a song yet.";
-  const countLabel = `${totalEntryCount} page${totalEntryCount === 1 ? "" : "s"} of lyrics and loose lines.`;
+  const emptyBody = t("notepad.looseLines");
+  const countLabel = t("notepad.pageCount", { count: totalEntryCount });
   const selectedCount =
     selectedNoteIds.length + selectedLadderIds.length + selectedCutUpIds.length + selectedMagpieIds.length;
   // Sparks support only Delete — the note-specific actions (Add to Song,
@@ -366,21 +370,21 @@ export function NotepadScreenContent() {
 
   function confirmDeleteSelected() {
     AppAlert.destructive(
-      selectedCount === 1 ? "Delete item?" : `Delete ${selectedCount} items?`,
-      "This can't be undone.",
+      t("notepad.deleteItem", { count: selectedCount }),
+      t("notepad.cannotUndo"),
       handleDeleteSelected,
-      { confirmLabel: "Delete" }
+      { confirmLabel: t("notepad.delete") }
     );
   }
 
   function handleDuplicatePress() {
     const count = handleDuplicateSelected();
-    AppAlert.info("Duplicated", `${count} page${count === 1 ? "" : "s"} added as a copy.`);
+    AppAlert.info(t("notepad.duplicated"), t("notepad.duplicatedBody", { count }));
   }
 
   const deleteAction: SelectionAction = {
     key: "delete",
-    label: "Delete",
+    label: t("notepad.delete"),
     icon: "trash-outline",
     tone: "danger",
     onPress: confirmDeleteSelected,
@@ -391,7 +395,7 @@ export function NotepadScreenContent() {
     : [
         {
           key: "add-to-song",
-          label: "Song",
+          label: t("notepad.song"),
           icon: "albums-outline",
           renderIcon: ({ color, size, disabled }) => (
             <DockAddBadgeIcon base="albums-outline" color={color} size={size} disabled={disabled} />
@@ -400,14 +404,14 @@ export function NotepadScreenContent() {
         },
         {
           key: "pin",
-          label: allSelectedPinned ? "Unpin" : "Pin",
+          label: t(allSelectedPinned ? "notepad.unpin" : "notepad.pin"),
           icon: allSelectedPinned ? "bookmark" : "bookmark-outline",
           onPress: handleToggleSelectedPin,
         },
         deleteAction,
         {
           key: "more",
-          label: "More",
+          label: t("notepad.more"),
           icon: "ellipsis-horizontal",
           onPress: () => setMoreVisible(true),
         },
@@ -416,13 +420,13 @@ export function NotepadScreenContent() {
   const sheetActions: SelectionAction[] = [
     {
       key: "duplicate",
-      label: "Duplicate",
+      label: t("notepad.duplicate"),
       icon: "copy-outline",
       onPress: handleDuplicatePress,
     },
     {
       key: "share",
-      label: "Share",
+      label: t("notepad.share"),
       icon: "share-social-outline",
       onPress: handleShareSelected,
     },
@@ -438,7 +442,7 @@ export function NotepadScreenContent() {
               <Pressable
                 testID="lyrics-spark-open"
                 accessibilityRole="button"
-                accessibilityLabel="Lyrics Spark"
+                accessibilityLabel={t("notepad.lyricsSpark")}
                 style={({ pressed }) => [listStyles.newBtn, pressed ? styles.pressDown : null]}
                 onPress={() => setSparkSheetVisible(true)}
                 hitSlop={4}
@@ -462,9 +466,9 @@ export function NotepadScreenContent() {
           <View style={listStyles.emptyIconWrap}>
             <Ionicons name="document-text-outline" size={26} color={colors.primary} />
           </View>
-          <Text style={listStyles.emptyTitle}>A blank page</Text>
+          <Text style={listStyles.emptyTitle}>{t("notepad.blankPage")}</Text>
           <Text style={listStyles.emptyBody}>{emptyBody}</Text>
-          <Button label="Write something" onPress={handleNewNote} style={listStyles.emptyAction} />
+          <Button label={t("notepad.writeSomething")} onPress={handleNewNote} style={listStyles.emptyAction} />
         </View>
       ) : (
         <>
@@ -481,7 +485,7 @@ export function NotepadScreenContent() {
                 <Text
                   style={[listStyles.segmentLabel, activeTab === "lyrics" ? listStyles.segmentLabelActive : null]}
                 >
-                  Lyrics
+                  {t("notepad.lyrics")}
                 </Text>
               </Pressable>
               <Pressable
@@ -493,7 +497,7 @@ export function NotepadScreenContent() {
                 <Text
                   style={[listStyles.segmentLabel, activeTab === "sparks" ? listStyles.segmentLabelActive : null]}
                 >
-                  Sparks
+                  {t("notepad.sparks")}
                 </Text>
                 <View style={listStyles.segmentBadge}>
                   <Text style={listStyles.segmentBadgeText}>{sparkCount}</Text>
@@ -505,7 +509,7 @@ export function NotepadScreenContent() {
           <SearchField
             value={searchQuery}
             placeholder={
-              sparkCount > 0 ? (activeTab === "sparks" ? "Search sparks" : "Search lyrics") : "Search notes"
+              sparkCount > 0 ? t(activeTab === "sparks" ? "notepad.searchSparks" : "notepad.searchLyrics") : t("notepad.searchNotes")
             }
             onChangeText={setSearchQuery}
             containerStyle={listStyles.searchField}
@@ -525,10 +529,8 @@ export function NotepadScreenContent() {
           {sections.length === 0 && isSearching ? (
             <View style={listStyles.emptyState}>
               <Ionicons name="search-outline" size={26} color={colors.textMuted} />
-              <Text style={listStyles.emptyTitle}>No matches</Text>
-              <Text style={listStyles.emptyBody}>
-                Try a different word — search looks through every page's title and body.
-              </Text>
+              <Text style={listStyles.emptyTitle}>{t("notepad.noMatches")}</Text>
+              <Text style={listStyles.emptyBody}>{t("notepad.searchHint")}</Text>
             </View>
           ) : sections.length === 0 ? (
             <View style={listStyles.emptyState}>
@@ -538,12 +540,12 @@ export function NotepadScreenContent() {
                 color={colors.textMuted}
               />
               <Text style={listStyles.emptyTitle}>
-                {activeTab === "sparks" ? "No sparks yet" : "No lyrics yet"}
+                {t(activeTab === "sparks" ? "notepad.noSparks" : "notepad.noLyrics")}
               </Text>
               <Text style={listStyles.emptyBody}>
                 {activeTab === "sparks"
-                  ? "Tap the sparkles to start a Word Ladder, Cut-Up, or Magpie."
-                  : "Tap + to write a page, or the sparkles to pull a spark."}
+                  ? t("notepad.noSparksHint")
+                  : t("notepad.noLyricsHint")}
               </Text>
             </View>
           ) : (
@@ -621,7 +623,7 @@ export function NotepadScreenContent() {
 
       <SelectionActionSheet
         visible={moreVisible}
-        title="Page actions"
+        title={t("notepad.pageActions")}
         actions={sheetActions}
         onClose={() => setMoreVisible(false)}
       />

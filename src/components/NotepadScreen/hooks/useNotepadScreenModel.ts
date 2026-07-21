@@ -7,6 +7,7 @@ import { canSaveWordSpark } from "../../../domain/proGating";
 import { hasProAccess } from "../../../domain/entitlements";
 import { openProUpsell } from "../../common/proUpsell";
 import type { Note, WordLadderExercise, CutUpSpark, MagpieSpark } from "../../../types";
+import { useTranslation } from "react-i18next";
 
 export type NotebookEntry =
   | { kind: "note"; updatedAt: number; isPinned: boolean; note: Note }
@@ -15,6 +16,7 @@ export type NotebookEntry =
   | { kind: "magpie"; updatedAt: number; isPinned: false; spark: MagpieSpark };
 
 export function useNotepadScreenModel() {
+  const { t } = useTranslation();
   const route = useRoute<any>();
   const navigation = useNavigation<any>();
   const notes = useStore((s) => s.notes);
@@ -170,15 +172,15 @@ export function useNotepadScreenModel() {
 
     const sortDesc = (a: NotebookEntry, b: NotebookEntry) => b.updatedAt - a.updatedAt;
     const buckets: Array<{ key: string; label: string; entries: NotebookEntry[] }> = [
-      { key: "pinned", label: "Pinned", entries: pinned.sort(sortDesc) },
-      { key: "today", label: "Today", entries: today.sort(sortDesc) },
-      { key: "yesterday", label: "Yesterday", entries: yesterday.sort(sortDesc) },
-      { key: "thisWeek", label: "Earlier this week", entries: thisWeek.sort(sortDesc) },
-      { key: "earlier", label: "Earlier", entries: earlier.sort(sortDesc) },
+      { key: "pinned", label: t("notepad.pinned"), entries: pinned.sort(sortDesc) },
+      { key: "today", label: t("notepad.today"), entries: today.sort(sortDesc) },
+      { key: "yesterday", label: t("notepad.yesterday"), entries: yesterday.sort(sortDesc) },
+      { key: "thisWeek", label: t("notepad.earlierWeek"), entries: thisWeek.sort(sortDesc) },
+      { key: "earlier", label: t("notepad.earlier"), entries: earlier.sort(sortDesc) },
     ];
 
     return buckets.filter((bucket) => bucket.entries.length > 0);
-  }, [activeEntries]);
+  }, [activeEntries, t]);
 
   const totalNoteCount = notes.length;
   const totalEntryCount =
@@ -451,23 +453,23 @@ export function useNotepadScreenModel() {
     notesToCopy.forEach((note) => {
       const newId = addNote();
       updateNote(newId, {
-        title: note.title.trim() ? `${note.title} (Copy)` : note.title,
+        title: note.title.trim() ? `${note.title} (${t("notepad.copySuffix")})` : note.title,
         body: note.body,
       });
     });
     cancelSelection();
     return notesToCopy.length;
-  }, [selectedNotes, addNote, updateNote, cancelSelection]);
+  }, [selectedNotes, addNote, updateNote, cancelSelection, t]);
 
   const handleShareSelected = useCallback(() => {
     const text = buildShareTextFromNotes(selectedNotes);
     if (!text) return;
     const count = selectedNotes.length;
     void Share.share({
-      title: count === 1 ? "Lyrics Pad page" : `${count} Lyrics Pad pages`,
+      title: t("notepad.shareTitle", { count }),
       message: text,
     });
-  }, [selectedNotes]);
+  }, [selectedNotes, t]);
 
   // ── Add to song ─────────────────────────────────────────────────────────
   // Hands the pending pages off to the global song-target-picker and sends the

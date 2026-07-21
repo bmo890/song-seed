@@ -1013,6 +1013,8 @@ export const resources = {
         titlePlaceholder: "Title",
         writePlaceholder: "Start writing…",
         sparkSubtitle: "Short exercises to knock loose a line you wouldn't write on purpose.",
+        pinned: "Pinned", copySuffix: "Copy", shareTitle_one: "Lyrics Pad page", shareTitle_other: "{{count}} Lyrics Pad pages",
+        today: "Today", yesterday: "Yesterday", daysAgo: "{{count}}d ago", looseLines: "Verses, hooks, and lines that don’t have a song yet.", pageCount_one: "{{count}} page of lyrics and loose lines.", pageCount_other: "{{count}} pages of lyrics and loose lines.", deleteItem_one: "Delete item?", deleteItem_other: "Delete {{count}} items?", cannotUndo: "This can’t be undone.", delete: "Delete", song: "Song", pin: "Pin", unpin: "Unpin", more: "More", duplicate: "Duplicate", share: "Share", lyricsSpark: "Lyrics Spark", lyrics: "Lyrics", sparks: "Sparks", searchSparks: "Search sparks", searchLyrics: "Search lyrics", searchNotes: "Search notes", searchHint: "Try a different word — search looks through every page’s title and body.", noSparks: "No sparks yet", noLyrics: "No lyrics yet", noSparksHint: "Tap the sparkles to start a Word Ladder, Cut-Up, or Magpie.", noLyricsHint: "Tap + to write a page, or the sparkles to pull a spark.", wordLadderMeta: "WORD LADDER · {{summary}}", cutUpMeta: "CUT-UP · {{summary}}", magpieMeta: "MAGPIE · {{summary}}",
       },
       screens: {
         activity: "Activity",
@@ -2134,6 +2136,8 @@ export const resources = {
         titlePlaceholder: "כותרת",
         writePlaceholder: "מתחילים לכתוב…",
         sparkSubtitle: "תרגילים קצרים שיעזרו לשחרר שורה שלא הייתם כותבים בכוונה.",
+        pinned: "נעוצים", copySuffix: "עותק", shareTitle_one: "עמוד מפנקס המילים", shareTitle_two: "שני עמודים מפנקס המילים", shareTitle_other: "{{count}} עמודים מפנקס המילים",
+        today: "היום", yesterday: "אתמול", daysAgo: "לפני {{count}} ימים", looseLines: "בתים, פזמונים ושורות שעדיין אין להם שיר.", pageCount_one: "עמוד אחד של מילים ושורות חופשיות.", pageCount_two: "שני עמודים של מילים ושורות חופשיות.", pageCount_other: "{{count}} עמודים של מילים ושורות חופשיות.", deleteItem_one: "למחוק את הפריט?", deleteItem_two: "למחוק שני פריטים?", deleteItem_other: "למחוק {{count}} פריטים?", cannotUndo: "לא ניתן לבטל את הפעולה.", delete: "מחיקה", song: "שיר", pin: "נעיצה", unpin: "ביטול נעיצה", more: "עוד", duplicate: "שכפול", share: "שיתוף", lyricsSpark: "ניצוץ למילים", lyrics: "מילים", sparks: "ניצוצות", searchSparks: "חיפוש ניצוצות", searchLyrics: "חיפוש מילים", searchNotes: "חיפוש הערות", searchHint: "נסו מילה אחרת — החיפוש עובר על הכותרת והתוכן של כל עמוד.", noSparks: "עדיין אין ניצוצות", noLyrics: "עדיין אין מילים", noSparksHint: "לחצו על הניצוצות כדי להתחיל סולם מילים, קאט־אפ או Magpie.", noLyricsHint: "לחצו על + כדי לכתוב עמוד, או על הניצוצות כדי למשוך ניצוץ.", wordLadderMeta: "סולם מילים · {{summary}}", cutUpMeta: "קאט־אפ · {{summary}}", magpieMeta: "MAGPIE · {{summary}}",
       },
       screens: {
         activity: "פעילות",
