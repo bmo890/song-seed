@@ -8,6 +8,7 @@ import { BACKUP_SAVE_CANCELLED_MESSAGE } from "../../../services/archiveSave";
 import { formatBytes } from "../../../utils";
 import { haptic } from "../../../design/haptics";
 import type { Workspace } from "../../../types";
+import { useTranslation } from "react-i18next";
 
 type Args = {
   activeWorkspaceCount: number;
@@ -28,19 +29,20 @@ export function useWorkspaceArchiveActions({
   selectedWorkspaces,
   viewingArchived,
 }: Args) {
+  const { t } = useTranslation();
   const [busyWorkspaceId, setBusyWorkspaceId] = useState<string | null>(null);
   const [busyAction, setBusyAction] = useState<"archive" | "restore" | "offload" | null>(null);
 
   const busyLabel = useMemo(
     () =>
       busyAction === "archive"
-        ? "ARCHIVING"
+        ? t("workspaceArchive.archiving")
         : busyAction === "restore"
-          ? "RESTORING"
+          ? t("workspaceArchive.restoring")
           : busyAction === "offload"
-            ? "MOVING"
+            ? t("workspaceArchive.moving")
             : null,
-    [busyAction]
+    [busyAction, t]
   );
 
   async function runArchiveWorkspace(workspaceId: string) {
@@ -51,22 +53,20 @@ export function useWorkspaceArchiveActions({
     try {
       const result = await appActions.archiveWorkspace(workspaceId);
       const summary = [
-        `Packed ${result.archiveState.audioFileCount} recording${
-          result.archiveState.audioFileCount === 1 ? "" : "s"
-        } into a single ${formatBytes(result.archiveState.packageSizeBytes)} package on this device.`,
+        t("workspaceArchive.packed", { count: result.archiveState.audioFileCount, size: formatBytes(result.archiveState.packageSizeBytes) }),
         // Only brag about the metadata trim when it's a number worth saying out loud.
         result.archiveState.savingsBytes >= 64 * 1024
-          ? `Your working library got ${formatBytes(result.archiveState.savingsBytes)} lighter. Restore it anytime.`
-          : "Restore it anytime.",
+          ? t("workspaceArchive.lighter", { size: formatBytes(result.archiveState.savingsBytes) })
+          : t("workspaceArchive.restoreAnytime"),
       ];
       if (result.warnings.length > 0) {
         summary.push(result.warnings.join(" "));
       }
-      AppAlert.info("Workspace archived", summary.join(" "));
+      AppAlert.info(t("workspaceArchive.archivedTitle"), summary.join(" "));
     } catch (error) {
       AppAlert.info(
-        "Archive failed",
-        error instanceof Error ? error.message : "Could not archive this workspace."
+        t("workspaceArchive.archiveFailed"),
+        t("workspaceArchive.archiveFailedBody")
       );
     } finally {
       setBusyWorkspaceId(null);
@@ -81,15 +81,15 @@ export function useWorkspaceArchiveActions({
 
     try {
       const result = await appActions.unarchiveWorkspace(workspaceId, pickedArchiveUri);
-      const summary = ["Workspace audio was restored and the workspace is active again."];
+      const summary = [t("workspaceArchive.restoredBody")];
       if (result.warnings.length > 0) {
         summary.push(result.warnings.join(" "));
       }
-      AppAlert.info("Workspace restored", summary.join(" "));
+      AppAlert.info(t("workspaceArchive.restoredTitle"), summary.join(" "));
     } catch (error) {
       AppAlert.info(
-        "Restore failed",
-        error instanceof Error ? error.message : "Could not restore this workspace."
+        t("workspaceArchive.restoreFailed"),
+        t("workspaceArchive.restoreFailedBody")
       );
     } finally {
       setBusyWorkspaceId(null);
@@ -107,7 +107,7 @@ export function useWorkspaceArchiveActions({
         copyToCacheDirectory: true,
       });
     } catch {
-      AppAlert.info("Restore failed", "Could not open the file picker.");
+      AppAlert.info(t("workspaceArchive.restoreFailed"), t("workspaceArchive.pickerFailed"));
       return;
     }
     if (picked.canceled || picked.assets.length === 0) return;
@@ -126,13 +126,13 @@ export function useWorkspaceArchiveActions({
           const result = await appActions.finalizeWorkspaceOffload(workspace.id, saved.fileName);
           haptic.success();
           AppAlert.info(
-            "Package moved",
-            `Freed ${formatBytes(result.freedBytes)} on this device. "${workspace.title}" stays in your archived list — restoring it will ask for "${saved.fileName}".`
+            t("workspaceArchive.packageMoved"),
+            t("workspaceArchive.packageMovedBody", { size: formatBytes(result.freedBytes), workspace: workspace.title, file: saved.fileName })
           );
         } catch (error) {
           AppAlert.info(
-            "Could not finish the move",
-            error instanceof Error ? error.message : "The local package was kept."
+            t("workspaceArchive.moveFinishFailed"),
+            t("workspaceArchive.localKept")
           );
         }
       };
@@ -143,19 +143,19 @@ export function useWorkspaceArchiveActions({
         // iOS share sheet can't report whether the save completed. The local package is
         // the ONLY copy until the user explicitly confirms it landed.
         AppAlert.custom(
-          "Confirm the package saved",
-          `Only confirm if "${saved.fileName}" now appears in Files, iCloud Drive, or the location you chose. The copy on this device is deleted after you confirm.`,
+          t("workspaceArchive.confirmSaved"),
+          t("workspaceArchive.confirmSavedBody", { file: saved.fileName }),
           [
-            { label: "Not Saved", style: "cancel" },
-            { label: "It Saved — Free Up Space", style: "default", icon: "checkmark", onPress: () => void finalize() },
+            { label: t("workspaceArchive.notSaved"), style: "cancel" },
+            { label: t("workspaceArchive.savedFree"), style: "default", icon: "checkmark", onPress: () => void finalize() },
           ]
         );
       }
     } catch (error) {
       if (!(error instanceof Error && error.message === BACKUP_SAVE_CANCELLED_MESSAGE)) {
         AppAlert.info(
-          "Move failed",
-          error instanceof Error ? error.message : "Could not move this workspace's package."
+          t("workspaceArchive.moveFailed"),
+          t("workspaceArchive.moveFailedBody")
         );
       }
     } finally {
@@ -172,12 +172,12 @@ export function useWorkspaceArchiveActions({
     if (!ensurePro("archive-offload")) return;
 
     AppAlert.confirm(
-      `Move "${workspace.title}" package off this device?`,
-      `Saves the ${formatBytes(workspace.archiveState.packageSizeBytes)} package to Files, iCloud Drive, or another location you choose, then deletes the copy on this device — that's the real space saver. Keep the file safe: restoring this workspace will ask for it.`,
+      t("workspaceArchive.moveTitle", { workspace: workspace.title }),
+      t("workspaceArchive.moveBody", { size: formatBytes(workspace.archiveState.packageSizeBytes) }),
       () => {
         void runOffloadWorkspace(workspace);
       },
-      { confirmLabel: "Choose Location", icon: actionIcons.archive }
+      { confirmLabel: t("workspaceArchive.chooseLocation"), icon: actionIcons.archive }
     );
   }
 
@@ -185,7 +185,7 @@ export function useWorkspaceArchiveActions({
     if (selectedWorkspaces.length === 0) return;
 
     if (action === "archive" && activeWorkspaceCount - selectedWorkspaces.length < 1) {
-      AppAlert.info("Cannot archive", "You must keep at least one active workspace.");
+      AppAlert.info(t("workspaceArchive.cannotArchive"), t("workspaceArchive.keepActive"));
       return;
     }
 
@@ -205,7 +205,7 @@ export function useWorkspaceArchiveActions({
             // Restoring an offloaded workspace needs its package file picked — a per-
             // workspace interaction that doesn't fit a bulk pass.
             failures.push(
-              `${workspace.title}: its package is in your storage — unarchive it on its own to pick the file.`
+              t("workspaceArchive.offloadedFailure", { workspace: workspace.title })
             );
             continue;
           } else {
@@ -214,9 +214,7 @@ export function useWorkspaceArchiveActions({
           successes.push(workspace.title);
         } catch (error) {
           failures.push(
-            `${workspace.title}: ${
-              error instanceof Error ? error.message : `Could not ${action} this workspace.`
-            }`
+            t("workspaceArchive.workspaceActionFailed", { workspace: workspace.title, action: t(action === "archive" ? "workspaceArchive.archive" : "workspaceArchive.unarchive") })
           );
         }
       }
@@ -228,12 +226,10 @@ export function useWorkspaceArchiveActions({
 
     if (failures.length > 0) {
       AppAlert.info(
-        action === "archive" ? "Archive incomplete" : "Restore incomplete",
+        t(action === "archive" ? "workspaceArchive.archiveIncomplete" : "workspaceArchive.restoreIncomplete"),
         [
           successes.length > 0
-            ? `${successes.length} workspace${
-                successes.length === 1 ? "" : "s"
-              } ${action === "archive" ? "archived" : "restored"}.`
+            ? t("workspaceArchive.actionSuccess", { count: successes.length, action: t(action === "archive" ? "workspaceArchiveVerbs.archived" : "workspaceArchiveVerbs.restored") })
             : null,
           failures.join("\n"),
         ]
@@ -244,10 +240,8 @@ export function useWorkspaceArchiveActions({
     }
 
     AppAlert.info(
-      action === "archive" ? "Workspaces archived" : "Workspaces restored",
-      `${successes.length} workspace${
-        successes.length === 1 ? "" : "s"
-      } ${action === "archive" ? "archived" : "restored"}.`
+      t(action === "archive" ? "workspaceArchive.workspacesArchived" : "workspaceArchive.workspacesRestored"),
+      t("workspaceArchive.actionSuccess", { count: successes.length, action: t(action === "archive" ? "workspaceArchiveVerbs.archived" : "workspaceArchiveVerbs.restored") })
     );
   }
 
@@ -255,19 +249,15 @@ export function useWorkspaceArchiveActions({
     if (selectedWorkspaces.length === 0 || busyWorkspaceId) return;
 
     AppAlert.confirm(
-      action === "archive" ? "Archive workspaces?" : "Unarchive workspaces?",
+      t(action === "archive" ? "workspaceArchive.archiveSelectedTitle" : "workspaceArchive.restoreSelectedTitle"),
       action === "archive"
-        ? `Archive ${selectedWorkspaces.length} selected workspace${
-            selectedWorkspaces.length === 1 ? "" : "s"
-          }?`
-        : `Restore ${selectedWorkspaces.length} selected workspace${
-            selectedWorkspaces.length === 1 ? "" : "s"
-          }?`,
+        ? t("workspaceArchive.archiveSelectedBody", { count: selectedWorkspaces.length })
+        : t("workspaceArchive.restoreSelectedBody", { count: selectedWorkspaces.length }),
       () => {
         void runSelectionWorkspaceArchive(action);
       },
       {
-        confirmLabel: action === "archive" ? "Archive" : "Unarchive",
+        confirmLabel: t(action === "archive" ? "workspaceArchive.archive" : "workspaceArchive.unarchive"),
         icon: action === "archive" ? actionIcons.archive : actionIcons.restore,
       }
     );
@@ -279,20 +269,16 @@ export function useWorkspaceArchiveActions({
       !viewingArchived && activeWorkspaceCount <= selectedWorkspaces.length;
 
     AppAlert.destructive(
-      "Delete workspaces?",
+      t("workspaceArchive.deleteWorkspaces"),
       deletingAllActiveSelection
-        ? `This will permanently delete ${selectedWorkspaces.length} workspace${
-            selectedWorkspaces.length === 1 ? "" : "s"
-          }. SongNook will create a fresh empty workspace so the app still has an active home context. This cannot be undone.`
-        : `This will permanently delete ${selectedWorkspaces.length} workspace${
-            selectedWorkspaces.length === 1 ? "" : "s"
-          }. This cannot be undone.`,
+        ? t("workspaceArchive.deleteAllBody", { count: selectedWorkspaces.length })
+        : t("workspaceArchive.deleteBody", { count: selectedWorkspaces.length }),
       () => {
         selectedWorkspaces.forEach((workspace) => deleteWorkspace(workspace.id));
         onClearSelection();
         onCloseSelectionMore();
       },
-      { confirmLabel: "Delete permanently" }
+      { confirmLabel: t("workspaceArchive.deletePermanently") }
     );
   }
 
@@ -300,44 +286,40 @@ export function useWorkspaceArchiveActions({
     if (busyWorkspaceId) return;
 
     if (!workspace.isArchived && activeWorkspaceCount <= 1) {
-      AppAlert.info("Cannot archive", "You must keep at least one active workspace.");
+      AppAlert.info(t("workspaceArchive.cannotArchive"), t("workspaceArchive.keepActive"));
       return;
     }
 
     if (workspace.isArchived) {
       if (workspace.archiveState?.offloadedAt) {
         AppAlert.confirm(
-          `Unarchive ${workspace.title}?`,
-          `This workspace's package was moved to your storage${
-            workspace.archiveState.offloadedFileName
-              ? ` as "${workspace.archiveState.offloadedFileName}"`
-              : ""
-          }. Pick that file to unpack it and return the workspace to your active list.`,
+          t("workspaceArchive.unarchiveTitle", { workspace: workspace.title }),
+          t("workspaceArchive.offloadedBody", { file: workspace.archiveState.offloadedFileName ? t("workspaceArchive.offloadedFile", { file: workspace.archiveState.offloadedFileName }) : "" }),
           () => {
             void pickAndRestoreOffloadedWorkspace(workspace);
           },
-          { confirmLabel: "Pick Package File", icon: actionIcons.restore }
+          { confirmLabel: t("workspaceArchive.pickPackage"), icon: actionIcons.restore }
         );
         return;
       }
       AppAlert.confirm(
-        `Unarchive ${workspace.title}?`,
-        "This unpacks the workspace's audio and returns it to your active list, exactly as it was.",
+        t("workspaceArchive.unarchiveTitle", { workspace: workspace.title }),
+        t("workspaceArchive.unarchiveBody"),
         () => {
           void runUnarchiveWorkspace(workspace.id);
         },
-        { confirmLabel: "Unarchive", icon: actionIcons.restore }
+        { confirmLabel: t("workspaceArchive.unarchive"), icon: actionIcons.restore }
       );
       return;
     }
 
     AppAlert.confirm(
-      `Archive ${workspace.title}?`,
-      "Tucks this workspace away without deleting anything: its recordings move into a single package on this device, it leaves your active list, and your working library gets lighter. Restore it anytime.",
+      t("workspaceArchive.archiveTitle", { workspace: workspace.title }),
+      t("workspaceArchive.archiveBody"),
       () => {
         void runArchiveWorkspace(workspace.id);
       },
-      { confirmLabel: "Archive", icon: actionIcons.archive }
+      { confirmLabel: t("workspaceArchive.archive"), icon: actionIcons.archive }
     );
   }
 
@@ -346,15 +328,15 @@ export function useWorkspaceArchiveActions({
     const deletingFinalActiveWorkspace = !workspace.isArchived && activeWorkspaceCount <= 1;
 
     AppAlert.destructive(
-      `Delete ${workspace.title}?`,
+      t("workspaceArchive.deleteTitle", { workspace: workspace.title }),
       deletingFinalActiveWorkspace
-        ? `This will permanently delete ${workspace.ideas.length} ideas. SongNook will create a fresh empty workspace so the app still has an active home context. This cannot be undone.`
-        : `This will permanently delete ${workspace.ideas.length} ideas. This cannot be undone.`,
+        ? t("workspaceArchive.deleteFinalBody", { count: workspace.ideas.length })
+        : t("workspaceArchive.deleteWorkspaceBody", { count: workspace.ideas.length }),
       () => {
         deleteWorkspace(workspace.id);
         closeModal();
       },
-      { confirmLabel: "Delete permanently" }
+      { confirmLabel: t("workspaceArchive.deletePermanently") }
     );
   }
 
