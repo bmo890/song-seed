@@ -103,9 +103,14 @@ export const GALLERY_CSS = `
   .slide .inner{border:1px solid var(--rule);border-radius:14px;overflow:hidden;background:#FDFBF7}
   .slide .cap{text-align:center;font-size:12.5px;color:var(--ink-soft);margin-top:9px;line-height:1.4}
   .slide .cap b{color:var(--ink);font-weight:600}
-  .lp2-fit{height:410px}
-  .lp2-screen{display:flex;flex-direction:column;min-height:482px}
-  .lp2-foot{margin-top:auto}
+  /* all three cards share one container height; each screen is vertically
+     centered inside it via a per-card margin-top (see GALLERY_HTML) computed
+     from its natural content height, so uneven content (the loop demo runs
+     much shorter) reads as a deliberately framed card, not dead space.
+     (Flex/grid centering doesn't work here — .lp2-screen is scaled via
+     transform, and alignment would center its pre-transform box instead.) */
+  .lp2-fit{height:384px}
+  .lp2-screen{display:flex;flex-direction:column}
   .dots{display:flex;gap:6px;justify-content:center;margin:14px 0 4px}
   .dot{width:6px;height:6px;border-radius:99px;background:var(--rule);transition:width .2s,background .2s}
   .dot.on{width:18px;background:var(--terra)}`;
@@ -134,10 +139,10 @@ export const GALLERY_SPRITE = `<svg width="0" height="0" style="position:absolut
 
 export const GALLERY_HTML = `<div class="gallery" id="gallery">
     <div class="slide"><div class="inner"><div class="lp2-fit">
-      <div class="lp2-screen">
+      <div class="lp2-screen" style="margin-top:7px">
         <div class="lp2-head">
           <div class="lp2-grab"></div>
-          
+
           <div class="lp2-title">Chorus — take 3</div>
           <div class="lp2-meta"><span>Spring Show</span><span style="color:#a89994">•</span><span>Jul 18</span><span style="color:#a89994">•</span><span>2 layers</span><span class="t" id="lp2-time">0:31 / 1:45</span></div>
         </div>
@@ -165,7 +170,7 @@ export const GALLERY_HTML = `<div class="gallery" id="gallery">
         </div>
       </div>
     </div></div><div class="cap"><b>Play it</b> — loop, speed, sections &amp; pins</div></div>
-    <div class="slide"><div class="inner"><div class="lp2-fit" style="height:474px">
+    <div class="slide"><div class="inner"><div class="lp2-fit">
       <div class="lp2-screen">
         <div class="lp2-head" style="padding-bottom:2px">
           <div class="lp2-grab"></div>
@@ -192,8 +197,8 @@ export const GALLERY_HTML = `<div class="gallery" id="gallery">
         </div>
       </div>
     </div></div><div class="cap"><b>Sing along</b> — lyrics &amp; chords, timed to the take</div></div>
-    <div class="slide"><div class="inner"><div class="lp2-fit" style="height:300px">
-      <div class="lp2-screen">
+    <div class="slide"><div class="inner"><div class="lp2-fit">
+      <div class="lp2-screen" style="margin-top:57px">
         <div class="lp2-head" style="padding-bottom:2px">
           <div class="lp2-grab"></div>
           <div class="lp2-nav" style="justify-content:center"><span style="font-weight:700;font-size:17px;color:#1b1c1a">Chorus — take 3</span></div>
