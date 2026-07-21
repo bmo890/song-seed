@@ -497,6 +497,11 @@ export const resources = {
         newSongbook: "New Songbook", renameSongbook: "Rename Songbook", songbookCreateHint: "Songbooks collect lyric and chord charts from any workspace.",
         editSong: "Edit Song", addSong: "Add Song",
         newSetlist: "New Setlist", renameSetlist: "Rename Setlist", setlistHint: "Setlists hold an ordered set of songs (clips + charts) to share with your band.",
+        createPlaylistA11y: "Create a new playlist", newPlaylistShort: "New playlist", playlistEmpty: "Nothing to listen to yet",
+        playlist: "Playlist", playPlaylist: "Play playlist", addTracksA11y: "Add tracks — browse your library", doneEditing: "Done editing", editPlaylist: "Edit playlist", playlistOptions: "Playlist options", reorderHint: "Drag the handle to reorder · tap − to remove", noTracks: "No tracks yet", addTracks: "Add tracks", unavailableTrack: "Unavailable — skipped during playback", renamePlaylistAction: "Rename playlist", deletePlaylist: "Delete playlist",
+        createSongbook: "Create Songbook", noSongbooks: "No songbooks yet", openBook: "Open the book", addBookSongs: "Add songs to this book", editBook: "Edit book", songbookOptions: "Songbook options", bookEmpty: "Nothing in this book yet", addSongs: "Add songs", missing: "No longer in the library", renameBook: "Rename book", shareFile: "Share as file", getLink: "Get a link", shareText: "Share as text", deleteBook: "Delete book",
+        createSetlist: "Create Setlist", noSetlists: "No setlists yet", playSet: "Play the whole set", addSetSong: "Add a song to this set", editSet: "Edit set", setlistOptions: "Setlist options", setEmpty: "No songs in this set", addSongShort: "Add a song", renameSet: "Rename set", shareSet: "Share set", deleteSet: "Delete set",
+        pickSong: "Pick a song to pack into the set.", browseCollections: "Browse your collections instead", noSongs: "No songs available.", includeEverything: "Include everything from this song", everything: "Everything", takesParts: "Takes & parts", noClips: "No clips recorded for this song.", chartsNotes: "Charts & notes", chordChart: "Chord chart", songNotes: "Song notes", noCharts: "No charts on this song yet.",
       },
       restoreGate: {
         title: "Restore complete",
@@ -1543,6 +1548,11 @@ export const resources = {
         newSongbook: "ספר שירים חדש", renameSongbook: "שינוי שם ספר השירים", songbookCreateHint: "ספרי שירים אוספים דפי מילים ותרשימי אקורדים מכל מרחב עבודה.",
         editSong: "עריכת שיר", addSong: "הוספת שיר",
         newSetlist: "סטליסט חדש", renameSetlist: "שינוי שם הסטליסט", setlistHint: "סטליסטים מחזיקים מערך מסודר של שירים, קטעים ותרשימים לשיתוף עם הלהקה.",
+        createPlaylistA11y: "יצירת פלייליסט חדש", newPlaylistShort: "פלייליסט חדש", playlistEmpty: "עדיין אין מה לשמוע",
+        playlist: "פלייליסט", playPlaylist: "ניגון הפלייליסט", addTracksA11y: "הוספת רצועות — עיון בספרייה", doneEditing: "סיום עריכה", editPlaylist: "עריכת הפלייליסט", playlistOptions: "אפשרויות הפלייליסט", reorderHint: "גררו את הידית לשינוי הסדר · לחצו על − להסרה", noTracks: "עדיין אין רצועות", addTracks: "הוספת רצועות", unavailableTrack: "לא זמין — ידולג בניגון", renamePlaylistAction: "שינוי שם הפלייליסט", deletePlaylist: "מחיקת הפלייליסט",
+        createSongbook: "יצירת ספר שירים", noSongbooks: "עדיין אין ספרי שירים", openBook: "פתיחת הספר", addBookSongs: "הוספת שירים לספר", editBook: "עריכת הספר", songbookOptions: "אפשרויות ספר השירים", bookEmpty: "הספר עדיין ריק", addSongs: "הוספת שירים", missing: "כבר לא נמצא בספרייה", renameBook: "שינוי שם הספר", shareFile: "שיתוף כקובץ", getLink: "קבלת קישור", shareText: "שיתוף כטקסט", deleteBook: "מחיקת הספר",
+        createSetlist: "יצירת סטליסט", noSetlists: "עדיין אין סטליסטים", playSet: "ניגון כל הסט", addSetSong: "הוספת שיר לסט", editSet: "עריכת הסט", setlistOptions: "אפשרויות הסטליסט", setEmpty: "אין שירים בסט הזה", addSongShort: "הוספת שיר", renameSet: "שינוי שם הסט", shareSet: "שיתוף הסט", deleteSet: "מחיקת הסט",
+        pickSong: "בחרו שיר לאריזה בתוך הסט.", browseCollections: "עיון באוספים במקום", noSongs: "אין שירים זמינים.", includeEverything: "הכללת כל תוכן השיר", everything: "הכול", takesParts: "טייקים וחלקים", noClips: "אין קטעים מוקלטים בשיר.", chartsNotes: "תרשימים והערות", chordChart: "תרשים אקורדים", songNotes: "הערות לשיר", noCharts: "עדיין אין תרשימים בשיר.",
       },
       restoreGate: {
         title: "השחזור הושלם",

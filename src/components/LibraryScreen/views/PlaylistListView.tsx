@@ -4,6 +4,7 @@ import { colors, radii, spacing, text as textTokens } from "../../../design/toke
 import { styles } from "../styles";
 import { useStore } from "../../../state/useStore";
 import type { Playlist } from "../../../types";
+import { useTranslation } from "react-i18next";
 
 function formatPlaylistUpdatedAt(timestamp: number) {
   const now = Date.now();
@@ -24,6 +25,7 @@ export function PlaylistListView({
   onCreatePlaylist: () => void;
   onOpenPlaylist: (playlistId: string) => void;
 }) {
+  const { t } = useTranslation();
   const playerDockHeight = useStore((s) => s.playerDockHeight);
 
   return (
@@ -36,12 +38,12 @@ export function PlaylistListView({
         style={({ pressed }) => [listStyles.createRow, pressed ? styles.pressDown : null]}
         onPress={onCreatePlaylist}
         accessibilityRole="button"
-        accessibilityLabel="Create a new playlist"
+        accessibilityLabel={t("library.createPlaylistA11y")}
       >
         <View style={listStyles.createIcon}>
           <Ionicons name="add" size={17} color={colors.onPrimary} />
         </View>
-        <Text style={listStyles.createLabel}>New playlist</Text>
+        <Text style={listStyles.createLabel}>{t("library.newPlaylistShort")}</Text>
       </Pressable>
 
       <View style={listStyles.listStack}>
@@ -71,7 +73,7 @@ export function PlaylistListView({
       {playlists.length === 0 ? (
         <View style={listStyles.emptyWrap}>
           <Ionicons name="musical-notes-outline" size={24} color={colors.textMuted} />
-          <Text style={listStyles.emptyTitle}>Nothing to listen to yet</Text>
+          <Text style={listStyles.emptyTitle}>{t("library.playlistEmpty")}</Text>
           <Text style={listStyles.emptyBody}>
             A playlist is an ordered listening queue — pull clips and songs from anywhere in your
             library and play them back to back.

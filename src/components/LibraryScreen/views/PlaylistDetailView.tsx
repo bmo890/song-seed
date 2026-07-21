@@ -11,6 +11,7 @@ import { NowPlayingIndicator } from "../../common/NowPlayingIndicator";
 import { useStore } from "../../../state/useStore";
 import type { Playlist } from "../../../types";
 import type { PlaylistTrack } from "../../../domain/playlistPlayback";
+import { useTranslation } from "react-i18next";
 
 function formatTotalDuration(ms: number | null) {
   if (ms == null) return null;
@@ -67,6 +68,7 @@ export function PlaylistDetailView({
   onRemoveItem: (itemId: string) => void;
   onReorderItems: (orderedItemIds: string[]) => void;
 }) {
+  const { t } = useTranslation();
   const [menuVisible, setMenuVisible] = useState(false);
   // Keep the last tracks scrollable above the media dock once playback starts.
   const playerDockHeight = useStore((s) => s.playerDockHeight);
@@ -81,7 +83,7 @@ export function PlaylistDetailView({
 
   const header = (
     <View style={detailStyles.header}>
-      <Text style={detailStyles.eyebrow}>Playlist</Text>
+      <Text style={detailStyles.eyebrow}>{t("library.playlist")}</Text>
       <Text style={detailStyles.title} numberOfLines={2}>
         {playlist.title}
       </Text>
@@ -103,7 +105,7 @@ export function PlaylistDetailView({
             }
           }}
           accessibilityRole="button"
-          accessibilityLabel={isPlaylistActive && isPlaying ? "Pause" : "Play playlist"}
+          accessibilityLabel={isPlaylistActive && isPlaying ? t("common.pause") : t("library.playPlaylist")}
         >
           <Ionicons
             name={isPlaylistActive && isPlaying ? "pause" : "play"}
@@ -117,7 +119,7 @@ export function PlaylistDetailView({
           style={({ pressed }) => [detailStyles.quietBtn, pressed ? styles.pressDown : null]}
           onPress={onAddItems}
           accessibilityRole="button"
-          accessibilityLabel="Add tracks — browse your library"
+          accessibilityLabel={t("library.addTracksA11y")}
         >
           <Ionicons name="add" size={19} color={colors.textStrong} />
         </Pressable>
@@ -130,7 +132,7 @@ export function PlaylistDetailView({
           ]}
           onPress={onToggleEditMode}
           accessibilityRole="button"
-          accessibilityLabel={editMode ? "Done editing" : "Edit playlist"}
+          accessibilityLabel={editMode ? t("library.doneEditing") : t("library.editPlaylist")}
         >
           <Ionicons
             name={editMode ? "checkmark" : "pencil"}
@@ -145,14 +147,14 @@ export function PlaylistDetailView({
           style={({ pressed }) => [detailStyles.quietBtn, pressed ? styles.pressDown : null]}
           onPress={() => setMenuVisible(true)}
           accessibilityRole="button"
-          accessibilityLabel="Playlist options"
+          accessibilityLabel={t("library.playlistOptions")}
         >
           <Ionicons name="ellipsis-horizontal" size={16} color={colors.textStrong} />
         </Pressable>
       </View>
 
       {editMode ? (
-        <Text style={detailStyles.editHint}>Drag the handle to reorder · tap − to remove</Text>
+        <Text style={detailStyles.editHint}>{t("library.reorderHint")}</Text>
       ) : null}
     </View>
   );
@@ -170,7 +172,7 @@ export function PlaylistDetailView({
         ListEmptyComponent={
           <View style={detailStyles.emptyWrap}>
             <Ionicons name="musical-notes-outline" size={26} color={colors.textMuted} />
-            <Text style={detailStyles.emptyTitle}>No tracks yet</Text>
+            <Text style={detailStyles.emptyTitle}>{t("library.noTracks")}</Text>
             <Text style={detailStyles.emptyBody}>
               Browse your library, preview clips, and add the keepers here.
             </Text>
@@ -179,7 +181,7 @@ export function PlaylistDetailView({
               onPress={onAddItems}
             >
               <Ionicons name="add" size={15} color={colors.onPrimary} />
-              <Text style={detailStyles.emptyAddLabel}>Add tracks</Text>
+              <Text style={detailStyles.emptyAddLabel}>{t("library.addTracks")}</Text>
             </Pressable>
           </View>
         }
@@ -239,7 +241,7 @@ export function PlaylistDetailView({
                   style={[detailStyles.trackContext, !track.available ? detailStyles.trackContextMissing : null]}
                   numberOfLines={1}
                 >
-                  {track.available ? track.context : "Unavailable — skipped during playback"}
+                  {track.available ? track.context : t("library.unavailableTrack")}
                 </Text>
               </Pressable>
 
@@ -267,18 +269,18 @@ export function PlaylistDetailView({
 
       <SelectionActionSheet
         visible={menuVisible}
-        title="Playlist options"
+        title={t("library.playlistOptions")}
         onClose={() => setMenuVisible(false)}
         actions={[
           {
             key: "rename",
-            label: "Rename playlist",
+            label: t("library.renamePlaylistAction"),
             icon: "pencil-outline",
             onPress: onRename,
           },
           {
             key: "delete",
-            label: "Delete playlist",
+            label: t("library.deletePlaylist"),
             icon: "trash-outline",
             tone: "danger",
             onPress: onDelete,

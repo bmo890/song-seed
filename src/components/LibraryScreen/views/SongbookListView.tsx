@@ -4,6 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { Button } from "../../common/Button";
 import { styles } from "../styles";
 import type { Songbook } from "../../../types";
+import { useTranslation } from "react-i18next";
 
 export function SongbookListView({
   songbooks,
@@ -14,6 +15,7 @@ export function SongbookListView({
   onCreate: () => void;
   onOpen: (id: string) => void;
 }) {
+  const { t } = useTranslation();
   return (
     <ScrollView
       style={styles.flexFill}
@@ -21,7 +23,7 @@ export function SongbookListView({
       showsVerticalScrollIndicator={false}
     >
       <View style={styles.inputRow}>
-        <Button label="Create Songbook" onPress={onCreate} />
+        <Button label={t("library.createSongbook")} onPress={onCreate} />
       </View>
 
       <View style={styles.listContent}>
@@ -46,7 +48,7 @@ export function SongbookListView({
 
         {songbooks.length === 0 ? (
           <View style={styles.card}>
-            <Text style={styles.cardTitle}>No songbooks yet</Text>
+            <Text style={styles.cardTitle}>{t("library.noSongbooks")}</Text>
             <Text style={styles.cardMeta}>
               Collect lyric and chord charts from any workspace into a songbook to keep your written music
               together.

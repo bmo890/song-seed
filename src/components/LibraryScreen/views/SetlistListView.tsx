@@ -4,6 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { Button } from "../../common/Button";
 import { styles } from "../styles";
 import type { Setlist } from "../../../types";
+import { useTranslation } from "react-i18next";
 
 export function SetlistListView({
   setlists,
@@ -14,6 +15,7 @@ export function SetlistListView({
   onCreate: () => void;
   onOpen: (id: string) => void;
 }) {
+  const { t } = useTranslation();
   return (
     <ScrollView
       style={styles.flexFill}
@@ -21,7 +23,7 @@ export function SetlistListView({
       showsVerticalScrollIndicator={false}
     >
       <View style={styles.inputRow}>
-        <Button label="Create Setlist" onPress={onCreate} />
+        <Button label={t("library.createSetlist")} onPress={onCreate} />
       </View>
 
       <View style={styles.listContent}>
@@ -46,7 +48,7 @@ export function SetlistListView({
 
         {setlists.length === 0 ? (
           <View style={styles.card}>
-            <Text style={styles.cardTitle}>No setlists yet</Text>
+            <Text style={styles.cardTitle}>{t("library.noSetlists")}</Text>
             <Text style={styles.cardMeta}>
               Build an ordered set of songs — pick the clips and charts each one needs — then share it as a
               ready-to-play file for your band.
