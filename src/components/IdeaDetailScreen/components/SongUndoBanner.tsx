@@ -1,8 +1,10 @@
 import { Pressable, Text, View } from "react-native";
 import { styles } from "../styles";
 import { useSongScreen } from "../provider/SongScreenProvider";
+import { useTranslation } from "react-i18next";
 
 export function SongUndoBanner() {
+  const { t } = useTranslation();
   const { undo } = useSongScreen();
 
   if (!undo.undoState) {
@@ -22,7 +24,7 @@ export function SongUndoBanner() {
             undo.clearUndo();
           }}
         >
-          <Text style={styles.ideasUndoBtnText}>Undo</Text>
+          <Text style={styles.ideasUndoBtnText}>{t("chordChart.undo")}</Text>
         </Pressable>
       </View>
     </View>

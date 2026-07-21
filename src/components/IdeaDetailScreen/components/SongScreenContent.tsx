@@ -15,15 +15,17 @@ import { SongImportModal } from "./SongImportModal";
 import { SongParentPickBanner } from "./SongParentPickBanner";
 import { SongUndoBanner } from "./SongUndoBanner";
 import { SongEditSheet } from "./SongEditSheet";
+import { useTranslation } from "react-i18next";
 
 export function SongScreenContent() {
+  const { t } = useTranslation();
   const { screen, parentPicking, store, actions, importFlow, editFlow } = useSongScreen();
 
   if (!screen.selectedIdea) {
     return (
       <SafeAreaView style={styles.screen}>
         <ScreenHeader
-          title="Song"
+          title={t("songDetail.song")}
           leftIcon="back"
           onLeftPress={() => {
             if ((screen.navigation as any).canGoBack?.()) {
@@ -36,7 +38,7 @@ export function SongScreenContent() {
             });
           }}
         />
-        <Text style={styles.emptyText}>This song could not be found.</Text>
+        <Text style={styles.emptyText}>{t("songDetail.notFound")}</Text>
       </SafeAreaView>
     );
   }
@@ -68,7 +70,7 @@ export function SongScreenContent() {
           menuItems={[
             {
               key: "import",
-              label: "Import",
+              label: t("songDetail.import"),
               icon: "download-outline",
               onPress: () => {
                 void importFlow.openImportAudioFlow();

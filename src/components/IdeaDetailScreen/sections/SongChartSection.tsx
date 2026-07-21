@@ -12,8 +12,10 @@ import { ChordExportSheet } from "../../LyricsVersionScreen/components/chords/Ch
 import { styles } from "../styles";
 import { useSongScreen } from "../provider/SongScreenProvider";
 import { CollapsingTabStage } from "../components/CollapsingTabStage";
+import { useTranslation } from "react-i18next";
 
 export function SongChartSection() {
+  const { t } = useTranslation();
   const { screen } = useSongScreen();
   const idea = screen.selectedIdea;
   const model = useChordSheetModel(idea?.kind === "project" ? idea.id : undefined);
@@ -75,7 +77,7 @@ export function SongChartSection() {
               onPress={model.undo}
               disabled={!model.canUndo}
               hitSlop={6}
-              accessibilityLabel="Undo"
+              accessibilityLabel={t("chordChart.undo")}
             >
               <Ionicons
                 name="arrow-undo-outline"
@@ -88,7 +90,7 @@ export function SongChartSection() {
               onPress={model.redo}
               disabled={!model.canRedo}
               hitSlop={6}
-              accessibilityLabel="Redo"
+              accessibilityLabel={t("chordChart.redo")}
             >
               <Ionicons
                 name="arrow-redo-outline"
@@ -110,7 +112,7 @@ export function SongChartSection() {
               onPress={() => setIsEditing(false)}
               hitSlop={6}
             >
-              <Text style={chartControls.editPillText}>Done</Text>
+              <Text style={chartControls.editPillText}>{t("common.done")}</Text>
             </Pressable>
           </View>
         </View>
@@ -158,7 +160,7 @@ export function SongChartSection() {
                 style={({ pressed }) => [chartControls.iconBtn, pressed ? appStyles.pressDown : null]}
                 onPress={() => setFullViewOpen(true)}
                 hitSlop={6}
-                accessibilityLabel="Full view"
+                accessibilityLabel={t("chordChart.fullView")}
               >
                 <Ionicons name="expand-outline" size={19} color={colors.primary} />
               </Pressable>
@@ -166,7 +168,7 @@ export function SongChartSection() {
                 style={({ pressed }) => [chartControls.iconBtn, pressed ? appStyles.pressDown : null]}
                 onPress={() => setExportVisible(true)}
                 hitSlop={6}
-                accessibilityLabel="Export"
+                accessibilityLabel={t("chordChart.export")}
               >
                 <Ionicons name="share-outline" size={18} color={colors.textSecondary} />
               </Pressable>
@@ -175,7 +177,7 @@ export function SongChartSection() {
               style={({ pressed }) => [chartControls.editIconBtn, pressed ? appStyles.pressDown : null]}
               onPress={() => setIsEditing(true)}
               hitSlop={6}
-              accessibilityLabel="Edit"
+              accessibilityLabel={t("chordChart.edit")}
             >
               <Ionicons name="pencil" size={18} color={colors.onPrimary} />
             </Pressable>
@@ -189,7 +191,7 @@ export function SongChartSection() {
 
       <ChordSheetFullView
         visible={fullViewOpen}
-        title={model.projectIdea?.title ?? "Chord chart"}
+        title={model.projectIdea?.title ?? t("songDetail.chartFallback")}
         sheet={model.sheet}
         onClose={() => setFullViewOpen(false)}
       />

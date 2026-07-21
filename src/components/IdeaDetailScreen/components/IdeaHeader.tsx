@@ -16,8 +16,11 @@ import { AppAlert } from "../../common/AppAlert";
 import { useStore } from "../../../state/useStore";
 import { haptic } from "../../../design/haptics";
 import { colors } from "../../../design/tokens";
+import { useTranslation } from "react-i18next";
+import { UserText } from "../../../i18n";
 
 export function IdeaHeader() {
+  const { t } = useTranslation();
   const [headerMenuOpen, setHeaderMenuOpen] = useState(false);
   const { screen, editFlow, actions } = useSongScreen();
   // While clips are selected, the bottom bar already offers a clip "Delete". Disable
@@ -31,7 +34,7 @@ export function IdeaHeader() {
   const isEditMode = screen.isEditMode;
   const playAllDisabled = !screen.isProject || actions.buildProjectQueue().length === 0;
   const isNewProjectDraft = selectedIdea.isDraft;
-  const titleLabel = selectedIdea.kind === "project" ? "Song" : "Clip";
+  const titleLabel = selectedIdea.kind === "project" ? t("songDetail.song") : t("songDetail.clip");
   const isProject = selectedIdea.kind === "project";
   const scrollY = screen.scrollY;
   const collapsibleHeaderHeight = screen.collapsibleHeaderHeight;
@@ -58,7 +61,7 @@ export function IdeaHeader() {
         <Pressable
           testID="song-header-back"
           accessibilityRole="button"
-          accessibilityLabel="Back"
+          accessibilityLabel={t("common.back")}
           style={({ pressed }) => [
             {
               minHeight: 36,
@@ -79,9 +82,9 @@ export function IdeaHeader() {
             style={[styles.songDetailCompactTitleWrap, compactTitleAnimStyle]}
             pointerEvents="none"
           >
-            <Text style={styles.songDetailNavCompactTitle} numberOfLines={1}>
+            <UserText value={selectedIdea.title} style={styles.songDetailNavCompactTitle} numberOfLines={1}>
               {selectedIdea.title}
-            </Text>
+            </UserText>
           </Animated.View>
         </View>
 
@@ -98,7 +101,7 @@ export function IdeaHeader() {
               }}
             >
               <Text style={styles.songDetailNavTextActionText}>
-                {selectedIdea.isDraft ? "Discard" : "Cancel"}
+                {selectedIdea.isDraft ? t("songDetail.discard") : t("common.cancel")}
               </Text>
             </Pressable>
             <Pressable
@@ -112,7 +115,7 @@ export function IdeaHeader() {
                 editFlow.handleSave();
               }}
             >
-              <Text style={styles.songDetailNavTextActionPrimaryText}>Save</Text>
+              <Text style={styles.songDetailNavTextActionPrimaryText}>{t("common.save")}</Text>
             </Pressable>
           </View>
         ) : (
@@ -121,7 +124,7 @@ export function IdeaHeader() {
             tone="muted"
             size={20}
             onPress={() => setHeaderMenuOpen((prev) => !prev)}
-            accessibilityLabel="More options"
+            accessibilityLabel={t("common.moreOptions")}
           />
         )}
       </View>
@@ -130,11 +133,11 @@ export function IdeaHeader() {
           so their title block stays in the collapsing overlay. */}
       {isEditMode && !isProject ? (
         <View style={styles.songDetailTitleBlock}>
-          <Text style={styles.songDetailTypeLabel}>Editing {titleLabel}</Text>
+          <Text style={styles.songDetailTypeLabel}>{t("songDetail.editing", { type: titleLabel })}</Text>
           <TitleInput
             value={screen.draftTitle}
             onChangeText={screen.setDraftTitle}
-            placeholder={`${isProject ? "Song" : "Clip"} title`}
+            placeholder={isProject ? t("songDetail.songTitle") : t("songDetail.clipTitle")}
             containerStyle={styles.songDetailTitleInputWrap}
             minHeight={40}
             maxHeight={92}
@@ -160,7 +163,7 @@ export function IdeaHeader() {
               }}
             >
               <Text style={styles.ideasSortMenuItemText}>
-                {isProject ? "Edit song" : "Edit clip"}
+                {isProject ? t("songDetail.editSong") : t("songDetail.editClip")}
               </Text>
               <Ionicons name="create-outline" size={15} color={colors.textStrong} />
             </Pressable>
@@ -180,7 +183,7 @@ export function IdeaHeader() {
                     actions.playProjectQueue();
                   }}
                 >
-                  <Text style={styles.ideasSortMenuItemText}>Play all</Text>
+                  <Text style={styles.ideasSortMenuItemText}>{t("songDetail.playAll")}</Text>
                   <Ionicons name="play-outline" size={15} color={colors.textStrong} />
                 </Pressable>
               </>
@@ -195,7 +198,7 @@ export function IdeaHeader() {
                     appActions.convertSelectedClipIdeaToProject();
                   }}
                 >
-                  <Text style={styles.ideasSortMenuItemText}>Make song</Text>
+                  <Text style={styles.ideasSortMenuItemText}>{t("songDetail.makeSong")}</Text>
                   <Ionicons name="albums-outline" size={15} color={colors.textStrong} />
                 </Pressable>
               </>
@@ -213,20 +216,20 @@ export function IdeaHeader() {
                   onPress={() => {
                     setHeaderMenuOpen(false);
                     AppAlert.destructive(
-                      isProject ? "Delete song?" : "Delete clip?",
+                      isProject ? t("songDetail.deleteSongTitle") : t("songDetail.deleteClipTitle"),
                       isProject
-                        ? `Delete "${selectedIdea.title}" and all its clips?`
-                        : `Delete "${selectedIdea.title}"?`,
+                        ? t("songDetail.deleteSongBody", { title: selectedIdea.title })
+                        : t("songDetail.deleteClipBody", { title: selectedIdea.title }),
                       () => {
                         appActions.deleteSelectedIdea();
                         screen.navigation.goBack();
                       },
-                      { confirmLabel: "Delete" }
+                      { confirmLabel: t("common.delete") }
                     );
                   }}
                 >
                   <Text style={isSelectingClips ? styles.ideasSortMenuItemText : styles.songDetailDangerMenuText}>
-                    {isProject ? "Delete song" : "Delete clip"}
+                    {isProject ? t("songDetail.deleteSong") : t("songDetail.deleteClip")}
                   </Text>
                   <Ionicons name="trash-outline" size={15} color={isSelectingClips ? "#a89a96" : colors.danger} />
                 </Pressable>

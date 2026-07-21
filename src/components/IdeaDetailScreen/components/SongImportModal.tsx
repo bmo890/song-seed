@@ -3,8 +3,10 @@ import { buildImportHelperText } from "../../../domain/importDates";
 import { buildImportedTitle } from "../../../services/audioStorage";
 import { ensureUniqueCountedTitle } from "../../../utils";
 import { useSongScreen } from "../provider/SongScreenProvider";
+import { useTranslation } from "react-i18next";
 
 export function SongImportModal() {
+  const { t } = useTranslation();
   const { screen, importFlow } = useSongScreen();
 
   if (!screen.selectedIdea) {
@@ -14,7 +16,7 @@ export function SongImportModal() {
   return (
     <QuickNameModal
       visible={importFlow.importModalOpen}
-      title="Import audio into song"
+      title={t("songDetail.importAudio")}
       draftValue={importFlow.importDraft}
       placeholderValue={
         importFlow.importAsset
@@ -29,11 +31,14 @@ export function SongImportModal() {
         void importFlow.saveImportedAudio();
       }}
       helperText={buildImportHelperText(
-        `Destination: ${screen.selectedIdea.title} as a new clip version.\nFile: ${importFlow.importAsset?.name ?? "Selected audio"}`,
+        t("songDetail.importDestination", {
+          title: screen.selectedIdea.title,
+          file: importFlow.importAsset?.name ?? t("songDetail.selectedAudio"),
+        }),
         importFlow.importAsset ? [importFlow.importAsset] : [],
         importFlow.importDatePreference
       )}
-      saveLabel="Import"
+      saveLabel={t("songDetail.import")}
       saveDisabled={false}
       cancelDisabled={false}
     />

@@ -5,6 +5,8 @@ import { styles } from "../styles";
 import { appActions } from "../../../state/actions";
 import { SongNotesEditor } from "./SongNotesEditor";
 import { colors } from "../../../design/tokens";
+import { useTranslation } from "react-i18next";
+import { UserText } from "../../../i18n";
 
 type IdeaNotesProps = {
     isEditMode: boolean;
@@ -23,6 +25,7 @@ export function IdeaNotes({
     compactRow = false,
     tabMode = false,
 }: IdeaNotesProps) {
+    const { t } = useTranslation();
     const [isEditingNotes, setIsEditingNotes] = useState(false);
 
     // Editing isn't available while the song itself is being edited.
@@ -53,8 +56,8 @@ export function IdeaNotes({
                         onPress={() => setIsEditingNotes(true)}
                     >
                         <Ionicons name="document-text-outline" size={32} color={colors.textMuted} />
-                        <Text style={styles.songNotesTabEmptyTitle}>No notes yet</Text>
-                        <Text style={styles.songNotesTabEmptySubtitle}>Tap to start writing</Text>
+                        <Text style={styles.songNotesTabEmptyTitle}>{t("songDetail.noNotes")}</Text>
+                        <Text style={styles.songNotesTabEmptySubtitle}>{t("songDetail.tapWrite")}</Text>
                     </Pressable>
                     {editor}
                 </>
@@ -74,21 +77,21 @@ export function IdeaNotes({
                     <View style={styles.songDetailMiniCardHeader}>
                         <View style={styles.songDetailMiniCardTitleWrap}>
                             <Ionicons name="create-outline" size={14} color={colors.textSecondary} />
-                            <Text style={styles.songDetailMiniCardTitle}>Notes</Text>
+                            <Text style={styles.songDetailMiniCardTitle}>{t("songDetail.notes")}</Text>
                         </View>
                         <View style={styles.songDetailMiniCardActionWrap}>
-                            <Text style={styles.songDetailMiniCardActionText}>Edit</Text>
+                            <Text style={styles.songDetailMiniCardActionText}>{t("songDetail.edit")}</Text>
                             <Ionicons name="chevron-forward" size={14} color={colors.textMuted} />
                         </View>
                     </View>
-                    <Text style={styles.songNotesTabBody}>{notes.trim()}</Text>
+                    <UserText value={notes.trim()} style={styles.songNotesTabBody}>{notes.trim()}</UserText>
                 </Pressable>
                 {editor}
             </>
         );
     }
 
-    const actionLabel = isEditMode ? "Locked" : notes.trim() ? "Edit" : "Add";
+    const actionLabel = isEditMode ? t("songDetail.locked") : notes.trim() ? t("songDetail.edit") : t("songDetail.add");
 
     if (compactRow) {
         return (
@@ -107,7 +110,7 @@ export function IdeaNotes({
                     <View style={styles.songDetailSummaryLinkHeader}>
                         <View style={styles.songDetailSummaryLinkLead}>
                             <Ionicons name="create-outline" size={14} color={colors.textSecondary} />
-                            <Text style={styles.songDetailSummaryLinkTitle}>Notes</Text>
+                            <Text style={styles.songDetailSummaryLinkTitle}>{t("songDetail.notes")}</Text>
                         </View>
                         <View style={styles.songDetailSummaryLinkMetaWrap}>
                             <Text style={styles.songDetailSummaryLinkMetaText}>{actionLabel}</Text>
@@ -116,9 +119,9 @@ export function IdeaNotes({
                             ) : null}
                         </View>
                     </View>
-                    <Text style={styles.songDetailSummaryLinkBody} numberOfLines={1}>
-                        {notes.trim() || "No notes yet"}
-                    </Text>
+                    <UserText value={notes.trim()} style={styles.songDetailSummaryLinkBody} numberOfLines={1}>
+                        {notes.trim() || t("songDetail.noNotes")}
+                    </UserText>
                 </Pressable>
                 {editor}
             </>
@@ -141,7 +144,7 @@ export function IdeaNotes({
                 <View style={styles.songDetailMiniCardHeader}>
                     <View style={styles.songDetailMiniCardTitleWrap}>
                         <Ionicons name="create-outline" size={14} color={colors.textSecondary} />
-                        <Text style={styles.songDetailMiniCardTitle}>Notes</Text>
+                        <Text style={styles.songDetailMiniCardTitle}>{t("songDetail.notes")}</Text>
                     </View>
                     <View style={styles.songDetailMiniCardActionWrap}>
                         <Text style={styles.songDetailMiniCardActionText}>{actionLabel}</Text>
@@ -150,9 +153,9 @@ export function IdeaNotes({
                         ) : null}
                     </View>
                 </View>
-                <Text style={styles.songDetailMiniCardBody} numberOfLines={previewLines}>
-                    {notes.trim() || "No notes yet."}
-                </Text>
+                <UserText value={notes.trim()} style={styles.songDetailMiniCardBody} numberOfLines={previewLines}>
+                    {notes.trim() || t("songDetail.noNotesPeriod")}
+                </UserText>
             </Pressable>
             {editor}
         </>

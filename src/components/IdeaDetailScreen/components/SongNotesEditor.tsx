@@ -13,6 +13,8 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { styles as appStyles } from "../../../styles";
 import { colors, radii, spacing } from "../../../design/tokens";
+import { useTranslation } from "react-i18next";
+import { UserTextInput } from "../../../i18n";
 
 type Props = {
   visible: boolean;
@@ -25,6 +27,7 @@ type Props = {
  * above the keyboard (KeyboardAvoidingView) so the keyboard never covers what
  * you're writing, and the field scrolls internally for long notes. */
 export function SongNotesEditor({ visible, initialNotes, onSave, onClose }: Props) {
+  const { t } = useTranslation();
   const [draft, setDraft] = useState(initialNotes);
 
   useEffect(() => {
@@ -44,15 +47,15 @@ export function SongNotesEditor({ visible, initialNotes, onSave, onClose }: Prop
               onPress={onClose}
               hitSlop={6}
             >
-              <Text style={styles.cancelText}>Cancel</Text>
+              <Text style={styles.cancelText}>{t("common.cancel")}</Text>
             </Pressable>
-            <Text style={styles.title}>Notes</Text>
+            <Text style={styles.title}>{t("songDetail.notes")}</Text>
             <Pressable
               style={({ pressed }) => [styles.saveBtn, pressed ? appStyles.pressDown : null]}
               onPress={() => onSave(draft)}
               hitSlop={6}
             >
-              <Text style={styles.saveText}>Save</Text>
+              <Text style={styles.saveText}>{t("common.save")}</Text>
             </Pressable>
           </View>
 
@@ -63,11 +66,11 @@ export function SongNotesEditor({ visible, initialNotes, onSave, onClose }: Prop
             keyboardDismissMode="interactive"
             showsVerticalScrollIndicator={false}
           >
-            <TextInput
+            <UserTextInput
               style={styles.body}
               value={draft}
               onChangeText={setDraft}
-              placeholder="Write your notes here…"
+              placeholder={t("songDetail.notesPlaceholder")}
               placeholderTextColor={colors.textMuted}
               multiline
               textAlignVertical="top"

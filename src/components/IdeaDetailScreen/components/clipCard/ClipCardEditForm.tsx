@@ -2,6 +2,8 @@ import { TextInput, View } from "react-native";
 import { Button } from "../../../common/Button";
 import { TitleInput } from "../../../common/TitleInput";
 import { styles } from "../../styles";
+import { useTranslation } from "react-i18next";
+import { UserTextInput } from "../../../../i18n";
 
 type ClipCardEditFormProps = {
   titleDraft: string;
@@ -20,23 +22,24 @@ export function ClipCardEditForm({
   onSave,
   onCancel,
 }: ClipCardEditFormProps) {
+  const { t } = useTranslation();
   return (
     <View style={styles.inputRow}>
       <TitleInput
         value={titleDraft}
         onChangeText={onChangeTitle}
-        placeholder="Clip title"
+        placeholder={t("songDetail.clipTitle")}
         containerStyle={{ marginHorizontal: 0, marginBottom: 8 }}
       />
-      <TextInput
+      <UserTextInput
         style={styles.notesInput}
         multiline
-        placeholder="Clip notes"
+        placeholder={t("songDetail.clipNotes")}
         value={notesDraft}
         onChangeText={onChangeNotes}
       />
-      <Button variant="secondary" label="Save" onPress={onSave} />
-      <Button variant="secondary" label="Cancel" onPress={onCancel} />
+      <Button variant="secondary" label={t("common.save")} onPress={onSave} />
+      <Button variant="secondary" label={t("common.cancel")} onPress={onCancel} />
     </View>
   );
 }

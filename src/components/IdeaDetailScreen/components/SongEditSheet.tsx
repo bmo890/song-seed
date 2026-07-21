@@ -7,6 +7,7 @@ import { styles as appStyles } from "../../../styles";
 import { colors, radii, spacing, text as textTokens } from "../../../design/tokens";
 import type { IdeaStatus } from "../../../types";
 import { haptic } from "../../../design/haptics";
+import { useTranslation } from "react-i18next";
 
 const PROJECT_STATUSES: IdeaStatus[] = ["seed", "sprout", "stem", "song"];
 
@@ -37,16 +38,17 @@ export function SongEditSheet({
   onSave,
   onCancel,
 }: Props) {
+  const { t } = useTranslation();
   return (
     <BottomSheet visible={visible} onClose={onCancel} keyboardAvoiding>
-      <Text style={styles.heading}>{isDraft ? "New Song" : "Edit Song"}</Text>
+      <Text style={styles.heading}>{isDraft ? t("songDetail.newSong") : t("songDetail.editSongTitle")}</Text>
 
-      <Text style={styles.label}>Title</Text>
+      <Text style={styles.label}>{t("songDetail.title")}</Text>
       <TitleInput
         testID="song-title-input"
         value={title}
         onChangeText={onChangeTitle}
-        placeholder="Song title"
+        placeholder={t("songDetail.songTitle")}
         showGenerator
         showClear
         multiline
@@ -55,7 +57,7 @@ export function SongEditSheet({
         containerStyle={styles.titleWrap}
       />
 
-      <Text style={[styles.label, styles.labelSpaced]}>Progress</Text>
+      <Text style={[styles.label, styles.labelSpaced]}>{t("songDetail.progress")}</Text>
       <StatusChipRow
         items={PROJECT_STATUSES}
         activeValue={status}
@@ -68,7 +70,7 @@ export function SongEditSheet({
           else onChangeCompletion(0);
         }}
       />
-      <Text style={styles.completion}>Completion: {completion}%</Text>
+      <Text style={styles.completion}>{t("songDetail.completion", { value: completion })}</Text>
       <Slider
         onSlidingComplete={() => haptic.tap()}
         minimumValue={0}
@@ -89,13 +91,13 @@ export function SongEditSheet({
           style={({ pressed }) => [styles.cancelBtn, pressed ? appStyles.pressDown : null]}
           onPress={onCancel}
         >
-          <Text style={styles.cancelText}>{isDraft ? "Discard" : "Cancel"}</Text>
+          <Text style={styles.cancelText}>{isDraft ? t("songDetail.discard") : t("common.cancel")}</Text>
         </Pressable>
         <Pressable
           style={({ pressed }) => [styles.saveBtn, pressed ? appStyles.pressDown : null]}
           onPress={onSave}
         >
-          <Text style={styles.saveText}>Save</Text>
+          <Text style={styles.saveText}>{t("common.save")}</Text>
         </Pressable>
       </View>
     </BottomSheet>
