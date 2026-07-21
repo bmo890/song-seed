@@ -4,15 +4,13 @@ import { Ionicons } from "@expo/vector-icons";
 import { BottomSheet } from "../../common/BottomSheet";
 import { colors, radii, spacing, text as textTokens } from "../../../design/tokens";
 import type { WordLadderStep } from "../../../types";
+import { useTranslation } from "react-i18next";
 
 type Props = {
   visible: boolean;
   step: WordLadderStep;
   onClose: () => void;
 };
-
-const VERBS = ["heal", "rush", "listen"];
-const NOUNS = ["window", "pillow", "clock"];
 
 /** Tweedy's own example from How to Write One Song (2020): two columns in his
  * listed order, plus the unexpected connections he drew between them. The links
@@ -80,13 +78,14 @@ export function WordLadderHelpSheet({ visible, step, onClose }: Props) {
 /** Two-column verbs/nouns diagram with lines drawn between Tweedy's connections,
  * echoing the Words-step graphic. Pure illustration — never the user's words. */
 function SparkDiagram() {
+  const { t } = useTranslation();
   const height = SPARK_ROW_H * TWEEDY_VERBS.length;
   return (
     <View>
       <View style={helpStyles.sparkHeaderRow}>
-        <Text style={[helpStyles.sparkColHeader, helpStyles.sparkColHeaderLeft]}>verbs</Text>
+        <Text style={[helpStyles.sparkColHeader, helpStyles.sparkColHeaderLeft]}>{t("wordLadderHelp.verbs")}</Text>
         <View style={helpStyles.sparkLinkSpacer} />
-        <Text style={helpStyles.sparkColHeader}>nouns</Text>
+        <Text style={helpStyles.sparkColHeader}>{t("wordLadderHelp.nouns")}</Text>
       </View>
       <View style={helpStyles.sparkBody}>
         <View style={helpStyles.sparkColumn}>
@@ -129,29 +128,29 @@ function SparkDiagram() {
 
 /** Step 1 — list a job's verbs and a room's nouns, kept even in count. */
 function SetupHelp() {
+  const { t } = useTranslation();
+  const verbs = [t("wordLadderHelp.verb1"), t("wordLadderHelp.verb2"), t("wordLadderHelp.verb3")];
+  const nouns = [t("wordLadderHelp.noun1"), t("wordLadderHelp.noun2"), t("wordLadderHelp.noun3")];
   return (
     <>
-      <Text style={helpStyles.title}>Words</Text>
-      <Text style={helpStyles.subtitle}>
-        You're building two lists that you'll cross together in the next step to spark lines you'd never
-        write on purpose.
-      </Text>
+      <Text style={helpStyles.title}>{t("wordLadderHelp.setupTitle")}</Text>
+      <Text style={helpStyles.subtitle}>{t("wordLadderHelp.setupBody")}</Text>
 
       <View style={helpStyles.diagram}>
         <View style={helpStyles.diagramHeaderRow}>
           <View style={helpStyles.diagramHeaderCell}>
             <Ionicons name="briefcase-outline" size={13} color={colors.textSecondary} />
-            <Text style={helpStyles.diagramHeaderText}>doctor</Text>
+            <Text style={helpStyles.diagramHeaderText}>{t("wordLadderHelp.doctor")}</Text>
           </View>
           <View style={helpStyles.diagramHeaderCell}>
             <Ionicons name="location-outline" size={13} color={colors.textSecondary} />
-            <Text style={helpStyles.diagramHeaderText}>bedroom</Text>
+            <Text style={helpStyles.diagramHeaderText}>{t("wordLadderHelp.bedroom")}</Text>
           </View>
         </View>
 
         <View style={helpStyles.diagramBody}>
           <View style={helpStyles.diagramColumn}>
-            {VERBS.map((word) => (
+            {verbs.map((word) => (
               <View key={word} style={helpStyles.diagramChip}>
                 <Text style={helpStyles.diagramChipText}>{word}</Text>
               </View>
@@ -165,7 +164,7 @@ function SetupHelp() {
           </Svg>
 
           <View style={helpStyles.diagramColumn}>
-            {NOUNS.map((word) => (
+            {nouns.map((word) => (
               <View key={word} style={helpStyles.diagramChip}>
                 <Text style={helpStyles.diagramChipText}>{word}</Text>
               </View>
@@ -175,14 +174,14 @@ function SetupHelp() {
 
         <View style={helpStyles.diagramResult}>
           <Ionicons name="arrow-down" size={14} color={colors.textMuted} />
-          <Text style={helpStyles.diagramResultText}>odd, surprising pairs</Text>
+          <Text style={helpStyles.diagramResultText}>{t("wordLadderHelp.oddPairs")}</Text>
         </View>
       </View>
 
       <View style={helpStyles.points}>
-        <HelpPoint icon="create-outline" title="Name a job & room" body="Any role, any place." />
-        <HelpPoint icon="list-outline" title="List words" body="Verbs the job does, nouns in the room." />
-        <HelpPoint icon="swap-horizontal-outline" title="Match counts" body="Same number on each side." />
+        <HelpPoint icon="create-outline" title={t("wordLadderHelp.nameTitle")} body={t("wordLadderHelp.nameBody")} />
+        <HelpPoint icon="list-outline" title={t("wordLadderHelp.listTitle")} body={t("wordLadderHelp.listBody")} />
+        <HelpPoint icon="swap-horizontal-outline" title={t("wordLadderHelp.matchTitle")} body={t("wordLadderHelp.matchBody")} />
       </View>
     </>
   );
@@ -190,18 +189,16 @@ function SetupHelp() {
 
 /** Step 2 — connect a verb to a noun, then turn the pairs into lines. */
 function PairHelp() {
+  const { t } = useTranslation();
   return (
     <>
-      <Text style={helpStyles.title}>Pair</Text>
-      <Text style={helpStyles.subtitle}>
-        Connect a verb to a noun — the odder the match, the better. Each pair becomes a spark you'll write
-        your own line from in the next step.
-      </Text>
+      <Text style={helpStyles.title}>{t("wordLadderHelp.pairTitle")}</Text>
+      <Text style={helpStyles.subtitle}>{t("wordLadderHelp.pairBody")}</Text>
 
       <View style={helpStyles.diagram}>
         <View style={helpStyles.pairScrapsRow}>
           <View style={helpStyles.pairScrap}>
-            <Text style={helpStyles.pairScrapText}>heal</Text>
+            <Text style={helpStyles.pairScrapText}>{t("wordLadderHelp.pairVerb")}</Text>
           </View>
           <View style={helpStyles.pairConnector}>
             <View style={helpStyles.connectorDot} />
@@ -209,20 +206,20 @@ function PairHelp() {
             <View style={helpStyles.connectorDot} />
           </View>
           <View style={[helpStyles.pairScrap, helpStyles.pairScrapB]}>
-            <Text style={[helpStyles.pairScrapText, helpStyles.pairScrapTextB]}>bottle</Text>
+            <Text style={[helpStyles.pairScrapText, helpStyles.pairScrapTextB]}>{t("wordLadderHelp.pairNoun")}</Text>
           </View>
         </View>
 
         <View style={helpStyles.diagramResult}>
           <Ionicons name="arrow-down" size={14} color={colors.textMuted} />
-          <Text style={helpStyles.diagramResultText}>a line of your own</Text>
+          <Text style={helpStyles.diagramResultText}>{t("wordLadderHelp.ownLine")}</Text>
         </View>
       </View>
 
       <View style={helpStyles.points}>
-        <HelpPoint icon="hand-left-outline" title="Tap across" body="Tap a verb, then a noun to connect." />
-        <HelpPoint icon="shuffle-outline" title="Shuffle" body="Re-pair everything at random." />
-        <HelpPoint icon="lock-closed-outline" title="Lock" body="Keep a pair while the rest reshuffle." />
+        <HelpPoint icon="hand-left-outline" title={t("wordLadderHelp.tapTitle")} body={t("wordLadderHelp.tapBody")} />
+        <HelpPoint icon="shuffle-outline" title={t("wordLadderHelp.shuffleTitle")} body={t("wordLadderHelp.shuffleBody")} />
+        <HelpPoint icon="lock-closed-outline" title={t("wordLadderHelp.lockTitle")} body={t("wordLadderHelp.lockBody")} />
       </View>
     </>
   );
@@ -230,33 +227,25 @@ function PairHelp() {
 
 /** Step 3 — write a loose first draft from the pairs, no judgment. */
 function DraftHelp() {
+  const { t } = useTranslation();
   return (
     <>
-      <Text style={helpStyles.title}>Draft</Text>
-      <Text style={helpStyles.subtitle}>
-        Write a quick, loose poem from your pairs. Bend them, reorder them, drop some — don't worry about
-        meaning. It's a warm-up, not a finished lyric.
-      </Text>
+      <Text style={helpStyles.title}>{t("wordLadderHelp.draftTitle")}</Text>
+      <Text style={helpStyles.subtitle}>{t("wordLadderHelp.draftBody")}</Text>
 
       <View style={helpStyles.example}>
-        <Text style={helpStyles.exampleLabel}>Example sparks</Text>
+        <Text style={helpStyles.exampleLabel}>{t("wordLadderHelp.exampleSparks")}</Text>
         <SparkDiagram />
 
-        <Text style={[helpStyles.exampleLabel, helpStyles.exampleLabelSecond]}>Example first draft</Text>
-        <Text style={helpStyles.exampleText}>
-          the drum is waiting{"\n"}
-          by the window listening{"\n"}
-          where the sunlight writes{"\n"}
-          on the cushions prescribed{"\n"}
-          the guitar is healing
-        </Text>
-        <Text style={helpStyles.exampleCredit}>— Jeff Tweedy, How to Write One Song (2020)</Text>
+        <Text style={[helpStyles.exampleLabel, helpStyles.exampleLabelSecond]}>{t("wordLadderHelp.exampleDraft")}</Text>
+        <Text style={helpStyles.exampleText}>{t("wordLadderHelp.draftExample")}</Text>
+        <Text style={helpStyles.exampleCredit}>{t("wordLadderHelp.credit")}</Text>
       </View>
 
       <View style={helpStyles.points}>
-        <HelpPoint icon="sparkles-outline" title="Sparks" body="The pairs are prompts, not rules." />
-        <HelpPoint icon="create-outline" title="Loose" body="No meaning, no judging — just play." />
-        <HelpPoint icon="arrow-forward-outline" title="Then revise" body="You'll tighten it in the next step." />
+        <HelpPoint icon="sparkles-outline" title={t("wordLadderHelp.sparksTitle")} body={t("wordLadderHelp.sparksBody")} />
+        <HelpPoint icon="create-outline" title={t("wordLadderHelp.looseTitle")} body={t("wordLadderHelp.looseBody")} />
+        <HelpPoint icon="arrow-forward-outline" title={t("wordLadderHelp.thenReviseTitle")} body={t("wordLadderHelp.thenReviseBody")} />
       </View>
     </>
   );
@@ -264,29 +253,22 @@ function DraftHelp() {
 
 /** Step 4 — tighten the draft into keepable lines. */
 function ReviseHelp() {
+  const { t } = useTranslation();
   return (
     <>
-      <Text style={helpStyles.title}>Revise</Text>
-      <Text style={helpStyles.subtitle}>
-        Now shape the draft into something you'd actually keep. Cut, reorder, rewrite — you don't have to use
-        every word. This is what gets saved as lyrics.
-      </Text>
+      <Text style={helpStyles.title}>{t("wordLadderHelp.reviseTitle")}</Text>
+      <Text style={helpStyles.subtitle}>{t("wordLadderHelp.reviseBody")}</Text>
 
       <View style={helpStyles.example}>
-        <Text style={helpStyles.exampleLabel}>The same draft, revised</Text>
-        <Text style={helpStyles.exampleText}>
-          The drum is waiting by the windowsill{"\n"}
-          Where the sunlight writes its will on the rug{"\n"}
-          My guitar is healed by the amp charging the wall{"\n"}
-          And that's not all, I'm always in love
-        </Text>
-        <Text style={helpStyles.exampleCredit}>— Jeff Tweedy, How to Write One Song (2020)</Text>
+        <Text style={helpStyles.exampleLabel}>{t("wordLadderHelp.revisedLabel")}</Text>
+        <Text style={helpStyles.exampleText}>{t("wordLadderHelp.revisedExample")}</Text>
+        <Text style={helpStyles.exampleCredit}>{t("wordLadderHelp.credit")}</Text>
       </View>
 
       <View style={helpStyles.points}>
-        <HelpPoint icon="cut-outline" title="Trim" body="Drop what doesn't earn its place." />
-        <HelpPoint icon="create-outline" title="Reshape" body="Reorder and rewrite into real lines." />
-        <HelpPoint icon="send-outline" title="Save" body="Send the revision into a song." />
+        <HelpPoint icon="cut-outline" title={t("wordLadderHelp.trimTitle")} body={t("wordLadderHelp.trimBody")} />
+        <HelpPoint icon="create-outline" title={t("wordLadderHelp.reshapeTitle")} body={t("wordLadderHelp.reshapeBody")} />
+        <HelpPoint icon="send-outline" title={t("wordLadderHelp.saveTitle")} body={t("wordLadderHelp.saveBody")} />
       </View>
     </>
   );

@@ -20,33 +20,22 @@ import { WordLadderColumnEditor } from "./WordLadderColumnEditor";
 import { WordLadderPairingBoard } from "./WordLadderPairingBoard";
 import { WordLadderHelpSheet } from "./WordLadderHelpSheet";
 import {
-  COLUMN_A_LABEL,
-  COLUMN_B_LABEL,
-  PLACE_SEED_PLACEHOLDER,
-  ROLE_SEED_PLACEHOLDER,
-  getColumnAPlaceholder,
-  getColumnBPlaceholder,
   pairingSeedWords,
 } from "../../../domain/wordLadder";
 import type { WordLadderStep } from "../../../types";
 import { EnglishOnlyNotice } from "../../common/EnglishOnlyNotice";
-import { UserTextInput } from "../../../i18n";
+import { UserText, UserTextInput } from "../../../i18n";
 import { useTranslation } from "react-i18next";
 
 const KRAFT_BG = "#F2E9DC";
 
-const STEPS: Array<{ key: WordLadderStep; label: string }> = [
-  { key: "setup", label: "Words" },
-  { key: "pairs", label: "Pair" },
-  { key: "draft", label: "Draft" },
-  { key: "revise", label: "Revise" },
-];
+const STEPS: WordLadderStep[] = ["setup", "pairs", "draft", "revise"];
 
 /** "a, b and c" — joins the still-missing setup pieces into a readable hint. */
-function formatMissing(parts: string[]): string {
+function formatMissing(parts: string[], t: ReturnType<typeof useTranslation>["t"]): string {
   if (parts.length <= 1) return parts.join("");
-  if (parts.length === 2) return `${parts[0]} and ${parts[1]}`;
-  return `${parts.slice(0, -1).join(", ")}, and ${parts[parts.length - 1]}`;
+  if (parts.length === 2) return t("wordLadder.listTwo", { first: parts[0], second: parts[1] });
+  return t("wordLadder.listMany", { items: parts.slice(0, -1).join(", "), last: parts[parts.length - 1] });
 }
 
 export function WordLadderScreenContent() {
@@ -114,22 +103,20 @@ export function WordLadderScreenContent() {
   const hasRevision = exercise.revision.trim().length > 0;
 
   const setupMissing: string[] = [];
-  if (!hasRole) setupMissing.push("a job/role");
-  if (!hasVerbs) setupMissing.push("a verb");
-  if (!hasPlace) setupMissing.push("a room/place");
-  if (!hasNouns) setupMissing.push("a noun");
+  if (!hasRole) setupMissing.push(t("wordLadder.missingRole"));
+  if (!hasVerbs) setupMissing.push(t("wordLadder.missingVerb"));
+  if (!hasPlace) setupMissing.push(t("wordLadder.missingPlace"));
+  if (!hasNouns) setupMissing.push(t("wordLadder.missingNoun"));
 
   // Single setup message: list what's missing first, then nudge toward an even
   // count once both columns have words but differ in length.
   let setupWarning: string | null = null;
   if (setupMissing.length > 0) {
-    setupWarning = `Add ${formatMissing(setupMissing)} to continue.`;
+    setupWarning = t("wordLadder.addMissing", { items: formatMissing(setupMissing, t) });
   } else if (!countsMatch) {
     const diff = Math.abs(verbCount - nounCount);
-    const side = verbCount > nounCount ? "noun" : "verb";
-    const verbLabel = verbCount === 1 ? "verb" : "verbs";
-    const nounLabel = nounCount === 1 ? "noun" : "nouns";
-    setupWarning = `${verbCount} ${verbLabel} vs ${nounCount} ${nounLabel} — add ${diff} more ${side}${diff === 1 ? "" : "s"} so both sides match.`;
+    const sideKey = verbCount > nounCount ? "wordLadder.nounSide" : "wordLadder.verbSide";
+    setupWarning = t("wordLadder.mismatch", { verbs: t("wordLadder.verbCount", { count: verbCount }), nouns: t("wordLadder.nounCount", { count: nounCount }), count: diff, side: t(sideKey, { count: diff }) });
   }
 
   return (
@@ -169,14 +156,14 @@ export function WordLadderScreenContent() {
         <>
           <View style={contentStyles.columnsRow}>
             <WordLadderColumnEditor
-              label={COLUMN_A_LABEL}
-              placeholder={getColumnAPlaceholder(exercise.roleSeed)}
+              label={t("wordLadder.verbs")}
+              placeholder={t("wordLadder.addVerb")}
               words={exercise.columnA}
               seedSlot={
                 <SetupSeedField
                   label={t("wordSparks.jobRole")}
                   value={exercise.roleSeed}
-                  placeholder={ROLE_SEED_PLACEHOLDER}
+                  placeholder={t("wordLadder.rolePlaceholder")}
                   onChange={model.setRoleSeed}
                 />
               }
@@ -187,14 +174,14 @@ export function WordLadderScreenContent() {
             />
             <View style={contentStyles.columnDivider} />
             <WordLadderColumnEditor
-              label={COLUMN_B_LABEL}
-              placeholder={getColumnBPlaceholder(exercise.placeSeed)}
+              label={t("wordLadder.nouns")}
+              placeholder={t("wordLadder.addNoun")}
               words={exercise.columnB}
               seedSlot={
                 <SetupSeedField
                   label={t("wordSparks.roomPlace")}
                   value={exercise.placeSeed}
-                  placeholder={PLACE_SEED_PLACEHOLDER}
+                  placeholder={t("wordLadder.placePlaceholder")}
                   onChange={model.setPlaceSeed}
                 />
               }
@@ -260,7 +247,7 @@ export function WordLadderScreenContent() {
               </View>
             ) : unpairedCount > 0 ? (
               <Text style={contentStyles.footerHint}>
-                {unpairedCount} word{unpairedCount === 1 ? "" : "s"} still unpaired — only pairs become sparks.
+                {t("wordLadder.unpaired", { count: unpairedCount })}
               </Text>
             ) : null}
             <View style={contentStyles.footerRow}>
@@ -269,7 +256,7 @@ export function WordLadderScreenContent() {
                 onPress={() => model.goToStep("setup")}
               >
                 <Ionicons name="arrow-back" size={16} color={colors.textSecondary} />
-                <Text style={contentStyles.backBtnText}>Words</Text>
+                <Text style={contentStyles.backBtnText}>{t("wordSparks.words")}</Text>
               </Pressable>
               <Pressable
                 style={({ pressed }) => [
@@ -284,7 +271,7 @@ export function WordLadderScreenContent() {
                 <Text
                   style={[contentStyles.nextBtnText, !canLeavePairs ? contentStyles.nextBtnTextDisabled : null]}
                 >
-                  Next: draft a poem
+                  {t("wordLadder.nextDraft")}
                 </Text>
                 <Ionicons
                   name="arrow-forward"
@@ -302,8 +289,8 @@ export function WordLadderScreenContent() {
           {sparks.length > 0 ? (
             <View style={contentStyles.palette}>
               <View style={contentStyles.paletteHeader}>
-                <Text style={contentStyles.paletteLabel}>Your sparks</Text>
-                <Text style={contentStyles.paletteHint}>tap one when you've used it</Text>
+                <Text style={contentStyles.paletteLabel}>{t("wordLadder.yourSparks")}</Text>
+                <Text style={contentStyles.paletteHint}>{t("wordLadder.sparkHint")}</Text>
               </View>
               <ScrollView
                 style={contentStyles.paletteScroll}
@@ -322,11 +309,11 @@ export function WordLadderScreenContent() {
                       ]}
                       onPress={() => model.toggleSparkUsed(spark.id)}
                     >
-                      <Text style={[contentStyles.sparkText, used ? contentStyles.sparkTextUsed : null]}>
+                      <UserText value={spark.seedA} style={[contentStyles.sparkText, used ? contentStyles.sparkTextUsed : null]}>
                         {spark.seedA}
                         <Text style={contentStyles.sparkDot}>  ·  </Text>
                         {spark.seedB}
-                      </Text>
+                      </UserText>
                     </Pressable>
                   );
                 })}
@@ -341,7 +328,7 @@ export function WordLadderScreenContent() {
               onChangeText={model.setDraft}
               multiline
               textAlignVertical="top"
-              placeholder="Write loosely. Pull from the sparks above, bend them, leave some behind — don't judge it. This is just a warm-up."
+              placeholder={t("wordLadder.draftPlaceholder")}
               placeholderTextColor={colors.textMuted}
             />
           </View>
@@ -354,7 +341,7 @@ export function WordLadderScreenContent() {
                   onPress={() => model.goToStep("pairs")}
                 >
                   <Ionicons name="arrow-back" size={16} color={colors.textSecondary} />
-                  <Text style={contentStyles.backBtnText}>Pairs</Text>
+                  <Text style={contentStyles.backBtnText}>{t("wordSparks.pair")}</Text>
                 </Pressable>
                 <Pressable
                   style={({ pressed }) => [
@@ -367,7 +354,7 @@ export function WordLadderScreenContent() {
                   disabled={!hasDraft}
                 >
                   <Text style={[contentStyles.nextBtnText, !hasDraft ? contentStyles.nextBtnTextDisabled : null]}>
-                    Next: revise
+                    {t("wordLadder.nextRevise")}
                   </Text>
                   <Ionicons
                     name="arrow-forward"
@@ -384,7 +371,7 @@ export function WordLadderScreenContent() {
       {model.step === "revise" ? (
         <>
           <View style={contentStyles.draftRef}>
-            <Text style={contentStyles.draftRefLabel}>Your draft</Text>
+            <Text style={contentStyles.draftRefLabel}>{t("wordLadder.yourDraft")}</Text>
             <ScrollView
               style={[
                 contentStyles.draftRefScroll,
@@ -392,15 +379,12 @@ export function WordLadderScreenContent() {
               ]}
               showsVerticalScrollIndicator={false}
             >
-              <Text style={contentStyles.draftRefText}>{exercise.draft.trim() || "—"}</Text>
+              <UserText style={contentStyles.draftRefText}>{exercise.draft.trim() || "—"}</UserText>
             </ScrollView>
           </View>
 
           {keyboardVisible ? null : (
-            <Text style={contentStyles.reviseHint}>
-              Rewrite it below into lines you'd keep — cut, reorder, change words. The revision is what gets
-              saved.
-            </Text>
+            <Text style={contentStyles.reviseHint}>{t("wordLadder.reviseHint")}</Text>
           )}
 
           <View style={contentStyles.poemCard}>
@@ -410,7 +394,7 @@ export function WordLadderScreenContent() {
               onChangeText={model.setRevision}
               multiline
               textAlignVertical="top"
-              placeholder="Start your revision on a clean page…"
+              placeholder={t("wordLadder.revisionPlaceholder")}
               placeholderTextColor={colors.textMuted}
             />
           </View>
@@ -423,7 +407,7 @@ export function WordLadderScreenContent() {
                   onPress={() => model.goToStep("draft")}
                 >
                   <Ionicons name="arrow-back" size={16} color={colors.textSecondary} />
-                  <Text style={contentStyles.backBtnText}>Draft</Text>
+                  <Text style={contentStyles.backBtnText}>{t("wordSparks.draft")}</Text>
                 </Pressable>
                 <Pressable
                   style={({ pressed }) => [
@@ -443,7 +427,7 @@ export function WordLadderScreenContent() {
                   <Text
                     style={[contentStyles.nextBtnText, !hasRevision ? contentStyles.nextBtnTextDisabled : null]}
                   >
-                    Save as lyrics
+                    {t("wordSparks.saveLyrics")}
                   </Text>
                 </Pressable>
               </View>
@@ -465,14 +449,15 @@ export function WordLadderScreenContent() {
 /** Non-interactive wizard progress — clarifies "step N of 4" without letting
  * the writer jump around (that's what the Next/Back buttons are for). */
 function StepProgress({ step }: { step: WordLadderStep }) {
-  const currentIndex = STEPS.findIndex((s) => s.key === step);
+  const { t } = useTranslation();
+  const currentIndex = STEPS.findIndex((item) => item === step);
   return (
     <View style={contentStyles.progressRow}>
-      {STEPS.map((s, index) => {
+      {STEPS.map((item, index) => {
         const state = index < currentIndex ? "done" : index === currentIndex ? "current" : "upcoming";
         const isCurrent = state === "current";
         return (
-          <View key={s.key} style={contentStyles.progressItem}>
+          <View key={item} style={contentStyles.progressItem}>
             <View
               style={[
                 contentStyles.progressDot,
@@ -493,7 +478,7 @@ function StepProgress({ step }: { step: WordLadderStep }) {
             <Text
               style={[contentStyles.progressLabel, isCurrent ? contentStyles.progressLabelCurrent : null]}
             >
-              {s.label}
+              {t(`wordSparks.${item === "setup" ? "words" : item === "pairs" ? "pair" : item}`)}
             </Text>
           </View>
         );
@@ -566,14 +551,14 @@ function FrozenSeedBanner({ roleSeed, placeSeed }: { roleSeed: string; placeSeed
       {role ? (
         <View style={contentStyles.frozenChip}>
           <Ionicons name="briefcase-outline" size={12} color={colors.textSecondary} />
-          <Text style={contentStyles.frozenText}>{role}</Text>
+          <UserText style={contentStyles.frozenText}>{role}</UserText>
         </View>
       ) : null}
       {role && place ? <View style={contentStyles.frozenDot} /> : null}
       {place ? (
         <View style={contentStyles.frozenChip}>
           <Ionicons name="location-outline" size={12} color={colors.textSecondary} />
-          <Text style={contentStyles.frozenText}>{place}</Text>
+          <UserText style={contentStyles.frozenText}>{place}</UserText>
         </View>
       ) : null}
     </View>

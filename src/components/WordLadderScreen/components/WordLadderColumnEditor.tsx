@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
-import { UserTextInput } from "../../../i18n";
+import { UserText, UserTextInput } from "../../../i18n";
 import DraggableFlatList, { type RenderItemParams } from "react-native-draggable-flatlist";
 import { Ionicons } from "@expo/vector-icons";
 import { styles as appStyles } from "../../../styles";
 import { colors, radii, spacing, text as textTokens } from "../../../design/tokens";
 import { haptic } from "../../../design/haptics";
 import type { WordLadderWord } from "../../../types";
+import { useTranslation } from "react-i18next";
 
 type Props = {
   label: string;
@@ -33,6 +34,7 @@ export function WordLadderColumnEditor({
   onReorder,
   onRemove,
 }: Props) {
+  const { t } = useTranslation();
   const [draft, setDraft] = useState("");
 
   function submitDraft() {
@@ -51,7 +53,7 @@ export function WordLadderColumnEditor({
       <View style={editorStyles.headerRow}>
         <Text style={editorStyles.label}>{label}</Text>
         <Text style={editorStyles.count}>
-          {words.length} of {targetCount}
+          {t("wordLadder.count", { count: words.length, target: targetCount })}
         </Text>
       </View>
 
@@ -82,7 +84,7 @@ export function WordLadderColumnEditor({
       onDragEnd={({ data }) => onReorder(data)}
         style={editorStyles.list}
         contentContainerStyle={words.length === 0 ? editorStyles.listEmptyContent : undefined}
-        ListEmptyComponent={<Text style={editorStyles.emptyHint}>Nothing here yet</Text>}
+        ListEmptyComponent={<Text style={editorStyles.emptyHint}>{t("wordLadder.nothingHere")}</Text>}
         renderItem={({ item: word, drag, isActive }: RenderItemParams<WordLadderWord>) => (
           <WordChip
             word={word}
@@ -143,9 +145,9 @@ function WordChip({
         />
       ) : (
         <Pressable style={editorStyles.chipTextWrap} onPress={() => setIsEditing(true)} hitSlop={4}>
-          <Text style={editorStyles.chipText} numberOfLines={1}>
+          <UserText style={editorStyles.chipText} numberOfLines={1}>
             {word.text}
-          </Text>
+          </UserText>
         </Pressable>
       )}
       <Pressable

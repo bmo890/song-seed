@@ -7,7 +7,6 @@ import { actionIcons } from "../../common/actionIcons";
 import {
   addWord,
   createPairing,
-  deriveExerciseTitle,
   dropPairingsForRemovedWords,
   removePairing,
   removeWord,
@@ -16,8 +15,10 @@ import {
   updateWordText,
 } from "../../../domain/wordLadder";
 import type { WordLadderStep, WordLadderWord } from "../../../types";
+import { useTranslation } from "react-i18next";
 
 export function useWordLadderScreenModel() {
+  const { t } = useTranslation();
   const route = useRoute<any>();
   const navigation = useNavigation<any>();
   const exerciseId = route.params?.exerciseId as string | undefined;
@@ -34,6 +35,15 @@ export function useWordLadderScreenModel() {
   );
 
   const [armedWord, setArmedWord] = useState<{ column: "a" | "b"; wordId: string } | null>(null);
+
+  const translatedTitle = useCallback((roleValue: string, placeValue: string) => {
+    const role = roleValue.trim();
+    const place = placeValue.trim();
+    if (role && place) return t("wordLadder.titleBoth", { role, place });
+    if (role) return t("wordLadder.titleRole", { role });
+    if (place) return t("wordLadder.titlePlace", { place });
+    return t("wordLadder.untitled");
+  }, [t]);
 
   const apply = useCallback(
     (updates: Parameters<typeof updateWordLadder>[1]) => {
@@ -69,17 +79,17 @@ export function useWordLadderScreenModel() {
   const setRoleSeed = useCallback(
     (roleSeed: string) => {
       if (!exercise) return;
-      apply({ roleSeed, title: deriveExerciseTitle(roleSeed, exercise.placeSeed) });
+      apply({ roleSeed, title: translatedTitle(roleSeed, exercise.placeSeed) });
     },
-    [apply, exercise]
+    [apply, exercise, translatedTitle]
   );
 
   const setPlaceSeed = useCallback(
     (placeSeed: string) => {
       if (!exercise) return;
-      apply({ placeSeed, title: deriveExerciseTitle(exercise.roleSeed, placeSeed) });
+      apply({ placeSeed, title: translatedTitle(exercise.roleSeed, placeSeed) });
     },
-    [apply, exercise]
+    [apply, exercise, translatedTitle]
   );
 
   const addColumnWord = useCallback(
@@ -191,15 +201,15 @@ export function useWordLadderScreenModel() {
   const deleteExercise = useCallback(() => {
     if (!exerciseId) return;
     AppAlert.destructive(
-      "Delete this Word Ladder?",
-      "Its words, pairings, and poem will be gone for good.",
+      t("wordLadder.deleteTitle"),
+      t("wordLadder.deleteBody"),
       () => {
         deleteWordLadder(exerciseId);
         navigation.navigate("NotepadHome");
       },
-      { confirmLabel: "Delete" }
+      { confirmLabel: t("wordSparks.delete") }
     );
-  }, [deleteWordLadder, exerciseId, navigation]);
+  }, [deleteWordLadder, exerciseId, navigation, t]);
 
   /** Saves the revision (falling back to the draft) as a new page in the global
    * Lyrics Pad, then opens it there. */
@@ -207,14 +217,14 @@ export function useWordLadderScreenModel() {
     if (!exercise) return;
     const text = (exercise.revision.trim() ? exercise.revision : exercise.draft).trim();
     if (!text) {
-      AppAlert.info("Nothing to save", "Write and revise a few lines first.");
+      AppAlert.info(t("wordSparks.nothingSave"), t("wordLadder.nothingBody"));
       return;
     }
     const noteId = addNote();
     updateNote(noteId, { title: exercise.title, body: text });
     apply({ savedLyricId: noteId });
     navigation.navigate("NotepadHome", { noteId, openToken: Date.now() });
-  }, [exercise, addNote, updateNote, apply, navigation]);
+  }, [exercise, addNote, updateNote, apply, navigation, t]);
 
   const hasContent =
     !!exercise &&
@@ -240,9 +250,9 @@ export function useWordLadderScreenModel() {
       return;
     }
 
-    AppAlert.custom("Save as unfinished?", "Keep this exercise to come back to, or discard it.", [
+    AppAlert.custom(t("wordSparks.saveUnfinishedTitle"), t("wordSparks.saveUnfinishedBody"), [
       {
-        label: "Discard",
+        label: t("wordSparks.discard"),
         style: "destructive",
         icon: actionIcons.discard,
         onPress: () => {
@@ -251,13 +261,13 @@ export function useWordLadderScreenModel() {
         },
       },
       {
-        label: "Save as unfinished",
+        label: t("wordSparks.saveUnfinished"),
         style: "default",
         icon: actionIcons.bookmark,
         onPress: () => navigation.navigate("NotepadHome"),
       },
     ]);
-  }, [exercise?.savedLyricId, hasContent, exerciseId, deleteWordLadder, navigation]);
+  }, [exercise?.savedLyricId, hasContent, exerciseId, deleteWordLadder, navigation, t]);
 
   // Catch every other way of leaving. Hardware back runs the same prompt as the
   // in-app Back button. A drawer switch can't be intercepted before it happens, so

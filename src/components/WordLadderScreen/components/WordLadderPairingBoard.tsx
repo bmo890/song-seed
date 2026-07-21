@@ -2,8 +2,10 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { styles as appStyles } from "../../../styles";
 import { colors, radii, shadows, spacing, text as textTokens } from "../../../design/tokens";
-import { COLUMN_A_LABEL, COLUMN_B_LABEL, getUnpairedWords } from "../../../domain/wordLadder";
+import { getUnpairedWords } from "../../../domain/wordLadder";
 import type { WordLadderExercise } from "../../../types";
+import { useTranslation } from "react-i18next";
+import { UserText } from "../../../i18n";
 
 type Props = {
   exercise: WordLadderExercise;
@@ -30,6 +32,7 @@ export function WordLadderPairingBoard({
   onToggleLock,
   onShuffle,
 }: Props) {
+  const { t } = useTranslation();
   const unpairedA = getUnpairedWords(exercise.columnA, exercise.pairings, "a");
   const unpairedB = getUnpairedWords(exercise.columnB, exercise.pairings, "b");
   const hasUnpaired = unpairedA.length > 0 || unpairedB.length > 0;
@@ -42,9 +45,9 @@ export function WordLadderPairingBoard({
         <Text style={boardStyles.hint}>
           {hasUnpaired
             ? armedWord
-              ? "Now tap a word across to connect them"
-              : "Tap a word, then its partner across"
-            : "All paired — shuffle to remix"}
+              ? t("wordLadder.pairAcross")
+              : t("wordLadder.pairHint")
+            : t("wordLadder.allPairedHint")}
         </Text>
         <Pressable
           style={({ pressed }) => [
@@ -56,13 +59,13 @@ export function WordLadderPairingBoard({
           disabled={!canShuffle}
         >
           <Ionicons name="shuffle" size={14} color={colors.onPrimary} />
-          <Text style={boardStyles.shuffleBtnText}>Shuffle</Text>
+          <Text style={boardStyles.shuffleBtnText}>{t("wordLadder.shuffle")}</Text>
         </Pressable>
       </View>
 
       {hasUnpaired ? (
         <View style={boardStyles.poolsCard}>
-          <Text style={boardStyles.sectionLabel}>{COLUMN_A_LABEL}</Text>
+          <Text style={boardStyles.sectionLabel}>{t("wordLadder.verbs")}</Text>
           <View style={boardStyles.scrapWrap}>
             {unpairedA.length > 0 ? (
               unpairedA.map((word) => (
@@ -74,11 +77,11 @@ export function WordLadderPairingBoard({
                 />
               ))
             ) : (
-              <Text style={boardStyles.poolEmpty}>all paired</Text>
+              <Text style={boardStyles.poolEmpty}>{t("wordLadder.allPaired")}</Text>
             )}
           </View>
 
-          <Text style={[boardStyles.sectionLabel, boardStyles.sectionLabelSecond]}>{COLUMN_B_LABEL}</Text>
+          <Text style={[boardStyles.sectionLabel, boardStyles.sectionLabelSecond]}>{t("wordLadder.nouns")}</Text>
           <View style={boardStyles.scrapWrap}>
             {unpairedB.length > 0 ? (
               unpairedB.map((word) => (
@@ -90,23 +93,21 @@ export function WordLadderPairingBoard({
                 />
               ))
             ) : (
-              <Text style={boardStyles.poolEmpty}>all paired</Text>
+              <Text style={boardStyles.poolEmpty}>{t("wordLadder.allPaired")}</Text>
             )}
           </View>
         </View>
       ) : null}
 
       <View style={boardStyles.pairsHeaderRow}>
-        <Text style={boardStyles.sectionLabel}>Pairs</Text>
+        <Text style={boardStyles.sectionLabel}>{t("wordLadder.pairs")}</Text>
         <Text style={boardStyles.pairsCount}>{pairCount}</Text>
       </View>
 
       {pairCount === 0 ? (
         <View style={boardStyles.pairsEmpty}>
           <Ionicons name="git-compare-outline" size={22} color={colors.textMuted} />
-          <Text style={boardStyles.pairsEmptyText}>
-            No pairs yet. Tap a word above, then its partner across — or hit Shuffle to pair them all at once.
-          </Text>
+          <Text style={boardStyles.pairsEmptyText}>{t("wordLadder.noPairs")}</Text>
         </View>
       ) : (
         <View style={boardStyles.pairingList}>
@@ -123,6 +124,7 @@ export function WordLadderPairingBoard({
                   style={({ pressed }) => [boardStyles.lockBtn, pressed ? appStyles.pressDown : null]}
                   onPress={() => onToggleLock(pairing.id)}
                   hitSlop={6}
+                  accessibilityLabel={t(pairing.locked ? "wordLadder.unlock" : "wordLadder.lock")}
                 >
                   <Ionicons
                     name={pairing.locked ? "lock-closed" : "lock-open-outline"}
@@ -131,22 +133,23 @@ export function WordLadderPairingBoard({
                   />
                 </Pressable>
 
-                <Text style={boardStyles.pairWord} numberOfLines={1}>
+                <UserText style={boardStyles.pairWord} numberOfLines={1}>
                   {wordA.text}
-                </Text>
+                </UserText>
                 <View style={boardStyles.connector}>
                   <View style={boardStyles.connectorDot} />
                   <View style={boardStyles.connectorDot} />
                   <View style={boardStyles.connectorDot} />
                 </View>
-                <Text style={[boardStyles.pairWord, boardStyles.pairWordB]} numberOfLines={1}>
+                <UserText style={[boardStyles.pairWord, boardStyles.pairWordB]} numberOfLines={1}>
                   {wordB.text}
-                </Text>
+                </UserText>
 
                 <Pressable
                   style={({ pressed }) => [boardStyles.unpairBtn, pressed ? appStyles.pressDown : null]}
                   onPress={() => onUnpair(pairing.id)}
                   hitSlop={6}
+                  accessibilityLabel={t("wordLadder.removePair")}
                 >
                   <Ionicons name="close" size={14} color={colors.textMuted} />
                 </Pressable>
@@ -170,9 +173,9 @@ function Scrap({ text, armed, onPress }: { text: string; armed: boolean; onPress
         pressed ? appStyles.pressDown : null,
       ]}
     >
-      <Text style={[boardStyles.scrapText, armed ? boardStyles.scrapTextArmed : null]} numberOfLines={1}>
+      <UserText style={[boardStyles.scrapText, armed ? boardStyles.scrapTextArmed : null]} numberOfLines={1}>
         {text}
-      </Text>
+      </UserText>
     </Pressable>
   );
 }
