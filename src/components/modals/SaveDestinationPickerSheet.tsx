@@ -4,6 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { BottomSheet } from "../common/BottomSheet";
 import type { SaveDestination } from "../../domain/collectionManagement";
 import { colors } from "../../design/tokens";
+import { useTranslation } from "react-i18next";
 
 type Props = {
   visible: boolean;
@@ -20,6 +21,7 @@ export function SaveDestinationPickerSheet({
   onClose,
   onSelect,
 }: Props) {
+  const { t } = useTranslation();
   const groups = useMemo(() => {
     const byWorkspace = new Map<string, { workspaceTitle: string; items: SaveDestination[] }>();
     for (const destination of destinations) {
@@ -38,7 +40,7 @@ export function SaveDestinationPickerSheet({
 
   return (
     <BottomSheet visible={visible} onClose={onClose}>
-      <Text style={localStyles.title}>Choose destination</Text>
+      <Text style={localStyles.title}>{t("modals.chooseDestination")}</Text>
 
       <ScrollView showsVerticalScrollIndicator={false} style={localStyles.scroll}>
         {groups.map((group) => (

@@ -3,6 +3,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { styles } from "../../styles";
 import { Button } from "../common/Button";
 import type { CollectionMoveDestination } from "../../domain/collectionManagement";
+import { useTranslation } from "react-i18next";
 
 type Props = {
   visible: boolean;
@@ -19,9 +20,9 @@ type Props = {
 
 export function CollectionMoveModal({
   visible,
-  title = "Move Collection",
+  title,
   helperText,
-  confirmLabel = "Move",
+  confirmLabel,
   destinations,
   selectedWorkspaceId,
   selectedParentCollectionId,
@@ -29,6 +30,9 @@ export function CollectionMoveModal({
   onCancel,
   onConfirm,
 }: Props) {
+  const { t } = useTranslation();
+  const resolvedTitle = title ?? t("collection.moveCollection");
+  const resolvedConfirmLabel = confirmLabel ?? t("modals.move");
   const groupedDestinations = destinations.reduce<Record<string, CollectionMoveDestination[]>>((acc, destination) => {
     if (!acc[destination.workspaceId]) {
       acc[destination.workspaceId] = [];
@@ -41,7 +45,7 @@ export function CollectionMoveModal({
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
       <View style={styles.modalBackdrop}>
         <View style={styles.modalCard}>
-          <Text style={styles.title}>{title}</Text>
+          <Text style={styles.title}>{resolvedTitle}</Text>
           {helperText ? <Text style={styles.cardMeta}>{helperText}</Text> : null}
           <ScrollView
             style={styles.collectionMoveScroll}
@@ -50,7 +54,7 @@ export function CollectionMoveModal({
           >
             {Object.entries(groupedDestinations).map(([workspaceId, items]) => (
               <View key={workspaceId} style={styles.collectionMoveSection}>
-                <Text style={styles.workspaceBrowseSectionTitle}>{items[0]?.workspaceTitle ?? "Workspace"}</Text>
+                <Text style={styles.workspaceBrowseSectionTitle}>{items[0]?.workspaceTitle ?? t("modals.workspace")}</Text>
                 <View style={styles.collectionMoveOptionList}>
                   {items.map((destination) => {
                     const selected =
@@ -95,10 +99,10 @@ export function CollectionMoveModal({
             ))}
           </ScrollView>
           <View style={[styles.rowButtons, { justifyContent: "flex-end", marginTop: 8 }]}>
-            <Button variant="secondary" label="Cancel" onPress={onCancel} />
+            <Button variant="secondary" label={t("common.cancel")} onPress={onCancel} />
             <Button
               variant="primary"
-              label={confirmLabel}
+              label={resolvedConfirmLabel}
               onPress={onConfirm}
               disabled={!selectedWorkspaceId}
             />

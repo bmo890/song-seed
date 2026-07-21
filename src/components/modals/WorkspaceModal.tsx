@@ -7,6 +7,7 @@ import { WarmModal } from "../common/WarmModal";
 import { HueSlider } from "../common/HueSlider";
 import { hueToAccentHex, hexToHue, DEFAULT_WORKSPACE_COLOR } from "../../domain/workspaceTheme";
 import { colors, radii } from "../../design/tokens";
+import { useTranslation } from "react-i18next";
 
 type Props = {
   visible: boolean;
@@ -47,6 +48,7 @@ export function WorkspaceModal({
   onArchiveAction,
   onDelete,
 }: Props) {
+  const { t } = useTranslation();
   const [name, setName] = useState(initialName ?? "");
   const [description, setDescription] = useState(initialDescription ?? "");
   const [hue, setHue] = useState(() =>
@@ -99,7 +101,7 @@ export function WorkspaceModal({
           style={wsStyles.input}
           value={name}
           onChangeText={setName}
-          placeholder="Workspace name"
+          placeholder={t("modals.workspaceName")}
           placeholderTextColor="#B8A8A3"
           returnKeyType="next"
         />
@@ -128,7 +130,7 @@ export function WorkspaceModal({
         style={[wsStyles.input, wsStyles.descriptionInput]}
         value={description}
         onChangeText={setDescription}
-        placeholder="Description (optional)"
+        placeholder={t("modals.descriptionOptional")}
         placeholderTextColor="#B8A8A3"
         multiline
         returnKeyType="default"
@@ -147,7 +149,7 @@ export function WorkspaceModal({
               disabled={archiveActionDisabled}
               onPress={onArchiveAction}
             >
-              <Text style={wsStyles.dangerBtnText}>{archiveActionLabel ?? "Archive"}</Text>
+              <Text style={wsStyles.dangerBtnText}>{archiveActionLabel ?? t("workspaceList.archive")}</Text>
             </Pressable>
           ) : null}
           {showDelete && onDelete ? (
@@ -155,7 +157,7 @@ export function WorkspaceModal({
               style={({ pressed }) => [wsStyles.deleteBtn, pressed ? wsStyles.pressed : null]}
               onPress={onDelete}
             >
-              <Text style={wsStyles.deleteBtnText}>{deleteLabel ?? "Delete permanently"}</Text>
+              <Text style={wsStyles.deleteBtnText}>{deleteLabel ?? t("workspaceList.deletePermanently")}</Text>
             </Pressable>
           ) : null}
         </View>
@@ -167,13 +169,13 @@ export function WorkspaceModal({
           style={({ pressed }) => [wsStyles.cancelBtn, pressed ? wsStyles.pressed : null]}
           onPress={onCancel}
         >
-          <Text style={wsStyles.cancelBtnText}>Cancel</Text>
+          <Text style={wsStyles.cancelBtnText}>{t("common.cancel")}</Text>
         </Pressable>
         <Pressable
           style={({ pressed }) => [wsStyles.saveBtn, pressed ? wsStyles.pressed : null]}
           onPress={() => onSave(name.trim(), description.trim(), accentColor, avatarKey)}
         >
-          <Text style={wsStyles.saveBtnText}>Save</Text>
+          <Text style={wsStyles.saveBtnText}>{t("common.save")}</Text>
         </Pressable>
       </View>
     </WarmModal>

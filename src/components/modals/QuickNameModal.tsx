@@ -3,6 +3,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { WarmModal } from "../common/WarmModal";
 import { genIdea } from "../../utils";
 import { colors, radii } from "../../design/tokens";
+import { useTranslation } from "react-i18next";
 
 type Props = {
     visible: boolean;
@@ -34,7 +35,7 @@ type Props = {
 
 export function QuickNameModal({
     visible,
-    title = "Save clip as",
+    title,
     draftValue,
     placeholderValue,
     onChangeDraft,
@@ -46,8 +47,8 @@ export function QuickNameModal({
     onChangeIsPrimary,
     onCancel,
     onSave,
-    helperText = "Leave empty to use the suggested title.",
-    saveLabel = "Save",
+    helperText,
+    saveLabel,
     disableSaveWhenEmpty = false,
     saveDisabled = false,
     cancelDisabled = false,
@@ -56,6 +57,10 @@ export function QuickNameModal({
     destinationCollectionLabel,
     onPressDestination,
 }: Props) {
+    const { t } = useTranslation();
+    const resolvedTitle = title ?? t("modals.saveClipAs");
+    const resolvedHelperText = helperText ?? t("modals.suggestedTitle");
+    const resolvedSaveLabel = saveLabel ?? t("common.save");
     const isSaveDisabled =
         saving || saveDisabled || (disableSaveWhenEmpty && draftValue.trim().length === 0);
     const isCancelDisabled = saving || cancelDisabled;
@@ -77,7 +82,7 @@ export function QuickNameModal({
         .slice(0, 8);
 
     return (
-        <WarmModal visible={visible} onRequestClose={onCancel} title={title}>
+        <WarmModal visible={visible} onRequestClose={onCancel} title={resolvedTitle}>
             {/* ── Name input with sparkle + clear ── */}
             <View style={qStyles.inputWrap}>
                 <TextInput
@@ -133,18 +138,18 @@ export function QuickNameModal({
                     style={[qStyles.input, qStyles.descriptionInput]}
                     value={descriptionValue ?? ""}
                     onChangeText={onChangeDescription}
-                    placeholder="Description (optional)"
+                    placeholder={t("modals.descriptionOptional")}
                     placeholderTextColor="#B8A8A3"
                     multiline
                     returnKeyType="default"
                 />
             ) : null}
 
-            <Text style={qStyles.helperText}>{helperText}</Text>
+            <Text style={qStyles.helperText}>{resolvedHelperText}</Text>
 
             {onPressDestination ? (
                 <>
-                    <Text style={qStyles.destinationLabel}>Save to</Text>
+                    <Text style={qStyles.destinationLabel}>{t("modals.saveTo")}</Text>
                     <Pressable
                         style={({ pressed }) => [
                             qStyles.destinationRow,
@@ -158,7 +163,7 @@ export function QuickNameModal({
                                 <Text style={qStyles.destinationWorkspace}>{destinationWorkspaceTitle}</Text>
                             ) : null}
                             <Text style={qStyles.destinationCollection} numberOfLines={1}>
-                                {destinationCollectionLabel ?? "Choose a collection"}
+                                {destinationCollectionLabel ?? t("modals.chooseCollection")}
                             </Text>
                         </View>
                         <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
@@ -176,7 +181,7 @@ export function QuickNameModal({
                         size={20}
                         color={isPrimary ? colors.primary : colors.borderMuted}
                     />
-                    <Text style={qStyles.checkLabel}>Make primary clip</Text>
+                    <Text style={qStyles.checkLabel}>{t("modals.makePrimary")}</Text>
                 </Pressable>
             ) : null}
 
@@ -184,7 +189,7 @@ export function QuickNameModal({
                 <Pressable
                     testID="quickname-cancel"
                     accessibilityRole="button"
-                    accessibilityLabel="Cancel"
+                    accessibilityLabel={t("common.cancel")}
                     style={({ pressed }) => [
                         qStyles.cancelBtn,
                         isCancelDisabled ? qStyles.btnDisabled : null,
@@ -193,12 +198,12 @@ export function QuickNameModal({
                     disabled={isCancelDisabled}
                     onPress={onCancel}
                 >
-                    <Text style={qStyles.cancelBtnText}>Cancel</Text>
+                    <Text style={qStyles.cancelBtnText}>{t("common.cancel")}</Text>
                 </Pressable>
                 <Pressable
                     testID="quickname-save"
                     accessibilityRole="button"
-                    accessibilityLabel={saveLabel}
+                    accessibilityLabel={resolvedSaveLabel}
                     style={({ pressed }) => [
                         qStyles.saveBtn,
                         isSaveDisabled ? qStyles.btnDisabled : null,
@@ -210,10 +215,10 @@ export function QuickNameModal({
                     {saving ? (
                         <View style={qStyles.saveBtnBusy}>
                             <ActivityIndicator size="small" color={colors.surface} />
-                            <Text style={qStyles.saveBtnText}>Saving…</Text>
+                            <Text style={qStyles.saveBtnText}>{t("modals.saving")}</Text>
                         </View>
                     ) : (
-                        <Text style={qStyles.saveBtnText}>{saveLabel}</Text>
+                        <Text style={qStyles.saveBtnText}>{resolvedSaveLabel}</Text>
                     )}
                 </Pressable>
             </View>

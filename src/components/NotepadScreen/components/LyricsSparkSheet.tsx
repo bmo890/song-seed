@@ -4,6 +4,7 @@ import { BottomSheet } from "../../common/BottomSheet";
 import { styles as appStyles } from "../../../styles";
 import { colors, radii, spacing, text as textTokens } from "../../../design/tokens";
 import { EnglishOnlyNotice } from "../../common/EnglishOnlyNotice";
+import { useTranslation } from "react-i18next";
 
 type Props = {
   visible: boolean;
@@ -14,10 +15,11 @@ type Props = {
 };
 
 export function LyricsSparkSheet({ visible, onClose, onNewWordLadder, onNewCutUp, onNewMagpie }: Props) {
+  const { t } = useTranslation();
   return (
     <BottomSheet visible={visible} onClose={onClose}>
-      <Text style={sheetStyles.title}>Lyrics Spark</Text>
-      <Text style={sheetStyles.subtitle}>Short exercises to knock loose a line you wouldn't write on purpose.</Text>
+      <Text style={sheetStyles.title}>{t("brand.lyricsSpark")}</Text>
+      <Text style={sheetStyles.subtitle}>{t("notepad.sparkSubtitle")}</Text>
       <EnglishOnlyNotice />
 
       <Pressable
@@ -28,7 +30,7 @@ export function LyricsSparkSheet({ visible, onClose, onNewWordLadder, onNewCutUp
           <Ionicons name="shuffle-outline" size={18} color={colors.primary} />
         </View>
         <View style={sheetStyles.optionCopy}>
-          <Text style={sheetStyles.optionTitle}>Word Ladder</Text>
+          <Text style={sheetStyles.optionTitle}>{t("brand.wordLadder")}</Text>
           <Text style={sheetStyles.optionBody}>
             Pair two columns of words to find lyric lines you wouldn't have written on purpose.
           </Text>
@@ -43,7 +45,7 @@ export function LyricsSparkSheet({ visible, onClose, onNewWordLadder, onNewCutUp
           <Ionicons name="cut-outline" size={18} color={colors.primary} />
         </View>
         <View style={sheetStyles.optionCopy}>
-          <Text style={sheetStyles.optionTitle}>Cut-Up</Text>
+          <Text style={sheetStyles.optionTitle}>{t("brand.cutUp")}</Text>
           <Text style={sheetStyles.optionBody}>
             Slice a stuck lyric into strips, shuffle them, and rebuild it into something new.
           </Text>
@@ -58,7 +60,7 @@ export function LyricsSparkSheet({ visible, onClose, onNewWordLadder, onNewCutUp
           <Ionicons name="book-outline" size={18} color={colors.primary} />
         </View>
         <View style={sheetStyles.optionCopy}>
-          <Text style={sheetStyles.optionTitle}>Magpie</Text>
+          <Text style={sheetStyles.optionTitle}>{t("brand.magpie")}</Text>
           <Text style={sheetStyles.optionBody}>
             Open a real book to a random page and pocket the words that catch your ear.
           </Text>

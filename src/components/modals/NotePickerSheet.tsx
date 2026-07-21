@@ -6,6 +6,7 @@ import { styles } from "../../styles";
 import { colors, radii, spacing, text as textTokens } from "../../design/tokens";
 import { deriveNotePreviewBody, deriveNotePreviewTitle } from "../../domain/notepad";
 import type { Note } from "../../types";
+import { useTranslation } from "react-i18next";
 
 type Props = {
   visible: boolean;
@@ -19,30 +20,33 @@ type Props = {
 export function NotePickerSheet({
   visible,
   notes,
-  title = "Import from Lyrics Pad",
-  subtitle = "Choose a page to add as a new lyrics version.",
+  title,
+  subtitle,
   onClose,
   onSelect,
 }: Props) {
+  const { t } = useTranslation();
+  const resolvedTitle = title ?? t("modals.importLyricsPad");
+  const resolvedSubtitle = subtitle ?? t("modals.choosePage");
   const groups = useMemo(() => {
     const sortDesc = (a: Note, b: Note) => b.updatedAt - a.updatedAt;
     const pinned = notes.filter((note) => note.isPinned).sort(sortDesc);
     const rest = notes.filter((note) => !note.isPinned).sort(sortDesc);
     return [
-      { key: "pinned", label: "Pinned", items: pinned },
-      { key: "all", label: "All pages", items: rest },
+      { key: "pinned", label: t("modals.pinned"), items: pinned },
+      { key: "all", label: t("modals.allPages"), items: rest },
     ].filter((group) => group.items.length > 0);
-  }, [notes]);
+  }, [notes, t]);
 
   return (
     <BottomSheet visible={visible} onClose={onClose}>
-      <Text style={pickerStyles.title}>{title}</Text>
-      <Text style={pickerStyles.subtitle}>{subtitle}</Text>
+      <Text style={pickerStyles.title}>{resolvedTitle}</Text>
+      <Text style={pickerStyles.subtitle}>{resolvedSubtitle}</Text>
 
       {groups.length === 0 ? (
         <View style={pickerStyles.emptyState}>
           <Ionicons name="document-text-outline" size={24} color={colors.textMuted} />
-          <Text style={pickerStyles.emptyText}>Your Lyrics Pad is empty — write a page first.</Text>
+          <Text style={pickerStyles.emptyText}>{t("modals.lyricsPadEmpty")}</Text>
         </View>
       ) : (
         <ScrollView showsVerticalScrollIndicator={false} style={pickerStyles.scroll}>

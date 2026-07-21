@@ -3,6 +3,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { BottomSheet } from "../../common/BottomSheet";
 import { styles as appStyles } from "../../../styles";
 import { colors, radii, spacing, text as textTokens } from "../../../design/tokens";
+import { useTranslation } from "react-i18next";
 
 type Props = {
   visible: boolean;
@@ -11,9 +12,10 @@ type Props = {
 };
 
 export function NewLyricsPadItemSheet({ visible, onClose, onNewPage }: Props) {
+  const { t } = useTranslation();
   return (
     <BottomSheet visible={visible} onClose={onClose}>
-      <Text style={sheetStyles.title}>New in the Notepad</Text>
+      <Text style={sheetStyles.title}>{t("notepad.newTitle")}</Text>
 
       <Pressable
         style={({ pressed }) => [sheetStyles.option, pressed ? appStyles.pressDown : null]}
@@ -23,8 +25,8 @@ export function NewLyricsPadItemSheet({ visible, onClose, onNewPage }: Props) {
           <Ionicons name="document-text-outline" size={18} color={colors.primary} />
         </View>
         <View style={sheetStyles.optionCopy}>
-          <Text style={sheetStyles.optionTitle}>New page</Text>
-          <Text style={sheetStyles.optionBody}>A blank page for lyrics, notes, or anything else.</Text>
+          <Text style={sheetStyles.optionTitle}>{t("notepad.newPage")}</Text>
+          <Text style={sheetStyles.optionBody}>{t("notepad.newPageHint")}</Text>
         </View>
       </Pressable>
     </BottomSheet>

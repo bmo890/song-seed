@@ -4,6 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { styles } from "../../styles";
 import { BottomSheet, type BottomSheetRef } from "../common/BottomSheet";
 import { colors } from "../../design/tokens";
+import { useTranslation } from "react-i18next";
 
 export type ClipActionItem = {
   key: string;
@@ -59,6 +60,7 @@ export function ClipActionsSheet({
   actions,
   onCancel,
 }: ClipActionsSheetProps) {
+  const { t } = useTranslation();
   const sheetRef = useRef<BottomSheetRef>(null);
 
   return (
@@ -81,7 +83,7 @@ export function ClipActionsSheet({
         >
           <View style={styles.collectionActionsOptionLead}>
             <Ionicons name="close-outline" size={16} color={colors.textStrong} />
-            <Text style={styles.collectionActionsOptionText}>Cancel</Text>
+            <Text style={styles.collectionActionsOptionText}>{t("common.cancel")}</Text>
           </View>
         </Pressable>
       </View>

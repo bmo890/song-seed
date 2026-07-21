@@ -5,6 +5,7 @@ import { TitleInput } from "../common/TitleInput";
 import { Button } from "../common/Button";
 import { BottomSheet, type BottomSheetRef } from "../common/BottomSheet";
 import { colors } from "../../design/tokens";
+import { useTranslation } from "react-i18next";
 
 type ClipNotesSheetProps = {
   visible: boolean;
@@ -27,6 +28,7 @@ export function ClipNotesSheet({
   onSave,
   onCancel,
 }: ClipNotesSheetProps) {
+  const { t } = useTranslation();
   const sheetRef = useRef<BottomSheetRef>(null);
 
   const handleSave = useCallback(() => {
@@ -51,7 +53,7 @@ export function ClipNotesSheet({
           testID="clip-title-input"
           value={titleDraft}
           onChangeText={onChangeTitle}
-          placeholder="Clip title"
+          placeholder={t("modals.clipTitle")}
           containerStyle={{ marginHorizontal: 0 }}
         />
         {clipSubtitle ? (
@@ -62,7 +64,7 @@ export function ClipNotesSheet({
           testID="clip-notes-input"
           style={styles.clipNotesSheetTextInput}
           multiline
-          placeholder="Add notes about this clip..."
+          placeholder={t("modals.clipNotes")}
           placeholderTextColor={colors.textMuted}
           value={notesDraft}
           onChangeText={onChangeNotes}
@@ -72,13 +74,13 @@ export function ClipNotesSheet({
         <View style={styles.clipNotesSheetButtons}>
           <Button
             variant="secondary"
-            label="Cancel"
+            label={t("common.cancel")}
             style={styles.songDetailMiniCardButton}
             textStyle={styles.songDetailMiniCardButtonText}
             onPress={() => sheetRef.current?.close()}
           />
           <Button
-            label="Save"
+            label={t("common.save")}
             style={styles.songDetailMiniCardButton}
             textStyle={styles.songDetailMiniCardButtonText}
             onPress={handleSave}

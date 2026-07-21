@@ -2,6 +2,7 @@ import { Modal, Pressable, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { styles } from "../../styles";
 import { colors } from "../../design/tokens";
+import { useTranslation } from "react-i18next";
 
 type Props = {
   visible: boolean;
@@ -63,6 +64,7 @@ export function CollectionActionsModal({
   onDelete,
   onCancel,
 }: Props) {
+  const { t } = useTranslation();
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
       <View style={styles.modalBackdrop}>
@@ -70,10 +72,10 @@ export function CollectionActionsModal({
           <Pressable style={[styles.modalCard, styles.collectionActionsModalCard]} onPress={() => {}}>
             <Text style={styles.modalTitle}>{title}</Text>
             <View style={styles.collectionActionsOptionList}>
-              <ActionRow icon="create-outline" label="Rename" onPress={onRename} />
-              <ActionRow icon="copy-outline" label="Copy" onPress={onCopy} />
-              <ActionRow icon="swap-horizontal-outline" label="Move" onPress={onMove} />
-              <ActionRow icon="trash-outline" label="Delete" destructive onPress={onDelete} />
+              <ActionRow icon="create-outline" label={t("modals.rename")} onPress={onRename} />
+              <ActionRow icon="copy-outline" label={t("common.copy")} onPress={onCopy} />
+              <ActionRow icon="swap-horizontal-outline" label={t("modals.move")} onPress={onMove} />
+              <ActionRow icon="trash-outline" label={t("common.delete")} destructive onPress={onDelete} />
             </View>
           </Pressable>
         </Pressable>
