@@ -13,8 +13,10 @@ import { SelectionActionSheet } from "../../common/SelectionActionSheet";
 import { WorkspaceList } from "./WorkspaceList";
 import { AppAlert } from "../../common/AppAlert";
 import { colors } from "../../../design/tokens";
+import { useTranslation } from "react-i18next";
 
 export function WorkspaceListScreenContent() {
+  const { t } = useTranslation();
   const model = useWorkspaceListScreenModel();
   const songTargetPicker = useStore((s) => s.songTargetPicker);
   const cancelSongTargetPicking = useStore((s) => s.cancelSongTargetPicking);
@@ -37,7 +39,7 @@ export function WorkspaceListScreenContent() {
   const sortActive = model.data.workspaceListOrder !== "last-worked";
   const sortLabel = model.data.workspaceOrderOptions.find(
     (o) => o.key === model.data.workspaceListOrder
-  )?.label ?? "Last worked";
+  )?.label ?? t("workspaceList.lastWorked");
 
   const hasArchived = model.data.archivedWorkspaces.length > 0;
 
@@ -53,12 +55,12 @@ export function WorkspaceListScreenContent() {
           count={model.clipClipboard.clipIds.length}
           mode={model.clipClipboard.mode}
           onCancel={model.cancelClipboard}
-          actionLabel="Choose workspace"
+          actionLabel={t("workspaceList.chooseWorkspace")}
           disabled={true}
           onAction={() => {
             AppAlert.info(
-              "Choose a workspace",
-              "You cannot paste items directly on Home. Open a workspace first."
+              t("workspaceList.chooseWorkspaceTitle"),
+              t("workspaceList.pasteHint")
             );
           }}
         />
@@ -79,8 +81,8 @@ export function WorkspaceListScreenContent() {
           >
             <Ionicons name="menu-outline" size={22} color={colors.textSecondary} />
           </Pressable>
-          <Text style={styles.eyebrow}>Creative Overview</Text>
-          <Text style={styles.pageTitle}>Your Workspaces</Text>
+          <Text style={styles.eyebrow}>{t("workspaceList.eyebrow")}</Text>
+          <Text style={styles.pageTitle}>{t("workspaceList.title")}</Text>
         </View>
 
         {/* ── Sort control ─────────────────────────────────────────────────── */}
@@ -119,7 +121,7 @@ export function WorkspaceListScreenContent() {
             {sortMenuOpen ? (
               <View style={styles.sortMenu}>
                 <View style={styles.orderMenuSection}>
-                  <Text style={styles.orderMenuTitle}>Order</Text>
+                  <Text style={styles.orderMenuTitle}>{t("workspaceList.order")}</Text>
                   {model.data.workspaceOrderOptions.map((option) => {
                     const active = option.key === model.data.workspaceListOrder;
                     return (
@@ -173,14 +175,14 @@ export function WorkspaceListScreenContent() {
         />
 
         {model.data.activeWorkspaces.length === 0 ? (
-          <Text style={styles.emptyText}>No active workspaces. Tap + to create one.</Text>
+          <Text style={styles.emptyText}>{t("workspaceList.empty")}</Text>
         ) : null}
 
         {/* ── Archived workspace section ─────────────────────────────────── */}
         {hasArchived ? (
           <View style={styles.archivedSection}>
             <View style={styles.archivedSectionHeader}>
-              <Text style={styles.archivedHeading}>Archived</Text>
+              <Text style={styles.archivedHeading}>{t("workspaceList.archived")}</Text>
               <View style={styles.archivedDivider} />
             </View>
 
@@ -201,7 +203,7 @@ export function WorkspaceListScreenContent() {
       <Pressable
         testID="workspace-add"
         accessibilityRole="button"
-        accessibilityLabel="New workspace"
+        accessibilityLabel={t("workspaceList.newWorkspace")}
         style={({ pressed }) => [
           styles.fab,
           { bottom: playerDockHeight > 0 ? playerDockHeight + 12 : Math.max(32, insets.bottom + 16) },
@@ -218,7 +220,7 @@ export function WorkspaceListScreenContent() {
       {/* ── Workspace action sheet (ellipsis) ──────────────────────────────── */}
       <SelectionActionSheet
         visible={model.actionSheet.visible}
-        title={model.actionSheet.workspace?.title ?? "Workspace"}
+        title={model.actionSheet.workspace?.title ?? t("workspaceList.workspace")}
         actions={model.actionSheet.actions}
         onClose={model.actionSheet.close}
       />
@@ -226,7 +228,7 @@ export function WorkspaceListScreenContent() {
       {/* ── Workspace edit modal ────────────────────────────────────────────── */}
       <WorkspaceModal
         visible={model.modal.modalOpen}
-        title={model.modal.isEditing ? "Edit Workspace" : "New Workspace"}
+        title={t(model.modal.isEditing ? "workspaceList.editWorkspace" : "workspaceList.newWorkspace")}
         initialName={model.modal.editingWorkspace?.title}
         initialDescription={model.modal.editingWorkspace?.description}
         initialColor={model.modal.editingWorkspace?.color}

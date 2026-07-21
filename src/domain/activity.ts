@@ -1,6 +1,7 @@
 import { getIdeaCreatedAt, getIdeaUpdatedAt } from "./ideaSort";
 import { getCollectionById, getCollectionScopeIds } from "../utils";
 import type { ActivityEvent, ActivityMetric, ActivitySource, SongIdea, Workspace } from "../types";
+import { i18n } from "../i18n/instance";
 
 export type ActivityMetricFilter = ActivityMetric | "both";
 
@@ -266,7 +267,7 @@ export function buildActivityHeatmapMatrix(year: number) {
     const weekIndex = Math.max(0, Math.floor((startOfActivityWeek(monthStart) - start) / WEEK_MS));
     return {
       month,
-      label: new Date(year, month, 1).toLocaleDateString("en-US", { month: "short" }),
+      label: new Date(year, month, 1).toLocaleDateString(i18n.language === "he" ? "he-IL" : "en-US", { month: "short" }),
       weekIndex,
     };
   }).filter((marker, index, items) => index === 0 || marker.weekIndex !== items[index - 1].weekIndex);
@@ -275,7 +276,7 @@ export function buildActivityHeatmapMatrix(year: number) {
 }
 
 export function formatActivityDayLabel(ts: number) {
-  return new Date(ts).toLocaleDateString("en-US", {
+  return new Date(ts).toLocaleDateString(i18n.language === "he" ? "he-IL" : "en-US", {
     weekday: "long",
     month: "long",
     day: "numeric",

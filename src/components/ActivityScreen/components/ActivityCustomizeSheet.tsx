@@ -4,6 +4,7 @@ import { BottomSheet } from "../../common/BottomSheet";
 import { styles as baseStyles } from "../../../styles";
 import { SourceFilterRow, type SourceFilterOption } from "../../common/SourceFilterRow";
 import { colors } from "../../../design/tokens";
+import { useTranslation } from "react-i18next";
 
 type WorkspaceGroup = {
   workspace: SourceFilterOption;
@@ -33,24 +34,25 @@ export function ActivityCustomizeSheet({
   hasSourceOverrides,
   resetSourceFilters,
 }: ActivityCustomizeSheetProps) {
+  const { t } = useTranslation();
   return (
     <BottomSheet visible={visible} onClose={onClose}>
-      <Text style={styles.title}>Customize Activity</Text>
+      <Text style={styles.title}>{t("activity.customize")}</Text>
 
       <ScrollView style={{ maxHeight: 460 }} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
-          <Text style={styles.sectionLabel}>Sources</Text>
+          <Text style={styles.sectionLabel}>{t("activity.sources")}</Text>
           {hasSourceOverrides ? (
             <Pressable
               style={({ pressed }) => [styles.reset, pressed ? baseStyles.pressDown : null]}
               onPress={resetSourceFilters}
             >
-              <Text style={styles.resetText}>Reset</Text>
+              <Text style={styles.resetText}>{t("activity.reset")}</Text>
             </Pressable>
           ) : null}
         </View>
         <Text style={styles.sectionDesc}>
-          Which workspaces and collections feed your activity heatmap.
+          {t("activity.sourcesHint")}
         </Text>
 
         <View style={styles.list}>

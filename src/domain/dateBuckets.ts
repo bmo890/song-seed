@@ -1,3 +1,5 @@
+import { i18n } from "../i18n/instance";
+
 /**
  * Smart date bucketing for chronological list dividers.
  *
@@ -53,25 +55,25 @@ export function getDateBucket(ts: number): DateBucket {
   const currentYear = new Date(now).getFullYear();
 
   if (ts >= todayStart) {
-    return { key: "today", label: "Today", startTs: todayStart };
+    return { key: "today", label: i18n.t("time.today"), startTs: todayStart };
   }
   if (ts >= yesterdayStart) {
-    return { key: "yesterday", label: "Yesterday", startTs: yesterdayStart };
+    return { key: "yesterday", label: i18n.t("time.yesterday"), startTs: yesterdayStart };
   }
   if (ts >= weekAgoStart) {
-    return { key: "last-week", label: "Last week", startTs: weekAgoStart };
+    return { key: "last-week", label: i18n.t("time.lastWeek"), startTs: weekAgoStart };
   }
   if (ts >= thisMonthStart) {
-    return { key: "this-month", label: "This month", startTs: thisMonthStart };
+    return { key: "this-month", label: i18n.t("time.thisMonth"), startTs: thisMonthStart };
   }
   if (ts >= lastMonthStart) {
-    return { key: "last-month", label: "Last month", startTs: lastMonthStart };
+    return { key: "last-month", label: i18n.t("time.lastMonth"), startTs: lastMonthStart };
   }
 
   // Group by calendar month
   const d = new Date(ts);
   const monthStart = startOfMonth(ts);
-  const monthName = d.toLocaleDateString("en-US", { month: "long" });
+  const monthName = d.toLocaleDateString(i18n.language === "he" ? "he-IL" : "en-US", { month: "long" });
 
   if (d.getFullYear() === currentYear) {
     return { key: `month-${d.getMonth()}`, label: monthName, startTs: monthStart };

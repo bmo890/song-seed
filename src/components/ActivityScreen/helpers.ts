@@ -7,6 +7,7 @@ import {
 } from "../../domain/activity";
 import { IdeaStatus, SongIdea, Workspace } from "../../types";
 import { colors } from "../../design/tokens";
+import { i18n } from "../../i18n/instance";
 
 export const CELL_SIZE = 15;
 export const CELL_GAP = 4;
@@ -38,15 +39,15 @@ export function formatActivityCardMatch(
   latestMetric: "created" | "updated"
 ) {
   if (createdCount > 0 && updatedCount > 0) {
-    return latestMetric === "updated" ? "Updated" : "Created";
+    return i18n.t(latestMetric === "updated" ? "activity.updated" : "activity.created");
   }
-  if (createdCount > 0) return "Created";
-  if (updatedCount > 0) return "Updated";
+  if (createdCount > 0) return i18n.t("activity.created");
+  if (updatedCount > 0) return i18n.t("activity.updated");
   return "";
 }
 
 function formatActivityDateLabel(ts: number, includeYear = true) {
-  return new Date(ts).toLocaleDateString("en-US", {
+  return new Date(ts).toLocaleDateString(i18n.language === "he" ? "he-IL" : "en-US", {
     month: "short",
     day: "numeric",
     ...(includeYear ? { year: "numeric" } : {}),
@@ -54,7 +55,7 @@ function formatActivityDateLabel(ts: number, includeYear = true) {
 }
 
 export function formatActivityTimeLabel(ts: number) {
-  return new Date(ts).toLocaleTimeString("en-US", {
+  return new Date(ts).toLocaleTimeString(i18n.language === "he" ? "he-IL" : "en-US", {
     hour: "numeric",
     minute: "2-digit",
   });
@@ -62,7 +63,7 @@ export function formatActivityTimeLabel(ts: number) {
 
 function formatMetricSuffix(metric: ActivityMetricFilter) {
   if (metric === "both") return "";
-  return ` • ${metric === "created" ? "Created" : "Updated"}`;
+  return ` • ${i18n.t(metric === "created" ? "activity.created" : "activity.updated")}`;
 }
 
 export function formatSelectedRangeLabel(

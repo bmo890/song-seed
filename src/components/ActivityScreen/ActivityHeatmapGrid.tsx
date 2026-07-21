@@ -7,6 +7,7 @@ import { styles } from "../../styles";
 import { CELL_SIZE, CELL_STRIDE, getActivityCellBackground } from "./helpers";
 import { haptic } from "../../design/haptics";
 import { colors } from "../../design/tokens";
+import { useTranslation } from "react-i18next";
 
 type ActivityHeatmapGridProps = {
   year: number;
@@ -41,10 +42,11 @@ export function ActivityHeatmapGrid({
   onPressMonth,
   onPressDay,
 }: ActivityHeatmapGridProps) {
+  const { t } = useTranslation();
   const gridScrollRef = useRef<ScrollView>(null);
   const [gridViewportWidth, setGridViewportWidth] = useState(0);
   const gridWidth = Math.max(0, weeks.length * CELL_STRIDE - 4);
-  const displayRangeLabel = selectedRangeLabel?.replace(/, \d{4}/g, "") ?? "Choose a date range";
+  const displayRangeLabel = selectedRangeLabel?.replace(/, \d{4}/g, "") ?? t("activity.chooseRange");
   const todayTs = useMemo(() => startOfActivityDay(Date.now()), []);
   const focusedDayTs = selectedRange?.endTs ?? (year === currentYear ? todayTs : null);
   const focusedWeekIndex = useMemo(
@@ -77,11 +79,11 @@ export function ActivityHeatmapGrid({
     <SurfaceCard style={styles.activityCard}>
       <View style={styles.activityHeatmapHeader}>
         <View style={styles.activityHeatmapHeaderCopy}>
-          <Text style={styles.activityHeatmapEyebrow}>Date range</Text>
+          <Text style={styles.activityHeatmapEyebrow}>{t("activity.dateRange")}</Text>
           <Text style={styles.activityHeatmapSelectedLabel} numberOfLines={2}>
             {displayRangeLabel}
           </Text>
-          {scopeLabel !== "All workspaces" ? (
+          {scopeLabel !== t("activity.allWorkspaces") ? (
             <Text style={styles.activityHeatmapScopeLabel}>{scopeLabel}</Text>
           ) : null}
         </View>
@@ -89,11 +91,11 @@ export function ActivityHeatmapGrid({
 
       <View style={styles.activityControlsRow}>
         <View style={styles.activityLegendRow}>
-          <Text style={styles.activityLegendLabel}>Less</Text>
+          <Text style={styles.activityLegendLabel}>{t("activity.less")}</Text>
           {legendSwatches.map((backgroundColor, index) => (
             <View key={index} style={[styles.activityLegendSwatch, { backgroundColor }]} />
           ))}
-          <Text style={styles.activityLegendLabel}>More</Text>
+          <Text style={styles.activityLegendLabel}>{t("activity.more")}</Text>
         </View>
 
         <View style={styles.activityYearControls}>
@@ -104,7 +106,7 @@ export function ActivityHeatmapGrid({
               onJumpToToday();
             }}
           >
-            <Text style={styles.activityTodayBtnText}>Today</Text>
+            <Text style={styles.activityTodayBtnText}>{t("activity.today")}</Text>
           </Pressable>
           <Pressable
             style={({ pressed }) => [styles.activityYearBtn, pressed ? styles.pressDown : null]}

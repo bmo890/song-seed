@@ -5,16 +5,19 @@ import { getWorkspaceListOrderState, sortWorkspacesWithPrimary } from "../../../
 import type { WorkspaceListOrder } from "../../../types";
 import { useWorkspaceArchiveActions } from "./useWorkspaceArchiveActions";
 import type { SelectionAction } from "../../common/SelectionDock";
+import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 
-function defaultWorkspaceTitle() {
+function defaultWorkspaceTitle(t: TFunction) {
   const now = new Date();
   const dd = String(now.getDate()).padStart(2, "0");
   const mm = String(now.getMonth() + 1).padStart(2, "0");
   const yyyy = String(now.getFullYear());
-  return `New Workspace ${dd}/${mm}/${yyyy}`;
+  return t("workspaceList.defaultTitle", { date: `${dd}/${mm}/${yyyy}` });
 }
 
 export function useWorkspaceListScreenModel() {
+  const { t } = useTranslation();
   const allWorkspaces = useStore((s) => s.workspaces);
   // Discovery surface: personal spaces only (received packages live on the Received page).
   const workspaces = useMemo(() => personalWorkspaces(allWorkspaces), [allWorkspaces]);
@@ -74,10 +77,10 @@ export function useWorkspaceListScreenModel() {
     label: string;
     icon: string;
   }> = [
-    { key: "last-worked", label: "Last worked", icon: "time-outline" },
-    { key: "least-recent", label: "Least recent", icon: "time-outline" },
-    { key: "title-az", label: "Title A-Z", icon: "text-outline" },
-    { key: "title-za", label: "Title Z-A", icon: "text-outline" },
+    { key: "last-worked", label: t("workspaceList.lastWorked"), icon: "time-outline" },
+    { key: "least-recent", label: t("workspaceList.leastRecent"), icon: "time-outline" },
+    { key: "title-az", label: t("workspaceList.titleAz"), icon: "text-outline" },
+    { key: "title-za", label: t("workspaceList.titleZa"), icon: "text-outline" },
   ];
   const activeWorkspaceCount = workspaces.filter((workspace) => !workspace.isArchived).length;
 
@@ -123,7 +126,7 @@ export function useWorkspaceListScreenModel() {
     const actions: SelectionAction[] = [
       {
         key: "edit",
-        label: "Edit workspace",
+        label: t("workspaceList.editWorkspace"),
         icon: "create-outline",
         onPress: () => openEditModal(actionSheetWorkspace.id),
       },
@@ -132,7 +135,7 @@ export function useWorkspaceListScreenModel() {
     if (!actionSheetWorkspace.isArchived) {
       actions.push({
         key: "primary",
-        label: primaryWorkspaceId === actionSheetWorkspace.id ? "Primary workspace" : "Set as primary",
+        label: t(primaryWorkspaceId === actionSheetWorkspace.id ? "workspaceList.primaryWorkspace" : "workspaceList.setPrimary"),
         icon: primaryWorkspaceId === actionSheetWorkspace.id ? "star" : "star-outline",
         disabled: primaryWorkspaceId === actionSheetWorkspace.id,
         onPress: () => {
@@ -144,7 +147,7 @@ export function useWorkspaceListScreenModel() {
 
     actions.push({
       key: "archive",
-      label: actionSheetWorkspace.isArchived ? "Unarchive" : "Archive",
+      label: t(actionSheetWorkspace.isArchived ? "workspaceList.unarchive" : "workspaceList.archive"),
       icon: actionSheetWorkspace.isArchived ? "arrow-up-circle-outline" : "archive-outline",
       onPress: () => {
         closeActionSheet();
@@ -161,7 +164,7 @@ export function useWorkspaceListScreenModel() {
     ) {
       actions.push({
         key: "offload",
-        label: "Move package to Files…",
+        label: t("workspaceList.movePackage"),
         icon: "cloud-upload-outline",
         onPress: () => {
           closeActionSheet();
@@ -172,7 +175,7 @@ export function useWorkspaceListScreenModel() {
 
     actions.push({
       key: "delete",
-      label: "Delete permanently",
+      label: t("workspaceList.deletePermanently"),
       icon: "trash-outline",
       tone: "danger",
       onPress: () => {
@@ -183,11 +186,11 @@ export function useWorkspaceListScreenModel() {
 
     return actions;
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [actionSheetWorkspace, primaryWorkspaceId]);
+  }, [actionSheetWorkspace, primaryWorkspaceId, t]);
 
   function saveWorkspace(name: string, description: string, color: string, avatarKey: number) {
     if (archiveActions.busyWorkspaceId) return;
-    const finalName = name || defaultWorkspaceTitle();
+    const finalName = name || defaultWorkspaceTitle(t);
     if (isEditing && editingWorkspace) {
       updateWorkspace(editingWorkspace.id, { title: finalName, description, color, avatarKey });
     } else {

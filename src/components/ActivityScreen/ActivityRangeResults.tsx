@@ -3,6 +3,7 @@ import { SurfaceCard } from "../common/SurfaceCard";
 import { styles } from "../../styles";
 import { ActivityItemResult } from "./helpers";
 import { ActivityResultCard } from "./components/ActivityResultCard";
+import { useTranslation } from "react-i18next";
 
 type ActivityRangeResultsProps = {
   selectedRangeItemCount: number;
@@ -47,7 +48,7 @@ type ActivityResultsListProps = {
 // cap what mounts and say how much more the range holds.
 const MAX_RENDERED_RESULTS = 60;
 
-function renderItemResults({
+function ActivityResultsList({
   results,
   onItemLayout,
   onDayLayout,
@@ -64,12 +65,13 @@ function renderItemResults({
   onViewInCollection,
   onOpenItemMenu,
 }: ActivityResultsListProps) {
+  const { t } = useTranslation();
   if (results.length === 0) {
     return (
       <SurfaceCard style={styles.activityResultEmptyCard}>
-        <Text style={styles.activityResultEmptyTitle}>No matching work in this period</Text>
+        <Text style={styles.activityResultEmptyTitle}>{t("activity.noWork")}</Text>
         <Text style={styles.activityResultEmptyText}>
-          Try a different day, week, month, or activity filter.
+          {t("activity.noWorkHint")}
         </Text>
       </SurfaceCard>
     );
@@ -109,8 +111,7 @@ function renderItemResults({
       })}
       {truncatedCount > 0 ? (
         <Text style={styles.activityResultEmptyText}>
-          {truncatedCount} more item{truncatedCount === 1 ? "" : "s"} in this period — narrow the
-          range or open the collection to see everything.
+          {t("activity.truncated", { count: truncatedCount })}
         </Text>
       ) : null}
     </View>
@@ -136,6 +137,7 @@ export function ActivityRangeResults({
   onViewInCollection,
   onOpenItemMenu,
 }: ActivityRangeResultsProps) {
+  const { t } = useTranslation();
   return (
     <View
       style={styles.activityResultsSection}
@@ -145,10 +147,10 @@ export function ActivityRangeResults({
       }}
     >
       <Text style={styles.activityResultsSummaryText}>
-        {selectedRangeItemCount} {selectedRangeItemCount === 1 ? "item" : "items"}
+        {t("activity.itemCount", { count: selectedRangeItemCount })}
       </Text>
 
-      {renderItemResults({
+      <ActivityResultsList {...{
         results: itemResults,
         onItemLayout,
         onDayLayout,
@@ -164,7 +166,7 @@ export function ActivityRangeResults({
         onOpenItem,
         onViewInCollection,
         onOpenItemMenu
-      })}
+      }} />
     </View>
   );
 }

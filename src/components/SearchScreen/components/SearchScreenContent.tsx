@@ -6,20 +6,33 @@ import { ScreenHeader } from "../../common/ScreenHeader";
 import { SearchField } from "../../common/SearchField";
 import { colors, radii, spacing, text as textTokens } from "../../../design/tokens";
 import { styles } from "../../../styles";
-import { getSearchMatchSourceLabel, type GlobalSearchResult } from "../../../domain/search";
+import { type GlobalSearchResult, type GlobalSearchMatchSource } from "../../../domain/search";
 import { useSearchScreenModel } from "../hooks/useSearchScreenModel";
+import { useTranslation } from "react-i18next";
+import { UserText } from "../../../i18n";
 
 // The "index" of the archive — what a query actually reaches into. Doubles as the
 // empty-state content, replacing the old lonely magnifier + repeated paragraph.
-const SEARCH_DOMAINS: Array<{ label: string; icon: keyof typeof Ionicons.glyphMap }> = [
-  { label: "Songs", icon: "albums-outline" },
-  { label: "Clips", icon: "musical-notes-outline" },
-  { label: "Lyrics", icon: "text-outline" },
-  { label: "Chords", icon: "musical-note-outline" },
-  { label: "Notes", icon: "document-text-outline" },
-  { label: "Collections", icon: "folder-open-outline" },
-  { label: "Lyrics Pad", icon: "book-outline" },
+const SEARCH_DOMAINS: Array<{ labelKey: string; icon: keyof typeof Ionicons.glyphMap }> = [
+  { labelKey: "search.songs", icon: "albums-outline" },
+  { labelKey: "search.clips", icon: "musical-notes-outline" },
+  { labelKey: "search.lyrics", icon: "text-outline" },
+  { labelKey: "search.chords", icon: "musical-note-outline" },
+  { labelKey: "search.notes", icon: "document-text-outline" },
+  { labelKey: "search.collections", icon: "folder-open-outline" },
+  { labelKey: "search.lyricsPad", icon: "book-outline" },
 ];
+
+const MATCH_SOURCE_KEYS: Record<GlobalSearchMatchSource, string> = {
+  title: "filters.title",
+  description: "search.description",
+  notes: "search.notes",
+  "clip-title": "search.clipTitle",
+  "clip-notes": "search.clipNotes",
+  lyrics: "search.lyrics",
+  chords: "search.chords",
+  body: "search.body",
+};
 
 // Highlights every occurrence of `query` inside `value`. Used to mark the matched
 // fragment inside a result snippet (lyrics, notes, chords) so the eye lands on it.
@@ -87,6 +100,7 @@ function SearchResultCard({
   animationIndex: number;
   onPress: () => void;
 }) {
+  const { t } = useTranslation();
   // Each card fades + rises on mount. Because the list is keyed by result id, only
   // cards new to this query mount and animate — persistent ones stay put, so rapid
   // typing doesn't re-trigger a full cascade every keystroke.
@@ -125,14 +139,14 @@ function SearchResultCard({
             size={16}
             color="#6a5751"
           />
-          <Text style={searchScreenStyles.resultTitle} numberOfLines={1}>
+          <UserText value={result.title} style={searchScreenStyles.resultTitle} numberOfLines={1}>
             <HighlightedText value={result.title} query={query} />
-          </Text>
+          </UserText>
         </View>
         <View style={searchScreenStyles.resultMetaRow}>
           <View style={searchScreenStyles.matchChip}>
             <Text style={searchScreenStyles.matchChipText}>
-              {getSearchMatchSourceLabel(result.matchSource)}
+              {t(MATCH_SOURCE_KEYS[result.matchSource])}
             </Text>
           </View>
           {showOpenIn ? null : (
@@ -141,21 +155,21 @@ function SearchResultCard({
         </View>
       </View>
 
-      <Text style={searchScreenStyles.resultContext} numberOfLines={1}>
+      <UserText value={result.context} style={searchScreenStyles.resultContext} numberOfLines={1}>
         {result.context}
-      </Text>
+      </UserText>
 
       {result.snippet ? (
-        <Text style={searchScreenStyles.resultSnippet} numberOfLines={2}>
+        <UserText value={result.snippet} style={searchScreenStyles.resultSnippet} numberOfLines={2}>
           <HighlightedText value={result.snippet} query={query} />
-        </Text>
+        </UserText>
       ) : null}
 
       {showOpenIn ? (
         <View style={searchScreenStyles.openInRow}>
           <Ionicons name="folder-open-outline" size={13} color={colors.primary} />
           <Text style={searchScreenStyles.openInText} numberOfLines={1}>
-            Open in {result.containerName}
+            {t("search.openIn", { name: result.containerName })}
           </Text>
           <Ionicons name="chevron-forward" size={13} color={colors.primary} />
         </View>
@@ -211,6 +225,7 @@ function SectionRule({ label }: { label: string }) {
 }
 
 function SearchLanding() {
+  const { t } = useTranslation();
   const enter = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -233,28 +248,29 @@ function SearchLanding() {
 
   return (
     <Animated.View style={[searchScreenStyles.landing, animatedStyle]}>
-      <SectionRule label="Search looks inside" />
+      <SectionRule label={t("search.looksInside")} />
       <View style={searchScreenStyles.domainWrap}>
         {SEARCH_DOMAINS.map((domain) => (
-          <View key={domain.label} style={searchScreenStyles.domainChip}>
+          <View key={domain.labelKey} style={searchScreenStyles.domainChip}>
             <Ionicons name={domain.icon} size={13} color={colors.textSecondary} />
-            <Text style={searchScreenStyles.domainLabel}>{domain.label}</Text>
+            <Text style={searchScreenStyles.domainLabel}>{t(domain.labelKey)}</Text>
           </View>
         ))}
       </View>
       <Text style={searchScreenStyles.landingHint}>
-        Titles, notes, lyric lines, and chords — everywhere across your library.
+        {t("search.landingHint")}
       </Text>
     </Animated.View>
   );
 }
 
 export function SearchScreenContent() {
+  const { t } = useTranslation();
   const model = useSearchScreenModel();
   const shownCount = model.activeMatchFilter ? model.filteredResultCount : model.resultCount;
   const subtitle = model.hasQuery
-    ? `${shownCount} match${shownCount === 1 ? "" : "es"}`
-    : "Find a song by a lyric line, a clip by a note — anything by what's inside it.";
+    ? t("search.matches", { count: shownCount })
+    : t("search.intro");
   const showFilterBar = model.hasQuery && model.matchFilters.length > 1;
 
   return (
@@ -263,8 +279,8 @@ export function SearchScreenContent() {
       <ScreenHeader title="" leftIcon="hamburger" />
 
       <View style={searchScreenStyles.intro}>
-        <Text style={searchScreenStyles.eyebrow}>Your archive</Text>
-        <Text style={searchScreenStyles.title}>Search</Text>
+        <Text style={searchScreenStyles.eyebrow}>{t("search.archive")}</Text>
+        <Text style={searchScreenStyles.title}>{t("search.title")}</Text>
         <Text style={searchScreenStyles.subtitle} numberOfLines={2}>
           {subtitle}
         </Text>
@@ -273,7 +289,7 @@ export function SearchScreenContent() {
       <SearchField
         testID="global-search"
         value={model.searchQuery}
-        placeholder="Search everything"
+        placeholder={t("search.placeholder")}
         onChangeText={model.setSearchQuery}
         containerStyle={searchScreenStyles.searchField}
       />
@@ -287,7 +303,7 @@ export function SearchScreenContent() {
           contentContainerStyle={searchScreenStyles.filterBarContent}
         >
           <FilterPill
-            label="All"
+            label={t("common.all")}
             count={model.resultCount}
             active={model.activeMatchFilter == null}
             onPress={() => model.setActiveMatchFilter(null)}
@@ -295,7 +311,7 @@ export function SearchScreenContent() {
           {model.matchFilters.map((option) => (
             <FilterPill
               key={option.key}
-              label={option.label}
+              label={t(`search.${option.key}`)}
               count={option.count}
               active={model.activeMatchFilter === option.key}
               onPress={() =>
@@ -312,10 +328,9 @@ export function SearchScreenContent() {
         <SearchLanding />
       ) : model.resultCount === 0 ? (
         <View style={searchScreenStyles.noMatchWrap}>
-          <SectionRule label="No matches" />
+          <SectionRule label={t("search.noMatches")} />
           <Text style={searchScreenStyles.noMatchBody}>
-            Nothing matched “{model.debouncedSearchQuery.trim()}”. Try a shorter word or a lyric
-            fragment.
+            {t("search.noMatchesBody", { query: model.debouncedSearchQuery.trim() })}
           </Text>
         </View>
       ) : (
@@ -334,7 +349,7 @@ export function SearchScreenContent() {
             return (
               <View key={group.kind} style={searchScreenStyles.section}>
                 <View style={searchScreenStyles.sectionHeaderRow}>
-                  <Text style={searchScreenStyles.sectionTitle}>{group.label}</Text>
+                  <Text style={searchScreenStyles.sectionTitle}>{t(`search.${group.kind === "note" ? "lyricsPad" : `${group.kind}s`}`)}</Text>
                   <Text style={searchScreenStyles.sectionCount}>
                     {group.truncatedCount > 0 ? `${group.items.length}+` : group.items.length}
                   </Text>
@@ -353,8 +368,7 @@ export function SearchScreenContent() {
                 </View>
                 {group.truncatedCount > 0 ? (
                   <Text style={searchScreenStyles.truncationNote}>
-                    {group.truncatedCount} more match{group.truncatedCount === 1 ? "" : "es"} — type a
-                    more specific search to narrow down
+                    {t("search.moreMatches", { count: group.truncatedCount })}
                   </Text>
                 ) : null}
               </View>

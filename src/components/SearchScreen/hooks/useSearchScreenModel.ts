@@ -14,6 +14,7 @@ import {
   GLOBAL_SEARCH_KIND_ORDER,
   SEARCH_MATCH_FILTER_ORDER,
 } from "../../../domain/search";
+import { useTranslation } from "react-i18next";
 
 type SearchResultGroup = {
   kind: GlobalSearchResultKind;
@@ -51,6 +52,7 @@ function navigateToRoute(navigation: any, routeName: string, params?: Record<str
 }
 
 export function useSearchScreenModel() {
+  const { t } = useTranslation();
   const navigation = useNavigation<any>();
   const allWorkspaces = useStore((state) => state.workspaces);
   // Search covers YOUR library; received packages are excluded by design.
@@ -149,7 +151,7 @@ export function useSearchScreenModel() {
             focusIdeaId: result.ideaId,
             focusToken: Date.now(),
             source: "search",
-            backLabel: "Search",
+            backLabel: t("search.title"),
           });
         } else {
           navigateToRoute(navigation, "IdeaDetail", { ideaId: result.ideaId });

@@ -27,11 +27,13 @@ import { haptic } from "../../../design/haptics";
 import { getDateBucketLabel } from "../../../domain/dateBuckets";
 import { openCollectionFromContext, openShelf } from "../../../navigation";
 import { getPlayableClipForIdea } from "../../../domain/clipPresentation";
+import { useTranslation } from "react-i18next";
 
 type ActivityItemRef = { workspaceId: string; ideaId: string; ideaKind: "song" | "clip" };
 type ActivityCollectionRef = ActivityItemRef & { collectionId: string };
 
 export function useActivityScreenModel() {
+  const { t } = useTranslation();
   const metricFilter = "both" as const;
   const navigation = useNavigation<any>();
   const isFocused = useIsFocused();
@@ -276,17 +278,17 @@ export function useActivityScreenModel() {
       return `${collectionScopeWorkspace.title} / ${collectionScope.title}`;
     }
     if (excludedWorkspaceIds.length === 0 && excludedCollectionIds.length === 0) {
-      return "All workspaces";
+      return t("activity.allWorkspaces");
     }
     const liveWorkspaces = workspaces.filter((workspace) => !workspace.isArchived);
     const activeCount = liveWorkspaces.filter(
       (workspace) => !excludedWorkspaceIds.includes(workspace.id)
     ).length;
     if (excludedCollectionIds.length === 0) {
-      return `${activeCount} of ${liveWorkspaces.length} workspaces`;
+      return t("activity.workspaceFraction", { active: activeCount, total: liveWorkspaces.length });
     }
-    return "Filtered sources";
-  }, [collectionScope, collectionScopeWorkspace, excludedWorkspaceIds, excludedCollectionIds, workspaces]);
+    return t("activity.filteredSources");
+  }, [collectionScope, collectionScopeWorkspace, excludedWorkspaceIds, excludedCollectionIds, t, workspaces]);
 
   useEffect(() => {
     activityDayLayoutsRef.current = {};
@@ -316,7 +318,7 @@ export function useActivityScreenModel() {
     if (item.ideaKind === "clip") {
       const clip = getPlayableClipForItem(item);
       if (!clip) {
-        AppAlert.info("Nothing to open", "This clip does not have playable audio yet.");
+        AppAlert.info(t("activity.nothingToOpen"), t("activity.noPlayableAudio"));
         return;
       }
       await inlinePlayer.resetInlinePlayer();
@@ -341,7 +343,7 @@ export function useActivityScreenModel() {
       focusIdeaId,
       focusToken: focusIdeaId ? Date.now() : undefined,
       source: "activity",
-      backLabel: "Activity",
+      backLabel: t("screens.activity"),
     });
   }
 
@@ -491,20 +493,20 @@ export function useActivityScreenModel() {
     onOpenItemMenu: (item: ActivityItemResult) => {
       AppAlert.custom(item.ideaTitle, undefined, [
         {
-          label: "Set aside",
+          label: t("activity.setAside"),
           style: "default",
           icon: "file-tray-outline",
-          description: "Keep it on the Shelf for 7 days.",
+          description: t("activity.setAsideHint"),
           onPress: () => {
             useShelfStore.getState().setAside([{ kind: "idea", id: item.ideaId }]);
             haptic.success();
-            toast("On the shelf for 7 days", "file-tray-outline", {
-              action: { label: "View shelf", onPress: () => openShelf(navigation) },
+            toast(t("activity.onShelf"), "file-tray-outline", {
+              action: { label: t("activity.viewShelf"), onPress: () => openShelf(navigation) },
             });
           },
         },
         {
-          label: "Cancel",
+          label: t("common.cancel"),
           style: "cancel",
         },
       ]);

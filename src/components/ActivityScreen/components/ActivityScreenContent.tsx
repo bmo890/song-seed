@@ -29,7 +29,7 @@ export function ActivityScreenContent() {
               style={({ pressed }) => [styles.customizeBtn, pressed ? styles.pressDown : null]}
               onPress={() => setCustomizeOpen(true)}
               hitSlop={6}
-              accessibilityLabel="Customize Activity"
+              accessibilityLabel={t("activity.customize")}
             >
               <Ionicons name="options-outline" size={18} color={colors.textSecondary} />
             </Pressable>

@@ -5,6 +5,7 @@ import { styles } from "../styles";
 import type { ActivityItemResult } from "../helpers";
 import { getDateBucket } from "../../../domain/dateBuckets";
 import { colors } from "../../../design/tokens";
+import { useTranslation } from "react-i18next";
 
 type ActivityResultCardProps = {
   result: ActivityItemResult;
@@ -37,6 +38,7 @@ export function ActivityResultCard({
   onViewInCollection,
   onOpenMenu,
 }: ActivityResultCardProps) {
+  const { t } = useTranslation();
   const isSong = result.ideaKind === "song";
   const canPlay = playback.canPlayItem(result);
   const isActive = playback.activeInlineItemId === result.ideaId && canPlay;
@@ -45,7 +47,7 @@ export function ActivityResultCard({
   const previousBucket = previousResult ? getDateBucket(previousResult.latestAt) : null;
   const showDayDivider = previousBucket?.key !== resultBucket.key;
   const activityIcon =
-    result.activityLabel === "Updated" ? "pencil-outline" : "bulb-outline";
+    result.latestMetric === "updated" ? "pencil-outline" : "bulb-outline";
 
   const footerContent = (
     <View style={cardStyles.footer}>
@@ -65,7 +67,7 @@ export function ActivityResultCard({
         }}
         hitSlop={8}
         accessibilityRole="button"
-        accessibilityLabel={`View ${result.ideaTitle} in collection`}
+        accessibilityLabel={t("activity.viewInCollection", { title: result.ideaTitle })}
       >
         <Ionicons name="open-outline" size={15} color={colors.textMuted} />
       </Pressable>
