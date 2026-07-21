@@ -124,7 +124,7 @@ function ChunkHelp() {
 
       <View style={helpStyles.points}>
         <HelpPoint icon="cut-outline" title={t("cutUpHelp.seamTitle")} body={t("cutUpHelp.seamBody")} />
-        <HelpPoint icon="resize-outline" title={t("cutUpHelp.slideTitle")} body={t("cutUpHelp.slideBody")} />
+        <HelpPoint icon="layers-outline" title={t("cutUpHelp.slideTitle")} body={t("cutUpHelp.slideBody")} />
         <HelpPoint icon="sparkles-outline" title={t("cutUpHelp.resetTitle")} body={t("cutUpHelp.resetBody")} />
       </View>
     </>

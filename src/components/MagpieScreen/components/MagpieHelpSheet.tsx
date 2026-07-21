@@ -40,8 +40,8 @@ function PageHelp() {
       </View>
 
       <View style={helpStyles.points}>
-        <HelpPoint icon="refresh" title={t("magpieHelp.newPageTitle")} body={t("magpieHelp.newPageBody")} />
-        <HelpPoint icon="shuffle" title={t("magpieHelp.newBookTitle")} body={t("magpieHelp.newBookBody")} />
+        <HelpPoint icon="book-outline" title={t("magpieHelp.newPageTitle")} body={t("magpieHelp.newPageBody")} />
+        <HelpPoint icon="cut-outline" title={t("magpieHelp.newBookTitle")} body={t("magpieHelp.newBookBody")} />
         <HelpPoint icon="albums-outline" title={t("magpieHelp.pileKeepsTitle")} body={t("magpieHelp.pileKeepsBody")} />
       </View>
 
@@ -65,8 +65,8 @@ function BuildHelp() {
       </View>
 
       <View style={helpStyles.points}>
-        <HelpPoint icon="reorder-three" title={t("magpieHelp.reorderTitle")} body={t("magpieHelp.reorderBody")} />
-        <HelpPoint icon="cut-outline" title={t("magpieHelp.splitTitle")} body={t("magpieHelp.splitBody")} />
+        <HelpPoint icon="add-outline" title={t("magpieHelp.reorderTitle")} body={t("magpieHelp.reorderBody")} />
+        <HelpPoint icon="options-outline" title={t("magpieHelp.splitTitle")} body={t("magpieHelp.splitBody")} />
         <HelpPoint icon="bookmark-outline" title={t("magpieHelp.saveTitle")} body={t("magpieHelp.saveBody")} />
       </View>
     </>
