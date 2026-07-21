@@ -24,6 +24,7 @@ import { SongbookDetailView } from "../views/SongbookDetailView";
 import { SetlistListView } from "../views/SetlistListView";
 import { SetlistDetailView } from "../views/SetlistDetailView";
 import { SetlistEntryBuilderView } from "../views/SetlistEntryBuilderView";
+import { useTranslation } from "react-i18next";
 
 type Section = "playlists" | "songbook" | "setlists";
 
@@ -48,6 +49,7 @@ const SECTION_HINTS: Record<Section, string> = {
  * mount cost on open and 3× re-derivation on every edit, for two invisible tabs.
  */
 export function LibraryScreenContent() {
+  const { t } = useTranslation();
   useBrowseRootBackHandler();
   const [section, setSection] = useState<Section>("playlists");
 
@@ -63,8 +65,12 @@ export function LibraryScreenContent() {
 
   const tabs = (
     <View style={local.tabsWrap}>
-      <SegmentedControl options={SECTIONS} value={section} onChange={setSection} />
-      <Text style={local.desc}>{SECTION_HINTS[section]}</Text>
+      <SegmentedControl options={[
+        { key: "playlists", label: t("library.playlists") },
+        { key: "songbook", label: t("library.songbook") },
+        { key: "setlists", label: t("library.setlists") },
+      ]} value={section} onChange={setSection} />
+      <Text style={local.desc}>{t(`library.${section}Hint`)}</Text>
     </View>
   );
 
@@ -78,6 +84,7 @@ export function LibraryScreenContent() {
 }
 
 function PlaylistsSection({ tabs }: { tabs: ReactNode }) {
+  const { t } = useTranslation();
   const model = useLibraryScreenModel();
 
   return (
@@ -119,7 +126,7 @@ function PlaylistsSection({ tabs }: { tabs: ReactNode }) {
 
       <QuickNameModal
         visible={model.playlistModalOpen}
-        title="New Playlist"
+        title={t("library.newPlaylist")}
         draftValue={model.playlistDraftTitle}
         placeholderValue={model.defaultPlaylistTitle}
         onChangeDraft={model.setPlaylistDraftTitle}
@@ -128,13 +135,13 @@ function PlaylistsSection({ tabs }: { tabs: ReactNode }) {
           model.setPlaylistDraftTitle("");
         }}
         onSave={model.createPlaylist}
-        helperText="Playlists are global and can hold songs or clips from any workspace."
-        saveLabel="Create"
+        helperText={t("library.playlistHint")}
+        saveLabel={t("common.create")}
       />
 
       <QuickNameModal
         visible={model.renameModalOpen}
-        title="Rename Playlist"
+        title={t("library.renamePlaylist")}
         draftValue={model.renameDraftTitle}
         placeholderValue={model.activePlaylist?.title ?? ""}
         onChangeDraft={model.setRenameDraftTitle}
@@ -143,16 +150,17 @@ function PlaylistsSection({ tabs }: { tabs: ReactNode }) {
           model.setRenameDraftTitle("");
         }}
         onSave={model.renamePlaylist}
-        saveLabel="Save"
+        saveLabel={t("common.save")}
       />
     </SafeAreaView>
   );
 }
 
 function SongbookSection({ tabs }: { tabs: ReactNode }) {
+  const { t } = useTranslation();
   const songbook = useSongbookModel();
 
-  const headerTitle = songbook.activeSongbook?.title ?? "Library";
+  const headerTitle = songbook.activeSongbook?.title ?? t("library.title");
 
   return (
     <SafeAreaView style={styles.screen}>
@@ -191,7 +199,7 @@ function SongbookSection({ tabs }: { tabs: ReactNode }) {
 
       <QuickNameModal
         visible={songbook.createModalOpen}
-        title="New Songbook"
+        title={t("library.newSongbook")}
         draftValue={songbook.draftTitle}
         placeholderValue={songbook.defaultTitle}
         onChangeDraft={songbook.setDraftTitle}
@@ -200,13 +208,13 @@ function SongbookSection({ tabs }: { tabs: ReactNode }) {
           songbook.setDraftTitle("");
         }}
         onSave={songbook.createSongbook}
-        helperText="Songbooks collect lyric and chord charts from any workspace."
-        saveLabel="Create"
+        helperText={t("library.songbookCreateHint")}
+        saveLabel={t("common.create")}
       />
 
       <QuickNameModal
         visible={songbook.renameModalOpen}
-        title="Rename Songbook"
+        title={t("library.renameSongbook")}
         draftValue={songbook.draftTitle}
         placeholderValue={songbook.activeSongbook?.title ?? ""}
         onChangeDraft={songbook.setDraftTitle}
@@ -215,20 +223,21 @@ function SongbookSection({ tabs }: { tabs: ReactNode }) {
           songbook.setDraftTitle("");
         }}
         onSave={songbook.renameActiveSongbook}
-        saveLabel="Save"
+        saveLabel={t("common.save")}
       />
     </SafeAreaView>
   );
 }
 
 function SetlistsSection({ tabs }: { tabs: ReactNode }) {
+  const { t } = useTranslation();
   const setlist = useSetlistModel();
 
   const headerTitle = setlist.builder
     ? setlist.builder.editingEntryId
-      ? "Edit Song"
-      : "Add Song"
-    : setlist.activeSetlist?.title ?? "Library";
+      ? t("library.editSong")
+      : t("library.addSong")
+    : setlist.activeSetlist?.title ?? t("library.title");
 
   return (
     <SafeAreaView style={styles.screen}>
@@ -288,7 +297,7 @@ function SetlistsSection({ tabs }: { tabs: ReactNode }) {
 
       <QuickNameModal
         visible={setlist.createModalOpen}
-        title="New Setlist"
+        title={t("library.newSetlist")}
         draftValue={setlist.draftTitle}
         placeholderValue={setlist.defaultTitle}
         onChangeDraft={setlist.setDraftTitle}
@@ -297,13 +306,13 @@ function SetlistsSection({ tabs }: { tabs: ReactNode }) {
           setlist.setDraftTitle("");
         }}
         onSave={setlist.createSetlist}
-        helperText="Setlists hold an ordered set of songs (clips + charts) to share with your band."
-        saveLabel="Create"
+        helperText={t("library.setlistHint")}
+        saveLabel={t("common.create")}
       />
 
       <QuickNameModal
         visible={setlist.renameModalOpen}
-        title="Rename Setlist"
+        title={t("library.renameSetlist")}
         draftValue={setlist.draftTitle}
         placeholderValue={setlist.activeSetlist?.title ?? ""}
         onChangeDraft={setlist.setDraftTitle}
@@ -312,7 +321,7 @@ function SetlistsSection({ tabs }: { tabs: ReactNode }) {
           setlist.setDraftTitle("");
         }}
         onSave={setlist.renameActiveSetlist}
-        saveLabel="Save"
+        saveLabel={t("common.save")}
       />
     </SafeAreaView>
   );

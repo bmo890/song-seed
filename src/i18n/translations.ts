@@ -488,6 +488,16 @@ export const resources = {
         currentWorkspace: "Current workspace",
         newCollection: "New Collection from Import",
       },
+      library: {
+        title: "Library", playlists: "Playlists", songbook: "Songbook", setlists: "Setlists",
+        playlistsHint: "Listen — ordered queues of clips and songs, played back to back.",
+        songbookHint: "Read — collections of lyric and chord charts.",
+        setlistsHint: "Share — song sets (takes + charts) ready to send to the band.",
+        newPlaylist: "New Playlist", renamePlaylist: "Rename Playlist", playlistHint: "Playlists are global and can hold songs or clips from any workspace.",
+        newSongbook: "New Songbook", renameSongbook: "Rename Songbook", songbookCreateHint: "Songbooks collect lyric and chord charts from any workspace.",
+        editSong: "Edit Song", addSong: "Add Song",
+        newSetlist: "New Setlist", renameSetlist: "Rename Setlist", setlistHint: "Setlists hold an ordered set of songs (clips + charts) to share with your band.",
+      },
       restoreGate: {
         title: "Restore complete",
         summary: "{{items}} across {{workspaces}} restored.",
@@ -1523,6 +1533,16 @@ export const resources = {
         nothingWaiting: "אין כרגע שמע משותף שממתין לייבוא.",
         currentWorkspace: "מרחב העבודה הנוכחי",
         newCollection: "אוסף חדש מהייבוא",
+      },
+      library: {
+        title: "ספרייה", playlists: "פלייליסטים", songbook: "ספר שירים", setlists: "סטליסטים",
+        playlistsHint: "האזנה — תורים מסודרים של קטעים ושירים שמתנגנים ברצף.",
+        songbookHint: "קריאה — אוספים של דפי מילים ותרשימי אקורדים.",
+        setlistsHint: "שיתוף — מערכי שירים עם טייקים ותרשימים, מוכנים לשליחה ללהקה.",
+        newPlaylist: "פלייליסט חדש", renamePlaylist: "שינוי שם הפלייליסט", playlistHint: "פלייליסטים זמינים בכל האפליקציה ויכולים להכיל שירים או קטעים מכל מרחב עבודה.",
+        newSongbook: "ספר שירים חדש", renameSongbook: "שינוי שם ספר השירים", songbookCreateHint: "ספרי שירים אוספים דפי מילים ותרשימי אקורדים מכל מרחב עבודה.",
+        editSong: "עריכת שיר", addSong: "הוספת שיר",
+        newSetlist: "סטליסט חדש", renameSetlist: "שינוי שם הסטליסט", setlistHint: "סטליסטים מחזיקים מערך מסודר של שירים, קטעים ותרשימים לשיתוף עם הלהקה.",
       },
       restoreGate: {
         title: "השחזור הושלם",
