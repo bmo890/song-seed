@@ -1,10 +1,13 @@
 /**
- * Recipient page (`/t/:id`). SSR, content-negotiated:
- *  - Desktop → download view (title, sender, tracklist) + a short "what SongNook is" note.
- *  - Mobile WITHOUT the app → the marketing funnel (this is an onboarding surface):
- *      hero → "Open in SongNook" CTA → what-is-SongNook + a living app-preview
- *      gallery → a quiet "take the raw files" disclosure at the very bottom.
- *  - Mobile WITH the app never reaches here — the universal link opens the app at the OS.
+ * Recipient page (`/t/:id`). SSR — one page for everyone, content-negotiated
+ * only in the CTA block:
+ *  - iOS/Android → "Open in SongNook" button (deferred deep link below).
+ *  - Desktop → a QR code ("scan with your phone") instead, since a store
+ *    deep-link isn't clickable-useful on a laptop. Scanning it opens this
+ *    same URL on the phone, which then hits the mobile branch above.
+ * Everything else — hero, "what's SongNook" pitch, the living app-preview
+ * gallery, and a quiet "take the raw files" disclosure at the very bottom —
+ * is identical for both, so the marketing pitch isn't desktop-only.
  *
  * Deferred deep link:
  *  - Android: the store link carries `referrer=<transferId>` (Play Install Referrer).
@@ -13,7 +16,8 @@
  */
 import type { Config } from "../env";
 import type { TransferPayload } from "../lib/serialize";
-import { escapeHtml, formatBytes, page, waveformStrip } from "./shell";
+import { qrSvgPath } from "../lib/qr";
+import { escapeHtml, formatBytes, page } from "./shell";
 import { GALLERY_CSS, GALLERY_HTML, GALLERY_SCRIPT, GALLERY_SPRITE } from "./appPreviewGallery";
 
 export interface Platform {
@@ -27,14 +31,16 @@ const SONGNOOK_DESC =
   "SongNook is a quiet corner for songwriters and musicians — a place to catch an idea, " +
   "shape it into a song, and practice it till it's yours, wherever you are.";
 
-/** Page-specific chrome for the mobile funnel (the gallery's own CSS ships in
- *  appPreviewGallery). Reuses the shared design tokens so dark mode holds. */
+/** Page-specific chrome (the gallery's own CSS ships in appPreviewGallery). */
 const FUNNEL_CSS = `
 .about{margin-top:34px}
 .about .eyebrow + .lede{margin-bottom:22px}
 .lede{font-family:Newsreader,Georgia,serif;font-weight:400;font-size:20px;line-height:1.5;
   color:var(--ink);margin:0 0 22px;max-width:31ch}
 .cta-fine{text-align:center;font-size:12.5px;color:var(--ink-faint);margin:12px 0 0}
+.qr-cta{display:flex;flex-direction:column;align-items:center;gap:2px}
+.qr-card{background:#fff;padding:12px;border-radius:6px;line-height:0;
+  box-shadow:0 1px 0 rgba(0,0,0,.05)}
 .grab{margin-top:30px;text-align:center}
 .grab summary{font-size:12.5px;color:var(--ink-faint);cursor:pointer;list-style:none;display:inline-block}
 .grab summary::-webkit-details-marker{display:none}
@@ -64,64 +70,38 @@ function tracklist(t: TransferPayload): string {
     .join("");
 }
 
-export function renderRecipientPage(
-  cfg: Config,
-  t: TransferPayload,
-  plat: Platform
-): string {
+/** The CTA panel's inner content: a store button on mobile, a scannable
+ *  QR code (pointed at this same URL) everywhere else. */
+function ctaBlock(cfg: Config, t: TransferPayload, plat: Platform, transferUrl: string): string {
+  if (plat.isMobile && (plat.isIOS || plat.isAndroid)) {
+    const androidStore = `https://play.google.com/store/apps/details?id=${encodeURIComponent(
+      cfg.androidPackage
+    )}&referrer=${encodeURIComponent("transferId=" + t.transferId)}`;
+    const storeUrl = plat.isAndroid ? androidStore : cfg.iosAppStoreUrl;
+    return `<a id="get" class="btn btn-block" href="${escapeHtml(storeUrl)}">Open in SongNook</a>
+  <p class="cta-fine">Installs the app, then opens straight to this parcel.</p>
+  <div id="ios-notice" class="notice" hidden>Link copied. After installing, open SongNook —
+    your parcel will be waiting.</div>`;
+  }
+  const { d, modules } = qrSvgPath(transferUrl);
+  return `<div class="qr-cta">
+    <div class="qr-card"><svg class="qr" width="132" height="132" viewBox="0 0 ${modules} ${modules}" role="img" aria-label="QR code to open this parcel in SongNook">
+      <path d="${d}" fill="#1b1208"/>
+    </svg></div>
+    <p class="cta-fine">Scan with your phone to open in SongNook.</p>
+  </div>`;
+}
+
+export function renderRecipientPage(cfg: Config, t: TransferPayload, plat: Platform): string {
   const senderName = t.sender.name || "Someone";
   const title = t.title || "some music";
-
-  if (plat.isMobile && (plat.isIOS || plat.isAndroid)) {
-    return renderMobileFunnel(cfg, t, plat, senderName, title);
-  }
-  return renderDesktop(t, senderName, title);
-}
-
-function renderDesktop(t: TransferPayload, senderName: string, title: string): string {
-  const note = t.message
-    ? `<p class="note rise d2">"${escapeHtml(t.message)}"</p>`
-    : "";
-  const body = `
-<p class="eyebrow rise d1">A parcel from ${escapeHtml(senderName)}</p>
-<h1 class="rise d1">${escapeHtml(senderName)} sent you <em>${escapeHtml(title)}</em>.</h1>
-${note}
-<div class="rise d2">${waveformStrip()}</div>
-
-<section class="panel rise d3">
-  <p class="meta-line"><b>${songCount(t)}</b>
-    <span>·</span> <span>${expiresLabel(t.expiresAt)}</span></p>
-  <ul class="tracklist">${tracklist(t)}</ul>
-</section>
-
-<section class="panel rise d4">
-  <p class="eyebrow" style="margin-bottom:12px">What's SongNook?</p>
-  <p style="margin:0 0 14px;font-family:Newsreader,Georgia,serif;font-size:19px;line-height:1.5;color:var(--ink)">${SONGNOOK_DESC}</p>
-  <p style="margin:0;color:var(--ink-soft);font-size:14px">Open this link on your phone and it lands straight in your library — with looping, speed, and chords built in.</p>
-</section>`;
-  return page({ title: `${senderName} · ${title} — SongNook Send`, body, noindex: true });
-}
-
-function renderMobileFunnel(
-  cfg: Config,
-  t: TransferPayload,
-  plat: Platform,
-  senderName: string,
-  title: string
-): string {
   const transferUrl = `${cfg.publicOrigin}/t/${t.transferId}`;
-
-  // Android: pass the transferId via Play Install Referrer so first launch finds it.
-  const androidStore = `https://play.google.com/store/apps/details?id=${encodeURIComponent(
-    cfg.androidPackage
-  )}&referrer=${encodeURIComponent("transferId=" + t.transferId)}`;
-  const storeUrl = plat.isAndroid ? androidStore : cfg.iosAppStoreUrl;
-
   const note = t.message ? `<p class="note rise d2">"${escapeHtml(t.message)}"</p>` : "";
 
-  // Action first — most people arriving here just want the parcel. The pitch
-  // (what SongNook is + the living gallery) sits right under it for the curious,
-  // and the raw-files escape hatch is a quiet disclosure at the very bottom.
+  // CTA first — most people arriving here just want the parcel. The pitch
+  // (what SongNook is + the living gallery) sits right under it for the
+  // curious, and the raw-files escape hatch is a quiet disclosure at the
+  // very bottom.
   const body = `
 ${GALLERY_SPRITE}
 <h1 class="rise d1">${escapeHtml(senderName)} sent you <em>${escapeHtml(title)}</em>.</h1>
@@ -130,10 +110,7 @@ ${note}
 <section class="panel rise d1">
   <p class="meta-line"><b>${escapeHtml(title)}</b> <span>·</span>
     <span>${songCount(t)}</span> <span>·</span> <span>${expiresLabel(t.expiresAt)}</span></p>
-  <a id="get" class="btn btn-block" href="${escapeHtml(storeUrl)}">Open in SongNook</a>
-  <p class="cta-fine">Installs the app, then opens straight to this parcel.</p>
-  <div id="ios-notice" class="notice" hidden>Link copied. After installing, open SongNook —
-    your parcel will be waiting.</div>
+  ${ctaBlock(cfg, t, plat, transferUrl)}
 </section>
 
 <section class="about rise d2">
