@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { UserText, UserTextInput } from "../../../i18n";
-import DraggableFlatList, { type RenderItemParams } from "react-native-draggable-flatlist";
+import DraggableFlatList, { ScaleDecorator, type RenderItemParams } from "react-native-draggable-flatlist";
 import { Ionicons } from "@expo/vector-icons";
 import { styles as appStyles } from "../../../styles";
-import { colors, radii, spacing, text as textTokens } from "../../../design/tokens";
+import { colors, radii, shadows, spacing, text as textTokens } from "../../../design/tokens";
 import { haptic } from "../../../design/haptics";
 import type { WordLadderWord } from "../../../types";
 import { useTranslation } from "react-i18next";
@@ -39,6 +39,7 @@ export function WordLadderColumnEditor({
 
   function submitDraft() {
     if (!draft.trim()) return;
+    haptic.light();
     onAdd(draft);
     setDraft("");
   }
@@ -86,14 +87,16 @@ export function WordLadderColumnEditor({
         contentContainerStyle={words.length === 0 ? editorStyles.listEmptyContent : undefined}
         ListEmptyComponent={<Text style={editorStyles.emptyHint}>{t("wordLadder.nothingHere")}</Text>}
         renderItem={({ item: word, drag, isActive }: RenderItemParams<WordLadderWord>) => (
-          <WordChip
-            word={word}
-            chipBg={chipBg}
-            isActive={isActive}
-            onDrag={drag}
-            onEdit={(text) => onEdit(word.id, text)}
-            onRemove={() => onRemove(word.id)}
-          />
+          <ScaleDecorator activeScale={1.03}>
+            <WordChip
+              word={word}
+              chipBg={chipBg}
+              isActive={isActive}
+              onDrag={drag}
+              onEdit={(text) => onEdit(word.id, text)}
+              onRemove={() => onRemove(word.id)}
+            />
+          </ScaleDecorator>
         )}
       />
     </View>
@@ -215,7 +218,7 @@ const editorStyles = StyleSheet.create({
     width: 30,
     height: 38,
     borderRadius: radii.sm,
-    backgroundColor: colors.primary,
+    backgroundColor: colors.primaryDeep,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -244,7 +247,7 @@ const editorStyles = StyleSheet.create({
     gap: 2,
   },
   chipRowActive: {
-    opacity: 0.85,
+    ...shadows.card,
   },
   chipTextWrap: {
     flex: 1,
@@ -253,15 +256,15 @@ const editorStyles = StyleSheet.create({
     paddingHorizontal: 2,
   },
   chipText: {
-    fontFamily: "PlusJakartaSans_600SemiBold",
-    fontSize: 13,
+    fontFamily: "PlayfairDisplay_600SemiBold",
+    fontSize: 14,
     color: colors.textStrong,
   },
   chipInput: {
     flex: 1,
     minWidth: 0,
-    fontFamily: "PlusJakartaSans_600SemiBold",
-    fontSize: 13,
+    fontFamily: "PlayfairDisplay_600SemiBold",
+    fontSize: 14,
     color: colors.textStrong,
     paddingVertical: 6,
     paddingHorizontal: 2,
