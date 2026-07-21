@@ -121,13 +121,13 @@ export function useLyricsVersionScreenModel() {
     const unsubscribe = navigation.addListener("beforeRemove", (event: any) => {
       if (bypassUnsavedGuardRef.current || !hasUnsavedChanges) return;
       event.preventDefault();
-      AppAlert.destructive("Discard changes?", "You have unsaved lyric edits. Discard them?", () => {
+      AppAlert.destructive(t("lyrics.discardTitle"), t("lyrics.discardBody"), () => {
         bypassUnsavedGuardRef.current = true;
         navigation.dispatch(event.data.action);
-      }, { confirmLabel: "Discard", icon: actionIcons.discard });
+      }, { confirmLabel: t("lyrics.discard"), icon: actionIcons.discard });
     });
     return unsubscribe;
-  }, [hasUnsavedChanges, navigation]);
+  }, [hasUnsavedChanges, navigation, t]);
 
   useEffect(() => {
     const showSub = Keyboard.addListener("keyboardDidShow", () => setIsKeyboardVisible(true));
@@ -170,7 +170,7 @@ export function useLyricsVersionScreenModel() {
       !isEditMode && hasChords ? serializeChordChartText(versionLines) : isEditMode ? draftText : sourceText;
     Clipboard.setString(textToCopy);
     haptic.tap();
-    toast(hasChords && !isEditMode ? "Chord chart copied" : "Lyrics copied", "copy-outline");
+    toast(t(hasChords && !isEditMode ? "lyrics.chartCopied" : "lyrics.lyricsCopied"), "copy-outline");
   };
 
   const revertDraft = () => {
@@ -194,7 +194,7 @@ export function useLyricsVersionScreenModel() {
       revertDraft();
       return;
     }
-    AppAlert.destructive("Discard changes?", "You have unsaved lyric edits. Discard them?", revertDraft, { confirmLabel: "Discard", cancelLabel: "Keep editing", icon: actionIcons.discard });
+    AppAlert.destructive(t("lyrics.discardTitle"), t("lyrics.discardBody"), revertDraft, { confirmLabel: t("lyrics.discard"), cancelLabel: t("lyrics.keepEditing"), icon: actionIcons.discard });
   };
 
   const renderScrollIndicator = (viewportHeight: number, contentHeight: number, scrollY: number) => {

@@ -83,28 +83,27 @@ export function LyricsVersionEditor({
   };
 
   const helpItems: HelpItem[] = [
-    { icon: "checkmark", label: "Save", description: "Save your changes to this version." },
+    { icon: "checkmark", label: t("lyrics.save"), description: t("lyrics.saveHelp") },
     {
       icon: "arrow-undo-outline",
-      label: "Undo / redo",
-      description: "Step back and forward through this editing session's changes.",
+      label: t("lyrics.undoRedo"),
+      description: t("lyrics.undoRedoHelp"),
     },
     ...(showSaveAsNew
       ? [
           {
             icon: "git-branch-outline" as const,
-            label: "Save as new",
-            description: "Keep this version and save your edits as a new one.",
+            label: t("lyrics.saveAsNew"),
+            description: t("lyrics.saveAsNewHelp"),
           },
         ]
       : []),
     {
       icon: "book-outline",
-      label: "Word finder",
-      description:
-        "Rhymes, near rhymes, and similar words for the word at your cursor. Tap a word to drop it into the lyric.",
+      label: t("lyrics.wordFinder"),
+      description: t("lyrics.wordFinderHelp"),
     },
-    { icon: "arrow-back", label: "Back", description: "Return to the version — you'll be asked before discarding edits." },
+    { icon: "arrow-back", label: t("lyrics.back"), description: t("lyrics.backHelp") },
   ];
 
   return (
@@ -120,7 +119,7 @@ export function LyricsVersionEditor({
             onPress={onUndo}
             disabled={!canUndo}
             hitSlop={6}
-            accessibilityLabel="Undo"
+            accessibilityLabel={t("lyrics.undo")}
           >
             <Ionicons name="arrow-undo-outline" size={18} color={canUndo ? colors.textSecondary : colors.borderMuted} />
           </Pressable>
@@ -133,7 +132,7 @@ export function LyricsVersionEditor({
             onPress={onRedo}
             disabled={!canRedo}
             hitSlop={6}
-            accessibilityLabel="Redo"
+            accessibilityLabel={t("lyrics.redo")}
           >
             <Ionicons name="arrow-redo-outline" size={18} color={canRedo ? colors.textSecondary : colors.borderMuted} />
           </Pressable>
@@ -147,7 +146,7 @@ export function LyricsVersionEditor({
               onPress={onSaveAsNew}
               disabled={!canSave}
               hitSlop={6}
-              accessibilityLabel="Save as new"
+              accessibilityLabel={t("lyrics.saveAsNew")}
             >
               <Ionicons name="git-branch-outline" size={18} color={canSave ? colors.textSecondary : colors.borderMuted} />
             </Pressable>
@@ -156,7 +155,7 @@ export function LyricsVersionEditor({
             style={({ pressed }) => [editorControls.iconBtn, pressed ? appStyles.pressDown : null]}
             onPress={openWordFinder}
             hitSlop={6}
-            accessibilityLabel="Word finder"
+            accessibilityLabel={t("lyrics.wordFinder")}
           >
             <Ionicons name="book-outline" size={18} color={colors.textSecondary} />
           </Pressable>
@@ -172,7 +171,7 @@ export function LyricsVersionEditor({
             style={({ pressed }) => [editorControls.iconBtn, pressed ? appStyles.pressDown : null]}
             onPress={() => setHelpVisible(true)}
             hitSlop={6}
-            accessibilityLabel="Help"
+            accessibilityLabel={t("lyrics.help")}
           >
             <Ionicons name="help-circle-outline" size={18} color={colors.textSecondary} />
           </Pressable>
@@ -186,7 +185,7 @@ export function LyricsVersionEditor({
           onPress={onSave}
           disabled={!canSave}
           hitSlop={6}
-          accessibilityLabel="Save"
+          accessibilityLabel={t("lyrics.save")}
         >
           <Ionicons name="checkmark" size={20} color={canSave ? colors.onPrimary : colors.textMuted} />
         </Pressable>
@@ -238,7 +237,7 @@ export function LyricsVersionEditor({
       <HelpSheet
         visible={helpVisible}
         onClose={() => setHelpVisible(false)}
-        title="Editing lyrics"
+        title={t("lyrics.editingTitle")}
         intro="Type your lyrics, then save — over this version, or as a new one."
         items={helpItems}
       />

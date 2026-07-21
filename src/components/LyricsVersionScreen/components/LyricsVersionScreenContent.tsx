@@ -75,7 +75,7 @@ export function LyricsVersionScreenContent() {
               style={({ pressed }) => [headerStyles.exportBtn, pressed ? styles.pressDown : null]}
               onPress={() => setExportVisible(true)}
               hitSlop={6}
-              accessibilityLabel="Export"
+              accessibilityLabel={t("chordChart.export")}
             >
               <Ionicons name="share-outline" size={20} color={colors.textSecondary} />
             </Pressable>
