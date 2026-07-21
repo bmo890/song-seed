@@ -30,8 +30,10 @@ import {
   tokenizeWords,
 } from "../../../domain/cutUp";
 import type { CutUpChunkMode, CutUpStep, Note } from "../../../types";
+import { useTranslation } from "react-i18next";
 
 export function useCutUpScreenModel() {
+  const { t } = useTranslation();
   const route = useRoute<any>();
   const navigation = useNavigation<any>();
   const sparkId = route.params?.sparkId as string | undefined;
@@ -288,7 +290,7 @@ export function useCutUpScreenModel() {
         : assembleDraftText(spark.chunks, spark.boardItems)
     ).trim();
     if (!text) {
-      AppAlert.info("Nothing to save", "Arrange a few strips and rebuild a draft first.");
+      AppAlert.info(t("wordSparks.nothingSave"), t("cutUp.nothingBody"));
       return;
     }
     const noteId = addNote();
@@ -300,13 +302,13 @@ export function useCutUpScreenModel() {
   const deleteSpark = useCallback(() => {
     if (!sparkId) return;
     AppAlert.destructive(
-      "Delete this Cut-Up?",
-      "Its source, chunks, board, and draft will be gone for good.",
+      t("cutUp.deleteTitle"),
+      t("cutUp.deleteBody"),
       () => {
         deleteCutUpSpark(sparkId);
         navigation.navigate("NotepadHome");
       },
-      { confirmLabel: "Delete" }
+      { confirmLabel: t("wordSparks.delete") }
     );
   }, [deleteCutUpSpark, sparkId, navigation]);
 
@@ -331,9 +333,9 @@ export function useCutUpScreenModel() {
       return;
     }
 
-    AppAlert.custom("Save as unfinished?", "Keep this exercise to come back to, or discard it.", [
+    AppAlert.custom(t("wordSparks.saveUnfinishedTitle"), t("wordSparks.saveUnfinishedBody"), [
       {
-        label: "Discard",
+        label: t("wordSparks.discard"),
         style: "destructive",
         icon: actionIcons.discard,
         onPress: () => {
@@ -342,7 +344,7 @@ export function useCutUpScreenModel() {
         },
       },
       {
-        label: "Save as unfinished",
+        label: t("wordSparks.saveUnfinished"),
         style: "default",
         icon: actionIcons.bookmark,
         onPress: () => navigation.navigate("NotepadHome"),

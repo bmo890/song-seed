@@ -17,13 +17,6 @@ import { useTranslation } from "react-i18next";
 
 const KRAFT_BG = "#F2E9DC";
 
-const STEPS: Array<{ key: CutUpStep; label: string }> = [
-  { key: "source", label: "Source" },
-  { key: "chunk", label: "Cut" },
-  { key: "board", label: "Arrange" },
-  { key: "draft", label: "Draft" },
-];
-
 export function CutUpScreenContent() {
   const { t } = useTranslation();
   const model = useCutUpScreenModel();
@@ -229,10 +222,17 @@ function FooterRow({
 }
 
 function StepProgress({ step }: { step: CutUpStep }) {
-  const currentIndex = STEPS.findIndex((s) => s.key === step);
+  const { t } = useTranslation();
+  const steps: Array<{ key: CutUpStep; label: string }> = [
+    { key: "source", label: t("wordSparks.source") },
+    { key: "chunk", label: t("wordSparks.cut") },
+    { key: "board", label: t("wordSparks.arrange") },
+    { key: "draft", label: t("wordSparks.draft") },
+  ];
+  const currentIndex = steps.findIndex((s) => s.key === step);
   return (
     <View style={styles.progressRow}>
-      {STEPS.map((s, index) => {
+      {steps.map((s, index) => {
         const state = index < currentIndex ? "done" : index === currentIndex ? "current" : "upcoming";
         const isCurrent = state === "current";
         return (

@@ -4,6 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { BottomSheet } from "../../common/BottomSheet";
 import { colors, radii, spacing, text as textTokens } from "../../../design/tokens";
 import type { CutUpStep } from "../../../types";
+import { useTranslation } from "react-i18next";
 
 type Props = {
   visible: boolean;
@@ -31,19 +32,20 @@ export function CutUpHelpSheet({ visible, step, onClose }: Props) {
 
 /** A "paper" line with dashed scissor cuts between its phrases. */
 function CutDiagram() {
+  const { t } = useTranslation();
   return (
     <View style={helpStyles.paper}>
       <View style={helpStyles.paperRow}>
         <View style={helpStyles.scrap}>
-          <Text style={helpStyles.scrapText}>the doctor waits</Text>
+          <Text style={helpStyles.scrapText}>{t("cutUpHelp.example1")}</Text>
         </View>
         <CutMark />
         <View style={helpStyles.scrap}>
-          <Text style={helpStyles.scrapText}>by the window</Text>
+          <Text style={helpStyles.scrapText}>{t("cutUpHelp.example2")}</Text>
         </View>
         <CutMark />
         <View style={helpStyles.scrap}>
-          <Text style={helpStyles.scrapText}>listening</Text>
+          <Text style={helpStyles.scrapText}>{t("cutUpHelp.example3")}</Text>
         </View>
       </View>
     </View>
@@ -63,129 +65,115 @@ function CutMark() {
 
 /** Three paper strips at playful angles — the cut-out board. */
 function StripsDiagram() {
+  const { t } = useTranslation();
   return (
     <View style={helpStyles.boardDiagram}>
       <View style={[helpStyles.boardStrip, { transform: [{ rotate: "-3deg" }] }]}>
-        <Text style={helpStyles.boardStripText}>listening</Text>
+        <Text style={helpStyles.boardStripText}>{t("cutUpHelp.example3")}</Text>
       </View>
       <View style={[helpStyles.boardStrip, helpStyles.boardStripAlt, { transform: [{ rotate: "2deg" }] }]}>
-        <Text style={helpStyles.boardStripText}>by the window</Text>
+        <Text style={helpStyles.boardStripText}>{t("cutUpHelp.example2")}</Text>
       </View>
       <View style={[helpStyles.boardStrip, { transform: [{ rotate: "-1.5deg" }] }]}>
-        <Text style={helpStyles.boardStripText}>the doctor waits</Text>
+        <Text style={helpStyles.boardStripText}>{t("cutUpHelp.example1")}</Text>
       </View>
     </View>
   );
 }
 
 function SourceHelp() {
+  const { t } = useTranslation();
   return (
     <>
-      <Text style={helpStyles.title}>Source</Text>
-      <Text style={helpStyles.subtitle}>
-        Start with something you've already written — a stuck verse, an old page, anything. Paste it in or
-        pull a page from your Lyrics Pad. You're not starting from scratch; you're remixing your own words.
-      </Text>
+      <Text style={helpStyles.title}>{t("cutUpHelp.sourceTitle")}</Text>
+      <Text style={helpStyles.subtitle}>{t("cutUpHelp.sourceBody")}</Text>
 
       <View style={helpStyles.diagram}>
         <View style={helpStyles.paper}>
-          <Text style={helpStyles.paperLines}>
-            the doctor waits, by the window{"\n"}listening to the rain come down{"\n"}counting all the empty hours
-          </Text>
+          <Text style={helpStyles.paperLines}>{t("cutUpHelp.sourceText")}</Text>
         </View>
         <View style={helpStyles.resultRow}>
           <Ionicons name="arrow-down" size={14} color={colors.textMuted} />
-          <Text style={helpStyles.resultText}>something to cut apart</Text>
+          <Text style={helpStyles.resultText}>{t("cutUpHelp.sourceResult")}</Text>
         </View>
       </View>
 
       <View style={helpStyles.points}>
-        <HelpPoint icon="clipboard-outline" title="Paste anything" body="A draft, a fragment, a whole song." />
-        <HelpPoint icon="document-text-outline" title="Or pull a page" body="Choose from your Lyrics Pad." />
-        <HelpPoint icon="refresh-outline" title="Not precious" body="This is a copy — the original stays put." />
+        <HelpPoint icon="clipboard-outline" title={t("cutUpHelp.pasteTitle")} body={t("cutUpHelp.pasteBody")} />
+        <HelpPoint icon="document-text-outline" title={t("cutUpHelp.pullTitle")} body={t("cutUpHelp.pullBody")} />
+        <HelpPoint icon="refresh-outline" title={t("cutUpHelp.copyTitle")} body={t("cutUpHelp.copyBody")} />
       </View>
     </>
   );
 }
 
 function ChunkHelp() {
+  const { t } = useTranslation();
   return (
     <>
-      <Text style={helpStyles.title}>Cut</Text>
-      <Text style={helpStyles.subtitle}>
-        Cut the lyric into moveable pieces — right where you want. It starts cut into phrases; a scissor seam
-        sits between every word. Tap a seam to cut or join there, or press and slide across a few words to
-        bind them into one unit.
-      </Text>
+      <Text style={helpStyles.title}>{t("cutUpHelp.cutTitle")}</Text>
+      <Text style={helpStyles.subtitle}>{t("cutUpHelp.cutBody")}</Text>
 
       <View style={helpStyles.diagram}>
         <CutDiagram />
         <View style={helpStyles.resultRow}>
           <Ionicons name="arrow-down" size={14} color={colors.textMuted} />
-          <Text style={helpStyles.resultText}>pieces you can rearrange</Text>
+          <Text style={helpStyles.resultText}>{t("cutUpHelp.cutResult")}</Text>
         </View>
       </View>
 
       <View style={helpStyles.points}>
-        <HelpPoint icon="cut-outline" title="Tap a seam" body="Cut or join between any two words." />
-        <HelpPoint icon="resize-outline" title="Press & slide" body="Drag across words to bind them into one piece." />
-        <HelpPoint icon="sparkles-outline" title="Reset cuts" body="Snap back to the natural phrase breaks." />
+        <HelpPoint icon="cut-outline" title={t("cutUpHelp.seamTitle")} body={t("cutUpHelp.seamBody")} />
+        <HelpPoint icon="resize-outline" title={t("cutUpHelp.slideTitle")} body={t("cutUpHelp.slideBody")} />
+        <HelpPoint icon="sparkles-outline" title={t("cutUpHelp.resetTitle")} body={t("cutUpHelp.resetBody")} />
       </View>
     </>
   );
 }
 
 function BoardHelp() {
+  const { t } = useTranslation();
   return (
     <>
-      <Text style={helpStyles.title}>Arrange</Text>
-      <Text style={helpStyles.subtitle}>
-        Now shuffle the strips like cut-outs on a table. Drag them into a new order, shuffle for happy
-        accidents, and lock the lines that already feel right so they stay put.
-      </Text>
+      <Text style={helpStyles.title}>{t("cutUpHelp.arrangeTitle")}</Text>
+      <Text style={helpStyles.subtitle}>{t("cutUpHelp.arrangeBody")}</Text>
 
       <View style={helpStyles.diagram}>
         <StripsDiagram />
         <View style={helpStyles.resultRow}>
           <Ionicons name="arrow-down" size={14} color={colors.textMuted} />
-          <Text style={helpStyles.resultText}>an order you'd never plan</Text>
+          <Text style={helpStyles.resultText}>{t("cutUpHelp.arrangeResult")}</Text>
         </View>
       </View>
 
       <View style={helpStyles.points}>
-        <HelpPoint icon="shuffle-outline" title="Shuffle" body="Reorder the unlocked strips at random." />
-        <HelpPoint icon="lock-closed-outline" title="Lock" body="Pin a strip so shuffles skip it." />
-        <HelpPoint icon="trash-outline" title="Remove & restore" body="Set strips aside, bring them back anytime." />
+        <HelpPoint icon="shuffle-outline" title={t("cutUpHelp.shuffleTitle")} body={t("cutUpHelp.shuffleBody")} />
+        <HelpPoint icon="lock-closed-outline" title={t("cutUpHelp.lockTitle")} body={t("cutUpHelp.lockBody")} />
+        <HelpPoint icon="trash-outline" title={t("cutUpHelp.restoreTitle")} body={t("cutUpHelp.restoreBody")} />
       </View>
     </>
   );
 }
 
 function DraftHelp() {
+  const { t } = useTranslation();
   return (
     <>
-      <Text style={helpStyles.title}>Draft</Text>
-      <Text style={helpStyles.subtitle}>
-        Your arrangement becomes a draft. Now it's yours to finish — add words between strips, fix awkward
-        seams, cut what doesn't sing. Save it to your Lyrics Pad when a new direction shows up.
-      </Text>
+      <Text style={helpStyles.title}>{t("cutUpHelp.draftTitle")}</Text>
+      <Text style={helpStyles.subtitle}>{t("cutUpHelp.draftBody")}</Text>
 
       <View style={helpStyles.example}>
-        <Text style={helpStyles.exampleLabel}>From shuffled strips</Text>
-        <Text style={helpStyles.exampleText}>
-          listening{"\n"}the doctor waits{"\n"}by the window
-        </Text>
-        <Text style={[helpStyles.exampleLabel, helpStyles.exampleLabelSecond]}>…to a line worth keeping</Text>
-        <Text style={helpStyles.exampleText}>
-          Listening for the doctor{"\n"}who waits by the window all night
-        </Text>
-        <Text style={helpStyles.exampleCredit}>after Jeff Tweedy's cut-up method, How to Write One Song (2020)</Text>
+        <Text style={helpStyles.exampleLabel}>{t("cutUpHelp.fromShuffled")}</Text>
+        <Text style={helpStyles.exampleText}>{t("cutUpHelp.draftExample")}</Text>
+        <Text style={[helpStyles.exampleLabel, helpStyles.exampleLabelSecond]}>{t("cutUpHelp.worthKeeping")}</Text>
+        <Text style={helpStyles.exampleText}>{t("cutUpHelp.revisedExample")}</Text>
+        <Text style={helpStyles.exampleCredit}>{t("cutUpHelp.credit")}</Text>
       </View>
 
       <View style={helpStyles.points}>
-        <HelpPoint icon="shuffle" title="Compose" body="Shuffle the pieces into varied-length fragment lines — short, mixed, or long." />
-        <HelpPoint icon="list-outline" title="Board order" body="Or rebuild plainly, one piece per line." />
-        <HelpPoint icon="bookmark-outline" title="Save" body="Send the draft to your Lyrics Pad." />
+        <HelpPoint icon="shuffle" title={t("cutUpHelp.composeTitle")} body={t("cutUpHelp.composeBody")} />
+        <HelpPoint icon="list-outline" title={t("cutUpHelp.boardTitle")} body={t("cutUpHelp.boardBody")} />
+        <HelpPoint icon="bookmark-outline" title={t("cutUpHelp.saveTitle")} body={t("cutUpHelp.saveBody")} />
       </View>
     </>
   );

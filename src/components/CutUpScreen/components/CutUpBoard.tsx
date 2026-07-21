@@ -9,10 +9,12 @@ import { haptic } from "../../../design/haptics";
 import { boardItemText } from "../../../domain/cutUp";
 import type { CutUpBoardItem, CutUpChunk, CutUpSpark } from "../../../types";
 import type { useCutUpScreenModel } from "../hooks/useCutUpScreenModel";
+import { useTranslation } from "react-i18next";
 
 type Model = ReturnType<typeof useCutUpScreenModel>;
 
 export function CutUpBoard({ model, spark }: { model: Model; spark: CutUpSpark }) {
+  const { t } = useTranslation();
   const active = useMemo(
     () => spark.boardItems.filter((item) => !item.removed).slice().sort((a, b) => a.order - b.order),
     [spark.boardItems]
@@ -31,7 +33,7 @@ export function CutUpBoard({ model, spark }: { model: Model; spark: CutUpSpark }
           hitSlop={6}
         >
           <Ionicons name="shuffle-outline" size={15} color={colors.primary} />
-          <Text style={styles.controlText}>Shuffle</Text>
+          <Text style={styles.controlText}>{t("cutUp.shuffle")}</Text>
         </Pressable>
         <Pressable
           style={({ pressed }) => [styles.controlBtn, pressed ? appStyles.pressDown : null]}
@@ -39,7 +41,7 @@ export function CutUpBoard({ model, spark }: { model: Model; spark: CutUpSpark }
           hitSlop={6}
         >
           <Ionicons name="swap-vertical-outline" size={15} color={colors.textSecondary} />
-          <Text style={[styles.controlText, styles.controlTextMuted]}>Source order</Text>
+          <Text style={[styles.controlText, styles.controlTextMuted]}>{t("cutUp.sourceOrder")}</Text>
         </Pressable>
       </View>
 
@@ -52,7 +54,7 @@ export function CutUpBoard({ model, spark }: { model: Model; spark: CutUpSpark }
         contentContainerStyle={active.length === 0 ? styles.listEmptyContent : styles.listContent}
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={
-          <Text style={styles.empty}>No strips on the board — keep some chunks back on the Cut step.</Text>
+          <Text style={styles.empty}>{t("cutUp.boardEmpty")}</Text>
         }
         renderItem={({ item, drag, isActive }: RenderItemParams<CutUpBoardItem>) => (
           <StripRow
@@ -70,7 +72,7 @@ export function CutUpBoard({ model, spark }: { model: Model; spark: CutUpSpark }
 
       {removed.length > 0 ? (
         <View style={styles.removedSection}>
-          <Text style={styles.removedLabel}>Set aside ({removed.length})</Text>
+          <Text style={styles.removedLabel}>{t("cutUp.setAside", { count: removed.length })}</Text>
           <ScrollView style={styles.removedScroll} showsVerticalScrollIndicator={false}>
             <View style={styles.removedWrap}>
               {removed.map((item) => (

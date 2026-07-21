@@ -7,30 +7,32 @@ import { styles as appStyles } from "../../../styles";
 import { colors, radii, spacing, text as textTokens } from "../../../design/tokens";
 import type { CutUpSpark } from "../../../types";
 import type { useCutUpScreenModel } from "../hooks/useCutUpScreenModel";
+import { useTranslation } from "react-i18next";
 
 type Model = ReturnType<typeof useCutUpScreenModel>;
 
 export function CutUpSourceStep({ model, spark }: { model: Model; spark: CutUpSpark }) {
+  const { t } = useTranslation();
   const [pickerVisible, setPickerVisible] = useState(false);
 
   return (
     <View style={styles.body}>
       <View style={styles.headerRow}>
-        <Text style={styles.label}>Your starting lyric</Text>
+        <Text style={styles.label}>{t("cutUp.startingLyric")}</Text>
         <Pressable
           style={({ pressed }) => [styles.pickBtn, pressed ? appStyles.pressDown : null]}
           onPress={() => setPickerVisible(true)}
           hitSlop={6}
         >
           <Ionicons name="document-text-outline" size={14} color={colors.primary} />
-          <Text style={styles.pickBtnText}>From Lyrics Pad</Text>
+          <Text style={styles.pickBtnText}>{t("cutUp.fromPad")}</Text>
         </Pressable>
       </View>
 
       {spark.sourceLyricId ? (
         <View style={styles.linkedChip}>
           <Ionicons name="link-outline" size={12} color={colors.textSecondary} />
-          <Text style={styles.linkedText}>Pulled from a Lyrics Pad page</Text>
+          <Text style={styles.linkedText}>{t("cutUp.pulledPad")}</Text>
         </View>
       ) : null}
 
@@ -41,7 +43,7 @@ export function CutUpSourceStep({ model, spark }: { model: Model; spark: CutUpSp
           onChangeText={model.setSourceText}
           multiline
           textAlignVertical="top"
-          placeholder="Paste a stuck verse, an old draft, a few lines you can't crack — anything already written. You'll cut it apart next."
+          placeholder={t("cutUp.sourcePlaceholder")}
           placeholderTextColor={colors.textMuted}
         />
       </View>
@@ -49,8 +51,8 @@ export function CutUpSourceStep({ model, spark }: { model: Model; spark: CutUpSp
       <NotePickerSheet
         visible={pickerVisible}
         notes={model.notes}
-        title="Cut up a Lyrics Pad page"
-        subtitle="Choose a page to slice into chunks. The original stays untouched."
+        title={t("cutUp.pickerTitle")}
+        subtitle={t("cutUp.pickerSubtitle")}
         onClose={() => setPickerVisible(false)}
         onSelect={(note) => {
           model.pickSourceNote(note);

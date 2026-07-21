@@ -9,14 +9,9 @@ import { haptic } from "../../../design/haptics";
 import type { CutUpComposeFlavor } from "../../../domain/cutUp";
 import type { CutUpSpark } from "../../../types";
 import type { useCutUpScreenModel } from "../hooks/useCutUpScreenModel";
+import { useTranslation } from "react-i18next";
 
 type Model = ReturnType<typeof useCutUpScreenModel>;
-
-const FLAVORS: Array<{ key: CutUpComposeFlavor; label: string }> = [
-  { key: "short", label: "Short" },
-  { key: "mixed", label: "Mixed" },
-  { key: "long", label: "Long" },
-];
 
 export function CutUpDraftEditor({
   model,
@@ -27,6 +22,12 @@ export function CutUpDraftEditor({
   spark: CutUpSpark;
   keyboardVisible: boolean;
 }) {
+  const { t } = useTranslation();
+  const flavors: Array<{ key: CutUpComposeFlavor; label: string }> = [
+    { key: "short", label: t("cutUp.short") },
+    { key: "mixed", label: t("cutUp.mixed") },
+    { key: "long", label: t("cutUp.long") },
+  ];
   const [flavor, setFlavor] = useState<CutUpComposeFlavor>("mixed");
 
   function confirmRebuild() {
@@ -35,10 +36,10 @@ export function CutUpDraftEditor({
       return;
     }
     AppAlert.destructive(
-      "Rebuild from the board?",
-      "This replaces your draft with the current strip order, one strip per line. Your edits here will be lost.",
+      t("cutUp.rebuildTitle"),
+      t("cutUp.rebuildBody"),
       model.rebuildDraftFromBoard,
-      { confirmLabel: "Rebuild" }
+      { confirmLabel: t("cutUp.rebuild") }
     );
   }
 
@@ -52,20 +53,20 @@ export function CutUpDraftEditor({
       {keyboardVisible ? null : (
         <>
           <View style={styles.headerRow}>
-            <Text style={styles.label}>Your draft</Text>
+            <Text style={styles.label}>{t("cutUp.yourDraft")}</Text>
             <Pressable
               style={({ pressed }) => [styles.rebuildBtn, pressed ? appStyles.pressDown : null]}
               onPress={confirmRebuild}
               hitSlop={6}
             >
               <Ionicons name="list-outline" size={14} color={colors.textSecondary} />
-              <Text style={styles.rebuildText}>Board order</Text>
+              <Text style={styles.rebuildText}>{t("cutUp.boardOrder")}</Text>
             </Pressable>
           </View>
 
           <View style={styles.composeRow}>
             <View style={styles.flavors}>
-              {FLAVORS.map((option) => {
+              {flavors.map((option) => {
                 const active = option.key === flavor;
                 return (
                   <Pressable
@@ -86,7 +87,7 @@ export function CutUpDraftEditor({
               hitSlop={4}
             >
               <Ionicons name="shuffle" size={15} color={colors.onPrimary} />
-              <Text style={styles.composeText}>Compose</Text>
+              <Text style={styles.composeText}>{t("cutUp.compose")}</Text>
             </Pressable>
           </View>
         </>
@@ -99,7 +100,7 @@ export function CutUpDraftEditor({
           onChangeText={model.setDraft}
           multiline
           textAlignVertical="top"
-          placeholder="Your strips land here. Add words between them, fix the seams, cut what doesn't sing — make it yours."
+          placeholder={t("cutUp.draftPlaceholder")}
           placeholderTextColor={colors.textMuted}
         />
       </View>

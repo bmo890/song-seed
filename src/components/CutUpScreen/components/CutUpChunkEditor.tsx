@@ -8,6 +8,7 @@ import { haptic } from "../../../design/haptics";
 import { tokenizeWords, unitIndexByWord } from "../../../domain/cutUp";
 import type { CutUpSpark } from "../../../types";
 import type { useCutUpScreenModel } from "../hooks/useCutUpScreenModel";
+import { useTranslation } from "react-i18next";
 
 type Model = ReturnType<typeof useCutUpScreenModel>;
 
@@ -19,6 +20,7 @@ const BIND_TINT = "#E7C6AE";
 type Rect = { x: number; y: number; w: number; h: number };
 
 export function CutUpChunkEditor({ model, spark }: { model: Model; spark: CutUpSpark }) {
+  const { t } = useTranslation();
   const words = useMemo(() => tokenizeWords(spark.sourceText), [spark.sourceText]);
   const seams = model.currentSeams;
   const units = useMemo(() => unitIndexByWord(words, seams), [words, seams]);
@@ -94,7 +96,7 @@ export function CutUpChunkEditor({ model, spark }: { model: Model; spark: CutUpS
   if (words.length === 0) {
     return (
       <View style={styles.body}>
-        <Text style={styles.empty}>No words yet — go back and add some source text.</Text>
+        <Text style={styles.empty}>{t("cutUp.noWords")}</Text>
       </View>
     );
   }
@@ -103,7 +105,7 @@ export function CutUpChunkEditor({ model, spark }: { model: Model; spark: CutUpS
     <View style={styles.body}>
       <View style={styles.headerRow}>
         <Text style={styles.count}>
-          {unitCount} piece{unitCount === 1 ? "" : "s"}
+          {t("cutUp.pieces", { count: unitCount })}
         </Text>
         <Pressable
           style={({ pressed }) => [styles.resetBtn, pressed ? appStyles.pressDown : null]}
@@ -111,13 +113,12 @@ export function CutUpChunkEditor({ model, spark }: { model: Model; spark: CutUpS
           hitSlop={6}
         >
           <Ionicons name="sparkles-outline" size={14} color={colors.textSecondary} />
-          <Text style={styles.resetText}>Reset cuts</Text>
+          <Text style={styles.resetText}>{t("cutUp.resetCuts")}</Text>
         </Pressable>
       </View>
 
       <Text style={styles.hint}>
-        Tap a <Ionicons name="cut" size={11} color={colors.primary} /> seam to cut or join · press and slide
-        across words to bind them
+        {t("cutUp.cutHint")}
       </Text>
 
       <View style={styles.matWrap}>
