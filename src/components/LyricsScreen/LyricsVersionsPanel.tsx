@@ -20,24 +20,30 @@ import { LyricsChordsToggle } from "../common/LyricsChordsToggle";
 import type { SelectionAction } from "../common/SelectionDock";
 import { colors, radii, spacing } from "../../design/tokens";
 import type { Note } from "../../types";
+import { useTranslation } from "react-i18next";
+import { useLocale, UserText } from "../../i18n";
+import type { TFunction } from "i18next";
 
 type LyricsVersionsPanelProps = {
   projectIdea: SongIdea;
 };
 
 /** Humanized card date — "Today · 1:14 AM", "Yesterday · …", "3 days ago", "Jun 28". */
-function formatCardDate(ts: number): string {
+function formatCardDate(ts: number, language: string, t: TFunction): string {
   const date = new Date(ts);
   const startOf = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
   const days = Math.round((startOf(new Date()) - startOf(date)) / 86400000);
-  const time = date.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
-  if (days <= 0) return `Today · ${time}`;
-  if (days === 1) return `Yesterday · ${time}`;
-  if (days < 7) return `${days} days ago`;
-  return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  const locale = language === "he" ? "he-IL" : "en-US";
+  const time = date.toLocaleTimeString(locale, { hour: "numeric", minute: "2-digit" });
+  if (days <= 0) return `${t("time.today")} · ${time}`;
+  if (days === 1) return `${t("time.yesterday")} · ${time}`;
+  if (days < 7) return t("lyrics.editedDaysAgo", { count: days }).replace(/^Edited |^נערך /, "");
+  return date.toLocaleDateString(locale, { month: "short", day: "numeric" });
 }
 
 export function LyricsVersionsPanel({ projectIdea }: LyricsVersionsPanelProps) {
+  const { t } = useTranslation();
+  const { language } = useLocale();
   const navigation = useNavigation<any>();
   const notes = useStore((s) => s.notes);
   const versions = projectIdea.kind === "project" ? projectIdea.lyrics?.versions ?? [] : [];
@@ -102,23 +108,23 @@ export function LyricsVersionsPanel({ projectIdea }: LyricsVersionsPanelProps) {
     const message =
       selectedVersionIds.length === 1
         ? includesLatest
-          ? "Delete the current lyrics version? The next newest version will become current."
-          : "Delete this lyrics version?"
+          ? t("lyrics.deleteCurrent")
+          : t("lyrics.deleteOne")
         : includesLatest
-          ? "Delete the selected lyrics versions? The next newest remaining version will become current."
-          : "Delete the selected lyrics versions?";
+          ? t("lyrics.deleteSelectedCurrent")
+          : t("lyrics.deleteSelected");
 
-    AppAlert.destructive("Delete lyrics versions?", message, () => {
+    AppAlert.destructive(t("lyrics.deleteTitle"), message, () => {
       appActions.deleteProjectLyricsVersions(projectIdea.id, selectedVersionIds);
       setSelectedVersionIds([]);
-    }, { confirmLabel: "Delete" });
+    }, { confirmLabel: t("common.delete") });
   }
 
   function importFromLyricsPad(note: Note) {
     const text = buildLyricsTextFromNote(note);
     setNotePickerVisible(false);
     if (!text) {
-      AppAlert.info("Empty page", "That Lyrics Pad page has no text to import.");
+      AppAlert.info(t("lyrics.emptyPage"), t("lyrics.emptyPageBody"));
       return;
     }
     appActions.saveProjectLyricsAsNewVersion(projectIdea.id, text);
@@ -128,19 +134,19 @@ export function LyricsVersionsPanel({ projectIdea }: LyricsVersionsPanelProps) {
   const createActions: SelectionAction[] = [
     {
       key: "from-current",
-      label: "New version from current",
+      label: t("lyrics.newFromCurrent"),
       icon: "git-branch-outline",
       onPress: () => openVersion(latestVersion?.id, { startInEdit: true, forceNewVersion: true }),
     },
     {
       key: "blank",
-      label: "Blank version",
+      label: t("lyrics.blankVersion"),
       icon: "document-outline",
       onPress: () => openVersion(undefined, { createDraft: true, startInEdit: true, forceNewVersion: true }),
     },
     {
       key: "from-lyrics-pad",
-      label: "From Lyrics Pad",
+      label: t("lyrics.fromPad"),
       icon: "clipboard-outline",
       onPress: () => setNotePickerVisible(true),
     },
@@ -151,7 +157,7 @@ export function LyricsVersionsPanel({ projectIdea }: LyricsVersionsPanelProps) {
       ? [
           {
             key: "new-draft",
-            label: "New draft from this",
+            label: t("lyrics.newDraftFromThis"),
             icon: "git-branch-outline" as const,
             onPress: () =>
               openVersion(selectedSingleVersion.id, { startInEdit: true, forceNewVersion: true }),
@@ -160,7 +166,7 @@ export function LyricsVersionsPanel({ projectIdea }: LyricsVersionsPanelProps) {
       : []),
     {
       key: "delete",
-      label: selectedVersionIds.length === 1 ? "Delete version" : "Delete versions",
+      label: t(selectedVersionIds.length === 1 ? "lyrics.deleteVersion" : "lyrics.deleteVersions"),
       icon: "trash-outline" as const,
       tone: "danger" as const,
       onPress: deleteSelectedVersions,
@@ -171,12 +177,12 @@ export function LyricsVersionsPanel({ projectIdea }: LyricsVersionsPanelProps) {
     <View style={styles.songDetailTabPanelWrap}>
       {selectionMode ? (
         <View style={styles.selectionBar}>
-          <Text style={styles.selectionText}>{selectedVersionIds.length} selected</Text>
+          <Text style={styles.selectionText}>{t("lyrics.selected", { count: selectedVersionIds.length })}</Text>
           <View style={panelStyles.selectionActions}>
             {selectedSingleVersion ? (
               <Button
                 variant="secondary"
-                label="Edit"
+                label={t("lyrics.edit")}
                 onPress={() => openVersion(selectedSingleVersion.id, { startInEdit: true })}
               />
             ) : null}
@@ -184,7 +190,7 @@ export function LyricsVersionsPanel({ projectIdea }: LyricsVersionsPanelProps) {
               style={({ pressed }) => [panelStyles.iconBtn, pressed ? styles.pressDown : null]}
               onPress={() => setMoreVisible(true)}
               hitSlop={6}
-              accessibilityLabel="More actions"
+              accessibilityLabel={t("lyrics.moreActions")}
             >
               <Ionicons name="ellipsis-horizontal" size={18} color={colors.textStrong} />
             </Pressable>
@@ -193,18 +199,18 @@ export function LyricsVersionsPanel({ projectIdea }: LyricsVersionsPanelProps) {
               onPress={() => setSelectedVersionIds([])}
               hitSlop={6}
             >
-              <Text style={panelStyles.doneText}>Done</Text>
+              <Text style={panelStyles.doneText}>{t("common.done")}</Text>
             </Pressable>
           </View>
         </View>
       ) : versions.length > 0 ? (
         <View style={panelStyles.controlRow}>
-          <Text style={panelStyles.sectionLabel}>{`Versions · ${versions.length}`}</Text>
+          <Text style={panelStyles.sectionLabel}>{t("lyrics.versions", { count: versions.length })}</Text>
           <Pressable
             style={({ pressed }) => [panelStyles.addBtn, pressed ? styles.pressDown : null]}
             onPress={() => setCreateVisible(true)}
             hitSlop={6}
-            accessibilityLabel="New version"
+            accessibilityLabel={t("lyrics.newVersion")}
           >
             <Ionicons name="add" size={22} color={colors.onPrimary} />
           </Pressable>
@@ -213,18 +219,18 @@ export function LyricsVersionsPanel({ projectIdea }: LyricsVersionsPanelProps) {
 
       {versions.length === 0 ? (
         <View style={[styles.card, styles.songDetailTabPanelCard]}>
-          <Text style={styles.pageTitleCompact}>Start Lyrics</Text>
+          <Text style={styles.pageTitleCompact}>{t("lyrics.start")}</Text>
           <Text style={styles.cardMeta}>
-            This song has no saved lyric pages yet. Start the first draft and save it when you are ready.
+            {t("lyrics.emptyStartBody")}
           </Text>
           <View style={styles.rowButtons}>
             <Button
-              label="Start Writing"
+              label={t("lyrics.startWriting")}
               onPress={() => openVersion(undefined, { createDraft: true, startInEdit: true, forceNewVersion: true })}
             />
             <Button
               variant="secondary"
-              label="From Lyrics Pad"
+              label={t("lyrics.fromPad")}
               onPress={() => setNotePickerVisible(true)}
             />
           </View>
@@ -269,8 +275,8 @@ export function LyricsVersionsPanel({ projectIdea }: LyricsVersionsPanelProps) {
                   </View>
                   <View style={panelStyles.cardBody}>
                     <View style={panelStyles.titleRow}>
-                      <Text style={panelStyles.title} numberOfLines={1}>{`Version ${versionNumber}`}</Text>
-                      {isLatest ? <Text style={panelStyles.currentChip}>CURRENT</Text> : null}
+                      <Text style={panelStyles.title} numberOfLines={1}>{t("lyrics.version", { number: versionNumber })}</Text>
+                      {isLatest ? <Text style={panelStyles.currentChip}>{t("lyrics.current")}</Text> : null}
                       <Pressable
                         style={({ pressed }) => [panelStyles.chev, pressed ? styles.pressDown : null]}
                         hitSlop={6}
@@ -278,31 +284,31 @@ export function LyricsVersionsPanel({ projectIdea }: LyricsVersionsPanelProps) {
                           event.stopPropagation();
                           toggleExpanded(version.id);
                         }}
-                        accessibilityLabel={isExpanded ? "Collapse" : "Expand"}
+                        accessibilityLabel={t(isExpanded ? "lyrics.collapse" : "lyrics.expand")}
                       >
                         <Ionicons name={isExpanded ? "chevron-up" : "chevron-down"} size={15} color={colors.textSecondary} />
                       </Pressable>
                     </View>
 
                     <View style={panelStyles.metaRow}>
-                      <Text style={panelStyles.meta}>{formatCardDate(version.updatedAt)}</Text>
+                      <Text style={panelStyles.meta}>{formatCardDate(version.updatedAt, language, t)}</Text>
                       <Text style={panelStyles.metaDot}>·</Text>
-                      <Text style={panelStyles.meta}>{`${lineCount} ${lineCount === 1 ? "line" : "lines"}`}</Text>
+                      <Text style={panelStyles.meta}>{t("lyrics.lineCount", { count: lineCount })}</Text>
                       {hasChords ? (
                         <>
                           <Text style={panelStyles.metaDot}>·</Text>
                           <View style={panelStyles.chordMeta}>
                             <Ionicons name="musical-notes" size={12} color={colors.primary} />
-                            <Text style={panelStyles.chordMetaText}>chords</Text>
+                            <Text style={panelStyles.chordMetaText}>{t("lyrics.chords")}</Text>
                           </View>
                         </>
                       ) : null}
                     </View>
 
                     {isLatest && !isExpanded ? (
-                      <Text style={panelStyles.preview} numberOfLines={2}>
-                        {previewText || "No lyrics in this version."}
-                      </Text>
+                      <UserText value={previewText} style={panelStyles.preview} numberOfLines={2}>
+                        {previewText || t("lyrics.noLyricsVersion")}
+                      </UserText>
                     ) : null}
                   </View>
                 </View>
@@ -332,7 +338,7 @@ export function LyricsVersionsPanel({ projectIdea }: LyricsVersionsPanelProps) {
                     {chordVersionIds.includes(version.id) && hasChords ? (
                       <ChordChartLines lines={version.document.lines} editable={false} />
                     ) : (
-                      <Text style={styles.lyricsPreviewText}>{previewText || "No lyrics in this version."}</Text>
+                      <UserText value={previewText} style={styles.lyricsPreviewText}>{previewText || t("lyrics.noLyricsVersion")}</UserText>
                     )}
                   </ScrollView>
                 </Animated.View>
@@ -351,14 +357,14 @@ export function LyricsVersionsPanel({ projectIdea }: LyricsVersionsPanelProps) {
 
       <SelectionActionSheet
         visible={moreVisible}
-        title="Lyrics version actions"
+        title={t("lyrics.versionActions")}
         actions={selectionSheetActions}
         onClose={() => setMoreVisible(false)}
       />
 
       <SelectionActionSheet
         visible={createVisible}
-        title="New version"
+        title={t("lyrics.newVersion")}
         actions={createActions}
         onClose={() => setCreateVisible(false)}
       />
