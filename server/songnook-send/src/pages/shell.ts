@@ -1,5 +1,5 @@
 /**
- * Shared HTML shell + the Songnook Send design system.
+ * Shared HTML shell + the SongNook Send design system.
  *
  * Direction: "the letterpress parcel" — the page reads as a beautifully typeset
  * note that arrived wrapped around a parcel of songs. Warm paper with real
@@ -191,6 +191,9 @@ export function page(opts: {
   body: string;
   bodyScript?: string;
   noindex?: boolean;
+  /** Page-specific CSS appended after the shared design system (e.g. the
+   *  recipient page's app-preview gallery). */
+  extraStyle?: string;
 }): string {
   return `<!doctype html>
 <html lang="en">
@@ -203,19 +206,19 @@ ${opts.noindex ? '<meta name="robots" content="noindex,nofollow">' : ""}
 <meta name="theme-color" content="#1d1712" media="(prefers-color-scheme: dark)">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400;1,6..72,500&family=Plus+Jakarta+Sans:wght@400;600;700&display=swap" rel="stylesheet">
-<style>${BRAND_CSS}</style>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400;1,6..72,500&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>${BRAND_CSS}${opts.extraStyle ?? ""}</style>
 </head>
 <body>
 <div class="wrap">
 <header class="masthead rise">
-  <a class="brand" href="/">Song<b>nook</b> · Send</a>
+  <a class="brand" href="/">Song<b>Nook</b> · Send</a>
   <span class="tag">Music, passed along</span>
 </header>
 ${opts.body}
 <footer class="foot">
   <span>Files are held for a limited time, then quietly let go.</span>
-  <span>Songnook — a home for song ideas</span>
+  <span>SongNook — a home for song ideas</span>
 </footer>
 </div>
 ${opts.bodyScript ? `<script>${opts.bodyScript}</script>` : ""}

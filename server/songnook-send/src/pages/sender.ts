@@ -9,14 +9,14 @@ export function renderSenderPage(): string {
   const body = `
 <p class="eyebrow rise d1">Send a parcel of sound</p>
 <h1 class="rise d1">Pass a song along, <em>beautifully</em>.</h1>
-<p class="sub rise d2">Drop in your sketches, stems, or a Songnook file. You'll get one clean,
+<p class="sub rise d2">Drop in your sketches, stems, or a SongNook file. You'll get one clean,
 private link — no account, nothing to install on the other end.</p>
 <div class="rise d2">${waveformStrip()}</div>
 
 <section class="panel rise d3">
   <div id="drop" class="drop" role="button" tabindex="0" aria-label="Choose files to send">
     <strong>Drop your music here</strong>
-    <span>or click to choose — audio &amp; Songnook files, up to 1 GB</span>
+    <span>or click to choose — audio &amp; SongNook files, up to 1 GB</span>
     <input id="picker" type="file" multiple hidden accept=".songnook,audio/*">
   </div>
   <ul id="items" class="tracklist" style="margin-top:8px"></ul>
@@ -39,7 +39,7 @@ private link — no account, nothing to install on the other end.</p>
   </div>
 </section>`;
 
-  return page({ title: "Songnook Send — pass a song along", body, bodyScript: SENDER_JS, noindex: true });
+  return page({ title: "SongNook Send — pass a song along", body, bodyScript: SENDER_JS, noindex: true });
 }
 
 // Runs in the browser. No secrets — talks only to the same-origin API.
@@ -80,7 +80,7 @@ const SENDER_JS = `
     }
     render();
     // Client-side filter is UX only — the server enforces the same allowlist.
-    if(rejected.length) alert('Only audio and Songnook files can be sent. Skipped:\\n'+rejected.join('\\n'));
+    if(rejected.length) alert('Only audio and SongNook files can be sent. Skipped:\\n'+rejected.join('\\n'));
   }
 
   drop.addEventListener('click', function(){picker.click();});
