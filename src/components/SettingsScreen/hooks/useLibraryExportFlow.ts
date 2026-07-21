@@ -24,6 +24,7 @@ import {
 } from "../helpers";
 import type { ArchiveExportOptions, ExportSectionKey, StandardExportOptions } from "../types";
 import { haptic } from "../../../design/haptics";
+import { useTranslation } from "react-i18next";
 
 const DEFAULT_ARCHIVE_OPTIONS: ArchiveExportOptions = {
   includeFullSongHistory: true,
@@ -40,6 +41,7 @@ const DEFAULT_STANDARD_OPTIONS: StandardExportOptions = {
 };
 
 export function useLibraryExportFlow() {
+  const { t } = useTranslation();
   const workspaces = useStore((state) => state.workspaces);
   const notes = useStore((state) => state.notes);
   const songbooks = useStore((state) => state.songbooks);
@@ -197,8 +199,8 @@ export function useLibraryExportFlow() {
     // because an undefined URI never reaches the missing-file check.
     if (shouldSelect && workspace?.isArchived) {
       AppAlert.info(
-        "Unarchive to export",
-        `"${workspace.title}" is archived, so its audio is stored compressed and would be missing from the export. Unarchive the workspace first to include it.`
+        t("settingsExport.unarchiveTitle"),
+        t("settingsExport.unarchiveBody", { title: workspace.title })
       );
       return;
     }
@@ -225,8 +227,8 @@ export function useLibraryExportFlow() {
     // have no live audio to export.
     if (workspace.isArchived && !selectedWorkspaceIds.includes(workspace.id)) {
       AppAlert.info(
-        "Unarchive to export",
-        `"${workspace.title}" is archived, so its audio is stored compressed and would be missing from the export. Unarchive the workspace first to include it.`
+        t("settingsExport.unarchiveTitle"),
+        t("settingsExport.unarchiveBody", { title: workspace.title })
       );
       return;
     }
@@ -269,17 +271,17 @@ export function useLibraryExportFlow() {
 
   const handleExport = async () => {
     if (!format) {
-      AppAlert.info("Choose a format", "Select SongNook Archive or Standard ZIP before exporting.");
+      AppAlert.info(t("settingsExport.chooseFormat"), t("settingsExport.chooseFormatBody"));
       return;
     }
 
     if (selectedSummary.selectedWorkspaceCount === 0 && selectedSummary.selectedCollectionCount === 0) {
-      AppAlert.info("Choose a scope", "Select at least one workspace or collection to export.");
+      AppAlert.info(t("settingsExport.chooseScope"), t("settingsExport.chooseScopeBody"));
       return;
     }
 
     if (useProcessStore.getState().process?.status === "running") {
-      AppAlert.info("One at a time", "Wait for the current library operation to finish, then try again.");
+      AppAlert.info(t("settingsExport.oneAtTime"), t("settingsExport.oneAtTimeBody"));
       return;
     }
     const processId = `export-${Date.now()}`;
@@ -288,7 +290,7 @@ export function useLibraryExportFlow() {
     store.start({
       id: processId,
       kind: "export",
-      title: format === "songnook-archive" ? "SongNook Archive" : "Standard ZIP",
+      title: format === "songnook-archive" ? t("settingsExport.archive") : t("settingsExport.zip"),
       onCancel: () => controller.abort(),
     });
     const onProgress = (progress: Parameters<typeof store.update>[0]) =>
@@ -334,17 +336,17 @@ export function useLibraryExportFlow() {
       // a terminal takeover behind the dialog.
       useProcessStore.getState().dismiss(processId);
 
-      const summary = `${result.exportedWorkspaces} workspace${result.exportedWorkspaces === 1 ? "" : "s"}, ${result.exportedCollections} collection${result.exportedCollections === 1 ? "" : "s"}, ${result.exportedSongs} song${result.exportedSongs === 1 ? "" : "s"}, ${result.exportedStandaloneClips} standalone clip${result.exportedStandaloneClips === 1 ? "" : "s"}, and ${result.exportedNotepadNotes} notepad note${result.exportedNotepadNotes === 1 ? "" : "s"}`;
+      const summary = t("settingsExport.resultSummary", { workspaces: result.exportedWorkspaces, collections: result.exportedCollections, songs: result.exportedSongs, clips: result.exportedStandaloneClips, notes: result.exportedNotepadNotes });
 
       if (result.warningMessages.length > 0) {
-        AppAlert.info("Export finished with warnings", buildWarningSummary(result.warningMessages));
+        AppAlert.info(t("settingsExport.warningsTitle"), buildWarningSummary(result.warningMessages));
       } else if (result.saveConfirmed) {
         // Android: copied into the folder the user chose.
         haptic.success();
-        AppAlert.info("Export saved", `${summary} were saved to the folder you chose.`);
+        AppAlert.info(t("settingsExport.saved"), t("settingsExport.savedBody", { summary }));
       } else {
         // iOS share sheet: we can't confirm the destination, only that it was handed off.
-        AppAlert.info("Export ready", `${summary} were packaged and handed to the share sheet.`);
+        AppAlert.info(t("settingsExport.readyTitle"), t("settingsExport.readyBody", { summary }));
       }
     } catch (error) {
       // User cancellation (takeover Cancel or a backed-out Android folder picker) is a
@@ -357,9 +359,9 @@ export function useLibraryExportFlow() {
         return;
       }
       const message =
-        error instanceof Error ? error.message : "The library export could not be completed.";
+        error instanceof Error ? error.message : t("settingsExport.failedBody");
       useProcessStore.getState().setStatus("error", message);
-      AppAlert.info("Export failed", message);
+      AppAlert.info(t("settingsExport.failed"), message);
     }
   };
 
