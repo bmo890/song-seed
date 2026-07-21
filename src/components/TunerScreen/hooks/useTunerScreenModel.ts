@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useIsFocused } from "@react-navigation/native";
+import { useTranslation } from "react-i18next";
 import { ExpoAudioStreamModule } from "@siteed/audio-studio";
 import { AppState, type EmitterSubscription } from "react-native";
 import { haptic } from "../../../design/haptics";
@@ -187,6 +188,7 @@ function getDetuneTone(absCents: number) {
 }
 
 export function useTunerScreenModel() {
+  const { t } = useTranslation();
   const isFocused = useIsFocused();
 
   const pitchyRef = useRef<PitchyModule | null>(null);
@@ -323,8 +325,8 @@ export function useTunerScreenModel() {
     setPermissionBlocked(permission?.canAskAgain === false);
     setErrorMessage(
       permission?.canAskAgain === false
-        ? "Microphone access is disabled in system settings."
-        : "SongNook needs microphone access to tune."
+        ? t("tuner.micDisabled")
+        : t("tuner.micNeeded")
     );
     return false;
   }
@@ -527,7 +529,7 @@ export function useTunerScreenModel() {
       const pitchy = loadPitchy();
       if (!pitchy) {
         setErrorMessage(
-          "Pitch detector is unavailable. Rebuild the native app to use the tuner."
+          t("tuner.detectorUnavailable")
         );
         return;
       }
@@ -562,7 +564,7 @@ export function useTunerScreenModel() {
       subscriptionRef.current = null;
       if (isMountedRef.current) {
         setIsListening(false);
-        setErrorMessage("Could not start the tuner.");
+        setErrorMessage(t("tuner.startFailed"));
       }
     } finally {
       isStartingRef.current = false;

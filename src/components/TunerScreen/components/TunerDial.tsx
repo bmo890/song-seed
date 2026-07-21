@@ -1,6 +1,8 @@
 import { Text, View } from "react-native";
 import { styles } from "../styles";
 import type { useTunerScreenModel } from "../hooks/useTunerScreenModel";
+import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 
 type TunerModel = ReturnType<typeof useTunerScreenModel>;
 
@@ -14,21 +16,22 @@ function getMeterToneStyle(model: TunerModel) {
   }
 }
 
-function getStatusLabel(model: TunerModel): string {
-  if (!model.isListening) return "Waiting";
-  if (!model.signalActive) return "Listening";
-  if (model.meterTone === "in_tune") return "In Tune";
-  if (model.meterTone === "near" || model.meterTone === "far") return "Tune Up";
-  return "Signal";
+function getStatusLabel(model: TunerModel, t: TFunction): string {
+  if (!model.isListening) return t("tuner.waiting");
+  if (!model.signalActive) return t("tuner.listening");
+  if (model.meterTone === "in_tune") return t("tuner.inTune");
+  if (model.meterTone === "near" || model.meterTone === "far") return t("tuner.tuneUp");
+  return t("tuner.signal");
 }
 
 export function TunerDial({ model }: { model: TunerModel }) {
+  const { t } = useTranslation();
   const detuneToneStyle = getMeterToneStyle(model);
   const detuneTextStyle =
     model.meterTone === "far" ? styles.detuneChipValueFar : styles.detuneChipValueNear;
 
   const isInTune = model.meterTone === "in_tune";
-  const statusLabel = getStatusLabel(model);
+  const statusLabel = getStatusLabel(model, t);
   const isActive = model.signalActive;
 
   return (

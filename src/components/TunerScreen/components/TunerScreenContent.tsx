@@ -38,7 +38,7 @@ export function TunerScreenContent() {
             }}
           >
             {model.errorMessage}
-            {model.permissionBlocked ? " Tap to open settings." : " Tap to try again."}
+            {model.permissionBlocked ? t("tuner.openSettings") : t("tuner.tryAgain")}
           </Text>
         ) : null}
       </ScrollView>
