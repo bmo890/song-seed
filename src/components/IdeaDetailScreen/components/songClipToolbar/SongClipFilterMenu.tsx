@@ -13,6 +13,7 @@ import { songClipToolbarStyles } from "./styles";
 import Animated, { FadeIn } from "react-native-reanimated";
 import { durations } from "../../../../design/motion";
 import { colors } from "../../../../design/tokens";
+import { useTranslation } from "react-i18next";
 
 type SongClipFilterMenuProps = {
   clipViewMode: "timeline" | "evolution";
@@ -45,6 +46,7 @@ export function SongClipFilterMenu({
   globalCustomTags,
   onClose,
 }: SongClipFilterMenuProps) {
+  const { t } = useTranslation();
   const toggleTag = (key: string) => {
     if (clipTagFilter.includes(key)) {
       setClipTagFilter(clipTagFilter.filter((k) => k !== key));
@@ -63,7 +65,7 @@ export function SongClipFilterMenu({
     clipTagFilter.length > 0 || clipGroupFilter.length > 0 || clipBookmarkedOnly;
 
   const allOptions: { key: string; label: string }[] = [
-    { key: "untagged", label: "Untagged" },
+    { key: "untagged", label: t("songDetail.untagged") },
     ...SONG_CLIP_TAG_OPTIONS,
     ...projectCustomTags.map((t) => ({ key: t.key, label: t.label })),
     ...globalCustomTags.map((t) => ({ key: t.key, label: t.label })),
@@ -75,7 +77,7 @@ export function SongClipFilterMenu({
       <View style={styles.ideasDropdownSectionToggle}>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
           <Ionicons name="pricetag-outline" size={12} color={colors.textMuted} />
-          <Text style={styles.ideasDropdownSectionToggleText}>Tags</Text>
+          <Text style={styles.ideasDropdownSectionToggleText}>{t("songDetail.tags")}</Text>
         </View>
         {hasActiveFilters ? (
           <Pressable
@@ -86,7 +88,7 @@ export function SongClipFilterMenu({
             }}
             hitSlop={{ top: 6, bottom: 6, left: 8, right: 8 }}
           >
-            <Text style={songClipToolbarStyles.filterClearText}>Clear</Text>
+            <Text style={songClipToolbarStyles.filterClearText}>{t("songDetail.clear")}</Text>
           </Pressable>
         ) : null}
       </View>
@@ -144,7 +146,7 @@ export function SongClipFilterMenu({
               onPress={() => toggleTag(option.key)}
             >
               <Text style={[styles.clipCardTagBadgeText, { color: untaggedText }]}>
-                Untagged
+                {t("songDetail.untagged")}
               </Text>
             </Pressable>
           );
@@ -155,7 +157,7 @@ export function SongClipFilterMenu({
       <View style={styles.ideasDropdownSectionToggle}>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
           <Ionicons name="bookmark-outline" size={12} color={colors.textMuted} />
-          <Text style={styles.ideasDropdownSectionToggleText}>Saved clips</Text>
+          <Text style={styles.ideasDropdownSectionToggleText}>{t("songDetail.savedClips")}</Text>
         </View>
       </View>
       <View style={styles.ideasStageChipsWrap}>
@@ -173,7 +175,7 @@ export function SongClipFilterMenu({
               clipBookmarkedOnly ? styles.ideasStageChipTextActive : null,
             ]}
           >
-            Bookmarked only
+            {t("songDetail.bookmarkedOnly")}
           </Text>
         </Pressable>
       </View>
@@ -184,7 +186,7 @@ export function SongClipFilterMenu({
           <View style={styles.ideasDropdownSectionToggle}>
             <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
               <Ionicons name="folder-open-outline" size={12} color={colors.textMuted} />
-              <Text style={styles.ideasDropdownSectionToggleText}>Groups</Text>
+              <Text style={styles.ideasDropdownSectionToggleText}>{t("songDetail.groups")}</Text>
             </View>
           </View>
           <View style={styles.ideasStageChipsWrap}>
@@ -219,12 +221,12 @@ export function SongClipFilterMenu({
         <>
           <View style={styles.ideasDropdownDivider} />
           <View style={styles.ideasDropdownSectionToggle}>
-            <Text style={styles.ideasDropdownSectionToggleText}>Display</Text>
+            <Text style={styles.ideasDropdownSectionToggleText}>{t("songDetail.display")}</Text>
           </View>
           <View style={styles.ideasStageChipsWrap}>
             {([
-              { key: "all", label: "All takes", value: false },
-              { key: "main", label: "Main takes only", value: true },
+              { key: "all", label: t("songDetail.allTakes"), value: false },
+              { key: "main", label: t("songDetail.mainTakesOnly"), value: true },
             ] as const).map((option) => {
               const active = timelineMainTakesOnly === option.value;
               return (

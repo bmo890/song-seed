@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { AppAlert } from "../../common/AppAlert";
 import { useStore } from "../../../state/useStore";
 import type { ClipVersion, SongIdea } from "../../../types";
+import { useTranslation } from "react-i18next";
 
 type ParentPickState = {
   sourceClipIds: string[];
@@ -41,6 +42,7 @@ function collectDescendantClipIds(clips: ClipVersion[], rootClipIds: string[]) {
 }
 
 export function useSongParentPicking(selectedIdea: SongIdea | null | undefined, songClips: ClipVersion[]) {
+  const { t } = useTranslation();
   const [parentPickState, setParentPickState] = useState<ParentPickState | null>(null);
   const clipMap = useMemo(() => buildClipMap(songClips), [songClips]);
   const primaryClipId = useMemo(
@@ -56,14 +58,11 @@ export function useSongParentPicking(selectedIdea: SongIdea | null | undefined, 
     return Array.from(invalidTargetIds);
   }, [parentPickState, primaryClipId, songClips]);
 
-  const parentPickPrompt =
-    parentPickState?.appliedClipIds.length === 1
-      ? "Tap the parent for this clip."
-      : parentPickState
-        ? `Tap the parent for these ${parentPickState.appliedClipIds.length} clips.`
-        : "";
+  const parentPickPrompt = parentPickState
+    ? t("songDetail.parentPrompt", { count: parentPickState.appliedClipIds.length })
+    : "";
   const parentPickMeta = parentPickState
-    ? "Only selected clips move. Their existing children stay in the old lineage."
+    ? t("songDetail.parentMeta")
     : null;
 
   function updateClipParents(targetIdeaId: string, parentByClipId: Map<string, ParentChange>) {
@@ -95,7 +94,7 @@ export function useSongParentPicking(selectedIdea: SongIdea | null | undefined, 
     const uniqueClipIds = Array.from(new Set(rawClipIds)).filter((clipId) => clipMap.has(clipId));
     if (uniqueClipIds.length === 0) return null;
     if (primaryClipId && uniqueClipIds.includes(primaryClipId)) {
-      AppAlert.info("Primary clip unavailable", "The primary clip stays outside the evolution tree for now. Deselect it and try again.");
+      AppAlert.info(t("songDetail.primaryUnavailable"), t("songDetail.primaryUnavailableBody"));
       return null;
     }
     return { sourceClipIds: uniqueClipIds, appliedClipIds: uniqueClipIds };
@@ -155,7 +154,7 @@ export function useSongParentPicking(selectedIdea: SongIdea | null | undefined, 
         restoredParentByClipId.set(clipId, change);
       });
       updateClipParents(selectedIdea.id, restoredParentByClipId);
-    }, sourceClipIds.length === 1 ? "Clip moved" : "Clips moved");
+    }, sourceClipIds.length === 1 ? t("songDetail.clipMoved") : t("songDetail.clipsMoved"));
     return true;
   }
 
@@ -168,7 +167,7 @@ export function useSongParentPicking(selectedIdea: SongIdea | null | undefined, 
     if (primaryClipId) invalidTargetIds.add(primaryClipId);
     const hasValidTarget = songClips.some((clip) => !invalidTargetIds.has(clip.id));
     if (!hasValidTarget) {
-      AppAlert.info("No valid parent clips", "There is no other clip in this song that can be used as a parent yet.");
+      AppAlert.info(t("songDetail.noValidParents"), t("songDetail.noValidParentsBody"));
       return;
     }
     onPrepareTree();
@@ -181,10 +180,10 @@ export function useSongParentPicking(selectedIdea: SongIdea | null | undefined, 
     const changed = applyParentChange(
       source.appliedClipIds,
       null,
-      (undo, _message) => onUndo(undo, source.appliedClipIds.length === 1 ? "Clip moved to root" : "Clips moved to root")
+      (undo, _message) => onUndo(undo, source.appliedClipIds.length === 1 ? t("songDetail.clipMovedRoot") : t("songDetail.clipsMovedRoot"))
     );
     if (!changed) {
-      AppAlert.info("Already root", "Those clips are already at the top level.");
+      AppAlert.info(t("songDetail.alreadyRoot"), t("songDetail.alreadyRootBody"));
       return;
     }
     setParentPickState(null);
@@ -199,17 +198,17 @@ export function useSongParentPicking(selectedIdea: SongIdea | null | undefined, 
     );
     if (!hasActualChange) {
       setParentPickState(null);
-      AppAlert.info("Already attached", "Those clips already branch from that parent.");
+      AppAlert.info(t("songDetail.alreadyAttached"), t("songDetail.alreadyAttachedBody"));
       return;
     }
     const confirmationMessage =
       parentPickState.appliedClipIds.length === 1
-        ? `Make "${clipMap.get(parentPickState.appliedClipIds[0])?.title ?? "this clip"}" a variation of "${targetClip.title}"?`
-        : `Make ${parentPickState.appliedClipIds.length} clips variations of "${targetClip.title}"?`;
-    AppAlert.confirm("Set parent clip?", confirmationMessage, () => {
+        ? t("songDetail.setParentOne", { clip: clipMap.get(parentPickState.appliedClipIds[0])?.title ?? t("songDetail.thisClip"), parent: targetClip.title })
+        : t("songDetail.setParentMany", { count: parentPickState.appliedClipIds.length, parent: targetClip.title });
+    AppAlert.confirm(t("songDetail.setParentTitle"), confirmationMessage, () => {
       applyParentChange(parentPickState.appliedClipIds, targetClipId, onUndo);
       setParentPickState(null);
-    }, { confirmLabel: "Confirm" });
+    }, { confirmLabel: t("songDetail.confirm") });
   }
 
   return {

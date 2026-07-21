@@ -9,6 +9,7 @@ import { useSongParentPicking } from "../hooks/useSongParentPicking";
 import { useSongScreenEffects } from "../hooks/useSongScreenEffects";
 import { useSongScreenModel } from "../hooks/useSongScreenModel";
 import { useSongUndo } from "../hooks/useSongUndo";
+import { useTranslation } from "react-i18next";
 
 type SongScreenContextValue = {
   screen: ReturnType<typeof useSongScreenModel>;
@@ -35,6 +36,7 @@ type SongScreenContextValue = {
 const SongScreenContext = createContext<SongScreenContextValue | null>(null);
 
 export function SongScreenProvider({ children }: { children: ReactNode }) {
+  const { t } = useTranslation();
   const screen = useSongScreenModel();
   const clipClipboard = useStore((s) => s.clipClipboard);
   const cancelClipboard = useStore((s) => s.cancelClipboard);
@@ -92,7 +94,7 @@ export function SongScreenProvider({ children }: { children: ReactNode }) {
     function playProjectQueue(clipIds?: string[]) {
       const queue = buildProjectQueue(clipIds);
       if (queue.length === 0) {
-        AppAlert.info("Nothing to play", "This song does not have any playable clips yet.");
+        AppAlert.info(t("songDetail.nothingToPlay"), t("songDetail.noPlayableClips"));
         return;
       }
       useStore.getState().setPlayerQueueForScreen(queue, 0, true);

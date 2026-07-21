@@ -2,6 +2,7 @@ import { Pressable } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { styles } from "../../styles";
 import { colors } from "../../../../design/tokens";
+import { useTranslation } from "react-i18next";
 
 type SongClipFilterTriggerProps = {
   active: boolean;
@@ -11,6 +12,7 @@ type SongClipFilterTriggerProps = {
 };
 
 export function SongClipFilterTrigger({ active, open, onPress }: SongClipFilterTriggerProps) {
+  const { t } = useTranslation();
   return (
     <Pressable
       style={({ pressed }) => [
@@ -22,7 +24,7 @@ export function SongClipFilterTrigger({ active, open, onPress }: SongClipFilterT
       ]}
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel="Filter by tag"
+      accessibilityLabel={t("songDetail.filterByTag")}
     >
       <Ionicons
         name={active ? "funnel" : "funnel-outline"}
