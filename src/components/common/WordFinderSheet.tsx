@@ -23,7 +23,6 @@ import {
   getCachedWordSuggestions,
   groupBySyllableCount,
   isEnglishLookupWord,
-  partOfSpeechLabel,
   sanitizeThemeWords,
   WORD_LOOKUP_MODE_ORDER,
   WORD_LOOKUP_MODES,
@@ -80,6 +79,9 @@ type PreviewState = {
  */
 export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: WordFinderSheetProps) {
   const { t } = useTranslation();
+  const modeLabel = (mode: WordLookupMode) => t(`wordFinderUi.${mode}`);
+  const modeDescription = (mode: WordLookupMode) => t(`wordFinderUi.${mode}Desc`);
+  const partOfSpeech = (tag: string) => t(`wordFinderUi.${({ n: "noun", v: "verb", adj: "adjective", adv: "adverb", u: "other" } as Record<string, string>)[tag] ?? "other"}`);
   const [query, setQuery] = useState(initialWord);
   const [quickMode, setQuickMode] = useState<WordLookupMode>("rhymes");
   const [moreTab, setMoreTab] = useState(false);
@@ -271,7 +273,7 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
           {themes.map((word) => (
             <View key={word} style={finderStyles.themePill}>
               <Text style={finderStyles.themePillText}>{word}</Text>
-              <Pressable onPress={() => removeTheme(word)} hitSlop={8} accessibilityLabel={`Remove theme ${word}`}>
+              <Pressable onPress={() => removeTheme(word)} hitSlop={8} accessibilityLabel={t("wordFinderUi.removeTheme", { word })}>
                 <Ionicons name="close" size={12} color={colors.onPrimary} />
               </Pressable>
             </View>
@@ -282,7 +284,7 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
                 style={finderStyles.themeInput}
                 value={themeDraft}
                 onChangeText={setThemeDraft}
-                placeholder="e.g. love"
+                placeholder={t("wordFinderUi.themePlaceholder")}
                 placeholderTextColor={colors.textMuted}
                 autoCapitalize="none"
                 autoCorrect={false}
@@ -293,9 +295,9 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
               <Pressable
                 style={({ pressed }) => [finderStyles.themeAddBtn, pressed ? appStyles.pressDown : null]}
                 onPress={commitThemeDraft}
-                accessibilityLabel="Add theme word"
+                accessibilityLabel={t("wordFinderUi.addThemeWord")}
               >
-                <Text style={finderStyles.themeAddBtnText}>Add</Text>
+                <Text style={finderStyles.themeAddBtnText}>{t("wordFinderUi.add")}</Text>
               </Pressable>
             </>
           ) : themes.length < MAX_THEMES ? (
@@ -303,7 +305,7 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
               style={({ pressed }) => [finderStyles.themePlusBtn, pressed ? appStyles.pressDown : null]}
               onPress={beginThemeEdit}
               hitSlop={6}
-              accessibilityLabel="Add another theme word"
+              accessibilityLabel={t("wordFinderUi.addAnotherTheme")}
             >
               <Ionicons name="add" size={14} color={colors.textSecondary} />
             </Pressable>
@@ -313,10 +315,10 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
         <Pressable
           style={({ pressed }) => [finderStyles.themeAdd, pressed ? appStyles.pressDown : null]}
           onPress={beginThemeEdit}
-          accessibilityLabel="Add a theme to bias results toward your song's subject"
+          accessibilityLabel={t("wordFinderUi.addThemeA11y")}
         >
           <Ionicons name="funnel-outline" size={11} color={colors.textMuted} />
-          <Text style={finderStyles.themeAddText}>Add theme</Text>
+          <Text style={finderStyles.themeAddText}>{t("wordFinderUi.addTheme")}</Text>
         </Pressable>
       )}
     </View>
@@ -334,8 +336,8 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
       style={({ pressed }) => [finderStyles.chip, pressed ? appStyles.pressDown : null]}
       onPress={() => handlePick(suggestion.word)}
       onLongPress={() => openPreview(suggestion.word)}
-      accessibilityLabel={`Insert ${suggestion.word}`}
-      accessibilityHint="Hold for a definition"
+      accessibilityLabel={t("wordFinderUi.insertWord", { word: suggestion.word })}
+      accessibilityHint={t("wordFinderUi.definitionHint")}
     >
       <Text style={finderStyles.chipText}>{suggestion.word}</Text>
     </Pressable>
@@ -353,9 +355,9 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
           <Pressable
             style={({ pressed }) => [finderStyles.moreChip, pressed ? appStyles.pressDown : null]}
             onPress={() => expandChipKey(expandKey)}
-            accessibilityLabel={`Show ${hidden} more`}
+            accessibilityLabel={t("wordFinderUi.showMore", { count: hidden })}
           >
-            <Text style={finderStyles.moreChipText}>+ {hidden} more</Text>
+            <Text style={finderStyles.moreChipText}>{t("wordFinderUi.moreCount", { count: hidden })}</Text>
           </Pressable>
         ) : null}
       </View>
@@ -377,7 +379,7 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
           <View key={group.syllables ?? "unknown"} style={finderStyles.syllableGroup}>
             {groups.length > 1 && group.syllables !== null ? (
               <Text style={finderStyles.syllableLabel}>
-                {group.syllables} {group.syllables === 1 ? "SYLLABLE" : "SYLLABLES"}
+                {t("wordFinderUi.syllable", { count: group.syllables })}
               </Text>
             ) : null}
             {renderChipRun(group.suggestions, GROUP_CHIP_CAP, `syll:${group.syllables ?? "u"}`)}
@@ -397,9 +399,8 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
       <Animated.View entering={FadeIn.duration(durations.fast)}>
         {EXTENDED_WORD_MODE_GROUPS.map((group) => (
           <View key={group.title} style={finderStyles.toolGroup}>
-            <Text style={finderStyles.toolGroupTitle}>{group.title.toUpperCase()}</Text>
+            <Text style={finderStyles.toolGroupTitle}>{t(`wordFinderUi.${group.title.toLowerCase()}`).toUpperCase()}</Text>
             {group.modes.map((key) => {
-              const config = WORD_LOOKUP_MODES[key];
               const active = extendedMode === key;
               return (
                 <Pressable
@@ -410,9 +411,9 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
                   accessibilityState={{ selected: active }}
                 >
                   <View style={finderStyles.toolRowText}>
-                    <Text style={finderStyles.toolRowLabel}>{config.label}</Text>
+                    <Text style={finderStyles.toolRowLabel}>{modeLabel(key)}</Text>
                     <Text style={finderStyles.toolRowDesc} numberOfLines={1}>
-                      {config.description}
+                      {modeDescription(key)}
                     </Text>
                   </View>
                   {active ? <Ionicons name="checkmark" size={16} color={colors.primary} /> : null}
@@ -434,7 +435,7 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
           style={({ pressed }) => [finderStyles.previewCloseBtn, pressed ? appStyles.pressDown : null]}
           onPress={closePreview}
           hitSlop={8}
-          accessibilityLabel="Close definition"
+          accessibilityLabel={t("wordFinderUi.closeDefinition")}
         >
           <Ionicons name="close" size={18} color={colors.textSecondary} />
         </Pressable>
@@ -446,19 +447,17 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
             <ActivityIndicator size="small" color={colors.textMuted} />
           </View>
         ) : state.status === "offline" ? (
-          <Text style={finderStyles.previewMeta}>You're offline — can't load a definition right now.</Text>
+          <Text style={finderStyles.previewMeta}>{t("wordFinderUi.definitionOffline")}</Text>
         ) : state.status === "error" ? (
-          <Text style={finderStyles.previewMeta}>Couldn't load a definition right now.</Text>
+          <Text style={finderStyles.previewMeta}>{t("wordFinderUi.definitionError")}</Text>
         ) : state.status === "empty" ? (
-          <Text style={finderStyles.previewMeta}>
-            No definition found — might be slang, a name, or a coined word.
-          </Text>
+          <Text style={finderStyles.previewMeta}>{t("wordFinderUi.definitionEmpty")}</Text>
         ) : (
           <ScrollView showsVerticalScrollIndicator={false}>
             <View style={finderStyles.previewDefs}>
               {state.defs.slice(0, 5).map((def, index) => (
                 <View key={index} style={finderStyles.previewDefRow}>
-                  <Text style={finderStyles.previewPos}>{partOfSpeechLabel(def.partOfSpeech)}</Text>
+                  <Text style={finderStyles.previewPos}>{partOfSpeech(def.partOfSpeech)}</Text>
                   <Text style={finderStyles.previewDefText}>{def.text}</Text>
                 </View>
               ))}
@@ -471,17 +470,17 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
         <Pressable
           style={({ pressed }) => [finderStyles.previewActionSecondary, pressed ? appStyles.pressDown : null]}
           onPress={() => drillInto(state.word)}
-          accessibilityLabel={`Explore ${state.word}`}
+          accessibilityLabel={t("wordFinderUi.exploreWord", { word: state.word })}
         >
           <Ionicons name="compass-outline" size={15} color={colors.textStrong} />
-          <Text style={finderStyles.previewActionSecondaryText}>Explore</Text>
+          <Text style={finderStyles.previewActionSecondaryText}>{t("wordFinderUi.explore")}</Text>
         </Pressable>
         <Pressable
           style={({ pressed }) => [finderStyles.previewActionPrimary, pressed ? appStyles.pressDown : null]}
           onPress={() => handlePick(state.word)}
-          accessibilityLabel={`Insert ${state.word}`}
+          accessibilityLabel={t("wordFinderUi.insertWord", { word: state.word })}
         >
-          <Text style={finderStyles.previewActionPrimaryText}>Use word</Text>
+          <Text style={finderStyles.previewActionPrimaryText}>{t("wordFinderUi.useWord")}</Text>
           <Ionicons name="arrow-down" size={14} color={colors.onPrimary} />
         </Pressable>
       </View>
@@ -499,7 +498,7 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
           <>
             <View style={finderStyles.searchRow}>
               {drillStack.length > 0 ? (
-                <Pressable onPress={drillBack} hitSlop={8} accessibilityLabel="Back to previous word">
+                <Pressable onPress={drillBack} hitSlop={8} accessibilityLabel={t("wordFinderUi.previousWord")}>
                   <Ionicons name="chevron-back" size={17} color={colors.textStrong} />
                 </Pressable>
               ) : (
@@ -509,7 +508,7 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
                 style={finderStyles.searchInput}
                 value={query}
                 onChangeText={setQuery}
-                placeholder="Find words for…"
+                placeholder={t("wordFinderUi.searchPlaceholder")}
                 placeholderTextColor={colors.textMuted}
                 autoCapitalize="none"
                 autoCorrect={false}
@@ -517,7 +516,7 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
                 onSubmitEditing={() => Keyboard.dismiss()}
               />
               {query.length > 0 ? (
-                <Pressable onPress={() => setQuery("")} hitSlop={8} accessibilityLabel="Clear word">
+                <Pressable onPress={() => setQuery("")} hitSlop={8} accessibilityLabel={t("wordFinderUi.clearWord")}>
                   <Ionicons name="close-circle" size={16} color={colors.textMuted} />
                 </Pressable>
               ) : null}
@@ -527,8 +526,8 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
 
             <SegmentedControl<SegmentKey>
               options={[
-                ...WORD_LOOKUP_MODE_ORDER.map((key) => ({ key: key as SegmentKey, label: WORD_LOOKUP_MODES[key].label })),
-                { key: MORE_TAB, label: "More" },
+                ...WORD_LOOKUP_MODE_ORDER.map((key) => ({ key: key as SegmentKey, label: modeLabel(key) })),
+                { key: MORE_TAB, label: t("wordFinderUi.more") },
               ]}
               value={moreTab ? MORE_TAB : quickMode}
               onChange={handleSegmentChange}
@@ -540,9 +539,9 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
                 <Pressable
                   style={({ pressed }) => [finderStyles.toolBar, pressed ? appStyles.pressDown : null]}
                   onPress={reopenToolList}
-                  accessibilityLabel={`${WORD_LOOKUP_MODES[extendedMode].label} — tap to change tool`}
+                  accessibilityLabel={t("wordFinderUi.changeTool", { tool: modeLabel(extendedMode) })}
                 >
-                  <Text style={finderStyles.toolBarText}>{WORD_LOOKUP_MODES[extendedMode].label}</Text>
+                  <Text style={finderStyles.toolBarText}>{modeLabel(extendedMode)}</Text>
                   <Ionicons name="chevron-down" size={13} color={colors.textSecondary} />
                 </Pressable>
               </Animated.View>
@@ -552,7 +551,7 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
               {showToolList ? (
                 renderToolList()
               ) : lookup.status === "idle" ? (
-                <Text style={finderStyles.stateText}>Type a word to look it up.</Text>
+                <Text style={finderStyles.stateText}>{t("wordFinderUi.idle")}</Text>
               ) : lookup.status === "loading" ? (
                 <View style={finderStyles.stateCenter}>
                   <ActivityIndicator size="small" color={colors.textMuted} />
@@ -563,14 +562,12 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
                   <Text style={finderStyles.hint}>{t("common.englishOnly")}</Text>
                 </View>
               ) : lookup.status === "offline" ? (
-                <Text style={finderStyles.stateText}>You're offline — word lookup needs a connection.</Text>
+                <Text style={finderStyles.stateText}>{t("wordFinderUi.offline")}</Text>
               ) : lookup.status === "error" ? (
-                <Text style={finderStyles.stateText}>Couldn't look that up right now. Try again in a moment.</Text>
+                <Text style={finderStyles.stateText}>{t("wordFinderUi.error")}</Text>
               ) : lookup.suggestions.length === 0 ? (
                 <Text style={finderStyles.stateText}>
-                  {`No ${activeMode ? WORD_LOOKUP_MODES[activeMode].label.toLowerCase() : "matches"} found for “${query.trim()}”${
-                    themes.length > 0 ? " with this theme" : ""
-                  }.`}
+                  {t("wordFinderUi.noMatches", { mode: activeMode ? modeLabel(activeMode).toLowerCase() : t("wordFinderUi.matches"), query: query.trim(), theme: themes.length > 0 ? t("wordFinderUi.withTheme") : "" })}
                 </Text>
               ) : (
                 <ScrollView
@@ -586,7 +583,7 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
             {/* Fixed-height hint row so showing/hiding it never moves the sheet. */}
             <View style={finderStyles.hintRow}>
               {!showToolList && lookup.status === "results" && lookup.suggestions.length > 0 ? (
-                <Text style={finderStyles.hint}>Tap a word to insert · hold for meaning</Text>
+                <Text style={finderStyles.hint}>{t("wordFinderUi.resultHint")}</Text>
               ) : null}
             </View>
           </>
