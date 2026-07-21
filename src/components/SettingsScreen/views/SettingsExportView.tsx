@@ -7,10 +7,13 @@ import { countWorkspaceIdeas, getFormatSummary } from "../helpers";
 import { getOptionsSummary } from "../helpers";
 import { formatBytes } from "../../../utils";
 import type { useLibraryExportFlow } from "../hooks/useLibraryExportFlow";
+import { useTranslation } from "react-i18next";
 
 type ExportFlow = ReturnType<typeof useLibraryExportFlow>;
 
 export function SettingsExportView({ flow, onCancel }: { flow: ExportFlow; onCancel: () => void }) {
+  const { t } = useTranslation();
+  const optionsSummary = getOptionsSummary(flow.format, flow.archiveOptions, flow.standardOptions, t);
   return (
     <ScrollView
       style={styles.flexFill}
@@ -18,27 +21,27 @@ export function SettingsExportView({ flow, onCancel }: { flow: ExportFlow; onCan
       showsVerticalScrollIndicator={false}
     >
       <PageIntro
-        title="Export Archive"
-        subtitle="Package selected workspaces or collections into a shareable archive, then choose where to save it."
+        title={t("settingsExport.title")}
+        subtitle={t("settingsExport.subtitle")}
       />
 
       <AccordionSection
         step="1"
-        title={`Format${flow.format ? ` (${getFormatSummary(flow.format)})` : ""}`}
-        hint="Choose the export package."
+        title={`${t("settingsExport.format")}${flow.format ? ` (${getFormatSummary(flow.format, t)})` : ""}`}
+        hint={t("settingsExport.formatHint")}
         open={flow.openSection === "format"}
         onPress={() => flow.setOpenSection("format")}
       >
         <View style={styles.settingsOptionStack}>
           <FormatOptionRow
-            title="SongNook Archive"
-            subtitle="Preserves hierarchy and SongNook metadata for backup or handoff."
+            title={t("settingsExport.archive")}
+            subtitle={t("settingsExport.archiveHint")}
             selected={flow.format === "songnook-archive"}
             onPress={() => flow.setFormat("songnook-archive")}
           />
           <FormatOptionRow
-            title="Standard ZIP"
-            subtitle="Exports a normal folder tree with audio files and optional text files."
+            title={t("settingsExport.zip")}
+            subtitle={t("settingsExport.zipHint")}
             selected={flow.format === "standard-zip"}
             onPress={() => flow.setFormat("standard-zip")}
           />
@@ -47,13 +50,13 @@ export function SettingsExportView({ flow, onCancel }: { flow: ExportFlow; onCan
 
       <AccordionSection
         step="2"
-        title={`Scope${flow.selectedSummary.selectedWorkspaceCount || flow.selectedSummary.selectedCollectionCount ? ` (${flow.selectedSummary.selectedWorkspaceCount} workspace${flow.selectedSummary.selectedWorkspaceCount === 1 ? "" : "s"} ${flow.selectedSummary.selectedCollectionCount} collection${flow.selectedSummary.selectedCollectionCount === 1 ? "" : "s"})` : ""}`}
-        hint="Choose which workspaces and collections to package."
+        title={`${t("settingsExport.scope")}${flow.selectedSummary.selectedWorkspaceCount || flow.selectedSummary.selectedCollectionCount ? ` (${t("settingsExport.scopeSummary", { workspaces: flow.selectedSummary.selectedWorkspaceCount, collections: flow.selectedSummary.selectedCollectionCount })})` : ""}`}
+        hint={t("settingsExport.scopeHint")}
         open={flow.openSection === "scope"}
         onPress={() => flow.setOpenSection("scope")}
       >
         <Text style={styles.settingsSectionHint}>
-          Selecting a workspace includes everything inside it. Selecting a collection includes its subcollections.
+          {t("settingsExport.selectionHint")}
         </Text>
 
         <View style={styles.settingsScopeStack}>
@@ -72,7 +75,7 @@ export function SettingsExportView({ flow, onCancel }: { flow: ExportFlow; onCan
               <View key={workspace.id} style={styles.settingsScopeGroup}>
                 <WorkspaceScopeRow
                   title={workspace.title}
-                  subtitle={workspace.isArchived ? `Archived · ${workspaceItemCount} items` : `${workspaceItemCount} items`}
+                  subtitle={workspace.isArchived ? t("settingsExport.archivedItems", { count: workspaceItemCount }) : t("settingsExport.items", { count: workspaceItemCount })}
                   state={
                     workspaceSelected
                       ? workspaceHasExclusions
@@ -113,55 +116,55 @@ export function SettingsExportView({ flow, onCancel }: { flow: ExportFlow; onCan
 
       <AccordionSection
         step="3"
-        title={`Options${getOptionsSummary(flow.format, flow.archiveOptions, flow.standardOptions) ? ` (${getOptionsSummary(flow.format, flow.archiveOptions, flow.standardOptions)})` : ""}`}
-        hint="Choose what to include."
+        title={`${t("settingsExport.options")}${optionsSummary ? ` (${optionsSummary})` : ""}`}
+        hint={t("settingsExport.optionsHint")}
         open={flow.openSection === "options"}
         onPress={() => flow.setOpenSection("options")}
       >
         {!flow.format ? (
-          <Text style={styles.settingsSectionHint}>Choose a format to reveal export options.</Text>
+          <Text style={styles.settingsSectionHint}>{t("settingsExport.chooseFormatOptions")}</Text>
         ) : null}
 
         {flow.format === "songnook-archive" ? (
           <View style={styles.settingsOptionStack}>
             <ToggleRow
-              title="Include full song history"
-              subtitle="Keep clip versions, the primary take, and derivation links."
+              title={t("settingsExport.history")}
+              subtitle={t("settingsExport.historyHint")}
               value={flow.archiveOptions.includeFullSongHistory}
               onPress={() => flow.toggleArchiveOption("includeFullSongHistory")}
             />
             <ToggleRow
-              title="Include notes"
-              subtitle="Adds song and clip notes to the archive package."
+              title={t("settingsExport.notes")}
+              subtitle={t("settingsExport.notesHint")}
               value={flow.archiveOptions.includeNotes}
               onPress={() => flow.toggleArchiveOption("includeNotes")}
             />
             <ToggleRow
-              title="Include lyrics"
-              subtitle="Adds the latest lyric text for each exported song."
+              title={t("settingsExport.lyrics")}
+              subtitle={t("settingsExport.lyricsHint")}
               value={flow.archiveOptions.includeLyrics}
               onPress={() => flow.toggleArchiveOption("includeLyrics")}
             />
             <ToggleRow
-              title="Include hidden items"
-              subtitle="Exports ideas hidden from list surfaces as well."
+              title={t("settingsExport.hidden")}
+              subtitle={t("settingsExport.hiddenHint")}
               value={flow.archiveOptions.includeHiddenItems}
               onPress={() => flow.toggleArchiveOption("includeHiddenItems")}
             />
             <ToggleRow
-              title="Preserve all metadata"
-              subtitle="Keep sections, markers, tags, groups, analysis, edit history, lyric versions, and the real waveforms. Best for a true archive; turn off for a smaller, human-readable file."
+              title={t("settingsExport.metadata")}
+              subtitle={t("settingsExport.metadataHint")}
               value={flow.archiveOptions.preserveAllMetadata}
               onPress={() => flow.toggleArchiveOption("preserveAllMetadata")}
             />
             {flow.archiveSizeEstimate ? (
               <Text style={styles.settingsSectionHint}>
-                {`With all metadata ≈ ${formatBytes(flow.archiveSizeEstimate.fullBytes)}  ·  without ≈ ${formatBytes(flow.archiveSizeEstimate.standardBytes)}`}
+                {t("settingsExport.estimate", { full: formatBytes(flow.archiveSizeEstimate.fullBytes), standard: formatBytes(flow.archiveSizeEstimate.standardBytes) })}
               </Text>
             ) : flow.isEstimatingArchiveSize ? (
-              <Text style={styles.settingsSectionHint}>Estimating archive size…</Text>
+              <Text style={styles.settingsSectionHint}>{t("settingsExport.estimating")}</Text>
             ) : (
-              <Text style={styles.settingsSectionHint}>Select a scope to estimate the archive size.</Text>
+              <Text style={styles.settingsSectionHint}>{t("settingsExport.estimateScope")}</Text>
             )}
           </View>
         ) : null}
@@ -169,20 +172,20 @@ export function SettingsExportView({ flow, onCancel }: { flow: ExportFlow; onCan
         {flow.format === "standard-zip" ? (
           <View style={styles.settingsOptionStack}>
             <ToggleRow
-              title="Include notes as .txt"
-              subtitle="Writes adjacent text files beside each exported item."
+              title={t("settingsExport.notesTxt")}
+              subtitle={t("settingsExport.notesTxtHint")}
               value={flow.standardOptions.includeNotesAsText}
               onPress={() => flow.toggleStandardOption("includeNotesAsText")}
             />
             <ToggleRow
-              title="Include lyrics as .txt"
-              subtitle="Exports the latest lyric text beside each song audio file."
+              title={t("settingsExport.lyricsTxt")}
+              subtitle={t("settingsExport.lyricsTxtHint")}
               value={flow.standardOptions.includeLyricsAsText}
               onPress={() => flow.toggleStandardOption("includeLyricsAsText")}
             />
             <ToggleRow
-              title="Include hidden items"
-              subtitle="Exports ideas hidden from list surfaces as well."
+              title={t("settingsExport.hidden")}
+              subtitle={t("settingsExport.hiddenHint")}
               value={flow.standardOptions.includeHiddenItems}
               onPress={() => flow.toggleStandardOption("includeHiddenItems")}
             />
@@ -192,40 +195,35 @@ export function SettingsExportView({ flow, onCancel }: { flow: ExportFlow; onCan
 
       <AccordionSection
         step="4"
-        title={`Generate${flow.format ? ` (${getFormatSummary(flow.format)})` : ""}`}
-        hint={`${flow.selectedSummary.exportableIdeaCount} visible item${flow.selectedSummary.exportableIdeaCount === 1 ? "" : "s"} ready`}
+        title={`${t("settingsExport.generate")}${flow.format ? ` (${getFormatSummary(flow.format, t)})` : ""}`}
+        hint={t("settingsExport.ready", { count: flow.selectedSummary.exportableIdeaCount })}
         open={flow.openSection === "generate"}
         onPress={() => flow.setOpenSection("generate")}
       >
         <View style={styles.settingsSummaryPanel}>
           <Text style={styles.settingsSummaryTitle}>
             {flow.format === "songnook-archive"
-              ? "SongNook Archive"
+              ? t("settingsExport.archive")
               : flow.format === "standard-zip"
-                ? "Standard ZIP"
-                : "Choose a format"}
+                ? t("settingsExport.zip")
+                : t("settingsExport.chooseFormat")}
           </Text>
           <Text style={styles.settingsSummaryMeta}>
-            {flow.selectedSummary.selectedWorkspaceCount} workspace
-            {flow.selectedSummary.selectedWorkspaceCount === 1 ? "" : "s"}, {flow.selectedSummary.selectedCollectionCount} collection
-            {flow.selectedSummary.selectedCollectionCount === 1 ? "" : "s"}, and{" "}
-            {flow.selectedSummary.exportableIdeaCount} visible item
-            {flow.selectedSummary.exportableIdeaCount === 1 ? "" : "s"} in scope.
+            {t("settingsExport.generateSummary", { workspaces: flow.selectedSummary.selectedWorkspaceCount, collections: flow.selectedSummary.selectedCollectionCount, items: flow.selectedSummary.exportableIdeaCount })}
           </Text>
           {flow.generateEstimateLabel ? (
             <Text style={styles.settingsSummaryMeta}>{flow.generateEstimateLabel}</Text>
           ) : null}
           <Text style={styles.settingsSectionHint}>
-            Packaging shows a full-screen progress view — minimize it to keep using the app and
-            return from the pill at the bottom.
+            {t("settingsExport.progressHint")}
           </Text>
 
           <View style={styles.settingsActionRow}>
             <Button
               label={
                 flow.isExporting
-                  ? flow.exportProgressLabel ?? "Preparing…"
-                  : "Generate Export"
+                  ? flow.exportProgressLabel ?? t("settingsExport.preparing")
+                  : t("settingsExport.generateExport")
               }
               onPress={() => {
                 void flow.handleExport();
@@ -234,7 +232,7 @@ export function SettingsExportView({ flow, onCancel }: { flow: ExportFlow; onCan
               style={styles.settingsPrimaryAction}
             />
             <Button
-              label="Cancel"
+              label={t("common.cancel")}
               variant="secondary"
               onPress={onCancel}
               disabled={flow.isExporting}
