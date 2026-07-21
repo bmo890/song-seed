@@ -4,6 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { PageIntro } from "../../common/PageIntro";
 import { settingsScreenStyles, styles } from "../styles";
 import type { useLibraryImportFlow } from "../hooks/useLibraryImportFlow";
+import { useTranslation } from "react-i18next";
 
 type LibraryImportFlow = ReturnType<typeof useLibraryImportFlow>;
 
@@ -14,11 +15,12 @@ export function SettingsImportView({
     flow: LibraryImportFlow;
     onCancel: () => void;
 }) {
+    const { t } = useTranslation();
     return (
         <ScrollView style={styles.flexFill} contentContainerStyle={settingsScreenStyles.scrollContent}>
             <PageIntro
-                title="Import Archive"
-                subtitle="Merge a SongNook Archive into this library. Imports arrive as new workspaces — nothing you have is touched, and same-name copies get a counted suffix."
+                title={t("settingsImport.title")}
+                subtitle={t("settingsImport.subtitle")}
             />
 
             <Pressable
@@ -31,11 +33,10 @@ export function SettingsImportView({
             >
                 <View style={styles.settingsActionCardCopy}>
                     <Text style={styles.settingsActionCardTitle}>
-                        {flow.preview ? "Choose a different archive" : "Choose archive"}
+                        {flow.preview ? t("settingsImport.chooseDifferent") : t("settingsImport.choose")}
                     </Text>
                     <Text style={styles.settingsActionCardMeta}>
-                        Pick a SongNook Archive (.zip) created with Export. Full backups are
-                        restored from Library &amp; Backups instead.
+                        {t("settingsImport.chooseHint")}
                     </Text>
                 </View>
                 {flow.isPicking ? (
@@ -48,21 +49,21 @@ export function SettingsImportView({
             {flow.preview ? (
                 <View style={styles.settingsSection}>
                     <View style={styles.settingsSectionHeaderRow}>
-                        <Text style={styles.settingsSectionLabel}>Archive</Text>
+                        <Text style={styles.settingsSectionLabel}>{t("settingsImport.archive")}</Text>
                         <Text style={styles.settingsSectionMeta}>{flow.preview.archiveName}</Text>
                     </View>
                     <Text style={styles.settingsSectionHint}>
-                        Exported {new Date(flow.preview.exportedAt).toLocaleString()}.
+                        {t("settingsImport.exported", { date: new Date(flow.preview.exportedAt).toLocaleString() })}
                     </Text>
 
                     <View style={styles.settingsOptionStack}>
                         <View style={styles.settingsActionCard}>
                             <View style={styles.settingsActionCardCopy}>
                                 <Text style={styles.settingsActionCardTitle}>
-                                    {flow.preview.workspaceCount} workspace{flow.preview.workspaceCount === 1 ? "" : "s"}
+                                    {t("settingsImport.workspaces", { count: flow.preview.workspaceCount })}
                                 </Text>
                                 <Text style={styles.settingsActionCardMeta}>
-                                    {flow.preview.collectionCount} collections, {flow.preview.songCount} songs, {flow.preview.standaloneClipCount} standalone clips, and {flow.preview.notepadNoteCount} notepad notes.
+                                    {t("settingsImport.contents", { collections: flow.preview.collectionCount, songs: flow.preview.songCount, clips: flow.preview.standaloneClipCount, notes: flow.preview.notepadNoteCount })}
                                 </Text>
                             </View>
                         </View>
@@ -70,7 +71,7 @@ export function SettingsImportView({
                         {flow.preview.primaryWorkspaceTitle ? (
                             <View style={styles.settingsActionCard}>
                                 <View style={styles.settingsActionCardCopy}>
-                                    <Text style={styles.settingsActionCardTitle}>Archive main workspace</Text>
+                                    <Text style={styles.settingsActionCardTitle}>{t("settingsImport.mainWorkspace")}</Text>
                                     <Text style={styles.settingsActionCardMeta}>
                                         {flow.preview.primaryWorkspaceTitle}
                                       </Text>
@@ -81,7 +82,7 @@ export function SettingsImportView({
                         {flow.warningSummary.length > 0 ? (
                             <View style={styles.settingsActionCard}>
                                 <View style={styles.settingsActionCardCopy}>
-                                    <Text style={styles.settingsActionCardTitle}>Archive warnings</Text>
+                                    <Text style={styles.settingsActionCardTitle}>{t("settingsImport.warnings")}</Text>
                                     <Text style={styles.settingsActionCardMeta}>
                                         {flow.warningSummary.join("\n")}
                                     </Text>
@@ -100,9 +101,9 @@ export function SettingsImportView({
                             disabled={flow.isImporting}
                         >
                             <View style={styles.settingsActionCardCopy}>
-                                <Text style={styles.settingsActionCardTitle}>Import into library</Text>
+                                <Text style={styles.settingsActionCardTitle}>{t("settingsImport.importLibrary")}</Text>
                                 <Text style={styles.settingsActionCardMeta}>
-                                    Imports the archive as new workspaces and keeps your current main selections if they already exist.
+                                    {t("settingsImport.importHint")}
                                 </Text>
                             </View>
                             {flow.isImporting ? (
@@ -121,9 +122,9 @@ export function SettingsImportView({
                             disabled={flow.isImporting}
                         >
                             <View style={styles.settingsActionCardCopy}>
-                                <Text style={styles.settingsActionCardTitle}>Clear selection</Text>
+                                <Text style={styles.settingsActionCardTitle}>{t("settingsImport.clear")}</Text>
                                 <Text style={styles.settingsActionCardMeta}>
-                                    Remove this archive from the preview without importing it.
+                                    {t("settingsImport.clearHint")}
                                 </Text>
                             </View>
                             <Ionicons name="close-outline" size={18} color={colors.textSecondary} />
@@ -138,9 +139,9 @@ export function SettingsImportView({
                 disabled={flow.isImporting}
             >
                 <View style={styles.settingsActionCardCopy}>
-                    <Text style={styles.settingsActionCardTitle}>Back to Settings</Text>
+                    <Text style={styles.settingsActionCardTitle}>{t("settingsImport.back")}</Text>
                     <Text style={styles.settingsActionCardMeta}>
-                        Return without importing an archive.
+                        {t("settingsImport.backHint")}
                     </Text>
                 </View>
                 <Ionicons name="chevron-back" size={18} color={colors.textSecondary} />

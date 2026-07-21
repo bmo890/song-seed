@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { useRoute } from "@react-navigation/native";
 import type { SettingsView } from "../types";
+import { useTranslation } from "react-i18next";
 
 export function useSettingsScreenModel() {
+  const { t } = useTranslation();
   const [view, setView] = useState<SettingsView>("overview");
   const route = useRoute<any>();
   // Deep-link from outside (e.g. the backup reminder dialog's "Backup Settings"
@@ -28,20 +30,20 @@ export function useSettingsScreenModel() {
   // view's PageIntro (the header itself stays untitled to avoid doubled titles).
   const title =
     view === "library"
-      ? "Library & Backups"
+      ? t("settingsLibrary.title")
       : view === "recording"
-        ? "Recording"
+        ? t("settings.recording")
         : view === "sharing"
-          ? "Sharing"
+          ? t("sharing.title")
         : view === "about"
-          ? "About"
+          ? t("settings.about")
           : view === "export"
-            ? "Export Archive"
+            ? t("settingsLibrary.exportArchive")
             : view === "import"
-              ? "Import Archive"
+              ? t("settingsLibrary.importArchive")
               : view === "storage"
-                ? "Storage details"
-                : "Settings";
+                ? t("settingsLibrary.storageDetails")
+                : t("settings.title");
   const showSubscreen = view !== "overview";
   // Recording, About, and Library are reached straight from the overview, so they return
   // there. Export / import / storage are reached FROM the library page, so back to library.
