@@ -7,6 +7,8 @@ import { buildSectionBands } from "../../../domain/playerSections";
 import { fmtDuration } from "../../../utils";
 import { styles } from "../../../styles";
 import type { ClipSection, PracticeMarker } from "../../../types";
+import { useTranslation } from "react-i18next";
+import { UserText } from "../../../i18n";
 
 /**
  * The master ("guide") while recording a layer: the same smooth scrolling reel as the
@@ -42,6 +44,7 @@ export function RecordingOverdubGuide({
   practiceMarkers,
   layerLanes,
 }: RecordingOverdubGuideProps) {
+  const { t } = useTranslation();
   // Interpolates the 250ms-interval position updates on the UI thread — the tape glides
   // instead of stepping.
   const transportClock = useTransportClock({
@@ -60,16 +63,16 @@ export function RecordingOverdubGuide({
     <View style={styles.recordingGuideCard}>
       <View style={styles.recordingGuideHeader}>
         <View style={styles.recordingGuideCopy}>
-          <Text style={styles.recordingGuideEyebrow}>Guide mix</Text>
-          <Text style={styles.recordingGuideTitle} numberOfLines={1}>
+          <Text style={styles.recordingGuideEyebrow}>{t("recording.guideMix")}</Text>
+          <UserText style={styles.recordingGuideTitle} numberOfLines={1}>
             {title}
-          </Text>
+          </UserText>
         </View>
         <View style={styles.recordingGuideTiming}>
           <Text style={styles.recordingGuideTimingText}>
             {fmtDuration(positionMs)} / {fmtDuration(durationMs)}
           </Text>
-          <Text style={styles.recordingGuideState}>{isPlaying ? "Playing" : "Ready"}</Text>
+          <Text style={styles.recordingGuideState}>{isPlaying ? t("recording.playing") : t("recording.ready")}</Text>
         </View>
       </View>
 

@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import type { RecordingTimingWarning } from "../hooks/useRecordingScreenModel";
 import { colors } from "../../../design/tokens";
+import { useTranslation } from "react-i18next";
 
 /**
  * Quiet timing-honesty banners for the recording screen: uncalibrated/stale Bluetooth
@@ -16,6 +17,7 @@ export function RecordingTimingWarnings({
   warnings: RecordingTimingWarning[];
   onCalibrate: () => void;
 }) {
+  const { t } = useTranslation();
   if (warnings.length === 0) {
     return null;
   }
@@ -38,9 +40,9 @@ export function RecordingTimingWarnings({
               style={({ pressed }) => [s.action, pressed ? s.pressed : null]}
               onPress={onCalibrate}
               accessibilityRole="button"
-              accessibilityLabel="Open Bluetooth calibration"
+              accessibilityLabel={t("recording.openCalibration")}
             >
-              <Text style={s.actionText}>Calibrate</Text>
+              <Text style={s.actionText}>{t("recording.calibrate")}</Text>
             </Pressable>
           ) : null}
         </View>

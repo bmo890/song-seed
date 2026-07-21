@@ -17,17 +17,18 @@ import {
   type MetronomeOutputKey,
   type MetronomeOutputs,
 } from "../../../domain/metronome";
+import { useTranslation } from "react-i18next";
 
 const COUNT_IN_OPTIONS = [0, 1, 2, 4];
 
-function countInLabel(bars: number) {
-  return bars === 0 ? "Off" : `${bars} bar${bars > 1 ? "s" : ""}`;
+function countInLabel(bars: number, t: (key: string, options?: any) => string) {
+  return bars === 0 ? t("recording.off") : t("recording.barCount", { count: bars });
 }
 
-function countInSubtitle(bars: number) {
+function countInSubtitle(bars: number, t: (key: string, options?: any) => string) {
   return bars === 0
-    ? "Recording starts immediately"
-    : `${bars} bar${bars > 1 ? "s" : ""} of clicks before recording`;
+    ? t("recording.startsImmediately")
+    : t("recording.clickBars", { count: bars });
 }
 
 type Props = {
@@ -83,6 +84,7 @@ export function RecordingMetronomeSheet({
   onChangeBeepLevel,
   onChangeHapticLevel,
 }: Props) {
+  const { t } = useTranslation();
   const meterLabel = METRONOME_METER_PRESETS.find((p) => p.id === meterId)?.label ?? "";
   const [expanded, setExpanded] = useState<"meter" | "countin" | null>(null);
   const toggleSection = (section: "meter" | "countin") =>
@@ -92,9 +94,9 @@ export function RecordingMetronomeSheet({
     <BottomSheet visible={visible} onClose={onClose}>
       <View style={s.titleRow}>
         <View style={s.titleLead}>
-          <Text style={s.title}>Metronome</Text>
+          <Text style={s.title}>{t("recording.metronome")}</Text>
           {/* On/off lives on the metronome button itself now — this sheet only customizes. */}
-          <Text style={s.titleSub}>{enabled ? "On — clicks while you record" : "Off — no click in the take"}</Text>
+          <Text style={s.titleSub}>{enabled ? t("recording.metronomeOn") : t("recording.metronomeOff")}</Text>
           {restoredGridLabel ? <Text style={s.titleGridNote}>{restoredGridLabel}</Text> : null}
         </View>
       </View>
@@ -109,7 +111,7 @@ export function RecordingMetronomeSheet({
           onPress={onTogglePreview}
           disabled={disabled}
           accessibilityRole="button"
-          accessibilityLabel={previewPlaying ? "Stop the preview" : "Listen to the metronome"}
+          accessibilityLabel={previewPlaying ? t("recording.stopPreviewA11y") : t("recording.listenMetronome")}
         >
           <Ionicons
             name={previewPlaying ? "stop" : "play"}
@@ -117,17 +119,17 @@ export function RecordingMetronomeSheet({
             color={previewPlaying ? colors.onPrimary : colors.primaryDeep}
           />
           <Text style={[s.listenBtnText, previewPlaying ? s.listenBtnTextActive : null]}>
-            {previewPlaying ? "Stop preview" : "Listen"}
+            {previewPlaying ? t("recording.stopPreview") : t("recording.listen")}
           </Text>
         </Pressable>
       ) : null}
 
       {!isNativeAvailable ? (
-        <Text style={s.disabledNote}>Rebuild the app to use the native metronome engine.</Text>
+        <Text style={s.disabledNote}>{t("recording.nativeUnavailable")}</Text>
       ) : (
         <ScrollView showsVerticalScrollIndicator={false}>
           {/* Tempo — shared block */}
-          <Text style={ms.label}>Tempo</Text>
+          <Text style={ms.label}>{t("recording.tempo")}</Text>
           <TempoBlock
             bpm={bpm}
             tapCount={tapCount}
@@ -148,12 +150,12 @@ export function RecordingMetronomeSheet({
                 <Ionicons name="timer-outline" size={18} color={colors.primaryDeep} />
               </View>
               <View style={s.featureCopy}>
-                <Text style={s.featureTitle}>Count-in</Text>
-                <Text style={s.featureSub} numberOfLines={1}>{countInSubtitle(countInBars)}</Text>
+                <Text style={s.featureTitle}>{t("recording.countIn")}</Text>
+                <Text style={s.featureSub} numberOfLines={1}>{countInSubtitle(countInBars, t)}</Text>
               </View>
             </View>
             <View style={ms.valuePill}>
-              <Text style={ms.valueText}>{countInLabel(countInBars)}</Text>
+              <Text style={ms.valueText}>{countInLabel(countInBars, t)}</Text>
               <Ionicons name={expanded === "countin" ? "chevron-up" : "chevron-down"} size={13} color={colors.textMuted} />
             </View>
           </Pressable>
@@ -171,7 +173,7 @@ export function RecordingMetronomeSheet({
                     }}
                     disabled={disabled}
                   >
-                    <Text style={[ms.segmentText, active ? ms.segmentTextActive : null]}>{countInLabel(bars)}</Text>
+                    <Text style={[ms.segmentText, active ? ms.segmentTextActive : null]}>{countInLabel(bars, t)}</Text>
                   </Pressable>
                 );
               })}
@@ -184,7 +186,7 @@ export function RecordingMetronomeSheet({
             onPress={() => toggleSection("meter")}
             disabled={disabled}
           >
-            <Text style={ms.quietLabel}>Meter</Text>
+            <Text style={ms.quietLabel}>{t("recording.meter")}</Text>
             <View style={ms.valuePill}>
               <Text style={ms.valueText}>{meterLabel}</Text>
               <Ionicons name={expanded === "meter" ? "chevron-up" : "chevron-down"} size={13} color={colors.textMuted} />
@@ -202,7 +204,7 @@ export function RecordingMetronomeSheet({
           ) : null}
 
           {/* Cues — shared square toggles */}
-          <Text style={[ms.label, ms.divider, { paddingTop: 14 }]}>Cues</Text>
+          <Text style={[ms.label, ms.divider, { paddingTop: 14 }]}>{t("recording.cues")}</Text>
           <CueTiles outputs={outputs} disabled={disabled} onToggleOutput={onToggleOutput} />
 
           {/* Levels stay adjustable mid-take: volume is a live param on the native engine

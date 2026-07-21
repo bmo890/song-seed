@@ -4,6 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { styles } from "../../../styles";
 import { colors } from "../../../design/tokens";
 import { haptic } from "../../../design/haptics";
+import { useTranslation } from "react-i18next";
 
 type Props = {
     isRecording: boolean;
@@ -46,6 +47,7 @@ export function RecordingControls({
     onDiscard,
     onRedo,
 }: Props) {
+    const { t } = useTranslation();
     const pulse = useRef(new Animated.Value(0)).current;
     const isDownbeatRef = useRef(isDownbeat);
     isDownbeatRef.current = isDownbeat;
@@ -89,7 +91,7 @@ export function RecordingControls({
                     }}
                     disabled={!canDiscard || isArming}
                     accessibilityRole="button"
-                    accessibilityLabel="Discard recording"
+                    accessibilityLabel={t("recording.discardA11y")}
                 >
                     <Ionicons
                         name="trash-outline"
@@ -110,7 +112,7 @@ export function RecordingControls({
                         }}
                         disabled={!canRedo}
                         accessibilityRole="button"
-                        accessibilityLabel="Redo take"
+                        accessibilityLabel={t("recording.redoA11y")}
                     >
                         <Ionicons
                             name="refresh-outline"

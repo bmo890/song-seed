@@ -8,6 +8,7 @@ import { AudioAnalysis } from "@siteed/audio-studio";
 import { LiveTapeVisualizer } from "../../visualizers/LiveTapeVisualizer";
 import { MetronomeIcon } from "../../common/MetronomeIcon";
 import { radii, colors } from "../../../design/tokens";
+import { useTranslation } from "react-i18next";
 
 type Props = {
     ideaTitle: string;
@@ -65,6 +66,7 @@ export function RecordingMeta({
     onOpenMetronome,
     guideJoin = null,
 }: Props) {
+    const { t } = useTranslation();
     const safeElapsedMs = Number.isFinite(elapsedMs) ? Math.max(0, elapsedMs) : 0;
 
     const [joinBeatsLeft, setJoinBeatsLeft] = useState<number | null>(null);
@@ -84,13 +86,13 @@ export function RecordingMeta({
         return () => clearInterval(interval);
     }, [guideJoin]);
     const joinLabel =
-        joinBeatsLeft == null ? null : joinBeatsLeft > 0 ? `Master joins in ${joinBeatsLeft}` : "Master joining…";
+        joinBeatsLeft == null ? null : joinBeatsLeft > 0 ? t("recording.masterJoins", { count: joinBeatsLeft }) : t("recording.masterJoining");
     const clampedCurrentBar =
         countInBars > 0 ? Math.max(1, Math.min(countInBars, countInCurrentBar)) : 1;
     const clampedCurrentBeat =
         countInBeatsPerBar > 0 ? Math.max(0, Math.min(countInBeatsPerBar, countInCurrentBeat)) : 0;
     const countInDots = buildCountInDots(countInBeatsPerBar, clampedCurrentBeat);
-    const statusLabel = isCountIn ? "Count-in" : !isRecording ? "Ready" : isPaused ? "Paused" : "Recording";
+    const statusLabel = isCountIn ? t("recording.countIn") : !isRecording ? t("recording.ready") : isPaused ? t("recording.paused") : t("recording.title");
     const showActiveDot = isCountIn || (isRecording && !isPaused);
 
     const statusDot = (
@@ -118,7 +120,7 @@ export function RecordingMeta({
                 hitSlop={8}
                 accessibilityRole="button"
                 accessibilityState={{ selected: metronomeEnabled }}
-                accessibilityLabel={metronomeEnabled ? "Turn metronome off" : "Turn metronome on"}
+                accessibilityLabel={metronomeEnabled ? t("recording.turnMetronomeOff") : t("recording.turnMetronomeOn")}
             >
                 <MetronomeIcon size={15} color={metronomeEnabled ? colors.primaryDeep : "#b6a79f"} />
                 {metronomeEnabled && metronomeSummary ? (
@@ -130,7 +132,7 @@ export function RecordingMeta({
                 onPress={onOpenMetronome}
                 hitSlop={8}
                 accessibilityRole="button"
-                accessibilityLabel="Metronome settings"
+                accessibilityLabel={t("recording.metronomeSettings")}
             >
                 <Ionicons name="options-outline" size={14} color={colors.textSecondary} />
             </Pressable>
@@ -160,7 +162,7 @@ export function RecordingMeta({
                     {isCountIn ? (
                         <View style={styles.recordingCountInBlock}>
                             <Text style={[styles.recordingCountInTitle, compact ? styles.recordingCountInTitleCompact : null]}>
-                                {countInBars > 1 ? `Count-in ${clampedCurrentBar}/${countInBars}` : "Count-in"}
+                                {countInBars > 1 ? t("recording.countInProgress", { current: clampedCurrentBar, total: countInBars }) : t("recording.countIn")}
                             </Text>
                             <View style={styles.recordingCountInDotsRow}>
                                 {countInDots.map((isFilled, index) => (

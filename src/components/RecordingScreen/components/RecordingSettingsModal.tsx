@@ -5,6 +5,7 @@ import { styles } from "../../../styles";
 import { BottomSheet } from "../../common/BottomSheet";
 import { RecordingInputPicker } from "./RecordingInputPicker";
 import { colors } from "../../../design/tokens";
+import { useTranslation } from "react-i18next";
 
 type RecordingSettingsModalProps = {
   visible: boolean;
@@ -25,6 +26,7 @@ export function RecordingSettingsModal({
   onClose,
   onChangePreferredInputId,
 }: RecordingSettingsModalProps) {
+  const { t } = useTranslation();
   const outputIcon = isBluetoothOutput
     ? "bluetooth"
     : outputLabel && /head|airpod|buds|ear/i.test(outputLabel)
@@ -33,9 +35,9 @@ export function RecordingSettingsModal({
 
   return (
     <BottomSheet visible={visible} onClose={onClose}>
-      <Text style={styles.recordingSettingsTitle}>Recording Settings</Text>
+      <Text style={styles.recordingSettingsTitle}>{t("recording.settings")}</Text>
       <Text style={styles.recordingSettingsMeta}>
-        Choose the microphone here. Playback follows your phone&apos;s current output route.
+        {t("recording.settingsHint")}
       </Text>
 
       <RecordingInputPicker
@@ -47,12 +49,12 @@ export function RecordingSettingsModal({
       <View style={styles.recordingOutputRow}>
         <Ionicons name={outputIcon} size={18} color={colors.textSecondary} />
         <View style={styles.recordingOutputCopy}>
-          <Text style={styles.recordingOutputLabel}>Output</Text>
+          <Text style={styles.recordingOutputLabel}>{t("recording.output")}</Text>
           <Text style={styles.recordingOutputValue} numberOfLines={1}>
-            {outputLabel || "Phone speaker"}
+            {outputLabel || t("recording.phoneSpeaker")}
           </Text>
         </View>
-        <Text style={styles.recordingOutputAuto}>Auto</Text>
+        <Text style={styles.recordingOutputAuto}>{t("recording.auto")}</Text>
       </View>
     </BottomSheet>
   );

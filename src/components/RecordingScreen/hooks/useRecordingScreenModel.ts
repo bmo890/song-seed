@@ -35,6 +35,7 @@ import {
   genRootClipTitle,
   isDefaultIdeaTitle,
 } from "../../../utils";
+import { useTranslation } from "react-i18next";
 
 /** Trim slightly early rather than late: the capture-start estimate is biased late by
  *  bridge delivery latency (~10-20 ms), and cutting into the downbeat transient is worse
@@ -67,6 +68,7 @@ export type RecordingTimingWarning = {
 };
 
 export function useRecordingScreenModel() {
+  const { t } = useTranslation();
   const navigation = useNavigation();
 
   const recordingIdeaId = useStore((s) => s.recordingIdeaId);
@@ -118,12 +120,12 @@ export function useRecordingScreenModel() {
     !recordingOverdubClip && !!recordingIdea && isDefaultIdeaTitle(recordingIdea.title, recordingIdea.createdAt);
   const headerEyebrow = recordingOverdubClip
     ? punchInMs > 0
-      ? `Layer · from ${fmtDuration(punchInMs)}`
-      : "Layer"
+      ? t("recording.layerFrom", { time: fmtDuration(punchInMs) })
+      : t("recording.layer")
     : recordingIdea
       ? headerTitlePlaceholder
-        ? "New recording"
-        : "Recording into"
+        ? t("recording.newRecording")
+        : t("recording.recordingInto")
       : null;
   const latestLyricsVersion = recordingIdea?.kind === "project" ? getLatestLyricsVersion(recordingIdea) : null;
   const latestLyricsText = lyricsDocumentToText(latestLyricsVersion?.document);
@@ -330,19 +332,19 @@ export function useRecordingScreenModel() {
   // wastes a take on it, with a one-tap path to fix what's fixable.
   const timingWarnings = useMemo<RecordingTimingWarning[]>(() => {
     const warnings: RecordingTimingWarning[] = [];
-    const outputName = monitoringOutputLabel ?? "These headphones";
+    const outputName = monitoringOutputLabel ?? t("recording.theseHeadphones");
 
     if (isBluetoothMonitoringOutput) {
       if (!activeBluetoothCalibration) {
         warnings.push({
           kind: "uncalibrated-bt",
-          message: `${outputName} aren't calibrated — recorded takes may land off the beat.`,
+          message: t("recording.uncalibrated", { name: outputName }),
           showCalibrateAction: true,
         });
       } else if (Date.now() - activeBluetoothCalibration.updatedAt > CALIBRATION_STALE_AFTER_MS) {
         warnings.push({
           kind: "stale-calibration",
-          message: `${outputName} were calibrated over a month ago — a quick re-check keeps takes tight.`,
+          message: t("recording.staleCalibration", { name: outputName }),
           showCalibrateAction: true,
         });
       }
@@ -351,8 +353,7 @@ export function useRecordingScreenModel() {
     if (isBluetoothRecordingInput) {
       warnings.push({
         kind: "bt-mic",
-        message:
-          "Recording through a Bluetooth microphone — its delay can't be corrected. Use the phone or a wired mic for tight takes.",
+        message: t("recording.bluetoothMicWarning"),
         showCalibrateAction: false,
       });
     }
@@ -360,7 +361,7 @@ export function useRecordingScreenModel() {
     if (midTakeRouteChangeMs != null) {
       warnings.push({
         kind: "route-changed",
-        message: `Audio route changed ${Math.round(midTakeRouteChangeMs / 1000)}s into the take — timing after that point may drift.`,
+        message: t("recording.routeChanged", { seconds: Math.round(midTakeRouteChangeMs / 1000) }),
         showCalibrateAction: false,
       });
     }
@@ -372,6 +373,7 @@ export function useRecordingScreenModel() {
     isBluetoothRecordingInput,
     midTakeRouteChangeMs,
     monitoringOutputLabel,
+    t,
   ]);
 
   function openBluetoothCalibration() {
@@ -759,12 +761,12 @@ export function useRecordingScreenModel() {
 
   function confirmRedoTake() {
     AppAlert.destructive(
-      "Redo take?",
-      "This take will be deleted and you'll be back at the start, ready to record with the same settings.",
+      t("recording.redoTitle"),
+      t("recording.redoBody"),
       () => {
         void redoTake();
       },
-      { confirmLabel: "Redo", cancelLabel: "Keep recording", icon: actionIcons.restore }
+      { confirmLabel: t("recording.redo"), cancelLabel: t("recording.keepRecording"), icon: actionIcons.restore }
     );
   }
 
@@ -777,12 +779,12 @@ export function useRecordingScreenModel() {
     }
 
     AppAlert.destructive(
-      "Discard recording?",
-      "This recording has not been saved yet. If you leave now, it will be deleted.",
+      t("recording.discardTitle"),
+      t("recording.discardBody"),
       () => {
         cancelRecording().then(() => navigation.goBack());
       },
-      { confirmLabel: "Discard", cancelLabel: "Keep recording", icon: actionIcons.discard }
+      { confirmLabel: t("recording.discard"), cancelLabel: t("recording.keepRecording"), icon: actionIcons.discard }
     );
   }
 
@@ -823,12 +825,12 @@ export function useRecordingScreenModel() {
   function handleQuickNameCancel() {
     if (recordingOverdubClip && overdubReviewLocked) {
       AppAlert.destructive(
-        "Review overdub",
-        "This overdub already reached the end of the guide. You can save it now or discard it and record again.",
+        t("recording.reviewOverdub"),
+        t("recording.reviewOverdubBody"),
         () => {
           void redoOverdubRecording();
         },
-        { confirmLabel: "Redo overdub", cancelLabel: "Keep take", icon: actionIcons.restore }
+        { confirmLabel: t("recording.redoOverdub"), cancelLabel: t("recording.keepTake"), icon: actionIcons.restore }
       );
       return;
     }
@@ -847,7 +849,7 @@ export function useRecordingScreenModel() {
             clipId: recordingOverdubClipId,
             title:
               quickNameDraft.trim() ||
-              (recordingOverdubClip ? getDefaultOverdubStemTitle(recordingOverdubClip) : "Layer 1"),
+              (recordingOverdubClip ? getDefaultOverdubStemTitle(recordingOverdubClip) : t("recording.layerOne")),
           }
         : null;
 

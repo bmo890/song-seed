@@ -8,6 +8,7 @@ import { getOverdubStemColor } from "../../../domain/overdub";
 import { RecordingMeta } from "./RecordingMeta";
 import { RecordingLyricsSection } from "./RecordingLyricsSection";
 import { RecordingOverdubGuide } from "./RecordingOverdubGuide";
+import { useTranslation } from "react-i18next";
 
 type RecordingBodyProps = {
   recordingIdea: SongIdea | null | undefined;
@@ -88,6 +89,7 @@ export function RecordingBody({
   onSelectLyricsAutoscrollSpeedMultiplier,
   onOpenBluetoothCalibration,
 }: RecordingBodyProps) {
+  const { t } = useTranslation();
   const bodyContent = (
       <View
         style={[
@@ -97,18 +99,18 @@ export function RecordingBody({
       >
         {isBluetoothMonitoringOutput ? (
           <View style={styles.recordingBluetoothWarning}>
-            <Text style={styles.recordingBluetoothWarningLabel}>Bluetooth monitoring detected</Text>
+            <Text style={styles.recordingBluetoothWarningLabel}>{t("recording.bluetoothDetected")}</Text>
             <Text style={styles.recordingBluetoothWarningText}>
               {monitoringOutputLabel
-                ? `${monitoringOutputLabel} may add enough delay to make recording cues feel late. Wired headphones are recommended.`
-                : "Wireless audio may add enough delay to make recording cues feel late. Wired headphones are recommended."}
+                ? t("recording.bluetoothDelayNamed", { name: monitoringOutputLabel })
+                : t("recording.bluetoothDelay")}
             </Text>
             <Text style={styles.recordingBluetoothWarningMeta}>
               {activeBluetoothCalibrationMs != null
-                ? `Applied monitoring offset: ${activeBluetoothCalibrationMs} ms${
-                    monitoringOutputLabel ? ` on ${monitoringOutputLabel}` : ""
-                  }.`
-                : "No saved Bluetooth monitoring offset is applied yet."}
+                ? monitoringOutputLabel
+                  ? t("recording.appliedOffsetNamed", { offset: activeBluetoothCalibrationMs, name: monitoringOutputLabel })
+                  : t("recording.appliedOffset", { offset: activeBluetoothCalibrationMs })
+                : t("recording.noOffset")}
             </Text>
             <Pressable
               style={({ pressed }) => [
@@ -119,8 +121,8 @@ export function RecordingBody({
             >
               <Text style={styles.recordingBluetoothWarningButtonText}>
                 {activeBluetoothCalibrationMs != null
-                  ? `Recalibrate (${activeBluetoothCalibrationMs} ms)`
-                  : "Calibrate Bluetooth"}
+                  ? t("recording.recalibrate", { offset: activeBluetoothCalibrationMs })
+                  : t("recording.calibrateBluetooth")}
               </Text>
             </Pressable>
           </View>
@@ -149,7 +151,7 @@ export function RecordingBody({
         ) : null}
 
         <RecordingMeta
-          ideaTitle={recordingOverdubClip ? `Layer on ${recordingOverdubClip.title}` : ""}
+          ideaTitle={recordingOverdubClip ? t("recording.layerOn", { title: recordingOverdubClip.title }) : ""}
           isRecording={isRecording}
           isPaused={isPaused}
           elapsedMs={elapsedMs}

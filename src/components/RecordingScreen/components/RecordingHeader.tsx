@@ -2,6 +2,8 @@ import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors, radii } from "../../../design/tokens";
+import { useTranslation } from "react-i18next";
+import { UserText } from "../../../i18n";
 
 type RecordingHeaderProps = {
   eyebrow: string | null;
@@ -28,6 +30,7 @@ export function RecordingHeader({
   onOpenSettings,
   onHelp,
 }: RecordingHeaderProps) {
+  const { t } = useTranslation();
   return (
     <View style={[localStyles.zone, collapsed ? localStyles.zoneCollapsed : null]}>
       <View style={localStyles.topRow}>
@@ -36,7 +39,7 @@ export function RecordingHeader({
           onPress={onBack}
         >
           <Ionicons name="chevron-back" size={14} color={colors.textStrong} />
-          <Text style={localStyles.backBtnText}>Back</Text>
+          <Text style={localStyles.backBtnText}>{t("common.back")}</Text>
         </Pressable>
 
         <View style={localStyles.actionRow}>
@@ -44,7 +47,7 @@ export function RecordingHeader({
             style={({ pressed }) => [localStyles.actionBtn, pressed ? localStyles.pressDown : null]}
             onPress={onHelp}
             accessibilityRole="button"
-            accessibilityLabel="Recording help"
+            accessibilityLabel={t("recording.help")}
           >
             <Ionicons name="help-circle-outline" size={18} color={colors.textStrong} />
           </Pressable>
@@ -53,7 +56,7 @@ export function RecordingHeader({
             style={({ pressed }) => [localStyles.actionBtn, pressed ? localStyles.pressDown : null]}
             onPress={onMinimize}
             accessibilityRole="button"
-            accessibilityLabel="Minimize recorder"
+            accessibilityLabel={t("recording.minimize")}
           >
             <Ionicons name="remove" size={18} color={colors.textStrong} />
           </Pressable>
@@ -84,12 +87,12 @@ export function RecordingHeader({
       ) : null}
 
       {!collapsed ? (
-        <Text
+        <UserText
           style={titleIsPlaceholder ? localStyles.titlePlaceholder : localStyles.title}
           numberOfLines={1}
         >
           {title}
-        </Text>
+        </UserText>
       ) : null}
     </View>
   );

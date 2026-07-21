@@ -16,8 +16,10 @@ import { useStore } from "../../state/useStore";
 import { useRecordingScreenModel } from "./hooks/useRecordingScreenModel";
 import { HelpSheet } from "../common/HelpSheet";
 import { RECORDING_HELP } from "../common/helpContent";
+import { useTranslation } from "react-i18next";
 
 export function RecordingScreen() {
+  const { t } = useTranslation();
   const navigation = useNavigation();
   const screen = useRecordingScreenModel();
   const promptForClipName = useStore((state) => state.promptForClipName);
@@ -73,7 +75,7 @@ export function RecordingScreen() {
   const meterLabel =
     METRONOME_METER_PRESETS.find((p) => p.id === screen.metronome.meterId)?.label ?? "";
   const metronomeSummary = `${screen.metronome.bpm} · ${meterLabel}${
-    screen.metronome.countInBars > 0 ? ` · count ${screen.metronome.countInBars}` : ""
+    screen.metronome.countInBars > 0 ? ` · ${t("recording.countSummary", { count: screen.metronome.countInBars })}` : ""
   }`;
 
   return (
@@ -81,7 +83,7 @@ export function RecordingScreen() {
       <View style={styles.recordingScreenLayout}>
         <RecordingHeader
           eyebrow={screen.headerEyebrow}
-          title={screen.recordingIdea?.title || "Recording"}
+          title={screen.recordingIdea?.title || t("recording.title")}
           titleIsPlaceholder={screen.headerTitlePlaceholder}
           controlsDisabled={screen.recordingControlsDisabled}
           collapsed={screen.lyricsExpanded}
