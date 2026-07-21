@@ -15,10 +15,7 @@ import { useTranslation } from "react-i18next";
 
 const KRAFT_BG = "#F2E9DC";
 
-const STEPS: Array<{ key: MagpieStep; label: string }> = [
-  { key: "page", label: "The page" },
-  { key: "build", label: "Build" },
-];
+const STEPS: MagpieStep[] = ["page", "build"];
 
 export function MagpieScreenContent() {
   const { t } = useTranslation();
@@ -131,14 +128,15 @@ export function MagpieScreenContent() {
 }
 
 function StepProgress({ step }: { step: MagpieStep }) {
-  const currentIndex = STEPS.findIndex((s) => s.key === step);
+  const { t } = useTranslation();
+  const currentIndex = STEPS.findIndex((item) => item === step);
   return (
     <View style={styles.progressRow}>
-      {STEPS.map((s, index) => {
+      {STEPS.map((item, index) => {
         const state = index < currentIndex ? "done" : index === currentIndex ? "current" : "upcoming";
         const isCurrent = state === "current";
         return (
-          <View key={s.key} style={styles.progressItem}>
+          <View key={item} style={styles.progressItem}>
             <View
               style={[
                 styles.progressDot,
@@ -155,7 +153,7 @@ function StepProgress({ step }: { step: MagpieStep }) {
               )}
             </View>
             <Text style={[styles.progressLabel, isCurrent ? styles.progressLabelCurrent : null]}>
-              {s.label}
+              {t(item === "page" ? "wordSparks.page" : "wordSparks.build")}
             </Text>
           </View>
         );

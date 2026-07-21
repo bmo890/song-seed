@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
-import { UserTextInput } from "../../../i18n";
+import { UserText, UserTextInput } from "../../../i18n";
 import DraggableFlatList, { type RenderItemParams } from "react-native-draggable-flatlist";
 import { Ionicons } from "@expo/vector-icons";
 import { AppAlert } from "../../common/AppAlert";
@@ -9,10 +9,12 @@ import { colors, radii, spacing, text as textTokens } from "../../../design/toke
 import { haptic } from "../../../design/haptics";
 import type { MagpieFragment, MagpieSpark } from "../../../types";
 import type { useMagpieScreenModel } from "../hooks/useMagpieScreenModel";
+import { useTranslation } from "react-i18next";
 
 type Model = ReturnType<typeof useMagpieScreenModel>;
 
 export function MagpieBuildStep({ model, spark }: { model: Model; spark: MagpieSpark }) {
+  const { t } = useTranslation();
   const fragments = [...spark.fragments].sort((a, b) => a.order - b.order);
 
   function confirmRebuild() {
@@ -21,16 +23,16 @@ export function MagpieBuildStep({ model, spark }: { model: Model; spark: MagpieS
       return;
     }
     AppAlert.destructive(
-      "Rebuild from your words?",
-      "This replaces the draft with the current fragment order. Your edits here will be lost.",
+      t("magpie.rebuildTitle"),
+      t("magpie.rebuildBody"),
       model.rebuildDraft,
-      { confirmLabel: "Rebuild" }
+      { confirmLabel: t("magpie.rebuild") }
     );
   }
 
   return (
     <View style={styles.body}>
-      <Text style={styles.hint}>Reorder, split a phrase, or tap a word to edit it.</Text>
+      <Text style={styles.hint}>{t("magpie.buildHint")}</Text>
       <View style={styles.listWrap}>
         <DraggableFlatList
           data={fragments}
@@ -42,7 +44,7 @@ export function MagpieBuildStep({ model, spark }: { model: Model; spark: MagpieS
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
           ListEmptyComponent={
-            <Text style={styles.empty}>No words yet — head back and pocket a few first.</Text>
+            <Text style={styles.empty}>{t("magpie.noWords")}</Text>
           }
           renderItem={({ item, drag, isActive }: RenderItemParams<MagpieFragment>) => (
             <FragmentRow
@@ -52,20 +54,23 @@ export function MagpieBuildStep({ model, spark }: { model: Model; spark: MagpieS
               onSplit={() => model.splitFragment(item.id)}
               onRemove={() => model.removeFragment(item.id)}
               onEdit={(text) => model.editFragment(item.id, text)}
+              editedFromLabel={(text) => t("magpie.editedFrom", { text })}
+              splitLabel={t("magpie.splitWords")}
+              removeLabel={t("magpie.remove")}
             />
           )}
         />
       </View>
 
       <View style={styles.draftHeader}>
-        <Text style={styles.draftLabel}>Your draft</Text>
+        <Text style={styles.draftLabel}>{t("magpie.yourDraft")}</Text>
         <Pressable
           style={({ pressed }) => [styles.rebuildBtn, pressed ? appStyles.pressDown : null]}
           onPress={confirmRebuild}
           hitSlop={6}
         >
           <Ionicons name="sync-outline" size={13} color={colors.textSecondary} />
-          <Text style={styles.rebuildText}>Rebuild from words</Text>
+          <Text style={styles.rebuildText}>{t("magpie.rebuildFromWords")}</Text>
         </Pressable>
       </View>
 
@@ -76,7 +81,7 @@ export function MagpieBuildStep({ model, spark }: { model: Model; spark: MagpieS
           onChangeText={model.setDraft}
           multiline
           textAlignVertical="top"
-          placeholder="Your pocketed words land here, one per line. Rearrange them into lines, add words between, cut what doesn't sing."
+          placeholder={t("magpie.draftPlaceholder")}
           placeholderTextColor={colors.textMuted}
         />
       </View>
@@ -91,6 +96,9 @@ function FragmentRow({
   onSplit,
   onRemove,
   onEdit,
+  editedFromLabel,
+  splitLabel,
+  removeLabel,
 }: {
   fragment: MagpieFragment;
   isDragging: boolean;
@@ -98,6 +106,9 @@ function FragmentRow({
   onSplit: () => void;
   onRemove: () => void;
   onEdit: (text: string) => void;
+  editedFromLabel: (text: string) => string;
+  splitLabel: string;
+  removeLabel: string;
 }) {
   const [isEditing, setIsEditing] = useState(false);
   const inputRef = useRef<TextInput>(null);
@@ -128,22 +139,22 @@ function FragmentRow({
           />
         ) : (
           <Pressable onPress={() => setIsEditing(true)}>
-            <Text style={styles.rowText}>{fragment.text}</Text>
+            <UserText style={styles.rowText}>{fragment.text}</UserText>
             {wasEdited ? (
-              <Text style={styles.editedNote} numberOfLines={1}>
-                edited from “{fragment.originalText}”
-              </Text>
+              <UserText style={styles.editedNote} value={fragment.originalText} numberOfLines={1}>
+                {editedFromLabel(fragment.originalText)}
+              </UserText>
             ) : null}
           </Pressable>
         )}
       </View>
 
       {isMultiWord ? (
-        <Pressable onPress={onSplit} hitSlop={6} style={styles.iconBtn} accessibilityLabel="Split into words">
+        <Pressable onPress={onSplit} hitSlop={6} style={styles.iconBtn} accessibilityLabel={splitLabel}>
           <Ionicons name="cut-outline" size={15} color={colors.textMuted} />
         </Pressable>
       ) : null}
-      <Pressable onPress={onRemove} hitSlop={6} style={styles.iconBtn} accessibilityLabel="Remove">
+      <Pressable onPress={onRemove} hitSlop={6} style={styles.iconBtn} accessibilityLabel={removeLabel}>
         <Ionicons name="close" size={16} color={colors.textMuted} />
       </Pressable>
     </View>

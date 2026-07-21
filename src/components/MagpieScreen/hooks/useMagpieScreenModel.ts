@@ -18,10 +18,12 @@ import {
   splitFragment as splitFragmentOp,
 } from "../../../domain/magpie";
 import type { MagpieBook, MagpieStep } from "../../../types";
+import { useTranslation } from "react-i18next";
 
 type LoadStatus = { loading: boolean; error: MagpieFetchErrorKind | null };
 
 export function useMagpieScreenModel() {
+  const { t } = useTranslation();
   const route = useRoute<any>();
   const navigation = useNavigation<any>();
   const sparkId = route.params?.sparkId as string | undefined;
@@ -174,27 +176,27 @@ export function useMagpieScreenModel() {
     if (!spark) return;
     const text = (spark.draft.trim() ? spark.draft : assembleDraft(spark.fragments)).trim();
     if (!text) {
-      AppAlert.info("Nothing to save", "Pocket a few words and build a draft first.");
+      AppAlert.info(t("wordSparks.nothingSave"), t("magpie.nothingBody"));
       return;
     }
     const noteId = addNote();
     updateNote(noteId, { title: spark.title, body: text });
     apply({ savedLyricId: noteId });
     navigation.navigate("NotepadHome", { noteId, openToken: Date.now() });
-  }, [spark, addNote, updateNote, apply, navigation]);
+  }, [spark, addNote, updateNote, apply, navigation, t]);
 
   const deleteSpark = useCallback(() => {
     if (!sparkId) return;
     AppAlert.destructive(
-      "Delete this Magpie?",
-      "Its collected words and draft will be gone for good.",
+      t("magpie.deleteTitle"),
+      t("magpie.deleteBody"),
       () => {
         deleteMagpieSpark(sparkId);
         navigation.navigate("NotepadHome");
       },
-      { confirmLabel: "Delete" }
+      { confirmLabel: t("wordSparks.delete") }
     );
-  }, [deleteMagpieSpark, sparkId, navigation]);
+  }, [deleteMagpieSpark, sparkId, navigation, t]);
 
   const hasContent =
     !!spark && (spark.fragments.length > 0 || spark.draft.trim().length > 0);
@@ -209,9 +211,9 @@ export function useMagpieScreenModel() {
       navigation.navigate("NotepadHome");
       return;
     }
-    AppAlert.custom("Save as unfinished?", "Keep this exercise to come back to, or discard it.", [
+    AppAlert.custom(t("wordSparks.saveUnfinishedTitle"), t("wordSparks.saveUnfinishedBody"), [
       {
-        label: "Discard",
+        label: t("wordSparks.discard"),
         style: "destructive",
         icon: actionIcons.discard,
         onPress: () => {
@@ -220,13 +222,13 @@ export function useMagpieScreenModel() {
         },
       },
       {
-        label: "Save as unfinished",
+        label: t("wordSparks.saveUnfinished"),
         style: "default",
         icon: actionIcons.bookmark,
         onPress: () => navigation.navigate("NotepadHome"),
       },
     ]);
-  }, [spark?.savedLyricId, hasContent, sparkId, deleteMagpieSpark, navigation]);
+  }, [spark?.savedLyricId, hasContent, sparkId, deleteMagpieSpark, navigation, t]);
 
   // Intercept hardware back + drawer-switch blur, mirroring the Cut-Up spark: an
   // empty, unsaved spark is silently discarded so it doesn't litter the notebook.

@@ -13,6 +13,8 @@ import {
 } from "../../../domain/magpie";
 import type { MagpieSpark } from "../../../types";
 import type { useMagpieScreenModel } from "../hooks/useMagpieScreenModel";
+import { useTranslation } from "react-i18next";
+import { UserText } from "../../../i18n";
 
 type Model = ReturnType<typeof useMagpieScreenModel>;
 
@@ -62,7 +64,7 @@ const Paragraph = memo(
   function Paragraph({ paragraph, selectedSet, fontSize, lineHeight, onToggle }: ParagraphProps) {
     const highlighted = computeHighlight(paragraph.tokens, selectedSet);
     return (
-      <Text style={[styles.pageText, { fontSize, lineHeight }]}>
+      <UserText value={paragraph.tokens.map((token) => token.text).join("")} style={[styles.pageText, { fontSize, lineHeight }]}>
         {paragraph.tokens.map((token) =>
           token.wordIndex < 0 ? (
             <Text key={token.index} style={highlighted.has(token.index) ? styles.hl : undefined}>
@@ -79,7 +81,7 @@ const Paragraph = memo(
             </Text>
           )
         )}
-      </Text>
+      </UserText>
     );
   },
   (prev, next) =>
@@ -91,6 +93,7 @@ const Paragraph = memo(
 );
 
 export function MagpiePageStep({ model, spark }: { model: Model; spark: MagpieSpark }) {
+  const { t } = useTranslation();
   const [zoom, setZoom] = useState(1);
   const [selected, setSelected] = useState<number[]>([]);
 
@@ -129,7 +132,7 @@ export function MagpiePageStep({ model, spark }: { model: Model; spark: MagpieSp
   return (
     <View style={styles.body}>
       <BookPlate
-        title={spark.book?.title ?? "Finding a book…"}
+        title={spark.book?.title ?? t("magpie.findingBook")}
         author={spark.book?.author ?? ""}
         busy={busy}
         onNewPage={model.newPage}
@@ -147,11 +150,11 @@ export function MagpiePageStep({ model, spark }: { model: Model; spark: MagpieSp
         ) : busy && !spark.pageText ? (
           <View style={styles.center}>
             <ActivityIndicator color={colors.primary} />
-            <Text style={styles.centerText}>Opening a page…</Text>
+            <Text style={styles.centerText}>{t("magpie.openingPage")}</Text>
           </View>
         ) : (
           <>
-            <Text style={styles.pageCaption}>Hum a melody. Pocket the words that ring.</Text>
+            <Text style={styles.pageCaption}>{t("magpie.pageCaption")}</Text>
             <View style={styles.pageDivider} />
             <ScrollView
               style={styles.pageScroll}
@@ -185,7 +188,7 @@ export function MagpiePageStep({ model, spark }: { model: Model; spark: MagpieSp
 
       {collected.length > 0 ? (
         <View style={styles.tray}>
-          <Text style={styles.trayLabel}>Collected · {collected.length}</Text>
+          <Text style={styles.trayLabel}>{t("magpie.collected", { count: collected.length })}</Text>
           <ScrollView style={styles.trayScroll} showsVerticalScrollIndicator={false}>
             <View style={styles.trayWrap}>
               {collected.map((fragment) => (
@@ -194,9 +197,9 @@ export function MagpiePageStep({ model, spark }: { model: Model; spark: MagpieSp
                   style={({ pressed }) => [styles.chip, pressed ? appStyles.pressDown : null]}
                   onPress={() => model.removeFragment(fragment.id)}
                 >
-                  <Text style={styles.chipText} numberOfLines={1}>
+                  <UserText style={styles.chipText} numberOfLines={1}>
                     {fragment.text}
-                  </Text>
+                  </UserText>
                   <Ionicons name="close" size={12} color={colors.onPrimary} />
                 </Pressable>
               ))}
@@ -213,7 +216,9 @@ export function MagpiePageStep({ model, spark }: { model: Model; spark: MagpieSp
           >
             <Ionicons name="bookmark" size={16} color={colors.onPrimary} />
             <Text style={styles.primaryBtnText}>
-              Pocket {pendingPhrases > 1 ? `${pendingPhrases} scraps` : "this"}
+              {pendingPhrases > 1
+                ? t("magpie.pocketCount", { count: pendingPhrases })
+                : t("magpie.pocketThis")}
             </Text>
           </Pressable>
         ) : (
@@ -227,10 +232,10 @@ export function MagpiePageStep({ model, spark }: { model: Model; spark: MagpieSp
             disabled={collected.length === 0}
           >
             {collected.length === 0 ? (
-              <Text style={styles.primaryBtnGhostText}>Tap words to pocket them</Text>
+              <Text style={styles.primaryBtnGhostText}>{t("magpie.tapToPocket")}</Text>
             ) : (
               <>
-                <Text style={styles.primaryBtnText}>Build draft</Text>
+                <Text style={styles.primaryBtnText}>{t("magpie.buildDraft")}</Text>
                 <Ionicons name="arrow-forward" size={16} color={colors.onPrimary} />
               </>
             )}
@@ -254,16 +259,17 @@ function BookPlate({
   onNewPage: () => void;
   onNewBook: () => void;
 }) {
+  const { t } = useTranslation();
   return (
     <View style={styles.plate}>
       <View style={styles.plateMeta}>
-        <Text style={styles.plateOverline}>Page from</Text>
-        <Text style={styles.plateTitle}>{title}</Text>
-        {author ? <Text style={styles.plateAuthor}>{author}</Text> : null}
+        <Text style={styles.plateOverline}>{t("magpie.pageFrom")}</Text>
+        <UserText style={styles.plateTitle}>{title}</UserText>
+        {author ? <UserText style={styles.plateAuthor}>{author}</UserText> : null}
       </View>
       <View style={styles.plateActions}>
-        <RoundAction icon="refresh" label="Page" onPress={onNewPage} disabled={busy} />
-        <RoundAction icon="shuffle" label="Book" onPress={onNewBook} disabled={busy} />
+        <RoundAction icon="refresh" label={t("magpie.page")} accessibilityLabel={t("magpie.newPage")} onPress={onNewPage} disabled={busy} />
+        <RoundAction icon="shuffle" label={t("magpie.book")} accessibilityLabel={t("magpie.newBook")} onPress={onNewBook} disabled={busy} />
       </View>
     </View>
   );
@@ -272,11 +278,13 @@ function BookPlate({
 function RoundAction({
   icon,
   label,
+  accessibilityLabel,
   onPress,
   disabled,
 }: {
   icon: keyof typeof Ionicons.glyphMap;
   label: string;
+  accessibilityLabel: string;
   onPress: () => void;
   disabled: boolean;
 }) {
@@ -287,7 +295,7 @@ function RoundAction({
         onPress={onPress}
         disabled={disabled}
         hitSlop={6}
-        accessibilityLabel={label === "Page" ? "New page" : "New book"}
+        accessibilityLabel={accessibilityLabel}
       >
         <Ionicons name={icon} size={16} color={disabled ? colors.textMuted : colors.primary} />
       </Pressable>
@@ -305,11 +313,12 @@ function ScopeToggle({
   onChange: (value: boolean) => void;
   disabled: boolean;
 }) {
+  const { t } = useTranslation();
   return (
     <View style={styles.scope}>
       {[
-        { label: "Curated", value: false },
-        { label: "Library", value: true },
+        { label: t("magpie.curated"), value: false },
+        { label: t("magpie.library"), value: true },
       ].map((option) => {
         const active = option.value === wholeLibrary;
         return (
@@ -336,15 +345,16 @@ function ErrorState({
   onRetry: () => void;
   onNewBook: () => void;
 }) {
+  const { t } = useTranslation();
   const offline = kind === "offline";
   return (
     <View style={styles.center}>
       <Ionicons name={offline ? "cloud-offline-outline" : "book-outline"} size={30} color={colors.textMuted} />
-      <Text style={styles.errorTitle}>{offline ? "Magpie needs a connection" : "That page wouldn't open"}</Text>
+      <Text style={styles.errorTitle}>{t(offline ? "magpie.connectionTitle" : "magpie.pageErrorTitle")}</Text>
       <Text style={styles.errorBody}>
         {offline
-          ? "Reconnect to open a book, then try again."
-          : "Try another page, or shuffle to a new book."}
+          ? t("magpie.connectionBody")
+          : t("magpie.pageErrorBody")}
       </Text>
       <View style={styles.errorActions}>
         <Pressable
@@ -352,7 +362,7 @@ function ErrorState({
           onPress={onRetry}
         >
           <Ionicons name="refresh" size={14} color={colors.onPrimary} />
-          <Text style={styles.errorBtnText}>Try again</Text>
+          <Text style={styles.errorBtnText}>{t("magpie.tryAgain")}</Text>
         </Pressable>
         {!offline ? (
           <Pressable
@@ -360,7 +370,7 @@ function ErrorState({
             onPress={onNewBook}
           >
             <Ionicons name="shuffle" size={14} color={colors.primary} />
-            <Text style={styles.errorBtnGhostText}>New book</Text>
+            <Text style={styles.errorBtnGhostText}>{t("magpie.newBook")}</Text>
           </Pressable>
         ) : null}
       </View>

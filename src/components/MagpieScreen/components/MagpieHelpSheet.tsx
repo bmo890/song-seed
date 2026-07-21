@@ -3,6 +3,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { BottomSheet } from "../../common/BottomSheet";
 import { colors, radii, spacing, text as textTokens } from "../../../design/tokens";
 import type { MagpieStep } from "../../../types";
+import { useTranslation } from "react-i18next";
 
 type Props = {
   visible: boolean;
@@ -21,56 +22,52 @@ export function MagpieHelpSheet({ visible, step, onClose }: Props) {
 }
 
 function PageHelp() {
+  const { t } = useTranslation();
   return (
     <>
-      <Text style={helpStyles.title}>The page</Text>
-      <Text style={helpStyles.subtitle}>
-        Magpie opens a real book to a random page. Hum a melody to yourself, then tap the words and phrases
-        that sound good against it — not the ones that make sense, the ones that ring. Tap a run of words to
-        keep them together, tap again to let one go.
-      </Text>
+      <Text style={helpStyles.title}>{t("magpieHelp.pageTitle")}</Text>
+      <Text style={helpStyles.subtitle}>{t("magpieHelp.pageBody")}</Text>
 
       <View style={helpStyles.example}>
-        <Text style={helpStyles.exampleLabel}>Tap what catches your ear</Text>
+        <Text style={helpStyles.exampleLabel}>{t("magpieHelp.catchesEar")}</Text>
         <Text style={helpStyles.exampleText}>
-          …the <Text style={helpStyles.exampleMark}>harbour light</Text> was low, and no one{" "}
-          <Text style={helpStyles.exampleMark}>answered</Text>…
+          {t("magpieHelp.pageExampleBefore")}<Text style={helpStyles.exampleMark}>{t("magpieHelp.pageExampleMark1")}</Text>
+          {t("magpieHelp.pageExampleMiddle")}<Text style={helpStyles.exampleMark}>{t("magpieHelp.pageExampleMark2")}</Text>
+          {t("magpieHelp.pageExampleAfter")}
         </Text>
-        <Text style={[helpStyles.exampleLabel, helpStyles.exampleLabelSecond]}>…into your pile</Text>
-        <Text style={helpStyles.exampleText}>harbour light · answered</Text>
+        <Text style={[helpStyles.exampleLabel, helpStyles.exampleLabelSecond]}>{t("magpieHelp.intoPile")}</Text>
+        <Text style={helpStyles.exampleText}>{t("magpieHelp.pileExample")}</Text>
       </View>
 
       <View style={helpStyles.points}>
-        <HelpPoint icon="refresh" title="New page" body="Same book, a different page." />
-        <HelpPoint icon="shuffle" title="New book" body="Draw a fresh book — curated, or the whole library." />
-        <HelpPoint icon="albums-outline" title="Your pile keeps" body="Collected words stay as you turn pages and books." />
+        <HelpPoint icon="refresh" title={t("magpieHelp.newPageTitle")} body={t("magpieHelp.newPageBody")} />
+        <HelpPoint icon="shuffle" title={t("magpieHelp.newBookTitle")} body={t("magpieHelp.newBookBody")} />
+        <HelpPoint icon="albums-outline" title={t("magpieHelp.pileKeepsTitle")} body={t("magpieHelp.pileKeepsBody")} />
       </View>
 
-      <Text style={helpStyles.credit}>after Jeff Tweedy's "steal words from a book", How to Write One Song (2020)</Text>
+      <Text style={helpStyles.credit}>{t("magpieHelp.credit")}</Text>
     </>
   );
 }
 
 function BuildHelp() {
+  const { t } = useTranslation();
   return (
     <>
-      <Text style={helpStyles.title}>Build</Text>
-      <Text style={helpStyles.subtitle}>
-        Now the pile is yours to shape. Drag the words into an order, split a phrase back into single words,
-        or tap a word to edit it — bend a tense, change a name — until the lines start to sing.
-      </Text>
+      <Text style={helpStyles.title}>{t("magpieHelp.buildTitle")}</Text>
+      <Text style={helpStyles.subtitle}>{t("magpieHelp.buildBody")}</Text>
 
       <View style={helpStyles.example}>
-        <Text style={helpStyles.exampleLabel}>From loose fragments</Text>
-        <Text style={helpStyles.exampleText}>harbour light{"\n"}answered{"\n"}low</Text>
-        <Text style={[helpStyles.exampleLabel, helpStyles.exampleLabelSecond]}>…to a line worth keeping</Text>
-        <Text style={helpStyles.exampleText}>the harbour light burned low{"\n"}and no one answering</Text>
+        <Text style={helpStyles.exampleLabel}>{t("magpieHelp.looseFragments")}</Text>
+        <Text style={helpStyles.exampleText}>{t("magpieHelp.looseExample")}</Text>
+        <Text style={[helpStyles.exampleLabel, helpStyles.exampleLabelSecond]}>{t("magpieHelp.worthKeeping")}</Text>
+        <Text style={helpStyles.exampleText}>{t("magpieHelp.revisedExample")}</Text>
       </View>
 
       <View style={helpStyles.points}>
-        <HelpPoint icon="reorder-three" title="Reorder" body="Drag words into new arrangements." />
-        <HelpPoint icon="cut-outline" title="Split" body="Break a phrase into single words." />
-        <HelpPoint icon="bookmark-outline" title="Save" body="Send the draft to your Lyrics Pad as a page." />
+        <HelpPoint icon="reorder-three" title={t("magpieHelp.reorderTitle")} body={t("magpieHelp.reorderBody")} />
+        <HelpPoint icon="cut-outline" title={t("magpieHelp.splitTitle")} body={t("magpieHelp.splitBody")} />
+        <HelpPoint icon="bookmark-outline" title={t("magpieHelp.saveTitle")} body={t("magpieHelp.saveBody")} />
       </View>
     </>
   );
