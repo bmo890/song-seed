@@ -5,6 +5,8 @@ import { IconButton } from "../common/IconButton";
 import { colors, spacing, text as textTokens } from "../../design/tokens";
 import { useScrollIntoViewOnFocus } from "./components/chartScroll";
 import type { ChordSheetMeasure, ChordSheetSection as Section } from "../../types";
+import { useTranslation } from "react-i18next";
+import { UserText, UserTextInput } from "../../i18n";
 
 type Props = {
   section: Section;
@@ -45,6 +47,7 @@ export function ChordSheetSection({
   onNotes,
   onOpenMenu,
 }: Props) {
+  const { t } = useTranslation();
   const selectedSet = new Set(selectedMeasureIds);
   const noteField = useScrollIntoViewOnFocus();
 
@@ -61,14 +64,14 @@ export function ChordSheetSection({
     <View style={styles.section}>
       {editable ? (
         <View style={styles.headerRow}>
-          <Text style={styles.label}>{section.label || "Section"}</Text>
-          <TextInput
+          <UserText value={section.label} style={styles.label}>{section.label || t("chordChart.section")}</UserText>
+          <UserTextInput
             ref={noteField.ref}
             onFocus={noteField.onFocus}
             style={styles.noteInlineInput}
             value={section.notes}
             onChangeText={onNotes}
-            placeholder="note…"
+            placeholder={t("chordChart.notePlaceholder")}
             placeholderTextColor={colors.textMuted}
             multiline
           />
@@ -78,16 +81,16 @@ export function ChordSheetSection({
             size={16}
             onPress={onOpenMenu}
             onLongPress={onOpenMenu}
-            accessibilityLabel="Section options"
+            accessibilityLabel={t("chordChart.sectionOptions")}
           />
         </View>
       ) : (
         <View style={styles.headerRow}>
-          <Text style={styles.label}>{section.label}</Text>
+          <UserText value={section.label} style={styles.label}>{section.label}</UserText>
           {section.notes.trim() ? (
-            <Text style={styles.noteInline} numberOfLines={2}>
+            <UserText value={section.notes.trim()} style={styles.noteInline} numberOfLines={2}>
               {section.notes.trim()}
-            </Text>
+            </UserText>
           ) : null}
         </View>
       )}
@@ -99,7 +102,7 @@ export function ChordSheetSection({
           <View key={rowIndex} style={styles.staffRow}>
             {row.map((cell, i) =>
               cell.kind === "add" ? (
-                <GhostBar key="add" isLast={i === row.length - 1} onPress={onAddMeasure} />
+                <GhostBar key="add" isLast={i === row.length - 1} onPress={onAddMeasure} label={t("chordChart.addBar")} />
               ) : (
                 <Bar
                   key={cell.measure.id}
@@ -158,11 +161,11 @@ function Bar({
 }
 
 /** A faint phantom bar in the next slot — tap to append a bar to the section. */
-function GhostBar({ isLast, onPress }: { isLast: boolean; onPress: () => void }) {
+function GhostBar({ isLast, onPress, label }: { isLast: boolean; onPress: () => void; label: string }) {
   return (
     <Pressable
       onPress={onPress}
-      accessibilityLabel="Add bar"
+      accessibilityLabel={label}
       style={({ pressed }) => [styles.ghostBar, isLast ? styles.ghostBarLast : null, pressed ? appStyles.pressDown : null]}
     >
       <Ionicons name="add" size={16} color="#C2A99F" />

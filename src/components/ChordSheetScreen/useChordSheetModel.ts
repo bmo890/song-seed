@@ -24,12 +24,14 @@ import { useChartPrefsStore } from "../../state/useChartPrefsStore";
 import { shareChordSheetPdf } from "../../services/chordChartPdf";
 import { ensurePro } from "../common/proUpsell";
 import type { ChordSheet, SongIdea } from "../../types";
+import { useTranslation } from "react-i18next";
 
 // index === null adds a chord to the bar; a number edits the chord at that index.
 type PickerTarget = { sectionId: string; measureId: string; index: number | null };
 type BarEditorTarget = { sectionId: string; measureId: string };
 
 export function useChordSheetModel(ideaIdOverride?: string) {
+  const { t } = useTranslation();
   const route = useRoute<any>();
   const navigation = useNavigation<any>();
   const ideaId = ideaIdOverride ?? (route.params?.ideaId as string | undefined);
@@ -189,8 +191,8 @@ export function useChordSheetModel(ideaIdOverride?: string) {
     const built = buildChordSheetFromLyrics(getLatestLyricsVersion(projectIdea));
     if (built.sections.length === 0) {
       AppAlert.info(
-        "No chords in lyrics",
-        "Add chords to a lyrics version first, then build the chart from it."
+        t("chordChart.noLyricsChords"),
+        t("chordChart.noLyricsChordsBody")
       );
       return;
     }
@@ -200,10 +202,10 @@ export function useChordSheetModel(ideaIdOverride?: string) {
     };
     if (!isChordSheetEmpty(sheet)) {
       AppAlert.destructive(
-        "Replace chart?",
-        "Build a fresh chart from the latest lyrics? This replaces the current chart.",
+        t("chordChart.replaceTitle"),
+        t("chordChart.replaceBody"),
         apply,
-        { confirmLabel: "Replace" }
+        { confirmLabel: t("chordChart.replace") }
       );
       return;
     }
@@ -393,9 +395,9 @@ export function useChordSheetModel(ideaIdOverride?: string) {
     if (!ensurePro("pdf-export")) return;
     try {
       const ok = await shareChordSheetPdf({ title: projectIdea.title, subtitle, sheet: sheetForExport() });
-      if (!ok) AppAlert.info("Nothing to export", "Add a section with some chords first.");
+      if (!ok) AppAlert.info(t("chordChart.nothingExport"), t("chordChart.addChartFirst"));
     } catch {
-      AppAlert.info("Export failed", "Couldn't create the PDF. Please try again.");
+      AppAlert.info(t("chordChart.exportFailed"), t("chordChart.exportFailedBody"));
     }
   };
 
@@ -403,10 +405,10 @@ export function useChordSheetModel(ideaIdOverride?: string) {
     if (!projectIdea) return;
     const text = serializeChordSheetText(sheetForExport());
     if (!text.trim()) {
-      AppAlert.info("Nothing to share", "Add a section with some chords first.");
+      AppAlert.info(t("chordChart.nothingShare"), t("chordChart.addChartFirst"));
       return;
     }
-    void Share.share({ title: `${projectIdea.title} — chord chart`, message: text });
+    void Share.share({ title: t("chordChart.shareTitle", { title: projectIdea.title }), message: text });
   };
 
   return {

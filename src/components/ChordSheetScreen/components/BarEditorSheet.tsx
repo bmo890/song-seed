@@ -4,6 +4,7 @@ import { WarmModal } from "../../common/WarmModal";
 import { styles as appStyles } from "../../../styles";
 import { colors, radii, spacing } from "../../../design/tokens";
 import { MAX_CHORDS_PER_BAR } from "../../../domain/chordSheet";
+import { useTranslation } from "react-i18next";
 
 const BARLINE = "#BCA59B";
 
@@ -23,6 +24,7 @@ export function BarEditorSheet({
   onEditChord: (index: number) => void;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   const full = chords.length >= MAX_CHORDS_PER_BAR;
 
   return (
@@ -48,12 +50,12 @@ export function BarEditorSheet({
           style={({ pressed }) => [styles.addCircle, full ? styles.addDisabled : null, pressed && !full ? appStyles.pressDown : null]}
           onPress={onAddChord}
           disabled={full}
-          accessibilityLabel="Add chord"
+          accessibilityLabel={t("chordChart.addChord")}
         >
           <Ionicons name="add" size={22} color={full ? colors.textMuted : colors.onPrimary} />
         </Pressable>
         <Pressable style={({ pressed }) => [styles.doneBtn, pressed ? appStyles.pressDown : null]} onPress={onClose}>
-          <Text style={styles.doneText}>Done</Text>
+          <Text style={styles.doneText}>{t("chordChart.done")}</Text>
         </Pressable>
       </View>
     </WarmModal>

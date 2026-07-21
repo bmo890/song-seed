@@ -14,6 +14,8 @@ import { TransposeChip } from "../../common/TransposeChip";
 import { SongbookChooserSheet } from "../../common/SongbookChooserSheet";
 import { useChartPrefsStore } from "../../../state/useChartPrefsStore";
 import { clampTransposeOffset, transposeChordSheet } from "../../../domain/transpose";
+import { useTranslation } from "react-i18next";
+import { UserText } from "../../../i18n";
 
 const KRAFT_BG = "#F2E9DC";
 
@@ -26,6 +28,7 @@ const transposeRowStyles = StyleSheet.create({
 });
 
 export function ChordSheetScreenContent() {
+  const { t } = useTranslation();
   const model = useChordSheetModel();
   const scrollRef = useRef<ScrollView>(null);
   const offsetRef = useRef(0);
@@ -41,10 +44,10 @@ export function ChordSheetScreenContent() {
   if (!model.projectIdea) {
     return (
       <SafeAreaView style={[styles.shell, { backgroundColor: KRAFT_BG }]} edges={["top", "bottom"]}>
-        <ScreenHeader title="Chord Chart" leftIcon="back" onLeftPress={model.goBack} />
+        <ScreenHeader title={t("chordChart.title")} leftIcon="back" onLeftPress={model.goBack} />
         <View style={styles.missing}>
           <Ionicons name="grid-outline" size={28} color={colors.textMuted} />
-          <Text style={styles.missingText}>This song is no longer available.</Text>
+          <Text style={styles.missingText}>{t("chordChart.unavailable")}</Text>
         </View>
       </SafeAreaView>
     );
@@ -62,7 +65,7 @@ export function ChordSheetScreenContent() {
   return (
     <SafeAreaView style={[styles.shell, { backgroundColor: KRAFT_BG }]} edges={["top", "bottom"]}>
       <ScreenHeader
-        title="Chord Chart"
+        title={t("chordChart.title")}
         leftIcon="back"
         onLeftPress={model.goBack}
         rightElement={
@@ -74,7 +77,7 @@ export function ChordSheetScreenContent() {
                   onPress={model.undo}
                   disabled={!model.canUndo}
                   hitSlop={6}
-                  accessibilityLabel="Undo"
+                  accessibilityLabel={t("chordChart.undo")}
                 >
                   <Ionicons
                     name="arrow-undo-outline"
@@ -87,7 +90,7 @@ export function ChordSheetScreenContent() {
                   onPress={model.redo}
                   disabled={!model.canRedo}
                   hitSlop={6}
-                  accessibilityLabel="Redo"
+                  accessibilityLabel={t("chordChart.redo")}
                 >
                   <Ionicons
                     name="arrow-redo-outline"
@@ -102,7 +105,7 @@ export function ChordSheetScreenContent() {
                 style={({ pressed }) => [styles.headerBtn, pressed ? appStyles.pressDown : null]}
                 onPress={() => setFullViewOpen(true)}
                 hitSlop={6}
-                accessibilityLabel="Full view"
+                accessibilityLabel={t("chordChart.fullView")}
               >
                 <Ionicons name="expand-outline" size={19} color={colors.primary} />
               </Pressable>
@@ -112,7 +115,7 @@ export function ChordSheetScreenContent() {
                 style={({ pressed }) => [styles.headerBtn, pressed ? appStyles.pressDown : null]}
                 onPress={() => setExportVisible(true)}
                 hitSlop={6}
-                accessibilityLabel="Export"
+                accessibilityLabel={t("chordChart.export")}
               >
                 <Ionicons name="share-outline" size={18} color={colors.textSecondary} />
               </Pressable>
@@ -124,14 +127,14 @@ export function ChordSheetScreenContent() {
                   onPress={() => model.setIsEditing(false)}
                   hitSlop={6}
                 >
-                  <Text style={styles.editPillText}>Done</Text>
+                  <Text style={styles.editPillText}>{t("chordChart.done")}</Text>
                 </Pressable>
               ) : (
                 <Pressable
                   style={({ pressed }) => [styles.editIconBtn, pressed ? appStyles.pressDown : null]}
                   onPress={() => model.setIsEditing(true)}
                   hitSlop={6}
-                  accessibilityLabel="Edit"
+                  accessibilityLabel={t("chordChart.edit")}
                 >
                   <Ionicons name="pencil" size={18} color={colors.onPrimary} />
                 </Pressable>
@@ -141,7 +144,7 @@ export function ChordSheetScreenContent() {
         }
       />
 
-      <Text style={styles.subtitle}>{model.projectIdea.title}</Text>
+      <UserText value={model.projectIdea.title} style={styles.subtitle}>{model.projectIdea.title}</UserText>
 
       <ScrollView
         ref={scrollRef}

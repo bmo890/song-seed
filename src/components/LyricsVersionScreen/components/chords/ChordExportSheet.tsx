@@ -3,6 +3,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { BottomSheet } from "../../../common/BottomSheet";
 import { styles as appStyles } from "../../../../styles";
 import { colors, radii, spacing, text as textTokens } from "../../../../design/tokens";
+import { useTranslation } from "react-i18next";
 
 type Props = {
   visible: boolean;
@@ -22,15 +23,16 @@ export function ChordExportSheet({
   onCopy,
   onAddToSongbook,
 }: Props) {
+  const { t } = useTranslation();
   return (
     <BottomSheet visible={visible} onClose={onClose}>
-      <Text style={sheetStyles.title}>Export chords</Text>
+      <Text style={sheetStyles.title}>{t("chordEditor.exportTitle")}</Text>
 
       {onAddToSongbook ? (
         <Option
           icon="book-outline"
-          title="Add to songbook"
-          body="File this chart in a book of your finished songs."
+          title={t("chordEditor.addSongbook")}
+          body={t("chordEditor.addSongbookDesc")}
           onPress={onAddToSongbook}
         />
       ) : null}
@@ -38,20 +40,20 @@ export function ChordExportSheet({
       <Option
         icon="document-outline"
         title="PDF"
-        body="A print-ready chart — print it, save it, or send a polished copy."
+        body={t("chordEditor.pdfDesc")}
         onPress={onExportPdf}
       />
       <Option
         icon="text-outline"
-        title="Text"
-        body="Plain chords-over-lyrics to share or paste into other apps."
+        title={t("chordEditor.text")}
+        body={t("chordEditor.textDesc")}
         onPress={onExportText}
       />
       {onCopy ? (
         <Option
           icon="copy-outline"
-          title="Copy to clipboard"
-          body="The chord chart as plain text."
+          title={t("chordEditor.copyClipboard")}
+          body={t("chordEditor.copyClipboardDesc")}
           onPress={onCopy}
         />
       ) : null}

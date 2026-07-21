@@ -12,6 +12,7 @@ import {
   type ChordParts,
 } from "../../../../domain/chords";
 import type { ChordAccidental, ChordRoot, SongChordPaletteItem } from "../../../../types";
+import { useTranslation } from "react-i18next";
 
 type Props = {
   visible: boolean;
@@ -26,6 +27,7 @@ type Props = {
 const EMPTY: ChordParts = { root: "C", accidental: "natural", quality: "" };
 
 export function ChordPickerSheet({ visible, mode, initial, palette, onClose, onSave, onDelete }: Props) {
+  const { t } = useTranslation();
   const [parts, setParts] = useState<ChordParts>(EMPTY);
 
   useEffect(() => {
@@ -39,7 +41,7 @@ export function ChordPickerSheet({ visible, mode, initial, palette, onClose, onS
   return (
     <BottomSheet visible={visible} onClose={onClose} keyboardAvoiding>
       <View style={pickerStyles.headerRow}>
-        <Text style={pickerStyles.title}>{mode === "edit" ? "Edit chord" : "Add chord"}</Text>
+        <Text style={pickerStyles.title}>{t(mode === "edit" ? "chordEditor.editChord" : "chordEditor.addChord")}</Text>
         <View style={pickerStyles.previewChip}>
           <Text style={pickerStyles.previewText}>{preview || "—"}</Text>
         </View>
@@ -48,7 +50,7 @@ export function ChordPickerSheet({ visible, mode, initial, palette, onClose, onS
       <ScrollView style={pickerStyles.scroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         {palette.length > 0 ? (
           <>
-            <Text style={pickerStyles.sectionLabel}>Recent in this song</Text>
+            <Text style={pickerStyles.sectionLabel}>{t("chordEditor.recent")}</Text>
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
@@ -78,14 +80,14 @@ export function ChordPickerSheet({ visible, mode, initial, palette, onClose, onS
           </>
         ) : null}
 
-        <Text style={pickerStyles.sectionLabel}>Root</Text>
+        <Text style={pickerStyles.sectionLabel}>{t("chordEditor.root")}</Text>
         <View style={pickerStyles.rowWrap}>
           {CHORD_ROOTS.map((root) => (
             <Chip key={root} label={root} active={parts.root === root} onPress={() => update({ root })} />
           ))}
         </View>
 
-        <Text style={pickerStyles.sectionLabel}>Accidental</Text>
+        <Text style={pickerStyles.sectionLabel}>{t("chordEditor.accidental")}</Text>
         <View style={pickerStyles.rowWrap}>
           {ACCIDENTAL_OPTIONS.map((opt) => (
             <Chip
@@ -97,7 +99,7 @@ export function ChordPickerSheet({ visible, mode, initial, palette, onClose, onS
           ))}
         </View>
 
-        <Text style={pickerStyles.sectionLabel}>Quality</Text>
+        <Text style={pickerStyles.sectionLabel}>{t("chordEditor.quality")}</Text>
         <View style={pickerStyles.rowWrap}>
           {QUALITY_OPTIONS.map((opt) => (
             <Chip
@@ -109,9 +111,9 @@ export function ChordPickerSheet({ visible, mode, initial, palette, onClose, onS
           ))}
         </View>
 
-        <Text style={pickerStyles.sectionLabel}>Slash bass</Text>
+        <Text style={pickerStyles.sectionLabel}>{t("chordEditor.slashBass")}</Text>
         <View style={pickerStyles.rowWrap}>
-          <Chip label="none" active={!parts.bassRoot} onPress={() => update({ bassRoot: undefined, bassAccidental: undefined })} />
+          <Chip label={t("chordEditor.none")} active={!parts.bassRoot} onPress={() => update({ bassRoot: undefined, bassAccidental: undefined })} />
           {CHORD_ROOTS.map((root) => (
             <Chip
               key={`bass-${root}`}
@@ -134,12 +136,12 @@ export function ChordPickerSheet({ visible, mode, initial, palette, onClose, onS
           </View>
         ) : null}
 
-        <Text style={pickerStyles.sectionLabel}>Custom suffix</Text>
+        <Text style={pickerStyles.sectionLabel}>{t("chordEditor.customSuffix")}</Text>
         <TextInput
           style={pickerStyles.customInput}
           value={parts.customSuffix ?? ""}
           onChangeText={(customSuffix) => update({ customSuffix })}
-          placeholder="e.g. #9, no3, *"
+          placeholder={t("chordEditor.customSuffixPlaceholder")}
           placeholderTextColor={colors.textMuted}
           autoCapitalize="none"
           autoCorrect={false}
@@ -165,7 +167,7 @@ export function ChordPickerSheet({ visible, mode, initial, palette, onClose, onS
           onPress={() => onSave(parts)}
           disabled={!preview}
         >
-          <Text style={pickerStyles.saveBtnText}>{mode === "edit" ? "Update chord" : "Add chord"}</Text>
+          <Text style={pickerStyles.saveBtnText}>{t(mode === "edit" ? "chordEditor.updateChord" : "chordEditor.addChord")}</Text>
         </Pressable>
       </View>
     </BottomSheet>

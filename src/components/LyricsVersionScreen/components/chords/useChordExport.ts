@@ -7,6 +7,7 @@ import { formatDate } from "../../../../utils";
 import { transposeLyricsLines } from "../../../../domain/transpose";
 import { useChartPrefsStore } from "../../../../state/useChartPrefsStore";
 import type { LyricsVersion } from "../../../../types";
+import { useTranslation } from "react-i18next";
 
 /** Shared chord-chart export handlers (PDF + text/ChordPro), used by both the
  * chord editor and the read view. Exports honor the song's active display
@@ -16,6 +17,7 @@ export function useChordExport(
   version: LyricsVersion | null | undefined,
   transposeIdeaId?: string
 ) {
+  const { t } = useTranslation();
   const rawLines = version?.document.lines ?? [];
   const transpose = transposeIdeaId
     ? useChartPrefsStore.getState().transposeByIdeaId[transposeIdeaId] ?? 0
@@ -27,20 +29,20 @@ export function useChordExport(
     if (!ensurePro("pdf-export")) return;
     try {
       const ok = await shareChordChartPdf({ title: songTitle, subtitle, lines });
-      if (!ok) AppAlert.info("Nothing to export", "Add some lyrics first.");
+      if (!ok) AppAlert.info(t("chordEditor.nothingExport"), t("chordEditor.addLyricsFirst"));
     } catch {
-      AppAlert.info("Export failed", "Couldn't create the PDF. Please try again.");
+      AppAlert.info(t("chordEditor.exportFailed"), t("chordEditor.exportFailedBody"));
     }
   };
 
   const exportText = () => {
     const chart = serializeChordChartText(lines);
     if (!chart.trim()) {
-      AppAlert.info("Nothing to share", "Add some lyrics first.");
+      AppAlert.info(t("chordEditor.nothingShare"), t("chordEditor.addLyricsFirst"));
       return;
     }
     void Share.share({
-      title: `${songTitle} — chords`,
+      title: t("chordEditor.shareTitle", { title: songTitle }),
       message: `${chart}\n\n— ChordPro —\n${serializeChordPro(lines)}`,
     });
   };

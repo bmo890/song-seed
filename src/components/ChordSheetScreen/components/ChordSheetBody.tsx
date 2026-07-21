@@ -18,6 +18,8 @@ import { BarEditorSheet } from "./BarEditorSheet";
 import { useScrollIntoViewOnFocus } from "./chartScroll";
 import type { useChordSheetModel } from "../useChordSheetModel";
 import { haptic } from "../../../design/haptics";
+import { useTranslation } from "react-i18next";
+import { UserText, UserTextInput } from "../../../i18n";
 
 type MenuTarget = { id: string; label: string; index: number; count: number; kind: "section" | "text" };
 
@@ -33,6 +35,7 @@ export function ChordSheetBody({
    *  shows the written key — edits target real measures, not transposed copies. */
   displaySheet?: ChordSheet;
 }) {
+  const { t } = useTranslation();
   const { isEditing } = model;
   const sheet = !isEditing && displaySheet ? displaySheet : model.sheet;
   const isEmpty = sheet.sections.length === 0;
@@ -61,7 +64,7 @@ export function ChordSheetBody({
           : [
               {
                 key: "rename",
-                label: "Rename",
+                label: t("chordChart.rename"),
                 icon: "create-outline" as const,
                 onPress: () => {
                   setRenameTarget({ id: menuTarget.id, label: menuTarget.label });
@@ -73,7 +76,7 @@ export function ChordSheetBody({
           ? [
               {
                 key: "up",
-                label: "Move up",
+                label: t("chordChart.moveUp"),
                 icon: "arrow-up-outline" as const,
                 onPress: () => model.moveSection(menuTarget.id, -1),
               },
@@ -83,7 +86,7 @@ export function ChordSheetBody({
           ? [
               {
                 key: "down",
-                label: "Move down",
+                label: t("chordChart.moveDown"),
                 icon: "arrow-down-outline" as const,
                 onPress: () => model.moveSection(menuTarget.id, 1),
               },
@@ -91,17 +94,17 @@ export function ChordSheetBody({
           : []),
         {
           key: "delete",
-          label: menuTarget.kind === "text" ? "Delete text block" : "Delete section",
+          label: menuTarget.kind === "text" ? t("chordChart.deleteTextBlock") : t("chordChart.deleteSection"),
           icon: "trash-outline",
           tone: "danger",
           onPress: () => {
             const id = menuTarget.id;
             const isText = menuTarget.kind === "text";
             AppAlert.destructive(
-              isText ? "Delete text block?" : "Delete section?",
-              isText ? "This text block will be removed." : "Its bars and chords will be removed.",
+              isText ? t("chordChart.deleteTextTitle") : t("chordChart.deleteSectionTitle"),
+              isText ? t("chordChart.deleteTextBody") : t("chordChart.deleteSectionBody"),
               () => model.removeSection(id),
-              { confirmLabel: "Delete" }
+              { confirmLabel: t("chordChart.delete") }
             );
           },
         },
@@ -117,7 +120,7 @@ export function ChordSheetBody({
             onPress={() => setAddSheetOpen(true)}
           >
             <Ionicons name="add" size={15} color={colors.primary} />
-            <Text style={styles.actionBtnText}>Add a section</Text>
+            <Text style={styles.actionBtnText}>{t("chordChart.addSection")}</Text>
           </Pressable>
           {isEmpty ? (
             <Pressable
@@ -125,7 +128,7 @@ export function ChordSheetBody({
               onPress={() => model.buildFromLyrics()}
             >
               <Ionicons name="sparkles-outline" size={14} color={colors.primary} />
-              <Text style={styles.actionBtnText}>Build from lyrics</Text>
+              <Text style={styles.actionBtnText}>{t("chordChart.buildFromLyrics")}</Text>
             </Pressable>
           ) : null}
         </View>
@@ -135,11 +138,8 @@ export function ChordSheetBody({
       {isEmpty ? (
         <View style={styles.empty}>
           <Ionicons name="grid-outline" size={26} color={colors.textMuted} />
-          <Text style={styles.emptyTitle}>A blank chart</Text>
-          <Text style={styles.emptyBody}>
-            Add a section or build from your lyrics, then tap a bar to drop in a chord and + to add more
-            bars. Long-press a bar to select and edit several at once.
-          </Text>
+          <Text style={styles.emptyTitle}>{t("chordChart.blankTitle")}</Text>
+          <Text style={styles.emptyBody}>{t("chordChart.blankBody")}</Text>
         </View>
       ) : (
         sheet.sections.map((section, index) =>
@@ -152,7 +152,7 @@ export function ChordSheetBody({
               onOpenMenu={() =>
                 setMenuTarget({
                   id: section.id,
-                  label: section.label || "Text",
+                  label: section.label || t("chordChart.text"),
                   index,
                   count: sheet.sections.length,
                   kind: "text",
@@ -213,21 +213,21 @@ export function ChordSheetBody({
 
       <SelectionActionSheet
         visible={addSheetOpen}
-        title="Add a section"
-        actions={addSectionActions(addSection, addTextBlock)}
+        title={t("chordChart.addSection")}
+        actions={addSectionActions(addSection, addTextBlock, t)}
         onClose={() => setAddSheetOpen(false)}
       />
 
       <SelectionActionSheet
         visible={!!menuTarget}
-        title={menuTarget?.label || "Section"}
+        title={menuTarget?.label || t("chordChart.section")}
         actions={menuActions}
         onClose={() => setMenuTarget(null)}
       />
 
       <QuickNameModal
         visible={!!renameTarget}
-        title="Rename section"
+        title={t("chordChart.renameSection")}
         draftValue={renameDraft}
         placeholderValue={renameTarget?.label}
         onChangeDraft={setRenameDraft}
@@ -242,7 +242,7 @@ export function ChordSheetBody({
           if (renameTarget && next) model.renameSection(renameTarget.id, next);
           setRenameTarget(null);
         }}
-        saveLabel="Rename"
+        saveLabel={t("chordChart.rename")}
       />
     </>
   );
@@ -260,6 +260,7 @@ export function ChordSheetFullView({
   sheet: ChordSheet;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   const [scale, setScale] = useState(1);
   const [pageWidth, setPageWidth] = useState(0);
   const [contentHeight, setContentHeight] = useState(0);
@@ -341,7 +342,7 @@ export function ChordSheetFullView({
             onPress={() => setScale(1)}
             disabled={Math.abs(scale - 1) < 0.001}
             hitSlop={8}
-            accessibilityLabel="Reset zoom"
+            accessibilityLabel={t("chordChart.resetZoom")}
             style={({ pressed }) => [fullView.reset, pressed ? appStyles.pressDown : null]}
           >
             <Ionicons
@@ -358,24 +359,26 @@ export function ChordSheetFullView({
 
 function addSectionActions(
   addSection: (label: string) => void,
-  addText: () => void
+  addText: () => void,
+  t: (key: string, options?: Record<string, unknown>) => string
 ): SelectionAction[] {
+  const presetKeys: Record<string, string> = { "Pre-Chorus": "PreChorus" };
   return [
     ...SECTION_PRESETS.map((preset) => ({
       key: preset,
-      label: preset,
+      label: t(`chordChart.presets.${presetKeys[preset] ?? preset}`),
       icon: "add" as const,
-      onPress: () => addSection(preset),
+      onPress: () => addSection(t(`chordChart.presets.${presetKeys[preset] ?? preset}`)),
     })),
     {
       key: "custom",
-      label: "Custom section",
+      label: t("chordChart.customSection"),
       icon: "create-outline" as const,
-      onPress: () => addSection("Section"),
+      onPress: () => addSection(t("chordChart.section")),
     },
     {
       key: "text",
-      label: "Text block",
+      label: t("chordChart.textBlock"),
       icon: "document-text-outline" as const,
       onPress: addText,
     },
@@ -394,6 +397,7 @@ function ChordTextBlock({
   onChangeText: (text: string) => void;
   onOpenMenu: () => void;
 }) {
+  const { t } = useTranslation();
   const field = useScrollIntoViewOnFocus();
   if (!editable) {
     if (!text.trim()) return null;
@@ -402,7 +406,7 @@ function ChordTextBlock({
         <View style={styles.textBlockHeader}>
           <Ionicons name="document-text-outline" size={13} color={colors.textMuted} />
         </View>
-        <Text style={styles.textBlockText}>{text.trim()}</Text>
+        <UserText value={text.trim()} style={styles.textBlockText}>{text.trim()}</UserText>
       </View>
     );
   }
@@ -416,16 +420,16 @@ function ChordTextBlock({
           tone="muted"
           size={16}
           onPress={onOpenMenu}
-          accessibilityLabel="Text block options"
+          accessibilityLabel={t("chordChart.textBlockOptions")}
         />
       </View>
-      <TextInput
+      <UserTextInput
         ref={field.ref}
         onFocus={field.onFocus}
         style={styles.textBlockInput}
         value={text}
         onChangeText={onChangeText}
-        placeholder="Write a free-form block — a spoken part, an arrangement note…"
+        placeholder={t("chordChart.textBlockPlaceholder")}
         placeholderTextColor={colors.textMuted}
         multiline
       />

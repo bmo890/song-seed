@@ -4,6 +4,7 @@ import Slider from "@react-native-community/slider";
 import { colors, radii, spacing } from "../../../../design/tokens";
 import { styles as appStyles } from "../../../../styles";
 import { haptic } from "../../../../design/haptics";
+import { useTranslation } from "react-i18next";
 
 export const CHORD_ZOOM_MIN = 0.5;
 export const CHORD_ZOOM_MAX = 1.6;
@@ -19,6 +20,7 @@ export function ChordZoomBar({
   onChange: (value: number) => void;
   compact?: boolean;
 }) {
+  const { t } = useTranslation();
   const atDefault = Math.abs(zoom - 1) < 0.001;
   return (
     <View style={[styles.zoomBar, compact ? styles.zoomBarCompact : null]}>
@@ -39,7 +41,7 @@ export function ChordZoomBar({
         onPress={() => onChange(1)}
         disabled={atDefault}
         hitSlop={8}
-        accessibilityLabel="Reset zoom"
+        accessibilityLabel={t("chordEditor.resetZoom")}
         style={({ pressed }) => [styles.reset, pressed ? appStyles.pressDown : null]}
       >
         <Ionicons name="refresh" size={16} color={atDefault ? colors.borderMuted : colors.primary} />

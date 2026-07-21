@@ -12,6 +12,7 @@ import { ChordPaletteBar } from "./ChordPaletteBar";
 import { ChordPickerSheet } from "./ChordPickerSheet";
 import { HelpSheet, type HelpItem } from "../../../common/HelpSheet";
 import { useChordEditing } from "./useChordEditing";
+import { useTranslation } from "react-i18next";
 
 type Props = {
   ideaId: string;
@@ -19,17 +20,17 @@ type Props = {
   palette: SongChordPaletteItem[] | undefined;
 };
 
-const HELP_ITEMS: HelpItem[] = [
-  { icon: "add", label: "Add a chord", description: "Tap a word where you want the chord to sit." },
-  { icon: "swap-horizontal-outline", label: "Move a chord", description: "Drag a chord left or right along the line." },
-  { icon: "create-outline", label: "Edit a chord", description: "Tap a chord to change or remove it." },
-  { icon: "text", label: "Zoom", description: "Drag the slider to fit a long line on screen." },
-];
-
 /** Edit-mode chord chart: tap a lyric to add, tap a chord to edit, drag to move,
  * or arm a palette chord and tap to drop it. Exit via the header Back; export
  * lives in the header. */
 export function ChordChartEditor({ ideaId, version, palette }: Props) {
+  const { t } = useTranslation();
+  const helpItems: HelpItem[] = [
+    { icon: "add", label: t("chordEditor.helpAdd"), description: t("chordEditor.helpAddDesc") },
+    { icon: "swap-horizontal-outline", label: t("chordEditor.helpMove"), description: t("chordEditor.helpMoveDesc") },
+    { icon: "create-outline", label: t("chordEditor.helpEdit"), description: t("chordEditor.helpEditDesc") },
+    { icon: "text", label: t("chordEditor.helpZoom"), description: t("chordEditor.helpZoomDesc") },
+  ];
   const editing = useChordEditing(ideaId, version.id);
   const sorted = sortedPalette(palette);
   const [helpVisible, setHelpVisible] = useState(false);
@@ -42,7 +43,7 @@ export function ChordChartEditor({ ideaId, version, palette }: Props) {
           style={({ pressed }) => [chartControls.iconBtn, pressed ? appStyles.pressDown : null]}
           onPress={() => setHelpVisible(true)}
           hitSlop={6}
-          accessibilityLabel="Help"
+          accessibilityLabel={t("common.help")}
         >
           <Ionicons name="help-circle-outline" size={18} color={colors.textSecondary} />
         </Pressable>
@@ -58,7 +59,7 @@ export function ChordChartEditor({ ideaId, version, palette }: Props) {
           onAddAt={editing.addAt}
           onEditChord={editing.openEdit}
           onMoveChord={editing.move}
-          emptyLabel="Add lyrics first, then come back to chart the chords."
+          emptyLabel={t("chordEditor.empty")}
         />
         <ChordZoomBar zoom={zoom} onChange={setZoom} />
       </View>
@@ -76,9 +77,9 @@ export function ChordChartEditor({ ideaId, version, palette }: Props) {
       <HelpSheet
         visible={helpVisible}
         onClose={() => setHelpVisible(false)}
-        title="Charting chords"
-        intro="Place chords above the words, then fine-tune by dragging."
-        items={HELP_ITEMS}
+        title={t("chordEditor.helpTitle")}
+        intro={t("chordEditor.helpIntro")}
+        items={helpItems}
       />
     </View>
   );
