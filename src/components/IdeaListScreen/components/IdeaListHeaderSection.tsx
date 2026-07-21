@@ -9,6 +9,7 @@ import { ClipClipboard } from "../../../types";
 import { useStore } from "../../../state/useStore";
 import { SearchField } from "../../common/SearchField";
 import { AppAlert } from "../../common/AppAlert";
+import { useTranslation } from "react-i18next";
 
 /** Walks up the navigator tree to reach a route registered on an ancestor
  *  (e.g. the drawer's LibraryHome from inside the workspace stack). */
@@ -50,6 +51,7 @@ export function IdeaListHeaderSection({
   onPasteClipboard,
   onCancelClipboard,
 }: IdeaListHeaderSectionProps) {
+  const { t } = useTranslation();
   const navigation = useNavigation<any>();
   const songTargetPicker = useStore((s) => s.songTargetPicker);
   const cancelSongTargetPicking = useStore((s) => s.cancelSongTargetPicking);
@@ -83,7 +85,7 @@ export function IdeaListHeaderSection({
         <SearchField
           testID="collection-search"
           value={searchQuery}
-          placeholder="Search titles, notes, lyrics..."
+          placeholder={t("collection.searchPlaceholder")}
           containerStyle={{ flex: 1, minWidth: 0 }}
           onChangeText={onSearchQueryChange}
         />
@@ -94,7 +96,7 @@ export function IdeaListHeaderSection({
           <View style={styles.activityRangeBannerCopy}>
             <Ionicons name="calendar-outline" size={15} color="#475569" />
             <Text style={styles.activityRangeBannerText} numberOfLines={1}>
-              {activityLabel ?? "Activity range"}
+              {activityLabel ?? t("collection.activityRange")}
             </Text>
           </View>
           <Pressable
@@ -110,25 +112,25 @@ export function IdeaListHeaderSection({
         <ClipboardBanner
           count={clipClipboard.clipIds.length}
           mode={clipClipboard.mode}
-          actionLabel="Paste to collection"
+          actionLabel={t("collection.paste")}
           onAction={() => {
             if (clipClipboard.sourceCollectionId === collectionId) {
               if (clipClipboard.mode === "move") {
                 AppAlert.info(
-                  "Cannot move here",
-                  "You cannot move items into the same collection they are already in. To duplicate them, cancel and use Copy instead."
+                  t("collection.cannotMove"),
+                  t("collection.cannotMoveBody")
                 );
                 return;
               }
-              AppAlert.confirm("Duplicate items?", duplicateWarningText, onPasteClipboard, { confirmLabel: "Duplicate" });
+              AppAlert.confirm(t("collection.duplicateTitle"), duplicateWarningText, onPasteClipboard, { confirmLabel: t("collection.duplicate") });
               return;
             }
 
             AppAlert.confirm(
-              `${clipClipboard.mode === "move" ? "Move" : "Copy"} items here?`,
-              `Are you sure you want to ${clipClipboard.mode} these items into this collection?`,
+              t("collection.transferTitle", { action: t(clipClipboard.mode === "move" ? "collection.move" : "collection.copy") }),
+              t("collection.transferBody", { action: t(clipClipboard.mode === "move" ? "collection.move" : "collection.copy") }),
               onPasteClipboard,
-              { confirmLabel: "Yes" }
+              { confirmLabel: t("collection.yes") }
             );
           }}
           onCancel={onCancelClipboard}

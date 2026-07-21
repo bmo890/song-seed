@@ -3,6 +3,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { Collection } from "../../../types";
 import { styles } from "../../../styles";
 import { colors, radii } from "../../../design/tokens";
+import { useTranslation } from "react-i18next";
+import { UserText } from "../../../i18n";
 
 type IdeaListNestedCollectionsSectionProps = {
   childCollections: Collection[];
@@ -19,6 +21,7 @@ export function IdeaListNestedCollectionsSection({
   onOpenCollection,
   onOpenCollectionActions,
 }: IdeaListNestedCollectionsSectionProps) {
+  const { t } = useTranslation();
   if (childCollections.length === 0) return null;
 
   return (
@@ -32,9 +35,9 @@ export function IdeaListNestedCollectionsSection({
         onPress={onToggleExpanded}
       >
         <View style={nestedCollectionStyles.toggleCopy}>
-          <Text style={nestedCollectionStyles.toggleLabel}>Nested collections</Text>
+          <Text style={nestedCollectionStyles.toggleLabel}>{t("collection.nested")}</Text>
           <Text style={nestedCollectionStyles.toggleMeta}>
-            {childCollections.length} inside this collection
+            {t("collection.nestedCount", { count: childCollections.length })}
           </Text>
         </View>
         <Ionicons
@@ -61,9 +64,9 @@ export function IdeaListNestedCollectionsSection({
                   size={14}
                   color={colors.textSecondary}
                 />
-                <Text style={nestedCollectionStyles.itemTitle} numberOfLines={1}>
+                <UserText style={nestedCollectionStyles.itemTitle} numberOfLines={1}>
                   {collection.title}
-                </Text>
+                </UserText>
               </Pressable>
 
               <Pressable

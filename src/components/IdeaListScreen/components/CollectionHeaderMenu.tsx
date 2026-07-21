@@ -7,8 +7,10 @@ import { useStore } from "../../../state/useStore";
 import { buildPlayableQueueFromIdeas } from "../../../domain/clipPresentation";
 import { durations } from "../../../design/motion";
 import { haptic } from "../../../design/haptics";
+import { useTranslation } from "react-i18next";
 
 export function CollectionHeaderMenu() {
+  const { t } = useTranslation();
   const { screen, inlinePlayer, store } = useCollectionScreen();
 
   if (!screen.headerMenuOpen) return null;
@@ -47,7 +49,7 @@ export function CollectionHeaderMenu() {
           }}
           disabled={buildPlayableQueueFromIdeas(playableIdeas).length === 0}
         >
-          <Text style={styles.ideasSortMenuItemText}>Play all</Text>
+          <Text style={styles.ideasSortMenuItemText}>{t("collection.playAll")}</Text>
           <Ionicons name="play" size={15} color="#334155" />
         </Pressable>
         <View style={styles.ideasDropdownDivider} />
@@ -58,7 +60,7 @@ export function CollectionHeaderMenu() {
             screen.setHeaderMenuOpen(false);
           }}
         >
-          <Text style={styles.ideasSortMenuItemText}>Compact view</Text>
+          <Text style={styles.ideasSortMenuItemText}>{t("collection.compactView")}</Text>
           <View
             style={[
               styles.ideasSwitch,
@@ -85,7 +87,7 @@ export function CollectionHeaderMenu() {
             });
           }}
         >
-          <Text style={styles.ideasSortMenuItemText}>View activity</Text>
+          <Text style={styles.ideasSortMenuItemText}>{t("collection.viewActivity")}</Text>
           <Ionicons name="grid-outline" size={15} color="#334155" />
         </Pressable>
       </Animated.View>

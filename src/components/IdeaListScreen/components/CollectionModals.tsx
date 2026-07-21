@@ -6,19 +6,21 @@ import { useCollectionScreen } from "../provider/CollectionScreenProvider";
 import { buildImportHelperText } from "../../../domain/importDates";
 import { buildImportedTitle } from "../../../services/audioStorage";
 import { ensureUniqueCountedTitle, fmtDuration, formatDate } from "../../../utils";
+import { useTranslation } from "react-i18next";
 
 function buildImportedProjectTitle(name?: string) {
   return buildImportedTitle(name);
 }
 
 export function CollectionModals() {
+  const { t } = useTranslation();
   const { screen, management, importFlow, editModal } = useCollectionScreen();
 
   return (
     <>
       <CollectionActionsModal
         visible={management.collectionActionsOpen}
-        title={management.managedCollection?.title ?? "Collection"}
+        title={management.managedCollection?.title ?? t("collection.title")}
         onRename={management.openRenameCollection}
         onCopy={management.openCopyCollection}
         onMove={management.openMoveCollection}
@@ -31,9 +33,9 @@ export function CollectionModals() {
 
       <QuickNameModal
         visible={management.collectionRenameModalOpen}
-        title={management.managedCollection?.parentCollectionId ? "Rename subcollection" : "Rename collection"}
+        title={t(management.managedCollection?.parentCollectionId ? "collection.renameSubcollection" : "collection.rename")}
         draftValue={management.collectionDraft}
-        placeholderValue={management.managedCollection?.title ?? "Collection"}
+        placeholderValue={management.managedCollection?.title ?? t("collection.title")}
         onChangeDraft={management.setCollectionDraft}
         onCancel={() => {
           management.setCollectionRenameModalOpen(false);
@@ -60,7 +62,7 @@ export function CollectionModals() {
 
       <QuickNameModal
         visible={importFlow.importModalOpen}
-        title={importFlow.importMode === "song-project" ? "Import as Song Project" : "Import Audio"}
+        title={t(importFlow.importMode === "song-project" ? "collection.importSong" : "collection.importAudio")}
         draftValue={importFlow.importDraft}
         placeholderValue={
           importFlow.importMode === "song-project"
@@ -77,17 +79,17 @@ export function CollectionModals() {
         helperText={
           importFlow.importMode === "song-project"
             ? buildImportHelperText(
-                `Destination: ${screen.currentCollection?.title ?? "Collection"} as one new song.\nFiles: ${importFlow.importAssets.length} selected audio file${importFlow.importAssets.length === 1 ? "" : "s"}`,
+                `${t("collection.destinationSong", { collection: screen.currentCollection?.title ?? t("collection.title") })}\n${t("collection.selectedFiles", { count: importFlow.importAssets.length })}`,
                 importFlow.importAssets,
                 importFlow.importDatePreference
               )
             : buildImportHelperText(
-                `Destination: ${screen.currentCollection?.title ?? "Collection"} as a new clip card.\nFile: ${importFlow.importAssets[0]?.name ?? "Selected audio"}`,
+                `${t("collection.destinationClip", { collection: screen.currentCollection?.title ?? t("collection.title") })}\n${t("collection.selectedFile", { name: importFlow.importAssets[0]?.name ?? t("collection.selectedAudio") })}`,
                 importFlow.importAssets,
                 importFlow.importDatePreference
               )
         }
-        saveLabel="Import"
+        saveLabel={t("collection.import")}
         saveDisabled={false}
         cancelDisabled={false}
       />
@@ -97,18 +99,18 @@ export function CollectionModals() {
         title={
           management.collectionDestinationMode === "copy"
             ? management.managedCollection?.parentCollectionId
-              ? "Copy Subcollection"
-              : "Copy Collection"
+              ? t("collection.copySubcollection")
+              : t("collection.copyCollection")
             : management.managedCollection?.parentCollectionId
-              ? "Move Subcollection"
-              : "Move Collection"
+              ? t("collection.moveSubcollection")
+              : t("collection.moveCollection")
         }
         helperText={
           management.managedCollectionHasChildren
-            ? `Collections that already contain subcollections can only be ${management.collectionDestinationMode === "copy" ? "copied" : "moved"} to the top level.`
-            : `Choose where to ${management.collectionDestinationMode === "copy" ? "copy" : "move"} this collection.`
+            ? t("collection.topLevelOnly", { action: t(management.collectionDestinationMode === "copy" ? "collection.copied" : "collection.moved") })
+            : t("collection.chooseDestination", { action: t(management.collectionDestinationMode === "copy" ? "collection.copy" : "collection.move") })
         }
-        confirmLabel={management.collectionDestinationMode === "copy" ? "Copy" : "Move"}
+        confirmLabel={t(management.collectionDestinationMode === "copy" ? "common.copy" : "collection.move")}
         destinations={management.moveDestinations}
         selectedWorkspaceId={management.selectedMoveWorkspaceId}
         selectedParentCollectionId={management.selectedMoveParentCollectionId}

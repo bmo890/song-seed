@@ -4,6 +4,7 @@ import { appActions } from "../../../state/actions";
 import type { Collection, Workspace } from "../../../types";
 import { buildCollectionMoveDestinations, getCollectionDeleteScope } from "../../../domain/collectionManagement";
 import { personalWorkspaces } from "../../../domain/workspaceVisibility";
+import { useTranslation } from "react-i18next";
 
 type CollectionManagementParams = {
   workspaces: Workspace[];
@@ -26,6 +27,7 @@ export function useCollectionManagement({
   moveCollection,
   deleteCollection,
 }: CollectionManagementParams) {
+  const { t } = useTranslation();
   const [managedCollectionId, setManagedCollectionId] = useState<string | null>(null);
   const [collectionActionsOpen, setCollectionActionsOpen] = useState(false);
   const [collectionRenameModalOpen, setCollectionRenameModalOpen] = useState(false);
@@ -80,10 +82,10 @@ export function useCollectionManagement({
     setCollectionActionsOpen(false);
     if (moveDestinations.length === 0) {
       AppAlert.info(
-        "No move targets",
+        t("collection.noMoveTargets"),
         managedCollectionHasChildren
-          ? "This collection already has subcollections, so it can only stay at the top level."
-          : "There are no valid collection destinations available right now."
+          ? t("collection.childrenStayTop")
+          : t("collection.noDestinations")
       );
       return;
     }
@@ -95,10 +97,10 @@ export function useCollectionManagement({
     setCollectionActionsOpen(false);
     if (moveDestinations.length === 0) {
       AppAlert.info(
-        "No copy targets",
+        t("collection.noCopyTargets"),
         managedCollectionHasChildren
-          ? "This collection already has subcollections, so it can only be copied to the top level."
-          : "There are no valid collection destinations available right now."
+          ? t("collection.childrenCopyTop")
+          : t("collection.noDestinations")
       );
       return;
     }
@@ -110,13 +112,17 @@ export function useCollectionManagement({
     const { childCollectionCount, itemCount } = getCollectionDeleteScope(activeWorkspace, managedCollection.id);
     setCollectionActionsOpen(false);
     AppAlert.destructive(
-      "Delete collection?",
-      `${managedCollection.title} will be removed${childCollectionCount > 0 ? ` along with ${childCollectionCount} subcollection${childCollectionCount === 1 ? "" : "s"}` : ""} and ${itemCount} item${itemCount === 1 ? "" : "s"}.`,
+      t("collection.deleteTitle"),
+      t("collection.deleteScope", {
+        title: managedCollection.title,
+        children: childCollectionCount > 0 ? t("collection.childScope", { count: childCollectionCount }) : "",
+        items: t("collection.itemScope", { count: itemCount }),
+      }),
       () => {
         deleteCollection(managedCollection.id);
         setManagedCollectionId(null);
       },
-      { confirmLabel: "Delete" }
+      { confirmLabel: t("common.delete") }
     );
   };
 
@@ -129,9 +135,9 @@ export function useCollectionManagement({
 
     if (!result.ok) {
       AppAlert.info(
-        collectionDestinationMode === "copy" ? "Copy failed" : "Move failed",
+        t(collectionDestinationMode === "copy" ? "collection.copyFailed" : "collection.moveFailed"),
         result.error ??
-          `Could not ${collectionDestinationMode === "copy" ? "copy" : "move"} this collection.`
+          t("collection.operationFailed", { action: t(collectionDestinationMode === "copy" ? "collection.copy" : "collection.move") })
       );
       return;
     }

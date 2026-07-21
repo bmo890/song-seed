@@ -22,6 +22,7 @@ import { SelectionTopBar } from "../../common/SelectionTopBar";
 import { useStore } from "../../../state/useStore";
 import { useStickyDayLabel, useStickyDayChipVisible } from "../stickyDayStore";
 import { colors } from "../../../design/tokens";
+import { useTranslation } from "react-i18next";
 
 // Reasonable first-paint estimate for the header height; corrected on measure.
 const DEFAULT_HEADER_HEIGHT = 230;
@@ -61,6 +62,7 @@ function CollectionNestedCollectionsContent() {
 }
 
 export function CollectionScreenContent() {
+  const { t } = useTranslation();
   const { screen } = useCollectionScreen();
   const [headerHeight, setHeaderHeight] = useState(DEFAULT_HEADER_HEIGHT);
   const selectedListIdeaIds = useStore((s) => s.selectedListIdeaIds);
@@ -87,18 +89,18 @@ export function CollectionScreenContent() {
     return (
       <SafeAreaView style={styles.screen}>
         <ScreenHeader
-          title="Collection"
+          title={t("collection.title")}
           leftIcon={screen.showBack ? "back" : "hamburger"}
           onLeftPress={screen.showBack ? goToLibrary : screen.openDrawer}
         />
         <View style={{ flex: 1, alignItems: "center", justifyContent: "center", gap: 10, padding: 24 }}>
-          <Text style={styles.subtitle}>This collection isn’t here anymore.</Text>
+          <Text style={styles.subtitle}>{t("collection.missing")}</Text>
           <Text
             onPress={goToLibrary}
             accessibilityRole="button"
             style={{ fontSize: 15, fontWeight: "600", color: colors.primaryDeep }}
           >
-            Go to your library
+            {t("collection.goToLibrary")}
           </Text>
         </View>
       </SafeAreaView>

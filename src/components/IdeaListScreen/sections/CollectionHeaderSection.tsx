@@ -15,12 +15,14 @@ import { useStore } from "../../../state/useStore";
 import { radii, colors } from "../../../design/tokens";
 import { formatLastEdited } from "../../../utils";
 import { UserText } from "../../../i18n";
+import { useTranslation } from "react-i18next";
 
 /**
  * Fixed nav row: back/hamburger, compact workspace identity (fades in as the
  * large identity block slides away beneath it), overflow menu.
  */
 export function CollectionHeaderSection() {
+  const { t } = useTranslation();
   const { screen } = useCollectionScreen();
 
   const collection = screen.currentCollection;
@@ -52,7 +54,7 @@ export function CollectionHeaderSection() {
         onPress={screen.showBack ? screen.onBack : screen.openDrawer}
         hitSlop={8}
         accessibilityRole="button"
-        accessibilityLabel={screen.showBack ? "Back" : "Open menu"}
+        accessibilityLabel={screen.showBack ? t("common.back") : t("workspaceBrowse.openMenu")}
       >
         {screen.showBack ? (
           <Ionicons name="chevron-back" size={20} color="#84736f" />
@@ -83,7 +85,7 @@ export function CollectionHeaderSection() {
           tone="muted"
           size={20}
           onPress={() => screen.setHeaderMenuOpen((prev) => !prev)}
-          accessibilityLabel="Collection options"
+          accessibilityLabel={t("collection.options")}
         />
       ) : (
         <View style={styles.ideasHeaderMenuBtnPlaceholder} />
@@ -98,6 +100,7 @@ export function CollectionHeaderSection() {
  * it. The system back button is left alone — it always steps up the hierarchy.
  */
 export function CollectionContextReturnChip() {
+  const { t } = useTranslation();
   const { screen } = useCollectionScreen();
   const contextualReturn = screen.contextualReturn;
   if (!contextualReturn) return null;
@@ -109,17 +112,17 @@ export function CollectionContextReturnChip() {
         onPress={contextualReturn.onReturn}
         hitSlop={6}
         accessibilityRole="button"
-        accessibilityLabel={`Back to ${contextualReturn.label}`}
+        accessibilityLabel={t("common.backTo", { label: contextualReturn.label })}
       >
         <Ionicons name="arrow-back" size={13} color={colors.primaryDeep} />
         <Text style={collStyles.returnChipText} numberOfLines={1}>
-          Back to {contextualReturn.label}
+          {t("common.backTo", { label: contextualReturn.label })}
         </Text>
         <Pressable
           onPress={contextualReturn.onDismiss}
           hitSlop={10}
           accessibilityRole="button"
-          accessibilityLabel="Dismiss"
+          accessibilityLabel={t("collection.dismiss")}
           style={({ pressed }) => [collStyles.returnChipClose, pressed ? styles.pressDown : null]}
         >
           <Ionicons name="close" size={13} color="#a89994" />

@@ -1,5 +1,6 @@
 import type { ImportedAudioAsset } from "../services/audioStorage";
 import { AppAlert } from "../components/common/AppAlert";
+import { i18n } from "../i18n/instance";
 
 export type ImportDatePreference = "source" | "import";
 
@@ -17,7 +18,7 @@ type ImportSourceDateSummary = {
 };
 
 function formatImportDateLabel(timestamp: number) {
-  return new Date(timestamp).toLocaleDateString("en-US", {
+  return new Date(timestamp).toLocaleDateString(i18n.language === "he" ? "he-IL" : "en-US", {
     month: "short",
     day: "numeric",
     year: "numeric",
@@ -54,18 +55,18 @@ export function describeImportDatePreference(
   const summary = summarizeImportSourceDates(assets);
 
   if (preference === "import" || !summary.hasSourceDate) {
-    return "Date: Import date";
+    return i18n.t("importDates.dateImport");
   }
 
   if (summary.totalCount === 1) {
-    return `Date: Original file date (${summary.previewLabel})`;
+    return i18n.t("importDates.dateOriginal", { date: summary.previewLabel });
   }
 
   if (summary.availableCount === summary.totalCount) {
-    return `Date: Original file dates (earliest ${summary.previewLabel})`;
+    return i18n.t("importDates.datesOriginal", { date: summary.previewLabel });
   }
 
-  return `Date: Original file dates when available (${summary.availableCount}/${summary.totalCount}, earliest ${summary.previewLabel})`;
+  return i18n.t("importDates.datesPartial", { available: summary.availableCount, total: summary.totalCount, date: summary.previewLabel });
 }
 
 export function buildImportedAssetDateMetadata(
@@ -111,7 +112,7 @@ export function buildImportHelperText(
 
 export async function promptForImportDatePreference(
   assets: Array<Pick<ImportedAudioAsset, "sourceCreatedAt">>,
-  title = "Import audio"
+  title = i18n.t("importDates.title")
 ): Promise<ImportDatePreference | null> {
   const summary = summarizeImportSourceDates(assets);
   if (!summary.hasSourceDate) {
@@ -120,29 +121,29 @@ export async function promptForImportDatePreference(
 
   const message =
     summary.totalCount === 1
-      ? `Original file date: ${summary.previewLabel}\nChoose which date SongNook should use for chronology.`
+      ? i18n.t("importDates.oneMessage", { date: summary.previewLabel })
       : summary.availableCount === summary.totalCount
-        ? `Earliest original file date: ${summary.previewLabel}\nChoose which date SongNook should use for chronology.`
-        : `Original file dates are available for ${summary.availableCount} of ${summary.totalCount} files.\nEarliest original file date: ${summary.previewLabel}\nFiles without one will use import date.`;
+        ? i18n.t("importDates.allMessage", { date: summary.previewLabel })
+        : i18n.t("importDates.partialMessage", { available: summary.availableCount, total: summary.totalCount, date: summary.previewLabel });
 
   return new Promise((resolve) => {
     AppAlert.custom(title, message, [
       {
-        label: "Original date",
-        description: "Use when the file was recorded",
+        label: i18n.t("importDates.original"),
+        description: i18n.t("importDates.originalHint"),
         icon: "calendar-outline",
         style: "default",
         onPress: () => resolve("source"),
       },
       {
-        label: "Today's date",
-        description: "Use when you imported it",
+        label: i18n.t("importDates.today"),
+        description: i18n.t("importDates.todayHint"),
         icon: "time-outline",
         style: "default",
         onPress: () => resolve("import"),
       },
       {
-        label: "Cancel",
+        label: i18n.t("common.cancel"),
         style: "cancel",
         onPress: () => resolve(null),
       },

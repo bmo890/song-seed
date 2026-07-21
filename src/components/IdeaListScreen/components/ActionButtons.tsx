@@ -1,5 +1,6 @@
 import { getHierarchyIconName } from "../../../domain/hierarchy";
 import { FloatingActionDock } from "../../common/FloatingActionDock";
+import { useTranslation } from "react-i18next";
 
 type ActionButtonsProps = {
   onAddProject: () => void;
@@ -18,6 +19,7 @@ export function ActionButtons({
   onImportDevSong,
   onDockLayout,
 }: ActionButtonsProps) {
+  const { t } = useTranslation();
   return (
     <FloatingActionDock
       onDockLayout={onDockLayout}
@@ -25,13 +27,13 @@ export function ActionButtons({
       menuItems={[
         {
           key: "song",
-          label: "Song",
+          label: t("collection.song"),
           icon: getHierarchyIconName("song"),
           onPress: onAddProject,
         },
         {
           key: "import",
-          label: "Import",
+          label: t("collection.import"),
           icon: "download-outline",
           onPress: onImportAudio,
         },
@@ -41,7 +43,7 @@ export function ActionButtons({
           ? [
               {
                 key: "devsamples",
-                label: "Import samples (dev)",
+                label: t("collection.importSamplesDev"),
                 icon: "flask-outline" as const,
                 onPress: onImportDevSamples,
               },
@@ -51,7 +53,7 @@ export function ActionButtons({
           ? [
               {
                 key: "devsong",
-                label: "Import as song (dev)",
+                label: t("collection.importSongDev"),
                 icon: "flask-outline" as const,
                 onPress: onImportDevSong,
               },

@@ -20,6 +20,7 @@ import { AppAlert } from "../../common/AppAlert";
 import { useWorkspaceTheme } from "../../../context/WorkspaceThemeContext";
 import { haptic } from "../../../design/haptics";
 import { toast } from "../../common/toastStore";
+import { useTranslation } from "react-i18next";
 
 type IdeaListItemProps = {
     item: SongIdea;
@@ -64,6 +65,7 @@ function IdeaListItemInner({
     sortMetric,
     lyricsFilterMode,
 }: IdeaListItemProps) {
+    const { t } = useTranslation();
     const listSelectionMode = useStore((s) => s.listSelectionMode);
     const songTargetPicker = useStore((s) => s.songTargetPicker);
     const setSelectedIdeaId = useStore((s) => s.setSelectedIdeaId);
@@ -139,17 +141,17 @@ function IdeaListItemInner({
         const count = songTargetPicker.noteIds.length;
         haptic.tap();
         AppAlert.confirm(
-            "Add to this song?",
-            `Add ${count} page${count === 1 ? "" : "s"} of lyrics to "${item.title}" as new lyrics version${count === 1 ? "" : "s"}?`,
+            t("collection.addToSongTitle"),
+            t("collection.addToSongBody", { count, title: item.title }),
             () => {
                 const result = appActions.completeSongTargetPicking(item.id);
                 haptic.success();
                 toast(
-                    `${result.count} page${result.count === 1 ? "" : "s"} added to "${result.songTitle}"`,
+                    t("collection.pagesAdded", { count: result.count, title: result.songTitle }),
                     "musical-notes-outline"
                 );
             },
-            { confirmLabel: "Add" }
+            { confirmLabel: t("collection.add") }
         );
     };
 
@@ -219,12 +221,12 @@ function IdeaListItemInner({
         <View style={styles.ideasSearchTagRow}>
             {notesMatched ? (
                 <View style={styles.ideasSearchTag}>
-                    <Text style={styles.ideasSearchTagText}>Notes match</Text>
+                    <Text style={styles.ideasSearchTagText}>{t("collection.notesMatch")}</Text>
                 </View>
             ) : null}
             {lyricsMatched ? (
                 <View style={styles.ideasSearchTag}>
-                    <Text style={styles.ideasSearchTagText}>Lyrics match</Text>
+                    <Text style={styles.ideasSearchTagText}>{t("collection.lyricsMatch")}</Text>
                 </View>
             ) : null}
         </View>

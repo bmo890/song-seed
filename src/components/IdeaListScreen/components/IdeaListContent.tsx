@@ -9,6 +9,7 @@ import { CollectionListModel, IdeaListEntry, IdeaListItemMeta } from "../types";
 import { getIdeaSortTimestamp, type IdeaSortMetric } from "../../../domain/ideaSort";
 import { getDateBucket } from "../../../domain/dateBuckets";
 import { EmptyState } from "../../common/EmptyState";
+import { useTranslation } from "react-i18next";
 
 const AnimatedFlatList = ReAnimated.FlatList as unknown as typeof FlatList;
 
@@ -46,6 +47,7 @@ type IdeaListContentProps = {
 export function IdeaListContent(
   props: IdeaListContentProps | { listModel: CollectionListModel }
 ) {
+  const { t } = useTranslation();
   const {
     listRef,
     listEntries,
@@ -133,15 +135,15 @@ export function IdeaListContent(
           searchNeedle ? (
             <EmptyState
               icon="search-outline"
-              title="No matches here"
-              body="Nothing in this collection matches your search. Try fewer or different words."
+              title={t("collection.noMatches")}
+              body={t("collection.noMatchesBody")}
               compact
             />
           ) : (
             <EmptyState
               icon="mic-outline"
-              title="Nothing here yet"
-              body="Tap record and hum the idea — your first take lands right here."
+              title={t("collection.empty")}
+              body={t("collection.emptyBody")}
             />
           )
         ) : null
