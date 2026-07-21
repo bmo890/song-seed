@@ -32,9 +32,9 @@ export function MetronomeScreenContent() {
   const meterLabel =
     METRONOME_METER_PRESETS.find((p) => p.id === model.meterId)?.label ?? "";
   const statusLabel = !model.isNativeAvailable
-    ? "Rebuild the app to use the native metronome engine."
+    ? t("metronome.unavailable")
     : isRunning && model.activeOutputCount === 0
-      ? "No cues active — enable one below"
+      ? t("metronome.noCues")
       : null;
 
   return (
@@ -89,10 +89,10 @@ export function MetronomeScreenContent() {
             }}
             disabled={model.isPreparing || !model.isNativeAvailable}
             accessibilityRole="button"
-            accessibilityLabel={isRunning ? "Stop the metronome" : "Start the metronome"}
+            accessibilityLabel={isRunning ? t("metronome.stopA11y") : t("metronome.startA11y")}
           >
             <Text style={[s.primaryActionText, isRunning ? s.primaryActionTextStop : null]}>
-              {model.isPreparing ? "Preparing…" : isRunning ? "Stop" : "Start"}
+              {model.isPreparing ? t("metronome.preparing") : isRunning ? t("metronome.stop") : t("metronome.start")}
             </Text>
           </Pressable>
 
@@ -101,7 +101,7 @@ export function MetronomeScreenContent() {
 
         {/* Tempo — shared block, identical to the recording sheet */}
         <View style={ms.divider}>
-          <Text style={ms.label}>Tempo</Text>
+          <Text style={ms.label}>{t("metronome.tempo")}</Text>
           <TempoBlock
             bpm={model.bpm}
             tapCount={model.tapCount}
@@ -114,7 +114,7 @@ export function MetronomeScreenContent() {
         {/* Meter — sheet's quiet row, chips promoted to always-visible (a page has room) */}
         <View style={[ms.divider, s.sectionGap]}>
           <View style={ms.quietRow}>
-            <Text style={ms.quietLabel}>Meter</Text>
+            <Text style={ms.quietLabel}>{t("metronome.meter")}</Text>
             <View style={ms.valuePill}>
               <Text style={ms.valueText}>{meterLabel}</Text>
             </View>
@@ -124,7 +124,7 @@ export function MetronomeScreenContent() {
 
         {/* Cues — shared tiles + conditional level controls */}
         <View style={[ms.divider, s.sectionGap]}>
-          <Text style={ms.label}>Cues</Text>
+          <Text style={ms.label}>{t("metronome.cues")}</Text>
           <CueTiles outputs={model.outputs} onToggleOutput={model.toggleOutput} />
           {model.outputs.beep ? (
             <BeepLevelControl
