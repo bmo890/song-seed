@@ -31,6 +31,7 @@ import {
 import type { WordLadderStep } from "../../../types";
 import { EnglishOnlyNotice } from "../../common/EnglishOnlyNotice";
 import { UserTextInput } from "../../../i18n";
+import { useTranslation } from "react-i18next";
 
 const KRAFT_BG = "#F2E9DC";
 
@@ -49,6 +50,7 @@ function formatMissing(parts: string[]): string {
 }
 
 export function WordLadderScreenContent() {
+  const { t } = useTranslation();
   const model = useWordLadderScreenModel();
   const { exercise } = model;
   const [helpVisible, setHelpVisible] = useState(false);
@@ -70,13 +72,11 @@ export function WordLadderScreenContent() {
   if (!exercise) {
     return (
       <SafeAreaView style={[contentStyles.shell, { backgroundColor: KRAFT_BG }]} edges={["top", "bottom"]}>
-        <ScreenHeader title="Word Ladder" leftIcon="back" onLeftPress={model.goBack} />
+        <ScreenHeader title={t("wordSparks.wordLadder")} leftIcon="back" onLeftPress={model.goBack} />
         <View style={contentStyles.missingState}>
           <Ionicons name="trail-sign-outline" size={28} color={colors.textMuted} />
-          <Text style={contentStyles.missingTitle}>This exercise is gone</Text>
-          <Text style={contentStyles.missingBody}>
-            It may have been deleted. Head back to the Lyrics Notebook to start a new one.
-          </Text>
+          <Text style={contentStyles.missingTitle}>{t("wordSparks.gone")}</Text>
+          <Text style={contentStyles.missingBody}>{t("wordSparks.goneBody")}</Text>
         </View>
       </SafeAreaView>
     );
@@ -139,7 +139,7 @@ export function WordLadderScreenContent() {
         behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
       <ScreenHeader
-        title="Word Ladder"
+        title={t("wordSparks.wordLadder")}
         leftIcon="back"
         onLeftPress={model.goBack}
         rightElement={
@@ -157,7 +157,7 @@ export function WordLadderScreenContent() {
       <EnglishOnlyNotice />
 
       <HelpButton
-        label={STEPS.find((s) => s.key === model.step)?.label ?? "Help"}
+        label={t(`wordSparks.${model.step === "setup" ? "words" : model.step === "pairs" ? "pair" : model.step}`)}
         seen={exercise.seenHelpSteps.includes(model.step)}
         onPress={() => {
           model.markHelpSeen(model.step);
@@ -174,7 +174,7 @@ export function WordLadderScreenContent() {
               words={exercise.columnA}
               seedSlot={
                 <SetupSeedField
-                  label="Job / role"
+                  label={t("wordSparks.jobRole")}
                   value={exercise.roleSeed}
                   placeholder={ROLE_SEED_PLACEHOLDER}
                   onChange={model.setRoleSeed}
@@ -192,7 +192,7 @@ export function WordLadderScreenContent() {
               words={exercise.columnB}
               seedSlot={
                 <SetupSeedField
-                  label="Room / place"
+                  label={t("wordSparks.roomPlace")}
                   value={exercise.placeSeed}
                   placeholder={PLACE_SEED_PLACEHOLDER}
                   onChange={model.setPlaceSeed}
@@ -226,7 +226,7 @@ export function WordLadderScreenContent() {
               <Text
                 style={[contentStyles.nextBtnText, !canLeaveSetup ? contentStyles.nextBtnTextDisabled : null]}
               >
-                Next: pair them up
+                {t("wordSparks.nextPair")}
               </Text>
               <Ionicons
                 name="arrow-forward"
@@ -256,7 +256,7 @@ export function WordLadderScreenContent() {
             {!canLeavePairs ? (
               <View style={contentStyles.warnRow}>
                 <Ionicons name="alert-circle-outline" size={14} color={colors.textSecondary} />
-                <Text style={contentStyles.footerHint}>Connect at least one pair to continue.</Text>
+                <Text style={contentStyles.footerHint}>{t("wordSparks.connectPair")}</Text>
               </View>
             ) : unpairedCount > 0 ? (
               <Text style={contentStyles.footerHint}>

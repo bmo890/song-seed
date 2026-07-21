@@ -11,6 +11,7 @@ import { MagpieBuildStep } from "./MagpieBuildStep";
 import { MagpieHelpSheet } from "./MagpieHelpSheet";
 import type { MagpieStep } from "../../../types";
 import { EnglishOnlyNotice } from "../../common/EnglishOnlyNotice";
+import { useTranslation } from "react-i18next";
 
 const KRAFT_BG = "#F2E9DC";
 
@@ -20,6 +21,7 @@ const STEPS: Array<{ key: MagpieStep; label: string }> = [
 ];
 
 export function MagpieScreenContent() {
+  const { t } = useTranslation();
   const model = useMagpieScreenModel();
   const { spark } = model;
   const [helpVisible, setHelpVisible] = useState(false);
@@ -39,13 +41,11 @@ export function MagpieScreenContent() {
   if (!spark) {
     return (
       <SafeAreaView style={[styles.shell, { backgroundColor: KRAFT_BG }]} edges={["top", "bottom"]}>
-        <ScreenHeader title="Magpie" leftIcon="back" onLeftPress={model.goBack} />
+        <ScreenHeader title={t("wordSparks.magpie")} leftIcon="back" onLeftPress={model.goBack} />
         <View style={styles.missingState}>
           <Ionicons name="book-outline" size={28} color={colors.textMuted} />
-          <Text style={styles.missingTitle}>This exercise is gone</Text>
-          <Text style={styles.missingBody}>
-            It may have been deleted. Head back to the Lyrics Notebook to start a new one.
-          </Text>
+          <Text style={styles.missingTitle}>{t("wordSparks.gone")}</Text>
+          <Text style={styles.missingBody}>{t("wordSparks.goneBody")}</Text>
         </View>
       </SafeAreaView>
     );
@@ -60,7 +60,7 @@ export function MagpieScreenContent() {
         behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
         <ScreenHeader
-          title="Magpie"
+          title={t("wordSparks.magpie")}
           leftIcon="back"
           onLeftPress={model.goBack}
           rightElement={
@@ -78,7 +78,7 @@ export function MagpieScreenContent() {
         <EnglishOnlyNotice magpie />
 
         <HelpButton
-          label={STEPS.find((s) => s.key === model.step)?.label ?? "Help"}
+          label={t(model.step === "page" ? "wordSparks.page" : "wordSparks.build")}
           seen={spark.seenHelpSteps.includes(model.step)}
           onPress={() => {
             model.markHelpSeen(model.step);
@@ -101,7 +101,7 @@ export function MagpieScreenContent() {
               onPress={() => model.goToStep("page")}
             >
               <Ionicons name="arrow-back" size={16} color={colors.textSecondary} />
-              <Text style={styles.backBtnText}>The page</Text>
+              <Text style={styles.backBtnText}>{t("wordSparks.page")}</Text>
             </Pressable>
             <Pressable
               style={({ pressed }) => [
@@ -118,7 +118,7 @@ export function MagpieScreenContent() {
                 color={hasDraft ? colors.onPrimary : colors.textSecondary}
               />
               <Text style={[styles.saveBtnText, !hasDraft ? styles.saveBtnTextDisabled : null]}>
-                Save as lyrics
+                {t("wordSparks.saveLyrics")}
               </Text>
             </Pressable>
           </View>

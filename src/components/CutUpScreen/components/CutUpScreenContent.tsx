@@ -13,6 +13,7 @@ import { CutUpDraftEditor } from "./CutUpDraftEditor";
 import { CutUpHelpSheet } from "./CutUpHelpSheet";
 import type { CutUpStep } from "../../../types";
 import { EnglishOnlyNotice } from "../../common/EnglishOnlyNotice";
+import { useTranslation } from "react-i18next";
 
 const KRAFT_BG = "#F2E9DC";
 
@@ -24,6 +25,7 @@ const STEPS: Array<{ key: CutUpStep; label: string }> = [
 ];
 
 export function CutUpScreenContent() {
+  const { t } = useTranslation();
   const model = useCutUpScreenModel();
   const { spark } = model;
   const [helpVisible, setHelpVisible] = useState(false);
@@ -43,13 +45,11 @@ export function CutUpScreenContent() {
   if (!spark) {
     return (
       <SafeAreaView style={[styles.shell, { backgroundColor: KRAFT_BG }]} edges={["top", "bottom"]}>
-        <ScreenHeader title="Cut-Up" leftIcon="back" onLeftPress={model.goBack} />
+        <ScreenHeader title={t("wordSparks.cutUp")} leftIcon="back" onLeftPress={model.goBack} />
         <View style={styles.missingState}>
           <Ionicons name="cut-outline" size={28} color={colors.textMuted} />
-          <Text style={styles.missingTitle}>This exercise is gone</Text>
-          <Text style={styles.missingBody}>
-            It may have been deleted. Head back to the Lyrics Notebook to start a new one.
-          </Text>
+          <Text style={styles.missingTitle}>{t("wordSparks.gone")}</Text>
+          <Text style={styles.missingBody}>{t("wordSparks.goneBody")}</Text>
         </View>
       </SafeAreaView>
     );
@@ -68,7 +68,7 @@ export function CutUpScreenContent() {
         behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
         <ScreenHeader
-          title="Cut-Up"
+          title={t("wordSparks.cutUp")}
           leftIcon="back"
           onLeftPress={model.goBack}
           rightElement={
@@ -86,7 +86,7 @@ export function CutUpScreenContent() {
         <EnglishOnlyNotice />
 
         <HelpButton
-          label={STEPS.find((s) => s.key === model.step)?.label ?? "Help"}
+          label={t(`wordSparks.${model.step === "chunk" ? "cut" : model.step === "board" ? "arrange" : model.step}`)}
           seen={spark.seenHelpSteps.includes(model.step)}
           onPress={() => {
             model.markHelpSeen(model.step);
@@ -116,7 +116,7 @@ export function CutUpScreenContent() {
                 disabled={!canLeaveSource}
               >
                 <Text style={[styles.nextBtnText, !canLeaveSource ? styles.nextBtnTextDisabled : null]}>
-                  Next: cut it up
+                  {t("wordSparks.nextCut")}
                 </Text>
                 <Ionicons
                   name="arrow-forward"
@@ -128,35 +128,35 @@ export function CutUpScreenContent() {
 
             {model.step === "chunk" ? (
               <FooterRow
-                backLabel="Source"
+                backLabel={t("wordSparks.source")}
                 onBack={() => model.goToStep("source")}
-                nextLabel="Next: to the board"
+                nextLabel={t("wordSparks.nextBoard")}
                 onNext={() => model.goToStep("board")}
                 canNext={canLeaveChunk}
-                disabledHint={canLeaveChunk ? null : "Add some source text to cut."}
+                disabledHint={canLeaveChunk ? null : t("wordSparks.sourceNeeded")}
               />
             ) : null}
 
             {model.step === "board" ? (
               <FooterRow
-                backLabel="Cut"
+                backLabel={t("wordSparks.cut")}
                 onBack={() => model.goToStep("chunk")}
-                nextLabel="Next: rebuild draft"
+                nextLabel={t("wordSparks.nextRebuild")}
                 onNext={() => model.goToStep("draft")}
                 canNext={canLeaveBoard}
-                disabledHint={canLeaveBoard ? null : "Keep at least one strip on the board."}
+                disabledHint={canLeaveBoard ? null : t("wordSparks.boardNeeded")}
               />
             ) : null}
 
             {model.step === "draft" ? (
               <FooterRow
-                backLabel="Arrange"
+                backLabel={t("wordSparks.arrange")}
                 onBack={() => model.goToStep("board")}
-                nextLabel="Save as lyrics"
+                nextLabel={t("wordSparks.saveLyrics")}
                 nextIcon="bookmark-outline"
                 onNext={model.saveAsLyrics}
                 canNext={hasDraft}
-                disabledHint={hasDraft ? null : "Rebuild or write a draft to save."}
+                disabledHint={hasDraft ? null : t("wordSparks.draftNeeded")}
               />
             ) : null}
           </View>
