@@ -26,6 +26,7 @@ import {
   SectionEdgeAdjuster,
   SectionPickerModal,
 } from "./sectionModals";
+import { useTranslation } from "react-i18next";
 
 type PlayerPracticePanelProps = {
   expandedTool: PracticeTool | null;
@@ -97,10 +98,10 @@ type PlayerPracticePanelProps = {
 };
 
 
-const SETTING_META: Record<"speed" | "pitch" | "countin", { icon: keyof typeof Ionicons.glyphMap; label: string }> = {
-  speed: { icon: "speedometer-outline", label: "Speed" },
-  pitch: { icon: "musical-notes-outline", label: "Pitch" },
-  countin: { icon: "timer-outline", label: "Count-in" },
+const SETTING_META: Record<"speed" | "pitch" | "countin", { icon: keyof typeof Ionicons.glyphMap; labelKey: string }> = {
+  speed: { icon: "speedometer-outline", labelKey: "player.speed" },
+  pitch: { icon: "musical-notes-outline", labelKey: "player.pitch" },
+  countin: { icon: "timer-outline", labelKey: "player.countIn" },
 };
 
 export function PlayerPracticePanel({
@@ -154,6 +155,7 @@ export function PlayerPracticePanel({
   onRecordOverdub,
   onRecordLayerAt,
 }: PlayerPracticePanelProps) {
+  const { t } = useTranslation();
   const [settingsRowHeight, setSettingsRowHeight] = useState(64);
   // Type picker (for the + add button), the new-custom / edit detail modal, and which edge
   // (start|end) the single per-section adjuster is currently controlling.
@@ -182,15 +184,15 @@ export function PlayerPracticePanel({
   const isPitchOriginal = pitchShiftSemitones === 0;
   const sortedMarkers = [...practiceMarkers].sort((a, b) => a.atMs - b.atMs);
 
-  const pinsValue = sortedMarkers.length === 0 ? "None" : `${sortedMarkers.length} pin${sortedMarkers.length === 1 ? "" : "s"}`;
-  const loopValue = practiceLoopEnabled ? practiceRangeLabel : "Off";
+  const pinsValue = sortedMarkers.length === 0 ? t("player.none") : t("player.pins", { count: sortedMarkers.length });
+  const loopValue = practiceLoopEnabled ? practiceRangeLabel : t("player.off");
   const sectionsValue =
-    sections.length === 0 ? "None" : `${sections.length} part${sections.length === 1 ? "" : "s"}`;
+    sections.length === 0 ? t("player.none") : t("player.parts", { count: sections.length });
   const speedValue = `${playbackSpeed}×`;
   const pitchValue = !supportsPitchShift
     ? "—"
     : `${pitchShiftSemitones > 0 ? "+" : ""}${pitchShiftSemitones}`;
-  const countInValue = countInOption === "off" ? "Off" : countInOption === "1b" ? "1 bar" : "2 bars";
+  const countInValue = countInOption === "off" ? t("player.off") : t("player.bars", { count: countInOption === "1b" ? 1 : 2 });
 
   const settingValues = { speed: speedValue, pitch: pitchValue, countin: countInValue };
   const settingOrder: ("speed" | "pitch" | "countin")[] = ["speed", "pitch", "countin"];
@@ -243,7 +245,7 @@ export function PlayerPracticePanel({
             onPress={() => canDecreasePitch && onAdjustPitchShift(pitchShiftSemitones - 1)}
             disabled={!canDecreasePitch}
             accessibilityRole="button"
-            accessibilityLabel="Lower pitch by one semitone"
+            accessibilityLabel={t("player.lowerPitch")}
           >
             <Ionicons name="remove" size={18} color={canDecreasePitch ? colors.textStrong : colors.textMuted} />
           </Pressable>
@@ -252,20 +254,20 @@ export function PlayerPracticePanel({
               {pitchShiftSemitones > 0 ? "+" : ""}
               {pitchShiftSemitones}
             </Text>
-            <Text style={s.toolPitchUnit}>st</Text>
+            <Text style={s.toolPitchUnit}>{t("player.semitones")}</Text>
           </View>
           <Pressable
             style={[s.stepButton, !canIncreasePitch ? s.stepButtonDisabled : null]}
             onPress={() => canIncreasePitch && onAdjustPitchShift(pitchShiftSemitones + 1)}
             disabled={!canIncreasePitch}
             accessibilityRole="button"
-            accessibilityLabel="Raise pitch by one semitone"
+            accessibilityLabel={t("player.raisePitch")}
           >
             <Ionicons name="add" size={18} color={canIncreasePitch ? colors.textStrong : colors.textMuted} />
           </Pressable>
           <View style={s.pitchSpacer} />
           <Chip
-            label={supportsPitchShift ? "Original" : "Unavailable"}
+            label={supportsPitchShift ? t("player.original") : t("player.unavailable")}
             active={isPitchOriginal && supportsPitchShift}
             disabled={!supportsPitchShift}
             onPress={() => supportsPitchShift && onAdjustPitchShift(0)}
@@ -276,9 +278,9 @@ export function PlayerPracticePanel({
     return (
       <View style={s.toolChipRow}>
         {([
-          { key: "off" as const, label: "Off" },
-          { key: "1b" as const, label: "1 bar" },
-          { key: "2b" as const, label: "2 bars" },
+          { key: "off" as const, label: t("player.off") },
+          { key: "1b" as const, label: t("player.bars", { count: 1 }) },
+          { key: "2b" as const, label: t("player.bars", { count: 2 }) },
         ]).map((option) => (
           <Chip
             key={option.key}
@@ -302,7 +304,7 @@ export function PlayerPracticePanel({
               <View style={s.analysisSep} />
               <Text style={s.analysisValue}>{formatBpmLabel(analysis)}</Text>
               {analysis && analysis.bpm != null && !isTempoSteady(analysis) ? (
-                <Text style={s.analysisHint}>loose</Text>
+                <Text style={s.analysisHint}>{t("player.loose")}</Text>
               ) : null}
               <View style={{ flex: 1 }} />
               <Pressable
@@ -310,7 +312,7 @@ export function PlayerPracticePanel({
                 disabled={isAnalyzing}
                 hitSlop={8}
                 accessibilityRole="button"
-                accessibilityLabel="Re-detect key and tempo"
+                accessibilityLabel={t("player.redetect")}
               >
                 <Ionicons name={isAnalyzing ? "sync" : "refresh"} size={15} color={colors.textMuted} />
               </Pressable>
@@ -321,10 +323,10 @@ export function PlayerPracticePanel({
               onPress={onDetectAnalysis}
               disabled={isAnalyzing}
               accessibilityRole="button"
-              accessibilityLabel="Detect key and tempo"
+              accessibilityLabel={t("player.detect")}
             >
               <Ionicons name={isAnalyzing ? "sync" : "sparkles-outline"} size={15} color={colors.primary} />
-              <Text style={s.analysisDetectText}>{isAnalyzing ? "Analyzing…" : "Detect key & tempo"}</Text>
+              <Text style={s.analysisDetectText}>{isAnalyzing ? t("player.analyzing") : t("player.detect")}</Text>
             </Pressable>
           )}
         </View>
@@ -334,7 +336,7 @@ export function PlayerPracticePanel({
       <AccordionRow
         tool="sections"
         icon="layers-outline"
-        label="Sections"
+        label={t("player.sections")}
         value={sectionsValue}
         valueOnLeft
         headerAccessory={
@@ -343,7 +345,7 @@ export function PlayerPracticePanel({
             onPress={() => setPickerOpen(true)}
             hitSlop={8}
             accessibilityRole="button"
-            accessibilityLabel="Add a section"
+            accessibilityLabel={t("player.addSection")}
           >
             <Ionicons name="add" size={18} color={colors.onPrimary} />
           </Pressable>
@@ -352,7 +354,7 @@ export function PlayerPracticePanel({
         onToggle={onToggleTool}
       >
         {sections.length === 0 ? (
-          <Text style={s.pinEmptyText}>No sections yet — tap the + to map the song.</Text>
+          <Text style={s.pinEmptyText}>{t("player.noSections")}</Text>
         ) : (
           sections.map((section, index) => {
             const swatchColor = getSectionColor(section);
@@ -371,7 +373,7 @@ export function PlayerPracticePanel({
                     style={s.sectionRowLabel}
                     onPress={() => onSeekSection(section.startMs)}
                     accessibilityRole="button"
-                    accessibilityLabel={`Jump to ${section.label} at ${fmtDuration(section.startMs)}`}
+                    accessibilityLabel={t("player.jumpSection", { title: section.label, time: fmtDuration(section.startMs) })}
                   >
                     <View style={[s.sectionSwatch, { backgroundColor: swatchColor }]} />
                     <Text style={s.sectionRowLabelText} numberOfLines={1}>
@@ -384,7 +386,7 @@ export function PlayerPracticePanel({
                     style={[s.sectionTimeChip, isEditing && activeEdge === "start" ? s.sectionTimeChipActive : null]}
                     onPress={() => openEdgeAdjuster(section, "start")}
                     accessibilityRole="button"
-                    accessibilityLabel={`Edit start (${fmtDuration(section.startMs)})`}
+                    accessibilityLabel={t("player.editStart", { time: fmtDuration(section.startMs) })}
                   >
                     <Text
                       style={[
@@ -400,7 +402,7 @@ export function PlayerPracticePanel({
                     style={[s.sectionTimeChip, isEditing && activeEdge === "end" ? s.sectionTimeChipActive : null]}
                     onPress={() => openEdgeAdjuster(section, "end")}
                     accessibilityRole="button"
-                    accessibilityLabel={`Edit end (${fmtDuration(section.endMs)})`}
+                    accessibilityLabel={t("player.editEnd", { time: fmtDuration(section.endMs) })}
                   >
                     <Text
                       style={[
@@ -416,7 +418,7 @@ export function PlayerPracticePanel({
                     hitSlop={6}
                     style={s.sectionRowIcon}
                     accessibilityRole="button"
-                    accessibilityLabel={`Record a layer from ${section.label}`}
+                    accessibilityLabel={t("player.recordFromTitle", { title: section.label })}
                   >
                     <Ionicons name="mic-outline" size={16} color={colors.primary} />
                   </Pressable>
@@ -425,7 +427,7 @@ export function PlayerPracticePanel({
                     hitSlop={6}
                     style={s.sectionRowIcon}
                     accessibilityRole="button"
-                    accessibilityLabel={`Edit ${section.label} name and colour`}
+                    accessibilityLabel={t("player.editSectionDetails", { title: section.label })}
                   >
                     <Ionicons name="ellipsis-horizontal" size={16} color={colors.textMuted} />
                   </Pressable>
@@ -435,7 +437,7 @@ export function PlayerPracticePanel({
                     style={s.sectionRowIcon}
                     accessibilityRole="button"
                     accessibilityState={{ expanded: isEditing }}
-                    accessibilityLabel={isEditing ? "Hide timing" : "Adjust timing"}
+                    accessibilityLabel={isEditing ? t("player.hideTiming") : t("player.adjustTiming")}
                   >
                     <Ionicons
                       name={isEditing ? "chevron-up" : "chevron-down"}
@@ -462,7 +464,7 @@ export function PlayerPracticePanel({
 
       <SectionPickerModal
         visible={pickerOpen}
-        title="Add section"
+        title={t("player.addSection")}
         customOptions={customSectionOptions}
         onPickPreset={(kind) => {
           onAddSection(kind);
@@ -480,8 +482,8 @@ export function PlayerPracticePanel({
       />
       <SectionDetailModal
         visible={detailModal != null}
-        title={detailModal?.mode === "edit" ? "Edit section" : "New section"}
-        confirmLabel={detailModal?.mode === "edit" ? "Save" : "Add"}
+        title={detailModal?.mode === "edit" ? t("player.editSection") : t("player.newSection")}
+        confirmLabel={detailModal?.mode === "edit" ? t("common.save") : t("songDetail.add")}
         initialName={detailModal?.mode === "edit" ? detailModal.section.label : ""}
         initialColor={
           detailModal?.mode === "edit" ? getSectionColor(detailModal.section) : hueToAccentHex(210)
@@ -501,7 +503,7 @@ export function PlayerPracticePanel({
       <AccordionRow
         tool="pins"
         icon="location-outline"
-        label="Pins"
+        label={t("player.pins")}
         value={pinsValue}
         valueOnLeft
         headerAccessory={
@@ -510,7 +512,7 @@ export function PlayerPracticePanel({
             onPress={onAddPin}
             hitSlop={8}
             accessibilityRole="button"
-            accessibilityLabel="Add a pin at the playhead"
+            accessibilityLabel={t("player.addPin")}
           >
             <Ionicons name="add" size={18} color={colors.onPrimary} />
           </Pressable>
@@ -519,7 +521,7 @@ export function PlayerPracticePanel({
         onToggle={onToggleTool}
       >
         {sortedMarkers.length === 0 ? (
-          <Text style={s.pinEmptyText}>No pins yet — tap the + to drop one at the playhead.</Text>
+          <Text style={s.pinEmptyText}>{t("player.noPins")}</Text>
         ) : (
           sortedMarkers.map((marker, index) => {
             const isExpanded = expandedPinId === marker.id;
@@ -538,11 +540,11 @@ export function PlayerPracticePanel({
                     style={s.sectionRowLabel}
                     onPress={() => onSeekPin(marker.atMs)}
                     accessibilityRole="button"
-                    accessibilityLabel={`Jump to ${marker.label || "pin"} at ${fmtDuration(marker.atMs)}`}
+                    accessibilityLabel={t("player.jumpPin", { title: marker.label || t("player.pin"), time: fmtDuration(marker.atMs) })}
                   >
                     <View style={s.pinDot} />
                     <Text style={s.sectionRowLabelText} numberOfLines={1}>
-                      {marker.label || "Pin"}
+                      {marker.label || t("player.pin")}
                     </Text>
                     {hasNote ? (
                       <Ionicons name="document-text-outline" size={13} color={colors.textMuted} />
@@ -552,7 +554,7 @@ export function PlayerPracticePanel({
                     style={[s.sectionTimeChip, isExpanded ? s.sectionTimeChipActive : null]}
                     onPress={() => onTogglePinExpanded(marker)}
                     accessibilityRole="button"
-                    accessibilityLabel={`Edit time (${fmtDuration(marker.atMs)})`}
+                    accessibilityLabel={t("player.editTime", { time: fmtDuration(marker.atMs) })}
                   >
                     <Text style={[s.sectionTimeChipText, isExpanded ? s.sectionTimeChipTextActive : null]}>
                       {fmtDuration(marker.atMs)}
@@ -563,7 +565,7 @@ export function PlayerPracticePanel({
                     hitSlop={6}
                     style={s.sectionRowIcon}
                     accessibilityRole="button"
-                    accessibilityLabel={`Record a layer from ${marker.label || "this pin"}`}
+                    accessibilityLabel={t("player.recordFromTitle", { title: marker.label || t("player.thisPin") })}
                   >
                     <Ionicons name="mic-outline" size={16} color={colors.primary} />
                   </Pressable>
@@ -572,7 +574,7 @@ export function PlayerPracticePanel({
                     hitSlop={6}
                     style={s.sectionRowIcon}
                     accessibilityRole="button"
-                    accessibilityLabel={`Edit ${marker.label || "pin"} name and note`}
+                    accessibilityLabel={t("player.editPinDetails", { title: marker.label || t("player.pin") })}
                   >
                     <Ionicons name="ellipsis-horizontal" size={16} color={colors.textMuted} />
                   </Pressable>
@@ -582,7 +584,7 @@ export function PlayerPracticePanel({
                     style={s.sectionRowIcon}
                     accessibilityRole="button"
                     accessibilityState={{ expanded: isExpanded }}
-                    accessibilityLabel={isExpanded ? "Hide timing" : "Adjust timing"}
+                    accessibilityLabel={isExpanded ? t("player.hideTiming") : t("player.adjustTiming")}
                   >
                     <Ionicons
                       name={isExpanded ? "chevron-up" : "chevron-down"}
@@ -628,7 +630,7 @@ export function PlayerPracticePanel({
       <AccordionRow
         tool="loop"
         icon="infinite"
-        label="Loop"
+        label={t("player.loop")}
         value={loopValue}
         headerAccessory={
           <Pressable
@@ -636,7 +638,7 @@ export function PlayerPracticePanel({
             onPress={onTogglePracticeLoop}
             accessibilityRole="switch"
             accessibilityState={{ checked: practiceLoopEnabled }}
-            accessibilityLabel="Toggle loop"
+            accessibilityLabel={t("player.toggleLoop")}
           >
             <View style={[s.switchKnob, practiceLoopEnabled ? s.switchKnobActive : null]} />
           </Pressable>
@@ -645,7 +647,7 @@ export function PlayerPracticePanel({
         onToggle={onToggleTool}
       >
         {!practiceLoopEnabled ? (
-          <Text style={s.pinEmptyText}>Turn Loop on to set a practice region.</Text>
+          <Text style={s.pinEmptyText}>{t("player.loopHint")}</Text>
         ) : (
           <>
             <View style={s.loopControlsRow}>
@@ -654,7 +656,7 @@ export function PlayerPracticePanel({
                 onPress={onSeekLoopStart}
                 hitSlop={6}
                 accessibilityRole="button"
-                accessibilityLabel="Jump playhead to loop start"
+                accessibilityLabel={t("player.jumpLoopStart")}
               >
                 <Ionicons name="play-skip-back" size={13} color={colors.textStrong} />
                 <Text style={s.toolLoopText}>{practiceRangeLabel}</Text>
@@ -664,7 +666,7 @@ export function PlayerPracticePanel({
                 onPress={onMoveLoopToPlayhead}
                 hitSlop={6}
                 accessibilityRole="button"
-                accessibilityLabel="Move loop to the playhead"
+                accessibilityLabel={t("player.moveLoop")}
               >
                 <Ionicons name="locate-outline" size={16} color={colors.textStrong} />
               </Pressable>
@@ -674,11 +676,11 @@ export function PlayerPracticePanel({
               onPress={() => sections.length > 0 && setLoopPickerOpen(true)}
               disabled={sections.length === 0}
               accessibilityRole="button"
-              accessibilityLabel="Loop a section"
+              accessibilityLabel={t("player.loopSection")}
             >
               <Ionicons name="layers-outline" size={15} color={colors.textSecondary} />
               <Text style={s.sectionChangeTypeText}>
-                {sections.length === 0 ? "No sections to loop" : "Loop a section"}
+                {sections.length === 0 ? t("player.noSectionsLoop") : t("player.loopSection")}
               </Text>
               <View style={{ flex: 1 }} />
               <Ionicons name="chevron-forward" size={15} color={colors.textMuted} />
@@ -712,13 +714,13 @@ export function PlayerPracticePanel({
                 onPress={() => onToggleTool(tool)}
                 accessibilityRole="button"
                 accessibilityState={{ expanded: active }}
-                accessibilityLabel={`${meta.label}: ${settingValues[tool]}`}
+                accessibilityLabel={`${t(meta.labelKey)}: ${settingValues[tool]}`}
               >
                 <Ionicons name={meta.icon} size={18} color={active ? colors.primary : colors.textSecondary} />
                 <Text style={s.settingChipValue} numberOfLines={1}>
                   {settingValues[tool]}
                 </Text>
-                <Text style={s.settingChipLabel}>{meta.label}</Text>
+                <Text style={s.settingChipLabel}>{t(meta.labelKey)}</Text>
               </Pressable>
             );
           })}
@@ -736,13 +738,13 @@ export function PlayerPracticePanel({
         accessibilityRole="button"
         accessibilityLabel={
           playheadMs > 1000
-            ? `Record a layer from ${fmtDuration(playheadMs)}`
-            : "Record a new layer over this take"
+            ? t("player.recordLayerFrom", { time: fmtDuration(playheadMs) })
+            : t("player.recordLayerOver")
         }
       >
         <View style={s.recordLayerDot} />
         <Text style={s.recordLayerText}>
-          {playheadMs > 1000 ? `Record a layer from ${fmtDuration(playheadMs)}` : "Record a layer"}
+          {playheadMs > 1000 ? t("player.recordLayerFrom", { time: fmtDuration(playheadMs) }) : t("player.recordLayer")}
         </Text>
       </Pressable>
     </View>

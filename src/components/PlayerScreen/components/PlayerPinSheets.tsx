@@ -6,6 +6,8 @@ import { fmtDuration } from "../../../utils";
 import { playerScreenStyles } from "../styles";
 import { styles as appStyles } from "../../../styles";
 import { colors } from "../../../design/tokens";
+import { useTranslation } from "react-i18next";
+import { UserTextInput } from "../../../i18n";
 
 type PlayerPinSheetsProps = {
   pinModalVisible: boolean;
@@ -40,6 +42,7 @@ export function PlayerPinSheets({
   onRenamePin,
   onDeletePin,
 }: PlayerPinSheetsProps) {
+  const { t } = useTranslation();
   return (
     <>
       <BottomSheet
@@ -49,12 +52,12 @@ export function PlayerPinSheets({
         keyboardAvoiding
       >
         <View style={playerScreenStyles.pinSheetContent}>
-          <Text style={playerScreenStyles.pinSheetTitle}>Add Practice Pin</Text>
-          <Text style={playerScreenStyles.pinSheetTime}>at {fmtDuration(playerPosition)}</Text>
+          <Text style={playerScreenStyles.pinSheetTitle}>{t("player.addPracticePin")}</Text>
+          <Text style={playerScreenStyles.pinSheetTime}>{t("player.atTime", { time: fmtDuration(playerPosition) })}</Text>
 
-          <TextInput
+          <UserTextInput
             style={playerScreenStyles.pinSheetInput}
-            placeholder="e.g., Chorus, Bridge, Solo"
+            placeholder={t("player.pinExample")}
             placeholderTextColor="#94a3b8"
             value={newPinLabel}
             onChangeText={onChangeNewPinLabel}
@@ -78,7 +81,7 @@ export function PlayerPinSheets({
                   playerScreenStyles.pinSheetButtonSecondaryText,
                 ]}
               >
-                Cancel
+                {t("common.cancel")}
               </Text>
             </Pressable>
             <Pressable
@@ -96,7 +99,7 @@ export function PlayerPinSheets({
                   !newPinLabel.trim() ? playerScreenStyles.pinSheetButtonTextDisabled : null,
                 ]}
               >
-                Save Pin
+                {t("player.savePin")}
               </Text>
             </Pressable>
           </View>
@@ -106,15 +109,15 @@ export function PlayerPinSheets({
       <BottomSheet visible={pinActionsVisible} onClose={onCloseActions} keyboardAvoiding>
         <View style={playerScreenStyles.pinSheetContent}>
           <Text style={playerScreenStyles.pinSheetTitle}>
-            {pinTargetLabel || "Unnamed pin"}
+            {pinTargetLabel || t("player.unnamedPin")}
           </Text>
           <Text style={playerScreenStyles.pinSheetTime}>
-            at {pinTargetAtMs === null ? "" : fmtDuration(pinTargetAtMs)}
+            {pinTargetAtMs === null ? "" : t("player.atTime", { time: fmtDuration(pinTargetAtMs) })}
           </Text>
 
-          <TextInput
+          <UserTextInput
             style={playerScreenStyles.pinSheetInput}
-            placeholder="Rename pin"
+            placeholder={t("player.renamePin")}
             placeholderTextColor="#94a3b8"
             value={pinRenameValue}
             onChangeText={onChangePinRenameValue}
@@ -133,7 +136,7 @@ export function PlayerPinSheets({
               onPress={onDeletePin}
             >
               <Ionicons name="trash-outline" size={15} color={colors.surface} style={{ marginRight: 4 }} />
-              <Text style={playerScreenStyles.pinSheetButtonText}>Delete</Text>
+              <Text style={playerScreenStyles.pinSheetButtonText}>{t("common.delete")}</Text>
             </Pressable>
             <Pressable
               style={({ pressed }) => [
@@ -150,7 +153,7 @@ export function PlayerPinSheets({
                   !pinRenameValue.trim() ? playerScreenStyles.pinSheetButtonTextDisabled : null,
                 ]}
               >
-                Save
+                {t("common.save")}
               </Text>
             </Pressable>
           </View>

@@ -18,6 +18,7 @@ import { useStore } from "../../../state/useStore";
 import type { SongIdea } from "../../../types";
 import { getCollectionById } from "../../../utils";
 import { extractLyricsMarkers, getNoteSummary } from "../helpers";
+import { useTranslation } from "react-i18next";
 
 const EMPTY_IDEAS: SongIdea[] = [];
 
@@ -36,6 +37,7 @@ type UsePlayerScreenDataArgs = {
 };
 
 export function usePlayerScreenData({ playerDuration, isPlaying = false }: UsePlayerScreenDataArgs) {
+  const { t } = useTranslation();
   const playerTarget = useStore((s) => s.playerTarget);
   const playerQueue = useStore((s) => s.playerQueue);
   const playerQueueIndex = useStore((s) => s.playerQueueIndex);
@@ -137,7 +139,7 @@ export function usePlayerScreenData({ playerDuration, isPlaying = false }: UsePl
   );
   const analysis = playerClip?.analysis ?? null;
   const clipNotes = playerClip?.notes ?? "";
-  const clipNotesSummary = getNoteSummary(clipNotes);
+  const clipNotesSummary = getNoteSummary(clipNotes, t("player.noNotes"));
   const clipOverdubStemCount = playerClip ? getClipOverdubStemCount(playerClip) : 0;
   const hasClipOverdubs = playerClip ? clipHasOverdubs(playerClip) : false;
   const overdubRootSettings = playerClip ? getClipOverdubRootSettings(playerClip) : null;
@@ -146,7 +148,7 @@ export function usePlayerScreenData({ playerDuration, isPlaying = false }: UsePl
       (playerClip?.overdub?.stems ?? []).map((stem, index) => ({
         id: stem.id,
         title: stem.title,
-        meta: stem.isMuted ? "Muted stem" : `Overdub ${index + 1}`,
+        meta: stem.isMuted ? t("player.mutedStem") : t("player.overdubNumber", { number: index + 1 }),
         audioUri: stem.audioUri ?? null,
         durationMs: stem.durationMs ?? 0,
         waveformPeaks: stem.waveformPeaks,
@@ -156,7 +158,7 @@ export function usePlayerScreenData({ playerDuration, isPlaying = false }: UsePl
         tonePreset: stem.tonePreset,
         color: getOverdubStemColor(stem, index),
       })),
-    [playerClip?.overdub?.stems]
+    [playerClip?.overdub?.stems, t]
   );
 
   return {

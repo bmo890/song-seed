@@ -16,6 +16,7 @@ import { openShelf } from "../../../navigation";
 import { toast } from "../../common/toastStore";
 import { haptic } from "../../../design/haptics";
 import type { ClipVersion } from "../../../types";
+import { useTranslation } from "react-i18next";
 
 type UsePlayerScreenLifecycleArgs = {
   navigation: any;
@@ -105,6 +106,7 @@ export function usePlayerScreenLifecycle({
   prepareTransportForClose,
   onShowHelp,
 }: UsePlayerScreenLifecycleArgs) {
+  const { t } = useTranslation();
   const handledToggleTokenRef = useRef(playerToggleRequestToken);
   const handledCloseTokenRef = useRef(playerCloseRequestToken);
   const handledFinishTokenRef = useRef(0);
@@ -448,7 +450,7 @@ export function usePlayerScreenLifecycle({
         .find((idea) => idea.id === savedTarget.ideaId);
       const savedClip = savedIdea?.clips.find((clip) => clip.id === savedTarget.clipId) ?? null;
       if (!savedIdea || !savedClip?.audioUri) {
-        throw new Error("Combined clip could not be opened for editing.");
+        throw new Error(t("player.combinedOpenFailed"));
       }
 
       navigation.navigate("Editor", {
@@ -459,9 +461,9 @@ export function usePlayerScreenLifecycle({
       });
     };
 
-    AppAlert.custom("Player options", playerClip?.title ?? undefined, [
+    AppAlert.custom(t("player.options"), playerClip?.title ?? undefined, [
       {
-        label: "Add overdub",
+        label: t("player.addOverdub"),
         style: "default",
         icon: actionIcons.record,
         onPress: async () => {
@@ -480,15 +482,15 @@ export function usePlayerScreenLifecycle({
             navigation.navigate("Recording" as never);
           } catch (error) {
             const message =
-              error instanceof Error ? error.message : "Could not start overdub recording.";
-            AppAlert.info("Overdub unavailable", message);
+              error instanceof Error ? error.message : t("player.overdubStartFailed");
+            AppAlert.info(t("player.overdubUnavailable"), message);
           }
         },
       },
       ...(hasOverdubs
         ? [
             {
-              label: "Save combined as new clip",
+              label: t("player.saveCombinedNew"),
               style: "default" as const,
               icon: actionIcons.add,
               onPress: async () => {
@@ -502,16 +504,16 @@ export function usePlayerScreenLifecycle({
                     navigation.goBack();
                     return;
                   }
-                  AppAlert.info("Combined clip saved", "The flattened mix was added as a new clip.");
+                  AppAlert.info(t("player.combinedSaved"), t("player.combinedSavedBody"));
                 } catch (error) {
                   const message =
-                    error instanceof Error ? error.message : "Could not save a combined clip.";
-                  AppAlert.info("Save combined failed", message);
+                    error instanceof Error ? error.message : t("player.combinedSaveBody");
+                  AppAlert.info(t("player.combinedSaveFailed"), message);
                 }
               },
             },
             {
-              label: "Save combined and edit",
+              label: t("player.saveCombinedEdit"),
               style: "default" as const,
               icon: actionIcons.edit,
               onPress: async () => {
@@ -519,15 +521,15 @@ export function usePlayerScreenLifecycle({
                   await openFlattenedEditor();
                 } catch (error) {
                   const message =
-                    error instanceof Error ? error.message : "Could not open the combined clip.";
-                  AppAlert.info("Save combined failed", message);
+                    error instanceof Error ? error.message : t("player.combinedOpenFailed");
+                  AppAlert.info(t("player.combinedSaveFailed"), message);
                 }
               },
             },
           ]
         : [
             {
-              label: "Edit clip",
+              label: t("player.editClip"),
               style: "default" as const,
               icon: actionIcons.edit,
               onPress: async () => {
@@ -545,7 +547,7 @@ export function usePlayerScreenLifecycle({
             },
           ]),
       {
-        label: "How practice works",
+        label: t("player.practiceHelp"),
         style: "default" as const,
         icon: "help-circle-outline" as const,
         onPress: () => onShowHelp("practice"),
@@ -553,7 +555,7 @@ export function usePlayerScreenLifecycle({
       ...(hasOverdubs
         ? [
             {
-              label: "How overdubs work",
+              label: t("player.overdubHelp"),
               style: "default" as const,
               icon: "help-circle-outline" as const,
               onPress: () => onShowHelp("overdub"),
@@ -561,33 +563,33 @@ export function usePlayerScreenLifecycle({
           ]
         : []),
       {
-        label: "Share audio",
+        label: t("player.shareAudio"),
         style: "default",
         icon: actionIcons.share,
         onPress: async () => {
           const playbackUri = playerClip ? getClipPlaybackUri(playerClip) : null;
           if (!playbackUri) return;
-          const clipTitle = playerClip?.title ?? "Clip";
+          const clipTitle = playerClip?.title ?? t("player.clip");
           try {
             await shareAudioFile(playbackUri, clipTitle);
           } catch (error) {
             console.warn("Share audio error", error);
-            const message = error instanceof Error ? error.message : "Could not share this audio file.";
-            AppAlert.info("Share failed", message);
+            const message = error instanceof Error ? error.message : t("player.shareAudioFailed");
+            AppAlert.info(t("player.shareFailed"), message);
           }
         },
       },
       {
-        label: "Set aside",
+        label: t("player.setAside"),
         style: "default",
         icon: "file-tray-outline",
         onPress: () => {
           if (!playerIdea) return;
           useShelfStore.getState().setAside([{ kind: "idea", id: playerIdea.id }]);
           haptic.success();
-          toast("On the shelf for 7 days", "file-tray-outline", {
+          toast(t("player.onShelf"), "file-tray-outline", {
             action: {
-              label: "View shelf",
+              label: t("player.viewShelf"),
               onPress: () => {
                 // The full player floats above everything — tuck it into the
                 // dock before jumping, like the queue's "go to song".
@@ -599,7 +601,7 @@ export function usePlayerScreenLifecycle({
         },
       },
       {
-        label: "Delete clip",
+        label: t("player.deleteClip"),
         style: "destructive",
         icon: "trash-outline",
         onPress: () => {
@@ -615,13 +617,13 @@ export function usePlayerScreenLifecycle({
           // that just is the delete.
           const emptiesIdea = (fullIdea?.clips.length ?? 0) <= 1;
 
-          const title = emptiesIdea && isProject ? "Delete song?" : "Delete clip?";
+          const title = emptiesIdea && isProject ? t("player.deleteSongTitle") : t("player.deleteClipTitle");
           const message =
             emptiesIdea && isProject
-              ? `This is the only clip in "${playerIdea.title}", so deleting it removes the whole song. Its audio moves to Trash.`
+              ? t("player.deleteOnlySongBody", { title: playerIdea.title })
               : emptiesIdea
-                ? `Delete "${playerClip.title ?? playerIdea.title}"? Its audio moves to Trash.`
-                : "Remove this clip from the song? Its audio moves to Trash.";
+                ? t("player.deleteOnlyClipBody", { title: playerClip.title ?? playerIdea.title })
+                : t("player.removeClipBody");
 
           AppAlert.destructive(
             title,
@@ -639,13 +641,13 @@ export function usePlayerScreenLifecycle({
               // Exits no longer stop audio implicitly, so clean up explicitly.
               stopSessionAndClose();
             },
-            { confirmLabel: emptiesIdea && isProject ? "Delete song" : "Delete", icon: "trash-outline" }
+            { confirmLabel: emptiesIdea && isProject ? t("player.deleteSong") : t("common.delete"), icon: "trash-outline" }
           );
         },
       },
-      { label: "Cancel", style: "cancel" },
+      { label: t("common.cancel"), style: "cancel" },
     ]);
-  }, [displayDuration, isPlayerPlaying, navigation, pausePlayer, playerClip, playerIdea, stopSessionAndClose]);
+  }, [displayDuration, isPlayerPlaying, navigation, onShowHelp, pausePlayer, playerClip, playerIdea, stopSessionAndClose, t]);
 
   return {
     /** True while THIS clip's waveform decode is actually in flight. */

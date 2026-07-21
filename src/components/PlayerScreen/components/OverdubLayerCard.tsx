@@ -21,6 +21,9 @@ import {
 import type { RecordingGrid } from "../../../types";
 import { AnimatedCollapse } from "../../common/AnimatedCollapse";
 import { haptic } from "../../../design/haptics";
+import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
+import { UserText, UserTextInput } from "../../../i18n";
 
 /**
  * One layer: a quiet resting row (solo-play · title/summary · mute · ⋯) with Levels and
@@ -118,11 +121,11 @@ type Props = {
 };
 
 /** Only say what's non-default; an untouched layer shows just its title. */
-function buildSummary(gainDb: number, tonePreset: string, offsetMs: number, isMuted: boolean) {
+function buildSummary(gainDb: number, tonePreset: string, offsetMs: number, isMuted: boolean, t: TFunction) {
   const parts: string[] = [];
-  if (isMuted) parts.push("Muted");
+  if (isMuted) parts.push(t("player.muted"));
   if (gainDb !== 0) parts.push(`${gainDb > 0 ? "+" : ""}${gainDb} dB`);
-  if (tonePreset === "low-cut") parts.push("Low cut");
+  if (tonePreset === "low-cut") parts.push(t("player.lowCut"));
   if (offsetMs !== 0) parts.push(formatClipOverdubStemOffsetLabel(offsetMs));
   return parts.length > 0 ? parts.join(" · ") : null;
 }
@@ -161,18 +164,19 @@ export function OverdubLayerCard({
   isAuditioning,
   onToggleAudition,
 }: Props) {
+  const { t } = useTranslation();
   const canAudition = !!audioUri && !!masterAudioUri;
   const canRestoreOriginal = offsetMs !== baselineOffsetMs;
-  const summary = buildSummary(gainDb, tonePreset, offsetMs, isMuted);
+  const summary = buildSummary(gainDb, tonePreset, offsetMs, isMuted, t);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const cardTint = computeWorkspaceTheme(color).tint;
   const showSpinner = isRendering && expandedSection != null;
 
   function openLayerMenu() {
     AppAlert.custom(title, undefined, [
-      { label: "Edit", icon: actionIcons.edit, onPress: () => setEditModalOpen(true) },
-      { label: "Remove", style: "destructive", icon: actionIcons.delete, onPress: onRemove },
-      { label: "Cancel", style: "cancel" },
+      { label: t("songDetail.edit"), icon: actionIcons.edit, onPress: () => setEditModalOpen(true) },
+      { label: t("player.removeLayer"), style: "destructive", icon: actionIcons.delete, onPress: onRemove },
+      { label: t("common.cancel"), style: "cancel" },
     ]);
   }
 
@@ -189,11 +193,11 @@ export function OverdubLayerCard({
         </Pressable>
         <View style={playerScreenStyles.layerCardCopy}>
           <View style={playerScreenStyles.layerCardTitleRow}>
-            <Text style={playerScreenStyles.layerCardTitle} numberOfLines={1}>
+            <UserText value={title} style={playerScreenStyles.layerCardTitle} numberOfLines={1}>
               {title}
-            </Text>
+            </UserText>
             {showSpinner ? (
-              <ActivityIndicator size="small" color={colors.primaryDeep} accessibilityLabel="Updating layer mix" />
+              <ActivityIndicator size="small" color={colors.primaryDeep} accessibilityLabel={t("player.updatingMix")} />
             ) : null}
             <Text style={playerScreenStyles.layerCardDuration}>{fmtDuration(durationMs)}</Text>
           </View>
@@ -211,14 +215,14 @@ export function OverdubLayerCard({
           onPress={onToggleMuted}
           accessibilityRole="switch"
           accessibilityState={{ checked: !isMuted }}
-          accessibilityLabel={isMuted ? "Unmute this layer" : "Mute this layer"}
+          accessibilityLabel={isMuted ? t("player.unmuteLayer") : t("player.muteLayer")}
         />
         <IconButton
           icon="ellipsis-horizontal"
           tone="muted"
           size={18}
           onPress={openLayerMenu}
-          accessibilityLabel="Layer options"
+          accessibilityLabel={t("player.layerOptions")}
         />
       </View>
 
@@ -234,7 +238,7 @@ export function OverdubLayerCard({
           minimumTrackTintColor={colors.primaryDeep}
           maximumTrackTintColor="#e3d8cd"
           thumbTintColor={colors.primaryDeep}
-          accessibilityLabel="Scrub this layer's preview"
+          accessibilityLabel={t("player.scrubLayer")}
         />
       ) : null}
 
@@ -296,7 +300,7 @@ export function OverdubLayerCard({
               onPress={() => onAdjustGain(OVERDUB_GAIN_STEP_DB)}
             />
             <LayerControlButton
-              label="Low cut"
+              label={t("player.lowCut")}
               active={tonePreset === "low-cut"}
               onPress={onToggleLowCut}
             />
@@ -328,7 +332,7 @@ export function OverdubLayerCard({
               disabled={!canAudition}
               accessibilityRole="button"
               accessibilityLabel={
-                isAuditioning ? "Stop playing together" : "Play master and this layer together"
+                isAuditioning ? t("player.stopTogether") : t("player.playTogether")
               }
             >
               <Ionicons
@@ -342,7 +346,7 @@ export function OverdubLayerCard({
                   isAuditioning ? cardStyles.auditionButtonTextActive : null,
                 ]}
               >
-                {isAuditioning ? "Stop" : "Play together"}
+                {isAuditioning ? t("player.stop") : t("player.playTogether")}
               </Text>
             </Pressable>
             <View style={cardStyles.nudgeCluster}>
@@ -371,10 +375,10 @@ export function OverdubLayerCard({
               onPress={onRestoreOriginal}
               disabled={!canRestoreOriginal}
               accessibilityRole="button"
-              accessibilityLabel="Restore the original alignment"
+              accessibilityLabel={t("player.restoreAlignment")}
             >
               <Ionicons name="refresh-outline" size={13} color="#5a4b45" />
-              <Text style={cardStyles.originalButtonText}>Original</Text>
+              <Text style={cardStyles.originalButtonText}>{t("player.original")}</Text>
             </Pressable>
           </View>
           <Text style={cardStyles.alignHint}>
@@ -417,6 +421,7 @@ function EditLayerModal({
   onSave: (title: string, color: string) => void;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   const [draftTitle, setDraftTitle] = useState(title);
   const [hue, setHue] = useState(() => hexToHue(color));
   const prevVisible = React.useRef(false);
@@ -432,14 +437,14 @@ function EditLayerModal({
   const trimmed = draftTitle.trim();
 
   return (
-    <WarmModal visible={visible} onRequestClose={onClose} title="Edit layer">
+    <WarmModal visible={visible} onRequestClose={onClose} title={t("player.editLayer")}>
       <View style={cardStyles.colorPreviewRow}>
         <View style={[cardStyles.colorPreviewSwatch, { backgroundColor: previewColor }]} />
-        <TextInput
+        <UserTextInput
           style={cardStyles.editNameInput}
           value={draftTitle}
           onChangeText={setDraftTitle}
-          placeholder="Layer name"
+          placeholder={t("player.layerName")}
           placeholderTextColor={colors.textMuted}
           returnKeyType="done"
         />
@@ -447,7 +452,7 @@ function EditLayerModal({
       <HueSlider hue={hue} onChange={setHue} />
       <View style={cardStyles.colorModalActions}>
         <Pressable style={cardStyles.colorModalCancel} onPress={onClose} accessibilityRole="button">
-          <Text style={cardStyles.colorModalCancelText}>Cancel</Text>
+          <Text style={cardStyles.colorModalCancelText}>{t("common.cancel")}</Text>
         </Pressable>
         <Pressable
           style={[cardStyles.colorModalConfirm, !trimmed ? cardStyles.colorModalConfirmDisabled : null]}
@@ -459,7 +464,7 @@ function EditLayerModal({
           disabled={!trimmed}
           accessibilityRole="button"
         >
-          <Text style={cardStyles.colorModalConfirmText}>Save</Text>
+          <Text style={cardStyles.colorModalConfirmText}>{t("common.save")}</Text>
         </Pressable>
       </View>
     </WarmModal>

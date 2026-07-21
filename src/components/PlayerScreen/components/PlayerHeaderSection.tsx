@@ -5,6 +5,7 @@ import { IconButton } from "../../common/IconButton";
 import { fmtDuration, formatDate } from "../../../utils";
 import { colors } from "../../../design/tokens";
 import { playerScreenStyles } from "../styles";
+import { useTranslation } from "react-i18next";
 
 type PlayerHeaderSectionProps = {
   clipTitle: string;
@@ -33,6 +34,7 @@ export function PlayerHeaderSection({
   onMinimize,
   onOverflow,
 }: PlayerHeaderSectionProps) {
+  const { t } = useTranslation();
   // The player is a now-playing sheet, not a destination: its single exit is
   // the collapse chevron (top-left, where the sheet "goes down"), which never
   // stops audio — playback continues in the mini dock. It leads in deep
@@ -43,7 +45,7 @@ export function PlayerHeaderSection({
       icon="chevron-down"
       tone="accent"
       onPress={onMinimize}
-      accessibilityLabel="Minimize player"
+      accessibilityLabel={t("player.minimize")}
     />
   );
   const overflowMenuButton = (
@@ -52,7 +54,7 @@ export function PlayerHeaderSection({
       tone="muted"
       size={20}
       onPress={onOverflow}
-      accessibilityLabel="More options"
+      accessibilityLabel={t("common.moreOptions")}
     />
   );
 

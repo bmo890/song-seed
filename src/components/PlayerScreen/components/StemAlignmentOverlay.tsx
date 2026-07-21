@@ -6,6 +6,7 @@ import { fmtDuration } from "../../../utils";
 import { getMetronomeMeterPreset } from "../../../domain/metronome";
 import type { RecordingGrid } from "../../../types";
 import { colors } from "../../../design/tokens";
+import { useTranslation } from "react-i18next";
 
 /**
  * Superimposed master + stem waveforms on one shared time axis, with the stem shifted by
@@ -93,6 +94,7 @@ export function StemAlignmentOverlay({
   stemColor,
   recordingGrid,
 }: Props) {
+  const { t } = useTranslation();
   const [zoomed, setZoomed] = useState(true);
   const masterPeaks = useDetailPeaks(masterAudioUri, masterFallbackPeaks);
   const stemPeaks = useDetailPeaks(stemAudioUri, stemFallbackPeaks);
@@ -178,25 +180,25 @@ export function StemAlignmentOverlay({
     <View style={styles.wrap}>
       <View style={styles.headerRow}>
         <Text style={styles.legend}>
-          <Text style={styles.legendMaster}>▮ master</Text>
+          <Text style={styles.legendMaster}>▮ {t("player.master")}</Text>
           {"   "}
-          <Text style={{ color: stemColor }}>▮ this layer</Text>
+          <Text style={{ color: stemColor }}>▮ {t("player.thisLayer")}</Text>
           {"   "}
           {formatClipOverdubStemOffsetLabel(offsetMs)}
-          {gridTicks.length > 0 && recordingGrid ? `   · ${recordingGrid.bpm} BPM grid` : ""}
+          {gridTicks.length > 0 && recordingGrid ? `   · ${t("player.bpmGrid", { bpm: recordingGrid.bpm })}` : ""}
         </Text>
         <Pressable
           style={({ pressed }) => [styles.zoomChip, pressed ? styles.pressed : null]}
           onPress={() => setZoomed((current) => !current)}
           accessibilityRole="button"
-          accessibilityLabel={zoomed ? "Show the full clip" : "Zoom to this layer"}
+          accessibilityLabel={zoomed ? t("player.showFullClip") : t("player.zoomLayer")}
         >
           <Text style={styles.zoomChipText}>
             {zoomed
               ? zoomStartMs > 0
-                ? `At ${fmtDuration(offsetMs)}`
-                : `First ${ZOOM_WINDOW_MS / 1000}s`
-              : "Full clip"}
+                ? t("player.atOffset", { time: fmtDuration(offsetMs) })
+                : t("player.firstSeconds", { count: ZOOM_WINDOW_MS / 1000 })
+              : t("player.fullClip")}
           </Text>
         </Pressable>
       </View>

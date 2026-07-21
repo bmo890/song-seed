@@ -9,6 +9,8 @@ import { playerScreenStyles as s } from "../styles";
 import type { PracticeMarker } from "../../../types";
 import { haptic } from "../../../design/haptics";
 import { PLAYHEAD_COLOR, PlayheadCursorIcon } from "./practicePanelPrimitives";
+import { useTranslation } from "react-i18next";
+import { UserTextInput } from "../../../i18n";
 
 /** Single-point timing adjuster for a pin — mirrors SectionEdgeAdjuster. */
 export function PinTimingAdjuster({
@@ -24,6 +26,7 @@ export function PinTimingAdjuster({
   onReposition: (markerId: string, atMs: number) => void;
   onPreview: (preview: { id: string; atMs: number } | null) => void;
 }) {
+  const { t } = useTranslation();
   const [dragMs, setDragMs] = useState<number | null>(null);
   const current = marker.atMs;
   const maxMs = Math.max(1, durationMs);
@@ -33,7 +36,7 @@ export function PinTimingAdjuster({
   return (
     <View style={s.sectionAdjuster}>
       <View style={s.sectionAdjusterHeader}>
-        <Text style={s.sectionEdgeLabel}>Time</Text>
+        <Text style={s.sectionEdgeLabel}>{t("player.time")}</Text>
         <Text style={s.sectionEdgeLiveTime}>{fmtDuration(displayMs)}</Text>
         <View style={{ flex: 1 }} />
         <Pressable
@@ -41,7 +44,7 @@ export function PinTimingAdjuster({
           onPress={() => onReposition(marker.id, Math.round(clamp(playheadMs)))}
           hitSlop={6}
           accessibilityRole="button"
-          accessibilityLabel={`Set pin to playhead (${fmtDuration(playheadMs)})`}
+          accessibilityLabel={t("player.setPinPlayhead", { time: fmtDuration(playheadMs) })}
         >
           <PlayheadCursorIcon color={PLAYHEAD_COLOR} />
         </Pressable>
@@ -52,7 +55,7 @@ export function PinTimingAdjuster({
           onPress={() => stepBy(-1000)}
           hitSlop={6}
           accessibilityRole="button"
-          accessibilityLabel="Nudge pin back one second"
+          accessibilityLabel={t("player.nudgePinBack")}
         >
           <Ionicons name="chevron-back" size={16} color={colors.textStrong} />
         </Pressable>
@@ -82,7 +85,7 @@ export function PinTimingAdjuster({
           onPress={() => stepBy(1000)}
           hitSlop={6}
           accessibilityRole="button"
-          accessibilityLabel="Nudge pin forward one second"
+          accessibilityLabel={t("player.nudgePinForward")}
         >
           <Ionicons name="chevron-forward" size={16} color={colors.textStrong} />
         </Pressable>
@@ -107,6 +110,7 @@ export function PinDetailModal({
   onDelete?: () => void;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   const [name, setName] = useState(initialName);
   const [note, setNote] = useState(initialNote);
   const prevVisible = React.useRef(false);
@@ -118,20 +122,20 @@ export function PinDetailModal({
     prevVisible.current = visible;
   }, [visible, initialName, initialNote]);
   return (
-    <WarmModal visible={visible} onRequestClose={onClose} title="Edit pin">
-      <TextInput
+    <WarmModal visible={visible} onRequestClose={onClose} title={t("player.editPin")}>
+      <UserTextInput
         style={s.sectionEditInput}
         value={name}
         onChangeText={setName}
-        placeholder="Pin name"
+        placeholder={t("player.pinName")}
         placeholderTextColor={colors.textMuted}
         returnKeyType="done"
       />
-      <TextInput
+      <UserTextInput
         style={[s.sectionEditInput, s.pinDetailNoteInput]}
         value={note}
         onChangeText={setNote}
-        placeholder="Note (optional)"
+        placeholder={t("player.noteOptional")}
         placeholderTextColor={colors.textMuted}
         multiline
       />
@@ -141,21 +145,21 @@ export function PinDetailModal({
             style={s.sectionModalDelete}
             onPress={onDelete}
             accessibilityRole="button"
-            accessibilityLabel="Delete pin"
+            accessibilityLabel={t("player.deletePin")}
           >
             <Ionicons name="trash-outline" size={17} color={colors.danger} />
           </Pressable>
         ) : null}
         <View style={{ flex: 1 }} />
         <Pressable style={s.sectionModalCancel} onPress={onClose} accessibilityRole="button">
-          <Text style={s.sectionModalCancelText}>Cancel</Text>
+          <Text style={s.sectionModalCancelText}>{t("common.cancel")}</Text>
         </Pressable>
         <Pressable
           style={s.sectionModalConfirm}
           onPress={() => onConfirm({ label: name.trim(), note: note.trim() })}
           accessibilityRole="button"
         >
-          <Text style={s.sectionModalConfirmText}>Save</Text>
+          <Text style={s.sectionModalConfirmText}>{t("common.save")}</Text>
         </Pressable>
       </View>
     </WarmModal>

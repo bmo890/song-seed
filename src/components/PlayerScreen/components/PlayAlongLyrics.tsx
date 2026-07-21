@@ -12,6 +12,7 @@ import { styles as appStyles } from "../../../styles";
 import { colors, radii, shadows, spacing, text as textTokens } from "../../../design/tokens";
 import { ChordChartLines } from "../../LyricsVersionScreen/components/chords/ChordChart";
 import type { LyricsLine } from "../../../types";
+import { useTranslation } from "react-i18next";
 
 type Props = {
   text: string;
@@ -43,6 +44,7 @@ export function PlayAlongLyrics({
   isPlaying,
   playbackRate,
 }: Props) {
+  const { t } = useTranslation();
   const scrollRef = useRef<ScrollView>(null);
   const [viewportHeight, setViewportHeight] = useState(0);
   const [contentHeight, setContentHeight] = useState(0);
@@ -113,7 +115,7 @@ export function PlayAlongLyrics({
     return (
       <View style={styles.empty}>
         <Ionicons name="musical-notes-outline" size={26} color={colors.textMuted} />
-        <Text style={styles.emptyText}>No lyrics to follow yet.</Text>
+        <Text style={styles.emptyText}>{t("player.noLyrics")}</Text>
       </View>
     );
   }
@@ -150,10 +152,10 @@ export function PlayAlongLyrics({
           style={({ pressed }) => [styles.resync, pressed ? appStyles.pressDown : null]}
           onPress={resync}
           accessibilityRole="button"
-          accessibilityLabel="Resync lyrics to playback"
+          accessibilityLabel={t("player.resyncLyrics")}
         >
           <Ionicons name="sync" size={15} color={colors.onPrimary} />
-          <Text style={styles.resyncText}>Resync</Text>
+          <Text style={styles.resyncText}>{t("player.resync")}</Text>
         </Pressable>
       ) : null}
     </View>
@@ -175,6 +177,7 @@ export function PlayAlongSpeedControl({
   max: number;
   onSelect: (speed: number) => void;
 }) {
+  const { t } = useTranslation();
   const sorted = useMemo(() => [...presets].sort((a, b) => a - b), [presets]);
   const canDecrease = speed > min + 1e-6;
   const canIncrease = speed < max - 1e-6;
@@ -198,7 +201,7 @@ export function PlayAlongSpeedControl({
         disabled={!canDecrease}
         hitSlop={4}
         accessibilityRole="button"
-        accessibilityLabel="Slower"
+        accessibilityLabel={t("player.slower")}
       >
         <Ionicons
           name="remove"
@@ -213,7 +216,7 @@ export function PlayAlongSpeedControl({
         disabled={!canIncrease}
         hitSlop={4}
         accessibilityRole="button"
-        accessibilityLabel="Faster"
+        accessibilityLabel={t("player.faster")}
       >
         <Ionicons name="add" size={16} color={canIncrease ? colors.textStrong : colors.textMuted} />
       </Pressable>

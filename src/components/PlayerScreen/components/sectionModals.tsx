@@ -18,6 +18,8 @@ import { playerScreenStyles as s } from "../styles";
 import type { ClipSection, ClipSectionKind } from "../../../types";
 import { haptic } from "../../../design/haptics";
 import { PLAYHEAD_COLOR, PlayheadCursorIcon } from "./practicePanelPrimitives";
+import { useTranslation } from "react-i18next";
+import { UserText, UserTextInput } from "../../../i18n";
 
 /** Single adjuster for whichever edge (start/end) is active, with a pin-to-playhead button. */
 export function SectionEdgeAdjuster({
@@ -35,6 +37,7 @@ export function SectionEdgeAdjuster({
   onReposition: (sectionId: string, edge: "start" | "end", ms: number) => void;
   onPreview: (preview: { id: string; startMs?: number; endMs?: number } | null) => void;
 }) {
+  const { t } = useTranslation();
   const [dragMs, setDragMs] = useState<number | null>(null);
   const isStart = edge === "start";
   const current = isStart ? section.startMs : section.endMs;
@@ -55,7 +58,7 @@ export function SectionEdgeAdjuster({
   return (
     <View style={s.sectionAdjuster}>
       <View style={s.sectionAdjusterHeader}>
-        <Text style={s.sectionEdgeLabel}>{isStart ? "Start" : "End"}</Text>
+        <Text style={s.sectionEdgeLabel}>{isStart ? t("player.start") : t("player.end")}</Text>
         <Text style={s.sectionEdgeLiveTime}>{fmtDuration(displayMs)}</Text>
         <View style={{ flex: 1 }} />
         <Pressable
@@ -131,6 +134,7 @@ export function SectionPickerModal({
   onCreateNew: () => void;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <Pressable style={s.sectionModalBackdrop} onPress={onClose}>
@@ -170,14 +174,14 @@ export function SectionPickerModal({
               style={s.sectionModalNewButton}
               onPress={onCreateNew}
               accessibilityRole="button"
-              accessibilityLabel="Create a new custom section type"
+              accessibilityLabel={t("player.customSectionA11y")}
             >
               <Ionicons name="add" size={16} color={colors.primary} />
-              <Text style={s.sectionModalNewText}>New custom…</Text>
+              <Text style={s.sectionModalNewText}>{t("player.newCustom")}</Text>
             </Pressable>
             <View style={{ flex: 1 }} />
             <Pressable style={s.sectionModalCancel} onPress={onClose} accessibilityRole="button">
-              <Text style={s.sectionModalCancelText}>Cancel</Text>
+              <Text style={s.sectionModalCancelText}>{t("common.cancel")}</Text>
             </Pressable>
           </View>
         </Pressable>
@@ -207,6 +211,7 @@ export function SectionDetailModal({
   onDelete?: () => void;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   const [name, setName] = useState(initialName);
   const [hue, setHue] = useState(() => hexToHue(initialColor));
   const prevVisible = React.useRef(false);
@@ -224,16 +229,16 @@ export function SectionDetailModal({
     <WarmModal visible={visible} onRequestClose={onClose} title={title}>
       <View style={s.sectionDetailPreviewRow}>
         <View style={[s.sectionDetailSwatch, { backgroundColor: accentColor }]} />
-        <Text style={s.sectionDetailPreviewText} numberOfLines={1}>
-          {trimmed || "Section name"}
-        </Text>
+        <UserText value={trimmed} style={s.sectionDetailPreviewText} numberOfLines={1}>
+          {trimmed || t("player.sectionName")}
+        </UserText>
       </View>
       <HueSlider hue={hue} onChange={setHue} />
-      <TextInput
+      <UserTextInput
         style={s.sectionEditInput}
         value={name}
         onChangeText={setName}
-        placeholder="Section name"
+        placeholder={t("player.sectionName")}
         placeholderTextColor={colors.textMuted}
         returnKeyType="done"
         onSubmitEditing={() => trimmed && onConfirm({ label: trimmed, color: accentColor })}
@@ -244,14 +249,14 @@ export function SectionDetailModal({
             style={s.sectionModalDelete}
             onPress={onDelete}
             accessibilityRole="button"
-            accessibilityLabel="Delete section"
+            accessibilityLabel={t("player.deleteSection")}
           >
             <Ionicons name="trash-outline" size={17} color={colors.danger} />
           </Pressable>
         ) : null}
         <View style={{ flex: 1 }} />
         <Pressable style={s.sectionModalCancel} onPress={onClose} accessibilityRole="button">
-          <Text style={s.sectionModalCancelText}>Cancel</Text>
+          <Text style={s.sectionModalCancelText}>{t("common.cancel")}</Text>
         </Pressable>
         <Pressable
           style={[s.sectionModalConfirm, !trimmed ? s.sectionModalConfirmDisabled : null]}
@@ -278,8 +283,9 @@ export function LoopSectionPickerModal({
   onPick: (section: ClipSection) => void;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   return (
-    <WarmModal visible={visible} onRequestClose={onClose} title="Loop a section" scrollable>
+    <WarmModal visible={visible} onRequestClose={onClose} title={t("player.loopSection")} scrollable>
       {sections.map((section) => (
         <Pressable
           key={section.id}
@@ -300,7 +306,7 @@ export function LoopSectionPickerModal({
       <View style={s.sectionModalActions}>
         <View style={{ flex: 1 }} />
         <Pressable style={s.sectionModalCancel} onPress={onClose} accessibilityRole="button">
-          <Text style={s.sectionModalCancelText}>Cancel</Text>
+          <Text style={s.sectionModalCancelText}>{t("common.cancel")}</Text>
         </Pressable>
       </View>
     </WarmModal>

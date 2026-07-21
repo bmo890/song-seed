@@ -41,6 +41,7 @@ import { getClipOverdubStemCount } from "../../domain/clipPresentation";
 import { canAddOverdubLayer, isPracticeToolPro, type PracticeTool } from "../../domain/proGating";
 import { hasProAccess } from "../../domain/entitlements";
 import { ensurePro, openProUpsell } from "../common/proUpsell";
+import { useTranslation } from "react-i18next";
 
 const PRACTICE_SPEED_PRESETS = [0.5, 0.75, 1, 1.25, 1.5] as const;
 const PRACTICE_SPEED_MIN = 0.5;
@@ -78,6 +79,7 @@ export function PlayerScreen({
   /** True while the sheet's open/close animation runs — freezes this subtree. */
   sheetInMotion: boolean;
 }) {
+  const { t } = useTranslation();
   const isFocused = isActive;
 
   const ui = usePlayerScreenUi();
@@ -535,8 +537,8 @@ export function PlayerScreen({
       navigation.navigate("Recording" as never);
     } catch (error) {
       const message =
-        error instanceof Error ? error.message : "Could not start layer recording.";
-      AppAlert.info("Layer unavailable", message);
+        error instanceof Error ? error.message : t("player.layerStartFailed");
+      AppAlert.info(t("player.layerUnavailable"), message);
     }
   }, [navigation, playerClip, playerIdea]);
   const handleRecordLayerAt = useCallback(
@@ -554,8 +556,8 @@ export function PlayerScreen({
         navigation.navigate("Recording" as never);
       } catch (error) {
         const message =
-          error instanceof Error ? error.message : "Could not start layer recording.";
-        AppAlert.info("Layer unavailable", message);
+          error instanceof Error ? error.message : t("player.layerStartFailed");
+        AppAlert.info(t("player.layerUnavailable"), message);
       }
     },
     [navigation, playerClip, playerIdea]
@@ -583,14 +585,14 @@ export function PlayerScreen({
           return;
         }
         AppAlert.info(
-          "Saved as one clip",
+          t("player.savedOne"),
           mode === "replace"
-            ? "The layers were flattened into this take."
-            : "A flattened copy was added as a new clip."
+            ? t("player.flattenedTake")
+            : t("player.flattenedCopy")
         );
       } catch (error) {
-        const message = error instanceof Error ? error.message : "Could not save a flattened clip.";
-        AppAlert.info("Save failed", message);
+        const message = error instanceof Error ? error.message : t("player.flattenFailed");
+        AppAlert.info(t("player.saveFailed"), message);
       }
     },
     [effectiveIsPlaying, navigation, playerClip, playerIdea, practicePitchTransport]
@@ -608,21 +610,21 @@ export function PlayerScreen({
         if (!playerIdea || !playerClip) return;
         void action(playerIdea.id, playerClip.id, ...args).catch((error) => {
           const message = error instanceof Error ? error.message : fallbackMessage;
-          AppAlert.info("Layer update failed", message);
+          AppAlert.info(t("player.layerUpdateFailed"), message);
         });
       };
     return {
-      renameStem: wrap(appActions.renameClipOverdubStem, "Could not rename the layer."),
-      changeStemColor: wrap(appActions.setClipOverdubStemColor, "Could not update the layer color."),
-      adjustRootGain: wrap(appActions.adjustClipOverdubRootGain, "Could not update the root mix gain."),
-      toggleRootLowCut: wrap(appActions.toggleClipOverdubRootLowCut, "Could not update the root mix tone."),
-      adjustStemGain: wrap(appActions.adjustClipOverdubStemGain, "Could not update the layer gain."),
-      nudgeStem: wrap(appActions.nudgeClipOverdubStem, "Could not adjust the layer timing."),
-      toggleStemMute: wrap(appActions.toggleClipOverdubStemMute, "Could not update the layer mute state."),
-      toggleStemLowCut: wrap(appActions.toggleClipOverdubStemLowCut, "Could not update the layer tone."),
-      removeStem: wrap(appActions.removeClipOverdubStem, "Could not remove the layer."),
+      renameStem: wrap(appActions.renameClipOverdubStem, t("player.renameLayerFailed")),
+      changeStemColor: wrap(appActions.setClipOverdubStemColor, t("player.layerColorFailed")),
+      adjustRootGain: wrap(appActions.adjustClipOverdubRootGain, t("player.rootGainFailed")),
+      toggleRootLowCut: wrap(appActions.toggleClipOverdubRootLowCut, t("player.rootToneFailed")),
+      adjustStemGain: wrap(appActions.adjustClipOverdubStemGain, t("player.layerGainFailed")),
+      nudgeStem: wrap(appActions.nudgeClipOverdubStem, t("player.layerTimingFailed")),
+      toggleStemMute: wrap(appActions.toggleClipOverdubStemMute, t("player.layerMuteFailed")),
+      toggleStemLowCut: wrap(appActions.toggleClipOverdubStemLowCut, t("player.layerToneFailed")),
+      removeStem: wrap(appActions.removeClipOverdubStem, t("player.removeLayerFailed")),
     };
-  }, [playerClip, playerIdea]);
+  }, [playerClip, playerIdea, t]);
   const {
     renameStem: handleRenameStem,
     changeStemColor: handleChangeStemColor,
@@ -643,7 +645,7 @@ export function PlayerScreen({
     if (frozenTreeRef.current) return frozenTreeRef.current;
     return (
       <SafeAreaView style={styles.screen}>
-        <Text style={styles.subtitle}>Loading player…</Text>
+        <Text style={styles.subtitle}>{t("player.loading")}</Text>
       </SafeAreaView>
     );
   }
@@ -651,7 +653,7 @@ export function PlayerScreen({
   const practiceRangeLabel =
     practiceLoopRange.end > practiceLoopRange.start
       ? `${fmtDuration(practiceLoopRange.start)} → ${fmtDuration(practiceLoopRange.end)}`
-      : "No loop";
+      : t("player.noLoop");
   // NOTE: the transport is deliberately NOT locked while a layer mix re-renders. The
   // previous rendered mix stays loaded and playable; when the new render publishes, the
   // lifecycle's source-sync hot-swaps it at the current position. Locking here made every
@@ -732,7 +734,7 @@ export function PlayerScreen({
                   hitSlop={6}
                   accessibilityRole="button"
                   accessibilityState={{ expanded: ui.reelExpanded }}
-                  accessibilityLabel={ui.reelExpanded ? "Shrink waveform" : "Expand waveform"}
+                  accessibilityLabel={ui.reelExpanded ? t("player.shrinkWaveform") : t("player.expandWaveform")}
                 >
                   <Ionicons
                     name={ui.reelExpanded ? "contract-outline" : "expand-outline"}
@@ -750,7 +752,7 @@ export function PlayerScreen({
                 <>
                   <View style={playerScreenStyles.reelExpandButton}>
                     <Ionicons name="musical-notes" size={14} color={colors.primary} />
-                    <Text style={playerScreenStyles.reelExpandText}>Play along</Text>
+                    <Text style={playerScreenStyles.reelExpandText}>{t("player.playAlong")}</Text>
                   </View>
                   <PlayAlongSpeedControl
                     speed={playbackSpeed}
@@ -769,11 +771,11 @@ export function PlayerScreen({
                     ]}
                     onPress={() => ui.setMode("player")}
                     accessibilityRole="button"
-                    accessibilityLabel="Exit play along"
+                    accessibilityLabel={t("player.exitPlayAlong")}
                   >
                     <Ionicons name="checkmark" size={15} color={colors.onPrimary} />
                     <Text style={[playerScreenStyles.toolsPillText, playerScreenStyles.toolsPillTextActive]}>
-                      Done
+                      {t("common.done")}
                     </Text>
                   </Pressable>
                 </>
@@ -787,7 +789,7 @@ export function PlayerScreen({
                     onPress={() => ui.setMarkersVisible((value) => !value)}
                     accessibilityRole="button"
                     accessibilityState={{ checked: ui.markersVisible }}
-                    accessibilityLabel={ui.markersVisible ? "Hide markers" : "Show markers"}
+                    accessibilityLabel={ui.markersVisible ? t("player.hideMarkers") : t("player.showMarkers")}
                   >
                     <Ionicons
                       name={ui.markersVisible ? "eye-outline" : "eye-off-outline"}
@@ -795,7 +797,7 @@ export function PlayerScreen({
                       color={colors.textSecondary}
                     />
                     <Text style={playerScreenStyles.reelExpandText}>
-                      {ui.markersVisible ? "Hide markers" : "Show markers"}
+                      {ui.markersVisible ? t("player.hideMarkers") : t("player.showMarkers")}
                     </Text>
                   </Pressable>
                   <View style={playerScreenStyles.reelToolbarRight}>
@@ -807,10 +809,10 @@ export function PlayerScreen({
                         ]}
                         onPress={() => ui.setMode("playalong")}
                         accessibilityRole="button"
-                        accessibilityLabel="Play along with lyrics"
+                        accessibilityLabel={t("player.playAlongLyrics")}
                       >
                         <Ionicons name="musical-notes-outline" size={15} color={colors.textSecondary} />
-                        <Text style={playerScreenStyles.toolsPillText}>Play along</Text>
+                        <Text style={playerScreenStyles.toolsPillText}>{t("player.playAlong")}</Text>
                       </Pressable>
                     ) : null}
                     <Pressable
@@ -822,7 +824,7 @@ export function PlayerScreen({
                       onPress={() => ui.setMode(ui.mode === "practice" ? "player" : "practice")}
                       accessibilityRole="button"
                       accessibilityState={{ selected: ui.mode === "practice" }}
-                      accessibilityLabel={ui.mode === "practice" ? "Close practice tools" : "Open practice tools"}
+                      accessibilityLabel={ui.mode === "practice" ? t("player.closePractice") : t("player.openPractice")}
                     >
                       <Ionicons
                         name="options-outline"
@@ -835,7 +837,7 @@ export function PlayerScreen({
                           ui.mode === "practice" ? playerScreenStyles.toolsPillTextActive : null,
                         ]}
                       >
-                        Tools
+                        {t("player.tools")}
                       </Text>
                     </Pressable>
                   </View>

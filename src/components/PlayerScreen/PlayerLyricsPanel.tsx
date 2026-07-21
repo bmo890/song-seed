@@ -15,6 +15,7 @@ import { colors, radii, spacing } from "../../design/tokens";
 import { LyricsAutoscrollState, LyricsLine } from "../../types";
 import { ChordChartLines } from "../LyricsVersionScreen/components/chords/ChordChart";
 import { ChordZoomBar } from "../LyricsVersionScreen/components/chords/ChordZoomBar";
+import { useTranslation } from "react-i18next";
 
 type Props = {
   text: string;
@@ -70,6 +71,7 @@ function PlayerLyricsPanelInner({
   onAutoscrollInterrupted,
   onSelectAutoscrollSpeedMultiplier,
 }: Props) {
+  const { t } = useTranslation();
   const [uncontrolledExpanded, setUncontrolledExpanded] = useState(defaultExpanded);
   const [zoom, setZoom] = useState(1);
   const [zoomOpen, setZoomOpen] = useState(false);
@@ -252,7 +254,7 @@ function PlayerLyricsPanelInner({
               style={appStyles.recordingLyricsZoomBtn}
               onPress={() => setChordsOn((on) => !on)}
               hitSlop={6}
-              accessibilityLabel={chordsOn ? "Hide chords" : "Show chords"}
+              accessibilityLabel={chordsOn ? t("player.hideChords") : t("player.showChords")}
             >
               <MaterialCommunityIcons name={chordsOn ? "music" : "music-off"} size={16} color={colors.textSecondary} />
             </Pressable>
@@ -275,7 +277,7 @@ function PlayerLyricsPanelInner({
                       autoscrollEnabled ? onAutoscrollInterrupted?.() : onToggleAutoscroll?.(true)
                     }
                     hitSlop={6}
-                    accessibilityLabel={isScrolling ? "Pause autoscroll" : "Start autoscroll"}
+                    accessibilityLabel={isScrolling ? t("player.pauseAutoscroll") : t("player.startAutoscroll")}
                   >
                     <Ionicons
                       name={isScrolling ? "pause" : "play"}
@@ -291,7 +293,7 @@ function PlayerLyricsPanelInner({
                     ]}
                     onPress={() => setSpeedOpen((open) => !open)}
                     hitSlop={6}
-                    accessibilityLabel="Autoscroll speed"
+                    accessibilityLabel={t("player.autoscrollSpeed")}
                   >
                     <Text
                       style={[
@@ -312,7 +314,7 @@ function PlayerLyricsPanelInner({
                 ]}
                 onPress={() => setZoomOpen((open) => !open)}
                 hitSlop={6}
-                accessibilityLabel="Adjust lyric size"
+                accessibilityLabel={t("player.lyricSize")}
               >
                 <Ionicons name="text" size={16} color={zoomOpen ? colors.primaryDeep : colors.textSecondary} />
               </Pressable>
@@ -411,7 +413,7 @@ function PlayerLyricsPanelInner({
     <View style={styles.panel}>
       <Pressable style={styles.header} onPress={handleToggle} hitSlop={6}>
         <View style={styles.headerText}>
-          <Text style={styles.kicker}>Lyrics</Text>
+          <Text style={styles.kicker}>{t("common.lyrics")}</Text>
           <Text style={styles.meta}>
             {versionLabel} · {updatedAtLabel}
           </Text>

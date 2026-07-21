@@ -17,6 +17,8 @@ import { AppAlert } from "../../common/AppAlert";
 import { actionIcons } from "../../common/actionIcons";
 import { LayerControlButton, OverdubLayerCard, type OverdubLayerSection } from "./OverdubLayerCard";
 import { useOverdubAlignmentAudition } from "../hooks/useOverdubAlignmentAudition";
+import { useTranslation } from "react-i18next";
+import { UserText } from "../../../i18n";
 
 type QueueEntry = {
   ideaId: string;
@@ -150,6 +152,7 @@ export function PlayerSupportSections({
   onToggleQueueExpanded,
   onQueueOpenIdea,
 }: PlayerSupportSectionsProps) {
+  const { t } = useTranslation();
   const layerPreviewPlayer = useAudioPlayer(null, { updateInterval: 120 });
   const { status: layerPreviewStatus } = useThrottledAudioPlayerStatus(layerPreviewPlayer, {
     positionIntervalMs: 200,
@@ -307,9 +310,9 @@ export function PlayerSupportSections({
     } catch (error) {
       pauseLayerPreviewSafely();
       setActiveLayerPreviewId(null);
-      const message = error instanceof Error ? error.message : "Could not play this layer.";
+      const message = error instanceof Error ? error.message : t("player.layerPlayFailed");
       console.warn("Layer preview failed", error);
-      AppAlert.info("Layer preview failed", message);
+      AppAlert.info(t("player.layerPreviewFailed"), message);
     }
   }
 
@@ -400,10 +403,10 @@ export function PlayerSupportSections({
   // take and make a flat copy, or flatten over this take (irreversible: the layers can't
   // be re-edited after). The chooser IS the confirmation; each option spells the outcome.
   function openSaveAsOneClip() {
-    AppAlert.custom("Save as one clip", "Combine every layer into a single audio clip.", [
+    AppAlert.custom(t("player.combineTitle"), t("player.combineBody"), [
       {
-        label: "Save as a copy",
-        description: "Keep this layered take and add a new flattened clip.",
+        label: t("player.saveCopy"),
+        description: t("player.saveCopyDesc"),
         icon: actionIcons.copy,
         onPress: () => {
           closeLayersSheet();
@@ -411,8 +414,8 @@ export function PlayerSupportSections({
         },
       },
       {
-        label: "Replace this take",
-        description: "Flatten over this take — the layers can't be edited afterward.",
+        label: t("player.replaceTake"),
+        description: t("player.replaceTakeDesc"),
         icon: actionIcons.convert,
         style: "destructive",
         onPress: () => {
@@ -420,7 +423,7 @@ export function PlayerSupportSections({
           onSaveAsOneClip("replace");
         },
       },
-      { label: "Cancel", style: "cancel" },
+      { label: t("common.cancel"), style: "cancel" },
     ]);
   }
 
@@ -447,7 +450,7 @@ export function PlayerSupportSections({
         <PlayerLyricsPanel
           text={latestLyricsText}
           chordLines={lyricsChordLines}
-          versionLabel={`Version ${lyricsVersionCount}`}
+          versionLabel={t("player.version", { count: lyricsVersionCount })}
           updatedAtLabel={formatDate(latestLyricsUpdatedAt!)}
           autoscrollState={{
             mode: "off",
@@ -466,14 +469,14 @@ export function PlayerSupportSections({
       <View style={chipStyles.utilityRow}>
         <UtilityChip
           icon="document-text-outline"
-          label="Notes"
+          label={t("songDetail.notes")}
           dot={hasNotes}
           onPress={() => onToggleNotesExpanded(true)}
         />
         {hasClipOverdubs ? (
           <UtilityChip
             icon="layers-outline"
-            label="Layers"
+            label={t("player.layers")}
             count={clipOverdubStemCount}
             onPress={() => setLayersSheetOpen(true)}
           />
@@ -484,14 +487,14 @@ export function PlayerSupportSections({
 
       {/* Notes — read-only here; editing lives on the song's Notes tab. */}
       <BottomSheet visible={notesExpanded} onClose={() => onToggleNotesExpanded(false)}>
-        <Text style={chipStyles.sheetTitle}>Clip notes</Text>
+        <Text style={chipStyles.sheetTitle}>{t("player.clipNotes")}</Text>
         <Text style={chipStyles.sheetMeta}>
-          {hasNotes ? "Attached to this take" : "No notes saved"}
+          {hasNotes ? t("player.notesAttached") : t("player.noNotesSaved")}
         </Text>
         <ScrollView style={chipStyles.sheetScroll} showsVerticalScrollIndicator={false}>
-          <Text style={hasNotes ? chipStyles.notesText : chipStyles.notesPlaceholder}>
-            {hasNotes ? clipNotes.trim() : "This clip doesn't have notes yet."}
-          </Text>
+          <UserText value={clipNotes.trim()} style={hasNotes ? chipStyles.notesText : chipStyles.notesPlaceholder}>
+            {hasNotes ? clipNotes.trim() : t("player.noNotesBody")}
+          </UserText>
         </ScrollView>
       </BottomSheet>
 
@@ -508,10 +511,10 @@ export function PlayerSupportSections({
         <BottomSheet visible={layersSheetOpen} onClose={closeLayersSheet}>
           <View style={chipStyles.layersHeaderRow}>
             <View style={chipStyles.layersHeaderCopy}>
-              <Text style={chipStyles.sheetTitle}>Layers</Text>
+              <Text style={chipStyles.sheetTitle}>{t("player.layers")}</Text>
               <Text style={chipStyles.sheetMeta}>
-                {`${clipOverdubStemCount} ${clipOverdubStemCount === 1 ? "layer" : "layers"}`}
-                {isOverdubPreviewRendering ? " · updating…" : ""}
+                {t("player.layerCount", { count: clipOverdubStemCount })}
+                {isOverdubPreviewRendering ? ` · ${t("player.updating")}` : ""}
               </Text>
             </View>
             <View style={chipStyles.layersHeaderActions}>
@@ -523,7 +526,7 @@ export function PlayerSupportSections({
                 }}
                 hitSlop={6}
                 accessibilityRole="button"
-                accessibilityLabel="Record a new layer"
+                accessibilityLabel={t("player.recordNewLayer")}
               >
                 <Ionicons name="add" size={22} color={colors.primaryDeep} />
               </Pressable>
@@ -532,7 +535,7 @@ export function PlayerSupportSections({
                 onPress={openSaveAsOneClip}
                 hitSlop={6}
                 accessibilityRole="button"
-                accessibilityLabel="Save as one clip"
+                accessibilityLabel={t("player.saveOneClip")}
               >
                 <Ionicons name="ellipsis-horizontal" size={18} color={colors.textSecondary} />
               </Pressable>
@@ -549,9 +552,9 @@ export function PlayerSupportSections({
                     setExpandedStemSection(null);
                   }}
                   accessibilityRole="button"
-                  accessibilityLabel="Base take settings"
+                  accessibilityLabel={t("player.baseSettings")}
                 >
-                  <Text style={playerScreenStyles.layerRootTitle}>Base take</Text>
+                  <Text style={playerScreenStyles.layerRootTitle}>{t("player.baseTake")}</Text>
                   <View style={chipStyles.rootMetaCluster}>
                     <Text style={playerScreenStyles.layerRootMeta}>
                       {`${overdubRootSettings.gainDb > 0 ? "+" : ""}${overdubRootSettings.gainDb} dB${
@@ -576,7 +579,7 @@ export function PlayerSupportSections({
                       onPress={() => onAdjustRootGain(OVERDUB_GAIN_STEP_DB)}
                     />
                     <LayerControlButton
-                      label="Low cut"
+                      label={t("player.lowCut")}
                       active={overdubRootSettings.tonePreset === "low-cut"}
                       onPress={onToggleRootLowCut}
                     />
