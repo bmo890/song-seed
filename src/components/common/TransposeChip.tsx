@@ -3,6 +3,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { colors, radii } from "../../design/tokens";
 import { haptic } from "../../design/haptics";
 import { formatTransposeOffset } from "../../domain/transpose";
+import { useTranslation } from "react-i18next";
 
 type TransposeChipProps = {
   offset: number;
@@ -14,6 +15,7 @@ type TransposeChipProps = {
  *  and the songbook reader so "transpose" feels like one feature. A reset pill
  *  appears only while shifted. Non-destructive: display-level only. */
 export function TransposeChip({ offset, onNudge, onReset }: TransposeChipProps) {
+  const { t } = useTranslation();
   return (
     <View style={chipStyles.row}>
       <View style={chipStyles.stepper}>
@@ -24,14 +26,14 @@ export function TransposeChip({ offset, onNudge, onReset }: TransposeChipProps) 
           }}
           hitSlop={8}
           accessibilityRole="button"
-          accessibilityLabel="Transpose down a semitone"
+          accessibilityLabel={t("common.transposeDown")}
           style={({ pressed }) => [chipStyles.stepBtn, pressed ? { opacity: 0.6 } : null]}
         >
           <Text style={chipStyles.stepGlyph}>−</Text>
         </Pressable>
         <Text
           style={[chipStyles.value, offset !== 0 ? chipStyles.valueActive : null]}
-          accessibilityLabel={`Transpose ${formatTransposeOffset(offset)} semitones`}
+          accessibilityLabel={t("common.transposeValue", { value: formatTransposeOffset(offset) })}
         >
           {formatTransposeOffset(offset)}
         </Text>
@@ -42,7 +44,7 @@ export function TransposeChip({ offset, onNudge, onReset }: TransposeChipProps) 
           }}
           hitSlop={8}
           accessibilityRole="button"
-          accessibilityLabel="Transpose up a semitone"
+          accessibilityLabel={t("common.transposeUp")}
           style={({ pressed }) => [chipStyles.stepBtn, pressed ? { opacity: 0.6 } : null]}
         >
           <Text style={chipStyles.stepGlyph}>+</Text>
@@ -57,7 +59,7 @@ export function TransposeChip({ offset, onNudge, onReset }: TransposeChipProps) 
           }}
           hitSlop={8}
           accessibilityRole="button"
-          accessibilityLabel="Reset to the written key"
+          accessibilityLabel={t("common.resetWrittenKey")}
           style={({ pressed }) => [chipStyles.resetBtn, pressed ? { opacity: 0.6 } : null]}
         >
           <Ionicons name="refresh-outline" size={13} color={colors.textSecondary} />

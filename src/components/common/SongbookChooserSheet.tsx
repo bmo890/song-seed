@@ -4,6 +4,7 @@ import { useStore } from "../../state/useStore";
 import { toast } from "./toastStore";
 import { haptic } from "../../design/haptics";
 import type { SongbookItemKind } from "../../types";
+import { useTranslation } from "react-i18next";
 
 type SongbookChooserSheetProps = {
   visible: boolean;
@@ -23,6 +24,7 @@ export function SongbookChooserSheet({
   ideaId,
   ideaTitle,
 }: SongbookChooserSheetProps) {
+  const { t } = useTranslation();
   const navigation = useNavigation<any>();
   const songbooks = useStore((s) => s.songbooks);
 
@@ -36,9 +38,9 @@ export function SongbookChooserSheet({
       items.map((item) => ({ kind: item.kind, workspaceId, ideaId, versionId: item.versionId }))
     );
     haptic.success();
-    toast(`Added to "${title}"`, "book-outline", {
+    toast(t("songbookChooser.added", { title }), "book-outline", {
       action: {
-        label: "Open book",
+        label: t("songbookChooser.openBook"),
         onPress: () => {
           let current: any = navigation;
           while (current?.getParent?.()) current = current.getParent();
@@ -58,7 +60,7 @@ export function SongbookChooserSheet({
   return (
     <SelectionActionSheet
       visible={visible}
-      title={`Add "${ideaTitle}" to…`}
+      title={t("songbookChooser.addTo", { title: ideaTitle })}
       onClose={onClose}
       actions={[
         ...songbooks.map((book) => ({
@@ -69,11 +71,11 @@ export function SongbookChooserSheet({
         })),
         {
           key: "new-songbook",
-          label: "New songbook…",
+          label: t("songbookChooser.newSongbook"),
           icon: "add-circle-outline" as const,
           onPress: () => {
             const store = useStore.getState();
-            const title = `Songbook ${store.songbooks.length + 1}`;
+            const title = t("songbookChooser.defaultTitle", { number: store.songbooks.length + 1 });
             const id = store.addSongbook(title);
             addTo(id, title);
           },

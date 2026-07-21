@@ -11,6 +11,7 @@ import { useStore } from "../../state/useStore";
 import {
   getFloatingActionDockBottomOffset,
 } from "./floatingActionDockLayout";
+import { useTranslation } from "react-i18next";
 
 // Re-exported so call sites can keep importing dock layout from the dock itself.
 export {
@@ -40,6 +41,7 @@ export function FloatingActionDock({
   wrapStyle,
   onDockLayout,
 }: FloatingActionDockProps) {
+  const { t } = useTranslation();
   const [menuOpen, setMenuOpen] = useState(false);
   const insets = useSafeAreaInsets();
   // Ride above the global media dock and the import bar when they're present. Shared
@@ -86,7 +88,7 @@ export function FloatingActionDock({
       >
         <Pressable
           testID="fab-create"
-          accessibilityLabel={menuOpen ? "Close create menu" : "Create"}
+          accessibilityLabel={t(menuOpen ? "common.closeCreateMenu" : "common.create")}
           style={({ pressed }) => [styles.ideasCreateFab, pressed ? styles.pressDownStrong : null]}
           onPress={() => {
             haptic.tap();
@@ -98,7 +100,7 @@ export function FloatingActionDock({
 
         <Pressable
           testID="fab-record"
-          accessibilityLabel="Record"
+          accessibilityLabel={t("common.record")}
           style={({ pressed }) => [styles.ideasRecordFab, pressed ? styles.pressDownStrong : null]}
           onPress={() => {
             haptic.grab();

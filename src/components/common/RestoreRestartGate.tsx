@@ -11,8 +11,10 @@ import {
     markRestoreReloading,
     subscribeRestoreRestart,
 } from "../../state/restoreRuntime";
+import { useTranslation } from "react-i18next";
 
 export function RestoreRestartGate() {
+    const { t } = useTranslation();
     const restoreState = useSyncExternalStore(
         subscribeRestoreRestart,
         getRestoreRestartState,
@@ -51,9 +53,10 @@ export function RestoreRestartGate() {
     if (!restoreState) return null;
 
     const { ideas, workspaces } = restoreState.counts;
-    const summary =
-        `${ideas} item${ideas === 1 ? "" : "s"} across ${workspaces} ` +
-        `workspace${workspaces === 1 ? "" : "s"} restored.`;
+    const summary = t("restoreGate.summary", {
+        items: t("restoreGate.itemCount", { count: ideas }),
+        workspaces: t("restoreGate.workspaceCount", { count: workspaces }),
+    });
     const isFailed = restoreState.reloadStatus === "failed";
 
     return (
@@ -73,21 +76,21 @@ export function RestoreRestartGate() {
                             color={colors.primary}
                         />
                     </View>
-                    <Text style={styles.title}>Restore complete</Text>
+                    <Text style={styles.title}>{t("restoreGate.title")}</Text>
                     <Text style={styles.message}>
                         {summary}
                         {restoreState.missingCount > 0
-                            ? ` ${restoreState.missingCount} optional file${restoreState.missingCount === 1 ? " was" : "s were"} not included.`
+                            ? ` ${t("restoreGate.missing", { count: restoreState.missingCount })}`
                             : ""}
                     </Text>
                     {isFailed ? (
                         <>
                             <Text style={styles.error}>
-                                {restoreState.reloadError} Your restored library is safe, but the app must restart before you continue.
+                                {restoreState.reloadError} {t("restoreGate.restartError")}
                             </Text>
                             <Pressable
                                 accessibilityRole="button"
-                                accessibilityLabel="Restart SongNook"
+                                accessibilityLabel={t("restoreGate.restart")}
                                 style={({ pressed }) => [
                                     styles.restartButton,
                                     pressed ? styles.restartButtonPressed : null,
@@ -98,13 +101,13 @@ export function RestoreRestartGate() {
                                 }}
                             >
                                 <Ionicons name="refresh" size={17} color={colors.onPrimary} />
-                                <Text style={styles.restartButtonText}>Restart SongNook</Text>
+                                <Text style={styles.restartButtonText}>{t("restoreGate.restart")}</Text>
                             </Pressable>
                         </>
                     ) : (
                         <View style={styles.restartingRow}>
                             <ActivityIndicator color={colors.primary} />
-                            <Text style={styles.restartingText}>Restarting SongNook...</Text>
+                            <Text style={styles.restartingText}>{t("settings.restarting")}</Text>
                         </View>
                     )}
                 </View>

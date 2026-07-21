@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, type GestureResponderEvent } from "react-native"
 import { Ionicons } from "@expo/vector-icons";
 import { haptic } from "../../design/haptics";
 import { colors, radii } from "../../design/tokens";
+import { useTranslation } from "react-i18next";
 
 /** One shared "✕ close" affordance for every place a playback session (or a
  *  clip-card mini player) can be dismissed: the full player's control bar, the
@@ -34,10 +35,11 @@ function CloseButtonInner({
   onPress,
   size = "md",
   tone = "onLight",
-  accessibilityLabel = "Close",
+  accessibilityLabel,
   noHaptic = false,
   hitSlop = 8,
 }: CloseButtonProps) {
+  const { t } = useTranslation();
   const { diameter, icon } = SIZES[size];
   const onDark = tone === "onDark";
 
@@ -58,7 +60,7 @@ function CloseButtonInner({
       }}
       hitSlop={hitSlop}
       accessibilityRole="button"
-      accessibilityLabel={accessibilityLabel}
+      accessibilityLabel={accessibilityLabel ?? t("common.close")}
     >
       <Ionicons name="close" size={icon} color={onDark ? "#FDFBF7" : colors.textSecondary} />
     </Pressable>

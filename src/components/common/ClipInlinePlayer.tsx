@@ -3,6 +3,7 @@ import Animated, { FadeIn } from "react-native-reanimated";
 import { MiniProgress } from "../MiniProgress";
 import { CloseButton } from "./CloseButton";
 import { useStore } from "../../state/useStore";
+import { useTranslation } from "react-i18next";
 
 type ClipInlinePlayerProps = {
   fallbackDurationMs: number;
@@ -27,6 +28,7 @@ export function ClipInlinePlayer({
   onSeekCancel,
   onClose,
 }: ClipInlinePlayerProps) {
+  const { t } = useTranslation();
   const inlinePosition = useStore((s) => s.inlinePositionMs);
   const inlineDuration = useStore((s) => s.inlineDurationMs);
 
@@ -42,7 +44,7 @@ export function ClipInlinePlayer({
         onSeekStart={onSeekStart}
         onSeekCancel={onSeekCancel}
         trailingAccessory={
-          <CloseButton size="sm" tone="onLight" accessibilityLabel="Stop preview" onPress={onClose} />
+          <CloseButton size="sm" tone="onLight" accessibilityLabel={t("common.stopPreview")} onPress={onClose} />
         }
       />
     </Animated.View>

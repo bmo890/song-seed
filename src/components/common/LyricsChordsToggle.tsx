@@ -3,6 +3,7 @@ import { Animated, Pressable, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors, radii, shadows } from "../../design/tokens";
 import { haptic } from "../../design/haptics";
+import { useTranslation } from "react-i18next";
 
 export type LyricsChordsValue = "lyrics" | "chords";
 
@@ -20,6 +21,7 @@ export function LyricsChordsToggle({
   value: LyricsChordsValue;
   onChange: (value: LyricsChordsValue) => void;
 }) {
+  const { t } = useTranslation();
   const anim = useRef(new Animated.Value(value === "chords" ? 1 : 0)).current;
 
   useEffect(() => {
@@ -48,7 +50,7 @@ export function LyricsChordsToggle({
             }}
             accessibilityRole="button"
             accessibilityState={{ selected: active }}
-            accessibilityLabel={key === "lyrics" ? "Lyrics" : "Chords"}
+            accessibilityLabel={t(key === "lyrics" ? "common.lyrics" : "common.chords")}
           >
             <Ionicons
               name={key === "lyrics" ? "text" : "musical-notes"}
@@ -56,7 +58,7 @@ export function LyricsChordsToggle({
               color={active ? colors.onPrimary : colors.textSecondary}
             />
             <Text style={[styles.label, active ? styles.labelActive : null]}>
-              {key === "lyrics" ? "Lyrics" : "Chords"}
+              {t(key === "lyrics" ? "common.lyrics" : "common.chords")}
             </Text>
           </Pressable>
         );

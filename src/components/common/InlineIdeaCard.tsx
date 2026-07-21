@@ -8,6 +8,7 @@ import { styles } from "../../styles";
 import type { IdeaStatus } from "../../types";
 import { fmtDuration } from "../../utils";
 import { colors } from "../../design/tokens";
+import { useTranslation } from "react-i18next";
 
 export type InlineIdeaCardProps = {
   title: string;
@@ -65,6 +66,7 @@ export function InlineIdeaCard({
   onOpenMenu,
   containerStyle,
 }: InlineIdeaCardProps) {
+  const { t } = useTranslation();
   const durationLabel = durationMs > 0 ? fmtDuration(durationMs) : "--:--";
   const pct =
     status != null && completionPct != null
@@ -84,7 +86,7 @@ export function InlineIdeaCard({
             size={18}
             onPress={onOpenMenu}
             stopPropagation
-            accessibilityLabel="More options"
+            accessibilityLabel={t("common.moreOptions")}
           />
         ) : null}
       </View>

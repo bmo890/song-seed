@@ -5,6 +5,7 @@ import { styles } from "../../styles";
 import type { SelectionAction } from "./SelectionDock";
 import { haptic } from "../../design/haptics";
 import { colors } from "../../design/tokens";
+import { useTranslation } from "react-i18next";
 
 type SelectionActionSheetProps = {
   visible: boolean;
@@ -15,13 +16,14 @@ type SelectionActionSheetProps = {
 
 export function SelectionActionSheet({
   visible,
-  title = "Selection actions",
+  title,
   actions,
   onClose,
 }: SelectionActionSheetProps) {
+  const { t } = useTranslation();
   return (
     <BottomSheet visible={visible} onClose={onClose}>
-      <Text style={styles.selectionSheetTitle}>{title}</Text>
+      <Text style={styles.selectionSheetTitle}>{title ?? t("common.selectionActions")}</Text>
       <View style={styles.selectionSheetActionList}>
         {actions.map((action) => {
           const dangerous = action.tone === "danger";

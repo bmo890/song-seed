@@ -4,6 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { styles } from "../../styles";
 import Animated, { FadeIn } from "react-native-reanimated";
 import { durations } from "../../design/motion";
+import { useTranslation } from "react-i18next";
 
 type FilterMenuRenderContext = {
   close: () => void;
@@ -30,6 +31,7 @@ type FilterSortControlsProps = {
 };
 
 export function FilterSortControls({ filter, sort, rightSlot }: FilterSortControlsProps) {
+  const { t } = useTranslation();
   const [filterMenuOpen, setFilterMenuOpen] = useState(false);
   const [sortMenuOpen, setSortMenuOpen] = useState(false);
   const [filterAnchorX, setFilterAnchorX] = useState(0);
@@ -90,7 +92,7 @@ export function FilterSortControls({ filter, sort, rightSlot }: FilterSortContro
                   ]}
                   onPress={filter.onClear}
                   accessibilityRole="button"
-                  accessibilityLabel="Clear filters"
+                  accessibilityLabel={t("common.clearFilters")}
                 >
                   <Ionicons name="close" size={12} color="#64748b" />
                 </Pressable>
