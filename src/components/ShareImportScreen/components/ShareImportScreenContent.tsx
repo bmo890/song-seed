@@ -12,10 +12,12 @@ import { ShareImportIncomingSection } from "./ShareImportIncomingSection";
 import { ShareImportDestinationSection } from "./ShareImportDestinationSection";
 import { ShareImportNotesSection } from "./ShareImportNotesSection";
 import { ShareImportModals } from "./ShareImportModals";
+import { useTranslation } from "react-i18next";
 
 export function ShareImportScreenContent({
   fallbackCollectionId,
 }: ShareImportScreenProps) {
+  const { t } = useTranslation();
   const model = useShareImportScreenModel({ fallbackCollectionId });
   const currentCollection = model.currentCollection;
   const currentCollectionWorkspace = model.currentCollectionWorkspace;
@@ -25,10 +27,10 @@ export function ShareImportScreenContent({
   if (model.sharedArchive) {
     return (
       <SafeAreaView style={styles.screen}>
-        <ScreenHeader title="Import from Share" leftIcon="back" onLeftPress={model.closeScreen} />
+        <ScreenHeader title={t("shareImport.title")} leftIcon="back" onLeftPress={model.closeScreen} />
         <PageIntro
-          title="Someone sent you music"
-          subtitle="A SongNook file — a shared songbook, setlist, or library export. Imports land as their own Library entry, kept apart from your collections."
+          title={t("shareImport.sentMusic")}
+          subtitle={t("shareImport.archiveIntro")}
         />
         <View style={archiveStyles.card}>
           <View style={archiveStyles.fileRow}>
@@ -36,7 +38,7 @@ export function ShareImportScreenContent({
               <Ionicons name="albums-outline" size={20} color={colors.primaryDeep} />
             </View>
             <Text style={archiveStyles.fileName} numberOfLines={1}>
-              {model.sharedArchive.name ?? "SongNook archive"}
+              {model.sharedArchive.name ?? t("shareImport.archiveName")}
             </Text>
           </View>
           <View style={archiveStyles.actions}>
@@ -49,19 +51,19 @@ export function ShareImportScreenContent({
               onPress={() => void model.importSharedArchive()}
               disabled={model.isImportingArchive}
               accessibilityRole="button"
-              accessibilityLabel="Import this file"
+              accessibilityLabel={t("shareImport.importFile")}
             >
               <Text style={archiveStyles.importLabel}>
-                {model.isImportingArchive ? "Importing…" : "Import"}
+                {model.isImportingArchive ? t("shareImport.importing") : t("shareImport.import")}
               </Text>
             </Pressable>
             <Pressable
               style={({ pressed }) => [archiveStyles.ghostBtn, pressed ? { opacity: 0.7 } : null]}
               onPress={model.closeScreen}
               accessibilityRole="button"
-              accessibilityLabel="Not now"
+              accessibilityLabel={t("shareImport.notNow")}
             >
-              <Text style={archiveStyles.ghostLabel}>Not now</Text>
+              <Text style={archiveStyles.ghostLabel}>{t("shareImport.notNow")}</Text>
             </Pressable>
           </View>
         </View>
@@ -72,23 +74,21 @@ export function ShareImportScreenContent({
   return (
     <SafeAreaView style={styles.screen}>
       <ScreenHeader
-        title="Import from Share"
+        title={t("shareImport.title")}
         leftIcon="back"
         onLeftPress={model.closeScreen}
       />
 
       <PageIntro
-        title="Import from Share"
+        title={t("shareImport.title")}
         subtitle={
           model.isResolvingShareAssets
-            ? "Preparing the shared audio before import."
+            ? t("shareImport.preparing")
             : model.importedAssets.length > 0
-              ? `${model.importedAssets.length} audio file${
-                  model.importedAssets.length === 1 ? "" : "s"
-                } ready to import`
+              ? t("shareImport.audioReady", { count: model.importedAssets.length })
               : model.hasShareIntent
-                ? "Review the shared content and choose where it should go."
-                : "There is no shared audio waiting to import."
+                ? t("shareImport.review")
+                : t("shareImport.nothingWaiting")
         }
       />
 
@@ -137,7 +137,7 @@ export function ShareImportScreenContent({
                   workspaceId: currentCollection.workspaceId,
                   collectionId: currentCollection.id,
                   workspaceTitle:
-                    currentCollectionWorkspace?.title ?? "Current workspace",
+                    currentCollectionWorkspace?.title ?? t("shareImport.currentWorkspace"),
                   collectionTitle: currentCollection.title,
                   pathLabel: currentCollectionWorkspace
                     ? buildCollectionPathLabel(
@@ -153,7 +153,7 @@ export function ShareImportScreenContent({
               onCreateNewCollection={() => {
                 void (async () => {
                   const datePreference = await model.resolveImportDatePreference(
-                    "New Collection from Import"
+                    t("shareImport.newCollection")
                   );
                   if (!datePreference) return;
                   model.setNewCollectionDraft("");
