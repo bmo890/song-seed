@@ -8,16 +8,17 @@ import {
   addFragments,
   assembleDraft,
   deriveMagpieTitle,
+  drawPage,
   editFragmentText,
-  fetchPassage,
   MagpieFetchError,
   type MagpieFetchErrorKind,
-  pickBook,
   removeFragment as removeFragmentOp,
   reorderFragments,
   splitFragment as splitFragmentOp,
 } from "../../../domain/magpie";
-import type { MagpieBook, MagpieStep } from "../../../types";
+import type { MagpieLanguage, MagpieStep } from "../../../types";
+import type { MagpieHeGenre } from "../../../config/magpieService";
+import { useMagpiePrefsStore } from "../../../state/useMagpiePrefsStore";
 import { useTranslation } from "react-i18next";
 
 type LoadStatus = { loading: boolean; error: MagpieFetchErrorKind | null };
@@ -30,6 +31,8 @@ export function useMagpieScreenModel() {
 
   const magpieSparks = useStore((s) => s.magpieSparks);
   const updateMagpieSpark = useStore((s) => s.updateMagpieSpark);
+  const heGenres = useMagpiePrefsStore((s) => s.heGenres);
+  const toggleHeGenrePref = useMagpiePrefsStore((s) => s.toggleHeGenre);
   const deleteMagpieSpark = useStore((s) => s.deleteMagpieSpark);
   const addNote = useStore((s) => s.addNote);
   const updateNote = useStore((s) => s.updateNote);
@@ -53,14 +56,22 @@ export function useMagpieScreenModel() {
 
   // ── Fetching a page ─────────────────────────────────────────────────────────
   const load = useCallback(
-    async (mode: "book" | "page") => {
+    async (
+      mode: "book" | "page",
+      overrides?: { language?: MagpieLanguage; heGenres?: MagpieHeGenre[] }
+    ) => {
       if (!spark) return;
       const seq = ++requestSeq.current;
       setStatus({ loading: true, error: null });
       try {
-        let book: MagpieBook | null = spark.book;
-        if (mode === "book" || !book) book = await pickBook(spark.wholeLibrary);
-        const pageText = await fetchPassage(book);
+        // Overrides let a just-changed setting (language, genres) take effect on
+        // this draw without waiting for the store round-trip / re-render.
+        const effective = {
+          ...spark,
+          heGenres: overrides?.heGenres ?? heGenres,
+          ...overrides,
+        };
+        const { book, pageText } = await drawPage(effective, mode);
         if (seq !== requestSeq.current) return; // superseded by a newer draw
         apply({ book, pageText });
         setStatus({ loading: false, error: null });
@@ -70,7 +81,7 @@ export function useMagpieScreenModel() {
         setStatus({ loading: false, error: kind });
       }
     },
-    [spark, apply]
+    [spark, apply, heGenres]
   );
 
   const newBook = useCallback(() => void load("book"), [load]);
@@ -93,6 +104,31 @@ export function useMagpieScreenModel() {
       apply({ wholeLibrary });
     },
     [apply]
+  );
+
+  // Switching source language clears the current page and immediately draws a
+  // fresh one from the new library (the passage on screen is in the old language).
+  const setLanguage = useCallback(
+    (language: MagpieLanguage) => {
+      if (!spark || spark.language === language) return;
+      apply({ language, book: null, pageText: "" });
+      void load("book", { language });
+    },
+    [spark, apply, load]
+  );
+
+  // Changing the Hebrew genre selection is an app-wide preference; in Hebrew mode
+  // it also redraws the current page from the new genre set.
+  const toggleHeGenre = useCallback(
+    (genre: MagpieHeGenre) => {
+      toggleHeGenrePref(genre);
+      if (spark?.language === "he") {
+        const next = useMagpiePrefsStore.getState().heGenres;
+        apply({ book: null, pageText: "" });
+        void load("book", { heGenres: next });
+      }
+    },
+    [toggleHeGenrePref, spark?.language, apply, load]
   );
 
   // ── Pocketing + the pile ────────────────────────────────────────────────────
@@ -261,6 +297,9 @@ export function useMagpieScreenModel() {
     newPage,
     retry,
     setWholeLibrary,
+    setLanguage,
+    heGenres,
+    toggleHeGenre,
     pocketPhrases,
     removeFragment,
     splitFragment,

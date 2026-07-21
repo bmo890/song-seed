@@ -15,6 +15,17 @@ function gutenbergCacheTextUrl(id: number): string {
   return `https://www.gutenberg.org/cache/epub/${id}/pg${id}.txt`;
 }
 
+/** Gutenberg's auto-generated cover thumbnail — derivable from the id alone, so
+ * it works for curated books and whole-library draws without an extra call. */
+export function gutenbergCoverUrl(id: number | string): string {
+  return `https://www.gutenberg.org/cache/epub/${id}/pg${id}.cover.medium.jpg`;
+}
+
+/** Canonical Gutenberg page for the work, for the source credit / click-through. */
+export function gutenbergSourceUrl(id: number | string): string {
+  return `https://www.gutenberg.org/ebooks/${id}`;
+}
+
 /** Turn a curated entry into the runtime book shape carried on a spark. */
 export function toMagpieBook(entry: CuratedBook): MagpieBook {
   return {
@@ -22,6 +33,9 @@ export function toMagpieBook(entry: CuratedBook): MagpieBook {
     title: entry.title,
     author: entry.author,
     textUrl: gutenbergCacheTextUrl(entry.id),
+    source: "gutenberg",
+    thumbnailUrl: gutenbergCoverUrl(entry.id),
+    sourceUrl: gutenbergSourceUrl(entry.id),
   };
 }
 

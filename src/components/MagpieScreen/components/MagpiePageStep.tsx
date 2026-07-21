@@ -1,5 +1,5 @@
 import { memo, useCallback, useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Image, Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { styles as appStyles } from "../../../styles";
 import { colors, radii, shadows, spacing, text as textTokens } from "../../../design/tokens";
@@ -11,7 +11,8 @@ import {
   selectionToPhrases,
   tokenizePageIntoParagraphs,
 } from "../../../domain/magpie";
-import type { MagpieSpark } from "../../../types";
+import { MAGPIE_HE_ENABLED, MAGPIE_HE_GENRES, type MagpieHeGenre } from "../../../config/magpieService";
+import type { MagpieBook, MagpieLanguage, MagpieSpark } from "../../../types";
 import type { useMagpieScreenModel } from "../hooks/useMagpieScreenModel";
 import { useTranslation } from "react-i18next";
 import { UserText } from "../../../i18n";
@@ -96,6 +97,7 @@ export function MagpiePageStep({ model, spark }: { model: Model; spark: MagpieSp
   const { t } = useTranslation();
   const [zoom, setZoom] = useState(1);
   const [selected, setSelected] = useState<number[]>([]);
+  const [genrePanelOpen, setGenrePanelOpen] = useState(false);
 
   const { tokens, paragraphs } = useMemo(
     () => tokenizePageIntoParagraphs(spark.pageText),
@@ -132,16 +134,34 @@ export function MagpiePageStep({ model, spark }: { model: Model; spark: MagpieSp
   return (
     <View style={styles.body}>
       <BookPlate
-        title={spark.book?.title ?? t("magpie.findingBook")}
-        author={spark.book?.author ?? ""}
+        book={spark.book}
+        fallbackTitle={t("magpie.findingBook")}
         busy={busy}
         onNewPage={model.newPage}
         onNewBook={model.newBook}
       />
 
       <View style={styles.scopeRow}>
-        <ScopeToggle wholeLibrary={spark.wholeLibrary} onChange={model.setWholeLibrary} disabled={busy} />
+        {MAGPIE_HE_ENABLED ? (
+          <LanguageToggle language={spark.language} onChange={model.setLanguage} disabled={busy} />
+        ) : null}
+        {spark.language === "en" ? (
+          <ScopeToggle wholeLibrary={spark.wholeLibrary} onChange={model.setWholeLibrary} disabled={busy} />
+        ) : null}
+        {spark.language === "he" ? (
+          <Pressable
+            onPress={() => setGenrePanelOpen((open) => !open)}
+            style={({ pressed }) => [styles.gearBtn, genrePanelOpen ? styles.gearBtnActive : null, pressed ? appStyles.pressDown : null]}
+            hitSlop={6}
+            accessibilityLabel={t("magpie.genreSettings")}
+          >
+            <Ionicons name="options-outline" size={17} color={genrePanelOpen ? colors.onPrimary : colors.textSecondary} />
+          </Pressable>
+        ) : null}
       </View>
+      {spark.language === "he" && genrePanelOpen ? (
+        <GenrePicker selected={model.heGenres} onToggle={model.toggleHeGenre} disabled={busy} />
+      ) : null}
       <ChordZoomBar zoom={zoom} onChange={setZoom} compact />
 
       <View style={styles.page}>
@@ -247,30 +267,111 @@ export function MagpiePageStep({ model, spark }: { model: Model; spark: MagpieSp
 }
 
 function BookPlate({
-  title,
-  author,
+  book,
+  fallbackTitle,
   busy,
   onNewPage,
   onNewBook,
 }: {
-  title: string;
-  author: string;
+  book: MagpieBook | null;
+  fallbackTitle: string;
   busy: boolean;
   onNewPage: () => void;
   onNewBook: () => void;
 }) {
   const { t } = useTranslation();
+  // No book yet → "Finding a book…"; book loaded but title was junk/absent → "Untitled".
+  const title = !book ? fallbackTitle : book.title || t("magpie.untitledWork");
+  const author = book?.author ?? "";
   return (
     <View style={styles.plate}>
+      <BookThumbnail book={book} />
       <View style={styles.plateMeta}>
         <Text style={styles.plateOverline}>{t("magpie.pageFrom")}</Text>
         <UserText style={styles.plateTitle}>{title}</UserText>
         {author ? <UserText style={styles.plateAuthor}>{author}</UserText> : null}
+        <SourceCredit book={book} />
       </View>
       <View style={styles.plateActions}>
         <RoundAction icon="refresh" label={t("magpie.page")} accessibilityLabel={t("magpie.newPage")} onPress={onNewPage} disabled={busy} />
         <RoundAction icon="shuffle" label={t("magpie.book")} accessibilityLabel={t("magpie.newBook")} onPress={onNewBook} disabled={busy} />
       </View>
+    </View>
+  );
+}
+
+/** Two initials for the tonal placeholder used when there's no cover art. */
+function initialsFor(name: string): string {
+  const words = name.trim().split(/\s+/).filter(Boolean);
+  if (words.length === 0) return "";
+  const first = [...words[0]][0] ?? "";
+  const last = words.length > 1 ? ([...words[words.length - 1]][0] ?? "") : "";
+  return (first + last).toUpperCase();
+}
+
+/** Graceful asymmetry: Gutenberg has cover thumbnails; Ben-Yehuda has none, so it
+ * falls back to a tonal card with the author's initials (fits the no-photos
+ * design language rather than leaving a lopsided gap). */
+function BookThumbnail({ book }: { book: MagpieBook | null }) {
+  if (book?.thumbnailUrl) {
+    return <Image source={{ uri: book.thumbnailUrl }} style={styles.thumb} resizeMode="cover" />;
+  }
+  const initials = initialsFor(book?.author || book?.title || "");
+  return (
+    <View style={[styles.thumb, styles.thumbPlaceholder]}>
+      {initials ? (
+        <UserText style={styles.thumbInitials}>{initials}</UserText>
+      ) : (
+        <Ionicons name="book" size={18} color={colors.textMuted} />
+      )}
+    </View>
+  );
+}
+
+/** Credits the work's library (Project Gutenberg / Project Ben-Yehuda) with a
+ * tap-through to the canonical source page. */
+function SourceCredit({ book }: { book: MagpieBook | null }) {
+  const { t } = useTranslation();
+  if (!book) return null;
+  const label = book.source === "benyehuda" ? t("magpie.sourceBenYehuda") : t("magpie.sourceGutenberg");
+  if (!book.sourceUrl) {
+    return <Text style={styles.plateSource}>{label}</Text>;
+  }
+  return (
+    <Pressable onPress={() => Linking.openURL(book.sourceUrl!)} hitSlop={4}>
+      <Text style={styles.plateSourceLink}>{label}</Text>
+    </Pressable>
+  );
+}
+
+function LanguageToggle({
+  language,
+  onChange,
+  disabled,
+}: {
+  language: MagpieLanguage;
+  onChange: (value: MagpieLanguage) => void;
+  disabled: boolean;
+}) {
+  const { t } = useTranslation();
+  return (
+    <View style={styles.scope}>
+      {[
+        { label: t("magpie.langEnglish"), value: "en" as const },
+        { label: t("magpie.langHebrew"), value: "he" as const },
+      ].map((option) => {
+        const active = option.value === language;
+        return (
+          <Pressable
+            key={option.value}
+            style={[styles.scopeBtn, active ? styles.scopeBtnActive : null]}
+            onPress={() => onChange(option.value)}
+            disabled={disabled}
+          >
+            <Text style={[styles.scopeText, active ? styles.scopeTextActive : null]}>{option.label}</Text>
+          </Pressable>
+        );
+      })}
     </View>
   );
 }
@@ -336,6 +437,47 @@ function ScopeToggle({
   );
 }
 
+/** Checklist of Hebrew source genres; the writer keeps any non-empty subset
+ * (uncheck all but one to narrow to just letters, memoir, etc.). */
+function GenrePicker({
+  selected,
+  onToggle,
+  disabled,
+}: {
+  selected: MagpieHeGenre[];
+  onToggle: (genre: MagpieHeGenre) => void;
+  disabled: boolean;
+}) {
+  const { t } = useTranslation();
+  return (
+    <View style={styles.genrePanel}>
+      <Text style={styles.genreHint}>{t("magpie.genreHint")}</Text>
+      <View style={styles.genreWrap}>
+        {MAGPIE_HE_GENRES.map((genre) => {
+          const on = selected.includes(genre);
+          return (
+            <Pressable
+              key={genre}
+              style={[styles.genreChip, on ? styles.genreChipOn : null]}
+              onPress={() => onToggle(genre)}
+              disabled={disabled}
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: on }}
+            >
+              <Ionicons
+                name={on ? "checkmark-circle" : "ellipse-outline"}
+                size={14}
+                color={on ? colors.onPrimary : colors.textMuted}
+              />
+              <Text style={[styles.genreText, on ? styles.genreTextOn : null]}>{t(`magpie.genre.${genre}`)}</Text>
+            </Pressable>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
 function ErrorState({
   kind,
   onRetry,
@@ -387,6 +529,22 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     marginBottom: spacing.md,
   },
+  thumb: {
+    width: 42,
+    height: 58,
+    borderRadius: radii.sm,
+    backgroundColor: colors.surfaceHigh,
+  },
+  thumbPlaceholder: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  thumbInitials: {
+    fontFamily: "PlusJakartaSans_700Bold",
+    fontSize: 15,
+    letterSpacing: 0.5,
+    color: colors.primary,
+  },
   plateMeta: { flex: 1, minWidth: 0 },
   plateOverline: {
     fontFamily: "PlusJakartaSans_700Bold",
@@ -409,6 +567,19 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginTop: 2,
   },
+  plateSource: {
+    fontFamily: "PlusJakartaSans_600SemiBold",
+    fontSize: 11,
+    color: colors.textMuted,
+    marginTop: 4,
+  },
+  plateSourceLink: {
+    fontFamily: "PlusJakartaSans_600SemiBold",
+    fontSize: 11,
+    color: colors.primary,
+    marginTop: 4,
+    textDecorationLine: "underline",
+  },
   plateActions: { flexDirection: "row", gap: spacing.sm, flexShrink: 0 },
   roundWrap: { alignItems: "center", gap: 3 },
   round: {
@@ -429,6 +600,8 @@ const styles = StyleSheet.create({
   scopeRow: {
     flexDirection: "row",
     alignItems: "center",
+    flexWrap: "wrap",
+    gap: spacing.xs,
     marginBottom: spacing.xs,
   },
   scope: {
@@ -441,6 +614,36 @@ const styles = StyleSheet.create({
   scopeBtnActive: { backgroundColor: colors.primary },
   scopeText: { fontFamily: "PlusJakartaSans_600SemiBold", fontSize: 12, color: colors.textSecondary },
   scopeTextActive: { color: colors.onPrimary },
+  gearBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: radii.round,
+    backgroundColor: colors.surfaceHigh,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  gearBtnActive: { backgroundColor: colors.primary },
+  genrePanel: {
+    backgroundColor: colors.surfaceHigh,
+    borderRadius: radii.lg,
+    padding: spacing.sm,
+    marginBottom: spacing.xs,
+  },
+  genreHint: { ...textTokens.annotation, marginBottom: spacing.xs, paddingHorizontal: 2 },
+  genreWrap: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xs },
+  genreChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    backgroundColor: colors.surface,
+    borderRadius: radii.round,
+    paddingLeft: spacing.sm,
+    paddingRight: spacing.md,
+    paddingVertical: 6,
+  },
+  genreChipOn: { backgroundColor: colors.primary },
+  genreText: { fontFamily: "PlusJakartaSans_600SemiBold", fontSize: 12, color: colors.textSecondary },
+  genreTextOn: { color: colors.onPrimary },
   page: {
     flex: 1,
     backgroundColor: PAGE_BG,

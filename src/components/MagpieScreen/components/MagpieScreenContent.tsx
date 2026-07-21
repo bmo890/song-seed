@@ -11,6 +11,7 @@ import { MagpieBuildStep } from "./MagpieBuildStep";
 import { MagpieHelpSheet } from "./MagpieHelpSheet";
 import type { MagpieStep } from "../../../types";
 import { EnglishOnlyNotice } from "../../common/EnglishOnlyNotice";
+import { MAGPIE_HE_ENABLED } from "../../../config/magpieService";
 import { useTranslation } from "react-i18next";
 
 const KRAFT_BG = "#F2E9DC";
@@ -72,7 +73,9 @@ export function MagpieScreenContent() {
         />
 
         <StepProgress step={model.step} />
-        <EnglishOnlyNotice magpie />
+        {/* The English-only caveat no longer holds once the Hebrew (Ben-Yehuda)
+            source is live and its language toggle appears. */}
+        {MAGPIE_HE_ENABLED ? null : <EnglishOnlyNotice magpie />}
 
         <HelpButton
           label={t(model.step === "page" ? "wordSparks.page" : "wordSparks.build")}

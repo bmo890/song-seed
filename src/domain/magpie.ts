@@ -1,5 +1,7 @@
-import type { MagpieBook, MagpieFragment, MagpieSpark, MagpieStep } from "../types";
-import { randomCuratedBook } from "./magpieBooks";
+import type { MagpieBook, MagpieFragment, MagpieSource, MagpieSpark, MagpieStep } from "../types";
+import type { MagpieHeGenre } from "../config/magpieService";
+import { gutenbergCoverUrl, gutenbergSourceUrl, randomCuratedBook } from "./magpieBooks";
+import { fetchBenYehudaPage } from "./magpieBenYehuda";
 
 function randomId(prefix: string) {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
@@ -157,6 +159,9 @@ async function fetchRandomLibraryBook(attempts = 3): Promise<MagpieBook> {
           title: cleanTitle(String(book.title ?? "Untitled")),
           author: formatAuthor(String(author)),
           textUrl: url,
+          source: "gutenberg",
+          thumbnailUrl: gutenbergCoverUrl(book.id),
+          sourceUrl: gutenbergSourceUrl(book.id),
         } as MagpieBook;
       })
       .filter((book): book is MagpieBook => book !== null);
@@ -167,10 +172,37 @@ async function fetchRandomLibraryBook(attempts = 3): Promise<MagpieBook> {
   throw new MagpieFetchError("unavailable", "Couldn't find a book on that shelf.");
 }
 
-/** Picks a book to pull from: the curated pool, or the whole library. */
+/** Picks an English book to pull from: the curated pool, or the whole library. */
 export async function pickBook(wholeLibrary: boolean): Promise<MagpieBook> {
   if (wholeLibrary) return fetchRandomLibraryBook();
   return randomCuratedBook();
+}
+
+export type MagpiePage = { book: MagpieBook; pageText: string };
+
+/** Draws the next page for a spark, dispatching by language. Returns the book and
+ * its passage together (the two-call English flow is folded in here so the Hebrew
+ * source, which returns both at once, fits the same shape).
+ *
+ * - English: mode "book" (or no/foreign current book) picks a fresh book, then
+ *   Range-fetches a window; mode "page" re-windows the current book.
+ * - Hebrew: every draw is a fresh Ben-Yehuda work (each work is one short page),
+ *   so mode is irrelevant. */
+export async function drawPage(
+  spark: Pick<MagpieSpark, "language" | "wholeLibrary" | "book"> & { heGenres?: MagpieHeGenre[] },
+  mode: "book" | "page"
+): Promise<MagpiePage> {
+  if (spark.language === "he") {
+    return fetchBenYehudaPage(spark.heGenres);
+  }
+  let book = spark.book;
+  // Force a fresh English book on an explicit reshuffle, when none exists yet, or
+  // when the current book came from a different (Hebrew) source.
+  if (mode === "book" || !book || book.source === "benyehuda") {
+    book = await pickBook(spark.wholeLibrary);
+  }
+  const pageText = await fetchPassage(book);
+  return { book, pageText };
 }
 
 // ── Tokenising a page for tap-to-pocket ──────────────────────────────────────
@@ -402,6 +434,7 @@ export function createMagpieSpark(): MagpieSpark {
     pageText: "",
     fragments: [],
     draft: "",
+    language: "en",
     wholeLibrary: false,
     seenHelpSteps: [],
   };
@@ -420,6 +453,10 @@ function isString(value: unknown): value is string {
   return typeof value === "string";
 }
 
+function sanitizeSource(value: unknown): MagpieSource | undefined {
+  return value === "gutenberg" || value === "benyehuda" ? value : undefined;
+}
+
 function sanitizeBook(raw: unknown): MagpieBook | null {
   if (!raw || typeof raw !== "object") return null;
   const obj = raw as Record<string, unknown>;
@@ -429,6 +466,9 @@ function sanitizeBook(raw: unknown): MagpieBook | null {
     title: isString(obj.title) ? obj.title : "",
     author: isString(obj.author) ? obj.author : "",
     textUrl: obj.textUrl,
+    source: sanitizeSource(obj.source),
+    thumbnailUrl: isString(obj.thumbnailUrl) ? obj.thumbnailUrl : undefined,
+    sourceUrl: isString(obj.sourceUrl) ? obj.sourceUrl : undefined,
   };
 }
 
@@ -473,6 +513,7 @@ export function sanitizeMagpieSpark(raw: unknown): MagpieSpark | null {
     pageText: isString(obj.pageText) ? obj.pageText : "",
     fragments: sanitizeFragments(obj.fragments),
     draft: isString(obj.draft) ? obj.draft : "",
+    language: obj.language === "he" ? "he" : "en",
     wholeLibrary: obj.wholeLibrary === true,
     savedLyricId: isString(obj.savedLyricId) ? obj.savedLyricId : undefined,
     seenHelpSteps: Array.isArray(obj.seenHelpSteps)
