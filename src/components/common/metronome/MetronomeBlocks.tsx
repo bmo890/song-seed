@@ -14,6 +14,7 @@ import {
   type MetronomeOutputKey,
   type MetronomeOutputs,
 } from "../../../domain/metronome";
+import { useTranslation } from "react-i18next";
 
 /**
  * Shared metronome control blocks — the single source for the tempo stepper/tap/
@@ -51,6 +52,7 @@ export function TempoBlock({
   onSetBpmValue: (value: number) => void;
   onTapTempo: () => unknown;
 }) {
+  const { t } = useTranslation();
   return (
     <>
       <View style={ms.tempoRow}>
@@ -60,7 +62,7 @@ export function TempoBlock({
             onPress={() => onNudgeBpm(-1)}
             disabled={disabled}
             accessibilityRole="button"
-            accessibilityLabel="Slow the tempo by one BPM"
+            accessibilityLabel={t("metronome.slow")}
           >
             <Ionicons name="remove" size={15} color={colors.primary} />
           </Pressable>
@@ -70,7 +72,7 @@ export function TempoBlock({
             onPress={() => onNudgeBpm(1)}
             disabled={disabled}
             accessibilityRole="button"
-            accessibilityLabel="Raise the tempo by one BPM"
+            accessibilityLabel={t("metronome.raise")}
           >
             <Ionicons name="add" size={15} color={colors.primary} />
           </Pressable>
@@ -84,7 +86,7 @@ export function TempoBlock({
           onPress={() => onTapTempo()}
           disabled={disabled}
           accessibilityRole="button"
-          accessibilityLabel="Tap tempo"
+          accessibilityLabel={t("metronome.tapTempo")}
         >
           <Ionicons
             name="hand-left-outline"
@@ -92,7 +94,7 @@ export function TempoBlock({
             color={tapCount > 0 ? colors.onPrimary : colors.primary}
           />
           <Text style={[ms.tapText, tapCount > 0 ? ms.tapTextActive : null]}>
-            {tapCount > 0 ? `Tap (${tapCount})` : "Tap"}
+            {tapCount > 0 ? t("metronome.tapCount", { count: tapCount }) : t("metronome.tap")}
           </Text>
         </Pressable>
       </View>
@@ -121,6 +123,7 @@ export function MeterChips({
   disabled?: boolean;
   onSelectMeter: (meterId: MetronomeMeterId) => void;
 }) {
+  const { t } = useTranslation();
   return (
     <View style={ms.chipsRow}>
       {METRONOME_METER_PRESETS.map((preset) => {
@@ -133,7 +136,7 @@ export function MeterChips({
             disabled={disabled}
             accessibilityRole="button"
             accessibilityState={{ selected: active }}
-            accessibilityLabel={`${preset.label} time`}
+            accessibilityLabel={t("metronome.meterTime", { label: preset.label })}
           >
             <Text style={[ms.chipText, active ? ms.chipTextActive : null]}>{preset.label}</Text>
           </Pressable>
@@ -158,6 +161,7 @@ export function CueTiles({
   disabled?: boolean;
   onToggleOutput: (key: MetronomeOutputKey) => void;
 }) {
+  const { t } = useTranslation();
   return (
     <View style={ms.cuesRow}>
       {CUES.map((cue) => {
@@ -170,10 +174,10 @@ export function CueTiles({
             disabled={disabled}
             accessibilityRole="button"
             accessibilityState={{ selected: active }}
-            accessibilityLabel={cue.label}
+            accessibilityLabel={t(`metronome.${cue.key}`)}
           >
             <Ionicons name={cue.icon} size={20} color={active ? colors.primaryDeep : colors.textMuted} />
-            <Text style={[ms.cueLabel, active ? ms.cueLabelActive : null]}>{cue.label}</Text>
+            <Text style={[ms.cueLabel, active ? ms.cueLabelActive : null]}>{t(`metronome.${cue.key}`)}</Text>
           </Pressable>
         );
       })}
@@ -215,6 +219,7 @@ export function HapticStrengthControl({
   hapticLevel: number;
   onChangeHapticLevel: (level: number) => void;
 }) {
+  const { t } = useTranslation();
   const activeId = nearestHapticStrengthId(hapticLevel);
   return (
     <View style={ms.segmentGroup}>
@@ -227,9 +232,9 @@ export function HapticStrengthControl({
             onPress={() => onChangeHapticLevel(preset.level)}
             accessibilityRole="button"
             accessibilityState={{ selected: active }}
-            accessibilityLabel={`${preset.label} haptic strength`}
+            accessibilityLabel={t("metronome.hapticStrength", { label: t(`metronome.${preset.id}`) })}
           >
-            <Text style={[ms.segmentText, active ? ms.segmentTextActive : null]}>{preset.label}</Text>
+            <Text style={[ms.segmentText, active ? ms.segmentTextActive : null]}>{t(`metronome.${preset.id}`)}</Text>
           </Pressable>
         );
       })}

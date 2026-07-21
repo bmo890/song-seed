@@ -1,6 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors, radii, spacing, text as textTokens } from "../design/tokens";
+import { useTranslation } from "react-i18next";
 
 type Props = {
   count: number;
@@ -13,13 +14,14 @@ type Props = {
  * it reads as its own mode at a glance, not a copy/move clipboard state. Rendered
  * full-width outside the scroll area wherever it's used so it stays pinned in place. */
 export function SongTargetPickerBanner({ count, onCancel }: Props) {
+  const { t } = useTranslation();
   return (
     <View style={bannerStyles.bar}>
       <View style={bannerStyles.iconWrap}>
         <Ionicons name="albums" size={14} color={colors.onPrimary} />
       </View>
       <Text style={bannerStyles.text} numberOfLines={1}>
-        Pick a song to add lyrics to
+        {t("common.pickSongLyrics")}
       </Text>
       {count > 1 ? (
         <View style={bannerStyles.countBadge}>
@@ -31,7 +33,7 @@ export function SongTargetPickerBanner({ count, onCancel }: Props) {
         onPress={onCancel}
         hitSlop={8}
       >
-        <Text style={bannerStyles.cancelText}>Cancel</Text>
+        <Text style={bannerStyles.cancelText}>{t("common.cancel")}</Text>
       </Pressable>
     </View>
   );

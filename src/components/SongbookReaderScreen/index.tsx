@@ -14,20 +14,18 @@ import { haptic } from "../../design/haptics";
 import { fmtDuration } from "../../utils";
 import { getClipPlaybackDurationMs } from "../../domain/clipPresentation";
 import type { SongbookReaderView } from "../../domain/songbookGrouping";
+import { useTranslation } from "react-i18next";
+import { UserText } from "../../i18n";
 
 const noop = () => {};
-
-const VIEW_LABELS: Record<SongbookReaderView, string> = {
-  lyrics: "Lyrics",
-  chart: "Chart",
-  grid: "Grid",
-};
 
 /** Full-screen book reading: one song per page, switchable chart views, the
  *  transpose stepper, and a pager strip that turns pages by song name. Audio
  *  rides in the global dock underneath — this screen deliberately does NOT
  *  obscure the player. */
 export function SongbookReaderScreen() {
+  const { t } = useTranslation();
+  const viewLabel = (view: SongbookReaderView) => t(view === "lyrics" ? "screens.lyrics" : view === "chart" ? "screens.chart" : "library.grid");
   const reader = useSongbookReaderModel();
   const metronome = useMetronome();
 
@@ -67,18 +65,18 @@ export function SongbookReaderScreen() {
           onPress={reader.close}
           hitSlop={10}
           accessibilityRole="button"
-          accessibilityLabel="Close the book"
+          accessibilityLabel={t("library.closeBook")}
           style={({ pressed }) => (pressed ? { opacity: 0.6 } : null)}
         >
           <Ionicons name="close" size={20} color={colors.textStrong} />
         </Pressable>
         <View style={readerStyles.titleWrap}>
-          <Text style={readerStyles.bookName} numberOfLines={1}>
+          <UserText style={readerStyles.bookName} numberOfLines={1}>
             {reader.songbook.title}
-          </Text>
-          <Text style={readerStyles.songTitle} numberOfLines={1}>
+          </UserText>
+          <UserText style={readerStyles.songTitle} numberOfLines={1}>
             {song.title}
-          </Text>
+          </UserText>
         </View>
         <Text style={readerStyles.position}>
           {reader.index + 1} / {reader.count}
@@ -95,16 +93,16 @@ export function SongbookReaderScreen() {
                 style={[readerStyles.segItem, reader.view === candidate ? readerStyles.segItemOn : null]}
                 onPress={() => reader.setView(candidate)}
                 accessibilityRole="button"
-                accessibilityLabel={`${VIEW_LABELS[candidate]} view`}
+                accessibilityLabel={t(candidate === "lyrics" ? "library.lyricsView" : candidate === "chart" ? "library.chartView" : "library.gridView")}
               >
-                <Text
+                <UserText
                   style={[
                     readerStyles.segLabel,
                     reader.view === candidate ? readerStyles.segLabelOn : null,
                   ]}
                 >
-                  {VIEW_LABELS[candidate]}
-                </Text>
+                  {viewLabel(candidate)}
+                </UserText>
               </Pressable>
             ))}
           </View>
@@ -124,7 +122,7 @@ export function SongbookReaderScreen() {
           onPress={reader.cycleZoom}
           hitSlop={8}
           accessibilityRole="button"
-          accessibilityLabel="Cycle text size"
+          accessibilityLabel={t("library.cycleTextSize")}
           style={({ pressed }) => [readerStyles.zoomBtn, pressed ? { opacity: 0.6 } : null]}
         >
           <Ionicons name="search-outline" size={15} color={colors.textSecondary} />
@@ -190,12 +188,12 @@ export function SongbookReaderScreen() {
           }}
           disabled={!reader.previousTitle}
           accessibilityRole="button"
-          accessibilityLabel={reader.previousTitle ? `Previous: ${reader.previousTitle}` : "At the first song"}
+          accessibilityLabel={reader.previousTitle ? t("library.previousSong", { title: reader.previousTitle }) : t("library.firstSong")}
         >
           <Ionicons name="chevron-back" size={13} color={colors.textSecondary} />
-          <Text style={readerStyles.pagerSideText} numberOfLines={1}>
+          <UserText style={readerStyles.pagerSideText} numberOfLines={1}>
             {reader.previousTitle ?? "—"}
-          </Text>
+          </UserText>
         </Pressable>
 
         <View style={readerStyles.pagerMid}>
@@ -207,7 +205,7 @@ export function SongbookReaderScreen() {
                 reader.toggleSongAudio();
               }}
               accessibilityRole="button"
-              accessibilityLabel={reader.nowPlayingThisSong ? "Pause reference audio" : "Play reference audio"}
+              accessibilityLabel={t(reader.nowPlayingThisSong ? "library.pauseReference" : "library.playReference")}
             >
               {reader.nowPlayingThisSong ? (
                 <NowPlayingIndicator playing={reader.isPlayerPlaying} color={colors.primary} size={10} />
@@ -215,7 +213,7 @@ export function SongbookReaderScreen() {
                 <Ionicons name="play" size={10} color={colors.textStrong} />
               )}
               <Text style={readerStyles.toolChipText}>
-                {durationMs != null ? fmtDuration(durationMs) : "Play"}
+                {durationMs != null ? fmtDuration(durationMs) : t("common.play")}
               </Text>
             </Pressable>
           ) : null}
@@ -231,7 +229,7 @@ export function SongbookReaderScreen() {
               metronome.toggleRunning();
             }}
             accessibilityRole="button"
-            accessibilityLabel={metronome.isRunning ? "Stop metronome" : "Start metronome"}
+            accessibilityLabel={t(metronome.isRunning ? "metronome.stopA11y" : "metronome.startA11y")}
           >
             <Ionicons
               name="pulse-outline"
@@ -259,11 +257,11 @@ export function SongbookReaderScreen() {
           }}
           disabled={!reader.nextTitle}
           accessibilityRole="button"
-          accessibilityLabel={reader.nextTitle ? `Next: ${reader.nextTitle}` : "At the last song"}
+          accessibilityLabel={reader.nextTitle ? t("library.nextSong", { title: reader.nextTitle }) : t("library.lastSong")}
         >
-          <Text style={readerStyles.pagerSideText} numberOfLines={1}>
+          <UserText style={readerStyles.pagerSideText} numberOfLines={1}>
             {reader.nextTitle ?? "—"}
-          </Text>
+          </UserText>
           <Ionicons name="chevron-forward" size={13} color={colors.textSecondary} />
         </Pressable>
       </View>

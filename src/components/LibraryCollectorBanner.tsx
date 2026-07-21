@@ -1,6 +1,8 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors, radii, spacing, text as textTokens } from "../design/tokens";
+import { useTranslation } from "react-i18next";
+import { UserText } from "../i18n";
 
 type Props = {
   kind: "playlist" | "songbook" | "setlist";
@@ -21,14 +23,13 @@ const KIND_ICONS = {
  * as the song-target picker banner: you're in a mode, and the two exits are
  * explicit — Done returns to the collection, ✕ ends collecting in place. */
 export function LibraryCollectorBanner({ kind, targetTitle, addedCount, onDone, onCancel }: Props) {
+  const { t } = useTranslation();
   return (
     <View style={bannerStyles.bar}>
       <View style={bannerStyles.iconWrap}>
         <Ionicons name={KIND_ICONS[kind]} size={13} color={colors.onPrimary} />
       </View>
-      <Text style={bannerStyles.text} numberOfLines={1}>
-        Adding to {targetTitle}
-      </Text>
+      <UserText value={targetTitle} style={bannerStyles.text} numberOfLines={1}>{t("common.addingTo", { title: targetTitle })}</UserText>
       {addedCount > 0 ? (
         <View style={bannerStyles.countBadge}>
           <Text style={bannerStyles.countBadgeText}>{addedCount}</Text>
@@ -39,16 +40,16 @@ export function LibraryCollectorBanner({ kind, targetTitle, addedCount, onDone, 
         onPress={onDone}
         hitSlop={8}
         accessibilityRole="button"
-        accessibilityLabel={`Done — back to ${targetTitle}`}
+        accessibilityLabel={t("common.doneBackTo", { title: targetTitle })}
       >
-        <Text style={bannerStyles.doneText}>Done</Text>
+        <Text style={bannerStyles.doneText}>{t("common.done")}</Text>
       </Pressable>
       <Pressable
         style={({ pressed }) => [bannerStyles.cancelBtn, pressed ? bannerStyles.btnPressed : null]}
         onPress={onCancel}
         hitSlop={10}
         accessibilityRole="button"
-        accessibilityLabel="Stop adding"
+        accessibilityLabel={t("common.stopAdding")}
       >
         <Ionicons name="close" size={15} color={colors.onPrimary} />
       </Pressable>

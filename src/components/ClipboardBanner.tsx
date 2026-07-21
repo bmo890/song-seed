@@ -1,5 +1,6 @@
 import { Pressable, Text, View } from "react-native";
 import { styles } from "../styles";
+import { useTranslation } from "react-i18next";
 
 export function ClipboardBanner({
   count,
@@ -16,10 +17,11 @@ export function ClipboardBanner({
   onAction?: () => void;
   onCancel: () => void;
 }) {
+  const { t } = useTranslation();
   return (
     <View style={styles.selectionBar}>
       <Text style={styles.selectionText}>
-        {count} {mode === "move" ? "move" : "copy"} ready
+        {t(mode === "move" ? "common.moveReady" : "common.copyReady", { count })}
       </Text>
       <View style={styles.rowButtons}>
         {actionLabel && onAction ? (
@@ -34,7 +36,7 @@ export function ClipboardBanner({
           </Pressable>
         ) : null}
         <Pressable style={styles.secondaryBtn} onPress={onCancel}>
-          <Text style={styles.secondaryBtnText}>Cancel</Text>
+          <Text style={styles.secondaryBtnText}>{t("common.cancel")}</Text>
         </Pressable>
       </View>
     </View>
