@@ -1,232 +1,472 @@
-import { useEffect, useRef, useState } from "react";
-import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
-import { UserText, UserTextInput } from "../../../i18n";
-import DraggableFlatList, { type RenderItemParams } from "react-native-draggable-flatlist";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
+import {
+  Keyboard,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  type TextInput,
+  View,
+} from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { AppAlert } from "../../common/AppAlert";
+import { UserText, UserTextInput } from "../../../i18n";
 import { styles as appStyles } from "../../../styles";
-import { colors, radii, spacing, text as textTokens } from "../../../design/tokens";
+import { colors, radii, shadows, spacing } from "../../../design/tokens";
 import { haptic } from "../../../design/haptics";
+import { BottomSheet } from "../../common/BottomSheet";
+import { ChordZoomBar } from "../../LyricsVersionScreen/components/chords/ChordZoomBar";
 import type { MagpieFragment, MagpieSpark } from "../../../types";
 import type { useMagpieScreenModel } from "../hooks/useMagpieScreenModel";
 import { useTranslation } from "react-i18next";
 
 type Model = ReturnType<typeof useMagpieScreenModel>;
 
-export function MagpieBuildStep({ model, spark }: { model: Model; spark: MagpieSpark }) {
-  const { t } = useTranslation();
-  const fragments = [...spark.fragments].sort((a, b) => a.order - b.order);
+const PAGE_BG = "#FBF6EC";
+const BASE_FONT = 18;
+const BASE_LINE = 29;
 
-  function confirmRebuild() {
-    if (!spark.draft.trim()) {
-      model.rebuildDraft();
-      return;
-    }
-    AppAlert.destructive(
-      t("magpie.rebuildTitle"),
-      t("magpie.rebuildBody"),
-      model.rebuildDraft,
-      { confirmLabel: t("magpie.rebuild") }
-    );
-  }
+export function MagpieBuildStep({
+  model,
+  spark,
+  onHelp,
+}: {
+  model: Model;
+  spark: MagpieSpark;
+  onHelp: () => void;
+}) {
+  const { t } = useTranslation();
+  const [zoom, setZoom] = useState(1);
+  const [sizeOpen, setSizeOpen] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+  const [menuFragment, setMenuFragment] = useState<MagpieFragment | null>(null);
+  const [selection, setSelection] = useState({ start: 0, end: 0 });
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
+  const draftRef = useRef<TextInput>(null);
+
+  useEffect(() => {
+    const showEvt = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const hideEvt = Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+    const show = Keyboard.addListener(showEvt, () => setKeyboardVisible(true));
+    const hide = Keyboard.addListener(hideEvt, () => setKeyboardVisible(false));
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, []);
+
+  const used = useMemo(() => new Set(spark.usedFragmentIds), [spark.usedFragmentIds]);
+
+  // Unused scraps lead; used ones drift to the end. Order preserved within each.
+  const orderedScraps = useMemo(() => {
+    const byOrder = [...spark.fragments].sort((a, b) => a.order - b.order);
+    return [...byOrder.filter((f) => !used.has(f.id)), ...byOrder.filter((f) => used.has(f.id))];
+  }, [spark.fragments, used]);
+
+  const draftBlank = spark.draft.trim().length === 0;
+  const fontSize = BASE_FONT * zoom;
+  const lineHeight = BASE_LINE * zoom;
+
+  // Drop a scrap in at the caret (or append a new line if the caret is at the end
+  // of a non-empty line), with smart spacing. Marks the scrap used.
+  const insertScrap = (fragment: MagpieFragment) => {
+    haptic.light();
+    const current = spark.draft;
+    const pos = Math.min(selection.start, current.length);
+    const before = current.slice(0, pos);
+    const after = current.slice(pos);
+    const needsSpace = before.length > 0 && !/\s$/.test(before);
+    const inserted = (needsSpace ? " " : "") + fragment.text;
+    const next = before + inserted + after;
+    model.setDraft(next);
+    model.markFragmentUsed(fragment.id);
+    const caret = pos + inserted.length;
+    setSelection({ start: caret, end: caret });
+  };
 
   return (
     <View style={styles.body}>
-      <Text style={styles.hint}>{t("magpie.buildHint")}</Text>
-      <View style={styles.listWrap}>
-        <DraggableFlatList
-          data={fragments}
-          keyExtractor={(item) => item.id}
-          onDragBegin={haptic.grab}
-          onDragEnd={({ data }) => model.reorder(data.map((item) => item.id))}
-          containerStyle={styles.listFill}
-          contentContainerStyle={fragments.length === 0 ? styles.listEmptyContent : styles.listContent}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-          ListEmptyComponent={
-            <Text style={styles.empty}>{t("magpie.noWords")}</Text>
-          }
-          renderItem={({ item, drag, isActive }: RenderItemParams<MagpieFragment>) => (
-            <FragmentRow
-              fragment={item}
-              isDragging={isActive}
-              onDrag={drag}
-              onSplit={() => model.splitFragment(item.id)}
-              onRemove={() => model.removeFragment(item.id)}
-              onEdit={(text) => model.editFragment(item.id, text)}
-              editedFromLabel={(text) => t("magpie.editedFrom", { text })}
-              splitLabel={t("magpie.splitWords")}
-              removeLabel={t("magpie.remove")}
-            />
-          )}
-        />
-      </View>
+      <Header
+        title={spark.title}
+        onBack={() => model.goToStep("page")}
+        onSize={() => setSizeOpen(true)}
+        onHelp={onHelp}
+      />
 
-      <View style={styles.draftHeader}>
-        <Text style={styles.draftLabel}>{t("magpie.yourDraft")}</Text>
-        <Pressable
-          style={({ pressed }) => [styles.rebuildBtn, pressed ? appStyles.pressDown : null]}
-          onPress={confirmRebuild}
-          hitSlop={6}
-        >
-          <Ionicons name="sync-outline" size={13} color={colors.textSecondary} />
-          <Text style={styles.rebuildText}>{t("magpie.rebuildFromWords")}</Text>
-        </Pressable>
-      </View>
-
-      <View style={styles.draftCard}>
+      <View style={styles.draftPage}>
         <UserTextInput
-          style={styles.draftInput}
+          ref={draftRef}
+          style={[styles.draftInput, { fontSize, lineHeight }]}
           value={spark.draft}
           onChangeText={model.setDraft}
+          selection={selection}
+          onSelectionChange={(e) => setSelection(e.nativeEvent.selection)}
           multiline
           textAlignVertical="top"
           placeholder={t("magpie.draftPlaceholder")}
           placeholderTextColor={colors.textMuted}
+          scrollEnabled
         />
       </View>
+
+      <Palette
+        scraps={orderedScraps}
+        used={used}
+        count={spark.fragments.length}
+        showPour={draftBlank && spark.fragments.length > 0}
+        onInsert={insertScrap}
+        onLongPress={(fragment) => {
+          haptic.grab();
+          setMenuFragment(fragment);
+        }}
+        onExpand={() => setExpanded(true)}
+        onPour={() => {
+          haptic.success();
+          model.pourScraps();
+        }}
+      />
+
+      {!keyboardVisible ? (
+        <Pressable
+          style={({ pressed }) => [styles.saveBtn, pressed ? appStyles.pressDown : null]}
+          onPress={model.saveAsLyrics}
+        >
+          <Ionicons name="bookmark-outline" size={16} color={colors.onPrimary} />
+          <Text style={styles.saveBtnText}>{t("wordSparks.saveLyrics")}</Text>
+        </Pressable>
+      ) : null}
+
+      <BottomSheet visible={sizeOpen} onClose={() => setSizeOpen(false)}>
+        <Text style={styles.sheetLabel}>{t("magpie.textSize")}</Text>
+        <ChordZoomBar zoom={zoom} onChange={setZoom} />
+      </BottomSheet>
+
+      <ExpandedPalette
+        visible={expanded}
+        onClose={() => setExpanded(false)}
+        scraps={orderedScraps}
+        used={used}
+        onInsert={insertScrap}
+        onLongPress={(fragment) => {
+          haptic.grab();
+          setMenuFragment(fragment);
+        }}
+      />
+
+      <ScrapMenu
+        fragment={menuFragment}
+        used={menuFragment ? used.has(menuFragment.id) : false}
+        onClose={() => setMenuFragment(null)}
+        model={model}
+      />
     </View>
   );
 }
 
-function FragmentRow({
+// ── Header ────────────────────────────────────────────────────────────────────
+function Header({
+  title,
+  onBack,
+  onSize,
+  onHelp,
+}: {
+  title: string;
+  onBack: () => void;
+  onSize: () => void;
+  onHelp: () => void;
+}) {
+  const { t } = useTranslation();
+  return (
+    <View style={styles.header}>
+      <Pressable
+        style={({ pressed }) => [styles.backBtn, pressed ? appStyles.pressDown : null]}
+        onPress={onBack}
+        hitSlop={6}
+      >
+        <Ionicons name="chevron-back" size={20} color={colors.textStrong} />
+        <Text style={styles.backText}>{t("wordSparks.page")}</Text>
+      </Pressable>
+      <View style={styles.titleCol}>
+        <Text style={styles.titleOver}>{t("magpie.yourDraft")}</Text>
+        <UserText style={styles.titleText} numberOfLines={1}>
+          {title}
+        </UserText>
+      </View>
+      <Pressable style={({ pressed }) => [styles.iconBtn, pressed ? appStyles.pressDown : null]} onPress={onSize} hitSlop={6} accessibilityLabel={t("magpie.textSize")}>
+        <Text style={styles.iconBtnText}>Aa</Text>
+      </Pressable>
+      <Pressable style={({ pressed }) => [styles.iconBtn, pressed ? appStyles.pressDown : null]} onPress={onHelp} hitSlop={6} accessibilityLabel="How this works">
+        <Ionicons name="help-circle-outline" size={20} color={colors.textStrong} />
+      </Pressable>
+    </View>
+  );
+}
+
+// ── Palette ───────────────────────────────────────────────────────────────────
+const Chip = memo(function Chip({
   fragment,
-  isDragging,
-  onDrag,
-  onSplit,
-  onRemove,
-  onEdit,
-  editedFromLabel,
-  splitLabel,
-  removeLabel,
+  isUsed,
+  onInsert,
+  onLongPress,
 }: {
   fragment: MagpieFragment;
-  isDragging: boolean;
-  onDrag: () => void;
-  onSplit: () => void;
-  onRemove: () => void;
-  onEdit: (text: string) => void;
-  editedFromLabel: (text: string) => string;
-  splitLabel: string;
-  removeLabel: string;
+  isUsed: boolean;
+  onInsert: (fragment: MagpieFragment) => void;
+  onLongPress: (fragment: MagpieFragment) => void;
 }) {
-  const [isEditing, setIsEditing] = useState(false);
-  const inputRef = useRef<TextInput>(null);
-  const isMultiWord = fragment.text.trim().split(/\s+/).length > 1;
-  const wasEdited = fragment.text.trim() !== fragment.originalText.trim();
-
-  useEffect(() => {
-    if (isEditing) inputRef.current?.focus();
-  }, [isEditing]);
-
   return (
-    <View style={[styles.row, isDragging ? styles.rowDragging : null]}>
-      <Pressable onLongPress={onDrag} delayLongPress={120} hitSlop={6} style={styles.handle}>
-        <Ionicons name="reorder-three" size={16} color={colors.textMuted} />
-      </Pressable>
+    <Pressable
+      style={({ pressed }) => [styles.chip, isUsed ? styles.chipUsed : null, pressed ? appStyles.pressDown : null]}
+      onPress={() => onInsert(fragment)}
+      onLongPress={() => onLongPress(fragment)}
+      delayLongPress={230}
+    >
+      {isUsed ? (
+        <Ionicons name="checkmark" size={13} color={colors.primaryDeep} />
+      ) : null}
+      <UserText style={styles.chipText} numberOfLines={1}>
+        {fragment.text}
+      </UserText>
+    </Pressable>
+  );
+});
 
-      <View style={styles.rowTextWrap}>
-        {isEditing ? (
-          <UserTextInput
-            ref={inputRef}
-            style={styles.rowInput}
-            value={fragment.text}
-            onChangeText={onEdit}
-            onBlur={() => setIsEditing(false)}
-            onSubmitEditing={() => setIsEditing(false)}
-            returnKeyType="done"
-            multiline
-          />
+function Palette({
+  scraps,
+  used,
+  count,
+  showPour,
+  onInsert,
+  onLongPress,
+  onExpand,
+  onPour,
+}: {
+  scraps: MagpieFragment[];
+  used: Set<string>;
+  count: number;
+  showPour: boolean;
+  onInsert: (fragment: MagpieFragment) => void;
+  onLongPress: (fragment: MagpieFragment) => void;
+  onExpand: () => void;
+  onPour: () => void;
+}) {
+  const { t } = useTranslation();
+  if (count === 0) {
+    return (
+      <View style={styles.palette}>
+        <Text style={styles.paletteEmpty}>{t("magpie.noWords")}</Text>
+      </View>
+    );
+  }
+  return (
+    <View style={styles.palette}>
+      <View style={styles.paletteHead}>
+        <Text style={styles.paletteLabel}>{t("magpie.yourScraps", { count })}</Text>
+        {showPour ? (
+          <Pressable style={({ pressed }) => [styles.pourBtn, pressed ? appStyles.pressDown : null]} onPress={onPour}>
+            <Ionicons name="arrow-down" size={13} color={colors.onPrimary} />
+            <Text style={styles.pourText}>{t("magpie.pourInOrder")}</Text>
+          </Pressable>
         ) : (
-          <Pressable onPress={() => setIsEditing(true)}>
-            <UserText style={styles.rowText}>{fragment.text}</UserText>
-            {wasEdited ? (
-              <UserText style={styles.editedNote} value={fragment.originalText} numberOfLines={1}>
-                {editedFromLabel(fragment.originalText)}
-              </UserText>
-            ) : null}
+          <Pressable style={({ pressed }) => [styles.expandBtn, pressed ? appStyles.pressDown : null]} onPress={onExpand} hitSlop={6}>
+            <Ionicons name="grid-outline" size={13} color={colors.textSecondary} />
+            <Text style={styles.expandText}>{t("magpie.seeAll")}</Text>
           </Pressable>
         )}
       </View>
-
-      {isMultiWord ? (
-        <Pressable onPress={onSplit} hitSlop={6} style={styles.iconBtn} accessibilityLabel={splitLabel}>
-          <Ionicons name="cut-outline" size={15} color={colors.textMuted} />
-        </Pressable>
-      ) : null}
-      <Pressable onPress={onRemove} hitSlop={6} style={styles.iconBtn} accessibilityLabel={removeLabel}>
-        <Ionicons name="close" size={16} color={colors.textMuted} />
-      </Pressable>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={styles.stripContent}
+      >
+        {scraps.map((fragment) => (
+          <Chip
+            key={fragment.id}
+            fragment={fragment}
+            isUsed={used.has(fragment.id)}
+            onInsert={onInsert}
+            onLongPress={onLongPress}
+          />
+        ))}
+      </ScrollView>
+      <Text style={styles.paletteTip}>{t("magpie.scrapTip")}</Text>
     </View>
+  );
+}
+
+function ExpandedPalette({
+  visible,
+  onClose,
+  scraps,
+  used,
+  onInsert,
+  onLongPress,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  scraps: MagpieFragment[];
+  used: Set<string>;
+  onInsert: (fragment: MagpieFragment) => void;
+  onLongPress: (fragment: MagpieFragment) => void;
+}) {
+  const { t } = useTranslation();
+  return (
+    <BottomSheet visible={visible} onClose={onClose}>
+      <Text style={styles.sheetLabel}>{t("magpie.yourScraps", { count: scraps.length })}</Text>
+      <ScrollView style={styles.gridScroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+        <View style={styles.grid}>
+          {scraps.map((fragment) => (
+            <Chip
+              key={fragment.id}
+              fragment={fragment}
+              isUsed={used.has(fragment.id)}
+              onInsert={onInsert}
+              onLongPress={onLongPress}
+            />
+          ))}
+        </View>
+      </ScrollView>
+    </BottomSheet>
+  );
+}
+
+// ── Scrap menu (long-press) ───────────────────────────────────────────────────
+function ScrapMenu({
+  fragment,
+  used,
+  onClose,
+  model,
+}: {
+  fragment: MagpieFragment | null;
+  used: boolean;
+  onClose: () => void;
+  model: Model;
+}) {
+  const { t } = useTranslation();
+  const isMultiWord = fragment ? fragment.text.trim().split(/\s+/).length > 1 : false;
+  return (
+    <BottomSheet visible={fragment !== null} onClose={onClose} keyboardAvoiding>
+      {fragment ? (
+        <>
+          <Text style={styles.sheetLabel}>{t("magpie.editScrap")}</Text>
+          <UserTextInput
+            style={styles.menuInput}
+            value={fragment.text}
+            onChangeText={(text) => model.editFragment(fragment.id, text)}
+            multiline
+          />
+          {fragment.text.trim() !== fragment.originalText.trim() ? (
+            <UserText style={styles.editedNote} value={fragment.originalText} numberOfLines={1}>
+              {t("magpie.editedFrom", { text: fragment.originalText })}
+            </UserText>
+          ) : null}
+
+          <View style={styles.menuList}>
+            {isMultiWord ? (
+              <MenuRow icon="cut-outline" label={t("magpie.splitWords")} onPress={() => { model.splitFragment(fragment.id); onClose(); }} />
+            ) : null}
+            <MenuRow icon="git-merge-outline" label={t("magpie.merge")} onPress={() => model.mergeFragment(fragment.id)} />
+            <MenuRow
+              icon={used ? "ellipse-outline" : "checkmark-circle-outline"}
+              label={used ? t("magpie.markUnused") : t("magpie.markUsed")}
+              onPress={() => (used ? model.clearFragmentUsed(fragment.id) : model.markFragmentUsed(fragment.id))}
+            />
+            <MenuRow icon="trash-outline" label={t("magpie.remove")} danger onPress={() => { model.removeFragment(fragment.id); onClose(); }} />
+          </View>
+        </>
+      ) : null}
+    </BottomSheet>
+  );
+}
+
+function MenuRow({
+  icon,
+  label,
+  danger,
+  onPress,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  danger?: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable style={({ pressed }) => [styles.menuRow, pressed ? appStyles.pressDown : null]} onPress={onPress}>
+      <Ionicons name={icon} size={18} color={danger ? colors.danger : colors.textStrong} />
+      <Text style={[styles.menuRowText, danger ? styles.menuRowDanger : null]}>{label}</Text>
+    </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
   body: { flex: 1 },
-  hint: { ...textTokens.supporting, fontSize: 12, color: colors.textMuted, marginBottom: spacing.sm },
-  listWrap: { flex: 1 },
-  listFill: { flex: 1 },
-  listContent: { paddingBottom: spacing.sm },
-  listEmptyContent: { paddingVertical: spacing.xl },
-  empty: { ...textTokens.supporting, fontSize: 13, textAlign: "center" },
-  row: {
+
+  header: { flexDirection: "row", alignItems: "center", gap: spacing.xs, paddingBottom: spacing.sm },
+  backBtn: { flexDirection: "row", alignItems: "center", gap: 2, paddingVertical: 6, paddingRight: 4 },
+  backText: { fontFamily: "PlusJakartaSans_600SemiBold", fontSize: 14, color: colors.textStrong },
+  titleCol: { flex: 1, minWidth: 0, alignItems: "center" },
+  titleOver: { fontFamily: "PlusJakartaSans_700Bold", fontSize: 9, letterSpacing: 1, textTransform: "uppercase", color: colors.textMuted },
+  titleText: { fontFamily: "PlayfairDisplay_600SemiBold", fontSize: 14, color: colors.textPrimary, marginTop: 1 },
+  iconBtn: { minWidth: 34, height: 34, borderRadius: radii.round, alignItems: "center", justifyContent: "center", paddingHorizontal: 4 },
+  iconBtnText: { fontFamily: "PlayfairDisplay_600SemiBold", fontSize: 16, color: colors.textStrong },
+
+  draftPage: { flex: 1, backgroundColor: PAGE_BG, borderRadius: radii.xl, padding: spacing.lg, ...shadows.card },
+  draftInput: { flex: 1, fontFamily: "PlayfairDisplay_400Regular", color: colors.textStrong },
+
+  palette: { paddingTop: spacing.md },
+  paletteEmpty: { fontFamily: "PlayfairDisplay_400Regular", fontStyle: "italic", fontSize: 13, color: colors.textMuted, textAlign: "center", paddingVertical: spacing.md },
+  paletteHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: spacing.sm },
+  paletteLabel: { fontFamily: "PlusJakartaSans_700Bold", fontSize: 10, letterSpacing: 0.8, textTransform: "uppercase", color: colors.textMuted },
+  expandBtn: { flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: colors.surface, borderRadius: radii.round, paddingHorizontal: spacing.md, paddingVertical: 5, ...shadows.control },
+  expandText: { fontFamily: "PlusJakartaSans_700Bold", fontSize: 11, color: colors.textSecondary },
+  pourBtn: { flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: colors.primaryDeep, borderRadius: radii.round, paddingHorizontal: spacing.md, paddingVertical: 6 },
+  pourText: { fontFamily: "PlusJakartaSans_700Bold", fontSize: 11, color: colors.onPrimary },
+  stripContent: { gap: spacing.xs, alignItems: "center", paddingRight: spacing.md },
+  chip: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 2,
+    gap: 5,
+    maxWidth: 200,
     backgroundColor: colors.surface,
-    borderRadius: radii.sm,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    marginBottom: spacing.xs,
+    borderRadius: radii.round,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 8,
+    ...shadows.control,
   },
-  rowDragging: { opacity: 0.9 },
-  handle: { width: 24, height: 34, alignItems: "center", justifyContent: "center" },
-  rowTextWrap: { flex: 1, minWidth: 0, paddingVertical: 8, paddingHorizontal: 2 },
-  rowText: { fontFamily: "PlayfairDisplay_400Regular", fontSize: 16, color: colors.textPrimary },
-  editedNote: {
-    fontFamily: "PlusJakartaSans_400Regular",
-    fontSize: 10,
-    color: colors.textMuted,
-    fontStyle: "italic",
-    marginTop: 1,
+  chipUsed: { opacity: 0.55 },
+  chipText: { fontFamily: "PlayfairDisplay_400Regular", fontSize: 14, color: colors.textStrong, flexShrink: 1 },
+  paletteTip: { fontFamily: "PlusJakartaSans_400Regular", fontSize: 11, color: colors.textMuted, marginTop: spacing.sm },
+
+  saveBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.xs,
+    backgroundColor: colors.primaryDeep,
+    borderRadius: radii.round,
+    paddingVertical: 15,
+    marginTop: spacing.md,
   },
-  rowInput: {
+  saveBtnText: { fontFamily: "PlusJakartaSans_700Bold", fontSize: 14, color: colors.onPrimary },
+
+  sheetLabel: { fontFamily: "PlusJakartaSans_700Bold", fontSize: 10, letterSpacing: 1, textTransform: "uppercase", color: colors.textMuted, marginBottom: spacing.md },
+  gridScroll: { maxHeight: 320 },
+  grid: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xs },
+
+  menuInput: {
     fontFamily: "PlayfairDisplay_400Regular",
     fontSize: 16,
     color: colors.textPrimary,
-    paddingVertical: 6,
-    paddingHorizontal: 2,
-  },
-  iconBtn: { width: 26, height: 26, alignItems: "center", justifyContent: "center" },
-  draftHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginTop: spacing.sm,
-    marginBottom: spacing.xs,
-  },
-  draftLabel: { ...textTokens.annotation },
-  rebuildBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 6,
-    borderRadius: radii.round,
-    backgroundColor: colors.surfaceHigh,
-  },
-  rebuildText: { fontFamily: "PlusJakartaSans_600SemiBold", fontSize: 12, color: colors.textSecondary },
-  draftCard: {
-    height: 150,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.surfaceContainer,
     borderRadius: radii.lg,
-    padding: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    minHeight: 44,
   },
-  draftInput: {
-    flex: 1,
-    fontFamily: "PlayfairDisplay_400Regular",
-    fontSize: 18,
-    lineHeight: 28,
-    color: colors.textPrimary,
-  },
+  editedNote: { fontFamily: "PlusJakartaSans_400Regular", fontStyle: "italic", fontSize: 11, color: colors.textMuted, marginTop: 6 },
+  menuList: { marginTop: spacing.md },
+  menuRow: { flexDirection: "row", alignItems: "center", gap: spacing.md, paddingVertical: spacing.md },
+  menuRowText: { fontFamily: "PlusJakartaSans_600SemiBold", fontSize: 14.5, color: colors.textPrimary },
+  menuRowDanger: { color: colors.danger },
 });

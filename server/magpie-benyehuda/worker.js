@@ -69,8 +69,10 @@ function requestedGenres(url) {
 }
 
 // Keep Magpie's "one page" feel: if a work is long, show a random window rather
-// than a whole novella. Poems/short prose fall under this and pass through whole.
-const MAX_TEXT_CHARS = 8000;
+// than a whole novella. Sized to roughly match the English (Gutenberg) page so a
+// Hebrew page isn't a wall of text — which also keeps the tap/selection render
+// cheap (fewer word spans to mount). Poems/short prose pass through whole.
+const MAX_TEXT_CHARS = 3600;
 
 // Ben-Yehuda txt carries nikkud (vowel points). Stripped by default: Hebrew lyrics
 // are written without them, so a word pocketed with nikkud would drag diacritics

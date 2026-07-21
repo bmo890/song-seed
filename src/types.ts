@@ -199,6 +199,10 @@ export type MagpieSpark = {
   savedLyricId?: string;
   /** Steps whose help has already been opened — highlight on first visit. */
   seenHelpSteps: MagpieStep[];
+  /** Fragment ids the writer has dropped into the draft at least once — a soft
+   * "used" tally shown on the build-step palette. Not bound to the draft text
+   * (so free editing never invalidates it); cleared per-scrap by the writer. */
+  usedFragmentIds: string[];
 };
 
 export type BluetoothMonitoringCalibration = {

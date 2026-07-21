@@ -12,6 +12,7 @@ import {
   editFragmentText,
   MagpieFetchError,
   type MagpieFetchErrorKind,
+  mergeFragmentWithNext,
   removeFragment as removeFragmentOp,
   reorderFragments,
   splitFragment as splitFragmentOp,
@@ -144,7 +145,10 @@ export function useMagpieScreenModel() {
   const removeFragment = useCallback(
     (id: string) => {
       if (!spark) return;
-      apply({ fragments: removeFragmentOp(spark.fragments, id) });
+      apply({
+        fragments: removeFragmentOp(spark.fragments, id),
+        usedFragmentIds: spark.usedFragmentIds.filter((used) => used !== id),
+      });
     },
     [spark, apply]
   );
@@ -152,7 +156,38 @@ export function useMagpieScreenModel() {
   const splitFragment = useCallback(
     (id: string) => {
       if (!spark) return;
-      apply({ fragments: splitFragmentOp(spark.fragments, id) });
+      // The pieces are new fragments — drop the old id from the used tally.
+      apply({
+        fragments: splitFragmentOp(spark.fragments, id),
+        usedFragmentIds: spark.usedFragmentIds.filter((used) => used !== id),
+      });
+    },
+    [spark, apply]
+  );
+
+  const mergeFragment = useCallback(
+    (id: string) => {
+      if (!spark) return;
+      apply({ fragments: mergeFragmentWithNext(spark.fragments, id) });
+    },
+    [spark, apply]
+  );
+
+  // ── The "used" tally (build-step palette) ─────────────────────────────────────
+  // Marked when a scrap is dropped into the draft; a soft cue, never bound to the
+  // draft text. `mark` is additive (idempotent); `clear` lets the writer un-tick.
+  const markFragmentUsed = useCallback(
+    (id: string) => {
+      if (!spark || spark.usedFragmentIds.includes(id)) return;
+      apply({ usedFragmentIds: [...spark.usedFragmentIds, id] });
+    },
+    [spark, apply]
+  );
+
+  const clearFragmentUsed = useCallback(
+    (id: string) => {
+      if (!spark) return;
+      apply({ usedFragmentIds: spark.usedFragmentIds.filter((used) => used !== id) });
     },
     [spark, apply]
   );
@@ -205,6 +240,15 @@ export function useMagpieScreenModel() {
   const rebuildDraft = useCallback(() => {
     if (!spark) return;
     apply({ draft: assembleDraft(spark.fragments) });
+  }, [spark, apply]);
+
+  // Pour every scrap into the (blank) draft in order, and mark them all used.
+  const pourScraps = useCallback(() => {
+    if (!spark) return;
+    apply({
+      draft: assembleDraft(spark.fragments),
+      usedFragmentIds: spark.fragments.map((f) => f.id),
+    });
   }, [spark, apply]);
 
   // ── Save / delete ───────────────────────────────────────────────────────────
@@ -303,12 +347,16 @@ export function useMagpieScreenModel() {
     pocketPhrases,
     removeFragment,
     splitFragment,
+    mergeFragment,
+    markFragmentUsed,
+    clearFragmentUsed,
     editFragment,
     reorder,
     goToStep,
     markHelpSeen,
     setDraft,
     rebuildDraft,
+    pourScraps,
     saveAsLyrics,
     deleteSpark,
     goBack,

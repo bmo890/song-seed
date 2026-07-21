@@ -221,7 +221,7 @@ const WORD_RE = /[\p{L}\p{N}]+(?:['’\-][\p{L}\p{N}]+)*/gu;
 
 /** A reflowed paragraph for rendering: its own token slice plus the word indices
  * it contains (so a screen can cheaply memoise per-paragraph). */
-export type MagpieParagraph = { key: string; tokens: MagpieToken[]; wordIndices: number[] };
+export type MagpieParagraph = { key: string; text: string; tokens: MagpieToken[]; wordIndices: number[] };
 
 /** Splits a page into paragraphs (blank-line separated), reflowing each so the
  * book's hard line-wraps don't survive, and tokenises the lot with a single
@@ -264,7 +264,7 @@ export function tokenizePageIntoParagraphs(text: string): {
       tokens.push(sep);
       pTokens.push(sep);
     }
-    paragraphs.push({ key: `p${pi}`, tokens: pTokens, wordIndices });
+    paragraphs.push({ key: `p${pi}`, text: para, tokens: pTokens, wordIndices });
     if (pi < rawParas.length - 1) {
       tokens.push({ index: tokens.length, text: " ", wordIndex: -1 });
     }
@@ -289,6 +289,24 @@ function phraseForWordRun(tokens: MagpieToken[], startWord: number, endWord: num
     .map((t) => t.text)
     .join("")
     .trim();
+}
+
+/** Groups selected word indices into maximal contiguous runs (each an ascending
+ * list). A phrase corresponds to one run; the long-press splitter subdivides a run. */
+export function selectedRuns(selectedWords: number[]): number[][] {
+  const sorted = [...new Set(selectedWords)].sort((a, b) => a - b);
+  const runs: number[][] = [];
+  let current: number[] = [];
+  for (const word of sorted) {
+    if (current.length === 0 || word === current[current.length - 1] + 1) {
+      current.push(word);
+    } else {
+      runs.push(current);
+      current = [word];
+    }
+  }
+  if (current.length) runs.push(current);
+  return runs;
 }
 
 /** Turns a set of selected word indices into phrases: each maximal run of
@@ -383,6 +401,50 @@ export function splitFragment(fragments: MagpieFragment[], id: string): MagpieFr
   return next.map((f, i) => ({ ...f, order: i }));
 }
 
+/** Merges a fragment with the one after it (in order) into a single fragment,
+ * joining their text with a space. Keeps the first fragment's id/provenance. A
+ * no-op if it's the last fragment. Inverse of a split. */
+export function mergeFragmentWithNext(fragments: MagpieFragment[], id: string): MagpieFragment[] {
+  const sorted = [...fragments].sort((a, b) => a.order - b.order);
+  const index = sorted.findIndex((f) => f.id === id);
+  if (index < 0 || index >= sorted.length - 1) return fragments;
+  const a = sorted[index];
+  const b = sorted[index + 1];
+  const merged: MagpieFragment = {
+    ...a,
+    text: `${a.text.trim()} ${b.text.trim()}`.trim(),
+    originalText: `${a.originalText.trim()} ${b.originalText.trim()}`.trim(),
+  };
+  return [...sorted.slice(0, index), merged, ...sorted.slice(index + 2)].map((f, i) => ({ ...f, order: i }));
+}
+
+/** Splits one contiguous run of selected words into phrases at chosen seams.
+ * `runWords` is the ascending word indices of the run; `cutAfter` holds the word
+ * indices after which to break. Powers the page's long-press "pull apart" editor:
+ * every grouping of the run is one set of cut seams. */
+export function runToPhrases(
+  tokens: MagpieToken[],
+  runWords: number[],
+  cutAfter: Set<number>
+): string[] {
+  if (runWords.length === 0) return [];
+  const pieces: string[] = [];
+  let start = runWords[0];
+  let prev = runWords[0];
+  for (let k = 1; k < runWords.length; k++) {
+    const word = runWords[k];
+    if (cutAfter.has(prev)) {
+      const phrase = phraseForWordRun(tokens, start, prev);
+      if (phrase) pieces.push(phrase);
+      start = word;
+    }
+    prev = word;
+  }
+  const tail = phraseForWordRun(tokens, start, prev);
+  if (tail) pieces.push(tail);
+  return pieces;
+}
+
 /** Applies a new visual order (fragment ids, top to bottom). */
 export function reorderFragments(fragments: MagpieFragment[], orderedIds: string[]): MagpieFragment[] {
   const byId = new Map(fragments.map((f) => [f.id, f]));
@@ -437,6 +499,7 @@ export function createMagpieSpark(): MagpieSpark {
     language: "en",
     wholeLibrary: false,
     seenHelpSteps: [],
+    usedFragmentIds: [],
   };
 }
 
@@ -518,6 +581,9 @@ export function sanitizeMagpieSpark(raw: unknown): MagpieSpark | null {
     savedLyricId: isString(obj.savedLyricId) ? obj.savedLyricId : undefined,
     seenHelpSteps: Array.isArray(obj.seenHelpSteps)
       ? obj.seenHelpSteps.filter((s): s is MagpieStep => s === "page" || s === "build")
+      : [],
+    usedFragmentIds: Array.isArray(obj.usedFragmentIds)
+      ? obj.usedFragmentIds.filter((s): s is string => isString(s))
       : [],
   };
 }
