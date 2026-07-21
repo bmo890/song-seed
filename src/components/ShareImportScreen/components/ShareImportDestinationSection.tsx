@@ -6,6 +6,7 @@ import { colors } from "../../../design/tokens";
 import { getHierarchyIconColor, getHierarchyIconName } from "../../../domain/hierarchy";
 import type { CollectionDestination } from "../types";
 import { styles } from "../styles";
+import { useTranslation } from "react-i18next";
 
 type Props = {
   currentCollection: {
@@ -36,16 +37,17 @@ export function ShareImportDestinationSection({
   onSelectDestination,
   onCreateNewCollection,
 }: Props) {
+  const { t } = useTranslation();
   return (
     <SurfaceCard>
-      <Text style={styles.sectionTitle}>Destination</Text>
+      <Text style={styles.sectionTitle}>{t("shareImport.destination")}</Text>
 
       {currentCollection ? (
         <NavRow
           icon={getHierarchyIconName("collection")}
           iconColor={getHierarchyIconColor("collection")}
           label={currentCollection.title}
-          eyebrow="Current collection"
+          eyebrow={t("shareImport.currentCollection")}
           accessory={
             <Ionicons
               name="chevron-forward"
@@ -57,8 +59,7 @@ export function ShareImportDestinationSection({
         />
       ) : (
         <Text style={styles.helperText}>
-          No current collection is active, so choose another collection or create a new
-          one.
+          {t("shareImport.noCurrentCollection")}
         </Text>
       )}
 
@@ -69,7 +70,7 @@ export function ShareImportDestinationSection({
         ]}
         onPress={onToggleOtherCollections}
       >
-        <Text style={styles.toggleLabel}>Another collection</Text>
+        <Text style={styles.toggleLabel}>{t("shareImport.anotherCollection")}</Text>
         <Ionicons
           name={otherCollectionsExpanded ? "chevron-up" : "chevron-down"}
           size={14}
@@ -110,11 +111,11 @@ export function ShareImportDestinationSection({
         disabled={!targetWorkspaceTitle || isResolvingShareAssets}
       >
         <View style={styles.newCollectionCopy}>
-          <Text style={styles.newCollectionTitle}>New collection from import</Text>
+          <Text style={styles.newCollectionTitle}>{t("shareImport.newCollection")}</Text>
           <Text style={styles.newCollectionMeta}>
             {targetWorkspaceTitle
-              ? `Create it in ${targetWorkspaceTitle} and add the shared files there.`
-              : "No workspace is available for a new collection yet."}
+              ? t("shareImport.createIn", { workspace: targetWorkspaceTitle })
+              : t("shareImport.noWorkspace")}
           </Text>
         </View>
         <Ionicons name="add" size={16} color={colors.textSecondary} />
@@ -123,8 +124,8 @@ export function ShareImportDestinationSection({
       {currentCollectionPathLabel || currentWorkspaceTitle ? (
         <Text style={styles.helperText}>
           {currentCollectionPathLabel
-            ? `Current path: ${currentCollectionPathLabel}`
-            : `Importing into ${currentWorkspaceTitle}`}
+            ? t("shareImport.currentPath", { path: currentCollectionPathLabel })
+            : t("shareImport.importingInto", { workspace: currentWorkspaceTitle })}
         </Text>
       ) : null}
     </SurfaceCard>

@@ -7,9 +7,11 @@ import { useDuplicateReviewStore } from "../state/useDuplicateReviewStore";
 import { colors, radii } from "../design/tokens";
 import type { ImportedAudioAsset } from "../services/audioStorage";
 import type { DuplicateLocation } from "../services/importDuplicates";
+import { useTranslation } from "react-i18next";
+import { UserText } from "../i18n";
 
-function formatSourceDate(ts: number): string {
-    return new Date(ts).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+function formatSourceDate(ts: number, locale: string): string {
+    return new Date(ts).toLocaleDateString(locale, { month: "short", day: "numeric", year: "numeric" });
 }
 
 function LocationLine({ location }: { location: DuplicateLocation }) {
@@ -23,10 +25,10 @@ function LocationLine({ location }: { location: DuplicateLocation }) {
                     backgroundColor: location.workspaceColor ?? colors.primary,
                 }}
             />
-            <Text style={{ fontSize: 11, color: colors.textSecondary, lineHeight: 15 }} numberOfLines={1}>
+            <UserText value={location.workspaceTitle} style={{ fontSize: 11, color: colors.textSecondary, lineHeight: 15 }} numberOfLines={1}>
                 {location.workspaceTitle}
                 {location.collectionTitle ? ` · ${location.collectionTitle}` : ""}
-            </Text>
+            </UserText>
         </View>
     );
 }
@@ -46,10 +48,11 @@ function FileRow({
     canExclude: boolean;
     onToggleExclude: () => void;
 }) {
+    const { t, i18n } = useTranslation();
     const title = buildImportedTitle(asset.name);
     const dateLabel =
         typeof asset.sourceCreatedAt === "number"
-            ? `Originally recorded ${formatSourceDate(asset.sourceCreatedAt)}`
+            ? t("duplicateReview.originallyRecorded", { date: formatSourceDate(asset.sourceCreatedAt, i18n.language) })
             : null;
 
     return (
@@ -72,7 +75,7 @@ function FileRow({
                 style={{ marginTop: 2 }}
             />
             <View style={{ flex: 1, minWidth: 0 }}>
-                <Text
+                <UserText
                     numberOfLines={1}
                     style={{
                         fontFamily: "PlusJakartaSans_500Medium",
@@ -83,7 +86,7 @@ function FileRow({
                     }}
                 >
                     {title}
-                </Text>
+                </UserText>
                 {location ? (
                     <LocationLine location={location} />
                 ) : dateLabel ? (
@@ -97,7 +100,7 @@ function FileRow({
                     onPress={onToggleExclude}
                     hitSlop={8}
                     accessibilityRole="button"
-                    accessibilityLabel={excluded ? `Include ${title}` : `Exclude ${title} from import`}
+                    accessibilityLabel={t(excluded ? "duplicateReview.include" : "duplicateReview.exclude", { title })}
                     style={({ pressed }) => ({ padding: 2, opacity: pressed ? 0.5 : 1 })}
                 >
                     <Ionicons
@@ -181,6 +184,7 @@ function ActionButton({
 }
 
 export function DuplicateReviewSheet() {
+    const { t } = useTranslation();
     const {
         visible,
         duplicateAssets,
@@ -214,12 +218,12 @@ export function DuplicateReviewSheet() {
     const allDuplicates = uniqueAssets.length === 0;
     const keptCount = allAssets.length - excluded.size;
 
-    const title = isSingle || allDuplicates ? "Already imported" : "Some files already imported";
+    const title = t(isSingle || allDuplicates ? "duplicateReview.alreadyImported" : "duplicateReview.someImported");
     const subtitle = canExclude
-        ? "These files already exist in your library. Import them again as copies, or X out the ones to skip."
+        ? t("duplicateReview.subsetBody")
         : isSingle
-          ? "Import it again as a copy, or skip it?"
-          : "Import copies of the duplicates, or skip them?";
+          ? t("duplicateReview.singleBody")
+          : t("duplicateReview.copiesBody");
 
     function handleImport() {
         if (canExclude && onImportSubset) {
@@ -241,11 +245,11 @@ export function DuplicateReviewSheet() {
 
     const importLabel = canExclude
         ? keptCount === allAssets.length
-            ? `Import all (${allAssets.length})`
-            : `Import ${keptCount}`
+            ? t("duplicateReview.importAll", { count: allAssets.length })
+            : t("duplicateReview.importCount", { count: keptCount })
         : isSingle || allDuplicates
-          ? "Import as copy"
-          : "Import all";
+          ? t("duplicateReview.importCopy")
+          : t("duplicateReview.importAllShort");
 
     const hasBothSections = duplicateAssets.length > 0 && uniqueAssets.length > 0;
 
@@ -261,7 +265,7 @@ export function DuplicateReviewSheet() {
             <ScrollView style={{ maxHeight: listHeight }} showsVerticalScrollIndicator={false} bounces={false}>
                 {duplicateAssets.length > 0 ? (
                     <View style={{ marginBottom: 10 }}>
-                        <SectionHeader label="Already in your library" count={duplicateAssets.length} />
+                        <SectionHeader label={t("duplicateReview.alreadyLibrary")} count={duplicateAssets.length} />
                         {duplicateAssets.map((asset, i) => (
                             <FileRow
                                 key={`d-${asset.sourceCreatedAt ?? i}`}
@@ -282,7 +286,7 @@ export function DuplicateReviewSheet() {
 
                 {uniqueAssets.length > 0 ? (
                     <View style={{ marginBottom: 4 }}>
-                        <SectionHeader label="New" count={uniqueAssets.length} />
+                        <SectionHeader label={t("duplicateReview.new")} count={uniqueAssets.length} />
                         {uniqueAssets.map((asset, i) => (
                             <FileRow
                                 key={`u-${asset.sourceCreatedAt ?? i}`}
@@ -300,7 +304,7 @@ export function DuplicateReviewSheet() {
             <View style={{ gap: 8, marginTop: 16 }}>
                 <View style={{ flexDirection: "row", gap: 8 }}>
                     <ActionButton
-                        label={hasBothSections ? "Skip duplicates" : "Skip"}
+                        label={t(hasBothSections ? "duplicateReview.skipDuplicates" : "duplicateReview.skip")}
                         variant="secondary"
                         onPress={handleSkip}
                     />
@@ -311,7 +315,7 @@ export function DuplicateReviewSheet() {
                         onPress={handleImport}
                     />
                 </View>
-                <ActionButton label="Cancel" variant="ghost" onPress={dismiss} />
+                <ActionButton label={t("duplicateReview.cancel")} variant="ghost" onPress={dismiss} />
             </View>
         </BottomSheet>
     );

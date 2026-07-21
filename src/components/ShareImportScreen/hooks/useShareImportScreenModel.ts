@@ -33,6 +33,7 @@ import * as FileSystem from "expo-file-system/legacy";
 import { findSharedArchiveFile } from "../../../services/shareImport";
 import { detectPickedArchiveKind } from "../../../services/archiveKind";
 import { readSongNookArchive } from "../../../services/libraryImport";
+import { useTranslation } from "react-i18next";
 import { toast } from "../../common/toastStore";
 import { haptic } from "../../../design/haptics";
 import { useShareImportDestinations } from "./useShareImportDestinations";
@@ -60,6 +61,7 @@ function buildImportedProjectTitle(assets: ImportedAudioAsset[]) {
 export function useShareImportScreenModel({
   fallbackCollectionId,
 }: ShareImportScreenProps) {
+  const { t } = useTranslation();
   const navigation = useNavigation();
   const { shareIntent, hasShareIntent, resetShareIntent } = useShareIntentContext();
   const workspaces = useStore((s) => s.workspaces);
@@ -109,8 +111,8 @@ export function useShareImportScreenModel({
     try {
       if ((await detectPickedArchiveKind(sharedArchive.uri)) === "songnook-backup") {
         AppAlert.info(
-          "That's a full backup",
-          "This file is a full SongNook backup, not a shareable archive. Restore it from Library & Backups → Restore."
+          t("common.fullBackupTitle"),
+          t("common.fullBackupBody")
         );
         return;
       }
@@ -142,7 +144,7 @@ export function useShareImportScreenModel({
       resetShareIntent();
       if (openKind && openId) {
         toast(
-          openKind === "songbook" ? "Songbook imported" : "Setlist imported",
+          t(openKind === "songbook" ? "common.songbookImported" : "common.setlistImported"),
           openKind === "songbook" ? "book-outline" : "albums-outline"
         );
         (navigation as any).navigate("Home", {
@@ -151,13 +153,11 @@ export function useShareImportScreenModel({
         });
       } else {
         // Everything else landed as a Received package — go look at it.
-        toast("Package received", "mail-open-outline");
+        toast(t("common.packageReceived"), "mail-open-outline");
         (navigation as any).navigate("Home", { screen: "ReceivedHome" });
       }
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Could not read this SongNook Archive.";
-      AppAlert.info("Import failed", message);
+      AppAlert.info(t("common.importFailed"), t("common.archiveReadFailed"));
     } finally {
       setIsImportingArchive(false);
     }
@@ -403,7 +403,7 @@ export function useShareImportScreenModel({
     if (isResolvingShareAssets) return;
 
     if (importedAssets.length <= 1) {
-      const datePreference = await resolveImportDatePreference("Import from Share");
+      const datePreference = await resolveImportDatePreference(t("shareImport.title"));
       if (!datePreference) return;
       importIntoExistingCollection(
         destination,
@@ -415,18 +415,18 @@ export function useShareImportScreenModel({
     }
 
     AppAlert.custom(
-      "Import from Share",
-      `Choose how to add ${importedAssets.length} files into ${destination.collectionTitle}.`,
+      t("shareImport.title"),
+      t("shareImport.chooseHow", { count: importedAssets.length, collection: destination.collectionTitle }),
       [
         {
-          label: "Individual clips",
-          description: "Each file becomes its own clip",
+          label: t("common.individualClips"),
+          description: t("common.individualClipsDesc"),
           icon: "musical-notes-outline",
           style: "default",
           onPress: () => {
             void (async () => {
               const datePreference = await resolveImportDatePreference(
-                "Import from Share"
+                t("shareImport.title")
               );
               if (!datePreference) return;
               importIntoExistingCollection(
@@ -439,14 +439,14 @@ export function useShareImportScreenModel({
           },
         },
         {
-          label: "Song project",
-          description: "Combine all files into one song",
+          label: t("common.songProject"),
+          description: t("common.songProjectDesc"),
           icon: "albums-outline",
           style: "default",
           onPress: () => {
             void (async () => {
               const datePreference = await resolveImportDatePreference(
-                "Import as Song Project"
+                t("shareImport.projectTitle")
               );
               if (!datePreference) return;
               setPendingCollectionDestination(destination);
@@ -455,7 +455,7 @@ export function useShareImportScreenModel({
             })();
           },
         },
-        { label: "Cancel", style: "cancel" },
+        { label: t("common.cancel"), style: "cancel" },
       ]
     );
   }

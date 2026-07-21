@@ -3,6 +3,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { SurfaceCard } from "../../common/SurfaceCard";
 import { colors } from "../../../design/tokens";
 import { styles } from "../styles";
+import { useTranslation } from "react-i18next";
+import { UserText } from "../../../i18n";
 
 type Props = {
   importedAssetCount: number;
@@ -19,9 +21,10 @@ export function ShareImportIncomingSection({
   unsupportedOnly,
   rejectedCount,
 }: Props) {
+  const { t } = useTranslation();
   return (
     <SurfaceCard>
-      <Text style={styles.sectionTitle}>Incoming audio</Text>
+      <Text style={styles.sectionTitle}>{t("shareImport.incomingAudio")}</Text>
       {importedAssetCount > 0 ? (
         <>
           {previewNames.map((name, index) => (
@@ -31,30 +34,29 @@ export function ShareImportIncomingSection({
                 size={14}
                 color={colors.textSecondary}
               />
-              <Text style={styles.previewText} numberOfLines={1}>
+              <UserText style={styles.previewText} numberOfLines={1}>
                 {name}
-              </Text>
+              </UserText>
             </View>
           ))}
           {importedAssetCount > previewNames.length ? (
             <Text style={styles.helperText}>
-              +{importedAssetCount - previewNames.length} more shared audio files
+              {t("shareImport.moreFiles", { count: importedAssetCount - previewNames.length })}
             </Text>
           ) : null}
         </>
       ) : (
         <Text style={styles.helperText}>
           {isResolvingShareAssets
-            ? "Preparing the shared audio so SongNook can import it."
+            ? t("shareImport.preparingDetail")
             : unsupportedOnly
-              ? "SongNook can import shared audio files, but the current share payload does not contain supported audio."
-              : "Nothing is waiting to be imported right now."}
+              ? t("shareImport.unsupportedOnly")
+              : t("shareImport.nothingNow")}
         </Text>
       )}
       {rejectedCount > 0 ? (
         <Text style={styles.warningText}>
-          {rejectedCount} shared item{rejectedCount === 1 ? "" : "s"} will be skipped
-          because they are not supported audio files.
+          {t("shareImport.skipped", { count: rejectedCount })}
         </Text>
       ) : null}
     </SurfaceCard>

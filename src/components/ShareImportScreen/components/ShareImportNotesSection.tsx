@@ -1,16 +1,14 @@
 import { Text } from "react-native";
 import { SurfaceCard } from "../../common/SurfaceCard";
 import { styles } from "../styles";
+import { useTranslation } from "react-i18next";
 
 export function ShareImportNotesSection() {
+  const { t } = useTranslation();
   return (
     <SurfaceCard>
-      <Text style={styles.sectionTitle}>Notes</Text>
-      <Text style={styles.helperText}>
-        Multiple files into an existing collection can become individual clips or one new
-        song project. New collection from import keeps the shared files as individual
-        clips.
-      </Text>
+      <Text style={styles.sectionTitle}>{t("shareImport.notes")}</Text>
+      <Text style={styles.helperText}>{t("shareImport.notesBody")}</Text>
     </SurfaceCard>
   );
 }

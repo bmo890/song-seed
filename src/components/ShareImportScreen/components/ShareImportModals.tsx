@@ -2,6 +2,7 @@ import { QuickNameModal } from "../../modals/QuickNameModal";
 import type { ImportedAudioAsset } from "../../../services/audioStorage";
 import type { ImportDatePreference } from "../../../domain/importDates";
 import type { CollectionDestination } from "../types";
+import { useTranslation } from "react-i18next";
 
 type Props = {
   importedAssetCount: number;
@@ -60,11 +61,12 @@ export function ShareImportModals({
   buildImportedProjectTitle,
   buildImportHelperText,
 }: Props) {
+  const { t } = useTranslation();
   return (
     <>
       <QuickNameModal
         visible={newCollectionModalOpen}
-        title="New Collection from Import"
+        title={t("shareImport.newCollection")}
         draftValue={newCollectionDraft}
         placeholderValue={buildImportedCollectionTitle(importedAssets, topLevelCollectionCount)}
         onChangeDraft={setNewCollectionDraft}
@@ -74,20 +76,18 @@ export function ShareImportModals({
         }}
         onSave={importIntoNewCollection}
         helperText={buildImportHelperText(
-          `${importedAssetCount} shared audio file${
-            importedAssetCount === 1 ? "" : "s"
-          } will be placed in the new collection as individual clips.`,
+          t("shareImport.newCollectionFiles", { count: importedAssetCount }),
           importedAssets,
           importDatePreference
         )}
-        saveLabel="Create"
+        saveLabel={t("shareImport.create")}
         saveDisabled={!targetWorkspaceAvailable}
         cancelDisabled={false}
       />
 
       <QuickNameModal
         visible={projectTitleModalOpen}
-        title="Import as Song Project"
+        title={t("shareImport.projectTitle")}
         draftValue={projectTitleDraft}
         placeholderValue={buildImportedProjectTitle(importedAssets)}
         onChangeDraft={setProjectTitleDraft}
@@ -109,13 +109,11 @@ export function ShareImportModals({
           setProjectTitleDraft("");
         }}
         helperText={buildImportHelperText(
-          `Create one new song in ${
-            pendingCollectionDestination?.collectionTitle ?? "this collection"
-          } and add the shared files as takes.`,
+          t("shareImport.createSongIn", { collection: pendingCollectionDestination?.collectionTitle ?? t("shareImport.thisCollection") }),
           importedAssets,
           importDatePreference
         )}
-        saveLabel="Import"
+        saveLabel={t("shareImport.import")}
         saveDisabled={false}
         cancelDisabled={false}
       />
