@@ -23,6 +23,8 @@ import { toast } from "../common/toastStore";
 import { haptic } from "../../design/haptics";
 import { colors, radii, text as textTokens } from "../../design/tokens";
 import type { ShareKind } from "../../types";
+import { useTranslation } from "react-i18next";
+import { UserText } from "../../i18n";
 
 type Phase =
   | { kind: "loading" }
@@ -50,6 +52,7 @@ function daysUntil(iso: string): number {
  * Tone follows the web pages' letterpress-parcel look, in app tokens.
  */
 export function TransferReceiveScreen() {
+  const { t } = useTranslation();
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const transferId = route.params?.transferId as string | undefined;
@@ -80,13 +83,13 @@ export function TransferReceiveScreen() {
       } catch (error) {
         if (cancelled) return;
         if (error instanceof TransferGoneError) setPhase({ kind: "gone" });
-        else setPhase({ kind: "error", message: (error as Error).message });
+        else setPhase({ kind: "error", message: t("transferReceive.openFailed") });
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [alreadyReceived, transferId]);
+  }, [alreadyReceived, transferId, t]);
 
   const goToReceived = () =>
     navigation.navigate("Home", { screen: "ReceivedHome" });
@@ -102,7 +105,7 @@ export function TransferReceiveScreen() {
       transferId: transfer.transferId,
       receivedAt: Date.now(),
       shareKind: "clips" as ShareKind,
-      shareTitle: transfer.title ?? "Received files",
+      shareTitle: transfer.title ?? t("transferReceive.receivedFiles"),
     };
 
     try {
@@ -157,7 +160,7 @@ export function TransferReceiveScreen() {
             lightweight: true,
             onImported: (asset) =>
               batcher.add({
-                title: asset.name ?? "Received clip",
+                title: asset.name ?? t("transferReceive.receivedClip"),
                 audioUri: asset.audioUri,
                 durationMs: asset.durationMs,
                 waveformPeaks: asset.waveformPeaks,
@@ -168,16 +171,16 @@ export function TransferReceiveScreen() {
         batcher.flush();
         if (audioImport.failed.length > 0) {
           throw new Error(
-            `Couldn't import ${audioImport.failed.length} ${audioImport.failed.length === 1 ? "file" : "files"}.`
+            t("transferReceive.importFailed", { count: audioImport.failed.length })
           );
         }
         if (audioImport.imported.length === 0) {
-          throw new Error("No audio files could be imported.");
+          throw new Error(t("transferReceive.noAudio"));
         }
         importedAnything = true;
       }
 
-      if (!importedAnything) throw new Error("Nothing in this transfer could be imported.");
+      if (!importedAnything) throw new Error(t("transferReceive.nothingImported"));
 
       enqueueMissingMetadataBackfill(useStore.getState().workspaces);
       await cleanupReceiveCache();
@@ -186,7 +189,7 @@ export function TransferReceiveScreen() {
 
       if (entityRoute) {
         toast(
-          entityRoute.kind === "songbook" ? "Songbook saved" : "Setlist saved",
+          t(entityRoute.kind === "songbook" ? "transferReceive.songbookSaved" : "transferReceive.setlistSaved"),
           entityRoute.kind === "songbook" ? "book-outline" : "albums-outline"
         );
         navigation.navigate("Home", {
@@ -198,7 +201,7 @@ export function TransferReceiveScreen() {
           },
         });
       } else {
-        toast("Saved to Received", "mail-open-outline");
+        toast(t("transferReceive.savedReceived"), "mail-open-outline");
         goToReceived();
       }
     } catch (error) {
@@ -215,7 +218,7 @@ export function TransferReceiveScreen() {
       }
       setPhase({
         kind: "error",
-        message: (error as Error).message || "Something went wrong saving this transfer.",
+        message: t("transferReceive.saveFailed"),
       });
     }
   }
@@ -226,27 +229,25 @@ export function TransferReceiveScreen() {
         return (
           <View style={parcelStyles.centerWrap}>
             <ActivityIndicator color={colors.primary} />
-            <Text style={parcelStyles.centerText}>Opening the parcel…</Text>
+            <Text style={parcelStyles.centerText}>{t("transferReceive.opening")}</Text>
           </View>
         );
       case "gone":
         return (
           <View style={parcelStyles.centerWrap}>
             <Ionicons name="time-outline" size={26} color={colors.textMuted} />
-            <Text style={parcelStyles.centerTitle}>This link has expired</Text>
-            <Text style={parcelStyles.centerText}>
-              Transfers live for a limited time. Ask the sender for a fresh link.
-            </Text>
+            <Text style={parcelStyles.centerTitle}>{t("transferReceive.expired")}</Text>
+            <Text style={parcelStyles.centerText}>{t("transferReceive.expiredBody")}</Text>
           </View>
         );
       case "already-saved":
         return (
           <View style={parcelStyles.centerWrap}>
             <Ionicons name="checkmark-circle-outline" size={26} color={colors.primary} />
-            <Text style={parcelStyles.centerTitle}>Already saved</Text>
-            <Text style={parcelStyles.centerText}>This transfer is in your library.</Text>
+            <Text style={parcelStyles.centerTitle}>{t("transferReceive.alreadySaved")}</Text>
+            <Text style={parcelStyles.centerText}>{t("transferReceive.alreadySavedBody")}</Text>
             <Pressable style={parcelStyles.primaryBtn} onPress={goToReceived}>
-              <Text style={parcelStyles.primaryLabel}>Open Received</Text>
+              <Text style={parcelStyles.primaryLabel}>{t("transferReceive.openReceived")}</Text>
             </Pressable>
           </View>
         );
@@ -254,7 +255,7 @@ export function TransferReceiveScreen() {
         return (
           <View style={parcelStyles.centerWrap}>
             <Ionicons name="cloud-offline-outline" size={26} color={colors.textMuted} />
-            <Text style={parcelStyles.centerTitle}>Couldn't open the transfer</Text>
+            <Text style={parcelStyles.centerTitle}>{t("transferReceive.openFailed")}</Text>
             <Text style={parcelStyles.centerText}>{phase.message}</Text>
             <Pressable
               style={parcelStyles.primaryBtn}
@@ -268,13 +269,13 @@ export function TransferReceiveScreen() {
                       setPhase(
                         error instanceof TransferGoneError
                           ? { kind: "gone" }
-                          : { kind: "error", message: (error as Error).message }
+                          : { kind: "error", message: t("transferReceive.openFailed") }
                       )
                     );
                 }
               }}
             >
-              <Text style={parcelStyles.primaryLabel}>Try again</Text>
+              <Text style={parcelStyles.primaryLabel}>{t("transferReceive.tryAgain")}</Text>
             </Pressable>
           </View>
         );
@@ -285,9 +286,9 @@ export function TransferReceiveScreen() {
         const saving = phase.kind === "saving";
         const done = phase.kind === "done";
         const senderLine = [
-          `From ${transfer.sender.name ?? "someone"}`,
-          `${transfer.items.length} ${transfer.items.length === 1 ? "item" : "items"}`,
-          `expires in ${daysUntil(transfer.expiresAt)}d`,
+          t("transferReceive.from", { name: transfer.sender.name ?? t("transferReceive.someone") }),
+          t("transferReceive.itemCount", { count: transfer.items.length }),
+          t("transferReceive.expires", { count: daysUntil(transfer.expiresAt) }),
         ].join(" · ");
 
         return (
@@ -296,16 +297,14 @@ export function TransferReceiveScreen() {
             contentContainerStyle={parcelStyles.scrollContent}
           >
             <View style={parcelStyles.header}>
-              <Text style={parcelStyles.eyebrow}>A parcel for you</Text>
-              <Text style={parcelStyles.title} numberOfLines={2}>
-                {transfer.title || "Someone sent you music"}
-              </Text>
+              <Text style={parcelStyles.eyebrow}>{t("transferReceive.parcel")}</Text>
+              <UserText style={parcelStyles.title} numberOfLines={2}>{transfer.title || t("transferReceive.sentMusic")}</UserText>
               <Text style={parcelStyles.meta}>{senderLine}</Text>
             </View>
 
             {transfer.message ? (
               <View style={parcelStyles.noteCard}>
-                <Text style={parcelStyles.noteText}>{transfer.message}</Text>
+                <UserText style={parcelStyles.noteText}>{transfer.message}</UserText>
               </View>
             ) : null}
 
@@ -323,12 +322,12 @@ export function TransferReceiveScreen() {
                       />
                     </View>
                     <View style={parcelStyles.itemMain}>
-                      <Text style={parcelStyles.itemName} numberOfLines={1}>
+                      <UserText style={parcelStyles.itemName} numberOfLines={1}>
                         {item.fileName}
-                      </Text>
+                      </UserText>
                       <Text style={parcelStyles.itemMeta}>
                         {active
-                          ? `Downloading… ${Math.round(phase.itemFraction * 100)}%`
+                          ? t("transferReceive.downloading", { percent: Math.round(phase.itemFraction * 100) })
                           : formatBytes(item.size)}
                       </Text>
                     </View>
@@ -351,16 +350,13 @@ export function TransferReceiveScreen() {
               onPress={() => void save(transfer)}
               disabled={saving || done}
               accessibilityRole="button"
-              accessibilityLabel="Save to SongNook"
+              accessibilityLabel={t("transferReceive.save")}
             >
               <Text style={parcelStyles.primaryLabel}>
-                {done ? "Saved" : saving ? "Saving…" : "Save to SongNook"}
+                {t(done ? "transferReceive.saved" : saving ? "transferReceive.saving" : "transferReceive.save")}
               </Text>
             </Pressable>
-            <Text style={parcelStyles.footnote}>
-              Lands in Received, kept apart from your own work — move it into your
-              workspaces whenever you like.
-            </Text>
+            <Text style={parcelStyles.footnote}>{t("transferReceive.footnote")}</Text>
           </ScrollView>
         );
       }
@@ -369,7 +365,7 @@ export function TransferReceiveScreen() {
 
   return (
     <SafeAreaView style={parcelStyles.screen}>
-      <ScreenHeader title="Songnook Send" leftIcon="back" />
+      <ScreenHeader title={t("transferReceive.header")} leftIcon="back" />
       {renderBody()}
     </SafeAreaView>
   );

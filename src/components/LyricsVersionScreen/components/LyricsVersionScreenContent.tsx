@@ -14,8 +14,10 @@ import { ChordChartEditor } from "./chords/ChordChartEditor";
 import { ChordExportSheet } from "./chords/ChordExportSheet";
 import { SongbookChooserSheet } from "../../common/SongbookChooserSheet";
 import { useChordExport } from "./chords/useChordExport";
+import { useTranslation } from "react-i18next";
 
 export function LyricsVersionScreenContent() {
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
   const model = useLyricsVersionScreenModel();
