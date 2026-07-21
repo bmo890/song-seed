@@ -86,24 +86,20 @@ export function analyzeAudioPhaseTaps(taps: number[], totalBeats: number): Phase
 export function buildResultWarning(
   playerMs: number | null,
   clickMs: number | null,
-  reportedMs: number | null
+  reportedMs: number | null,
+  translate?: (key: string, options?: Record<string, unknown>) => string
 ): string | null {
   if (playerMs == null || clickMs == null) {
     return null;
   }
   const pipelineGapMs = playerMs - clickMs;
   if (pipelineGapMs > 250 || pipelineGapMs < -80) {
-    return (
-      `The music pass came out ${Math.abs(Math.round(pipelineGapMs))} ms ` +
-      `${pipelineGapMs > 0 ? "above" : "below"} the click pass — that gap is unusual for one ` +
-      `set of headphones. One of the passes likely measured wrong; a retry is recommended before saving.`
-    );
+    if (translate) return translate("bluetoothCalibrationWarnings.unusualGap", { gap: Math.abs(Math.round(pipelineGapMs)), direction: translate(pipelineGapMs > 0 ? "bluetoothCalibrationWarnings.above" : "bluetoothCalibrationWarnings.below") });
+    return `The music pass came out ${Math.abs(Math.round(pipelineGapMs))} ms ${pipelineGapMs > 0 ? "above" : "below"} the click pass — that gap is unusual for one set of headphones. One of the passes likely measured wrong; a retry is recommended before saving.`;
   }
   if (reportedMs != null && Math.abs(playerMs - reportedMs) > 300) {
-    return (
-      `The music pass (${Math.round(playerMs)} ms) is far from the OS-reported route latency ` +
-      `(~${reportedMs} ms). That can be real, but a retry is recommended before saving.`
-    );
+    if (translate) return translate("bluetoothCalibrationWarnings.farFromReported", { music: Math.round(playerMs), reported: reportedMs });
+    return `The music pass (${Math.round(playerMs)} ms) is far from the OS-reported route latency (~${reportedMs} ms). That can be real, but a retry is recommended before saving.`;
   }
   return null;
 }
