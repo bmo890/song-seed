@@ -4,6 +4,7 @@ import { Feather } from "@expo/vector-icons";
 import { fmt, fmtDuration } from "../../../utils";
 import { colors, radii } from "../../../design/tokens";
 import { CUT_COLOR, KEEP_COLOR, type EditableSelection } from "../helpers";
+import { useTranslation } from "react-i18next";
 
 type EditorSelectionListProps = {
   selectedRanges: EditableSelection[];
@@ -22,11 +23,12 @@ export function EditorSelectionList({
   onSeekRangeEnd,
   onRemoveRange,
 }: EditorSelectionListProps) {
+  const { t } = useTranslation();
   if (selectedRanges.length === 0) {
     return (
       <View style={s.empty}>
         <Text style={s.emptyText}>
-          No regions yet — tap “Add at playhead”, then drag the handles to fit.
+          {t("editor.noRegions")}
         </Text>
       </View>
     );
@@ -49,13 +51,13 @@ export function EditorSelectionList({
             <Text style={s.dur}>{fmtDuration(range.end - range.start)}</Text>
           </View>
           <View style={s.actions}>
-            <Pressable onPress={() => onSeekRangeStart(range)} hitSlop={6} style={s.iconBtn} accessibilityLabel="Jump to start">
+            <Pressable onPress={() => onSeekRangeStart(range)} hitSlop={6} style={s.iconBtn} accessibilityLabel={t("editor.jumpStart")}>
               <Feather name="skip-back" size={16} color={colors.textSecondary} />
             </Pressable>
-            <Pressable onPress={() => onSeekRangeEnd(range)} hitSlop={6} style={s.iconBtn} accessibilityLabel="Jump to end">
+            <Pressable onPress={() => onSeekRangeEnd(range)} hitSlop={6} style={s.iconBtn} accessibilityLabel={t("editor.jumpEnd")}>
               <Feather name="skip-forward" size={16} color={colors.textSecondary} />
             </Pressable>
-            <Pressable onPress={() => onRemoveRange(range.id)} hitSlop={6} style={s.iconBtn} accessibilityLabel="Delete region">
+            <Pressable onPress={() => onRemoveRange(range.id)} hitSlop={6} style={s.iconBtn} accessibilityLabel={t("editor.deleteRegion")}>
               <Feather name="trash-2" size={16} color={CUT_COLOR} />
             </Pressable>
           </View>

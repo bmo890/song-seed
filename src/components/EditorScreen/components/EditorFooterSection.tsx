@@ -2,6 +2,7 @@ import React from "react";
 import { Pressable, StyleSheet, Text } from "react-native";
 import { colors, radii } from "../../../design/tokens";
 import { styles as appStyles } from "../../../styles";
+import { useTranslation } from "react-i18next";
 
 type EditorFooterSectionProps = {
   editorMode: "trim" | "transform";
@@ -24,20 +25,21 @@ export function EditorFooterSection({
   onExport,
   onSaveTransform,
 }: EditorFooterSectionProps) {
+  const { t } = useTranslation();
   let label: string;
   let enabled: boolean;
   let onPress: () => void;
 
   if (editorMode === "transform") {
-    label = "Save as new clip";
+    label = t("editor.saveNewClip");
     enabled = hasActiveTransforms;
     onPress = onSaveTransform;
   } else if (intent === "keep") {
-    label = keepCount > 0 ? `Extract ${keepCount} clip${keepCount === 1 ? "" : "s"}` : "Extract clips";
+    label = keepCount > 0 ? t("editor.extractCount", { count: keepCount }) : t("editor.extractClips");
     enabled = keepCount > 0;
     onPress = onExport;
   } else {
-    label = "Save trimmed clip";
+    label = t("editor.saveTrimmed");
     enabled = removeCount > 0;
     onPress = onExport;
   }

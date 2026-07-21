@@ -42,13 +42,9 @@ import { EditorTransformExportModal } from "./components/EditorTransformExportMo
 import { clipHasOverdubs, isClipWaveformPending } from "../../domain/clipPresentation";
 import { HelpSheet } from "../common/HelpSheet";
 import { EDITOR_HELP } from "../common/helpContent";
+import { useTranslation } from "react-i18next";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Editor">;
-
-const EDITOR_MODES = [
-    { key: "trim" as const, label: "Trim" },
-    { key: "transform" as const, label: "Speed & pitch" },
-];
 
 /** Tagged, greppable editor diagnostics — filter logs by "[editor]". */
 const editorLog = (...args: unknown[]) => console.log("[editor]", ...args);
@@ -110,6 +106,11 @@ const editorLocalStyles = StyleSheet.create({
 });
 
 export function EditorScreen() {
+    const { t } = useTranslation();
+    const editorModes = useMemo(() => [
+        { key: "trim" as const, label: t("editor.trim") },
+        { key: "transform" as const, label: t("editor.transform") },
+    ], [t]);
     const navigation = useNavigation();
     const route = useRoute<Props["route"]>();
     const isFocused = useIsFocused();
@@ -322,7 +323,7 @@ export function EditorScreen() {
                     durationHintMs && durationHintMs > 0 ? durationHintMs : await loadAudioDurationMs(editorAudioUri);
                 editorLog("load: resolved duration", resolvedDurationMs);
                 if (!resolvedDurationMs || resolvedDurationMs <= 0) {
-                    throw new Error("Audio duration unavailable.");
+                    throw new Error(t("editor.durationUnavailable"));
                 }
                 if (isMounted) {
                     setAnalysisData(buildFallbackAnalysis(resolvedDurationMs));
@@ -332,7 +333,7 @@ export function EditorScreen() {
             } catch (err) {
                 console.error("Failed to prepare audio editor", err);
                 if (isMounted) {
-                    AppAlert.info("Edit unavailable", "Could not load this audio for editing.");
+                    AppAlert.info(t("editor.editUnavailable"), t("editor.loadFailed"));
                 }
             } finally {
                 if (isMounted) {
@@ -357,7 +358,7 @@ export function EditorScreen() {
         try {
             const savedTarget = await appActions.saveCombinedClipAsNewClip(targetIdea.id, sourceClip.id);
             if (!savedTarget) {
-                throw new Error("Combined clip could not be saved.");
+                throw new Error(t("editor.combinedCouldNotSave"));
             }
             editorLog("flatten overdub: saved combined", savedTarget);
 
@@ -367,7 +368,7 @@ export function EditorScreen() {
                 .find((idea) => idea.id === savedTarget.ideaId);
             const savedClip = savedIdea?.clips.find((clip) => clip.id === savedTarget.clipId) ?? null;
             if (!savedIdea || !savedClip?.audioUri) {
-                throw new Error("Combined clip could not be opened.");
+                throw new Error(t("editor.combinedCouldNotOpen"));
             }
 
             navigation.dispatch(
@@ -381,13 +382,13 @@ export function EditorScreen() {
         } catch (error) {
             console.warn("[editor] flatten overdub failed", error);
             AppAlert.info(
-                "Save combined failed",
-                error instanceof Error ? error.message : "Could not save a combined clip."
+                t("editor.saveCombinedFailed"),
+                error instanceof Error ? error.message : t("editor.combinedFailedBody")
             );
         } finally {
             setIsFlatteningOverdub(false);
         }
-    }, [navigation, sourceClip, targetIdea]);
+    }, [navigation, sourceClip, t, targetIdea]);
 
 
     return (
@@ -425,16 +426,15 @@ export function EditorScreen() {
                         </View>
                         <View style={{ gap: 8 }}>
                             <Text style={editorLocalStyles.overdubGateTitle}>
-                                Save a combined clip first
+                                {t("editor.flattenFirst")}
                             </Text>
                             <Text style={editorLocalStyles.overdubGateBody}>
-                                This take has overdub layers attached. Timing edits on the root clip would break the
-                                alignment. Save the combined mix as a new clip, then edit that flattened result.
+                                {t("editor.flattenReason")}
                             </Text>
                         </View>
 
                         <Button
-                            label={isFlatteningOverdub ? "Saving combined clip..." : "Save Combined And Continue"}
+                            label={isFlatteningOverdub ? t("editor.savingCombined") : t("editor.saveCombinedContinue")}
                             disabled={isFlatteningOverdub}
                             onPress={() => {
                                 void handleFlattenOverdubAndContinue();
@@ -444,13 +444,13 @@ export function EditorScreen() {
                 ) : isLoading ? (
                     <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
                         <ActivityIndicator size="large" color={colors.primary} />
-                        <Text style={editorLocalStyles.loadingText}>Analyzing audio…</Text>
+                        <Text style={editorLocalStyles.loadingText}>{t("editor.analyzing")}</Text>
                     </View>
                 ) : analysisData ? (
                     <>
                         <View style={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 6 }}>
                             <SegmentedControl
-                                options={EDITOR_MODES}
+                                options={editorModes}
                                 value={editorMode}
                                 onChange={setEditorMode}
                             />
@@ -529,7 +529,7 @@ export function EditorScreen() {
                                 />
 
                                 <View style={editorLocalStyles.regionsHead}>
-                                    <Text style={editorLocalStyles.regionsLabel}>Regions</Text>
+                                    <Text style={editorLocalStyles.regionsLabel}>{t("editor.regions")}</Text>
                                     <Pressable
                                         onPress={() => {
                                             haptic.light();
@@ -538,7 +538,7 @@ export function EditorScreen() {
                                         hitSlop={6}
                                         style={({ pressed }) => (pressed ? styles.pressDown : null)}
                                     >
-                                        <Text style={editorLocalStyles.addLink}>+ Add at playhead</Text>
+                                        <Text style={editorLocalStyles.addLink}>{t("editor.addPlayhead")}</Text>
                                     </Pressable>
                                 </View>
 

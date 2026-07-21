@@ -4,6 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { colors, radii } from "../../../design/tokens";
 import { styles as appStyles } from "../../../styles";
 import { CUT_COLOR, KEEP_COLOR, formatSelectionDuration } from "../helpers";
+import { useTranslation } from "react-i18next";
 
 type EditorTrimIntentProps = {
   intent: "keep" | "remove";
@@ -22,15 +23,16 @@ export function EditorTrimIntent({
   removedMs,
   onSelectIntent,
 }: EditorTrimIntentProps) {
+  const { t } = useTranslation();
   const keepActive = intent === "keep";
   const cutActive = intent === "remove";
 
   const outcome =
     regionCount === 0
-      ? "Mark a part of the waveform to begin."
+      ? t("editor.markFirst")
       : keepActive
-        ? `${regionCount} new clip${regionCount === 1 ? "" : "s"} — one per highlight.`
-        : `1 trimmed clip — ${formatSelectionDuration(removedMs)} removed.`;
+        ? t("editor.extractOutcome", { count: regionCount })
+        : t("editor.cutOutcome", { duration: formatSelectionDuration(removedMs) });
   const pipColor = regionCount === 0 ? colors.textMuted : keepActive ? KEEP_COLOR : CUT_COLOR;
 
   return (
@@ -43,7 +45,7 @@ export function EditorTrimIntent({
           accessibilityState={{ selected: keepActive }}
         >
           <Ionicons name="bookmark-outline" size={14} color={keepActive ? KEEP_COLOR : colors.textSecondary} />
-          <Text style={[s.segText, keepActive ? { color: KEEP_COLOR } : null]}>Extract</Text>
+          <Text style={[s.segText, keepActive ? { color: KEEP_COLOR } : null]}>{t("editor.extract")}</Text>
         </Pressable>
         <Pressable
           style={({ pressed }) => [s.segItem, cutActive ? s.segItemActive : null, pressed ? appStyles.pressDown : null]}
@@ -52,7 +54,7 @@ export function EditorTrimIntent({
           accessibilityState={{ selected: cutActive }}
         >
           <Ionicons name="cut-outline" size={14} color={cutActive ? CUT_COLOR : colors.textSecondary} />
-          <Text style={[s.segText, cutActive ? { color: CUT_COLOR } : null]}>Cut</Text>
+          <Text style={[s.segText, cutActive ? { color: CUT_COLOR } : null]}>{t("editor.cut")}</Text>
         </Pressable>
       </View>
 

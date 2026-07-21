@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { AppAlert } from "../../common/AppAlert";
 import { EditableSelection, getInitialRegionDurationMs, MIN_REGION_DURATION_MS } from "../helpers";
+import { useTranslation } from "react-i18next";
 
 type UseEditorSelectionStateArgs = {
   analysisDurationMs: number | null;
@@ -11,6 +12,7 @@ export function useEditorSelectionState({
   analysisDurationMs,
   playheadTimeMs,
 }: UseEditorSelectionStateArgs) {
+  const { t } = useTranslation();
   const [selectedRanges, setSelectedRanges] = useState<EditableSelection[]>([]);
   const [regionIdCounter, setRegionIdCounter] = useState(1);
   const [editMode, setEditMode] = useState<"keep" | "remove">("keep");
@@ -74,7 +76,7 @@ export function useEditorSelectionState({
     }
 
     if (maxEnd - newStart < MIN_REGION_DURATION_MS) {
-      AppAlert.info("No room", "Selections must be at least 1 second long.");
+      AppAlert.info(t("editor.noRoom"), t("editor.noRoomBody"));
       return;
     }
 

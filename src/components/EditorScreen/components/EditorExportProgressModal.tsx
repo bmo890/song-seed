@@ -1,19 +1,21 @@
 import React from "react";
 import { ActivityIndicator, Modal, StyleSheet, Text, View } from "react-native";
 import { colors, radii, spacing } from "../../../design/tokens";
+import { useTranslation } from "react-i18next";
 
 type EditorExportProgressModalProps = {
   visible: boolean;
 };
 
 export function EditorExportProgressModal({ visible }: EditorExportProgressModalProps) {
+  const { t } = useTranslation();
   return (
     <Modal visible={visible} transparent animationType="fade">
       <View style={styles.backdrop}>
         <View style={styles.card}>
           <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={styles.title}>Exporting audio…</Text>
-          <Text style={styles.subtitle}>This happens entirely on your device</Text>
+          <Text style={styles.title}>{t("editor.exporting")}</Text>
+          <Text style={styles.subtitle}>{t("editor.onDevice")}</Text>
         </View>
       </View>
     </Modal>

@@ -7,6 +7,7 @@ import { MiniProgress } from "../../MiniProgress";
 import { TitleInput } from "../../common/TitleInput";
 import { styles } from "../../../styles";
 import { EditableSelection, formatSelectionDuration } from "../helpers";
+import { useTranslation } from "react-i18next";
 
 type EditorExportModalProps = {
   visible: boolean;
@@ -61,15 +62,16 @@ export function EditorExportModal({
   onSave,
   buildSuggestedTitle,
 }: EditorExportModalProps) {
+  const { t } = useTranslation();
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.modalBackdrop}>
         <View style={[styles.modalCard, exportModalStyles.modalCard]}>
-          <Text style={styles.title}>Export Clips</Text>
+          <Text style={styles.title}>{t("editor.exportClips")}</Text>
           <Text style={[styles.cardMeta, { marginBottom: 2 }]}>
             {targetIdeaKind === "project"
-              ? `Save new clip versions back into ${targetIdeaTitle}.`
-              : `Save extracted clips back into ${targetIdeaTitle ?? "this folder"} as new clip cards.`}
+              ? t("editor.exportProject", { title: targetIdeaTitle })
+              : t("editor.exportFolder", { title: targetIdeaTitle ?? t("editor.thisFolder") })}
           </Text>
 
           {keepRegions.length > 0 && removeRegions.length > 0 ? (
@@ -87,7 +89,7 @@ export function EditorExportModal({
                     exportOperation === "extract" ? exportModalStyles.segmentTextActive : null,
                   ]}
                 >
-                  Extract {keepRegions.length}
+                  {t("editor.extractCountShort", { count: keepRegions.length })}
                 </Text>
               </Pressable>
               <Pressable
@@ -103,7 +105,7 @@ export function EditorExportModal({
                     exportOperation === "splice" ? exportModalStyles.segmentTextActive : null,
                   ]}
                 >
-                  Splice 1
+                  {t("editor.spliceOne")}
                 </Text>
               </Pressable>
             </View>
@@ -112,7 +114,7 @@ export function EditorExportModal({
           {exportOperation === "extract" ? (
             <>
               <Text style={[styles.cardMeta, { marginBottom: 2 }]}>
-                Leave a name blank to use its suggested version title automatically.
+                {t("editor.blankNamesHint")}
               </Text>
               <ScrollView
                 style={exportModalStyles.extractList}
@@ -129,7 +131,7 @@ export function EditorExportModal({
                   return (
                     <View key={region.id} style={exportModalStyles.extractCard}>
                       <View style={exportModalStyles.extractCardTop}>
-                        <Text style={exportModalStyles.extractCardTitle}>Clip {index + 1}</Text>
+                        <Text style={exportModalStyles.extractCardTitle}>{t("editor.clipNumber", { number: index + 1 })}</Text>
                         <Text style={exportModalStyles.extractCardDuration}>
                           {formatSelectionDuration(region.end - region.start)}
                         </Text>
@@ -174,14 +176,14 @@ export function EditorExportModal({
             </>
           ) : (
             <>
-              <Text style={[styles.cardMeta, { marginBottom: 6 }]}>Trimmed clip name</Text>
+              <Text style={[styles.cardMeta, { marginBottom: 6 }]}>{t("editor.trimmedName")}</Text>
               <TitleInput
                 value={spliceNameDraft}
                 onChangeText={onChangeSpliceNameDraft}
                 placeholder={suggestedExportTitle}
               />
               <Text style={[styles.cardMeta, { marginTop: 8 }]}>
-                Leave empty to use the next auto-generated version name.
+                {t("editor.autoNameHint")}
               </Text>
             </>
           )}
@@ -196,23 +198,23 @@ export function EditorExportModal({
               color={removeOriginalAfterExport ? colors.primary : colors.textMuted}
             />
             <Text style={{ marginLeft: 8, fontSize: 14, color: colors.textSecondary }}>
-              Delete the original full recording after export
+              {t("editor.deleteFullRecording")}
             </Text>
           </Pressable>
 
           <Text style={[styles.cardMeta, { marginTop: 12 }]}>
             {removeOriginalAfterExport
               ? targetIdeaKind === "project"
-                ? "The original source version will be removed and the new clips stay in this song."
-                : "The original clip card will be removed and the new extracted clips stay in this ideas list."
+                ? t("editor.exportReplaceProject")
+                : t("editor.exportReplaceClip")
               : targetIdeaKind === "project"
-                ? "The source version stays in place and the exports are added as new versions."
-                : "The source clip stays in place and the extracted clips are added as new cards."}
+                ? t("editor.exportKeepProject")
+                : t("editor.exportKeepClip")}
           </Text>
 
           <View style={[styles.rowButtons, { justifyContent: "flex-end", marginTop: 16 }]}>
-            <Button variant="secondary" label="Cancel" onPress={onClose} />
-            <Button label={exportOperation === "extract" ? "Extract" : "Save Splice"} onPress={onSave} />
+            <Button variant="secondary" label={t("common.cancel")} onPress={onClose} />
+            <Button label={exportOperation === "extract" ? t("editor.extract") : t("editor.saveSplice")} onPress={onSave} />
           </View>
         </View>
       </View>

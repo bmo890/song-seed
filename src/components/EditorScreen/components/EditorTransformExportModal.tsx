@@ -6,6 +6,7 @@ import { Button } from "../../common/Button";
 import { TitleInput } from "../../common/TitleInput";
 import { styles } from "../../../styles";
 import { formatPitchShiftLabel } from "../../../domain/pitchShift";
+import { useTranslation } from "react-i18next";
 
 type EditorTransformExportModalProps = {
   visible: boolean;
@@ -40,29 +41,30 @@ export function EditorTransformExportModal({
   onToggleRemoveOriginalAfterExport,
   onSave,
 }: EditorTransformExportModalProps) {
+  const { t } = useTranslation();
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.modalBackdrop}>
         <View style={[styles.modalCard, transformModalStyles.modalCard]}>
-          <Text style={styles.title}>Save Transform</Text>
+          <Text style={styles.title}>{t("editor.saveTransform")}</Text>
           <Text style={[styles.cardMeta, { marginBottom: 10 }]}>
             {targetIdeaKind === "project"
-              ? `Render a transformed clip version back into ${targetIdeaTitle}.`
-              : `Render a transformed clip back into ${targetIdeaTitle ?? "this folder"} as a new clip card.`}
+              ? t("editor.transformProject", { title: targetIdeaTitle })
+              : t("editor.transformFolder", { title: targetIdeaTitle ?? t("editor.thisFolder") })}
           </Text>
 
           <View style={transformModalStyles.summaryCard}>
             <View style={transformModalStyles.summaryRow}>
-              <Text style={transformModalStyles.summaryLabel}>Pitch</Text>
+              <Text style={transformModalStyles.summaryLabel}>{t("editor.pitch")}</Text>
               <Text style={transformModalStyles.summaryValue}>{formatPitchShiftLabel(pitchShiftSemitones)}</Text>
             </View>
             <View style={transformModalStyles.summaryRow}>
-              <Text style={transformModalStyles.summaryLabel}>Speed</Text>
+              <Text style={transformModalStyles.summaryLabel}>{t("editor.speed")}</Text>
               <Text style={transformModalStyles.summaryValue}>{formatPlaybackRate(playbackRate)}</Text>
             </View>
           </View>
 
-          <Text style={[styles.cardMeta, { marginBottom: 6 }]}>Transformed clip name</Text>
+          <Text style={[styles.cardMeta, { marginBottom: 6 }]}>{t("editor.transformedName")}</Text>
           <TitleInput
             value={nameDraft}
             onChangeText={onChangeNameDraft}
@@ -70,7 +72,7 @@ export function EditorTransformExportModal({
           />
 
           <Text style={[styles.cardMeta, { marginTop: 8 }]}>
-            Leave empty to use the next auto-generated version name.
+            {t("editor.autoNameHint")}
           </Text>
 
           <Pressable
@@ -83,23 +85,23 @@ export function EditorTransformExportModal({
               color={removeOriginalAfterExport ? colors.primary : colors.textMuted}
             />
             <Text style={transformModalStyles.checkboxLabel}>
-              Delete the original clip after saving
+              {t("editor.deleteOriginal")}
             </Text>
           </Pressable>
 
           <Text style={[styles.cardMeta, { marginTop: 12 }]}>
             {removeOriginalAfterExport
               ? targetIdeaKind === "project"
-                ? "The original source version will be removed and the transformed version will stay in this song."
-                : "The original clip card will be removed and the transformed clip will stay in this ideas list."
+                ? t("editor.transformedReplaceProject")
+                : t("editor.transformedReplaceClip")
               : targetIdeaKind === "project"
-                ? "The original source version stays in place and the transformed result is added as a new version."
-                : "The original clip stays in place and the transformed result is added as a new clip card."}
+                ? t("editor.transformedKeepProject")
+                : t("editor.transformedKeepClip")}
           </Text>
 
           <View style={[styles.rowButtons, { justifyContent: "flex-end", marginTop: 16 }]}>
-            <Button variant="secondary" label="Cancel" onPress={onClose} />
-            <Button label="Save Transform" onPress={onSave} />
+            <Button variant="secondary" label={t("common.cancel")} onPress={onClose} />
+            <Button label={t("editor.saveTransform")} onPress={onSave} />
           </View>
         </View>
       </View>

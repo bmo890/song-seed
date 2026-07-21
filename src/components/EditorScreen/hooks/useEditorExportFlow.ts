@@ -20,6 +20,7 @@ import {
   cloneTags,
   type EditableSelection,
 } from "../helpers";
+import { useTranslation } from "react-i18next";
 
 type MinimalPlayer = {
   seekTo: (seconds: number) => Promise<void> | void;
@@ -95,6 +96,7 @@ export function useEditorExportFlow({
   setCurrentTime,
   cancelTransportScrub,
 }: UseEditorExportFlowArgs) {
+  const { t } = useTranslation();
   const previewWasPlayingRef = useRef(false);
   const previewPausePromiseRef = useRef<Promise<void> | null>(null);
   const [isExporting, setIsExporting] = useState(false);
@@ -190,7 +192,7 @@ export function useEditorExportFlow({
     const removeCount = removeRegions.length;
 
     if (keepCount === 0 && removeCount === 0) {
-      AppAlert.info("No Edits", "Please add some active regions before exporting.");
+      AppAlert.info(t("editor.noEdits"), t("editor.noEditsBody"));
       return;
     }
 
@@ -218,7 +220,7 @@ export function useEditorExportFlow({
 
   const openTransformExportModal = () => {
     if (!hasActiveTransforms) {
-      AppAlert.info("No Transform", "Adjust pitch or speed first, then save the transformed clip.");
+      AppAlert.info(t("editor.noTransform"), t("editor.noTransformBody"));
       return;
     }
 
@@ -280,7 +282,7 @@ export function useEditorExportFlow({
       // Quiet completion: the editor pops away — the toast confirms the save landed.
       haptic.success();
       toast(
-        highlightIds.length === 1 ? "Clip saved" : `${highlightIds.length} clips saved`,
+        t("editor.clipSaved", { count: highlightIds.length }),
         "checkmark-circle-outline"
       );
     }
@@ -483,7 +485,7 @@ export function useEditorExportFlow({
         const metadata = await importRenderedFileToManaged(result.uri);
         void ensureWaveformSidecar(metadata.audioUri, metadata.durationMs);
         const derivedClip = buildDerivedClipDraft({
-          title: titles[index] ?? genClipTitle(targetIdea?.title ?? "Clip", index + 1),
+          title: titles[index] ?? genClipTitle(targetIdea?.title ?? t("editor.clipFallback"), index + 1),
           audioUri: metadata.audioUri,
           durationMs: metadata.durationMs,
           waveformPeaks: metadata.waveformPeaks,
@@ -506,7 +508,7 @@ export function useEditorExportFlow({
       finishExport(newClipIds);
     } catch (error) {
       console.warn("Editor extract failed", error);
-      AppAlert.info("Export Error", "Failed to extract clips.");
+      AppAlert.info(t("editor.exportError"), t("editor.extractFailed"));
     } finally {
       setIsExporting(false);
     }
@@ -549,7 +551,7 @@ export function useEditorExportFlow({
       finishExport(newClipIds);
     } catch (error) {
       console.warn("Editor splice failed", error);
-      AppAlert.info("Export Error", "Failed to splice clip.");
+      AppAlert.info(t("editor.exportError"), t("editor.spliceFailed"));
     } finally {
       setIsExporting(false);
     }
@@ -588,8 +590,8 @@ export function useEditorExportFlow({
     } catch (error) {
       console.warn("Editor transform save failed", error);
       AppAlert.info(
-        "Transform Save Error",
-        error instanceof Error ? error.message : "Failed to save transformed clip."
+        t("editor.transformSaveError"),
+        error instanceof Error ? error.message : t("editor.transformSaveFailed")
       );
     } finally {
       setIsExporting(false);

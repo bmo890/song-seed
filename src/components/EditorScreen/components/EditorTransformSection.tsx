@@ -8,6 +8,7 @@ import {
   PITCH_SHIFT_MAX_SEMITONES,
   PITCH_SHIFT_MIN_SEMITONES,
 } from "../../../domain/pitchShift";
+import { useTranslation } from "react-i18next";
 
 const MIN_PLAYBACK_RATE = 0.5;
 const MAX_PLAYBACK_RATE = 2.0;
@@ -34,6 +35,7 @@ export function EditorTransformSection({
   onAdjustPitchShift,
   onResetTransforms,
 }: EditorTransformSectionProps) {
+  const { t } = useTranslation();
   const canDecreasePitch = supportsPitchPreview && pitchShiftSemitones > PITCH_SHIFT_MIN_SEMITONES;
   const canIncreasePitch = supportsPitchPreview && pitchShiftSemitones < PITCH_SHIFT_MAX_SEMITONES;
   const canDecreaseSpeed = playbackRate > MIN_PLAYBACK_RATE;
@@ -44,9 +46,9 @@ export function EditorTransformSection({
     <View style={editorTransformStyles.section}>
       <View style={editorTransformStyles.headerRow}>
         <View>
-          <Text style={editorTransformStyles.label}>Speed &amp; pitch</Text>
+          <Text style={editorTransformStyles.label}>{t("editor.speedPitch")}</Text>
           <Text style={editorTransformStyles.meta}>
-            Audition the change, then save the result as a new clip.
+            {t("editor.transformHint")}
           </Text>
         </View>
         <Pressable
@@ -66,13 +68,13 @@ export function EditorTransformSection({
               !transformsActive ? editorTransformStyles.resetButtonTextDisabled : null,
             ]}
           >
-            Reset
+            {t("editor.reset")}
           </Text>
         </Pressable>
       </View>
 
       <View style={editorTransformStyles.row}>
-        <Text style={editorTransformStyles.rowLabel}>Speed</Text>
+        <Text style={editorTransformStyles.rowLabel}>{t("editor.speed")}</Text>
         <View style={editorTransformStyles.controlGroup}>
           <Pressable
             style={[
@@ -109,7 +111,7 @@ export function EditorTransformSection({
       </View>
 
       <View style={editorTransformStyles.row}>
-        <Text style={editorTransformStyles.rowLabel}>Pitch</Text>
+        <Text style={editorTransformStyles.rowLabel}>{t("editor.pitch")}</Text>
         <View style={editorTransformStyles.controlGroup}>
           <Pressable
             style={[
@@ -127,7 +129,7 @@ export function EditorTransformSection({
           </Pressable>
           <View style={[editorTransformStyles.valuePill, !supportsPitchPreview ? editorTransformStyles.valuePillDisabled : null]}>
             <Text style={editorTransformStyles.valueText}>
-              {supportsPitchPreview ? `${pitchShiftSemitones > 0 ? "+" : ""}${pitchShiftSemitones} st` : "Unavailable"}
+              {supportsPitchPreview ? `${pitchShiftSemitones > 0 ? "+" : ""}${pitchShiftSemitones} ${t("player.semitones")}` : t("editor.unavailable")}
             </Text>
           </View>
           <Pressable
@@ -145,7 +147,7 @@ export function EditorTransformSection({
             <Ionicons name="add" size={16} color={canIncreasePitch ? colors.textStrong : colors.textMuted} />
           </Pressable>
           <Text style={editorTransformStyles.summaryText}>
-            {supportsPitchPreview ? formatPitchShiftLabel(pitchShiftSemitones) : "Pitch preview unavailable"}
+            {supportsPitchPreview ? formatPitchShiftLabel(pitchShiftSemitones) : t("editor.pitchUnavailable")}
           </Text>
         </View>
       </View>
