@@ -20,8 +20,10 @@ import {
 } from "../../../domain/clipLineageTitles";
 import { showLineageRenamePrompt } from "../../../domain/clipLineageRenamePrompt";
 import { useSongScreen } from "../provider/SongScreenProvider";
+import { useTranslation } from "react-i18next";
 
 export function SelectionBars() {
+  const { t } = useTranslation();
   const { screen, parentPicking, undo, actions } = useSongScreen();
   const clipSelectionMode = useStore((s) => s.clipSelectionMode);
   const selectedClipIds = useStore((s) => s.selectedClipIds);
@@ -88,7 +90,7 @@ export function SelectionBars() {
         clipId: clip.id,
       }));
     if (queue.length === 0) {
-      AppAlert.info("Nothing to play", "None of the selected clips have playable audio yet.");
+      AppAlert.info(t("songDetail.nothingToPlay"), t("songDetail.selectedNoAudio"));
       return;
     }
     useStore.getState().requestInlineStop();
@@ -102,11 +104,11 @@ export function SelectionBars() {
       setIsSharing(true);
       await shareAudioClips(
         shareableClips,
-        selectedIdea ? `${selectedIdea.title} Clips` : "SongNook Clips"
+        selectedIdea ? t("songDetail.clipsLabel", { title: selectedIdea.title }) : t("songDetail.appClipsLabel")
       );
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Could not share the selected clips.";
-      AppAlert.info("Share failed", message);
+      const message = error instanceof Error ? error.message : t("songDetail.shareFailedBody");
+      AppAlert.info(t("songDetail.shareFailed"), message);
     } finally {
       setIsSharing(false);
     }
@@ -116,9 +118,9 @@ export function SelectionBars() {
     if (shareableClips.length === 0 || isSharing) return;
     setIsSharing(true);
     try {
-      const label = selectedIdea ? `${selectedIdea.title} Clips` : "SongNook Clips";
+      const label = selectedIdea ? t("songDetail.clipsLabel", { title: selectedIdea.title }) : t("songDetail.appClipsLabel");
       await presentShareLink(() => createClipsShareLink(shareableClips, label), {
-        emptyMessage: "Select at least one clip with audio first.",
+        emptyMessage: t("songDetail.selectAudioFirst"),
       });
     } finally {
       setIsSharing(false);
@@ -128,10 +130,10 @@ export function SelectionBars() {
   function handleClipboardAction(mode: "copy" | "move") {
     appActions.startClipboardFromProject(mode);
     AppAlert.info(
-      mode === "copy" ? "Copy ready" : "Move ready",
+      mode === "copy" ? t("songDetail.copyReady") : t("songDetail.moveReady"),
       mode === "copy"
-        ? "Tap \"Paste clips here\" in this song to duplicate them, or open another song and paste there."
-        : "Open the destination song and tap \"Paste clips here\" to finish moving these clips."
+        ? t("songDetail.copyReadyBody")
+        : t("songDetail.moveReadyBody")
     );
   }
 
@@ -146,8 +148,8 @@ export function SelectionBars() {
       undefined,
       [
         {
-          label: "Branch",
-          description: "Keep the original, copy it to a new thread",
+          label: t("songDetail.branch"),
+          description: t("songDetail.branchDesc"),
           icon: actionIcons.branch,
           onPress: async () => {
             const previousClips = selectedIdea.clips;
@@ -186,7 +188,7 @@ export function SelectionBars() {
               )
             );
             useStore.getState().cancelClipSelection();
-            undo.showUndo(`Branched "${clip.title}"`, () => {
+            undo.showUndo(t("songDetail.branched", { title: clip.title }), () => {
               useStore.getState().updateIdeas((ideas) =>
                 ideas.map((idea) =>
                   idea.id !== ideaId ? idea : { ...idea, clips: previousClips }
@@ -202,15 +204,15 @@ export function SelectionBars() {
           },
         },
         {
-          label: "Split",
-          description: "Move it out into its own new thread",
+          label: t("songDetail.split"),
+          description: t("songDetail.splitDesc"),
           icon: actionIcons.split,
           onPress: () =>
             parentPicking.handleMakeRoot(selectedClipIds, (nextUndo, message) => {
               undo.showUndo(message, nextUndo);
             }),
         },
-        { label: "Cancel", style: "cancel" },
+        { label: t("common.cancel"), style: "cancel" },
       ]
     );
   }
@@ -249,13 +251,13 @@ export function SelectionBars() {
     const clipId = singleSelectedClip.id;
     setMoreVisible(false);
     AppAlert.confirm(
-      "Make this the primary take?",
-      "The primary take is this song's best or most representative version — it's the one that plays and represents the song across your collection. Only one take can be primary.",
+      t("songDetail.makePrimaryTitle"),
+      t("songDetail.makePrimaryBody"),
       () => {
         appActions.markBestClip(clipId);
         useStore.getState().cancelClipSelection();
       },
-      { confirmLabel: "Make primary", icon: "star-outline" }
+      { confirmLabel: t("songDetail.makePrimary"), icon: "star-outline" }
     );
   }
 
@@ -313,12 +315,10 @@ export function SelectionBars() {
 
   function confirmDeleteSelection() {
     AppAlert.destructive(
-      selectedClips.length === 1 ? "Delete clip?" : "Delete clips?",
-      selectedClips.length === 1
-        ? "Are you sure you want to remove this clip from the song?"
-        : "Are you sure you want to remove these clips from the song?",
+      t("songDetail.deleteClipsTitle", { count: selectedClips.length }),
+      t("songDetail.deleteClipsBody", { count: selectedClips.length }),
       appActions.deleteSelectedClips,
-      { confirmLabel: "Delete" }
+      { confirmLabel: t("common.delete") }
     );
   }
 
@@ -327,14 +327,14 @@ export function SelectionBars() {
       ? [
           {
             key: "play",
-            label: "Play",
+            label: t("common.play"),
             icon: "play-outline",
             onPress: handlePlaySelected,
             disabled: playableSelectedCount === 0,
           },
           {
             key: "edit",
-            label: "Edit",
+            label: t("songDetail.edit"),
             icon: "create-outline",
             onPress: handleEditSingleClip,
           },
@@ -342,21 +342,21 @@ export function SelectionBars() {
           // Primary here instead (disabled when this take is already primary).
           {
             key: "primary",
-            label: "Primary",
+            label: t("common.primary"),
             icon: "star-outline",
             onPress: handleMakePrimary,
             disabled: !!singleSelectedClip?.isPrimary,
           },
           {
             key: "delete",
-            label: "Delete",
+            label: t("common.delete"),
             icon: "trash-outline",
             tone: "danger",
             onPress: confirmDeleteSelection,
           },
           {
             key: "more",
-            label: "More",
+            label: t("chordChart.more"),
             icon: "ellipsis-horizontal",
             onPress: () => setMoreVisible(true),
           },
@@ -364,27 +364,27 @@ export function SelectionBars() {
       : [
           {
             key: "play",
-            label: "Play",
+            label: t("common.play"),
             icon: "play-outline",
             onPress: handlePlaySelected,
             disabled: playableSelectedCount === 0,
           },
           {
             key: "tags",
-            label: "Tags",
+            label: t("songDetail.tags"),
             icon: "pricetag-outline",
             onPress: () => setTagSheetVisible(true),
           },
           {
             key: "delete",
-            label: "Delete",
+            label: t("common.delete"),
             icon: "trash-outline",
             tone: "danger",
             onPress: confirmDeleteSelection,
           },
           {
             key: "more",
-            label: "More",
+            label: t("chordChart.more"),
             icon: "ellipsis-horizontal",
             onPress: () => setMoreVisible(true),
           },
@@ -393,19 +393,19 @@ export function SelectionBars() {
   const sheetActions: SelectionAction[] = [
     {
       key: "copy",
-      label: "Copy",
+      label: t("common.copy"),
       icon: "copy-outline",
       onPress: () => handleClipboardAction("copy"),
     },
     {
       key: "move",
-      label: "Move",
+      label: t("songDetail.move"),
       icon: "arrow-forward-outline",
       onPress: () => handleClipboardAction("move"),
     },
     {
       key: "share",
-      label: isSharing ? "Sharing..." : `Share (${shareableClips.length})`,
+      label: isSharing ? t("songDetail.sharing") : t("songDetail.shareCount", { count: shareableClips.length }),
       icon: "share-social-outline",
       onPress: () => { void handleShareSelected(); },
       disabled: isSharing || shareableClips.length === 0,
@@ -414,7 +414,7 @@ export function SelectionBars() {
       ? [
           {
             key: "get-link",
-            label: "Get link",
+            label: t("songDetail.getLink"),
             icon: "link-outline" as const,
             onPress: () => { void handleGetLinkSelected(); },
             disabled: isSharing || shareableClips.length === 0,
@@ -423,7 +423,7 @@ export function SelectionBars() {
       : []),
     {
       key: "set-parent",
-      label: "Set parent",
+      label: t("songDetail.setParent"),
       icon: "git-merge-outline",
       onPress: () =>
         parentPicking.handleStartSetParent(selectedClipIds, () => {
@@ -438,7 +438,7 @@ export function SelectionBars() {
       ? [
           {
             key: "make-root",
-            label: "Start new thread",
+            label: t("songDetail.startThread"),
             icon: "radio-button-on-outline" as const,
             onPress: handleStartNewThread,
           },
@@ -448,7 +448,7 @@ export function SelectionBars() {
       ? [
           {
             key: "bookmark",
-            label: singleSelectedClip.isBookmarked ? "Remove bookmark" : "Bookmark clip",
+            label: singleSelectedClip.isBookmarked ? t("songDetail.removeBookmark") : t("songDetail.bookmarkClip"),
             icon: (singleSelectedClip.isBookmarked
               ? "bookmark"
               : "bookmark-outline") as SelectionAction["icon"],
@@ -461,7 +461,7 @@ export function SelectionBars() {
           {
             key: "assign-group",
             label:
-              selectedLineageRootIds.length === 1 ? "Assign group" : "Assign group to selected",
+              selectedLineageRootIds.length === 1 ? t("songDetail.assignGroup") : t("songDetail.assignGroupSelected"),
             icon: "folder-open-outline" as const,
             onPress: () => setGroupSheetVisible(true),
           },
@@ -484,7 +484,7 @@ export function SelectionBars() {
 
       <SelectionActionSheet
         visible={moreVisible}
-        title="Song actions"
+        title={t("songDetail.songActions")}
         actions={sheetActions}
         onClose={() => setMoreVisible(false)}
       />
@@ -493,8 +493,8 @@ export function SelectionBars() {
         visible={groupSheetVisible}
         title={
           selectedLineageRootIds.length > 1
-            ? `Assign group (${selectedLineageRootIds.length} threads)`
-            : "Assign lineage group"
+            ? t("songDetail.assignGroupThreads", { count: selectedLineageRootIds.length })
+            : t("songDetail.assignLineageGroup")
         }
         actions={[
           ...(selectedIdea?.clipGroups ?? []).map((group) => ({
@@ -505,7 +505,7 @@ export function SelectionBars() {
           })),
           {
             key: "new-group",
-            label: "Create new group",
+            label: t("songDetail.createGroup"),
             icon: "add-circle-outline" as const,
             onPress: handleCreateGroupAndAssign,
           },
@@ -515,8 +515,8 @@ export function SelectionBars() {
                   key: "remove-group",
                   label:
                     selectedLineageRootIds.length > 1
-                      ? "Remove selected from group"
-                      : "Remove from group",
+                      ? t("songDetail.removeSelectedGroup")
+                      : t("songDetail.removeGroup"),
                   icon: "close-circle-outline" as const,
                   onPress: () => handleAssignGroup(null),
                 },

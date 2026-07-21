@@ -15,6 +15,7 @@ import { CollapsingHeaderOverlay } from "../../common/CollapsingHeaderOverlay";
 import { SongCollapsibleHeader } from "./SongCollapsibleHeader";
 import { SelectionTopBar } from "../../common/SelectionTopBar";
 import { colors } from "../../../design/tokens";
+import { useTranslation } from "react-i18next";
 
 type SongClipListContentProps = {
   filteredLineages: ClipLineage[];
@@ -227,6 +228,7 @@ function SongClipSelectionTopBar() {
  * the measured pinned header height does not change while scrolling.
  */
 function CollapseAllPill({ onPress }: { onPress: () => void }) {
+  const { t } = useTranslation();
   return (
     <View style={styles.songDetailEvolutionCollapseAllRow}>
       <Pressable
@@ -237,7 +239,7 @@ function CollapseAllPill({ onPress }: { onPress: () => void }) {
         onPress={onPress}
       >
         <Ionicons name="chevron-collapse-outline" size={13} color={colors.textSecondary} />
-        <Text style={styles.songDetailEvolutionCollapseAllText}>Collapse all</Text>
+        <Text style={styles.songDetailEvolutionCollapseAllText}>{t("songDetail.collapseAll")}</Text>
       </Pressable>
     </View>
   );

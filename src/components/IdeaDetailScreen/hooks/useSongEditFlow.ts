@@ -5,6 +5,7 @@ import { useStore } from "../../../state/useStore";
 import { appActions } from "../../../state/actions";
 import { buildDefaultIdeaTitle, ensureUniqueIdeaTitle } from "../../../utils";
 import type { IdeaStatus, SongIdea, Workspace } from "../../../types";
+import { useTranslation } from "react-i18next";
 
 type UseSongEditFlowParams = {
   navigation: any;
@@ -31,6 +32,7 @@ export function useSongEditFlow({
   draftStatus,
   draftCompletion,
 }: UseSongEditFlowParams) {
+  const { t } = useTranslation();
   const hasChanges = useCallback(() => {
     if (!selectedIdea) return false;
     return (
@@ -101,8 +103,8 @@ export function useSongEditFlow({
     }
 
     AppAlert.destructive(
-      isDraft ? "Remove song without saving?" : "Discard changes?",
-      isDraft ? "You haven't saved this new song. Remove it entirely?" : "You have unsaved edits. Discard them?",
+      isDraft ? t("songDetail.removeUnsavedTitle") : t("songDetail.discardChangesTitle"),
+      isDraft ? t("songDetail.removeUnsavedBody") : t("songDetail.discardChangesBody"),
       () => {
         setIsEditMode(false);
         if (isDraft) {
@@ -110,7 +112,7 @@ export function useSongEditFlow({
         }
         onDiscardAction?.();
       },
-      { confirmLabel: isDraft ? "Yes, remove" : "Yes, discard", icon: actionIcons.discard }
+      { confirmLabel: isDraft ? t("songDetail.yesRemove") : t("songDetail.yesDiscard"), icon: actionIcons.discard }
     );
   }, [hasChanges, selectedIdea?.isDraft, setIsEditMode]);
 

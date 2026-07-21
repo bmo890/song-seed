@@ -17,6 +17,7 @@ import { SongClipCard } from "./SongClipCard";
 import { SongClipListShell } from "./SongClipListShell";
 import { haptic } from "../../../design/haptics";
 import { colors } from "../../../design/tokens";
+import { useTranslation } from "react-i18next";
 
 type EvolutionListProps = {
   lineages: ClipLineage[];
@@ -48,6 +49,7 @@ function EvolutionMoreRow({
   expanded: boolean;
   onToggle: (lineageRootId: string) => void;
 }) {
+  const { t } = useTranslation();
   return (
     <View style={styles.songDetailClipRowWrap}>
       <View style={styles.songDetailEvolutionGuideWrap}>
@@ -73,8 +75,8 @@ function EvolutionMoreRow({
         />
         <Text style={styles.songDetailEvolutionExpandText}>
           {expanded
-            ? "Hide older takes"
-            : `${hiddenCount} older ${hiddenCount === 1 ? "take" : "takes"}`}
+            ? t("songDetail.hideOlderTakes")
+            : t("songDetail.olderTakes", { count: hiddenCount })}
         </Text>
       </Pressable>
     </View>
@@ -88,6 +90,7 @@ function EvolutionGroupHeaderRow({
   row: Extract<EvolutionListRow, { kind: "group" }>;
   onRename: (groupId: string, name: string) => void;
 }) {
+  const { t } = useTranslation();
   const ideaId = useStore((s) => s.selectedIdeaId);
   const setClipGroupCollapsed = useStore((s) => s.setClipGroupCollapsed);
 
@@ -105,7 +108,7 @@ function EvolutionGroupHeaderRow({
         onLongPress={() => onRename(row.groupId, row.name)}
         delayLongPress={300}
         accessibilityRole="button"
-        accessibilityHint="Long press to rename this group"
+        accessibilityHint={t("songDetail.renameGroupHint")}
       >
         <View style={styles.songDetailEvolutionGroupTitleRow}>
           <Ionicons
@@ -140,6 +143,7 @@ export function EvolutionList({
   contentPaddingHorizontal,
   locateTarget,
 }: EvolutionListProps) {
+  const { t } = useTranslation();
   const ideaId = clipCardContext.mode.idea.id;
   const renameClipGroup = useStore((s) => s.renameClipGroup);
   const [renameTarget, setRenameTarget] = useState<{ groupId: string; name: string } | null>(null);
@@ -176,7 +180,7 @@ export function EvolutionList({
       summaryContent={summaryContent}
       footerSpacerHeight={footerSpacerHeight}
       primaryEntry={primaryEntry}
-      emptyLabel={primaryEntry ? "No idea clips yet." : "No clips yet."}
+      emptyLabel={primaryEntry ? t("songDetail.noIdeaClips") : t("songDetail.noClips")}
       scrollY={scrollY}
       contentPaddingTop={contentPaddingTop}
       contentPaddingHorizontal={contentPaddingHorizontal}
@@ -220,7 +224,7 @@ export function EvolutionList({
     />
     <QuickNameModal
       visible={!!renameTarget}
-      title="Rename group"
+      title={t("songDetail.renameGroup")}
       draftValue={renameDraft}
       placeholderValue={renameTarget?.name}
       onChangeDraft={setRenameDraft}
@@ -230,8 +234,8 @@ export function EvolutionList({
         if (renameTarget && next) renameClipGroup(ideaId, renameTarget.groupId, next);
         setRenameTarget(null);
       }}
-      helperText="Give this lineage group a clearer name."
-      saveLabel="Rename"
+      helperText={t("songDetail.renameGroupBody")}
+      saveLabel={t("chordChart.rename")}
     />
     </>
   );

@@ -13,6 +13,8 @@ import {
   type TagColor,
 } from "../songClipControls";
 import { colors } from "../../../design/tokens";
+import { useTranslation } from "react-i18next";
+import { UserTextInput } from "../../../i18n";
 
 const randomTagColor = () =>
   CUSTOM_TAG_COLOR_OPTIONS[Math.floor(Math.random() * CUSTOM_TAG_COLOR_OPTIONS.length)].bg;
@@ -42,6 +44,7 @@ export function ClipTagEditorFields({
   idea,
   globalCustomTags,
 }: ClipTagEditorFieldsProps) {
+  const { t } = useTranslation();
   const [newTagLabel, setNewTagLabel] = useState("");
   const [newTagColor, setNewTagColor] = useState(randomTagColor);
   const clipsKey = clips.map((clip) => clip.id).join("|");
@@ -144,7 +147,7 @@ export function ClipTagEditorFields({
 
   return (
     <>
-      <Text style={styles.tagPickerSectionLabel}>Tags</Text>
+      <Text style={styles.tagPickerSectionLabel}>{t("songDetail.tags")}</Text>
       <View style={styles.tagPickerChipsWrap}>
         {SONG_CLIP_TAG_OPTIONS.map((tag) =>
           renderChip(tag.key, tag.label, { bg: tag.bg, text: tag.text }, false)
@@ -153,7 +156,7 @@ export function ClipTagEditorFields({
 
       {projectCustomTags.length > 0 ? (
         <>
-          <Text style={styles.tagPickerSectionLabel}>Project tags</Text>
+          <Text style={styles.tagPickerSectionLabel}>{t("songDetail.projectTags")}</Text>
           <View style={styles.tagPickerChipsWrap}>
             {projectCustomTags.map((tag) =>
               renderChip(tag.key, tag.label, getTagColor(tag.key, projectCustomTags, globalCustomTags), true)
@@ -164,7 +167,7 @@ export function ClipTagEditorFields({
 
       {globalCustomTags.length > 0 ? (
         <>
-          <Text style={styles.tagPickerSectionLabel}>Global tags</Text>
+          <Text style={styles.tagPickerSectionLabel}>{t("songDetail.globalTags")}</Text>
           <View style={styles.tagPickerChipsWrap}>
             {globalCustomTags.map((tag) =>
               renderChip(tag.key, tag.label, getTagColor(tag.key, projectCustomTags, globalCustomTags), true)
@@ -173,11 +176,11 @@ export function ClipTagEditorFields({
         </>
       ) : null}
 
-      <Text style={[styles.tagPickerSectionLabel, { marginTop: 14 }]}>Add project tag</Text>
+      <Text style={[styles.tagPickerSectionLabel, { marginTop: 14 }]}>{t("songDetail.addProjectTag")}</Text>
       <View style={styles.tagPickerAddRow}>
-        <TextInput
+        <UserTextInput
           style={styles.tagPickerAddInput}
-          placeholder="Tag name"
+          placeholder={t("songDetail.tagName")}
           placeholderTextColor={colors.textMuted}
           value={newTagLabel}
           onChangeText={setNewTagLabel}
