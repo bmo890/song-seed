@@ -155,10 +155,12 @@ const styles = StyleSheet.create({
   },
 
   // words (as connected strips)
+  // Logical (start/end) radii + padding so a piece's rounded caps land on the
+  // leading/trailing edge in both LTR and RTL (Hebrew) source text.
   word: { paddingVertical: 7, paddingHorizontal: 3, marginVertical: 3 },
   wordText: { fontFamily: "PlayfairDisplay_400Regular", fontSize: 17, color: colors.textPrimary },
-  wordFirst: { borderTopLeftRadius: radii.md, borderBottomLeftRadius: radii.md, paddingLeft: 8 },
-  wordLast: { borderTopRightRadius: radii.md, borderBottomRightRadius: radii.md, paddingRight: 8 },
+  wordFirst: { borderTopStartRadius: radii.md, borderBottomStartRadius: radii.md, paddingStart: 8 },
+  wordLast: { borderTopEndRadius: radii.md, borderBottomEndRadius: radii.md, paddingEnd: 8 },
   wordInnerLeft: {},
   wordInnerRight: {},
 

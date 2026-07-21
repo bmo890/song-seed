@@ -39,8 +39,14 @@ export function MagpieBuildStep({
   const [zoom, setZoom] = useState(1);
   const [sizeOpen, setSizeOpen] = useState(false);
   const [expanded, setExpanded] = useState(false);
-  const [menuFragment, setMenuFragment] = useState<MagpieFragment | null>(null);
-  const [selection, setSelection] = useState({ start: 0, end: 0 });
+  const [menuFragmentId, setMenuFragmentId] = useState<string | null>(null);
+  // Derive the menu's fragment live from the store so inline edits/merges show.
+  const menuFragment = menuFragmentId ? spark.fragments.find((f) => f.id === menuFragmentId) ?? null : null;
+  // Track the caret in a ref (no re-render); only control `selection` for one
+  // frame right after a programmatic insert, then release it (avoids Android
+  // caret-jumping from permanently-controlled selection).
+  const caretRef = useRef({ start: 0, end: 0 });
+  const [pendingSel, setPendingSel] = useState<{ start: number; end: number } | undefined>(undefined);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
   const draftRef = useRef<TextInput>(null);
 
@@ -72,16 +78,18 @@ export function MagpieBuildStep({
   const insertScrap = (fragment: MagpieFragment) => {
     haptic.light();
     const current = spark.draft;
-    const pos = Math.min(selection.start, current.length);
+    const pos = Math.min(caretRef.current.start, current.length);
     const before = current.slice(0, pos);
     const after = current.slice(pos);
-    const needsSpace = before.length > 0 && !/\s$/.test(before);
-    const inserted = (needsSpace ? " " : "") + fragment.text;
-    const next = before + inserted + after;
+    const lead = before.length > 0 && !/\s$/.test(before) ? " " : "";
+    const trail = after.length > 0 && !/^\s/.test(after) ? " " : "";
+    const next = before + lead + fragment.text + trail + after;
     model.setDraft(next);
     model.markFragmentUsed(fragment.id);
-    const caret = pos + inserted.length;
-    setSelection({ start: caret, end: caret });
+    // Leave the caret just after the inserted word (before any trailing space).
+    const caret = pos + lead.length + fragment.text.length;
+    caretRef.current = { start: caret, end: caret };
+    setPendingSel({ start: caret, end: caret });
   };
 
   return (
@@ -99,8 +107,11 @@ export function MagpieBuildStep({
           style={[styles.draftInput, { fontSize, lineHeight }]}
           value={spark.draft}
           onChangeText={model.setDraft}
-          selection={selection}
-          onSelectionChange={(e) => setSelection(e.nativeEvent.selection)}
+          selection={pendingSel}
+          onSelectionChange={(e) => {
+            caretRef.current = e.nativeEvent.selection;
+            if (pendingSel) setPendingSel(undefined);
+          }}
           multiline
           textAlignVertical="top"
           placeholder={t("magpie.draftPlaceholder")}
@@ -117,7 +128,7 @@ export function MagpieBuildStep({
         onInsert={insertScrap}
         onLongPress={(fragment) => {
           haptic.grab();
-          setMenuFragment(fragment);
+          setMenuFragmentId(fragment.id);
         }}
         onExpand={() => setExpanded(true)}
         onPour={() => {
@@ -149,14 +160,14 @@ export function MagpieBuildStep({
         onInsert={insertScrap}
         onLongPress={(fragment) => {
           haptic.grab();
-          setMenuFragment(fragment);
+          setMenuFragmentId(fragment.id);
         }}
       />
 
       <ScrapMenu
         fragment={menuFragment}
         used={menuFragment ? used.has(menuFragment.id) : false}
-        onClose={() => setMenuFragment(null)}
+        onClose={() => setMenuFragmentId(null)}
         model={model}
       />
     </View>
