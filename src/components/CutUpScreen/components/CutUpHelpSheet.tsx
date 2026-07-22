@@ -101,7 +101,7 @@ function SourceHelp() {
       <View style={helpStyles.points}>
         <HelpPoint icon="clipboard-outline" title={t("cutUpHelp.pasteTitle")} body={t("cutUpHelp.pasteBody")} />
         <HelpPoint icon="document-text-outline" title={t("cutUpHelp.pullTitle")} body={t("cutUpHelp.pullBody")} />
-        <HelpPoint icon="refresh-outline" title={t("cutUpHelp.copyTitle")} body={t("cutUpHelp.copyBody")} />
+        <HelpPoint icon="bulb-outline" title={t("cutUpHelp.copyTitle")} body={t("cutUpHelp.copyBody")} />
       </View>
     </>
   );
@@ -148,8 +148,8 @@ function BoardHelp() {
 
       <View style={helpStyles.points}>
         <HelpPoint icon="shuffle-outline" title={t("cutUpHelp.shuffleTitle")} body={t("cutUpHelp.shuffleBody")} />
-        <HelpPoint icon="lock-closed-outline" title={t("cutUpHelp.lockTitle")} body={t("cutUpHelp.lockBody")} />
-        <HelpPoint icon="trash-outline" title={t("cutUpHelp.restoreTitle")} body={t("cutUpHelp.restoreBody")} />
+        <HelpPoint icon="options-outline" title={t("cutUpHelp.lockTitle")} body={t("cutUpHelp.lockBody")} />
+        <HelpPoint icon="archive-outline" title={t("cutUpHelp.restoreTitle")} body={t("cutUpHelp.restoreBody")} />
       </View>
     </>
   );
