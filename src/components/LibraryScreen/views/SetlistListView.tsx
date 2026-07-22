@@ -3,6 +3,7 @@ import { colors } from "../../../design/tokens";
 import { Ionicons } from "@expo/vector-icons";
 import { Button } from "../../common/Button";
 import { styles } from "../styles";
+import { usePersistedScrollView, type ScrollOffset } from "../../../hooks/usePersistedScrollView";
 import type { Setlist } from "../../../types";
 import { useTranslation } from "react-i18next";
 
@@ -10,14 +11,19 @@ export function SetlistListView({
   setlists,
   onCreate,
   onOpen,
+  scroll,
 }: {
   setlists: Setlist[];
   onCreate: () => void;
   onOpen: (id: string) => void;
+  scroll?: ScrollOffset;
 }) {
   const { t } = useTranslation();
+  const { ref: scrollRef, ...scrollHandlers } = usePersistedScrollView(scroll);
   return (
     <ScrollView
+      ref={scrollRef}
+      {...scrollHandlers}
       style={styles.flexFill}
       contentContainerStyle={styles.libraryScrollContent}
       showsVerticalScrollIndicator={false}

@@ -3,6 +3,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { colors, radii, spacing, text as textTokens } from "../../../design/tokens";
 import { styles } from "../styles";
 import { useStore } from "../../../state/useStore";
+import { usePersistedScrollView, type ScrollOffset } from "../../../hooks/usePersistedScrollView";
 import type { Playlist } from "../../../types";
 import { useTranslation } from "react-i18next";
 
@@ -20,16 +21,21 @@ export function PlaylistListView({
   playlists,
   onCreatePlaylist,
   onOpenPlaylist,
+  scroll,
 }: {
   playlists: Playlist[];
   onCreatePlaylist: () => void;
   onOpenPlaylist: (playlistId: string) => void;
+  scroll?: ScrollOffset;
 }) {
   const { t } = useTranslation();
   const playerDockHeight = useStore((s) => s.playerDockHeight);
+  const { ref: scrollRef, ...scrollHandlers } = usePersistedScrollView(scroll);
 
   return (
     <ScrollView
+      ref={scrollRef}
+      {...scrollHandlers}
       style={styles.flexFill}
       contentContainerStyle={[styles.libraryScrollContent, { paddingBottom: 36 + playerDockHeight }]}
       showsVerticalScrollIndicator={false}

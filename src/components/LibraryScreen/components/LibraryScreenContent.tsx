@@ -1,9 +1,10 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useRoute } from "@react-navigation/native";
 import { StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ScreenHeader } from "../../common/ScreenHeader";
-import { SegmentedControl } from "../../common/SegmentedControl";
+import { SegmentedControl, useSegmentedThumb } from "../../common/SegmentedControl";
+import type { ScrollOffset } from "../../../hooks/usePersistedScrollView";
 import { QuickNameModal } from "../../modals/QuickNameModal";
 import { colors, spacing } from "../../../design/tokens";
 import { styles } from "../styles";
@@ -38,6 +39,18 @@ export function LibraryScreenContent() {
   const { t } = useTranslation();
   useBrowseRootBackHandler();
   const [section, setSection] = useState<Section>("playlists");
+  // Switching tabs swaps the whole section subtree, so the SegmentedControl
+  // remounts. Own its thumb state here (this screen doesn't remount) so the
+  // pill slides from the previous tab instead of jumping in from the left.
+  const segThumb = useSegmentedThumb();
+  // Remember each tab's list scroll position. Lives here (this screen doesn't
+  // remount) so a section that remounts on tab switch can restore where the
+  // user left off; it resets naturally when they leave the Library.
+  const listScroll = useRef({
+    playlists: { current: 0 },
+    songbook: { current: 0 },
+    setlists: { current: 0 },
+  }).current;
 
   // Collector returns and import deep-links land with openCollectionKind — jump
   // to that tab; the mounted section's model then claims openCollectionId.
@@ -55,26 +68,35 @@ export function LibraryScreenContent() {
         { key: "playlists", label: t("library.playlists") },
         { key: "songbook", label: t("library.songbook") },
         { key: "setlists", label: t("library.setlists") },
-      ]} value={section} onChange={setSection} />
+      ]} value={section} onChange={setSection} persist={segThumb} />
       <Text style={local.desc}>{t(`library.${section}Hint`)}</Text>
     </View>
   );
 
-  if (section === "songbook") {
-    return <SongbookSection tabs={tabs} />;
-  }
-  if (section === "setlists") {
-    return <SetlistsSection tabs={tabs} />;
-  }
-  return <PlaylistsSection tabs={tabs} />;
+  // One stable SafeAreaView wraps every section. Previously each section
+  // rendered its own, so switching tabs remounted the SafeAreaView — and a
+  // freshly-mounted one re-applies its safe-area insets a frame late, which is
+  // what made the whole page (and the title) jump down and settle. Now only the
+  // section body inside swaps; the safe-area frame stays put.
+  return (
+    <SafeAreaView style={styles.screen}>
+      {section === "songbook" ? (
+        <SongbookSection tabs={tabs} scroll={listScroll.songbook} />
+      ) : section === "setlists" ? (
+        <SetlistsSection tabs={tabs} scroll={listScroll.setlists} />
+      ) : (
+        <PlaylistsSection tabs={tabs} scroll={listScroll.playlists} />
+      )}
+    </SafeAreaView>
+  );
 }
 
-function PlaylistsSection({ tabs }: { tabs: ReactNode }) {
+function PlaylistsSection({ tabs, scroll }: { tabs: ReactNode; scroll: ScrollOffset }) {
   const { t } = useTranslation();
   const model = useLibraryScreenModel();
 
   return (
-    <SafeAreaView style={styles.screen}>
+    <>
       <ScreenHeader
         title={model.pageTitle}
         leftIcon={model.showBack ? "back" : "hamburger"}
@@ -88,6 +110,7 @@ function PlaylistsSection({ tabs }: { tabs: ReactNode }) {
           playlists={model.sortedPlaylists}
           onCreatePlaylist={model.openCreatePlaylist}
           onOpenPlaylist={model.openPlaylist}
+          scroll={scroll}
         />
       ) : (
         <PlaylistDetailView
@@ -138,18 +161,18 @@ function PlaylistsSection({ tabs }: { tabs: ReactNode }) {
         onSave={model.renamePlaylist}
         saveLabel={t("common.save")}
       />
-    </SafeAreaView>
+    </>
   );
 }
 
-function SongbookSection({ tabs }: { tabs: ReactNode }) {
+function SongbookSection({ tabs, scroll }: { tabs: ReactNode; scroll: ScrollOffset }) {
   const { t } = useTranslation();
   const songbook = useSongbookModel();
 
   const headerTitle = songbook.activeSongbook?.title ?? t("library.title");
 
   return (
-    <SafeAreaView style={styles.screen}>
+    <>
       <ScreenHeader
         title={headerTitle}
         leftIcon={songbook.showBack ? "back" : "hamburger"}
@@ -180,6 +203,7 @@ function SongbookSection({ tabs }: { tabs: ReactNode }) {
           songbooks={songbook.sortedSongbooks}
           onCreate={songbook.openCreate}
           onOpen={songbook.openSongbook}
+          scroll={scroll}
         />
       )}
 
@@ -211,11 +235,11 @@ function SongbookSection({ tabs }: { tabs: ReactNode }) {
         onSave={songbook.renameActiveSongbook}
         saveLabel={t("common.save")}
       />
-    </SafeAreaView>
+    </>
   );
 }
 
-function SetlistsSection({ tabs }: { tabs: ReactNode }) {
+function SetlistsSection({ tabs, scroll }: { tabs: ReactNode; scroll: ScrollOffset }) {
   const { t } = useTranslation();
   const setlist = useSetlistModel();
 
@@ -226,7 +250,7 @@ function SetlistsSection({ tabs }: { tabs: ReactNode }) {
     : setlist.activeSetlist?.title ?? t("library.title");
 
   return (
-    <SafeAreaView style={styles.screen}>
+    <>
       <ScreenHeader
         title={headerTitle}
         leftIcon={setlist.showBack ? "back" : "hamburger"}
@@ -278,6 +302,7 @@ function SetlistsSection({ tabs }: { tabs: ReactNode }) {
           setlists={setlist.sortedSetlists}
           onCreate={setlist.openCreate}
           onOpen={setlist.openSetlist}
+          scroll={scroll}
         />
       )}
 
@@ -309,7 +334,7 @@ function SetlistsSection({ tabs }: { tabs: ReactNode }) {
         onSave={setlist.renameActiveSetlist}
         saveLabel={t("common.save")}
       />
-    </SafeAreaView>
+    </>
   );
 }
 

@@ -10,12 +10,36 @@ type SegmentedOption<T extends string> = {
   label: string;
 };
 
+/**
+ * Persistent thumb state for a SegmentedControl that gets unmounted and
+ * remounted while staying logically "the same" control — e.g. one embedded in a
+ * screen whose tabs swap the whole subtree on selection. Own this in a parent
+ * that does NOT remount and pass it as `persist`: the remounted control then
+ * keeps its measured width and last position, so the thumb slides from the
+ * previous segment instead of snapping in from the far left on every switch.
+ */
+export type SegmentedThumb = {
+  thumbX: Animated.Value;
+  trackWidth: number;
+  setTrackWidth: (width: number) => void;
+  positioned: React.MutableRefObject<boolean>;
+};
+
+export function useSegmentedThumb(): SegmentedThumb {
+  const thumbX = useRef(new Animated.Value(0)).current;
+  const [trackWidth, setTrackWidth] = useState(0);
+  const positioned = useRef(false);
+  return { thumbX, trackWidth, setTrackWidth, positioned };
+}
+
 type Props<T extends string> = {
   options: SegmentedOption<T>[];
   value?: T;
   onChange?: (value: T) => void;
   selectedKey?: T;
   onSelect?: (key: T) => void;
+  /** Persistent thumb (see useSegmentedThumb) for controls that remount. */
+  persist?: SegmentedThumb;
 };
 
 const TRACK_PAD_H = 4;
@@ -26,6 +50,7 @@ export function SegmentedControl<T extends string>({
   onChange,
   selectedKey,
   onSelect,
+  persist,
 }: Props<T>) {
   const activeKey = selectedKey ?? value;
   const activeIndex = Math.max(
@@ -33,19 +58,36 @@ export function SegmentedControl<T extends string>({
     options.findIndex((option) => option.key === activeKey)
   );
 
-  const [trackWidth, setTrackWidth] = useState(0);
-  const segmentWidth = trackWidth > 0 ? (trackWidth - TRACK_PAD_H * 2) / options.length : 0;
-  const thumbX = useRef(new Animated.Value(activeIndex * segmentWidth)).current;
+  // Self-owned thumb state, used unless the caller supplies a persistent one.
+  const [ownTrackWidth, setOwnTrackWidth] = useState(0);
+  const ownThumbX = useRef(new Animated.Value(0)).current;
+  const ownPositioned = useRef(false);
 
-  // Slide the thumb under the active segment instead of swapping backgrounds.
+  const thumbX = persist?.thumbX ?? ownThumbX;
+  const trackWidth = persist ? persist.trackWidth : ownTrackWidth;
+  const setTrackWidth = persist ? persist.setTrackWidth : setOwnTrackWidth;
+  const positioned = persist?.positioned ?? ownPositioned;
+
+  const segmentWidth = trackWidth > 0 ? (trackWidth - TRACK_PAD_H * 2) / options.length : 0;
+
+  // Slide the thumb under the active segment. The first time we know the track
+  // width, snap into place (no slide-from-left); after that, animate — which
+  // includes the case where `persist` carries the previous position across a
+  // remount, so a swapped-subtree screen still slides in the tapped direction.
   useEffect(() => {
     if (segmentWidth <= 0) return;
+    const target = activeIndex * segmentWidth;
+    if (!positioned.current) {
+      positioned.current = true;
+      thumbX.setValue(target);
+      return;
+    }
     Animated.timing(thumbX, {
-      toValue: activeIndex * segmentWidth,
+      toValue: target,
       duration: durations.base,
       useNativeDriver: true,
     }).start();
-  }, [activeIndex, segmentWidth, thumbX]);
+  }, [activeIndex, segmentWidth, thumbX, positioned]);
 
   function handleSelect(key: T) {
     if (key === activeKey) return;
