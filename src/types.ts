@@ -134,14 +134,29 @@ export type CutUpSpark = {
  * Notes, Word Ladders, and Cut-Ups; not attached to a song unless sent on. */
 export type MagpieStep = "page" | "build";
 
-/** The public-domain book a page is pulled from (Project Gutenberg). `textUrl`
- * is a plain-text file we Range-fetch a page from. */
+/** Which language's public-domain library Magpie draws from: English (Project
+ * Gutenberg) or Hebrew (Project Ben-Yehuda). */
+export type MagpieLanguage = "en" | "he";
+
+/** Which public-domain library a Magpie page was pulled from. */
+export type MagpieSource = "gutenberg" | "benyehuda";
+
+/** The public-domain book a page is pulled from. For Gutenberg, `textUrl` is a
+ * plain-text file we Range-fetch a page from; for Ben-Yehuda the passage is
+ * fetched whole via the worker and `textUrl` just references the source page. */
 export type MagpieBook = {
-  /** Project Gutenberg id as a string, or a "bundled-*" id for offline passages. */
+  /** Gutenberg id as a string, a "by-*" id for Ben-Yehuda, or "bundled-*". */
   id: string;
   title: string;
   author: string;
   textUrl: string;
+  /** Which library this came from; absent on legacy sparks (treat as gutenberg). */
+  source?: MagpieSource;
+  /** Small cover thumbnail (Gutenberg only; Ben-Yehuda has none — see the credit
+   * block's tonal placeholder). */
+  thumbnailUrl?: string;
+  /** Canonical page for the work, for the source credit / click-through. */
+  sourceUrl?: string;
 };
 
 /** A word or phrase pocketed from a page. Carries provenance (which book) and the
@@ -175,12 +190,19 @@ export type MagpieSpark = {
   fragments: MagpieFragment[];
   /** The compiled + edited draft, preserved alongside the fragments. */
   draft: string;
+  /** Which language's library to draw from. Defaults to "en" (legacy sparks have
+   * no field). "he" draws from Project Ben-Yehuda; `wholeLibrary` is ignored then. */
+  language: MagpieLanguage;
   /** Whether to draw from the whole Gutenberg library (true) or the curated pool
-   * (false). */
+   * (false). Applies to the English source only. */
   wholeLibrary: boolean;
   savedLyricId?: string;
   /** Steps whose help has already been opened — highlight on first visit. */
   seenHelpSteps: MagpieStep[];
+  /** Fragment ids the writer has dropped into the draft at least once — a soft
+   * "used" tally shown on the build-step palette. Not bound to the draft text
+   * (so free editing never invalidates it); cleared per-scrap by the writer. */
+  usedFragmentIds: string[];
 };
 
 export type BluetoothMonitoringCalibration = {

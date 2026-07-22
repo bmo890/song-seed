@@ -1,7 +1,10 @@
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import Animated, { FadeIn, FadeInDown, FadeOut, LinearTransition } from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
 import { styles as appStyles } from "../../../styles";
 import { colors, radii, shadows, spacing, text as textTokens } from "../../../design/tokens";
+import { durations } from "../../../design/motion";
+import { haptic } from "../../../design/haptics";
 import { getUnpairedWords } from "../../../domain/wordLadder";
 import type { WordLadderExercise } from "../../../types";
 import { useTranslation } from "react-i18next";
@@ -39,6 +42,15 @@ export function WordLadderPairingBoard({
   const pairCount = exercise.pairings.length;
   const canShuffle = exercise.columnA.length > 0 && exercise.columnB.length > 0;
 
+  // Tapping a word in the OTHER column than the armed one completes a pair
+  // (success); anything else just arms/disarms (light).
+  const tapWord = (column: "a" | "b", wordId: string) => {
+    const completing = armedWord && armedWord.column !== column;
+    if (completing) haptic.success();
+    else haptic.light();
+    onTapWord(column, wordId);
+  };
+
   return (
     <ScrollView style={boardStyles.root} showsVerticalScrollIndicator={false}>
       <View style={boardStyles.toolbar}>
@@ -55,7 +67,10 @@ export function WordLadderPairingBoard({
             !canShuffle ? boardStyles.shuffleBtnDisabled : null,
             pressed && canShuffle ? appStyles.pressDown : null,
           ]}
-          onPress={onShuffle}
+          onPress={() => {
+            haptic.light();
+            onShuffle();
+          }}
           disabled={!canShuffle}
         >
           <Ionicons name="shuffle" size={14} color={colors.onPrimary} />
@@ -73,7 +88,7 @@ export function WordLadderPairingBoard({
                   key={word.id}
                   text={word.text}
                   armed={armedWord?.column === "a" && armedWord.wordId === word.id}
-                  onPress={() => onTapWord("a", word.id)}
+                  onPress={() => tapWord("a", word.id)}
                 />
               ))
             ) : (
@@ -89,7 +104,7 @@ export function WordLadderPairingBoard({
                   key={word.id}
                   text={word.text}
                   armed={armedWord?.column === "b" && armedWord.wordId === word.id}
-                  onPress={() => onTapWord("b", word.id)}
+                  onPress={() => tapWord("b", word.id)}
                 />
               ))
             ) : (
@@ -116,20 +131,26 @@ export function WordLadderPairingBoard({
             const wordB = exercise.columnB.find((w) => w.id === pairing.columnBWordId);
             if (!wordA || !wordB) return null;
             return (
-              <View
+              <Animated.View
                 key={pairing.id}
+                entering={FadeInDown.duration(durations.gentle)}
+                exiting={FadeOut.duration(durations.fast)}
+                layout={LinearTransition.duration(durations.base)}
                 style={[boardStyles.pairRow, pairing.locked ? boardStyles.pairRowLocked : null]}
               >
                 <Pressable
                   style={({ pressed }) => [boardStyles.lockBtn, pressed ? appStyles.pressDown : null]}
-                  onPress={() => onToggleLock(pairing.id)}
+                  onPress={() => {
+                    haptic.light();
+                    onToggleLock(pairing.id);
+                  }}
                   hitSlop={6}
                   accessibilityLabel={t(pairing.locked ? "wordLadder.unlock" : "wordLadder.lock")}
                 >
                   <Ionicons
                     name={pairing.locked ? "lock-closed" : "lock-open-outline"}
                     size={14}
-                    color={pairing.locked ? colors.primary : colors.textMuted}
+                    color={pairing.locked ? colors.primaryDeep : colors.textMuted}
                   />
                 </Pressable>
 
@@ -137,9 +158,9 @@ export function WordLadderPairingBoard({
                   {wordA.text}
                 </UserText>
                 <View style={boardStyles.connector}>
-                  <View style={boardStyles.connectorDot} />
-                  <View style={boardStyles.connectorDot} />
-                  <View style={boardStyles.connectorDot} />
+                  <View style={boardStyles.connectorLine} />
+                  <Ionicons name="link" size={11} color={colors.primary} />
+                  <View style={boardStyles.connectorLine} />
                 </View>
                 <UserText style={[boardStyles.pairWord, boardStyles.pairWordB]} numberOfLines={1}>
                   {wordB.text}
@@ -147,13 +168,16 @@ export function WordLadderPairingBoard({
 
                 <Pressable
                   style={({ pressed }) => [boardStyles.unpairBtn, pressed ? appStyles.pressDown : null]}
-                  onPress={() => onUnpair(pairing.id)}
+                  onPress={() => {
+                    haptic.tap();
+                    onUnpair(pairing.id);
+                  }}
                   hitSlop={6}
                   accessibilityLabel={t("wordLadder.removePair")}
                 >
                   <Ionicons name="close" size={14} color={colors.textMuted} />
                 </Pressable>
-              </View>
+              </Animated.View>
             );
           })}
         </View>
@@ -164,68 +188,45 @@ export function WordLadderPairingBoard({
 
 function Scrap({ text, armed, onPress }: { text: string; armed: boolean; onPress: () => void }) {
   return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => [
-        boardStyles.scrap,
-        { transform: [{ rotate: `${wobbleFor(text)}deg` }] },
-        armed ? boardStyles.scrapArmed : null,
-        pressed ? appStyles.pressDown : null,
-      ]}
+    <Animated.View
+      layout={LinearTransition.duration(durations.base)}
+      entering={FadeIn.duration(durations.base)}
+      exiting={FadeOut.duration(durations.fast)}
+      style={{ transform: [{ rotate: `${wobbleFor(text)}deg` }, { scale: armed ? 1.06 : 1 }] }}
     >
-      <UserText style={[boardStyles.scrapText, armed ? boardStyles.scrapTextArmed : null]} numberOfLines={1}>
-        {text}
-      </UserText>
-    </Pressable>
+      <Pressable
+        onPress={onPress}
+        style={({ pressed }) => [
+          boardStyles.scrap,
+          armed ? boardStyles.scrapArmed : null,
+          pressed ? appStyles.pressDown : null,
+        ]}
+      >
+        <UserText style={[boardStyles.scrapText, armed ? boardStyles.scrapTextArmed : null]} numberOfLines={1}>
+          {text}
+        </UserText>
+      </Pressable>
+    </Animated.View>
   );
 }
 
 const boardStyles = StyleSheet.create({
-  root: {
-    flex: 1,
-  },
-  toolbar: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: spacing.md,
-    gap: spacing.sm,
-  },
-  hint: {
-    ...textTokens.supporting,
-    flex: 1,
-    fontSize: 12,
-  },
+  root: { flex: 1 },
+  toolbar: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: spacing.md, gap: spacing.sm },
+  hint: { ...textTokens.supporting, flex: 1, fontSize: 12 },
   shuffleBtn: {
     flexDirection: "row",
     alignItems: "center",
     gap: 5,
-    backgroundColor: colors.primary,
+    backgroundColor: colors.primaryDeep,
     borderRadius: radii.round,
     paddingHorizontal: spacing.md,
     paddingVertical: 7,
   },
-  shuffleBtnDisabled: {
-    backgroundColor: colors.borderMuted,
-  },
-  shuffleBtnText: {
-    fontFamily: "PlusJakartaSans_700Bold",
-    fontSize: 12,
-    color: colors.onPrimary,
-  },
-  poolsCard: {
-    backgroundColor: colors.surfaceHigh,
-    borderRadius: radii.lg,
-    padding: spacing.md,
-    gap: spacing.xs,
-    marginBottom: spacing.lg,
-  },
-  pairsHeaderRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.sm,
-    marginBottom: spacing.sm,
-  },
+  shuffleBtnDisabled: { backgroundColor: colors.borderMuted },
+  shuffleBtnText: { fontFamily: "PlusJakartaSans_700Bold", fontSize: 12, color: colors.onPrimary },
+  poolsCard: { backgroundColor: colors.surfaceHigh, borderRadius: radii.lg, padding: spacing.md, gap: spacing.xs, marginBottom: spacing.lg },
+  pairsHeaderRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, marginBottom: spacing.sm },
   pairsCount: {
     fontFamily: "PlusJakartaSans_700Bold",
     fontSize: 11,
@@ -233,7 +234,7 @@ const boardStyles = StyleSheet.create({
     textAlignVertical: "center",
     includeFontPadding: false,
     color: colors.onPrimary,
-    backgroundColor: colors.primary,
+    backgroundColor: colors.primaryDeep,
     minWidth: 18,
     textAlign: "center",
     borderRadius: radii.round,
@@ -241,48 +242,22 @@ const boardStyles = StyleSheet.create({
     paddingVertical: 1,
     overflow: "hidden",
   },
-  pairsEmpty: {
-    alignItems: "center",
-    gap: spacing.sm,
-    paddingVertical: spacing.xl,
-    paddingHorizontal: spacing.lg,
-  },
-  pairsEmptyText: {
-    ...textTokens.supporting,
-    fontSize: 13,
-    textAlign: "center",
-  },
-  poolEmpty: {
-    ...textTokens.supporting,
-    fontSize: 12,
-    color: colors.textMuted,
-    fontStyle: "italic",
-    paddingVertical: 6,
-  },
-  pairingList: {
-    gap: spacing.xs,
-    marginBottom: spacing.lg,
-  },
+  pairsEmpty: { alignItems: "center", gap: spacing.sm, paddingVertical: spacing.xl, paddingHorizontal: spacing.lg },
+  pairsEmptyText: { ...textTokens.supporting, fontSize: 13, textAlign: "center" },
+  poolEmpty: { ...textTokens.supporting, fontSize: 12, color: colors.textMuted, fontStyle: "italic", paddingVertical: 6 },
+  pairingList: { gap: spacing.xs, marginBottom: spacing.lg },
   pairRow: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: colors.surface,
-    borderRadius: radii.sm,
+    borderRadius: radii.md,
     paddingVertical: 9,
     paddingHorizontal: spacing.sm,
     gap: 6,
     ...shadows.card,
   },
-  pairRowLocked: {
-    borderLeftWidth: 3,
-    borderLeftColor: colors.primary,
-  },
-  lockBtn: {
-    width: 22,
-    height: 22,
-    alignItems: "center",
-    justifyContent: "center",
-  },
+  pairRowLocked: { borderLeftWidth: 3, borderLeftColor: colors.primaryDeep },
+  lockBtn: { width: 22, height: 22, alignItems: "center", justifyContent: "center" },
   pairWord: {
     flex: 1,
     minWidth: 0,
@@ -293,57 +268,15 @@ const boardStyles = StyleSheet.create({
     color: colors.textStrong,
     textAlign: "right",
   },
-  pairWordB: {
-    textAlign: "left",
-  },
-  connector: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 2,
-    paddingHorizontal: 2,
-  },
-  connectorDot: {
-    width: 3,
-    height: 3,
-    borderRadius: radii.round,
-    backgroundColor: colors.borderMuted,
-  },
-  unpairBtn: {
-    width: 22,
-    height: 22,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  sectionLabel: {
-    ...textTokens.annotation,
-  },
-  sectionLabelSecond: {
-    marginTop: spacing.sm,
-  },
-  scrapWrap: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: spacing.sm,
-    paddingVertical: spacing.xs,
-  },
-  scrap: {
-    backgroundColor: colors.surface,
-    borderRadius: radii.xs,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 9,
-    ...shadows.card,
-  },
-  scrapArmed: {
-    backgroundColor: colors.primary,
-    transform: [{ rotate: "0deg" }],
-    ...shadows.cardActive,
-  },
-  scrapText: {
-    fontFamily: "PlayfairDisplay_600SemiBold",
-    fontSize: 14,
-    color: colors.textStrong,
-  },
-  scrapTextArmed: {
-    color: colors.onPrimary,
-  },
+  pairWordB: { textAlign: "left" },
+  connector: { flexDirection: "row", alignItems: "center", gap: 3, paddingHorizontal: 3 },
+  connectorLine: { width: 8, height: 1.5, borderRadius: 1, backgroundColor: colors.borderMuted },
+  unpairBtn: { width: 22, height: 22, alignItems: "center", justifyContent: "center" },
+  sectionLabel: { ...textTokens.annotation },
+  sectionLabelSecond: { marginTop: spacing.sm },
+  scrapWrap: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm, paddingVertical: spacing.xs },
+  scrap: { backgroundColor: colors.surface, borderRadius: radii.md, paddingHorizontal: spacing.md, paddingVertical: 9, ...shadows.card },
+  scrapArmed: { backgroundColor: colors.primaryDeep, ...shadows.cardActive },
+  scrapText: { fontFamily: "PlayfairDisplay_600SemiBold", fontSize: 14, color: colors.textStrong },
+  scrapTextArmed: { color: colors.onPrimary },
 });

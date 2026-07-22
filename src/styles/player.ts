@@ -396,6 +396,9 @@ export const playerStyles = {
   // bar instead of "the page bleeding into the dock" — the previous paper-on-paper
   // fill was invisible against the page it sat flush against.
   miniMediaDockProgressTrack: {
+    // A playback progress hairline flows left→right — pinned LTR so the fill
+    // doesn't grow from the right under a Hebrew UI.
+    direction: "ltr",
     height: 3,
     backgroundColor: "#6f3d2d",
     marginHorizontal: -16,
@@ -409,6 +412,10 @@ export const playerStyles = {
   // clusters sit at the right. A touch of extra vertical room lets the title
   // carry both the clip title and its context line when present.
   miniMediaDockRow: {
+    // The dock is a media surface: transport (prev/play/next) and progress read
+    // left→right, so the whole row is pinned LTR rather than mirrored. The title
+    // still aligns to its own script via UserText.
+    direction: "ltr",
     flexDirection: "row",
     alignItems: "center",
     gap: 8,

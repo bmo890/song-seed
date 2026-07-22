@@ -1,0 +1,17 @@
+name = "songnook-magpie-benyehuda"
+main = "worker.js"
+compatibility_date = "2026-07-01"
+
+# Cached index of eligible work IDs (id + title + author). A few hundred KB.
+# Create with: npx wrangler kv namespace create MAGPIE_KV
+# then paste the returned id below.
+[[kv_namespaces]]
+binding = "MAGPIE_KV"
+id = "c26caa8e8a2d4ad08b359b74d8f62120"
+
+# Weekly index refresh — the public-domain corpus barely changes.
+[triggers]
+crons = ["0 4 * * 1"]
+
+# Secret (set via `wrangler secret put`):
+#   BENYEHUDA_KEY — free API key from https://benyehuda.org/api_keys/new

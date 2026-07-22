@@ -1,15 +1,18 @@
 import { useState } from "react";
-import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { UserTextInput } from "../../../i18n";
 import { Ionicons } from "@expo/vector-icons";
 import { NotePickerSheet } from "../../modals/NotePickerSheet";
 import { styles as appStyles } from "../../../styles";
-import { colors, radii, spacing, text as textTokens } from "../../../design/tokens";
+import { colors, radii, shadows, spacing, text as textTokens } from "../../../design/tokens";
+import { haptic } from "../../../design/haptics";
 import type { CutUpSpark } from "../../../types";
 import type { useCutUpScreenModel } from "../hooks/useCutUpScreenModel";
 import { useTranslation } from "react-i18next";
 
 type Model = ReturnType<typeof useCutUpScreenModel>;
+
+const PAGE_BG = "#FBF6EC";
 
 export function CutUpSourceStep({ model, spark }: { model: Model; spark: CutUpSpark }) {
   const { t } = useTranslation();
@@ -21,10 +24,13 @@ export function CutUpSourceStep({ model, spark }: { model: Model; spark: CutUpSp
         <Text style={styles.label}>{t("cutUp.startingLyric")}</Text>
         <Pressable
           style={({ pressed }) => [styles.pickBtn, pressed ? appStyles.pressDown : null]}
-          onPress={() => setPickerVisible(true)}
+          onPress={() => {
+            haptic.tap();
+            setPickerVisible(true);
+          }}
           hitSlop={6}
         >
-          <Ionicons name="document-text-outline" size={14} color={colors.primary} />
+          <Ionicons name="document-text-outline" size={14} color={colors.primaryDeep} />
           <Text style={styles.pickBtnText}>{t("cutUp.fromPad")}</Text>
         </Pressable>
       </View>
@@ -84,7 +90,7 @@ const styles = StyleSheet.create({
   pickBtnText: {
     fontFamily: "PlusJakartaSans_700Bold",
     fontSize: 12,
-    color: colors.primary,
+    color: colors.primaryDeep,
   },
   linkedChip: {
     flexDirection: "row",
@@ -100,15 +106,16 @@ const styles = StyleSheet.create({
   },
   card: {
     flex: 1,
-    backgroundColor: colors.surface,
-    borderRadius: radii.lg,
-    padding: spacing.md,
+    backgroundColor: PAGE_BG,
+    borderRadius: radii.xl,
+    padding: spacing.lg,
+    ...shadows.card,
   },
   input: {
     flex: 1,
     fontFamily: "PlayfairDisplay_400Regular",
     fontSize: 17,
     lineHeight: 26,
-    color: colors.textPrimary,
+    color: colors.textStrong,
   },
 });

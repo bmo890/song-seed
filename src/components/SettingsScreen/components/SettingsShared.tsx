@@ -1,4 +1,4 @@
-import type { ComponentProps, ReactNode } from "react";
+import { Children, Fragment, type ComponentProps, type ReactNode } from "react";
 import { colors } from "../../../design/tokens";
 import { ActivityIndicator, Pressable, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
@@ -13,6 +13,25 @@ import type { CollectionSelectionState } from "../types";
 
 export const LIBRARY_DEEP = "#8b4f3b";
 
+/**
+ * Groups a section's rows onto one soft surface with hairline dividers between
+ * them — the premium "inset list" pattern. Pass `flat`-variant rows as children
+ * (they drop their own card fill so the group carries the surface).
+ */
+export function SettingsGroup({ children }: { children: ReactNode }) {
+  const items = Children.toArray(children).filter(Boolean);
+  return (
+    <View style={settingsScreenStyles.group}>
+      {items.map((child, index) => (
+        <Fragment key={index}>
+          {index > 0 ? <View style={settingsScreenStyles.groupDivider} /> : null}
+          {child}
+        </Fragment>
+      ))}
+    </View>
+  );
+}
+
 /** Nocturne library-action card: tinted icon circle, title, live status, right accessory. */
 export function LibraryActionCard({
   icon,
@@ -22,6 +41,7 @@ export function LibraryActionCard({
   rightAccessory,
   onPress,
   disabled,
+  flat = false,
 }: {
   icon: ComponentProps<typeof Ionicons>["name"];
   title: string;
@@ -30,6 +50,8 @@ export function LibraryActionCard({
   rightAccessory?: ReactNode;
   onPress: () => void;
   disabled?: boolean;
+  /** Render without its own card fill, for use inside a SettingsGroup. */
+  flat?: boolean;
 }) {
   return (
     <Pressable
@@ -37,6 +59,7 @@ export function LibraryActionCard({
       accessibilityRole="button"
       style={({ pressed }) => [
         settingsScreenStyles.libraryCard,
+        flat ? settingsScreenStyles.libraryCardFlat : null,
         pressed && !disabled ? styles.pressDown : null,
         disabled ? { opacity: 0.5 } : null,
       ]}
@@ -68,15 +91,18 @@ export function SegmentedField<T extends string | number>({
   value,
   options,
   onChange,
+  flat = false,
 }: {
   title: string;
   subtitle?: string;
   value: T;
   options: { value: T; label: string }[];
   onChange: (next: T) => void;
+  /** Add row padding for use inside a SettingsGroup surface. */
+  flat?: boolean;
 }) {
   return (
-    <View style={settingsScreenStyles.segmentedField}>
+    <View style={[settingsScreenStyles.segmentedField, flat ? settingsScreenStyles.segmentedFieldFlat : null]}>
       <View style={settingsScreenStyles.segmentedCopy}>
         <Text style={settingsScreenStyles.segmentedTitle}>{title}</Text>
         {subtitle ? <Text style={settingsScreenStyles.segmentedSubtitle}>{subtitle}</Text> : null}
@@ -150,17 +176,21 @@ export function FormatOptionRow({
   subtitle,
   selected,
   onPress,
+  flat = false,
 }: {
   title: string;
-  subtitle: string;
+  subtitle?: string;
   selected: boolean;
   onPress: () => void;
+  /** Render without its own card fill, for use inside a SettingsGroup. */
+  flat?: boolean;
 }) {
   return (
     <Pressable
       style={({ pressed }) => [
         styles.settingsChoiceRow,
-        selected ? styles.settingsChoiceRowSelected : null,
+        flat ? styles.settingsRowFlat : null,
+        selected ? (flat ? styles.settingsRowFlatSelected : styles.settingsChoiceRowSelected) : null,
         pressed ? styles.pressDown : null,
       ]}
       onPress={onPress}
@@ -168,7 +198,7 @@ export function FormatOptionRow({
       <SelectionMark state={selected ? "selected" : "unselected"} />
       <View style={styles.settingsChoiceCopy}>
         <Text style={styles.settingsChoiceTitle}>{title}</Text>
-        <Text style={styles.settingsChoiceMeta}>{subtitle}</Text>
+        {subtitle ? <Text style={styles.settingsChoiceMeta}>{subtitle}</Text> : null}
       </View>
     </Pressable>
   );
@@ -258,20 +288,27 @@ export function ToggleRow({
   subtitle,
   value,
   onPress,
+  flat = false,
 }: {
   title: string;
-  subtitle: string;
+  subtitle?: string;
   value: boolean;
   onPress: () => void;
+  /** Render without its own card fill, for use inside a SettingsGroup. */
+  flat?: boolean;
 }) {
   return (
     <Pressable
-      style={({ pressed }) => [styles.settingsToggleRow, pressed ? styles.pressDown : null]}
+      style={({ pressed }) => [
+        styles.settingsToggleRow,
+        flat ? styles.settingsRowFlat : null,
+        pressed ? styles.pressDown : null,
+      ]}
       onPress={onPress}
     >
       <View style={styles.settingsChoiceCopy}>
         <Text style={styles.settingsChoiceTitle}>{title}</Text>
-        <Text style={styles.settingsChoiceMeta}>{subtitle}</Text>
+        {subtitle ? <Text style={styles.settingsChoiceMeta}>{subtitle}</Text> : null}
       </View>
       <View style={[styles.settingsTogglePill, value ? styles.settingsTogglePillActive : null]}>
         <View style={[styles.settingsToggleThumb, value ? styles.settingsToggleThumbActive : null]} />

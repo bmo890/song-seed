@@ -86,7 +86,8 @@ function DragIndicatorLine({
 }) {
   const lineStyle = useAnimatedStyle(() => ({
     position: "absolute" as const,
-    left: draggingMarkerX.value - 1,
+    // `start` (not `left`) so the drag line resolves against the LTR-pinned reel.
+    start: draggingMarkerX.value - 1,
     top: 0,
     bottom: 0,
     width: 2,

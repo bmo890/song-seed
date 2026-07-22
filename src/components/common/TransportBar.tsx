@@ -197,6 +197,9 @@ export const TransportBar = React.memo(TransportBarInner);
 
 const styles = StyleSheet.create({
   row: {
+    // Prev/play/next is a tape transport: back is always on the left, forward on
+    // the right. Pinned LTR so the cluster never mirrors under a Hebrew UI.
+    direction: "ltr",
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
@@ -245,7 +248,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#d3c1ba",
   },
   playIconNudge: {
-    marginLeft: 2,
+    marginStart: 2,
   },
   speedBadge: {
     minWidth: 40,

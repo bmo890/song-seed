@@ -32,6 +32,7 @@ export function buildPersistedAppStoreSnapshot(state: AppStore): PersistedAppSto
         backupReminderFrequency: state.backupReminderFrequency,
         hapticsEnabled: state.hapticsEnabled,
         promptForClipName: state.promptForClipName,
+        nameLanguage: state.nameLanguage,
         hasSeenWelcome: state.hasSeenWelcome,
         firstLaunchAt: state.firstLaunchAt,
         reviewPromptShownAt: state.reviewPromptShownAt,

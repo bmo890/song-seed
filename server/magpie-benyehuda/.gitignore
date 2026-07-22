@@ -1,0 +1,11 @@
+# Local Worker secrets — NEVER commit (BENYEHUDA_KEY is set via `wrangler secret`)
+.dev.vars
+.dev.vars.local
+
+# Wrangler local state (build cache, local KV emulation)
+.wrangler/
+dist/
+
+node_modules/
+*.log
+.DS_Store

@@ -12,7 +12,6 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { contentStyles } from "./WordLadderScreenContent.styles";
 import { Ionicons } from "@expo/vector-icons";
-import { ScreenHeader } from "../../common/ScreenHeader";
 import { styles as appStyles } from "../../../styles";
 import { colors, radii, shadows, spacing, text as textTokens } from "../../../design/tokens";
 import { useWordLadderScreenModel } from "../hooks/useWordLadderScreenModel";
@@ -23,7 +22,6 @@ import {
   pairingSeedWords,
 } from "../../../domain/wordLadder";
 import type { WordLadderStep } from "../../../types";
-import { EnglishOnlyNotice } from "../../common/EnglishOnlyNotice";
 import { UserText, UserTextInput } from "../../../i18n";
 import { useTranslation } from "react-i18next";
 
@@ -61,7 +59,6 @@ export function WordLadderScreenContent() {
   if (!exercise) {
     return (
       <SafeAreaView style={[contentStyles.shell, { backgroundColor: KRAFT_BG }]} edges={["top", "bottom"]}>
-        <ScreenHeader title={t("wordSparks.wordLadder")} leftIcon="back" onLeftPress={model.goBack} />
         <View style={contentStyles.missingState}>
           <Ionicons name="trail-sign-outline" size={28} color={colors.textMuted} />
           <Text style={contentStyles.missingTitle}>{t("wordSparks.gone")}</Text>
@@ -119,38 +116,25 @@ export function WordLadderScreenContent() {
     setupWarning = t("wordLadder.mismatch", { verbs: t("wordLadder.verbCount", { count: verbCount }), nouns: t("wordLadder.nounCount", { count: nounCount }), count: diff, side: t(sideKey, { count: diff }) });
   }
 
+  const openHelp = () => {
+    model.markHelpSeen(model.step);
+    setHelpVisible(true);
+  };
+
   return (
     <SafeAreaView style={[contentStyles.shell, { backgroundColor: KRAFT_BG }]} edges={["top", "bottom"]}>
       <KeyboardAvoidingView
         style={contentStyles.keyboardView}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
-      <ScreenHeader
-        title={t("wordSparks.wordLadder")}
-        leftIcon="back"
-        onLeftPress={model.goBack}
-        rightElement={
-          <Pressable
-            style={({ pressed }) => [contentStyles.deleteBtn, pressed ? appStyles.pressDown : null]}
-            onPress={model.deleteExercise}
-            hitSlop={6}
-          >
-            <Ionicons name="trash-outline" size={18} color={colors.textSecondary} />
-          </Pressable>
-        }
-      />
+      <View style={contentStyles.header}>
+        <IconBtn icon="chevron-back" label="Back" onPress={model.goBack} />
+        <Text style={contentStyles.headerTitle}>{t("wordSparks.wordLadder")}</Text>
+        <IconBtn icon="help-circle-outline" label="How this works" onPress={openHelp} />
+        <IconBtn icon="trash-outline" label="Delete" onPress={model.deleteExercise} muted />
+      </View>
 
-      <StepProgress step={model.step} />
-      <EnglishOnlyNotice />
-
-      <HelpButton
-        label={t(`wordSparks.${model.step === "setup" ? "words" : model.step === "pairs" ? "pair" : model.step}`)}
-        seen={exercise.seenHelpSteps.includes(model.step)}
-        onPress={() => {
-          model.markHelpSeen(model.step);
-          setHelpVisible(true);
-        }}
-      />
+      <StepRail step={model.step} />
 
       {model.step === "setup" ? (
         <>
@@ -446,69 +430,59 @@ export function WordLadderScreenContent() {
   );
 }
 
-/** Non-interactive wizard progress — clarifies "step N of 4" without letting
- * the writer jump around (that's what the Next/Back buttons are for). */
-function StepProgress({ step }: { step: WordLadderStep }) {
+/** A slim step rail — the four labels with the current step accented, over a
+ * progress bar. Wayfinding without the clunky numbered dots. */
+function StepRail({ step }: { step: WordLadderStep }) {
   const { t } = useTranslation();
   const currentIndex = STEPS.findIndex((item) => item === step);
+  const progress = (currentIndex + 1) / STEPS.length;
+  const labelFor = (item: WordLadderStep) =>
+    t(`wordSparks.${item === "setup" ? "words" : item === "pairs" ? "pair" : item}`);
   return (
-    <View style={contentStyles.progressRow}>
-      {STEPS.map((item, index) => {
-        const state = index < currentIndex ? "done" : index === currentIndex ? "current" : "upcoming";
-        const isCurrent = state === "current";
-        return (
-          <View key={item} style={contentStyles.progressItem}>
-            <View
-              style={[
-                contentStyles.progressDot,
-                isCurrent ? contentStyles.progressDotCurrent : null,
-                state === "done" ? contentStyles.progressDotDone : null,
-              ]}
-            >
-              {state === "done" ? (
-                <Ionicons name="checkmark" size={11} color={colors.onPrimary} />
-              ) : (
-                <Text
-                  style={[contentStyles.progressNum, isCurrent ? contentStyles.progressNumCurrent : null]}
-                >
-                  {index + 1}
-                </Text>
-              )}
-            </View>
-            <Text
-              style={[contentStyles.progressLabel, isCurrent ? contentStyles.progressLabelCurrent : null]}
-            >
-              {t(`wordSparks.${item === "setup" ? "words" : item === "pairs" ? "pair" : item}`)}
-            </Text>
-          </View>
-        );
-      })}
+    <View style={contentStyles.rail}>
+      <View style={contentStyles.railLabels}>
+        {STEPS.map((item, index) => (
+          <Text
+            key={item}
+            style={[
+              contentStyles.railLabel,
+              index === currentIndex
+                ? contentStyles.railLabelCurrent
+                : index < currentIndex
+                  ? contentStyles.railLabelDone
+                  : null,
+            ]}
+          >
+            {labelFor(item)}
+          </Text>
+        ))}
+      </View>
+      <View style={contentStyles.railTrack}>
+        <View style={[contentStyles.railFill, { width: `${progress * 100}%` }]} />
+      </View>
     </View>
   );
 }
 
-/** A "(?) {step}" button. It highlights (filled) until the current step's help
- * has been opened, then recedes to a quiet link — the re-highlight on each new
- * step signals there's fresh, step-specific guidance to read. */
-function HelpButton({ label, seen, onPress }: { label: string; seen: boolean; onPress: () => void }) {
+function IconBtn({
+  icon,
+  label,
+  onPress,
+  muted,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  onPress: () => void;
+  muted?: boolean;
+}) {
   return (
     <Pressable
-      style={({ pressed }) => [
-        contentStyles.helpBtn,
-        seen ? contentStyles.helpBtnSeen : contentStyles.helpBtnNew,
-        pressed ? appStyles.pressDown : null,
-      ]}
+      style={({ pressed }) => [contentStyles.iconBtn, pressed ? appStyles.pressDown : null]}
       onPress={onPress}
       hitSlop={6}
+      accessibilityLabel={label}
     >
-      <Ionicons
-        name="help-circle"
-        size={15}
-        color={seen ? colors.textMuted : colors.onPrimary}
-      />
-      <Text style={[contentStyles.helpBtnText, seen ? contentStyles.helpBtnTextSeen : contentStyles.helpBtnTextNew]}>
-        {label}
-      </Text>
+      <Ionicons name={icon} size={20} color={muted ? colors.textSecondary : colors.textStrong} />
     </Pressable>
   );
 }

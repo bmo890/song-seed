@@ -32,6 +32,7 @@ export type PersistedAppStore = Pick<
     | "backupReminderFrequency"
     | "hapticsEnabled"
     | "promptForClipName"
+    | "nameLanguage"
     | "hasSeenWelcome"
     | "firstLaunchAt"
     | "reviewPromptShownAt"

@@ -8,16 +8,18 @@ import {
   addFragments,
   assembleDraft,
   deriveMagpieTitle,
+  drawPage,
   editFragmentText,
-  fetchPassage,
   MagpieFetchError,
   type MagpieFetchErrorKind,
-  pickBook,
+  mergeFragmentWithNext,
   removeFragment as removeFragmentOp,
   reorderFragments,
   splitFragment as splitFragmentOp,
 } from "../../../domain/magpie";
-import type { MagpieBook, MagpieStep } from "../../../types";
+import type { MagpieLanguage, MagpieStep } from "../../../types";
+import type { MagpieHeGenre } from "../../../config/magpieService";
+import { useMagpiePrefsStore } from "../../../state/useMagpiePrefsStore";
 import { useTranslation } from "react-i18next";
 
 type LoadStatus = { loading: boolean; error: MagpieFetchErrorKind | null };
@@ -30,6 +32,8 @@ export function useMagpieScreenModel() {
 
   const magpieSparks = useStore((s) => s.magpieSparks);
   const updateMagpieSpark = useStore((s) => s.updateMagpieSpark);
+  const heGenres = useMagpiePrefsStore((s) => s.heGenres);
+  const toggleHeGenrePref = useMagpiePrefsStore((s) => s.toggleHeGenre);
   const deleteMagpieSpark = useStore((s) => s.deleteMagpieSpark);
   const addNote = useStore((s) => s.addNote);
   const updateNote = useStore((s) => s.updateNote);
@@ -53,14 +57,22 @@ export function useMagpieScreenModel() {
 
   // ── Fetching a page ─────────────────────────────────────────────────────────
   const load = useCallback(
-    async (mode: "book" | "page") => {
+    async (
+      mode: "book" | "page",
+      overrides?: { language?: MagpieLanguage; heGenres?: MagpieHeGenre[] }
+    ) => {
       if (!spark) return;
       const seq = ++requestSeq.current;
       setStatus({ loading: true, error: null });
       try {
-        let book: MagpieBook | null = spark.book;
-        if (mode === "book" || !book) book = await pickBook(spark.wholeLibrary);
-        const pageText = await fetchPassage(book);
+        // Overrides let a just-changed setting (language, genres) take effect on
+        // this draw without waiting for the store round-trip / re-render.
+        const effective = {
+          ...spark,
+          heGenres: overrides?.heGenres ?? heGenres,
+          ...overrides,
+        };
+        const { book, pageText } = await drawPage(effective, mode);
         if (seq !== requestSeq.current) return; // superseded by a newer draw
         apply({ book, pageText });
         setStatus({ loading: false, error: null });
@@ -70,7 +82,7 @@ export function useMagpieScreenModel() {
         setStatus({ loading: false, error: kind });
       }
     },
-    [spark, apply]
+    [spark, apply, heGenres]
   );
 
   const newBook = useCallback(() => void load("book"), [load]);
@@ -95,6 +107,31 @@ export function useMagpieScreenModel() {
     [apply]
   );
 
+  // Switching source language clears the current page and immediately draws a
+  // fresh one from the new library (the passage on screen is in the old language).
+  const setLanguage = useCallback(
+    (language: MagpieLanguage) => {
+      if (!spark || spark.language === language) return;
+      apply({ language, book: null, pageText: "" });
+      void load("book", { language });
+    },
+    [spark, apply, load]
+  );
+
+  // Changing the Hebrew genre selection is an app-wide preference; in Hebrew mode
+  // it also redraws the current page from the new genre set.
+  const toggleHeGenre = useCallback(
+    (genre: MagpieHeGenre) => {
+      toggleHeGenrePref(genre);
+      if (spark?.language === "he") {
+        const next = useMagpiePrefsStore.getState().heGenres;
+        apply({ book: null, pageText: "" });
+        void load("book", { heGenres: next });
+      }
+    },
+    [toggleHeGenrePref, spark?.language, apply, load]
+  );
+
   // ── Pocketing + the pile ────────────────────────────────────────────────────
   const pocketPhrases = useCallback(
     (phrases: string[]) => {
@@ -108,7 +145,10 @@ export function useMagpieScreenModel() {
   const removeFragment = useCallback(
     (id: string) => {
       if (!spark) return;
-      apply({ fragments: removeFragmentOp(spark.fragments, id) });
+      apply({
+        fragments: removeFragmentOp(spark.fragments, id),
+        usedFragmentIds: spark.usedFragmentIds.filter((used) => used !== id),
+      });
     },
     [spark, apply]
   );
@@ -116,7 +156,38 @@ export function useMagpieScreenModel() {
   const splitFragment = useCallback(
     (id: string) => {
       if (!spark) return;
-      apply({ fragments: splitFragmentOp(spark.fragments, id) });
+      // The pieces are new fragments — drop the old id from the used tally.
+      apply({
+        fragments: splitFragmentOp(spark.fragments, id),
+        usedFragmentIds: spark.usedFragmentIds.filter((used) => used !== id),
+      });
+    },
+    [spark, apply]
+  );
+
+  const mergeFragment = useCallback(
+    (id: string) => {
+      if (!spark) return;
+      apply({ fragments: mergeFragmentWithNext(spark.fragments, id) });
+    },
+    [spark, apply]
+  );
+
+  // ── The "used" tally (build-step palette) ─────────────────────────────────────
+  // Marked when a scrap is dropped into the draft; a soft cue, never bound to the
+  // draft text. `mark` is additive (idempotent); `clear` lets the writer un-tick.
+  const markFragmentUsed = useCallback(
+    (id: string) => {
+      if (!spark || spark.usedFragmentIds.includes(id)) return;
+      apply({ usedFragmentIds: [...spark.usedFragmentIds, id] });
+    },
+    [spark, apply]
+  );
+
+  const clearFragmentUsed = useCallback(
+    (id: string) => {
+      if (!spark) return;
+      apply({ usedFragmentIds: spark.usedFragmentIds.filter((used) => used !== id) });
     },
     [spark, apply]
   );
@@ -169,6 +240,15 @@ export function useMagpieScreenModel() {
   const rebuildDraft = useCallback(() => {
     if (!spark) return;
     apply({ draft: assembleDraft(spark.fragments) });
+  }, [spark, apply]);
+
+  // Pour every scrap into the (blank) draft in order, and mark them all used.
+  const pourScraps = useCallback(() => {
+    if (!spark) return;
+    apply({
+      draft: assembleDraft(spark.fragments),
+      usedFragmentIds: spark.fragments.map((f) => f.id),
+    });
   }, [spark, apply]);
 
   // ── Save / delete ───────────────────────────────────────────────────────────
@@ -261,15 +341,22 @@ export function useMagpieScreenModel() {
     newPage,
     retry,
     setWholeLibrary,
+    setLanguage,
+    heGenres,
+    toggleHeGenre,
     pocketPhrases,
     removeFragment,
     splitFragment,
+    mergeFragment,
+    markFragmentUsed,
+    clearFragmentUsed,
     editFragment,
     reorder,
     goToStep,
     markHelpSeen,
     setDraft,
     rebuildDraft,
+    pourScraps,
     saveAsLyrics,
     deleteSpark,
     goBack,

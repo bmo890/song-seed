@@ -160,7 +160,9 @@ export function MiniProgress({
         <View
           style={[
             styles.miniProgressDot,
-            { left: `${clamped * 100}%` },
+            // Logical `start` (not `left`) so the dot tracks the fill's leading
+            // edge inside the LTR-pinned lane regardless of app direction.
+            { start: `${clamped * 100}%` },
             accentColor ? { backgroundColor: accentColor } : null,
           ]}
         />
@@ -169,9 +171,14 @@ export function MiniProgress({
   );
 
   return (
+    // A scrubber is a timeline: elapsed→total always flows left→right, so the
+    // whole lane is pinned LTR even under a Hebrew (RTL) UI. Otherwise the fill,
+    // the scrub dot, and the trailing stop button all mirror — which reads as
+    // broken for media. Titles/words elsewhere still mirror normally.
     <View
       style={[
         styles.miniProgressWrap,
+        { direction: "ltr" },
         compact ? { marginBottom: 0 } : null,
         extraBottomMargin ? { paddingBottom: extraBottomMargin } : null,
       ]}
