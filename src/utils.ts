@@ -260,7 +260,53 @@ export function genId(prefix: string) {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 }
 
+// Modern, native, evocative Hebrew nouns — sound, night, weather, texture, feeling,
+// the city. Nouns only (juxtaposed, construct-style) so pairs read poetically
+// without the gender agreement an adjective would demand: "הד ירח", "קטיפה גלים".
+const hebrewWords = [
+  "הד", "פזמון", "מנגינה", "קצב", "צליל", "רעש", "שקט", "לחן", "הדהוד", "תו",
+  "אקורד", "סולו", "גרוב", "באס", "ריף", "לופ", "מקצב", "צלילים",
+  "לילה", "ירח", "כוכב", "כוכבים", "שחר", "דמדומים", "נוגה", "ניצוץ", "ברק",
+  "צל", "אור", "אפלה", "זריחה", "שקיעה", "מגדלור", "פנס",
+  "גלים", "ים", "נהר", "גשם", "ערפל", "רוח", "שלג", "אש", "עשן", "חול",
+  "אבן", "הר", "מדבר", "יער", "טל", "ענן", "סערה", "רעם", "גיץ", "אֵד",
+  "קטיפה", "משי", "זהב", "כסף", "נחושת", "בדולח", "זכוכית", "ארגמן", "תכלת",
+  "פנינה", "אבק", "שיש", "נייר",
+  "חלום", "געגוע", "סוד", "לחישה", "נשיקה", "דמעה", "חופש", "מרחק", "זיכרון",
+  "אשליה", "קסם", "נדר", "הבטחה", "מסע", "נדודים", "צמא", "בדידות", "שכחה",
+  "עיר", "רחוב", "נאון", "מנהרה", "גשר", "תחנה", "קו", "אות", "פריים", "רדיו",
+  "קלטת", "תקליט", "אנטנה", "מזוודה", "כרטיס",
+];
+
+function pickDistinctWords(pool: string[], count: number) {
+  const chosen: string[] = [];
+  const used = new Set<number>();
+  while (chosen.length < count && used.size < pool.length) {
+    const index = Math.floor(Math.random() * pool.length);
+    if (used.has(index)) continue;
+    used.add(index);
+    chosen.push(pool[index]);
+  }
+  return chosen;
+}
+
+// Which language the sparkle "surprise me" name generator draws from. A global
+// preference, independent of the UI language (a Hebrew UI can still want English
+// working titles, and vice versa). Kept as a module value — mirrored from the
+// persisted `nameLanguage` store field via a subscription in useStore, exactly
+// like the haptics master switch — so genIdea stays a cheap synchronous call
+// with no store import (avoids a circular dependency).
+let ideaNameLanguage: "en" | "he" = "en";
+export function setIdeaNameLanguage(next: "en" | "he") {
+  ideaNameLanguage = next === "he" ? "he" : "en";
+}
+
 export const genIdea = () => {
+  if (ideaNameLanguage === "he") {
+    const count = Math.random() > 0.7 ? 3 : 2;
+    return pickDistinctWords(hebrewWords, count).join(" ");
+  }
+
   const dictionaries =
     Math.random() > 0.55 ? [adjectives, aestheticWords, animals] : [adjectives, aestheticWords];
 

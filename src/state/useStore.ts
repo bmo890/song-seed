@@ -64,6 +64,8 @@ import {
 } from "./persistedSnapshot";
 import type { AppStore, PersistedAppStore } from "./storeTypes";
 import { setHapticsEnabled } from "../design/haptics";
+import { setIdeaNameLanguage } from "../utils";
+import { i18n } from "../i18n/instance";
 
 export { buildPersistedAppStoreSnapshot, STORE_NAME, STORE_VERSION } from "./persistedSnapshot";
 export type { AppStore, PersistedAppStore } from "./storeTypes";
@@ -209,6 +211,12 @@ export function sanitizePersistedState(state?: Partial<PersistedAppStore>): Pers
             : DEFAULT_BACKUP_REMINDER_FREQUENCY,
         hapticsEnabled: state?.hapticsEnabled !== false,
         promptForClipName: state?.promptForClipName !== false,
+        nameLanguage:
+            state?.nameLanguage === "he"
+                ? "he"
+                : state?.nameLanguage === "en"
+                    ? "en"
+                    : "auto",
         // Default true whenever ANY persisted state exists — this sanitize only runs via
         // zustand's migrate/merge, which fire only when getItem returned non-null (a
         // genuinely fresh install returns null and never reaches here, keeping the initial
@@ -454,6 +462,15 @@ export const useStore = create<AppStore>()(
 // persisted preference — on boot, after rehydration, and whenever the toggle changes.
 setHapticsEnabled(useStore.getState().hapticsEnabled);
 useStore.subscribe((state) => setHapticsEnabled(state.hapticsEnabled));
+
+// Mirror the persisted naming-language preference into the synchronous genIdea
+// generator (src/utils.ts) — on boot, after rehydration, and on every change.
+// "auto" resolves to whichever UI language is active, so a fresh Hebrew install
+// gets Hebrew name ideas out of the box until the user pins a choice in Settings.
+const resolveNameLanguage = (pref: "auto" | "en" | "he"): "en" | "he" =>
+    pref === "auto" ? (i18n.language === "he" ? "he" : "en") : pref;
+setIdeaNameLanguage(resolveNameLanguage(useStore.getState().nameLanguage));
+useStore.subscribe((state) => setIdeaNameLanguage(resolveNameLanguage(state.nameLanguage)));
 
 /**
  * Durably flush the current persisted snapshot to the authoritative store immediately,

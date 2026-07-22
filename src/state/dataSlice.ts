@@ -107,6 +107,10 @@ export type DataSlice = {
     hapticsEnabled: boolean;
     /** When true, saving a recording asks for a name; when false it auto-names from the suggestion. */
     promptForClipName: boolean;
+    /** Language the sparkle "surprise me" name generator draws from. "auto" (the
+     *  default) follows the UI language; "en"/"he" pin it explicitly once the user
+     *  picks in Settings — so a Hebrew UI can still keep English working titles. */
+    nameLanguage: "auto" | "en" | "he";
     /** First-run: false until the welcome intro has been shown once. Defaults true for
      *  existing users (data present at hydration) so an upgrade never re-shows it. */
     hasSeenWelcome: boolean;
@@ -163,6 +167,7 @@ export type DataSlice = {
     setBackupReminderFrequency: (value: BackupReminderFrequency) => void;
     setHapticsEnabled: (value: boolean) => void;
     setPromptForClipName: (value: boolean) => void;
+    setNameLanguage: (value: "auto" | "en" | "he") => void;
     setHasSeenWelcome: (value: boolean) => void;
     markFirstLaunch: () => void;
     setReviewPromptShownAt: (timestamp: number) => void;
@@ -1216,6 +1221,7 @@ export const createDataSlice: StateCreator<
     backupReminderFrequency: "monthly",
     hapticsEnabled: true,
     promptForClipName: true,
+    nameLanguage: "auto",
     hasSeenWelcome: false,
     firstLaunchAt: null,
     reviewPromptShownAt: null,
@@ -1428,6 +1434,8 @@ export const createDataSlice: StateCreator<
     setBackupReminderFrequency: (value) => set({ backupReminderFrequency: value }),
     setHapticsEnabled: (value) => set({ hapticsEnabled: value }),
     setPromptForClipName: (value) => set({ promptForClipName: value }),
+    setNameLanguage: (value) =>
+        set({ nameLanguage: value === "he" ? "he" : value === "en" ? "en" : "auto" }),
     setHasSeenWelcome: (value) => set({ hasSeenWelcome: value }),
     markFirstLaunch: () => {
         if (get().firstLaunchAt != null) return;
