@@ -29,16 +29,31 @@ export const settingsScreenStyles = StyleSheet.create({
     marginTop: 10,
     marginBottom: 6,
   },
+  // Grouped-settings surface: a section's rows share one soft card, separated by
+  // hairline dividers rather than each floating in its own bordered box.
+  group: {
+    backgroundColor: colors.surface,
+    borderRadius: radii.xl,
+    overflow: "hidden",
+  },
+  groupDivider: {
+    height: 1,
+    backgroundColor: "#ECE6DF",
+    marginHorizontal: 14,
+  },
   libraryCard: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.borderSubtle,
-    borderRadius: radii.lg,
-    paddingVertical: 12,
-    paddingHorizontal: 12,
+    backgroundColor: colors.surfaceContainer,
+    borderRadius: radii.xl,
+    paddingVertical: 13,
+    paddingHorizontal: 13,
+  },
+  // Flat variant of libraryCard for use inside a `group` surface.
+  libraryCardFlat: {
+    backgroundColor: "transparent",
+    borderRadius: 0,
   },
   libraryCardIcon: {
     width: 38,
@@ -66,6 +81,11 @@ export const settingsScreenStyles = StyleSheet.create({
   },
   segmentedField: {
     gap: 8,
+  },
+  // Padded for placement inside a SettingsGroup surface (matches the row insets).
+  segmentedFieldFlat: {
+    paddingHorizontal: 14,
+    paddingVertical: 13,
   },
   segmentedCopy: {
     gap: 2,

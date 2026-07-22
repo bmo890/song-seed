@@ -123,19 +123,25 @@ export const settingsStyles = {
   },
   settingsChoiceRow: {
     minHeight: 60,
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    borderColor: "#E8E4DF",
-    backgroundColor: "#ffffff",
-    paddingHorizontal: 12,
-    paddingVertical: 12,
+    borderRadius: radii.xl,
+    backgroundColor: "#F4F1ED",
+    paddingHorizontal: 14,
+    paddingVertical: 13,
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
   },
   settingsChoiceRowSelected: {
-    borderColor: "#B87D6B",
-    backgroundColor: "#FDF5F2",
+    backgroundColor: "#FBEEE8",
+  },
+  // Flat variant: the row lives inside a SettingsGroup surface, so it drops its
+  // own card fill and lets the group + hairline dividers carry the structure.
+  settingsRowFlat: {
+    backgroundColor: "transparent",
+    borderRadius: 0,
+  },
+  settingsRowFlatSelected: {
+    backgroundColor: "#FBEEE8",
   },
   settingsChoiceCopy: {
     flex: 1,
@@ -232,12 +238,10 @@ export const settingsStyles = {
   },
   settingsToggleRow: {
     minHeight: 58,
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    borderColor: "#E8E4DF",
-    backgroundColor: "#ffffff",
-    paddingHorizontal: 12,
-    paddingVertical: 12,
+    borderRadius: radii.xl,
+    backgroundColor: "#F4F1ED",
+    paddingHorizontal: 14,
+    paddingVertical: 13,
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
