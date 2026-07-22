@@ -9,6 +9,9 @@ export type Note = {
   createdAt: number;
   updatedAt: number;
   isPinned: boolean;
+  /** Direction of the authored note, independent of app UI language. Mirrors
+   * LyricsVersion — "auto" (default) can guess wrong on mixed-script notes. */
+  textDirection?: ContentDirection;
 };
 
 /** "Word Ladder" is a Jeff Tweedy-style writing exercise: name a job/role and a

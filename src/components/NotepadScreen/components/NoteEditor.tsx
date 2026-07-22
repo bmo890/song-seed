@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useIsFocused } from "@react-navigation/native";
 import {
+  Animated,
   BackHandler,
+  Easing,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -11,12 +13,12 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { UserTextInput } from "../../../i18n";
+import { UserTextInput, resolveContentDirection, contentDirectionStyle } from "../../../i18n";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { styles } from "../../../styles";
 import { colors, radii, spacing, text as textTokens } from "../../../design/tokens";
-import type { Note } from "../../../types";
+import type { ContentDirection, Note } from "../../../types";
 import { AppAlert } from "../../common/AppAlert";
 import { WordFinderSheet } from "../../common/WordFinderSheet";
 import { applyPickedWord, extractWordRange } from "../../../domain/wordTools";
@@ -26,7 +28,7 @@ import { useTranslation } from "react-i18next";
 type Props = {
   note: Note;
   onBack: () => void;
-  onUpdate: (updates: { title?: string; body?: string }) => void;
+  onUpdate: (updates: { title?: string; body?: string; textDirection?: ContentDirection }) => void;
   onTogglePin: (noteId: string) => void;
   onDelete: (noteId: string) => void;
 };
@@ -121,9 +123,40 @@ export function NoteEditor({ note, onBack, onUpdate, onTogglePin, onDelete }: Pr
     []
   );
 
+  // ── Text direction ────────────────────────────────────────────────────────
+  // "auto" resolves the whole field by its first strong character, which guesses
+  // wrong on mixed-script notes (e.g. a Hebrew note that opens with an English
+  // label). An explicit override — mirroring the song lyrics editor — is the fix.
+  const noteDirection = note.textDirection ?? "auto";
+  const bodyDirection = resolveContentDirection(note.body, noteDirection);
+  const [directionMenuVisible, setDirectionMenuVisible] = useState(false);
+
   // ── Word Finder (rhymes / thesaurus) ──────────────────────────────────────
   const [wordFinderVisible, setWordFinderVisible] = useState(false);
   const [wordFinderSeed, setWordFinderSeed] = useState("");
+
+  // ── Inserted-word flash ───────────────────────────────────────────────────
+  // A sub-range background can't be styled inside a TextInput, so a soft wash
+  // over the just-inserted word is drawn by a transparent-text ghost overlay
+  // that mirrors the body's layout (viable because the body doesn't scroll
+  // internally — it grows inside the outer ScrollView).
+  const [flash, setFlash] = useState<{ start: number; end: number; nonce: number } | null>(null);
+  const flashOpacity = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (!flash) return;
+    flashOpacity.setValue(1);
+    const anim = Animated.timing(flashOpacity, {
+      toValue: 0,
+      duration: 850,
+      easing: Easing.out(Easing.quad),
+      useNativeDriver: true,
+    });
+    anim.start(({ finished }) => {
+      if (finished) setFlash(null);
+    });
+    return () => anim.stop();
+  }, [flash?.nonce]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const openWordFinder = useCallback(() => {
     const { start, end } = selectionRef.current;
@@ -139,9 +172,18 @@ export function NoteEditor({ note, onBack, onUpdate, onTogglePin, onDelete }: Pr
       onUpdate({ body: next.text });
       scheduleHistoryPush();
       selectionRef.current = { start: next.caret, end: next.caret };
+      setFlash({ start: next.wordStart, end: next.wordEnd, nonce: Date.now() });
       setWordFinderVisible(false);
     },
     [note.body, onUpdate, scheduleHistoryPush]
+  );
+
+  const handleSetDirection = useCallback(
+    (textDirection: ContentDirection) => {
+      onUpdate({ textDirection });
+      setDirectionMenuVisible(false);
+    },
+    [onUpdate]
   );
 
   return (
@@ -200,6 +242,15 @@ export function NoteEditor({ note, onBack, onUpdate, onTogglePin, onDelete }: Pr
               <Ionicons name="book-outline" size={20} color={colors.textSecondary} />
             </Pressable>
 
+            {/* Text direction (auto / ltr / rtl) */}
+            <Pressable
+              style={({ pressed }) => [editorStyles.iconBtn, pressed ? styles.pressDown : null]}
+              onPress={() => setDirectionMenuVisible((visible) => !visible)}
+              accessibilityLabel={t("lyrics.textDirection")}
+            >
+              <Ionicons name="ellipsis-horizontal" size={20} color={colors.textSecondary} />
+            </Pressable>
+
             {/* Pin */}
             <Pressable
               style={({ pressed }) => [editorStyles.iconBtn, pressed ? styles.pressDown : null]}
@@ -222,6 +273,24 @@ export function NoteEditor({ note, onBack, onUpdate, onTogglePin, onDelete }: Pr
           </View>
         </View>
 
+        {directionMenuVisible ? (
+          <View style={editorStyles.directionMenu}>
+            <Text style={editorStyles.directionLabel}>{t("lyrics.textDirection")}</Text>
+            {(["auto", "ltr", "rtl"] as ContentDirection[]).map((option) => (
+              <Pressable
+                key={option}
+                style={[editorStyles.directionOption, option === noteDirection ? editorStyles.directionOptionActive : null]}
+                onPress={() => handleSetDirection(option)}
+              >
+                <Text style={editorStyles.directionOptionText}>
+                  {t(option === "auto" ? "lyrics.directionAuto" : option === "ltr" ? "lyrics.directionLtr" : "lyrics.directionRtl")}
+                </Text>
+                {option === noteDirection ? <Ionicons name="checkmark" size={16} color={colors.primary} /> : null}
+              </Pressable>
+            ))}
+          </View>
+        ) : null}
+
         <ScrollView
           style={editorStyles.scroll}
           contentContainerStyle={editorStyles.scrollContent}
@@ -230,6 +299,7 @@ export function NoteEditor({ note, onBack, onUpdate, onTogglePin, onDelete }: Pr
           <UserTextInput
             style={editorStyles.title}
             value={note.title}
+            direction={noteDirection}
             onChangeText={(text) => {
               onUpdate({ title: text });
               scheduleHistoryPush();
@@ -245,21 +315,38 @@ export function NoteEditor({ note, onBack, onUpdate, onTogglePin, onDelete }: Pr
           <Text style={editorStyles.metaText}>{formatTimestamp(note.updatedAt)}</Text>
           <View style={editorStyles.divider} />
 
-          <UserTextInput
-            ref={bodyRef}
-            style={editorStyles.body}
-            value={note.body}
-            onChangeText={(text) => {
-              onUpdate({ body: text });
-              scheduleHistoryPush();
-            }}
-            onSelectionChange={handleSelectionChange}
-            placeholder={t("notepad.writePlaceholder")}
-            placeholderTextColor={colors.textMuted}
-            multiline
-            textAlignVertical="top"
-            scrollEnabled={false}
-          />
+          <View style={editorStyles.bodyWrap}>
+            <UserTextInput
+              ref={bodyRef}
+              style={editorStyles.body}
+              value={note.body}
+              direction={noteDirection}
+              onChangeText={(text) => {
+                onUpdate({ body: text });
+                scheduleHistoryPush();
+                // The word moved; drop the highlight if it's still up.
+                setFlash((current) => (current ? null : current));
+              }}
+              onSelectionChange={handleSelectionChange}
+              placeholder={t("notepad.writePlaceholder")}
+              placeholderTextColor={colors.textMuted}
+              multiline
+              textAlignVertical="top"
+              scrollEnabled={false}
+            />
+            {flash ? (
+              <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { opacity: flashOpacity }]}>
+                {/* Ghost mirror of the body: transparent text so only the wash
+                    behind the inserted word shows. Reuses editorStyles.body so
+                    font/size/line-height/width match the input exactly. */}
+                <Text style={[editorStyles.body, contentDirectionStyle(bodyDirection)]}>
+                  <Text style={editorStyles.flashHidden}>{note.body.slice(0, flash.start)}</Text>
+                  <Text style={editorStyles.flashWord}>{note.body.slice(flash.start, flash.end)}</Text>
+                  <Text style={editorStyles.flashHidden}>{note.body.slice(flash.end)}</Text>
+                </Text>
+              </Animated.View>
+            ) : null}
+          </View>
         </ScrollView>
       </KeyboardAvoidingView>
 
@@ -340,11 +427,51 @@ const editorStyles = StyleSheet.create({
     backgroundColor: colors.borderSubtle,
     marginBottom: spacing.lg,
   },
+  bodyWrap: {
+    position: "relative",
+  },
   body: {
     ...textTokens.body,
     fontSize: 16,
     lineHeight: 22,
     minHeight: 300,
     paddingVertical: 0,
+  },
+  // Ghost overlay spans: transparent glyphs; only the word carries the wash.
+  flashHidden: {
+    color: "transparent",
+  },
+  flashWord: {
+    color: "transparent",
+    backgroundColor: "rgba(184,125,107,0.28)", // colors.primary (terracotta) @ 28%
+  },
+  directionMenu: {
+    alignSelf: "flex-start",
+    minWidth: 220,
+    marginHorizontal: spacing.lg,
+    marginBottom: spacing.sm,
+    padding: spacing.sm,
+    borderRadius: radii.md,
+    backgroundColor: colors.surfaceHigh,
+  },
+  directionLabel: {
+    color: colors.textMuted,
+    fontSize: 12,
+    marginBottom: spacing.xs,
+  },
+  directionOption: {
+    minHeight: 38,
+    paddingHorizontal: spacing.sm,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  directionOptionActive: {
+    backgroundColor: colors.surface,
+    borderRadius: radii.sm,
+  },
+  directionOptionText: {
+    color: colors.textStrong,
+    fontSize: 14,
   },
 });

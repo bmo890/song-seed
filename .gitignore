@@ -34,6 +34,10 @@ yarn-error.*
 .env
 .env.*
 .env*.local
+# wrangler local secrets (server/*/.dev.vars) — never committed
+.dev.vars
+.dev.vars.*
+.wrangler/
 
 # typescript
 *.tsbuildinfo

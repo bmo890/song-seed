@@ -1,0 +1,27 @@
+name = "songnook-word-he"
+main = "worker.js"
+compatibility_date = "2026-07-01"
+# The Anthropic SDK needs Node builtins (crypto, streams) that Workers only
+# expose behind this flag.
+compatibility_flags = ["nodejs_compat"]
+
+# Durable global cache of results. The edge cache (caches.default) is
+# per-datacenter and evictable; KV makes "each unique lookup billed once,
+# ever" actually hold across regions and time. Also holds the rate-limit
+# counters (rl:* keys, short TTL — no collision with the cache entries).
+[[kv_namespaces]]
+binding = "WORDHE_KV"
+id = "dfdeaab2a51649a195a503186a9738fe"
+
+# Anti-abuse limits (fail open if WORDHE_KV is unbound, e.g. local dev). Counters
+# only tick on cache MISSES — a billable LLM call or a Dicta hit — so browsing
+# cached words never consumes quota. Tune without a code change.
+[vars]
+RATE_WORDS_PER_HOUR = "40"          # per-IP paid LLM lookups / hour
+RATE_CHARUZIT_PER_HOUR = "240"      # per-IP free rhyme+vocalization lookups / hour
+RATE_WORDS_GLOBAL_PER_DAY = "1500"  # worker-wide LLM circuit breaker / day
+
+# Secret (set via `wrangler secret put`):
+#   ANTHROPIC_API_KEY — Console API key from platform.claude.com.
+#   Set a monthly spend cap on the key's workspace in the Console; that cap is
+#   the final cost backstop behind the edge cache and max_tokens ceiling.

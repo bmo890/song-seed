@@ -18,14 +18,20 @@ import { haptic } from "../../design/haptics";
 import { durations } from "../../design/motion";
 import {
   EXTENDED_WORD_MODE_GROUPS,
+  fetchHebrewRhymes,
+  fetchHebrewVocalizations,
+  fetchHebrewWordSuggestions,
   fetchWordDefinitions,
   fetchWordSuggestions,
   getCachedWordSuggestions,
   groupBySyllableCount,
+  hebrewWorkerMode,
   isEnglishLookupWord,
+  isHebrewLookupWord,
   sanitizeThemeWords,
   WORD_LOOKUP_MODE_ORDER,
   WORD_LOOKUP_MODES,
+  WordLookupBusyError,
   WordLookupOfflineError,
   type WordDefinition,
   type WordLookupMode,
@@ -39,6 +45,10 @@ const LOOKUP_DEBOUNCE_MS = 400;
 const GROUP_CHIP_CAP = 10;
 const FLAT_CHIP_CAP = 24;
 const MAX_THEMES = 5;
+/** Nikud readings offered in the picker. Charuzit can return up to 8; the most
+ * common come first, and a wall of near-identical pointed pills is overwhelming
+ * — 5 covers the realistic cases without the picker dominating the sheet. */
+const MAX_READINGS = 5;
 
 /** The segmented row: the four quick modes plus a More tab for extended tools. */
 const MORE_TAB = "__more";
@@ -57,9 +67,28 @@ type LookupState =
   | { status: "idle" }
   | { status: "loading" }
   | { status: "unsupported" }
+  // Hebrew meaning mode, nothing cached: awaiting an explicit tap so the paid
+  // LLM call never fires on a debounce.
+  | { status: "needsTrigger" }
+  // Hebrew sound mode (rhymes/near/…): Charuzit isn't wired yet.
+  | { status: "comingSoon" }
   | { status: "results"; suggestions: WordSuggestion[] }
   | { status: "offline" }
+  | { status: "busy" }
   | { status: "error" };
+
+/** How a (word, mode) pair is served. */
+type LookupRoute = "english" | "hebrewRhymes" | "hebrewLlm" | "hebrewSound" | "unsupported";
+
+function classifyLookup(word: string, mode: WordLookupMode): LookupRoute {
+  if (isEnglishLookupWord(word)) return "english";
+  if (isHebrewLookupWord(word)) {
+    // Rhymes + near rhymes both come from Charuzit — free, auto-fire.
+    if (mode === "rhymes" || mode === "near") return "hebrewRhymes";
+    return hebrewWorkerMode(mode) ? "hebrewLlm" : "hebrewSound";
+  }
+  return "unsupported";
+}
 
 type PreviewState = {
   word: string;
@@ -81,7 +110,12 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
   const { t } = useTranslation();
   const modeLabel = (mode: WordLookupMode) => t(`wordFinderUi.${mode}`);
   const modeDescription = (mode: WordLookupMode) => t(`wordFinderUi.${mode}Desc`);
-  const partOfSpeech = (tag: string) => t(`wordFinderUi.${({ n: "noun", v: "verb", adj: "adjective", adv: "adverb", u: "other" } as Record<string, string>)[tag] ?? "other"}`);
+  // Datamuse uses single-letter tags; the Hebrew worker returns a pos phrase
+  // (e.g. "שם עצם") — render a known tag translated, anything else verbatim.
+  const partOfSpeech = (tag: string) => {
+    const key = ({ n: "noun", v: "verb", adj: "adjective", adv: "adverb", u: "other" } as Record<string, string>)[tag];
+    return key ? t(`wordFinderUi.${key}`) : tag;
+  };
   const [query, setQuery] = useState(initialWord);
   const [quickMode, setQuickMode] = useState<WordLookupMode>("rhymes");
   const [moreTab, setMoreTab] = useState(false);
@@ -96,8 +130,18 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
   const [drillStack, setDrillStack] = useState<string[]>([]);
   const [preview, setPreview] = useState<PreviewState | null>(null);
   const [expandedChipKeys, setExpandedChipKeys] = useState<Set<string>>(new Set());
+  // Hebrew rhymes: the word's possible nikud readings and the writer's pick.
+  // Options render as pills; each pick re-queries Charuzit (cached per reading).
+  const [vocalOptions, setVocalOptions] = useState<string[]>([]);
+  const [vocalChoice, setVocalChoice] = useState<string | null>(null);
   const requestIdRef = useRef(0);
   const previewRequestIdRef = useRef(0);
+
+  // A different word means a different set of readings.
+  useEffect(() => {
+    setVocalChoice(null);
+    setVocalOptions([]);
+  }, [query]);
 
   /** The mode actually queried; null while More is open with no tool picked. */
   const activeMode: WordLookupMode | null = moreTab ? extendedMode : quickMode;
@@ -106,6 +150,8 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
   // Re-seed from the editor each time the sheet opens on a new word.
   useEffect(() => {
     if (!visible) return;
+    // Both scripts open on Rhymes — the free backend for each (Datamuse /
+    // Charuzit). Paid LLM modes are only ever reached by deliberate choice.
     setQuery(initialWord);
     setQuickMode("rhymes");
     setMoreTab(false);
@@ -124,12 +170,76 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
       setLookup({ status: "idle" });
       return;
     }
-    if (!isEnglishLookupWord(trimmed)) {
+
+    const route = classifyLookup(trimmed, activeMode);
+    const requestId = ++requestIdRef.current;
+
+    if (route === "unsupported") {
       setLookup({ status: "unsupported" });
       return;
     }
+    if (route === "hebrewSound") {
+      setLookup({ status: "comingSoon" });
+      return;
+    }
 
-    const requestId = ++requestIdRef.current;
+    if (route === "hebrewRhymes") {
+      // Free (Charuzit) — auto-fires like the English path. Pipeline: readings
+      // for the plain word, then rhymes for the chosen (or most common)
+      // reading. Both stages are cached, so repeats resolve in milliseconds;
+      // the debounce keeps mid-typing queries away from Dicta.
+      let cancelled = false;
+      setLookup({ status: "loading" });
+      const timer = setTimeout(() => {
+        void (async () => {
+          try {
+            const options = await fetchHebrewVocalizations(trimmed);
+            if (cancelled || requestId !== requestIdRef.current) return;
+            setVocalOptions(options);
+            if (options.length === 0) {
+              setExpandedChipKeys(new Set());
+              setLookup({ status: "results", suggestions: [] });
+              return;
+            }
+            const chosen = vocalChoice && options.includes(vocalChoice) ? vocalChoice : options[0];
+            const rhymes = await fetchHebrewRhymes(chosen, { near: activeMode === "near" });
+            if (cancelled || requestId !== requestIdRef.current) return;
+            setExpandedChipKeys(new Set());
+            setLookup({ status: "results", suggestions: rhymes });
+          } catch (error) {
+            if (cancelled || requestId !== requestIdRef.current) return;
+            if (error instanceof WordLookupOfflineError) setLookup({ status: "offline" });
+            else if (error instanceof WordLookupBusyError) setLookup({ status: "busy" });
+            else setLookup({ status: "error" });
+          }
+        })();
+      }, LOOKUP_DEBOUNCE_MS);
+      return () => {
+        cancelled = true;
+        clearTimeout(timer);
+      };
+    }
+
+    if (route === "hebrewLlm") {
+      // Cache-only read: cached Hebrew results are free, so show them instantly;
+      // a miss parks on an explicit trigger so the paid LLM call waits for a tap.
+      let cancelled = false;
+      setLookup({ status: "loading" });
+      void getCachedWordSuggestions(activeMode, trimmed, { theme: themeParam }).then((cached) => {
+        if (cancelled || requestId !== requestIdRef.current) return;
+        if (cached !== null) {
+          setExpandedChipKeys(new Set());
+          setLookup({ status: "results", suggestions: cached });
+        } else {
+          setLookup({ status: "needsTrigger" });
+        }
+      });
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    // route === "english": cache-first, then debounced network.
     const controller = new AbortController();
     let settled = false;
     setLookup({ status: "loading" });
@@ -161,7 +271,33 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
       clearTimeout(timer);
       controller.abort();
     };
-  }, [visible, query, activeMode, themeParam]);
+    // vocalChoice: a new reading re-runs the (cached) Hebrew rhyme pipeline.
+  }, [visible, query, activeMode, themeParam, vocalChoice]);
+
+  /**
+   * The one place a paid Hebrew LLM lookup fires — an explicit tap, never a
+   * debounce. Guarded by requestIdRef so a stale result never lands after the
+   * writer has moved on to another word or mode.
+   */
+  const runHebrewLookup = () => {
+    const trimmed = query.trim();
+    if (!trimmed || !activeMode) return;
+    haptic.tap();
+    const requestId = ++requestIdRef.current;
+    setLookup({ status: "loading" });
+    fetchHebrewWordSuggestions(activeMode, trimmed, { theme: themeParam })
+      .then((suggestions) => {
+        if (requestId !== requestIdRef.current) return;
+        setExpandedChipKeys(new Set());
+        setLookup({ status: "results", suggestions });
+      })
+      .catch((error) => {
+        if (requestId !== requestIdRef.current) return;
+        if (error instanceof WordLookupOfflineError) setLookup({ status: "offline" });
+        else if (error instanceof WordLookupBusyError) setLookup({ status: "busy" });
+        else setLookup({ status: "error" });
+      });
+  };
 
   const handlePick = (word: string) => {
     haptic.tap();
@@ -229,6 +365,14 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
     Keyboard.dismiss();
     setExtendedMode(next);
     setToolListOpen(false);
+  };
+
+  /** Empty rhymes → jump to the Near tab (works for Datamuse and Charuzit). */
+  const goToNear = () => {
+    haptic.tap();
+    Keyboard.dismiss();
+    setMoreTab(false);
+    setQuickMode("near");
   };
 
   const reopenToolList = () => {
@@ -349,7 +493,7 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
     const shown = expanded ? suggestions : suggestions.slice(0, cap);
     const hidden = suggestions.length - shown.length;
     return (
-      <View style={finderStyles.chipWrap}>
+      <View style={[finderStyles.chipWrap, resultsAreHebrew ? finderStyles.rowRtl : null]}>
         {shown.map(renderChip)}
         {hidden > 0 ? (
           <Pressable
@@ -378,7 +522,7 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
         {groups.map((group) => (
           <View key={group.syllables ?? "unknown"} style={finderStyles.syllableGroup}>
             {groups.length > 1 && group.syllables !== null ? (
-              <Text style={finderStyles.syllableLabel}>
+              <Text style={[finderStyles.syllableLabel, resultsAreHebrew ? finderStyles.labelRtl : null]}>
                 {t("wordFinderUi.syllable", { count: group.syllables })}
               </Text>
             ) : null}
@@ -389,15 +533,63 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
     );
   };
 
-  /** The described tool list shown under the More tab. */
-  const renderToolList = () => (
+  /** Hebrew meaning mode, nothing cached — a composed invitation to run the
+   * on-demand lookup. The word takes the serif display voice used elsewhere in
+   * the sheet, so the one paid action reads as deliberate, not a bare button. */
+  const renderTrigger = () => (
+    <Animated.View entering={FadeIn.duration(durations.fast)} style={finderStyles.triggerCenter}>
+      <View style={finderStyles.triggerBadge}>
+        <Ionicons name="sparkles-outline" size={19} color={colors.primary} />
+      </View>
+      {activeMode ? <Text style={finderStyles.triggerEyebrow}>{modeLabel(activeMode).toUpperCase()}</Text> : null}
+      <Text style={finderStyles.triggerWord} numberOfLines={1}>
+        {query.trim()}
+      </Text>
+      <Pressable
+        style={({ pressed }) => [finderStyles.triggerBtn, pressed ? appStyles.pressDown : null]}
+        onPress={runHebrewLookup}
+        accessibilityRole="button"
+        accessibilityLabel={t("wordFinderUi.llmFind")}
+      >
+        <Ionicons name="search" size={15} color={colors.onPrimary} />
+        <Text style={finderStyles.triggerBtnText}>{t("wordFinderUi.llmFind")}</Text>
+      </Pressable>
+      <Text style={finderStyles.triggerSub}>{t("wordFinderUi.llmSub")}</Text>
+    </Animated.View>
+  );
+
+  /** Hebrew sound mode (rhymes/near/…) — Charuzit isn't wired yet. Same quiet
+   * composition, muted, no action. */
+  const renderComingSoon = () => (
+    <Animated.View entering={FadeIn.duration(durations.fast)} style={finderStyles.triggerCenter}>
+      <View style={finderStyles.triggerBadgeMuted}>
+        <Ionicons name="time-outline" size={19} color={colors.textMuted} />
+      </View>
+      {activeMode ? <Text style={finderStyles.triggerEyebrow}>{modeLabel(activeMode).toUpperCase()}</Text> : null}
+      <Text style={finderStyles.triggerWordMuted} numberOfLines={1}>
+        {query.trim()}
+      </Text>
+      <Text style={finderStyles.triggerSub}>{t("wordFinderUi.soundSoon")}</Text>
+      <Text style={finderStyles.triggerSubFaint}>{t("wordFinderUi.soundSoonSub")}</Text>
+    </Animated.View>
+  );
+
+  /** The described tool list shown under the More tab. For Hebrew, hide the
+   * modes with no backend yet (the Charuzit-only sound tools) so the list shows
+   * only working tools instead of dead "coming soon" entries. */
+  const renderToolList = () => {
+    const groups = EXTENDED_WORD_MODE_GROUPS.map((group) => ({
+      title: group.title,
+      modes: resultsAreHebrew ? group.modes.filter((m) => hebrewWorkerMode(m) !== null) : group.modes,
+    })).filter((group) => group.modes.length > 0);
+    return (
     <ScrollView
       keyboardShouldPersistTaps="handled"
       keyboardDismissMode="on-drag"
       showsVerticalScrollIndicator={false}
     >
       <Animated.View entering={FadeIn.duration(durations.fast)}>
-        {EXTENDED_WORD_MODE_GROUPS.map((group) => (
+        {groups.map((group) => (
           <View key={group.title} style={finderStyles.toolGroup}>
             <Text style={finderStyles.toolGroupTitle}>{t(`wordFinderUi.${group.title.toLowerCase()}`).toUpperCase()}</Text>
             {group.modes.map((key) => {
@@ -424,7 +616,8 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
         ))}
       </Animated.View>
     </ScrollView>
-  );
+    );
+  };
 
   // ── Definition preview: takes over the whole sheet body ──────────────────
   const renderPreview = (state: PreviewState) => (
@@ -488,9 +681,55 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
   );
 
   const showToolList = moreTab && (toolListOpen || !extendedMode);
+  const activeRoute = activeMode ? classifyLookup(query.trim(), activeMode) : null;
+  const effectiveVocal =
+    vocalChoice && vocalOptions.includes(vocalChoice) ? vocalChoice : vocalOptions[0] ?? null;
+  // Hebrew results read right-to-left; mirror the pill/chip rows so the first
+  // (most relevant) item sits top-right, regardless of the app UI language.
+  const resultsAreHebrew = isHebrewLookupWord(query.trim());
+  const readings = vocalOptions.slice(0, MAX_READINGS);
+
+  /** Reading picker — only when the plain word is genuinely ambiguous. A
+   * wrapping row (not a scroller) keeps every reading visible and sidesteps
+   * RTL horizontal-scroll quirks; capped so it never dominates the sheet. */
+  const renderVocalRow = () =>
+    activeRoute === "hebrewRhymes" && readings.length > 1 && !showToolList ? (
+      <Animated.View entering={FadeIn.duration(durations.fast)} style={finderStyles.vocalBlock}>
+        <View style={[finderStyles.vocalHeader, resultsAreHebrew ? finderStyles.rowRtl : null]}>
+          <Ionicons name="options-outline" size={12} color={colors.textMuted} />
+          <Text style={finderStyles.vocalLabel}>{t("wordFinderUi.readingLabel")}</Text>
+        </View>
+        <View style={[finderStyles.vocalRow, resultsAreHebrew ? finderStyles.rowRtl : null]}>
+          {readings.map((option) => {
+            const selected = option === effectiveVocal;
+            return (
+              <Pressable
+                key={option}
+                style={({ pressed }) => [
+                  finderStyles.vocalPill,
+                  selected ? finderStyles.vocalPillActive : null,
+                  pressed ? appStyles.pressDown : null,
+                ]}
+                onPress={() => {
+                  haptic.tap();
+                  setVocalChoice(option);
+                }}
+                accessibilityRole="button"
+                accessibilityState={{ selected }}
+                accessibilityLabel={t("wordFinderUi.readingOption", { word: option })}
+              >
+                <Text style={[finderStyles.vocalPillText, selected ? finderStyles.vocalPillTextActive : null]}>
+                  {option}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      </Animated.View>
+    ) : null;
 
   return (
-    <BottomSheet visible={visible} onClose={onClose}>
+    <BottomSheet visible={visible} onClose={onClose} expandable collapsedHeight={560}>
       <View style={finderStyles.body}>
         {preview ? (
           renderPreview(preview)
@@ -522,7 +761,9 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
               ) : null}
             </View>
 
-            {renderThemeLine()}
+            {/* Themes bias Datamuse and the LLM, but Charuzit ignores them —
+                hide the affordance in Hebrew rhyme/near modes where it's a no-op. */}
+            {activeRoute === "hebrewRhymes" ? null : renderThemeLine()}
 
             <SegmentedControl<SegmentKey>
               options={[
@@ -532,6 +773,8 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
               value={moreTab ? MORE_TAB : quickMode}
               onChange={handleSegmentChange}
             />
+
+            {renderVocalRow()}
 
             {/* Active extended tool: a compact bar that reopens the described list. */}
             {moreTab && extendedMode && !showToolList ? (
@@ -556,19 +799,39 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
                 <View style={finderStyles.stateCenter}>
                   <ActivityIndicator size="small" color={colors.textMuted} />
                 </View>
+              ) : lookup.status === "needsTrigger" ? (
+                renderTrigger()
+              ) : lookup.status === "comingSoon" ? (
+                renderComingSoon()
               ) : lookup.status === "unsupported" ? (
                 <View style={finderStyles.stateCenter}>
-                  <Text style={finderStyles.stateText}>{t("lyrics.wordFinderEnglishOnly")}</Text>
-                  <Text style={finderStyles.hint}>{t("common.englishOnly")}</Text>
+                  <Text style={finderStyles.stateText}>{t("wordFinderUi.scriptUnsupported")}</Text>
                 </View>
               ) : lookup.status === "offline" ? (
                 <Text style={finderStyles.stateText}>{t("wordFinderUi.offline")}</Text>
+              ) : lookup.status === "busy" ? (
+                <Text style={finderStyles.stateText}>{t("wordFinderUi.busy")}</Text>
               ) : lookup.status === "error" ? (
                 <Text style={finderStyles.stateText}>{t("wordFinderUi.error")}</Text>
               ) : lookup.suggestions.length === 0 ? (
-                <Text style={finderStyles.stateText}>
-                  {t("wordFinderUi.noMatches", { mode: activeMode ? modeLabel(activeMode).toLowerCase() : t("wordFinderUi.matches"), query: query.trim(), theme: themes.length > 0 ? t("wordFinderUi.withTheme") : "" })}
-                </Text>
+                <View style={finderStyles.emptyState}>
+                  <Text style={finderStyles.stateText}>
+                    {t("wordFinderUi.noMatches", { mode: activeMode ? modeLabel(activeMode).toLowerCase() : t("wordFinderUi.matches"), query: query.trim(), theme: themes.length > 0 ? t("wordFinderUi.withTheme") : "" })}
+                  </Text>
+                  {/* Perfect rhymes often come up empty (orange, silver, גֶּשֶׁם) —
+                      point the writer at near rhymes rather than a dead end. */}
+                  {activeMode === "rhymes" ? (
+                    <Pressable
+                      style={({ pressed }) => [finderStyles.tryNearBtn, pressed ? appStyles.pressDown : null]}
+                      onPress={goToNear}
+                      accessibilityRole="button"
+                      accessibilityLabel={t("wordFinderUi.tryNear")}
+                    >
+                      <Text style={finderStyles.tryNearBtnText}>{t("wordFinderUi.tryNear")}</Text>
+                      <Ionicons name="arrow-forward" size={14} color={colors.onPrimary} />
+                    </Pressable>
+                  ) : null}
+                </View>
               ) : (
                 <ScrollView
                   keyboardShouldPersistTaps="handled"
@@ -583,7 +846,11 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
             {/* Fixed-height hint row so showing/hiding it never moves the sheet. */}
             <View style={finderStyles.hintRow}>
               {!showToolList && lookup.status === "results" && lookup.suggestions.length > 0 ? (
-                <Text style={finderStyles.hint}>{t("wordFinderUi.resultHint")}</Text>
+                <Text style={finderStyles.hint}>
+                  {activeRoute === "hebrewRhymes"
+                    ? t("wordFinderUi.dictaCredit")
+                    : t("wordFinderUi.resultHint")}
+                </Text>
               ) : null}
             </View>
           </>

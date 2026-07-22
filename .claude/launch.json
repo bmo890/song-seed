@@ -1,0 +1,23 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "expo-dev-client",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "start:dev"],
+      "port": 8081
+    },
+    {
+      "name": "expo-web",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "web"],
+      "port": 8081
+    },
+    {
+      "name": "songnook-send",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "server/songnook-send", "run", "dev"],
+      "port": 8787
+    }
+  ]
+}

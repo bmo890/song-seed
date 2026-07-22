@@ -35,6 +35,7 @@ import {
     ClipSection,
     ClipAnalysis,
     Note,
+    ContentDirection,
     WordLadderExercise,
     CutUpSpark,
     MagpieSpark,
@@ -150,7 +151,7 @@ export type DataSlice = {
     setMetronomeCountInBars: (value: number) => void;
     notes: Note[];
     addNote: () => string;
-    updateNote: (id: string, updates: { title?: string; body?: string; isPinned?: boolean }) => void;
+    updateNote: (id: string, updates: { title?: string; body?: string; isPinned?: boolean; textDirection?: ContentDirection }) => void;
     deleteNote: (id: string) => void;
     wordLadders: WordLadderExercise[];
     addWordLadder: (roleSeed?: string, placeSeed?: string) => string;

@@ -1,15 +1,14 @@
 import { StyleSheet } from "react-native";
 import { colors, radii, spacing } from "../../design/tokens";
 
-/** Fixed body height so the sheet never resizes as content changes. The sheet
- * deliberately does NOT avoid the keyboard: it stays put and the keyboard
- * overlays the results; the search/theme/mode controls at the top stay
- * visible and results reappear when the keyboard is dismissed. */
-const SHEET_BODY_HEIGHT = 440;
-
+/** The body fills the expandable sheet card (see BottomSheet `expandable`): at
+ * the collapsed rest stop only the top peeks; pulling the sheet up reveals more
+ * of the results area, which flexes to fill. The sheet deliberately does NOT
+ * avoid the keyboard — it stays put and the keyboard overlays the results; the
+ * search/theme/mode controls at the top stay visible. */
 export const finderStyles = StyleSheet.create({
   body: {
-    height: SHEET_BODY_HEIGHT,
+    flex: 1,
   },
   searchRow: {
     flexDirection: "row",
@@ -151,6 +150,24 @@ export const finderStyles = StyleSheet.create({
     color: colors.textSecondary,
     paddingVertical: spacing.lg,
     textAlign: "center",
+  },
+  emptyState: {
+    alignItems: "center",
+  },
+  tryNearBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    borderRadius: radii.round,
+    paddingVertical: 9,
+    paddingHorizontal: spacing.lg,
+    backgroundColor: colors.primary,
+    marginTop: spacing.xs,
+  },
+  tryNearBtnText: {
+    fontFamily: "PlusJakartaSans_600SemiBold",
+    fontSize: 13,
+    color: colors.onPrimary,
   },
   chipWrap: {
     flexDirection: "row",
@@ -296,5 +313,147 @@ export const finderStyles = StyleSheet.create({
     fontFamily: "PlusJakartaSans_600SemiBold",
     fontSize: 13,
     color: colors.onPrimary,
+  },
+  // ── Hebrew rhymes: nikud-reading picker ────────────────────────────────────
+  // Shown only when the plain spelling is ambiguous (e.g. שמיים → שָׁמַיִם /
+  // שֵׁמִיִּים). A label + hairline set it apart from the result chips below, and
+  // the pills are outlined (a chooser) rather than solid (insertable results).
+  vocalBlock: {
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.sm,
+    marginTop: spacing.xs,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.borderSubtle,
+  },
+  vocalHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    marginBottom: 8,
+  },
+  vocalLabel: {
+    fontFamily: "PlusJakartaSans_700Bold",
+    fontSize: 9,
+    letterSpacing: 0.8,
+    color: colors.textMuted,
+  },
+  vocalRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "center",
+    gap: spacing.sm,
+  },
+  // Mirror a content row to right-to-left for Hebrew results.
+  rowRtl: {
+    flexDirection: "row-reverse",
+  },
+  labelRtl: {
+    textAlign: "right",
+  },
+  vocalPill: {
+    backgroundColor: "transparent",
+    borderWidth: 1,
+    borderColor: colors.borderMuted,
+    borderRadius: radii.round,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 6,
+  },
+  vocalPillActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  vocalPillText: {
+    fontFamily: "SongNookHebrewSansSemiBold",
+    fontSize: 15,
+    lineHeight: 24,
+    color: colors.textStrong,
+  },
+  vocalPillTextActive: {
+    color: colors.onPrimary,
+  },
+  // ── On-demand (Hebrew LLM) trigger + coming-soon composition ───────────────
+  triggerCenter: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: spacing.lg,
+  },
+  triggerBadge: {
+    width: 46,
+    height: 46,
+    borderRadius: radii.round,
+    backgroundColor: colors.surfaceHigh,
+    borderWidth: 1,
+    borderColor: colors.borderMuted,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: spacing.md,
+  },
+  triggerBadgeMuted: {
+    width: 46,
+    height: 46,
+    borderRadius: radii.round,
+    backgroundColor: colors.surfaceHigh,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: spacing.md,
+  },
+  triggerEyebrow: {
+    fontFamily: "PlusJakartaSans_700Bold",
+    fontSize: 9,
+    letterSpacing: 0.8,
+    color: colors.textMuted,
+    marginBottom: 6,
+    textAlign: "center",
+  },
+  // The looked-up word is always Hebrew here (Hebrew-only routes), so pin the
+  // Hebrew serif (Frank Ruhl Libre) explicitly — the PlayfairDisplay alias only
+  // maps to it when the whole UI is RTL, but a bilingual writer may be in an
+  // English UI. This keeps the display serif for the word regardless.
+  triggerWord: {
+    fontFamily: "SongNookHebrewSerifSemiBold",
+    fontSize: 30,
+    color: colors.textPrimary,
+    textAlign: "center",
+  },
+  triggerWordMuted: {
+    fontFamily: "SongNookHebrewSerifSemiBold",
+    fontSize: 30,
+    color: colors.textMuted,
+    textAlign: "center",
+  },
+  triggerBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    marginTop: spacing.lg,
+    borderRadius: radii.round,
+    paddingVertical: 11,
+    paddingHorizontal: spacing.lg,
+    backgroundColor: colors.primary,
+  },
+  triggerBtnText: {
+    fontFamily: "PlusJakartaSans_600SemiBold",
+    fontSize: 14,
+    color: colors.onPrimary,
+  },
+  triggerSub: {
+    fontFamily: "PlusJakartaSans_400Regular",
+    fontSize: 12,
+    lineHeight: 18,
+    color: colors.textSecondary,
+    textAlign: "center",
+    marginTop: spacing.md,
+  },
+  triggerSubFaint: {
+    fontFamily: "PlusJakartaSans_400Regular",
+    fontSize: 11,
+    lineHeight: 16,
+    color: colors.textMuted,
+    textAlign: "center",
+    marginTop: 4,
   },
 });

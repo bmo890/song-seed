@@ -1,5 +1,7 @@
 import {
+  adaptHebrewRhymes,
   applyPickedWord,
+  countHebrewSyllables,
   buildDefinitionLookupUrl,
   buildWordLookupUrl,
   clearWordLookupCache,
@@ -7,8 +9,10 @@ import {
   fetchWordSuggestions,
   getCachedWordSuggestions,
   groupBySyllableCount,
+  hebrewWorkerMode,
   insertWordIntoText,
   isEnglishLookupWord,
+  isHebrewLookupWord,
   parseWordSuggestions,
   partOfSpeechLabel,
   sanitizeThemeWords,
@@ -79,6 +83,24 @@ describe("insertWordIntoText", () => {
 
   it("inserts plainly into empty text", () => {
     expect(insertWordIntoText("", 0, 0, "hello").text).toBe("hello");
+  });
+
+  it("reports the inserted word's range, excluding smart-added spaces", () => {
+    // Selection replace: no spaces added, word sits where the selection was.
+    expect(insertWordIntoText("the fire tonight", 4, 8, "flame")).toMatchObject({
+      wordStart: 4,
+      wordEnd: 9,
+    });
+    // Leading space added → range starts one past the caret.
+    expect(insertWordIntoText("shine so bright", 15, 15, "tonight")).toMatchObject({
+      wordStart: 16,
+      wordEnd: 23,
+    });
+    // Genuinely fused ("shinebright") → both spaces added, range excludes both.
+    expect(insertWordIntoText("shinebright", 5, 5, "so")).toMatchObject({
+      wordStart: 6,
+      wordEnd: 8,
+    });
   });
 });
 
@@ -160,6 +182,69 @@ describe("sanitizeThemeWords", () => {
 
   it("drops entries without letters", () => {
     expect(sanitizeThemeWords("123, --, love")).toEqual(["love"]);
+  });
+
+  it("keeps Hebrew theme words for the LLM worker", () => {
+    expect(sanitizeThemeWords("לילה, ים")).toEqual(["לילה", "ים"]);
+  });
+});
+
+describe("script routing", () => {
+  it("isHebrewLookupWord accepts Hebrew, rejects Latin and mixed", () => {
+    expect(isHebrewLookupWord("אהבה")).toBe(true);
+    expect(isHebrewLookupWord("moonlight")).toBe(false);
+    expect(isHebrewLookupWord("שירlove")).toBe(false);
+  });
+
+  it("English and Hebrew classifiers are mutually exclusive", () => {
+    for (const word of ["אהבה", "moonlight", "שיר", "rain"]) {
+      expect(isEnglishLookupWord(word) && isHebrewLookupWord(word)).toBe(false);
+    }
+  });
+
+  it("countHebrewSyllables counts vowel nuclei, undefined when unpointed", () => {
+    expect(countHebrewSyllables("שָׁמַיִם")).toBe(3);
+    expect(countHebrewSyllables("מַיִם")).toBe(2);
+    expect(countHebrewSyllables("פַּעֲמַיִם")).toBe(4);
+    expect(countHebrewSyllables("יָם")).toBe(1);
+    expect(countHebrewSyllables("שמיים")).toBeUndefined(); // no nikud → no basis
+    expect(countHebrewSyllables("")).toBeUndefined();
+  });
+
+  it("countHebrewSyllables counts the shuruq (vav+dagesh) vowel", () => {
+    // These undercounted to 1 before the shuruq fix — the "1 SYLLABLE" bug.
+    expect(countHebrewSyllables("הוּרַם")).toBe(2);
+    expect(countHebrewSyllables("יוּקַם")).toBe(2);
+  });
+
+  it("adaptHebrewRhymes keeps order as descending score, derives syllables, drops junk", () => {
+    const payload = {
+      words: [
+        { word: "פעמים", vocal: "פַּעֲמַיִם" },
+        { word: "מים", vocal: "מַיִם" },
+        { word: "  " },
+        { word: 42 },
+        null,
+      ],
+    };
+    expect(adaptHebrewRhymes(payload)).toEqual([
+      { word: "פעמים", score: 5, numSyllables: 4 },
+      { word: "מים", score: 4, numSyllables: 2 },
+    ]);
+    expect(adaptHebrewRhymes(null)).toEqual([]);
+    expect(adaptHebrewRhymes({ words: "no" })).toEqual([]);
+  });
+
+  it("hebrewWorkerMode maps meaning modes and leaves sound modes for Charuzit", () => {
+    expect(hebrewWorkerMode("synonyms")).toBe("synonyms");
+    expect(hebrewWorkerMode("opposite")).toBe("opposites");
+    expect(hebrewWorkerMode("describe")).toBe("describing");
+    expect(hebrewWorkerMode("homophones")).toBe("homophones");
+    // Sound modes have no worker equivalent yet.
+    expect(hebrewWorkerMode("rhymes")).toBeNull();
+    expect(hebrewWorkerMode("near")).toBeNull();
+    expect(hebrewWorkerMode("consonance")).toBeNull();
+    expect(hebrewWorkerMode("soundsLike")).toBeNull();
   });
 });
 

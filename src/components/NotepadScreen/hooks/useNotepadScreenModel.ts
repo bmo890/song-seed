@@ -6,7 +6,7 @@ import { buildShareTextFromNotes } from "../../../domain/notepad";
 import { canSaveWordSpark } from "../../../domain/proGating";
 import { hasProAccess } from "../../../domain/entitlements";
 import { openProUpsell } from "../../common/proUpsell";
-import type { Note, WordLadderExercise, CutUpSpark, MagpieSpark } from "../../../types";
+import type { ContentDirection, Note, WordLadderExercise, CutUpSpark, MagpieSpark } from "../../../types";
 import { useTranslation } from "react-i18next";
 
 export type NotebookEntry =
@@ -301,7 +301,7 @@ export function useNotepadScreenModel() {
   }, [activeNoteId, notes, deleteNote]);
 
   const handleUpdateNote = useCallback(
-    (updates: { title?: string; body?: string }) => {
+    (updates: { title?: string; body?: string; textDirection?: ContentDirection }) => {
       if (!activeNoteId) return;
       updateNote(activeNoteId, updates);
     },
