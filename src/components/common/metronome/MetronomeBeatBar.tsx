@@ -113,6 +113,9 @@ export function MetronomeBeatBar({
 
 const s = StyleSheet.create({
   row: {
+    // Beats progress downbeat→last, left→right — a temporal reading that stays
+    // fixed even under a Hebrew UI, so the bar isn't mirrored.
+    direction: "ltr",
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",

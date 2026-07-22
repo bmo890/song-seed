@@ -330,6 +330,10 @@ export const activityStyles = {
     fontFamily: "PlusJakartaSans_700Bold",
   },
   activityGridRow: {
+    // The heatmap is a calendar: weekday labels lead, weeks run oldest→newest
+    // left→right, and the horizontal scroll tracks x that way. Pinned LTR so it
+    // reads as a timeline (and the scroll offset isn't inverted) under a Hebrew UI.
+    direction: "ltr",
     flexDirection: "row",
     alignItems: "flex-start",
     gap: 8,

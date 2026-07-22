@@ -161,7 +161,7 @@ export function ActivityHeatmapGrid({
                     style={({ pressed }) => [
                       styles.activityMonthPressable,
                       monthSelected ? styles.activityMonthPressableActive : null,
-                      { left: marker.weekIndex * CELL_STRIDE },
+                      { start: marker.weekIndex * CELL_STRIDE },
                       pressed ? styles.pressDown : null,
                     ]}
                     onPress={() => {

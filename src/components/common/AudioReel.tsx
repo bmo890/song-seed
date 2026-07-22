@@ -687,7 +687,10 @@ export function AudioReel({
                         const nextWidth = e.nativeEvent.layout.width;
                         setMainCanvasWidth((prev) => (prev === nextWidth ? prev : nextWidth));
                     }}
-                    style={{ flex: 1, marginHorizontal: timelineHorizontalPadding, position: "relative" }}
+                    // The waveform is a timeline: time flows left→right (matching the
+                    // Skia canvas + gesture math). Pinned LTR so the surface and its
+                    // overlays never mirror under a Hebrew (RTL) UI.
+                    style={{ direction: "ltr", flex: 1, marginHorizontal: timelineHorizontalPadding, position: "relative" }}
                 >
                     {/* Pending: an honest, obviously-unfinished line instead of a fake wave.
                         Sits in the wave's place and cross-fades out as the real peaks fade

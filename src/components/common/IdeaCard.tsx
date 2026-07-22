@@ -197,7 +197,7 @@ export function IdeaCard({
                             name={inlineActive && isInlinePlaying ? "pause" : "play"}
                             size={13}
                             color={!canPlay ? "#9ca3af" : "#111827"}
-                            style={inlineActive && isInlinePlaying ? undefined : { marginLeft: 2 }}
+                            style={inlineActive && isInlinePlaying ? undefined : { marginStart: 2 }}
                         />
                     </Pressable>
                     {/* The main pressable spans title AND the meta cluster: the meta
@@ -308,7 +308,7 @@ export function IdeaCard({
                             name={inlineActive && isInlinePlaying ? "pause" : "play"}
                             size={15}
                             color={!canPlay ? "#9ca3af" : "#111827"}
-                            style={inlineActive && isInlinePlaying ? undefined : { marginLeft: 2 }}
+                            style={inlineActive && isInlinePlaying ? undefined : { marginStart: 2 }}
                         />
                     </Pressable>
                     {leadAccessory ?? null}

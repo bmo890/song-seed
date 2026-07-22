@@ -40,6 +40,10 @@ export const styles = {
       justifyContent: "center",
     },
     arcStage: {
+      // A tuner is a fixed instrument face: ♭ on the left, ♯ on the right, the
+      // needle swinging flat→sharp. Pinned LTR (with logical insets below) so it
+      // never mirrors under a Hebrew UI.
+      direction: "ltr",
       width: ARC_STAGE_WIDTH,
       height: ARC_STAGE_HEIGHT,
       position: "relative",
@@ -49,7 +53,7 @@ export const styles = {
     arcTrack: {
       position: "absolute",
       top: ARC_TRACK_TOP,
-      left: ARC_TRACK_LEFT,
+      start: ARC_TRACK_LEFT,
       width: ARC_TRACK_SIZE,
       height: ARC_SEMI_HEIGHT,
       borderTopLeftRadius: ARC_TRACK_SIZE / 2,
@@ -83,7 +87,7 @@ export const styles = {
     // ± side markers
     flatMarker: {
       position: "absolute",
-      left: -20,
+      start: -20,
       top: ARC_SIDE_LABEL_TOP,
       width: 32,
       height: 32,
@@ -92,7 +96,7 @@ export const styles = {
     },
     sharpMarker: {
       position: "absolute",
-      right: -20,
+      end: -20,
       top: ARC_SIDE_LABEL_TOP,
       width: 32,
       height: 32,
@@ -108,7 +112,7 @@ export const styles = {
     // Note display — below the semicircle
     noteBlock: {
       position: "absolute",
-      left: ARC_TRACK_LEFT,
+      start: ARC_TRACK_LEFT,
       top: ARC_TRACK_TOP + ARC_SEMI_HEIGHT,
       width: ARC_TRACK_SIZE,
       height: ARC_STAGE_HEIGHT - (ARC_TRACK_TOP + ARC_SEMI_HEIGHT),
@@ -130,7 +134,7 @@ export const styles = {
     },
     octaveText: {
       marginTop: 10,
-      marginLeft: 4,
+      marginStart: 4,
       fontSize: 44,
       lineHeight: 48,
       fontFamily: "PlusJakartaSans_400Regular",
@@ -157,8 +161,8 @@ export const styles = {
       justifyContent: "center",
       backgroundColor: SURFACE,    // surface-container — tonal layering, no shadow
     },
-    detuneAbsoluteFlat:  { left: 0 },
-    detuneAbsoluteSharp: { right: 0 },
+    detuneAbsoluteFlat:  { start: 0 },
+    detuneAbsoluteSharp: { end: 0 },
     detuneAbsoluteNear: {},
     detuneAbsoluteFar: {},
     detuneChipValue: {

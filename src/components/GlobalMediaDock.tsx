@@ -452,7 +452,7 @@ export function GlobalMediaDock({
                 name={activePlayback.isPlaying ? "pause" : "play"}
                 size={17}
                 color="#8b4f3b"
-                style={activePlayback.isPlaying ? null : { marginLeft: 2 }}
+                style={activePlayback.isPlaying ? null : { marginStart: 2 }}
               />
             </Pressable>
 

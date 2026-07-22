@@ -171,8 +171,10 @@ function getArcIndicatorPosition(centsOff: number) {
   const centerY = ARC_TRACK_TOP + ARC_TRACK_SIZE / 2;
   const radius = ARC_TRACK_SIZE / 2 - ARC_TRACK_STROKE / 2;
 
+  // `start` (not `left`) so the needle resolves against the LTR-pinned arc stage
+  // and deflects flat→sharp correctly even under a Hebrew (RTL) UI.
   return {
-    left: centerX + radius * Math.cos(angle) - ARC_INDICATOR_SIZE / 2,
+    start: centerX + radius * Math.cos(angle) - ARC_INDICATOR_SIZE / 2,
     top: centerY - radius * Math.sin(angle) - ARC_INDICATOR_SIZE / 2,
   };
 }
