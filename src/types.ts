@@ -92,6 +92,9 @@ export type CutUpBoardItem = {
   chunkId: string;
   textOverride?: string;
   order: number;
+  /** Position on the Arrange table: `x` in px from the leading edge, `y` the
+   * ruled-line (band) index the scrap sits on. Scraps sharing a band read as one
+   * draft line (by x); an empty band between scraps is a blank line. */
   x?: number;
   y?: number;
   locked?: boolean;

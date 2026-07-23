@@ -18,6 +18,8 @@ type Props = {
    * setup step to sit the job/role (or room/place) seed input atop its list. */
   seedSlot?: ReactNode;
   onAdd: (text: string) => void;
+  /** Sprinkles a few dataset words matched to the seed into the column. */
+  onSuggest?: () => void;
   onEdit: (wordId: string, text: string) => void;
   onReorder: (words: WordLadderWord[]) => void;
   onRemove: (wordId: string) => void;
@@ -30,6 +32,7 @@ export function WordLadderColumnEditor({
   targetCount = 10,
   seedSlot,
   onAdd,
+  onSuggest,
   onEdit,
   onReorder,
   onRemove,
@@ -77,6 +80,20 @@ export function WordLadderColumnEditor({
           <Ionicons name="add" size={16} color={colors.onPrimary} />
         </Pressable>
       </View>
+
+      {onSuggest ? (
+        <Pressable
+          style={({ pressed }) => [editorStyles.suggestBtn, pressed ? appStyles.pressDown : null]}
+          onPress={() => {
+            haptic.light();
+            onSuggest();
+          }}
+          hitSlop={6}
+        >
+          <Ionicons name="sparkles-outline" size={12} color={colors.primaryDeep} />
+          <Text style={editorStyles.suggestText}>{t("wordLadder.suggestWords")}</Text>
+        </Pressable>
+      ) : null}
 
       <DraggableFlatList
         data={words}
@@ -221,6 +238,21 @@ const editorStyles = StyleSheet.create({
     backgroundColor: colors.primaryDeep,
     alignItems: "center",
     justifyContent: "center",
+  },
+  suggestBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "flex-start",
+    gap: 4,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
+    borderRadius: radii.round,
+    backgroundColor: colors.surface,
+  },
+  suggestText: {
+    fontFamily: "PlusJakartaSans_700Bold",
+    fontSize: 11,
+    color: colors.primaryDeep,
   },
   list: {
     // Content-sized up to a cap, then scrolls. A flex height collapses

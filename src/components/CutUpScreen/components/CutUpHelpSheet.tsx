@@ -68,13 +68,13 @@ function StripsDiagram() {
   const { t } = useTranslation();
   return (
     <View style={helpStyles.boardDiagram}>
-      <View style={[helpStyles.boardStrip, { transform: [{ rotate: "-3deg" }] }]}>
+      <View style={helpStyles.boardStrip}>
         <Text style={helpStyles.boardStripText}>{t("cutUpHelp.example3")}</Text>
       </View>
-      <View style={[helpStyles.boardStrip, helpStyles.boardStripAlt, { transform: [{ rotate: "2deg" }] }]}>
+      <View style={[helpStyles.boardStrip, helpStyles.boardStripAlt]}>
         <Text style={helpStyles.boardStripText}>{t("cutUpHelp.example2")}</Text>
       </View>
-      <View style={[helpStyles.boardStrip, { transform: [{ rotate: "-1.5deg" }] }]}>
+      <View style={helpStyles.boardStrip}>
         <Text style={helpStyles.boardStripText}>{t("cutUpHelp.example1")}</Text>
       </View>
     </View>

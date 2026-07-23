@@ -155,6 +155,18 @@ export function sliceSource(source: string, mode: CutUpChunkMode): RawChunk[] {
   return raws.filter((r) => r.text.trim().length > 0).slice(0, MAX_CHUNKS);
 }
 
+// Sentence punctuation to drop from a strip — periods, commas, colons,
+// semicolons, question/exclamation marks, ellipses, and the Hebrew sof pasuk.
+// Apostrophes and hyphens survive (they live inside words: don't, half-lit).
+const STRIP_PUNCT_RE = /[.,;:!?…״׃"“”«»]/g;
+
+/** A strip reads cleaner without the source's sentence punctuation — a comma
+ * that made sense in the original line rarely does once the words are recombined
+ * on the board. Collapses any doubled spaces the removal leaves behind. */
+export function stripStripPunctuation(text: string): string {
+  return text.replace(STRIP_PUNCT_RE, "").replace(/\s{2,}/g, " ").trim();
+}
+
 function rawToChunk(raw: RawChunk): CutUpChunk {
   const now = Date.now();
   return {
@@ -200,6 +212,24 @@ const SEAM_DASH = /[—–]$/;
 /** After this many words with no natural break, force a seam so no unit is huge. */
 const SEAM_MAX_RUN = 6;
 
+/** Connective words that open a new phrase — a seed cut lands just before one so
+ * pieces read as phrases ("with the gold of sunshine" → "with the gold" + "of
+ * sunshine") instead of arbitrary every-N-words groups. English only; Hebrew
+ * fuses these as prefixes, so Hebrew falls back to punctuation + max-run. */
+const PHRASE_LEADERS = new Set([
+  "and", "but", "or", "nor", "so", "yet",
+  "when", "where", "while", "till", "until", "before", "after",
+  "that", "which", "who", "whom", "whose", "because", "though", "although", "if", "unless",
+  "as", "like", "than",
+  "through", "with", "without", "into", "onto", "over", "under", "between", "beyond",
+  "for", "from", "of", "to", "in", "on", "at", "by", "down", "up",
+]);
+
+function isPhraseLeader(word: string): boolean {
+  const bare = word.toLowerCase().replace(/^[^a-z']+|[^a-z']+$/g, "");
+  return PHRASE_LEADERS.has(bare);
+}
+
 /** Whether there's a natural break between two words: the left word ends a clause
  * (punctuation or dash) or a line break sits between them. */
 function seamBreaksNaturally(source: string, prev: CutWord, cur: CutWord): boolean {
@@ -208,17 +238,49 @@ function seamBreaksNaturally(source: string, prev: CutWord, cur: CutWord): boole
 }
 
 /** Seeds cut seams at natural phrase boundaries (so the writer starts with
- * phrases, not single words), capping over-long runs. */
+ * phrases, not single words): line breaks and clause punctuation first, then
+ * connective words once a piece has grown, with a max-run backstop. A leader cut
+ * is skipped when it would strand a one-word piece against the next break. */
 export function seedCutSeams(source: string, words: CutWord[]): number[] {
   const cuts: number[] = [];
   let runStart = 0;
   for (let s = 1; s < words.length; s++) {
-    if (seamBreaksNaturally(source, words[s - 1], words[s]) || s - runStart >= SEAM_MAX_RUN) {
+    const natural = seamBreaksNaturally(source, words[s - 1], words[s]);
+    const lastBeforeBreak =
+      s + 1 >= words.length || seamBreaksNaturally(source, words[s], words[s + 1]);
+    const leader = !natural && !lastBeforeBreak && s - runStart >= 3 && isPhraseLeader(words[s].text);
+    if (natural || leader || s - runStart >= SEAM_MAX_RUN) {
       cuts.push(s);
       runStart = s;
     }
   }
   return cuts;
+}
+
+/** The seams that sit on a source line break. Structural: the Cut surface lays
+ * strips out line by line, so these are always cut and carry no join control —
+ * they're baked into generation so a strip never spans two source lines. */
+export function lineBreakSeams(source: string, words: CutWord[]): number[] {
+  const out: number[] = [];
+  for (let s = 1; s < words.length; s++) {
+    if (source.slice(words[s - 1].end, words[s].start).includes("\n")) out.push(s);
+  }
+  return out;
+}
+
+/** The unit (strip) index each cut seam opens — i.e. the words grouped into
+ * strips by the current cuts. Each returned group is one strip on the Cut
+ * surface: a run of words with no cut between them. */
+export type CutUnit = { words: CutWord[]; startSeam: number };
+
+export function unitGroups(words: CutWord[], cutSeams: number[]): CutUnit[] {
+  const cutSet = new Set(cutSeams);
+  const groups: CutUnit[] = [];
+  for (let i = 0; i < words.length; i++) {
+    if (i === 0 || cutSet.has(i)) groups.push({ words: [words[i]], startSeam: i });
+    else groups[groups.length - 1].words.push(words[i]);
+  }
+  return groups;
 }
 
 /** Toggles a seam between cut and joined. */
@@ -275,10 +337,16 @@ function seamChunkSpans(words: CutWord[], cutSeams: number[]): RawChunk[] {
   return spans;
 }
 
-/** Generates board-ready chunks from the source + the writer's cut seams. */
+/** Generates board-ready chunks from the source + the writer's cut seams.
+ * Line-break seams are structural (the Cut surface offers no cross-line join),
+ * so they're always included. Strips sentence punctuation so the recombined
+ * strips read clean on the board. */
 export function generateChunksFromSeams(source: string, cutSeams: number[]): CutUpChunk[] {
   const words = tokenizeWords(source);
-  return seamChunkSpans(words, cutSeams).map(rawToChunk);
+  const seams = [...new Set([...cutSeams, ...lineBreakSeams(source, words)])].sort((a, b) => a - b);
+  return seamChunkSpans(words, seams).map((raw) =>
+    rawToChunk({ ...raw, text: stripStripPunctuation(raw.text) })
+  );
 }
 
 /** Whether two chunk lists carry the same text in the same order — used to keep
@@ -459,6 +527,32 @@ export function duplicateBoardItem(items: CutUpBoardItem[], itemId: string): Cut
   return [...active, ...removed];
 }
 
+/** Replaces one strip with several, in place — the Arrange step's "cut this
+ * strip again". Each piece keeps the source chunk link but carries its own
+ * text override; locks don't survive the cut (the pieces are new material). */
+export function splitBoardItemByTexts(
+  items: CutUpBoardItem[],
+  itemId: string,
+  pieceTexts: string[]
+): CutUpBoardItem[] {
+  const index = items.findIndex((item) => item.id === itemId);
+  const texts = pieceTexts.map((text) => text.trim()).filter((text) => text.length > 0);
+  if (index < 0 || texts.length < 2) return items;
+  const source = items[index];
+  const pieces: CutUpBoardItem[] = texts.map((text) => ({
+    ...source,
+    id: randomId("strip"),
+    textOverride: text,
+    locked: false,
+  }));
+  const next = [...items.slice(0, index), ...pieces, ...items.slice(index + 1)];
+  const active = next.filter((item) => !item.removed).map((item, order) => ({ ...item, order }));
+  const removed = next
+    .filter((item) => item.removed)
+    .map((item, offset) => ({ ...item, order: active.length + offset }));
+  return [...active, ...removed];
+}
+
 export function setBoardItemRemoved(items: CutUpBoardItem[], itemId: string, removed: boolean): CutUpBoardItem[] {
   return items.map((item) => (item.id === itemId ? { ...item, removed, locked: removed ? false : item.locked } : item));
 }
@@ -490,6 +584,261 @@ function orderedStripTexts(chunks: CutUpChunk[], boardItems: CutUpBoardItem[]): 
 /** Assembles the active strips (in order) into a draft, one strip per line. */
 export function assembleDraftText(chunks: CutUpChunk[], boardItems: CutUpBoardItem[]): string {
   return orderedStripTexts(chunks, boardItems).join("\n");
+}
+
+// ── The table: a ruled canvas of scraps ──────────────────────────────────────
+// The Arrange step is a table with faint ruled lines. Each scrap carries a free
+// `x` (px from the leading edge) and a `y` = ruled-band index. Scraps sharing a
+// band read as one draft line (ordered by x, mirrored for RTL). No slots, no
+// insertion logic — the scrap lands where the writer drops it and settles onto
+// the nearest rule.
+//
+// Spacing vs. blank lines: auto-layouts leave ONE empty rule between lines for
+// breathing room (easier to grab and rearrange), and that single gap is NOT a
+// draft blank. A draft blank line needs a bigger deliberate gap —
+// MIN_BLANK_EMPTY_RULES empty rules — so the spread-out default never injects
+// blanks into the draft.
+
+/** Bands between consecutive auto-laid lines (one empty rule of breathing room). */
+export const LINE_STEP = 2;
+/** Empty rules a gap must span to read as one blank line in the draft. */
+const MIN_BLANK_EMPTY_RULES = 2;
+
+/** Whether every active scrap has a position; older sparks (pre-canvas) don't. */
+export function canvasNeedsDeal(items: CutUpBoardItem[]): boolean {
+  return items.some((it) => !it.removed && (typeof it.x !== "number" || typeof it.y !== "number"));
+}
+
+/** Deals the active scraps one per band, in the given order (by current board
+ * order when `chunkIndex` is null, else by source/chunk order), x at the edge.
+ * Removed scraps are left untouched. */
+export function dealCanvas(items: CutUpBoardItem[], chunkIndex: Map<string, number> | null): CutUpBoardItem[] {
+  const active = items
+    .filter((it) => !it.removed)
+    .slice()
+    .sort((a, b) =>
+      chunkIndex
+        ? (chunkIndex.get(a.chunkId) ?? 0) - (chunkIndex.get(b.chunkId) ?? 0)
+        : a.order - b.order
+    );
+  const bandOf = new Map(active.map((it, i) => [it.id, i * LINE_STEP]));
+  return items.map((it) =>
+    bandOf.has(it.id) ? { ...it, x: 0, y: bandOf.get(it.id) } : it
+  );
+}
+
+/** Gives positions ONLY to scraps that lack them, on fresh rules below the
+ * lowest occupied one — so reconciling in a new scrap never disturbs the
+ * writer's arrangement. Falls back to a full deal when nothing is placed. */
+export function placeMissingScraps(items: CutUpBoardItem[]): CutUpBoardItem[] {
+  const hasAny = items.some((it) => !it.removed && typeof it.y === "number");
+  if (!hasAny) return dealCanvas(items, null);
+  let band = nextFreeBand(items);
+  return items.map((it) => {
+    if (it.removed || (typeof it.x === "number" && typeof it.y === "number")) return it;
+    const placed = { ...it, x: 0, y: band };
+    band += LINE_STEP;
+    return placed;
+  });
+}
+
+/** Places one scrap at (x, band). */
+export function moveCanvasScrap(items: CutUpBoardItem[], id: string, x: number, band: number): CutUpBoardItem[] {
+  return items.map((it) =>
+    it.id === id ? { ...it, x: Math.max(0, x), y: Math.max(0, Math.round(band)) } : it
+  );
+}
+
+/** The first free band below every occupied one — where restored scraps land
+ * (one breathing rule below the lowest scrap). */
+export function nextFreeBand(items: CutUpBoardItem[]): number {
+  let max = -1;
+  for (const it of items) {
+    if (!it.removed && typeof it.y === "number" && it.y > max) max = it.y;
+  }
+  return max < 0 ? 0 : max + LINE_STEP;
+}
+
+/** Sends every scrap to the set-aside pool (marks active ones removed). */
+export function poolAllScraps(items: CutUpBoardItem[]): CutUpBoardItem[] {
+  return items.map((it) => (it.removed ? it : { ...it, removed: true }));
+}
+
+/** Brings every pooled scrap back onto the table, on fresh spaced rules below
+ * whatever's already placed — the already-arranged scraps aren't disturbed. */
+export function restorePooledScraps(items: CutUpBoardItem[]): CutUpBoardItem[] {
+  const hasPlaced = items.some((it) => !it.removed && typeof it.y === "number");
+  let band = hasPlaced ? nextFreeBand(items) : 0;
+  return items.map((it) => {
+    if (!it.removed) return it;
+    const back = { ...it, removed: false, x: 0, y: band };
+    band += LINE_STEP;
+    return back;
+  });
+}
+
+/** Re-deals the unlocked scraps in random order into rows of varied length
+ * (1–3 scraps, width permitting) — the table-wide "surprise me" that composes
+ * lines, not just a stack. Locked scraps hold their exact spot; unlocked ones
+ * fill the rules around them. `widthOf` is the measured scrap width. */
+export function shuffleCanvas(
+  items: CutUpBoardItem[],
+  widthOf: (id: string) => number,
+  canvasW: number,
+  gap: number
+): CutUpBoardItem[] {
+  const lockedBands = new Set(
+    items.filter((it) => !it.removed && it.locked && typeof it.y === "number").map((it) => it.y as number)
+  );
+  const loose = shuffle(items.filter((it) => !it.removed && !it.locked).map((it) => it.id));
+  const assign = new Map<string, { x: number; y: number }>();
+  let band = -LINE_STEP;
+  let x = 0;
+  let count = 0;
+  let rowTarget = 0;
+  const openRow = () => {
+    band += LINE_STEP; // one empty rule between rows for breathing room
+    while (lockedBands.has(band)) band++;
+    x = 0;
+    count = 0;
+    rowTarget = 1 + Math.floor(Math.random() * 3); // 1–3 scraps per row
+  };
+  openRow();
+  for (const id of loose) {
+    const w = widthOf(id);
+    if (count >= rowTarget || (x > 0 && x + w > canvasW)) openRow();
+    assign.set(id, { x, y: band });
+    x += w + gap;
+    count++;
+  }
+  return items.map((it) => {
+    const pos = assign.get(it.id);
+    return pos ? { ...it, x: pos.x, y: pos.y } : it;
+  });
+}
+
+/** Lays the scraps out as the source lyric is written: each source line's
+ * scraps share a rule (in source order, packed with `gap`), a stanza gap keeps
+ * one empty rule, and an over-long line wraps to the next rule. Split pieces
+ * and duplicates ride with their chunk's line. */
+export function packSourceLines(
+  items: CutUpBoardItem[],
+  chunks: CutUpChunk[],
+  sourceText: string,
+  widthOf: (id: string) => number,
+  canvasW: number,
+  gap: number
+): CutUpBoardItem[] {
+  const chunkById = new Map(chunks.map((c) => [c.id, c]));
+  const lineOf = (chunkId: string): number => {
+    const chunk = chunkById.get(chunkId);
+    if (!chunk) return Number.MAX_SAFE_INTEGER;
+    const upto = Math.max(0, Math.min(chunk.sourceStartIndex, sourceText.length));
+    return (sourceText.slice(0, upto).match(/\n/g) ?? []).length;
+  };
+  const arrayIndex = new Map(items.map((it, i) => [it.id, i]));
+  const active = items
+    .filter((it) => !it.removed)
+    .slice()
+    .sort((a, b) => {
+      const la = lineOf(a.chunkId);
+      const lb = lineOf(b.chunkId);
+      if (la !== lb) return la - lb;
+      const sa = chunkById.get(a.chunkId)?.sourceStartIndex ?? 0;
+      const sb = chunkById.get(b.chunkId)?.sourceStartIndex ?? 0;
+      if (sa !== sb) return sa - sb;
+      return (arrayIndex.get(a.id) ?? 0) - (arrayIndex.get(b.id) ?? 0);
+    });
+
+  const assign = new Map<string, { x: number; y: number }>();
+  let band = -1;
+  let x = 0;
+  let prevLine: number | null = null;
+  for (const it of active) {
+    const line = lineOf(it.chunkId);
+    if (prevLine === null) {
+      band = 0;
+      x = 0;
+      prevLine = line;
+    } else if (line !== prevLine) {
+      // Each new source line steps down one breathing rule; a stanza gap in the
+      // source adds an extra empty rule so it reads as a draft blank line.
+      band += line - prevLine > 1 ? LINE_STEP + 1 : LINE_STEP;
+      x = 0;
+      prevLine = line;
+    }
+    const w = widthOf(it.id);
+    if (x > 0 && x + w > canvasW) {
+      band++; // a wrapped continuation sits on the very next rule (same line feel)
+      x = 0;
+    }
+    assign.set(it.id, { x, y: band });
+    x += w + gap;
+  }
+  return items.map((it) => {
+    const pos = assign.get(it.id);
+    return pos ? { ...it, x: pos.x, y: pos.y } : it;
+  });
+}
+
+/** The canvas read back as lines of scrap ids: bands in order, each sorted by x
+ * (descending for RTL). A single empty rule between lines is just breathing room
+ * (no blank); a gap of MIN_BLANK_EMPTY_RULES or more empty rules reads as one
+ * blank line. */
+export function canvasLines(items: CutUpBoardItem[], rtl: boolean): string[][] {
+  const byBand = new Map<number, CutUpBoardItem[]>();
+  for (const it of items) {
+    if (it.removed || typeof it.y !== "number") continue;
+    const band = byBand.get(it.y) ?? [];
+    band.push(it);
+    byBand.set(it.y, band);
+  }
+  const bands = [...byBand.keys()].sort((a, b) => a - b);
+  const out: string[][] = [];
+  for (let i = 0; i < bands.length; i++) {
+    if (i > 0 && bands[i] - bands[i - 1] - 1 >= MIN_BLANK_EMPTY_RULES) out.push([]);
+    const sorted = (byBand.get(bands[i]) ?? [])
+      .slice()
+      .sort((a, b) => (rtl ? (b.x ?? 0) - (a.x ?? 0) : (a.x ?? 0) - (b.x ?? 0)));
+    out.push(sorted.map((it) => it.id));
+  }
+  return out;
+}
+
+/** Assembles the draft straight off the table: each band's scraps joined by
+ * spaces in reading order; an empty band becomes a blank line. */
+export function assembleDraftFromCanvas(
+  items: CutUpBoardItem[],
+  textOf: (id: string) => string,
+  rtl: boolean
+): string {
+  return canvasLines(items, rtl)
+    .map((line) =>
+      line
+        .map((id) => textOf(id).trim())
+        .filter((t) => t.length > 0)
+        .join(" ")
+    )
+    .join("\n");
+}
+
+/** Shuffles the given scrap texts and composes them into varied fragment lines
+ * — the Draft step's "surprise me" over the table's scraps. */
+export function composeShuffledTexts(texts: string[], flavor: CutUpComposeFlavor): string {
+  return composeLines(shuffle(texts), flavor);
+}
+
+/** Every scrap text on the table, in reading order — feed for the compose
+ * flavors that ignore the table's layout. */
+export function canvasScrapTexts(
+  items: CutUpBoardItem[],
+  textOf: (id: string) => string,
+  rtl: boolean
+): string[] {
+  return canvasLines(items, rtl)
+    .flat()
+    .map((id) => textOf(id).trim())
+    .filter((t) => t.length > 0);
 }
 
 // ── Composing strips into fragment lines ─────────────────────────────────────
@@ -531,6 +880,62 @@ export function composeDraftText(
 ): string {
   const strips = shuffle(orderedStripTexts(chunks, boardItems));
   return composeLines(strips, flavor);
+}
+
+// ── Importing from a Lyrics Pad page (line picker) ───────────────────────────
+// Importing shouldn't dump a whole song; the writer picks the verse or lines
+// they want to work. These helpers back that picker: split a page into
+// stanza-tagged lines, and join a selection back into source text.
+
+export type SourceLine = { index: number; text: string; stanza: number };
+
+/** Non-empty lines of a lyric, each tagged with its stanza (blank-line-delimited
+ * group) so the picker can offer whole-verse selection. */
+export function splitSourceLines(body: string): SourceLine[] {
+  const out: SourceLine[] = [];
+  let stanza = 0;
+  let sawContent = false;
+  for (const raw of body.split("\n")) {
+    const text = raw.trim();
+    if (!text) {
+      if (sawContent) stanza++;
+      sawContent = false;
+      continue;
+    }
+    out.push({ index: out.length, text, stanza });
+    sawContent = true;
+  }
+  return out;
+}
+
+/** Joins the selected lines in original order, keeping a blank line between
+ * picks that came from different stanzas so verse structure survives. */
+export function joinSelectedLines(lines: SourceLine[], selected: Iterable<number>): string {
+  const picked = new Set(selected);
+  const chosen = lines.filter((line) => picked.has(line.index));
+  let text = "";
+  chosen.forEach((line, i) => {
+    if (i > 0) text += chosen[i - 1].stanza === line.stanza ? "\n" : "\n\n";
+    text += line.text;
+  });
+  return text;
+}
+
+/** Expands/collapses a stanza in a selection: selects every line of the stanza
+ * unless all are already selected, in which case it clears them. */
+export function toggleStanzaSelection(
+  lines: SourceLine[],
+  selected: Set<number>,
+  stanza: number
+): Set<number> {
+  const members = lines.filter((line) => line.stanza === stanza).map((line) => line.index);
+  const next = new Set(selected);
+  const allIn = members.every((index) => next.has(index));
+  for (const index of members) {
+    if (allIn) next.delete(index);
+    else next.add(index);
+  }
+  return next;
 }
 
 // ── Factory + summaries ──────────────────────────────────────────────────────
@@ -635,6 +1040,7 @@ export function sanitizeCutUpSpark(raw: unknown): CutUpSpark | null {
   if (!isString(obj.id)) return null;
 
   const chunks = sanitizeChunks(obj.chunks);
+  const boardItemsForSpark = sanitizeBoardItems(obj.boardItems, chunks);
   return {
     id: obj.id,
     type: "cut-up",
@@ -651,7 +1057,7 @@ export function sanitizeCutUpSpark(raw: unknown): CutUpSpark | null {
       ? obj.cutSeams.filter((s): s is number => typeof s === "number" && s >= 1)
       : undefined,
     chunks,
-    boardItems: sanitizeBoardItems(obj.boardItems, chunks),
+    boardItems: boardItemsForSpark,
     assembledDraftText: isString(obj.assembledDraftText) ? obj.assembledDraftText : "",
     savedLyricId: isString(obj.savedLyricId) ? obj.savedLyricId : undefined,
     seenHelpSteps: Array.isArray(obj.seenHelpSteps)

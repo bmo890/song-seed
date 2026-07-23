@@ -1,5 +1,10 @@
+import { SparkTextScaleProvider } from "../common/sparkTextScale";
 import { WordLadderScreenContent } from "./components/WordLadderScreenContent";
 
 export function WordLadderScreen() {
-  return <WordLadderScreenContent />;
+  return (
+    <SparkTextScaleProvider>
+      <WordLadderScreenContent />
+    </SparkTextScaleProvider>
+  );
 }

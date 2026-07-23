@@ -10,10 +10,14 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import * as Clipboard from "expo-clipboard";
 import { contentStyles } from "./WordLadderScreenContent.styles";
 import { Ionicons } from "@expo/vector-icons";
 import { styles as appStyles } from "../../../styles";
 import { colors, radii, shadows, spacing, text as textTokens } from "../../../design/tokens";
+import { haptic } from "../../../design/haptics";
+import { toast } from "../../common/toastStore";
+import { SparkTextSizeButton, useSparkTextScale } from "../../common/sparkTextScale";
 import { useWordLadderScreenModel } from "../hooks/useWordLadderScreenModel";
 import { WordLadderColumnEditor } from "./WordLadderColumnEditor";
 import { WordLadderPairingBoard } from "./WordLadderPairingBoard";
@@ -40,8 +44,12 @@ export function WordLadderScreenContent() {
   const { t } = useTranslation();
   const model = useWordLadderScreenModel();
   const { exercise } = model;
+  const { size, lineHeight } = useSparkTextScale();
   const [helpVisible, setHelpVisible] = useState(false);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
+  // The shared spark zoom drives the poem pages and the draft reference.
+  const scaledPoem = { fontSize: size + 1, lineHeight: lineHeight + 2 };
+  const scaledRef = { fontSize: size - 1.5, lineHeight: lineHeight - 3 };
 
   // Hide the step-nav footer (and shrink the draft reference) while typing so
   // the editor gets the room — the nav buttons aren't needed mid-keystroke.
@@ -130,11 +138,11 @@ export function WordLadderScreenContent() {
       <View style={contentStyles.header}>
         <IconBtn icon="chevron-back" label="Back" onPress={model.goBack} />
         <Text style={contentStyles.headerTitle}>{t("wordSparks.wordLadder")}</Text>
-        <IconBtn icon="help-circle-outline" label="How this works" onPress={openHelp} />
+        <SparkTextSizeButton />
         <IconBtn icon="trash-outline" label="Delete" onPress={model.deleteExercise} muted />
       </View>
 
-      <StepRail step={model.step} />
+      <StepRail step={model.step} onHelpPress={openHelp} />
 
       {model.step === "setup" ? (
         <>
@@ -149,9 +157,12 @@ export function WordLadderScreenContent() {
                   value={exercise.roleSeed}
                   placeholder={t("wordLadder.rolePlaceholder")}
                   onChange={model.setRoleSeed}
+                  surpriseLabel={t("wordLadder.randomRole")}
+                  onSurprise={model.surpriseRole}
                 />
               }
               onAdd={(text) => model.addColumnWord("a", text)}
+              onSuggest={() => model.suggestColumnWords("a")}
               onEdit={(id, text) => model.editColumnWord("a", id, text)}
               onReorder={(words) => model.reorderColumnWords("a", words)}
               onRemove={(id) => model.removeColumnWord("a", id)}
@@ -167,9 +178,12 @@ export function WordLadderScreenContent() {
                   value={exercise.placeSeed}
                   placeholder={t("wordLadder.placePlaceholder")}
                   onChange={model.setPlaceSeed}
+                  surpriseLabel={t("wordLadder.randomPlace")}
+                  onSurprise={model.surprisePlace}
                 />
               }
               onAdd={(text) => model.addColumnWord("b", text)}
+              onSuggest={() => model.suggestColumnWords("b")}
               onEdit={(id, text) => model.editColumnWord("b", id, text)}
               onReorder={(words) => model.reorderColumnWords("b", words)}
               onRemove={(id) => model.removeColumnWord("b", id)}
@@ -188,6 +202,7 @@ export function WordLadderScreenContent() {
             <Pressable
               style={({ pressed }) => [
                 contentStyles.nextBtn,
+                contentStyles.nextBtnSelfEnd,
                 !canLeaveSetup ? contentStyles.nextBtnDisabled : null,
                 pressed && canLeaveSetup ? appStyles.pressDown : null,
               ]}
@@ -201,8 +216,8 @@ export function WordLadderScreenContent() {
               </Text>
               <Ionicons
                 name="arrow-forward"
-                size={16}
-                color={canLeaveSetup ? colors.onPrimary : colors.textSecondary}
+                size={15}
+                color={canLeaveSetup ? colors.onPrimary : colors.textMuted}
               />
             </Pressable>
           </View>
@@ -220,6 +235,7 @@ export function WordLadderScreenContent() {
               onUnpair={model.unpairWord}
               onToggleLock={model.toggleLockPairing}
               onShuffle={model.shuffle}
+              history={model.pairingHistory}
             />
           </View>
 
@@ -239,13 +255,12 @@ export function WordLadderScreenContent() {
                 style={({ pressed }) => [contentStyles.backBtn, pressed ? appStyles.pressDown : null]}
                 onPress={() => model.goToStep("setup")}
               >
-                <Ionicons name="arrow-back" size={16} color={colors.textSecondary} />
+                <Ionicons name="chevron-back" size={16} color={colors.textMuted} />
                 <Text style={contentStyles.backBtnText}>{t("wordSparks.words")}</Text>
               </Pressable>
               <Pressable
                 style={({ pressed }) => [
                   contentStyles.nextBtn,
-                  contentStyles.nextBtnGrow,
                   !canLeavePairs ? contentStyles.nextBtnDisabled : null,
                   pressed && canLeavePairs ? appStyles.pressDown : null,
                 ]}
@@ -260,7 +275,7 @@ export function WordLadderScreenContent() {
                 <Ionicons
                   name="arrow-forward"
                   size={16}
-                  color={canLeavePairs ? colors.onPrimary : colors.textSecondary}
+                  color={canLeavePairs ? colors.onPrimary : colors.textMuted}
                 />
               </Pressable>
             </View>
@@ -307,7 +322,7 @@ export function WordLadderScreenContent() {
 
           <View style={contentStyles.poemCard}>
             <UserTextInput
-              style={contentStyles.poemInput}
+              style={[contentStyles.poemInput, scaledPoem]}
               value={exercise.draft}
               onChangeText={model.setDraft}
               multiline
@@ -324,13 +339,12 @@ export function WordLadderScreenContent() {
                   style={({ pressed }) => [contentStyles.backBtn, pressed ? appStyles.pressDown : null]}
                   onPress={() => model.goToStep("pairs")}
                 >
-                  <Ionicons name="arrow-back" size={16} color={colors.textSecondary} />
+                  <Ionicons name="chevron-back" size={16} color={colors.textMuted} />
                   <Text style={contentStyles.backBtnText}>{t("wordSparks.pair")}</Text>
                 </Pressable>
                 <Pressable
                   style={({ pressed }) => [
                     contentStyles.nextBtn,
-                    contentStyles.nextBtnGrow,
                     !hasDraft ? contentStyles.nextBtnDisabled : null,
                     pressed && hasDraft ? appStyles.pressDown : null,
                   ]}
@@ -343,7 +357,7 @@ export function WordLadderScreenContent() {
                   <Ionicons
                     name="arrow-forward"
                     size={16}
-                    color={hasDraft ? colors.onPrimary : colors.textSecondary}
+                    color={hasDraft ? colors.onPrimary : colors.textMuted}
                   />
                 </Pressable>
               </View>
@@ -355,7 +369,25 @@ export function WordLadderScreenContent() {
       {model.step === "revise" ? (
         <>
           <View style={contentStyles.draftRef}>
-            <Text style={contentStyles.draftRefLabel}>{t("wordLadder.yourDraft")}</Text>
+            <View style={contentStyles.draftRefHeader}>
+              <Text style={contentStyles.draftRefLabel}>{t("wordLadder.yourDraft")}</Text>
+              {hasDraft ? (
+                <Pressable
+                  style={({ pressed }) => [contentStyles.copyBtn, pressed ? appStyles.pressDown : null]}
+                  onPress={() => {
+                    haptic.tap();
+                    void Clipboard.setStringAsync(exercise.draft).catch(() => {});
+                    toast(t("common.copied"), "checkmark-outline");
+                  }}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel={t("common.copy")}
+                >
+                  <Ionicons name="copy-outline" size={13} color={colors.primaryDeep} />
+                  <Text style={contentStyles.copyBtnText}>{t("common.copy")}</Text>
+                </Pressable>
+              ) : null}
+            </View>
             <ScrollView
               style={[
                 contentStyles.draftRefScroll,
@@ -363,7 +395,7 @@ export function WordLadderScreenContent() {
               ]}
               showsVerticalScrollIndicator={false}
             >
-              <UserText style={contentStyles.draftRefText}>{exercise.draft.trim() || "—"}</UserText>
+              <UserText style={[contentStyles.draftRefText, scaledRef]}>{exercise.draft.trim() || "—"}</UserText>
             </ScrollView>
           </View>
 
@@ -373,7 +405,7 @@ export function WordLadderScreenContent() {
 
           <View style={contentStyles.poemCard}>
             <UserTextInput
-              style={contentStyles.poemInput}
+              style={[contentStyles.poemInput, scaledPoem]}
               value={exercise.revision}
               onChangeText={model.setRevision}
               multiline
@@ -390,13 +422,12 @@ export function WordLadderScreenContent() {
                   style={({ pressed }) => [contentStyles.backBtn, pressed ? appStyles.pressDown : null]}
                   onPress={() => model.goToStep("draft")}
                 >
-                  <Ionicons name="arrow-back" size={16} color={colors.textSecondary} />
+                  <Ionicons name="chevron-back" size={16} color={colors.textMuted} />
                   <Text style={contentStyles.backBtnText}>{t("wordSparks.draft")}</Text>
                 </Pressable>
                 <Pressable
                   style={({ pressed }) => [
                     contentStyles.nextBtn,
-                    contentStyles.nextBtnGrow,
                     !hasRevision ? contentStyles.nextBtnDisabled : null,
                     pressed && hasRevision ? appStyles.pressDown : null,
                   ]}
@@ -406,7 +437,7 @@ export function WordLadderScreenContent() {
                   <Ionicons
                     name="bookmark-outline"
                     size={15}
-                    color={hasRevision ? colors.onPrimary : colors.textSecondary}
+                    color={hasRevision ? colors.onPrimary : colors.textMuted}
                   />
                   <Text
                     style={[contentStyles.nextBtnText, !hasRevision ? contentStyles.nextBtnTextDisabled : null]}
@@ -431,8 +462,10 @@ export function WordLadderScreenContent() {
 }
 
 /** A slim step rail — the four labels with the current step accented, over a
- * progress bar. Wayfinding without the clunky numbered dots. */
-function StepRail({ step }: { step: WordLadderStep }) {
+ * progress bar. Wayfinding without the clunky numbered dots. The "how this
+ * works" hint sits right next to the current step's label, since the help
+ * content is scoped per-step anyway. */
+function StepRail({ step, onHelpPress }: { step: WordLadderStep; onHelpPress: () => void }) {
   const { t } = useTranslation();
   const currentIndex = STEPS.findIndex((item) => item === step);
   const progress = (currentIndex + 1) / STEPS.length;
@@ -441,21 +474,28 @@ function StepRail({ step }: { step: WordLadderStep }) {
   return (
     <View style={contentStyles.rail}>
       <View style={contentStyles.railLabels}>
-        {STEPS.map((item, index) => (
-          <Text
-            key={item}
-            style={[
-              contentStyles.railLabel,
-              index === currentIndex
-                ? contentStyles.railLabelCurrent
-                : index < currentIndex
-                  ? contentStyles.railLabelDone
-                  : null,
-            ]}
-          >
-            {labelFor(item)}
-          </Text>
-        ))}
+        {STEPS.map((item, index) =>
+          index === currentIndex ? (
+            <Pressable
+              key={item}
+              style={({ pressed }) => [contentStyles.railLabelCurrentRow, pressed ? appStyles.pressDown : null]}
+              onPress={onHelpPress}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel={t("wordSparks.howThisWorks")}
+            >
+              <Text style={[contentStyles.railLabel, contentStyles.railLabelCurrent]}>{labelFor(item)}</Text>
+              <Ionicons name="help-circle-outline" size={14} color={colors.primaryDeep} />
+            </Pressable>
+          ) : (
+            <Text
+              key={item}
+              style={[contentStyles.railLabel, index < currentIndex ? contentStyles.railLabelDone : null]}
+            >
+              {labelFor(item)}
+            </Text>
+          )
+        )}
       </View>
       <View style={contentStyles.railTrack}>
         <View style={[contentStyles.railFill, { width: `${progress * 100}%` }]} />
@@ -493,15 +533,33 @@ function SetupSeedField({
   value,
   placeholder,
   onChange,
+  surpriseLabel,
+  onSurprise,
 }: {
   label: string;
   value: string;
   placeholder: string;
   onChange: (text: string) => void;
+  surpriseLabel: string;
+  onSurprise: () => void;
 }) {
   return (
     <View style={contentStyles.seedHeader}>
-      <Text style={contentStyles.seedLabel}>{label}</Text>
+      <View style={contentStyles.seedLabelRow}>
+        <Text style={contentStyles.seedLabel}>{label}</Text>
+        <Pressable
+          style={({ pressed }) => [contentStyles.seedDice, pressed ? appStyles.pressDown : null]}
+          onPress={() => {
+            haptic.tap();
+            onSurprise();
+          }}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel={surpriseLabel}
+        >
+          <Ionicons name="dice-outline" size={15} color={colors.primaryDeep} />
+        </Pressable>
+      </View>
       <UserTextInput
         style={contentStyles.seedInput}
         value={value}

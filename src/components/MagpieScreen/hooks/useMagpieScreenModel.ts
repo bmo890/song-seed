@@ -3,6 +3,9 @@ import { BackHandler } from "react-native";
 import { useFocusEffect, useNavigation, useRoute } from "@react-navigation/native";
 import { useStore } from "../../../state/useStore";
 import { AppAlert } from "../../common/AppAlert";
+import { toast } from "../../common/toastStore";
+import { sparkSaveTitle } from "../../../domain/notepad";
+import { useUndoHistory } from "../../common/useUndoHistory";
 import { actionIcons } from "../../common/actionIcons";
 import {
   addFragments,
@@ -17,7 +20,7 @@ import {
   reorderFragments,
   splitFragment as splitFragmentOp,
 } from "../../../domain/magpie";
-import type { MagpieLanguage, MagpieStep } from "../../../types";
+import type { MagpieFragment, MagpieLanguage, MagpieStep } from "../../../types";
 import type { MagpieHeGenre } from "../../../config/magpieService";
 import { useMagpiePrefsStore } from "../../../state/useMagpiePrefsStore";
 import { useTranslation } from "react-i18next";
@@ -36,6 +39,7 @@ export function useMagpieScreenModel() {
   const toggleHeGenrePref = useMagpiePrefsStore((s) => s.toggleHeGenre);
   const deleteMagpieSpark = useStore((s) => s.deleteMagpieSpark);
   const addNote = useStore((s) => s.addNote);
+  const notes = useStore((s) => s.notes);
   const updateNote = useStore((s) => s.updateNote);
 
   const spark = magpieSparks.find((item) => item.id === sparkId) ?? null;
@@ -132,45 +136,56 @@ export function useMagpieScreenModel() {
     [toggleHeGenrePref, spark?.language, apply, load]
   );
 
-  // ── Pocketing + the pile ────────────────────────────────────────────────────
+  // Undo/redo over the collection (collect, remove, split, merge, reorder).
+  const restoreFragments = useCallback(
+    (fragments: MagpieFragment[]) => apply({ fragments }),
+    [apply]
+  );
+  const fragmentHistory = useUndoHistory(spark?.fragments ?? [], restoreFragments);
+
+  // ── Collecting words ────────────────────────────────────────────────────────
   const pocketPhrases = useCallback(
     (phrases: string[]) => {
       if (!spark || phrases.length === 0) return;
+      fragmentHistory.record(spark.fragments);
       const fragments = addFragments(spark.fragments, phrases, spark.book);
       apply({ fragments, title: deriveMagpieTitle({ draft: spark.draft, fragments }) });
     },
-    [spark, apply]
+    [spark, apply, fragmentHistory]
   );
 
   const removeFragment = useCallback(
     (id: string) => {
       if (!spark) return;
+      fragmentHistory.record(spark.fragments);
       apply({
         fragments: removeFragmentOp(spark.fragments, id),
         usedFragmentIds: spark.usedFragmentIds.filter((used) => used !== id),
       });
     },
-    [spark, apply]
+    [spark, apply, fragmentHistory]
   );
 
   const splitFragment = useCallback(
     (id: string) => {
       if (!spark) return;
       // The pieces are new fragments — drop the old id from the used tally.
+      fragmentHistory.record(spark.fragments);
       apply({
         fragments: splitFragmentOp(spark.fragments, id),
         usedFragmentIds: spark.usedFragmentIds.filter((used) => used !== id),
       });
     },
-    [spark, apply]
+    [spark, apply, fragmentHistory]
   );
 
   const mergeFragment = useCallback(
     (id: string) => {
       if (!spark) return;
+      fragmentHistory.record(spark.fragments);
       apply({ fragments: mergeFragmentWithNext(spark.fragments, id) });
     },
-    [spark, apply]
+    [spark, apply, fragmentHistory]
   );
 
   // ── The "used" tally (build-step palette) ─────────────────────────────────────
@@ -203,9 +218,10 @@ export function useMagpieScreenModel() {
   const reorder = useCallback(
     (orderedIds: string[]) => {
       if (!spark) return;
+      fragmentHistory.record(spark.fragments);
       apply({ fragments: reorderFragments(spark.fragments, orderedIds) });
     },
-    [spark, apply]
+    [spark, apply, fragmentHistory]
   );
 
   // ── Wizard nav + draft ──────────────────────────────────────────────────────
@@ -260,10 +276,13 @@ export function useMagpieScreenModel() {
       return;
     }
     const noteId = addNote();
-    updateNote(noteId, { title: spark.title, body: text });
-    apply({ savedLyricId: noteId });
+    updateNote(noteId, { title: sparkSaveTitle(spark.title, t("wordSparks.magpie"), notes), body: text });
+    // Saving completes the exercise: the page in the pad is now the real thing,
+    // so the scaffolding leaves the Sparks tab.
+    toast(t("wordSparks.savedToPad"), "checkmark-outline");
     navigation.navigate("NotepadHome", { noteId, openToken: Date.now() });
-  }, [spark, addNote, updateNote, apply, navigation, t]);
+    if (sparkId) deleteMagpieSpark(sparkId);
+  }, [spark, sparkId, notes, addNote, updateNote, deleteMagpieSpark, navigation, t]);
 
   const deleteSpark = useCallback(() => {
     if (!sparkId) return;
@@ -307,6 +326,7 @@ export function useMagpieScreenModel() {
         icon: actionIcons.bookmark,
         onPress: () => navigation.navigate("NotepadHome"),
       },
+      { label: t("wordSparks.keepWorking"), style: "cancel" },
     ]);
   }, [spark?.savedLyricId, hasContent, sparkId, deleteMagpieSpark, navigation, t]);
 
@@ -358,6 +378,7 @@ export function useMagpieScreenModel() {
     rebuildDraft,
     pourScraps,
     saveAsLyrics,
+    fragmentHistory,
     deleteSpark,
     goBack,
   };

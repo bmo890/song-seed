@@ -3,7 +3,16 @@ import { BackHandler } from "react-native";
 import { useFocusEffect, useNavigation, useRoute } from "@react-navigation/native";
 import { useStore } from "../../../state/useStore";
 import { AppAlert } from "../../common/AppAlert";
+import { toast } from "../../common/toastStore";
+import { sparkSaveTitle } from "../../../domain/notepad";
+import { useUndoHistory } from "../../common/useUndoHistory";
 import { actionIcons } from "../../common/actionIcons";
+import {
+  randomPlaceIdea,
+  randomRoleIdea,
+  suggestNouns,
+  suggestVerbs,
+} from "../../../domain/wordLadderIdeas";
 import {
   addWord,
   createPairing,
@@ -14,11 +23,12 @@ import {
   toggleLock,
   updateWordText,
 } from "../../../domain/wordLadder";
-import type { WordLadderStep, WordLadderWord } from "../../../types";
+import type { WordLadderExercise, WordLadderStep, WordLadderWord } from "../../../types";
 import { useTranslation } from "react-i18next";
 
 export function useWordLadderScreenModel() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const ideaLang = i18n.language === "he" ? "he" : "en";
   const route = useRoute<any>();
   const navigation = useNavigation<any>();
   const exerciseId = route.params?.exerciseId as string | undefined;
@@ -27,6 +37,7 @@ export function useWordLadderScreenModel() {
   const updateWordLadder = useStore((s) => s.updateWordLadder);
   const deleteWordLadder = useStore((s) => s.deleteWordLadder);
   const addNote = useStore((s) => s.addNote);
+  const notes = useStore((s) => s.notes);
   const updateNote = useStore((s) => s.updateNote);
 
   const exercise = useMemo(
@@ -52,6 +63,13 @@ export function useWordLadderScreenModel() {
     },
     [exerciseId, updateWordLadder]
   );
+
+  // Undo/redo over the pairing board (connect, unpair, shuffle).
+  const restorePairings = useCallback(
+    (pairings: WordLadderExercise["pairings"]) => apply({ pairings }),
+    [apply]
+  );
+  const pairingHistory = useUndoHistory(exercise?.pairings ?? [], restorePairings);
 
   // ── Wizard navigation ─────────────────────────────────────────────────────
   // "setup" is a one-way gate: once committed, the seeds are frozen and the
@@ -90,6 +108,39 @@ export function useWordLadderScreenModel() {
       apply({ placeSeed, title: translatedTitle(exercise.roleSeed, placeSeed) });
     },
     [apply, exercise, translatedTitle]
+  );
+
+  // ── Inspiration (setup step) ──────────────────────────────────────────────
+  // One tap fills a seed with a curated random job/place; another sprinkles a
+  // few matching words into a column. Everything stays editable.
+  const surpriseRole = useCallback(() => {
+    if (!exercise) return;
+    const idea = randomRoleIdea(ideaLang, exercise.roleSeed);
+    apply({ roleSeed: idea.seed, title: translatedTitle(idea.seed, exercise.placeSeed) });
+  }, [apply, exercise, translatedTitle, ideaLang]);
+
+  const surprisePlace = useCallback(() => {
+    if (!exercise) return;
+    const idea = randomPlaceIdea(ideaLang, exercise.placeSeed);
+    apply({ placeSeed: idea.seed, title: translatedTitle(exercise.roleSeed, idea.seed) });
+  }, [apply, exercise, translatedTitle, ideaLang]);
+
+  const suggestColumnWords = useCallback(
+    (column: "a" | "b") => {
+      if (!exercise) return;
+      if (column === "a") {
+        const existing = exercise.columnA.map((word) => word.text);
+        let columnA = exercise.columnA;
+        for (const verb of suggestVerbs(ideaLang, exercise.roleSeed, existing, 4)) columnA = addWord(columnA, verb);
+        apply({ columnA });
+      } else {
+        const existing = exercise.columnB.map((word) => word.text);
+        let columnB = exercise.columnB;
+        for (const noun of suggestNouns(ideaLang, exercise.placeSeed, existing, 4)) columnB = addWord(columnB, noun);
+        apply({ columnB });
+      }
+    },
+    [apply, exercise, ideaLang]
   );
 
   const addColumnWord = useCallback(
@@ -146,18 +197,20 @@ export function useWordLadderScreenModel() {
       }
       const columnAWordId = armedWord.column === "a" ? armedWord.wordId : wordId;
       const columnBWordId = armedWord.column === "b" ? armedWord.wordId : wordId;
+      pairingHistory.record(exercise.pairings);
       apply({ pairings: [...exercise.pairings, createPairing(columnAWordId, columnBWordId)] });
       setArmedWord(null);
     },
-    [apply, armedWord, exercise]
+    [apply, armedWord, exercise, pairingHistory]
   );
 
   const unpairWord = useCallback(
     (pairingId: string) => {
       if (!exercise) return;
+      pairingHistory.record(exercise.pairings);
       apply({ pairings: removePairing(exercise.pairings, pairingId) });
     },
-    [apply, exercise]
+    [apply, exercise, pairingHistory]
   );
 
   const toggleLockPairing = useCallback(
@@ -170,8 +223,9 @@ export function useWordLadderScreenModel() {
 
   const shuffle = useCallback(() => {
     if (!exercise) return;
+    pairingHistory.record(exercise.pairings);
     apply({ pairings: shufflePairings(exercise) });
-  }, [apply, exercise]);
+  }, [apply, exercise, pairingHistory]);
 
   const setDraft = useCallback(
     (draft: string) => {
@@ -221,10 +275,13 @@ export function useWordLadderScreenModel() {
       return;
     }
     const noteId = addNote();
-    updateNote(noteId, { title: exercise.title, body: text });
-    apply({ savedLyricId: noteId });
+    updateNote(noteId, { title: sparkSaveTitle(exercise.title, t("wordSparks.wordLadder"), notes), body: text });
+    // Saving completes the exercise: the page in the pad is now the real thing,
+    // so the scaffolding leaves the Sparks tab.
+    toast(t("wordSparks.savedToPad"), "checkmark-outline");
     navigation.navigate("NotepadHome", { noteId, openToken: Date.now() });
-  }, [exercise, addNote, updateNote, apply, navigation, t]);
+    if (exerciseId) deleteWordLadder(exerciseId);
+  }, [exercise, exerciseId, notes, addNote, updateNote, deleteWordLadder, navigation, t]);
 
   const hasContent =
     !!exercise &&
@@ -266,6 +323,7 @@ export function useWordLadderScreenModel() {
         icon: actionIcons.bookmark,
         onPress: () => navigation.navigate("NotepadHome"),
       },
+      { label: t("wordSparks.keepWorking"), style: "cancel" },
     ]);
   }, [exercise?.savedLyricId, hasContent, exerciseId, deleteWordLadder, navigation, t]);
 
@@ -300,8 +358,12 @@ export function useWordLadderScreenModel() {
     step,
     goToStep,
     markHelpSeen,
+    pairingHistory,
     armedWord,
     setRoleSeed,
+    surpriseRole,
+    surprisePlace,
+    suggestColumnWords,
     setPlaceSeed,
     addColumnWord,
     editColumnWord,

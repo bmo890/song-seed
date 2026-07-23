@@ -3,6 +3,9 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { UserTextInput } from "../../../i18n";
 import { Ionicons } from "@expo/vector-icons";
 import { NotePickerSheet } from "../../modals/NotePickerSheet";
+import { CutUpLineSelectSheet } from "./CutUpLineSelectSheet";
+import { useSparkTextScale } from "../../common/sparkTextScale";
+import type { Note } from "../../../types";
 import { styles as appStyles } from "../../../styles";
 import { colors, radii, shadows, spacing, text as textTokens } from "../../../design/tokens";
 import { haptic } from "../../../design/haptics";
@@ -16,23 +19,29 @@ const PAGE_BG = "#FBF6EC";
 
 export function CutUpSourceStep({ model, spark }: { model: Model; spark: CutUpSpark }) {
   const { t } = useTranslation();
+  const { size, lineHeight } = useSparkTextScale();
   const [pickerVisible, setPickerVisible] = useState(false);
+  // The page whose lines are being chosen — picking from the pad is two beats:
+  // choose a page, then choose the verse/lines to actually work.
+  const [selectingNote, setSelectingNote] = useState<Note | null>(null);
 
   return (
     <View style={styles.body}>
       <View style={styles.headerRow}>
         <Text style={styles.label}>{t("cutUp.startingLyric")}</Text>
-        <Pressable
-          style={({ pressed }) => [styles.pickBtn, pressed ? appStyles.pressDown : null]}
-          onPress={() => {
-            haptic.tap();
-            setPickerVisible(true);
-          }}
-          hitSlop={6}
-        >
-          <Ionicons name="document-text-outline" size={14} color={colors.primaryDeep} />
-          <Text style={styles.pickBtnText}>{t("cutUp.fromPad")}</Text>
-        </Pressable>
+        <View style={styles.headerActions}>
+          <Pressable
+            style={({ pressed }) => [styles.pickBtn, pressed ? appStyles.pressDown : null]}
+            onPress={() => {
+              haptic.tap();
+              setPickerVisible(true);
+            }}
+            hitSlop={6}
+          >
+            <Ionicons name="document-text-outline" size={14} color={colors.primaryDeep} />
+            <Text style={styles.pickBtnText}>{t("cutUp.fromPad")}</Text>
+          </Pressable>
+        </View>
       </View>
 
       {spark.sourceLyricId ? (
@@ -44,7 +53,7 @@ export function CutUpSourceStep({ model, spark }: { model: Model; spark: CutUpSp
 
       <View style={styles.card}>
         <UserTextInput
-          style={styles.input}
+          style={[styles.input, { fontSize: size, lineHeight }]}
           value={spark.sourceText}
           onChangeText={model.setSourceText}
           multiline
@@ -61,8 +70,17 @@ export function CutUpSourceStep({ model, spark }: { model: Model; spark: CutUpSp
         subtitle={t("cutUp.pickerSubtitle")}
         onClose={() => setPickerVisible(false)}
         onSelect={(note) => {
-          model.pickSourceNote(note);
           setPickerVisible(false);
+          setSelectingNote(note);
+        }}
+      />
+
+      <CutUpLineSelectSheet
+        note={selectingNote}
+        onClose={() => setSelectingNote(null)}
+        onConfirm={(note, text) => {
+          model.pickSourceNote(note, text);
+          setSelectingNote(null);
         }}
       />
     </View>
@@ -78,6 +96,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   label: { ...textTokens.annotation },
+  headerActions: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
   pickBtn: {
     flexDirection: "row",
     alignItems: "center",

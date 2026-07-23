@@ -19,6 +19,7 @@ export const contentStyles = StyleSheet.create({
   railLabel: { fontFamily: "PlusJakartaSans_600SemiBold", fontSize: 11.5, color: colors.textMuted },
   railLabelDone: { color: colors.textSecondary },
   railLabelCurrent: { fontFamily: "PlusJakartaSans_700Bold", color: colors.primaryDeep },
+  railLabelCurrentRow: { flexDirection: "row", alignItems: "center", gap: 3, marginVertical: -4 },
   railTrack: { height: 3, borderRadius: 3, backgroundColor: colors.borderMuted, overflow: "hidden" },
   railFill: { height: 3, borderRadius: 3, backgroundColor: colors.primaryDeep },
   deleteBtn: {
@@ -52,6 +53,18 @@ export const contentStyles = StyleSheet.create({
     backgroundColor: colors.surfaceContainer,
     borderTopLeftRadius: radii.lg,
     borderTopRightRadius: radii.lg,
+  },
+  seedLabelRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  seedDice: {
+    width: 24,
+    height: 24,
+    borderRadius: radii.round,
+    alignItems: "center",
+    justifyContent: "center",
   },
   seedLabel: {
     fontFamily: "PlusJakartaSans_700Bold",
@@ -196,13 +209,14 @@ export const contentStyles = StyleSheet.create({
     gap: spacing.sm,
   },
   wizardFooter: {
-    paddingVertical: spacing.md,
-    gap: spacing.sm,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.xs,
+    gap: spacing.xs,
   },
   footerRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: spacing.sm,
+    justifyContent: "space-between",
   },
   footerHint: {
     fontFamily: "PlusJakartaSans_500Medium",
@@ -214,17 +228,19 @@ export const contentStyles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: spacing.xs,
+    gap: 6,
     backgroundColor: colors.primaryDeep,
     borderRadius: radii.round,
-    paddingVertical: 14,
-    paddingHorizontal: spacing.lg,
+    paddingVertical: 11,
+    paddingHorizontal: 20,
   },
-  nextBtnGrow: {
-    flex: 1,
+  // A single-primary footer (setup) sits the pill against the trailing edge
+  // rather than stretching it full width.
+  nextBtnSelfEnd: {
+    alignSelf: "flex-end",
   },
   nextBtnDisabled: {
-    backgroundColor: colors.borderMuted,
+    backgroundColor: colors.surfaceHigh,
   },
   nextBtnText: {
     fontFamily: "PlusJakartaSans_700Bold",
@@ -232,19 +248,19 @@ export const contentStyles = StyleSheet.create({
     color: colors.onPrimary,
   },
   nextBtnTextDisabled: {
-    color: colors.textSecondary,
+    color: colors.textMuted,
   },
   backBtn: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    gap: spacing.xs,
-    paddingVertical: 12,
+    gap: 2,
+    paddingVertical: 10,
+    paddingRight: spacing.sm,
   },
   backBtnText: {
     fontFamily: "PlusJakartaSans_600SemiBold",
     fontSize: 14,
-    color: colors.textSecondary,
+    color: colors.textMuted,
   },
   palette: {
     backgroundColor: colors.surfaceHigh,
@@ -302,9 +318,28 @@ export const contentStyles = StyleSheet.create({
     padding: spacing.md,
     marginBottom: spacing.md,
   },
+  draftRefHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: spacing.xs,
+  },
   draftRefLabel: {
     ...textTokens.annotation,
-    marginBottom: spacing.xs,
+  },
+  copyBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 5,
+    borderRadius: radii.round,
+    backgroundColor: colors.surfaceHigh,
+  },
+  copyBtnText: {
+    fontFamily: "PlusJakartaSans_700Bold",
+    fontSize: 12,
+    color: colors.primaryDeep,
   },
   draftRefScroll: {
     maxHeight: 150,

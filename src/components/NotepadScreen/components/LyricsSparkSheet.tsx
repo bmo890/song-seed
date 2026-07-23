@@ -3,7 +3,6 @@ import { Ionicons } from "@expo/vector-icons";
 import { BottomSheet } from "../../common/BottomSheet";
 import { styles as appStyles } from "../../../styles";
 import { colors, radii, spacing, text as textTokens } from "../../../design/tokens";
-import { EnglishOnlyNotice } from "../../common/EnglishOnlyNotice";
 import { useTranslation } from "react-i18next";
 
 type Props = {
@@ -20,7 +19,6 @@ export function LyricsSparkSheet({ visible, onClose, onNewWordLadder, onNewCutUp
     <BottomSheet visible={visible} onClose={onClose}>
       <Text style={sheetStyles.title}>{t("brand.lyricsSpark")}</Text>
       <Text style={sheetStyles.subtitle}>{t("notepad.sparkSubtitle")}</Text>
-      <EnglishOnlyNotice />
 
       <Pressable
         style={({ pressed }) => [sheetStyles.option, pressed ? appStyles.pressDown : null]}
@@ -31,9 +29,7 @@ export function LyricsSparkSheet({ visible, onClose, onNewWordLadder, onNewCutUp
         </View>
         <View style={sheetStyles.optionCopy}>
           <Text style={sheetStyles.optionTitle}>{t("brand.wordLadder")}</Text>
-          <Text style={sheetStyles.optionBody}>
-            Pair two columns of words to find lyric lines you wouldn't have written on purpose.
-          </Text>
+          <Text style={sheetStyles.optionBody}>{t("wordSparks.wordLadderDesc")}</Text>
         </View>
       </Pressable>
 
@@ -46,9 +42,7 @@ export function LyricsSparkSheet({ visible, onClose, onNewWordLadder, onNewCutUp
         </View>
         <View style={sheetStyles.optionCopy}>
           <Text style={sheetStyles.optionTitle}>{t("brand.cutUp")}</Text>
-          <Text style={sheetStyles.optionBody}>
-            Slice a stuck lyric into strips, shuffle them, and rebuild it into something new.
-          </Text>
+          <Text style={sheetStyles.optionBody}>{t("wordSparks.cutUpDesc")}</Text>
         </View>
       </Pressable>
 
@@ -61,9 +55,7 @@ export function LyricsSparkSheet({ visible, onClose, onNewWordLadder, onNewCutUp
         </View>
         <View style={sheetStyles.optionCopy}>
           <Text style={sheetStyles.optionTitle}>{t("brand.magpie")}</Text>
-          <Text style={sheetStyles.optionBody}>
-            Open a real book to a random page and pocket the words that catch your ear.
-          </Text>
+          <Text style={sheetStyles.optionBody}>{t("wordSparks.magpieDesc")}</Text>
         </View>
       </Pressable>
     </BottomSheet>

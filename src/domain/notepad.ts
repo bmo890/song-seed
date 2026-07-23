@@ -6,6 +6,24 @@ export function deriveNotePreviewTitle(note: Note) {
   return firstLine.trim() || "New Page";
 }
 
+/** A title for a page saved out of a spark exercise. When the exercise was
+ * built from an existing page (or the derived title happens to match one), the
+ * saved page would shadow its source in the list — so the exercise's name is
+ * appended ("River Song · Cut-Up"), and a counter after that if it's somehow
+ * still taken. Case-insensitive comparison; untitled stays untitled. */
+export function sparkSaveTitle(title: string, sparkName: string, notes: Note[]): string {
+  const base = title.trim();
+  if (!base) return base;
+  const taken = new Set(notes.map((note) => note.title.trim().toLowerCase()).filter(Boolean));
+  if (!taken.has(base.toLowerCase())) return base;
+  const suffixed = `${base} · ${sparkName}`;
+  if (!taken.has(suffixed.toLowerCase())) return suffixed;
+  for (let n = 2; ; n++) {
+    const numbered = `${suffixed} ${n}`;
+    if (!taken.has(numbered.toLowerCase())) return numbered;
+  }
+}
+
 export function deriveNotePreviewBody(note: Note) {
   if (!note.title.trim()) {
     const lines = note.body.trim().split("\n");

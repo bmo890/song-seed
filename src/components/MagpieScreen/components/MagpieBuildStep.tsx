@@ -19,6 +19,7 @@ import { ChordZoomBar } from "../../LyricsVersionScreen/components/chords/ChordZ
 import type { MagpieFragment, MagpieSpark } from "../../../types";
 import type { useMagpieScreenModel } from "../hooks/useMagpieScreenModel";
 import { useTranslation } from "react-i18next";
+import { UndoRedoButtons } from "../../common/useUndoHistory";
 
 type Model = ReturnType<typeof useMagpieScreenModel>;
 
@@ -123,6 +124,7 @@ export function MagpieBuildStep({
       <Palette
         scraps={orderedScraps}
         used={used}
+        history={model.fragmentHistory}
         count={spark.fragments.length}
         showPour={draftBlank && spark.fragments.length > 0}
         onInsert={insertScrap}
@@ -251,6 +253,7 @@ function Palette({
   onLongPress,
   onExpand,
   onPour,
+  history,
 }: {
   scraps: MagpieFragment[];
   used: Set<string>;
@@ -260,6 +263,7 @@ function Palette({
   onLongPress: (fragment: MagpieFragment) => void;
   onExpand: () => void;
   onPour: () => void;
+  history: { canUndo: boolean; canRedo: boolean; undo: () => void; redo: () => void };
 }) {
   const { t } = useTranslation();
   if (count === 0) {
@@ -273,6 +277,7 @@ function Palette({
     <View style={styles.palette}>
       <View style={styles.paletteHead}>
         <Text style={styles.paletteLabel}>{t("magpie.yourScraps", { count })}</Text>
+        <UndoRedoButtons canUndo={history.canUndo} canRedo={history.canRedo} onUndo={history.undo} onRedo={history.redo} />
         {showPour ? (
           <Pressable style={({ pressed }) => [styles.pourBtn, pressed ? appStyles.pressDown : null]} onPress={onPour}>
             <Ionicons name="arrow-down" size={13} color={colors.onPrimary} />

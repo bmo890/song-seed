@@ -1,12 +1,14 @@
-import { useState } from "react";
-import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { useRef, useState } from "react";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { UserTextInput } from "../../../i18n";
 import { Ionicons } from "@expo/vector-icons";
 import { AppAlert } from "../../common/AppAlert";
+import { BottomSheet } from "../../common/BottomSheet";
 import { styles as appStyles } from "../../../styles";
 import { colors, radii, shadows, spacing, text as textTokens } from "../../../design/tokens";
 import { haptic } from "../../../design/haptics";
 import type { CutUpComposeFlavor } from "../../../domain/cutUp";
+import { useSparkTextScale } from "../../common/sparkTextScale";
 import type { CutUpSpark } from "../../../types";
 import type { useCutUpScreenModel } from "../hooks/useCutUpScreenModel";
 import { useTranslation } from "react-i18next";
@@ -14,6 +16,19 @@ import { useTranslation } from "react-i18next";
 type Model = ReturnType<typeof useCutUpScreenModel>;
 
 const PAGE_BG = "#FBF6EC";
+
+// The ways to (re)build a draft from the strips, one clear list behind one
+// button — instead of three competing controls fighting for the header.
+type RemixOption =
+  | { key: "board"; icon: keyof typeof Ionicons.glyphMap }
+  | { key: CutUpComposeFlavor; icon: keyof typeof Ionicons.glyphMap };
+
+const REMIX_OPTIONS: RemixOption[] = [
+  { key: "board", icon: "list-outline" },
+  { key: "short", icon: "remove-outline" },
+  { key: "mixed", icon: "shuffle-outline" },
+  { key: "long", icon: "reorder-three-outline" },
+];
 
 export function CutUpDraftEditor({
   model,
@@ -25,87 +40,92 @@ export function CutUpDraftEditor({
   keyboardVisible: boolean;
 }) {
   const { t } = useTranslation();
-  const flavors: Array<{ key: CutUpComposeFlavor; label: string }> = [
-    { key: "short", label: t("cutUp.short") },
-    { key: "mixed", label: t("cutUp.mixed") },
-    { key: "long", label: t("cutUp.long") },
-  ];
-  const [flavor, setFlavor] = useState<CutUpComposeFlavor>("mixed");
+  const { size, lineHeight } = useSparkTextScale();
+  const [menuOpen, setMenuOpen] = useState(false);
+  // True once the writer has hand-edited since the last generated draft — so
+  // re-rolling a fresh style is friction-free until there's real work to lose.
+  const editedRef = useRef(false);
 
-  function confirmRebuild() {
-    if (!spark.assembledDraftText.trim()) {
-      model.rebuildDraftFromBoard();
-      return;
-    }
-    AppAlert.destructive(
-      t("cutUp.rebuildTitle"),
-      t("cutUp.rebuildBody"),
-      model.rebuildDraftFromBoard,
-      { confirmLabel: t("cutUp.rebuild") }
-    );
-  }
-
-  function compose() {
+  const runRemix = (option: RemixOption) => {
     haptic.tap();
-    model.composeDraft(flavor);
-  }
+    editedRef.current = false;
+    if (option.key === "board") model.rebuildDraftFromBoard();
+    else model.composeDraft(option.key);
+  };
+
+  const pickRemix = (option: RemixOption) => {
+    setMenuOpen(false);
+    const dirty = spark.assembledDraftText.trim().length > 0 && editedRef.current;
+    if (dirty) {
+      AppAlert.destructive(t("cutUp.rebuildTitle"), t("cutUp.rebuildBody"), () => runRemix(option), {
+        confirmLabel: t("cutUp.rebuild"),
+      });
+    } else {
+      runRemix(option);
+    }
+  };
+
+  const onChangeText = (value: string) => {
+    editedRef.current = true;
+    model.setDraft(value);
+  };
 
   return (
     <View style={styles.body}>
       {keyboardVisible ? null : (
-        <>
-          <View style={styles.headerRow}>
-            <Text style={styles.label}>{t("cutUp.yourDraft")}</Text>
+        <View style={styles.headerRow}>
+          <Text style={styles.label}>{t("cutUp.yourDraft")}</Text>
+          <View style={styles.headerActions}>
             <Pressable
-              style={({ pressed }) => [styles.rebuildBtn, pressed ? appStyles.pressDown : null]}
-              onPress={confirmRebuild}
+              style={({ pressed }) => [styles.remixBtn, pressed ? appStyles.pressDown : null]}
+              onPress={() => {
+                haptic.tap();
+                setMenuOpen(true);
+              }}
               hitSlop={6}
             >
-              <Ionicons name="list-outline" size={14} color={colors.textSecondary} />
-              <Text style={styles.rebuildText}>{t("cutUp.boardOrder")}</Text>
+              <Ionicons name="shuffle" size={14} color={colors.primaryDeep} />
+              <Text style={styles.remixText}>{t("cutUp.remixDraft")}</Text>
             </Pressable>
           </View>
-
-          <View style={styles.composeRow}>
-            <View style={styles.flavors}>
-              {flavors.map((option) => {
-                const active = option.key === flavor;
-                return (
-                  <Pressable
-                    key={option.key}
-                    style={[styles.flavor, active ? styles.flavorActive : null]}
-                    onPress={() => setFlavor(option.key)}
-                  >
-                    <Text style={[styles.flavorText, active ? styles.flavorTextActive : null]}>
-                      {option.label}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-            <Pressable
-              style={({ pressed }) => [styles.composeBtn, pressed ? appStyles.pressDown : null]}
-              onPress={compose}
-              hitSlop={4}
-            >
-              <Ionicons name="shuffle" size={15} color={colors.onPrimary} />
-              <Text style={styles.composeText}>{t("cutUp.compose")}</Text>
-            </Pressable>
-          </View>
-        </>
+        </View>
       )}
 
       <View style={styles.card}>
         <UserTextInput
-          style={styles.input}
+          style={[styles.input, { fontSize: size, lineHeight }]}
           value={spark.assembledDraftText}
-          onChangeText={model.setDraft}
+          onChangeText={onChangeText}
           multiline
           textAlignVertical="top"
           placeholder={t("cutUp.draftPlaceholder")}
           placeholderTextColor={colors.textMuted}
         />
       </View>
+
+      <BottomSheet visible={menuOpen} onClose={() => setMenuOpen(false)}>
+        <Text style={styles.sheetTitle}>{t("cutUp.remixDraft")}</Text>
+        <Text style={styles.sheetSubtitle}>{t("cutUp.remixSubtitle")}</Text>
+        <View style={styles.optionList}>
+          {REMIX_OPTIONS.map((option) => (
+            <Pressable
+              key={option.key}
+              style={({ pressed }) => [styles.optionRow, pressed ? appStyles.pressDown : null]}
+              onPress={() => pickRemix(option)}
+            >
+              <View style={styles.optionIcon}>
+                <Ionicons name={option.icon} size={18} color={colors.primaryDeep} />
+              </View>
+              <View style={styles.optionCopy}>
+                <Text style={styles.optionLabel}>
+                  {option.key === "board" ? t("cutUp.boardOrder") : t(`cutUp.${option.key}`)}
+                </Text>
+                <Text style={styles.optionDesc}>{t(`cutUp.${option.key}Desc`)}</Text>
+              </View>
+            </Pressable>
+          ))}
+        </View>
+      </BottomSheet>
     </View>
   );
 }
@@ -119,47 +139,17 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   label: { ...textTokens.annotation },
-  rebuildBtn: {
+  headerActions: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
+  remixBtn: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 4,
+    gap: 5,
     paddingHorizontal: spacing.sm,
     paddingVertical: 6,
     borderRadius: radii.round,
     backgroundColor: colors.surfaceHigh,
   },
-  rebuildText: {
-    fontFamily: "PlusJakartaSans_600SemiBold",
-    fontSize: 12,
-    color: colors.textSecondary,
-  },
-  composeRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.sm,
-    marginBottom: spacing.sm,
-  },
-  flavors: {
-    flexDirection: "row",
-    backgroundColor: colors.surfaceHigh,
-    borderRadius: radii.round,
-    padding: 3,
-  },
-  flavor: { paddingHorizontal: spacing.md, paddingVertical: 5, borderRadius: radii.round },
-  flavorActive: { backgroundColor: colors.primaryDeep },
-  flavorText: { fontFamily: "PlusJakartaSans_600SemiBold", fontSize: 12, color: colors.textSecondary },
-  flavorTextActive: { color: colors.onPrimary },
-  composeBtn: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 5,
-    backgroundColor: colors.primaryDeep,
-    borderRadius: radii.round,
-    paddingVertical: 9,
-  },
-  composeText: { fontFamily: "PlusJakartaSans_700Bold", fontSize: 13, color: colors.onPrimary },
+  remixText: { fontFamily: "PlusJakartaSans_700Bold", fontSize: 12, color: colors.primaryDeep },
   card: {
     flex: 1,
     backgroundColor: PAGE_BG,
@@ -170,8 +160,27 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     fontFamily: "PlayfairDisplay_400Regular",
-    fontSize: 18,
-    lineHeight: 28,
     color: colors.textStrong,
   },
+
+  sheetTitle: { fontFamily: "PlayfairDisplay_600SemiBold", fontSize: 19, color: colors.textPrimary, marginBottom: 4 },
+  sheetSubtitle: { ...textTokens.supporting, marginBottom: spacing.md },
+  optionList: { gap: 2 },
+  optionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  optionIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: radii.round,
+    backgroundColor: colors.surfaceContainer,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  optionCopy: { flex: 1, minWidth: 0, gap: 1 },
+  optionLabel: { fontFamily: "PlusJakartaSans_700Bold", fontSize: 15, color: colors.textPrimary },
+  optionDesc: { ...textTokens.supporting, fontSize: 12.5 },
 });

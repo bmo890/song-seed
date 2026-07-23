@@ -11,6 +11,7 @@ import { CutUpChunkEditor } from "./CutUpChunkEditor";
 import { CutUpBoard } from "./CutUpBoard";
 import { CutUpDraftEditor } from "./CutUpDraftEditor";
 import { CutUpHelpSheet } from "./CutUpHelpSheet";
+import { SparkTextSizeButton } from "../../common/sparkTextScale";
 import type { CutUpStep } from "../../../types";
 import { useTranslation } from "react-i18next";
 
@@ -65,11 +66,11 @@ export function CutUpScreenContent() {
         <View style={styles.header}>
           <IconBtn icon="chevron-back" label="Back" onPress={model.goBack} />
           <Text style={styles.headerTitle}>{t("wordSparks.cutUp")}</Text>
-          <IconBtn icon="help-circle-outline" label="How this works" onPress={openHelp} />
+          <SparkTextSizeButton />
           <IconBtn icon="trash-outline" label="Delete" onPress={model.deleteSpark} muted />
         </View>
 
-        <StepRail step={model.step} />
+        <StepRail step={model.step} onHelpPress={openHelp} />
 
         <View style={styles.stepBody}>
           {model.step === "source" ? <CutUpSourceStep model={model} spark={spark} /> : null}
@@ -78,10 +79,13 @@ export function CutUpScreenContent() {
           {model.step === "draft" ? <CutUpDraftEditor model={model} spark={spark} keyboardVisible={keyboardVisible} /> : null}
         </View>
 
-        {keyboardVisible ? null : (
+        {/* The two text-entry steps (source paste, draft compose) hand the whole
+            screen to the keyboard, so their footer steps aside while typing. The
+            cut and board steps keep their nav in view. */}
+        {(model.step === "source" || model.step === "draft") && keyboardVisible ? null : (
           <View style={styles.wizardFooter}>
             {model.step === "source" ? (
-              <NextBtn label={t("wordSparks.nextCut")} onPress={() => model.goToStep("chunk")} canNext={canLeaveSource} grow />
+              <FooterRow nextLabel={t("wordSparks.nextCut")} onNext={() => model.goToStep("chunk")} canNext={canLeaveSource} disabledHint={canLeaveSource ? null : t("wordSparks.sourceNeeded")} />
             ) : null}
             {model.step === "chunk" ? (
               <FooterRow backLabel={t("wordSparks.source")} onBack={() => model.goToStep("source")} nextLabel={t("wordSparks.nextBoard")} onNext={() => model.goToStep("board")} canNext={canLeaveChunk} disabledHint={canLeaveChunk ? null : t("wordSparks.sourceNeeded")} />
@@ -119,7 +123,7 @@ function IconBtn({
   );
 }
 
-function StepRail({ step }: { step: CutUpStep }) {
+function StepRail({ step, onHelpPress }: { step: CutUpStep; onHelpPress: () => void }) {
   const { t } = useTranslation();
   const labels: Record<CutUpStep, string> = {
     source: t("wordSparks.source"),
@@ -132,17 +136,25 @@ function StepRail({ step }: { step: CutUpStep }) {
   return (
     <View style={styles.rail}>
       <View style={styles.railLabels}>
-        {STEP_KEYS.map((key, i) => (
-          <Text
-            key={key}
-            style={[
-              styles.railLabel,
-              i === currentIndex ? styles.railLabelCurrent : i < currentIndex ? styles.railLabelDone : null,
-            ]}
-          >
-            {labels[key]}
-          </Text>
-        ))}
+        {STEP_KEYS.map((key, i) =>
+          i === currentIndex ? (
+            <Pressable
+              key={key}
+              style={({ pressed }) => [styles.railLabelCurrentRow, pressed ? appStyles.pressDown : null]}
+              onPress={onHelpPress}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel={t("wordSparks.howThisWorks")}
+            >
+              <Text style={[styles.railLabel, styles.railLabelCurrent]}>{labels[key]}</Text>
+              <Ionicons name="help-circle-outline" size={14} color={colors.primaryDeep} />
+            </Pressable>
+          ) : (
+            <Text key={key} style={[styles.railLabel, i < currentIndex ? styles.railLabelDone : null]}>
+              {labels[key]}
+            </Text>
+          )
+        )}
       </View>
       <View style={styles.railTrack}>
         <View style={[styles.railFill, { width: `${progress * 100}%` }]} />
@@ -151,10 +163,11 @@ function StepRail({ step }: { step: CutUpStep }) {
   );
 }
 
-function NextBtn({ label, onPress, canNext, grow, icon }: { label: string; onPress: () => void; canNext: boolean; grow?: boolean; icon?: keyof typeof Ionicons.glyphMap }) {
+/** A compact, right-weighted primary — an auto-width pill, not a full-bleed bar. */
+function NextBtn({ label, onPress, canNext, icon }: { label: string; onPress: () => void; canNext: boolean; icon?: keyof typeof Ionicons.glyphMap }) {
   return (
     <Pressable
-      style={({ pressed }) => [styles.nextBtn, grow ? styles.nextBtnGrow : null, !canNext ? styles.nextBtnDisabled : null, pressed && canNext ? appStyles.pressDown : null]}
+      style={({ pressed }) => [styles.nextBtn, !canNext ? styles.nextBtnDisabled : null, pressed && canNext ? appStyles.pressDown : null]}
       onPress={() => {
         if (canNext) haptic.tap();
         onPress();
@@ -163,7 +176,7 @@ function NextBtn({ label, onPress, canNext, grow, icon }: { label: string; onPre
     >
       {icon ? <Ionicons name={icon} size={15} color={canNext ? colors.onPrimary : colors.textSecondary} /> : null}
       <Text style={[styles.nextBtnText, !canNext ? styles.nextBtnTextDisabled : null]}>{label}</Text>
-      {!icon ? <Ionicons name="arrow-forward" size={16} color={canNext ? colors.onPrimary : colors.textSecondary} /> : null}
+      {!icon ? <Ionicons name="arrow-forward" size={15} color={canNext ? colors.onPrimary : colors.textSecondary} /> : null}
     </Pressable>
   );
 }
@@ -177,8 +190,8 @@ function FooterRow({
   canNext,
   disabledHint,
 }: {
-  backLabel: string;
-  onBack: () => void;
+  backLabel?: string;
+  onBack?: () => void;
   nextLabel: string;
   nextIcon?: keyof typeof Ionicons.glyphMap;
   onNext: () => void;
@@ -189,16 +202,18 @@ function FooterRow({
     <>
       {disabledHint ? (
         <View style={styles.warnRow}>
-          <Ionicons name="alert-circle-outline" size={14} color={colors.textSecondary} />
+          <Ionicons name="alert-circle-outline" size={13} color={colors.textMuted} />
           <Text style={styles.footerHint}>{disabledHint}</Text>
         </View>
       ) : null}
-      <View style={styles.footerRow}>
-        <Pressable style={({ pressed }) => [styles.backBtn, pressed ? appStyles.pressDown : null]} onPress={onBack}>
-          <Ionicons name="arrow-back" size={16} color={colors.textSecondary} />
-          <Text style={styles.backBtnText}>{backLabel}</Text>
-        </Pressable>
-        <NextBtn label={nextLabel} onPress={onNext} canNext={canNext} grow icon={nextIcon} />
+      <View style={[styles.footerRow, backLabel ? null : styles.footerRowEnd]}>
+        {backLabel && onBack ? (
+          <Pressable style={({ pressed }) => [styles.backBtn, pressed ? appStyles.pressDown : null]} onPress={onBack} hitSlop={6}>
+            <Ionicons name="chevron-back" size={16} color={colors.textMuted} />
+            <Text style={styles.backBtnText}>{backLabel}</Text>
+          </Pressable>
+        ) : null}
+        <NextBtn label={nextLabel} onPress={onNext} canNext={canNext} icon={nextIcon} />
       </View>
     </>
   );
@@ -220,20 +235,21 @@ const styles = StyleSheet.create({
   railLabel: { fontFamily: "PlusJakartaSans_600SemiBold", fontSize: 11.5, color: colors.textMuted },
   railLabelDone: { color: colors.textSecondary },
   railLabelCurrent: { fontFamily: "PlusJakartaSans_700Bold", color: colors.primaryDeep },
+  railLabelCurrentRow: { flexDirection: "row", alignItems: "center", gap: 3, marginVertical: -4 },
   railTrack: { height: 3, borderRadius: 3, backgroundColor: colors.borderMuted, overflow: "hidden" },
   railFill: { height: 3, borderRadius: 3, backgroundColor: colors.primaryDeep },
 
   stepBody: { flex: 1 },
 
-  wizardFooter: { paddingVertical: spacing.md, gap: spacing.sm },
-  footerRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
+  wizardFooter: { paddingTop: spacing.sm, paddingBottom: spacing.xs, gap: spacing.xs },
+  footerRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  footerRowEnd: { justifyContent: "flex-end" },
   warnRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5 },
   footerHint: { fontFamily: "PlusJakartaSans_500Medium", fontSize: 12, color: colors.textMuted, textAlign: "center" },
-  nextBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: spacing.xs, backgroundColor: colors.primaryDeep, borderRadius: radii.round, paddingVertical: 14, paddingHorizontal: spacing.lg },
-  nextBtnGrow: { flex: 1 },
-  nextBtnDisabled: { backgroundColor: colors.borderMuted },
+  nextBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, backgroundColor: colors.primaryDeep, borderRadius: radii.round, paddingVertical: 11, paddingHorizontal: 20 },
+  nextBtnDisabled: { backgroundColor: colors.surfaceHigh },
   nextBtnText: { fontFamily: "PlusJakartaSans_700Bold", fontSize: 14, color: colors.onPrimary },
-  nextBtnTextDisabled: { color: colors.textSecondary },
-  backBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: spacing.xs, paddingVertical: 12 },
-  backBtnText: { fontFamily: "PlusJakartaSans_600SemiBold", fontSize: 14, color: colors.textSecondary },
+  nextBtnTextDisabled: { color: colors.textMuted },
+  backBtn: { flexDirection: "row", alignItems: "center", gap: 2, paddingVertical: 10, paddingRight: spacing.sm },
+  backBtnText: { fontFamily: "PlusJakartaSans_600SemiBold", fontSize: 14, color: colors.textMuted },
 });

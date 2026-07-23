@@ -1,41 +1,61 @@
-import { useMemo } from "react";
+import { Fragment, useMemo } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { styles as appStyles } from "../../../styles";
 import { colors, radii, shadows, spacing, text as textTokens } from "../../../design/tokens";
 import { haptic } from "../../../design/haptics";
-import { tokenizeWords, unitIndexByWord } from "../../../domain/cutUp";
+import { type CutUnit, lineBreakSeams, tokenizeWords, unitGroups } from "../../../domain/cutUp";
+import { detectTextDirection } from "../../../i18n/direction";
+import { useSparkTextScale } from "../../common/sparkTextScale";
 import type { CutUpSpark } from "../../../types";
 import type { useCutUpScreenModel } from "../hooks/useCutUpScreenModel";
 import { useTranslation } from "react-i18next";
 
 type Model = ReturnType<typeof useCutUpScreenModel>;
 
-const PAGE_BG = "#FBF6EC";
-// Two warm strip tints alternate per piece so neighbours read apart.
-const STRIP_A = "#FFFDF7";
-const STRIP_B = "#F1E7D3";
+const SCRAP_BG = "#FCF8F0";
 
 /**
- * The Cut step — one gesture, plainly. The lyric is laid out as connected
- * "strips" (a piece = a run of words sharing a tint and rounded ends). Between
- * every two words is a seam you tap: a joined seam is a faint divider (tap to
- * snip), a cut seam is a visible gap with scissors (tap to mend). The old
- * long-press-and-slide "bind" gesture is gone — every grouping is reachable by
- * choosing where to cut.
+ * The Cut step, in the same visual language as the Arrange table: the lyric
+ * laid out line by line on a faintly ruled page, each strip already a scrap
+ * card. Tap the thin mark between two words to cut a card apart; tap the
+ * scissors between two cards to tape them back together. Line breaks are
+ * structural — each source line keeps its own rule — so what you see here is
+ * exactly the set of scraps that lands on the table.
  */
 export function CutUpChunkEditor({ model, spark }: { model: Model; spark: CutUpSpark }) {
   const { t } = useTranslation();
+  const { size, lineHeight } = useSparkTextScale();
+  const rtl = detectTextDirection(spark.sourceText) === "rtl";
+
   const words = useMemo(() => tokenizeWords(spark.sourceText), [spark.sourceText]);
-  const seams = model.currentSeams;
-  const seamSet = useMemo(() => new Set(seams), [seams]);
-  const units = useMemo(() => unitIndexByWord(words, seams), [words, seams]);
-  const unitCount = words.length === 0 ? 0 : units[units.length - 1] + 1;
+  // Line-break seams are structural (matching generation), so display groups
+  // units with them always cut — no cross-line strip can appear here.
+  const rows = useMemo(() => {
+    const structural = lineBreakSeams(spark.sourceText, words);
+    const structuralSet = new Set(structural);
+    const effective = [...new Set([...model.currentSeams, ...structural])].sort((a, b) => a - b);
+    const units = unitGroups(words, effective);
+
+    // Group consecutive units by source line; blank source lines = stanza gaps.
+    const lineOfWord = (w: { start: number }) =>
+      (spark.sourceText.slice(0, w.start).match(/\n/g) ?? []).length;
+    const out: Array<{ line: number; stanzaGapBefore: boolean; units: CutUnit[] }> = [];
+    for (const unit of units) {
+      const line = lineOfWord(unit.words[0]);
+      const prev = out.length > 0 ? out[out.length - 1] : null;
+      if (prev && prev.line === line) prev.units.push(unit);
+      else out.push({ line, stanzaGapBefore: prev !== null && line - prev.line > 1, units: [unit] });
+    }
+    return { rows: out, structuralSet, count: units.length };
+  }, [spark.sourceText, words, model.currentSeams]);
 
   const toggle = (seam: number) => {
     haptic.light();
     model.toggleSeamAt(seam);
   };
+
+  const wordTextStyle = { fontSize: size, lineHeight };
 
   if (words.length === 0) {
     return (
@@ -48,7 +68,7 @@ export function CutUpChunkEditor({ model, spark }: { model: Model; spark: CutUpS
   return (
     <View style={styles.body}>
       <View style={styles.headerRow}>
-        <Text style={styles.count}>{t("cutUp.pieces", { count: unitCount })}</Text>
+        <Text style={styles.count}>{t("cutUp.pieces", { count: rows.count })}</Text>
         <Pressable
           style={({ pressed }) => [styles.resetBtn, pressed ? appStyles.pressDown : null]}
           onPress={() => {
@@ -64,57 +84,89 @@ export function CutUpChunkEditor({ model, spark }: { model: Model; spark: CutUpS
 
       <Text style={styles.hint}>{t("cutUp.cutHint")}</Text>
 
-      <View style={styles.page}>
-        <ScrollView
-          style={styles.scroll}
-          contentContainerStyle={styles.mat}
-          showsVerticalScrollIndicator={false}
-        >
-          {words.map((word, i) => {
-            const cutBefore = i > 0 && seamSet.has(i);
-            const cutAfter = seamSet.has(i + 1);
-            const firstOfPiece = i === 0 || cutBefore;
-            const lastOfPiece = i === words.length - 1 || cutAfter;
-            const tint = units[i] % 2 === 0 ? STRIP_A : STRIP_B;
-            return (
-              <View key={word.index} style={styles.cluster}>
-                {i > 0 ? (
-                  <Seam cut={cutBefore} onPress={() => toggle(i)} />
-                ) : null}
-                <View
-                  style={[
-                    styles.word,
-                    { backgroundColor: tint },
-                    firstOfPiece ? styles.wordFirst : styles.wordInnerLeft,
-                    lastOfPiece ? styles.wordLast : styles.wordInnerRight,
-                  ]}
-                >
-                  <Text style={styles.wordText}>{word.text}</Text>
-                </View>
-              </View>
-            );
-          })}
-        </ScrollView>
-      </View>
+      <ScrollView style={styles.scroll} contentContainerStyle={styles.page} showsVerticalScrollIndicator={false}>
+        {rows.rows.map((row) => (
+          <View
+            key={row.line}
+            style={[styles.lineRow, row.stanzaGapBefore ? styles.stanzaGap : null]}
+          >
+            <View style={[styles.lineStrips, rtl ? styles.rowRtl : null]}>
+              {row.units.map((unit, ui) => (
+                <Fragment key={unit.startSeam}>
+                  {ui > 0 ? (
+                    // A plain gap between two cards — the space itself reads as
+                    // "cut here"; tap it to tape the cards back together.
+                    <Pressable
+                      onPress={() => toggle(unit.startSeam)}
+                      hitSlop={{ top: 12, bottom: 12, left: 2, right: 2 }}
+                      style={styles.joinSeam}
+                      accessibilityRole="button"
+                      accessibilityLabel={t("cutUp.joinPieces")}
+                    />
+                  ) : null}
+                  <View style={[styles.strip, rtl ? styles.rowRtl : null]}>
+                    {unit.words.map((word, wi) => (
+                      <Fragment key={word.index}>
+                        {wi > 0 ? <Divider onPress={() => toggle(word.index)} /> : null}
+                        <Text style={[styles.wordText, wordTextStyle]}>{word.text}</Text>
+                      </Fragment>
+                    ))}
+                  </View>
+                </Fragment>
+              ))}
+            </View>
+            <View style={styles.rule} />
+          </View>
+        ))}
+      </ScrollView>
     </View>
   );
 }
 
-function Seam({ cut, onPress }: { cut: boolean; onPress: () => void }) {
+/**
+ * One strip's words as a tap-to-cut row, reused by the Arrange step's re-cut
+ * sheet. Local seams 1..words.length-1 (the seam before word i). A cut seam
+ * shows a scissors (tap to mend); a joined seam a faint centered mark.
+ */
+export function CutSeamRow({
+  words,
+  isCut,
+  onToggle,
+  rtl,
+  size,
+}: {
+  words: string[];
+  isCut: (seam: number) => boolean;
+  onToggle: (seam: number) => void;
+  rtl: boolean;
+  size: number;
+}) {
   return (
-    <Pressable
-      onPress={onPress}
-      hitSlop={{ top: 12, bottom: 12, left: 6, right: 6 }}
-      style={[styles.seam, cut ? styles.seamCut : styles.seamJoin]}
-      accessibilityRole="button"
-    >
-      {cut ? (
-        <View style={styles.seamCutMark}>
-          <Ionicons name="cut" size={11} color={colors.primaryDeep} />
-        </View>
-      ) : (
-        <View style={styles.joinLine} />
-      )}
+    <View style={[styles.seamRow, rtl ? styles.rowRtl : null]}>
+      {words.map((text, i) => (
+        <Fragment key={i}>
+          {i > 0 ? (
+            isCut(i) ? (
+              <Pressable onPress={() => onToggle(i)} hitSlop={{ top: 10, bottom: 10, left: 4, right: 4 }} style={styles.cutMark}>
+                <Ionicons name="cut" size={12} color={colors.primaryDeep} />
+              </Pressable>
+            ) : (
+              <Divider onPress={() => onToggle(i)} />
+            )
+          ) : null}
+          <Text style={[styles.wordText, { fontSize: size, lineHeight: Math.round(size * 1.55) }]}>{text}</Text>
+        </Fragment>
+      ))}
+    </View>
+  );
+}
+
+/** The thin, vertically-centered mark between two words within a strip — tap
+ * to cut there. */
+function Divider({ onPress }: { onPress: () => void }) {
+  return (
+    <Pressable onPress={onPress} hitSlop={{ top: 10, bottom: 10, left: 5, right: 5 }} style={styles.divider} accessibilityRole="button">
+      <View style={styles.dividerLine} />
     </Pressable>
   );
 }
@@ -128,41 +180,48 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 4,
     paddingHorizontal: spacing.sm,
-    paddingVertical: 6,
+    paddingVertical: 5,
     borderRadius: radii.round,
     backgroundColor: colors.surfaceHigh,
   },
   resetText: { fontFamily: "PlusJakartaSans_600SemiBold", fontSize: 12, color: colors.textSecondary },
-  hint: { ...textTokens.supporting, fontSize: 11.5, marginBottom: spacing.sm },
-  page: { flex: 1, backgroundColor: PAGE_BG, borderRadius: radii.xl, ...shadows.card, overflow: "hidden" },
-  scroll: { flex: 1 },
-  mat: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", alignContent: "flex-start", padding: spacing.md },
-  cluster: { flexDirection: "row", alignItems: "center" },
+  hint: { ...textTokens.supporting, fontSize: 11.5, marginBottom: spacing.xs },
 
-  // seams
-  seam: { height: 34, alignItems: "center", justifyContent: "center" },
-  seamJoin: { width: 9 },
-  seamCut: { width: 20 },
-  joinLine: { width: 1, height: 18, backgroundColor: colors.borderMuted, borderRadius: 1 },
-  seamCutMark: {
-    width: 18,
-    height: 18,
-    borderRadius: radii.round,
-    backgroundColor: colors.surface,
-    alignItems: "center",
-    justifyContent: "center",
-    ...shadows.control,
+  scroll: { flex: 1 },
+  page: { paddingBottom: spacing.md },
+
+  // One source line per ruled row; its strips sit on the rule as cards.
+  lineRow: { paddingTop: 6 },
+  stanzaGap: { marginTop: 26 },
+  lineStrips: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", rowGap: 6 },
+  rowRtl: { flexDirection: "row-reverse" },
+  rule: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: colors.borderMuted,
+    opacity: 0.45,
+    marginTop: 7,
+    marginHorizontal: 2,
   },
 
-  // words (as connected strips)
-  // Logical (start/end) radii + padding so a piece's rounded caps land on the
-  // leading/trailing edge in both LTR and RTL (Hebrew) source text.
-  word: { paddingVertical: 7, paddingHorizontal: 3, marginVertical: 3 },
-  wordText: { fontFamily: "PlayfairDisplay_400Regular", fontSize: 17, color: colors.textPrimary },
-  wordFirst: { borderTopStartRadius: radii.md, borderBottomStartRadius: radii.md, paddingStart: 8 },
-  wordLast: { borderTopEndRadius: radii.md, borderBottomEndRadius: radii.md, paddingEnd: 8 },
-  wordInnerLeft: {},
-  wordInnerRight: {},
+  // A strip: the same scrap card as the Arrange table.
+  strip: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: SCRAP_BG,
+    borderRadius: radii.md,
+    paddingHorizontal: spacing.sm + 2,
+    paddingVertical: 7,
+    ...shadows.card,
+  },
+  wordText: { fontFamily: "PlayfairDisplay_400Regular", color: colors.textPrimary },
+
+  // Within-strip cut mark.
+  divider: { width: 15, alignItems: "center", justifyContent: "center", alignSelf: "stretch" },
+  dividerLine: { width: 1.5, height: 15, borderRadius: 1, backgroundColor: colors.borderMuted },
+  // Between two strips on the same rule: a plain gap; tap it to tape them back.
+  joinSeam: { width: 18, alignSelf: "stretch" },
+  cutMark: { width: 22, alignItems: "center", justifyContent: "center", alignSelf: "stretch" },
+  seamRow: { flexDirection: "row", flexWrap: "wrap", alignItems: "center" },
 
   empty: { ...textTokens.supporting, fontSize: 13, textAlign: "center", paddingVertical: spacing.xl },
 });

@@ -9,6 +9,7 @@ import { getUnpairedWords } from "../../../domain/wordLadder";
 import type { WordLadderExercise } from "../../../types";
 import { useTranslation } from "react-i18next";
 import { UserText } from "../../../i18n";
+import { UndoRedoButtons } from "../../common/useUndoHistory";
 
 type Props = {
   exercise: WordLadderExercise;
@@ -17,15 +18,8 @@ type Props = {
   onUnpair: (pairingId: string) => void;
   onToggleLock: (pairingId: string) => void;
   onShuffle: () => void;
+  history: { canUndo: boolean; canRedo: boolean; undo: () => void; redo: () => void };
 };
-
-/** A tiny deterministic wobble so word scraps feel hand-scattered rather
- * than machine-aligned, without re-randomizing on every render. */
-function wobbleFor(id: string) {
-  let hash = 0;
-  for (let i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) % 1000;
-  return ((hash % 9) - 4) * 0.6; // roughly -2.4deg .. 2.4deg
-}
 
 export function WordLadderPairingBoard({
   exercise,
@@ -34,6 +28,7 @@ export function WordLadderPairingBoard({
   onUnpair,
   onToggleLock,
   onShuffle,
+  history,
 }: Props) {
   const { t } = useTranslation();
   const unpairedA = getUnpairedWords(exercise.columnA, exercise.pairings, "a");
@@ -76,6 +71,7 @@ export function WordLadderPairingBoard({
           <Ionicons name="shuffle" size={14} color={colors.onPrimary} />
           <Text style={boardStyles.shuffleBtnText}>{t("wordLadder.shuffle")}</Text>
         </Pressable>
+        <UndoRedoButtons canUndo={history.canUndo} canRedo={history.canRedo} onUndo={history.undo} onRedo={history.redo} />
       </View>
 
       {hasUnpaired ? (
@@ -192,7 +188,7 @@ function Scrap({ text, armed, onPress }: { text: string; armed: boolean; onPress
       layout={LinearTransition.duration(durations.base)}
       entering={FadeIn.duration(durations.base)}
       exiting={FadeOut.duration(durations.fast)}
-      style={{ transform: [{ rotate: `${wobbleFor(text)}deg` }, { scale: armed ? 1.06 : 1 }] }}
+      style={{ transform: [{ scale: armed ? 1.06 : 1 }] }}
     >
       <Pressable
         onPress={onPress}
