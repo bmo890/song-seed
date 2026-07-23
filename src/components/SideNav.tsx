@@ -9,30 +9,28 @@ import { WorkspaceAvatar } from "./common/WorkspaceAvatar";
 import { getWorkspaceTheme } from "../domain/workspaceTheme";
 import { useShelfStore } from "../state/useShelfStore";
 import { useStore } from "../state/useStore";
-import { shelfNeedsDecision } from "../domain/shelf";
+import { isEntryInDecisionWindow, isEntryExpired } from "../domain/shelf";
 import { useTranslation } from "react-i18next";
 import { useLocale } from "../i18n";
 import { UserText } from "../i18n";
 
 type IoniconName = ComponentProps<typeof Ionicons>["name"];
 
-// Sidenav-local icon set. Kept separate from the app-wide hierarchy icons so the
-// drawer can use warmer, more music-appropriate glyphs tinted with the earthy
-// workspace palette — without disturbing the icons used in idea lists/breadcrumbs.
-const NAV_ICONS: Record<
-  "revisit" | "shelf" | "received" | "activity" | "library" | "notepad" | "tuner" | "metronome" | "settings",
-  { icon: IoniconName; color: string }
-> = {
-  revisit: { icon: "time-outline", color: "#7A9E8E" }, // sage
-  shelf: { icon: "file-tray-outline", color: "#B87D6B" }, // terracotta
-  received: { icon: "mail-open-outline", color: "#7B8FAD" }, // slate
-  activity: { icon: "analytics-outline", color: "#A89B6E" }, // ochre
-  library: { icon: "library-outline", color: "#7B8FAD" }, // slate
-  notepad: { icon: "journal-outline", color: "#8E7B9E" }, // plum
-  tuner: { icon: "speedometer-outline", color: "#6E8E7D" }, // forest
-  metronome: { icon: "pulse-outline", color: "#9E7B6E" }, // rust
-  settings: { icon: "settings-outline", color: colors.textSecondary }, // warm gray
-};
+// Nav icons are monochrome by design: color in the drawer is reserved for
+// meaning — the workspace tint, the active row, a pending-decision count — so a
+// glyph's hue never competes with a signal. One muted tone for every row.
+const NAV_ICON_COLOR = colors.textSecondary;
+const NAV_ICONS = {
+  notepad: "journal-outline",
+  shelf: "file-tray-outline",
+  compilations: "library-outline",
+  revisit: "time-outline",
+  activity: "analytics-outline",
+  sparks: "sparkles-outline",
+  tuner: "speedometer-outline",
+  metronome: "pulse-outline",
+  settings: "settings-outline",
+} satisfies Record<string, IoniconName>;
 
 type RecentCollectionLite = {
   id: string;
@@ -49,7 +47,6 @@ type Props = {
     | "search"
     | "revisit"
     | "shelf"
-    | "received"
     | "activity"
     | "tuner"
     | "metronome"
@@ -66,13 +63,13 @@ type Props = {
   onGoSearch: () => void;
   onGoRevisit: () => void;
   onGoShelf: () => void;
-  onGoReceived: () => void;
   onGoActivity: () => void;
   onGoTuner: () => void;
   onGoMetronome: () => void;
   onGoLibrary: () => void;
   onGoSettings: () => void;
   onGoNotepad: () => void;
+  onGoSparks: () => void;
   onOpenCollection: (collectionId: string) => void;
 };
 
@@ -87,36 +84,38 @@ export function SideNav({
   onGoSearch,
   onGoRevisit,
   onGoShelf,
-  onGoReceived,
   onGoActivity,
   onGoTuner,
   onGoMetronome,
   onGoLibrary,
   onGoSettings,
   onGoNotepad,
+  onGoSparks,
   onOpenCollection,
 }: Props) {
   const { t } = useTranslation();
   const { direction } = useLocale();
   const mostRecent = recentCollections[0] ?? null;
   const workspaceTheme = getWorkspaceTheme(workspaceColor);
+  const forwardChevron = direction === "rtl" ? "chevron-back" : "chevron-forward";
 
-  // The Shelf's one honest signal: a small dot only while a stay is in its
-  // final stretch and a keep-or-leave decision is waiting. Finite and
-  // clearable — most days it's absent. Entries whose idea was deleted from the
-  // library are excluded: the Shelf screen can't show them, so counting them
-  // would light a dot the user has no way to clear.
+  // The Shelf's one honest signal: a small count of items in their final stretch,
+  // waiting on a keep-or-leave answer. Finite and clearable — most days it's zero.
+  // Entries whose idea was deleted from the library are excluded: the Shelf screen
+  // can't show them, so counting them would light a badge with no way to clear it.
   const shelfEntries = useShelfStore((state) => state.entries);
   const shelfWorkspaces = useStore((state) => state.workspaces);
-  const shelfHasDecision = useMemo(() => {
+  const shelfDecisionCount = useMemo(() => {
     const existingIdeaIds = new Set<string>();
     for (const workspace of shelfWorkspaces) {
       for (const idea of workspace.ideas) existingIdeaIds.add(idea.id);
     }
-    return shelfNeedsDecision(
-      shelfEntries.filter((entry) => existingIdeaIds.has(entry.id)),
-      Date.now()
-    );
+    const now = Date.now();
+    return shelfEntries.filter(
+      (entry) =>
+        existingIdeaIds.has(entry.id) &&
+        (isEntryInDecisionWindow(entry, now) || isEntryExpired(entry, now))
+    ).length;
   }, [shelfEntries, shelfWorkspaces]);
 
   return (
@@ -124,14 +123,16 @@ export function SideNav({
 
       {/* ── Brand + global search ─────────────────────────────────────── */}
       {/* Left: app wordmark (placeholder until the real logo lands). Right: a
-          global search action — living up here (not under the workspace card)
-          signals it searches the whole library, not just this workspace. */}
+          global search action. It's a NEUTRAL icon on purpose — untinted, it
+          reads as app-level, signalling it searches your whole library and not
+          just the current workspace. */}
       <View style={sideNavStyles.header}>
         <View style={sideNavStyles.brand}>
           <View style={sideNavStyles.brandMark} />
           <Text style={sideNavStyles.brandName}>SongNook</Text>
         </View>
         <Pressable
+          testID="global-search"
           style={({ pressed }) => [
             sideNavStyles.searchBtn,
             currentRoute === "search" ? sideNavStyles.searchBtnActive : null,
@@ -145,23 +146,18 @@ export function SideNav({
           <Ionicons
             name="search"
             size={19}
-            color={currentRoute === "search" ? colors.surface : colors.primaryDeep}
+            color={currentRoute === "search" ? colors.textPrimary : colors.textSecondary}
           />
         </Pressable>
       </View>
 
-      {/* ── Workspace context block ────────────────────────────────────── */}
+      {/* ── Workspace card — the one tinted island ─────────────────────── */}
+      {/* Everything below it is global; this block alone is "here". */}
       <View style={sideNavStyles.workspaceBlock}>
-
-        {/* Workspace identity card */}
         <View style={[sideNavStyles.workspaceCard, { backgroundColor: workspaceTheme.tint }]}>
-          {/* Label row with dot */}
-          <View style={sideNavStyles.workspaceLabelRow}>
-            <View style={sideNavStyles.contextDot} />
-            <Text style={sideNavStyles.sectionLabel}>{t("navigation.workspace")}</Text>
-          </View>
 
-          {/* Workspace name + swap icon inline */}
+          {/* Identity + switcher. The chevron is the familiar account-switch
+              affordance — tap to change which workspace you're in. */}
           <View style={sideNavStyles.workspaceNameRow}>
             <WorkspaceAvatar
               color={workspaceColor}
@@ -169,9 +165,12 @@ export function SideNav({
               avatarKey={workspaceAvatarKey}
               size={32}
             />
-            <UserText value={workspaceTitle ?? ""} style={sideNavStyles.workspaceName} numberOfLines={1}>
-              {workspaceTitle ?? t("navigation.noWorkspace")}
-            </UserText>
+            <View style={sideNavStyles.workspaceIdentity}>
+              <Text style={sideNavStyles.sectionLabel}>{t("navigation.workspace")}</Text>
+              <UserText value={workspaceTitle ?? ""} style={sideNavStyles.workspaceName} numberOfLines={1}>
+                {workspaceTitle ?? t("navigation.noWorkspace")}
+              </UserText>
+            </View>
             <Pressable
               testID="workspace-switch"
               accessibilityRole="button"
@@ -180,52 +179,40 @@ export function SideNav({
               onPress={onGoHome}
               hitSlop={10}
             >
-              <Ionicons name="swap-horizontal-outline" size={18} color={colors.textSecondary} />
+              <Ionicons name="chevron-down" size={18} color={colors.primaryDeep} />
             </Pressable>
           </View>
 
-          {/* Collections — browse all collections in this workspace. A quiet,
-              plain row; the emphasis (white surface) goes to Recent below, which
-              gets pressed far more often. */}
+          {/* Collections — the door to everything in this workspace. Plain row,
+              sitting directly on the tint (no boxed surface). */}
           {workspaceTitle ? (
             <Pressable
-              style={({ pressed }) => [sideNavStyles.collectionsRow, pressed ? styles.pressDown : null]}
+              style={({ pressed }) => [sideNavStyles.cardRow, pressed ? styles.pressDown : null]}
               onPress={onGoWorkspace}
             >
-              <Ionicons name="albums-outline" size={16} color={colors.textSecondary} />
-              <Text style={sideNavStyles.collectionsLabel}>{t("navigation.collections")}</Text>
-              <Ionicons name={direction === "rtl" ? "chevron-back" : "chevron-forward"} size={14} color={colors.textMuted} />
+              <Ionicons name="albums-outline" size={17} color={colors.primaryDeep} />
+              <Text style={sideNavStyles.cardRowLabel}>{t("navigation.collections")}</Text>
+              <Ionicons name={forwardChevron} size={14} color={colors.textMuted} />
             </Pressable>
           ) : null}
 
-          {/* Most recent collection — the primary quick-jump, so it carries the
-              white CTA surface + the workspace accent on its (single) folder. */}
+          {/* Most recent collection — indented one level, because it lives INSIDE
+              Collections: this is a shortcut into one of them, not a sibling. */}
           {mostRecent ? (
-            <>
-              <View style={sideNavStyles.cardDivider} />
-              <Text style={[sideNavStyles.sectionLabel, sideNavStyles.recentLabelInCard]}>{t("navigation.recent")}</Text>
-              <Pressable
-                style={({ pressed }) => [
-                  sideNavStyles.recentItem,
-                  mostRecent.active ? { borderColor: workspaceTheme.accent } : null,
-                  pressed ? styles.pressDown : null,
-                ]}
-                onPress={() => onOpenCollection(mostRecent.id)}
-              >
-                <Ionicons name="folder-outline" size={16} color={workspaceTheme.accent} />
-                <View style={sideNavStyles.recentItemCopy}>
-                  <UserText value={mostRecent.title} style={sideNavStyles.recentItemTitle} numberOfLines={1}>
-                    {mostRecent.title}
-                  </UserText>
-                  {mostRecent.meta ? (
-                    <Text style={sideNavStyles.recentItemMeta} numberOfLines={1}>
-                      {mostRecent.meta}
-                    </Text>
-                  ) : null}
-                </View>
-                <Ionicons name={direction === "rtl" ? "chevron-back" : "chevron-forward"} size={14} color={colors.textMuted} />
-              </Pressable>
-            </>
+            <Pressable
+              style={({ pressed }) => [
+                sideNavStyles.cardRow,
+                sideNavStyles.recentRow,
+                pressed ? styles.pressDown : null,
+              ]}
+              onPress={() => onOpenCollection(mostRecent.id)}
+            >
+              <Ionicons name="folder-outline" size={16} color={colors.textSecondary} />
+              <UserText value={mostRecent.title} style={sideNavStyles.recentLabel} numberOfLines={1}>
+                {mostRecent.title}
+              </UserText>
+              <Text style={sideNavStyles.recentTag}>{t("navigation.recent")}</Text>
+            </Pressable>
           ) : null}
         </View>
       </View>
@@ -235,66 +222,76 @@ export function SideNav({
         contentContainerStyle={sideNavStyles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Explore */}
-        <View style={sideNavStyles.divider} />
-        <Text style={sideNavStyles.sectionLabel}>{t("navigation.explore")}</Text>
+        {/* Act-now — the two things you DO: capture a line, and clear ideas
+            waiting on a decision. Unlabelled on purpose; their position (first,
+            right under the workspace) is what marks them as primary. */}
         <NavRow
-          icon={NAV_ICONS.revisit.icon}
-          iconColor={NAV_ICONS.revisit.color}
-          label={t("navigation.revisit")}
-          active={currentRoute === "revisit"}
-          onPress={onGoRevisit}
-        />
-        <NavRow
-          icon={NAV_ICONS.shelf.icon}
-          iconColor={NAV_ICONS.shelf.color}
-          label={t("navigation.shelf")}
-          active={currentRoute === "shelf"}
-          onPress={onGoShelf}
-          accessory={shelfHasDecision ? <View style={sideNavStyles.shelfDecisionDot} /> : undefined}
-        />
-        <NavRow
-          icon={NAV_ICONS.activity.icon}
-          iconColor={NAV_ICONS.activity.color}
-          label={t("navigation.activity")}
-          active={currentRoute === "activity"}
-          onPress={onGoActivity}
-        />
-        <NavRow
-          icon={NAV_ICONS.library.icon}
-          iconColor={NAV_ICONS.library.color}
-          label={t("navigation.library")}
-          active={currentRoute === "library"}
-          onPress={onGoLibrary}
-        />
-        <NavRow
-          icon={NAV_ICONS.received.icon}
-          iconColor={NAV_ICONS.received.color}
-          label={t("navigation.received")}
-          active={currentRoute === "received"}
-          onPress={onGoReceived}
-        />
-
-        {/* Tools */}
-        <View style={sideNavStyles.divider} />
-        <Text style={sideNavStyles.sectionLabel}>{t("navigation.tools")}</Text>
-        <NavRow
-          icon={NAV_ICONS.notepad.icon}
-          iconColor={NAV_ICONS.notepad.color}
+          icon={NAV_ICONS.notepad}
+          iconColor={NAV_ICON_COLOR}
           label={t("navigation.lyricsPad")}
           active={currentRoute === "notepad"}
           onPress={onGoNotepad}
         />
         <NavRow
-          icon={NAV_ICONS.tuner.icon}
-          iconColor={NAV_ICONS.tuner.color}
+          icon={NAV_ICONS.shelf}
+          iconColor={NAV_ICON_COLOR}
+          label={t("navigation.shelf")}
+          active={currentRoute === "shelf"}
+          onPress={onGoShelf}
+          accessory={
+            shelfDecisionCount > 0 ? (
+              <View style={sideNavStyles.countBadge}>
+                <Text style={sideNavStyles.countBadgeText}>{shelfDecisionCount}</Text>
+              </View>
+            ) : undefined
+          }
+        />
+
+        {/* Explore — the three ways to survey everything you've made. */}
+        <View style={sideNavStyles.divider} />
+        <Text style={sideNavStyles.sectionLabelScroll}>{t("navigation.explore")}</Text>
+        <NavRow
+          icon={NAV_ICONS.compilations}
+          iconColor={NAV_ICON_COLOR}
+          label={t("navigation.compilations")}
+          active={currentRoute === "library"}
+          onPress={onGoLibrary}
+        />
+        <NavRow
+          icon={NAV_ICONS.revisit}
+          iconColor={NAV_ICON_COLOR}
+          label={t("navigation.revisit")}
+          active={currentRoute === "revisit"}
+          onPress={onGoRevisit}
+        />
+        <NavRow
+          icon={NAV_ICONS.activity}
+          iconColor={NAV_ICON_COLOR}
+          label={t("navigation.activity")}
+          active={currentRoute === "activity"}
+          onPress={onGoActivity}
+        />
+
+        {/* Tools — grab-and-go utilities. Sparks (Word Ladder / Cut-Up / Magpie)
+            lives here; it also stays reachable from inside the Lyrics Pad. */}
+        <View style={sideNavStyles.divider} />
+        <Text style={sideNavStyles.sectionLabelScroll}>{t("navigation.tools")}</Text>
+        <NavRow
+          icon={NAV_ICONS.sparks}
+          iconColor={NAV_ICON_COLOR}
+          label={t("navigation.sparks")}
+          onPress={onGoSparks}
+        />
+        <NavRow
+          icon={NAV_ICONS.tuner}
+          iconColor={NAV_ICON_COLOR}
           label={t("navigation.tuner")}
           active={currentRoute === "tuner"}
           onPress={onGoTuner}
         />
         <NavRow
-          icon={NAV_ICONS.metronome.icon}
-          iconColor={NAV_ICONS.metronome.color}
+          icon={NAV_ICONS.metronome}
+          iconColor={NAV_ICON_COLOR}
           label={t("navigation.metronome")}
           active={currentRoute === "metronome"}
           onPress={onGoMetronome}
@@ -305,8 +302,8 @@ export function SideNav({
       <View style={sideNavStyles.footer}>
         <View style={sideNavStyles.footerDivider} />
         <NavRow
-          icon={NAV_ICONS.settings.icon}
-          iconColor={NAV_ICONS.settings.color}
+          icon={NAV_ICONS.settings}
+          iconColor={NAV_ICON_COLOR}
           label={t("navigation.settings")}
           active={currentRoute === "settings"}
           onPress={onGoSettings}
@@ -353,52 +350,48 @@ const sideNavStyles = StyleSheet.create({
     fontSize: 18,
     color: colors.textPrimary,
   },
+  // Neutral (untinted) — its plainness is what tells you search is global.
   searchBtn: {
     width: 40,
     height: 40,
     borderRadius: 20,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#f2e7e2",
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.borderMuted,
   },
   searchBtnActive: {
-    backgroundColor: colors.primary,
+    backgroundColor: "#efeeea",
+    borderColor: "transparent",
   },
 
   // Workspace block
   workspaceBlock: {
     paddingHorizontal: 10,
-    gap: 6,
   },
   workspaceCard: {
     backgroundColor: "#efeeea",
-    borderRadius: 8,
+    borderRadius: radii.lg,
     paddingHorizontal: 12,
-    paddingTop: 10,
-    paddingBottom: 12,
-    gap: 6,
+    paddingTop: 12,
+    paddingBottom: 10,
+    gap: 4,
     marginHorizontal: 2,
-  },
-  workspaceLabelRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  contextDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 4,
-    backgroundColor: colors.primary,
   },
   workspaceNameRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    gap: 10,
+  },
+  workspaceIdentity: {
+    flex: 1,
+    minWidth: 0,
+    gap: 1,
   },
   workspaceName: {
-    flex: 1,
     fontFamily: "PlusJakartaSans_700Bold",
-    fontSize: 20,
+    fontSize: 19,
     color: colors.textPrimary,
     letterSpacing: 0.1,
   },
@@ -409,74 +402,51 @@ const sideNavStyles = StyleSheet.create({
     justifyContent: "center",
     borderRadius: 6,
   },
-  collectionsRow: {
+
+  // Rows sitting directly on the workspace tint
+  cardRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    gap: 10,
     paddingHorizontal: 8,
     paddingVertical: 9,
     marginHorizontal: -4,
-    marginTop: 2,
-    borderRadius: 6,
+    borderRadius: 8,
   },
-  collectionsLabel: {
-    flex: 1,
-    fontFamily: "PlusJakartaSans_500Medium",
-    fontSize: 14,
-    lineHeight: 18,
-    color: colors.textPrimary,
-  },
-
-  // Recent (nested inside the workspace card, sitting on its tint)
-  cardDivider: {
-    height: 0.5,
-    backgroundColor: "rgba(28,28,25,0.08)",
-    marginTop: 4,
-    marginBottom: 2,
-  },
-  recentLabelInCard: {
-    marginStart: 2,
-  },
-  recentItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    backgroundColor: colors.surface,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: "transparent",
-    paddingHorizontal: 9,
-    paddingVertical: 9,
-  },
-  recentItemCopy: {
+  cardRowLabel: {
     flex: 1,
     minWidth: 0,
-    gap: 2,
-  },
-  recentItemTitle: {
     fontFamily: "PlusJakartaSans_500Medium",
-    fontSize: 14,
-    lineHeight: 18,
+    fontSize: 15,
+    lineHeight: 20,
     color: colors.textPrimary,
   },
-  recentItemMeta: {
-    fontFamily: "PlusJakartaSans_400Regular",
-    fontSize: 11,
-    color: colors.textSecondary,
+  // The recent collection is nested under Collections — indented one level.
+  recentRow: {
+    paddingStart: 26,
+  },
+  recentLabel: {
+    flex: 1,
+    minWidth: 0,
+    fontFamily: "PlusJakartaSans_500Medium",
+    fontSize: 14,
+    lineHeight: 19,
+    color: colors.textPrimary,
+  },
+  recentTag: {
+    fontFamily: "PlusJakartaSans_700Bold",
+    fontSize: 9.5,
+    letterSpacing: 0.7,
+    textTransform: "uppercase",
+    color: colors.textMuted,
   },
 
   // Scrollable sections
   scrollContent: {
     paddingHorizontal: 10,
+    paddingTop: 10,
     paddingBottom: 8,
     gap: 2,
-  },
-  // Shelf keep-or-leave signal — appears only while a decision is waiting.
-  shelfDecisionDot: {
-    width: 7,
-    height: 7,
-    borderRadius: radii.round,
-    backgroundColor: colors.primary,
   },
   sectionLabel: {
     fontFamily: "PlusJakartaSans_700Bold",
@@ -484,6 +454,32 @@ const sideNavStyles = StyleSheet.create({
     color: colors.textSecondary,
     letterSpacing: 0.8,
     textTransform: "uppercase",
+  },
+  // Same label, aligned with the nav rows' text inset in the scroll area.
+  sectionLabelScroll: {
+    fontFamily: "PlusJakartaSans_700Bold",
+    fontSize: 10,
+    color: colors.textSecondary,
+    letterSpacing: 0.8,
+    textTransform: "uppercase",
+    paddingHorizontal: 12,
+    paddingBottom: 2,
+  },
+  // Shelf keep-or-leave signal — a live count, shown only while decisions wait.
+  countBadge: {
+    minWidth: 18,
+    height: 18,
+    paddingHorizontal: 5,
+    borderRadius: radii.round,
+    backgroundColor: colors.primary,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  countBadgeText: {
+    fontFamily: "PlusJakartaSans_700Bold",
+    fontSize: 11,
+    lineHeight: 14,
+    color: colors.surface,
   },
   divider: {
     height: 0.5,

@@ -42,6 +42,7 @@ export function useNotepadScreenModel() {
   const [selectedCutUpIds, setSelectedCutUpIds] = useState<string[]>([]);
   const [selectedMagpieIds, setSelectedMagpieIds] = useState<string[]>([]);
   const handledRouteOpenTokenRef = useRef<number | null>(null);
+  const handledTabTokenRef = useRef<number | null>(null);
   // The tab the user has explicitly chosen, or null to let the default derive
   // from content (below). Sparks live on their own tab, apart from Lyrics.
   const [pickedTab, setPickedTab] = useState<"lyrics" | "sparks" | null>(null);
@@ -212,6 +213,19 @@ export function useNotepadScreenModel() {
     handledRouteOpenTokenRef.current = routeOpenToken;
     setActiveNoteId(routeNoteId);
   }, [notes, route.params?.noteId, route.params?.openToken]);
+
+  // Deep link from the drawer: "Lyrics Pad" and "Sparks" are two doors into this
+  // same screen, differing only by which tab they land on. The openToken makes a
+  // repeat tap re-apply the tab even when the route params are otherwise identical.
+  useEffect(() => {
+    const routeInitialTab = route.params?.initialTab as "lyrics" | "sparks" | undefined;
+    const routeOpenToken = route.params?.openToken as number | undefined;
+    if (!routeInitialTab || typeof routeOpenToken !== "number" || handledTabTokenRef.current === routeOpenToken) {
+      return;
+    }
+    handledTabTokenRef.current = routeOpenToken;
+    setPickedTab(routeInitialTab);
+  }, [route.params?.initialTab, route.params?.openToken]);
 
   const handleNewNote = useCallback(() => {
     const id = addNote();

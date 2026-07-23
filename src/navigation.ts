@@ -41,7 +41,7 @@ export type HomeDrawerParamList = {
   // (e.g. the backup reminder always deep-links to "library" — without a changing
   // token, a second dismiss+reopen wouldn't re-trigger the route-params effect).
   SettingsHome: { initialView?: SettingsView; openToken?: number } | undefined;
-  NotepadHome: { noteId?: string; openToken?: number } | undefined;
+  NotepadHome: { noteId?: string; initialTab?: "lyrics" | "sparks"; openToken?: number } | undefined;
   WordLadderHome: { exerciseId?: string } | undefined;
   CutUpHome: { sparkId?: string } | undefined;
   MagpieHome: { sparkId?: string } | undefined;

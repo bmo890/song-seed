@@ -510,8 +510,6 @@ function DrawerContent({ navigation, state }: DrawerContentComponentProps) {
         ? "revisit"
       : deepestRouteName === "ShelfHome"
         ? "shelf"
-      : deepestRouteName === "ReceivedHome"
-        ? "received"
       : deepestRouteName === "Activity" || deepestRouteName === "ActivityHome"
         ? "activity"
       : deepestRouteName === "TunerHome"
@@ -530,7 +528,7 @@ function DrawerContent({ navigation, state }: DrawerContentComponentProps) {
               : null;
 
   const recentCollections = activeWorkspace
-    ? getRecentCollectionsForWorkspace(activeWorkspace, collectionLastOpenedAt, 2).map((entry) => ({
+    ? getRecentCollectionsForWorkspace(activeWorkspace, collectionLastOpenedAt, 1).map((entry) => ({
         id: entry.collection.id,
         title: entry.collection.title,
         level: entry.level,
@@ -569,10 +567,6 @@ function DrawerContent({ navigation, state }: DrawerContentComponentProps) {
         closeDrawer();
         navigation.navigate("ShelfHome");
       }}
-      onGoReceived={() => {
-        closeDrawer();
-        navigation.navigate("ReceivedHome");
-      }}
       onGoSearch={() => {
         closeDrawer();
         navigation.navigate("SearchHome");
@@ -599,7 +593,11 @@ function DrawerContent({ navigation, state }: DrawerContentComponentProps) {
       }}
       onGoNotepad={() => {
         closeDrawer();
-        navigation.navigate("NotepadHome");
+        navigation.navigate("NotepadHome", { initialTab: "lyrics", openToken: Date.now() });
+      }}
+      onGoSparks={() => {
+        closeDrawer();
+        navigation.navigate("NotepadHome", { initialTab: "sparks", openToken: Date.now() });
       }}
       onOpenCollection={(collectionId) => {
         closeDrawer();

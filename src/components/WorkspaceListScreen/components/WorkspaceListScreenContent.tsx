@@ -42,6 +42,7 @@ export function WorkspaceListScreenContent() {
   )?.label ?? t("workspaceList.lastWorked");
 
   const hasArchived = model.data.archivedWorkspaces.length > 0;
+  const hasReceived = model.data.receivedWorkspaces.length > 0;
 
   return (
     <SafeAreaView style={styles.screen}>
@@ -176,6 +177,27 @@ export function WorkspaceListScreenContent() {
 
         {model.data.activeWorkspaces.length === 0 ? (
           <Text style={styles.emptyText}>{t("workspaceList.empty")}</Text>
+        ) : null}
+
+        {/* ── From others — work imported from other people ──────────────── */}
+        {/* Kept in its own group so someone else's songs never blur into yours.
+            Appears only once you've actually imported something. */}
+        {hasReceived ? (
+          <View style={styles.archivedSection}>
+            <View style={styles.archivedSectionHeader}>
+              <Text style={styles.archivedHeading}>{t("workspaceList.fromOthers")}</Text>
+              <View style={styles.archivedDivider} />
+            </View>
+
+            <WorkspaceList
+              workspaces={model.data.receivedWorkspaces}
+              primaryWorkspaceId={model.data.primaryWorkspaceId}
+              editingWorkspaceId={model.modal.editId}
+              busyWorkspaceId={model.data.busyWorkspaceId}
+              busyLabel={model.data.busyLabel}
+              onOpenWorkspaceActions={model.modal.openWorkspaceActions}
+            />
+          </View>
         ) : null}
 
         {/* ── Archived workspace section ─────────────────────────────────── */}

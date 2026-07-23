@@ -1,6 +1,6 @@
 # Every drawer destination opens and renders. Relaunch per destination so each
 # leg is independent (a crash on one doesn't cascade). Covers the EXPLORE and
-# TOOLS nav that flow 02 didn't: Revisit, Activity, Library, Search. (Tuner has
+# TOOLS nav that flow 02 didn't: Revisit, Activity, Compilations, Search. (Tuner has
 # its own flow because it touches mic permission.) Catches nav-wiring regressions
 # — the most common breakage after a navigation refactor. Uses the nav-row-<label>
 # testIDs so a case-insensitive text match can't hit "Search your library" instead.
@@ -33,10 +33,10 @@ appId: com.bmostudio.songnook.dev
 - tapOn:
     id: "header-menu"
 - waitForAnimationToEnd
-# "Library" is the listening hub (Playlists / Setlists / Songbook), not the
+# "Compilations" is the curated hub (Playlists / Setlists / Songbooks), not the
 # workspace collection list.
 - tapOn:
-    id: "nav-row-library"
+    id: "nav-row-compilations"
 - waitForAnimationToEnd
 - extendedWaitUntil:
     visible: ".*Setlists.*"

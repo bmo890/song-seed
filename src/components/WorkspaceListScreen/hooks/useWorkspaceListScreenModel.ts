@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useStore } from "../../../state/useStore";
-import { personalWorkspaces } from "../../../domain/workspaceVisibility";
+import { personalWorkspaces, receivedPackages } from "../../../domain/workspaceVisibility";
 import { getWorkspaceListOrderState, sortWorkspacesWithPrimary } from "../../../domain/libraryNavigation";
 import type { WorkspaceListOrder } from "../../../types";
 import { useWorkspaceArchiveActions } from "./useWorkspaceArchiveActions";
@@ -19,8 +19,11 @@ function defaultWorkspaceTitle(t: TFunction) {
 export function useWorkspaceListScreenModel() {
   const { t } = useTranslation();
   const allWorkspaces = useStore((s) => s.workspaces);
-  // Discovery surface: personal spaces only (received packages live on the Received page).
+  // Discovery surface: personal spaces only. Work imported from other people is
+  // kept apart in its own "From others" group below (received packages), so the
+  // two never blur together in the picker.
   const workspaces = useMemo(() => personalWorkspaces(allWorkspaces), [allWorkspaces]);
+  const receivedWorkspaces = useMemo(() => receivedPackages(allWorkspaces), [allWorkspaces]);
   const primaryWorkspaceId = useStore((s) => s.primaryWorkspaceId);
   const setPrimaryWorkspaceId = useStore((s) => s.setPrimaryWorkspaceId);
   const workspaceListOrder = useStore((s) => s.workspaceListOrder);
@@ -38,15 +41,17 @@ export function useWorkspaceListScreenModel() {
   // Action sheet for ellipsis button on each card
   const [actionSheetWorkspaceId, setActionSheetWorkspaceId] = useState<string | null>(null);
 
+  // Lookups resolve against every workspace the picker can show — personal AND
+  // received — so the edit modal and action sheet work for "From others" too.
   const editingWorkspace = useMemo(
-    () => workspaces.find((workspace) => workspace.id === editId) ?? null,
-    [workspaces, editId]
+    () => allWorkspaces.find((workspace) => workspace.id === editId) ?? null,
+    [allWorkspaces, editId]
   );
   const isEditing = !!editId && !!editingWorkspace;
 
   const actionSheetWorkspace = useMemo(
-    () => workspaces.find((workspace) => workspace.id === actionSheetWorkspaceId) ?? null,
-    [workspaces, actionSheetWorkspaceId]
+    () => allWorkspaces.find((workspace) => workspace.id === actionSheetWorkspaceId) ?? null,
+    [allWorkspaces, actionSheetWorkspaceId]
   );
 
   const activeWorkspaces = useMemo(
@@ -205,6 +210,7 @@ export function useWorkspaceListScreenModel() {
     data: {
       activeWorkspaces,
       archivedWorkspaces,
+      receivedWorkspaces,
       primaryWorkspaceId,
       workspaceListOrder,
       workspaceOrderState,
