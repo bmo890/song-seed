@@ -86,7 +86,7 @@ export function SaveDestinationPickerSheet({
 
 const localStyles = StyleSheet.create({
   title: {
-    fontFamily: "PlayfairDisplay_600SemiBold",
+    fontFamily: "Lora_600SemiBold",
     fontSize: 19,
     color: colors.textPrimary,
     marginBottom: 14,

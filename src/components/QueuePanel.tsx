@@ -264,7 +264,7 @@ const panelStyles = StyleSheet.create({
     gap: spacing.md,
   },
   title: {
-    fontFamily: "PlayfairDisplay_600SemiBold",
+    fontFamily: "Lora_600SemiBold",
     fontSize: 17,
     color: colors.textPrimary,
   },

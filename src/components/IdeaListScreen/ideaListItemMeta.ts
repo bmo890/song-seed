@@ -1,4 +1,4 @@
-import { fmtDuration } from "../../utils";
+import { fmtCardDuration } from "../../utils";
 import { getIdeaCreatedAt, getIdeaUpdatedAt } from "../../domain/ideaSort";
 import { getPlayableClipForIdea } from "../../domain/clipPresentation";
 import type { SongIdea } from "../../types";
@@ -31,19 +31,16 @@ export const buildIdeaListItemMeta = (idea: SongIdea): IdeaListItemMeta => {
   const playClip = getPlayableClipForIdea(idea) ?? null;
   const hasProjectLyrics = projectHasLyrics(idea);
   const hasProjectClipCount = idea.kind === "project" && idea.clips.length > 0;
-  const projectProgressPct =
-    idea.kind === "project" ? Math.max(0, Math.min(100, Math.round(idea.completionPct))) : null;
 
   return {
     playClip,
-    clipDurationLabel: playClip?.durationMs ? fmtDuration(playClip.durationMs) : "0:00",
-    projectPrimaryDurationLabel: primaryClip?.durationMs ? fmtDuration(primaryClip.durationMs) : "0:00",
+    clipDurationLabel: playClip?.durationMs ? fmtCardDuration(playClip.durationMs) : "0:00",
+    projectPrimaryDurationLabel: primaryClip?.durationMs ? fmtCardDuration(primaryClip.durationMs) : "0:00",
     projectClipCount: idea.kind === "project" ? idea.clips.length : 0,
     hasProjectLyrics,
     hasProjectClipCount,
     hasExpandedProjectIndicators: idea.kind === "project" && (hasProjectLyrics || hasProjectClipCount),
     createdAtLabel: formatIdeaTimestamp(getIdeaCreatedAt(idea)),
     updatedAtLabel: formatIdeaTimestamp(getIdeaUpdatedAt(idea)),
-    projectProgressPct,
   };
 };

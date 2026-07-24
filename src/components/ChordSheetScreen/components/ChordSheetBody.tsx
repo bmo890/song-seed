@@ -473,7 +473,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
   },
   emptyTitle: {
-    fontFamily: "PlayfairDisplay_600SemiBold",
+    fontFamily: "Lora_600SemiBold",
     fontSize: 18,
     color: colors.textPrimary,
   },
@@ -515,7 +515,7 @@ const fullView = StyleSheet.create({
   },
   title: {
     flex: 1,
-    fontFamily: "PlayfairDisplay_600SemiBold",
+    fontFamily: "Lora_600SemiBold",
     fontSize: 20,
     color: colors.textPrimary,
     marginRight: spacing.md,

@@ -6,6 +6,8 @@ export function CollectionFilterSection() {
 
   return (
     <IdeaListFilterSection
+      searchQuery={screen.searchQuery}
+      onSearchQueryChange={screen.setSearchQuery}
       selectedProjectStages={screen.selectedProjectStages}
       lyricsFilterMode={screen.lyricsFilterMode}
       hiddenItemsCount={screen.effectivelyHiddenCount}
@@ -19,6 +21,8 @@ export function CollectionFilterSection() {
       onShowAll={() => {
         if (screen.collectionId) store.showAllHidden(screen.collectionId);
       }}
+      filterSortCloseSignal={screen.filterSortCloseNonce}
+      onFilterSortMenuOpen={screen.closeHeaderMenu}
     />
   );
 }

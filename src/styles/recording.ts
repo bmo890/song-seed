@@ -505,7 +505,7 @@ export const recordingStyles = {
     marginBottom: 4,
   },
   recordingSettingsTitle: {
-    fontFamily: "PlayfairDisplay_600SemiBold",
+    fontFamily: "Lora_600SemiBold",
     fontSize: 19,
     color: "#1b1c1a",
     marginBottom: 4,

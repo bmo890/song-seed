@@ -656,7 +656,7 @@ const styles = StyleSheet.create({
   scrapLocked: { backgroundColor: colors.surfaceHigh },
   scrapDimmed: { opacity: 0.3 },
   scrapLockIcon: { marginEnd: 5 },
-  scrapText: { fontFamily: "PlayfairDisplay_400Regular", color: colors.textPrimary, flexShrink: 1 },
+  scrapText: { fontFamily: "Lora_500Medium", color: colors.textPrimary, flexShrink: 1 },
 
   clone: { position: "absolute", left: 0, top: 0 },
   scrapClone: { ...shadows.drawer, backgroundColor: colors.surface },
@@ -664,7 +664,7 @@ const styles = StyleSheet.create({
   removedSection: { marginTop: spacing.sm, paddingTop: spacing.sm, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.borderMuted },
   removedHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: spacing.xs },
   removedLabel: { ...textTokens.annotation },
-  bringAllBtn: { flexDirection: "row", alignItems: "center", gap: 3, paddingHorizontal: spacing.sm, paddingVertical: 3, borderRadius: radii.round, backgroundColor: colors.surfaceHigh },
+  bringAllBtn: { flexDirection: "row", alignItems: "center", gap: 3, paddingHorizontal: spacing.sm, paddingVertical: 3, borderRadius: radii.lg, backgroundColor: colors.surfaceHigh },
   bringAllText: { fontFamily: "PlusJakartaSans_700Bold", fontSize: 11.5, color: colors.primaryDeep },
   removedScroll: { maxHeight: 88 },
   removedWrap: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xs },
@@ -687,13 +687,13 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     marginBottom: spacing.sm,
   },
-  sheetInput: { fontFamily: "PlayfairDisplay_400Regular", color: colors.textPrimary, padding: 0 },
+  sheetInput: { fontFamily: "Lora_500Medium", color: colors.textPrimary, padding: 0 },
   menuList: {},
   menuRow: { flexDirection: "row", alignItems: "center", gap: spacing.md, paddingVertical: spacing.md },
   menuRowText: { fontFamily: "PlusJakartaSans_600SemiBold", fontSize: 14.5, color: colors.textPrimary },
   menuRowDanger: { color: colors.danger },
 
-  splitTitle: { fontFamily: "PlayfairDisplay_600SemiBold", fontSize: 19, color: colors.textPrimary, marginBottom: 4 },
+  splitTitle: { fontFamily: "Lora_600SemiBold", fontSize: 19, color: colors.textPrimary, marginBottom: 4 },
   splitHint: { ...textTokens.supporting, marginBottom: spacing.md },
   splitPaper: { backgroundColor: SCRAP_BG, borderRadius: radii.lg, padding: spacing.lg, marginBottom: spacing.lg, ...shadows.card },
   splitCta: {

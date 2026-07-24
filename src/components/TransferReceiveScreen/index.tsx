@@ -390,7 +390,7 @@ const parcelStyles = StyleSheet.create({
     color: colors.primaryDeep,
   },
   title: {
-    fontFamily: "PlayfairDisplay_400Regular",
+    fontFamily: "Lora_500Medium",
     fontSize: 30,
     lineHeight: 36,
     color: colors.textPrimary,
@@ -410,7 +410,7 @@ const parcelStyles = StyleSheet.create({
     marginBottom: 12,
   },
   noteText: {
-    fontFamily: "PlayfairDisplay_400Regular",
+    fontFamily: "Lora_500Medium",
     fontSize: 14.5,
     lineHeight: 21,
     color: colors.textStrong,
@@ -484,7 +484,7 @@ const parcelStyles = StyleSheet.create({
     paddingHorizontal: 36,
   },
   centerTitle: {
-    fontFamily: "PlayfairDisplay_600SemiBold",
+    fontFamily: "Lora_600SemiBold",
     fontSize: 19,
     color: colors.textPrimary,
   },

@@ -5,14 +5,6 @@ import { colors, radii, shadows } from "../design/tokens";
 // Ideas screen: header, sorting, filters, stage, utility bar, dense rows.
 // Raw style objects — merged and registered once via StyleSheet.create in ../styles.ts.
 export const ideasStyles = {
-  ideasSearchUtilityRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    marginBottom: 10,
-    position: "relative",
-    zIndex: 35,
-  },
   ideasWorkspacePill: {
     maxWidth: 150,
     flexDirection: "row",
@@ -70,11 +62,15 @@ export const ideasStyles = {
   ideasFilterChipTextActive: {
     color: "#ffffff",
   },
+  // One quiet toolbar line: search (stretch) then bare filter/sort glyphs.
   ideasUtilityRow: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    gap: 8,
+    gap: 14,
+  },
+  ideasUtilityRowLead: {
+    flex: 1,
+    minWidth: 0,
   },
   ideasUtilityRowLeft: {
     flexDirection: "row",
@@ -197,18 +193,21 @@ export const ideasStyles = {
     alignItems: "center",
     justifyContent: "center",
   },
+  // Shared popover menu card (filter/sort glyph menus, header overflow menus):
+  // white surface, hairline border, shadows.card lifted slightly (≤ 0.10).
   ideasSortMenu: {
-    borderRadius: radii.xl,
-    borderWidth: 1,
-    borderColor: "rgba(180,150,140,0.45)",
-    backgroundColor: "#FDFBF7",
-    padding: 8,
+    borderRadius: 12,
+    borderWidth: 0.5,
+    borderColor: colors.borderSubtle,
+    backgroundColor: colors.surface,
+    paddingVertical: 6,
+    paddingHorizontal: 6,
     gap: 4,
     shadowColor: "#3D3732",
-    shadowOpacity: 0.14,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 8,
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 6,
   },
   ideasPopoverMenu: {
     position: "absolute",
@@ -218,13 +217,18 @@ export const ideasStyles = {
     maxWidth: 272,
     zIndex: 30,
   },
+  // Filter/sort popovers hang from the toolbar's trailing edge (the glyphs
+  // live at the end of the search row).
+  ideasPopoverMenuEnd: {
+    right: 0,
+  },
   ideasStageChipsScroll: {
     maxHeight: 168,
   },
   ideasSortMenuItem: {
-    minHeight: 38,
-    borderRadius: 12,
-    paddingHorizontal: 12,
+    minHeight: 40,
+    borderRadius: radii.lg,
+    paddingHorizontal: 14,
     paddingVertical: 8,
     flexDirection: "row",
     alignItems: "center",
@@ -239,17 +243,18 @@ export const ideasStyles = {
     minWidth: 0,
   },
   ideasSortMenuItemActive: {
-    backgroundColor: "#F4F1ED",
+    backgroundColor: colors.surfaceContainer,
   },
   ideasSortMenuItemText: {
     flex: 1,
-    fontFamily: "PlusJakartaSans_600SemiBold",
-    fontSize: 13,
-    color: "#524440",
+    fontFamily: "PlusJakartaSans_400Regular",
+    fontSize: 14,
+    color: colors.textPrimary,
     },
+  // Active row: terracotta ink + the check glyph — never a heavy tint.
   ideasSortMenuItemTextActive: {
-    fontFamily: "PlusJakartaSans_700Bold",
-    color: "#1C1C19",
+    fontFamily: "PlusJakartaSans_600SemiBold",
+    color: colors.primary,
     },
   ideasDropdownSectionToggle: {
     minHeight: 34,
@@ -260,10 +265,11 @@ export const ideasStyles = {
     alignItems: "center",
     justifyContent: "space-between",
   },
+  // Section labels inside menus: text.annotation-style caps.
   ideasDropdownSectionToggleText: {
-    fontFamily: "PlusJakartaSans_700Bold",
-    fontSize: 11,
-    color: "#84736f",
+    fontFamily: "PlusJakartaSans_600SemiBold",
+    fontSize: 10,
+    color: colors.textMuted,
     textTransform: "uppercase",
     letterSpacing: 0.8,
   },
@@ -320,22 +326,24 @@ export const ideasStyles = {
     justifyContent: "space-between",
     gap: 10,
   },
+  // On-brand toggle: warm-neutral track when off, terracotta when on, paper
+  // thumb — no cold near-black.
   ideasSwitch: {
     width: 42,
     height: 24,
     borderRadius: 12,
-    backgroundColor: "rgba(215,194,189,0.4)",
+    backgroundColor: colors.borderMuted,
     padding: 2,
     justifyContent: "center",
   },
   ideasSwitchActive: {
-    backgroundColor: "#1C1C19",
+    backgroundColor: colors.primary,
   },
   ideasSwitchThumb: {
     width: 20,
     height: 20,
     borderRadius: radii.round,
-    backgroundColor: "#ffffff",
+    backgroundColor: colors.surface,
     alignSelf: "flex-start",
   },
   ideasSwitchThumbActive: {
@@ -429,18 +437,26 @@ export const ideasStyles = {
     ...StyleSheet.absoluteFillObject,
     zIndex: 1,
   },
+  // Floats clear of the top-right corner: dropped below the nav row (top 54)
+  // and inset from the edge (right 12). Wide enough that dev/import rows stay
+  // single-line.
   ideasHeaderOverflowMenu: {
     position: "absolute",
-    top: 44,
-    right: 0,
-    minWidth: 188,
+    top: 54,
+    right: 12,
+    minWidth: 230,
+    maxWidth: 280,
     zIndex: 2,
   },
+  // Date group marker: quiet caps label with air above (16) and 8 below in
+  // total (marginBottom 2 + the item wrap's gap 6).
   ideasDayDividerRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
     paddingHorizontal: 1,
+    marginTop: 16,
+    marginBottom: 2,
   },
   ideasDayDividerLine: {
     flex: 1,
@@ -449,9 +465,10 @@ export const ideasStyles = {
   },
   ideasDayDividerText: {
     fontFamily: "PlusJakartaSans_700Bold",
-    fontSize: 11,
-    color: "#84736f",
-    letterSpacing: 0.6,
+    fontSize: 10,
+    color: colors.textMuted,
+    letterSpacing: 1,
+    textTransform: "uppercase",
   },
   // Count pill on a collapsed-day marker, e.g. "23 hidden".
   ideasCollapsedDayCountPill: {
@@ -473,10 +490,9 @@ export const ideasStyles = {
     alignItems: "center",
     zIndex: 25,
   },
+  // Borderless tonal chip — reads as a floating label, not a control.
   ideasStickyDayChip: {
-    borderWidth: 1,
-    borderColor: "rgba(215,194,189,0.5)",
-    backgroundColor: "rgba(253,251,247,0.96)",
+    backgroundColor: "#F4F1ED",
     borderRadius: 999,
     paddingHorizontal: 10,
     paddingVertical: 2,
@@ -760,7 +776,7 @@ export const ideasStyles = {
   ideaDenseRow: {
     position: "relative",
     paddingHorizontal: 8,
-    paddingVertical: 7,
+    paddingVertical: 10,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: "#E8E4DF",
     backgroundColor: "transparent",
@@ -768,13 +784,10 @@ export const ideasStyles = {
   ideaDenseRowSelected: { backgroundColor: "#EDE9E4" },
   ideaDenseRowNowPlaying: { backgroundColor: "rgba(184,125,107,0.08)" },
   ideaDenseInner: { flexDirection: "row", alignItems: "center", gap: 10 },
+  // Bare glyph — no circle, no border. The Pressable's hitSlop supplies the
+  // ~44pt target; this box just centers the play/pause icon.
   ideaDensePlay: {
-    width: 28,
-    height: 28,
-    borderRadius: radii.round,
-    borderWidth: 1,
-    borderColor: "rgba(215,194,189,0.5)",
-    backgroundColor: "#FDFBF7",
+    width: 20,
     alignItems: "center",
     justifyContent: "center",
     flexShrink: 0,
@@ -794,13 +807,22 @@ export const ideasStyles = {
     color: "#84736f",
     fontVariant: ["tabular-nums"],
   },
-  ideaDenseDate: {
-    fontFamily: "PlusJakartaSans_500Medium",
-    fontSize: 12,
-    color: "#a89994",
-    fontVariant: ["tabular-nums"],
+  // Quiet visual divider between the bookmark and the clip length.
+  ideaDenseDot: {
+    width: 3,
+    height: 3,
+    borderRadius: 999,
+    backgroundColor: colors.textMuted,
   },
-  ideaDenseScrubber: { marginTop: 6 },
+  // The compact preview extend: elapsed · draggable scrub line · duration · ✕,
+  // sitting under the title so it aligns past the play glyph.
+  ideaDenseScrubRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginTop: 6,
+    paddingLeft: 30,
+  },
   // Day dividers need breathing room above when rows sit flush (dense list).
   ideasDayDividerRowDense: { marginTop: 12, marginBottom: 3 },
   // Quiet "hide this section" affordance at the end of a timeline divider.
@@ -813,6 +835,7 @@ export const ideasStyles = {
   },
   // Compact inline version embedded in the dashed separator row
   // Pill shown near filter bar when any items are hidden
+  // Quiet tonal pill — no border (screen chrome is borderless, 2026-07-23).
   ideasUnhideAllPill: {
     flexDirection: "row",
     alignItems: "center",
@@ -821,8 +844,6 @@ export const ideasStyles = {
     paddingVertical: 4,
     borderRadius: radii.round,
     backgroundColor: "#F4F1ED",
-    borderWidth: 1,
-    borderColor: "rgba(215,194,189,0.5)",
   },
   ideasUnhideAllPillText: {
     fontFamily: "PlusJakartaSans_600SemiBold",
@@ -832,7 +853,6 @@ export const ideasStyles = {
   // Active (peeking) state of the "N hidden" toggle chip.
   ideasUnhideAllPillActive: {
     backgroundColor: "#F2E4DF",
-    borderColor: "rgba(184,125,107,0.5)",
   },
   ideasUnhideAllPillTextActive: {
     color: colors.primaryDeep,
@@ -857,12 +877,15 @@ export const ideasStyles = {
     color: "#524440",
     },
   ideaCardLeadCol: {
-    width: 46,
+    // Play-glyph column: the glyph sits vertically centered on the whole card
+    // (approved 2026-07-23 — replaces the old top-seated optical lift).
+    // Effective target stays 44pt via the button's own hitSlop.
+    width: 40,
     alignItems: "center",
-    justifyContent: "space-between",
+    justifyContent: "center",
+    gap: 8,
     flexShrink: 0,
     alignSelf: "stretch",
-    paddingVertical: 2,
   },
   ideasSearchTagRow: {
     flexDirection: "row",
@@ -883,15 +906,13 @@ export const ideasStyles = {
     fontSize: 10,
     color: "#84736f",
     },
+  // Bare glyph (locked 2026-07-23): no circle, no border — the card's IdeaCard
+  // Pressable adds hitSlop so the effective target stays ≥44pt.
   ideasInlinePlayBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: radii.round,
-    borderWidth: 1,
-    borderColor: "rgba(215,194,189,0.5)",
+    width: 32,
+    height: 32,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#FDFBF7",
   },
   ideasInlinePlayBtnCompact: {
     width: 34,

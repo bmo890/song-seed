@@ -38,7 +38,6 @@ export type IdeaListItemMeta = {
   hasExpandedProjectIndicators: boolean;
   createdAtLabel: string;
   updatedAtLabel: string;
-  projectProgressPct: number | null;
 };
 
 export type CollectionListModel = {

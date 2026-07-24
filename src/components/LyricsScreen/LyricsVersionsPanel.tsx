@@ -229,7 +229,7 @@ export function LyricsVersionsPanel({ projectIdea }: LyricsVersionsPanelProps) {
               onPress={() => openVersion(undefined, { createDraft: true, startInEdit: true, forceNewVersion: true })}
             />
             <Button
-              variant="secondary"
+              variant="quiet"
               label={t("lyrics.fromPad")}
               onPress={() => setNotePickerVisible(true)}
             />
@@ -478,7 +478,7 @@ const panelStyles = StyleSheet.create({
   },
   title: {
     flex: 1,
-    fontFamily: "PlayfairDisplay_600SemiBold",
+    fontFamily: "Lora_600SemiBold",
     fontSize: 18,
     color: "#1C1C19",
   },
@@ -528,7 +528,7 @@ const panelStyles = StyleSheet.create({
     color: colors.primary,
   },
   preview: {
-    fontFamily: "PlayfairDisplay_400Regular",
+    fontFamily: "Lora_500Medium",
     fontSize: 14,
     lineHeight: 21,
     color: "#9a8a82",

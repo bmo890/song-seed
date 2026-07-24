@@ -718,6 +718,10 @@ const listStyles = StyleSheet.create({
     color: colors.textStrong,
   },
   selectionBarWrap: {
+    // The shared selection card carries its own 12pt horizontal margin (for
+    // full-bleed contexts); this screen is already inset 16, so cancel it to
+    // keep the card aligned with the search field above.
+    marginHorizontal: -spacing.md,
     marginBottom: spacing.md,
   },
   scroll: {
@@ -773,7 +777,7 @@ const listStyles = StyleSheet.create({
     marginBottom: spacing.xs,
   },
   emptyTitle: {
-    fontFamily: "PlayfairDisplay_600SemiBold",
+    fontFamily: "Lora_600SemiBold",
     fontSize: 20,
     color: colors.textPrimary,
   },

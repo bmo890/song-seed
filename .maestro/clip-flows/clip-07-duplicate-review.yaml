@@ -14,20 +14,20 @@ appId: com.bmostudio.songnook.dev
 - runFlow: ../subflows/dismiss-logbox.yaml
 # First import: 6 clips.
 - tapOn:
-    id: "fab-create"
+    id: "collection-overflow"
 - waitForAnimationToEnd
 - tapOn:
-    id: "fab-menu-devsamples"
+    id: "collection-menu-dev-samples"
 - extendedWaitUntil:
     visible: ".*6 seeds.*"
     timeout: 20000
 # Second import of the same files → duplicate review.
 - runFlow: ../subflows/dismiss-logbox.yaml
 - tapOn:
-    id: "fab-create"
+    id: "collection-overflow"
 - waitForAnimationToEnd
 - tapOn:
-    id: "fab-menu-devsamples"
+    id: "collection-menu-dev-samples"
 - extendedWaitUntil:
     visible: ".*ALREADY IN YOUR LIBRARY.*"
     timeout: 10000

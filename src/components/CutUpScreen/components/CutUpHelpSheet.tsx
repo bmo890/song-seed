@@ -204,7 +204,7 @@ function HelpPoint({
 const helpStyles = StyleSheet.create({
   sheetScroll: { maxHeight: 540 },
   title: {
-    fontFamily: "PlayfairDisplay_600SemiBold",
+    fontFamily: "Lora_600SemiBold",
     fontSize: 19,
     color: colors.textPrimary,
     marginBottom: 4,
@@ -225,7 +225,7 @@ const helpStyles = StyleSheet.create({
     padding: spacing.md,
   },
   paperLines: {
-    fontFamily: "PlayfairDisplay_400Regular",
+    fontFamily: "Lora_500Medium",
     fontSize: 15,
     lineHeight: 24,
     color: colors.textPrimary,
@@ -267,7 +267,7 @@ const helpStyles = StyleSheet.create({
     backgroundColor: colors.surfaceContainer,
   },
   boardStripText: {
-    fontFamily: "PlayfairDisplay_400Regular",
+    fontFamily: "Lora_500Medium",
     fontSize: 15,
     color: colors.textPrimary,
     textAlign: "center",
@@ -280,7 +280,7 @@ const helpStyles = StyleSheet.create({
     marginTop: spacing.md,
   },
   resultText: {
-    fontFamily: "PlayfairDisplay_400Regular",
+    fontFamily: "Lora_500Medium",
     fontSize: 17,
     color: colors.textPrimary,
   },
@@ -298,7 +298,7 @@ const helpStyles = StyleSheet.create({
     marginTop: spacing.md,
   },
   exampleText: {
-    fontFamily: "PlayfairDisplay_400Regular",
+    fontFamily: "Lora_500Medium",
     fontSize: 16,
     lineHeight: 24,
     color: colors.textPrimary,

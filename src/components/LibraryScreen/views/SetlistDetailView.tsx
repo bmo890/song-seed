@@ -333,7 +333,7 @@ const setStyles = StyleSheet.create({
     marginBottom: 4,
   },
   title: {
-    fontFamily: "PlayfairDisplay_400Regular",
+    fontFamily: "Lora_500Medium",
     fontSize: 32,
     lineHeight: 38,
     color: colors.textPrimary,
@@ -480,7 +480,7 @@ const setStyles = StyleSheet.create({
     paddingHorizontal: 24,
   },
   emptyTitle: {
-    fontFamily: "PlayfairDisplay_600SemiBold",
+    fontFamily: "Lora_600SemiBold",
     fontSize: 19,
     color: colors.textPrimary,
   },

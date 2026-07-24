@@ -49,7 +49,7 @@ export class AppErrorBoundary extends React.Component<
                 >
                     <Text
                         style={{
-                            fontFamily: "PlayfairDisplay_600SemiBold",
+                            fontFamily: "Lora_600SemiBold",
                             fontSize: 26,
                             color: colors.textPrimary,
                             textAlign: "center",

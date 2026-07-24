@@ -1,6 +1,6 @@
 import { StyleSheet } from "react-native";
 import type { ImageStyle, TextStyle, ViewStyle } from "react-native";
-import { radii } from "../design/tokens";
+import { colors, radii } from "../design/tokens";
 
 // Ideas list rows, cards and list chrome.
 // Raw style objects — merged and registered once via StyleSheet.create in ../styles.ts.
@@ -43,30 +43,37 @@ export const ideasListStyles = {
   ideasListCard: {
     backgroundColor: "#ffffff",
     borderRadius: 12,
-    borderWidth: 1,
-    borderStyle: "solid",
-    // Lighter border + tighter, quieter shadow so cards feel less imposing.
-    borderColor: "rgba(215,194,189,0.18)",
-    paddingVertical: 8,
+    // Borderless shell (locked 2026-07-23): the resting card carries zero lines —
+    // depth comes from the whisper shadow alone. Selected / now-playing states
+    // deliberately re-add their borders below.
+    borderWidth: 0,
+    // Spacing rhythm (locked): 12 above the title, 10 under the meta row.
+    paddingTop: 12,
+    paddingBottom: 10,
     paddingHorizontal: 11,
     position: "relative",
     shadowColor: "#3D3732",
-    shadowOpacity: 0.03,
-    shadowOffset: { width: 0, height: 1 },
-    shadowRadius: 4,
-    elevation: 1,
+    shadowOpacity: 0.06,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 8,
+    elevation: 2,
     minHeight: 60,
   },
   ideasListCardCompact: {
     borderRadius: radii.lg,
-    paddingVertical: 5,
+    // paddingTop/Bottom (not paddingVertical) so these actually beat the base
+    // card's specific paddingTop/paddingBottom in RN's style resolution.
+    paddingTop: 5,
+    paddingBottom: 5,
     paddingHorizontal: 9,
     minHeight: 0,
   },
   ideasListProjectCard: {
-    borderLeftWidth: 3,
+    borderLeftWidth: 3.5,
   },
   ideasListCardNowPlaying: {
+    // Base shell is borderless now, so now-playing re-adds its own hairline.
+    borderWidth: 1,
     borderColor: "rgba(184,125,107,0.4)",
   },
   ideasListCardSelected: {
@@ -172,53 +179,62 @@ export const ideasListStyles = {
   ideasListLeadColInlineActive: {
     justifyContent: "space-evenly",
   },
-  ideasListLeadDurationSlot: {
-    width: "100%",
-    minHeight: 14,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  ideasListLeadDurationText: {
-    fontFamily: "PlusJakartaSans_600SemiBold",
-    fontSize: 12,
-    lineHeight: 14,
-    color: "#84736f",
-    textAlign: "center",
-    fontVariant: ["tabular-nums"],
-  },
   ideasListCardMain: {
     flex: 1,
     minWidth: 0,
     gap: 3,
     justifyContent: "space-between",
   },
+  // Strip zone — FIXED geometry, identical at rest and while previewing so the
+  // card never changes height or reflows when the inline player appears.
+  // height 18 = the ✕ glyph box; the 14px strip centers inside it. With the
+  // main column's gap 3 the visual rhythm is unchanged from the old margins:
+  // 3 (gap) + 3 (marginTop) + 2 (zone slack) = 8 above the bars,
+  // 2 (zone slack) + 2 (marginBottom) + 3 (gap) = 7 below.
+  ideaCardStripZone: {
+    height: 18,
+    marginTop: 3,
+    marginBottom: 2,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  ideaCardStripFlex: {
+    flex: 1,
+    minWidth: 0,
+  },
+  // Right slot permanently reserved for the ✕ (empty spacer at rest, the close
+  // IconButton while previewing) so the strip's measured width — and the bar
+  // pitch derived from it — never changes between states.
+  ideaCardStripCloseSlot: {
+    width: 18,
+    height: 18,
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+  },
+  // Compact inline control row while the strip is the live player: the elapsed
+  // caption on the left — nothing else (✕ rides the strip row). minHeight 14
+  // matches ideasListMetaRow so the meta line keeps one height in both states.
+  ideaCardInlineControlRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    minHeight: 14,
+  },
   ideasListCardMainCompact: {
     gap: 4,
-  },
-  ideasListCardTopBlock: {
-    gap: 2,
-    minWidth: 0,
-    flex: 1,
   },
   ideasListCardBottomBlock: {
     gap: 1,
     minWidth: 0,
   },
-  ideasListCardTop: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    justifyContent: "space-between",
-    gap: 6,
-  },
+  // Meta-row right cluster: consistent 10pt gaps between caption-scale items.
   ideasListCardTrailing: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "flex-end",
-    gap: 6,
+    gap: 10,
     flexShrink: 0,
-  },
-  ideasListFavoriteBtn: {
-    padding: 2,
   },
   ideasListCardTitleRow: {
     flexDirection: "row",
@@ -247,6 +263,30 @@ export const ideasListStyles = {
   },
   ideasListCardTitleProject: {
     fontFamily: "PlusJakartaSans_600SemiBold",
+  },
+  // Earned serif (locked 2026-07-23): only *named* clips/sketches get Lora.
+  ideasListCardTitleSerif: {
+    fontFamily: "Lora_500Medium",
+    fontSize: 16,
+    lineHeight: 21,
+    color: colors.textPrimary,
+  },
+  // Auto-named clips keep their timestamp title in quiet tabular Jakarta.
+  ideasListCardTitleAuto: {
+    fontFamily: "PlusJakartaSans_500Medium",
+    fontSize: 13.5,
+    lineHeight: 18,
+    color: colors.textSecondary,
+    fontVariant: ["tabular-nums"],
+  },
+  // Duration caption at the end of the title row (moved out of the lead column).
+  ideasListTitleDurationText: {
+    fontFamily: "PlusJakartaSans_500Medium",
+    fontSize: 11,
+    lineHeight: 18,
+    color: colors.textSecondary,
+    fontVariant: ["tabular-nums"],
+    flexShrink: 0,
   },
   ideasListCardTitleCompact: {
     fontSize: 13,
@@ -327,13 +367,6 @@ export const ideasListStyles = {
     color: "#84736f",
     fontVariant: ["tabular-nums"],
   },
-  ideasListCompactProgressText: {
-    fontFamily: "PlusJakartaSans_700Bold",
-    fontSize: 11,
-    lineHeight: 13,
-    color: "#84736f",
-    fontVariant: ["tabular-nums"],
-  },
   ideasListMetaRightCol: {
     width: 72,
     alignItems: "flex-end",
@@ -350,7 +383,7 @@ export const ideasListStyles = {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "flex-end",
-    gap: 4,
+    gap: 10,
     minHeight: 12,
   },
   ideasListMetaSizeText: {

@@ -231,7 +231,7 @@ export const finderStyles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   previewWord: {
-    fontFamily: "PlayfairDisplay_600SemiBold",
+    fontFamily: "Lora_600SemiBold",
     fontSize: 26,
     color: colors.textPrimary,
   },
@@ -409,7 +409,7 @@ export const finderStyles = StyleSheet.create({
     textAlign: "center",
   },
   // The looked-up word is always Hebrew here (Hebrew-only routes), so pin the
-  // Hebrew serif (Frank Ruhl Libre) explicitly — the PlayfairDisplay alias only
+  // Hebrew serif (Frank Ruhl Libre) explicitly — the Lora alias only
   // maps to it when the whole UI is RTL, but a bilingual writer may be in an
   // English UI. This keeps the display serif for the word regardless.
   triggerWord: {

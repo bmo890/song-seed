@@ -293,7 +293,7 @@ const readerStyles = StyleSheet.create({
     color: colors.textMuted,
   },
   songTitle: {
-    fontFamily: "PlayfairDisplay_600SemiBold",
+    fontFamily: "Lora_600SemiBold",
     fontSize: 19,
     color: colors.textPrimary,
   },
@@ -357,7 +357,7 @@ const readerStyles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   lyricLine: {
-    fontFamily: "PlayfairDisplay_400Regular",
+    fontFamily: "Lora_500Medium",
     color: colors.textPrimary,
   },
   gridWrap: {

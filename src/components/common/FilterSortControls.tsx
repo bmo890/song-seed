@@ -1,9 +1,10 @@
-import { ReactNode, useState } from "react";
+import { ReactNode, useEffect, useState } from "react";
 import { Pressable, View } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
 import { styles } from "../../styles";
 import Animated, { FadeIn } from "react-native-reanimated";
 import { durations } from "../../design/motion";
+import { colors } from "../../design/tokens";
+import { IconButton } from "./IconButton";
 import { useTranslation } from "react-i18next";
 
 type FilterMenuRenderContext = {
@@ -27,20 +28,40 @@ type SortConfig = {
 type FilterSortControlsProps = {
   filter?: FilterConfig;
   sort?: SortConfig;
+  /** Fills the row's leading stretch (the search field on the collection
+   *  screen); the filter/sort glyphs sit quietly to its right. */
+  leadingSlot?: ReactNode;
   rightSlot?: ReactNode;
+  /** Mutual-exclusivity signal: when this value changes, both popovers close
+   *  (e.g. an overflow menu elsewhere just opened). */
+  closeSignal?: number;
+  /** Fired whenever a filter/sort popover opens — lets a parent close its own
+   *  competing menu so only one is ever open. */
+  onMenuOpen?: () => void;
 };
 
-export function FilterSortControls({ filter, sort, rightSlot }: FilterSortControlsProps) {
+/**
+ * One quiet toolbar row: leading slot (search) stretched, then bare glyph
+ * controls — filter, optional clear, sort. Glyphs, not chips: active state is
+ * told by the filled glyph + terracotta ink, never by a border or fill. Both
+ * popover menus hang from the row's trailing edge.
+ */
+export function FilterSortControls({ filter, sort, leadingSlot, rightSlot, closeSignal, onMenuOpen }: FilterSortControlsProps) {
   const { t } = useTranslation();
   const [filterMenuOpen, setFilterMenuOpen] = useState(false);
   const [sortMenuOpen, setSortMenuOpen] = useState(false);
-  const [filterAnchorX, setFilterAnchorX] = useState(0);
-  const [sortAnchorX, setSortAnchorX] = useState(96);
 
   const closeMenus = () => {
     setFilterMenuOpen(false);
     setSortMenuOpen(false);
   };
+
+  // An external menu (e.g. the collection overflow) opened — fold ours away.
+  useEffect(() => {
+    if (closeSignal === undefined) return;
+    setFilterMenuOpen(false);
+    setSortMenuOpen(false);
+  }, [closeSignal]);
 
   return (
     <View style={styles.ideasToolbar}>
@@ -49,109 +70,56 @@ export function FilterSortControls({ filter, sort, rightSlot }: FilterSortContro
       ) : null}
 
       <View style={styles.ideasUtilityRow}>
-        <View style={styles.ideasUtilityRowLeft}>
-          {filter ? (
-            <>
-              <View
-                onLayout={(event) => {
-                  setFilterAnchorX(event.nativeEvent.layout.x);
-                }}
-              >
-                <Pressable
-                  style={({ pressed }) => [
-                    styles.ideasUtilityChip,
-                    styles.ideasUtilityChipFilterOnly,
-                    filterMenuOpen ? styles.ideasUtilityChipOpen : null,
-                    pressed ? styles.pressDown : null,
-                  ]}
-                  onPress={() => {
-                    setFilterMenuOpen((prev) => !prev);
-                    setSortMenuOpen(false);
-                  }}
-                >
-                  <Ionicons
-                    name={(filter.active ? "funnel" : "funnel-outline") as any}
-                    size={15}
-                    color={filter.active ? "#0f172a" : "#475569"}
-                  />
-                  <View
-                    style={[
-                      styles.ideasUtilityChipDivider,
-                      filter.active ? styles.ideasUtilityChipDividerActive : null,
-                    ]}
-                  />
-                  <Ionicons name={filter.valueIcon as any} size={16} color="#475569" />
-                </Pressable>
-              </View>
+        {leadingSlot ? <View style={styles.ideasUtilityRowLead}>{leadingSlot}</View> : null}
 
-              {filter.active && filter.onClear ? (
-                <Pressable
-                  style={({ pressed }) => [
-                    styles.ideasUtilityClearIconBtn,
-                    pressed ? styles.pressDown : null,
-                  ]}
-                  onPress={filter.onClear}
-                  accessibilityRole="button"
-                  accessibilityLabel={t("common.clearFilters")}
-                >
-                  <Ionicons name="close" size={12} color="#64748b" />
-                </Pressable>
-              ) : null}
-            </>
-          ) : null}
+        {filter ? (
+          <IconButton
+            icon={filter.active || filterMenuOpen ? "funnel" : "funnel-outline"}
+            tone="muted"
+            color={filter.active ? colors.primaryDeep : undefined}
+            size={18}
+            onPress={() => {
+              if (!filterMenuOpen) onMenuOpen?.();
+              setFilterMenuOpen((prev) => !prev);
+              setSortMenuOpen(false);
+            }}
+            accessibilityLabel={t("common.filtersMenu")}
+          />
+        ) : null}
 
-          {sort ? (
-            <View
-              onLayout={(event) => {
-                setSortAnchorX(event.nativeEvent.layout.x);
-              }}
-            >
-              <Pressable
-                style={({ pressed }) => [
-                  styles.ideasUtilityChip,
-                  styles.ideasUtilityChipSortOnly,
-                  sortMenuOpen ? styles.ideasUtilityChipOpen : null,
-                  pressed ? styles.pressDown : null,
-                ]}
-                onPress={() => {
-                  setSortMenuOpen((prev) => !prev);
-                  setFilterMenuOpen(false);
-                }}
-              >
-                <View style={styles.ideasSortChipIconStack}>
-                  <Ionicons
-                    name="arrow-up"
-                    size={11}
-                    color={sort.direction === "asc" ? "#0f172a" : "#94a3b8"}
-                  />
-                  <Ionicons
-                    name="arrow-down"
-                    size={11}
-                    color={sort.direction === "desc" ? "#0f172a" : "#94a3b8"}
-                  />
-                </View>
-                <View
-                  style={[
-                    styles.ideasUtilityChipDivider,
-                    sort.active || sortMenuOpen ? styles.ideasUtilityChipDividerActive : null,
-                  ]}
-                />
-                <Ionicons
-                  name={sort.valueIcon as any}
-                  size={14}
-                  color={sort.active ? "#0f172a" : "#475569"}
-                />
-              </Pressable>
-            </View>
-          ) : null}
-        </View>
+        {filter?.active && filter.onClear ? (
+          <IconButton
+            icon="close"
+            tone="muted"
+            size={14}
+            hitSlop={13}
+            onPress={filter.onClear}
+            accessibilityLabel={t("common.clearFilters")}
+          />
+        ) : null}
+
+        {sort ? (
+          <IconButton
+            icon="swap-vertical"
+            tone="muted"
+            color={sort.active || sortMenuOpen ? colors.primaryDeep : undefined}
+            size={18}
+            onPress={() => {
+              if (!sortMenuOpen) onMenuOpen?.();
+              setSortMenuOpen((prev) => !prev);
+              setFilterMenuOpen(false);
+            }}
+            accessibilityLabel={t("common.sortMenu")}
+          />
+        ) : null}
+
         {rightSlot ? <View style={styles.ideasUtilityRowRight}>{rightSlot}</View> : null}
       </View>
 
       {filter && filterMenuOpen ? (
         <Animated.View
           entering={FadeIn.duration(durations.fast)}
-          style={[styles.ideasSortMenu, styles.ideasPopoverMenu, { left: filterAnchorX }]}
+          style={[styles.ideasSortMenu, styles.ideasPopoverMenu, styles.ideasPopoverMenuEnd]}
         >
           {filter.renderMenu({ close: () => setFilterMenuOpen(false) })}
         </Animated.View>
@@ -160,7 +128,7 @@ export function FilterSortControls({ filter, sort, rightSlot }: FilterSortContro
       {sort && sortMenuOpen ? (
         <Animated.View
           entering={FadeIn.duration(durations.fast)}
-          style={[styles.ideasSortMenu, styles.ideasPopoverMenu, { left: sortAnchorX }]}
+          style={[styles.ideasSortMenu, styles.ideasPopoverMenu, styles.ideasPopoverMenuEnd]}
         >
           {sort.renderMenu({ close: () => setSortMenuOpen(false) })}
         </Animated.View>

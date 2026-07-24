@@ -29,6 +29,8 @@ type FloatingActionMenuItem = {
 };
 
 type FloatingActionDockProps = {
+  /** Create-menu rows behind the "+" FAB. Pass an empty array to render the
+   *  record FAB alone (the screen surfaces creation elsewhere, e.g. overflow). */
   menuItems: FloatingActionMenuItem[];
   onRecord: () => void;
   wrapStyle?: StyleProp<ViewStyle>;
@@ -86,17 +88,19 @@ export function FloatingActionDock({
           onDockLayout?.(event.nativeEvent.layout.height);
         }}
       >
-        <Pressable
-          testID="fab-create"
-          accessibilityLabel={t(menuOpen ? "common.closeCreateMenu" : "common.create")}
-          style={({ pressed }) => [styles.ideasCreateFab, pressed ? styles.pressDownStrong : null]}
-          onPress={() => {
-            haptic.tap();
-            setMenuOpen((prev) => !prev);
-          }}
-        >
-          <Ionicons name={menuOpen ? "close" : "add"} size={20} color={colors.textPrimary} />
-        </Pressable>
+        {menuItems.length > 0 ? (
+          <Pressable
+            testID="fab-create"
+            accessibilityLabel={t(menuOpen ? "common.closeCreateMenu" : "common.create")}
+            style={({ pressed }) => [styles.ideasCreateFab, pressed ? styles.pressDownStrong : null]}
+            onPress={() => {
+              haptic.tap();
+              setMenuOpen((prev) => !prev);
+            }}
+          >
+            <Ionicons name={menuOpen ? "close" : "add"} size={20} color={colors.textPrimary} />
+          </Pressable>
+        ) : null}
 
         <Pressable
           testID="fab-record"

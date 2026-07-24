@@ -301,7 +301,7 @@ const helpStyles = StyleSheet.create({
     maxHeight: 540,
   },
   title: {
-    fontFamily: "PlayfairDisplay_600SemiBold",
+    fontFamily: "Lora_600SemiBold",
     fontSize: 19,
     color: colors.textPrimary,
     marginBottom: 4,
@@ -365,7 +365,7 @@ const helpStyles = StyleSheet.create({
     marginTop: spacing.md,
   },
   diagramResultText: {
-    fontFamily: "PlayfairDisplay_400Regular",
+    fontFamily: "Lora_500Medium",
     fontSize: 17,
     color: colors.textPrimary,
   },
@@ -385,7 +385,7 @@ const helpStyles = StyleSheet.create({
     backgroundColor: colors.primary,
   },
   pairScrapText: {
-    fontFamily: "PlayfairDisplay_600SemiBold",
+    fontFamily: "Lora_600SemiBold",
     fontSize: 15,
     color: colors.textStrong,
   },
@@ -456,7 +456,7 @@ const helpStyles = StyleSheet.create({
     color: colors.textStrong,
   },
   exampleText: {
-    fontFamily: "PlayfairDisplay_400Regular",
+    fontFamily: "Lora_500Medium",
     fontSize: 16,
     lineHeight: 24,
     color: colors.textPrimary,

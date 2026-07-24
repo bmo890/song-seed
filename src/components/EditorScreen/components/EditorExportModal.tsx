@@ -214,7 +214,7 @@ export function EditorExportModal({
 
           <View style={[styles.rowButtons, { justifyContent: "flex-end", marginTop: 16 }]}>
             <Button variant="secondary" label={t("common.cancel")} onPress={onClose} />
-            <Button label={exportOperation === "extract" ? t("editor.extract") : t("editor.saveSplice")} onPress={onSave} />
+            <Button variant="primary-emphasis" label={exportOperation === "extract" ? t("editor.extract") : t("editor.saveSplice")} onPress={onSave} />
           </View>
         </View>
       </View>

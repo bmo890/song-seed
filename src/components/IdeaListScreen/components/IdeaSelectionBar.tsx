@@ -7,7 +7,8 @@ import { appActions } from "../../../state/actions";
 import { shareAudioClips } from "../../../services/audioStorage";
 import { SelectionActionSheet } from "../../common/SelectionActionSheet";
 import { SelectionDock, type SelectionAction } from "../../common/SelectionDock";
-import { DockAddBadgeIcon, DockMergeBoxIcon } from "../../common/dockIcons";
+import { DockAddBadgeIcon } from "../../common/dockIcons";
+import { getHierarchyIconName } from "../../../domain/hierarchy";
 import type { SongIdea } from "../../../types";
 import { buildPlayableQueueFromIdeas, getPlayableClipForIdea } from "../../../domain/clipPresentation";
 import { buildDefaultSongbookItemsForIdea } from "../../../domain/songbookGrouping";
@@ -116,8 +117,9 @@ export function IdeaSelectionBar({
     // "Sketch" (verb + noun) — gather the selected takes into a sketch. The count
     // lives in the top bar ("N selected"), so the button label stays a clean word.
     label: t("brand.sketch"),
-    icon: "albums-outline",
-    renderIcon: ({ color, size }) => <DockMergeBoxIcon color={color} size={size} />,
+    // Standard disc glyph (matches how a sketch/song reads everywhere else),
+    // replacing the bespoke merge-box icon.
+    icon: getHierarchyIconName("song"),
     onPress: () => onCreateProjectFromSelection?.(),
   };
 
@@ -259,6 +261,25 @@ export function IdeaSelectionBar({
     );
   }
 
+  // Bookmark moved off the card (approved capability move 2026-07-23): the
+  // selection flow is now the one place to toggle it. Set semantics — any
+  // unbookmarked item in the selection → bookmark everything; all bookmarked
+  // → remove from everything.
+  const allSelectedBookmarked =
+    interactiveSelectedIdeas.length > 0 &&
+    interactiveSelectedIdeas.every((idea) => idea.isBookmarked);
+  function handleToggleBookmarks() {
+    if (interactiveSelectedIdeas.length === 0) return;
+    // haptics vocabulary: `light` — "small state flips that should land: favorite".
+    haptic.light();
+    const state = useStore.getState();
+    for (const idea of interactiveSelectedIdeas) {
+      if (allSelectedBookmarked ? idea.isBookmarked : !idea.isBookmarked) {
+        state.toggleIdeaBookmark(idea.id);
+      }
+    }
+  }
+
   // One tap, no prompt — the shelf holds pointers, so nothing moves in the
   // library; already-shelved items just get a fresh 7-day stay.
   function handleSetAsideSelection() {
@@ -392,6 +413,13 @@ export function IdeaSelectionBar({
 
     if (!selectedHiddenOnly) {
       actions.push({
+        key: "bookmark",
+        label: allSelectedBookmarked ? t("selection.removeBookmark") : t("selection.bookmark"),
+        icon: allSelectedBookmarked ? "bookmark" : "bookmark-outline",
+        onPress: handleToggleBookmarks,
+        disabled: interactiveSelectedIdeas.length === 0,
+      });
+      actions.push({
         key: "copy",
         label: "Copy",
         icon: "copy-outline",
@@ -419,6 +447,7 @@ export function IdeaSelectionBar({
 
     return actions;
   }, [
+    allSelectedBookmarked,
     canDeselectAll,
     editAction,
     handleShareSelected,

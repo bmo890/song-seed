@@ -79,7 +79,7 @@ export function ActivityCustomizeSheet({
 
 const styles = StyleSheet.create({
   title: {
-    fontFamily: "PlayfairDisplay_600SemiBold",
+    fontFamily: "Lora_600SemiBold",
     fontSize: 19,
     color: colors.textPrimary,
   },

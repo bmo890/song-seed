@@ -476,7 +476,7 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
   },
   summary: {
-    fontFamily: "PlayfairDisplay_400Regular",
+    fontFamily: "Lora_500Medium",
     fontSize: 16,
     lineHeight: 24,
     color: colors.textSecondary,
@@ -496,7 +496,7 @@ const styles = StyleSheet.create({
     paddingTop: spacing.md,
   },
   text: {
-    fontFamily: "PlayfairDisplay_400Regular",
+    fontFamily: "Lora_500Medium",
     fontSize: 18,
     lineHeight: 30,
     color: colors.textPrimary,

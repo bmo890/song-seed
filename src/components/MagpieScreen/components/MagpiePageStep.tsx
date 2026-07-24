@@ -766,7 +766,7 @@ const styles = StyleSheet.create({
   // header
   header: { flexDirection: "row", alignItems: "center", gap: spacing.xs, paddingBottom: spacing.sm },
   iconBtn: { minWidth: 34, height: 34, borderRadius: radii.round, alignItems: "center", justifyContent: "center", paddingHorizontal: 4 },
-  iconBtnText: { fontFamily: "PlayfairDisplay_600SemiBold", fontSize: 16, color: colors.textStrong },
+  iconBtnText: { fontFamily: "Lora_600SemiBold", fontSize: 16, color: colors.textStrong },
   credit: {
     flex: 1,
     minWidth: 0,
@@ -779,7 +779,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceContainer,
   },
   creditMeta: { flex: 1, minWidth: 0 },
-  creditTitle: { fontFamily: "PlayfairDisplay_600SemiBold", fontSize: 13.5, lineHeight: 17, color: colors.textPrimary },
+  creditTitle: { fontFamily: "Lora_600SemiBold", fontSize: 13.5, lineHeight: 17, color: colors.textPrimary },
   creditAuthor: { fontFamily: "PlusJakartaSans_400Regular", fontSize: 11, color: colors.textMuted, marginTop: 1 },
 
   thumb: { width: 42, height: 58, borderRadius: radii.sm, backgroundColor: colors.surfaceHigh },
@@ -793,7 +793,7 @@ const styles = StyleSheet.create({
   pageScroll: { flex: 1 },
   pageContent: { paddingHorizontal: 22, paddingVertical: spacing.lg },
   para: { marginBottom: spacing.md },
-  pageText: { fontFamily: "PlayfairDisplay_400Regular", color: colors.textStrong },
+  pageText: { fontFamily: "Lora_500Medium", color: colors.textStrong },
   hl: { backgroundColor: HL_BG, color: HL_TEXT },
   turning: {
     position: "absolute",
@@ -809,13 +809,13 @@ const styles = StyleSheet.create({
   },
   center: { flex: 1, alignItems: "center", justifyContent: "center", gap: spacing.sm, padding: spacing.xl },
   loadCaption: {
-    fontFamily: "PlayfairDisplay_400Regular",
+    fontFamily: "Lora_500Medium",
     fontStyle: "italic",
     fontSize: 14,
     color: colors.textMuted,
     textAlign: "center",
   },
-  errorTitle: { fontFamily: "PlayfairDisplay_600SemiBold", fontSize: 17, color: colors.textPrimary, textAlign: "center" },
+  errorTitle: { fontFamily: "Lora_600SemiBold", fontSize: 17, color: colors.textPrimary, textAlign: "center" },
   errorBody: { fontFamily: "PlusJakartaSans_400Regular", fontSize: 13, color: colors.textSecondary, textAlign: "center" },
   errorActions: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.xs },
   errorBtn: {
@@ -842,7 +842,7 @@ const styles = StyleSheet.create({
   // bottom bar
   bottomBar: { paddingTop: spacing.md, gap: spacing.sm },
   emptyHint: {
-    fontFamily: "PlayfairDisplay_400Regular",
+    fontFamily: "Lora_500Medium",
     fontStyle: "italic",
     fontSize: 14,
     color: colors.textMuted,
@@ -874,7 +874,7 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     ...shadows.control,
   },
-  scrapText: { fontFamily: "PlayfairDisplay_400Regular", fontSize: 13, color: colors.textStrong, flexShrink: 1 },
+  scrapText: { fontFamily: "Lora_500Medium", fontSize: 13, color: colors.textStrong, flexShrink: 1 },
   primaryBtn: {
     flexDirection: "row",
     alignItems: "center",
@@ -905,8 +905,8 @@ const styles = StyleSheet.create({
   bookInfo: { flexDirection: "row", gap: spacing.md, alignItems: "flex-start", marginBottom: spacing.md },
   bookMeta: { flex: 1, minWidth: 0 },
   bookOver: { fontFamily: "PlusJakartaSans_700Bold", fontSize: 9, letterSpacing: 1.2, textTransform: "uppercase", color: colors.textMuted, marginBottom: 3 },
-  bookTitle: { fontFamily: "PlayfairDisplay_600SemiBold", fontSize: 18, lineHeight: 22, color: colors.textPrimary },
-  bookAuthor: { fontFamily: "PlayfairDisplay_400Regular", fontStyle: "italic", fontSize: 13, color: colors.textSecondary, marginTop: 2 },
+  bookTitle: { fontFamily: "Lora_600SemiBold", fontSize: 18, lineHeight: 22, color: colors.textPrimary },
+  bookAuthor: { fontFamily: "Lora_500Medium", fontStyle: "italic", fontSize: 13, color: colors.textSecondary, marginTop: 2 },
   bookSource: { fontFamily: "PlusJakartaSans_600SemiBold", fontSize: 11, color: colors.textMuted, marginTop: 6 },
   bookSourceLink: { fontFamily: "PlusJakartaSans_600SemiBold", fontSize: 11, color: colors.primaryDeep, marginTop: 6, textDecorationLine: "underline" },
 
@@ -935,7 +935,7 @@ const styles = StyleSheet.create({
   // split sheet
   splitPhrase: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", justifyContent: "center", paddingVertical: spacing.sm },
   splitWordWrap: { flexDirection: "row", alignItems: "center" },
-  splitWord: { fontFamily: "PlayfairDisplay_400Regular", fontSize: 22, color: colors.textPrimary, paddingVertical: 4 },
+  splitWord: { fontFamily: "Lora_500Medium", fontSize: 22, color: colors.textPrimary, paddingVertical: 4 },
   seam: { width: 26, height: 34, alignItems: "center", justifyContent: "center" },
   seamMark: { width: 2, height: 20, borderRadius: 2, backgroundColor: colors.borderMuted },
   seamMarkCut: { width: 12, height: 34, borderRadius: 5, backgroundColor: PAGE_BG, borderWidth: 1, borderColor: colors.borderMuted },

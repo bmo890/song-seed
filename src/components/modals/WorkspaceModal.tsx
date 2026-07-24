@@ -302,17 +302,17 @@ const wsStyles = StyleSheet.create({
   deleteBtn: {
     height: 36,
     paddingHorizontal: 14,
-    borderRadius: 8,
+    borderRadius: radii.lg,
     borderWidth: 1,
-    borderColor: "rgba(184,50,50,0.25)",
-    backgroundColor: "rgba(184,50,50,0.05)",
+    borderColor: colors.danger,
+    backgroundColor: colors.dangerSurface,
     alignItems: "center",
     justifyContent: "center",
   },
   deleteBtnText: {
     fontFamily: "PlusJakartaSans_500Medium",
     fontSize: 12,
-    color: "#a83232",
+    color: colors.danger,
   },
   btnDisabled: {
     opacity: 0.4,

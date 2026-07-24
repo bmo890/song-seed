@@ -94,6 +94,18 @@ export const fmtDuration = (ms = 0) => {
   return `${sign}${String(mins).padStart(2, "0")}:${secStr}`;
 };
 
+/**
+ * Clip-card duration voice (locked 2026-07-23): m:ss with NO leading zero on
+ * minutes — "0:38", "1:04". Card captions only; player screens keep fmtDuration.
+ */
+export const fmtCardDuration = (ms = 0) => {
+  const safeMs = Math.max(0, ms);
+  if (safeMs >= 3600000) return fmtDuration(safeMs);
+  const mins = Math.floor(safeMs / 60000);
+  const secs = Math.floor((safeMs % 60000) / 1000);
+  return `${mins}:${String(secs).padStart(2, "0")}`;
+};
+
 export const formatDate = (ts: number) => new Date(ts).toLocaleString();
 
 /**
@@ -138,6 +150,29 @@ export const formatClipDate = (ts: number, sectionLabel?: string): string => {
     return date.toLocaleTimeString(i18n.language === "he" ? "he-IL" : "en-US", { hour: "numeric", minute: "2-digit" });
   }
   return label;
+};
+
+/**
+ * Clip-card meta-row voice (locked 2026-07-23): "just now" only within the first
+ * minute, plain time-of-day for the rest of today ("1:54 PM"), then the regular
+ * recency ladder from formatClipDate (Yesterday · Tue · Jun 26 · Jun 26 2024).
+ */
+export const formatClipCardTime = (ts: number, sectionLabel?: string): string => {
+  const now = Date.now();
+  if (Math.abs(now - ts) < 60_000) return i18n.t("time.justNow");
+  const date = new Date(ts);
+  const today = new Date(now);
+  const sameDay =
+    date.getFullYear() === today.getFullYear() &&
+    date.getMonth() === today.getMonth() &&
+    date.getDate() === today.getDate();
+  if (sameDay) {
+    return date.toLocaleTimeString(i18n.language === "he" ? "he-IL" : "en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+    });
+  }
+  return formatClipDate(ts, sectionLabel);
 };
 
 /** @deprecated Use genRootClipTitle / genChildClipTitle instead. */

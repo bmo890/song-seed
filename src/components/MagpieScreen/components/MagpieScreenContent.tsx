@@ -62,6 +62,6 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     paddingHorizontal: spacing.xxl,
   },
-  missingTitle: { fontFamily: "PlayfairDisplay_600SemiBold", fontSize: 18, color: colors.textPrimary },
+  missingTitle: { fontFamily: "Lora_600SemiBold", fontSize: 18, color: colors.textPrimary },
   missingBody: { ...textTokens.supporting, textAlign: "center" },
 });

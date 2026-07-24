@@ -160,7 +160,7 @@ export const songDetailStyles = {
     color: "#1C1C19",
   },
   songDetailPageTitleLarge: {
-    fontFamily: "PlayfairDisplay_600SemiBold",
+    fontFamily: "Lora_600SemiBold",
     fontSize: 26,
     lineHeight: 32,
     color: "#1b1c1a",
@@ -221,19 +221,6 @@ export const songDetailStyles = {
     gap: 6,
     marginTop: 1,
     marginBottom: 14,
-  },
-  songDetailProgressStripLabel: {
-    fontFamily: "PlusJakartaSans_600SemiBold",
-    fontSize: 10,
-    color: "#a89994",
-    textTransform: "uppercase",
-    letterSpacing: 0.6,
-  },
-  songDetailProgressStripPercent: {
-    fontFamily: "PlusJakartaSans_600SemiBold",
-    fontSize: 10,
-    color: "#84736f",
-    fontVariant: ["tabular-nums"],
   },
   songDetailSongTabs: {
     flexDirection: "row",
@@ -592,7 +579,7 @@ export const songDetailStyles = {
   songDetailMiniCardButton: {
     minHeight: 30,
     paddingHorizontal: 12,
-    borderRadius: radii.round,
+    borderRadius: radii.lg,
   },
   songDetailMiniCardButtonText: {
     fontSize: 12,

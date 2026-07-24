@@ -305,7 +305,7 @@ const detailStyles = StyleSheet.create({
     marginBottom: 4,
   },
   title: {
-    fontFamily: "PlayfairDisplay_400Regular",
+    fontFamily: "Lora_500Medium",
     fontSize: 32,
     lineHeight: 38,
     color: colors.textPrimary,

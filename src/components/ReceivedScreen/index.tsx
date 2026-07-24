@@ -178,7 +178,6 @@ export function ReceivedScreen() {
                   title={idea.title}
                   isProject={idea.kind === "project"}
                   status={idea.kind === "project" ? idea.status : null}
-                  completionPct={idea.kind === "project" ? idea.completionPct : null}
                   durationMs={clip?.durationMs ?? 0}
                   canPlay={!!clip}
                   isActive={isActive}
@@ -365,7 +364,7 @@ const receivedStyles = StyleSheet.create({
     color: colors.primaryDeep,
   },
   detailTitle: {
-    fontFamily: "PlayfairDisplay_400Regular",
+    fontFamily: "Lora_500Medium",
     fontSize: 28,
     lineHeight: 34,
     color: colors.textPrimary,
@@ -381,7 +380,7 @@ const receivedStyles = StyleSheet.create({
     paddingHorizontal: 24,
   },
   emptyTitle: {
-    fontFamily: "PlayfairDisplay_600SemiBold",
+    fontFamily: "Lora_600SemiBold",
     fontSize: 19,
     color: colors.textPrimary,
   },

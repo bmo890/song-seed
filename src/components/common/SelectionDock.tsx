@@ -66,11 +66,12 @@ export function SelectionDock({ actions, onLayout }: SelectionDockProps) {
               }}
             >
               {(() => {
+                // IconButton tone ladder: muted utility glyphs, danger stays red.
                 const iconColor = action.disabled
-                  ? "#c4b8b4"
+                  ? colors.textMuted
                   : dangerous
-                  ? "#a83232"
-                  : colors.textStrong;
+                  ? colors.danger
+                  : colors.textSecondary;
                 return action.renderIcon
                   ? action.renderIcon({ color: iconColor, size: 20, disabled: !!action.disabled })
                   : <Ionicons name={action.icon} size={20} color={iconColor} />;

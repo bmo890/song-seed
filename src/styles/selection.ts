@@ -1,5 +1,5 @@
 import type { ImageStyle, TextStyle, ViewStyle } from "react-native";
-import { colors, radii } from "../design/tokens";
+import { colors, radii, shadows } from "../design/tokens";
 
 // Multi-select mode: selection bars, toolbars, sheets, indicators.
 // Raw style objects — merged and registered once via StyleSheet.create in ../styles.ts.
@@ -69,21 +69,25 @@ export const selectionStyles = {
   },
   selectionText: { fontSize: 13, color: colors.textStrong, fontFamily: "PlusJakartaSans_600SemiBold" },
   // ─── Selection top bar (count · All/None · Done) ────────────────────────────
+  // Floating surface card (no harsh borders): depth from the whisper shadow.
   selectionTopBar: {
-    backgroundColor: "#EDE8E2",
-    borderBottomWidth: 1,
-    borderBottomColor: "#D9D2CA",
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    marginHorizontal: 12,
+    marginTop: 2,
+    marginBottom: 8,
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
     gap: 10,
+    ...shadows.card,
     zIndex: 20, // above FlatList sticky date headers
   },
   selectionTopBarCount: {
-    fontSize: 14,
+    fontSize: 13,
     fontFamily: "PlusJakartaSans_600SemiBold",
-    color: "#1b1c1a",
+    color: colors.textStrong,
   },
   // Bordered "All" chip — sits right after the count
   selectionTopBarChip: {
@@ -110,19 +114,28 @@ export const selectionStyles = {
     color: "#FDFBF7",
   },
   // ─── Selection toolbar (icon-only bottom action bar) ─────────────────────────
+  // Surface sheet lifted off the page: rounded top corners + whisper shadow
+  // instead of a hard hairline.
   selectionToolbar: {
     position: "absolute",
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: "#FDFBF7",
-    borderTopWidth: 1,
-    borderTopColor: "#E8E4DF",
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
+    shadowColor: "#3D3732",
+    shadowOpacity: 0.08,
+    shadowOffset: { width: 0, height: -2 },
+    shadowRadius: 10,
+    elevation: 8,
     zIndex: 50,
   },
   selectionToolbarActions: {
     flexDirection: "row",
     alignItems: "center",
+    paddingHorizontal: 14,
+    gap: 10,
   },
   selectionToolbarAction: {
     flex: 1,
@@ -137,12 +150,12 @@ export const selectionStyles = {
   selectionToolbarActionLabel: {
     fontFamily: "PlusJakartaSans_500Medium",
     fontSize: 10,
-    color: "#524440",
+    color: colors.textSecondary,
     textAlign: "center",
     letterSpacing: 0.1,
   },
   selectionToolbarActionLabelDanger: {
-    color: "#a83232",
+    color: colors.danger,
   },
   selectionToolbarActionLabelDisabled: {
     color: "#b8a9a5",

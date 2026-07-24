@@ -138,7 +138,7 @@ const listStyles = StyleSheet.create({
     gap: 2,
   },
   playlistTitle: {
-    fontFamily: "PlayfairDisplay_400Regular",
+    fontFamily: "Lora_500Medium",
     fontSize: 18,
     lineHeight: 24,
     color: colors.textPrimary,

@@ -151,7 +151,7 @@ const styles = StyleSheet.create({
         color: colors.primaryDeep,
     },
     headline: {
-        fontFamily: "PlayfairDisplay_600SemiBold",
+        fontFamily: "Lora_600SemiBold",
         fontSize: 30,
         lineHeight: 34,
         color: colors.textPrimary,
@@ -237,7 +237,7 @@ const styles = StyleSheet.create({
         overflow: "hidden",
     },
     planPrice: {
-        fontFamily: "PlayfairDisplay_600SemiBold",
+        fontFamily: "Lora_600SemiBold",
         fontSize: 22,
         color: colors.textPrimary,
         marginTop: 6,

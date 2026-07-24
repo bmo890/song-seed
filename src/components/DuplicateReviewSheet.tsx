@@ -256,7 +256,7 @@ export function DuplicateReviewSheet() {
     return (
         <BottomSheet visible={visible} onClose={dismiss}>
             <View style={{ gap: 3, marginBottom: 14 }}>
-                <Text style={{ fontFamily: "PlayfairDisplay_600SemiBold", fontSize: 18, color: colors.textPrimary, lineHeight: 24 }}>
+                <Text style={{ fontFamily: "Lora_600SemiBold", fontSize: 18, color: colors.textPrimary, lineHeight: 24 }}>
                     {title}
                 </Text>
                 <Text style={{ fontSize: 13, color: colors.textSecondary, lineHeight: 18 }}>{subtitle}</Text>

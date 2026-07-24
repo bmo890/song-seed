@@ -107,6 +107,15 @@ export function useCollectionScreenModel() {
   const [lyricsFilterMode, setLyricsFilterMode] = useState<"all" | "with" | "without">("all");
   const [listDensity, setListDensity] = useState<"comfortable" | "compact">("comfortable");
   const [headerMenuOpen, setHeaderMenuOpen] = useState(false);
+  // Only one menu open at a time. The filter/sort popover state lives inside
+  // FilterSortControls; this nonce is the signal to close it (bumped whenever
+  // the overflow menu opens), and openHeaderMenu is the coordinated opener.
+  const [filterSortCloseNonce, setFilterSortCloseNonce] = useState(0);
+  const openHeaderMenu = useCallback(() => {
+    setFilterSortCloseNonce((n) => n + 1);
+    setHeaderMenuOpen(true);
+  }, []);
+  const closeHeaderMenu = useCallback(() => setHeaderMenuOpen(false), []);
   const [floatingDockHeight, setFloatingDockHeight] = useState(62);
   const [selectionDockHeight, setSelectionDockHeight] = useState(120);
   const rowLayoutsRef = useRef<Record<string, { y: number; height: number }>>({});
@@ -415,6 +424,9 @@ export function useCollectionScreenModel() {
   const hasActivityRangeFilter = typeof activityRangeStartTs === "number" && typeof activityRangeEndTs === "number";
   const visibleIdeasCount = listIdeas.filter((idea) => !hiddenIdeaIdsSet.has(idea.id)).length;
   const ideasHeaderMeta = [
+    // Terminology (founder decision 2026-07-23): "idea" is the umbrella term for
+    // collection list items — clips AND sketches with mixed media. "Clip" stays
+    // the object name for recorded fragments everywhere else.
     t("common.ideaCount", { count: visibleIdeasCount }),
     hasActivityRangeFilter ? t("common.activitySlice") : null,
   ].filter(Boolean).join("  •  ");
@@ -481,6 +493,9 @@ export function useCollectionScreenModel() {
     setListDensity,
     headerMenuOpen,
     setHeaderMenuOpen,
+    openHeaderMenu,
+    closeHeaderMenu,
+    filterSortCloseNonce,
     nestedCollectionsExpanded,
     setNestedCollectionsExpanded,
     floatingDockHeight,

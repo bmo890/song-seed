@@ -3,7 +3,7 @@ import { Pressable, Text, View, Animated } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { styles } from "../../../styles";
 import { SongIdea, ClipVersion, InlinePlayerControls } from "../../../types";
-import { formatClipDate } from "../../../utils";
+import { fmtCardDuration, formatClipCardTime, formatClipDate, isDefaultIdeaTitle } from "../../../utils";
 import { getDateBucket, getDateBucketLabel } from "../../../domain/dateBuckets";
 import { useNavigation } from "@react-navigation/native";
 import { getIdeaCreatedAt, getIdeaUpdatedAt, type IdeaSortMetric } from "../../../domain/ideaSort";
@@ -15,9 +15,9 @@ import { useStore } from "../../../state/useStore";
 import { appActions } from "../../../state/actions";
 import { StatusBadge } from "../../common/StatusBadge";
 import { IdeaCard } from "../../common/IdeaCard";
-import { ClipInlinePlayer } from "../../common/ClipInlinePlayer";
 import { AppAlert } from "../../common/AppAlert";
 import { useWorkspaceTheme } from "../../../context/WorkspaceThemeContext";
+import { colors } from "../../../design/tokens";
 import { haptic } from "../../../design/haptics";
 import { toast } from "../../common/toastStore";
 import { useTranslation } from "react-i18next";
@@ -87,7 +87,6 @@ function IdeaListItemInner({
         hasExpandedProjectIndicators,
         createdAtLabel,
         updatedAtLabel,
-        projectProgressPct,
     } = fallbackMeta;
     const inlineActive = useStore(
         (s) => !!playClip && s.inlineTarget?.ideaId === item.id && s.inlineTarget.clipId === playClip.id
@@ -99,6 +98,10 @@ function IdeaListItemInner({
             s.inlineTarget.clipId === playClip.id &&
             s.inlineIsPlaying
     );
+    // Live inline preview position — subscribed only while this card is the
+    // active preview target, so the 5Hz position commits re-render one row.
+    const inlinePositionMs = useStore((s) => (inlineActive ? s.inlinePositionMs : 0));
+    const inlineDurationMs = useStore((s) => (inlineActive ? s.inlineDurationMs : 0));
     // This idea is the active dock / full-player session (any of its clips) —
     // idea-level, so a song card lights up whichever take is playing.
     const sessionActive = useStore((s) => s.playerTarget?.ideaId === item.id);
@@ -109,6 +112,7 @@ function IdeaListItemInner({
     // now-playing treatment.
     const nowPlaying = sessionActive;
     const nowPlayingIsPlaying = sessionActive && sessionPlaying;
+    const inlineTotalMs = inlineDurationMs || playClip?.durationMs || 0;
 
     const isSelected = useStore((s) => s.selectedListIdeaIds.includes(item.id));
     const showSelectionIndicator = listSelectionMode;
@@ -125,12 +129,16 @@ function IdeaListItemInner({
     // the day. The title is always the clip's own title — for unnamed clips that's
     // the auto date/time plug (e.g. "10:43 AM Jun 28th"); the relative date is the
     // footer's job, never the headline's.
-    const dateLabel = formatClipDate(sortTs, showDateDividers ? getDateBucketLabel(sortTs) : undefined);
     const displayTitle = item.title;
-    const compactProjectProgressLabel = projectProgressPct !== null && compact && sortMetric === "progress"
-        ? `${projectProgressPct}%`
-        : null;
-
+    // Earned serif: only titles the user actually named get Lora; unedited
+    // auto-timestamp titles stay in quiet tabular Jakarta.
+    const titleIsAuto = isDefaultIdeaTitle(item.title, getIdeaCreatedAt(item));
+    // Auto-named cards already carry the absolute time in their title, so the
+    // meta row shows relative recency ("12m ago") instead of echoing it. Named
+    // cards keep the time-of-day voice.
+    const dateLabel = titleIsAuto
+        ? formatClipDate(sortTs, showDateDividers ? getDateBucketLabel(sortTs) : undefined)
+        : formatClipCardTime(sortTs, showDateDividers ? getDateBucketLabel(sortTs) : undefined);
     const beginSelection = () => {
         haptic.grab();
         useStore.getState().startListSelection(item.id);
@@ -155,6 +163,8 @@ function IdeaListItemInner({
         );
     };
 
+    // Full-card meta cluster: bare caption-scale glyphs on a consistent 10pt
+    // rhythm — no separators, no pills.
     const renderProjectRightMeta = () => (
         <View style={styles.ideasListMetaRightCluster}>
             {hasProjectLyrics ? (
@@ -163,9 +173,6 @@ function IdeaListItemInner({
                         <Ionicons name="document-text-outline" size={12} color="#84736f" />
                     </View>
                 </View>
-            ) : null}
-            {hasProjectLyrics && hasProjectClipCount ? (
-                <Text style={styles.ideasListMetaSeparator}>•</Text>
             ) : null}
             {hasProjectClipCount ? (
                 <View style={styles.ideasListMetaToken}>
@@ -178,46 +185,9 @@ function IdeaListItemInner({
         </View>
     );
 
-    const renderCompactProjectRightMeta = () => {
-        const showLyricsIndicator = hasProjectLyrics && (lyricsFilterMode === "with" || hasProjectClipCount || !!compactProjectProgressLabel);
-        const showClipCount = hasProjectClipCount;
-        const showProgress = !!compactProjectProgressLabel;
+    // (Compact intentionally shows no take/lyrics meta — only the bookmark + duration.)
 
-        if (!showLyricsIndicator && !showClipCount && !showProgress) {
-            return null;
-        }
-
-        return (
-            <View style={styles.ideasListMetaRightCluster}>
-                {showLyricsIndicator ? (
-                    <View style={styles.ideasListMetaToken}>
-                        <View style={styles.ideasListMetaIconWrap}>
-                            <Ionicons name="document-text-outline" size={12} color="#84736f" />
-                        </View>
-                    </View>
-                ) : null}
-                {showLyricsIndicator && showClipCount ? (
-                    <Text style={styles.ideasListMetaSeparator}>•</Text>
-                ) : null}
-                {showClipCount ? (
-                    <View style={styles.ideasListMetaToken}>
-                        <View style={styles.ideasListMetaIconWrap}>
-                            <Ionicons name={getHierarchyIconName("clip")} size={12} color="#84736f" />
-                        </View>
-                        <Text style={styles.ideasListMetaText}>{projectClipCount}</Text>
-                    </View>
-                ) : null}
-                {(showLyricsIndicator || showClipCount) && showProgress ? (
-                    <Text style={styles.ideasListMetaSeparator}>•</Text>
-                ) : null}
-                {showProgress ? (
-                    <Text style={styles.ideasListCompactProgressText}>{compactProjectProgressLabel}</Text>
-                ) : null}
-            </View>
-        );
-    };
-
-    const searchTagsBlock = searchNeedle && (notesMatched || lyricsMatched) ? (
+    const searchTagsBlock =searchNeedle && (notesMatched || lyricsMatched) ? (
         <View style={styles.ideasSearchTagRow}>
             {notesMatched ? (
                 <View style={styles.ideasSearchTag}>
@@ -345,60 +315,54 @@ function IdeaListItemInner({
                             }}
                             title={displayTitle}
                             titleSemiBold={item.kind === "project"}
+                            titleIsAuto={titleIsAuto}
+                            waveformPeaks={playClip?.waveformPeaks ?? null}
                             searchNeedle={searchNeedle}
                             trailing={
                                 <>
-                                    {item.kind === "project" ? (
-                                        <StatusBadge
-                                            status={item.status}
-                                            pct={!compact ? projectProgressPct : undefined}
-                                            dense={compact}
-                                            style={styles.ideasListStatusBadgeText}
-                                        />
+                                    {/* Compact drops the stage badge — the sketch spine +
+                                        weight already signal it; comfortable keeps it. */}
+                                    {!compact && item.kind === "project" ? (
+                                        // Meta-cluster form: quiet dot + tiny caps label, never the pill.
+                                        <StatusBadge status={item.status} dense />
                                     ) : null}
-                                    <Pressable
-                                        onPress={(e) => {
-                                            e.stopPropagation();
-                                            haptic.light();
-                                            useStore.getState().toggleIdeaBookmark(item.id);
-                                        }}
-                                        hitSlop={8}
-                                        style={styles.ideasListFavoriteBtn}
-                                    >
-                                        <Ionicons
-                                            name={item.isBookmarked ? "bookmark" : "bookmark-outline"}
-                                            size={15}
-                                            color={item.isBookmarked ? "#B87D6B" : "rgba(215,194,189,0.7)"}
-                                        />
-                                    </Pressable>
+                                    {item.isBookmarked ? (
+                                        // Non-interactive indicator — toggling lives in the
+                                        // selection flow (long-press → Bookmark).
+                                        <Ionicons name="bookmark" size={13} color={colors.primary} />
+                                    ) : null}
                                 </>
                             }
                             searchTagsContent={searchTagsBlock}
-                            footerDate={dateLabel}
+                            // Compact has no date grouping, so a time-created is contextless —
+                            // dropped entirely there; comfortable keeps its relative date.
+                            footerDate={compact ? undefined : dateLabel}
                             footerRightContent={
-                                compact && item.kind === "project"
-                                    ? renderCompactProjectRightMeta()
-                                    : !compact && hasExpandedProjectIndicators
-                                        ? renderProjectRightMeta()
-                                        : null
+                                // Compact keeps only the bookmark (in `trailing`) — the
+                                // take-count and other metadata are dropped for density.
+                                !compact && hasExpandedProjectIndicators
+                                    ? renderProjectRightMeta()
+                                    : null
                             }
-                            inlinePlayerContent={
-                                <ClipInlinePlayer
-                                    fallbackDurationMs={playClip?.durationMs || 0}
-                                    onSeek={(ms) => {
-                                        void inlinePlayer.endInlineScrub(ms);
-                                    }}
-                                    onSeekStart={() => {
-                                        void inlinePlayer.beginInlineScrub();
-                                    }}
-                                    onSeekCancel={() => {
-                                        void inlinePlayer.cancelInlineScrub();
-                                    }}
-                                    onClose={() => {
-                                        void inlinePlayer.resetInlinePlayer();
-                                    }}
-                                />
+                            // The waveform strip is the inline player (full card):
+                            // progress + scrub map straight onto the existing inline
+                            // preview state — no engine changes.
+                            inlineProgress={
+                                inlineTotalMs > 0 ? Math.min(1, inlinePositionMs / inlineTotalMs) : 0
                             }
+                            inlineElapsedLabel={fmtCardDuration(inlinePositionMs)}
+                            onInlineScrubStart={() => {
+                                void inlinePlayer.beginInlineScrub();
+                            }}
+                            onInlineScrub={(fraction) => {
+                                void inlinePlayer.endInlineScrub(fraction * inlineTotalMs);
+                            }}
+                            onInlineScrubCancel={() => {
+                                void inlinePlayer.cancelInlineScrub();
+                            }}
+                            onInlineClose={() => {
+                                void inlinePlayer.resetInlinePlayer();
+                            }}
                         />
                     </View>
                 </View>

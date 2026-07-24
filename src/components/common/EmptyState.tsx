@@ -69,7 +69,7 @@ const s = StyleSheet.create({
     marginBottom: spacing.xs,
   },
   title: {
-    fontFamily: "PlayfairDisplay_600SemiBold",
+    fontFamily: "Lora_600SemiBold",
     fontSize: 20,
     lineHeight: 26,
     color: colors.textPrimary,

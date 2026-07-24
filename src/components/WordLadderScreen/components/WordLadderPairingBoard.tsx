@@ -215,7 +215,7 @@ const boardStyles = StyleSheet.create({
     alignItems: "center",
     gap: 5,
     backgroundColor: colors.primaryDeep,
-    borderRadius: radii.round,
+    borderRadius: radii.lg,
     paddingHorizontal: spacing.md,
     paddingVertical: 7,
   },
@@ -257,7 +257,7 @@ const boardStyles = StyleSheet.create({
   pairWord: {
     flex: 1,
     minWidth: 0,
-    fontFamily: "PlayfairDisplay_600SemiBold",
+    fontFamily: "Lora_600SemiBold",
     fontSize: 15,
     lineHeight: 18,
     includeFontPadding: false,
@@ -273,6 +273,6 @@ const boardStyles = StyleSheet.create({
   scrapWrap: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm, paddingVertical: spacing.xs },
   scrap: { backgroundColor: colors.surface, borderRadius: radii.md, paddingHorizontal: spacing.md, paddingVertical: 9, ...shadows.card },
   scrapArmed: { backgroundColor: colors.primaryDeep, ...shadows.cardActive },
-  scrapText: { fontFamily: "PlayfairDisplay_600SemiBold", fontSize: 14, color: colors.textStrong },
+  scrapText: { fontFamily: "Lora_600SemiBold", fontSize: 14, color: colors.textStrong },
   scrapTextArmed: { color: colors.onPrimary },
 });

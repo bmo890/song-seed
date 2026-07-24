@@ -7,20 +7,23 @@ import { useLocale } from "../../i18n";
 
 type Props = {
     status: IdeaStatus;
-    pct?: number | null;
     /** Dense list rows: render a small colored dot + short caps label instead of
      * the pill, so it reads as a quiet stage marker in a tight row. */
     dense?: boolean;
     style?: StyleProp<TextStyle>;
 };
 
-const DENSE_COLORS: Record<string, string> = {
+/** Canonical warm ink per stage — the single source for stage accent color
+ * (dense dot, filter-chip border). Reuse this instead of cold literals. */
+export const STAGE_INK: Record<string, string> = {
     seed: colors.textMuted,
     sprout: "#7A6340",
     stem: "#7A4E2D",
     song: colors.primaryDeep,
     clip: colors.textSecondary,
 };
+
+const DENSE_COLORS = STAGE_INK;
 
 const DENSE_LABELS: Record<string, string> = {
     seed: "IDEA",
@@ -30,7 +33,7 @@ const DENSE_LABELS: Record<string, string> = {
     clip: "CLIP",
 };
 
-export function StatusBadge({ status, pct, dense, style }: Props) {
+export function StatusBadge({ status, dense, style }: Props) {
     const { t } = useTranslation();
     const { language } = useLocale();
     const translatedStatus = t(`stages.${status}`);
@@ -48,7 +51,6 @@ export function StatusBadge({ status, pct, dense, style }: Props) {
 
     let viewStyle: StyleProp<ViewStyle>;
     let textStyle: StyleProp<TextStyle>;
-    let label = pct != null ? `${translatedStatus} ${pct}%` : translatedStatus;
 
     switch (status) {
         case "seed":
@@ -66,7 +68,6 @@ export function StatusBadge({ status, pct, dense, style }: Props) {
         case "song":
             viewStyle = styles.statusSong;
             textStyle = styles.statusSongText;
-            label = translatedStatus;
             break;
         default:
             viewStyle = styles.statusClip;
@@ -76,7 +77,7 @@ export function StatusBadge({ status, pct, dense, style }: Props) {
 
     return (
         <Text style={[styles.badge, viewStyle, textStyle, style]}>
-            {label}
+            {translatedStatus}
         </Text>
     );
 }

@@ -718,7 +718,7 @@ const chipStyles = StyleSheet.create({
     backgroundColor: colors.surfaceContainer,
   },
   sheetTitle: {
-    fontFamily: "PlayfairDisplay_600SemiBold",
+    fontFamily: "Lora_600SemiBold",
     fontSize: 19,
     color: colors.textPrimary,
   },
@@ -731,7 +731,7 @@ const chipStyles = StyleSheet.create({
     maxHeight: 420,
   },
   notesText: {
-    fontFamily: "PlayfairDisplay_400Regular",
+    fontFamily: "Lora_500Medium",
     fontSize: 16,
     lineHeight: 26,
     color: colors.textPrimary,

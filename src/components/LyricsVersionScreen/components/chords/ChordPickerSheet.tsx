@@ -197,7 +197,7 @@ const pickerStyles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   title: {
-    fontFamily: "PlayfairDisplay_600SemiBold",
+    fontFamily: "Lora_600SemiBold",
     fontSize: 19,
     color: colors.textPrimary,
   },
@@ -290,7 +290,7 @@ const pickerStyles = StyleSheet.create({
   saveBtn: {
     flex: 1,
     backgroundColor: colors.primary,
-    borderRadius: radii.round,
+    borderRadius: radii.lg,
     paddingVertical: 14,
     alignItems: "center",
   },

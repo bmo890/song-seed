@@ -108,7 +108,7 @@ function deleteManagedAudioUrisIfStillUnreferenced(candidateUris: string[]) {
 
 export function CollectionFloatingActions() {
   const { t } = useTranslation();
-  const { screen, importFlow, selection, editModal, inlinePlayer, store } = useCollectionScreen();
+  const { screen, selection, editModal, inlinePlayer, store } = useCollectionScreen();
 
   const isIdeaHiddenByDay = (idea: SongIdea) =>
     screen.activeTimelineMetric
@@ -367,24 +367,11 @@ export function CollectionFloatingActions() {
           store.setSelectedIdeaId(targetIdea.id);
           screen.navigateRoot("IdeaDetail", { ideaId: targetIdea.id, startInEdit: true });
         }}
-        onAddProject={() => {
-          const createdIdeaId = appActions.addIdea(screen.collectionId!);
-          screen.navigateRoot("IdeaDetail", { ideaId: createdIdeaId });
-        }}
         onQuickRecord={() => {
           useStore.getState().requestInlineStop();
           useStore.getState().requestPlayerClose();
           appActions.quickRecordIdea(screen.collectionId!);
           screen.navigateRoot("Recording");
-        }}
-        onImportAudio={() => {
-          void importFlow.openImportAudioFlow();
-        }}
-        onImportDevSamples={() => {
-          void importFlow.openDevSampleImport();
-        }}
-        onImportDevSong={() => {
-          void importFlow.openDevSampleImportAsSong();
         }}
         onFloatingDockLayout={(height) => {
           screen.setFloatingDockHeight((prev) => (Math.abs(prev - height) < 1 ? prev : height));

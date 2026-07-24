@@ -246,7 +246,7 @@ const editorStyles = StyleSheet.create({
     gap: 4,
     paddingHorizontal: spacing.sm,
     paddingVertical: 4,
-    borderRadius: radii.round,
+    borderRadius: radii.lg,
     backgroundColor: colors.surface,
   },
   suggestText: {
@@ -288,14 +288,14 @@ const editorStyles = StyleSheet.create({
     paddingHorizontal: 2,
   },
   chipText: {
-    fontFamily: "PlayfairDisplay_600SemiBold",
+    fontFamily: "Lora_600SemiBold",
     fontSize: 14,
     color: colors.textStrong,
   },
   chipInput: {
     flex: 1,
     minWidth: 0,
-    fontFamily: "PlayfairDisplay_600SemiBold",
+    fontFamily: "Lora_600SemiBold",
     fontSize: 14,
     color: colors.textStrong,
     paddingVertical: 6,

@@ -107,7 +107,7 @@ export const revisitStyles = {
       marginBottom: 12,
     },
     sheetTitle: {
-      fontFamily: "PlayfairDisplay_600SemiBold",
+      fontFamily: "Lora_600SemiBold",
       fontSize: 19,
       color: INK,
     },
@@ -122,7 +122,7 @@ export const revisitStyles = {
       gap: 2,
     },
     sectionTitleSerif: {
-      fontFamily: "PlayfairDisplay_600SemiBold",
+      fontFamily: "Lora_600SemiBold",
       fontSize: 19,
       color: INK,
     },

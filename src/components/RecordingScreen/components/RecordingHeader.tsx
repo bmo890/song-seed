@@ -163,7 +163,7 @@ const localStyles = StyleSheet.create({
     letterSpacing: 0.8,
   },
   title: {
-    fontFamily: "PlayfairDisplay_600SemiBold",
+    fontFamily: "Lora_600SemiBold",
     fontSize: 21,
     color: colors.textPrimary,
   },

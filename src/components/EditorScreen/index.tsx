@@ -86,7 +86,7 @@ const editorLocalStyles = StyleSheet.create({
         borderColor: colors.borderMuted,
     },
     overdubGateTitle: {
-        fontFamily: "PlayfairDisplay_600SemiBold",
+        fontFamily: "Lora_600SemiBold",
         fontSize: 24,
         lineHeight: 30,
         color: colors.textPrimary,

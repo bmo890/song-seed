@@ -50,7 +50,7 @@ export const styles = StyleSheet.create({
     backgroundColor: colors.borderSubtle,
   },
   bpmValue: {
-    fontFamily: "PlayfairDisplay_600SemiBold",
+    fontFamily: "Lora_600SemiBold",
     fontSize: 64,
     lineHeight: 68,
     color: colors.textPrimary,

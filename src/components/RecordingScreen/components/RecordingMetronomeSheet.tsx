@@ -234,7 +234,7 @@ const s = StyleSheet.create({
     flexShrink: 1,
   },
   title: {
-    fontFamily: "PlayfairDisplay_600SemiBold",
+    fontFamily: "Lora_600SemiBold",
     fontSize: 19,
     color: colors.textPrimary,
   },

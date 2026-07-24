@@ -73,7 +73,6 @@ export function RevisitCandidateCard({
       title={candidate.title}
       isProject={candidate.itemKind === "project"}
       status={status}
-      completionPct={candidate.completionPct}
       durationMs={durationMs}
       canPlay={durationMs > 0}
       isActive={isActive}

@@ -159,11 +159,11 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
-    fontFamily: "PlayfairDisplay_400Regular",
+    fontFamily: "Lora_500Medium",
     color: colors.textStrong,
   },
 
-  sheetTitle: { fontFamily: "PlayfairDisplay_600SemiBold", fontSize: 19, color: colors.textPrimary, marginBottom: 4 },
+  sheetTitle: { fontFamily: "Lora_600SemiBold", fontSize: 19, color: colors.textPrimary, marginBottom: 4 },
   sheetSubtitle: { ...textTokens.supporting, marginBottom: spacing.md },
   optionList: { gap: 2 },
   optionRow: {

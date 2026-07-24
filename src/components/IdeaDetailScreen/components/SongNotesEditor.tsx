@@ -107,7 +107,7 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
   },
   title: {
-    fontFamily: "PlayfairDisplay_600SemiBold",
+    fontFamily: "Lora_600SemiBold",
     fontSize: 18,
     color: colors.textPrimary,
   },

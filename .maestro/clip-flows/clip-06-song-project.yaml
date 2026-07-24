@@ -14,12 +14,12 @@ appId: com.bmostudio.songnook.dev
 - runFlow: ../subflows/dismiss-logbox.yaml
 # Import the samples as one song project.
 - tapOn:
-    id: "fab-create"
+    id: "collection-overflow"
 - waitForAnimationToEnd
 - assertVisible:
-    id: "fab-menu-devsong"
+    id: "collection-menu-dev-song"
 - tapOn:
-    id: "fab-menu-devsong"
+    id: "collection-menu-dev-song"
 - extendedWaitUntil:
     visible: ".*Maestro Dev Song.*"
     timeout: 20000

@@ -411,7 +411,7 @@ const editorStyles = StyleSheet.create({
     paddingBottom: 40,
   },
   title: {
-    fontFamily: "PlayfairDisplay_600SemiBold",
+    fontFamily: "Lora_600SemiBold",
     fontSize: 28,
     color: colors.textPrimary,
     lineHeight: 32,

@@ -78,18 +78,18 @@ export const colors = {
 
 export const text = {
   pageTitle: {
-    fontFamily: "PlayfairDisplay_400Regular",
+    fontFamily: "Lora_500Medium",
     fontSize: 48,
     lineHeight: 48,
     color: colors.textPrimary,
   },
   headerTitle: {
-    fontFamily: "PlayfairDisplay_600SemiBold",
+    fontFamily: "Lora_600SemiBold",
     fontSize: 22,
     color: colors.textPrimary,
   },
   cardTitle: {
-    fontFamily: "PlayfairDisplay_400Regular",
+    fontFamily: "Lora_500Medium",
     fontSize: 30,
     lineHeight: 36,
     color: colors.textPrimary,

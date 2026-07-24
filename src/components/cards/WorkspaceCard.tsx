@@ -220,7 +220,7 @@ const cardStyles = StyleSheet.create({
     gap: 6,
   },
   title: {
-    fontFamily: "PlayfairDisplay_400Regular",
+    fontFamily: "Lora_500Medium",
     fontSize: 30,
     lineHeight: 36,
     color: "#1C1C19",

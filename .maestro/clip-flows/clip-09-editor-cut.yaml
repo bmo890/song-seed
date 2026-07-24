@@ -12,10 +12,10 @@ appId: com.bmostudio.songnook.dev
 - runFlow: reset-clips.yaml
 - runFlow: ../subflows/dismiss-logbox.yaml
 - tapOn:
-    id: "fab-create"
+    id: "collection-overflow"
 - waitForAnimationToEnd
 - tapOn:
-    id: "fab-menu-devsamples"
+    id: "collection-menu-dev-samples"
 - extendedWaitUntil:
     visible: ".*sample-01.*"
     timeout: 20000

@@ -100,7 +100,6 @@ export function ActivityResultCard({
         title={result.ideaTitle}
         isProject={isSong}
         status={isSong ? result.ideaStatus : null}
-        completionPct={result.completionPct}
         durationMs={durationMs}
         canPlay={canPlay}
         isActive={isActive}

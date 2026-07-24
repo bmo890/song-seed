@@ -97,7 +97,7 @@ function HelpPoint({
 
 const helpStyles = StyleSheet.create({
   sheetScroll: { maxHeight: 540 },
-  title: { fontFamily: "PlayfairDisplay_600SemiBold", fontSize: 19, color: colors.textPrimary, marginBottom: 4 },
+  title: { fontFamily: "Lora_600SemiBold", fontSize: 19, color: colors.textPrimary, marginBottom: 4 },
   subtitle: { ...textTokens.supporting, marginBottom: spacing.lg },
   example: {
     backgroundColor: colors.surfaceHigh,
@@ -109,7 +109,7 @@ const helpStyles = StyleSheet.create({
   exampleLabel: { ...textTokens.annotation },
   exampleLabelSecond: { marginTop: spacing.md },
   exampleText: {
-    fontFamily: "PlayfairDisplay_400Regular",
+    fontFamily: "Lora_500Medium",
     fontSize: 16,
     lineHeight: 24,
     color: colors.textPrimary,

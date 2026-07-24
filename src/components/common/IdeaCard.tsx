@@ -1,9 +1,13 @@
 import { Animated, Pressable, Text, View, type StyleProp, type ViewStyle } from "react-native";
 import type { ReactNode } from "react";
 import { Ionicons } from "@expo/vector-icons";
+import { useTranslation } from "react-i18next";
 import { styles } from "../../styles";
 import { colors } from "../../design/tokens";
 import { NowPlayingIndicator } from "./NowPlayingIndicator";
+import { WaveformStrip } from "./WaveformStrip";
+import { ScrubBar } from "./ScrubBar";
+import { IconButton } from "./IconButton";
 import { UserText } from "../../i18n";
 
 /** Renders title text with optional search-needle highlighting */
@@ -90,11 +94,18 @@ export type IdeaCardProps = {
     title: string;
     /** Use semibold weight (songs vs clips) */
     titleSemiBold?: boolean;
+    /** Earned serif: named titles get Lora; auto-named (timestamp) titles stay in
+     *  quiet tabular Jakarta. Defaults to a named (serif) title. */
+    titleIsAuto?: boolean;
     searchNeedle?: string;
     /** Trailing area: status badge + bookmark (list) or primary/reply/overdub (detail) */
     trailing?: ReactNode;
 
     // Content rows below title
+    /** Sidecar peaks for the resting waveform strip (visual identity only — never
+     *  a control). Pass null to show the aligned placeholder while peaks are
+     *  pending; omit entirely to render no strip. Skipped in compact/denseRow. */
+    waveformPeaks?: number[] | null;
     /** Contextual tags shown below title (search match badges) */
     searchTagsContent?: ReactNode;
     /**
@@ -116,7 +127,23 @@ export type IdeaCardProps = {
      * e.g. an Activity card's action label + inline "view in collection" link. */
     footerContent?: ReactNode;
 
-    // Inline player (shown in place of footer when inlineActive)
+    // Inline preview — new strip-player wiring (full-card path). While
+    // inlineActive AND onInlineScrub is provided, the waveform strip itself is
+    // the player (progress tint + drag-to-scrub) and the footer position shows
+    // a compact control row: elapsed time left · ✕ close right. Nothing else.
+    /** Live inline position as a 0..1 fraction of the clip. */
+    inlineProgress?: number;
+    /** Elapsed-time caption for the compact inline control row ("0:12"). */
+    inlineElapsedLabel?: string;
+    /** Scrub commit — final fraction on drag release. */
+    onInlineScrub?: (fraction: number) => void;
+    onInlineScrubStart?: () => void;
+    onInlineScrubCancel?: () => void;
+    /** ✕ — stop the preview. */
+    onInlineClose?: () => void;
+
+    // Inline player (legacy slider row) — still used by denseRow, and by
+    // full-card callers that don't pass the strip-player props above.
     inlinePlayerContent?: ReactNode;
 };
 
@@ -152,23 +179,45 @@ export function IdeaCard({
     delayLongPress = 250,
     title,
     titleSemiBold,
+    titleIsAuto,
     searchNeedle,
     trailing,
+    waveformPeaks,
     searchTagsContent,
     bodyContent,
     editContent,
     footerDate,
     footerRightContent,
     footerContent,
+    inlineProgress,
+    inlineElapsedLabel,
+    onInlineScrub,
+    onInlineScrubStart,
+    onInlineScrubCancel,
+    onInlineClose,
     inlinePlayerContent,
 }: IdeaCardProps) {
+    const { t } = useTranslation();
+    // The strip is the inline player only when the caller wired the new props;
+    // otherwise (InlineIdeaCard et al.) the legacy slider row still renders.
+    const stripIsInlinePlayer = inlineActive && onInlineScrub != null;
     if (denseRow) {
+        // Compact exists to scan and audition many clips fast — subtraction, but
+        // still a real player: while this row is the active preview it EXTENDS to
+        // reveal an on-brand scrub line (terracotta track + thumb) so you can move
+        // through the clip without leaving the list. Play flips to pause, title
+        // goes terracotta, elapsed / duration flank the draggable line, ✕ ends it.
+        const denseScrubActive = inlineActive && onInlineScrub != null;
+        const denseTitleActive = nowPlaying || inlineActive;
+        const denseProgress = inlineActive && inlineProgress != null
+            ? Math.max(0, Math.min(1, inlineProgress))
+            : 0;
         return (
             <View
                 style={[
                     styles.ideaDenseRow,
                     accentBorderColor
-                        ? { borderLeftWidth: 2, borderLeftColor: accentBorderColor, paddingLeft: 8 }
+                        ? { borderLeftWidth: 3, borderLeftColor: accentBorderColor, paddingLeft: 8 }
                         : null,
                     (selected || isActive) ? styles.ideaDenseRowSelected : null,
                     nowPlaying ? styles.ideaDenseRowNowPlaying : null,
@@ -182,6 +231,8 @@ export function IdeaCard({
                     />
                 ) : null}
                 <View style={styles.ideaDenseInner}>
+                    {/* Bare play/pause glyph — no circle, no border. The 44pt hit
+                        area lives in the Pressable's hitSlop. */}
                     <Pressable
                         style={({ pressed }) => [
                             styles.ideaDensePlay,
@@ -192,16 +243,17 @@ export function IdeaCard({
                             onPressLead();
                         }}
                         onLongPress={onLongPressLead}
+                        hitSlop={{ top: 8, bottom: 8, left: 12, right: 12 }}
                     >
                         <Ionicons
                             name={inlineActive && isInlinePlaying ? "pause" : "play"}
-                            size={13}
-                            color={!canPlay ? "#9ca3af" : "#111827"}
+                            size={15}
+                            color={!canPlay ? colors.textMuted : colors.textStrong}
                             style={inlineActive && isInlinePlaying ? undefined : { marginStart: 2 }}
                         />
                     </Pressable>
                     {/* The main pressable spans title AND the meta cluster: the meta
-                        (date/duration/badges) used to sit outside every pressable, so
+                        (duration/badges) used to sit outside every pressable, so
                         the right half of a dense row was a dead zone — especially bad
                         in selection mode, where a tap "didn't register". Interactive
                         trailing bits (bookmark) keep their own nested Pressables. */}
@@ -216,8 +268,6 @@ export function IdeaCard({
                             <View style={{ marginRight: 6 }}>
                                 <NowPlayingIndicator playing={!!nowPlayingIsPlaying} color={colors.primary} size={12} />
                             </View>
-                        ) : isSong ? (
-                            <Ionicons name="disc-outline" size={12} color={colors.textSecondary} style={{ marginRight: 6 }} />
                         ) : null}
                         <View style={{ flex: 1, minWidth: 0 }}>
                             <HighlightedText
@@ -226,26 +276,49 @@ export function IdeaCard({
                                 textStyle={[
                                     styles.ideaDenseTitle,
                                     titleSemiBold ? styles.ideaDenseTitleProject : null,
-                                    nowPlaying ? { color: colors.primary } : null,
+                                    denseTitleActive ? { color: colors.primary } : null,
                                 ]}
                                 hitStyle={styles.ideasListCardTitleHighlight}
                                 numberOfLines={1}
                             />
                         </View>
-                        {inlineActive ? (
-                            leadAccessory ?? null
-                        ) : (
+                        {denseScrubActive ? null : (
+                            // Right cluster, right edge = duration. Compact keeps only
+                            // the bookmark (when set), a small dot divider, then the
+                            // clip length — all other metadata is dropped for density.
                             <View style={styles.ideaDenseMeta}>
-                                {footerDate ? <Text style={styles.ideaDenseDate}>{footerDate}</Text> : null}
-                                {footerRightContent ?? null}
-                                <Text style={styles.ideaDenseDuration}>{durationLabel}</Text>
                                 {trailing ?? null}
+                                {trailing != null ? <View style={styles.ideaDenseDot} /> : null}
+                                <Text style={styles.ideaDenseDuration}>{durationLabel}</Text>
                             </View>
                         )}
                     </Pressable>
                 </View>
-                {inlineActive ? (
-                    <View style={styles.ideaDenseScrubber}>{inlinePlayerContent ?? null}</View>
+                {denseScrubActive ? (
+                    // The extend: the row grows to hold a real, draggable scrub line.
+                    <View style={styles.ideaDenseScrubRow}>
+                        <Text style={styles.ideaDenseDuration}>{inlineElapsedLabel ?? ""}</Text>
+                        <View style={{ flex: 1 }}>
+                            <ScrubBar
+                                progress={denseProgress}
+                                onScrub={onInlineScrub}
+                                onScrubStart={onInlineScrubStart}
+                                onScrubCancel={onInlineScrubCancel}
+                            />
+                        </View>
+                        <Text style={styles.ideaDenseDuration}>{durationLabel}</Text>
+                        {onInlineClose != null ? (
+                            <IconButton
+                                icon="close"
+                                tone="muted"
+                                size={15}
+                                hitSlop={12}
+                                onPress={onInlineClose}
+                                stopPropagation
+                                accessibilityLabel={t("common.stopPreview")}
+                            />
+                        ) : null}
+                    </View>
                 ) : null}
             </View>
         );
@@ -291,7 +364,7 @@ export function IdeaCard({
             ) : null}
 
             <View style={styles.ideasListCardRow}>
-                {/* Lead column: play/pause button + optional accessory + duration */}
+                {/* Lead column: bare play/pause glyph + optional accessory */}
                 <View style={styles.ideaCardLeadCol}>
                     <Pressable
                         style={({ pressed }) => [
@@ -303,20 +376,17 @@ export function IdeaCard({
                             onPressLead();
                         }}
                         onLongPress={onLongPressLead}
+                        // 32pt glyph box + 6pt slop = 44pt effective target.
+                        hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
                     >
                         <Ionicons
                             name={inlineActive && isInlinePlaying ? "pause" : "play"}
-                            size={15}
-                            color={!canPlay ? "#9ca3af" : "#111827"}
+                            size={18}
+                            color={!canPlay ? colors.textMuted : colors.textStrong}
                             style={inlineActive && isInlinePlaying ? undefined : { marginStart: 2 }}
                         />
                     </Pressable>
                     {leadAccessory ?? null}
-                    {!inlineActive ? (
-                        <View style={styles.ideasListLeadDurationSlot}>
-                            <Text style={styles.ideasListLeadDurationText}>{durationLabel}</Text>
-                        </View>
-                    ) : null}
                 </View>
 
                 {/* Main content column */}
@@ -330,52 +400,117 @@ export function IdeaCard({
                         editContent
                     ) : (
                         <>
-                            {/* Title row */}
-                            <View style={styles.ideasListCardTop}>
-                                <View style={styles.ideasListCardTopBlock}>
-                                    <View style={styles.ideasListCardTitleRow}>
-                                        {nowPlaying ? (
-                                            <View style={{ marginRight: 7 }}>
-                                                <NowPlayingIndicator playing={!!nowPlayingIsPlaying} color={colors.primary} size={13} />
-                                            </View>
-                                        ) : isSong ? (
-                                            <Ionicons name="disc-outline" size={13} color={colors.textSecondary} style={{ marginRight: 7 }} />
-                                        ) : null}
-                                        <HighlightedText
-                                            text={title}
-                                            needle={searchNeedle}
-                                            textStyle={[
-                                                styles.ideasListCardTitle,
-                                                titleSemiBold ? styles.ideasListCardTitleProject : null,
-                                                compact ? styles.ideasListCardTitleCompact : null,
-                                                nowPlaying ? { color: colors.primary } : null,
-                                            ]}
-                                            hitStyle={styles.ideasListCardTitleHighlight}
-                                            numberOfLines={compact ? 1 : undefined}
-                                        />
+                            {/* Title row: title + duration ONLY — badges live in the meta row.
+                                No disc marker: a sketch is identified by its spine + ♪ N alone. */}
+                            <View style={styles.ideasListCardTitleRow}>
+                                {nowPlaying ? (
+                                    <View style={{ marginRight: 7 }}>
+                                        <NowPlayingIndicator playing={!!nowPlayingIsPlaying} color={colors.primary} size={13} />
                                     </View>
-                                </View>
-                                {trailing != null ? (
-                                    <View style={styles.ideasListCardTrailing}>{trailing}</View>
+                                ) : null}
+                                <HighlightedText
+                                    text={title}
+                                    needle={searchNeedle}
+                                    textStyle={[
+                                        styles.ideasListCardTitle,
+                                        // Earned serif: named → Lora_500Medium (one weight for
+                                        // every named title); auto-named → tabular Jakarta.
+                                        titleIsAuto
+                                            ? styles.ideasListCardTitleAuto
+                                            : styles.ideasListCardTitleSerif,
+                                        compact ? styles.ideasListCardTitleCompact : null,
+                                        nowPlaying ? { color: colors.primary } : null,
+                                    ]}
+                                    hitStyle={styles.ideasListCardTitleHighlight}
+                                    numberOfLines={1}
+                                />
+                                {durationLabel ? (
+                                    <Text style={styles.ideasListTitleDurationText}>
+                                        {durationLabel}
+                                    </Text>
                                 ) : null}
                             </View>
+
+                            {/* Waveform strip — resting identity (taps fall through), OR the
+                                live inline player (progress tint + drag-to-scrub) while this
+                                card is the active preview. Compact cards skip the resting
+                                strip but still surface it while previewing, so scrubbing is
+                                never lost. */}
+                            {waveformPeaks !== undefined && (!compact || stripIsInlinePlayer) ? (
+                                // Fixed-geometry zone, identical at rest and while
+                                // previewing: strip (flex) · reserved right slot. The slot
+                                // holds the ✕ during preview and stays an empty spacer at
+                                // rest, so the strip's width — and the bar pitch derived
+                                // from it — never changes, and the card keeps one height.
+                                <View style={styles.ideaCardStripZone}>
+                                    <View style={styles.ideaCardStripFlex}>
+                                        <WaveformStrip
+                                            peaks={waveformPeaks}
+                                            progress={
+                                                inlineActive && inlineProgress != null
+                                                    ? Math.max(0, Math.min(1, inlineProgress))
+                                                    : undefined
+                                            }
+                                            onScrub={stripIsInlinePlayer ? onInlineScrub : undefined}
+                                            onScrubStart={stripIsInlinePlayer ? onInlineScrubStart : undefined}
+                                            onScrubCancel={stripIsInlinePlayer ? onInlineScrubCancel : undefined}
+                                        />
+                                    </View>
+                                    <View style={styles.ideaCardStripCloseSlot}>
+                                        {stripIsInlinePlayer && onInlineClose != null ? (
+                                            // Same visual size/tone as the play glyph; 18pt glyph
+                                            // + 13pt slop = 44pt effective target.
+                                            <IconButton
+                                                icon="close"
+                                                tone="strong"
+                                                size={18}
+                                                hitSlop={13}
+                                                onPress={onInlineClose}
+                                                stopPropagation
+                                                accessibilityLabel={t("common.stopPreview")}
+                                            />
+                                        ) : null}
+                                    </View>
+                                </View>
+                            ) : null}
 
                             {searchTagsContent ?? null}
                             {bodyContent ?? null}
 
-                            {/* Footer or inline player */}
-                            {inlineActive ? (
+                            {/* Meta row / inline control row */}
+                            {stripIsInlinePlayer ? (
+                                // The strip above is the player (✕ lives on its axis) —
+                                // down here just the elapsed caption on the left.
+                                <View style={styles.ideaCardInlineControlRow}>
+                                    <Text style={styles.ideasListCreatedAtText} numberOfLines={1}>
+                                        {inlineElapsedLabel ?? ""}
+                                    </Text>
+                                </View>
+                            ) : inlineActive ? (
                                 inlinePlayerContent ?? null
                             ) : footerContent != null ? (
-                                footerContent
-                            ) : (footerDate != null || footerRightContent != null) ? (
+                                trailing != null ? (
+                                    <View style={styles.ideasListMetaRow}>
+                                        <View style={{ flex: 1, minWidth: 0 }}>{footerContent}</View>
+                                        <View style={styles.ideasListCardTrailing}>{trailing}</View>
+                                    </View>
+                                ) : (
+                                    footerContent
+                                )
+                            ) : (footerDate != null || footerRightContent != null || trailing != null) ? (
                                 <View style={styles.ideasListMetaRow}>
                                     {footerDate != null ? (
                                         <Text style={styles.ideasListCreatedAtText} numberOfLines={1}>
                                             {footerDate}
                                         </Text>
-                                    ) : null}
-                                    {footerRightContent ?? null}
+                                    ) : (
+                                        // Keeps the right cluster pinned right when dateless.
+                                        <View style={{ flex: 1 }} />
+                                    )}
+                                    <View style={styles.ideasListCardTrailing}>
+                                        {footerRightContent ?? null}
+                                        {trailing ?? null}
+                                    </View>
                                 </View>
                             ) : null}
                         </>

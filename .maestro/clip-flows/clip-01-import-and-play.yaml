@@ -8,19 +8,19 @@ appId: com.bmostudio.songnook.dev
 - tapOn: ".*Ideas.*"
 - extendedWaitUntil:
     visible:
-      id: "fab-create"
+      id: "fab-record"
     timeout: 15000
 - runFlow: ../subflows/dismiss-logbox.yaml
 # Clear any leftover sample clips so the import runs clean (no duplicate review).
 - runFlow: reset-clips.yaml
 # Import the dev sample clips through the real pipeline.
 - tapOn:
-    id: "fab-create"
+    id: "collection-overflow"
 - waitForAnimationToEnd
 - assertVisible:
-    id: "fab-menu-devsamples"
+    id: "collection-menu-dev-samples"
 - tapOn:
-    id: "fab-menu-devsamples"
+    id: "collection-menu-dev-samples"
 - extendedWaitUntil:
     visible: ".*sample-01.*"
     timeout: 20000

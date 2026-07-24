@@ -305,7 +305,7 @@ const s = StyleSheet.create({
     color: colors.primary,
   },
   title: {
-    fontFamily: "PlayfairDisplay_600SemiBold",
+    fontFamily: "Lora_600SemiBold",
     fontSize: 30,
     lineHeight: 36,
     color: colors.textPrimary,

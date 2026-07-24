@@ -5,10 +5,10 @@ import { StatusBar } from "expo-status-bar";
 import { ActivityIndicator, View } from "react-native";
 import { useFonts } from "expo-font";
 import {
-  PlayfairDisplay_400Regular,
-  PlayfairDisplay_600SemiBold,
-  PlayfairDisplay_700Bold,
-} from "@expo-google-fonts/playfair-display";
+  Lora_500Medium,
+  Lora_600SemiBold,
+  Lora_700Bold,
+} from "@expo-google-fonts/lora";
 import {
   PlusJakartaSans_400Regular,
   PlusJakartaSans_500Medium,
@@ -748,9 +748,9 @@ function WelcomeGate() {
 function AppContent() {
   const { direction } = useLocale();
   const [fontsLoaded] = useFonts({
-    PlayfairDisplay_400Regular: direction === "rtl" ? FrankRuhlLibre_400Regular : PlayfairDisplay_400Regular,
-    PlayfairDisplay_600SemiBold: direction === "rtl" ? FrankRuhlLibre_600SemiBold : PlayfairDisplay_600SemiBold,
-    PlayfairDisplay_700Bold: direction === "rtl" ? FrankRuhlLibre_700Bold : PlayfairDisplay_700Bold,
+    Lora_500Medium: direction === "rtl" ? FrankRuhlLibre_400Regular : Lora_500Medium,
+    Lora_600SemiBold: direction === "rtl" ? FrankRuhlLibre_600SemiBold : Lora_600SemiBold,
+    Lora_700Bold: direction === "rtl" ? FrankRuhlLibre_700Bold : Lora_700Bold,
     PlusJakartaSans_400Regular: direction === "rtl" ? Heebo_400Regular : PlusJakartaSans_400Regular,
     PlusJakartaSans_500Medium: direction === "rtl" ? Heebo_500Medium : PlusJakartaSans_500Medium,
     PlusJakartaSans_600SemiBold: direction === "rtl" ? Heebo_600SemiBold : PlusJakartaSans_600SemiBold,
@@ -759,9 +759,9 @@ function AppContent() {
     SongNookLatinSansMedium: PlusJakartaSans_500Medium,
     SongNookLatinSansSemiBold: PlusJakartaSans_600SemiBold,
     SongNookLatinSansBold: PlusJakartaSans_700Bold,
-    SongNookLatinSerifRegular: PlayfairDisplay_400Regular,
-    SongNookLatinSerifSemiBold: PlayfairDisplay_600SemiBold,
-    SongNookLatinSerifBold: PlayfairDisplay_700Bold,
+    SongNookLatinSerifRegular: Lora_500Medium,
+    SongNookLatinSerifSemiBold: Lora_600SemiBold,
+    SongNookLatinSerifBold: Lora_700Bold,
     SongNookHebrewSansRegular: Heebo_400Regular,
     SongNookHebrewSansMedium: Heebo_500Medium,
     SongNookHebrewSansSemiBold: Heebo_600SemiBold,

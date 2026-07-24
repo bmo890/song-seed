@@ -79,7 +79,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   glyph: {
-    fontFamily: "PlayfairDisplay_600SemiBold",
+    fontFamily: "Lora_600SemiBold",
     fontSize: 15,
     color: colors.textStrong,
   },

@@ -423,7 +423,7 @@ const styles = StyleSheet.create({
         textTransform: "uppercase",
     },
     sheetTitle: {
-        fontFamily: "PlayfairDisplay_600SemiBold",
+        fontFamily: "Lora_600SemiBold",
         fontSize: 24,
         color: colors.textPrimary,
         marginTop: 2,
@@ -457,7 +457,7 @@ const styles = StyleSheet.create({
     },
     bigPercentBlock: { alignItems: "center", marginBottom: 14 },
     bigPercent: {
-        fontFamily: "PlayfairDisplay_600SemiBold",
+        fontFamily: "Lora_600SemiBold",
         fontSize: 52,
         lineHeight: 60,
         fontVariant: ["tabular-nums"],

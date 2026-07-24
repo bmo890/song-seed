@@ -1,373 +1,295 @@
 # SongNook Design System
 
-This document defines the design philosophy, interaction model, and reusable UI patterns used throughout SongNook.
-
-## Design Principles
-
-The system follows five principles.
-
-### 1. Simplicity
-
-The interface should prioritize clarity over features.
-
-If a feature requires too much UI, it should be hidden behind progressive disclosure.
-
-### 2. Creative Focus
-
-The app exists to capture and develop ideas.
-
-The UI must always prioritize:
-- audio ideas
-- lyrics
-- creative evolution
-
-over configuration and metadata.
-
-### 3. Progressive Disclosure
-
-Show only what is needed in the moment.
-
-Examples:
-- lyrics collapsed by default where appropriate
-- metadata inside tabs or compact strips
-- advanced actions in overflow menus
-
-### 4. Predictability
-
-Users should not need to learn new interaction models per screen.
-
-Shared patterns must behave the same everywhere.
-
-### 5. Calm Aesthetic
-
-The UI should feel:
-- quiet
-- focused
-- inviting
-
-Avoid bright colors, heavy decoration, or dashboard-like density.
-
-## Layout Structure
-
-Most screens should follow the same high-level structure.
-
-### Header
-- breadcrumbs
-- title
-- optional subtitle/status
-
-### Primary content
-- ideas list
-- takes/evolution
-- waveform/editor surface
-- recording surface
-
-### Secondary tools
-- lyrics
-- notes
-- metadata views
-
-### Actions
-- recording controls
-- playback controls
-- create/import controls
-
-## Interaction Zones
-
-Use these internal categories when organizing a screen.
-
-### 1. Global nav
-- drawer/menu access
-- escape routes
-- breadcrumb context
-
-### 2. Local nav
-- collection/subcollection switching
-- song sub-tabs
-- scoped navigation inside the current context
-
-### 3. Discovery
-- search
-- filter
-- sort
-- visibility/density controls
-
-### 4. List actions
-- play all
-- select mode entry
-- unhide all
-
-These should be contextual where possible, not always visible.
-
-### 5. Content
-- cards
-- lists
-- waveforms
-- timelines
-- dividers
-- sticky section controls
-
-### 6. Create
-- floating add/record controls
-- import actions
-
-## Core Components
-
-Screens should be composed from shared building blocks.
-
-Recommended core components:
-- `AppHeader`
-- `AppBreadcrumbs`
-- `SearchField`
-- `FilterSortControls`
-- `OverflowMenu`
-- `BottomActionDock`
-- `SegmentedToggle`
-- `SectionHeader`
-- `SummaryCard`
-- `ListCard`
-- `ActionSheet`
-- `StatusChip`
-
-Reuse these patterns before creating new component styles.
-
-## Cards
-
-Cards are for content.
-
-Correct uses:
-- clips
-- songs
-- primary take
-- idea items
-- collection content rows if they represent browseable content
-
-Incorrect uses:
-- timers
-- generic controls
-- top-level navigation
-- page scaffolding
-
-Cards should feel like content containers, not generic rounded rectangles used everywhere.
-
-## Headers
-
-Use a consistent page header pattern.
-
-### Structure
-- left: navigation control
-- center: breadcrumb context
-- right: overflow menu
-
-Below that:
-- page title
-- optional compact status/subtitle
-
-Breadcrumbs should be:
-- subtle
-- small
-- single-line
-- truncated when deep
-
-Example:
-
-`Main › Songs`
-
-## Controls
-
-Controls should sit directly on the surface whenever possible.
-
-### Action tiers
-
-#### Primary
-- one large obvious action
-- examples:
-  - Record
-  - Save
-
-#### Secondary
-- inline button or icon
-- examples:
-  - Play
-  - Open
-  - Sort
-
-#### Advanced / destructive
-- overflow menu
-- examples:
-  - Delete
-  - Discard
-  - Change input
-  - Settings
-
-Avoid showing many equal-weight buttons at once.
-
-## Text Usage
-
-Text should be minimal and self-evident.
-
-Avoid unnecessary labels like:
-- sticky controls
-- paused take
-- recording panel
-
-Prefer:
-- Recording
-- Paused
-
-## Tabs
-
-Tabs should be used for related modes or metadata, not for global navigation.
-
-Good examples:
-- `Takes | Lyrics | Notes`
-- `Timeline | Evolution`
-
-Tabs should reduce vertical clutter, not add more.
-
-## Expandable Panels
-
-Expandable sections are useful for keeping density under control.
-
-Collapsed state should show:
-- title
-- short summary
-
-Expanded state reveals the detail.
-
-Examples:
-- lyrics panel
-- notes panel
-- metadata groups
-
-When expanded, nearby content may shrink if that improves focus.
-
-## Lists
-
-Lists represent collections of content.
-
-Examples:
-- ideas list
-- songs list
-- clip/take list
-
-List items should typically contain:
-- title
-- compact metadata
-- waveform preview if relevant
-
-List items must stay visually consistent across screens.
-
-## Audio Visualization
-
-Waveforms are a primary visual element.
-
-Waveform components should:
-- remain visually consistent
-- have predictable interactions
-- support scrubbing when appropriate
-- be large enough to read clearly
-
-Interaction rules:
-- tap waveform or play zone -> play/pause
-- drag waveform -> scrub
-
-## Recording UI
-
-Recording interfaces should remain extremely simple.
-
-Key elements:
-- waveform
-- recording timer
-- recording state
-- sticky bottom control bar
-
-Avoid excessive controls during active recording.
-
-Discard should be handled through:
-- back confirmation
-- or overflow menu
-
-not as a dominant visible action.
-
-## Navigation
-
-Navigation is hierarchical and contextual.
-
-Examples:
-- `Home`
-- `Workspace`
-- `Collection`
-- `Subcollection`
-- `Song`
-- `Clip`
-
-Breadcrumbs should always show where the user is, but remain visually quiet.
-
-## Color Philosophy
-
-Use color sparingly.
-
-Primary color usage:
-- selected states
-- record button
-- active tabs
-- status chips
-
-Most surfaces should remain neutral.
-
-## Interaction Feedback
-
-The app has a shared interaction layer; new UI must use it rather than inventing
-per-screen feedback.
-
-### Press feedback
-- Every tappable surface uses `styles.pressDown` (or `pressDownStrong` for large
-  floating controls). No ad-hoc opacity values.
-
-### Haptics
-Use the semantic vocabulary in `src/design/haptics.ts` — never call `expo-haptics`
-directly:
-- `haptic.tap` — any acknowledged press (buttons, menu rows, toggles, transport)
-- `haptic.light` — small state flips (bookmark, chip select)
-- `haptic.grab` — drag lift, entering selection mode, record state changes
-- `haptic.success` / `haptic.warning` / `haptic.error` — completions, destructive
-  confirms opening, failures
-- Sliders tick once on release (`onSlidingComplete`), not per value change
-- Users can disable all UI haptics in Settings → Feedback (the `hapticsEnabled`
-  preference gates the whole vocabulary centrally)
-- Exception: the metronome's beat pulse (`useMetronome.ts`) is a musical output
-  with its own intensity control — it bypasses the UI-haptics toggle on purpose
-
-### Motion
-Durations and spring profiles come from `src/design/motion.ts`:
-- `durations.fast` (120ms) menus/overlays fading in · `base` (180ms) toggles and
-  thumbs · `gentle` (220ms) docks/sheets · `slow` (300ms) panel expansion
-- `springs.surface` for sheets/docks, `springs.pop` for dialog cards,
-  `springs.handle` for gesture handles
-- Centered cards enter with the shared `popIn` preset (used by `AppDialog` and
-  `WarmModal`)
-- Popover menus fade in with `FadeIn.duration(durations.fast)`
-- Selection thumbs slide (see `SegmentedControl`, `LyricsChordsToggle`) rather
-  than swapping backgrounds
+**North star: a quiet place to finish creative work.**
+
+SongNook is a physical musician's sketchbook made digital — intentional, tactile,
+editorial. Every decision below serves that sentence. When a rule here conflicts
+with something in the code, the rule wins for new work; the code gets a punch-list
+entry.
+
+This document is the single source of truth for visual language, interaction
+feedback, copy voice, and component reuse. It is code-verified (2026-07-23).
+The condensed enforceable version lives in the repo-root `CLAUDE.md`; agents load
+that automatically and come here for detail.
+
+---
+
+## 1. Principles
+
+1. **Simplicity** — clarity over features; complex UI hides behind progressive disclosure.
+2. **Creative focus** — audio ideas, lyrics, and creative evolution always outrank configuration and metadata.
+3. **Progressive disclosure** — show only what the moment needs; advanced actions live in overflow.
+4. **Predictability** — one interaction model everywhere; shared patterns behave identically on every screen.
+5. **Calm** — quiet, focused, inviting. No bright colors, heavy decoration, or dashboard density. The app should feel like opening a notebook, not launching software.
+
+A litmus test for any screen: *could this sit open on a music stand without
+distracting from the instrument?*
+
+---
+
+## 2. Visual language
+
+Source of truth: `src/design/tokens.ts`. This section mirrors it; if they ever
+disagree, fix one of them in the same commit.
+
+### Color
+
+| Token | Value | Use |
+|---|---|---|
+| `colors.page` | `#FDFBF7` | Base page background |
+| `colors.surface` | `#FFFFFF` | Lifted cards/sheets |
+| `colors.surfaceContainer` | `#F4F1ED` | Sub-nav, segmented tracks, utility bg |
+| `colors.surfaceHigh` | `#EDE9E4` | Secondary buttons, hover/selected fills |
+| `colors.textPrimary` | `#1b1c1a` | Primary text (warm charcoal — never pure black) |
+| `colors.textSecondary` | `#84736f` | Secondary text, muted icons |
+| `colors.textMuted` | `#a89994` | Tertiary/annotation text |
+| `colors.textStrong` | `#524440` | Emphasis within UI chrome |
+| `colors.primary` | `#B87D6B` | The one terracotta accent |
+| `colors.primaryDeep` | `#824F3F` | Accent-tone icons, dense accents |
+| `colors.record` / `recordSurface` / `recordBorder` | `#C0453B` / `#FCF2F0` / `#EBD3CE` | Recording state only |
+| `colors.playhead` | `#D95B56` | Playback position only |
+| `colors.danger` / `dangerSurface` | `#A8443A` / `#FBEFEC` | Destructive only |
+| `colors.borderSubtle` / `borderMuted` | `#E8E4DF` / `#D7C2BD` | Technical lines |
+
+Rules:
+- **No new hex literals outside `tokens.ts` / `workspaceTheme.ts`.** Import `colors`. (~1,000 legacy literals exist in `src/styles/*`; they are debt, not precedent.)
+- Color is scarce: terracotta for the primary action + active states, record-red for recording, danger-red for destruction. Everything else is warm neutral.
+- Workspace accent colors come from `src/domain/workspaceTheme.ts` (7 earthy hues) — never invent an eighth.
+
+### Typography
+
+Fonts: **Lora** (serif — decided 2026-07-23, replacing Playfair Display app-wide)
++ **Plus Jakarta Sans** (UI). Under RTL these keys auto-remap to
+FrankRuhlLibre/Heebo in `App.tsx` — always use the Latin family keys or `text.*`
+tokens, never the Hebrew keys directly.
+
+**The earned serif (decided 2026-07-23):** the serif belongs to what the user
+made *and named*. Named clips/songs render titles in Lora; auto-named clips show
+their timestamp name in quiet tabular Jakarta until the user claims them with a
+name. Chrome, buttons, and metadata are always Jakarta — a serif button is a bug.
+
+| Token | Face | Size/LH | Use |
+|---|---|---|---|
+| `text.pageTitle` | Lora 500 | 48/48 | Main-screen editorial titles only |
+| `text.headerTitle` | Lora 600 | 22 | Secondary-screen headers (`ScreenHeader`) |
+| `text.cardTitle` | Lora 500 | 30/36 | Large card headings (workspace cards) |
+| `text.sectionTitle` | Jakarta 700 | 10, +1.0, CAPS | Uppercase metadata labels |
+| `text.body` | Jakarta 400 | 14 | Body copy |
+| `text.supporting` | Jakarta 400 | 13 | Secondary descriptions |
+| `text.caption` | Jakarta 600 | 12 | Compact labels |
+| `text.annotation` | Jakarta 600 | 10, +0.8, CAPS | Eyebrows, badges |
+
+Rules:
+- Prefer `text.*` tokens; when a bespoke size is unavoidable, still use the family constants.
+- **Never `fontWeight` without `fontFamily`** — RN falls back to the system font (the "random font" bug).
+- Numbers that update or align (durations, counts) get `fontVariant: ["tabular-nums"]`.
+- Lora is for *content and identity* (titles of things the user made, screen identity). UI controls, buttons, and metadata are always Jakarta. If a button is in a serif, it's wrong.
+- Never re-introduce Playfair Display — retired 2026-07-23 (too theatrical at content sizes).
+
+### Shape & depth
+
+Working canon (the overall visual concept is under active review in the v1
+audit — until that concludes, this is law):
+
+| Shell | Radius | Recipe | Use |
+|---|---|---|---|
+| **Content card** (`IdeaCard` shell, `styles/ideasList.ts`) | 12 | white, 1px `rgba(215,194,189,0.18)`, whisper shadow | Clips, songs, list content — anything the user made |
+| **Structural card** (`common/SurfaceCard.tsx`) | 8 (`radii.lg`) | white, 1px `rgba(215,194,189,0.1)`, `shadows.card` | Settings groups, detail panels, scaffolding |
+| Chips/pills | `radii.md` 6 / `round` 999 | — | Badges, segmented, pill buttons |
+| Sheets | 18 top corners | `BottomSheet` | All bottom sheets |
+
+- The generic radius-4 `card` style in `styles/base.ts` is **deprecated** — do not use it in new work.
+- One-off card recipes (`WorkspaceCard`, `WorkspaceCollectionCard`, `OverdubLayerCard`) are known deviations slated for normalization; do not copy them.
+- Shadows are ambient whispers (`shadows.*`, opacity ≤ 0.08). Depth comes primarily from tonal layering (white on `#FDFBF7`), not shadow.
+- No pure black, anywhere, ever.
+
+---
+
+## 3. Component canon
+
+**Reuse before creating. Restyle nothing inline.** If a canon component can't do
+what you need, extend the component — never fork its look at the call site.
+
+### The clip card (locked 2026-07-23)
+
+One recipe everywhere (collection, version history, Activity, Revisit) — only the
+meta cluster's contents vary per context:
+
+- **Shell:** white, r12, **borderless**, whisper shadow (`0 2 8 rgba(61,55,50,.06)`).
+  The resting card has zero lines on it.
+- **Three rows, always:** title+duration · waveform strip · meta. Never a fourth
+  row for chrome.
+- **Title:** earned serif — named → Lora; auto-named → timestamp in tabular
+  Jakarta. Duration top-right, tabular.
+- **Waveform strip** (~22px, from sidecar peaks): visual identity at rest — tap
+  behaves like tapping the card. Goes live (progress tint + drag-to-scrub) ONLY
+  while this card is the active preview.
+- **Meta row:** time-of-day left ("just now" only within the first minute) ·
+  right cluster: stage dot · ♪ N takes · bookmark — glyphs, no pills.
+- **Play button:** bare glyph (no circle/border), 44pt hit area, flips to pause
+  while previewing. Drives the preview session; the mediadock/full-player flow is
+  untouched and sacred.
+- **Sketch tell (exclusivity rule):** ONLY sketches get the workspace-color left
+  spine (3.5px) + semibold title + ♪ N. No clip ever gets a spine.
+- **Preview session:** card play pauses the queue dock, which minimizes to a
+  controls-free pill; ✕/pill restores the dock paused (never auto-resume). One
+  transport visible at a time.
+
+| Need | Use | Notes |
+|---|---|---|
+| Content card shell | `common/IdeaCard.tsx` | ALL clip/song/content rows funnel here (via `ClipCard`, `InlineIdeaCard`, `IdeaListItem`). Never build a parallel clip card. |
+| Structural card | `common/SurfaceCard.tsx` | |
+| Buttons | `common/Button.tsx` (soft keys, r8 — tiers primary/secondary/destructive/quiet, see §Button language), `common/IconButton.tsx` (bare glyph, tones accent/muted/strong) | Icon-first: reach for `IconButton` + a conventional glyph before a labeled button. Stadium `round` retired on text buttons. |
+| Tabs/modes | `common/SegmentedControl.tsx` | Sliding thumb; pass `persist` (useSegmentedThumb) when the control survives subtree swaps. |
+| Screen header | `common/ScreenHeader.tsx` | Secondary screens: back + title (+ subtitle). Main screens: editorial `pageTitle`. There is no `AppHeader`; breadcrumbs component was removed — quiet `A › B` eyebrow text only. |
+| Sheets | `common/BottomSheet.tsx` | The only sheet primitive. |
+| Action sheets | `common/SelectionActionSheet.tsx` / `modals/ClipActionsSheet.tsx` pattern | **Max ~6 rows.** More than that means the screen's information architecture is wrong — split by intent or promote the top 1–2 actions inline. |
+| Overflow | `IconButton` `ellipsis-horizontal` → action sheet | |
+| Empty states | `common/EmptyState.tsx` | |
+| Toasts | `toastStore` / `ToastHost` | Every background `success` haptic pairs with a toast, never a dialog. |
+| Dialogs | `AppDialog` / `WarmModal` | Confirmation only — never for information that could be a toast. |
+| Waveform | `common/AudioReel.tsx` | Tap = play/pause, drag = scrub. Everywhere. |
+
+### Button language (locked 2026-07-24)
+
+**The stadium pill is retired.** `radius: round` (999) is banned on text buttons —
+it is the single most "framework default" shape and reads as generic. Round stays
+ONLY for genuinely circular icon buttons (the record FAB, close ✕). All text
+buttons are **soft keys: `radii.lg` (8)**, refined proportions (~38px tall, never
+46), color — not heft — carries meaning.
+
+| Tier | Fill | Text | Use |
+|---|---|---|---|
+| **Primary (default)** | tonal terracotta wash (`#F3E4DE`) | `primaryDeep` | The one action per screen. Warm, unmistakably tappable, never shouty. |
+| **Primary (emphasis)** | solid `colors.primary` | `onPrimary` | Reserve for the single highest-stakes commit (Save in a sheet, a paywall CTA). |
+| **Secondary** | `surfaceHigh` neutral | `textStrong` | Supporting (Cancel). |
+| **Tertiary / quiet** | transparent (ghost/ink) | `primaryDeep` | Low-stakes, links (From Lyrics Pad). Ink = text + terracotta rule. |
+| **Destructive** | solid `colors.danger` | `onDanger` | Irreversible confirms (Delete). |
+| **Destructive (soft)** | `dangerSurface` wash | `colors.danger` | Reversible (Discard). |
+| **Record** | `colors.record` | `onRecord` | Reserved — recording only. |
+| **Disabled** | `surfaceHigh`, opacity ~0.55 | `textMuted` | — |
+
+- **One primary action per screen.** Two big buttons = one is lying. An empty
+  state gets ONE primary + a quiet ink link, never two competing pills.
+- Never a row of equal-weight text buttons; prefer an icon row with one accented member.
+- Advanced/destructive/rare actions live in overflow.
+
+### Selection controls (locked 2026-07-24)
+
+Two treatments, used everywhere so single vs. multi reads at a glance:
+
+- **Single-select** (Lyrics-style toggles, Evolution|Timeline, Takes tabs) →
+  the sliding-thumb **`SegmentedControl`**. The one single-select primitive.
+- **Multi-select** (Stage filter, tag pickers) → **editorial ink**: options as
+  words with a leading ink-dot (hollow `borderMuted` → filled `colors.primary`
+  when on), generous hit-padding for thumb targets. No capsules, no chips.
+- Stage accent color comes from the shared `STAGE_INK` map (`StatusBadge`), never
+  cold literals.
+
+---
+
+## 4. Interaction feedback
+
+### Press
+Every tappable surface uses `styles.pressDown` (or `pressDownStrong` for large
+floating controls). No ad-hoc opacity values.
+
+### Haptics — `src/design/haptics.ts` only
+
+Never import `expo-haptics` directly. The sole sanctioned exception is the
+metronome *beat* in `useMetronome.ts` — a musical output with its own intensity
+control, deliberately outside the UI toggle.
+
+| Verb | Intent |
+|---|---|
+| `tap` | Any acknowledged press: buttons, rows, toggles, slider release |
+| `light` | Small state flips that should land: favorite, chip select, step/detent boundaries, **sheet settle (open or dismiss)** |
+| `grab` | Picking something up: drag lift, entering selection mode, record start/stop |
+| `success` | A completion the user waited for — always paired with a toast |
+| `warning` | A destructive confirm opening |
+| `error` | A failure — **required** on failed saves/exports/imports (currently unwired: debt) |
+
+Rulings (2026-07-23, standardizing prior ambiguity):
+- **Sheet settle = `light` everywhere.** Sheets open constantly; a medium thump is not quiet. `grab` is reserved for true lifts. (`PlayerSheet`'s `grab` on settle is now a deviation to fix.)
+- Step controls (transpose, speed, pitch): boundary crossings = `light`, release = `tap`. No mixing per screen.
+- Terminal states, not motion: gestures fire on settle, never continuously. Repeating ticks throttle ≥ 80ms, manual interaction only.
+- Navigation (tab/screen changes) stays silent — arrival is its own feedback.
+
+### Motion — `src/design/motion.ts` only
+
+`durations`: fast 120 (menus/fades) · base 180 (toggles/thumbs) · gentle 220
+(docks/sheets) · slow 300 (panel expansion). `springs`: surface / pop / handle.
+Entrances: `popIn` (dialogs), `collapseIn`/`collapseOut` (panels, via
+`AnimatedCollapse`).
+
+- **No numeric duration or spring literals in new code** — import the tokens. (25 legacy literals across 15 values exist: debt, not precedent.)
+- Nothing pops: list rows appearing/disappearing, panels revealing, state swaps all get an entrance/exit (fade or ≤ 6px vertical slide — never horizontal slides, never bounces).
+- Fades and small vertical slides are the entire motion vocabulary. Motion explains *where things came from*; it never decorates.
 
 ### Sound
-No UI click sounds — the calm aesthetic relies on haptics for feel. The
-metronome click is a musical output, not UI feedback, and stays the only
-app-generated sound.
+No UI sounds. Haptics carry all feel. The metronome click is music, not UI.
 
-## Future Growth
+---
 
-As features expand, they should still follow the same principles:
-- minimal
-- predictable
-- content-first
+## 5. Copy & voice
 
-Examples:
-- metronome
-- groove loops
-- practice tools
-- playlists
-- library tools
+**Voice: a calm, terse studio companion.** Musician-to-musician, lowercase-hearted,
+never salesy, never explaining the obvious. The interface labels things; it does
+not narrate them.
 
-These should extend the same interaction and visual system, not create isolated design languages.
+### Word budgets (hard limits)
+
+| Surface | Budget |
+|---|---|
+| Button / action label | ≤ 2 words (prefer icon alone) |
+| Empty-state title | ≤ 6 words |
+| Empty-state body | ≤ 14 words, one sentence, ends with what to *do* |
+| Settings row hint | ≤ 12 words — describe the effect, never justify the feature |
+| Alert/confirm body | ≤ 20 words: what happens + what's at stake. No triple-clause paragraphs |
+| Toast | ≤ 5 words |
+| Help sheets (`helpContent`) | The one place longer prose is allowed |
+
+If a string needs more words to be understood, the *design* is unclear — fix the
+design, not the copy.
+
+### Terminology canon (decided 2026-07-23)
+
+| Concept | Canonical | Banned as object names |
+|---|---|---|
+| A recorded audio fragment | **clip** | ~~recording~~ (verb only), ~~idea~~ (the creative concept, not the object), ~~scrap~~ (Cut-Up internal only) |
+| A collection list item (umbrella) | **idea** — collection contexts only (the header's "N ideas" counts clips AND sketches with mixed media; decided 2026-07-23) | never replaces **clip** as the recorded-fragment object name |
+| A take of a song | **take** — only inside a song's takes context | |
+| A song-in-progress container | **sketch** (workspace UI) | ~~song project~~ |
+| A finished song | **song** | ~~track~~ |
+| Collections | workspace › collection; songbook / setlist / playlist as themselves | |
+
+### Mechanics
+- **All user-facing strings go through `t()`** — including `label=` and `accessibilityLabel=` props. No inline English prose in components.
+- One term per concept per sentence. Never "hum the idea — your first take lands here."
+- No exclamation marks. No "simply/just/easily." No feature marketing inside the product.
+
+---
+
+## 6. Screen ship checklist (the gate)
+
+Any PR touching UI passes ALL of these before merge:
+
+1. Colors/fonts/radii/spacing from tokens — zero new literals.
+2. Built from canon components — no inline restyling, no new one-off cards.
+3. One primary action; destructive/rare actions in overflow; action sheets ≤ 6 rows.
+4. Every interactive element: `pressDown` + a cited haptic verb from the table.
+5. All motion uses `durations`/`springs`/presets; nothing pops in or out.
+6. Copy within budgets, terminology canon respected, everything through `t()`, checked in RTL.
+7. Empty state exists and is quiet (≤ 6 + ≤ 14 words).
+8. Screen passes the music-stand test.
+
+---
+
+## 7. Known debt registry (do not copy these patterns)
+
+- ~1,000 hex literals + ~860 fontFamily literals in `src/styles/*` and screen styles — migrate opportunistically when touching a file.
+- `haptic.error` unwired; `PlayerSheet` settle uses `grab`; transpose mixes `tap`/`light` in `EditorScreen`.
+- 25 hardcoded motion durations; two animation systems (RN Animated + Reanimated) with divergent spring configs; Settings/Tuner/Shelf/list-mutations have no transitions.
+- Copy: `workspaceArchive/*` + `settingsBackup/*` clusters exceed budgets; `library/tracks_one` says "track"; Library empty states + `AppErrorBoundary` + mini-game `label=` props bypass i18n.
+- One `fontWeight`-without-family at `IdeaListScreen/components/CollectionScreenContent.tsx:101`.
+- Card one-offs: `WorkspaceCard`, `WorkspaceCollectionCard`, `OverdubLayerCard`.

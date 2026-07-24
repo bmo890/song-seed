@@ -196,7 +196,7 @@ const styles = StyleSheet.create({
   },
   headerCopy: { flex: 1, minWidth: 0 },
   title: {
-    fontFamily: "PlayfairDisplay_600SemiBold",
+    fontFamily: "Lora_600SemiBold",
     fontSize: 19,
     color: colors.textPrimary,
     marginBottom: 2,
@@ -237,7 +237,7 @@ const styles = StyleSheet.create({
   selectBarOn: { backgroundColor: colors.primary },
   lineText: {
     flex: 1,
-    fontFamily: "PlayfairDisplay_400Regular",
+    fontFamily: "Lora_500Medium",
     fontSize: 15.5,
     lineHeight: 23,
     color: colors.textSecondary,

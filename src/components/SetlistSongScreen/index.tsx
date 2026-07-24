@@ -245,7 +245,7 @@ const folderStyles = StyleSheet.create({
     marginBottom: 4,
   },
   title: {
-    fontFamily: "PlayfairDisplay_400Regular",
+    fontFamily: "Lora_500Medium",
     fontSize: 28,
     lineHeight: 34,
     color: colors.textPrimary,

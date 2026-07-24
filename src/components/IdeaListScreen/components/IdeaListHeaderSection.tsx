@@ -7,7 +7,6 @@ import { SongTargetPickerBanner } from "../../SongTargetPickerBanner";
 import { LibraryCollectorBanner } from "../../LibraryCollectorBanner";
 import { ClipClipboard } from "../../../types";
 import { useStore } from "../../../state/useStore";
-import { SearchField } from "../../common/SearchField";
 import { AppAlert } from "../../common/AppAlert";
 import { useTranslation } from "react-i18next";
 
@@ -27,26 +26,22 @@ function navigateToAncestorRoute(navigation: any, routeName: string, params?: Re
 }
 
 type IdeaListHeaderSectionProps = {
-  searchQuery: string;
   hasActivityRangeFilter: boolean;
   activityLabel?: string;
   collectionId: string;
   clipClipboard: ClipClipboard | null;
   duplicateWarningText: string;
-  onSearchQueryChange: (value: string) => void;
   onClearActivityRange: () => void;
   onPasteClipboard: () => void;
   onCancelClipboard: () => void;
 };
 
 export function IdeaListHeaderSection({
-  searchQuery,
   hasActivityRangeFilter,
   activityLabel,
   collectionId,
   clipClipboard,
   duplicateWarningText,
-  onSearchQueryChange,
   onClearActivityRange,
   onPasteClipboard,
   onCancelClipboard,
@@ -80,16 +75,6 @@ export function IdeaListHeaderSection({
           onCancel={() => useStore.getState().cancelLibraryCollecting()}
         />
       ) : null}
-
-      <View style={styles.ideasSearchUtilityRow}>
-        <SearchField
-          testID="collection-search"
-          value={searchQuery}
-          placeholder={t("collection.searchPlaceholder")}
-          containerStyle={{ flex: 1, minWidth: 0 }}
-          onChangeText={onSearchQueryChange}
-        />
-      </View>
 
       {hasActivityRangeFilter ? (
         <View style={styles.activityRangeBanner}>

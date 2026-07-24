@@ -22,7 +22,7 @@ export const clipLineageStyles = StyleSheet.create({
     minWidth: 0,
   },
   headerTitle: {
-    fontFamily: "PlayfairDisplay_600SemiBold",
+    fontFamily: "Lora_600SemiBold",
     fontSize: 17,
     color: colors.textPrimary,
   },

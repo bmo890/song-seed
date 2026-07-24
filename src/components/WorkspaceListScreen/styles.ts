@@ -40,7 +40,7 @@ export const styles = StyleSheet.create({
     marginBottom: 8,
   },
   pageTitle: {
-    fontFamily: "PlayfairDisplay_400Regular",
+    fontFamily: "Lora_500Medium",
     fontSize: 48,
     lineHeight: 58,
     color: "#1C1C19",
@@ -167,7 +167,7 @@ export const styles = StyleSheet.create({
     gap: 16,
   },
   archivedHeading: {
-    fontFamily: "PlayfairDisplay_400Regular",
+    fontFamily: "Lora_500Medium",
     fontSize: 30,
     lineHeight: 36,
     color: colors.textSecondary,

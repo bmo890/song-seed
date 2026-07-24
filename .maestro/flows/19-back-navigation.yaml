@@ -25,10 +25,10 @@ appId: com.bmostudio.songnook.dev
     timeout: 10000
 # Collection → create song → detail → back → collection (not stranded).
 - tapOn:
-    id: "fab-create"
+    id: "collection-overflow"
 - waitForAnimationToEnd
 - tapOn:
-    id: "fab-menu-song"
+    id: "collection-menu-new-song"
 - extendedWaitUntil:
     visible: "New Song"
     timeout: 10000

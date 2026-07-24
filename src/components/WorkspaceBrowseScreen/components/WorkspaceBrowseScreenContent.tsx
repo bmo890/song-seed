@@ -400,7 +400,7 @@ const browseStyles = StyleSheet.create({
   },
   navCompactTitle: {
     flex: 1,
-    fontFamily: "PlayfairDisplay_400Regular",
+    fontFamily: "Lora_500Medium",
     fontSize: 17,
     color: "#1C1C19",
   },
@@ -428,7 +428,7 @@ const browseStyles = StyleSheet.create({
   },
   pageTitle: {
     flex: 1,
-    fontFamily: "PlayfairDisplay_400Regular",
+    fontFamily: "Lora_500Medium",
     fontSize: 40,
     lineHeight: 50,
     color: "#1C1C19",

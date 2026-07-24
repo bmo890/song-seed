@@ -66,7 +66,7 @@ export const lyricsStyles = {
     fontSize: 16,
     lineHeight: 25,
     color: "#1b1c1a",
-    fontFamily: "PlayfairDisplay_400Regular",
+    fontFamily: "Lora_500Medium",
     textAlignVertical: "top",
     marginBottom: 20,
   },
@@ -177,7 +177,7 @@ export const lyricsStyles = {
     fontSize: 15,
     lineHeight: 23,
     color: colors.textPrimary,
-    fontFamily: "PlayfairDisplay_400Regular",
+    fontFamily: "Lora_500Medium",
   },
   lyricsHistoryList: {
     marginTop: 10,

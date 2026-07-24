@@ -213,7 +213,7 @@ const styles = StyleSheet.create({
     paddingVertical: 7,
     ...shadows.card,
   },
-  wordText: { fontFamily: "PlayfairDisplay_400Regular", color: colors.textPrimary },
+  wordText: { fontFamily: "Lora_500Medium", color: colors.textPrimary },
 
   // Within-strip cut mark.
   divider: { width: 15, alignItems: "center", justifyContent: "center", alignSelf: "stretch" },

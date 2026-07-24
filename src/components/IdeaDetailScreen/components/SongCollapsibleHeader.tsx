@@ -62,10 +62,6 @@ export function SongCollapsibleHeader({ extra }: SongCollapsibleHeaderProps) {
           <UserText style={styles.songDetailPageTitleLarge}>{selectedIdea.title}</UserText>
           {isProject ? (
             <View style={styles.songDetailProgressStrip}>
-              <Text style={styles.songDetailProgressStripLabel}>{t("filters.progress")}</Text>
-              <Text style={styles.songDetailProgressStripPercent}>
-                {selectedIdea.completionPct}%
-              </Text>
               <Text style={statusBadgeStyle(selectedIdea.status)}>
                 {t(`stages.${selectedIdea.status}`)}
               </Text>

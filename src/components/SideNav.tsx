@@ -346,7 +346,7 @@ const sideNavStyles = StyleSheet.create({
     backgroundColor: colors.primary,
   },
   brandName: {
-    fontFamily: "PlayfairDisplay_600SemiBold",
+    fontFamily: "Lora_600SemiBold",
     fontSize: 18,
     color: colors.textPrimary,
   },

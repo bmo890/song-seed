@@ -202,7 +202,7 @@ const sharingStyles = StyleSheet.create({
     paddingHorizontal: 24,
   },
   emptyTitle: {
-    fontFamily: "PlayfairDisplay_600SemiBold",
+    fontFamily: "Lora_600SemiBold",
     fontSize: 18,
     color: colors.textPrimary,
   },

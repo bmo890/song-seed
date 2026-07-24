@@ -280,7 +280,7 @@ const ov = StyleSheet.create({
     gap: 3,
   },
   proTitle: {
-    fontFamily: "PlayfairDisplay_600SemiBold",
+    fontFamily: "Lora_600SemiBold",
     fontSize: 18,
     color: colors.onPrimary,
   },

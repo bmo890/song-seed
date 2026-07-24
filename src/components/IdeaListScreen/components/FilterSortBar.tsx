@@ -6,6 +6,7 @@ import { useStore } from "../../../state/useStore";
 import { getIdeaSortState, getIdeaSortValue, IdeaSortMetric } from "../../../domain/ideaSort";
 import { getHierarchyIconName } from "../../../domain/hierarchy";
 import { FilterSortControls } from "../../common/FilterSortControls";
+import { STAGE_INK } from "../../common/StatusBadge";
 import { colors } from "../../../design/tokens";
 import { useTranslation } from "react-i18next";
 
@@ -18,29 +19,34 @@ type FilterSortBarProps = {
   onClearProjectStages: () => void;
   lyricsFilterMode: LyricsFilterMode;
   onLyricsFilterModeChange: (value: LyricsFilterMode) => void;
+  /** Leading stretch of the toolbar row (the search field). */
+  leadingSlot?: ReactNode;
   rightSlot?: ReactNode;
+  /** Mutual-exclusivity with the overflow menu (see FilterSortControls). */
+  closeSignal?: number;
+  onMenuOpen?: () => void;
 };
 
 function getStageTone(stage: ProjectStage) {
   switch (stage) {
     case "seed":
       return {
-        chipStyle: [styles.statusSeed, { borderColor: "#9ca3af" }],
+        chipStyle: [styles.statusSeed, { borderColor: STAGE_INK.seed }],
         textStyle: styles.statusSeedText,
       };
     case "sprout":
       return {
-        chipStyle: [styles.statusSprout, { borderColor: "#93c5fd" }],
+        chipStyle: [styles.statusSprout, { borderColor: STAGE_INK.sprout }],
         textStyle: styles.statusSproutText,
       };
     case "stem":
       return {
-        chipStyle: [styles.statusStem, { borderColor: "#fcd34d" }],
+        chipStyle: [styles.statusStem, { borderColor: STAGE_INK.stem }],
         textStyle: styles.statusStemText,
       };
     case "song":
       return {
-        chipStyle: [styles.statusSong, { borderColor: "#86efac" }],
+        chipStyle: [styles.statusSong, { borderColor: STAGE_INK.song }],
         textStyle: styles.statusSongText,
       };
     default:
@@ -76,7 +82,7 @@ function getSortMetricIcon(metric: IdeaSortMetric) {
     case "length":
       return "time-outline";
     case "progress":
-      return "pie-chart-outline";
+      return "leaf-outline";
     default:
       return "options-outline";
   }
@@ -88,7 +94,10 @@ export function FilterSortBar({
   onClearProjectStages,
   lyricsFilterMode,
   onLyricsFilterModeChange,
+  leadingSlot,
   rightSlot,
+  closeSignal,
+  onMenuOpen,
 }: FilterSortBarProps) {
   const { t } = useTranslation();
   const ideasFilter = useStore((s) => s.ideasFilter);
@@ -101,7 +110,7 @@ export function FilterSortBar({
     { key: "updated", label: t("filters.updated"), icon: "refresh-outline" },
     { key: "title", label: t("filters.title"), icon: "text-outline" },
     { key: "length", label: t("filters.length"), icon: "time-outline" },
-    { key: "progress", label: t("filters.progress"), icon: "pie-chart-outline" },
+    { key: "progress", label: t("filters.stage"), icon: "leaf-outline" },
   ];
 
   const filterOptions = [
@@ -165,7 +174,7 @@ export function FilterSortBar({
                   }}
                 >
                   <View style={styles.ideasMenuItemLead}>
-                    <Ionicons name={option.icon as any} size={15} color={active ? "#0f172a" : "#64748b"} />
+                    <Ionicons name={option.icon as any} size={15} color={active ? colors.primary : colors.textSecondary} />
                     <Text
                       style={[
                         styles.ideasSortMenuItemText,
@@ -175,7 +184,7 @@ export function FilterSortBar({
                       {option.label}
                     </Text>
                   </View>
-                  {active ? <Ionicons name="checkmark" size={15} color="#0f172a" /> : null}
+                  {active ? <Ionicons name="checkmark" size={15} color={colors.primary} /> : null}
                 </Pressable>
               );
             })}
@@ -294,14 +303,14 @@ export function FilterSortBar({
                     setIdeasSort(getIdeaSortValue(activeSortMetric, "asc"));
                   }}
                 >
-                  <Ionicons name="arrow-up" size={14} color={activeSortDirection === "asc" ? colors.surface : "#475569"} />
+                  <Ionicons name="arrow-up" size={14} color={activeSortDirection === "asc" ? colors.surface : colors.textSecondary} />
                   <Text
                     style={[
                       styles.ideasSortDirectionChipText,
                       activeSortDirection === "asc" ? styles.ideasSortDirectionChipTextActive : null,
                     ]}
                   >
-                    {t("filters.ascending")}
+                    {t("filters.asc")}
                   </Text>
                 </Pressable>
                 <Pressable
@@ -314,14 +323,14 @@ export function FilterSortBar({
                     setIdeasSort(getIdeaSortValue(activeSortMetric, "desc"));
                   }}
                 >
-                  <Ionicons name="arrow-down" size={14} color={activeSortDirection === "desc" ? colors.surface : "#475569"} />
+                  <Ionicons name="arrow-down" size={14} color={activeSortDirection === "desc" ? colors.surface : colors.textSecondary} />
                   <Text
                     style={[
                       styles.ideasSortDirectionChipText,
                       activeSortDirection === "desc" ? styles.ideasSortDirectionChipTextActive : null,
                     ]}
                   >
-                    {t("filters.descending")}
+                    {t("filters.desc")}
                   </Text>
                 </Pressable>
               </View>
@@ -343,7 +352,7 @@ export function FilterSortBar({
                   }}
                 >
                   <View style={styles.ideasMenuItemLead}>
-                    <Ionicons name={option.icon as any} size={15} color={active ? "#0f172a" : "#64748b"} />
+                    <Ionicons name={option.icon as any} size={15} color={active ? colors.primary : colors.textSecondary} />
                     <Text
                       style={[
                         styles.ideasSortMenuItemText,
@@ -353,14 +362,17 @@ export function FilterSortBar({
                       {option.label}
                     </Text>
                   </View>
-                  {active ? <Ionicons name="checkmark" size={15} color="#0f172a" /> : null}
+                  {active ? <Ionicons name="checkmark" size={15} color={colors.primary} /> : null}
                 </Pressable>
               );
             })}
           </>
         ),
       }}
+      leadingSlot={leadingSlot}
       rightSlot={rightSlot}
+      closeSignal={closeSignal}
+      onMenuOpen={onMenuOpen}
     />
   );
 }

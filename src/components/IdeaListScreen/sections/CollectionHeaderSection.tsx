@@ -84,7 +84,7 @@ export function CollectionHeaderSection() {
           icon="ellipsis-horizontal"
           tone="muted"
           size={20}
-          onPress={() => screen.setHeaderMenuOpen((prev) => !prev)}
+          onPress={() => (screen.headerMenuOpen ? screen.closeHeaderMenu() : screen.openHeaderMenu())}
           accessibilityLabel={t("collection.options")}
         />
       ) : (
@@ -184,13 +184,11 @@ export function CollectionSearchSection() {
 
   return (
     <IdeaListHeaderSection
-      searchQuery={screen.searchQuery}
       hasActivityRangeFilter={screen.hasActivityRangeFilter}
       activityLabel={screen.activityLabel}
       collectionId={screen.collectionId!}
       clipClipboard={screen.clipClipboard}
       duplicateWarningText={screen.duplicateWarningText}
-      onSearchQueryChange={screen.setSearchQuery}
       onClearActivityRange={() => {
         (screen.navigation as any).setParams({
           activityRangeStartTs: undefined,
@@ -261,7 +259,7 @@ const collStyles = StyleSheet.create({
   },
   navCompactTitle: {
     flex: 1,
-    fontFamily: "PlayfairDisplay_400Regular",
+    fontFamily: "Lora_500Medium",
     fontSize: 17,
     color: "#1C1C19",
   },
@@ -287,7 +285,7 @@ const collStyles = StyleSheet.create({
     flexShrink: 1,
   },
   collectionTitle: {
-    fontFamily: "PlayfairDisplay_400Regular",
+    fontFamily: "Lora_500Medium",
     fontSize: 36,
     lineHeight: 44,
     color: "#1C1C19",

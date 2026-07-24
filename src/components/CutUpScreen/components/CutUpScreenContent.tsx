@@ -223,11 +223,11 @@ const styles = StyleSheet.create({
   shell: { flex: 1, paddingHorizontal: 16 },
   keyboardView: { flex: 1 },
   missingState: { flex: 1, alignItems: "center", justifyContent: "center", gap: spacing.sm, paddingHorizontal: spacing.xxl },
-  missingTitle: { fontFamily: "PlayfairDisplay_600SemiBold", fontSize: 18, color: colors.textPrimary },
+  missingTitle: { fontFamily: "Lora_600SemiBold", fontSize: 18, color: colors.textPrimary },
   missingBody: { ...textTokens.supporting, textAlign: "center" },
 
   header: { flexDirection: "row", alignItems: "center", gap: spacing.xs, paddingTop: spacing.sm, paddingBottom: spacing.sm },
-  headerTitle: { flex: 1, fontFamily: "PlayfairDisplay_600SemiBold", fontSize: 20, color: colors.textPrimary },
+  headerTitle: { flex: 1, fontFamily: "Lora_600SemiBold", fontSize: 20, color: colors.textPrimary },
   iconBtn: { width: 34, height: 34, borderRadius: radii.round, alignItems: "center", justifyContent: "center" },
 
   rail: { marginBottom: spacing.lg, gap: spacing.xs },
@@ -246,7 +246,7 @@ const styles = StyleSheet.create({
   footerRowEnd: { justifyContent: "flex-end" },
   warnRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5 },
   footerHint: { fontFamily: "PlusJakartaSans_500Medium", fontSize: 12, color: colors.textMuted, textAlign: "center" },
-  nextBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, backgroundColor: colors.primaryDeep, borderRadius: radii.round, paddingVertical: 11, paddingHorizontal: 20 },
+  nextBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, backgroundColor: colors.primaryDeep, borderRadius: radii.lg, paddingVertical: 11, paddingHorizontal: 20 },
   nextBtnDisabled: { backgroundColor: colors.surfaceHigh },
   nextBtnText: { fontFamily: "PlusJakartaSans_700Bold", fontSize: 14, color: colors.onPrimary },
   nextBtnTextDisabled: { color: colors.textMuted },

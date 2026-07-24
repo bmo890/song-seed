@@ -423,20 +423,20 @@ const styles = StyleSheet.create({
   backText: { fontFamily: "PlusJakartaSans_600SemiBold", fontSize: 14, color: colors.textStrong },
   titleCol: { flex: 1, minWidth: 0, alignItems: "center" },
   titleOver: { fontFamily: "PlusJakartaSans_700Bold", fontSize: 9, letterSpacing: 1, textTransform: "uppercase", color: colors.textMuted },
-  titleText: { fontFamily: "PlayfairDisplay_600SemiBold", fontSize: 14, color: colors.textPrimary, marginTop: 1 },
+  titleText: { fontFamily: "Lora_600SemiBold", fontSize: 14, color: colors.textPrimary, marginTop: 1 },
   iconBtn: { minWidth: 34, height: 34, borderRadius: radii.round, alignItems: "center", justifyContent: "center", paddingHorizontal: 4 },
-  iconBtnText: { fontFamily: "PlayfairDisplay_600SemiBold", fontSize: 16, color: colors.textStrong },
+  iconBtnText: { fontFamily: "Lora_600SemiBold", fontSize: 16, color: colors.textStrong },
 
   draftPage: { flex: 1, backgroundColor: PAGE_BG, borderRadius: radii.xl, padding: spacing.lg, ...shadows.card },
-  draftInput: { flex: 1, fontFamily: "PlayfairDisplay_400Regular", color: colors.textStrong },
+  draftInput: { flex: 1, fontFamily: "Lora_500Medium", color: colors.textStrong },
 
   palette: { paddingTop: spacing.md },
-  paletteEmpty: { fontFamily: "PlayfairDisplay_400Regular", fontStyle: "italic", fontSize: 13, color: colors.textMuted, textAlign: "center", paddingVertical: spacing.md },
+  paletteEmpty: { fontFamily: "Lora_500Medium", fontStyle: "italic", fontSize: 13, color: colors.textMuted, textAlign: "center", paddingVertical: spacing.md },
   paletteHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: spacing.sm },
   paletteLabel: { fontFamily: "PlusJakartaSans_700Bold", fontSize: 10, letterSpacing: 0.8, textTransform: "uppercase", color: colors.textMuted },
-  expandBtn: { flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: colors.surface, borderRadius: radii.round, paddingHorizontal: spacing.md, paddingVertical: 5, ...shadows.control },
+  expandBtn: { flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: colors.surface, borderRadius: radii.lg, paddingHorizontal: spacing.md, paddingVertical: 5, ...shadows.control },
   expandText: { fontFamily: "PlusJakartaSans_700Bold", fontSize: 11, color: colors.textSecondary },
-  pourBtn: { flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: colors.primaryDeep, borderRadius: radii.round, paddingHorizontal: spacing.md, paddingVertical: 6 },
+  pourBtn: { flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: colors.primaryDeep, borderRadius: radii.lg, paddingHorizontal: spacing.md, paddingVertical: 6 },
   pourText: { fontFamily: "PlusJakartaSans_700Bold", fontSize: 11, color: colors.onPrimary },
   stripContent: { gap: spacing.xs, alignItems: "center", paddingRight: spacing.md },
   chip: {
@@ -451,7 +451,7 @@ const styles = StyleSheet.create({
     ...shadows.control,
   },
   chipUsed: { opacity: 0.55 },
-  chipText: { fontFamily: "PlayfairDisplay_400Regular", fontSize: 14, color: colors.textStrong, flexShrink: 1 },
+  chipText: { fontFamily: "Lora_500Medium", fontSize: 14, color: colors.textStrong, flexShrink: 1 },
   paletteTip: { fontFamily: "PlusJakartaSans_400Regular", fontSize: 11, color: colors.textMuted, marginTop: spacing.sm },
 
   saveBtn: {
@@ -471,7 +471,7 @@ const styles = StyleSheet.create({
   grid: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xs },
 
   menuInput: {
-    fontFamily: "PlayfairDisplay_400Regular",
+    fontFamily: "Lora_500Medium",
     fontSize: 16,
     color: colors.textPrimary,
     backgroundColor: colors.surfaceContainer,

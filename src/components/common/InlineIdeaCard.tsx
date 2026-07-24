@@ -16,8 +16,6 @@ export type InlineIdeaCardProps = {
   isProject: boolean;
   /** Stage badge (projects only); pass null to hide it (e.g. clips). */
   status: IdeaStatus | null;
-  /** Completion % shown in the badge for projects. */
-  completionPct?: number | null;
   durationMs: number;
   canPlay: boolean;
   /** This card is the active inline-player target. */
@@ -42,7 +40,7 @@ export type InlineIdeaCardProps = {
 /**
  * The canonical inline "idea row" card — a thin, opinionated wrapper over
  * IdeaCard shared by Revisit and Activity so both read exactly like the
- * collection card: lead play + duration, stage badge with %, a quiet ⋯ menu,
+ * collection card: lead play + duration, stage badge, a quiet ⋯ menu,
  * a tap-to-stop accessory, and an inline scrubber while playing. Callers only
  * supply normalized data + handlers and the single footer line.
  */
@@ -50,7 +48,6 @@ export function InlineIdeaCard({
   title,
   isProject,
   status,
-  completionPct,
   durationMs,
   canPlay,
   isActive,
@@ -68,16 +65,12 @@ export function InlineIdeaCard({
 }: InlineIdeaCardProps) {
   const { t } = useTranslation();
   const durationLabel = durationMs > 0 ? fmtDuration(durationMs) : "--:--";
-  const pct =
-    status != null && completionPct != null
-      ? Math.max(0, Math.min(100, Math.round(completionPct)))
-      : undefined;
 
   const trailing =
     status || onOpenMenu ? (
       <View style={inlineStyles.trailing}>
         {status ? (
-          <StatusBadge status={status} pct={pct} style={styles.ideasListStatusBadgeText} />
+          <StatusBadge status={status} style={styles.ideasListStatusBadgeText} />
         ) : null}
         {onOpenMenu ? (
           <IconButton

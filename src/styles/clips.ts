@@ -186,6 +186,10 @@ export const clipsStyles = {
   statusDenseLabel: {
     fontFamily: "PlusJakartaSans_700Bold",
     fontSize: 11,
+    // Explicit lineHeight pins the card meta row to its 14pt floor — without it
+    // the platform default (~15) made sketch cards 1px taller than the inline
+    // preview's control row.
+    lineHeight: 14,
     letterSpacing: 0.4,
     fontVariant: ["tabular-nums"],
   },

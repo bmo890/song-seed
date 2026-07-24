@@ -101,7 +101,7 @@ export function EditorTransformExportModal({
 
           <View style={[styles.rowButtons, { justifyContent: "flex-end", marginTop: 16 }]}>
             <Button variant="secondary" label={t("common.cancel")} onPress={onClose} />
-            <Button label={t("editor.saveTransform")} onPress={onSave} />
+            <Button variant="primary-emphasis" label={t("editor.saveTransform")} onPress={onSave} />
           </View>
         </View>
       </View>

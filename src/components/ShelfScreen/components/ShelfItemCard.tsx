@@ -85,7 +85,6 @@ export function ShelfItemCard({
       title={row.idea.title}
       isProject={row.idea.kind === "project"}
       status={row.idea.kind === "project" ? row.idea.status : null}
-      completionPct={row.idea.kind === "project" ? row.idea.completionPct : null}
       durationMs={row.durationMs}
       canPlay={!!row.playableClip}
       isActive={isActive}

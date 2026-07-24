@@ -1,12 +1,10 @@
-import { Pressable, StyleSheet, Text, View } from "react-native";
-import Slider from "@react-native-community/slider";
+import { StyleSheet, Text, View } from "react-native";
 import { BottomSheet } from "../../common/BottomSheet";
+import { Button } from "../../common/Button";
 import { StatusChipRow } from "../../common/StatusChipRow";
 import { TitleInput } from "../../common/TitleInput";
-import { styles as appStyles } from "../../../styles";
-import { colors, radii, spacing, text as textTokens } from "../../../design/tokens";
+import { colors, spacing, text as textTokens } from "../../../design/tokens";
 import type { IdeaStatus } from "../../../types";
-import { haptic } from "../../../design/haptics";
 import { useTranslation } from "react-i18next";
 
 const PROJECT_STATUSES: IdeaStatus[] = ["seed", "sprout", "stem", "song"];
@@ -57,7 +55,7 @@ export function SongEditSheet({
         containerStyle={styles.titleWrap}
       />
 
-      <Text style={[styles.label, styles.labelSpaced]}>{t("songDetail.progress")}</Text>
+      <Text style={[styles.label, styles.labelSpaced]}>{t("filters.stage")}</Text>
       <StatusChipRow
         items={PROJECT_STATUSES}
         activeValue={status}
@@ -70,35 +68,18 @@ export function SongEditSheet({
           else onChangeCompletion(0);
         }}
       />
-      <Text style={styles.completion}>{t("songDetail.completion", { value: completion })}</Text>
-      <Slider
-        onSlidingComplete={() => haptic.tap()}
-        minimumValue={0}
-        maximumValue={100}
-        step={5}
-        value={completion}
-        onValueChange={(value) => {
-          onChangeCompletion(value);
-          onChangeStatus(value >= 75 ? "song" : value >= 50 ? "stem" : value >= 25 ? "sprout" : "seed");
-        }}
-        minimumTrackTintColor={colors.primary}
-        maximumTrackTintColor={colors.borderMuted}
-        thumbTintColor={colors.primary}
-      />
 
       <View style={styles.footer}>
-        <Pressable
-          style={({ pressed }) => [styles.cancelBtn, pressed ? appStyles.pressDown : null]}
+        <Button
+          variant="secondary"
+          label={isDraft ? t("songDetail.discard") : t("common.cancel")}
           onPress={onCancel}
-        >
-          <Text style={styles.cancelText}>{isDraft ? t("songDetail.discard") : t("common.cancel")}</Text>
-        </Pressable>
-        <Pressable
-          style={({ pressed }) => [styles.saveBtn, pressed ? appStyles.pressDown : null]}
+        />
+        <Button
+          label={t("common.save")}
+          style={styles.saveBtn}
           onPress={onSave}
-        >
-          <Text style={styles.saveText}>{t("common.save")}</Text>
-        </Pressable>
+        />
       </View>
     </BottomSheet>
   );
@@ -106,7 +87,7 @@ export function SongEditSheet({
 
 const styles = StyleSheet.create({
   heading: {
-    fontFamily: "PlayfairDisplay_600SemiBold",
+    fontFamily: "Lora_600SemiBold",
     fontSize: 20,
     color: colors.textPrimary,
     marginBottom: spacing.md,
@@ -114,39 +95,13 @@ const styles = StyleSheet.create({
   label: { ...textTokens.annotation, marginBottom: spacing.xs },
   labelSpaced: { marginTop: spacing.lg },
   titleWrap: { marginHorizontal: 0 },
-  completion: {
-    ...textTokens.supporting,
-    fontSize: 12,
-    marginTop: spacing.md,
-    marginBottom: spacing.xs,
-  },
   footer: {
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.sm,
     marginTop: spacing.lg,
   },
-  cancelBtn: {
-    paddingHorizontal: spacing.lg,
-    paddingVertical: 13,
-    borderRadius: radii.round,
-    backgroundColor: colors.surfaceHigh,
-  },
-  cancelText: {
-    fontFamily: "PlusJakartaSans_600SemiBold",
-    fontSize: 14,
-    color: colors.textStrong,
-  },
   saveBtn: {
     flex: 1,
-    alignItems: "center",
-    paddingVertical: 13,
-    borderRadius: radii.round,
-    backgroundColor: colors.primary,
-  },
-  saveText: {
-    fontFamily: "PlusJakartaSans_700Bold",
-    fontSize: 14,
-    color: colors.onPrimary,
   },
 });

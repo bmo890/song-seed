@@ -239,7 +239,7 @@ const styles = StyleSheet.create({
     paddingBottom: 160,
   },
   line: {
-    fontFamily: "PlayfairDisplay_400Regular",
+    fontFamily: "Lora_500Medium",
     fontSize: 22,
     lineHeight: 36,
     color: colors.textPrimary,

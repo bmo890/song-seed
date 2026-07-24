@@ -9,15 +9,15 @@ appId: com.bmostudio.songnook.dev
 - tapOn: ".*Ideas.*"
 - extendedWaitUntil:
     visible:
-      id: "fab-create"
+      id: "fab-record"
     timeout: 15000
 - runFlow: ../subflows/dismiss-logbox.yaml
 - waitForAnimationToEnd
 - tapOn:
-    id: "fab-create"
+    id: "collection-overflow"
 - waitForAnimationToEnd
 - tapOn:
-    id: "fab-menu-song"
+    id: "collection-menu-new-song"
 # Draft "New Song" sheet.
 - extendedWaitUntil:
     visible: "New Song"

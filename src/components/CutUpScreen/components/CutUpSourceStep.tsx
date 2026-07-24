@@ -132,7 +132,7 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
-    fontFamily: "PlayfairDisplay_400Regular",
+    fontFamily: "Lora_500Medium",
     fontSize: 17,
     lineHeight: 26,
     color: colors.textStrong,
