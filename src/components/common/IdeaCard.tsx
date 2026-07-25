@@ -43,6 +43,37 @@ function HighlightedText({
     );
 }
 
+/** The search-match line: a field glyph (lyric page / note) + the matched text
+ *  with the query highlighted. Used in both densities to show why a card surfaced. */
+function MatchSnippetLine({
+    snippet,
+    field,
+    needle,
+    dense,
+}: {
+    snippet: string;
+    field?: "notes" | "lyrics" | null;
+    needle?: string;
+    dense?: boolean;
+}) {
+    return (
+        <View style={dense ? styles.ideaDenseSnippet : styles.ideasCardSnippet}>
+            <Ionicons
+                name={field === "notes" ? "create-outline" : "document-text-outline"}
+                size={13}
+                color={colors.primary}
+            />
+            <HighlightedText
+                text={snippet}
+                needle={needle}
+                textStyle={dense ? styles.ideaDenseSnippetText : styles.ideasCardSnippetText}
+                hitStyle={styles.ideasListCardTitleHighlight}
+                numberOfLines={1}
+            />
+        </View>
+    );
+}
+
 export type IdeaCardProps = {
     // Container visual state
     selected?: boolean;
@@ -108,6 +139,11 @@ export type IdeaCardProps = {
     waveformPeaks?: number[] | null;
     /** Contextual tags shown below title (search match badges) */
     searchTagsContent?: ReactNode;
+    /** Search match: the matched line (windowed). When set, the comfortable card
+     *  swaps its waveform for a snippet line, and compact adds a quiet second line.
+     *  `matchField` picks the leading glyph (lyric page vs note). */
+    matchSnippet?: string | null;
+    matchField?: "notes" | "lyrics" | null;
     /**
      * Extra body content between title and footer.
      * Used by ClipCard for notes preview and tag badges.
@@ -184,6 +220,8 @@ export function IdeaCard({
     trailing,
     waveformPeaks,
     searchTagsContent,
+    matchSnippet,
+    matchField,
     bodyContent,
     editContent,
     footerDate,
@@ -319,6 +357,10 @@ export function IdeaCard({
                             />
                         ) : null}
                     </View>
+                ) : matchSnippet ? (
+                    // Search match: a quiet second line showing the matched text.
+                    // Appears only while searching, only on matching rows.
+                    <MatchSnippetLine snippet={matchSnippet} field={matchField} needle={searchNeedle} dense />
                 ) : null}
             </View>
         );
@@ -431,12 +473,15 @@ export function IdeaCard({
                                 ) : null}
                             </View>
 
-                            {/* Waveform strip — resting identity (taps fall through), OR the
-                                live inline player (progress tint + drag-to-scrub) while this
-                                card is the active preview. Compact cards skip the resting
-                                strip but still surface it while previewing, so scrubbing is
-                                never lost. */}
-                            {waveformPeaks !== undefined && (!compact || stripIsInlinePlayer) ? (
+                            {/* During a lyric/note search match, the matched line
+                                replaces the waveform — it shows WHY the card surfaced
+                                (a title match keeps its waveform). While previewing, the
+                                live strip wins so scrubbing is never lost. */}
+                            {matchSnippet && !inlineActive ? (
+                                <View style={styles.ideaCardStripZone}>
+                                    <MatchSnippetLine snippet={matchSnippet} field={matchField} needle={searchNeedle} />
+                                </View>
+                            ) : waveformPeaks !== undefined && (!compact || stripIsInlinePlayer) ? (
                                 // Fixed-geometry zone, identical at rest and while
                                 // previewing: strip (flex) · reserved right slot. The slot
                                 // holds the ✕ during preview and stays an empty spacer at

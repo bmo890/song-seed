@@ -27,36 +27,6 @@ type FilterSortBarProps = {
   onMenuOpen?: () => void;
 };
 
-function getStageTone(stage: ProjectStage) {
-  switch (stage) {
-    case "seed":
-      return {
-        chipStyle: [styles.statusSeed, { borderColor: STAGE_INK.seed }],
-        textStyle: styles.statusSeedText,
-      };
-    case "sprout":
-      return {
-        chipStyle: [styles.statusSprout, { borderColor: STAGE_INK.sprout }],
-        textStyle: styles.statusSproutText,
-      };
-    case "stem":
-      return {
-        chipStyle: [styles.statusStem, { borderColor: STAGE_INK.stem }],
-        textStyle: styles.statusStemText,
-      };
-    case "song":
-      return {
-        chipStyle: [styles.statusSong, { borderColor: STAGE_INK.song }],
-        textStyle: styles.statusSongText,
-      };
-    default:
-      return {
-        chipStyle: null,
-        textStyle: null,
-      };
-  }
-}
-
 function getFilterIcon(filter: "all" | "clips" | "projects" | "bookmarked") {
   switch (filter) {
     case "clips":
@@ -200,19 +170,26 @@ export function FilterSortBar({
                     <Text style={styles.ideasDropdownSectionMetaText}>{stageSummary}</Text>
                   </View>
                 </View>
-                <View style={styles.ideasStageChipsWrap}>
+                {/* Multi-select = editorial ink: word + leading dot (hollow →
+                    filled in the stage's own warm ink), never a capsule. */}
+                <View style={styles.ideasStageInkWrap}>
                   <Pressable
-                    style={({ pressed }) => [
-                      styles.ideasStageChip,
-                      selectedProjectStages.length === 0 ? styles.ideasStageChipActive : null,
-                      pressed ? styles.pressDown : null,
-                    ]}
+                    style={({ pressed }) => [styles.ideasStageInk, pressed ? styles.pressDown : null]}
                     onPress={onClearProjectStages}
+                    hitSlop={{ top: 6, bottom: 6 }}
                   >
+                    <View
+                      style={[
+                        styles.ideasStageInkDot,
+                        selectedProjectStages.length === 0
+                          ? { backgroundColor: colors.primary, borderColor: colors.primary }
+                          : null,
+                      ]}
+                    />
                     <Text
                       style={[
-                        styles.ideasStageChipText,
-                        selectedProjectStages.length === 0 ? styles.ideasStageChipTextActive : null,
+                        styles.ideasStageInkText,
+                        selectedProjectStages.length === 0 ? styles.ideasStageInkTextActive : null,
                       ]}
                     >
                       {t("filters.all")}
@@ -221,55 +198,24 @@ export function FilterSortBar({
 
                   {stageOptions.map((option) => {
                     const active = selectedProjectStages.includes(option.key);
-                    const tone = getStageTone(option.key);
+                    const ink = STAGE_INK[option.key] ?? colors.primary;
                     return (
                       <Pressable
                         key={option.key}
-                        style={({ pressed }) => [
-                          styles.ideasStageChip,
-                          active ? tone.chipStyle : null,
-                          pressed ? styles.pressDown : null,
-                        ]}
+                        style={({ pressed }) => [styles.ideasStageInk, pressed ? styles.pressDown : null]}
                         onPress={() => onToggleProjectStage(option.key)}
+                        hitSlop={{ top: 6, bottom: 6 }}
                       >
-                        <Text
+                        <View
                           style={[
-                            styles.ideasStageChipText,
-                            active ? tone.textStyle : null,
+                            styles.ideasStageInkDot,
+                            active ? { backgroundColor: ink, borderColor: ink } : null,
                           ]}
-                        >
-                          {option.label}
-                        </Text>
-                      </Pressable>
-                    );
-                  })}
-                </View>
-              </View>
-
-              <View style={styles.ideasDropdownDivider} />
-              <View style={styles.ideasDropdownSectionStack}>
-                <Text style={styles.ideasDropdownSectionToggleText}>{t("filters.lyrics")}</Text>
-                <View style={styles.ideasStageChipsWrap}>
-                  {([
-                    { key: "all", label: t("filters.all") },
-                    { key: "with", label: t("filters.with") },
-                    { key: "without", label: t("filters.without") },
-                  ] as const).map((option) => {
-                    const active = lyricsFilterMode === option.key;
-                    return (
-                      <Pressable
-                        key={option.key}
-                        style={({ pressed }) => [
-                          styles.ideasStageChip,
-                          active ? styles.ideasStageChipActive : null,
-                          pressed ? styles.pressDown : null,
-                        ]}
-                        onPress={() => onLyricsFilterModeChange(option.key)}
-                      >
+                        />
                         <Text
                           style={[
-                            styles.ideasStageChipText,
-                            active ? styles.ideasStageChipTextActive : null,
+                            styles.ideasStageInkText,
+                            active ? styles.ideasStageInkTextActive : null,
                           ]}
                         >
                           {option.label}

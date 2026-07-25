@@ -39,6 +39,9 @@ type IdeaListItemProps = {
     searchNeedle: string,
     notesMatched: boolean,
     lyricsMatched: boolean,
+    /** The matched line to show under the card (glyph + snippet), null for title-only. */
+    matchSnippet: string | null,
+    matchField: "notes" | "lyrics" | null,
     listDensity: "comfortable" | "compact",
     showDateDividers: boolean,
     sortMetric: IdeaSortMetric,
@@ -60,6 +63,8 @@ function IdeaListItemInner({
     searchNeedle,
     notesMatched,
     lyricsMatched,
+    matchSnippet,
+    matchField,
     listDensity,
     showDateDividers,
     sortMetric,
@@ -186,21 +191,8 @@ function IdeaListItemInner({
     );
 
     // (Compact intentionally shows no take/lyrics meta — only the bookmark + duration.)
-
-    const searchTagsBlock =searchNeedle && (notesMatched || lyricsMatched) ? (
-        <View style={styles.ideasSearchTagRow}>
-            {notesMatched ? (
-                <View style={styles.ideasSearchTag}>
-                    <Text style={styles.ideasSearchTagText}>{t("collection.notesMatch")}</Text>
-                </View>
-            ) : null}
-            {lyricsMatched ? (
-                <View style={styles.ideasSearchTag}>
-                    <Text style={styles.ideasSearchTagText}>{t("collection.lyricsMatch")}</Text>
-                </View>
-            ) : null}
-        </View>
-    ) : null;
+    // Search matches now surface the matched LINE (see matchSnippet → IdeaCard),
+    // not a "match" chip — the snippet shows why the card surfaced.
 
     // Collapsing is instant and reversible (tap the day marker to expand), so no
     // confirm — just fold it with a light haptic.
@@ -333,7 +325,8 @@ function IdeaListItemInner({
                                     ) : null}
                                 </>
                             }
-                            searchTagsContent={searchTagsBlock}
+                            matchSnippet={matchSnippet}
+                            matchField={matchField}
                             // Compact has no date grouping, so a time-created is contextless —
                             // dropped entirely there; comfortable keeps its relative date.
                             footerDate={compact ? undefined : dateLabel}

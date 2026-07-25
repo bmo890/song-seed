@@ -7,10 +7,11 @@ import { useStore } from "../../../state/useStore";
 import { getCollectionAncestors } from "../../../utils";
 import { getDateBucket, getDateBucketLabel } from "../../../domain/dateBuckets";
 import { compareIdeas, getIdeaCreatedAt, getIdeaSortState, getIdeaSortTimestamp, getIdeaUpdatedAt, usesIdeaTimelineDividers } from "../../../domain/ideaSort";
+import { extractSnippet } from "../../../domain/search";
 import { getRootNavigation, goBackFromParentStack, openWorkspaceBrowseRoot } from "../../../navigation";
 import { getFloatingActionDockBottomOffset, getFloatingActionDockContentClearance } from "../../common/FloatingActionDock";
 import { buildIdeaListItemMeta, projectHasLyrics } from "../ideaListItemMeta";
-import type { IdeaListEntry, IdeaListItemMeta } from "../types";
+import type { IdeaListEntry, IdeaListItemMeta, SearchMeta } from "../types";
 import { stickyDayStore } from "../stickyDayStore";
 import type { SongIdea } from "../../../types";
 import { useTranslation } from "react-i18next";
@@ -194,11 +195,11 @@ export function useCollectionScreenModel() {
   const searchNeedle = debouncedSearchQuery.trim().toLowerCase();
 
   const searchMetaByIdeaId = useMemo(() => {
-    const map = new Map<string, { matches: boolean; title: boolean; notes: boolean; lyrics: boolean }>();
+    const map = new Map<string, SearchMeta>();
     const hasNeedle = searchNeedle.length > 0;
     for (const idea of ideas) {
       if (!hasNeedle) {
-        map.set(idea.id, { matches: true, title: false, notes: false, lyrics: false });
+        map.set(idea.id, { matches: true, title: false, notes: false, lyrics: false, snippet: null, snippetField: null });
         continue;
       }
       const titleMatch = idea.title.toLowerCase().includes(searchNeedle);
@@ -215,7 +216,38 @@ export function useCollectionScreenModel() {
           )
         );
       }
-      map.set(idea.id, { matches: titleMatch || notesMatch || lyricsMatch, title: titleMatch, notes: notesMatch, lyrics: lyricsMatch });
+      // Pull the matched line so the card can show WHY it surfaced — lyrics
+      // first (most meaningful for a songwriter), then notes. Title matches
+      // need no snippet: the highlighted title is the match.
+      let snippet: string | null = null;
+      let snippetField: "notes" | "lyrics" | null = null;
+      if (lyricsMatch && idea.kind === "project" && idea.lyrics?.versions?.length) {
+        for (const version of idea.lyrics.versions) {
+          const line = version.document.lines.find((l) => l.text.toLowerCase().includes(searchNeedle));
+          if (line) {
+            snippet = extractSnippet(line.text, searchNeedle);
+            snippetField = "lyrics";
+            break;
+          }
+        }
+      }
+      if (!snippet && notesMatch) {
+        const src = idea.notes.toLowerCase().includes(searchNeedle)
+          ? idea.notes
+          : idea.clips.find((clip) => clip.notes.toLowerCase().includes(searchNeedle))?.notes ?? "";
+        if (src) {
+          snippet = extractSnippet(src, searchNeedle);
+          snippetField = "notes";
+        }
+      }
+      map.set(idea.id, {
+        matches: titleMatch || notesMatch || lyricsMatch,
+        title: titleMatch,
+        notes: notesMatch,
+        lyrics: lyricsMatch,
+        snippet,
+        snippetField,
+      });
     }
     return map;
   }, [ideas, searchNeedle]);

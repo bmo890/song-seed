@@ -293,9 +293,26 @@ export const ideasListStyles = {
     lineHeight: 16,
   },
   ideasListCardTitleHighlight: {
-    backgroundColor: "#fde68a",
+    // Warm amber — a quieter, on-brand search highlight (was cold #fde68a).
+    backgroundColor: "#F0DFC0",
     color: "#1C1C19",
     fontFamily: "PlusJakartaSans_700Bold",
+  },
+  // Search-match snippet (comfortable): sits in the strip zone in place of the
+  // waveform. Field glyph + the matched line, italic and quiet.
+  ideasCardSnippet: {
+    flex: 1,
+    minWidth: 0,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7,
+  },
+  ideasCardSnippetText: {
+    flex: 1,
+    fontFamily: "PlusJakartaSans_400Regular",
+    fontSize: 12.5,
+    fontStyle: "italic",
+    color: colors.textSecondary,
   },
   ideasListCardMeta: {
     fontFamily: "PlusJakartaSans_600SemiBold",

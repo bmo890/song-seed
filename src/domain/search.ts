@@ -84,6 +84,13 @@ function buildSnippet(text: string, needle: string, prefix?: string | null) {
   return prefix ? `${prefix}: ${summary}` : summary;
 }
 
+/** Windowed snippet around the first match of `needle` in `text` (no prefix),
+ *  with leading/trailing ellipses. The collection list shows this so a search
+ *  result reveals WHY it matched — the actual matching line. */
+export function extractSnippet(text: string, needle: string): string | null {
+  return buildSnippet(text, needle, null);
+}
+
 function getLowerTextMatchScore(lowerSource: string, needle: string, baseScore: number) {
   if (!lowerSource) return null;
 

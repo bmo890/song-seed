@@ -286,6 +286,39 @@ export const ideasStyles = {
   ideasDropdownSectionStack: {
     gap: 8,
   },
+  // Multi-select ink: word + leading dot, no capsule (locked 2026-07-24).
+  ideasStageInkWrap: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    columnGap: 18,
+    rowGap: 11,
+    paddingHorizontal: 6,
+    marginTop: 8,
+  },
+  ideasStageInk: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingVertical: 3,
+  },
+  ideasStageInkDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 999,
+    borderWidth: 1.5,
+    borderColor: colors.borderMuted,
+  },
+  ideasStageInkText: {
+    fontFamily: "PlusJakartaSans_500Medium",
+    fontSize: 14,
+    color: colors.textSecondary,
+  },
+  ideasStageInkTextActive: {
+    fontFamily: "PlusJakartaSans_600SemiBold",
+    color: colors.textPrimary,
+  },
+  // Legacy stage/group chips — still used by the song-detail takes filter
+  // (SongClipFilterMenu). Slated to move to the ink language too.
   ideasStageChipsWrap: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -822,6 +855,21 @@ export const ideasStyles = {
     gap: 10,
     marginTop: 6,
     paddingLeft: 30,
+  },
+  // Compact search-match: a quiet second line under the title (glyph + snippet).
+  ideaDenseSnippet: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7,
+    marginTop: 5,
+    paddingLeft: 30,
+  },
+  ideaDenseSnippetText: {
+    flex: 1,
+    fontFamily: "PlusJakartaSans_400Regular",
+    fontSize: 12,
+    fontStyle: "italic",
+    color: colors.textSecondary,
   },
   // Day dividers need breathing room above when rows sit flush (dense list).
   ideasDayDividerRowDense: { marginTop: 12, marginBottom: 3 },

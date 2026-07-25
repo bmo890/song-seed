@@ -8,6 +8,7 @@ import { IdeaListItem, CollapsedDayRow } from "./IdeaListItem";
 import { CollectionListModel, IdeaListEntry, IdeaListItemMeta } from "../types";
 import { getIdeaSortTimestamp, type IdeaSortMetric } from "../../../domain/ideaSort";
 import { getDateBucket } from "../../../domain/dateBuckets";
+import type { SearchMeta } from "../types";
 import { EmptyState } from "../../common/EmptyState";
 import { useTranslation } from "react-i18next";
 
@@ -30,7 +31,7 @@ type IdeaListContentProps = {
   rowLayoutsRef: MutableRefObject<Record<string, { y: number; height: number }>>;
   highlightMapRef: MutableRefObject<Record<string, Animated.Value>>;
   viewabilityConfig: { itemVisiblePercentThreshold: number };
-  searchMetaByIdeaId: Map<string, { matches: boolean; title: boolean; notes: boolean; lyrics: boolean }>;
+  searchMetaByIdeaId: Map<string, SearchMeta>;
   onViewableItemsChanged: (info: { viewableItems: Array<{ item: IdeaListEntry }> }) => void;
   onItemCellLayout?: (key: string, y: number) => void;
   playIdeaFromList: (ideaId: string, clip: any) => Promise<void> | void;
@@ -194,6 +195,8 @@ export function IdeaListContent(
           title: false,
           notes: false,
           lyrics: false,
+          snippet: null,
+          snippetField: null,
         };
 
         return (
@@ -214,6 +217,8 @@ export function IdeaListContent(
             searchNeedle={searchNeedle}
             notesMatched={!!searchMeta.notes}
             lyricsMatched={!!searchMeta.lyrics}
+            matchSnippet={searchMeta.snippet}
+            matchField={searchMeta.snippetField}
             listDensity={listDensity}
             showDateDividers={showDateDividers}
             sortMetric={activeSortMetric}

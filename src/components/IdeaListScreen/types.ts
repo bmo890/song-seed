@@ -10,6 +10,16 @@ import type { MutableRefObject, ReactNode } from "react";
 import type { Animated } from "react-native";
 import type { SharedValue } from "react-native-reanimated";
 
+/** Per-idea search-match info: which fields matched + the matched line to show. */
+export type SearchMeta = {
+  matches: boolean;
+  title: boolean;
+  notes: boolean;
+  lyrics: boolean;
+  snippet: string | null;
+  snippetField: "notes" | "lyrics" | null;
+};
+
 export type IdeaListEntry =
   | {
       key: string;
@@ -57,7 +67,7 @@ export type CollectionListModel = {
   rowLayoutsRef: MutableRefObject<Record<string, { y: number; height: number }>>;
   highlightMapRef: MutableRefObject<Record<string, Animated.Value>>;
   viewabilityConfig: { itemVisiblePercentThreshold: number };
-  searchMetaByIdeaId: Map<string, { matches: boolean; title: boolean; notes: boolean; lyrics: boolean }>;
+  searchMetaByIdeaId: Map<string, SearchMeta>;
   onViewableItemsChanged: (info: { viewableItems: Array<{ item: IdeaListEntry }> }) => void;
   onItemCellLayout?: (key: string, y: number) => void;
   playIdeaFromList: (ideaId: string, clip: any) => Promise<void> | void;

@@ -10,10 +10,15 @@ import { getHierarchyIconName } from "../../../domain/hierarchy";
 import { durations } from "../../../design/motion";
 import { colors } from "../../../design/tokens";
 import { haptic } from "../../../design/haptics";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
+
+// Nav-row height below the safe-area inset — drops the menu just under the ⋯.
+const HEADER_ROW_HEIGHT = 46;
 
 export function CollectionHeaderMenu() {
   const { t } = useTranslation();
+  const insets = useSafeAreaInsets();
   const { screen, inlinePlayer, importFlow } = useCollectionScreen();
 
   if (!screen.headerMenuOpen) return null;
@@ -36,7 +41,13 @@ export function CollectionHeaderMenu() {
         onPress={() => screen.setHeaderMenuOpen(false)}
       />
       <Animated.View
-        style={[styles.ideasSortMenu, styles.ideasHeaderOverflowMenu]}
+        style={[
+          styles.ideasSortMenu,
+          styles.ideasHeaderOverflowMenu,
+          // The menu layer is a full-screen absolute fill, so anchor below the
+          // safe-area inset + nav row rather than the raw screen top.
+          { top: insets.top + HEADER_ROW_HEIGHT },
+        ]}
         entering={FadeIn.duration(durations.fast)}
       >
         <Pressable
