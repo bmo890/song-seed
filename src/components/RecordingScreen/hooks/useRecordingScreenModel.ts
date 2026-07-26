@@ -116,17 +116,31 @@ export function useRecordingScreenModel() {
     punchInMs > 0
       ? Math.min(punchInMs, getRecordingGridBarMs(recordingOverdubClip?.recordingGrid) ?? 1500)
       : 0;
+  // Arriving via a take's "New version" action: the header names the take being
+  // versioned, not just the sketch — the recorder finally says which path you took.
+  const recordingParentClip = useMemo(
+    () =>
+      recordingParentClipId && recordingIdea
+        ? recordingIdea.clips.find((clip) => clip.id === recordingParentClipId) ?? null
+        : null,
+    [recordingIdea, recordingParentClipId]
+  );
   const headerTitlePlaceholder =
-    !recordingOverdubClip && !!recordingIdea && isDefaultIdeaTitle(recordingIdea.title, recordingIdea.createdAt);
+    !recordingOverdubClip &&
+    !recordingParentClip &&
+    !!recordingIdea &&
+    isDefaultIdeaTitle(recordingIdea.title, recordingIdea.createdAt);
   const headerEyebrow = recordingOverdubClip
     ? punchInMs > 0
       ? t("recording.layerFrom", { time: fmtDuration(punchInMs) })
       : t("recording.layer")
-    : recordingIdea
-      ? headerTitlePlaceholder
-        ? t("recording.newRecording")
-        : t("recording.recordingInto")
-      : null;
+    : recordingParentClip
+      ? t("recording.newVersionOf")
+      : recordingIdea
+        ? headerTitlePlaceholder
+          ? t("recording.newRecording")
+          : t("recording.recordingInto")
+        : null;
   const latestLyricsVersion = recordingIdea?.kind === "project" ? getLatestLyricsVersion(recordingIdea) : null;
   const latestLyricsText = lyricsDocumentToText(latestLyricsVersion?.document);
   const hasProjectLyrics = recordingIdea?.kind === "project" && latestLyricsText.trim().length > 0;
@@ -1751,6 +1765,7 @@ export function useRecordingScreenModel() {
     recordingOverdubClip,
     headerEyebrow,
     headerTitlePlaceholder,
+    recordingParentClip,
     latestLyricsVersion,
     latestLyricsText,
     hasProjectLyrics,

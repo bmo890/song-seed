@@ -1,4 +1,4 @@
-import { Pressable } from "react-native";
+import { Pressable, Text } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTranslation } from "react-i18next";
 import { styles } from "../../styles";
@@ -32,7 +32,11 @@ export function ClipCardReplyButton({
       accessibilityRole="button"
       accessibilityLabel={t("clipLineage.recordTakeA11y")}
     >
-      <Ionicons name="mic-outline" size={15} color={colors.textSecondary} />
+      <Ionicons name="mic-outline" size={13} color={colors.primaryDeep} />
+      {/* Two words so the affordance says what it does — bare glyph only in compact. */}
+      {!compact ? (
+        <Text style={styles.songDetailVersionReplyText}>{t("clipLineage.newVersion")}</Text>
+      ) : null}
     </Pressable>
   );
 }

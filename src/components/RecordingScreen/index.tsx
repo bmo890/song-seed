@@ -83,7 +83,12 @@ export function RecordingScreen() {
       <View style={styles.recordingScreenLayout}>
         <RecordingHeader
           eyebrow={screen.headerEyebrow}
-          title={screen.recordingIdea?.title || t("recording.title")}
+          // A new version names the take it grows from, not just the sketch.
+          title={
+            screen.recordingParentClip?.title ||
+            screen.recordingIdea?.title ||
+            t("recording.title")
+          }
           titleIsPlaceholder={screen.headerTitlePlaceholder}
           controlsDisabled={screen.recordingControlsDisabled}
           collapsed={screen.lyricsExpanded}

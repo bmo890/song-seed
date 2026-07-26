@@ -151,6 +151,29 @@ meta cluster's contents vary per context:
   filter is told by filled glyph + terracotta ink. No circle chips.
 - **One FAB:** record stands alone; Import lives in the header overflow.
 
+### The stemmed thread (Evolution, locked 2026-07-27)
+
+- **The card is the present.** A multi-version lineage renders as one tinted
+  shell; the head card plays the current version and wears its version tag
+  ("v2 · Just now") plus its own note. No duplicate row for the current version.
+- **The stem is only the past.** A warm line descends from the card through
+  hollow nodes (v1, v2…), tap to audition (node fills terracotta while playing),
+  long-press to select. The stem never contains the future — actions are not
+  timeline events. One older version always shows; ≥2 fold behind
+  "N older versions".
+- **Version notes** are the clip's own notes field, shown as one italic Lora
+  line under the node (`Lora_500Medium_Italic` — a real face, never
+  `fontStyle`). Content you wrote earns the serif.
+- **"New version" is the thread's action**, labeled in words (mic + two words)
+  in the thread footer. Single-version cards carry the same labeled soft key on
+  the card itself. The bare unlabeled mic is retired.
+- **The recorder names the path:** arriving via "New version" shows
+  "NEW VERSION OF ‹take›"; the FAB path keeps "Recording into ‹sketch›".
+- **Musician words, not git words:** "Link as version of…" (was Set parent),
+  "Make its own take" (was Start new thread), versions not "older takes".
+  Groups hold whole threads (assignment at lineage level) and count with a
+  music-note glyph, never git-branch.
+
 | Need | Use | Notes |
 |---|---|---|
 | Content card shell | `common/IdeaCard.tsx` | ALL clip/song/content rows funnel here (via `ClipCard`, `InlineIdeaCard`, `IdeaListItem`). Never build a parallel clip card. |

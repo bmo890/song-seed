@@ -33,6 +33,9 @@ export type EvolutionListClipEntry = {
   indented: boolean;
   continuesThreadBelow: boolean;
   hasOlderVersions: boolean;
+  /** 1-based position in the lineage (v1 = oldest); set on thread heads. */
+  versionNumber?: number;
+  versionCount?: number;
 };
 
 export type TimelineListRow =
@@ -49,6 +52,8 @@ export type EvolutionListRow =
       lastUpdatedAt: number | null;
     }
   | { kind: "clip"; entry: EvolutionListClipEntry }
+  /** A multi-version lineage rendered as one thread shell (head + history stem). */
+  | { kind: "thread"; lineage: ClipLineage; expanded: boolean }
   | { kind: "more"; lineageRootId: string; hiddenCount: number; expanded: boolean };
 
 function byCreatedAtAsc(a: ClipVersion, b: ClipVersion) {
@@ -278,45 +283,30 @@ export function buildEvolutionListRowsFromLineages(
   const pushLineageRows = (lineage: ClipLineage) => {
       const newestClip = lineage.latestClip;
       const olderClips = lineage.clipsNewestToOldest.filter((clip) => clip.id !== newestClip.id);
-      const isExpanded = !!expandedLineageIds[lineage.root.id];
 
-      rows.push({
-        kind: "clip",
-        entry: {
-          kind: "evolution",
-          clip: newestClip,
-          lineageRootId: lineage.root.id,
-          compactPreview: false,
-          indented: false,
-          continuesThreadBelow: false,
-          hasOlderVersions: olderClips.length > 0,
-        },
-      });
-
-      if (olderClips.length === 0) return;
-
-      rows.push({
-        kind: "more",
-        lineageRootId: lineage.root.id,
-        hiddenCount: olderClips.length,
-        expanded: isExpanded,
-      });
-
-      if (!isExpanded) return;
-
-      olderClips.forEach((clip, index) => {
+      // Single version → a plain card, no thread chrome.
+      if (olderClips.length === 0) {
         rows.push({
           kind: "clip",
           entry: {
             kind: "evolution",
-            clip,
+            clip: newestClip,
             lineageRootId: lineage.root.id,
-            compactPreview: true,
-            indented: true,
-            continuesThreadBelow: index < olderClips.length - 1,
+            compactPreview: false,
+            indented: false,
+            continuesThreadBelow: false,
             hasOlderVersions: false,
           },
         });
+        return;
+      }
+
+      // Multi-version lineage → one thread shell. A lone older version is always
+      // visible; longer histories fold behind the expand toggle.
+      rows.push({
+        kind: "thread",
+        lineage,
+        expanded: olderClips.length === 1 || !!expandedLineageIds[lineage.root.id],
       });
   };
 

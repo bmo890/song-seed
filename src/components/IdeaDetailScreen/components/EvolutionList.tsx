@@ -13,6 +13,7 @@ import {
 } from "../../../domain/clipGraph";
 import { type ClipCardContextProps } from "./ClipCard";
 import { type SongTimelineSortDirection, type SongTimelineSortMetric } from "../../../domain/clipGraph";
+import { EvolutionThread } from "./EvolutionThread";
 import { SongClipCard } from "./SongClipCard";
 import { SongClipListShell } from "./SongClipListShell";
 import { haptic } from "../../../design/haptics";
@@ -120,7 +121,8 @@ function EvolutionGroupHeaderRow({
         </View>
         <View style={styles.songDetailEvolutionGroupMetaRow}>
           <View style={styles.songDetailEvolutionGroupCount}>
-            <Ionicons name="git-branch-outline" size={12} color={colors.textMuted} />
+            {/* Musical count glyph — git iconography stays out of the studio. */}
+            <Ionicons name="musical-notes-outline" size={12} color={colors.textMuted} />
             <Text style={styles.songDetailEvolutionGroupMeta}>{row.lineageCount}</Text>
           </View>
         </View>
@@ -167,7 +169,10 @@ export function EvolutionList({
   const scrollTarget = useMemo(() => {
     if (!locateTarget) return null;
     const index = contentRows.findIndex(
-      (row) => row.kind === "clip" && row.entry.clip.id === locateTarget.clipId
+      (row) =>
+        (row.kind === "clip" && row.entry.clip.id === locateTarget.clipId) ||
+        (row.kind === "thread" &&
+          row.lineage.clipsOldestToNewest.some((clip) => clip.id === locateTarget.clipId))
     );
     if (index < 0) return null;
     return { index, nonce: locateTarget.nonce };
@@ -187,6 +192,7 @@ export function EvolutionList({
       scrollTarget={scrollTarget}
       contentKeyExtractor={(row, index) => {
         if (row.kind === "clip") return `evolution-clip:${row.entry.clip.id}:${index}`;
+        if (row.kind === "thread") return `evolution-thread:${row.lineage.root.id}`;
         if (row.kind === "group") return `evolution-group:${row.groupId}`;
         return `evolution-more:${row.lineageRootId}`;
       }}
@@ -199,6 +205,22 @@ export function EvolutionList({
                 setRenameTarget({ groupId, name });
                 setRenameDraft(name);
               }}
+            />
+          );
+        }
+
+        if (row.kind === "thread") {
+          return (
+            <EvolutionThread
+              lineage={row.lineage}
+              expanded={row.expanded}
+              onToggleExpanded={(lineageRootId) =>
+                setExpandedLineageIds((prev) => ({
+                  ...prev,
+                  [lineageRootId]: !prev[lineageRootId],
+                }))
+              }
+              context={clipCardContext}
             />
           );
         }

@@ -1,5 +1,5 @@
 import type { ImageStyle, TextStyle, ViewStyle } from "react-native";
-import { radii } from "../design/tokens";
+import { colors, radii } from "../design/tokens";
 
 // Song detail history: versions, evolution timeline, threads.
 // Raw style objects — merged and registered once via StyleSheet.create in ../styles.ts.
@@ -176,19 +176,27 @@ export const songDetailHistoryStyles = {
     color: "#524440",
     fontFamily: "PlusJakartaSans_700Bold",
   },
+  // "New version" — labeled soft key (mic + words); the affordance says what it
+  // does instead of miming the record FAB.
   songDetailVersionReplyBtn: {
-    width: 26,
-    height: 26,
-    borderRadius: radii.round,
-    borderWidth: 1,
-    borderColor: "rgba(215,194,189,0.5)",
-    backgroundColor: "#F4F1ED",
+    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
+    gap: 4,
+    minHeight: 26,
+    paddingHorizontal: 8,
+    borderRadius: radii.lg,
+    backgroundColor: "#F3E4DE",
+  },
+  songDetailVersionReplyText: {
+    fontSize: 10.5,
+    color: colors.primaryDeep,
+    fontFamily: "PlusJakartaSans_600SemiBold",
   },
   songDetailVersionReplyBtnCompact: {
     width: 24,
     height: 24,
+    paddingHorizontal: 0,
     borderRadius: 12,
   },
   songDetailVersionHistoryBtn: {
@@ -293,6 +301,121 @@ export const songDetailHistoryStyles = {
     fontFamily: "PlusJakartaSans_600SemiBold",
     fontSize: 11,
     color: "#84736f",
+  },
+  // ── Stemmed thread (Evolution v2) ─────────────────────────────────────────
+  // One tinted shell per multi-version lineage: head card on top, history stem
+  // below, the thread's "New version" action in the footer.
+  songDetailThreadShell: {
+    backgroundColor: "rgba(232,228,223,0.42)",
+    borderRadius: 14,
+    padding: 6,
+  },
+  songDetailStem: {
+    position: "relative",
+    marginTop: 2,
+    marginHorizontal: 6,
+    paddingLeft: 22,
+  },
+  // Warm line descending into the past — bleeds up toward the head card so the
+  // thread reads as one connected stem.
+  songDetailStemLine: {
+    position: "absolute",
+    left: 9,
+    top: -8,
+    bottom: 12,
+    width: 1.5,
+    borderRadius: 2,
+    backgroundColor: "rgba(184,125,107,0.35)",
+  },
+  songDetailStemRow: {
+    position: "relative",
+    paddingVertical: 5,
+    paddingRight: 4,
+    borderRadius: 8,
+  },
+  songDetailStemRowSelected: {
+    backgroundColor: "rgba(184,125,107,0.10)",
+  },
+  // Hollow node centred on the stem line (line x = 9 within .songDetailStem;
+  // row content starts at paddingLeft 22, so the node backs up into the gutter).
+  songDetailStemNode: {
+    position: "absolute",
+    left: -17.5,
+    top: 9,
+    width: 9,
+    height: 9,
+    borderRadius: radii.round,
+    backgroundColor: "#FDFBF7",
+    borderWidth: 2,
+    borderColor: "rgba(184,125,107,0.6)",
+  },
+  songDetailStemNodeActive: {
+    backgroundColor: "#B87D6B",
+    borderColor: "#B87D6B",
+  },
+  songDetailStemRowBody: {
+    minWidth: 0,
+  },
+  songDetailStemRowTop: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  songDetailStemVn: {
+    fontFamily: "PlusJakartaSans_700Bold",
+    fontSize: 10,
+    letterSpacing: 0.6,
+    color: "#A89994",
+    fontVariant: ["tabular-nums"],
+    textTransform: "uppercase",
+  },
+  songDetailStemWhen: {
+    fontFamily: "PlusJakartaSans_500Medium",
+    fontSize: 11.5,
+    color: "#84736f",
+    fontVariant: ["tabular-nums"],
+  },
+  songDetailStemDur: {
+    fontFamily: "PlusJakartaSans_600SemiBold",
+    fontSize: 11,
+    color: "#A89994",
+    fontVariant: ["tabular-nums"],
+  },
+  // A version's note — content you wrote, so it earns the serif (true italic face).
+  songDetailStemNote: {
+    fontFamily: "Lora_500Medium_Italic",
+    fontSize: 12,
+    lineHeight: 16,
+    color: "#524440",
+    marginTop: 1,
+  },
+  songDetailStemFoldText: {
+    fontFamily: "PlusJakartaSans_600SemiBold",
+    fontSize: 11,
+    color: "#84736f",
+  },
+  songDetailStemHideRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingVertical: 4,
+  },
+  // Thread footer: the one forward action, labeled in words.
+  songDetailThreadFoot: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 4,
+    marginHorizontal: 6,
+    paddingTop: 8,
+    paddingBottom: 4,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(215,194,189,0.4)",
+  },
+  songDetailThreadFootText: {
+    fontFamily: "PlusJakartaSans_600SemiBold",
+    fontSize: 11.5,
+    color: colors.primaryDeep,
   },
   songDetailEvolutionGroupRow: {
     flexDirection: "row",

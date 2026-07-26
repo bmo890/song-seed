@@ -6,6 +6,7 @@ import { ActivityIndicator, View } from "react-native";
 import { useFonts } from "expo-font";
 import {
   Lora_500Medium,
+  Lora_500Medium_Italic,
   Lora_600SemiBold,
   Lora_700Bold,
 } from "@expo-google-fonts/lora";
@@ -749,6 +750,8 @@ function AppContent() {
   const { direction } = useLocale();
   const [fontsLoaded] = useFonts({
     Lora_500Medium: direction === "rtl" ? FrankRuhlLibre_400Regular : Lora_500Medium,
+    // Version notes (margin scribbles) — FrankRuhl has no italic, so RTL keeps roman.
+    Lora_500Medium_Italic: direction === "rtl" ? FrankRuhlLibre_400Regular : Lora_500Medium_Italic,
     Lora_600SemiBold: direction === "rtl" ? FrankRuhlLibre_600SemiBold : Lora_600SemiBold,
     Lora_700Bold: direction === "rtl" ? FrankRuhlLibre_700Bold : Lora_700Bold,
     PlusJakartaSans_400Regular: direction === "rtl" ? Heebo_400Regular : PlusJakartaSans_400Regular,
