@@ -119,16 +119,23 @@ export function ChordSheetBody({
             style={({ pressed }) => [styles.actionBtn, pressed ? appStyles.pressDown : null]}
             onPress={() => setAddSheetOpen(true)}
           >
-            <Ionicons name="add" size={15} color={colors.primary} />
+            <Ionicons name="add" size={15} color={colors.primaryDeep} />
             <Text style={styles.actionBtnText}>{t("chordChart.addSection")}</Text>
           </Pressable>
           {isEmpty ? (
+            // Quiet ink link beside the one primary — never two pills.
             <Pressable
-              style={({ pressed }) => [styles.actionBtn, pressed ? appStyles.pressDown : null]}
+              style={({ pressed }) => [
+                styles.actionBtn,
+                styles.actionBtnQuiet,
+                pressed ? appStyles.pressDown : null,
+              ]}
               onPress={() => model.buildFromLyrics()}
             >
-              <Ionicons name="sparkles-outline" size={14} color={colors.primary} />
-              <Text style={styles.actionBtnText}>{t("chordChart.buildFromLyrics")}</Text>
+              <Ionicons name="sparkles-outline" size={14} color={colors.textSecondary} />
+              <Text style={[styles.actionBtnText, styles.actionBtnQuietText]}>
+                {t("chordChart.buildFromLyrics")}
+              </Text>
             </Pressable>
           ) : null}
         </View>
@@ -444,19 +451,28 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
     marginBottom: spacing.md,
   },
+  // Soft key (button law): tonal terracotta wash carries the primary tier.
   actionBtn: {
     flexDirection: "row",
     alignItems: "center",
     gap: 5,
-    backgroundColor: colors.surfaceHigh,
-    borderRadius: radii.round,
+    backgroundColor: "#F3E4DE",
+    borderRadius: radii.lg,
+    minHeight: 38,
     paddingHorizontal: spacing.md,
     paddingVertical: 8,
   },
   actionBtnText: {
     fontFamily: "PlusJakartaSans_600SemiBold",
     fontSize: 13,
-    color: colors.primary,
+    color: colors.primaryDeep,
+  },
+  // Quiet ink companion — never two pills side by side.
+  actionBtnQuiet: {
+    backgroundColor: "transparent",
+  },
+  actionBtnQuietText: {
+    color: colors.textSecondary,
   },
   editSurface: {
     backgroundColor: colors.surface,

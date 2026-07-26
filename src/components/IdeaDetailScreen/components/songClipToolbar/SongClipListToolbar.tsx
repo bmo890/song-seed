@@ -1,5 +1,6 @@
 import { View } from "react-native";
 import ReAnimated, { useAnimatedStyle } from "react-native-reanimated";
+import { useTranslation } from "react-i18next";
 import { useSongScreen } from "../../provider/SongScreenProvider";
 import { SongClipListSectionLabel } from "./SongClipListSectionLabel";
 import { SongClipToolbarControls } from "./SongClipToolbarControls";
@@ -12,6 +13,7 @@ type SongClipListToolbarProps = {
 export function SongClipListToolbar({
   visibleIdeaCount,
 }: SongClipListToolbarProps) {
+  const { t } = useTranslation();
   const { screen, store } = useSongScreen();
   const selectedIdea = screen.selectedIdea;
 
@@ -28,8 +30,9 @@ export function SongClipListToolbar({
   return (
     <View style={songClipToolbarStyles.headerStack}>
       <ReAnimated.View style={labelStyle} pointerEvents="none">
+        {/* Takes, not "Ideas" — inside a sketch the terminology law says take. */}
         <SongClipListSectionLabel
-          title={selectedIdea.kind === "project" ? "Ideas" : "Replies"}
+          title={t(selectedIdea.kind === "project" ? "screens.takes" : "songDetail.replies")}
           count={visibleIdeaCount}
         />
       </ReAnimated.View>

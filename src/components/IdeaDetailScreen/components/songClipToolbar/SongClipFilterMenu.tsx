@@ -13,6 +13,7 @@ import { songClipToolbarStyles } from "./styles";
 import Animated, { FadeIn } from "react-native-reanimated";
 import { durations } from "../../../../design/motion";
 import { colors } from "../../../../design/tokens";
+import { SegmentedControl } from "../../../common/SegmentedControl";
 import { useTranslation } from "react-i18next";
 
 type SongClipFilterMenuProps = {
@@ -30,6 +31,43 @@ type SongClipFilterMenuProps = {
   globalCustomTags: CustomTagDefinition[];
   onClose: () => void;
 };
+
+/** One editorial-ink toggle row: leading dot (hollow → filled in `hue`) + word.
+ *  Multi-select control language — chips are retired here. */
+function InkToggle({
+  label,
+  active,
+  hue,
+  onPress,
+}: {
+  label: string;
+  active: boolean;
+  hue: string;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      style={({ pressed }) => [styles.ideasStageInk, pressed ? styles.pressDown : null]}
+      onPress={onPress}
+      hitSlop={{ top: 4, bottom: 4 }}
+      accessibilityRole="button"
+      accessibilityState={{ selected: active }}
+      accessibilityLabel={label}
+    >
+      <View
+        style={[
+          styles.ideasStageInkDot,
+          active ? { backgroundColor: hue, borderColor: hue } : null,
+        ]}
+      />
+      <Text
+        style={[styles.ideasStageInkText, active ? styles.ideasStageInkTextActive : null]}
+      >
+        {label}
+      </Text>
+    </Pressable>
+  );
+}
 
 export function SongClipFilterMenu({
   clipViewMode,
@@ -93,62 +131,30 @@ export function SongClipFilterMenu({
         ) : null}
       </View>
 
-      {/* Tag chips (multiselect) — styled to match the actual tag badges on clips */}
+      {/* Tags (multiselect) — editorial ink; the tag's hue lives in the dot. */}
       <ScrollView
         style={styles.ideasStageChipsScroll}
-        contentContainerStyle={styles.ideasStageChipsWrap}
+        contentContainerStyle={styles.ideasStageInkWrap}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
         {allOptions.map((option) => {
-          const active = clipTagFilter.includes(option.key);
           const isUntagged = option.key === "untagged";
           const tagColor = isUntagged
             ? null
             : getTagColor(option.key, projectCustomTags, globalCustomTags);
-
-          if (tagColor) {
-            // Colored tag — matches the badge on the clip card
-            return (
-              <Pressable
-                key={option.key}
-                style={({ pressed }) => [
-                  styles.clipCardTagBadge,
-                  { backgroundColor: tagColor.bg },
-                  active
-                    ? { borderWidth: 1, borderColor: tagColor.text }
-                    : { borderWidth: 1, borderColor: "transparent" },
-                  pressed ? styles.pressDown : null,
-                ]}
-                onPress={() => toggleTag(option.key)}
-              >
-                <Text style={[styles.clipCardTagBadgeText, { color: tagColor.text }]}>
-                  {getTagLabel(option.key, projectCustomTags, globalCustomTags)}
-                </Text>
-              </Pressable>
-            );
-          }
-
-          // "Untagged" — same badge shape, neutral warm color
-          const untaggedBg = colors.surfaceHigh;
-          const untaggedText = colors.textSecondary;
           return (
-            <Pressable
+            <InkToggle
               key={option.key}
-              style={({ pressed }) => [
-                styles.clipCardTagBadge,
-                { backgroundColor: untaggedBg },
-                active
-                  ? { borderWidth: 1, borderColor: untaggedText }
-                  : { borderWidth: 1, borderColor: "transparent" },
-                pressed ? styles.pressDown : null,
-              ]}
+              label={
+                isUntagged
+                  ? t("songDetail.untagged")
+                  : getTagLabel(option.key, projectCustomTags, globalCustomTags)
+              }
+              active={clipTagFilter.includes(option.key)}
+              hue={tagColor?.text ?? colors.textMuted}
               onPress={() => toggleTag(option.key)}
-            >
-              <Text style={[styles.clipCardTagBadgeText, { color: untaggedText }]}>
-                {t("songDetail.untagged")}
-              </Text>
-            </Pressable>
+            />
           );
         })}
       </ScrollView>
@@ -160,24 +166,13 @@ export function SongClipFilterMenu({
           <Text style={styles.ideasDropdownSectionToggleText}>{t("songDetail.savedClips")}</Text>
         </View>
       </View>
-      <View style={styles.ideasStageChipsWrap}>
-        <Pressable
-          style={({ pressed }) => [
-            styles.ideasStageChip,
-            clipBookmarkedOnly ? styles.ideasStageChipActive : null,
-            pressed ? styles.pressDown : null,
-          ]}
+      <View style={styles.ideasStageInkWrap}>
+        <InkToggle
+          label={t("songDetail.bookmarkedOnly")}
+          active={clipBookmarkedOnly}
+          hue={colors.primary}
           onPress={() => setClipBookmarkedOnly(!clipBookmarkedOnly)}
-        >
-          <Text
-            style={[
-              styles.ideasStageChipText,
-              clipBookmarkedOnly ? styles.ideasStageChipTextActive : null,
-            ]}
-          >
-            {t("songDetail.bookmarkedOnly")}
-          </Text>
-        </Pressable>
+        />
       </View>
 
       {clipGroups.length > 0 ? (
@@ -189,30 +184,16 @@ export function SongClipFilterMenu({
               <Text style={styles.ideasDropdownSectionToggleText}>{t("songDetail.groups")}</Text>
             </View>
           </View>
-          <View style={styles.ideasStageChipsWrap}>
-            {clipGroups.map((group) => {
-              const active = clipGroupFilter.includes(group.id);
-              return (
-                <Pressable
-                  key={group.id}
-                  style={({ pressed }) => [
-                    styles.ideasStageChip,
-                    active ? styles.ideasStageChipActive : null,
-                    pressed ? styles.pressDown : null,
-                  ]}
-                  onPress={() => toggleGroup(group.id)}
-                >
-                  <Text
-                    style={[
-                      styles.ideasStageChipText,
-                      active ? styles.ideasStageChipTextActive : null,
-                    ]}
-                  >
-                    {group.name}
-                  </Text>
-                </Pressable>
-              );
-            })}
+          <View style={styles.ideasStageInkWrap}>
+            {clipGroups.map((group) => (
+              <InkToggle
+                key={group.id}
+                label={group.name}
+                active={clipGroupFilter.includes(group.id)}
+                hue={colors.primary}
+                onPress={() => toggleGroup(group.id)}
+              />
+            ))}
           </View>
         </>
       ) : null}
@@ -223,37 +204,18 @@ export function SongClipFilterMenu({
           <View style={styles.ideasDropdownSectionToggle}>
             <Text style={styles.ideasDropdownSectionToggleText}>{t("songDetail.display")}</Text>
           </View>
-          <View style={styles.ideasStageChipsWrap}>
-            {([
-              { key: "all", label: t("songDetail.allTakes"), value: false },
-              { key: "main", label: t("songDetail.mainTakesOnly"), value: true },
-            ] as const).map((option) => {
-              const active = timelineMainTakesOnly === option.value;
-              return (
-                <Pressable
-                  key={option.key}
-                  style={({ pressed }) => [
-                    styles.ideasStageChip,
-                    active ? styles.ideasStageChipActive : null,
-                    pressed ? styles.pressDown : null,
-                  ]}
-                  onPress={() => {
-                    setTimelineMainTakesOnly(option.value);
-                    onClose();
-                  }}
-                >
-                  <Text
-                    style={[
-                      styles.ideasStageChipText,
-                      active ? styles.ideasStageChipTextActive : null,
-                    ]}
-                  >
-                    {option.label}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
+          {/* Single-select — SegmentedControl, per the selection-controls law. */}
+          <SegmentedControl
+            options={[
+              { key: "all", label: t("songDetail.allTakes") },
+              { key: "main", label: t("songDetail.mainTakesOnly") },
+            ]}
+            value={timelineMainTakesOnly ? "main" : "all"}
+            onChange={(key) => {
+              setTimelineMainTakesOnly(key === "main");
+              onClose();
+            }}
+          />
         </>
       ) : null}
     </Animated.View>

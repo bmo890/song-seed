@@ -19,6 +19,8 @@ type Props = {
     onChangeDescription?: (val: string) => void;
     isPrimary?: boolean;
     onChangeIsPrimary?: (val: boolean) => void;
+    /** Label for the make-primary checkbox — pass the take variant inside a sketch. */
+    primaryLabel?: string;
     onCancel: () => void;
     onSave: () => void;
     helperText?: string;
@@ -45,6 +47,7 @@ export function QuickNameModal({
     onChangeDescription,
     isPrimary,
     onChangeIsPrimary,
+    primaryLabel,
     onCancel,
     onSave,
     helperText,
@@ -181,7 +184,7 @@ export function QuickNameModal({
                         size={20}
                         color={isPrimary ? colors.primary : colors.borderMuted}
                     />
-                    <Text style={qStyles.checkLabel}>{t("modals.makePrimary")}</Text>
+                    <Text style={qStyles.checkLabel}>{primaryLabel ?? t("modals.makePrimary")}</Text>
                 </Pressable>
             ) : null}
 

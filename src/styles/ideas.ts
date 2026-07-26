@@ -319,36 +319,6 @@ export const ideasStyles = {
   },
   // Legacy stage/group chips — still used by the song-detail takes filter
   // (SongClipFilterMenu). Slated to move to the ink language too.
-  ideasStageChipsWrap: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-    paddingHorizontal: 6,
-    paddingVertical: 4,
-  },
-  ideasStageChip: {
-    minHeight: 30,
-    borderRadius: radii.round,
-    borderWidth: 1,
-    borderColor: "rgba(215,194,189,0.5)",
-    backgroundColor: "#FDFBF7",
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  ideasStageChipActive: {
-    backgroundColor: "#B87D6B",
-    borderColor: "#B87D6B",
-  },
-  ideasStageChipText: {
-    fontSize: 12,
-    color: "#84736f",
-    fontFamily: "PlusJakartaSans_700Bold",
-  },
-  ideasStageChipTextActive: {
-    color: "#ffffff",
-  },
   ideasToggleRow: {
     minHeight: 38,
     borderRadius: 12,

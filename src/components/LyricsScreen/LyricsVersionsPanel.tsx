@@ -212,7 +212,7 @@ export function LyricsVersionsPanel({ projectIdea }: LyricsVersionsPanelProps) {
             hitSlop={6}
             accessibilityLabel={t("lyrics.newVersion")}
           >
-            <Ionicons name="add" size={22} color={colors.onPrimary} />
+            <Ionicons name="add" size={22} color={colors.primaryDeep} />
           </Pressable>
         </View>
       ) : null}
@@ -416,11 +416,13 @@ const panelStyles = StyleSheet.create({
     textTransform: "uppercase",
     color: colors.textMuted,
   },
+  // Tonal wash, not solid terracotta — solid primary is reserved for the
+  // record FAB / highest-stakes commit.
   addBtn: {
     width: 40,
     height: 40,
     borderRadius: radii.round,
-    backgroundColor: colors.primary,
+    backgroundColor: "#F3E4DE",
     alignItems: "center",
     justifyContent: "center",
   },

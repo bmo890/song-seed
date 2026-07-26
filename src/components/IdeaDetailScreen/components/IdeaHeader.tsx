@@ -22,7 +22,7 @@ import { UserText } from "../../../i18n";
 export function IdeaHeader() {
   const { t } = useTranslation();
   const [headerMenuOpen, setHeaderMenuOpen] = useState(false);
-  const { screen, editFlow, actions } = useSongScreen();
+  const { screen, editFlow, actions, importFlow } = useSongScreen();
   // While clips are selected, the bottom bar already offers a clip "Delete". Disable
   // the song-level delete here so it can't be tapped by mistake mid-selection.
   const isSelectingClips = useStore((s) => s.selectedClipIds.length > 0);
@@ -185,6 +185,19 @@ export function IdeaHeader() {
                 >
                   <Text style={styles.ideasSortMenuItemText}>{t("songDetail.playAll")}</Text>
                   <Ionicons name="play-outline" size={15} color={colors.textStrong} />
+                </Pressable>
+                <View style={styles.ideasDropdownDivider} />
+                {/* Import moved here from the "+" FAB — record stands alone. */}
+                <Pressable
+                  style={({ pressed }) => [styles.ideasToggleRow, pressed ? styles.pressDown : null]}
+                  onPress={() => {
+                    setHeaderMenuOpen(false);
+                    haptic.tap();
+                    void importFlow.openImportAudioFlow();
+                  }}
+                >
+                  <Text style={styles.ideasSortMenuItemText}>{t("songDetail.import")}</Text>
+                  <Ionicons name="download-outline" size={15} color={colors.textStrong} />
                 </Pressable>
               </>
             ) : (

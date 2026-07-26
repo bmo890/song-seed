@@ -135,6 +135,22 @@ meta cluster's contents vary per context:
   controls-free pill; ✕/pill restores the dock paused (never auto-resume). One
   transport visible at a time.
 
+### The sketch page (locked 2026-07-26)
+
+- **Eyebrow says SKETCH** (`brand.sketch`), never SONG — the workspace object is
+  a sketch; "song" is reserved for the finished thing. Overflow rows follow:
+  "Edit sketch" / "Make sketch" / "Delete sketch".
+- **Stage is ink, not a chip:** dot + uppercase word in the stage's `STAGE_INK`
+  hue, display-only under the title (edited in the edit sheet). No gray pill.
+- **Takes, not "Ideas":** the list section header inside a sketch is TAKES
+  (`screens.takes`); clip-detail replies use `songDetail.replies`. Both via `t()`.
+- **Primary-take strip:** bare glyph play (no filled circle), PRIMARY TAKE label
+  in caps Jakarta, earned-serif title (Lora only when hand-named), locate glyph.
+- **Toolbar:** view switch = canon `SegmentedControl`; sort (direction arrow) and
+  filter (funnel) are bare `IconButton` glyphs on the trailing edge — active
+  filter is told by filled glyph + terracotta ink. No circle chips.
+- **One FAB:** record stands alone; Import lives in the header overflow.
+
 | Need | Use | Notes |
 |---|---|---|
 | Content card shell | `common/IdeaCard.tsx` | ALL clip/song/content rows funnel here (via `ClipCard`, `InlineIdeaCard`, `IdeaListItem`). Never build a parallel clip card. |

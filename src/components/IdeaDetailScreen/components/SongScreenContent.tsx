@@ -19,7 +19,7 @@ import { useTranslation } from "react-i18next";
 
 export function SongScreenContent() {
   const { t } = useTranslation();
-  const { screen, parentPicking, store, actions, importFlow, editFlow } = useSongScreen();
+  const { screen, parentPicking, store, actions, editFlow } = useSongScreen();
 
   if (!screen.selectedIdea) {
     return (
@@ -65,18 +65,11 @@ export function SongScreenContent() {
       !store.clipSelectionMode &&
       !parentPicking.parentPickState &&
       screen.songTab === "takes" ? (
+        // One primary action: the record FAB stands alone. Import lives in the
+        // header overflow (same consolidation as the collection screen).
         <FloatingActionDock
           onRecord={() => actions.startRecording(null)}
-          menuItems={[
-            {
-              key: "import",
-              label: t("songDetail.import"),
-              icon: "download-outline",
-              onPress: () => {
-                void importFlow.openImportAudioFlow();
-              },
-            },
-          ]}
+          menuItems={[]}
         />
       ) : null}
       <SongUndoBanner />

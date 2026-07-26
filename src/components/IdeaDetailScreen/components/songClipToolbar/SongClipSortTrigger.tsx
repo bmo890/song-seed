@@ -1,37 +1,22 @@
-import { Pressable, View } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
-import { styles } from "../../styles";
-import { colors } from "../../../../design/tokens";
+import { IconButton } from "../../../common/IconButton";
+import { useTranslation } from "react-i18next";
 
 type SongClipSortTriggerProps = {
   direction: "asc" | "desc";
   onPress: () => void;
 };
 
+/** Bare glyph sort toggle — one tap flips asc ↔ desc; the arrow tells the
+ *  current direction. Glyphs, not chips (collection toolbar language). */
 export function SongClipSortTrigger({ direction, onPress }: SongClipSortTriggerProps) {
+  const { t } = useTranslation();
   return (
-    <Pressable
-      style={({ pressed }) => [
-        styles.ideasUtilityChip,
-        styles.ideasUtilityChipIconOnly,
-        pressed ? styles.pressDown : null,
-      ]}
+    <IconButton
+      icon={direction === "desc" ? "arrow-down" : "arrow-up"}
+      tone="muted"
+      size={18}
       onPress={onPress}
-      accessibilityRole="button"
-      accessibilityLabel={direction === "desc" ? "Newest first — tap for oldest first" : "Oldest first — tap for newest first"}
-    >
-      <View style={styles.ideasSortChipIconStack}>
-        <Ionicons
-          name="arrow-up"
-          size={11}
-          color={direction === "asc" ? colors.textStrong : "#c4b5b0"}
-        />
-        <Ionicons
-          name="arrow-down"
-          size={11}
-          color={direction === "desc" ? colors.textStrong : "#c4b5b0"}
-        />
-      </View>
-    </Pressable>
+      accessibilityLabel={t(direction === "desc" ? "songDetail.newestFirst" : "songDetail.oldestFirst")}
+    />
   );
 }

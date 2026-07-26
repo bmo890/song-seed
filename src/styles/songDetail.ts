@@ -222,6 +222,24 @@ export const songDetailStyles = {
     marginTop: 1,
     marginBottom: 14,
   },
+  // Stage shown as editorial ink (dot + word in stage hue), not a chip —
+  // matches the collection filter's ink language.
+  songDetailStageInk: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  songDetailStageInkDot: {
+    width: 7,
+    height: 7,
+    borderRadius: radii.round,
+  },
+  songDetailStageInkText: {
+    fontFamily: "PlusJakartaSans_600SemiBold",
+    fontSize: 11,
+    letterSpacing: 0.6,
+    textTransform: "uppercase",
+  },
   songDetailSongTabs: {
     flexDirection: "row",
     marginTop: -2,
@@ -669,14 +687,6 @@ export const songDetailStyles = {
     borderRadius: 2,
     backgroundColor: "#B87D6B",
   },
-  songDetailPrimaryStripPlay: {
-    width: 30,
-    height: 30,
-    borderRadius: radii.round,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: colors.primaryDeep,
-  },
   songDetailPrimaryStripCopy: {
     flex: 1,
     minWidth: 0,
@@ -689,9 +699,17 @@ export const songDetailStyles = {
     color: "#a89994",
     marginBottom: 1,
   },
+  // Auto-named take: quiet tabular Jakarta (earned-serif rule).
   songDetailPrimaryStripTitle: {
     fontFamily: "PlusJakartaSans_600SemiBold",
     fontSize: 14,
+    color: "#1b1c1a",
+    fontVariant: ["tabular-nums"],
+  },
+  // Hand-named take earns the Lora title.
+  songDetailPrimaryStripTitleSerif: {
+    fontFamily: "Lora_600SemiBold",
+    fontSize: 15,
     color: "#1b1c1a",
   },
   songDetailPrimaryStripLocate: {
@@ -718,15 +736,13 @@ export const songDetailStyles = {
     flexDirection: "row",
     alignItems: "stretch",
   },
-  // Chip style for the collapse-all button when the header is fully collapsed —
-  // matches the sort / filter utility chips in the toolbar so it reads as a
-  // clear, tappable control rather than a whispered text action.
+  // Soft key (button law): text buttons are radii.lg, never stadium round.
   songDetailCollapseAllChip: {
     flexDirection: "row",
     alignItems: "center",
     gap: 5,
     minHeight: 34,
-    borderRadius: radii.round,
+    borderRadius: radii.lg,
     borderWidth: 1,
     borderColor: "rgba(215,194,189,0.5)",
     backgroundColor: "#FDFBF7",

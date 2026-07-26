@@ -3,6 +3,8 @@ import { Pressable, Text, View } from "react-native";
 import { styles } from "../styles";
 import { useSongScreen } from "../provider/SongScreenProvider";
 import { haptic } from "../../../design/haptics";
+import { STAGE_INK } from "../../common/StatusBadge";
+import { colors } from "../../../design/tokens";
 import { useTranslation } from "react-i18next";
 import { UserText } from "../../../i18n";
 
@@ -12,19 +14,6 @@ const SONG_TABS = [
   { key: "chart", labelKey: "screens.chart" },
   { key: "notes", labelKey: "screens.notes" },
 ] as const;
-
-function statusBadgeStyle(status: string) {
-  switch (status) {
-    case "song":
-      return [styles.badge, styles.statusSong, styles.statusSongText];
-    case "stem":
-      return [styles.badge, styles.statusStem, styles.statusStemText];
-    case "sprout":
-      return [styles.badge, styles.statusSprout, styles.statusSproutText];
-    default:
-      return [styles.badge, styles.statusSeed, styles.statusSeedText];
-  }
-}
 
 type SongCollapsibleHeaderProps = {
   /** Extra content rendered below the tabs (e.g. the primary-take strip on the takes tab). */
@@ -44,7 +33,7 @@ export function SongCollapsibleHeader({ extra }: SongCollapsibleHeaderProps) {
   if (!selectedIdea) return null;
 
   const isProject = selectedIdea.kind === "project";
-  const titleLabel = t(isProject ? "screens.song" : "screens.clip");
+  const titleLabel = t(isProject ? "brand.sketch" : "screens.clip");
   // In edit mode the title is edited in the fixed nav header, so the collapsible
   // title block + tabs are suppressed here to avoid a duplicate title.
   // Songs edit via a sheet, so their title + tabs stay visible while editing.
@@ -62,9 +51,24 @@ export function SongCollapsibleHeader({ extra }: SongCollapsibleHeaderProps) {
           <UserText style={styles.songDetailPageTitleLarge}>{selectedIdea.title}</UserText>
           {isProject ? (
             <View style={styles.songDetailProgressStrip}>
-              <Text style={statusBadgeStyle(selectedIdea.status)}>
-                {t(`stages.${selectedIdea.status}`)}
-              </Text>
+              {/* Stage as editorial ink (dot + word in the stage's warm hue) —
+                  display-only here; the stage is changed in the edit sheet. */}
+              <View style={styles.songDetailStageInk}>
+                <View
+                  style={[
+                    styles.songDetailStageInkDot,
+                    { backgroundColor: STAGE_INK[selectedIdea.status] ?? colors.textMuted },
+                  ]}
+                />
+                <Text
+                  style={[
+                    styles.songDetailStageInkText,
+                    { color: STAGE_INK[selectedIdea.status] ?? colors.textMuted },
+                  ]}
+                >
+                  {t(`stages.${selectedIdea.status}`)}
+                </Text>
+              </View>
             </View>
           ) : null}
         </View>

@@ -34,6 +34,16 @@ export function SongClipToolbarControls({
         <Pressable style={styles.ideasToolbarBackdrop} onPress={() => setFilterMenuOpen(false)} />
       ) : null}
 
+      {/* View switch leads; utility glyphs sit quietly on the trailing edge
+          (collection toolbar language). Bounded so the glyphs never get pushed
+          off-screen by the flex segments. */}
+      <View style={songClipToolbarStyles.viewToggleWrap}>
+        <SongClipViewToggle
+          clipViewMode={screen.clipViewMode}
+          setClipViewMode={screen.setClipViewMode}
+        />
+      </View>
+
       <View style={songClipToolbarStyles.controlsRight}>
         {/* Arrange — single tap toggles asc ↔ desc, no dropdown */}
         <SongClipSortTrigger
@@ -76,12 +86,6 @@ export function SongClipToolbarControls({
           ) : null}
         </View>
       </View>
-
-      {/* Layout toggle — direct click, no dropdown */}
-      <SongClipViewToggle
-        clipViewMode={screen.clipViewMode}
-        setClipViewMode={screen.setClipViewMode}
-      />
     </View>
   );
 }

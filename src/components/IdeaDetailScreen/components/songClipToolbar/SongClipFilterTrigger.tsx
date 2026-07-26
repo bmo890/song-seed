@@ -1,6 +1,4 @@
-import { Pressable } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
-import { styles } from "../../styles";
+import { IconButton } from "../../../common/IconButton";
 import { colors } from "../../../../design/tokens";
 import { useTranslation } from "react-i18next";
 
@@ -11,26 +9,18 @@ type SongClipFilterTriggerProps = {
   onClear: () => void;
 };
 
+/** Bare glyph filter trigger — active state is told by the filled glyph +
+ *  terracotta ink, never by a border or fill (collection toolbar language). */
 export function SongClipFilterTrigger({ active, open, onPress }: SongClipFilterTriggerProps) {
   const { t } = useTranslation();
   return (
-    <Pressable
-      style={({ pressed }) => [
-        styles.ideasUtilityChip,
-        styles.ideasUtilityChipIconOnly,
-        open ? styles.ideasUtilityChipOpen : null,
-        active ? { backgroundColor: "rgba(184,125,107,0.1)", borderColor: "rgba(184,125,107,0.45)" } : null,
-        pressed ? styles.pressDown : null,
-      ]}
+    <IconButton
+      icon={active || open ? "funnel" : "funnel-outline"}
+      tone="muted"
+      color={active ? colors.primaryDeep : undefined}
+      size={18}
       onPress={onPress}
-      accessibilityRole="button"
       accessibilityLabel={t("songDetail.filterByTag")}
-    >
-      <Ionicons
-        name={active ? "funnel" : "funnel-outline"}
-        size={15}
-        color={active ? colors.primary : colors.textSecondary}
-      />
-    </Pressable>
+    />
   );
 }

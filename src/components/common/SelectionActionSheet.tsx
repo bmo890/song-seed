@@ -47,7 +47,7 @@ export function SelectionActionSheet({
                 <Ionicons
                   name={action.icon}
                   size={16}
-                  color={dangerous ? colors.danger : "#334155"}
+                  color={dangerous ? colors.danger : colors.textSecondary}
                 />
                 <Text
                   style={[
@@ -61,7 +61,7 @@ export function SelectionActionSheet({
               <Ionicons
                 name={dangerous ? "alert-circle-outline" : "chevron-forward"}
                 size={15}
-                color={dangerous ? colors.danger : "#94a3b8"}
+                color={dangerous ? colors.danger : colors.textMuted}
               />
             </Pressable>
           );

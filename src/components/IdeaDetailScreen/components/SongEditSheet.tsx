@@ -1,9 +1,11 @@
-import { StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { BottomSheet } from "../../common/BottomSheet";
 import { Button } from "../../common/Button";
-import { StatusChipRow } from "../../common/StatusChipRow";
+import { STAGE_INK } from "../../common/StatusBadge";
 import { TitleInput } from "../../common/TitleInput";
+import { styles as appStyles } from "../../../styles";
 import { colors, spacing, text as textTokens } from "../../../design/tokens";
+import { haptic } from "../../../design/haptics";
 import type { IdeaStatus } from "../../../types";
 import { useTranslation } from "react-i18next";
 
@@ -56,18 +58,49 @@ export function SongEditSheet({
       />
 
       <Text style={[styles.label, styles.labelSpaced]}>{t("filters.stage")}</Text>
-      <StatusChipRow
-        items={PROJECT_STATUSES}
-        activeValue={status}
-        stretch
-        onPress={(next) => {
-          onChangeStatus(next);
-          if (next === "song") onChangeCompletion(75);
-          else if (next === "stem") onChangeCompletion(50);
-          else if (next === "sprout") onChangeCompletion(25);
-          else onChangeCompletion(0);
-        }}
-      />
+      {/* Stage as editorial ink radio (dot + word in stage hue) — same language
+          as the header's stage ink; exactly one is filled. Ink over a segmented
+          thumb here so each stage keeps its hue (deliberate). */}
+      <View style={styles.stageInkRow}>
+        {PROJECT_STATUSES.map((stage) => {
+          const active = stage === status;
+          const ink = STAGE_INK[stage] ?? colors.textMuted;
+          return (
+            <Pressable
+              key={stage}
+              style={({ pressed }) => [appStyles.ideasStageInk, pressed ? appStyles.pressDown : null]}
+              onPress={() => {
+                if (active) return;
+                haptic.tap();
+                onChangeStatus(stage);
+                if (stage === "song") onChangeCompletion(75);
+                else if (stage === "stem") onChangeCompletion(50);
+                else if (stage === "sprout") onChangeCompletion(25);
+                else onChangeCompletion(0);
+              }}
+              hitSlop={{ top: 4, bottom: 4 }}
+              accessibilityRole="button"
+              accessibilityState={{ selected: active }}
+              accessibilityLabel={t(`stages.${stage}`)}
+            >
+              <View
+                style={[
+                  appStyles.ideasStageInkDot,
+                  active ? { backgroundColor: ink, borderColor: ink } : null,
+                ]}
+              />
+              <Text
+                style={[
+                  appStyles.ideasStageInkText,
+                  active ? [appStyles.ideasStageInkTextActive, { color: ink }] : null,
+                ]}
+              >
+                {t(`stages.${stage}`)}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
 
       <View style={styles.footer}>
         <Button
@@ -94,6 +127,13 @@ const styles = StyleSheet.create({
   },
   label: { ...textTokens.annotation, marginBottom: spacing.xs },
   labelSpaced: { marginTop: spacing.lg },
+  stageInkRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    columnGap: 18,
+    rowGap: 8,
+    paddingVertical: 2,
+  },
   titleWrap: { marginHorizontal: 0 },
   footer: {
     flexDirection: "row",
