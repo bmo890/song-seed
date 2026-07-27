@@ -1,7 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { BottomSheet } from "../../common/BottomSheet";
 import { Button } from "../../common/Button";
-import { STAGE_INK } from "../../common/StatusBadge";
+import { STAGE_INK } from "../../common/StageMark";
 import { TitleInput } from "../../common/TitleInput";
 import { styles as appStyles } from "../../../styles";
 import { colors, spacing, text as textTokens } from "../../../design/tokens";

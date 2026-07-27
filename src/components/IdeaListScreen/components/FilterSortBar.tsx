@@ -6,7 +6,7 @@ import { useStore } from "../../../state/useStore";
 import { getIdeaSortState, getIdeaSortValue, IdeaSortMetric } from "../../../domain/ideaSort";
 import { getHierarchyIconName } from "../../../domain/hierarchy";
 import { FilterSortControls } from "../../common/FilterSortControls";
-import { STAGE_INK } from "../../common/StatusBadge";
+import { STAGE_INK } from "../../common/StageMark";
 import { colors } from "../../../design/tokens";
 import { useTranslation } from "react-i18next";
 

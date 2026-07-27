@@ -13,7 +13,7 @@ import type { IdeaListItemMeta } from "../types";
 
 import { useStore } from "../../../state/useStore";
 import { appActions } from "../../../state/actions";
-import { StatusBadge } from "../../common/StatusBadge";
+import { StageInk } from "../../common/StageMark";
 import { IdeaCard } from "../../common/IdeaCard";
 import { AppAlert } from "../../common/AppAlert";
 import { useWorkspaceTheme } from "../../../context/WorkspaceThemeContext";
@@ -316,14 +316,16 @@ function IdeaListItemInner({
                             titleIsAuto={titleIsAuto}
                             waveformPeaks={playClip?.waveformPeaks ?? null}
                             searchNeedle={searchNeedle}
+                            // Stage rides the title row (like PRIMARY on a clip) — the
+                            // most-read line, so it lands without adding a surface.
+                            // Compact drops it: the sketch spine + weight already signal it.
+                            titleAccessory={
+                                !compact && item.kind === "project" ? (
+                                    <StageInk status={item.status} />
+                                ) : null
+                            }
                             trailing={
                                 <>
-                                    {/* Compact drops the stage badge — the sketch spine +
-                                        weight already signal it; comfortable keeps it. */}
-                                    {!compact && item.kind === "project" ? (
-                                        // Meta-cluster form: quiet dot + tiny caps label, never the pill.
-                                        <StatusBadge status={item.status} dense />
-                                    ) : null}
                                     {item.isBookmarked ? (
                                         // Non-interactive indicator — toggling lives in the
                                         // selection flow (long-press → Bookmark).

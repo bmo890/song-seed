@@ -3,7 +3,7 @@ import { View, type StyleProp, type ViewStyle } from "react-native";
 import { IdeaCard } from "./IdeaCard";
 import { ClipInlinePlayer } from "./ClipInlinePlayer";
 import { IconButton } from "./IconButton";
-import { StatusBadge } from "./StatusBadge";
+import { StageInk } from "./StageMark";
 import { styles } from "../../styles";
 import type { IdeaStatus } from "../../types";
 import { fmtDuration } from "../../utils";
@@ -67,11 +67,8 @@ export function InlineIdeaCard({
   const durationLabel = durationMs > 0 ? fmtDuration(durationMs) : "--:--";
 
   const trailing =
-    status || onOpenMenu ? (
+    onOpenMenu ? (
       <View style={inlineStyles.trailing}>
-        {status ? (
-          <StatusBadge status={status} style={styles.ideasListStatusBadgeText} />
-        ) : null}
         {onOpenMenu ? (
           <IconButton
             icon="ellipsis-horizontal"
@@ -97,6 +94,9 @@ export function InlineIdeaCard({
       onLongPress={onOpenMenu ?? onOpen}
       title={title}
       titleSemiBold={isProject}
+      // Stage rides the title row everywhere it appears (collection, Shelf,
+      // Revisit, Activity, Received) — one placement, one form.
+      titleAccessory={status ? <StageInk status={status} /> : null}
       trailing={trailing}
       footerDate={footer}
       footerContent={footerContent}

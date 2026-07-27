@@ -229,11 +229,6 @@ export const songDetailStyles = {
     alignItems: "center",
     gap: 6,
   },
-  songDetailStageInkDot: {
-    width: 7,
-    height: 7,
-    borderRadius: radii.round,
-  },
   songDetailStageInkText: {
     fontFamily: "PlusJakartaSans_600SemiBold",
     fontSize: 11,

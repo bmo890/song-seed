@@ -266,7 +266,11 @@ export const ideasListStyles = {
   },
   ideasListCardTitle: {
     flex: 1,
-    minWidth: 0,
+    // Title-row truncation law (locked 2026-07-27): the title takes the room and
+    // ellipsizes FIRST, but never below this floor — past it the stage word gives
+    // way instead (see `stageInk`.flexShrink). The row is single-line by
+    // construction, so a title can never push a mark onto a second row.
+    minWidth: 88,
     fontFamily: "PlusJakartaSans_500Medium",
     fontSize: 14,
     lineHeight: 18,

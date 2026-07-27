@@ -37,6 +37,13 @@ export const colors = {
   // filled controls that need contrast on paper). The app's original accent.
   primaryDeep: "#824F3F",
 
+  /** Stage ramp (locked 2026-07-27) — the two intermediate steps between
+   *  `textMuted` (Idea, nothing invested yet) and `primaryDeep` (Song, finished).
+   *  One warm hue gaining saturation and depth, so the COLOR is the progression.
+   *  Only the stage mark uses these. */
+  stageMid:  "#B08B72",  // Rough
+  stageLate: "#A8654B",  // Close
+
   // Playhead / live-position indicator (transport lines, scrub cursors)
   playhead: "#D95B56",
 

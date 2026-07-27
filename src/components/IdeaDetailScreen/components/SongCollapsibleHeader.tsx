@@ -3,7 +3,7 @@ import { Pressable, Text, View } from "react-native";
 import { styles } from "../styles";
 import { useSongScreen } from "../provider/SongScreenProvider";
 import { haptic } from "../../../design/haptics";
-import { STAGE_INK } from "../../common/StatusBadge";
+import { STAGE_INK, StageMark } from "../../common/StageMark";
 import { colors } from "../../../design/tokens";
 import { useTranslation } from "react-i18next";
 import { UserText } from "../../../i18n";
@@ -51,15 +51,10 @@ export function SongCollapsibleHeader({ extra }: SongCollapsibleHeaderProps) {
           <UserText style={styles.songDetailPageTitleLarge}>{selectedIdea.title}</UserText>
           {isProject ? (
             <View style={styles.songDetailProgressStrip}>
-              {/* Stage as editorial ink (dot + word in the stage's warm hue) —
+              {/* Stage as editorial ink (dial + word in the stage's warm hue) —
                   display-only here; the stage is changed in the edit sheet. */}
               <View style={styles.songDetailStageInk}>
-                <View
-                  style={[
-                    styles.songDetailStageInkDot,
-                    { backgroundColor: STAGE_INK[selectedIdea.status] ?? colors.textMuted },
-                  ]}
-                />
+                <StageMark status={selectedIdea.status} size={12} />
                 <Text
                   style={[
                     styles.songDetailStageInkText,

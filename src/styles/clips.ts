@@ -181,29 +181,22 @@ export const clipsStyles = {
     gap: 4,
     opacity: 0.97,
   },
-  statusSeed: { backgroundColor: "#EDE9E4" },
-  statusSeedText: { color: "#a89994" },
-  statusSprout: { backgroundColor: "#F0E8D5" },
-  statusSproutText: { color: "#7A6340" },
-  statusStem: { backgroundColor: "#EDD9C4" },
-  statusStemText: { color: "#7A4E2D" },
-  statusSong: { backgroundColor: "#F2E4DF" },
-  statusSongText: { color: colors.primaryDeep },
-  statusClip: { backgroundColor: "#F4F1ED" },
-  statusClipText: { color: "#84736f" },
-  // Dense stage marker (collection compact rows): a small colored dot + short
-  // caps label instead of the chunky pill.
-  statusDenseWrap: { flexDirection: "row", alignItems: "center", gap: 4 },
-  statusDenseDot: { width: 7, height: 7, borderRadius: 999 },
-  statusDenseLabel: {
+  // Stage as title-row ink (locked 2026-07-27) — dial + word, same form as the
+  // PRIMARY mark so the most-read line on the card speaks one language.
+  // flexShrink 1 (not 0): on a squeezed row the WORD gives way, never the title,
+  // and never the dial (which carries the stage on its own).
+  stageInk: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3.5,
+    flexShrink: 1,
+  },
+  stageInkText: {
     fontFamily: "PlusJakartaSans_700Bold",
-    fontSize: 11,
-    // Explicit lineHeight pins the card meta row to its 14pt floor — without it
-    // the platform default (~15) made sketch cards 1px taller than the inline
-    // preview's control row.
-    lineHeight: 14,
-    letterSpacing: 0.4,
-    fontVariant: ["tabular-nums"],
+    fontSize: 9.5,
+    lineHeight: 18,
+    letterSpacing: 0.9,
+    textTransform: "uppercase",
   },
   statusChipBtn: {
     alignSelf: "flex-start",

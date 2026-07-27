@@ -86,9 +86,12 @@ export const resources = {
         searchLibrary: "Search your library",
       },
       stages: {
+        // The distance ladder (locked 2026-07-27) — each word names how far the
+        // work is from done, not what the artifact is called. Replaces the
+        // songseed-era seed/sprout/stem metaphor (keys kept; only copy moved).
         seed: "Idea",
-        sprout: "Start",
-        stem: "Taking shape",
+        sprout: "Rough",
+        stem: "Close",
         song: "Song",
         clip: "Clip",
       },
@@ -1246,8 +1249,8 @@ export const resources = {
       },
       stages: {
         seed: "רעיון",
-        sprout: "התחלה",
-        stem: "מתגבש",
+        sprout: "גולמי",
+        stem: "כמעט",
         song: "שיר",
         clip: "קטע",
       },

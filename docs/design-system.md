@@ -169,6 +169,29 @@ pushes everything below it. Three rules, all violated at least once:
   controls row rather than inserting a bar above the list, so entering
   selection leaves every row exactly where it was.
 
+### The stage dial + title-row law (locked 2026-07-27)
+
+Stage is a **dial**, not a dot: a hollow ring filled clockwise a quarter per
+stage (`StageMark`). A single dot could only say "there is a stage"; the wedge
+says *which* without being read. Copy is the **distance ladder** —
+**Idea · Rough · Close · Song** — each word naming how far the work is from
+done. (The songseed-era seed/sprout/stem metaphor was retired with the rename;
+the storage keys still read seed/sprout/stem/song and stay that way.) The ink is
+one warm hue gaining saturation across the ladder — `textMuted` → `stageMid` →
+`stageLate` → `primaryDeep` — so the colour carries the progression on its own.
+
+The dial is display-only. Where stage is *chosen* (edit sheet, collection
+filter) the control stays hollow-→-filled selection ink, because there the fill
+means "picked", not "progress" — two meanings for one fill would be a bug.
+
+**Title-row law.** A status mark (PRIMARY, stage) rides the title row, just
+before the duration — the most-read line on the card, so a rare status lands
+without adding a surface. The row is single-line by construction
+(`numberOfLines={1}`), so a mark can never wrap to a second row. Squeeze order
+is fixed: the **title** takes the room and ellipsizes first, down to a floor of
+`minWidth: 88`; past that the mark's **word** truncates (`flexShrink: 1`); the
+**glyph never shrinks**, since it carries the meaning alone.
+
 ### The stemmed thread (Evolution, locked 2026-07-27)
 
 - **The card is the present.** A multi-version lineage renders as one tinted
