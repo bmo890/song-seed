@@ -29,11 +29,17 @@ function StemVersionRow({
   clip,
   versionNumber,
   ideaId,
+  isFirst,
+  isLast,
   context,
 }: {
   clip: ClipVersion;
   versionNumber: number;
   ideaId: string;
+  /** Bleeds the segment up through the stem's padding to meet the head card. */
+  isFirst: boolean;
+  /** The stem stops here — no segment continues past the last node. */
+  isLast: boolean;
   context: ClipCardContextProps;
 }) {
   const { t } = useTranslation();
@@ -86,6 +92,16 @@ function StemVersionRow({
       accessibilityRole="button"
       accessibilityLabel={t("clipLineage.versionA11y", { number: versionNumber })}
     >
+      <View
+        style={[
+          styles.songDetailStemSegmentIn,
+          { top: isFirst ? -10 : 0, height: isFirst ? 23.5 : 13.5 },
+        ]}
+        pointerEvents="none"
+      />
+      {!isLast ? (
+        <View style={styles.songDetailStemSegmentOn} pointerEvents="none" />
+      ) : null}
       <View
         style={[
           styles.songDetailStemNode,
@@ -180,7 +196,6 @@ export const EvolutionThread = React.memo(function EvolutionThread({
       />
 
       <View style={styles.songDetailStem}>
-        <View style={styles.songDetailStemLine} />
         {folded ? (
           <Pressable
             style={({ pressed }) => [styles.songDetailStemRow, pressed ? styles.pressDown : null]}
@@ -190,6 +205,11 @@ export const EvolutionThread = React.memo(function EvolutionThread({
             }}
             accessibilityRole="button"
           >
+            {/* Folded history is one terminal node — segment in, nothing past it. */}
+            <View
+              style={[styles.songDetailStemSegmentIn, { top: -10, height: 23.5 }]}
+              pointerEvents="none"
+            />
             <View style={styles.songDetailStemNode} />
             <View style={styles.songDetailStemRowBody}>
               <View style={styles.songDetailStemRowTop}>
@@ -202,12 +222,14 @@ export const EvolutionThread = React.memo(function EvolutionThread({
           </Pressable>
         ) : (
           <>
-            {olderClips.map((clip) => (
+            {olderClips.map((clip, index) => (
               <StemVersionRow
                 key={clip.id}
                 clip={clip}
                 versionNumber={versionNumberById.get(clip.id) ?? 1}
                 ideaId={ideaId}
+                isFirst={index === 0}
+                isLast={index === olderClips.length - 1}
                 context={context}
               />
             ))}

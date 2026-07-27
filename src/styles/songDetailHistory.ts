@@ -314,17 +314,27 @@ export const songDetailHistoryStyles = {
     position: "relative",
     marginTop: 2,
     marginHorizontal: 6,
+    paddingTop: 10,
     paddingLeft: 22,
   },
-  // Warm line descending into the past — bleeds up toward the head card so the
-  // thread reads as one connected stem.
-  songDetailStemLine: {
+  // The stem is drawn per row, never as one span: each row carries a segment
+  // into its node, and only a row with history below it continues past. That
+  // way the line always TERMINATES at the last node instead of running on to
+  // the container's floor (which overshot whenever a row grew, e.g. with a note).
+  // Node centre sits 13.5 below the row top (node top 9 + half of 9);
+  // x = -13.75 centres the 1.5px line on the 9px node.
+  songDetailStemSegmentIn: {
     position: "absolute",
-    left: 9,
-    top: -8,
-    bottom: 12,
+    left: -13.75,
     width: 1.5,
-    borderRadius: 2,
+    backgroundColor: "rgba(184,125,107,0.35)",
+  },
+  songDetailStemSegmentOn: {
+    position: "absolute",
+    left: -13.75,
+    top: 13.5,
+    bottom: 0,
+    width: 1.5,
     backgroundColor: "rgba(184,125,107,0.35)",
   },
   songDetailStemRow: {
