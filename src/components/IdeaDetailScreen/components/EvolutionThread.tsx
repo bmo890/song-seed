@@ -203,17 +203,6 @@ function StemVersionRow({
         ) : null}
       </View>
 
-      {/* Selection lives on the trailing edge so the transport stays reachable. */}
-      {clipSelectionMode ? (
-        <View
-          style={[
-            styles.songDetailStemCheck,
-            isSelected ? styles.songDetailStemCheckOn : null,
-          ]}
-        >
-          {isSelected ? <Ionicons name="checkmark" size={10} color={colors.onPrimary} /> : null}
-        </View>
-      ) : null}
     </Pressable>
   );
 }

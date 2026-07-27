@@ -339,14 +339,19 @@ export const songDetailHistoryStyles = {
     width: 1.5,
     backgroundColor: "rgba(184,125,107,0.35)",
   },
+  // Transparent border at rest so selection never changes the row's size —
+  // the selected tell is the card's own language (tint + terracotta border),
+  // not a checkbox no other surface uses.
   songDetailStemRow: {
     position: "relative",
     flexDirection: "row",
     alignItems: "flex-start",
     gap: 9,
     paddingVertical: 5,
-    paddingRight: 4,
+    paddingHorizontal: 6,
     borderRadius: 8,
+    borderWidth: 1.5,
+    borderColor: "transparent",
   },
   // Transport sits before the copy and owns its own hit area, so it keeps
   // working in selection mode (audition a candidate before committing).
@@ -367,23 +372,9 @@ export const songDetailHistoryStyles = {
   songDetailStemScrubTrack: {
     flex: 1,
   },
-  songDetailStemCheck: {
-    width: 16,
-    height: 16,
-    borderRadius: radii.round,
-    borderWidth: 1.5,
-    borderColor: colors.textMuted,
-    alignItems: "center",
-    justifyContent: "center",
-    marginTop: 2,
-    flexShrink: 0,
-  },
-  songDetailStemCheckOn: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
   songDetailStemRowSelected: {
-    backgroundColor: "rgba(184,125,107,0.10)",
+    borderColor: "#B87D6B",
+    backgroundColor: "#FDF5F2",
   },
   // Hollow node centred on the stem line (line x = 9 within .songDetailStem;
   // row content starts at paddingLeft 22, so the node backs up into the gutter).

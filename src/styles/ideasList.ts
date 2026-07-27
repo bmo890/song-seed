@@ -45,12 +45,16 @@ export const ideasListStyles = {
     borderRadius: 12,
     // Borderless shell (locked 2026-07-23): the resting card carries zero lines —
     // depth comes from the whisper shadow alone. Selected / now-playing states
-    // deliberately re-add their borders below.
-    borderWidth: 0,
-    // Spacing rhythm (locked): 12 above the title, 10 under the meta row.
-    paddingTop: 12,
-    paddingBottom: 10,
-    paddingHorizontal: 11,
+    // deliberately re-add their borders below. The border is RESERVED (2px,
+    // transparent) rather than absent, so turning it on can't resize the card
+    // and nudge everything below it.
+    borderWidth: 2,
+    borderColor: "transparent",
+    // Spacing rhythm (locked): 12 above the title, 10 under the meta row —
+    // less the reserved border so the inner rhythm is unchanged.
+    paddingTop: 10,
+    paddingBottom: 8,
+    paddingHorizontal: 9,
     position: "relative",
     shadowColor: "#3D3732",
     shadowOpacity: 0.06,
@@ -72,13 +76,12 @@ export const ideasListStyles = {
     borderLeftWidth: 3.5,
   },
   ideasListCardNowPlaying: {
-    // Base shell is borderless now, so now-playing re-adds its own hairline.
-    borderWidth: 1,
+    // Colour only — the shell already reserves the 2px border, so states may
+    // never change its width or the card resizes underneath the content.
     borderColor: "rgba(184,125,107,0.4)",
   },
   ideasListCardSelected: {
     borderColor: "#B87D6B",
-    borderWidth: 2,
     backgroundColor: "#FDF5F2",
   },
   ideasListCardCornerBadge: {
@@ -216,10 +219,13 @@ export const ideasListStyles = {
   // Compact inline control row while the strip is the live player: the elapsed
   // caption on the left — nothing else (✕ rides the strip row). minHeight 14
   // matches ideasListMetaRow so the meta line keeps one height in both states.
+  // Same fixed height as ideasListMetaRow: the bottom zone may never change
+  // size between rest and play, or the card's centre — and the waveform's
+  // alignment with the centred play glyph — drifts.
   ideaCardInlineControlRow: {
     flexDirection: "row",
     alignItems: "center",
-    minHeight: 14,
+    minHeight: 26,
   },
   ideasListCardMainCompact: {
     gap: 4,
@@ -236,12 +242,17 @@ export const ideasListStyles = {
     gap: 10,
     flexShrink: 0,
   },
+  // Fixed to the same height as the meta row so the strip zone sits at the
+  // card's exact vertical centre — which is where the lead play glyph is
+  // centred. Without this the title row's height varies (serif lineHeight 21
+  // vs auto 18) and the waveform drifts off the glyph's axis per card.
   ideasListCardTitleRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 5,
     flex: 1,
     minWidth: 0,
+    minHeight: 26,
   },
   ideasListCardTitleRowExpanded: {
     alignItems: "flex-start",
@@ -340,12 +351,15 @@ export const ideasListStyles = {
     flex: 1,
     minWidth: 0,
   },
+  // Fixed-height bottom zone (set to the tallest occupant, the 26px soft key):
+  // every state of every card bottoms out identically, so the play glyph —
+  // centred on the whole card — always lines up with the waveform.
   ideasListMetaRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     gap: 8,
-    minHeight: 14,
+    minHeight: 26,
   },
   ideasListMetaLeftCluster: {
     flexDirection: "row",

@@ -151,6 +151,24 @@ meta cluster's contents vary per context:
   filter is told by filled glyph + terracotta ink. No circle chips.
 - **One FAB:** record stands alone; Import lives in the header overflow.
 
+### Layout stability law (locked 2026-07-27)
+
+State changes must never resize a surface. A quiet page is one that doesn't
+twitch — the recurring bug class here is a state that *adds* something and
+pushes everything below it. Three rules, all violated at least once:
+
+- **Reserve, don't add.** A border that appears on selection is declared at
+  rest as `borderWidth: 2, borderColor: "transparent"` (padding reduced to
+  match), so turning it on is a colour change. Same for any state ring.
+- **Fixed-height zones.** A card's title row, strip zone and bottom zone all
+  carry a fixed `minHeight` (26 / 18 / 26). Otherwise the bottom row changes
+  height between rest and play (or with/without a soft key), the card's centre
+  moves, and the lead play glyph — centred on the card — drifts off the
+  waveform's axis.
+- **Swap in place, don't insert.** Selection mode replaces the toolbar's
+  controls row rather than inserting a bar above the list, so entering
+  selection leaves every row exactly where it was.
+
 ### The stemmed thread (Evolution, locked 2026-07-27)
 
 - **The card is the present.** A multi-version lineage renders as one tinted

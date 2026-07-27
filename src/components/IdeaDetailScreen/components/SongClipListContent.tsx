@@ -13,7 +13,6 @@ import { SongClipListSummary } from "./SongClipListSummary";
 import { SongClipListHeader } from "./songClipToolbar/SongClipListHeader";
 import { CollapsingHeaderOverlay } from "../../common/CollapsingHeaderOverlay";
 import { SongCollapsibleHeader } from "./SongCollapsibleHeader";
-import { SelectionTopBar } from "../../common/SelectionTopBar";
 import { colors } from "../../../design/tokens";
 import { useTranslation } from "react-i18next";
 
@@ -184,8 +183,9 @@ export function SongClipListContent({
         }
         pinned={
           <View style={{ backgroundColor: colors.page }} pointerEvents="box-none">
+            {/* Selection mode swaps the toolbar's controls row in place (see
+                SongClipListToolbar) — no extra bar, no layout shift. */}
             <SongClipListHeader visibleIdeaCount={visibleIdeaCount} />
-            <SongClipSelectionTopBar />
             {screen.clipViewMode === "evolution" &&
             Object.values(expandedLineageIds).some(Boolean) ? (
               <CollapseAllPill onPress={() => setExpandedLineageIds({})} />
@@ -194,32 +194,6 @@ export function SongClipListContent({
         }
       />
     </View>
-  );
-}
-
-/**
- * Selection bar pinned under the toolbar (top of the timeline) while clips are
- * being multi-selected. Isolated so selection-state changes re-render only this
- * bar, and so the "Collapse all" pill below it shifts down naturally in flow.
- */
-function SongClipSelectionTopBar() {
-  const { screen } = useSongScreen();
-  const clipSelectionMode = useStore((s) => s.clipSelectionMode);
-  const selectedClipIds = useStore((s) => s.selectedClipIds);
-  if (!clipSelectionMode) return null;
-
-  const selectableClipIds = (screen.selectedIdea?.clips ?? []).map((c) => c.id);
-  const allSelected =
-    selectableClipIds.length > 0 &&
-    selectableClipIds.every((id) => selectedClipIds.includes(id));
-
-  return (
-    <SelectionTopBar
-      count={selectedClipIds.length}
-      allSelected={allSelected}
-      onSelectAll={() => useStore.getState().replaceClipSelection(selectableClipIds)}
-      onCancel={() => useStore.getState().cancelClipSelection()}
-    />
   );
 }
 
