@@ -169,6 +169,15 @@ pushes everything below it. Three rules, all violated at least once:
   controls row rather than inserting a bar above the list, so entering
   selection leaves every row exactly where it was.
 
+### Clip-note gestures (locked 2026-07-27)
+
+A note attached to a clip obeys the card, not itself. **Tap** opens the note —
+the same result whatever its length; **More / Less** is its own control and the
+only thing that expands it in place; **long-press** enters selection, forwarded
+to the card's handler because a nested Pressable would otherwise swallow the
+gesture. Long-press must never mean "edit" on a clip surface: holding anything
+in a list enters selection everywhere else in the app.
+
 ### The stage dial + title-row law (locked 2026-07-27)
 
 Stage is a **dial**, not a dot: a hollow ring filled clockwise a quarter per

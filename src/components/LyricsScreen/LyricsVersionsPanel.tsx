@@ -16,6 +16,7 @@ import { Button } from "../common/Button";
 import { AppAlert } from "../common/AppAlert";
 import { NotePickerSheet } from "../modals/NotePickerSheet";
 import { SelectionActionSheet } from "../common/SelectionActionSheet";
+import { IconButton } from "../common/IconButton";
 import { LyricsChordsToggle } from "../common/LyricsChordsToggle";
 import type { SelectionAction } from "../common/SelectionDock";
 import { colors, radii, spacing } from "../../design/tokens";
@@ -254,7 +255,6 @@ export function LyricsVersionsPanel({ projectIdea }: LyricsVersionsPanelProps) {
                 isSelected ? styles.listCardSelected : null,
               ]}
             >
-              {isLatest && !isExpanded ? <View style={panelStyles.accentStripe} /> : null}
               <Pressable
                 style={({ pressed }) => (pressed && !selectionMode ? styles.pressDown : null)}
                 onLongPress={() => startSelection(version.id)}
@@ -276,18 +276,22 @@ export function LyricsVersionsPanel({ projectIdea }: LyricsVersionsPanelProps) {
                   <View style={panelStyles.cardBody}>
                     <View style={panelStyles.titleRow}>
                       <Text style={panelStyles.title} numberOfLines={1}>{t("lyrics.version", { number: versionNumber })}</Text>
-                      {isLatest ? <Text style={panelStyles.currentChip}>{t("lyrics.current")}</Text> : null}
-                      <Pressable
-                        style={({ pressed }) => [panelStyles.chev, pressed ? styles.pressDown : null]}
-                        hitSlop={6}
-                        onPress={(event) => {
-                          event.stopPropagation();
-                          toggleExpanded(version.id);
-                        }}
+                      {/* Editorial ink, same form as PRIMARY on a take: the app
+                          has one way of saying "this is the one". */}
+                      {isLatest ? (
+                        <View style={styles.songDetailPrimaryInk}>
+                          <View style={styles.songDetailPrimaryInkDot} />
+                          <Text style={styles.songDetailPrimaryInkText}>{t("lyrics.current")}</Text>
+                        </View>
+                      ) : null}
+                      <IconButton
+                        icon={isExpanded ? "chevron-up" : "chevron-down"}
+                        tone="muted"
+                        size={15}
+                        onPress={() => toggleExpanded(version.id)}
+                        stopPropagation
                         accessibilityLabel={t(isExpanded ? "lyrics.collapse" : "lyrics.expand")}
-                      >
-                        <Ionicons name={isExpanded ? "chevron-up" : "chevron-down"} size={15} color={colors.textSecondary} />
-                      </Pressable>
+                      />
                     </View>
 
                     <View style={panelStyles.metaRow}>
@@ -428,19 +432,6 @@ const panelStyles = StyleSheet.create({
   },
 
   // ── Version card ────────────────────────────────────────────────────────────
-  // Clay accent for the current version — absolute so it spans only the (short)
-  // collapsed card, never the full height of an expanded one, and never shifts
-  // content. Shown only while collapsed.
-  accentStripe: {
-    position: "absolute",
-    left: 0,
-    top: 0,
-    bottom: 0,
-    width: 3,
-    backgroundColor: colors.primary,
-    borderTopLeftRadius: radii.sm,
-    borderBottomLeftRadius: radii.sm,
-  },
   expandedScroll: {
     maxHeight: 320,
   },
@@ -483,25 +474,6 @@ const panelStyles = StyleSheet.create({
     fontFamily: "Lora_600SemiBold",
     fontSize: 18,
     color: "#1C1C19",
-  },
-  currentChip: {
-    fontFamily: "PlusJakartaSans_700Bold",
-    fontSize: 9,
-    letterSpacing: 0.6,
-    color: colors.primaryDeep,
-    backgroundColor: "#F2E4DF",
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: radii.round,
-    overflow: "hidden",
-  },
-  chev: {
-    width: 30,
-    height: 30,
-    borderRadius: radii.round,
-    backgroundColor: "#F4EEE7",
-    alignItems: "center",
-    justifyContent: "center",
   },
   metaRow: {
     flexDirection: "row",

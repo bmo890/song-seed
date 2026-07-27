@@ -3,16 +3,16 @@ import {
   KeyboardAvoidingView,
   Modal,
   Platform,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { styles as appStyles } from "../../../styles";
-import { colors, radii, spacing } from "../../../design/tokens";
+import { Button } from "../../common/Button";
+import { colors, spacing } from "../../../design/tokens";
 import { useTranslation } from "react-i18next";
 import { UserTextInput } from "../../../i18n";
 
@@ -36,50 +36,56 @@ export function SongNotesEditor({ visible, initialNotes, onSave, onClose }: Prop
 
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
-      <SafeAreaView style={styles.shell} edges={["top", "bottom"]}>
-        <KeyboardAvoidingView
-          style={appStyles.flexFill}
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
-        >
-          <View style={styles.header}>
-            <Pressable
-              style={({ pressed }) => [styles.cancelBtn, pressed ? appStyles.pressDown : null]}
-              onPress={onClose}
-              hitSlop={6}
-            >
-              <Text style={styles.cancelText}>{t("common.cancel")}</Text>
-            </Pressable>
-            <Text style={styles.title}>{t("songDetail.notes")}</Text>
-            <Pressable
-              style={({ pressed }) => [styles.saveBtn, pressed ? appStyles.pressDown : null]}
-              onPress={() => onSave(draft)}
-              hitSlop={6}
-            >
-              <Text style={styles.saveText}>{t("common.save")}</Text>
-            </Pressable>
-          </View>
-
-          <ScrollView
+      {/* A nested provider is required: inside a react-native Modal the outer
+          SafeAreaProvider's context doesn't reach, so insets read as 0 and the
+          header lands under the status bar / Dynamic Island. */}
+      <SafeAreaProvider>
+        <SafeAreaView style={styles.shell} edges={["top", "bottom"]}>
+          <KeyboardAvoidingView
             style={appStyles.flexFill}
-            contentContainerStyle={styles.scrollContent}
-            keyboardShouldPersistTaps="handled"
-            keyboardDismissMode="interactive"
-            showsVerticalScrollIndicator={false}
+            behavior={Platform.OS === "ios" ? "padding" : "height"}
           >
-            <UserTextInput
-              style={styles.body}
-              value={draft}
-              onChangeText={setDraft}
-              placeholder={t("songDetail.notesPlaceholder")}
-              placeholderTextColor={colors.textMuted}
-              multiline
-              textAlignVertical="top"
-              scrollEnabled={false}
-              autoFocus
-            />
-          </ScrollView>
-        </KeyboardAvoidingView>
-      </SafeAreaView>
+            <View style={styles.header}>
+              <Button
+                label={t("common.cancel")}
+                // Same pair as the edit sheet: neutral secondary vs terracotta
+                // primary. `quiet` would put Cancel in the same terracotta ink as
+                // Save and make the two read as equals.
+                variant="secondary"
+                onPress={onClose}
+                style={styles.headerBtn}
+              />
+              <Text style={styles.title}>{t("songDetail.notes")}</Text>
+              <Button
+                label={t("common.save")}
+                variant="primary"
+                onPress={() => onSave(draft)}
+                style={styles.headerBtn}
+              />
+            </View>
+
+            <ScrollView
+              style={appStyles.flexFill}
+              contentContainerStyle={styles.scrollContent}
+              keyboardShouldPersistTaps="handled"
+              keyboardDismissMode="interactive"
+              showsVerticalScrollIndicator={false}
+            >
+              <UserTextInput
+                style={styles.body}
+                value={draft}
+                onChangeText={setDraft}
+                placeholder={t("songDetail.notesPlaceholder")}
+                placeholderTextColor={colors.textMuted}
+                multiline
+                textAlignVertical="top"
+                scrollEnabled={false}
+                autoFocus
+              />
+            </ScrollView>
+          </KeyboardAvoidingView>
+        </SafeAreaView>
+      </SafeAreaProvider>
     </Modal>
   );
 }
@@ -93,41 +99,22 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
   },
-  cancelBtn: {
-    paddingVertical: 6,
-    paddingRight: spacing.sm,
-    minWidth: 64,
-  },
-  cancelText: {
-    fontFamily: "PlusJakartaSans_600SemiBold",
-    fontSize: 14,
-    color: colors.textSecondary,
+  // Equal-width flanks keep the title optically centred whatever the words are.
+  headerBtn: {
+    minWidth: 76,
   },
   title: {
     fontFamily: "Lora_600SemiBold",
     fontSize: 18,
     color: colors.textPrimary,
   },
-  saveBtn: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: 7,
-    borderRadius: radii.round,
-    backgroundColor: colors.primary,
-    minWidth: 64,
-    alignItems: "center",
-  },
-  saveText: {
-    fontFamily: "PlusJakartaSans_700Bold",
-    fontSize: 14,
-    color: colors.onPrimary,
-  },
   scrollContent: {
     flexGrow: 1,
-    paddingHorizontal: 16,
-    paddingBottom: 24,
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.xxl,
   },
   body: {
     flex: 1,

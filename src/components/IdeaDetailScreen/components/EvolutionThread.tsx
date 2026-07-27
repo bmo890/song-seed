@@ -169,6 +169,7 @@ function StemVersionRow({
             notes={note}
             disabled={clipSelectionMode}
             onOpen={() => context.actions.onOpenNotesSheet?.(clip)}
+            onLongPress={handleLongPress}
           />
         ) : null}
 

@@ -34,6 +34,10 @@ type ClipNoteLineProps = {
   /** Opens the full note (the notes sheet) — also the escape hatch for a note
    *  too long to expand inline. */
   onOpen?: () => void;
+  /** Long-press belongs to the CARD, not the note: holding any part of a clip
+   *  enters selection everywhere else in the app, and a nested Pressable would
+   *  otherwise swallow the gesture. Callers forward their row handler here. */
+  onLongPress?: () => void;
   disabled?: boolean;
 };
 
@@ -47,6 +51,7 @@ export const ClipNoteLine = React.memo(function ClipNoteLine({
   notes,
   needle,
   onOpen,
+  onLongPress,
   disabled,
 }: ClipNoteLineProps) {
   const { t } = useTranslation();
@@ -75,20 +80,20 @@ export const ClipNoteLine = React.memo(function ClipNoteLine({
   const showsMore = overflows && !expanded;
   const showsLess = overflows && expanded;
 
+  // One gesture, one meaning, whatever the note's length: tapping the note opens
+  // it. Expansion is its own word (More/Less) rather than a second job for the
+  // same tap — the old split ("short note opens, long note expands") made the
+  // gesture read as random.
   const handlePress = () => {
     if (disabled) return;
-    if (!overflows) {
-      onOpen?.();
-      return;
-    }
-    haptic.tap();
-    setExpanded((prev) => !prev);
+    onOpen?.();
   };
 
   return (
     <Pressable
       onPress={handlePress}
-      onLongPress={disabled ? undefined : onOpen}
+      onLongPress={disabled ? undefined : onLongPress}
+      delayLongPress={300}
       disabled={disabled}
       hitSlop={{ top: 2, bottom: 4 }}
       accessibilityRole={disabled ? undefined : "button"}
@@ -111,9 +116,20 @@ export const ClipNoteLine = React.memo(function ClipNoteLine({
       {/* Outside the clamp on purpose: nested inside, the word sits past the
           line limit and the ellipsis swallows the very affordance it needs. */}
       {showsMore || showsLess ? (
-        <Text style={styles.clipNoteLineMore}>
-          {showsMore ? t("common.more") : t("common.less")}
-        </Text>
+        <Pressable
+          onPress={(event) => {
+            event.stopPropagation();
+            haptic.tap();
+            setExpanded((prev) => !prev);
+          }}
+          disabled={disabled}
+          hitSlop={{ top: 4, bottom: 6, left: 8, right: 8 }}
+          accessibilityRole="button"
+        >
+          <Text style={styles.clipNoteLineMore}>
+            {showsMore ? t("common.more") : t("common.less")}
+          </Text>
+        </Pressable>
       ) : null}
     </Pressable>
   );

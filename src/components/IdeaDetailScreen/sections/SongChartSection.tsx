@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ScrollView, StyleSheet, View } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
-import { Ionicons } from "@expo/vector-icons";
 import { styles as appStyles } from "../../../styles";
-import { colors, radii, spacing } from "../../../design/tokens";
+import { spacing } from "../../../design/tokens";
 import { useChordSheetModel } from "../../ChordSheetScreen/useChordSheetModel";
 import { ChordSheetBody, ChordSheetFullView } from "../../ChordSheetScreen/components/ChordSheetBody";
+import { IconButton } from "../../common/IconButton";
+import { Button } from "../../common/Button";
 import { ChartSelectionDock } from "../../ChordSheetScreen/components/ChartSelectionDock";
 import { ChartScrollProvider, useChartKeyboardScroller } from "../../ChordSheetScreen/components/chartScroll";
 import { ChordExportSheet } from "../../LyricsVersionScreen/components/chords/ChordExportSheet";
@@ -72,48 +73,38 @@ export function SongChartSection() {
       <View style={appStyles.flexFill}>
         <View style={chartControls.editorBar}>
           <View style={chartControls.editorGroup}>
-            <Pressable
-              style={({ pressed }) => [chartControls.iconBtn, pressed && model.canUndo ? appStyles.pressDown : null]}
-              onPress={model.undo}
+            <IconButton
+              icon="arrow-undo-outline"
+              tone="muted"
+              size={18}
               disabled={!model.canUndo}
-              hitSlop={6}
+              onPress={model.undo}
               accessibilityLabel={t("chordChart.undo")}
-            >
-              <Ionicons
-                name="arrow-undo-outline"
-                size={18}
-                color={model.canUndo ? colors.textSecondary : colors.borderMuted}
-              />
-            </Pressable>
-            <Pressable
-              style={({ pressed }) => [chartControls.iconBtn, pressed && model.canRedo ? appStyles.pressDown : null]}
-              onPress={model.redo}
+            />
+            <IconButton
+              icon="arrow-redo-outline"
+              tone="muted"
+              size={18}
               disabled={!model.canRedo}
-              hitSlop={6}
+              onPress={model.redo}
               accessibilityLabel={t("chordChart.redo")}
-            >
-              <Ionicons
-                name="arrow-redo-outline"
-                size={18}
-                color={model.canRedo ? colors.textSecondary : colors.borderMuted}
-              />
-            </Pressable>
+            />
           </View>
           <View style={chartControls.editorGroup}>
-            <Pressable
-              style={({ pressed }) => [chartControls.iconBtn, pressed ? appStyles.pressDown : null]}
+            <IconButton
+              icon="share-outline"
+              tone="muted"
+              size={18}
               onPress={() => setExportVisible(true)}
-              hitSlop={6}
-            >
-              <Ionicons name="share-outline" size={18} color={colors.textSecondary} />
-            </Pressable>
-            <Pressable
-              style={({ pressed }) => [chartControls.editPill, pressed ? appStyles.pressDown : null]}
+              accessibilityLabel={t("chordChart.export")}
+            />
+            {/* Soft key, not a stadium pill — the button language retired round
+                on text buttons (2026-07-24). */}
+            <Button
+              label={t("common.done")}
+              variant="primary"
               onPress={() => setIsEditing(false)}
-              hitSlop={6}
-            >
-              <Text style={chartControls.editPillText}>{t("common.done")}</Text>
-            </Pressable>
+            />
           </View>
         </View>
 
@@ -154,33 +145,32 @@ export function SongChartSection() {
         ]}
       >
         {!isEmpty ? (
+          // Bare glyphs on the trailing edge — the same toolbar language the
+          // Takes tab speaks. The old row was three tinted circles with a solid
+          // terracotta pencil, which borrowed the record FAB's identity for an
+          // edit action and made the sibling tabs look like different apps.
           <View style={chartControls.row}>
-            <View style={chartControls.group}>
-              <Pressable
-                style={({ pressed }) => [chartControls.iconBtn, pressed ? appStyles.pressDown : null]}
-                onPress={() => setFullViewOpen(true)}
-                hitSlop={6}
-                accessibilityLabel={t("chordChart.fullView")}
-              >
-                <Ionicons name="expand-outline" size={19} color={colors.primary} />
-              </Pressable>
-              <Pressable
-                style={({ pressed }) => [chartControls.iconBtn, pressed ? appStyles.pressDown : null]}
-                onPress={() => setExportVisible(true)}
-                hitSlop={6}
-                accessibilityLabel={t("chordChart.export")}
-              >
-                <Ionicons name="share-outline" size={18} color={colors.textSecondary} />
-              </Pressable>
-            </View>
-            <Pressable
-              style={({ pressed }) => [chartControls.editIconBtn, pressed ? appStyles.pressDown : null]}
+            <IconButton
+              icon="expand-outline"
+              tone="muted"
+              size={19}
+              onPress={() => setFullViewOpen(true)}
+              accessibilityLabel={t("chordChart.fullView")}
+            />
+            <IconButton
+              icon="share-outline"
+              tone="muted"
+              size={18}
+              onPress={() => setExportVisible(true)}
+              accessibilityLabel={t("chordChart.export")}
+            />
+            <IconButton
+              icon="pencil"
+              tone="muted"
+              size={18}
               onPress={() => setIsEditing(true)}
-              hitSlop={6}
               accessibilityLabel={t("chordChart.edit")}
-            >
-              <Ionicons name="pencil" size={18} color={colors.onPrimary} />
-            </Pressable>
+            />
           </View>
         ) : null}
 
@@ -200,16 +190,14 @@ export function SongChartSection() {
 }
 
 const chartControls = StyleSheet.create({
+  // Glyphs sit quietly on the trailing edge, same as the Takes toolbar.
   row: {
     flexDirection: "row",
-    justifyContent: "space-between",
+    justifyContent: "flex-end",
     alignItems: "center",
+    gap: 14,
+    minHeight: 38,
     marginBottom: spacing.sm,
-  },
-  group: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.sm,
   },
   editorBar: {
     flexDirection: "row",
@@ -223,28 +211,5 @@ const chartControls = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.sm,
-  },
-  iconBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: radii.round,
-    backgroundColor: colors.surfaceHigh,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  editPill: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: 7,
-    borderRadius: radii.round,
-    backgroundColor: colors.primary,
-  },
-  editPillText: { fontFamily: "PlusJakartaSans_700Bold", fontSize: 13, color: colors.onPrimary },
-  editIconBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: radii.round,
-    backgroundColor: colors.primary,
-    alignItems: "center",
-    justifyContent: "center",
   },
 });

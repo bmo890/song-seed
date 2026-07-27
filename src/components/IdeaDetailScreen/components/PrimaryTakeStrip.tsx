@@ -60,7 +60,10 @@ export function PrimaryTakeStrip({ entry, onLocate }: PrimaryTakeStripProps) {
         accessibilityRole="button"
         accessibilityLabel={t("songDetail.findPrimaryTake")}
       >
-        <Ionicons name="locate-outline" size={16} color={colors.textSecondary} />
+        {/* "Show me where this is" — the same open-outline glyph the Queue,
+            Activity, Shelf and Revisit use for view-in-context. One question,
+            one icon. */}
+        <Ionicons name="open-outline" size={15} color={colors.textMuted} />
       </Pressable>
     </View>
   );

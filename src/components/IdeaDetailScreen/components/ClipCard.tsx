@@ -381,6 +381,7 @@ export const ClipCard = React.memo(function ClipCard({
               notes={clip.notes ?? ""}
               disabled={!!displayOnly}
               onOpen={!displayOnly ? () => onOpenNotesSheet?.(clip) : undefined}
+              onLongPress={handleLongPress}
             />
           ) : undefined
         }

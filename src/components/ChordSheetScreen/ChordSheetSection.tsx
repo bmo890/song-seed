@@ -181,12 +181,14 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     marginBottom: spacing.xs,
   },
+  // A structural landmark, not an action — same quiet caps as GROUP / TAKES on
+  // the Takes tab. Terracotta here spent the accent on every section heading.
   label: {
     fontFamily: "PlusJakartaSans_700Bold",
     fontSize: 12,
     letterSpacing: 1.2,
     textTransform: "uppercase",
-    color: colors.primary,
+    color: colors.textSecondary,
   },
   noteInline: {
     ...textTokens.supporting,
