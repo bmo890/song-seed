@@ -2,6 +2,7 @@ import { useEffect, type ReactNode } from "react";
 import { Pressable, Text, View } from "react-native";
 import Animated, { SlideInDown, SlideOutDown } from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
+import { dirIcon } from "../../design/directionalIcons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { styles } from "../../styles";
 import { useStore } from "../../state/useStore";
@@ -20,6 +21,10 @@ export type SelectionAction = {
   onPress: () => void;
   tone?: SelectionActionTone;
   disabled?: boolean;
+  /** Keep the glyph pointing the same way under RTL — for actions inside a
+   *  surface that itself stays LTR, e.g. "add bar before/after" on the chord
+   *  staff, where before really does mean to the left. */
+  noMirror?: boolean;
 };
 
 type SelectionDockProps = {
@@ -74,7 +79,7 @@ export function SelectionDock({ actions, onLayout }: SelectionDockProps) {
                   : colors.textSecondary;
                 return action.renderIcon
                   ? action.renderIcon({ color: iconColor, size: 20, disabled: !!action.disabled })
-                  : <Ionicons name={action.icon} size={20} color={iconColor} />;
+                  : <Ionicons name={action.noMirror ? action.icon : dirIcon(action.icon)} size={20} color={iconColor} />;
               })()}
               <Text
                 style={[

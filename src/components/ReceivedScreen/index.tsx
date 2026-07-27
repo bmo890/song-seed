@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import { dirIcon } from "../../design/directionalIcons";
 import { useIsFocused, useNavigation } from "@react-navigation/native";
 import { ScreenHeader } from "../common/ScreenHeader";
 import { SelectionActionSheet } from "../common/SelectionActionSheet";
@@ -259,7 +260,7 @@ export function ReceivedScreen() {
                     {t(`received.${kind}`)} · {formatReceivedLine(pkg, t, formatLocale)}
                   </Text>
                 </View>
-                <Ionicons name="chevron-forward" size={14} color={colors.textMuted} />
+                <Ionicons name={dirIcon("chevron-forward")} size={14} color={colors.textMuted} />
               </Pressable>
             );
           })}

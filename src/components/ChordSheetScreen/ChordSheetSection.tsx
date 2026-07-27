@@ -175,6 +175,8 @@ function GhostBar({ isLast, onPress, label }: { isLast: boolean; onPress: () => 
 
 const styles = StyleSheet.create({
   section: { marginBottom: spacing.lg },
+  // The section HEADER follows the reading direction — its label and note are
+  // language, so they mirror with the UI.
   headerRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -202,7 +204,11 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
     maxHeight: 44,
   },
+  // The STAFF does not. A chord chart is musical notation: bars run left → right
+  // and the barlines that open and close them are physical, so mirroring would
+  // reverse the order you play them in. Hebrew charts read left → right too.
   staffRow: {
+    direction: "ltr",
     flexDirection: "row",
     alignItems: "stretch",
     marginBottom: 8,

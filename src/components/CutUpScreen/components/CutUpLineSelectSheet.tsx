@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { dirIcon } from "../../../design/directionalIcons";
 import { BottomSheet } from "../../common/BottomSheet";
 import { UserText } from "../../../i18n";
 import { styles as appStyles } from "../../../styles";
@@ -140,7 +141,7 @@ export function CutUpLineSelectSheet({ note, onClose, onConfirm }: Props) {
               {t("cutUp.useLines", { count: selected.size })}
             </Text>
             <Ionicons
-              name="arrow-forward"
+              name={dirIcon("arrow-forward")}
               size={16}
               color={selected.size > 0 ? colors.onPrimary : colors.textSecondary}
             />

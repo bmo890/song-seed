@@ -1,4 +1,4 @@
-import { StyleSheet } from "react-native";
+import { I18nManager, StyleSheet } from "react-native";
 import type { ImageStyle, TextStyle, ViewStyle } from "react-native";
 import { colors, radii } from "../design/tokens";
 
@@ -667,8 +667,14 @@ export const songDetailStyles = {
   songDetailListWithStrip: {
     flex: 1,
   },
+  // Transport rows never mirror (see docs/design-system.md "Direction policy").
+  // The play glyph sits where time starts, and time runs left → right in every
+  // language — the same reason the waveform and scrub bar below it stay put.
+  // `row-reverse` under RTL rather than `direction: "ltr"`: an explicit direction
+  // opts the whole subtree out of RN's left/right swap, which then fights the
+  // content-direction alignment the titles inside compute for themselves.
   songDetailPrimaryStrip: {
-    flexDirection: "row",
+    flexDirection: I18nManager.isRTL ? "row-reverse" : "row",
     alignItems: "center",
     gap: 10,
     paddingVertical: 8,

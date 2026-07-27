@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import { dirIcon } from "../../../design/directionalIcons";
 import { ScreenHeader } from "../../common/ScreenHeader";
 import { SearchField } from "../../common/SearchField";
 import { Button } from "../../common/Button";
@@ -188,7 +189,7 @@ function WordLadderListItem({
           {isSelected ? <Ionicons name="checkmark" size={13} color={colors.onPrimary} /> : null}
         </View>
       ) : (
-        <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+        <Ionicons name={dirIcon("chevron-forward")} size={16} color={colors.textMuted} />
       )}
     </Pressable>
   );
@@ -238,7 +239,7 @@ function CutUpListItem({
           {isSelected ? <Ionicons name="checkmark" size={13} color={colors.onPrimary} /> : null}
         </View>
       ) : (
-        <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+        <Ionicons name={dirIcon("chevron-forward")} size={16} color={colors.textMuted} />
       )}
     </Pressable>
   );
@@ -288,7 +289,7 @@ function MagpieListItem({
           {isSelected ? <Ionicons name="checkmark" size={13} color={colors.onPrimary} /> : null}
         </View>
       ) : (
-        <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+        <Ionicons name={dirIcon("chevron-forward")} size={16} color={colors.textMuted} />
       )}
     </Pressable>
   );

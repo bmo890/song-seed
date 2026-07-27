@@ -31,9 +31,39 @@ export function resolveContentDirection(
   return detectTextDirection(value) ?? fallback;
 }
 
+/**
+ * React Native swaps `left` and `right` in styles when the app is in RTL —
+ * `I18nManager.doLeftAndRightSwapInRTL`, on by default — so that layouts written
+ * for LTR mirror for free. It applies to `textAlign` and to absolute `left` /
+ * `right` too, and it keys off the GLOBAL direction, so a `style={{direction:
+ * "ltr"}}` subtree does NOT opt out.
+ *
+ * That's the right default for chrome and the wrong one for anything whose
+ * direction is decided by its CONTENT rather than by the app's language: a
+ * Hebrew note inside an English UI, an English lyric inside a Hebrew one, or a
+ * chord anchored to a monospace column. These two helpers ask for a physical
+ * edge and pre-invert it so RN's swap lands on the side we actually meant.
+ */
+const SWAPS_LEFT_AND_RIGHT = I18nManager.getConstants().doLeftAndRightSwapInRTL;
+
+function physical<T extends "left" | "right">(edge: T): "left" | "right" {
+  if (!I18nManager.isRTL || !SWAPS_LEFT_AND_RIGHT) return edge;
+  return edge === "left" ? "right" : "left";
+}
+
+/** The style key to use when you mean the physical left/right edge. */
+export function physicalEdge(edge: "left" | "right"): "left" | "right" {
+  return physical(edge);
+}
+
+/** The `textAlign` value to use when you mean physically left/right. */
+export function physicalTextAlign(edge: "left" | "right"): "left" | "right" {
+  return physical(edge);
+}
+
 export function contentDirectionStyle(direction: UiDirection): TextStyle {
   return {
-    textAlign: direction === "rtl" ? "right" : "left",
+    textAlign: physicalTextAlign(direction === "rtl" ? "right" : "left"),
     writingDirection: direction,
   };
 }

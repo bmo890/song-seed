@@ -1,5 +1,6 @@
 import { Modal, Pressable, ScrollView, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { dirIcon } from "../../design/directionalIcons";
 import { styles } from "../../styles";
 import { Button } from "../common/Button";
 import type { CollectionMoveDestination } from "../../domain/collectionManagement";
@@ -89,7 +90,7 @@ export function CollectionMoveModal({
                         {selected ? (
                           <Ionicons name="checkmark" size={16} color="#0f172a" />
                         ) : (
-                          <Ionicons name="chevron-forward" size={15} color="#94a3b8" />
+                          <Ionicons name={dirIcon("chevron-forward")} size={15} color="#94a3b8" />
                         )}
                       </Pressable>
                     );

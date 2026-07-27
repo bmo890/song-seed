@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Keyboard, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import { dirIcon } from "../../../design/directionalIcons";
 import { styles as appStyles } from "../../../styles";
 import { colors, radii, shadows, spacing, text as textTokens } from "../../../design/tokens";
 import { haptic } from "../../../design/haptics";
@@ -176,7 +177,7 @@ function NextBtn({ label, onPress, canNext, icon }: { label: string; onPress: ()
     >
       {icon ? <Ionicons name={icon} size={15} color={canNext ? colors.onPrimary : colors.textSecondary} /> : null}
       <Text style={[styles.nextBtnText, !canNext ? styles.nextBtnTextDisabled : null]}>{label}</Text>
-      {!icon ? <Ionicons name="arrow-forward" size={15} color={canNext ? colors.onPrimary : colors.textSecondary} /> : null}
+      {!icon ? <Ionicons name={dirIcon("arrow-forward")} size={15} color={canNext ? colors.onPrimary : colors.textSecondary} /> : null}
     </Pressable>
   );
 }
@@ -209,7 +210,7 @@ function FooterRow({
       <View style={[styles.footerRow, backLabel ? null : styles.footerRowEnd]}>
         {backLabel && onBack ? (
           <Pressable style={({ pressed }) => [styles.backBtn, pressed ? appStyles.pressDown : null]} onPress={onBack} hitSlop={6}>
-            <Ionicons name="chevron-back" size={16} color={colors.textMuted} />
+            <Ionicons name={dirIcon("chevron-back")} size={16} color={colors.textMuted} />
             <Text style={styles.backBtnText}>{backLabel}</Text>
           </Pressable>
         ) : null}

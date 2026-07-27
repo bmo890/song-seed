@@ -1,9 +1,10 @@
 import { useEffect, useRef } from "react";
-import { Animated, Pressable, StyleSheet, Text, View } from "react-native";
+import { Animated, I18nManager, Pressable, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors, radii, shadows } from "../../design/tokens";
 import { haptic } from "../../design/haptics";
 import { useTranslation } from "react-i18next";
+import { physicalEdge } from "../../i18n";
 
 export type LyricsChordsValue = "lyrics" | "chords";
 
@@ -22,17 +23,23 @@ export function LyricsChordsToggle({
   onChange: (value: LyricsChordsValue) => void;
 }) {
   const { t } = useTranslation();
-  const anim = useRef(new Animated.Value(value === "chords" ? 1 : 0)).current;
+  // The thumb is anchored to the PHYSICAL left of the track and slides right by
+  // whole segments, because translateX is physical too. In RTL the segments
+  // render right-to-left, so "chords" (second in reading order) is the one on the
+  // physical left — the offset has to be computed from the rendered position, not
+  // the index. Getting this wrong slid the thumb clean off the track.
+  const physicalSlot = I18nManager.isRTL
+    ? (value === "chords" ? 0 : 1)
+    : (value === "chords" ? 1 : 0);
+  const translateX = useRef(new Animated.Value(physicalSlot * SEG_W)).current;
 
   useEffect(() => {
-    Animated.timing(anim, {
-      toValue: value === "chords" ? 1 : 0,
+    Animated.timing(translateX, {
+      toValue: physicalSlot * SEG_W,
       duration: 180,
       useNativeDriver: true,
     }).start();
-  }, [anim, value]);
-
-  const translateX = anim.interpolate({ inputRange: [0, 1], outputRange: [0, SEG_W] });
+  }, [translateX, physicalSlot]);
 
   return (
     <View style={styles.track}>
@@ -80,7 +87,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: PAD,
     bottom: PAD,
-    left: PAD,
+    [physicalEdge("left")]: PAD,
     width: SEG_W,
     borderRadius: radii.round,
     backgroundColor: colors.primary,

@@ -13,6 +13,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import * as Clipboard from "expo-clipboard";
 import { contentStyles } from "./WordLadderScreenContent.styles";
 import { Ionicons } from "@expo/vector-icons";
+import { dirIcon } from "../../../design/directionalIcons";
 import { styles as appStyles } from "../../../styles";
 import { colors, radii, shadows, spacing, text as textTokens } from "../../../design/tokens";
 import { haptic } from "../../../design/haptics";
@@ -215,7 +216,7 @@ export function WordLadderScreenContent() {
                 {t("wordSparks.nextPair")}
               </Text>
               <Ionicons
-                name="arrow-forward"
+                name={dirIcon("arrow-forward")}
                 size={15}
                 color={canLeaveSetup ? colors.onPrimary : colors.textMuted}
               />
@@ -255,7 +256,7 @@ export function WordLadderScreenContent() {
                 style={({ pressed }) => [contentStyles.backBtn, pressed ? appStyles.pressDown : null]}
                 onPress={() => model.goToStep("setup")}
               >
-                <Ionicons name="chevron-back" size={16} color={colors.textMuted} />
+                <Ionicons name={dirIcon("chevron-back")} size={16} color={colors.textMuted} />
                 <Text style={contentStyles.backBtnText}>{t("wordSparks.words")}</Text>
               </Pressable>
               <Pressable
@@ -273,7 +274,7 @@ export function WordLadderScreenContent() {
                   {t("wordLadder.nextDraft")}
                 </Text>
                 <Ionicons
-                  name="arrow-forward"
+                  name={dirIcon("arrow-forward")}
                   size={16}
                   color={canLeavePairs ? colors.onPrimary : colors.textMuted}
                 />
@@ -339,7 +340,7 @@ export function WordLadderScreenContent() {
                   style={({ pressed }) => [contentStyles.backBtn, pressed ? appStyles.pressDown : null]}
                   onPress={() => model.goToStep("pairs")}
                 >
-                  <Ionicons name="chevron-back" size={16} color={colors.textMuted} />
+                  <Ionicons name={dirIcon("chevron-back")} size={16} color={colors.textMuted} />
                   <Text style={contentStyles.backBtnText}>{t("wordSparks.pair")}</Text>
                 </Pressable>
                 <Pressable
@@ -355,7 +356,7 @@ export function WordLadderScreenContent() {
                     {t("wordLadder.nextRevise")}
                   </Text>
                   <Ionicons
-                    name="arrow-forward"
+                    name={dirIcon("arrow-forward")}
                     size={16}
                     color={hasDraft ? colors.onPrimary : colors.textMuted}
                   />
@@ -422,7 +423,7 @@ export function WordLadderScreenContent() {
                   style={({ pressed }) => [contentStyles.backBtn, pressed ? appStyles.pressDown : null]}
                   onPress={() => model.goToStep("draft")}
                 >
-                  <Ionicons name="chevron-back" size={16} color={colors.textMuted} />
+                  <Ionicons name={dirIcon("chevron-back")} size={16} color={colors.textMuted} />
                   <Text style={contentStyles.backBtnText}>{t("wordSparks.draft")}</Text>
                 </Pressable>
                 <Pressable

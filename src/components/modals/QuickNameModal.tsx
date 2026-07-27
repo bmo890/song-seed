@@ -1,5 +1,6 @@
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { dirIcon } from "../../design/directionalIcons";
 import { WarmModal } from "../common/WarmModal";
 import { genIdea } from "../../utils";
 import { colors, radii } from "../../design/tokens";
@@ -169,7 +170,7 @@ export function QuickNameModal({
                                 {destinationCollectionLabel ?? t("modals.chooseCollection")}
                             </Text>
                         </View>
-                        <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+                        <Ionicons name={dirIcon("chevron-forward")} size={18} color={colors.textMuted} />
                     </Pressable>
                 </>
             ) : null}

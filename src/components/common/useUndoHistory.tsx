@@ -1,6 +1,7 @@
 import React, { useCallback, useState } from "react";
 import { Pressable, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { dirIcon } from "../../design/directionalIcons";
 import { styles as appStyles } from "../../styles";
 import { colors, radii } from "../../design/tokens";
 import { haptic } from "../../design/haptics";
@@ -67,7 +68,7 @@ export function UndoRedoButtons({
         hitSlop={6}
         accessibilityLabel={t("wordSparks.undo")}
       >
-        <Ionicons name="arrow-undo-outline" size={17} color={canUndo ? colors.textStrong : colors.borderMuted} />
+        <Ionicons name={dirIcon("arrow-undo-outline")} size={17} color={canUndo ? colors.textStrong : colors.borderMuted} />
       </Pressable>
       <Pressable
         style={({ pressed }) => [styles.btn, pressed ? appStyles.pressDown : null]}
@@ -79,7 +80,7 @@ export function UndoRedoButtons({
         hitSlop={6}
         accessibilityLabel={t("wordSparks.redo")}
       >
-        <Ionicons name="arrow-redo-outline" size={17} color={canRedo ? colors.textStrong : colors.borderMuted} />
+        <Ionicons name={dirIcon("arrow-redo-outline")} size={17} color={canRedo ? colors.textStrong : colors.borderMuted} />
       </Pressable>
     </>
   );

@@ -5,6 +5,7 @@ import ReAnimated, {
 } from "react-native-reanimated";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { dirIcon } from "../../../design/directionalIcons";
 import { IdeaListHeaderSection } from "../components/IdeaListHeaderSection";
 import { WorkspaceAvatar } from "../../common/WorkspaceAvatar";
 import { IconButton } from "../../common/IconButton";
@@ -57,7 +58,7 @@ export function CollectionHeaderSection() {
         accessibilityLabel={screen.showBack ? t("common.back") : t("workspaceBrowse.openMenu")}
       >
         {screen.showBack ? (
-          <Ionicons name="chevron-back" size={20} color="#84736f" />
+          <Ionicons name={dirIcon("chevron-back")} size={20} color="#84736f" />
         ) : (
           <Ionicons name="menu-outline" size={22} color="#84736f" />
         )}
@@ -114,7 +115,7 @@ export function CollectionContextReturnChip() {
         accessibilityRole="button"
         accessibilityLabel={t("common.backTo", { label: contextualReturn.label })}
       >
-        <Ionicons name="arrow-back" size={13} color={colors.primaryDeep} />
+        <Ionicons name={dirIcon("arrow-back")} size={13} color={colors.primaryDeep} />
         <Text style={collStyles.returnChipText} numberOfLines={1}>
           {t("common.backTo", { label: contextualReturn.label })}
         </Text>

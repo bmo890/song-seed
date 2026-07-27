@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ScrollView, Text, View, Pressable } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { dirIcon } from "../../design/directionalIcons";
 import { SurfaceCard } from "../common/SurfaceCard";
 import { startOfActivityDay } from "../../domain/activity";
 import { styles } from "../../styles";
@@ -112,7 +113,7 @@ export function ActivityHeatmapGrid({
             style={({ pressed }) => [styles.activityYearBtn, pressed ? styles.pressDown : null]}
             onPress={() => onChangeYear(year - 1)}
           >
-            <Ionicons name="chevron-back" size={14} color={colors.textPrimary} />
+            <Ionicons name={dirIcon("chevron-back")} size={14} color={colors.textPrimary} />
           </Pressable>
           <Text style={styles.activityYearText}>{year}</Text>
           <Pressable
@@ -121,7 +122,7 @@ export function ActivityHeatmapGrid({
             disabled={year >= currentYear}
           >
             <Ionicons
-              name="chevron-forward"
+              name={dirIcon("chevron-forward")}
               size={14}
               color={year >= currentYear ? colors.borderMuted : colors.textPrimary}
             />

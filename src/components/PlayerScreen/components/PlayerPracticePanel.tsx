@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import Slider from "@react-native-community/slider";
 import { Ionicons } from "@expo/vector-icons";
+import { dirIcon } from "../../../design/directionalIcons";
 import {
   formatPitchShiftLabel,
   PITCH_SHIFT_MAX_SEMITONES,
@@ -683,7 +684,7 @@ export function PlayerPracticePanel({
                 {sections.length === 0 ? t("player.noSectionsLoop") : t("player.loopSection")}
               </Text>
               <View style={{ flex: 1 }} />
-              <Ionicons name="chevron-forward" size={15} color={colors.textMuted} />
+              <Ionicons name={dirIcon("chevron-forward")} size={15} color={colors.textMuted} />
             </Pressable>
           </>
         )}

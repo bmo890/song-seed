@@ -1,6 +1,7 @@
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { colors } from "../../../design/tokens";
 import { Ionicons } from "@expo/vector-icons";
+import { dirIcon } from "../../../design/directionalIcons";
 import { Button } from "../../common/Button";
 import { styles } from "../styles";
 import { usePersistedScrollView, type ScrollOffset } from "../../../hooks/usePersistedScrollView";
@@ -44,7 +45,7 @@ export function SongbookListView({
                 <Ionicons name="book-outline" size={18} color={colors.textPrimary} />
                 <Text style={styles.cardTitle}>{songbook.title}</Text>
               </View>
-              <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+              <Ionicons name={dirIcon("chevron-forward")} size={16} color={colors.textMuted} />
             </View>
             <Text style={styles.cardMeta}>
               {songbook.items.length} {songbook.items.length === 1 ? "chart" : "charts"}

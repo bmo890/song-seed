@@ -1,5 +1,6 @@
 import { Pressable, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { dirIcon } from "../../../design/directionalIcons";
 import { NavRow } from "../../common/NavRow";
 import { SurfaceCard } from "../../common/SurfaceCard";
 import { colors } from "../../../design/tokens";
@@ -50,7 +51,7 @@ export function ShareImportDestinationSection({
           eyebrow={t("shareImport.currentCollection")}
           accessory={
             <Ionicons
-              name="chevron-forward"
+              name={dirIcon("chevron-forward")}
               size={16}
               color={colors.textMuted}
             />
@@ -90,7 +91,7 @@ export function ShareImportDestinationSection({
               nested
               accessory={
                 <Ionicons
-                  name="chevron-forward"
+                  name={dirIcon("chevron-forward")}
                   size={16}
                   color={colors.textMuted}
                 />

@@ -2,6 +2,7 @@ import { useMemo, type ComponentProps } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import { dirIcon } from "../design/directionalIcons";
 import { styles } from "../styles";
 import { radii, shadows, colors } from "../design/tokens";
 import { NavRow } from "./common/NavRow";
@@ -11,7 +12,6 @@ import { useShelfStore } from "../state/useShelfStore";
 import { useStore } from "../state/useStore";
 import { isEntryInDecisionWindow, isEntryExpired } from "../domain/shelf";
 import { useTranslation } from "react-i18next";
-import { useLocale } from "../i18n";
 import { UserText } from "../i18n";
 
 type IoniconName = ComponentProps<typeof Ionicons>["name"];
@@ -94,10 +94,8 @@ export function SideNav({
   onOpenCollection,
 }: Props) {
   const { t } = useTranslation();
-  const { direction } = useLocale();
   const mostRecent = recentCollections[0] ?? null;
   const workspaceTheme = getWorkspaceTheme(workspaceColor);
-  const forwardChevron = direction === "rtl" ? "chevron-back" : "chevron-forward";
 
   // The Shelf's one honest signal: a small count of items in their final stretch,
   // waiting on a keep-or-leave answer. Finite and clearable — most days it's zero.
@@ -192,7 +190,7 @@ export function SideNav({
             >
               <Ionicons name="albums-outline" size={17} color={colors.primaryDeep} />
               <Text style={sideNavStyles.cardRowLabel}>{t("navigation.collections")}</Text>
-              <Ionicons name={forwardChevron} size={14} color={colors.textMuted} />
+              <Ionicons name={dirIcon("chevron-forward")} size={14} color={colors.textMuted} />
             </Pressable>
           ) : null}
 

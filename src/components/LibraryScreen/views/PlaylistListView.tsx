@@ -1,5 +1,6 @@
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { dirIcon } from "../../../design/directionalIcons";
 import { colors, radii, spacing, text as textTokens } from "../../../design/tokens";
 import { styles } from "../styles";
 import { useStore } from "../../../state/useStore";
@@ -71,7 +72,7 @@ export function PlaylistListView({
                 {formatPlaylistUpdatedAt(playlist.updatedAt)}
               </Text>
             </View>
-            <Ionicons name="chevron-forward" size={15} color={colors.textMuted} />
+            <Ionicons name={dirIcon("chevron-forward")} size={15} color={colors.textMuted} />
           </Pressable>
         ))}
       </View>

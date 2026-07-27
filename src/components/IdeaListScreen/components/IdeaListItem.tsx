@@ -1,6 +1,7 @@
 import React from "react";
 import { Pressable, Text, View, Animated } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { dirIcon } from "../../../design/directionalIcons";
 import { styles } from "../../../styles";
 import { SongIdea, ClipVersion, InlinePlayerControls } from "../../../types";
 import { fmtCardDuration, formatClipCardTime, formatClipDate, isIdeaTitleAutoNamed } from "../../../utils";
@@ -411,7 +412,7 @@ export function CollapsedDayRow({
                 accessibilityLabel={`Expand ${label}, ${count} hidden`}
             >
                 <View style={styles.ideasDayDividerLine} />
-                <Ionicons name="chevron-forward" size={12} color="#84736f" />
+                <Ionicons name={dirIcon("chevron-forward")} size={12} color="#84736f" />
                 <Text style={styles.ideasDayDividerText}>{label}</Text>
                 <View style={styles.ideasCollapsedDayCountPill}>
                     <Text style={styles.ideasCollapsedDayCountText}>{count} hidden</Text>

@@ -1,5 +1,6 @@
 import { Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { dirIcon } from "../../../design/directionalIcons";
 import { PageIntro } from "../../common/PageIntro";
 import { settingsScreenStyles, styles } from "../styles";
 import { LibraryActionCard, SegmentedField, SettingsGroup, ToggleRow } from "../components/SettingsShared";
@@ -95,7 +96,7 @@ export function SettingsOverviewView({
               <Text style={ov.proTitle}>{t("settings.proActive")}</Text>
               <Text style={ov.proSub}>{t("settings.proActiveHint")}</Text>
             </View>
-            <Ionicons name="chevron-forward" size={18} color="rgba(255,255,255,0.7)" />
+            <Ionicons name={dirIcon("chevron-forward")} size={18} color="rgba(255,255,255,0.7)" />
           </Pressable>
         ) : (
           <Pressable

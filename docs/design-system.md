@@ -169,6 +169,39 @@ pushes everything below it. Three rules, all violated at least once:
   controls row rather than inserting a bar above the list, so entering
   selection leaves every row exactly where it was.
 
+### Direction policy — RTL (locked 2026-07-27)
+
+Hebrew flips the app with `I18nManager.forceRTL`, so every `flexDirection: row`
+mirrors for free. Three things do NOT follow the app's language:
+
+1. **Time.** Transport rows — the pinned primary-take strip, waveforms, scrub
+   bars — always run left → right, because that is where audio time starts.
+   They use `flexDirection: I18nManager.isRTL ? "row-reverse" : "row"`, never
+   `direction: "ltr"` (an explicit direction opts the whole subtree out of RN's
+   left/right swap, which then fights the content alignment inside it).
+2. **Notation.** A chord staff is music, not prose: bars run left → right in
+   every language, and the barlines that open and close them are physical.
+3. **Content.** A Hebrew note in an English app right-aligns; an English lyric
+   in a Hebrew app left-aligns. Direction comes from the STRING (`UserText`,
+   `UserTextInput`, `resolveContentDirection`), never from the UI. The chord
+   chart takes this per line — a chart can hold both — and anchors each line's
+   chords to the edge that line starts at.
+
+**The RN trap.** `I18nManager.doLeftAndRightSwapInRTL` is on by default, so RN
+rewrites `left`/`right` — including `textAlign` and absolute insets — under RTL.
+Anything whose direction is decided by content rather than by the app must go
+through `physicalEdge()` / `physicalTextAlign()` (`src/i18n/direction.tsx`),
+which pre-invert so the swap lands where you meant. `transform: translateX` is
+NOT swapped: a sliding thumb computes its offset from the physical left, so its
+target index has to be reversed in RTL (`SegmentedControl`, `LyricsChordsToggle`).
+
+**Directional glyphs.** Back, forward, undo, redo and next/previous arrows flip
+with the reading axis — call `dirIcon()` (`src/design/directionalIcons.ts`), which
+`IconButton`, `SelectionDock` and `SelectionActionSheet` apply for you. Play,
+pause and record never flip; mirroring them would say the audio runs backwards.
+Controls inside an unmirrored surface pass `noMirror` (e.g. "add bar
+before/after" on the staff, where before really is to the left).
+
 ### Clip-note gestures (locked 2026-07-27)
 
 A note attached to a clip obeys the card, not itself. **Tap** opens the note —

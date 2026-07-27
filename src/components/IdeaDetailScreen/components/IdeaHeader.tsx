@@ -6,6 +6,7 @@ import Animated, {
   useAnimatedStyle,
 } from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
+import { dirIcon } from "../../../design/directionalIcons";
 import { styles } from "../styles";
 import { appActions } from "../../../state/actions";
 import { TitleInput } from "../../common/TitleInput";
@@ -73,7 +74,7 @@ export function IdeaHeader() {
           ]}
           onPress={actions.handleBackToIdeas}
         >
-          <Ionicons name="chevron-back" size={24} color={colors.textStrong} />
+          <Ionicons name={dirIcon("chevron-back")} size={24} color={colors.textStrong} />
         </Pressable>
 
         {/* Center: empty spacer in default mode; compact title fades in on scroll */}

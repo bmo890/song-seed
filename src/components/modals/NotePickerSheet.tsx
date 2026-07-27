@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { dirIcon } from "../../design/directionalIcons";
 import { BottomSheet } from "../common/BottomSheet";
 import { styles } from "../../styles";
 import { colors, radii, spacing, text as textTokens } from "../../design/tokens";
@@ -77,7 +78,7 @@ export function NotePickerSheet({
                           </Text>
                         ) : null}
                       </View>
-                      <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+                      <Ionicons name={dirIcon("chevron-forward")} size={16} color={colors.textMuted} />
                     </Pressable>
                   );
                 })}

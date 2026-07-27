@@ -16,6 +16,7 @@ import {
 import { UserTextInput, resolveContentDirection, contentDirectionStyle } from "../../../i18n";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import { dirIcon } from "../../../design/directionalIcons";
 import { styles } from "../../../styles";
 import { colors, radii, spacing, text as textTokens } from "../../../design/tokens";
 import type { ContentDirection, Note } from "../../../types";
@@ -199,7 +200,7 @@ export function NoteEditor({ note, onBack, onUpdate, onTogglePin, onDelete }: Pr
             style={({ pressed }) => [editorStyles.backBtn, pressed ? styles.pressDown : null]}
             onPress={onBack}
           >
-            <Ionicons name="chevron-back" size={20} color={colors.textStrong} />
+            <Ionicons name={dirIcon("chevron-back")} size={20} color={colors.textStrong} />
             <Text style={editorStyles.backLabel}>{t("screens.lyricsPad")}</Text>
           </Pressable>
 
@@ -212,7 +213,7 @@ export function NoteEditor({ note, onBack, onUpdate, onTogglePin, onDelete }: Pr
               disabled={!canUndo}
             >
               <Ionicons
-                name="arrow-undo-outline"
+                name={dirIcon("arrow-undo-outline")}
                 size={20}
                 color={canUndo ? colors.textStrong : colors.textMuted}
               />
@@ -225,7 +226,7 @@ export function NoteEditor({ note, onBack, onUpdate, onTogglePin, onDelete }: Pr
               disabled={!canRedo}
             >
               <Ionicons
-                name="arrow-redo-outline"
+                name={dirIcon("arrow-redo-outline")}
                 size={20}
                 color={canRedo ? colors.textStrong : colors.textMuted}
               />

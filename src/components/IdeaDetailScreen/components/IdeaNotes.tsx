@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Pressable, StyleProp, Text, View, ViewStyle } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { dirIcon } from "../../../design/directionalIcons";
 import { styles } from "../styles";
 import { appActions } from "../../../state/actions";
 import { SongNotesEditor } from "./SongNotesEditor";
@@ -81,7 +82,7 @@ export function IdeaNotes({
                         </View>
                         <View style={styles.songDetailMiniCardActionWrap}>
                             <Text style={styles.songDetailMiniCardActionText}>{t("songDetail.edit")}</Text>
-                            <Ionicons name="chevron-forward" size={14} color={colors.textMuted} />
+                            <Ionicons name={dirIcon("chevron-forward")} size={14} color={colors.textMuted} />
                         </View>
                     </View>
                     <UserText value={notes.trim()} style={styles.songNotesTabBody}>{notes.trim()}</UserText>
@@ -115,7 +116,7 @@ export function IdeaNotes({
                         <View style={styles.songDetailSummaryLinkMetaWrap}>
                             <Text style={styles.songDetailSummaryLinkMetaText}>{actionLabel}</Text>
                             {!isEditMode ? (
-                                <Ionicons name="chevron-forward" size={14} color={colors.textMuted} />
+                                <Ionicons name={dirIcon("chevron-forward")} size={14} color={colors.textMuted} />
                             ) : null}
                         </View>
                     </View>
@@ -149,7 +150,7 @@ export function IdeaNotes({
                     <View style={styles.songDetailMiniCardActionWrap}>
                         <Text style={styles.songDetailMiniCardActionText}>{actionLabel}</Text>
                         {!isEditMode ? (
-                            <Ionicons name="chevron-forward" size={14} color={colors.textMuted} />
+                            <Ionicons name={dirIcon("chevron-forward")} size={14} color={colors.textMuted} />
                         ) : null}
                     </View>
                 </View>

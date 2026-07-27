@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { Animated, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import { dirIcon } from "../../../design/directionalIcons";
 import { ScreenHeader } from "../../common/ScreenHeader";
 import { SearchField } from "../../common/SearchField";
 import { colors, radii, spacing, text as textTokens } from "../../../design/tokens";
@@ -150,7 +151,7 @@ function SearchResultCard({
             </Text>
           </View>
           {showOpenIn ? null : (
-            <Ionicons name="chevron-forward" size={16} color="#9b8a84" />
+            <Ionicons name={dirIcon("chevron-forward")} size={16} color="#9b8a84" />
           )}
         </View>
       </View>
@@ -171,7 +172,7 @@ function SearchResultCard({
           <Text style={searchScreenStyles.openInText} numberOfLines={1}>
             {t("search.openIn", { name: result.containerName })}
           </Text>
-          <Ionicons name="chevron-forward" size={13} color={colors.primary} />
+          <Ionicons name={dirIcon("chevron-forward")} size={13} color={colors.primary} />
         </View>
       ) : null}
     </Pressable>

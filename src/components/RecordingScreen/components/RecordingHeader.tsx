@@ -1,6 +1,7 @@
 import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { dirIcon } from "../../../design/directionalIcons";
 import { colors, radii } from "../../../design/tokens";
 import { useTranslation } from "react-i18next";
 import { UserText } from "../../../i18n";
@@ -38,7 +39,7 @@ export function RecordingHeader({
           style={({ pressed }) => [localStyles.backBtn, pressed ? localStyles.pressDown : null]}
           onPress={onBack}
         >
-          <Ionicons name="chevron-back" size={14} color={colors.textStrong} />
+          <Ionicons name={dirIcon("chevron-back")} size={14} color={colors.textStrong} />
           <Text style={localStyles.backBtnText}>{t("common.back")}</Text>
         </Pressable>
 

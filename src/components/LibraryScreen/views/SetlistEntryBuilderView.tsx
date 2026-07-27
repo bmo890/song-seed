@@ -1,5 +1,6 @@
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { dirIcon } from "../../../design/directionalIcons";
 import { Button } from "../../common/Button";
 import { styles } from "../styles";
 import { colors, radii, spacing, text as textTokens } from "../../../design/tokens";
@@ -130,7 +131,7 @@ export function SetlistEntryBuilderView({
                     {t("library.browseInstead")}
                   </Text>
                 </View>
-                <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+                <Ionicons name={dirIcon("chevron-forward")} size={16} color={colors.textMuted} />
               </View>
             </Pressable>
           ) : null}
@@ -150,7 +151,7 @@ export function SetlistEntryBuilderView({
                         {s.title}
                       </UserText>
                     </View>
-                    <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+                    <Ionicons name={dirIcon("chevron-forward")} size={16} color={colors.textMuted} />
                   </View>
                 </Pressable>
               ))}

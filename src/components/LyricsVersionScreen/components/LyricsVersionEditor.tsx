@@ -7,6 +7,7 @@ import type {
 } from "react-native";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { dirIcon } from "../../../design/directionalIcons";
 import { styles as appStyles } from "../../../styles";
 import { colors, radii, spacing } from "../../../design/tokens";
 import { styles } from "../styles";
@@ -121,7 +122,7 @@ export function LyricsVersionEditor({
             hitSlop={6}
             accessibilityLabel={t("lyrics.undo")}
           >
-            <Ionicons name="arrow-undo-outline" size={18} color={canUndo ? colors.textSecondary : colors.borderMuted} />
+            <Ionicons name={dirIcon("arrow-undo-outline")} size={18} color={canUndo ? colors.textSecondary : colors.borderMuted} />
           </Pressable>
           <Pressable
             style={({ pressed }) => [
@@ -134,7 +135,7 @@ export function LyricsVersionEditor({
             hitSlop={6}
             accessibilityLabel={t("lyrics.redo")}
           >
-            <Ionicons name="arrow-redo-outline" size={18} color={canRedo ? colors.textSecondary : colors.borderMuted} />
+            <Ionicons name={dirIcon("arrow-redo-outline")} size={18} color={canRedo ? colors.textSecondary : colors.borderMuted} />
           </Pressable>
           {showSaveAsNew ? (
             <Pressable

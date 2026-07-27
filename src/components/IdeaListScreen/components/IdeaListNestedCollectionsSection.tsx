@@ -1,5 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { dirIcon } from "../../../design/directionalIcons";
 import { Collection } from "../../../types";
 import { styles } from "../../../styles";
 import { colors, radii } from "../../../design/tokens";
@@ -76,7 +77,7 @@ export function IdeaListNestedCollectionsSection({
                 ]}
                 onPress={() => onOpenCollection(collection.id)}
               >
-                <Ionicons name="chevron-forward" size={13} color="#B8A8A3" />
+                <Ionicons name={dirIcon("chevron-forward")} size={13} color="#B8A8A3" />
               </Pressable>
             </View>
           ))}

@@ -4,12 +4,16 @@ import type { ChordPlacement } from "../../../../types";
 import { chordGraphemeAnchor, clampChordIndex } from "../../../../domain/chords";
 import { CHORD_FONT_SIZE, MONO_FONT, chordChartColors } from "./chordChartStyle";
 import { haptic } from "../../../../design/haptics";
+import { physicalEdge } from "../../../../i18n";
 
 type Props = {
   chord: ChordPlacement;
   charWidth: number;
   lineLength: number;
   editable: boolean;
+  /** The line reads right-to-left: grapheme index 0 is at the RIGHT edge, and a
+   *  rightward drag lowers the index. */
+  rtl: boolean;
   zoom?: number;
   onPress?: () => void;
   onMove?: (at: number) => void;
@@ -35,6 +39,7 @@ export function ChordToken({
   charWidth,
   lineLength,
   editable,
+  rtl,
   zoom = 1,
   onPress,
   onMove,
@@ -42,8 +47,11 @@ export function ChordToken({
 }: Props) {
   const chordTextStyle = { fontSize: CHORD_FONT_SIZE * zoom, lineHeight: (CHORD_FONT_SIZE + 4) * zoom };
   const base = clampChordIndex(chord.graphemeAt ?? chord.at, lineLength);
-  const baseLeft = base * charWidth;
-  const restX = baseLeft - GRAB;
+  // Distance from the edge the line starts at. `sign` converts that to a physical
+  // translateX: on an RTL line the chip travels leftward as the index grows.
+  const sign = rtl ? -1 : 1;
+  const baseInset = base * charWidth;
+  const restX = sign * (baseInset - GRAB);
 
   const posX = useRef(new Animated.Value(restX)).current;
   const scale = useRef(new Animated.Value(1)).current;
@@ -56,6 +64,7 @@ export function ChordToken({
   const restXRef = useRef(restX);
   const cwRef = useRef(charWidth);
   const lenRef = useRef(lineLength);
+  const signRef = useRef(sign);
   const onMoveRef = useRef(onMove);
   const onPressRef = useRef(onPress);
   const onDragRef = useRef(onDragStateChange);
@@ -63,6 +72,7 @@ export function ChordToken({
   restXRef.current = restX;
   cwRef.current = charWidth;
   lenRef.current = lineLength;
+  signRef.current = sign;
   onMoveRef.current = onMove;
   onPressRef.current = onPress;
   onDragRef.current = onDragStateChange;
@@ -116,11 +126,14 @@ export function ChordToken({
         lift(false);
         onDragRef.current?.(false);
         const cw = Math.max(cwRef.current, 1);
-        const target = clampChordIndex(baseRef.current + gesture.dx / cw, lenRef.current);
+        const target = clampChordIndex(
+          baseRef.current + (signRef.current * gesture.dx) / cw,
+          lenRef.current
+        );
         // Land exactly on the nearest character (where the left edge is), then
         // commit. Setting posX before the move means the commit's re-render
         // restores the same pixel — no jump back toward the old anchor.
-        posX.setValue(target * cwRef.current - GRAB);
+        posX.setValue(signRef.current * (target * cwRef.current - GRAB));
         if (target !== baseRef.current) onMoveRef.current?.(target);
       },
       onPanResponderTerminate: () => {
@@ -136,8 +149,11 @@ export function ChordToken({
 
   if (!editable) {
     return (
-      <View style={[styles.wrap, { left: baseLeft }]} pointerEvents="none">
-        <View style={styles.chip}>
+      <View
+        style={[styles.wrap, { [physicalEdge(rtl ? "right" : "left")]: baseInset }]}
+        pointerEvents="none"
+      >
+        <View style={[styles.chip, rtl ? styles.chipRtl : null]}>
           <Text style={[styles.text, chordTextStyle]}>{chord.chord}</Text>
         </View>
       </View>
@@ -146,11 +162,21 @@ export function ChordToken({
 
   return (
     <Animated.View
-      style={[styles.wrap, styles.wrapEditable, { transform: [{ translateX: posX }] }]}
+      style={[
+        styles.wrap,
+        styles.wrapEditable,
+        rtl ? styles.wrapRtl : styles.wrapLtr,
+        { transform: [{ translateX: posX }] },
+      ]}
       {...panResponder.panHandlers}
     >
       <Animated.View
-        style={[styles.chip, active ? styles.chipActive : null, { transform: [{ scale }] }]}
+        style={[
+          styles.chip,
+          rtl ? styles.chipRtl : null,
+          active ? styles.chipActive : null,
+          { transform: [{ scale }] },
+        ]}
       >
         <Text style={[styles.text, chordTextStyle]}>{chord.chord}</Text>
       </Animated.View>
@@ -162,7 +188,15 @@ const styles = StyleSheet.create({
   wrap: {
     position: "absolute",
     top: 0,
-    left: 0,
+  },
+  // Anchored to the edge the line starts at. Written through `physicalEdge` so
+  // RN's automatic left/right swap in RTL can't move the anchor to the wrong
+  // side of a line whose direction differs from the app's.
+  wrapLtr: {
+    [physicalEdge("left")]: 0,
+  },
+  wrapRtl: {
+    [physicalEdge("right")]: 0,
   },
   wrapEditable: {
     // A wider invisible grab area makes the small chip easy to catch and drag.
@@ -177,8 +211,12 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     paddingHorizontal: 5,
     paddingVertical: 1,
-    // Grow from the left edge so the active "lift" never shifts the anchor.
+    // Grow from the anchored edge so the active "lift" never shifts it.
     transformOrigin: "left center",
+  },
+  chipRtl: {
+    alignSelf: "flex-end",
+    transformOrigin: "right center",
   },
   chipActive: {
     backgroundColor: chordChartColors.chordActive,

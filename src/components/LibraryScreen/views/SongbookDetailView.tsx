@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import DraggableFlatList, { type RenderItemParams } from "react-native-draggable-flatlist";
 import { Ionicons } from "@expo/vector-icons";
+import { dirIcon } from "../../../design/directionalIcons";
 import { styles } from "../styles";
 import { SelectionActionSheet } from "../../common/SelectionActionSheet";
 import { SentLinkChip } from "../../common/SentLinkChip";
@@ -269,7 +270,7 @@ export function SongbookDetailView({
                   <Ionicons name="reorder-three" size={18} color={colors.textSecondary} />
                 </Pressable>
               ) : (
-                <Ionicons name="chevron-forward" size={14} color={colors.textMuted} />
+                <Ionicons name={dirIcon("chevron-forward")} size={14} color={colors.textMuted} />
               )}
             </View>
           );

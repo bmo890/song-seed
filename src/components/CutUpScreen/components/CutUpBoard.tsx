@@ -8,6 +8,7 @@ import Animated, {
   useSharedValue,
 } from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
+import { dirIcon } from "../../../design/directionalIcons";
 import { styles as appStyles } from "../../../styles";
 import { colors, radii, shadows, spacing, text as textTokens } from "../../../design/tokens";
 import { haptic } from "../../../design/haptics";
@@ -254,7 +255,7 @@ export function CutUpBoard({ model, spark }: { model: Model; spark: CutUpSpark }
           hitSlop={6}
           accessibilityLabel={t("wordSparks.undo")}
         >
-          <Ionicons name="arrow-undo-outline" size={17} color={model.canUndoBoard ? colors.textStrong : colors.borderMuted} />
+          <Ionicons name={dirIcon("arrow-undo-outline")} size={17} color={model.canUndoBoard ? colors.textStrong : colors.borderMuted} />
         </Pressable>
         <Pressable
           style={({ pressed }) => [styles.historyBtn, pressed ? appStyles.pressDown : null]}
@@ -266,7 +267,7 @@ export function CutUpBoard({ model, spark }: { model: Model; spark: CutUpSpark }
           hitSlop={6}
           accessibilityLabel={t("wordSparks.redo")}
         >
-          <Ionicons name="arrow-redo-outline" size={17} color={model.canRedoBoard ? colors.textStrong : colors.borderMuted} />
+          <Ionicons name={dirIcon("arrow-redo-outline")} size={17} color={model.canRedoBoard ? colors.textStrong : colors.borderMuted} />
         </Pressable>
       </View>
 
@@ -357,7 +358,7 @@ export function CutUpBoard({ model, spark }: { model: Model; spark: CutUpSpark }
                     model.restoreStrip(item.id);
                   }}
                 >
-                  <Ionicons name="arrow-undo-outline" size={12} color={colors.textSecondary} />
+                  <Ionicons name={dirIcon("arrow-undo-outline")} size={12} color={colors.textSecondary} />
                   <UserText style={styles.removedChipText} numberOfLines={1}>
                     {boardItemText(item, spark.chunks)}
                   </UserText>

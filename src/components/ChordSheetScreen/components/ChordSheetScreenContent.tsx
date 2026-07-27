@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import { dirIcon } from "../../../design/directionalIcons";
 import { ScreenHeader } from "../../common/ScreenHeader";
 import { styles as appStyles } from "../../../styles";
 import { colors, radii, spacing, text as textTokens } from "../../../design/tokens";
@@ -80,7 +81,7 @@ export function ChordSheetScreenContent() {
                   accessibilityLabel={t("chordChart.undo")}
                 >
                   <Ionicons
-                    name="arrow-undo-outline"
+                    name={dirIcon("arrow-undo-outline")}
                     size={18}
                     color={model.canUndo ? colors.textSecondary : colors.borderMuted}
                   />
@@ -93,7 +94,7 @@ export function ChordSheetScreenContent() {
                   accessibilityLabel={t("chordChart.redo")}
                 >
                   <Ionicons
-                    name="arrow-redo-outline"
+                    name={dirIcon("arrow-redo-outline")}
                     size={18}
                     color={model.canRedo ? colors.textSecondary : colors.borderMuted}
                   />

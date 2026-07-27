@@ -2,6 +2,7 @@ import React from "react";
 import { Pressable, StyleSheet, type GestureResponderEvent } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { haptic } from "../../design/haptics";
+import { dirIcon } from "../../design/directionalIcons";
 import { colors } from "../../design/tokens";
 
 /**
@@ -42,6 +43,9 @@ type IconButtonProps = {
   hitSlop?: number;
   /** Stop the press from bubbling to an enclosing Pressable (card rows). */
   stopPropagation?: boolean;
+  /** Opt out of RTL glyph mirroring — for controls inside a row that itself
+   *  stays LTR (the transport strip, the chord staff). */
+  noMirror?: boolean;
   testID?: string;
 };
 
@@ -57,6 +61,7 @@ function IconButtonInner({
   noHaptic = false,
   hitSlop = 11,
   stopPropagation = false,
+  noMirror = false,
   testID,
 }: IconButtonProps) {
   return (
@@ -79,7 +84,8 @@ function IconButtonInner({
       accessibilityLabel={accessibilityLabel}
       testID={testID}
     >
-      <Ionicons name={icon} size={size} color={color ?? TONE_COLOR[tone]} />
+      {/* A back chevron must point at "back", which is right in Hebrew. */}
+      <Ionicons name={noMirror ? icon : dirIcon(icon)} size={size} color={color ?? TONE_COLOR[tone]} />
     </Pressable>
   );
 }

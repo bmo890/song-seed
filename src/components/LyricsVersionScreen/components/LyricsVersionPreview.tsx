@@ -6,6 +6,7 @@ import { colors, radii, spacing } from "../../../design/tokens";
 import { styles } from "../styles";
 import type { LyricsLine } from "../../../types";
 import { ChordChart } from "./chords/ChordChart";
+import { IconButton } from "../../common/IconButton";
 import { ChordZoomBar } from "./chords/ChordZoomBar";
 import { LyricsChordsToggle } from "../../common/LyricsChordsToggle";
 import { TransposeChip } from "../../common/TransposeChip";
@@ -60,14 +61,15 @@ export function LyricsVersionPreview({
        * shown view. Export lives in the screen header. */}
       <View style={controls.row}>
         {canChart ? <LyricsChordsToggle value={viewMode} onChange={setViewMode} /> : <View />}
-        <Pressable
-          style={({ pressed }) => [controls.editIconBtn, pressed ? appStyles.pressDown : null]}
+        {/* Bare glyph, matching the Chart tab: a solid terracotta circle is the
+            record FAB's identity and shouldn't be lent to an edit action. */}
+        <IconButton
+          icon="pencil"
+          tone="muted"
+          size={18}
           onPress={chordView ? onChords : onEdit}
-          hitSlop={6}
           accessibilityLabel={chordView ? "Edit chords" : "Edit lyrics"}
-        >
-          <Ionicons name="pencil" size={18} color={colors.onPrimary} />
-        </Pressable>
+        />
       </View>
 
       <View style={[styles.lyricsVersionDocumentFill, chordView ? styles.lyricsVersionBodyFlush : null]}>
@@ -132,13 +134,5 @@ const controls = StyleSheet.create({
     justifyContent: "flex-end",
     paddingHorizontal: spacing.md,
     paddingTop: spacing.sm,
-  },
-  editIconBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: radii.round,
-    backgroundColor: colors.primary,
-    alignItems: "center",
-    justifyContent: "center",
   },
 });

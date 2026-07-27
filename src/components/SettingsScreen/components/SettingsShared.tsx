@@ -2,6 +2,7 @@ import { Children, Fragment, type ComponentProps, type ReactNode } from "react";
 import { colors } from "../../../design/tokens";
 import { ActivityIndicator, Pressable, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { dirIcon } from "../../../design/directionalIcons";
 import type { Collection, Workspace } from "../../../types";
 import { settingsScreenStyles, styles } from "../styles";
 import {
@@ -78,7 +79,7 @@ export function LibraryActionCard({
       {busy ? (
         <ActivityIndicator size="small" color={LIBRARY_DEEP} />
       ) : (
-        rightAccessory ?? <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+        rightAccessory ?? <Ionicons name={dirIcon("chevron-forward")} size={18} color={colors.textMuted} />
       )}
     </Pressable>
   );

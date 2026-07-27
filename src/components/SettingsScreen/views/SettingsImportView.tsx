@@ -1,6 +1,7 @@
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from "react-native";
 import { colors } from "../../../design/tokens";
 import { Ionicons } from "@expo/vector-icons";
+import { dirIcon } from "../../../design/directionalIcons";
 import { PageIntro } from "../../common/PageIntro";
 import { settingsScreenStyles, styles } from "../styles";
 import type { useLibraryImportFlow } from "../hooks/useLibraryImportFlow";
@@ -144,7 +145,7 @@ export function SettingsImportView({
                         {t("settingsImport.backHint")}
                     </Text>
                 </View>
-                <Ionicons name="chevron-back" size={18} color={colors.textSecondary} />
+                <Ionicons name={dirIcon("chevron-back")} size={18} color={colors.textSecondary} />
             </Pressable>
         </ScrollView>
     );

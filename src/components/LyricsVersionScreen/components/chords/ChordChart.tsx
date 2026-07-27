@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { I18nManager, ScrollView, StyleSheet, Text, View } from "react-native";
 import type { ChordPlacement, LyricsLine } from "../../../../types";
 import { ChordLine } from "./ChordLine";
 import { LYRIC_FONT_SIZE, MEASURE_SAMPLE, MONO_FONT, chordChartColors } from "./chordChartStyle";
 import { chordGraphemeAnchor, graphemeCount } from "../../../../domain/chords";
+import { detectTextDirection, resolveContentDirection } from "../../../../i18n";
 
 type LinesProps = {
   lines: LyricsLine[];
@@ -28,6 +29,16 @@ export function ChordChartLines({ lines, editable, zoom = 1, onAddAt, onEditChor
   // (positions, line width) proportional to the zoomed lyric/chord text.
   const scaledCharWidth = charWidth * zoom;
 
+  // A chart can hold Hebrew and English lines side by side, so direction is
+  // decided PER LINE. Lines with no strong characters (blank, punctuation, "la
+  // la") inherit the chart's own direction — the first line that has an opinion —
+  // so an empty line doesn't flip its chords to the other edge.
+  const chartDirection =
+    lines.reduce<ReturnType<typeof detectTextDirection>>(
+      (found, line) => found ?? detectTextDirection(line.text),
+      null
+    ) ?? undefined;
+
   const longestUnit = lines.reduce((max, line) => {
     const textUnits = graphemeCount(line.text);
     const chordUnits = line.chords.reduce((m, chord) => Math.max(m, chordGraphemeAnchor(chord, line.text) + chord.chord.length + 1), 0);
@@ -39,7 +50,14 @@ export function ChordChartLines({ lines, editable, zoom = 1, onAddAt, onEditChor
   const contentWidth = Math.max(measuredContentWidth, containerWidth);
 
   return (
-    <View onLayout={(e) => setContainerWidth(e.nativeEvent.layout.width)}>
+    // The chart's own axis follows its LYRICS, not the app's language: an English
+    // song opened in a Hebrew UI still lays out left → right, so its chords land
+    // over its words. Without this the whole chart mirrors while the monospace
+    // anchoring stays physical, and every chord drifts to the far edge.
+    <View
+      style={{ direction: chartDirection ?? (I18nManager.isRTL ? "rtl" : "ltr") }}
+      onLayout={(e) => setContainerWidth(e.nativeEvent.layout.width)}
+    >
       {/* Hidden measuring text — gives us the exact monospace advance width. */}
       <Text
         style={styles.measure}
@@ -66,6 +84,7 @@ export function ChordChartLines({ lines, editable, zoom = 1, onAddAt, onEditChor
                 charWidth={scaledCharWidth}
                 contentWidth={contentWidth}
                 editable={editable}
+                lineDirection={resolveContentDirection(line.text, "auto", chartDirection)}
                 zoom={zoom}
                 onAddAt={onAddAt}
                 onEditChord={onEditChord}

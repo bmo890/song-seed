@@ -20,8 +20,10 @@ export function ChartSelectionDock({
 
   const count = model.selectedBarCount;
   const dockActions: SelectionAction[] = [
-    { key: "add-before", label: t("chordChart.before"), icon: "arrow-back-outline", onPress: model.addBarBeforeSelection },
-    { key: "add-after", label: t("chordChart.after"), icon: "arrow-forward-outline", onPress: model.addBarAfterSelection },
+    // The staff stays LTR, so before/after are physically left/right in every
+    // language — these two arrows must not mirror.
+    { key: "add-before", label: t("chordChart.before"), icon: "arrow-back-outline", noMirror: true, onPress: model.addBarBeforeSelection },
+    { key: "add-after", label: t("chordChart.after"), icon: "arrow-forward-outline", noMirror: true, onPress: model.addBarAfterSelection },
     { key: "clear", label: t("chordChart.clear"), icon: "backspace-outline", onPress: model.clearSelectedBars },
     { key: "delete", label: t("chordChart.delete"), icon: "trash-outline", tone: "danger", onPress: model.deleteSelectedBars },
     { key: "more", label: t("chordChart.more"), icon: "ellipsis-horizontal", onPress: () => setMoreOpen(true) },

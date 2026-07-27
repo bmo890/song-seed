@@ -1,9 +1,10 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Animated, Pressable, StyleSheet, Text, View } from "react-native";
+import { Animated, I18nManager, Pressable, StyleSheet, Text, View } from "react-native";
 import { styles } from "../../styles";
 import { colors, radii, shadows } from "../../design/tokens";
 import { durations } from "../../design/motion";
 import { haptic } from "../../design/haptics";
+import { physicalEdge } from "../../i18n";
 
 type SegmentedOption<T extends string> = {
   key: T;
@@ -74,9 +75,14 @@ export function SegmentedControl<T extends string>({
   // width, snap into place (no slide-from-left); after that, animate — which
   // includes the case where `persist` carries the previous position across a
   // remount, so a swapped-subtree screen still slides in the tapped direction.
+  // translateX is PHYSICAL and RN swaps the thumb's `left` anchor under RTL, so
+  // the offset is counted from the physical left in both directions — in Hebrew
+  // segment 0 renders on the right, and using the raw index slid the thumb off
+  // the end of the track.
   useEffect(() => {
     if (segmentWidth <= 0) return;
-    const target = activeIndex * segmentWidth;
+    const physicalIndex = I18nManager.isRTL ? options.length - 1 - activeIndex : activeIndex;
+    const target = physicalIndex * segmentWidth;
     if (!positioned.current) {
       positioned.current = true;
       thumbX.setValue(target);
@@ -87,7 +93,7 @@ export function SegmentedControl<T extends string>({
       duration: durations.base,
       useNativeDriver: true,
     }).start();
-  }, [activeIndex, segmentWidth, thumbX, positioned]);
+  }, [activeIndex, options.length, segmentWidth, thumbX, positioned]);
 
   function handleSelect(key: T) {
     if (key === activeKey) return;
@@ -149,7 +155,7 @@ const segmentedControlStyles = StyleSheet.create({
     position: "absolute",
     top: 3,
     bottom: 3,
-    left: TRACK_PAD_H,
+    [physicalEdge("left")]: TRACK_PAD_H,
     borderRadius: radii.round,
     backgroundColor: colors.surface,
     ...shadows.control,

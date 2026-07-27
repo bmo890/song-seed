@@ -9,6 +9,7 @@ import {
 } from "react-native";
 import Animated, { FadeIn } from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
+import { dirIcon } from "../../design/directionalIcons";
 import { BottomSheet } from "./BottomSheet";
 import { SegmentedControl } from "./SegmentedControl";
 import { finderStyles } from "./WordFinderSheet.styles";
@@ -738,7 +739,7 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
             <View style={finderStyles.searchRow}>
               {drillStack.length > 0 ? (
                 <Pressable onPress={drillBack} hitSlop={8} accessibilityLabel={t("wordFinderUi.previousWord")}>
-                  <Ionicons name="chevron-back" size={17} color={colors.textStrong} />
+                  <Ionicons name={dirIcon("chevron-back")} size={17} color={colors.textStrong} />
                 </Pressable>
               ) : (
                 <Ionicons name="search" size={15} color={colors.textMuted} />
@@ -828,7 +829,7 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
                       accessibilityLabel={t("wordFinderUi.tryNear")}
                     >
                       <Text style={finderStyles.tryNearBtnText}>{t("wordFinderUi.tryNear")}</Text>
-                      <Ionicons name="arrow-forward" size={14} color={colors.onPrimary} />
+                      <Ionicons name={dirIcon("arrow-forward")} size={14} color={colors.onPrimary} />
                     </Pressable>
                   ) : null}
                 </View>

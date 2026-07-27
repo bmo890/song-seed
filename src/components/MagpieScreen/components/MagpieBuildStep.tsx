@@ -10,6 +10,7 @@ import {
   View,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { dirIcon } from "../../../design/directionalIcons";
 import { UserText, UserTextInput } from "../../../i18n";
 import { styles as appStyles } from "../../../styles";
 import { colors, radii, shadows, spacing } from "../../../design/tokens";
@@ -196,7 +197,7 @@ function Header({
         onPress={onBack}
         hitSlop={6}
       >
-        <Ionicons name="chevron-back" size={20} color={colors.textStrong} />
+        <Ionicons name={dirIcon("chevron-back")} size={20} color={colors.textStrong} />
         <Text style={styles.backText}>{t("wordSparks.page")}</Text>
       </Pressable>
       <View style={styles.titleCol}>

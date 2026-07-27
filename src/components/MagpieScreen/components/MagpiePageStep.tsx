@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import Animated, { FadeIn } from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
+import { dirIcon } from "../../../design/directionalIcons";
 import { styles as appStyles } from "../../../styles";
 import { colors, radii, shadows, spacing } from "../../../design/tokens";
 import { durations } from "../../../design/motion";
@@ -453,7 +454,7 @@ function BottomBar({
         onPress={onBuild}
       >
         <Text style={styles.buildBtnText}>{t("magpie.buildDraft")}</Text>
-        <Ionicons name="arrow-forward" size={15} color={colors.onPrimary} />
+        <Ionicons name={dirIcon("arrow-forward")} size={15} color={colors.onPrimary} />
       </Pressable>
     </View>
   );

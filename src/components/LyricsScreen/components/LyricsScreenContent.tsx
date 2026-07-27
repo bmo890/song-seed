@@ -1,6 +1,7 @@
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import { dirIcon } from "../../../design/directionalIcons";
 import { useNavigation } from "@react-navigation/native";
 import { styles } from "../styles";
 import { colors, radii, shadows, spacing } from "../../../design/tokens";
@@ -49,7 +50,7 @@ export function LyricsScreenContent() {
               {t(hasChordSheet ? "screens.chordChartExisting" : "screens.chordChartEmpty")}
             </Text>
           </View>
-          <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+          <Ionicons name={dirIcon("chevron-forward")} size={16} color={colors.textMuted} />
         </Pressable>
 
         <LyricsVersionsPanel projectIdea={projectIdea} />

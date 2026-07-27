@@ -1,5 +1,6 @@
 import { Pressable, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { dirIcon } from "../../design/directionalIcons";
 import { BottomSheet } from "./BottomSheet";
 import { styles } from "../../styles";
 import type { SelectionAction } from "./SelectionDock";
@@ -45,7 +46,7 @@ export function SelectionActionSheet({
             >
               <View style={styles.selectionSheetActionLead}>
                 <Ionicons
-                  name={action.icon}
+                  name={action.noMirror ? action.icon : dirIcon(action.icon)}
                   size={16}
                   color={dangerous ? colors.danger : colors.textSecondary}
                 />
@@ -59,7 +60,7 @@ export function SelectionActionSheet({
                 </Text>
               </View>
               <Ionicons
-                name={dangerous ? "alert-circle-outline" : "chevron-forward"}
+                name={dangerous ? "alert-circle-outline" : dirIcon("chevron-forward")}
                 size={15}
                 color={dangerous ? colors.danger : colors.textMuted}
               />

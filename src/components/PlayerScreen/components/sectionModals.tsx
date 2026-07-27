@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Modal, Pressable, Text, TextInput, View } from "react-native";
 import Slider from "@react-native-community/slider";
 import { Ionicons } from "@expo/vector-icons";
+import { dirIcon } from "../../../design/directionalIcons";
 import { fmtDuration } from "../../../utils";
 import { colors } from "../../../design/tokens";
 import {
@@ -80,7 +81,7 @@ export function SectionEdgeAdjuster({
           accessibilityRole="button"
           accessibilityLabel={`Nudge ${edge} back one second`}
         >
-          <Ionicons name="chevron-back" size={16} color={colors.textStrong} />
+          <Ionicons name={dirIcon("chevron-back")} size={16} color={colors.textStrong} />
         </Pressable>
         <Slider
           style={s.pinSlider}
@@ -110,7 +111,7 @@ export function SectionEdgeAdjuster({
           accessibilityRole="button"
           accessibilityLabel={`Nudge ${edge} forward one second`}
         >
-          <Ionicons name="chevron-forward" size={16} color={colors.textStrong} />
+          <Ionicons name={dirIcon("chevron-forward")} size={16} color={colors.textStrong} />
         </Pressable>
       </View>
     </View>

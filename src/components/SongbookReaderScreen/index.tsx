@@ -2,6 +2,7 @@ import React, { useMemo } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import { dirIcon } from "../../design/directionalIcons";
 import { useSongbookReaderModel } from "./useSongbookReaderModel";
 import { ChordChart } from "../LyricsVersionScreen/components/chords/ChordChart";
 import { ChordSheetSection } from "../ChordSheetScreen/ChordSheetSection";
@@ -190,7 +191,7 @@ export function SongbookReaderScreen() {
           accessibilityRole="button"
           accessibilityLabel={reader.previousTitle ? t("library.previousSong", { title: reader.previousTitle }) : t("library.firstSong")}
         >
-          <Ionicons name="chevron-back" size={13} color={colors.textSecondary} />
+          <Ionicons name={dirIcon("chevron-back")} size={13} color={colors.textSecondary} />
           <UserText style={readerStyles.pagerSideText} numberOfLines={1}>
             {reader.previousTitle ?? "—"}
           </UserText>
@@ -262,7 +263,7 @@ export function SongbookReaderScreen() {
           <UserText style={readerStyles.pagerSideText} numberOfLines={1}>
             {reader.nextTitle ?? "—"}
           </UserText>
-          <Ionicons name="chevron-forward" size={13} color={colors.textSecondary} />
+          <Ionicons name={dirIcon("chevron-forward")} size={13} color={colors.textSecondary} />
         </Pressable>
       </View>
     </SafeAreaView>
