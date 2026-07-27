@@ -310,12 +310,14 @@ export const songDetailHistoryStyles = {
     borderRadius: 14,
     padding: 6,
   },
+  // Indented so the stem sits INSIDE the head card's edge rather than flush
+  // with it — history reads as hanging off the card, not as a second column.
   songDetailStem: {
     position: "relative",
     marginTop: 2,
     marginHorizontal: 6,
     paddingTop: 10,
-    paddingLeft: 22,
+    paddingLeft: 34,
   },
   // The stem is drawn per row, never as one span: each row carries a segment
   // into its node, and only a row with history below it continues past. That
@@ -325,13 +327,13 @@ export const songDetailHistoryStyles = {
   // x = -13.75 centres the 1.5px line on the 9px node.
   songDetailStemSegmentIn: {
     position: "absolute",
-    left: -13.75,
+    left: -14.75,
     width: 1.5,
     backgroundColor: "rgba(184,125,107,0.35)",
   },
   songDetailStemSegmentOn: {
     position: "absolute",
-    left: -13.75,
+    left: -14.75,
     top: 13.5,
     bottom: 0,
     width: 1.5,
@@ -387,7 +389,7 @@ export const songDetailHistoryStyles = {
   // row content starts at paddingLeft 22, so the node backs up into the gutter).
   songDetailStemNode: {
     position: "absolute",
-    left: -17.5,
+    left: -18.5,
     top: 9,
     width: 9,
     height: 9,
@@ -460,9 +462,12 @@ export const songDetailHistoryStyles = {
   songDetailEvolutionGroupRow: {
     flexDirection: "row",
     alignItems: "center",
-    paddingTop: 8,
+    paddingTop: 14,
     paddingBottom: 2,
   },
+  // A group is a QUIET SECTION LABEL, not a surface. The old filled bar made a
+  // third tonal layer (page → group bar → thread shell → card) and read as
+  // another card; an editorial label separates without adding weight.
   songDetailEvolutionGroupContent: {
     flex: 1,
     flexDirection: "row",
@@ -470,11 +475,8 @@ export const songDetailHistoryStyles = {
     justifyContent: "space-between",
     gap: 8,
     minHeight: 24,
-    // Sharp corners + tonal layering instead of a bubbly 12px radius + 1px border.
-    borderRadius: 6,
-    backgroundColor: "#EDE9E4",
-    paddingHorizontal: 10,
-    paddingVertical: 7,
+    paddingHorizontal: 2,
+    paddingVertical: 4,
   },
   songDetailEvolutionGroupTitleRow: {
     flexDirection: "row",
@@ -484,9 +486,11 @@ export const songDetailHistoryStyles = {
     minWidth: 0,
   },
   songDetailEvolutionGroupTitle: {
-    fontFamily: "PlusJakartaSans_700Bold",
-    fontSize: 12,
-    color: "#524440",
+    fontFamily: "PlusJakartaSans_600SemiBold",
+    fontSize: 10,
+    letterSpacing: 0.8,
+    textTransform: "uppercase",
+    color: "#a89994",
   },
   songDetailEvolutionGroupMeta: {
     fontFamily: "PlusJakartaSans_500Medium",

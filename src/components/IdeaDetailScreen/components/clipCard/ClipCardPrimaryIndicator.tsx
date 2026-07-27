@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 
 /** Primary as editorial ink — dot + word, one terracotta with the card's crown
  *  rule so the two read as a single signal rather than two decorations. */
-function PrimaryInk({ label }: { label: string }) {
+export function PrimaryInk({ label }: { label: string }) {
   return (
     <View style={styles.songDetailPrimaryInk}>
       <View style={styles.songDetailPrimaryInkDot} />
@@ -37,20 +37,14 @@ export function ClipCardPrimaryIndicator({
     return <Text style={styles.badge}>{t("songDetail.source")}</Text>;
   }
 
-  if (isEditMode) {
-    if (isPrimaryCandidate) {
-      return <PrimaryInk label={t("common.primary")} />;
-    }
-
+  // The PRIMARY mark itself now rides the title row (see IdeaCard's
+  // titleAccessory) — the trailing slot only carries the edit-mode ACTION.
+  if (isEditMode && !isPrimaryCandidate) {
     return (
       <Pressable style={styles.songDetailVersionSetPrimaryBtn} onPress={onSetPrimary}>
         <Text style={styles.songDetailVersionSetPrimaryText}>{t("common.primary")}</Text>
       </Pressable>
     );
-  }
-
-  if (isPrimary) {
-    return <PrimaryInk label={t("common.primary")} />;
   }
 
   return null;

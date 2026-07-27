@@ -96,10 +96,9 @@ export type IdeaCardProps = {
     isDragActiveInside?: boolean;
     /** Left accent bar color (workspace color for song cards) */
     accentBorderColor?: string | null;
-    /** Rule across the card's TOP edge. Structurally distinct from the left
-     *  spine, which is reserved for the sketch tell (design-system §card canon:
-     *  "No clip ever gets a spine") — used for the primary take's crown. */
-    crownColor?: string | null;
+    /** Status mark in the title row, just before the duration — the most-read
+     *  line on the card, so a rare status lands without adding a surface. */
+    titleAccessory?: ReactNode;
     compact?: boolean;
     /** Flush, single-line dense row (collection "compact" density). Replaces the
      * whole card shell — small play, inline meta, hairline divider. */
@@ -203,7 +202,7 @@ export function IdeaCard({
     isInsideTarget,
     isDragActiveInside,
     accentBorderColor,
-    crownColor,
+    titleAccessory,
     compact,
     denseRow,
     highlightValue,
@@ -404,12 +403,6 @@ export function IdeaCard({
                     pointerEvents="none"
                 />
             ) : null}
-            {crownColor ? (
-                <View
-                    style={[styles.ideasListCardCrown, { backgroundColor: crownColor }]}
-                    pointerEvents="none"
-                />
-            ) : null}
             {cornerBadge != null ? (
                 <View style={styles.ideasListCardCornerBadge} pointerEvents="none">
                     {cornerBadge}
@@ -477,6 +470,7 @@ export function IdeaCard({
                                     hitStyle={styles.ideasListCardTitleHighlight}
                                     numberOfLines={1}
                                 />
+                                {titleAccessory ?? null}
                                 {durationLabel ? (
                                     <Text style={styles.ideasListTitleDurationText}>
                                         {durationLabel}

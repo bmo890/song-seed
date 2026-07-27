@@ -12,7 +12,7 @@ import { type SongIdea, type ClipVersion, type CustomTagDefinition, type InlineP
 import { getTagColor, getTagLabel, suggestedSectionTagsForClip } from "../songClipControls";
 import { ClipCardEditForm } from "./clipCard/ClipCardEditForm";
 import { ClipCardEvolutionGuide } from "./clipCard/ClipCardEvolutionGuide";
-import { ClipCardPrimaryIndicator } from "./clipCard/ClipCardPrimaryIndicator";
+import { ClipCardPrimaryIndicator, PrimaryInk } from "./clipCard/ClipCardPrimaryIndicator";
 import { ClipCardReplyButton } from "./clipCard/ClipCardReplyButton";
 import { ClipNoteLine } from "../../common/clip/ClipNoteLine";
 import { ClipTagBadges } from "../../common/clip/ClipTagBadges";
@@ -308,10 +308,13 @@ export const ClipCard = React.memo(function ClipCard({
 
       <IdeaCard
         containerStyle={[{ flex: 1 }, parentPickContainerStyle ?? null]}
-        // Primary wears a CROWN (top rule), never a left spine — the spine is
-        // the sketch tell alone (design-system §card canon).
-        crownColor={
-          displayPrimary || isPrimaryCandidate || clip.isPrimary ? colors.primaryDeep : undefined
+        // Primary rides the title row (before the duration) — the line the eye
+        // reads first. No spine, no crown: a rare status earns visibility from
+        // placement, not from another surface on an already-layered page.
+        titleAccessory={
+          !displayOnly && (displayPrimary || isPrimaryCandidate || clip.isPrimary) ? (
+            <PrimaryInk label={t("common.primary")} />
+          ) : undefined
         }
         selected={isSelected || isMoving || isParentPickSource}
         inlineActive={inlineActive}

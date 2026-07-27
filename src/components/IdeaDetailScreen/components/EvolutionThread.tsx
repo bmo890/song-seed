@@ -10,6 +10,7 @@ import { getClipPlaybackDurationMs, hasClipPlaybackSource } from "../../../domai
 import { fmtCardDuration, formatClipDate } from "../../../utils";
 import { type ClipVersion } from "../../../types";
 import { type ClipCardContextProps } from "./ClipCard";
+import { PrimaryInk } from "./clipCard/ClipCardPrimaryIndicator";
 import { SongClipCard } from "./SongClipCard";
 import { ClipNoteLine } from "../../common/clip/ClipNoteLine";
 import { ScrubBar } from "../../common/ScrubBar";
@@ -154,6 +155,9 @@ function StemVersionRow({
           {clip.isBookmarked ? (
             <Ionicons name="bookmark" size={11} color={colors.primary} />
           ) : null}
+          {/* The primary take isn't always the newest — when an older version is
+              the sketch's face, the mark travels down to it. */}
+          {clip.isPrimary ? <PrimaryInk label={t("common.primary")} /> : null}
           <View style={{ flex: 1 }} />
           <Text style={styles.songDetailStemDur}>
             {durationMs ? fmtCardDuration(durationMs) : "0:00"}
