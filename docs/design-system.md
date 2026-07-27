@@ -169,6 +169,20 @@ meta cluster's contents vary per context:
   the card itself. The bare unlabeled mic is retired.
 - **The recorder names the path:** arriving via "New version" shows
   "NEW VERSION OF ‹take›"; the FAB path keeps "Recording into ‹sketch›".
+- **Primary wears a CROWN, never a spine** (locked 2026-07-27): a terracotta
+  rule across the card's *top* + `primaryDeep` ink label (dot + word) in the
+  same single colour. The left spine stays reserved for the sketch tell — status
+  never borrows that device.
+- **Stem rows are transports:** each carries a bare play glyph with its own hit
+  target, so playback survives selection mode (audition a candidate before you
+  commit to it). Same rule on full clip cards. An active row extends into the
+  canon `ScrubBar` + ✕, mirroring compact collection rows.
+- **Notes** (one treatment app-wide): italic Lora, clamped to 2 lines, with a
+  `More`/`Less` affordance shown ONLY when the text truly overflows — measured
+  against a hidden unclamped twin, because `onTextLayout` under `numberOfLines`
+  only reports drawn lines. The affordance renders OUTSIDE the clamped Text or
+  the ellipsis eats it. Expanded caps at 10 lines; longer notes belong to the
+  notes sheet. When a search is active, the window slides to the match.
 - **Musician words, not git words:** "Link as version of…" (was Set parent),
   "Make its own take" (was Start new thread), versions not "older takes".
   Groups hold whole threads (assignment at lineage level) and count with a

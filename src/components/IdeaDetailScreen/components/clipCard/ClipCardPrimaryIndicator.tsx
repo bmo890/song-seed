@@ -1,6 +1,17 @@
-import { Pressable, Text } from "react-native";
+import { Pressable, Text, View } from "react-native";
 import { styles } from "../../styles";
 import { useTranslation } from "react-i18next";
+
+/** Primary as editorial ink — dot + word, one terracotta with the card's crown
+ *  rule so the two read as a single signal rather than two decorations. */
+function PrimaryInk({ label }: { label: string }) {
+  return (
+    <View style={styles.songDetailPrimaryInk}>
+      <View style={styles.songDetailPrimaryInkDot} />
+      <Text style={styles.songDetailPrimaryInkText}>{label}</Text>
+    </View>
+  );
+}
 
 type ClipCardPrimaryIndicatorProps = {
   displayOnly?: boolean;
@@ -28,7 +39,7 @@ export function ClipCardPrimaryIndicator({
 
   if (isEditMode) {
     if (isPrimaryCandidate) {
-      return <Text style={styles.songDetailClipPrimaryLabel}>{t("common.primary")}</Text>;
+      return <PrimaryInk label={t("common.primary")} />;
     }
 
     return (
@@ -39,7 +50,7 @@ export function ClipCardPrimaryIndicator({
   }
 
   if (isPrimary) {
-    return <Text style={styles.songDetailClipPrimaryLabel}>{t("common.primary")}</Text>;
+    return <PrimaryInk label={t("common.primary")} />;
   }
 
   return null;

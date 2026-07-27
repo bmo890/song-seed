@@ -96,6 +96,10 @@ export type IdeaCardProps = {
     isDragActiveInside?: boolean;
     /** Left accent bar color (workspace color for song cards) */
     accentBorderColor?: string | null;
+    /** Rule across the card's TOP edge. Structurally distinct from the left
+     *  spine, which is reserved for the sketch tell (design-system §card canon:
+     *  "No clip ever gets a spine") — used for the primary take's crown. */
+    crownColor?: string | null;
     compact?: boolean;
     /** Flush, single-line dense row (collection "compact" density). Replaces the
      * whole card shell — small play, inline meta, hairline divider. */
@@ -199,6 +203,7 @@ export function IdeaCard({
     isInsideTarget,
     isDragActiveInside,
     accentBorderColor,
+    crownColor,
     compact,
     denseRow,
     highlightValue,
@@ -396,6 +401,12 @@ export function IdeaCard({
                             ],
                         },
                     ]}
+                    pointerEvents="none"
+                />
+            ) : null}
+            {crownColor ? (
+                <View
+                    style={[styles.ideasListCardCrown, { backgroundColor: crownColor }]}
                     pointerEvents="none"
                 />
             ) : null}

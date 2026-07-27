@@ -81,6 +81,19 @@ export const ideasListStyles = {
     borderWidth: 2,
     backgroundColor: "#FDF5F2",
   },
+  // Crown: a rule across the card's top edge, following its 12px radius.
+  // Reserved for the primary take — the LEFT spine belongs to the sketch tell
+  // alone (design-system §card canon), so status never borrows that device.
+  ideasListCardCrown: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 2.5,
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
+    zIndex: 2,
+  },
   ideasListCardCornerBadge: {
     position: "absolute",
     top: 7,

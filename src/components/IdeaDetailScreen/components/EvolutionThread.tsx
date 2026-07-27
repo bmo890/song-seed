@@ -11,9 +11,10 @@ import { fmtCardDuration, formatClipDate } from "../../../utils";
 import { type ClipVersion } from "../../../types";
 import { type ClipCardContextProps } from "./ClipCard";
 import { SongClipCard } from "./SongClipCard";
+import { ClipNoteLine } from "../../common/clip/ClipNoteLine";
+import { ScrubBar } from "../../common/ScrubBar";
 import { haptic } from "../../../design/haptics";
 import { colors } from "../../../design/tokens";
-import { UserText } from "../../../i18n";
 
 type EvolutionThreadProps = {
   lineage: ClipLineage;
@@ -61,14 +62,23 @@ function StemVersionRow({
   const canPlay = hasClipPlaybackSource(clip);
   const note = (clip.notes ?? "").trim();
 
+  const inlinePositionMs = useStore((s) => (inlineActive ? s.inlinePositionMs : 0));
+  const inlineDurationMs = useStore((s) => (inlineActive ? s.inlineDurationMs : 0));
+  const inlineTotalMs = inlineDurationMs || durationMs || 0;
+
+  // The transport is its own target, so it keeps working while you're selecting —
+  // you can hear each candidate before committing to it.
+  const togglePlayback = () => {
+    if (!canPlay) return;
+    haptic.tap();
+    void inlinePlayer.toggleInlinePlayback(ideaId, clip);
+  };
   const handlePress = () => {
     if (clipSelectionMode) {
       toggleClipSelection(clip.id);
       return;
     }
-    if (!canPlay) return;
-    haptic.tap();
-    void inlinePlayer.toggleInlinePlayback(ideaId, clip);
+    togglePlayback();
   };
   const handleLongPress = () => {
     if (clipSelectionMode) {
@@ -108,6 +118,35 @@ function StemVersionRow({
           inlineActive ? styles.songDetailStemNodeActive : null,
         ]}
       />
+      {/* Bare glyph transport — same lead treatment as every card in the app. */}
+      <Pressable
+        style={({ pressed }) => [
+          styles.songDetailStemPlay,
+          pressed && canPlay ? styles.pressDown : null,
+        ]}
+        onPress={(e) => {
+          e.stopPropagation();
+          togglePlayback();
+        }}
+        hitSlop={{ top: 6, bottom: 6, left: 6, right: 4 }}
+        accessibilityRole="button"
+        accessibilityLabel={t(
+          inlineActive && isInlinePlaying ? "common.pause" : "common.play"
+        )}
+      >
+        <Ionicons
+          name={inlineActive && isInlinePlaying ? "pause" : "play"}
+          size={13}
+          color={
+            !canPlay
+              ? colors.textMuted
+              : inlineActive
+                ? colors.primaryDeep
+                : colors.textStrong
+          }
+        />
+      </Pressable>
+
       <View style={styles.songDetailStemRowBody}>
         <View style={styles.songDetailStemRowTop}>
           <Text style={styles.songDetailStemVn}>{t("clipLineage.versionTag", { number: versionNumber })}</Text>
@@ -116,28 +155,61 @@ function StemVersionRow({
             <Ionicons name="bookmark" size={11} color={colors.primary} />
           ) : null}
           <View style={{ flex: 1 }} />
-          {inlineActive && isInlinePlaying ? (
-            <Ionicons name="pause" size={12} color={colors.primaryDeep} />
-          ) : null}
           <Text style={styles.songDetailStemDur}>
             {durationMs ? fmtCardDuration(durationMs) : "0:00"}
           </Text>
         </View>
+
         {note ? (
-          <Pressable
-            onPress={(e) => {
-              e.stopPropagation();
-              context.actions.onOpenNotesSheet?.(clip);
-            }}
+          <ClipNoteLine
+            notes={note}
             disabled={clipSelectionMode}
-            hitSlop={{ top: 2, bottom: 4 }}
-          >
-            <UserText style={styles.songDetailStemNote} numberOfLines={1}>
-              {note}
-            </UserText>
-          </Pressable>
+            onOpen={() => context.actions.onOpenNotesSheet?.(clip)}
+          />
+        ) : null}
+
+        {/* Active preview extends the row into a scrubber — the same on-brand
+            track the compact collection rows use. */}
+        {inlineActive ? (
+          <View style={styles.songDetailStemScrubRow}>
+            <Text style={styles.songDetailStemDur}>{fmtCardDuration(inlinePositionMs)}</Text>
+            <View style={styles.songDetailStemScrubTrack}>
+              <ScrubBar
+                progress={inlineTotalMs > 0 ? Math.min(1, inlinePositionMs / inlineTotalMs) : 0}
+                onScrubStart={() => void inlinePlayer.beginInlineScrub()}
+                onScrub={(fraction) => void inlinePlayer.endInlineScrub(fraction * inlineTotalMs)}
+                onScrubCancel={() => void inlinePlayer.cancelInlineScrub()}
+              />
+            </View>
+            <Text style={styles.songDetailStemDur}>
+              {durationMs ? fmtCardDuration(durationMs) : "0:00"}
+            </Text>
+            <Pressable
+              onPress={(e) => {
+                e.stopPropagation();
+                void inlinePlayer.resetInlinePlayer();
+              }}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              accessibilityRole="button"
+              accessibilityLabel={t("common.close")}
+            >
+              <Ionicons name="close" size={13} color={colors.textSecondary} />
+            </Pressable>
+          </View>
         ) : null}
       </View>
+
+      {/* Selection lives on the trailing edge so the transport stays reachable. */}
+      {clipSelectionMode ? (
+        <View
+          style={[
+            styles.songDetailStemCheck,
+            isSelected ? styles.songDetailStemCheckOn : null,
+          ]}
+        >
+          {isSelected ? <Ionicons name="checkmark" size={10} color={colors.onPrimary} /> : null}
+        </View>
+      ) : null}
     </Pressable>
   );
 }

@@ -3,6 +3,8 @@ export const resources = {
     translation: {
       common: {
         back: "Back",
+        more: "More",
+        less: "Less",
         cancel: "Cancel",
         continue: "Continue",
         save: "Save",
@@ -1157,6 +1159,8 @@ export const resources = {
     translation: {
       common: {
         back: "חזרה",
+        more: "עוד",
+        less: "פחות",
         cancel: "ביטול",
         continue: "המשך",
         save: "שמירה",

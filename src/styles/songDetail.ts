@@ -719,6 +719,27 @@ export const songDetailStyles = {
     alignItems: "center",
     justifyContent: "center",
   },
+  // Primary ink: dot + word share ONE colour with the card's crown rule, so the
+  // status reads as a single mark. primaryDeep (not primary) — a 9.5px label
+  // needs the contrast, and the crown wears the same value.
+  songDetailPrimaryInk: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+  },
+  songDetailPrimaryInkDot: {
+    width: 6,
+    height: 6,
+    borderRadius: radii.round,
+    backgroundColor: colors.primaryDeep,
+  },
+  songDetailPrimaryInkText: {
+    fontFamily: "PlusJakartaSans_700Bold",
+    fontSize: 9.5,
+    letterSpacing: 0.9,
+    textTransform: "uppercase",
+    color: colors.primaryDeep,
+  },
   songDetailClipPrimaryLabel: {
     fontFamily: "PlusJakartaSans_600SemiBold",
     fontSize: 9,

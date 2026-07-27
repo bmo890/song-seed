@@ -14,7 +14,7 @@ import { ClipCardEditForm } from "./clipCard/ClipCardEditForm";
 import { ClipCardEvolutionGuide } from "./clipCard/ClipCardEvolutionGuide";
 import { ClipCardPrimaryIndicator } from "./clipCard/ClipCardPrimaryIndicator";
 import { ClipCardReplyButton } from "./clipCard/ClipCardReplyButton";
-import { ClipNotesPreview } from "../../common/clip/ClipNotesPreview";
+import { ClipNoteLine } from "../../common/clip/ClipNoteLine";
 import { ClipTagBadges } from "../../common/clip/ClipTagBadges";
 import { IdeaCard } from "../../common/IdeaCard";
 import type { GestureResponderEvent } from "react-native";
@@ -214,7 +214,9 @@ export const ClipCard = React.memo(function ClipCard({
       ? `${t("clipLineage.versionTag", { number: entry.versionNumber ?? entry.versionCount })} · `
       : "";
   const createdAtLabel = `${versionPrefix}${createdAtWithLayers}`;
-  const canToggleInlinePlayback = !clipSelectionMode && !isDraftProject && !isParentPicking;
+  // Playback survives selection mode: the lead glyph is its own hit target, so
+  // you can audition each candidate before committing to a multi-select.
+  const canToggleInlinePlayback = !isDraftProject && !isParentPicking;
   const canShowTrailingAction =
     !displayOnly && !clipSelectionMode && !isEditMode && !isDraftProject && !isParentPicking;
   // Reply (record a new version) belongs to single-version evolution cards only.
@@ -306,7 +308,11 @@ export const ClipCard = React.memo(function ClipCard({
 
       <IdeaCard
         containerStyle={[{ flex: 1 }, parentPickContainerStyle ?? null]}
-        accentBorderColor={displayPrimary || isPrimaryCandidate ? colors.primary : undefined}
+        // Primary wears a CROWN (top rule), never a left spine — the spine is
+        // the sketch tell alone (design-system §card canon).
+        crownColor={
+          displayPrimary || isPrimaryCandidate || clip.isPrimary ? colors.primaryDeep : undefined
+        }
         selected={isSelected || isMoving || isParentPickSource}
         inlineActive={inlineActive}
         isInlinePlaying={isInlinePlaying}
@@ -368,10 +374,10 @@ export const ClipCard = React.memo(function ClipCard({
         }
         bodyContent={
           clip.notes ? (
-            <ClipNotesPreview
+            <ClipNoteLine
               notes={clip.notes ?? ""}
               disabled={!!displayOnly}
-              onPress={!displayOnly ? () => onOpenNotesSheet?.(clip) : undefined}
+              onOpen={!displayOnly ? () => onOpenNotesSheet?.(clip) : undefined}
             />
           ) : undefined
         }

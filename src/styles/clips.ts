@@ -35,17 +35,29 @@ export const clipsStyles = {
     color: "#84736f",
     fontFamily: "PlusJakartaSans_600SemiBold",
   },
-  clipCardNotesPreview: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    marginTop: 2,
+  // One note treatment app-wide (unified 2026-07-27): earned serif in true
+  // italic — a note is content you wrote, not chrome. Replaces the old 11px
+  // grey sans + document glyph (which also carried a cold #94a3b8 literal).
+  clipNoteLine: {
+    fontFamily: "Lora_500Medium_Italic",
+    fontSize: 12.5,
+    lineHeight: 18,
+    color: "#524440",
+    marginTop: 3,
   },
-  clipCardNotesPreviewText: {
-    fontSize: 11,
-    lineHeight: 15,
-    color: "#B8A8A3",
-    flex: 1,
+  // Measurement twin: occupies no space and paints nothing.
+  clipNoteLineMeasure: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    opacity: 0,
+    zIndex: -1,
+  },
+  clipNoteLineMore: {
+    fontFamily: "PlusJakartaSans_600SemiBold",
+    fontSize: 10.5,
+    color: colors.primaryDeep,
+    marginTop: 2,
   },
   clipCardTagsRow: {
     flexDirection: "row",

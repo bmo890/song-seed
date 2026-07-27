@@ -339,9 +339,46 @@ export const songDetailHistoryStyles = {
   },
   songDetailStemRow: {
     position: "relative",
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 9,
     paddingVertical: 5,
     paddingRight: 4,
     borderRadius: 8,
+  },
+  // Transport sits before the copy and owns its own hit area, so it keeps
+  // working in selection mode (audition a candidate before committing).
+  songDetailStemPlay: {
+    width: 18,
+    height: 18,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 1,
+    flexShrink: 0,
+  },
+  songDetailStemScrubRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginTop: 6,
+  },
+  songDetailStemScrubTrack: {
+    flex: 1,
+  },
+  songDetailStemCheck: {
+    width: 16,
+    height: 16,
+    borderRadius: radii.round,
+    borderWidth: 1.5,
+    borderColor: colors.textMuted,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 2,
+    flexShrink: 0,
+  },
+  songDetailStemCheckOn: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   songDetailStemRowSelected: {
     backgroundColor: "rgba(184,125,107,0.10)",
@@ -364,6 +401,7 @@ export const songDetailHistoryStyles = {
     borderColor: "#B87D6B",
   },
   songDetailStemRowBody: {
+    flex: 1,
     minWidth: 0,
   },
   songDetailStemRowTop: {
@@ -390,14 +428,6 @@ export const songDetailHistoryStyles = {
     fontSize: 11,
     color: "#A89994",
     fontVariant: ["tabular-nums"],
-  },
-  // A version's note — content you wrote, so it earns the serif (true italic face).
-  songDetailStemNote: {
-    fontFamily: "Lora_500Medium_Italic",
-    fontSize: 12,
-    lineHeight: 16,
-    color: "#524440",
-    marginTop: 1,
   },
   songDetailStemFoldText: {
     fontFamily: "PlusJakartaSans_600SemiBold",
