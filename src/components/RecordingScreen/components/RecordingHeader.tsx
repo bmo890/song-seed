@@ -1,18 +1,21 @@
 import React from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
-import { dirIcon } from "../../../design/directionalIcons";
-import { colors, radii } from "../../../design/tokens";
+import { StyleSheet, Text, View } from "react-native";
+import { IconButton } from "../../common/IconButton";
+import { colors } from "../../../design/tokens";
 import { useTranslation } from "react-i18next";
 import { UserText } from "../../../i18n";
 
 type RecordingHeaderProps = {
   eyebrow: string | null;
+  /** One-word form of the eyebrow, used by the collapsed header where the whole
+   *  destination has to fit on the nav row. */
+  eyebrowShort?: string | null;
   title: string;
   titleIsPlaceholder: boolean;
   controlsDisabled: boolean;
-  /** Slim down to just the nav row (drop eyebrow + title) — used when the lyrics
-   * panel is expanded so the lyrics get the reclaimed height. */
+  /** Collapse to a single nav row — the destination rides it in small serif so
+   *  you never lose sight of where the take is going, and the reclaimed height
+   *  goes to the lyrics. */
   collapsed?: boolean;
   onBack: () => void;
   onMinimize: () => void;
@@ -22,6 +25,7 @@ type RecordingHeaderProps = {
 
 export function RecordingHeader({
   eyebrow,
+  eyebrowShort,
   title,
   titleIsPlaceholder,
   controlsDisabled,
@@ -35,56 +39,69 @@ export function RecordingHeader({
   return (
     <View style={[localStyles.zone, collapsed ? localStyles.zoneCollapsed : null]}>
       <View style={localStyles.topRow}>
-        <Pressable
-          style={({ pressed }) => [localStyles.backBtn, pressed ? localStyles.pressDown : null]}
+        {/* Bare caret. The word "Back" was the only text button in the app's
+            chrome, and this screen already asks a lot of the eye. */}
+        <IconButton
+          icon="chevron-back"
+          tone="strong"
+          size={22}
           onPress={onBack}
-        >
-          <Ionicons name={dirIcon("chevron-back")} size={14} color={colors.textStrong} />
-          <Text style={localStyles.backBtnText}>{t("common.back")}</Text>
-        </Pressable>
+          accessibilityLabel={t("recording.back")}
+        />
 
+        {collapsed ? (
+          <View style={localStyles.collapsedDest}>
+            {eyebrowShort ? (
+              <Text style={localStyles.eyebrowTextShort} numberOfLines={1}>
+                {eyebrowShort}
+              </Text>
+            ) : null}
+            <UserText
+              style={[
+                localStyles.collapsedTitle,
+                titleIsPlaceholder ? localStyles.collapsedTitleAuto : null,
+              ]}
+              numberOfLines={1}
+            >
+              {title}
+            </UserText>
+          </View>
+        ) : (
+          <View style={localStyles.spacer} />
+        )}
+
+        {/* Glyphs, not tinted circles — the record button is the only circle on
+            this page (see docs/design-system.md, recording screen). */}
         <View style={localStyles.actionRow}>
-          <Pressable
-            style={({ pressed }) => [localStyles.actionBtn, pressed ? localStyles.pressDown : null]}
+          <IconButton
+            icon="help-circle-outline"
+            tone="muted"
+            size={19}
             onPress={onHelp}
-            accessibilityRole="button"
             accessibilityLabel={t("recording.help")}
-          >
-            <Ionicons name="help-circle-outline" size={18} color={colors.textStrong} />
-          </Pressable>
-
-          <Pressable
-            style={({ pressed }) => [localStyles.actionBtn, pressed ? localStyles.pressDown : null]}
+          />
+          <IconButton
+            icon="remove"
+            tone="muted"
+            size={20}
             onPress={onMinimize}
-            accessibilityRole="button"
             accessibilityLabel={t("recording.minimize")}
-          >
-            <Ionicons name="remove" size={18} color={colors.textStrong} />
-          </Pressable>
-
-          <Pressable
-            style={({ pressed }) => [
-              localStyles.actionBtn,
-              controlsDisabled ? localStyles.actionBtnDisabled : null,
-              pressed ? localStyles.pressDown : null,
-            ]}
-            onPress={onOpenSettings}
+          />
+          <IconButton
+            icon="ellipsis-horizontal"
+            tone="muted"
+            size={20}
             disabled={controlsDisabled}
-          >
-            <Ionicons
-              name="ellipsis-horizontal"
-              size={16}
-              color={controlsDisabled ? colors.textMuted : colors.textPrimary}
-            />
-          </Pressable>
+            onPress={onOpenSettings}
+            accessibilityLabel={t("recording.settings")}
+          />
         </View>
       </View>
 
       {!collapsed && eyebrow ? (
-        <View style={localStyles.eyebrowRow}>
-          <View style={localStyles.eyebrowDot} />
-          <Text style={localStyles.eyebrowText}>{eyebrow}</Text>
-        </View>
+        // No dot: the eyebrow is a landmark, not a status light, and terracotta
+        // is reserved for the action. Same treatment as SKETCH on the sketch page.
+        <Text style={localStyles.eyebrowText}>{eyebrow}</Text>
       ) : null}
 
       {!collapsed ? (
@@ -101,7 +118,7 @@ export function RecordingHeader({
 
 const localStyles = StyleSheet.create({
   zone: {
-    gap: 6,
+    gap: 3,
     marginBottom: 12,
   },
   zoneCollapsed: {
@@ -111,57 +128,53 @@ const localStyles = StyleSheet.create({
   topRow: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
+    gap: 8,
+    minHeight: 34,
   },
-  backBtn: {
+  spacer: {
+    flex: 1,
+  },
+  collapsedDest: {
+    flex: 1,
+    minWidth: 0,
     flexDirection: "row",
     alignItems: "center",
-    gap: 4,
-    minHeight: 32,
-    paddingHorizontal: 4,
-  },
-  backBtnText: {
-    fontFamily: "PlusJakartaSans_600SemiBold",
-    fontSize: 13,
-    color: colors.textStrong,
+    gap: 7,
   },
   actionRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
-  },
-  actionBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: radii.round,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: colors.surfaceContainer,
-  },
-  actionBtnDisabled: {
-    opacity: 0.55,
-  },
-  pressDown: {
-    opacity: 0.9,
-    transform: [{ scale: 0.985 }],
-  },
-  eyebrowRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  eyebrowDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: colors.primary,
+    gap: 14,
   },
   eyebrowText: {
     fontFamily: "PlusJakartaSans_600SemiBold",
     fontSize: 10,
-    color: colors.textSecondary,
+    lineHeight: 14,
+    color: colors.textMuted,
     textTransform: "uppercase",
     letterSpacing: 0.8,
+    marginTop: 8,
+  },
+  eyebrowTextShort: {
+    fontFamily: "PlusJakartaSans_700Bold",
+    fontSize: 9,
+    color: colors.textMuted,
+    textTransform: "uppercase",
+    letterSpacing: 1,
+    flexShrink: 0,
+  },
+  collapsedTitle: {
+    flex: 1,
+    minWidth: 0,
+    fontFamily: "Lora_500Medium",
+    fontSize: 15,
+    color: colors.textPrimary,
+  },
+  collapsedTitleAuto: {
+    fontFamily: "PlusJakartaSans_500Medium",
+    fontSize: 13.5,
+    color: colors.textSecondary,
+    fontVariant: ["tabular-nums"],
   },
   title: {
     fontFamily: "Lora_600SemiBold",

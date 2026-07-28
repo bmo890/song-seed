@@ -141,6 +141,15 @@ export function useRecordingScreenModel() {
           ? t("recording.newRecording")
           : t("recording.recordingInto")
         : null;
+  // One word for the collapsed header, where the destination has to share the
+  // nav row with the caret and the utility glyphs.
+  const headerEyebrowShort = recordingOverdubClip
+    ? t("recording.overShort")
+    : recordingParentClip
+      ? t("recording.versionShort")
+      : recordingIdea
+        ? t("recording.intoShort")
+        : null;
   const latestLyricsVersion = recordingIdea?.kind === "project" ? getLatestLyricsVersion(recordingIdea) : null;
   const latestLyricsText = lyricsDocumentToText(latestLyricsVersion?.document);
   const hasProjectLyrics = recordingIdea?.kind === "project" && latestLyricsText.trim().length > 0;
@@ -1764,6 +1773,7 @@ export function useRecordingScreenModel() {
     recordingIdea,
     recordingOverdubClip,
     headerEyebrow,
+    headerEyebrowShort,
     headerTitlePlaceholder,
     recordingParentClip,
     latestLyricsVersion,
