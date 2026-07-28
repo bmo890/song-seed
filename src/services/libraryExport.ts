@@ -680,6 +680,8 @@ function buildArchiveSongManifest(
         completionPct: idea.completionPct,
         isBookmarked: !!idea.isBookmarked,
         historyIncluded: options.includeFullSongHistory,
+        songGrid: idea.songGrid,
+        songGridUpdatedAt: idea.songGridUpdatedAt,
         clips: [],
     };
 

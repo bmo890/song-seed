@@ -89,8 +89,10 @@ export function RecordingScreen() {
         <RecordingHeader
           eyebrow={screen.headerEyebrow}
           eyebrowShort={screen.headerEyebrowShort}
-          // A new version names the take it grows from, not just the sketch.
+          // Name the thing the take actually attaches to: the clip being
+          // layered on, else the take being versioned, else the sketch.
           title={
+            screen.recordingOverdubClip?.title ||
             screen.recordingParentClip?.title ||
             screen.recordingIdea?.title ||
             t("recording.title")

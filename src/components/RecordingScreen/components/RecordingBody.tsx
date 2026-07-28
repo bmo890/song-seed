@@ -151,7 +151,9 @@ export function RecordingBody({
         ) : null}
 
         <RecordingMeta
-          ideaTitle={recordingOverdubClip ? t("recording.layerOn", { title: recordingOverdubClip.title }) : ""}
+          // The header already says LAYER · <clip>; this used to repeat it as
+          // "Layer on <clip>" directly underneath.
+          ideaTitle=""
           isRecording={isRecording}
           isPaused={isPaused}
           elapsedMs={elapsedMs}

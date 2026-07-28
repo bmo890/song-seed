@@ -14,6 +14,8 @@ import {
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { Feather, Ionicons } from "@expo/vector-icons";
 import { PlaybackTapeVisualizer } from "../visualizers/PlaybackTapeVisualizer";
+import { GridRulerLabels } from "./GridRulerLabels";
+import { buildGridRulerModel, type GridRulerGrid } from "../../domain/gridRuler";
 import { MinimapVisualizer } from "../visualizers/MinimapVisualizer";
 import type { SectionBand } from "../../domain/playerSections";
 import { fmt } from "../../utils";
@@ -205,6 +207,9 @@ type Props = {
     selectedRanges?: Range[];
     practiceMarkers?: PracticeMarkerPreview[];
     sectionBands?: SectionBand[];
+    /** The take's beat grid — draws the manuscript ruler (bars/beats/changes) on the
+     *  tape. Absent or untrustworthy grids draw nothing (the model gates honesty). */
+    grid?: GridRulerGrid | null;
     sharedSelectedRangeStartMs?: SharedValue<number>;
     sharedSelectedRangeEndMs?: SharedValue<number>;
     selectedRangeType?: "keep" | "remove";
@@ -262,6 +267,7 @@ export function AudioReel({
     selectedRanges,
     practiceMarkers,
     sectionBands,
+    grid,
     sharedSelectedRangeStartMs,
     sharedSelectedRangeEndMs,
     selectedRangeType,
@@ -428,6 +434,11 @@ export function AudioReel({
     const pendingLayerStyle = useAnimatedStyle(() => ({ opacity: 1 - waveOpacity.value }));
 
     const pixelsPerMs = durationMs > 0 ? (displayWaveformPeaks.length * 3) / durationMs : 0;
+    // Ruler density follows zoom via pixelsPerMs; positions stay in file ms.
+    const gridRulerModel = React.useMemo(
+        () => buildGridRulerModel({ grid: grid ?? null, durationMs, pixelsPerMs }),
+        [grid, durationMs, pixelsPerMs]
+    );
     const showMinimap =
         showMinimapMode === "always"
             ? true
@@ -755,6 +766,7 @@ export function AudioReel({
                             selectedRanges={selectedRanges}
                             practiceMarkers={practiceMarkers}
                             sectionBands={sectionBands}
+                            gridRuler={gridRulerModel}
                             sharedSelectedRangeStartMs={sharedSelectedRangeStartMs}
                             sharedSelectedRangeEndMs={sharedSelectedRangeEndMs}
                             selectedRangeType={selectedRangeType}
@@ -774,6 +786,18 @@ export function AudioReel({
                             }}
                         />
                     </AnimatedView>
+
+                    {gridRulerModel ? (
+                        <View style={StyleSheet.absoluteFill} pointerEvents="none">
+                            <GridRulerLabels
+                                model={gridRulerModel}
+                                pixelsPerMs={pixelsPerMs}
+                                timelineTranslateX={timelineTranslateX}
+                                timelineScale={timelineScale}
+                                color={palette.utilityIconColor}
+                            />
+                        </View>
+                    ) : null}
 
                     {renderOverlay ? (
                         <View style={[StyleSheet.absoluteFill, audioReelStyles.overlayLayer]} pointerEvents="box-none">

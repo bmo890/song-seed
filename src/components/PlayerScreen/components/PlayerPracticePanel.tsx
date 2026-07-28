@@ -92,6 +92,11 @@ type PlayerPracticePanelProps = {
   countInOption: CountInOption;
   onSelectCountIn: (option: CountInOption) => void;
 
+  // Playback click (the take's own beat grid, clicking along)
+  clickAvailable: boolean;
+  clickEnabled: boolean;
+  onSetClickEnabled: (enabled: boolean) => void;
+
   // Capture
   onRecordOverdub: () => void;
   /** Record a layer punched in at a specific song position (section start / pin). */
@@ -99,10 +104,11 @@ type PlayerPracticePanelProps = {
 };
 
 
-const SETTING_META: Record<"speed" | "pitch" | "countin", { icon: keyof typeof Ionicons.glyphMap; labelKey: string }> = {
+const SETTING_META: Record<"speed" | "pitch" | "countin" | "click", { icon: keyof typeof Ionicons.glyphMap; labelKey: string }> = {
   speed: { icon: "speedometer-outline", labelKey: "player.speed" },
   pitch: { icon: "musical-notes-outline", labelKey: "player.pitch" },
   countin: { icon: "timer-outline", labelKey: "player.countIn" },
+  click: { icon: "pulse-outline", labelKey: "player.click" },
 };
 
 export function PlayerPracticePanel({
@@ -153,6 +159,9 @@ export function PlayerPracticePanel({
   onAdjustPitchShift,
   countInOption,
   onSelectCountIn,
+  clickAvailable,
+  clickEnabled,
+  onSetClickEnabled,
   onRecordOverdub,
   onRecordLayerAt,
 }: PlayerPracticePanelProps) {
@@ -194,14 +203,15 @@ export function PlayerPracticePanel({
     ? "—"
     : `${pitchShiftSemitones > 0 ? "+" : ""}${pitchShiftSemitones}`;
   const countInValue = countInOption === "off" ? t("player.off") : t("player.bars", { count: countInOption === "1b" ? 1 : 2 });
+  const clickValue = !clickAvailable ? "—" : clickEnabled ? t("player.on") : t("player.off");
 
-  const settingValues = { speed: speedValue, pitch: pitchValue, countin: countInValue };
-  const settingOrder: ("speed" | "pitch" | "countin")[] = ["speed", "pitch", "countin"];
+  const settingValues = { speed: speedValue, pitch: pitchValue, countin: countInValue, click: clickValue };
+  const settingOrder: ("speed" | "pitch" | "countin" | "click")[] = ["speed", "pitch", "countin", "click"];
   // Only the bottom settings tools open as a backdrop popover. Listing them explicitly
   // avoids accidentally treating accordion tools (pins/loop/sections) as popovers — doing so
   // drops a full-screen onClose backdrop over their controls and eats every tap.
   const popoverTool =
-    expandedTool === "speed" || expandedTool === "pitch" || expandedTool === "countin"
+    expandedTool === "speed" || expandedTool === "pitch" || expandedTool === "countin" || expandedTool === "click"
       ? expandedTool
       : null;
 
@@ -275,6 +285,30 @@ export function PlayerPracticePanel({
           />
         </View>
       );
+    }
+    if (popoverTool === "click") {
+      if (!clickAvailable) {
+        return <Text style={s.analysisHint}>{t("player.clickUnavailable")}</Text>;
+      }
+      return (
+        <View style={s.toolChipRow}>
+          <Chip
+            label={t("player.off")}
+            active={!clickEnabled}
+            onPress={() => onSetClickEnabled(false)}
+          />
+          <Chip
+            label={t("player.on")}
+            active={clickEnabled}
+            onPress={() => onSetClickEnabled(true)}
+          />
+        </View>
+      );
+    }
+    // Count-in counts in the take's own tempo — without a beat grid there is nothing
+    // to count.
+    if (!clickAvailable) {
+      return <Text style={s.analysisHint}>{t("player.clickUnavailable")}</Text>;
     }
     return (
       <View style={s.toolChipRow}>

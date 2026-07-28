@@ -16,6 +16,7 @@ import type {
     Songbook,
     SongChordPaletteItem,
 } from "../types";
+import type { TempoMap } from "../domain/tempoMap";
 
 /**
  * Single source of truth for the SongNook Archive (`manifest.json`) shape, shared by the
@@ -126,6 +127,10 @@ export type ArchiveSongManifest = {
     /** Latest lyric text (human-readable, also written as Lyrics.txt). */
     lyrics?: string;
     historyIncluded: boolean;
+    /** The sketch's planned beat grid (tempo map). Written in all fidelities — tiny, and
+     *  it's what lets a recipient record against the sender's plan. */
+    songGrid?: TempoMap;
+    songGridUpdatedAt?: number;
     clips: ArchiveClipManifest[];
     // ── Full-fidelity only ──
     status?: IdeaStatus;

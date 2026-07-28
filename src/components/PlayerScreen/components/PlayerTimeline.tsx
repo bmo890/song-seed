@@ -9,7 +9,7 @@ import { MultiTimeRangeSelector } from "../../common/TimeRangeSelector";
 import { OverdubLayerLanes, type OverdubLayerLane } from "../../common/OverdubLayerLanes";
 import { PracticePinBadges } from "../PracticePinBadges";
 import { SectionLabelBadges } from "../SectionLabelBadges";
-import type { PracticeMarker, ClipSection } from "../../../types";
+import type { PracticeMarker, ClipSection, RecordingGrid } from "../../../types";
 import { buildSectionBands } from "../../../domain/playerSections";
 import { haptic } from "../../../design/haptics";
 import { colors } from "../../../design/tokens";
@@ -60,6 +60,8 @@ type Props = {
   practiceLoopSelection: Range[];
   practiceMarkers: PracticeMarker[];
   sections: ClipSection[];
+  /** The take's beat grid — draws bars/beats/tempo changes on the reel. */
+  recordingGrid?: RecordingGrid | null;
   /** Un-flattened overdub layers, drawn as slim lanes under the reel so their placement
    *  on the master's timeline is visible at a glance. */
   overdubLayerLanes?: OverdubLayerLane[];
@@ -214,6 +216,7 @@ function PlayerTimelineInner({
   practiceLoopSelection,
   practiceMarkers,
   sections,
+  recordingGrid,
   overdubLayerLanes,
   draggingMarkerId,
   draggingMarkerX,
@@ -291,6 +294,7 @@ function PlayerTimelineInner({
       selectedRanges={mode === "practice" && practiceLoopEnabled ? practiceLoopSelection : undefined}
       practiceMarkers={mode === "practice" ? practiceMarkers : undefined}
       sectionBands={sectionBands}
+      grid={recordingGrid}
       sharedSelectedRangeStartMs={mode === "practice" && practiceLoopEnabled ? sharedLoopPreviewStartMs : undefined}
       sharedSelectedRangeEndMs={mode === "practice" && practiceLoopEnabled ? sharedLoopPreviewEndMs : undefined}
       selectedRangeType={previewRange?.type}

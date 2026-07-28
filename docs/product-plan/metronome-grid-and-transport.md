@@ -1,6 +1,9 @@
 # Metronome, Grid & Transport — master plan
 
-Status: **PLANNED 2026-07-28** — nothing below is built unless marked otherwise.
+Status: **Phases A + B DONE, C BUILT 2026-07-28** (TempoMap domain model; reel grid
+ruler live in the full player; playback click + real count-in built — JS layer
+sim-verified, native `startAtPhase` UNVERIFIED pending rebuild). Everything else
+below is unbuilt unless marked otherwise.
 Owner intent: turn the metronome from a well-engineered sibling feature into the
 app's musical timebase — DAW-trustworthy, grid-tied recording *and* playback,
 pre-programmable tempo/meter changes, bars on the reel.
@@ -436,9 +439,53 @@ Handover rules for whichever model continues this (Fable 5 or Opus 5):
 
 Phase status:
 
-- [ ] A — TempoMap model
-- [ ] B — Reel grid ruler
-- [ ] C — Playback click + count-in
+- [x] A — TempoMap model (2026-07-28: `src/domain/tempoMap.ts` + tests;
+      `RecordingGrid.tempoMap` + `SongIdea.songGrid`/`songGridUpdatedAt`;
+      `setSongGrid` action; `normalizeRecordingGrid` sanitizes the map and
+      enforces bpm/meterId ⇄ segment-1 mirroring; archive manifest/export/import
+      carry both fields in all fidelities; round-trip tests extended.
+      tsc clean, 609/609 jest green.)
+- [x] B — Reel grid ruler (2026-07-28: `src/domain/gridRuler.ts` model + 7 tests
+      (density steps, honesty gates, tempo-change positions); Skia
+      `GridRulerOverlay` in PlaybackTapeVisualizer (bar hairlines, bottom beat
+      ticks, change-marker lines, pre-roll shade; SUPPRESSES the seconds tick
+      ruler when a grid exists — bars are the ruler); `GridRulerLabels` RN
+      overlay (bar numbers + "meter · bpm" change labels, token fonts, top
+      edge — sections keep the bottom); AudioReel `grid` prop builds the model
+      (minimap deliberately excluded — noise at that scale); wired
+      PlayerTimeline ← PlayerScreen `playerClip.recordingGrid`.
+      Verified on iPhone 17 sim (RTL locale): metronome take (92 · 3/4, 1-bar
+      count-in) shows bars 1-4 + numbers + beat ticks at the follow-window
+      zoom with bar 1 exactly at t=0 (head trim held); grid-less clip
+      unchanged. Deferred to later phases: ruler on the LIVE recording tape
+      (Phase C/E surface) and scrub snap-to-bar (open decision §9.5).
+      tsc clean, 616/616 jest green.)
+- [x] C — Playback click + count-in (2026-07-28, BUILT; audible-alignment
+      verification pending native rebuild + device listening test):
+      `src/domain/playbackClick.ts` (+8 tests: rate-scaled engine params,
+      wall/content conversion, boundary + gridValidToMs stops, range refusal);
+      native `startAtPhase(offsetMs)` + `supportsPhaseStart()` on BOTH engines
+      (iOS: sample-exact tail-slice-then-loop schedule + `phaseOffsetFrames`
+      through poll/anchor; Android: static-track head preset, refactored
+      `startInternal`); `src/hooks/usePlaybackClick.ts` — direct-module hook
+      (NEVER through useMetronome/store: that would clobber the user's saved
+      metronome settings), sync on play/seek/rate, next-bar JS fallback on old
+      binaries, segment-boundary + validTo timers, 10s drift check vs grid
+      anchor (logged — the Phase F KPI), count-in→play handoff; UI: practice
+      panel Click tile (On/Off, hint "Recorded without the metronome." when no
+      grid — avoids the un-decided user-facing word for "grid"), count-in
+      gated on the same availability, `countInOption` FINALLY consumed via
+      `handleTogglePlayWithCountIn` (tap during count-in = cancel), all seeks
+      route through `handleSeekWithClick`. Sim-verified on current binary:
+      Click/count-in tiles + availability gates, count-in delays play then
+      playback starts, cancel-on-tap. v1 limits (accepted): scaled bpm outside
+      40–240 = click unavailable at that rate (no subdivision fallback);
+      count-in from mid-bar restarts click at position phase (small seam);
+      loop-wrap resync rides the drift check, not notifySeek.
+      tsc clean, 624/624 jest green.
+      NOTE: during sim verification a JS reload once booted an empty library
+      and the disaster-recovery restore recovered everything (spawned
+      investigation task) — watch for recurrence.
 - [ ] D — Grid programming UX (blocked on metronome UI redesign)
 - [ ] E — Scheduled-click engines
 - [ ] F — Shared transport (long-horizon)

@@ -209,6 +209,13 @@ function buildLibrary(): { workspaces: Workspace[]; idea: SongIdea } {
                     clickThroughTake: true,
                     firstDownbeatMs: null,
                     source: "metronome",
+                    tempoMap: {
+                        schemaVersion: 1,
+                        segments: [
+                            { atBar: 1, bpm: 92, meterId: "4/4" },
+                            { atBar: 9, bpm: 120, meterId: "3/4" },
+                        ],
+                    },
                 },
             },
             {
@@ -239,6 +246,14 @@ function buildLibrary(): { workspaces: Workspace[]; idea: SongIdea } {
                 },
             ],
         },
+        songGrid: {
+            schemaVersion: 1,
+            segments: [
+                { atBar: 1, bpm: 92, meterId: "4/4" },
+                { atBar: 17, bpm: 70, meterId: "6/8" },
+            ],
+        },
+        songGridUpdatedAt: 250,
         createdAt: 100,
         lastActivityAt: 300,
     };
@@ -409,7 +424,27 @@ describe("SongNook Archive round-trip — full fidelity", () => {
             clickThroughTake: true,
             firstDownbeatMs: null,
             source: "metronome",
+            tempoMap: {
+                schemaVersion: 1,
+                segments: [
+                    { atBar: 1, bpm: 92, meterId: "4/4" },
+                    { atBar: 9, bpm: 120, meterId: "3/4" },
+                ],
+            },
         });
+    });
+
+    it("round-trips the sketch's planned song grid", async () => {
+        const { workspace } = await exportThenImport(true);
+        const song = workspace.ideas.find((idea) => idea.kind === "project")!;
+        expect(song.songGrid).toEqual({
+            schemaVersion: 1,
+            segments: [
+                { atBar: 1, bpm: 92, meterId: "4/4" },
+                { atBar: 17, bpm: 70, meterId: "6/8" },
+            ],
+        });
+        expect(song.songGridUpdatedAt).toBe(250);
     });
 
     it("re-ids clip groups and keeps their assignments through normalization", async () => {
@@ -525,7 +560,16 @@ describe("SongNook Archive round-trip — standard (lossy)", () => {
             clickThroughTake: true,
             firstDownbeatMs: null,
             source: "metronome",
+            tempoMap: {
+                schemaVersion: 1,
+                segments: [
+                    { atBar: 1, bpm: 92, meterId: "4/4" },
+                    { atBar: 9, bpm: 120, meterId: "3/4" },
+                ],
+            },
         });
+        // The song grid is musically essential and tiny — carried in standard mode too.
+        expect(song.songGrid?.segments).toHaveLength(2);
         // Real peaks are not carried; a deterministic 256-point placeholder is regenerated.
         expect(root.waveformPeaks).toHaveLength(256);
         expect(root.waveformPeaks).not.toEqual(REAL_PEAKS);

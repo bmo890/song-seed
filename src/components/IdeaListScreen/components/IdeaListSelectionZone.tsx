@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { ActionButtons } from "./ActionButtons";
 import { IdeaSelectionBar } from "./IdeaSelectionBar";
 
@@ -36,6 +37,7 @@ export function IdeaListSelectionZone({
   onFloatingDockLayout,
   onSelectionDockLayout,
 }: IdeaListSelectionZoneProps) {
+  const { t } = useTranslation();
   return (
     <>
       {listSelectionMode ? (
@@ -45,7 +47,7 @@ export function IdeaListSelectionZone({
           onPlaySelected={onPlaySelected}
           onAddToQueue={onAddToQueue}
           onToggleHideSelected={onToggleHideSelected}
-          hideActionLabel={selectedHiddenOnly ? "Unhide" : "Hide"}
+          hideActionLabel={t(selectedHiddenOnly ? "common.unhide" : "common.hide")}
           hideActionDisabled={
             selectedHiddenOnly
               ? selectedHiddenIdeaIds.length === 0

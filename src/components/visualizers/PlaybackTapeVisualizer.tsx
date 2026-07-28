@@ -13,6 +13,7 @@ import {
 import { GestureDetector, Gesture } from "react-native-gesture-handler";
 import type { PracticeMarker } from "../../types";
 import type { SectionBand } from "../../domain/playerSections";
+import type { GridRulerModel } from "../../domain/gridRuler";
 import { colors } from "../../design/tokens";
 
 type Props = {
@@ -33,6 +34,8 @@ type Props = {
     selectedRanges?: { id: string; start: number; end: number; type: "keep" | "remove" }[];
     practiceMarkers?: Pick<PracticeMarker, "id" | "atMs">[];
     sectionBands?: SectionBand[];
+    /** Beat-grid ruler primitives (file-ms space) — manuscript lines under the wave. */
+    gridRuler?: GridRulerModel | null;
     sharedSelectedRangeStartMs?: SharedValue<number>;
     sharedSelectedRangeEndMs?: SharedValue<number>;
     selectedRangeType?: "keep" | "remove";
@@ -159,6 +162,74 @@ function LoopRangeOverlay({
     );
 }
 
+/**
+ * Manuscript ruling: hairline bar lines, short beat ticks along the bottom edge, a
+ * slightly stronger line where the tempo/meter changes, and a whisper of shading over
+ * retained pre-roll. Drawn in base-content coordinates inside the scaled group, so it
+ * scrolls and zooms with the wave. Where the grid stopped being trustworthy
+ * (`validToMs`) the model simply carries no primitives — absence is the signal.
+ */
+function GridRulerOverlay({
+    heightValue,
+    model,
+    pixelsPerMs,
+    inkColor,
+}: {
+    heightValue: SharedValue<number>;
+    model: GridRulerModel;
+    pixelsPerMs: number;
+    inkColor: string;
+}) {
+    const beatTickY = useDerivedValue(() => Math.max(0, heightValue.value - 8));
+    return (
+        <>
+            {model.preRollEndMs != null ? (
+                <Rect
+                    x={0}
+                    y={0}
+                    width={model.preRollEndMs * pixelsPerMs}
+                    height={heightValue}
+                    color={inkColor}
+                    opacity={0.1}
+                />
+            ) : null}
+            {model.barLines.map((line) => (
+                <Rect
+                    key={`bar-${line.bar}`}
+                    x={line.ms * pixelsPerMs}
+                    y={0}
+                    width={1}
+                    height={heightValue}
+                    color={inkColor}
+                    opacity={0.38}
+                />
+            ))}
+            {model.beatTicks.map((tickMs) => (
+                <Rect
+                    key={`beat-${tickMs}`}
+                    x={tickMs * pixelsPerMs}
+                    y={beatTickY}
+                    width={1}
+                    height={8}
+                    color={inkColor}
+                    opacity={0.28}
+                />
+            ))}
+            {model.changeMarkers.map((marker) => (
+                <Rect
+                    key={`change-${marker.bar}`}
+                    x={marker.ms * pixelsPerMs}
+                    y={0}
+                    width={1.5}
+                    height={heightValue}
+                    color={inkColor}
+                    opacity={0.6}
+                />
+            ))}
+        </>
+    );
+}
+
 function SectionBandOverlay({
     heightValue,
     bands,
@@ -238,6 +309,7 @@ export function PlaybackTapeVisualizer({
     selectedRanges,
     practiceMarkers,
     sectionBands,
+    gridRuler,
     sharedSelectedRangeStartMs,
     sharedSelectedRangeEndMs,
     selectedRangeType = "keep",
@@ -801,13 +873,24 @@ export function PlaybackTapeVisualizer({
                                             pixelsPerMs={durationMs > 0 ? baseContentWidth / durationMs : 0}
                                         />
                                     ) : null}
-                                    <Path
-                                        path={rulerPath}
-                                        color={rulerColor}
-                                        style="stroke"
-                                        strokeWidth={rulerStrokeWidth}
-                                        opacity={0.7}
-                                    />
+                                    {gridRuler ? (
+                                        <GridRulerOverlay
+                                            heightValue={heightSV}
+                                            model={gridRuler}
+                                            pixelsPerMs={durationMs > 0 ? baseContentWidth / durationMs : 0}
+                                            inkColor={rulerColor}
+                                        />
+                                    ) : (
+                                        // Clock ticks are the fallback ruler; when the take has a
+                                        // beat grid, bars ARE the ruler — two rulers is noise.
+                                        <Path
+                                            path={rulerPath}
+                                            color={rulerColor}
+                                            style="stroke"
+                                            strokeWidth={rulerStrokeWidth}
+                                            opacity={0.7}
+                                        />
+                                    )}
                                     {/* Two-tone wave: muted ahead-of-playhead, terracotta played (clipped). */}
                                     <Group transform={waveVerticalTransform}>
                                         <Path

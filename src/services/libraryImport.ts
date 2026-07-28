@@ -32,6 +32,7 @@ import {
     type ArchiveManifest,
 } from "./libraryArchiveManifest";
 import { normalizeBluetoothMonitoringCalibrations } from "../domain/bluetoothMonitoring";
+import { sanitizeTempoMap } from "../domain/tempoMap";
 
 export type PickedLibraryArchiveFile = {
     uri: string;
@@ -533,6 +534,8 @@ export async function materializeSongNookArchiveMerge(
                     lyrics,
                     chordPalette: songManifest.chordPalette,
                     chordSheet: songManifest.chordSheet,
+                    songGrid: sanitizeTempoMap(songManifest.songGrid),
+                    songGridUpdatedAt: songManifest.songGridUpdatedAt,
                     customTags: songManifest.customTags,
                     clipGroups,
                     clipGroupAssignments,

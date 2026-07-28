@@ -12,6 +12,7 @@ import { fmtDuration } from "../../utils";
 import { TransportLayout } from "../common/TransportLayout";
 import { useTransportScrubbing } from "../../hooks/useTransportScrubbing";
 import { usePlayerTransportClock } from "./hooks/usePlayerTransportClock";
+import { usePlaybackClick } from "../../hooks/usePlaybackClick";
 import { usePracticeLoopController } from "./hooks/usePracticeLoopController";
 import { usePlayerSpeedControls } from "./hooks/usePlayerSpeedControls";
 import { usePlayerPins } from "./hooks/usePlayerPins";
@@ -432,6 +433,46 @@ export function PlayerScreen({
     onShowHelp: (topic) => requestAnimationFrame(() => setHelpTopic(topic)),
   });
 
+  // The take's own beat grid, clicking along with playback (and counting in). Reads
+  // the position lazily at sync moments — never re-renders on the transport clock.
+  const playbackClick = usePlaybackClick({
+    grid: playerClip?.recordingGrid ?? null,
+    isPlaying: effectiveIsPlaying,
+    playbackRate: effectivePlaybackRate,
+    getPositionMs: () => playerPositionMsRef.current,
+  });
+
+  // Count-in intercepts only a play START; pausing (and tapping during the count-in
+  // itself) never counts. Falls through to a plain toggle whenever it can't run.
+  const handleTogglePlayWithCountIn = useCallback(() => {
+    if (playbackClick.isCountingIn) {
+      playbackClick.cancelCountIn();
+      return;
+    }
+    const bars = ui.countInOption === "1b" ? 1 : ui.countInOption === "2b" ? 2 : 0;
+    if (effectiveIsPlaying || bars <= 0) {
+      lifecycle.handleTogglePlayPress();
+      return;
+    }
+    void playbackClick
+      .playWithCountIn(bars, () => lifecycle.handleTogglePlayPress())
+      .then((ran) => {
+        if (!ran) {
+          lifecycle.handleTogglePlayPress();
+        }
+      });
+  }, [effectiveIsPlaying, lifecycle, playbackClick, ui.countInOption]);
+
+  // Committed position jumps re-phase the click immediately (drift checks are the
+  // backstop, not the mechanism).
+  const handleSeekWithClick = useCallback(
+    async (timeMs: number) => {
+      await handleLoopAwareSeek(timeMs);
+      playbackClick.notifySeek(timeMs);
+    },
+    [handleLoopAwareSeek, playbackClick]
+  );
+
   // As a sheet (not a route) there's nothing for the system back to pop —
   // intercept Android hardware/gesture back and collapse instead.
   const minimizePlayerRef = React.useRef(lifecycle.minimizePlayer);
@@ -710,12 +751,13 @@ export function PlayerScreen({
                   practiceLoopSelection={practiceLoopSelection}
                   practiceMarkers={ui.markersVisible ? previewedMarkers : EMPTY_MARKERS}
                   sections={ui.markersVisible ? previewedSections : EMPTY_SECTIONS}
+                  recordingGrid={playerClip.recordingGrid ?? null}
                   overdubLayerLanes={overdubLayerLanes}
                   draggingMarkerId={draggingMarkerId}
                   draggingMarkerX={draggingMarkerX}
                   onLoopRangeChange={handleLoopRangeChange}
-                  onSeek={handleLoopAwareSeek}
-                  onTogglePlay={lifecycle.handleTogglePlayPress}
+                  onSeek={handleSeekWithClick}
+                  onTogglePlay={handleTogglePlayWithCountIn}
                   onScrubStateChange={lifecycle.handleScrubStateChange}
                   onRepositionMarker={handleRepositionMarker}
                   onRequestPinActions={handlePinActions}
@@ -856,7 +898,7 @@ export function PlayerScreen({
             repeatEnabled={ui.repeatEnabled}
             queueExpanded={ui.queueExpanded}
             onPreviousTrack={lifecycle.handlePreviousTrack}
-            onTogglePlay={lifecycle.handleTogglePlayPress}
+            onTogglePlay={handleTogglePlayWithCountIn}
             onNextTrack={lifecycle.handleNextTrack}
             onToggleRepeat={() => ui.setRepeatEnabled((value) => !value)}
             onToggleQueueExpanded={() => ui.setQueueExpanded((value) => !value)}
@@ -887,7 +929,7 @@ export function PlayerScreen({
               }}
               practiceLoopEnabled={practiceLoopEnabled}
               practiceRangeLabel={practiceRangeLabel}
-              onSeekLoopStart={() => handleLoopAwareSeek(practiceLoopRange.start)}
+              onSeekLoopStart={() => handleSeekWithClick(practiceLoopRange.start)}
               onMoveLoopToPlayhead={movePracticeLoopToPlayhead}
               onLoopSection={(section) => {
                 if (guardPracticeTool("loop")) handleLoopSection(section);
@@ -900,7 +942,7 @@ export function PlayerScreen({
               onAddPin={() => {
                 if (guardPracticeTool("pins")) handleRequestAddPin();
               }}
-              onSeekPin={handleLoopAwareSeek}
+              onSeekPin={handleSeekWithClick}
               expandedPinId={expandedPinId}
               pinsDurationMs={effectivePlayerDuration}
               onTogglePinExpanded={togglePinExpanded}
@@ -912,7 +954,7 @@ export function PlayerScreen({
               sectionsDurationMs={effectivePlayerDuration}
               editingSectionId={sectionsApi.editingSectionId}
               onAddSection={sectionsApi.handleAddSection}
-              onSeekSection={handleLoopAwareSeek}
+              onSeekSection={handleSeekWithClick}
               onToggleSectionEdit={sectionsApi.handleToggleEdit}
               onEditSection={sectionsApi.handleEditSection}
               onRepositionSectionEdge={sectionsApi.handleRepositionSectionEdge}
@@ -941,6 +983,9 @@ export function PlayerScreen({
               }}
               countInOption={ui.countInOption}
               onSelectCountIn={ui.setCountInOption}
+              clickAvailable={playbackClick.isAvailable}
+              clickEnabled={playbackClick.enabled}
+              onSetClickEnabled={playbackClick.setEnabled}
               onRecordOverdub={handleAddOverdub}
               onRecordLayerAt={handleRecordLayerAt}
             />

@@ -1,5 +1,6 @@
 import { dialogStore, type DialogButton } from "./dialogStore";
 import { actionIcons, type IoniconName } from "./actionIcons";
+import { i18n } from "../../i18n";
 
 type ConfirmOpts = { confirmLabel?: string; cancelLabel?: string; icon?: IoniconName };
 type DestructiveOpts = { confirmLabel?: string; cancelLabel?: string; icon?: IoniconName };
@@ -18,7 +19,7 @@ export const AppAlert = {
       title,
       message,
       buttons: [
-        { label: opts?.cancelLabel ?? "Cancel", style: "cancel" },
+        { label: opts?.cancelLabel ?? i18n.t("common.cancel"), style: "cancel" },
         {
           label: opts?.confirmLabel ?? "Confirm",
           style: "default",
@@ -35,7 +36,7 @@ export const AppAlert = {
       title,
       message,
       buttons: [
-        { label: opts?.cancelLabel ?? "Cancel", style: "cancel" },
+        { label: opts?.cancelLabel ?? i18n.t("common.cancel"), style: "cancel" },
         {
           label: opts?.confirmLabel ?? "Delete",
           style: "destructive",
@@ -51,7 +52,7 @@ export const AppAlert = {
     dialogStore.show({
       title,
       message,
-      buttons: [{ label: "OK", style: "default" }],
+      buttons: [{ label: i18n.t("common.ok"), style: "default" }],
     });
   },
 

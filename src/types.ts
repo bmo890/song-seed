@@ -1,4 +1,5 @@
 import type { MetronomeMeterId } from "./domain/metronome";
+import type { TempoMap } from "./domain/tempoMap";
 
 export type IdeaStatus = "seed" | "sprout" | "stem" | "song" | "clip";
 
@@ -392,8 +393,13 @@ export type RecordingGridSource = "metronome" | "detected" | "manual";
  *  metronome settings changing later, travels with the clip through archive/share, and
  *  presets the metronome when the user returns to overdub or re-record. */
 export type RecordingGrid = {
+  /** Tempo/meter of segment 1. REQUIRED and always mirrors `tempoMap.segments[0]` when a
+   *  map is present, so every reader built before tempo maps keeps working untouched. */
   bpm: number;
   meterId: MetronomeMeterId;
+  /** Full musical timebase when the take has tempo/meter changes. Absent = the constant
+   *  bpm/meterId grid above (bridge via `gridTempoMap()`, never read segments directly). */
+  tempoMap?: TempoMap;
   /** Count-in bars used for this take (0 = none). Kept for re-record parity. */
   countInBars: number;
   /** Whether the click sounded through the take (vs count-in only). */
@@ -509,6 +515,11 @@ export type SongIdea = {
   customTags?: CustomTagDefinition[];
   clipGroups?: ClipGroup[];
   clipGroupAssignments?: Record<string, string>;
+  /** The sketch's planned beat grid (tempo/meter + programmed changes). The PLAN future
+   *  takes record against — each take still freezes its own `recordingGrid` snapshot at
+   *  record start, and editing this never rewrites existing takes. */
+  songGrid?: TempoMap;
+  songGridUpdatedAt?: number;
   /** True while the title is still machine-supplied (an auto timestamp, or the
    *  filename an import arrived with) and the musician has not named it.
    *  Renaming sets this false. Drives the earned-serif rule. */

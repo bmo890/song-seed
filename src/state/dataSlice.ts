@@ -50,6 +50,7 @@ import { createWordLadderExercise } from "../domain/wordLadder";
 import { createCutUpSpark } from "../domain/cutUp";
 import { createMagpieSpark } from "../domain/magpie";
 import { sanitizeChordSheet } from "../domain/chordSheet";
+import { normalizeTempoMap, sanitizeTempoMap, tempoMapEquals, type TempoMap } from "../domain/tempoMap";
 import { genChildClipTitle, genId, genRootClipTitle } from "../utils";
 import { buildClipGraph } from "../domain/clipGraph";
 import type { SelectionSlice } from "./selectionSlice";
@@ -209,6 +210,9 @@ export type DataSlice = {
     deleteClipGroup: (ideaId: string, groupId: string) => void;
     setClipGroupCollapsed: (ideaId: string, groupId: string, collapsed: boolean) => void;
     assignLineageToClipGroup: (ideaId: string, lineageRootClipId: string, groupId: string | null) => void;
+    /** Set or clear a sketch's planned beat grid. Never touches existing takes'
+     *  frozen `recordingGrid` snapshots. */
+    setSongGrid: (ideaId: string, songGrid: TempoMap | undefined) => void;
     addProjectCustomTag: (ideaId: string, tag: CustomTagDefinition) => void;
     removeProjectCustomTag: (ideaId: string, tagKey: string) => void;
     addGlobalCustomClipTag: (tag: CustomTagDefinition) => void;
@@ -621,9 +625,15 @@ function normalizeRecordingGrid(grid: RecordingGrid | undefined | null): Recordi
         return undefined;
     }
 
+    // Invariant: bpm/meterId always mirror the map's first segment, so readers built
+    // before tempo maps stay correct. A valid map is the richer record — it wins.
+    const tempoMap = sanitizeTempoMap(grid.tempoMap);
+    const firstSegment = tempoMap?.segments[0];
+
     return {
-        bpm: clampMetronomeBpm(grid.bpm),
-        meterId: grid.meterId,
+        bpm: firstSegment ? firstSegment.bpm : clampMetronomeBpm(grid.bpm),
+        meterId: firstSegment ? firstSegment.meterId : grid.meterId,
+        ...(tempoMap ? { tempoMap } : {}),
         countInBars: Number.isFinite(grid.countInBars) ? Math.max(0, Math.round(grid.countInBars)) : 0,
         clickThroughTake: Boolean(grid.clickThroughTake),
         firstDownbeatMs:
@@ -801,6 +811,7 @@ function normalizeIdea(idea: SongIdea): SongIdea {
         clips: idea.clips.map(normalizeClip),
         chordPalette: normalizedChordPalette,
         chordSheet: sanitizeChordSheet(idea.chordSheet),
+        songGrid: idea.songGrid ? sanitizeTempoMap(idea.songGrid) : undefined,
         importedAt: normalizeOptionalTimestamp(idea.importedAt),
         sourceCreatedAt: normalizeOptionalTimestamp(idea.sourceCreatedAt),
         isBookmarked: Boolean(idea.isBookmarked ?? legacyFavorite),
@@ -1725,6 +1736,21 @@ export const createDataSlice: StateCreator<
                 ideas: workspace.ideas.map((idea) =>
                     idea.id === ideaId ? { ...idea, isBookmarked: !idea.isBookmarked } : idea
                 ),
+            })),
+        }));
+    },
+
+    setSongGrid: (ideaId, songGrid) => {
+        const nextGrid = songGrid ? normalizeTempoMap(songGrid) : undefined;
+        set((state) => ({
+            workspaces: state.workspaces.map((workspace) => ({
+                ...workspace,
+                ideas: workspace.ideas.map((idea) => {
+                    if (idea.id !== ideaId || tempoMapEquals(idea.songGrid, nextGrid)) {
+                        return idea;
+                    }
+                    return { ...idea, songGrid: nextGrid, songGridUpdatedAt: Date.now() };
+                }),
             })),
         }));
     },

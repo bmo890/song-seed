@@ -23,7 +23,7 @@ type IdeaSelectionBarProps = {
   onPlaySelected: () => void;
   onAddToQueue: () => void;
   onToggleHideSelected: () => void;
-  hideActionLabel: "Hide" | "Unhide";
+  hideActionLabel: string;
   hideActionDisabled?: boolean;
   onDeleteSelected: () => void;
   onEditSelected?: () => void;
@@ -421,13 +421,13 @@ export function IdeaSelectionBar({
       });
       actions.push({
         key: "copy",
-        label: "Copy",
+        label: t("common.copyAction"),
         icon: "copy-outline",
         onPress: () => handleClipboardAction("copy"),
       });
       actions.push({
         key: "move",
-        label: "Move",
+        label: t("common.moveAction"),
         icon: "arrow-forward-outline",
         onPress: () => handleClipboardAction("move"),
       });
