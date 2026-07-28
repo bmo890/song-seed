@@ -366,12 +366,15 @@ export const recordingStyles = {
     color: "#84736f",
     fontFamily: "PlusJakartaSans_500Medium",
   },
+  // Paper, not a display. The reel used to sit on a grey slab, which read as a
+  // dead box before you'd recorded anything; the centre rule, the time ticks and
+  // the parked playhead are what say "ready".
   liveWaveWrap: {
     marginTop: 0,
     marginBottom: 0,
     marginHorizontal: -28,
-    backgroundColor: "#F4F1ED",
-    borderRadius: 4,
+    backgroundColor: "transparent",
+    borderRadius: 0,
     justifyContent: "center",
     paddingHorizontal: 8,
     position: "relative",

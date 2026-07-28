@@ -92,7 +92,17 @@ export function RecordingMeta({
     const clampedCurrentBeat =
         countInBeatsPerBar > 0 ? Math.max(0, Math.min(countInBeatsPerBar, countInCurrentBeat)) : 0;
     const countInDots = buildCountInDots(countInBeatsPerBar, clampedCurrentBeat);
-    const statusLabel = isCountIn ? t("recording.countIn") : !isRecording ? t("recording.ready") : isPaused ? t("recording.paused") : t("recording.title");
+    // During the count-in the big number carries "how many left", so the status
+    // line carries the bar instead of repeating the word.
+    const statusLabel = isCountIn
+        ? countInBars > 1
+            ? t("recording.countInProgress", { current: clampedCurrentBar, total: countInBars })
+            : t("recording.countIn")
+        : !isRecording
+            ? t("recording.ready")
+            : isPaused
+                ? t("recording.paused")
+                : t("recording.title");
     const showActiveDot = isCountIn || (isRecording && !isPaused);
 
     const statusDot = (
@@ -164,8 +174,17 @@ export function RecordingMeta({
                 <>
                     {isCountIn ? (
                         <View style={styles.recordingCountInBlock}>
-                            <Text style={[styles.recordingCountInTitle, compact ? styles.recordingCountInTitleCompact : null]}>
-                                {countInBars > 1 ? t("recording.countInProgress", { current: clampedCurrentBar, total: countInBars }) : t("recording.countIn")}
+                            {/* The count lands where the clock is, at the clock's size,
+                                in record-red — one place to look, and nothing moves
+                                when the take starts and the timer takes over. */}
+                            <Text
+                                style={[
+                                    styles.recordingTimer,
+                                    compact ? styles.recordingTimerCompact : null,
+                                    metaStyles.countInNumber,
+                                ]}
+                            >
+                                {clampedCurrentBeat > 0 ? clampedCurrentBeat : countInBeatsPerBar}
                             </Text>
                             <View style={styles.recordingCountInDotsRow}>
                                 {countInDots.map((isFilled, index) => (
@@ -215,7 +234,10 @@ export function RecordingMeta({
                         theme={{
                             waveColor: colors.textMuted,
                             rulerColor: colors.borderMuted,
-                            playheadColor: "#B5483A",
+                            // Full record-red once the tape is moving; quieter while
+                            // parked, so an idle page doesn't announce something that
+                            // isn't happening yet.
+                            playheadColor: isRecording ? colors.record : "rgba(192,69,59,0.45)",
                         }}
                     />
                 ) : null}
@@ -253,6 +275,10 @@ const metaStyles = StyleSheet.create({
     },
     compactSpacer: {
         flex: 1,
+    },
+    countInNumber: {
+        color: colors.record,
+        fontVariant: ["tabular-nums"],
     },
     metroToggle: {
         flexDirection: "row",

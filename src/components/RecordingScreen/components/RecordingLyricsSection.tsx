@@ -1,6 +1,6 @@
 import React from "react";
 import { PlayerLyricsPanel } from "../../PlayerScreen/PlayerLyricsPanel";
-import { formatDate } from "../../../utils";
+import { formatClipDate } from "../../../utils";
 import type { LyricsLine } from "../../../types";
 
 type RecordingLyricsSectionProps = {
@@ -41,7 +41,10 @@ export function RecordingLyricsSection({
       text={text}
       chordLines={chordLines}
       versionLabel={`Version ${versionCount}`}
-      updatedAtLabel={formatDate(updatedAt)}
+      // The app's recency ladder ("Yesterday", "Tue", "Jun 26"), not
+      // toLocaleString's "27/07/2026, 16:08:48" — a machine stamp is the one
+      // voice this app never uses.
+      updatedAtLabel={formatClipDate(updatedAt)}
       autoscrollState={{
         mode: autoscrollMode,
         currentTimeMs: elapsedMs,
