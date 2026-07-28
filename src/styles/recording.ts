@@ -470,17 +470,6 @@ export const recordingStyles = {
     alignItems: "center",
     justifyContent: "center",
   },
-  recordBeatHalo: {
-    position: "absolute",
-    width: 96,
-    height: 96,
-    borderRadius: radii.round,
-    backgroundColor: "#B5483A",
-  },
-  recordBeatHaloCompact: {
-    width: 60,
-    height: 60,
-  },
   // One circle, one ring: the 8px grey collar drew a second circle around the
   // only circle on the page. The record red carries it on its own.
   circleRecordBtn: {

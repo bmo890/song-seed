@@ -6,6 +6,7 @@ import { styles } from "../../styles";
 import { QuickNameModal } from "../modals/QuickNameModal";
 import { RecordingHeader } from "./components/RecordingHeader";
 import { RecordingBody } from "./components/RecordingBody";
+import { RecordingBeatBreath } from "./components/RecordingBeatBreath";
 import { RecordingBottomDock } from "./components/RecordingBottomDock";
 import { RecordingSettingsModal } from "./components/RecordingSettingsModal";
 import { RecordingMetronomeSheet } from "./components/RecordingMetronomeSheet";
@@ -256,6 +257,18 @@ export function RecordingScreen() {
         onToggleOutput={screen.metronome.toggleOutput}
         onChangeBeepLevel={screen.metronome.setBeepLevelValue}
         onChangeHapticLevel={screen.metronome.setHapticLevelValue}
+      />
+
+      {/* Sits above everything and eats no touches: the beat belongs to the room,
+          not to a control. */}
+      <RecordingBeatBreath
+        beatToken={screen.metronome.beatCount}
+        beatInBar={screen.metronome.currentBeatInBar}
+        accentPattern={screen.metronome.accentPattern}
+        active={
+          (screen.metronome.isRunning || screen.metronome.isCountIn) &&
+          screen.metronome.outputs.visual
+        }
       />
 
       <HelpSheet

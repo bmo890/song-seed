@@ -60,9 +60,6 @@ export function RecordingBottomDock({ compact = false, metronome, recording }: R
         canSave={recording.isRecording || recording.isPaused}
         canDiscard={recording.isRecording || recording.isPaused}
         canRedo={recording.isRecording || recording.isPaused || recording.isArming}
-        beatToken={metronome.beatToken}
-        isDownbeat={metronome.beatInBar === 1}
-        beatActive={beatActive}
         onPause={recording.onPause}
         onResume={recording.onResume}
         onStart={recording.onStart}

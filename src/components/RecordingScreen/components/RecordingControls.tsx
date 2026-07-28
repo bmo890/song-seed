@@ -1,5 +1,5 @@
-import React, { useEffect, useRef } from "react";
-import { Animated, View, Pressable, StyleSheet, Text } from "react-native";
+import React from "react";
+import { View, Pressable, StyleSheet, Text } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { styles } from "../../../styles";
 import { colors } from "../../../design/tokens";
@@ -16,10 +16,6 @@ type Props = {
     canDiscard?: boolean;
     /** Redo scraps the take but keeps the session armed — enabled during count-in too. */
     canRedo?: boolean;
-    /** Per-beat counter — pulses a halo behind the record button (the visual metronome). */
-    beatToken?: number;
-    isDownbeat?: boolean;
-    beatActive?: boolean;
     onPause: () => Promise<void>;
     onResume: () => Promise<void>;
     onStart: () => Promise<void>;
@@ -37,9 +33,6 @@ export function RecordingControls({
     canSave = true,
     canDiscard = true,
     canRedo = false,
-    beatToken = 0,
-    isDownbeat = false,
-    beatActive = false,
     onPause,
     onResume,
     onStart,
@@ -48,34 +41,6 @@ export function RecordingControls({
     onRedo,
 }: Props) {
     const { t } = useTranslation();
-    const pulse = useRef(new Animated.Value(0)).current;
-    const isDownbeatRef = useRef(isDownbeat);
-    isDownbeatRef.current = isDownbeat;
-
-    useEffect(() => {
-        if (!beatActive || beatToken === 0) return;
-        const peak = isDownbeatRef.current ? 1 : 0.6;
-        pulse.stopAnimation();
-        Animated.sequence([
-            Animated.timing(pulse, { toValue: peak, duration: 60, useNativeDriver: true }),
-            Animated.timing(pulse, { toValue: 0, duration: 260, useNativeDriver: true }),
-        ]).start();
-    }, [beatToken, beatActive, pulse]);
-
-    useEffect(() => {
-        if (!beatActive) {
-            pulse.stopAnimation();
-            pulse.setValue(0);
-        }
-    }, [beatActive, pulse]);
-
-    // Loud on purpose — this halo IS the visual metronome while recording, so it
-    // flares well past the button (downbeats peak harder via `peak` above).
-    const haloStyle = {
-        opacity: pulse.interpolate({ inputRange: [0, 1], outputRange: [0, 0.7] }),
-        transform: [{ scale: pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.9] }) }],
-    };
-
     return (
         <View style={[styles.recordingControlsBar, compact ? styles.recordingControlsBarCompact : null]}>
             <View style={local.sideColumn}>
@@ -132,10 +97,6 @@ export function RecordingControls({
             </View>
 
             <View style={styles.recordBtnWrap}>
-                <Animated.View
-                    pointerEvents="none"
-                    style={[styles.recordBeatHalo, compact ? styles.recordBeatHaloCompact : null, haloStyle]}
-                />
                 <Pressable
                     style={({ pressed }) => [
                         styles.circleRecordBtn,
