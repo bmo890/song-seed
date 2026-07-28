@@ -24,6 +24,7 @@ export type PersistedAppStore = Pick<
     | "bluetoothMonitoringCalibrations"
     | "metronomeBpm"
     | "metronomeMeterId"
+    | "metronomeGroupingByMeterId"
     | "metronomeOutputs"
     | "metronomeBeepLevel"
     | "metronomeHapticLevel"

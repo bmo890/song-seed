@@ -24,6 +24,7 @@ export function buildPersistedAppStoreSnapshot(state: AppStore): PersistedAppSto
         bluetoothMonitoringCalibrations: state.bluetoothMonitoringCalibrations,
         metronomeBpm: state.metronomeBpm,
         metronomeMeterId: state.metronomeMeterId,
+        metronomeGroupingByMeterId: state.metronomeGroupingByMeterId,
         metronomeOutputs: state.metronomeOutputs,
         metronomeBeepLevel: state.metronomeBeepLevel,
         metronomeHapticLevel: state.metronomeHapticLevel,

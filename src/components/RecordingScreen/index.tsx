@@ -156,6 +156,8 @@ export function RecordingScreen() {
             beatToken: screen.metronome.beatCount,
             beatInBar: screen.metronome.currentBeatInBar,
             pulsesPerBar: screen.metronome.meterPreset.pulsesPerBar,
+            accentPattern: screen.metronome.accentPattern,
+            grouping: screen.metronome.grouping,
             isCountIn: screen.metronome.isCountIn,
             isRunning: screen.metronome.isRunning,
           }}
@@ -233,6 +235,8 @@ export function RecordingScreen() {
         onTogglePreview={screen.toggleMetronomeSound}
         bpm={screen.metronome.bpm}
         meterId={screen.metronome.meterId}
+        grouping={screen.metronome.grouping}
+        onSelectGrouping={screen.metronome.setGrouping}
         countInBars={screen.metronome.countInBars}
         outputs={screen.metronome.outputs}
         beepLevel={screen.metronome.beepLevel}

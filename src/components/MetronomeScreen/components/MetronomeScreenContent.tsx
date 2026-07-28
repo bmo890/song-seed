@@ -9,6 +9,7 @@ import {
   BeepLevelControl,
   CueTiles,
   HapticStrengthControl,
+  GroupingChips,
   MeterChips,
   TempoBlock,
   ms,
@@ -70,6 +71,8 @@ export function MetronomeScreenContent() {
 
           <MetronomeBeatBar
             beatsPerBar={model.meterPreset.pulsesPerBar}
+            accentPattern={model.accentPattern}
+            grouping={model.grouping}
             currentBeat={model.currentBeatInBar}
             pulseToken={model.pulseToken}
             active={beatBarActive}
@@ -120,6 +123,12 @@ export function MetronomeScreenContent() {
             </View>
           </View>
           <MeterChips meterId={model.meterId} onSelectMeter={model.setMeterIdValue} />
+          {/* How the bar is felt — only shown when the meter offers a choice. */}
+          <GroupingChips
+            meterId={model.meterId}
+            grouping={model.grouping}
+            onSelectGrouping={model.setGrouping}
+          />
         </View>
 
         {/* Cues — shared tiles + conditional level controls */}

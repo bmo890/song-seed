@@ -40,6 +40,7 @@ import {
     DEFAULT_METRONOME_COUNT_IN_BARS,
     DEFAULT_METRONOME_HAPTIC_LEVEL,
     DEFAULT_METRONOME_METER_ID,
+    isValidGrouping,
     DEFAULT_METRONOME_OUTPUTS,
     isMetronomeMeterId,
 } from "../domain/metronome";
@@ -172,6 +173,13 @@ export function sanitizePersistedState(state?: Partial<PersistedAppStore>): Pers
         metronomeMeterId: isMetronomeMeterId(state?.metronomeMeterId)
             ? state.metronomeMeterId
             : DEFAULT_METRONOME_METER_ID,
+        // Each stored grouping is re-validated against its meter — a preset
+        // whose pulse count changed must not leave a bar mis-accented.
+        metronomeGroupingByMeterId: Object.fromEntries(
+            Object.entries(state?.metronomeGroupingByMeterId ?? {}).filter(
+                ([meterId, grouping]) => isMetronomeMeterId(meterId) && isValidGrouping(meterId, grouping)
+            )
+        ),
         metronomeOutputs:
             state?.metronomeOutputs && typeof state.metronomeOutputs === "object"
                 ? {

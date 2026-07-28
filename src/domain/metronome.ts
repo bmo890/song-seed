@@ -10,7 +10,15 @@ export type MetronomeMeterPreset = {
   numerator: number;
   denominator: 4 | 8;
   pulsesPerBar: number;
+  /** Per-pulse click weight for the DEFAULT grouping — hand-tuned, and the
+   *  audio truth as long as the grouping isn't customised. */
   accentPattern: number[];
+  /** How the bar is felt, as pulse counts: 5/4 is [2, 3]. The first pulse of
+   *  each group is accented. Must sum to `pulsesPerBar`. */
+  defaultGrouping: number[];
+  /** The groupings offered in the UI, defaultGrouping first. Curated rather
+   *  than every partition — 5/4 is really 2+3 or 3+2, not eight arrangements. */
+  groupings: number[][];
 };
 
 export const MIN_METRONOME_BPM = 40;
@@ -43,6 +51,8 @@ export const METRONOME_METER_PRESETS: readonly MetronomeMeterPreset[] = [
     denominator: 4,
     pulsesPerBar: 3,
     accentPattern: [1, 0.48, 0.48],
+    defaultGrouping: [3],
+    groupings: [[3]],
   },
   {
     id: "4/4",
@@ -51,6 +61,8 @@ export const METRONOME_METER_PRESETS: readonly MetronomeMeterPreset[] = [
     denominator: 4,
     pulsesPerBar: 4,
     accentPattern: [1, 0.46, 0.72, 0.46],
+    defaultGrouping: [2, 2],
+    groupings: [[2, 2], [4]],
   },
   {
     id: "5/4",
@@ -59,6 +71,8 @@ export const METRONOME_METER_PRESETS: readonly MetronomeMeterPreset[] = [
     denominator: 4,
     pulsesPerBar: 5,
     accentPattern: [1, 0.46, 0.7, 0.46, 0.46],
+    defaultGrouping: [2, 3],
+    groupings: [[2, 3], [3, 2], [5]],
   },
   {
     id: "6/8",
@@ -67,6 +81,8 @@ export const METRONOME_METER_PRESETS: readonly MetronomeMeterPreset[] = [
     denominator: 8,
     pulsesPerBar: 6,
     accentPattern: [1, 0.4, 0.32, 0.84, 0.4, 0.32],
+    defaultGrouping: [3, 3],
+    groupings: [[3, 3], [2, 2, 2], [6]],
   },
 ] as const;
 
@@ -150,4 +166,94 @@ export function deriveTapTempoBpm(tapTimes: number[]) {
     consistentIntervals.reduce((sum, interval) => sum + interval, 0) / consistentIntervals.length;
 
   return clampMetronomeBpm(60000 / averageInterval);
+}
+
+// ── Grouping ────────────────────────────────────────────────────────────────
+// A meter's numerator says how many pulses; the GROUPING says how they're felt.
+// 5/4 is 2+3 for some songs and 3+2 for others, and the click, the beat dots and
+// the visual pulse all have to agree — so grouping is the single source and
+// everything downstream derives from it.
+
+/** Click weight for the first pulse of the bar, of a later group, and the rest. */
+const GROUP_ACCENT_DOWNBEAT = 1;
+const GROUP_ACCENT_SECONDARY = 0.78;
+const GROUP_ACCENT_WEAK = 0.44;
+
+export function isSameGrouping(a: readonly number[], b: readonly number[]) {
+  return a.length === b.length && a.every((value, index) => value === b[index]);
+}
+
+/** Validate a stored/incoming grouping against its meter. */
+export function isValidGrouping(meterId: MetronomeMeterId, grouping: unknown): grouping is number[] {
+  if (!Array.isArray(grouping) || grouping.length === 0) return false;
+  if (!grouping.every((n) => Number.isInteger(n) && n > 0)) return false;
+  const preset = getMetronomeMeterPreset(meterId);
+  return grouping.reduce((sum, n) => sum + n, 0) === preset.pulsesPerBar;
+}
+
+export function getMetronomeGrouping(
+  meterId: MetronomeMeterId,
+  custom?: readonly number[] | null
+): number[] {
+  const preset = getMetronomeMeterPreset(meterId);
+  return custom && isValidGrouping(meterId, custom) ? [...custom] : [...preset.defaultGrouping];
+}
+
+/** Turn a grouping into per-pulse click weights. */
+export function buildAccentPattern(grouping: readonly number[]): number[] {
+  const pattern: number[] = [];
+  grouping.forEach((size, groupIndex) => {
+    for (let i = 0; i < size; i += 1) {
+      pattern.push(
+        i > 0
+          ? GROUP_ACCENT_WEAK
+          : groupIndex === 0
+            ? GROUP_ACCENT_DOWNBEAT
+            : GROUP_ACCENT_SECONDARY
+      );
+    }
+  });
+  return pattern;
+}
+
+/**
+ * The weights the engine and the visuals both run on. The preset's hand-tuned
+ * pattern wins while the grouping is the default one, so customising is additive
+ * and never quietly changes how the stock meters sound.
+ */
+export function getMetronomeAccentPattern(
+  meterId: MetronomeMeterId,
+  custom?: readonly number[] | null
+): number[] {
+  const preset = getMetronomeMeterPreset(meterId);
+  const grouping = getMetronomeGrouping(meterId, custom);
+  return isSameGrouping(grouping, preset.defaultGrouping)
+    ? [...preset.accentPattern]
+    : buildAccentPattern(grouping);
+}
+
+/** Pulse indices (0-based) that start a group — i.e. the accented pulses. */
+export function getGroupStarts(grouping: readonly number[]): number[] {
+  const starts: number[] = [];
+  let at = 0;
+  for (const size of grouping) {
+    starts.push(at);
+    at += size;
+  }
+  return starts;
+}
+
+/**
+ * Where the beat row should open a gap. Chunking only helps when a group runs to
+ * three or more — four dots read fine as four, six do not — so 4/4 stays one even
+ * run while 6/8 shows 3 + 3.
+ */
+export function getGroupGapIndices(grouping: readonly number[]): number[] {
+  if (grouping.length < 2 || Math.max(...grouping) < 3) return [];
+  return getGroupStarts(grouping).slice(1);
+}
+
+/** "2 + 3" — for the grouping picker. */
+export function formatGrouping(grouping: readonly number[]): string {
+  return grouping.join(" + ");
 }

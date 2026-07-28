@@ -7,6 +7,7 @@ import {
   BeepLevelControl,
   CueTiles,
   HapticStrengthControl,
+  GroupingChips,
   MeterChips,
   TempoBlock,
   ms,
@@ -40,6 +41,7 @@ type Props = {
   previewPlaying: boolean;
   bpm: number;
   meterId: MetronomeMeterId;
+  grouping: readonly number[];
   countInBars: number;
   outputs: MetronomeOutputs;
   beepLevel: number;
@@ -53,6 +55,7 @@ type Props = {
   onSetBpmValue: (value: number) => void;
   onTapTempo: () => number | null;
   onSelectMeter: (meterId: MetronomeMeterId) => void;
+  onSelectGrouping: (meterId: MetronomeMeterId, grouping: number[] | null) => void;
   onSelectCountInBars: (bars: number) => void;
   onToggleOutput: (key: MetronomeOutputKey) => void;
   onChangeBeepLevel: (level: number) => void;
@@ -68,6 +71,7 @@ export function RecordingMetronomeSheet({
   previewPlaying,
   bpm,
   meterId,
+  grouping,
   countInBars,
   outputs,
   beepLevel,
@@ -79,6 +83,7 @@ export function RecordingMetronomeSheet({
   onSetBpmValue,
   onTapTempo,
   onSelectMeter,
+  onSelectGrouping,
   onSelectCountInBars,
   onToggleOutput,
   onChangeBeepLevel,
@@ -193,14 +198,22 @@ export function RecordingMetronomeSheet({
             </View>
           </Pressable>
           {expanded === "meter" ? (
-            <MeterChips
-              meterId={meterId}
-              disabled={disabled}
-              onSelectMeter={(id) => {
-                onSelectMeter(id);
-                setExpanded(null);
-              }}
-            />
+            <>
+              <MeterChips
+                meterId={meterId}
+                disabled={disabled}
+                onSelectMeter={onSelectMeter}
+              />
+              {/* Grouping sits with the meter it belongs to. The section no
+                  longer auto-closes on pick: choosing 5/4 and then 3+2 is one
+                  decision, and closing between the two halves fought it. */}
+              <GroupingChips
+                meterId={meterId}
+                grouping={grouping}
+                disabled={disabled}
+                onSelectGrouping={onSelectGrouping}
+              />
+            </>
           ) : null}
 
           {/* Cues — shared square toggles */}

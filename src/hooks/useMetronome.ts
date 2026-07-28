@@ -22,6 +22,8 @@ import {
   getMetronomeBeatIntervalMs,
   getMetronomeHapticFallbackDuration,
   getMetronomeMeterPreset,
+  getMetronomeGrouping,
+  getMetronomeAccentPattern,
   MAX_METRONOME_LEVEL,
   MAX_TAP_HISTORY,
   METRONOME_LOOP_BEAT_COUNT,
@@ -61,12 +63,14 @@ export function useMetronome({ initialBpm = DEFAULT_METRONOME_BPM, initialOutput
 function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOutputs }: UseMetronomeArgs = {}) {
   const bpm = useStore((s) => s.metronomeBpm);
   const meterId = useStore((s) => s.metronomeMeterId);
+  const groupingByMeterId = useStore((s) => s.metronomeGroupingByMeterId);
   const outputs = useStore((s) => s.metronomeOutputs);
   const beepLevel = useStore((s) => s.metronomeBeepLevel);
   const hapticLevel = useStore((s) => s.metronomeHapticLevel);
   const countInBars = useStore((s) => s.metronomeCountInBars);
   const setMetronomeBpm = useStore((s) => s.setMetronomeBpm);
   const setMetronomeMeterId = useStore((s) => s.setMetronomeMeterId);
+  const setMetronomeGrouping = useStore((s) => s.setMetronomeGrouping);
   const setMetronomeOutputEnabled = useStore((s) => s.setMetronomeOutputEnabled);
   const setMetronomeBeepLevel = useStore((s) => s.setMetronomeBeepLevel);
   const setMetronomeHapticLevel = useStore((s) => s.setMetronomeHapticLevel);
@@ -242,6 +246,16 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
   const effectiveMeterId = configuredRef.current ? meterId : DEFAULT_METRONOME_METER_ID;
   const effectiveCountInBars = configuredRef.current ? countInBars : DEFAULT_METRONOME_COUNT_IN_BARS;
   const meterPreset = useMemo(() => getMetronomeMeterPreset(effectiveMeterId), [effectiveMeterId]);
+  // Grouping is the single source: the click's accents, the beat dots and the
+  // visual pulse all read the same weights, so they can never disagree.
+  const grouping = useMemo(
+    () => getMetronomeGrouping(effectiveMeterId, groupingByMeterId[effectiveMeterId]),
+    [effectiveMeterId, groupingByMeterId]
+  );
+  const accentPattern = useMemo(
+    () => getMetronomeAccentPattern(effectiveMeterId, groupingByMeterId[effectiveMeterId]),
+    [effectiveMeterId, groupingByMeterId]
+  );
   const beatIntervalMs = useMemo(() => getMetronomeBeatIntervalMs(effectiveBpm), [effectiveBpm]);
   const loopDurationMs = beatIntervalMs * meterPreset.pulsesPerBar;
   const activeOutputCount = useMemo(
@@ -344,7 +358,7 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
         meterId: meterId,
         pulsesPerBar: meterPreset.pulsesPerBar,
         denominator: meterPreset.denominator,
-        accentPattern: meterPreset.accentPattern,
+        accentPattern,
         clickEnabled: outputs.beep,
         clickVolume: getMetronomeBeepVolume(beepLevel),
         // Live-route cue delay from the latency model (refreshed at start): delays the
@@ -358,7 +372,7 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
     } finally {
       setIsPreparing(false);
     }
-  }, [bpm, beepLevel, hapticLevel, meterId, meterPreset, nativeCuesSupported, outputs.beep, outputs.haptic]);
+  }, [accentPattern, bpm, beepLevel, hapticLevel, meterId, meterPreset, nativeCuesSupported, outputs.beep, outputs.haptic]);
 
   // Volume applies instantly and live: the native engines treat volume as a live param
   // (no restart, no phase reset), so a mid-take level tweak never breaks the grid. On
@@ -562,6 +576,8 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
     tapCount,
     meterId: effectiveMeterId,
     meterPreset,
+    grouping,
+    accentPattern,
     countInBars: effectiveCountInBars,
     // Beat position derives from the SAME onBeat event stream that pulses the UI ring
     // (beatCount), not the separate onStateChange snapshot — the two streams desync
@@ -590,6 +606,7 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
     setHapticLevelValue,
     toggleOutput,
     setMeterIdValue,
+    setGrouping: setMetronomeGrouping,
     setCountInBarsValue: setMetronomeCountInBars,
   };
 }
@@ -984,6 +1001,8 @@ function useLegacyMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
     tapCount,
     meterId: DEFAULT_METRONOME_METER_ID,
     meterPreset: getMetronomeMeterPreset(DEFAULT_METRONOME_METER_ID),
+    grouping: getMetronomeGrouping(DEFAULT_METRONOME_METER_ID),
+    accentPattern: getMetronomeAccentPattern(DEFAULT_METRONOME_METER_ID),
     countInBars: DEFAULT_METRONOME_COUNT_IN_BARS,
     currentBeatInBar: ((beatCount - 1) % METRONOME_LOOP_BEAT_COUNT) + 1,
     currentBar: Math.max(1, Math.floor(Math.max(beatCount - 1, 0) / METRONOME_LOOP_BEAT_COUNT) + 1),
@@ -1008,6 +1027,7 @@ function useLegacyMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
     setHapticLevelValue,
     toggleOutput,
     setMeterIdValue: () => {},
+    setGrouping: () => {},
     setCountInBarsValue: () => {},
   };
 }

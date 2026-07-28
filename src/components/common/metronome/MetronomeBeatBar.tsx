@@ -1,12 +1,19 @@
 import React, { useEffect, useMemo, useRef } from "react";
 import { Animated, StyleSheet, View } from "react-native";
 import { colors, radii } from "../../../design/tokens";
+import { getGroupGapIndices } from "../../../domain/metronome";
 
 /**
- * The visual metronome: one dot per beat in the bar, the live beat filled and
- * pulsing, the downbeat drawn heavier. Shared by the standalone Metronome page
- * (hero variant) and the recording flow (compact variant) so "where the beat is"
- * reads the same everywhere.
+ * The visual metronome: one dot per pulse in the bar, the live pulse filled and
+ * pulsing. Shared by the standalone Metronome page (hero variant) and the
+ * recording flow (compact variant) so "where the beat is" reads the same
+ * everywhere.
+ *
+ * Weight comes from the GROUPING, not from a hardcoded "beat 1 is big": each
+ * dot is sized by its accent — downbeat, secondary, or weak — and a gap opens
+ * between groups only when chunking helps you count (some group of three or
+ * more). So 5/4 reads 2 + 3 or 3 + 2 depending on how the song is felt, 6/8
+ * reads 3 + 3, and 4/4 stays one even run.
  *
  * Driven by the same onBeat stream as the audio click (`pulseToken` increments
  * per beat; `currentBeat` is 1-based within the bar), so the flash can't drift
@@ -15,9 +22,23 @@ import { colors, radii } from "../../../design/tokens";
 
 const MAX_BEATS = 12;
 
+type Accent = "downbeat" | "secondary" | "weak";
+
+function accentOf(weight: number | undefined): Accent {
+  if (weight == null) return "weak";
+  if (weight >= 0.95) return "downbeat";
+  if (weight >= 0.65) return "secondary";
+  return "weak";
+}
+
 type Props = {
   /** Pulses per bar from the meter preset (3/4 → 3, 6/8 → 6 …). */
   beatsPerBar: number;
+  /** Per-pulse click weights — the same array the engine runs on, so the dots
+   *  can't disagree with what you hear. Falls back to "only pulse 1 accented". */
+  accentPattern?: readonly number[];
+  /** Pulse counts per group, e.g. [2, 3]. Drives where the row opens a gap. */
+  grouping?: readonly number[];
   /** 1-based beat position within the bar. */
   currentBeat: number;
   /** Increments on every beat event — triggers the pulse animation. */
@@ -29,12 +50,18 @@ type Props = {
 
 export function MetronomeBeatBar({
   beatsPerBar,
+  accentPattern,
+  grouping,
   currentBeat,
   pulseToken,
   active,
   variant = "hero",
 }: Props) {
   const hero = variant === "hero";
+  const gapIndices = useMemo(
+    () => new Set(grouping ? getGroupGapIndices(grouping) : []),
+    [grouping]
+  );
   const dotAnims = useRef(
     Array.from({ length: MAX_BEATS }, () => new Animated.Value(0))
   ).current;
@@ -63,12 +90,23 @@ export function MetronomeBeatBar({
   return (
     <View style={[s.row, hero ? s.rowHero : s.rowCompact]}>
       {beats.map((beat) => {
-        const isDownbeat = beat === 1;
+        const accent = accentPattern ? accentOf(accentPattern[beat - 1]) : beat === 1 ? "downbeat" : "weak";
+        const isDownbeat = accent === "downbeat";
+        const isAccented = accent !== "weak";
         const isCurrent = active && beat === currentBeat;
         const anim = dotAnims[beat - 1];
-        const base = hero ? (isDownbeat ? 18 : 14) : isDownbeat ? 12 : 9;
+        const base = hero
+          ? accent === "downbeat" ? 18 : accent === "secondary" ? 15 : 12
+          : accent === "downbeat" ? 12 : accent === "secondary" ? 10 : 8;
         return (
-          <View key={beat} style={[s.dotSlot, { width: base + (hero ? 10 : 6) }]}>
+          <View
+            key={beat}
+            style={[
+              s.dotSlot,
+              { width: base + (hero ? 10 : 6) },
+              gapIndices.has(beat - 1) ? (hero ? s.groupGapHero : s.groupGap) : null,
+            ]}
+          >
             {/* Pulse ring — flares out from the dot on its beat */}
             <Animated.View
               pointerEvents="none"
@@ -94,7 +132,7 @@ export function MetronomeBeatBar({
                   height: base,
                   borderRadius: radii.round,
                   backgroundColor: isCurrent
-                    ? isDownbeat
+                    ? isAccented
                       ? colors.primaryDeep
                       : colors.primary
                     : colors.borderSubtle,
@@ -131,6 +169,13 @@ const s = StyleSheet.create({
   dotSlot: {
     alignItems: "center",
     justifyContent: "center",
+  },
+  // Physical margins: the row is pinned LTR above, so the gap must not mirror.
+  groupGap: {
+    marginLeft: 9,
+  },
+  groupGapHero: {
+    marginLeft: 13,
   },
   ring: {
     position: "absolute",

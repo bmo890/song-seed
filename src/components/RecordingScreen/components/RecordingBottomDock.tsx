@@ -10,6 +10,8 @@ type RecordingBottomDockProps = {
     beatToken: number;
     beatInBar: number;
     pulsesPerBar: number;
+    accentPattern?: readonly number[];
+    grouping?: readonly number[];
     isCountIn: boolean;
     isRunning: boolean;
   };
@@ -40,6 +42,8 @@ export function RecordingBottomDock({ compact = false, metronome, recording }: R
         <View style={{ marginBottom: compact ? 4 : 8 }}>
           <MetronomeBeatBar
             beatsPerBar={metronome.pulsesPerBar}
+            accentPattern={metronome.accentPattern}
+            grouping={metronome.grouping}
             currentBeat={metronome.beatInBar}
             pulseToken={metronome.beatToken}
             active={beatActive}

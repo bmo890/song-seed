@@ -10,6 +10,9 @@ import {
   METRONOME_METER_PRESETS,
   MIN_METRONOME_BPM,
   MIN_METRONOME_LEVEL,
+  formatGrouping,
+  getMetronomeMeterPreset,
+  isSameGrouping,
   type MetronomeMeterId,
   type MetronomeOutputKey,
   type MetronomeOutputs,
@@ -417,3 +420,48 @@ export const ms = StyleSheet.create({
     opacity: 0.7,
   },
 });
+
+/**
+ * How the bar is FELT, not how many pulses it has: 5/4 as 2 + 3 or 3 + 2. Only
+ * rendered when the meter offers a real choice, so 3/4 never shows a row with
+ * one option in it.
+ */
+export function GroupingChips({
+  meterId,
+  grouping,
+  disabled,
+  onSelectGrouping,
+}: {
+  meterId: MetronomeMeterId;
+  grouping: readonly number[];
+  disabled?: boolean;
+  onSelectGrouping: (meterId: MetronomeMeterId, grouping: number[] | null) => void;
+}) {
+  const { t } = useTranslation();
+  const preset = getMetronomeMeterPreset(meterId);
+  if (preset.groupings.length < 2) return null;
+  return (
+    <View style={ms.chipsRow}>
+      {preset.groupings.map((option) => {
+        const active = isSameGrouping(option, grouping);
+        const isDefault = isSameGrouping(option, preset.defaultGrouping);
+        const label = option.length === 1 ? t("metronome.groupingEven") : formatGrouping(option);
+        return (
+          <Pressable
+            key={label}
+            style={({ pressed }) => [ms.chip, active ? ms.chipActive : null, pressed ? ms.pressed : null]}
+            // Storing the default would freeze the preset's hand-tuned click
+            // weights; passing null keeps them.
+            onPress={() => onSelectGrouping(meterId, isDefault ? null : [...option])}
+            disabled={disabled}
+            accessibilityRole="button"
+            accessibilityState={{ selected: active }}
+            accessibilityLabel={t("metronome.groupingA11y", { label })}
+          >
+            <Text style={[ms.chipText, active ? ms.chipTextActive : null]}>{label}</Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}

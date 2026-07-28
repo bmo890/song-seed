@@ -75,6 +75,7 @@ import {
     DEFAULT_METRONOME_COUNT_IN_BARS,
     DEFAULT_METRONOME_HAPTIC_LEVEL,
     DEFAULT_METRONOME_METER_ID,
+    isValidGrouping,
     DEFAULT_METRONOME_OUTPUTS,
     isMetronomeMeterId,
     type MetronomeMeterId,
@@ -123,6 +124,9 @@ export type DataSlice = {
     lastSuccessfulBackupFileName: string | null;
     metronomeBpm: number;
     metronomeMeterId: MetronomeMeterId;
+    /** Per-meter pulse grouping override — 5/4 felt as 3+2 instead of 2+3.
+     *  Absent means the meter's default grouping. */
+    metronomeGroupingByMeterId: Partial<Record<MetronomeMeterId, number[]>>;
     metronomeOutputs: MetronomeOutputs;
     metronomeBeepLevel: number;
     metronomeHapticLevel: number;
@@ -145,6 +149,8 @@ export type DataSlice = {
     setClipOverdubPreviewRenderActive: (ideaId: string, clipId: string, active: boolean) => void;
     setMetronomeBpm: (value: number) => void;
     setMetronomeMeterId: (value: MetronomeMeterId) => void;
+    /** Pass null to fall back to the meter's default grouping. */
+    setMetronomeGrouping: (meterId: MetronomeMeterId, grouping: number[] | null) => void;
     setMetronomeOutputEnabled: (key: keyof MetronomeOutputs, enabled: boolean) => void;
     setMetronomeBeepLevel: (value: number) => void;
     setMetronomeHapticLevel: (value: number) => void;
@@ -1210,6 +1216,7 @@ export const createDataSlice: StateCreator<
     overdubPreviewRenderActiveByClipKey: {},
     metronomeBpm: DEFAULT_METRONOME_BPM,
     metronomeMeterId: DEFAULT_METRONOME_METER_ID,
+    metronomeGroupingByMeterId: {},
     metronomeOutputs: DEFAULT_METRONOME_OUTPUTS,
     metronomeBeepLevel: DEFAULT_METRONOME_BEEP_LEVEL,
     metronomeHapticLevel: DEFAULT_METRONOME_HAPTIC_LEVEL,
@@ -1356,6 +1363,15 @@ export const createDataSlice: StateCreator<
     setMetronomeBpm: (value) => set({ metronomeBpm: clampMetronomeBpm(value) }),
     setMetronomeMeterId: (value) =>
         set((state) => (state.metronomeMeterId === value ? state : { metronomeMeterId: value })),
+    setMetronomeGrouping: (meterId, grouping) =>
+        set((state) => {
+            const next = { ...state.metronomeGroupingByMeterId };
+            // Storing the default would freeze the preset's hand-tuned click
+            // weights in place; dropping the key keeps them.
+            if (grouping == null || !isValidGrouping(meterId, grouping)) delete next[meterId];
+            else next[meterId] = [...grouping];
+            return { metronomeGroupingByMeterId: next };
+        }),
     setMetronomeOutputEnabled: (key, enabled) =>
         set((state) => {
             if (state.metronomeOutputs[key] === enabled) {

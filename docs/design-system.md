@@ -169,6 +169,25 @@ pushes everything below it. Three rules, all violated at least once:
   controls row rather than inserting a bar above the list, so entering
   selection leaves every row exactly where it was.
 
+### The metronome's grouping (locked 2026-07-28)
+
+A meter says how many pulses a bar has; the **grouping** says how it's felt, and
+5/4 is 2+3 for one song and 3+2 for the next. Grouping is therefore the single
+source: `getMetronomeAccentPattern()` turns it into per-pulse click weights, and
+the audio engine, the beat dots and the visual pulse all read that one array — so
+what you see can never disagree with what you hear.
+
+- **Three tiers**, never "beat 1 is big": weight 1 = downbeat, ≥ 0.65 = secondary,
+  below = weak. Dot size and pulse depth follow the tier, so 4/4 reads
+  strong-weak-mid-weak and 6/8 gets its real accent on pulse 4.
+- **Chunk only when it helps you count.** The dot row opens a gap between groups
+  only when some group runs to three or more — four dots read fine as four, six
+  do not. 4/4 and 3/4 stay one even run; 6/8 shows 3 + 3; 5/4 shows its 2 + 3 or
+  3 + 2. One length test, no meter-specific code.
+- **Customising is additive.** Picking the meter's default grouping stores
+  nothing, so the presets keep their hand-tuned click weights; only a genuine
+  override derives a new pattern.
+
 ### Direction policy — RTL (locked 2026-07-27)
 
 Hebrew flips the app with `I18nManager.forceRTL`, so every `flexDirection: row`
