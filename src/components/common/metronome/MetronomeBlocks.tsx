@@ -17,6 +17,7 @@ import {
   type MetronomeOutputKey,
   type MetronomeOutputs,
 } from "../../../domain/metronome";
+import { SegmentedControl } from "../SegmentedControl";
 import { useTranslation } from "react-i18next";
 
 /**
@@ -188,6 +189,46 @@ export function CueTiles({
   );
 }
 
+/**
+ * The level controls for whichever cues are ON, each named. Two unlabelled
+ * controls stacked under the tiles (a bare slider, then a bare three-way) gave
+ * no way to tell which belonged to which — and turning a cue off silently
+ * removed one of them, so the remaining control looked like it had changed
+ * meaning. A cue's level now says whose it is, and appears only with its cue.
+ */
+export function CueLevels({
+  outputs,
+  beepLevel,
+  hapticLevel,
+  onChangeBeepLevel,
+  onChangeHapticLevel,
+}: {
+  outputs: MetronomeOutputs;
+  beepLevel: number;
+  hapticLevel: number;
+  onChangeBeepLevel: (level: number) => void;
+  onChangeHapticLevel: (level: number) => void;
+}) {
+  const { t } = useTranslation();
+  if (!outputs.beep && !outputs.haptic) return null;
+  return (
+    <View style={ms.cueLevels}>
+      {outputs.beep ? (
+        <View>
+          <Text style={ms.subLabel}>{t("metronome.beepVolume")}</Text>
+          <BeepLevelControl beepLevel={beepLevel} onChangeBeepLevel={onChangeBeepLevel} />
+        </View>
+      ) : null}
+      {outputs.haptic ? (
+        <View>
+          <Text style={ms.subLabel}>{t("metronome.hapticLevel")}</Text>
+          <HapticStrengthControl hapticLevel={hapticLevel} onChangeHapticLevel={onChangeHapticLevel} />
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
 export function BeepLevelControl({
   beepLevel,
   onChangeBeepLevel,
@@ -224,23 +265,21 @@ export function HapticStrengthControl({
 }) {
   const { t } = useTranslation();
   const activeId = nearestHapticStrengthId(hapticLevel);
+  // Canon single-select: the sliding thumb, not a hand-rolled row of filled
+  // chips that made the same interaction look different from every other one.
   return (
-    <View style={ms.segmentGroup}>
-      {HAPTIC_STRENGTH_PRESETS.map((preset) => {
-        const active = preset.id === activeId;
-        return (
-          <Pressable
-            key={preset.id}
-            style={({ pressed }) => [ms.segment, active ? ms.segmentActive : null, pressed ? ms.pressed : null]}
-            onPress={() => onChangeHapticLevel(preset.level)}
-            accessibilityRole="button"
-            accessibilityState={{ selected: active }}
-            accessibilityLabel={t("metronome.hapticStrength", { label: t(`metronome.${preset.id}`) })}
-          >
-            <Text style={[ms.segmentText, active ? ms.segmentTextActive : null]}>{t(`metronome.${preset.id}`)}</Text>
-          </Pressable>
-        );
-      })}
+    <View style={ms.segmentWrap}>
+      <SegmentedControl
+        options={HAPTIC_STRENGTH_PRESETS.map((preset) => ({
+          key: preset.id,
+          label: t(`metronome.${preset.id}`),
+        }))}
+        value={activeId}
+        onChange={(id) => {
+          const preset = HAPTIC_STRENGTH_PRESETS.find((option) => option.id === id);
+          if (preset) onChangeHapticLevel(preset.level);
+        }}
+      />
     </View>
   );
 }
@@ -285,13 +324,14 @@ export const ms = StyleSheet.create({
     color: colors.primary,
     fontVariant: ["tabular-nums"],
   },
+  // Soft keys at r8 — stadium was retired on text buttons (2026-07-24).
   tap: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    paddingVertical: 7,
+    minHeight: 38,
     paddingHorizontal: 14,
-    borderRadius: radii.round,
+    borderRadius: radii.lg,
     backgroundColor: colors.surfaceContainer,
   },
   tapActive: {
@@ -323,7 +363,7 @@ export const ms = StyleSheet.create({
     gap: 5,
     paddingVertical: 6,
     paddingHorizontal: 12,
-    borderRadius: radii.round,
+    borderRadius: radii.lg,
     backgroundColor: colors.surfaceContainer,
   },
   valueText: {
@@ -366,9 +406,10 @@ export const ms = StyleSheet.create({
   chip: {
     flex: 1,
     alignItems: "center",
+    justifyContent: "center",
+    minHeight: 38,
     paddingHorizontal: 16,
-    paddingVertical: 9,
-    borderRadius: radii.round,
+    borderRadius: radii.lg,
     backgroundColor: colors.surfaceContainer,
   },
   chipActive: {
@@ -406,6 +447,29 @@ export const ms = StyleSheet.create({
   cueLabelActive: {
     color: colors.primaryDeep,
   },
+  // Grouping is subordinate to meter, so its active state is a tonal wash rather
+  // than the solid fill — one glance tells you which row is the primary choice.
+  chipActiveSoft: {
+    backgroundColor: "#F3E4DE",
+  },
+  chipTextActiveSoft: {
+    color: colors.primaryDeep,
+  },
+  subLabel: {
+    fontSize: 9.5,
+    fontFamily: "PlusJakartaSans_700Bold",
+    letterSpacing: 0.9,
+    textTransform: "uppercase",
+    color: colors.textMuted,
+    marginTop: 12,
+    marginBottom: 6,
+  },
+  cueLevels: {
+    gap: 4,
+  },
+  segmentWrap: {
+    marginBottom: 6,
+  },
   subControl: {
     flexDirection: "row",
     alignItems: "center",
@@ -441,7 +505,11 @@ export function GroupingChips({
   const preset = getMetronomeMeterPreset(meterId);
   if (preset.groupings.length < 2) return null;
   return (
-    <View style={ms.chipsRow}>
+    <>
+      {/* Named, because meter and grouping are different questions: without this
+          the two chip rows read as one list of eight options. */}
+      <Text style={ms.subLabel}>{t("metronome.grouping")}</Text>
+      <View style={ms.chipsRow}>
       {preset.groupings.map((option) => {
         const active = isSameGrouping(option, grouping);
         const isDefault = isSameGrouping(option, preset.defaultGrouping);
@@ -449,7 +517,7 @@ export function GroupingChips({
         return (
           <Pressable
             key={label}
-            style={({ pressed }) => [ms.chip, active ? ms.chipActive : null, pressed ? ms.pressed : null]}
+            style={({ pressed }) => [ms.chip, active ? ms.chipActiveSoft : null, pressed ? ms.pressed : null]}
             // Storing the default would freeze the preset's hand-tuned click
             // weights; passing null keeps them.
             onPress={() => onSelectGrouping(meterId, isDefault ? null : [...option])}
@@ -458,10 +526,11 @@ export function GroupingChips({
             accessibilityState={{ selected: active }}
             accessibilityLabel={t("metronome.groupingA11y", { label })}
           >
-            <Text style={[ms.chipText, active ? ms.chipTextActive : null]}>{label}</Text>
+            <Text style={[ms.chipText, active ? ms.chipTextActiveSoft : null]}>{label}</Text>
           </Pressable>
         );
       })}
-    </View>
+      </View>
+    </>
   );
 }

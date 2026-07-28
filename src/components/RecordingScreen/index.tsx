@@ -234,6 +234,7 @@ export function RecordingScreen() {
         }
         onTogglePreview={screen.toggleMetronomeSound}
         bpm={screen.metronome.bpm}
+        onToggleEnabled={(next) => screen.setMetronomeEnabledForTake(next)}
         meterId={screen.metronome.meterId}
         grouping={screen.metronome.grouping}
         onSelectGrouping={screen.metronome.setGrouping}

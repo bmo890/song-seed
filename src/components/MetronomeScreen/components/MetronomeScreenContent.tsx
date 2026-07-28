@@ -6,9 +6,8 @@ import { haptic } from "../../../design/haptics";
 import { colors } from "../../../design/tokens";
 import { METRONOME_METER_PRESETS } from "../../../domain/metronome";
 import {
-  BeepLevelControl,
+  CueLevels,
   CueTiles,
-  HapticStrengthControl,
   GroupingChips,
   MeterChips,
   TempoBlock,
@@ -135,18 +134,13 @@ export function MetronomeScreenContent() {
         <View style={[ms.divider, s.sectionGap]}>
           <Text style={ms.label}>{t("metronome.cues")}</Text>
           <CueTiles outputs={model.outputs} onToggleOutput={model.toggleOutput} />
-          {model.outputs.beep ? (
-            <BeepLevelControl
-              beepLevel={model.beepLevel}
-              onChangeBeepLevel={model.setBeepLevelValue}
-            />
-          ) : null}
-          {model.outputs.haptic ? (
-            <HapticStrengthControl
-              hapticLevel={model.hapticLevel}
-              onChangeHapticLevel={model.setHapticLevelValue}
-            />
-          ) : null}
+          <CueLevels
+            outputs={model.outputs}
+            beepLevel={model.beepLevel}
+            hapticLevel={model.hapticLevel}
+            onChangeBeepLevel={model.setBeepLevelValue}
+            onChangeHapticLevel={model.setHapticLevelValue}
+          />
         </View>
       </ScrollView>
     </SafeAreaView>

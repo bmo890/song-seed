@@ -1,12 +1,11 @@
 import { useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { BottomSheet } from "../../common/BottomSheet";
 import { colors, radii } from "../../../design/tokens";
 import {
-  BeepLevelControl,
+  CueLevels,
   CueTiles,
-  HapticStrengthControl,
   GroupingChips,
   MeterChips,
   TempoBlock,
@@ -38,6 +37,7 @@ type Props = {
   disabled: boolean;
   isNativeAvailable: boolean;
   enabled: boolean;
+  onToggleEnabled: (next: boolean) => void;
   previewPlaying: boolean;
   bpm: number;
   meterId: MetronomeMeterId;
@@ -68,6 +68,7 @@ export function RecordingMetronomeSheet({
   disabled,
   isNativeAvailable,
   enabled,
+  onToggleEnabled,
   previewPlaying,
   bpm,
   meterId,
@@ -100,10 +101,19 @@ export function RecordingMetronomeSheet({
       <View style={s.titleRow}>
         <View style={s.titleLead}>
           <Text style={s.title}>{t("recording.metronome")}</Text>
-          {/* On/off lives on the metronome button itself now — this sheet only customizes. */}
           <Text style={s.titleSub}>{enabled ? t("recording.metronomeOn") : t("recording.metronomeOff")}</Text>
           {restoredGridLabel ? <Text style={s.titleGridNote}>{restoredGridLabel}</Text> : null}
         </View>
+        {/* The switch lives here as well as on the toolbar glyph. A panel that
+            states "On — clicks while you record" and offers no way to change it
+            reads as a setting you can't reach. */}
+        <Switch
+          value={enabled}
+          onValueChange={onToggleEnabled}
+          disabled={disabled || !isNativeAvailable}
+          trackColor={{ false: "#E3DCD4", true: colors.primary }}
+          thumbColor={colors.surface}
+        />
       </View>
 
       {isNativeAvailable ? (
@@ -151,16 +161,17 @@ export function RecordingMetronomeSheet({
             disabled={disabled}
           >
             <View style={s.featureLead}>
-              <View style={s.iconTile}>
-                <Ionicons name="timer-outline" size={18} color={colors.primaryDeep} />
-              </View>
               <View style={s.featureCopy}>
                 <Text style={s.featureTitle}>{t("recording.countIn")}</Text>
                 <Text style={s.featureSub} numberOfLines={1}>{countInSubtitle(countInBars, t)}</Text>
               </View>
             </View>
+            {/* The value is dropped once the options are open — it just repeats
+                the selected one three lines below. */}
             <View style={ms.valuePill}>
-              <Text style={ms.valueText}>{countInLabel(countInBars, t)}</Text>
+              {expanded === "countin" ? null : (
+                <Text style={ms.valueText}>{countInLabel(countInBars, t)}</Text>
+              )}
               <Ionicons name={expanded === "countin" ? "chevron-up" : "chevron-down"} size={13} color={colors.textMuted} />
             </View>
           </Pressable>
@@ -193,7 +204,7 @@ export function RecordingMetronomeSheet({
           >
             <Text style={ms.quietLabel}>{t("recording.meter")}</Text>
             <View style={ms.valuePill}>
-              <Text style={ms.valueText}>{meterLabel}</Text>
+              {expanded === "meter" ? null : <Text style={ms.valueText}>{meterLabel}</Text>}
               <Ionicons name={expanded === "meter" ? "chevron-up" : "chevron-down"} size={13} color={colors.textMuted} />
             </View>
           </Pressable>
@@ -223,13 +234,13 @@ export function RecordingMetronomeSheet({
           {/* Levels stay adjustable mid-take: volume is a live param on the native engine
               (no restart, no phase reset) and haptic strength is JS-side only. Structural
               controls (tempo/meter/count-in/cue toggles) stay locked while recording. */}
-          {outputs.beep ? (
-            <BeepLevelControl beepLevel={beepLevel} onChangeBeepLevel={onChangeBeepLevel} />
-          ) : null}
-
-          {outputs.haptic ? (
-            <HapticStrengthControl hapticLevel={hapticLevel} onChangeHapticLevel={onChangeHapticLevel} />
-          ) : null}
+          <CueLevels
+            outputs={outputs}
+            beepLevel={beepLevel}
+            hapticLevel={hapticLevel}
+            onChangeBeepLevel={onChangeBeepLevel}
+            onChangeHapticLevel={onChangeHapticLevel}
+          />
         </ScrollView>
       )}
     </BottomSheet>
@@ -268,9 +279,9 @@ const s = StyleSheet.create({
     alignSelf: "flex-end",
     alignItems: "center",
     gap: 6,
-    paddingVertical: 8,
+    minHeight: 38,
     paddingHorizontal: 16,
-    borderRadius: radii.round,
+    borderRadius: radii.lg,
     backgroundColor: colors.surfaceContainer,
     marginTop: 12,
   },
@@ -304,14 +315,6 @@ const s = StyleSheet.create({
     alignItems: "center",
     gap: 12,
     flexShrink: 1,
-  },
-  iconTile: {
-    width: 34,
-    height: 34,
-    borderRadius: radii.lg,
-    backgroundColor: "#F2E4DF",
-    alignItems: "center",
-    justifyContent: "center",
   },
   featureCopy: {
     flexShrink: 1,

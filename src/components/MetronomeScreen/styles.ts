@@ -65,12 +65,14 @@ export const styles = StyleSheet.create({
     textTransform: "uppercase",
     marginBottom: spacing.md,
   },
+  // Soft key like every other text button; it keeps its size and solid fill
+  // because it is genuinely THE action on this page.
   primaryAction: {
     marginTop: spacing.lg,
     minWidth: 168,
     minHeight: 46,
     paddingHorizontal: spacing.xxl,
-    borderRadius: radii.round,
+    borderRadius: radii.lg,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: colors.primaryDeep,
